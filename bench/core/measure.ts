@@ -4,15 +4,45 @@
 import { ecartRelatif } from './baseline.ts';
 import { ecart } from './diff.ts';
 import type { Compteur } from './ulp.ts';
-import type {
-  Stats,
-  LigneResultat,
-  Mesure,
-  MesureCas,
-  MesureParams,
-  Reglages,
-  Verdict,
-} from './measureTypes.ts';
+import {
+  resultRow,
+  type Measurement,
+  type ResultRow,
+  type Stats,
+} from '../../site/examples/kit/measureTypes.ts';
+
+/** One named input to measure, or to verify only when `mesure` is `false`. */
+export interface MesureCas<Entree = unknown> {
+  name: string;
+  input: Entree;
+  size?: number | null;
+  mesure?: boolean;
+}
+
+interface Reglages {
+  chauffe: number;
+  tours: number;
+  budgetMs: number;
+}
+
+interface Verdict {
+  correct: boolean | null;
+  difference: string | null;
+  motif: string | null;
+}
+
+/** Parameters of `mesure`: the calculation, its oracle, and the settings it measures under. */
+export interface MesureParams<Entree = unknown, Sortie = unknown> {
+  name: string;
+  fichier: string | string[];
+  cas: MesureCas<Entree>[];
+  options?: Partial<Reglages>;
+  calcul: (input: Entree) => Sortie | Promise<Sortie>;
+  attendu?: (input: Entree) => Sortie | Promise<Sortie>;
+  temoin?: (input: Entree) => unknown;
+  differences?: (ref: Sortie, obt: Sortie, chemin: string) => Compteur;
+  motif?: string | null;
+}
 
 export function graine(depart: number) {
   let etat = depart >>> 0 || 0x9e3779b9;
@@ -32,39 +62,6 @@ function stats(durees: number[]): Stats {
   const i95 = Math.min(Math.ceil(n * 0.95) - 1, n - 1);
   return { medianeMs, p95Ms: t[i95], minMs: t[0], tours: n };
 }
-
-/** Fields of a row not fed by any timer. `null` is never zero. */
-const SANS_MESURE = {
-  medianeMs: null,
-  p95Ms: null,
-  minMs: null,
-  nsParElement: null,
-  tours: 0,
-  opsParSec: null,
-  temoin: null,
-  ecartTemoin: null,
-} as const;
-
-const ligne = ({
-  name,
-  size = null,
-  motif = null,
-  correct = null,
-  difference = null,
-}: {
-  name: string;
-  size?: number | null;
-  motif?: string | null;
-  correct?: boolean | null;
-  difference?: string | null;
-}): LigneResultat => ({
-  name,
-  size,
-  ...SANS_MESURE,
-  correct,
-  difference,
-  motif,
-});
 
 const compteTexte = (c: Compteur) => `${c.nombre} discrepancy(ies), ${c.ulpMax} ULP at most`;
 
@@ -109,15 +106,15 @@ export async function mesure<Entree = unknown, Sortie = unknown>({
   cas,
   options = {},
   ...conf
-}: MesureParams<Entree, Sortie>): Promise<Mesure> {
+}: MesureParams<Entree, Sortie>): Promise<Measurement> {
   const reglages: Reglages = { chauffe: 20, tours: 200, budgetMs: 1000, ...options };
-  const resultats: LigneResultat[] = [];
+  const resultats: ResultRow[] = [];
 
   for (const item of cas) {
     const verdict = await verifie(item, conf);
 
     if (item.mesure === false) {
-      resultats.push(ligne({ ...verdict, name: item.name, size: item.size }));
+      resultats.push(resultRow({ ...verdict, name: item.name, size: item.size ?? null }));
       continue;
     }
 

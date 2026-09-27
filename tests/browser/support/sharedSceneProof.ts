@@ -43,7 +43,7 @@ export function batisseur() {
     materials: G.GraphSurface[] = [];
   return {
     source,
-    ajoute(mesh: G.GraphMesh, pass: string, demi: number) {
+    ajoute(mesh: G.HostMesh, pass: string, demi: number) {
       const rang = primitives.length,
         rayon = demi * Math.SQRT2;
       const pages: Page[] = [0, 1].map((id) => ({
@@ -117,7 +117,7 @@ export const versApi = (matrice: G.Matrix4): Float32Array => new Float32Array(ma
 
 /** The proofs camera: face-on, translated on `x` without changing the optical axis — a pure
  *  slide, where parallax alone separates near from far. */
-export function cameraFace(x = 0): G.GraphCamera {
+export function cameraFace(x = 0): G.Camera {
   const camera = G.perspectiveCamera(55, 1, 0.1, 100);
   camera.position.set(x, 0, 3);
   camera.lookAt(x, 0, 0);

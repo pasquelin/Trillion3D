@@ -30,7 +30,7 @@ function rootsOf(fixture: ReturnType<typeof dagFixture>) {
 }
 
 /** Clusters requested and shown by a cut, flat then hierarchical, under the same camera. */
-function bothCuts(cam: G.GraphCamera) {
+function bothCuts(cam: G.Camera) {
   const cut = (fixture: ReturnType<typeof dagFixture>) => {
     const result = selectVisiblePages(rootsOf(fixture), cameraMoteur(cam), ASK);
     fixture.geometry.dispose();
@@ -111,6 +111,7 @@ test('the hierarchical cut reuses its result and arrays from one frame to the ne
     nodesTested: 0,
     lodLevel: 0,
     complete: true,
+    uncoveredTriangles: 0,
     pixelError: 0,
   };
   const ask = { ...ASK, result, wanted };

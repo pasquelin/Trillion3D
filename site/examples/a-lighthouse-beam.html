@@ -80,13 +80,16 @@
       // What makes a beam visible at night is the air it lights. Two see-through cones stand for
       // that air, apex in the lamp: a brighter narrow core and a fainter halo.
       // Each is built as wide at its far end as it is long, then narrowed to the beam's width.
+      // One layer only, and faint: the engine blends in linear light, so every stacked layer reads
+      // as solid glass rather than lit air. The back side is the one layer a ray crosses from
+      // outside the cone and from inside it alike, so the beam stays when the camera is in it.
       const shaft = geometry.cone(LENGTH, LENGTH, 48, 1, true);
       shaft.translate(0, -LENGTH / 2, 0);
       shaft.rotateZ(Math.PI / 2);
       const sweep = object.group();
       sweep.position.set(0, 7.1, 0);
-      const cones = [[0.5, 0.22], [1, 0.08]].map(([share, opacity]) => {
-        const air = material.meshBasic({ color: '#fff2cc', transparent: true, opacity, depthWrite: false, side: 'double' });
+      const cones = [[0.5, 0.12], [1, 0.05]].map(([share, opacity]) => {
+        const air = material.meshBasic({ color: '#fff2cc', transparent: true, opacity, depthWrite: false, side: 'back' });
         const cone = object.mesh(shaft, air);
         cone.rotation.z = -TILT;
         sweep.add(cone);

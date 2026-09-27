@@ -1,0 +1,179 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { BASE_SLOTS } from '../draw/contract.ts';
+import { VERDICT_KEPT, VERDICT_OCCLUDER, VERDICT_REJECTED } from '../partition/contract.ts';
+import { REST_COMPACT_WORKGROUP as TILE } from './restCompactWgsl.ts';
+
+// The tested half used to be truncated after its last survivor (`restMark`, `restApply`): the
+// rejected instances before it were still drawn, each vertex discarded by the vertex stage. It is
+// now compacted (`restCount`, `restScan`, `restScatter`). Below, both transcribed line by line:
+// the second pass must draw the same instances, in the same order, minus every rejected one — on
+// random slot layouts and verdicts, slots of more tiles than lanes, slots longer than the
+// dispatch, and empty ones.
+
+const NONE = 0xffffffff;
+type Frame = {
+  instances: Uint32Array;
+  indirect: Uint32Array;
+  offsets: number[];
+  hizSlots: Uint32Array;
+  hizFlags: Uint32Array;
+  restSlots: number;
+  tiles: number;
+};
+
+const restSlotAt = (n: number) =>
+  Math.floor(n / (BASE_SLOTS / 2)) * BASE_SLOTS + BASE_SLOTS / 2 + (n % (BASE_SLOTS / 2));
+const survives = (f: Frame, row: number) =>
+  !(f.hizSlots[row] !== NONE && f.hizFlags[f.hizSlots[row]] === VERDICT_REJECTED);
+
+/** Develop: the count becomes the rank of the last survivor the dispatch reaches. */
+function truncate(f: Frame) {
+  for (let n = 0; n < f.restSlots; n++) {
+    const slot = restSlotAt(n);
+    let last = 0;
+    for (let x = 0; x < Math.min(f.indirect[slot * 4 + 1], f.tiles * TILE); x++)
+      if (survives(f, f.instances[f.offsets[slot] + x])) last = x + 1;
+    f.indirect[slot * 4 + 1] = last;
+  }
+}
+
+/** #923: count, scan and scatter, with `work` laid out as the shader lays it out. */
+function compact(f: Frame) {
+  const copyWords = f.instances.length;
+  const work = new Uint32Array(copyWords + f.restSlots * (1 + f.tiles)).fill(0xdeadbeef);
+  const countWord = (n: number) => copyWords + n;
+  const tileWord = (n: number, t: number) => copyWords + f.restSlots + n * f.tiles + t;
+  for (let n = 0; n < f.restSlots; n++)
+    for (let t = 0; t < f.tiles; t++) {
+      const slot = restSlotAt(n);
+      const count = Math.min(f.indirect[slot * 4 + 1], f.tiles * TILE);
+      let kept = 0;
+      for (let lane = 0; lane < TILE; lane++) {
+        const x = t * TILE + lane;
+        if (x >= count) continue;
+        const at = f.offsets[slot] + x;
+        work[at] = f.instances[at];
+        if (survives(f, work[at])) kept++;
+      }
+      work[tileWord(n, t)] = kept;
+      if (t === 0) work[countWord(n)] = count;
+    }
+  // The scan over the lanes is a serial exclusive sum of the slot's tile counts, term for term.
+  for (let n = 0; n < f.restSlots; n++) {
+    let cursor = 0;
+    for (let t = 0; t < Math.ceil(work[countWord(n)] / TILE); t++) {
+      const kept = work[tileWord(n, t)];
+      work[tileWord(n, t)] = cursor;
+      cursor += kept;
+    }
+    f.indirect[restSlotAt(n) * 4 + 1] = cursor;
+  }
+  // Tiles in reverse: each reads the copy, so no order between them can change what they write.
+  for (let n = 0; n < f.restSlots; n++)
+    for (let t = f.tiles - 1; t >= 0; t--) {
+      const start = f.offsets[restSlotAt(n)];
+      let rank = 0;
+      for (let lane = 0; lane < TILE; lane++) {
+        const x = t * TILE + lane;
+        if (x >= work[countWord(n)] || !survives(f, work[start + x])) continue;
+        f.instances[start + work[tileWord(n, t)] + rank++] = work[start + x];
+      }
+    }
+}
+
+/** What the second pass draws per slot: the instances its command counts that the vertex stage
+ *  does not discard, in draw order. */
+function drawn(f: Frame) {
+  return Array.from({ length: f.offsets.length }, (_, slot) =>
+    Array.from(f.instances.subarray(f.offsets[slot], f.offsets[slot] + f.indirect[slot * 4 + 1])),
+  );
+}
+
+function frame(rand: () => number): Frame {
+  const layers = 1 + Math.floor(rand() * 3),
+    slots = BASE_SLOTS * layers;
+  const mode = rand();
+  const counts = Array.from({ length: slots }, () =>
+    rand() < 0.2 ? 0 : Math.floor(rand() * (mode < 0.05 ? 9000 : mode < 0.3 ? 400 : 90)),
+  );
+  const offsets: number[] = [];
+  let total = 0;
+  for (const count of counts) offsets.push((total += count) - count);
+  const rows = 1 + Math.floor(rand() * 500);
+  const verdicts = [VERDICT_OCCLUDER, VERDICT_KEPT, VERDICT_REJECTED];
+  const reject = rand();
+  const hizFlags = Uint32Array.from({ length: rows }, () =>
+    rand() < reject ? VERDICT_REJECTED : verdicts[Math.floor(rand() * 2)],
+  );
+  const hizSlots = Uint32Array.from({ length: rows }, (_, row) =>
+    rand() < 0.1 ? NONE : (row * 7) % rows,
+  );
+  const indirect = new Uint32Array(slots * 4);
+  counts.forEach((count, slot) => (indirect[slot * 4 + 1] = count));
+  return {
+    instances: Uint32Array.from({ length: total }, () => Math.floor(rand() * rows)),
+    indirect,
+    offsets,
+    hizSlots,
+    hizFlags,
+    restSlots: (BASE_SLOTS / 2) * layers,
+    // The dispatch covers the drawable rows, sometimes fewer than a slot holds.
+    tiles: Math.ceil((rand() < 0.2 ? 1 + Math.floor(rand() * 100) : Math.max(1, total)) / TILE),
+  };
+}
+
+const clone = (f: Frame): Frame => ({
+  ...f,
+  instances: Uint32Array.from(f.instances),
+  indirect: Uint32Array.from(f.indirect),
+});
+
+test('compaction draws what truncation drew, in the same order, and no rejected instance', () => {
+  let seed = 923;
+  const rand = () => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32) as number;
+  let dropped = 0;
+  for (let trial = 0; trial < 500; trial++) {
+    const f = frame(rand),
+      before = clone(f),
+      after = clone(f);
+    truncate(before);
+    compact(after);
+    const was = drawn(before),
+      is = drawn(after);
+    for (let slot = 0; slot < was.length; slot++) {
+      // An occluder slot is neither truncated nor compacted: it draws as it was.
+      const tested = slot % BASE_SLOTS >= BASE_SLOTS / 2;
+      const kept = tested ? was[slot].filter((row) => survives(f, row)) : was[slot];
+      assert.deepEqual(is[slot], kept, `trial ${trial}, slot ${slot}`);
+      dropped += was[slot].length - kept.length;
+    }
+  }
+  // The sweep did meet rejected instances inside the truncated range.
+  assert.ok(dropped > 0);
+});
+
+test('edge cases: all rejected draws nothing, all kept is left as it was, half keeps its order', () => {
+  const edge = (hizSlots: number[]) => {
+    const f: Frame = {
+      instances: Uint32Array.from({ length: 200 }, (_, i) => i % 2),
+      indirect: new Uint32Array(BASE_SLOTS * 4),
+      offsets: [0, 0, 0, 0, 100, 100],
+      hizSlots: Uint32Array.from(hizSlots),
+      hizFlags: Uint32Array.from([VERDICT_REJECTED]),
+      restSlots: BASE_SLOTS / 2,
+      tiles: 4,
+    };
+    f.indirect[3 * 4 + 1] = 100;
+    f.indirect[4 * 4 + 1] = 100;
+    compact(f);
+    return [f.indirect[3 * 4 + 1], f.indirect[4 * 4 + 1], [...f.instances]] as const;
+  };
+  assert.deepEqual(edge([0, 0]).slice(0, 2), [0, 0]);
+  const kept = edge([NONE, NONE]);
+  assert.deepEqual(kept, [100, 100, Array.from({ length: 200 }, (_, i) => i % 2)]);
+  const half = edge([0, NONE]);
+  assert.deepEqual(half.slice(0, 2), [50, 50]);
+  assert.deepEqual(half[2].slice(0, 50), new Array(50).fill(1));
+  assert.deepEqual(half[2].slice(100, 150), new Array(50).fill(1));
+});

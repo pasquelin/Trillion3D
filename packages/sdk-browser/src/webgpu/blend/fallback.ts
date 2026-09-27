@@ -6,6 +6,8 @@ import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 import { drawnBlending } from '../../scene/materialBlending.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { createWebgpuBlendState } from './state.ts';
+import { fallbackMode } from '../pages/prepare/shaders.ts';
+import { FLAG_CLUSTER_PAGE } from '../../visibility/buffer.ts';
 
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
@@ -87,13 +89,14 @@ export function writeFallbackBlendUniforms(
     }
     uniformPacked.set(viewProj, base);
     uniformPacked.set(item.matrix.elements, base + 16);
-    uniformPacked[base + 32] = item.rgba[0];
-    uniformPacked[base + 33] = item.rgba[1];
-    uniformPacked[base + 34] = item.rgba[2];
-    uniformPacked[base + 35] = item.rgba[3];
+    uniformPacked[base + 32] = surface!.baseColor[0];
+    uniformPacked[base + 33] = surface!.baseColor[1];
+    uniformPacked[base + 34] = surface!.baseColor[2];
+    uniformPacked[base + 35] = surface!.opacity;
     packedInts[base + 36] = list[at + 1];
     packedInts[base + 37] = list[at + 2];
-    packedInts[base + 38] = run.diagnostic === 'wireframe' ? 1 : 0;
+    // A paged item read from its quantized pages decodes its corners there, as an opaque row does.
+    packedInts[base + 38] = fallbackMode(run.diagnostic, (item.flags & FLAG_CLUSTER_PAGE) !== 0);
     packedInts[base + 39] = item.flags;
     // No width and no dash: the words a line page of the opaque draw may have left here.
     uniformPacked[base + 40] = 0;
@@ -145,7 +148,8 @@ export function drawFallbackBlendPass(
         layout: gpu.bindGroupLayout!,
         entries: [
           { binding: 0, resource: { buffer: item.index ?? gpu.cache!.buffer } },
-          { binding: 1, resource: { buffer: item.position } },
+          // Read from its pages, it reads no float position: the smallest buffer stands in.
+          { binding: 1, resource: { buffer: item.position ?? gpu.zeroUv! } },
           { binding: 2, resource: { buffer: gpu.uniformBuffer!, size: UNIFORM_STRIDE } },
         ],
       });

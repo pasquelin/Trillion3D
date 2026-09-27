@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "اسحب لتفحّص انعكاسات المعدن المصقول وغيّر قوتها واتجاهها.",
+    "controls": {
+      "anisotropy": "قوة الصقل",
+      "direction": "اتجاه الصقل",
+      "roughness": "الخشونة",
+      "spin": "الدوران"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "تحرّك حول السيارة وغيّر الطلاء والطبقة الشفافة فوقه.",
+    "controls": {
+      "paint": "الطلاء",
+      "clearCoat": "الطبقة الشفافة",
+      "coatRoughness": "خشونة الطبقة",
+      "spin": "الدوران"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "الإعدادات"
@@ -36,7 +54,8 @@
       "engine CPU": "CPU المحرك"
     },
     "failure": {
-      "title": "توقف هذا المثال بسبب خطأ"
+      "title": "توقف هذا المثال بسبب خطأ",
+      "missingCache": "ذاكرة التخزين المؤقت المُجمَّعة مفقودة: شغّل pnpm compile:caches"
     },
     "banner": {
       "close": "إغلاق"
@@ -309,6 +328,13 @@
       "roof": "السقف"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "اسحب لتدور حول المشهد. غيّر عرض المصباح وشاهد حواف الظل.",
+    "controls": {
+      "lampWidth": "عرض المصباح",
+      "moveSubject": "حرّك المجسم"
+    }
+  },
   "a-softbox-panel": {
     "banner": "اسحب لتمشي حولها. كبّر لوح الضوء ليصير اللمعان أنعم.",
     "controls": {
@@ -474,6 +500,14 @@
       "balloon": "تتبع المنطاد"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "دُر حول الرافعة بينما يدير مقطع واحد الذراع ويحرك العربة ويرفع الحمولة ويجعلها تتأرجح.",
+    "controls": {
+      "speed": "السرعة",
+      "paused": "متوقف",
+      "replay": "إعادة التشغيل"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "اسحب لتنظر حولك. اجعل موجة المكعّبات أعلى أو أسرع.",
     "controls": {
@@ -482,6 +516,20 @@
       "ripples": "التموجات",
       "inner": "الداخل",
       "outer": "الخارج"
+    }
+  },
+  "doors-that-open": {
+    "banner": "حرّك الكاميرا نحو الأبواب. تفتح عندما تقترب.",
+    "controls": {
+      "mode": "الوضع",
+      "openingDistance": "مسافة الفتح",
+      "openness": "مقدار الفتح"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "القرب",
+        "manual": "يدوي"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -535,6 +583,17 @@
       "lamp": "المصباح",
       "colour": "اللون",
       "bricks": "الطوب"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "انقر سطحين لقياس المسافة بينهما. النقرة الثالثة تبدأ قياسًا جديدًا. تمثل كل وحدة مترًا واحدًا.",
+    "controls": {
+      "clear": "مسح"
+    },
+    "readouts": {
+      "pointA": "النقطة أ",
+      "pointB": "النقطة ب",
+      "distance": "المسافة"
     }
   },
   "click-to-pick": {
@@ -941,7 +1000,11 @@
     "banner": "اسحب للنظر حولك. فعّل القيادة لتأخذ السيارة: W أو ↑ للتسارع، S أو ↓ للكبح، A D أو ← → للتوجيه. الإسقاط يعيد إسقاط الصناديق والكرات.",
     "words": {
       "credit": "وادٍ نُمذج بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md",
-      "refused": "مرفوض على هذه الواجهة الخلفية"
+      "refused": "مرفوض على هذه الواجهة الخلفية",
+      "close": "لقطة قريبة",
+      "far": "منظر بعيد",
+      "pan": "مسح سريع",
+      "still": "ثابت"
     },
     "controls": {
       "drive": "قيادة السيارة",
@@ -1227,6 +1290,25 @@
         "lod": "مستويات التفاصيل",
         "clusters": "العناقيد"
       }
+    }
+  },
+  "a-walk-through-the-city": {
+    "banner": "انقر على المشهد، وامشِ بمفاتيح W A S D وانظر بالفأرة. خفّض ميزانية الذاكرة أثناء الحركة.",
+    "controls": {
+      "walkSpeed": "سرعة المشي",
+      "memory": "الذاكرة",
+      "view": "العرض",
+      "home": "العودة إلى البداية"
+    },
+    "choices": {
+      "view": {
+        "beauty": "الصورة النهائية",
+        "lod": "مستويات التفاصيل",
+        "clusters": "العناقيد"
+      }
+    },
+    "words": {
+      "credit": "شارع جرار صُمّم بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md"
     }
   },
   "migrating-from-three": {
@@ -1676,6 +1758,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "تباين اتجاه المسار الرابع"
+    }
+  },
+  "the-home-pose": {
+    "banner": "اختر عرضًا، وحرّك الكاميرا، ثم اختر البداية للعودة.",
+    "controls": {
+      "home": "البداية",
+      "tower": "البرج",
+      "square": "الساحة",
+      "hillside": "التل"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "حرّك المستوى القريب إلى الأمام وشاهده يقطع كل جدار.",
+    "controls": {
+      "nearPlane": "المستوى القريب"
     }
   },
   "the-material-family": {
@@ -2141,6 +2238,72 @@
     },
     "words": {
       "credit": "علم على سارية نُمذج بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "مرّر المؤشر فوق أجزاء العربة لإبراز كل جزء، أو أوقف الإبراز من اللوحة.",
+    "controls": {
+      "highlightEnabled": "تفعيل الإبراز"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "أوقف حركة الكاميرا مؤقتًا أو أعد الرحلة أو غيّر سرعتها أثناء سيرها على طول القناة.",
+    "controls": {
+      "paused": "متوقفة مؤقتًا",
+      "replay": "إعادة",
+      "speed": "السرعة"
+    },
+    "readouts": {
+      "progress": "التقدم"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "اسحب لتفحص زاوية الشارع. دمج المصرّف ثلاثة ملفات OBJ من مجلد واحد في هذا المشهد.",
+    "controls": {
+      "visible": "مرئي",
+      "home": "العرض الأولي"
+    },
+    "words": {
+      "credit": "نموذج عمود إنارة من W. Sitters، CC BY 3.0 — انظر assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "اسحب الصندوق عبر الأرضية. فعّل المحاذاة لوضعه بخطوات نصف متر.",
+    "controls": {
+      "snap": "محاذاة",
+      "home": "البداية"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "انقر على شكل لتحديده. انقر على الأرض لمسح التحديد.",
+    "controls": {
+      "color": "اللون",
+      "thickness": "السماكة"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "اسحب لتدور حول الحقل. غيّر العدد أو طريقة العرض.",
+    "controls": {
+      "count": "العدد",
+      "view": "العرض"
+    },
+    "readouts": {
+      "objectsShown": "المعروض",
+      "objectsBuilt": "المبني"
+    },
+    "choices": {
+      "view": {
+        "beauty": "الصورة النهائية",
+        "clusters": "العناقيد"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "ثبّت العارض أو أزله. كل تثبيت يملك عالماً واحداً، وكل إزالة تتخلّص منه.",
+    "controls": {
+      "mount": "تثبيت",
+      "unmount": "إزالة",
+      "remount": "إعادة التثبيت"
     }
   }
 }

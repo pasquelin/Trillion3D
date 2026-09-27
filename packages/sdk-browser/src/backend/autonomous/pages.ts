@@ -4,12 +4,11 @@ import { attachedPages, autonomousPlacements } from '../../placement/autonomousP
 import { collectClusterPages, indexPagesByUrl } from '../../page/selection/selection.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { createAutonomousRender, createAutonomousRenderState } from './render.ts';
-import { autonomousCapabilities } from './capabilities.ts';
+import { autonomousCapabilities, publishAutonomousCapabilities } from './capabilities.ts';
 import { createWebglFrameGate } from '../../webgl/core/frameGate.ts';
-import { decodePageOffThread } from '../../page/decode/host.ts';
 import { createAutonomousGeometry } from './geometry.ts';
 import { createAutonomousInstances } from './instances.ts';
-import { prepareAutonomousManifest, autonomousBootstrap } from './manifest.ts';
+import { prepareAutonomousManifest, autonomousBootstrap, readPages } from './manifest.ts';
 import { createAutonomousResidency } from './residency.ts';
 import { createAutonomousPool } from './poolApi.ts';
 import { createHeldFloor } from './heldFloor.ts';
@@ -22,7 +21,7 @@ import type { HostMaterial } from '../../host/resources.ts';
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
   const { metadata, descriptors } = prepareAutonomousManifest(context.metadata);
-  const { roots, allPages, worlds, blendCopies } = collectClusterPages(
+  const { roots, allPages, worlds, blendCopies, reassignBlend, blendOf } = collectClusterPages(
     context.source,
     metadata,
     new Map(),
@@ -39,17 +38,15 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     pageDefault = context.residentPagesDefault ?? Math.max(1024, bootstrapUrls.size),
     cap = hostCeiling < Infinity ? hostCeiling : pageDefault,
     scene = hostPageScene(blendCopies);
-  // The cut drawn, the cut wanted, and what the image asks the pool for (`imageCut.ts`).
   const lists = { shown: [] as PageRec[], desired: [] as PageRec[], requested: [] as PageRec[] };
   const baseMaterials = new Map(allPages.map((rec) => [rec, rec.declaration] as const)),
     colorMaterials = new Map<HostMaterial, HostMaterial>();
   const modifiedPages = new Set<string>();
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
-    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, context.pixelRatio);
-  // The engine's own lighting: the cache's radiometric light table where it declares one, the
-  // source graph's lights otherwise (`../../lighting/contractLightingApi.ts`). A transmissive
-  // surface is not paged: it is a copy the program draws whole (`hostPageScene`).
+    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, context);
+  // The engine's own lighting: the cache's light table, else the source graph's lights
+  // (`../../lighting/contractLightingApi.ts`). A transmissive surface is a copy drawn whole.
   const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
   let ready = false;
   const geometryStore = createAutonomousGeometry({
@@ -65,8 +62,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   });
   const { sync, acceptGeometryPage } = geometryStore;
   // The tables a placement enters: instances and instance-buffer rows append to the same.
-  const tables = { roots, allPages, bootstrap, byUrl, baseMaterials };
-  const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl });
+  const tables = { roots, allPages, bootstrap, byUrl, baseMaterials, blendOf };
+  const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl, hostCeiling });
   const ceiling =
     hostCeiling < Infinity ? () => hostCeiling : () => Math.max(pageDefault, heldFloor.meshes());
   const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
@@ -76,7 +73,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     baseBootstrap,
     geometryStore,
     hostCeiling,
-    coverMeshes: heldFloor.meshes,
+    overCeiling: heldFloor.overCeiling,
     sceneChanged: gate.sceneChanged,
     coverChanged: heldFloor.placed,
   });
@@ -87,7 +84,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     geometryStore,
   });
   const pool = createAutonomousPool({
-    byUrl,
+    ...tables,
     context,
     descriptors,
     bootstrapUrls,
@@ -128,20 +125,15 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     },
     async prepare() {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
-      if (heldFloor.meshes() > hostCeiling) throw new Error('AUTONOMOUS_ROOT_BUDGET');
-      await Promise.all(
-        [...bootstrapUrls].map(async (url) => {
-          context.signal?.throwIfAborted();
-          const bytes = await context.readGeometryPage!(url);
-          context.signal?.throwIfAborted();
-          acceptGeometryPage(url, await decodePageOffThread(bytes, context.signal));
-        }),
-      );
+      if (heldFloor.overCeiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
+      const urls = [...bootstrapUrls];
+      (await readPages(context, urls)).forEach((data, i) => acceptGeometryPage(urls[i], data));
       heldFloor.changed();
       ready = true;
       for (const page of bootstrap) lists.shown.push(page); // a spread overflows the stack
       sync();
       residency.keptChanged();
+      publishAutonomousCapabilities(context.onDiagnostic);
     },
     render(camera) {
       hostDraw.render(camera);
@@ -151,10 +143,13 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     ...instances,
     ...autonomousPlacements({
       ...tables,
+      context,
+      descriptors,
+      bootstrapUrls,
       blendCopies,
       scene,
       gate,
-      rowsWritten: geometryStore.rowsWritten,
+      geometryStore,
       coverChanged: heldFloor.placed,
     }),
     ...lightingApi,
@@ -166,15 +161,16 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       gate.resourcesChanged();
       sync();
     },
-    refreshMaterials(values = true) {
+    refreshMaterials(values = true, alpha) {
       // Values reach the twins, clones; a picture alone (#362), shared, only lets the image go.
       if (values) colorMaterials.forEach((twin, original) => colouredHostSurface(original, twin));
+      if (alpha && reassignBlend(allPages, alpha)) heldFloor.changed();
       (values ? gate.sceneChanged : gate.resourcesChanged)();
     },
     metrics() {
       return {
         clusters: state.visible,
-        selectedTriangles: state.selectedTriangles,
+        ...state.triangles,
         ...pool.metrics,
         cacheEvictions: residency.cacheEvictions,
         frustumRejected: state.frustumRejected,

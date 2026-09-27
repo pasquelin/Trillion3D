@@ -11,6 +11,7 @@ import { createGeometryBudget } from './pool.ts';
 import { PAGE } from './pool.fixture.ts';
 import { createImageCut } from './imageCut.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
+import { createPageParents } from '../../residency/pageParents.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { ClusterRoot, ClusterStructureIndex, PageRec } from '../../page/selection/types.ts';
 
@@ -47,10 +48,20 @@ export function mount(
   const state = { allocationBytes: 0 },
     // The pool's loads and drops below move the cut's readiness, as the page store's do.
     held = createHeldResidency(),
-    kept = new Set<string>(),
-    asked = new Set<string>(),
     diagnostics: BackendDiagnostic[] = [];
   for (const page of byUrl.values()) if (page.array) state.allocationBytes += bytes(page.url);
+  const roots = primitives.map((pages, i) => ({
+    ...racine(pages),
+    structure: structures[i],
+  })) as unknown as ClusterRoot<PageRec>[];
+  /** A page leaves: its geometry and bytes go, and the cut's readiness hears of it. */
+  const drop = (url: string) => {
+    const page = byUrl.get(url)!;
+    if (!page.array) return;
+    page.array = undefined;
+    held.moved(page as PageRec);
+    state.allocationBytes -= bytes(url);
+  };
   const rootBytes = rootPages.reduce((sum, page) => sum + bytes(page.url), 0);
   const pool = createGeometryBudget({
     budgetBytes,
@@ -70,21 +81,11 @@ export function mount(
     coverRevision: () => 0,
     state,
     floorBytes: () => rootBytes,
-    kept: () => kept,
-    drop: (url) => {
-      const page = byUrl.get(url)!;
-      if (!page.array) return;
-      page.array = undefined;
-      held.moved(page as PageRec);
-      state.allocationBytes -= bytes(url);
-    },
+    parentsOf: createPageParents(roots),
+    drop,
     onDiagnostic: (diagnostic) => diagnostics.push(diagnostic),
   });
   let camera = view ?? dagCamera();
-  const roots = primitives.map((pages, i) => ({
-    ...racine(pages),
-    structure: structures[i],
-  })) as unknown as ClusterRoot<PageRec>[];
   const shown: PageRec[] = [],
     desired: PageRec[] = [],
     requested: PageRec[] = [];
@@ -104,22 +105,13 @@ export function mount(
    *  read. */
   const frame = { after: 0, stand: 0 };
   let last: ReturnType<typeof cut> | undefined;
-  /** What the pool keeps just before a cut: the root cover and the requests (`askedUrls`). */
-  const gatherAsked = () => {
-    asked.clear();
-    for (const page of rootPages) asked.add(page.url);
-    for (const page of requested) asked.add(page.url);
-  };
   // The order of `render.ts`'s frame, copied by hand: readmit, trim, cut, then what it keeps.
   const image = (pixelError: number, arrivals = Infinity) => {
-    if (cut.readmit()) gatherAsked();
-    pool.trim(() => asked);
+    if (cut.readmit()) pool.follow(requested, shown);
+    pool.trim();
     const drawn = (last = cut(cameraMoteur(camera), pixelError));
     frame.after = state.allocationBytes;
-    gatherAsked();
-    kept.clear();
-    for (const url of asked) kept.add(url);
-    for (const page of drawn.shown) kept.add(page.url);
+    pool.follow(requested, shown);
     // The resident pages drawn in place of missing ones: the ancestors a refinement replaces.
     const wanted = new Set(drawn.wanted);
     frame.stand = drawn.shown.filter((page) => !wanted.has(page)).length;
@@ -140,6 +132,8 @@ export function mount(
   return {
     pool,
     state,
+    /** Takes a page away as the pool evicts one — a root-cover page included. */
+    drop,
     diagnostics,
     image,
     frame,

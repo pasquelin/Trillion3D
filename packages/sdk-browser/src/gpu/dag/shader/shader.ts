@@ -9,6 +9,7 @@ import { DAG_WANTED_WGSL } from './wantedWgsl.ts';
 import { DAG_LIVE_WGSL } from './liveWgsl.ts';
 import { DAG_LEVEL_WGSL } from './levelWgsl.ts';
 import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts';
+import { DAG_EVICT_WGSL } from './evictWgsl.ts';
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
 import { DAG_PAGES_WGSL } from './pagesWgsl.ts';
 import { CASTS_NO_SHADOW, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts';
@@ -16,11 +17,9 @@ import { DAG_VIEWS_WGSL, LIST_FULL } from './viewsWgsl.ts';
 import { DAG_RECORD_WGSL } from './recordWgsl.ts';
 import { DAG_AHEAD_WGSL } from './aheadWgsl.ts';
 import { CUT_RULE_WGSL } from '../../../page/cut/rule.ts';
-import {
-  CONE_LENGTH_RATIO_WGSL,
-  CONE_ORTHO_EPS_WGSL,
-  HALF_PI_WGSL,
-} from '../../../../../sdk-core/src/index.ts';
+import { DAG_CONE_WGSL } from './coneWgsl.ts';
+import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts';
+import { FRAME_VEC4 } from '../types.ts';
 
 export const DAG_SELECTION_SHADER = `struct Cluster{sphere:vec4f,parentSphere:vec4f,lodError:f32,parentError:f32,flags:u32,}
 struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sphere:vec4f,worldIndex:u32,firstPage:u32,pageCount:u32,childCount:u32,floorSphere:vec4f,errorFloor:f32,open:u32,pad0:u32,pad1:u32,}
@@ -36,13 +35,25 @@ ${DAG_BINDINGS_WGSL}
 /** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
  *  every comparison below behaves exactly as the CPU cut's Infinity for any finite threshold. */
 const INF:f32=3.4e38;
-const FRAME:u32=7u;
+/** Vec4s per slot of \`frames\`: six planes, then the primitive's words (\`../worlds.ts\`). */
+const FRAME:u32=${FRAME_VEC4}u;
 /** Frustum planes live in the primitive's own space, so no box is ever transformed.
- *  GPU mirror of \`frustumExcludesBox\` (sdk-core, packages/sdk-core/src/math/frustum/box.ts): same corners, same sum. */
+ *  GPU mirror of \`frustumExcludesBox\` (sdk-core, packages/sdk-core/src/math/frustum/box.ts): same corners, same sum.
+ *  An infinite far plane is not tested (\`farless\`): it rejects no box. */
 fn outsideFrustum(base:u32,bmin:vec3f,bmax:vec3f)->bool{
- for(var i=0u;i<6u;i++){if(outsidePlane(frames[base+i],bmin,bmax)){return true;}}
+ let skip=select(6u,FAR_PLANE,farless());
+ for(var i=0u;i<6u;i++){if(i!=skip&&outsidePlane(frames[base+i],bmin,bmax)){return true;}}
  return false;
 }
+/** Rank of the far plane among the six (\`frustum.ts\`: right, left, bottom, top, far, near). */
+const FAR_PLANE:u32=4u;
+/** True when the view has no far plane: an infinite one reaches the kernel as a NaN plane
+ *  (\`frustum.ts\`, zero normal normalized), which no comparison satisfies, and a NaN stays NaN
+ *  through \`dagPrepare\`'s product. Read at the bit on the uniform, a NaN test no compiler folds. */
+fn farless()->bool{return (bitcast<u32>(views[vi].planes[FAR_PLANE].x)&0x7fffffffu)>0x7f800000u;}
+/** View \`v\`'s six planes, brought into a primitive's space by \`m\` (its transposed world), from
+ *  \`frames[at]\` on; \`open\`: six planes no box leaves. */
+fn putPlanes(at:u32,m:mat4x4f,v:u32,open:bool){for(var i=0u;i<6u;i++){frames[at+i]=select(m*views[v].planes[i],vec4f(0.0,0.0,0.0,1.0),open);}}
 /** True when the box lies wholly behind the plane: its corner furthest along the normal is. */
 fn outsidePlane(plane:vec4f,bmin:vec3f,bmax:vec3f)->bool{
  let px=select(bmin.x,bmax.x,plane.x>0.0);let py=select(bmin.y,bmax.y,plane.y>0.0);let pz=select(bmin.z,bmax.z,plane.z>0.0);
@@ -50,67 +61,14 @@ fn outsidePlane(plane:vec4f,bmin:vec3f,bmax:vec3f)->bool{
 }
 /** True on a primitive no camera culls (\`SPRITE_UNCULLED\`). */
 fn unculledOf(w:u32)->bool{return (markOf(w)&${SPRITE_UNCULLED}u)!=0u;}
-/** GPU mirror of \`isConformal\` (../../../page/cone/cone.ts): 3x3 divided by the sum of its absolute values,
- *  relative tolerances only; null, infinite or NaN sum (read at the bit): cluster kept. */
-fn isConformal(m:mat3x3f)->bool{
- let s=abs(m[0])+abs(m[1])+abs(m[2]);let t=s.x+s.y+s.z;
- if(!(t>0.0)||(bitcast<u32>(t)&0x7f800000u)==0x7f800000u){return false;}
- let a=m[0]/t;let b=m[1]/t;let c=m[2]/t;
- let lx2=dot(a,a);let ly2=dot(b,b);let lz2=dot(c,c);
- let maxl=max(lx2,max(ly2,lz2));let minl=min(lx2,min(ly2,lz2));
- if(maxl>minl*${CONE_LENGTH_RATIO_WGSL}){return false;}
- let eps=maxl*${CONE_ORTHO_EPS_WGSL};
- return abs(dot(a,b))<=eps&&abs(dot(a,c))<=eps&&abs(dot(b,c))<=eps;
-}
-/** GPU mirror of \`coneCullsPageWith\` (../../../page/cone/cone.ts): same tolerances (packages/sdk-core/src/math/primitives/cone.ts), same operands.
- *  \`world\` is a world matrix of the RENDER FRAME, where the camera is the origin: the vector from
- *  the box centre to the eye is the opposite of that centre, and subtracting two distant positions
- *  no longer happens. Same geometry as the CPU mirror, which works in absolute world space. */
-/** The camera as one homogeneous point of the render frame (\`EngineCamera.viewPoint\`): the origin
- *  under a perspective projection, the way back — the view's third row — under an orthographic one. */
-fn viewPoint()->vec4f{
- let back=vec3f(views[vi].view[0].z,views[vi].view[1].z,views[vi].view[2].z);
- return vec4f(back*(1.0-views[vi].perspective),views[vi].perspective);
-}
-fn coneRejectsBox(cone:vec4f,bmin:vec3f,bmax:vec3f,world:mat4x4f)->bool{
- if(cone.w>=${HALF_PI_WGSL}){return false;}
- let m=mat3x3f(world[0].xyz,world[1].xyz,world[2].xyz);
- if(!isConformal(m)){return false;}
- let c=0.5*(bmin+bmax);let e=0.5*(bmax-bmin);
- let center=(world*vec4f(c,1.0)).xyz;
- let we=abs(world[0].xyz)*e.x+abs(world[1].xyz)*e.y+abs(world[2].xyz)*e.z;
- let eye=viewPoint();
- let toCam=eye.xyz-center*eye.w;
- let dist=length(toCam);
- if(dist==0.0){return false;}
- let view=toCam/dist;
- let axis=inverseTranspose3(m,cone.xyz);
- let al=length(axis);
- if(!(al>0.0)){return false;}
- let axisWorld=axis/al;
- let radius=length(we);
- if(dist<=radius*eye.w){return false;}
- let spread=asin(clamp(radius*eye.w/dist,0.0,1.0));
- let d=dot(axisWorld,view);
- return d<-sin(cone.w+spread)&&(cone.w+spread)<${HALF_PI_WGSL};
-}
-fn coneRejects(r:u32,w:u32)->bool{
- if(hasBox(r)==0.0){return false;}
- return coneRejectsBox(coneOf(r),boxMin(r),boxMax(r),worlds[w]);
-}
-/** Cone reject depends only on the page, its world and the camera: it is therefore the same for
- *  the five passes of one frame. \`dagWanted\` computes it once per visible page and stores it
- *  behind the draw flags; later passes reread it instead of redoing \`asin\`, \`sin\` and the two
- *  \`length\`s. They only read it for a visible page, the only one it was written for. */
-fn coneCache(index:u32)->u32{return views[0u].queueCap+views[0u].clusterCount+index;}
-fn coneRejected(index:u32)->bool{return flags[coneCache(index)]!=0u;}
 fn visible(r:u32,w:u32,cluster:Cluster)->bool{
  if((cluster.flags&2u)!=0u){return false;}
  return !outsideFrustum(slotOf(w)*FRAME,boxMin(r),boxMax(r))&&!pageMissed(w,boxMin(r),boxMax(r));
 }
 fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*views[vi].cameraStretch;}
 /** Reset and per-primitive planes in a single dispatch: the output counters and block counts
- *  \`dagMask\` accumulates, and the frustum planes only the descent reads.
+ *  \`dagMask\` accumulates, the frustum planes only the descent reads, and what a camera cut
+ *  derives once per primitive (\`primitiveWgsl.ts\`).
  *  One thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot is its primitive. */
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
@@ -122,7 +80,7 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
   else{atomicAnd(&out.overflow,${LIST_FULL}u);}
   atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
  }
- if(t<blockCount()){atomicStore(&work[blockBase()+t],0u);}
+ if(t<blockCount()){atomicStore(&work[blockBase()+t],0u);atomicStore(&work[drawMaskBase()+2u*t],0u);atomicStore(&work[drawMaskBase()+2u*t+1u],0u);}
  if(t<views[0u].viewCount){atomicStore(&work[viewWord(0u,t)],0u);atomicStore(&work[viewWord(2u,t)],0u);}
  if(t==0u){atomicStore(&work[drawnGroupsMax()],0u);countFrame();}
  let world=views[0u].worldCount;
@@ -132,10 +90,11 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  // light cut opens none on a primitive that casts no shadow (\`markOf\`, \`castsNoShadow\`).
  let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&${CASTS_NO_SHADOW}u)!=0u);
  flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
- let m=transpose(worlds[w]);let base=slot*FRAME;
+ let pose=worlds[w];let m=transpose(pose);let base=slot*FRAME;
  // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
  let open=!isLightCut()&&unculledOf(w);
- for(var i=0u;i<6u;i++){frames[base+i]=select(m*views[vi].planes[i],vec4f(0.0,0.0,0.0,1.0),open);}
+ putPlanes(base,m,vi,open);
+ if(!isLightCut()){preparePrimitive(w,pose,m,open);}
 }
 @compute @workgroup_size(64)
 fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lid:u32){
@@ -146,34 +105,43 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
  if(s<liveCount()){
   let entry=liveAt(s);let i=entryIndex(entry);vi=entryView(entry);
   let w=pageWorld(i);let r=recordOf(i,w);
-  let cluster=clusters[r];
+  let clusterFlags=clusters[r].flags;
   var draw=false;
   // The cut rule (\`../../../page/cut/rule.ts\`), on the residency \`../readiness.ts\` derives: a
   // cut without residency holds every cluster and every finer group.
-  if(!coneRejected(i)){
-   let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
+  let word=flags[coneCache(i)];
+  if((word&CONE_REJECTED)==0u){
    let all=views[0u].residentCut==0u;
-   draw=drawsCluster(all||isResident(i),projected(cluster.parentError,cluster.parentSphere,e,stretch,focal),projected(cluster.lodError,cluster.sphere,e,stretch,focal),all||childResident(i),views[vi].pixelError);
+   if(isLightCut()){
+    let pixels=clusterPixels(clusters[r],viewWorld(w),stretchOf(w),focalPixels());
+    draw=drawsCluster(all||isResident(i),pixels.x,pixels.y,all||childResident(i),views[vi].pixelError);
+   }else{
+    // Camera cut: the rule on the two comparisons \`dagWanted\` made this frame, on the same
+    // projections — no matrix product, no projection, no sphere read again.
+    draw=drawsCompared(all||isResident(i),(word&PARENT_ABOVE)!=0u,(word&OWN_WITHIN)!=0u,all||childResident(i));
+   }
   }
-  noteImage(r,cluster.flags,draw);
+  noteImage(r,clusterFlags,draw);
   // A light cut keeps no draw flag — two views may draw the same cluster —, only its view's log.
   if(isLightCut()){if(draw){viewDrawnAppend(i);}}
   else{
-   let posee=select(0u,1u,draw);
-   flags[views[0u].queueCap+i]=posee;
+   let drawn=select(0u,1u,draw);
+   flags[views[0u].queueCap+i]=drawn;
    // Drawn count of this page's block, held here rather than reread later page by page.
-   if(posee!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);drawnAppend(i);stampUse(i);}
+   if(drawn!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(i);}
   }
  }
  verseTotaux(lid);
 }
+${DAG_CONE_WGSL}
+${DAG_PRIMITIVE_WGSL}
 ${DAG_ERROR_WGSL}
 ${CUT_RULE_WGSL}
 ${INVERSE_TRANSPOSE_WGSL}
 ${DAG_COMPACT_WGSL}${DAG_TOTALS_WGSL}${DAG_REQUEST_WGSL}${DAG_RELEVE_WGSL}${DAG_WANTED_WGSL}
 ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
-${DAG_LAST_USE_WGSL}
+${DAG_LAST_USE_WGSL}${DAG_EVICT_WGSL}
 ${DAG_FLOOR_WGSL}
 ${DAG_PAGES_WGSL}
 ${DAG_VIEWS_WGSL}

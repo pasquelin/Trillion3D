@@ -32,8 +32,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     };
     let mut loaded = load_runtime(o, &routed.scene)?;
     let bin = loaded.binary.bytes();
-    let g_bytes = &loaded.g_bytes;
     let manifest = &loaded.manifest;
+    let shared_nodes = compiler_mesh_share::share_identical_meshes(&mut loaded.g, bin);
     // A hierarchy that closes on itself is refused before any publication: world
     // matrix walk starts from parentless nodes, and would never see a closed cycle.
     compiler_nodes::check_acyclic(&loaded.g)?;
@@ -67,12 +67,12 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         views,
         view_map,
         estimated_working_bytes,
-    } = plan_buffers(o, g, bin, g_bytes, &meshes)?;
+    } = plan_buffers(o, g, bin, &loaded.g_bytes, &meshes)?;
     let (directory, output_views, source_bin) = copy_source_bin(o, bin, view_values, &views, &key)?;
     let offset = source_bin.bytes as usize;
     let import_ms = shared_math::elapsed_ms(started);
     progress(
-        json!({"phase":"import","completed":1,"total":1,"ms":import_ms,"primitives":jobs.len(),"nodes":chosen.len()}),
+        json!({"phase":"import","completed":1,"total":1,"ms":import_ms,"primitives":jobs.len(),"nodes":chosen.len(),"sharedMeshNodes":shared_nodes}),
     );
     let cluster_start = Instant::now();
     // Compact per-page index storage is bounded independently from source size. Metadata is retained.
@@ -168,13 +168,13 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let lights = stage_scene_lights(g, bin, &scene_nodes, &directory, &progress)?;
     let (autonomous_scene, autonomous_refusal, autonomous, mut products) =
         write_autonomous_scene(&directory, &source, &primitives, &output_views)?;
-    let tables = stage_scene_tables(&source, autonomous.as_ref(), &directory, &progress)?;
-    let (physics_file, physics) =
-        physics_cook::stage_physics(&scene, &primitives, &collisions, &directory)?;
+    let paged = write_mesh_pages(&primitives, &directory)?;
+    let tables = stage_scene_tables(&source, autonomous.as_ref(), &paged, &directory, &progress)?;
+    let (physics_file, physics) = stage_physics(&scene, &primitives, &collisions, &directory)?;
     products.extend([tables, source_bin, source_gltf, lights, physics_file]);
     let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
     let cache_format = compiler_format::cache_format(&primitives);
-    let mut result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"geometryPages":compiler_page_object::geometry_page_format(),"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"cutouts":cutout_report,"proxy":proxy_descriptor,"physics":physics,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen.len(),"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseElapsedMs":phases.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
+    let mut result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"geometryPages":compiler_page_object::geometry_page_format(),"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"cutouts":cutout_report,"proxy":proxy_descriptor,"physics":physics,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen.len(),"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"worstStalls":compiler_primitive_stalls::worst_stalls(&primitives),"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseElapsedMs":phases.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
     publish(
         &Publication {
             o,
@@ -185,6 +185,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
             proxy_sha: &proxy_sha,
             products: &products,
             previews: &texture_previews,
+            mesh_pages: &paged,
         },
         &result,
     )?;
