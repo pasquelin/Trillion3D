@@ -63,7 +63,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
   }
   // What the compiler named without being able to fix it — a DAG that is not mounted — is
   // said at open, before the engine is chosen: it is a fact of the cache, not of an engine.
-  const dagWarnings = dagWarningsDiagnostic(metadata.primitives);
+  const dagWarnings = dagWarningsDiagnostic(metadata);
   if (dagWarnings)
     diagnose(dagWarnings.phase, dagWarnings.message, {
       kind: 'preparation',

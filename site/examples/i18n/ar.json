@@ -328,6 +328,13 @@
       "roof": "السقف"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "اسحب لتدور حول المشهد. غيّر عرض المصباح وشاهد حواف الظل.",
+    "controls": {
+      "lampWidth": "عرض المصباح",
+      "moveSubject": "حرّك المجسم"
+    }
+  },
   "a-softbox-panel": {
     "banner": "اسحب لتمشي حولها. كبّر لوح الضوء ليصير اللمعان أنعم.",
     "controls": {
@@ -1700,6 +1707,14 @@
     "readouts": {
       "fourthLaneAnisotropy": "تباين اتجاه المسار الرابع"
     }
+  },
+  "the-home-pose": {
+    "banner": "اختر عرضًا، وحرّك الكاميرا، ثم اختر البداية للعودة.",
+    "controls": { "home": "البداية", "tower": "البرج", "square": "الساحة", "hillside": "التل" }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "حرّك المستوى القريب إلى الأمام وشاهده يقطع كل جدار.",
+    "controls": { "nearPlane": "المستوى القريب" }
   },
   "the-material-family": {
     "banner": "اسحب لتمشي حولها. اجعل الضوء ليلًا وشاهد ما يزال يلمع.",

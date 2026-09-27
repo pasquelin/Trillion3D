@@ -328,6 +328,13 @@
       "roof": "Toit"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Glisse pour tourner autour. Change la largeur de la lampe et observe le bord des ombres.",
+    "controls": {
+      "lampWidth": "Largeur de la lampe",
+      "moveSubject": "Déplacer le sujet"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Glisse pour tourner autour. Agrandis le panneau pour adoucir les reflets.",
     "controls": {
@@ -1700,6 +1707,14 @@
     "readouts": {
       "fourthLaneAnisotropy": "Anisotropie de la quatrième piste"
     }
+  },
+  "the-home-pose": {
+    "banner": "Choisissez une vue, déplacez la caméra, puis choisissez Accueil pour revenir.",
+    "controls": { "home": "Accueil", "tower": "Tour", "square": "Place", "hillside": "Colline" }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Avancez le plan proche et regardez-le couper chaque mur.",
+    "controls": { "nearPlane": "Plan proche" }
   },
   "the-material-family": {
     "banner": "Glisse pour tourner autour. Passe à la nuit et vois ce qui brille encore.",
