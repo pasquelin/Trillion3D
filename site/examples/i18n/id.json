@@ -2147,5 +2147,22 @@
     "words": {
       "credit": "Bendera pada tiang dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Seret untuk mengitari bidang. Ubah jumlah atau tampilan.",
+    "controls": {
+      "count": "Jumlah",
+      "view": "Tampilan"
+    },
+    "readouts": {
+      "objectsShown": "Objek terlihat",
+      "objectsBuilt": "Objek dibuat"
+    },
+    "choices": {
+      "view": {
+        "beauty": "hasil akhir",
+        "clusters": "klaster"
+      }
+    }
   }
 }

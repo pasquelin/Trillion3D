@@ -2147,5 +2147,22 @@
     "words": {
       "credit": "Флаг на флагштоке смоделирован в коде для этого примера, CC0 — см. assets/examples/CREDITS.md"
     }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Перетаскивайте, чтобы осмотреть поле. Меняйте количество или вид.",
+    "controls": {
+      "count": "Количество",
+      "view": "Вид"
+    },
+    "readouts": {
+      "objectsShown": "Показано объектов",
+      "objectsBuilt": "Создано объектов"
+    },
+    "choices": {
+      "view": {
+        "beauty": "картинка",
+        "clusters": "кластеры"
+      }
+    }
   }
 }
