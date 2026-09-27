@@ -40,6 +40,8 @@ mod stage;
 #[cfg(test)]
 mod tests;
 mod voronoi;
+#[cfg(test)]
+mod voronoi_tests;
 
 pub(crate) use stage::stage_physics;
 
