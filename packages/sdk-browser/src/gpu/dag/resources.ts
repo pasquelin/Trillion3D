@@ -1,16 +1,14 @@
-import {
-  SELECTION_UNIFORM_BYTES as UNIFORM_BYTES,
-  SELECTION_WORKGROUP,
-} from '../core/selection.ts';
+import { SELECTION_WORKGROUP } from '../core/selection.ts';
 import type { PackedDag } from './types.ts';
 import { primitiveFrameWords } from './worlds.ts';
 import { createDagPipeline } from './pipeline.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
-import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts';
+import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
 import {
   DAG_READBACK_SLOTS,
   SELECTION_HEADER_WORDS,
+  residentReadbackBytes,
   selectionListCap,
   stagedOutputBytes,
 } from './layout.ts';
@@ -31,9 +29,7 @@ export async function createDagResources(
   // is what the frame copies and maps, and the worst case never happens (`layout.ts`,
   // measured by `tests/browser/probes/cut-snapshot-gpu.ts`).
   const listCap = selectionListCap(pageCount),
-    headBytes = SELECTION_HEADER_WORDS * 4,
-    outputBytes = headBytes + listCap * 4,
-    drawnBytes = headBytes + listCap * 4,
+    outputBytes = (SELECTION_HEADER_WORDS + listCap) * 4,
     // The same block count as the kernel's `blockCount()`, word for word: two counters live
     // behind them in `work` and the second is copied to the dispatch argument.
     blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP),
@@ -43,12 +39,13 @@ export async function createDagResources(
     liveGroupsOffset = travail.liveGroups * 4,
     candGroupsOffset = travail.candGroups * 4,
     drawnGroupsOffset = travail.drawnGroups * 4,
-    readbackBytes = outputBytes + (residentCut ? drawnBytes : 0),
-    // Behind the drawn list, the requests wait for their sort, outside what the frame copies
-    // (`shader/snapshotWgsl.ts`): the readback stays the size it was.
+    // A resident cut adds its drawn list and one burst of its eviction queue (`EVICTION_BURST`).
+    readbackBytes = residentCut ? residentReadbackBytes(listCap) : outputBytes,
+    // Behind the eviction queue, the requests wait for their sort, outside what the frame copies
+    // (`shader/snapshotWgsl.ts`).
     stagedBytes = stagedOutputBytes(listCap);
   // The camera's block, then the view ahead's (`shader/aheadWgsl.ts`).
-  const uniformData = new Float32Array(((AHEAD_VIEW + 1) * UNIFORM_BYTES) / 4);
+  const uniformData = new Float32Array((AHEAD_VIEW + 1) * DAG_VIEW_WORDS);
   const frameData = primitiveFrameWords(packed);
   const buffers: GPUBuffer[] = [];
   try {

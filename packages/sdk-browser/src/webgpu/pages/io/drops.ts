@@ -109,6 +109,7 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.materialDepthPipeline = undefined;
   vis.shadePipelines.clear();
   vis.shadePipelineFor = undefined;
+  vis.singleShadePipelines.clear();
   vis.shadeBindGroupLayout = undefined;
   vis.visBindGroupLayout = undefined;
   vis.mapsSampler = undefined;

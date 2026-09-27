@@ -164,8 +164,8 @@ export function rootPage(url: string, min: number[], max: number[]) {
 
 /** Two primitives, one per mesh, each carrying its own root cluster over the first triangle. */
 export function twoPrimitives(
-  meshA: G.GraphMesh,
-  meshB: G.GraphMesh,
+  meshA: G.HostMesh,
+  meshB: G.HostMesh,
   pageA: ReturnType<typeof rootPage>,
   pageB: ReturnType<typeof rootPage>,
 ) {

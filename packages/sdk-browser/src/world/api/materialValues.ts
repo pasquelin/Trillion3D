@@ -11,7 +11,7 @@ import { hostTextureWritten } from '../../host/textureImport.ts';
 import { alphaModeFields } from '../../host/prepared/materials.ts';
 
 /** The cutoff a material turned masked takes when the page names none: glTF's default. */
-const MASK_CUTOFF = 0.5;
+export const MASK_CUTOFF = 0.5;
 
 /** A material of the scene as a page reads it: the engine's parameters, the id it is set by — its
  *  rank in the cache's material table — its name, and how many times its maps repeat across and
@@ -32,7 +32,7 @@ export type SceneMaterialPatch = Partial<
 
 /** A material as the engine draws it now, read where every engine path reads a host surface
  *  (`importHostSurface`), so a family without metal or glow lists what is drawn. */
-export function read(id: number, surface: GraphSurface): SceneMaterial {
+export function read(id: number | string, surface: GraphSurface): SceneMaterial {
   const drawn = importHostSurface(surface)!;
   const map = materialTextures(surface).next().value;
   return {
@@ -50,15 +50,34 @@ export function read(id: number, surface: GraphSurface): SceneMaterial {
   };
 }
 
-export const invalid = (id: number, field: string, value: unknown) =>
+export const invalid = (id: number | string, field: string, value: unknown) =>
   new EngineError('INVALID_MATERIAL', `material ${id}: ${field} is out of its range`, {
     id,
     field,
     value,
   });
 
-/** Every value of the patch in its range, or a named refusal before anything is written. */
-export function validate(id: number, patch: SceneMaterialPatch) {
+/** What `setMaterial` takes, anything else refused by name. */
+export const PATCH_FIELDS = [
+  'baseColor',
+  'opacity',
+  'metalness',
+  'roughness',
+  'emissive',
+  'alphaMode',
+  'alphaCutoff',
+  'tiling',
+] as const;
+
+/** Every value of the patch one of `fields` and in its range, or a named refusal before anything
+ *  is written: a page in plain JavaScript can name what the types do not. */
+export function validate(
+  id: number | string,
+  patch: SceneMaterialPatch,
+  fields: readonly string[] = PATCH_FIELDS,
+) {
+  for (const [field, value] of Object.entries(patch))
+    if (value !== undefined && !fields.includes(field)) throw invalid(id, field, value);
   const unit = (n: number) => Number.isFinite(n) && n >= 0 && n <= 1;
   for (const field of ['opacity', 'metalness', 'roughness', 'alphaCutoff'] as const) {
     const value = patch[field];

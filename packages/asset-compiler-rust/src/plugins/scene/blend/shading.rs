@@ -12,7 +12,8 @@ const NORMAL_MAP: &str = "ShaderNodeNormalMap";
 /// A material's graph: which node feeds which input, and through which output.
 pub(super) struct Tree<'a> {
     links: HashMap<u64, (u64, u64)>,
-    file: &'a BlendFile<'a>,
+    /// The graph itself: its links resolve among its own data.
+    graph: At<'a>,
 }
 
 /// What a link brings to an input: the node it leaves, and the identifier of its output — the
@@ -156,7 +157,7 @@ impl<'a> Tree<'a> {
         }
         Tree {
             links,
-            file: graph.file,
+            graph: *graph,
         }
     }
     /// The node that feeds this input, if there is one.
@@ -166,11 +167,11 @@ impl<'a> Tree<'a> {
     /// The link that feeds this input: its node and the output it leaves.
     pub(super) fn link(&self, socket: &At<'a>) -> Option<Link<'a>> {
         let (node, from) = self.links.get(&socket.old)?;
-        let node = self.file.view(self.file.at(*node)?)?;
+        let node = self.graph.file.view(self.graph.reach(*node)?)?;
         let socket = self
-            .file
-            .at(*from)
-            .and_then(|block| self.file.view(block))
+            .graph
+            .reach(*from)
+            .and_then(|block| self.graph.file.view(block))
             .map(|socket| socket.text("identifier"))
             .unwrap_or_default();
         Some(Link { node, socket })
