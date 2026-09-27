@@ -310,6 +310,13 @@
       "roof": "السقف"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "اسحب لتدور حول المشهد. غيّر عرض المصباح وشاهد حواف الظل.",
+    "controls": {
+      "lampWidth": "عرض المصباح",
+      "moveSubject": "حرّك المجسم"
+    }
+  },
   "a-softbox-panel": {
     "banner": "اسحب لتمشي حولها. كبّر لوح الضوء ليصير اللمعان أنعم.",
     "controls": {

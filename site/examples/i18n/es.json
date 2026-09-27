@@ -310,6 +310,13 @@
       "roof": "Tejado"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Arrastra para girar. Cambia el ancho de la lámpara y observa los bordes de las sombras.",
+    "controls": {
+      "lampWidth": "Ancho de la lámpara",
+      "moveSubject": "Mover objeto"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Arrastra para rodear la escena. Agranda el panel de luz para suavizar el brillo.",
     "controls": {

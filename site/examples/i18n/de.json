@@ -310,6 +310,13 @@
       "roof": "Dach"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Ziehe, um die Szene zu drehen. Ändere die Lampenbreite und beobachte die Schattenränder.",
+    "controls": {
+      "lampWidth": "Lampenbreite",
+      "moveSubject": "Objekt bewegen"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Ziehe, um herumzugehen. Vergrößere das Lichtfeld, um den Glanz weicher zu machen.",
     "controls": {
