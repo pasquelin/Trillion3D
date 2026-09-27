@@ -19,12 +19,15 @@ const POINTER = new URL(
 async function heardPages(t: test.TestContext, drawnFirst: boolean) {
   const { runtime, session } = await openedWorld(t, POINTER);
   const lacks = () => session.backends[0]!.pendingUrls?.().length;
-  if (drawnFirst)
+  if (drawnFirst) {
+    let frames = 0;
     do {
       runtime.render();
       await session.flush();
       await new Promise(setImmediate); // the reads the frame asked land between two frames
+      assert.ok(++frames < 256, 'the frames read every page the view lacks');
     } while (lacks());
+  }
   const heard: JobProgress[] = [];
   await awaitViewPages(
     runtime,
