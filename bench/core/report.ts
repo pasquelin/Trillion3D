@@ -47,7 +47,11 @@ function confronteBaseline(domaine: string, mesures: Measurement[]): Measurement
  * Stores domain fragment and verifies its description under `node:test`: a single false line
  * fails the benchmark.
  */
-export function rapport(domaine: string, mesures: Measurement | Measurement[], intitule?: string): void {
+export function rapport(
+  domaine: string,
+  mesures: Measurement | Measurement[],
+  intitule?: string,
+): void {
   const brutes = Array.isArray(mesures) ? mesures : [mesures];
   verifieFichiers(brutes);
   const tous = confronteBaseline(domaine, brutes);
