@@ -2,7 +2,7 @@ import { WRAP_COORD_WGSL } from '../../visibility/wrapModes.ts';
 import type { AtlasBindings } from '../core/bindLayout.ts';
 import {
   MAX_LEVELS,
-  POOL_LAYER_SIDE,
+  POOL_STEP,
   POOL_SUBTEXEL,
   TILE_BORDER,
   TILE_PITCH,
@@ -65,7 +65,7 @@ const TEXEL_TILE:f32=${TILE_SIZE}.0;
 const TEXEL_PITCH:f32=${TILE_PITCH}.0;
 const TEXEL_BORDER:f32=${TILE_BORDER}.0;
 const POOL_SUBTEXEL:f32=${POOL_SUBTEXEL}.0;
-const POOL_STEP:f32=1.0/${POOL_SUBTEXEL * POOL_LAYER_SIDE}.0;
+const POOL_STEP:f32=1.0/${1 / POOL_STEP}.0;
 const PAGE_HEADER:u32=${PAGE_HEADER_WORDS}u;
 const PAGE_SLOT:u32=${PAGE_SLOT_WORDS}u;
 const PAGE_LEVELS:u32=${MAX_LEVELS}u;

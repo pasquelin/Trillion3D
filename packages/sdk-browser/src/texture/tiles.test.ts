@@ -43,7 +43,9 @@ test('a texture under 64 texels has no streamed level: everything is in the tail
 test('tail levels sit side by side on block boundaries, the 1×1 block ending in the gutter', () => {
   assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map(tailOffset), [0, 64, 96, 112, 120, 124, 128]);
   assert.equal(TILE_BORDER + tailOffset(6) + 4, TILE_PITCH);
+  // The tile grid rounded up to a power of two: a pool coordinate is exact in f32 (#26).
   assert.equal(POOL_LAYER_SIDE, 4096);
+  assert.ok(POOL_LAYER_SIDE >= 30 * TILE_PITCH && POOL_LAYER_SIDE / 2 < 30 * TILE_PITCH);
 });
 
 test('a pool slot has a unique rank, and the table entry keeps place and level', () => {
