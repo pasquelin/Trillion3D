@@ -220,6 +220,7 @@
       "observatory-streamed": "Gestreamte Cluster",
       "health-check": "Gesundheitscheck",
       "memory-on-a-budget": "Speicherbudget",
+      "a-walk-through-the-city": "Ein Spaziergang durch die Stadt",
       "detail-by-pixel-error": "Detail nach Pixel-Fehler",
       "watch-a-world-load": "Einer Welt beim Laden zusehen",
       "ten-thousand-objects": "Zehntausend Objekte",
@@ -330,7 +331,8 @@
       "shadows-case-by-case": "Schatten, Fall für Fall",
       "shadows-through-see-through-panes": "Schatten durch durchsichtige Scheiben",
       "a-walker-among-balls": "Ein Läufer zwischen Bällen",
-      "a-dolly-along-the-canal": "Eine Kamerafahrt am Kanal"
+      "a-dolly-along-the-canal": "Eine Kamerafahrt am Kanal",
+      "a-folder-merged-into-one-scene": "Ein Ordner als eine Szene"
     },
     "missing": {
       "floating-crates": "in jedem Bild neu geschriebene Geometrie",

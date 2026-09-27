@@ -1259,6 +1259,21 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Clique na vista, caminhe com W A S D e olhe com o rato. Reduza a memória enquanto avança.",
+    "controls": {
+      "walkSpeed": "Velocidade",
+      "memory": "Memória",
+      "view": "Vista",
+      "home": "Voltar ao início"
+    },
+    "choices": {
+      "view": { "beauty": "imagem", "lod": "níveis de detalhe", "clusters": "clusters" }
+    },
+    "words": {
+      "credit": "Avenida de urnas modelada em código para este exemplo, CC0 — veja assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 de Rico Cilliers, Poly Haven, CC0; caixote de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"
@@ -1710,11 +1725,18 @@
   },
   "the-home-pose": {
     "banner": "Escolha uma vista, mova a câmera e depois escolha Início para voltar.",
-    "controls": { "home": "Início", "tower": "Torre", "square": "Praça", "hillside": "Encosta" }
+    "controls": {
+      "home": "Início",
+      "tower": "Torre",
+      "square": "Praça",
+      "hillside": "Encosta"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Avance o plano próximo e veja-o cortar cada parede.",
-    "controls": { "nearPlane": "Plano próximo" }
+    "controls": {
+      "nearPlane": "Plano próximo"
+    }
   },
   "the-material-family": {
     "banner": "Arraste para andar em volta. Ponha a luz de noite e veja o que ainda brilha.",
@@ -2190,6 +2212,16 @@
     },
     "readouts": {
       "progress": "Progresso"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Arraste para examinar a esquina. O compilador reuniu três arquivos OBJ de uma pasta nesta cena.",
+    "controls": {
+      "visible": "Visível",
+      "home": "Início"
+    },
+    "words": {
+      "credit": "Modelo de poste de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"
     }
   }
 }
