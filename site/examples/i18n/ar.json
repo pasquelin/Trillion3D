@@ -500,6 +500,24 @@
       "balloon": "تتبع المنطاد"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "شاهد المسار المسجل عبر الحديقة. أعد تشغيله أو أوقفه أو تولّ قيادة الكاميرا.",
+    "controls": {
+      "replay": "إعادة",
+      "stop": "إيقاف"
+    },
+    "readouts": {
+      "currentPart": "الجزء الحالي"
+    },
+    "words": {
+      "entrance": "المدخل",
+      "pond": "البركة",
+      "bridge": "الجسر",
+      "pavilion": "الجناح",
+      "overview": "نظرة عامة",
+      "complete": "مكتمل"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "اسحب لتنظر حولك. اجعل موجة المكعّبات أعلى أو أسرع.",
     "controls": {

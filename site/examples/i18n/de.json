@@ -500,6 +500,24 @@
       "balloon": "VERFOLGT DEN BALLON"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Sieh dir die aufgezeichnete Route durch den Park an. Starte sie neu, stoppe sie oder übernimm die Kamera.",
+    "controls": {
+      "replay": "Wiederholen",
+      "stop": "Stopp"
+    },
+    "readouts": {
+      "currentPart": "Aktueller Abschnitt"
+    },
+    "words": {
+      "entrance": "Eingang",
+      "pond": "Teich",
+      "bridge": "Brücke",
+      "pavilion": "Pavillon",
+      "overview": "Überblick",
+      "complete": "Abgeschlossen"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Ziehe, um dich umzusehen. Mach die Würfelwelle höher oder schneller.",
     "controls": {

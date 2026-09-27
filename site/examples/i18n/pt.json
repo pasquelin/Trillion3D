@@ -500,6 +500,24 @@
       "balloon": "SEGUINDO O BALÃO"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Assista à rota gravada pelo parque. Reproduza, pare ou assuma a câmera.",
+    "controls": {
+      "replay": "Reproduzir",
+      "stop": "Parar"
+    },
+    "readouts": {
+      "currentPart": "Parte atual"
+    },
+    "words": {
+      "entrance": "Entrada",
+      "pond": "Lago",
+      "bridge": "Ponte",
+      "pavilion": "Pavilhão",
+      "overview": "Visão geral",
+      "complete": "Concluído"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Arraste para olhar em volta. Deixe a onda de cubos mais alta ou mais rápida.",
     "controls": {
