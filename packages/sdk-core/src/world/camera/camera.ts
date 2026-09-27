@@ -158,7 +158,6 @@ for (const optic of OPTICS)
       return this._optics[optic];
     },
     set(this: Camera, value: number) {
-      if (this._optics[optic] === value) return;
       this._optics[optic] = value;
       this.updateProjectionMatrix();
     },
