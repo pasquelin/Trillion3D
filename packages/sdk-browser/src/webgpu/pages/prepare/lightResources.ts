@@ -58,8 +58,8 @@ export function shadowsFollowTextures(
 
 /**
  * Surfaces whose alpha mode or cutoff a page changed (#846): the depth their rows cast is no longer
- * the one drawn, whether they cut it before or not, and the shadow pages over those rows alone go
- * back to waiting, as a colour tile's do (`shadowsFollowTextures`).
+ * the one drawn, whether they cut it before or not: the shadow pages over those rows alone are drawn
+ * again at once, as a node shown or hidden is (`../render/worldUpload.ts`), not when the camera rests.
  */
 export function shadowsFollowSurfaces(
   lights: WebgpuLightState,
@@ -67,16 +67,21 @@ export function shadowsFollowSurfaces(
   surfaces: ReadonlySet<PageSurface>,
 ) {
   if (lights.store.count)
-    shadowsFollowRows(lights, rows, (row) =>
-      surfaces.has(rows.packedRecs[row]?.material as PageSurface),
+    shadowsFollowRows(
+      lights,
+      rows,
+      (row) => surfaces.has(rows.packedRecs[row]?.material as PageSurface),
+      'worldChanged',
     );
 }
 
-/** Stales the box of the rows, visibility then blended casters, that `stale` names; one box. */
+/** Stales the box of the rows, visibility then blended casters, that `stale` names; one box, as
+ *  the same world at another precision or, `worldChanged`, as another world. */
 function shadowsFollowRows(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
   stale: (row: number) => boolean,
+  change: 'representationChanged' | 'worldChanged' = 'representationChanged',
 ) {
   boxEmpty(changeBox, 0);
   let touched = false;
@@ -90,7 +95,7 @@ function shadowsFollowRows(
       growClusterBox(rec, changeBox);
       touched = true;
     }
-  if (touched) lights.plan.representationChanged(changeMin, changeMax);
+  if (touched) lights.plan[change](changeMin, changeMax);
 }
 
 /**

@@ -41,12 +41,16 @@ function table() {
 }
 
 function lightsSpy() {
-  const boxes: number[][] = [];
+  const boxes: number[][] = [],
+    worlds: number[][] = [];
   const lights = {
     store: { count: 1 },
-    plan: { representationChanged: (min: number[], max: number[]) => boxes.push([...min, ...max]) },
+    plan: {
+      representationChanged: (min: number[], max: number[]) => boxes.push([...min, ...max]),
+      worldChanged: (min: number[], max: number[]) => worlds.push([...min, ...max]),
+    },
   } as unknown as Parameters<typeof shadowsFollowTextures>[0];
-  return { lights, boxes };
+  return { lights, boxes, worlds };
 }
 
 const r = Math.fround(Math.sqrt(3));
@@ -95,10 +99,11 @@ test('with no light declared, a tile stales nothing and leaves no change waiting
 
 // A page moved a material's alpha (#846): its rows' shadow pages stale whatever their flags say —
 // an opaque surface turned masked has no cutout flag until its row is written again.
-test('an alpha change stales the rows of its surfaces, the opaque and blended ones too', () => {
-  const { lights, boxes } = lightsSpy();
+test('an alpha change stales the rows of its surfaces at once, the opaque and blended ones too', () => {
+  const { lights, boxes, worlds } = lightsSpy();
   shadowsFollowSurfaces(lights, table(), new Set([leaves]));
-  assert.deepEqual(boxes, [[-20 - r, -r, -r, 100 + r, r, r]]);
+  assert.deepEqual(worlds, [[-20 - r, -r, -r, 100 + r, r, r]], 'another world, not held');
+  assert.equal(boxes.length, 0, 'nothing waits for the camera to rest');
   shadowsFollowSurfaces(lights, table(), new Set());
-  assert.equal(boxes.length, 1, 'no surface, no box');
+  assert.equal(worlds.length, 1, 'no surface, no box');
 });
