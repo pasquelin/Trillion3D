@@ -2,6 +2,7 @@ import type { Scene } from '../scene/experimentScene.ts';
 import { fail } from './validation.ts';
 import { EPSILON } from './intersections.ts';
 import { crossVector3 } from '../../math/primitives/vector.ts';
+import { hypot3 } from '../../math/primitives/hypot.ts';
 const PI = Math.PI;
 /** Tangent frame of the current facet: written then reread in the same call. */
 const tangent = new Float64Array(3),
@@ -21,7 +22,7 @@ function radicalInverse(value: number): number {
 export function fillPatchRays(scene: Scene, patchIndex: number, count: number, rays: Float64Array) {
   const patch = scene.patches[patchIndex];
   const n = patch.normal;
-  const length = Math.hypot(...patch.u);
+  const length = hypot3(patch.u[0], patch.u[1], patch.u[2]);
   if (!(length > 0)) fail('INVALID_SCENE', 'Patch tangent is degenerate');
   for (let axis = 0; axis < 3; axis++) tangent[axis] = patch.u[axis] / length;
   crossVector3(bitangent, n, tangent);
