@@ -80,7 +80,9 @@ test('draw shader counts, prefixes and scatters page groups in parallel with sta
   assert.match(DRAW_SHADER, /@compute @workgroup_size\(64\)\s*fn scatterGroups/);
   assert.match(DRAW_SHADER, /@compute @workgroup_size\(64\)\s*fn prefixGroups/);
   assert.match(DRAW_SHADER, /workgroupBarrier\(\);/);
-  assert.doesNotMatch(DRAW_SHADER, /atomicAdd/);
+  // The only atomics tally a group's slots in workgroup memory: no global counter decides where
+  // an item lands, so the order stays that of the items.
+  assert.deepEqual(DRAW_SHADER.match(/atomicAdd\(&\w+/g), ['atomicAdd(&slotTally']);
   assert.match(DRAW_SHADER, /restAt\(i\)\s*\*\s*3u\s*\+\s*item\.bin/);
   assert.match(
     DRAW_SHADER,
