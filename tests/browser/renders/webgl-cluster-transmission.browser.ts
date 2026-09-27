@@ -1,19 +1,15 @@
 // Standalone WebGL2 proof that a transmissive scene copy composes over the autonomous cluster
-// image: opaque and blended clusters show through, a cluster in front hides the glass, and every
-// unsupported physical extension is refused before a draw.
+// image: opaque and blended clusters show through, a cluster in front hides the glass, and a
+// physical extension WebGL2 cannot draw is drawn without, said once by name (#772).
 //
 //   node --experimental-strip-types tests/browser/renders/webgl-cluster-transmission.browser.ts
 import assert from 'node:assert/strict';
+import type { DegradedNotice } from '../support/materialDegradedNotices.ts';
 import {
   preuveDansLaPage,
   preuveSaine,
   type ResultatPagePreuve,
 } from '../support/enginePageProof.ts';
-
-interface Refusal {
-  code: string;
-  reason: string;
-}
 
 interface Resultat extends ResultatPagePreuve {
   withoutGlass: number;
@@ -29,8 +25,8 @@ interface Resultat extends ResultatPagePreuve {
   lit: number[];
   subViewport: { inside: number[]; outside: number[] };
   offscreen: { clusters: number; backdrop: number; copies: number; pixel: number[] };
-  refused: Refusal;
-  refusedPixel: number[];
+  coatedPixel: number[];
+  coatedNotice: DegradedNotice[];
   drawError: number;
 }
 
@@ -80,9 +76,14 @@ assert.deepEqual(result.offscreen, {
   copies: 0,
   pixel: [255, 0, 0, 255],
 });
-assert.deepEqual(result.refused, {
-  code: 'CLUSTER_MATERIAL_UNSUPPORTED',
-  reason: 'physical clearcoat is unsupported',
-});
-assert.deepEqual(result.refusedPixel, [0, 0, 255, 255], 'refused before any draw');
+// A clearcoat glass is drawn: a refusal would be the page's error.
+assert.ok(
+  near(result.coatedPixel, [245, 0, 0, 255]),
+  `drawn without clearcoat: ${result.coatedPixel}`,
+);
+assert.deepEqual(
+  result.coatedNotice,
+  [{ kind: 'material-degraded', context: { material: 'coated glass', feature: 'clearcoat' } }],
+  'said once over two frames, by name',
+);
 assert.equal(result.drawError, 0);

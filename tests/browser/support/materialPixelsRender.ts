@@ -49,7 +49,7 @@ function square(fixture: Fixture): G.Geometry {
  * The witness renderer's own camera: the library's copy of the engine camera, its optics and
  * its world pose. This page is served alone, without the witnesses' `fromGraph` copies.
  */
-function witnessCamera(camera: G.GraphCamera) {
+function witnessCamera(camera: G.Camera) {
   const copy = new THREE.PerspectiveCamera(camera.fov, camera.aspect, camera.near, camera.far);
   copy.matrixAutoUpdate = false;
   copy.matrix.fromArray(camera.matrixWorld.elements);
@@ -89,7 +89,7 @@ export function witnessImage(
   referenceBackend: BackendFactory,
   scene: ScenePreparee,
   renderer: THREE.WebGLRenderer,
-  camera: G.GraphCamera,
+  camera: G.Camera,
 ): Uint8Array {
   const backend = referenceBackend({
     source: scene.source,
@@ -115,7 +115,7 @@ export async function engineImage(
   scene: ScenePreparee,
   device: GPUDevice,
   sceneLights: SdkCore.SceneLightStore,
-  camera: G.GraphCamera,
+  camera: G.Camera,
   events: BackendDiagnostic[],
 ): Promise<{ pixels: number[] | undefined; held: boolean; dataUrl: string }> {
   const { backend, canvas } = engine(
@@ -145,7 +145,7 @@ export async function webgl2Image(
   autonomousPagesBackend: BackendFactory,
   scene: ScenePreparee,
   sceneLights: SdkCore.SceneLightStore,
-  camera: G.GraphCamera,
+  camera: G.Camera,
 ): Promise<{ pixels: Uint8Array; held: boolean; dataUrl: string }> {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = SIZE;
