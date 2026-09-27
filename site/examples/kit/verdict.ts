@@ -113,7 +113,11 @@ export function healthCheck(
       const resultats = [
         ...[...parts].flatMap(([name, frames]) => partLines(name, frames)),
         resultRow({ name: `refused: ${world.renderer}`, motif: [...byDesign].join('; ') || '—' }),
-        resultRow({ name: 'refused', correct: !failures.size, motif: [...failures].join('; ') || '—' }),
+        resultRow({
+          name: 'refused',
+          correct: !failures.size,
+          motif: [...failures].join('; ') || '—',
+        }),
       ];
       const correct = resultats.every((line) => line.correct !== false || flagged(line)),
         name = exampleId();
