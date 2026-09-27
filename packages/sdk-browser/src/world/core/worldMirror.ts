@@ -25,7 +25,7 @@ import type { GraphSurface } from '../../host/graph/surface.ts';
 import type { GraphTexture } from '../../host/graph/texture.ts';
 import type { Cut } from './worldCuts.ts';
 import type { PosedTwin } from './worldPoses.ts';
-import type { createWorldMaterials } from './worldMaterials.ts';
+import type { RepaintedEntry } from './worldMaterials.ts';
 import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
@@ -51,8 +51,7 @@ function hostGeometry(drawn: DrawnTriangles) {
   return geometry;
 }
 
-/** An entry repainted in place (`worldMaterials.ts`), and how a session reads it again. */
-type Repainted = ReturnType<ReturnType<typeof createWorldMaterials>['takeRepainted']>[number];
+/** How a session reads repainted surfaces again (`BackendSceneUpdates.refreshMaterials`). */
 type Refresh = (values: boolean, alpha?: AlphaChange) => boolean;
 
 /** What the mirror is built from: the resources placed by rows, the models drawn whole, and the
@@ -110,22 +109,30 @@ export function buildWorldMirror(input: MirrorInput) {
     twins.set(node, twin);
   }
   /** Writes the repainted entries into the host surfaces built for them, then has `refresh` —
-   *  the open session, if any — read them again: once, and for each entry whose alpha moved once
-   *  more, no value, for what its cutout shadows (`AlphaChange`). False when the session cannot. */
-  const repaint = (painted: readonly Repainted[], refresh?: Refresh) => {
+   *  the open session, if any — read them again: once, with the surfaces whose alpha moved the
+   *  same way, and once more, no value, for each other way (`AlphaChange`). False when the
+   *  session cannot. */
+  const repaint = (painted: readonly RepaintedEntry[], refresh?: Refresh) => {
     let written = false,
       values = false;
-    const moved: AlphaChange[] = [];
-    for (const { entry, alpha, ...each } of painted) {
-      const worn = (surfaces.get(entry.material) ?? []).filter((surface) => !!surface);
+    const moved = new Map<string, AlphaChange & { surfaces: GraphSurface[] }>();
+    for (const { entry, alpha, values: wrote } of painted) {
+      const worn = (surfaces.get(entry.material) ?? []).filter(
+        (surface): surface is GraphSurface => !!surface,
+      );
       for (const surface of worn) repaintHostSurface(surface, entry.material);
       if (!worn.length) continue;
       written = true;
-      values ||= each.values;
-      if (alpha) moved.push({ surfaces: worn, ...alpha });
+      values ||= wrote;
+      if (!alpha) continue;
+      const way = `${alpha.from}>${alpha.to}`;
+      const change = moved.get(way);
+      if (change) change.surfaces.push(...worn);
+      else moved.set(way, { ...alpha, surfaces: worn });
     }
     if (!refresh || !written) return true;
-    return refresh(values) && moved.every((alpha) => refresh(false, alpha));
+    const [first, ...others] = moved.values();
+    return refresh(values, first) && others.every((alpha) => refresh(false, alpha));
   };
   return { root, twins, associations, repaint };
 }
