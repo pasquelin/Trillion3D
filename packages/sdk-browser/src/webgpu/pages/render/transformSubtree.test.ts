@@ -17,6 +17,7 @@ import { setWebgpuTransform } from './transform.ts';
 import { racine, runtime } from '../../core/transformShear.fixture.ts';
 import { hostWorldPlacements } from '../../../host/world/placements.ts';
 import {
+  climbUnder,
   drawPose,
   pick,
   randomTree,
@@ -26,8 +27,6 @@ import {
 import { prepareSdkWasm } from '../../../page/decode/geometryPageWasm.ts';
 import { reserveRootBoxes } from '../../../math/batchBoxes.ts';
 import { assertBits } from '../../../../../../tests/kit/assert/bits.ts';
-import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts';
-import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts';
 
 await prepareSdkWasm(
   readFileSync(join(import.meta.dirname, '../../../page/decode/pageCodec.wasm')),
@@ -39,15 +38,6 @@ function worldPose(draw: Draw) {
   const at = new G.Vector3(draw() * 20 - 10, draw() * 20 - 10, -0),
     scale = new G.Vector3(0.5 + draw(), 0.5 + draw(), 0.5 + draw());
   return new Float32Array(new G.Matrix4().compose(at, turn, scale).elements);
-}
-
-/** The roots under `node`, found by climbing each mesh's chain: what a move visited before. */
-function climbUnder(roots: readonly ClusterRoot<PageRec>[], node: Object3D) {
-  return roots.flatMap((root, i) => {
-    for (let walk: Object3D | null = root.pages[0].sourceMesh as Object3D; walk; walk = walk.parent)
-      if (walk === node) return [i];
-    return [];
-  });
 }
 
 /** Runs a move; false when it was refused for a singular parent. */
