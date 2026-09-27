@@ -6,10 +6,10 @@ import type { ClusterManifest } from './geometry.ts';
  * compiler's stall table (`worstStalls`), the rows it tells on stderr at the end of a cook, in its
  * order.
  */
-export function dagWarningsDiagnostic({
-  primitives,
-  worstStalls: stalled = [],
-}: Pick<ClusterManifest, 'primitives' | 'worstStalls'>) {
+export function dagWarningsDiagnostic(
+  manifest: Pick<ClusterManifest, 'primitives' | 'worstStalls'>,
+) {
+  const { primitives, worstStalls: stalled = [] } = manifest;
   const warnings: PrimitiveDagWarning[] = primitives.flatMap((p, index) =>
     (p.dag?.warnings ?? []).map((w) => ({ ...w, index, mesh: p.mesh, primitive: p.primitive })),
   );
