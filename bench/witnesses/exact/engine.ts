@@ -13,7 +13,7 @@ export {
   graphBackground,
   installLighting,
 } from '../../../packages/sdk-browser/src/lighting/contractLightingApi.ts';
-export { GraphScene } from '../../../packages/sdk-browser/src/host/graph/scene.ts';
+export { Scene } from '../../../packages/sdk-browser/src/world/core/scene.ts';
 export {
   collectClusterPages,
   type PageRec,

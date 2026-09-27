@@ -74,6 +74,7 @@
       "a-tube-along-a-spline": "A tube along a spline",
       "curved-surfaces": "Curved surfaces",
       "instances-in-colour": "Instances in colour",
+      "a-hundred-thousand-instances": "A hundred thousand instances",
       "copies-along-a-path": "Copies along a path",
       "scattered-on-a-surface": "Scattered on a surface",
       "a-world-of-blocks": "A world of blocks",
@@ -229,6 +230,7 @@
       "what-hides-what": "What hides what",
       "create-and-dispose": "Create and dispose",
       "no-hitch-on-first-draw": "No first-draw hitch",
+      "inside-a-component": "Inside a component",
       "inside-the-g-buffer": "Inside the G-buffer",
       "reading-pixels-back": "Reading pixels back",
       "a-city-from-3d-tiles": "A city from 3D Tiles",
@@ -337,6 +339,7 @@
       "drag-a-crate": "Drag a crate"
     },
     "missing": {
+      "inside-a-component": "engine-owned canvas cleanup when a world is disposed",
       "floating-crates": "geometry rewritten every frame",
       "thick-lines": "wide lines",
       "a-line-that-draws-itself": "geometry draw range",

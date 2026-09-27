@@ -1,4 +1,5 @@
-import type { Material } from '../../../sdk-core/src/index.ts';
+import type { Material, Primitive } from '../../../sdk-core/src/index.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { AlphaMode } from '../../../sdk-core/src/contracts/material.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { PlacementRows } from './rows.ts';
@@ -25,6 +26,14 @@ export const blendMoves = ({ from, to }: AlphaChange) =>
 export const alphaMoves = (from: AlphaMode, to: AlphaMode, cutoffMoved: boolean) =>
   to !== from || (to === 'mask' && cutoffMoved);
 
+/** A resource placed by rows, as an open reads it: the host mesh that draws it, its association —
+ *  its primitive's mesh rank and its rows — and that primitive, as the manifest lists it. */
+export type PlacementMount = {
+  node: Object3D;
+  association: { meshes: number; primitives: number; placements: PlacementRows };
+  primitive: Primitive;
+};
+
 /** What an engine lets a host change in the scene it prepared, without preparing it again. */
 export interface BackendSceneUpdates {
   replaceGeometryPage?(url: string, data: DecodedGeometryPage): void;
@@ -39,6 +48,12 @@ export interface BackendSceneUpdates {
    *  the rest parked: the session reads `to` from now on and holds its new rows, no table rebuilt
    *  (`growth.ts`). Absent, the owner opens the session again on `to`. */
   growPlacements?(from: PlacementRows, to: PlacementRows): void;
+  /** A resource the session was not opened with enters it (#572): its pages join the same cache,
+   *  its roots the same tables. Settles once its root cover is resident; absent, the owner opens
+   *  the session again. */
+  mountPlacements?(mount: PlacementMount): Promise<void>;
+  /** The resource `rows` place leaves the session: its roots, pages and copies. */
+  unmountPlacements?(rows: PlacementRows): void;
   /** The clear colour behind the scene, `0xrrggbb` (`BackendContext.clearColor`), read by the
    *  next frame: the held frame broken, nothing else walked. Absent, the owner opens the session
    *  again, after the frame. */
