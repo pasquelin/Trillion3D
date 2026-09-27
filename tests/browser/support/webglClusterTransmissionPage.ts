@@ -105,15 +105,9 @@ export async function execute() {
 
   // Another physical extension is no refusal: the glass is drawn without it, said once by name.
   const coated = glassMesh({ name: 'coated glass', clearcoat: 0.5 });
-  let refused = null;
   for (let frame = 0; frame < 2; frame++) {
     clear(gl);
-    try {
-      draw([red], [coated]);
-    } catch (error) {
-      const details = error as { code?: string; details?: { reason?: string } };
-      refused = { code: details.code ?? null, reason: details.details?.reason ?? null };
-    }
+    draw([red], [coated]);
   }
   const coatedPixel = pixel(gl),
     coatedNotice = await notices.said();
@@ -133,7 +127,6 @@ export async function execute() {
     lit,
     subViewport,
     offscreen,
-    refused,
     coatedPixel,
     coatedNotice,
     drawError,
