@@ -2,7 +2,7 @@ import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/select
 import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
 import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts';
-import { lastUseWord } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts';
+import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts';
 import { canonicalPage, listEvictions } from '../../../packages/sdk-browser/src/gpu/dag/evict.ts';
 import {
   SELECTION_HEADER_WORDS,
@@ -23,7 +23,7 @@ function clockOf(byBinding: Bound, packed: PackedDag) {
     work = words(byBinding.get(DAG_BINDING.work)!.data),
     cold = words(byBinding.get(DAG_BINDING.cold)!.data),
     frame = dagWorkLayout(Math.ceil(packed.pageCount / SELECTION_WORKGROUP)).frame,
-    stampAt = (page: number) => lastUseWord(packed.nodeCount, packed.pageCount, page);
+    stampAt = (page: number) => dagFlagsWords(packed.nodeCount, packed.pageCount, false) + page;
   return { flags, work, cold, frame, stampAt, keys: keyBase(packed.pageCount) };
 }
 

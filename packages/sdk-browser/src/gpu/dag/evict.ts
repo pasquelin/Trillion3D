@@ -1,10 +1,11 @@
 import { pageAddress } from '../../webgpu/row/pageSlots.ts';
 import {
   REQUEST_AHEAD,
-  REQUEST_PAGE_MAX,
-  REQUEST_PRIORITY_MAX,
+  REQUEST_PAGE_BITS as KEY_PAGE_BITS,
+  REQUEST_PRIORITY_MAX as LEVEL_MAX,
   packRequest,
   requestPage,
+  requestPriority,
   sortRequestWords,
 } from './request.ts';
 import type { DagRoot } from './types.ts';
@@ -18,15 +19,11 @@ import type { DagRoot } from './types.ts';
  * cut read is never listed; at most the pool's slots.
  */
 
-/** Bits of a key word below the level: the canonical page, as a request word names a page. */
-export const KEY_PAGE_BITS = Math.log2(REQUEST_PAGE_MAX);
-const KEY_PAGE_MASK = REQUEST_PAGE_MAX - 1;
+/** A key word is a request word (`request.ts`): the canonical page below, the level above. */
+export { KEY_PAGE_BITS };
 /** Levels and age steps the rank tells apart: the two halves of the request word's rank field. */
 export const EVICT_LEVELS = 32,
-  EVICT_AGES = 32;
-if (EVICT_LEVELS * EVICT_AGES !== REQUEST_PRIORITY_MAX + 1)
-  throw new Error('EVICTION_RANKS_MISMATCH');
-const LEVEL_MAX = (1 << (32 - KEY_PAGE_BITS)) - 1;
+  EVICT_AGES = (LEVEL_MAX + 1) / EVICT_LEVELS;
 
 /** Writes the key column at `words[at]`, one word per page in packing order (`../layout.ts`). */
 export function writeKeyColumn(roots: readonly DagRoot[], words: Uint32Array, at: number) {
@@ -39,23 +36,23 @@ export function writeKeyColumn(roots: readonly DagRoot[], words: Uint32Array, at
         level = Math.min(LEVEL_MAX, Math.max(0, Math.trunc(rec.level ?? 0)));
       if (canonical === undefined) {
         first.set(address, page);
-        words[at + page] = ((level << KEY_PAGE_BITS) | page) >>> 0;
+        words[at + page] = packRequest(page, level);
       } else {
         words[at + page] = canonical;
-        const held = words[at + canonical] >>> KEY_PAGE_BITS;
-        if (level > held) words[at + canonical] = ((level << KEY_PAGE_BITS) | canonical) >>> 0;
+        if (level > requestPriority(words[at + canonical]))
+          words[at + canonical] = packRequest(canonical, level);
       }
       page++;
     }
 }
 
 /** The page a key word names: where the key's last use is stamped. */
-export const canonicalPage = (keyWord: number) => keyWord & KEY_PAGE_MASK;
+export const canonicalPage = requestPage;
 
 /** Rank of a key in the queue, highest evicted first: finer level, then older use. Integer only,
  *  as the kernel's: the age step is the bit length of the age, one step per doubling. */
 export function evictionRank(keyWord: number, age: number) {
-  const level = Math.min(EVICT_LEVELS - 1, keyWord >>> KEY_PAGE_BITS),
+  const level = Math.min(EVICT_LEVELS - 1, requestPriority(keyWord)),
     step = Math.min(EVICT_AGES - 1, 32 - Math.clz32(age >>> 0));
   return ((EVICT_LEVELS - 1 - level) * EVICT_AGES) | step;
 }

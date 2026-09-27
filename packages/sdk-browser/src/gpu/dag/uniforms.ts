@@ -158,7 +158,7 @@ export function parseDagOutput(
   // the frame mask is correct — but the reported LIST is truncated, and nothing that lives off
   // it must take it for the whole cut.
   result.truncated = ((ints[OUT_FLAGS] ?? 0) & 1) !== 0;
-  result.drawablePageIds = undefined;
+  result.drawablePageIds = result.evictPageIds = undefined;
   // The drawable list arrives already compacted, in increasing order: the CPU no longer walks
   // one flag per DAG page, only the ranks the GPU kept.
   if (drawnWordOffset) {
