@@ -81,7 +81,7 @@ function boites(count: number) {
 }
 
 function compare(
-  camera: G.GraphCamera,
+  camera: G.Camera,
   view: G.Matrix4,
   near: number,
   label: string,

@@ -129,14 +129,15 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       vis.visLayerPipelines = [];
       vis.drawLayerSlots = 1;
     }
-  // The resolve classes of the scene are known here, from the same fields its rows will carry:
-  // one pipeline each, and the material-depth export they all test against.
+  // The resolve classes are known here: each gets its depth-tested pipeline; one production class
+  // also gets a direct pipeline prepared here, never compiled in an image.
   const classes = sceneMaterialClasses(rt.setup.allPages, vis.geometryBlocks, vis);
   ({
     shadeBindGroupLayout: vis.shadeBindGroupLayout,
     materialDepthPipeline: vis.materialDepthPipeline,
     shadePipelineFor: vis.shadePipelineFor,
     shadePipelines: vis.shadePipelines,
+    singleShadePipelines: vis.singleShadePipelines,
   } = await createWebgpuShadePipelines(gpuDevice, shadeModule, classes, variant));
   diag.engineDiagnostic('material-classes-ready', 'Resolve classes and their pipelines', {
     classes: classes.length,

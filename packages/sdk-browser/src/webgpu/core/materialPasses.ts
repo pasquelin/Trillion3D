@@ -35,11 +35,9 @@ export function markPresentClasses(ints: Uint32Array, packedCount: number, into:
 }
 
 /**
- * Surfaces of the opaque image, the published visibility-buffer design: the material-depth pass
- * writes each pixel's class, then each class present draws one full-screen triangle at its own
- * depth under `equal` — the hardware keeps its pixels, and its pipeline runs the fragment stage
- * compiled for that class alone. The surfaces and the virtual-texture feedback target are those
- * of the single-pass resolve, cleared once by the first class and kept by the next ones.
+ * Surfaces of the opaque image. A prepared one-class scene shades directly and rejects background
+ * in its fragment stage. Otherwise material depth writes each pixel's class, then each class draws
+ * at its depth under `equal`. The surfaces and feedback target are cleared once and then kept.
  */
 export function encodeMaterialPasses(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu, vis, run } = rt,
@@ -50,37 +48,43 @@ export function encodeMaterialPasses(rt: WebgpuPagesRuntime, encoder: GPUCommand
   if (!vis.materialDepthView || !vis.shadeBindGroup || !vis.shadePipelineFor)
     throw new Error('MATERIAL_DEPTH_UNAVAILABLE');
   const keys = markPresentClasses(rows.pageTableInts!, rows.packedCount, vis.presentClasses);
-  const depthPass = encoder.beginRenderPass({
-    label: MATERIAL_DEPTH_PASS,
-    colorAttachments: [],
-    depthStencilAttachment: {
-      view: vis.materialDepthView,
-      depthClearValue: 0,
-      depthLoadOp: 'clear',
-      depthStoreOp: 'store',
-    },
-  });
-  depthPass.setViewport(0, 0, width, height, 0, 1);
-  depthPass.setPipeline(vis.materialDepthPipeline!);
-  depthPass.setBindGroup(0, vis.shadeBindGroup);
-  depthPass.draw(3);
-  depthPass.end();
-  const shadePass = encoder.beginRenderPass({
+  const key = keys.length === 1 ? keys[0] : undefined;
+  const singlePipeline = key === undefined ? undefined : vis.singleShadePipelines.get(key);
+  if (!singlePipeline) {
+    const depthPass = encoder.beginRenderPass({
+      label: MATERIAL_DEPTH_PASS,
+      colorAttachments: [],
+      depthStencilAttachment: {
+        view: vis.materialDepthView,
+        depthClearValue: 0,
+        depthLoadOp: 'clear',
+        depthStoreOp: 'store',
+      },
+    });
+    depthPass.setViewport(0, 0, width, height, 0, 1);
+    depthPass.setPipeline(vis.materialDepthPipeline!);
+    depthPass.setBindGroup(0, vis.shadeBindGroup);
+    depthPass.draw(3);
+    depthPass.end();
+  }
+  const shadeDescriptor: GPURenderPassDescriptor = {
     label: MATERIAL_SURFACES_PASS,
     colorAttachments: shadeColorAttachments(rt, gpu.surfaces!),
-    depthStencilAttachment: { view: vis.materialDepthView, depthReadOnly: true },
-  });
+  };
+  if (!singlePipeline)
+    shadeDescriptor.depthStencilAttachment = { view: vis.materialDepthView, depthReadOnly: true };
+  const shadePass = encoder.beginRenderPass(shadeDescriptor);
   shadePass.setViewport(0, 0, width, height, 0, 1);
   shadePass.setBindGroup(0, vis.shadeBindGroup);
-  for (const key of keys) {
+  for (const classKey of keys) {
     // A class the census did not see — a material the host changed since — compiles on its first
     // draw, once, like the scene's classes at preparation; created outside a validation scope, a
     // refused pipeline reaches the device's uncaptured-error path, as any mid-image creation does.
-    let pipeline = vis.shadePipelines.get(key);
-    if (!pipeline) vis.shadePipelines.set(key, (pipeline = vis.shadePipelineFor(key)));
+    let pipeline = singlePipeline ?? vis.shadePipelines.get(classKey);
+    if (!pipeline) vis.shadePipelines.set(classKey, (pipeline = vis.shadePipelineFor(classKey)));
     shadePass.setPipeline(pipeline);
     shadePass.draw(3);
   }
   shadePass.end();
-  run.gpuDrawCalls += keys.length + 1;
+  run.gpuDrawCalls += keys.length + (singlePipeline ? 0 : 1);
 }

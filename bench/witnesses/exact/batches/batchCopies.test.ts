@@ -24,7 +24,7 @@ test('a copy of no graph is culled and drawn at its pose, the engine storage lef
       return 0;
     },
   } as unknown as ClusterDrawOwner;
-  const batches = new ClusterBatches(new G.GraphScene(), [], owner, [copy]);
+  const batches = new ClusterBatches(new G.Scene(), [], owner, [copy]);
   const camera = createHostDrawCamera();
   batches.draw(camera, false, true);
   assert.equal(seen[0][12], 0.21, 'the owner reads the pose, not an identity world');

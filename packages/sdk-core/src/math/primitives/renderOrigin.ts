@@ -36,6 +36,20 @@ export function worldToRenderOrigin<T extends NumberSink>(
   at = 0,
 ) {
   copyMatrix4(out, world, at);
+  return translationToRenderOrigin(out, world, origin, at);
+}
+
+/**
+ * Writes only the translation of `world` brought back to `origin`: the three numbers of
+ * `worldToRenderOrigin` that depend on the origin. A buffer whose other thirteen already hold
+ * `world` — only the eye moved since — ends bit for bit as `worldToRenderOrigin` would leave it.
+ */
+export function translationToRenderOrigin<T extends NumberSink>(
+  out: T,
+  world: ArrayLike<number>,
+  origin: ArrayLike<number>,
+  at = 0,
+) {
   out[at + 12] = world[12] - origin[0];
   out[at + 13] = world[13] - origin[1];
   out[at + 14] = world[14] - origin[2];

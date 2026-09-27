@@ -52,7 +52,7 @@ export function windingComparisons() {
   const raw = new WebglClusterRenderer(gl),
     witness = new THREE.WebGLRenderer({ canvas: witnessCanvas, antialias: false }),
     mesh = inputs(),
-    scene = new G.GraphScene(),
+    scene = new G.Scene(),
     witnessScene = new THREE.Scene(),
     witnessMesh = threeMeshCopy({ geometry: mesh.geometry, material: mesh.ownMaterial }),
     camera = G.perspectiveCamera(60, 1, 0.1, 10),
