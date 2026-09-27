@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Flag on a pole modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
     }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Drag to inspect the street corner. The compiler merged three OBJ files from one folder into this scene.",
+    "controls": {
+      "spin": "Spin",
+      "visible": "Visible"
+    }
   }
 }

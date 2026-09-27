@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Flagge an einem Mast für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
     }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Ziehen Sie, um die Straßenecke anzusehen. Der Compiler hat drei OBJ-Dateien aus einem Ordner zu dieser Szene vereint.",
+    "controls": {
+      "spin": "Drehen",
+      "visible": "Sichtbar"
+    }
   }
 }

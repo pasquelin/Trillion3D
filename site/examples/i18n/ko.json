@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "이 예제를 위해 코드로 만든 깃대의 깃발, CC0 — assets/examples/CREDITS.md 참고"
     }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "드래그하여 거리 모퉁이를 살펴보세요. 컴파일러가 한 폴더의 OBJ 파일 세 개를 이 장면으로 병합했습니다.",
+    "controls": {
+      "spin": "회전",
+      "visible": "표시"
+    }
   }
 }

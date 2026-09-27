@@ -2147,5 +2147,12 @@
     "words": {
       "credit": "Bandiera su un'asta modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
     }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Trascina per osservare l’angolo della strada. Il compilatore ha unito tre file OBJ di una cartella in questa scena.",
+    "controls": {
+      "spin": "Ruota",
+      "visible": "Visibile"
+    }
   }
 }
