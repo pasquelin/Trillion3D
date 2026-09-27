@@ -518,6 +518,20 @@
       "outer": "الخارج"
     }
   },
+  "doors-that-open": {
+    "banner": "حرّك الكاميرا نحو الأبواب. تفتح عندما تقترب.",
+    "controls": {
+      "mode": "الوضع",
+      "openingDistance": "مسافة الفتح",
+      "openness": "مقدار الفتح"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "القرب",
+        "manual": "يدوي"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "اسحب لتطير حول الجزيرة. ارفع البحر ليغمر الوديان.",
     "controls": {
@@ -569,6 +583,17 @@
       "lamp": "المصباح",
       "colour": "اللون",
       "bricks": "الطوب"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "انقر سطحين لقياس المسافة بينهما. النقرة الثالثة تبدأ قياسًا جديدًا. تمثل كل وحدة مترًا واحدًا.",
+    "controls": {
+      "clear": "مسح"
+    },
+    "readouts": {
+      "pointA": "النقطة أ",
+      "pointB": "النقطة ب",
+      "distance": "المسافة"
     }
   },
   "click-to-pick": {
@@ -2213,6 +2238,12 @@
     },
     "words": {
       "credit": "علم على سارية نُمذج بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "مرّر المؤشر فوق أجزاء العربة لإبراز كل جزء، أو أوقف الإبراز من اللوحة.",
+    "controls": {
+      "highlightEnabled": "تفعيل الإبراز"
     }
   },
   "a-dolly-along-the-canal": {

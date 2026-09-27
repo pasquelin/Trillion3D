@@ -1374,6 +1374,7 @@
       "a-robot-that-walks-and-waves": "مزج حركات روبوت",
       "a-crane-that-swings": "رافعة تتأرجح حمولتها",
       "a-wave-across-a-grid": "موجة من المكعبات",
+      "doors-that-open": "أبواب تفتح عند الاقتراب",
       "keyframes-by-hand": "إطارات مفتاحية يدوية",
       "one-clip-many-objects": "مقطع واحد، أشياء كثيرة",
       "animation-from-the-file": "حركة من الملف",
@@ -1453,6 +1454,7 @@
       "labels-that-follow": "تسميات تتبع",
       "select-with-a-box": "التحديد بصندوق",
       "sound-made-visible": "صوت مرئي",
+      "measure-a-distance": "قياس المسافة بين نقطتين",
       "click-to-pick": "انقر للاختيار",
       "hover-over-triangles": "المرور فوق المثلثات",
       "pick-lines-and-points": "اختيار الخطوط والنقاط",
@@ -1518,6 +1520,7 @@
       "shadows-case-by-case": "الظلال، حالةً بحالة",
       "shadows-through-see-through-panes": "ظلال عبر ألواح شفافة",
       "a-walker-among-balls": "ماشٍ بين الكرات",
+      "hover-to-highlight": "مرّر المؤشر لإبراز جزء",
       "a-dolly-along-the-canal": "حركة كاميرا على طول القناة",
       "a-folder-merged-into-one-scene": "مجلد مدمج في مشهد واحد",
       "drag-a-crate": "سحب صندوق"

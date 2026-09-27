@@ -518,6 +518,20 @@
       "outer": "Bên ngoài"
     }
   },
+  "doors-that-open": {
+    "banner": "Di chuyển camera về phía cửa. Cửa sẽ mở khi bạn đến gần.",
+    "controls": {
+      "mode": "Chế độ",
+      "openingDistance": "Khoảng cách mở",
+      "openness": "Độ mở"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "đến gần",
+        "manual": "thủ công"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Kéo để bay quanh hòn đảo. Dâng nước biển để làm ngập thung lũng.",
     "controls": {
@@ -569,6 +583,17 @@
       "lamp": "Đèn",
       "colour": "Màu",
       "bricks": "Gạch nung"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Nhấp vào hai bề mặt để đo khoảng cách giữa chúng. Lần nhấp thứ ba bắt đầu phép đo mới. Một đơn vị tương ứng với một mét.",
+    "controls": {
+      "clear": "Xóa"
+    },
+    "readouts": {
+      "pointA": "Điểm A",
+      "pointB": "Điểm B",
+      "distance": "Khoảng cách"
     }
   },
   "click-to-pick": {
@@ -2213,6 +2238,12 @@
     },
     "words": {
       "credit": "Lá cờ trên cột được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Di chuột lên từng bộ phận của xe để làm nổi bật, hoặc tắt tính năng này trong bảng điều khiển.",
+    "controls": {
+      "highlightEnabled": "Bật làm nổi bật"
     }
   },
   "a-dolly-along-the-canal": {

@@ -190,6 +190,7 @@
       "a-robot-that-walks-and-waves": "Blending robot motions",
       "a-crane-that-swings": "A crane that swings its load",
       "a-wave-across-a-grid": "Wave of cubes",
+      "doors-that-open": "Doors that open as you approach",
       "keyframes-by-hand": "Keyframes by hand",
       "one-clip-many-objects": "One clip, many objects",
       "animation-from-the-file": "Animation from the file",
@@ -269,6 +270,7 @@
       "labels-that-follow": "Labels that follow",
       "select-with-a-box": "Select with a box",
       "sound-made-visible": "Sound made visible",
+      "measure-a-distance": "Measure a distance between two points",
       "click-to-pick": "Click to pick",
       "hover-over-triangles": "Hover over triangles",
       "pick-lines-and-points": "Pick lines and points",
@@ -334,6 +336,7 @@
       "shadows-case-by-case": "Shadows, case by case",
       "shadows-through-see-through-panes": "Shadows through see-through panes",
       "a-walker-among-balls": "A walker among balls",
+      "hover-to-highlight": "Hover to highlight a part",
       "a-dolly-along-the-canal": "A dolly along the canal",
       "a-folder-merged-into-one-scene": "A folder merged into one scene",
       "drag-a-crate": "Drag a crate"

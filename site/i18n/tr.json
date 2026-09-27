@@ -190,6 +190,7 @@
       "a-robot-that-walks-and-waves": "Karıştırılmış robot hareketleri",
       "a-crane-that-swings": "Yükünü sallayan vinç",
       "a-wave-across-a-grid": "Küplerden bir dalga",
+      "doors-that-open": "Yaklaşınca açılan kapılar",
       "keyframes-by-hand": "Elle anahtar kareler",
       "one-clip-many-objects": "Bir klip, birçok nesne",
       "animation-from-the-file": "Dosyadan gelen animasyon",
@@ -269,6 +270,7 @@
       "labels-that-follow": "Takip eden etiketler",
       "select-with-a-box": "Bir kutuyla seçmek",
       "sound-made-visible": "Görünür kılınan ses",
+      "measure-a-distance": "İki nokta arasındaki mesafeyi ölçme",
       "click-to-pick": "Seçmek için tıkla",
       "hover-over-triangles": "Üçgenlerin üzerine gelmek",
       "pick-lines-and-points": "Çizgi ve noktaları seçmek",
@@ -334,6 +336,7 @@
       "shadows-case-by-case": "Gölgeler, durum durum",
       "shadows-through-see-through-panes": "Saydam camlardan düşen gölgeler",
       "a-walker-among-balls": "Toplar arasında bir yürüyüşçü",
+      "hover-to-highlight": "Bir parçayı vurgulamak için üzerine gelin",
       "a-dolly-along-the-canal": "Kanal boyunca kamera kaydırma",
       "a-folder-merged-into-one-scene": "Tek sahnede birleştirilen klasör",
       "drag-a-crate": "Bir sandığı sürükleme"

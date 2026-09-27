@@ -518,6 +518,20 @@
       "outer": "바깥쪽"
     }
   },
+  "doors-that-open": {
+    "banner": "카메라를 문 쪽으로 움직이세요. 가까이 가면 문이 열립니다.",
+    "controls": {
+      "mode": "모드",
+      "openingDistance": "열림 거리",
+      "openness": "열림 정도"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "근접",
+        "manual": "수동"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "끌어서 섬 주위를 날아 봐. 바다를 올려 골짜기를 잠기게 해 봐.",
     "controls": {
@@ -569,6 +583,17 @@
       "lamp": "램프",
       "colour": "색",
       "bricks": "벽돌"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "두 표면을 클릭해 사이의 거리를 측정합니다. 세 번째 클릭은 새 측정을 시작합니다. 1단위는 1미터입니다.",
+    "controls": {
+      "clear": "지우기"
+    },
+    "readouts": {
+      "pointA": "점 A",
+      "pointB": "점 B",
+      "distance": "거리"
     }
   },
   "click-to-pick": {
@@ -2213,6 +2238,12 @@
     },
     "words": {
       "credit": "이 예제를 위해 코드로 만든 깃대의 깃발, CC0 — assets/examples/CREDITS.md 참고"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "카트의 각 부품에 마우스를 올려 강조하거나 패널에서 강조 표시를 끄세요.",
+    "controls": {
+      "highlightEnabled": "강조 표시 켜기"
     }
   },
   "a-dolly-along-the-canal": {

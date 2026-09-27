@@ -518,6 +518,20 @@
       "outer": "Extérieur"
     }
   },
+  "doors-that-open": {
+    "banner": "Rapprochez la caméra des portes. Elles s’ouvrent à votre approche.",
+    "controls": {
+      "mode": "Mode",
+      "openingDistance": "Distance d’ouverture",
+      "openness": "Ouverture"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "proximité",
+        "manual": "manuel"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Glisse pour voler autour de l'île. Monte la mer pour inonder les vallées.",
     "controls": {
@@ -569,6 +583,17 @@
       "lamp": "Lampe",
       "colour": "Couleur",
       "bricks": "Briques"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Cliquez sur deux surfaces pour mesurer leur distance. Un troisième clic commence une nouvelle mesure. Une unité représente un mètre.",
+    "controls": {
+      "clear": "Effacer"
+    },
+    "readouts": {
+      "pointA": "Point A",
+      "pointB": "Point B",
+      "distance": "Distance"
     }
   },
   "click-to-pick": {
@@ -2213,6 +2238,12 @@
     },
     "words": {
       "credit": "Drapeau sur un mât modélisé en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Survolez les pièces du chariot pour les mettre en évidence, ou désactivez le surlignage dans le panneau.",
+    "controls": {
+      "highlightEnabled": "Activer la mise en évidence"
     }
   },
   "a-dolly-along-the-canal": {

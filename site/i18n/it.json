@@ -190,6 +190,7 @@
       "a-robot-that-walks-and-waves": "Movimenti di robot mescolati",
       "a-crane-that-swings": "Una gru che fa oscillare il carico",
       "a-wave-across-a-grid": "Onda di cubi",
+      "doors-that-open": "Porte che si aprono al tuo arrivo",
       "keyframes-by-hand": "Fotogrammi chiave a mano",
       "one-clip-many-objects": "Una clip, tanti oggetti",
       "animation-from-the-file": "Animazione dal file",
@@ -269,6 +270,7 @@
       "labels-that-follow": "Etichette che seguono",
       "select-with-a-box": "Selezionare con un riquadro",
       "sound-made-visible": "Il suono reso visibile",
+      "measure-a-distance": "Misurare la distanza tra due punti",
       "click-to-pick": "Clic per scegliere",
       "hover-over-triangles": "Passare sopra i triangoli",
       "pick-lines-and-points": "Scegliere linee e punti",
@@ -334,6 +336,7 @@
       "shadows-case-by-case": "Le ombre, caso per caso",
       "shadows-through-see-through-panes": "Ombre attraverso vetri trasparenti",
       "a-walker-among-balls": "Un camminatore tra le palline",
+      "hover-to-highlight": "Passa sopra per evidenziare una parte",
       "a-dolly-along-the-canal": "Una carrellata lungo il canale",
       "a-folder-merged-into-one-scene": "Una cartella unita in una scena",
       "drag-a-crate": "Trascinare una cassa"
