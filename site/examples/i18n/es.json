@@ -571,6 +571,17 @@
       "bricks": "Ladrillos"
     }
   },
+  "measure-a-distance": {
+    "banner": "Haz clic en dos superficies para medir la distancia entre ellas. Un tercer clic inicia una nueva medición. Una unidad representa un metro.",
+    "controls": {
+      "clear": "Borrar"
+    },
+    "readouts": {
+      "pointA": "Punto A",
+      "pointB": "Punto B",
+      "distance": "Distancia"
+    }
+  },
   "click-to-pick": {
     "banner": "Haz clic en una forma. Se ilumina y el panel dice dónde la tocaste.",
     "readouts": {

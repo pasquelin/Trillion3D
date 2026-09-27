@@ -571,6 +571,17 @@
       "bricks": "Tijolos"
     }
   },
+  "measure-a-distance": {
+    "banner": "Clique em duas superfícies para medir a distância entre elas. Um terceiro clique inicia uma nova medição. Uma unidade representa um metro.",
+    "controls": {
+      "clear": "Limpar"
+    },
+    "readouts": {
+      "pointA": "Ponto A",
+      "pointB": "Ponto B",
+      "distance": "Distância"
+    }
+  },
   "click-to-pick": {
     "banner": "Clique numa forma. Ela acende e o painel diz onde você tocou.",
     "readouts": {
