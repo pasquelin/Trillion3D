@@ -1,7 +1,8 @@
-import type { SceneLight, SceneLightStore } from '../../../sdk-core/src/index.ts';
+import type { SceneFog, SceneLight, SceneLightStore } from '../../../sdk-core/src/index.ts';
 import { GraphAmbientLight, GraphLight, GraphLightProbe } from '../host/graph/light.ts';
-import type { GraphScene } from '../host/graph/scene.ts';
+import type { Scene } from '../world/core/scene.ts';
 import { Color } from '../../../sdk-core/src/world/math/color.ts';
+import { fogOf } from '../world/core/sceneFog.ts';
 import { createUnlitAlbedo } from './unlitAlbedo.ts';
 import { createLight, writeLight, type ContractLight } from './lightWrite.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
@@ -29,7 +30,7 @@ const UNLIT_IRRADIANCE = Math.PI;
  * the one from before this batch, pixel for pixel. As soon as it has, the source graph
  * disappears: two stacked light sets would be nobody's lighting.
  */
-function createContractLights(scene: GraphScene, store: SceneLightStore | undefined) {
+function createContractLights(scene: Scene, store: SceneLightStore | undefined) {
   const group = new Group();
   group.visible = false;
   scene.add(group);
@@ -46,6 +47,11 @@ function createContractLights(scene: GraphScene, store: SceneLightStore | undefi
   const lights = new Map<string, { light: ContractLight; kind: SceneLight['kind'] }>();
   let epoch = -1,
     governs = false;
+  // The store's fog the scene holds, converted once: a revision that keeps it rewrites nothing.
+  let heldFog: SceneFog | undefined;
+  const setFog = (fog: SceneFog | undefined) => {
+    if (fog !== heldFog) scene.fog = fogOf((heldFog = fog));
+  };
   const drop = (id: string) => {
     const entry = lights.get(id)!;
     group.remove(entry.light);
@@ -85,7 +91,7 @@ function createContractLights(scene: GraphScene, store: SceneLightStore | undefi
         albedo.setEnabled(false);
         if (governs) dropAll();
         governs = false;
-        scene.fog = null;
+        setFog(undefined);
         group.visible = false;
         epoch = store.epoch;
         return false;
@@ -100,7 +106,7 @@ function createContractLights(scene: GraphScene, store: SceneLightStore | undefi
       if (store.unlit) dropAll();
       else rebuild();
       const sh = store.unlit ? undefined : store.environment?.irradiance;
-      scene.fog = (!store.unlit && store.environment?.fog) || null;
+      setFog(store.unlit ? undefined : store.environment?.fog);
       if ((probe.visible = !!sh)) probe.sh.fromArray(sh);
       return true;
     },
@@ -117,7 +123,7 @@ function createContractLights(scene: GraphScene, store: SceneLightStore | undefi
  * the engine exists, so the first pass happens here, at construction.
  */
 export function attachContractLights(
-  scene: GraphScene,
+  scene: Scene,
   store: SceneLightStore | undefined,
   source: { setEnabled(enabled: boolean): void; readonly lit: boolean },
   sceneChanged: () => void,

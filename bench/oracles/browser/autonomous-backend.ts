@@ -1,5 +1,6 @@
-import { GraphMesh } from '../../../packages/sdk-browser/src/host/graph/mesh.ts';
-import type { GraphScene } from '../../../packages/sdk-browser/src/host/graph/scene.ts';
+import { numbered } from '../../../packages/sdk-browser/src/host/graph/serial.ts';
+import { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts';
+import type { Scene } from '../../../packages/sdk-browser/src/world/core/scene.ts';
 import type { GraphSurface } from '../../../packages/sdk-browser/src/host/graph/surface.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
@@ -15,7 +16,7 @@ export function referenceAutonomousSync({
   allPages,
   shown,
 }: {
-  scene: GraphScene;
+  scene: Scene;
   allPages: PageRec[];
   shown: PageRec[];
 }) {
@@ -30,9 +31,8 @@ export function referenceAutonomousSync({
   const attach = (rec: PageRec) => {
     if (!rec.geometry) return;
     if (!rec.mesh) {
-      const mesh = new GraphMesh(
-        asHostLibrary<Geometry>(rec.geometry),
-        asHostLibrary<GraphSurface>(rec.material),
+      const mesh = numbered(
+        new Mesh(asHostLibrary<Geometry>(rec.geometry), asHostLibrary<GraphSurface>(rec.material)),
       );
       mesh.matrixAutoUpdate = false;
       mesh.frustumCulled = false;

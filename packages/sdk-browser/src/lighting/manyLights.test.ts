@@ -5,7 +5,7 @@ import { attachContractLights } from './contractLights.ts';
 import { installLighting } from './contractLightingApi.ts';
 import { declareImportedLights } from './importedLights.ts';
 import { unsupportedClusterLight } from '../webgl/cluster/lights.ts';
-import { GraphScene } from '../host/graph/scene.ts';
+import { Scene } from '../world/core/scene.ts';
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 // #822: a scene declares as many lamps as it holds. The store takes every one of them and a
@@ -31,7 +31,7 @@ test('300 imported lights: every one is declared, none dropped', () => {
 });
 
 test('WebGL2 past 64 lights raises its explicit error, never a silent drop', () => {
-  const [scene, store] = [new GraphScene(), createSceneLightStore()];
+  const [scene, store] = [new Scene(), createSceneLightStore()];
   const contract = attachContractLights(
     scene,
     store,

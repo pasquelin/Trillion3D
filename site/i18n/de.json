@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Jedes Beispiel ist eine kurze Datei: sieh es dir laufen an, öffne den Code, verändere ihn.",
     "jumpTo": "Zu einem Thema springen",
-    "inProgress": "In Arbeit",
     "waitsFor": "Wartet auf die Engine:",
-    "waitingEngine": "Wartet auf die Engine"
+    "partial": "Teilweise",
+    "coming": "Demnächst"
   },
   "gallery": {
     "themes": {
@@ -74,6 +74,7 @@
       "a-tube-along-a-spline": "Eine Röhre entlang einer Kurve",
       "curved-surfaces": "Gekrümmte Flächen",
       "instances-in-colour": "Bunte Instanzen",
+      "a-hundred-thousand-instances": "Hunderttausend Instanzen",
       "copies-along-a-path": "Kopien entlang eines Pfads",
       "scattered-on-a-surface": "Verstreut auf einer Fläche",
       "a-world-of-blocks": "Eine Welt aus Blöcken",
@@ -153,7 +154,7 @@
       "flat-shadows-on-the-floor": "Flach projizierte Schatten",
       "a-softbox-panel": "Ein Softbox-Panel",
       "light-from-a-probe": "Licht aus einer Sonde",
-      "soft-shadow-edges": "Weiche Schattenkanten",
+      "soft-shadows-from-a-wide-lamp": "Weiche Schatten einer breiten Lampe",
       "contact-shadow-under-a-car": "Kontaktschatten",
       "coloured-shadows-through-glass": "Schatten durch Glas",
       "shadows-in-the-corners": "Schatten in den Ecken",
@@ -182,9 +183,12 @@
       "several-views-one-page": "Mehrere Ansichten, eine Seite",
       "before-and-after-slider": "Vorher/Nachher-Schieberegler",
       "side-by-side-stereo": "Stereo nebeneinander",
+      "the-near-plane-cuts-a-wall": "Die Nahgrenze schneidet eine Wand",
+      "the-home-pose": "Ausgangsansicht und Blickpunkte",
       "red-cyan-anaglyph": "Rot-Cyan-Anaglyphe",
       "camera-layers": "Kamera-Ebenen",
       "a-robot-that-walks-and-waves": "Vermischte Roboterbewegungen",
+      "a-crane-that-swings": "Ein Kran mit schwingender Last",
       "a-wave-across-a-grid": "Welle aus Würfeln",
       "keyframes-by-hand": "Schlüsselbilder von Hand",
       "one-clip-many-objects": "Ein Clip, viele Objekte",
@@ -218,6 +222,7 @@
       "observatory-streamed": "Gestreamte Cluster",
       "health-check": "Gesundheitscheck",
       "memory-on-a-budget": "Speicherbudget",
+      "a-walk-through-the-city": "Ein Spaziergang durch die Stadt",
       "detail-by-pixel-error": "Detail nach Pixel-Fehler",
       "watch-a-world-load": "Einer Welt beim Laden zusehen",
       "ten-thousand-objects": "Zehntausend Objekte",
@@ -225,6 +230,7 @@
       "what-hides-what": "Was was verdeckt",
       "create-and-dispose": "Erzeugen und freigeben",
       "no-hitch-on-first-draw": "Kein Ruckler beim ersten Bild",
+      "inside-a-component": "In einer Komponente",
       "inside-the-g-buffer": "Im G-Buffer",
       "reading-pixels-back": "Pixel zurücklesen",
       "a-city-from-3d-tiles": "Eine Stadt aus 3D Tiles",
@@ -327,9 +333,13 @@
       "ar-on-the-table": "AR auf dem Tisch",
       "shadows-case-by-case": "Schatten, Fall für Fall",
       "shadows-through-see-through-panes": "Schatten durch durchsichtige Scheiben",
-      "a-walker-among-balls": "Ein Läufer zwischen Bällen"
+      "a-walker-among-balls": "Ein Läufer zwischen Bällen",
+      "a-dolly-along-the-canal": "Eine Kamerafahrt am Kanal",
+      "a-folder-merged-into-one-scene": "Ein Ordner als eine Szene",
+      "drag-a-crate": "Eine Kiste ziehen"
     },
     "missing": {
+      "inside-a-component": "Entfernen der vom Engine erstellten Zeichenfläche beim Freigeben der Welt",
       "floating-crates": "in jedem Bild neu geschriebene Geometrie",
       "thick-lines": "breite Linien",
       "a-line-that-draws-itself": "Zeichenbereich einer Geometrie",
@@ -373,7 +383,7 @@
       "a-stack-of-texture-layers": "Daten-, Array- und 3D-Texturen",
       "wide-gamut-colour": "Ausgabe mit großem Farbraum",
       "energy-conservation-test": "Umgebungslicht (IBL)",
-      "soft-shadow-edges": "Filterung weicher Schatten (Halbschatten)",
+      "soft-shadows-from-a-wide-lamp": "weiche Schatten durch die Lampenbreite",
       "contact-shadow-under-a-car": "Rendern in eine Textur",
       "coloured-shadows-through-glass": "schattenwerfende transparente Objekte",
       "shadows-in-the-corners": "Ambient Occlusion im Bildraum",

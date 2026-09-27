@@ -83,6 +83,7 @@ export function sessionStandIn() {
     setLightingView: (view: string) => void (written.view = view),
     invalidate() {},
     growsPlacements: () => false,
+    mountsPlacements: () => false,
     refreshMaterials: () => true,
     updatePlacements() {},
     setEnvironment: (environment: { irradiance?: number[] }) =>
