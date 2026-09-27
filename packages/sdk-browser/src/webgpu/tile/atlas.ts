@@ -97,13 +97,13 @@ export function createWebgpuTileAtlas(
   // Eviction candidates, computed once per image and per lane, consumed in order.
   const candidatesAt = (lane: Lane, frame: number) => {
     if (candidatesFrame !== frame) {
-      for (const each of lanes.lanes.values()) each.candidates = each.pool.candidates(frame);
+      for (const each of lanes.lanes.values()) each.candidates = each.pool.victims(frame);
       candidatesFrame = frame;
     }
     return lane.candidates;
   };
   const evict = (lane: Lane, frame: number) => {
-    const index = candidatesAt(lane, frame).shift();
+    const index = candidatesAt(lane, frame).take();
     if (index === undefined) return undefined;
     evictTile(lane.pool, index, { pages, resident: lane.resident }, options.onEvicted);
     evictions++;
