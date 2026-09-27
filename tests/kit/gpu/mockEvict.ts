@@ -25,14 +25,14 @@ export function mockEvictions(byBinding: Map<number, { data: Uint8Array }>, pack
       const now = ++work[frame];
       for (const page of used) flags[stamps + canonicalPage(keys[page])] = now;
     },
-    /** The queue behind the drawn list, at most one entry per listed key. */
+    /** The queue behind the drawn list, at most `EVICTION_BURST` entries. */
     list() {
       const queue = listEvictions({
         pool: cold.subarray(pool + 1, pool + 1 + cold[pool]),
         keys,
         stampOf: (page) => flags[stamps + page],
         now: work[frame],
-        cap: listCap,
+        cap: L.EVICTION_BURST,
       });
       out[L.evictionWord(listCap)] = queue.length;
       out.set(queue, L.evictionWord(listCap) + L.SELECTION_HEADER_WORDS);

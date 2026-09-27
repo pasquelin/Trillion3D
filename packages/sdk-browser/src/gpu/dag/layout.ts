@@ -81,9 +81,12 @@ export const selectionListCap = (pageCount: number) =>
 export const SELECTION_HEADER_WORDS = 8;
 /** Word of `out` where the eviction queue's header starts, behind the drawn list. */
 export const evictionWord = (listCap: number) => 2 * (SELECTION_HEADER_WORDS + listCap);
-/** Bytes a resident cut's frame copies: its eviction queue is bounded by the keys the pool `held`. */
-export const residentReadbackBytes = (listCap: number, held: number) =>
-  (evictionWord(listCap) + SELECTION_HEADER_WORDS + Math.min(Math.max(0, held), listCap)) * 4;
+/** Victims one readback hands the cache, more than one frame's admission share (`STREAMING_FRAME_MS`)
+ *  ever commits: the next readback brings the next burst. Fixed, so is the readback's size. */
+export const EVICTION_BURST = 1024;
+/** Bytes a resident cut's frame copies, whatever the catalogue or the pool: the burst bounds it. */
+export const residentReadbackBytes = (listCap: number) =>
+  (evictionWord(listCap) + SELECTION_HEADER_WORDS + EVICTION_BURST) * 4;
 /** Word of `out` where the camera's requests wait for their sort, behind the eviction queue,
  *  outside what the frame copies (`stagedAt` of `shader/snapshotWgsl.ts`). */
 export const stagedRequestsWord = (listCap: number) => 3 * (SELECTION_HEADER_WORDS + listCap);
