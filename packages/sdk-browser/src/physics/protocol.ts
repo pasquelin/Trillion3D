@@ -84,8 +84,8 @@ export interface PhysicsResults {
 
 /**
  * What the physics worker tells the page. An error names a code (`PHYSICS_BUDGET`,
- * `PHYSICS_FAILED`); a fatal one stopped the simulation, and one with `bodies` refused those
- * bodies alone (their engine ids).
+ * `PHYSICS_FAILED`, `PHYSICS_DIVERGED`); a fatal one stopped the simulation, and one with `bodies`
+ * refused those bodies alone (their engine ids).
  */
 export type FromPhysics =
   | { type: 'ready' }

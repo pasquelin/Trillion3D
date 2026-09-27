@@ -49,8 +49,8 @@ export function createTickResults(
       : (staging ??= new Uint32Array(resultWords(budget)));
     return out;
   };
-  /** A step's refused shapes, broken joints and exhausted budgets reach the page as they happen;
-   *  the world runs. */
+  /** A step's refused shapes, diverged bodies, broken joints and exhausted budgets reach the page
+   *  as they happen; the world runs. */
   const report = () => {
     const joints = jolt.broken();
     if (joints.length) send({ type: 'broken', joints });
@@ -58,6 +58,11 @@ export function createTickResults(
     if (bodies.length) {
       const message = `Physics: ${bodies.length} body shape(s) refused by the module.`;
       send({ type: 'error', code: 'PHYSICS_FAILED', message, fatal: false, bodies });
+    }
+    const diverged = jolt.diverged();
+    if (diverged.length) {
+      const message = `Physics: ${diverged.length} body(ies) went non-finite and left the simulation.`;
+      send({ type: 'error', code: 'PHYSICS_DIVERGED', message, fatal: false, bodies: diverged });
     }
     const now = jolt.overflow().join(', ');
     if (now && now !== overflow) {

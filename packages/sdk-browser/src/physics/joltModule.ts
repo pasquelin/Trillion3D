@@ -29,6 +29,8 @@ interface JoltExports {
   jolt_update_error(): number;
   jolt_refused_count(): number;
   jolt_refused(i: number): number;
+  jolt_diverged_count(): number;
+  jolt_diverged(i: number): number;
   jolt_error(): number;
   jolt_active_count(): number;
   jolt_owed_leaves(): number;
@@ -136,6 +138,9 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
     /** The engine ids of the bodies whose shape the last step refused. */
     refused: () =>
       Array.from({ length: jolt.jolt_refused_count() }, (_, i) => jolt.jolt_refused(i)),
+    /** The engine ids of the bodies the last step left non-finite: taken out, nothing sent. */
+    diverged: () =>
+      Array.from({ length: jolt.jolt_diverged_count() }, (_, i) => jolt.jolt_diverged(i)),
     /** The ids of the joints the last step broke. */
     broken: () => Array.from({ length: jolt.jolt_broken_count() }, (_, i) => jolt.jolt_broken(i)),
     active: () => jolt.jolt_active_count(),
