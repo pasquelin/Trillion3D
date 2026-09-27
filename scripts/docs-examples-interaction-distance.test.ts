@@ -17,7 +17,6 @@ import type {
   GuidePoints,
   World,
 } from '../packages/sdk-browser/src/index.ts';
-import type { ControlSpec } from '../site/examples/kit/controls.ts';
 import { runExampleModule } from './docs/examples/capture.ts';
 
 test('distance picking keeps exact points, restarts, clears and disposes', async (t) => {
@@ -26,13 +25,16 @@ test('distance picking keeps exact points, restarts, clears and disposes', async
     'utf8',
   );
   const scene = new Scene(() => Promise.reject(new Error('the page loads no model')));
-  const listeners = new Map<string, (event: { offsetX: number; offsetY: number }) => void>();
+  const listeners = new Map<
+    string,
+    (event: { offsetX: number; offsetY: number; isPrimary: boolean }) => void
+  >();
   const lineCalls: GuideLines[] = [],
     pointCalls: GuidePoints[] = [];
   let removed = 0,
     disposed = false,
-    pagehide = () => {},
-    buttons = {} as Record<string, () => void>;
+    pagehide = () => {};
+  let buttons: Record<string, () => void> = {};
   const handle = (): GuideHandle => ({
     visible: true,
     setVisible() {
@@ -43,15 +45,12 @@ test('distance picking keeps exact points, restarts, clears and disposes', async
     },
     remove: () => void removed++,
   });
+  const record =
+    <T extends GuideLines | GuidePoints>(calls: T[]) =>
+    (spec: T) => (calls.push({ ...spec, positions: Array.from(spec.positions) }), handle());
   const guides = {
-    lines: (spec: GuideLines) => (
-      lineCalls.push({ ...spec, positions: Array.from(spec.positions) }),
-      handle()
-    ),
-    points: (spec: GuidePoints) => (
-      pointCalls.push({ ...spec, positions: Array.from(spec.positions) }),
-      handle()
-    ),
+    lines: record(lineCalls),
+    points: record(pointCalls),
   } satisfies Pick<World['guides'], 'lines' | 'points'>;
   const hits = new Map([
     [1, new Vector3(0, 0, 0)],
@@ -65,7 +64,7 @@ test('distance picking keeps exact points, restarts, clears and disposes', async
     canvas: {
       addEventListener: (
         type: string,
-        listener: (event: { offsetX: number; offsetY: number }) => void,
+        listener: (event: { offsetX: number; offsetY: number; isPrimary: boolean }) => void,
       ) => listeners.set(type, listener),
     },
     camera: new Camera('perspective'),
@@ -94,16 +93,15 @@ test('distance picking keeps exact points, restarts, clears and disposes', async
   await runExampleModule(html, {
     engine: { createWorld: () => world, geometry, light, material, math, object },
     kit: {
-      controls: (specs: Record<string, ControlSpec>) => (
-        void (buttons = specs as unknown as Record<string, () => void>),
-        {}
-      ),
+      controls: (specs: Record<string, () => void>) => ((buttons = specs), {}),
       readout: (name: string) => (value: string) => void shown.set(name, value),
     },
   });
+  const press = (type: string, offsetX: number, isPrimary = true) =>
+    listeners.get(type)?.({ offsetX, offsetY: 0, isPrimary });
   const click = (x: number, dragged = 0) => {
-    listeners.get('pointerdown')?.({ offsetX: x, offsetY: 0 });
-    listeners.get('pointerup')?.({ offsetX: x + dragged, offsetY: 0 });
+    press('pointerdown', x);
+    press('pointerup', x + dragged);
   };
 
   click(1);
@@ -117,6 +115,10 @@ test('distance picking keeps exact points, restarts, clears and disposes', async
   assert.equal(pointCalls.length, 1, 'a miss preserves the first point');
   click(2, 40);
   assert.equal(pointCalls.length, 1, 'releasing an orbit drag measures nothing');
+  press('pointerdown', 50);
+  press('pointerdown', 2, false);
+  press('pointerup', 2, false);
+  assert.equal(pointCalls.length, 1, 'a second finger of a pinch measures nothing');
   click(2);
   assert.deepEqual(lineCalls.at(-1), {
     positions: [0, 0, 0, 3, 4, 0],
