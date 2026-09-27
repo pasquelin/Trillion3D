@@ -74,8 +74,8 @@ export const BARY_WEIGHTS_WGSL = `fn baryWeights(a:vec2f,b:vec2f,c:vec2f,p:vec2f
  * pixel or shadow texel —: each reads the map at the level of its footprint (`maskAlpha`,
  * `../../webgpu/tile/wgsl.ts`), the camera through the colour's own read. This is the only cutout of
  * an opaque pixel: the resolve shades what the raster kept and never tests again. The compute
- * raster, which has no derivatives, passes zero and reads level 0 — the finest resident tile under
- * that texel.
+ * raster supplies analytical gradients of its covered sub-triangle so this same sampling path
+ * chooses its footprint instead of forcing the finest level.
  *
  * The test is the hard threshold in every raster and every image, accumulating or not: under
  * temporal antialiasing the jitter already moves each pixel's sample across its footprint, so the

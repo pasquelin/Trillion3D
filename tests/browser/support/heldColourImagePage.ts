@@ -36,7 +36,7 @@ function lire(gl: WebGL2RenderingContext) {
 
 /** Two planes of different colours, lit or not according to what the case asks. */
 function scene(eclairee: boolean) {
-  const scene = new G.GraphScene();
+  const scene = new G.Scene();
   scene.background = new G.Color(0x171d28);
   const materiau = (couleur: number) =>
     eclairee
@@ -101,7 +101,7 @@ function cas(gl: WebGL2RenderingContext, eclairee: boolean) {
   compose.dispose();
   dessin.dispose();
   monde.traverse((objet) => {
-    if (!(objet instanceof G.GraphMesh)) return;
+    if (!(objet instanceof G.Mesh)) return;
     objet.geometry.dispose();
     (Array.isArray(objet.material) ? objet.material : [objet.material]).forEach((m) => m.dispose());
   });

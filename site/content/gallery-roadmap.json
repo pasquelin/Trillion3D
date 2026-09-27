@@ -371,12 +371,6 @@
       "status": "needs-engine"
     },
     {
-      "id": "clearcoat-paint",
-      "theme": "materials",
-      "file": "",
-      "status": "needs-engine"
-    },
-    {
       "id": "velvet-sheen",
       "theme": "materials",
       "file": "",
@@ -391,8 +385,16 @@
     {
       "id": "brushed-metal",
       "theme": "materials",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/brushed-metal.html",
+      "status": "waiting-engine",
+      "issue": 33
+    },
+    {
+      "id": "car-paint-under-clear-coat",
+      "theme": "materials",
+      "file": "examples/car-paint-under-clear-coat.html",
+      "status": "waiting-engine",
+      "issue": 33
     },
     {
       "id": "a-prism-that-disperses",
@@ -559,10 +561,11 @@
       "file": "examples/light-from-a-probe.html"
     },
     {
-      "id": "soft-shadow-edges",
+      "id": "soft-shadows-from-a-wide-lamp",
       "theme": "lights",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/soft-shadows-from-a-wide-lamp.html",
+      "status": "waiting-engine",
+      "issue": 33
     },
     {
       "id": "contact-shadow-under-a-car",
@@ -718,6 +721,21 @@
       "file": "examples/side-by-side-stereo.html"
     },
     {
+      "id": "the-near-plane-cuts-a-wall",
+      "theme": "camera",
+      "file": "examples/the-near-plane-cuts-a-wall.html"
+    },
+    {
+      "id": "the-home-pose",
+      "theme": "camera",
+      "file": "examples/the-home-pose.html"
+    },
+    {
+      "id": "a-dolly-along-the-canal",
+      "theme": "camera",
+      "file": "examples/a-dolly-along-the-canal.html"
+    },
+    {
       "id": "red-cyan-anaglyph",
       "theme": "camera",
       "file": "",
@@ -733,6 +751,11 @@
       "id": "a-robot-that-walks-and-waves",
       "theme": "animation",
       "file": "examples/a-robot-that-walks-and-waves.html"
+    },
+    {
+      "id": "a-crane-that-swings",
+      "theme": "animation",
+      "file": "examples/a-crane-that-swings.html"
     },
     {
       "id": "a-wave-across-a-grid",
@@ -832,6 +855,11 @@
       "file": "examples/a-model-from-obj.html"
     },
     {
+      "id": "a-folder-merged-into-one-scene",
+      "theme": "loaders",
+      "file": "examples/a-folder-merged-into-one-scene.html"
+    },
+    {
       "id": "a-model-from-usdz",
       "theme": "loaders",
       "file": "examples/a-model-from-usdz.html"
@@ -922,6 +950,11 @@
       "file": "examples/memory-on-a-budget.html"
     },
     {
+      "id": "a-walk-through-the-city",
+      "theme": "streaming",
+      "file": "examples/a-walk-through-the-city.html"
+    },
+    {
       "id": "detail-by-pixel-error",
       "theme": "streaming",
       "file": "examples/detail-by-pixel-error.html"
@@ -935,6 +968,11 @@
       "id": "ten-thousand-objects",
       "theme": "streaming",
       "file": "examples/ten-thousand-objects.html"
+    },
+    {
+      "id": "a-hundred-thousand-instances",
+      "theme": "streaming",
+      "file": "examples/a-hundred-thousand-instances.html"
     },
     {
       "id": "compressed-textures",
@@ -1186,6 +1224,11 @@
       "file": "examples/click-to-pick.html"
     },
     {
+      "id": "drag-a-crate",
+      "theme": "interaction",
+      "file": "examples/drag-a-crate.html"
+    },
+    {
       "id": "hover-over-triangles",
       "theme": "interaction",
       "file": "",
@@ -1299,8 +1342,9 @@
     {
       "id": "outline-the-selection",
       "theme": "effects",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/outline-the-selection.html",
+      "status": "waiting-engine",
+      "issue": 757
     },
     {
       "id": "edges-by-sobel",

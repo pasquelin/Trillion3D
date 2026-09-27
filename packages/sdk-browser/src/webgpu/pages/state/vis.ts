@@ -32,6 +32,8 @@ export interface WebgpuVisState {
    *  classes at preparation, and any class a material changed into since, made on first draw. */
   shadePipelines: Map<number, GPURenderPipeline>;
   shadePipelineFor: ((key: number) => GPURenderPipeline) | undefined;
+  /** Direct resolve of a one-class image: background is rejected in its fragment stage. */
+  singleShadePipelines: Map<number, GPURenderPipeline>;
   /** Classes the image being encoded has rows of (`../../core/materialPasses.ts`). */
   presentClasses: PresentClasses;
   gpuHiz: GpuHiz | undefined;
@@ -101,6 +103,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     materialDepthPipeline: undefined,
     shadePipelines: new Map(),
     shadePipelineFor: undefined,
+    singleShadePipelines: new Map(),
     presentClasses: createPresentClasses(),
     gpuHiz: undefined,
     gpuRaster: undefined,

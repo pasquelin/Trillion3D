@@ -4,7 +4,11 @@ import { depthLayerUnits } from '../../../../sdk-core/src/index.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { validationScope } from '../../gpu/core/errorScope.ts';
 import { SHADE_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts';
-import { shadeVariantFragment, visVariantFragment } from '../../diagnostic/gpuGeometry.ts';
+import {
+  shadeVariantFragment,
+  variesShade,
+  visVariantFragment,
+} from '../../diagnostic/gpuGeometry.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../visibility/shader/materialClass.ts';
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
 
@@ -117,12 +121,7 @@ export function createWebgpuCoplanarLayerPipelines(
   });
 }
 
-/**
- * Builds the material resolve after shader compilation succeeds: the material-depth export, then
- * one pipeline per class of the scene, each compiled with the class's overrides and drawn under
- * the depth test equal to its class depth (`../../visibility/shader/materialClass.ts`). Compiled here, at
- * preparation: no image pays the first draw of a class.
- */
+/** Builds the depth export and class-specialized material pipelines during preparation. */
 export function createWebgpuShadePipelines(
   device: GPUDevice,
   shadeModule: GPUShaderModule,
@@ -151,11 +150,17 @@ export function createWebgpuShadePipelines(
   });
   const layout = device.createPipelineLayout({ bindGroupLayouts: [shadeBindGroupLayout] });
   const primitive: GPUPrimitiveState = { topology: 'triangle-list', cullMode: 'none' };
+  const classDepth: GPUDepthStencilState = {
+    format: MATERIAL_DEPTH_FORMAT,
+    depthWriteEnabled: false,
+    depthCompare: 'equal',
+  };
   const entryPoint = shadeVariantFragment(variant);
-  /** A class pipeline: the class key as override of both stages, whatever the fragment reads;
-   *  the depth and the feature booleans derive from it in the shader. */
-  const shadePipelineFor = (key: number) => {
-    const constants = { CLASS_KEY: key };
+  /** Class features and depth derive from the key; a single class rejects background itself. */
+  const makeShadePipeline = (key: number, single: boolean) => {
+    const constants: Record<string, number> = single
+      ? { CLASS_KEY: key, SINGLE_CLASS: 1 }
+      : { CLASS_KEY: key };
     return device.createRenderPipeline({
       layout,
       vertex: { module: shadeModule, entryPoint: 'shade_vs', constants },
@@ -167,27 +172,29 @@ export function createWebgpuShadePipelines(
         targets: [...SURFACE_FORMATS, FEEDBACK_FORMAT].map((format) => ({ format })),
       },
       primitive,
-      depthStencil: {
-        format: MATERIAL_DEPTH_FORMAT,
-        depthWriteEnabled: false,
-        depthCompare: 'equal',
-      },
+      depthStencil: single ? undefined : classDepth,
     });
   };
-  return scoped(device, () => ({
-    shadeBindGroupLayout,
-    materialDepthPipeline: device.createRenderPipeline({
-      layout,
-      vertex: { module: shadeModule, entryPoint: 'shade_vs' },
-      fragment: { module: shadeModule, entryPoint: 'material_depth_fs', targets: [] },
-      primitive,
-      depthStencil: {
-        format: MATERIAL_DEPTH_FORMAT,
-        depthWriteEnabled: true,
-        depthCompare: 'always',
-      },
-    }),
-    shadePipelineFor,
-    shadePipelines: new Map(classes.map((key) => [key, shadePipelineFor(key)])),
-  }));
+  const shadePipelineFor = (key: number) => makeShadePipeline(key, false);
+  const singleShadePipelineFor = variesShade(variant)
+    ? undefined
+    : (key: number) => makeShadePipeline(key, true);
+  return scoped(device, () => {
+    const singleShadePipelines = new Map<number, GPURenderPipeline>();
+    if (classes.length === 1 && singleShadePipelineFor)
+      singleShadePipelines.set(classes[0], singleShadePipelineFor(classes[0]));
+    return {
+      shadeBindGroupLayout,
+      materialDepthPipeline: device.createRenderPipeline({
+        layout,
+        vertex: { module: shadeModule, entryPoint: 'shade_vs' },
+        fragment: { module: shadeModule, entryPoint: 'material_depth_fs', targets: [] },
+        primitive,
+        depthStencil: { ...classDepth, depthWriteEnabled: true, depthCompare: 'always' },
+      }),
+      shadePipelineFor,
+      shadePipelines: new Map(classes.map((key) => [key, shadePipelineFor(key)])),
+      singleShadePipelines,
+    };
+  });
 }
