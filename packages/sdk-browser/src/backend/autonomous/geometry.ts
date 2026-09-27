@@ -117,16 +117,15 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     rec.geometry = rec.mesh = undefined;
     setArray(rec, undefined);
   };
-  // An instance's records: a geometry rows place is the page's, kept by the model's rows.
+  // An instance's records, or a mount's (#572): a geometry rows place is the page's, freed with
+  // the last record that draws the page.
   const removeRecords = (records: PageRec[]) => {
     const removed = new Set(records);
     for (const rec of records) {
-      release(rec, !!rec.placement);
-      const list = byUrl.get(rec.url);
-      if (list) {
-        const index = list.indexOf(rec);
-        if (index >= 0) list.splice(index, 1);
-      }
+      const list = byUrl.get(rec.url) ?? [],
+        index = list.indexOf(rec);
+      if (index >= 0) list.splice(index, 1);
+      release(rec, !!rec.placement && list.length > 0);
       baseMaterials.delete(rec);
     }
     for (const list of [allPages, env.bootstrap, shown, env.desired, env.requested])

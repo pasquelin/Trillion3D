@@ -1,13 +1,10 @@
-import type { GraphScene } from '../host/graph/scene.ts';
-import type { PageRec, ClusterRoot } from '../page/selection/types.ts';
-import type { WebglFrameGate } from '../webgl/core/frameGate.ts';
+import type { PageRec } from '../page/selection/types.ts';
 import { followPlacementRows } from './update.ts';
 import type { PlacementRows } from './rows.ts';
 import { growRowRoots } from './growth.ts';
-import type { BlendCopy } from '../cluster/blendCopyContract.ts';
 import { followBlendCopies, growBlendCopies } from '../cluster/blendCopyMesh.ts';
 import { autonomousBootstrap } from '../backend/autonomous/manifest.ts';
-import type { HostMaterials } from '../host/resources.ts';
+import { createAutonomousMounts, type PlacementTables } from '../backend/autonomous/mounts.ts';
 
 /** Addresses already counted, reused across calls: nothing is allocated to count a frame. */
 const counted = new Set<string>();
@@ -34,27 +31,13 @@ export function attachedPages(recs: readonly PageRec[], instanced = drawnInstanc
   return own + counted.size;
 }
 
-type Placements = {
-  roots: ClusterRoot<PageRec>[];
-  allPages: PageRec[];
-  bootstrap: PageRec[];
-  byUrl: Map<string, PageRec[]>;
-  baseMaterials: Map<PageRec, HostMaterials>;
-  /** The host copies of blended and transmissive surfaces, and the graph that shows them. */
-  blendCopies: BlendCopy[];
-  scene: GraphScene;
-  gate: WebglFrameGate;
-  /** Tells the instanced pages their rows were written (`webglPageBatches.ts`). */
-  rowsWritten: () => void;
-  /** Notified when grown rows add records to the root cover. */
-  coverChanged: () => void;
-};
-
-/** The instance-buffer updates of the WebGL2 path. */
-export function autonomousPlacements(env: Placements) {
+/** The instance-buffer updates of the WebGL2 path, its mounts in place included (`mounts.ts`). */
+export function autonomousPlacements(env: PlacementTables) {
   const { roots, allPages, bootstrap, byUrl, baseMaterials, blendCopies, scene, gate } = env;
-  const { rowsWritten, coverChanged } = env;
+  const { coverChanged } = env,
+    { rowsWritten } = env.geometryStore;
   return {
+    ...createAutonomousMounts(env),
     /** The roots follow their rows, and a frame that moved something is not held. The instanced
      *  pages read the rows at the next frame's sync; the blended copies posed by rows read them in
      *  place and take their flag here (`blendCopyMesh.ts`). */

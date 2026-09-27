@@ -5,6 +5,8 @@ import {
   type GeometryPageDescriptor,
 } from '../../../../sdk-core/src/index.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
+import { decodePageOffThread } from '../../page/decode/host.ts';
+import type { BackendContext } from '../types.ts';
 
 /** The manifest with every page pointed at its cluster page, and those pages' descriptors by
  *  URL. The cache declares its page format once; a cache of another format, or a page without
@@ -46,3 +48,16 @@ export function autonomousBootstrap(roots: ClusterRoot<PageRec>[]): PageRec[] {
   }
   return bootstrap;
 }
+
+/** The pages at `urls`, read and decoded off the main thread — the open's root cover, or a
+ *  mount's (`mounts.ts`) —, the session's abort checked around each read. */
+export const readPages = (context: BackendContext, urls: readonly string[]) =>
+  Promise.all(
+    urls.map(async (url) => {
+      context.signal?.throwIfAborted();
+      const bytes = await context.readGeometryPage!(url);
+      console.warn('R1 bytes', bytes.byteLength);
+      context.signal?.throwIfAborted();
+      return decodePageOffThread(bytes, context.signal).then((d) => (console.warn('R2 decoded'), d));
+    }),
+  );

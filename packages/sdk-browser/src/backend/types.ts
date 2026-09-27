@@ -76,8 +76,7 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
     import('../webgpu/transparent/occlusionAudit.ts').TransparentOcclusionAudit | null
   >;
   pendingUrls?(): string[];
-  /** Bundles a finer cut would need. Fetched at low priority while the network is otherwise idle,
-   *  so a small camera move finds them already resident. */
+  /** Bundles a finer cut needs, read while the network idles: a small move finds them resident. */
   prefetchUrls?(): string[];
   pageUrls?(): string[];
   /** The same pins as `pageUrls`, spoken as a difference of request ranks: the host no longer has
@@ -193,6 +192,7 @@ export interface BackendContext {
   /** Host-owned, validated page reader for the initial complete GPU fallback. */
   readPage?: (url: string) => Promise<Uint32Array>;
   readGeometryPage?: (url: string) => Promise<Uint8Array>;
+  pageCatalogue?: import('../streaming/types.ts').PageCatalogue; // what a mount reads (#572)
   /** The session's one integration budget per frame (`frameBudget.ts`); absent, nothing bounds it. */
   frameBudget?: import('../page/integration/frameBudget.ts').FrameClock;
 }
