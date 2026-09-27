@@ -170,6 +170,7 @@ pub(super) fn compile_primitive(
             &index_values,
             demand,
             clustered_blend,
+            scale,
             &store,
         )?
     } else {

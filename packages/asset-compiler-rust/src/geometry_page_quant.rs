@@ -8,25 +8,18 @@ use trillion3d_page_codec::bits::{
     bits_for, dequant, oct_decode, pow2, Quant, MAX_BITS, MAX_EXPONENT,
 };
 
-/// A tile spans 2^5 = 32 m: wider primitives sit on 2^-11 (0.49 mm), up to 4 km where the 24-bit
-/// field bounds the grid, so a kilometre terrain seen from 2 m quantizes under half a pixel (#930).
-pub const TILE_EXTENT_LOG2: i32 = 5;
-
-/// Grid of a primitive, the finer of two rules: its widest tile — itself below a tile — split
-/// into 2^16 steps, and an eighth of the finest group error its DAG published, so a cluster's
-/// displacement projects below an eighth of the threshold wherever the cut selects it. Both are
-/// bounded below by the extent in 2^(`MAX_BITS` - 2) steps: no page, rounding included, needs
-/// more than `MAX_BITS` per coordinate. Every page shares the primitive's exponent and a cell
-/// rounds the absolute coordinate, each page storing only its own minimum: a vertex shared by
-/// two clusters or two tiles lands on one cell, so tiles split no geometry and cost only the
-/// bits each page's box needs. The step is a power of two: `min + q * step` has an exact product.
-pub fn grid_exponent(extent: f64, finest_error: Option<f64>) -> i32 {
-    let widest = if extent > 0.0 {
-        extent.log2().floor() as i32
-    } else {
-        0
-    };
-    let by_extent = widest.min(TILE_EXTENT_LOG2) - 16;
+/// Grid of a primitive, the finer of two rules: its widest tile (`tile_log2`, a power of two; the
+/// primitive itself when narrower) split into 2^16 steps, and an eighth of the finest group error
+/// its DAG published, so a cluster's displacement projects below an eighth of the threshold. Both
+/// are bounded below by the extent in 2^(`MAX_BITS` - 2) steps: no page, rounding included, needs
+/// more than `MAX_BITS` per coordinate. Every page shares that exponent and stores its own
+/// minimum, a cell rounding the absolute coordinate: a vertex two clusters or two tiles share
+/// lands on one cell, so tiles split nothing. The step is a power of two: `q * step` is exact.
+pub fn grid_exponent(extent: f64, finest_error: Option<f64>, tile_log2: i32) -> i32 {
+    let widest = (extent > 0.0)
+        .then(|| extent.log2().floor() as i32)
+        .unwrap_or(0);
+    let by_extent = widest.min(tile_log2) - 16;
     let by_error = finest_error.map_or(by_extent, |e| (e / 8.0).log2().floor() as i32);
     let finest = widest - (MAX_BITS as i32 - 2);
     by_extent
@@ -44,8 +37,13 @@ pub fn finest_exponent(span: f64) -> i32 {
 
 /// The grid of a primitive from its positions and the errors its DAG published; a zero error is
 /// a root's, not a rule. A `blended` primitive takes the finest grid its pages hold: a coarser
-/// one shows through a transparent surface (#875).
-pub fn primitive_exponent(pos: &[f32], errors: impl Iterator<Item = f64>, blended: bool) -> i32 {
+/// one shows through a transparent surface (#875). `scale` is the largest world scale placing it.
+pub fn primitive_exponent(
+    pos: &[f32],
+    errors: impl Iterator<Item = f64>,
+    blended: bool,
+    scale: Option<f64>,
+) -> i32 {
     let bounds = crate::proxy::bvh::extent(pos);
     let extent = (0..3)
         .map(|axis| bounds[axis + 3] - bounds[axis])
@@ -53,7 +51,8 @@ pub fn primitive_exponent(pos: &[f32], errors: impl Iterator<Item = f64>, blende
     if blended && extent > 0.0 {
         return finest_exponent(extent);
     }
-    grid_exponent(extent, errors.filter(|e| *e > 0.0).min_by(f64::total_cmp))
+    let finest = errors.filter(|e| *e > 0.0).min_by(f64::total_cmp);
+    grid_exponent(extent, finest, crate::geometry_page_tile::tile_log2(scale))
 }
 
 /// Texture coordinates sit on a fixed grid of 2^-14: a quarter of a texel on a 4096 map.

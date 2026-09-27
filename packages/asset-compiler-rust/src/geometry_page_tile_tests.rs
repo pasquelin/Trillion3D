@@ -1,13 +1,12 @@
-//! Tiled grids: a primitive narrower than a tile keeps the grid it had, a wider one is quantized
-//! tile by tile on the same absolute grid, and a kilometre terrain seen from 2 m quantizes under
-//! the display quantum.
+//! Tiled grids: a primitive narrower than a tile of the world keeps the grid it had, a wider one
+//! is quantized tile by tile on the same absolute grid, and a kilometre terrain seen from 2 m
+//! quantizes under the display quantum.
 
+use super::{tile_log2, TILE_EXTENT_LOG2};
 use crate::compute_bench::inputs::Xorshift;
 use crate::dag::{build_dag_tallied, DagAttributes, DagStrategy};
 use crate::geometry_page::encode;
-use crate::geometry_page_quant::{
-    grid_exponent, primitive_exponent, TILE_EXTENT_LOG2, UV_EXPONENT,
-};
+use crate::geometry_page_quant::{grid_exponent, primitive_exponent, UV_EXPONENT};
 use trillion3d_page_codec::bits::{MAX_BITS, MAX_EXPONENT};
 
 /// The grid rule before tiles, kept as the witness the tiled rule is compared with: the finest
@@ -55,7 +54,7 @@ fn a_primitive_narrower_than_a_tile_keeps_its_grid() {
             _ => Some(2f64.powi(rng.between(0, 80) as i32 - 60)),
         };
         assert_eq!(
-            grid_exponent(extent, error),
+            grid_exponent(extent, error, TILE_EXTENT_LOG2),
             untiled(extent, error),
             "{extent} {error:?}"
         );
@@ -63,14 +62,14 @@ fn a_primitive_narrower_than_a_tile_keeps_its_grid() {
     // An empty primitive and a single point: no extent, the grid they had.
     for positions in [&[][..], &[3.0, -4.0, 5.0]] {
         assert_eq!(
-            primitive_exponent(positions, [].into_iter(), false),
+            primitive_exponent(positions, [].into_iter(), false, None),
             untiled(0.0, None)
         );
     }
     for extent in EDGES.into_iter().filter(|e| e.is_nan() || *e < tile) {
         for error in EDGES.into_iter().map(Some).chain([None]) {
             assert_eq!(
-                grid_exponent(extent, error),
+                grid_exponent(extent, error, TILE_EXTENT_LOG2),
                 untiled(extent, error),
                 "{extent} {error:?}"
             );
@@ -86,7 +85,7 @@ fn a_wider_primitive_is_never_coarser_and_its_widest_page_still_fits() {
         .collect();
     for extent in extents.into_iter().chain(EDGES) {
         let error = (rng.below(2) == 0).then(|| f64::from(rng.unit()) * 16.0);
-        let tiled = grid_exponent(extent, error);
+        let tiled = grid_exponent(extent, error, TILE_EXTENT_LOG2);
         assert!(tiled <= untiled(extent, error), "{extent} {error:?}");
         if extent.is_finite() && extent > 0.0 {
             // The whole primitive, one page wide, on its own grid: under 2^MAX_BITS steps.
@@ -95,6 +94,52 @@ fn a_wider_primitive_is_never_coarser_and_its_widest_page_still_fits() {
                 steps < 2f64.powi(MAX_BITS as i32) || tiled == MAX_EXPONENT,
                 "{extent}"
             );
+        }
+    }
+}
+
+#[test]
+fn the_tile_is_measured_in_metres_of_the_world() {
+    // Under 32 m of the world, whatever the object units, a primitive keeps its grid.
+    let mut rng = Xorshift::new(32);
+    for _ in 0..100_000 {
+        let scale = 2f64.powf(f64::from(rng.unit()) * 24.0 - 12.0);
+        let extent = f64::from(rng.unit()) * 32.0 / scale;
+        let error = (rng.below(2) == 0).then(|| f64::from(rng.unit()) / scale);
+        let tile = tile_log2(Some(scale));
+        assert_eq!(
+            grid_exponent(extent, error, tile),
+            untiled(extent, error),
+            "{extent} {scale}"
+        );
+    }
+    // A hall modelled in centimetres-like units, 3,720 of them at a scale of 0.008 (Sponza).
+    let hall = [0.0, 0.0, 0.0, 3720.0, 1550.0, 2290.0];
+    assert_eq!(
+        primitive_exponent(&hall, [].into_iter(), false, Some(0.008)),
+        untiled(3720.0, None)
+    );
+    // A kilometre terrain modelled in kilometres: the same world step as one modelled in metres.
+    let terrain = [0.0, 0.0, 0.0, 1.024, 0.05, 1.024];
+    let step = 2f64.powi(primitive_exponent(
+        &terrain,
+        [].into_iter(),
+        false,
+        Some(1e3),
+    )) * 1e3;
+    assert!(step <= 2f64.powi(TILE_EXTENT_LOG2 - 16), "{step}");
+    // A scale that places nothing measurable leaves object units as metres; an extreme one still
+    // yields a grid the field holds.
+    for scale in [None, Some(f64::NAN), Some(0.0), Some(-0.0), Some(-1.0)]
+        .into_iter()
+        .chain([Some(f64::INFINITY), Some(f64::NEG_INFINITY)])
+    {
+        assert_eq!(tile_log2(scale), TILE_EXTENT_LOG2, "{scale:?}");
+    }
+    for scale in [5e-324, f64::MIN_POSITIVE, f64::MAX] {
+        for extent in EDGES {
+            let exponent = grid_exponent(extent, None, tile_log2(Some(scale)));
+            assert!(exponent.abs() <= MAX_EXPONENT, "{extent} {scale}");
         }
     }
 }
@@ -137,7 +182,7 @@ fn a_kilometre_terrain_seen_from_two_metres_quantizes_under_the_display_quantum(
     )
     .expect("dag");
     let errors = || dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error);
-    let exponent = primitive_exponent(&positions, errors(), false);
+    let exponent = primitive_exponent(&positions, errors(), false, None);
     assert_eq!(exponent, TILE_EXTENT_LOG2 - 16);
     let finest = errors().filter(|e| *e > 0.0).min_by(f64::total_cmp);
     let before = untiled(1024.0, finest);

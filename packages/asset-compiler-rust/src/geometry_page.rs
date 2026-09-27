@@ -77,10 +77,6 @@ mod tests_codec_refusal;
 #[path = "geometry_page_grid_tests.rs"]
 mod tests_grid;
 
-#[cfg(test)]
-#[path = "geometry_page_tile_tests.rs"]
-mod tests_tile;
-
 /**
  * A complete, independently decodable `WGP3` page: positions on the primitive grid of
  * `position_exponent`, texture coordinates on that of `uv_exponent`, octahedral normals, byte colours

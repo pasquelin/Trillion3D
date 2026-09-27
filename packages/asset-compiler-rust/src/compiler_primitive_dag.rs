@@ -49,6 +49,9 @@ pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
     (min, median, max)
 }
 
+/// `scale` is the largest world scale placing the primitive: its pages' grid follows the tiles of
+/// the world (`geometry_page_tile`).
+#[allow(clippy::too_many_arguments)]
 pub(super) fn build_dag_primitive(
     o: &Options,
     pos: &[f32],
@@ -56,6 +59,7 @@ pub(super) fn build_dag_primitive(
     index_values: &[u32],
     proxy_demand: crate::proxy::cut::CutDemand,
     blended: bool,
+    scale: Option<f64>,
     store_packed: &(impl Fn(&[u32], i32) -> Result<(Value, bool)> + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
@@ -89,6 +93,7 @@ pub(super) fn build_dag_primitive(
         pos,
         dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error),
         blended,
+        scale,
     );
     let (pages, reused, stream_report) = bundle_dag_pages(
         o,
