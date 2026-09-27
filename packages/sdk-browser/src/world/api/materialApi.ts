@@ -30,8 +30,9 @@ type Inputs = {
  * one entry of the cache's material table, keyed by its rank there, never by a primitive: setting
  * it writes every surface the scene built from that entry — one per geometry variant — in place,
  * and the active engine reads them again at the next frame (`refreshMaterials`), no second upload
- * path and no new GPU memory. What would move it to another draw class, opaque, masked or
- * blended, is refused by name (`MATERIAL_CLASS_CHANGE`): the passes are laid out at open.
+ * path and no new GPU memory. Moved to another draw class, opaque, masked or blended, its
+ * drawables go where the open would put them (#846); an engine that lays that class out at open
+ * refuses it by name (`MATERIAL_CLASS_CHANGE`), before any write.
  */
 export function createExplorerMaterialApi(inputs: Inputs) {
   const { check, source, backends, active } = inputs;
@@ -89,15 +90,19 @@ export function createExplorerMaterialApi(inputs: Inputs) {
       check();
       const { rank, worn } = required(id);
       validate(rank, patch);
-      const from = alphaModeOf(worn[0]);
+      const from = alphaModeOf(worn[0]),
+        mode = patch.alphaMode ?? from;
       // A masked material cut at zero is drawn as an opaque one.
-      const to = from === 'mask' && patch.alphaCutoff === 0 ? 'opaque' : (patch.alphaMode ?? from);
-      if (to !== from)
-        throw new EngineError(
-          'MATERIAL_CLASS_CHANGE',
-          `material ${id} would move from ${from} to ${to}: its draw class is fixed at open`,
-          { id, from, to },
-        );
+      const to = mode === 'mask' && patch.alphaCutoff === 0 ? 'opaque' : mode;
+      for (const backend of to === from ? [] : backends) {
+        const why = backend.materialClassRefusal?.(from, to);
+        if (why)
+          throw new EngineError(
+            'MATERIAL_CLASS_CHANGE',
+            `${backend.id} cannot move material ${id} from ${from} to ${to}: ${why}`,
+            { id, from, to, engine: backend.id },
+          );
+      }
       if (patch.tiling) {
         const textures = worn.flatMap((surface) => [...materialTextures(surface)]);
         if (!textures.length) throw invalid(rank, 'tiling', patch.tiling);
@@ -117,10 +122,11 @@ export function createExplorerMaterialApi(inputs: Inputs) {
           `${engine.id} does not repaint materials in place`,
           { id },
         );
-      for (const surface of worn) write(surface, patch);
+      for (const surface of worn) write(surface, patch, to);
       // An engine that cannot reread its surfaces has not taken the change (`setClearColor`).
       return backends.every(
-        (backend) => !!backend.refreshMaterials && backend.refreshMaterials(true) !== false,
+        (backend) =>
+          !!backend.refreshMaterials && backend.refreshMaterials(true, to !== from) !== false,
       );
     },
   };
