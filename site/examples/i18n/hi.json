@@ -2172,5 +2172,20 @@
     "words": {
       "credit": "इस उदाहरण के लिए कोड में बनाया गया खंभे पर झंडा, CC0 — देखें assets/examples/CREDITS.md"
     }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "घर का एलिवेशन चुनें। कैमरा दूर ले जाएँ: लंबकोणीय चित्र का पैमाना बिल्कुल समान रहता है।",
+    "controls": {
+      "elevation": "एलिवेशन",
+      "distance": "कैमरा दूरी",
+      "zoom": "चित्र पैमाना"
+    },
+    "choices": {
+      "elevation": {
+        "front": "सामने",
+        "right": "दायाँ भाग",
+        "rear": "पीछे"
+      }
+    }
   }
 }

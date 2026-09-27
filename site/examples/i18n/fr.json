@@ -2172,5 +2172,20 @@
     "words": {
       "credit": "Drapeau sur un mât modélisé en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
     }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Choisissez une élévation de la maison. Éloignez la caméra : le dessin orthographique garde exactement la même échelle.",
+    "controls": {
+      "elevation": "Élévation",
+      "distance": "Distance de la caméra",
+      "zoom": "Échelle du dessin"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Façade",
+        "right": "Côté droit",
+        "rear": "Arrière"
+      }
+    }
   }
 }
