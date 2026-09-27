@@ -157,3 +157,27 @@ test('repainting a primitive frees the pair the previous paint owned', () => {
   instances.disposeOwnedMaterials();
   assert.equal(colorMaterials.size, 0, 'disposal frees the last paint and its twin');
 });
+
+// A primitive repainted, then given a created material (#847): the paint no record wears any more
+// is freed at once, with its twin, not held until the session closes.
+test('a created material assigned over a paint frees the pair the paint owned', () => {
+  const { plain, coloured, colorMaterials, instances } = primitivePeinte();
+  const source = {};
+  for (const rec of [plain, coloured]) rec.sourceMesh = source as PageRec['sourceMesh'];
+  instances.updateMaterial('prim', CONTRACT_MATERIAL);
+  const paint = [plain.declaration, coloured.declaration] as unknown as GraphSurface[];
+  let disposed = 0;
+  for (const material of paint) material.released.add(() => disposed++);
+  const created = new G.GraphSurface('standard');
+  instances.wearSurface({
+    surfaces: [created],
+    meshes: new Map([[source, created]]),
+    from: 'opaque',
+    to: 'opaque',
+  });
+  assert.equal(plain.declaration, created as unknown as HostMaterial, 'the page wears it');
+  assert.equal(disposed, 2, 'the paint and its twin are freed as the page stops wearing them');
+  assert.equal(colorMaterials.size, 1, "only the created material's twin is cached");
+  instances.disposeOwnedMaterials();
+  assert.equal(disposed, 2, 'nothing freed twice');
+});
