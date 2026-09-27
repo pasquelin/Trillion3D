@@ -7,11 +7,12 @@ const WORDS = LIGHT_SETTINGS.tileSize ** 2 / 32; // one mask bit per thread, a t
 
 /**
  * Light lists per 16 × 16 pixel screen tile. One workgroup per tile: the 256 threads reduce the
- * tile's min and max depth, thread zero derives the tile's world bounds, each thread tests one
- * light, then each kept thread writes its rank at the place the bit count before it names —
- * order stays increasing and determined, so the frame is too. Past 256 lights, batches of 256
- * write after what the batches before kept. Each list holds `TILE_LIGHTS` lights, its memory
- * bounded by the view; its count stays true, and a tile more lights reach walks them all.
+ * tile's min and max depth, sixteen de-project its corners, thread zero derives its world
+ * bounds from them, each thread tests one light, then each kept thread writes its rank at the
+ * place the bit count before it names — order stays increasing and determined, so the frame
+ * is too. Past 256 lights, batches of 256 write after what the batches before kept. Each list
+ * holds `TILE_LIGHTS` lights, its memory bounded by the view; its count stays true, and a tile
+ * more lights reach walks them all.
  *
  * **Two lists per tile, two depth slices.** The opaque list covers the slice between the tile's
  * two depths — its box and the six planes of the tile's frustum —, and deferred resolve loses
