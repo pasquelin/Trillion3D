@@ -56,8 +56,8 @@ export function createExplorerMaterialApi(inputs: Inputs) {
   /** The materials the page created, by id no table rank takes, each its surface per geometry
    *  variant a drawable asked (`PLAIN` first): a write reaches them all (`preparedMaterials`). */
   const created = new Map<string, Map<string, GraphSurface>>();
-  /** The created materials a drawable wears: a change to one reaches the engines. */
-  const assigned = new Set<string>();
+  /** The created material each assigned mesh wears: a change to one worn reaches the engines. */
+  const wearing = new Map<HostGraphMesh, string>();
   /** Built at the first call, not at open: most pages never ask. Before any write, so the values
    *  it keeps as imported are the file's. */
   let held: ReturnType<typeof index> | undefined;
@@ -144,7 +144,7 @@ export function createExplorerMaterialApi(inputs: Inputs) {
           );
       }
       // A created material no drawable wears yet is written alone: no engine draws it.
-      if (created.has(id) && !assigned.has(id)) {
+      if (created.has(id) && ![...wearing.values()].includes(id)) {
         for (const surface of worn) write(surface, patch, alpha?.to);
         return true;
       }
@@ -176,8 +176,8 @@ export function createExplorerMaterialApi(inputs: Inputs) {
      *  refused by name before any write. False when an engine only draws it in a new session. */
     assignMaterial(primitive: string, id: string) {
       check();
-      const held = created.get(id);
-      if (!held)
+      const made = created.get(id);
+      if (!made)
         throw new EngineError('UNKNOWN_MATERIAL', `the page created no material ${id}`, { id });
       // The table's wearers are indexed as imported, before a mesh wears another.
       const drawn = scene().drawables.get(primitive);
@@ -186,12 +186,12 @@ export function createExplorerMaterialApi(inputs: Inputs) {
           primitive,
         });
       // A variant built for this drawable is kept only once nothing refused it.
-      const variants = new Map(held);
+      const variants = new Map(made);
       const alpha = assignment(variants, drawn);
       refuseClass(id, alpha);
       repaints(id);
       created.set(id, variants);
-      assigned.add(id);
+      for (const mesh of drawn) wearing.set(mesh, id);
       for (const [mesh, surface] of alpha.meshes) mesh.material = surface;
       for (const backend of backends) backend.wearSurface?.(alpha);
       return refreshed(alpha) && backends.every((backend) => !!backend.wearSurface);

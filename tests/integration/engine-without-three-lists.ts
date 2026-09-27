@@ -74,11 +74,12 @@ export const DECLARATION: Record<string, string> = {
   'page/selection/types': 'contract: it declares the field on a page record',
   'page/selection/collect': 'the collection sets it, once, beside the record it built',
   'backend/autonomous/geometry': 'WebGL2 page path: it repaints its pages with host materials',
-  'backend/autonomous/instances': 'WebGL2 page path: it repaints its instances with host materials',
+  'backend/autonomous/paints': 'WebGL2 page path: it repaints its pages with host materials',
   'backend/autonomous/pages': 'WebGL2 page path: it keeps the base paint of each page',
   'placement/webglPageBatches':
     'WebGL2 page path: the pages rows place are drawn instanced, one mesh per page and declaration',
   'host/pageObjects': 'boundary: the declaration it gives back to the library that draws it',
+  'page/surface': 'boundary: a record wears a new declaration, its surface read with it',
   'bench/witnesses/exact/batches/batchUpdate':
     'exact witness: its draw record hands the declaration to the host renderer',
   'bench/witnesses/exact/batches/batches.fixture': 'batch-witness mount',

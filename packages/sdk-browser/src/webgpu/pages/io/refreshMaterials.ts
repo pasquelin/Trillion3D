@@ -25,7 +25,7 @@ import type { PageRec } from '../../../page/selection/selection.ts';
  * cluster catalogue, with no geometry page, in the transparent table and its forward copies — and
  * no cluster enters or leaves them inside the session, nor takes another surface (#847).
  */
-export const webgpuMaterialClassRefusal = (alpha: AlphaChange, pages: readonly PageRec[] = []) =>
+export const webgpuMaterialClassRefusal = (alpha: AlphaChange, pages: readonly PageRec[]) =>
   unpagedRefusal(pages, alpha) ||
   ((isAssignment(alpha) ? assignsBlended(alpha, pages) : blendMoves(alpha))
     ? 'its blended clusters are laid out in their forward pass when the session opens'
