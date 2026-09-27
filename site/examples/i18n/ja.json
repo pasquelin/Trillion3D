@@ -1708,6 +1708,14 @@
       "fourthLaneAnisotropy": "4番目のレーンの異方性"
     }
   },
+  "the-home-pose": {
+    "banner": "視点を選び、カメラを動かしてから、ホームを選んで戻ります。",
+    "controls": { "home": "ホーム", "tower": "塔", "square": "広場", "hillside": "丘" }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "ニアクリップ面を前へ動かし、壁を順に切る様子を見ます。",
+    "controls": { "nearPlane": "ニアクリップ面" }
+  },
   "the-material-family": {
     "banner": "ドラッグして歩き回ろう。光を夜にして、まだ光るものを見よう。",
     "controls": {
@@ -2171,6 +2179,17 @@
     },
     "words": {
       "credit": "この例のためにコードでモデリングしたポールの旗、CC0 — assets/examples/CREDITS.md を参照"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "運河沿いを進むカメラを一時停止したり、最初から再生したり、速度を変えたりできます。",
+    "controls": {
+      "paused": "一時停止",
+      "replay": "最初から再生",
+      "speed": "速度"
+    },
+    "readouts": {
+      "progress": "進行"
     }
   }
 }

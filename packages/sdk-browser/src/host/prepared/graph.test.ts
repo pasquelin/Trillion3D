@@ -6,7 +6,8 @@ import type {
 } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
-import { GraphMesh } from '../graph/mesh.ts';
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
+import type { HostMesh } from '../resources.ts';
 import { GraphSurface } from '../graph/surface.ts';
 import { preparedGraph } from './graph.ts';
 import { visMaterial } from '../../visibility/shader/material.ts';
@@ -46,8 +47,8 @@ test('weights a node declares reach every primitive of its mesh, the group holdi
   };
   const materialOf = () => Promise.resolve(new GraphSurface('standard'));
   const { scene } = await preparedGraph({ tables, meshes, geometryOf, materialOf });
-  const parts: GraphMesh[] = [];
-  scene.traverse((part) => part instanceof GraphMesh && parts.push(part));
+  const parts: HostMesh[] = [];
+  scene.traverse((part) => part instanceof Mesh && parts.push(part));
   assert.equal(parts.length, 2);
   for (const part of parts) assert.deepEqual(part.morphTargetInfluences, [0.5]);
 });
@@ -72,7 +73,7 @@ test('a primitive that carries COLOR_0 asks for the vertex-coloured variant of i
   assert.deepEqual(variants, [true, false]);
   const records: (boolean | undefined)[] = [];
   scene.traverse(
-    (part) => part instanceof GraphMesh && records.push(visMaterial(part.material).vertexColors),
+    (part) => part instanceof Mesh && records.push(visMaterial(part.material).vertexColors),
   );
   assert.deepEqual(records, [true, false]);
 });

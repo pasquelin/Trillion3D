@@ -33,9 +33,9 @@
   "examples": {
     "lead": "Ogni esempio è un file breve: guardalo funzionare, apri il suo codice, cambialo.",
     "jumpTo": "Vai a un tema",
-    "inProgress": "In corso",
     "waitsFor": "In attesa del motore:",
-    "waitingEngine": "In attesa del motore"
+    "partial": "Parziale",
+    "coming": "In arrivo: {{titles}}"
   },
   "gallery": {
     "themes": {
@@ -182,6 +182,8 @@
       "several-views-one-page": "Più viste, una pagina",
       "before-and-after-slider": "Cursore prima/dopo",
       "side-by-side-stereo": "Stereo affiancata",
+      "the-near-plane-cuts-a-wall": "Il piano vicino taglia un muro",
+      "the-home-pose": "La posa iniziale e i punti di interesse",
       "red-cyan-anaglyph": "Anaglifo rosso-ciano",
       "camera-layers": "Livelli di camera",
       "a-robot-that-walks-and-waves": "Movimenti di robot mescolati",
@@ -327,7 +329,8 @@
       "ar-on-the-table": "AR sul tavolo",
       "shadows-case-by-case": "Le ombre, caso per caso",
       "shadows-through-see-through-panes": "Ombre attraverso vetri trasparenti",
-      "a-walker-among-balls": "Un camminatore tra le palline"
+      "a-walker-among-balls": "Un camminatore tra le palline",
+      "a-dolly-along-the-canal": "Una carrellata lungo il canale"
     },
     "missing": {
       "floating-crates": "geometria riscritta a ogni fotogramma",
