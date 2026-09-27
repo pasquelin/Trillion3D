@@ -1390,7 +1390,11 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   refused with `PHYSICS_BUDGET` on `world.physics.error`; a step that finds more pairs or contacts
   than its budget says so the same way, and an `enter` past the events budget is counted in
   `stats.droppedEvents` (its `leave` is then never sent). `softVertices` bounds the vertices of
-  every soft body at once (declared: four cloths of 64 × 64).
+  every soft body at once (default 16384, four cloths of 64 × 64). Each vertex is solved every
+  step, so the worker's step grows with them, linearly: the R&D audit measured 6.5–8.2 ms a step
+  at the default and 2.4–2.8 ms at 4096 (four of 32 × 32), natively on one thread (#975). A page
+  that needs fewer lowers it; a soft body past it is refused, `PHYSICS_BUDGET` naming
+  `softVertices`.
 - **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
   `stats.stepMs` (the mean of the last tick's steps) and `stats.stepMaxMs` (its slowest), on its
   own clock: the two are never added.
