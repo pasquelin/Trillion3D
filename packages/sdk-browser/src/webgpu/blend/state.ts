@@ -63,12 +63,9 @@ export function createWebgpuBlendState() {
   /** Words of the view uniform, allocated once. */
   const view = new Float32Array(BLEND_VIEW_SIZE / 4);
   const blendGpu: BlendGpuItem[] = [];
-  /** Paged items by the world their clusters read: one per placement of a transparent mesh. */
-  const pagedBlendGpu = new Map<MatrixElements, BlendGpuItem>();
   const visibleBlend: BlendGpuItem[] = [];
   const state = {
     blendGpu,
-    pagedBlendGpu,
     visibleBlend,
     /** Normalised frustum planes of the frame, against which an item is rejected. */
     blendPlanes: new Float64Array(FRUSTUM_PLANE_VALUES),

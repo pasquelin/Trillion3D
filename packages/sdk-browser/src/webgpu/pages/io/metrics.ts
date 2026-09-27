@@ -135,7 +135,6 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   blendState.compaction = undefined;
   blendState.table = undefined;
   blendState.blendGpu.length = 0;
-  blendState.pagedBlendGpu.clear();
   blendState.cpuSelectedPlacements.clear();
   blendState.dirtySpans.clear();
   pagedBlendCopies.clear();

@@ -1,7 +1,7 @@
 import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
 import { blendFootprintHeld, holdBlendRanking } from './footprint.ts';
-import { planItem } from './plan.ts';
-import { buildBlendRuns } from './runs.ts';
+import { resliceBlendRuns } from './runs.ts';
+import { planKeys, sortPlanFarToNear } from './sortPlan.ts';
 import { notDrawn } from '../../placement/hidden.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -35,17 +35,26 @@ function eyeKey(item: BlendGpuItem, ex: number, ey: number, ez: number) {
   return x * x + y * y + z * z;
 }
 
-/** Sets each item's key and source rank. Nothing is allocated: two fields rewritten. */
+/**
+ * Sets each item's key and source rank, and copies the key into the flat array the plan sort reads
+ * (`planKeys`). Nothing is allocated. False when a key is NaN: the sort then keeps to insertion.
+ */
 function refreshEyeKeys(blendState: BlendState, eye: ArrayLike<number>) {
   const items = blendState.blendGpu,
+    keys = planKeys(items.length),
     ex = eye[0],
     ey = eye[1],
     ez = eye[2];
+  let ordered = true;
   for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+    const item = items[i],
+      key = eyeKey(item, ex, ey, ez);
     item.orderRank = i;
-    item.orderKey = eyeKey(item, ex, ey, ez);
+    item.orderKey = key;
+    keys[i] = key;
+    if (key !== key) ordered = false;
   }
+  return ordered;
 }
 
 /**
@@ -100,7 +109,7 @@ function rejectByFrustum(blendState: BlendState) {
 }
 
 /**
- * Total order both paths produce: decreasing key, then increasing source rank.
+ * Total order both paths produce: decreasing key, then increasing source rank (`sortPlan.ts`).
  *
  * Rank breaks equal keys, so the result depends neither on the previous frame, nor on arrival
  * order, nor on the machine — two overlapping items cannot swap from one frame to the next, so
@@ -109,35 +118,9 @@ function rejectByFrustum(blendState: BlendState) {
 const precedes = (keyA: number, rankA: number, keyB: number, rankB: number) =>
   keyA < keyB || (keyA === keyB && rankA > rankB);
 
-/**
- * Insertion sort of the plan, on the buffer the previous frame left.
- *
- * A camera that moves little leaves the list almost sorted: insertion takes it back in one walk
- * and a few shifts, where a full sort remakes it entirely. The buffer is the scene's, rewritten
- * in place, and both entries of a double-sided item drawn in two passes carry the same rank —
- * they therefore never overtake each other, and the back stays in front of the face.
- */
-function sortPlanFarToNear(order: Uint32Array, items: readonly BlendGpuItem[]) {
-  let shifted = false;
-  for (let i = 1; i < order.length; i++) {
-    const entry = order[i],
-      moved = items[planItem(entry)],
-      movedKey = moved.orderKey,
-      movedRank = moved.orderRank;
-    let j = i - 1;
-    while (j >= 0) {
-      const held = items[planItem(order[j])];
-      if (!precedes(held.orderKey, held.orderRank, movedKey, movedRank)) break;
-      order[j + 1] = order[j];
-      j--;
-    }
-    order[j + 1] = entry;
-    // One question per entry, not one write per shift: a camera jump shifts millions of times, and
-    // the sort must pay nothing more than before to say so.
-    if (j + 1 !== i) shifted = true;
-  }
-  return shifted;
-}
+/** The order each runs buffer was last sliced from: a reseeded plan or a resized runs buffer is a
+ *  new array, and a pair not on record is sliced whole. */
+const slicedFrom = new WeakMap<Uint32Array, Uint32Array>();
 
 /**
  * Ranking of the production path, and the run slicing it commands.
@@ -161,15 +144,20 @@ export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> 
   }
   // Inputs bit-identical to the last ranking: it stands, mask and runs included (`footprint.ts`).
   if (blendFootprintHeld(blendState, eye)) return blendState.footprint.rejected;
-  refreshEyeKeys(blendState, eye);
+  const ordered = refreshEyeKeys(blendState, eye);
   const rejected = rejectByFrustum(blendState);
-  const { blendGpu: items, orders, orderMoved } = blendState;
+  const { orders, orderMoved, runs, runCount } = blendState;
   for (let pass = 0; pass < orders.length; pass++) {
+    const order = orders[pass];
     // Runs a frame without an eye emptied are sliced again, even when the order held still.
-    const voided = !blendState.runCount[pass] && orders[pass].length;
-    if (!sortPlanFarToNear(orders[pass], items) && !voided && !orderMoved[pass]) continue;
+    const voided = !runCount[pass] && order.length;
+    const first = sortPlanFarToNear(order, ordered);
+    if (first === order.length && !voided && !orderMoved[pass]) continue;
     orderMoved[pass] = true;
-    blendState.runCount[pass] = buildBlendRuns(orders[pass], blendState.runs[pass]);
+    // Runs wholly before the first entry the sort rewrote are kept, when they are this order's.
+    const kept = slicedFrom.get(runs[pass]) === order ? runCount[pass] : 0;
+    runCount[pass] = resliceBlendRuns(order, runs[pass], kept, first);
+    slicedFrom.set(runs[pass], order);
   }
   holdBlendRanking(blendState.footprint, rejected);
   return rejected;
