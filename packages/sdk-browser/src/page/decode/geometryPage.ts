@@ -4,9 +4,16 @@ import {
   FLAG_NORMAL,
   FLAG_UV,
   FLAG_UV1,
+  MAX_WIDTH,
   OCT_SCALE,
+  TRIANGLE_BLOCK,
+  WIDTH_BITS,
 } from '../../cluster/format.ts';
-import { readGeometryPageHeader, type Quant } from './geometryPageHeader.ts';
+import {
+  readGeometryPageHeader,
+  type GeometryPageHeader,
+  type Quant,
+} from './geometryPageHeader.ts';
 import { pageAttributeNames, pageViews } from './geometryPageBlock.ts';
 
 /**
@@ -77,6 +84,32 @@ function vector(out: Float32Array, words: Uint32Array, starts: number[], quant: 
   }
 }
 
+/** Every corner into `out`, block by block (`docs/FORMAT.md`, the mirror of `CornerCode::read`):
+ *  a record's base, width and prefix of widths, then each corner's distance to the base. A
+ *  record reaching past the corner stream, a width past 16 or a corner past the vertices refuses. */
+function decodeCorners(
+  words: Uint32Array,
+  { indexBits, prefixBits, recordBits, cornerBits }: GeometryPageHeader['corners'],
+  [table, stream]: number[],
+  vertexCount: number,
+  out: Uint32Array,
+) {
+  const blockCorners = 3 * TRIANGLE_BLOCK;
+  for (let b = 0, i = 0; i < out.length; b++) {
+    const at = table * 32 + b * recordBits,
+      base = field(words, at, indexBits),
+      width = field(words, at + indexBits, WIDTH_BITS),
+      start = field(words, at + indexBits + WIDTH_BITS, prefixBits) * blockCorners,
+      end = Math.min(i + blockCorners, out.length);
+    if (width > MAX_WIDTH || start + (end - i) * width > cornerBits)
+      throw new Error('GEOMETRY_PAGE_INDEX');
+    for (let k = 0; i < end; i++, k++) {
+      out[i] = base + field(words, stream * 32 + start + k * width, width);
+      if (out[i] >= vertexCount) throw new Error('GEOMETRY_PAGE_INDEX');
+    }
+  }
+}
+
 /** Decode one complete page without referring to any source glTF buffer. */
 export function decodeGeometryPage(
   data: Uint8Array,
@@ -84,17 +117,16 @@ export function decodeGeometryPage(
 ): DecodedGeometryPage {
   const {
     vertexCount,
-    indexCount,
     flags,
     quantizationError,
     position,
     uv,
     uv2,
     color,
-    indexBits,
+    corners,
     bodyWords: at,
     decodedBytes,
-    streams: { indices, positions, normal, uvs, uv2s, colors },
+    streams: { blocks, corners: cornerStream, positions, normal, uvs, uv2s, colors },
   } = readGeometryPageHeader(data, maxDecodedBytes);
   // The streams are read in place when the page sits on a word boundary, from a copy otherwise.
   const body = data.subarray(CLUSTER_HEADER_WORDS * 4);
@@ -107,10 +139,7 @@ export function decodeGeometryPage(
     pageAttributeNames(flags),
     vertexCount,
   );
-  for (let i = 0; i < indexCount; i++) {
-    decodedIndices[i] = field(words, indices * 32 + i * indexBits, indexBits);
-    if (decodedIndices[i] >= vertexCount) throw new Error('GEOMETRY_PAGE_INDEX');
-  }
+  decodeCorners(words, corners, [blocks, cornerStream], vertexCount, decodedIndices);
   vector(attributes.position, words, positions, position);
   if (flags & FLAG_NORMAL)
     for (let i = 0; i < vertexCount; i++)

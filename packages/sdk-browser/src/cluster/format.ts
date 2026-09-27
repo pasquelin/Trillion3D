@@ -20,6 +20,11 @@ export const OPTIONAL = [
   ['uv2', 2, FLAG_UV1],
   ['color', 4, FLAG_COLOR],
 ] as const;
+/** Triangles per block of the corner code, the bits of a block's width and its largest value
+ *  (`packages/page-codec-wasm/src/triangles.rs`). */
+export const TRIANGLE_BLOCK = 8,
+  WIDTH_BITS = 5,
+  MAX_WIDTH = 16;
 /** Widest field: read at any bit offset, it spans two words at most. */
 export const MAX_BITS = 24;
 /** Largest magnitude of a grid exponent: the step stays a normal 32-bit float. */

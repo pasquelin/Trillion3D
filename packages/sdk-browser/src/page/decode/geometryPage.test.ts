@@ -84,7 +84,7 @@ test('a short header, a wrong version, a field beyond the format, a forged index
   );
   assert.throws(() => decodeGeometryPage(encoded.data, 16), /GEOMETRY_PAGE_BOUNDS/);
   const forged = Uint8Array.from(encoded.data);
-  forged[96] = 0xff; // Every field of the first index word set: 7 > 6 vertices.
+  forged[96] = 0xff; // The first block record's base 7 > 6 vertices and its width 31, past 16.
   assert.throws(() => decodeGeometryPage(forged), /GEOMETRY_PAGE_INDEX/);
 });
 
