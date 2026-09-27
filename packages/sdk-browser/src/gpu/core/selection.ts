@@ -86,13 +86,12 @@ export type GpuSelection = {
   /** Writes placement `world`'s root mark (`ClusterRoot.mark`): whether a light cut opens it. */
   markWorld(world: number, mark: number): void;
   updateResidency(resident: Uint32Array, changes?: ResidencyChanges): boolean;
-  /** The pool's slots, the eviction queue's bound: the next cut and readback follow them. */
+  /** The pool's slots, the eviction queue's bound, and each page it takes or gives back. */
   setPoolSlots(slots: number): void;
-  /**
-   * Encodes the selection. Given `shared`, the caller owns the command buffer — one image submits one
-   * buffer — and takes back the settlement it must call: `true` once that buffer is on the queue,
-   * `false` when the image abandons it. Nothing is read back before the settlement says submitted.
-   */
+  notePool(page: number, held: boolean): void;
+  /** Encodes the selection. Given `shared`, the caller owns the command buffer (one image, one
+   *  buffer) and calls the settlement it gets back: `true` once that buffer is on the queue, `false`
+   *  when the image abandons it. Nothing is read back before the settlement says submitted. */
   dispatch(
     uniforms: SelectionUniforms,
     shared?: GPUCommandEncoder,

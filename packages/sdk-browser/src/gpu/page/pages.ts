@@ -68,7 +68,7 @@ export function createGpuPageCache(
     abort,
     fetches,
     state,
-    eviction: { order: undefined, at: 0 },
+    eviction: { order: undefined, at: 0, epoch: 0, touched: new Map() },
     changeKeys,
     changeSlots,
     reader,
@@ -107,6 +107,7 @@ export function createGpuPageCache(
     evictInOrder(order: EvictionOrder | undefined) {
       context.eviction.order = order;
       context.eviction.at = 0;
+      context.eviction.epoch++;
     },
     /**
      * Strictly increases on every membership change of the residency and on nothing else: an arrival

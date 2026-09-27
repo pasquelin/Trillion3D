@@ -25,3 +25,17 @@ test('a published order evicts in its order, and never a page it leaves out', as
   await cache.load('c');
   assert.ok(!cache.get('read'));
 });
+
+test('a page a lower tier reads goes after every other page of the order', async () => {
+  const { device } = fakeDevice({ limits: { maxBufferSize: 1024 } });
+  const cache = createGpuPageCache(device, bytes, { pageBytes: 4, slots: 2 });
+  for (const key of ['caster', 'old']) await cache.load(key);
+  // Only a light cut reads `caster`: the camera never stamped it, so it heads the order.
+  cache.evictInOrder(orderOf(['caster', 'old']));
+  cache.touch('caster');
+  await cache.load('a');
+  assert.ok(cache.get('caster') && !cache.get('old'));
+  // Never pinned: a camera page still takes its slot once nothing else is left.
+  await cache.load('b');
+  assert.ok(!cache.get('caster'));
+});

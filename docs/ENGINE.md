@@ -123,9 +123,12 @@ residency, without the GPU cut or its readback (#490, #839).
 gives slots back in (`gpu/dag/evict.ts`, `gpu/dag/shader/evictWgsl.ts`): the pool's keys, finer
 level first — a parent after its children —, then oldest last use, at most `poolSlots` (uniforms,
 following a resize). Every placement stamps its key's canonical page, so a key's stamp is its last
-use; a key the latest cut read is never listed. On the GPU-cut path the cache evicts only from that
-queue, skipping pinned pages; once spent (`eviction-queue-spent`) the burst waits for the next
-readback. The CPU cut evicts the least recent page; `budgetRanking` still chooses loads (#836).
+use; a key the latest cut read is never listed. The kernel sweeps the pool's list, one canonical
+page per held slot fed by the cache's arrivals and departures (`gpu/dag/poolList.ts`), never the
+catalogue. On the GPU-cut path the cache evicts only from that queue, skipping pinned pages and
+taking a page a lower tier touched since the last queue (a shadow caster) after every other; once
+spent (`eviction-queue-spent`) the burst waits for the next readback. The CPU cut evicts the least
+recent page; `budgetRanking` still chooses loads (#836).
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min
