@@ -9,6 +9,7 @@ import {
   material,
   math,
   object,
+  type World,
 } from '../packages/sdk-browser/src/index.ts';
 import { advanceMixers } from '../packages/sdk-core/src/world/animation/index.ts';
 import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
@@ -27,66 +28,83 @@ test('the canal dolly is scene-driven and its controls pause, replay and change 
   let values: Values = {};
   let change: (next: Values, key?: string) => void = () => {};
   let specs: Record<string, ControlSpec> = {};
+  let disposed = 0;
+  let pagehide: EventListenerOrEventListenerObject | undefined;
+  const previous = globalThis.addEventListener;
+  globalThis.addEventListener = ((type: string, listener: EventListenerOrEventListenerObject) => {
+    if (type === 'pagehide') pagehide = listener;
+  }) as typeof globalThis.addEventListener;
   const world = {
     scene,
     camera,
     invalidate() {},
-    onFrame() {},
-    onPageHide() {},
-    dispose() {},
-  };
-  await runExampleModule(html, {
-    engine: {
-      createWorld: () => world,
-      animation,
-      geometry,
-      material,
-      object,
-      light,
-      math,
+    onFrame(_hook: Parameters<World['onFrame']>[0]) {
+      return () => {};
     },
-    kit: {
-      controls: (
-        nextSpecs: Record<string, ControlSpec>,
-        callback: typeof change,
-        watched: unknown,
-      ) => {
-        assert.equal(watched, world);
-        specs = nextSpecs;
-        values = describe(specs).values as Values;
-        change = callback;
-        callback(values);
-        return values;
+    dispose() {
+      disposed++;
+    },
+  } satisfies Pick<World, 'scene' | 'camera' | 'invalidate' | 'onFrame' | 'dispose'>;
+  try {
+    await runExampleModule(html, {
+      engine: {
+        createWorld: () => world,
+        animation,
+        geometry,
+        material,
+        object,
+        light,
+        math,
       },
-      readout: () => () => {},
-    },
-  });
+      kit: {
+        controls: (
+          nextSpecs: Record<string, ControlSpec>,
+          callback: typeof change,
+          watched: unknown,
+        ) => {
+          assert.equal(watched, world);
+          specs = nextSpecs;
+          values = describe(specs).values as Values;
+          change = callback;
+          callback(values);
+          return values;
+        },
+        readout: () => () => {},
+      },
+    });
 
-  assert.equal(camera.parent, scene, 'the world loop can reach the camera mixer');
-  assert.deepEqual(values, { paused: false, speed: 1 });
-  const start = camera.position.clone();
-  assert.equal(advanceMixers(scene, 3), true);
-  assert.ok(camera.position.z < start.z);
+    assert.equal(camera.parent, scene, 'the world loop can reach the camera mixer');
+    assert.deepEqual(values, { paused: false, speed: 1 });
+    const start = camera.position.clone();
+    assert.equal(advanceMixers(scene, 3), true);
+    assert.ok(camera.position.z < start.z);
 
-  values.paused = true;
-  change(values, 'paused');
-  const paused = camera.position.clone();
-  assert.equal(advanceMixers(scene, 2), false);
-  assert.ok(camera.position.equals(paused));
+    values.paused = true;
+    change(values, 'paused');
+    const paused = camera.position.clone();
+    assert.equal(advanceMixers(scene, 2), false);
+    assert.ok(camera.position.equals(paused));
 
-  values.speed = 2;
-  change(values, 'speed');
-  values.paused = false;
-  change(values, 'paused');
-  assert.equal(advanceMixers(scene, 1), true);
-  assert.ok(camera.position.z < paused.z - 10);
+    values.speed = 2;
+    change(values, 'speed');
+    values.paused = false;
+    change(values, 'paused');
+    assert.equal(advanceMixers(scene, 1), true);
+    assert.ok(camera.position.z < paused.z - 10);
 
-  assert.equal(advanceMixers(scene, 20), false);
-  assert.ok(camera.position.z < -38, 'the one-way journey stays at the far quay');
+    assert.equal(advanceMixers(scene, 20), false);
+    assert.ok(camera.position.z < -38, 'the one-way journey stays at the far quay');
 
-  values.paused = true;
-  change(values, 'paused');
-  (specs.replay as () => void)();
-  assert.ok(camera.position.distanceTo(start) < 1e-5);
-  assert.equal(advanceMixers(scene, 1), false, 'replay respects pause');
+    values.paused = true;
+    change(values, 'paused');
+    (specs.replay as () => void)();
+    assert.ok(camera.position.distanceTo(start) < 1e-5);
+    assert.equal(advanceMixers(scene, 1), false, 'replay respects pause');
+    assert.ok(pagehide, 'the page registers its lifecycle cleanup');
+    if (typeof pagehide === 'function') pagehide(new Event('pagehide'));
+    else pagehide.handleEvent(new Event('pagehide'));
+    assert.equal(disposed, 1);
+  } finally {
+    globalThis.addEventListener = previous;
+  }
 });
