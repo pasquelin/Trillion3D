@@ -149,7 +149,7 @@ export async function createDagResources(
     upload(clusters, Math.max(64, packed.clusters.byteLength), packed.clusters);
     upload(nodes, Math.max(64, packed.nodes.byteLength), packed.nodes);
     upload(worlds, Math.max(64, packed.worlds.byteLength), packed.worlds);
-    upload(frames, cameraFramesBytes(frameData), frameData);
+    upload(frames, Math.max(16, frameData.byteLength), frameData); // `dagPrepare` writes the rest
     upload(pageCones, Math.max(48, packed.pageCones.byteLength), packed.pageCones);
     return {
       device,
