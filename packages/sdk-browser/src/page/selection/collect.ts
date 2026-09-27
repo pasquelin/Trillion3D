@@ -86,9 +86,9 @@ export function collectClusterPages(
           array: entry.array,
           triangles: page.count / 3,
           indexBytes: entry.array?.byteLength ?? page.bytes,
-          // A transparent cluster keeps its index page: its forward draw reads an index buffer and
-          // the source vertices, which no page replaces (`../../webgpu/blend/shader.ts`).
-          geometryPage: transparent ? undefined : page.geometry,
+          // A transparent cluster draws from its geometry page as an opaque one does
+          // (`../../webgpu/blend/shader.ts`).
+          geometryPage: page.geometry,
           min: mins[pageIndex],
           max: maxs[pageIndex],
           role: page.role,
