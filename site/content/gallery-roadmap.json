@@ -1197,6 +1197,13 @@
       "status": "needs-engine"
     },
     {
+      "id": "inside-a-component",
+      "theme": "interaction",
+      "file": "examples/inside-a-component.html",
+      "status": "waiting-engine",
+      "issue": 412
+    },
+    {
       "id": "labels-that-follow",
       "theme": "interaction",
       "file": "examples/labels-that-follow.html"

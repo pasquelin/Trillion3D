@@ -230,6 +230,7 @@
       "what-hides-what": "Ne neyi gizliyor",
       "create-and-dispose": "Oluşturmak ve serbest bırakmak",
       "no-hitch-on-first-draw": "İlk karede takılma yok",
+      "inside-a-component": "Bir bileşenin içinde",
       "inside-the-g-buffer": "G-buffer'ın içinde",
       "reading-pixels-back": "Pikselleri geri okumak",
       "a-city-from-3d-tiles": "3D Tiles'tan bir şehir",
@@ -338,6 +339,7 @@
       "drag-a-crate": "Bir sandığı sürükleme"
     },
     "missing": {
+      "inside-a-component": "dünya yok edilirken motorun oluşturduğu canvasın kaldırılması",
       "floating-crates": "her karede yeniden yazılan geometri",
       "thick-lines": "geniş çizgiler",
       "a-line-that-draws-itself": "bir geometrinin çizim aralığı",

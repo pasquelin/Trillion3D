@@ -2266,5 +2266,13 @@
         "clusters": "clusters"
       }
     }
+  },
+  "inside-a-component": {
+    "banner": "Monte ou desmonte o visualizador. Cada montagem possui um mundo e cada remoção o descarta.",
+    "controls": {
+      "mount": "Montar",
+      "unmount": "Desmontar",
+      "remount": "Montar novamente"
+    }
   }
 }
