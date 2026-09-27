@@ -2043,7 +2043,6 @@
       "material": "Mesh'in malzemesi, ya da grup başına bir tane; değiştirmek için başka bir tane ayarlayın.",
       "localBounds": "Bu düğümün kendi içeriğinin kutusu, yerel çerçeve; düz bir düğüm hiçbirini tutmaz.",
       "physics": "Dünya fiziğinin bir cismi olarak mesh; değilse `null`. `'static'`, `'dynamic'`, `'kinematic'` ya da seçenekler ver; şekil geometriden çıkarılır.",
-      "serial": "Düğümün oturumda benzersiz numarası.",
       "morphTargetInfluences": "Geometri bildirdiğinde her morf hedefinin ağırlığı.",
       "morphTargetDictionary": "Her morf hedefinin adına göre sırası.",
       "updateMorphTargets": "İlk biçim değiştiren özniteliğin morf hedefi başına sıfır ağırlık, sırasıyla adlandırılmış.",

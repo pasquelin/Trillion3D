@@ -2061,7 +2061,6 @@
       "material": "Vật liệu của mesh, hoặc một cho mỗi nhóm; đặt một cái khác để thay đổi nó.",
       "localBounds": "Hộp của nội dung riêng của node này, khung cục bộ; một node thông thường không chứa cái nào cả.",
       "physics": "Lưới như một vật của vật lý thế giới, `null` nếu không phải. Đặt `'static'`, `'dynamic'`, `'kinematic'` hoặc tùy chọn; hình được suy ra từ hình học.",
-      "serial": "Số của nút, duy nhất trong phiên.",
       "morphTargetInfluences": "Trọng số của mỗi mục tiêu morph, khi hình học khai báo.",
       "morphTargetDictionary": "Thứ hạng của mỗi mục tiêu morph theo tên.",
       "updateMorphTargets": "Một trọng số bằng không cho mỗi mục tiêu morph của thuộc tính biến dạng đầu tiên, đặt tên theo thứ hạng.",

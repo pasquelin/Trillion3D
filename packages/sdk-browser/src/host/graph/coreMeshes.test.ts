@@ -11,6 +11,7 @@ import * as G from './graph.fixture.ts';
 import { meshes } from '../../scene/meshes.ts';
 import { wholeMeshTriangles, type WholeMesh } from '../../cluster/batchMesh.ts';
 import { hookHostNode } from '../scene/hooks.ts';
+import { hostMeshCopy } from '../scene/graphObjects.ts';
 
 const placed = () => new G.InstancedMesh(G.boxGeometry(), G.basicSurface(), 4);
 
@@ -49,19 +50,27 @@ test('a copied instanced mesh keeps its placements, count, morph weights and dra
   geometry.morphAttributes.position = [
     Object.assign(G.floatAttribute(new Float32Array(72), 3), { name: 'open' }),
   ];
-  const light = new G.GraphLight('point'),
-    source = new G.InstancedMesh(geometry, [G.basicSurface()], 2);
-  assert.ok(light.serial < source.serial, 'one count of creation with the engine nodes');
+  const source = new G.InstancedMesh(geometry, [G.basicSurface()], 2);
   assert.deepEqual(source.morphTargetDictionary, { open: 0 });
   source.morphTargetInfluences![0] = 0.5;
   source.instanceMatrix.array.set([7], 16);
   source.count = 1;
   const copy = source.clone();
-  assert.ok(copy instanceof G.InstancedMesh && copy.serial > source.serial);
+  assert.ok(copy instanceof G.InstancedMesh);
   assert.equal(copy.geometry, geometry, 'the geometry shared');
   assert.notEqual(copy.material, source.material, 'the surface list its own');
   assert.equal(copy.instanceMatrix.array[16], 7);
   assert.equal(copy.count, 1);
   assert.deepEqual(copy.morphTargetInfluences, [0.5]);
   assert.equal(geometry._listeners.size, 0, 'a mesh in engine surfaces holds no listener');
+});
+
+test('the engine numbers the meshes it builds in its one count; a page-built mesh takes none', () => {
+  const page = new G.Mesh(G.boxGeometry(), G.basicSurface());
+  const light = new G.GraphLight('point'),
+    built = G.mesh(),
+    copy = hostMeshCopy(built);
+  assert.equal(G.serialOf(page), undefined, 'a world mesh: its diagnostic colour keys on its id');
+  assert.ok(light.serial < G.serialOf(built)! && G.serialOf(built)! < G.serialOf(copy)!);
+  assert.ok(!('serial' in page), 'the core mesh carries no engine number');
 });

@@ -2061,7 +2061,6 @@
       "material": "Material mesh itu, atau satu per grup; atur yang lain untuk mengubahnya.",
       "localBounds": "Kotak konten node ini sendiri, kerangka lokal; sebuah node biasa tidak menyimpan satu pun.",
       "physics": "Mesh sebagai benda fisika dunia, `null` jika bukan. Isi `'static'`, `'dynamic'`, `'kinematic'` atau opsi; bentuk disimpulkan dari geometri.",
-      "serial": "Nomor node, unik dalam sesi.",
       "morphTargetInfluences": "Bobot setiap target morph, bila geometri mendeklarasikannya.",
       "morphTargetDictionary": "Peringkat setiap target morph menurut namanya.",
       "updateMorphTargets": "Satu bobot nol per target morph dari atribut ter-morph pertama, dinamai menurut peringkat.",

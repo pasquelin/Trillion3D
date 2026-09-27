@@ -13,11 +13,6 @@ const collected = new FinalizationRegistry<[TransformTree, number]>(([tree, slot
   releaseTransformNode(tree, slot),
 );
 
-/** The next node's number, from one: shared by every mesh and every node the engine builds. */
-let nextSerial = 1;
-/** A number no node has yet, in creation order. */
-export const takeSerial = () => nextSerial++;
-
 /** A slot of the space for an object about to be built. */
 export const reserveSlot = () => space.reserve();
 

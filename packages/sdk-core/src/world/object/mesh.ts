@@ -1,5 +1,4 @@
 import { Object3D } from './object3d.ts';
-import { takeSerial } from './objectSpace.ts';
 import { Geometry } from '../geometry/geometry.ts';
 import { Material } from '../material/material.ts';
 import type { Box3 } from '../math/box3.ts';
@@ -10,8 +9,8 @@ import type { PhysicsOption } from '../../physics/options.ts';
 export type Primitive =
   'triangles' | 'points' | 'lineStrip' | 'lineSegments' | 'lineLoop' | 'sprite';
 
-/** What a mesh hears: a holder whose changes it is told of, when the holder tells any. */
-type Heard = { readonly _listeners?: Set<() => void> };
+/** What a mesh in a world hears: a holder whose changes it is told of. */
+type Heard = { readonly _listeners: Set<() => void> };
 
 /**
  * Shape and matter placed in the scene. Replacing either, or writing into either, reaches the
@@ -20,18 +19,19 @@ type Heard = { readonly _listeners?: Set<() => void> };
  */
 export class Mesh<M extends object = Material> extends Object3D {
   /** Always `true`: tells a mesh apart from any other object. */
-  readonly isMesh = true as const;
-  // In creation order: a draw breaks ties with it, a diagnostic seeds a colour with it.
-  /** The node's number, unique in the session. */
-  readonly serial = takeSerial();
+  get isMesh(): true {
+    return true;
+  }
+  // Written only when a morph exists or a body is set: a mesh holds its shape and matter alone.
   /** The weight of each morph target, when the geometry declares any. */
-  morphTargetInfluences?: number[];
+  declare morphTargetInfluences?: number[];
   /** The rank of each morph target by its name. */
-  morphTargetDictionary?: Record<string, number>;
+  declare morphTargetDictionary?: Record<string, number>;
+  declare private _physics?: ObjectPhysics | null;
+  /** What the geometry and materials call while the mesh is in a world; made on its first entry. */
+  declare private _heard?: () => void;
   private _geometry: Geometry;
   private _material: M | M[];
-  private readonly heard = () => this._link?.content(this);
-  private _physics: ObjectPhysics | null = null;
 
   /** How the geometry's vertices are read: triangles, points or lines. */
   readonly primitive: Primitive;
@@ -46,17 +46,23 @@ export class Mesh<M extends object = Material> extends Object3D {
     this.type = primitive === 'triangles' ? 'Mesh' : primitive;
     this._geometry = geometry;
     this._material = material;
-    this.hear(true);
     this.updateMorphTargets();
   }
+  /** Tells the world this mesh is in that its content changed. */
+  private heard() {
+    this._link?.content(this);
+  }
+  /** Its geometry and materials start telling it their changes (`on`), or stop. */
   private hear(on: boolean) {
+    const heard = (this._heard ??= () => this.heard());
     const materials = Array.isArray(this._material) ? this._material : [this._material];
-    // A mesh wearing the engine's own surfaces, which tell nothing, is the engine's: never a
-    // world's, it hears nothing, and its shared geometry holds no listener of it.
-    if (materials.some((material) => !(material as Heard)._listeners)) return;
     for (const holder of [this._geometry, ...materials] as Heard[])
-      if (on) holder._listeners?.add(this.heard);
-      else holder._listeners?.delete(this.heard);
+      if (on) holder._listeners.add(heard);
+      else holder._listeners.delete(heard);
+  }
+  /** Only a mesh in a world is heard: out of one, nothing it holds keeps a reference to it. */
+  protected override linked(inWorld: boolean) {
+    this.hear(inWorld);
   }
   /** One zero weight per morph target of the first morphed attribute, named by rank. */
   updateMorphTargets() {
@@ -75,19 +81,21 @@ export class Mesh<M extends object = Material> extends Object3D {
     return this._geometry;
   }
   set geometry(geometry: Geometry) {
-    this.hear(false);
-    this._geometry = geometry;
-    this.hear(true);
-    this.heard();
+    this.wear(() => (this._geometry = geometry));
   }
   /** The mesh's material, or one per group; set another to change it. */
   get material(): M | M[] {
     return this._material;
   }
   set material(material: M | M[]) {
-    this.hear(false);
-    this._material = material;
-    this.hear(true);
+    this.wear(() => (this._material = material));
+  }
+  /** Puts on another geometry or material: heard from the new one when in a world, which is told. */
+  private wear(change: () => void) {
+    const inWorld = !!this._link;
+    if (inWorld) this.hear(false);
+    change();
+    if (inWorld) this.hear(true);
     this.heard();
   }
   /**
@@ -97,7 +105,7 @@ export class Mesh<M extends object = Material> extends Object3D {
    * @example box.physics = 'dynamic'; box.physics.applyImpulse(0, 5, 0);
    */
   get physics(): ObjectPhysics | null {
-    return this._physics;
+    return this._physics ?? null;
   }
   set physics(option: PhysicsOption | ObjectPhysics | null) {
     this._physics =
