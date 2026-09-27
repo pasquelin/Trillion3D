@@ -7,6 +7,15 @@ import type { PlacementRows } from './rows.ts';
  *  and the modes before and after — equal when only a cutout's cutoff moved. */
 export type AlphaChange = { surfaces: readonly object[]; from: AlphaMode; to: AlphaMode };
 
+/** A created material given to drawables (`assignMaterial`, #847): each source mesh and the
+ *  surface it wears from now on — the material's variant its geometry asks for —, `surfaces`
+ *  those variants, `from` a mode one of them leaves whose blended-or-not differs from `to`, if
+ *  any does. */
+export type SurfaceAssignment = AlphaChange & { meshes: ReadonlyMap<object, object> };
+
+/** Whether a change assigns a surface rather than rewrites one. */
+export const isAssignment = (alpha: AlphaChange): alpha is SurfaceAssignment => 'meshes' in alpha;
+
 /** A change into or out of blended: the one that moves drawables between draw families. */
 export const blendMoves = ({ from, to }: AlphaChange) =>
   from !== to && (from === 'blend' || to === 'blend');
@@ -52,6 +61,10 @@ export interface BackendSceneUpdates {
   /** Why the engine cannot move these surfaces from `from` to `to` inside the session, `undefined`
    *  when it can; asked before any write. Absent, it moves every one (`alpha`). */
   materialClassRefusal?(alpha: AlphaChange): string | undefined;
+  /** The source meshes of `assignment` wear its surface from now on, one their owner keeps
+   *  (#847): their records follow it, before `refreshMaterials(true, assignment)`; a mesh no
+   *  page draws was refused before (`materialClassRefusal`). Absent, only a new session will. */
+  wearSurface?(assignment: SurfaceAssignment): void;
   /** Repaints a primitive from the engine's material parameters: no shader, no program hook. */
   updateMaterial?(primitive: string, material: Material): void;
 }

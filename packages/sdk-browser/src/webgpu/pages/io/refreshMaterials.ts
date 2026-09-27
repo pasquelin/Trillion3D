@@ -2,9 +2,20 @@ import { followHostTexture } from '../../../host/textureImport.ts';
 import { pictureFits } from '../../tile/live.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { shadowsFollowSurfaces } from '../prepare/lightResources.ts';
-import { blendMoves, type AlphaChange } from '../../../placement/backendSceneUpdates.ts';
+import {
+  blendMoves,
+  isAssignment,
+  type AlphaChange,
+  type SurfaceAssignment,
+} from '../../../placement/backendSceneUpdates.ts';
 import type { HostMaterials } from '../../../host/resources.ts';
-import { surfaceOf } from '../../../page/surface.ts';
+import {
+  recordsOfMeshes,
+  surfaceOf,
+  unpagedRefusal,
+  wearDeclaration,
+} from '../../../page/surface.ts';
+import type { PageRec } from '../../../page/selection/selection.ts';
 
 /**
  * Opaque and masked clusters are drawn by the same visibility passes, told apart by the flag and
@@ -12,12 +23,20 @@ import { surfaceOf } from '../../../page/surface.ts';
  * the census missed compiling at its first draw (`../../core/materialPasses.ts`): a material moves
  * between them in place. Blended clusters are laid out at open — after the opaque ones in the
  * cluster catalogue, with no geometry page, in the transparent table and its forward copies — and
- * no cluster enters or leaves them inside the session.
+ * no cluster enters or leaves them inside the session, nor takes another surface (#847).
  */
-export const webgpuMaterialClassRefusal = (alpha: AlphaChange) =>
-  blendMoves(alpha)
+export const webgpuMaterialClassRefusal = (alpha: AlphaChange, pages: readonly PageRec[]) =>
+  unpagedRefusal(pages, alpha) ||
+  ((isAssignment(alpha) ? assignsBlended(alpha, pages) : blendMoves(alpha))
     ? 'its blended clusters are laid out in their forward pass when the session opens'
-    : undefined;
+    : undefined);
+
+/** An assignment into or out of blended, or onto a drawable whose clusters are drawn blended
+ *  whatever their surface (`clustered-blend`). */
+const assignsBlended = (assignment: SurfaceAssignment, pages: readonly PageRec[]) =>
+  assignment.from === 'blend' ||
+  assignment.to === 'blend' ||
+  recordsOfMeshes(pages, assignment.meshes).some((rec) => rec.transparent);
 
 /**
  * Host surfaces rewritten in place (#335). When their values moved, every row is written again at
@@ -55,4 +74,11 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
     }),
   );
   return exact && fit;
+}
+
+/** The records of the assigned meshes point to the surface each wears now (`wearSurface`,
+ *  #847), its variant for their geometry: a vertex-coloured one keeps its colours. */
+export function wearWebgpuSurface(rt: WebgpuPagesRuntime, { meshes }: SurfaceAssignment) {
+  for (const rec of recordsOfMeshes(rt.setup.allPages, meshes))
+    wearDeclaration(rec, meshes.get(rec.sourceMesh!) as HostMaterials);
 }
