@@ -154,7 +154,8 @@ gh workflow run pages.yml -f deploy=true --ref main
 
 A deploying run builds the native compiler, then the scene caches (`pnpm run compile:caches`).
 The deploy job refuses an output without `index.html` or `runtime/portal.js`, or with fewer files
-than the build copies, pre-compresses the text files beside their originals, sends the tree over
+than the build copies, pre-compresses the text files beside their originals (gzip) and the scene
+caches' objects (brotli, #921), sends the tree over
 SSH with `rsync --delete-delay --delay-updates` — excluding `openworld/`, which the open world's
 own repository publishes and this deploy must never delete —, then checks that the site root and the portal
 bundle answer, each with `Cross-Origin-Opener-Policy: same-origin` and
@@ -164,7 +165,9 @@ than `require-corp` keeps the consent panel and its audience measurement loading
 origins. `scripts/docs-serve.ts` answers the same headers locally. The deploy job reads four
 repository secrets: `DEPLOY_SSH_KEY`, `DEPLOY_KNOWN_HOSTS`, `DEPLOY_TARGET` and `DEPLOY_SSH_PORT`.
 The server side — web server, HTTPS, the redirect of the bare domain to `www`, the isolation
-headers above, and the deploy key restricted to the web root — is set up by the maintainer.
+headers above, the pre-compressed siblings (`.gz`, and `.br` sent with `Content-Encoding: br` to a
+browser that accepts it), and the deploy key restricted to the web root — is set up by the
+maintainer.
 GitHub Pages is no longer deployed: its last deployment is removed by turning Pages off in the
 repository settings, which leaves https://www.trillion3d.com the one public address.
 
