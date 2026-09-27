@@ -167,6 +167,7 @@ pub(crate) mod clusters;
 mod culling;
 mod diagnosis;
 pub(crate) mod groups;
+mod measured;
 pub(crate) mod quality;
 pub(crate) mod reduce;
 mod tally;
