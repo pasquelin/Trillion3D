@@ -61,7 +61,7 @@ void leaveAll(uint32_t engine) {
   std::sort(keys.begin(), keys.end());
   for (uint64_t key : keys) {
     auto at = w.pairs.find(key);
-    if (at->second & ENTERED) pushLeave(key);
+    if (at->second.count & ENTERED) pushLeave(key);
     w.softPairs.erase(key);
     w.pairs.erase(at);
   }
@@ -107,8 +107,8 @@ void added(World &w, const ContactRecord &r) {
 /// A rigid pair's contact removed: its last one sends the leave, once the enter was sent.
 void removed(World &w, const ContactRecord &r) {
   auto found = w.pairs.find(pairKey(r.a, r.b));
-  if (found == w.pairs.end() || (--found->second & ~ENTERED) != 0) return;
-  if (found->second & ENTERED) pushLeave(found->first);
+  if (found == w.pairs.end() || (--found->second.count & ~ENTERED) != 0) return;
+  if (found->second.count & ENTERED) pushLeave(found->first);
   w.pairs.erase(found);
 }
 
