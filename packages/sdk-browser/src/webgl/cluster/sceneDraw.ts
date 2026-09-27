@@ -1,5 +1,5 @@
 import { serialOf } from '../../host/graph/serial.ts';
-import type { GraphScene } from '../../host/graph/scene.ts';
+import type { Scene } from '../../world/core/scene.ts';
 import { isDrawnNode } from '../../host/graph/kinds.ts';
 import {
   DEFAULT_TONE_MAPPING,
@@ -64,7 +64,7 @@ const NO_BATCHES: readonly never[] = [];
  */
 export function createSceneDraw(
   gl: WebGL2RenderingContext | undefined,
-  display: GraphScene,
+  display: Scene,
   copies: readonly object[] = [],
   { pixelRatio = () => DEFAULT_PIXEL_RATIO, materialDegraded }: DrawHosts = {},
 ) {

@@ -17,7 +17,7 @@ import { asHostLibrary } from '../host/resources.ts';
 const oracleDepth = (
   ids: Uint32Array,
   pages: Parameters<typeof referenceVisibilityDepth>[1],
-  cam: G.GraphCamera,
+  cam: G.Camera,
   size: [number, number],
 ) =>
   referenceVisibilityDepth(

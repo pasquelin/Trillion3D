@@ -101,6 +101,10 @@ export function createPageStreamerWith(
   const { subscribe } = createStreamingQueue(context, loadOne, touch, evict);
   const asIndices = createIndexViews();
   return {
+    admit: (more: readonly StreamPage[]) => more.forEach((page) => catalog.set(page.url, page)),
+    forget: (urls: readonly string[]) =>
+      // A page in transfer stays catalogued: its job reads its size when it settles.
+      urls.forEach((url) => !jobs.has(url) && catalog.delete(url) && store.drop(url)),
     get(url: string) {
       const array = cache.get(url);
       if (array) touch(url, array);
@@ -112,12 +116,8 @@ export function createPageStreamerWith(
       return array;
     },
     has: (url: string) => cache.has(url),
-    loading(url: string) {
-      return jobs.has(url);
-    },
-    failed(url: string) {
-      return failures.has(url);
-    },
+    loading: (url: string) => jobs.has(url),
+    failed: (url: string) => failures.has(url),
     read(url: string, requestSignal?: AbortSignal) {
       state.requested++;
       return subscribe(url, requestSignal, 0).then(asIndices);
