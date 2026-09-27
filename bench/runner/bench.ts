@@ -5,9 +5,8 @@
 // All options described in `README.md`.
 // Harness writes `mesure.json`, `resume.md` and one PNG per view, per threshold and per side, plus
 // A/A witness capture. A field is `null` when not measured: nothing is inferred.
-// Everything it launches — static server, Chromium — it stops, including on error.
-// NO SERIOUS TIMING IS PROMISED HERE: harness records durations and machine load at start/end
-// of each series. Caller judges if machine was quiet.
+// Everything it launches it stops, including on error. NO SERIOUS TIMING IS PROMISED HERE: it
+// records machine load at each series boundary. Caller judges if the machine was quiet.
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
@@ -97,6 +96,7 @@ async function main() {
     report.provenance.browser = browser.version();
     const page = await browser.newPage({
       viewport: { width: settings.width, height: settings.height },
+      deviceScaleFactor: settings.dpr,
     });
     page.on('pageerror', (e) =>
       report.errors.push({ kind: 'pageerror', message: String(e.message) }),
