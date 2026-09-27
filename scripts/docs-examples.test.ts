@@ -18,9 +18,9 @@ import type { PortalRoute } from '../site/app/portal/routes.ts';
 import {
   exampleMissing,
   exampleTitle,
-  isReady,
   readyEntries as ready,
   roadmapEntries,
+  themedEntries,
 } from '../site/app/examples/list.ts';
 import { loadDictionary } from '../site/content/i18n/dictionary.ts';
 import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
@@ -140,8 +140,9 @@ test('an example is its file, live, on the demo page; the index shows what is re
   const route: PortalRoute = { locale: 'en', area: 'examples', id: entry.id };
   const sidebar = renderToStaticMarkup(createElement(ExampleList, { groups: examplesMenu(route) }));
   for (const entry of roadmapEntries) {
-    assert.equal(sidebar.includes(`href="#/en/examples/${entry.id}"`), isReady(entry), entry.id);
-    assert.equal(sidebar.includes(`thumbnails/${entry.id}.png`), isReady(entry), entry.id);
+    const isWritten = Boolean(entry.file);
+    assert.equal(sidebar.includes(`href="#/en/examples/${entry.id}"`), isWritten, entry.id);
+    assert.equal(sidebar.includes(`thumbnails/${entry.id}.png`), isWritten, entry.id);
   }
   assert.match(
     sidebar,
@@ -151,27 +152,43 @@ test('an example is its file, live, on the demo page; the index shows what is re
   assert.equal(filtered[0].key, entry.id);
   assert.deepEqual(examplesMenu(route, 'no example is called this'), []);
   const index = renderToStaticMarkup(createElement(Examples, { locale: 'en' }));
-  // The index shows every entry: a ready one as a card that opens it, one still to come as an
-  // "in progress" card that opens nothing, with the engine feature it waits for; one written and
-  // waiting for the engine opens nothing either, and links its issue.
+  // Written source is clickable and pictured; unwritten entries are named only in a quiet line.
   for (const entry of roadmapEntries) {
-    assert.ok(index.includes(`>${exampleTitle(entry.id, 'en')}</h2>`), entry.id);
-    assert.equal(index.includes(`href="#/en/examples/${entry.id}"`), isReady(entry), entry.id);
-    assert.equal(index.includes(`thumbnails/${entry.id}.png`), isReady(entry), entry.id);
+    const isWritten = Boolean(entry.file);
+    assert.equal(
+      index.includes(`>${exampleTitle(entry.id, 'en')}</span></h2>`),
+      isWritten,
+      entry.id,
+    );
+    assert.equal(index.includes(`href="#/en/examples/${entry.id}"`), isWritten, entry.id);
+    assert.equal(index.includes(`thumbnails/${entry.id}.png`), isWritten, entry.id);
     const missing = exampleMissing(entry.id, 'en');
-    if (missing) assert.ok(index.includes(`Waits for the engine: ${missing}`), entry.id);
-    if (entry.issue)
-      assert.ok(index.includes(`/issues/${entry.issue}">#${entry.issue}</a>`), entry.id);
+    if (entry.status === 'waiting-engine')
+      assert.ok(index.includes(`Partial — Waits for the engine: ${missing}`), entry.id);
+    if (!isWritten) assert.ok(index.includes(exampleTitle(entry.id, 'en')), entry.id);
   }
-  // A parked example has no render yet: its card shows no picture, so none can break.
-  const cards = index.split('<section class="card').slice(1);
-  for (const { id } of parked) {
-    const title = `>${exampleTitle(id, 'en')}</h2>`;
-    const card = cards.find((markup) => markup.includes(title));
-    assert.ok(card && !card.includes('<img'), id);
+  assert.equal(
+    (index.match(/data-fallback-src="\.\/assets\/example-in-progress\.svg"/g) ?? []).length,
+    written.length,
+  );
+  assert.equal((index.match(/grid-rows-\[1\.5rem_4\.5rem\]/g) ?? []).length, written.length);
+  assert.equal((index.match(/h-28/g) ?? []).length, written.length);
+  assert.equal((index.match(/h-14/g) ?? []).length, written.length);
+  for (const { ready: complete, parked: partial, coming } of themedEntries) {
+    const positions = [...complete, ...partial].map(({ id }) =>
+      index.indexOf(`>${exampleTitle(id, 'en')}</span></h2>`),
+    );
+    assert.deepEqual(
+      positions,
+      [...positions].sort((a, b) => a - b),
+    );
+    if (coming.length) {
+      const line = `Coming: ${coming.map(({ id }) => exampleTitle(id, 'en')).join(' · ')}`;
+      assert.ok(index.includes(line));
+      assert.ok(index.indexOf(line) > Math.max(-1, ...positions));
+    }
   }
   const count = (pattern: RegExp) => (index.match(pattern) ?? []).length;
-  assert.equal(count(/aria-disabled="true"/g), roadmapEntries.length - ready.length);
-  assert.equal(count(/>In progress</g), roadmapEntries.length - written.length);
-  assert.equal(count(/>Waiting for the engine</g), written.length - ready.length);
+  assert.equal(count(/aria-disabled="true"/g), 0);
+  assert.equal(count(/>Partial —/g), parked.length);
 });

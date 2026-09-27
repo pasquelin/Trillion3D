@@ -35,7 +35,9 @@
     "jumpTo": "Zu einem Thema springen",
     "inProgress": "In Arbeit",
     "waitsFor": "Wartet auf die Engine:",
-    "waitingEngine": "Wartet auf die Engine"
+    "waitingEngine": "Wartet auf die Engine",
+    "partial": "Teilweise",
+    "coming": "Demnächst: {{titles}}"
   },
   "gallery": {
     "themes": {
