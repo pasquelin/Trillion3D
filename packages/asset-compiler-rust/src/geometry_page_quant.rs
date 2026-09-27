@@ -9,8 +9,8 @@ use trillion3d_page_codec::bits::{
 };
 pub mod tile;
 
-/// Grid of a primitive, the finer of two rules: its widest extent, capped at a tile (2^`tile_log2`),
-/// split into 2^16 steps, and an eighth of the finest group error its DAG published. Both are
+/// Grid of a primitive, the finer of two rules: its widest extent, capped at 2^`tile_log2`, split
+/// into 2^16 steps, and an eighth of the finest group error its DAG published. Both are
 /// bounded below by the extent in 2^(`MAX_BITS` - 2) steps, so no page needs more than `MAX_BITS`
 /// per coordinate. Every page shares that exponent and rounds absolute coordinates: a vertex two
 /// clusters or two tiles share lands on one cell. The step is a power of two: `q * step` is exact.
