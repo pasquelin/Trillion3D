@@ -2240,6 +2240,12 @@
       "credit": "旗杆上的旗帜为本示例用代码建模，CC0 — 见 assets/examples/CREDITS.md"
     }
   },
+  "hover-to-highlight": {
+    "banner": "将指针移到小车的各个部件上以逐一突出显示，或在面板中关闭突出显示。",
+    "controls": {
+      "highlightEnabled": "启用突出显示"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "在摄影机沿运河移动时暂停、重新播放旅程或调整速度。",
     "controls": {

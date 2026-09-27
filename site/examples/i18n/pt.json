@@ -2240,6 +2240,12 @@
       "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
     }
   },
+  "hover-to-highlight": {
+    "banner": "Passe o cursor sobre as peças do carrinho para realçar cada uma, ou desative o realce no painel.",
+    "controls": {
+      "highlightEnabled": "Ativar realce"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "Pause o travelling, repita o percurso ou mude a velocidade enquanto a câmera segue pelo canal.",
     "controls": {

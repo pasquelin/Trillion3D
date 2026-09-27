@@ -2240,6 +2240,12 @@
       "credit": "Direkteki bayrak bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
     }
   },
+  "hover-to-highlight": {
+    "banner": "Arabanın parçalarını tek tek vurgulamak için üzerlerine gelin veya panelden vurgulamayı kapatın.",
+    "controls": {
+      "highlightEnabled": "Vurgulamayı etkinleştir"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "Kamera kanal boyunca ilerlerken hareketi duraklatın, baştan oynatın veya hızını değiştirin.",
     "controls": {

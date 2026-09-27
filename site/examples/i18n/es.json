@@ -2240,6 +2240,12 @@
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
     }
   },
+  "hover-to-highlight": {
+    "banner": "Pasa el cursor sobre las piezas del carro para resaltar cada una, o desactiva el resaltado en el panel.",
+    "controls": {
+      "highlightEnabled": "Activar resaltado"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "Pausa el travelling, repite el recorrido o cambia su velocidad mientras la cámara avanza por el canal.",
     "controls": {
