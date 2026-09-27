@@ -20,7 +20,7 @@ test('a-hundred-thousand-instances shares resources and changes only the request
     'utf8',
   );
   const scene = new Scene(() => Promise.reject(new Error('the page loads no model')));
-  let change = (_values: Record<string, number | string>) => {};
+  let change = (_values: Record<string, number | string>, _key?: string) => {};
   let values: Record<string, number | string> = {};
   const readouts = new Map<string, string>();
   const diagnostic = { mode: 'beauty' };
@@ -48,7 +48,6 @@ test('a-hundred-thousand-instances shares resources and changes only the request
       },
       language: () => 'en-US',
       readout: (name: string) => (value: string) => void readouts.set(name, value),
-      stats() {},
     },
   });
   const instances = [...scene.children[0].children];
@@ -58,8 +57,11 @@ test('a-hundred-thousand-instances shares resources and changes only the request
   assert.ok(instances.every((node) => node.material === instances[0].material));
   assert.equal(readouts.get('objectsBuilt'), (100000).toLocaleString('en-US'));
   values.count = 42000;
+  change(values, 'count');
+  assert.equal(instances.filter(({ visible }) => visible).length, 42000);
+  assert.equal(readouts.get('objectsShown'), (42000).toLocaleString('en-US'));
   values.view = 'clusters';
-  change(values);
+  change(values, 'view');
   assert.equal(instances.filter(({ visible }) => visible).length, 42000);
   assert.equal(diagnostic.mode, 'clusters');
 });
