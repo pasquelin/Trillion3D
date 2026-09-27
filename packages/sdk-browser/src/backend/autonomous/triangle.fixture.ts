@@ -17,9 +17,9 @@ export function liveRows(count: number) {
 
 /** One triangle cut into one page, and the WebGL2 page path opened on `mesh`, under `source`,
  *  placed by `link`, wearing `material` (a basic double-sided surface by default), under the page
- *  `ceiling` (a host ceiling of two pages by default). */
+ *  `ceiling` (a host ceiling of two pages by default); `pass` the primitive's (exact clusters). */
 export function triangleBackend(
-  link: { placements?: PlacementRows } = {},
+  { pass = 'exact-clusters', ...link }: { placements?: PlacementRows; pass?: string } = {},
   material: G.GraphSurface = G.basicSurface({ side: G.DOUBLE_SIDE }),
   ceiling: Pick<BackendContext, 'maxResidentPages' | 'residentPagesDefault'> = {
     maxResidentPages: 2,
@@ -58,7 +58,7 @@ export function triangleBackend(
         {
           mesh: 0,
           primitive: 0,
-          pass: 'exact-clusters',
+          pass,
           clusterStrategy: 'dag-groups',
           pages: [page],
           structure: { version: 1, roots: [0], groups: [] },

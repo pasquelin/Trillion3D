@@ -4,7 +4,8 @@ import { createSceneDraw } from './sceneDraw.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
 import { GraphScene } from '../../host/graph/scene.ts';
-import { GraphInstancedMesh, GraphMesh } from '../../host/graph/mesh.ts';
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
+import { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts';
 import { GraphCamera } from '../../host/graph/camera.ts';
 import { readHostDrawCamera } from '../../camera/world.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
@@ -19,7 +20,7 @@ function mesh(corners: number, renderOrder: number, surface = new GraphSurface('
   const geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(corners), 1));
   geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
   geometry.setAttribute('normal', new BufferAttribute(new Float32Array(9), 3));
-  const made = new GraphMesh(geometry, surface);
+  const made = new Mesh(geometry, surface);
   made.renderOrder = renderOrder;
   made.frustumCulled = false;
   return made;
@@ -56,7 +57,7 @@ test('the opaque meshes draw by order, the see-through ones after, a hidden one 
 test('an instanced mesh is one submission of every placement it counts', () => {
   const scene = new GraphScene();
   const source = mesh(6, 0);
-  const placed = new GraphInstancedMesh(source.geometry, source.material as GraphSurface, 4);
+  const placed = new InstancedMesh(source.geometry, source.material as GraphSurface, 4);
   placed.count = 3;
   scene.add(placed);
   const { context, draw } = drawn(scene);

@@ -20,7 +20,7 @@ export function execute() {
   const red = clusterRecord(quad(-3), G.basicSurface({ color: 0xff0000 })),
     glass = glassMesh();
   scene.background = new G.Color(0x0000ff);
-  const draw = (clusters: ClusterDrawMesh[], copies: G.GraphMesh[], srgb = false) =>
+  const draw = (clusters: ClusterDrawMesh[], copies: G.HostMesh[], srgb = false) =>
     renderer.draw(clusters, scene, drawCamera, false, srgb, [], copies);
   const passes = () => ({
     backdrop: renderer.backdropSubmissions,

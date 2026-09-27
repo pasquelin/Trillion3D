@@ -1,4 +1,4 @@
-import type { HostGraphMesh } from '../host/scene/graphNodes.ts';
+import type { HostMesh } from '../host/resources.ts';
 import { hostMeshCopy } from '../host/scene/graphObjects.ts';
 import { MATRIX_VALUES, boxIsEmpty, multiplyMatrix4 } from '../../../sdk-core/src/index.ts';
 import type { MultiplyLot } from '../math/batchRuntime.ts';
@@ -42,7 +42,7 @@ export function replicateInstances(
   // Products dispatched IN BATCHES by governor when buffer holds exactly one copy per slot.
   // Otherwise each product runs in place, by same `multiplyMatrix4` on same inputs: same bits.
   const enLot = lot?.holds(rows * columns * meshes.length) ? lot : null;
-  const copies: HostGraphMesh[] = [];
+  const copies: HostMesh[] = [];
   // Group world pose does not change between copies: copied once.
   copyElements(groupWorld, group.matrixWorld.elements);
   for (let z = 0; z < rows; z++)
