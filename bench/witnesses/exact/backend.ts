@@ -23,6 +23,7 @@ import { createExactPagesMetrics } from './metrics.ts';
 import { createExactPagesAttachment, disposePageGeometry, pageIndexBuffers } from './attachment.ts';
 import { createExactPagesMaterials } from './materials.ts';
 import { isDrawnNode } from '../../../packages/sdk-browser/src/host/graph/kinds.ts';
+import { numbered } from '../../../packages/sdk-browser/src/host/graph/serial.ts';
 import { createExactPagesClusterBatches } from './clusterBatches.ts';
 
 export const exactPagesBackend: BackendFactory = (context) => {
@@ -45,7 +46,7 @@ export const exactPagesBackend: BackendFactory = (context) => {
   // the engine's contract copies go back to being its meshes.
   const blendCopies = collected.blendCopies.flatMap((copy) => (isDrawnNode(copy) ? [copy] : []));
   const cap = maxResidentPages ?? context.residentPagesDefault ?? Math.max(1024, prepared),
-    scene = new Scene();
+    scene = numbered(new Scene());
   const sceneLights = installLighting(scene, clearColor, context.sceneLighting ?? source);
   const shown: PageRec[] = [],
     desired: PageRec[] = [],

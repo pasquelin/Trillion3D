@@ -101,7 +101,7 @@ export const floatAttribute = (values: ArrayLike<number>, itemSize: number, norm
 
 /** A perspective eye by its optics. */
 export const perspectiveCamera = (fov = 50, aspect = 1, near = 0.1, far = 2000) =>
-  new Camera('perspective', { fov, aspect, near, far });
+  numbered(new Camera('perspective', { fov, aspect, near, far }));
 
 /** An orthographic eye by the box it sees. */
 export const orthographicCamera = (
@@ -111,7 +111,7 @@ export const orthographicCamera = (
   bottom = -1,
   near = 0.1,
   far = 2000,
-) => new Camera('orthographic', { near, far, left, right, top, bottom });
+) => numbered(new Camera('orthographic', { near, far, left, right, top, bottom }));
 
 /** A texture of raw texels: read as they are, nearest, no mips, rows not flipped. */
 export function dataTexture(
