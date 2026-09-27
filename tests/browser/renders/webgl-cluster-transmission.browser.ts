@@ -77,7 +77,10 @@ assert.deepEqual(result.offscreen, {
   pixel: [255, 0, 0, 255],
 });
 // A clearcoat glass is drawn: a refusal would be the page's error.
-assert.ok(near(result.coatedPixel, [245, 0, 0, 255]), `drawn without clearcoat: ${result.coatedPixel}`);
+assert.ok(
+  near(result.coatedPixel, [245, 0, 0, 255]),
+  `drawn without clearcoat: ${result.coatedPixel}`,
+);
 assert.deepEqual(
   result.coatedNotice,
   [{ kind: 'material-degraded', context: { material: 'coated glass', feature: 'clearcoat' } }],
