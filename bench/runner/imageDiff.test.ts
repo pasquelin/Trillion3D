@@ -31,7 +31,7 @@ test('a black capture against a drawn one is refused too', () => {
 });
 
 test('every black capture is an error of the report, by its file name', () => {
-  const errors: Report['errors'] = [];
+  const errors: Report['errors'] = [{ kind: 'console', message: 'noise' }];
   refuseBlackCaptures(
     errors,
     new Map([
@@ -42,5 +42,6 @@ test('every black capture is an error of the report, by its file name', () => {
   );
   assert.deepEqual(errors, [
     { kind: 'black-capture', message: 'apres-sol-e1.png: RGB 0 everywhere' },
+    { kind: 'console', message: 'noise' },
   ]);
 });

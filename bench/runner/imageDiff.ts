@@ -10,15 +10,17 @@ function black({ body }: NonNullable<Capture>) {
   return true;
 }
 
-/** Refuses every entirely black capture by its file name: an error of the report. */
+/** Refuses every entirely black capture by its file name: an error of the report, listed first so
+ *  `resume.md`'s first 40 errors never hide it behind page noise. */
 export function refuseBlackCaptures(
   errors: Report['errors'],
   captures: ReadonlyMap<string, Capture>,
 ) {
-  for (const [file, capture] of captures) {
-    if (!capture || !black(capture)) continue;
-    errors.push({ kind: 'black-capture', message: `${file}: RGB 0 everywhere` });
-  }
+  const refused: Report['errors'] = [];
+  for (const [file, capture] of captures)
+    if (capture && black(capture))
+      refused.push({ kind: 'black-capture', message: `${file}: RGB 0 everywhere` });
+  errors.unshift(...refused);
 }
 
 /** Delta between two RGBA captures: different pixels and maximum error on a channel. */
