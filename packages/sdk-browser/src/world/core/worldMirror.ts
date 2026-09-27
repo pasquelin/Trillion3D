@@ -110,19 +110,22 @@ export function buildWorldMirror(input: MirrorInput) {
     twins.set(node, twin);
   }
   /** Writes the repainted entries into the host surfaces built for them, then has `refresh` —
-   *  the open session, if any — read them again: once, and once more for each entry whose alpha
-   *  moved, what its cutout shadows (`AlphaChange`). False when the session cannot take them. */
+   *  the open session, if any — read them again: once, and for each entry whose alpha moved once
+   *  more, no value, for what its cutout shadows (`AlphaChange`). False when the session cannot. */
   const repaint = (painted: readonly Repainted[], refresh?: Refresh) => {
-    const done = painted.flatMap(({ entry, values, alpha }) => {
+    let written = false,
+      values = false;
+    const moved: AlphaChange[] = [];
+    for (const { entry, alpha, ...each } of painted) {
       const worn = (surfaces.get(entry.material) ?? []).filter((surface) => !!surface);
       for (const surface of worn) repaintHostSurface(surface, entry.material);
-      return worn.length ? [{ values, alpha, surfaces: worn }] : [];
-    });
-    if (!refresh || !done.length) return true;
-    const moved = done.flatMap(({ alpha, surfaces }) => (alpha ? [{ surfaces, ...alpha }] : []));
-    return (
-      refresh(done.some((each) => each.values)) && moved.every((alpha) => refresh(true, alpha))
-    );
+      if (!worn.length) continue;
+      written = true;
+      values ||= each.values;
+      if (alpha) moved.push({ surfaces: worn, ...alpha });
+    }
+    if (!refresh || !written) return true;
+    return refresh(values) && moved.every((alpha) => refresh(false, alpha));
   };
   return { root, twins, associations, repaint };
 }
