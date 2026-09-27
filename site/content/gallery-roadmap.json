@@ -731,6 +731,11 @@
       "file": "examples/the-home-pose.html"
     },
     {
+      "id": "a-dolly-along-the-canal",
+      "theme": "camera",
+      "file": "examples/a-dolly-along-the-canal.html"
+    },
+    {
       "id": "red-cyan-anaglyph",
       "theme": "camera",
       "file": "",

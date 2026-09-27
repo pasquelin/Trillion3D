@@ -2180,5 +2180,16 @@
     "words": {
       "credit": "この例のためにコードでモデリングしたポールの旗、CC0 — assets/examples/CREDITS.md を参照"
     }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "運河沿いを進むカメラを一時停止したり、最初から再生したり、速度を変えたりできます。",
+    "controls": {
+      "paused": "一時停止",
+      "replay": "最初から再生",
+      "speed": "速度"
+    },
+    "readouts": {
+      "progress": "進行"
+    }
   }
 }
