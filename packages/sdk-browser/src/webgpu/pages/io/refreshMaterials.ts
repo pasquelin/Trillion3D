@@ -44,7 +44,8 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
     // (`../render/render.ts`, `refreshBlendScene`), each off its refreshed surface.
     rt.run.gate.sceneMoved();
   }
-  const exact = !alpha || !rt.lights.shadows;
+  // The atlas is made at open whether or not a light is declared: a light in the store casts.
+  const exact = !alpha || !rt.lights.store.count || !rt.lights.shadows;
   const textures = rt.vis.textures;
   if (!textures) return exact;
   const fit = [textures.color, textures.data].every((atlas) =>
