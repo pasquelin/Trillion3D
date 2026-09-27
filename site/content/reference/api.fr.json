@@ -674,7 +674,9 @@
       "bottom": "Bord du bas de la boîte orthographique.",
       "projection": "`'perspective'` rend petit ce qui est loin ; `'orthographic'` garde toutes les tailles.",
       "copy": "Prend les valeurs de nœud de `source` et, d’une caméra, son optique ; sa propre `projection` reste.",
-      "updateProjectionMatrix": "Gardé pour les pages écrites pour un moteur de rendu qui en a besoin : chaque écriture d’optique redessine déjà.",
+      "updateProjectionMatrix": "Recompose `projectionMatrix` ; chaque écriture d’optique le fait déjà, et redessine.",
+      "projectionMatrix": "La projection que compose l’optique, dans la convention de profondeur de la référence avec un plan lointain fini, pour un moteur de rendu qui dessine avec elle ; chaque écriture d’optique la recompose. Le monde dessine avec la sienne (`engineCamera.ts`).",
+      "matrixWorldInverse": "L’inverse de la matrice monde telle que composée en dernier : la vue que lit un moteur de rendu.",
       "set": "Place l’œil en `pose.position`, qui regarde `pose.target`, avec le champ qu’elle donne.",
       "rayThrough": "Le rayon du monde qui passe par un point de l’image, selon la projection du moteur (`engineCamera.ts`) : depuis l’œil le long de la vue pour une caméra en perspective, droit dans l’axe de la vue depuis la boîte pour une caméra orthographique. Sa direction est un vecteur unitaire."
     }
@@ -835,6 +837,7 @@
       "totalNodes": "Nœuds au total.",
       "autonomousScene": "Sa scène intégrée.",
       "primitives": "Ses primitives.",
+      "worstStalls": "La table des blocages du compilateur : au plus dix primitives avec un groupe bloqué qui a gardé des racines au niveau 0, la pire d’abord. Absente d’un cache compilé avant elle.",
       "texturePreviews": "Une entrée par couple (texture, atlas) décodé, rangée par texture puis par atlas ; vide sans image décodable.",
       "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel."
@@ -1338,7 +1341,7 @@
     }
   },
   "dagWarningsDiagnostic": {
-    "summary": "Le diagnostic `dag-warnings` d’un cache : les primitives signalées par le compilateur, et chaque primitive avec un groupe bloqué — l’ensemble que le compilateur classe sur stderr à la fin d’une cuisson."
+    "summary": "Le diagnostic `dag-warnings` d’un cache : les primitives signalées par le compilateur, et la table des blocages du compilateur (`worstStalls`), les lignes qu’il écrit sur stderr à la fin d’une cuisson, dans son ordre."
   },
   "DecodedGeometryPage": {
     "summary": "Une page décodée : `indices` et chaque attribut sont des vues sur un seul tampon de `decodedBytes` (`geometryPageBlock.ts`).",
@@ -1584,6 +1587,7 @@
       "UNKNOWN_MATERIAL": "Un changement de matériau est inconnu, hors limites, le mettrait dans une classe de dessin qu’un moteur fixe à l’ouverture de la scène, ou répéterait une texture qu’il partage.",
       "MATERIAL_CLASS_CHANGE": "Un changement de matériau est inconnu, hors limites, le mettrait dans une classe de dessin qu’un moteur fixe à l’ouverture de la scène, ou répéterait une texture qu’il partage.",
       "MATERIAL_TEXTURE_SHARED": "Un changement de matériau est inconnu, hors limites, le mettrait dans une classe de dessin qu’un moteur fixe à l’ouverture de la scène, ou répéterait une texture qu’il partage.",
+      "MATERIAL_CEILING": "Une page créerait plus de matériaux que `RUNTIME_MATERIAL_CEILING` en une session ; rien n’a été créé.",
       "INVALID_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
       "NON_FINITE_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
       "SINGULAR_PARENT_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
@@ -4079,7 +4083,11 @@
       "geometry": "La forme du maillage ; donne une autre géométrie pour la changer.",
       "material": "Le matériau du maillage, ou un par groupe ; donnes-en un autre pour le changer.",
       "localBounds": "La boîte du contenu propre à ce nœud, dans son repère local ; un simple nœud n’en a pas.",
-      "physics": "Le maillage comme corps de la physique du monde, `null` s’il n’en est pas un. Mets `'static'`, `'dynamic'`, `'kinematic'` ou des options ; la forme est déduite de la géométrie."
+      "physics": "Le maillage comme corps de la physique du monde, `null` s’il n’en est pas un. Mets `'static'`, `'dynamic'`, `'kinematic'` ou des options ; la forme est déduite de la géométrie.",
+      "morphTargetInfluences": "Le poids de chaque cible de morphose, quand la géométrie en déclare.",
+      "morphTargetDictionary": "Le rang de chaque cible de morphose, par son nom.",
+      "updateMorphTargets": "Un poids nul par cible de morphose du premier attribut déformé, nommée par son rang.",
+      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire."
     }
   },
   "metric": {
@@ -5188,6 +5196,8 @@
       "environment": "Une image de l’environnement que reflètent les surfaces brillantes ; `null` pour aucune.",
       "background": "Ce qui remplit l’image derrière chaque objet : une couleur, ou `null` pour le fond par défaut. Un changement s’affiche à l’image suivante, la session gardée : une nouvelle couleur donnée ici, ou celle en place écrite par ses méthodes (`set`, `setRGB`, `setHex`, `setHSL`...). Une écriture directe de `.r`, `.g` ou `.b` n’est pas entendue : redonnez `background` après. Une image, ou toute valeur sans `getHex`, est refusée (`UNSUPPORTED_SCENE_UPDATE`) : aucun chemin ne la dessine.",
       "fog": "Un brouillard sur chaque surface, opaque ou transparente, sur les deux moteurs de rendu ; `null`, la valeur par défaut, pour aucun, sans aucun coût. `{ color, near, far }` fond les objets dans `color` de `near` à `far`, distances depuis la caméra ; `{ color, density }` s’épaissit de `density` par unité de distance ; ajoutez `heightFalloff` (et `baseHeight`, 0 par défaut) et il se pose au sol, s’éclaircissant au-dessus de `baseHeight` — divisé par e toutes les `1 / heightFalloff` unités vers le haut. Un changement se voit à l’image suivante : un nouveau brouillard donné ici, ou sa couleur écrite par ses méthodes. Une écriture directe de `near`, `far`, `density`... n’est pas entendue : redonnez `fog` après. Un brouillard hors limites — `far` pas au-delà de `near`, une densité négative — est refusé (`INVALID_SCENE_ENVIRONMENT`).",
+      "onBeforeRender": "Appelé par un moteur de rendu avant qu’il dessine la scène ; aucun par défaut.",
+      "onAfterRender": "Appelé par un moteur de rendu une fois la scène dessinée ; aucun par défaut.",
       "load": "Charge un modèle compilé — l’URL de son manifeste — et l’ajoute à cette scène.",
       "toJSON": "La scène en JSON simple, versionné : ses objets, les formes par l’appel qui les a construites, les matériaux, les lumières, le corps de chaque maillage tel qu’il a été déclaré et les modèles chargés par adresse ; la pose de `camera` aussi quand on en donne une.",
       "fromJSON": "Remplace ce que contient la scène par une scène enregistrée par `toJSON`, ses repères `helper` gardés ; se résout une fois ses modèles chargés. Un autre format ou une autre version est refusé (`UNSUPPORTED_SCENE_FORMAT`)."
@@ -5592,7 +5602,8 @@
       "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel.",
       "binary": "Le fichier binaire.",
-      "primitives": "Ses primitives."
+      "primitives": "Ses primitives.",
+      "worstStalls": "La table des blocages du compilateur : au plus dix primitives avec un groupe bloqué qui a gardé des racines au niveau 0, la pire d’abord. Absente d’un cache compilé avant elle."
     }
   },
   "SlimCulling": {
@@ -7462,20 +7473,8 @@
     },
     "summary": "Une image et l’état d’échantillonnage avec lequel elle est lue, et la transformation de ses coordonnées."
   },
-  "GraphMesh": {
-    "summary": "Un nœud dessiné : une géométrie et sa surface, ou une surface par groupe de la géométrie.",
-    "members": {
-      "kind": "Dessiné à un emplacement, ou à plusieurs (`GraphInstancedMesh`).",
-      "morphTargetInfluences": "Le poids de chaque cible de morphose, quand la géométrie en déclare.",
-      "morphTargetDictionary": "Le rang de chaque cible de morphose, par son nom.",
-      "geometry": "Sa forme.",
-      "material": "Sa surface, ou une par groupe de la géométrie.",
-      "updateMorphTargets": "Un poids nul par cible de morphose du premier attribut déformé, nommée par son rang.",
-      "copy": "Prend les valeurs de `source`, et des copies de ses enfants sauf avis contraire."
-    }
-  },
   "GraphNodeKind": {
-    "summary": "Ce qu’est un nœud du graphe : la racine, un maillage dessiné (à un emplacement ou plusieurs), un œil, ou l’une des lumières qu’une scène déclare."
+    "summary": "Ce qu’est une lumière du graphe : l’une des lumières qu’une scène déclare."
   },
   "Joint": {
     "summary": "Une liaison entre deux corps, ou entre un corps et le monde (`b` à null), créée par `joint.*` et ajoutée à la simulation par `world.physics.add`.",

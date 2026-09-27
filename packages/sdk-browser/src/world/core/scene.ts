@@ -42,7 +42,9 @@ export type WorldSceneLink = SceneLink & { background(): void; fog(): void };
  */
 export class Scene extends Object3D {
   /** Always `true`: tells the scene root apart from any other object. */
-  readonly isScene = true as const;
+  get isScene() {
+    return true as const;
+  }
   private _background: Color | null = null;
   /** Tells the world the background changed, chained on the colour to hear writes in place. */
   private readonly recoloured = () => (this._link as WorldSceneLink | null)?.background();
@@ -52,10 +54,16 @@ export class Scene extends Object3D {
   /** Tells the world the fog changed, chained on its colour to hear writes in place. */
   private readonly refogged = () => (this._link as WorldSceneLink | null)?.fog();
 
-  private readonly loader: (url: string, options: LoadOptions) => Promise<LoadedModel>;
-  constructor(loader: (url: string, options: LoadOptions) => Promise<LoadedModel>) {
+  /** Called by a renderer before it draws the scene; none by default. */
+  declare onBeforeRender?: () => void;
+  /** Called by a renderer once it has drawn the scene; none by default. */
+  declare onAfterRender?: () => void;
+  // Written only when used, as `reading` is: a scene the engine builds holds neither.
+  declare private readonly loader?: (url: string, options: LoadOptions) => Promise<LoadedModel>;
+  /** A scene; `loader` reads the models `load` adds, and a scene built without one loads none. */
+  constructor(loader?: (url: string, options: LoadOptions) => Promise<LoadedModel>) {
     super();
-    this.loader = loader;
+    if (loader) this.loader = loader;
     this.type = 'Scene';
   }
   /** Refused: a world has one scene root, never cloned. */
@@ -101,6 +109,11 @@ export class Scene extends Object3D {
   }
   /** Loads a compiled model — its manifest URL — and adds it to this scene. */
   async load(manifestUrl: string, options: LoadOptions = {}) {
+    if (!this.loader)
+      throw new EngineError(
+        'UNSUPPORTED_SCENE_UPDATE',
+        'This scene loads no model: it has no world',
+      );
     const model = await this.loader(manifestUrl, options);
     const at = options.position;
     if (at) {
@@ -124,10 +137,10 @@ export class Scene extends Object3D {
    *  @param json - The saved scene. @param camera - A camera to put where the scene was saved from. */
   fromJSON(json: unknown, camera?: Camera) {
     const read = () => readScene(this, json, camera);
-    const next = this.reading.then(read, read);
+    const next = (this.reading ?? Promise.resolve()).then(read, read);
     this.reading = next.catch(() => undefined);
     return next;
   }
   /** The last `fromJSON` under way, settled or not: the next one waits for it. */
-  private reading: Promise<void> = Promise.resolve();
+  declare private reading?: Promise<void>;
 }

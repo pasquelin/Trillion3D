@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "ब्रश किए हुए प्रतिबिंब देखें और उनकी ताकत व दिशा बदलें।",
+    "controls": {
+      "anisotropy": "ब्रश की ताकत",
+      "direction": "ब्रश की दिशा",
+      "roughness": "खुरदरापन",
+      "spin": "घुमाएँ"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "कार के चारों ओर देखें और पेंट व उसके ऊपर की साफ़ परत बदलें।",
+    "controls": {
+      "paint": "पेंट",
+      "clearCoat": "साफ़ परत",
+      "coatRoughness": "परत का खुरदरापन",
+      "spin": "घुमाएँ"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "सेटिंग्स"
@@ -310,6 +328,13 @@
       "roof": "छत"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "चारों ओर देखने के लिए खींचें। लैम्प की चौड़ाई बदलें और छाया के किनारे देखें।",
+    "controls": {
+      "lampWidth": "लैम्प की चौड़ाई",
+      "moveSubject": "वस्तु चलाएँ"
+    }
+  },
   "a-softbox-panel": {
     "banner": "चारों ओर चलने के लिए खींचो। चमक नरम करने के लिए रोशनी वाला पैनल बड़ा करो।",
     "controls": {
@@ -473,6 +498,14 @@
       "patrol": "गश्त",
       "car": "कार का पीछा",
       "balloon": "गुब्बारे का पीछा"
+    }
+  },
+  "a-crane-that-swings": {
+    "banner": "क्रेन के चारों ओर घुमाएँ, जबकि एक क्लिप भुजा घुमाती, ट्रॉली चलाती, भार उठाती और झुलाती है।",
+    "controls": {
+      "speed": "गति",
+      "paused": "रुका हुआ",
+      "replay": "फिर चलाएँ"
     }
   },
   "a-wave-across-a-grid": {
@@ -1234,6 +1267,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "दृश्य पर क्लिक करें, W A S D से चलें और माउस से देखें। चलते समय मेमोरी बजट घटाएँ।",
+    "controls": {
+      "walkSpeed": "चलने की गति",
+      "memory": "मेमोरी",
+      "view": "दृश्य",
+      "home": "आरंभ पर लौटें"
+    },
+    "choices": {
+      "view": {
+        "beauty": "तैयार चित्र",
+        "lod": "विवरण स्तर",
+        "clusters": "क्लस्टर"
+      }
+    },
+    "words": {
+      "credit": "इस उदाहरण के लिए कोड में बनाई गई कलशों की सड़क, CC0 — देखो assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01, Rico Cilliers द्वारा, Poly Haven, CC0; बक्सा W. Sitters द्वारा, CC BY 3.0 — देखो assets/examples/CREDITS.md"
@@ -1681,6 +1733,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "चौथी लेन की असमदैशिकता"
+    }
+  },
+  "the-home-pose": {
+    "banner": "एक दृश्य चुनें, कैमरा घुमाएँ, फिर लौटने के लिए होम चुनें।",
+    "controls": {
+      "home": "होम",
+      "tower": "मीनार",
+      "square": "चौक",
+      "hillside": "पहाड़ी"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "निकट तल को आगे बढ़ाएँ और उसे हर दीवार काटते देखें।",
+    "controls": {
+      "nearPlane": "निकट तल"
     }
   },
   "the-material-family": {
@@ -2146,6 +2213,66 @@
     },
     "words": {
       "credit": "इस उदाहरण के लिए कोड में बनाया गया खंभे पर झंडा, CC0 — देखें assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "कैमरा नहर के साथ चलते समय डॉली को रोकें, यात्रा फिर चलाएँ या गति बदलें।",
+    "controls": {
+      "paused": "रुका हुआ",
+      "replay": "फिर चलाएँ",
+      "speed": "गति"
+    },
+    "readouts": {
+      "progress": "प्रगति"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "सड़क के कोने को देखने के लिए खींचें। कंपाइलर ने एक फ़ोल्डर की तीन OBJ फ़ाइलों को इस दृश्य में मिला दिया।",
+    "controls": {
+      "visible": "दिखाएँ",
+      "home": "आरंभिक दृश्य"
+    },
+    "words": {
+      "credit": "W. Sitters का सड़क-लैंप मॉडल, CC BY 3.0 — देखो assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "पेटी को फ़र्श पर खींचें। उसे आधे मीटर के चरणों में रखने के लिए स्नैप चालू करें।",
+    "controls": {
+      "snap": "स्नैप",
+      "home": "आरंभ"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "किसी आकार को चुनने के लिए क्लिक करें। चयन हटाने के लिए फर्श पर क्लिक करें।",
+    "controls": {
+      "color": "रंग",
+      "thickness": "मोटाई"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "मैदान के चारों ओर घूमने के लिए खींचें। संख्या या दृश्य बदलें।",
+    "controls": {
+      "count": "संख्या",
+      "view": "दृश्य"
+    },
+    "readouts": {
+      "objectsShown": "दिखाई गई वस्तुएँ",
+      "objectsBuilt": "बनाई गई वस्तुएँ"
+    },
+    "choices": {
+      "view": {
+        "beauty": "तैयार चित्र",
+        "clusters": "क्लस्टर"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "व्यूअर को माउंट या अनमाउंट करें। हर माउंट का एक वर्ल्ड है और हर हटाव उसे मुक्त करता है।",
+    "controls": {
+      "mount": "माउंट करें",
+      "unmount": "अनमाउंट करें",
+      "remount": "फिर माउंट करें"
     }
   }
 }

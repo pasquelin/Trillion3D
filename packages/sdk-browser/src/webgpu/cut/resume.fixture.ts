@@ -109,6 +109,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
     gpu: { device: fakeDevice().device, cache: {}, selectionFallback: false },
     capabilities: { gpuDriven: true, unsupported: [] },
     diag: {
+      traceEnabled: true,
       traceDiagnostic: () => {
         comptes.attentes++;
       },

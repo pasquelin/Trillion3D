@@ -4,7 +4,7 @@ import { LIGHT_SETTINGS, createSceneLightStore } from '../../../sdk-core/src/ind
 import { attachContractLights } from './contractLights.ts';
 import { installLighting } from './contractLightingApi.ts';
 import { unsupportedClusterLight } from '../webgl/cluster/lights.ts';
-import { GraphScene } from '../host/graph/scene.ts';
+import { Scene } from '../world/core/scene.ts';
 import { isLightNode, type GraphAnyLight } from '../host/graph/kinds.ts';
 import { GraphLight, GraphLightProbe, type GraphLightKind } from '../host/graph/light.ts';
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
@@ -17,7 +17,7 @@ const light = (kind: GraphLightKind, intensity = 1) =>
 
 /** A WebGL2 engine, reduced to what the contract asks of it: its scene and its source graph. */
 function harness(sourceLights: Object3D[] = []) {
-  const [scene, source, store] = [new GraphScene(), new Object3D(), createSceneLightStore()];
+  const [scene, source, store] = [new Scene(), new Object3D(), createSceneLightStore()];
   source.add(...sourceLights);
   const contract = attachContractLights(scene, store, installLighting(scene, 0, source), () => {});
   return {
