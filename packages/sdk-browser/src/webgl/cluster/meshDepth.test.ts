@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { depthOf, placementsCentre } from './meshDepth.ts';
-import { GraphInstancedMesh } from '../../host/graph/mesh.ts';
+import { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
@@ -10,7 +10,7 @@ import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 // reference grows it, never by its geometry's sphere alone.
 test('an instanced mesh sorts on the union of its placement spheres, as the reference computes it', async () => {
   const {
-    InstancedMesh,
+    InstancedMesh: WitnessInstancedMesh,
     BufferGeometry,
     BufferAttribute: WitnessAttribute,
     Matrix4,
@@ -21,10 +21,10 @@ test('an instanced mesh sorts on the union of its placement spheres, as the refe
   const count = 7;
   const reference = new BufferGeometry();
   reference.setAttribute('position', new WitnessAttribute(positions, 3));
-  const witness = new InstancedMesh(reference, undefined, count);
+  const witness = new WitnessInstancedMesh(reference, undefined, count);
   const geometry = new Geometry();
   geometry.setAttribute('position', new BufferAttribute(positions, 3));
-  const placed = new GraphInstancedMesh(geometry, new GraphSurface('standard'), count);
+  const placed = new InstancedMesh(geometry, new GraphSurface('standard'), count);
   const matrix = new Matrix4();
   for (let i = 0; i < count; i++) {
     matrix.compose(

@@ -500,6 +500,14 @@
       "balloon": "SEGUINDO O BALÃO"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "Gire à volta do guindaste enquanto um clipe roda a lança, move o carro, eleva a carga e a deixa balançar.",
+    "controls": {
+      "speed": "Velocidade",
+      "paused": "Em pausa",
+      "replay": "Repetir"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Arraste para olhar em volta. Deixe a onda de cubos mais alta ou mais rápida.",
     "controls": {
@@ -1274,6 +1282,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Clique na vista, caminhe com W A S D e olhe com o rato. Reduza a memória enquanto avança.",
+    "controls": {
+      "walkSpeed": "Velocidade",
+      "memory": "Memória",
+      "view": "Vista",
+      "home": "Voltar ao início"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagem",
+        "lod": "níveis de detalhe",
+        "clusters": "clusters"
+      }
+    },
+    "words": {
+      "credit": "Avenida de urnas modelada em código para este exemplo, CC0 — veja assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 de Rico Cilliers, Poly Haven, CC0; caixote de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"
@@ -1721,6 +1748,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "Anisotropia da quarta pista"
+    }
+  },
+  "the-home-pose": {
+    "banner": "Escolha uma vista, mova a câmera e depois escolha Início para voltar.",
+    "controls": {
+      "home": "Início",
+      "tower": "Torre",
+      "square": "Praça",
+      "hillside": "Encosta"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Avance o plano próximo e veja-o cortar cada parede.",
+    "controls": {
+      "nearPlane": "Plano próximo"
     }
   },
   "the-material-family": {
@@ -2186,6 +2228,66 @@
     },
     "words": {
       "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pause o travelling, repita o percurso ou mude a velocidade enquanto a câmera segue pelo canal.",
+    "controls": {
+      "paused": "Pausado",
+      "replay": "Repetir",
+      "speed": "Velocidade"
+    },
+    "readouts": {
+      "progress": "Progresso"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Arraste para examinar a esquina. O compilador reuniu três arquivos OBJ de uma pasta nesta cena.",
+    "controls": {
+      "visible": "Visível",
+      "home": "Início"
+    },
+    "words": {
+      "credit": "Modelo de poste de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Arraste a caixa pelo chão. Ative o ajuste para posicioná-la em passos de meio metro.",
+    "controls": {
+      "snap": "Ajustar",
+      "home": "Início"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Clique numa forma para selecioná-la. Clique no chão para limpar a seleção.",
+    "controls": {
+      "color": "Cor",
+      "thickness": "Espessura"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Arraste para orbitar o campo. Altere a quantidade ou a vista.",
+    "controls": {
+      "count": "Quantidade",
+      "view": "Vista"
+    },
+    "readouts": {
+      "objectsShown": "Objetos exibidos",
+      "objectsBuilt": "Objetos criados"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagem",
+        "clusters": "clusters"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Monte ou desmonte o visualizador. Cada montagem possui um mundo e cada remoção o descarta.",
+    "controls": {
+      "mount": "Montar",
+      "unmount": "Desmontar",
+      "remount": "Montar novamente"
     }
   }
 }

@@ -9,13 +9,7 @@ import {
 import type { JoltModule } from './joltModule.ts';
 import type { CharacterReport } from './characterDriver.ts';
 import { eventsAt, resultWords, type FromPhysics } from './protocol.ts';
-import { createSoftTick } from './softTick.ts';
-
-/** A copy of the vehicles' state after the last step, or `null` without a vehicle. */
-const vehicles = (jolt: JoltModule) => {
-  const words = jolt.vehicles();
-  return words.length ? words.slice() : null;
-};
+import { createSoftTick, createVehicleTick } from './recordTick.ts';
 
 /**
  * One tick's results in the physics worker: the poses and events of every step it takes, written
@@ -32,7 +26,8 @@ export function createTickResults(
   const slotOf = new Int32Array(budget.bodies),
     stamp = new Uint32Array(budget.bodies).fill(0xffffffff),
     events = eventsAt(budget);
-  const soft = createSoftTick();
+  const soft = createSoftTick(),
+    vehicles = createVehicleTick();
   let out: Uint32Array | null = null,
     outBuffer: ArrayBuffer | null = null,
     staging: Uint32Array | null = null;
@@ -49,16 +44,24 @@ export function createTickResults(
       : (staging ??= new Uint32Array(resultWords(budget)));
     return out;
   };
-  /** A step's refused shapes, broken joints and exhausted budgets reach the page as they happen;
-   *  the world runs. */
+  /** A step's refused shapes, diverged bodies, broken joints and exhausted budgets reach the page
+   *  as they happen; the world runs. */
   const report = () => {
     const joints = jolt.broken();
     if (joints.length) send({ type: 'broken', joints });
-    const bodies = jolt.refused();
-    if (bodies.length) {
-      const message = `Physics: ${bodies.length} body shape(s) refused by the module.`;
-      send({ type: 'error', code: 'PHYSICS_FAILED', message, fatal: false, bodies });
-    }
+    // Bodies the module took out alone: the page hears their ids and retires them.
+    const leave = (code: string, bodies: number[], what: string) => {
+      if (bodies.length)
+        send({
+          type: 'error',
+          code,
+          message: `Physics: ${bodies.length} ${what}.`,
+          fatal: false,
+          bodies,
+        });
+    };
+    leave('PHYSICS_FAILED', jolt.refused(), 'body shape(s) refused by the module');
+    leave('PHYSICS_DIVERGED', jolt.diverged(), 'body(ies) went non-finite and left the simulation');
     const now = jolt.overflow().join(', ');
     if (now && now !== overflow) {
       const message = `Physics budget "${now}" exceeded in a step: contacts were missed.`;
@@ -71,32 +74,46 @@ export function createTickResults(
     gather(count: number) {
       const words = jolt.poses(count),
         to = target();
-      for (let r = 0; r < count; r++) {
-        const at = r * POSE_WORDS,
-          index = words[at] & BODY_INDEX;
-        if (stamp[index] !== tick) {
+      // A step sends one record per body (`writePoses`), so a tick's first poses fill its slots in
+      // record order: one block copy, and only the slots are stamped.
+      if (poseCount === 0) {
+        to.set(words);
+        for (let r = 0; r < count; r++) {
+          const index = words[r * POSE_WORDS] & BODY_INDEX;
           stamp[index] = tick;
-          slotOf[index] = poseCount++;
+          slotOf[index] = r;
         }
-        const o = slotOf[index] * POSE_WORDS;
-        for (let k = 0; k < POSE_WORDS; k++) to[o + k] = words[at + k];
-      }
+        poseCount = count;
+      } else
+        for (let r = 0; r < count; r++) {
+          const at = r * POSE_WORDS,
+            index = words[at] & BODY_INDEX;
+          if (stamp[index] !== tick) {
+            stamp[index] = tick;
+            slotOf[index] = poseCount++;
+          }
+          const o = slotOf[index] * POSE_WORDS;
+          for (let k = 0; k < POSE_WORDS; k++) to[o + k] = words[at + k];
+        }
       const fresh = jolt.events();
       to.set(fresh, events + eventCount * EVENT_WORDS);
       eventCount += fresh.length / EVENT_WORDS;
       dropped += jolt.dropped();
       soft.gather(jolt.soft());
+      vehicles.gather(jolt.vehicles());
       report();
     },
     /** Whether one more step's events surely fit in the tick's results. */
     room: () => eventCount + budget.contactEvents <= budget.contactEvents * MAX_CATCH_UP_STEPS,
-    /** Hands the tick's results to the page, `water` the water's clock after them and its epoch;
-     *  false while it holds both buffers. */
+    /** Hands the tick's results to the page, `water` the water's clock after them and its epoch,
+     *  and the command buffers `spent` since the last results; false while it holds both
+     *  buffers. */
     post(
       { steps, stepMs, stepMaxMs }: { steps: number; stepMs: number; stepMaxMs: number },
       active: number,
       character: () => CharacterReport | null,
       water: { readonly time: number; readonly epoch: number },
+      spent: ArrayBuffer[],
     ) {
       if (!out || !(poseCount || eventCount || steps)) return false;
       if (!outBuffer) {
@@ -117,10 +134,11 @@ export function createTickResults(
         stepMaxMs,
         active,
         character: character(),
-        vehicles: vehicles(jolt),
+        vehicles: vehicles.take(),
         soft: soft.take(),
+        spent: spent.splice(0),
       };
-      send({ type: 'results', buffer: outBuffer, ...message }, [outBuffer]);
+      send({ type: 'results', buffer: outBuffer, ...message }, [outBuffer, ...message.spent]);
       out = outBuffer = null;
       tick++;
       poseCount = eventCount = dropped = 0;

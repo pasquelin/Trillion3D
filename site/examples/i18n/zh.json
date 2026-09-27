@@ -500,6 +500,14 @@
       "balloon": "追踪气球"
     }
   },
+  "a-crane-that-swings": {
+    "banner": "环绕起重机观察一个动画片段如何转动吊臂、移动小车、提升并摆动吊物。",
+    "controls": {
+      "speed": "速度",
+      "paused": "已暂停",
+      "replay": "重新播放"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "拖动四处看看。让方块波浪更高或更快。",
     "controls": {
@@ -1274,6 +1282,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "点击画面，用 W A S D 行走并用鼠标环顾。移动时调低内存预算。",
+    "controls": {
+      "walkSpeed": "行走速度",
+      "memory": "内存",
+      "view": "视图",
+      "home": "返回起点"
+    },
+    "choices": {
+      "view": {
+        "beauty": "成品",
+        "lod": "细节层级",
+        "clusters": "簇"
+      }
+    },
+    "words": {
+      "credit": "为这个示例用代码制作的花瓶大道，CC0 — 见 assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01，作者 Rico Cilliers，Poly Haven，CC0；木箱作者 W. Sitters，CC BY 3.0 — 见 assets/examples/CREDITS.md"
@@ -1721,6 +1748,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "第四条跑道的各向异性"
+    }
+  },
+  "the-home-pose": {
+    "banner": "选择一个视角，移动相机，然后选择初始返回。",
+    "controls": {
+      "home": "初始",
+      "tower": "塔楼",
+      "square": "广场",
+      "hillside": "山坡"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "向前移动近裁剪面，观察它依次切过每面墙。",
+    "controls": {
+      "nearPlane": "近裁剪面"
     }
   },
   "the-material-family": {
@@ -2186,6 +2228,66 @@
     },
     "words": {
       "credit": "旗杆上的旗帜为本示例用代码建模，CC0 — 见 assets/examples/CREDITS.md"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "在摄影机沿运河移动时暂停、重新播放旅程或调整速度。",
+    "controls": {
+      "paused": "已暂停",
+      "replay": "重新播放",
+      "speed": "速度"
+    },
+    "readouts": {
+      "progress": "进度"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "拖动查看街角。编译器将一个文件夹中的三个 OBJ 文件合并成了这个场景。",
+    "controls": {
+      "visible": "显示",
+      "home": "初始视图"
+    },
+    "words": {
+      "credit": "路灯模型作者 W. Sitters，CC BY 3.0 — 见 assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "在地面上拖动木箱。开启吸附后可按半米步长放置。",
+    "controls": {
+      "snap": "吸附",
+      "home": "初始位置"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "单击形状以选择它。单击地面以清除选择。",
+    "controls": {
+      "color": "颜色",
+      "thickness": "粗细"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "拖动以环绕实例场。更改数量或视图。",
+    "controls": {
+      "count": "数量",
+      "view": "视图"
+    },
+    "readouts": {
+      "objectsShown": "显示的对象",
+      "objectsBuilt": "创建的对象"
+    },
+    "choices": {
+      "view": {
+        "beauty": "成品",
+        "clusters": "簇"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "挂载或卸载查看器。每次挂载拥有一个世界，每次移除都会释放它。",
+    "controls": {
+      "mount": "挂载",
+      "unmount": "卸载",
+      "remount": "重新挂载"
     }
   }
 }
