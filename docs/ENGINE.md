@@ -134,7 +134,7 @@ the rest is drawn by its nearest resident ancestor and never awaited. The pins a
 holds (`requestPins.ts`): the cover, that queue, and what it draws with the groups the cut rule needs
 to keep drawing it, counted against the pool before admission; a cut refused in part leaves the
 lower tiers nothing. The CPU cut evicts the least recent page, ranks loads coarsest first
-(`budgetRanking`) and pins by last use (`pinUpdater`) until #836 removes them.
+(`budgetRanking`) and pins by last use (`pinUpdater`) until #974 removes them.
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min
