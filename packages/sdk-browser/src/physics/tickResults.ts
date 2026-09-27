@@ -9,13 +9,7 @@ import {
 import type { JoltModule } from './joltModule.ts';
 import type { CharacterReport } from './characterDriver.ts';
 import { eventsAt, resultWords, type FromPhysics } from './protocol.ts';
-import { createSoftTick } from './softTick.ts';
-
-/** A copy of the vehicles' state after the last step, or `null` without a vehicle. */
-const vehicles = (jolt: JoltModule) => {
-  const words = jolt.vehicles();
-  return words.length ? words.slice() : null;
-};
+import { createSoftTick, createVehicleTick } from './recordTick.ts';
 
 /**
  * One tick's results in the physics worker: the poses and events of every step it takes, written
@@ -32,7 +26,8 @@ export function createTickResults(
   const slotOf = new Int32Array(budget.bodies),
     stamp = new Uint32Array(budget.bodies).fill(0xffffffff),
     events = eventsAt(budget);
-  const soft = createSoftTick();
+  const soft = createSoftTick(),
+    vehicles = createVehicleTick();
   let out: Uint32Array | null = null,
     outBuffer: ArrayBuffer | null = null,
     staging: Uint32Array | null = null;
@@ -105,6 +100,7 @@ export function createTickResults(
       eventCount += fresh.length / EVENT_WORDS;
       dropped += jolt.dropped();
       soft.gather(jolt.soft());
+      vehicles.gather(jolt.vehicles());
       report();
     },
     /** Whether one more step's events surely fit in the tick's results. */
@@ -138,7 +134,7 @@ export function createTickResults(
         stepMaxMs,
         active,
         character: character(),
-        vehicles: vehicles(jolt),
+        vehicles: vehicles.take(),
         soft: soft.take(),
         spent: spent.splice(0),
       };
