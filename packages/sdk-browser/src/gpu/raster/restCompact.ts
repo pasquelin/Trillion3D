@@ -1,27 +1,26 @@
 import { REST_COMPACT_SHADER, REST_COMPACT_WORKGROUP } from './restCompactWgsl.ts';
-import { MAX_DRAW_SLOTS } from '../draw/draw.ts';
 import { validated } from '../core/errorScope.ts';
 import { cleanupFailedHiz } from '../hiz/pipelines.ts';
 import { bounceGroup, bounceLayout } from '../../bounce/bindings.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 
 /** Pass label, the one the per-step profile files under "Geometry". */
-export const REST_COMPACT_PASS = 'Trillion3D rest truncation';
+export const REST_COMPACT_PASS = 'Trillion3D rest compaction';
 const REST_PASS = { label: REST_COMPACT_PASS } as const;
 
 export type GpuRestCompact = {
   /**
-   * Brings each tested-half indirect command's instance count back to the rank of its last
-   * surviving row. `rows` bounds the dispatch — a tested half cannot hold more rows than the
-   * table has drawable. The row table is passed every frame: it is allocated after this kernel
-   * is created.
+   * Keeps, in each tested-half indirect command, only its surviving rows, in their order, and
+   * counts them. `rows` bounds the dispatch — a tested half cannot hold more rows than the table
+   * has drawable. The row table is passed every frame: it is allocated after this kernel is
+   * created.
    */
   encode(encoder: GPUCommandEncoder, restSlots: number, rows: number, pages: GPUBuffer): void;
   dispose(): void;
 };
 
 /**
- * Truncation of the tested half. It exists only if the draw compact and the pyramid exist:
+ * Compaction of the tested half. It exists only if the draw compact and the pyramid exist:
  * without them there is neither an instance list nor a verdict to read. A platform without
  * compute returns `undefined`, and the frame keeps the previous path — the second pass then
  * draws the rejected rows, each vertex discarded one by one, exactly as before.
@@ -46,16 +45,10 @@ export async function createGpuRestCompact(
       size: 16,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-    // Indexed by the tested slot's rank: half of the draw slots.
-    const last = device.createBuffer({
-      label: 'Trillion3D rest last survivor',
-      size: (MAX_DRAW_SLOTS / 2) * 4,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
-    owned = [uniforms, last];
+    owned = [uniforms];
     const made = await validated(device, async () => {
       const layout = bounceLayout(device, [
-        'read-only-storage',
+        'storage',
         'storage',
         'read-only-storage',
         'read-only-storage',
@@ -68,45 +61,62 @@ export async function createGpuRestCompact(
       const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
       const stage = (entryPoint: string) =>
         device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
-      return { layout, markPipeline: stage('restMark'), applyPipeline: stage('restApply') };
+      return {
+        layout,
+        countPipeline: stage('restCount'),
+        scanPipeline: stage('restScan'),
+        scatterPipeline: stage('restScatter'),
+      };
     });
     if (!made) return bail();
-    const { layout, markPipeline, applyPipeline } = made;
+    const { layout, countPipeline, scanPipeline, scatterPipeline } = made;
+    // The copy covers the instance list's own range; the counts and tile words follow it.
+    const copyWords = buffers.instances.size / 4;
     const uniData = new Uint32Array(4);
     let disposed = false,
-      boundPages: GPUBuffer | undefined,
-      boundSlots = 0,
+      work: GPUBuffer | undefined,
+      bound: { pages: GPUBuffer; work: GPUBuffer } | undefined,
       bindGroup!: GPUBindGroup;
     return {
       encode(encoder, restSlots, rows, pages) {
         if (disposed || restSlots < 1 || rows < 1) return;
-        if (boundPages !== pages) {
-          boundPages = pages;
+        const tiles = Math.ceil(rows / REST_COMPACT_WORKGROUP);
+        const words = copyWords + restSlots * (1 + tiles);
+        // The work buffer only grows: a frame with more rows or slots reallocates it once.
+        if (!work || work.size < words * 4) {
+          work?.destroy();
+          work = device.createBuffer({
+            label: 'Trillion3D rest compaction work',
+            size: words * 4,
+            usage: GPUBufferUsage.STORAGE,
+          });
+          owned = [uniforms, work];
+        }
+        if (bound?.pages !== pages || bound.work !== work) {
+          bound = { pages, work };
           bindGroup = bounceGroup(device, layout, [
             buffers.instances,
             buffers.indirect,
             buffers.slotOffsets,
             pages,
             buffers.flags,
-            last,
+            work,
             uniforms,
           ]);
         }
-        // The tested-slot count is fixed by preparation: the uniform is written only when it
-        // changes.
-        if (boundSlots !== restSlots) {
-          boundSlots = restSlots;
-          uniData[0] = restSlots;
+        // Slots and tiles are fixed by preparation: the uniform is written only when they change.
+        if (uniData[0] !== restSlots || uniData[1] !== tiles) {
+          uniData.set([restSlots, tiles, copyWords, 0]);
           device.queue.writeBuffer(uniforms, 0, uniData);
         }
-        // No frame reads a previous frame's rank: it starts from zero before the mark.
-        encoder.clearBuffer(last, 0, restSlots * 4);
         const pass = encoder.beginComputePass(REST_PASS);
         pass.setBindGroup(0, bindGroup);
-        pass.setPipeline(markPipeline);
-        pass.dispatchWorkgroups(Math.ceil(rows / REST_COMPACT_WORKGROUP), restSlots);
-        pass.setPipeline(applyPipeline);
+        pass.setPipeline(countPipeline);
+        pass.dispatchWorkgroups(tiles, restSlots);
+        pass.setPipeline(scanPipeline);
         pass.dispatchWorkgroups(1);
+        pass.setPipeline(scatterPipeline);
+        pass.dispatchWorkgroups(tiles, restSlots);
         pass.end();
       },
       dispose() {
