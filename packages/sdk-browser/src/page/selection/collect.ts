@@ -13,7 +13,7 @@ import type { PageRec, ClusterRoot } from './types.ts';
 import { placementsOf } from '../../placement/roots.ts';
 import { rowShadowless, type PlacementRows } from '../../placement/rows.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { blendMoves, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
+import { blendMoves, isAssignment, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
 
 /** Whether a primitive's pages are drawn blended: the rule of the open, and of a material a page
  *  moves between draw classes later (`reassignBlend`). */
@@ -158,7 +158,10 @@ export function collectClusterPages(
   const blendOf = (rec: PageRec, alpha: AlphaChange) => {
     const mesh = rec.sourceMesh,
       worn =
-        mesh && (alpha.meshes?.includes(mesh) ?? alpha.surfaces.includes(mesh.material as object)),
+        mesh &&
+        (isAssignment(alpha)
+          ? alpha.meshes.has(mesh)
+          : alpha.surfaces.includes(mesh.material as object)),
       primitive = worn && primitiveOf(associations.get(mesh));
     return primitive
       ? pagesBlend(primitive, { transparent: alpha.to === 'blend' })
