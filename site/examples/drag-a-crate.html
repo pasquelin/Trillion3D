@@ -23,7 +23,7 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
-      import { controls } from '../runtime/kit.js';
+      import { controls, pointerOnPlane } from '../runtime/kit.js';
 
       const world = createWorld('view', { controls: 'orbit' });
       world.scene.background = math.color('#9fb4cc');
@@ -61,10 +61,10 @@
             world.invalidate();
           },
         },
-        () => {},
         world,
       );
       const place = (value) => (ui.snap ? Math.round(value * 2) / 2 : value);
+      const within = (value, limit) => Math.max(-limit, Math.min(limit, place(value)));
       world.canvas.addEventListener('pointerdown', (event) => {
         if (event.button !== 0 || drag) return;
         const hit = world.raycast({ x: event.offsetX, y: event.offsetY }, { objects: [crate] });
@@ -73,6 +73,7 @@
           pointerId: event.pointerId,
           offsetX: crate.position.x - hit.point.x,
           offsetZ: crate.position.z - hit.point.z,
+          height: hit.point.y,
           controlsEnabled: world.controls.enabled,
         };
         world.controls.enabled = false;
@@ -80,12 +81,12 @@
       });
       world.canvas.addEventListener('pointermove', (event) => {
         if (!drag || event.pointerId !== drag.pointerId) return;
-        const hit = world.raycast({ x: event.offsetX, y: event.offsetY }, { objects: [floor] });
-        if (!hit) return;
+        const point = pointerOnPlane(world, event, drag.height);
+        if (!point) return;
         crate.position.set(
-          place(hit.point.x + drag.offsetX),
+          within(point[0] + drag.offsetX, 5.3),
           HOME[1],
-          place(hit.point.z + drag.offsetZ),
+          within(point[1] + drag.offsetZ, 3.8),
         );
         world.invalidate();
       });
