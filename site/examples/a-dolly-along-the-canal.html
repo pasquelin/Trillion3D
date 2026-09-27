@@ -122,7 +122,7 @@
       }
       world.onFrame(() => progress(`${Math.round((action.clipTime() / DURATION) * 100)}%`));
       world.invalidate();
-      world.onPageHide(() => world.dispose());
+      addEventListener('pagehide', () => world.dispose(), { once: true });
     </script>
   </body>
 </html>
