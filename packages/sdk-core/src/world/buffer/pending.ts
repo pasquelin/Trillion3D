@@ -33,10 +33,16 @@ export async function load(held: Held) {
   held._pending = null;
 }
 
-/** `held` with `numbers` in place of its own, read once however many loads ask. */
+/** `held` with `numbers` in place of its own, read once however many loads ask; a failed read is
+ *  not kept, the next load reads again. */
 export function defer<T extends Held>(held: T, numbers: PendingNumbers): T {
   let reading: Promise<BufferTypedArray> | undefined;
+  const read = () =>
+    numbers.read().catch((error: unknown) => {
+      reading = undefined;
+      throw error;
+    });
   held._numbers = null;
-  held._pending = { length: numbers.length, read: () => (reading ??= numbers.read()) };
+  held._pending = { length: numbers.length, read: () => (reading ??= read()) };
   return held;
 }
