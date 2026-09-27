@@ -563,6 +563,17 @@
       "bricks": "Mattoni"
     }
   },
+  "measure-a-distance": {
+    "banner": "Fai clic su due superfici per misurare la distanza tra loro. Un terzo clic avvia una nuova misura. Un’unità rappresenta un metro.",
+    "controls": {
+      "clear": "Cancella"
+    },
+    "readouts": {
+      "pointA": "Punto A",
+      "pointB": "Punto B",
+      "distance": "Distanza"
+    }
+  },
   "click-to-pick": {
     "banner": "Clicca una forma. Si illumina e il pannello dice dove l'hai colpita.",
     "readouts": {

@@ -563,6 +563,17 @@
       "bricks": "Briques"
     }
   },
+  "measure-a-distance": {
+    "banner": "Cliquez sur deux surfaces pour mesurer leur distance. Un troisième clic commence une nouvelle mesure. Une unité représente un mètre.",
+    "controls": {
+      "clear": "Effacer"
+    },
+    "readouts": {
+      "pointA": "Point A",
+      "pointB": "Point B",
+      "distance": "Distance"
+    }
+  },
   "click-to-pick": {
     "banner": "Clique sur une forme. Elle s'allume et le panneau dit où tu l'as touchée.",
     "readouts": {
