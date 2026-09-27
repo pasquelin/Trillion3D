@@ -3,6 +3,7 @@
 import * as G from '../graph/graph.fixture.ts';
 import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import { HOSTILE_FLOATS } from '../../../../../tests/kit/assert/hostile.ts';
+import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 export type Draw = () => number;
@@ -66,4 +67,17 @@ export function randomTree(draw: Draw, count: number, names = 6, hostile = false
     nodes.push(node);
   }
   return { top, source, nodes };
+}
+
+/** The roots whose mesh climbs to `node`, in rank order: how a move found them before #915. */
+export function climbUnder(roots: readonly ClusterRoot<PageRec>[], node: Object3D) {
+  return roots.flatMap((root, i) => {
+    for (
+      let walk = root.pages[0]?.sourceMesh as Object3D | null | undefined;
+      walk;
+      walk = walk.parent
+    )
+      if (walk === node) return [i];
+    return [];
+  });
 }

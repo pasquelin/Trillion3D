@@ -6,7 +6,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../../host/graph/graph.fixture.ts';
 import { findNode, rootsUnder } from './movedNode.ts';
-import { pick, randomTree, seeded, type Draw } from '../../../host/world/randomTree.fixture.ts';
+import {
+  climbUnder,
+  pick,
+  randomTree,
+  seeded,
+  type Draw,
+} from '../../../host/world/randomTree.fixture.ts';
 import type { ClusterRoot } from '../../../page/selection/types.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts';
@@ -18,18 +24,6 @@ function walkFor(source: Object3D, name: string) {
     if (!found && node.name === name) found = node;
   });
   return found;
-}
-
-/** The reference: each root's mesh climbed up to `node`, in rank order. */
-function climbUnder(roots: readonly ClusterRoot<PageRec>[], node: Object3D) {
-  const out: number[] = [];
-  roots.forEach((root, i) => {
-    for (let walk = root.pages[0]?.sourceMesh as Object3D | null | undefined; walk;) {
-      if (walk === node) return void out.push(i);
-      walk = walk.parent;
-    }
-  });
-  return out;
 }
 
 let fresh = 0;
