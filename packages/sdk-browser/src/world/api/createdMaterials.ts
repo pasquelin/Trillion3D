@@ -5,7 +5,7 @@ import { hostPageSurface } from '../../host/pageObjects.ts';
 import { surfaceVariantOf, variantKey } from '../../host/prepared/materials.ts';
 import { alphaModeOf, type AlphaMode } from '../../../../sdk-core/src/contracts/material.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
-import type { HostGraphMesh } from '../../host/scene/graphNodes.ts';
+import type { HostMesh } from '../../host/resources.ts';
 import { EngineError } from '../../../../sdk-core/src/index.ts';
 import {
   invalid,
@@ -61,8 +61,8 @@ function variantOf(variants: Map<string, GraphSurface>, attributes: Record<strin
 /** Created material `variants` given to the meshes `drawn`: each wears the variant its geometry
  *  asks for, as the open gave it its own; the meshes may wear surfaces of several classes, and
  *  `from` is one that moves across blended if any does. */
-export function assignment(variants: Map<string, GraphSurface>, drawn: ReadonlySet<HostGraphMesh>) {
-  const meshes = new Map<HostGraphMesh, GraphSurface>(),
+export function assignment(variants: Map<string, GraphSurface>, drawn: ReadonlySet<HostMesh>) {
+  const meshes = new Map<HostMesh, GraphSurface>(),
     to = alphaModeOf(variants.get(PLAIN)!);
   let from: AlphaMode | undefined;
   for (const mesh of drawn) {
