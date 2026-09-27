@@ -502,7 +502,11 @@
   },
   "a-crane-that-swings": {
     "banner": "Orbit the crane while one clip slews the jib, moves the trolley, hoists the load and lets it swing.",
-    "controls": { "speed": "Speed", "paused": "Paused", "replay": "Replay" }
+    "controls": {
+      "speed": "Speed",
+      "paused": "Paused",
+      "replay": "Replay"
+    }
   },
   "a-wave-across-a-grid": {
     "banner": "Drag to look around. Make the wave of cubes higher or faster.",
@@ -1272,7 +1276,11 @@
       "home": "Return home"
     },
     "choices": {
-      "view": { "beauty": "beauty", "lod": "lod", "clusters": "clusters" }
+      "view": {
+        "beauty": "beauty",
+        "lod": "lod",
+        "clusters": "clusters"
+      }
     },
     "words": {
       "credit": "Avenue of urns modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
@@ -2226,6 +2234,13 @@
     },
     "words": {
       "credit": "Street lamp model by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Drag the crate across the floor. Turn snapping on to place it in half-metre steps.",
+    "controls": {
+      "snap": "Snap",
+      "home": "Home"
     }
   }
 }
