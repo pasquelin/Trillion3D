@@ -94,7 +94,65 @@ test('a pool at the root cover plus a tenth draws every leaf once, and never a h
   }
 });
 
+// #490: the WebGL2 image publishes its holes from the cut it takes. A missing fine page is drawn
+// by its ancestor, no hole; a missing root-cover page has nothing coarser, and its triangles read
+// uncovered — the reading the no-hole proof takes under WebGL2.
+test('the image cut counts as uncovered only a surface nothing resident draws', () => {
+  const { image, cut, dag, pages, drawnIds, drop } = strip(1000, wholeStrip());
+  for (let i = 0; i < 24; i++) image(0.25);
+  assert.equal(cut().uncoveredTriangles, 0, 'a full view has no hole');
+  const fine = pages.find((page) => page.parentError !== null && page.array)!;
+  drop(fine.url);
+  image(0.25, 0);
+  assert.equal(coverFault(dag, drawnIds()), -1, 'an ancestor stands in for the missing page');
+  assert.equal(cut().uncoveredTriangles, 0, 'a covered surface is no hole');
+  const root = pages.find((page) => page.parentError === null)!;
+  drop(root.url);
+  image(0.25, 0);
+  assert.notEqual(coverFault(dag, drawnIds()), -1, 'the surface under the root is not drawn');
+  assert.equal(cut().uncoveredTriangles, root.triangles, 'its triangles read uncovered');
+});
+
 /** Clusters nothing replaces in the rule DAG: its root cover. */
 function dag0Roots() {
   return ruleDag(256).pages.filter((page) => page.parentError === null).length;
 }
+
+/** The DAG level drawing each leaf unit of the rule DAG. */
+function levels(dag: ReturnType<typeof ruleDag>, drawn: number[]) {
+  const at = new Int32Array(dag.leaves);
+  for (const id of drawn) {
+    const [a, b] = dag.pages[id].units;
+    at.fill(dag.pages[id].level, a, b);
+  }
+  return at;
+}
+
+// #839: a budget cut mid-session — to about half the fine cut, and down to the starvation run's root
+// cover plus a tenth — is paid one level per image: every page an image drew survives to the next
+// cut, the residency holds the ancestors each surface falls back to, and the pool converges.
+for (const [label, budget] of [
+  ['half the fine cut', 30],
+  ['the root cover and a tenth', Math.ceil(dag0Roots() * 1.1)],
+] as const)
+  test(`a budget cut to ${label}: no hole, drawn pages kept, one level coarser per image`, () => {
+    const { image, dag, pages, drawnIds, pool, state } = strip(1000, wholeStrip());
+    for (let i = 0; i < 24; i++) image(0.25);
+    let before = levels(dag, drawnIds()),
+      drawn = drawnIds();
+    pool.resize(budget * PAGE);
+    for (let i = 0; i < 24; i++) {
+      assert.ok(
+        drawn.every((id) => pages[id].array),
+        `image ${i}: a drawn page left`,
+      );
+      image(0.25, 3);
+      drawn = drawnIds();
+      assert.equal(coverFault(dag, drawn), -1, `image ${i}: a leaf not covered exactly once`);
+      const now = levels(dag, drawn);
+      for (let u = 0; u < dag.leaves; u++)
+        assert.ok(now[u] <= before[u] + 1, `image ${i}, leaf ${u}: ${before[u]} → ${now[u]}`);
+      before = now;
+    }
+    assert.ok(state.allocationBytes <= budget * PAGE, 'the pool converged to its budget');
+  });

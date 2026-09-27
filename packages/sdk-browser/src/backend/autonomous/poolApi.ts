@@ -1,13 +1,14 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { MemoryBudgets, MemoryBudgetsReport } from '../../residency/pools.ts';
 import type { BackendContext } from '../types.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
+import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import type { createAutonomousResidency } from './residency.ts';
 import { createGeometryBudget, type PageCopies } from './pool.ts';
 import type { HeldFloor } from './heldFloor.ts';
+import { createPageParents } from '../../residency/pageParents.ts';
 import { checkTexturePoolBudget } from '../../residency/pools.ts';
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
 
@@ -58,6 +59,8 @@ export function createAutonomousPool(env: {
   bootstrapUrls: ReadonlySet<string>;
   modifiedPages: Set<string>;
   byUrl: ReadonlyMap<string, readonly PageRec[]>;
+  /** The selection roots, whose group links say which pages each page depends on. */
+  roots: readonly ClusterRoot<PageRec>[];
   cap: number;
   gate: WebglFrameGate;
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
@@ -77,7 +80,7 @@ export function createAutonomousPool(env: {
     coverRevision: () => heldFloor.revision,
     state,
     floorBytes: heldFloor.bytes,
-    kept: residency.keptUrls,
+    parentsOf: createPageParents(env.roots),
     drop: residency.dropPage,
     onDiagnostic: context.onDiagnostic,
   });

@@ -68,8 +68,9 @@ export type PageRec = {
   cone?: NormalCone;
   /** Rank of the request key, set once by `indexPageRequests`: deduplication without hashing. */
   requestIndex?: number;
-  /** Rank of the cluster key in the host catalogue, set once: residency and pinning without
-   *  hashing. The host sets it, nobody else reads it. */
+  /** The residency's key of the page: its rank in the WebGPU host catalogue, set once, or the
+   *  WebGL2 residency's key, checked against the URL it names (`backend/autonomous/pageKeys.ts`).
+   *  Residency and pinning without hashing. */
   keyIndex?: number;
   /** Rank of the page in a WebGPU engine's packed catalogue, set once. Another engine that
    *  rewrites it fools nobody: the reader checks that the catalogue actually yields this page. */

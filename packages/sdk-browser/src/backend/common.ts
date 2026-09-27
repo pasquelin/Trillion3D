@@ -45,7 +45,10 @@ export const DEFAULT_FOV = 55,
  */
 export const devicePixels = (logical: number, pixelRatio: number | undefined) =>
   Math.floor(logical * (pixelRatio ?? DEFAULT_PIXEL_RATIO));
+/** The adapter's own limits the session's device asks for: WebGPU grants the portable defaults
+ *  otherwise — a shadow pool layer is as wide as `maxTextureDimension2D` (`shadow/poolSize.ts`). */
 export const WEBGPU_REQUIRED_LIMITS = [
+  'maxTextureDimension2D',
   'maxTextureArrayLayers',
   'maxStorageBufferBindingSize',
   'maxBufferSize',

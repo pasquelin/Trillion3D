@@ -143,22 +143,8 @@ test('the streamer pins the set the image gathered, without gathering it again',
   const pinned = [...residency.pageUrls()];
   env.shown.push(fakePageRec('z.bin'));
   assert.deepEqual(residency.pageUrls(), pinned, 'read, not rebuilt');
-  assert.ok(!residency.keptUrls().has('z.bin'));
+  assert.ok(!residency.pageUrls().includes('z.bin'));
   residency.keptChanged();
   assert.ok(residency.pageUrls().includes('z.bin'));
-  assert.equal(residency.keptUrls().size, pinned.length + 1);
-});
-
-test('as a cut is about to run, the pool keeps what the image asks for, not what it drew', () => {
-  const env = makeEnv();
-  const residency = createAutonomousResidency({ ...env, geometryStore: fakeGeometryStore() });
-  // `d.bin` is drawn but no longer asked for: the next cut draws its resident ancestor instead.
-  assert.ok(residency.keptUrls().has('d.bin'));
-  assert.deepEqual([...residency.askedUrls()].sort(), [
-    'a.bin',
-    'b.bin',
-    'c.bin',
-    'e.bin',
-    'f.bin',
-  ]);
+  assert.equal(residency.pageUrls().length, pinned.length + 1);
 });
