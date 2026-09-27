@@ -328,6 +328,13 @@
       "roof": "Atap"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Seret untuk mengitari. Ubah lebar lampu dan amati tepi bayangan.",
+    "controls": {
+      "lampWidth": "Lebar lampu",
+      "moveSubject": "Gerakkan objek"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Geser untuk berkeliling. Perbesar panel cahaya untuk melembutkan kilaunya.",
     "controls": {
