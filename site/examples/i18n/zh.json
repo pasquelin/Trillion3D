@@ -328,6 +328,13 @@
       "roof": "屋顶"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "拖动以环绕查看。改变灯的宽度并观察阴影边缘。",
+    "controls": {
+      "lampWidth": "灯宽",
+      "moveSubject": "移动物体"
+    }
+  },
   "a-softbox-panel": {
     "banner": "拖动四处走走。把灯板变大，反光就变柔和了。",
     "controls": {
@@ -1700,6 +1707,14 @@
     "readouts": {
       "fourthLaneAnisotropy": "第四条跑道的各向异性"
     }
+  },
+  "the-home-pose": {
+    "banner": "选择一个视角，移动相机，然后选择初始返回。",
+    "controls": { "home": "初始", "tower": "塔楼", "square": "广场", "hillside": "山坡" }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "向前移动近裁剪面，观察它依次切过每面墙。",
+    "controls": { "nearPlane": "近裁剪面" }
   },
   "the-material-family": {
     "banner": "拖动四处走走。把光调成夜晚，看看什么还在发光。",

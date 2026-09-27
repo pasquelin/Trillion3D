@@ -328,6 +328,13 @@
       "roof": "Dach"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Ziehe, um die Szene zu drehen. Ändere die Lampenbreite und beobachte die Schattenränder.",
+    "controls": {
+      "lampWidth": "Lampenbreite",
+      "moveSubject": "Objekt bewegen"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Ziehe, um herumzugehen. Vergrößere das Lichtfeld, um den Glanz weicher zu machen.",
     "controls": {
@@ -1700,6 +1707,14 @@
     "readouts": {
       "fourthLaneAnisotropy": "Anisotropie der vierten Bahn"
     }
+  },
+  "the-home-pose": {
+    "banner": "Wähle eine Ansicht, bewege die Kamera und kehre dann mit Ausgang zurück.",
+    "controls": { "home": "Ausgang", "tower": "Turm", "square": "Platz", "hillside": "Hang" }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Schiebe die Nahgrenze vor und sieh zu, wie sie jede Wand schneidet.",
+    "controls": { "nearPlane": "Nahgrenze" }
   },
   "the-material-family": {
     "banner": "Ziehe, um herumzugehen. Stell das Licht auf Nacht und sieh, was noch leuchtet.",
