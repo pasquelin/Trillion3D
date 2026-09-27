@@ -328,6 +328,13 @@
       "roof": "छत"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "चारों ओर देखने के लिए खींचें। लैम्प की चौड़ाई बदलें और छाया के किनारे देखें।",
+    "controls": {
+      "lampWidth": "लैम्प की चौड़ाई",
+      "moveSubject": "वस्तु चलाएँ"
+    }
+  },
   "a-softbox-panel": {
     "banner": "चारों ओर चलने के लिए खींचो। चमक नरम करने के लिए रोशनी वाला पैनल बड़ा करो।",
     "controls": {
@@ -1700,6 +1707,14 @@
     "readouts": {
       "fourthLaneAnisotropy": "चौथी लेन की असमदैशिकता"
     }
+  },
+  "the-home-pose": {
+    "banner": "एक दृश्य चुनें, कैमरा घुमाएँ, फिर लौटने के लिए होम चुनें।",
+    "controls": { "home": "होम", "tower": "मीनार", "square": "चौक", "hillside": "पहाड़ी" }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "निकट तल को आगे बढ़ाएँ और उसे हर दीवार काटते देखें।",
+    "controls": { "nearPlane": "निकट तल" }
   },
   "the-material-family": {
     "banner": "चारों ओर चलने के लिए खींचो। रोशनी को रात करो और देखो क्या अब भी चमकता है।",

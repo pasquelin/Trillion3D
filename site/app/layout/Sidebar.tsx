@@ -10,7 +10,7 @@ import { usePortal } from './PortalContext.ts';
 import { ExampleList } from './ExampleList.tsx';
 import { SidebarMenu } from './SidebarMenu.tsx';
 
-/** The Examples sidebar: a filter box over the ready examples, theme by theme. */
+/** The Examples sidebar: a filter box over the written examples, theme by theme. */
 function ExamplesMenu() {
   const { route } = usePortal();
   const t = useWords(route.locale);
