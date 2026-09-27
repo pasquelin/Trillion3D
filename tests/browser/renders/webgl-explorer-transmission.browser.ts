@@ -1,9 +1,10 @@
 // Public exact-pages proof of the scene copies: same owner on the canvas and on a comparison
-// target, the glass then the blended quad, no mesh in the host scene, identical repeats, named
-// refusal.
+// target, the glass then the blended quad, no mesh in the host scene, identical repeats, and a
+// physical feature WebGL2 cannot draw drawn without, said once by name (#772).
 //
 //   node --experimental-strip-types tests/browser/renders/webgl-explorer-transmission.browser.ts
 import assert from 'node:assert/strict';
+import type { DegradedNotice } from '../support/materialDegradedNotices.ts';
 import {
   preuveDansLaPage,
   preuveSaine,
@@ -29,10 +30,19 @@ interface Resultat extends ResultatPagePreuve {
   meshesInHostPass: number;
   hostCalls: number;
   wireframe: { copyDraws: number; drawCalls: number };
-  mutationRefusal: Refusal;
-  refusal: Refusal;
-  drawRefusal: Refusal;
+  mutationRefusal: Refusal | null;
+  mutationPixel: number[];
+  mutationNotice: DegradedNotice[];
+  refusal: Refusal | null;
+  drawRefusal: Refusal | null;
+  sheenPixel: number[];
+  sheenNotice: DegradedNotice[];
 }
+
+/** The one notice of `feature` lost on the surface `material`, as the page channel says it. */
+const degraded = (material: string, feature: string) => [
+  { kind: 'material-degraded', context: { material, feature } },
+];
 
 const result = (await preuveDansLaPage(
   'webglClusterTransmissionExplorerPage.ts',
@@ -65,13 +75,13 @@ assert.deepEqual(
   { copyDraws: 2, drawCalls: 3 },
   'the painted copies are drawn as whole meshes, without a backdrop pass',
 );
-assert.deepEqual(
-  result.mutationRefusal,
-  { code: 'CLUSTER_MATERIAL_UNSUPPORTED', reason: 'physical clearcoat is unsupported' },
-  'a mutation after the preparation is refused by the same name',
-);
-assert.deepEqual(result.refusal, {
-  code: 'CLUSTER_MATERIAL_UNSUPPORTED',
-  reason: 'physical sheen is unsupported',
-});
-assert.deepEqual(result.drawRefusal, result.refusal, 'the draw refuses by the same name');
+// A clearcoat set after the preparation: two frames drawn, no refusal, the glass drawn without it
+// over the red cluster as before, and one notice naming it.
+assert.equal(result.mutationRefusal, null, 'a mutation after the preparation is drawn');
+assert.deepEqual(result.mutationPixel, result.canvasPixel, 'the glass is drawn without clearcoat');
+assert.deepEqual(result.mutationNotice, degraded('glass', 'clearcoat'), 'said once, by name');
+// A sheen declared before the preparation: prepared, drawn twice, said once.
+assert.equal(result.refusal, null, 'the preparation is not refused');
+assert.equal(result.drawRefusal, null, 'the draw is not refused');
+assert.deepEqual(result.sheenPixel, result.canvasPixel, 'the glass is drawn without sheen');
+assert.deepEqual(result.sheenNotice, degraded('sheen glass', 'sheen'), 'said once, by name');

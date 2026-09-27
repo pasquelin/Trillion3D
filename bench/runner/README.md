@@ -59,7 +59,9 @@ through the witness entry point (`bench/witnesses/measurement.ts`, bundled by `p
   Tokuyoshi and Kaplanyan, *Improved Geometric Specular Antialiasing* (2019). Transmissive meshes are
   composed after the clusters over a frozen backdrop of the frame. A material the program cannot
   preserve fails preparation with `CLUSTER_MATERIAL_UNSUPPORTED`, whose `details.reason` names the
-  input; `autonomousClusterDrawsTotal` counts the program's draws.
+  input; a physical extension beyond the transmission volume (clearcoat, sheen…) is no refusal: the
+  surface is drawn without it and the session's `materialDegraded` hears it once per surface and
+  feature. `autonomousClusterDrawsTotal` counts the program's draws.
 
 ### Contract lights on the witnesses
 
