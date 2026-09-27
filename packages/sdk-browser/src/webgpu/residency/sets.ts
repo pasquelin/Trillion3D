@@ -119,10 +119,6 @@ export function createWebgpuResidencySets(options: {
     get desiredCount() {
       return desired.count;
     },
-    /** True while the queue is the cut whole: the budget refused none of it. */
-    get cutFits() {
-      return followsDesired;
-    },
     /** Keys the image holds outside the queue and the cover: what it draws with what that needs. */
     get heldOutsideQueue() {
       return tracking.keep.count - wanted.count - cover;

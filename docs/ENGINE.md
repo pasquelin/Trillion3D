@@ -132,8 +132,7 @@ follows the readback's sorted requests (`webgpu/residency/requestAdmission.ts`, 
 pool, requests are admitted in rank, each with the groups it closes over, until one does not fit;
 the rest is drawn by its nearest resident ancestor and never awaited. The pins are what the image
 holds (`requestPins.ts`): the cover, that queue, and what it draws with the groups the cut rule needs
-to keep drawing it, counted against the pool before admission; a cut refused in part leaves the
-lower tiers nothing. The CPU cut evicts the least recent page, ranks loads coarsest first
+to keep drawing it, counted against the pool before admission. The CPU cut evicts the least recent page, ranks loads coarsest first
 (`budgetRanking`) and pins by last use (`pinUpdater`) until #974 removes them.
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous

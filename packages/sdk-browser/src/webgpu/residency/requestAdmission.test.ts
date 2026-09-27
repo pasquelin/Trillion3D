@@ -113,7 +113,6 @@ test('what the image draws outside the queue, with the groups it needs, holds it
   assert.equal(cut.sets.heldOutsideQueue, 3);
   cut.image(5, ['x0', 'x1', 'x2', 'x3']);
   assert.deepEqual(cut.queue(), ['x0', 'x1'], 'five slots, three held: two admitted');
-  assert.equal(cut.sets.cutFits, false, 'the lower tiers get nothing');
   cut.image(5, ['a', 'x0', 'x1', 'x2']);
   assert.deepEqual(cut.queue(), ['a', 'b', 'm', 'x0', 'x1'], 'a held page takes no new slot');
 });
