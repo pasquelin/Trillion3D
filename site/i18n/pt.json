@@ -333,7 +333,8 @@
       "shadows-through-see-through-panes": "Sombras através de vidros",
       "a-walker-among-balls": "Um caminhante entre bolas",
       "a-dolly-along-the-canal": "Um travelling ao longo do canal",
-      "a-folder-merged-into-one-scene": "Uma pasta reunida numa cena"
+      "a-folder-merged-into-one-scene": "Uma pasta reunida numa cena",
+      "drag-a-crate": "Arrastar uma caixa"
     },
     "missing": {
       "floating-crates": "geometria reescrita a cada quadro",
