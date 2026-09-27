@@ -18,12 +18,12 @@ export const PLACEHOLDER_IMAGE =
  * `count` is how many images the document holds; an entry past it names none.
  */
 export function bakedImages(metadata: ClusterManifest, count: number): Set<number> {
+  const ranks = new Set<number>();
+  if (!metadata.textures) return ranks;
   const whole = new Map<number, boolean>();
   for (const preview of metadata.texturePreviews ?? []) {
     whole.set(preview.image, (whole.get(preview.image) ?? true) && previewIsWhole(preview));
   }
-  const ranks = new Set<number>();
-  if (!metadata.textures) return ranks;
   for (const [image, complete] of whole) if (complete && image < count) ranks.add(image);
   return ranks;
 }
