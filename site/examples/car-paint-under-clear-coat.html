@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Car paint under a clear coat</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #101720;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      // Waits for #33: faithful autonomous clearcoat rendering.
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#101720');
+      const paint = material.meshPhysical({
+        color: '#b31324',
+        metalness: 0.72,
+        roughness: 0.3,
+        clearcoat: 1,
+        clearcoatRoughness: 0.05,
+      });
+      const dark = material.meshStandard({ color: '#111317', metalness: 0.7, roughness: 0.24 });
+      const car = object.group();
+      const body = object.mesh(geometry.box(4.6, 0.65, 2), paint);
+      body.position.y = 0.85;
+      const cabin = object.mesh(geometry.box(2.25, 0.72, 1.65), paint);
+      cabin.position.set(-0.25, 1.48, 0);
+      car.add(body, cabin);
+      const wheelShape = geometry.cylinder(0.46, 0.46, 0.28, 48);
+      for (const x of [-1.45, 1.45])
+        for (const z of [-1.02, 1.02]) {
+          const wheel = object.mesh(wheelShape, dark);
+          wheel.position.set(x, 0.48, z);
+          wheel.rotation.x = Math.PI / 2;
+          car.add(wheel);
+        }
+      car.position.y = 0.06;
+      world.scene.add(car);
+      const floor = object.mesh(
+        geometry.cylinder(5.5, 5.5, 0.18, 96),
+        material.meshStandard({ color: '#28313a', roughness: 0.72 }),
+      );
+      floor.receiveShadow = true;
+      world.scene.add(floor);
+      world.scene.add(
+        light.directional({
+          intensity: 4,
+          color: '#fff0d9',
+          position: [5, 9, 6],
+          castShadow: true,
+        }),
+      );
+      world.scene.add(
+        light.point({ intensity: 70, color: '#76aaff', position: [-5, 4, 2], distance: 20 }),
+      );
+      world.camera.position.set(6.2, 3.3, 6.8);
+      world.controls.target.set(0, 0.9, 0);
+
+      const ui = controls(
+        {
+          paint: '#b31324',
+          clearCoat: [0, 1, 1, 0.01],
+          coatRoughness: [0, 0.6, 0.05, 0.01],
+          spin: true,
+        },
+        (values) => {
+          paint.color.set(values.paint);
+          paint.clearcoat = values.clearCoat;
+          paint.clearcoatRoughness = values.coatRoughness;
+        },
+        world,
+      );
+      world.onFrame(({ delta }) => {
+        if (!ui.spin) return;
+        car.rotation.y += delta * 0.28;
+        world.invalidate();
+      });
+      world.invalidate();
+    </script>
+  </body>
+</html>

@@ -1,8 +1,5 @@
-// "honest measurement harness counters" batch: `measureView` metrics previously kept
-// only `number`/`boolean` values from the last `explorer.render()` — an absent counter
-// (`null`) disappeared from the report, indistinguishable to a reader from a counter never asked
-// about. It now explicitly preserves `null`, and continues to filter out what is neither a
-// number, nor a boolean, nor `null` (objects, arrays, `undefined`).
+// "honest measurement harness counters" batch: `measureView` preserves measured primitives and
+// explicit nulls while filtering objects, arrays and undefined values from the last render.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { measureView } from './lightingPage.ts';
@@ -16,18 +13,19 @@ const FAKE_SDK_URL =
   'data:text/javascript,' +
   encodeURIComponent(
     `export const creerMoteur = () => {};
-     export async function openMeasuredWorld() { return globalThis.__wgTestExplorer; }`,
+     export async function openMeasuredWorld(_canvas, options) {
+       return Object.assign(globalThis.__wgTestExplorer, { openedWith: options }); }`,
   );
 
 function canvasMock() {
   return { width: 8, height: 8, addEventListener: () => {}, remove: () => {} };
 }
 
-/** MeasuredWorld mock: `render()` returns the reading and records the pose it saw; `cpuSteps()`
- *  counts the images since the last profile reset, as the engine's window does. */
+/** MeasuredWorld mock: records render poses and the images since the last profile reset. */
 function explorerMock(metrics: Record<string, unknown> | null): MeasuredWorld & {
   seen: unknown[];
   profileResets: number[];
+  openedWith?: { pixelRatio?: number };
 } {
   const seen: unknown[] = [],
     profileResets: number[] = [];
@@ -93,6 +91,7 @@ async function mesurer(
     poses: null,
     width: 8,
     height: 8,
+    pixelRatio: 1,
     pixelError: 1,
     frames,
     warmup: 0,
@@ -135,8 +134,10 @@ async function mesurer(
 }
 
 test('the measured moving loop publishes real requestAnimationFrame intervals', async () => {
-  const result = await mesurer({ drawCalls: 1 }, { frames: 5, rafStep: 16.5 });
+  const explorer = explorerMock({ drawCalls: 1 });
+  const result = await mesurer(null, { explorer, frames: 5, rafStep: 16.5, pixelRatio: 2 });
   assert.deepEqual(result.rafIntervalMs, [16.5, 16.5]);
+  assert.equal(explorer.openedWith?.pixelRatio, 2);
 });
 
 test('measureView keeps an explicit `null` in metrics instead of erasing it', async () => {

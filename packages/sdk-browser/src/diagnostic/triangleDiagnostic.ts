@@ -1,3 +1,4 @@
+import { serialOf } from '../host/graph/serial.ts';
 import { hashId } from './colors.ts';
 import { materialSide } from '../scene/materialSide.ts';
 import type {
@@ -91,7 +92,7 @@ export function applyMeshDiagnostic(
   mesh.geometry = triangleGeometry(
     sourceGeometry,
     host,
-    hashId(String(mesh.serial ?? mesh.id)),
+    hashId(String(serialOf(mesh) ?? mesh.id)),
     overlays,
   );
   const material = host.triangleMaterial(materialSide(sourceMaterial));
