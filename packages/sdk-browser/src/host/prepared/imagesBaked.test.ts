@@ -75,11 +75,12 @@ test('an embedded image with a baked twin decodes no byte of the binary (its fet
 
 test('an embedded image with no baked twin still decodes its view of the binary', async (t) => {
   const { previews, document, embedded } = await fixture;
+  const size = await placeholder;
   const sizes = await decoded(
     t,
     previews.filter((entry) => entry.image !== embedded),
   );
   const view = document.views[document.images[embedded].view!];
-  assert.equal(sizes[embedded], view.length, 'the embedded bytes are decoded');
-  assert.equal(sizes.filter((size) => size === view.length).length, 1, 'once, and only them');
+  const expected = document.images.map((_, rank) => (rank === embedded ? view.length : size));
+  assert.deepEqual(sizes, expected, 'the embedded bytes are decoded, the others spared');
 });
