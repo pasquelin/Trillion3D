@@ -51,8 +51,8 @@ test('the corner table gives every box and plane the corners of before, to the b
       Math.floor(r() * Math.ceil(width / SIZE)),
       Math.floor(r() * Math.ceil(height / SIZE)),
     ];
-    const edge = [1, 0, -0, NaN, 1e-7][run % 5];
-    const back = Math.fround(run % 5 ? edge : NEAR / (1 + r() * 3000));
+    const edge = [1, 0, -0, NaN, 1e-7][Math.floor(run / 6) % 5];
+    const back = Math.fround(run % 6 ? NEAR / (1 + r() * 3000) : edge);
     const front = Math.fround(Math.max(back, run % 7 ? r() : 1));
     const bounds = tileBounds(view, tile, front, back);
     const calls = boundsByCalls(view, tile, front, back);
@@ -87,6 +87,17 @@ test('sixteen threads de-project the corners between two barriers; thread zero c
   );
   for (const [name, row] of Object.entries(ROW))
     assert.match(LIGHT_TILES_SHADER, new RegExp(`const ${name.toUpperCase()}_ROW:u32=${row}u;`));
+  // Thread zero reads the rows of each bound: boxes, slab planes, corner 0 at their depth.
+  assert.match(LIGHT_TILES_SHADER, /opaqueBox=tileBox\(FRONT_ROW,BACK_ROW\);tileSlab\(\);/);
+  assert.match(
+    LIGHT_TILES_SHADER,
+    /let world=corners\[select\(front,back,\(corner&4u\)!=0u\)\*4u\+\(corner&3u\)\];/,
+  );
+  assert.match(
+    LIGHT_TILES_SHADER,
+    /slab\[0\]=vec4f\(away,-dot\(away,corners\[FRONT_ROW\*4u\]\)\);/,
+  );
+  assert.match(LIGHT_TILES_SHADER, /slab\[1\]=vec4f\(-away,dot\(away,corners\[BACK_ROW\*4u\]\)\);/);
   // The column walks the corners in turn, the oracle's order 0, 1, 3, 2: the Gray code of i.
   assert.match(LIGHT_TILES_SHADER, /return corners\[row\*4u\+\(i\^\(i>>1u\)\)\];/);
   assert.deepEqual(
