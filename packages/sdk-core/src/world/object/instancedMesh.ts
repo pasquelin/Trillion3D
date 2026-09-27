@@ -10,7 +10,9 @@ import type { Object3D } from './object3d.ts';
  */
 export class InstancedMesh<M extends object = Material> extends Mesh<M> {
   /** Always `true`: tells a mesh drawn at several placements apart. */
-  readonly isInstancedMesh = true as const;
+  get isInstancedMesh(): true {
+    return true;
+  }
   /** One matrix per placement, column after column. */
   readonly instanceMatrix: BufferAttribute;
   /** How many placements are drawn. */

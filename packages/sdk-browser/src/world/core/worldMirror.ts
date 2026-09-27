@@ -12,6 +12,7 @@
  * (`drawn.ts`), the surface is the host family of the material's kind (`worldSurface.ts`), and
  * every node of the graph is one this file built, of the engine's own (`../../host/graph/`).
  */
+import { numbered } from '../../host/graph/serial.ts';
 import { isDrawnNode } from '../../host/graph/kinds.ts';
 import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts';
@@ -86,7 +87,7 @@ export function buildWorldMirror(input: MirrorInput) {
     if (!worn) surfaces.set(material, (worn = []));
     const rank = reading === 'lines' ? 2 : reading === 'sprite' ? 3 : +tinted;
     const surface = (worn[rank] ??= hostSurface(material, tinted, textures, reading));
-    return new Mesh(geometry, surface);
+    return numbered(new Mesh(geometry, surface));
   };
   for (const { cut, material, rows, name } of input.placed) {
     const mesh = meshOf(cut, material);

@@ -2043,7 +2043,6 @@
       "material": "O material do mesh, ou um por grupo; defina outro para mudá-lo.",
       "localBounds": "A caixa do próprio conteúdo desse nó, referencial local; um nó simples não contém nenhum.",
       "physics": "A malha como corpo da física do mundo, `null` quando não é. Define `'static'`, `'dynamic'`, `'kinematic'` ou opções; a forma é deduzida da geometria.",
-      "serial": "O número do nó, único na sessão.",
       "morphTargetInfluences": "O peso de cada alvo de morph, quando a geometria declara algum.",
       "morphTargetDictionary": "A posição de cada alvo de morph pelo seu nome.",
       "updateMorphTargets": "Um peso zero por alvo de morph do primeiro atributo deformado, nomeado pela posição.",
