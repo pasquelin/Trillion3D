@@ -2242,5 +2242,37 @@
       "snap": "Raster",
       "home": "Start"
     }
+  },
+  "outline-the-selection": {
+    "banner": "Klicke eine Form an, um sie auszuwählen. Klicke auf den Boden, um die Auswahl zu löschen.",
+    "controls": {
+      "color": "Farbe",
+      "thickness": "Stärke"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Ziehe, um das Feld zu umrunden. Ändere Anzahl oder Ansicht.",
+    "controls": {
+      "count": "Anzahl",
+      "view": "Ansicht"
+    },
+    "readouts": {
+      "objectsShown": "Angezeigt",
+      "objectsBuilt": "Erstellt"
+    },
+    "choices": {
+      "view": {
+        "beauty": "Bild",
+        "clusters": "Cluster"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Hänge den Viewer ein oder aus. Jede Einbindung besitzt genau eine Welt und jede Entfernung gibt sie frei.",
+    "controls": {
+      "mount": "Einbinden",
+      "unmount": "Aushängen",
+      "remount": "Neu einbinden"
+    }
   }
 }

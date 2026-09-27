@@ -2242,5 +2242,37 @@
       "snap": "吸附",
       "home": "初始位置"
     }
+  },
+  "outline-the-selection": {
+    "banner": "单击形状以选择它。单击地面以清除选择。",
+    "controls": {
+      "color": "颜色",
+      "thickness": "粗细"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "拖动以环绕实例场。更改数量或视图。",
+    "controls": {
+      "count": "数量",
+      "view": "视图"
+    },
+    "readouts": {
+      "objectsShown": "显示的对象",
+      "objectsBuilt": "创建的对象"
+    },
+    "choices": {
+      "view": {
+        "beauty": "成品",
+        "clusters": "簇"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "挂载或卸载查看器。每次挂载拥有一个世界，每次移除都会释放它。",
+    "controls": {
+      "mount": "挂载",
+      "unmount": "卸载",
+      "remount": "重新挂载"
+    }
   }
 }

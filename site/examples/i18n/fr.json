@@ -2242,5 +2242,37 @@
       "snap": "Aligner",
       "home": "Accueil"
     }
+  },
+  "outline-the-selection": {
+    "banner": "Clique sur une forme pour la sélectionner. Clique sur le sol pour vider la sélection.",
+    "controls": {
+      "color": "Couleur",
+      "thickness": "Épaisseur"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Fais glisser pour tourner autour du champ. Change le nombre ou la vue.",
+    "controls": {
+      "count": "Nombre",
+      "view": "Vue"
+    },
+    "readouts": {
+      "objectsShown": "Objets affichés",
+      "objectsBuilt": "Objets créés"
+    },
+    "choices": {
+      "view": {
+        "beauty": "rendu",
+        "clusters": "clusters"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Montez ou démontez la vue. Chaque montage possède un monde et chaque retrait le libère.",
+    "controls": {
+      "mount": "Monter",
+      "unmount": "Démonter",
+      "remount": "Remonter"
+    }
   }
 }

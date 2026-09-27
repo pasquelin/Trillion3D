@@ -30,7 +30,7 @@ function camera() {
 }
 
 /** A single cluster, the full CPU cut — only the fields `selectFlat` actually reads. */
-function trianglesGardes(world: G.Matrix4, cone: NormalCone, cam: G.GraphCamera) {
+function trianglesGardes(world: G.Matrix4, cone: NormalCone, cam: G.Camera) {
   const page = {
     min: MIN,
     max: MAX,

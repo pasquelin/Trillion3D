@@ -1,4 +1,4 @@
-import type { GraphScene } from '../host/graph/scene.ts';
+import type { Scene } from '../world/core/scene.ts';
 import {
   hostPageInstances,
   releaseHostInstances,
@@ -25,7 +25,7 @@ type Group = {
  * shown record and one count per mesh. A mesh whose page no placement shows leaves the graph. A
  * frame that shows the same records, on rows nobody wrote since, writes nothing.
  */
-export function createWebglPageBatches(scene: GraphScene) {
+export function createWebglPageBatches(scene: Scene) {
   const groups = new Map<Geometry, Map<HostMaterials, Group>>();
   const drop = (group: Group) => {
     if (!group.mesh) return;

@@ -1258,6 +1258,7 @@
       "a-tube-along-a-spline": "स्प्लाइन के साथ ट्यूब",
       "curved-surfaces": "घुमावदार सतहें",
       "instances-in-colour": "रंगीन इंस्टेंस",
+      "a-hundred-thousand-instances": "एक लाख इंस्टेंस",
       "copies-along-a-path": "पथ के साथ प्रतियाँ",
       "scattered-on-a-surface": "सतह पर बिखरे",
       "a-world-of-blocks": "ब्लॉकों की दुनिया",
@@ -1413,6 +1414,7 @@
       "what-hides-what": "क्या क्या छुपाता है",
       "create-and-dispose": "बनाना और हटाना",
       "no-hitch-on-first-draw": "पहले ड्रॉ पर कोई रुकावट नहीं",
+      "inside-a-component": "एक कंपोनेंट के अंदर",
       "inside-the-g-buffer": "G-buffer के अंदर",
       "reading-pixels-back": "पिक्सेल वापस पढ़ना",
       "a-city-from-3d-tiles": "3D Tiles से एक शहर",
@@ -1521,6 +1523,7 @@
       "drag-a-crate": "एक पेटी खींचें"
     },
     "missing": {
+      "inside-a-component": "वर्ल्ड हटने पर इंजन द्वारा बनाए कैनवास की सफ़ाई",
       "floating-crates": "हर फ़्रेम में फिर से लिखी गई ज्यामिति",
       "thick-lines": "चौड़ी रेखाएँ",
       "a-line-that-draws-itself": "ज्यामिति ड्रॉ रेंज",

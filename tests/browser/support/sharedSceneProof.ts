@@ -117,7 +117,7 @@ export const versApi = (matrice: G.Matrix4): Float32Array => new Float32Array(ma
 
 /** The proofs camera: face-on, translated on `x` without changing the optical axis — a pure
  *  slide, where parallax alone separates near from far. */
-export function cameraFace(x = 0): G.GraphCamera {
+export function cameraFace(x = 0): G.Camera {
   const camera = G.perspectiveCamera(55, 1, 0.1, 100);
   camera.position.set(x, 0, 3);
   camera.lookAt(x, 0, 0);
