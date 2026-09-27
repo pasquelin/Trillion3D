@@ -104,14 +104,11 @@ export function buildWorldMirror(input: MirrorInput) {
     root.add(mesh);
     return { node: mesh, association };
   };
-  /** Takes down a placed host mesh, and its geometry once no other mesh reads it. */
-  const unplace = (mesh: Mesh<GraphSurface>, cut: Cut) => {
+  /** Takes down a placed host mesh, and its geometry with `cut`, the last one reading it. */
+  const unplace = (mesh: Mesh<GraphSurface>, cut?: Cut) => {
     associations.delete(mesh);
     root.remove(mesh);
-    if (root.children.some((other) => isDrawnNode(other) && other.geometry === mesh.geometry))
-      return;
-    geometries.delete(cut);
-    mesh.geometry.dispose();
+    if (cut && geometries.delete(cut)) mesh.geometry.dispose();
   };
   const placed = input.placed.map(place);
   for (const { node, graph } of input.models) {

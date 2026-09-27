@@ -65,17 +65,23 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
     const seat = leaving.get(mesh);
     if (seat && leaving.delete(mesh)) park(seat);
   };
+  /** Takes `mesh` off its batch; returns the seat it left. */
+  const leave = (mesh: Mesh) => {
+    const seat = seats.get(mesh);
+    if (seat && seats.delete(mesh) && seat.batch.wearers.delete(mesh)) emptied.add(seat.batch);
+    return seat;
+  };
   /** A mesh no longer drawn: every row it holds is parked. */
   const unseat = (mesh: Mesh) => {
     parkLeaving(mesh);
-    const seat = seats.get(mesh);
-    if (!seat) return;
-    seats.delete(mesh);
-    seat.batch.wearers.delete(mesh);
-    park(seat);
+    const seat = leave(mesh);
+    if (seat) park(seat);
   };
-  const waitingIn = (batch: Batch) =>
-    [...batch.wearers].filter((mesh) => seats.get(mesh)!.row < 0).length;
+  const waitingIn = (batch: Batch) => {
+    let waiting = 0;
+    for (const mesh of batch.wearers) if (seats.get(mesh)!.row < 0) waiting++;
+    return waiting;
+  };
   /** Sizes `batch`'s rows for the rows taken and its waiting wearers — kept when they suffice,
    *  doubled at least when they do not, the rows held copied first and the new ones parked.
    *  Returns the rows it replaced, or null when it kept them. */
@@ -92,8 +98,7 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
     batch.rows = rows;
     return before;
   };
-  /** Sizes `batch` and seats every waiting wearer, handing it to `seated`. Returns the rows it
-   *  replaced, or null when it kept them. */
+  /** Sizes `batch` (`size`) and seats every waiting wearer, handing it to `seated`. */
   const fit = (batch: Batch, seated?: (mesh: Mesh) => void) => {
     const before = size(batch);
     for (const mesh of batch.wearers) {
@@ -120,12 +125,7 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
       const held = seats.get(mesh);
       if (held?.batch === batch) return held.row >= 0;
       if (leaving.get(mesh)?.batch === batch) parkLeaving(mesh);
-      if (held) {
-        seats.delete(mesh);
-        held.batch.wearers.delete(mesh);
-        emptied.add(held.batch);
-        if (held.row >= 0) leaving.set(mesh, held);
-      }
+      if (held && leave(mesh) && held.row >= 0) leaving.set(mesh, held);
       batch.wearers.add(mesh);
       const row = batch.rows && !mounting.has(batch) ? (batch.free.pop() ?? -1) : -1;
       seats.set(mesh, { batch, row });
@@ -139,10 +139,7 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
       return true;
     },
     /** True while some mesh waits for a row no mounting will give it. */
-    waiting() {
-      for (const batch of short) if (!mounting.has(batch) && waitingIn(batch)) return true;
-      return false;
-    },
+    waiting: () => [...short].some((batch) => !mounting.has(batch) && waitingIn(batch) > 0),
     /** Seats the waiting meshes of the batches the session holds, growing full rows on a session
      *  that `grows`. Returns each buffer replaced, with its batch, for the session to grow. */
     growHeld(seated: (mesh: Mesh) => void, grows: boolean) {
