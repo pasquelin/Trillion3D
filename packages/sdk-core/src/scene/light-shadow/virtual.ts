@@ -102,6 +102,15 @@ export function shadowPoolShape(pages: number, layerSide = LAYER_SIDE) {
   const layers = Math.ceil(wanted / layerSide ** 2);
   return { side: Math.ceil(Math.sqrt(wanted / layers)), layers };
 }
+/** Where physical page `phys` lies in a pool of `side²`-page layers: its first texel, its layer. */
+export function pageOrigin(phys: number, side: number) {
+  const local = phys % (side * side);
+  return {
+    x: (local % side) * SHADOW_PAGE,
+    y: Math.floor(local / side) * SHADOW_PAGE,
+    layer: Math.floor(phys / (side * side)),
+  };
+}
 /** Pages a layer side of the pool one shadowed light over a `width × height` screen asks. */
 export const shadowPoolSide = (width: number, height: number) =>
   shadowPoolShape(shadowPoolSize(width, height)).side;
