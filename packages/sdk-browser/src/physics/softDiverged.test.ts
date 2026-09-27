@@ -5,8 +5,9 @@ import { events, startModule, type Module } from './module.fixture.ts';
 import { addBox, BOX, CLOTH, flatCloth, FLOOR, settle, softWorld } from './soft.fixture.ts';
 import { stateDump } from './stateDump.fixture.ts';
 
-/** `stateDump` as develop's module (before PHY-09 and PHY-10) simulated it. */
-const DEVELOP_DUMP = 'd95f69b4be1d841c76fcd9cc90b09b8564b6d67d1639364e2aa6671e109f6da6';
+/** `stateDump` as develop's module simulated it, which simulated this scene as it did before
+ *  PHY-09 and PHY-10; taken again without the vertex positions when PHY-06 rounded them (#975). */
+const DEVELOP_DUMP = '41af987973f53923437d7cb87e4824690cdfa39fbb50608a8cd5a5a633842e14';
 
 test('a finite scene steps exactly as before, but for pinned cloths that never stretch', async () => {
   assert.equal(stateDump(await startModule()), DEVELOP_DUMP);
