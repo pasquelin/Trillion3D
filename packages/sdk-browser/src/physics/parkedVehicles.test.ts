@@ -1,15 +1,11 @@
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Vehicle } from '../../../sdk-core/src/physics/index.ts';
+import type { Rig } from './joints.fixture.ts';
 import { flatRig, placeVehicle, RELEASED } from './vehicles.fixture.ts';
 
 /** Steps `rig` one step at a time for `steps`: whether each step brought `vehicle` a state. */
-function writes(
-  t: TestContext,
-  rig: Awaited<ReturnType<typeof flatRig>>,
-  vehicle: Vehicle,
-  steps: number,
-) {
+function writes(t: TestContext, rig: Rig, vehicle: Vehicle, steps: number) {
   const heard = t.mock.method(vehicle, '_state');
   const out = Array.from({ length: steps }, () => {
     const before = heard.mock.callCount();
@@ -52,8 +48,6 @@ test('a parked vehicle something falls on wakes and writes again', async (t) => 
   rig.cube(0, 3, 0);
   const hit = writes(t, rig, car.vehicle, 120);
   assert.ok(hit.some(Boolean), 'the impact wakes it: its state is written again');
-  assert.ok(
-    Number.isFinite(rig.at(car.body)[1]) && rig.at(car.body)[1] < y + 0.5,
-    'still on its wheels',
-  );
+  const after = rig.at(car.body)[1];
+  assert.ok(Number.isFinite(after) && after < y + 0.5, 'still on its wheels');
 });

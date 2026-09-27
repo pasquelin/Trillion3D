@@ -41,7 +41,8 @@ constexpr float LEAN_OMEGA = 12.5f, LEAN_DAMPING = 1.25f;
 /// A track's grip along and across itself on firm ground, and its share of the vehicle's mass,
 /// turning at its sprocket's radius (vehicleSpec.ts TRACKS).
 constexpr float TRACK_GRIP = 1.0f, TRACK_SLIDE = 0.5f, TRACK_MASS = 0.05f;
-/// Writes of a resting vehicle's state before it goes quiet.
+/// Writes of a resting vehicle's state before it goes quiet until it moves: the step it fell
+/// asleep measured its wheels before, the next after; the page keeps the last one.
 constexpr uint32_t REST_WRITES = 2;
 
 struct Vehicle {
@@ -58,8 +59,7 @@ struct Vehicle {
   std::vector<float> bars;
   /** The suspension's angular frequency and damping ratio, and the step the bars are set for. */
   float omega = 0, damping = 0, barStep = 0;
-  /** Steps its state was written since its body last rested: past two (the step it fell asleep
-   *  measured its wheels before, the next after), not again until it moves. */
+  /** Steps its state was written since its body last rested (`REST_WRITES`). */
   uint32_t restWrites = 0;
 };
 
@@ -361,11 +361,9 @@ void driveVehicles(float dt) {
     if (!vehicle.constraint) continue;
     setBars(vehicle, dt);
     applyInput(vehicle, dt);
-    // At rest past its last written state, its wheels are no longer cast every step: the running
-    // gear is part of the body's own shape (`lower`), so what moves into the wheels meets the body
-    // and wakes it; the contacts are extrapolated meanwhile (Jolt's `PredictContactProperties`),
-    // and cast in full again as soon as it is awake. Until then (the steps whose state the page
-    // hears), every step, as Jolt's default (0: never while inactive, 1: every step).
+    // Past its rest writes, its wheels are not cast while inactive (0; Jolt's default 1 casts every
+    // step): the running gear is part of the body's own shape (`lower`), so what moves into the
+    // wheels meets the body and wakes it, and the wheels are cast again once it is awake.
     vehicle.constraint->SetNumStepsBetweenCollisionTestInactive(vehicle.restWrites >= REST_WRITES ? 0 : 1);
     // A vehicle driven, or whose wheel still turns back, stays awake.
     if (vehicle.throttle > 0 || vehicle.brake > 0 || vehicle.handbrake > 0 || vehicle.steered != 0)
@@ -383,7 +381,7 @@ void writeVehicles() {
   for (Vehicle &vehicle : vehicles) {
     if (!vehicle.constraint) continue;
     const Body &body = *vehicle.constraint->GetVehicleBody();
-    // A vehicle at rest sends its state twice, the page keeps it: the next it sends is when it moves.
+    // At rest, its state is written `REST_WRITES` times, then not until it moves.
     if (body.IsActive()) vehicle.restWrites = 0;
     else if (vehicle.restWrites >= REST_WRITES) continue;
     else ++vehicle.restWrites;
