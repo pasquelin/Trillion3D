@@ -9,7 +9,10 @@ import {
   FLAG_UV1,
   MAX_BITS,
   MAX_EXPONENT,
+  MAX_WIDTH,
   OPTIONAL,
+  TRIANGLE_BLOCK,
+  WIDTH_BITS,
 } from '../../cluster/format.ts';
 
 /** A vector attribute's grid: its minima, its power-of-two step and its per-component widths. */
@@ -33,9 +36,12 @@ function record(word: number, min: number[]): Quant | null {
   return sane ? { min, exponent, bits } : null;
 }
 
+/** A page header as `readGeometryPageHeader` returns it. */
+export type GeometryPageHeader = ReturnType<typeof readGeometryPageHeader>;
+
 /**
  * The 24-word header of a `WGP3` page, read and checked: magic, format version, the four
- * quantization grids, and counts that agree with the page's own byte length — the stream layout is
+ * quantization grids, the corner stream's bit count, and counts that agree with the page's own byte length — the stream layout is
  * derived from the counts and widths the header declares, so a page whose body does not measure
  * exactly what its header describes is refused here rather than read out of bounds.
  *
@@ -57,18 +63,26 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     uv = record(w(9), [f(10), f(11)]),
     uv2 = record(w(12), [f(13), f(14)]),
     color = record(w(15), [f(16), f(17), f(18), f(19)]),
-    quantizationError = f(20);
-  if (!position || !uv || !uv2 || !color || w(21) || w(22) || w(23))
-    throw new Error('GEOMETRY_PAGE_BOUNDS');
+    quantizationError = f(20),
+    cornerBits = w(21);
+  if (!position || !uv || !uv2 || !color || w(22) || w(23)) throw new Error('GEOMETRY_PAGE_BOUNDS');
   // Word offset of each stream, derived from the counts and widths the header declares.
-  const indexBits = bitsFor(vertexCount - 1);
+  const indexBits = bitsFor(vertexCount - 1),
+    prefixBits = bitsFor(Math.floor(cornerBits / (3 * TRIANGLE_BLOCK))),
+    corners = {
+      indexBits,
+      prefixBits,
+      recordBits: indexBits + WIDTH_BITS + prefixBits,
+      cornerBits,
+    };
   let at = 0;
   const stream = (present: boolean, count: number, bits: number) => {
     const start = at;
     if (present) at += Math.ceil((count * bits) / 32);
     return start;
   };
-  const indices = stream(true, indexCount, indexBits),
+  const blocks = stream(true, Math.ceil(indexCount / 3 / TRIANGLE_BLOCK), corners.recordBits),
+    cornerStream = stream(true, cornerBits, 1),
     positions = position.bits.map((b) => stream(true, vertexCount, b)),
     normal = stream(!!(flags & FLAG_NORMAL), vertexCount, 16),
     uvs = uv.bits.map((b) => stream(!!(flags & FLAG_UV), vertexCount, b)),
@@ -82,6 +96,7 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     vertexCount > 65535 ||
     indexCount < 3 ||
     indexCount % 3 ||
+    cornerBits > indexCount * MAX_WIDTH ||
     flags & ~FLAGS_ALL ||
     !(quantizationError >= 0) ||
     !Number.isFinite(quantizationError) ||
@@ -98,9 +113,9 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     uv,
     uv2,
     color,
-    indexBits,
+    corners,
     bodyWords: at,
     decodedBytes,
-    streams: { indices, positions, normal, uvs, uv2s, colors },
+    streams: { blocks, corners: cornerStream, positions, normal, uvs, uv2s, colors },
   };
 }

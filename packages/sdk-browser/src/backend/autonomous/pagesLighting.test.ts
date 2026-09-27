@@ -15,7 +15,7 @@ test('the autonomous path lights from the contract table, not from the source gr
   const metadata = {
     errorModel: 'dag-group-qem-v2',
     clusterStrategy: 'dag-groups',
-    geometryPages: { formatVersion: 3 as const, codec: 'quantized' as const },
+    geometryPages: { formatVersion: 4 as const, codec: 'quantized' as const },
     primitives: [],
   } as unknown as ClusterManifest;
   const source = new G.Group();

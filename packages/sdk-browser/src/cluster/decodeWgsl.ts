@@ -1,4 +1,7 @@
-import { OCT_SCALE } from './format.ts';
+import { OCT_SCALE, TRIANGLE_BLOCK, WIDTH_BITS } from './format.ts';
+
+/** Corners per block of the corner code. */
+const BLOCK_CORNERS = 3 * TRIANGLE_BLOCK;
 
 /**
  * WGSL decode of a `WGP3` quantized cluster page read in place from a storage buffer of words
@@ -12,13 +15,13 @@ import { OCT_SCALE } from './format.ts';
  * to `pageWords:array<u32>`.
  */
 const CLUSTER_HEADER_WGSL = `struct ClusterHeader{
- vertexCount:u32,indexCount:u32,flags:u32,indexBits:u32,
+ vertexCount:u32,indexCount:u32,flags:u32,indexBits:u32,prefixBits:u32,recordBits:u32,
  posBits:vec3u,posStep:f32,posMin:vec3f,
  uvBits:vec2u,uvStep:f32,uvMin:vec2f,uv1Bits:vec2u,uv1Step:f32,uv1Min:vec2f,
  colorBits:vec4u,colorStep:f32,colorMin:vec4f,
  quantizationError:f32,
- // Word offset of each stream from the page's first word: indices, x, y, z, normal, u, v, u1, v1, r, g, b, a.
- indices:u32,pos:vec3u,normal:u32,uv:vec2u,uv1:vec2u,color:vec4u,
+ // Word offset of each stream from the page's first word: block table, corners, x, y, z, normal, u, v, u1, v1, r, g, b, a.
+ blocks:u32,corners:u32,pos:vec3u,normal:u32,uv:vec2u,uv1:vec2u,color:vec4u,
 }`;
 
 /**
@@ -71,8 +74,12 @@ fn clusterHeader(base:u32)->ClusterHeader{
  h.colorMin=vec4f(bitcast<f32>(${buffer}[base+16u]),bitcast<f32>(${buffer}[base+17u]),bitcast<f32>(${buffer}[base+18u]),bitcast<f32>(${buffer}[base+19u]));
  h.quantizationError=bitcast<f32>(${buffer}[base+20u]);
  h.indexBits=clusterBitsFor(h.vertexCount-1u);
+ let cornerBits=${buffer}[base+21u];
+ h.prefixBits=clusterBitsFor(cornerBits/${BLOCK_CORNERS}u);
+ h.recordBits=h.indexBits+${WIDTH_BITS}u+h.prefixBits;
  let n=h.vertexCount;var at=24u;
- h.indices=clusterStream(true,h.indexCount,h.indexBits,&at);
+ h.blocks=clusterStream(true,(h.indexCount/3u+${TRIANGLE_BLOCK - 1}u)/${TRIANGLE_BLOCK}u,h.recordBits,&at);
+ h.corners=clusterStream(true,cornerBits,1u,&at);
  h.pos.x=clusterStream(true,n,h.posBits.x,&at);h.pos.y=clusterStream(true,n,h.posBits.y,&at);h.pos.z=clusterStream(true,n,h.posBits.z,&at);
  h.normal=clusterStream((h.flags&1u)!=0u,n,16u,&at);
  let hasUv=(h.flags&2u)!=0u;h.uv.x=clusterStream(hasUv,n,h.uvBits.x,&at);h.uv.y=clusterStream(hasUv,n,h.uvBits.y,&at);
@@ -81,9 +88,13 @@ fn clusterHeader(base:u32)->ClusterHeader{
  h.color.z=clusterStream(hasColor,n,h.colorBits.z,&at);h.color.w=clusterStream(hasColor,n,h.colorBits.w,&at);
  return h;
 }
-// Local vertex index of corner \`corner\` (three per triangle).
+// Local vertex index of corner \`corner\` (three per triangle): its block's base, plus its
+// distance to it at the block's width, the block's corners starting at its prefix of widths.
 fn clusterIndex(h:ClusterHeader,base:u32,corner:u32)->u32{
- return clusterField(base+h.indices,corner*h.indexBits,h.indexBits);
+ let table=base+h.blocks;let at=(corner/${BLOCK_CORNERS}u)*h.recordBits;
+ let width=clusterField(table,at+h.indexBits,${WIDTH_BITS}u);
+ let start=clusterField(table,at+h.indexBits+${WIDTH_BITS}u,h.prefixBits)*${BLOCK_CORNERS}u;
+ return clusterField(table,at,h.indexBits)+clusterField(base+h.corners,start+(corner%${BLOCK_CORNERS}u)*width,width);
 }
 fn clusterGrid(base:u32,stream:u32,vertex:u32,bits:u32,minimum:f32,step:f32)->f32{
  return minimum+f32(clusterField(base+stream,vertex*bits,bits))*step;
