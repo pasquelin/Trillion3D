@@ -69,7 +69,7 @@ const vue = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
 const courante = createEngineCamera();
 let gardeeReference: EngineCamera | undefined = undefined,
   gardeeOptimisee: EngineCamera | undefined = undefined;
-const parcoursDeVue = (garder: (camera: G.GraphCamera) => boolean) => (images: number) => {
+const parcoursDeVue = (garder: (camera: G.Camera) => boolean) => (images: number) => {
   const verdicts = new Uint8Array(images),
     elements = new Float64Array(16);
   for (let image = 0; image < images; image++) {
