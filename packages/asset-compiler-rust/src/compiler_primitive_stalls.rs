@@ -101,3 +101,59 @@ pub(super) fn dag_report(
     merge(&mut report, summary.json());
     (report, warnings)
 }
+
+/// Rows of the scene's stall table: enough to name where a cook stalls, short enough to read.
+const WORST: usize = 10;
+
+/// The scene's stall table, written once in the manifest head (`worstStalls`) and read as is by
+/// the CLI and the bench: the `WORST` primitives with a stalled group that left the most level-0
+/// triangles as roots, worst first, ties in manifest order, each row the
+/// primitive's manifest `index` and its stall summary. A primitive whose stalls left no
+/// level-0 root — its coarsest group alone stalled, above a climbed DAG — is not listed: its
+/// stalls stay in its own report.
+pub(super) fn worst_stalls(primitives: &[Value]) -> Value {
+    let roots = |p: &Value| p["dag"]["rootTriangles"].as_u64().unwrap_or(0);
+    let mut stalled: Vec<(usize, &Value)> = primitives
+        .iter()
+        .enumerate()
+        .filter(|(_, p)| {
+            p["dag"]["stalls"].as_array().is_some_and(|s| !s.is_empty()) && roots(p) > 0
+        })
+        .collect();
+    stalled.sort_by_key(|(_, p)| std::cmp::Reverse(roots(p)));
+    stalled
+        .iter()
+        .take(WORST)
+        .map(|&(index, p)| {
+            let dag = &p["dag"];
+            json!({"index":index,"mesh":p["mesh"],"primitive":p["primitive"],
+             "rootTriangles":dag["rootTriangles"],"cause":dag["cause"],"seamVertices":dag["seamVertices"],
+             "lockedVertices":dag["lockedVertices"],"uvIslands":dag["uvIslands"]})
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Behaviour: only primitives with a stalled group that kept level-0 roots are listed, worst
+    // first, at most `WORST`; a stall of the coarsest group alone (no level-0 root) is not.
+    #[test]
+    fn the_table_ranks_level0_roots_and_skips_coarsest_group_stalls() {
+        let primitive = |mesh: usize, roots: usize, stalls: usize| {
+            json!({"mesh":mesh,"primitive":0,"dag":{"rootTriangles":roots,"cause":"seam-locked",
+                "stalls":vec![json!({}); stalls]}})
+        };
+        let mut primitives = vec![primitive(0, 5_000, 0), primitive(1, 0, 1)];
+        primitives.extend((2..14).map(|mesh| primitive(mesh, 100 * mesh, 2)));
+        let table = worst_stalls(&primitives);
+        let rows = table.as_array().expect("rows");
+        assert_eq!(rows.len(), WORST);
+        assert_eq!(rows[0]["mesh"], 13);
+        assert_eq!(rows[0]["index"], 13);
+        assert_eq!(rows[0]["cause"], "seam-locked");
+        assert!(rows.iter().all(|r| r["mesh"] != 0 && r["mesh"] != 1));
+        assert_eq!(worst_stalls(&[primitive(1, 0, 1)]), json!([]));
+    }
+}
