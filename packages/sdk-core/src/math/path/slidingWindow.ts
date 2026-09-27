@@ -34,8 +34,8 @@ export function estimateClockResolutionMs(now: () => number) {
 
 /**
  * A sliding median over the last `PATH_WINDOW` values, with no allocation per execution. The median
- * is kept until the next value arrives: an observation feeds one window and reads two, so only the
- * window it fed sorts again, and a full window sorts in place, with no view of its start.
+ * is kept until the next value arrives: an observation feeds one median and reads two, so only the
+ * one it fed sorts again, and a full set of values sorts in place, with no view of its start.
  */
 export class Fenetre {
   private readonly valeurs = new Float64Array(PATH_WINDOW);
