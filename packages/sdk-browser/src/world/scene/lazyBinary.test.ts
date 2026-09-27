@@ -80,6 +80,17 @@ test('a synchronous read of loaded vertices before their load is refused by name
   assert.equal(binaries(), 0);
 });
 
+test('a late read of loaded vertices outlives the signal of the load that settled', async (t) => {
+  const asked = serve(t);
+  const control = new AbortController();
+  const { source } = await load(plain, undefined, control.signal);
+  control.abort();
+  const [geometry] = meshes(source).map((mesh) => mesh.geometry);
+  await geometry.loadVertices();
+  assert.equal(asked.filter((url) => url.endsWith('/source.bin')).length, 1);
+  assert.ok(geometry.attributes.position.array.length > 0, 'its vertices are loaded');
+});
+
 test('WebGPU loads host vertices only for a cluster no geometry page covers', async (t) => {
   const { geometries, binaries } = await loaded(t);
   const [paged, bare] = geometries;

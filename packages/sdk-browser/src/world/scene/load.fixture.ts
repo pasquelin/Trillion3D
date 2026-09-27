@@ -37,7 +37,11 @@ export function serve(t: TestContext, alter: (tables: string) => string = (table
   return asked;
 }
 
-export const load = async (metadata: ClusterManifest, textureSource?: 'host' | 'cache') =>
+export const load = async (
+  metadata: ClusterManifest,
+  textureSource?: 'host' | 'cache',
+  signal?: AbortSignal,
+) =>
   loadPreparedScene(
     { manifestUrl: '', ...(textureSource ? { textureSource } : {}) },
     metadata,
@@ -45,7 +49,7 @@ export const load = async (metadata: ClusterManifest, textureSource?: 'host' | '
     (await folder()).href,
     'full',
     false,
-    undefined,
+    signal,
     () => {},
     () => {},
   );

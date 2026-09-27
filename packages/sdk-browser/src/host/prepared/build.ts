@@ -43,16 +43,22 @@ export async function buildPreparedScene(inputs: Inputs) {
   const meter = inputs.meter ?? unmetered;
   const { document, documentUrl, bufferUrl } = sceneDocument(tables, sceneFile, base);
   // The binary is read on the first need of a host vertex or an embedded image, once: most
-  // sessions draw from the cache's pages and never read it. Read after the load has settled, it
-  // joins neither its progress nor its byte count. A failed read is not kept: the next need
-  // reads again.
-  const binary = readOnce(() =>
-    bufferUrl
-      ? checked(bufferUrl, signal).then((response) => response.arrayBuffer())
-      : Promise.reject(
-          new EngineError('PREPARED_SCENE_MISMATCH', 'the scene document names no binary'),
-        ),
-  );
+  // sessions draw from the cache's pages and never read it. Read while the scene is built (an
+  // embedded image a surface samples), it joins the load's progress, byte count and signal; read
+  // after, none of them: an aborted or timed-out load signal must not refuse every later read. A
+  // failed read is not kept: the next need reads again.
+  let building = true;
+  const binary = readOnce(() => {
+    if (!bufferUrl)
+      return Promise.reject(
+        new EngineError('PREPARED_SCENE_MISMATCH', 'the scene document names no binary'),
+      );
+    if (!building) return checked(bufferUrl).then((response) => response.arrayBuffer());
+    const read = checked(bufferUrl, signal).then((response) =>
+      meter.read(response, bufferUrl).arrayBuffer(),
+    );
+    return track(bufferUrl, read);
+  });
   const skipped = skipBaked ? bakedImages(metadata, document.images.length) : new Set<number>();
   const images = preparedImages({ document, documentUrl, binary, skipped, signal, track, meter });
   const ranks: TextureRanks = new Map();
@@ -67,6 +73,8 @@ export async function buildPreparedScene(inputs: Inputs) {
     meshes: document.meshes,
     geometryOf: preparedGeometries(document, binary),
     materialOf: preparedMaterials(tables.materials, slot),
+  }).finally(() => {
+    building = false;
   });
   signal?.throwIfAborted();
   const source: Object3D = scene;
