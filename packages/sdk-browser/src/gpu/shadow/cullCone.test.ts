@@ -48,7 +48,7 @@ function margin(delta: number[], axis: number[], r: number, h: number) {
   return Math.acos(Math.min(1, Math.max(-1, along))) - Math.asin(Math.min(1, r / d)) - h;
 }
 
-test('the cone test by cosines never drops a caster the exact angles keep, and agrees with develop past a margin', () => {
+test('the cone test by cosines never drops a caster the exact angles keep, and agrees with develop past a margin', (t) => {
   const next = random(925);
   const unit = () => {
     const [z, a] = [next() * 2 - 1, next() * 2 * Math.PI];
@@ -56,7 +56,8 @@ test('the cone test by cosines never drops a caster the exact angles keep, and a
   };
   // Half angles from a sliver to a hemisphere and past it, near 3.14159; sizes over twelve decades.
   const halves = [1e-6, 0.01, 0.3, Math.PI / 4, Math.PI / 2, 2, 3, 3.1415, 3.14159];
-  let disagreed = 0,
+  let kept = 0,
+    dropped = 0,
     cases = 0;
   for (let n = 0; n < 400000; n++) {
     const axis = unit(),
@@ -70,11 +71,15 @@ test('the cone test by cosines never drops a caster the exact angles keep, and a
     if (byCosines && !outsideExact(delta, axis, r, h))
       assert.fail(`dropped a kept caster: ${JSON.stringify({ delta, axis, r, h })}`);
     if (byAngles !== byCosines) {
-      disagreed++;
+      if (byAngles) kept++;
+      else dropped++;
       assert.ok(margin(delta, axis, r, h) < 2e-3, 'only a sphere just past the cone may be kept');
     }
   }
-  assert.ok(disagreed < cases * 0.01, `${disagreed} of ${cases} disagree`);
+  // Changed verdicts, published apart from false rejections (none, asserted above): casters
+  // develop dropped that this test keeps (extra work, no image change), and the reverse.
+  t.diagnostic(`${cases} cases: ${kept} more kept, ${dropped} more dropped than develop`);
+  assert.ok(kept + dropped < cases * 0.01, `${kept + dropped} of ${cases} disagree`);
 });
 
 test('the cull uses no inverse trigonometry', () => {

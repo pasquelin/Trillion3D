@@ -40,6 +40,6 @@ test('page 4 096 of a pool 64 pages a side opens its layer 1, where the shading 
   assert.deepEqual([0, 1, 2].flatMap(place), [0, 63, 63, 1, 0, 0, 1, 1, 1]);
   // The shading's `shadowOffset`, the same place: the page within its layer, then the layer.
   const offset =
-    /local=phys%\(side\*side\);\n.*f32\(local%side\),f32\(local\/side\).*f32\(phys\/\(side\*side\)\)/;
+    /area=side\*side;\n let layer=floor\(\(phys\+0\.5\)\/area\);\n let local=phys-layer\*area;\n let y=floor\(\(local\+0\.5\)\/side\);\n return vec3f\(\(vec2f\(local-y\*side,y\)-vec2f\(p\)\)\*SHADOW_PAGE,layer\);/;
   assert.match(directShadowWgsl(8, null, 18), offset);
 });
