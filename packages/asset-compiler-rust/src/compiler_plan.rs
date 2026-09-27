@@ -30,6 +30,35 @@ fn dense_bytes(acc: &Value) -> Result<usize> {
         .ok_or_else(|| invalid("Working set overflow"))
 }
 
+/// The accessors a primitive reads: its indices, every attribute and every morph target. A
+/// primitive without `POSITION` is refused.
+fn primitive_accessors(p: &Value, accessors: &mut BTreeSet<usize>) -> Result<()> {
+    if let Some(indices) = p.get("indices") {
+        accessors.insert(required_index(Some(indices), "primitive.indices")?);
+    }
+    let attributes = p
+        .get("attributes")
+        .and_then(Value::as_object)
+        .ok_or_else(|| invalid("primitive.attributes is required"))?;
+    if !attributes.contains_key("POSITION") {
+        return Err(invalid("primitive.attributes.POSITION is required"));
+    }
+    for a in attributes.values() {
+        accessors.insert(required_index(Some(a), "primitive attribute")?);
+    }
+    for target in p
+        .get("targets")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        for a in target.as_object().into_iter().flat_map(|t| t.values()) {
+            accessors.insert(required_index(Some(a), "primitive target attribute")?);
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn plan_buffers(
     o: &Options,
     g: &Value,
@@ -47,29 +76,7 @@ pub(super) fn plan_buffers(
             .iter()
             .enumerate()
         {
-            if let Some(indices) = p.get("indices") {
-                accessors.insert(required_index(Some(indices), "primitive.indices")?);
-            }
-            let attributes = p
-                .get("attributes")
-                .and_then(Value::as_object)
-                .ok_or_else(|| invalid("primitive.attributes is required"))?;
-            if !attributes.contains_key("POSITION") {
-                return Err(invalid("primitive.attributes.POSITION is required"));
-            }
-            for a in attributes.values() {
-                accessors.insert(required_index(Some(a), "primitive attribute")?);
-            }
-            if let Some(targets) = p.get("targets").and_then(Value::as_array) {
-                for target in targets {
-                    if let Some(t_obj) = target.as_object() {
-                        for a in t_obj.values() {
-                            accessors
-                                .insert(required_index(Some(a), "primitive target attribute")?);
-                        }
-                    }
-                }
-            }
+            primitive_accessors(p, &mut accessors).map_err(|e| e.within(*old, primitive))?;
             jobs.push((*old, primitive));
         }
     }
@@ -158,15 +165,15 @@ pub(super) fn plan_buffers(
             *primitive,
             "primitive",
         )?;
-        let count = primitive_triangles(g, p)?
-            .checked_mul(3)
-            .ok_or_else(|| invalid("Working set overflow"))?;
+        let index_bytes = primitive_triangles(g, p)
+            .and_then(|triangles| {
+                triangles
+                    .checked_mul(12)
+                    .ok_or_else(|| invalid("Working set overflow"))
+            })
+            .map_err(|e| e.within(*old, *primitive))?;
         estimated_working_bytes = estimated_working_bytes
-            .checked_add(
-                count
-                    .checked_mul(4)
-                    .ok_or_else(|| invalid("Working set overflow"))?,
-            )
+            .checked_add(index_bytes)
             .ok_or_else(|| invalid("Working set overflow"))?;
     }
     estimated_working_bytes = estimated_working_bytes

@@ -131,7 +131,7 @@ pub fn assign_depth_layers(
     let mut counts = Counts::default();
     // World matrices serve both passes: single construction for whole step.
     let world = crate::compiler_world::world_matrices(inputs.g)?;
-    let surfaces = surface::collect_with_world(inputs, bounds, &mut counts.dropped_planes, &world)?;
+    let surfaces = surface::collect(inputs, bounds, &mut counts.dropped_planes, &world)?;
     let overlaps = pairs::find_overlaps(inputs, bounds, &surfaces, &mut counts, &world)?;
     let (assigned, overflow) = assign::layers(&surfaces, &overlaps, COPLANAR_MAX_LAYER);
     counts.layer_overflow = overflow;

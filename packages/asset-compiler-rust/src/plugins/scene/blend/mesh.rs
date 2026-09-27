@@ -11,9 +11,15 @@
 //! `.corner_edge` that says which edge leaves each corner.
 use super::*;
 
-/// Mesh-read ceilings, so a damaged file never asks for an allocation it does not have the bytes to fill.
-const MAX_VERTICES: usize = 64 * 1024 * 1024;
-const MAX_CORNERS: usize = 256 * 1024 * 1024;
+/// The least a mesh's announced counts allocate before a value is read: three floats per vertex,
+/// a vertex index per corner and a mark per edge. A damaged file announcing more than the job's
+/// RAM budget leaves is refused before any of it is asked for.
+fn announced_bytes(vertices: usize, corners: usize, edges: usize) -> usize {
+    vertices
+        .saturating_mul(12)
+        .saturating_add(corners.saturating_mul(4))
+        .saturating_add(edges)
+}
 
 /// The geometry of a mesh, as the file carries it.
 pub(super) struct Geometry {
@@ -61,15 +67,17 @@ fn unsupported(mesh: &str, what: &str) -> CompilerError {
 
 /// Reads the geometry of a mesh, whichever layout `attrs` decoded it from. A mesh that carries
 /// none of them is refused by name rather than guessed.
-pub(super) fn read(mesh: &At<'_>, name: &str) -> Result<Geometry> {
+/// `room` is what the job's RAM budget leaves the scene binary.
+pub(super) fn read(mesh: &At<'_>, name: &str, room: usize) -> Result<Geometry> {
     let vertices = mesh.int("totvert", 0).max(0) as usize;
     let corner_count = mesh.int("totloop", 0).max(0) as usize;
     let faces = mesh.int("totpoly", 0).max(0) as usize;
     let edges = mesh.int("totedge", 0).max(0) as usize;
-    if vertices > MAX_VERTICES || corner_count > MAX_CORNERS || edges > MAX_CORNERS {
+    let needed = announced_bytes(vertices, corner_count, edges);
+    if needed > room {
         return Err(refused(
             "blend-too-large",
-            format!("blend: mesh {name} announces more vertices or corners than this reader reads"),
+            format!("blend: mesh {name} announces {vertices} vertices, {corner_count} corners and {edges} edges, at least {needed} bytes, past the {room} bytes this job's RAM budget (ramBudgetMb) leaves the scene binary"),
         ));
     }
     let table = attrs::attributes(mesh);
