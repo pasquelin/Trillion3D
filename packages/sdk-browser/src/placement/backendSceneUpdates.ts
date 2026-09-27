@@ -1,4 +1,5 @@
 import type { Material } from '../../../sdk-core/src/index.ts';
+import type { AlphaMode } from '../../../sdk-core/src/contracts/material.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { PlacementRows } from './rows.ts';
 
@@ -30,8 +31,13 @@ export interface BackendSceneUpdates {
    *  again at the next frame, no table rebuilt. Absent, or false for this change — a map whose
    *  picture changed size where its layout is fixed (#362) —, the owner opens the session again.
    *  `values` false when only their textures moved — a picture, a sampling, a placement —: the
-   *  frame follows those itself, and nothing a value feeds, a page-table row, is written again. */
-  refreshMaterials?(values?: boolean): boolean | void;
+   *  frame follows those itself, and nothing a value feeds, a page-table row, is written again.
+   *  `reclassed` when a surface moved between opaque, masked and blended, which the engine said it
+   *  takes (`materialClassRefusal`): its drawables go to the family the open would give them. */
+  refreshMaterials?(values?: boolean, reclassed?: boolean): boolean | void;
+  /** Why the engine cannot move a material from `from` to `to` inside the session, `undefined`
+   *  when it can; asked before any write. Absent, it moves every one (`reclassed`). */
+  materialClassRefusal?(from: AlphaMode, to: AlphaMode): string | undefined;
   /** Repaints a primitive from the engine's material parameters: no shader, no program hook. */
   updateMaterial?(primitive: string, material: Material): void;
 }

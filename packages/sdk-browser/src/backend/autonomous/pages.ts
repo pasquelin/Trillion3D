@@ -1,8 +1,8 @@
 import { colouredHostSurface, hostPageScene, releaseHostSurface } from '../../host/pageObjects.ts';
 import { pageDiagnostics } from '../../host/pageDiagnostics.ts';
 import { attachedPages, autonomousPlacements } from '../../placement/autonomousPlacements.ts';
-import { collectClusterPages, indexPagesByUrl } from '../../page/selection/selection.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
+import { collectClusterPages, reassignPageBlend } from '../../page/selection/collect.ts';
+import { indexPagesByUrl, type PageRec } from '../../page/selection/selection.ts';
 import { createAutonomousRender, createAutonomousRenderState } from './render.ts';
 import { autonomousCapabilities, publishAutonomousCapabilities } from './capabilities.ts';
 import { createWebglFrameGate } from '../../webgl/core/frameGate.ts';
@@ -165,9 +165,10 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       gate.resourcesChanged();
       sync();
     },
-    refreshMaterials(values = true) {
+    refreshMaterials(values = true, reclassed = false) {
       // Values reach the twins, clones; a picture alone (#362), shared, only lets the image go.
       if (values) colorMaterials.forEach((twin, original) => colouredHostSurface(original, twin));
+      if (reclassed) reassignPageBlend(allPages, metadata, context.associations, heldFloor.changed);
       (values ? gate.sceneChanged : gate.resourcesChanged)();
     },
     metrics() {
