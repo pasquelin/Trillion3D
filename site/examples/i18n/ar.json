@@ -2172,5 +2172,20 @@
     "words": {
       "credit": "علم على سارية نُمذج بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md"
     }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "اختر واجهة للمنزل. أبعد الكاميرا: يحافظ الرسم المتعامد على المقياس نفسه تمامًا.",
+    "controls": {
+      "elevation": "الواجهة",
+      "distance": "مسافة الكاميرا",
+      "zoom": "مقياس الرسم"
+    },
+    "choices": {
+      "elevation": {
+        "front": "الأمامية",
+        "right": "الجانب الأيمن",
+        "rear": "الخلفية"
+      }
+    }
   }
 }
