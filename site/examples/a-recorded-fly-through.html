@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>A recorded fly-through, replayed</title>
+    <meta name="thumbnail" content="5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #91b7d1;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, light, material, math, object } from '../runtime/engine.js';
+      import { controls, readout, tour, words } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#91b7d1');
+      const paint = (color, roughness = 0.8, metalness = 0) =>
+        material.meshStandard({ color, roughness, metalness });
+      const grass = paint('#668c4d', 0.95),
+        stone = paint('#c4b89d', 0.9);
+      const wood = paint('#70472d'),
+        leaves = paint('#47723f', 0.9),
+        water = paint('#4f91ad', 0.25);
+      const put = (shape, matter, position, turn = 0) => {
+        const mesh = object.mesh(shape, matter);
+        mesh.position.set(...position);
+        mesh.rotation.y = turn;
+        mesh.castShadow = true;
+        world.scene.add(mesh);
+        return mesh;
+      };
+
+      const ground = put(geometry.box(42, 0.3, 34), grass, [0, -0.15, 0]);
+      ground.receiveShadow = true;
+      const pathShape = geometry.box(3.2, 0.08, 8);
+      for (let step = -2; step <= 2; step++)
+        put(pathShape, stone, [step * 3.1, 0.04, 3], step * 0.38);
+      put(geometry.cylinder(6, 6.8, 0.22, 64), water, [-7, 0.02, -7]);
+
+      const trunkShape = geometry.cylinder(0.22, 0.32, 2.4, 12),
+        crownShape = geometry.sphere(1.5, 20, 14);
+      for (const [x, z, scale] of [
+        [-14, 9, 1],
+        [-10, 13, 1.2],
+        [-4, 12, 0.9],
+        [6, 12, 1.1],
+        [13, 8, 1],
+        [14, -2, 1.25],
+        [8, -12, 0.9],
+        [-2, -13, 1.15],
+        [-14, -10, 1],
+      ]) {
+        put(trunkShape, wood, [x, 1.2, z]);
+        const crown = put(crownShape, leaves, [x, 3.2, z]);
+        crown.scale.setScalar(scale);
+      }
+
+      const pavilion = object.group();
+      pavilion.position.set(8, 0, -7);
+      const roof = object.mesh(geometry.cone(4.2, 1.8, 8), paint('#a64737', 0.75));
+      roof.position.y = 4.7;
+      pavilion.add(roof);
+      for (const [x, z] of [
+        [-2.5, -2.5],
+        [-2.5, 2.5],
+        [2.5, -2.5],
+        [2.5, 2.5],
+      ]) {
+        const post = object.mesh(geometry.cylinder(0.16, 0.2, 4, 12), stone);
+        post.position.set(x, 2, z);
+        pavilion.add(post);
+      }
+      const deck = object.mesh(geometry.cylinder(3.5, 3.5, 0.3, 8), wood);
+      deck.position.y = 0.15;
+      pavilion.add(deck);
+      pavilion.traverse((part) => (part.castShadow = true));
+      world.scene.add(pavilion);
+
+      const bridge = object.group();
+      bridge.position.set(-7, 0.55, -7);
+      for (let plank = -4; plank <= 4; plank++) {
+        const board = object.mesh(geometry.box(0.75, 0.12, 3), wood);
+        board.position.x = plank * 0.72;
+        bridge.add(board);
+      }
+      world.scene.add(bridge);
+      world.scene.add(
+        light.directional({
+          color: '#fff0cf',
+          intensity: 3.2,
+          position: [-9, 14, 8],
+          castShadow: true,
+        }),
+        light.hemisphere({ color: '#b6d3ed', groundColor: '#4f603e', intensity: 1 }),
+      );
+
+      world.camera.position.set(18, 9, 20);
+      world.controls.target.set(0, 1.5, 0);
+      world.camera.lookAt(world.controls.target);
+      world.controls.minDistance = 3;
+      world.controls.maxDistance = 35;
+      world.controls.maxPolarAngle = Math.PI / 2 - 0.03;
+      const say = words();
+      let route;
+      controls({ replay: () => route?.restart(), stop: () => route?.stop() }, world);
+      const current = readout('currentPart');
+      route = tour(world, [
+        { name: 'entrance', position: [15, 5, 16], target: [0, 1, 5], seconds: 2.5, hold: 0.8 },
+        { name: 'pond', position: [-13, 4, -1], target: [-7, 0, -7], seconds: 2.2, hold: 1 },
+        { name: 'bridge', position: [-7, 2.2, 1], target: [-7, 0.8, -7], seconds: 1.8, hold: 0.8 },
+        { name: 'pavilion', position: [14, 4, -1], target: [8, 2, -7], seconds: 2.4, hold: 1 },
+        { name: 'overview', position: [17, 15, 18], target: [0, 1, 0], seconds: 3, hold: 1.5 },
+      ]);
+      const showPart = () => current(say(route.part ?? 'complete'));
+      world.onFrame(showPart);
+      showPart();
+      addEventListener('pagehide', () => {
+        route.dispose();
+        world.dispose();
+      });
+    </script>
+  </body>
+</html>

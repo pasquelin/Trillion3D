@@ -500,6 +500,24 @@
       "balloon": "MELACAK BALON"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Saksikan rute rekaman melintasi taman. Putar ulang, hentikan, atau ambil alih kamera.",
+    "controls": {
+      "replay": "Putar ulang",
+      "stop": "Hentikan"
+    },
+    "readouts": {
+      "currentPart": "Bagian saat ini"
+    },
+    "words": {
+      "entrance": "Pintu masuk",
+      "pond": "Kolam",
+      "bridge": "Jembatan",
+      "pavilion": "Paviliun",
+      "overview": "Ikhtisar",
+      "complete": "Selesai"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Geser untuk melihat sekeliling. Buat gelombang kubus lebih tinggi atau lebih cepat.",
     "controls": {

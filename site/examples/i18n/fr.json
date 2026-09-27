@@ -500,6 +500,24 @@
       "balloon": "SUIT LE BALLON"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Regardez le parcours enregistré dans le parc. Relancez-le, arrêtez-le ou prenez la caméra.",
+    "controls": {
+      "replay": "Rejouer",
+      "stop": "Arrêter"
+    },
+    "readouts": {
+      "currentPart": "Partie actuelle"
+    },
+    "words": {
+      "entrance": "Entrée",
+      "pond": "Étang",
+      "bridge": "Pont",
+      "pavilion": "Pavillon",
+      "overview": "Vue d’ensemble",
+      "complete": "Terminé"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Glisse pour regarder autour. Rends la vague de cubes plus haute ou plus rapide.",
     "controls": {
