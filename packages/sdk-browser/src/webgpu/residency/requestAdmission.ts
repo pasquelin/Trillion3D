@@ -13,7 +13,8 @@ type Requests = { readonly result: { readonly pageIds: ArrayLike<number> } };
  *
  * A cut the pool holds whole is the upload queue itself, followed by difference. One it does not
  * hold is admitted request by request, each with the pages it closes over
- * (`../../page/cut/groupClosure.ts`), while they fit `room`: a request whose closure does not fit
+ * (`../../page/cut/groupClosure.ts`), while they fit the slots what the image draws outside the
+ * queue leaves (`heldOutsideQueue`): a request whose closure does not fit
  * is refused, and so is every one ranked below it. A refused page is drawn by its nearest resident
  * ancestor and never awaited (`accepts`, `../cut/pending.ts`), so the cut never waits for a page
  * the pool cannot hold; an admitted one arrives with everything the cut rule needs to draw it.
@@ -50,7 +51,10 @@ export function createRequestAdmission(
     whole = count;
     return count === room;
   };
-  return (slots: number, cut: Requests | null) => {
+  return (pool: number, cut: Requests | null) => {
+    // What the image draws outside the queue holds its slots (`requestPins.ts`): the queue has the
+    // rest, so that everything it admits can arrive.
+    const slots = Math.max(0, pool - sets.heldOutsideQueue);
     if (sets.desiredCount <= slots) return sets.followDesired();
     // Before the first readback, the queue the image started with stands.
     if (!cut) return;

@@ -26,26 +26,27 @@ export function settleDeferredDrops(
 }
 
 /**
- * The GPU cut's pin step (#836): the pool keeps pinned the root cover and what the image admitted
- * (`requestAdmission.ts`), and nothing else. A page that leaves the upload queue is unpinned at
- * once: the cache then reclaims it in the order the GPU cut published (`evictionFeed.ts`), which
- * never lists a page the latest cut read and lists children before their parents (#477). A queued
- * page is pinned when its bytes arrive (`admission.ts`), or here when it was already resident.
+ * The GPU cut's pin step (#836): the pool keeps pinned what the image holds (`keep`) — the root
+ * cover, what it admitted (`requestAdmission.ts`), and what it draws with the groups the cut rule
+ * needs to keep drawing it (`../cut/publication.ts`) — and nothing else. A page that leaves it is
+ * unpinned at once: the cache then reclaims it in the order the GPU cut published
+ * (`evictionFeed.ts`), which never lists a page the latest cut read and lists children before
+ * their parents (#477). A queued page is pinned when its bytes arrive (`admission.ts`), or here
+ * when it was already resident.
  *
- * It reads the queue's difference (`pinFeed.ts`), never the queue. Taking over from the CPU cut's
- * step (`resync`), it sets the pins to the queue once: that step also pinned what the image drew
- * and what waited out its window.
+ * It reads what joined and left `keep`, never `keep` itself. Taking over from the CPU cut's step
+ * (`resync`), it sets the pins to `keep` once: that step also pinned parents and what waited out
+ * its window.
  */
 export function createRequestPins(options: {
   tracking: Tracking;
   sets: WebgpuResidencySets;
-  bootstrapKey: Uint8Array;
   deferredDrops: Set<string>;
   byUrl: Map<string, PageRec[]>;
 }) {
-  const { tracking, sets, bootstrapKey, deferredDrops, byUrl } = options;
-  const { pinned, wanted, pageCatalog } = tracking;
-  const { joined, left } = sets.wantedChanges;
+  const { tracking, sets, deferredDrops, byUrl } = options;
+  const { pinned, keep, pageCatalog } = tracking;
+  const { entering, leaving } = sets;
   let cache: Cache;
   const pin = (key: number) => {
     const url = pageCatalog[key];
@@ -54,25 +55,25 @@ export function createRequestPins(options: {
     tracking.markPinned(key);
   };
   const unpin = (key: number) => {
-    if (bootstrapKey[key] || wanted.has(key) || !pinned.remove(key)) return;
+    if (keep.has(key) || !pinned.remove(key)) return;
     cache.unpin(pageCatalog[key]);
   };
-  const holds = (rec: PageRec) => tracking.keep.has(tracking.keyOf(rec));
+  const holds = (rec: PageRec) => keep.has(tracking.keyOf(rec));
   return (current: Cache | undefined, resync: boolean, drop: (key: string) => void) => {
     if (!current) return;
     cache = current;
     if (resync) {
       for (let i = pinned.count - 1; i >= 0; i--) unpin(pinned.list[i]);
-      for (let i = 0; i < wanted.count; i++) pin(wanted.list[i]);
+      for (let i = 0; i < keep.count; i++) pin(keep.list[i]);
     } else {
-      for (let i = 0; i < left.count; i++) unpin(left.list[i]);
-      for (let i = 0; i < joined.count; i++) pin(joined.list[i]);
+      for (let i = 0; i < leaving.count; i++) unpin(leaving.list[i]);
+      for (let i = 0; i < entering.count; i++) pin(entering.list[i]);
     }
-    joined.clear();
-    left.clear();
-    // A host drop unpins behind this step's back: a key still queued is pinned again.
+    entering.clear();
+    leaving.clear();
+    // A host drop unpins behind this step's back: a key still held is pinned again.
     const notices = tracking.unpinned;
-    for (let i = 0; i < notices.length; i++) if (wanted.has(notices[i])) pin(notices[i]);
+    for (let i = 0; i < notices.length; i++) if (keep.has(notices[i])) pin(notices[i]);
     notices.length = 0;
     settleDeferredDrops(deferredDrops, byUrl, holds, drop);
   };

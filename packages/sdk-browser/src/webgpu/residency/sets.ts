@@ -1,10 +1,9 @@
 import type { PageRec } from '../../page/selection/selection.ts';
-import type { CutDelta, IdDelta } from '../cut/delta.ts';
+import type { IdDelta } from '../cut/delta.ts';
 import { createDenseKeySet } from '../cut/denseKeys.ts';
 import { createKeyUnion } from '../cut/keyUnion.ts';
 import { createBudgetRanking } from './budgetRanking.ts';
 import { createHeldKeys } from '../cut/heldKeys.ts';
-import { createPinFeed } from './pinFeed.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 
 type Tracking = ReturnType<typeof createWebgpuPageTracking>;
@@ -30,10 +29,14 @@ export function createWebgpuResidencySets(options: {
   const { keyCount, keyOf, wanted, wantedPages } = tracking;
   /** A packed page's cache key, cached on its record by the tracking (`PageRec.keyIndex`). */
   const keyOfId = (id: number) => keyOf(packedPages[id]);
-  /** What the pin step of the cut that decides reads (`pinFeed.ts`). The CPU cut ranks by level;
-   *  the GPU cut admits by its requests (`requestAdmission.ts`) and feeds no ranking (#836). */
-  const feed = createPinFeed(tracking),
-    { entering, enteringPages, leaving } = feed;
+  /** What joined and left `keep` since the pin step last ran, each joining key beside the record
+   *  it joined by (none for the pinned cover): the pin step reads its parents there. */
+  const enteringPages: (PageRec | undefined)[] = [];
+  const entering = createDenseKeySet(enteringPages),
+    leaving = createDenseKeySet();
+  /** The CPU cut ranks by level; the GPU cut admits by its requests (`requestAdmission.ts`) and
+   *  feeds no ranking (#836). */
+  let cpuCut = true;
   const desiredPages: PageRec[] = [];
   const desired = createDenseKeySet(desiredPages);
   const ranking = createBudgetRanking({ bootstrapKey, keyOf });
@@ -52,22 +55,31 @@ export function createWebgpuResidencySets(options: {
   const keep = createKeyUnion({
     members: tracking.keep,
     keyCount,
-    onListed: feed.kept,
-    onUnlisted: feed.unkept,
+    onListed: (key, page) => {
+      leaving.remove(key);
+      entering.add(key, page);
+    },
+    onUnlisted: (key) => {
+      entering.remove(key);
+      leaving.add(key);
+    },
   });
-  for (let key = 0; key < keyCount; key++) if (bootstrapKey[key]) keep.retain(key);
+  let cover = 0;
+  for (let key = 0; key < keyCount; key++)
+    if (bootstrapKey[key]) {
+      keep.retain(key);
+      cover++;
+    }
   /** Entering the upload queue is what makes the image hold a page; leaving it lets the page go. */
   /** Bumped whenever the upload queue changes, so what `accepts` answers may have changed. */
   let acceptedRevision = 0;
   const enqueue = (key: number, page?: PageRec) => {
     if (!wanted.add(key, page)) return;
-    feed.wanted(key, true);
     acceptedRevision++;
     keep.retain(key, page);
   };
   const dequeue = (key: number) => {
     if (!wanted.remove(key)) return;
-    feed.wanted(key, false);
     acceptedRevision++;
     keep.release(key);
   };
@@ -78,8 +90,8 @@ export function createWebgpuResidencySets(options: {
     keyOf: keyOfId,
     retain: (key, id) => requested.retain(key, packedPages[id]),
     release: (key) => requested.release(key),
-    onEnter: (id) => feed.cpuCut && ranking.add(packedPages[id]),
-    onExit: (id) => feed.cpuCut && ranking.remove(packedPages[id]),
+    onEnter: (id) => cpuCut && ranking.add(packedPages[id]),
+    onExit: (id) => cpuCut && ranking.remove(packedPages[id]),
   });
   const drawnKeys = createHeldKeys({
     keyOf: keyOfId,
@@ -90,13 +102,10 @@ export function createWebgpuResidencySets(options: {
    *  before the old ones are let go of, so a key in both never leaves `keep` (#477). */
   const refill = (keys: Int32Array, pages: readonly PageRec[], count: number) => {
     for (let i = 0; i < count; i++) keep.retain(keys[i], pages[i]);
-    for (let i = wanted.count - 1; i >= 0; i--) {
-      keep.release(wanted.list[i]);
-      feed.wanted(wanted.list[i], false);
-    }
+    for (let i = wanted.count - 1; i >= 0; i--) keep.release(wanted.list[i]);
     wanted.clear();
     acceptedRevision++;
-    for (let i = 0; i < count; i++) if (wanted.add(keys[i], pages[i])) feed.wanted(keys[i], true);
+    for (let i = 0; i < count; i++) wanted.add(keys[i], pages[i]);
   };
   /** The queue follows the cut whole: every page it asks for fits the pool. */
   const followDesired = () => {
@@ -122,16 +131,30 @@ export function createWebgpuResidencySets(options: {
     entering,
     enteringPages,
     leaving,
-    wantedChanges: feed.wantedChanges,
     /** Keys the cut asks for beyond the pinned cover. */
     get desiredCount() {
       return desired.count;
     },
-    /** The cut that decides; true on a switch. The CPU cut's ranking refills from the closed cut. */
+    /** True while the queue is the cut whole: the budget refused none of it. */
+    get cutFits() {
+      return followsDesired;
+    },
+    /** Keys the image holds outside the queue and the cover: what it draws with what that needs. */
+    get heldOutsideQueue() {
+      return tracking.keep.count - wanted.count - cover;
+    },
+    /** The cut that decides; true on a switch. The CPU cut's ranking refills from the closed cut,
+     *  and its pin step, started afresh, sees every kept key join. */
     decideBy(cpu: boolean) {
-      if (!feed.decideBy(cpu)) return false;
-      if (cpu) ranking.clear();
-      if (cpu) options.heldIds?.((id) => ranking.add(packedPages[id]));
+      if (cpu === cpuCut) return false;
+      cpuCut = cpu;
+      entering.clear();
+      leaving.clear();
+      ranking.clear();
+      if (!cpu) return true;
+      const { list, count } = tracking.keep;
+      for (let i = 0; i < count; i++) entering.add(list[i], tracking.keepPages[i]);
+      options.heldIds?.((id) => ranking.add(packedPages[id]));
       return true;
     },
     followDesired,
@@ -148,7 +171,8 @@ export function createWebgpuResidencySets(options: {
      *  and draws, never the catalogue (#483 rule 6). */
     get hostBytes() {
       return (
-        feed.byteLength +
+        entering.byteLength +
+        leaving.byteLength +
         requested.byteLength +
         keep.byteLength +
         askedKeys.byteLength +
@@ -176,7 +200,7 @@ export function createWebgpuResidencySets(options: {
       askedKeys.apply(delta);
     },
     /** Applies one difference of the drawable cut, which is what the image must not lose. */
-    applyDrawn(delta: CutDelta) {
+    applyDrawn(delta: IdDelta) {
       drawnKeys.apply(delta);
     },
     /**
