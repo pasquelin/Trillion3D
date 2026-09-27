@@ -328,6 +328,13 @@
       "roof": "屋根"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "ドラッグして見回します。ランプの幅を変えて影の縁を観察してください。",
+    "controls": {
+      "lampWidth": "ランプの幅",
+      "moveSubject": "被写体を動かす"
+    }
+  },
   "a-softbox-panel": {
     "banner": "ドラッグして歩き回ろう。ライトのパネルを大きくすると光り方がやわらかくなるよ。",
     "controls": {
