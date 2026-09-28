@@ -68,5 +68,7 @@ fn shadowHizTest(@builtin(global_invocation_id) id:vec3u){
  let row=kept[keptAt(r,select(id.x,id.x-opaque,cutout),uni.capacity,cutout)];
  if(hiddenInPage(spheres[row],views[r].viewProjection,slot)){atomicAdd(&slots[r*${SLOT}u+1u],1u);return;}
  visible[keptAt(r,atomicAdd(&visibleIndirect[keptCount(r,cutout)],1u),uni.capacity,cutout)]=row;
+ // A visible list draws the corners of the list it comes from: all its casters' triangles (#966).
+ atomicMax(&visibleIndirect[keptCorners(r,cutout)],indirect[keptCorners(r,cutout)]);
 }
 `;
