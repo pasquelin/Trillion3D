@@ -109,40 +109,34 @@ export const JOLT_THREAD_LOADED = { type: 'loaded' } as const;
  * of the script at `url` handed its start message (the script runs `runJoltThread` on it and posts
  * `JOLT_THREAD_LOADED`). A worker a worker starts loads only while its parent's event loop turns,
  * and a step blocks on its jobs: nothing steps before `ready()`, which resolves once every thread
- * spawned so far has loaded and rejects naming the first that did not. Once loaded, a thread's
- * messages, and a fatal error naming it if it throws, go to `relay`.
+ * spawned so far has loaded and rejects naming the first that did not. A loaded thread that then
+ * throws, or posts its error, is named to `failed`.
  */
 export function joltWorkerPool(
   url: string | URL,
   count: number,
-  relay: (data: unknown) => void = () => {},
+  failed: (error: EngineError) => void,
 ) {
   const loads: Promise<void>[] = [];
   const spawn: SpawnJoltThread = (start) => {
     const n = loads.length + 1;
+    const named = (why: string) =>
+      new EngineError('PHYSICS_FAILED', `Physics: pool thread ${n} ${why}`);
     const thread = new Worker(url, { type: 'module' });
-    loads.push(
-      new Promise((loaded, failed) => {
-        let up = false;
-        const refuse = (why: string) =>
-          failed(
-            new EngineError('PHYSICS_FAILED', `Physics: pool thread ${n} did not load: ${why}`),
-          );
-        thread.onerror = (event) => {
-          const why = event.message || 'its script failed';
-          if (!up) return refuse(why);
-          const message = `Physics: pool thread ${n} failed: ${why}`;
-          relay({ type: 'error', code: 'PHYSICS_FAILED', message, fatal: true });
-        };
-        thread.onmessage = ({ data }) => {
-          if (up) relay(data);
-          else if (data?.type === JOLT_THREAD_LOADED.type) {
-            up = true;
-            loaded();
-          } else refuse(String(data?.message ?? data));
-        };
-      }),
-    );
+    const load = new Promise<void>((loaded, refused) => {
+      let up = false;
+      const fault = (why: string) =>
+        up ? failed(named(`failed: ${why}`)) : refused(named(`did not load: ${why}`));
+      thread.onerror = (event) => fault(event.message || 'its script failed');
+      thread.onmessageerror = () => fault('a message could not be read');
+      thread.onmessage = ({ data }) => {
+        if (!up && data?.type === JOLT_THREAD_LOADED.type) {
+          up = true;
+          loaded();
+        } else fault(String(data?.message ?? data));
+      };
+    });
+    loads.push(load);
     thread.postMessage(start);
   };
   return { count, spawn, ready: () => Promise.all(loads).then(() => {}) };
