@@ -1,30 +1,22 @@
-import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
-import { makeFullscreenPipeline } from '../lighting/deferred/fullscreen.ts';
-import {
-  TAA_BINDINGS,
-  TAA_PASS,
-  TAA_SHADER,
-  TAA_VIEW_BYTES,
-  createTaaLayout,
-} from './shaderWgsl.ts';
+import { TAA_BINDINGS, TAA_PASS, TAA_VIEW_BYTES } from './shaderWgsl.ts';
+import { SHARE_FORMAT, createTaaResolves } from './resolve.ts';
 import { createTaaCheckpoint, createTaaFrameState } from './frame.ts';
 import { createPlacementMotion, type MotionRoot } from './motion.ts';
 import type { AccumulatedImage } from '../lighting/deferred/program.ts';
 
-/** Format of the as-is share accumulated beside the colour: one channel, filtered like it. */
-const SHARE_FORMAT: GPUTextureFormat = 'r8unorm';
 /** Bytes per pixel of the two history targets: two `rgba16float`, and their two shares. */
 export const TAA_HISTORY_BYTES_PER_PIXEL = 18;
 
 /** What the pass reads in the frame: the lit and blended image, depth, visibility-buffer
- *  identifiers, the page-record table, placement motion matrices and the surface flags. */
+ *  identifiers, the page-record table, placement motion matrices and the surface flags — absent
+ *  when no as-is pixel is in the frame, which the flagless resolve reads none of (OMB-11). */
 export interface TaaInputs {
   current: GPUTextureView;
   depth: GPUTextureView;
   ids: GPUTextureView;
   pages: GPUBuffer;
   motion: GPUBuffer;
-  flags: GPUTextureView;
+  flags?: GPUTextureView;
 }
 
 /**
@@ -34,12 +26,7 @@ export interface TaaInputs {
  * per frame.
  */
 export async function createTemporalAntialiasing(device: GPUDevice, roots: readonly MotionRoot[]) {
-  const layout = createTaaLayout(device);
-  const module = await createCheckedShaderModule(device, TAA_SHADER, 'TAA_RESOLVE');
-  const pipeline = await makeFullscreenPipeline(device, module, layout, 'resolve', [
-    { format: 'rgba16float' },
-    { format: SHARE_FORMAT },
-  ]);
+  const resolves = await createTaaResolves(device);
   const motion = createPlacementMotion(device, roots);
   const uniform = device.createBuffer({
     label: 'Trillion3D TAA view v1',
@@ -145,22 +132,25 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
         bound.flags !== inputs.flags
       ) {
         bound = { ...inputs };
-        for (let i = 0; i < 2; i++)
-          groups[i] = device.createBindGroup({
-            layout,
-            entries: [
-              { binding: TAA_BINDINGS.current, resource: inputs.current },
-              { binding: TAA_BINDINGS.history, resource: images[i].color },
-              { binding: TAA_BINDINGS.historySampler, resource: sampler },
-              { binding: TAA_BINDINGS.depth, resource: inputs.depth },
-              { binding: TAA_BINDINGS.ids, resource: inputs.ids },
-              { binding: TAA_BINDINGS.pages, resource: { buffer: inputs.pages } },
-              { binding: TAA_BINDINGS.motion, resource: { buffer: inputs.motion } },
-              { binding: TAA_BINDINGS.view, resource: { buffer: uniform } },
+        const { layout } = inputs.flags ? resolves.asIs : resolves.flagless;
+        for (let i = 0; i < 2; i++) {
+          const entries: GPUBindGroupEntry[] = [
+            { binding: TAA_BINDINGS.current, resource: inputs.current },
+            { binding: TAA_BINDINGS.history, resource: images[i].color },
+            { binding: TAA_BINDINGS.historySampler, resource: sampler },
+            { binding: TAA_BINDINGS.depth, resource: inputs.depth },
+            { binding: TAA_BINDINGS.ids, resource: inputs.ids },
+            { binding: TAA_BINDINGS.pages, resource: { buffer: inputs.pages } },
+            { binding: TAA_BINDINGS.motion, resource: { buffer: inputs.motion } },
+            { binding: TAA_BINDINGS.view, resource: { buffer: uniform } },
+          ];
+          if (inputs.flags)
+            entries.push(
               { binding: TAA_BINDINGS.flags, resource: inputs.flags },
               { binding: TAA_BINDINGS.shareHistory, resource: images[i].share },
-            ],
-          });
+            );
+          groups[i] = device.createBindGroup({ layout, entries });
+        }
       }
       const write = 1 - read;
       const pass = encoder.beginRenderPass({
@@ -172,7 +162,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
           clearValue: [0, 0, 0, 0],
         })),
       });
-      pass.setPipeline(pipeline);
+      pass.setPipeline((inputs.flags ? resolves.asIs : resolves.flagless).pipeline);
       pass.setBindGroup(0, groups[read]!);
       pass.draw(3);
       pass.end();
