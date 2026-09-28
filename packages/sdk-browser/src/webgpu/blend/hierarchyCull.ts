@@ -1,11 +1,12 @@
 import { BOX_VALUES, frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
 import { notDrawn } from '../../placement/hidden.ts';
 import { currentBlendHierarchy } from './hierarchy.ts';
+import { includeWaterItem } from '../water/bounds.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
 /** Counts of the frame, module scratch so the walk allocates nothing. */
-const tally = { rejected: 0, water: 0 };
+const tally = { rejected: 0, water: 0, state: undefined as unknown as BlendState };
 
 /**
  * The item-by-item verdict of `rank`: a hidden or parked item is kept out without counting as
@@ -26,8 +27,12 @@ function judge(
     tally.rejected++;
   else {
     mask[rank >>> 5] |= 1 << (rank & 31);
-    // The water pass is encoded for a surface in view, never for a scene that merely has one.
-    if (item.transmissive) tally.water++;
+    // The water pass is encoded for a surface in view, never for a scene that merely has one;
+    // its scissor and copies are bounded by these kept surfaces only (`../water/bounds.ts`).
+    if (item.transmissive) {
+      tally.water++;
+      includeWaterItem(tally.state.waterBounds, item, tally.state.volumePacked);
+    }
   }
 }
 
@@ -49,6 +54,7 @@ export function cullBlendHierarchy(blendState: BlendState) {
   mask.fill(0);
   tally.rejected = 0;
   tally.water = 0;
+  tally.state = blendState;
   tree.tested = loose.length;
   for (let k = 0; k < loose.length; k++) judge(items, loose[k], planes, mask, false);
   for (let node = 0; node < tree.nodes;) {
