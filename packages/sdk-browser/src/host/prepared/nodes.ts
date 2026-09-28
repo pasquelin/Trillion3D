@@ -10,6 +10,7 @@ import type {
 } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import { numbered } from '../graph/serial.ts';
+import { aimOf } from '../graph/kinds.ts';
 import { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import type { HostMesh } from '../resources.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
@@ -42,9 +43,10 @@ export function light(declared: TableLight, name: string) {
   }
   if (declared.type !== 'directional') made.distance = declared.range ?? 0;
   // A sun or a spot aims one unit down its own -z, a child of its own, as a scene declares it.
-  if (declared.type !== 'point') {
-    made.target.position.set(0, 0, -1);
-    made.add(made.target);
+  const aim = aimOf(made);
+  if (aim) {
+    aim.position.set(0, 0, -1);
+    made.add(aim);
   }
   made.position.set(0, 0, 0);
   if (declared.intensity !== null) made.intensity = declared.intensity;

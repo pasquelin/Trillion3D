@@ -91,10 +91,8 @@ function threeSurroundingLight(light: Light) {
       new THREE.RectAreaLight(colour, light.intensity, light.width, light.height),
       { distance: light.distance },
     );
-  if (light.kind !== 'probe' || !light.sh)
-    throw new Error(
-      `${light.kind === 'probe' ? 'probe light with no coefficients' : `${light.kind} light`} has no witness`,
-    );
+  if (light.kind !== 'probe') throw new Error(`${light.kind} light has no witness`);
+  if (!light.sh) throw new Error('probe light with no coefficients has no witness');
   const probe = new THREE.LightProbe(undefined, light.intensity);
   probe.color.copy(colour);
   probe.sh.fromArray(light.sh);
