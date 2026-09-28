@@ -1,8 +1,5 @@
 import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts';
-import { storageBufferCap } from '../../residency/pools.ts';
-import { FRAME_VEC4 } from './types.ts';
-import { dagWorkLayout } from './shader/floorWgsl.ts';
-import { dagFlagsWords } from './shader/lastUseWgsl.ts';
+import { lightCutBuffers, lightQueueCap, pastBinding, type LightCutShape } from './bufferTable.ts';
 import { DAG_MAX_VIEWS } from './shader/viewsWgsl.ts';
 
 /** The device limits a light cut's buffers and dispatches must hold. */
@@ -10,21 +7,6 @@ export type LightCutLimits = Pick<
   GPUSupportedLimits,
   'maxComputeWorkgroupsPerDimension' | 'maxStorageBufferBindingSize' | 'maxBufferSize'
 >;
-
-/** What a scene's DAG makes a light cut carry per view. */
-export type LightCutShape = {
-  worldCount: number;
-  nodeCount: number;
-  pageCount: number;
-  blockCount: number;
-  levelSizes: ArrayLike<number>;
-  /** The camera's `frames` ranges: the light cut's per-view rows split in them (`frameRanges.ts`). */
-  frames: { per: number };
-};
-
-/** Each descent queue: every node, or one root per slot when the slots outnumber the nodes. */
-export const lightQueueCap = (shape: LightCutShape, views: number) =>
-  Math.max(shape.nodeCount, shape.worldCount * views);
 
 /**
  * HOW MANY VIEWS ONE LIGHT CUT CAN RUN ON THIS DEVICE. Every per-primitive word of a light cut is
@@ -34,20 +16,18 @@ export const lightQueueCap = (shape: LightCutShape, views: number) =>
  * buffer — the camera's image with it. The capacity is the most views whose buffers and dispatches
  * all fit, down to one: one view never spans more than the camera cut, which the device already
  * holds — its rows split in the camera's ranges, a share of the camera's own (`frameRanges.ts`).
- * The frame's pages are bounded by it, and so are its views (`lightCutRedraws.ts`).
+ * The buffers are judged by the cut's one table and fit rule (`bufferTable.ts`). The frame's pages
+ * are bounded by it, and so are its views (`lightCutRedraws.ts`).
  */
 export function lightCutCapacity(limits: LightCutLimits, shape: LightCutShape) {
-  const threads = limits.maxComputeWorkgroupsPerDimension * WORKGROUP,
-    bytes = storageBufferCap(limits);
+  const threads = limits.maxComputeWorkgroupsPerDimension * WORKGROUP;
   const fits = (views: number) => {
     const queueCap = lightQueueCap(shape, views);
     if (Math.max(shape.frames.per * views, shape.blockCount) > threads) return false;
     for (let level = 1; level < shape.levelSizes.length; level++)
       if (Math.min(shape.levelSizes[level] * views, queueCap) > threads) return false;
-    const frames = views * shape.frames.per * FRAME_VEC4 * 16,
-      flags = dagFlagsWords(queueCap, shape.pageCount, false) * 4,
-      work = dagWorkLayout(shape.blockCount, views).words * 4;
-    return Math.max(frames, flags, work) <= bytes;
+    const table = lightCutBuffers(shape, views);
+    return !pastBinding(limits, { ...table.rows, frames: table.frames(shape.frames.per) });
   };
   let views = DAG_MAX_VIEWS;
   while (views > 1 && !fits(views)) views--;

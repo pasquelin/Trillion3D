@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { lightCutCapacity, type LightCutShape } from './lightCutCapacity.ts';
+import { lightCutCapacity } from './lightCutCapacity.ts';
+import type { LightCutShape } from './bufferTable.ts';
 import { DAG_MAX_VIEWS } from './shader/viewsWgsl.ts';
 
 /** WebGPU's default limits: what every adapter grants without asking. */
