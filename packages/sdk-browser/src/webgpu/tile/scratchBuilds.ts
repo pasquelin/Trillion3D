@@ -62,8 +62,13 @@ export function createScratchBuilds(
       building ??= new Promise<void>((done) =>
         setTimeout(() => {
           building = undefined;
-          buildAsked();
-          done();
+          try {
+            buildAsked();
+          } catch (error) {
+            onFailure('texture-tile-failed', error);
+          } finally {
+            done();
+          }
         }),
       );
     },
