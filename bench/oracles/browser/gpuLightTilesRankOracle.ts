@@ -1,27 +1,37 @@
 /**
- * Oracle D4: a line-by-line port of the end compaction of `lightTiles` in
- * packages/sdk-browser/src/lighting/tiles/shader.ts. Each thread of the workgroup, in any order,
- * writes its kept light at the rank `rankBefore` reads from the mask, with no per-tile cap, and
- * thread zero writes the two counts from `maskTotal`.
+ * Oracle D4: a line-by-line port of the batched compaction of `lightTiles` in
+ * packages/sdk-browser/src/lighting/tiles/{shader,compactWgsl}.ts. The scene's lights are tested
+ * a batch at a time, one per thread; each thread, in any order, writes its kept light at what the
+ * batches before kept plus the rank `rankBefore` reads from the batch's mask while that rank is
+ * within its slice's room; thread zero counts a full batch between batches and writes the two
+ * true counts, the last batch's filled words added, once every batch is done. A slice whose count
+ * passes `TILE_LIGHTS` reserves room for all of them in the pool (`spill`) and a second walk
+ * writes them there; a pool with no room raises its overflow and the reader walks every light
+ * (`tileSlice` of the resolve, #849).
  *
- * The tile layout is read from the shader's own WGSL constants, never restated here, so a
- * shader whose record has no room for a light it keeps fails the port: a write that leaves its
- * list lands in the neighbouring list or tile on the GPU, and throws here.
+ * The tile layout is read from the shader's own WGSL constants, never restated here, so a shader whose
+ * record has no room for a light it keeps fails the port: a write that leaves its list lands in
+ * the neighbouring list or tile on the GPU, and throws here.
  */
 
 export type TileLayout = {
   threads: number;
-  maxLights: number;
+  tileLights: number;
   stride: number;
   opaqueBase: number;
   blendBase: number;
   opaqueMask: number;
   blendMask: number;
   words: number;
+  noSlice: number;
 };
 
+/** The view's pool, as `TilePool` of the shader: room, words reserved, overflow word. The
+ *  oracle's pool starts right after its one tile record. */
+export type TilePool = { capacity: number; head: number; overflow: number };
+
 function wgslConstant(shader: string, name: string) {
-  const found = new RegExp(`const ${name}:u32=(\\d+)u;`).exec(shader);
+  const found = new RegExp(`const ${name}:u32=(0x[\\da-f]+|\\d+)u;`).exec(shader);
   if (!found) throw new Error(`the tile shader declares no ${name}`);
   return Number(found[1]);
 }
@@ -33,13 +43,14 @@ export function tileLayout(shader: string): TileLayout {
   const blendMask = wgslConstant(shader, 'BLEND_MASK');
   return {
     threads: tileSize * tileSize,
-    maxLights: wgslConstant(shader, 'MAX_LIGHTS'),
+    tileLights: wgslConstant(shader, 'TILE_LIGHTS'),
     stride: wgslConstant(shader, 'TILE_STRIDE'),
     opaqueBase: wgslConstant(shader, 'TILE_OPAQUE_BASE'),
     blendBase: wgslConstant(shader, 'TILE_BLEND_BASE'),
     opaqueMask,
     blendMask,
     words: blendMask - opaqueMask,
+    noSlice: wgslConstant(shader, 'TILE_NO_SLICE'),
   };
 }
 
@@ -63,50 +74,102 @@ function rankBefore(hits: Uint32Array, mask: number, lane: number) {
 const maskHolds = (hits: Uint32Array, mask: number, lane: number) =>
   ((hits[mask + (lane >>> 5)] >>> (lane & 31)) & 1) === 1;
 
-function maskTotal(hits: Uint32Array, layout: TileLayout, mask: number) {
+function maskTotal(hits: Uint32Array, mask: number, words: number) {
   let total = 0;
-  for (let w = 0; w < layout.words; w++) total += countOneBits(hits[mask + w]);
+  for (let w = 0; w < words; w++) total += countOneBits(hits[mask + w]);
   return total;
 }
 
+/** The lights each slice of the tile keeps, by rank in the scene. */
+export type TileKeeps = { opaque: Iterable<number>; blend: Iterable<number> };
+
 /**
- * One tile's record after the compaction. `hits` is `var<workgroup> hits`: the opaque slice at
- * `OPAQUE_MASK`, the blend slice at `BLEND_MASK`. `lanes` is the order the threads run in.
+ * One tile's record after the compaction of `lightCount` lights, of which each slice keeps those
+ * `keeps` names, followed by the pool. `lanes` is the order the threads run in, within each batch.
  */
 export function compactTile(
   layout: TileLayout,
-  hits: Uint32Array,
+  keeps: TileKeeps,
   lightCount: number,
   lanes: Iterable<number> = Array.from({ length: layout.threads }, (_, lane) => lane),
+  pool: TilePool = { capacity: 0, head: 0, overflow: 0 },
 ): Uint32Array {
-  const tiles = new Uint32Array(layout.stride);
-  const write = (start: number, end: number, index: number, value: number) => {
-    if (index < start || index >= end)
-      throw new RangeError(`write at ${index} leaves its list [${start}, ${end})`);
+  const tiles = new Uint32Array(layout.stride + pool.capacity);
+  const opaque = new Set(keeps.opaque),
+    blend = new Set(keeps.blend),
+    order = [...lanes],
+    hits = new Uint32Array(2 * layout.words),
+    batch = layout.words * 32,
+    masks = [layout.opaqueMask, layout.blendMask],
+    // Where each slice writes, how many it has room for, and the range that write must stay in.
+    start = [layout.opaqueBase, layout.blendBase],
+    room = [layout.tileLights, layout.tileLights],
+    ends = [layout.blendBase, layout.stride];
+  const write = (slice: number, index: number, value: number) => {
+    if (index < start[slice] || index >= ends[slice])
+      throw new RangeError(`write at ${index} leaves its list [${start[slice]}, ${ends[slice]})`);
     tiles[index] = value;
   };
-  const count = Math.min(lightCount, layout.maxLights);
-  for (const lane of lanes) {
-    if (lane < count && maskHolds(hits, layout.opaqueMask, lane)) {
-      const at = layout.opaqueBase + rankBefore(hits, layout.opaqueMask, lane);
-      write(layout.opaqueBase, layout.blendBase, at, lane);
+  let kept = [0, 0];
+  const walk = () => {
+    for (let first = 0; first < lightCount; first += batch) {
+      if (first > 0) {
+        kept = kept.map((sum, slice) => sum + maskTotal(hits, masks[slice], layout.words));
+        hits.fill(0);
+      }
+      for (let lane = 0; lane < batch && first + lane < lightCount; lane++) {
+        const bit = 1 << (lane & 31);
+        if (opaque.has(first + lane)) hits[layout.opaqueMask + (lane >>> 5)] |= bit;
+        if (blend.has(first + lane)) hits[layout.blendMask + (lane >>> 5)] |= bit;
+      }
+      for (const lane of order)
+        for (const slice of [0, 1]) {
+          const index = first + lane;
+          if (index >= lightCount || !maskHolds(hits, masks[slice], lane)) continue;
+          const at = kept[slice] + rankBefore(hits, masks[slice], lane);
+          if (at < room[slice]) write(slice, start[slice] + at, index);
+        }
     }
-    if (lane < count && maskHolds(hits, layout.blendMask, lane)) {
-      const at = layout.blendBase + rankBefore(hits, layout.blendMask, lane);
-      write(layout.blendBase, layout.stride, at, lane);
-    }
-    if (lane === 0) {
-      write(0, layout.opaqueBase, 0, maskTotal(hits, layout, layout.opaqueMask));
-      write(0, layout.opaqueBase, 1, maskTotal(hits, layout, layout.blendMask));
-    }
+  };
+  walk();
+  // The last batch's words: those its lights fill.
+  const live = Math.ceil(
+    (lightCount - Math.floor(Math.max(lightCount - 1, 0) / batch) * batch) / 32,
+  );
+  const total = kept.map((sum, slice) => sum + maskTotal(hits, masks[slice], live));
+  [tiles[0], tiles[1]] = total;
+  if (Math.max(...total) <= layout.tileLights) return tiles;
+  // `spill`, thread zero, then the second walk.
+  for (const slice of [0, 1]) {
+    const slot = start[slice];
+    room[slice] = 0;
+    if (total[slice] <= layout.tileLights) continue;
+    const at = pool.head < 0x80000000 ? pool.head : 0xffffffff;
+    if (at !== 0xffffffff) pool.head += total[slice];
+    let first = layout.noSlice;
+    if (at < pool.capacity && total[slice] <= pool.capacity - at) {
+      first = layout.stride + at;
+      room[slice] = total[slice];
+      ends[slice] = first + total[slice];
+    } else pool.overflow = 1;
+    start[slice] = first;
+    tiles[slot] = first;
   }
+  kept = [0, 0];
+  hits.fill(0);
+  walk();
   return tiles;
 }
 
-/** The two lists a record carries, each read up to its count. */
-export function tileLists(layout: TileLayout, tiles: Uint32Array) {
-  return {
-    opaque: [...tiles.subarray(layout.opaqueBase, layout.opaqueBase + tiles[0])],
-    blend: [...tiles.subarray(layout.blendBase, layout.blendBase + tiles[1])],
+/** The lights a pixel of the tile walks in each slice, as `tileSlice` of the resolve reads
+ *  them: its list, past `TILE_LIGHTS` its slice of the pool, and every light of the scene when
+ *  the pool had no room. */
+export function tileLists(layout: TileLayout, tiles: Uint32Array, lightCount: number) {
+  const walk = (count: number, base: number) => {
+    const first = count <= layout.tileLights ? base : tiles[base];
+    return first === layout.noSlice
+      ? Array.from({ length: lightCount }, (_, index) => index)
+      : [...tiles.subarray(first, first + count)];
   };
+  return { opaque: walk(tiles[0], layout.opaqueBase), blend: walk(tiles[1], layout.blendBase) };
 }

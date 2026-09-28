@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import { frameTargetAllocation } from './targets.ts';
+import { requestFrameTargets } from './targetGrant.ts';
+import { standardSurface } from '../../../host/graph/graph.fixture.ts';
+import { surfaceOf } from '../../../page/surface.ts';
 import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import { frameTargetBytes } from '../../../scene/surfaceBuffer.ts';
 import { TAA_HISTORY_BYTES_PER_PIXEL } from '../../../taa/temporalAntialiasing.ts';
@@ -12,7 +15,7 @@ import {
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** An engine reduced to its targets, with a dummy temporal pass that notes its resizes. */
-function runtime() {
+function runtime(reflective = false) {
   const resized: number[][] = [],
     failures: string[] = [];
   const temporal = {
@@ -25,6 +28,14 @@ function runtime() {
   };
   const rt = {
     setup: { reserveHiz: true },
+    run: { diagnostic: 'beauty' },
+    layout: {
+      rows: {
+        packedCount: reflective ? 1 : 0,
+        packedRecs: reflective ? [{ material: surfaceOf(standardSurface({ roughness: 0 })) }] : [],
+      },
+    },
+    blendState: { blendGpu: [] },
     gpu: { device: fakeDevice({ limits: { maxTextureDimension2D: 8192 } }).device, temporal },
     capture: { capturing: false },
     capabilities: { unsupported: [] as string[] },
@@ -44,7 +55,7 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
     [3840, 2160],
   ]) {
     const base = frameTargetAllocation(rt, width, height);
-    assert.equal(base, frameTargetBytes(width, height, true));
+    assert.equal(base, frameTargetBytes(width, height, true) + 8 + 80);
     assert.equal(ensureTaaTargets(rt, width, height), width * height * TAA_HISTORY_BYTES_PER_PIXEL);
   }
   assert.ok(frameTargetBytes(3840, 2160, true) > 288 * 1024 * 1024, '4K exceeds the old ceiling');
@@ -63,4 +74,31 @@ test("a surface capture does not touch the view's history targets", () => {
   rt.capture.capturing = true;
   assert.equal(ensureTaaTargets(rt, 64, 64), 0, 'the capture reserve already carries the history');
   assert.deepEqual(resized, []);
+});
+
+test('an eligible receiver accounts for viewport reflection colour and its uniform', () => {
+  const { rt } = runtime(true);
+  assert.equal(
+    frameTargetAllocation(rt, 64, 32),
+    frameTargetBytes(64, 32, true) + 64 * 32 * 8 + 80,
+  );
+});
+
+test('targets that fit ask nothing of the device: the steady frame is free', () => {
+  const rt = {
+    setup: { viewport: [32, 32] },
+    run: { diagnostic: 'beauty' },
+    layout: { rows: { packedCount: 0, packedRecs: [] } },
+    blendState: { blendGpu: [] },
+    gpu: {
+      colorTexture: {},
+      targetSize: [32, 32],
+      surfaces: {},
+      reflection: { active: false },
+      targetGrant: undefined,
+    },
+    vis: {},
+  } as unknown as WebgpuPagesRuntime;
+  // A bare device: any creation or error scope would throw.
+  assert.equal(requestFrameTargets(rt, {} as GPUDevice), undefined);
 });

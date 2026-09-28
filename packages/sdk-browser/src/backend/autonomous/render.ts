@@ -2,7 +2,7 @@ import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 import type { BackendContext } from '../types.ts';
 import type { installSceneLighting } from '../../lighting/sceneLighting.ts';
 import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
-import type { CameraMotion, HostCamera } from '../../camera/world.ts';
+import type { HostCamera } from '../../camera/world.ts';
 import type { HostWorldPlacements } from '../../host/world/placements.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
 import { showBlendCopy } from '../../cluster/blendCopyMesh.ts';
@@ -12,11 +12,13 @@ import type { createGeometryBudget } from './pool.ts';
 import { createImageCut } from './imageCut.ts';
 import type { createAutonomousResidency } from './residency.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
+import type { WebglViewState } from './views.ts';
 
 /** What the autonomous frame decided, and whether it was held. */
 export type AutonomousRenderState = {
   visible: number;
-  selectedTriangles: number;
+  /** The cut's triangle counts under their metric names, spread into `metrics()`. */
+  triangles: { selectedTriangles: number; drawnTriangles: number; uncoveredTriangles: number };
   frustumRejected: number;
   lodLevel: number;
   overBudget: boolean;
@@ -25,7 +27,7 @@ export type AutonomousRenderState = {
 
 export const createAutonomousRenderState = (): AutonomousRenderState => ({
   visible: 0,
-  selectedTriangles: 0,
+  triangles: { selectedTriangles: 0, drawnTriangles: 0, uncoveredTriangles: 0 },
   frustumRejected: 0,
   lodLevel: 0,
   overBudget: false,
@@ -47,10 +49,9 @@ export function createAutonomousRender(options: {
   blendCopies: readonly BlendCopy[];
   /** The engine's world-matrix index, rebuilt once per scene revision. */
   worlds: HostWorldPlacements;
-  /** The cut drawn, the cut wanted and what the image asks the pool for (`imageCut.ts`). */
-  shown: PageRec[];
-  desired: PageRec[];
-  requested: PageRec[];
+  /** The drawn view: the cut drawn, the cut wanted, what the image asks the pool for
+   *  (`imageCut.ts`), its motion and its size, read at each frame (`views.ts`). */
+  view: WebglViewState;
   /** Moves when the placements change. */
   revision: () => number;
   /** The display graph's page ceiling, which the cover it pins may raise (`pages.ts`). */
@@ -58,12 +59,11 @@ export function createAutonomousRender(options: {
   /** The page store: the image's pages attach there, and its loads and releases move the cut's
    *  readiness (`geometry.ts`). */
   geometry: Pick<ReturnType<typeof createAutonomousGeometry>, 'sync' | 'held'>;
-  /** What the image keeps is gathered again once it drew another cut; `askedUrls` is all of it
-   *  but that cut, what the pool keeps as the next one is about to run (`residency.ts`). */
-  residency: Pick<ReturnType<typeof createAutonomousResidency>, 'keptChanged' | 'askedUrls'>;
-  /** The geometry pool: what it admits of the requests, and the shedding of what the image no
-   *  longer asks for (`pool.ts`). */
-  pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'fit' | 'held' | 'trim'>;
+  /** What the image keeps is gathered again once it drew another cut (`residency.ts`). */
+  residency: Pick<ReturnType<typeof createAutonomousResidency>, 'keptChanged'>;
+  /** The geometry pool: what it admits of the requests, what it holds of what the image asks for
+   *  and draws, and the shedding of what it no longer holds (`pool.ts`). */
+  pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'fit' | 'held' | 'follow' | 'trim'>;
 }) {
   const {
     state,
@@ -73,23 +73,27 @@ export function createAutonomousRender(options: {
     roots,
     blendCopies,
     worlds,
-    shown,
+    view,
     ceiling,
     geometry,
     residency,
     pool,
   } = options;
-  const motion: CameraMotion = {};
-  const cut = createImageCut({ ...options, viewport: context.viewport, held: geometry.held });
+  const cut = createImageCut({ ...options, held: geometry.held });
   const sourcesDessinees = roots.map((root) => root.pages[0]);
+  /** What the image asks for and draws moved: the streamer's pins and the pool follow it. */
+  const follow = () => {
+    residency.keptChanged();
+    pool.follow(view.requested, view.shown);
+  };
   const frame = (camera: HostCamera) => {
     // Frame entry: the order and its guarantees live in `../../frame/gateCore.ts`, which also copies
     // the host camera into the engine camera — the cut now reads only the latter.
     state.frameHeld = gate.enterFrame(
       context,
       camera,
-      motion,
-      context.viewport,
+      view.motion,
+      view.viewport,
       context.source,
       sourcesDessinees,
     );
@@ -105,21 +109,30 @@ export function createAutonomousRender(options: {
       });
       lighting.update();
     }
-    // Over the budget, the pages the last image drew but no longer asks for can go: this cut
+    // Over the budget, the pages the last image drew but the pool no longer holds can go: this cut
     // draws their nearest resident ancestor, before the scene is drawn again. A pool drawn since
     // the last cut first cuts what it asked for, so the image that sees it holds no more.
-    if (cut.readmit()) residency.keptChanged();
-    pool.trim(residency.askedUrls);
+    if (cut.readmit()) follow();
+    pool.trim();
     const selected = cut(gate.cam, gate.pixelError);
     state.visible = selected.visible;
-    state.selectedTriangles = selected.selectedTriangles;
+    const { triangles } = state;
+    triangles.selectedTriangles = selected.selectedTriangles;
+    triangles.drawnTriangles = selected.displayedTriangles;
+    triangles.uncoveredTriangles = selected.uncoveredTriangles;
     state.frustumRejected = selected.frustumRejected;
     state.lodLevel = selected.lodLevel;
     // Drawn pages past the display graph's page ceiling are reported, never replaced.
-    state.overBudget = attachedPages(shown) > ceiling();
+    state.overBudget = attachedPages(view.shown) > ceiling();
     geometry.sync();
-    residency.keptChanged();
-    gate.keep(state.visible, state.selectedTriangles, shown, state.lodLevel, state.overBudget);
+    follow();
+    gate.keep(
+      state.visible,
+      triangles.selectedTriangles,
+      view.shown,
+      state.lodLevel,
+      state.overBudget,
+    );
   };
   return Object.assign(frame, { hostBytes: cut.hostBytes });
 }

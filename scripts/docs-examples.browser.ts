@@ -4,8 +4,10 @@ import type { Browser, Page } from 'playwright';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
 import { leastDrawn, openExample, RENDER_ONLY } from './docs/examples/capture.ts';
+import { examplePages, parkedExampleIds as parked } from './docs/examples/pages.ts';
 import { physicsExamples } from './docs/examples/physics.ts';
 import { readyEntries as ready } from '../site/app/examples/list.ts';
+import { flagged, type HealthVerdict } from '../site/examples/kit/verdict.ts';
 
 /** The centre of the render, the kit's panels outside it. */
 const centre = (page: Page) =>
@@ -35,7 +37,46 @@ async function controlsDriveTheRender(browser: Browser, port: number) {
   await page.close();
 }
 
-test('every example file renders an image on its own, fetching Jolt only when it has physics, and the portal page fills with it', async () => {
+/**
+ * #798: the health check flies its tour on each backend and publishes its verdict: four parts with
+ * their lines, every line green but those a backend documents (neutral) and those waiting on an
+ * open issue (`until #n`, printed for the measurer), and no uncaught error. A slowed build (40 ms
+ * spent in every animation frame) turns the rate line of every part red, the verdict with it.
+ */
+async function healthCheckJudges(browser: Browser, port: number) {
+  const entry = ready.find(({ id }) => id === 'health-check');
+  assert.ok(entry);
+  const [found, flags]: string[][] = [[], []],
+    view = { width: 1728, height: 1117 };
+  for (const gpu of [true, false])
+    for (const slow of [0, 40]) {
+      const side = `${gpu ? 'WebGPU' : 'WebGL2'}${slow ? ' slowed' : ''}`;
+      const { page, errors } = await openExample(browser, port, entry, view, undefined, gpu, slow);
+      await page.waitForFunction(() => '__verdict' in globalThis, null, {
+        polling: 500,
+        timeout: 120_000,
+      });
+      const verdict = await page.evaluate(
+        () => (globalThis as unknown as { __verdict: HealthVerdict }).__verdict,
+      );
+      const rates = verdict.resultats.filter(({ name }) => name.endsWith(': FPS'));
+      if (slow) {
+        if (verdict.correct || !rates.length || rates.some(({ correct }) => correct))
+          found.push(`${side}: not every rate line red`);
+      } else {
+        if (rates.length !== 4) found.push(`${side}: ${rates.length} parts judged, not 4`);
+        for (const line of verdict.resultats)
+          if (line.correct === false)
+            (flagged(line) ? flags : found).push(`${side} ${line.name}: ${line.motif}`);
+      }
+      found.push(...errors.map((error) => `${side}: ${error}`));
+      await page.close();
+    }
+  console.log(`Waiting on open issues:\n${flags.join('\n') || '—'}`);
+  assert.deepEqual(found, []);
+}
+
+test('every example file loads with no error and renders an image on its own, fetching Jolt only when it has physics, the portal page fills with it, and the health check judges itself', async () => {
   const { server, port } = await startDocsServer();
   const browser = await launchChrome({ headless: true });
   try {
@@ -48,16 +89,24 @@ test('every example file renders an image on its own, fetching Jolt only when it
     // The live render is the page: the iframe takes most of the height under the header.
     const view = await frame.boundingBox();
     assert.ok(view && view.height > 900 * 0.7, `the demo fills the content area (${view?.height})`);
+    // #945: the icon every example asks the root for, naming none, is served and decodes.
+    const icon = await page.evaluate(
+      async () => (await createImageBitmap(await (await fetch('/favicon.ico')).blob())).width,
+    );
+    assert.equal(icon, 16);
     await page.close();
     // #276: with the machine's WebGPU device, then with none — a published example renders on
     // both, since it names no backend and the engine reads the machine it was opened on. Every
     // page is opened before the verdict, so the list names every example that stayed blank.
-    const physics = await physicsExamples(ready);
+    // #945: every page of site/examples, a parked one or one the gallery does not list included,
+    // loads with no error; a parked page is not asked to draw.
+    const [physics, pages] = await Promise.all([physicsExamples(ready), examplePages()]);
+    const listed = new Set(ready.map(({ id }) => id));
     const blank: string[] = [],
       jolt: string[] = [];
     for (const gpu of [true, false])
-      for (const example of ready) {
-        const share = leastDrawn(example.id, gpu);
+      for (const example of pages) {
+        const share = parked.has(example.id) ? 0 : leastDrawn(example.id, gpu);
         const opened = await openExample(
           browser,
           port,
@@ -68,20 +117,21 @@ test('every example file renders an image on its own, fetching Jolt only when it
         );
         if (opened.errors.length > 0 || opened.drawn < share)
           blank.push(
-            `${example.id} ${gpu ? 'with' : 'without'} WebGPU drew ${opened.drawn}${opened.errors[0] ? `: ${opened.errors[0]}` : ''}`,
+            `${example.id} ${gpu ? 'with' : 'without'} WebGPU drew ${opened.drawn}${opened.errors.map((error) => `: ${error}`).join('')}`,
           );
         // #395, #397: Jolt, and the page's code that drives it, are fetched by a page that turns
         // physics on, read from its own source (#503), and by no other.
         const fetched = opened.requests.some((url) =>
           /physicsWorker\.js|joltPhysics\w*\.wasm|\/session-\w+\.js/.test(url),
         );
-        if (fetched !== physics.has(example.id))
+        if (listed.has(example.id) && fetched !== physics.has(example.id))
           jolt.push(`${example.id} ${fetched ? 'fetched' : 'did not fetch'} the physics`);
         await opened.page.close();
       }
     // Both lists in one verdict: a physics mismatch never hides a blank page (#503).
     assert.deepEqual({ jolt, blank }, { jolt: [], blank: [] });
     await controlsDriveTheRender(browser, port);
+    await healthCheckJudges(browser, port);
   } finally {
     await browser.close();
     await new Promise((resolve) => server.close(resolve));

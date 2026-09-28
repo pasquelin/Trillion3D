@@ -1,7 +1,7 @@
 // Options, harness views, and server mounts for `bench.ts`.
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { VIEWS } from './poses.ts';
+import { FRAMES_PER_SEGMENT, VIEWS } from './poses.ts';
 import { ASSETS } from './scene.ts';
 import { lightingSettings } from './lightingOptions.ts';
 import type { SideBase } from './dists.ts';
@@ -107,9 +107,12 @@ export function readOptions(argv: string[], root: string) {
       if (!Number.isFinite(parsed) || parsed < 0) throw new Error(`--pixelError invalid: ${value}`);
       return parsed;
     });
+  const dpr = number('dpr', 1);
+  if (!(dpr > 0)) throw new Error('--dpr must be a strictly positive number');
   const settings: BenchSettings = {
     engine,
-    frames: number('images', 60),
+    // A moving run covers one trajectory segment by default.
+    frames: number('images', FRAMES_PER_SEGMENT),
     warmup: number('chauffe', 8),
     pixelErrors,
     // `--max-pages`: a limit in PAGES on the geometry pool, for test scenes; without it,
@@ -125,6 +128,7 @@ export function readOptions(argv: string[], root: string) {
     poolVivant: live(flags, mioSi),
     width: number('largeur', 1280),
     height: number('hauteur', 720),
+    dpr,
     port: number('port', 0),
     // `--profil off` replays the same series without per-stage timing: fidelity gate.
     stageProfile: (flags.get('profil') ?? 'on') !== 'off',

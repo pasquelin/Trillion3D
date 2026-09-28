@@ -6,10 +6,12 @@ import {
   EVENT_WORDS,
   HIT_WORDS,
   MODULE_ERROR,
+  PLANE_WORDS,
   WATER_PIECE_WORDS,
   POSE_WORDS,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
+import { WAVE_DOUBLES, type Waves } from '../../../sdk-core/src/fluids/index.ts';
 import { joltImports, type SpawnJoltThread } from './joltThreads.ts';
 
 /** The flat C API of `joltPhysics.wasm` (`packages/physics-jolt-wasm/src/world.cpp`). */
@@ -29,11 +31,15 @@ interface JoltExports {
   jolt_update_error(): number;
   jolt_refused_count(): number;
   jolt_refused(i: number): number;
+  jolt_diverged_count(): number;
+  jolt_diverged(i: number): number;
   jolt_error(): number;
   jolt_active_count(): number;
   jolt_owed_leaves(): number;
   jolt_water_query(top: number, sliceLength: number): number;
   jolt_water_pieces(): number;
+  jolt_wave_buffer(count: number): number;
+  jolt_water_planes(pieces: number, count: number, level: number, sample: number): number;
   jolt_cast_buffer(count: number): number;
   jolt_cast(count: number): number;
   jolt_character(): number;
@@ -43,6 +49,7 @@ interface JoltExports {
   jolt_vehicle_words(): number;
   jolt_soft(): number;
   jolt_soft_words(): number;
+  jolt_concurrency(count: number): number;
 }
 
 /** Bytes of Jolt's per-step scratch allocator, taken from the memory budget. */
@@ -136,9 +143,14 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
     /** The engine ids of the bodies whose shape the last step refused. */
     refused: () =>
       Array.from({ length: jolt.jolt_refused_count() }, (_, i) => jolt.jolt_refused(i)),
+    /** The engine ids of the bodies the last step left non-finite: taken out, nothing sent. */
+    diverged: () =>
+      Array.from({ length: jolt.jolt_diverged_count() }, (_, i) => jolt.jolt_diverged(i)),
     /** The ids of the joints the last step broke. */
     broken: () => Array.from({ length: jolt.jolt_broken_count() }, (_, i) => jolt.jolt_broken(i)),
     active: () => jolt.jolt_active_count(),
+    /** Bounds the jobs a step splits its work into (`createThreadTuner`); returns the bound. */
+    concurrency: (count: number) => jolt.jolt_concurrency(count),
     /** The vehicles' state after the last step (`vehicleLayout.ts`), valid until the next. */
     vehicles: () => new Uint32Array(memory.buffer, jolt.jolt_vehicles(), jolt.jolt_vehicle_words()),
     /** The soft bodies the last step moved (`softLayout.ts`), valid until the next. */
@@ -148,6 +160,23 @@ export function startJolt({ exports, memory }: OpenedJolt, budget: PhysicsBudget
     water(top: number, sliceLength: number) {
       const count = jolt.jolt_water_query(top, sliceLength);
       return new Float32Array(memory.buffer, jolt.jolt_water_pieces(), count * WATER_PIECE_WORDS);
+    },
+    /** The planes (`PLANE_WORDS` each) of the `count` pieces at `from` (by default those
+     *  `water` listed last), on `waves` at their time over water at `level`, each square at least
+     *  `sample` wide (`waterPlanes.cpp`); valid until the next step. */
+    planes(waves: Waves, level: number, sample: number, count: number, from?: number) {
+      const at = jolt.jolt_wave_buffer(waves.count);
+      const out = new Float64Array(memory.buffer, at, waves.count * WAVE_DOUBLES);
+      for (let i = 0, o = 0; i < waves.count; i++, o += WAVE_DOUBLES) {
+        out[o] = waves.dirX[i];
+        out[o + 1] = waves.dirZ[i];
+        out[o + 2] = waves.k[i];
+        out[o + 3] = waves.amplitude[i];
+        out[o + 4] = waves.lateral[i];
+        out[o + 5] = waves.phase[i];
+      }
+      const planes = jolt.jolt_water_planes(from ?? jolt.jolt_water_pieces(), count, level, sample);
+      return new Uint32Array(memory.buffer, planes, count * PLANE_WORDS);
     },
     /** Answers scene queries (`CAST_WORDS` each) against the last step; a copy of their hits. */
     cast(queries: Uint32Array) {

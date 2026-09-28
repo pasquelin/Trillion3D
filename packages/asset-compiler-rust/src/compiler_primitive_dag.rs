@@ -49,12 +49,17 @@ pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
     (min, median, max)
 }
 
+/// `tile_log2` is the primitive's tile of the world in object units: its pages' grid follows it
+/// (`geometry_page_quant::tile`).
+#[allow(clippy::too_many_arguments)]
 pub(super) fn build_dag_primitive(
     o: &Options,
     pos: &[f32],
     carried: &[&geometry_page::Attribute],
     index_values: &[u32],
     proxy_demand: crate::proxy::cut::CutDemand,
+    blended: bool,
+    tile_log2: i32,
     store_packed: &(impl Fn(&[u32], i32) -> Result<(Value, bool)> + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
@@ -76,9 +81,6 @@ pub(super) fn build_dag_primitive(
         crate::dag::build_culling_bvh(pos, &dag)
     };
     laps.lap("cullingMs");
-    let collision =
-        crate::physics_cook::cook_primitive(o, &dag, &order, &culling, pos, index_values)?;
-    laps.lap("physicsMs");
     let base_id = 0usize;
     let mut page_of = vec![0usize; dag.len()];
     for (rank, &slot) in order.iter().enumerate() {
@@ -87,17 +89,23 @@ pub(super) fn build_dag_primitive(
     let position_exponent = crate::geometry_page_quant::primitive_exponent(
         pos,
         dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error),
+        blended,
+        tile_log2,
     );
-    let (pages, reused, stream_report) = bundle_dag_pages(
-        o,
-        &dag,
-        &groups,
-        &order,
-        base_id,
-        pos,
-        &|slice: &[u32]| store_packed(slice, position_exponent),
-    )?;
-    laps.lap("pagesMs");
+    // The collider and the pages read the same DAG and neither reads what the other writes: they
+    // run side by side on the compiler's pool, each result kept in its own place, so every byte is
+    // the serial cook's, and the cook's error still comes first (#956).
+    let (collision, paged) = laps.join(
+        ("physicsMs", || {
+            crate::physics_cook::cook_primitive(o, &dag, &order, &culling, pos, index_values)
+        }),
+        ("pagesMs", || {
+            let store = |slice: &[u32]| store_packed(slice, position_exponent);
+            bundle_dag_pages(o, &dag, &groups, &order, base_id, pos, &store)
+        }),
+    );
+    let collision = collision?;
+    let (pages, reused, stream_report) = paged?;
     // One plane test per cluster, on the triangles it already holds: cheap next to the DAG itself,
     // and the only place the partition and the positions are both in hand.
     let cluster_planes: Vec<Option<crate::coplanar::ClusterPlane>> = order

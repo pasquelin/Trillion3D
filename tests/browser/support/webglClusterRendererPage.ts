@@ -16,7 +16,7 @@ export async function execute() {
   const gl = canvas.getContext('webgl2');
   if (!gl) return { unavailable: 'WebGL2 unavailable' };
   const renderer = new WebglClusterRenderer(gl),
-    scene = new G.GraphScene(),
+    scene = new G.Scene(),
     camera = G.perspectiveCamera(60, 1, 0.1, 10),
     drawCamera = host.readHostDrawCamera(host.createHostDrawCamera(), camera),
     { mesh, material: basic, geometry: triangleGeometry } = triangle();
@@ -76,7 +76,7 @@ export async function execute() {
   scene.clear();
   const sun = G.directionalLight(0xffffff, 1);
   sun.position.set(0, 0, 1);
-  scene.add(sun, sun.target!);
+  scene.add(sun, sun.target);
   scene.updateMatrixWorld(true);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   renderer.draw([mesh], scene, drawCamera, false, true);
@@ -84,13 +84,13 @@ export async function execute() {
   scene.clear();
   const spot = G.spotLight(0xffffff, 1, 0, 0.5, 0, 2);
   spot.position.set(0, 0, 1);
-  scene.add(spot, spot.target!);
+  scene.add(spot, spot.target);
   scene.updateMatrixWorld(true);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   renderer.draw([mesh], scene, drawCamera, false, true);
   const zeroPenumbraSpot = pixel(gl, 16, 16);
   scene.clear();
-  scene.add(sun, sun.target!);
+  scene.add(sun, sun.target);
   scene.updateMatrixWorld(true);
   placeRig(mesh, camera, sun, drawCamera, 1e8);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -124,7 +124,7 @@ export async function execute() {
   scene.clear();
   const textures = textureFixtures(renderer, gl, mesh, scene, drawCamera, pixel);
   const normalFrames = normalMapFrames(renderer, gl, mesh, drawCamera, pixel);
-  const sourceLights = new G.GraphScene(),
+  const sourceLights = new G.Scene(),
     nonPhysicalPoint = G.pointLight(0xffffff, 1);
   nonPhysicalPoint.decay = 1;
   sourceLights.add(nonPhysicalPoint);

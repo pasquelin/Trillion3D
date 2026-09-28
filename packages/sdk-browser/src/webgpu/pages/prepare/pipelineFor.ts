@@ -1,3 +1,5 @@
+import { fallbackBindEntries } from '../../core/fallbackEntries.ts';
+import { entriesReady } from '../../core/bindIdentity.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
 import { projectedPageError } from '../../../page/selection/selection.ts';
 import { BASE_SLOTS, BIN_BACK, BIN_FRONT, BIN_NONE } from '../../../gpu/draw/draw.ts';
@@ -66,19 +68,17 @@ export const visBin = (rec: PageRec): 0 | 1 | 2 => {
   return (side === 'back') !== windingCw(rec) ? BIN_FRONT : BIN_BACK;
 };
 
-/** Voids every fallback group when the layout, the page pool or the uniform they name changed
+/** Voids every fallback group when the layout or a resource their shared entries name changed
  *  identity. Read once before the fallback pass serves a group. */
 export function voidStaleFallbackGroups(rt: WebgpuPagesCore) {
   const { gpu } = rt,
-    { next } = gpu.fallbackIdentity;
-  next[0] = gpu.bindGroupLayout;
-  next[1] = gpu.cache?.buffer;
-  next[2] = gpu.uniformBuffer;
-  if (gpu.fallbackIdentity.moved()) gpu.bindGroups.clear();
+    identity = gpu.fallbackIdentity;
+  identity.entries[0] ??= fallbackBindEntries(rt);
+  if (identity.entriesMoved(gpu.bindGroupLayout)) gpu.bindGroups.clear();
 }
 
-/** The fallback group of one position buffer, built once per position and kept until
- *  `voidStaleFallbackGroups` drops it. */
+/** Position identity is the cache key; the fallback entry list governs every shared resource.
+ *  A replaced position therefore gets its own group, independently of family invalidation. */
 export function bindGroupFor(rt: WebgpuPagesCore, device: GPUDevice, position: GPUBuffer) {
   const { gpu } = rt;
   let id = gpu.positionIds.get(position);
@@ -87,14 +87,16 @@ export function bindGroupFor(rt: WebgpuPagesCore, device: GPUDevice, position: G
     gpu.positionIds.set(position, id);
   }
   let group = gpu.bindGroups.get(id);
-  if (!group && gpu.bindGroupLayout && gpu.cache && gpu.uniformBuffer) {
+  // Readiness is read on the shared list, built once: a miss while a resource is absent allocates
+  // nothing, and the item list below differs from it only by the position it is given.
+  if (
+    !group &&
+    gpu.bindGroupLayout &&
+    entriesReady((gpu.fallbackIdentity.entries[0] ??= fallbackBindEntries(rt)))
+  ) {
     group = device.createBindGroup({
       layout: gpu.bindGroupLayout,
-      entries: [
-        { binding: 0, resource: { buffer: gpu.cache.buffer } },
-        { binding: 1, resource: { buffer: position } },
-        { binding: 2, resource: { buffer: gpu.uniformBuffer, size: UNIFORM_STRIDE } },
-      ],
+      entries: fallbackBindEntries(rt, { position }),
     });
     gpu.bindGroups.set(id, group);
   }

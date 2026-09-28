@@ -3,6 +3,7 @@ import { composeMatrix4At } from '../../../sdk-core/src/math/matrix/matrix4Compo
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { SceneLink } from '../../../sdk-core/src/world/object/sceneLink.ts';
 import type { Bodied } from './bodies.ts';
+import { createNestedNodes } from './nodePose.ts';
 
 type Batch = NonNullable<ReturnType<NonNullable<SceneLink['seat']>>>['batch'];
 const UNASKED = -2,
@@ -22,17 +23,21 @@ const atRest = ({ parent, position, quaternion, scale }: Object3D) =>
  * transform tree every node shares, and its world matrix is composed straight into the row the
  * renderer draws it from (`SceneLink.seat`). The world hears the written span of each instance
  * buffer once per batch of writes. A body the world holds no row for, one with children, or any
- * body while the scene itself is moved, is handed to `SceneLink.posed`, which recomposes it.
+ * body while the scene itself is moved, is handed to `SceneLink.posed`, which recomposes it. A
+ * node nested under others (`bindNode`) keeps its world pose here, posed locally to its parent
+ * (`createNestedNodes`) and handed to `SceneLink.posed` too.
  */
 export function createPosePlacer(maxBodies: number, root: Object3D) {
   const position = new Float64Array(maxBodies * 3),
     quaternion = new Float64Array(maxBodies * 4),
     scale = new Float64Array(maxBodies * 3);
-  /** Each slot's mesh, the generation it was bound at (-1: none) and its node in the tree. */
+  /** Each slot's mesh, the generation it was bound at (-1: none) and its node in the tree (-1:
+   *  a nested node's, `nested`). */
   const owner: (Bodied | null)[] = [],
     bound = new Int16Array(maxBodies).fill(-1),
     node = new Int32Array(maxBodies);
   const slotOf = new Map<Bodied, number>();
+  const nested = createNestedNodes(position, quaternion, scale);
   /** Each slot's row (`UNASKED` until asked, `NO_ROW` when it has none or must not use it) and
    *  batch, as a rank in `batches`, whose written span is `from`..`to`. */
   const rowOf = new Int32Array(maxBodies).fill(UNASKED),
@@ -45,24 +50,34 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
   const tree = Object3D._treeOf(root);
   let epoch = NaN,
     direct = false,
-    placed: Bodied[] = [];
+    placed: Object3D[] = [];
+  /** The nested slots written in this batch, posed at its end, each after its ancestors'. */
+  const due: number[] = [];
   /** The tree's stores, read once per batch: they are replaced when the tree grows. */
   let tp = tree.position,
     tq = tree.quaternion,
     flags = tree.flags;
-  /** Slot `index`'s pose, as its arrays hold it, into the tree and its row. */
-  const commit = (index: number) => {
+  /** The listed slots into the tree and rows; its stores as locals, not reloaded at each use. */
+  const commitAll = (list: Int32Array, count: number) => {
+    const p = tp,
+      q = tq,
+      f = flags;
+    for (let i = 0; i < count; i++) commit(list[i], p, q, f);
+  };
+  /** Slot `index`'s pose, as its arrays hold it, into the tree's stores and its row. */
+  const commit = (index: number, sp: Float64Array, sq: Float64Array, sf: Uint8Array) => {
     const p = index * 3,
       q = index * 4,
       n = node[index];
-    tp[n * 3] = position[p];
-    tp[n * 3 + 1] = position[p + 1];
-    tp[n * 3 + 2] = position[p + 2];
-    tq[n * 4] = quaternion[q];
-    tq[n * 4 + 1] = quaternion[q + 1];
-    tq[n * 4 + 2] = quaternion[q + 2];
-    tq[n * 4 + 3] = quaternion[q + 3];
-    flags[n] |= NODE_TRS_DIRTY;
+    if (n < 0) return void due.push(index);
+    sp[n * 3] = position[p];
+    sp[n * 3 + 1] = position[p + 1];
+    sp[n * 3 + 2] = position[p + 2];
+    sq[n * 4] = quaternion[q];
+    sq[n * 4 + 1] = quaternion[q + 1];
+    sq[n * 4 + 2] = quaternion[q + 2];
+    sq[n * 4 + 3] = quaternion[q + 3];
+    sf[n] |= NODE_TRS_DIRTY;
     if (rowOf[index] === UNASKED) seatOf(index, owner[index]!);
     const b = batchOf[index],
       row = rowOf[index];
@@ -96,7 +111,7 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
     quaternion[q + 1] = pose[at + 4];
     quaternion[q + 2] = pose[at + 5];
     quaternion[q + 3] = pose[at + 6];
-    commit(index);
+    commit(index, tp, tq, flags);
   };
   /** The mesh keeps its own numbers again, as they stand. */
   const release = (mesh: Bodied) => {
@@ -117,6 +132,7 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
       if (was !== undefined && was !== index) owner[was] = null;
       slotOf.set(mesh, index);
       owner[index] = mesh;
+      nested.drop(index);
       mesh.position._share(position.subarray(index * 3, index * 3 + 3));
       mesh.quaternion._share(quaternion.subarray(index * 4, index * 4 + 4));
       mesh.scale._share(scale.subarray(index * 3, index * 3 + 3));
@@ -124,10 +140,23 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
       node[index] = mesh.index;
       rowOf[index] = UNASKED;
     },
+    /** Slot `index` holds `target`, a node under others (a compiled model's) at `generation`, of
+     *  world scale `size`: its poses are written as its local pose, from where it stands. */
+    bindNode(index: number, generation: number, target: Object3D, size: readonly number[]) {
+      const before = owner[index];
+      if (before && slotOf.get(before) === index) release(before);
+      owner[index] = null;
+      nested.bind(index, target, size);
+      bound[index] = generation;
+      node[index] = -1;
+    },
+    follow: nested.follow,
     /** Every mesh keeps its own numbers again (the physics stops). */
     clear() {
       for (const mesh of [...slotOf.keys()]) release(mesh);
       owner.length = 0;
+      nested.clear();
+      due.length = 0;
       bound.fill(-1);
     },
     /** Opens a batch of writes: the rows asked before are dropped when the world moved them. */
@@ -148,47 +177,15 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
       flags = tree.flags;
     },
     place,
-    /**
-     * Draws the `count` slots listed in `list` the fraction `step` of the way from where they are
-     * drawn to their targets (7 numbers per slot in `target`, at the slot's index × 7), each turn
-     * normalised and taken the shorter way round; a `step` of 1 lands on the targets exactly. One
-     * loop over flat arrays for the whole list: node, tree and row of every slot.
-     */
-    draw(list: Int32Array, count: number, target: Float32Array, step: number) {
-      if (step === 1) {
-        for (let i = 0; i < count; i++) place(list[i], target, list[i] * 7);
-        return;
-      }
-      for (let i = 0; i < count; i++) {
-        const index = list[i],
-          o = index * 7;
-        const p = index * 3,
-          q = index * 4;
-        position[p] += (target[o] - position[p]) * step;
-        position[p + 1] += (target[o + 1] - position[p + 1]) * step;
-        position[p + 2] += (target[o + 2] - position[p + 2]) * step;
-        // A quaternion and its opposite are one rotation: the target on the drawn one's side.
-        const dot =
-          quaternion[q] * target[o + 3] +
-          quaternion[q + 1] * target[o + 4] +
-          quaternion[q + 2] * target[o + 5] +
-          quaternion[q + 3] * target[o + 6];
-        const s = dot < 0 ? -1 : 1;
-        const x = quaternion[q] + (s * target[o + 3] - quaternion[q]) * step,
-          y = quaternion[q + 1] + (s * target[o + 4] - quaternion[q + 1]) * step,
-          z = quaternion[q + 2] + (s * target[o + 5] - quaternion[q + 2]) * step,
-          w = quaternion[q + 3] + (s * target[o + 6] - quaternion[q + 3]) * step;
-        const n = 1 / (Math.sqrt(x * x + y * y + z * z + w * w) || 1);
-        quaternion[q] = x * n;
-        quaternion[q + 1] = y * n;
-        quaternion[q + 2] = z * n;
-        quaternion[q + 3] = w * n;
-        commit(index);
-      }
-    },
+    /** The listed slots, their poses as their arrays hold them, into the tree and their rows. */
+    commit: commitAll,
     /** Closes the batch: the world hears the written rows and the nodes it recomposes itself. */
     end() {
       const link = root._link;
+      // A nested node's local pose is read against its parent's world: ancestors first.
+      if (due.length > 1) nested.order(due);
+      for (const index of due) placed.push(nested.place(index));
+      due.length = 0;
       for (let b = 0; b < batches.length; b++)
         if (to[b] >= 0) link?.placed?.(batches[b], from[b], to[b]);
       // The list is read before the next frame, which gets a fresh one.

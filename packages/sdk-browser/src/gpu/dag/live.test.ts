@@ -23,25 +23,34 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
   // following level from its level's node count — known at packing too. No
   // indirection, hence no argument recopy, and no level visits the whole hierarchy.
   assert.deepEqual(lancements.slice(2, 5), [
-    { noyau: 'dagLevel0', groupes: 1 },
+    { noyau: 'dagRootLevel', groupes: 1 },
     { noyau: 'dagLevel1', groupes: Math.ceil(ETAGES[1] / 64) },
     { noyau: 'dagLevel2', groupes: Math.ceil(ETAGES[2] / 64) },
   ]);
   const ordre = lancements.map((l) => l.noyau);
   assert.ok(ordre.indexOf('dagWanted') > ordre.lastIndexOf('dagLevel2'));
   assert.ok(ordre.indexOf('dagMask') > ordre.indexOf('dagWanted'));
-  // The count launched flat is that of primitives, blocks or a hierarchy level:
+  // The count launched flat is that of primitives, blocks, a hierarchy level or one workgroup:
   // never that of clusters.
   const plats = lancements.filter((l) => l.groupes !== 'indirect').map((l) => l.noyau);
-  assert.deepEqual(plats, ['dagPrepare', 'dagLevel0', 'dagLevel1', 'dagLevel2', 'dagDrawPrefix']);
+  assert.deepEqual(plats, [
+    'dagPrepare',
+    'dagRootLevel',
+    'dagLevel1',
+    'dagLevel2',
+    'dagDrawPrefix',
+    'dagSortRequests',
+    'dagListEvictions',
+  ]);
 });
 
 test('wait between launches depends only on depth, not on cluster count', () => {
   const { encoder, lancements } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(true));
-  // Log clear, prepare, one pass per level (three), candidates, mask, prefix and compaction: the
-  // cut rule decides each cluster once, in the mask, with no round per primitive before it.
-  assert.equal(lancements.length, 9);
+  // Log clear, prepare, one pass per level (three), candidates, mask, prefix, compaction, the
+  // request sort and the eviction queue: the cut rule decides each cluster once, in the mask, with
+  // no round per primitive before it.
+  assert.equal(lancements.length, 11);
   const noyaux = lancements.map((l) => l.noyau);
   assert.ok(!noyaux.includes('dagArgs') && !noyaux.includes('dagDrawCount'));
   assert.equal(noyaux[0], 'dagClearDrawn');
@@ -67,7 +76,7 @@ test('without a resident cut, the mask follows the list and nothing is compacted
   assert.equal(masque?.groupes, 'indirect');
   assert.equal(masque?.liste, LIVE);
   // Descent itself is encoded in both cases: it does not depend on residency.
-  assert.ok(noyaux.includes('dagLevel0') && noyaux.includes('dagLevel1'));
+  assert.ok(noyaux.includes('dagRootLevel') && noyaux.includes('dagLevel1'));
   assert.ok(noyaux.includes('dagLevel2'));
 });
 

@@ -5,39 +5,36 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { shadowPoolSide } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
-import { asWebgpuDevice } from '../../../../../tests/kit/gpu/webgpuDevice.ts';
+import { refusingDevice } from './poolDevice.fixture.ts';
+import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { holdWebgpuFrame } from '../frame/hold.ts';
 import { settledRt } from '../frame/hold.fixture.ts';
 import { sizeShadowPool } from './poolSize.ts';
 import { captureColorView } from '../pages/io/colorCapture.ts';
+import { createWebgpuViews } from '../pages/state/view.ts';
 import type { HostCamera } from '../../camera/world.ts';
 
 /** A session whose device refuses every texture past `limit` bytes, and a frame loop reduced to
  *  what `renderWebgpuPages` does around the pool: size it, hold or draw, wait for the next frame.
  *  `shown` records, per presented image, whether the shadow pass could draw in it. */
 function frames(limit = Infinity) {
+  installGpuGlobals();
   const rt = settledRt();
   const lights = createWebgpuLightState(shadowPoolSide(300, 150));
   let texture: object | undefined;
-  const gpu = asWebgpuDevice({
-    createTexture: ({ size }: { size: number[] }) => {
-      if (size[0] * size[1] * 4 > limit) gpu.raise('Out of memory');
-      return { destroy() {}, createView: () => ({}) };
-    },
-    queue: { onSubmittedWorkDone: async () => {} },
-  });
+  const gpu = refusingDevice(limit, { queue: { onSubmittedWorkDone: async () => {} } });
   lights.shadows = {
     get texture() {
       return texture;
     },
-    makePool: (side: number) =>
+    makePool: (side: number, layers: number) =>
       gpu.device.createTexture({
-        size: [side * 128, side * 128, 1],
+        size: [side * 128, side * 128, layers],
         format: 'depth32float',
         usage: 0,
       }),
-    sizePool: (_: number, made: object) => void (texture = made),
+    sizePool: (_: number, __: number, made: object) => void (texture = made),
   } as unknown as NonNullable<typeof lights.shadows>;
   lights.store.add({ ...SUN, id: 'shadow sun' });
   const shown: boolean[] = [],
@@ -122,9 +119,9 @@ for (const asked of ['by a frame', 'by the capture'])
       temporalHizState: {},
     });
     Object.assign(s.rt.services, { residency: { busy: false, pending: undefined } });
-    // The frame targets already fit the capture's size: nothing else is asked of the device.
     Object.assign(s.rt.gpu, { targetSize: [64, 64], surfaces: {} });
     Object.assign(s.rt.vis, { visTexture: {} });
+    Object.assign(s.rt, { views: createWebgpuViews(s.rt) });
     if (asked === 'by a frame') sizeShadowPool(s.rt);
     const capture = captureColorView(s.rt, {} as HostCamera, { width: 64, height: 64 });
     // The capture runs up to its first wait before the call returns: it is under way, and waits.

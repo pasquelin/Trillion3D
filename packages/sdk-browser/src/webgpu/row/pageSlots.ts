@@ -7,15 +7,27 @@ import type { PageRec } from '../../page/selection/selection.ts';
  * share one index-page url while each keeps a quantized geometry page of its own. The address is
  * therefore the geometry page's url wherever the record carries one, and the index page's url
  * otherwise — two such clusters take two slots and each decodes its own page, where one address
- * would have had one of them decode the other's bytes.
- *
- * A transparent placement carries no geometry page (`../../page/selection/collect.ts`) and its forward draw
- * reads INDEX words out of its slot (`../transparent/spans.ts`, then `indices[base+local]` in
- * `../blend/shader.ts`): it sits at the index address and is served the index page, while the
- * opaque record of the same primitive keeps its page at that page's own address. Neither gives
- * anything up for the two to coexist.
+ * would have had one of them decode the other's bytes. A transparent cluster is no exception: its
+ * forward draw decodes the same page (`../blend/shader.ts`).
  */
-export const pageAddress = (rec: PageRec) => rec.geometryPage?.url ?? rec.url;
+export const pageAddress = (rec: Pick<PageRec, 'url' | 'geometryPage'>) =>
+  rec.geometryPage?.url ?? rec.url;
+
+/**
+ * Starts the read of a cluster's geometry page ahead of its admission (`../residency/admission.ts`)
+ * through the host's page reader, the one the admission's own read goes through, which joins it.
+ * A cluster without a geometry page is served from memory: nothing to start. A failed read is the
+ * admission's to report, when its own read meets it.
+ */
+export const readGeometryAhead =
+  (
+    geometryUrls: ReadonlyMap<string, string>,
+    read: (url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>,
+  ) =>
+  (rec: PageRec, signal: AbortSignal, priority?: number) => {
+    const url = geometryUrls.get(pageAddress(rec));
+    if (url !== undefined) read(url, signal, priority).catch(() => {});
+  };
 
 /**
  * What the geometry pool holds for the scene, walked once from the catalogue.

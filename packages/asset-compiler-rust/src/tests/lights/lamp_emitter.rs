@@ -155,3 +155,19 @@ fn the_emitter_sphere_fixture_yields_its_radius() {
     assert!((radius - 0.2).abs() < 1e-6, "{radius}");
     assert_eq!(lights["counts"]["light-emitter-radius-derived"], json!(1));
 }
+
+// #519: a lamp a hidden node hides (`KHR_node_visibility`) is off: it is not in `lights.json`.
+#[test]
+fn a_lamp_under_a_hidden_node_is_off() {
+    for (visible, count) in [(true, 1), (false, 0)] {
+        let group =
+            json!({"children":[3],"extensions":{"KHR_node_visibility":{"visible":visible}}});
+        let nodes = json!([{"mesh":0},{"mesh":0}, group, lamp_node_beside()]);
+        let (_root, options) = scene(emissive(false), point_lamp(3.0), nodes);
+        assert_eq!(
+            lights_of(&options)["count"],
+            json!(count),
+            "visible {visible}"
+        );
+    }
+}

@@ -1,3 +1,4 @@
+import { SHADOW_ARRAY, arrayView } from '../../gpu/shadow/layers.ts';
 import {
   MAX_SHADOW_SLICES,
   PROBE_FLOATS,
@@ -17,7 +18,6 @@ import { SHADOW_TRANSMITTANCE_FORMAT } from '../../gpu/shadow/transmittance.ts';
  * stays lit exactly as before that ray existed.
  */
 const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16;
-
 /**
  * Bindings of the deferred pass. The unlit view stops at the surfaces and the uniform;
  * the contract program adds the declared lights, their per-tile lists, their shadow slices
@@ -44,7 +44,7 @@ export function deferredLayoutEntries(
       { binding: 6, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
       { binding: 7, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
       { binding: 8, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'read-only-storage' } },
-      { binding: 9, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
+      { binding: 9, visibility: GPUShaderStage.FRAGMENT, texture: SHADOW_ARRAY },
       { binding: 10, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'comparison' } },
       // Resident proxy of the sun's distant shadow: a single binding, which carries both
       // the columns a ray traverses, that ray's settings and the two counters of the
@@ -54,12 +54,12 @@ export function deferredLayoutEntries(
       {
         binding: CONTRACT_SHADOW_BINDINGS.transmittance,
         visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'unfilterable-float' },
+        texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
       },
       {
         binding: CONTRACT_SHADOW_BINDINGS.translucentDepth,
         visibility: GPUShaderStage.FRAGMENT,
-        texture: { sampleType: 'depth' },
+        texture: SHADOW_ARRAY,
       },
     );
   // The shadow pages the resolve reads, recorded for the scheduler: only the opaque resolve asks.
@@ -84,21 +84,9 @@ export function deferredLayoutEntries(
   return entries;
 }
 
-export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce = false) {
-  const fragment = GPUShaderStage.FRAGMENT;
-  const composition = (share: GPUTextureSampleType) =>
-    device.createBindGroupLayout({
-      entries: [
-        { binding: 0, visibility: fragment, texture: { sampleType: 'unfilterable-float' } },
-        { binding: 1, visibility: fragment, buffer: { type: 'uniform' } },
-        { binding: 2, visibility: fragment, texture: { sampleType: share } },
-      ],
-    });
-  return {
-    lighting: device.createBindGroupLayout({ entries: deferredLayoutEntries(direct, bounce) }),
-    composition: { still: composition('uint'), accumulated: composition('unfilterable-float') },
-  };
-}
+/** The resolve's layout; each composition's is its own (`compositions.ts`). */
+export const createDeferredLightingLayout = (device: GPUDevice, direct: boolean, bounce = false) =>
+  device.createBindGroupLayout({ entries: deferredLayoutEntries(direct, bounce) });
 
 /**
  * Contract substitute resources: an empty tile list, shadow records with no light and an empty
@@ -178,8 +166,8 @@ export function createDeferredPlaceholders(device: GPUDevice) {
     tiles,
     slices,
     requests,
-    atlasView: atlas.createView(),
-    transmittanceView: transmittance.createView(),
+    atlasView: arrayView(atlas),
+    transmittanceView: arrayView(transmittance),
     sampler,
     bounceGrid,
     probes,

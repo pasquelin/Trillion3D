@@ -1,8 +1,8 @@
 /**
  * WHAT A NODE, A SURFACE OR A TEXTURE IS, read the same whichever library built it: the engine's
- * graph says it by its `kind` and its `family` (`../graph/kinds.ts`), the loader the scenes are
- * compared with says it by its library's flags and type names — named here, for the comparison
- * alone (`scenes.fixture.ts`).
+ * graph says it by its `kind` and its `family` (`../graph/kinds.ts`) — its meshes, the core's, by
+ * the flags `isMesh` and `isInstancedMesh` —, the loader the scenes are compared with by its
+ * library's flags and type names — named here, for the comparison alone (`scenes.fixture.ts`).
  */
 type Fields = Record<string, unknown>;
 
@@ -14,7 +14,7 @@ const NODE_FLAGS = [
   ['isPointLight', 'point'],
   ['isSpotLight', 'spot'],
   ['isAmbientLight', 'ambient'],
-  ['isRectAreaLight', 'rect'],
+  ['isRectAreaLight', 'rectArea'],
   ['isLightProbe', 'probe'],
   ['isCamera', 'camera'],
   ['isScene', 'scene'],
@@ -42,7 +42,7 @@ export const nodeKind = (node: Fields): string =>
 /** Whether the node is drawn, lit by, or an eye. */
 export const isDrawnKind = (kind: string) => kind === 'mesh' || kind === 'instancedMesh';
 export const isLightKind = (kind: string) =>
-  ['directional', 'point', 'spot', 'ambient', 'rect', 'probe'].includes(kind);
+  ['directional', 'point', 'spot', 'ambient', 'rectArea', 'probe'].includes(kind);
 
 /** The surface's family. */
 export const surfaceFamily = (surface: Fields) =>

@@ -4,6 +4,8 @@
 //! one multiply and one add per component, both correctly rounded — so a position decoded on
 //! the GPU is the same 32-bit float as one decoded here.
 
+pub mod grid;
+
 /// Widest field of the format: a 24-bit field read at any bit offset spans two words at most.
 pub const MAX_BITS: u32 = 24;
 /// Largest magnitude of a grid exponent: the step stays a normal `f32`.
@@ -23,19 +25,54 @@ pub fn stream_words(count: usize, bits: u32) -> usize {
     count.saturating_mul(bits as usize).div_ceil(32)
 }
 
-/// The `bits`-bit field at bit `at` of `words`. A field never spans more than two words, and a
-/// stream is sized so the second word exists whenever the field needs it.
-pub fn field(words: &[u32], at: usize, bits: u32) -> u32 {
-    if bits == 0 {
-        return 0;
+/// The fields of one stream in order, each word loaded once (STR-01, #238): the stream's current
+/// word and bit cursor stay in a 64-bit accumulator, refilled one word at a time — never more,
+/// since a field is at most `MAX_BITS` wide. A stream is sized so the next word exists whenever
+/// a field needs it; a zero-width field reads zero and loads no word.
+pub struct BitReader<'a> {
+    words: &'a [u32],
+    next: usize,
+    acc: u64,
+    held: u32,
+}
+
+impl<'a> BitReader<'a> {
+    /// A reader whose first field starts at bit `at` of `words`: a single field read at random,
+    /// as a block record is, is `BitReader::at(words, at).read(bits)`.
+    #[inline(always)]
+    pub fn at(words: &'a [u32], at: usize) -> Self {
+        let mut reader = Self {
+            words,
+            next: at / 32,
+            acc: 0,
+            held: 0,
+        };
+        reader.read((at % 32) as u32);
+        reader
     }
-    let shift = (at % 32) as u32;
-    let index = at / 32;
-    let mut value = u64::from(words[index]) >> shift;
-    if shift + bits > 32 {
-        value |= u64::from(words[index + 1]) << (32 - shift);
+
+    /// The next `bits`-bit field, `bits` at most 31 (a field is at most `MAX_BITS`).
+    #[inline(always)]
+    pub fn read(&mut self, bits: u32) -> u32 {
+        if self.held < bits {
+            self.acc |= u64::from(self.words[self.next]) << self.held;
+            self.next += 1;
+            self.held += 32;
+        }
+        let value = (self.acc & ((1u64 << bits) - 1)) as u32;
+        self.acc >>= bits;
+        self.held -= bits;
+        value
     }
-    (value & ((1u64 << bits) - 1)) as u32
+}
+
+/// The little-endian words of `bytes`, a trailing partial word dropped.
+pub fn le_words(bytes: &[u8]) -> impl Iterator<Item = u32> + '_ {
+    bytes
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|b| u32::from_le_bytes(*b))
 }
 
 /// `2^exponent` as an exact `f32`, built from its bits: no rounding, whatever the platform.
@@ -119,47 +156,5 @@ impl<const N: usize> Quant<N> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_field_crosses_a_word_boundary_and_a_zero_width_field_reads_zero() {
-        let words = [0xF000_0000u32, 0x0000_00AB];
-        assert_eq!(field(&words, 28, 12), 0xABF);
-        assert_eq!(field(&words, 28, 0), 0);
-        assert_eq!(field(&words, 32, 8), 0xAB);
-        assert_eq!(bits_for(0), 0);
-        assert_eq!(bits_for(255), 8);
-        assert_eq!(bits_for(256), 9);
-        assert_eq!(stream_words(3, 24), 3);
-    }
-
-    #[test]
-    fn the_step_is_exact_and_the_record_survives_its_word() {
-        assert_eq!(pow2(-16), 1.0 / 65536.0);
-        assert_eq!(pow2(3), 8.0);
-        let record = Quant {
-            min: [1.5, -2.0, 0.0],
-            exponent: -20,
-            bits: [17, 0, 24],
-        };
-        assert_eq!(Quant::unpack(record.packed(), record.min), Some(record));
-        assert_eq!(Quant::<3>::unpack(25, record.min), None);
-        assert_eq!(Quant::<3>::unpack(1 << 18, record.min), None);
-        assert_eq!(
-            Quant::<3>::unpack(record.packed(), [f32::NAN, 0.0, 0.0]),
-            None
-        );
-        assert_eq!(dequant(1.5, 3, 0.25), 2.25);
-    }
-
-    #[test]
-    fn octahedral_bytes_decode_to_unit_vectors_on_both_hemispheres() {
-        for q in [0u32, 255, 255 << 8, 0xFFFF, 128 | (128 << 8), 0x40C0] {
-            let [x, y, z] = oct_decode(q);
-            assert!((x * x + y * y + z * z - 1.0).abs() < 1e-6, "{q}");
-        }
-        assert!(oct_decode(0)[2] < 0.0);
-        assert!(oct_decode(128 | (128 << 8))[2] > 0.99);
-    }
-}
+#[path = "bits_tests.rs"]
+pub(crate) mod tests;

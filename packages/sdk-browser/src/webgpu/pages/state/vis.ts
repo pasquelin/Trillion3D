@@ -17,6 +17,8 @@ import type { BlendModePipelines } from '../../blend/stagePipelines.ts';
  *  concatenated geometry, the page table and the material atlases. */
 export interface WebgpuVisState {
   visEnabled: boolean;
+  /** An opaque row has shown a surface as-is: the image's flags are read (`../../row/pageRow.ts`). */
+  asIsShown: boolean;
   visTexture: GPUTexture | undefined;
   visView: GPUTextureView | undefined;
   visPipelineBack: GPURenderPipeline | undefined;
@@ -32,6 +34,8 @@ export interface WebgpuVisState {
    *  classes at preparation, and any class a material changed into since, made on first draw. */
   shadePipelines: Map<number, GPURenderPipeline>;
   shadePipelineFor: ((key: number) => GPURenderPipeline) | undefined;
+  /** Direct resolve of a one-class image: background is rejected in its fragment stage. */
+  singleShadePipelines: Map<number, GPURenderPipeline>;
   /** Classes the image being encoded has rows of (`../../core/materialPasses.ts`). */
   presentClasses: PresentClasses;
   gpuHiz: GpuHiz | undefined;
@@ -89,6 +93,7 @@ export interface WebgpuVisState {
 export function createWebgpuVisState(): WebgpuVisState {
   return {
     visEnabled: false,
+    asIsShown: false,
     visTexture: undefined,
     visView: undefined,
     visPipelineBack: undefined,
@@ -101,6 +106,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     materialDepthPipeline: undefined,
     shadePipelines: new Map(),
     shadePipelineFor: undefined,
+    singleShadePipelines: new Map(),
     presentClasses: createPresentClasses(),
     gpuHiz: undefined,
     gpuRaster: undefined,

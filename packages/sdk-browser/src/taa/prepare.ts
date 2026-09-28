@@ -1,8 +1,9 @@
 import { TAA_HISTORY_BYTES_PER_PIXEL, createTemporalAntialiasing } from './temporalAntialiasing.ts';
-import { dropTaaHistory } from './frame.ts';
+import { dropTaaHistory, forgetTaaHistory } from './frame.ts';
 import { grantCapability } from '../webgpu/pages/io/drops.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { isCancelled } from '../backend/common.ts';
+import { mainViewGpu } from '../webgpu/pages/state/view.ts';
 import { MOTION_CAPABILITY, TAA_CAPABILITY } from './capability.ts';
 
 /**
@@ -20,9 +21,11 @@ async function rigTemporalAntialiasing(rt: WebgpuPagesRuntime, device: GPUDevice
   const { gpu, capabilities } = rt;
   try {
     const temporal = await createTemporalAntialiasing(device, rt.layout.selectionRoots);
+    // The main view's, even when a capture is drawn aside once the program has compiled.
+    const main = mainViewGpu(rt);
     // Switched off, rigged by an earlier call or closed while the program compiled: not kept.
-    if (!gpu.temporalWanted || gpu.temporal || isCancelled(rt.signal)) return temporal.dispose();
-    gpu.temporal = temporal;
+    if (!gpu.temporalWanted || main.temporal || isCancelled(rt.signal)) return temporal.dispose();
+    main.temporal = temporal;
     grantCapability(capabilities, TAA_CAPABILITY);
     grantCapability(capabilities, MOTION_CAPABILITY);
   } catch (error) {
@@ -39,27 +42,30 @@ async function rigTemporalAntialiasing(rt: WebgpuPagesRuntime, device: GPUDevice
  * image is.
  */
 export function setWebgpuTemporalAntialiasing(rt: WebgpuPagesRuntime, on: boolean) {
-  const { gpu, capabilities } = rt;
+  const { gpu, capabilities } = rt,
+    // The pass is the main view's: a capture drawn aside meanwhile holds none.
+    { temporal } = mainViewGpu(rt);
   if (gpu.temporalWanted === on) return;
   gpu.temporalWanted = on;
-  dropTaaHistory(rt);
+  forgetTaaHistory(temporal);
   // A barrier (`settlePose`) before the next ordinary image replays the checkpoint: it must not
   // bring back the history of the images before the switch.
-  if (gpu.temporal) {
-    gpu.temporal.frame.sampledRank = 0;
-    gpu.temporal.checkpoint(false);
+  if (temporal) {
+    temporal.frame.sampledRank = 0;
+    temporal.checkpoint(false);
   }
-  if (on && gpu.temporal) {
+  if (on && temporal) {
     grantCapability(capabilities, TAA_CAPABILITY);
     grantCapability(capabilities, MOTION_CAPABILITY);
   } else if (on && gpu.device) {
     void rigTemporalAntialiasing(rt, gpu.device).then(
       () => {
-        // The history joins the targets as they stand, under a capture too — a capture at the
-        // view's size reallocates nothing after it; unallocated, `makeTargets` counts it.
-        const { temporal } = gpu;
-        if (temporal && gpu.colorTexture && temporal.resize(...gpu.targetSize))
-          gpu.targetBytes += temporal.historyBytes;
+        // The history joins the main view's targets as they stand, a capture drawn aside
+        // meanwhile or not; unallocated, `makeTargets` counts it.
+        const main = mainViewGpu(rt),
+          rigged = main.temporal;
+        if (rigged && main.colorTexture && rigged.resize(...main.targetSize))
+          main.targetBytes += rigged.historyBytes;
         rt.run.gate.resourcesChanged();
       },
       () => {},
@@ -73,8 +79,9 @@ export function setWebgpuTemporalAntialiasing(rt: WebgpuPagesRuntime, on: boolea
 
 /** The pass leaves the session: capabilities dropped, cause named, image as before the batch. */
 function dropTemporalAntialiasing(rt: WebgpuPagesRuntime, error: unknown) {
-  rt.gpu.temporal?.dispose();
-  rt.gpu.temporal = undefined;
+  const main = mainViewGpu(rt);
+  main.temporal?.dispose();
+  main.temporal = undefined;
   rt.capabilities.unsupported.push(TAA_CAPABILITY, MOTION_CAPABILITY);
   rt.diag.diagnosticFailure('temporal-antialiasing-unavailable', error);
 }

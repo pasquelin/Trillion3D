@@ -26,6 +26,9 @@ export interface ShadowFrameMetrics {
   shadowFacesDrawn?: number | null;
   /** Shadow draw calls. */
   shadowDrawCalls?: number | null;
+  /** Render passes the shadow pass opened: static layer, pool and transmittance, one per layer
+   *  drawn, per batch. */
+  shadowRenderPasses?: number | null;
   /** Cluster cuts run from the lights: one per light view drawn in, zero on a still frame. */
   shadowLightCuts?: number | null;
   /** Virtual shadow pages the image read, as its latest request report named them: what the
@@ -35,6 +38,12 @@ export interface ShadowFrameMetrics {
   shadowPagesCached?: number | null;
   /** Physical pages of the fixed pool that hold a virtual page. */
   shadowPoolPages?: number | null;
+  /** GPU bytes of the shadow pool: its depth pages, their static and transmittance layers once
+   *  made, and the buffers beside them. Null until the first frame sizes the pool. */
+  shadowPoolBytes?: number | null;
+  /** Layers of the pool, 4 096 pages each at most, sized once from the first frame's screen and
+   *  shadowed lights. Null until then. */
+  shadowPoolLayers?: number | null;
   /** Virtual pages mapped again after the pool evicted them to make room, since the explorer
    *  opened: the redraws a pool too small for what the frames read costs. */
   shadowPagesRefetched?: number | null;
@@ -56,8 +65,29 @@ export interface ShadowFrameMetrics {
   /** How many milliseconds the oldest out-of-date page the image reads has waited to be redrawn.
    *  Only the time the image reads it counts; 0 once it is redrawn. */
   shadowWaitMs?: number | null;
+  /** Light-cut batches that dropped work — their views kept more clusters than the lists hold —,
+   *  since the explorer opened: each sends its pages back, withdrawn until redrawn (#525). Null on
+   *  an engine without the GPU light cut, as are the three below. */
+  shadowCutDrops?: number | null;
+  /** Pages drawn again because a light cut drew them wrong, since the explorer opened: its batch
+   *  dropped work, or its flag was never read. They are withdrawn until redrawn. */
+  shadowCutWithdrawnPages?: number | null;
+  /** Pages drawn again because a view drew a cluster coarser than it wanted, since the explorer
+   *  opened: released once residency changed and the camera rested. */
+  shadowCutCoarsePages?: number | null;
+  /** Light views one light-cut batch draws in now: the cap until a batch drops, then what fits. */
+  shadowCutViewLimit?: number | null;
   /** GPU time of light lists. */
   gpuLightListsMs?: number | null;
+  /** Words the tiles past their list reserved in the light-index pool, on the last sampled frame
+   *  of a scene of more lights than a list; `null` otherwise (#849). */
+  tileLightPoolReserved?: number | null;
+  /** Words the light-index pool held on that sampled frame; `null` likewise. */
+  tileLightPoolCapacity?: number | null;
+  /** Whether a tile found no room in the pool on that sampled frame and walked every light. */
+  tileLightPoolOverflowed?: boolean | null;
+  /** Times the pool grew to what an overflowing frame asked, since the explorer opened. */
+  tileLightPoolGrowths?: number | null;
   /** GPU time of shadows. */
   gpuShadowsMs?: number | null;
   /** GPU time of choosing the casters of the shadow pages a frame draws: the light cut, the

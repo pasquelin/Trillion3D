@@ -17,7 +17,7 @@ interface BackendAvecCpuFrameEnd extends RenderBackend {
  *  a host does: that is what publishes the per-stage counters. */
 export async function image(
   backend: RenderBackend,
-  camera: G.GraphCamera,
+  camera: G.Camera,
 ): Promise<{ pixels: Uint8Array; metriques: ReturnType<RenderBackend['metrics']> }> {
   backend.render(camera);
   (backend as BackendAvecCpuFrameEnd).cpuFrameEnd?.();
@@ -31,7 +31,7 @@ export const PLAFOND = 64;
 /** Renders until the image is held; returns the last RENDERED image, the held one, and the count. */
 export async function jusquaTenue(
   backend: RenderBackend,
-  camera: G.GraphCamera,
+  camera: G.Camera,
 ): Promise<{ rendue: number[] | undefined; tenue: number[] | null; rendues: number }> {
   let rendue: number[] | undefined,
     rendues = 0;
@@ -70,7 +70,7 @@ const point = new G.Vector3();
  *  Bottom-left origin, like `capture`. */
 export function couleurEn(
   pixels: Uint8Array,
-  camera: G.GraphCamera,
+  camera: G.Camera,
   x: number,
   y: number,
   z = 0,

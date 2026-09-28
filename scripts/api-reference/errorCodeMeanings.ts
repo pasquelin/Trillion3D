@@ -16,8 +16,11 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
   AUTONOMOUS_SCENE_UNAVAILABLE: "The engine's own WebGL2 path cannot draw this model.",
   PAGE_BUDGET:
     'The pages the view needs do not fit the memory budget, or this path has no budgets.',
-  INVALID_SCENE_LIGHT:
-    'A light is malformed, doubled, unknown, one too many, or has nowhere to go.',
+  INVALID_SCENE_LIGHT: 'A light is malformed, doubled, unknown, or has nowhere to go.',
+  INVALID_MATERIAL:
+    'A material change is unknown, out of range, would move it to a draw class an engine lays out when the scene opens, or would tile a map it shares.',
+  MATERIAL_CEILING:
+    'A page would create more materials than `RUNTIME_MATERIAL_CEILING` in one session; nothing was created.',
   INVALID_SCENE_ENVIRONMENT: "The scene's exposure or surroundings are not valid numbers.",
   INVALID_TRANSFORM:
     "A node's placement is not a usable matrix, or a node would be its own ancestor.",
@@ -28,6 +31,10 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
   UNSUPPORTED_SCENE_UPDATE: 'This drawing path cannot make that change to the scene.',
   RAYCAST_NO_VIEW:
     'A picture point was asked of a canvas with no size: there is no picture to aim through.',
+  SURFACE_CAPTURE_UNSUPPORTED:
+    'A surface capture (`captureSurfaceView`) was asked of a drawing path that cannot draw the material surfaces in a view of its own: the WebGL2 path has none.',
+  VERTICES_NOT_LOADED:
+    "A loaded model's vertices were read before `await geometry.loadVertices()`: a session reads them on first need, never up front.",
   WEBGPU_LOST:
     'WebGPU lost its device, or an error on it left a state nothing can draw from: thrown by `render`, `flush` and the reads that need the device, named by the `gpu-device-lost` diagnostic, and on `world.diagnostic.error` when a session could not open for it.',
   SESSION_OPEN_FAILED:
@@ -35,7 +42,7 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
   UNSUPPORTED_SCENE_FORMAT:
     'A saved scene is of another format or version, or holds what a saved scene cannot store.',
   PHYSICS_BUDGET:
-    "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, triangles, decorative bodies, memory, body pairs and contacts per step), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed or refused a body's shape (`PHYSICS_FAILED`): on `world.physics.error`.",
+    "The physics was asked past one of its envelopes (`world.budget.physics`: bodies, decorative bodies, memory, body pairs and contacts per step), or a dynamic body was not a direct child of the scene (`PHYSICS_NESTED`), or the physics module failed or refused a body's shape (`PHYSICS_FAILED`), or a body's pose or vertices went non-finite and it left the simulation (`PHYSICS_DIVERGED`): on `world.physics.error`.",
   PHYSICS_FORMAT:
     "A compiled model's cooked physics (`physics.json`) is of another format, or was cooked by another Jolt than the engine's (`PHYSICS_FORMAT`): compile it again. An exact raycast was asked with the physics off (`PHYSICS_OFF`).",
   NO_VEHICLE:

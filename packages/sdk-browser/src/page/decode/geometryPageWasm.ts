@@ -1,4 +1,5 @@
 import type { DecodedGeometryPage } from './geometryPage.ts';
+import { checked } from '../../cluster/checked.ts';
 import { CLUSTER_HEADER_WORDS } from '../../cluster/format.ts';
 import { pageAttributeNames, pageViews } from './geometryPageBlock.ts';
 
@@ -66,6 +67,19 @@ export type SdkWasm = {
     leafCapacity: number,
     result: number,
   ): number;
+  /** The normal cone of the run-time cut's clusters (`../../world/page/cutCones.ts`): 0 written,
+   *  1 refused. */
+  cone_clusters(
+    positions: number,
+    positionValues: number,
+    indices: number,
+    indexValues: number,
+    ranges: number,
+    clusters: number,
+    out: number,
+  ): number;
+  /** The compiler's position grid for the run-time cut (`../../world/page/cutGrid.ts`). */
+  position_grid_exponent(extent: number, blended: number): number;
 };
 type SourceWasm = BufferSource | (() => Promise<BufferSource>);
 
@@ -73,8 +87,7 @@ let attente: Promise<SdkWasm | null> | null = null;
 
 /** Resource shipped next to the module: the browser takes it by URL, not from disk. */
 async function ressource(): Promise<BufferSource> {
-  const reponse = await fetch(new URL('./pageCodec.wasm', import.meta.url));
-  if (!reponse.ok) throw new Error('GEOMETRY_PAGE_WASM');
+  const reponse = await checked(new URL('./pageCodec.wasm', import.meta.url).href);
   return await reponse.arrayBuffer();
 }
 

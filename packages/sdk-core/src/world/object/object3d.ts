@@ -1,6 +1,6 @@
 import { TransformNode } from './transformNode.ts';
 import { collectSlot, reserveSlot, uncollectSlot } from './objectSpace.ts';
-import { copyObject } from './objectCopy.ts';
+import { copyObject, findByName } from './objectCopy.ts';
 import { bindPose, readPose } from './objectPose.ts';
 import { lookAtNode } from '../../math/transform-tree/lookAt.ts';
 import * as read from '../../math/transform-tree/read.ts';
@@ -24,7 +24,6 @@ const aim = new Vector3(),
 export class Object3D extends TransformNode {
   /** Always `true`: tells a scene node apart. */ readonly isObject3D = true as const;
   /** The kind of node: `'Mesh'`, `'Group'`… */ type = 'Object3D';
-  /** A name to find the node by. */ name = '';
   /** Where the node stands, from its parent. */ readonly position = new Vector3();
   /** How the node is turned, as three angles. */ readonly rotation = new Euler();
   /** How the node is turned, as a quaternion. */ readonly quaternion = new Quaternion();
@@ -34,14 +33,21 @@ export class Object3D extends TransformNode {
   /** Drawing order among see-through things. */ renderOrder = 0;
   /** Whether a renderer may skip it outside the view. */ frustumCulled = true;
   /** Free room for the page's own data. */ userData: Record<string, unknown> = {};
-  /** The world this node is drawn by; set on attach, cleared on detach. */
-  _link: SceneLink | null = null;
+  private _linkedTo: SceneLink | null = null;
   constructor() {
     const slot = reserveSlot();
     super(slot.state, slot.id, slot.index, slot.visible);
     collectSlot(this, slot);
     bindPose(this);
   }
+  /** The world this node is drawn by; set on attach, cleared on detach. */ get _link() {
+    return this._linkedTo;
+  }
+  set _link(link: SceneLink | null) {
+    if (!this._linkedTo !== !link) this.linked(!!link);
+    this._linkedTo = link;
+  }
+  /** It entered a world (`true`) or left one. */ protected linked(_inWorld: boolean) {}
   /** A node's transform tree, for an owner placing nodes by the thousand (`_link.posed`). */
   static _treeOf(node: Object3D) {
     return node.state.tree;
@@ -77,6 +83,7 @@ export class Object3D extends TransformNode {
   /** Makes objects children of this node. */ override add(...objects: Object3D[]) {
     for (const object of objects) {
       if (object === this) continue;
+      if (object.parent?._link !== this._link) object.parent?.remove(object); // its world hears it go
       super.add(object);
       object.traverse((node) => (node._link = this._link));
     }
@@ -99,8 +106,8 @@ export class Object3D extends TransformNode {
     readPose(child, this.state.tree);
     return this;
   }
-  /** Frees the node and all below it now, rather than when they are collected. */
-  override destroy() {
+  /** Frees it and all below it now, not when collected; off its world. */ override destroy() {
+    this.removeFromParent();
     this.traverse(uncollectSlot);
     super.destroy();
   }
@@ -135,12 +142,7 @@ export class Object3D extends TransformNode {
     for (const child of this.children) child.traverseVisible(fn);
   }
   /** The first node below with this name. */ getObjectByName(name: string): Object3D | undefined {
-    if (this.name === name) return this;
-    for (const child of this.children) {
-      const found = child.getObjectByName(name);
-      if (found) return found;
-    }
-    return undefined;
+    return findByName(this, name);
   }
   /** Composes the local matrix from the pose. */
   updateMatrix() {

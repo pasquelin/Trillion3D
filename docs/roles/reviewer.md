@@ -1,39 +1,13 @@
 # Role: reviewer
 
-A subagent a lead launches with a fresh context: "follow `docs/roles/reviewer.md` for branch <branch>". You clean and check one pushed branch, before any pull request exists, then give the lead a verdict. You never
-merge and never run Chrome, a browser proof or the bench.
+A subagent: "follow `docs/roles/reviewer.md` for branch <b>". You never merge, time or run Chrome.
 
-1. `git diff origin/develop...origin/<branch>`, the linked issue, the body file `.worktrees/logs/<n>-pr-body.md`. Check out the branch in a worktree of your own (`git worktree add .worktrees/review-<n> <branch>`), `pnpm install`, work there.
-2. **Simplification pass** — invoke the real `simplify` skill through the Skill tool on your
-   worktree. It launches its own review agents (at most 4, which launch none): never replace it
-   with your own reading. Apply its fixes.
-3. **Correctness pass** — invoke the real `code-review` skill with `--fix`. Then check the
-   auditor's list yourself, because the audit re-reads every merge against it
-   (`docs/roles/auditor.md` step 3):
-   - every To do and Proof item of the issue is delivered, and the body says `Closes #<n>`; a
-     diff that leaves part of the issue's goal undelivered is `KO` until the CTO splits the issue;
-   - the diff follows the lead's design note on the issue, and a `tests` return adds the fast test the note names;
-   - each changed behaviour has a test that fails on `develop`, on the issue's fixture, waiting
-     for events, never a fixed delay, and never comparing a result with itself;
-   - labels are right, docs and translations follow, an added example has its thumbnail or
-     `to measure`, and a changed format bumps its version;
-   - a diff under geometry, streaming, memory, shadows or examples accounts for
-     CONTRIBUTING.md §Streaming, memory and shadows;
-     then this checklist,
-     most severe first:
-   - the issue: does the diff do what it asks, one test per changed behaviour, every number
-     measured, never estimated;
-   - CONTRIBUTING.md §Image and fidelity and AGENTS.md rule 1: no image loss;
-   - §Quality and evidence, §Engine and package boundaries, §Native compiler: lines, duplicates,
-     English, dead code, claims, format versions, self-containment;
-   - AGENTS.md rules 6 and 7: reuse, the witness library kept a witness, TypeScript.
-     Fix what is certain; a finding you cannot fix without changing the batch's intent goes to the
-     lead.
-4. Commit `refactor|fix(scope): … (#<issue>)`, then merge `origin/develop` into the branch
-   (`git fetch origin`, `git merge origin/develop`), then the gates: `pnpm run check:changed`,
-   `pnpm run test:changed`, the validate group the diff touches. Push once: one CI run covers the
-   update and the fixes.
-5. Fill "Local review before push" in the body file: one line `Simplification pass: …` and one line
-   `Correctness review: …` with what each skill found and fixed, copied from its report (CI refuses a
-   body without them), then the auditor-list result.
-6. Answer the lead with the findings in short lines and a last line: `OK` when the branch is ready to become a pull request, `KO` with what the coder must change otherwise. Remove your worktree.
+1. Your own detached worktree of the branch, `pnpm install`, `git merge origin/develop`.
+2. Run the real `simplify`, then the real `code-review --fix` (Skill tool). Wait for their review
+   agents; apply what they find.
+3. Check the issue: every To-do item delivered, a test per changed behaviour that fails on
+   `develop`, no image loss, reuse, docs and translations follow.
+4. Run once: `pnpm run check:changed`, `pnpm run test:changed`, and the `validate` group the diff
+   touches. Commit, push (plain push).
+5. Fill `Simplification pass:` and `Correctness review:` in the body file. Answer `OK`, or `KO`
+   with what to change. Remove your worktree.

@@ -11,13 +11,18 @@ import { AS_IS_FLAG, MODEL_FLAG, MODEL_SHIFT, SURFACE_MODEL } from '../../scene/
  */
 export const SHADE_SHADER = `${SHADE_DECL_WGSL}
 @fragment fn shade_fs(@builtin(position) pos:vec4f)->SurfaceOut{
- // The depth test admitted this pixel: its page exists and is of this class.
+ // Material depth admitted this pixel, unless the prepared one-class path guards it below.
  let id=textureLoad(vis,vec2<i32>(i32(pos.x),i32(pos.y)),0).r;
- let pageIndex=(id>>8u)-1u;let tri=id&0xffu;
+ // A one-class image skips the material-depth pass: make exactly its background and bounds
+ // rejection here, before touching the page table. The class is fixed by this pipeline.
+ if(SINGLE_CLASS&&id==0u){discard;}
+ let pageIndex=(id>>8u)-1u;
+ if(SINGLE_CLASS&&pageIndex>=uni.pageCount){discard;}
+ let tri=id&0xffu;
  let page=pages[pageIndex];
  if(tri*3u+2u>=page.indexCount){return emptySurface();}
  let h=pageHeader(page);
- let i0=pageCorner(page,h,tri*3u);let i1=pageCorner(page,h,tri*3u+1u);let i2=pageCorner(page,h,tri*3u+2u);
+ let corners=pageTriangle(page,h,tri);let i0=corners.x;let i1=corners.y;let i2=corners.z;
  let p0=pagePosition(page,h,i0);let p1=pagePosition(page,h,i1);let p2=pagePosition(page,h,i2);
  var w0=page.world*vec4f(p0,1.0);var w1=page.world*vec4f(p1,1.0);var w2=page.world*vec4f(p2,1.0);
  // A sprite page's triangle is its quad turned to the camera (\`pageSprite\`), as the rasters drew it.

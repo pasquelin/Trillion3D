@@ -12,7 +12,7 @@ import { runShaderText } from '../../visibility/shader/shaderText.fixture.ts';
 
 /** The depth layer of every page the world cuts from `drawn`. */
 async function layers(drawn: NonNullable<ReturnType<typeof drawnTriangles>>) {
-  const { primitive, urls } = await cutRuntimePrimitive(packDrawn(drawn), drawn);
+  const { primitive, urls } = await cutRuntimePrimitive(packDrawn(drawn, false), drawn);
   urls.forEach((url) => URL.revokeObjectURL(url));
   return primitive.pages.map((page) => page.depthLayer ?? 0);
 }
@@ -35,7 +35,11 @@ test('the pages of a dashed line carry its distance along the line', async () =>
     position: new BufferAttribute(new Float32Array(points), 3),
   });
   const read = async (dashed: boolean) => {
-    const cut = await cutDrawnTriangles(drawnTriangles(path, 'lineStrip', { dashed })!);
+    const cut = await cutDrawnTriangles(
+      drawnTriangles(path, 'lineStrip', { dashed })!,
+      false,
+      false,
+    );
     return cut.pages.map((page) => decodeGeometryPage(new Uint8Array(page.geometry)));
   };
   const [dashed] = await read(true);
@@ -54,11 +58,19 @@ test('a dashed line past 1024 units keeps its dashes at their distances', async 
   const path = geometry.createBuffer({
     position: new BufferAttribute(new Float32Array([0, 0, 0, 1500, 0, 0, 3000, 0, 0]), 3),
   });
-  const cut = await cutDrawnTriangles(drawnTriangles(path, 'lineStrip', { dashed: true })!);
+  const cut = await cutDrawnTriangles(
+    drawnTriangles(path, 'lineStrip', { dashed: true })!,
+    false,
+    false,
+  );
   assert.equal(cut.pages.length, 1);
   // 3000 units on the finest grid that holds them, 2^-11; a textured box keeps the format's 2^-14.
   assert.equal(cut.uvExponent, -11);
-  const box = await cutDrawnTriangles(drawnTriangles(geometry.box(1, 1, 1), 'triangles')!);
+  const box = await cutDrawnTriangles(
+    drawnTriangles(geometry.box(1, 1, 1), 'triangles')!,
+    false,
+    false,
+  );
   assert.equal(box.uvExponent, -14);
   const { uv } = decodeGeometryPage(new Uint8Array(cut.pages[0].geometry)).attributes;
   const along = [...new Set(Array.from(uv!).filter((_, i) => i % 2 === 0))].sort((a, b) => a - b);
@@ -87,7 +99,7 @@ test('a dashed line past 1024 units keeps its dashes at their distances', async 
 // and the ball of its radius there, which hold it however it turns.
 test("the pages of a sprite's quad are bounded by the cube of its radius", async () => {
   const drawn = drawnTriangles(geometry.plane(1, 1), 'sprite', { center: [0.5, 0] })!;
-  const { primitive, urls } = await cutRuntimePrimitive(packDrawn(drawn), drawn);
+  const { primitive, urls } = await cutRuntimePrimitive(packDrawn(drawn, false), drawn);
   urls.forEach((url) => URL.revokeObjectURL(url));
   const r = Math.hypot(0.5, 1);
   for (const page of primitive.pages) {
@@ -101,4 +113,15 @@ test("the pages of a sprite's quad are bounded by the cube of its radius", async
     );
     assert.equal(page.depthLayer, undefined);
   }
+});
+
+// #959: without the SDK module, which carries the compiler's tiled grid (`cutGrid.ts`), a cut
+// takes the finest grid a page holds: 2^-13 for a kilometre plane, finer than the tiled 2^-11.
+test('without the SDK module a kilometre plane takes the finest grid a page holds', async () => {
+  const cut = await cutDrawnTriangles(
+    drawnTriangles(geometry.plane(1000, 1000), 'triangles')!,
+    false,
+    false,
+  );
+  assert.equal(cut.positionExponent, -13);
 });

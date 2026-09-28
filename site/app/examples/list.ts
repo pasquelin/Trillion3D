@@ -1,6 +1,7 @@
 import roadmap from '../../content/gallery-roadmap.json' with { type: 'json' };
 import { dictionaryOf, wordFor } from '../../content/i18n/dictionary.ts';
 import type { Locale } from '../../content/locale.ts';
+import { EXAMPLE_THUMBNAILS } from './thumbnails.inline.ts';
 
 /** One entry of the gallery roadmap. A ready example has a file and no status. One still to write
  *  is `buildable`, or `needs-engine` with the feature it lacks. One written against the intended
@@ -17,23 +18,37 @@ interface RoadmapEntry {
 
 export const roadmapEntries = roadmap.entries as RoadmapEntry[];
 
-/** Whether the gallery opens an entry: it has a file, and nothing left to wait for. */
+/** Whether an example is complete: it has source and waits on no engine capability. */
 export const isReady = ({ file, status }: RoadmapEntry) => Boolean(file) && !status;
 
 export const readyEntries = roadmapEntries.filter(isReady);
 
+/** Written examples parked until the engine draws them, each naming the issue it waits for. */
+export const parkedEntries = roadmapEntries.filter(({ status }) => status === 'waiting-engine');
+
+/** Complete examples used by capture and browser proofs. */
 export const readyExampleIds = readyEntries.map(({ id }) => id);
 
-/** The ready examples, theme by theme, in the order of the file; a theme with none is left out. */
-export const readyThemes = roadmap.themes
-  .map((theme) => ({ theme, entries: readyEntries.filter((entry) => entry.theme === theme) }))
-  .filter(({ entries }) => entries.length > 0);
+/** Examples with source to open: complete ones and pages parked on an engine capability. */
+export const writtenEntries = roadmapEntries.filter(({ file }) => Boolean(file));
 
-/** Every entry of the list, theme by theme: the ready examples, and those still to come. */
-export const themedEntries = roadmap.themes.map((theme) => ({
-  theme,
-  entries: roadmapEntries.filter((entry) => entry.theme === theme),
-}));
+export const writtenExampleIds = writtenEntries.map(({ id }) => id);
+
+/** Each theme's presentation: runnable work first, then parked source, then unwritten titles. */
+export const themedEntries = roadmap.themes.map((theme) => {
+  const entries = roadmapEntries.filter((entry) => entry.theme === theme);
+  return {
+    theme,
+    ready: entries.filter(isReady),
+    parked: entries.filter((entry) => Boolean(entry.file) && !isReady(entry)),
+    coming: entries.filter((entry) => !entry.file),
+  };
+});
+
+/** Written examples in the sidebar, complete first and then parked, as on the gallery page. */
+export const writtenThemes = themedEntries
+  .map(({ theme, ready, parked }) => ({ theme, entries: [...ready, ...parked] }))
+  .filter(({ entries }) => entries.length > 0);
 
 /** A theme's title in `locale`: `gallery.themes.<id>`. */
 export const themeTitle = (id: string, locale: Locale) =>
@@ -73,5 +88,9 @@ export const mosaicEntries = [
   ...others.slice(FLAGSHIPS.length * 4),
 ].map((entry) => ({ entry, large: FLAGSHIPS.includes(entry.id) }));
 
-/** The thumbnail an example's card and menu row show: its settled render. */
-export const thumbnailOf = (id: string) => `./assets/examples/thumbnails/${id}.png`;
+export const examplePlaceholder = './assets/example-in-progress.svg';
+const capturedExamples = new Set(EXAMPLE_THUMBNAILS);
+
+/** The example's captured render when present at build time, otherwise the shared placeholder. */
+export const thumbnailOf = (id: string) =>
+  capturedExamples.has(id) ? `./assets/examples/thumbnails/${id}.png` : examplePlaceholder;

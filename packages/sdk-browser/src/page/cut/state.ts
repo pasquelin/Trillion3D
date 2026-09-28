@@ -56,6 +56,10 @@ export interface SelectionState<T extends PageRecord> {
   /** This image's threshold is zero and stretch, focal length and near plane are sound: the
    *  cut then decides without projecting, identically. */
   flatExact: boolean;
+  /** This root's stretch, focal length, near plane and projection pass `frameParametersSound`:
+   *  each cluster's projection then checks only its own values (#980, VIS-16). Set with the other
+   *  `flat*` scalars by `selectFlat`; false, every projection checking all of them, otherwise. */
+  flatSound: boolean;
   /** What the two lists actually hold. The arrays are no longer cleared with `length = 0` each
    *  image — they would lose their capacity and grow it back from zero to eighty thousand — but
    *  rewritten by index, and their length is set only once the cut is finished. During the cut,
@@ -66,6 +70,8 @@ export interface SelectionState<T extends PageRecord> {
    *  sweep of `wanted` and `shown`, in the same order and at the same bits. */
   wantedTriangles: number;
   shownTriangles: number;
+  /** Triangles of the holes, see `SelectionResult.uncoveredTriangles`. */
+  uncoveredTriangles: number;
 }
 
 /** Cut result, filled in place: the caller supplies the object, the image allocates none. */
@@ -80,6 +86,10 @@ export interface SelectionResult<T> {
   nodesTested: number;
   lodLevel: number;
   complete: boolean;
+  /** Triangles of the root-cover clusters in view the rule would draw but that are not resident:
+   *  nothing coarser stands in for them, so their surface is a hole (`./take.ts`). Zero when the
+   *  cut holds no residency. */
+  uncoveredTriangles: number;
   pixelError: number;
 }
 
@@ -96,6 +106,7 @@ export function createSelectionResult<T>(): SelectionResult<T> {
     nodesTested: 0,
     lodLevel: 0,
     complete: true,
+    uncoveredTriangles: 0,
     pixelError: 0,
   };
 }
@@ -136,10 +147,12 @@ const reusedState: SelectionState<PageRecord> = {
   flatBoxes: false,
   held: undefined,
   flatExact: false,
+  flatSound: false,
   shownCount: 0,
   wantedCount: 0,
   wantedTriangles: 0,
   shownTriangles: 0,
+  uncoveredTriangles: 0,
 };
 
 /** The reused state, viewed at the requested page type. */

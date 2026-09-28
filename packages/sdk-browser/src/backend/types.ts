@@ -1,5 +1,6 @@
 import type { HostDiagnosticFactory, HostScene, HostTexture } from '../host/resources.ts';
 import type { HostCamera } from '../camera/world.ts';
+import type { PageCatalogue } from '../streaming/types.ts';
 import type { HostDrawOutput } from '../webgl/core/renderTarget.ts';
 import type {
   BackendCapabilities,
@@ -39,8 +40,6 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
    *  what it does not apply. The rest of the capabilities is read from the present methods; see
    *  `lightingCapabilitiesOf`. Absent from an engine that has nothing more to declare. */
   lighting?: { shadows: boolean; reason?: string };
-  /** Moves a named node of the prepared scene; applied to the next frame, without allocation (R8). */
-  setTransform?(nodeName: string, matrix: Float32Array): void;
   /** Sets memory pools during the session; returns what the engine holds afterwards. */
   setMemoryBudgets?(budgets: MemoryBudgets): Promise<MemoryBudgetsReport>;
   signal?: AbortSignal; // Aborted by its dispose or its session's: `prepare` then fails as cancelled.
@@ -76,8 +75,7 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
     import('../webgpu/transparent/occlusionAudit.ts').TransparentOcclusionAudit | null
   >;
   pendingUrls?(): string[];
-  /** Bundles a finer cut would need. Fetched at low priority while the network is otherwise idle,
-   *  so a small camera move finds them already resident. */
+  /** Bundles a finer cut needs, read while the network idles: a small move finds them resident. */
   prefetchUrls?(): string[];
   pageUrls?(): string[];
   /** The same pins as `pageUrls`, spoken as a difference of request ranks: the host no longer has
@@ -102,10 +100,12 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   flush?(options?: { image?: boolean }): Promise<void>; // image: false skips the readback
   /** Wait for submitted work without image readback; true asks for another interactive frame. */
   pendingFrame?(): Promise<boolean>;
+  landings?(): number; // camera pages made resident so far: the view still arriving (#836)
   /** Current GPU image, bottom-left origin. Prefer flush() first; browser hosts can explicitly read synchronously. */
   capture?(): Uint8Array;
   /** The composed image of `camera` at a size of its own, drawn aside: nothing is presented. */
   captureColorView?(camera: HostCamera, size: ViewSize): Promise<Uint8Array>;
+  captureAside?<T>(size: ViewSize, work: () => T): T; // `work` in its own view; main cut kept
   captureSurfaceView?(
     camera: HostCamera,
     options: { width: number; height: number; signal?: AbortSignal },
@@ -170,10 +170,11 @@ export interface BackendContext {
   /** The world's guides, drawn over the image, and its particle pools, stepped once per image. */
   guides?: import('../guides/guideSet.ts').GuideSet;
   particles?: readonly import('../../../sdk-core/src/fluids/particles.ts').ParticlePool[];
-  /** Contract lights, owned by the host and shared by every engine of the session. */
-  sceneLights?: SceneLightStore;
-  /** Hears the lights asking for a shadow a WebGL2 engine draws not (`noticeShadowRefusal`). */
-  shadowsRefused?: import('../lighting/contractLights.ts').ContractShadows;
+  /** Hears once why the engine refused the `particles`; the session goes on without them. */
+  particlesRefused?: (reason: string) => void;
+  materialDegraded?: import('../webgl/cluster/validation.ts').MaterialDegraded; // `noticeMaterialDegraded`
+  sceneLights?: SceneLightStore; // the host's contract lights, shared by the session's engines
+  shadowsRefused?: import('../lighting/contractLights.ts').ContractShadows; // `noticeShadowRefusal`
   /** Imported light ids, in cache order: the host sets or removes them (`importedLights()`). */
   importedLightIds?: string[];
   /** Bounced light, off by default: its step stays above the measured one-millisecond bar.
@@ -184,14 +185,14 @@ export interface BackendContext {
   stageProfile?: boolean;
   /** DIAGNOSTIC variant kept by the host, checked (`../diagnostic/gpuVariant.ts`); absent in production. */
   diagnosticGpuVariant?: import('../diagnostic/gpuVariant.ts').DiagnosticGpuVariant;
-  /** Page-by-page shadow-map invalidation, on by default. */
-  shadowPageInvalidation?: boolean;
-  /** Reads the resident-proxy cache object. Absent when the cache does not carry one;
-   *  called at most once, on the first frame that carries a declared light. */
+  shadowPageInvalidation?: boolean; // page-by-page shadow-map invalidation, on by default
+  /** Reads the cache's resident-proxy object once, at the first lit frame; absent without one. */
   readSceneProxy?: () => Promise<import('../../../sdk-core/src/index.ts').SceneProxy>;
   /** Host-owned, validated page reader for the initial complete GPU fallback. */
   readPage?: (url: string) => Promise<Uint32Array>;
-  readGeometryPage?: (url: string) => Promise<Uint8Array>;
+  readGeometryPage?: (url: string, signal?: AbortSignal, priority?: number) => Promise<Uint8Array>;
+  pageCatalogue?: PageCatalogue; // what a mount reads (#572)
+  pageRoundTripMs?: () => number; // the reads' measured round trip (`../streaming/roundTrip.ts`)
   /** The session's one integration budget per frame (`frameBudget.ts`); absent, nothing bounds it. */
   frameBudget?: import('../page/integration/frameBudget.ts').FrameClock;
 }

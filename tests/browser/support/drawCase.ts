@@ -118,9 +118,7 @@ export async function runCase(sample: CaseSample, context: RunContext): Promise<
   pass.setBindGroup(0, group);
   for (let i = 0; i < 3; i++) {
     pass.setPipeline(pipelines[i]);
-    pass.dispatchWorkgroups(
-      i === 1 ? 1 : i === 0 ? Math.ceil((groups * 6) / 64) : Math.max(1, Math.ceil(n / 64)),
-    );
+    pass.dispatchWorkgroups(i === 1 ? 1 : i === 0 ? groups : Math.max(1, Math.ceil(n / 64)));
   }
   pass.end();
   // Compute output is consumed in the same submission, without a CPU readback/reorder.

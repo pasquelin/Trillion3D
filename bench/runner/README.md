@@ -21,7 +21,7 @@ rerun benchmarks.
 - Every run probes the browser limits first (`limits.ts`): WebGL2 half-float and float colour targets, `EXT_disjoint_timer_query_webgl2`, WebGPU `timestamp-query` and the WebGPU limits the adapter grants beyond the defaults, under `limits` in `mesure.json` and "Browser limits" in `resume.md`.
 - `--cache-avant` / `--cache-apres`: path to compiled cache output (`native/full`), to compare two compilers on the same scene. Omission reads the scene cache from assets.
 - `--ressources <dir>`: directory for glTF resources mounted under `/assets/`. Without it, un-based compiled caches yield 404 textures.
-- `--vues` among `generale`, `sol`, `rue`, `detail` (`poses.ts`, `PATH_VERSION` 5); `--pixelError` accepts a list; also `--chauffe`, `--largeur`, `--hauteur`, `--out`, and `--port`.
+- `--vues` among `generale`, `sol`, `rue`, `detail` (`poses.ts`, `PATH_VERSION` 7); `--pixelError` accepts a list; also `--chauffe`, `--largeur`, `--hauteur`, `--dpr` (positive, default 1), `--out`, and `--port`. The viewport keeps the requested CSS size while `--dpr 2` renders twice as many pixels on each axis.
 - `--rebond on|off` (default `off`): enables bounce lighting.
 - `--textures cache|host` (default `host`): whether the prepared scene reads the source images. `cache` skips every image whose chain the cache carries; `host` decodes them all, which the Three witnesses need. The engine reads the baked levels either way (#289), so the two sides render the same image and differ only in what the scene fetches — the harness keeps `host` by default because a side may be a witness, and a witness side reads its images whatever the flag says (the engine resolves `cache` back to `host` for a backend that draws the host scene).
 - `--budget-textures <ms>`: CPU milliseconds a frame may spend copying texture tiles into the pools (`maxTextureUploadMsPerFrame`). Without the option, the engine keeps its default (1.0 ms). Tiles beyond the budget wait for the next frame and show their coarser resident level meanwhile; the profile's "Textures" stage gives the pass's p50/p95 and the metrics its worst pass (`textureUploadPeakMs`) and what it deferred (`textureTilesDeferred`). A cold traversal (`--chauffe 0 --camera-mobile --textures cache`) is where it is read: on a still pose the barrier lifts it.
@@ -59,7 +59,9 @@ through the witness entry point (`bench/witnesses/measurement.ts`, bundled by `p
   Tokuyoshi and Kaplanyan, *Improved Geometric Specular Antialiasing* (2019). Transmissive meshes are
   composed after the clusters over a frozen backdrop of the frame. A material the program cannot
   preserve fails preparation with `CLUSTER_MATERIAL_UNSUPPORTED`, whose `details.reason` names the
-  input; `autonomousClusterDrawsTotal` counts the program's draws.
+  input; a physical extension beyond the transmission volume (clearcoat, sheen…) is no refusal: the
+  surface is drawn without it and the session's `materialDegraded` hears it once per surface and
+  feature. `autonomousClusterDrawsTotal` counts the program's draws.
 
 ### Contract lights on the witnesses
 
@@ -95,20 +97,20 @@ are never added. Use `--profil off` for the beauty verdict; `--profil on` attrib
 same moving loop but keeps diagnostic instrumentation active.
 
 Outputs in `--out` (default `.mesure/out/<engine>-<timestamp>/`, gitignored and un-linted):
-`mesure.json`, `resume.md`, and per view, threshold, and side: `.png`, `.coupe.txt`, and metrics line — `rafIntervalMs`, `cpuFrameMs` and `cpuSelectMs` p50/p95, `gpuFrameMs` p50 (WebGPU), selected and unrendered triangles, Hi-Z counters, selection hash, page budget, system load —, plus A/A check (same side run twice) and before/after delta per channel. `null` = unmeasured, never inferred; all launched tasks exit cleanly.
+`mesure.json`, `resume.md`, and per view, threshold, and side: `.png`, `.coupe.txt`, and metrics line — `rafIntervalMs`, `cpuFrameMs` and `cpuSelectMs` p50/p95, `gpuFrameMs` p50 (WebGPU), selected and unrendered triangles, Hi-Z counters, selection hash, page budget, system load —, plus A/A check (same side run twice) and before/after delta per channel. A capture whose every pixel is RGB 0 is refused by its file name (`black-capture` in `errors`, exit code 1) and its deltas read "black capture", never 0 px: two black frames are equal and prove nothing (`imageDiff.ts`, #1016). `null` = unmeasured, never inferred; all launched tasks exit cleanly.
 
 ### Triangle and Fallback Counters
 
 All are read on **a single frame**: the last frame of the measured loop, indexed in `series[].sides[].imageDuReleve`. None are accumulated over the run.
 
 - `selectedTriangles`: triangles from cluster cut chosen for this frame, before downstream rejection (frustum, occlusion). `null` if engine maintains no cut.
-- `drawnTriangles`: triangles submitted for rendering — published cut, opaque and transparent hierarchy combined, minus clusters with no resident page (`uncoveredTriangles`). Counted **on the reported frame itself** when cut is committed, without waiting for GPU readback: distinguishes it from `submittedTriangles`, never `null` due to timing. Occlusion rejection is not subtracted; `hiZ.rejectedTriangles` counts it separately. `null` outside this engine.
+- `drawnTriangles`: triangles submitted for rendering — published cut, opaque and transparent hierarchy combined, minus clusters with no resident page (`uncoveredTriangles`); on WebGL2, the nearest resident ancestors stand in for missing pages. Counted **on the reported frame itself** when cut is committed, without waiting for GPU readback: distinguishes it from `submittedTriangles`, never `null` due to timing. Occlusion rejection is not subtracted; `hiZ.rejectedTriangles` counts it separately. `null` outside this engine.
 - `coverage` (`resume.md` column, calculated by report generator):
-  `selectedTriangles − drawnTriangles − uncoveredTriangles`. **Zero is expected**: every cut triangle is either rendered or counted as missing. Non-zero means counters desynchronized across frames. Dash when any of the three is missing.
+  `selectedTriangles − drawnTriangles − uncoveredTriangles`. **Zero is expected**: every cut triangle is either rendered or counted as missing. Non-zero means counters desynchronized across frames. On WebGL2 it is non-zero while ancestors stand in and zero once the wanted cut is resident; holes show in `uncoveredTriangles`. Dash when any of the three is missing.
 - `submittedTriangles`: separate hardware count — triangles actually submitted to opaque raster pass, reported by GPU; occlusion rejects a portion after submission. `null` when engine selects cut on GPU and readback has not returned — later numbers do not represent this frame.
 - `totalSubmittedTriangles`: same hardware count including transparent passes. `null` under same conditions — on moving camera benchmark, cut changes every frame and async readback never returns: both read `null` where `drawnTriangles` has a value. This, and only this, is mapped to `metrics.triangles` for legacy hosts; `null` when unrecorded, never zero.
 - `imageTenue` (`frameHeld` contract): true when reported frame was **held** — unchanged scene, engine only re-encoded presentation. Zero clusters drawn, submitted triangles equal zero: exact record of activity, not missing measurement. Fixed camera benchmark almost always holds final frame; reading `submittedTriangles` without checking this column misinterprets held frame as empty frame. `null` outside this engine.
-- `uncoveredTriangles`: triangles in published cut that cannot be rendered — no resident page, no covering ancestor. Represents a visual hole: zero is the only valid number. `null` on engines rendering exactly what is selected.
+- `uncoveredTriangles`: triangles in published cut that cannot be rendered — no resident page, no covering ancestor. Represents a visual hole: zero is the only valid number. `null` on engines rendering exactly what is selected; the WebGL2 path counts it from its CPU cut (`docs/ENGINE.md`, coverage).
 - `hiZ` (`hiz*Clusters`, `hiz*Triangles`, `hizCountedFrame` contracts): occlusion test input, rejected, and downsampled to coarser mip. On GPU path, represents an **earlier** frame: `hiZ.image` records its index, shown in parentheses. `null` before first frame counted.
 - `repliSelectionGpu` (`gpuSelectionFallback` contract): true when GPU cut selection fell back to CPU cut fallback — subsequent metrics describe fallback, not GPU cut. `null` on engines without GPU selection (e.g. WebGL witness); `resume.md` shows `yes` / `no` / `—`.
 
@@ -173,6 +175,40 @@ guarantee — a DAG that climbs above level 0 wherever there is more than one cl
 a mirrored mapping that costs the simplification nothing — in a tenth of a second, without a GPU.
 
 Resource base URL is where harness serves sources for compiled glTF texture fetch. Cache fingerprint is `key` in `manifest.json`, recorded in `mesure.json`: comparisons require identical keys.
+
+## Navigation image regression proof
+
+Acceptance can replay the complete versioned camera path without collecting timings:
+
+    node bench/runner/trajectory.ts --scene sponza --cache .mesure/assets/sponza-derived \
+      --avant .worktrees/reference/dist --apres dist --out .mesure/out/8-trajectory
+
+Both builds must already exist. `--avant` is the explicitly chosen golden baseline, never
+automatically replaced by the candidate. Both sides read the same compiled cache, camera poses,
+resolution, error threshold, memory budgets and texture compression. Build hashes, asset identity,
+browser version, settings and path version accompany the PNGs in `trajectory.json`. The output
+directory must be new and under `.mesure/out/`; publish the evidence, then remove that directory.
+
+The default is all 600 poses, with checkpoints every 60 poses and at the final pose. `--images`
+can shorten a diagnosis; `--checkpoint-every` can sample more closely (at most 32 checkpoints).
+Each pass keeps one world open throughout navigation and pauses at checkpoints for a
+64-frame held-image barrier. Every render, including convergence, is observed for coverage and
+streaming errors; no SDK flush is called because it can redraw and converge internally. Canvas
+pixels are copied immediately after render in the same browser frame, before its buffer expires,
+using the same surface path for arrival and settled images. The baseline runs twice: only exact, non-black 0 px A/A images are
+accepted as goldens. The candidate records both its arrival image and its held image. Missing
+captures, page/GPU errors, geometry holes, incomplete triangle coverage, no drawn geometry,
+unsettled images and unstable goldens fail the command. A single changed pixel after convergence
+is a regression. A difference that disappears after convergence is reported separately as
+`transient`, with arrival page counters and settling frame count; this does not attribute every
+transient to streaming (temporal accumulation can also differ), nor certify absence of visible
+popping between checkpoints. No elapsed-frame or GPU timing claim is made.
+
+The default scene is the public benchmark reference, Sponza, shared through `DEFAULT_SCENE`.
+Use `--scene` and `--cache` to select another scene explicitly. A missing cache fails the command;
+it never silently substitutes another scene. Browser execution and golden evidence remain to be
+produced by acceptance. The deterministic unit tests cover verdicts, navigation ordering,
+transient errors and checkpoint coverage without a browser.
 
 ## Measuring Another Scene
 

@@ -80,31 +80,9 @@ pub(crate) fn pad_to_4(length: usize) -> usize {
     (4 - length % 4) % 4
 }
 
-/// Small vector algebra on `[f64; 3]`, shared by every stage that reads geometry: the compiler
-/// carries one implementation of each, not one per module.
-pub fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
-    [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-}
-pub fn dot(a: [f64; 3], b: [f64; 3]) -> f64 {
-    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-}
-pub fn cross(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
-    [
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0],
-    ]
-}
-pub fn scale(a: [f64; 3], k: f64) -> [f64; 3] {
-    [a[0] * k, a[1] * k, a[2] * k]
-}
-/// Divides each axis by `k`: not `scale(a, 1.0 / k)`, which rounds once more.
-pub fn divide(a: [f64; 3], k: f64) -> [f64; 3] {
-    [a[0] / k, a[1] / k, a[2] / k]
-}
-pub fn length(a: [f64; 3]) -> f64 {
-    dot(a, a).sqrt()
-}
+/// Small vector algebra on `[f64; 3]`, written once in the page codec beside the normal cone that
+/// reads it (`trillion3d_page_codec::vec3`): the compiler carries one implementation of each.
+pub use trillion3d_page_codec::vec3::{cross, divide, dot, length, point, scale, sub};
 
 /// Unit vector, or fallback when length stays under 1e-12: shorter,
 /// vector carries no direction and division makes no sense. Fallback belongs to
@@ -116,6 +94,23 @@ pub(crate) fn normalized_or(vector: [f64; 3], fallback: [f64; 3]) -> [f64; 3] {
     } else {
         fallback
     }
+}
+
+/// `v` at unit length, if it has a finite, non-zero one.
+pub(crate) fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
+    let length = length(v);
+    (length > 0.0 && length.is_finite()).then(|| scale(v, 1.0 / length))
+}
+
+/// The golden-ratio step of SplitMix64 (Steele et al. 2014), between two draws.
+pub(crate) const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
+
+/// `x` mixed by SplitMix64's finaliser into [0, 1): its top 53 bits, exact in an f64 (all 64 would
+/// round up to 1 near `u64::MAX`).
+pub(crate) fn splitmix_unit(x: u64) -> f64 {
+    let x = (x ^ (x >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    let x = (x ^ (x >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    ((x ^ (x >> 31)) >> 11) as f64 / (1u64 << 53) as f64
 }
 
 /// Elapsed milliseconds from instant: compiler publishes durations in

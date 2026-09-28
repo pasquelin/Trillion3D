@@ -1,9 +1,7 @@
-import { createHash } from 'node:crypto';
+import { sha256 } from '../packages/sdk-node/src/compiler/provenance.mts';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve, relative, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
-
-const sha256 = (value: string | Buffer): string => createHash('sha256').update(value).digest('hex');
 
 export async function fingerprintBuild(
   directory: string,

@@ -2,6 +2,7 @@ import { SHADER } from './shaders.ts';
 import { DEPTH_COMPARE } from '../../../camera/depthConvention.ts';
 import { BLEND_EQUATIONS } from '../../../scene/materialBlending.ts';
 import { pipelinesByMode } from '../../blend/stagePipelines.ts';
+import type { Blending } from '../../../../../sdk-core/src/world/constants/index.ts';
 
 export function createWebgpuPagesPipelines(device: GPUDevice, uniformStride: number) {
   const bindGroupLayout = device.createBindGroupLayout({
@@ -50,19 +51,19 @@ export function createWebgpuPagesPipelines(device: GPUDevice, uniformStride: num
     depthStencil,
   });
   // One pipeline per blending mode, its equation read from the one table, in the blend pass's lazy
-  // set: normal up front, as always; any other mode by the first draw that asks for it.
-  const pipelineBlend = pipelinesByMode((mode) =>
-    device.createRenderPipeline({
-      layout,
-      vertex,
-      fragment: {
-        ...fragment,
-        targets: [{ ...fragment.targets[0], blend: BLEND_EQUATIONS[mode] }],
-      },
-      primitive: { topology: 'triangle-list', cullMode: 'none', frontFace: 'ccw' },
-      depthStencil: { ...depthStencil, depthWriteEnabled: false },
-    }),
-  );
+  // set: normal up front, as always; the modes the scene declares off the frame, once its blend
+  // items exist (`precompile`); any other mode by the first draw that asks for it.
+  const blendDescriptor = (mode: Blending): GPURenderPipelineDescriptor => ({
+    layout,
+    vertex,
+    fragment: {
+      ...fragment,
+      targets: [{ ...fragment.targets[0], blend: BLEND_EQUATIONS[mode] }],
+    },
+    primitive: { topology: 'triangle-list', cullMode: 'none', frontFace: 'ccw' },
+    depthStencil: { ...depthStencil, depthWriteEnabled: false },
+  });
+  const pipelineBlend = pipelinesByMode(device, (mode) => [blendDescriptor(mode)]);
   pipelineBlend.at('normal');
   return { bindGroupLayout, pipelineBack, pipelineBackCw, pipelineNone, pipelineBlend };
 }

@@ -5,6 +5,7 @@ import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { createGuideSet, type Guides } from '../../guides/guideSet.ts';
 import {
   noticeEffectRefusal,
+  noticeMaterialDegraded,
   noticeShadowRefusal,
   type WorldNotices,
 } from '../diagnostic/worldNotices.ts';
@@ -38,11 +39,13 @@ export function worldSwitches(
     // One chain for the world's life: every session draws it, a change asks for a frame.
     effects: new EffectChain(invalidate),
     effectsRefused: noticeEffectRefusal(notices),
+    materialDegraded: noticeMaterialDegraded(notices),
     // A WebGL2 session's lights that ask for a shadow it cannot draw (`noticeShadowRefusal`).
     shadowsRefused: noticeShadowRefusal(notices),
     guides: createGuideSet(invalidate),
     // The particle pools the measurement entry attaches (`attachParticles`); none by default.
     particles: [] as ParticlePool[],
+    particlesRefused: (reason: string) => notices.once('particles-refused', reason),
   };
   return {
     held,

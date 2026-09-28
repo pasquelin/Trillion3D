@@ -61,10 +61,7 @@ export function cpuBackend(dag: RuleDag, threshold: number, roots = placements(d
 export const webgl2Cut = (roots: ClusterRoot<PageRec>[], held = createHeldResidency()) =>
   createImageCut({
     roots,
-    viewport: [1280, 720],
-    shown: [],
-    desired: [],
-    requested: [],
+    view: { viewport: [1280, 720], shown: [], desired: [], requested: [] },
     revision: () => 0,
     pool: { admit: (asked) => asked.length, fit: (asked) => asked.length, held: {} },
     held,

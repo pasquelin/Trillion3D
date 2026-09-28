@@ -9,8 +9,6 @@
  * by its `kind` (`../graph/kinds.ts`); the pose shapes below stay shapes because a camera controller
  * writes them on whatever pose it is handed.
  */
-import type { GraphAnyLight } from '../graph/kinds.ts';
-import type { GraphMesh } from '../graph/mesh.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { HostBox } from '../resources.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
@@ -42,9 +40,6 @@ export type HostRotation = {
   set(x: number, y: number, z: number, w: number): unknown;
 };
 
-/** A drawn node of the graph: its geometry and its surface, or one per geometry group. */
-export type HostGraphMesh = GraphMesh;
-
 /** A node that bounds itself, or whose geometry does: the two boxes the bounds rule reads
  *  (`../world/bounds.ts`), the node's own winning over its geometry's as the reference does. */
 export type HostBoundedNode = Object3D & {
@@ -52,6 +47,3 @@ export type HostBoundedNode = Object3D & {
   boundingBox?: HostBox | null;
   computeBoundingBox?(): void;
 };
-
-/** A light of the graph, with the numbers its kind declares. A watch compares them per frame. */
-export type HostLightNode = GraphAnyLight;
