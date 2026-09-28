@@ -16,13 +16,14 @@ import { FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1 } from '../../cluster/format
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
 import { pagedGeometry } from '../../host/prepared/pagedSource.ts';
 import type { HostMesh } from '../../host/resources.ts';
-import { cutPagesOffThread, decodePageOffThread } from '../../page/decode/host.ts';
+import { cutPagesOffThread } from '../../page/decode/host.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { blendMoves, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
 import { primitiveFinder } from '../../scene/primitiveLookup.ts';
 import { packDrawn } from '../../world/page/runtimeCut.ts';
 import type { BackendContext } from '../types.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
+import { readPages } from './manifest.ts';
 
 type ClassPagesEnvironment = {
   context: BackendContext;
@@ -78,14 +79,18 @@ export function createClassPages(env: ClassPagesEnvironment) {
   async function pagesFor(primitive: Primitive, blended: boolean, records: readonly PageRec[]) {
     const mesh = records[0].sourceMesh as HostMesh;
     if (ownClass(primitive, blended)) return null;
-    const drawn = drawnTriangles(await pagedGeometry(mesh).loadVertices(), 'triangles');
+    const [vertices, corners] = await Promise.all([
+      pagedGeometry(mesh).loadVertices(),
+      Promise.all(primitive.pages.map((page) => context.readPage!(page.url))),
+    ]);
+    const drawn = drawnTriangles(vertices, 'triangles');
     if (!drawn) throw new Error('MATERIAL_CLASS_SOURCE_MISSING');
-    const corners = await Promise.all(primitive.pages.map((page) => context.readPage!(page.url)));
     const ends = new Uint32Array(corners.length),
       indices = new Uint32Array(corners.reduce((sum, page) => sum + page.length, 0));
+    let offset = 0;
     corners.forEach((page, k) => {
-      indices.set(page, k ? ends[k - 1] : 0);
-      ends[k] = (k ? ends[k - 1] : 0) + page.length;
+      indices.set(page, offset);
+      ends[k] = offset += page.length;
     });
     // A mesh with no registered source reads its one-triangle stand-in: refused, never cut.
     if (indices.some((v) => v * 3 >= drawn.positions.length))
@@ -118,9 +123,7 @@ export function createClassPages(env: ClassPagesEnvironment) {
     const urls = pages
       ? []
       : [...new Set(current().flatMap((rec) => (rec.array ? [rec.url] : [])))];
-    const read = await Promise.all(
-      urls.map(async (url) => decodePageOffThread(await context.readGeometryPage!(url))),
-    );
+    const read = await readPages(context, urls);
     const resident = current().filter((rec) => rec.array);
     if (pages) geometryStore.restoreRecords(resident, undefined);
     urls.forEach((url, k) =>
