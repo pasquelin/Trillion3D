@@ -12,10 +12,15 @@ export function carriedFrom(
   position: ArrayLike<number>,
   quaternion: ArrayLike<number>,
 ): Carried {
-  const last = new Float64Array(7);
+  const carried = { node, last: new Float64Array(7) };
+  record(carried, position, quaternion);
+  return carried;
+}
+
+/** `position` then `quaternion` kept as the pose `carried` was last driven to. */
+function record({ last }: Carried, position: ArrayLike<number>, quaternion: ArrayLike<number>) {
   last.set(position);
   last.set(quaternion, 3);
-  return { node, last };
 }
 
 /**
@@ -29,13 +34,9 @@ export function driveCarried(
 ) {
   if (!carried) return false;
   const { position, quaternion } = worldPoseOf(carried.node);
-  const { last } = carried;
-  let same = true;
-  for (let i = 0; i < 3; i++) same &&= last[i] === position[i];
-  for (let i = 0; i < 4; i++) same &&= last[3 + i] === quaternion[i];
+  const same = carried.last.every((v, i) => v === (i < 3 ? position[i] : quaternion[i - 3]));
   if (same) return true;
-  last.set(position);
-  last.set(quaternion, 3);
+  record(carried, position, quaternion);
   writer.moveKinematic(id & BODY_INDEX, position, quaternion);
   return true;
 }
