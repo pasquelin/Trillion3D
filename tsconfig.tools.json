@@ -22,6 +22,7 @@
   "include": [
     "scripts/**/*.ts",
     "tests/**/*.ts",
+    "tests/**/*.mts",
     "bench/**/*.ts",
     "packages/**/*.test.ts",
     "packages/page-codec/**/*.ts",
@@ -30,5 +31,5 @@
     "eslint.config.ts",
     "site/app/migration/sources.d.ts"
   ],
-  "exclude": ["**/node_modules/**", "**/target/**", "tests/fixtures/**"]
+  "exclude": ["**/node_modules/**", "**/target/**", "tests/fixtures/public*"]
 }
