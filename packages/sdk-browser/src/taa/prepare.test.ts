@@ -11,7 +11,7 @@ function runtime(temporalAntialiasing: boolean) {
   let changed = 0;
   const view = {};
   const rt = {
-    views: { main: view, active: view },
+    views: { main: view, active: view, persistent: [] },
     context: { temporalAntialiasing },
     gpu: { temporal: undefined, temporalWanted: true, device: inertTaaDevice(), targetBytes: 0 },
     capabilities: { unsupported: [TAA_CAPABILITY] },
@@ -97,7 +97,7 @@ test('temporal antialiasing rigged during a capture lands on the main view', asy
   const { rt } = runtime(false);
   await prepareTemporalAntialiasing(rt, rt.gpu.device!);
   const main = { gpu: { temporal: undefined, targetBytes: 0 } };
-  Object.assign(rt, { views: { main, active: {} } });
+  Object.assign(rt, { views: { main, active: {}, persistent: [] } });
   setWebgpuTemporalAntialiasing(rt, true);
   for (let turn = 0; turn < 5; turn++) await new Promise(setImmediate);
   assert.ok(main.gpu.temporal, 'held by the main view');
