@@ -1,7 +1,13 @@
 import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts';
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { lecture, lectureDonnee, siCarte } from './maps.ts';
-import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG, MODEL_FLAG, MODEL_SHIFT, SURFACE_MODEL } from '../../scene/surfaceModel.ts';
+import {
+  AS_IS_FLAG,
+  FOG_FREE_SURFACE_FLAG,
+  MODEL_FLAG,
+  MODEL_SHIFT,
+  SURFACE_MODEL,
+} from '../../scene/surfaceModel.ts';
 import { FLAG_FOG_FREE } from '../types.ts';
 
 /**
