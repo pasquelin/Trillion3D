@@ -15,6 +15,7 @@ import { createWebgpuBounceState, type WebgpuBounceState } from './state/bounce.
 import { createWebgpuSunFarState, type WebgpuSunFarState } from './state/sunFar.ts';
 import { createWebgpuRunState, type WebgpuRunState } from './state/run.ts';
 import { createWebgpuCaptureState, type WebgpuCaptureState } from './state/capture.ts';
+import { createWebgpuViews, type WebgpuViews } from './state/view.ts';
 import {
   createWebgpuStageProfiler,
   createWebgpuTimingState,
@@ -62,6 +63,8 @@ export interface WebgpuPagesRuntime {
   sunFar: WebgpuSunFarState;
   run: WebgpuRunState;
   capture: WebgpuCaptureState;
+  /** Every camera-bound field above belongs to `views.active`; `./state/viewSwitch.ts` switches. */
+  views: WebgpuViews;
   timing: WebgpuTimingState;
   capabilities: BackendCapabilities;
   blendState: ReturnType<typeof createWebgpuBlendState>;
@@ -74,7 +77,12 @@ export interface WebgpuPagesRuntime {
 
 export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRuntime {
   const traceEnabled = !!context.onDiagnostic && context.diagnosticDetail !== 'summary';
-  const diag = { ...createWebgpuDiagnostics(context.onDiagnostic, traceEnabled), traceEnabled };
+  const closer = new AbortController();
+  const signal = context.signal ? AbortSignal.any([context.signal, closer.signal]) : closer.signal;
+  const diag = {
+    ...createWebgpuDiagnostics(context.onDiagnostic, traceEnabled, signal),
+    traceEnabled,
+  };
   const setup = createWebgpuPagesSetup(context, diag);
   const layout = createWebgpuPagesLayout(setup);
   const vis = createWebgpuVisState();
@@ -109,15 +117,15 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       'direct WebGPU present',
     ],
   };
-  const closer = new AbortController();
+  const gpu = createWebgpuGpuState(setup.viewport);
   const core: WebgpuPagesCore = {
     context,
     closer,
-    signal: context.signal ? AbortSignal.any([context.signal, closer.signal]) : closer.signal,
+    signal,
     diag,
     setup,
     layout,
-    gpu: createWebgpuGpuState(setup.viewport),
+    gpu,
     vis,
     lights,
     bounce: createWebgpuBounceState(
@@ -127,6 +135,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     sunFar: createWebgpuSunFarState(),
     run,
     capture: createWebgpuCaptureState(),
+    views: createWebgpuViews({ run, gpu, vis, setup }),
     timing: createWebgpuTimingState(
       context.stageProfile ? createWebgpuStageProfiler() : undefined,
       layout.selectionRoots.length,

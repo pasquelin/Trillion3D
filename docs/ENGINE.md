@@ -128,7 +128,10 @@ page per held slot fed by the cache's arrivals and departures (`gpu/dag/poolList
 catalogue. On the GPU-cut path the cache evicts only from that queue, skipping pinned pages and
 taking a page a lower tier touched since the last queue (a shadow caster) after every other; once
 spent (`eviction-queue-spent`) the burst waits for the next readback. The CPU cut evicts the least
-recent page; `budgetRanking` still chooses loads (#836).
+recent page. Loads on the GPU-cut path are read off the readback's requests, closed over their
+groups (`webgpu/residency/requestAdmission.ts`, #836): past the pool, the coarsest levels whole and
+the one the room straddles in part, what the queue already holds first, from the pool's room alone.
+The GPU cut feeds no `budgetRanking`; the CPU cut that takes the image back refills it.
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min
@@ -229,7 +232,12 @@ revision and asks for a frame.
 - **Kinds**: each renderer holds one table from pass kind to implementation (`WEBGPU_KINDS`,
   `WEBGL_KINDS`); a new built-in or the custom pass is one entry. The kinds of a chain share its two
   pass targets; each holds its own resources besides, sized for the passes of its kind — the
-  WebGPU bloom gives every bloom pass its own uniform range, read at a dynamic offset.
+  WebGPU bloom gives every bloom pass its own uniform range, read at a dynamic offset. On WebGPU a
+  chain that ends on a bloom leaves that bloom's last blend to the composition, once the
+  composition's bloom programs are compiled (`deferred/compositions.ts`, #963): the composition
+  reads the image the bloom read and blends the first level in itself, rounded to half precision as
+  the pass target held it, so the chain draws one pass and holds one target fewer for the same
+  image. WebGL2 still draws that blend into its pass target.
 
 Parity rules, each held by a unit test: an empty chain adds no pass, no copy and no target — the
 frame is composed call for call as without one; a held frame redisplays the image the chain drew and
@@ -411,7 +419,9 @@ frame. A page drawn in full writes its static casters
 into the layer, then restores itself from it and draws its moving casters over; a page that only
 a moving object crossed is restored and gets its moving casters alone, split by one word per row
 in the page cull. A still moving object stales nothing; it is never demoted, since a rule that
-did would redraw the layer each time a pausing object moved again. A residency flag that drops
+did would redraw the layer each time a pausing object moved again, and an object already moving
+that the host hides or shows, or that stops or starts casting, redraws the moving casters of its
+pages alone: the layer never held it. A residency flag that drops
 and rises within a frame — every row follows the table epoch when a pose moves — is no change
 for the shadows: only a flag that differs from the last plan's restales its cluster's pages
 (`webgpu/shadow/residence.ts`). On a code-built scene with one ball moving over a static ground,
@@ -437,7 +447,8 @@ cluster not resident drew its nearest resident ancestor instead, and every page 
 it: those pages, and only that view's, are drawn again once residency changes, not only the pages
 over the missing cluster; a batch whose requests were not read — the frame found no report
 readback free, or its list was full — draws them again at once (`gpu/dag/lightCutRedraws.ts`,
-`light-cut-redraw`). Every batch's cut appends its requests to one list (`VIEW_APPEND`), which the
+`light-cut-redraw`). A page is drawn again as it was drawn: one restored from the static layer drew
+its moving casters alone, and only they are drawn again over the kept layer. Every batch's cut appends its requests to one list (`VIEW_APPEND`), which the
 frame copies once after its last batch into one of two report slots (`gpu/dag/lightCutReports.ts`):
 every batch's missing casters are asked for, whatever the batch count. Each frame's flag words ride
 in one slot sized for the most batches, four slots made at creation; a frame that finds all four
@@ -610,7 +621,9 @@ A world keeps its device across sessions, and each session creates through its o
 the handle before anything else, and a released handle is inert: its `create*` throw an `AbortError`,
 so a preparation still running stops there (cancelled, torn down once after it stopped), and its
 queue writes and submits nothing. From `dispose` on, the backend reads as lost: its audits and
-digests answer `null`. The device's error scopes are one stack every session shares: each creation
+digests answer `null`, and what its pending work throws — a program still compiling, the static
+shadow layer, an upload — is its cancellation, said nowhere (`webgpu/pages/io/diagnostics.ts`); a
+failure under a live session, a real device loss among them, is still said by name. The device's error scopes are one stack every session shares: each creation
 path closes the scope it opened in every case, an abort included (`gpu/core/errorScope.ts`), so no
 scope is left to swallow the next session's errors. What a closed session submitted before may still raise an error:
 one that names only closed sessions' objects is a console warning and a `gpu-closed-session-error`
@@ -875,6 +888,15 @@ Phases carry `pipelineVersion: 1`: `gpu-presentation`, `frame-allocation`, `mate
 transparent counters), surface-capture phases, `gpu-device-lost`, `gpu-closed-session-error`
 (`kind: 'warning'`: an error of a session already closed on the same device, never a loss). Observer exceptions cannot
 interrupt a backend. These durations are not frame-performance measurements.
+
+**Optional device features.** The session asks for every optional feature a kernel can use that the
+adapter offers — `indirect-first-instance`, `timestamp-query`, `subgroups`, `shader-f16` and the
+block-compressed texture formats (`world/session/gpuDevice.ts`) — and each session says what its
+device got under the `WebGPU device granted` capability diagnostic (`features`). A kernel branches on the
+device's own `features` and keeps its plain path as the named fallback. The host URL parameter
+`trillion3dGpuFeaturesOff=subgroups,shader-f16` keeps the named features unrequested: the plain paths
+then run on a device that has the features, the fallback's proof (0 px against the features on). It
+acts only on a device the engine requests; a host's own `gpuDevice` is taken as it is.
 
 **GPU timing.** `timestamp-query` is requested when the adapter advertises it (`gpu-timing-status`).
 Summary mode instruments at most one submission in 60, trace mode every one, with one outstanding

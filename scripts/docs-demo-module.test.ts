@@ -1,3 +1,4 @@
+import { showVector, vector } from '../site/demos/kit.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -43,4 +44,13 @@ test('the projection it exports is the reversed one, with an infinite far plane'
   assert.equal(projection[14], 0.1);
   assert.equal(projection[10], 0);
   assert.equal(projection[11], -1);
+});
+
+test('demo vectors retain precision, separate storage, and component formatting', () => {
+  const value = vector(-0, 1 / 3, Infinity);
+  assert.ok(value instanceof Float64Array);
+  assert.deepEqual(Array.from(value), [-0, 1 / 3, Infinity]);
+  assert.notEqual(value, vector(-0, 1 / 3, Infinity));
+  assert.equal(showVector(value), '0, 0.3333, Infinity');
+  assert.equal(showVector(new Float64Array([1e-6, 1e6, NaN, -2.5])), '1.00e-6, 1.00e+6, NaN, -2.5');
 });

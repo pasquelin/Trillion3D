@@ -33,7 +33,7 @@ test('opaque materials are rendered before lighting into reusable GPU surface te
   }
 });
 
-test('surface capture uses its own camera and restores the main view without copying pixels to CPU', async () => {
+test('surface capture uses its own camera and leaves the main view untouched, without copying pixels to CPU', async () => {
   installGpuGlobals();
   const { device, imageCopies } = mockGpu();
   const fixture = quadScene();
