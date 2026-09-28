@@ -5,7 +5,11 @@ import { walkTrajectory } from './trajectoryWalk.ts';
 import { explorerOptions } from './explorerPage.ts';
 import { collecteDiagnostics, posterCapture } from './measurePage.ts';
 
-export async function captureTrajectory(options: MeasureViewOptions, indices: number[]) {
+export async function captureTrajectory(
+  options: MeasureViewOptions,
+  indices: number[],
+  captureArrival: boolean,
+) {
   const sdk = (await import(options.sdkUrl)) as typeof Sdk;
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
@@ -18,11 +22,13 @@ export async function captureTrajectory(options: MeasureViewOptions, indices: nu
   });
   // Canvas readback samples the presented frame. The measurement seam's capture() requires
   // flush(), which converges streaming and can redraw internally: unsuitable for arrival frames.
+  const surface = new OffscreenCanvas(canvas.width, canvas.height);
+  const context = surface.getContext('2d')!;
   const capture = async (name: string) => {
-    const surface = new OffscreenCanvas(canvas.width, canvas.height);
-    const context = surface.getContext('2d')!;
-    context.translate(0, canvas.height);
-    context.scale(1, -1); // Capture transport expects bottom-up rows.
+    if (surface.width !== canvas.width || surface.height !== canvas.height)
+      [surface.width, surface.height] = [canvas.width, canvas.height];
+    context.setTransform(1, 0, 0, -1, 0, canvas.height); // Capture transport expects bottom-up rows.
+    context.clearRect(0, 0, canvas.width, canvas.height); // Never blend over the last capture.
     context.drawImage(canvas, 0, 0);
     const rgba = context.getImageData(0, 0, canvas.width, canvas.height).data;
     const response = await posterCapture(
@@ -46,6 +52,7 @@ export async function captureTrajectory(options: MeasureViewOptions, indices: nu
       options.poses ?? [],
       indices,
       options.captureFile,
+      captureArrival,
     );
     return { ...run, incidents: [...incidents, ...run.incidents] };
   } finally {
