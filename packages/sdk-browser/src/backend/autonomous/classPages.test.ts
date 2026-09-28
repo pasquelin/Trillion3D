@@ -20,23 +20,23 @@ const SOURCE = [-0.3, -0.3, 0, 0.3, -0.3, 0, 0, 0.3, 0];
 
 /** The triangle opened on WebGL2 from a page cut before its source moved to `SOURCE`. */
 async function opened() {
-  const opened = triangleBackend();
-  await opened.backend.prepare();
-  (opened.geometry.getAttribute('position').array as Float32Array).set(SOURCE);
-  return opened;
+  const triangle = triangleBackend();
+  await triangle.backend.prepare();
+  (triangle.geometry.getAttribute('position')!.array as Float32Array).set(SOURCE);
+  return triangle;
 }
 
 /** The positions the display graph draws the page with. */
 function drawnPositions({ backend, camera }: Awaited<ReturnType<typeof opened>>) {
   backend.render(camera);
   const [mesh] = (backend.scene as unknown as G.Group).children.filter((c) => 'geometry' in c);
-  return [...(mesh as G.Mesh).geometry.getAttribute('position').array];
+  return [...(mesh as G.Mesh).geometry.getAttribute('position')!.array];
 }
 
 /** The material written to `to`, and the engine told. */
-function move(opened: Awaited<ReturnType<typeof opened>>, from: AlphaMode, to: AlphaMode) {
-  opened.material.transparent = to === 'blend';
-  opened.backend.refreshMaterials!(true, { surfaces: [opened.material], from, to });
+function move(triangle: Awaited<ReturnType<typeof opened>>, from: AlphaMode, to: AlphaMode) {
+  triangle.material.transparent = to === 'blend';
+  triangle.backend.refreshMaterials!(true, { surfaces: [triangle.material], from, to });
 }
 
 /** The page positions of `SOURCE` cut on a position grid of 2^`exponent`. */
