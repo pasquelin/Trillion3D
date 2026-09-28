@@ -8,13 +8,17 @@ import { pathToFileURL } from 'node:url';
 // GitHub's closing keywords, then `#n` of this repository (an `owner/repo#n` does not match).
 const CLOSING = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):?\s+#(\d+)\b/gi;
 
-/** The issue numbers the body closes, once each, in order; code and HTML comments are ignored. */
-export function namedIssues(body: string): number[] {
-  const prose = body
+/** The body without HTML comments, fenced code or inline code: what GitHub reads as keywords. */
+export function prose(body: string): string {
+  return body
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/^(```|~~~)[\s\S]*?^\1/gm, '')
     .replace(/`[^`\n]*`/g, '');
-  return [...new Set([...prose.matchAll(CLOSING)].map((match) => Number(match[1])))];
+}
+
+/** The issue numbers the body closes, once each, in order; code and HTML comments are ignored. */
+export function namedIssues(body: string): number[] {
+  return [...new Set([...prose(body).matchAll(CLOSING)].map((match) => Number(match[1])))];
 }
 
 async function main(): Promise<void> {
@@ -39,13 +43,10 @@ async function main(): Promise<void> {
   for (const issue of namedIssues(body ?? '')) {
     try {
       const current = await api(`${issue}`);
-      const skip = current.pull_request
-        ? 'a pull request'
-        : current.state === 'closed'
-          ? 'already closed'
-          : '';
-      if (skip) {
-        console.log(`#${issue}: skipped (${skip}).`);
+      if (current.pull_request || current.state === 'closed') {
+        console.log(
+          `#${issue}: skipped (${current.pull_request ? 'a pull request' : 'already closed'}).`,
+        );
         continue;
       }
       await api(`${issue}/comments`, 'POST', { body: `Closed by ${url} (merged into develop).` });
