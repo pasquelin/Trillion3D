@@ -10,6 +10,8 @@ import {
   DRAW_FULL,
 } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 
+/** Modes of pages drawn whole: static casters and moving ones. */
+const WHOLE = new Array<number>(8).fill(DRAW_FULL);
 const coarserView = (view: number) => (1 << (COARSER_VIEWS + view)) >>> 0;
 
 /** A light cut's flag readback whose word is `flag.value`, and one frame through it. */
@@ -32,7 +34,7 @@ function redrawsWith(flag: { value: number }) {
     return again;
   };
   const frame = async (pages: number[], reported = true, views?: number[]) => {
-    const settle = redraws.encode(encoder, pages, views ?? pages.map(() => 0), pages.length);
+    const settle = redraws.encode(encoder, pages, views ?? pages.map(() => 0), pages.length, WHOLE);
     redraws.reported(reported);
     settle?.(true);
     await redraws.settled();
@@ -48,7 +50,7 @@ test('the pages of a frame that dropped work are drawn again, in fewer views unt
   const flag = { value: WORK_DROPPED };
   const { redraws, encoder, frame } = redrawsWith(flag);
   assert.equal(
-    redraws.encode(encoder, [], [], 0),
+    redraws.encode(encoder, [], [], 0, WHOLE),
     undefined,
     'a frame without pages copies nothing',
   );
@@ -116,7 +118,7 @@ test('only the pages of a frame that dropped work are withdrawn until they are r
   const flag = { value: WORK_DROPPED };
   const { redraws, encoder } = redrawsWith(flag);
   const drawn = async (page: number, reported: boolean) => {
-    const settle = redraws.encode(encoder, [page], [0], 1);
+    const settle = redraws.encode(encoder, [page], [0], 1, WHOLE);
     redraws.reported(reported);
     settle?.(true);
     await redraws.settled();
@@ -140,9 +142,9 @@ test('the flag slots are made once, for the most batches a frame draws, and neve
   );
   const settles = [];
   for (let frame = 0; frame < SHADOW_FLAG_FRAMES; frame++) {
-    const settle = redraws.encode(encoder, [0], [0], 1);
+    const settle = redraws.encode(encoder, [0], [0], 1, WHOLE);
     for (let batch = 1; batch < MAX_SHADOW_BATCHES; batch++)
-      assert.equal(redraws.encode(encoder, [batch], [0], 1), undefined, 'same slot');
+      assert.equal(redraws.encode(encoder, [batch], [0], 1, WHOLE), undefined, 'same slot');
     assert.ok(settle, 'the first batch opens the frame');
     redraws.reported(true);
     settle(true);
@@ -159,8 +161,8 @@ test('the flag slots are made once, for the most batches a frame draws, and neve
 test('a frame that finds every flag slot still read draws its pages again, withdrawn', () => {
   const { redraws, encoder } = redrawsWith({ value: 0 });
   for (let frame = 0; frame < SHADOW_FLAG_FRAMES; frame++)
-    redraws.encode(encoder, [frame], [0], 1)!(true);
-  assert.equal(redraws.encode(encoder, [40, 41], [0, 0], 2), undefined);
+    redraws.encode(encoder, [frame], [0], 1, WHOLE)!(true);
+  assert.equal(redraws.encode(encoder, [40, 41], [0, 0], 2, WHOLE), undefined);
   const seen: [number, boolean][] = [];
   redraws.takeRedraw((page, withdraw) => seen.push([page, withdraw]));
   assert.deepEqual(seen, [
@@ -170,41 +172,27 @@ test('a frame that finds every flag slot still read draws its pages again, withd
 });
 
 // #990: a page restored from the static layer drew its moving casters alone; drawn short, only they
-// are drawn again. A page whose static casters were drawn — or drawn with no mode said — draws them
-// again, also when it waited for residency.
+// are drawn again. A page whose static casters were drawn draws them again, also
+// when it waited for residency.
 test('a page drawn short is drawn again as it was drawn: its static casters only if it drew them', async () => {
   const flag = { value: WORK_DROPPED };
   const { redraws, encoder } = redrawsWith(flag);
-  const drawn = async (pages: number[], modes?: number[]) => {
-    const settle = redraws.encode(encoder, pages, [0, 0, 0], pages.length, modes);
-    redraws.reported(true);
-    settle?.(true);
+  const drawn = async (pages: number[], modes: number[]) => {
+    redraws.encode(encoder, pages, [0, 0, 0], pages.length, modes)?.(true);
     await redraws.settled();
   };
+  /** The pages drawn again, by whether their static casters are too. */
   const seen = () => {
-    const again: [number, boolean][] = [];
-    redraws.takeRedraw((page, _withdraw, staticCasters) => again.push([page, staticCasters]));
+    const again = { whole: [] as number[], moving: [] as number[] };
+    redraws.takeRedraw((page, _, whole) => again[whole ? 'whole' : 'moving'].push(page));
     return again;
   };
   await drawn([1, 2, 3], [DRAW_DYNAMIC, DRAW_FULL, DRAW_ALL]);
-  assert.deepEqual(seen(), [
-    [1, false],
-    [2, true],
-    [3, true],
-  ]);
-  await drawn([4]);
-  assert.deepEqual(seen(), [[4, true]], 'no mode said: every caster');
+  assert.deepEqual(seen(), { whole: [2, 3], moving: [1] });
   flag.value = coarserView(0);
   await drawn([5, 6], [DRAW_FULL, DRAW_DYNAMIC]);
   await drawn([5], [DRAW_DYNAMIC]);
   redraws.residencyChanged();
   redraws.rest();
-  assert.deepEqual(
-    seen(),
-    [
-      [5, true],
-      [6, false],
-    ],
-    'a page that waited keeps what its first draw lacked',
-  );
+  assert.deepEqual(seen(), { whole: [5], moving: [6] }, 'a wait keeps what its first draw lacked');
 });

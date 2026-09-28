@@ -27,18 +27,13 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   // roots covered are drawn again, static casters included unless every root that flipped was
   // moving already: the static layer never held those (`../../shadow/mobility.ts`, #990).
   if (hostWalked) {
-    const flip = flipWorld(rt),
-      { mobility } = rt.lights;
-    let movingOnly = true;
     const flipped = followHostVisibility(
       selectionRoots,
       { entries: rt.blendState.blendGpu, sourceOf: (item) => item.sourceMesh },
-      (rank, root) => {
-        movingOnly &&= mobility.moves(rank);
-        flip(rank, root);
-      },
+      flipWorld(rt),
+      rt.lights.mobility.moves,
     );
-    if (flipped) rt.lights.plan.worldChanged(flipped.min, flipped.max, movingOnly);
+    if (flipped) rt.lights.plan.worldChanged(flipped.min, flipped.max, flipped.movingOnly);
   }
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene;
   // What leaves toward the cut kernel is brought back to the eye (`../../../camera/renderOrigin.ts`):
