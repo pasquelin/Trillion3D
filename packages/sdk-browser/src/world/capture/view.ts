@@ -2,7 +2,7 @@ import type { RenderBackend } from '../../backend/types.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { createFrameComposer } from '../render/compose.ts';
 import { createWebglRenderTarget } from '../../webgl/core/renderTarget.ts';
-import { copyElements } from '../../math/matrixElements.ts';
+import { hostOrthographic } from '../core/worldCamera.ts';
 
 type Inputs = {
   camera: HostCamera;
@@ -27,15 +27,16 @@ export function createExplorerCaptureView(inputs: Inputs) {
     if (active.captureColorView) return active.captureColorView(camera, { width, height });
     const gl = context;
     if (!gl) throw new Error('CAPTURE_VIEW_UNSUPPORTED');
-    const aspect = camera.aspect;
-    // An orthographic camera's matrix is its box, whatever the shape: only a perspective one
-    // is recomposed at the target's aspect. A core camera recomposes at every optic write, so
-    // the box's matrix is kept across the write.
+    const aspect = camera.aspect,
+      box = camera.orthographic;
+    // The camera is shaped to the target: a perspective one recomposed at its aspect, an
+    // orthographic one's matrix composed from its box as the world composes it, a box fitted to
+    // the shape drawn at (`fitAspect`) fitted to the target's, any other as declared.
     const reshape = (value: number) => {
-      const box = camera.orthographic && Float64Array.from(camera.projectionMatrix.elements);
       camera.aspect = value;
-      if (box) copyElements(camera.projectionMatrix.elements as number[], box);
-      else camera.updateProjectionMatrix();
+      if (!box) return camera.updateProjectionMatrix();
+      const inverse = camera.projectionMatrixInverse?.elements as number[] | undefined;
+      hostOrthographic(camera.projectionMatrix.elements as number[], inverse, box, camera, value);
     };
     const take = () => {
       const target = createWebglRenderTarget(gl, width, height);
