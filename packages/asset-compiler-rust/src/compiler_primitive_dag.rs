@@ -66,10 +66,8 @@ pub(super) fn build_dag_primitive(
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
     let attributes = crate::dag::DagAttributes { carried };
     let mut laps = perf::Laps::start();
-    let built =
+    let (dag, groups, tallies, stalls, grown) =
         crate::dag::build_dag_tallied(pos, attributes, index_values, strategy, &|| check(o))?;
-    let (dag, groups, grown) = (built.clusters, built.groups, built.grown);
-    let (tallies, stalls) = (built.tallies, built.stalls);
     laps.lap("dagMs");
     // From here on every stage reads the source's vertices followed by those the solve of a
     // seam-locked group placed (`dag::Grown`); `source.bin` keeps the source alone.
