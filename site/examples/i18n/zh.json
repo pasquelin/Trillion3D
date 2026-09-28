@@ -58,7 +58,8 @@
       "missingCache": "缺少已编译的缓存：请运行 pnpm compile:caches"
     },
     "banner": {
-      "close": "关闭"
+      "close": "关闭",
+      "waiting": "等待引擎（#{issue}）"
     }
   },
   "a-city-from-rules": {

@@ -58,7 +58,8 @@
       "missingCache": "Thiếu bộ nhớ đệm đã biên dịch: hãy chạy pnpm compile:caches"
     },
     "banner": {
-      "close": "Đóng"
+      "close": "Đóng",
+      "waiting": "Đang chờ engine (#{issue})"
     }
   },
   "a-city-from-rules": {
