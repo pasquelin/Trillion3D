@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuCutPublication } from './publication.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
-import { keysOf, rec, world } from '../residency/sets.fixture.ts';
+import { keysOf, queueOf, rec, world } from '../residency/sets.fixture.ts';
 import { createWebgpuRunState } from '../pages/state/run.ts';
 import { createWebgpuGpuState } from '../pages/state/gpu.ts';
 import { createWebgpuVisState } from '../pages/state/vis.ts';
@@ -12,10 +12,13 @@ import { createWebgpuView, createWebgpuViews, type WebgpuView } from '../pages/s
 import { useWebgpuView } from '../pages/state/viewSwitch.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
-/** Eight pages, levels 0 to 3 twice over, published through one publication and real sets, on
- *  the runtime groups the view switch trades. */
+/** Eight pages, levels 0 to 3 twice over. */
+const eightPages = () => world(Array.from({ length: 8 }, (_, i) => rec(`p${i}`, i % 4)));
+
+/** Eight pages published through one publication and real sets, on the runtime groups the view
+ *  switch trades. */
 function bench() {
-  const scene = world(Array.from({ length: 8 }, (_, i) => rec(`p${i}`, i % 4)));
+  const scene = eightPages();
   const run = createWebgpuRunState(),
     gpu = createWebgpuGpuState([1, 1]),
     vis = createWebgpuVisState(),
@@ -57,9 +60,6 @@ function bench() {
   return { ...scene, publication, main, side, draw, keys, aheadOffers };
 }
 
-/** The upload queue, in its order. */
-const queueOf = (set: { list: Int32Array; count: number }) => [...set.list.subarray(0, set.count)];
-
 test('a second view keeps its pages while the main view draws, all under the one budget', () => {
   const { sets, tracking, publication, main, side, draw, keys } = bench();
   draw(main, [0, 1, 2, 3]);
@@ -87,7 +87,7 @@ test("another view's cut leaves the main view's pages ahead alone", () => {
 test('one view asks, keeps and ranks what it did before views existed', () => {
   const { sets, tracking, main, draw } = bench();
   // The contract before #268: the cut's records, one difference, the sets, the budget.
-  const before = world(Array.from({ length: 8 }, (_, i) => rec(`p${i}`, i % 4)));
+  const before = eightPages();
   const cuts = [[0, 1, 2, 3], [2, 3, 4, 5, 6], [], [1, 3, 5, 7], [7]];
   for (const ids of cuts) {
     draw(main, ids);
