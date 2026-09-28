@@ -8,8 +8,7 @@ import { evictResident } from './commit.ts';
 import { checked, ONE_REQUEST } from '../../cluster/checked.ts';
 import type { ResidentPage, GpuPageContext } from './types.ts';
 export type { ResidentPage } from './types.ts';
-/** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host. Queue writes are ordered; dispose waits for in-flight submits before destroy.
- * `pin(key, 'held')` keeps a page ahead of ordinary pins during `resize(slots)`, which no longer accepts a held set. Ordinary repinning preserves the held tier; `unpin(key)` removes it. */
+/** WebGPU page cache: host policy, ordered queue writes, held pins, and disposal after submits. */
 export function createGpuPageCache(
   device: GPUDevice,
   source: PageSource,
@@ -108,8 +107,7 @@ export function createGpuPageCache(
       context.eviction.epoch++;
       context.eviction.held.length = context.eviction.late.length = 0;
     },
-    /**
-     * Strictly increases on every membership change of the residency and on nothing else: an arrival
+    /** Strictly increases on every membership change of the residency and on nothing else: an arrival
      * stamps a new generation, a departure counts an eviction, and the LRU touch of a page already
      * resident does neither. A caller that held a verdict derived from `get` can compare this one
      * number instead of asking again page by page.
