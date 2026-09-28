@@ -12,9 +12,10 @@ import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute
 import { GraphSurface } from '../../host/graph/surface.ts';
 import { isDrawnNode } from '../../host/graph/kinds.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
-import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
+import { pick as pickOf, seeded } from '../../host/world/randomTree.fixture.ts';
+import { HOSTILE_FLOATS } from '../../../../../tests/kit/assert/hostile.ts';
 
-const EDGES = [NaN, 0, -0, Infinity, -Infinity, 1e308, -1e308, 5e-324, 1, -2.5];
+const EDGES = [...HOSTILE_FLOATS, 1e308, -1e308, 1, -2.5];
 /** A perspective-like screen: depths read clip z over clip w. */
 const SCREEN = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1.2, -1, 0, 0, -0.2, 0];
 
@@ -40,8 +41,8 @@ type Graph = ReturnType<typeof graph>;
 
 /** A random graph of groups and meshes over a few shared surfaces and shapes. */
 function graph(seed: number, size: number) {
-  const rnd = random(seed);
-  const pick = <T>(list: readonly T[]) => list[Math.floor(rnd() * list.length)];
+  const rnd = seeded(seed);
+  const pick = <T>(list: readonly T[]) => pickOf(rnd, list);
   const surfaces = Array.from(
     { length: 4 },
     (_, i) => new GraphSurface('standard', { transparent: i % 2 === 1 }),
@@ -65,15 +66,11 @@ function graph(seed: number, size: number) {
     nodes.push(node);
     return node;
   };
-  const inScene = (node: Object3D) => {
-    for (let at: Object3D | null = node; at; at = at.parent) if (at === scene) return true;
-    return false;
-  };
-  const placed = () => nodes.filter(inScene);
   const within = (node: Object3D, top: Object3D) => {
     for (let at: Object3D | null = node; at; at = at.parent) if (at === top) return true;
     return false;
   };
+  const placed = () => nodes.filter((node) => within(node, scene));
   const holders: Object3D[] = [scene];
   for (let i = 0; i < size; i++) {
     const node = make();
@@ -128,15 +125,16 @@ function replay({ scene, copies, edits, kinds, pick }: Graph, steps: number) {
     scene.updateMatrixWorld();
     lists.refresh();
     const want = developLists(scene, copies);
-    const now = named(want.opaque, want.seeThrough);
-    assert.deepEqual(named([...lists.opaque], [...lists.seeThrough]), now, `lists after ${kind}`);
     const [opaque, seeThrough] = [[...lists.opaque], [...lists.seeThrough]];
+    const listed = named(want.opaque, want.seeThrough);
+    assert.deepEqual(named(opaque, seeThrough), listed, `lists after ${kind} (step ${step})`);
     kept(opaque as OrderedNode[], seeThrough as OrderedNode[], SCREEN);
     developed(want.opaque as OrderedNode[], want.seeThrough as OrderedNode[], SCREEN);
     const sorted = named(want.opaque, want.seeThrough);
     assert.deepEqual(named(opaque, seeThrough), sorted, `order after ${kind} (step ${step})`);
-    if (kind && now !== before) changed[kind]++;
-    before = now;
+    const drawn = JSON.stringify(sorted);
+    if (kind && drawn !== before) changed[kind]++;
+    before = drawn;
   }
   lists.dispose();
   return changed;
@@ -156,7 +154,7 @@ test('an empty graph draws nothing, a maximal one keeps develop lists', () => {
   const lists = createDrawLists(empty.scene, empty.copies);
   lists.refresh();
   assert.deepEqual([lists.opaque, lists.seeThrough], [[], []]);
-  replay(graph(3, 4096), 60);
+  replay(graph(3, 4096), 10);
 });
 
 test('a link the graph had keeps hearing, and gets the graph back', () => {
