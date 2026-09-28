@@ -45,6 +45,16 @@ test('a residency change after a drop keeps the limit below the count that dropp
   assert.equal(limit.value, 15, 'not back to 24');
 });
 
+// Frames in flight were encoded at the cap before the first drop was read: one that fits after a
+// residency change is no probe, and does not lift the limit back to the cap.
+test('a batch in flight that fits above the drop after a residency change keeps the limit', () => {
+  const limit = createViewLimit(24);
+  limit.read(24, true);
+  limit.residencyChanged();
+  limit.read(24, false);
+  assert.equal(limit.value, 12, 'still bisecting below the drop');
+});
+
 // Streaming moves residency every frame: with a catalogue that stays the same, the probes above the
 // limit thin out (patience doubles), no drop and redraw per residency change.
 test('repeated residency changes with a stable catalogue drop no batch per change', () => {
