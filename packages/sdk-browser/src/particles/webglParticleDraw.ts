@@ -93,34 +93,41 @@ export function createWebglParticleDraw(
       gl.useProgram(program);
       gl.uniform1i(at('sceneDepth'), 1); // the state samples unit 0, where samplers start
       gl.useProgram(null);
-      const copy = { framebuffer: gl.createFramebuffer()!, texture: gl.createTexture()! };
-      bindWebglTexture(gl, 1, copy.texture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      // One copy a format, sized on its first blit: destinations of both formats never remake it.
+      const copies = DEPTHS.map(() => {
+        const texture = gl.createTexture()!;
+        bindWebglTexture(gl, 1, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        return { framebuffer: gl.createFramebuffer()!, texture, width: 0, height: 0 };
+      });
       /** The depth format each framebuffer's blit took, found on its first copy. */
       const formats = new Map<WebGLFramebuffer | null, number>();
       const vao = gl.createVertexArray()!;
-      return { program, vao, uniforms, copy, formats, at: -1, width: 0, height: 0, refused: false };
+      return { program, vao, uniforms, copies, formats, refused: false };
     },
-    ({ program, vao, copy }) => {
+    ({ program, vao, copies }) => {
       gl.deleteProgram(program);
       gl.deleteVertexArray(vao);
-      gl.deleteTexture(copy.texture);
-      gl.deleteFramebuffer(copy.framebuffer);
+      for (const copy of copies) {
+        gl.deleteTexture(copy.texture);
+        gl.deleteFramebuffer(copy.framebuffer);
+      }
     },
   );
   type Live = NonNullable<ReturnType<typeof held.current>>;
-  /** Copies the bound read framebuffer's depth into the copy made in format `at`, remade when
-   *  its format or size changed; true unless the blit was refused. */
+  /** Copies the bound read framebuffer's depth into the copy of format `at`, remade when its
+   *  size changed; true unless the blit was refused. */
   const copyDepth = (live: Live, at: number, width: number, height: number, probing: boolean) => {
-    const { TEXTURE_2D: texture, DRAW_FRAMEBUFFER: draw } = gl;
-    if (live.at !== at || live.width !== width || live.height !== height) {
-      [live.at, live.width, live.height] = [at, width, height];
+    const { TEXTURE_2D: texture, DRAW_FRAMEBUFFER: draw } = gl,
+      copy = live.copies[at];
+    gl.bindFramebuffer(draw, copy.framebuffer);
+    if (copy.width !== width || copy.height !== height) {
+      [copy.width, copy.height] = [width, height];
       const [internal, format, type, point] = DEPTHS[at];
-      bindWebglTexture(gl, 1, live.copy.texture);
+      bindWebglTexture(gl, 1, copy.texture);
       gl.texImage2D(texture, 0, gl[internal], width, height, 0, gl[format], gl[type], null);
-      gl.framebufferTexture2D(draw, gl.DEPTH_STENCIL_ATTACHMENT, texture, null, 0);
-      gl.framebufferTexture2D(draw, gl[point], texture, live.copy.texture, 0);
+      gl.framebufferTexture2D(draw, gl[point], texture, copy.texture, 0);
     }
     gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
     return !probing || gl.getError() !== gl.INVALID_OPERATION;
@@ -137,13 +144,13 @@ export function createWebglParticleDraw(
         found = live.formats.get(framebuffer);
       gl.disable(gl.SCISSOR_TEST);
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER, framebuffer);
-      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, live.copy.framebuffer);
       // The depth copied for the soft edge, same rectangles, resolved as they are. A framebuffer's
       // first copy, older errors cleared, probes each format in order until a blit is allowed.
+      let at = found ?? -1;
       if (found !== undefined) copyDepth(live, found, width, height, false);
       else {
         for (let n = 0; n < 8 && gl.getError() !== gl.NO_ERROR; n++);
-        const at = DEPTHS.findIndex((_, i) => copyDepth(live, i, width, height, true));
+        at = DEPTHS.findIndex((_, i) => copyDepth(live, i, width, height, true));
         if (at >= 0) live.formats.set(framebuffer, at);
         else live.refused = true;
       }
@@ -159,7 +166,7 @@ export function createWebglParticleDraw(
       gl.uniform1i(live.uniforms.linear, output.linear ? 1 : 0);
       const curve = output.toneMapped ? (output.toneMapping ?? DEFAULT_TONE_MAPPING) : 'none';
       gl.uniform1i(live.uniforms.curve, TONE_MAPPING_RANK[curve]);
-      bindWebglTexture(gl, 1, live.copy.texture);
+      bindWebglTexture(gl, 1, live.copies[at].texture);
       gl.enable(gl.BLEND);
       gl.enable(gl.DEPTH_TEST); // hidden fragments skipped; the soft edge fades the rest
       gl.depthFunc(gl.LEQUAL);
@@ -193,10 +200,10 @@ export function createWebglParticleDraw(
       return draws;
     },
     refused: () => held.alive() && !!held.current()?.refused,
-    /** Bytes of the frame's depth copy, 4 a texel in either format, none before the first. */
+    /** Bytes of the depth copies, 4 a texel in either format, none before the first. */
     bytes() {
       const live = held.alive() ? held.current() : undefined;
-      return live ? live.width * live.height * 4 : 0;
+      return live?.copies.reduce((sum, { width, height }) => sum + width * height * 4, 0) ?? 0;
     },
     dispose: held.dispose,
   };
