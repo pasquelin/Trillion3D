@@ -1,8 +1,16 @@
-//! Raw ABI of the normal cone (`normal_cone.rs`) for the pages the world cuts at run time: byte
-//! offsets into `arena_alloc` reservations, like `wasm_cut.rs`. The loader is
-//! `packages/sdk-browser/src/world/page/cutCones.ts`.
+//! Raw ABI of the normal cone (`normal_cone.rs`) and the position grid (`bits/grid.rs`) for the
+//! pages the world cuts at run time: byte offsets into `arena_alloc` reservations, like
+//! `wasm_cut.rs`. The loaders are `packages/sdk-browser/src/world/page/cutCones.ts` and `cutGrid.ts`.
 
+use crate::bits::grid::{grid_exponent, TILE_EXTENT_LOG2};
 use crate::normal_cone::cluster_cones;
+
+/// The compiler's grid exponent for a primitive of widest `extent`, placed at no known world
+/// scale (a metre per unit) and with no DAG: every run-time cluster is a root, drawn as it is.
+#[no_mangle]
+pub extern "C" fn position_grid_exponent(extent: f64) -> i32 {
+    grid_exponent(extent, None, TILE_EXTENT_LOG2)
+}
 
 /// Writes the cone of each of `clusters` index ranges into `out` and returns 0; or 1, `out`
 /// untouched, when a range or an index falls outside the positions and indices given.
