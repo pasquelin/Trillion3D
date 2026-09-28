@@ -7,7 +7,7 @@ import { taaSampledRank } from '../../../taa/frame.ts';
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { markWebgpuLost } from './lost.ts';
 import { disposeStaticLayer } from '../state/lights.ts';
-import { shadowPoolHeld } from '../../shadow/poolSize.ts';
+import { shadowPoolHeld } from '../../shadow/memoryGrant.ts';
 import { lightCutMetrics } from '../../shadow/casters.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { useWebgpuView } from '../state/viewSwitch.ts';
@@ -36,6 +36,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
   const vertexBytes = vertexBytesOf(gpu, vis);
   const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot();
   const pending = run.gpuFrameActive && !run.gpuMetricsReady;
+  const poolHeld = lights.shadows?.texture ? shadowPoolHeld(lights) : null;
   // What the occlusion test dropped, from the path that ran it: counts the GPU wrote on the last
   // sampled image, or the CPU oracle's where no GPU test runs. `null` when neither has counted an
   // image — never a number in place of an unmeasured number.
@@ -106,8 +107,11 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     shadowPagesRequested: lights.plan.requests.counts.requested,
     shadowPagesCached: lights.plan.counts.cachedPages,
     shadowPoolPages: lights.plan.counts.poolPages,
-    shadowPoolBytes: lights.shadows?.texture ? shadowPoolHeld(lights) : null,
+    shadowPoolBytes: poolHeld,
     shadowPoolLayers: lights.shadows?.texture ? lights.plan.pool.layers : null,
+    shadowPeakBytes: poolHeld === null ? null : Math.max(lights.memory.peakBytes, poolHeld),
+    shadowResolutionBias: lights.memory.bias,
+    shadowMemoryEvents: lights.memory.events,
     shadowPagesRefetched: lights.plan.pool.refetched,
     shadowCastersKept: lights.cull?.counts.counts()?.kept ?? null,
     shadowCastersHidden: lights.occlusion?.counts.counts()?.kept ?? null,

@@ -1263,6 +1263,25 @@
       "off": "éteint"
     }
   },
+  "page-materials": {
+    "banner": "Faites glisser pour explorer la salle. Listez, modifiez, mélangez ou créez un matériau.",
+    "controls": {
+      "set": "Changer la couleur",
+      "switchToBlend": "Passer au mélange",
+      "createAndAssign": "Créer et attribuer"
+    },
+    "readouts": {
+      "selected material": "Matériau sélectionné",
+      "materials": "Matériaux",
+      "sourceMaterials": "Matériaux d’origine",
+      "last action": "Dernière action"
+    },
+    "words": {
+      "imported": "{count} importés",
+      "applied": "Appliqué",
+      "ready": "Prêt"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "Glisse pour regarder autour. Ces lampes sont venues dans le fichier du modèle.",
     "controls": {

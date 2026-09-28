@@ -6,6 +6,7 @@ pub(crate) const RAM_BUDGET: usize = 1 << 30;
 pub(crate) mod fixtures;
 pub(crate) mod golden;
 mod golden_digest;
+pub(crate) mod random;
 use base::*;
 use directories::scratch;
 use fixtures::*;

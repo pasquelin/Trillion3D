@@ -32,6 +32,35 @@ fn dense_bytes(acc: &Value) -> Result<usize> {
         .ok_or_else(|| invalid("Working set overflow"))
 }
 
+/// The accessors a primitive reads: its indices, every attribute and every morph target. A
+/// primitive without `POSITION` is refused.
+fn primitive_accessors(p: &Value, accessors: &mut BTreeSet<usize>) -> Result<()> {
+    if let Some(indices) = p.get("indices") {
+        accessors.insert(required_index(Some(indices), "primitive.indices")?);
+    }
+    let attributes = p
+        .get("attributes")
+        .and_then(Value::as_object)
+        .ok_or_else(|| invalid("primitive.attributes is required"))?;
+    if !attributes.contains_key("POSITION") {
+        return Err(invalid("primitive.attributes.POSITION is required"));
+    }
+    for a in attributes.values() {
+        accessors.insert(required_index(Some(a), "primitive attribute")?);
+    }
+    for target in p
+        .get("targets")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        for a in target.as_object().into_iter().flat_map(|t| t.values()) {
+            accessors.insert(required_index(Some(a), "primitive target attribute")?);
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn plan_buffers(
     o: &Options,
     g: &Value,
@@ -49,29 +78,7 @@ pub(super) fn plan_buffers(
             .iter()
             .enumerate()
         {
-            if let Some(indices) = p.get("indices") {
-                accessors.insert(required_index(Some(indices), "primitive.indices")?);
-            }
-            let attributes = p
-                .get("attributes")
-                .and_then(Value::as_object)
-                .ok_or_else(|| invalid("primitive.attributes is required"))?;
-            if !attributes.contains_key("POSITION") {
-                return Err(invalid("primitive.attributes.POSITION is required"));
-            }
-            for a in attributes.values() {
-                accessors.insert(required_index(Some(a), "primitive attribute")?);
-            }
-            if let Some(targets) = p.get("targets").and_then(Value::as_array) {
-                for target in targets {
-                    if let Some(t_obj) = target.as_object() {
-                        for a in t_obj.values() {
-                            accessors
-                                .insert(required_index(Some(a), "primitive target attribute")?);
-                        }
-                    }
-                }
-            }
+            primitive_accessors(p, &mut accessors).map_err(|e| e.within(*old, primitive))?;
             jobs.push((*old, primitive));
         }
     }
@@ -153,9 +160,7 @@ pub(super) fn plan_buffers(
             )?)
             .ok_or_else(|| invalid("Working set overflow"))?;
     }
-    // Each primitive's index buffer is committed from decoding to the job's end, and admitted
-    // before any work: a job refused here would fail whatever the order of its primitives.
-    // What a primitive keeps and its working set only shrink the waves it compiles in.
+    // Index buffers alone can refuse a job (no order lowers them); the rest only shrinks waves.
     let (mut retained, mut working) = (0usize, Vec::with_capacity(jobs.len()));
     for (old, primitive) in &jobs {
         let p = item(
@@ -163,7 +168,7 @@ pub(super) fn plan_buffers(
             *primitive,
             "primitive",
         )?;
-        let cost = compiler_primitive::cost::of(g, p)?;
+        let cost = compiler_primitive::cost::of(g, p).map_err(|e| e.within(*old, *primitive))?;
         estimated_working_bytes = estimated_working_bytes
             .checked_add(cost.indices)
             .ok_or_else(|| invalid("Working set overflow"))?;
@@ -180,9 +185,7 @@ pub(super) fn plan_buffers(
             "Estimated working set exceeds configured budget",
         ));
     }
-    // What the budget leaves once every page record is kept: the tighter, the smaller the
-    // waves, down to one primitive at a time.
-    let held = committed.saturating_add(retained);
+    let held = committed.saturating_add(retained); // what is left sizes the waves
     let waves = compiler_budget::waves::waves(&working, o.ram_budget_bytes().saturating_sub(held));
     estimated_working_bytes = held.saturating_add(working.iter().copied().max().unwrap_or(0));
     Ok(BufferPlan {
