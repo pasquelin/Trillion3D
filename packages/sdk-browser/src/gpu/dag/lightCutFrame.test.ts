@@ -50,6 +50,8 @@ function lightCutFrame() {
     worldCount: 1,
     blockCount: 1,
     levelSizes: [1],
+    group: {},
+    split: { flagCuts: [] },
     rootLevelPipeline: {},
     levelPipelines: [{}],
     outputBytes,

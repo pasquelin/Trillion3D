@@ -98,7 +98,14 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     traceEnabled,
   };
   const setup = createWebgpuPagesSetup(context, diag);
-  const layout = createWebgpuPagesLayout(setup);
+  const layout = createWebgpuPagesLayout(setup, context.gpuDevice?.limits);
+  // A page table past one binding holds what the binding does, said: a page left without a row
+  // draws through its nearest resident ancestor (`../row/tableRows.ts`).
+  if (layout.pageTableBound)
+    diag.engineDiagnostic('page-table-bounded', 'The device bounds the page table', {
+      kind: 'warning',
+      ...layout.pageTableBound,
+    });
   const vis = createWebgpuVisState();
   const run = createWebgpuRunState(context.clearColor);
   const blendState = createWebgpuBlendState();
