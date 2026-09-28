@@ -500,6 +500,24 @@
       "balloon": "SEGUE IL PALLONE"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Guarda il percorso registrato nel parco. Riproducilo, fermalo o prendi il controllo della telecamera.",
+    "controls": {
+      "replay": "Riproduci",
+      "stop": "Ferma"
+    },
+    "readouts": {
+      "currentPart": "Parte attuale"
+    },
+    "words": {
+      "entrance": "Ingresso",
+      "pond": "Laghetto",
+      "bridge": "Ponte",
+      "pavilion": "Padiglione",
+      "overview": "Panoramica",
+      "complete": "Completato"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Gira attorno alla gru mentre una clip ruota il braccio, muove il carrello, solleva il carico e lo fa oscillare.",
     "controls": {
