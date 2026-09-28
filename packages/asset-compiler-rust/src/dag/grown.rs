@@ -65,11 +65,9 @@ impl Grown {
             origin: Vec::new(),
         });
         for &o in &placed.origins {
-            let origin = if o < source {
-                o
-            } else {
-                grown.origin[(o - source) as usize]
-            };
+            let origin = o
+                .checked_sub(source)
+                .map_or(o, |p| grown.origin[p as usize]);
             grown.origin.push(origin);
         }
         grown.positions.extend_from_slice(&placed.positions);
