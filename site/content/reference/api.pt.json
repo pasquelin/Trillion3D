@@ -7416,13 +7416,6 @@
       "handbrake": "Se o travão de mão está puxado."
     }
   },
-  "GraphNode": {
-    "members": {
-      "serial": "O número do nó, único na sessão.",
-      "kind": "O que o nó é: aquilo por que cada leitor do grafo o distingue."
-    },
-    "summary": "Um nó do grafo: o nó do núcleo, distinguido pelo seu `kind`, copiado pelo `clone` do núcleo."
-  },
   "GraphSurface": {
     "members": {
       "version": "Incrementado pelo host a cada mudança: o que uma linha em cache compara para reconstruir seus campos.",
@@ -7485,9 +7478,6 @@
       "rotation": "A rotação, em radianos."
     },
     "summary": "Uma imagem e o estado de amostragem com que é lida, e a transformação das suas coordenadas."
-  },
-  "GraphNodeKind": {
-    "summary": "O que é uma luz do grafo: uma das luzes que uma cena declara."
   },
   "Joint": {
     "summary": "Uma junta entre dois corpos, ou entre um corpo e o mundo (`b` null), criada com `joint.*` e adicionada à simulação com `world.physics.add`.",

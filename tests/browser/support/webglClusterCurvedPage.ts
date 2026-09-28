@@ -62,7 +62,7 @@ const sceneInputs = () => {
     light = G.directionalLight(0xffffff, 1);
   light.position.set(1, 1, 2);
   const scene = new G.Scene();
-  scene.add(light, light.target!);
+  scene.add(light, light.target);
   scene.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
   return { geometry, material, camera, scene };
