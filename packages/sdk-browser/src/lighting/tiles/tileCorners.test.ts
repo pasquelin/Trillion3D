@@ -78,7 +78,7 @@ test('sixteen threads de-project the corners between two barriers; thread zero c
   assert.match(LIGHT_TILES_SHADER, /corners\[lane\]=tileCorner\(tile,lane%4u,z\);/);
   assert.match(
     LIGHT_TILES_SHADER,
-    /workgroupBarrier\(\);\s*tileCornerOfLane\(tile\.xy,lane\);\s*workgroupBarrier\(\);\s*if\(lane==0u\)\{/,
+    /workgroupBarrier\(\);\s*tileCornerOfLane\(tile\.xy,lane\);\s*workgroupBarrier\(\);\s*if\(lane==0u&&lightCount>0u\)\{/,
   );
   // The rows' depths, near, column, front, back: \`ROW\` and \`tileCorners\` of the oracle.
   assert.match(
