@@ -15,16 +15,17 @@ import { runExampleModule } from './capture.ts';
  * values, which a test edits, and the page's callback, which it calls with them.
  */
 export async function runControlledExample<Values>(html: string, world: object) {
-  const panel = {} as { values: Values; change: (values: Values) => void };
+  let values!: Values, change!: (next: Values) => void;
   await runExampleModule(html, {
     engine: { animation, createWorld: () => world, geometry, light, material, math, object },
     kit: {
       controls: (specs: Record<string, ControlSpec>, callback: (next: Values) => void) => {
-        Object.assign(panel, { values: describe(specs).values as Values, change: callback });
-        callback(panel.values);
-        return panel.values;
+        values = describe(specs).values as Values;
+        change = callback;
+        callback(values);
+        return values;
       },
     },
   });
-  return panel;
+  return { values, change };
 }
