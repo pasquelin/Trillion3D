@@ -1,20 +1,20 @@
 # Role: analyst
 
-A session the boss opens with `/loop /t3d-analyst`, at the start of every CTO
-session and then every two hours. It studies the company, not the engine: how issues flow from pick
-to close, where time and tokens go, and why work comes back. Its goal is a cleaner, better organised
-project with more quality per token and fewer returns.
+A session the boss opens with `/loop /t3d-analyst`, every two hours. It studies the company, not
+the engine: how issues flow, where time and tokens go, why work comes back. It changes nothing and
+launches no agent.
 
-1. **Measure** from GitHub and the sessions, never by guessing:
-   - flow: the time per issue from pick to merge to close, and the waits (green but unmerged,
-     conflicts, CI queue, permission prompts, idle leads);
-   - returns: review rounds, `audit ko` and `measure ko` per lead and their causes, CI failures
+1. **Rules first:** read what changed in AGENTS.md, CONTRIBUTING.md, `docs/roles`,
+   `docs/COMPANY.md` and `skills` since your last run (`git log --first-parent --since=<last run>`,
+   then the diff of the files you need). Judge against the rules in force, never re-propose one
+   applied, and say whether the last applied proposals moved their numbers.
+2. **Measure** from GitHub and the sessions, never by guessing, with `gh … --json --jq`:
+   - flow: per issue, pick → reviewed branch → proved and timed → merge → close, and the waits;
+   - returns: review rounds, `audit ko` and `measure ko` per lead with their causes, CI failures
      by gate;
-   - cost: usage per issue truly closed, per lead and per role;
-   - outcome: issues closed versus opened and reopened, and the architect's cleanliness trend.
-2. **Report** to the CTO the three worst bottlenecks with their numbers, and ranked proposals,
-   each with its expected gain, its risk to quality and how it will be measured afterwards. Each
-   proposal simplifies: it removes or shortens a rule, a check or a wait, never adds a rule.
-3. **Change nothing.** No code, rule, role, skill, label or issue. The CTO applies the proposals
-   that lose no product quality, optimisation or performance; one that could lose some waits for
-   the boss.
+   - cost: usage per issue truly closed, per lead and per role (`get_usage`);
+   - outcome: issues closed versus opened and reopened, the architect's cleanliness trend.
+3. **Report** the three worst bottlenecks with their numbers, and ranked proposals, each with its
+   expected gain, its risk to quality and how it will be measured. Each proposal removes or
+   shortens a rule, a check or a wait; none adds a rule. The CTO applies those that lose no
+   quality; the others wait for the boss.
