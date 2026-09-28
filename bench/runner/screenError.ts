@@ -119,7 +119,6 @@ try {
           pose: poses[i].pose,
           width: canvas[0],
           height: canvas[1],
-          pixelError,
         });
         const worst = Math.max(measured.forward.max, measured.reverse.max);
         const row = {
