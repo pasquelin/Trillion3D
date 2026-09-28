@@ -136,8 +136,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       begin(regions: number, maxVertexCount: number) {
         if (!regions) return;
         shadowBatchWrites(device).write(faceVolumes, 0, volumes, 0, regions * SHADOW_CULL_FLOATS);
-        const words = commands.empty(regions, maxVertexCount);
-        shadowBatchWrites(device).write(indirect, 0, commands.words, 0, words);
+        shadowBatchWrites(device).write(indirect, 0, commands.empty(regions, maxVertexCount));
       },
       /**
        * Encodes the cull of regions `[first, first + faces)` against the list the CPU cut wrote for

@@ -56,7 +56,8 @@ export function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncod
  * fills the clip square, so the rasterizer clips every caster at its edge and no other page is
  * touched. A region draws its visible lists when `tested` and it has a pyramid, else the cull's.
  * The pool's `draws` draw both of a region's lists (#965): the opaque one with no fragment stage,
- * or with the fragment that strips the face's emitter envelope, then the cutout one; the
+ * or with the fragment that strips the face's emitter envelope, then the cutout one while any row
+ * is a cutout; the
  * transmittance layer's draw the first list, which holds the blended casters, once each. A pipeline
  * is set only when it changes. Returns the draws encoded.
  */
@@ -94,7 +95,7 @@ export function drawRegionCasters(
       at = region * SHADOW_REGION_INDIRECT_BYTES;
     if ('cutout' in draws) {
       draw(shadows!.hasEnvelope(region) ? draws.envelope : draws.opaque, commands, at);
-      draw(draws.cutout, commands, at + DRAW_INDIRECT_STRIDE);
+      if (rt.lights.mobility.hasCutouts) draw(draws.cutout, commands, at + DRAW_INDIRECT_STRIDE);
     } else for (const pipeline of draws) draw(pipeline, commands, at);
   }
   return drawn;

@@ -21,6 +21,8 @@ export function createShadowMobility() {
      *  move. */
     poses = new Float64Array(0),
     rows = new Uint32Array(0),
+    /** Rows whose word carries `MOBILITY_CUTOUT`. */
+    cutouts = 0,
     anyMoving = false,
     wholeRows = true;
   return {
@@ -30,6 +32,10 @@ export function createShadowMobility() {
     },
     /** True once placement `rank` has moved: the static layer does not hold it. */
     moves: (rank: number) => moving[rank] === 1,
+    /** True while a row is a cutout: without one, no region's cutout list holds a caster. */
+    get hasCutouts() {
+      return cutouts > 0;
+    },
     /** One word per row: `MOBILITY_MOVING` for a row of a moving placement, `MOBILITY_CUTOUT` for
      *  one whose fragments can be cut (`../../gpu/shadow/cullShader.ts`). */
     get rowWords() {
@@ -43,6 +49,7 @@ export function createShadowMobility() {
       poses = new Float64Array(placements * 16);
       for (let rank = 0; rank < placements; rank++) poses.set(worldOf(rank), rank * 16);
       rows = new Uint32Array(Math.max(1, drawSlots));
+      cutouts = 0;
       anyMoving = false;
       wholeRows = true;
     },
@@ -87,12 +94,12 @@ export function createShadowMobility() {
       const last = Math.min(to, rows.length - 1);
       if (last < from) return;
       for (let row = from; row <= last; row++) {
-        const placement = placementOf(row);
-        rows[row] =
-          row >= alwaysMoving
-            ? MOBILITY_MOVING
-            : (placement >= 0 && moving[placement] ? MOBILITY_MOVING : 0) |
-              (cutout(row) ? MOBILITY_CUTOUT : 0);
+        const placement = placementOf(row),
+          blended = row >= alwaysMoving,
+          moves = blended || (placement >= 0 && moving[placement] === 1),
+          word = (moves ? MOBILITY_MOVING : 0) | (!blended && cutout(row) ? MOBILITY_CUTOUT : 0);
+        cutouts += (word >> 1) - (rows[row] >> 1);
+        rows[row] = word;
       }
       push(from, last - from + 1);
     },
