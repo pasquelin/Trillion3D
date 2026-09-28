@@ -79,7 +79,7 @@ impl Project {
             true
         });
         if !complete {
-            return Err(CompilerError::new("CANCELLED", "Import cancelled"));
+            return Err(CompilerError::new(crate::CANCELLED, "Import cancelled"));
         }
         Ok(project)
     }

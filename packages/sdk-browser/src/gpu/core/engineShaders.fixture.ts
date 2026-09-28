@@ -22,6 +22,7 @@ import { SHADOW_DEPTH_SHADER } from '../shadow/shader.ts';
 import { PAGE_QUAD_SHADER } from '../shadow/pageQuads.ts';
 import { BOUNCE_PROBE_SHADER } from '../../bounce/probeWgsl.ts';
 import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts';
+import { AS_IS_SHARE_SHADER } from '../../lighting/deferred/asIsShare.ts';
 import { DIAGNOSTIC_SHADE_WGSL, DIAGNOSTIC_VIS_WGSL } from '../../diagnostic/gpuGeometry.ts';
 import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts';
 import { BLOOM_WGSL } from '../../effects/bloomWgsl.ts';
@@ -72,6 +73,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   PAGE_QUAD_SHADER,
   BOUNCE_PROBE_SHADER,
   BOUNCE_SURFACE_SHADER,
+  AS_IS_SHARE_SHADER,
   BLOOM_WGSL,
   GUIDE_WGSL,
   UNLIT_LIGHTING_SHADER,

@@ -5502,6 +5502,9 @@
       "shadowPoolPages": "Pagine fisiche del pool fisso che contengono una pagina virtuale.",
       "shadowPoolBytes": "Byte GPU del pool delle ombre: le sue pagine di profondità, i loro strati statico e di trasmittanza una volta creati, e i buffer accanto. Null finché il primo fotogramma non dimensiona il pool.",
       "shadowPoolLayers": "Strati del pool, di al più 4 096 pagine ciascuno, dimensionati una volta dallo schermo e dalle luci con ombra del primo fotogramma. Null fino ad allora.",
+      "shadowPeakBytes": "Il massimo di byte GPU che la quota di memoria delle ombre ha tenuto insieme, strati tardivi compresi. Null finché la prima immagine non dimensiona il pool.",
+      "shadowResolutionBias": "Dimezzamenti dei byte del pool delle ombre causati dai rifiuti di memoria del dispositivo; 0 normalmente.",
+      "shadowMemoryEvents": "Gli eventi di pressione di memoria delle ombre dall'apertura del mondo, per nome, in ordine; vuoto normalmente.",
       "shadowPagesRefetched": "Pagine virtuali mappate di nuovo dopo che il pool le aveva espulse per fare spazio, dall’apertura dell’explorer: i ridisegni che costa un pool troppo piccolo per ciò che leggono i fotogrammi.",
       "shadowCastersKept": "Proiettori d’ombra mantenuti dal culling per pagina, tutte le pagine disegnate insieme, nel fotogramma campionato per ultimo dal dispositivo — uno su quindici; `null` finché non torna un campione.",
       "shadowCastersHidden": "Proiettori in movimento che il test di occlusione ha trovato nascosti dietro lo strato statico della loro pagina, nel fotogramma campionato per ultimo; `null` finché non torna un campione."
@@ -6655,6 +6658,24 @@
       "modes": "Ogni modalità di vista offerta dal motore di rendering attuale."
     }
   },
+  "world.materials": {
+    "summary": "Materiali importati attuali, seguiti da quelli creati dalla pagina."
+  },
+  "world.material": {
+    "summary": "Un materiale secondo il suo ID nell’elenco."
+  },
+  "world.importedMaterials": {
+    "summary": "Valori del file sorgente prima delle modifiche della pagina."
+  },
+  "world.setMaterial": {
+    "summary": "Modifica un materiale importato o creato nel fotogramma successivo."
+  },
+  "world.createMaterial": {
+    "summary": "Crea un materiale di questa pagina."
+  },
+  "world.assignMaterial": {
+    "summary": "Assegna il materiale creato a un `mesh/primitive` compilato."
+  },
   "world.guides": {
     "summary": "Linee, punti e aiuti disegnati sopra l’immagine (`Guides`)."
   },
@@ -6833,6 +6854,9 @@
       "shadowPoolPages": "Pagine fisiche del pool fisso che contengono una pagina virtuale.",
       "shadowPoolBytes": "Byte GPU del pool delle ombre: le sue pagine di profondità, i loro strati statico e di trasmittanza una volta creati, e i buffer accanto. Null finché il primo fotogramma non dimensiona il pool.",
       "shadowPoolLayers": "Strati del pool, di al più 4 096 pagine ciascuno, dimensionati una volta dallo schermo e dalle luci con ombra del primo fotogramma. Null fino ad allora.",
+      "shadowPeakBytes": "Il massimo di byte GPU che la quota di memoria delle ombre ha tenuto insieme, strati tardivi compresi. Null finché la prima immagine non dimensiona il pool.",
+      "shadowResolutionBias": "Dimezzamenti dei byte del pool delle ombre causati dai rifiuti di memoria del dispositivo; 0 normalmente.",
+      "shadowMemoryEvents": "Gli eventi di pressione di memoria delle ombre dall'apertura del mondo, per nome, in ordine; vuoto normalmente.",
       "shadowPagesRefetched": "Pagine virtuali mappate di nuovo dopo che il pool le aveva espulse per fare spazio, dall’apertura dell’explorer: i ridisegni che costa un pool troppo piccolo per ciò che leggono i fotogrammi.",
       "shadowCastersKept": "Proiettori d’ombra mantenuti dal culling per pagina, tutte le pagine disegnate insieme, nel fotogramma campionato per ultimo dal dispositivo — uno su quindici; `null` finché non torna un campione.",
       "shadowCastersHidden": "Proiettori in movimento che il test di occlusione ha trovato nascosti dietro lo strato statico della loro pagina, nel fotogramma campionato per ultimo; `null` finché non torna un campione."
@@ -7737,6 +7761,41 @@
       "isSprite": "Sempre `true`: distingue uno sprite da qualsiasi altra mesh.",
       "center": "Il punto dell’immagine che poggia sulla posizione dello sprite: `(0.5, 0.5)` il suo centro, `(0, 0)` il suo angolo in basso a sinistra, `(0.5, 0)` il centro del suo bordo inferiore.",
       "material": "Il `material.sprite` dello sprite; assegnane un altro per cambiarlo."
+    }
+  },
+  "CreatedMaterial": {
+    "summary": "Valori accettati da `createMaterial` per un nuovo materiale della pagina.",
+    "members": {
+      "metalness": "Quanto la superficie è metallo, da 0 a 1.",
+      "roughness": "La ruvidità della superficie, da 0 (specchio) a 1 (opaco).",
+      "baseColor": "Il colore di base; cambialo sul posto con `set`.",
+      "emissive": "Il colore che la superficie emette da sé.",
+      "opacity": "Quanto è opaca la superficie, da 0 a 1.",
+      "alphaMode": "Come viene letto il canale alpha di una superficie: opaco lo ignora, `mask` taglia a `alphaCutoff`, `blend` compone.",
+      "alphaCutoff": "I pixel meno opachi di questo scompaiono.",
+      "name": "Un nome a uso della pagina.",
+      "map": "Un'immagine e il modo di campionarla, nelle parole di una pagina (`wrap`, `filter`, `colorSpace`)."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "Istantanea di un materiale della scena con ID, nome, parametri e ripetizione delle mappe.",
+    "members": {
+      "id": "Un nome proprio di questa texture.",
+      "name": "Un nome a uso della pagina.",
+      "tiling": "Quante volte l'immagine entra in larghezza e in altezza."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "Valori del materiale che `setMaterial` modifica in tempo reale senza ricostruire un passaggio di rendering.",
+    "members": {
+      "metalness": "Quanto la superficie è metallo, da 0 a 1.",
+      "roughness": "La ruvidità della superficie, da 0 (specchio) a 1 (opaco).",
+      "baseColor": "Il colore di base; cambialo sul posto con `set`.",
+      "emissive": "Il colore che la superficie emette da sé.",
+      "opacity": "Quanto è opaca la superficie, da 0 a 1.",
+      "alphaMode": "Come viene letto il canale alpha di una superficie: opaco lo ignora, `mask` taglia a `alphaCutoff`, `blend` compone.",
+      "alphaCutoff": "I pixel meno opachi di questo scompaiono.",
+      "tiling": "Quante volte l'immagine entra in larghezza e in altezza."
     }
   }
 }

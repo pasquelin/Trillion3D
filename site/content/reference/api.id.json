@@ -3253,6 +3253,9 @@
       "shadowPoolPages": "Halaman fisik pool tetap yang menyimpan halaman virtual.",
       "shadowPoolBytes": "Byte GPU pool bayangan: halaman kedalamannya, lapisan statis dan transmitansnya setelah dibuat, serta buffer di sampingnya. Null sampai frame pertama menentukan ukuran pool.",
       "shadowPoolLayers": "Lapisan pool, masing-masing paling banyak 4 096 halaman, diukur sekali dari layar dan cahaya berbayang pada frame pertama. Null sampai saat itu.",
+      "shadowPeakBytes": "Byte GPU terbanyak yang ditahan jatah memori bayangan sekaligus, termasuk lapisan yang datang belakangan. Null sampai frame pertama menentukan ukuran pool.",
+      "shadowResolutionBias": "Berapa kali byte pool bayangan dibagi dua akibat penolakan memori oleh perangkat; biasanya 0.",
+      "shadowMemoryEvents": "Peristiwa tekanan memori bayangan sejak dunia dibuka, menurut nama, berurutan; biasanya kosong.",
       "shadowPagesRefetched": "Halaman virtual yang dipetakan lagi setelah pool mengusirnya untuk memberi tempat, sejak explorer dibuka: penggambaran ulang yang menjadi biaya pool yang terlalu kecil untuk yang dibaca bingkai.",
       "shadowCastersKept": "Pembuat bayangan yang dipertahankan culling per halaman, semua halaman yang digambar bersama, pada bingkai yang terakhir diambil sampelnya oleh perangkat — satu dari lima belas; `null` sampai sampel kembali.",
       "shadowCastersHidden": "Pembuat bayangan bergerak yang oleh uji oklusi ditemukan tersembunyi di balik lapisan statis halamannya, pada bingkai yang terakhir diambil sampelnya; `null` sampai sampel kembali."
@@ -4235,6 +4238,9 @@
       "shadowPoolPages": "Halaman fisik pool tetap yang menyimpan halaman virtual.",
       "shadowPoolBytes": "Byte GPU pool bayangan: halaman kedalamannya, lapisan statis dan transmitansnya setelah dibuat, serta buffer di sampingnya. Null sampai frame pertama menentukan ukuran pool.",
       "shadowPoolLayers": "Lapisan pool, masing-masing paling banyak 4 096 halaman, diukur sekali dari layar dan cahaya berbayang pada frame pertama. Null sampai saat itu.",
+      "shadowPeakBytes": "Byte GPU terbanyak yang ditahan jatah memori bayangan sekaligus, termasuk lapisan yang datang belakangan. Null sampai frame pertama menentukan ukuran pool.",
+      "shadowResolutionBias": "Berapa kali byte pool bayangan dibagi dua akibat penolakan memori oleh perangkat; biasanya 0.",
+      "shadowMemoryEvents": "Peristiwa tekanan memori bayangan sejak dunia dibuka, menurut nama, berurutan; biasanya kosong.",
       "shadowPagesRefetched": "Halaman virtual yang dipetakan lagi setelah pool mengusirnya untuk memberi tempat, sejak explorer dibuka: penggambaran ulang yang menjadi biaya pool yang terlalu kecil untuk yang dibaca bingkai.",
       "shadowCastersKept": "Pembuat bayangan yang dipertahankan culling per halaman, semua halaman yang digambar bersama, pada bingkai yang terakhir diambil sampelnya oleh perangkat — satu dari lima belas; `null` sampai sampel kembali.",
       "shadowCastersHidden": "Pembuat bayangan bergerak yang oleh uji oklusi ditemukan tersembunyi di balik lapisan statis halamannya, pada bingkai yang terakhir diambil sampelnya; `null` sampai sampel kembali."
@@ -7002,6 +7008,24 @@
       "modes": "Setiap mode tampilan yang ditawarkan renderer sekarang."
     }
   },
+  "world.materials": {
+    "summary": "Material impor saat ini, diikuti material yang dibuat halaman."
+  },
+  "world.material": {
+    "summary": "Satu material menurut ID dalam daftar."
+  },
+  "world.importedMaterials": {
+    "summary": "Nilai berkas sumber sebelum diubah halaman."
+  },
+  "world.setMaterial": {
+    "summary": "Mengubah material impor atau buatan pada bingkai berikutnya."
+  },
+  "world.createMaterial": {
+    "summary": "Membuat material milik halaman ini."
+  },
+  "world.assignMaterial": {
+    "summary": "Menerapkan material buatan halaman ke `mesh/primitive` terkompilasi."
+  },
   "world.guides": {
     "summary": "Garis, titik, dan alat bantu yang digambar di atas gambar (`Guides`)."
   },
@@ -7738,6 +7762,41 @@
       "isSprite": "Selalu `true`: membedakan sprite dari mesh lain mana pun.",
       "center": "Titik gambar yang berada di posisi sprite: `(0.5, 0.5)` tengahnya, `(0, 0)` sudut kiri bawahnya, `(0.5, 0)` tengah tepi bawahnya.",
       "material": "`material.sprite` milik sprite; set yang lain untuk menggantinya."
+    }
+  },
+  "CreatedMaterial": {
+    "summary": "Nilai yang diterima `createMaterial` untuk material baru milik halaman.",
+    "members": {
+      "metalness": "Seberapa banyak permukaan itu logam, 0 sampai 1.",
+      "roughness": "Seberapa kasar permukaan itu, 0 (cermin) sampai 1 (matte).",
+      "baseColor": "Warna dasarnya; ubah di tempat dengan `set`.",
+      "emissive": "Warna yang dipancarkan permukaan itu sendiri.",
+      "opacity": "Seberapa opaque permukaan itu, 0 sampai 1.",
+      "alphaMode": "Bagaimana kanal alpha sebuah permukaan dibaca: opaque mengabaikannya, `mask` memotong pada `alphaCutoff`, `blend` menggabungkan.",
+      "alphaCutoff": "Piksel yang kurang opaque dari ini dijatuhkan.",
+      "name": "Sebuah nama untuk pemakaian sendiri halaman itu.",
+      "map": "Sebuah gambar dan bagaimana ia disampel, dalam kata-kata sebuah halaman (`wrap`, `filter`, `colorSpace`)."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "Salinan material adegan yang memuat ID, nama, parameter, dan pengulangan peta.",
+    "members": {
+      "id": "Sebuah nama unik untuk tekstur ini.",
+      "name": "Sebuah nama untuk pemakaian sendiri halaman itu.",
+      "tiling": "Berapa kali gambar itu muat melintang dan menaik."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "Nilai material yang diubah langsung oleh `setMaterial` tanpa membangun ulang lintasan render.",
+    "members": {
+      "metalness": "Seberapa banyak permukaan itu logam, 0 sampai 1.",
+      "roughness": "Seberapa kasar permukaan itu, 0 (cermin) sampai 1 (matte).",
+      "baseColor": "Warna dasarnya; ubah di tempat dengan `set`.",
+      "emissive": "Warna yang dipancarkan permukaan itu sendiri.",
+      "opacity": "Seberapa opaque permukaan itu, 0 sampai 1.",
+      "alphaMode": "Bagaimana kanal alpha sebuah permukaan dibaca: opaque mengabaikannya, `mask` memotong pada `alphaCutoff`, `blend` menggabungkan.",
+      "alphaCutoff": "Piksel yang kurang opaque dari ini dijatuhkan.",
+      "tiling": "Berapa kali gambar itu muat melintang dan menaik."
     }
   }
 }
