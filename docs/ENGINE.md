@@ -559,12 +559,14 @@ cache; a ray that leaves the proxy reads the probe irradiance in that direction 
 is weighed by the GGX lobe's directional albedo, the magnitude and Schlick share of the table the
 rectangular light reads. The water composite reflects through the same function, weighted by its
 Fresnel, so the engine has one reflection model (`packages/sdk-browser/src/bounce/reflectWgsl.ts`):
-mirror-smooth water, at the floor, traces the proxy; rougher water keeps the blurred probe
-irradiance over π it read before, never a sharp image. What a mirror shows is the proxy: its
+mirror-smooth water, at the floor, traces the proxy; above one LTC roughness sample interval
+(1/63) past the floor, water keeps the blurred probe irradiance over π it read before.
+Within that interval the proxy blends smoothly into the probe and the standard-material mirror
+term fades to zero, preserving the full contribution at the floor. This transition follows the
+lobe table resolution; it is not the filtered rough reflection still required by #33. What a mirror shows is the proxy: its
 certified error, one radiance per triangle face, and nothing nearer than one proxy cell along the
-ray. A rougher opaque or transparent standard surface, a diffuse or toon one, and every surface
-with the bounce off add exactly zero: the floor is a material threshold, so a roughness map that crosses it shows reflecting and
-non-reflecting texels side by side until rough reflections (#33) fill the lobes above it. Screen
+ray. An opaque or transparent standard surface beyond that interval, a diffuse or toon one, and
+every surface with the bounce off add exactly zero. Screen
 traces stay on #31, planar views are #353. WebGL2 has no bounce, hence no reflection.
 
 ## Fog
