@@ -1,5 +1,6 @@
 import { LIGHT_SETTINGS, type SceneLight } from '../../../sdk-core/src/index.ts';
 import { Light } from '../../../sdk-core/src/world/light/light.ts';
+import { lightKindOf } from '../../../sdk-core/src/world/light/lightRecord.ts';
 import { numbered } from '../host/graph/serial.ts';
 
 /**
@@ -30,10 +31,8 @@ function spotPenumbra(coneAngle: number, declared = 0) {
   return Math.min(1, Math.max(declared, 1 - inner / coneAngle));
 }
 
-/** A fresh light of the requested type, numbered by the engine; the store's `rect` is the core's
- *  `rectArea`. */
-export const createLight = (source: SceneLight) =>
-  numbered(new Light(source.kind === 'rect' ? 'rectArea' : source.kind));
+/** A fresh light of the requested type, numbered by the engine. */
+export const createLight = (source: SceneLight) => numbered(new Light(lightKindOf(source.kind)));
 
 /**
  * Writes a contract light into its light. Units are the contract's, with no adjustment factor:
