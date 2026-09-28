@@ -17,12 +17,19 @@ pub const UV_EXPONENT: i32 = -14;
 /// places: 32 m in those units, a missing, zero or non-finite scale taken as a metre per unit.
 /// Rounded down: a tile never spans more than 32 m.
 pub fn tile_log2(scale: Option<f64>) -> i32 {
-    let metres = 2f64.powi(TILE_EXTENT_LOG2);
-    let tile = match scale {
+    object_units(2f64.powi(TILE_EXTENT_LOG2), scale)
+        .log2()
+        .floor() as i32
+}
+
+/// A length of `metres` in the object units of a primitive the largest world `scale` places; a
+/// missing, zero or non-finite scale leaves it as is, nothing guessed. The compiler's proxy
+/// threshold maps by it too, so a tile and a proxy follow one scale.
+pub fn object_units(metres: f64, scale: Option<f64>) -> f64 {
+    match scale {
         Some(value) if value.is_finite() && value > 0.0 => metres / value,
         _ => metres,
-    };
-    tile.log2().floor() as i32
+    }
 }
 
 /// Grid of a primitive, the finer of two rules: its widest extent, capped at 2^`tile_log2`, split

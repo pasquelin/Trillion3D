@@ -5,15 +5,20 @@
 const CLUSTER_TRIANGLES = 128,
   CLUSTER_VERTICES = 255;
 
-/** The widest range of either texture coordinate over the corners of one cluster. */
-export function widestUvSpan(uvs: Float32Array, indices: Uint32Array, ranges: [number, number][]) {
+/** The widest range of either texture coordinate over the corners of one cluster; with no
+ *  `indices`, a range runs over the vertices themselves. */
+export function widestUvSpan(
+  uvs: Float32Array,
+  indices: Uint32Array | null,
+  ranges: [number, number][],
+) {
   let widest = 0;
   for (const [start, end] of ranges)
     for (let c = 0; c < 2; c++) {
       let lo = Infinity,
         hi = -Infinity;
       for (let i = start; i < end; i++) {
-        const value = uvs[indices[i] * 2 + c];
+        const value = uvs[(indices ? indices[i] : i) * 2 + c];
         lo = Math.min(lo, value);
         hi = Math.max(hi, value);
       }
@@ -24,19 +29,8 @@ export function widestUvSpan(uvs: Float32Array, indices: Uint32Array, ranges: [n
 
 /** The widest range of either texture coordinate over every vertex: the span the compiler sets a
  *  primitive's texture grid by (`primitive_uv_exponent`). */
-export function primitiveUvSpan(uvs: Float32Array) {
-  let widest = 0;
-  for (let c = 0; c < 2; c++) {
-    let lo = Infinity,
-      hi = -Infinity;
-    for (let i = c; i < uvs.length; i += 2) {
-      lo = Math.min(lo, uvs[i]);
-      hi = Math.max(hi, uvs[i]);
-    }
-    widest = Math.max(widest, hi - lo);
-  }
-  return widest;
-}
+export const primitiveUvSpan = (uvs: Float32Array) =>
+  widestUvSpan(uvs, null, [[0, uvs.length / 2]]);
 
 /** The index ranges a compiled primitive's own clusters take, `ends[k]` the end of cluster `k`. */
 export const givenClusters = (ends: Uint32Array): [number, number][] =>
