@@ -110,7 +110,10 @@ pub(super) fn only_input<'a>(
 /// Cancellation, to check at each entry: an archive of ten thousand files stops on request.
 pub(super) fn check(request: &SceneRequest<'_>) -> Result<()> {
     if request.cancelled.load(Ordering::Relaxed) {
-        return Err(CompilerError::new("CANCELLED", "Compilation cancelled"));
+        return Err(CompilerError::new(
+            crate::CANCELLED,
+            "Compilation cancelled",
+        ));
     }
     Ok(())
 }

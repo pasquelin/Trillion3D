@@ -10,8 +10,14 @@ test('opaque, blend and water pipelines omit exactly the feedback output', () =>
   assert.equal(shadeTargetFormats(true).length, 5);
   assert.equal(shadeTargetFormats(false).length, 4);
   assert.equal(shadeTargetFormats(true)[4], 'r32uint');
-  assert.equal(blendTargets('normal', 0xf, true).length, 2);
-  assert.equal(blendTargets('normal', 0xf, false).length, 1);
+  assert.equal(blendTargets('normal', 0xf, true).length, 3);
+  assert.equal(blendTargets('normal', 0xf, false).length, 2);
+  assert.equal(blendTargets('normal', 0xf, true)[2].format, 'r8unorm');
+  assert.equal(blendTargets('normal', 0xf, false)[1].format, 'r8unorm');
+  for (const mode of ['normal', 'additive', 'subtractive', 'multiply', 'none'] as const) {
+    const share = blendTargets(mode, 0xf, true)[2];
+    assert.equal(share.blend?.color.dstFactor, 'one-minus-src-alpha');
+  }
   assert.equal(waterSurfaceTargets(true).length, 5);
   assert.equal(waterSurfaceTargets(false).length, 4);
   assert.equal(waterSurfaceTargets(true)[4].format, 'r32uint');
