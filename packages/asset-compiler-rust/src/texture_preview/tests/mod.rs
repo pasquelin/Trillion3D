@@ -4,6 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 mod atlas_rule;
 mod bake_files;
 mod box_reduce;
+mod cached_shape;
 mod cancellation;
 mod collect_textures;
 mod coverage_alpha;
@@ -102,7 +103,7 @@ pub(super) fn stage_scene_in(
             meshes: &meshes,
             view_map: &view_map,
             to_measure: &BTreeSet::new(),
-            measurements: crate::cutout::MeasureCache::empty(),
+            measurements: crate::cutout::MeasureCache::EMPTY,
         },
         &silent,
     )
