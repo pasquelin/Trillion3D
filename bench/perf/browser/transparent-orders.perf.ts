@@ -67,8 +67,9 @@ function appelsDe(scene: Scene) {
 
 test('GEO-2: draw calls, single-sided and double-sided', () => {
   const comptes = scenes.map(appelsDe);
+  console.table(comptes);
   assert.ok(comptes[0].after < comptes[0].before / 100, 'single-sided: a few orders');
-  assert.equal(comptes[1].after, comptes[1].before, 'double-sided: no call removed');
+  assert.ok(comptes[1].after < comptes[1].before / 100, 'double-sided: a few orders');
 });
 
 await stress({
