@@ -57,6 +57,8 @@ type VisKey = (typeof VIEW_VIS_KEYS)[number];
 /** One view's record: while it is drawn its state lives in the runtime groups, and its record
  *  holds it again as soon as another view is drawn. */
 export interface WebgpuView {
+  /** The main view's is the host's own array, which a resize writes; while another view is drawn
+   *  the host keeps writing it here, never into the drawn view's. */
   viewport: [number, number];
   /** The engine camera frame entry writes (`rt.run.gate.cam`). */
   cam: EngineCamera;
@@ -92,13 +94,19 @@ export function createWebgpuView(width: number, height: number): WebgpuView {
 
 /** The main view: its state is the runtime's own, held there from construction. */
 export function createWebgpuViews(rt: Pick<WebgpuPagesRuntime, 'run' | 'gpu' | 'vis' | 'setup'>) {
-  const [width, height] = rt.setup.viewport;
   const main: WebgpuView = {
-    viewport: [width, height],
+    viewport: rt.setup.viewport,
     cam: rt.run.gate.cam,
     run: pick(rt.run, VIEW_RUN_KEYS),
     gpu: pick(rt.gpu, VIEW_GPU_KEYS),
     vis: pick(rt.vis, VIEW_VIS_KEYS),
   };
   return { main, active: main } satisfies WebgpuViews;
+}
+
+/** The main view's share of the GPU group, wherever it is held now: a session-wide pass such as
+ *  temporal antialiasing is rigged for the main view, never for a capture drawn aside. */
+export function mainViewGpu(rt: Pick<WebgpuPagesRuntime, 'gpu' | 'views'>) {
+  const { views } = rt;
+  return views.active === views.main ? rt.gpu : views.main.gpu;
 }
