@@ -6,7 +6,7 @@ import {
   type LightingExperimentRenderState,
   type LightingExperimentRayDiagnostics,
 } from './contracts.ts';
-import { createRectangleBvh } from '../../../packages/sdk-browser/src/lighting/rectangleBvh.ts';
+import { createRectangleBvh } from './rectangleBvh.ts';
 
 /** A float RGBA texture of the engine: its texels, its size, and whether the GPU copy is
  *  behind them. Uploaded by the draw, nearest-filtered, clamped, never mipmapped. */
