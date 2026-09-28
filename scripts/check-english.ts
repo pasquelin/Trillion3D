@@ -14,11 +14,18 @@ const SOURCE = /\.(?:[cm]?ts|tsx|rs|wgsl)$/;
 const EXEMPT = new Set(['scripts/french-words.ts', 'scripts/check-english.test.ts']);
 const BASELINE = 'scripts/english-baseline.json';
 
+/** Every named exception at once, matched literally. */
+const EXCEPTED = new RegExp(
+  Object.keys(FRENCH_EXCEPTIONS)
+    .map((literal) => literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('|'),
+  'g',
+);
+
 /** The French words of `text`, lower case and without accents, in order of appearance. */
 export function frenchWords(text: string): string[] {
-  let plain = text;
-  for (const literal of Object.keys(FRENCH_EXCEPTIONS)) plain = plain.replaceAll(literal, ' ');
-  const words = plain
+  const words = text
+    .replace(EXCEPTED, ' ')
     .replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2')
     .replace(/(\p{Lu})(\p{Lu}\p{Ll})/gu, '$1 $2')
     .match(/\p{L}+/gu);

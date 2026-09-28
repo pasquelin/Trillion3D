@@ -11,15 +11,11 @@ import { parkedExampleIds } from './docs/examples/pages.ts';
 export const missingThumbnails = (
   entries: readonly { id: string }[],
   parked: ReadonlySet<string>,
-  captured: readonly string[],
-) => entries.map(({ id }) => id).filter((id) => !parked.has(id) && !captured.includes(id));
-
-/** The gallery's examples that miss a thumbnail today. */
-export const galleryMissingThumbnails = () =>
-  missingThumbnails(writtenEntries, parkedExampleIds, EXAMPLE_THUMBNAILS);
+  captured: ReadonlySet<string>,
+) => entries.map(({ id }) => id).filter((id) => !parked.has(id) && !captured.has(id));
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const missing = galleryMissingThumbnails();
+  const missing = missingThumbnails(writtenEntries, parkedExampleIds, new Set(EXAMPLE_THUMBNAILS));
   if (missing.length) {
     console.error(
       `Gallery examples with no thumbnail, and not parked: ${missing.join(', ')}.\n` +
