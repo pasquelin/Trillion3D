@@ -1,4 +1,4 @@
-import type { HostRetentionDelta } from '../../../streaming/types.ts';
+import type { HostRetentionDelta } from '../streaming/types.ts';
 
 /** What the delta reads from a record: its request rank, and nothing else. */
 type Ranked = { requestIndex?: number };
@@ -12,12 +12,12 @@ type Ranked = { requestIndex?: number };
  * the cache recognises without walking anything.
  */
 export function createHostRankDelta(requestCount: number, urls: readonly string[]) {
-  const capacity = Math.max(1, requestCount);
+  let capacity = Math.max(1, requestCount);
   /** Epoch of the pass where the rank was last marked. */
-  const markedAt = new Int32Array(capacity).fill(-1);
+  let markedAt = new Int32Array(capacity).fill(-1);
   /** Published membership: what the cache holds as pinned. */
-  const published = new Uint8Array(capacity);
-  const entered = new Int32Array(capacity),
+  let published = new Uint8Array(capacity);
+  let entered = new Int32Array(capacity),
     exited = new Int32Array(capacity);
   let held = new Int32Array(capacity),
     heldNext = new Int32Array(capacity);
@@ -28,8 +28,12 @@ export function createHostRankDelta(requestCount: number, urls: readonly string[
     exitedCount = 0;
   const delta = {
     urls,
-    entered,
-    exited,
+    get entered() {
+      return entered;
+    },
+    get exited() {
+      return exited;
+    },
     get enteredCount() {
       return enteredCount;
     },
@@ -43,7 +47,39 @@ export function createHostRankDelta(requestCount: number, urls: readonly string[
       return heldCount;
     },
   } satisfies HostRetentionDelta;
+  const markRank = (rank: number) => {
+    if (rank < 0 || rank >= capacity || markedAt[rank] === epoch) return;
+    markedAt[rank] = epoch;
+    heldNext[nextCount++] = rank;
+    if (published[rank]) return;
+    published[rank] = 1;
+    entered[enteredCount++] = rank;
+  };
   return {
+    /** Extends a mounted catalogue without changing ranks or the address table's identity. */
+    grow(count: number) {
+      if (count <= capacity) return;
+      const next = Math.max(count, capacity * 2);
+      const marks = new Int32Array(next).fill(-1);
+      marks.set(markedAt);
+      markedAt = marks;
+      const pins = new Uint8Array(next);
+      pins.set(published);
+      published = pins;
+      const additions = new Int32Array(next),
+        removals = new Int32Array(next),
+        current = new Int32Array(next),
+        upcoming = new Int32Array(next);
+      additions.set(entered);
+      removals.set(exited);
+      current.set(held);
+      upcoming.set(heldNext);
+      entered = additions;
+      exited = removals;
+      held = current;
+      heldNext = upcoming;
+      capacity = next;
+    },
     /** Opens a pass: what is not re-marked before `finish()` will leave the set. */
     begin() {
       epoch++;
@@ -55,15 +91,10 @@ export function createHostRankDelta(requestCount: number, urls: readonly string[
     mark(list: readonly Ranked[]) {
       for (let i = 0; i < list.length; i++) {
         const rank = list[i].requestIndex;
-        if (rank === undefined || rank < 0 || rank >= capacity) continue;
-        if (markedAt[rank] === epoch) continue;
-        markedAt[rank] = epoch;
-        heldNext[nextCount++] = rank;
-        if (published[rank]) continue;
-        published[rank] = 1;
-        entered[enteredCount++] = rank;
+        if (rank !== undefined) markRank(rank);
       }
     },
+    markRank,
     /** Closes the pass and returns the delta: what entered, what left. */
     finish(): HostRetentionDelta {
       for (let i = 0; i < heldCount; i++) {
