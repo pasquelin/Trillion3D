@@ -48,7 +48,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
   const rt = createWebgpuPagesRuntime(context);
   const { run, setup, diag } = rt;
   const pageSpecs = createArrivalSpecs(setup.byUrl, rt.layout.rows.pageIndexOf);
-  // The device this session holds until it is disposed; the preparation running is
+  // The device this session holds until disposed; `setup.preparing` is the running preparation.
   let claim: GpuDeviceClaim | undefined, closing: Promise<void> | undefined;
   const backend: WebgpuPagesBackend = {
     id: 'webgpu-page-raster',
