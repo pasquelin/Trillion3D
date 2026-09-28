@@ -2864,7 +2864,7 @@
     "summary": "Versi kontrak hierarki scene milik host."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Bilangan bulat header: signature, versi, segitiga, node."
+    "summary": "Bilangan bulat header: tanda pengenal, versi, jumlah segitiga/node/grup/pemilik/sumber, nol yang dicadangkan."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' dibaca sebagai bilangan bulat 32-bit tak bertanda little-endian."
@@ -4900,7 +4900,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Proxy dibaca dan diperiksa ulang sebelum satu sinar pun menyentuhnya.",
-    "description": "Tata letak, little-endian: `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, lalu vertex dunia, albedo, batas node eksak dan keempat anaknya, digabung. Setiap bagian punya panjang yang diwajibkan header; sebuah berkas ukuran lain ditolak sepenuhnya, karena sebuah node yang menyebut segitiga yang hilang akan membuat shader membaca apa pun."
+    "description": "Tata letak: delapan kata header little-endian, diikuti kolom geometri dan pohon kanonis serta data kepemilikan berversi. `docs/FORMAT.md` menentukan setiap jumlah dan kolom. Header menetapkan panjang setiap bagian; berkas dengan ukuran berbeda ditolak seluruhnya, karena node yang merujuk segitiga yang tidak ada akan membuat shader membaca data sembarang."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` diuraikan menjadi `position`, `quaternion`, `scale`."

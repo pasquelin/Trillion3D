@@ -1372,7 +1372,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Le proxy relu et revérifié avant qu’un seul rayon le touche.",
-    "description": "Disposition, en little-endian : `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, puis les sommets dans le monde, les albédos, les limites exactes des nœuds et leurs quatre enfants, bout à bout. Chaque section a une longueur que l’en-tête impose ; un fichier d’une autre taille est refusé en bloc, parce qu’un nœud qui nommerait un triangle absent ferait lire n’importe quoi au shader."
+    "description": "Disposition : huit mots d’en-tête en little-endian, suivis des colonnes de géométrie et d’arbre canoniques et des données de propriété versionnées. `docs/FORMAT.md` précise chaque nombre et chaque colonne. L’en-tête impose la longueur de chaque section ; un fichier d’une autre taille est refusé en bloc, car un nœud qui désignerait un triangle absent ferait lire des données arbitraires au shader."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` décomposée en `position`, `quaternion`, `scale`."
@@ -5229,7 +5229,7 @@
     "summary": "Version du contrat de la hiérarchie de scène tenue par l’hôte."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Entiers d’en-tête : signature, version, triangles, nœuds."
+    "summary": "Entiers d’en-tête : signature, version, nombres de triangles/nœuds/groupes/propriétaires/sources, zéro réservé."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' lus comme un entier non signé sur 32 bits little-endian."
