@@ -79,9 +79,11 @@ fn solved_coordinates_stay_on_the_primitive_grid_under_uneven_weights() {
     let attributes = DagAttributes { carried: &refs };
     let welds = attributes::Welds::of(&positions, attributes, &indices);
     let locks = vec![false; positions.len() / 3];
+    let level_weighted = attributes.weighted();
     let input = welds.input(
         &positions,
         attributes,
+        &level_weighted,
         &locks,
         quality::NORMAL_DEVIATION_BOUND,
     );
@@ -92,12 +94,10 @@ fn solved_coordinates_stay_on_the_primitive_grid_under_uneven_weights() {
     };
     let weighted = [weigh(0, 0.125), weigh(1, 0.5)];
     let target = indices.len() / 6;
-    let region =
-        crate::qem::solve::simplify_with_update(&positions, &weighted, &indices, target, &|_| 0)
-            .expect("solve")
-            .expect("reduced");
-    let error = region.error_object;
-    let local = placed::Local::of(&input, region, &indices);
+    let region = crate::qem::solve::Region::of(&positions, &weighted, &indices).expect("region");
+    let solved = region.solve(target, &|_| 0).expect("reduced");
+    let error = solved.error_object;
+    let local = placed::Local::of(&input, solved);
     let base = (positions.len() / 3) as u32;
     let placed = local.placed(&input, base);
     assert!(!placed.positions.is_empty());
@@ -152,7 +152,8 @@ fn a_texture_weight_follows_its_density() {
         let welds = attributes::Welds::of(&positions, attributes, &indices);
         let locks = vec![false; positions.len() / 3];
         let bound = quality::NORMAL_DEVIATION_BOUND;
-        let input = welds.input(&positions, attributes, &locks, bound);
+        let weighted = attributes.weighted();
+        let input = welds.input(&positions, attributes, &weighted, &locks, bound);
         charts::weighted(&input, &indices, &charts::densities(&input, &indices))[1].weight
     };
     let (full, half) = (weight(&carried), weight(&halved));

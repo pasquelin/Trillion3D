@@ -81,9 +81,8 @@ pub(super) fn build_dag_primitive(
     // The proxy coarse cut is read here, where the DAG and the positions are both
     // at hand; further on, clusters exist only as cache objects.
     let (proxy_threshold, proxy_cut) = crate::proxy::cut::coarse_cut(&dag, pos, proxy_demand);
-    let (mut dag_report, warnings) =
-        compiler_primitive_stalls::dag_report(strategy, &dag, &tallies, &stalls, &quality);
-    dag_report["solvedVertices"] = json!(solved);
+    let (dag_report, warnings) =
+        compiler_primitive_stalls::dag_report(strategy, &dag, &tallies, &stalls, solved, &quality);
     // Pages follow the culling order so every hierarchy node owns a contiguous page range.
     let (order, culling) = {
         let _t = perf::Timer::new(perf::Phase::Culling);

@@ -131,10 +131,11 @@ pub(super) fn open_border_welded(
         .collect();
     let uv_sets = input.attributes.uv_sets();
     let mut first: HashMap<u32, u32> = HashMap::new();
+    let mirrors = input.mirrors();
     let mut error = 0.0_f64;
     let corners = live.iter().map(|&v| {
         let w = weld(v);
-        let kept = input.locks[v as usize] || input.mirrors.get(v as usize) == Some(&true);
+        let kept = input.locks[v as usize] || mirrors.get(v as usize) == Some(&true);
         if kept || !open.contains(&w) {
             return v;
         }

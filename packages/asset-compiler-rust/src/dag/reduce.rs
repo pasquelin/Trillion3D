@@ -72,20 +72,25 @@ pub(super) fn reduce_group(
     let mut own: HashMap<u32, u32> = HashMap::new();
     let corners = children.iter().flat_map(|c| c.indices.iter());
     let live = live_triangles(corners.map(|&v| *own.entry(input.exact[v as usize]).or_insert(v)));
-    let chosen = match attempt(input, &live, true)? {
+    let (error, clusters, relocked, placed) = match attempt(input, &live, true)? {
         // Reduction yielding no fewer clusters does not advance DAG: refused,
         // even if removing triangles, rather than adding unreplaced level.
-        Ok(chosen) if chosen.progresses(children.len()) => chosen,
+        Ok(chosen) if chosen.progresses(children.len()) => {
+            let kept = &chosen.simplified.indices;
+            let vanished =
+                vanished::vanished_error(&live, kept, input.positions, input.weld, input.extents);
+            let error = vanished.max(chosen.simplified.error_object);
+            (error, chosen.clusters, chosen.relocked, None)
+        }
         stalled => {
             let stop = stalled.err().unwrap_or(Stop::NoCollapse);
-            let frame = (sphere, child_error, source_rank);
-            return solved::stalled(input, &live, children.len(), stop, frame);
+            match solved::stalled(input, &live, children.len(), stop)? {
+                Ok(s) => (s.error, s.clusters, s.relocked, Some(s.placed)),
+                Err(outcome) => return Ok(Err(outcome)),
+            }
         }
     };
-    let kept = &chosen.simplified.indices;
-    let vanished =
-        vanished::vanished_error(&live, kept, input.positions, input.weld, input.extents);
-    let error = vanished.max(chosen.simplified.error_object.max(child_error));
+    let error = error.max(child_error);
     if !error.is_finite() {
         return Ok(Err(diagnosis::outcome(
             StallCause::UnusableError,
@@ -96,10 +101,10 @@ pub(super) fn reduce_group(
     Ok(Ok(GroupReduction {
         error,
         sphere,
-        clusters: chosen.clusters,
+        clusters,
         source_rank,
-        relocked: chosen.relocked,
-        placed: None,
+        relocked,
+        placed,
     }))
 }
 
@@ -129,7 +134,7 @@ pub(super) fn attempt(
             let _t = Timer::new(Phase::Simplify);
             simplify_with_locked_vertices(
                 input.positions,
-                &input.attributes.weighted(),
+                input.weighted,
                 source,
                 triangles / 2,
                 extra.is_empty(),
