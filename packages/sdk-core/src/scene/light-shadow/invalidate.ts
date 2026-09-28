@@ -1,7 +1,7 @@
 import { boxEmpty, boxUnion } from '../../math/primitives/box.ts';
 import { LIGHT_KIND, type SceneLight } from '../light/contracts.ts';
 import type { createShadowChanges } from './changes.ts';
-import type { createShadowCounts } from './counts.ts';
+import { STALE_BY, type createShadowCounts } from './counts.ts';
 import { createPageRects } from './pageRects.ts';
 import { STALE_DYNAMIC, STALE_FULL, type ShadowPool } from './pool.ts';
 import type { ShadowTable } from './table.ts';
@@ -14,6 +14,10 @@ type Counts = ReturnType<typeof createShadowCounts>;
 
 /** The position of a light that has none, the sun: its range bounds nothing. */
 const ORIGIN = [0, 0, 0] as const;
+/** Why a box stales its pages (`STALE_BY`): wrong, a still caster changed; at `STALE_FULL` and not
+ *  wrong, a change of detail; else, moving casters alone. A union counts its strongest. */
+const reasonOf = (level: number, wrong: boolean) =>
+  wrong ? STALE_BY.caster : level === STALE_FULL ? STALE_BY.detail : STALE_BY.moving;
 
 /**
  * What stales the mapped pages of a shadow light, and nothing more — the reference invalidation
@@ -55,14 +59,17 @@ export function createPageInvalidation(
     wrongMax = restWrong.subarray(3, 6),
     keptMin = restKept.subarray(0, 3),
     keptMax = restKept.subarray(3, 6);
-  /** The light being invalidated — its slice, its kind, its views — and the frame's stamp. */
-  let slice = 0,
+  /** The light being invalidated — its slice, its kind, its views —, the frame's stamp, and the
+   *  reason every page staled now counts under, when not its level's (`reasonOf`). */
+  let why = -1,
+    slice = 0,
     sunLight = false,
     views = 0,
     nowMs = 0,
     frame = 0;
   const mark = (page: number, level: number, wrong: boolean) => {
-    if (pool.stale(page, nowMs, frame, level)) counts.invalidatedPages++;
+    if (pool.stale(page, nowMs, frame, level))
+      counts.staled(why >= 0 ? why : reasonOf(level, wrong));
     if (wrong) pool.withdraw(table, page);
   };
   const within = (view: number, x: number, y: number) =>
@@ -126,11 +133,15 @@ export function createPageInvalidation(
     nowMs = now;
     frame = at;
     if (whole) {
+      why = STALE_BY.light;
       scan(false, STALE_FULL, true);
+      why = -1;
       return;
     }
     const recycled = sunLight ? sun.ranges.recycled[slice] : -1;
+    why = STALE_BY.range;
     if (recycled >= 0) scan(false, STALE_FULL, true, recycled);
+    why = -1;
     const range = sunLight ? 0 : (light.range ?? 0),
       position = light.position ?? ORIGIN;
     if (!sunLight && byPage && changes.count) lampFaces(light);

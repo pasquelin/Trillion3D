@@ -5490,6 +5490,15 @@
       "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et depuis combien de temps attend la plus ancienne page périmée que l’image lit. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
       "shadowPagesTotal": "Pages dessinées depuis l’ouverture de l’explorateur, vidages de `flush()` compris : le coût d’un changement est l’écart entre deux lectures.",
       "shadowPagesPending": "Pages d’ombre en attente.",
+      "shadowBatches": "Lots d’ombre que l’image a dessinés : des comptes de l’hôte sur ce qu’il a encodé, jamais lus dans un shader, comme les comptes suivants. Null pour un moteur sans atlas d’ombre.",
+      "shadowLayersDrawn": "Couches du pool dans lesquelles les passes d’ombre de l’image ont dessiné.",
+      "shadowPagesRestored": "Pages dessinées depuis une copie de leur couche statique, seuls leurs projeteurs mobiles rastérisés.",
+      "shadowPagesRasterized": "Pages dont les projeteurs statiques ont été rastérisés à nouveau ; avec les pages restaurées, toutes les pages dessinées.",
+      "shadowRestoreCopies": "Copies de pages depuis la couche statique : une page restaurée, ou une page dessinée en entier sur sa couche.",
+      "shadowStaticDrawCalls": "Appels de dessin de projeteurs statiques : dans la couche statique, ou d’une page dessinée entière sans elle.",
+      "shadowMovingDrawCalls": "Appels de dessin des seuls projeteurs mobiles, sur des pages restaurées depuis la couche statique.",
+      "shadowMovingCastersKept": "Parmi `shadowCastersKept`, les clusters gardés pour dessiner les seuls projeteurs mobiles.",
+      "shadowPagesStaledBy": "Pages que l’image a rendues périmées, par raison : lumière, projeteur immobile, projeteurs mobiles, détail, seuil de coupe, ou plage de profondeur d’un soleil.",
       "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
       "shadowCutDrops": "Lots de la coupe depuis la lumière qui ont abandonné du travail — leurs vues ont gardé plus de clusters que les listes n’en tiennent —, depuis l’ouverture de l’explorateur : chacun renvoie ses pages, retirées jusqu’à être redessinées (#525). Null sur un moteur sans coupe GPU depuis la lumière, comme les trois suivants.",
       "shadowCutWithdrawnPages": "Pages redessinées parce qu’une coupe depuis la lumière les a mal dessinées, depuis l’ouverture de l’explorateur : son lot a abandonné du travail, ou son drapeau n’a jamais été lu. Elles sont retirées jusqu’à être redessinées.",
@@ -6803,6 +6812,15 @@
       "shadowPagesDrawn": "Ce qu’a produit l’invalidation des pages : pages redessinées par l’image, pages laissées en file faute de budget, et depuis combien de temps attend la plus ancienne page périmée que l’image lit. Zéro partout est la valeur normale d’une scène immobile ; `null` pour un moteur sans atlas d’ombres.",
       "shadowPagesTotal": "Pages dessinées depuis l’ouverture de l’explorateur, vidages de `flush()` compris : le coût d’un changement est l’écart entre deux lectures.",
       "shadowPagesPending": "Pages d’ombre en attente.",
+      "shadowBatches": "Lots d’ombre que l’image a dessinés : des comptes de l’hôte sur ce qu’il a encodé, jamais lus dans un shader, comme les comptes suivants. Null pour un moteur sans atlas d’ombre.",
+      "shadowLayersDrawn": "Couches du pool dans lesquelles les passes d’ombre de l’image ont dessiné.",
+      "shadowPagesRestored": "Pages dessinées depuis une copie de leur couche statique, seuls leurs projeteurs mobiles rastérisés.",
+      "shadowPagesRasterized": "Pages dont les projeteurs statiques ont été rastérisés à nouveau ; avec les pages restaurées, toutes les pages dessinées.",
+      "shadowRestoreCopies": "Copies de pages depuis la couche statique : une page restaurée, ou une page dessinée en entier sur sa couche.",
+      "shadowStaticDrawCalls": "Appels de dessin de projeteurs statiques : dans la couche statique, ou d’une page dessinée entière sans elle.",
+      "shadowMovingDrawCalls": "Appels de dessin des seuls projeteurs mobiles, sur des pages restaurées depuis la couche statique.",
+      "shadowMovingCastersKept": "Parmi `shadowCastersKept`, les clusters gardés pour dessiner les seuls projeteurs mobiles.",
+      "shadowPagesStaledBy": "Pages que l’image a rendues périmées, par raison : lumière, projeteur immobile, projeteurs mobiles, détail, seuil de coupe, ou plage de profondeur d’un soleil.",
       "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
       "shadowCutDrops": "Lots de la coupe depuis la lumière qui ont abandonné du travail — leurs vues ont gardé plus de clusters que les listes n’en tiennent —, depuis l’ouverture de l’explorateur : chacun renvoie ses pages, retirées jusqu’à être redessinées (#525). Null sur un moteur sans coupe GPU depuis la lumière, comme les trois suivants.",
       "shadowCutWithdrawnPages": "Pages redessinées parce qu’une coupe depuis la lumière les a mal dessinées, depuis l’ouverture de l’explorateur : son lot a abandonné du travail, ou son drapeau n’a jamais été lu. Elles sont retirées jusqu’à être redessinées.",
@@ -7440,7 +7458,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Flottants d’un enregistrement d’ombre, celui que lit l’ombrage d’une lumière : six matrices de faces de lampe — là, les plages de profondeur d’un soleil, `zNear` et inverse de l’étendue chacune (`recordPack.ts`) —, puis le repère du plan du soleil — `right`, `up`, `axis`, chacun complété à quatre —, puis l’origine de la fenêtre de chaque niveau en deux entiers, puis un en-tête `vec4f` : faces (lampe) ou niveaux (soleil), demi-champ tangent de la lampe ou niveau le plus fin du soleil, plan proche de la lampe, et première entrée de la table des pages."
+    "summary": "Flottants d’un enregistrement d’ombre, celui que lit l’ombrage d’une lumière : six matrices de faces de lampe — là, les plages de profondeur d’un soleil, `zNear, zFar` chacune (`recordPack.ts`) —, puis le repère du plan du soleil — `right, zNear`, `up, zFar`, `axis`, puis l’emplacement de la plage courante —, puis l’origine de la fenêtre de chaque niveau en deux entiers, puis un en-tête `vec4f` : faces (lampe) ou niveaux (soleil), demi-champ tangent de la lampe ou niveau le plus fin du soleil, plan proche de la lampe, et première entrée de la table des pages."
   },
   "ShadowRequestReport": {
     "summary": "Ce que l’ombrage a lu en une image : les entrées de la table qu’il a demandées, sans ordre.",

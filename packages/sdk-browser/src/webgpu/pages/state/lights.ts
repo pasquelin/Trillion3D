@@ -21,6 +21,7 @@ import type { ShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
 import type { ShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import type { ShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
 import { createShadowMemory, type ShadowMemory } from '../../shadow/memoryGrant.ts';
+import { createShadowWork, type ShadowWork } from '../../shadow/work.ts';
 
 /**
  * Direct-lighting state of the contract: the light store (shared with the host), per-tile lists, the
@@ -95,7 +96,8 @@ export interface WebgpuLightState {
    *  withdrawn — a cut dropped work — or coarser (`redrawShortPages`). */
   lightCutWithdrawnPages: number;
   lightCutCoarsePages: number;
-  shadowDraws: number;
+  /** What the last image's shadow pass drew, apart (`../../shadow/work.ts`). */
+  shadowWork: ShadowWork;
   /** Draw calls actually encoded by the shadow pass: per render pass its clears and restores, then
    *  an indirect draw per region. */
   shadowDrawCalls: number;
@@ -156,7 +158,7 @@ export function createWebgpuLightState(
     shadowPagesTotal: 0,
     lightCutWithdrawnPages: 0,
     lightCutCoarsePages: 0,
-    shadowDraws: 0,
+    shadowWork: createShadowWork(),
     shadowDrawCalls: 0,
     shadowRenderPasses: 0,
     shadowReason: null,
@@ -175,17 +177,16 @@ export function disposeStaticLayer(lights: WebgpuLightState) {
   lights.staticLayer = lights.pageHiz = lights.occlusion = undefined;
 }
 
-/** Closes the frame's shadow work: what its batches drew joins the cumulative total a host reads
- *  across frames and settle drains; the pages from a batch that could not be encoded on are not
- *  counted (`encodeShadowBatches.ts`). */
+/** Closes the frame's shadow work: what its batches drew joins the total a host reads across frames
+ *  and drains; a batch that could not be encoded is not counted (`encodeShadowBatches.ts`). */
 export function noteShadowFrame(lights: WebgpuLightState) {
   lights.shadowPagesTotal += lights.shadowPages;
 }
 
 /**
  * True while the shadow pages can still change what the image shows: a page stale and read — left
- * by a batch that could not be encoded —, a
- * representation change waiting for the camera to rest, a request report — the shading's, or a
+ * by a batch that could not be encoded —, a representation change waiting for the camera to rest,
+ * a request report — the shading's, or a
  * light cut's, whose casters may still load, or its flag word — on its way, or no report yet
  * proving that the image reads only pages already drawn. A scene without a shadow light, or an
  * unlit view, reads no page and waits for nothing — not even the pages the last plan left.
