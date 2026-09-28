@@ -348,6 +348,12 @@ The world is not a family: it is the object `createWorld` returns, carrying `sce
 There is no level-of-detail object and no instanced or batched mesh type: one cut through a DAG
 per frame, instancing and draw grouping are what the engine does natively.
 
+For compiled scenes, changing a node or parent pose also updates its resident lighting proxy,
+including the proxy used by distant sun shadows while bounce is off. Bounce probes restart their
+convergence against the new geometry; no separate lighting invalidation call is needed. This
+requires a version-3 proxy cache (recompile older caches). Motion preserves existing proxy surfaces;
+it cannot restore geometry already discarded during cooking. See [FORMAT.md](FORMAT.md#resident-lighting-proxy).
+
 ## Loop
 
 The world owns the loop, and it stops when the image is stable: after 120 frames with nothing
