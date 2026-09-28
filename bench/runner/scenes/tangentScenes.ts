@@ -14,24 +14,26 @@
 // morph target, so the images of a pair can be compared pixel for pixel
 // (`tests/browser/renders/page-tangents.browser.ts`).
 // =====================================================================================
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { ASSETS } from '../scene.ts';
 import { sceneGltfFile } from '../assetsCatalogue.ts';
 
 /** The public scene all four are derived from. */
 const TANGENT_SOURCE = 'normal-tangent-mirror-test';
-/** The derived scenes, by surface and by the path it takes, with the pass each compiles to. */
-export const TANGENT_SCENES = {
-  blend: {
-    paged: { scene: 'normal-tangent-blend-paged', pass: 'clustered-blend' },
-    unpaged: { scene: 'normal-tangent-blend-unpaged', pass: 'shared-blend' },
-  },
-  opaque: {
-    paged: { scene: 'normal-tangent-opaque-paged', pass: 'exact-clusters' },
-    unpaged: { scene: 'normal-tangent-opaque-unpaged', pass: 'shared-blend' },
-  },
-} as const;
+/** The derived scenes, one per surface and path, with the pass each compiles to. */
+export const TANGENT_SCENES = (
+  [
+    { surface: 'blend', path: 'paged', pass: 'clustered-blend' },
+    { surface: 'blend', path: 'unpaged', pass: 'shared-blend' },
+    { surface: 'opaque', path: 'paged', pass: 'exact-clusters' },
+    { surface: 'opaque', path: 'unpaged', pass: 'shared-blend' },
+  ] as const
+).map((entry) => ({
+  ...entry,
+  key: `${entry.surface}-${entry.path}`,
+  scene: `normal-tangent-${entry.surface}-${entry.path}`,
+}));
 /** The opacity of the blended material: enough to see the normal map, and the background. */
 export const TANGENT_BLEND_ALPHA = 0.7;
 /** The buffer an unpaged scene's morph target reads: zeros, one position per vertex. */
@@ -64,8 +66,8 @@ export function tangentSceneGltf(source: Gltf, blended: boolean, unpaged: boolea
     }
   if (!unpaged) return { gltf, zeroBytes: 0 };
   // Every target reads the start of one buffer of zeros, as long as the largest primitive.
-  const view = gltf.bufferViews.length,
-    zero = [0, 0, 0];
+  const view = gltf.bufferViews.length;
+  const zero = [0, 0, 0];
   let largest = 0;
   for (const mesh of gltf.meshes) {
     for (const primitive of mesh.primitives) {
@@ -97,19 +99,14 @@ function writeTangentScenes() {
   const file = sceneGltfFile(from);
   if (!file) throw new Error(`no glTF under ${from}: run node bench/runner/assets.ts first`);
   const source = JSON.parse(readFileSync(join(from, file), 'utf8')) as Gltf;
-  const resources = readdirSync(from).filter((name) => !name.endsWith('.gltf'));
-  for (const [surface, pair] of Object.entries(TANGENT_SCENES))
-    for (const [path, { scene }] of Object.entries(pair)) {
-      const to = join(ASSETS, scene);
-      mkdirSync(to, { recursive: true });
-      for (const name of resources) copyFileSync(join(from, name), join(to, name));
-      const { gltf, zeroBytes } = tangentSceneGltf(source, surface === 'blend', path === 'unpaged');
-      if (zeroBytes) writeFileSync(join(to, ZEROS_FILE), Buffer.alloc(zeroBytes));
-      writeFileSync(join(to, `${scene}.gltf`), `${JSON.stringify(gltf, null, 1)}\n`);
-    }
-  const names = Object.values(TANGENT_SCENES).flatMap((pair) =>
-    Object.values(pair).map(({ scene }) => scene),
-  );
+  for (const { surface, path, scene } of TANGENT_SCENES) {
+    const to = join(ASSETS, scene);
+    cpSync(from, to, { recursive: true, filter: (name) => !name.endsWith('.gltf') });
+    const { gltf, zeroBytes } = tangentSceneGltf(source, surface === 'blend', path === 'unpaged');
+    if (zeroBytes) writeFileSync(join(to, ZEROS_FILE), Buffer.alloc(zeroBytes));
+    writeFileSync(join(to, `${scene}.gltf`), `${JSON.stringify(gltf, null, 1)}\n`);
+  }
+  const names = TANGENT_SCENES.map(({ scene }) => scene);
   process.stdout.write(`node bench/runner/assets.ts --only ${names.join(',')}\n`);
 }
 
