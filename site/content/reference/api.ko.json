@@ -2624,6 +2624,13 @@
       "depth": "이미지 묶음의 경우, 레이어 수."
     }
   },
+  "PlacementGrowth": {
+    "summary": "인스턴스 버퍼를 제자리에서 키우는 세션에 소유자가 건네는 것(`growth.ts`).",
+    "members": {
+      "growPlacements": "세션이 쥔 인스턴스 버퍼가 더 큰 것으로 바뀌었다. `from`의 행이 먼저, 나머지는 치워 둔다. 세션은 이제부터 `to`를 읽고 새 행을 쥐며, 테이블은 다시 만들지 않는다(`growth.ts`). 엔진에 없으면 소유자가 `to`로 세션을 다시 연다.",
+      "growsInPlace": "`growPlacements`가 `capacity` 행으로 키운 `from` 각각을 받아들이는지, 소유자가 하나라도 바꾸기 전에 묻는다. false면 그대로 두고, 소유자가 더 큰 것으로 세션을 다시 연다."
+    }
+  },
   "PlacementRows": {
     "summary": "미러링된 메시들의 배치 행. 배치된 사본마다 한 행.",
     "members": {
