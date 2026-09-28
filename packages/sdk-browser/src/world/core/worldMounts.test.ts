@@ -11,7 +11,7 @@ import type { PlacementRows } from '../../placement/rows.ts';
 import type { ExplorerSource } from '../session/prepare.ts';
 import { listenWorldNotices } from '../diagnostic/worldNotices.ts';
 import { Scene } from './scene.ts';
-import { runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts';
+import { runtimeOf, sessionStandIn, takeContentReopens, type Open } from './worldRuntime.fixture.ts';
 
 /** A session that mounts, unmounts and grows rows in place — each growth it `takes` —, each mount
  *  drawn `late` frames after it is asked (`frame` moves them on), and the rows it draws with the
@@ -98,6 +98,8 @@ test('a growth the session refuses leaves its rows as they are, and a session si
     }
     runtime.dispose();
     assert.deepEqual([grown(), opened()], takes ? [1, 1] : [0, 2]);
+    // Refused, the growth takes today's path: one reopen, the one this test asks for.
+    assert.equal(takeContentReopens().length, takes ? 0 : 1);
   }
 });
 
