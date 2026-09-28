@@ -168,9 +168,9 @@ export function createWebgpuResidentEnsurer({
           if (!tracking.wanted.has(key) || cache.get(address)) continue;
         }
         try {
-          await admit(rec);
+          // A page whose parents lack their bytes is not loaded (-1): nothing to draw, no wake.
+          if ((await admit(rec)) > 0) landed();
           budget.spend();
-          landed();
         } catch (error) {
           if (!String(error).includes('ALL_PAGES_PINNED')) throw error;
           // Pool full of pages the image holds: like the reference streamer, the burst stops there,
