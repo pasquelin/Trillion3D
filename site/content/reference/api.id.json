@@ -7434,7 +7434,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Nilai float rekaman bayangan yang dibaca pencahayaan: enam matriks sisi lampu, lalu kerangka bidang cahaya matahari (`right, zNear`, `up, zFar`, `axis, 0`), asal bentang tiap tingkat clipmap sebagai dua bilangan bulat, lalu tajuk `vec4f` berisi sisi atau tingkat, setengah bidang tangen lampu atau tingkat matahari terhalus, bidang dekat lampu, dan entri pertama tabel halaman."
+    "summary": "Float dari catatan bayangan yang dibaca shading sebuah cahaya: enam matriks muka lampu — di sana rentang kedalaman matahari, masing-masing `zNear` dan kebalikan bentangnya (`recordPack.ts`) —, lalu kerangka bidang matahari — `right`, `up`, `axis`, masing-masing diisi hingga empat —, lalu asal cakupan setiap tingkat clipmap sebagai dua bilangan bulat, lalu header `vec4f`: muka (lampu) atau tingkat (matahari), tangen setengah bidang lampu atau tingkat terhalus matahari, bidang dekat lampu, dan entri pertama catatan di tabel halaman."
   },
   "ShadowRequestReport": {
     "summary": "Yang dibaca shading dalam satu bingkai: entri tabel yang dimintanya, tanpa urutan.",
