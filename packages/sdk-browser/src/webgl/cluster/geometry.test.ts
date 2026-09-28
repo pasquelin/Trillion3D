@@ -19,6 +19,7 @@ function stubContext() {
     FLOAT: 5126,
     UNSIGNED_INT: 5125,
     createBuffer: () => ({}),
+    getError: () => 0,
     createVertexArray: () => ({}),
     bindVertexArray() {},
     bindBuffer(target: number) {

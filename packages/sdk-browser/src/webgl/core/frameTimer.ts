@@ -24,21 +24,21 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
     return {
       supported: false,
       reason,
-      begin() {},
+      begin(_frame: number) {},
       end() {},
-      poll: () => ({ ms: null as number | null, reason }),
+      poll: () => ({ ms: null as number | null, reason, frame: null as number | null }),
     };
-  let open: WebGLQuery | null = null;
-  const pending: WebGLQuery[] = [];
+  let open: { query: WebGLQuery; frame: number } | null = null;
+  const pending: { query: WebGLQuery; frame: number }[] = [];
   return {
     supported: true,
     reason: null as string | null,
-    /** Opens the interval; one query at a time, the spec does not allow two. */
-    begin() {
+    /** Opens the interval of image `frame`; one query at a time, the spec does not allow two. */
+    begin(frame: number) {
       if (open || pending.length > MAX_PENDING) return;
       const query = gl.createQuery();
       if (!query) return;
-      open = query;
+      open = { query, frame };
       gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
     },
     end() {
@@ -50,20 +50,25 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
       // become ready. `flush` pushes it without ever waiting — this is not a `finish`.
       gl.flush();
     },
-    /** Duration of a past frame, or the reason none is publishable. */
-    poll(): { ms: number | null; reason: string | null } {
-      if (!pending.length) return { ms: null, reason: 'no pending query' };
-      const query = pending[0];
+    /** Duration of a past image and the image it names, or the reason none is publishable. */
+    poll(): { ms: number | null; reason: string | null; frame: number | null } {
+      if (!pending.length) return { ms: null, reason: 'no pending query', frame: null };
+      const { query, frame } = pending[0];
       if (!gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE))
-        return { ms: null, reason: 'result not ready yet' };
+        return { ms: null, reason: 'result not ready yet', frame: null };
       pending.shift();
       const disjoint = gl.getParameter(ext.GPU_DISJOINT_EXT);
       const nanoseconds = gl.getQueryParameter(query, gl.QUERY_RESULT) as number;
       gl.deleteQuery(query);
       if (disjoint)
-        return { ms: null, reason: 'the driver interrupted the measurement (GPU_DISJOINT_EXT)' };
-      if (!Number.isFinite(nanoseconds)) return { ms: null, reason: 'unreadable duration' };
-      return { ms: nanosecondsToMs(nanoseconds), reason: null };
+        return {
+          ms: null,
+          reason: 'the driver interrupted the measurement (GPU_DISJOINT_EXT)',
+          frame: null,
+        };
+      if (!Number.isFinite(nanoseconds))
+        return { ms: null, reason: 'unreadable duration', frame: null };
+      return { ms: nanosecondsToMs(nanoseconds), reason: null, frame };
     },
   };
 }
