@@ -1,7 +1,6 @@
 import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
 import { resliceBlendRuns } from './runs.ts';
-import { sortPlanFarToNear } from './sortPlan.ts';
-import { planEntry, planItem } from './plan.ts';
+import { precedes, sortPlanFarToNear } from './sortPlan.ts';
 import { notDrawn } from '../../placement/hidden.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -152,11 +151,16 @@ export function orderVisibleBlend(blendState: BlendState, eye: ArrayLike<number>
   if (!eye || !blendState.blendGpu.length) return;
   refreshEyeKeys(blendState, eye);
   const visible = blendState.visibleBlend;
-  if (blendState.fallbackOrder.length < visible.length)
-    blendState.fallbackOrder = new Uint32Array(visible.length);
-  const order = blendState.fallbackOrder;
-  // Seed from the visible list, preserving its order even for incomparable NaN keys.
-  for (let i = 0; i < visible.length; i++) order[i] = planEntry(visible[i].orderRank, 0, false);
-  sortPlanFarToNear(order, blendState.orderKeys, visible.length);
-  for (let i = 0; i < visible.length; i++) visible[i] = blendState.blendGpu[planItem(order[i])];
+  for (let i = 1; i < visible.length; i++) {
+    const moved = visible[i],
+      movedKey = moved.orderKey,
+      movedRank = moved.orderRank;
+    let j = i - 1;
+    for (; j >= 0; j--) {
+      const held = visible[j];
+      if (!precedes(held.orderKey, held.orderRank, movedKey, movedRank)) break;
+      visible[j + 1] = held;
+    }
+    visible[j + 1] = moved;
+  }
 }
