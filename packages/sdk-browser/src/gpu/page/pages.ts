@@ -159,6 +159,8 @@ export function createGpuPageCache(
         physicalVramBytes: null,
       };
     },
+    /** Diagnostic identity of GPU-resident pages; sorting hides insertion order. */
+    residentKeys: () => [...resident.keys()].sort(),
     dispose() {
       if (state.disposed) return state.pending.then(() => {});
       emit('gpu-page-dispose', 'GPU cache released', () => ({
