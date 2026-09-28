@@ -431,11 +431,11 @@ casters included, when it rests, and another when it wakes — two layer redraws
 back only if other movers redraw its pages often enough in between, and any rest timer would be
 a scene-tuned constant. The policy changes only if a measure of falling boxes and a walker or car
 at 1728×1117 CSS, DPR 2, shows a net gain beyond run spread, transition frames included. An
-object already moving that the host hides or shows, that stops or starts casting, whose alpha
-mode, cutout texture or pages' residency change redraws the moving casters of its pages alone —
-the layer never held it —, a representation change still waiting for the camera to rest, in a
-union of its own. A residency flag that drops
-and rises within a frame — every row follows the table epoch when a pose moves — is no change
+object already moving that the host hides or shows, that stops or starts casting, or whose alpha
+mode, cutout texture or pages' residency changes, and a blended caster whose coverage changes,
+redraw the moving casters of their pages alone: the layer never held them. Such a representation
+change waits for the camera to rest in a union of its own, apart from the one of still objects.
+A residency flag that drops and rises within a frame — every row follows the table epoch when a pose moves — is no change
 for the shadows: only a flag that differs from the last plan's restales its cluster's pages
 (`webgpu/shadow/residence.ts`). On a code-built scene with one ball moving over a static ground,
 1280×720, the virtual pages redraw 4.4 pages a frame (6 at most) with one light cut, against 224

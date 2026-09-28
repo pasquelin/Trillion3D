@@ -6,7 +6,7 @@ import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { WebgpuLightState } from '../state/lights.ts';
 import { boxEmpty, boxIsEmpty } from '../../../../../sdk-core/src/index.ts';
-import { growClusterBox, recordMoves } from '../../shadow/bounds.ts';
+import { changeBoxes, growClusterBox, recordMoves } from '../../shadow/bounds.ts';
 
 const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
   EVERYWHERE_MAX = [1e30, 1e30, 1e30];
@@ -75,14 +75,6 @@ export function shadowsFollowSurfaces(
     );
 }
 
-/** The box of the rows whose static casters changed, then of those already moving: allocated
- *  once. */
-const rowBoxes = [new Float64Array(6), new Float64Array(6)].map((box) => ({
-  box,
-  min: box.subarray(0, 3),
-  max: box.subarray(3, 6),
-}));
-
 /**
  * Stales the box of the rows, visibility then blended casters, that `stale` names, as the same
  * world at another precision or, `worldChanged`, as another world: one box for the rows the static
@@ -95,7 +87,7 @@ function shadowsFollowRows(
   stale: (row: number) => boolean,
   change: 'representationChanged' | 'worldChanged' = 'representationChanged',
 ) {
-  for (const { box } of rowBoxes) boxEmpty(box, 0);
+  for (const { box } of changeBoxes) boxEmpty(box, 0);
   for (const [from, to] of [
     [0, rows.rowCount],
     [rows.blendFirst, rows.casterSlots],
@@ -104,11 +96,12 @@ function shadowsFollowRows(
       const rec = stale(row) && rows.packedRecs[row];
       if (!rec) continue;
       const moving = row >= rows.blendFirst || recordMoves(lights, rec);
-      growClusterBox(rec, rowBoxes[+moving].box);
+      growClusterBox(rec, changeBoxes[+moving].box);
     }
-  rowBoxes.forEach(({ box, min, max }, moving) => {
-    if (!boxIsEmpty(box, 0)) lights.plan[change](min, max, moving === 1);
-  });
+  for (const moving of [false, true]) {
+    const { box, min, max } = changeBoxes[+moving];
+    if (!boxIsEmpty(box, 0)) lights.plan[change](min, max, moving);
+  }
 }
 
 /**
