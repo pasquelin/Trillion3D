@@ -124,8 +124,9 @@ test('an engine that draws nothing on the host surface is refused by name', () =
 
 test('WebGL2 steps the pools ahead of the engine, which draws an image they moved in', () => {
   const { gl, calls, names } = createTestContext({ answers: { getExtension: () => ({}) } });
-  const pool = new ParticlePool({ capacity: 8 });
-  const compose = createFrameComposer(gl, camera, { particles: [pool] });
+  const [pool, pools] = [new ParticlePool({ capacity: 8 }), [] as ParticlePool[]];
+  pools.push(pool);
+  const compose = createFrameComposer(gl, camera, { particles: pools });
   const { backend, outputs } = engine({ held: true });
   compose(backend, null);
   compose(backend, null);
@@ -140,6 +141,9 @@ test('WebGL2 steps the pools ahead of the engine, which draws an image they move
   const bound = calls.slice(drawn).find((call) => call.name === 'viewport')?.args;
   assert.deepEqual(bound, [0, 0, 8, 4], 'then the page, bound again');
   assert.ok(names().lastIndexOf('drawArraysInstanced') > drawn, 'then the pool over the image');
+  pools.length = 0;
+  compose(backend, null);
+  assert.equal(outputs.length, 3, 'a pool let go: its particles never put back');
 });
 
 test('a WebGL2 refusal is heard once by name, and the session draws on without the pools', () => {
