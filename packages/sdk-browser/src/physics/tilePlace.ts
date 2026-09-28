@@ -11,12 +11,18 @@ import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
+import type { CookedMadeBody } from './cookedBodies.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
 import { checked, optionalFile } from '../cluster/checked.ts';
 import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 
-/** A compiled model as the streamer reads it (`LoadedModel`): where its files are. */
-export type Model = Object3D & { isLoadedModel: true; record: { base: string } };
+/** A compiled model as the streamer reads it (`LoadedModel`): where its files are, and the scene
+ *  node of a source node, the nodes below it and its radius (`_nodeAt`), where it numbers them. */
+export type Model = Object3D & {
+  isLoadedModel: true;
+  record: { base: string };
+  _nodeAt?(index: number): { node: Object3D; indices: number[]; radius: number } | null;
+};
 export const isModel = (node: Object3D): node is Model =>
   (node as { isLoadedModel?: boolean }).isLoadedModel === true;
 
@@ -104,10 +110,15 @@ export function locate(p: Placed) {
 }
 
 /**
- * Where each moving body wants ground: `x, y, z, reach` per dynamic body, the reach its half size
- * plus the way it travels in `LOOKAHEAD_S` seconds.
+ * Where each moving body wants ground: `x, y, z, reach` per dynamic body — a page's mesh, or a
+ * compiled model's body moving its node (`nested`, its `velocity` by slot) —, the reach its half
+ * size plus the way it travels in `LOOKAHEAD_S` seconds.
  */
-export function moversOf(meshes: readonly (Bodied | null)[]) {
+export function moversOf(
+  meshes: readonly (Bodied | null)[],
+  nested: readonly (CookedMadeBody | null)[],
+  velocity: Float32Array,
+) {
   const out: number[] = [];
   for (const mesh of meshes) {
     if (!mesh || mesh.physics.type !== 'dynamic') continue;
@@ -118,6 +129,14 @@ export function moversOf(meshes: readonly (Bodied | null)[]) {
     const v = mesh.physics.velocity;
     out.push(mesh.position.x, mesh.position.y, mesh.position.z);
     out.push(half + hypot3(v.x, v.y, v.z) * LOOKAHEAD_S);
+  }
+  for (let slot = 0; slot < nested.length; slot++) {
+    const moves = nested[slot]?.moves;
+    if (!moves) continue;
+    const at = resolveCameraWorld(moves.node).matrixWorld.elements,
+      v = slot * 6;
+    out.push(at[12], at[13], at[14]);
+    out.push(moves.reach + hypot3(velocity[v], velocity[v + 1], velocity[v + 2]) * LOOKAHEAD_S);
   }
   return out;
 }

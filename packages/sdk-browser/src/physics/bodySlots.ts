@@ -16,25 +16,28 @@ export type SlotOwner =
 /**
  * The one owner of each body slot, read by engine id (`createSimulatedIds`), so the id of a slot's
  * earlier body, in a tick or a ray's hit, names nothing. `meshes` is the page's column of it, by
- * slot, for the poses.
+ * slot, for the poses; `nested` the column of a compiled model's bodies that move their node.
  */
 export function createBodySlots(size: number) {
   const ids = createSimulatedIds<SlotOwner, Uint8Array>(new Uint8Array(size));
   const meshes: (Bodied | null)[] = [];
+  const nested: (CookedMadeBody | null)[] = [];
   const { of } = ids;
   return {
     meshes,
+    nested,
     generation: ids.generation,
     /** A free slot held by `owner`: its engine id. */
     take(owner: SlotOwner) {
       const id = ids.take(owner);
       meshes[id & BODY_INDEX] = 'mesh' in owner ? owner.mesh : null;
+      nested[id & BODY_INDEX] = 'body' in owner && owner.body.moves ? owner.body : null;
       return id;
     },
     /** Slot `index` given back: no id of it names anything until it is taken again. */
     release(index: number) {
       ids.release(index);
-      meshes[index] = null;
+      meshes[index] = nested[index] = null;
     },
     of,
     /** What slot `index` holds now, whatever id asks. */
