@@ -5,6 +5,7 @@ import {
   type ClusterManifest,
   type SceneLight,
 } from '../../../../sdk-core/src/index.ts';
+import type { PlacementRows } from '../../placement/rows.ts';
 import { MANIFEST_IDENTITY } from '../../backend/pagesBackend.fixture.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import { collectClusterPages } from '../../page/selection/selection.ts';
@@ -14,9 +15,12 @@ import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { webgpuPagesBackend } from '../pages/pages.ts';
 import { SHADOW_LIMITS, mixedBinScene } from '../pages/testScenes.fixture.ts';
 
-/** The backend over the floor and the caster, lit by `light`, with whatever `options` add;
- *  prepared. */
-export async function floorCasterBackend(light: SceneLight, options: Partial<BackendContext> = {}) {
+/** The backend over the floor and the caster, lit by `light`, with whatever `options` add, the
+ *  caster placed by the rows of `placements` when given; prepared. */
+export async function floorCasterBackend(
+  light: SceneLight,
+  { placements, ...options }: Partial<BackendContext> & { placements?: PlacementRows } = {},
+) {
   installGpuGlobals();
   const mixed = mixedBinScene();
   const scene = {
@@ -25,6 +29,8 @@ export async function floorCasterBackend(light: SceneLight, options: Partial<Bac
   };
   const [caster, floor] = scene.source.children;
   caster.name = 'caster';
+  const links: BackendContext['associations'] = scene.associations;
+  if (placements) links.get(caster)!.placements = placements;
   const { roots } = collectClusterPages(
     scene.source,
     scene.metadata,
