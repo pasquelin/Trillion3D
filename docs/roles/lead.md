@@ -8,7 +8,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 
 1. **Pick.** First your open pull requests, if any: unblock each one that is not ready
    (AGENTS.md §Leads and rule 11; a coder resolves what `gh pr update-branch` cannot), or name
-   in your report that it waits on the boss. While two of them are open, start no new coder (AGENTS.md §Leads); a second issue runs beside the first only if they share no file. Then the open issues of your domain in the order
+   in your report that it waits on the boss. While two of them are open, start no new coder; a second issue follows AGENTS.md §Leads. Then the open issues of your domain in the order
    of AGENTS.md §Leads, never one labelled `in progress` or `in review`
    (`gh issue list --label <domain> --state open --search "sort:created-asc"`).
    Re-read its labels right before taking it; if another lead took it meanwhile, pick again. Then
