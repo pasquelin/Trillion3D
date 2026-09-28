@@ -149,19 +149,19 @@ impl Laps {
         self.laps.insert(label.into(), json!(ms));
         self.last = now;
     }
-    /// Runs `a` and `b` side by side on the current pool, each timed under its own label, and
-    /// opens the next stage once both are done. The results come back in argument order, whichever
-    /// finished first.
+    /// Runs `a` and `b` side by side on the current pool, each timed under its own label from the
+    /// end of the stage before, like a lap, and opens the next stage once both are done. The
+    /// results come back in argument order, whichever finished first.
     pub fn join<A: Send, B: Send>(
         &mut self,
         (a_label, a): (&str, impl FnOnce() -> A + Send),
         (b_label, b): (&str, impl FnOnce() -> B + Send),
     ) -> (A, B) {
-        fn timed<T>(run: impl FnOnce() -> T) -> (T, f64) {
-            let started = Instant::now();
+        fn timed<T>(started: Instant, run: impl FnOnce() -> T) -> (T, f64) {
             (run(), crate::shared_math::elapsed_ms(started))
         }
-        let ((a, a_ms), (b, b_ms)) = rayon::join(|| timed(a), || timed(b));
+        let started = self.last;
+        let ((a, a_ms), (b, b_ms)) = rayon::join(|| timed(started, a), || timed(started, b));
         self.laps.insert(a_label.into(), json!(a_ms));
         self.laps.insert(b_label.into(), json!(b_ms));
         self.last = Instant::now();
