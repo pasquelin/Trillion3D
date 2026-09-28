@@ -1,9 +1,11 @@
+const none = () => undefined;
+
 /** Entry descriptors read live resources; their arrays, bindings and readers are allocated once. */
 export function bufferEntry(
   binding: number,
   buffer: () => GPUBuffer | undefined,
-  offset: () => number | undefined = () => undefined,
-  size: () => number | undefined = () => undefined,
+  offset: () => number | undefined = none,
+  size: () => number | undefined = none,
 ): GPUBindGroupEntry {
   return {
     binding,

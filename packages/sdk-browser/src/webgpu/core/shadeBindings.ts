@@ -1,5 +1,5 @@
 import { shadeBindEntries, type ShadeBindResources } from './bindEntries.ts';
-import { entriesIdentity } from './bindIdentity.ts';
+import { entriesReady } from './bindIdentity.ts';
 import { liveResources } from './liveEntries.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
@@ -20,22 +20,7 @@ export function ensureWebgpuShadeBindings(rt: WebgpuPagesRuntime, device: GPUDev
       uniform: () => rt.vis.shadeUniform,
     }),
   ));
-  identity.next[0] = vis.shadeBindGroupLayout;
-  identity.next.length = entriesIdentity(entries, identity.next, 1);
-  if (identity.moved()) vis.shadeBindGroup = undefined;
-  if (
-    !vis.shadeBindGroup &&
-    vis.shadeBindGroupLayout &&
-    vis.visView &&
-    rt.gpu.cache &&
-    vis.concatPos &&
-    vis.concatUv &&
-    vis.concatNrm &&
-    vis.pageTable &&
-    vis.textures &&
-    vis.mapsSampler &&
-    vis.shadeUniform
-  ) {
+  if (identity.entriesMoved(vis.shadeBindGroupLayout)) vis.shadeBindGroup = undefined;
+  if (!vis.shadeBindGroup && vis.shadeBindGroupLayout && entriesReady(entries))
     vis.shadeBindGroup = device.createBindGroup({ layout: vis.shadeBindGroupLayout, entries });
-  }
 }

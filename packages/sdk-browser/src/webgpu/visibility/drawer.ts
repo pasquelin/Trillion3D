@@ -1,9 +1,11 @@
 import { visPipelineFor, visSlotPipeline } from '../pages/prepare/pipelineFor.ts';
 import { visibilityEntries } from './bindings.ts';
+import { entriesReady } from '../core/bindIdentity.ts';
 import { BASE_SLOTS } from '../../gpu/draw/draw.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
-/** The bind group of one indirect slot, cached on `rt.vis` until a resource change voids it.
+/** The bind group of one indirect slot, cached on `rt.vis` until the visibility identity voids it:
+ *  slot groups share every resource with the representative slot 0 but their uniform offset.
  *  Shadow depth passes reuse exactly these groups: same page table, same selection, same slot
  *  uniform. */
 export function visGroupFor(
@@ -12,34 +14,18 @@ export function visGroupFor(
   slot: number,
   rest: boolean,
 ) {
-  const { vis, gpu } = rt;
-  const cacheBuffer = gpu.cache?.buffer,
-    { visBindGroupLayout, concatPos, concatUv, pageTable, visUniform, textures, mapsSampler } = vis,
-    { gpuDraw } = vis;
-  if (
-    !visBindGroupLayout ||
-    !cacheBuffer ||
-    !concatPos ||
-    !concatUv ||
-    !pageTable ||
-    !visUniform ||
-    !textures ||
-    !mapsSampler ||
-    !gpuDraw
-  )
-    return;
-  const flags = rest ? vis.gpuHiz?.flags : vis.zeroFlags;
-  if (!flags) return;
+  const { vis } = rt,
+    layout = vis.visBindGroupLayout,
+    slotEntries = vis.visIdentity.entries[2],
+    hizEntries = vis.visIdentity.entries[1];
+  // Slot 0 names the indirect buffers, the Hi-Z group the tested flags: a tested slot needs both.
+  if (!layout || !slotEntries || !entriesReady(slotEntries)) return;
+  if (rest && !entriesReady(hizEntries)) return;
   const key = slot * 2 + (rest ? 1 : 0);
-  let group = vis.visSlotGroups[key];
-  if (!group) {
-    group = device.createBindGroup({
-      layout: visBindGroupLayout,
-      entries: visibilityEntries(rt, rest, slot),
-    });
-    vis.visSlotGroups[key] = group;
-  }
-  return group;
+  return (vis.visSlotGroups[key] ??= device.createBindGroup({
+    layout,
+    entries: visibilityEntries(rt, rest, slot),
+  }));
 }
 
 /**
