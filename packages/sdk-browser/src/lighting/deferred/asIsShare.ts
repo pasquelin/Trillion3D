@@ -1,6 +1,12 @@
 import { AS_IS_FLAG } from '../../scene/surfaceModel.ts';
 import { FULLSCREEN_VERTEX } from './shaders.ts';
 
+export const AS_IS_SHARE_SHADER = `${FULLSCREEN_VERTEX}
+@group(0) @binding(0) var flags:texture_2d<u32>;
+@fragment fn seed(@builtin(position) pixel:vec4f)->@location(0) f32{
+ return f32(textureLoad(flags,vec2i(pixel.xy),0).r==${AS_IS_FLAG}u);
+}`;
+
 /** The current image's debug-view share, seeded from opaque flags before transparents blend it. */
 export function createAsIsShare(
   device: GPUDevice,
@@ -15,13 +21,7 @@ export function createAsIsShare(
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
   });
   const view = texture.createView();
-  const module = device.createShaderModule({
-    code: `${FULLSCREEN_VERTEX}
-@group(0) @binding(0) var flags:texture_2d<u32>;
-@fragment fn seed(@builtin(position) pixel:vec4f)->@location(0) f32{
- return f32(textureLoad(flags,vec2i(pixel.xy),0).r==${AS_IS_FLAG}u);
-}`,
-  });
+  const module = device.createShaderModule({ code: AS_IS_SHARE_SHADER });
   const layout = device.createBindGroupLayout({
     entries: [{ binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'uint' } }],
   });
