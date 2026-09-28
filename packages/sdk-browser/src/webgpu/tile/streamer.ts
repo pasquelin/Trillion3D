@@ -168,9 +168,11 @@ export function createWebgpuTileStreamer(options: {
       return reduce !== undefined;
     },
     /** Lane pools whose layers or tiles change are replaced, tiles kept; returns the evicted. */
-    resize(layers: AtlasLanes, tiles?: AtlasLanes) {
-      const results = [color.resize(device, layers.color, tiles?.color)];
-      results.push(data.resize(device, layers.data, tiles?.data));
+    resize({ layers, tiles }: { layers: AtlasLanes; tiles: AtlasLanes }) {
+      const results = [
+        color.resize(device, layers.color, tiles.color),
+        data.resize(device, layers.data, tiles.data),
+      ];
       if (results.some((result) => result.replaced)) {
         flushAll();
         options.onColorChanged(-1);

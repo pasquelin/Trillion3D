@@ -89,7 +89,7 @@ export async function setWebgpuMemoryBudgets(
           grantedTexturePool(device, bytes, pools, diagnose, textureProbe(device, pools.encoding)),
         );
       if (pool) {
-        if (vis.textures && !run.lost) evictedTiles = vis.textures.resize(pool.layers, pool.tiles);
+        if (vis.textures && !run.lost) evictedTiles = vis.textures.resize(pool);
         pools.pool = pool;
         // What the device granted, not what was asked: a refusal keeps the budget in place.
         setup.texturePoolBudget = pool.budgetBytes + deducted;

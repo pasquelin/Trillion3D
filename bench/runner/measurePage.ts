@@ -87,11 +87,10 @@ export async function reglerReservoirs(
   };
   const rapport = await explorer.setMemoryBudgets(requested);
   const imagesReprise = await poseCalme(explorer, pose);
-  const texturePoolAskedBytes = requested.texturePoolBytes;
   return {
     ...rapport,
     imagesReprise,
-    texturePoolAskedBytes,
+    texturePoolAskedBytes: requested.texturePoolBytes,
     residentTextureBytes: resident?.bytes,
   };
 }
