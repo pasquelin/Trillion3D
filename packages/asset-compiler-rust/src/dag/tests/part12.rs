@@ -33,13 +33,7 @@ fn dag_of(positions: &[f32], carried: &[Attribute], indices: &[u32]) -> build::D
 #[test]
 fn a_seam_locked_sheet_climbs_on_placed_vertices() {
     let (positions, carried, indices) = sheet(32);
-    let build::DagBuild {
-        clusters: dag,
-        tallies,
-        stalls,
-        grown,
-        ..
-    } = dag_of(&positions, &carried, &indices);
+    let (dag, _, tallies, stalls, grown) = dag_of(&positions, &carried, &indices);
     let grown = grown.expect("placed vertices");
     assert_eq!(grown.positions[..positions.len()], positions[..]);
     assert_eq!(
@@ -70,8 +64,7 @@ fn an_unblocked_sheet_places_nothing() {
         width: 2,
         values: uvs,
     }];
-    let build = dag_of(&positions, &carried, &indices);
-    let (tallies, grown) = (build.tallies, build.grown);
+    let (_, _, tallies, _, grown) = dag_of(&positions, &carried, &indices);
     assert!(grown.is_none());
     assert_eq!(GroupTally::total(&tallies).solved, 0);
 }
@@ -90,7 +83,7 @@ fn a_texture_weight_follows_its_density() {
         let locks = vec![false; positions.len() / 3];
         let bound = quality::NORMAL_DEVIATION_BOUND;
         let weighted = attributes.weighted();
-        let input = welds.input(&positions, attributes, &weighted, &locks, bound);
+        let input = welds.input(&positions, &refs, &weighted, &locks, bound);
         charts::weighted(&input, &indices, &charts::densities(&input, &indices))[1].weight
     };
     let (full, half) = (weight(&carried), weight(&halved));
@@ -112,7 +105,7 @@ fn a_placed_coordinate_charges_its_slide() {
     let locks = vec![false; positions.len() / 3];
     let weighted = attributes.weighted();
     let bound = quality::NORMAL_DEVIATION_BOUND;
-    let input = welds.input(&positions, attributes, &weighted, &locks, bound);
+    let input = welds.input(&positions, &refs, &weighted, &locks, bound);
     let densities = charts::densities(&input, &indices);
     let region = crate::qem::solve::Region::of(&positions, &weighted, &indices).expect("region");
     let solved = region.solve(indices.len() / 6, &|_| 0).expect("reduced");

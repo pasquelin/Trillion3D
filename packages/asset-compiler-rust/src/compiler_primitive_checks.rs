@@ -62,15 +62,14 @@ mod tests {
             values: normals.clone(),
         };
         let carried = [&attribute];
-        let dag = build_dag_tallied(
+        let (dag, ..) = build_dag_tallied(
             &positions,
             DagAttributes { carried: &carried },
             &indices,
             DagStrategy::QemEndpoints,
             &|| Ok(()),
         )
-        .expect("dag")
-        .clusters;
+        .expect("dag");
         (positions, normals, indices, dag)
     }
 
