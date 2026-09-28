@@ -210,7 +210,10 @@
       "levels": "Từng tầng.",
       "reach": "Tầm với của tia: đường chéo khu vực, ngoài đó không có gì để va chạm.",
       "shareOf": "Số đầu dò trong lô công việc mỗi khung hình, theo từng tầng: tỉ lệ đã công bố áp dụng lên tổng một lô.",
-      "follow": "Định vị lại các tầng có thể di chuyển quanh một điểm nhìn. Trả về đúng khi ít nhất một chỉ số ô gốc thay đổi: đây là tín hiệu duy nhất mà sự hội tụ cần để khởi động lại, không tốn chi phí đọc lại GPU."
+      "follow": "Định vị lại các tầng có thể di chuyển quanh một điểm nhìn. Trả về đúng khi ít nhất một chỉ số ô gốc thay đổi: đây là tín hiệu duy nhất mà sự hội tụ cần để khởi động lại, không tốn chi phí đọc lại GPU.",
+      "reserveCount": "Dung lượng cố định được dành sẵn trước khi các phép biến đổi có thể mở rộng cảnh.",
+      "invalidLevels": "Các cấp có khoảng cách hoặc sự hiện diện thay đổi trong lần lập kế hoạch lại gần nhất. Việc dịch gốc dùng dấu nhận diện ô.",
+      "replan": "Áp dụng lại chính sách độ phân giải không gian hiện có cho các giới hạn hình học hiện tại."
     }
   },
   "BounceOccupancy": {
@@ -220,7 +223,8 @@
       "occupied": "Đúng khi ô của một tầng trên lưới toàn cục của nó xứng đáng có một đầu dò.",
       "marked": "Số ô được đánh dấu và tổng số ô của tầng mịn nhất: mức lợi đã công bố.",
       "cells": "Các ô của tầng mịn nhất.",
-      "bytes": "Số byte nó chiếm dụng."
+      "bytes": "Số byte nó chiếm dụng.",
+      "allEligible": "Hình học đã di chuyển: đưa toàn bộ ô của các tầng chuyển tiếp vào lịch xử lý để tránh bỏ sót; số ô vẫn có giới hạn."
     }
   },
   "BoundedNode": {
@@ -3152,7 +3156,12 @@
       "triangles": "Ba đỉnh thế giới cho mỗi tam giác, mỗi tam giác `PROXY_TRIANGLE_FLOATS` con số.",
       "albedo": "Albedo khuếch tán tuyến tính của tam giác, đóng gói RGBA8.",
       "nodeBounds": "Giới hạn chính xác của mỗi node BVH.",
-      "nodeChildren": "Bốn con của mỗi node: hộp đã lượng tử hóa, số tam giác, sự hiện diện, liên kết."
+      "nodeChildren": "Bốn con của mỗi node: hộp đã lượng tử hóa, số tam giác, sự hiện diện, liên kết.",
+      "triangleGroups": "Nhóm chủ sở hữu nguồn dùng chung của mỗi tam giác chuẩn; các nhóm giống nhau chỉ được lưu một lần.",
+      "groupOffsets": "Độ lệch của các bản ghi chủ sở hữu trong mỗi nhóm, bao gồm giá trị đánh dấu cuối.",
+      "owners": "Bản ghi chủ sở hữu: chỉ số nút nguồn và suất phản chiếu tuyến tính được đóng gói theo RGBA8.",
+      "bindWorlds": "Các ma trận thế giới ban đầu của nút nguồn, mỗi nút có mười sáu giá trị độ chính xác kép.",
+      "sourceParents": "Cấu trúc phân cấp nguồn, bao gồm các nút phân vùng mà phía chủ hiện chưa tạo thực thể."
     }
   },
   "SceneProxyDescriptor": {
@@ -3169,7 +3178,10 @@
       "triangleBudget": "Ngân sách tam giác đã công bố, cái quyết định ngưỡng thực sự đạt được.",
       "bounds": "Phạm vi thế giới của proxy: ba cận dưới rồi ba cận trên.",
       "triangles": "Các tam giác.",
-      "nodes": "Các node của cây."
+      "nodes": "Các node của cây.",
+      "groups": "Các nhóm chủ sở hữu dùng chung, chỉ được lưu một lần.",
+      "owners": "Các bản ghi chủ sở hữu.",
+      "instances": "Ma trận của các nút nguồn."
     }
   },
   "SceneRoot": {

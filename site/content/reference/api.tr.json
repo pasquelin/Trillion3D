@@ -210,7 +210,10 @@
       "levels": "Her seviye.",
       "reach": "Işın erişimi: vurulacak hiçbir şey olmadığı genişlik köşegeni.",
       "shareOf": "Seviyeye göre, kare başına iş yükü paketi probları: toplam bir pakete uygulanan yayımlanmış paylar.",
-      "follow": "Hareketli seviyeleri bir bakış noktası etrafında yeniden konumlandırır. En az bir taban hücre indeksi değiştiğinde true döndürür: bu, yakınsamanın yeniden başlaması için gereken tek sinyaldir, hiçbir GPU geri okumasına mal olmaz."
+      "follow": "Hareketli seviyeleri bir bakış noktası etrafında yeniden konumlandırır. En az bir taban hücre indeksi değiştiğinde true döndürür: bu, yakınsamanın yeniden başlaması için gereken tek sinyaldir, hiçbir GPU geri okumasına mal olmaz.",
+      "reserveCount": "Dönüşümler sahneyi genişletmeden önce ayrılan sabit kapasite.",
+      "invalidLevels": "Son yeniden planlamada aralığı veya varlığı değişen seviyeler. Taban kaymaları hücre işaretlerini kullanır.",
+      "replan": "Mevcut uzamsal çözünürlük politikasını geometrinin güncel sınırlarına yeniden uygular."
     }
   },
   "BounceOccupancy": {
@@ -220,7 +223,8 @@
       "occupied": "Bir seviyenin küresel kafesindeki hücresi bir probu haklı çıkardığında doğru.",
       "marked": "En ince seviyenin işaretlenmiş hücreleri ve toplam hücreleri: yayımlanmış kazanç.",
       "cells": "En ince seviyenin hücreleri.",
-      "bytes": "Kapladığı bayt."
+      "bytes": "Kapladığı bayt.",
+      "allEligible": "Geometri hareket etti: sayısı sınırlı olan kaskat hücrelerinin tümünü ihtiyatlı biçimde işleme alır."
     }
   },
   "BoundedNode": {
@@ -3068,7 +3072,12 @@
       "triangles": "Üçgen başına üç dünya köşesi, her biri `PROXY_TRIANGLE_FLOATS` sayı.",
       "albedo": "Üçgenin doğrusal difüz albedosu, paketlenmiş RGBA8.",
       "nodeBounds": "Her BVH düğümünün tam sınırları.",
-      "nodeChildren": "Her düğümün dört çocuğu: kuantalanmış kutu, üçgen sayımı, varlık, bağlantı."
+      "nodeChildren": "Her düğümün dört çocuğu: kuantalanmış kutu, üçgen sayımı, varlık, bağlantı.",
+      "triangleGroups": "Her kanonik üçgenin kaynak sahiplerinden oluşan ortak grup; aynı grup yalnızca bir kez saklanır.",
+      "groupOffsets": "Son nöbetçi değer dahil, her grubun sahip kayıtlarının ofsetleri.",
+      "owners": "Sahip kayıtları: kaynak düğüm indeksi ve RGBA8 biçiminde paketlenmiş doğrusal albedo.",
+      "bindWorlds": "Kaynak düğümlerin özgün dünya matrisleri; düğüm başına on altı çift duyarlıklı değer.",
+      "sourceParents": "Konağın şu anda örneğini oluşturmadığı bölüm düğümleri dahil kaynak hiyerarşisi."
     }
   },
   "SceneProxyDescriptor": {
@@ -3085,7 +3094,10 @@
       "triangleBudget": "Gerçekte elde edilen eşiğe karar veren, yayımlanmış üçgen bütçesi.",
       "bounds": "Proxy'nin dünya genişliği: üç alt sınır sonra üç üst sınır.",
       "triangles": "Üçgenler.",
-      "nodes": "Ağaç düğümleri."
+      "nodes": "Ağaç düğümleri.",
+      "groups": "Ortak kullanılan ve yalnızca bir kez saklanan sahip grupları.",
+      "owners": "Sahip kayıtları.",
+      "instances": "Kaynak düğüm matrisleri."
     }
   },
   "SceneRoot": {
