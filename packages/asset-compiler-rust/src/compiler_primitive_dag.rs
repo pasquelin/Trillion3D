@@ -60,21 +60,30 @@ pub(super) fn build_dag_primitive(
     proxy_demand: crate::proxy::cut::CutDemand,
     blended: bool,
     tile_log2: i32,
-    store_packed: &(impl Fn(&[u32], i32) -> Result<(Value, bool)> + Sync),
+    store_packed: &(impl Fn(&[u32], &[f32], &[&geometry_page::Attribute], i32) -> Result<(Value, bool)>
+          + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
     let attributes = crate::dag::DagAttributes { carried };
     let mut laps = perf::Laps::start();
-    let (dag, groups, tallies, stalls) =
+    let (dag, groups, tallies, stalls, grown) =
         crate::dag::build_dag_tallied(pos, attributes, index_values, strategy, &|| check(o))?;
     laps.lap("dagMs");
+    // From here on every stage reads the source's vertices followed by those the solve of a
+    // seam-locked group placed (`dag::Grown`); `source.bin` keeps the source alone.
+    let solved = grown
+        .as_ref()
+        .map_or(0, |g| (g.positions.len() - pos.len()) / 3);
+    let (pos, carried) = crate::dag::Grown::arrays(&grown, pos, attributes);
+    let attributes = crate::dag::DagAttributes { carried: &carried };
     let quality =
         compiler_primitive_checks::check_dag(&dag, pos, attributes.normals(), index_values)?;
     // The proxy coarse cut is read here, where the DAG and the positions are both
     // at hand; further on, clusters exist only as cache objects.
     let (proxy_threshold, proxy_cut) = crate::proxy::cut::coarse_cut(&dag, pos, proxy_demand);
-    let (dag_report, warnings) =
+    let (mut dag_report, warnings) =
         compiler_primitive_stalls::dag_report(strategy, &dag, &tallies, &stalls, &quality);
+    dag_report["solvedVertices"] = json!(solved);
     // Pages follow the culling order so every hierarchy node owns a contiguous page range.
     let (order, culling) = {
         let _t = perf::Timer::new(perf::Phase::Culling);
@@ -100,7 +109,8 @@ pub(super) fn build_dag_primitive(
             crate::physics_cook::cook_primitive(o, &dag, &order, &culling, pos, index_values)
         }),
         ("pagesMs", || {
-            let store = |slice: &[u32]| store_packed(slice, position_exponent);
+            let carried = attributes.carried;
+            let store = |slice: &[u32]| store_packed(slice, pos, carried, position_exponent);
             bundle_dag_pages(o, &dag, &groups, &order, base_id, pos, &store)
         }),
     );

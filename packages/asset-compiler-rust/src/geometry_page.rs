@@ -17,6 +17,7 @@ pub(crate) const PAGE_ATTRIBUTES: [(&str, usize, u32); 4] = [
 
 /// One optional attribute of a primitive: its presence bit, its source width (a colour may be
 /// three-wide) and its values, `width` per vertex.
+#[derive(Clone, Debug)]
 pub struct Attribute {
     pub flag: u32,
     pub width: usize,

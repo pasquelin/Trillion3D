@@ -1,11 +1,14 @@
 use super::*;
 
-/// Clusters, kept groups, one tally per level, and the stalled groups with their level.
+/// Clusters, kept groups, one tally per level, the stalled groups with their level, and the
+/// vertex arrays grown with every vertex a solved reduction placed (`None` when none did: the
+/// source's then serve).
 pub type DagBuild = (
     Vec<DagCluster>,
     Vec<DagGroup>,
     Vec<GroupTally>,
     Vec<DagStall>,
+    Option<Grown>,
 );
 
 /// Builds cluster DAG. `strategy` decides whether coarse levels exist: in
@@ -16,7 +19,8 @@ pub type DagBuild = (
 /// error; a position written under several texture coordinates is a seam no collapse crosses.
 ///
 /// Returns the clusters, the groups kept, one tally per level and every stalled group with its
-/// level, in level order.
+/// level, in level order. Cluster indices from the source's vertex count on name the vertices a
+/// seam-locked group's solve placed (`solved.rs`), in the grown arrays returned last.
 pub fn build_dag_tallied(
     positions: &[f32],
     attributes: DagAttributes,
@@ -29,47 +33,15 @@ pub fn build_dag_tallied(
     if attributes.uv_sets().len() > 2 {
         return Err(invalid("a page carries at most two texture sets"));
     }
-    // Rank of the source triangle each vertex first appears in, used to keep the draw order stable.
-    let mut first_use = vec![u32::MAX; positions.len() / 3];
-    for (offset, &vertex) in indices.iter().enumerate() {
-        let slot = vertex as usize;
-        if slot < first_use.len() && first_use[slot] == u32::MAX {
-            first_use[slot] = (offset / 3) as u32;
-        }
-    }
-    let mut dag: Vec<DagCluster> = Vec::new();
-    let level0 = {
-        let _t = Timer::new(Phase::ClusterLevel0);
-        cluster_triangles(positions, indices, DAG_CLUSTER_TRIANGLES)?
-    };
-    for cluster in level0 {
-        let sphere = bounding_sphere(positions, &cluster);
-        let source_rank = cluster
-            .iter()
-            .map(|&v| first_use.get(v as usize).copied().unwrap_or(u32::MAX))
-            .min()
-            .unwrap_or(0);
-        dag.push(DagCluster {
-            indices: cluster,
-            level: 0,
-            lod_error: 0.0,
-            parent_error: f64::INFINITY,
-            sphere,
-            parent_sphere: sphere,
-            replacement: None,
-            source_rank,
-            group: None,
-            source: None,
-        });
-    }
+    let mut dag = level_zero(positions, indices)?;
     let mut tallies: Vec<GroupTally> = Vec::new();
     let mut stalls: Vec<DagStall> = Vec::new();
     let mut reductions_kept: Vec<DagGroup> = Vec::new();
     // Welding is only used for reduction: nothing to weld for exact clusters or for a primitive fitting in a single cluster.
     if strategy == DagStrategy::ExactClusters || dag.len() < 2 {
-        return Ok((dag, reductions_kept, tallies, stalls));
+        return Ok((dag, reductions_kept, tallies, stalls, None));
     }
-    let welds = {
+    let mut welds = {
         let _t = Timer::new(Phase::Weld);
         attributes::Welds::of(positions, attributes, indices)
     };
@@ -77,8 +49,11 @@ pub fn build_dag_tallied(
     // reduction is held to the bound of its own descendants (`quality::deviation_bound`).
     let mut descent = quality::cluster_deviations(&dag, positions, attributes.normals());
     let mut current: Vec<usize> = (0..dag.len()).collect();
+    let mut grown: Option<Grown> = None;
     for level in 1..=DAG_MAX_LEVELS {
         checkpoint()?;
+        let (level_positions, carried) = Grown::arrays(&grown, positions, attributes);
+        let level_attributes = DagAttributes { carried: &carried };
         if current.len() < 2 {
             break;
         }
@@ -121,17 +96,21 @@ pub fn build_dag_tallied(
                     let children: Vec<&DagCluster> =
                         group.iter().map(|&slot| &dag[current[slot]]).collect();
                     let bound = quality::deviation_bound(worst);
-                    reduce_group(&welds.input(positions, &locks, bound), &children)
+                    let input = welds.input(level_positions, level_attributes, &locks, bound);
+                    reduce_group(&input, &children)
                 },
             )
             .collect::<Result<Vec<_>>>()?;
         let mut next = Vec::new();
         let mut tally = GroupTally::default();
+        let base = (level_positions.len() / 3) as u32;
+        drop(carried);
         for ((group, reduction), &worst) in groups.iter().zip(reductions).zip(&worst) {
-            let reduction = match reduction {
+            let mut reduction = match reduction {
                 Ok(reduction) => {
                     tally.reduced += 1;
                     tally.relocked += usize::from(reduction.relocked);
+                    tally.solved += usize::from(reduction.placed.is_some());
                     reduction
                 }
                 Err(outcome) => {
@@ -140,6 +119,8 @@ pub fn build_dag_tallied(
                     continue;
                 }
             };
+            let source = (positions, attributes);
+            Grown::place(&mut grown, source, &mut welds, &mut reduction, base);
             let first_parent = dag.len();
             let group_index = reductions_kept.len();
             let mut children = Vec::with_capacity(group.len());
@@ -187,5 +168,5 @@ pub fn build_dag_tallied(
             break;
         }
     }
-    Ok((dag, reductions_kept, tallies, stalls))
+    Ok((dag, reductions_kept, tallies, stalls, grown))
 }
