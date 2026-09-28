@@ -60,7 +60,7 @@ fn cancellation_is_honoured_between_two_images_not_mid_decode() {
                 meshes: &meshes,
                 view_map: &view_map,
                 to_measure: &BTreeSet::new(),
-                measurements: crate::cutout::MeasureCache::empty(),
+                measurements: crate::cutout::MeasureCache::EMPTY,
             },
             &silent,
         )
@@ -83,7 +83,7 @@ fn cancellation_is_honoured_between_two_images_not_mid_decode() {
                 meshes: &meshes,
                 view_map: &view_map,
                 to_measure: &BTreeSet::new(),
-                measurements: crate::cutout::MeasureCache::empty(),
+                measurements: crate::cutout::MeasureCache::EMPTY,
             },
             &after_first_image,
         )
