@@ -24,7 +24,7 @@ pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, Page
 /// accepted for `data` (STR-02): the WebAssembly ABI decodes straight into its result block, with
 /// no second buffer nor copy. The streams are read in place when the page sits on a word
 /// boundary — a `page_alloc` reservation always does — and from a copy otherwise.
-pub fn decode_into(data: &[u8], header: &Header, out: &mut [u32]) -> Result<(), PageError> {
+pub(crate) fn decode_into(data: &[u8], header: &Header, out: &mut [u32]) -> Result<(), PageError> {
     let body = &data[HEADER_BYTES..];
     // SAFETY: every bit pattern is a valid `u32`; the byte count is a multiple of four, so an
     // empty head leaves no tail. Only a little-endian host may read the words as they lie.
@@ -86,7 +86,7 @@ fn split(words: &[u32], h: &Header, out: &mut [u32]) -> Result<(), PageError> {
 
 #[cfg(test)]
 #[path = "unpack_reference.rs"]
-mod reference;
+pub(crate) mod reference;
 #[cfg(test)]
 #[path = "unpack_tests.rs"]
 mod tests;

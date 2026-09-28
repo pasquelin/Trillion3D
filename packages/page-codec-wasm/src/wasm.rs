@@ -2,7 +2,8 @@
 //! JavaScript loader writes the page at the offset returned by `page_alloc`, calls `page_decode`,
 //! reads the result block, then releases it with `page_release`.
 
-use crate::{decode_into, Header, PageError};
+use crate::unpack::decode_into;
+use crate::{Header, PageError};
 
 /// Result block, in 32-bit words: 0 status (0 = decoded), 1 vertices, 2 indices, 3 flags,
 /// 4 decoded bytes, 5 quantization error as its `f32` bits, then the decoded page itself —
@@ -48,8 +49,11 @@ pub unsafe extern "C" fn page_free(offset: u32, len: usize) {
 pub unsafe extern "C" fn page_decode(offset: u32, len: usize, max_decoded_bytes: usize) -> u32 {
     let data = core::slice::from_raw_parts(offset as *const u8, len);
     fuite(
-        result_block(data, max_decoded_bytes)
-            .unwrap_or_else(|cause| vec![cause as u32, 0, 0, 0, 0, 0]),
+        result_block(data, max_decoded_bytes).unwrap_or_else(|cause| {
+            let mut bloc = vec![0; RESULT_WORDS];
+            bloc[0] = cause as u32;
+            bloc
+        }),
     )
 }
 
