@@ -111,7 +111,7 @@ export function readOptions(argv: string[], root: string) {
   if (!(dpr > 0)) throw new Error('--dpr must be a strictly positive number');
   const settings: BenchSettings = {
     engine,
-    // A moving run covers one trajectory segment by default: `poses.test.ts` checks its capture.
+    // A moving run covers one trajectory segment by default.
     frames: number('images', FRAMES_PER_SEGMENT),
     warmup: number('chauffe', 8),
     pixelErrors,

@@ -9,7 +9,7 @@ const PATH_VERSION = 7;
  *  top: every segment then stays in one or the other and the camera never crosses a wall. */
 export const STREET_HALF_WIDTH = 0.06;
 /** `x` and `z` as shares of the box from its centre; `height` in eye heights above the floor
- *  (`street`) or above the model's top (`over`). */
+ *  (`street`) or above the model's top (`over`, always one eye). */
 interface PathPoint {
   x: number;
   z: number;
@@ -17,18 +17,18 @@ interface PathPoint {
   over: boolean;
 }
 const street = (x: number, height: number, z: number) => ({ x, z, height, over: false });
-const over = (x: number, height: number, z: number) => ({ x, z, height, over: true });
+const over = (x: number, z: number) => ({ x, z, height: 1, over: true });
 const POINTS: PathPoint[] = [
-  over(0.72, 1, 0.78),
-  over(0.06, 1, 0.02),
+  over(0.72, 0.78),
+  over(0.06, 0.02),
   street(0.05, 1.2, 0.04),
   street(-0.06, 1.7, 0.06),
   street(-0.03, 1.5, 0.04),
   street(-0.03, 1.5, 0.04),
-  over(-0.03, 1, 0.04),
-  over(-0.38, 1, -0.36),
-  over(-0.48, 1, 0.46),
-  over(0.72, 1, 0.78),
+  over(-0.03, 0.04),
+  over(-0.38, -0.36),
+  over(-0.48, 0.46),
+  over(0.72, 0.78),
 ];
 const FRAMES_PER_SEGMENT = 60;
 /** One pose per frame, `FRAMES_PER_SEGMENT` frames between two consecutive points. */
@@ -79,7 +79,7 @@ export function poseAt(bounds: Bounds, index: number): CameraPose {
   const eye = Math.max(block * 0.008, sy > 0 ? Math.min(2, sy * 0.03) : 1.6);
   const place = ({ x, z, height, over }: PathPoint) => [
     cx + x * sx,
-    over ? max.y + height * eye : ground + Math.max(1, height) * eye,
+    (over ? max.y : ground) + height * eye,
     cz + z * sz,
   ];
   const step = index % PATH_POSES,
