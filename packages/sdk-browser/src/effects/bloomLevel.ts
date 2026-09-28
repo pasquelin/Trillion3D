@@ -28,14 +28,16 @@ fn blendLevel(image:vec4f,pixel:vec2f)->vec4f{return image*bloom.keep+tent(pixel
 
 /**
  * The last blend as the composition reads it (#963), group 1 beside the composition's own: the
- * value `composite` stored in its `rgba16float` target, rounded to half precision as that target
- * rounded it, so the composed image is the one the target gave, with one full-screen pass and
- * target fewer. The radiance is clamped to the largest half first — `quantizeToF16` of a value
- * past it is indeterminate —: the image and the levels hold half floats, so only an infinite
- * texel reaches it, which the target kept infinite and the composition reads as the largest half.
+ * value `composite` stored in its `rgba16float` target, rounded as that target rounded it, so the
+ * composed image is the one the target gave, with one full-screen pass and target fewer. A value
+ * the half range holds is rounded by `quantizeToF16`, fed only finite halves since it is
+ * indeterminate past them; one the target turned infinite or kept not a number (|v| from 65520 on,
+ * ±Inf, NaN) leaves as that: `v` times the largest `f32`'s order overflows to its signed infinity,
+ * and a NaN stays a NaN.
  */
 export const BLOOM_COMPOSE_WGSL = `${bloomLevelWgsl(1)}
-fn bloomed(image:vec4f,pixel:vec2f)->vec4f{return quantizeToF16(min(blendLevel(image,pixel),vec4f(65504.0)));}`;
+fn bloomed(image:vec4f,pixel:vec2f)->vec4f{let v=blendLevel(image,pixel);let held=abs(v)<vec4f(65520.0);
+return select(v*3.4e38,quantizeToF16(clamp(select(vec4f(0.0),v,held),vec4f(-65504.0),vec4f(65504.0))),held);}`;
 
 /** The layout of a level's group, one per device: the bloom's passes and the composition that
  *  blends its last level in bind the same groups. */
