@@ -107,7 +107,7 @@ fn compose(
                 ram_budget: request.ram_budget,
             };
             let scene = match inner.prepare(&inner_request)? {
-                PreparedScene::InPlace(name) => stage_in_place(&root, &name)?,
+                PreparedScene::InPlace(name) => stage_in_place(&root, &name, request)?,
                 converted => converted,
             };
             Ok((scene, Some(inner)))
@@ -129,8 +129,16 @@ fn chain(container: &dyn ScenePlugin, inner: Option<&dyn ScenePlugin>) -> Value 
 /// the manifest the compiler would itself compute for this scene — the same bytes, therefore the
 /// same cache identity as outside an archive — and yields the directory as an intermediate scene.
 /// This scene's images are those extraction wrote beside it: the extracted directory is their root.
-fn stage_in_place(root: &Path, name: &str) -> Result<PreparedScene> {
-    let loaded = crate::load_model_file(root, name, None)?;
+fn stage_in_place(root: &Path, name: &str, request: &SceneRequest<'_>) -> Result<PreparedScene> {
+    let loaded = crate::load_model_file(
+        root,
+        name,
+        None,
+        &crate::compressed::Budget {
+            limit: request.ram_budget,
+            cancelled: request.cancelled,
+        },
+    )?;
     atomic(&root.join("manifest.json"), &loaded.manifest_bytes)?;
     Ok(PreparedScene::converted(root.to_path_buf(), root))
 }
