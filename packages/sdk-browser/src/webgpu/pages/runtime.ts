@@ -65,13 +65,21 @@ export interface WebgpuPagesRuntime {
   timing: WebgpuTimingState;
   capabilities: BackendCapabilities;
   blendState: ReturnType<typeof createWebgpuBlendState>;
+  /** The nodes the host may write, listed by frame entry at a scene change only (`gateCore.ts`):
+   *  built once, so an image hands over no new closure. */
+  watchedSources: () => unknown[];
   /** Residency machinery, built once the state exists; it reads the runtime lazily. */
   services: WebgpuPagesServices;
 }
 
 export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRuntime {
   const traceEnabled = !!context.onDiagnostic && context.diagnosticDetail !== 'summary';
-  const diag = { ...createWebgpuDiagnostics(context.onDiagnostic, traceEnabled), traceEnabled };
+  const closer = new AbortController();
+  const signal = context.signal ? AbortSignal.any([context.signal, closer.signal]) : closer.signal;
+  const diag = {
+    ...createWebgpuDiagnostics(context.onDiagnostic, traceEnabled, signal),
+    traceEnabled,
+  };
   const setup = createWebgpuPagesSetup(context, diag);
   const layout = createWebgpuPagesLayout(setup);
   const vis = createWebgpuVisState();
@@ -106,11 +114,10 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
       'direct WebGPU present',
     ],
   };
-  const closer = new AbortController();
   const core: WebgpuPagesCore = {
     context,
     closer,
-    signal: context.signal ? AbortSignal.any([context.signal, closer.signal]) : closer.signal,
+    signal,
     diag,
     setup,
     layout,
@@ -130,6 +137,10 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     ),
     capabilities,
     blendState,
+    watchedSources: () => [
+      ...layout.selectionRoots.map((root) => root.pages[0]),
+      ...blendState.blendGpu,
+    ],
   };
   return { ...core, services: createWebgpuPagesServices(core) };
 }
