@@ -153,8 +153,6 @@ export function createWebgpuBlendState() {
     orderKeys: new Float64Array(0),
     /** Has the order moved since the last write? A still pose writes nothing. */
     orderMoved: [true, true],
-    /** Reused plan entries for sorting the fallback's visible subset (`order.ts`). */
-    fallbackOrder: new Uint32Array(0),
     /** Triangles unpaged items submit in each pass, twice for a double-sided item: a scene count,
      *  built with the plan, not a frame count. */
     blendTriangles: 0,
