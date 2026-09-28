@@ -95,13 +95,14 @@ fn body(
             let weigh = (!kinematic).then_some(s);
             let mesh = mesh as usize;
             let moved;
-            let hull: &Hull = match (frame, cooked.entry(mesh)) {
-                (Some(_), _) => {
-                    moved = cooked_hull(o, source, (mesh, frame))?;
-                    &moved
+            let hull: &Hull = if frame.is_some() {
+                moved = cooked_hull(o, source, (mesh, frame))?;
+                &moved
+            } else {
+                match cooked.entry(mesh) {
+                    Entry::Occupied(shared) => shared.into_mut(),
+                    Entry::Vacant(slot) => slot.insert(cooked_hull(o, source, (mesh, None))?),
                 }
-                (None, Entry::Occupied(shared)) => shared.into_mut(),
-                (None, Entry::Vacant(slot)) => slot.insert(cooked_hull(o, source, (mesh, None))?),
             };
             if let Some(threshold) = breakable {
                 // A piece falls once broken, a kinematic body's too: every piece is weighed.

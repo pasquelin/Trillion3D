@@ -36,29 +36,33 @@ fn crossing(a: Point, b: Point, da: f64, db: f64) -> Point {
 /// touches keeps its part inside unless that part lies on the plane; the cap runs back along
 /// every edge on the plane that no touched face walks back.
 pub(super) fn clip(faces: Faces, (normal, offset): Plane, eps: f64) -> Faces {
-    let distance = |p: &Point| dot(normal, *p) - offset;
-    let side = |p: &Point| (distance(p) > eps) as i8 - (distance(p) < -eps) as i8;
-    if !faces.iter().flatten().any(|p| side(p) > 0) {
+    let side = |d: f64| (d > eps) as i8 - (d < -eps) as i8;
+    let distances: Vec<Vec<f64>> = (faces.iter())
+        .map(|face| face.iter().map(|p| dot(normal, *p) - offset).collect())
+        .collect();
+    let sides = || distances.iter().flatten().map(|&d| side(d));
+    if !sides().any(|s| s > 0) {
         return faces;
     }
-    if !faces.iter().flatten().any(|p| side(p) < 0) {
+    if !sides().any(|s| s < 0) {
         return Vec::new();
     }
     let (mut kept, mut touched) = (Vec::with_capacity(faces.len() + 1), Vec::new());
-    for face in faces {
-        if face.iter().all(|p| side(p) < 0) {
+    for (face, d) in faces.into_iter().zip(&distances) {
+        if d.iter().all(|&d| side(d) < 0) {
             kept.push(face);
             continue;
         }
         let (mut polygon, mut on) = (Vec::new(), Vec::new());
         for (k, &a) in face.iter().enumerate() {
-            let b = face[(k + 1) % face.len()];
-            if side(&a) <= 0 {
+            let next = (k + 1) % face.len();
+            let (sa, sb) = (side(d[k]), side(d[next]));
+            if sa <= 0 {
                 polygon.push(a);
-                on.push(side(&a) == 0);
+                on.push(sa == 0);
             }
-            if side(&a) * side(&b) < 0 {
-                polygon.push(crossing(a, b, distance(&a), distance(&b)));
+            if sa * sb < 0 {
+                polygon.push(crossing(a, face[next], d[k], d[next]));
                 on.push(true);
             }
         }
@@ -127,20 +131,30 @@ pub(super) fn welded(faces: &[Vec<Point>]) -> (Vec<f32>, Vec<u32>) {
     (pos, triangles)
 }
 
-/// The half-space of seed `own` against `other`: the points nearer `own`.
+/// `v` at unit length, if it has a direction.
+fn unit(v: Point) -> Option<Point> {
+    (length(v) > 0.0).then(|| divide(v, length(v)))
+}
+
+/// The half-space of seed `own` against `other`: the points nearer `own`, bounded at their
+/// midpoint, so the two seeds' planes are each other's negation to the bit.
 fn bisector(own: Point, other: Point) -> Option<Plane> {
-    let d = sub(other, own);
-    let normal = (length(d) > 0.0).then(|| divide(d, length(d)))?;
+    let normal = unit(sub(other, own))?;
     Some((
         normal,
         dot(normal, [0, 1, 2].map(|k| (own[k] + other[k]) / 2.0)),
     ))
 }
 
-/// The cell of each of `seeds` in the solid `planes` bound inside `bounds`: the box cut by the
-/// seed's bisectors first, so each face plane meets a cell a twelfth of the solid, not all of it.
-pub(super) fn cells(seeds: &[Point], bounds: (Point, Point), planes: &[Plane]) -> Vec<Faces> {
-    let eps = length(sub(bounds.1, bounds.0)) * 1e-7;
+/// The cell of each of `seeds` in the solid `planes` bound inside `bounds`, a corner within `eps`
+/// of a plane on it: the box cut by the seed's bisectors first, so each face plane meets a cell a
+/// twelfth of the solid, not all of it.
+pub(super) fn cells(
+    seeds: &[Point],
+    bounds: (Point, Point),
+    planes: &[Plane],
+    eps: f64,
+) -> Vec<Faces> {
     seeds
         .par_iter()
         .map(|&own| {
@@ -165,7 +179,7 @@ pub(super) fn face_planes(pos: &[f32], triangles: &[u32], eps: f64) -> Vec<Plane
     let corners: Vec<Point> = used.into_iter().map(|i| point(pos, i)).collect();
     let planes = faces.par_iter().map(at).filter_map(|[a, b, c]| {
         let n = scale(cross(sub(b, a), sub(c, a)), signed.signum());
-        let normal = (length(n) > 0.0).then(|| divide(n, length(n)))?;
+        let normal = unit(n)?;
         Some((normal, dot(normal, a)))
     });
     let supporting = |&(n, c): &Plane| corners.iter().all(|&p| dot(n, p) - c <= eps);

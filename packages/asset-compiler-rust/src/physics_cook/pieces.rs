@@ -7,7 +7,7 @@ use super::hull::cooked_shape;
 use super::mass::solid_mass;
 use super::refused;
 use super::voronoi::{cells, face_planes, welded};
-use crate::shared_math::{dot, extend_aabb, length, point, sub};
+use crate::shared_math::{dot, extend_aabb, length, point, splitmix_unit, sub, GOLDEN};
 use crate::{Options, Result};
 use rayon::prelude::*;
 use serde_json::Value;
@@ -33,14 +33,10 @@ pub(super) fn declared_breakable(node: &Value) -> Result<Option<f64>> {
     }
 }
 
-/// A number in [0, 1) from `state` (SplitMix64, Steele et al. 2014).
+/// The next number in [0, 1) of the SplitMix64 sequence at `state`.
 fn draw(state: &mut u64) -> f64 {
-    *state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
-    let mut z = *state;
-    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    // The top 53 bits, exact in an f64: the whole 64 would round up to 1 near `u64::MAX`.
-    ((z ^ (z >> 31)) >> 11) as f64 / (1u64 << 53) as f64
+    *state = state.wrapping_add(GOLDEN);
+    splitmix_unit(*state)
 }
 
 /// The pieces of mesh `mesh`'s welded `triangles` over `pos`, seeded by `seed` and weighed at
@@ -77,7 +73,7 @@ pub(super) fn pieces(
             break;
         }
     }
-    let out: Vec<Value> = cells(&seeds, (low, high), &planes)
+    let out: Vec<Value> = cells(&seeds, (low, high), &planes, eps / 10.0)
         .par_iter()
         .map(|faces| {
             let (pos, triangles) = welded(faces);
