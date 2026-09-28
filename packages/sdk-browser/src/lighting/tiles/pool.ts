@@ -10,6 +10,7 @@ const STATE_BYTES = 16;
 
 /** What the last sampled frame asked of the pool: words reserved, and whether it overflowed. */
 export interface TilePoolSample {
+  frame: number;
   reserved: number;
   capacity: number;
   overflowed: boolean;
@@ -24,10 +25,13 @@ export interface TilePoolSample {
  */
 export function createTileLightPool(device: GPUDevice) {
   const words = new Uint32Array(4);
-  const sample: TilePoolSample = { reserved: 0, capacity: 0, overflowed: false };
-  let asked = 0;
+  const sample: TilePoolSample = { frame: -1, reserved: 0, capacity: 0, overflowed: false };
+  let asked = 0,
+    sampledFrame = -1;
+  // The fields move together, when the sample returns: never named by a frame they do not describe.
   const reader = createGpuPeriodicReadback((mapped) => {
     const [, capacity, reserved, overflow] = new Uint32Array(mapped, 0, 4);
+    sample.frame = sampledFrame;
     sample.reserved = reserved;
     sample.capacity = capacity;
     sample.overflowed = overflow !== 0;
@@ -47,10 +51,12 @@ export function createTileLightPool(device: GPUDevice) {
   });
   return {
     state,
-    sample,
-    /** Pool words for `tiles` tiles: none for a scene no list can overflow. */
-    words(tiles: number, wide: boolean) {
-      if (!wide) return 0;
+    /** The last sample, or nothing until one has come back. */
+    sample(): TilePoolSample | undefined {
+      return reader.ready ? sample : undefined;
+    },
+    /** Pool words for `tiles` tiles of a scene that holds more lights than a list. */
+    words(tiles: number) {
       return Math.min(Math.max(tiles * START_WORDS_PER_TILE, asked), tiles * MOST_WORDS_PER_TILE);
     },
     /** Opens the frame's pool at word `start`, `capacity` words: nothing reserved, no overflow. */
@@ -62,6 +68,7 @@ export function createTileLightPool(device: GPUDevice) {
     /** Encodes the copy of the state, after the pass that fills it, on a sampled frame. */
     sampleState(encoder: GPUCommandEncoder, frame: number) {
       if (!reader.due(frame)) return;
+      sampledFrame = frame;
       reader.sampled(frame);
       reader.copy(encoder, state, 0, STATE_BYTES);
     },
