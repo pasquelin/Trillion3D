@@ -1,4 +1,4 @@
-import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
+import { MAX_SHADOW_PAGES } from '../../shadow/recordPack.ts';
 
 /**
  * ONE cut, many views: the frame's shadow views — sun clipmap levels and lamp faces that have
@@ -19,9 +19,9 @@ import { LIGHT_SETTINGS } from '../../../../../sdk-core/src/index.ts';
  * text, its layout and its verdicts are those of before.
  *
  * The view count is bounded by what a batch can draw: every view a batch draws holds at least one
- * of its pages, and a batch draws at most `shadowPagesPerBatch` pages.
+ * of its pages, and a batch draws at most `MAX_SHADOW_PAGES` pages — the one capacity both read.
  */
-export const DAG_MAX_VIEWS: number = LIGHT_SETTINGS.shadowPagesPerBatch;
+export const DAG_MAX_VIEWS = MAX_SHADOW_PAGES;
 /** Bits below the view index in a work entry: 2^27 nodes or clusters, five bits of view. */
 const VIEW_SHIFT = 27;
 if (DAG_MAX_VIEWS > 1 << (32 - VIEW_SHIFT))

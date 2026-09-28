@@ -1,6 +1,13 @@
+import { DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
 import { HIZ_HIDES_WGSL, HIZ_LEVEL_WGSL } from '../hiz/rectWgsl.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { PAGE_HIZ_LEVELS, PAGE_HIZ_OFFSETS, PAGE_HIZ_WORDS } from './pageHiz.ts';
+import {
+  OCCLUSION_SLOT_WORDS as SLOT,
+  OCCLUSION_UNIFORM_WORDS,
+  SHADOW_FACE_STRIDE,
+  wordStruct,
+} from './batchBudget.ts';
 
 /** A region whose casters are not tested: it draws what its cull kept. */
 export const HIZ_UNTESTED = 0xffffffff;
@@ -15,8 +22,8 @@ export const HIZ_UNTESTED = 0xffffffff;
  * to the region's visible list; the count of what was hidden goes to `slots[4·r + 1]`.
  */
 export const SHADOW_OCCLUSION_SHADER = `struct Sphere{center:vec3f,radius:f32,}
-struct View{viewProjection:mat4x4f,rest:array<vec4f,12>,}
-struct Uni{regions:u32,capacity:u32,pad0:u32,pad1:u32,}
+struct View{@size(${SHADOW_FACE_STRIDE}) viewProjection:mat4x4f,}
+${wordStruct('Uni', ['regions:u32', 'capacity:u32'], OCCLUSION_UNIFORM_WORDS)}
 @group(0) @binding(0) var<storage, read> spheres:array<Sphere>;
 @group(0) @binding(1) var<storage, read> kept:array<u32>;
 @group(0) @binding(2) var<storage, read> indirect:array<u32>;
@@ -51,11 +58,11 @@ fn hiddenInPage(s:Sphere,m:mat4x4f,slot:u32)->bool{
 fn shadowHizTest(@builtin(global_invocation_id) id:vec3u){
  let r=id.y;
  if(r>=uni.regions){return;}
- let slot=atomicLoad(&slots[r*4u]);
- if(slot==${HIZ_UNTESTED}u||id.x>=min(indirect[r*4u+1u],uni.capacity)){return;}
+ let slot=atomicLoad(&slots[r*${SLOT}u]);
+ if(slot==${HIZ_UNTESTED}u||id.x>=min(indirect[r*${DRAW_INDIRECT_WORDS}u+1u],uni.capacity)){return;}
  let row=kept[r*uni.capacity+id.x];
- if(hiddenInPage(spheres[row],views[r].viewProjection,slot)){atomicAdd(&slots[r*4u+1u],1u);return;}
- let rank=atomicAdd(&visibleIndirect[r*4u+1u],1u);
+ if(hiddenInPage(spheres[row],views[r].viewProjection,slot)){atomicAdd(&slots[r*${SLOT}u+1u],1u);return;}
+ let rank=atomicAdd(&visibleIndirect[r*${DRAW_INDIRECT_WORDS}u+1u],1u);
  visible[r*uni.capacity+rank]=row;
 }
 `;
