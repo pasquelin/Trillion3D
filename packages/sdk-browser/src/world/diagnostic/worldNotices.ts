@@ -149,7 +149,7 @@ export function noticeMaterialDegraded(notices: Pick<WorldNotices, 'say'>) {
  * The WebGL2 engine's word that a light asks to cast a shadow it draws none of: that path has no
  * shadow map (`CONTRACT_LIGHTS_LIGHTING`), so the light — sun, point or spot — is drawn
  * unshadowed, never silently: `shadows-refused` is said once per light, and again only once its
- * `castShadow` has been off (or the light gone, or the unlit view shown) and comes back. Heard
+ * `castShadow` has been off (or the light gone or hidden, or the unlit view shown) and comes back. Heard
  * with the casting lights at each change of the session's lights, never per frame. WebGPU draws
  * those shadows and never says it.
  */

@@ -141,8 +141,8 @@ function copyCoefficients(probe: Light, sh: ArrayLike<number>) {
 
 /**
  * Hooks the contract onto a WebGL2 engine and returns what it takes to hold it:
- * `apply` on every store revision, `refused` after the source graph is copied again, `lit` every
- * frame; `shadowsRefused` hears the casting lights of either set.
+ * `apply` on every store revision, `lit` every frame; `shadowsRefused` hears the casting lights
+ * of the set that lights, at each change of either.
  * Imported lights are declared before the engine exists, so the first pass happens here, at
  * construction.
  */
@@ -153,6 +153,7 @@ export function attachContractLights(
     setEnabled(enabled: boolean): void;
     readonly lit: boolean;
     readonly casting: readonly string[];
+    castingChanged?: () => void;
   },
   sceneChanged: () => void,
   shadowsRefused?: ContractShadows,
@@ -161,6 +162,8 @@ export function attachContractLights(
   // The casting lights of the set that lights now: the contract's once it governs, else the
   // source graph's. Heard at each change of either, never per frame.
   const refused = () => shadowsRefused?.(contract.governs ? contract.casting : source.casting);
+  // A source lamp shown, hidden or copied again is named if the source graph lights.
+  source.castingChanged = refused;
   const apply = () => {
     source.setEnabled(!contract.refresh());
     refused();
@@ -169,7 +172,6 @@ export function attachContractLights(
   apply();
   return {
     apply,
-    refused,
     get lit() {
       return contract.lit || source.lit;
     },
