@@ -153,8 +153,11 @@ metalness, world normal and roughness, emission and AO, surface flags. Depth is 
 Lighting consumes these surfaces and reconstructs world position from depth. Transparency is shaded
 separately into the HDR target; a transmissive material (`KHR_materials_transmission` with IOR and
 volume) is composed after it by one fullscreen pass on a frozen copy of the lit image, bounded by the
-opaque depth; its rank and opacity go to a target of its own, so the surface flags temporal
-antialiasing and composition read stay the opaque ones. ACES and sRGB conversion happen at final composition, which writes the display value
+opaque depth; its rank and opacity borrow the display target, which only the final composition
+writes after it, so the surface flags temporal antialiasing and composition read stay the opaque ones
+at no extra target. Those two read the flags only for the as-is share of a normal or depth surface:
+until a row shows one, and outside a diagnostic view, they run flagless variants, compiled beside
+the others, that bind no flags. ACES and sRGB conversion happen at final composition, which writes the display value
 to the capture target and the canvas in one pass.
 
 The reconstruction runs one pass per **material class**, the published visibility-buffer design,
