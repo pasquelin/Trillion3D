@@ -47,8 +47,9 @@ export function startInteractiveExplorer(
       pageLoads = metrics.pageLoads;
       original.onFrame?.(metrics);
     },
-    // A page landing is the image still arriving: those frames spend none of the settle limit.
-    progress: () => pageLoads,
+    // A page landing is the image still arriving: those frames spend none of the settle limit. The
+    // engine's own count of the pages it made resident, else the pages fetched.
+    progress: () => runtime.landings() ?? pageLoads,
     pending: () => (capturing ? Promise.resolve(false) : runtime.pendingFrame()),
     error: reportFailure,
     limited: () =>

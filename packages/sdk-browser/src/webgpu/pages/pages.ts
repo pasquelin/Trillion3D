@@ -112,6 +112,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       syncResident(rt);
     },
     pendingFrame: () => pendingWebgpuFrame(rt),
+    landings: () => rt.services.residency.landings,
     flush(options?: { image?: boolean }) {
       return flushWebgpuPages(rt, options);
     },
