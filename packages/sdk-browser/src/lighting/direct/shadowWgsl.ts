@@ -125,10 +125,7 @@ fn shadowNormalTexels(cosine:f32)->f32{
  *  unit across the map: its plane over the PCF's reach, up to \`cap\`, a slope of 1 in the
  *  caller's units. ADDED to the reference: shadow depth is reversed. */
 fn shadowDepthMargin(texel:f32,slope:f32,cap:f32)->f32{return texel*SHADOW_PCF_REACH*min(slope,cap);}
-/** A map's table words; a sun's record, and its receiver's depth and margin (\`shadowReference\`). */
-struct ShadowMap{base:u32,ring:u32,pages:i32,ox:i32,oy:i32,record:u32,depth:f32,margin:f32,}
-/** A page the PCF reads: its place in the pool, its reference, whether it is readable. */
-struct ShadowSide{offset:vec3f,reference:f32,read:bool,}
+struct ShadowMap{base:u32,ring:u32,pages:i32,ox:i32,oy:i32,}
 fn shadowRing(v:i32,n:i32)->i32{return ((v%n)+n)%n;}
 /** Word of page \`p\` of the map — asked for —, or zero when it holds nothing readable: unmapped,
  *  not drawn yet, or withdrawn while its depth is wrong — asked for again, never read. */
@@ -167,10 +164,10 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,
  let offset=shadowOffset(homeWord,home);
  let up=t-first>=vec2f(0.5*SHADOW_PAGE);
  let step=select(vec2i(-1),vec2i(1),up);
- var nx=ShadowSide(offset,reference,false);var ny=nx;var nd=nx;
- if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset,reference,homeWord);}
- if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset,reference,homeWord);}
- if(all(edge)){nd=shadowNeighbour(m,home+step,offset,reference,homeWord);}
+ var nx=vec4f(offset,0.0);var ny=nx;var nd=nx;
+ if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset,homeWord);}
+ if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset,homeWord);}
+ if(all(edge)){nd=shadowNeighbour(m,home+step,offset,homeWord);}
  if(!taps){return 0.0;}
  var lit=0.0;
  if(!any(edge)){
@@ -190,9 +187,9 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,
   let n=select(min(at,seam-0.5),max(at,seam+0.5),up);
   let w=saturate(0.5+(seam-at)*toward);
   var sum=w.x*w.y*shadowCompare(offset,h,reference);
-  if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.offset,vec2f(select(h.x,n.x,nx.read),h.y),nx.reference);}
-  if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.offset,vec2f(h.x,select(h.y,n.y,ny.read)),ny.reference);}
-  if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.offset,select(h,n,nd.read),nd.reference);}
+  if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xyz,vec2f(select(h.x,n.x,nx.w>0.0),h.y),reference);}
+  if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xyz,vec2f(h.x,select(h.y,n.y,ny.w>0.0)),reference);}
+  if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xyz,select(h,n,nd.w>0.0),reference);}
   lit+=sum;
  }
  return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
