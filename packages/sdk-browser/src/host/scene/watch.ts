@@ -1,4 +1,4 @@
-import { isLightNode, isPlacedLight } from '../graph/kinds.ts';
+import { aimOf, isLightNode } from '../graph/kinds.ts';
 import type { WriteRevision } from './hookCore.ts';
 import { hookHostNode, unhookHostNode } from './hooks.ts';
 import { scan, snapshot, type NodeState, type WatchVerdict } from './scan.ts';
@@ -66,7 +66,7 @@ export function createHostSceneWatch() {
       source.traverse((object) => {
         if (!isLightNode(object)) return;
         withAncestors(object, set);
-        withAncestors(isPlacedLight(object) ? object.target : undefined, set);
+        withAncestors(aimOf(object), set);
       });
       for (const entry of drawn) withAncestors(sourceOf(entry), set);
       for (const node of set) if (node.userData[ENGINE_OWNED]) set.delete(node);
