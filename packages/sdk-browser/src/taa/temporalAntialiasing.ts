@@ -141,8 +141,7 @@ export async function createTemporalAntialiasing(
         bound.pages !== inputs.pages ||
         bound.motion !== inputs.motion ||
         bound.flags !== inputs.flags ||
-        bound.share !== inputs.share ||
-        bound.upscale !== inputs.upscale
+        bound.share !== inputs.share
       ) {
         bound = { ...inputs };
         const { layout } = resolve;

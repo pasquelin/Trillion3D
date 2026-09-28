@@ -80,7 +80,7 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
       if (!stopped(rt)) refuseTargets(rt, asked, 'gpu-error', error);
     },
   );
-  gpu.targetGrant = startGrant(done, { ...size });
+  gpu.targetGrant = startGrant(done, asked);
   return gpu.targetGrant.done;
 }
 

@@ -7,7 +7,6 @@ import {
   halton,
   jitterViewProjection,
   taaJitter,
-  taaStillFrames,
   upscaleMipBias,
   upscalePhases,
 } from './jitter.ts';
@@ -75,7 +74,6 @@ test('jitter is a translation in clip space, zero when the offset is zero', () =
 test('jitter phases follow the render-to-display ratio, distinct and stratified at every scale', () => {
   const display = 3456;
   assert.equal(upscalePhases(display, display), TAA_SAMPLES, 'eight at native size, as before');
-  assert.equal(taaStillFrames(TAA_SAMPLES), TAA_STILL_FRAMES);
   for (const [scale, expected] of [
     [0.67, 17],
     [0.5, 32],

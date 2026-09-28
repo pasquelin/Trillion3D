@@ -12,17 +12,6 @@
 /** Cycle length: eight Halton (2,3) positions, those of the reference. */
 export const TAA_SAMPLES = 8;
 
-/**
- * Still frames accumulated before a frame can be held: two cycles. On the first still
- * frame history restarts at phase zero and the k-th weighs 1/k, so the held frame is the
- * UNIFORM AVERAGE of sixteen frames that depend only on the final state — the same to the bit
- * from one run to the next, which exponential accumulation does not give: it would keep
- * 12% of what the image was while pages and textures arrived, in an order that is never
- * twice the same. The cost, declared: on stop, edges stiffen for a frame or two before
- * reconverging — where the reference renders without end.
- */
-export const TAA_STILL_FRAMES = 2 * TAA_SAMPLES;
-
 /** The `index`-th term (from 1) of the van der Corput sequence in base `base`, in [0, 1). */
 export function halton(index: number, base: number) {
   let result = 0,
@@ -44,8 +33,19 @@ export function halton(index: number, base: number) {
 export const upscalePhases = (render: number, display: number) =>
   Math.floor(TAA_SAMPLES * (display / render) ** 2);
 
-/** Still frames accumulated before one can be held, at `phases` jitter phases: two cycles. */
+/**
+ * Still frames accumulated before a frame can be held, at `phases` jitter phases: two cycles. On
+ * the first still frame history restarts at phase zero and the k-th weighs 1/k, so the held frame
+ * is the UNIFORM AVERAGE of those frames, which depend only on the final state — the same to the
+ * bit from one run to the next, which exponential accumulation does not give: it would keep 12% of
+ * what the image was while pages and textures arrived, in an order that is never twice the same.
+ * The cost, declared: on stop, edges stiffen for a frame or two before reconverging — where the
+ * reference renders without end.
+ */
 export const taaStillFrames = (phases: number) => 2 * phases;
+
+/** Still frames before a frame drawn at the display's size can be held: sixteen. */
+export const TAA_STILL_FRAMES = taaStillFrames(TAA_SAMPLES);
 
 /**
  * Texture level offset of a frame drawn at `render` pixels per display row of `display`: the
