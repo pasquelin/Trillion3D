@@ -91,7 +91,7 @@ export interface WebgpuLightState {
   /** Pages drawn since the state was created, every frame and drain together. */
   shadowPagesTotal: number;
   /** Pages the light cut drew short and sent back to be drawn again, since the state was created:
-   *  withdrawn — a cut dropped work, or its flag was never read — or coarser (`redrawShortPages`). */
+   *  withdrawn — a cut dropped work — or coarser (`redrawShortPages`). */
   lightCutWithdrawnPages: number;
   lightCutCoarsePages: number;
   shadowDraws: number;

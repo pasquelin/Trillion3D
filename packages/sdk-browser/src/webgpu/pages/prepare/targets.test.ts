@@ -92,6 +92,7 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
     blendState: { blendGpu: [] },
     gpu: {
       colorTexture: {},
+      feedbackTexture: {},
       targetSize: [32, 32],
       surfaces: {},
       reflection: { active: false },
