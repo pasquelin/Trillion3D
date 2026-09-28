@@ -25,7 +25,7 @@ export const PAGE_HIZ_WORDS = PAGE_PYRAMID.texels;
  * moving caster behind it from the light writes nothing, and culling it changes no texel.
  */
 export async function createShadowPageHiz(device: GPUDevice, layer: GPUTextureView) {
-  const pipelines = await createHizPipelines(device, HIZ_UNIFORM_BYTES);
+  const pipelines = await createHizPipelines(device);
   if (!pipelines) throw new Error('SHADOW_PAGE_HIZ_UNAVAILABLE');
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const passes = hizBuildPasses(PAGE_PYRAMID.sizes);

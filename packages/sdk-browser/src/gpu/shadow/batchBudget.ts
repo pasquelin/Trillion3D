@@ -38,6 +38,11 @@ export const CULL_UNIFORM_WORDS = 8,
   OCCLUSION_UNIFORM_WORDS = 4,
   PAGE_BOUNDS_WORDS = 12;
 
+/** The WGSL struct `name` of `words` words: `fields`, one word each, then padding — the host's
+ *  word count, never a literal twin of it. */
+export const wordStruct = (name: string, fields: readonly string[], words: number) =>
+  `struct ${name}{${fields.concat(Array.from({ length: words - fields.length }, (_, i) => `pad${i}:u32`)).join(',')},}`;
+
 /** The most one batch writes through `batchWrites.ts`, writer by writer. */
 export const SHADOW_BATCH_WRITE_BYTES =
   DAG_UNIFORM_BYTES +

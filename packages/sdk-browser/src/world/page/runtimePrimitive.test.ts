@@ -114,3 +114,14 @@ test("the pages of a sprite's quad are bounded by the cube of its radius", async
     assert.equal(page.depthLayer, undefined);
   }
 });
+
+// #959: without the SDK module, which carries the compiler's tiled grid (`cutGrid.ts`), a cut
+// takes the finest grid a page holds: 2^-13 for a kilometre plane, finer than the tiled 2^-11.
+test('without the SDK module a kilometre plane takes the finest grid a page holds', async () => {
+  const cut = await cutDrawnTriangles(
+    drawnTriangles(geometry.plane(1000, 1000), 'triangles')!,
+    false,
+    false,
+  );
+  assert.equal(cut.positionExponent, -13);
+});

@@ -1505,9 +1505,6 @@
   "disabledStageProfile": {
     "summary": "Perfil de un motor que no conserva ninguno: todo es «no medido», nada vale cero."
   },
-  "dot": {
-    "summary": "Producto escalar de dos vectores de la misma dimensión."
-  },
   "dotVector3": {
     "summary": "`a · b` sobre tres componentes leídos en `aAt` y `bAt`: un búfer más un desplazamiento, nunca una vista."
   },
@@ -2973,7 +2970,7 @@
   },
   "loader": {
     "summary": "La familia `loader`: archivos recuperados y convertidos en lo que usa una escena.",
-    "description": "Un archivo se lee mediante la recuperación verificada del motor (`cluster/pages.ts`), que rechaza una respuesta fallida según su estado; una imagen (`texture`, `cubeTexture`) se recupera mediante un elemento de imagen, que la rechaza si falla al decodificarla."
+    "description": "Un archivo se lee mediante la recuperación verificada del motor (`cluster/checked.ts`), que rechaza una respuesta fallida según su estado; una imagen (`texture`, `cubeTexture`) se recupera mediante un elemento de imagen, que la rechaza si falla al decodificarla."
   },
   "loader.texture": {
     "summary": "Recupera una imagen y hace de ella una textura de color.",
