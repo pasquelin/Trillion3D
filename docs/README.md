@@ -10,7 +10,7 @@ camera, the renderer and the loop.
 
 | Document                                               | Role                                                                                                                                                              |
 | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [SDK guide](SDK.md)                                    | The public API: principles, entry points, a world, its families, the loop, the renderer option, the maths reference, lights, budgets, integration, current limits |
+| [SDK guide](SDK.md)                                    | The public API: principles, entry points, a world, its families, the loop, the renderer option, the maths reference, lights, scene fog, budgets, integration, current limits |
 | [Engine internals](ENGINE.md)                          | How a world draws: backend choice, page raster, surfaces, TAA, lighting, bounce, memory, diagnostics, and the lighting target and its stages                      |
 | [Native compiler](COMPILER.md)                         | `trillion3d-compiler`: arguments, events, pointer, batch mode, cancellation, imports, input formats, adding a format, error codes                                 |
 | [Cache format](FORMAT.md)                              | Pointer, `clusters.json` and its pages, cluster DAG, pages, textures, prepared scene tables                                                                  |
