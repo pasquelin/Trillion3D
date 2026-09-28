@@ -7,7 +7,7 @@ import { createDagResources } from './resources.ts';
 import { createDagRuntime } from './runtime.ts';
 import { createDagLightCut } from './lightCut.ts';
 import { dagPartBindings } from './shader/bindings.ts';
-import { dagPartCounts } from './shader/splitWgsl.ts';
+import { dagPartCounts } from './split.ts';
 import { dagFixture } from '../../page/selection/dag.fixture.ts';
 import { packed } from './selectionHelpers.fixture.ts';
 import { SHADOW_LIMITS } from '../../webgpu/pages/testScenes.fixture.ts';

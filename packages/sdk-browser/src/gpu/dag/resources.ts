@@ -5,7 +5,7 @@ import { createDagPipeline } from './pipeline.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
 import { cameraCutBuffers, makeDagBuffer, type DagBufferRow } from './bufferTable.ts';
-import { ELEMENT_BYTES, type DagParts } from './split.ts';
+import { writeParts, type DagParts } from './split.ts';
 import { createDagList, initialListCap } from './listCap.ts';
 
 export async function createDagResources(
@@ -70,8 +70,8 @@ export async function createDagResources(
     // No extra storage buffer, a stage's ceiling is already reached; arming words go to the
     // dispatch argument, hence the copy source.
     const work = makeDagBuffer(own, rows.work);
-    const coldParts = make(parts.pageCones),
-      [pageCones] = coldParts;
+    const coldBuffers = make(parts.pageCones),
+      [pageCones] = coldBuffers;
     const frames = createCameraFrames(device, frameData, worldCount, own, packed.worlds);
     const group = {
       clusters,
@@ -84,7 +84,7 @@ export async function createDagResources(
       parts: {
         clusters: tables.clusters.slice(1),
         nodes: tables.nodes.slice(1),
-        cold: coldParts.slice(1),
+        cold: coldBuffers.slice(1),
         flags: flagParts.slice(1),
       },
     };
@@ -93,25 +93,27 @@ export async function createDagResources(
       for (const buffer of buffers) buffer.destroy();
       return undefined;
     }
-    /** Each part its own span of `source`, padded to its buffer's size. */
-    const upload = (targets: GPUBuffer[], sizes: DagBufferRow[], source: Float32Array) => {
-      const bytes = new Uint8Array(source.buffer, source.byteOffset, source.byteLength);
-      let from = 0;
-      targets.forEach((target, k) => {
-        const copy = new Uint8Array(sizes[k].size);
-        copy.set(bytes.subarray(from, from + copy.byteLength));
-        device.queue.writeBuffer(target, 0, copy);
-        from += copy.byteLength;
-      });
-    };
-    upload(tables.clusters, parts.clusters, packed.clusters);
-    upload(tables.nodes, parts.nodes, packed.nodes);
-    upload(coldParts, parts.pageCones, packed.pageCones);
     /** A table as its parts: what a host write spans (`writeParts`). */
-    const partsOf = (buffers: GPUBuffer[], per: number, element: number): DagParts => ({
+    const partsOf = (buffers: GPUBuffer[], list: DagBufferRow[]): DagParts => ({
       buffers,
-      bytes: buffers.length > 1 ? per * element : Number.MAX_SAFE_INTEGER,
+      bytes: buffers.length > 1 ? list[0].size : Number.MAX_SAFE_INTEGER,
     });
+    const nodeParts = partsOf(tables.nodes, parts.nodes),
+      coldParts = partsOf(coldBuffers, parts.pageCones);
+    // Each part its own span; a buffer past its table's bytes (a least size) starts zeroed.
+    for (const [target, source] of [
+      [partsOf(tables.clusters, parts.clusters), packed.clusters],
+      [nodeParts, packed.nodes],
+      [coldParts, packed.pageCones],
+    ] as const)
+      writeParts(
+        device,
+        target,
+        0,
+        source.buffer as ArrayBuffer,
+        source.byteOffset,
+        source.byteLength,
+      );
     return {
       device,
       packed,
@@ -144,8 +146,8 @@ export async function createDagResources(
       /** How the tables split on this device, and each as its parts (`split.ts`). */
       split,
       flagParts,
-      nodeParts: partsOf(tables.nodes, split.nodes.per, ELEMENT_BYTES.nodes),
-      coldParts: partsOf(coldParts, split.cold.per, ELEMENT_BYTES.cold),
+      nodeParts,
+      coldParts,
       ...pipeline,
     };
   } catch {

@@ -37,7 +37,7 @@ test('a table past one binding splits in parts the device binds at once, instead
       `${name}: its parts past WebGPU's eight bindings, the CPU cut draws`,
     );
   }
-  const tiny = { maxStorageBufferBindingSize: 4096, maxBufferSize: 1 << 20 };
+  const tiny = { maxStorageBufferBindingSize: 6144, maxBufferSize: 1 << 20 }; // the readout (4,204 bytes) fits, flags do not
   assert.equal(
     dagDeviceRefusal({ ...tiny, maxStorageBuffersPerShaderStage: 16 }, dag()),
     undefined,
