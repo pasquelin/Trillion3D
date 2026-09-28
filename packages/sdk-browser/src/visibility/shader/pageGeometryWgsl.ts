@@ -46,6 +46,12 @@ fn pageCorner(page:PageInfo,h:ClusterHeader,corner:u32)->u32{
  if(${QUANTIZED}){return clusterIndex(h,page.pageOffset,corner);}
  return indices[page.pageOffset+corner];
 }
+/** Local vertex indices of triangle \`tri\` of the page: a quantized page reads its block record once. */
+fn pageTriangle(page:PageInfo,h:ClusterHeader,tri:u32)->vec3u{
+ if(${QUANTIZED}){return clusterTriangle(h,page.pageOffset,tri);}
+ let at=page.pageOffset+tri*3u;
+ return vec3u(indices[at],indices[at+1u],indices[at+2u]);
+}
 /** Position of a page vertex in the primitive's local space. */
 fn pagePosition(page:PageInfo,h:ClusterHeader,vertex:u32)->vec3f{
  if(${QUANTIZED}){return clusterPosition(h,page.pageOffset,vertex);}

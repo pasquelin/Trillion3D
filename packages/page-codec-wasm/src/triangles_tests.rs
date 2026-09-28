@@ -1,8 +1,22 @@
-//! Equivalence of the corner code (CMP-09's harness, E0): what `write` codes, `read` gives back
-//! bit for bit, on random pages and on the edge cases — no triangle, one vertex, a partial last
-//! block, the widest meshlet — and a forged record is refused, never read past its stream.
+//! Equivalence of the corner code (CMP-09's harness, E0): what `Spans::write` codes, `read` gives
+//! back bit for bit, on random pages and on the edge cases — no triangle, one vertex, a partial
+//! last block, the widest meshlet — and a forged record fails the gate, never read past its stream.
 
 use super::*;
+use crate::bits::stream_words;
+
+/// The words of the block table then of the corner stream that code `indices`, and their code.
+fn coded(indices: &[u32], vertex_count: usize) -> (CornerCode, Vec<u32>) {
+    let spans = Spans::of(indices);
+    let code = CornerCode::of(vertex_count, indices.len(), spans.bits);
+    let mut out = BitWriter::default();
+    spans.write(&mut out, indices, &code);
+    (code, out.words().to_vec())
+}
+
+fn bytes(words: &[u32]) -> Vec<u8> {
+    words.iter().flat_map(|w| w.to_le_bytes()).collect()
+}
 
 fn xorshift(state: &mut u32) -> u32 {
     *state ^= *state << 13;
@@ -13,13 +27,12 @@ fn xorshift(state: &mut u32) -> u32 {
 
 /// `indices` coded then decoded against a page of `vertex_count` vertices.
 fn round_trip(indices: &[u32], vertex_count: usize) -> Result<Vec<u32>, PageError> {
-    let code = CornerCode::of(vertex_count, indices.len(), corner_bits(indices));
-    let mut out = BitWriter::default();
-    write(&mut out, indices, &code);
-    let table = (code.blocks * code.record_bits() as usize).div_ceil(32);
-    assert_eq!(out.words().len(), table + code.bits.div_ceil(32));
+    let (code, words) = coded(indices, vertex_count);
+    let table = stream_words(code.blocks, code.record_bits());
+    assert_eq!(words.len(), table + stream_words(code.bits, 1));
+    assert!(code.fits(&bytes(&words[..table]), indices.len()));
     let mut decoded = vec![u32::MAX; indices.len()];
-    code.read(out.words(), [0, table], vertex_count, &mut decoded)?;
+    code.read(&words, [0, table], vertex_count, &mut decoded)?;
     Ok(decoded)
 }
 
@@ -74,24 +87,19 @@ fn the_edge_cases_decode_to_the_same_corners() {
 }
 
 #[test]
-fn a_forged_record_or_corner_is_refused() {
+fn a_forged_record_fails_the_gate_and_a_forged_corner_the_read() {
     let indices = [0, 1, 2, 2, 1, 3];
-    let code = CornerCode::of(4, 6, corner_bits(&indices));
-    let mut out = BitWriter::default();
-    write(&mut out, &indices, &code);
-    let mut words = out.words().to_vec();
+    let (code, mut words) = coded(&indices, 4);
     let mut decoded = [0u32; 6];
     let width_at = code.index_bits;
-    for (word, forged) in [(0, 17u32 << width_at), (0, 3u32 << width_at)] {
-        let mut bad = words.clone();
-        bad[word] = (bad[word] & !(31 << width_at)) | forged;
-        let result = code.read(&bad, [0, 1], 4, &mut decoded);
-        assert_eq!(result, Err(PageError::Index));
+    // A width past 16, then one whose corners leave the stream.
+    for forged in [17u32, 3] {
+        let mut table = words[..1].to_vec();
+        table[0] = (table[0] & !(31 << width_at)) | forged << width_at;
+        assert!(!code.fits(&bytes(&table), 6));
     }
-    assert_eq!(
-        code.read(&words, [0, 1], 3, &mut decoded),
-        Err(PageError::Index)
-    );
+    let result = code.read(&words, [0, 1], 3, &mut decoded);
+    assert_eq!(result, Err(PageError::Index));
     words[1] = 0;
     assert!(code.read(&words, [0, 1], 4, &mut decoded).is_ok());
     assert_eq!(decoded, [0; 6]);
