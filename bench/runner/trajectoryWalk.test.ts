@@ -25,6 +25,7 @@ test('arrival counters survive a backend reusing its metrics scratch during sett
     [pose],
     [0],
     'candidate',
+    true,
   );
   assert.equal(renders, 3);
   assert.equal(scratch.pagesRequested, 3);
@@ -59,6 +60,7 @@ test('arrival precedes convergence and temporary holes/errors remain failures af
     [pose],
     [0],
     'candidate',
+    true,
   );
   assert.deepEqual(
     captures,
@@ -87,6 +89,7 @@ test('intermediate moving poses render once and an unsettled checkpoint stays bo
     [pose, pose, pose],
     [2],
     'candidate',
+    true,
   );
   assert.equal(renders, 1 + 3 + 64);
   assert.equal(result.checkpoints[0].settleFrames, null);

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Acceptance entry point. Goldens come from an explicit built baseline, repeated for stable A/A.
 import { mkdir, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { launchChrome } from './chrome.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
@@ -9,6 +8,7 @@ import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
 import { fingerprintBuild } from '../../scripts/write-build-provenance.ts';
 import { assetIdentity } from './report/provenance.ts';
 import { readOptions, resolveMounts, equipSide, sdkEntryUrl } from './options.ts';
+import { isDist } from './dists.ts';
 import { resolveCache, sideReport } from './sideOptions.ts';
 import { ASSETS, DEFAULT_SCENE, sceneDerived } from './scene.ts';
 import { PATH_POSES, PATH_VERSION, poseAt } from './poses.ts';
@@ -33,7 +33,6 @@ async function main() {
     root,
   );
   const indices = checkpointIndices(settings.frames, Number(flags.get('checkpoint-every') ?? 60));
-  if (indices.length > 32) throw new Error('at most 32 checkpoints per proof');
   if (settings.pixelErrors.length !== 1) throw new Error('trajectory requires one pixelError');
   if (!flags.has('avant')) throw new Error('--avant must name a built golden baseline directory');
   if (flags.has('cache-avant') || flags.has('cache-apres'))
@@ -45,13 +44,12 @@ async function main() {
   const cache = resolveCache(flags.get('cache') ?? sceneDerived(scene, ASSETS))!;
   const sides = ['avant', 'apres'].map((name) => {
     const dist = resolve(flags.get(name) ?? join(root, 'dist'));
+    flags.set(`cache-${name}`, cache);
     const side = equipSide({ name, dist, from: 'folder' }, flags, settings);
-    side.cache = cache;
     side.manifestUrl = `/cache/${name}/native/full/manifest.json`;
     if (side.engine.id !== 'webgpu-page-raster' || side.variant || side.errorMetric)
       throw new Error('trajectory requires the standard WebGPU engine on both sides');
-    if (!existsSync(join(dist, sdkEntryUrl(side).replace(`/sdk/${name}/`, ''))))
-      throw new Error(`built SDK missing: ${dist}`);
+    if (!isDist(dist)) throw new Error(`built SDK missing: ${dist}`);
     return side;
   });
   if (sides[0].compression !== sides[1].compression)
@@ -85,7 +83,13 @@ async function main() {
   });
   try {
     let bounds: Awaited<ReturnType<typeof readBounds>> | undefined;
-    for (const [pass, side] of [sides[0], sides[0], sides[1]].entries()) {
+    let poses: ReturnType<typeof poseAt>[] = [];
+    const passes = [
+      ['golden', sides[0]],
+      ['golden-aa', sides[0]],
+      ['candidate', sides[1]],
+    ] as const;
+    for (const [label, side] of passes) {
       const browser = await launchChrome({ headless: !settings.visible, args: side.engine.flags });
       try {
         report.browser = browser.version();
@@ -103,36 +107,38 @@ async function main() {
             report.errors.push(`${response.status()} ${response.url()}`);
         });
         await page.goto(`http://127.0.0.1:${port}/`);
-        bounds ??= await page.evaluate(readBounds, {
-          sdkUrl: sdkEntryUrl(side),
-          manifestUrl: side.manifestUrl!,
-        });
-        const poses = Array.from({ length: settings.frames }, (_, index) => poseAt(bounds!, index));
+        if (!bounds) {
+          bounds = await page.evaluate(readBounds, {
+            sdkUrl: sdkEntryUrl(side),
+            manifestUrl: side.manifestUrl!,
+          });
+          poses = Array.from({ length: settings.frames }, (_, index) => poseAt(bounds!, index));
+        }
         const payload = measurePayload(
           side,
           'trajectory',
           settings.pixelErrors[0],
           poses[0],
           poses,
-          ['golden', 'golden-aa', 'candidate'][pass],
+          label,
           settings,
           benchLights(bounds, settings),
           side.manifestUrl!,
         );
         const run = await withGpuIncidents(page, () =>
           page.evaluate(
-            async ({ payload, indices }) => {
+            async ({ payload, indices, captureArrival }) => {
               const module = (await import(`${payload.modulesUrl}trajectoryPage.ts`)) as {
                 captureTrajectory: typeof captureTrajectory;
               };
-              return module.captureTrajectory(payload, indices);
+              return module.captureTrajectory(payload, indices, captureArrival);
             },
-            { payload, indices },
+            { payload, indices, captureArrival: label === 'candidate' },
           ),
         );
         report.runs.push(run);
         if (!run.drawn || run.coverageFailures.length || run.incidents.length)
-          report.errors.push(`pass ${pass}: missing coverage, no geometry drawn, or GPU incidents`);
+          report.errors.push(`${label}: missing coverage, no geometry drawn, or GPU incidents`);
       } finally {
         await browser.close();
       }
