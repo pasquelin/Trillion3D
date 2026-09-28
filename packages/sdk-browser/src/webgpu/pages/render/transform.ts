@@ -7,9 +7,9 @@ import {
   multiplyMatrix4,
 } from '../../../../../sdk-core/src/index.ts';
 import { assertFiniteTransform, hostLocalInto } from '../../../host/world/matrices.ts';
-import { hostWorldChainInto } from '../../../host/world/chain.ts';
+import { hostWorldChainInto, rootedUnder } from '../../../host/world/chain.ts';
 import { copyElements, sameElements } from '../../../math/matrixElements.ts';
-import { findNode, underSource } from './movedNode.ts';
+import { findNode } from './movedNode.ts';
 import { finishMoves, noteMoved } from './movedBatch.ts';
 import type { HostWorldPlacements } from '../../../host/world/placements.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -23,8 +23,6 @@ const local = new Float64Array(16),
   trsRotation = new Float64Array(4),
   trsScale = new Float64Array(3),
   request = new Float32Array(16);
-/** The node a named move resolves, as a list of one reused: a move builds no array. */
-const one: Object3D[] = [];
 
 /** True when `world`, rounded to single precision, is `matrix`. */
 function standsAt(world: Float64Array, matrix: Float32Array) {
@@ -32,8 +30,8 @@ function standsAt(world: Float64Array, matrix: Float32Array) {
   return true;
 }
 
-/** Moves a named node of the prepared scene (R8): `setWebgpuTransforms` on the node the name index
- *  finds (`movedNode.ts`). A host moving nodes frame after frame resolves them once instead. */
+/** Moves a named node of the prepared scene (R8): the move of `setWebgpuTransforms` on the node the
+ *  name index finds (`movedNode.ts`). A host moving nodes frame after frame resolves them once. */
 export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, matrix: Float32Array) {
   if (matrix.length !== 16)
     throw new EngineError('INVALID_TRANSFORM', `${nodeName}: sixteen floats expected`, {
@@ -48,11 +46,10 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
         nodeName,
       },
     );
-  one[0] = node;
   try {
-    setWebgpuTransforms(rt, one, matrix);
+    moveNode(rt, node, matrix, rt.run.gate.engineWriting());
   } finally {
-    one.length = 0; // a released scene is not kept alive by the last move
+    finishMoves(rt);
   }
 }
 
@@ -74,34 +71,44 @@ export function setWebgpuTransforms(
     throw new EngineError('INVALID_TRANSFORM', `${nodes.length} nodes: sixteen floats each`, {
       length: matrices.length,
     });
-  const { setup, run } = rt;
   // A host pose written in this same task is read before the engine's own write hides it: the
   // first move then passes the whole index, which leaves it current for the moves after it.
-  let wholePass = run.gate.engineWriting();
+  let wholePass = rt.run.gate.engineWriting();
   try {
     for (let k = 0; k < nodes.length; k++) {
       const node = nodes[k];
       // A handle outlives nothing: a node the host removed from the scene is refused by name.
-      if (!underSource(setup.source, node))
+      if (!rootedUnder(node, rt.setup.source))
         throw new EngineError(
           'UNKNOWN_SCENE_NODE',
           `node ${node.name} missing from the prepared scene`,
           { nodeName: node.name },
         );
       copyMatrix4(request, matrices, 0, k * 16);
-      if (!poseNode(setup.worlds, node, request, !wholePass)) continue;
-      noteMoved(rt, node);
-      // The pose is set: the engine index takes it, and every matrix it holds — page records,
-      // selection roots, transparent copies — carries the new place at that instant. With no host
-      // write owed, only the moved subtree and its ancestors have new inputs (`refreshFrom`). A
-      // matrix set by hand elsewhere is announced by the next image's scan, whose walk runs first.
-      if (wholePass) setup.worlds.refresh();
-      else setup.worlds.refreshFrom(node);
-      wholePass = false;
+      if (moveNode(rt, node, request, wholePass)) wholePass = false;
     }
   } finally {
     finishMoves(rt);
   }
+}
+
+/** One node posed, noted for `finishMoves`, and the engine index passed again; false when that
+ *  moves nothing. The engine index takes the pose, and every matrix it holds — page records,
+ *  selection roots, transparent copies — carries the new place at that instant. With no host
+ *  write owed, only the moved subtree and its ancestors have new inputs (`refreshFrom`). A matrix
+ *  set by hand elsewhere is announced by the next image's scan, whose walk runs first. */
+function moveNode(
+  rt: WebgpuPagesRuntime,
+  node: Object3D,
+  matrix: Float32Array,
+  wholePass: boolean,
+) {
+  const worlds = rt.setup.worlds;
+  if (!poseNode(worlds, node, matrix, !wholePass)) return false;
+  noteMoved(rt, node);
+  if (wholePass) worlds.refresh();
+  else worlds.refreshFrom(node);
+  return true;
 }
 
 /**
