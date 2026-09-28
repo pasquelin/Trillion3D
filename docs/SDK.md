@@ -1006,7 +1006,7 @@ surface casts none either way, and WebGL2 draws no shadow at all: its published 
 world's or the loaded scene's own — is drawn unshadowed and named `shadows-refused` on the world's
 diagnostic channel, or on the session's `onDiagnostic` when no world opened it. `context.light`
 holds its store id, or its name in the loaded scene. It is said once per light, again only after
-it stopped casting (its `castShadow` off, the light removed, or the unlit view shown) and casts
+it stopped casting (its `castShadow` off, the light removed or hidden, or the unlit view shown) and casts
 anew. WebGPU draws that shadow.
 
 ### A luminaire does not block its own light
