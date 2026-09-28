@@ -500,6 +500,24 @@
       "balloon": "BALONU İZLİYOR"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Parktaki kayıtlı rotayı izleyin. Yeniden oynatın, durdurun veya kamerayı devralın.",
+    "controls": {
+      "replay": "Yeniden oynat",
+      "stop": "Durdur"
+    },
+    "readouts": {
+      "currentPart": "Geçerli bölüm"
+    },
+    "words": {
+      "entrance": "Giriş",
+      "pond": "Gölet",
+      "bridge": "Köprü",
+      "pavilion": "Köşk",
+      "overview": "Genel görünüm",
+      "complete": "Tamamlandı"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Tek bir klip bomu döndürürken, arabayı hareket ettirirken, yükü kaldırıp sallarken vincin etrafında dönün.",
     "controls": {
@@ -516,6 +534,20 @@
       "ripples": "Halkalar",
       "inner": "İç",
       "outer": "Dış"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Kamerayı kapılara yaklaştırın. Yaklaştığınızda açılırlar.",
+    "controls": {
+      "mode": "Mod",
+      "openingDistance": "Açılma mesafesi",
+      "openness": "Açıklık"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "yakınlık",
+        "manual": "elle"
+      }
     }
   },
   "a-carousel": {
@@ -583,6 +615,17 @@
       "lamp": "Lamba",
       "colour": "Renk",
       "bricks": "Tuğlalar"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Aralarındaki mesafeyi ölçmek için iki yüzeye tıklayın. Üçüncü tıklama yeni bir ölçüm başlatır. Bir birim bir metreyi temsil eder.",
+    "controls": {
+      "clear": "Temizle"
+    },
+    "readouts": {
+      "pointA": "A noktası",
+      "pointB": "B noktası",
+      "distance": "Mesafe"
     }
   },
   "click-to-pick": {
@@ -1954,6 +1997,7 @@
       "manifest": "manifest okundu",
       "tables": "sahne tabloları okundu",
       "resources": "sahne dosyaları",
+      "session": "görünüm açılıyor",
       "pages": "ilk sayfalar",
       "ready": "hazır"
     }
@@ -2227,6 +2271,27 @@
     },
     "words": {
       "credit": "Direkteki bayrak bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Bir ev görünüşü seçin. Kamerayı uzaklaştırın: ortografik çizim tam olarak aynı ölçeği korur.",
+    "controls": {
+      "elevation": "Görünüş",
+      "distance": "Kamera uzaklığı",
+      "zoom": "Çizim ölçeği"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Ön",
+        "right": "Sağ yan",
+        "rear": "Arka"
+      }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Arabanın parçalarını tek tek vurgulamak için üzerlerine gelin veya panelden vurgulamayı kapatın.",
+    "controls": {
+      "highlightEnabled": "Vurgulamayı etkinleştir"
     }
   },
   "a-dolly-along-the-canal": {

@@ -28,7 +28,7 @@ export function encodeDirectLights(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
-  inverseViewProjection: ArrayLike<number>,
+  viewProjection: ArrayLike<number>,
 ) {
   const { lights, gpu } = rt,
     { store, tiles } = lights,
@@ -77,7 +77,7 @@ export function encodeDirectLights(
   if (!tiles || !gpu.depthView) return directParams;
   if (!lights.buffer || !tiles.ensure(width, height, gpu.depthView, lights.buffer))
     return directParams;
-  tiles.update(inverseViewProjection, width, height);
+  tiles.update(viewProjection, cam.eye, width, height);
   if (!tiles.encode(encoder)) return directParams;
   directParams[0] = active;
   directParams[1] = tiles.tilesX;
@@ -154,6 +154,8 @@ function logFirstDirectFrame(rt: WebgpuPagesRuntime) {
   diag.engineDiagnostic('direct-lighting-frame', 'First image lit by the contract', {
     version: 1,
     tiles: [lights.tiles?.tilesX ?? 0, lights.tiles?.tilesY ?? 0],
+    // The light tiles' depth bounds reduced per subgroup: the device granted `subgroups`.
+    tileSubgroups: lights.tiles?.subgroups ?? false,
     ...directLightingState(rt),
   });
 }

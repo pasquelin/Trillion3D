@@ -500,6 +500,24 @@
       "balloon": "تتبع المنطاد"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "شاهد المسار المسجل عبر الحديقة. أعد تشغيله أو أوقفه أو تولّ قيادة الكاميرا.",
+    "controls": {
+      "replay": "إعادة",
+      "stop": "إيقاف"
+    },
+    "readouts": {
+      "currentPart": "الجزء الحالي"
+    },
+    "words": {
+      "entrance": "المدخل",
+      "pond": "البركة",
+      "bridge": "الجسر",
+      "pavilion": "الجناح",
+      "overview": "نظرة عامة",
+      "complete": "مكتمل"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "دُر حول الرافعة بينما يدير مقطع واحد الذراع ويحرك العربة ويرفع الحمولة ويجعلها تتأرجح.",
     "controls": {
@@ -516,6 +534,20 @@
       "ripples": "التموجات",
       "inner": "الداخل",
       "outer": "الخارج"
+    }
+  },
+  "doors-that-open": {
+    "banner": "حرّك الكاميرا نحو الأبواب. تفتح عندما تقترب.",
+    "controls": {
+      "mode": "الوضع",
+      "openingDistance": "مسافة الفتح",
+      "openness": "مقدار الفتح"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "القرب",
+        "manual": "يدوي"
+      }
     }
   },
   "a-carousel": {
@@ -583,6 +615,17 @@
       "lamp": "المصباح",
       "colour": "اللون",
       "bricks": "الطوب"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "انقر سطحين لقياس المسافة بينهما. النقرة الثالثة تبدأ قياسًا جديدًا. تمثل كل وحدة مترًا واحدًا.",
+    "controls": {
+      "clear": "مسح"
+    },
+    "readouts": {
+      "pointA": "النقطة أ",
+      "pointB": "النقطة ب",
+      "distance": "المسافة"
     }
   },
   "click-to-pick": {
@@ -1954,6 +1997,7 @@
       "manifest": "قُرئ البيان",
       "tables": "قُرئت جداول المشهد",
       "resources": "ملفات المشهد",
+      "session": "فتح العرض",
       "pages": "الصفحات الأولى",
       "ready": "جاهز"
     }
@@ -2227,6 +2271,27 @@
     },
     "words": {
       "credit": "علم على سارية نُمذج بالشيفرة لهذا المثال، CC0 — انظر assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "اختر واجهة للمنزل. أبعد الكاميرا: يحافظ الرسم المتعامد على المقياس نفسه تمامًا.",
+    "controls": {
+      "elevation": "الواجهة",
+      "distance": "مسافة الكاميرا",
+      "zoom": "مقياس الرسم"
+    },
+    "choices": {
+      "elevation": {
+        "front": "الأمامية",
+        "right": "الجانب الأيمن",
+        "rear": "الخلفية"
+      }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "مرّر المؤشر فوق أجزاء العربة لإبراز كل جزء، أو أوقف الإبراز من اللوحة.",
+    "controls": {
+      "highlightEnabled": "تفعيل الإبراز"
     }
   },
   "a-dolly-along-the-canal": {
