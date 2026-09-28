@@ -8,21 +8,27 @@ import {
 } from './targets.ts';
 import { createWebgpuBloom } from './webgpuBloom.ts';
 
+/** A pass's last blend left to the composition (#963): the group it reads, at its dynamic offset. */
+export type FusedBlend = { group: GPUBindGroup; offset: number };
+
 /** One kind of pass on WebGPU: its programs, compiled once, and the resources its passes share. */
 export type WebgpuEffectKind<P> = {
   /** Bytes of what it holds as allocated. */
   readonly bytes: number;
   /** Sizes what it holds for `count` passes on a `w × h` image; zero passes free it. */
   resize(w: number, h: number, count: number): void;
-  /** Encodes `pass`, the `nth` of its kind in the chain, from `input` into `output`; returns the
-   *  render passes encoded, zero when it cannot draw at this size. */
+  /** Encodes `pass`, the `nth` of its kind in the chain, from `input` into `output`, or with no
+   *  `output` leaves its last blend to the composition (`blend`); returns the render passes
+   *  encoded, zero when it cannot draw at this size. */
   encode(
     encoder: GPUCommandEncoder,
     pass: P,
     nth: number,
     input: GPUTextureView,
-    output: GPUTextureView,
+    output: GPUTextureView | undefined,
   ): number;
+  /** The blend the last `encode` left to the composition, if it did. */
+  readonly blend: FusedBlend | undefined;
   dispose(): void;
 };
 type Kinds = { [K in EffectKind]: WebgpuEffectKind<EffectPassOf<K>> };
@@ -37,7 +43,8 @@ export const WEBGPU_KINDS: { [K in EffectKind]: (device: GPUDevice) => Promise<K
  * temporal resolve and the composition that tone-maps. Each pass writes a full-size
  * `rgba16float` target the next one reads, two in turn at most; each kind keeps its own resources.
  * Nothing exists before the first frame with a pass: the targets are made then, at the image's
- * size, and follow it; a kind's programs compile in the background at its first pass, and until
+ * size, and follow it — one fewer when the composition takes the last pass's blend over (`fuse`,
+ * #963); a kind's programs compile in the background at its first pass, and until
  * every kind of the chain is ready the image is drawn without the chain (`loading`), which its
  * caller draws again once they arrive (`settled`) rather than hold. `fail` is called when one
  * cannot be made, and the image stays without the chain.
@@ -50,6 +57,7 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
   let failed = false,
     disposed = false,
     draws = 0,
+    blend: FusedBlend | undefined,
     width = 0,
     height = 0;
   const targets: GPUTexture[] = [],
@@ -77,7 +85,7 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
     encoder: GPUCommandEncoder,
     pass: EffectPassOf<K>,
     input: GPUTextureView,
-    output: GPUTextureView,
+    output: GPUTextureView | undefined,
   ) => made[pass.kind as K]!.encode(encoder, pass, nth[pass.kind]++, input, output);
   const release = () => {
     for (const target of targets) target.destroy();
@@ -89,6 +97,8 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
     if (w !== width || h !== height) release();
     width = w;
     height = h;
+    for (const target of targets.splice(count)) target.destroy();
+    views.length = targets.length;
     while (targets.length < count) {
       const target = device.createTexture({
         label: `Trillion3D effect target ${targets.length}`,
@@ -130,30 +140,41 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
     get draws() {
       return draws;
     },
+    /** The last pass's blend the last `encode` left to the composition, which then reads the
+     *  image returned through it. */
+    get blend() {
+      return blend;
+    },
     /** Encodes `passes` over `input`, an image of `w` × `h`, and returns what composition reads:
-     *  `input` itself when there is nothing to draw. */
+     *  `input` itself when there is nothing to draw. With `fuse`, the last pass leaves its blend
+     *  to the composition (`blend`) and writes no target. */
     encode(
       encoder: GPUCommandEncoder,
       passes: readonly EffectPass[],
       input: GPUTextureView,
       w: number,
       h: number,
+      fuse = false,
     ) {
       draws = 0;
+      blend = undefined;
       if (!passes.length) {
         release();
         return input;
       }
       if (!readyFor(passes)) return input;
-      ensure(effectPassTargets(passes.length), w, h);
+      const last = passes.length - (fuse ? 1 : 0);
+      ensure(effectPassTargets(last), w, h);
       let view = input,
         written = 0;
-      for (const pass of passes) {
-        const output = views[written % 2],
-          drawn = encodePass(encoder, pass as EffectPassOf<EffectKind>, view, output);
+      for (let index = 0; index < passes.length; index++) {
+        const pass = passes[index] as EffectPassOf<EffectKind>,
+          output = index < last ? views[written % 2] : undefined,
+          drawn = encodePass(encoder, pass, view, output);
         if (!drawn) continue;
         draws += drawn;
-        view = output;
+        if (!output) blend = made[pass.kind]!.blend;
+        else view = output;
         written++;
       }
       return view;
