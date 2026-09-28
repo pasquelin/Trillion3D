@@ -76,7 +76,8 @@ fn voronoi_cells_tile_a_convex_solid_without_gap_or_overlap() {
 }
 
 // Behaviour: a dense convex mesh, a sphere of 7 080 triangles whose neighbouring faces are nearly
-// coplanar, is cut into `PIECES` closed pieces that weigh the mesh within `MASS_TOLERANCE`.
+// coplanar, is cut into `PIECES` closed pieces that weigh the mesh within `MASS_TOLERANCE`, though
+// its accessor also holds 100 000 positions its triangles do not use.
 #[test]
 fn a_dense_convex_mesh_is_cut_into_closed_pieces() {
     let (n, m) = (60u32, 60u32);
@@ -110,6 +111,8 @@ fn a_dense_convex_mesh_is_cut_into_closed_pieces() {
     let root = std::path::Path::new(env!("OUT_DIR")).join(format!("sphere-{}", std::process::id()));
     let o = crate::texture_preview::tests::options(&root);
     std::fs::create_dir_all(o.cache.join("native/objects")).unwrap();
+    // Positions of another mesh sharing the accessor, used by no triangle: never a seed's corner.
+    pos.extend(vec![10.0f32; 300_000]);
     let cut = pieces(&o, (&pos, &triangles, 0), 7, [1.0; 3]).unwrap();
     assert_eq!(cut.len(), PIECES);
     std::fs::remove_dir_all(root).unwrap();
