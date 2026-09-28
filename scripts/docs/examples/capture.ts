@@ -128,7 +128,7 @@ export const DECLARED_ERRORS: readonly { page: string; error: string; why: strin
 ];
 
 /** Whether `error`, raised or logged by the example `page`, is one declared for it. */
-export const declaredError = (page: string, error: string) =>
+const declaredError = (page: string, error: string) =>
   DECLARED_ERRORS.some((declared) => declared.page === page && declared.error === error);
 
 /**
