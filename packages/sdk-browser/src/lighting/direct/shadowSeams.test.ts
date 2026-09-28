@@ -49,6 +49,24 @@ test('a filter across a page border reads the same depths as one inside a page',
         assert.equal(pagedPcf(t, reference, placed, atlas), pcf(t, map, reference), `${t}`);
 });
 
+test('a filter across a border between pages of two depth ranges reads as one range (#991)', () => {
+  // Page (1, 0) was drawn in another range: its depths, and the reference it is compared at
+  // (`shadowReference`), are `2d + 4` of its neighbour's — each page decoded in its own range.
+  const S = SHADOW_PAGE,
+    other = (d: number) => 2 * d + 4;
+  const placed = (px: number, py: number) =>
+    py === 0 && (px === 0 || px === 1) ? ([px * S, 0] as [number, number]) : undefined;
+  const map = (x: number, y: number) => (0.37 * x + 0.61 * y < 125 ? 1 : 5 + 0.01 * x - 0.02 * y);
+  const atlas = (x: number, y: number) => (x >= S ? other(map(x, y)) : map(x, y));
+  for (const reference of [3, 4.9])
+    for (let i = 0; i < 60; i++) {
+      const t: [number, number] = [S - 2 + i * 0.07, 64.3],
+        at = (px: number) => (px === 1 ? other(reference) : reference);
+      const read = pagedPcf(t, at(Math.floor(t[0] / S)), placed, atlas, at);
+      assert.equal(read, pcf(t, map, reference), `${t}`);
+    }
+});
+
 test('a point light’s shadow crosses a face border without a seam', () => {
   // The light 2 m over the floor: its bottom face meets its side faces on the lines |x| = 2 and
   // |z| = 2 of the floor. A slab 1 m up shadows the whole floor, the border included.
