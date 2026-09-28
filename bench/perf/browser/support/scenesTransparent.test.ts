@@ -1,29 +1,19 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { benchSide, FACES, glisse, ITEMS, pose, regimes } from './scenesTransparent.ts';
-import { appelsEncodes, tours } from './transparentRounds.ts';
-import {
-  argumentsReference,
-  classementReference,
-  encodeReference,
-} from '../../../oracles/browser/transparent-orders.ts';
+import { FACES, ITEMS, regimes } from './scenesTransparent.ts';
+import { appelsDe, sceneDe } from './transparentRounds.ts';
 
 for (const [index, [name, side]] of FACES.entries()) {
   test(`transparent benchmark: ${name} keeps the reference ranges with batched draws`, () => {
-    const before = benchSide(side),
-      after = benchSide(side),
-      laps = tours(before, after),
-      image = glisse[0];
-    assert.equal(after.blendState.orders[0].length, ITEMS * (index + 1));
-    assert.equal(after.blendState.orders[1].length, 0);
-    pose(before, image);
-    classementReference(before.scene, before.order, image.eye);
-    argumentsReference(before.scene, before.args);
-    const reference = encodeReference(before.scene, before.order, before.args, before.output);
-    laps.tourApres([image]);
-    assert.equal(reference.encoded, index ? 6016 : 3008);
+    const laps = sceneDe(name, side);
+    assert.equal(laps.after.blendState.orders[0].length, ITEMS * (index + 1));
+    assert.equal(laps.after.blendState.orders[1].length, 0);
     // Four unpaged primitives retain their own hardware-culled draws per face.
-    assert.equal(appelsEncodes(), index ? 13 : 9);
+    assert.deepEqual(appelsDe(laps), {
+      name,
+      before: 3008 * (index + 1),
+      after: index ? 13 : 9,
+    });
 
     for (const [regime, frames] of regimes) {
       for (const frame of frames) {
