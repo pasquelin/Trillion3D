@@ -44,6 +44,7 @@ test('the frame metrics carry the sampled pool and count its growths', async () 
   // Grown to its bound, then a frame with room says so; a narrow frame samples no pool.
   const calm = await frame(200, 30, [13000, MOST, 900, 0]);
   assert.deepEqual([calm.tileLightPoolOverflowed, calm.tileLightPoolGrowths], [false, 2]);
-  assert.deepEqual(pools().map((write) => write.data[1]), [START, 5000, MOST]);
+  const capacities = pools().map((write) => write.data[1]);
+  assert.deepEqual(capacities, [START, 5000, MOST]);
   assert.equal((await frame(64, 45)).tileLightPoolReserved, null);
 });
