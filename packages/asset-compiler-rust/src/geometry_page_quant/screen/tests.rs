@@ -23,17 +23,26 @@ fn measured(mesh: &Mesh, tile_log2: i32) -> Vec<Page> {
 
 // Behaviour: every page of the audit's four meshes, drawn by the cut at 0.5, 1 and 2 pixels with
 // the camera 2 m or 10 m away, stays within a tenth of a pixel of the threshold (CMP-08).
+// One test per mesh, so that the harness measures them in parallel.
 #[test]
-fn the_audits_meshes_are_drawn_within_a_tenth_of_a_pixel_of_the_threshold() {
-    let meshes = [
-        ("terrain", terrain(257, 1024.0)),
-        ("sphere", sphere(6, 5.0)),
-        ("building", building()),
-        ("vegetation", vegetation()),
-    ];
-    for (name, mesh) in &meshes {
-        assert_within_margin(name, &measured(mesh, tile_log2(None)));
-    }
+fn the_audits_terrain_is_drawn_within_a_tenth_of_a_pixel_of_the_threshold() {
+    let pages = measured(&terrain(257, 1024.0), tile_log2(None));
+    assert_within_margin("terrain", &pages);
+}
+
+#[test]
+fn the_audits_sphere_is_drawn_within_a_tenth_of_a_pixel_of_the_threshold() {
+    assert_within_margin("sphere", &measured(&sphere(6, 5.0), tile_log2(None)));
+}
+
+#[test]
+fn the_audits_building_is_drawn_within_a_tenth_of_a_pixel_of_the_threshold() {
+    assert_within_margin("building", &measured(&building(), tile_log2(None)));
+}
+
+#[test]
+fn the_audits_vegetation_is_drawn_within_a_tenth_of_a_pixel_of_the_threshold() {
+    assert_within_margin("vegetation", &measured(&vegetation(), tile_log2(None)));
 }
 
 // Behaviour: the measurement sees the loss the tiles removed: the same terrain on one grid for
@@ -77,16 +86,13 @@ fn sponza_is_drawn_within_a_tenth_of_a_pixel_of_the_threshold() {
             if crate::unsplit_material(material) {
                 continue;
             }
-            let accessor = |name: &str| {
-                let id = p["attributes"]
-                    .get(name)
-                    .or(p.get(name))
-                    .and_then(Value::as_u64);
-                crate::accessor(&g, &bin, id.expect(name) as usize, None).unwrap()
+            let accessor = |id: &Value| {
+                let id = id.as_u64().expect("accessor index") as usize;
+                crate::accessor(&g, &bin, id, None).unwrap()
             };
-            let positions = accessor("POSITION");
+            let positions = accessor(&p["attributes"]["POSITION"]);
             let pos = positions.collect_f32().unwrap();
-            let indices = accessor("indices").collect_u32().unwrap();
+            let indices = accessor(&p["indices"]).collect_u32().unwrap();
             let attributes = crate::compiler_page_object::page_attributes(
                 &g,
                 &bin,
@@ -96,7 +102,10 @@ fn sponza_is_drawn_within_a_tenth_of_a_pixel_of_the_threshold() {
             )
             .unwrap();
             let carried = crate::carried_attributes(&attributes, material);
-            let blended = material.and_then(|m| m.get("alphaMode")) == Some(&Value::from("BLEND"));
+            let blended = material
+                .and_then(|m| m.get("alphaMode"))
+                .and_then(Value::as_str)
+                == Some("BLEND");
             let scale = scales.get(&m).copied();
             pages.extend(measure(&Primitive {
                 positions: &pos,
