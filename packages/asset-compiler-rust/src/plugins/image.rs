@@ -106,6 +106,18 @@ pub trait ImageDecoder: Plugin + Sync {
     fn mime(&self) -> &'static str;
     /// Recognizes the format from its first bytes.
     fn accepts_head(&self, head: &[u8]) -> bool;
+    /// Reads dimensions without materializing pixels, for texture-job admission.
+    fn dimensions(&self, bytes: &[u8]) -> std::result::Result<(u32, u32), &'static str> {
+        let extension = self.extensions().first().ok_or("image-format-unknown")?;
+        let format = image::ImageFormat::from_extension(extension).ok_or("image-format-unknown")?;
+        image::ImageReader::with_format(std::io::Cursor::new(bytes), format)
+            .into_dimensions()
+            .map_err(|_| "image-decode-failed")
+    }
+    /// Expanded container payload held alongside pixels, before any codec runs.
+    fn expanded_payload_bytes(&self, _bytes: &[u8]) -> std::result::Result<usize, &'static str> {
+        Ok(0)
+    }
     /// Decodes under this allocation ceiling. A larger image is a refusal, not a panic.
     fn decode(
         &self,

@@ -72,3 +72,21 @@ fn vector_into_names_only_the_faulty_entry_and_stops_there() {
     // First value, valid, already written: function stops at first fault.
     assert_eq!(column.bytes, 1.0f64.to_le_bytes());
 }
+
+// Edge cases of `numbers_into`, moved from the retired compute bench: the extreme floats JSON
+// carries keep their bits, and only a faulty entry is named, by its rank.
+#[test]
+fn numbers_into_keeps_extreme_floats_and_names_the_faulty_rank() {
+    let values = [-0.0, f64::MAX, 5e-324, 1.5];
+    let mut column = Column::default();
+    numbers_into(&values.map(|value| json!(value)), "nodes", &mut column).expect("numbers");
+    let expected: Vec<u8> = values
+        .iter()
+        .flat_map(|value| value.to_le_bytes())
+        .collect();
+    assert_eq!(column.bytes, expected);
+    let faulty = [json!(1.0), json!(2.0), json!("not a number")];
+    let error = numbers_into(&faulty, "primitive.culling.nodes", &mut Column::default())
+        .expect_err("a string is not a number");
+    assert_eq!(error.message, "primitive.culling.nodes[2] is not a number");
+}

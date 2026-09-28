@@ -131,7 +131,9 @@ spent (`eviction-queue-spent`) the burst waits for the next readback. The CPU cu
 recent page. Loads on the GPU-cut path are read off the readback's requests, closed over their
 groups (`webgpu/residency/requestAdmission.ts`, #836): past the pool, the coarsest levels whole and
 the one the room straddles in part, what the queue already holds first, from the pool's room alone.
-The GPU cut feeds no `budgetRanking`; the CPU cut that takes the image back refills it.
+The CPU cut ranks by the same admission, off the pages its cut closes over (`closure.forEachHeld`,
+#974): the GPU cut keeps no ranking of its own, and a CPU cut that takes the image back ranks what
+the GPU cut left.
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min
@@ -280,7 +282,9 @@ lists at most. A tile the pool has no room for walks every light, exactly, and t
 (`tileLightPoolOverflowed`, `tileLightPoolGrowths` of the frame metrics). A scene of 64 lights or fewer runs a
 narrow tile pass (64-bit masks, a 64-light array) and holds no pool. A shadow caster past the 64
 shadow slices lights without a shadow and is counted
-(`shadowCastersUnsliced`, #818). WebGL2 keeps its 64 slots until #835 and refuses more out loud.
+(`shadowCastersUnsliced`, #818). WebGL2 holds every light in a float texture grown with the
+count, and each draw evaluates only the lights whose range reaches its world box, listed per draw
+on the CPU in one integer texture (`webgl/cluster/lightLists.ts`, #835).
 
 **A moving image shades a drawn subset of each pixel's lights.** A moving image weighs every light
 of its tile without its shadow (the cheap part) and shades in full, shadow included, four of them. A
@@ -313,8 +317,24 @@ pages are evicted least recently read first. A lamp face's finest mip is 32 × 3
 The table gives each of the 64 shadow slices (`MAX_SHADOW_SLICES`) a fixed window of the largest range a
 light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
 (`SHADOW_TABLE_ENTRIES`), so every shadow-casting light that holds a slice holds its range.
-The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`). Its host mirror — the
-words, a change flag per word, the pool's page records and eviction bitset, and the frame's page
+The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`); that share, less the
+batches' reserve, is the shadows' one grant (`SHADOW_GRANT_BYTES`, `webgpu/shadow/memoryGrant.ts`):
+the pool is drawn within it, and a late allocation — the static layer, the transmittance layer — is
+asked of it with what is already held, then of the device under an out-of-memory check, never
+inside a frame (`webgpu/shadow/transmittanceGrant.ts`): a scene whose blended surfaces cast asks
+the transmittance layer with the pool, the frame held; one turned casting later, by a rewrite of its
+values, asks it at that rewrite, before the next frame, held until the layer lands, which then draws
+every mapped page again with it: no frame is drawn without the layer. Memory pressure never passes
+for performance: it lowers no page to meet a frame time, and each pressure is a named event in
+`shadowMemoryEvents`. A pool the device refuses is drawn smaller (`pool-shrunk`, its halvings in
+`shadowResolutionBias`, 0 in the normal case) or not at all (`pool-refused`, the `shadows-off`
+error); a static layer past the grant (`static-layer-over-grant`) or refused by the device
+(`static-layer-refused`, `gpu-out-of-memory`) is never made, and every page stays drawn whole, every
+caster at once: no shadow is lost. A transmittance layer past the grant (`transmittance-over-grant`)
+or refused (`transmittance-refused`) is never made nor asked again: the opaque shadows stay whole
+and the blended casters cast nothing, by name. `shadowPeakBytes` publishes the most the grant held
+at once. The table's host mirror — the words, a change flag per word, the pool's page records and
+eviction bitset, and the frame's page
 list (`admit.ts`) at the largest pool, with the shadow batches' host lists
 (`SHADOW_BATCH_HOST_BYTES`), 21.0 MiB (`SHADOW_HOST_BYTES`, summed from `shadowTableHostBytes`,
 `shadowPoolHostBytes`, `shadowAdmissionHostBytes` and `batchBudget.ts`, which tests check against

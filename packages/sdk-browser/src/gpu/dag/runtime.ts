@@ -10,13 +10,17 @@ import { createDagResidencyUpload } from './residencyUpload.ts';
 import { createDagPoolList } from './poolList.ts';
 import { createDagDispatch } from './dispatch.ts';
 import { DAG_READBACK_SLOTS } from './layout.ts';
+import { MASK_SECTION, flagLocation } from './split.ts';
 import type { createDagResources } from './resources.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 
 export function createDagRuntime(resources: DagResources): GpuSelection {
-  const { device, packed, residentCut, pageCount, nodeCount, frameData, buffers, flags, frames } =
+  const { device, packed, residentCut, pageCount, nodeCount, frameData, buffers, frames } =
     resources;
+  // The draw mask, in the part of `flags` that holds its section whole (`split.ts`): its readers
+  // bind one buffer at one offset, whatever the split.
+  const mask = flagLocation(resources.split.flagCuts, MASK_SECTION, nodeCount, pageCount);
   const state = {
     last: null as GpuCut | null,
     lastSubmitted: undefined as SelectionUniforms | undefined,
@@ -47,7 +51,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   // The cut rule's residency, derived from the pool's and uploaded by difference.
   const uploadResidency = residentCut ? createDagResidencyUpload(resources) : undefined;
   const dispatch = createDagDispatch(resources, state, fail);
-  const poolList = residentCut ? createDagPoolList(device, packed, resources.pageCones) : undefined;
+  const poolList = residentCut ? createDagPoolList(device, packed, resources.coldParts) : undefined;
   /** The next dispatch cuts and reads back again, the eviction queue with it: the cut in hand stays. */
   const recut = () => (state.submittedResidencyRevision = state.readbackResidencyRevision = -1);
   /** Writes word `slot` of primitive `w`'s frame words, one word up. The cut in hand holds pages
@@ -62,8 +66,8 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     get hostBytes() {
       return (uploadResidency?.hostBytes ?? 0) + (poolList?.entries.byteLength ?? 0);
     },
-    maskBuffer: flags,
-    maskOffset: nodeCount,
+    maskBuffer: resources.flagParts[mask.part],
+    maskOffset: mask.word,
     pageCount,
     get worldRevision() {
       return state.worldRevision;
