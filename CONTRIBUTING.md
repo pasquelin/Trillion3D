@@ -35,7 +35,7 @@
   exceed the Three.js witness. Any measured regression blocks validation and merge. Measurement
   noise is not an exemption, and an unmeasured metric is never evidence of parity.
 - **Every millisecond counts, measured.** The frame's largest costs are ranked on a real scene
-  (`docs/roles/measurer.md` step 7): small calculations repeated per frame or per page,
+  (`docs/roles/measurer.md`): small calculations repeated per frame or per page,
   allocations in a frame, a JavaScript kernel that belongs in Rust or WebAssembly, work the
   compiler could bake once.
 - **Never optimise a path whose cost is not measured.** State its share of the frame first, on a real
@@ -121,8 +121,7 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
   lines, duplicates and import-related unit tests; `pnpm run test:changed` runs only those tests. Also
   inspect dependants after deletions, public-export or configuration changes.
 - Before merge: `pnpm run validate` (format, JS/TS lint + Clippy, unused code/files/dependencies,
-  TS/native builds, structure, declarations, links, JS/TS/Rust tests); the image proof and the
-  timing follow the merge.
+  TS/native builds, structure, declarations, links, JS/TS/Rust tests).
 - **All wording in the repository must be in English.** Comments, docstrings, documentation,
   commit messages and test descriptions are strictly written in English.
 - Every maintained JS/TS/Rust source file, including variants, must fit 200 physical lines; no legacy
@@ -219,10 +218,8 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    closed: GitHub's `Closes #n` acts only on `main`, so
    [`close-issues.yml`](.github/workflows/close-issues.yml) closes, as completed and with a
    comment linking the pull request, every issue a body merged into `develop` names with a closing
-   keyword (`Part of #n` leaves it open). A regression found after the merge reopens the issue,
+   keyword. A regression found after the merge reopens the issue,
    labelled `audit ko` or `measure ko`, with the findings in a comment.
-   If a pull request is closed without merging, remove both lifecycle labels; add `in progress`
-   only if work resumes.
 
 A release from `develop` to `main` has its own issue and pull request. Its head is `develop`;
 no separate release branch is needed. Use the same template and `Closes #<issue>` first line (the release delivers its whole issue),
