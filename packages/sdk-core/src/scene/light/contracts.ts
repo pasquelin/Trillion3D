@@ -65,8 +65,9 @@ export type SceneLightingView = 'auto' | 'lit' | 'unlit' | 'bounce';
 export const LIGHT_SETTINGS = {
   /**
    * Lights a screen tile's list holds, in each of its two depth slices: its memory is this, per
-   * tile, whatever the scene holds. A tile more lights reach keeps no list and walks every light
-   * of the scene — those that miss it add an exact zero —, so no light is ever dropped (X2).
+   * tile, whatever the scene holds. A tile more lights reach takes their indices from a pool the
+   * size of the view and walks exactly them; one the pool has no room for walks every light of
+   * the scene — those that miss it add an exact zero —, so no light is ever dropped (X2).
    */
   tileLights: 64,
   /** Side in pixels of a screen tile of the light list. */
