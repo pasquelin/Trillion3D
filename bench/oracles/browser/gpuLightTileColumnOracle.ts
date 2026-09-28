@@ -94,11 +94,6 @@ function tileSlab(corners: Vec3[], column: Plane[]): Plane[] {
   ];
 }
 
-export function sphereTouchesBox(box: Box, centre: Vec3, radius: number) {
-  const clamped = map((a) => Math.max(f(box.lo[a] - centre[a]), f(centre[a] - box.hi[a]), 0));
-  return dot(clamped, clamped) <= f(radius * radius);
-}
-
 const sphereBehind = (plane: Plane, centre: Vec3, radius: number) =>
   f(dot(plane.n, centre) + plane.w) < -radius;
 
@@ -106,7 +101,12 @@ const sphereInSides = (column: Plane[], centre: Vec3, radius: number) =>
   column.slice(0, 4).every((plane) => !sphereBehind(plane, centre, radius));
 
 export const sphereTouchesColumn = (column: Plane[], centre: Vec3, radius: number) =>
-  sphereInSides(column, centre, radius) && !sphereBehind(column[4], centre, radius);
+  column.every((plane) => !sphereBehind(plane, centre, radius));
+
+export function sphereTouchesBox(box: Box, centre: Vec3, radius: number) {
+  const clamped = map((a) => Math.max(f(box.lo[a] - centre[a]), f(centre[a] - box.hi[a]), 0));
+  return dot(clamped, clamped) <= f(radius * radius);
+}
 
 export type TileBounds = { opaqueBox: Box; blendBox: Box; column: Plane[]; slab: Plane[] };
 

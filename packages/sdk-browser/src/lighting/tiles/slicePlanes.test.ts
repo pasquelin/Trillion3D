@@ -8,7 +8,7 @@ import {
   toTileFrame,
   type TileView,
 } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
-import { mulberry32 as random } from '../../../../../site/examples/kit/random.ts';
+import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import { LIGHT_TILES_SHADER } from './shader.ts';
 import { NEAR, camera, pixelPoint, segmentDistance, type Vec3 } from './tileCamera.fixture.ts';
 

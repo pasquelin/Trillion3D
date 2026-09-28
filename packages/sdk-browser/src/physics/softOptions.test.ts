@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SOFT_STATE_WORDS } from '../../../sdk-core/src/physics/index.ts';
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
-import { addSoft, at, FLAT, ropeLine, settle, softWorld } from './soft.fixture.ts';
+import { addSoft, at, ropeLine, settle, softWorld } from './soft.fixture.ts';
+import { FLAT } from './records.fixture.ts';
 
 test('a rope bent stiff reaches out from its two pinned ends; folding freely, it hangs', async () => {
   // A fold edge only pulls against the second order of a sag: the stiff rope bows, yet reaches.

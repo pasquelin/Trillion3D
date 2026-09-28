@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { mulberry32 as random } from '../../../../../site/examples/kit/random.ts';
+import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { requestExplorerDevice } from '../../world/session/gpuDevice.ts';
 import { LIGHT_TILES_SHADERS } from './shader.ts';
@@ -25,7 +25,7 @@ function subgroupBounds(lanes: Lane[], size: number) {
     const lit = group.map(({ z, inside }) => inside && z > 0);
     const near = Math.max(...group.map(({ z }, i) => (lit[i] ? bitsOf(z) : 0)));
     const far = Math.min(...group.map(({ z }, i) => (lit[i] ? bitsOf(z) : 0xffffffff)));
-    const anyLit = near !== 0,
+    const anyLit = lit.some(Boolean),
       anySky = group.some(({ inside }, i) => inside && !lit[i]);
     if (anyLit) {
       out.nearest = Math.max(out.nearest, near);
@@ -75,8 +75,7 @@ test('an adapter that offers subgroups gets them, and its light tiles run the su
     const tiles = await createGpuLightTiles(await requestExplorerDevice(adapter));
     const granted = offered.length > 0;
     assert.equal(tiles.subgroups, granted);
-    assert.deepEqual(compiled, [
-      LIGHT_TILES_SHADERS[granted ? 'LIGHT_TILES_SUBGROUP_SHADER' : 'LIGHT_TILES_SHADER'],
-    ]);
+    assert.deepEqual(compiled, [LIGHT_TILES_SHADERS[+granted][1]]);
+    assert.equal(compiled[0].startsWith('enable subgroups;'), granted);
   }
 });

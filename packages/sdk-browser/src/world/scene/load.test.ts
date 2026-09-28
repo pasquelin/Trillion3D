@@ -1,62 +1,18 @@
 /**
- * What a session reads to prepare its scene, read from its own request list: the scene tables, the
- * binary of the document it draws and the images its surfaces sample — never a glTF — and, by
- * default, not the images whose chain the cache baked. Proven on a published cache
+ * What a session reads to prepare its scene, read from its own request list: the scene tables and
+ * the images its surfaces sample — never a glTF, never the binary of the document it draws (read
+ * on first need, `lazyBinary.test.ts`) — and, by default, not the images whose chain the cache baked. Proven on a published cache
  * (`site/assets/examples/bust`), served from disk.
  */
 import { isDrawnNode } from '../../host/graph/kinds.ts';
-import test, { type TestContext } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import { loadPreparedScene } from './scene.ts';
 import { EngineError, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
+import { bust, folder, load, plain, serve } from './load.fixture.ts';
 
-const bust = new URL(
-  '../../../../../site/assets/examples/bust/cache/native/full/',
-  import.meta.url,
-);
-
-/** The key folder of the bust cache, as its pointer names it. */
-async function folder() {
-  const { url } = JSON.parse(await readFile(new URL('manifest.json', bust), 'utf8')) as {
-    url: string;
-  };
-  return new URL('./', new URL(url, bust));
-}
-
-/** Serves files from disk — the tables through `alter` — decodes images to a stand-in, and
- *  returns the list of what was asked for. */
-function serve(t: TestContext, alter: (tables: string) => string = (tables) => tables) {
-  const asked: string[] = [];
-  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
-    const url = String(input);
-    asked.push(url);
-    if (url.startsWith('data:')) return new Response(new Uint8Array(1));
-    const body = await readFile(fileURLToPath(url));
-    return new Response(url.endsWith('scene-tables.json') ? alter(body.toString('utf8')) : body);
-  });
-  Object.assign(globalThis, { createImageBitmap: async () => ({ width: 1, height: 1 }) });
-  t.after(() => delete (globalThis as { createImageBitmap?: unknown }).createImageBitmap);
-  return asked;
-}
-
-const load = async (metadata: ClusterManifest, textureSource?: 'host' | 'cache') =>
-  loadPreparedScene(
-    { manifestUrl: '', ...(textureSource ? { textureSource } : {}) },
-    metadata,
-    'source.gltf',
-    (await folder()).href,
-    'full',
-    false,
-    undefined,
-    () => {},
-    () => {},
-  );
-
-const plain = { primitives: [] } as unknown as ClusterManifest;
-
-test('a session prepares its scene from the tables, the binary and the images, and no glTF', async (t) => {
+test('a session prepares its scene from the tables and the images, and no glTF', async (t) => {
   const asked = serve(t);
   const { source, textureIndices } = await load(plain, 'host');
   const names = asked.map((url) => url.split('/').at(-1));
@@ -65,7 +21,7 @@ test('a session prepares its scene from the tables, the binary and the images, a
     [],
     'no document is parsed',
   );
-  assert.ok(names.includes('scene-tables.json') && names.includes('source.bin'), `${names}`);
+  assert.ok(names.includes('scene-tables.json'), `${names}`);
   const images = (
     await readdir(new URL('../../../../source/', await folder()), { recursive: true })
   ).map((path) => path.split('/').at(-1));
