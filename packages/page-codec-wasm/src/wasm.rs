@@ -2,7 +2,7 @@
 //! JavaScript loader writes the page at the offset returned by `page_alloc`, calls `page_decode`,
 //! reads the result block, then releases it with `page_release`.
 
-use crate::decode;
+use crate::{decode_into, Header, PageError};
 
 /// Result block, in 32-bit words: 0 status (0 = decoded), 1 vertices, 2 indices, 3 flags,
 /// 4 decoded bytes, 5 quantization error as its `f32` bits, then the decoded page itself —
@@ -47,23 +47,28 @@ pub unsafe extern "C" fn page_free(offset: u32, len: usize) {
 #[no_mangle]
 pub unsafe extern "C" fn page_decode(offset: u32, len: usize, max_decoded_bytes: usize) -> u32 {
     let data = core::slice::from_raw_parts(offset as *const u8, len);
-    let bloc = match decode(data, max_decoded_bytes) {
-        Err(cause) => vec![cause as u32, 0, 0, 0, 0, 0],
-        Ok(page) => {
-            let mut bloc = Vec::with_capacity(RESULT_WORDS + page.words.len());
-            bloc.extend_from_slice(&[
-                0,
-                page.vertex_count as u32,
-                page.index_count as u32,
-                page.flags,
-                page.decoded_bytes() as u32,
-                page.quantization_error.to_bits(),
-            ]);
-            bloc.extend_from_slice(&page.words);
-            bloc
-        }
-    };
-    fuite(bloc)
+    fuite(
+        result_block(data, max_decoded_bytes)
+            .unwrap_or_else(|cause| vec![cause as u32, 0, 0, 0, 0, 0]),
+    )
+}
+
+/// The result block of a decoded page, sized from its accepted header and the page decoded
+/// straight into it (STR-02, #238): no intermediate vector, no copy of the decoded words.
+fn result_block(data: &[u8], max_decoded_bytes: usize) -> Result<Vec<u32>, PageError> {
+    let header = Header::parse(data, max_decoded_bytes)?;
+    let mut bloc = vec![0u32; RESULT_WORDS + header.decoded_bytes() / 4];
+    let (meta, page) = bloc.split_at_mut(RESULT_WORDS);
+    decode_into(data, &header, page)?;
+    meta.copy_from_slice(&[
+        0,
+        header.vertex_count as u32,
+        header.index_count as u32,
+        header.flags,
+        header.decoded_bytes() as u32,
+        header.quantization_error.to_bits(),
+    ]);
+    Ok(bloc)
 }
 
 /// Releases the result block, page included.
