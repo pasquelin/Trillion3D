@@ -13,7 +13,7 @@ import {
 } from '../packages/sdk-browser/src/index.ts';
 import type { ControlSpec } from '../site/examples/kit/controls.ts';
 import { tour } from '../site/examples/kit/tour.ts';
-import { runExampleModule } from './docs/examples/capture.ts';
+import { catchPagehide, runExampleModule } from './docs/examples/capture.ts';
 
 test('recorded fly-through replays, stops, yields to the viewer and disposes', async (t) => {
   const html = await readFile(
@@ -33,7 +33,6 @@ test('recorded fly-through replays, stops, yields to the viewer and disposes', a
       listeners.get(type)?.delete(listener),
   };
   let disposed = false;
-  let pagehide = () => {};
   let shown = '';
   let buttons: Record<string, () => void> = {};
   const world = {
@@ -57,11 +56,7 @@ test('recorded fly-through replays, stops, yields to the viewer and disposes', a
   const frame = (count = 1) => {
     for (let at = 0; at < count; at++) for (const hook of [...hooks]) hook({ delta: 0.05 });
   };
-  const previousListener = globalThis.addEventListener;
-  globalThis.addEventListener = ((type: string, listener: () => void) => {
-    if (type === 'pagehide') pagehide = listener;
-  }) as typeof addEventListener;
-  t.after(() => void (globalThis.addEventListener = previousListener));
+  const pagehide = catchPagehide(t);
 
   await runExampleModule(html, {
     engine: { createWorld: () => world, geometry, light, material, math, object },

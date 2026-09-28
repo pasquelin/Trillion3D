@@ -1,4 +1,5 @@
 import { transform } from 'esbuild';
+import type { TestContext } from 'node:test';
 import type { Browser, Page } from 'playwright';
 
 /**
@@ -31,6 +32,20 @@ export async function runExampleModule(html: string, modules: { engine: object; 
     'const {$1} = modules.$2;',
   );
   await new AsyncFunction('modules', `'use strict';${body}`)(modules);
+}
+
+/**
+ * The `pagehide` listener an example page registers while `t` runs, the global
+ * `addEventListener` restored after it: calling the result runs the page's cleanup.
+ */
+export function catchPagehide(t: TestContext): () => void {
+  let pagehide = () => {};
+  const previous = globalThis.addEventListener;
+  globalThis.addEventListener = ((type: string, listener: () => void) => {
+    if (type === 'pagehide') pagehide = listener;
+  }) as typeof addEventListener;
+  t.after(() => void (globalThis.addEventListener = previous));
+  return () => pagehide();
 }
 
 /** One example roadmap entry, as read from `site/content/gallery-roadmap.json`. */

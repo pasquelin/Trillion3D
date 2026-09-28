@@ -13,7 +13,7 @@ import {
   Scene,
 } from '../packages/sdk-browser/src/index.ts';
 import { describe, type ControlSpec } from '../site/examples/kit/controls.ts';
-import { runExampleModule } from './docs/examples/capture.ts';
+import { catchPagehide, runExampleModule } from './docs/examples/capture.ts';
 
 type Values = { mode: string; openingDistance: number; openness: number };
 
@@ -28,8 +28,7 @@ test('door clip follows camera proximity once and manual control takes over', as
   const scene = new Scene(() => Promise.reject(new Error('the page loads no model')));
   const camera = new Camera('perspective');
   let frame = () => {},
-    disposed = false,
-    pagehide = () => {};
+    disposed = false;
   const world = {
     scene,
     camera,
@@ -38,11 +37,7 @@ test('door clip follows camera proximity once and manual control takes over', as
     invalidate() {},
     dispose: () => void (disposed = true),
   };
-  const previousListener = globalThis.addEventListener;
-  globalThis.addEventListener = ((type: string, listener: () => void) => {
-    if (type === 'pagehide') pagehide = listener;
-  }) as typeof addEventListener;
-  t.after(() => void (globalThis.addEventListener = previousListener));
+  const pagehide = catchPagehide(t);
   let change: (values: Values) => void = () => {};
   let values = {} as Values;
   await runExampleModule(html, {
