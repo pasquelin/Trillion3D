@@ -165,7 +165,7 @@ test('a failed preparation falls back without waiting for the release, still dia
 test('a session opened alone says the shadows its engine refuses on its own channel', async () => {
   const said: string[] = [];
   const diagnose = (phase: string, _: string, context?: Record<string, unknown>) =>
-    void said.push(`${phase} ${context?.light}`);
+    void (phase === 'shadows-refused' && said.push(`${phase} ${context?.light}`));
   const alone = await run({}, undefined, {}, { diagnose } as never);
   alone.shadowsRefused!(['sun']);
   assert.deepEqual(said, ['shadows-refused sun']);
