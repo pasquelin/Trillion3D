@@ -1,7 +1,6 @@
 /** The TypeScript projects of the repository, and the type check `check:changed` runs on those that
  *  own a changed file: `tsc -p <project> --noEmit` through the compiler API, so a test can check
  *  a file that is not on disk. */
-import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import ts from 'typescript';
 import { outDir } from './engine-dist.ts';
@@ -77,17 +76,19 @@ export function excludes(project: ts.ParsedCommandLine, file: string): boolean {
 
 /** Whether `project` reads the `trillion3d` package from the build output, as the site and the
  *  tools do (`package.json` `exports`): checked against a missing or stale build, it would report
- *  the wrong errors. Without a build, such a project resolves nothing, where the SDK's own projects
- *  still resolve their sources. */
+ *  the wrong errors. Such a project looks the package up in `dist/`, found or not (a missing or
+ *  half-removed build), where the SDK's own projects map it back to their sources. */
 export function readsDist(project: ts.ParsedCommandLine, root: string): boolean {
-  const { resolvedModule } = ts.resolveModuleName(
-    'trillion3d',
-    resolve(root, 'index.ts'),
-    project.options,
-    ts.sys,
-  );
-  const file = resolvedModule?.resolvedFileName;
-  return file ? file.startsWith(`${outDir}/`) : !existsSync(outDir);
+  let looked = false;
+  const host: ts.ModuleResolutionHost = {
+    ...ts.sys,
+    fileExists: (file) => {
+      looked ||= file.startsWith(`${outDir}/`);
+      return ts.sys.fileExists(file);
+    },
+  };
+  ts.resolveModuleName('trillion3d', resolve(root, 'index.ts'), project.options, host);
+  return looked;
 }
 
 /**
