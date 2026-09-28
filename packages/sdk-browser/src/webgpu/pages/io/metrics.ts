@@ -107,13 +107,13 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     shadowPoolLayers: lights.shadows?.texture ? lights.plan.pool.layers : null,
     shadowPagesRefetched: lights.plan.pool.refetched,
     shadowCastersKept: lights.cull?.counts.counts()?.kept ?? null,
-    ...lights.tiles?.poolMetrics(),
     shadowCastersHidden: lights.occlusion?.counts.counts()?.kept ?? null,
     shadowPagesDrawn: lights.shadowPages,
     shadowPagesTotal: lights.shadowPagesTotal,
     shadowPagesPending: lights.plan.counts.pendingPages,
     shadowWaitMs: lights.plan.counts.waitedMs,
     ...directLightTimings(timing.lastGpuPassMs),
+    ...lights.tiles?.poolMetrics(),
   };
 }
 
