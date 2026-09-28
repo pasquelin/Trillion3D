@@ -3,6 +3,7 @@ import {
   frustumFarPlane,
   multiplyMatrix4,
 } from '../../../../sdk-core/src/index.ts';
+import { frameParametersSound } from '../../../../sdk-core/src/lod/screenErrorBound.ts';
 import type { ConeContext } from '../cone/cone.ts';
 import { worldStretch } from './logic.ts';
 import { selectionScratch, type PageRecord, type SelectionState } from './state.ts';
@@ -35,16 +36,17 @@ export function selectFlat<T extends PageRecord>(s: SelectionState<T>, root: Clu
   s.flatStretch = worldStretch(root) * s.cameraStretch;
   s.flatFocal = Math.max(pixelScale[0], pixelScale[1]);
   // Null-threshold paths consult neither camera nor sphere: they only hold if the frame's three
-  // scalars are those a strictly positive quotient asks for.
+  // scalars are those a strictly positive quotient asks for. They never read the projection, which
+  // is left out (its default 1 passes).
   const near = s.cam.near;
   s.flatExact =
     s.pixelError === 0 &&
     s.flatStretch > 0 &&
-    Number.isFinite(s.flatStretch) &&
-    s.flatFocal > 0 &&
-    Number.isFinite(s.flatFocal) &&
-    near > 0 &&
-    Number.isFinite(near);
+    frameParametersSound(s.flatStretch, s.flatFocal, near);
+  // The frame's half of the projection guard, once per root rather than twice per cluster. A frame
+  // that fails it is not refused here: each projection then checks everything and throws at the
+  // same cluster as before, and a root whose errors are all zero or infinite still never throws.
+  s.flatSound = frameParametersSound(s.flatStretch, s.flatFocal, near, s.cam.perspective);
   // The cone context belongs to this root: it will be set at the first cluster that has one.
   (s.flatCone as ConeContext).ready = false;
   // A root that declares it has no cone takes the cone out of the per-cluster path. Silence
