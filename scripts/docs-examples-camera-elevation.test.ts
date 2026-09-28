@@ -25,7 +25,6 @@ test('the house elevations use parallel rays and keep their scale across camera 
   const canvas = { clientWidth: 1600, clientHeight: 900 } as HTMLCanvasElement;
   let values = {} as Values;
   let change = (_next: Values, _key?: keyof Values) => {};
-  let watched: unknown;
   let disposed = 0;
   const world = {
     scene,
@@ -54,7 +53,7 @@ test('the house elevations use parallel rays and keep their scale across camera 
       ) => {
         values = describe(specs).values as Values;
         change = callback;
-        watched = statsWorld;
+        assert.equal(statsWorld, world);
         callback(values);
         return values;
       },
@@ -63,10 +62,10 @@ test('the house elevations use parallel rays and keep their scale across camera 
 
   const active = world.camera;
   assert.equal(active.projection, 'orthographic');
-  assert.equal(watched, world);
+  const aspect = canvas.clientWidth / canvas.clientHeight;
   const span = () => {
-    const left = active.rayThrough(-0.5, 0, 16 / 9);
-    const right = active.rayThrough(0.5, 0, 16 / 9);
+    const left = active.rayThrough(-0.5, 0, aspect);
+    const right = active.rayThrough(0.5, 0, aspect);
     assert.ok(left.direction.distanceTo(right.direction) < 1e-12, 'elevation rays stay parallel');
     return left.origin.distanceTo(right.origin);
   };
