@@ -2259,6 +2259,21 @@
       "credit": "Flagge an einem Mast für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
     }
   },
+  "an-elevation-of-the-house": {
+    "banner": "Wähle eine Hausansicht. Rücke die Kamera weiter weg: Die orthografische Zeichnung behält genau denselben Maßstab.",
+    "controls": {
+      "elevation": "Ansicht",
+      "distance": "Kameraabstand",
+      "zoom": "Zeichnungsmaßstab"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Vorne",
+        "right": "Rechte Seite",
+        "rear": "Hinten"
+      }
+    }
+  },
   "hover-to-highlight": {
     "banner": "Fahre über die Teile des Wagens, um sie einzeln hervorzuheben, oder schalte die Hervorhebung im Bedienfeld aus.",
     "controls": {
