@@ -45,6 +45,7 @@ test('the summary says what the live texture pool asked, held, evicted and cost'
     evictedTiles: 212,
     durationMs: 3.456,
     imagesReprise: 9,
+    texturePoolAskedBytes: 29_612_096,
     residentTextureBytes: 59_224_192,
   } as unknown as ReglageVivant;
   const line = textures({}, { reglageVivant: reglage }).find((l) => l.includes('set live'));
@@ -54,4 +55,9 @@ test('the summary says what the live texture pool asked, held, evicted and cost'
       '212 tiles evicted in 3.46 ms, pose held again after 9 frames',
   );
   assert.ok(!textures({}, {}).some((l) => l.includes('set live')), 'nothing set, nothing said');
+  const geometryOnly = { ...reglage, texturePoolAskedBytes: undefined } as ReglageVivant;
+  assert.ok(
+    !textures({}, { reglageVivant: geometryOnly }).some((l) => l.includes('set live')),
+    'a live geometry pool alone says nothing of the texture pool',
+  );
 });
