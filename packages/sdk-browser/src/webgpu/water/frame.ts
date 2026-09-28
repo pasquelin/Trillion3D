@@ -7,7 +7,12 @@ import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import type { WebgpuGpuState } from '../pages/state/gpu.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { WATER_BINDINGS } from './compositeWgsl.ts';
-import { createWaterCompositeLayout, createWaterCompositePipeline } from './pipelines.ts';
+import {
+  createWaterCompositeLayout,
+  createWaterCompositePipeline,
+  createWaterRoutedPipeline,
+} from './pipelines.ts';
+import { routedFilter } from '../blend/displayFilter.ts';
 
 /** Labels of the two measured passes; their GPU durations are read under these names. */
 export const WATER_SURFACE_PASS = 'Trillion3D water surfaces';
@@ -24,7 +29,9 @@ export async function createWaterFrame(device: GPUDevice) {
   const layout = createWaterCompositeLayout(device);
   const pipeline = await createWaterCompositePipeline(device, layout);
   const identity = createWebgpuBindIdentity();
-  let group: GPUBindGroup | undefined, surfaces: SurfaceBuffer | undefined;
+  let group: GPUBindGroup | undefined,
+    surfaces: SurfaceBuffer | undefined,
+    routed: GPURenderPipeline | undefined;
   const from = { texture: undefined as unknown as GPUTexture },
     color = { texture: undefined as unknown as GPUTexture },
     depth = { texture: undefined as unknown as GPUTexture },
@@ -54,10 +61,11 @@ export async function createWaterFrame(device: GPUDevice) {
     loadOp: 'load',
     storeOp: 'store',
   };
-  const compositePass: GPURenderPassDescriptor = {
-    label: WATER_COMPOSITE_PASS,
-    colorAttachments: [target],
-  };
+  const plain = [target],
+    compositePass: GPURenderPassDescriptor = {
+      label: WATER_COMPOSITE_PASS,
+      colorAttachments: plain,
+    };
   return {
     /** Names the frame's targets and resources; false while one of them does not exist. */
     bind(gpu: WebgpuGpuState, uniform: GPUBuffer, lighting: BlendLighting) {
@@ -141,11 +149,11 @@ export async function createWaterFrame(device: GPUDevice) {
      * copied, the opaque depth copied into the depth the surface stage tests —, the transmissive
      * surfaces draw into the opaque resolve's material surfaces, free since that resolve consumed
      * them, and the water word into the display colour the composition writes later — the surface
-     * flags stay the opaque resolve's, read by temporal antialiasing and the composition after this
-     * pass —, with hardware depth written
-     * so the nearest surface of a pixel is the one kept; then one
-     * fullscreen triangle lights and composes every water pixel into the HDR target, which keeps
-     * what it held wherever no water is. Returns the surface draws encoded.
+     * flags stay the opaque resolve's, read by temporal antialiasing and the composition —, with
+     * hardware depth written so the nearest surface of a pixel is the one kept; then one
+     * fullscreen triangle lights and composes every water pixel into the HDR target (or, where the
+     * display mask is set, the display layers), which keeps what it held wherever no water is.
+     * Returns the surface draws encoded.
      */
     encode(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, pipelines: BlendPipelines) {
       if (!group || !surfaces) throw new Error('WATER_NOT_BOUND');
@@ -157,10 +165,15 @@ export async function createWaterFrame(device: GPUDevice) {
       pass.setViewport(0, 0, extent.width, extent.height, 0, 1);
       const encoded = drawBlendRuns(rt, device, pass, 1, pipelines);
       pass.end();
+      const filter = routedFilter(rt.gpu.displayFilter);
+      compositePass.colorAttachments = filter ? [target, ...filter.attachments()] : plain;
       const composite = encoder.beginRenderPass(compositePass);
-      composite.setPipeline(pipeline);
+      composite.setPipeline(
+        filter ? (routed ??= createWaterRoutedPipeline(device, layout)) : pipeline,
+      );
       composite.setBindGroup(0, group);
       if (rt.gpu.reflection) composite.setBindGroup(1, rt.gpu.reflection.group);
+      if (filter) composite.setBindGroup(2, filter.maskGroup);
       composite.draw(3);
       composite.end();
       return encoded;
