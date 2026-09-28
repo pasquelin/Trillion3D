@@ -107,7 +107,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
   const closure = createGroupClosure(rt.layout.selectionRoots, packedPages);
   /** The residency sets and the page dependencies: an image that moves no page touches neither. */
-  const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages, closure }),
+  const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages }),
     parentsOf = createPageParents(rt.layout.selectionRoots);
   const pinUpdater = createWebgpuPinUpdater({
     tracking,
