@@ -4791,7 +4791,7 @@
   },
   "createGpuPageCache": {
     "summary": "Fronteira de alocação/fila do WebGPU.",
-    "description": "Bytes de página e política são fornecidos pelo host. Escritas na fila são ordenadas; dispose espera pelos envios em andamento antes de destruir."
+    "description": "Bytes de página e política são fornecidos pelo host. Escritas na fila são ordenadas; dispose espera pelos envios em andamento antes de destruir. `pin(key, 'held')` mantém uma página antes das fixadas comuns em `resize(slots)`, que não aceita mais um conjunto held. Fixá-la novamente de modo comum preserva esse nível; `unpin(key)` o remove."
   },
   "createJob": {
     "summary": "Sem timers, DOM, sistema de arquivos ou UI."

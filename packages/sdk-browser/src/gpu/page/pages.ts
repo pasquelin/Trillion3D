@@ -8,7 +8,8 @@ import { evictResident } from './commit.ts';
 import { checked, ONE_REQUEST } from '../../cluster/checked.ts';
 import type { ResidentPage, GpuPageContext } from './types.ts';
 export type { ResidentPage } from './types.ts';
-/** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host. Queue writes are ordered; dispose waits for in-flight submits before destroy. */
+/** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host. Queue writes are ordered; dispose waits for in-flight submits before destroy.
+ * `pin(key, 'held')` keeps a page ahead of ordinary pins during `resize(slots)`, which no longer accepts a held set. Ordinary repinning preserves the held tier; `unpin(key)` removes it. */
 export function createGpuPageCache(
   device: GPUDevice,
   source: PageSource,
