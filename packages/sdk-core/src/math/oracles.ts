@@ -6,6 +6,7 @@ export {
 } from '../lod/screenErrorBound.ts';
 export {
   referenceScreenError,
+  SCREEN_ERROR_VARIANTS,
   screenErrorVariant,
   setScreenErrorVariant,
   type ScreenErrorVariant,
