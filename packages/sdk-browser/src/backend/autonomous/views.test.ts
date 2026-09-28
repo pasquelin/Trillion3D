@@ -10,8 +10,21 @@ import { createAutonomousResidency } from './residency.ts';
 import { createEngineCamera, type HostCamera } from '../../camera/world.ts';
 import { dag, dagCamera } from '../../../../../bench/perf/browser/support/dagCut.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
+import type { HostRetentionDelta } from '../../streaming/types.ts';
 
 const urls = (list: readonly PageRec[]) => list.map((page) => page.url);
+const retainedUrls = (delta: HostRetentionDelta) =>
+  Array.from(delta.held.subarray(0, delta.heldCount), (rank) => delta.urls[rank]);
+const formerUrls = (
+  roots: Set<string>,
+  modified: Set<string>,
+  views: readonly { shown: readonly PageRec[]; requested: readonly PageRec[] }[],
+) =>
+  new Set([
+    ...roots,
+    ...modified,
+    ...views.flatMap((view) => [...urls(view.shown), ...urls(view.requested)]),
+  ]);
 const cutOf = (view: WebglView) => ({
   shown: urls(view.shown),
   desired: urls(view.desired),
@@ -97,11 +110,14 @@ test('the views ask for their union under the one budget, a shared page charged 
   });
   const mainKeeps = new Set([...urls(views.main.shown), ...urls(views.main.requested)]),
     sideOnly = urls(side.requested).filter((url) => !mainKeeps.has(url));
-  assert.ok(sideOnly.length > 0 && sideOnly.every((url) => residency.pageUrls().includes(url)));
+  assert.ok(
+    sideOnly.length > 0 &&
+      sideOnly.every((url) => retainedUrls(residency.retainedRanks()).includes(url)),
+  );
   views.release(side);
   residency.keptChanged();
   assert.ok(
-    sideOnly.every((url) => !residency.pageUrls().includes(url)),
+    sideOnly.every((url) => !retainedUrls(residency.retainedRanks()).includes(url)),
     'its pages leave',
   );
 });
@@ -139,5 +155,46 @@ test('one view: the switch never runs, and the pins and the queue are its own li
     ...{ views: views.all, geometryStore: {} as never },
   });
   assert.deepEqual(residency.pendingUrls(), ['c', 'd']);
-  assert.deepEqual(residency.pageUrls(), ['r', 'm', 'a', 'b', 'c', 'd']);
+  assert.deepEqual(retainedUrls(residency.retainedRanks()), ['r', 'm', 'a', 'b', 'c', 'd']);
+});
+test('WebGL rank pins match the former URL pins at every camera step', () => {
+  const pages = dag({ feuilles: 256, seed: 11, residentes: 0 });
+  const m = mount(1000 * PAGE, { pages });
+  const rootUrls = new Set(
+    pages.filter((page) => page.parentError == null).map((page) => page.url),
+  );
+  const modifiedPages = new Set<string>();
+  const residency = createAutonomousResidency({
+    bootstrapUrls: rootUrls,
+    modifiedPages,
+    views: m.views.all,
+    geometryStore: {} as never,
+  });
+  const retained = new Set<string>(),
+    cuts = new Set<string>();
+  for (const distance of [20, 12, 6, 3, 1, 5, 14, 2]) {
+    m.place(distance);
+    m.image(1);
+    residency.keptChanged();
+    const delta = residency.retainedRanks();
+    for (let i = 0; i < delta.exitedCount; i++) retained.delete(delta.urls[delta.exited[i]]);
+    for (let i = 0; i < delta.enteredCount; i++) retained.add(delta.urls[delta.entered[i]]);
+    cuts.add([...retained].sort().join(','));
+    assert.deepEqual(
+      retained,
+      formerUrls(rootUrls, modifiedPages, m.views.all),
+      `camera distance ${distance}`,
+    );
+    const held = residency.retainedRanks();
+    assert.equal(held.enteredCount + held.exitedCount, 0, 'unchanged frame has no delta');
+  }
+  assert.ok(cuts.size > 1, 'camera path changes the retained cut');
+  modifiedPages.add('mounted-later.bin');
+  residency.keptChanged();
+  const mounted = residency.retainedRanks();
+  assert.equal(mounted.urls[mounted.entered[mounted.enteredCount - 1]], 'mounted-later.bin');
+  assert.deepEqual(
+    new Set([...retained, 'mounted-later.bin']),
+    formerUrls(rootUrls, modifiedPages, m.views.all),
+  );
 });
