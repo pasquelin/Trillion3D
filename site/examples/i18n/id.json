@@ -58,7 +58,8 @@
       "missingCache": "Cache yang dikompilasi tidak ada: jalankan pnpm compile:caches"
     },
     "banner": {
-      "close": "Tutup"
+      "close": "Tutup",
+      "waiting": "Menunggu engine (#{issue})"
     }
   },
   "a-city-from-rules": {
