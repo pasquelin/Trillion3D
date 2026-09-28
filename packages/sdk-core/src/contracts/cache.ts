@@ -5,6 +5,7 @@ import {
   type AssetScope,
 } from './base.ts';
 import { UNSPLIT_PASS, primitiveIsDrawable, type ClusterManifest } from './geometry.ts';
+import { TEXTURE_PREVIEW_VERSION } from '../texture/previewFormat.ts';
 
 /**
  * The error the engine throws: a stable `code` a page can test, words for a person, and details.
@@ -163,5 +164,14 @@ export function assertCacheIdentity(metadata: ClusterManifest) {
       'STALE_CACHE',
       `Cache error model ${metadata.errorModel ?? 'absent'} cannot be used; recompile with ${DAG_ERROR_MODEL}`,
       { errorModel: metadata.errorModel ?? null, expected: DAG_ERROR_MODEL },
+    );
+  // Texture levels of another version — before 6, block files not laid out in tile records
+  // (#962) — would be cut at the wrong bytes: the cache is refused whole, never drawn coarse.
+  const levels = metadata.textures && (metadata.textures.version ?? null);
+  if (levels !== undefined && levels !== TEXTURE_PREVIEW_VERSION)
+    throw new EngineError(
+      'STALE_CACHE',
+      `Cache texture levels are version ${levels ?? 'absent'}, this runtime reads ${TEXTURE_PREVIEW_VERSION}; recompile the cache (trillion3d-compile, or pnpm run compile:caches in the repository)`,
+      { textureVersion: levels, expected: TEXTURE_PREVIEW_VERSION },
     );
 }
