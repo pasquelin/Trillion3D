@@ -56,6 +56,20 @@ test('WebGL2: a drawing buffer with DEPTH_COMPONENT24 alone takes the second pro
   assert.deepEqual([heard, pools[0].refused], [[], false]);
 });
 
+test('WebGL2: the page and a render target each keep the format found, probed once each', () => {
+  const { ctx, run, particles, heard } = webgl(),
+    pools = scene(),
+    target = { ...output, framebuffer: {} as WebGLFramebuffer };
+  run(pools);
+  for (let frame = 0; frame < 3; frame++)
+    for (const to of [output, target])
+      assert.equal(particles.draw(pools, createHostDrawCamera(), to), 3, 'drawn soft on both');
+  const made = ['DEPTH24_STENCIL8', 'DEPTH_COMPONENT24'];
+  assert.deepEqual(depths(ctx.of), made, 'the target probed once, each copy made once');
+  assert.equal(ctx.of('blitFramebuffer').length, 6 + 1, 'one blit a draw, one refused probe');
+  assert.deepEqual(heard, []);
+});
+
 test('WebGL2: a depth neither format copies refuses the pools by name, never drawn hard', () => {
   const { ctx, run, particles, heard } = webgl(undefined, 'DEPTH_COMPONENT16'),
     [smoke] = scene();
