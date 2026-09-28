@@ -3,9 +3,7 @@
 // the cut churns every frame, and each churn would restale every page it covers.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSceneLightStore } from '../light/store.ts';
-import { createShadowPlan } from './plan.ts';
-import { SUN, cycle, nudged, planFrame, sunPages } from './lightShadow.fixture.ts';
+import { nudged, planFrame, settledSun } from './lightShadow.fixture.ts';
 import { STALE_DYNAMIC, STALE_FULL } from './pool.ts';
 
 const BOX_MIN = [-1e3, 0, -1e3],
@@ -13,14 +11,7 @@ const BOX_MIN = [-1e3, 0, -1e3],
 
 /** A sun whose pages around the eye are all mapped and drawn. */
 function settled() {
-  const store = createSceneLightStore();
-  const plan = createShadowPlan(32);
-  store.add(SUN);
-  planFrame(plan, store, 0);
-  const slice = store.sliceOf(0);
-  const read = () => sunPages(plan, slice, plan.sun.finest[slice] + 6, [[0, 0]]);
-  let frame = 1;
-  for (; frame < 4; frame++) cycle(plan, store, frame, read);
+  const { store, plan, frame, read } = settledSun();
   assert.equal(plan.counts.pendingPages, 0);
   return { store, plan, frame, page: plan.table.words[read()[0]] & 0xffff };
 }

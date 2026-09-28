@@ -51,36 +51,30 @@ fn sunOrigin(index:u32,slot:i32)->vec2i{
  let pair=shadows.records[index].origins[slot/2];
  return select(pair.xy,pair.zw,(slot&1)!=0);
 }
-/** Near side and inverse span of the depth range the page of \`word\` was drawn in, of sun record
- *  \`index\`: the slot its word names, a pair of floats of the lamp matrices (eight a matrix). */
-fn sunDepthRange(index:u32,word:u32)->vec2f{
- let slot=(word>>PAGE_RANGE_SHIFT)&PAGE_RANGE_MASK;
- let pair=shadows.records[index].faces[slot/8u][(slot/2u)%4u];
- return select(pair.xy,pair.zw,(slot&1u)!=0u);
-}
 /**
- * The reference compared in the page of \`word\`: a lamp's \`reference\`; a sun's in the depth
- * range that page was drawn in (\`sunDepth.ts\`), so pages of two ranges compare one receiver alike.
- * A receiver past a range's far side lies behind every caster drawn in it: it stays above the far
- * clear, and an empty texel lights it.
+ * The reference of a receiver \`z\` along sun \`index\`, its margin taken, in a page drawn in the
+ * older depth range of slot \`drawn\` (\`sunDepth.ts\`): a pair of floats of the lamp matrices,
+ * eight a matrix. A receiver past that range's far side lies behind every caster drawn in it: it
+ * stays above the far clear, and an empty texel lights it.
  */
-fn shadowReference(m:ShadowMap,word:u32,reference:f32)->f32{
- if(m.ring==0u){return reference;}
- let range=sunDepthRange(m.record,word);
- return max(1.0-(m.depth-range.x-m.margin)*range.y+SHADOW_DEPTH_ROUNDING,SHADOW_PAST_FAR);
+fn sunRangeReference(index:u32,drawn:u32,z:f32)->f32{
+ let pair=shadows.records[index].faces[drawn/8u][(drawn/2u)%4u];
+ let range=select(pair.xy,pair.zw,(drawn&1u)!=0u);
+ return max(1.0-(z-range.x)*(1.0/max(range.y-range.x,1e-6))+SHADOW_DEPTH_ROUNDING,SHADOW_PAST_FAR);
 }
-/** The neighbour page \`p\` when readable, at its own reference unless its depth range is the home
- *  page's (\`homeWord\`); else the home page, at \`reference\`. */
-fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f,reference:f32,homeWord:u32)->ShadowSide{
+/** Offset of the neighbour page \`p\` and 1 when it is readable in the depth range of the home
+ *  page (\`homeWord\`, \`sunDepth.ts\`); else the home page's and 0: one reference for every tap. */
+fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f,homeWord:u32)->vec4f{
  let word=shadowPageWord(m,p);
- if(word==0u){return ShadowSide(home,reference,false);}
- if(((word^homeWord)>>PAGE_RANGE_SHIFT)==0u){return ShadowSide(shadowOffset(word,p),reference,true);}
- return ShadowSide(shadowOffset(word,p),shadowReference(m,word,reference),true);
+ if(word==0u||((word^homeWord)>>PAGE_RANGE_SHIFT)!=0u){return vec4f(home,0.0);}
+ return vec4f(shadowOffset(word,p),1.0);
 }
 fn sunShadowFactor(index:u32,P:vec3f,N:vec3f,taps:bool)->f32{
  // Field by field: a record is six matrices wide, and the sun reads its depth ranges there alone.
+ // The fourth floats of its frame: the current range, \`zNear, zFar\`, then its slot.
  let f0=shadows.records[index].frame[0];let f1=shadows.records[index].frame[1];
  let right=f0.xyz;let up=f1.xyz;let axis=shadows.records[index].frame[2].xyz;
+ let zNear=f0.w;let invDepth=1.0/max(f1.w-zNear,1e-6);
  let info=shadows.records[index].info;
  let finest=i32(info.y);let last=finest+i32(info.x);
  let cosine=clamp(dot(N,-axis),1e-3,1.0);
@@ -95,12 +89,17 @@ fn sunShadowFactor(index:u32,P:vec3f,N:vec3f,taps:bool)->f32{
   let Q=P+N*(texel*offset);
   // Relative to the window's first page, whose world offset is exact in single precision.
   let t=vec2f(dot(Q,right)-f32(origin.x)*page,-dot(Q,up)-f32(origin.y)*page)/texel;
-  var map=ShadowMap(u32(info.w)+u32(slot)*SUN_LEVEL_WORDS,1u,SUN_WINDOW_PAGES,origin.x,origin.y,index,0.0,0.0);
+  let map=ShadowMap(u32(info.w)+u32(slot)*SUN_LEVEL_WORDS,1u,SUN_WINDOW_PAGES,origin.x,origin.y);
   let home=vec2i(floor(t/SHADOW_PAGE));
   let word=shadowPageWord(map,home);
   if(word==0u){continue;}
-  map.depth=dot(Q,axis);map.margin=shadowDepthMargin(texel,slope,1.0);
-  return shadowPcf(map,t,shadowReference(map,word,0.0),home,word,0.0,taps);
+  let reference=1.0-(dot(Q,axis)-zNear-shadowDepthMargin(texel,slope,1.0))*invDepth+SHADOW_DEPTH_ROUNDING;
+  // A page drawn in the current range reads at \`reference\` alone, as one range always did: a
+  // reference chosen per page would let the compiler round its comparisons otherwise.
+  let drawn=(word>>PAGE_RANGE_SHIFT)&PAGE_RANGE_MASK;
+  if(drawn==u32(shadows.records[index].frame[2].w)){return shadowPcf(map,t,reference,home,word,0.0,taps);}
+  let past=sunRangeReference(index,drawn,dot(Q,axis)-shadowDepthMargin(texel,slope,1.0));
+  return shadowPcf(map,t,past,home,word,0.0,taps);
  }
  return sunFarShadowFactor(P,N,-axis);
 }
@@ -134,7 +133,7 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,taps:boo
   // where the taps clamp to the face's edge. A spot's point off its face is outside its cone.
   if((!isPoint&&(abs(ndc.x)>1.0||abs(ndc.y)>1.0))||ndc.z<0.0||ndc.z>1.0){return 1.0;}
   let t=vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5)*side;
-  let map=ShadowMap(u32(info.w)+face*LAMP_FACE_WORDS+LAMP_MIP_OFFSET[mip],0u,i32(pages),0,0,index,0.0,0.0);
+  let map=ShadowMap(u32(info.w)+face*LAMP_FACE_WORDS+LAMP_MIP_OFFSET[mip],0u,i32(pages),0,0);
   let home=clamp(vec2i(floor(t/SHADOW_PAGE)),vec2i(0),vec2i(i32(pages)-1));
   let word=shadowPageWord(map,home);
   if(word==0u){continue;}
