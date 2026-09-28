@@ -18,7 +18,7 @@ export const POINT_FACE_AXES: ReadonlyArray<readonly [number, number, number]> =
 
 /**
  * Floats of a shadow record, the one a light's shading reads: six lamp-face matrices — a sun's
- * depth ranges there, `zNear` and inverse span each (`sunDepth.ts`) —, then the sun's light-plane
+ * depth ranges there, `zNear` and inverse span each (`recordPack.ts`) —, then the sun's light-plane
  * frame — `right`, `up`, `axis`, each padded to four —, then the extent origin of each clipmap
  * slot as two integers, then a header `vec4f`: faces (a lamp) or levels (a sun), the lamp's
  * tangent half-field or the sun's finest level, the lamp's near plane, and the record's first

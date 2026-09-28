@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { createSunDepthRanges } from './sunDepth.ts';
 import {
   PAGE_INDEX_MASK,
+  PAGE_MAPPED,
   PAGE_RANGE_MASK,
   PAGE_RANGE_SHIFT,
   PAGE_VALID,
@@ -123,5 +124,7 @@ test('a turn of the sun frees every slot, and a slot lies past the page index in
   ranges.forget(0);
   ranges.take(0, -32, 0, 2);
   assert.equal(ranges.recycled[0], -1, 'a new frame holds no page in an old range');
-  assert.ok(PAGE_INDEX_MASK < 1 << PAGE_RANGE_SHIFT, 'the slot lies past the page index');
+  const slotBits = PAGE_RANGE_MASK * 2 ** PAGE_RANGE_SHIFT;
+  assert.equal(slotBits & (PAGE_INDEX_MASK | PAGE_MAPPED | PAGE_VALID), 0, 'the slot lies past');
+  assert.ok(slotBits < 2 ** 32 && PAGE_RANGE_MASK >= SUN_DEPTH_RANGES - 1, 'every slot fits');
 });
