@@ -6,7 +6,7 @@ import {
   updateCameraFrame,
   type CameraFrame,
 } from '../../../sdk-core/src/index.ts';
-import { orthographicView } from '../../../sdk-core/src/math/primitives/camera.ts';
+import { drawnBox, orthographicView } from '../../../sdk-core/src/math/primitives/camera.ts';
 import {
   createRenderOriginFrame,
   holdRenderOriginFrame,
@@ -54,8 +54,13 @@ export type OrthographicBox = {
   /** Right edge. */ right: number;
   /** Top edge. */ top: number;
   /** Bottom edge. */ bottom: number;
+  /** As wide as the picture's shape makes it, as high about the same centre (`drawnBox`): the
+   *  box is fitted where a projection is composed, at the shape it is drawn at — a capture's
+   *  included, never the canvas's alone. */
+  fitAspect?: boolean;
 };
-const seen = new Float64Array(4);
+const seen = new Float64Array(4),
+  fitted = { left: 0, right: 0, top: 0, bottom: 0 };
 /** The optics a camera declares: what the projection is composed from. An `orthographic` box
  *  makes the projection orthographic; `fov` then still sizes what reads a field of view. */
 export type CameraOptics = {
@@ -105,7 +110,7 @@ export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): Eng
   into.far = optics.far;
   into.fov = optics.fov;
   into.aspect = optics.aspect;
-  const box = optics.orthographic;
+  const box = optics.orthographic && drawnBox(optics.orthographic, optics.aspect, fitted);
   if (box) {
     const [x, y, w, h] = orthographicView(box, optics.zoom || 1, seen);
     orthographicProjection(into.projection, x - w, x + w, y - h, y + h, optics.near, optics.far);

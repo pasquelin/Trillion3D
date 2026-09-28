@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
+import { drawnBox } from '../../../../sdk-core/src/math/primitives/camera.ts';
 import { hostFramingCamera } from '../../host/scene/graphObjects.ts';
 import { followPageCamera } from './worldCamera.ts';
 import { canvasRay } from './worldRaycast.ts';
@@ -9,7 +10,8 @@ const box = { left: -1, right: 3, top: 3, bottom: -1 };
 const drawn = (camera: Camera, width: number, height: number) => {
   const session = hostFramingCamera(50, 1, 0.1, 100);
   followPageCamera(() => camera, { width, height } as HTMLCanvasElement)(session);
-  return session.orthographic;
+  // The box is handed on as declared and fitted where a projection is composed (#1097).
+  return drawnBox(session.orthographic!, session.aspect);
 };
 
 test('an orthographic camera fitted to the aspect keeps its height and centre at any canvas shape', () => {

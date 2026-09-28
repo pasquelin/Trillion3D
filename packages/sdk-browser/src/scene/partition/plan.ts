@@ -28,6 +28,7 @@ import {
 } from '../../../../sdk-core/src/index.ts';
 import { boxPointDistance } from '../../../../sdk-core/src/math/primitives/box.ts';
 import {
+  drawnBox,
   orthographicView,
   perspectiveSlope,
 } from '../../../../sdk-core/src/math/primitives/camera.ts';
@@ -41,7 +42,8 @@ import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 export type BoxedCell = { bounds: ArrayLike<number>; meshes: TableCell['meshes'] };
 
 const inverse = new Float64Array(MATRIX_VALUES),
-  view = new Float64Array(4);
+  view = new Float64Array(4),
+  fitted = { left: 0, right: 0, top: 0, bottom: 0 };
 
 /** How far past the reach, as a fraction of it, a cell is read ahead at the prefetch priority. */
 export const AHEAD = 0.25;
@@ -60,7 +62,8 @@ export function cellReach(optics: PartitionOptics) {
   const { far, orthographic } = optics,
     zoom = optics.zoom || 1; // a zoom of 0 draws nothing: read as 1, never as an empty reach
   if (orthographic) {
-    const [x, y, width, height] = orthographicView(orthographic, zoom, view);
+    const box = drawnBox(orthographic, optics.aspect, fitted);
+    const [x, y, width, height] = orthographicView(box, zoom, view);
     // Its depth range may reach behind the eye: a negative `near` draws there. A box given right
     // to left, or top to bottom, is as wide.
     const depth = Math.max(Math.abs(far), Math.abs(optics.near));
