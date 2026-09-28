@@ -27,7 +27,7 @@ export function seated(count: number) {
     scene.add(crate);
     return crate;
   });
-  const bodies = { meshes, generation: new Uint8Array(count), retire() {} };
+  const bodies = { meshes, slots: { nested: [] }, generation: new Uint8Array(count), retire() {} };
   return { scene, batch, placed, meshes, bodies };
 }
 
