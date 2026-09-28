@@ -63,6 +63,10 @@ pub(super) fn concat_gltf_buffers(
             verify_sidecar(declared, uri, &digest)?;
             sidecars.push((uri.to_string(), digest));
             out.extend_from_slice(&bytes);
+        } else if compressed::placeholder(g, i) && (i != 0 || embedded.is_none()) {
+            // EXT_meshopt_compression permits an absent uncompressed fallback.
+            offsets[i] = usize::MAX;
+            continue;
         } else if i == 0 {
             let bin = embedded.ok_or_else(|| invalid("glTF buffer uri is required"))?;
             if required_index(buffer.get("byteLength"), "buffer.byteLength")? > bin.len() {
