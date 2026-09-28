@@ -32,6 +32,7 @@ import {
   UNLIT_COMPOSITIONS,
   UNLIT_LIGHTING_SHADER,
 } from '../../lighting/deferred/shaders.ts';
+import { withSubgroupShadowRequests } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
 import { TAA_SHADER, taaShader } from '../../taa/shaderWgsl.ts';
 import { MIP_SHADER } from '../../texture/mips.ts';
@@ -74,6 +75,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   UNLIT_LIGHTING_SHADER,
   DIRECT_LIGHTING_SHADER,
   BOUNCE_LIGHTING_SHADER,
+  DIRECT_SUBGROUP_LIGHTING: withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER),
+  BOUNCE_SUBGROUP_LIGHTING: withSubgroupShadowRequests(BOUNCE_LIGHTING_SHADER),
   ...compositions('COMPOSE', CONTRACT_COMPOSITIONS.plain),
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),
   ...compositions('COMPOSE_BLOOM', CONTRACT_COMPOSITIONS.bloom),
