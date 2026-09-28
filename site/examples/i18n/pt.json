@@ -2259,6 +2259,21 @@
       "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
     }
   },
+  "an-elevation-of-the-house": {
+    "banner": "Escolha uma elevação da casa. Afaste a câmera: o desenho ortográfico mantém exatamente a mesma escala.",
+    "controls": {
+      "elevation": "Elevação",
+      "distance": "Distância da câmera",
+      "zoom": "Escala do desenho"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Frente",
+        "right": "Lado direito",
+        "rear": "Fundos"
+      }
+    }
+  },
   "hover-to-highlight": {
     "banner": "Passe o cursor sobre as peças do carrinho para realçar cada uma, ou desative o realce no painel.",
     "controls": {
