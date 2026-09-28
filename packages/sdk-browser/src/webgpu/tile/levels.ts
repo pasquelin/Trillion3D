@@ -11,7 +11,7 @@ import { tileRecord, tiledLevelBytes } from '../../texture/tileRecords.ts';
 import { PREVIEW_LOSSLESS_FORMAT } from '../../../../sdk-core/src/index.ts';
 
 /**
- * Decoded cooked levels, held long enough to cut tiles from them.
+ * Cooked levels and block tile records, held long enough to cut tiles from them.
  *
  * A lossless tile is read in its whole level, decoded by the browser: a PNG is not cut by bytes. A
  * block tile is read alone, its record by one HTTP Range (STR-12, #962, `texture/tileRecords.ts`);
@@ -29,19 +29,17 @@ import { PREVIEW_LOSSLESS_FORMAT } from '../../../../sdk-core/src/index.ts';
  * the read resolves — reported once, never held, never read again: the file is what it is.
  */
 export type LevelKey = TextureLevelRequest;
-
-/** A tile of a level: the level's dimensions, and the tile's column and row. */
-type LevelTile = readonly [width: number, height: number, tx: number, ty: number];
+type Size = readonly [width: number, height: number];
 
 export type WebgpuTileLevels = {
   /** What the tile is cut from if it is there, marking it read — a lossless level, or a block
    *  tile's record —; otherwise `undefined`, launching nothing. */
-  get(key: LevelKey, tile: LevelTile): TextureLevel | undefined;
+  get(key: LevelKey, size: Size, tx: number, ty: number): TextureLevel | undefined;
   /** Starts the read if it is neither there, nor in flight, nor refused, and fits (the store's
    *  `room`, less the reads in flight); its bytes are reckoned and checked from the level's
-   *  dimensions. False when it cannot fit at all: nothing will come until room comes back, and
+   *  dimensions, `size`. False when it cannot fit at all: nothing will come until room comes back, and
    *  its tile stays at its coarser level. */
-  request(key: LevelKey, frame: number, tile: LevelTile): boolean;
+  request(key: LevelKey, frame: number, size: Size, tx: number, ty: number): boolean;
   readonly inFlight: number;
   readonly fetched: number;
   readonly bytes: number;
@@ -73,26 +71,22 @@ export function createWebgpuTileLevels(options: {
     fetched = 0,
     /** False once a server answered a Range with the whole file: whole files are asked since. */
     ranged = true;
-  /** A block tile's record and its key in the store; none for a lossless level. */
-  const recordOf = (level: LevelKey, [width, height, tx, ty]: LevelTile) =>
-    level.format === PREVIEW_LOSSLESS_FORMAT
-      ? undefined
-      : { id: `${keyOf(level)}/${tx},${ty}`, ...tileRecord(width, height, tx, ty) };
   return {
-    get(level, tile) {
-      const record = recordOf(level, tile),
-        whole = store.get(keyOf(level));
-      if (!record) return whole;
-      if (!whole) return store.get(record.id);
-      return (whole as Uint8Array).subarray(record.offset, record.offset + record.bytes);
-    },
-    request(level, frame, tile) {
+    get(level, size, tx, ty) {
       const whole = keyOf(level),
-        record = ranged ? recordOf(level, tile) : undefined,
-        id = record?.id ?? whole;
+        held = store.get(whole);
+      if (level.format === PREVIEW_LOSSLESS_FORMAT) return held;
+      if (!held) return store.get(`${whole}/${tx},${ty}`);
+      const { offset, bytes } = tileRecord(size[0], size[1], tx, ty);
+      return (held as Uint8Array).subarray(offset, offset + bytes);
+    },
+    request(level, frame, size, tx, ty) {
+      const whole = keyOf(level),
+        ranges = ranged && level.format !== PREVIEW_LOSSLESS_FORMAT,
+        id = ranges ? `${whole}/${tx},${ty}` : whole;
       if (store.has(id) || store.has(whole) || pending.has(id) || refused.has(whole)) return true;
       if (frame !== roomFrame) [roomFrame, room] = [frame, store.room()];
-      const size = [tile[0], tile[1]] as const;
+      const record = ranges ? tileRecord(size[0], size[1], tx, ty) : undefined;
       const bytes = record?.bytes ?? requestedLevelBytes(level, size);
       if (bytes > room) return false;
       // The reads in flight hold their room: one that fits only once they have landed waits for
@@ -103,7 +97,7 @@ export function createWebgpuTileLevels(options: {
         .then((texels) => {
           let held = id;
           if (texels instanceof Uint8Array && texels.byteLength !== record?.bytes) {
-            if (texels.byteLength !== tiledLevelBytes(...size))
+            if (texels.byteLength !== tiledLevelBytes(size[0], size[1]))
               throw new LevelBytesError(size, texels.byteLength);
             [held, ranged] = [whole, false];
           }

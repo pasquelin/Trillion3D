@@ -183,7 +183,8 @@ export function createWebgpuTileStreamer(options: {
     get reading() {
       return sources.reading;
     },
-    /** Held when in-flight image feedback has come back and level reads have completed. */
+    /** Held when in-flight image feedback has come back, level reads have completed and the
+     *  working textures asked are built. */
     settled: () => Promise.all([feedback.settled(), sources.settled()]).then(() => undefined),
     destroy() {
       sources.destroy();

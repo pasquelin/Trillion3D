@@ -86,7 +86,7 @@ fn record_spans(texels: u32) -> impl Iterator<Item = (usize, usize)> {
 /// them (`packages/sdk-browser/src/texture/tileRecords.ts`).
 pub fn tile_records(blocks: &[u8], width: u32, height: u32) -> Vec<u8> {
     let bytes = super::blocks::BLOCK_BYTES;
-    let row = width.div_ceil(super::blocks::BLOCK_SIDE) as usize * bytes;
+    let row = super::blocks::blocks_of(width, height).0 as usize * bytes;
     let mut out = Vec::with_capacity(blocks.len() * 9 / 8);
     for (y0, y1) in record_spans(height) {
         for (x0, x1) in record_spans(width) {
