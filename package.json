@@ -36,6 +36,7 @@
     "packages/README.md"
   ],
   "scripts": {
+    "audit:assets": "node scripts/audit-asset-licenses.ts",
     "skills:link": "node scripts/skills-link.ts",
     "pnpm:devPreinstall": "node scripts/setup-development.ts",
     "prepare": "node scripts/generate-api-reference.ts",
