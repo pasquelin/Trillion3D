@@ -38,7 +38,8 @@ impl Grown {
         reduction: &mut GroupReduction,
         base: u32,
     ) {
-        let Some(placed) = reduction.placed.take() else {
+        // A solve whose every survivor snapped back placed nothing: the source's arrays serve.
+        let Some(placed) = reduction.placed.take().filter(|p| !p.origins.is_empty()) else {
             return;
         };
         let offset = grown
