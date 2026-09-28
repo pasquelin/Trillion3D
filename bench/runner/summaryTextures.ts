@@ -59,6 +59,6 @@ function liveTexturePool(reglage: Row['reglageVivant'] | undefined) {
   return [
     `- Texture pool set live: ${mo(pool.budgetBytes)} asked${asked}, ${mo(pool.allocatedBytes)} ` +
       `held${pool.clamp ? ` (${pool.clamp})` : ''}; ${reglage.evictedTiles} tiles evicted in ` +
-      `${reglage.durationMs.toFixed(2)} ms, pose held again after ${n(reglage.imagesReprise)} frames`,
+      `${n2(reglage.durationMs)} ms, pose held again after ${n(reglage.imagesReprise)} frames`,
   ];
 }
