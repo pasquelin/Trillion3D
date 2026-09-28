@@ -2,14 +2,13 @@ import { isInstancedNode } from '../../host/graph/kinds.ts';
 import { drawWorld, isClusterDrawMesh, type ClusterDraw } from '../../cluster/batchMesh.ts';
 import { visMaterial } from '../../visibility/shader/material.ts';
 import { readHostBox } from '../../host/boxBounds.ts';
-import { placementsSphere } from './meshDepth.ts';
+import { placementsBox } from './copyCulling.ts';
 import { INT_TEXELS, LIGHT_LIST_UNIT, WebglLightTexture } from './lightTexture.ts';
 import {
   BOX_VALUES,
   boxPointDistance,
   boxTransform,
 } from '../../../../sdk-core/src/math/primitives/box.ts';
-import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/sphere.ts';
 import { grown } from '../../../../sdk-core/src/math/transform-tree/transformTree.ts';
 import { spanBox } from '../../../../sdk-core/src/world/geometry/bounds.ts';
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
@@ -19,37 +18,28 @@ import type { HostAttributes } from '../../host/resources.ts';
 export const REACH_FLOATS = 4;
 const NO_MORPH = {};
 const scratch = new Box3();
-/** A position list's local box and bounding sphere, kept while the list is the same version. */
-type Bounds = { version: number; box: Float64Array; sphere: { center: Centre; radius: number } };
-type Centre = { x: number; y: number; z: number };
-const kept = new WeakMap<object, Bounds>();
+/** A position list's local box, kept while the list is the same version. */
+const kept = new WeakMap<object, { version: number; box: Float64Array }>();
 
-/** The local box of a geometry's positions, measured once per version of the list. */
-function localBounds(attributes: HostAttributes) {
+/** The local box of a geometry's positions, measured once per version of the list: a batch
+ *  record's geometry carries no box of its own. */
+function localBox(attributes: HostAttributes) {
   const position = attributes.position,
     version = (position as { version?: number }).version ?? 0;
   const held = kept.get(position);
-  if (held && held.version === version) return held;
-  const box = new Float64Array(BOX_VALUES),
-    ball = new Float64Array(4);
+  if (held && held.version === version) return held.box;
+  const box = new Float64Array(BOX_VALUES);
   const morphed = { attributes, morphAttributes: NO_MORPH, morphTargetsRelative: false };
   readHostBox(box, spanBox(scratch, morphed));
-  sphereFromBounds(ball, 0, box[0], box[1], box[2], box[3], box[4], box[5]);
-  const sphere = { center: { x: ball[0], y: ball[1], z: ball[2] }, radius: ball[3] };
-  const bounds = { version, box, sphere };
-  kept.set(position, bounds);
-  return bounds;
+  kept.set(position, { version, box });
+  return box;
 }
 
 /** A draw's world box into `out`: its positions carried by its placement, or for an instanced
- *  mesh the box around the union of its placements' spheres, as its frustum test takes it. */
+ *  mesh the box its frustum test takes (`placementsBox`). */
 function drawWorldBox(out: Float64Array, draw: ClusterDraw) {
-  const bounds = localBounds(draw.geometry.attributes);
-  if (isClusterDrawMesh(draw) || !isInstancedNode(draw)) out.set(bounds.box);
-  else {
-    const { centre: c, radius: r } = placementsSphere(draw, bounds.sphere);
-    out.set([c.x - r, c.y - r, c.z - r, c.x + r, c.y + r, c.z + r]);
-  }
+  if (!isClusterDrawMesh(draw) && isInstancedNode(draw)) placementsBox(out, draw);
+  else out.set(localBox(draw.geometry.attributes));
   boxTransform(out, 0, out, 0, drawWorld(draw));
   return out;
 }
