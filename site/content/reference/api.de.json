@@ -7416,13 +7416,6 @@
       "handbrake": "Ob die Handbremse gezogen ist."
     }
   },
-  "GraphNode": {
-    "members": {
-      "serial": "Die Nummer des Knotens, eindeutig in der Sitzung.",
-      "kind": "Was der Knoten ist: worauf jeder Leser des Graphen eingrenzt."
-    },
-    "summary": "Ein Knoten des Graphen: der Knoten des Kerns, unterschieden durch sein `kind`, kopiert durch das `clone` des Kerns."
-  },
   "GraphSurface": {
     "members": {
       "version": "Vom Host bei jeder Änderung erhöht: das, was eine zwischengespeicherte Zeile vergleicht, um ihre Felder neu zu erstellen.",
@@ -7485,9 +7478,6 @@
       "rotation": "Die Rotation, in Radiant."
     },
     "summary": "Ein Bild, der Sampler-Zustand, mit dem es gelesen wird, und die Transformation seiner Koordinaten."
-  },
-  "GraphNodeKind": {
-    "summary": "Was ein Licht des Graphen ist: eines der Lichter, die eine Szene deklariert."
   },
   "Joint": {
     "summary": "Ein Gelenk zwischen zwei Körpern oder einem Körper und der Welt (`b` null), erzeugt mit `joint.*` und der Simulation mit `world.physics.add` hinzugefügt.",
