@@ -47,7 +47,7 @@ test('a page left undrawn is drawn within a bounded number of frames, whatever i
     );
     const drawn = admission.list[0];
     lastDrawn[drawn] = frame;
-    pool.drew(table, drawn, DRAW_ALL);
+    pool.drew(table, drawn, DRAW_ALL, 0);
     // Re-marked at once, in a view just past the page the frame stopped at.
     pool.stale(drawn, 0, frame);
     pool.view[drawn] = pool.view[admission.list[1]] + 1;
