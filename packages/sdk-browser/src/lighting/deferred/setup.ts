@@ -84,21 +84,9 @@ export function deferredLayoutEntries(
   return entries;
 }
 
-export function createDeferredLayouts(device: GPUDevice, direct: boolean, bounce = false) {
-  const fragment = GPUShaderStage.FRAGMENT;
-  const composition = (share: GPUTextureSampleType) =>
-    device.createBindGroupLayout({
-      entries: [
-        { binding: 0, visibility: fragment, texture: { sampleType: 'unfilterable-float' } },
-        { binding: 1, visibility: fragment, buffer: { type: 'uniform' } },
-        { binding: 2, visibility: fragment, texture: { sampleType: share } },
-      ],
-    });
-  return {
-    lighting: device.createBindGroupLayout({ entries: deferredLayoutEntries(direct, bounce) }),
-    composition: { still: composition('uint'), accumulated: composition('unfilterable-float') },
-  };
-}
+/** The resolve's layout; each composition's is its own (`compositions.ts`). */
+export const createDeferredLightingLayout = (device: GPUDevice, direct: boolean, bounce = false) =>
+  device.createBindGroupLayout({ entries: deferredLayoutEntries(direct, bounce) });
 
 /**
  * Contract substitute resources: an empty tile list, shadow records with no light and an empty
