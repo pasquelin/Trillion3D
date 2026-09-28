@@ -104,11 +104,27 @@ export function buildWorldMirror(input: MirrorInput) {
     root.add(mesh);
     return { node: mesh, association };
   };
-  /** Takes down a placed host mesh, and its geometry with `cut`, the last one reading it. */
+  /** Takes down a placed host mesh, its geometry with `cut`, the last one reading it, and its
+   *  surface with the last mesh wearing it: out of the cache a repaint writes, given back with
+   *  the textures no other surface reads (#837). */
   const unplace = (mesh: Mesh<GraphSurface>, cut?: Cut) => {
     associations.delete(mesh);
     root.remove(mesh);
     if (cut && geometries.delete(cut)) mesh.geometry.dispose();
+    const surface = mesh.material as GraphSurface;
+    if (root.children.some((node) => (node as Mesh<GraphSurface>).material === surface)) return;
+    const read = new Set<unknown>();
+    for (const [material, worn] of surfaces) {
+      if (worn.includes(surface)) delete worn[worn.indexOf(surface)];
+      if (!worn.some(Boolean)) surfaces.delete(material);
+      for (const kept of worn) if (kept) for (const field of HOST_MAPS) read.add(kept[field]);
+    }
+    surface.dispose();
+    for (const [key, texture] of textures)
+      if (!read.has(texture)) {
+        textures.delete(key);
+        texture.dispose();
+      }
   };
   const placed = input.placed.map(place);
   for (const { node, graph } of input.models) {
