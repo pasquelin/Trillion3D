@@ -64,6 +64,9 @@ openusd = "0.7.0"
 # dequantization are written there once; the compiler encodes with them, measures its error with
 # them, and proves that what it encodes decodes identically.
 trillion3d-page-codec = { path = "../page-codec-wasm" }
+# Draco glTF mesh decoding only (Apache-2.0, Filyus/draco-rust). Pinned for cache
+# identity and decoded geometry reproducibility; no encoder or point-cloud codec.
+draco-core = { version = "=2.1.0", default-features = false, features = ["decoder", "edgebreaker_valence_decode"] }
 
 [build-dependencies]
 sha2 = "0.10"
