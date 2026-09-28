@@ -78,7 +78,14 @@ test('a lost device reopens the session, and every frame between shows the last 
     return session;
   }) as unknown as Open;
   const scene = new Scene(() => Promise.reject(new Error('no loader')));
-  const runtime = runtimeOf(scene, Promise.resolve(), assert.fail, open, undefined, canvas);
+  const runtime = runtimeOf(
+    scene,
+    Promise.resolve(),
+    (error) => assert.fail(String(error)),
+    open,
+    undefined,
+    canvas,
+  );
   scene.add(object.mesh(geometry.box()));
   await runtime.settled();
   runtime.render();
@@ -133,7 +140,7 @@ test('awaitPages settles after scene adds, and across a reopen, never rejected b
   let opened = 0;
   const open = (async () => sessions[opened++].session) as unknown as Open;
   const scene = new Scene(() => Promise.reject(new Error('no loader')));
-  const runtime = runtimeOf(scene, Promise.resolve(), assert.fail, open);
+  const runtime = runtimeOf(scene, Promise.resolve(), (error) => assert.fail(String(error)), open);
   const view = () => runtime.explorer as MeasuredWorld | null;
   scene.add(object.mesh(geometry.box()), object.mesh(geometry.box(2, 1, 1)));
   await awaitViewPages(runtime, view);
