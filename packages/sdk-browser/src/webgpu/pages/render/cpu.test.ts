@@ -103,10 +103,12 @@ function banc(options: { ready: boolean; resident: boolean }) {
         run.desired.length = 0;
         for (const page of wanted) run.desired.push(page);
       },
-      queueCutResidency: () => {
-        journal.push('file');
-        // The image stops here: everything that follows needs a device.
-        throw new Error('BANC_ARRET');
+      residency: {
+        queueCutResidency: () => {
+          journal.push('file');
+          // The image stops here: everything that follows needs a device.
+          throw new Error('BANC_ARRET');
+        },
       },
     },
   } as unknown as WebgpuPagesRuntime;
