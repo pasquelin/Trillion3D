@@ -5,28 +5,13 @@
 // changed) draws them again.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  createSceneLightStore,
-  type ClusterManifest,
-  type SceneLight,
-} from '../../../../sdk-core/src/index.ts';
-import { MANIFEST_IDENTITY } from '../../backend/pagesBackend.fixture.ts';
+import type { SceneLight } from '../../../../sdk-core/src/index.ts';
 import { LAMP, SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
-import { collectClusterPages } from '../../page/selection/selection.ts';
-import { packDagSelection } from '../../gpu/dag/selection.ts';
 import { OUT_FLAGS } from '../../gpu/dag/layout.ts';
 import { WORK_DROPPED } from '../../gpu/dag/shader/viewsWgsl.ts';
 import { SHADOW_LAYER_PASS } from '../../gpu/shadow/staticLayer.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
-import { webgpuPagesBackend } from '../pages/pages.ts';
-import {
-  SHADOW_LIMITS,
-  along,
-  camera,
-  disposeQuadRun,
-  mixedBinScene,
-} from '../pages/testScenes.fixture.ts';
+import { along, camera, disposeQuadRun } from '../pages/testScenes.fixture.ts';
+import { floorCasterBackend } from './floorCaster.fixture.ts';
 
 /** What a frame's shadow pass drew. */
 type Drawn = { pages: number; layerPasses: number; cleared: number; restored: number };
@@ -37,32 +22,7 @@ type Drawn = { pages: number; layerPasses: number; cleared: number; restored: nu
  * the static layer's passes, the pool pages cleared and those restored from the static layer.
  */
 async function floorAndCaster(light: SceneLight = SUN) {
-  installGpuGlobals();
-  const mixed = mixedBinScene();
-  const scene = {
-    ...mixed,
-    metadata: { ...mixed.metadata, ...MANIFEST_IDENTITY } as ClusterManifest,
-  };
-  const [caster, floor] = scene.source.children;
-  caster.name = 'caster';
-  const { roots } = collectClusterPages(
-    scene.source,
-    scene.metadata,
-    scene.indices,
-    scene.associations,
-  );
-  const gpu = mockGpu({ packed: packDagSelection(roots), limits: SHADOW_LIMITS, compute: true });
-  const lights = createSceneLightStore();
-  lights.add(light);
-  const backend = webgpuPagesBackend({
-    ...scene,
-    gpuDevice: gpu.device,
-    maxResidentPages: 4,
-    viewport: [32, 32],
-    pixelError: 0,
-    sceneLights: lights,
-  });
-  await backend.prepare();
+  const { backend, gpu, lights, scene, caster, floor } = await floorCasterBackend(light);
   const view = camera();
   const flags = () => {
     const out = gpu.buffers.find(({ label }) => label === 'Trillion3D light cut output')!;
