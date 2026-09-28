@@ -64,14 +64,14 @@ export function parseArgs(argv: string[]) {
  *  or `<n>%` of the texture bytes the settled pose holds resident: a pool the scene fills. */
 function live(flags: Map<string, string>, mio: (name: string) => number | null): PoolVivant | null {
   const texture = flags.get('pool-textures-vivant'),
-    fraction = texture === undefined ? null : residentFraction(texture);
+    fraction = texture === undefined ? undefined : residentFraction(texture);
   const budgets = {
     geometryPoolBytes: flags.has('pool-geometrie-vivant')
       ? mio('pool-geometrie-vivant')
       : undefined,
     texturePoolBytes:
-      texture !== undefined && fraction === null ? mio('pool-textures-vivant') : undefined,
-    textureResidentFraction: fraction ?? undefined,
+      texture !== undefined && fraction === undefined ? mio('pool-textures-vivant') : undefined,
+    textureResidentFraction: fraction,
   };
   return Object.values(budgets).some((v) => v !== undefined) ? budgets : null;
 }
