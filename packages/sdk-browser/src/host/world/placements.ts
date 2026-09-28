@@ -29,6 +29,9 @@ export interface HostWorldPlacements {
   /** The same pass on the subtree of `node` alone, exact while the host wrote no pose outside it
    *  (`tree.ts`, `refreshFrom`). */
   refreshFrom(node: Object3D): void;
+  /** The engine's world of `node`'s parent, current with the host's poses, or `null` when its tree
+   *  cannot vouch for it (`pose.ts`). A view: read it, never write it. */
+  parentWorld(node: Object3D): Float64Array | null;
 }
 
 /**
@@ -68,5 +71,6 @@ export function hostWorldPlacements(source: Object3D): HostWorldPlacements {
       tree.refreshFrom(node);
       assertStable(tree);
     },
+    parentWorld: (node) => tree.parentWorld(node),
   };
 }
