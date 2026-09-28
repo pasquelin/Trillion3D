@@ -35,7 +35,8 @@ export function createPresentAt(
     }
     return made;
   };
-  /** `canvas` is the canvas's size: the part of `at` outside it is not drawn. */
+  /** `canvas` is the canvas's size: the part of `at` past its right or bottom edge is not drawn,
+   *  and a rectangle that starts left of or above it is not drawn at all. */
   return (
     encoder: GPUCommandEncoder,
     view: GPUTextureView,
