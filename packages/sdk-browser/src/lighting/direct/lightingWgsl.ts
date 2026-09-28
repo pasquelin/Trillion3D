@@ -47,7 +47,10 @@ fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f
  if(isRect(light)){return rectLight(light,rgb,metal,rough,N,V,P,ao);}
  let incidence=directIncidence(light,P);
  if(incidence.w<=0.0){return vec3f(0.0);}
- let shade=shadowFactor(i32(light.params.y),light,P,N,incidence.xyz);
+ // A surface facing away from the light gets its exact zero whatever the shadow: the filter's
+ // taps are skipped, never the page reads and requests (\`shadowPcf\`). Toon bands light it.
+ let facing=surfaceModel==${MODEL_FLAG.toon}u||select(max(dot(N,normalize(incidence.xyz)),0.0),max(dot(N,incidence.xyz),0.0),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;
+ let shade=shadowFactor(i32(light.params.y),light,P,N,incidence.xyz,facing);
  if(shade<=0.0){return vec3f(0.0);}
  let energy=light.colorIntensity.w*incidence.w*shade;
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return modelLight(rgb,metal,N,incidence.xyz,energy,ao)*light.colorIntensity.rgb;}
