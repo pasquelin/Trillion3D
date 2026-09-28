@@ -132,8 +132,8 @@ export function createPhysicsSession(
      *  the awake bodies; every dynamic body is woken, so one at rest floats or falls. */
     setWater(water: WaterSpec | null) {
       worker.postMessage({ type: 'water', water, epoch: waves.reset() });
-      for (const mesh of bodies.meshes)
-        if (mesh?.physics.type === 'dynamic') writer.wake(mesh.physics._index);
+      for (const [i, made] of bodies.slots.nested.entries())
+        if (made || bodies.meshes[i]?.physics.type === 'dynamic') writer.wake(i);
     },
     /** Simulated seconds the water's waves have run, for a frame drawn now. */
     waterTime: () => waves.time(),
