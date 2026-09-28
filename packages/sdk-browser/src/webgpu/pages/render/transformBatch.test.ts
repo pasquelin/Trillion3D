@@ -94,6 +94,11 @@ function assertBatch(a: World, b: World, disjoint: boolean, label: string) {
   } else {
     const last = (moves: string[]) => new Map(moves.map((m) => [JSON.parse(m)[0], m]));
     assert.deepEqual(last(x.moves), last(y.moves), `${label} mobility`);
+    // A root under two moved nodes moves once, and its first move still stales the static layer.
+    assert.equal(x.moves.length, last(x.moves).size, `${label} one move per root`);
+    const whole = (boxes: unknown[]) =>
+      boxes.some((box) => !(box as { movingOnly: boolean }).movingOnly);
+    if (whole(y.boxes)) assert.ok(whole(x.boxes), `${label} static layer`);
   }
   a.log.length = 0;
 }
