@@ -29,8 +29,9 @@ test('a percentage is a fraction of the working set, a bare number stays MiB', (
 });
 
 test('the budget follows what the pose holds, whatever the scene', () => {
-  assert.equal(residentFractionBudget(0.5, 59_224_192), 29_612_096);
-  assert.equal(residentFractionBudget(0.5, 7_268_928), 3_634_464);
+  // Twice the fraction: each atlas takes half the budget (`texturePoolFor`).
+  assert.equal(residentFractionBudget(0.5, 59_224_192), 59_224_192);
+  assert.equal(residentFractionBudget(0.25, 7_268_928), 3_634_464);
   assert.equal(residentFractionBudget(0.001, 100), 1, 'never an empty budget');
   for (const resident of [0, undefined])
     assert.throws(() => residentFractionBudget(0.5, resident), /no texture tile/);
@@ -41,12 +42,8 @@ test('the summary says what the live texture pool asked, held, evicted and cost'
     texturePool: {
       budgetBytes: 29_612_096,
       allocatedBytes: 50_331_648,
-      clamp: null,
+      clamp: 'minimum',
       layers: {},
-      tiles: {
-        color: { lossless: 0, rgba: 1_000, 'two-channel': 0 },
-        data: { lossless: 0, rgba: 400, 'two-channel': 200 },
-      },
     },
     evictedTiles: 212,
     durationMs: 3.456,
@@ -59,7 +56,7 @@ test('the summary says what the live texture pool asked, held, evicted and cost'
   const line = liveLine(reglage);
   assert.equal(
     line,
-    '- Texture pool set live: 29.6 MB asked (from 59.2 MB resident), 50.3 MB held for 1600 tiles; ' +
+    '- Texture pool set live: 29.6 MB asked (from 59.2 MB resident), 50.3 MB held (minimum); ' +
       '212 tiles evicted in 3.46 ms, pose held again after 9 frames',
   );
   assert.equal(liveLine(), undefined, 'nothing set, nothing said');

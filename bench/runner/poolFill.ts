@@ -14,14 +14,16 @@ export function residentFraction(value: string): number | undefined {
   return fraction;
 }
 
-/** The texture pool budget, in bytes, that holds `fraction` of the `residentBytes` the settled pose
- *  holds: the pool then fills and a moving camera evicts. Under the engine's floor of layers the
- *  budget is held tile by tile (`texturePoolFor`), raised by name (`minimum`) only under each
- *  lane's tails and one tile to stream into. */
+/** The texture pool budget, in bytes, for `fraction` of the `residentBytes` the settled pose holds.
+ *  The engine gives each of its two atlases half the budget (`texturePoolFor`) and publishes one
+ *  residency for both, so the budget is twice the fraction: each atlas may spend `fraction` of the
+ *  whole working set, never less than `fraction` of its own. The engine draws whole layers, one at
+ *  least per lane in use, raised by name (`minimum`): a working set under that floor evicts nothing,
+ *  and two sides are compared at one absolute budget (`--pool-textures-vivant <MiB>`). */
 export function residentFractionBudget(fraction: number, residentBytes: number | undefined) {
   if (typeof residentBytes !== 'number' || !(residentBytes > 0))
     throw new Error('the pose holds no texture tile: no working set to take a fraction of');
-  return Math.max(1, Math.round(fraction * residentBytes));
+  return Math.max(1, Math.round(2 * fraction * residentBytes));
 }
 
 /** The texture bytes the pose holds once `settle` has held it, and the budget `fraction` of them
