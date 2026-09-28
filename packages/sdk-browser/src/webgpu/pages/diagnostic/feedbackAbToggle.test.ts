@@ -22,6 +22,7 @@ test('same-device toggle changes only feedback allocation and selected pipelines
   };
   const main = {};
   const rt = {
+    context: { feedbackTargetAB: true },
     feedbackAB: { target: true, force: false, on, off },
     gpu: {
       device,
