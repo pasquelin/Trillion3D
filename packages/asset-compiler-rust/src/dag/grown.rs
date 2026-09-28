@@ -115,8 +115,9 @@ impl Local<'_> {
             .iter()
             .map(|&a| {
                 let mut out = Vec::with_capacity(self.origin.len() * a.width);
+                let offset = offset(a);
                 for (k, id) in placed.clone().enumerate() {
-                    out.extend_from_slice(match offset(a) {
+                    out.extend_from_slice(match offset {
                         Some(o) => &self.values[k * self.stride + o..][..a.width],
                         None => &a.values[self.from(id) * a.width..][..a.width],
                     });
@@ -165,17 +166,21 @@ impl Local<'_> {
         };
         // Without a texture set there is no seam: the seam weld is the position weld.
         let textured = !input.seams.is_empty();
-        let weld_seam = canonical(|flag| flag == FLAG_UV || flag == FLAG_UV1, input.weld_seam);
         let exact = canonical(|_| true, input.exact);
-        let mut split: HashMap<u32, (u32, bool)> = HashMap::new();
-        for (&w, &s) in weld.iter().zip(&weld_seam) {
-            let entry = split.entry(w).or_insert((s, false));
-            entry.1 |= entry.0 != s;
-        }
-        let seam = |w: u32| split[&w].1 || (w < base && input.seams[w as usize]);
-        let seams = match textured {
-            true => weld.iter().map(|&w| seam(w)).collect(),
-            false => Vec::new(),
+        let (weld_seam, seams) = match textured {
+            false => (Vec::new(), Vec::new()),
+            true => {
+                let uv = |flag| flag == FLAG_UV || flag == FLAG_UV1;
+                let weld_seam = canonical(uv, input.weld_seam);
+                let mut split: HashMap<u32, (u32, bool)> = HashMap::new();
+                for (&w, &s) in weld.iter().zip(&weld_seam) {
+                    let entry = split.entry(w).or_insert((s, false));
+                    entry.1 |= entry.0 != s;
+                }
+                let seam = |w: u32| split[&w].1 || (w < base && input.seams[w as usize]);
+                let seams = weld.iter().map(|&w| seam(w)).collect();
+                (weld_seam, seams)
+            }
         };
         let charts = input.charts();
         let charts = match charts.is_empty() {
@@ -187,7 +192,7 @@ impl Local<'_> {
             carried: values,
             origins,
             columns: Columns {
-                weld_seam: if textured { weld_seam } else { Vec::new() },
+                weld_seam,
                 extents: self.extents[self.n..].to_vec(),
                 weld,
                 exact,
