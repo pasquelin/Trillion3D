@@ -90,12 +90,11 @@ export class WebglClusterRenderer {
       record = isClusterDrawMesh(mesh) ? mesh : undefined,
       instanced = !record && isInstancedNode(mesh);
     if (!material.visible || (instanced && !mesh.count)) return 0;
-    this.geometry.bind(mesh.geometry, record ? undefined : (mesh as WholeMesh));
+    this.geometry.bind(mesh.geometry, instanced ? (mesh as WholeMesh) : undefined);
     if (this.instanced !== instanced) gl.uniform1i(this.at('instanced'), instanced ? 1 : 0);
     this.instanced = instanced;
     const model = drawWorld(mesh);
-    this.model.set(camera.view, model);
-    this.state.applyWinding(model);
+    if (this.model.set(camera.view, model)) this.state.applyWinding(model);
     const passes = drawPasses(material);
     this.triangles += drawTriangles(mesh) * passes.length;
     for (const side of passes) {
@@ -121,6 +120,7 @@ export class WebglClusterRenderer {
     this.gl.uniform1i(this.at('srgbDestination'), srgbDestination ? 1 : 0);
     this.state.invalidate();
     this.pass.forget();
+    this.model.forget(); // the winding goes with the raster state
   }
   draw(
     meshes: readonly ClusterDrawMesh[],
