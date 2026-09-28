@@ -202,7 +202,11 @@ onChange)` gives sliders (`[min, max, value, step?]`), colour pickers (`'#rrggbb
 3. Add its entry to `site/content/gallery-roadmap.json`, `file` set to `examples/<id>.html`, in
    learning order within its theme, or turn its "in progress" entry into it: an entry with no
    `file` carries `status` (`buildable`, or `needs-engine` with the engine feature it waits for in
-   `gallery.missing.<id>` of every dictionary), and its title under `gallery.titles.<id>`. Then
+   `gallery.missing.<id>` of every dictionary), and its title under `gallery.titles.<id>`. A
+   written example parked until the engine draws it keeps its `file` with `status`
+   `waiting-engine` and the `issue` that delivers the feature: the kit's banner then shows, on its
+   page and on no other, "Waiting for the engine (#n)" (`kit.banner.waiting`) linked to that
+   issue, read from the roadmap at build time (`site/examples/kit/waiting.inline.ts`). Then
    capture its thumbnail:
    `node scripts/docs-examples-thumbnails.ts <id>`. The capture hides the kit's panels and the
    credit line and waits for the example's most telling moment, the seconds it declares in
