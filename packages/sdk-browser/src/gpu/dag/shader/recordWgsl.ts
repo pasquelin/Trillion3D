@@ -1,3 +1,5 @@
+import { SELECTION_LIST_CAP } from '../layout.ts';
+
 /**
  * Cold record of a cluster, the working table and page residency, read by word in one buffer.
  *
@@ -18,7 +20,8 @@ fn pageWorld(i:u32)->u32{return cold[i];}
 fn recordOf(i:u32,w:u32)->u32{return i+bitcast<u32>(frames[rowOf(w)*FRAME+6u].z);}
 fn residentWords()->u32{return (views[0u].clusterCount+31u)>>5u;}
 fn poolBase()->u32{return views[0u].clusterCount+2u*residentWords();}
-fn keyBase()->u32{return poolBase()+1u+views[0u].listCap;}
+/** The pool's list holds \`selectionListCap\` pages (\`../layout.ts\`), whatever the readout's cap. */
+fn keyBase()->u32{return poolBase()+1u+min(views[0u].clusterCount,${SELECTION_LIST_CAP}u);}
 fn coldBase()->u32{return keyBase()+views[0u].clusterCount;}
 fn coldF(r:u32,k:u32)->f32{return bitcast<f32>(cold[coldBase()+r*COLD+k]);}
 fn coneOf(r:u32)->vec4f{return vec4f(coldF(r,0u),coldF(r,1u),coldF(r,2u),coldF(r,3u));}
