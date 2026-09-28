@@ -40,8 +40,6 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
    *  what it does not apply. The rest of the capabilities is read from the present methods; see
    *  `lightingCapabilitiesOf`. Absent from an engine that has nothing more to declare. */
   lighting?: { shadows: boolean; reason?: string };
-  /** Moves a named node of the prepared scene; applied to the next frame, without allocation (R8). */
-  setTransform?(nodeName: string, matrix: Float32Array): void;
   /** Sets memory pools during the session; returns what the engine holds afterwards. */
   setMemoryBudgets?(budgets: MemoryBudgets): Promise<MemoryBudgetsReport>;
   signal?: AbortSignal; // Aborted by its dispose or its session's: `prepare` then fails as cancelled.

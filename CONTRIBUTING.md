@@ -215,7 +215,11 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    that merged `develop` and merges cleanly into it, oldest pull request first (AGENTS.md rule
    11); `main` moves only on the maintainer's word. Never push directly to `develop` or `main`, or
    rewrite published history.
-6. After merge, remove the worktree and merged branch, remove `in review` and close the issue;
+6. After merge, remove the worktree and merged branch, remove `in review` and check the issue is
+   closed: GitHub's `Closes #n` acts only on `main`, so
+   [`close-issues.yml`](.github/workflows/close-issues.yml) closes, as completed and with a
+   comment linking the pull request, every issue a body merged into `develop` names with a closing
+   keyword (`Part of #n` leaves it open);
    a batch in the measurer's scope is labelled `to measure` first. Every merge into `develop` is then re-read
    against this file; a finding reopens the issue, labelled `audit ko`, with the findings in a
    comment.
