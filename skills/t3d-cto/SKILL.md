@@ -44,7 +44,7 @@ origin/develop`, nothing else written there) at start and after every merge you 
    re-reads the rules, picks its work from GitHub, runs its `coder` and `reviewer` (two or three
    issues, AGENTS.md §Leads), and reaches you by `SendMessage` (your session is in `ListAgents`).
 4. **Supervise** with `/loop 10m` on the checks below until the boss says stop. Talk only to the
-   sessions' leads (never to a coder or reviewer); merge in age order what a lead names ready.
+   sessions' leads (never to a coder or reviewer); merge what a lead names ready as soon as its CI is green, in age order.
 
 ## Each supervision pass
 
