@@ -6,7 +6,7 @@ import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import type { createAutonomousResidency } from './residency.ts';
-import { createGeometryBudget, type PageCopies } from './pool.ts';
+import { createGeometryBudget, type PageCopies, type PoolEnvironment } from './pool.ts';
 import type { HeldFloor } from './heldFloor.ts';
 import { createPageParents } from '../../residency/pageParents.ts';
 import { checkTexturePoolBudget } from '../../residency/pools.ts';
@@ -67,6 +67,8 @@ export function createAutonomousPool(env: {
   residency: ReturnType<typeof createAutonomousResidency>;
   heldFloor: HeldFloor;
   instanceCount: () => number;
+  /** The views not drawn now, whose requests share the budget (`pool.ts`). */
+  others: PoolEnvironment['others'];
 }) {
   const { context, byUrl, gate, geometryStore, residency, heldFloor } = env,
     { state } = geometryStore;
@@ -82,6 +84,7 @@ export function createAutonomousPool(env: {
     floorBytes: heldFloor.bytes,
     parentsOf: createPageParents(env.roots),
     drop: residency.dropPage,
+    others: env.others,
     onDiagnostic: context.onDiagnostic,
   });
   return {

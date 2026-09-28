@@ -23,7 +23,11 @@ import { encodeShadowReadback } from './encodeShadows.ts';
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts';
 import { encodeTaaPass, taaSampledRank } from '../../../taa/frame.ts';
 import { encodeEffects } from './encodeEffects.ts';
-import { directLightResources, wantsContractLighting } from '../prepare/lightResources.ts';
+import {
+  directLightResources,
+  readsAsIs,
+  wantsContractLighting,
+} from '../prepare/lightResources.ts';
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
@@ -36,6 +40,7 @@ export function encodeBlend(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   uniformBase: number,
+  composes: boolean,
 ) {
   const { gpu, vis, run, timing, blendState, diag } = rt;
   // Every image path reaches this stage: the particles step here, beside the water.
@@ -95,8 +100,7 @@ export function encodeBlend(
   // The lighting resources of the image, resolved once for the blends and the water pass: the
   // shadow atlas and the probe grid do not exist from the first frame, and a group built on the
   // placeholders is voided the day the real resources arrive.
-  blendState.lighting = blendLightResources(rt);
-  voidStaleBlendGroups(rt, blendState.lighting);
+  voidStaleBlendGroups(rt, blendLightResources(rt));
   // The GPU then expands the sorted plan: an instance list, one indirect argument per slice, and
   // nothing more per item. With no compute stage, the CPU writes the same words.
   encodeBlendExpansion(rt, device, encoder);
@@ -106,8 +110,8 @@ export function encodeBlend(
   // Water comes after blends, on a frozen backdrop: the copy splits the two, so no transmissive
   // surface reads a half-composed image. Without the pass — a diagnostic view, which colours the
   // surface instead of lighting it, a diagnostic variant measuring the blend stage, a capture from
-  // a second camera — the slice draws as one more blend.
-  if (blendState.transmissive && !encodeWaterPass(rt, encoder))
+  // a second camera, an image no composition follows — the slice draws as one more blend.
+  if (blendState.transmissive && !encodeWaterPass(rt, encoder, composes))
     drawBlendPass(rt, device, encoder, true);
   const finished = performance.now();
   timing.transparentDrawMs += finished - prepared;
@@ -141,7 +145,7 @@ export function encodeSurfaceLighting(
   uniformBase: number,
 ) {
   const { gpu, run, capture } = rt,
-    { clearColor } = run;
+    clear = clearValueOf(run.clearColor);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView || !gpu.depthView || !gpu.colorView)
     throw new Error('DEFERRED_UNAVAILABLE');
   const [width, height] = gpu.targetSize;
@@ -156,28 +160,29 @@ export function encodeSurfaceLighting(
     directLightResources(rt),
     (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   );
-  // Image entry copied the camera, ancestors included: world position is read without recomputing.
-  // The camera as one homogeneous point: the view vector of the resolve is `xyz − P·w`.
   for (let i = 0; i < 4; i++) cameraWorldArray[i] = cam.viewPoint[i];
   gpu.deferred.update(
     inverseViewProj,
     cameraWorldArray,
     width,
     height,
-    clearColor,
+    run.clearColor,
     run.diagnostic !== 'beauty',
     direct,
     taaSampledRank(rt),
   );
-  gpu.deferred.light(encoder, gpu.hdrView);
+  gpu.reflection?.update(viewProj, gpu.deferred.usesContract && run.diagnostic === 'beauty');
+  gpu.deferred.light(encoder, gpu.hdrView, gpu.reflection);
+  if (gpu.reflection?.active && gpu.deferred.usesContract) run.gpuDrawCalls++;
   run.gpuDrawCalls++;
   encodeShadowReadback(rt, encoder);
-  encodeBlend(rt, device, encoder, uniformBase);
+  encodeBlend(rt, device, encoder, uniformBase, true);
   drawParticles(rt, encoder);
   // Temporal accumulation reads the lit and blended image, and yields what composition reads — the
   // lit image itself when this image does not accumulate. The effect chain follows: its passes
   // read that image and hand composition the last.
-  const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView);
+  const asIs = readsAsIs(rt);
+  const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView, asIs);
   const composed = encodeEffects(rt, device, encoder, accumulated);
   // Diagnostic only: the off-screen variant does not ask for the swap-chain view. The composition
   // pass stays the same, one colour target aside — that is what isolates presentation. Guides
@@ -188,7 +193,7 @@ export function encodeSurfaceLighting(
       ? undefined
       : gpu.presenter?.targetView(width, height);
   run.gpuDrawCalls++;
-  gpu.deferred.compose(encoder, gpu.colorView, clearValueOf(clearColor), presentation, composed);
+  gpu.deferred.compose(encoder, gpu.colorView, clear, presentation, composed, asIs);
   if (guided) encodeWebgpuGuides(rt, device, encoder, cam);
   return !!presentation;
 }

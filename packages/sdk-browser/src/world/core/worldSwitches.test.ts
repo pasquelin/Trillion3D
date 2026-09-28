@@ -88,4 +88,7 @@ test('the effect chain is given to every session, and a change of it asks for a 
   // A surface WebGL2 draws without a physical feature is said on the same channel (#772).
   sessionOptions({}, switches.held).materialDegraded!(new GraphSurface('physical'), ['clearcoat']);
   assert.deepEqual(said, ['effects-refused-blending', 'material-degraded']);
+  // #558: so is a WebGL2 session's light that asks for a shadow it draws not.
+  sessionOptions({}, switches.held).shadowsRefused!(['sun']);
+  assert.deepEqual(said, ['effects-refused-blending', 'material-degraded', 'shadows-refused']);
 });

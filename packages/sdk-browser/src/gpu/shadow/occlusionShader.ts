@@ -1,4 +1,3 @@
-import { DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
 import { HIZ_HIDES_WGSL, HIZ_LEVEL_WGSL } from '../hiz/rectWgsl.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { PAGE_HIZ_LEVELS, PAGE_HIZ_OFFSETS, PAGE_HIZ_WORDS } from './pageHiz.ts';
@@ -8,6 +7,7 @@ import {
   SHADOW_FACE_STRIDE,
   wordStruct,
 } from './batchBudget.ts';
+import { KEPT_LISTS_WGSL } from './cullShader.ts';
 
 /** A region whose casters are not tested: it draws what its cull kept. */
 export const HIZ_UNTESTED = 0xffffffff;
@@ -19,7 +19,8 @@ export const HIZ_UNTESTED = 0xffffffff;
  * of its sphere's box, and its nearest depth compared with the farthest the pyramid holds under its
  * rectangle, with the camera's own level choice and read (`../hiz/rectWgsl.ts`). Reversed depth: a
  * caster is hidden when its NEAREST is SMALLER than that farthest. What is not hidden is appended
- * to the region's visible list; the count of what was hidden goes to `slots[4·r + 1]`.
+ * to the region's visible list of its kind — both of the cull's, laid out alike (`KEPT_LISTS_WGSL`,
+ * #965); the count of what was hidden goes to `slots[4·r + 1]`.
  */
 export const SHADOW_OCCLUSION_SHADER = `struct Sphere{center:vec3f,radius:f32,}
 struct View{@size(${SHADOW_FACE_STRIDE}) viewProjection:mat4x4f,}
@@ -34,6 +35,7 @@ ${wordStruct('Uni', ['regions:u32', 'capacity:u32'], OCCLUSION_UNIFORM_WORDS)}
 @group(0) @binding(7) var<storage, read_write> slots:array<atomic<u32>>;
 @group(0) @binding(8) var<uniform> uni:Uni;
 const PAGE_TEXELS:f32=${SHADOW_PAGE}.0;
+${KEPT_LISTS_WGSL}
 const LEVEL_OFFSET:array<u32,${PAGE_HIZ_LEVELS}>=array<u32,${PAGE_HIZ_LEVELS}>(${PAGE_HIZ_OFFSETS.map((o) => `${o}u`).join(',')});
 ${HIZ_LEVEL_WGSL}${HIZ_HIDES_WGSL}
 /** True when the page's pyramid in \`slot\` hides the box around \`s\`, projected by \`m\`. */
@@ -59,10 +61,12 @@ fn shadowHizTest(@builtin(global_invocation_id) id:vec3u){
  let r=id.y;
  if(r>=uni.regions){return;}
  let slot=atomicLoad(&slots[r*${SLOT}u]);
- if(slot==${HIZ_UNTESTED}u||id.x>=min(indirect[r*${DRAW_INDIRECT_WORDS}u+1u],uni.capacity)){return;}
- let row=kept[r*uni.capacity+id.x];
+ let opaque=min(indirect[keptCount(r,false)],uni.capacity);
+ let cutouts=min(indirect[keptCount(r,true)],uni.capacity-opaque);
+ if(slot==${HIZ_UNTESTED}u||id.x>=opaque+cutouts){return;}
+ let cutout=id.x>=opaque;
+ let row=kept[keptAt(r,select(id.x,id.x-opaque,cutout),uni.capacity,cutout)];
  if(hiddenInPage(spheres[row],views[r].viewProjection,slot)){atomicAdd(&slots[r*${SLOT}u+1u],1u);return;}
- let rank=atomicAdd(&visibleIndirect[r*${DRAW_INDIRECT_WORDS}u+1u],1u);
- visible[r*uni.capacity+rank]=row;
+ visible[keptAt(r,atomicAdd(&visibleIndirect[keptCount(r,cutout)],1u),uni.capacity,cutout)]=row;
 }
 `;

@@ -64,23 +64,36 @@ function turned(d: readonly number[], [x, y, z, w]: readonly number[] = [0, 0, 0
   return Array.from({ length: 9 }, (_, n) => at(n % 3, (n / 3) | 0));
 }
 
+/** The cooked weighing's inertia `inertia`, taken to `mass`, and moved from its centre of mass to
+ *  a declared centre `to` by the parallel axis theorem: I + m(|d|² E − d dᵀ), nine, column-major. */
+function inertiaAt(cooked: ReturnType<typeof rescaled>, mass: number, to?: readonly number[]) {
+  const d = to ? to.map((c, i) => c - cooked.centerOfMass[i]) : [0, 0, 0];
+  const dd = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+  return cooked.inertia.map((v, n) => {
+    const [row, col] = [n % 3, (n / 3) | 0];
+    return (v * mass) / cooked.mass + mass * ((row === col ? dd : 0) - d[row] * d[col]);
+  });
+}
+
 /**
  * The mass of the body `body` declares, placed at world scale `scale`, and its mass frame (the
  * ADD command's `massFrame`): what its `motion` declares — `mass`, `centerOfMass` (in the node's
  * frame, stretched by `scale` as its shape is), `inertiaDiagonal` turned by `inertiaOrientation` —
  * wins over the cooked weighing, which is taken from the scale it was cooked at to `scale`, its
- * inertia to a declared mass. Nothing declared nor cooked, a mass of 0: Jolt weighs the shape at
- * its matter's density.
+ * inertia to a declared mass and, about a declared centre, moved there (`inertiaAt`). Nothing
+ * declared nor cooked, a mass of 0: Jolt weighs the shape at its matter's density.
  */
 export function declaredMass({ motion, shape, scale: cookedAt }: CookedBody, scale: Scale) {
   const s = [scale.x, scale.y, scale.z],
     r = s.map((v, i) => v / cookedAt[i]);
   const cooked = shape.type === 'cooked' && shape.mass ? rescaled(shape.mass, r) : null;
   const mass = motion.mass ?? cooked?.mass ?? 0;
+  const declared = motion.centerOfMass?.map((c, i) => c * s[i]);
   const inertia = motion.inertiaDiagonal
     ? turned(motion.inertiaDiagonal, motion.inertiaOrientation)
-    : cooked?.inertia.map((v) => (v * mass) / cooked.mass);
-  const declared = motion.centerOfMass?.map((c, i) => c * s[i]);
+    : cooked
+      ? inertiaAt(cooked, mass, declared)
+      : undefined;
   const centre = declared ?? cooked?.centerOfMass ?? (inertia && [0, 0, 0]);
   return { mass, massFrame: centre && [...centre, ...(inertia ?? [])] };
 }

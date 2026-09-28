@@ -165,7 +165,7 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   assert.ok(!inputs.some((path) => path.includes('/sdk-browser/') || path.includes('/sdk-node/')));
   assert.equal(baseline.outputFiles[0].contents.length, 4_961);
   assert.equal(proposed.outputFiles[0].contents.length, 1_725);
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_310);
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_344);
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   );

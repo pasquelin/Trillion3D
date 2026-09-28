@@ -158,11 +158,19 @@ fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f)->vec4f{
  * comparison in that page, clamped to its last texel centre on that axis, the other axis
  * still filtered bilinearly. A tap is thus two comparisons beside one edge, four at a corner,
  * which the pixel decides once for all its taps. A neighbour not readable is read at the home page's nearest texel.
+ * Without \`taps\` (\`declaredLight\`: no light reaches the point) it is zero, its pages still asked for.
  */
-fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)->f32{
+fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32,taps:bool)->f32{
  let first=vec2f(home)*SHADOW_PAGE;
  let edge=(t-1.5<first)|(t+1.5>=first+SHADOW_PAGE);
  let offset=shadowOffset(homeWord,home);
+ let up=t-first>=vec2f(0.5*SHADOW_PAGE);
+ let step=select(vec2i(-1),vec2i(1),up);
+ var nx=vec4f(offset,0.0);var ny=nx;var nd=nx;
+ if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset);}
+ if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset);}
+ if(all(edge)){nd=shadowNeighbour(m,home+step,offset);}
+ if(!taps){return 0.0;}
  var lit=0.0;
  if(!any(edge)){
   // \`shadowCompare\` per tap, in steps: \`(t + tap)·256\` is \`t·256 + tap·256\` to the bit.
@@ -172,14 +180,8 @@ fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)
   }
   return shadowThroughLit(offset,first,t,reference,lit/f32(PCF_TAPS));
  }
- let up=t-first>=vec2f(0.5*SHADOW_PAGE);
- let step=select(vec2i(-1),vec2i(1),up);
  let toward=select(vec2f(-1.0),vec2f(1.0),up);
  let seam=first+select(vec2f(0.0),vec2f(SHADOW_PAGE),up);
- var nx=vec4f(offset,0.0);var ny=nx;var nd=nx;
- if(edge.x){nx=shadowNeighbour(m,home+vec2i(step.x,0),offset);}
- if(edge.y){ny=shadowNeighbour(m,home+vec2i(0,step.y),offset);}
- if(all(edge)){nd=shadowNeighbour(m,home+step,offset);}
  for(var tap=0u;tap<PCF_TAPS;tap++){
   var at=t+POISSON[tap];
   if(side>0.0){at=clamp(at,vec2f(0.5),vec2f(side-0.5));}

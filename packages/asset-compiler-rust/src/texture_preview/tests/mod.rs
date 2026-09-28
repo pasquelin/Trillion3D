@@ -4,6 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 mod atlas_rule;
 mod bake_files;
 mod box_reduce;
+mod cached_shape;
 mod cancellation;
 mod collect_textures;
 mod coverage_alpha;
@@ -14,10 +15,11 @@ mod gate_verdict;
 mod image_source;
 mod levels;
 mod median_alpha;
+mod tile_records;
 mod weighted_colour;
 
 /// A fresh directory under the OS temp dir, unique per call so parallel tests never collide.
-pub(super) fn temp_dir(tag: &str) -> PathBuf {
+pub(crate) fn temp_dir(tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
         "trillion3d-texture-preview-{tag}-{}-{}",
         std::process::id(),
@@ -102,6 +104,7 @@ pub(super) fn stage_scene_in(
             meshes: &meshes,
             view_map: &view_map,
             to_measure: &BTreeSet::new(),
+            measurements: crate::cutout::MeasureCache::EMPTY,
         },
         &silent,
     )
