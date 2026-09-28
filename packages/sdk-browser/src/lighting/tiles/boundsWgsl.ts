@@ -22,7 +22,7 @@ const ATOMIC_DEPTH_BOUNDS = ` if(inside){
 const SUBGROUP_DEPTH_BOUNDS = ` let lit=inside&&z>${DEPTH_CLEAR}.0;
  let near=subgroupMax(select(0u,bitcast<u32>(z),lit));
  let far=subgroupMin(select(0xffffffffu,bitcast<u32>(z),lit));
- let anyLit=subgroupAny(lit);let anySky=subgroupAny(inside&&!lit);
+ let anyLit=near!=0u;let anySky=subgroupAny(inside&&!lit);
  if(subgroupElect()){
   if(anyLit){atomicMax(&nearest,near);atomicMin(&farthest,far);atomicStore(&covered,1u);}
   if(anySky){atomicStore(&skyward,1u);}

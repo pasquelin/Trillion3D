@@ -133,7 +133,7 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
  if(inside){z=textureLoad(depth,vec2i(pixel),0);}
 ${tileDepthBoundsWgsl(subgroups)}
  workgroupBarrier();
- if(lane==0u){
+ if(lane==0u&&lightCount>0u){ // no light, no bounds to test it against
   // Sixteen corners, each unprojected once: the column's four at two depths, then the slice's.
   let near=tileCorners(tile.xy,${DEPTH_NEAR}.0);
   tileColumn(near,tileCorners(tile.xy,COLUMN_DEPTH));
