@@ -10,6 +10,7 @@ import { createWebgpuPagesPipelines } from '../pages/prepare/pipelines.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { declaredBlendModes, pipelinesByMode } from './stagePipelines.ts';
 import type { BlendGpuItem } from './state.ts';
+import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 
 /** Blend items as prepare leaves them, one per host blending constant. */
 function items(blendings: (number | undefined)[], transmissive: boolean[] = []) {
@@ -30,16 +31,25 @@ test('the declared modes are normal, then every mode a non-transmissive item nam
 
 test('a precompiled mode is drawn without a compile; a mode a draw compiled first is kept', async () => {
   const built: string[] = [];
-  const set = pipelinesByMode(
-    (mode) => (built.push(`now:${mode}`), { mode, now: true }),
-    async (mode) => (built.push(`async:${mode}`), { mode, now: false }),
-  );
+  // A device that names how each pipeline was compiled: at once by a draw, or off the frame.
+  const device = {
+    createRenderPipeline: ({ label }: GPURenderPipelineDescriptor) => (
+      built.push(`now:${label}`),
+      { label, now: true }
+    ),
+    createRenderPipelineAsync: async ({ label }: GPURenderPipelineDescriptor) => (
+      built.push(`async:${label}`),
+      { label, now: false }
+    ),
+  } as unknown as GPUDevice;
+  const set = pipelinesByMode(device, (mode) => [{ label: mode } as GPURenderPipelineDescriptor]);
+  const now = (mode: Blending) => (set.at(mode)[0] as unknown as { now: boolean }).now;
   const drawn = set.at('multiply');
   await set.precompile(['normal', 'additive', 'multiply']);
   assert.deepEqual(built, ['now:multiply', 'async:normal', 'async:additive']);
   assert.equal(set.at('multiply'), drawn, 'the pipeline a draw already bound is not replaced');
-  assert.equal(set.at('additive').now, false);
-  assert.equal(set.at('normal').now, false);
+  assert.equal(now('additive'), false);
+  assert.equal(now('normal'), false);
   assert.equal(built.length, 3, 'no draw compiles a precompiled mode');
   await set.precompile(['additive']);
   assert.equal(built.length, 3, 'a compiled mode is never compiled again');
