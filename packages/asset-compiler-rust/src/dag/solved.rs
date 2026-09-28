@@ -12,8 +12,8 @@
 //! unit of it spans in the group — the square root of the group's surface area over its texture
 //! area: a coordinate that slides by `d` draws the texture as far off as a position moved by `d`
 //! times that length. Normals keep the endpoint reduction's weight (`attributes::NORMAL_WEIGHT`).
-//! The largest step a placed coordinate took, clamp included, times that length joins the
-//! group's error (`placed::Local::drift`).
+//! The largest step a placed coordinate took, times that length, joins the group's error
+//! (`placed::Local::drift`).
 //!
 //! **Mirrors and islands.** Where a chart meets its mirror image (`charts::on_mirror`) the seam is
 //! first kept: a face folded across a mirror draws one side's texture on the other with every

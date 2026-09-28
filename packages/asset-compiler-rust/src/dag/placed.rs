@@ -6,8 +6,7 @@
 //! its `n` source vertices, so the checks every reduction runs — lost locks, faces lit from
 //! behind, removed parts, re-clustering — read one array. In the primitive they follow every
 //! vertex it already has: the pages read them there, `source.bin` never does. A placed normal is
-//! renormalised, a placed texture coordinate kept inside the region's source coordinates, so the
-//! primitive's texture grid, set from its source span, still holds every page exactly (#283).
+//! renormalised; a value the solve left non-finite is its source's.
 use super::clusters::position_key;
 use super::*;
 use crate::qem::solve::SolvedRegion;
@@ -28,8 +27,8 @@ pub(super) struct Local<'r> {
     /// The group's live triangles, then the solve's, in the region's numbering.
     pub source: &'r [u32],
     pub indices: Vec<u32>,
-    /// The largest step a placed texture coordinate took from the one it was solved from, clamp
-    /// included, times its set's density: a distance on the surface, charged to the group's error
+    /// The largest step a placed texture coordinate took from the one it was solved from, times
+    /// its set's density: a distance on the surface, charged to the group's error
     /// so a coordinate that slid off its chart is drawn only where that slide is under a pixel.
     pub drift: f64,
 }
@@ -47,12 +46,6 @@ impl<'r> Local<'r> {
         let mut id: Vec<u32> = (0..n as u32).collect();
         for (k, &i) in origin.iter().enumerate() {
             id[i as usize] = (n + k) as u32;
-        }
-        let (mut low, mut high) = (vec![f32::INFINITY; stride], vec![f32::NEG_INFINITY; stride]);
-        for i in 0..n {
-            for (c, &v) in row(&region.source_values, stride, i).iter().enumerate() {
-                (low[c], high[c]) = (low[c].min(v), high[c].max(v));
-            }
         }
         let mut values = Vec::with_capacity(origin.len() * stride);
         let mut drift = 0.0_f64;
@@ -73,13 +66,8 @@ impl<'r> Local<'r> {
             } else {
                 0
             };
-            for c in first..stride {
-                let within = placed[c].is_finite() && low[c] <= high[c];
-                placed[c] = if within {
-                    placed[c].clamp(low[c], high[c])
-                } else {
-                    source[c]
-                };
+            for (value, &from) in placed[first..].iter_mut().zip(&source[first..]) {
+                *value = if value.is_finite() { *value } else { from };
             }
             for (set, density) in densities.iter().enumerate() {
                 let c = first + set * 2;
