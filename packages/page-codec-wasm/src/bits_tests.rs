@@ -1,13 +1,15 @@
 //! Bit fields, the sequential reader, the step and the octahedral normals.
 
 use super::*;
+use crate::unpack::reference::random_field;
 
 #[test]
 fn a_field_crosses_a_word_boundary_and_a_zero_width_field_reads_zero() {
     let words = [0xF000_0000u32, 0x0000_00AB];
-    assert_eq!(field(&words, 28, 12), 0xABF);
-    assert_eq!(field(&words, 28, 0), 0);
-    assert_eq!(field(&words, 32, 8), 0xAB);
+    let field = |at, bits| BitReader::at(&words, at).read(bits);
+    assert_eq!(field(28, 12), 0xABF);
+    assert_eq!(field(28, 0), 0);
+    assert_eq!(field(32, 8), 0xAB);
     assert_eq!(bits_for(0), 0);
     assert_eq!(bits_for(255), 8);
     assert_eq!(bits_for(256), 9);
@@ -15,7 +17,7 @@ fn a_field_crosses_a_word_boundary_and_a_zero_width_field_reads_zero() {
 }
 
 #[test]
-fn the_sequential_reader_reads_each_field_where_field_finds_it() {
+fn the_sequential_reader_reads_each_field_where_the_random_reader_finds_it() {
     let words: Vec<u32> = (1..=40u32).map(|i| i.wrapping_mul(0x9E37_79B9)).collect();
     for bits in 0..=MAX_BITS {
         for start in [0, 5, 31, 32] {
@@ -23,7 +25,7 @@ fn the_sequential_reader_reads_each_field_where_field_finds_it() {
             for i in 0..(words.len() * 32 - 32 - start) / bits.max(1) as usize {
                 assert_eq!(
                     stream.read(bits),
-                    field(&words, start + i * bits as usize, bits)
+                    random_field(&words, start + i * bits as usize, bits)
                 );
             }
         }

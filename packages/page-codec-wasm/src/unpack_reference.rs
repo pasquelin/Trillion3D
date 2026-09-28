@@ -2,7 +2,9 @@
 //! every field read at random, the first corner out of range refusing.
 
 use super::*;
-use crate::triangles::WIDTH_BITS;
+use crate::triangles::{BLOCK, WIDTH_BITS};
+
+const CORNERS: usize = 3 * BLOCK;
 
 /// Develop's `field`: two word reads, a shift and a mask per field.
 pub fn random_field(words: &[u32], at: usize, bits: u32) -> u32 {
@@ -34,12 +36,13 @@ pub fn reference(data: &[u8], max: usize) -> Result<Vec<u32>, PageError> {
     let mut out = vec![0u32; h.decoded_bytes() / 4];
     let (indices, mut rest) = out.split_at_mut(h.index_count);
     let (code, [table, stream]) = (l.corners, l.triangles);
-    for (b, block) in indices.chunks_mut(24).enumerate() {
+    for (b, block) in indices.chunks_mut(CORNERS).enumerate() {
         let at = table * 32 + b * code.record_bits() as usize;
         let ib = code.index_bits as usize;
         let base = random_field(&w, at, code.index_bits);
         let width = random_field(&w, at + ib, WIDTH_BITS);
-        let start = random_field(&w, at + ib + 5, code.prefix_bits) as usize * 24;
+        let start =
+            random_field(&w, at + ib + WIDTH_BITS as usize, code.prefix_bits) as usize * CORNERS;
         for (k, corner) in block.iter_mut().enumerate() {
             *corner = base + random_field(&w, stream * 32 + start + k * width as usize, width);
             if *corner as usize >= n {

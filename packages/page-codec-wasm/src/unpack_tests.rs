@@ -6,7 +6,7 @@
 use super::*;
 use crate::bits::{stream_words, MAX_BITS};
 use crate::triangles::{CornerCode, Spans};
-use crate::unpack::reference::{random_field, reference};
+use crate::unpack::reference::reference;
 use crate::writer::BitWriter;
 
 struct Rng(u32);
@@ -69,8 +69,11 @@ fn page(rng: &mut Rng, n: usize, indices: &[u32], flags: u32, widest: bool) -> V
     let mut out = BitWriter::default();
     spans.write(&mut out, indices, &code);
     let mut streams = |bits: &[u32], present: bool| {
-        for &b in bits.iter().filter(|_| present) {
-            out.stream((0..n).map(|_| random_field(&[rng.next()], 0, b)), b);
+        if present {
+            for &b in bits {
+                let mask = ((1u64 << b) - 1) as u32;
+                out.stream((0..n).map(|_| rng.next() & mask), b);
+            }
         }
     };
     streams(&h.position.bits, true);

@@ -25,15 +25,10 @@ pub fn stream_words(count: usize, bits: u32) -> usize {
     count.saturating_mul(bits as usize).div_ceil(32)
 }
 
-/// The `bits`-bit field at bit `at` of `words`: one field read at random, as a block record is.
-pub fn field(words: &[u32], at: usize, bits: u32) -> u32 {
-    BitReader::at(words, at).read(bits)
-}
-
 /// The fields of one stream in order, each word loaded once (STR-01, #238): the stream's current
 /// word and bit cursor stay in a 64-bit accumulator, refilled one word at a time — never more,
 /// since a field is at most `MAX_BITS` wide. A stream is sized so the next word exists whenever
-/// a field needs it; a zero-width field reads zero and touches no word.
+/// a field needs it; a zero-width field reads zero and loads no word.
 pub struct BitReader<'a> {
     words: &'a [u32],
     next: usize,
@@ -42,25 +37,21 @@ pub struct BitReader<'a> {
 }
 
 impl<'a> BitReader<'a> {
-    /// A reader whose first field starts at bit `at` of `words`.
+    /// A reader whose first field starts at bit `at` of `words`: a single field read at random,
+    /// as a block record is, is `BitReader::at(words, at).read(bits)`.
     #[inline(always)]
     pub fn at(words: &'a [u32], at: usize) -> Self {
-        let (next, skip) = (at / 32, (at % 32) as u32);
         let mut reader = Self {
             words,
-            next,
+            next: at / 32,
             acc: 0,
             held: 0,
         };
-        if skip != 0 {
-            reader.acc = u64::from(words[next]) >> skip;
-            reader.held = 32 - skip;
-            reader.next += 1;
-        }
+        reader.read((at % 32) as u32);
         reader
     }
 
-    /// The next `bits`-bit field, `bits <= MAX_BITS`.
+    /// The next `bits`-bit field, `bits` at most 31 (a field is at most `MAX_BITS`).
     #[inline(always)]
     pub fn read(&mut self, bits: u32) -> u32 {
         if self.held < bits {
