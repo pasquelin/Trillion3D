@@ -122,15 +122,15 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
    *  placed by rows share one geometry per page they draw: its box and the check of it. */
   const storeRecords = (recs: readonly PageRec[], read: DecodedGeometryPage | undefined) => {
     const rowed = new Map<DecodedGeometryPage, ReturnType<typeof hostPageGeometry>>(),
-      decoded = new Map<Uint8Array, DecodedGeometryPage>();
+      storing = new Set(recs);
     // A rowed geometry another record of the page still draws stays: some records restored alone.
-    const others = (rec: PageRec) => {
-      const list = byUrl.get(rec.url);
-      return list === recs ? [] : (list ?? []).filter((other) => !recs.includes(other));
-    };
+    const drawnByOthers = (rec: PageRec) =>
+      (byUrl.get(rec.url) ?? []).some(
+        (other) => other.geometry === rec.geometry && !storing.has(other),
+      );
     for (const rec of recs) {
-      release(rec, !!rec.placement && others(rec).some((o) => o.geometry === rec.geometry));
-      const data = pageOf(rec, read, decoded),
+      release(rec, !!rec.placement && drawnByOthers(rec));
+      const data = pageOf(rec, read),
         shared = rec.placement ? rowed.get(data) : undefined;
       if (!shared) assertWithinBox(data, rec);
       const geometry = shared ?? hostPageGeometry(data, itemSize, rec.min, rec.max);
@@ -165,6 +165,8 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       throw new Error('AUTONOMOUS_PAGE_METADATA_MISMATCH');
     if (recs[0] && !recs[0].array) state.residentPages++;
     storeRecords(recs, data);
+    // Kept once every check passed: a refused page never stands in for the cache's.
+    if (host) replaced.set(url, given);
     return recs.length > 0;
   };
   // True when the store now holds the page: the host did not replace it, and a record draws it.
