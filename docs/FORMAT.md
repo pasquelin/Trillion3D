@@ -282,8 +282,8 @@ is `PREPARED_SCENE_MISMATCH`.
 ## `physics.json` — cooked colliders
 
 Written beside `clusters.json` by the compiler's `physics-cook` stage ([COMPILER.md](COMPILER.md)),
-with a `formatVersion` of its own (2): a reader refuses any other (`PHYSICS_FORMAT`, recompile the
-model). Format 1 carried the declared bodies in another shape, and no matter on an instance. The shapes it
+with a `formatVersion` of its own (2, or 3 when a body carries `pieces`): a reader refuses any other
+(`PHYSICS_FORMAT`, recompile the model). Format 1 carried the declared bodies in another shape, and no matter on an instance. The shapes it
 names are Jolt's binary state (`Shape::SaveWithChildren`), readable only by the Jolt that wrote them:
 the file names that commit in `jolt`, and the engine refuses a file cooked by another. `stage` names
 the stage and its version.
@@ -323,6 +323,12 @@ body; another node its collider names keeps its own, still static ground. Each e
 
 `report.bodies` counts them; `report.bodiesRefused` lists each declaring node the cook refused
 (`node`, `reason`): it has no body, and stays static ground.
+
+Stage version 8: a body whose node's `extras.physics` declares `breakable` also carries that
+threshold and `pieces`, at most 12 convex, non-overlapping pieces of its mesh ([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)), each a
+`cooked` shape in the body's frame with its own `mass` at the body's `scale`. Such a file is format 3,
+which a format-2 reader refuses by name; one without pieces stays format 2. The runtime reads
+format 3 and leaves the pieces unused: nothing breaks yet (#519).
 
 ### `softBodies` — cooked soft bodies
 
