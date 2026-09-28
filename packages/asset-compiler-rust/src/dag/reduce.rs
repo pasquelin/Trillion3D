@@ -13,13 +13,25 @@
 //! **Parts removed whole** cost their own extent and their distance to the surface kept
 //! (`vanished.rs`): a part drops only at the level whose error covers it.
 //!
-//! A stalled reduction is retried with added locks (`retries.rs`).
+//! **Added locks.** On foliage, a chart whose edge is shared with another group disappears when
+//! its free vertices collapse onto locked vertices, and the other group keeps its half (measured:
+//! 92 groups of 123 lost that way, 339 locks lost, all on a locked edge). The retry locks all
+//! three corners of every triangle that touched a lost lock and restarts: some charts remain, the
+//! rest of the group reduces. Pruning ignores locks, so a retry no longer prunes. A face the
+//! reduction lit from behind (`quality::backlit_corners`) is retried the same way, as long as the
+//! retry locks something new: collapses accumulated over levels flip small faces on spheres and
+//! facades (measured: 13 of 49 levels of MetalRoughSpheres, 13 of 38 of facade-7). The retry
+//! looks at every face but slivers, even one narrower than the error, which the published check
+//! exempts: a coarse face spanning a log of a chalet, 6 m long and 0.22 m wide, came out inside
+//! out at 0.78 m of error, its corners on the caps' normals (#415, #484). Refusing such a face
+//! would refuse the cook; retrying it only costs a few locks. A face none of whose corner copies
+//! a face turned its way draws is retried the same way: a board whose thickness collapsed onto
+//! its top kept its underside there, on the top's and the edges' normals (#484). One driver runs
+//! these retries for the endpoint and the solved reductions alike (`retries.rs`).
 use super::*;
 use crate::qem::{SimplifiedMesh, VERTEX_LOCK, VERTEX_PROTECT};
 use border::{live_triangles, required_locks};
-use quality::backlit_corners;
-use retries::{with_lock_retries, Pass};
-use std::borrow::Cow;
+use retries::{with_lock_retries, Endpoint};
 
 /// Succeeded reduction: simplified surface and re-clustered result.
 pub(super) struct Attempt {
@@ -169,32 +181,4 @@ pub(super) fn attempt(
         clusters,
         relocked,
     }))
-}
-
-/// One endpoint pass, and what its faces are checked against.
-struct Endpoint<'i, 'a> {
-    simplified: SimplifiedMesh,
-    input: &'i GroupReductionInput<'a>,
-    source: &'i [u32],
-    locked: bool,
-}
-impl Pass for Endpoint<'_, '_> {
-    fn kept(&self) -> Cow<'_, [u32]> {
-        Cow::Borrowed(&self.simplified.indices)
-    }
-    fn faces(&mut self) -> Vec<u32> {
-        let (input, indices) = (self.input, &mut self.simplified.indices);
-        let Some(normals) = input.attributes.normals() else {
-            return Vec::new();
-        };
-        let (weld_seam, positions) = (input.weld_seam, input.positions);
-        let foreign = attributes::own_normals(indices, self.source, weld_seam, positions, normals);
-        if !self.locked {
-            return Vec::new();
-        }
-        let bound = input.normal_bound;
-        let mut retry = backlit_corners(indices, positions, normals, input.weld, bound);
-        retry.extend(foreign.iter().map(|&v| input.weld[v as usize]));
-        retry
-    }
 }
