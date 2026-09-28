@@ -52,7 +52,7 @@ A company. The **boss** (the maintainer) opens the CTO's session (`/t3d-cto`), t
 tests the result and sets priorities. At its start the CTO gives the boss **one prompt per session
 to open** (a lead per domain with work, the architect, measurer, acceptance and analyst when they
 have work); the boss opens each of them. Every role runs in its own session and reports to the CTO
-by `SendMessage`; a lead runs its `coder` and `reviewer` as foreground subagents. Each role is
+by `SendMessage`; a lead runs its `coder` and `reviewer` as subagents (§Leads). Each role is
 `docs/roles/<role>.md`, and its skill in `skills/` is the session's brief; "Prompt by" names who
 writes that brief.
 
