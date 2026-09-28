@@ -1,4 +1,4 @@
-import { dropGpuHiz } from '../io/drops.ts';
+import { fitGpuHiz } from '../io/drops.ts';
 import { releaseTargets } from '../prepare/targets.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { VIEW_GPU_KEYS, VIEW_RUN_KEYS, VIEW_VIS_KEYS, type WebgpuView } from './view.ts';
@@ -38,18 +38,12 @@ export function useWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   views.active = view;
   run.gate.viewReplaced();
   run.cutEpoch++;
-  const [width, height] = gpu.targetSize,
-    hiz = vis.gpuHiz;
-  if (gpu.colorTexture && gpu.device && hiz && !hiz.resize(gpu.device, width, height))
-    dropGpuHiz(rt);
+  if (gpu.colorTexture && gpu.device) fitGpuHiz(rt, gpu.device, ...gpu.targetSize);
 }
 
-/** Releases the targets and temporal pass of `view`, which is not the main one; the main view
- *  is drawn again. */
+/** Releases the targets of `view`, which is not the main one; the main view is drawn again. */
 export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   useWebgpuView(rt, view);
   releaseTargets(rt);
-  rt.gpu.temporal?.dispose();
-  rt.gpu.temporal = undefined;
   useWebgpuView(rt, rt.views.main);
 }

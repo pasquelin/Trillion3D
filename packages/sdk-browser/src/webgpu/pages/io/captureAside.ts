@@ -38,7 +38,6 @@ export async function captureAside<T>(
   } finally {
     releaseWebgpuView(rt, view);
     capture.capturing = false;
-    capture.surfaceRenderAllowed = false;
   }
 }
 
