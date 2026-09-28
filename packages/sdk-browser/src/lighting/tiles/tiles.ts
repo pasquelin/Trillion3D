@@ -105,7 +105,7 @@ export async function createGpuLightTiles(device: GPUDevice) {
     get wide() {
       return wide;
     },
-    /** What the last sampled wide frame asked of the pool (#849). */
+    /** What the last sampled wide frame asked of the pool (#849), once a sample returned. */
     pool: pool.sample,
     /** Ensures the target buffer and the bind group for `lightCount` lights; returns `true` if
      *  the pass is ready. */
@@ -119,7 +119,7 @@ export async function createGpuLightTiles(device: GPUDevice) {
       const wantedX = tilesOn(width),
         wantedY = tilesOn(height);
       wide = lightCount > LIGHT_SETTINGS.tileLights;
-      const wantedPool = pool.words(wantedX * wantedY, wide);
+      const wantedPool = wide ? pool.words(wantedX * wantedY) : 0;
       if (!tiles || wantedX !== tilesX || wantedY !== tilesY || wantedPool !== poolWords) {
         tiles?.destroy();
         tilesX = wantedX;

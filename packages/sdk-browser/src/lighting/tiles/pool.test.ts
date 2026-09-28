@@ -13,7 +13,7 @@ const TILES = 100;
 async function sampleFrame(state: number[], frame: number) {
   const fake = fakeDevice();
   const pool = createTileLightPool(fake.device);
-  pool.open(TILES * 130, pool.words(TILES, true));
+  pool.open(TILES * 130, pool.words(TILES));
   pool.sampleState(fake.device.createCommandEncoder(), frame);
   const readback = fake.buffers.find((buffer) => buffer.label?.includes('readback'))!;
   new Uint32Array(readback.getMappedRange()).set(state);
@@ -22,10 +22,10 @@ async function sampleFrame(state: number[], frame: number) {
   return { pool, fake };
 }
 
-test('a scene no list can overflow holds no pool; a larger one starts at a quarter list a tile', () => {
+test('a pool starts at a quarter list a tile, and names nothing before its first sample', () => {
   const pool = createTileLightPool(fakeDevice().device);
-  assert.equal(pool.words(TILES, false), 0);
-  assert.equal(pool.words(TILES, true), (TILES * LIGHT_SETTINGS.tileLights) / 4);
+  assert.equal(pool.words(TILES), (TILES * LIGHT_SETTINGS.tileLights) / 4);
+  assert.equal(pool.sample(), undefined, 'nothing named before a sample returns');
 });
 
 test('the frame opens its pool: start and room, nothing reserved, no overflow', () => {
@@ -39,15 +39,20 @@ test('the frame opens its pool: start and room, nothing reserved, no overflow', 
 test('an overflow is named and grows the pool to what the frame reserved (#849)', async () => {
   const { pool, fake } = await sampleFrame([13000, 1600, 5000, 1], 0);
   assert.equal(fake.copies[0].from, pool.state, 'the state is copied after the pass');
-  assert.deepEqual(pool.sample, { reserved: 5000, capacity: 1600, overflowed: true });
-  assert.equal(pool.words(TILES, true), 5000);
+  assert.deepEqual(pool.sample(), { frame: 0, reserved: 5000, capacity: 1600, overflowed: true });
+  assert.equal(pool.words(TILES), 5000);
 });
 
 test('the pool grows no further than its bound per tile, and a frame with room says so', async () => {
   const most = TILES * LIGHT_SETTINGS.tileLights * 4;
   const { pool } = await sampleFrame([13000, 1600, most * 3, 1], 0);
-  assert.equal(pool.words(TILES, true), most);
+  assert.equal(pool.words(TILES), most);
   const calm = await sampleFrame([13000, 1600, 900, 0], 0);
-  assert.deepEqual(calm.pool.sample, { reserved: 900, capacity: 1600, overflowed: false });
-  assert.equal(calm.pool.words(TILES, true), TILES * 16);
+  assert.deepEqual(calm.pool.sample(), {
+    frame: 0,
+    reserved: 900,
+    capacity: 1600,
+    overflowed: false,
+  });
+  assert.equal(calm.pool.words(TILES), TILES * 16);
 });
