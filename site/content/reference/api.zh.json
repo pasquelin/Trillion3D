@@ -4955,9 +4955,6 @@
   "disabledStageProfile": {
     "summary": "一个不保留任何数据的引擎性能剖析:一切都是“未测量”,没有任何值是零。"
   },
-  "dot": {
-    "summary": "两个相同维度向量的点积。"
-  },
   "dotVector3": {
     "summary": "对在 `aAt` 和 `bAt` 处读取的三个分量计算 `a · b`:只用一个缓冲区加一个偏移量,不使用视图。"
   },
@@ -5399,7 +5396,7 @@
   },
   "loader": {
     "summary": "`loader` 系列:被获取并转换成场景可用形式的文件。",
-    "description": "普通文件通过引擎自带校验的 fetch(`cluster/pages.ts`)读取,它会根据状态码拒绝一次失败的响应;图片(`texture`、`cubeTexture`)则通过一个 image 元素获取,它会因解码失败而拒绝该图片。"
+    "description": "普通文件通过引擎自带校验的 fetch(`cluster/checked.ts`)读取,它会根据状态码拒绝一次失败的响应;图片(`texture`、`cubeTexture`)则通过一个 image 元素获取,它会因解码失败而拒绝该图片。"
   },
   "loader.texture": {
     "summary": "获取一张图片,并用它制作一个颜色纹理。",

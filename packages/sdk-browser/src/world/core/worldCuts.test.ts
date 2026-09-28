@@ -1,10 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { material } from '../../../../sdk-core/src/world/material/index.ts';
 import { object } from '../../../../sdk-core/src/world/object/index.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { createWorldCuts } from './worldCuts.ts';
+import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts';
+
+// An opaque cut takes the compiler's grid from the SDK module (`cutGrid.ts`): Node cannot fetch
+// the module by its URL, so the test hands it the bytes.
+await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../../page/decode/pageCodec.wasm')));
 
 // #359: a line worn by a dashed material is read with its distance along the line; the same line
 // worn solid is read as before, into a resource of its own.

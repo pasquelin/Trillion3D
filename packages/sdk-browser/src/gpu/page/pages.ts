@@ -5,7 +5,7 @@ import { createGpuPageLoader } from './load.ts';
 import { createGpuPagePins } from './pins.ts';
 import { createPageBuffer, pageBufferBytes, resizeGpuPages } from './resize.ts';
 import { evictResident } from './commit.ts';
-import { checked, ONE_REQUEST } from '../../cluster/pages.ts';
+import { checked, ONE_REQUEST } from '../../cluster/checked.ts';
 import type { ResidentPage, GpuPageContext } from './types.ts';
 export type { ResidentPage } from './types.ts';
 /** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host. Queue writes are ordered; dispose waits for in-flight submits before destroy. */

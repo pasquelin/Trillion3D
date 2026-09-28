@@ -1,5 +1,5 @@
 import type { PageSource } from '../../../../sdk-core/src/index.ts';
-import { refusedStatus } from '../../cluster/pages.ts';
+import { refusedStatus } from '../../cluster/checked.ts';
 import type { BackendDiagnostic } from '../../backend/types.ts';
 
 export function createGpuPageReader(
