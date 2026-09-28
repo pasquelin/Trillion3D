@@ -1,10 +1,8 @@
 use super::*;
-mod visibility;
-pub(crate) use visibility::{declared_hidden, hidden_nodes};
 
 pub(super) struct NodeSelection {
     pub chosen: BTreeSet<usize>,
-    /// The chosen nodes no hidden node hides (`visibility.rs`): what the drawn scene derives from.
+    /// The chosen nodes no hidden node hides (`scene_nodes`): what the drawn scene derives from.
     pub shown: BTreeSet<usize>,
     pub selected_triangles: usize,
     pub skinned_meshes: BTreeSet<usize>,
@@ -117,28 +115,42 @@ pub(super) fn scene_roots(g: &Value, nodes: &[Value]) -> Result<Vec<usize>> {
     Ok(roots)
 }
 
-/// Nodes the rendered scene reaches from its roots. A node of another scene, or
-/// that no scene names, does not belong to what is compiled: neither its geometry,
-/// nor its light, nor its stand-in in the proxy. This set is the only one
-/// selection, the proxy and lights consult, so they cannot answer three different
-/// things.
-pub(super) fn scene_nodes(g: &Value) -> Result<BTreeSet<usize>> {
+/// Whether `node` declares itself hidden (`KHR_node_visibility` `visible: false`).
+pub(crate) fn declared_hidden(node: &Value) -> bool {
+    node.pointer("/extensions/KHR_node_visibility/visible") == Some(&Value::Bool(false))
+}
+
+/// Nodes the rendered scene reaches from its roots, and those of them a hidden node hides: itself
+/// and every node under it, whose meshes are compiled but from which no surface, proxy triangle
+/// or collider is derived. A node of another scene, or that no scene names, does not belong to
+/// what is compiled: neither its geometry, nor its light, nor its stand-in in the proxy. This walk
+/// is the only one selection, the proxy and lights consult, so they cannot answer differently.
+pub(crate) fn scene_nodes(g: &Value) -> Result<(BTreeSet<usize>, BTreeSet<usize>)> {
     let nodes = values(g, "nodes")?;
-    let mut stack = scene_roots(g, nodes)?;
-    let mut reached = BTreeSet::new();
-    while let Some(id) = stack.pop() {
+    let roots = scene_roots(g, nodes)?;
+    let mut stack: Vec<(usize, bool)> = roots.into_iter().map(|id| (id, false)).collect();
+    let (mut reached, mut hidden) = (BTreeSet::new(), BTreeSet::new());
+    while let Some((id, above)) = stack.pop() {
         if !reached.insert(id) {
             continue;
         }
-        stack.extend(children_of(nodes, id)?);
+        let under = above || declared_hidden(&nodes[id]);
+        if under {
+            hidden.insert(id);
+        }
+        stack.extend(
+            children_of(nodes, id)?
+                .into_iter()
+                .map(|child| (child, under)),
+        );
     }
-    Ok(reached)
+    Ok((reached, hidden))
 }
 
 pub(super) fn select_nodes(
     o: &Options,
     g: &Value,
-    scene_nodes: &BTreeSet<usize>,
+    (scene_nodes, hidden): (&BTreeSet<usize>, &BTreeSet<usize>),
 ) -> Result<NodeSelection> {
     let nodes = values(g, "nodes")?;
     let mut chosen = BTreeSet::new();
@@ -182,7 +194,7 @@ pub(super) fn select_nodes(
         .enumerate()
         .map(|(new, old)| (*old, new))
         .collect();
-    let shown = chosen.difference(&hidden_nodes(g)?).copied().collect();
+    let shown = chosen.difference(hidden).copied().collect();
     Ok(NodeSelection {
         chosen,
         shown,

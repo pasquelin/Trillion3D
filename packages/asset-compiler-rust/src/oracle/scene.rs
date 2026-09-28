@@ -104,7 +104,7 @@ pub fn load(path: &Path) -> Result<World> {
         node_links: Vec::new(),
     };
     // A hidden node is not drawn: the reference traces what the compiled scene shows.
-    let hidden = crate::compiler_nodes::hidden_nodes(&g)?;
+    let (_, hidden) = crate::compiler_nodes::scene_nodes(&g)?;
     for (id, node) in nodes.iter().enumerate() {
         let Some(mesh) = node.get("mesh").and_then(Value::as_u64) else {
             continue;
