@@ -106,8 +106,9 @@ function uploadSphereRun(rt: WebgpuPagesRuntime, from: number, to: number) {
 /**
  * Mobility word of rows `[from, to]` — whether its placement moves, whether it is a cutout, the
  * corners its row draws (#966) — pushed on the same dirty interval as the spheres and the page
- * table's flags, and every row once when a placement turns moving: what the page cull splits a page's casters by, static layer or moving
- * casters, and drawn with no fragment stage or with the cutout test (#965).
+ * table's flags, and every row once when a placement turns moving: what the page cull splits a
+ * page's casters by, static layer or moving casters, and drawn with no fragment stage or with the
+ * cutout test (#965).
  */
 export function uploadRowMobility(
   rt: WebgpuPagesRuntime,
