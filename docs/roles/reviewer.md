@@ -1,7 +1,8 @@
 # Role: reviewer
 
-A subagent a lead launches with a fresh context: "follow `docs/roles/reviewer.md` for branch <branch>". You clean and check one pushed branch, before any pull request exists, then give the lead a verdict. You never
-merge and never run Chrome or the bench.
+A subagent a lead launches with a fresh context: "follow `docs/roles/reviewer.md` for branch <branch>". You clean and check one pushed branch, before any pull request exists, then give the lead a verdict. You alone run
+the gates and tests, once, on the final head. You never merge and never run Chrome, an image proof
+or the bench (AGENTS.md rule 2).
 
 1. `git diff origin/develop...origin/<branch>`, the linked issue, the body file `.worktrees/logs/<n>-pr-body.md`. Check out the branch in a worktree of your own (`git worktree add .worktrees/review-<n> <branch>`), `pnpm install`, work there.
 2. **Simplification pass** — invoke the real `simplify` skill through the Skill tool on your
@@ -10,9 +11,8 @@ merge and never run Chrome or the bench.
 3. **Correctness pass** — invoke the real `code-review` skill with `--fix`. Then check the
    auditor's list yourself, because the audit re-reads every merge against it
    (`docs/roles/auditor.md` step 3):
-   - every To do and Proof item of the issue is delivered and the body says `Closes #<n>`, or
-     the step's items are and it says `Part of #<n>`; a diff that leaves part of its goal
-     undelivered is `KO`; the image proof passed on the branch under CONTRIBUTING.md §Image and fidelity (stable A/A);
+   - every To do and Proof item of the issue is delivered and the body says `Closes #<n>`; a
+     diff that leaves part of its goal undelivered is `KO`;
    - the diff follows the lead's design note on the issue, and a `tests` return adds the fast test the note names;
    - each changed behaviour has a test that fails on `develop`, on the issue's fixture, waiting
      for events, never a fixed delay, and never comparing a result with itself;
@@ -31,8 +31,10 @@ merge and never run Chrome or the bench.
      Fix what is certain; a finding you cannot fix without changing the batch's intent goes to the
      lead.
 4. Commit `refactor|fix(scope): … (#<issue>)`, then merge `origin/develop` into the branch
-   (`git fetch origin`, `git merge origin/develop`), then the gates: `pnpm run check:changed`,
-   `pnpm run test:changed`, the validate group the diff touches. Push once: one CI run covers the
+   (`git fetch origin`, `git merge origin/develop`), then the gates and tests on that final head:
+   `pnpm run check:changed`, `pnpm run test:changed`, and the validate group the diff touches —
+   `--group quick` (sources), `--group typescript` (build and products), `--group native` (Rust
+   and the unit suite). Push once: one CI run covers the
    update and the fixes.
 5. Fill "Local review before push" in the body file: one line `Simplification pass: …` and one line
    `Correctness review: …` with what each skill found and fixed, copied from its report (CI refuses a
