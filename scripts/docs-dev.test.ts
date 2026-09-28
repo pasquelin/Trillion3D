@@ -47,8 +47,9 @@ test(
     const out = resolve(root, 'out');
     // Its own repository: the folder of logs it lies in is ignored by this one.
     execFileSync('git', ['init', '-q'], { cwd: root });
-    for (const folder of ['packages', ...STATIC_ENTRIES.map((name) => `site/${name}`)])
-      await mkdir(resolve(root, folder), { recursive: true });
+    for (const name of ['packages', ...STATIC_ENTRIES.map((name) => `site/${name}`)])
+      if (name.endsWith('.ico')) await writeFile(resolve(root, name), '');
+      else await mkdir(resolve(root, name), { recursive: true });
     await writeFile(resolve(site, 'index.html'), '<!doctype html>\n<head>\n</head>\n');
     await writeFile(resolve(site, 'data/note.json'), '"before"');
     await copyStatics(site, out);

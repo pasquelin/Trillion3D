@@ -84,9 +84,13 @@ category and reason, and the command prints it before starting — never in sile
 
 ### Site proofs
 
-The learning portal under `site/` has its own proofs, run on demand in system Chrome. The three
+The learning portal under `site/` has its own proofs, run on demand in system Chrome. The two
 `scripts/docs-*.browser.ts` and `tests/browser/renders/explorer-startup.browser.ts` build the site into
-`dist/site/` before serving it, so they need no committed bundle. A behaviour-neutral change to the
+`dist/site/` before serving it, so they need no committed bundle; CI has no GPU and runs none of
+them, the coder runs them. `scripts/docs-examples.browser.ts` opens every page of `site/examples/`
+on WebGPU and on WebGL2 (`navigator.gpu` hidden) and fails on any error a page raises or logs — an
+import that fails, a 404, the engine's own failures — but those `DECLARED_ERRORS` names for it
+(`scripts/docs/examples/capture.ts`), each with its reason. A behaviour-neutral change to the
 site is proved by `node scripts/site-diff.browser.ts <beforeDir> <afterDir>`: every portal route
 (entries and examples in every language, examples index, API index, reports, not found),
 served from two built trees, settled, its DOM compared after normalising what is dynamic by
