@@ -29,12 +29,11 @@ export function createExplorerFrameScheduler(inputs: {
   let frame: number | undefined,
     disposed = false,
     waiting = false,
+    /** The frame to come is an invalidate's, drawn even before the feedback it no longer waits for. */
     asked = false,
     idle = 0,
     arrived = 0,
     revision = 0;
-  // `asked`: the frame to come is an invalidate's, drawn even before the feedback it no longer
-  // waits for.
   const schedule = () => {
     if (disposed || frame !== undefined) return;
     if (idle >= SETTLE_LIMIT) {

@@ -47,16 +47,14 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
     running = false,
     job = 0;
   /** The running job's next camera page (`progress`), one wait shared by every frame until a
-   *  page lands and wakes it; none is made while nobody waits. A page landed while nobody waited
-   *  (`landings` past `heard`) answers the next wait at once, so it is drawn without the next one. */
-  let next: Promise<unknown> | undefined, wake: (() => void) | undefined;
-  let landings = 0,
-    heard = 0;
+   *  page lands or the job ends and wakes it; none is made while nobody waits. A page landed while
+   *  nobody waited (`unheard`) answers the next wait at once, so it is drawn without the next one. */
+  let next: Promise<void> | undefined,
+    wake: (() => void) | undefined,
+    unheard = false;
   const landed = () => {
-    landings++;
-    if (!wake) return;
-    heard = landings;
-    wake();
+    unheard = !wake;
+    wake?.();
     next = wake = undefined;
   };
 
@@ -106,8 +104,10 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
         throw error;
       } finally {
         running = false;
+        // The job's end answers the frame waiting on it: nothing more lands.
+        wake?.();
         next = wake = undefined;
-        heard = landings;
+        unheard = false;
         traceDiagnostic('residency-job-end', 'GPU residency job finished', () => ({
           frame: jobFrame,
           jobId,
@@ -158,18 +158,18 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
       return pending;
     },
     /**
-     * The running job's next camera page made resident, or its end — a failure included: what
-     * the next image can draw already. A loop waiting on it draws while a long job loads, the
+     * The running job's next camera page made resident, or its end: what the next image can draw
+     * already; a failed job's error is thrown by the wait after (`pending`). A loop waiting on it draws while a long job loads, the
      * view refining page by page, where waiting on `pending` shows the coarse cut until the job's
      * last page (#836).
      */
     progress: () => {
       if (!running) return pending;
-      if (heard !== landings) {
-        heard = landings;
+      if (unheard) {
+        unheard = false;
         return Promise.resolve();
       }
-      return (next ??= Promise.race([pending, new Promise<void>((woken) => (wake = woken))]));
+      return (next ??= new Promise<void>((woken) => (wake = woken)));
     },
     /** True while an upload is in flight or queued: residency can still change. */
     get busy() {

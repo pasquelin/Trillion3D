@@ -31,26 +31,32 @@ test('the ensurer hears each camera page it lands, never a lower tier page', asy
   assert.equal(landed, 2, 'b and c: the resident page and the tier ahead are not heard');
 });
 
-test('progress resolves at each page landed, heard or not, while the job runs; pending at its end', async () => {
-  let release!: () => void;
-  const gate = new Promise<void>((open) => (release = open));
-  const queue = createWebgpuResidencyQueue({
+const queueOf = (
+  ensureResident: Parameters<typeof createWebgpuResidencyQueue>[0]['ensureResident'],
+) =>
+  createWebgpuResidencyQueue({
     tracking: createWebgpuPageTracking([]),
-    sets: { applyBudget() {} } as never,
+    sets: { applyBudget() {}, decideBy() {} } as never,
+    closure: {} as never,
     room: () => 0,
     getCache: () => undefined,
     getFrame: () => 0,
     updatePins() {},
-    async ensureResident(_wanted, _frame, _job, _waiting, landed) {
-      landed();
-      await new Promise(setImmediate);
-      landed(); // while no frame waits
-      await gate;
-    },
+    ensureResident,
     markLost() {},
     traceEnabled: false,
     traceDiagnostic() {},
     diagnosticFailure() {},
+  });
+
+test('progress resolves at each page landed, heard or not, while the job runs, and at its end', async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((open) => (release = open));
+  const queue = queueOf(async (_wanted, _frame, _job, _waiting, landed) => {
+    landed();
+    await new Promise(setImmediate);
+    landed(); // while no frame waits
+    await gate;
   });
   queue.queueCutResidency(false);
   const heard: string[] = [];
@@ -66,6 +72,17 @@ test('progress resolves at each page landed, heard or not, while the job runs; p
   release();
   await queue.pending;
   await new Promise(setImmediate);
-  assert.deepEqual(heard, ['progress', 'landed unheard', 'pending', 'next']);
+  assert.deepEqual(heard, ['progress', 'landed unheard', 'next', 'pending']);
   assert.equal(queue.progress(), queue.pending, 'no job running: its end is all there is to wait');
+});
+
+test('a failed job wakes the frame waiting on it; the wait after throws its error', async () => {
+  let fail!: (error: Error) => void;
+  const queue = queueOf(() => new Promise<void>((_, reject) => (fail = reject)));
+  queue.queueCutResidency(false);
+  await new Promise(setImmediate);
+  const woken = queue.progress();
+  fail(new Error('WEBGPU_LOST'));
+  await woken;
+  await assert.rejects(queue.progress(), /WEBGPU_LOST/);
 });
