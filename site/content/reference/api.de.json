@@ -6654,6 +6654,24 @@
       "modes": "Jeder Ansichtsmodus, den das aktuelle Rendering-Backend bietet."
     }
   },
+  "world.materials": {
+    "summary": "Aktuelle importierte Materialien, gefolgt von den auf der Seite erstellten."
+  },
+  "world.material": {
+    "summary": "Ein Material anhand seiner aufgelisteten ID."
+  },
+  "world.importedMaterials": {
+    "summary": "Werte der Quelldatei vor Änderungen durch die Seite."
+  },
+  "world.setMaterial": {
+    "summary": "Ändert ein importiertes oder erstelltes Material im nächsten Bild."
+  },
+  "world.createMaterial": {
+    "summary": "Erstellt ein Material für diese Seite."
+  },
+  "world.assignMaterial": {
+    "summary": "Weist einem kompilierten `mesh/primitive` das erstellte Material zu."
+  },
   "world.guides": {
     "summary": "Linien, Punkte und Helfer, über das Bild gezeichnet (`Guides`)."
   },

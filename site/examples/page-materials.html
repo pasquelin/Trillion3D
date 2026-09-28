@@ -21,7 +21,9 @@
     <canvas id="view"></canvas>
     <script type="module">
       import { createWorld, light } from '../runtime/engine.js';
-      import { controls, readout } from '../runtime/kit.js';
+      import { controls, readout, words } from '../runtime/kit.js';
+
+      const say = words();
 
       const world = createWorld('view', { controls: 'orbit', renderer: 'webgl2' });
       const model = await world.scene.load(
@@ -51,13 +53,13 @@
             .map(({ id, name }) => `${id} ${name || '(unnamed)'}`)
             .join(', '),
         );
-        original(`${world.importedMaterials().length} imported`);
+        original(say('imported', { count: world.importedMaterials().length }));
       };
       const report = (action) => {
         try {
           action();
           show();
-          status('Applied');
+          status(say('applied'));
         } catch (error) {
           status(error.code ?? error.message);
         }
@@ -85,10 +87,10 @@
       );
       const current = readout('selected material');
       const listed = readout('materials');
-      const original = readout('source materials');
+      const original = readout('sourceMaterials');
       const status = readout('last action');
       show();
-      status('Ready');
+      status(say('ready'));
     </script>
   </body>
 </html>

@@ -4092,6 +4092,24 @@
       "modes": "現在のレンダラーが提供するすべてのビューモード。"
     }
   },
+  "world.materials": {
+    "summary": "現在のインポート済みマテリアルと、ページで作成したマテリアル。"
+  },
+  "world.material": {
+    "summary": "一覧のIDで指定したマテリアル。"
+  },
+  "world.importedMaterials": {
+    "summary": "ページで変更する前のソースファイルの値。"
+  },
+  "world.setMaterial": {
+    "summary": "インポート済みまたは作成済みのマテリアルを次のフレームで変更します。"
+  },
+  "world.createMaterial": {
+    "summary": "このページのマテリアルを作成します。"
+  },
+  "world.assignMaterial": {
+    "summary": "作成したマテリアルをコンパイル済みの `mesh/primitive` に割り当てます。"
+  },
   "world.guides": {
     "summary": "画像の上に描かれる線、点、ヘルパー（`Guides`）。"
   },
