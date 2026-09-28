@@ -21,6 +21,7 @@ type QueueOptions = {
     frame: number,
     jobId: number,
     cameraWaiting: () => boolean,
+    landed: () => void,
   ) => Promise<void>;
   markLost: (error: unknown) => void;
   traceEnabled: boolean;
@@ -38,6 +39,13 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
   let scheduled = false,
     running = false,
     job = 0;
+  /** Who waits for the running job's next camera page (`progress`), woken as one lands. */
+  let waiting: (() => void)[] = [];
+  const landed = () => {
+    const wake = waiting;
+    waiting = [];
+    for (const woken of wake) woken();
+  };
 
   const follow = () => {
     const queuedAt = performance.now(),
@@ -76,7 +84,7 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
         while (scheduled) {
           scheduled = false;
           // The job yields its caster tier to a cut queued meanwhile, and runs again for it.
-          await ensureResident(items, jobFrame, jobId, () => scheduled);
+          await ensureResident(items, jobFrame, jobId, () => scheduled, landed);
         }
       } catch (error) {
         // The withdrawal precedes the report: a host drawing on it finds nothing stale.
@@ -85,6 +93,7 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
         throw error;
       } finally {
         running = false;
+        waiting = [];
         traceDiagnostic('residency-job-end', 'GPU residency job finished', () => ({
           frame: jobFrame,
           jobId,
@@ -124,6 +133,14 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
     get pending() {
       return pending;
     },
+    /**
+     * The running job's next camera page made resident, or its end — a failure included: what
+     * the next image can draw already. A loop waiting on it draws while a long job loads, the
+     * view refining page by page, where waiting on `pending` shows the coarse cut until the job's
+     * last page (#836).
+     */
+    progress: () =>
+      running ? Promise.race([pending, new Promise<void>((wake) => waiting.push(wake))]) : pending,
     /** True while an upload is in flight or queued: residency can still change. */
     get busy() {
       return running || scheduled;
