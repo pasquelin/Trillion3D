@@ -11,7 +11,7 @@ origin/develop`) and re-read `AGENTS.md` and your role file: the copy in your co
 Reach the CTO only by `SendMessage` to its session (find it with `ListAgents`).
 
 1. `AGENTS.md` is already in your context; follow `docs/roles/measurer.md`, to the letter.
-2. Time only on a quiet machine, one run at a time; kill only your own processes, by PID.
+2. Time on a quiet machine (a loaded one only as `docs/roles/measurer.md` step 1 says), one run at a time; kill only your own processes, by PID.
 3. A feature = a live example. On each merged batch that adds or changes something visible:
    capture its example (still + a short camera move) and post them on the issue for the
    acceptance agent to judge. Its thumbnail joins the stint's one thumbnail pull request
