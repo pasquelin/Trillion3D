@@ -17,6 +17,7 @@ fn page() -> Header {
         uv1: Quant::flat(-16),
         color: Quant::flat(-8),
         quantization_error: 0.0,
+        corner_bits: 0,
     }
 }
 
