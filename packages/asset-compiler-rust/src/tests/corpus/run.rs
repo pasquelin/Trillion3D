@@ -17,7 +17,7 @@ fn run(family: Vec<(Generator, Expect)>) {
                     invariants::check_structure(&case, &indices, &built, &label);
                     islands::check_islands(&case, &indices, &built, &label);
                     invariants::check_roots(&built, &label);
-                    invariants::check_pages(&case, &built, &label);
+                    invariants::check_pages(&built, &label);
                     roots.push(built.roots());
                 }
                 cache::check_cache(&case, &expect, &roots, &label);
