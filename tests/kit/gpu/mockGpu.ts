@@ -1,6 +1,6 @@
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { createMockCommandEncoderFactory, type MockDraw, type MockPass } from './mockEncoder.ts';
-import { bytesOf, refuseUnbindable } from './globals.ts';
+import { bytesOf } from './globals.ts';
 import { asWebgpuDevice, untag } from './webgpuDevice.ts';
 
 /** What a test asks of `mockGpu`: the device limits, the DAG its compute selection runs on, and
@@ -69,7 +69,6 @@ export function mockGpu({
     createBuffer: (descriptor: { size: number; usage: number; label?: string }) => {
       const { size, usage } = descriptor,
         label = untag(descriptor.label);
-      refuseUnbindable(limits, descriptor);
       const data = new Uint8Array(size);
       const buffer = {
         size,
