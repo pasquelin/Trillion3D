@@ -23,10 +23,16 @@ import {
 } from './state/timing.ts';
 import type { HostCpuProfile } from '../../host/cpuProfile.ts';
 import type { WebgpuPagesSetup } from './prepare/setup.ts';
+import type { FeedbackAbState, ResidencyIdentity } from './diagnostic/feedbackAb.ts';
+import type { SpatialFeedback } from './diagnostic/feedbackSpatial.ts';
 
 export type WebgpuPagesBackend = RenderBackend &
   HostCpuProfile & {
     flush(): Promise<void>;
+    setFeedbackTargetAb(target: boolean): Promise<void>;
+    feedbackAbResidency(): Promise<ResidencyIdentity>;
+    captureFeedbackAb(): Promise<Uint8Array>;
+    feedbackAbSpatial(): Promise<SpatialFeedback>;
     rasterRgba(): Uint8Array;
     selectedPageIds(): string[];
     visibilityIds(): Uint32Array;
@@ -47,6 +53,8 @@ export const VIS_FEATURES = [
  *  part of it. `setup` and `layout` never change after construction; the other groups do. */
 export interface WebgpuPagesRuntime {
   context: BackendContext;
+  /** Opt-in, same-session frame-target measurement; absent from production sessions. */
+  feedbackAB?: FeedbackAbState;
   /** Aborted by `dispose`; `signal` is aborted by it or by the session's. */
   closer: AbortController;
   signal: AbortSignal;

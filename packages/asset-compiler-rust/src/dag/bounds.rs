@@ -1,4 +1,4 @@
-use crate::shared_math::{extend_aabb, length, point};
+use crate::shared_math::{extend_aabb, length, point, sub};
 
 /// AABB centre plus the farthest vertex. Conservative and deterministic.
 pub fn bounding_sphere(positions: &[f32], indices: &[u32]) -> [f64; 4] {
@@ -39,7 +39,7 @@ pub(super) fn merge_spheres(left: [f64; 4], right: [f64; 4]) -> [f64; 4] {
     if left[3] < 0.0 {
         return right;
     }
-    let delta = [right[0] - left[0], right[1] - left[1], right[2] - left[2]];
+    let delta = sub([right[0], right[1], right[2]], [left[0], left[1], left[2]]);
     let distance = length(delta);
     if distance + right[3] <= left[3] {
         return left;
@@ -73,10 +73,8 @@ pub fn enclosing_sphere(spheres: &[[f64; 4]]) -> [f64; 4] {
     result
 }
 
-/// Local vertex buffer for a triangle region. Dense inputs use a direct table, sparse ones a map.
-/// Spatial clusters of at most `max_triangles` triangles, built with meshopt's meshlet builder.
-/// meshopt 0.4 exposes `build_meshlets`; it does not expose a cluster partitioner, so grouping
-/// below uses a local recursive bisection instead.
+/// Box of the vertices a cluster's triangles use; an empty cluster, or one whose low x is not
+/// finite, gets a zero box.
 pub(super) fn cluster_bounds(positions: &[f32], indices: &[u32]) -> ([f64; 3], [f64; 3]) {
     let mut min = [f64::INFINITY; 3];
     let mut max = [f64::NEG_INFINITY; 3];

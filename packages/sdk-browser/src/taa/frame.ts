@@ -72,7 +72,7 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
   state.active = rt.gpu.temporalWanted && !rt.capture.capturing && rt.run.diagnostic === 'beauty';
   if (!state.active) return;
   // A convergence image remakes the last ordinary image, it does not accumulate it further.
-  if (rt.run.textureConverging) quiet = temporal.replay();
+  if (rt.run.textureConverging || rt.feedbackAB?.force) quiet = temporal.replay();
   else {
     // A moving image draws its lights from a rank of its own; a still one shades them all, and
     // so does a moving one with no history yet — nothing would average its draws.
@@ -120,6 +120,7 @@ export function encodeTaaPass(
   cam: EngineCamera,
   current: GPUTextureView,
   asIs = true,
+  share?: GPUTextureView,
 ): AccumulatedImage | undefined {
   const temporal = rt.gpu.temporal,
     { gpu, vis, run } = rt;
@@ -155,6 +156,7 @@ export function encodeTaaPass(
   inputs.pages = vis.pageTable;
   inputs.motion = temporal.motion.buffer;
   inputs.flags = asIs ? gpu.surfaces.views()[3] : undefined;
+  inputs.share = asIs ? share : undefined;
   const output = temporal.encode(encoder, inputs);
   run.gpuDrawCalls++;
   state.sceneSeen = scene;

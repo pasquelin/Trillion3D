@@ -73,6 +73,7 @@ export function importHostSurface(material: HostMaterials): VisMaterial | undefi
         ? shininessRoughness(first.shininess ?? 30)
         : 1,
     lit,
+    fog: first.fog !== false,
     doubleSided: side === 'double',
     backSide: side === 'back',
     alphaTest: typeof first.alphaTest === 'number' ? first.alphaTest : 0,

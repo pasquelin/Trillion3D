@@ -58,6 +58,8 @@ export type HostShadedMaterial = HostMaterial & {
   readonly clippingPlanes?: { readonly length: number } | null;
   readonly stencilWrite?: boolean;
   readonly flatShading?: boolean;
+  /** The surface opts out of the scene's fog when false. */
+  readonly fog?: boolean;
   readonly wireframe?: boolean;
   /** Width in CSS pixels of the lines the surface draws; zero when it draws triangles. */
   readonly lineWidth?: number;
