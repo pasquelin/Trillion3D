@@ -9,7 +9,7 @@ import { Scene } from '../world/core/scene.ts';
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 // #822: a scene declares as many lamps as it holds. The store takes every one of them and a
-// file's lamps all arrive; WebGL2, until #835, refuses past its 64 slots out loud.
+// file's lamps all arrive; WebGL2 takes them all too (#835).
 
 const lamps = (count: number): SceneLight[] =>
   Array.from({ length: count }, (_, i) => ({
@@ -30,7 +30,7 @@ test('300 imported lights: every one is declared, none dropped', () => {
   assert.deepEqual(store.ids, declared);
 });
 
-test('WebGL2 past 64 lights raises its explicit error, never a silent drop', () => {
+test('WebGL2 takes 300 lights: no count refuses a scene', () => {
   const [scene, store] = [new Scene(), createSceneLightStore()];
   const contract = attachContractLights(
     scene,
@@ -38,10 +38,7 @@ test('WebGL2 past 64 lights raises its explicit error, never a silent drop', () 
     installLighting(scene, 0, new Object3D()),
     () => {},
   );
-  for (const light of lamps(64)) store.add(light);
+  for (const light of lamps(300)) store.add(light);
   contract.apply();
-  assert.equal(unsupportedClusterLight(scene), undefined, '64 lights fit');
-  store.add(lamps(65)[64]);
-  contract.apply();
-  assert.match(unsupportedClusterLight(scene)!, /65 light slots exceed the 64-light contract/);
+  assert.equal(unsupportedClusterLight(scene), undefined);
 });
