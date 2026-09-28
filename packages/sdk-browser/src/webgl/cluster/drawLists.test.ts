@@ -11,6 +11,7 @@ import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import { isDrawnNode } from '../../host/graph/kinds.ts';
+import type { HostMesh } from '../../host/resources.ts';
 import { firstMaterial } from '../../scene/materialSide.ts';
 import { pick as pickOf, seeded } from '../../host/world/randomTree.fixture.ts';
 import { HOSTILE_FLOATS } from '../../../../../tests/kit/assert/hostile.ts';
@@ -23,8 +24,8 @@ const SCREEN = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1.2, -1, 0, 0, -0.2, 0];
  *  surface to the see-through list. */
 function developLists(scene: Scene, copies: readonly object[]) {
   const copied = new Set(copies);
-  const opaque: Mesh[] = [],
-    seeThrough: Mesh[] = [];
+  const opaque: HostMesh[] = [],
+    seeThrough: HostMesh[] = [];
   const collect = (node: Object3D) => {
     if (!node.visible) return;
     if (isDrawnNode(node)) {
@@ -171,7 +172,7 @@ test('a link the graph had keeps hearing, and gets the graph back', () => {
   };
   scene._link = before._link = had;
   const lists = createDrawLists(scene, []);
-  const added = new Mesh();
+  const added: HostMesh = new Mesh(undefined, new GraphSurface('basic'));
   scene.add(added);
   added.visible = false;
   added.material = new GraphSurface('standard');
