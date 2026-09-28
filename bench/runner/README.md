@@ -253,6 +253,23 @@ input difference behind an image difference between that path and a witness, mea
 supposed. On `tests/fixtures/scenes/kinetic-garden` (430 pages, 107 520 corners): `maxPositionGap`
 6.10 × 10⁻⁵, `maxNormalGapDegrees` 0.613, mean 0.284°.
 
+## The Screen Error of What Is Drawn
+
+    pnpm run build
+    TRILLION3D_ASSETS=<assets> node bench/runner/screenError.ts --scene sponza --poses bench \
+      [--backends webgpu,webgl2] [--pixel-errors 0,1] [--out .mesure/out/<issue>]
+
+The measured screen error of what WebGPU and WebGL2 draw, against the source glTF (#959), the
+audit's oracle: forward, sample points of the drawn triangles to the source surface; reverse,
+visible sample points of the source to the drawn triangles. Each distance becomes pixels through
+the cut's own projection (`screenErrorBound`), under the engine's camera, frustum and focal length,
+at 1728×1117, DPR 2; the nearest-surface and visibility queries run on the engine's triangle tree.
+A row passes when both maxima stay within `pixelError + 0.1 px`. WebGPU hands back the pages its
+cut selected (decoded by the engine's page decoder, which the WGSL decode matches bit for bit),
+WebGL2 the triangles it drew. `--poses orbit` and `--poses terrain` are the audit's cameras placed
+on the source's box, `--poses bench` the bench's four named views. The compiler-side measure of the
+quantization alone is `packages/asset-compiler-rust/src/geometry_page_quant/screen/` (#930).
+
 ## What Anisotropy Costs
 
     pnpm run build
