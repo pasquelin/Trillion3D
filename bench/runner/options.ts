@@ -5,7 +5,8 @@ import { FRAMES_PER_SEGMENT, VIEWS } from './poses.ts';
 import { ASSETS } from './scene.ts';
 import { lightingSettings } from './lightingOptions.ts';
 import type { SideBase } from './dists.ts';
-import type { BenchSettings } from './benchSettings.ts';
+import type { BenchSettings, PoolVivant } from './benchSettings.ts';
+import { residentFraction } from './poolFill.ts';
 export type { BenchSettings } from './benchSettings.ts';
 
 export { PATH_VERSION, VIEWS, poseAt } from './poses.ts';
@@ -59,13 +60,18 @@ export function parseArgs(argv: string[]) {
   return flags;
 }
 
-/** In-session memory budgets, or `null` when none requested. */
-function live(flags: Map<string, string>, mio: (name: string) => number | null) {
+/** In-session memory budgets, or `null` when none requested. `--pool-textures-vivant` takes MiB,
+ *  or `<n>%` of the texture bytes the settled pose holds resident: a pool the scene fills. */
+function live(flags: Map<string, string>, mio: (name: string) => number | null): PoolVivant | null {
+  const texture = flags.get('pool-textures-vivant'),
+    fraction = texture === undefined ? null : residentFraction(texture);
   const budgets = {
     geometryPoolBytes: flags.has('pool-geometrie-vivant')
       ? mio('pool-geometrie-vivant')
       : undefined,
-    texturePoolBytes: flags.has('pool-textures-vivant') ? mio('pool-textures-vivant') : undefined,
+    texturePoolBytes:
+      texture !== undefined && fraction === null ? mio('pool-textures-vivant') : undefined,
+    textureResidentFraction: fraction ?? undefined,
   };
   return Object.values(budgets).some((v) => v !== undefined) ? budgets : null;
 }

@@ -41,7 +41,24 @@ export function textures(
       `${n2(m.textureUploadMs)} ms, worst pass ${n2(m.textureUploadPeakMs)} ms; ` +
       `baked levels ${n(m.textureLevelReads)} in read, ${n(m.textureLevelsDecoded)} decoded, ` +
       `${mo(m.textureLevelCacheBytes)} held; ${n(m.textureScratchBuilds)} scratch textures`,
+    ...liveTexturePool(resultat.reglageVivant),
     `- Prepare ${preparation}; network since prepare: ${reseau}`,
     '',
+  ];
+}
+
+/** The texture pool set in session, and what setting it cost; nothing when none was set. The
+ *  eviction and upload time the moving series then spends is the streamer's passes above. */
+function liveTexturePool(reglage: Row['reglageVivant'] | undefined) {
+  const pool = reglage?.texturePool;
+  if (!reglage || !pool) return [];
+  const asked =
+    reglage.residentTextureBytes === undefined
+      ? ''
+      : ` (from ${mo(reglage.residentTextureBytes)} resident)`;
+  return [
+    `- Texture pool set live: ${mo(pool.budgetBytes)} asked${asked}, ${mo(pool.allocatedBytes)} ` +
+      `held${pool.clamp ? ` (${pool.clamp})` : ''}; ${reglage.evictedTiles} tiles evicted in ` +
+      `${reglage.durationMs.toFixed(2)} ms, pose held again after ${n(reglage.imagesReprise)} frames`,
   ];
 }
