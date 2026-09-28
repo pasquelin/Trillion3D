@@ -20,7 +20,7 @@ import { dropVis, grantCapability } from '../io/drops.ts';
 import { throwIfStopped } from '../io/lost.ts';
 import { prepareWebgpuTextures } from './textures.ts';
 import { prepareWebgpuVisibility } from './visibility.ts';
-import { prepareDirectLights } from './lights.ts';
+import { prepareDirectLights, prepareShadowPipelines } from './lights.ts';
 import { grantWebgpuPagesCache } from './cache.ts';
 import { prepareGpuTiming } from './timing.ts';
 import { reserveRootBoxes } from '../../../math/batchBoxes.ts';
@@ -162,6 +162,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   if (context.gpuCanvas && blendState.blendGpu.length && !vis.blendPipelines)
     throw new Error('WEBGPU_FORWARD_MATERIAL_UNAVAILABLE');
   await step('direct lights', () => prepareDirectLights(rt, gpuDevice));
+  await step('shadow pipelines', () => prepareShadowPipelines(rt, gpuDevice));
   prepareCones(rt);
   // Every cluster carries its own error band, so the GPU cut is one thread per cluster.
   if (vis.gpuDraw && selectionRoots.length) {

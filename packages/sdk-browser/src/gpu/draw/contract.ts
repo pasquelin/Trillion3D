@@ -2,6 +2,8 @@ import type { LightRowMap } from './lightRows.ts';
 import { MAX_DEPTH_LAYER } from '../../../../sdk-core/src/index.ts';
 
 export const DRAW_INDIRECT_STRIDE = 16;
+/** Words of one indirect draw command; its instance count is the second. */
+export const DRAW_INDIRECT_WORDS = DRAW_INDIRECT_STRIDE / 4;
 export const PAGE_BIND_ALIGN = 256;
 export const BIN_BACK = 0,
   BIN_NONE = 1,

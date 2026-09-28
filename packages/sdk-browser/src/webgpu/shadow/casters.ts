@@ -7,6 +7,7 @@ import {
   SHADOW_CULL_VIEW,
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { pageViews } from './pages.ts';
+import { DRAW_INDIRECT_WORDS } from '../../gpu/draw/contract.ts';
 import { STALE_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 
 /** Where the current face's list lies, rewritten face by face: a frame allocates no record. */
@@ -93,7 +94,7 @@ export function encodeShadowCasters(
   for (let r = 0; r < runs.count; r++) {
     const face = runs.list[r];
     source.base = lists.bases[runBase + r];
-    source.indirectBase = (runBase + r) * 4;
+    source.indirectBase = (runBase + r) * DRAW_INDIRECT_WORDS;
     cull.encode(encoder, source, r, face.first, face.count, lists.lengths[runBase + r]);
   }
   lights.lightRuns += runs.count;
