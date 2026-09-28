@@ -43,17 +43,19 @@ export async function startModule(
   return { ...jolt, visits, raw: opened };
 }
 
+/** One of the threaded module's threads run in a Node worker. */
+export function nodeThread(start: JoltThreadStart) {
+  const loader = new URL('./joltThreads.ts', import.meta.url).href;
+  return new NodeWorker(
+    `import(${JSON.stringify(loader)}).then((m) => m.runJoltThread(require('node:worker_threads').workerData))`,
+    { eval: true, workerData: start },
+  );
+}
+
 /** The threaded module stepped by `count` threads (Node workers); `close` stops them. */
 export async function startThreaded(count: number, budget: Partial<PhysicsBudget> = {}) {
   const threads: NodeWorker[] = [];
-  const loader = new URL('./joltThreads.ts', import.meta.url).href;
-  const spawn = (start: JoltThreadStart) =>
-    threads.push(
-      new NodeWorker(
-        `import(${JSON.stringify(loader)}).then((m) => m.runJoltThread(require('node:worker_threads').workerData))`,
-        { eval: true, workerData: start },
-      ),
-    );
+  const spawn = (start: JoltThreadStart) => threads.push(nodeThread(start));
   const jolt = await startModule(budget, { count, spawn });
   return { jolt, threads, close: () => Promise.all(threads.map((thread) => thread.terminate())) };
 }
