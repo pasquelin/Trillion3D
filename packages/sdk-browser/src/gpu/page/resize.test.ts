@@ -103,3 +103,24 @@ test('held pins survive ordinary repinning, release with unpin, and leave no tie
   assert.equal(cache.get('root'), undefined, 'the reloaded page is not still held');
   assert.ok(cache.get('new'));
 });
+
+test('a page loaded held is held on arrival: a resize queued behind its load keeps it', async () => {
+  const { device } = fakeDevice({ limits: LIMITS });
+  const cache = createGpuPageCache(
+    device,
+    { read: async () => new Uint8Array(8) },
+    { pageBytes: 8, slots: 4 },
+  );
+  // Nothing is awaited: the resize runs behind the four loads, before any caller could pin.
+  const loads = [
+    cache.load('root', undefined, 'held'),
+    cache.load('cover', undefined, 'held'),
+    cache.load('a'),
+    cache.load('b'),
+  ];
+  const evicted = await cache.resize(2);
+  await Promise.all(loads);
+  assert.deepEqual(evicted.sort(), ['a', 'b'], 'the newer unpinned pages go, not the cover');
+  assert.ok(cache.get('root') && cache.get('cover'));
+  assert.equal(cache.unpinnedSlots(), 0, 'both cover pages arrived pinned');
+});
