@@ -1965,6 +1965,7 @@
       "manifest": "manifest read",
       "tables": "scene tables read",
       "resources": "scene files",
+      "session": "opening the view",
       "pages": "first pages",
       "ready": "ready"
     }

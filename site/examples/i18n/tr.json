@@ -1965,6 +1965,7 @@
       "manifest": "manifest okundu",
       "tables": "sahne tabloları okundu",
       "resources": "sahne dosyaları",
+      "session": "görünüm açılıyor",
       "pages": "ilk sayfalar",
       "ready": "hazır"
     }

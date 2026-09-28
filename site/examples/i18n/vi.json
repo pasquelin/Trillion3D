@@ -1965,6 +1965,7 @@
       "manifest": "đã đọc manifest",
       "tables": "đã đọc bảng cảnh",
       "resources": "tệp của cảnh",
+      "session": "đang mở khung nhìn",
       "pages": "trang đầu tiên",
       "ready": "sẵn sàng"
     }

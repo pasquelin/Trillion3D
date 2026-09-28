@@ -1965,6 +1965,7 @@
       "manifest": "manifiesto leído",
       "tables": "tablas de la escena leídas",
       "resources": "archivos de la escena",
+      "session": "abriendo la vista",
       "pages": "primeras páginas",
       "ready": "listo"
     }
