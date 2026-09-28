@@ -1,4 +1,4 @@
-import { PAGE_MAPPED, PAGE_VALID, SHADOW_TABLE_ENTRIES } from './virtual.ts';
+import { PAGE_MAPPED, PAGE_RANGE_SHIFT, PAGE_VALID, SHADOW_TABLE_ENTRIES } from './virtual.ts';
 import type { ShadowTable } from './table.ts';
 
 /** Ranks an ordering key spans, centred on zero: a page's coarseness steps lie far inside it. */
@@ -14,10 +14,9 @@ export const DRAW_ALL = 0,
   DRAW_FULL = 1,
   DRAW_DYNAMIC = 2;
 
-/** Host bytes a pool of `pages` allocates, per page 10·4 + 3 + 2·8, one bit per table entry. */
-export function shadowPoolHostBytes(pages: number) {
-  return pages * (10 * 4 + 3 + 2 * 8) + SHADOW_TABLE_ENTRIES / 8;
-}
+/** Host bytes a pool of `pages` allocates, per page 10·4 + 4 + 2·8, one bit per table entry. */
+export const shadowPoolHostBytes = (pages: number) =>
+  pages * (10 * 4 + 4 + 2 * 8) + SHADOW_TABLE_ENTRIES / 8;
 
 /**
  * THE PHYSICAL PAGES of the shadow pool and what each one holds: the table entry that maps it,
@@ -43,6 +42,8 @@ export function createShadowPool(side: number, layers = 1) {
     valid = new Uint8Array(pages),
     /** The static layer holds this page's static casters, current. */
     layered = new Uint8Array(pages),
+    /** The depth-range slot its depth and static layer were drawn in (`sunDepth.ts`). */
+    range = new Uint8Array(pages),
     /** The frame it turned stale — its age in the list (`admit.ts`) —, and since when the image
      *  has read it stale, in ms and frames, NaN unread (`counts.ts`). */
     sinceFrame = new Int32Array(pages),
@@ -89,6 +90,7 @@ export function createShadowPool(side: number, layers = 1) {
     dirty,
     valid,
     layered,
+    range,
     since,
     sinceFrame,
     readFrame,
@@ -98,7 +100,7 @@ export function createShadowPool(side: number, layers = 1) {
     pages,
     /** Bytes of every host array the pool holds: what `shadowPoolHostBytes` declares. */
     hostBytes: [
-      ...[owner, slice, view, x, y, rank, requested, dirty, valid, layered, since],
+      ...[owner, slice, view, x, y, rank, requested, dirty, valid, layered, range, since],
       ...[sinceFrame, readFrame, free, order, evicted],
     ].reduce((n, a) => n + a.byteLength, 0),
     /** Pages mapped. */
@@ -114,17 +116,19 @@ export function createShadowPool(side: number, layers = 1) {
       sinceFrame[page] = readFrame[page] = frame;
       return true;
     },
-    /** How the page is to be drawn, a static layer existing or not (`DRAW_*`). */
-    drawMode(page: number, staticLayer: boolean) {
+    /** How the page is drawn in depth-range slot `drawn` (`DRAW_*`): a layer of another is redrawn. */
+    drawMode(page: number, staticLayer: boolean, drawn: number) {
       if (!staticLayer) return DRAW_ALL;
-      return dirty[page] === STALE_FULL || !layered[page] ? DRAW_FULL : DRAW_DYNAMIC;
+      const kept = dirty[page] !== STALE_FULL && layered[page] && range[page] === drawn;
+      return kept ? DRAW_DYNAMIC : DRAW_FULL;
     },
-    /** The page's draw in `mode` has landed: current, and readable. */
-    drew(table: ShadowTable, page: number, mode: number) {
+    /** The page's draw in `mode`, in depth-range slot `drawn`, has landed: current, readable. */
+    drew(table: ShadowTable, page: number, mode: number, drawn: number) {
       dirty[page] = 0;
       valid[page] = 1;
       layered[page] = mode === DRAW_FULL || (mode === DRAW_DYNAMIC && layered[page]) ? 1 : 0;
-      table.write(owner[page], page | PAGE_MAPPED | PAGE_VALID);
+      range[page] = drawn;
+      table.write(owner[page], page | PAGE_MAPPED | PAGE_VALID | (drawn << PAGE_RANGE_SHIFT));
     },
     /** THE ONE WAY A PAGE IS READ NO MORE: it keeps its place and its requests, but its depth is
      *  wrong — not only coarser than the view wants — until it is drawn again, and a reader falls
@@ -150,12 +154,10 @@ export function createShadowPool(side: number, layers = 1) {
       requested[page] = -1;
       free[freeCount++] = page;
     },
-    /**
-     * Pages that may be taken for a report of frame `reportFrame`: every mapped page no later
-     * report named, least recently requested first and, among those, the finest first — a coarse
-     * page is what the finer ones fall back to. Built once per report, by the first `take` the
-     * free list cannot serve.
-     */
+    /** Pages that may be taken for a report of frame `reportFrame`: every mapped page no later
+     *  report named, least recently requested first and, among those, the finest first — a coarse
+     *  page is what the finer ones fall back to. Built once per report, by the first `take` the
+     *  free list cannot serve. */
     beginAllocation(reportFrame: number) {
       orderCount = -1;
       orderFrame = reportFrame;
