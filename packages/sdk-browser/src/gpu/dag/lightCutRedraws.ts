@@ -77,6 +77,10 @@ export function createLightCutRedraws(
     /** Residency changed since the waiting pages were last released. */
     moved = false;
   const again = (bits: number, page: number) => merge(redraw, page, bits);
+  /** The slot the frame's next batch copies its flag word into: the open frame's while it has room,
+   *  else a free one; none when every slot is still read. */
+  const slotFor = () =>
+    open ? (open.batches < BATCHES ? open : undefined) : slots.find(({ busy }) => !busy);
   const read = (slot: Slot, batch: number, flags: number) => {
     const from = batch ? slot.ends[batch - 1] : 0,
       to = slot.ends[batch];
@@ -125,22 +129,17 @@ export function createLightCutRedraws(
       modes: ArrayLike<number>,
     ) {
       if (!count) return undefined;
+      const slot = slotFor();
+      // A page drawn without its flag word could not be checked: the caller asks `ready` first.
+      if (!slot) throw new Error('light-cut redraws: no flag slot, ask `ready` first');
       let settlement: ((submitted: boolean) => void) | undefined;
-      if (!open) {
-        const free = slots.find(({ busy }) => !busy);
-        if (free) {
-          open = free;
-          free.busy = true;
-          free.batches = 0;
-          free.epoch = epoch;
-          free.reported = false;
-          settlement = settle(free);
-        }
-      }
-      const slot = open;
-      if (!slot || slot.batches >= BATCHES) {
-        for (let i = 0; i < count; i++) again(WRONG | casterBit(modes[i]), pages[i]);
-        return settlement;
+      if (slot !== open) {
+        open = slot;
+        slot.busy = true;
+        slot.batches = 0;
+        slot.epoch = epoch;
+        slot.reported = false;
+        settlement = settle(slot);
       }
       const at = slot.batches ? slot.ends[slot.batches - 1] : 0;
       for (let i = 0; i < count; i++) {
@@ -155,7 +154,7 @@ export function createLightCutRedraws(
     },
     /** Whether the frame's next batch has a slot for its flag word: without, it draws nothing. */
     get ready() {
-      return open ? open.batches < BATCHES : slots.some(({ busy }) => !busy);
+      return slotFor() !== undefined;
     },
     /** Once the frame's batches are encoded: whether its requests were copied
      *  (`lightCutReports.ts`). Until said, a frame's coarse pages count as not reported. */
