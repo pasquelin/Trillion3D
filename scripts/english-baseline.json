@@ -1,5 +1,5 @@
 {
-  "bench": 3793,
+  "bench": 3792,
   "packages/asset-compiler-rust": 714,
   "packages/page-codec-wasm": 16,
   "packages/sdk-browser": 2625,
