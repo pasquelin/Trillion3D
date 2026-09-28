@@ -52,7 +52,7 @@ fn cooked(name: &str, nodes: Value) -> (Vec<u8>, BTreeSet<String>) {
     (written, stored)
 }
 
-// Behaviour: a cube declaring `breakable` is cut into 2 to `PIECES` pieces, each a stored hull
+// Behaviour: a cube declaring `breakable` is cut into `PIECES` pieces, its seeds drawn from its own corners of the shared positions, each a stored hull
 // weighed at the body's scale, which together weigh the cube within `MASS_TOLERANCE`; the file is
 // format 3, cooked twice to the same bytes. Its body entry is otherwise the one it had declaring
 // nothing breakable, in a format 2 file that carries no piece. A breakable L (not convex), a
@@ -75,7 +75,11 @@ fn a_breakable_body_is_cut_into_weighed_pieces_beside_its_node() {
     let mut entry = broken["bodies"][0].clone();
     assert_eq!(entry["breakable"], json!(5.0));
     let pieces = entry["pieces"].as_array().unwrap().clone();
-    assert!((2..=PIECES).contains(&pieces.len()), "{}", pieces.len());
+    assert_eq!(
+        pieces.len(),
+        PIECES,
+        "seeds drawn from mesh 0's corners alone"
+    );
     let stored = |p: &Value| stored.contains(&format!("{}.bin", p["sha256"].as_str().unwrap()));
     assert!(pieces.iter().all(|p| p["type"] == "cooked" && stored(p)));
     let kg = |p: &Value| p["mass"]["mass"].as_f64().unwrap();

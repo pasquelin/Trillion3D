@@ -11,6 +11,7 @@ use crate::shared_math::{dot, extend_aabb, length, point, splitmix_unit, sub, GO
 use crate::{Options, Result};
 use rayon::prelude::*;
 use serde_json::Value;
+use std::collections::BTreeSet;
 
 /// Most pieces a breakable body is cut into.
 pub(super) const PIECES: usize = 12;
@@ -49,10 +50,12 @@ pub(super) fn pieces(
 ) -> Result<Vec<Value>> {
     let weight = |mass: &Value| mass["mass"].as_f64().unwrap_or_default();
     let whole = weight(&solid_mass(pos, triangles, scale, mesh)?);
-    let corners = (pos.len() / 3) as u32;
+    // The corners the triangles use: a shared accessor may hold positions of other meshes.
+    let used: BTreeSet<u32> = triangles.iter().copied().collect();
+    let corners: Vec<[f64; 3]> = used.into_iter().map(|i| point(pos, i)).collect();
     let (mut low, mut high) = ([f64::INFINITY; 3], [f64::NEG_INFINITY; 3]);
-    for i in 0..corners {
-        extend_aabb(&mut low, &mut high, point(pos, i));
+    for &p in &corners {
+        extend_aabb(&mut low, &mut high, p);
     }
     let eps = length(sub(high, low)) * 1e-6;
     let planes = face_planes(pos, triangles, eps);
@@ -61,7 +64,8 @@ pub(super) fn pieces(
     for _ in 0..ATTEMPTS {
         let picks: [(f64, [f64; 3]); 4] = std::array::from_fn(|_| {
             let w = draw(&mut state);
-            (w, point(pos, (draw(&mut state) * corners as f64) as u32))
+            let at = draw(&mut state) * corners.len() as f64;
+            (w, corners[at as usize])
         });
         let total: f64 = picks.iter().map(|(w, _)| w).sum();
         let seed = [0, 1, 2].map(|k| picks.iter().map(|(w, p)| w * p[k]).sum::<f64>() / total);

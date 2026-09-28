@@ -35,10 +35,12 @@ test('the compiler and the runtime number the cache format alike', () => {
   assert.equal(rustConstant('CLUSTERED_BLEND_FORMAT_VERSION'), CLUSTERED_BLEND_FORMAT_VERSION);
 });
 
-test('the physics.json the cook writes is the version its reader accepts', () => {
-  const formatVersion = rustConstant('PHYSICS_FORMAT_VERSION', 'physics_cook.rs');
-  const file = { formatVersion, jolt: JOLT_COMMIT, colliders: [], instances: [] };
-  assert.equal(readCookedPhysics(file).formatVersion, formatVersion);
+test('the physics.json the cook writes, with or without pieces, is a version its reader accepts', () => {
+  for (const name of ['PHYSICS_FORMAT_VERSION', 'PIECES_FORMAT_VERSION']) {
+    const formatVersion = rustConstant(name, 'physics_cook.rs');
+    const file = { formatVersion, jolt: JOLT_COMMIT, colliders: [], instances: [] };
+    assert.equal(readCookedPhysics(file).formatVersion, formatVersion);
+  }
 });
 
 // The binary is built by the `native` gate group before the unit suite runs; a checkout that has
