@@ -13,13 +13,9 @@ import {
 } from './stagePipelines.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts';
-import {
-  COVERAGE_EQUATIONS,
-  FILTERED_EQUATIONS,
-  FILTER_EQUATIONS,
-  filtersDisplay,
-} from './equations.ts';
-import { FILTER_FORMAT } from './displayFilter.ts';
+import { COVERAGE_EQUATIONS, FILTERED_EQUATIONS, filtersDisplay } from './equations.ts';
+import { displayTargets } from './displayFilter.ts';
+import { createRoutedPipelines } from './routedPipelines.ts';
 import { createWaterPass, type WaterPass } from '../water/pass.ts';
 import {
   blendVariantPipeline,
@@ -27,7 +23,7 @@ import {
   type DiagnosticGpuVariant,
 } from '../../diagnostic/gpuVariant.ts';
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts';
-/** The pass's targets in `mode`; `filtered`, with the display filter (`displayFilter.ts`). */
+/** The pass's targets in `mode`; `filtered`, with the display layers (`displayFilter.ts`). */
 export const blendTargets = (
   mode: Blending,
   mask: GPUColorWriteFlags,
@@ -44,8 +40,14 @@ export const blendTargets = (
   // contribution. Additive and subtractive colours also contribute lit pixels, so neither may
   // leave the background's share at one simply because its colour equation retains the target.
   { format: 'r8unorm', blend: BLEND_EQUATIONS.normal },
-  ...(filtered ? [{ format: FILTER_FORMAT, blend: FILTER_EQUATIONS[mode] }] : []),
+  ...(filtered ? displayTargets(mode) : []),
 ];
+/** The blend fragment's values, in their order: what a feedback-free entry keeps. */
+const BLEND_OUT: [string, string][] = ['color', 'asIs', 'tint', 'add'].map((name) => [
+  name,
+  'vec4f',
+]);
+const FRAGMENT_IN = ['in:VSOut,@builtin(front_facing) front:bool', 'in,front'] as const;
 
 /** The forward materials' bind layout, which the feedback-free diagnostic pipelines share. */
 function blendLayout(device: GPUDevice) {
@@ -126,18 +128,8 @@ export async function createWebgpuBlendPipelines(
   let code =
     BLEND_SHADER + (wantsWater ? WATER_SURFACE_WGSL : '') + (variant ? DIAGNOSTIC_BLEND_WGSL : '');
   if (!feedback) {
-    code = feedbackFreeEntry(
-      code,
-      'fs',
-      'BlendOut',
-      [
-        ['color', 'vec4f'],
-        ['asIs', 'vec4f'],
-        ['tint', 'vec4f'],
-      ],
-      'in:VSOut,@builtin(front_facing) front:bool',
-      'in,front',
-    );
+    for (const entry of ['fs', 'fsFiltered'])
+      code = feedbackFreeEntry(code, entry, 'BlendOut', BLEND_OUT, ...FRAGMENT_IN);
     if (wantsWater)
       code = feedbackFreeEntry(
         code,
@@ -154,32 +146,37 @@ export async function createWebgpuBlendPipelines(
       );
   }
   const blendModule = device.createShaderModule({ code: code });
-  const fragment = (mode: Blending, filtered: boolean): GPUFragmentState => ({
-    module: blendModule,
-    entryPoint,
-    targets: blendTargets(mode, writeMask, feedback, filtered),
-    ...(filtered && filtersDisplay(mode) ? { constants: { FILTERS_DISPLAY: 1 } } : {}),
-  });
-  const modePipelines = (filtered: boolean) =>
-    pipelinesByMode(device, (mode) =>
-      stageDescriptors(device, blendModule, blendBindGroupLayout, fragment(mode, filtered), false),
-    );
-  const perMode = modePipelines(false),
-    perFilteredMode = modePipelines(true);
+  const perMode = pipelinesByMode(device, (mode) =>
+    stageDescriptors(
+      device,
+      blendModule,
+      blendBindGroupLayout,
+      { module: blendModule, entryPoint, targets: blendTargets(mode, writeMask, feedback) },
+      false,
+    ),
+  );
+  const routed = createRoutedPipelines(
+    device,
+    blendModule,
+    blendBindGroupLayout,
+    feedback,
+    (mode) => blendTargets(mode, writeMask, feedback, true),
+  );
   // Normal always — the transmission slice draws on it under a diagnostic —, then every mode a
   // blend item declares, with a display filter too when one filters. A mode written on a surface
   // later is compiled by the first draw that asks for it (`at`).
   const declared = declaredBlendModes(items);
   await Promise.all([
     perMode.precompile(declared),
-    !variant && declared.some(filtersDisplay) && perFilteredMode.precompile(declared),
+    !variant && declared.some(filtersDisplay) && routed.precompile(declared),
   ]);
   const blendPipelines: BlendModePipelines = {
     byMode: perMode.byMode,
+    mask: routed.mask,
     at(rank, filtered = false) {
       const mode = BLEND_MODES[Math.floor(rank / 3)];
       if (!mode) throw new Error(`blend pipeline rank ${rank} names no blending mode`);
-      return (filtered ? perFilteredMode : perMode).at(mode)[rank % 3];
+      return (filtered ? routed.filtered : perMode).at(mode)[rank % 3];
     },
   };
   // A device that refuses the pass keeps the blends, and `waterRefused` names why to the caller.

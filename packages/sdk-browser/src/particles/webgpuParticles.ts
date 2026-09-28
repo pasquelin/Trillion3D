@@ -10,6 +10,8 @@ import { anyMoving, createPoolStates, refuseAll, usedSlots } from './poolStates.
 import { createWebgpuParticleDraw, type DrawState } from './webgpuParticleDraw.ts';
 import { DRAW_FLOATS } from './drawWords.ts';
 import { viewProj } from '../webgpu/pages/helpers.ts';
+import { routedFilter } from '../webgpu/blend/displayFilter.ts';
+import { directTiles } from '../webgpu/pages/render/encodeLights.ts';
 
 /** The pass label the GPU timings name the particle step by (`passesGpu`). */
 export const PARTICLES_PASS = 'Trillion3D particles';
@@ -170,5 +172,15 @@ export function drawParticles(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder
   if (!pools || !particles || !hdrView || !depthView) return;
   if (run.diagnostic !== 'beauty' || !run.lastCamera) return;
   const { eye } = run.gate.cam;
-  run.gpuDrawCalls += particles.draw(pools, encoder, hdrView, depthView, viewProj, eye);
+  const filter = routedFilter(rt.gpu.displayFilter);
+  run.gpuDrawCalls += particles.draw(
+    pools,
+    encoder,
+    hdrView,
+    depthView,
+    viewProj,
+    eye,
+    filter,
+    directTiles(),
+  );
 }

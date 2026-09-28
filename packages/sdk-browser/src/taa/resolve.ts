@@ -29,7 +29,7 @@ export async function createTaaResolves(device: GPUDevice) {
       name,
     );
     const targets: GPUColorTargetState[] = [{ format: 'rgba16float' }, { format: SHARE_FORMAT }];
-    if (filtered) targets.push({ format: FILTER_FORMAT });
+    if (filtered) targets.push({ format: FILTER_FORMAT }, { format: FILTER_FORMAT });
     return {
       layout,
       pipeline: await makeFullscreenPipeline(device, module, layout, 'resolve', targets),
