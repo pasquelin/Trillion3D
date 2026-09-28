@@ -4783,7 +4783,7 @@
   },
   "createGpuPageCache": {
     "summary": "Ranh giới cấp phát/hàng đợi WebGPU.",
-    "description": "Các byte trang và chính sách do ứng dụng chủ cung cấp. Các lần ghi hàng đợi có thứ tự; dispose chờ các lần gửi đang bay trước khi hủy."
+    "description": "Các byte trang và chính sách do ứng dụng chủ cung cấp. Các lần ghi hàng đợi có thứ tự; dispose chờ các lần gửi đang bay trước khi hủy. `pin(key, 'held')` giữ trang trước các trang ghim thông thường khi `resize(slots)`, vốn không còn nhận tập held. Ghim lại theo cách thông thường vẫn giữ mức ưu tiên này; `unpin(key)` xóa mức đó."
   },
   "createJob": {
     "summary": "Không có bộ đếm giờ, DOM, hệ thống tệp hay giao diện người dùng."

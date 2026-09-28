@@ -85,8 +85,9 @@ test('held pins survive ordinary repinning, release with unpin, and leave no tie
   for (const key of ['root', 'a', 'b']) await cache.load(key);
   cache.pin('root', 'held');
   cache.pin('root');
+  cache.pin('a');
   cache.pin('b');
-  assert.equal(cache.unpinnedSlots(), 1, 'a held page counts once');
+  assert.equal(cache.unpinnedSlots(), 0, 'a held page counts once');
   assert.equal(cache.unload('root'), false);
   await cache.resize(2);
   assert.ok(cache.get('root'));

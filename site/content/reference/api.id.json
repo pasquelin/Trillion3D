@@ -4783,7 +4783,7 @@
   },
   "createGpuPageCache": {
     "summary": "Batas alokasi/antrean WebGPU.",
-    "description": "Byte halaman dan kebijakannya disediakan host. Penulisan antrean berurutan; dispose menunggu submit yang masih berjalan sebelum destroy."
+    "description": "Byte halaman dan kebijakannya disediakan host. Penulisan antrean berurutan; dispose menunggu submit yang masih berjalan sebelum destroy. `pin(key, 'held')` mempertahankan halaman sebelum halaman yang disematkan biasa saat `resize(slots)`, yang tidak lagi menerima set held. Penyematan ulang biasa mempertahankan tingkat ini; `unpin(key)` menghapusnya."
   },
   "createJob": {
     "summary": "Tanpa timer, DOM, sistem berkas atau UI."

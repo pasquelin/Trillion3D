@@ -4791,7 +4791,7 @@
   },
   "createGpuPageCache": {
     "summary": "WebGPU tahsis/kuyruk sınırı.",
-    "description": "Sayfa baytları ve politika host tarafından sağlanır. Kuyruk yazmaları sıralıdır; dispose, yok etmeden önce uçuştaki gönderimleri bekler."
+    "description": "Sayfa baytları ve politika host tarafından sağlanır. Kuyruk yazmaları sıralıdır; dispose, yok etmeden önce uçuştaki gönderimleri bekler. `pin(key, 'held')`, artık held kümesi almayan `resize(slots)` sırasında sayfayı normal sabitlenmiş sayfalardan önce korur. Normal yeniden sabitleme bu önceliği korur; `unpin(key)` kaldırır."
   },
   "createJob": {
     "summary": "Zamanlayıcı, DOM, dosya sistemi ya da UI yok."
