@@ -38,7 +38,6 @@ const blankView = (viewport: [number, number] | undefined): WebglViewState => ({
 /** One view's record: it always holds its own state, which the live group holds too while it is
  *  drawn; `cam` is the engine camera frame entry writes (`gate.cam`). */
 export type WebglView = WebglViewState & { cam: EngineCamera };
-export type WebglViews = ReturnType<typeof createWebglViews>;
 
 /**
  * The views of one WebGL2 backend. The frame reads the drawn view's state in `live`, which it
