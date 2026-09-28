@@ -4266,7 +4266,6 @@
     "members": {
       "isObject3D": "Toujours `true` : distingue un nœud de scène.",
       "type": "Le genre de nœud : `'Mesh'`, `'Group'`…",
-      "name": "Un nom pour retrouver le nœud.",
       "position": "Où se tient le nœud, par rapport à son parent.",
       "rotation": "Comment le nœud est tourné, en trois angles.",
       "quaternion": "Comment le nœud est tourné, en quaternion.",
@@ -4352,6 +4351,7 @@
   "TransformNode": {
     "summary": "Un nœud de scène lu à travers les matrices de la référence, rangé dans l’arbre des transformations du moteur.",
     "members": {
+      "name": "Un nom pour retrouver le nœud.",
       "matrix": "La matrice locale, une vue sur la place de ce nœud dans l’arbre de transformations.",
       "matrixWorld": "Matrice dans le monde telle que composée en dernier (`updateMatrixWorld`), une vue sur l’arbre.",
       "matrixAutoUpdate": "Faux quand `matrix` EST la pose et que rien ne la recompose.",

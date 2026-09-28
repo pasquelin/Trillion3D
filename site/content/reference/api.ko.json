@@ -2102,7 +2102,6 @@
     "members": {
       "isObject3D": "항상 `true`: 씬 노드를 구분한다.",
       "type": "노드의 종류: `'Mesh'`, `'Group'`…",
-      "name": "노드를 찾기 위한 이름.",
       "position": "노드가 부모로부터 어디에 서 있는가.",
       "rotation": "노드가 어떻게 회전해 있는가, 세 각도로.",
       "quaternion": "노드가 어떻게 회전해 있는가, 쿼터니언으로.",
@@ -2188,6 +2187,7 @@
   "TransformNode": {
     "summary": "레퍼런스의 행렬로 읽는 장면 노드로, 엔진의 변환 트리에 보관된다.",
     "members": {
+      "name": "노드를 찾기 위한 이름.",
       "matrix": "로컬 행렬. 이 노드의 변환 트리 내 슬롯의 뷰.",
       "matrixWorld": "마지막으로 합성된(`updateMatrixWorld`) 월드 행렬. 트리의 뷰.",
       "matrixAutoUpdate": "`matrix`가 곧 자세이고 아무것도 그것을 다시 합성하지 않을 때 false.",
