@@ -2,7 +2,7 @@ import { upscaleMipBias } from '../../../taa/jitter.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** Smallest render scale: half the display per axis, the reference's minimum screen percentage. */
-export const MIN_RENDER_SCALE = 0.5;
+const MIN_RENDER_SCALE = 0.5;
 
 /** The session's render scale from the host's: in `[MIN_RENDER_SCALE, 1]`, 1 when absent or not a
  *  number. A fixed internal value in this step; its controller and public setting are #832. */
@@ -24,7 +24,7 @@ export function renderScaleOf(rt: WebgpuPagesRuntime) {
   const { gpu, run, vis } = rt;
   const reconstructed =
     !!gpu.temporal && gpu.temporalWanted && run.diagnostic === 'beauty' && vis.visEnabled;
-  return reconstructed ? gpu.renderScale : 1;
+  return reconstructed ? sessionRenderScale(rt.context.renderScale) : 1;
 }
 
 /** Render pixels per CSS pixel: the host's ratio times the render-to-display one, so a line drawn
@@ -54,6 +54,11 @@ export function frameSizeOf(rt: WebgpuPagesRuntime, into: FrameSize) {
   into.renderHeight = renderExtent(into.height, scale);
   return into;
 }
+
+/** True when the frame is drawn below the display on either axis: the display colour is a target
+ *  of its own and the resolve reconstructs it. */
+export const drawnBelow = (size: FrameSize) =>
+  size.renderWidth !== size.width || size.renderHeight !== size.height;
 
 /** True when `a` and `b` are the same frame size, both sizes alike. */
 export const sameFrameSize = (a: FrameSize, b: FrameSize) =>

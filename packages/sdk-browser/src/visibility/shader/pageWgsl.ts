@@ -15,7 +15,8 @@ export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:ve
 
 /** Uniform of a visibility-buffer image, the same word for word for both rasters and the
  *  resolves: `../../webgpu/visibility/uniforms.ts` writes it once per slot. `pixelRatio` is the
- *  host's image pixels per CSS pixel, the scale of a line's width (`lineWgsl.ts`). Its size is
+ *  render pixels per CSS pixel, the scale of a line's width (`lineWgsl.ts`); `mipBias` the texture
+ *  level offset of a frame drawn below the display (`../../webgpu/tile/wgsl.ts`). Its size is
  *  `VIS_UNIFORM_BYTES`. */
 export const VIS_UNIFORMS_WGSL = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,pixelRatio:f32,mipBias:f32,}`;
 

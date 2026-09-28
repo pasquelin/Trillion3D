@@ -61,8 +61,6 @@ export interface WebgpuGpuState {
   /** The size the resolve, the effect chain, composition, guides and presentation run at, and
    *  what decides detail reads: the host's viewport when the targets were made. */
   displaySize: [number, number];
-  /** The session's render scale, a fixed internal value in (0, 1] (`renderScaleOf`). */
-  renderScale: number;
   /** Bytes of the image targets of this size, those the image budget admitted. */
   targetBytes: number;
   /** The frame targets asked of the device (`targetGrant.ts`): in flight, or settled when refused
@@ -147,7 +145,6 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     selectionFallback: false,
     targetSize: [viewport[0] ?? 1, viewport[1] ?? 1],
     displaySize: [viewport[0] ?? 1, viewport[1] ?? 1],
-    renderScale: 1,
     targetBytes: 0,
     targetGrant: undefined,
     positionBuffers: new Map(),

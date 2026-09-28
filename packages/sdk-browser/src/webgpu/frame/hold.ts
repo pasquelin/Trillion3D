@@ -150,7 +150,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if ((answered && !awaited) || rt.capture.capturing) {
     // Still frame: nothing it depends on has moved and nothing is in flight. That is the frame
     // input of temporal accumulation, which restarts there in a fixed phase and converges over a
-    // full cycle of those frames before one of them can be held (`TAA_STILL_FRAMES`).
+    // full cycle of those frames before one of them can be held (`taaStillFrames`).
     const quiet = run.gate.held() && unsettledMask(rt) === 0;
     // Guides or an effect chain the page changed, or a chain the last image lacked while its
     // programs compiled, are drawn by a full image; the accumulation stays still for it.
