@@ -11,9 +11,40 @@ import {
   MAX_EXPONENT,
   MAX_WIDTH,
   OPTIONAL,
+  BLOCK_CORNERS,
   TRIANGLE_BLOCK,
   WIDTH_BITS,
 } from '../../cluster/format.ts';
+
+/** The `bits`-bit field at bit `at` of `words`; a field spans two words at most. */
+export function field(words: Uint32Array, at: number, bits: number) {
+  if (!bits) return 0;
+  const shift = at % 32,
+    index = at >>> 5;
+  let value = words[index] >>> shift;
+  if (shift + bits > 32) value |= words[index + 1] << (32 - shift);
+  return value & ((1 << bits) - 1);
+}
+
+/** Block `b`'s record, the table at word `table` of `words`: its base, its width and the bit of the
+ *  corner stream its first corner lies at (`CornerCode::record`). */
+export function blockRecord(
+  words: Uint32Array,
+  table: number,
+  {
+    indexBits,
+    prefixBits,
+    recordBits,
+  }: { indexBits: number; prefixBits: number; recordBits: number },
+  b: number,
+) {
+  const at = table * 32 + b * recordBits;
+  return [
+    field(words, at, indexBits),
+    field(words, at + indexBits, WIDTH_BITS),
+    field(words, at + indexBits + WIDTH_BITS, prefixBits) * BLOCK_CORNERS,
+  ];
+}
 
 /** A vector attribute's grid: its minima, its power-of-two step and its per-component widths. */
 export type Quant = { min: number[]; exponent: number; bits: number[] };
@@ -68,7 +99,7 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
   if (!position || !uv || !uv2 || !color || w(22) || w(23)) throw new Error('GEOMETRY_PAGE_BOUNDS');
   // Word offset of each stream, derived from the counts and widths the header declares.
   const indexBits = bitsFor(vertexCount - 1),
-    prefixBits = bitsFor(Math.floor(cornerBits / (3 * TRIANGLE_BLOCK))),
+    prefixBits = bitsFor(Math.floor(cornerBits / BLOCK_CORNERS)),
     corners = {
       indexBits,
       prefixBits,
@@ -81,7 +112,8 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     if (present) at += Math.ceil((count * bits) / 32);
     return start;
   };
-  const blocks = stream(true, Math.ceil(indexCount / 3 / TRIANGLE_BLOCK), corners.recordBits),
+  const blockCount = Math.ceil(indexCount / 3 / TRIANGLE_BLOCK),
+    blocks = stream(true, blockCount, corners.recordBits),
     cornerStream = stream(true, cornerBits, 1),
     positions = position.bits.map((b) => stream(true, vertexCount, b)),
     normal = stream(!!(flags & FLAG_NORMAL), vertexCount, 16),
@@ -104,6 +136,18 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     (CLUSTER_HEADER_WORDS + at) * 4 !== data.byteLength
   )
     throw new Error('GEOMETRY_PAGE_BOUNDS');
+  // Every block keeps its corners inside the corner stream: the GPU reads them in place on this word.
+  const table = Uint32Array.from({ length: cornerStream }, (_, i) =>
+    head.getUint32((CLUSTER_HEADER_WORDS + i) * 4, true),
+  );
+  for (let b = 0; b < blockCount; b++) {
+    const [, width, start] = blockRecord(table, blocks, corners, b);
+    if (
+      width > MAX_WIDTH ||
+      start + Math.min(BLOCK_CORNERS, indexCount - b * BLOCK_CORNERS) * width > cornerBits
+    )
+      throw new Error('GEOMETRY_PAGE_BOUNDS');
+  }
   return {
     vertexCount,
     indexCount,

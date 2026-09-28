@@ -4,12 +4,12 @@ import {
   FLAG_NORMAL,
   FLAG_UV,
   FLAG_UV1,
-  MAX_WIDTH,
+  BLOCK_CORNERS,
   OCT_SCALE,
-  TRIANGLE_BLOCK,
-  WIDTH_BITS,
 } from '../../cluster/format.ts';
 import {
+  blockRecord,
+  field,
   readGeometryPageHeader,
   type GeometryPageHeader,
   type Quant,
@@ -42,16 +42,6 @@ export type DecodedGeometryPage = {
 };
 
 const fround = Math.fround;
-/** The `bits`-bit field at bit `at` of `words`; a field spans two words at most. */
-function field(words: Uint32Array, at: number, bits: number) {
-  if (!bits) return 0;
-  const shift = at % 32,
-    index = at >>> 5;
-  let value = words[index] >>> shift;
-  if (shift + bits > 32) value |= words[index + 1] << (32 - shift);
-  return value & ((1 << bits) - 1);
-}
-
 /** Octahedral bytes (`x` low, `y` high) back to a unit vector, in 32-bit steps. */
 function octDecode(q: number, out: Float32Array, at: number) {
   let x = fround(fround((q & 255) * OCT_SCALE) - 1),
@@ -84,25 +74,19 @@ function vector(out: Float32Array, words: Uint32Array, starts: number[], quant: 
   }
 }
 
-/** Every corner into `out`, block by block (`docs/FORMAT.md`, the mirror of `CornerCode::read`):
- *  a record's base, width and prefix of widths, then each corner's distance to the base. A
- *  record reaching past the corner stream, a width past 16 or a corner past the vertices refuses. */
+/** Every corner into `out`, block by block (`docs/FORMAT.md`, the mirror of `CornerCode::read`),
+ *  the records already inside the corner stream (`readGeometryPageHeader`): a record's base, then
+ *  each corner's distance to it. A corner past the vertices refuses the page. */
 function decodeCorners(
   words: Uint32Array,
-  { indexBits, prefixBits, recordBits, cornerBits }: GeometryPageHeader['corners'],
+  corners: GeometryPageHeader['corners'],
   [table, stream]: number[],
   vertexCount: number,
   out: Uint32Array,
 ) {
-  const blockCorners = 3 * TRIANGLE_BLOCK;
   for (let b = 0, i = 0; i < out.length; b++) {
-    const at = table * 32 + b * recordBits,
-      base = field(words, at, indexBits),
-      width = field(words, at + indexBits, WIDTH_BITS),
-      start = field(words, at + indexBits + WIDTH_BITS, prefixBits) * blockCorners,
-      end = Math.min(i + blockCorners, out.length);
-    if (width > MAX_WIDTH || start + (end - i) * width > cornerBits)
-      throw new Error('GEOMETRY_PAGE_INDEX');
+    const [base, width, start] = blockRecord(words, table, corners, b),
+      end = Math.min(i + BLOCK_CORNERS, out.length);
     for (let k = 0; i < end; i++, k++) {
       out[i] = base + field(words, stream * 32 + start + k * width, width);
       if (out[i] >= vertexCount) throw new Error('GEOMETRY_PAGE_INDEX');
