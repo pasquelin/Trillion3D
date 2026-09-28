@@ -12,6 +12,7 @@
       "bindingOf": "Ciò che scrive `tr`, risolto una volta; null finché il suo bersaglio non è sotto la radice.",
       "play": "Inizia a riprodursi.",
       "stop": "Si ferma e torna all'inizio.",
+      "seek": "Mette subito il clip a `time` secondi, secondo la sua modalità di ciclo, che l'azione stia suonando o no: un'azione in corso riparte da lì, una ferma mantiene la posa finché un'azione in corso del suo mixer non la sovrascrive.",
       "clipTime": "A che punto della clip è l'azione, secondo la sua modalità di loop."
     }
   },

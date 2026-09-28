@@ -12,6 +12,7 @@
       "bindingOf": "`tr`'nin yazdığı, bir kez çözülen şey; hedefi kökün altında olmadığı sürece null.",
       "play": "Çalmaya başlar.",
       "stop": "Durur, ve başa döner.",
+      "seek": "Klibi, döngü kipine göre, oynasa da oynamasa da hemen `time` saniyedeki pozuna koyar: oynayan eylem oradan devam eder, durmuş olan, karıştırıcısında oynayan bir eylem üzerine yazana dek o pozu korur.",
       "clipTime": "Eylemin klip içinde, döngü moduna göre nerede olduğu."
     }
   },
