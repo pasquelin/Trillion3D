@@ -1,4 +1,4 @@
-//! The page writer's bit packing, beside the reader's `bits::field`.
+//! The page writer's bit packing, beside the reader's `bits::BitReader`.
 
 /// Packs fixed-width fields, least significant bit first, into little-endian words. Every
 /// stream starts on a word: `close` pads the last one written.
