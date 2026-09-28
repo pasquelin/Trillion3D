@@ -27,7 +27,8 @@ const inverse = new Matrix4(),
 /** A scene node read through the reference's matrices, kept in the engine's transform tree. */
 export class TransformNode extends SceneNode {
   #name = '';
-  /** A name to find the node by. A change is counted (`objectEdits`). */
+  // A change of name is counted (`objectEdits`): a name index holds only while the count stands.
+  /** A name to find the node by. */
   get name() {
     return this.#name;
   }

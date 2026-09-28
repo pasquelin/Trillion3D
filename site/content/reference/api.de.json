@@ -4258,7 +4258,6 @@
     "members": {
       "isObject3D": "Immer `true`: unterscheidet einen Szenenknoten.",
       "type": "Die Art des Knotens: `'Mesh'`, `'Group'`…",
-      "name": "Ein Name, um den Knoten wiederzufinden.",
       "position": "Wo der Knoten steht, relativ zu seinem Elternteil.",
       "rotation": "Wie der Knoten gedreht ist, in drei Winkeln.",
       "quaternion": "Wie der Knoten gedreht ist, als Quaternion.",
@@ -4344,6 +4343,7 @@
   "TransformNode": {
     "summary": "Ein Szenenknoten, gelesen über die Matrizen der Referenz, gehalten im Transformationsbaum der Engine.",
     "members": {
+      "name": "Ein Name, um den Knoten wiederzufinden.",
       "matrix": "Die lokale Matrix, eine Sicht auf den Platz dieses Knotens im Transformationsbaum.",
       "matrixWorld": "Matrix in der Welt, so wie zuletzt zusammengesetzt (`updateMatrixWorld`), eine Sicht auf den Baum.",
       "matrixAutoUpdate": "Falsch, wenn `matrix` die Pose IST und nichts sie neu zusammensetzt.",
