@@ -518,6 +518,20 @@
       "outer": "Dış"
     }
   },
+  "doors-that-open": {
+    "banner": "Kamerayı kapılara yaklaştırın. Yaklaştığınızda açılırlar.",
+    "controls": {
+      "mode": "Mod",
+      "openingDistance": "Açılma mesafesi",
+      "openness": "Açıklık"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "yakınlık",
+        "manual": "elle"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Adanın etrafında uçmak için sürükle. Vadileri su basması için denizi yükselt.",
     "controls": {
@@ -569,6 +583,17 @@
       "lamp": "Lamba",
       "colour": "Renk",
       "bricks": "Tuğlalar"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Aralarındaki mesafeyi ölçmek için iki yüzeye tıklayın. Üçüncü tıklama yeni bir ölçüm başlatır. Bir birim bir metreyi temsil eder.",
+    "controls": {
+      "clear": "Temizle"
+    },
+    "readouts": {
+      "pointA": "A noktası",
+      "pointB": "B noktası",
+      "distance": "Mesafe"
     }
   },
   "click-to-pick": {
@@ -2213,6 +2238,12 @@
     },
     "words": {
       "credit": "Direkteki bayrak bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Arabanın parçalarını tek tek vurgulamak için üzerlerine gelin veya panelden vurgulamayı kapatın.",
+    "controls": {
+      "highlightEnabled": "Vurgulamayı etkinleştir"
     }
   },
   "a-dolly-along-the-canal": {

@@ -518,6 +518,20 @@
       "outer": "Luar"
     }
   },
+  "doors-that-open": {
+    "banner": "Gerakkan kamera menuju pintu. Pintu terbuka saat Anda mendekat.",
+    "controls": {
+      "mode": "Mode",
+      "openingDistance": "Jarak pembukaan",
+      "openness": "Bukaan"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "kedekatan",
+        "manual": "manual"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Geser untuk terbang mengelilingi pulau. Naikkan laut untuk membanjiri lembah.",
     "controls": {
@@ -569,6 +583,17 @@
       "lamp": "Lampu",
       "colour": "Warna",
       "bricks": "Bata"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Klik dua permukaan untuk mengukur jarak di antaranya. Klik ketiga memulai pengukuran baru. Satu unit mewakili satu meter.",
+    "controls": {
+      "clear": "Hapus"
+    },
+    "readouts": {
+      "pointA": "Titik A",
+      "pointB": "Titik B",
+      "distance": "Jarak"
     }
   },
   "click-to-pick": {
@@ -2213,6 +2238,12 @@
     },
     "words": {
       "credit": "Bendera pada tiang dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Arahkan penunjuk ke bagian troli untuk menyorotnya satu per satu, atau matikan sorotan di panel.",
+    "controls": {
+      "highlightEnabled": "Aktifkan sorotan"
     }
   },
   "a-dolly-along-the-canal": {

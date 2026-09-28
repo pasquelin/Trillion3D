@@ -518,6 +518,20 @@
       "outer": "बाहर"
     }
   },
+  "doors-that-open": {
+    "banner": "कैमरे को दरवाज़ों की ओर ले जाएँ। पास आने पर वे खुलते हैं।",
+    "controls": {
+      "mode": "मोड",
+      "openingDistance": "खुलने की दूरी",
+      "openness": "खुलाव"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "निकटता",
+        "manual": "मैन्युअल"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "द्वीप के चारों ओर उड़ने के लिए खींचो। घाटियाँ डुबोने के लिए समुद्र ऊपर करो।",
     "controls": {
@@ -569,6 +583,17 @@
       "lamp": "लैंप",
       "colour": "रंग",
       "bricks": "ईंटें"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "दो सतहों के बीच की दूरी मापने के लिए उन पर क्लिक करें। तीसरा क्लिक नया माप शुरू करता है। एक इकाई एक मीटर को दर्शाती है।",
+    "controls": {
+      "clear": "साफ़ करें"
+    },
+    "readouts": {
+      "pointA": "बिंदु A",
+      "pointB": "बिंदु B",
+      "distance": "दूरी"
     }
   },
   "click-to-pick": {
@@ -2213,6 +2238,12 @@
     },
     "words": {
       "credit": "इस उदाहरण के लिए कोड में बनाया गया खंभे पर झंडा, CC0 — देखें assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "गाड़ी के हर भाग को उभारने के लिए उस पर होवर करें, या पैनल में हाइलाइट बंद करें।",
+    "controls": {
+      "highlightEnabled": "हाइलाइट चालू करें"
     }
   },
   "a-dolly-along-the-canal": {
