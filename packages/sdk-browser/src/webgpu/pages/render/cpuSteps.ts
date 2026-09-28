@@ -7,7 +7,7 @@ import {
   logFrameCostAudit,
 } from '../../../frame/costAudit.ts';
 import type { HostCpuStep } from '../../../host/cpuProfile.ts';
-import { shadowPoolHeld } from '../../shadow/poolSize.ts';
+import { shadowPoolHeld } from '../../shadow/memoryGrant.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** Deposits the image's CPU bounds into the public per-stage profile, when it is mounted. */

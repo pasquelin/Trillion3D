@@ -51,15 +51,28 @@ export const lastFrameOf = (world: object) => worlds.get(world)?.last() ?? null;
  * animated scene — never holds an image still long enough to read one back, and a wait that asked
  * for it never settled (#408). A capture reads its own image (`capture.buffer`). `onProgress`
  * hears `session` while the session that draws the view settles, then `pages`: those the view
- * reads, resident as each one lands (`lifecycle.ts`).
+ * reads, resident as each one lands (`lifecycle.ts`). A session that closes for another — a lost
+ * device, a reopen — ends its wait, never with a rejection: the wait carries on with the next
+ * session, until one has its pages resident (#837).
  */
 export async function awaitViewPages(
-  runtime: { settled(): Promise<void> },
+  runtime: { settled(): Promise<void>; ended(session: MeasuredWorld): Promise<void> },
   session: () => MeasuredWorld | null,
   onProgress?: (event: JobProgress) => void,
 ) {
   // The session that draws the view opens — or opens again — before the pages it reads are known.
   onProgress?.({ phase: 'session', completed: 0, total: 1, message: 'The view opens' });
-  await runtime.settled();
-  await session()?.awaitPages({ image: false, onProgress });
+  for (;;) {
+    await runtime.settled();
+    const current = session();
+    if (!current) return;
+    const pages = current.awaitPages({ image: false, onProgress });
+    pages.catch(() => {}); // a session closed first: what it says then is no one's to hear
+    try {
+      await Promise.race([pages, runtime.ended(current)]);
+    } catch (error) {
+      if (session() === current) throw error;
+    }
+    if (session() === current) return;
+  }
 }

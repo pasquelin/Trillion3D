@@ -7,8 +7,8 @@ import {
   listCapHeld,
   residentReadbackBytes,
   selectionListCap,
-  stagedOutputBytes,
 } from './layout.ts';
+import { makeDagBuffer, readoutRow } from './bufferTable.ts';
 import type { createDagResources } from './resources.ts';
 import type { DagRuntimeState } from './dispatch.ts';
 
@@ -53,11 +53,7 @@ export function createDagList(
     readbackBytes = residentCut ? residentReadbackBytes(listCap) : outputBytes;
   // Behind the eviction queue, the requests wait for their sort, outside what the frame copies
   // (`shader/snapshotWgsl.ts`).
-  const output = own({
-    label: 'Trillion3D DAG readback',
-    size: stagedOutputBytes(listCap),
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-  });
+  const output = makeDagBuffer(own, readoutRow(listCap));
   const readback = Array.from({ length: DAG_READBACK_SLOTS }, () =>
     own({
       size: readbackBytes,

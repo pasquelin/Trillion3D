@@ -13,7 +13,7 @@ fn evictAt(k:u32)->u32{return 2u*views[0u].listCap+HEAD+k;}
 /** Rank of canonical page \`i\` in the queue, \`RANKS\` when this cut read it. Integer only, as
  *  \`evictionRank\`. */
 fn evictRank(i:u32,now:u32)->u32{
- let key=cold[keyBase()+i];let used=flags[lastUseAt(i)];
+ let key=coldAt(keyBase()+i);let used=flagAt(lastUseAt(i));
  if(used==now){return RANKS;}
  let level=min(key>>${KEY_PAGE_BITS}u,${EVICT_LEVELS - 1}u);
  let age=min(32u-countLeadingZeros(now-used),${EVICT_AGES - 1}u);
@@ -22,9 +22,9 @@ fn evictRank(i:u32,now:u32)->u32{
 /** One sweep of the pool's list, one entry per held slot (\`../poolList.ts\`): counts each rank,
  *  or, \`scatter\`, writes each page at its place. */
 fn sweepPool(lane:u32,now:u32,scatter:bool){
- let base=poolBase();let n=cold[base];
+ let base=poolBase();let n=coldAt(base);
  for(var j=lane;j<n;j+=SORT_LANES){
-  let i=cold[base+1u+j];let rank=evictRank(i,now);
+  let i=coldAt(base+1u+j);let rank=evictRank(i,now);
   if(rank>=RANKS||(scatter&&atomicLoad(&rankPlace[rank])>=${EVICTION_BURST}u)){continue;}
   let at=atomicAdd(&rankPlace[rank],1u);
   if(scatter&&at<${EVICTION_BURST}u){out.pages[evictAt(HEAD+at)]=i;}

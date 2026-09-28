@@ -41,8 +41,8 @@ for (const [path, backend] of Object.entries(PATHS)) {
 
   test(`${path}: a residency read one word off the uploaded bits is caught`, () => {
     const shifted = edited(
-      'cold[views[0u].clusterCount+(i>>5u)]',
-      'cold[views[0u].clusterCount+(i>>5u)+1u]',
+      'coldAt(views[0u].clusterCount+(i>>5u))',
+      'coldAt(views[0u].clusterCount+(i>>5u)+1u)',
     );
     assert.throws(() => randomFrames(backend(dag, THRESHOLD, shifted)), FAULT);
   });

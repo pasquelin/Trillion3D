@@ -2260,7 +2260,8 @@
       "left": "Cạnh trái.",
       "right": "Cạnh phải.",
       "top": "Cạnh trên.",
-      "bottom": "Cạnh dưới."
+      "bottom": "Cạnh dưới.",
+      "fitAspect": "Một hộp trực giao cao như đã khai báo và rộng theo hình dạng của ảnh."
     }
   },
   "PAGE_DECODE_FAILURES": {
@@ -3252,6 +3253,9 @@
       "shadowPoolPages": "Các trang vật lý của bể cố định đang giữ một trang ảo.",
       "shadowPoolBytes": "Số byte GPU của pool bóng: các trang độ sâu, lớp tĩnh và lớp truyền qua khi đã tạo, và các bộ đệm bên cạnh. Null cho đến khi khung hình đầu tiên định cỡ pool.",
       "shadowPoolLayers": "Số lớp của pool, mỗi lớp tối đa 4 096 trang, được định cỡ một lần theo màn hình và các đèn có bóng của khung hình đầu tiên. Null cho đến lúc đó.",
+      "shadowPeakBytes": "Số byte GPU lớn nhất mà phần bộ nhớ của bóng đổ giữ cùng lúc, kể cả các lớp đến muộn. Null cho đến khi khung hình đầu tiên định cỡ pool.",
+      "shadowResolutionBias": "Số lần byte của pool bóng đổ bị chia đôi do thiết bị từ chối bộ nhớ; bình thường là 0.",
+      "shadowMemoryEvents": "Các sự kiện áp lực bộ nhớ của bóng đổ kể từ khi thế giới mở, theo tên, theo thứ tự; bình thường là rỗng.",
       "shadowPagesRefetched": "Các trang ảo được ánh xạ lại sau khi bể đẩy chúng ra để lấy chỗ, kể từ khi explorer mở: những lần vẽ lại mà một bể quá nhỏ so với những gì các khung đọc phải trả.",
       "shadowCastersKept": "Các vật đổ bóng mà bước loại theo trang giữ lại, gộp mọi trang đã vẽ, ở khung hình thiết bị lấy mẫu gần nhất — một trên mười lăm; `null` cho đến khi có mẫu trả về.",
       "shadowCastersHidden": "Các vật đổ bóng chuyển động mà phép thử che khuất thấy bị ẩn sau lớp tĩnh của trang chúng, ở khung lấy mẫu gần nhất; `null` cho đến khi có mẫu trả về."
@@ -4234,6 +4238,9 @@
       "shadowPoolPages": "Các trang vật lý của bể cố định đang giữ một trang ảo.",
       "shadowPoolBytes": "Số byte GPU của pool bóng: các trang độ sâu, lớp tĩnh và lớp truyền qua khi đã tạo, và các bộ đệm bên cạnh. Null cho đến khi khung hình đầu tiên định cỡ pool.",
       "shadowPoolLayers": "Số lớp của pool, mỗi lớp tối đa 4 096 trang, được định cỡ một lần theo màn hình và các đèn có bóng của khung hình đầu tiên. Null cho đến lúc đó.",
+      "shadowPeakBytes": "Số byte GPU lớn nhất mà phần bộ nhớ của bóng đổ giữ cùng lúc, kể cả các lớp đến muộn. Null cho đến khi khung hình đầu tiên định cỡ pool.",
+      "shadowResolutionBias": "Số lần byte của pool bóng đổ bị chia đôi do thiết bị từ chối bộ nhớ; bình thường là 0.",
+      "shadowMemoryEvents": "Các sự kiện áp lực bộ nhớ của bóng đổ kể từ khi thế giới mở, theo tên, theo thứ tự; bình thường là rỗng.",
       "shadowPagesRefetched": "Các trang ảo được ánh xạ lại sau khi bể đẩy chúng ra để lấy chỗ, kể từ khi explorer mở: những lần vẽ lại mà một bể quá nhỏ so với những gì các khung đọc phải trả.",
       "shadowCastersKept": "Các vật đổ bóng mà bước loại theo trang giữ lại, gộp mọi trang đã vẽ, ở khung hình thiết bị lấy mẫu gần nhất — một trên mười lăm; `null` cho đến khi có mẫu trả về.",
       "shadowCastersHidden": "Các vật đổ bóng chuyển động mà phép thử che khuất thấy bị ẩn sau lớp tĩnh của trang chúng, ở khung lấy mẫu gần nhất; `null` cho đến khi có mẫu trả về."
@@ -7001,6 +7008,24 @@
       "modes": "Mọi chế độ khung nhìn mà trình dựng hình hiện tại cung cấp."
     }
   },
+  "world.materials": {
+    "summary": "Vật liệu đã nhập hiện tại, tiếp theo là vật liệu do trang tạo."
+  },
+  "world.material": {
+    "summary": "Một vật liệu theo ID trong danh sách."
+  },
+  "world.importedMaterials": {
+    "summary": "Giá trị tệp gốc trước khi trang chỉnh sửa."
+  },
+  "world.setMaterial": {
+    "summary": "Thay đổi vật liệu đã nhập hoặc đã tạo ở khung hình kế tiếp."
+  },
+  "world.createMaterial": {
+    "summary": "Tạo vật liệu thuộc trang này."
+  },
+  "world.assignMaterial": {
+    "summary": "Gán vật liệu đã tạo cho `mesh/primitive` đã biên dịch."
+  },
   "world.guides": {
     "summary": "Đường, điểm và công cụ trợ giúp vẽ đè lên hình ảnh (`Guides`)."
   },
@@ -7737,6 +7762,41 @@
       "isSprite": "Luôn là `true`: phân biệt sprite với mọi mesh khác.",
       "center": "Điểm của hình nằm trên vị trí của sprite: `(0.5, 0.5)` là giữa, `(0, 0)` là góc dưới bên trái, `(0.5, 0)` là giữa cạnh dưới.",
       "material": "`material.sprite` của sprite; gán một cái khác để thay đổi."
+    }
+  },
+  "CreatedMaterial": {
+    "summary": "Các giá trị mà `createMaterial` nhận để tạo vật liệu mới thuộc trang.",
+    "members": {
+      "metalness": "Bề mặt là kim loại đến mức nào, từ 0 đến 1.",
+      "roughness": "Bề mặt nhám đến mức nào, từ 0 (gương) đến 1 (mờ đục).",
+      "baseColor": "Màu nền; thay đổi tại chỗ bằng `set`.",
+      "emissive": "Màu mà bề mặt tự phát ra.",
+      "opacity": "Bề mặt mờ đục đến mức nào, từ 0 đến 1.",
+      "alphaMode": "Cách đọc kênh alpha của một bề mặt: opaque bỏ qua nó, `mask` cắt tại `alphaCutoff`, `blend` pha trộn.",
+      "alphaCutoff": "Các điểm ảnh mờ đục kém hơn mức này bị loại bỏ.",
+      "name": "Một tên để trang tự dùng riêng.",
+      "map": "Một hình ảnh và cách nó được lấy mẫu, theo lời của một trang (`wrap`, `filter`, `colorSpace`)."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "Bản sao vật liệu trong cảnh gồm ID, tên, tham số và số lần lặp bản đồ.",
+    "members": {
+      "id": "Một tên duy nhất cho kết cấu này.",
+      "name": "Một tên để trang tự dùng riêng.",
+      "tiling": "Hình ảnh vừa khít bao nhiêu lần theo chiều ngang và chiều dọc."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "Các giá trị vật liệu mà `setMaterial` cập nhật trực tiếp mà không dựng lại lượt kết xuất.",
+    "members": {
+      "metalness": "Bề mặt là kim loại đến mức nào, từ 0 đến 1.",
+      "roughness": "Bề mặt nhám đến mức nào, từ 0 (gương) đến 1 (mờ đục).",
+      "baseColor": "Màu nền; thay đổi tại chỗ bằng `set`.",
+      "emissive": "Màu mà bề mặt tự phát ra.",
+      "opacity": "Bề mặt mờ đục đến mức nào, từ 0 đến 1.",
+      "alphaMode": "Cách đọc kênh alpha của một bề mặt: opaque bỏ qua nó, `mask` cắt tại `alphaCutoff`, `blend` pha trộn.",
+      "alphaCutoff": "Các điểm ảnh mờ đục kém hơn mức này bị loại bỏ.",
+      "tiling": "Hình ảnh vừa khít bao nhiêu lần theo chiều ngang và chiều dọc."
     }
   }
 }

@@ -75,6 +75,10 @@ impl ImageDecoder for Dds {
     fn accepts_head(&self, head: &[u8]) -> bool {
         head.starts_with(MAGIC)
     }
+    fn dimensions(&self, bytes: &[u8]) -> std::result::Result<(u32, u32), &'static str> {
+        let surface = header::parse(bytes)?;
+        Ok((surface.width, surface.height))
+    }
     /// Only level 0 is consumed; the announced mip chain is counted and must fit in the file —
     /// a DDS that promises nine levels and carries only two is truncated, not half-good.
     fn decode(

@@ -58,6 +58,7 @@ function tenue() {
   };
   const rt = {
     run,
+    views: { active: {} },
     timing,
     context: {},
     gpu: {
@@ -94,6 +95,7 @@ function tenue() {
         pool: { refetched: 0 },
         requests: { counts: { requested: 0 } },
       },
+      memory: { peakBytes: 0, bias: 0, events: [] },
     },
     bounce: { probes: undefined },
     blendState: { visibleBlend: [] },

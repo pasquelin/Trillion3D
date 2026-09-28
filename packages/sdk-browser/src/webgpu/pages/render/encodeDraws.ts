@@ -27,7 +27,8 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 
 /** The row table spans every row a page can claim — the visibility rows, then the blended
- *  casters' (`../../row/blendCasters.ts`) —, so it is allocated once and never resized. */
+ *  casters' (`../../row/blendCasters.ts`) —, so it is allocated once and never resized; the layout
+ *  bounds those rows to one binding of the device (`../../row/tableRows.ts`). */
 export function ensurePageTable(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt,
     { rows } = rt.layout;
