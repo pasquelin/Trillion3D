@@ -43,10 +43,7 @@ function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
   into.far = camera.far;
   into.zoom = camera.zoom;
   into.aspect = aspect;
-  const box =
-    camera.projection === 'orthographic'
-      ? { left: camera.left, right: camera.right, top: camera.top, bottom: camera.bottom }
-      : null;
+  const box = camera.projection === 'orthographic' ? orthographicBox(camera, aspect) : null;
   // The engine composes its own projection from the box (`engineCamera.ts`); the host
   // renderer that draws the WebGL2 path reads the host matrix, rewritten orthographic here, and
   // its flag, which turns its shading's view vector to the camera's axis.
@@ -61,6 +58,15 @@ function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
       camera,
     );
   into.updateMatrixWorld();
+}
+
+/** The box an orthographic camera draws: its own, or with `fitAspect` as high about the same
+ *  centre and as wide as the canvas's `aspect` makes it. */
+function orthographicBox(camera: Camera, aspect: number): OrthographicBox {
+  const { left, right, top, bottom } = camera;
+  if (!camera.fitAspect) return { left, right, top, bottom };
+  const [x, , w] = orthographicView(camera, 1, view, aspect);
+  return { left: x - w, right: x + w, top, bottom };
 }
 
 /** Puts a session's camera on the page's `camera()`, at the shape of `canvas`: before the session
