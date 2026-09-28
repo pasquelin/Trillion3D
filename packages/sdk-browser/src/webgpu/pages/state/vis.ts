@@ -17,6 +17,8 @@ import type { BlendModePipelines } from '../../blend/stagePipelines.ts';
  *  concatenated geometry, the page table and the material atlases. */
 export interface WebgpuVisState {
   visEnabled: boolean;
+  /** An opaque row has shown a surface as-is: the image's flags are read (`../../row/pageRow.ts`). */
+  asIsShown: boolean;
   visTexture: GPUTexture | undefined;
   visView: GPUTextureView | undefined;
   visPipelineBack: GPURenderPipeline | undefined;
@@ -91,6 +93,7 @@ export interface WebgpuVisState {
 export function createWebgpuVisState(): WebgpuVisState {
   return {
     visEnabled: false,
+    asIsShown: false,
     visTexture: undefined,
     visView: undefined,
     visPipelineBack: undefined,

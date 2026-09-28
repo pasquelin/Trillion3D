@@ -30,12 +30,12 @@ fn worldAt(pixel:vec2f,z:f32)->vec3f{
  return world.xyz/world.w;
 }`;
 /** The surfaces, their depth and the view: bindings 0 to 5 of every pass that lights a surface
- *  buffer — the deferred resolve, and the water composite on the same numbers. */
-export const SURFACE_BINDINGS_WGSL = `
+ *  buffer — the deferred resolve, and the water composite, its word in the flags' place (`third`). */
+export const surfaceBindingsWgsl = (third = 'flags:texture_2d<u32>') => `
 @group(0) @binding(0) var baseMetal:texture_2d<f32>;
 @group(0) @binding(1) var normalRough:texture_2d<f32>;
 @group(0) @binding(2) var emissiveAo:texture_2d<f32>;
-@group(0) @binding(3) var flags:texture_2d<u32>;
+@group(0) @binding(3) var ${third};
 @group(0) @binding(4) var depth:texture_depth_2d;
 @group(0) @binding(5) var<uniform> view:View;`;
 /**
@@ -46,7 +46,7 @@ export const SURFACE_BINDINGS_WGSL = `
  */
 export const UNLIT_LIGHTING_SHADER = `
 ${VIEW_WGSL}
-${SURFACE_BINDINGS_WGSL}
+${surfaceBindingsWgsl()}
 ${FULLSCREEN_VERTEX}
 @fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let coord=vec2i(pixel.xy);let flag=textureLoad(flags,coord,0).r;
@@ -90,7 +90,7 @@ ${WORLD_AT_WGSL}
  */
 export const DIRECT_LIGHTING_SHADER = `
 ${VIEW_WGSL}
-${SURFACE_BINDINGS_WGSL}
+${surfaceBindingsWgsl()}
 ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
 ${DIRECT_LIGHTING_WGSL}
@@ -102,7 +102,7 @@ ${contractSurface('')}`;
  */
 export const BOUNCE_LIGHTING_SHADER = `
 ${VIEW_WGSL}
-${SURFACE_BINDINGS_WGSL}
+${surfaceBindingsWgsl()}
 ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
 ${DIRECT_LIGHTING_WGSL}
@@ -128,7 +128,8 @@ const AS_IS_READ = {
   },
   accumulated: { texture: 'texture_2d<f32>', share: 'textureLoad(asIs,coord,0).r' },
 } as const;
-export type ComposeInput = keyof typeof AS_IS_READ;
+/** The share read, or none in a frame with no as-is pixel (OMB-11): `asIsMix` at a share of 0. */
+export type ComposeInput = keyof typeof AS_IS_READ | 'flagless';
 
 /** The curved chain and the pixel as-is, weighed by its share: written out rather than `mix`, so a
  *  share of 1 yields the pixel as-is exactly, and selected, so a share of 0 yields the chain itself
@@ -146,11 +147,13 @@ const asIsMix = (chaine: string, share: string) =>
  * share of 0 a lit pixel gets the chain before, bit for bit; the identity chain reads no share.
  * With `bloom`, `hdr` is the image the chain's last bloom read, blended here (`BLOOM_COMPOSE_WGSL`).
  */
-const composeSource = (courbe: string, chaine: string, input: ComposeInput, bloom: boolean) => `
+const composeSource = (courbe: string, chaine: string, input: ComposeInput, bloom: boolean) => {
+  const read = courbe && input !== 'flagless' ? AS_IS_READ[input] : undefined;
+  return `
 ${VIEW_WGSL}
 @group(0) @binding(0) var hdr:texture_2d<f32>;
 @group(0) @binding(1) var<uniform> view:View;
-${courbe ? `@group(0) @binding(2) var asIs:${AS_IS_READ[input].texture};` : ''}
+${read ? `@group(0) @binding(2) var asIs:${read.texture};` : ''}
 ${bloom ? BLOOM_COMPOSE_WGSL : ''}
 ${FULLSCREEN_VERTEX}
 ${SRGB_WGSL}${courbe}
@@ -159,7 +162,7 @@ fn composeColor(pixel:vec4f)->vec4f{
  let value=${bloom ? 'bloomed(textureLoad(hdr,coord,0),pixel.xy)' : 'textureLoad(hdr,coord,0)'};
  if(value.a==0.0){return view.background;}
  if(view.viewport.z!=0.0){return vec4f(value.rgb,1.0);}
- ${courbe ? asIsMix(chaine, AS_IS_READ[input].share) : `let color=linearToSrgb(${chaine});`}
+ ${read ? asIsMix(chaine, read.share) : `let color=linearToSrgb(${chaine});`}
  return vec4f(color*value.a+view.background.rgb*(1.0-value.a),1.0);
 }
 @fragment fn compose(@builtin(position) pixel:vec4f)->@location(0) vec4f{return composeColor(pixel);}
@@ -168,10 +171,12 @@ struct DisplayOutput{@location(0) capture:vec4f,@location(1) canvas:vec4f,}
  let color=composeColor(pixel);
  return DisplayOutput(color,color);
 }`;
-/** One composition per input: the still image's surface flags, or the accumulated share. */
+};
+/** One composition per input: the still image's surface flags, the accumulated share, or none. */
 const composeSources = (courbe: string, chaine: string, bloom = false) => ({
   still: composeSource(courbe, chaine, 'still', bloom),
   accumulated: composeSource(courbe, chaine, 'accumulated', bloom),
+  flagless: composeSource(courbe, chaine, 'flagless', bloom),
 });
 /** A program's compositions: plain, and blending in the chain's last bloom (#963). */
 const compositionsOf = (courbe: string, chaine: string) => ({
