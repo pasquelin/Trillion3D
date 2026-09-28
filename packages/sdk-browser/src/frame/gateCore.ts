@@ -136,10 +136,8 @@ export function createFrameGateCore(holdValues: number) {
      * Such a write is kept owed instead: `noteWorldsUpdated` no longer spares the next world pass,
      * which walks the index and reports it, exactly as after a host write alone. One comparison
      * of two integers when the host wrote nothing, which is every image a model moves.
-     * Returns true when a pass on the moved subtree alone may not be exact: such a write is owed,
-     * or the watched set is not that of the current scene — before the first image nothing is
-     * hooked, and after a reshape the nodes it brought in are not yet — so a host write may have
-     * gone unannounced, and the next `readScene` would snapshot it as the norm.
+     * True when a pass on the moved subtree alone may not be exact: such a write is owed, or the
+     * watch does not hook the current scene yet (first image, reshape), so a write went unseen.
      */
     engineWriting() {
       const pending = sceneWatch.pending();

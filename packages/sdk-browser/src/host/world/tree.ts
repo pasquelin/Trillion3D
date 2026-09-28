@@ -55,13 +55,8 @@ export interface HostWorldTree {
   world(node: Object3D): Float64Array;
   /** Recomputes the index from the local poses the host carries at this instant. */
   refresh(): void;
-  /**
-   * The same pass on the subtree of `node` alone: its host poses and its ancestors' are pushed,
-   * then the tree's own rule walks from it — the whole pass if an ancestor moved. The subtree
-   * gets the bits of `refresh()`; a node outside it keeps its last pass, which is exact while the
-   * host wrote no pose outside it, and which the next whole pass completes otherwise.
-   * A node outside the index, or an index that runs as a lot, takes the whole pass.
-   */
+  /** `refresh()` on the subtree of `node` alone, the whole pass if an ancestor moved, the node is
+   *  outside the index or the index runs as a lot. Nodes outside keep their last pass. */
   refreshFrom(node: Object3D): void;
 }
 
