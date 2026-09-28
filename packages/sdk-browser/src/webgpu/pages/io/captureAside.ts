@@ -36,7 +36,8 @@ export async function captureAside<T>(
     useWebgpuView(rt, view);
     return await work();
   } finally {
-    releaseWebgpuView(rt, view);
+    // A view never drawn made nothing: the main view is not switched out and back for it.
+    if (rt.views.active === view) releaseWebgpuView(rt, view);
     capture.capturing = false;
   }
 }
