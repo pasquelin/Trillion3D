@@ -12,7 +12,7 @@ merge and never run Chrome or the bench.
    (`docs/roles/auditor.md` step 3):
    - every To do and Proof item of the issue is delivered and the body says `Closes #<n>`, or
      the step's items are and it says `Part of #<n>`; a diff that leaves part of its goal
-     undelivered is `KO`; the image proof passed on the branch, on a stable A/A (CONTRIBUTING.md §Image and fidelity);
+     undelivered is `KO`; the image proof passed on the branch under CONTRIBUTING.md §Image and fidelity (stable A/A);
    - the diff follows the lead's design note on the issue, and a `tests` return adds the fast test the note names;
    - each changed behaviour has a test that fails on `develop`, on the issue's fixture, waiting
      for events, never a fixed delay, and never comparing a result with itself;
