@@ -1,5 +1,4 @@
-//! The page writer's bit packing, beside the reader's `bits::field`: the compiler and the tests
-//! write with it, so a field is laid out by the same code that proves it rereads.
+//! The page writer's bit packing, beside the reader's `bits::field`.
 
 /// Packs fixed-width fields, least significant bit first, into little-endian words. Every
 /// stream starts on a word: `close` pads the last one written.
