@@ -39,10 +39,10 @@ const merge = (map: Map<number, number>, page: number, bits: number) =>
  *
  * A frame's flag words ride in one slot: a buffer of a word per batch, and the batches' pages,
  * sized once for the most batches a frame draws (`../shadow/batchBudget.ts`). `SHADOW_FLAG_FRAMES`
- * slots, allocated at creation, hold that many frames in flight; a frame that finds every slot
- * still read — the GPU that far behind — cannot know what its cuts drew short, so its pages are
- * drawn again, withdrawn meanwhile. Without the flag, what a still image shows would depend on the
- * order its pages were drawn in.
+ * slots, allocated at creation, hold that many frames in flight. A frame that finds every slot
+ * still read — the GPU that far behind — draws no light-cut page (`ready`): its pages stay stale,
+ * read as they were, for a frame with a slot. Drawn on a guess, they would be withdrawn with no
+ * cause, and their redraw, as starved, again each frame (#1142).
  */
 export function createLightCutRedraws(
   own: (descriptor: GPUBufferDescriptor) => GPUBuffer,
@@ -115,9 +115,8 @@ export function createLightCutRedraws(
   };
   return {
     /** Copies a batch's flag word with its `count` drawn `pages`, drawn in the cut's `views` and
-     *  in `modes` (`DRAW_*`). The frame's first batch returns the
-     *  settlement to call once the command buffer is submitted, or dropped; the others ride in its
-     *  slot. */
+     *  in `modes` (`DRAW_*`), once `ready`. The frame's first batch returns the settlement to call
+     *  once the command buffer is submitted, or dropped; the others ride in its slot. */
     encode(
       encoder: GPUCommandEncoder,
       pages: ArrayLike<number>,
@@ -153,6 +152,10 @@ export function createLightCutRedraws(
       encoder.copyBufferToBuffer(output, OUT_FLAGS * 4, slot.buffer, slot.batches * 4, 4);
       slot.batches++;
       return settlement;
+    },
+    /** Whether the frame's next batch has a slot for its flag word: without, it draws nothing. */
+    get ready() {
+      return open ? open.batches < BATCHES : slots.some(({ busy }) => !busy);
     },
     /** Once the frame's batches are encoded: whether its requests were copied
      *  (`lightCutReports.ts`). Until said, a frame's coarse pages count as not reported. */
