@@ -20,6 +20,7 @@ function heldRuntime(stillFrames: number) {
   Object.assign(rt.gpu, {
     temporalWanted: true,
     targetSize: [64, 32],
+    displaySize: [64, 32],
     temporal: { frame, checkpoint: () => checkpoints++, replay: () => true },
   });
   Object.assign(rt.run, { diagnostic: 'beauty', textureConverging: false });

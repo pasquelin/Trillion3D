@@ -21,7 +21,7 @@ export async function captureColorView(
   return captureAside(rt, size, async () => {
     await renderForCapture(rt, camera, size.width / size.height);
     await drawResidentCut(rt, gpuDevice);
-    if (!gpu.colorTexture) throw new Error('CAPTURE_NOT_READY');
-    return readGpuImage(gpuDevice, gpu.colorTexture, size.width, size.height, context.signal);
+    if (!gpu.displayTexture) throw new Error('CAPTURE_NOT_READY');
+    return readGpuImage(gpuDevice, gpu.displayTexture, size.width, size.height, context.signal);
   });
 }
