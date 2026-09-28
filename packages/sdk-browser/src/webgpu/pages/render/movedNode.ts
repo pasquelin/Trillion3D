@@ -21,13 +21,7 @@ export function findNode(source: Object3D, nodeName: string) {
   return index.names.get(nodeName);
 }
 
-/** True when `node` is `source` or hangs below it: a handle whose node the host removed is not. */
-export function underSource(source: Object3D, node: Object3D) {
-  for (let walk: Object3D | null = node; walk; walk = walk.parent) if (walk === source) return true;
-  return false;
-}
-
-export const ascending = (a: number, b: number) => a - b;
+const ascending = (a: number, b: number) => a - b;
 
 type Roots = readonly ClusterRoot<PageRec>[];
 
@@ -55,20 +49,32 @@ function rootsByMesh(roots: Roots) {
  * walked once: the same relation as climbing each root's parent chain up to the node.
  */
 export function rootsUnder(roots: Roots, node: Object3D, out: number[]) {
-  walking = rootsByMesh(roots);
-  found = out;
-  out.length = 0;
-  node.traverse(collect);
-  // Let go of the layout's meshes: a released scene is not kept alive by the last move.
-  walking = NONE;
+  out.length = appendRootsUnder(roots, node, out, 0);
   return out.sort(ascending);
 }
 
+/**
+ * `rootsUnder` in the walk's order, each rank once, written into `out` from `at` on; returns where
+ * they end. `out` is never truncated: it keeps its storage and grows only past its length.
+ */
+export function appendRootsUnder(roots: Roots, node: Object3D, out: number[], at: number) {
+  walking = rootsByMesh(roots);
+  found = out;
+  count = at;
+  node.traverse(collect);
+  // Let go of the layout's meshes and the list: a released scene is not kept alive by the last move.
+  walking = NONE;
+  found = EMPTY;
+  return count;
+}
+
 // The walk's state and its one callback, declared once: a move allocates no closure.
-const NONE = new Map<Object3D, number[]>();
+const NONE = new Map<Object3D, number[]>(),
+  EMPTY: number[] = [];
 let walking = NONE,
-  found: number[] = [];
+  found = EMPTY,
+  count = 0;
 const collect = (walk: Object3D) => {
   const list = walking.get(walk);
-  if (list) for (const i of list) found.push(i);
+  if (list) for (const i of list) found[count++] = i;
 };
