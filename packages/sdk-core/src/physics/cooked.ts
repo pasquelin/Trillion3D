@@ -5,9 +5,9 @@ import type { PhysicsOption } from './options.ts';
  * `physics.json`, the physics a compiled model carries (stage `physics-cook` of the native
  * compiler, `packages/asset-compiler-rust/src/physics_cook/`). Its version is its own; the shapes it
  * names are Jolt binary state, readable only by the Jolt that wrote them: the file names that
- * commit, and a reader refuses another.
+ * commit, and a reader refuses another. Formats 2 and 3 are read; 3's pieces wait unused.
  */
-const PHYSICS_FORMAT_VERSION = 2;
+const PHYSICS_FORMAT_VERSIONS: readonly unknown[] = [2, 3];
 /** The Jolt commit the engine's physics module is built from: the pin of the submodule
  *  `packages/physics-jolt-wasm/JoltPhysics`, which the compiler's cook reads (`build.rs`). A test
  *  fails while the two differ (`physics.test.ts`). */
@@ -152,10 +152,10 @@ export interface CookedPhysics {
  */
 export function readCookedPhysics(file: unknown, jolt = JOLT_COMMIT): CookedPhysics {
   const cooked = file as Partial<CookedPhysics> | null;
-  if (!cooked || cooked.formatVersion !== PHYSICS_FORMAT_VERSION)
+  if (!cooked || !PHYSICS_FORMAT_VERSIONS.includes(cooked.formatVersion))
     throw new EngineError(
       'PHYSICS_FORMAT',
-      `physics.json format ${cooked?.formatVersion} is not ${PHYSICS_FORMAT_VERSION}: recompile the model.`,
+      `physics.json format ${cooked?.formatVersion} is not ${PHYSICS_FORMAT_VERSIONS.join(' or ')}: recompile the model.`,
       { formatVersion: cooked?.formatVersion ?? null },
     );
   if (cooked.jolt !== jolt)

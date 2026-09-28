@@ -7,6 +7,7 @@ use super::declared::{declared_bodies, declared_matter};
 use super::soft::soft_bodies;
 use super::{
     JOLT_COMMIT, PHYSICS_COOK_STAGE, PHYSICS_COOK_VERSION, PHYSICS_FILE, PHYSICS_FORMAT_VERSION,
+    PIECES_FORMAT_VERSION,
 };
 use crate::compiler_coplanar::DepthLayerScene;
 use crate::compiler_world::{world_matrices, Mat4};
@@ -167,8 +168,13 @@ pub(crate) fn stage_physics(
         .filter_map(|c| c["triangles"].as_u64())
         .sum();
     let report = json!({"colliders":colliders.len(),"instances":instances.len(),"unplaced":unplaced,"triangles":triangles,"hausdorff":largest("hausdorff"),"tolerance":largest("tolerance"),"refused":refused,"bodies":bodies.len(),"bodiesRefused":bodies_refused,"softBodies":soft_bodies.len(),"softRefused":soft_refused});
+    let format = if bodies.iter().any(|b| b.get("pieces").is_some()) {
+        PIECES_FORMAT_VERSION
+    } else {
+        PHYSICS_FORMAT_VERSION
+    };
     let document = json!({
-        "formatVersion":PHYSICS_FORMAT_VERSION,"compilerVersion":COMPILER_VERSION,"jolt":JOLT_COMMIT,
+        "formatVersion":format,"compilerVersion":COMPILER_VERSION,"jolt":JOLT_COMMIT,
         "stage":{"name":PHYSICS_COOK_STAGE,"version":PHYSICS_COOK_VERSION},
         "colliders":colliders,"instances":instances,"bodies":bodies,"softBodies":soft_bodies,"report":report,
     });
@@ -179,6 +185,6 @@ pub(crate) fn stage_physics(
         .into_iter()
         .map(|sha| json!({"sha256":sha}))
         .collect();
-    let descriptor = json!({"file":PHYSICS_FILE,"formatVersion":PHYSICS_FORMAT_VERSION,"jolt":JOLT_COMMIT,"report":report,"objects":objects});
+    let descriptor = json!({"file":PHYSICS_FILE,"formatVersion":format,"jolt":JOLT_COMMIT,"report":report,"objects":objects});
     Ok((written, descriptor))
 }
