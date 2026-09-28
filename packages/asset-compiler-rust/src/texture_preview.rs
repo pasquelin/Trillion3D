@@ -20,10 +20,11 @@
 //!
 //! Failed decode — format outside image driver registry, corrupt PNG, missing
 //! image — is named report entry and zero levels: compilation never fails
-//! for texture, engine falls back to default white.
+//! for an unreadable texture, engine falls back to default white. Insufficient
+//! baking memory instead refuses the job before decoding; it never drops an image.
 use super::*;
-use std::sync::atomic::AtomicUsize;
 
+mod admission;
 pub(crate) mod bake;
 mod bake_write;
 pub(crate) mod blocks;
@@ -94,7 +95,7 @@ pub(super) struct PreviewInputs<'a> {
 /// once regardless of citing textures. Returns entries sorted by texture then
 /// atlas, candidate cutout alpha shape — measured in this decode,
 /// never second —, and step report. Images processed in parallel on
-/// caller pool, each within decode allocation limit.
+/// caller pool, in waves admitted by their image working sets and retained tails.
 pub(super) fn stage_texture_previews(
     inputs: &PreviewInputs<'_>,
     progress: &(impl Fn(Value) + Sync),
@@ -138,18 +139,7 @@ pub(super) fn stage_texture_previews(
             Err(reason) => *skipped.entry(reason).or_default() += 1,
         }
     }
-    let done = AtomicUsize::new(0);
-    let total = by_image.len();
-    let results: Vec<_> = by_image
-        .par_iter()
-        .map(|(&image_index, readers)| {
-            check(inputs.o)?;
-            let outcome = bake::one_image(inputs, images, image_index, readers);
-            let completed = done.fetch_add(1, Ordering::Relaxed) + 1;
-            progress(json!({"phase":"textures","completed":completed,"total":total}));
-            Ok(outcome)
-        })
-        .collect::<Result<Vec<_>>>()?;
+    let results = admission::bake(inputs, images, &by_image, progress)?;
     let mut previews = Vec::new();
     let mut shapes = BTreeMap::new();
     let mut gates = Vec::new();
