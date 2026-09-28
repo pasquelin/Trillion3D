@@ -1745,7 +1745,8 @@
       "night": "夜",
       "bounce": "はね返り",
       "sun": "太陽",
-      "lamp": "ランプ"
+      "lamp": "ランプ",
+      "spin": "回転"
     },
     "words": {
       "credit": "W. Sitters による街灯のモデル、CC BY 3.0 — assets/examples/CREDITS.md を見てね"
