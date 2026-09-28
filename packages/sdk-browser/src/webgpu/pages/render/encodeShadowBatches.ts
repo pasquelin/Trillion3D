@@ -14,7 +14,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 function batchViews(rt: WebgpuPagesRuntime) {
   const { run } = rt;
   const light = run.gpuFrameActive && run.gpuSelection ? lightCutOf(run.gpuSelection) : undefined;
-  return light ? light.redraws.viewLimit : MAX_SHADOW_PAGES;
+  return light ? light.redraws.limit.value : MAX_SHADOW_PAGES;
 }
 
 /** The views a batch of this frame runs, the batches it may draw and the staging they take, from
