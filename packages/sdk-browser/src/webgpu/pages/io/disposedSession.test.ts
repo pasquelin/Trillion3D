@@ -25,9 +25,10 @@ async function pendingStaticLayer(end: 'dispose' | 'fail') {
   backend.render(view);
   said.length = 0;
   if (end === 'fail')
-    (gpu.device as { createBindGroupLayout: () => never }).createBindGroupLayout = () => {
-      throw new Error('device failed');
-    };
+    (gpu.device as unknown as { createBindGroupLayout: () => never }).createBindGroupLayout =
+      () => {
+        throw new Error('device failed');
+      };
   else void backend.dispose();
   for (let tick = 0; tick < 8; tick++) await new Promise((next) => setTimeout(next, 0));
   if (end === 'fail') void backend.dispose();
