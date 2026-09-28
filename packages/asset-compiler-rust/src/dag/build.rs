@@ -79,7 +79,7 @@ pub fn build_dag_tallied(
         }
         let locks = {
             let _t = Timer::new(Phase::Locks);
-            level_locks(&welds.weld, &lists, &groups)
+            level_locks(welds.weld(), &lists, &groups)
         };
         let worst: Vec<f64> = groups
             .iter()

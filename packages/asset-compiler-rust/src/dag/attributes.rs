@@ -35,19 +35,28 @@ impl<'a> DagAttributes<'a> {
     pub fn uv_sets(&self) -> Vec<&'a [f32]> {
         self.values(FLAG_UV).chain(self.values(FLAG_UV1)).collect()
     }
+    /// The carried attributes the simplifier weighs, in its order: normals first, then every
+    /// texture set.
+    pub(super) fn weighed(&self) -> Vec<&'a Carried> {
+        let with = |flag| self.carried.iter().copied().filter(move |a| a.flag == flag);
+        let normals = with(FLAG_NORMAL).take(1);
+        normals.chain(with(FLAG_UV)).chain(with(FLAG_UV1)).collect()
+    }
     /// The attributes the simplifier weighs, normals first.
     pub(super) fn weighted(&self) -> Vec<Attribute<'a>> {
-        let normals = self.normals().map(|values| Attribute {
-            values,
-            width: 3,
-            weight: NORMAL_WEIGHT,
-        });
-        let uvs = self.uv_sets().into_iter().map(|values| Attribute {
-            values,
-            width: 2,
-            weight: UV_WEIGHT,
-        });
-        normals.into_iter().chain(uvs).collect()
+        let weigh = |a: &'a Carried| match a.flag {
+            FLAG_NORMAL => Attribute {
+                values: &a.values,
+                width: 3,
+                weight: NORMAL_WEIGHT,
+            },
+            _ => Attribute {
+                values: &a.values,
+                width: 2,
+                weight: UV_WEIGHT,
+            },
+        };
+        self.weighed().into_iter().map(weigh).collect()
     }
 }
 
@@ -95,12 +104,11 @@ pub fn own_normals(
         let facing = |v: u32| unit_normal(normals, v).map_or(-2.0, |n| dot(n, face));
         for corner in tri.iter_mut() {
             let key = weld_seam[*corner as usize];
-            let own = copies
-                .get(&key)
-                .into_iter()
-                .flatten()
-                .copied()
-                .filter(|&v| agrees(v));
+            // A vertex the solve placed has no copy in `source`: its normal is its own.
+            let Some(copies) = copies.get(&key) else {
+                continue;
+            };
+            let own = copies.iter().copied().filter(|&v| agrees(v));
             match own.max_by(|&a, &b| facing(a).total_cmp(&facing(b))) {
                 Some(best) => *corner = best,
                 None => foreign.push(key),

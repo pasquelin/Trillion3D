@@ -56,11 +56,6 @@ impl SolvedRegion<'_> {
                 &self.region.source_values[local * s..local * s + s],
             )
     }
-    /// The source vertices the solve kept as they were, one per corner that names one.
-    pub fn kept(&self) -> Vec<u32> {
-        let unmoved = self.indices.iter().filter(|&&i| !self.moved(i as usize));
-        unmoved.map(|&i| self.region.remap[i as usize]).collect()
-    }
 }
 
 /// Puts back each value of `solved` that differs from its `source` by rounding alone: a few

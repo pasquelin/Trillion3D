@@ -135,6 +135,23 @@ impl<'r> Local<'r> {
             self.origin[id - self.n] as usize
         }] as usize
     }
+    /// The level's vertices the solve kept as they were, one per corner that names one.
+    pub fn kept(&self) -> Vec<u32> {
+        let kept = self.indices.iter().filter(|&&i| (i as usize) < self.n);
+        kept.map(|&i| self.remap[i as usize]).collect()
+    }
+    /// Per region vertex, its first copy by position and texture coordinates (the level's
+    /// `weld_seam`); a placed vertex is its own, the only copy of what the solve wrote.
+    pub fn weld_seam(&self, input: &GroupReductionInput) -> Vec<u32> {
+        let mut first: HashMap<u32, u32> = HashMap::new();
+        let source = self
+            .remap
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| *first.entry(input.weld_seam[v as usize]).or_insert(i as u32));
+        let placed = (self.n..self.n + self.origin.len()).map(|id| id as u32);
+        source.chain(placed).collect()
+    }
     /// `id` in the primitive's numbering: placed vertices from `base`.
     pub fn global(&self, id: u32, base: u32) -> u32 {
         match (id as usize) < self.n {
