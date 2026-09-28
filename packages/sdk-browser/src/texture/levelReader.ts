@@ -1,7 +1,5 @@
 import {
-  EngineError,
   PREVIEW_LOSSLESS_FORMAT,
-  TEXTURE_PREVIEW_VERSION,
   textureLevelUrl,
   type ClusterManifest,
   type TextureLevelFormat,
@@ -55,11 +53,11 @@ export const closeTextureLevel = (level: TextureLevel) => {
  * Reader of a cache's baked levels, built by the explorer that knows the manifest address; the
  * engine itself only receives the function. A lossless level decodes as the browser does, off
  * the main thread, with exactly the options the prepared scene decodes its source images with
- * (`premultiplyAlpha: 'none'`, `colorSpaceConversion: 'none'`, `../host/prepared/images.ts`): the bytes that reach the atlas
- * by this path are those that reached it by the other. A block level is read as bytes — one
- * tile's record by an HTTP Range (#962), or the whole file —; the level store checks their length
- * against the level's geometry. Its files are laid out in tile records since version 6: a cache
- * whose levels are of another version is refused at each read, never cut wrong.
+ * (`premultiplyAlpha: 'none'`, `colorSpaceConversion: 'none'`, `../host/prepared/images.ts`): the
+ * bytes that reach the atlas by this path are those that reached it by the other. A block level
+ * is read as bytes — one tile's record by an HTTP Range (#962), or the whole file —, whose length
+ * `webgpu/tile/levels.ts` checks. A cache whose levels are of another version is refused before
+ * any read (`assertCacheIdentity`).
  *
  * Levels are kept in `store` under the cook's `key`, which hashes the source, its images, the
  * compiler and every option that decides the product: under one key a level names one file.
@@ -74,17 +72,9 @@ export function createTextureLevelReader(
   store?.keepOnly(key);
   if (!textures || typeof createImageBitmap !== 'function') return undefined;
   const read = async ({ sha256, atlas, level, format, range }: TextureLevelRequest) => {
-    if (textures.version !== TEXTURE_PREVIEW_VERSION)
-      throw new EngineError('INVALID_CACHE', 'The texture levels are of another version', {
-        version: textures.version,
-      });
     const url = new URL(textureLevelUrl(textures.url, sha256, atlas, level, format), base).href;
-    const response = await checked(
-      url,
-      signal,
-      undefined,
-      range && { Range: `bytes=${range.offset}-${range.offset + range.bytes - 1}` },
-    );
+    const headers = range && { Range: `bytes=${range.offset}-${range.offset + range.bytes - 1}` };
+    const response = await checked(url, signal, 2, headers);
     if (format === PREVIEW_LOSSLESS_FORMAT)
       return createImageBitmap(await response.blob(), {
         premultiplyAlpha: 'none',
