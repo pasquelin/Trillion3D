@@ -378,7 +378,8 @@
       "p.left": "Borda esquerda da caixa de visão de uma câmera ortográfica.",
       "p.right": "Borda direita da caixa de visão de uma câmera ortográfica.",
       "p.top": "Borda superior da caixa de visão de uma câmera ortográfica.",
-      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica."
+      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica.",
+      "p.fitAspect": "Uma câmera ortográfica mantém a altura e o centro da sua caixa e tira a largura da forma da imagem, assim um canvas redimensionado nunca estica o desenho. Desativado por padrão."
     },
     "members": {
       "isCamera": "Sempre `true`: distingue uma câmera de qualquer outro objeto.",
@@ -391,6 +392,7 @@
       "right": "Borda direita da caixa ortográfica.",
       "top": "Borda superior da caixa ortográfica.",
       "bottom": "Borda inferior da caixa ortográfica.",
+      "fitAspect": "Uma caixa ortográfica tão alta quanto declarada e tão larga quanto a forma da imagem a torna.",
       "projection": "`'perspective'` faz coisas distantes ficarem pequenas; `'orthographic'` mantém todo tamanho.",
       "copy": "Toma os valores de nó de `source` e, de uma câmera, sua óptica; sua própria `projection` permanece.",
       "updateProjectionMatrix": "Recompõe `projectionMatrix`; cada escrita da óptica já o faz, e redesenha.",
@@ -431,7 +433,8 @@
       "left": "Borda esquerda da caixa de visão de uma câmera ortográfica.",
       "right": "Borda direita da caixa de visão de uma câmera ortográfica.",
       "top": "Borda superior da caixa de visão de uma câmera ortográfica.",
-      "bottom": "Borda inferior da caixa de visão de uma câmera ortográfica."
+      "bottom": "Borda inferior da caixa de visão de uma câmera ortográfica.",
+      "fitAspect": "Uma câmera ortográfica mantém a altura e o centro da sua caixa e tira a largura da forma da imagem, assim um canvas redimensionado nunca estica o desenho. Desativado por padrão."
     }
   },
   "CameraPose-common": {
@@ -4620,7 +4623,8 @@
       "p.left": "Borda esquerda da caixa de visão de uma câmera ortográfica.",
       "p.right": "Borda direita da caixa de visão de uma câmera ortográfica.",
       "p.top": "Borda superior da caixa de visão de uma câmera ortográfica.",
-      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica."
+      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica.",
+      "p.fitAspect": "Uma câmera ortográfica mantém a altura e o centro da sua caixa e tira a largura da forma da imagem, assim um canvas redimensionado nunca estica o desenho. Desativado por padrão."
     }
   },
   "camera.orthographic": {
@@ -4635,7 +4639,8 @@
       "p.left": "Borda esquerda da caixa de visão de uma câmera ortográfica.",
       "p.right": "Borda direita da caixa de visão de uma câmera ortográfica.",
       "p.top": "Borda superior da caixa de visão de uma câmera ortográfica.",
-      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica."
+      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica.",
+      "p.fitAspect": "Uma câmera ortográfica mantém a altura e o centro da sua caixa e tira a largura da forma da imagem, assim um canvas redimensionado nunca estica o desenho. Desativado por padrão."
     }
   },
   "camera.cube": {

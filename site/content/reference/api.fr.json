@@ -614,7 +614,8 @@
       "p.left": "Bord gauche de la boîte de vue d’une caméra orthographique.",
       "p.right": "Bord droit de la boîte de vue d’une caméra orthographique.",
       "p.top": "Bord du haut de la boîte de vue d’une caméra orthographique.",
-      "p.bottom": "Bord du bas de la boîte de vue d’une caméra orthographique."
+      "p.bottom": "Bord du bas de la boîte de vue d’une caméra orthographique.",
+      "p.fitAspect": "Une caméra orthographique garde la hauteur et le centre de sa boîte et prend sa largeur de la forme de l’image : un canevas redimensionné n’étire jamais le dessin. Désactivé par défaut."
     }
   },
   "camera.orthographic": {
@@ -629,7 +630,8 @@
       "p.left": "Bord gauche de la boîte de vue d’une caméra orthographique.",
       "p.right": "Bord droit de la boîte de vue d’une caméra orthographique.",
       "p.top": "Bord du haut de la boîte de vue d’une caméra orthographique.",
-      "p.bottom": "Bord du bas de la boîte de vue d’une caméra orthographique."
+      "p.bottom": "Bord du bas de la boîte de vue d’une caméra orthographique.",
+      "p.fitAspect": "Une caméra orthographique garde la hauteur et le centre de sa boîte et prend sa largeur de la forme de l’image : un canevas redimensionné n’étire jamais le dessin. Désactivé par défaut."
     }
   },
   "camera.cube": {
@@ -660,7 +662,8 @@
       "p.left": "Bord gauche de la boîte de vue d’une caméra orthographique.",
       "p.right": "Bord droit de la boîte de vue d’une caméra orthographique.",
       "p.top": "Bord du haut de la boîte de vue d’une caméra orthographique.",
-      "p.bottom": "Bord du bas de la boîte de vue d’une caméra orthographique."
+      "p.bottom": "Bord du bas de la boîte de vue d’une caméra orthographique.",
+      "p.fitAspect": "Une caméra orthographique garde la hauteur et le centre de sa boîte et prend sa largeur de la forme de l’image : un canevas redimensionné n’étire jamais le dessin. Désactivé par défaut."
     },
     "members": {
       "isCamera": "Toujours `true` : distingue une caméra de tout autre objet.",
@@ -673,6 +676,7 @@
       "right": "Bord droit de la boîte orthographique.",
       "top": "Bord du haut de la boîte orthographique.",
       "bottom": "Bord du bas de la boîte orthographique.",
+      "fitAspect": "Une boîte orthographique aussi haute que déclarée et aussi large que la forme de l’image le veut.",
       "projection": "`'perspective'` rend petit ce qui est loin ; `'orthographic'` garde toutes les tailles.",
       "copy": "Prend les valeurs de nœud de `source` et, d’une caméra, son optique ; sa propre `projection` reste.",
       "updateProjectionMatrix": "Recompose `projectionMatrix` ; chaque écriture d’optique le fait déjà, et redessine.",
@@ -716,7 +720,8 @@
       "left": "Bord gauche de la boîte de vue d’une caméra orthographique.",
       "right": "Bord droit de la boîte de vue d’une caméra orthographique.",
       "top": "Bord du haut de la boîte de vue d’une caméra orthographique.",
-      "bottom": "Bord du bas de la boîte de vue d’une caméra orthographique."
+      "bottom": "Bord du bas de la boîte de vue d’une caméra orthographique.",
+      "fitAspect": "Une caméra orthographique garde la hauteur et le centre de sa boîte et prend sa largeur de la forme de l’image : un canevas redimensionné n’étire jamais le dessin. Désactivé par défaut."
     }
   },
   "CameraPose-common": {

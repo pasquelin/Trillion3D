@@ -614,7 +614,8 @@
       "p.left": "Bordo sinistro del riquadro di visione di una camera ortografica.",
       "p.right": "Bordo destro del riquadro di visione di una camera ortografica.",
       "p.top": "Bordo superiore del riquadro di visione di una camera ortografica.",
-      "p.bottom": "Bordo inferiore del riquadro di visione di una camera ortografica."
+      "p.bottom": "Bordo inferiore del riquadro di visione di una camera ortografica.",
+      "p.fitAspect": "Una camera ortografica mantiene altezza e centro del suo box e prende la larghezza dalla forma dell’immagine, così un canvas ridimensionato non stira mai il disegno. Disattivato per impostazione predefinita."
     }
   },
   "camera.orthographic": {
@@ -629,7 +630,8 @@
       "p.left": "Bordo sinistro del riquadro di visione di una camera ortografica.",
       "p.right": "Bordo destro del riquadro di visione di una camera ortografica.",
       "p.top": "Bordo superiore del riquadro di visione di una camera ortografica.",
-      "p.bottom": "Bordo inferiore del riquadro di visione di una camera ortografica."
+      "p.bottom": "Bordo inferiore del riquadro di visione di una camera ortografica.",
+      "p.fitAspect": "Una camera ortografica mantiene altezza e centro del suo box e prende la larghezza dalla forma dell’immagine, così un canvas ridimensionato non stira mai il disegno. Disattivato per impostazione predefinita."
     }
   },
   "camera.cube": {
@@ -660,7 +662,8 @@
       "p.left": "Bordo sinistro del riquadro di visione di una camera ortografica.",
       "p.right": "Bordo destro del riquadro di visione di una camera ortografica.",
       "p.top": "Bordo superiore del riquadro di visione di una camera ortografica.",
-      "p.bottom": "Bordo inferiore del riquadro di visione di una camera ortografica."
+      "p.bottom": "Bordo inferiore del riquadro di visione di una camera ortografica.",
+      "p.fitAspect": "Una camera ortografica mantiene altezza e centro del suo box e prende la larghezza dalla forma dell’immagine, così un canvas ridimensionato non stira mai il disegno. Disattivato per impostazione predefinita."
     },
     "members": {
       "isCamera": "Sempre `true`: distingue una camera da qualsiasi altro oggetto.",
@@ -673,6 +676,7 @@
       "right": "Bordo destro del riquadro ortografico.",
       "top": "Bordo superiore del riquadro ortografico.",
       "bottom": "Bordo inferiore del riquadro ortografico.",
+      "fitAspect": "Un box ortografico alto quanto dichiarato e largo quanto lo rende la forma dell’immagine.",
       "projection": "`'perspective'` rimpicciolisce ciò che è lontano; `'orthographic'` mantiene tutte le dimensioni.",
       "copy": "Prende i valori di nodo di `source` e, da una camera, la sua ottica; la propria `projection` resta.",
       "updateProjectionMatrix": "Ricompone `projectionMatrix`; ogni scrittura dell’ottica lo fa già, e ridisegna.",
@@ -716,7 +720,8 @@
       "left": "Bordo sinistro del riquadro di visione di una camera ortografica.",
       "right": "Bordo destro del riquadro di visione di una camera ortografica.",
       "top": "Bordo superiore del riquadro di visione di una camera ortografica.",
-      "bottom": "Bordo inferiore del riquadro di visione di una camera ortografica."
+      "bottom": "Bordo inferiore del riquadro di visione di una camera ortografica.",
+      "fitAspect": "Una camera ortografica mantiene altezza e centro del suo box e prende la larghezza dalla forma dell’immagine, così un canvas ridimensionato non stira mai il disegno. Disattivato per impostazione predefinita."
     }
   },
   "CameraPose-common": {
