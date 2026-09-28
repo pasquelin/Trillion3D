@@ -13,6 +13,7 @@
  * - a node's pose is set from what it declares: a matrix decomposed, or its translation, rotation
  *   and scale as they are — so the engine composes the same world matrices from them.
  */
+import { readPreparedSourceRank, registerPreparedNodeRank } from './sourceRanks.ts';
 import { numbered } from '../graph/serial.ts';
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
@@ -169,6 +170,7 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
     // Hidden, it is parked as any hidden node (`placement/hidden.ts`); its subtree with it.
     node.visible = declared.visible;
     nodes[id] = node;
+    registerPreparedNodeRank(node, readPreparedSourceRank(declared.sourceNode, id));
     for (const child of declared.children) node.add(assemble(child));
     return node;
   };

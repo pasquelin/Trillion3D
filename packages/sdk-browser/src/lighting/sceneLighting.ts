@@ -2,6 +2,7 @@ import type { HostColour } from '../host/resources.ts';
 import { aimOf, isLightNode } from '../host/graph/kinds.ts';
 import { numbered } from '../host/graph/serial.ts';
 import type { Light } from '../../../sdk-core/src/world/light/light.ts';
+import { lampCastsShadow } from '../../../sdk-core/src/world/light/lightRecord.ts';
 import { shownChain } from '../placement/hidden.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
@@ -73,13 +74,25 @@ export function installSceneLighting(
    *  belongs to the source graph and stays there. */
   copyOf: (light: Light) => HostLight = (light) => numbered(light.clone()),
 ) {
-  /** One entry per copied light; `aim` only where the source's light aims. */
-  let pairs: Array<{ original: Light; copy: HostLight; aim?: Aim }> = [];
+  /** One entry per copied light; `aim` only where the source's light aims. `casts` when the last
+   *  placement found it shown and asking to cast (`lampCastsShadow`), named by `name`. */
+  let pairs: Array<{ original: Light; copy: HostLight; aim?: Aim; name: string; casts?: boolean }> =
+    [];
   // Source-graph lights are cleared when another lighting contract takes over: two
   // stacked light sets would be nobody's lighting.
   let enabled = true;
-  const update = () => {
-    for (const { original, copy, aim } of pairs) {
+  // The shown lamps asking to cast (`ContractShadows`), a new list at each copy and each time one
+  // starts or stops: shown or hidden, its `castShadow` set or cleared.
+  let casting: readonly string[] = [];
+  const recount = () => {
+    casting = pairs.flatMap(({ name, casts }) => (casts ? [name] : []));
+    lighting.castingChanged?.();
+  };
+  /** Places the copies; true when a lamp started or stopped casting since. */
+  const place = () => {
+    let moved = false;
+    for (const pair of pairs) {
+      const { original, copy, aim } = pair;
       original.updateWorldMatrix(true, false);
       placeAt(copy, original);
       copy.quaternion.x = 0;
@@ -93,7 +106,11 @@ export function installSceneLighting(
       copy.color.g = original.color.g;
       copy.color.b = original.color.b;
       copy.intensity = original.intensity;
-      copy.visible = enabled && shownChain(original);
+      const shown = shownChain(original);
+      copy.visible = enabled && shown;
+      const casts = shown && lampCastsShadow(original);
+      if (casts !== pair.casts) moved = true;
+      pair.casts = casts;
       if (aim) {
         aim.from.updateWorldMatrix(true, false);
         placeAt(aim.to, aim.from);
@@ -107,6 +124,10 @@ export function installSceneLighting(
         copy.penumbra = original.penumbra;
       }
     }
+    return moved;
+  };
+  const update = () => {
+    if (place()) recount();
   };
   const refresh = () => {
     for (const { copy, aim } of pairs) {
@@ -125,12 +146,12 @@ export function installSceneLighting(
         scene.add(aim.to);
       }
       scene.add(copy);
-      pairs.push({ original, copy, aim });
+      pairs.push({ original, copy, aim, name: original.name || `light_${pairs.length}` });
     }
-    update();
+    place();
+    recount();
   };
-  refresh();
-  return {
+  const lighting = {
     update,
     refresh,
     /** Turn source-graph lights off or on, without removing or recopying them. */
@@ -139,11 +160,19 @@ export function installSceneLighting(
       enabled = next;
       update();
     },
+    /** The names of the shown source lights asking to cast. */
+    get casting(): readonly string[] {
+      return casting;
+    },
+    /** Hears each new `casting`: a copy, or a lamp that starts or stops casting. */
+    castingChanged: undefined as (() => void) | undefined,
     /** True as soon as a source-graph light is installed: the only signal of a lit view. */
     get lit() {
       return enabled && pairs.length > 0;
     },
   };
+  refresh();
+  return lighting;
 }
 
 /**

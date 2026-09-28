@@ -4,8 +4,8 @@ This is the on-disk contract implemented today: what the compiler writes and the
 
 ## Layout
 
-| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `native/<scope>/manifest.json` | `native/<scope>/<key>/clusters.json` and its pages, `source.gltf`, `source.bin`, SHA-addressed objects under `native/objects/`: `<digest>.bin`, one file per index page, geometry page or streaming bundle — and baked texture levels under `native/textures/v<N>/<digest>/<kind>-<level>.<format>`, one lossless PNG per mip level above the sidecar's tail, plus the same level in the cooked block family where the quality gate kept it |
 
 `<scope>` is `slice` or `full`. A pointer or payload with another scope is rejected (`SCOPE_MISMATCH`).
@@ -70,7 +70,7 @@ Level 0 partitions the source triangles into clusters of at most 128 triangles, 
 - `start` — offset of the earliest source index this cluster descends from, which restores a transparent draw order
 - `stream` / `streamOffset` — streaming bundle holding this cluster and its byte offset inside it
 - `geometry` — the optional independently decodable geometry page described under [Pages](#pages)
-- `cone` — `{ axis: [x, y, z], angle }`, the normal cone of the cluster's triangles: the normalized sum of their non-degenerate face normals, each weighted by its triangle's area, and the half-angle, in radians, that holds them all; `{ axis: [0, 0, 1], angle: π }`, which rejects nothing, when no face is left or the normals cancel out. Every cluster has one. The axis has the bits the runtime's reference `triangleCone` gives for the same triangles, and the angle is never narrower than its angle, by at most a few ulps (`normal_cone.rs` says why); the WebGPU prepare reads no vertex for it. In a column file it is the `pageCone` column, four `f64` per page; sidecar version 9 added it, and a reader of version 8 refuses the file
+- `cone` — `{ axis: [x, y, z], angle }`, the normal cone of the cluster's triangles: every non-degenerate face normal lies within `angle` radians of `axis`, and `angle` is never wider than the runtime's reference `triangleCone` on the same triangles by more than a few ulps (`normal_cone.rs` says how it is built and why the bound holds); `{ axis: [0, 0, 1], angle: π }`, which rejects nothing, when no face is left or the normals give no axis. Every cluster has one; the WebGPU prepare reads no vertex for it. In a column file it is the `pageCone` column, four `f64` per page; sidecar version 9 added it, and a reader of version 8 refuses the file
 
 `structure` — `{ version, roots, groups[] }`. `roots` lists the clusters nothing replaces. Each group is `{ level, error, sphere, children, outputs }`, where `children` and `outputs` cover the same surface and are never both drawn.
 
@@ -124,7 +124,7 @@ When every selected primitive has autonomous pages, the compiler also publishes 
 The compiler bakes the **whole mip chain** of every texture an atlas reads — base colour and emissive for the colour atlas, metal-roughness, normal and occlusion for the data atlas — and the engine reads those levels wherever the cache carries them, whatever the host asked of its loader: it regenerates a chain only for a texture the cache has none for. The chain is split in two:
 
 - The **tail**, from the first level no side of which exceeds `PREVIEW_BASE` (64 px) down to 1×1, lives in the head page's column file and is on the card before the first frame: raw RGBA8 in `texturePreviewPixels`, and, for each block family the quality gate kept the chain in, the same levels block-compressed in `texturePreviewBc7` (the BC family) or `texturePreviewAstc` (ASTC 4×4), one byte per texel, no offset written — each kept entry's range follows the previous one's at the length its dimensions imply. One entry per `(texture, atlas)` pair, fourteen `u32` in `texturePreviewU32`: `texture`, `image`, `width`, `height`, source kind and buffer view, first level, level count, pixel offset and byte length, `atlas` (0 colour, 1 data, 2 colour weighted by coverage, whose cutoff byte `C` fills bits 8–15, 0 when a reader blends), `bakedLevels`, then the **layout word** of each family — `0` lossless (no blocks in that family), `1` RGBA blocks, `2` two-channel blocks. Entries are strictly increasing by `(texture, atlas)`, a coverage chain counting as its texture's colour-atlas entry — one texture carries a plain or a coverage colour chain, never both —, and a reader recomputes every level's geometry from `width`/`height` instead of trusting the entry; a block column that ends before or after the last kept entry, a layout word no layout owns, or blocks under a lossless word, refuse the sidecar whole.
-- The **head**, levels `0` to `bakedLevels - 1`, is one file per level and per kept format at the template `clusters.json` publishes in `textures.url` (`../../textures/v<N>/{sha}/{kind}-{level}.{format}`, relative to `clusters.json`): `{sha}` is the SHA-256 of the source image bytes, `{kind}` is `srgb`, `linear`, `srgb-coverage` or `srgb-coverage-<C>`, `{level}` the mip rank, `{format}` `png` (lossless, always there), `bc7` / `bc5` (the BC family, RGBA and two-channel layouts) or `astc` / `astc-la` (ASTC 4×4, the same two layouts) — a level's blocks row-major, a side that is not a multiple of four padded by its edge. Levels are content-addressed, shared by every scene that shares the image, never rewritten once present, and pruned like objects when no surviving manifest names their digest. `v<N>` is `TEXTURE_PREVIEW_VERSION`: a change of the reduction rule, of a codec or of the gate's bar changes the path, so stale levels are never served.
+- The **head**, levels `0` to `bakedLevels - 1`, is one file per level and per kept format at the template `clusters.json` publishes in `textures.url` (`../../textures/v<N>/{sha}/{kind}-{level}.{format}`, relative to `clusters.json`): `{sha}` is the SHA-256 of the source image bytes, `{kind}` is `srgb`, `linear`, `srgb-coverage` or `srgb-coverage-<C>`, `{level}` the mip rank, `{format}` `png` (lossless, always there), `bc7` / `bc5` (the BC family, RGBA and two-channel layouts) or `astc` / `astc-la` (ASTC 4×4, the same two layouts). A block file holds the level's **tile records** (version 6, #962): tile rows top to bottom, tiles left to right, each record the 4×4 blocks of its 128×128 tile and the 4-texel gutter around it, clipped at the level's edge — gutter blocks repeated in both neighbours —, block rows top to bottom, a side that is not a multiple of four padded by its edge. No index is written: a record's offset and length follow from the level's dimensions (`texture/tileRecords.ts`), and the WebGPU streamer reads one tile with one HTTP `Range` request, or the whole file from a server that ignores `Range`. `textures.version` repeats `TEXTURE_PREVIEW_VERSION`; a cache whose version is another is refused whole with `STALE_CACHE`, naming the recompile command (`assertCacheIdentity`). Levels are content-addressed, shared by every scene that shares the image, never rewritten once present, and pruned like objects when no surviving manifest names their digest. `v<N>` is `TEXTURE_PREVIEW_VERSION`: a change of the reduction rule, of a codec or of the gate's bar changes the path, so stale levels are never served.
 
 **Block layouts and the quality gate.** A cook writes one block family (`--textures-format=bc7|astc|both|none`, `bc7` by default: a cook runs on a desktop). A texture's layout follows its role: **RGBA** — BC7 mode 6 (one subset, 7-bit RGBA endpoints with a shared low bit, 4-bit weights) or ASTC single-partition colour endpoint mode 12 at the 192-level range with 3-bit weights — for base colour, emissive, metal-roughness and occlusion maps; **two channels** — BC5 (two BC4 channels, eight rungs each) or ASTC luminance-alpha (colour endpoint mode 4, dual plane, quint weights) — for a texture only `normalTexture` reads, X in the first channel, Y in the second (BC5) or in alpha (ASTC), Z rebuilt by the shader as `sqrt(1 − x² − y²)`. Every chain is then read back through an independent decoder (`texture2ddecoder`) and compared with its RGBA8 levels on the channels the materials read — an opaque base colour's alpha is not read, a normal map's three are, Z rebuilt against Z stored — and it is **kept only if** its PSNR over the whole chain reaches **48 dB**, no texel moves by more than **3 levels** of 255 on a read channel — the definition of "no visible loss" for a block texture: on a still capture at 1280×720, DPR 1, every channel of every pixel within 3 of 255, below what an 8-bit display discriminates, and 0 px of A/A; the bound is carried to the texel, since filtering only averages texels, and measured on the captures of the batch —, and no texel of a masked texture changes side of its alpha cutoff, its alpha times the material's colour factor alpha against the cutoff, as the engine cuts it. A chain under the bar stays lossless in that family: no block file, no block tail, the layout word says so, and the engine samples it from an RGBA8 pool. The compile report (`clusters.json`, `texturePreviews`) publishes the bar (`qualityGate`), the counts per family and layout (`encoded`), the kept chains' PSNR quantiles, and every chain left lossless with its PSNR, largest gap and flips (`lossless`). The codecs are the compiler's own, pure Rust, one layout each and no mode search; their blocks are proved on the same independent decoder.
 
@@ -306,7 +306,7 @@ Stage version 6 adds `bodies`, one entry per node of the rendered scene whose
 field is additive: a file cooked before it has none, and format 2 still reads it. The node keeps its
 `instances` entries: the page leaves them out once it has restored its body
 (`packages/sdk-browser/src/physics/cookedBodies.ts`) and falls back on them when it refuses the
-body; another node its collider names keeps its own, still static ground. Each entry:
+body; so does another node its collider names (`colliderNode`). Each entry:
 
 - `node`: the declaring node.
 - `motion`: the motion as the node declares it (`isKinematic`, `mass`, `gravityFactor`, …).
@@ -318,7 +318,11 @@ body; another node its collider names keeps its own, still static ground. Each e
   Jolt, turning the hull about `centerOfMass` rather than about the hull's own centre, weighed
   again at the world scale the model is placed at; what the `motion` declares (`mass`,
   `centerOfMass`, `inertiaDiagonal` turned by `inertiaOrientation`) wins over it, the cooked
-  inertia scaled to a declared mass.
+  inertia scaled to a declared mass and, about a declared `centerOfMass`, moved there by the
+  parallel axis theorem.
+- `colliderNode` (stage version 9): the other node whose mesh the hull is cooked from, when the
+  collider names one; absent otherwise, and from a file cooked before it (that node then stays
+  static ground beside the body). Additive: format 2 still reads it.
 - `position`, `rotation`, `scale`: the node's world placement in the model, as an instance's.
 - `friction`, `restitution`: as an instance's.
 
@@ -367,3 +371,29 @@ The compiler writes a compacted `source.gltf` + `source.bin` for the selected no
 ## Source files
 
 Input is a directory with `manifest.json`, a directory with exactly one `.gltf`/`.glb`, or a `.gltf`/`.glb` file. When `manifest.json` is present, `manifest.runtime.file` names the glTF JSON or GLB. For `.gltf`, the first buffer URI names the sidecar binary. Both names must be a single relative path segment (no `/`, `\\`, or `..`). The compiler verifies SHA-256 of the glTF against `runtime.sha256` and of the sidecar against the matching `runtime.sidecars[]` entry. A GLB carries its BIN chunk; sidecar hashes are not required. Without a manifest, hashes are computed from the files. Multiple glTF buffers are concatenated into one `source.bin` (4-byte padded) and `bufferView.buffer` is remapped to 0. Unknown layouts, data URIs as buffer URIs, and path escape are rejected. Unindexed triangle lists (`POSITION` count a multiple of three, no `indices`) are indexed during clustering. In `slice` scope, if no mesh instance fits the triangle budget, the smallest overflowing instance is kept.
+
+## Resident lighting proxy
+
+`proxy.bin` version 3 keeps the existing canonical triangle, albedo and wide-BVH columns.
+All fields are little-endian. Its eight `u32` header words are `WGPX`, version, triangle count,
+node count, owner-group count, owner-record count, source-node count and reserved zero.
+The payload columns, in order, are:
+
+- Nine `f32` coordinates and one `u32` linear RGBA8 colour per canonical triangle.
+- Six `f32` bounds and twelve `u32` child words per wide BVH node.
+- One `u32` owner-group rank per triangle, followed by `groups + 1` owner offsets.
+- Owner records: source-node rank and linear RGBA8 colour, both `u32`.
+- One `i32` parent rank per source node (`-1` for roots), then sixteen `f64` bind-world values per node.
+
+The manifest publishes `groups`, `owners` and `instances` alongside existing sizes and counts.
+Identical owner lists are interned; subdivision shares a group and BVH permutation moves its rank
+with the canonical triangle. Group offsets are monotonic, groups nonempty, ranks in range and the
+source hierarchy acyclic. Unknown proxy versions are rejected. Compiler implementation hashes
+include these source modules, so version-three products cannot reuse version-two cache keys.
+
+The node table's optional `sourceNode` carries the original unsigned 32-bit document rank as
+exactly eight lowercase hexadecimal digits through partition renumbering. Its fixed width keeps
+the core table's byte size independent of the world's node count. The runtime decodes it to the
+original numeric rank, rejecting malformed values; when absent, the table rank applies. A proxy owner whose leaf is not currently instantiated follows its nearest loaded
+ancestor. Each session keeps its mutable refit and transforms separately from shared cache bytes.
+Cook-time geometry eliminated by simplification is not reconstructed when an object later grows.

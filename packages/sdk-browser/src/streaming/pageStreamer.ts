@@ -99,7 +99,7 @@ export function createPageStreamerWith(
     totalBytes: pages.reduce((sum, page) => sum + page.bytes, 0),
   }));
   const { loadOne, roundTrip } = createStreamingFetcher(context, touch);
-  const { subscribe } = createStreamingQueue(context, loadOne, touch, evict);
+  const { subscribe, forget, keep } = createStreamingQueue(context, loadOne, touch, evict);
   const { read, watch } = createReadWatch(subscribe);
   const asIndices = createIndexViews();
   const readBytes = (url: string, signal?: AbortSignal, priority = 0) => {
@@ -107,10 +107,13 @@ export function createPageStreamerWith(
     return read(url, signal, priority);
   };
   return {
-    admit: (more: readonly StreamPage[]) => more.forEach((page) => catalog.set(page.url, page)),
-    forget: (urls: readonly string[]) =>
-      // A page in transfer stays catalogued: its job reads its size when it settles.
-      urls.forEach((url) => !jobs.has(url) && catalog.delete(url) && store.drop(url)),
+    admit: (more: readonly StreamPage[]) =>
+      more.forEach((page) => {
+        keep(page.url);
+        catalog.set(page.url, page);
+      }),
+    // A page a read holds, queued or in transfer, stays catalogued until that read settles.
+    forget: (urls: readonly string[]) => urls.forEach(forget),
     get(url: string) {
       const array = cache.get(url);
       if (array) touch(url, array);

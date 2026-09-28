@@ -115,8 +115,7 @@ export function createPhysicsBodies(
     if (p.decorative) count.decorative++;
     p._attach(host, index, state);
   };
-  /** A slot held by `owner` and its engine id, counted against the budget with `bytes` bytes of
-   *  static collision and `softVertices` soft-body vertices. */
+  /** A slot held by `owner`, its engine id: `bytes` of collision, `softVertices` counted too. */
   const claim = (bytes: number, softVertices: number, owner: SlotOwner) => {
     check('bodies', 1);
     check('collisionBytes', bytes);
@@ -147,6 +146,8 @@ export function createPhysicsBodies(
   };
   return {
     meshes,
+    /** By slot: the compiled nodes bodies move (`createBodySlots`), their last step (`state`). */
+    ...{ nested: slots.nested, state },
     generation: slots.generation,
     count,
     add,

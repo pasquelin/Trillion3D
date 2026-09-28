@@ -52,7 +52,12 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 | `pnpm run validate` | full pre-merge validation gate                                       |
 
 `pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
-touch; neither replaces `validate`.
+touch; neither replaces `validate`. `check:changed` also type-checks (`tsc --noEmit`) every
+tracked `tsconfig*.json` project that owns a changed TypeScript file, by listing it or reaching it
+through an import (`scripts/ts-projects.ts`); a changed file no project reaches fails the gate,
+unless a type-check-only (`noEmit`) project's `include` covers it and its `exclude` takes it
+back. A project that reads `trillion3d` from `dist/` (the site, the tools) is checked after
+`pnpm run build`, against current declarations.
 
 The CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as parallel jobs, one
 per group of `scripts/validate-steps.ts`: `quick`, `typescript`, `native` (Clippy and the Rust
@@ -96,8 +101,9 @@ category and reason, and the command prints it before starting — never in sile
 The learning portal under `site/` has its own proofs, run on demand in system Chrome. The two
 `scripts/docs-*.browser.ts` and `tests/browser/renders/explorer-startup.browser.ts` build the site into
 `dist/site/` before serving it, so they need no committed bundle; CI has no GPU and runs none of
-them, the coder runs them. `scripts/docs-examples.browser.ts` opens every page of `site/examples/`
-on WebGPU and on WebGL2 (`navigator.gpu` hidden) and fails on any error a page raises or logs — an
+them, the acceptance session runs them on `develop`. `scripts/docs-examples.browser.ts` opens every
+page of `site/examples/` on WebGPU and on WebGL2 (`navigator.gpu` hidden) and fails on any error a
+page raises or logs — an
 import that fails, a 404, the engine's own failures — but those `DECLARED_ERRORS` names for it
 (`scripts/docs/examples/capture.ts`), each with its reason. A behaviour-neutral change to the
 site is proved by `node scripts/site-diff.browser.ts <beforeDir> <afterDir>`: every portal route
@@ -133,7 +139,7 @@ geometry pages and from its source buffers, on WebGPU: to the pixel when blended
 opaque (the proof's header says why). Its four scenes are derived from `normal-tangent-mirror-test`:
 `node bench/runner/scenes/tangentScenes.ts` writes them and prints the `assets.ts --only` line that
 compiles them; then `node tests/browser/test-gpu.ts tests/browser/renders/page-tangents.browser.ts`
-runs it. The recette runs it after the merge.
+runs it. The acceptance session runs it on `develop` after the merge (AGENTS.md rule 2).
 
 `tests/browser/test-gpu.test.ts` enforces symmetric guarding across both directories: **executed ∪ excluded ==
 on-disk**, and no exclusion outlives the file it names. Without this guard, forgotten proofs would
@@ -168,7 +174,7 @@ and `explorer-startup` now drives the engine's interactive session directly. #49
 side of the symptom: a canvas whose CSS box grows after the world opens is resized and scheduled a
 frame (unit test in `world/session/interactive.test.ts`), so the frozen 300 × 150 buffer belonged
 to the lesson's own mounting, which no longer exists. `explorer-startup` leaves this list once the
-measurer re-reads it passing.
+acceptance session re-reads it passing.
 
 Before #281 the same reading gave 10 fail (`origin/develop` at `ea7e3ecf4` and the head of #322,
 54 pass / 10 fail each). A batch that leaves exactly these two failing has changed nothing
@@ -235,8 +241,8 @@ The report flags any machine load higher than 4: above this threshold, timings a
 
 Timers run in the process that just executed the oracle, following warmup. This is sufficient to
 track regressions between batches on the same machine; it is not a campaign measurement. A publishable
-campaign is run with the `bench/runner/` harness (see its README), on a quiet machine, comparing
-identical budgets, scenes, and poses.
+campaign is run with the `bench/runner/` harness (see its README), before and after interleaved at
+least five times, comparing identical budgets, scenes, and poses.
 
 ## 4. Quality Gates
 
@@ -245,6 +251,9 @@ identical budgets, scenes, and poses.
 | `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                    |
 | `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                               |
 | `pnpm run check:helpers`      | No small helper copied into a second module of the same package              |
+| `pnpm run check:english`      | No new French word in the code: a count per package that only goes down      |
+| `pnpm run check:translations` | No translation left behind when its English changes                          |
+| `pnpm run check:thumbnails`   | Every gallery example that is not parked has its thumbnail                   |
 | `pnpm run check:structure`    | sdk-core typed without DOM; the boundary tests run in the unit suite         |
 | `pnpm run check:unused`       | Dead exports and files (`knip`)                                              |
 | `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript                   |
@@ -252,3 +261,15 @@ identical budgets, scenes, and poses.
 | `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git                |
 | `pnpm run check:site-types`   | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off)     |
 | `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links          |
+
+`check:english` counts, per package, the French words of `scripts/french-words.ts` in the
+identifiers, comments and strings of every source file, the strings a program reads named there as
+exceptions. A count above `scripts/english-baseline.json` fails; a lower one is written there, to
+be committed with the renaming. `check:translations` fails when an entry's English changed and a
+language's translation did not, against the hashes of `site/content/i18n/translation-sources.json`;
+after translating, `pnpm run check:translations --write` records the new hashes. An English
+change the translations do not need, such as a typo, is accepted by name once each translation was
+checked: `pnpm run check:translations --accept <entry> [<entry>…]` (the entry as the gate names
+it, `portal:nav.primary`) records its new English hash and keeps the translations', so the
+acceptance shows in the record's diff; an entry whose English did not change is refused. Both
+records start from `--write`.
