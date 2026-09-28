@@ -37,12 +37,12 @@ for (const [kernel, bindings] of KERNELS) {
 }
 
 // The two probes, the cut oracle whose frozen descent still binds the shipped group 0, and the
-// light cut, which binds the selection kernel's group 0 for its own views.
+// frame ranges, which bind the selection kernel's group 0 per range for the camera and light cuts.
 const BUILDERS = [
   '../../../../../tests/browser/probes/selectionKernelGpu.ts',
   '../../../../../tests/browser/probes/scatterKernelGpu.ts',
   '../../../../../bench/oracles/browser/cut-dispatches.ts',
-  './lightCut.ts',
+  './frameRanges.ts',
 ];
 for (const probe of BUILDERS) {
   test(`${probe} builds its bind group through namedBufferEntries, not by position`, () => {
