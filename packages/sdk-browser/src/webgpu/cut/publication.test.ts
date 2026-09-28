@@ -47,9 +47,11 @@ function banc() {
     applyDrawn: (delta: CutDelta) => (remue.dessinee += compte(delta)),
     hostBytes: 0,
   } as unknown as WebgpuResidencySets;
+  const mainView = {};
   const rt = {
     run,
     gpu: {},
+    views: { main: mainView, active: mainView },
     lights: {
       store: { count: 1 },
       plan: { representationChanged: (min: number[]) => shadowChanges.push(min[0]) },

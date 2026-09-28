@@ -40,9 +40,11 @@ export function useWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   run.cutEpoch++;
 }
 
-/** Releases the targets of `view`, which is not the main one; the main view is drawn again. */
+/** Releases the targets of `view`, which is not the main one, and takes its cut out of what the
+ *  residency holds; the main view is drawn again. */
 export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   useWebgpuView(rt, view);
   releaseTargets(rt);
   useWebgpuView(rt, rt.views.main);
+  rt.services.releaseView(view);
 }
