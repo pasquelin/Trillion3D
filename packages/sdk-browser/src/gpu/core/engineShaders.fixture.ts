@@ -27,9 +27,9 @@ import { BLOOM_WGSL } from '../../effects/bloomWgsl.ts';
 import { GUIDE_WGSL } from '../../guides/guideShaders.ts';
 import {
   BOUNCE_LIGHTING_SHADER,
-  COMPOSE_SHADERS,
+  CONTRACT_COMPOSITIONS,
   DIRECT_LIGHTING_SHADER,
-  UNLIT_COMPOSE_SHADERS,
+  UNLIT_COMPOSITIONS,
   UNLIT_LIGHTING_SHADER,
 } from '../../lighting/deferred/shaders.ts';
 import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
@@ -74,8 +74,10 @@ export const ENGINE_SHADERS: Record<string, string> = {
   UNLIT_LIGHTING_SHADER,
   DIRECT_LIGHTING_SHADER,
   BOUNCE_LIGHTING_SHADER,
-  ...compositions('COMPOSE', COMPOSE_SHADERS),
-  ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSE_SHADERS),
+  ...compositions('COMPOSE', CONTRACT_COMPOSITIONS.plain),
+  ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),
+  ...compositions('COMPOSE_BLOOM', CONTRACT_COMPOSITIONS.bloom),
+  ...compositions('UNLIT_COMPOSE_BLOOM', UNLIT_COMPOSITIONS.bloom),
   ...Object.fromEntries(LIGHT_TILES_SHADERS),
   TAA_SHADER,
   MIP_SHADER,
