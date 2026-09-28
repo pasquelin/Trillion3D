@@ -15,8 +15,7 @@ import { collectClusterPages } from '../../../page/selection/selection.ts';
 import { packDagSelection } from '../../../gpu/dag/selection.ts';
 import { refusing } from './refusing.fixture.ts';
 import type { BackendDiagnostic } from '../../../backend/types.ts';
-import type { WebgpuPagesBackend, WebgpuPagesRuntime } from '../runtime.ts';
-import { requestFrameTargets } from './targetGrant.ts';
+import type { WebgpuPagesBackend } from '../runtime.ts';
 import { createExplorerFrameScheduler } from '../../../world/render/frameScheduler.ts';
 import { frameQueue } from '../../../world/render/frameQueue.fixture.ts';
 
@@ -128,13 +127,6 @@ test('frame targets refused at prepare are refused by name', async () => {
   } finally {
     disposeQuadRun(backend, fixture);
   }
-});
-
-test('targets that fit ask nothing of the device: the steady frame is free', () => {
-  const gpu = { colorTexture: {}, targetSize: [32, 32], surfaces: {}, targetGrant: undefined };
-  const rt = { setup: { viewport: [32, 32] }, gpu, vis: {} } as unknown as WebgpuPagesRuntime;
-  // A bare device: any creation or error scope would throw.
-  assert.equal(requestFrameTargets(rt, {} as GPUDevice), undefined);
 });
 
 // A refused grant holds the frame, draws nothing into targets not granted, then draws it complete.

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneDraw } from './sceneDraw.ts';
+import { sourcePassDraws } from './sourcePass.fixture.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
 import { Scene } from '../../world/core/scene.ts';
@@ -121,7 +122,7 @@ test('a mesh under a translated and rotated group draws where the reference draw
 });
 
 // #337: a glass — a physical surface that transmits — is drawn, never dropped: the opaque meshes
-// are first drawn into the frozen backdrop, then on the display, and the glass last, reading it.
+// fill separate reflection and transmission sources, then the display; glass reads them last.
 test('a transmissive copy draws over the backdrop the opaque meshes were drawn into first', () => {
   const context = createTestContext({
     answers: {
@@ -135,28 +136,28 @@ test('a transmissive copy draws over the backdrop the opaque meshes were drawn i
   scene.add(mesh(6, 0), glass);
   const draw = createSceneDraw(context.gl, scene, [glass]);
   draw.render({} as HostCamera);
-  draw.host.drawHostGeometry(createHostDrawCamera(), OUTPUT);
-  const submitted = context.calls.filter((call) =>
-    ['drawElements', 'bindFramebuffer', 'uniform1i'].includes(call.name),
-  );
-  const at = (count: number) =>
-    submitted.findIndex((call) => call.name === 'drawElements' && call.args[1] === count);
+  draw.host.drawHostGeometry(createHostDrawCamera(), { ...OUTPUT, toneMapped: true });
+  const draws = sourcePassDraws(context.calls);
   assert.deepEqual(
-    context.of('drawElements').map((args) => args[1]),
-    [6, 6, 9],
-    'backdrop, display, then the glass',
+    draws.map((draw) => draw.count),
+    [6, 6, 6, 9],
   );
-  const backdrop = submitted.findIndex(
-    (call) => call.name === 'bindFramebuffer' && call.args[1] !== null,
+  assert.ok(draws[0].target && draws[1].target, 'both frozen sources have targets');
+  assert.notEqual(draws[0].target, draws[1].target, 'reflection and transmission never alias');
+  assert.deepEqual(
+    draws.slice(2).map((draw) => draw.target),
+    [null, null],
   );
-  assert.ok(backdrop >= 0 && backdrop < at(6), 'the backdrop is bound before the first draw');
-  const transmits = submitted.findLastIndex(
-    (call) =>
-      call.name === 'uniform1i' && (call.args[0] as { uniform: string }).uniform === 'transmissive',
+  assert.deepEqual(
+    draws.map((draw) => draw.flags),
+    [
+      [1, 0, 0, 0, 0], // Reflection source: no recursive reflection, tone mapping or camera fog.
+      [0, 0, 0, 0, 0], // Transmission backdrop: ordinary camera fog, no reflection recursion.
+      [0, 1, 0, 1, 0], // Display opaque: reflection restored before the display curve.
+      [0, 1, 1, 1, 0], // Glass reads both frozen sources on the display.
+    ],
   );
-  assert.equal(submitted[transmits].args[1], 1, 'the glass is drawn transmitting');
-  assert.ok(transmits < at(9));
-  assert.deepEqual(draw.counters(), { triangles: 7 });
+  assert.deepEqual(draw.counters(), { triangles: 9 });
   draw.dispose();
 });
 

@@ -84,9 +84,17 @@ fn split(triangles: &[f32], order: &mut [usize], range: (usize, usize), nodes: &
 /// Builds binary tree and reorders triangles and albedos so each leaf
 /// names contiguous range. `wide::collapse` extracts cache wide nodes from it.
 pub fn build(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>) -> Vec<Node> {
+    build_ordered(triangles, albedo).0
+}
+
+/// The same tree, with its original triangle ranks for parallel provenance columns.
+pub(super) fn build_ordered(
+    triangles: &mut Vec<f32>,
+    albedo: &mut Vec<u32>,
+) -> (Vec<Node>, Vec<usize>) {
     let count = triangles.len() / PROXY_TRIANGLE_FLOATS;
     if count == 0 {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     }
     let mut order: Vec<usize> = (0..count).collect();
     let mut nodes: Vec<Node> = Vec::with_capacity(count * 2 / PROXY_LEAF_TRIANGLES + 2);
@@ -100,7 +108,7 @@ pub fn build(triangles: &mut Vec<f32>, albedo: &mut Vec<u32>) -> Vec<Node> {
     }
     *triangles = sorted;
     *albedo = colours;
-    nodes
+    (nodes, order)
 }
 
 /// World extent of proxy. Empty proxy keeps zero extent, never infinite.

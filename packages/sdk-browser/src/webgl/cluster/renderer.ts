@@ -1,3 +1,4 @@
+import { capture, receivers, target } from '../../reflections/captureGl.ts';
 import {
   drawPasses,
   isClusterDrawMesh,
@@ -34,7 +35,6 @@ export class WebglClusterRenderer {
   readonly textures: WebglClusterTextures;
   private uniforms = new Map<string, WebGLUniformLocation | null>();
   private normal = new Float32Array(9);
-  /** Model-view in double precision, the normal matrix read from it; the program gets floats. */
   private modelView = new Float64Array(16);
   private modelViewUpload = new Float32Array(16);
   private lights: WebglClusterLights;
@@ -42,22 +42,15 @@ export class WebglClusterRenderer {
   private validatedMaterials = new Map<Material, HostAttributes>();
   private multiDraw: MultiDraw | null;
   private backdrop: WebglClusterBackdrop;
+  private reflection: WebglClusterBackdrop;
   private copies = new WebglClusterCopies<SceneCopy>();
-  /** Triangles submitted by the last frame, every pass and the backdrop's included. */
   triangles = 0;
-  /** Whether the program last read placement matrices; `undefined` until the first mesh. */
   private instanced: boolean | undefined;
-  /** Submissions of the scene copies in view, over both passes of the last frame. */
   copySubmissions = 0;
-  /** Cluster submissions of the last frame's backdrop pass; zero without a transmissive copy. */
   backdropSubmissions = 0;
-  /** Whether the last frame drew the backdrop pass: its submissions are the display pass's again. */
   backdropPasses = 0;
-  /** The display curve's rank (`TONE_MAPPING_RANK`), written by the owner before a frame. */
   toneCurve: number = TONE_MAPPING_RANK.aces;
   readonly pass: ClusterMaterialPass;
-  /** The display renderer whose vertex arrays, maps, backdrop and raster state this one shares:
-   *  set on the effect chain's linear variant (`createClusterProgram`). */
   private readonly display: WebglClusterRenderer | undefined;
   private readonly locations: Record<string, number>;
   constructor(gl: WebGL2RenderingContext, display?: WebglClusterRenderer) {
@@ -73,6 +66,7 @@ export class WebglClusterRenderer {
     this.lights = new WebglClusterLights(gl, this.program);
     this.state = display?.state ?? new WebglClusterState(gl);
     this.backdrop = display?.backdrop ?? new WebglClusterBackdrop(gl, BACKDROP_UNITS);
+    this.reflection = display?.reflection ?? target(gl);
     this.multiDraw = gl.getExtension('WEBGL_multi_draw') as typeof this.multiDraw;
     this.pass = new ClusterMaterialPass({
       uniforms: new WebglClusterMaterialUniforms(gl, (name) => this.at(name)),
@@ -84,16 +78,14 @@ export class WebglClusterRenderer {
     gl.useProgram(program);
     setClusterSamplers(gl, (name) => this.at(name));
   }
-  /** Bytes the transmission backdrop holds; zero until a transmissive copy is drawn. */
   get backdropBytes() {
-    return this.backdrop.bytes;
+    return this.backdrop.bytes + this.reflection.bytes;
   }
   private at(name: string) {
     if (!this.uniforms.has(name))
       this.uniforms.set(name, this.gl.getUniformLocation(this.program, name));
     return this.uniforms.get(name)!;
   }
-  /** One mesh, every pass its material asks for; a hidden material submits nothing. */
   private mesh(mesh: ClusterDrawMesh | WholeMesh, camera: HostDrawCamera, toneMapped: boolean) {
     const gl = this.gl,
       material = mesh.material as Material,
@@ -119,23 +111,23 @@ export class WebglClusterRenderer {
     }
     return passes.length;
   }
-  private submit(meshes: readonly Drawn[], camera: HostDrawCamera, toneMapped: boolean) {
+  private submit(
+    meshes: readonly Drawn[],
+    camera: HostDrawCamera,
+    toneMapped: boolean,
+    opaque = false,
+  ) {
     let submitted = 0;
-    for (const mesh of meshes) submitted += this.mesh(mesh, camera, toneMapped);
+    for (const mesh of meshes)
+      if (!opaque || !(mesh.material as Material).transparent)
+        submitted += this.mesh(mesh, camera, toneMapped);
     return submitted;
   }
-  /** The pass's destination; the raster state is re-applied, the backdrop having written masks. */
   private setOutput(srgbDestination: boolean) {
     this.gl.uniform1i(this.at('srgbDestination'), srgbDestination ? 1 : 0);
     this.state.invalidate();
     this.pass.forget();
   }
-  /**
-   * One frame: the batches, then whole host meshes — diagnostic pages, plain copies — then the
-   * transmissive scene copies, then the blended ones, the order the reference draws a scene.
-   * The transmissive copies read the frozen backdrop, so the frame is first drawn into it, in
-   * linear light, before the display pass draws it again.
-   */
   draw(
     meshes: readonly ClusterDrawMesh[],
     scene: WebglClusterScene,
@@ -157,27 +149,34 @@ export class WebglClusterRenderer {
     gl.uniformMatrix4fv(this.at('projectionMatrix'), false, camera.projection);
     gl.uniform1i(this.at('toneCurve'), this.toneCurve);
     gl.uniform1i(this.at('lightCount'), this.lights.upload(scene, camera.view));
-    // Units unknown at frame start (the backdrop pass touches only its own); a record follows its
-    // host at its first binding, its chain the readers' rule, reread once per image (#42).
     this.textures.beginFrame();
     this.instanced = undefined;
     this.pass.beginFrame(camera, gl.getParameter(gl.VIEWPORT) as Int32Array);
     this.geometry.beginFrame();
     this.triangles = 0;
+    const mirrors = receivers([meshes, diagnosticMeshes, plain, blended, transmissive]);
     let backdropSubmissions = 0,
       copySubmissions = 0;
+    gl.uniform1i(this.at('reflectionEnabled'), 0);
+    capture(gl, this.reflection, mirrors, this.at('reflectionCapture'), () => {
+      this.setOutput(false);
+      backdropSubmissions +=
+        this.submit(meshes, camera, false, true) +
+        this.submit(diagnosticMeshes, camera, false, true);
+      copySubmissions += this.submit(plain, camera, false, true);
+    });
     if (transmissive.length) {
       this.backdrop.begin(scene.background);
       this.setOutput(false);
-      backdropSubmissions =
+      backdropSubmissions +=
         this.submit(meshes, camera, false) + this.submit(diagnosticMeshes, camera, false);
-      copySubmissions = this.submit(plain, camera, false);
+      copySubmissions += this.submit(plain, camera, false);
       this.backdrop.end();
     }
-    this.backdropPasses = transmissive.length ? 1 : 0;
+    this.backdropPasses = (transmissive.length ? 1 : 0) + (mirrors ? 1 : 0);
     this.backdropSubmissions = backdropSubmissions;
+    gl.uniform1i(this.at('reflectionEnabled'), mirrors ? 1 : 0);
     this.setOutput(srgbDestination);
-    // The paged clusters and the whole page meshes, in draw order; the copies come after.
     const submitted =
       this.submit(meshes, camera, toneMapped) + this.submit(diagnosticMeshes, camera, toneMapped);
     copySubmissions += this.submit(plain, camera, toneMapped);
@@ -193,7 +192,8 @@ export class WebglClusterRenderer {
   }
   dispose() {
     if (!this.display)
-      for (const shared of [this.backdrop, this.geometry, this.textures]) shared.dispose();
+      for (const shared of [this.backdrop, this.reflection, this.geometry, this.textures])
+        shared.dispose();
     this.lights.dispose();
     this.gl.deleteProgram(this.program);
   }
