@@ -20,23 +20,32 @@ import { decodeGeometryPage } from '../../packages/sdk-browser/src/page/decode/g
 
 const ITEMS: Record<string, number> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
 
-/** Float accessors of the source glTF, read out of `source.bin` and held by accessor index. */
-function accessorReader(dir: string) {
+/** Accessors of the source glTF, read out of `source.bin`: floats held by accessor index, and
+ *  indices widened to 32 bits (`screenErrorSurface.ts` reads the triangles through it). */
+export function accessorReader(dir: string) {
   const gltf = JSON.parse(readFileSync(join(dir, 'source.gltf'), 'utf8'));
   const bin = readFileSync(join(dir, 'source.bin'));
   const held = new Map<number, Float32Array>();
+  const bytes = (index: number, width: number) => {
+    const accessor = gltf.accessors[index],
+      view = gltf.bufferViews[accessor.bufferView];
+    const start = bin.byteOffset + (view.byteOffset ?? 0) + (accessor.byteOffset ?? 0);
+    return bin.buffer.slice(start, start + accessor.count * ITEMS[accessor.type as string] * width);
+  };
+  const INDEX_ARRAYS: Record<number, typeof Uint8Array | typeof Uint16Array | typeof Uint32Array> =
+    { 5121: Uint8Array, 5123: Uint16Array, 5125: Uint32Array };
   return {
     gltf,
     read(index: number) {
       let floats = held.get(index);
       if (floats) return floats;
-      const accessor = gltf.accessors[index],
-        view = gltf.bufferViews[accessor.bufferView];
-      const start = bin.byteOffset + (view.byteOffset ?? 0) + (accessor.byteOffset ?? 0);
-      const count = accessor.count * ITEMS[accessor.type as string];
-      floats = new Float32Array(bin.buffer.slice(start, start + count * 4));
+      floats = new Float32Array(bytes(index, 4));
       held.set(index, floats);
       return floats;
+    },
+    readIndices(index: number) {
+      const Type = INDEX_ARRAYS[gltf.accessors[index].componentType as number];
+      return Uint32Array.from(new Type(bytes(index, Type.BYTES_PER_ELEMENT)));
     },
   };
 }
