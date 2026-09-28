@@ -49,7 +49,7 @@ fn collect_one_node(
     let inputs = CoplanarInputs {
         g,
         bin: &[],
-        chosen: &chosen,
+        shown: &chosen,
         mesh_map: &mesh_map,
         source_mesh: &source_mesh,
         primitives,
