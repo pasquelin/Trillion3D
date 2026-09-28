@@ -7433,7 +7433,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Flottants d’un enregistrement d’ombre lu par l’éclairage : six matrices de faces de lampe, puis le repère du plan lumineux du soleil (`right, zNear`, `up, zFar`, `axis, 0`), l’origine de l’étendue de chaque niveau de clipmap en deux entiers, puis un en-tête `vec4f` avec les faces ou niveaux, le demi-champ tangent de la lampe ou le niveau le plus fin du soleil, le plan proche de la lampe et la première entrée de la table des pages."
+    "summary": "Flottants d’un enregistrement d’ombre, celui que lit l’ombrage d’une lumière : six matrices de faces de lampe — là, les plages de profondeur d’un soleil, `zNear` et inverse de l’étendue chacune (`recordPack.ts`) —, puis le repère du plan du soleil — `right`, `up`, `axis`, chacun complété à quatre —, puis l’origine de la fenêtre de chaque niveau en deux entiers, puis un en-tête `vec4f` : faces (lampe) ou niveaux (soleil), demi-champ tangent de la lampe ou niveau le plus fin du soleil, plan proche de la lampe, et première entrée de la table des pages."
   },
   "ShadowRequestReport": {
     "summary": "Ce que l’ombrage a lu en une image : les entrées de la table qu’il a demandées, sans ordre.",
