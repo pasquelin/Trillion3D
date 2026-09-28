@@ -27,7 +27,6 @@ function gpuCut() {
   /** One GPU-cut image: the readback's requests in the GPU's order, then admission at `room`. */
   const image = (room: number, urls: string, draws = '') => {
     const pageIds = urls.split(' ').map(id);
-    w.sets.decideBy(false, closure);
     w.delta.apply(pageIds);
     closure.apply(w.delta);
     w.sets.applyCut(closure.delta);
@@ -83,10 +82,9 @@ test('back on the CPU cut, the ranking weighs the cut the GPU cut left', () => {
   const cut = gpuCut();
   cut.image(8, 'f0 f1 m0');
   cut.image(8, 'f1 a c0');
-  cut.sets.decideBy(true, cut.closure);
-  assert.equal(cut.sets.applyBudget(3), true, 'five pages past the cover weighed against three');
+  assert.equal(cut.admit.held(3), true, 'five pages past the cover weighed against three');
   assert.deepEqual(cut.queue().slice(0, 2), ['c0', 'm'], 'coarsest first');
-  assert.equal(cut.sets.applyBudget(8), false, 'and the whole cut fits eight');
+  assert.equal(cut.admit.held(8), false, 'and the whole cut fits eight');
   assert.equal(keysOf(cut.tracking.wanted).size, 5);
 });
 
