@@ -261,7 +261,9 @@ supposed. On `tests/fixtures/scenes/kinetic-garden` (430 pages, 107 520 corners)
 
 The measured screen error of what WebGPU and WebGL2 draw, against the source glTF (#959), the
 audit's oracle: forward, sample points of the drawn triangles to the source surface; reverse,
-visible sample points of the source to the drawn triangles. Each distance becomes pixels through
+sample points of the source to the drawn triangles. Both count only the points in the frustum that
+no drawn surface hides, and reverse skips single-sided source triangles seen from behind, which
+every backend culls. Each distance becomes pixels through
 the cut's own projection (`screenErrorBound`), under the engine's camera, frustum and focal length,
 at 1728×1117, DPR 2; the nearest-surface and visibility queries run on the engine's triangle tree.
 A row passes when both maxima stay within `pixelError + 0.1 px`. WebGPU hands back the pages its

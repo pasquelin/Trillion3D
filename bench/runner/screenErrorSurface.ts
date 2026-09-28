@@ -35,12 +35,14 @@ function meshScales(nodes: GltfNode[]) {
   return scales;
 }
 
-/** Every paged primitive of the cache's source glTF, placed in the world. */
+/** Every paged primitive of the cache's source glTF, placed in the world, and per triangle
+ *  whether its material is double-sided (a single-sided one seen from behind shows nothing). */
 export async function sourceTriangles(full: string) {
   const { dir, manifest } = await readCacheManifest(full);
   const { gltf, read, readIndices } = accessorReader(dir);
   const scales = meshScales(gltf.nodes);
   const out: number[] = [],
+    twoSided: number[] = [],
     seen = new Set<string>();
   for (const { mesh, primitive } of manifest.primitives) {
     const key = `${mesh}/${primitive}`;
@@ -49,11 +51,13 @@ export async function sourceTriangles(full: string) {
     const source = gltf.meshes[mesh].primitives[primitive];
     if ((source.mode ?? 4) !== 4) continue;
     const scale = scales.get(mesh) ?? 1;
-    const position = read(source.attributes.POSITION);
-    for (const v of readIndices(source.indices))
-      for (let k = 0; k < 3; k++) out.push(position[3 * v + k] * scale);
+    const position = read(source.attributes.POSITION),
+      indices = readIndices(source.indices);
+    const doubleSided = gltf.materials?.[source.material]?.doubleSided === true ? 1 : 0;
+    for (const v of indices) for (let k = 0; k < 3; k++) out.push(position[3 * v + k] * scale);
+    for (let t = 0; t < indices.length; t += 3) twoSided.push(doubleSided);
   }
-  return Float32Array.from(out);
+  return { triangles: Float32Array.from(out), twoSided: Uint8Array.from(twoSided) };
 }
 
 /** The pages named by `ids` (the WebGPU backend's `selectedPageIds`), decoded and placed. */
