@@ -973,7 +973,8 @@ past which a caster lights without a shadow (`shadowCastersUnsliced`), and at mo
 regions redrawn per frame. WebGL2 draws 64 lights and refuses more (#835). The shadow pool is sized
 once, at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
 128² pages as wide as the device draws, within the budget's shadow share; `metric.frame(world)`
-publishes its `shadowPoolBytes` and `shadowPoolLayers`.
+publishes its `shadowPoolBytes` and `shadowPoolLayers`, and its memory pressure by name
+(`shadowPeakBytes`, `shadowResolutionBias`, `shadowMemoryEvents`).
 
 `capability.lighting(world)` reports what the **active** renderer applies — `{ sceneLights,
 lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light

@@ -3147,6 +3147,9 @@
       "shadowPoolPages": "Páginas físicas do pool fixo que guardam uma página virtual.",
       "shadowPoolBytes": "Bytes de GPU do pool de sombras: as suas páginas de profundidade, as camadas estática e de transmitância quando criadas, e os buffers ao lado. Null até o primeiro quadro dimensionar o pool.",
       "shadowPoolLayers": "Camadas do pool, de no máximo 4 096 páginas cada, dimensionadas uma vez a partir da tela e das luzes com sombra do primeiro quadro. Null até lá.",
+      "shadowPeakBytes": "O máximo de bytes de GPU que as sombras mantiveram de uma vez, uma camada estática ou de transmitância tardia contada com o que era mantido quando chegou; nunca além da parte fixa das sombras no orçamento. Null até o primeiro quadro dimensionar o pool.",
+      "shadowResolutionBias": "Quantas reduções pela metade dos bytes do pool de sombras custaram as recusas de memória do dispositivo: páginas mais grosseiras apenas pela memória, nunca para cumprir um tempo de quadro. 0 no caso normal.",
+      "shadowMemoryEvents": "Os eventos de pressão de memória das sombras desde que o mundo foi aberto, por nome, em ordem: `pool-shrunk`, `pool-refused`, `static-layer-over-grant`, `static-layer-refused`. Vazio no caso normal.",
       "shadowPagesRefetched": "Páginas virtuais mapeadas de novo depois de o pool as ter despejado para abrir espaço, desde que o explorador abriu: os redesenhos que custa um pool pequeno demais para o que os quadros leem.",
       "shadowCastersKept": "Projetores que o descarte por página manteve, todas as páginas desenhadas juntas, no quadro que o dispositivo amostrou por último — um em quinze; `null` até voltar uma amostra.",
       "shadowCastersHidden": "Projetores em movimento que o teste de oclusão achou escondidos atrás da camada estática da sua página, no quadro amostrado por último; `null` até voltar uma amostra."
@@ -4226,6 +4229,9 @@
       "shadowPoolPages": "Páginas físicas do pool fixo que guardam uma página virtual.",
       "shadowPoolBytes": "Bytes de GPU do pool de sombras: as suas páginas de profundidade, as camadas estática e de transmitância quando criadas, e os buffers ao lado. Null até o primeiro quadro dimensionar o pool.",
       "shadowPoolLayers": "Camadas do pool, de no máximo 4 096 páginas cada, dimensionadas uma vez a partir da tela e das luzes com sombra do primeiro quadro. Null até lá.",
+      "shadowPeakBytes": "O máximo de bytes de GPU que as sombras mantiveram de uma vez, uma camada estática ou de transmitância tardia contada com o que era mantido quando chegou; nunca além da parte fixa das sombras no orçamento. Null até o primeiro quadro dimensionar o pool.",
+      "shadowResolutionBias": "Quantas reduções pela metade dos bytes do pool de sombras custaram as recusas de memória do dispositivo: páginas mais grosseiras apenas pela memória, nunca para cumprir um tempo de quadro. 0 no caso normal.",
+      "shadowMemoryEvents": "Os eventos de pressão de memória das sombras desde que o mundo foi aberto, por nome, em ordem: `pool-shrunk`, `pool-refused`, `static-layer-over-grant`, `static-layer-refused`. Vazio no caso normal.",
       "shadowPagesRefetched": "Páginas virtuais mapeadas de novo depois de o pool as ter despejado para abrir espaço, desde que o explorador abriu: os redesenhos que custa um pool pequeno demais para o que os quadros leem.",
       "shadowCastersKept": "Projetores que o descarte por página manteve, todas as páginas desenhadas juntas, no quadro que o dispositivo amostrou por último — um em quinze; `null` até voltar uma amostra.",
       "shadowCastersHidden": "Projetores em movimento que o teste de oclusão achou escondidos atrás da camada estática da sua página, no quadro amostrado por último; `null` até voltar uma amostra."

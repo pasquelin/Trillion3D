@@ -107,6 +107,11 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     shadowPoolPages: lights.plan.counts.poolPages,
     shadowPoolBytes: lights.shadows?.texture ? shadowPoolHeld(lights) : null,
     shadowPoolLayers: lights.shadows?.texture ? lights.plan.pool.layers : null,
+    shadowPeakBytes: lights.shadows?.texture
+      ? Math.max(lights.memory.peakBytes, shadowPoolHeld(lights))
+      : null,
+    shadowResolutionBias: lights.memory.bias,
+    shadowMemoryEvents: lights.memory.events.slice(),
     shadowPagesRefetched: lights.plan.pool.refetched,
     shadowCastersKept: lights.cull?.counts.counts()?.kept ?? null,
     shadowCastersHidden: lights.occlusion?.counts.counts()?.kept ?? null,
