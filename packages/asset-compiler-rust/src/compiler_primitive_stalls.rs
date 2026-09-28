@@ -76,7 +76,6 @@ pub(super) fn dag_report(
     dag: &[DagCluster],
     tallies: &[GroupTally],
     stalls: &[DagStall],
-    solved_vertices: usize,
     quality: &[crate::dag::quality::LevelQuality],
 ) -> (Value, Vec<Value>) {
     let shape = compiler_primitive_warn::DagShape::of(dag);
@@ -109,8 +108,6 @@ pub(super) fn dag_report(
         "stalls": stalls.iter().map(DagStall::json).collect::<Vec<_>>(),
     });
     merge(&mut report, summary.json());
-    // The vertices the solve of a seam-locked group placed after the source's (`dag::Grown`).
-    report["solvedVertices"] = json!(solved_vertices);
     (report, warnings)
 }
 

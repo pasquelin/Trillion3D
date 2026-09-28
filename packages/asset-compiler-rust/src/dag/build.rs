@@ -139,7 +139,6 @@ pub fn build_dag_tallied(
                 Ok(reduction) => {
                     tally.reduced += 1;
                     tally.relocked += usize::from(reduction.relocked);
-                    tally.solved += usize::from(reduction.placed.is_some());
                     reduction
                 }
                 Err(outcome) => {
