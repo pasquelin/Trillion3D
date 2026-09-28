@@ -29,10 +29,9 @@ type Inputs = {
  * `refreshSceneLights` is missing, its missing capability is declared in its diagnostic.
  *
  * `setTransform` — `setTransforms` for many nodes at once — goes to the engines that can move a
- * node; otherwise the call is
- * refused by a named `EngineError`, never by an anonymous exception. It draws nothing: it
- * marks the scene modified, and the next render — the host's `render()`, or the already
- * scheduled residency refresh — takes it. Ten poses set before a frame cost one submit, not
+ * node; otherwise the call is refused by a named `EngineError`, never by an anonymous exception.
+ * It draws nothing: it marks the scene modified, and the next render — the host's `render()`, or
+ * the already scheduled residency refresh — takes it. Ten poses set before a frame cost one submit, not
  * eleven: the frame gate refuses to hold the previous frame from the first pose, so the
  * screen never keeps a stale pose.
  */

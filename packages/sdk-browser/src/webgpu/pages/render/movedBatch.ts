@@ -9,6 +9,7 @@ import {
 import { moveRootRows } from './movedRoot.ts';
 import { ascending, rootsUnder } from './movedNode.ts';
 import { transformRootBoxes } from '../../../math/batchBoxes.ts';
+import { grown } from '../../../../../sdk-core/src/math/transform-tree/transformTree.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts';
 
@@ -51,11 +52,8 @@ export function noteMoved(rt: WebgpuPagesRuntime, node: Object3D) {
     if (box) boxUnionBatch(moved, box, 1);
   }
   const at = movedEnds.length * BOX_VALUES;
-  if (at + BOX_VALUES > movedBoxes.length) {
-    const grown = new Float64Array(movedBoxes.length * 2);
-    grown.set(movedBoxes);
-    movedBoxes = grown;
-  }
+  if (at + BOX_VALUES > movedBoxes.length)
+    movedBoxes = grown(movedBoxes, Float64Array, movedBoxes.length * 2);
   movedBoxes.set(moved, at);
   movedEnds.push(movedList.length);
 }
@@ -66,11 +64,15 @@ export function finishMoves(rt: WebgpuPagesRuntime) {
   const { lights, run, layout } = rt,
     roots = layout.selectionRoots;
   for (const i of movedList) distinct.push(i);
-  distinct.sort(ascending);
-  let count = 0;
-  for (let j = 0; j < distinct.length; j++)
-    if (!count || distinct[count - 1] !== distinct[j]) distinct[count++] = distinct[j];
-  distinct.length = count;
+  // One node's ranks are already increasing and distinct (`rootsUnder`); several may overlap.
+  let count = distinct.length;
+  if (movedEnds.length > 1) {
+    distinct.sort(ascending);
+    count = 0;
+    for (let j = 0; j < distinct.length; j++)
+      if (!count || distinct[count - 1] !== distinct[j]) distinct[count++] = distinct[j];
+    distinct.length = count;
+  }
   if (promotedRoots.length < roots.length) promotedRoots = new Uint8Array(roots.length);
   // World boxes of the moved roots reproject IN BATCH, through the governor, in the buffer
   // reserved at prepare. A missing or released buffer hands over to the box-by-box computation,
