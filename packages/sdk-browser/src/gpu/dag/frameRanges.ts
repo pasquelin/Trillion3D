@@ -1,6 +1,7 @@
 import { storageBufferCap, uniformStride } from '../../residency/pools.ts';
 import { FRAME_VEC4, PRIMITIVE_VEC4 } from './types.ts';
 import { primitiveWordAt } from './worlds.ts';
+import { dagGroupEntries } from './shader/bindings.ts';
 
 /** Bytes one primitive holds in a camera cut's `frames`: the host's row, then what `dagPrepare`
  *  derives (`shader/primitiveWgsl.ts`), which the host never writes. */
@@ -8,9 +9,8 @@ const PRIMITIVE_BYTES = (FRAME_VEC4 + PRIMITIVE_VEC4) * 16;
 /** Floats of one host row (`primitiveFrameWords`). */
 const ROW_FLOATS = FRAME_VEC4 * 4;
 
-/** Bytes of one range's `frames`. Never under 16: a range without primitives still binds a valid
- *  storage buffer. */
-export const framesBytes = (count: number) => Math.max(16, count * PRIMITIVE_BYTES);
+/** Bytes of one range's `frames`; a range holds at least one primitive. */
+export const framesBytes = (count: number) => count * PRIMITIVE_BYTES;
 
 /**
  * THE RANGES A CAMERA CUT'S `frames` IS SPLIT IN on this device. Each primitive holds
@@ -74,8 +74,24 @@ export function createCameraFrames(
     buffers,
     /** Primitives of the largest range: what one binding of a light cut's rows must hold. */
     per,
-    /** What each range's bind group binds as `range`. */
-    rangeBindings: ranges.map((_, r) => ({ buffer: bounds, offset: r * stride, size: 16 })),
+    /** One bind group per range, `group` plus the range's buffer of `targets` and its `range`
+     *  words: the camera cut's and its light cut's. */
+    bindGroups(
+      layout: GPUBindGroupLayout,
+      group: Omit<Parameters<typeof dagGroupEntries>[0], 'frames'>,
+      targets = buffers,
+    ) {
+      return ranges.map(({ count }, r) => ({
+        count,
+        bindGroup: device.createBindGroup({
+          layout,
+          entries: dagGroupEntries(
+            { ...group, frames: targets[r] },
+            { buffer: bounds, offset: r * stride, size: 16 },
+          ),
+        }),
+      }));
+    },
     /** Every host row, each to its range's buffer in `targets`, from its start. `dagPrepare`
      *  writes the rest. */
     writeRows(targets = buffers) {

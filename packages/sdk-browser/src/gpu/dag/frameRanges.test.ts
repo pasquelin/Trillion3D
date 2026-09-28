@@ -47,14 +47,16 @@ test('each range is its own buffer and bind group, and the stages know the split
   assert.equal(line(frames.ranges.map((r) => `${r.first}+${r.count}`)), '0+20 20+20 40+8');
   assert.equal(line(frames.buffers.map((b) => b.size)), line([20, 20, 8].map(framesBytes)));
   assert.equal(line(ranges.map((r) => r.count)), '20 20 8');
+  let bounds: GPUBuffer | undefined;
   for (const [r, { bindGroup }] of ranges.entries()) {
     const entries = Array.from((bindGroup as unknown as GPUBindGroupDescriptor).entries);
     const at = (binding: number) => entries.find((e) => e.binding === binding)!.resource;
     assert.equal((at(DAG_BINDING.frames) as GPUBufferBinding).buffer, frames.buffers[r]);
     assert.equal((at(DAG_BINDING.range) as GPUBufferBinding).offset, r * 256);
+    bounds = (at(DAG_BINDING.range) as GPUBufferBinding).buffer;
   }
-  const bounds = fake.writes.find((w) => w.buffer === frames.rangeBindings[0].buffer)!;
-  assert.equal(line(Array.from(written(bounds)).filter((_, k) => k % 64 < 2)), '0 20 20 20 40 8');
+  const words = fake.writes.find((w) => w.buffer === bounds)!;
+  assert.equal(line(Array.from(written(words)).filter((_, k) => k % 64 < 2)), '0 20 20 20 40 8');
   const constants = (cut: typeof resources | undefined) =>
     (cut?.preparePipeline as unknown as GPUProgrammableStage).constants;
   assert.deepEqual(constants(resources), { SPLIT: 1 });
