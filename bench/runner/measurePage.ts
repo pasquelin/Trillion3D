@@ -42,6 +42,9 @@ export function reseauDepuis(depuis: number): Reseau {
   return network;
 }
 
+/** Frames a pose may take for the engine to hold its image before the capture gives up. */
+export const HOLD_FRAME_LIMIT = 64;
+
 /**
  * Renders the pose until the engine holds it — temporal accumulation converged, nothing in
  * flight — at most `limite` frames. A capture taken mid-accumulation would carry the history of
@@ -52,7 +55,7 @@ export function reseauDepuis(depuis: number): Reseau {
 export async function poseCalme(
   explorer: MeasuredWorld,
   pose: CameraPose,
-  limite = 64,
+  limite = HOLD_FRAME_LIMIT,
 ): Promise<number | null> {
   for (let i = 0; i < limite; i++) {
     const frame = explorer.render(pose);
