@@ -74,8 +74,8 @@ function checkChildren(descriptor: SceneProxyDescriptor, columns: SceneProxyColu
 /**
  * The proxy reread and rechecked before a single ray touches it.
  *
- * Layout, little-endian: `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, then the
- * world vertices, albedos, exact node bounds and their four children, concatenated.
+ * Layout: eight little-endian header words, followed by canonical geometry/tree columns
+ * and versioned ownership. `docs/FORMAT.md` specifies every count and column.
  * Each section has a length the header imposes; a file of another size is rejected in
  * bulk, because a node that named a missing triangle would make the shader read anything.
  */
