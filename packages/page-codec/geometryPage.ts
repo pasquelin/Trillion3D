@@ -6,15 +6,7 @@
  * compiler's, coarser only where a caller passes a primitive's own), octahedral normal bytes,
  * colour bytes — and packs the same streams, without sharing a line.
  */
-import {
-  bitsFor,
-  ceil32,
-  octEncode,
-  packCorners,
-  Packer,
-  quantize,
-  type QuantizedGrid,
-} from './pageGrids.ts';
+import { bitsFor, ceil32, octEncode, Packer, quantize, type QuantizedGrid } from './pageGrids.ts';
 import {
   ATTRIBUTES,
   type PageAttribute,
@@ -136,8 +128,7 @@ export function encodeGeometryPage(
     return id;
   });
   const pack = new Packer();
-  const cornerBits = packCorners(
-    pack,
+  const cornerBits = pack.corners(
     corners.map((id) => remap[id]),
     bitsFor(unique.length - 1),
   );
