@@ -9,6 +9,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { parseArgs } from 'node:util';
 import generated from '../site/content/reference/api.json' with { type: 'json' };
 import { DEFAULT_LANGUAGE } from '../site/content/i18n/dictionary.ts';
 import type { PortalEntry } from '../site/content/model.ts';
@@ -83,7 +84,8 @@ export function accept(recorded: Hashes, current: Hashes, entries: string[]): Ha
     const then = recorded[entry];
     const now = current[entry];
     if (!now) throw new Error(`${entry}: no such entry.`);
-    if (!then || then[DEFAULT_LANGUAGE] === now[DEFAULT_LANGUAGE])
+    if (!then) throw new Error(`${entry}: not recorded yet, \`--write\` records it.`);
+    if (then[DEFAULT_LANGUAGE] === now[DEFAULT_LANGUAGE])
       throw new Error(`${entry}: its English did not change, there is nothing to accept.`);
     accepted[entry] = { ...then, [DEFAULT_LANGUAGE]: now[DEFAULT_LANGUAGE] };
   }
@@ -120,17 +122,17 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   // No record yet: every entry is new, and `--write` records the first one.
   let text = existsSync(RECORD) ? readFileSync(RECORD, 'utf8') : '';
   let recorded = text ? parse(text) : {};
+  const { values, positionals } = parseArgs({
+    options: { accept: { type: 'boolean' }, write: { type: 'boolean' } },
+    allowPositionals: true,
+  });
   // `--accept` records each named entry at once, whatever else is still behind.
-  const flag = process.argv.indexOf('--accept');
-  if (flag !== -1) {
-    const named = process.argv.slice(flag + 1);
-    const end = named.findIndex((arg) => arg.startsWith('--'));
-    const entries = end === -1 ? named : named.slice(0, end);
-    if (!entries.length) throw new Error('`--accept` needs the entries to accept.');
-    recorded = accept(recorded, current, entries);
+  if (values.accept) {
+    if (!positionals.length) throw new Error('`--accept` needs the entries to accept.');
+    recorded = accept(recorded, current, positionals);
     text = serialise(recorded);
     writeFileSync(RECORD, text);
-  }
+  } else if (positionals.length) throw new Error(`Unexpected ${positionals.join(' ')}.`);
   const stale = staleTranslations(recorded, current);
   if (stale.length) {
     console.error(
@@ -138,7 +140,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         'Translate them, or when they still hold: `pnpm run check:translations --accept <entry>`.',
     );
     process.exitCode = 1;
-  } else if (process.argv.includes('--write')) writeFileSync(RECORD, serialise(current));
+  } else if (values.write) writeFileSync(RECORD, serialise(current));
   else if (text !== serialise(current)) {
     console.error('The translation record is out of date: `pnpm run check:translations --write`.');
     process.exitCode = 1;
