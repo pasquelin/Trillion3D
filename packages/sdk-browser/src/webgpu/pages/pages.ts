@@ -112,6 +112,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       syncResident(rt);
     },
     pendingFrame: () => pendingWebgpuFrame(rt),
+    landings: () => rt.services.residency.landings,
     flush(options?: { image?: boolean }) {
       return flushWebgpuPages(rt, options);
     },
@@ -146,7 +147,10 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     acceptPage(url, array, plan) {
       acceptPage(rt, url, array, plan, rt.services.affectsImage);
     },
-    hostTableBytes: () => rt.services.hostTableBytes(),
+    hostTableBytes: () =>
+      rt.services.hostTableBytes() +
+      (rt.bounce.probes?.proxy.hostBytes ?? 0) +
+      (rt.sunFar.borrowed ? 0 : (rt.sunFar.gpu?.proxy?.hostBytes ?? 0)),
     dropPage(url) {
       dropPage(rt, url);
     },

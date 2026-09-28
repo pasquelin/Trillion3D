@@ -58,7 +58,8 @@
       "missingCache": "संकलित कैश मौजूद नहीं है: pnpm compile:caches चलाएँ"
     },
     "banner": {
-      "close": "बंद करो"
+      "close": "बंद करो",
+      "waiting": "इंजन की प्रतीक्षा में (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -1745,7 +1746,8 @@
       "night": "रात",
       "bounce": "उछाल",
       "sun": "सूरज",
-      "lamp": "लैंप"
+      "lamp": "लैंप",
+      "spin": "घुमाएँ"
     },
     "words": {
       "credit": "W. Sitters का सड़क-लैंप मॉडल, CC BY 3.0 — देखो assets/examples/CREDITS.md"

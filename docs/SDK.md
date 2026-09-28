@@ -348,11 +348,18 @@ The world is not a family: it is the object `createWorld` returns, carrying `sce
 There is no level-of-detail object and no instanced or batched mesh type: one cut through a DAG
 per frame, instancing and draw grouping are what the engine does natively.
 
+For compiled scenes, changing a node or parent pose also updates its resident lighting proxy,
+including the proxy used by distant sun shadows while bounce is off. Bounce probes restart their
+convergence against the new geometry; no separate lighting invalidation call is needed. This
+requires a version-3 proxy cache (recompile older caches). Motion preserves existing proxy surfaces;
+it cannot restore geometry already discarded during cooking. See [FORMAT.md](FORMAT.md#resident-lighting-proxy).
+
 ## Loop
 
 The world owns the loop, and it stops when the image is stable: after 120 frames with nothing
-changing it pauses (`interactive-settle-limit`), and resumes on invalidation. A still scene costs
-nothing. `onFrame` is the per-frame hook; `loop` is its alias.
+changing it pauses (`interactive-settle-limit`), and resumes on invalidation. A frame after which a
+page landed does not count: a streamed view is drawn as its pages arrive, to its last one. A still
+scene costs nothing. `onFrame` is the per-frame hook; `loop` is its alias.
 
 ```js
 // 1. The world leads; you give it work per frame.
@@ -967,8 +974,8 @@ light is a `SceneLight` (version 2) of one of three kinds. `point` and `spot` ca
 overcast sky) carries only `direction` — the propagation direction — and is refused if given a
 `position`, a `range` or a `coneAngle`. All three carry linear `color`, a positive radiometric
 `intensity` and `castsShadow`. Bounds: none on the count — the light table grows with the scene;
-a 16×16 screen tile lists up to 64 lights reaching it and walks every light of the scene past
-that, a walk #849 bounds by the view —; 64 shadow slices,
+a 16×16 screen tile lists up to 64 lights reaching it, and past that takes exactly the lights
+reaching it from a pool sized from the view (#849) —; 64 shadow slices,
 past which a caster lights without a shadow (`shadowCastersUnsliced`), and at most 24 shadow
 regions redrawn per frame. WebGL2 draws 64 lights and refuses more (#835). The shadow pool is sized
 once, at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
@@ -1440,13 +1447,15 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn, but one declaring a
   `motion`: its body is restored as cooked (its implicit shape, or its hull fetched), counted
   against `budget.physics`, with the mass, centre of mass and inertia its motion declares, else the
-  cooked ones; its tiles then leave. A kinematic one follows its model, pushing what it meets; a
-  dynamic one simulates: its node, with what hangs under it, is drawn where the simulation puts
+  cooked ones (a cooked inertia moved to a declared centre); its tiles then leave, and so do those
+  of another node its collider is made from. A kinematic one follows its model, pushing what it
+  meets, or, under a dynamic one, its node as that body carries it; a dynamic one simulates: its node, with what hangs under it, is drawn where the simulation puts
   it, the tiles of that subtree leave, and ground streams in around it as around any moving body;
   its model or its node moved by the page, it is put where its node is then drawn. In a
   partitioned model, whose cache numbers its nodes otherwise, it is held kinematic and asleep
   where its node is drawn. A shape Jolt cannot make at the body's scale is `PHYSICS_FAILED` naming
-  its node, and the node stays static ground.
+  its node, and the node stays static ground; a body refused at a rescale is made again once its
+  model is at another scale.
 - **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
   is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
   any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,

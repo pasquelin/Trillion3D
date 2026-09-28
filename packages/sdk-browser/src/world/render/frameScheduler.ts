@@ -1,4 +1,5 @@
-/** Frames the loop draws on its own before it pauses; an invalidate resets the count. */
+/** Frames the loop draws on its own, nothing arriving, before it pauses; an invalidate resets the
+ *  count. */
 const SETTLE_LIMIT = 120;
 
 /**
@@ -11,6 +12,10 @@ const SETTLE_LIMIT = 120;
  * revision, and the loop asks again once the feedback lands — so frame n's readbacks are always
  * consumed before frame n+1 makes its residency decisions, the loading sequence of before. A frame
  * an invalidate asked for draws at once, as before.
+ *
+ * `progress` is a count that rises while what the image draws still arrives — the pages loaded: a
+ * frame after which it moved spends none of the settle limit, so a view that streams for longer
+ * than the limit is drawn to its last page instead of pausing on a coarse cut (#836).
  */
 export function createExplorerFrameScheduler(inputs: {
   request: (callback: FrameRequestCallback) => number;
@@ -19,18 +24,19 @@ export function createExplorerFrameScheduler(inputs: {
   pending: () => Promise<boolean>;
   error: (error: unknown) => void;
   limited: () => void;
+  progress?: () => number;
 }) {
   let frame: number | undefined,
     disposed = false,
     waiting = false,
-    rounds = 0,
+    /** The frame to come is an invalidate's, drawn even before the feedback it no longer waits for. */
+    asked = false,
+    idle = 0,
+    arrived = 0,
     revision = 0;
-  /** Whether the frame to come is an invalidate's: an invalidate resets the rounds, and that frame
-   *  draws the first round, even before the feedback it no longer waits for. */
-  const asked = () => rounds === 0;
   const schedule = () => {
     if (disposed || frame !== undefined) return;
-    if (rounds >= SETTLE_LIMIT) {
+    if (idle >= SETTLE_LIMIT) {
       inputs.limited();
       return;
     }
@@ -48,7 +54,7 @@ export function createExplorerFrameScheduler(inputs: {
     void inputs.pending().then((again) => {
       waiting = false;
       if (again || submitted !== revision) schedule();
-      else if (frame !== undefined && !asked()) {
+      else if (frame !== undefined && !asked) {
         inputs.cancel(frame);
         frame = undefined;
       }
@@ -56,14 +62,17 @@ export function createExplorerFrameScheduler(inputs: {
   };
   function draw() {
     frame = undefined;
-    if (disposed || (waiting && !asked())) return;
+    if (disposed || (waiting && !asked)) return;
     try {
-      rounds++;
+      asked = false;
       revision++;
       inputs.render();
+      const count = inputs.progress?.() ?? arrived;
+      if (count === arrived) idle++;
+      arrived = count;
       drain();
       // At the limit the feedback says whether the loop pauses (`limited`), as it did.
-      if (rounds < SETTLE_LIMIT) schedule();
+      if (idle < SETTLE_LIMIT) schedule();
     } catch (error) {
       fail(error);
     }
@@ -75,7 +84,8 @@ export function createExplorerFrameScheduler(inputs: {
   }
   return {
     invalidate() {
-      rounds = 0;
+      asked = true;
+      idle = 0;
       schedule();
     },
     dispose,

@@ -274,11 +274,12 @@ doubled when full, the GPU light buffer with it, and every pass that binds it bi
 per thread of a 16 × 16 tile, and keeps in each of its two lists those whose range reaches the
 tile's depth slice, in increasing rank, up to `tileLights` (64): the lists' memory follows the view
 alone, 4.2 MB at 1920 × 1080 and 15.7 MB at 3456 × 2234, whatever the scene holds. A tile reached
-by more than `tileLights` (64) lights keeps its true count, reads no list, and walks every light of the
-scene: those that miss it add an exact zero, so nothing is dropped and the sum is the same, only
-dearer on that tile. A pixel costs what the lamps reaching its tile cost while they are 64 or fewer,
-and what every lamp of the scene costs past that; a per-tile pool bounding that walk by the view is
-#849. A shadow caster past the 64 shadow slices lights without a shadow and is counted
+by more than `tileLights` (64) lights walks exactly those, written in order into a view-sized pool
+after the tile records (#849): a quarter list per tile, grown to what a sampled frame asked, four
+lists at most. A tile the pool has no room for walks every light, exactly, and the overflow is named
+(`tileLightPoolOverflowed`, `tileLightPoolGrowths` of the frame metrics). A scene of 64 lights or fewer runs a
+narrow tile pass (64-bit masks, a 64-light array) and holds no pool. A shadow caster past the 64
+shadow slices lights without a shadow and is counted
 (`shadowCastersUnsliced`, #818). WebGL2 keeps its 64 slots until #835 and refuses more out loud.
 
 **A moving image shades a drawn subset of each pixel's lights.** A moving image weighs every light
@@ -551,21 +552,33 @@ bounce is **off by default**: its stage costs about 1.1 ms, above the one-millis
 and transparency are not bounced. `setLightingView('bounce')` outputs the indirect irradiance alone,
 the quantity `bench/runner/oracle.ts` compares.
 
-**Mirrors.** With the bounce on, a surface at the roughness floor (0.0525, the clamp every shading
-path applies) reflects the scene: the resolve fires one ray along the mirror direction against the
-resident proxy, from the origin the sun's far shadow uses, and reads the face it hits in the surface
-cache; a ray that leaves the proxy reads the probe irradiance in that direction over π. The radiance
-is weighed by the GGX lobe's directional albedo, the magnitude and Schlick share of the table the
-rectangular light reads. The water composite reflects through the same function, weighted by its
-Fresnel, so the engine has one reflection model (`packages/sdk-browser/src/bounce/reflectWgsl.ts`):
-mirror-smooth water, at the floor, traces the proxy; rougher water keeps the blurred probe
-irradiance over π it read before, never a sharp image. What a mirror shows is the proxy: its
-certified error, one radiance per triangle face, and nothing nearer than one proxy cell along the
-ray. A rougher opaque surface, a diffuse or toon one, and every surface with the bounce off add
-exactly zero: the
-floor is a material threshold, so a roughness map that crosses it shows reflecting and
-non-reflecting texels side by side until rough reflections (#33) fill the lobes above it. Screen
-traces stay on #31, planar views are #353. WebGL2 has no bounce, hence no reflection.
+**Mirrors.** WebGPU and WebGL2 trace the camera-visible opaque scene from mirror receivers,
+including transparent standard materials, independently of the bounce setting. Both backends
+share a projected pixel-grid traversal clipped against all six homogeneous frustum planes.
+Each crossed pixel tests its exact ray-depth interval; work is bounded by viewport width plus
+height. A separate linear, unfogged, unreflected source prevents render-target feedback,
+recursive reflections and applying the camera fog twice. The source is regenerated with each
+changed image and belongs to its camera view, including captures and resizing.
+
+A screen hit replaces the proxy contribution in the one reflection model. On a screen miss,
+WebGPU with bounce enabled keeps the resident-proxy ray and probe fallback; without bounce,
+and on WebGL2, a miss contributes zero. Screen traces cannot reveal offscreen or occluded
+geometry. Reflected-camera planar views remain #353. No screen-space result is stretched over
+a viewport edge or carried from an older image. The original `miroir.gltf` cited in #31 is not
+present in the reachable repository history; the production proof uses generated geometric
+scenes with analytic reflected-point positions and records that provenance explicitly.
+
+The mirror contribution uses the same GGX directional-albedo table as rectangular lights,
+with full contribution at the roughness floor (0.0525). It fades smoothly over one table sample
+(1/63) above that floor; this is a numerical transition, not the filtered rough lobe of #33.
+Water uses the same scene-radiance lookup with its material Fresnel. Diffuse and toon materials
+have no mirror lobe. Reflection sources are allocated only while the view contains an eligible
+receiver: WebGPU adds 8 bytes per pixel and an 80-byte uniform (an 8-byte disabled placeholder
+otherwise); WebGL2 reuses the backdrop allocator for 8-byte colour and 4-byte depth per pixel.
+These allocations are counted and released on resize/disable/dispose. WebGPU reports refusals
+through its existing frame-target grant. WebGL2 checks the required half-float colour-target
+capability for these linear-radiance sources, as it does for transmission; that check does not
+guarantee allocation success or framebuffer completeness.
 
 ## Fog
 
