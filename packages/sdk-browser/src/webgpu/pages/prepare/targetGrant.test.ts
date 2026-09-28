@@ -130,13 +130,6 @@ test('frame targets refused at prepare are refused by name', async () => {
   }
 });
 
-test('targets that fit ask nothing of the device: the steady frame is free', () => {
-  const gpu = { colorTexture: {}, targetSize: [32, 32], surfaces: {}, targetGrant: undefined };
-  const rt = { setup: { viewport: [32, 32] }, gpu, vis: {} } as unknown as WebgpuPagesRuntime;
-  // A bare device: any creation or error scope would throw.
-  assert.equal(requestFrameTargets(rt, {} as GPUDevice), undefined);
-});
-
 // A refused grant holds the frame, draws nothing into targets not granted, then draws it complete.
 // And `renders/explorer-startup`: the page reads `frameHeld` as "nothing more to draw", so a frame
 // held while the device answers must not say it: a still scene then schedules no more work.

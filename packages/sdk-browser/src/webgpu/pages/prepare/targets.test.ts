@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import { frameTargetAllocation } from './targets.ts';
+import { requestFrameTargets } from './targetGrant.ts';
 import { standardSurface } from '../../../host/graph/graph.fixture.ts';
 import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import { frameTargetBytes } from '../../../scene/surfaceBuffer.ts';
@@ -80,4 +81,23 @@ test('an eligible receiver accounts for viewport reflection colour and its unifo
     frameTargetAllocation(rt, 64, 32),
     frameTargetBytes(64, 32, true) + 64 * 32 * 8 + 80,
   );
+});
+
+test('targets that fit ask nothing of the device: the steady frame is free', () => {
+  const rt = {
+    setup: { viewport: [32, 32] },
+    run: { diagnostic: 'beauty' },
+    layout: { rows: { packedCount: 0, packedRecs: [] } },
+    blendState: { blendGpu: [] },
+    gpu: {
+      colorTexture: {},
+      targetSize: [32, 32],
+      surfaces: {},
+      reflection: { active: false },
+      targetGrant: undefined,
+    },
+    vis: {},
+  } as unknown as WebgpuPagesRuntime;
+  // A bare device: any creation or error scope would throw.
+  assert.equal(requestFrameTargets(rt, {} as GPUDevice), undefined);
 });
