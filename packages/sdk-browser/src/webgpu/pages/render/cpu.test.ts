@@ -65,6 +65,8 @@ function banc(options: { ready: boolean; resident: boolean }) {
   };
   const rt = {
     run,
+    // The main view alone.
+    views: {},
     setup: {
       roots,
       viewport: [64, 64] as [number, number],
@@ -122,6 +124,14 @@ test('bootstrap in progress makes the CPU cut hold nothing', () => {
   image(b);
   assert.deepEqual(b.journal, ['ressources', 'oubli'], 'neither publish nor queue');
   assert.deepEqual(b.run.desired, b.tenue, 'the requested cut stays the one from before the image');
+});
+
+test('another view’s CPU cut breaks its own hold alone, the main view’s readback kept', () => {
+  const b = banc({ ready: false, resident: false });
+  Object.assign(b.rt, { views: { main: {}, active: {} } });
+  Object.assign(b.run.gate, { viewReplaced: () => b.journal.push('vue') });
+  image(b);
+  assert.deepEqual(b.journal, ['vue'], 'neither the shared resources nor the readback');
 });
 
 test('nothing resident yet: the image draws no hole, and still asks for its cut', () => {

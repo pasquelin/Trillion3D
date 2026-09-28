@@ -5,10 +5,10 @@ import { VIEW_GPU_KEYS, VIEW_RUN_KEYS, VIEW_VIS_KEYS, type WebgpuView } from './
 
 /**
  * The one place a view is switched: every reader goes through the runtime groups, and they hold
- * `view`'s state once this returns. References are traded, nothing is allocated. The gate learns
- * the view was replaced (no view holds on another's image), the held host lists age with the cut
- * they described. The shared Hi-Z pyramid follows at the view's next frame, under the device's
- * out-of-memory check (`../prepare/targetGrant.ts`).
+ * `view`'s state once this returns. References are traded, nothing is allocated and the device is
+ * asked nothing. Each view keeps its own held-frame witness and Hi-Z pyramid, so drawing one never
+ * breaks another's hold; the host lists the last image published are read anew, since they
+ * described another view's cut.
  */
 export function useWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   const { views, run, gpu, vis, setup } = rt,
@@ -23,14 +23,35 @@ export function useWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   setup.viewport = view.viewport;
   views.active = view;
   tradeCamera(run.gate, from, view);
-  run.cutEpoch++;
+  from.hold = run.gate.useViewHold(view.hold);
+  // Hi-Z dropped while `view` was aside: the pyramid it kept goes too.
+  from.hiz = vis.gpuHiz?.swap(view.hiz);
+  if (!vis.gpuHiz) view.hiz?.destroy();
+  view.hiz = undefined;
+  run.pendingHeld.cut = run.urlsHeld.cut = run.ranksHeld.cut = -1;
 }
 
-/** Releases the targets of `view`, which is not the main one, and takes its cut out of what the
- *  residency holds; the main view is drawn again. */
-export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
+/** Runs `work` with `view` drawn — a late answer of the device lands on the view that asked for
+ *  it — then draws again the view that was. */
+export function onView<T>(rt: WebgpuPagesRuntime, view: WebgpuView, work: () => T) {
+  const back = rt.views.active;
   useWebgpuView(rt, view);
-  releaseTargets(rt);
+  try {
+    return work();
+  } finally {
+    useWebgpuView(rt, back);
+  }
+}
+
+/** Releases the targets of `view`, which is not the main one, its own pyramid, history and effect
+ *  chain, and takes its cut out of what the residency holds; the main view is drawn again. */
+export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
+  onView(rt, view, () => releaseTargets(rt));
   useWebgpuView(rt, rt.views.main);
+  view.hiz?.destroy();
+  view.hiz = undefined;
+  view.gpu.temporal?.dispose();
+  view.gpu.effects?.dispose();
+  view.gpu.temporal = view.gpu.effects = undefined;
   rt.services.releaseView(view);
 }

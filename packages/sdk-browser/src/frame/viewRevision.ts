@@ -1,6 +1,6 @@
 import { createViewFingerprint } from './viewFingerprint.ts';
 import type { EngineCamera } from '../camera/world.ts';
-import { bumpView, type FrameRevisions } from './revisions.ts';
+import { bumpView, createFrameHold, type FrameRevisions } from './revisions.ts';
 
 /**
  * Origin of the view revision. The camera is not written by the engine: the host hands it over
@@ -43,3 +43,12 @@ export function createViewRevision() {
     },
   };
 }
+
+/** One view's hold, which the frame gate holds while that view is drawn (`gateCore.ts`): its view
+ *  fingerprint, its view revision and the frame it last kept. */
+export type ViewHold = ReturnType<typeof createViewHold>;
+export const createViewHold = (values: number, view: number) => ({
+  fingerprint: createViewRevision(),
+  hold: createFrameHold(values),
+  view,
+});
