@@ -4,9 +4,12 @@ import assert from 'node:assert/strict';
 import { readOptions } from './options.ts';
 import { residentFraction, residentFractionBudget } from './poolFill.ts';
 import { textures } from './summaryTextures.ts';
-import type { ReglageVivant } from './report/types.ts';
 
 const ROOT = '/tmp/trillion3d-bench';
+/** The live pools the command line asks with a texture pool of `value`. */
+const livePools = (value?: string) =>
+  readOptions(value === undefined ? [] : ['--pool-textures-vivant', value], ROOT).settings
+    .poolVivant;
 
 test('a percentage is a fraction of the working set, a bare number stays MiB', () => {
   assert.equal(residentFraction('50%'), 0.5);
@@ -14,16 +17,15 @@ test('a percentage is a fraction of the working set, a bare number stays MiB', (
   assert.equal(residentFraction('64'), undefined);
   for (const value of ['0%', '100%', '150%'])
     assert.throws(() => residentFraction(value), /strictly between/, value);
-  const fraction = readOptions(['--pool-textures-vivant', '40%'], ROOT).settings.poolVivant;
-  assert.deepEqual(fraction, {
+  assert.deepEqual(livePools('40%'), {
     geometryPoolBytes: undefined,
     texturePoolBytes: undefined,
     textureResidentFraction: 0.4,
   });
-  const bytes = readOptions(['--pool-textures-vivant', '64'], ROOT).settings.poolVivant;
+  const bytes = livePools('64');
   assert.equal(bytes?.texturePoolBytes, 64 * 1024 * 1024);
   assert.equal(bytes?.textureResidentFraction, undefined);
-  assert.equal(readOptions([], ROOT).settings.poolVivant, null);
+  assert.equal(livePools(), null);
 });
 
 test('the budget follows what the pose holds, whatever the scene', () => {
@@ -47,17 +49,20 @@ test('the summary says what the live texture pool asked, held, evicted and cost'
     imagesReprise: 9,
     texturePoolAskedBytes: 29_612_096,
     residentTextureBytes: 59_224_192,
-  } as unknown as ReglageVivant;
-  const line = textures({}, { reglageVivant: reglage }).find((l) => l.includes('set live'));
+  } as unknown as NonNullable<Parameters<typeof textures>[1]>['reglageVivant'];
+  const liveLine = (report?: typeof reglage) =>
+    textures({}, { reglageVivant: report }).find((l) => l.includes('set live'));
+  const line = liveLine(reglage);
   assert.equal(
     line,
     '- Texture pool set live: 29.6 MB asked (from 59.2 MB resident), 50.3 MB held (minimum); ' +
       '212 tiles evicted in 3.46 ms, pose held again after 9 frames',
   );
-  assert.ok(!textures({}, {}).some((l) => l.includes('set live')), 'nothing set, nothing said');
-  const geometryOnly = { ...reglage, texturePoolAskedBytes: undefined } as ReglageVivant;
-  assert.ok(
-    !textures({}, { reglageVivant: geometryOnly }).some((l) => l.includes('set live')),
+  assert.equal(liveLine(), undefined, 'nothing set, nothing said');
+  const geometryOnly = { ...reglage, texturePoolAskedBytes: undefined } as typeof reglage;
+  assert.equal(
+    liveLine(geometryOnly),
+    undefined,
     'a live geometry pool alone says nothing of the texture pool',
   );
 });
