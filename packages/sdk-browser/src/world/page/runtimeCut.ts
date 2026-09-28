@@ -16,6 +16,7 @@ import type { PageCutPage, PageCutPayload } from '../../../../sdk-core/src/page/
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import { sha256Hex } from '../../measurement/sha256Hex.ts';
 import { clusterCones } from './cutCones.ts';
+import { tiledGridExponent } from './cutGrid.ts';
 
 /** A cluster holds at most this many triangles and vertices: the page format's cluster, the one
  *  the compiler cuts (`docs/FORMAT.md`). */
@@ -79,8 +80,8 @@ export function unpackDrawn(buffer: ArrayBuffer): {
  * Cuts drawn triangles into single-level clusters of the format's size, in index order, each
  * written as its index page and its quantized geometry page (`encodeGeometryPage`), with no
  * simplification — every cluster is a root, drawn as it is — and, when `cones` holds, with the
- * cone of its triangles' normals (`cutCones.ts`). Positions take 2^16 steps across the widest
- * axis. Texture coordinates sit on the format's 2^-14, or on the finest grid the widest
+ * cone of its triangles' normals (`cutCones.ts`). Positions sit on the compiler's tiled grid
+ * (`cutGrid.ts`). Texture coordinates sit on the format's 2^-14, or on the finest grid the widest
  * cluster's range fits when it does not — a dashed line's distance along it (`drawn.ts`) spans
  * past 1024 units on a long line: every page is cut, none refused, and each coordinate stays
  * within a 32-bit float's own step of that range. A `blended` primitive takes the finest grids
@@ -98,10 +99,8 @@ export async function cutDrawnTriangles(
   for (let i = 0; i + 2 < positions.length; i += 3)
     boxExpandByPoint(bounds, 0, positions[i], positions[i + 1], positions[i + 2]);
   const extent = Math.max(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]);
-  const span = extent > 0 ? extent : 1;
-  const positionExponent = blended
-    ? gridExponentFor(span, -Infinity)
-    : Math.ceil(Math.log2(span)) - 16;
+  const tiled = blended ? null : await tiledGridExponent(extent);
+  const positionExponent = tiled ?? gridExponentFor(extent > 0 ? extent : 1, -Infinity);
   const attributes: PageAttributes = {
     POSITION: { itemSize: 3, array: positions },
     NORMAL: { itemSize: 3, array: normals },
