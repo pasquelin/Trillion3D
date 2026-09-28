@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { TANGENT_BLEND_ALPHA, tangentBlendGltf } from './tangentBlend.ts';
+import { TANGENT_BLEND_ALPHA, tangentSceneGltf } from './tangentScenes.ts';
 
 /** The shape of the public scene: one normal-mapped primitive with authored tangents. */
 const source = () => ({
@@ -11,9 +11,9 @@ const source = () => ({
   bufferViews: [{ buffer: 0 }],
 });
 
-test('both scenes blend the material and keep its normal map and the authored tangents', () => {
+test('a blended scene blends the material and keeps its normal map and the authored tangents', () => {
   for (const unpaged of [false, true]) {
-    const { gltf } = tangentBlendGltf(source(), unpaged);
+    const { gltf } = tangentSceneGltf(source(), true, unpaged);
     const [material] = gltf.materials as {
       alphaMode: string;
       normalTexture: unknown;
@@ -26,11 +26,19 @@ test('both scenes blend the material and keep its normal map and the authored ta
   }
 });
 
-test('only the unpaged scene carries a morph target, and it moves nothing', () => {
-  const paged = tangentBlendGltf(source(), false);
+test('an opaque scene keeps the source material as it is', () => {
+  for (const unpaged of [false, true]) {
+    const { gltf } = tangentSceneGltf(source(), false, unpaged);
+    assert.deepEqual(gltf.materials, source().materials);
+    assert.equal(gltf.meshes[0].primitives[0].attributes.TANGENT, 2);
+  }
+});
+
+test('only an unpaged scene carries a morph target, and it moves nothing', () => {
+  const paged = tangentSceneGltf(source(), true, false);
   assert.equal(paged.zeroBytes, 0);
   assert.equal(paged.gltf.meshes[0].primitives[0].targets, undefined);
-  const { gltf, zeroBytes } = tangentBlendGltf(source(), true);
+  const { gltf, zeroBytes } = tangentSceneGltf(source(), false, true);
   assert.equal(zeroBytes, 5 * 12);
   const [target] = gltf.meshes[0].primitives[0].targets as { POSITION: number }[];
   const morph = gltf.accessors[target.POSITION];
