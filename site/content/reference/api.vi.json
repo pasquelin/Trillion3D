@@ -7758,7 +7758,7 @@
     }
   },
   "CreatedMaterial": {
-    "summary": "Tạo vật liệu thuộc trang này.",
+    "summary": "Các giá trị mà `createMaterial` nhận để tạo vật liệu mới thuộc trang.",
     "members": {
       "metalness": "Bề mặt là kim loại đến mức nào, từ 0 đến 1.",
       "roughness": "Bề mặt nhám đến mức nào, từ 0 (gương) đến 1 (mờ đục).",
@@ -7772,7 +7772,7 @@
     }
   },
   "SceneMaterial": {
-    "summary": "Một vật liệu theo ID trong danh sách.",
+    "summary": "Bản sao vật liệu trong cảnh gồm ID, tên, tham số và số lần lặp bản đồ.",
     "members": {
       "id": "Một tên duy nhất cho kết cấu này.",
       "name": "Một tên để trang tự dùng riêng.",
@@ -7780,7 +7780,7 @@
     }
   },
   "SceneMaterialPatch": {
-    "summary": "Thay đổi vật liệu đã nhập hoặc đã tạo ở khung hình kế tiếp.",
+    "summary": "Các giá trị vật liệu mà `setMaterial` cập nhật trực tiếp mà không dựng lại lượt kết xuất.",
     "members": {
       "metalness": "Bề mặt là kim loại đến mức nào, từ 0 đến 1.",
       "roughness": "Bề mặt nhám đến mức nào, từ 0 (gương) đến 1 (mờ đục).",

@@ -7757,7 +7757,7 @@
     }
   },
   "CreatedMaterial": {
-    "summary": "Crea un materiale di questa pagina.",
+    "summary": "Valori accettati da `createMaterial` per un nuovo materiale della pagina.",
     "members": {
       "metalness": "Quanto la superficie è metallo, da 0 a 1.",
       "roughness": "La ruvidità della superficie, da 0 (specchio) a 1 (opaco).",
@@ -7771,7 +7771,7 @@
     }
   },
   "SceneMaterial": {
-    "summary": "Un materiale secondo il suo ID nell’elenco.",
+    "summary": "Istantanea di un materiale della scena con ID, nome, parametri e ripetizione delle mappe.",
     "members": {
       "id": "Un nome proprio di questa texture.",
       "name": "Un nome a uso della pagina.",
@@ -7779,7 +7779,7 @@
     }
   },
   "SceneMaterialPatch": {
-    "summary": "Modifica un materiale importato o creato nel fotogramma successivo.",
+    "summary": "Valori del materiale che `setMaterial` modifica in tempo reale senza ricostruire un passaggio di rendering.",
     "members": {
       "metalness": "Quanto la superficie è metallo, da 0 a 1.",
       "roughness": "La ruvidità della superficie, da 0 (specchio) a 1 (opaco).",

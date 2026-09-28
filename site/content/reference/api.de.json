@@ -7757,7 +7757,7 @@
     }
   },
   "CreatedMaterial": {
-    "summary": "Erstellt ein Material für diese Seite.",
+    "summary": "Die Werte, die `createMaterial` für ein neues Material der Seite annimmt.",
     "members": {
       "metalness": "Wie sehr die Oberfläche aus Metall ist, von 0 bis 1.",
       "roughness": "Die Rauheit der Oberfläche, von 0 (Spiegel) bis 1 (matt).",
@@ -7771,7 +7771,7 @@
     }
   },
   "SceneMaterial": {
-    "summary": "Ein Material anhand seiner aufgelisteten ID.",
+    "summary": "Eine Momentaufnahme eines Szenenmaterials mit ID, Name, Parametern und Kachelwiederholung.",
     "members": {
       "id": "Ein dieser Textur eigener Name.",
       "name": "Ein Name zur Verwendung durch die Seite.",
@@ -7779,7 +7779,7 @@
     }
   },
   "SceneMaterialPatch": {
-    "summary": "Ändert ein importiertes oder erstelltes Material im nächsten Bild.",
+    "summary": "Materialwerte, die `setMaterial` direkt ändert, ohne einen Renderdurchlauf neu aufzubauen.",
     "members": {
       "metalness": "Wie sehr die Oberfläche aus Metall ist, von 0 bis 1.",
       "roughness": "Die Rauheit der Oberfläche, von 0 (Spiegel) bis 1 (matt).",
