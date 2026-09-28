@@ -35,7 +35,7 @@ export const LAMP: SceneLight = {
 };
 
 /** The fixture scene's box: a ground a hundred metres wide, ten metres deep. */
-export const SCENE_MIN = [-50, 0, -50],
+const SCENE_MIN = [-50, 0, -50],
   SCENE_MAX = [50, 10, 50];
 /** A 12 × 12 square of pages round the camera, `[ax, ay]` each. */
 export const SUN_GRID = Array.from({ length: 144 }, (_, i) => [
