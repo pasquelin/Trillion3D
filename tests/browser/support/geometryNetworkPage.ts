@@ -56,6 +56,10 @@ export async function readOverNetwork({
       } else if (phase === 'gpu-selection-current-frame') {
         if (moving) horizons.push(Number(context?.aheadHorizonMs));
       }
+      // A page read that failed, not one the view cancelled, would leave a page out of the pool.
+      else if (phase === 'cache-gpu-page-error') {
+        if (!context?.aborted) failures.push(`${phase}: ${String(context?.error)}`);
+      }
       // A record the bounded channel dropped (`diagnostic-loss`) would hide an admission.
       else if (/failed|lost|loss/.test(phase)) failures.push(phase);
     },
