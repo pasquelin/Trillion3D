@@ -1,3 +1,4 @@
+import { SCREEN_REFLECTION_GLSL } from '../../reflections/screenGlsl.ts';
 import { TRANSMISSION_GLSL } from './transmissionGlsl.ts';
 import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts';
 import { RECT_LIGHT_GLSL, WEBGL_RECT_KIND } from './rectGlsl.ts';
@@ -50,11 +51,13 @@ toEye=-view.xyz;gl_Position=projectionMatrix*view;}}`;
 // `surfaceModel` is the surface's `SURFACE_MODEL` rank (`../../scene/surfaceModel.ts`): a matcap
 // reads its image at its normal's coordinate, at the image's full detail as the WebGPU resolve
 // does; a normal or depth surface shows its view normal or the frame's depth ramp.
+// A `covering` surface writes alpha 1 whatever its cut alpha: an opaque one, as the reference's
+// opaque surfaces do (#840), and into the effect chain also a `none` one (`bindClusterMaterial`).
 export const CLUSTER_FRAGMENT = `#version 300 es
 precision highp float;const float PI=${PI},INVERSE_PI=${INVERSE_PI};const int MAX_LIGHTS=64;
 in vec3 toEye;in vec3 viewNormal;vec3 viewPosition;in vec2 texcoord0;in vec2 texcoord1;in vec4 vertexColor;out vec4 outColor;
 uniform vec4 baseFactor;uniform float metalFactor,roughFactor,alphaCutoff,aoStrength;uniform vec2 normalScale;
-uniform vec3 emissiveFactor;uniform vec2 depthRamp,dash;uniform bool fogFree,lit,flatShaded,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask,faceSides,surfaceModel;
+uniform vec3 emissiveFactor;uniform vec2 depthRamp,dash;uniform bool covering,fogFree,lit,flatShaded,toneMapped,srgbDestination,hasNormalMap,hasVertexColor,sharedMetalRough;uniform int mapMask,faceSides,surfaceModel;
 uniform sampler2D baseMap,roughMap,metalMap,normalMap,aoMap,emissiveMap;
 uniform mat3 baseUv,roughUv,metalUv,normalUv,aoUv,emissiveUv;
 uniform mat4 projectionMatrix;uniform int lightCount;uniform ivec4 mapChannels;uniform ivec2 extraChannels;layout(std140) uniform ClusterLights{vec4 lightData[256];};
@@ -97,6 +100,7 @@ color*=attenuation(length(toLight),positionRange.w,cone.z);}
 if(surfaceModel==${SURFACE_MODEL.diffuse}||surfaceModel==${SURFACE_MODEL.toon}){direct+=modelLight(base,metal,N,L,1.0,ao)*color;continue;}
 vec3 E=clamp(dot(N,L),0.0,1.0)*color;specular+=E*specularLobe(L,V,N,f0,rough);direct+=E*(INVERSE_PI*diffuse);}
 irradiance+=probeIrradiance(N);return(direct+irradiance*(INVERSE_PI*diffuse)*ao)+specular;}
+${SCREEN_REFLECTION_GLSL}
 ${TRANSMISSION_GLSL}
 void main(){if(!lineDash(texcoord0.x,dash))discard;viewPosition=-toEye;vec4 base=baseFactor;
 if((mapMask&1)!=0){if(surfaceModel==${SURFACE_MODEL.matcap})base*=textureLod(baseMap,mapUv(baseUv,matcapUv(normalize(viewNormal))),0.0);
@@ -111,11 +115,12 @@ CotangentFrame frame=cotangentFrame(N,dFdx(viewPosition),dFdy(viewPosition),dFdx
 float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPosition*p);float ao=1.0;if((mapMask&16)!=0)ao=(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x))).r-1.0)*aoStrength+1.0;
 vec3 rgb=lit?shade(N,V,base.rgb,metal,rough,ao):base.rgb*ao;
 if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y))).rgb;else rgb+=emissiveFactor;
-if(!fogFree)rgb=fogged(rgb);
+if(lit)rgb+=mirrorLighting(base.rgb,metal,rough,N,V,viewPosition);
+if(!fogFree&&!reflectionCapture)rgb=fogged(rgb);
 if(surfaceModel==${SURFACE_MODEL.normal})rgb=N*0.5+0.5;
 if(surfaceModel==${SURFACE_MODEL.depth})rgb=vec3(clamp(depthRamp.x*toEye.z+depthRamp.y,0.0,1.0));
 float alpha=base.a;if(transmissive){vec4 through=transmissionColor(rgb,base.rgb,alpha,N,V,viewPosition,rough,ao);rgb=through.rgb;alpha=through.a;}
-if(toneMapped)rgb=toneMap(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,alpha);}`;
+if(toneMapped)rgb=toneMap(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,covering?1.0:alpha);}`;
 
 /** Replaces `from` in `text`, which must hold it once: a variant never drifts off its source. */
 function variant(text: string, from: string, to: string) {
@@ -127,8 +132,8 @@ function variant(text: string, from: string, to: string) {
 /**
  * The fragment program of a draw into the effect chain's target (`../../effects/webglEffects.ts`):
  * `CLUSTER_FRAGMENT` with its last line changed, compiled only while a chain has a pass. It writes
- * linear radiance — the curve and the encoding come after the passes — whose alpha is coverage:
- * a `covering` surface covers its pixel whatever its alpha (`coversLinear`, `./materialBinding.ts`).
+ * linear radiance — the curve and the encoding come after the passes — whose alpha is coverage
+ * (`coversLinear`, `./materialBinding.ts`).
  * Its second output marks the coverage of the surfaces the curve skips (`toneMapped` false),
  * blended as the colour is, so the display chain leaves them as drawn.
  */
@@ -136,8 +141,8 @@ export const CLUSTER_LINEAR_FRAGMENT = variant(
   variant(
     CLUSTER_FRAGMENT,
     'out vec4 outColor;',
-    'layout(location=0) out vec4 outColor;layout(location=1) out vec4 untoned;uniform bool covering;',
+    'layout(location=0) out vec4 outColor;layout(location=1) out vec4 untoned;',
   ),
-  'if(toneMapped)rgb=toneMap(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,alpha);}',
+  'if(toneMapped)rgb=toneMap(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,covering?1.0:alpha);}',
   'outColor=vec4(rgb,covering?1.0:alpha);untoned=vec4(toneMapped?0.0:1.0,0.0,0.0,outColor.a);}',
 );

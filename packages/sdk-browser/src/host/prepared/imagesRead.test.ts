@@ -14,8 +14,12 @@ const document = {
 /** The reader of `document`'s images, beside it. */
 const images = () =>
   preparedImages({
-    ...{ document, documentUrl: 'https://cache.test/model/source.gltf', binary: null },
-    ...{ skipped: new Set<string>(), signal: undefined, meter: unmetered },
+    ...{
+      document,
+      documentUrl: 'https://cache.test/model/source.gltf',
+      binary: () => Promise.reject(new Error('no binary')),
+    },
+    ...{ skipped: new Set<number>(), signal: undefined, meter: unmetered },
     track: (_resource, read) => read,
   });
 

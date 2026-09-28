@@ -94,6 +94,8 @@ export const BLEND_BINDINGS = {
    *  nearest of their depths. */
   shadowTransmittance: 26,
   shadowTranslucentDepth: 27,
+  /** Shared outgoing radiance of proxy faces, read by mirror reflections. */
+  surfaceCache: 28,
 };
 
 /**

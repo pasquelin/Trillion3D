@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import type { MeasuredWorld } from '../session/explorer.ts';
 import { sessionOptions } from './worldOptions.ts';
 import { worldSwitches } from './worldSwitches.ts';
+import { GraphSurface } from '../../host/graph/surface.ts';
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 
 /** The world's notices, where nothing here is said. */
@@ -84,7 +85,10 @@ test('the effect chain is given to every session, and a change of it asks for a 
   // A WebGL2 frame drawn without the chain is said on the world's own channel.
   sessionOptions({}, switches.held).effectsRefused!('multiply');
   assert.deepEqual(said, ['effects-refused-blending']);
+  // A surface WebGL2 draws without a physical feature is said on the same channel (#772).
+  sessionOptions({}, switches.held).materialDegraded!(new GraphSurface('physical'), ['clearcoat']);
+  assert.deepEqual(said, ['effects-refused-blending', 'material-degraded']);
   // #558: so is a WebGL2 session's light that asks for a shadow it draws not.
   sessionOptions({}, switches.held).shadowsRefused!(['sun']);
-  assert.deepEqual(said, ['effects-refused-blending', 'shadows-refused']);
+  assert.deepEqual(said, ['effects-refused-blending', 'material-degraded', 'shadows-refused']);
 });

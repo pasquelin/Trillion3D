@@ -4,27 +4,24 @@ import { drawShader } from './shader.ts';
 
 // Indirect compact receives, per slot, the row count the GPU partition wrote there
 // (`classifyRows`, ../partition/classifyWgsl.ts). A slot that count says is empty has no reason
-// to be scanned by the shader: `slotUsed` carries that fact, and each pass's guard uses it to
-// return before scanning anything for that slot.
+// to be scanned by the shader: `slotUsed` carries that fact. The counting pass reads each item
+// once and writes such a slot a zero count; the prefix pass returns before scanning it.
 
-test('drawShader(k) guards both the counting and the prefix pass by slotUsed before they scan anything for that slot', () => {
+test('drawShader(k) writes an empty slot a zero count and guards the prefix pass by slotUsed', () => {
   for (const k of [1, 2, 3, 5]) {
     const shader = drawShader(k);
 
-    const countGuard = shader.indexOf('if(slotUsed[slot]==0u){groupCounts[entry]=0u;return;}');
-    const countScan = shader.indexOf('for(var i=begin;i<end;i++)');
-    assert.ok(countGuard >= 0, 'countGroups checks slotUsed for its slot');
+    // countGroups has no per-slot scan to skip (groupCompaction.test.ts pins its shape): an empty
+    // slot is only written zero.
     assert.ok(
-      countGuard >= 0 && countScan > countGuard,
-      'the empty-slot return happens before the per-item scan, not after it',
+      shader.includes('select(atomicLoad(&slotTally[slot]),0u,slotUsed[slot]==0u)'),
+      'an empty slot still reports zero',
     );
 
-    const prefixGuard = shader.indexOf('if(slotUsed[slot]==0u){writeCmd(slot,0u);continue;}');
-    const prefixScan = shader.indexOf('for(var group=0u;group<uni.groupCount;group++){total=');
-    assert.ok(prefixGuard >= 0, 'prefixGroups checks slotUsed for its slot');
+    // The prefix reads no group of an empty slot: its run totals and offsets are guarded.
     assert.ok(
-      prefixGuard >= 0 && prefixScan > prefixGuard,
-      'the empty-slot continue happens before the per-group total, not after it',
+      shader.includes('if(slotUsed[slot]==0u){\n   if(lane==0u){writeCmd(slot,0u);}\n   continue;'),
+      'an empty slot is written zero and its groups are never read',
     );
   }
 });

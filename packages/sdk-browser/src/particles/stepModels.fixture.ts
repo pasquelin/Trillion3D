@@ -11,19 +11,31 @@ import { PARTICLE_ROW, createWebglParticles } from './webglParticles.ts';
 
 const f = Math.fround;
 
-/** A context granting the `granted` extensions, and a `run` of its WebGL2 step that answers the
- *  draws made and the calls it made, by name. */
-export function webgl(granted = ['EXT_color_buffer_float']) {
-  const getExtension = (name: string) => (granted.includes(name) ? {} : null);
-  const ctx = createTestContext({ answers: { getExtension } }),
-    particles = createWebglParticles(ctx.gl);
+/** A context granting `granted`, its drawing buffer's depth `depth`, a render target's
+ *  `DEPTH_COMPONENT24`: a blit from the read framebuffer into a depth copy of another format is an
+ *  `errors` entry, as drivers refuse it. Its `particles`, the refusals they told in `heard`, and a
+ *  `run` of their step that answers the draws and calls made. */
+export function webgl(granted = ['EXT_color_buffer_float'], depth = 'DEPTH24_STENCIL8') {
+  const getExtension = (name: string) => (granted.includes(name) ? {} : null),
+    errors: string[] = [],
+    heard: string[] = [],
+    getError = () => errors.shift() ?? 'NO_ERROR';
+  const blitFramebuffer = (...args: unknown[]) => {
+    const copy = ctx.of('texImage2D').findLast(([, , format]) => /^DEPTH/.test(`${format}`)),
+      [, read] = ctx.of('bindFramebuffer').findLast(([to]) => to === 'READ_FRAMEBUFFER') ?? [];
+    if (copy?.[2] !== (read ? 'DEPTH_COMPONENT24' : depth)) errors.push('INVALID_OPERATION');
+    ctx.calls.push({ name: 'blitFramebuffer', args });
+  };
+  const answers = { getExtension, blitFramebuffer, getError },
+    ctx = createTestContext({ answers }),
+    particles = createWebglParticles(ctx.gl, (reason) => void heard.push(reason));
   const run = (pools: ParticlePool[]) => {
     const from = ctx.calls.length,
       draws = particles.run(pools),
       calls = ctx.calls.slice(from);
     return { draws, of: (name: string) => calls.filter((c) => c.name === name).map((c) => c.args) };
   };
-  return { ctx, run };
+  return { ctx, run, particles, errors, heard };
 }
 
 /** Both shaders' body for slot `i`, `ring` their uniforms (first slot, count, capacity, then

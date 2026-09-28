@@ -5,6 +5,7 @@ import {
   type AssetScope,
 } from './base.ts';
 import { UNSPLIT_PASS, primitiveIsDrawable, type ClusterManifest } from './geometry.ts';
+import { TEXTURE_PREVIEW_VERSION } from '../texture/previewFormat.ts';
 
 /**
  * The error the engine throws: a stable `code` a page can test, words for a person, and details.
@@ -64,29 +65,15 @@ export function assertCachePointer(pointer: unknown, scope: AssetScope): string 
   if (value.formatVersion !== undefined) assertFormat(value.formatVersion as number);
   return value.url;
 }
-/**
- * What a host can check on the cache manifest alone, whether its clusters are written inline or in a
- * binary sidecar: the cache is ready, of the requested scope, in a format this SDK reads, and
- * declares the geometry it selected. Returns that triangle count, so an availability probe needs to
- * read nothing else and needs to know no field name.
- *
- * The identity of the clusters themselves is `assertCacheIdentity`: it reads the pages, so it runs
- * on a decoded manifest, which a probe deliberately does not download.
- */
-export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
-  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata))
+/** What a host checks on the root `clusters.json` before any page: the cache is ready, of the
+ *  requested scope, in a format this SDK reads. */
+export function assertCacheRoot(root: unknown, scope: AssetScope): void {
+  if (!root || typeof root !== 'object' || Array.isArray(root))
     throw new EngineError('INVALID_CACHE', 'cache manifest is not a JSON object', {});
-  const value = metadata as Record<string, unknown>;
+  const value = root as Record<string, unknown>;
   // The number first: an earlier format is refused by it, never by a field it wrote otherwise.
   const formatVersion = (value.formatVersion ?? value.schema) as number;
   assertFormat(formatVersion);
-  if (
-    !Array.isArray(value.primitives) ||
-    !Number.isSafeInteger(value.selectedNodes) ||
-    typeof value.selectedTriangles !== 'number' ||
-    !Number.isFinite(value.selectedTriangles)
-  )
-    throw new EngineError('INVALID_CACHE', 'invalid cache schema', {});
   if (value.schema !== formatVersion)
     throw new EngineError('UNSUPPORTED_FORMAT', 'Cache schema and formatVersion differ', {
       schema: value.schema,
@@ -101,6 +88,19 @@ export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
       requestedScope: scope,
       cacheScope: value.scope,
     });
+}
+/** The manifest read through its pages: its root (`assertCacheRoot`) and selected geometry.
+ *  Returns that triangle count; the clusters' identity is `assertCacheIdentity`'s. */
+export function assertCacheReady(metadata: unknown, scope: AssetScope): number {
+  assertCacheRoot(metadata, scope);
+  const value = metadata as Record<string, unknown>;
+  if (
+    !Array.isArray(value.primitives) ||
+    !Number.isSafeInteger(value.selectedNodes) ||
+    typeof value.selectedTriangles !== 'number' ||
+    !Number.isFinite(value.selectedTriangles)
+  )
+    throw new EngineError('INVALID_CACHE', 'invalid cache schema', {});
   // The one identity statement a slim manifest can make on its own: a DAG cache names the model its
   // clusters were certified with. Older caches name neither and stay readable.
   if (value.clusterStrategy === 'dag-groups' && value.errorModel !== DAG_ERROR_MODEL)
@@ -164,5 +164,14 @@ export function assertCacheIdentity(metadata: ClusterManifest) {
       'STALE_CACHE',
       `Cache error model ${metadata.errorModel ?? 'absent'} cannot be used; recompile with ${DAG_ERROR_MODEL}`,
       { errorModel: metadata.errorModel ?? null, expected: DAG_ERROR_MODEL },
+    );
+  // Texture levels of another version — before 6, block files not laid out in tile records
+  // (#962) — would be cut at the wrong bytes: the cache is refused whole, never drawn coarse.
+  const { textures } = metadata;
+  if (textures && textures.version !== TEXTURE_PREVIEW_VERSION)
+    throw new EngineError(
+      'STALE_CACHE',
+      `Cache texture levels are version ${textures.version ?? 'absent'}, this runtime reads ${TEXTURE_PREVIEW_VERSION}; recompile the cache (trillion3d-compile, or pnpm run compile:caches in the repository)`,
+      { textureVersion: textures.version ?? null, expected: TEXTURE_PREVIEW_VERSION },
     );
 }

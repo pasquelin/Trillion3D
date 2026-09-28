@@ -30,14 +30,34 @@ export const DEFAULT_FOV = 55,
    */
   STREAMING_FRAME_MS = 1,
   /**
+   * Shares of `STREAMING_FRAME_MS` the residency queue opens at most between two frames of a visible
+   * page, 2 ms cumulated (#983): past them it waits for the next frame, so no burst of shares holds
+   * a frame back. A hidden page, where no frame comes, or a visible one whose frames stopped, keeps
+   * opening one per task.
+   */
+  STREAMING_SHARES_PER_FRAME = 2,
+  /**
    * How far ahead of a moving camera the cut requests pages, in milliseconds: the programme's time
    * to full detail after a stop (#483). A page the camera reaches within it is asked for now, so the
    * queue that fills a stopped view in that time has it when the view does (`../gpu/core/aheadView.ts`).
    */
   PREFETCH_HORIZON_MS = 250,
+  /** The farthest the view ahead looks, in milliseconds, whatever the round trip: past a second,
+   *  the camera's velocity no longer says where it will be. */
+  MAX_PREFETCH_HORIZON_MS = 1000,
   PREFETCH_INTERVAL_MS = 250,
   DEFAULT_CACHED_PAGES = 16384,
   DEFAULT_CLEAR_COLOR = 0x171d28;
+/**
+ * How far ahead of a moving camera the cut requests pages, in milliseconds: the published horizon
+ * plus the pages' measured round trip (`../streaming/roundTrip.ts`) — a page asked for now lands a
+ * round trip later — at most `MAX_PREFETCH_HORIZON_MS`. No round trip measured, or none that reads
+ * as a duration: the published horizon, as before.
+ */
+export const prefetchHorizonMs = (roundTripMs?: number) =>
+  roundTripMs! > 0
+    ? Math.min(PREFETCH_HORIZON_MS + roundTripMs!, MAX_PREFETCH_HORIZON_MS)
+    : PREFETCH_HORIZON_MS;
 /**
  * Device pixels of a logical dimension, at the ratio the host has set. Canvas creation and
  * resize both compute it: two separate truncations would have ended up with a canvas of one
@@ -45,7 +65,10 @@ export const DEFAULT_FOV = 55,
  */
 export const devicePixels = (logical: number, pixelRatio: number | undefined) =>
   Math.floor(logical * (pixelRatio ?? DEFAULT_PIXEL_RATIO));
+/** The adapter's own limits the session's device asks for: WebGPU grants the portable defaults
+ *  otherwise — a shadow pool layer is as wide as `maxTextureDimension2D` (`shadow/poolSize.ts`). */
 export const WEBGPU_REQUIRED_LIMITS = [
+  'maxTextureDimension2D',
   'maxTextureArrayLayers',
   'maxStorageBufferBindingSize',
   'maxBufferSize',

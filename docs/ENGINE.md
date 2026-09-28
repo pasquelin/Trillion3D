@@ -106,6 +106,9 @@ a completely GPU-autonomous engine.
 the current and the predicted one, each side opened by the angle the camera turns over the horizon.
 It is one descent: what the camera rejects is tried against the view ahead, never drawn, only
 requested, in a lower request tier ranked after every visible request, at most half the readback.
+The cut sorts its requests by that rank on the GPU, visible tier first and the larger replacement
+error first within a tier (`dagSortRequests`, `gpu/dag/shader/snapshotWgsl.ts`); the host reads
+them in that order and ranks nothing.
 The host serves those pages through the one residency queue as a lower tier after the camera's and
 the light cuts' (`webgpu/residency/lowerTier.ts`): never pinned, never evicting a camera page, and
 replaced by an empty list once the camera stops. A still camera sends no view ahead and cuts as
@@ -113,7 +116,22 @@ before. Admission starts no page once it has held the main thread for the publis
 `STREAMING_FRAME_MS` (1 ms): it yields a task and resumes at once (`page/integration/frameBudget.ts`,
 the arrival queue's budget), so a due frame waits on it no longer than the share and the page begun
 within it, and a hidden tab, where no frame comes, still loads.
-Fetching and decoding stay in workers. WebGL2 keeps its own path (#490).
+Fetching and decoding stay in workers. WebGL2 cuts by the same rule and holds pages by the same
+residency, without the GPU cut or its readback (#490, #839).
+
+**Eviction queue.** A resident GPU cut also publishes, on the same readback, the order the cache
+gives slots back in (`gpu/dag/evict.ts`, `gpu/dag/shader/evictWgsl.ts`): the pool's keys, finer
+level first — a parent after its children —, then oldest last use, its first `EVICTION_BURST`: the
+readback's budget is two lists plus one burst, whatever the catalogue. Every placement stamps its key's canonical page, so a key's stamp is its last
+use; a key the latest cut read is never listed. The kernel sweeps the pool's list, one canonical
+page per held slot fed by the cache's arrivals and departures (`gpu/dag/poolList.ts`), never the
+catalogue. On the GPU-cut path the cache evicts only from that queue, skipping pinned pages and
+taking a page a lower tier touched since the last queue (a shadow caster) after every other; once
+spent (`eviction-queue-spent`) the burst waits for the next readback. The CPU cut evicts the least
+recent page. Loads on the GPU-cut path are read off the readback's requests, closed over their
+groups (`webgpu/residency/requestAdmission.ts`, #836): past the pool, the coarsest levels whole and
+the one the room straddles in part, what the queue already holds first, from the pool's room alone.
+The GPU cut feeds no `budgetRanking`; the CPU cut that takes the image back refills it.
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min
@@ -130,12 +148,16 @@ untextured page raster remains and Hi-Z stays off.
 ## Material surfaces
 
 The opaque and masked path writes visibility, then reconstructs material properties into three
-`rgba16float` textures and one `r32uint` texture (28 logical bytes per pixel): base colour and
+`rgba16float` textures and one `r8uint` texture (25 logical bytes per pixel): base colour and
 metalness, world normal and roughness, emission and AO, surface flags. Depth is `depth32float`.
 Lighting consumes these surfaces and reconstructs world position from depth. Transparency is shaded
 separately into the HDR target; a transmissive material (`KHR_materials_transmission` with IOR and
 volume) is composed after it by one fullscreen pass on a frozen copy of the lit image, bounded by the
-opaque depth. ACES and sRGB conversion happen at final composition, which writes the display value
+opaque depth; its rank and opacity borrow the display target, which only the final composition
+writes after it, so the surface flags temporal antialiasing and composition read stay the opaque ones
+at no extra target. Those two read the flags only for the as-is share of a normal or depth surface:
+until a row shows one, and outside a diagnostic view, they run flagless variants, compiled beside
+the others, that bind no flags. ACES and sRGB conversion happen at final composition, which writes the display value
 to the capture target and the canvas in one pass.
 
 The reconstruction runs one pass per **material class**, the published visibility-buffer design,
@@ -213,7 +235,12 @@ revision and asks for a frame.
 - **Kinds**: each renderer holds one table from pass kind to implementation (`WEBGPU_KINDS`,
   `WEBGL_KINDS`); a new built-in or the custom pass is one entry. The kinds of a chain share its two
   pass targets; each holds its own resources besides, sized for the passes of its kind — the
-  WebGPU bloom gives every bloom pass its own uniform range, read at a dynamic offset.
+  WebGPU bloom gives every bloom pass its own uniform range, read at a dynamic offset. On WebGPU a
+  chain that ends on a bloom leaves that bloom's last blend to the composition, once the
+  composition's bloom programs are compiled (`deferred/compositions.ts`, #963): the composition
+  reads the image the bloom read and blends the first level in itself, rounded to half precision as
+  the pass target held it, so the chain draws one pass and holds one target fewer for the same
+  image. WebGL2 still draws that blend into its pass target.
 
 Parity rules, each held by a unit test: an empty chain adds no pass, no copy and no target — the
 frame is composed call for call as without one; a held frame redisplays the image the chain drew and
@@ -240,6 +267,20 @@ back against the oracle. Bytes: 8 per texel of each level, about a third of the 
 pass: measured on the frame envelope, not by its own timestamp.
 
 ## Direct lighting
+
+**Any number of lights.** The light table grows with the scene —
+doubled when full, the GPU light buffer with it, and every pass that binds it binds the new one —:
+`addLight` never refuses a light for its rank. The tile pass tests the lights 256 at a time, one
+per thread of a 16 × 16 tile, and keeps in each of its two lists those whose range reaches the
+tile's depth slice, in increasing rank, up to `tileLights` (64): the lists' memory follows the view
+alone, 4.2 MB at 1920 × 1080 and 15.7 MB at 3456 × 2234, whatever the scene holds. A tile reached
+by more than `tileLights` (64) lights walks exactly those, written in order into a view-sized pool
+after the tile records (#849): a quarter list per tile, grown to what a sampled frame asked, four
+lists at most. A tile the pool has no room for walks every light, exactly, and the overflow is named
+(`tileLightPoolOverflowed`, `tileLightPoolGrowths` of the frame metrics). A scene of 64 lights or fewer runs a
+narrow tile pass (64-bit masks, a 64-light array) and holds no pool. A shadow caster past the 64
+shadow slices lights without a shadow and is counted
+(`shadowCastersUnsliced`, #818). WebGL2 keeps its 64 slots until #835 and refuses more out loud.
 
 **A moving image shades a drawn subset of each pixel's lights.** A moving image weighs every light
 of its tile without its shadow (the cheap part) and shades in full, shadow included, four of them. A
@@ -269,9 +310,9 @@ WebGPU device offers (4 096 pages, 256 MiB, and 128 MiB of transmittance), reach
 the pool is the only limit on the pages a frame holds: what it cannot hold is refused at allocation
 and published as memory (`shadowPagesOverflow`, #542), read at the coarser level meanwhile, and
 pages are evicted least recently read first. A lamp face's finest mip is 32 × 32 pages (`lampFaceSize`).
-The table gives each of the 64 shadow slices (`maxLights`) a fixed window of the largest range a
+The table gives each of the 64 shadow slices (`MAX_SHADOW_SLICES`) a fixed window of the largest range a
 light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
-(`SHADOW_TABLE_ENTRIES`), so every shadow-casting light the contract accepts holds its range.
+(`SHADOW_TABLE_ENTRIES`), so every shadow-casting light that holds a slice holds its range.
 The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`). Its host mirror — the
 words, a change flag per word, the pool's page records and eviction bitset, and the frame's page
 list (`admit.ts`) at the largest pool, with the shadow batches' host lists
@@ -313,7 +354,10 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   (`gpu/shadow/batchWrites.ts`, `webgpu/pages/render/encodeShadowBatches.ts`). What the batches
   add is sized once from the largest pool, never grown, and counted in the memory budget
   (`gpu/shadow/batchBudget.ts`): 4 096 pages in full batches of 24 is at most 171 batches a frame
-  (`MAX_SHADOW_BATCHES`), each in at most 24 light views. The staging of every batch but the first
+  (`MAX_SHADOW_BATCHES`), each in at most 24 light views. The shaders' arrays, strides and uniform
+  layouts — the light cut's views, the regions' faces and commands, the occlusion slots — are
+  generated from those same constants (`recordPack.ts`, `batchBudget.ts`), never a literal twin
+  (`gpu/shadow/capacities.test.ts`). The staging of every batch but the first
   is 170 × 26 556 bytes, 4.31 MiB, made at the first frame that needs it; the light cut's flag
   words, a word per batch for 4 frames in flight, 2 736 bytes; the CPU cut's commands for 4 104
   faces, 65 664 bytes; the region commands of every batch a sampled frame copies for the cull and
@@ -369,11 +413,18 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
 moving the first time its pose or its row's flag actually changes (`webgpu/shadow/mobility.ts`) —
 a pose written again where it stands, or a row inside a written range, is no move — and stays so; from then on the pool
 keeps a static layer, a second depth texture the pool's size, allocated at that first move — a scene where
-nothing moves pays neither its bytes nor its pass. A page drawn in full writes its static casters
+nothing moves pays neither its bytes nor its pass. Its pipelines, like every shadow pipeline — the
+light cut's row map, the page pyramids (the camera's Hi-Z kernels), the occlusion test and, for a
+scene whose blended surfaces cast, the transmittance draws —, are compiled at prepare, in a
+preparation step of their own (`shadow pipelines`, `webgpu/pages/prepare/lights.ts`): no frame
+after it compiles one, but a blended caster prepare did not see, whose draws compile at its first
+frame. A page drawn in full writes its static casters
 into the layer, then restores itself from it and draws its moving casters over; a page that only
 a moving object crossed is restored and gets its moving casters alone, split by one word per row
 in the page cull. A still moving object stales nothing; it is never demoted, since a rule that
-did would redraw the layer each time a pausing object moved again. A residency flag that drops
+did would redraw the layer each time a pausing object moved again, and an object already moving
+that the host hides or shows, or that stops or starts casting, redraws the moving casters of its
+pages alone: the layer never held it. A residency flag that drops
 and rises within a frame — every row follows the table epoch when a pose moves — is no change
 for the shadows: only a flag that differs from the last plan's restales its cluster's pages
 (`webgpu/shadow/residence.ts`). On a code-built scene with one ball moving over a static ground,
@@ -399,7 +450,8 @@ cluster not resident drew its nearest resident ancestor instead, and every page 
 it: those pages, and only that view's, are drawn again once residency changes, not only the pages
 over the missing cluster; a batch whose requests were not read — the frame found no report
 readback free, or its list was full — draws them again at once (`gpu/dag/lightCutRedraws.ts`,
-`light-cut-redraw`). Every batch's cut appends its requests to one list (`VIEW_APPEND`), which the
+`light-cut-redraw`). A page is drawn again as it was drawn: one restored from the static layer drew
+its moving casters alone, and only they are drawn again over the kept layer. Every batch's cut appends its requests to one list (`VIEW_APPEND`), which the
 frame copies once after its last batch into one of two report slots (`gpu/dag/lightCutReports.ts`):
 every batch's missing casters are asked for, whatever the batch count. Each frame's flag words ride
 in one slot sized for the most batches, four slots made at creation; a frame that finds all four
@@ -504,21 +556,33 @@ bounce is **off by default**: its stage costs about 1.1 ms, above the one-millis
 and transparency are not bounced. `setLightingView('bounce')` outputs the indirect irradiance alone,
 the quantity `bench/runner/oracle.ts` compares.
 
-**Mirrors.** With the bounce on, a surface at the roughness floor (0.0525, the clamp every shading
-path applies) reflects the scene: the resolve fires one ray along the mirror direction against the
-resident proxy, from the origin the sun's far shadow uses, and reads the face it hits in the surface
-cache; a ray that leaves the proxy reads the probe irradiance in that direction over π. The radiance
-is weighed by the GGX lobe's directional albedo, the magnitude and Schlick share of the table the
-rectangular light reads. The water composite reflects through the same function, weighted by its
-Fresnel, so the engine has one reflection model (`packages/sdk-browser/src/bounce/reflectWgsl.ts`):
-mirror-smooth water, at the floor, traces the proxy; rougher water keeps the blurred probe
-irradiance over π it read before, never a sharp image. What a mirror shows is the proxy: its
-certified error, one radiance per triangle face, and nothing nearer than one proxy cell along the
-ray. A rougher opaque surface, a diffuse or toon one, and every surface with the bounce off add
-exactly zero: the
-floor is a material threshold, so a roughness map that crosses it shows reflecting and
-non-reflecting texels side by side until rough reflections (#33) fill the lobes above it. Screen
-traces stay on #31, planar views are #353. WebGL2 has no bounce, hence no reflection.
+**Mirrors.** WebGPU and WebGL2 trace the camera-visible opaque scene from mirror receivers,
+including transparent standard materials, independently of the bounce setting. Both backends
+share a projected pixel-grid traversal clipped against all six homogeneous frustum planes.
+Each crossed pixel tests its exact ray-depth interval; work is bounded by viewport width plus
+height. A separate linear, unfogged, unreflected source prevents render-target feedback,
+recursive reflections and applying the camera fog twice. The source is regenerated with each
+changed image and belongs to its camera view, including captures and resizing.
+
+A screen hit replaces the proxy contribution in the one reflection model. On a screen miss,
+WebGPU with bounce enabled keeps the resident-proxy ray and probe fallback; without bounce,
+and on WebGL2, a miss contributes zero. Screen traces cannot reveal offscreen or occluded
+geometry. Reflected-camera planar views remain #353. No screen-space result is stretched over
+a viewport edge or carried from an older image. The original `miroir.gltf` cited in #31 is not
+present in the reachable repository history; the production proof uses generated geometric
+scenes with analytic reflected-point positions and records that provenance explicitly.
+
+The mirror contribution uses the same GGX directional-albedo table as rectangular lights,
+with full contribution at the roughness floor (0.0525). It fades smoothly over one table sample
+(1/63) above that floor; this is a numerical transition, not the filtered rough lobe of #33.
+Water uses the same scene-radiance lookup with its material Fresnel. Diffuse and toon materials
+have no mirror lobe. Reflection sources are allocated only while the view contains an eligible
+receiver: WebGPU adds 8 bytes per pixel and an 80-byte uniform (an 8-byte disabled placeholder
+otherwise); WebGL2 reuses the backdrop allocator for 8-byte colour and 4-byte depth per pixel.
+These allocations are counted and released on resize/disable/dispose. WebGPU reports refusals
+through its existing frame-target grant. WebGL2 checks the required half-float colour-target
+capability for these linear-radiance sources, as it does for transmission; that check does not
+guarantee allocation success or framebuffer completeness.
 
 ## Fog
 
@@ -576,7 +640,9 @@ A world keeps its device across sessions, and each session creates through its o
 the handle before anything else, and a released handle is inert: its `create*` throw an `AbortError`,
 so a preparation still running stops there (cancelled, torn down once after it stopped), and its
 queue writes and submits nothing. From `dispose` on, the backend reads as lost: its audits and
-digests answer `null`. The device's error scopes are one stack every session shares: each creation
+digests answer `null`, and what its pending work throws — a program still compiling, the static
+shadow layer, an upload — is its cancellation, said nowhere (`webgpu/pages/io/diagnostics.ts`); a
+failure under a live session, a real device loss among them, is still said by name. The device's error scopes are one stack every session shares: each creation
 path closes the scope it opened in every case, an abort included (`gpu/core/errorScope.ts`), so no
 scope is left to swallow the next session's errors. What a closed session submitted before may still raise an error:
 one that names only closed sessions' objects is a console warning and a `gpu-closed-session-error`
@@ -623,19 +689,38 @@ never comes before the pages it depends on (`backend/autonomous/requests.ts`). T
 list in its order while the copies it charges fit its slots, the root cover held beforehand
 (`backend/autonomous/pool.ts`); the rest is not asked for, and the cut draws its nearest resident
 ancestor instead. A smaller budget is therefore paid in detail, one DAG level at a time, from the
-finest down: the image that sees it asks for less, and just before the next cut the pages it drew
-but no longer asks for leave, so that cut draws their ancestors (`backend/autonomous/poolOrder.ts`).
+finest down: the image that sees it asks for less. What stays resident is decided by the engine's one
+residency, fed as WebGPU feeds it (`residency/lastUse.ts`): what the image asks for and what it draws
+are held, each holding the pages it depends on (`residency/pageParents.ts`), so the ancestor a surface
+falls back to never leaves under it. Just before a cut, what the last image drew but no longer asks
+for lets go, one DAG level per image, finest first; a page let go of is released at the next cut, or
+at once when the pool is short by that many slots, the window giving way as WebGPU's does under
+pressure (`backend/autonomous/poolOrder.ts`). Released pages leave by last use, oldest first
+(`evictOldest`). A budget cut is thus paid one level per image, and the residency's keys follow what
+is held, never every page once asked for (`backend/autonomous/pageKeys.ts`).
 `coverageBudgetLimited` says the wanted cut did not fit; a verdict change is queued and published as
 `coverage-budget` by `flush`, as on WebGPU, with `requiredSlots` the slots the whole request charges
-and `pixelError` the host's threshold. Between two cuts, what the image keeps — the root cover, the
-host's pages, what it asks for and what it drew — never leaves; over the slots, the rest leaves
-oldest first (`evictOldest`, the page streamer's order). A refinement may hold more for a while: a
-resident ancestor drawn in place of a missing page is kept while the pages that replace it arrive,
-and leaves with the cut that no longer draws it. Only
-the root cover and the pages the host replaced (`replaceGeometryPage`) stay above it; they are
+and `pixelError` the host's threshold. Between two cuts, what the image drew and every page that
+arrived since never leave: no hole, and a page is not evicted on arrival. Only
+the root cover and the pages the host replaced (`replaceGeometryPage`) stay above the slots; they are
 counted as the pages' bytes are, every geometry copy included. No pool is reserved:
 `geometryPoolAllocatedBytes` is `null`, and what the pages hold is `geometryAllocationBytes`.
 Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
+A composed WebGL2 capture draws in a view of its own (`backend/autonomous/views.ts`), as WebGPU's
+does: each view holds its cut, what it asks for, its motion and its size, and one switch trades
+their references (it never runs with one view). The views share the page store and the pool, which
+admits what the drawn view asks for after what the other views asked for, each page charged once:
+the union stays under the one budget, never multiplied. The residency holds the union and the
+streamer pins it, the main view's requests queued first; a released view's pages leave it. The main
+view keeps its cut and its motion across a capture.
+
+**What WebGL2 declares it cannot carry.** WebGL2 keeps the cut rule, the residency and the budget
+above; what it lacks it names in `capabilities.unsupported` and in the `render-capabilities`
+diagnostic it publishes when it opens (`backend/autonomous/capabilities.ts`), never silently: no
+GPU-driven selection or indirect draw (the cut runs on the CPU), no occlusion culling, no cast
+shadows (neither the shadow atlas nor virtual shadow pages: its lights reach every surface,
+`webgl/cluster/lights.ts`), no global illumination, no temporal antialiasing, no physical VRAM
+reading. Each costs work or a feature, never coverage: no hole and no stale image.
 
 A region keeps a complete resident representation until every replacement page is uploaded: the
 cut rule below draws its nearest resident ancestor meanwhile, never the root cover in its place.
@@ -686,9 +771,16 @@ Shared URLs occupy one slot across instances. Two counters say different things:
 | `pagesDetached`  | clusters that left the drawn cut since the backend was created: cut churn, not memory pressure  | the WebGL page paths |
 | `cacheEvictions` | pages actually evicted from the cache that feeds the drawn geometry: the memory-pressure signal | every backend        |
 
-`coverageReady`, `coverageBudgetLimited` and `streamingError` report coverage;
-the `coverage-*` diagnostics trace bootstrap, budget, upload and streaming failures. A failed URL is
-retried at most three times per session; an initial cover read failure rejects preparation.
+`coverageReady`, `coverageBudgetLimited` and `streamingError` report coverage; the `coverage-*`
+diagnostics trace bootstrap, budget, upload and streaming failures. A failed URL is retried at
+most three times per session; an initial cover read failure rejects preparation.
+
+On WebGL2, `uncoveredTriangles` counts the holes of the image's cut (`page/cut/take.ts`): the
+triangles of the root-cover clusters in view the cut rule would draw but that are not resident,
+nothing coarser standing in for them. Zero is the only healthy value: once `prepare` holds the root
+cover, a non-zero reading means that floor broke. The WebGPU path reads `null` by design: its cuts
+draw what they select, so the no-hole proof is on the drawn set. WebGL2 also publishes
+`drawnTriangles` (`bench/runner/README.md`).
 
 ## Virtual textures
 
@@ -741,7 +833,9 @@ writes a pose buffer and an event buffer. No emscripten glue is kept; the engine
 
 - **Cooked shapes.** `RESTORE` carries a shape's Jolt binary state (`src/blob.h`, the stream the
   compiler's cook writes) under a handle, an `ADD` of kind `cooked` names the handle, and `RELEASE`
-  drops it: the body keeps the shape. `physics/tiles.ts` streams a compiled model's tiles this way,
+  drops it: the body keeps the shape. `physics/tiles.ts` streams a compiled model's tiles this way
+  (around the moving bodies, then the eye; nearest first within the collision share, `LOADS` a
+  frame, a resident tile kept half as far again),
   `physics/raycast.ts` asks `jolt_cast` (a batch of rays and shape sweeps, between two ticks) for
   `world.raycast(at, { exact: true })`.
 - **Worker.** `physics/physicsWorker.ts` steps at a fixed 60 Hz, at most four catch-up steps a
@@ -778,15 +872,24 @@ writes a pose buffer and an event buffer. No emscripten glue is kept; the engine
 - **Distance and view.** The page sends its eye, facing, view cone and range (`camera.far`) only
   when they change. In the module, a dynamic body beyond the range is deactivated with its
   velocities kept; a body out of the cone or hidden sends no pose until it is seen again.
-- **Budgets.** Bodies, static triangles and decorative bodies are counted on the page; memory is
-  enforced by the module's memory maximum; body pairs, contact constraints and events size the
+- **Budgets.** Bodies, static collision bytes (tiles as cooked, a triangle mesh at
+  `TRIANGLE_BYTES` a triangle, within half the module's memory: `collisionBytesOf`) and decorative
+  bodies are counted on the page; memory is enforced by the module's memory maximum; body pairs, contact constraints and events size the
   module's own buffers.
 - **Timing.** The `physics` stage of `WEBGPU_STAGES` / `WEBGL_STAGES` (host step `physicsMs`) is the
   page's share; the worker's per-step time is reported apart, in `world.physics.stats.stepMs`
   (the module's step alone, the clock `scripts/bench-physics.ts` reads in Node).
   Its GPU column is the particle step (`Trillion3D particles`, `particles/webgpuParticles.ts`).
-  On WebGL2 the same pools step in a 32-bit float ping-pong pass (`particles/webglParticles.ts`);
-  a context without `EXT_color_buffer_float` refuses them (`PARTICLES_UNSUPPORTED`).
+  Each pool is then one instanced disc draw over the lit image after the transparents
+  (`particles/webgpuParticleDraw.ts`), unsorted: `additive` in any order, `premultiplied` far to
+  near by origin, soft within `softness` of the opaque depth.
+  On WebGL2 the same pools step in a 32-bit float ping-pong pass (`particles/webglParticles.ts`)
+  and draw alike over the engine's image (`particles/webglParticleDraw.ts`), soft on a copy of
+  the frame's depth, made in `DEPTH24_STENCIL8`, else `DEPTH_COMPONENT24`, as the blit allows.
+  A context without `EXT_color_buffer_float`, or a depth neither format copies, refuses the
+  pools by name (`PARTICLES_UNSUPPORTED`), never drawing them hard-edged: heard once as the
+  world notice `particles-refused`, and the session draws on without them. WebGPU without the
+  visibility buffer refuses them on the same notice.
 - **Threads.** On a cross-origin isolated page the page loads `joltPhysicsThreads.wasm` (atomics,
   bulk memory, shared memory) and Jolt's own thread pool steps it: each pool thread starts in C
   through `pthread_create`, which the loader (`physics/joltThreads.ts`) answers with a worker that
@@ -815,6 +918,15 @@ transparent counters), surface-capture phases, `gpu-device-lost`, `gpu-closed-se
 (`kind: 'warning'`: an error of a session already closed on the same device, never a loss). Observer exceptions cannot
 interrupt a backend. These durations are not frame-performance measurements.
 
+**Optional device features.** The session asks for every optional feature a kernel can use that the
+adapter offers — `indirect-first-instance`, `timestamp-query`, `subgroups`, `shader-f16` and the
+block-compressed texture formats (`world/session/gpuDevice.ts`) — and each session says what its
+device got under the `WebGPU device granted` capability diagnostic (`features`). A kernel branches on the
+device's own `features` and keeps its plain path as the named fallback. The host URL parameter
+`trillion3dGpuFeaturesOff=subgroups,shader-f16` keeps the named features unrequested: the plain paths
+then run on a device that has the features, the fallback's proof (0 px against the features on). It
+acts only on a device the engine requests; a host's own `gpuDevice` is taken as it is.
+
 **GPU timing.** `timestamp-query` is requested when the adapter advertises it (`gpu-timing-status`).
 Summary mode instruments at most one submission in 60, trace mode every one, with one outstanding
 readback, and as many pass pairs as the frame that redraws the largest shadow pool encodes: 256
@@ -831,8 +943,9 @@ added to it. CPU and GPU times are never added together.
 **Surface capture for global illumination.** `explorer.captureSurfaceView(pose, { width, height,
 signal })` returns an owned `SurfaceCapture` version 1 — the four material textures, depth, inverse
 view-projection, camera position and selected triangle count — for future lighting work. It reuses
-the page cache, selects for the requested camera, restores the main view afterwards and must be
-serialized with ordinary rendering; translucency is excluded.
+the page cache, selects for the requested camera in a view of its own, leaves the main view as it
+was and must be serialized with ordinary rendering; translucency is excluded. The WebGL2 path draws
+no material surfaces and refuses it by name (`SURFACE_CAPTURE_UNSUPPORTED`).
 
 ## Proofs
 

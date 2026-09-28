@@ -14,10 +14,14 @@ import { SPRITE_WGSL } from '../../../visibility/shader/spriteWgsl.ts';
  *  `dash` above zero cuts a dashed line page's gaps (`lineDash`) at the distance its first
  *  coordinate carries. `sprite` turns a sprite's quad to face the camera (`spriteAt`), as every
  *  raster does; zero draws the triangles as they are. */
-export const FALLBACK_WIREFRAME = 1,
+const FALLBACK_WIREFRAME = 1,
   FALLBACK_CLUSTER_PAGE = 2;
 
-export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,pad1:u32,lineWidth:f32,pixelRatio:f32,viewport:vec2f,dash:vec2f,sprite:vec2f,}
+/** The `mode` word of a fallback draw, from the image's diagnostic and where the slot's geometry is. */
+export const fallbackMode = (diagnostic: string | undefined, clusterPage: boolean) =>
+  (diagnostic === 'wireframe' ? FALLBACK_WIREFRAME : 0) | (clusterPage ? FALLBACK_CLUSTER_PAGE : 0);
+
+export const SHADER = `struct Uniforms{viewProj:mat4x4f,world:mat4x4f,color:vec4f,pageOffset:u32,indexCount:u32,mode:u32,identity:u32,lineWidth:f32,pixelRatio:f32,viewport:vec2f,dash:vec2f,sprite:vec2f,}
 @group(0) @binding(0) var<storage, read> indices:array<u32>;
 @group(0) @binding(1) var<storage, read> positions:array<f32>;
 @group(0) @binding(2) var<uniform> uni:Uniforms;
@@ -34,9 +38,10 @@ struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@locatio
  var lineDistance=0.0;
  if((uni.mode&${FALLBACK_CLUSTER_PAGE}u)!=0u){
   let h=clusterHeader(uni.pageOffset);
-  local=clusterPosition(h,uni.pageOffset,clusterIndex(h,uni.pageOffset,vertexIndex));
-  if(uni.lineWidth>0.0){along=clusterNormal(h,uni.pageOffset,clusterIndex(h,uni.pageOffset,vertexIndex));}
-  if(uni.dash.x>0.0){lineDistance=clusterUv(h,uni.pageOffset,clusterIndex(h,uni.pageOffset,vertexIndex)).x;}
+  let id=clusterIndex(h,uni.pageOffset,vertexIndex);
+  local=clusterPosition(h,uni.pageOffset,id);
+  if(uni.lineWidth>0.0){along=clusterNormal(h,uni.pageOffset,id);}
+  if(uni.dash.x>0.0){lineDistance=clusterUv(h,uni.pageOffset,id).x;}
  }else{
   let id=indices[uni.pageOffset+vertexIndex];
   local=vec3f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u]);
@@ -46,7 +51,7 @@ struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@locatio
  if(uni.lineWidth>0.0){out.position=lineClip(out.position,uni.viewProj*(uni.world*vec4f(along,0.0)),uni.lineWidth,uni.viewport,uni.pixelRatio);}
  if(uni.sprite.y!=0.0){let s=spriteAt(uni.viewProj,uni.world,local.xy,uni.sprite);out.position=uni.viewProj*s;out.view=s.xyz;}
  out.lineDistance=lineDistance;
- if((uni.mode&${FALLBACK_WIREFRAME}u)!=0u){out.tri=stableTriangleId(uni.pad1,vertexIndex/3u);}
+ if((uni.mode&${FALLBACK_WIREFRAME}u)!=0u){out.tri=stableTriangleId(uni.identity,vertexIndex/3u);}
  let corner=vertexIndex%3u;
  out.bary=select(select(vec3f(0.0,0.0,1.0),vec3f(0.0,1.0,0.0),corner==1u),vec3f(1.0,0.0,0.0),corner==0u);
  return out;

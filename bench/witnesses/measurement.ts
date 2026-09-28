@@ -8,7 +8,8 @@
 export * from '../../packages/sdk-browser/src/measurement/measurement.ts';
 // The light group the bench's witness page builds (`../runner/witnessPage.ts`) is of the graph.
 export { Group } from '../../packages/sdk-core/src/world/object/object3d.ts';
-export { GraphLight } from '../../packages/sdk-browser/src/host/graph/light.ts';
+export { Light } from '../../packages/sdk-core/src/world/light/light.ts';
+export { numbered } from '../../packages/sdk-browser/src/host/graph/serial.ts';
 export { referenceBackend } from './referenceBackend.ts';
 export { exactPagesBackend } from './exact/backend.ts';
 export { threeLodBackend } from './three/lod.ts';

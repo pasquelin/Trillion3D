@@ -9,6 +9,7 @@ import { createDagOutputScratch, writeDagUniforms, parseDagOutput } from './unif
 import type { createDagResources } from './resources.ts';
 import { encodeDagKernels } from './encode.ts';
 import { DAG_READBACK_SLOTS as SLOTS } from './layout.ts';
+import { grownListCap, listDemand, queueDagListGrowth } from './listCap.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 export type DagRuntimeState = {
@@ -26,6 +27,12 @@ export type DagRuntimeState = {
   readbackWorldRevision: number;
   mapped: boolean[];
   slot: number;
+  /** The list cap a truncated readout asked for, taken once no readback is in flight; 0: none. */
+  grow: number;
+  /** A list being made: no frame cuts until it is in place or refused. */
+  growing: boolean;
+  /** The device refused a larger list: a truncated readout now goes to the host as it is. */
+  listFull: boolean;
 };
 
 export function createDagDispatch(
@@ -33,23 +40,21 @@ export function createDagDispatch(
   state: DagRuntimeState,
   fail: () => void,
 ): GpuSelection['dispatch'] {
-  const {
-    device,
-    packed,
-    residentCut,
-    outputBytes,
-    readbackBytes,
-    uniformData,
-    uniforms,
-    output,
-    readback,
-  } = resources;
+  const { device, packed, residentCut, uniformData, uniforms } = resources;
   // One readback slot, one set of arrays: the snapshot rewrites them instead of reallocating.
   // The pair returned to the caller stays new on every readback, so it always distinguishes two
   // snapshots by identity — that is what adoption compares to know if the cut moved.
   const scratch = Array.from({ length: SLOTS }, createDagOutputScratch);
   const dispatch: GpuSelection['dispatch'] = (next, shared) => {
     if (state.disposed || state.dead) return;
+    // A list to grow waits for the readbacks in flight, and no frame cuts on the old one meanwhile.
+    if (state.growing) return;
+    if (state.grow) {
+      if (state.mapped.includes(true)) return;
+      queueDagListGrowth(resources, state);
+      return;
+    }
+    const { output, readback, outputBytes, readbackBytes: copied, listCap } = resources;
     const compute =
       !state.lastSubmitted ||
       !sameSelectionUniforms(state.lastSubmitted, next) ||
@@ -80,17 +85,14 @@ export function createDagDispatch(
       undoReadbackWorld = state.readbackWorldRevision,
       undoSlot = state.slot;
     if (compute) {
-      writeDagUniforms(uniformData, packed, next, residentCut);
+      writeDagUniforms(uniformData, packed, next, residentCut, listCap);
       device.queue.writeBuffer(uniforms, 0, uniformData);
       encodeDagKernels(encoder, resources);
       state.lastSubmitted = copySelectionUniforms(next);
       state.submittedResidencyRevision = state.residencyRevision;
       state.submittedWorldRevision = state.worldRevision;
     }
-    if (copy) {
-      // Snapshot and compacted list follow each other in the same buffer: a single copy.
-      encoder.copyBufferToBuffer(output, 0, readback[i], 0, readbackBytes);
-    }
+    if (copy) encoder.copyBufferToBuffer(output, 0, readback[i], 0, copied);
     const captured = copy ? copySelectionUniforms(next) : undefined;
     const capturedWorldRevision = state.worldRevision,
       capturedResidencyRevision = state.residencyRevision;
@@ -111,17 +113,27 @@ export function createDagDispatch(
             // since mapping a destroyed buffer is a validation error on the device (#334).
             if (state.disposed) return;
             await readback[i].mapAsync(GPUMapMode.READ);
-            const bytes = readback[i].getMappedRange();
-            const parsed = parseDagOutput(
-              bytes,
-              0,
-              bytes.byteLength,
-              residentCut ? outputBytes / 4 : 0,
-              scratch[i],
-            );
+            const bytes = readback[i].getMappedRange(),
+              drawnWordOffset = residentCut ? outputBytes / 4 : 0;
+            const parsed = parseDagOutput(bytes, 0, copied, drawnWordOffset, scratch[i]);
+            // A cut past the list: the list grows and the next dispatch cuts again, rather than
+            // hand the host a truncated readout it could only give up to the CPU cut.
+            const grown =
+              parsed?.truncated && !state.listFull
+                ? grownListCap(
+                    device.limits,
+                    packed.pageCount,
+                    listCap,
+                    listDemand(bytes, drawnWordOffset),
+                  )
+                : undefined;
             readback[i].unmap();
             if (!parsed) {
               fail();
+              return;
+            }
+            if (grown) {
+              state.grow = Math.max(state.grow, grown);
               return;
             }
             // A residency that moved since makes the drawable mask a lie. A pose that moved only

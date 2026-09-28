@@ -11,6 +11,7 @@ import { createShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
 import { createShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import { noteResidenceChange } from '../../shadow/bounds.ts';
 import { redrawShortPages } from '../../shadow/casters.ts';
+import { disposeStaticLayer } from '../state/lights.ts';
 
 const viewpoint: ShadowViewpoint & {
   position: [number, number, number];
@@ -81,6 +82,7 @@ export function planShadowRegions(
   lights.shadowFaces = 0;
   lights.shadowDraws = 0;
   lights.shadowDrawCalls = 0;
+  lights.shadowRenderPasses = 0;
   // An atlas not sized yet holds no page: nothing to plan before the first frame on the canvas.
   if (!shadows?.view || !store.count) {
     plan.releaseDeferred();
@@ -150,14 +152,14 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
     return;
   lights.staticLayerPending = true;
   const capacity = rt.layout.rows.casterSlots,
-    side = lights.plan.pool.side;
-  deviceMade(device, () => shadowLayerTexture(device, side))
+    { side, layers } = lights.plan.pool;
+  deviceMade(device, () => shadowLayerTexture(device, side, layers))
     .then((texture) => {
       if (texture) return createShadowStaticLayer(device, texture);
       rt.diag.engineDiagnostic('gpu-out-of-memory', 'The device refused the shadow static layer', {
         kind: 'warning',
         pool: 'shadow-static-layer',
-        requestedBytes: shadowAtlasBytes(side),
+        requestedBytes: shadowAtlasBytes(side, layers),
         grantedBytes: null,
       });
     })
@@ -166,7 +168,7 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
       // The pyramids and the occlusion test read the layer: a device that refuses them keeps the
       // layer, and draws the moving casters untested.
       try {
-        lights.pageHiz = await createShadowPageHiz(device, layer.view);
+        lights.pageHiz = await createShadowPageHiz(device, layer.targets[0]);
         lights.occlusion = await createShadowOcclusion(device, capacity);
       } catch (error) {
         lights.pageHiz?.dispose();
@@ -174,6 +176,8 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
         rt.diag.diagnosticFailure('shadow-occlusion-unavailable', error);
       }
       lights.staticLayer = layer;
+      // A session disposed meanwhile tore its layer down already: what landed after is freed.
+      if (rt.signal.aborted) disposeStaticLayer(lights);
     })
     .catch((error) => rt.diag.diagnosticFailure('shadow-static-layer-unavailable', error));
 }

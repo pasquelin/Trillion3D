@@ -11,6 +11,7 @@
  */
 import type { TableMaterial, TableTextureSlot } from '../../../../sdk-core/src/index.ts';
 import { Vector2 } from '../../../../sdk-core/src/world/math/vector2.ts';
+import type { AlphaMode } from '../../../../sdk-core/src/contracts/material.ts';
 import { GraphSurface } from '../graph/surface.ts';
 import { type GraphTexture } from '../graph/texture.ts';
 import { hostSide } from '../../scene/materialSide.ts';
@@ -25,11 +26,31 @@ const COLOUR_MAPS = new Set(['sheenColorMap', 'specularColorMap']);
 /** The extension factors that are colours. */
 const COLOURS = new Set(['sheenColor', 'specularColor']);
 
+/** How a surface draws its alpha mode, at open and when a page changes it
+ *  (`../../world/api/materialValues.ts`): blended, it composes and writes no depth; masked, it cuts
+ *  at `cutoff`; opaque, neither. */
+export const alphaModeFields = (mode: AlphaMode, cutoff: number) => ({
+  transparent: mode === 'blend',
+  depthWrite: mode !== 'blend',
+  alphaTest: mode === 'mask' ? cutoff : 0,
+});
+
 const isSlot = (value: unknown): value is TableTextureSlot =>
   typeof value === 'object' && value !== null && 'texture' in value;
 
 /** The variant of a surface a primitive asks for: what its geometry carries. */
 export type SurfaceVariant = { vertexColors: boolean; flatShading: boolean };
+
+/** A variant's key in a cache of surfaces by variant: the open's and a created material's. */
+export const variantKey = ({ vertexColors, flatShading }: SurfaceVariant) =>
+  `${vertexColors}:${flatShading}`;
+
+/** The variant a geometry asks for: vertex colours where it has some, flat shading where it has
+ *  no normal — at open (`graph.ts`) and for a created material assigned later (#847). */
+export const surfaceVariantOf = (attributes: Record<string, unknown>): SurfaceVariant => ({
+  vertexColors: attributes.color !== undefined,
+  flatShading: attributes.normal === undefined,
+});
 
 function extensionParams(
   entry: TableMaterial,
@@ -51,7 +72,18 @@ function extensionParams(
   }
 }
 
-async function build(entry: TableMaterial, variant: SurfaceVariant, slot: Slot) {
+/** The table rank each prepared surface was built from: the scene's own material id, which a
+ *  page lists and sets by (`../../world/api/materialApi.ts`); a surface built elsewhere has none. */
+const tableRanks = new WeakMap<GraphSurface, number>();
+export const tableRankOf = (surface: GraphSurface) => tableRanks.get(surface);
+
+async function build(
+  materials: readonly TableMaterial[],
+  rank: number,
+  variant: SurfaceVariant,
+  slot: Slot,
+) {
+  const entry = materials[rank];
   const params: Params = { color: linearColour(entry.baseColor), opacity: entry.opacity };
   const pending: Promise<void>[] = [];
   const assign = (name: string, from: TableTextureSlot | null, colour = false) => {
@@ -84,9 +116,10 @@ async function build(entry: TableMaterial, variant: SurfaceVariant, slot: Slot) 
     params.attenuationColor = linearColour(entry.attenuationColor);
   }
   if (entry.doubleSided) params.side = hostSide('double');
-  params.transparent = entry.alphaMode === 'BLEND';
-  if (entry.alphaMode === 'BLEND') params.depthWrite = false;
-  if (entry.alphaMode === 'MASK') params.alphaTest = entry.alphaTest;
+  Object.assign(
+    params,
+    alphaModeFields(entry.alphaMode.toLowerCase() as AlphaMode, entry.alphaTest),
+  );
   if (variant.vertexColors) params.vertexColors = true;
   if (variant.flatShading) params.flatShading = true;
   await Promise.all(pending);
@@ -94,6 +127,7 @@ async function build(entry: TableMaterial, variant: SurfaceVariant, slot: Slot) 
     entry.kind === 'unlit' ? 'basic' : entry.kind === 'physical' ? 'physical' : 'standard';
   const material = new GraphSurface(family, params);
   if (entry.name) material.name = entry.name;
+  tableRanks.set(material, rank);
   return material;
 }
 
@@ -104,10 +138,10 @@ async function build(entry: TableMaterial, variant: SurfaceVariant, slot: Slot) 
 export function preparedMaterials(materials: readonly TableMaterial[], slot: Slot) {
   const built = new Map<string, Promise<GraphSurface>>();
   return (rank: number, variant: SurfaceVariant) => {
-    const key = `${rank}:${variant.vertexColors}:${variant.flatShading}`;
+    const key = `${rank}:${variantKey(variant)}`;
     let material = built.get(key);
     if (!material) {
-      material = build(materials[rank], variant, slot);
+      material = build(materials, rank, variant, slot);
       built.set(key, material);
     }
     return material;

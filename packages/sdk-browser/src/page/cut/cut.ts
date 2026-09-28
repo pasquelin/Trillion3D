@@ -62,10 +62,12 @@ export function selectVisiblePages<T extends PageRecord>(
   state.flatStretch = 1;
   state.flatFocal = 1;
   state.flatExact = false;
+  state.flatSound = false;
   state.shownCount = 0;
   state.wantedCount = 0;
   state.wantedTriangles = 0;
   state.shownTriangles = 0;
+  state.uncoveredTriangles = 0;
   state.frustumRejected = 0;
   state.nodesTested = 0;
   state.lodLevel = 0;
@@ -106,6 +108,7 @@ export function selectVisiblePages<T extends PageRecord>(
   result.nodesTested = state.nodesTested;
   result.lodLevel = state.lodLevel;
   result.complete = state.complete;
+  result.uncoveredTriangles = state.uncoveredTriangles;
   result.pixelError = state.pixelError;
   // An image's cut lets go of the readiness of the roots no cut saw since the previous one.
   if (!options.light) held?.endImage();

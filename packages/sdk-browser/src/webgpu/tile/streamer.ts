@@ -131,8 +131,7 @@ export function createWebgpuTileStreamer(options: {
           stop = !unbounded && (bytes >= options.budgetBytes || !budget.admits());
         }
       }
-      if (encoder) device.queue.submit([encoder.finish()]);
-      sources.endPass();
+      sources.endPass(encoder, at);
       flushAll();
       requests.defer(wanted, index);
       counters.served += served;
@@ -180,11 +179,12 @@ export function createWebgpuTileStreamer(options: {
       return results.reduce((total, result) => total + result.evicted, 0);
     },
     metrics: () => counters.metrics(atlases, sources, encoding.name),
-    /** True while a cooked level is being read: a missing tile can still arrive. */
+    /** True while a cooked level is read or a working texture built: a missing tile can still come. */
     get reading() {
-      return (sources.levels?.inFlight ?? 0) > 0;
+      return sources.reading;
     },
-    /** Held when in-flight image feedback has come back and level reads have completed. */
+    /** Held when in-flight image feedback has come back, level reads have completed and the
+     *  working textures asked are built. */
     settled: () => Promise.all([feedback.settled(), sources.settled()]).then(() => undefined),
     destroy() {
       sources.destroy();

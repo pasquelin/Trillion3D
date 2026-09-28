@@ -113,22 +113,31 @@ pub(super) fn scene_roots(g: &Value, nodes: &[Value]) -> Result<Vec<usize>> {
     Ok(roots)
 }
 
-/// Nodes the rendered scene reaches from its roots. A node of another scene, or
-/// that no scene names, does not belong to what is compiled: neither its geometry,
-/// nor its light, nor its stand-in in the proxy. This set is the only one
-/// selection, the proxy and lights consult, so they cannot answer three different
-/// things.
-pub(super) fn scene_nodes(g: &Value) -> Result<BTreeSet<usize>> {
+/// Whether `node` declares itself hidden (`KHR_node_visibility` `visible: false`).
+pub(crate) fn declared_hidden(node: &Value) -> bool {
+    node.pointer("/extensions/KHR_node_visibility/visible") == Some(&Value::Bool(false))
+}
+
+/// Nodes the rendered scene reaches from its roots, and those a hidden node hides (itself and
+/// every node under it: compiled, but no surface, proxy triangle or collider comes from them). A
+/// node no scene reaches is not compiled at all. Selection, the proxy and lights read this walk.
+pub(crate) fn scene_nodes(g: &Value) -> Result<(BTreeSet<usize>, BTreeSet<usize>)> {
     let nodes = values(g, "nodes")?;
-    let mut stack = scene_roots(g, nodes)?;
-    let mut reached = BTreeSet::new();
-    while let Some(id) = stack.pop() {
+    let roots = scene_roots(g, nodes)?;
+    let mut stack: Vec<_> = roots.into_iter().map(|id| (id, false)).collect();
+    let (mut reached, mut hidden) = (BTreeSet::new(), BTreeSet::new());
+    while let Some((id, above)) = stack.pop() {
         if !reached.insert(id) {
             continue;
         }
-        stack.extend(children_of(nodes, id)?);
+        let under = above || declared_hidden(&nodes[id]);
+        if under {
+            hidden.insert(id);
+        }
+        let children = children_of(nodes, id)?;
+        stack.extend(children.into_iter().map(|child| (child, under)));
     }
-    Ok(reached)
+    Ok((reached, hidden))
 }
 
 pub(super) fn select_nodes(

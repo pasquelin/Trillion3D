@@ -13,6 +13,12 @@ import type { PageRec, ClusterRoot } from './types.ts';
 import { placementsOf } from '../../placement/roots.ts';
 import { rowShadowless, type PlacementRows } from '../../placement/rows.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { blendMoves, isAssignment, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
+
+/** Whether a primitive's pages are drawn blended: the rule of the open, and of a material a page
+ *  moves between draw classes later (`reassignBlend`). */
+const pagesBlend = (primitive: { pass?: string }, surface: { transparent: boolean }) =>
+  primitive.pass === 'clustered-blend' || surface.transparent;
 
 export function collectClusterPages(
   source: Object3D,
@@ -55,7 +61,7 @@ export function collectClusterPages(
       continue;
     }
     const template = templates.pagesOf(primitive);
-    const transparent = primitive.pass === 'clustered-blend' || surface.transparent;
+    const transparent = pagesBlend(primitive, surface);
     // The grid moved every position of this primitive by at most this much: its clusters' boxes
     // grow by it, so culling still encloses the surface an engine draws from the pages.
     const slack = quantizationErrorOf(primitive);
@@ -80,9 +86,9 @@ export function collectClusterPages(
           array: entry.array,
           triangles: page.count / 3,
           indexBytes: entry.array?.byteLength ?? page.bytes,
-          // A transparent cluster keeps its index page: its forward draw reads an index buffer and
-          // the source vertices, which no page replaces (`../../webgpu/blend/shader.ts`).
-          geometryPage: transparent ? undefined : page.geometry,
+          // A transparent cluster draws from its geometry page as an opaque one does
+          // (`../../webgpu/blend/shader.ts`).
+          geometryPage: page.geometry,
           min: mins[pageIndex],
           max: maxs[pageIndex],
           role: page.role,
@@ -147,11 +153,41 @@ export function collectClusterPages(
     }
     order++;
   }
+  /** Whether a record is drawn blended once `alpha` moved its surfaces, before or after they are
+   *  written: the family this collection gives the class `alpha.to`, or the one it has. */
+  const blendOf = (rec: PageRec, alpha: AlphaChange) => {
+    const mesh = rec.sourceMesh,
+      worn =
+        mesh &&
+        (isAssignment(alpha)
+          ? alpha.meshes.has(mesh)
+          : alpha.surfaces.includes(mesh.material as object)),
+      primitive = worn && primitiveOf(associations.get(mesh));
+    return primitive
+      ? pagesBlend(primitive, { transparent: alpha.to === 'blend' })
+      : rec.transparent;
+  };
   return {
     roots,
     allPages,
     worlds,
     blendCopies,
+    blendOf,
+    /**
+     * The open's assignment, run again once a material moved into or out of blended inside the
+     * session (#846): each record takes `blendOf`; true when one moved. An engine that sorts its
+     * meshes by surface at every draw — WebGL2's display graph — has only this left to follow:
+     * whether a record rows place is drawn instanced (`drawnInstanced`).
+     */
+    reassignBlend(records: readonly PageRec[], alpha: AlphaChange) {
+      let moved = false;
+      for (const rec of blendMoves(alpha) ? records : []) {
+        const transparent = blendOf(rec, alpha);
+        moved ||= transparent !== rec.transparent;
+        rec.transparent = transparent;
+      }
+      return moved;
+    },
     bootstrap,
     requestCount: indexPageRequests(allPages),
     prepared: metadata.primitives.reduce((n, p) => n + p.pages.length, 0),

@@ -7,6 +7,7 @@ import {
   DAG_ERROR_MODEL,
   EngineError,
   FORMAT_VERSION,
+  TEXTURE_PREVIEW_VERSION,
   compareImages,
 } from './index.ts';
 
@@ -82,6 +83,16 @@ test('a cache without a cluster DAG is refused by name, with the primitive that 
     assert.throws(
       () => assertCacheIdentity({ ...base, errorModel }),
       (error: unknown) => error instanceof EngineError && error.code === 'STALE_CACHE',
+    );
+  // #962: texture levels of another version are refused by name, the recompile command given.
+  assertCacheIdentity({ ...base, textures: { url: 'u', version: TEXTURE_PREVIEW_VERSION } });
+  for (const version of [5, undefined])
+    assert.throws(
+      () => assertCacheIdentity({ ...base, textures: { url: 'u', version } }),
+      (error: unknown) =>
+        error instanceof EngineError &&
+        error.code === 'STALE_CACHE' &&
+        /texture levels are version .*recompile the cache \(trillion3d-compile/.test(error.message),
     );
   // An empty primitive carries no band either: it cannot be drawn, so it is refused, not skipped.
   assert.throws(

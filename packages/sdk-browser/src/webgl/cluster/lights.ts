@@ -2,17 +2,12 @@ import { LTC_UNIT, createLtcTexture } from './rectGlsl.ts';
 import { inReferenceOrder } from './lightOrder.ts';
 import { WebglClusterProbe } from './probe.ts';
 import { WebglClusterFog } from './fog.ts';
+import { sceneFogOf, type Fog } from '../../world/core/sceneFog.ts';
 import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
 import { isLightNode } from '../../host/graph/kinds.ts';
-import type { GraphLight, GraphRectLight } from '../../host/graph/light.ts';
-
-type MatrixNode = {
-  visible: boolean;
-  parent: MatrixNode | null;
-  matrixWorld: { elements: ArrayLike<number> };
-};
-/** A light that takes a slot of the program: one that aims or reaches, or a rectangle. */
-type DirectLight = GraphLight | GraphRectLight;
+import { shownChain } from '../../placement/hidden.ts';
+import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 /** The ambient irradiance a frame sums (r, g, b, and whether any ambient light counted), reused. */
 const AMBIENT = new Float64Array(4);
@@ -20,18 +15,15 @@ const AMBIENT = new Float64Array(4);
 /** A host scene background read by shape: a colour, in linear components, or anything else. */
 export type SceneColour = { isColor?: boolean; r: number; g: number; b: number } | null | undefined;
 export type WebglClusterScene = {
-  traverse(visitor: (entry: MatrixNode) => void): void;
+  traverse(visitor: (entry: object) => void): void;
   /** Host background: a colour clears the transmission backdrop, anything else clears to black. */
   background?: SceneColour | object;
   /** The contract's fog, over every drawn surface; none when absent. */
-  fog?: SceneFog | null;
+  fog?: Fog | null;
 };
 
-const visibleThroughParents = (object: MatrixNode) => {
-  for (let current: MatrixNode | null = object; current; current = current.parent)
-    if (!current.visible) return false;
-  return true;
-};
+/** The kinds that take a slot of this path; a probe adds into the irradiance instead. */
+const DRAWN = new Set(['directional', 'point', 'spot', 'rectArea', 'ambient']);
 
 export const unsupportedClusterLight = (scene: WebglClusterScene) => {
   let reason: string | undefined;
@@ -39,7 +31,10 @@ export const unsupportedClusterLight = (scene: WebglClusterScene) => {
     ambient = 0;
   scene.traverse((light) => {
     // A probe takes no light slot: its coefficients add into the program's irradiance.
-    if (!isLightNode(light) || light.kind === 'probe' || !visibleThroughParents(light)) return;
+    if (!isLightNode(light) || light.kind === 'probe' || !shownChain(light)) return;
+    // A world's sky over a ground reaches this path as the environment's irradiance, a probe.
+    if (!DRAWN.has(light.kind))
+      reason ??= `${light.kind} light is not drawn by the WebGL2 cluster path`;
     // The ambient lights share one slot: `upload` sums them into a single irradiance.
     if (light.kind === 'ambient') ambient = 1;
     else count++;
@@ -57,11 +52,14 @@ export const unsupportedClusterLight = (scene: WebglClusterScene) => {
 export class WebglClusterLights {
   private data = new Float32Array(4 * 4 * 64);
   /** The direct lights of the frame, in the graph's order; reused from frame to frame. */
-  private lights: DirectLight[] = [];
+  private lights: Light[] = [];
   private buffer: WebGLBuffer;
   private ltc: WebGLTexture;
   private probe: WebglClusterProbe;
   private fog: WebglClusterFog;
+  /** The scene's fog last read, and the lighting's form of it: read again when it is replaced. */
+  private heldFog: Fog | null | undefined = null;
+  private readFog: SceneFog | undefined;
   private gl: WebGL2RenderingContext;
   constructor(gl: WebGL2RenderingContext, program: WebGLProgram) {
     this.gl = gl;
@@ -94,13 +92,13 @@ export class WebglClusterLights {
       );
     /** Column `c` of a world matrix, unit, carried into view space and scaled by `s`. */
     const axis = (at: number, m: ArrayLike<number>, c: number, s: number, w: number) =>
-      toView(at, m[c], m[c + 1], m[c + 2], s / (Math.hypot(m[c], m[c + 1], m[c + 2]) || 1), w);
+      toView(at, m[c], m[c + 1], m[c + 2], s / (hypot3(m[c], m[c + 1], m[c + 2]) || 1), w);
     this.probe.reset();
     const lights = this.lights;
     lights.length = 0;
     const ambient = AMBIENT.fill(0);
     scene.traverse((light) => {
-      if (!isLightNode(light) || !visibleThroughParents(light)) return;
+      if (!isLightNode(light) || !shownChain(light)) return;
       if (light.kind === 'probe') return this.probe.add(light);
       if (light.kind !== 'ambient') return void lights.push(light);
       ambient[0] += light.color.r * light.intensity;
@@ -115,8 +113,7 @@ export class WebglClusterLights {
       write(count * 16 + 4, 0, 0, -1, 3);
       write(count++ * 16 + 8, ambient[0], ambient[1], ambient[2], 1);
     }
-    function writeLight(light: DirectLight, kind: number) {
-      const lamp = light.kind === 'rect' ? undefined : light;
+    function writeLight(light: Light, kind: number) {
       let range = 0,
         inner = 1,
         outer = 1;
@@ -127,15 +124,15 @@ export class WebglClusterLights {
       let dx = 0,
         dy = 0,
         dz = 0;
-      if (kind !== 0) range = light.distance ?? 0;
+      if (kind !== 0) range = light.distance;
       if (kind === 2) {
-        outer = Math.cos(lamp!.angle ?? 0);
-        inner = Math.cos((lamp!.angle ?? 0) * (1 - (lamp!.penumbra ?? 0)));
+        outer = Math.cos(light.angle);
+        inner = Math.cos(light.angle * (1 - light.penumbra));
       }
       if (kind === 0 || kind === 2) {
         // Toward the light, in view space, unit: the reference's direction, normalised once here
         // and read as is by the program.
-        const target = lamp!.target!.matrixWorld.elements;
+        const target = light.target.matrixWorld.elements;
         const x = px - target[12],
           y = py - target[13],
           z = pz - target[14];
@@ -155,7 +152,7 @@ export class WebglClusterLights {
         view[2] * px + view[6] * py + view[10] * pz + view[14],
         range,
       );
-      if (light.kind === 'rect') {
+      if (light.kind === 'rectArea') {
         write(base + 8, light.color.r, light.color.g, light.color.b, light.intensity);
         // It emits down its local -z; its width runs along its local x.
         axis(base + 4, matrix, 8, -1, kind);
@@ -166,10 +163,11 @@ export class WebglClusterLights {
       const i = light.intensity;
       write(base + 8, light.color.r * i, light.color.g * i, light.color.b * i, 1);
       write(base + 4, dx, dy, dz, kind);
-      write(base + 12, inner, outer, lamp!.decay ?? 2, 0);
+      write(base + 12, inner, outer, light.decay, 0);
     }
     this.probe.upload(view);
-    this.fog.upload(scene.fog, view);
+    if (scene.fog !== this.heldFog) this.readFog = sceneFogOf((this.heldFog = scene.fog) ?? null);
+    this.fog.upload(this.readFog, view);
     const gl = this.gl;
     // The host's texture units are unknown at frame start: the lobe is bound again every frame.
     gl.activeTexture(gl.TEXTURE0 + LTC_UNIT);

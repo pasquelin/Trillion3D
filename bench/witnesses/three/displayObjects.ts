@@ -1,6 +1,6 @@
 /**
  * The host-library objects a witness hangs on the display graph it publishes: the background
- * colour, the lights copied from the source graph and the empty node a copied light aims at.
+ * colour and the lights copied from the source graph, each with the node it aims at.
  *
  * What reaches this file is every witness whose image the REFERENCE RENDERER draws — the
  * reference and level-of-detail witnesses — through the scene adapter. The engine's own WebGL2
@@ -13,15 +13,11 @@ import {
   installSceneLighting,
   type HostLight,
 } from '../../../packages/sdk-browser/src/lighting/sceneLighting.ts';
-import type { GraphLight } from '../../../packages/sdk-browser/src/host/graph/light.ts';
+import type { Light } from '../../../packages/sdk-core/src/world/light/light.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { threeLight } from './fromGraphNodes.ts';
 import * as THREE from 'three';
 import type { Object3D } from '../../../packages/sdk-core/src/world/object/object3d.ts';
-
-/** An empty node of a host display graph: what a copied light aims at, made here because
- *  making a host object is the boundary's, and posed by the placement that asked for it. */
-export const hostAimNode = () => new THREE.Object3D() as unknown as Object3D;
 
 /** The clear colour a host-rendered witness publishes: written in place once a colour is
  *  there, nothing allocated. */
@@ -41,7 +37,7 @@ export const hostBackground = (scene: THREE.Scene, changed: () => void) => (hex:
  *  lights placed on it. Building the host objects is the boundary's, the placement is not. */
 export function lighting(scene: THREE.Scene, clearColor: number, source: Object3D) {
   paint(scene, clearColor);
-  return installSceneLighting(scene, source, hostAimNode, (light) =>
-    asHostLibrary<HostLight>(threeLight(asHostLibrary<GraphLight>(light))),
+  return installSceneLighting(scene, source, (light) =>
+    asHostLibrary<HostLight>(threeLight(asHostLibrary<Light>(light))),
   );
 }

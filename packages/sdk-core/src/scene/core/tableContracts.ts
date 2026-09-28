@@ -21,8 +21,8 @@ export const SCENE_TABLES_FILE = 'scene-tables.json';
 /** Version of the product as a whole; each table it carries is versioned in turn. */
 const SCENE_TABLES_VERSION = 4;
 /** The version of the node table this runtime reads: every node but those a cell places, with its
- *  local pose. */
-const NODE_TABLE_VERSION = 3;
+ *  local pose and whether it is visible. */
+const NODE_TABLE_VERSION = 4;
 /** The version of the material table this runtime reads. */
 const MATERIAL_TABLE_VERSION = 4;
 /** The version of the geometry layout this runtime reads. */
@@ -34,6 +34,8 @@ const GEOMETRY_TABLE_VERSION = 1;
  * and scale, each `null` when silent. Several nodes naming one mesh is what instancing is here.
  */
 export interface TableNode {
+  /** Original u32 source rank as eight lowercase hexadecimal digits: fixed-width through partition renumbering. */
+  sourceNode?: string;
   /** The node's name. */
   name: string;
   /** Its children, in order. */
@@ -54,6 +56,9 @@ export interface TableNode {
   rotation: readonly number[] | null;
   /** How it is stretched. */
   scale: readonly number[] | null;
+  /** `false` when it declares itself hidden (`KHR_node_visibility`): it and the nodes under it
+   *  are not drawn until a page shows it. */
+  visible: boolean;
 }
 /** A punctual light as `KHR_lights_punctual` declares it, each silent field `null`. */
 export interface TableLight {

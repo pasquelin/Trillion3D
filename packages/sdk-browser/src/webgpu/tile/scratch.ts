@@ -1,7 +1,7 @@
 import type { Texture } from '../../../../sdk-core/src/index.ts';
-import { textureRgba } from '../../visibility/types.ts';
+import { texelsRefusal, textureRgba } from '../../visibility/types.ts';
 import { premultipliedByte } from '../../visibility/math.ts';
-import { generateMaterialMips } from '../../texture/mips.ts';
+import { generateMaterialMips, type MipChain } from '../../texture/mipBatch.ts';
 import { mipLevelCountFor } from '../../texture/tiles.ts';
 import type { CoverageReaders } from '../../texture/coverage.ts';
 import { writeRgba } from './write.ts';
@@ -28,6 +28,11 @@ export type TileScratch = {
   fill(): void;
   /** Builds its mips again from the picture it holds, under its readers' rule now (#42). */
   reduce(): void;
+  /** Its mips not built since its first picture: `reduce`, or a batch taking its `chain`. */
+  readonly stale: boolean;
+  /** What `reduce` hands `generateMaterialMips`, for a batch that reduces several at once: the
+   *  mips are then built, no longer `stale`. */
+  chain(): MipChain;
   destroy(): void;
 };
 
@@ -59,13 +64,16 @@ export function createTileScratch(
   /** The texels as uploaded, when they differ from the source's: one array kept for every fill —
    *  a live texture refills at each video frame, and its size never changes. */
   let staged: Uint8Array | undefined;
-  /** Sends the picture as it is now and builds its mips again, in the same texture. `flipY` and
+  let stale = true;
+  /** Sends the picture as it is now, in the same texture, its mips not built. `flipY` and
    *  `premultiplyAlpha` as the WebGL2 upload (`UNPACK_FLIP_Y_WEBGL`,
    *  `UNPACK_PREMULTIPLY_ALPHA_WEBGL`): the picture's last row lands at v = 0 (#362). */
-  const fill = () => {
+  const upload = () => {
     const { map } = options;
     const rgba = textureRgba(map);
     if (rgba) {
+      const refusal = texelsRefusal(map);
+      if (refusal) throw new Error(refusal);
       if (rgba.width !== width || rgba.height !== height) throw new Error('TEXTURE_SOURCE_SIZE');
       const texels =
         map.flipY || map.premultiplyAlpha
@@ -82,18 +90,32 @@ export function createTileScratch(
         [width, height],
       );
     }
-    reduce();
   };
-  const reduce = () => {
+  const chain = (): MipChain => {
+    stale = false;
     const cutoff = options.coverage?.cutoff(options.map);
-    generateMaterialMips(device, texture, format, width, height, cutoff !== undefined, cutoff);
+    return { texture, format, width, height, weighted: cutoff !== undefined, cutoff };
   };
-  fill();
+  const reduce = () => generateMaterialMips(device, [chain()]);
+  try {
+    upload();
+  } catch (error) {
+    // A picture refused at its first fill leaves no texture behind: its tile asks again.
+    texture.destroy();
+    throw error;
+  }
   return {
     texture,
     bytes: textureBytesOf(descriptor) ?? 0,
-    fill,
+    fill: () => {
+      upload();
+      reduce();
+    },
     reduce,
+    get stale() {
+      return stale;
+    },
+    chain,
     destroy: () => texture.destroy(),
   };
 }

@@ -9,11 +9,12 @@ const COMPILING = -1;
  * The world's effect chain on this image (`../../../effects/webgpuEffects.ts`): the passes that
  * run before tone mapping, over the resolved linear image — `accumulated`, or the lit image when
  * the image does not accumulate —; returns what composition reads, `accumulated` itself when the
- * chain draws nothing. The chain's output keeps the as-is share of the image it read. A diagnostic
- * view and a surface capture show the engine's image as it is, without the chain. The revision
- * drawn is kept, so a change of the chain breaks the hold (`../../frame/hold.ts`); an image drawn
- * while its programs compile keeps none, so the loop draws it again once they arrive
- * (`../../frame/interactiveFrame.ts`), without restarting the accumulation.
+ * chain draws nothing, and the last bloom's blend when the composition takes it over. The chain's
+ * output keeps the as-is share of the image it read. A diagnostic view and a surface capture show
+ * the engine's image as it is, without the chain. The revision drawn is kept, so a change of the
+ * chain breaks the hold (`../../frame/hold.ts`); an image drawn while its programs compile keeps
+ * none, so the loop draws it again once they arrive (`../../frame/interactiveFrame.ts`), without
+ * restarting the accumulation.
  */
 export function encodeEffects(
   rt: WebgpuPagesRuntime,
@@ -34,10 +35,18 @@ export function encodeEffects(
     rt.diag.diagnosticFailure('effects-unavailable', error),
   );
   const [width, height] = gpu.targetSize;
-  const output = gpu.effects.encode(encoder, passes, input, width, height);
+  // The composition blends the last bloom in once its programs are compiled (#963): same image.
+  const fuse =
+    passes.at(-1)?.kind === 'bloom' &&
+    !!gpu.deferred?.composesBloom((error) =>
+      rt.diag.diagnosticFailure('bloom-composition-unavailable', error),
+    );
+  const output = gpu.effects.encode(encoder, passes, input, width, height, fuse);
   if (gpu.effects.loading) gpu.effectsRevision = COMPILING;
   run.gpuDrawCalls += gpu.effects.draws;
-  return output === input ? accumulated : { color: output, share: accumulated?.share };
+  const bloom = gpu.effects.blend;
+  if (output === input && !bloom) return accumulated;
+  return { color: output, share: accumulated?.share, bloom };
 }
 
 /** True when the last encoded image lacks the chain as the page holds it — changed since, or

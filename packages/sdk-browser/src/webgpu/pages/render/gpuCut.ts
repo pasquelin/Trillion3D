@@ -1,5 +1,6 @@
 import type { EngineCamera } from '../../../camera/world.ts';
 import { cameraSelectionUniforms } from '../../../gpu/core/selection.ts';
+import { prefetchHorizonMs } from '../../../backend/common.ts';
 import { mirrorDrawnFromShown } from '../helpers.ts';
 import { abandonFrameEncoder, openFrameEncoder } from './encoder.ts';
 import { fallbackToCpuCut } from '../io/drops.ts';
@@ -61,15 +62,17 @@ export function renderGpuCut(
   marks.lightsEnd = lightsEnd;
   // The host's threshold, and no other: residency coarsens, one DAG level where a page is missing
   // (`../../../page/cut/rule.ts`).
+  // The view ahead looks a round trip further for pages that come from further away.
+  run.motion.horizonMs = prefetchHorizonMs(context.pageRoundTripMs?.());
   cameraSelectionUniforms(cam, pixelError, viewport, run.selectionUniforms, run.motion);
   // An image that adopts no readback moves no page; the adoption reports what it actually moved.
   run.pagesEntered = 0;
   run.pagesExited = 0;
   services.adoptGpuCut();
   marks.adoptEnd = performance.now();
-  // The sample did not fit under its ceiling: the reported list is truncated, and only the CPU cut
-  // still knows how to pick a representable subset — as for visibility-identifier overflow.
-  if (gpu.cutTruncated) return withoutGpuSelection(rt, 'truncated cut sample');
+  // The sample did not fit even the list the device holds (`../../../gpu/dag/listCap.ts`): only the
+  // CPU cut still knows how to pick a representable subset — as for visibility-identifier overflow.
+  if (gpu.cutTruncated) return withoutGpuSelection(rt, 'truncated cut sample past the device list');
   // One cut covers both passes: the image sweeps no DAG of its own for the transparents any more.
   marks.transparentSelectEnd = marks.adoptEnd;
   if (run.gpuMetricsReady) run.visible = run.desired.length;
@@ -118,6 +121,7 @@ export function renderGpuCut(
       residentCandidates: rows.candidateCount,
     });
   }
+  const imageBeforeEncode = run.imageRevision;
   marks.encodeStart = performance.now();
   try {
     encodeDraws(rt, gpuDevice, cam);
@@ -137,6 +141,6 @@ export function renderGpuCut(
   traceGpuCutFrame(rt, cam);
   // The image was encoded and submitted in full: it alone allows a hold, and only if the previous
   // one was already identical to it.
-  keepWebgpuFrame(rt);
+  if (run.imageRevision !== imageBeforeEncode) keepWebgpuFrame(rt);
   return true;
 }

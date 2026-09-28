@@ -1,7 +1,8 @@
+import { SCREEN_REFLECTION_WGSL } from '../../reflections/screenWgsl.ts';
 import {
   CONTRACT_BINDINGS_WGSL,
   FULLSCREEN_VERTEX,
-  SURFACE_BINDINGS_WGSL,
+  surfaceBindingsWgsl,
   VIEW_WGSL,
   WORLD_AT_WGSL,
 } from '../../lighting/deferred/shaders.ts';
@@ -25,7 +26,8 @@ export const WATER_BINDINGS = {
   baseMetal: 0,
   normalRough: 1,
   emissiveAo: 2,
-  flags: 3,
+  /** The water word the surface stage wrote (`surfaceWgsl.ts`), on the surface flags' number. */
+  word: 3,
   depth: 4,
   view: 5,
   directLights: 6,
@@ -69,7 +71,7 @@ export const WATER_BINDINGS = {
 export const WATER_COMPOSITE_SHADER = `${VIEW_WGSL}
 ${BLEND_VIEW_WGSL}
 struct Volume{transmission:f32,ior:f32,thickness:f32,attenuationDistance:f32,attenuationColor:vec4f,}
-${SURFACE_BINDINGS_WGSL}
+${surfaceBindingsWgsl('waterWord:texture_2d<f32>')}
 ${CONTRACT_BINDINGS_WGSL}
 @group(0) @binding(${WATER_BINDINGS.backdrop}) var backdrop:texture_2d<f32>;
 @group(0) @binding(${WATER_BINDINGS.backdropDepth}) var backdropDepth:texture_depth_2d;
@@ -120,7 +122,7 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
 }
 @fragment fn composeWater(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let coord=vec2i(pixel.xy);
- let packed=textureLoad(flags,coord,0).r;
+ let packed=waterWordAt(coord);
  if(packed==0u){discard;}
  let vol=volumes[waterRank(packed)];
  let alpha=waterOpacity(packed);
@@ -151,7 +153,7 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
   // proxy traced at the roughness floor, the probe irradiance over π above it, exactly zero without
   // bounce — and the specular of the declared lights on a null albedo: the diffuse lobe cancels,
   // the dielectric specular lobe stays.
-  reflected=F*reflectedRadiance(P,Nv,reflect(-V,Nv),rough)+declaredLighting(vec3f(0.0),0.0,rough,Nv,V,P,ao,pixel.xy);
+  reflected=F*resolvedRadiance(P,Nv,reflect(-V,Nv),rough)+declaredLighting(vec3f(0.0),0.0,rough,Nv,V,P,ao,pixel.xy);
  }
  let through=transmittedBackdrop(vol,P,Nv,V,coord,fragZ);
  // The glTF composition, a = alpha + t(1-alpha) with a·C carrying the whole transmitted share,
@@ -164,4 +166,6 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
  let color=premultiplied/max(a,1e-4);
  return vec4f(select(fogged(color,P,uni.eye.xyz),color,unlit),a);
 }
+
+${SCREEN_REFLECTION_WGSL}
 `;

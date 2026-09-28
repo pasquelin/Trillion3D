@@ -76,9 +76,78 @@ The golden's expected is in `procedural-materials/expected.json`.
 followed by a block that is not whole. The driver must refuse it as `blend-truncated`, without panic
 or unbounded allocation. Same CC0-1.0 licence, notice in `LICENSE.txt`.
 
+### `layouts`
+
+The same scene saved by three generations of Blender, each storing its meshes its own way:
+`blender-3.3.blend` (Blender 3.3.21: `MVert`, `MEdge`, `MPoly`, `MLoop` structures and an
+`MLoopUV` layer), `blender-4.4.blend` (Blender 4.4.3: named `CustomData` layers) and
+`blender-5.2.blend` (Blender 5.2.1 LTS: the attribute store, whose data addresses are unique only
+within each ID). Each is Zstandard-compressed, about 90 KB. The scene: a `Cube` mesh — six quads,
+two materials alternating by face, smooth faces with the four top edges marked sharp, one UV map —
+instanced by `CubeA` and `CubeB`, and an `Ngon` mesh — one flat-shaded pentagon, one corner dented and raised off its plane, no UV — held
+by `Ngon`. `src/tests/formats/blend_layouts.rs` proves the three cook to the same nodes,
+triangles, normals and UVs, bit for bit. CC0-1.0, notice in `LICENSE.txt`. Written by this
+script, run as `Blender --background --factory-startup --python layouts.py -- <out.blend>`:
+
+```python
+import bpy, sys
+
+out = sys.argv[sys.argv.index("--") + 1]
+for block in (bpy.data.objects, bpy.data.meshes, bpy.data.materials, bpy.data.cameras, bpy.data.lights):
+    for item in list(block):
+        block.remove(item)
+scene = bpy.context.scene
+
+def material(name, colour):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    mat.node_tree.nodes["Principled BSDF"].inputs["Base Color"].default_value = colour
+    return mat
+
+red = material("Red", (0.8, 0.1, 0.1, 1.0))
+blue = material("Blue", (0.1, 0.1, 0.8, 1.0))
+
+cube = bpy.data.meshes.new("Cube")
+verts = [(x, y, z) for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)]
+faces = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
+cube.from_pydata(verts, [], faces)
+cube.materials.append(red)
+cube.materials.append(blue)
+uv = cube.uv_layers.new(name="UVMap")
+square = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+for face in cube.polygons:
+    face.material_index = face.index % 2
+    face.use_smooth = True
+    for rank, corner in enumerate(face.loop_indices):
+        u, v = square[rank]
+        uv.data[corner].uv = (0.25 * face.index + 0.2 * u, v)
+for edge in cube.edges:
+    edge.use_edge_sharp = all(verts[i][2] == 1 for i in edge.vertices)
+cube.update()
+
+ngon = bpy.data.meshes.new("Ngon")
+ring = [(0, 0, 0), (2, 0, 0), (2, 2, 0), (1, 1, 0.5), (0, 2, 0)]
+ngon.from_pydata(ring, [], [tuple(range(len(ring)))])
+ngon.materials.append(blue)
+ngon.polygons[0].use_smooth = False
+ngon.update()
+
+for name, data, place, turn in (
+    ("CubeA", cube, (0, 0, 0), (0, 0, 0)),
+    ("CubeB", cube, (4, 0, 0), (0, 0, 0.5)),
+    ("Ngon", ngon, (0, 4, 0), (0.3, 0, 0)),
+):
+    obj = bpy.data.objects.new(name, data)
+    obj.location = place
+    obj.rotation_euler = turn
+    scene.collection.objects.link(obj)
+
+bpy.ops.wm.save_as_mainfile(filepath=out, compress=True)
+```
+
 ### What the repository does not own
 
-No file written by a Blender older than the named-attribute layout, nor by a
+No file written by a Blender older than 2.8, nor by a
 32-bit Blender or on a big-endian machine. The matching rejections are therefore proved on
 a minimal file written in the test from the format description
 (`src/plugins/scene/blend/tests/surgery.rs`), never on a committed fixture.
@@ -173,10 +242,10 @@ Verification command, from the repository root:
 cargo build --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml
 ./packages/asset-compiler-rust/target/release/trillion3d-compiler \
   tests/fixtures/formats/coplanar/<name>/<name>.gltf <CACHE>/<name> full 1000000 /assets
-jq '.coplanar' <CACHE>/<name>/native/full/<key>/clusters.json
+jq '.coplanar' <CACHE>/<name>/native/full/<key>/manifest-page-<head>.json
 ```
 
-`depthLayerPerPage` is read in column 20 of `clusters.bin` (one `u32` per cluster, in the order
+`depthLayerPerPage` is read in column 20 of the mesh page's column file (one `u32` per cluster, in the order
 of primitives then pages), or in the `depthLayer` field of each page before the manifest
 cut.
 
@@ -273,7 +342,7 @@ would fall even earlier.
 
 The image contract this binary publishes, the progressive-preview report — a `skipped` that
 names `image-float-unsupported`, and no preview — and the scene: format version, binary sidecar
-version, sha256 of `clusters.bin`, primitives and triangles. `case` and `rule` are
+version, sha256 of the mesh page's column file, primitives and triangles. `case` and `rule` are
 prose only, the test strips them before comparing.
 
 ### Provenance and licence
@@ -370,6 +439,23 @@ read at large size; the driver yields 256 × 256. It carries the same reference 
 `rgb24.bmp` of the same folder, but **quantised at the source** by its encoder: comparing it pixel to
 pixel with the BMP would report that encoder's loss, not the driver's. It is not committed here.
 
+## gltf-world
+
+`world.gltf` and `world.bin` (124 bytes), **CC0-1.0**, written by hand for this repository (#823):
+one triangle `(0,0,0) (1,0,0) (0,1,0)` placed by nested and instanced nodes, so each cooked
+position can be checked against the world position the file declares.
+
+- `house`, the root: translation `(10,0,0)`, a quarter turn about Y, scale 2 — it maps a point
+  `(x,y,z)` to `(10+2z, 2y, -2x)`;
+- `wall`, its child: the triangle, moved by `(1,0,0)`;
+- `lamp`, the child of `wall`: a `KHR_lights_punctual` point light moved by `(0,1,0)`, so at
+  `(10,2,-2)` in the world;
+- `wing`, the other child of `house`: the triangle moved by `(0,0,3)` and drawn twice through
+  `EXT_mesh_gpu_instancing` — once moved by `(1,0,0)`, once scaled by 3, turned a quarter about Z
+  and moved by `(0,2,0)`. `world.bin` holds, in order, the three positions (float), the three
+  indices (u16, padded to 4 bytes), then the two instances' translations, rotations and scales
+  (float).
+
 ## hdr
 
 **Golden fixture — Radiance HDR (RGBE) driver.**
@@ -402,7 +488,7 @@ identical pixels and isolated values, so both kinds of packet are exercised.
 
 The image contract this binary publishes, the progressive-preview report — a `skipped` that
 names `image-float-unsupported`, and no preview — and the scene: format version, binary sidecar
-version, sha256 of `clusters.bin`, primitives and triangles. `case` and `rule` are
+version, sha256 of the mesh page's column file, primitives and triangles. `case` and `rule` are
 prose only, the test strips them before comparing.
 
 ### Provenance and licence
@@ -797,7 +883,7 @@ in the clear do not make a minimal fixture, and the `tests/assets/` folder is sh
 **Correction fixture — progressive colour-texture previews.**
 
 A tiny glTF scene that pins the compiler's `texturePreviews` section end to end:
-real glTF → `compile()` → cache → `texturePreview*` columns of `clusters.bin`. The in-memory
+real glTF → `compile()` → cache → `texturePreview*` columns of the head page's column file. The in-memory
 unit tests of `../../../../packages/asset-compiler-rust/src/texture_preview/tests/` pin the math on images built in
 memory; this one pins the bytes an engine will actually read, PNG decoder and JPEG decoder
 included.
@@ -1170,7 +1256,7 @@ What each choice puts under watch:
 
 The selected driver, the `unitypackage` → inner driver chain published in the report, the three rejection
 codes, and the scene — format version, files read with their fingerprint, Unity driver counts,
-binary sidecar version, sha256 of `clusters.bin`, primitive, node and
+binary sidecar version, sha256 of the mesh page's column file, primitive, node and
 triangle counts. The compilation key does not appear in it: a converted scene's manifest carries its
 import duration, so that key changes from one run to the next without the scene moving. It is `files` that
 stands in for identity, and it is on it that equality of the two compilations rests. `case` and `rule`
@@ -1298,7 +1384,7 @@ What each choice puts under watch:
 
 The selected driver, the `usdz` → `usd` chain published in the report, the two rejection codes, the
 triangle count of the two-layer package, and the scene
-— format version, binary sidecar version, sha256 of `clusters.bin`, primitive, node
+— format version, binary sidecar version, sha256 of the mesh page's column file, primitive, node
 and triangle counts. The cache key does not appear in it: it holds the fingerprint of the whole
 compiler implementation, so an unrelated change would move it; equality with the
 bare layer is the real subject, and it is checked on the intermediate scene and the sidecar. `case` and
@@ -1399,7 +1485,7 @@ What each choice puts under watch:
 ### `expected.json`
 
 The selected driver, the `zip` → inner driver chain published in the report, the three rejection codes, and
-the scene — format version, binary sidecar version, sha256 of `clusters.bin`, primitive, node
+the scene — format version, binary sidecar version, sha256 of the mesh page's column file, primitive, node
 and triangle counts. The cache key does not appear in it: it holds the fingerprint of
 the whole compiler implementation, so an unrelated change would move it. It serves
 the equality of the two compilations, which is the real subject. `case` and `rule` are prose only, the

@@ -14,6 +14,8 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
+import { createTextureLevelReader } from '../../texture/levelReader.ts';
+import { tileRecord, tiledLevelBytes } from '../../texture/tileRecords.ts';
 
 // Behaviour: a block level whose bytes are not the whole blocks its dimensions imply is refused
 // where its read resolves — one failure, never held, never read again — and no tile of it takes
@@ -56,11 +58,73 @@ test('a block level of the wrong length fails once, is never held, and takes no 
   assert.deepEqual(read, ['bc7'], "the level file of the texture's lane, read once");
 });
 
+// STR-12, #962: a block tile is one request of its record, by Range, written as the file holds
+// it; a server that ignores Range sends the whole file once, and every tile of the level is cut
+// from it with no second request. Until the first answer says which, one read goes alone: six
+// tiles asked at once from a server that ignores Range would each download the whole file.
+test('a block tile is read by its Range; a whole-file answer serves the whole level', async () => {
+  globalThis.createImageBitmap ??= (() => Promise.reject(new Error('unused'))) as never;
+  const file = Uint8Array.from({ length: tiledLevelBytes(256, 256) }, (_, i) => (i * 13) & 255);
+  const tail = { levels: [], blocks: { bc7: [], astc: [] } };
+  const source = { kind: 'baked', sha256: 'c'.repeat(64), atlas: 0, tail };
+  const atlas = {
+    kind: 'color',
+    textures: [{ layout: tileLayout(256, 256), lane: 'rgba', source }],
+    roomFor: () => true,
+    place: () => ({ x: 0, y: 0, layer: 0 }),
+    poolOf: () => ({ texture: {} }),
+  } as unknown as WebgpuTileAtlas;
+  const tiles = [0, 1, 2, 3].map((i) => ({ slot: 0, level: 0, tx: i & 1, ty: i >> 1 }));
+  const records = tiles.map(({ tx, ty }) => tileRecord(256, 256, tx, ty));
+  const run = async (ranges: boolean) => {
+    const asked: (string | null)[] = [];
+    globalThis.fetch = (async (_: string, init?: RequestInit) => {
+      const range = new Headers(init?.headers).get('range'),
+        [from, to] = (range?.slice(6).split('-') ?? []).map(Number);
+      asked.push(range);
+      return ranges && range
+        ? new Response(file.slice(from, to + 1), { status: 206 })
+        : new Response(file, { status: 200 });
+    }) as typeof fetch;
+    const { device } = fakeDevice();
+    const written: Uint8Array[] = [];
+    device.queue.writeTexture = (_, data) => void written.push(data as Uint8Array);
+    const readLevel = createTextureLevelReader(
+      { textures: { url: '{sha}/{kind}-{level}.{format}', version: 6 }, key: 'k' },
+      'https://host/',
+    );
+    const sources = createTileSources({
+      device,
+      readLevel,
+      encoding: poolEncoding('bc7'),
+      counters: createTileCounters(),
+      onFailure: (_, error) => assert.fail(error as Error),
+    });
+    const pass = (frame: number, keys = tiles) =>
+      keys.map((key) => sources.serve(atlas, key, frame, () => ({}) as never));
+    // Four tiles asked at once: one read probes the server, the others wait for its answer.
+    pass(1);
+    assert.equal(asked.length, 1, 'one probe while Range support is unknown');
+    await sources.settled();
+    if (ranges) {
+      pass(2, tiles.slice(1));
+      await sources.settled();
+    }
+    assert.deepEqual(pass(3), ['served', 'served', 'served', 'served']);
+    const slices = records.map(({ offset, bytes }) => file.subarray(offset, offset + bytes));
+    assert.deepEqual(written, slices, 'each tile written from its record, a slice of the file');
+    return asked;
+  };
+  const ranges = records.map(({ offset, bytes }) => `bytes=${offset}-${offset + bytes - 1}`);
+  assert.deepEqual(await run(true), ranges, 'one request per tile, its Range');
+  assert.deepEqual(await run(false), [ranges[0]], 'the whole file, once, for the probe');
+});
+
 // #42, the wiring from the material census to the GPU reduction: a hosted colour texture reduces
 // with the weighted pipeline only when every surface reading it takes its alpha for coverage —
 // masked or blended by its alpha —; one read by an opaque surface, also as an emissive map, or by
 // a surface whose blending draws the colour under alpha 0 (`none`) or that transmits, stays plain.
-test('a hosted texture is reduced weighted only when every reader takes it for coverage', () => {
+test('a hosted texture is reduced weighted only when every reader takes it for coverage', async () => {
   installGpuGlobals();
   const map = () =>
     importHostTexture(new GraphTexture({ data: new Uint8Array(16), width: 2, height: 2 }));
@@ -88,24 +152,48 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
     place: () => ({ x: 0, y: 0, layer: 0 }),
     poolOf: () => ({ texture: { format: 'rgba8unorm-srgb' } }),
   } as unknown as WebgpuTileAtlas;
-  // One device per texture: the reduction pipeline it builds says the rule that texture took.
-  const ruleOf = (slot: number) => {
-    const { device, renderPipelines } = mockGpu({ compute: true });
+  const on = (device: GPUDevice, slots: number[]) => {
     const sources = createTileSources({
       device,
       encoding,
       counters: createTileCounters(),
       onFailure: (_, error) => assert.fail(error as Error),
     });
-    const served = sources.serve(atlas, { slot, level: 0, tx: 0, ty: 0 }, 1, () =>
-      device.createCommandEncoder(),
-    );
-    assert.equal(served, 'served');
+    const encoder = () => device.createCommandEncoder();
+    const pass = () =>
+      slots.map((slot) => sources.serve(atlas, { slot, level: 0, tx: 0, ty: 0 }, 1, encoder));
+    return { sources, pass };
+  };
+  // One device per pass: the reduction pipelines it builds say the rules its textures took.
+  const rulesOf = async (...slots: number[]) => {
+    const { device, renderPipelines, submits, textures: made } = mockGpu({ compute: true });
+    const { sources, pass } = on(device, slots);
+    // STR-13, #962: the pass that asks builds nothing — no texture, no upload, no submit —; a task
+    // after it builds the working textures asked, their mips in one submit (OMB-29, #961).
+    const before = made.length;
+    assert.ok(pass().every((verdict) => verdict === 'waiting'));
+    sources.endPass();
+    assert.equal(made.length, before, 'nothing built inside the pass');
+    assert.equal(sources.reading, true, 'a tile is still coming: the barrier waits for it');
+    await sources.settled();
+    assert.equal(sources.reading, false);
+    assert.equal(submits.length, 1, 'the working textures reduced in one submit');
+    // A pass with no newer feedback does not free what was built for its tiles unread.
+    sources.endPass(undefined, 1);
+    assert.ok(pass().every((verdict) => verdict === 'served'));
     return renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted);
   };
+  const rules: unknown[] = [];
+  for (let slot = 1; slot <= census.maps.length; slot++) rules.push(await rulesOf(slot));
   assert.deepEqual(
-    census.maps.map((_, index) => ruleOf(index + 1)),
+    rules,
     [[1], [0], [0], [1], [0], [0]],
     'masked and blended weighted; opaque, mixed, unblended and transmissive plain',
   );
+  assert.deepEqual(await rulesOf(1, 2), [1, 0], 'a masked and an opaque texture, one batch');
+  // Two working textures at most a pass: a third texture's tiles wait for a pass with room.
+  const { sources, pass } = on(mockGpu({ compute: true }).device, [1, 2, 3]);
+  pass();
+  await sources.settled();
+  assert.deepEqual(pass(), ['served', 'served', 'waiting']);
 });

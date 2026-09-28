@@ -126,7 +126,7 @@ export function manifest(): ClusterManifest {
     key: 'k',
     scope: 'full',
     errorModel: 'dag-group-qem-v2',
-    geometryPages: { formatVersion: 3 as const, codec: 'quantized' as const },
+    geometryPages: { formatVersion: 4 as const, codec: 'quantized' as const },
     simplification: true,
     sourceTriangles: 8,
     selectedTriangles: 8,
