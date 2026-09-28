@@ -1,6 +1,6 @@
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
-import { createHostRankDelta } from '../../webgpu/pages/io/hostRanks.ts';
+import { createHostRankDelta } from '../../page/hostRanks.ts';
 
 type ResidencyEnvironment = {
   bootstrapUrls: Set<string>;
