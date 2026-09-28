@@ -3,12 +3,19 @@ import { test } from 'node:test';
 import { feedbackGeometryReady, type ConvergenceFrame } from './feedbackConvergencePage.ts';
 
 const frame = {
+  frame: 0,
+  held: false,
   coverageReady: true,
   selected: 10,
   drawn: 10,
   pagesLoading: 0,
-  uncovered: null,
-} as ConvergenceFrame;
+  residentPages: 0,
+  requested: 0,
+  atLevel: 0,
+  pending: 0,
+  missingLevels: 0,
+  refused: 0,
+} satisfies ConvergenceFrame;
 
 test('WebGPU null uncovered count can still prove submitted geometry coverage', () => {
   assert.equal(feedbackGeometryReady(frame), true);
