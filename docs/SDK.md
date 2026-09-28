@@ -1034,9 +1034,7 @@ lux for `directional` — while the engine is radiometric, in W/sr and W/m². Th
 applied. A source whose image is then too dark or too bright is corrected by `world.exposure`, never
 by the import. FBX carries no photometric unit — its `Intensity` is a percentage — so two published
 settings convert it: **1000 lm / 4π ≈ 79.6 cd** for a point or spot, **10 000 lux** for a
-directional. A `point` or `spot` with no `range` gets `sqrt(I / 0.01 W·m⁻²)`, capped at 10 000 m;
-any range, declared or deduced, is then shortened as far as no point's irradiance moves by more
-than that 0.01 W·m⁻² floor (about 0.774 of a deduced range), never lengthened.
+directional. A `point` or `spot` with no `range` gets `sqrt(I / 0.01 W·m⁻²)`, capped at 10 000 m.
 `innerConeAngle` has no equivalent; the engine softens a spot edge with its own `spotEdgeSoftness`.
 A light that does not hold the contract is counted in the file's `rejected` map and left out.
 

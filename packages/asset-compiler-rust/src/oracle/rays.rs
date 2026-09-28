@@ -2,12 +2,18 @@ use super::geometry::{albedo_of, normalise, surface_at};
 use super::scene::World;
 use super::trace::{direct, scene_reach, trace};
 use super::OracleJob;
-use crate::shared_math::{cross, hash_unit, sub};
+use crate::shared_math::{cross, splitmix_unit, sub, GOLDEN};
 use std::f64::consts::PI;
 
 /// Secondary bounce rays, relative to primary ones: variance that matters is first bounce,
 /// and the second bounce needs fewer paths for the same error.
 const SECONDARY_SHARE: usize = 8;
+
+/// Hash-mixed integer mapped into [0,1). Seed comes from pixel and sample index,
+/// so two runs output the same image, regardless of thread count.
+fn hash_unit(seed: u64) -> f64 {
+    splitmix_unit(seed.wrapping_mul(GOLDEN))
+}
 
 /// Direction sampled cosine-weighted around : sampling cancels the
 /// cosine factor in the integral, so estimator is mean radiance times π.

@@ -1,7 +1,7 @@
 use super::geometry::vertex;
 use super::scene::World;
 use super::{OracleJob, OracleLight, KIND_SPOT, KIND_SUN, SPOT_EDGE};
-use crate::shared_math::{cross, dot, range_window, scale, sub};
+use crate::shared_math::{cross, dot, scale, sub};
 use rayon::prelude::*;
 
 /// What a ray hit: distance, and triangle. No stack, no recursion.
@@ -122,7 +122,9 @@ pub fn direct(world: &World, lights: &[OracleLight], point: [f64; 3], n: [f64; 3
                 continue;
             }
             let unit = scale(away, 1.0 / distance.max(1e-9));
-            let mut value = range_window(distance, light.range) / (distance * distance).max(1e-4);
+            let ratio = distance / light.range;
+            let window = (1.0 - ratio.powi(4)).clamp(0.0, 1.0).powi(2);
+            let mut value = window / (distance * distance).max(1e-4);
             if light.kind == KIND_SPOT {
                 let cosine = dot(scale(unit, -1.0), light.direction);
                 let edge = light.cos_cone;
