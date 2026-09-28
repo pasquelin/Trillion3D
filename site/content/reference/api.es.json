@@ -398,7 +398,10 @@
       "levels": "Cada nivel.",
       "reach": "Alcance de los rayos: la diagonal de la extensión, más allá de la cual no hay nada que tocar.",
       "shareOf": "Sondas del lote de trabajo por fotograma, por nivel: partes publicadas aplicadas a un lote total.",
-      "follow": "Reubica los niveles móviles alrededor de un punto de vista. Devuelve verdadero cuando al menos un índice de celda base ha cambiado: es la única señal que necesita la convergencia para reanudarse, sin ninguna lectura de vuelta de la GPU."
+      "follow": "Reubica los niveles móviles alrededor de un punto de vista. Devuelve verdadero cuando al menos un índice de celda base ha cambiado: es la única señal que necesita la convergencia para reanudarse, sin ninguna lectura de vuelta de la GPU.",
+      "reserveCount": "Capacidad fija reservada antes de que las transformaciones puedan ampliar la escena.",
+      "invalidLevels": "Niveles cuyo espaciado o presencia cambió en la última replanificación. Los desplazamientos de la base usan las marcas de las celdas.",
+      "replan": "Vuelve a aplicar la política existente de resolución espacial a los límites actuales de la geometría."
     }
   },
   "BounceOccupancy": {
@@ -408,7 +411,8 @@
       "occupied": "Verdadero cuando una celda de un nivel en su rejilla merece una sonda.",
       "marked": "Celdas marcadas y celdas totales del nivel más fino: la ganancia publicada.",
       "cells": "Celdas del nivel más fino.",
-      "bytes": "Bytes que ocupa."
+      "bytes": "Bytes que ocupa.",
+      "allEligible": "La geometría se ha movido: programa de forma conservadora todas las celdas de las cascadas, cuyo número está acotado."
     }
   },
   "BoundedNode": {
@@ -1368,7 +1372,7 @@
   },
   "decodeSceneProxy": {
     "summary": "El proxy releído y reverificado antes de que un solo rayo lo toque.",
-    "description": "Disposición, en little-endian: `u32 'WGPX' · u32 versión · u32 triángulos · u32 nodos`, luego los vértices en el mundo, los albedos, los límites exactos de los nodos y sus cuatro hijos, uno tras otro. Cada sección tiene una longitud que impone el encabezado; un archivo de otro tamaño se rechaza en bloque, porque un nodo que nombrara un triángulo ausente haría que el shader leyera cualquier cosa."
+    "description": "Disposición: ocho palabras de cabecera en little-endian, seguidas de las columnas de geometría y árbol canónicos y de la información de propiedad versionada. `docs/FORMAT.md` especifica cada cantidad y columna. La cabecera impone la longitud de cada sección; se rechaza íntegramente un archivo de otro tamaño, porque un nodo que apuntara a un triángulo ausente haría que el shader leyera datos arbitrarios."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` descompuesta en `position`, `quaternion`, `scale`."
@@ -5217,7 +5221,7 @@
     "summary": "Versión del contrato de la jerarquía de escena mantenida por el host."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Enteros de encabezado: firma, versión, triángulos, nodos."
+    "summary": "Enteros de cabecera: firma, versión, cantidades de triángulos/nodos/grupos/propietarios/orígenes, cero reservado."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' leídos como un entero sin signo de 32 bits little-endian."
@@ -5364,7 +5368,12 @@
       "triangles": "Tres vértices en el mundo por triángulo, `PROXY_TRIANGLE_FLOATS` números cada uno.",
       "albedo": "Albedo difuso lineal del triángulo, dispuesto en RGBA8.",
       "nodeBounds": "Límites exactos de cada nodo del BVH.",
-      "nodeChildren": "Los cuatro hijos de cada nodo: caja cuantizada, número de triángulos, presencia, enlace."
+      "nodeChildren": "Los cuatro hijos de cada nodo: caja cuantizada, número de triángulos, presencia, enlace.",
+      "triangleGroups": "Grupo compartido de propietarios de origen de cada triángulo canónico, almacenado una sola vez.",
+      "groupOffsets": "Desplazamientos de los registros de propietarios de cada grupo, incluido el centinela final.",
+      "owners": "Registros de propietarios: índice del nodo de origen y albedo lineal empaquetado en RGBA8.",
+      "bindWorlds": "Matrices de mundo originales de los nodos de origen, dieciséis valores de doble precisión por nodo.",
+      "sourceParents": "Jerarquía de origen, incluidos los nodos de partición que el anfitrión no tiene instanciados actualmente."
     }
   },
   "SceneProxyDescriptor": {
@@ -5381,7 +5390,10 @@
       "triangleBudget": "Presupuesto de triángulos publicado, el que decidió el umbral realmente obtenido.",
       "bounds": "Extensión del proxy en el mundo: tres límites bajos luego tres altos.",
       "triangles": "Triángulos.",
-      "nodes": "Nodos del árbol."
+      "nodes": "Nodos del árbol.",
+      "groups": "Grupos de propietarios compartidos y almacenados una sola vez.",
+      "owners": "Registros de propietarios.",
+      "instances": "Matrices de los nodos de origen."
     }
   },
   "SceneRoot": {

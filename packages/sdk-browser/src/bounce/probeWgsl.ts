@@ -1,5 +1,6 @@
 import { BOUNCE_SETTINGS } from '../../../sdk-core/src/index.ts';
-import { BOUNCE_GRID_WGSL } from './gridWgsl.ts';
+import { DIRECT_LIGHT_WGSL } from '../lighting/direct/lightWgsl.ts';
+import { BOUNCE_GRID_WGSL, INVERSE_PI_WGSL } from './gridWgsl.ts';
 import { residentProxyWgsl } from './nodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts';
 import { SURFACE_RAY_WGSL } from './reflectWgsl.ts';
@@ -36,11 +37,13 @@ export const BOUNCE_PROBE_PASS = 'Trillion3D bounce probes v1';
 export const BOUNCE_PROBE_SHADER = `
 @group(0) @binding(0) var<uniform> bounce:BounceGrid;
 ${residentProxyWgsl(1)}
-@group(0) @binding(2) var<storage,read> proxyAlbedo:array<u32>;
+@group(0) @binding(2) var<storage,read> directLights:DirectLights;
 @group(0) @binding(3) var<storage,read> probeQueue:array<u32>;
 @group(0) @binding(4) var<storage,read> probes:array<vec4f>;
 @group(0) @binding(5) var<storage,read_write> probesOut:array<vec4f>;
 @group(0) @binding(6) var<storage,read> surface:array<vec4f>;
+${DIRECT_LIGHT_WGSL}
+${INVERSE_PI_WGSL}
 ${BOUNCE_GRID_WGSL}
 ${BOUNCE_TRACE_WGSL}
 const RAYS_PER_PROBE:u32=${BOUNCE_SETTINGS.raysPerProbe}u;
