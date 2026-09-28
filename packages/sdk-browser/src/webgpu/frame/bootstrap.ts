@@ -107,8 +107,8 @@ export function createWebgpuBootstrap(options: BootstrapOptions) {
         bootstrap: tracking.traceSet('bootstrap', [...urls]),
         slots: getSlots(),
         durationMs: performance.now() - started,
-        loaded: tracking.traceSet('bootstrap.loaded', pages.map(pageAddress)),
-        wanted: tracking.traceSet('bootstrap.wanted', pages.map(pageAddress)),
+        loaded: tracking.traceRecs('bootstrap.loaded', pages),
+        wanted: tracking.traceRecs('bootstrap.wanted', pages),
       }));
     })()
       .catch((error) => {
