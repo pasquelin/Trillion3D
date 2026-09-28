@@ -97,47 +97,30 @@ export function texturePoolFor(
     const held = new Map<PoolLane, number>();
     if (budget < 0) {
       budget = 0;
-      let left = budgetBytes / 2;
-      const pending = new Set(open);
-      const places = (lane: PoolLane) => floor[lane] * TILES_PER_LAYER;
-      for (let round = 0; pending.size && round < POOL_LANES.length; round++) {
-        const total = [...pending].reduce((sum, lane) => sum + weight(lane), 0);
-        const share = (lane: PoolLane) =>
-          Math.floor((left * weight(lane)) / total / tileBytes(texelBytes(lane)));
-        const full = [...pending].filter((lane) => share(lane) >= places(lane));
-        for (const lane of full.length ? full : pending) {
-          const tiles = Math.min(share(lane), places(lane));
-          if (tiles < least(lane)) clamps.add('minimum');
-          held.set(lane, Math.max(least(lane), tiles));
-        }
-        if (!full.length) break;
-        for (const lane of full) {
-          left -= places(lane) * tileBytes(texelBytes(lane));
-          pending.delete(lane);
-        }
+      const tiles = shareByWeight(
+        new Set(open),
+        budgetBytes / 2,
+        weight,
+        (lane) => tileBytes(texelBytes(lane)),
+        (lane) => floor[lane] * TILES_PER_LAYER,
+      );
+      for (const [lane, count] of tiles.counts) {
+        if (count < least(lane)) clamps.add('minimum');
+        held.set(lane, Math.max(least(lane), count));
       }
     }
     // The remainder by weight; a lane served under its share gives the rest back to the others.
-    for (let round = 0; open.size && round < POOL_LANES.length; round++) {
-      const total = [...open].reduce((sum, lane) => sum + weight(lane), 0);
-      const share = (lane: PoolLane) =>
-        Math.floor((budget * weight(lane)) / total / layerBytes(lane));
-      const capped = [...open].filter(
-        (lane) => share(lane) >= layersFor(lanes[lane]) - floor[lane],
-      );
-      if (!capped.length) {
-        for (const lane of open) layers[lane] += share(lane);
-        break;
-      }
-      for (const lane of capped) {
-        layers[lane] = layersFor(lanes[lane]);
-        budget -= (layers[lane] - floor[lane]) * layerBytes(lane);
-        open.delete(lane);
-      }
-      // Under the floor a lane is served only when its held tiles cover its demand.
-      if (!open.size && [...held].every(([lane, tiles]) => tiles >= lanes[lane]))
-        clamps.add('scene');
-    }
+    const extra = shareByWeight(
+      new Set(open),
+      budget,
+      weight,
+      layerBytes,
+      (lane) => layersFor(lanes[lane]) - floor[lane],
+    );
+    for (const [lane, count] of extra.counts) layers[lane] += count;
+    // Under the floor a lane is served only when its held tiles cover its demand.
+    if (extra.served && [...held].every(([lane, tiles]) => tiles >= lanes[lane]))
+      clamps.add('scene');
     // The device refuses only tails it cannot hold: the slot to stream into gives way to its limit.
     for (const lane of POOL_LANES)
       if (typeof limit === 'number' && layers[lane] > limit) {
@@ -165,4 +148,32 @@ export function texturePoolFor(
   const clamp =
     (['device-limit', 'minimum', 'scene'] as const).find((name) => clamps.has(name)) ?? null;
   return { budgetBytes, layers, tiles, allocatedBytes, clamp };
+}
+
+/** Splits `bytes` among `pending` lanes by `weight`, in whole `unit`s: a lane whose share reaches
+ *  its `cap` takes the cap and gives the rest back to the others. `served` when there were lanes
+ *  and every one did. */
+function shareByWeight(
+  pending: Set<PoolLane>,
+  bytes: number,
+  weight: (lane: PoolLane) => number,
+  unit: (lane: PoolLane) => number,
+  cap: (lane: PoolLane) => number,
+) {
+  const counts = new Map<PoolLane, number>();
+  for (let round = 0; pending.size && round < POOL_LANES.length; round++) {
+    const total = [...pending].reduce((sum, lane) => sum + weight(lane), 0);
+    const share = (lane: PoolLane) => Math.floor((bytes * weight(lane)) / total / unit(lane));
+    const full = [...pending].filter((lane) => share(lane) >= cap(lane));
+    if (!full.length) {
+      for (const lane of pending) counts.set(lane, share(lane));
+      return { counts, served: false };
+    }
+    for (const lane of full) {
+      counts.set(lane, cap(lane));
+      bytes -= cap(lane) * unit(lane);
+      pending.delete(lane);
+    }
+  }
+  return { counts, served: counts.size > 0 && !pending.size };
 }
