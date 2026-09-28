@@ -115,6 +115,12 @@ test('check-pr-body: the untouched template is refused, a filled one accepted', 
   const filled = review(verified);
   assert.equal(problem(filled), '');
   assert.match(problem(filled.replace(': one fix', ':')), /no "Correctness review:" line/);
+  const dropped = filled.replace(/(## Lead verification\n+)/, '$1- Item two: not delivered\n');
+  assert.match(problem(dropped), /not delivered" without the boss's yes/);
+  assert.equal(
+    problem(dropped.replace('not delivered', "not delivered, the boss's yes on #65")),
+    '',
+  );
   // The old tool-named lines no longer stand for the review.
   const tooled = verified.replace(
     '- Simplification pass:\n- Correctness review:',
@@ -189,5 +195,5 @@ test("check-pr-size: more than 1,500 hand-written lines fail, with the base's at
   const refused = checkSize(work);
   assert.equal(refused.status, 1);
   assert.match(refused.stdout, /added: 1501 \(limit 1500\)/);
-  assert.match(refused.stderr, /AGENTS\.md rule 11: narrow the issue/);
+  assert.match(refused.stderr, /AGENTS\.md rule 5: narrow the issue/);
 });
