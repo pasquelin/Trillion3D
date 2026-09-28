@@ -116,3 +116,11 @@ export function resolveTextureSource(
   if (!readsBakedLevels || typeof createImageBitmap !== 'function') return 'host';
   return asked ?? 'cache';
 }
+
+/** Whether the paths that will draw load the host vertices they read themselves, and only those:
+ *  the engine's own two (#876). A witness named by the host reads the whole host graph, so its
+ *  session loads every vertex before building it. */
+export const loadsOwnVertices = (factories: readonly BackendFactory[]) =>
+  factories.every(
+    (factory) => factory === webgpuPagesBackend || factory === autonomousPagesBackend,
+  );

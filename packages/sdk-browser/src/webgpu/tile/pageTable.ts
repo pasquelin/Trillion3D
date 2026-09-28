@@ -6,6 +6,8 @@ import {
   type TileLayout,
   type TilePlace,
 } from '../../texture/tiles.ts';
+import { createPageUploads } from './pageUploads.ts';
+import { descendTile } from './pageDescent.ts';
 import { TRANSFORM_WORDS, samplingWords } from './sampling.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 
@@ -21,7 +23,8 @@ import type { Texture } from '../../../../sdk-core/src/index.ts';
  * One buffer per atlas, in words: `[feedback offset, textures, start of entries, start of
  * levels]`, ten words per texture (`width | height << 16`, first tail level, last level under the
  * sampling word, tail place under the pool tap, UV transform — `sampling.ts`), sixteen per texture
- * (each streamed level's first word), the entries. Writes go per texture, over its touched span.
+ * (each streamed level's first word), the entries. A flush sends the words that changed
+ * (`pageUploads.ts`).
  */
 export const PAGE_HEADER_WORDS = 4;
 export const PAGE_SLOT_WORDS = 4 + TRANSFORM_WORDS,
@@ -84,16 +87,7 @@ export function createWebgpuTilePageTable(
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   device.queue.writeBuffer(buffer, 0, words);
-  // Per texture, the lowest and highest addresses touched since the last flush.
-  const dirty = new Map<number, [number, number]>();
-  const touch = (slot: number, from: number, to: number) => {
-    const span = dirty.get(slot);
-    if (!span) dirty.set(slot, [from, to]);
-    else {
-      span[0] = Math.min(span[0], from);
-      span[1] = Math.max(span[1], to);
-    }
-  };
+  const uploads = createPageUploads(words.length);
   const wordIndex = ({ slot, level, tx, ty }: TileKey) => {
     const layout = layouts[slot];
     if (level >= layout.tail) throw new Error('TEXTURE_TILE_IN_TAIL');
@@ -101,26 +95,14 @@ export function createWebgpuTilePageTable(
     if (tx >= tw || ty >= th) throw new Error('TEXTURE_TILE_OUT_OF_LEVEL');
     return entriesAt + bases[slot] + layout.offsets[level] + ty * tw + tx;
   };
-  const write = (slot: number, index: number, word: number) => {
+  const write = (index: number, word: number) => {
     if (words[index] === word) return false;
     words[index] = word;
-    touch(slot, index, index);
+    uploads.mark(index);
     return true;
   };
-  /** Entries finer than a tile, under it: those its presence or departure serves. */
-  const descend = (key: TileKey, visit: (index: number) => void) => {
-    const layout = layouts[key.slot];
-    for (let level = key.level - 1; level >= 0; level--) {
-      const shift = key.level - level,
-        [tw, th] = tilesAt(layout.width, layout.height, level);
-      const x0 = key.tx << shift,
-        y0 = key.ty << shift,
-        x1 = Math.min(tw, (key.tx + 1) << shift),
-        y1 = Math.min(th, (key.ty + 1) << shift);
-      const base = entriesAt + bases[key.slot] + layout.offsets[level];
-      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) visit(base + y * tw + x);
-    }
-  };
+  const descend = (key: TileKey, visit: (index: number) => boolean) =>
+    descendTile(layouts[key.slot], entriesAt + bases[key.slot], key, visit);
   return {
     words,
     entries,
@@ -147,24 +129,27 @@ export function createWebgpuTilePageTable(
     },
     setTail(slot, place, tap) {
       const header = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS;
-      write(slot, header + 3, place.x | (place.y << 8) | (place.layer << 16) | (tap << 24));
+      write(header + 3, place.x | (place.y << 8) | (place.layer << 16) | (tap << 24));
     },
     setSampling(slot, texture, compiled) {
       const at = PAGE_HEADER_WORDS + slot * PAGE_SLOT_WORDS,
         sampling = samplingWords(texture, compiled);
-      let moved = write(slot, at + 2, layouts[slot].last | (sampling[0] << PAGE_FILTER_SHIFT));
+      let moved = write(at + 2, layouts[slot].last | (sampling[0] << PAGE_FILTER_SHIFT));
       for (let i = 1; i <= TRANSFORM_WORDS; i++)
-        moved = write(slot, at + PAGE_TRANSFORM_WORD - 1 + i, sampling[i]) || moved;
+        moved = write(at + PAGE_TRANSFORM_WORD - 1 + i, sampling[i]) || moved;
       return moved;
     },
     setTile(key, place) {
       const word = packEntry(place, key.level);
-      write(key.slot, wordIndex(key), word);
-      // Downward: every finer entry served by a coarser ancestor, or by nothing, is better
-      // served by this one.
+      write(wordIndex(key), word);
+      // Downward: every finer entry served by a coarser ancestor, or by nothing, is better served
+      // by this one; one served by this very tile at its former place — an atlas resize moves a
+      // resident tile (`atlasResize.ts`) — follows it to the new one.
       descend(key, (index) => {
         const current = words[index];
-        if (current === 0 || entryLevel(current) > key.level) write(key.slot, index, word);
+        if (current !== 0 && entryLevel(current) < key.level) return false;
+        write(index, word);
+        return true;
       });
     },
     clearTile(key) {
@@ -183,16 +168,14 @@ export function createWebgpuTilePageTable(
           break;
         }
       }
-      write(key.slot, own, replacement);
+      write(own, replacement);
       descend(key, (index) => {
-        if (words[index] === leaving) write(key.slot, index, replacement);
+        if (words[index] !== leaving) return false;
+        write(index, replacement);
+        return true;
       });
     },
-    flush(target) {
-      for (const [, [from, to]] of dirty)
-        target.queue.writeBuffer(buffer, from * 4, words, from, to - from + 1);
-      dirty.clear();
-    },
+    flush: (target) => uploads.flush(target.queue, buffer, words),
     destroy() {
       buffer.destroy();
     },

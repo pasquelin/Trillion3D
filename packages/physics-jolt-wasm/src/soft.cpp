@@ -8,6 +8,7 @@
 #include <Jolt/Physics/SoftBody/SoftBodyCreationSettings.h>
 #include <Jolt/Physics/SoftBody/SoftBodyMotionProperties.h>
 
+#include <cmath>
 #include <cstring>
 
 using namespace JPH;
@@ -91,25 +92,24 @@ bool addSoft(const uint32_t *w) {
   slot.engine = engine;
   slot.used = slot.soft = true;
   world.engineOf[body->GetID().GetIndex()] = engine;
+  slot.softAt = uint32_t(softs.size());
   softs.push_back({index, engine, vec3(w + 2), Vec3::sReplicate(1) / vec3(w + 9), quat(w + 5).Conjugated()});
   return true;
 }
 
 void teleportSoft(const Slot &slot, Vec3 position, Quat rotation) {
   World &world = trillion::world();
-  for (Soft &soft : softs) {
-    if (soft.engine != slot.engine) continue;
-    // Jolt keeps the body at the centre of its vertices, not at the place it was made: the turn
-    // from the old place to the new one carries the body, and its vertices with it.
-    BodyInterface &bodies = world.system->GetBodyInterfaceNoLock();
-    const Quat turn = rotation * soft.inverse;
-    const Vec3 at = Vec3(bodies.GetPosition(slot.id));
-    const RVec3 moved(position + turn * (at - soft.origin));
-    bodies.SetPositionAndRotation(slot.id, moved, (turn * bodies.GetRotation(slot.id)).Normalized(), EActivation::Activate);
-    soft.origin = position;
-    soft.inverse = rotation.Conjugated();
-    return;
-  }
+  // Found by its slot, not by a scan (PHY-22, #975): `addSoft` and `writeSoft` keep it in step.
+  Soft &soft = softs[slot.softAt];
+  // Jolt keeps the body at the centre of its vertices, not at the place it was made: the turn
+  // from the old place to the new one carries the body, and its vertices with it.
+  BodyInterface &bodies = world.system->GetBodyInterfaceNoLock();
+  const Quat turn = rotation * soft.inverse;
+  const Vec3 at = Vec3(bodies.GetPosition(slot.id));
+  const RVec3 moved(position + turn * (at - soft.origin));
+  bodies.SetPositionAndRotation(slot.id, moved, (turn * bodies.GetRotation(slot.id)).Normalized(), EActivation::Activate);
+  soft.origin = position;
+  soft.inverse = rotation.Conjugated();
 }
 
 void writeSoft() {
@@ -119,8 +119,9 @@ void writeSoft() {
   // Bodies removed since are dropped from the list; the others keep their order.
   size_t kept = 0;
   for (Soft &soft : softs) {
-    const Slot &slot = world.slots[soft.index];
+    Slot &slot = world.slots[soft.index];
     if (!slot.used || !slot.soft || slot.engine != soft.engine) continue;
+    slot.softAt = uint32_t(kept);
     softs[kept++] = soft;
     // Hidden by the page, it sends no vertex; shown again, it is written once, asleep or not.
     if (slot.flags & HIDDEN) {
@@ -133,15 +134,30 @@ void writeSoft() {
     if (!body.IsActive() && !soft.awake) continue;
     softs[kept - 1].awake = body.IsActive();
     const auto &motion = *static_cast<const SoftBodyMotionProperties *>(body.GetMotionProperties());
-    RMat44 com = body.GetCenterOfMassTransform();
-    state.push_back(soft.engine);
-    state.push_back(uint32_t(motion.GetVertices().size()));
-    for (const SoftBodyVertex &v : motion.GetVertices()) {
-      Vec3 local = soft.inverse * (Vec3(com * v.mPosition) - soft.origin) * soft.inverseScale;
-      float xyz[3] = {local.GetX(), local.GetY(), local.GetZ()};
-      uint32_t words[3];
-      std::memcpy(words, xyz, sizeof(words));
-      state.insert(state.end(), words, words + 3);
+    const auto &vertices = motion.GetVertices();
+    const size_t start = state.size();
+    state.resize(start + 2 + vertices.size() * 3);
+    state[start] = soft.engine;
+    state[start + 1] = uint32_t(vertices.size());
+    // World to geometry, composed once per body (PHY-06, #975): scale⁻¹ · rotation⁻¹ ·
+    // translation(−origin) · centre of mass. The vertices are those the per-vertex chain gave but
+    // for float rounding, a few ulps of the world coordinate (`softWriteback.test.ts`), far below
+    // a tenth of a pixel; the simulation never reads them back.
+    const Mat44 back = Mat44::sScale(soft.inverseScale) * Mat44::sRotation(soft.inverse) *
+                       Mat44::sTranslation(-soft.origin) * Mat44(body.GetCenterOfMassTransform());
+    uint32_t *out = state.data() + start + 2;
+    bool finite = true;
+    for (const SoftBodyVertex &v : vertices) {
+      const Vec3 local = back * v.mPosition;
+      const float xyz[3] = {local.GetX(), local.GetY(), local.GetZ()};
+      finite = finite && std::isfinite(xyz[0]) && std::isfinite(xyz[1]) && std::isfinite(xyz[2]);
+      std::memcpy(out, xyz, sizeof(xyz));
+      out += 3;
+    }
+    // A diverged body sends no vertex: it leaves the simulation after the step (`jolt_step`).
+    if (!finite) {
+      state.resize(start);
+      world.diverged.push_back(soft.engine);
     }
   }
   softs.resize(kept);

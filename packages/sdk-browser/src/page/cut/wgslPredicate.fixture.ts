@@ -3,7 +3,7 @@
  * the call sites that feed it, so what runs is the WGSL text itself, never a second copy of it.
  *
  * An expression is made of names, `u`-suffixed integer literals, `!`, `&&`, `||`, comparisons,
- * the integer operators `& | << >> + - *` (u32, wrapping, as the kernel's index math), calls,
+ * the integer operators `& | << >> + - * /` (u32, wrapping, as the kernel's index math), calls,
  * indexing and field access. A name is a parameter, a host binding, or a one-statement WGSL
  * function of the same source, called by its text; nothing else parses — a float literal, an
  * unknown name or function, a statement — so a kernel edit that leaves this subset fails loudly.
@@ -15,7 +15,7 @@ type Value = boolean | number | object;
 type Env = Record<string, Value>;
 type Node = (env: Env) => Value;
 
-const TOKEN = /\s*(&&|\|\||<<|>>|<=|>=|==|!=|[<>!()[\],.&|+\-*]|\d+u|[A-Za-z_][A-Za-z0-9_]*)/y;
+const TOKEN = /\s*(&&|\|\||<<|>>|<=|>=|==|!=|[<>!()[\],.&|+\-*/]|\d+u|[A-Za-z_][A-Za-z0-9_]*)/y;
 const COMPARE: Record<string, (a: number, b: number) => boolean> = {
   '<': (a, b) => a < b,
   '>': (a, b) => a > b,
@@ -36,7 +36,11 @@ const INTEGER: [string, (a: number, b: number) => number][][] = [
     ['+', (a, b) => (a + b) >>> 0],
     ['-', (a, b) => (a - b) >>> 0],
   ],
-  [['*', (a, b) => Math.imul(a, b) >>> 0]],
+  [
+    ['*', (a, b) => Math.imul(a, b) >>> 0],
+    // WGSL's integer division truncates, and by zero returns the dividend.
+    ['/', (a, b) => (b === 0 ? a : Math.trunc(a / b)) >>> 0],
+  ],
 ];
 
 function tokens(text: string) {

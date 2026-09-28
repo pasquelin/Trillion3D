@@ -24,6 +24,7 @@ export { playPickedVideo } from './media.ts';
 export { leafTexture, matcapBall } from './painted.ts';
 export { circling, ease, flights, mix, opening } from './opening.ts';
 export { physicsReadouts } from './physicsReadouts.ts';
+export { perFrame } from './perFrame.ts';
 export { pointerOnPlane } from './pointer.ts';
 export { profiling } from './profile.ts';
 export { seeded, sineHash, valueNoise } from './random.ts';

@@ -14,6 +14,10 @@ import {
   frustumPlanesFromMatrix,
 } from '../../index.ts';
 import { boite3 } from '../../../../../bench/oracles/core/volumes.ts';
+import {
+  frustumClipBoxBefore,
+  hostileFloats,
+} from '../../../../../bench/oracles/core/hot-path-math.ts';
 
 function camera() {
   const cam = new THREE.PerspectiveCamera(50, 1.3, 0.5, 200);
@@ -110,4 +114,26 @@ test('verdict is identical with raw (unnormalized) planes and normalized planes'
 test('hostile box (NaN or inverted bounds) never rejects: comparison with NaN always fails', () => {
   assert.equal(frustumExcludesBox(plans, NaN, 0, 9, 0, 0, 10), false);
   assert.equal(frustumExcludesBox(plans, 1, 1, 1, -1, -1, -1), false); // inverted
+});
+
+test('both tests keep the verdicts of the indexed bounds they replace, on 300 000 hostile cases', () => {
+  const f = hostileFloats(9170);
+  const seen = [0, 0, 0];
+  const hostile = new Float64Array(24);
+  for (let i = 0; i < 300_000; i++) {
+    for (let k = 0; k < 24; k++) hostile[k] = f(1);
+    const planes = i % 2 ? hostile : plans;
+    const lo = [f(), f(), f() + 5];
+    const b = [...lo, ...lo.map((v) => v + Math.abs(f(1)))];
+    const c = b as [number, number, number, number, number, number];
+    const before = frustumClipBoxBefore(planes, b);
+    const excluded = frustumExcludesBox(planes, ...c);
+    if (frustumClipBox(planes, ...c) !== before || excluded !== (before === 0))
+      assert.fail(`box ${b}, planes ${planes}`);
+    seen[before]++;
+  }
+  assert.ok(
+    seen.every((n) => n > 0),
+    `every state met: ${seen}`,
+  );
 });
