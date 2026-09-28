@@ -1,6 +1,5 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import {
   ADD_WORDS,
   BODY_INDEX,
@@ -10,12 +9,13 @@ import {
   POSE_WORDS,
   RESTORE_WORDS,
   SHAPE,
-  type CookedBody,
 } from '../../../sdk-core/src/physics/index.ts';
 import { createCookedBodies } from './cookedBodies.ts';
 import { castDown, startModule, type Module } from './module.fixture.ts';
 import {
   cooked,
+  declared,
+  fixture,
   landed,
   modelStreamer,
   place,
@@ -25,14 +25,9 @@ import {
 } from './tiles.fixture.ts';
 import { body } from './records.fixture.ts';
 
-const fixture = (name: string) =>
-  readFile(new URL(`../../../../tests/fixtures/physics/${name}`, import.meta.url));
 /** The golden hull of a unit cube from the origin (`physics_cook/mass_tests.rs`). */
 const hull = async () => new Uint8Array(await fixture('cube-hull.bin'));
 const diagonal = (d: number) => [d, 0, 0, 0, d, 0, 0, 0, d];
-/** Node `node`'s body at `position`, declaring `motion` and `shape`. */
-const declared = (node: number, position: number[], motion: object, shape: object) =>
-  ({ node, motion, shape, position, rotation: [0, 0, 0, 1], scale: [1, 1, 1] }) as CookedBody;
 /** A shapeless body's cooked hull, weighed as the unit cube but about `centre`. */
 const cube = (centre = [0.5, 0.5, 0.5]) => ({
   ...{ type: 'cooked', url: 'hull.bin', sha256: 'h'.repeat(64), bytes: 1 },
