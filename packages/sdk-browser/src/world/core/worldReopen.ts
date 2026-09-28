@@ -16,7 +16,7 @@ export type ReopenCause =
 const NEEDED: ReadonlySet<ReopenCause> = new Set(['device-lost', 'option']);
 
 /** The measure of a reopen in flight: its causes, its start, the display frames it lasted. */
-type Reopening = { causes: ReopenCause[]; start: number; frames: number };
+type Reopening = { causes: Set<ReopenCause>; start: number; frames: number; tick(): void };
 
 /**
  * THE REOPENS OF A WORLD, KEPT AND JUSTIFIED (#837). Its canvas keeps the image of a session that
@@ -35,11 +35,6 @@ export function worldReopens(
     ends = new WeakMap<object, { promise: Promise<void>; end: () => void }>();
   let reopening: Reopening | null = null;
   const frame = globalThis.requestAnimationFrame?.bind(globalThis);
-  const tick = (by: Reopening) => () => {
-    if (reopening !== by) return;
-    by.frames++;
-    frame?.(tick(by));
-  };
   const endOf = (session: object) => {
     let known = ends.get(session);
     if (!known) {
@@ -54,10 +49,11 @@ export function worldReopens(
     const by = reopening;
     if (!by) return;
     reopening = null;
-    const defect = by.causes.some((cause) => !NEEDED.has(cause));
-    notices.say('session-reopen', `The world's session opened again (${by.causes.join(', ')})`, {
+    const causes = [...by.causes],
+      defect = causes.some((cause) => !NEEDED.has(cause));
+    notices.say('session-reopen', `The world's session opened again (${causes.join(', ')})`, {
       kind: defect ? 'error' : 'lifecycle',
-      cause: by.causes.join('+'),
+      cause: causes.join('+'),
       defect,
       drawn,
       durationMs: performance.now() - by.start,
@@ -87,10 +83,21 @@ export function worldReopens(
       wanted.clear();
       if (!previous) return;
       endOf(previous).end();
-      if (reopening) reopening.causes.push(...causes.filter((c) => !reopening!.causes.includes(c)));
+      if (reopening) for (const cause of causes) reopening.causes.add(cause);
       else {
-        reopening = { causes, start: performance.now(), frames: 0 };
-        frame?.(tick(reopening));
+        // One display-frame counter per reopen, stopped once it is said.
+        const by: Reopening = {
+          causes: new Set(causes),
+          start: performance.now(),
+          frames: 0,
+          tick() {
+            if (reopening !== by) return;
+            by.frames++;
+            frame?.(by.tick);
+          },
+        };
+        reopening = by;
+        frame?.(by.tick);
       }
     },
     drew,
