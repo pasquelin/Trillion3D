@@ -17,9 +17,9 @@ import type { BounceCascades } from './cascades.ts';
  * Nothing here names a scene or inspects the camera: extent, triangles, cells.
  */
 export interface BounceOccupancy {
-  /** True when a level's cell in its global lattice warrants a probe. */
   /** Geometry moved: conservatively schedule all bounded cascade cells. */
   allEligible(): void;
+  /** True when a level's cell in its global lattice warrants a probe. */
   occupied(level: number, x: number, y: number, z: number): boolean;
   /** Marked cells and total cells of the finest level: published gain. */
   marked: number;
