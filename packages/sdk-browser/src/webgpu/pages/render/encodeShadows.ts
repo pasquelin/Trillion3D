@@ -12,6 +12,8 @@ import { createShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import { noteResidenceChange } from '../../shadow/bounds.ts';
 import { redrawShortPages } from '../../shadow/casters.ts';
 import { disposeStaticLayer } from '../state/lights.ts';
+import { staticLayerGranted } from '../../shadow/poolSize.ts';
+import { noteShadowPressure } from '../../shadow/memoryGrant.ts';
 
 const viewpoint: ShadowViewpoint & {
   position: [number, number, number];
@@ -141,9 +143,10 @@ export function encodeShadowReadback(rt: WebgpuPagesRuntime, encoder: GPUCommand
 /**
  * The static layer is built the first time an object moves, with the pyramids of its pages and
  * the occlusion test of the moving casters; until they are ready, pages are drawn whole, every
- * caster at once. A device that refuses the layer keeps drawing them so: its texture is allocated
- * under an out-of-memory check (`deviceMade`), and a refusal is said under `gpu-out-of-memory`,
- * never handed to the frame.
+ * caster at once. It is asked of the shadows' one grant first (`staticLayerGranted`): past it,
+ * it is never made. A device refusal — its texture is made under an out-of-memory
+ * check (`deviceMade`) — is said under `gpu-out-of-memory` (`static-layer-refused`). Either way
+ * the pages stay drawn whole, asked once: no shadow is lost.
  */
 function ensureStaticLayer(rt: WebgpuPagesRuntime) {
   const { lights } = rt,
@@ -152,14 +155,17 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
     return;
   lights.staticLayerPending = true;
   const capacity = rt.layout.rows.casterSlots,
-    { side, layers } = lights.plan.pool;
+    { side, layers } = lights.plan.pool,
+    requestedBytes = shadowAtlasBytes(side, layers);
+  if (!staticLayerGranted(lights, requestedBytes, rt.diag.engineDiagnostic)) return;
   deviceMade(device, () => shadowLayerTexture(device, side, layers))
     .then((texture) => {
       if (texture) return createShadowStaticLayer(device, texture);
+      noteShadowPressure(lights.memory, 'static-layer-refused');
       rt.diag.engineDiagnostic('gpu-out-of-memory', 'The device refused the shadow static layer', {
         kind: 'warning',
         pool: 'shadow-static-layer',
-        requestedBytes: shadowAtlasBytes(side, layers),
+        requestedBytes,
         grantedBytes: null,
       });
     })

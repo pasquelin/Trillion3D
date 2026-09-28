@@ -5480,6 +5480,9 @@
       "shadowPoolPages": "Physische Seiten des festen Pools, die eine virtuelle Seite halten.",
       "shadowPoolBytes": "GPU-Bytes des Schattenpools: seine Tiefenseiten, ihre statische und Transmissionsschicht, sobald angelegt, und die Puffer daneben. Null, bis das erste Bild den Pool dimensioniert.",
       "shadowPoolLayers": "Schichten des Pools, jeweils höchstens 4 096 Seiten, einmal aus Bildschirm und schattenwerfenden Lichtern des ersten Bildes bemessen. Bis dahin null.",
+      "shadowPeakBytes": "Die meisten GPU-Bytes, die die Schatten auf einmal hielten, eine späte statische oder Transmittanz-Schicht mit dem gezählt, was bei ihrem Eintreffen gehalten wurde; nie über dem festen Schattenanteil des Budgets. Null, bis das erste Bild den Pool bemisst.",
+      "shadowResolutionBias": "Wie viele Halbierungen der Bytes des Schattenpools die Speicherablehnungen des Geräts kosteten: gröbere Seiten allein wegen des Speichers, nie um eine Bildzeit zu halten. 0 im Normalfall.",
+      "shadowMemoryEvents": "Die Speicherdruck-Ereignisse der Schatten seit dem Öffnen der Welt, nach Name, in Reihenfolge: `pool-shrunk`, `pool-refused`, `static-layer-over-grant`, `static-layer-refused`. Im Normalfall leer.",
       "shadowPagesRefetched": "Virtuelle Seiten, die erneut abgebildet wurden, nachdem der Pool sie für Platz verdrängt hatte, seit dem Öffnen des Explorers: die Neuzeichnungen, die ein für die gelesenen Bilder zu kleiner Pool kostet.",
       "shadowCastersKept": "Schattenwerfer, die das Culling pro Seite behalten hat, alle gezeichneten Seiten zusammen, im zuletzt vom Gerät abgetasteten Bild — eines von fünfzehn; `null`, bis eine Probe zurückkam.",
       "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam."
@@ -6802,6 +6805,9 @@
       "shadowPoolPages": "Physische Seiten des festen Pools, die eine virtuelle Seite halten.",
       "shadowPoolBytes": "GPU-Bytes des Schattenpools: seine Tiefenseiten, ihre statische und Transmissionsschicht, sobald angelegt, und die Puffer daneben. Null, bis das erste Bild den Pool dimensioniert.",
       "shadowPoolLayers": "Schichten des Pools, jeweils höchstens 4 096 Seiten, einmal aus Bildschirm und schattenwerfenden Lichtern des ersten Bildes bemessen. Bis dahin null.",
+      "shadowPeakBytes": "Die meisten GPU-Bytes, die die Schatten auf einmal hielten, eine späte statische oder Transmittanz-Schicht mit dem gezählt, was bei ihrem Eintreffen gehalten wurde; nie über dem festen Schattenanteil des Budgets. Null, bis das erste Bild den Pool bemisst.",
+      "shadowResolutionBias": "Wie viele Halbierungen der Bytes des Schattenpools die Speicherablehnungen des Geräts kosteten: gröbere Seiten allein wegen des Speichers, nie um eine Bildzeit zu halten. 0 im Normalfall.",
+      "shadowMemoryEvents": "Die Speicherdruck-Ereignisse der Schatten seit dem Öffnen der Welt, nach Name, in Reihenfolge: `pool-shrunk`, `pool-refused`, `static-layer-over-grant`, `static-layer-refused`. Im Normalfall leer.",
       "shadowPagesRefetched": "Virtuelle Seiten, die erneut abgebildet wurden, nachdem der Pool sie für Platz verdrängt hatte, seit dem Öffnen des Explorers: die Neuzeichnungen, die ein für die gelesenen Bilder zu kleiner Pool kostet.",
       "shadowCastersKept": "Schattenwerfer, die das Culling pro Seite behalten hat, alle gezeichneten Seiten zusammen, im zuletzt vom Gerät abgetasteten Bild — eines von fünfzehn; `null`, bis eine Probe zurückkam.",
       "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam."
