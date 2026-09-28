@@ -10,24 +10,16 @@ test('same-device toggle changes only feedback allocation and selected pipelines
   installGpuGlobals();
   let destroyed = 0,
     created = 0;
-  const on = {
-    shadePipelines: new Map(),
-    singleShadePipelines: new Map(),
-    shadePipelineFor: () => null,
-    blendPipelines: null,
-    water: undefined,
+  const destroy = () => {
+    destroyed++;
   };
-  const off = { ...on, shadePipelines: new Map([[1, 'off']]) };
+  const on = { shadePipelines: new Map(), blendPipelines: {} };
+  const off = { shadePipelines: new Map([[1, 'off']]), blendPipelines: {} };
   const device = {
     queue: { onSubmittedWorkDone: async () => {} },
     createTexture: () => {
       created++;
-      return {
-        createView: () => ({ name: 'feedback' }),
-        destroy: () => {
-          destroyed++;
-        },
-      };
+      return { createView: () => ({ name: 'feedback' }), destroy };
     },
   };
   const main = {};
@@ -37,11 +29,7 @@ test('same-device toggle changes only feedback allocation and selected pipelines
       device,
       targetSize: [20, 10],
       targetBytes: 20_000,
-      feedbackTexture: {
-        destroy: () => {
-          destroyed++;
-        },
-      },
+      feedbackTexture: { destroy },
       feedbackView: {},
     },
     vis: {
@@ -65,11 +53,13 @@ test('same-device toggle changes only feedback allocation and selected pipelines
   assert.equal(rt.gpu.feedbackTexture, undefined);
   assert.equal(rt.gpu.targetBytes, 20_000 - 20 * 10 * 4);
   assert.equal(rt.vis.shadePipelines, off.shadePipelines);
+  assert.equal(rt.vis.blendPipelines, off.blendPipelines);
   assert.equal(rt.feedbackAB?.force, true);
   await setFeedbackTargetAb(rt, true);
   assert.equal(created, 1);
   assert.equal(rt.gpu.targetBytes, 20_000);
   assert.equal(rt.vis.shadePipelines, on.shadePipelines);
+  assert.equal(rt.vis.blendPipelines, on.blendPipelines);
 });
 
 test('forced full renders replay settled TAA and never replace the held checkpoint', () => {

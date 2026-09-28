@@ -1,32 +1,21 @@
 import type * as Sdk from '../witnesses/measurement.ts';
 import type { CameraPose, FrameMetrics } from '../../packages/sdk-core/src/index.ts';
 import { posterCapture } from './measurePage.ts';
+import type { SpatialFeedback } from '../../packages/sdk-browser/src/webgpu/pages/diagnostic/feedbackSpatial.ts';
 
-type Probe = { captureFeedbackAb(): Promise<Uint8Array> };
-export type ConvergenceFrame = {
-  frame: number;
-  held: boolean | null;
-  coverageReady: boolean | null;
-  selected: number | null;
-  drawn: number | null;
-  uncovered: number | null;
-  pagesLoading: number | null;
-  residentPages: number | null;
-  shadowPagesPending: number | null;
-  shadowPagesDrawn: number | null;
-  requested: number | null;
-  atLevel: number | null;
-  served: number | null;
-  pending: number | null;
-  deferred: number | null;
-  missingLevels: number | null;
-  refused: number | null;
+type Probe = {
+  captureFeedbackAb(): Promise<Uint8Array>;
+  feedbackAbSpatial(): Promise<SpatialFeedback>;
 };
+export type ConvergenceFrame = ReturnType<typeof traceFrame>;
 export type ConvergenceProof = {
   supported: boolean;
   reason: string | null;
   trace: ConvergenceFrame[];
   captures: { frame: number; file: string; final: boolean }[];
+  spatial: (SpatialFeedback & { frame: number })[];
+  centerBeforePeriphery: number | null;
+  peripheryAtLevel: number | null;
 };
 
 export const feedbackGeometryReady = (frame: ConvergenceFrame) =>
@@ -42,23 +31,18 @@ const textureReady = (frame: ConvergenceFrame) =>
   frame.requested !== null &&
   frame.requested === frame.atLevel;
 
-function traceFrame(metrics: FrameMetrics, frame: number): ConvergenceFrame {
+function traceFrame(metrics: FrameMetrics, frame: number) {
   return {
     frame,
     held: metrics.frameHeld ?? null,
     coverageReady: metrics.coverageReady ?? null,
     selected: metrics.selectedTriangles,
     drawn: metrics.drawnTriangles ?? null,
-    uncovered: metrics.uncoveredTriangles ?? null,
     pagesLoading: metrics.pagesLoading ?? null,
     residentPages: metrics.residentPages,
-    shadowPagesPending: metrics.shadowPagesPending ?? null,
-    shadowPagesDrawn: metrics.shadowPagesDrawn ?? null,
     requested: metrics.textureTilesRequested ?? null,
     atLevel: metrics.textureTilesAtLevel ?? null,
-    served: metrics.textureTilesServed ?? null,
     pending: metrics.textureTilesPending ?? null,
-    deferred: metrics.textureTilesDeferred ?? null,
     missingLevels: metrics.textureMissingLevels ?? null,
     refused: metrics.textureTilesRefused ?? null,
   };
@@ -74,47 +58,64 @@ export async function captureConvergence(
 ): Promise<ConvergenceProof> {
   const trace: ConvergenceFrame[] = [];
   const captures: ConvergenceProof['captures'] = [];
-  let gap = false,
-    previousAtLevel = -1,
-    previousMissing = Infinity,
+  const spatial: ConvergenceProof['spatial'] = [];
+  let centerBeforePeriphery: number | null = null,
+    peripheryAtLevel: number | null = null,
     held = false;
-  const capture = async (frame: number, final: boolean) => {
-    const file = `${prefix}-convergence-${frame}${final ? '-final' : ''}.rgba`;
+  const capture = async (frame: number) => {
+    const file = `${prefix}-convergence-${frame}-final.rgba`;
     const pixels = await backend.captureFeedbackAb();
     const response = await posterCapture(file, pixels, canvas.width, canvas.height);
     if (!response.ok) throw new Error(`FEEDBACK_AB_CAPTURE_${response.status}`);
-    captures.push({ frame, file, final });
+    captures.push({ frame, file, final: true });
   };
   for (let i = 0; i < 240; i++) {
     await new Promise<number>((done) => requestAnimationFrame(done));
     const frame = traceFrame(explorer.render(pose), i);
     trace.push(frame);
     const ready = feedbackGeometryReady(frame);
-    const missing = frame.missingLevels !== null && frame.missingLevels > 0;
-    if (ready && missing) gap = true;
-    // Preserve the first textured gap and later improvements; cap large RGBA readbacks.
-    if (
-      ready &&
-      missing &&
-      captures.length < 5 &&
-      (captures.length === 0 ||
-        (frame.atLevel ?? -1) > previousAtLevel ||
-        frame.missingLevels! < previousMissing)
-    ) {
-      await capture(i, false);
-      previousAtLevel = frame.atLevel ?? -1;
-      previousMissing = frame.missingLevels!;
+    if (ready && (frame.held || (peripheryAtLevel === null && spatial.length < 48))) {
+      const sample = await backend.feedbackAbSpatial();
+      spatial.push({ frame: i, ...sample });
+      const center = sample.center,
+        outer = sample.periphery;
+      if (center.requested >= 64 && outer.requested >= 64) {
+        if (
+          centerBeforePeriphery === null &&
+          center.atLevel === center.requested &&
+          outer.atLevel < outer.requested
+        )
+          centerBeforePeriphery = i;
+        else if (centerBeforePeriphery !== null && outer.atLevel === outer.requested)
+          peripheryAtLevel = i;
+      }
     }
     if (frame.held === true && ready && textureReady(frame)) {
-      await capture(i, true);
+      await capture(i);
       held = true;
       break;
     }
   }
+  const final = spatial.find((entry) => entry.frame === captures[0]?.frame);
+  const heldMipsReady =
+    !!final &&
+    [final.center, final.periphery].every(
+      (region) => region.requested >= 64 && region.atLevel === region.requested,
+    );
   const reason = !held
     ? 'FEEDBACK_AB_NO_HELD_REFERENCE'
-    : !gap || !captures.some((entry) => !entry.final)
-      ? 'FEEDBACK_AB_NO_RESIDENT_TEXTURE_GAP'
-      : null;
-  return { supported: reason === null, reason, trace, captures };
+    : !heldMipsReady
+      ? 'FEEDBACK_AB_HELD_MIPS_UNVERIFIED'
+      : centerBeforePeriphery === null || peripheryAtLevel === null
+        ? 'FEEDBACK_AB_NO_CENTER_FIRST_CHECKPOINT'
+        : null;
+  return {
+    supported: reason === null,
+    reason,
+    trace,
+    captures,
+    spatial,
+    centerBeforePeriphery,
+    peripheryAtLevel,
+  };
 }

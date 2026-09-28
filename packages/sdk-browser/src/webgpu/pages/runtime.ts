@@ -24,6 +24,7 @@ import {
 import type { HostCpuProfile } from '../../host/cpuProfile.ts';
 import type { WebgpuPagesSetup } from './prepare/setup.ts';
 import type { FeedbackAbState, ResidencyIdentity } from './diagnostic/feedbackAb.ts';
+import type { SpatialFeedback } from './diagnostic/feedbackSpatial.ts';
 
 export type WebgpuPagesBackend = RenderBackend &
   HostCpuProfile & {
@@ -31,6 +32,7 @@ export type WebgpuPagesBackend = RenderBackend &
     setFeedbackTargetAb(target: boolean): Promise<void>;
     feedbackAbResidency(): Promise<ResidencyIdentity>;
     captureFeedbackAb(): Promise<Uint8Array>;
+    feedbackAbSpatial(): Promise<SpatialFeedback>;
     rasterRgba(): Uint8Array;
     selectedPageIds(): string[];
     visibilityIds(): Uint32Array;

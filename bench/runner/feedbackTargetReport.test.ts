@@ -21,26 +21,23 @@ const identity = () => ({
 });
 const reading = (target: boolean, file: string, ms: number) => ({
   target,
-  frames: 120,
   capture: file,
   gpuFrameMs: Array(12).fill(ms),
   gpuPassSamples: Array.from({ length: 12 }, (_, i) => sample(i, target)),
   residency: identity(),
   counters: {
     gpuFrameTargetBytes: 1000 + (target ? bytes : 0),
-    residentPages: 2,
     pagesLoading: 0,
     coverageReady: true,
     selectedTriangles: 10,
     drawnTriangles: 10,
-    uncoveredTriangles: null,
-    textureTilesResident: 3,
     textureTilesPending: 0,
     textureMissingLevels: 0,
     textureTilesRequested: 3,
     textureTilesAtLevel: 3,
   },
 });
+const region = (atLevel: number) => ({ pixels: 100, requested: 80, atLevel, mips: {} });
 const result = (): FeedbackTargetResult => ({
   supported: true,
   reason: null,
@@ -49,12 +46,15 @@ const result = (): FeedbackTargetResult => ({
     supported: true,
     reason: null,
     trace: [],
-    captures: [
-      { frame: 2, file: 'gap.rgba', final: false },
-      { frame: 20, file: 'final.rgba', final: true },
+    captures: [{ frame: 20, file: 'final.rgba', final: true }],
+    spatial: [
+      { frame: 2, center: region(80), periphery: region(40) },
+      { frame: 12, center: region(80), periphery: region(80) },
+      { frame: 20, center: region(80), periphery: region(80) },
     ],
+    centerBeforePeriphery: 2,
+    peripheryAtLevel: 12,
   },
-  size: { width: 2496, height: 1404 },
   readings: [
     reading(true, 'a1.rgba', 10),
     reading(false, 'b.rgba', 8),
@@ -66,59 +66,32 @@ const captures = () =>
     ['a1.rgba', { w: 1, h: 1, body: Buffer.from([1, 2, 3, 255]) }],
     ['b.rgba', { w: 1, h: 1, body: Buffer.from([1, 2, 3, 255]) }],
     ['a2.rgba', { w: 1, h: 1, body: Buffer.from([1, 2, 3, 255]) }],
-    ['gap.rgba', { w: 1, h: 1, body: Buffer.from([2, 2, 3, 255]) }],
     ['final.rgba', { w: 1, h: 1, body: Buffer.from([1, 2, 3, 255]) }],
   ]);
+const verdict = (raw: FeedbackTargetResult, images = captures()) =>
+  summarizeFeedbackRun(raw, 'alpha-blend-mode-test', 'sol', images, []).beyondSpread;
 
-test('A/B/A gain requires twelve samples, image parity and stable residency keys', () => {
-  const raw = result();
+test('A/B/A gain requires samples, parity, residency, mip order, bytes and low spread', () => {
+  assert.equal(verdict(result()), true);
+  const failures: ((raw: FeedbackTargetResult) => void)[] = [
+    (raw) => (raw.readings[1].gpuFrameMs = [8]),
+    (raw) => (raw.readings[1].gpuPassSamples = []),
+    (raw) => (raw.readings[1].residency.tiles.sha256 = 'different'),
+    (raw) => (raw.convergence!.supported = false),
+    (raw) => (raw.convergence!.peripheryAtLevel = null),
+    (raw) => (raw.readings[1].counters.gpuFrameTargetBytes = 123),
+  ];
+  for (const mutate of failures) {
+    const raw = result();
+    mutate(raw);
+    assert.equal(verdict(raw), null);
+  }
   const images = captures();
-  assert.equal(
-    summarizeFeedbackRun(raw, 'alpha-blend-mode-test', 'sol', images, []).beyondSpread,
-    true,
-  );
-  raw.readings[1].gpuFrameMs = [8];
-  assert.equal(
-    summarizeFeedbackRun(raw, 'alpha-blend-mode-test', 'sol', images, []).beyondSpread,
-    null,
-  );
-  raw.readings[1].gpuFrameMs = Array(12).fill(8);
-  raw.readings[1].residency.tiles.sha256 = 'different-tiles';
-  assert.equal(
-    summarizeFeedbackRun(raw, 'alpha-blend-mode-test', 'sol', images, []).beyondSpread,
-    null,
-  );
-  raw.readings[1].residency.tiles.sha256 = 'same-tiles';
   images.set('b.rgba', { w: 1, h: 1, body: Buffer.from([2, 2, 3, 255]) });
-  assert.equal(
-    summarizeFeedbackRun(raw, 'alpha-blend-mode-test', 'sol', images, []).beyondSpread,
-    null,
-  );
-  images.set('b.rgba', { w: 1, h: 1, body: Buffer.from([1, 2, 3, 255]) });
-  images.set('gap.rgba', { w: 1, h: 1, body: Buffer.from([1, 2, 3, 255]) });
-  assert.equal(
-    summarizeFeedbackRun(raw, 'alpha-blend-mode-test', 'sol', images, []).beyondSpread,
-    null,
-  );
-  raw.readings[1].counters.gpuFrameTargetBytes = 123;
-  assert.equal(
-    summarizeFeedbackRun(raw, 'alpha-blend-mode-test', 'sol', captures(), []).beyondSpread,
-    null,
-  );
-});
-
-test('A/A spread and convergence evidence can withhold a gain', () => {
+  assert.equal(verdict(result(), images), null);
   const raw = result();
   raw.readings[2].gpuFrameMs = Array(12).fill(14);
-  assert.equal(
-    summarizeFeedbackRun(raw, 'alpha-blend-mode-test', 'sol', captures(), []).beyondSpread,
-    false,
-  );
-  raw.convergence!.supported = false;
-  assert.equal(
-    summarizeFeedbackRun(raw, 'alpha-blend-mode-test', 'sol', captures(), []).beyondSpread,
-    null,
-  );
+  assert.equal(verdict(raw), false);
 });
 
 test('WebGPU null uncovered metric permits resident verdict and reports pass shares', () => {
