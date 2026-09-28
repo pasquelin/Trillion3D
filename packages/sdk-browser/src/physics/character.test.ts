@@ -13,7 +13,8 @@ import {
   type CharacterInput,
 } from '../../../sdk-core/src/collision/characterSettings.ts';
 import { createCharacterDriver } from './characterDriver.ts';
-import { body, standCharacter, startModule, type Module } from './module.fixture.ts';
+import { standCharacter, startModule, type Module } from './module.fixture.ts';
+import { body } from './records.fixture.ts';
 
 const STILL: CharacterInput = { wishX: 0, wishZ: 0, sprint: false };
 const EAST: CharacterInput = { wishX: 1, wishZ: 0, sprint: false };

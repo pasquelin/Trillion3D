@@ -51,6 +51,8 @@ struct Slot {
   /** A soft body (`soft.cpp`): a teleport carries its vertices; it takes no kinematic move,
    *  velocity, impulse, joint or vehicle. */
   bool soft = false;
+  /** Its place in `soft.cpp`'s list, kept in step with it: a teleport finds it without a scan. */
+  uint32_t softAt = 0;
   /** Frozen beyond the range: surely still beyond it while `World::travel` stays below this and
    *  `World::viewEpoch` is `farEpoch` (the eye came no nearer than it travelled; `report.cpp`). */
   double farUntil = -1;

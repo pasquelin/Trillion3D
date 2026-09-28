@@ -12,6 +12,7 @@
       "bindingOf": "Ciò che scrive `tr`, risolto una volta; null finché il suo bersaglio non è sotto la radice.",
       "play": "Inizia a riprodursi.",
       "stop": "Si ferma e torna all'inizio.",
+      "seek": "Mette subito il clip a `time` secondi, secondo la sua modalità di ciclo, che l'azione stia suonando o no: un'azione in corso riparte da lì, una ferma mantiene la posa finché un'azione in corso del suo mixer non la sovrascrive.",
       "clipTime": "A che punto della clip è l'azione, secondo la sua modalità di loop."
     }
   },
@@ -613,7 +614,8 @@
       "p.left": "Bordo sinistro del riquadro di visione di una camera ortografica.",
       "p.right": "Bordo destro del riquadro di visione di una camera ortografica.",
       "p.top": "Bordo superiore del riquadro di visione di una camera ortografica.",
-      "p.bottom": "Bordo inferiore del riquadro di visione di una camera ortografica."
+      "p.bottom": "Bordo inferiore del riquadro di visione di una camera ortografica.",
+      "p.fitAspect": "Una camera ortografica mantiene altezza e centro del suo box e prende la larghezza dalla forma dell’immagine, così un canvas ridimensionato non stira mai il disegno. Disattivato per impostazione predefinita."
     }
   },
   "camera.orthographic": {
@@ -628,7 +630,8 @@
       "p.left": "Bordo sinistro del riquadro di visione di una camera ortografica.",
       "p.right": "Bordo destro del riquadro di visione di una camera ortografica.",
       "p.top": "Bordo superiore del riquadro di visione di una camera ortografica.",
-      "p.bottom": "Bordo inferiore del riquadro di visione di una camera ortografica."
+      "p.bottom": "Bordo inferiore del riquadro di visione di una camera ortografica.",
+      "p.fitAspect": "Una camera ortografica mantiene altezza e centro del suo box e prende la larghezza dalla forma dell’immagine, così un canvas ridimensionato non stira mai il disegno. Disattivato per impostazione predefinita."
     }
   },
   "camera.cube": {
@@ -659,7 +662,8 @@
       "p.left": "Bordo sinistro del riquadro di visione di una camera ortografica.",
       "p.right": "Bordo destro del riquadro di visione di una camera ortografica.",
       "p.top": "Bordo superiore del riquadro di visione di una camera ortografica.",
-      "p.bottom": "Bordo inferiore del riquadro di visione di una camera ortografica."
+      "p.bottom": "Bordo inferiore del riquadro di visione di una camera ortografica.",
+      "p.fitAspect": "Una camera ortografica mantiene altezza e centro del suo box e prende la larghezza dalla forma dell’immagine, così un canvas ridimensionato non stira mai il disegno. Disattivato per impostazione predefinita."
     },
     "members": {
       "isCamera": "Sempre `true`: distingue una camera da qualsiasi altro oggetto.",
@@ -672,6 +676,7 @@
       "right": "Bordo destro del riquadro ortografico.",
       "top": "Bordo superiore del riquadro ortografico.",
       "bottom": "Bordo inferiore del riquadro ortografico.",
+      "fitAspect": "Un box ortografico alto quanto dichiarato e largo quanto lo rende la forma dell’immagine.",
       "projection": "`'perspective'` rimpicciolisce ciò che è lontano; `'orthographic'` mantiene tutte le dimensioni.",
       "copy": "Prende i valori di nodo di `source` e, da una camera, la sua ottica; la propria `projection` resta.",
       "updateProjectionMatrix": "Ricompone `projectionMatrix`; ogni scrittura dell’ottica lo fa già, e ridisegna.",
@@ -715,7 +720,8 @@
       "left": "Bordo sinistro del riquadro di visione di una camera ortografica.",
       "right": "Bordo destro del riquadro di visione di una camera ortografica.",
       "top": "Bordo superiore del riquadro di visione di una camera ortografica.",
-      "bottom": "Bordo inferiore del riquadro di visione di una camera ortografica."
+      "bottom": "Bordo inferiore del riquadro di visione di una camera ortografica.",
+      "fitAspect": "Una camera ortografica mantiene altezza e centro del suo box e prende la larghezza dalla forma dell’immagine, così un canvas ridimensionato non stira mai il disegno. Disattivato per impostazione predefinita."
     }
   },
   "CameraPose-common": {
@@ -1605,6 +1611,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Questo percorso di disegno non sa fare questo cambiamento nella scena.",
       "BATCHED_WORLD_VIEW": "Questo percorso di disegno non sa fare questo cambiamento nella scena.",
       "RAYCAST_NO_VIEW": "È stato chiesto un punto dell'immagine a un canvas senza dimensioni: non c'è un'immagine attraverso cui mirare.",
+      "VERTICES_NOT_LOADED": "I vertici di un modello caricato sono stati letti prima di `await geometry.loadVertices()`: una sessione li legge al primo bisogno, mai in anticipo.",
       "SESSION_OPEN_FAILED": "La sessione del mondo non si è potuta aprire, per un motivo senza un codice proprio (`world.diagnostic.error`): l’errore lanciato è in `details.cause`.",
       "WEBGPU_LOST": "WebGPU ha perso il suo dispositivo, oppure un errore su di esso ha lasciato uno stato da cui nulla può disegnare: lanciato da `render`, `flush` e dalle letture che richiedono il dispositivo, nominato dalla diagnostica `gpu-device-lost`, e su `world.diagnostic.error` quando una sessione non si è potuta aprire per questo.",
       "UNSUPPORTED_SCENE_FORMAT": "Una scena salvata è di un altro formato o versione, oppure contiene ciò che una scena salvata non può memorizzare.",
@@ -2080,6 +2087,7 @@
       "rotateZ": "Ruota ogni vertice attorno all'asse z, di `angle` radianti.",
       "scale": "Allunga ogni vertice di `(x, y, z)`.",
       "center": "Sposta la geometria affinché la sua scatola sia centrata sull'origine.",
+      "loadVertices": "Legge i vertici di una mesh caricata, che nessuna sessione scarica in anticipo; subito per qualsiasi altra. Prima, leggerli (`array`, `getX`) lancia `VERTICES_NOT_LOADED`.",
       "clone": "Una nuova geometria con copie di ogni lista, i suoi gruppi, intervallo, dati e limiti, e la ricetta che ancora la costruisce.",
       "dispose": "Restituisce la geometria: esegue ogni hook di rilascio una volta, dimentica chi la tiene e l’albero di raycast; nessuno disegna né colpisce una geometria rilasciata.",
       "kind": "Che cos’è la risorsa, come un lettore della scena distingue le risorse.",
@@ -7013,7 +7021,8 @@
       "projection": "Prospettica o ortografica.",
       "position": "Dove si trova l'occhio.",
       "quaternion": "Come è ruotato l'occhio.",
-      "optics": "Campo, near, far, zoom e scatola, per nome."
+      "optics": "Campo, near, far, zoom e scatola, per nome.",
+      "fitAspect": "Una scatola ortografica allargata alla forma dell’immagine (`fitAspect`); assente se disattivata."
     }
   },
   "SavedGeometry": {
