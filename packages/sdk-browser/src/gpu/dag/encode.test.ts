@@ -48,7 +48,12 @@ test('every light view of a frame shares one traversal: the same commands as one
   const flat = (noyau: string) => lancements.filter((l) => l.noyau === noyau).map((l) => l.groupes);
   assert.deepEqual(flat('dagPrepare'), [1], 'one thread per slot: two primitives × three views');
   assert.deepEqual(
-    [...flat('dagLevel0'), ...flat('dagLevel1'), ...flat('dagLevel2')].sort(),
+    [
+      ...flat('dagRootLevel'),
+      ...flat('dagLevel0'),
+      ...flat('dagLevel1'),
+      ...flat('dagLevel2'),
+    ].sort(),
     [1, 1, 2, 8, 16].sort(),
     'stages [2, 9, 40, 150, 600] per view, three views, capped at 1000 queued nodes',
   );
