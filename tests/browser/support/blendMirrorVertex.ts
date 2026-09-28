@@ -1,3 +1,4 @@
+import { createScreenReflection } from '../../../packages/sdk-browser/src/reflections/gpu.ts';
 import { MODEL_SHIFT } from '../../../packages/sdk-browser/src/scene/surfaceModel.ts';
 
 // An untextured metal plane, or a diffuse/toon plane with roughness 1 and a zero-green map.
@@ -13,3 +14,20 @@ export const mirrorVertex = (rough: number, model: number) => `
  out.maps.x=${model ? 1 : 0}u;
  return out;
 }`;
+
+/** Disabled screen source keeps this proxy-specific shader proof independent of screen hits. */
+export function proxyOnlyReflection(device: GPUDevice) {
+  const depth = device.createTexture({
+    size: [1, 1],
+    format: 'depth32float',
+    usage: GPUTextureUsage.TEXTURE_BINDING,
+  });
+  const reflection = createScreenReflection(device, 1, 1, depth.createView(), false);
+  return {
+    group: reflection.group,
+    dispose() {
+      reflection.dispose();
+      depth.destroy();
+    },
+  };
+}

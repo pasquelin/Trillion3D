@@ -1,9 +1,5 @@
-import { MODEL_FLAG } from '../scene/surfaceModel.ts';
-import { ROUGHNESS_FLOOR, shaderFloat } from '../lighting/shaderConstants.ts';
-import { LTC_SIZE } from '../../../sdk-core/src/lighting/ltcTable.ts';
-
-/** One roughness sample of the lobe table: transition resolution, not a rough-lobe filter. */
-export const MIRROR_TRANSITION_END = shaderFloat(Number(ROUGHNESS_FLOOR) + 1 / (LTC_SIZE - 1));
+import { mirrorLightingShader, mirrorWeightShader } from '../reflections/modelShader.ts';
+export { MIRROR_TRANSITION_END } from '../reflections/modelShader.ts';
 
 /** Rank of the surface cache in the deferred bounce layout: past the water composite's own
  *  bindings (14 to 17) and the shadow transmittance pair (18, 19), which share those numbers. */
@@ -46,9 +42,7 @@ fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
 export const bounceReflectionWgsl = (binding: number) => `
 @group(0) @binding(${binding}) var<storage,read> surface:array<vec4f>;
 ${SURFACE_RAY_WGSL}
-fn mirrorWeight(rough:f32)->f32{
- return 1.0-smoothstep(${ROUGHNESS_FLOOR},${MIRROR_TRANSITION_END},rough);
-}
+${mirrorWeightShader('wgsl')}
 fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
  if(bounce.counts.w==0u){return vec3f(0.0);}
  let weight=mirrorWeight(rough);
@@ -74,11 +68,4 @@ fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
  * Beyond that interval a rougher lobe needs filtered radiance (#33); the term stays zero.
  * A diffuse or toon surface has no specular lobe and reflects nothing.
  */
-export const MIRROR_LIGHTING_WGSL = `
-fn mirrorLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f)->vec3f{
- let weight=mirrorWeight(rough);
- if(weight==0.0||surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return vec3f(0.0);}
- let t=ltcLookup(rough,clamp(dot(N,V),1e-4,1.0),1u);
- let f0=mix(vec3f(0.04),rgb,metal);
- return (f0*t.x+(vec3f(1.0)-f0)*t.y)*reflectedRadiance(P,N,reflect(-V,N),${ROUGHNESS_FLOOR})*weight;
-}`;
+export const MIRROR_LIGHTING_WGSL = mirrorLightingShader('wgsl');

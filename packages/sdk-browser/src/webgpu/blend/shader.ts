@@ -1,3 +1,4 @@
+import { SCREEN_REFLECTION_WGSL } from '../../reflections/screenWgsl.ts';
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
 import { MODEL_SHIFT, MODEL_FLAG, SURFACE_MODEL } from '../../scene/surfaceModel.ts';
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
@@ -48,7 +49,8 @@ ${STANDARD_LIGHTING_WGSL}
 ${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData, BLEND_BINDINGS.shadowTransmittance)}
 ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
 ${bounceReflectionWgsl(BLEND_BINDINGS.surfaceCache)}
-${MIRROR_LIGHTING_WGSL}
+${MIRROR_LIGHTING_WGSL.replace(')*reflectedRadiance(', ')*resolvedRadiance(')}
+${SCREEN_REFLECTION_WGSL}
 @group(0) @binding(${BLEND_BINDINGS.directLights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${BLEND_BINDINGS.shadowAtlas}) var shadowAtlas:texture_depth_2d_array;
 @group(0) @binding(${BLEND_BINDINGS.shadowSampler}) var shadowSampler:sampler_comparison;
@@ -184,8 +186,6 @@ ${BLEND_SURFACE_WGSL}
  if(!unlit){
   if((flags&1u)!=0u){
    let m=clamp(s.metal,0.0,1.0);
-   // A pixel's footprint at the surface: its distance times the pixel's angle, or the pixel
-   // itself under an orthographic camera.
    shadowFootprint=select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-in.view),uni.camPos.w!=0.0);
    rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
    let model=(flags>>${MODEL_SHIFT}u)&7u;
