@@ -342,7 +342,10 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   (`gpu/shadow/batchWrites.ts`, `webgpu/pages/render/encodeShadowBatches.ts`). What the batches
   add is sized once from the largest pool, never grown, and counted in the memory budget
   (`gpu/shadow/batchBudget.ts`): 4 096 pages in full batches of 24 is at most 171 batches a frame
-  (`MAX_SHADOW_BATCHES`), each in at most 24 light views. The staging of every batch but the first
+  (`MAX_SHADOW_BATCHES`), each in at most 24 light views. The shaders' arrays, strides and uniform
+  layouts — the light cut's views, the regions' faces and commands, the occlusion slots — are
+  generated from those same constants (`recordPack.ts`, `batchBudget.ts`), never a literal twin
+  (`gpu/shadow/capacities.test.ts`). The staging of every batch but the first
   is 170 × 26 556 bytes, 4.31 MiB, made at the first frame that needs it; the light cut's flag
   words, a word per batch for 4 frames in flight, 2 736 bytes; the CPU cut's commands for 4 104
   faces, 65 664 bytes; the region commands of every batch a sampled frame copies for the cull and
@@ -398,7 +401,11 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
 moving the first time its pose or its row's flag actually changes (`webgpu/shadow/mobility.ts`) —
 a pose written again where it stands, or a row inside a written range, is no move — and stays so; from then on the pool
 keeps a static layer, a second depth texture the pool's size, allocated at that first move — a scene where
-nothing moves pays neither its bytes nor its pass. A page drawn in full writes its static casters
+nothing moves pays neither its bytes nor its pass. Its pipelines, like every shadow pipeline — the
+light cut's row map, the page pyramids (the camera's Hi-Z kernels), the occlusion test and, for a
+scene whose blended surfaces cast, the transmittance draws —, are compiled at prepare, in a
+preparation step of their own (`shadow pipelines`, `webgpu/pages/prepare/lights.ts`): no frame
+after it compiles one. A page drawn in full writes its static casters
 into the layer, then restores itself from it and draws its moving casters over; a page that only
 a moving object crossed is restored and gets its moving casters alone, split by one word per row
 in the page cull. A still moving object stales nothing; it is never demoted, since a rule that
