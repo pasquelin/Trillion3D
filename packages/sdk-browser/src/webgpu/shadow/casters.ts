@@ -130,8 +130,9 @@ export function redrawShortPages(
   nowMs: number,
   residencyMoved: boolean,
 ) {
-  const { plan } = rt.lights,
-    redraws = rt.lights.lightCut?.redraws;
+  const { lights } = rt,
+    { plan } = lights,
+    redraws = lights.lightCut?.redraws;
   if (!redraws) return;
   if (residencyMoved) redraws.residencyChanged();
   if (plan.resting) redraws.rest();
@@ -139,11 +140,34 @@ export function redrawShortPages(
   const pages = redraws.takeRedraw((page, withdraw, staticCasters) => {
     if (pool.owner[page] < 0) return;
     pool.stale(page, nowMs, frame, staticCasters ? STALE_FULL : STALE_DYNAMIC);
-    if (withdraw) pool.withdraw(plan.table, page);
+    if (withdraw) {
+      pool.withdraw(plan.table, page);
+      lights.lightCutWithdrawnPages++;
+    } else lights.lightCutCoarsePages++;
   });
   if (pages)
     rt.diag.engineDiagnostic('light-cut-redraw', 'Pages the light cut drew short, drawn again', {
       pages,
-      viewLimit: redraws.viewLimit,
+      viewLimit: redraws.limit.value,
     });
+}
+
+/** The light-cut metrics of an engine without the GPU light cut. */
+const NO_LIGHT_CUT = {
+  shadowCutDrops: null,
+  shadowCutWithdrawnPages: null,
+  shadowCutCoarsePages: null,
+  shadowCutViewLimit: null,
+} as const;
+
+/** The light cut's counters as frame metrics (`ShadowFrameMetrics`), null without a light cut. */
+export function lightCutMetrics({ lights }: WebgpuPagesRuntime) {
+  const limit = lights.lightCut?.redraws.limit;
+  if (!limit) return NO_LIGHT_CUT;
+  return {
+    shadowCutDrops: limit.dropsRead,
+    shadowCutWithdrawnPages: lights.lightCutWithdrawnPages,
+    shadowCutCoarsePages: lights.lightCutCoarsePages,
+    shadowCutViewLimit: limit.value,
+  };
 }
