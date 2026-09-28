@@ -17,6 +17,14 @@ import { readOverNetwork } from '../support/geometryNetworkPage.ts';
 const ROOT = resolve(import.meta.dirname, '../../..');
 const DIST = resolve(ROOT, process.env.NETWORK_PROOF_DIST ?? 'dist');
 const LATENCY_MS = 60;
+const VIEWPORT = { width: 1280, height: 800 };
+/** The emulated network: `LATENCY_MS` round trip, 30 Mb/s each way. */
+const THROTTLE = {
+  offline: false,
+  latency: LATENCY_MS,
+  downloadThroughput: 30e6 / 8,
+  uploadThroughput: 30e6 / 8,
+};
 
 /** One cache object's transfer as Chrome's network stack saw it, on its own clock; `answered` once
  *  its response came, so a read aborted before it (the view moved on) says nothing of its encoding. */
@@ -34,7 +42,7 @@ const browser = await launchChrome({ headless: true });
 
 /** The scene opened in a fresh context, `throttled` or not: what the page read, and the transfers. */
 async function open(throttled: boolean) {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const context = await browser.newContext({ viewport: VIEWPORT });
   const page = await context.newPage();
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -58,15 +66,7 @@ async function open(throttled: boolean) {
   cdp.on('Network.loadingFinished', end);
   cdp.on('Network.loadingFailed', end);
   await cdp.send('Network.enable');
-  if (throttled) {
-    const bytesPerSecond = 30e6 / 8;
-    await cdp.send('Network.emulateNetworkConditions', {
-      offline: false,
-      latency: LATENCY_MS,
-      downloadThroughput: bytesPerSecond,
-      uploadThroughput: bytesPerSecond,
-    });
-  }
+  if (throttled) await cdp.send('Network.emulateNetworkConditions', THROTTLE);
   await page.goto(`http://127.0.0.1:${port}/`);
   const reading = await page.evaluate(readOverNetwork, {
     sdkUrl: '/dist/witnesses/measurement.js',
@@ -74,44 +74,40 @@ async function open(throttled: boolean) {
     manifestUrl: assetsManifest(DEFAULT_SCENE, true),
     poses: 24,
     holdMs: 300_000,
-    width: 1280,
-    height: 800,
+    ...VIEWPORT,
   });
   await context.close();
+  const sent = [...transfers.values()];
   return {
     ...reading,
     errors: [...errors, ...reading.failures],
-    transfers: [...transfers.values()],
+    transfers: sent,
+    alongside: sentAlongside(sent),
+    farthest: Math.max(...reading.horizons),
   };
 }
 
 try {
   const fast = await open(false),
     slow = await open(true);
-  const read = (r: typeof fast) => ({
-    alongside: sentAlongside(r.transfers),
-    farthest: Math.max(...r.horizons),
-  });
-  const fastRead = read(fast),
-    slowRead = read(slow);
-  for (const [name, r, f] of [
-    ['fast', fast, fastRead],
-    ['slow', slow, slowRead],
-  ] as const)
+  for (const [name, r] of Object.entries({ fast, slow })) {
     console.log(
-      `${name}: ${r.admitted.length} admitted, ${f.alongside}/${r.transfers.length} reads sent ` +
-        `alongside another, horizon up to ${f.farthest} ms, encodings ` +
+      `${name}: ${r.admitted.length} admitted, ${r.alongside}/${r.transfers.length} reads sent ` +
+        `alongside another, horizon up to ${r.farthest} ms, encodings ` +
         `${[...new Set(r.transfers.filter((t) => t.answered).map((t) => t.encoding ?? 'identity'))]}, held ${r.held}, ` +
         `errors ${r.errors.join(' | ') || 'none'}`,
     );
-  for (const r of [fast, slow]) {
     assert.deepEqual(r.errors, []);
     assert.ok(r.held, 'the still image is held');
+    assert.ok(
+      r.horizons.length && r.horizons.every(Number.isFinite),
+      'frames trace aheadHorizonMs',
+    );
   }
   // #997: an admission pass starts the reads it will wait for before it admits the first, so they
   // share the network; one read at a time leaves a read alone on it.
   assert.ok(
-    slowRead.alongside * 2 > slow.transfers.length,
+    slow.alongside * 2 > slow.transfers.length,
     'most geometry page reads are sent while another is in flight',
   );
   assert.deepEqual(
@@ -120,16 +116,8 @@ try {
     'the pool admits the same pages',
   );
   // #999: the view ahead adds the measured round trip, which the emulation keeps above its latency.
-  for (const r of [fast, slow])
-    assert.ok(
-      r.horizons.length && r.horizons.every(Number.isFinite),
-      'frames trace aheadHorizonMs',
-    );
-  assert.ok(
-    slowRead.farthest >= PREFETCH_HORIZON_MS + LATENCY_MS,
-    'the horizon adds the round trip',
-  );
-  assert.ok(fastRead.farthest < slowRead.farthest, 'a nearer network looks less far ahead');
+  assert.ok(slow.farthest >= PREFETCH_HORIZON_MS + LATENCY_MS, 'the horizon adds the round trip');
+  assert.ok(fast.farthest < slow.farthest, 'a nearer network looks less far ahead');
   const answered = slow.transfers.filter((t) => t.answered);
   assert.ok(
     answered.length > 0 && answered.every((t) => t.encoding === 'br'),
