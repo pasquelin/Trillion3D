@@ -31,6 +31,8 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
   UNSUPPORTED_SCENE_UPDATE: 'This drawing path cannot make that change to the scene.',
   RAYCAST_NO_VIEW:
     'A picture point was asked of a canvas with no size: there is no picture to aim through.',
+  SURFACE_CAPTURE_UNSUPPORTED:
+    'A surface capture (`captureSurfaceView`) was asked of a drawing path that cannot draw the material surfaces in a view of its own: the WebGL2 path has none.',
   VERTICES_NOT_LOADED:
     "A loaded model's vertices were read before `await geometry.loadVertices()`: a session reads them on first need, never up front.",
   WEBGPU_LOST:

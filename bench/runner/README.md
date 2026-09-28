@@ -31,6 +31,7 @@ rerun benchmarks.
 - `--lampes N`: enables N point lights in the scene. `--ombres on|off` toggles shadow casting; `--lampe-mobile` animates the first light in a circle. `--intensite N` sets light intensity. `--portee F` sets each light's range to `F` grid cells (0.75 by default): above one, several lights reach the same pixel.
 - `--soleil`: adds directional sun light with its virtual shadow maps. Combines with `--lampes`.
 - `--camera-mobile`: the pose advances by one step along the benchmark trajectory at each measured frame, instead of replaying the same one. This is what distinguishes a still scene from a moving camera — and thus, for the sun, cached shadow pages from pages redrawn at each frame. It is also the only way to observe selection cost: with a fixed pose, everything retained frame-to-frame is free and appears nowhere. On a ten-million-triangle interior, general view, GPU transparent selection drops `cpuFrameMs` p50 from 17.6 to 12.1 ms at threshold 0 and from 7.2 to 4.5 ms at threshold 1 — an invisible difference with a static camera. The recorded cut hash may differ between sides under this option without the image moving: it comes from asynchronous readback, one frame behind the cut it describes.
+- `--gaze-network` (#41): plays each view's trajectory once, one pose per frame, with no warmup, capture or settle barrier, and counts the bytes Chrome actually transferred (textures apart from the rest) instead of timing frames; `resume.md` then carries a "Gaze-driven network transfer" table and `mesure.json` a `gazeNetwork` list. It needs a compiled cache scene, `--textures cache` and `--moteur webgpu` on every side; see [GAZE_NETWORK.md](GAZE_NETWORK.md).
 - Without `--lampes` or `--soleil`, no lights are declared: the engine renders unlit material albedo. This is its default behavior, not a harness option.
 
 - Shadow pages: every page a frame marks is drawn in that frame, in as many batches as it takes; the profile reports `pagesEnAttente` (0 unless a batch could not be encoded) and `retardMaxMs`, and `occludeursGardes`, the clusters the region culls kept on the sampled frame `imageRelevee` (one frame in fifteen, read back after submission). Under `--camera-mobile`, the sun is a clipmap: each of its levels is a window of pages around the camera, addressed by absolute page modulo the window, so a camera step keeps every page that stays inside and only the entering strips are drawn; changes of representation (level of detail, residency, colour tiles) stale pages only once the camera rests, so the moving loop's `pagesInvalidees` counts strips and moving objects alone.
@@ -176,6 +177,40 @@ a mirrored mapping that costs the simplification nothing — in a tenth of a sec
 
 Resource base URL is where harness serves sources for compiled glTF texture fetch. Cache fingerprint is `key` in `manifest.json`, recorded in `mesure.json`: comparisons require identical keys.
 
+## Navigation image regression proof
+
+Acceptance can replay the complete versioned camera path without collecting timings:
+
+    node bench/runner/trajectory.ts --scene sponza --cache .mesure/assets/sponza-derived \
+      --avant .worktrees/reference/dist --apres dist --out .mesure/out/8-trajectory
+
+Both builds must already exist. `--avant` is the explicitly chosen golden baseline, never
+automatically replaced by the candidate. Both sides read the same compiled cache, camera poses,
+resolution, error threshold, memory budgets and texture compression. Build hashes, asset identity,
+browser version, settings and path version accompany the PNGs in `trajectory.json`. The output
+directory must be new and under `.mesure/out/`; publish the evidence, then remove that directory.
+
+The default is all 600 poses, with checkpoints every 60 poses and at the final pose. `--images`
+can shorten a diagnosis; `--checkpoint-every` can sample more closely (at most 32 checkpoints).
+Each pass keeps one world open throughout navigation and pauses at checkpoints for a
+64-frame held-image barrier. Every render, including convergence, is observed for coverage and
+streaming errors; no SDK flush is called because it can redraw and converge internally. Canvas
+pixels are copied immediately after render in the same browser frame, before its buffer expires,
+using the same surface path for arrival and settled images. The baseline runs twice: only exact, non-black 0 px A/A images are
+accepted as goldens. The candidate records both its arrival image and its held image. Missing
+captures, page/GPU errors, geometry holes, incomplete triangle coverage, no drawn geometry,
+unsettled images and unstable goldens fail the command. A single changed pixel after convergence
+is a regression. A difference that disappears after convergence is reported separately as
+`transient`, with arrival page counters and settling frame count; this does not attribute every
+transient to streaming (temporal accumulation can also differ), nor certify absence of visible
+popping between checkpoints. No elapsed-frame or GPU timing claim is made.
+
+The default scene is the public benchmark reference, Sponza, shared through `DEFAULT_SCENE`.
+Use `--scene` and `--cache` to select another scene explicitly. A missing cache fails the command;
+it never silently substitutes another scene. Browser execution and golden evidence remain to be
+produced by acceptance. The deterministic unit tests cover verdicts, navigation ordering,
+transient errors and checkpoint coverage without a browser.
+
 ## Measuring Another Scene
 
 Harness is scene-agnostic: measures provided caches, pose bounds read from page model bounds. Three setup steps:
@@ -186,7 +221,7 @@ Harness is scene-agnostic: measures provided caches, pose bounds read from page 
 
 Memory pools match engine fixed byte budgets: `--pool-geometrie <MiB>` (geometry pages, default 512 MiB) and `--pool-textures <MiB>` (texture tiles, default 512 MiB). Extreme values test degradation behavior, logged in metrics (`poolGeometrie.borne`, `poolGeometrie.saturees`, `coverageBudgetLimited`, `textureTilesRefused`). `--max-pages` remains a PAGE cap for test scenes. Recorded in metrics; comparisons require matching pool sizes.
 
-IN-SESSION adjustment (app slider via `explorer.setMemoryBudgets`) measured via `--pool-geometrie-vivant <MiB>` and `--pool-textures-vivant <MiB>`: post-warmup, harness resizes pools and logs engine response (`series[].sides[].reglageVivant`: retained pools, evicted items, resize duration, pre-resize residency) and frame count to recover held pose (`imagesReprise`, `null` if unrecoverable — pool smaller than view). Long warmup (`--chauffe 60`) fills pools before adjustment. To GROW geometry pool in-session, `--pool-geometrie-plafond <MiB>` declares max session pool ceiling.
+IN-SESSION adjustment (app slider via `explorer.setMemoryBudgets`) measured via `--pool-geometrie-vivant <MiB>` and `--pool-textures-vivant <MiB>`: post-warmup, harness resizes pools and logs engine response (`series[].sides[].reglageVivant`: retained pools, evicted items, resize duration, pre-resize residency) and frame count to recover held pose (`imagesReprise`, `null` if unrecoverable — pool smaller than view). Long warmup (`--chauffe 60`) fills pools before adjustment. `--pool-textures-vivant <n>%` derives the budget from the scene (`poolFill.ts`), never a number tuned for one: twice n % of the texture bytes the settled pose holds resident — a lower bound on each atlas's share of its own, since the engine gives each of its two atlases half the budget (`texturePoolFor`) and publishes one residency for both. The summary's `Texture pool set live` line prints the bytes asked, what the engine held (and its clamp), the tiles evicted at the resize and its ms; the `Streamer` line gives the tiles evicted and the texture pass times of the moving series. The engine draws whole layers, at least one (900 tiles) per lane in use, and raises a smaller budget to that floor (`minimum`): a lane evicts only when the camera's path asks it more tiles than its layers hold. Two sides whose residencies differ derive different budgets: compare them at the same absolute figure, the MiB the summary printed beside the MB asked (`--pool-textures-vivant <MiB>`). To GROW geometry pool in-session, `--pool-geometrie-plafond <MiB>` declares max session pool ceiling.
 
 ## What a Cache's Pages Cost in Precision
 

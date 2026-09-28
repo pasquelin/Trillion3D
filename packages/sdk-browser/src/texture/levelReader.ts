@@ -1,5 +1,4 @@
 import {
-  levelBlockBytes,
   PREVIEW_LOSSLESS_FORMAT,
   textureLevelUrl,
   type ClusterManifest,
@@ -7,6 +6,7 @@ import {
 } from '../../../sdk-core/src/index.ts';
 import { checked } from '../cluster/checked.ts';
 import type { TextureLevelStore } from './levelStore.ts';
+import { tiledLevelBytes } from './tileRecords.ts';
 
 /** What an engine reads of a baked level: the image decoded by the browser, ready to copy —
  *  or, block-compressed, the bytes as the file holds them, which the GPU reads as they are. */
@@ -21,6 +21,9 @@ export type TextureLevelRequest = {
   level: number;
   /** Which format. */
   format: TextureLevelFormat;
+  /** A block level's bytes to read alone — one tile's record (`tileRecords.ts`) —, by an HTTP
+   *  Range; a server that ignores it answers the whole file. */
+  range?: { offset: number; bytes: number };
 };
 // The explorer's reader also names the store its session holds the levels in: its world's
 // (`levelStore.ts`).
@@ -36,12 +39,12 @@ const bitmapBytes = (width: number, height: number) => width * height * 4;
 /** Host bytes a level holds: the bitmap's texels, or the blocks. */
 export const textureLevelBytes = (level: TextureLevel) =>
   level instanceof Uint8Array ? level.byteLength : bitmapBytes(level.width, level.height);
-/** Host bytes the level `request` names will hold once read, `width` × `height` texels. */
+/** Host bytes the whole level `request` names will hold once read, `width` × `height` texels. */
 export const requestedLevelBytes = (
   { format }: TextureLevelRequest,
   [width, height]: readonly [number, number],
 ) =>
-  format === PREVIEW_LOSSLESS_FORMAT ? bitmapBytes(width, height) : levelBlockBytes(width, height);
+  format === PREVIEW_LOSSLESS_FORMAT ? bitmapBytes(width, height) : tiledLevelBytes(width, height);
 export const closeTextureLevel = (level: TextureLevel) => {
   if (!(level instanceof Uint8Array)) level.close();
 };
@@ -50,9 +53,11 @@ export const closeTextureLevel = (level: TextureLevel) => {
  * Reader of a cache's baked levels, built by the explorer that knows the manifest address; the
  * engine itself only receives the function. A lossless level decodes as the browser does, off
  * the main thread, with exactly the options the prepared scene decodes its source images with
- * (`premultiplyAlpha: 'none'`, `colorSpaceConversion: 'none'`, `../host/prepared/images.ts`): the bytes that reach the atlas
- * by this path are those that reached it by the other. A block level is read as bytes; the
- * write that cuts tiles from it checks their length against the level's geometry.
+ * (`premultiplyAlpha: 'none'`, `colorSpaceConversion: 'none'`, `../host/prepared/images.ts`): the
+ * bytes that reach the atlas by this path are those that reached it by the other. A block level
+ * is read as bytes — one tile's record by an HTTP Range (#962), or the whole file —, whose length
+ * `webgpu/tile/levels.ts` checks. A cache whose levels are of another version is refused before
+ * any read (`assertCacheIdentity`).
  *
  * Levels are kept in `store` under the cook's `key`, which hashes the source, its images, the
  * compiler and every option that decides the product: under one key a level names one file.
@@ -66,9 +71,10 @@ export function createTextureLevelReader(
 ): TextureLevelReader | undefined {
   store?.keepOnly(key);
   if (!textures || typeof createImageBitmap !== 'function') return undefined;
-  const read = async ({ sha256, atlas, level, format }: TextureLevelRequest) => {
+  const read = async ({ sha256, atlas, level, format, range }: TextureLevelRequest) => {
     const url = new URL(textureLevelUrl(textures.url, sha256, atlas, level, format), base).href;
-    const response = await checked(url, signal);
+    const headers = range && { Range: `bytes=${range.offset}-${range.offset + range.bytes - 1}` };
+    const response = await checked(url, signal, undefined, headers);
     if (format === PREVIEW_LOSSLESS_FORMAT)
       return createImageBitmap(await response.blob(), {
         premultiplyAlpha: 'none',

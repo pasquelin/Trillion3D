@@ -8,7 +8,11 @@ import {
   SHADOW_RECORD_INFO,
   SHADOW_RECORD_ORIGINS,
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
-import { SHADOW_PAGE, pageOrigin } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import {
+  SHADOW_PAGE,
+  SUN_DEPTH_RANGES,
+  pageOrigin,
+} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { SunLevels } from '../../../../sdk-core/src/scene/light-shadow/sunLevels.ts';
 
 /** Pages one GPU batch draws: the size of the per-batch buffers. A frame draws every page it
@@ -20,6 +24,13 @@ export const MAX_SHADOW_REGIONS = 2 * MAX_SHADOW_PAGES;
  *  clip square the page quads read (`writePage`). */
 export const SHADOW_FACE_READ_WORDS = 24,
   SHADOW_FACE_READ_BYTES = SHADOW_FACE_READ_WORDS * 4;
+/** First word of a face entry's emitter envelope, `emitter`: its centre, then its radius. */
+const FACE_EMITTER = 20;
+
+/** The inverse span of depth range `[zNear, zFar]` the shading once divided for, in float32 as
+ *  it did: a span of whole powers of two (`sunLevels.ts`), whose inverse is exact either way. */
+const depthInverse = (zNear: number, zFar: number) =>
+  1 / Math.max(Math.fround(Math.fround(zFar) - Math.fround(zNear)), Math.fround(1e-6));
 
 /**
  * Host mirrors of the two shadow buffers the frame writes — the drawn pages' matrices, read by
@@ -74,16 +85,18 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
       facePacked[uniform + 17] = y / size;
       facePacked[uniform + 18] = SHADOW_PAGE / size;
       facePacked[uniform + 19] = SHADOW_PAGE;
-      facePacked[uniform + 20] = center ? center[0] : 0;
-      facePacked[uniform + 21] = center ? center[1] : 0;
-      facePacked[uniform + 22] = center ? center[2] : 0;
-      facePacked[uniform + 23] = center ? radius : 0;
+      facePacked[uniform + FACE_EMITTER] = center ? center[0] : 0;
+      facePacked[uniform + FACE_EMITTER + 1] = center ? center[1] : 0;
+      facePacked[uniform + FACE_EMITTER + 2] = center ? center[2] : 0;
+      facePacked[uniform + FACE_EMITTER + 3] = center ? radius : 0;
       // Its clip square in the whole atlas's: `xy * s + o`, what the page draws read.
       const rect = uniform + SHADOW_FACE_READ_WORDS;
       facePacked[rect] = (2 * x + SHADOW_PAGE) / size - 1;
       facePacked[rect + 1] = 1 - (2 * y + SHADOW_PAGE) / size;
       facePacked[rect + 2] = facePacked[rect + 3] = SHADOW_PAGE / size;
     },
+    /** True when region `index` carries an emitter envelope: a radius the depth pass strips. */
+    hasEnvelope: (index: number) => facePacked[(index * faceStride) / 4 + FACE_EMITTER + 3] > 0,
     /** A lamp's record: its face matrices, face count, tangent half-field, near plane, table base. */
     writeLamp(
       slice: number,
@@ -99,13 +112,18 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
       set(slice, SHADOW_RECORD_INFO + 2, near);
       set(slice, SHADOW_RECORD_INFO + 3, tableBase);
     },
-    /** A sun's record: its light-plane frame and depth range, its windows, its levels. */
+    /** A sun's record: its depth ranges where a lamp's matrices lie, `zNear` and inverse span
+     *  each (`sunDepth.ts`), its light-plane frame, its windows, its levels. */
     writeSun(slice: number, sun: SunLevels, levels: number, tableBase: number) {
-      for (let row = 0; row < 3; row++) {
+      const pairs = sun.ranges.pairs,
+        first = slice * SUN_DEPTH_RANGES * 2;
+      for (let i = 0; i < SUN_DEPTH_RANGES * 2; i += 2) {
+        set(slice, i, pairs[first + i]);
+        set(slice, i + 1, depthInverse(pairs[first + i], pairs[first + i + 1]));
+      }
+      for (let row = 0; row < 3; row++)
         for (let a = 0; a < 3; a++)
           set(slice, SHADOW_RECORD_FRAME + row * 4 + a, sun.frame[slice * 9 + row * 3 + a]);
-        set(slice, SHADOW_RECORD_FRAME + row * 4 + 3, row < 2 ? sun.depth[slice * 2 + row] : 0);
-      }
       for (let i = 0; i < levels * 2; i++)
         setInt(slice, SHADOW_RECORD_ORIGINS + i, sun.origins[slice * levels * 2 + i]);
       set(slice, SHADOW_RECORD_INFO, levels);

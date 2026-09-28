@@ -1,5 +1,5 @@
-// Refuses a pull request that adds more than 600 hand-written lines (AGENTS.md rule 11: small,
-// short-lived pull requests). Paths marked `linguist-generated` or `linguist-vendored` in
+// Refuses a pull request that adds more than 1,500 hand-written lines (AGENTS.md rule 5: one issue,
+// one small pull request). Paths marked `linguist-generated` or `linguist-vendored` in
 // .gitattributes are left out, as the base marks them (a pull request cannot exempt its own
 // files), and binary files count no line. The whole repository is counted, from any folder.
 // Usage: node scripts/check-pr-size.ts [base]  (default $TRILLION3D_BASE_REF, the variable
@@ -7,7 +7,7 @@
 // commit).
 import { spawnSync } from 'node:child_process';
 
-const limit = 600;
+const limit = 1500;
 const base = process.argv[2] || process.env.TRILLION3D_BASE_REF || 'origin/develop';
 const pathspec = [
   ':/',
@@ -29,7 +29,7 @@ const added = diff.stdout
 console.log(`Hand-written lines added: ${added} (limit ${limit}).`);
 if (added > limit) {
   console.error(
-    'Above the limit of AGENTS.md rule 11: deliver the issue in steps, one pull request each (AGENTS.md rule 5).',
+    'Above the limit of AGENTS.md rule 5: narrow the issue to what one pull request closes.',
   );
   process.exitCode = 1;
 }

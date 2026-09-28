@@ -20,9 +20,8 @@ type GeometryEnvironment = {
   scene: Scene;
   allPages: PageRec[];
   bootstrap: PageRec[];
-  shown: PageRec[];
-  desired: PageRec[];
-  requested: PageRec[];
+  /** The drawn view's cut, which the scene holds, and every view's lists (`views.ts`). */
+  views: { readonly live: { readonly shown: readonly PageRec[] }; lists(): PageRec[][] };
   byUrl: Map<string, PageRec[]>;
   descriptors: Map<string, GeometryPageDescriptor>;
   baseMaterials: Map<PageRec, HostMaterials>;
@@ -48,7 +47,7 @@ const ITEM_SIZE: Record<string, number> = { position: 3, normal: 3, color: 4 };
 const itemSize = (name: string) => ITEM_SIZE[name] ?? 2;
 
 export function createAutonomousGeometry(env: GeometryEnvironment) {
-  const { scene, allPages, shown, byUrl, baseMaterials, colorMaterials } = env;
+  const { scene, allPages, byUrl, baseMaterials, colorMaterials } = env;
   const state = { allocationBytes: 0, submittedTriangles: 0, residentPages: 0 };
   const held = createHeldResidency();
   /** The one writer of a record's residency, its index array: the cut's readiness follows it. */
@@ -84,7 +83,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   const batches = createWebglPageBatches(scene),
     rowed: PageRec[] = [];
   const sync = () => {
-    const display = shown;
+    const display = env.views.live.shown;
     affichees.clear();
     rowed.length = 0;
     for (const rec of display)
@@ -130,7 +129,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       release(rec, !!rec.placement && list.some((other) => other.geometry === rec.geometry));
       baseMaterials.delete(rec);
     }
-    for (const list of [allPages, env.bootstrap, shown, env.desired, env.requested])
+    for (const list of [allPages, env.bootstrap, ...env.views.lists()])
       for (let i = list.length - 1; i >= 0; i--) if (removed.has(list[i])) list.splice(i, 1);
   };
   const storeGeometryPage = (url: string, data: DecodedGeometryPage) => {

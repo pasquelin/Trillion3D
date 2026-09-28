@@ -1,4 +1,6 @@
+import { createScreenReflection, wantsReflections } from '../../../reflections/gpu.ts';
 import {
+  DISPLAY_FORMAT,
   FEEDBACK_FORMAT,
   checkSurfaceSize,
   createSurfaceBuffer,
@@ -27,7 +29,12 @@ export function frameTargetAllocation(
     gpuDevice = rt.gpu.device;
   if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
   checkSurfaceSize(gpuDevice, width, height, 1);
-  return frameTargetBytes(width, height, reserveHiz) + additional;
+  return (
+    frameTargetBytes(width, height, reserveHiz) +
+    additional +
+    (wantsReflections(rt) ? width * height * 8 : 8) +
+    80
+  );
 }
 
 /** True when the drawn view's frame targets in place are those of `width × height`. */
@@ -38,6 +45,7 @@ export function targetsFit(rt: WebgpuPagesRuntime, width: number, height: number
     gpu.targetSize[0] === width &&
     gpu.targetSize[1] === height &&
     !!gpu.surfaces &&
+    gpu.reflection?.active === wantsReflections(rt) &&
     (!vis.visEnabled || !!vis.visTexture)
   );
 }
@@ -54,6 +62,8 @@ export function releaseTargets(rt: WebgpuPagesRuntime) {
   vis.visTexture = vis.materialDepthTexture = undefined;
   vis.visView = vis.materialDepthView = undefined;
   disposeBackdrop(gpu);
+  gpu.reflection?.dispose();
+  gpu.reflection = undefined;
   gpu.surfaces?.dispose();
   gpu.surfaces = undefined;
   vis.gpuRaster?.dispose();
@@ -81,7 +91,7 @@ export function makeTargets(
     usage = sampled | GPUTextureUsage.COPY_SRC;
   const target = (label: string, format: GPUTextureFormat, targetUsage = usage) =>
     device.createTexture({ label, size: { width, height }, format, usage: targetUsage });
-  gpu.colorTexture = target('Trillion3D display color', 'rgba8unorm');
+  gpu.colorTexture = target('Trillion3D display color', DISPLAY_FORMAT);
   gpu.depthTexture = target(
     'Trillion3D opaque depth',
     'depth32float',
@@ -94,6 +104,13 @@ export function makeTargets(
   gpu.colorView = gpu.colorTexture.createView();
   gpu.depthView = gpu.depthTexture.createView();
   gpu.hdrView = gpu.hdrTexture.createView();
+  gpu.reflection = createScreenReflection(
+    device,
+    width,
+    height,
+    gpu.depthView,
+    wantsReflections(rt),
+  );
   gpu.backdrop = createBackdrop(device, width, height, blendState.transmissive > 0);
   // Temporal history follows the image size, like the other targets.
   const allocationBytes = targetBytes + ensureTaaTargets(rt, width, height);
