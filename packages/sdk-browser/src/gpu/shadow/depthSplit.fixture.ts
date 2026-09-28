@@ -110,23 +110,9 @@ export function shadowEntries(scene: ShadowScene): ShadowEntries {
     source = source.replace(shape, spelled);
   }
   const names = [
-    'drawPage',
-    'cutoutPage',
-    'shadowVertex',
-    'developVertex',
-    'shadow_vs',
-    'shadow_depth_vs',
-    'shadow_cutout_vs',
-    'shadowKeep',
-    'maskKeep',
-    'lineDash',
-    'pageHeader',
-    'pageCorner',
-    'pagePosition',
-    'pageUv',
-    'vertPos',
-    'vertUv',
-    'keptAt',
+    ...['drawPage', 'cutoutPage', 'shadowVertex', 'developVertex', 'shadow_vs', 'shadow_depth_vs'],
+    ...['shadow_cutout_vs', 'shadowKeep', 'maskKeep', 'lineDash', 'pageHeader', 'pageCorner'],
+    ...['pagePosition', 'pageUv', 'vertPos', 'vertUv', 'keptAt'],
   ];
   const scope = { ...scene, vec2f, vec3f, vec4f, mul, sub3, dot, floor: Math.floor };
   return shaderFunctions<ShadowEntries>(source, names, scope);
