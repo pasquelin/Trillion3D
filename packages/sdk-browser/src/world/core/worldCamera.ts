@@ -43,8 +43,10 @@ function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
   into.far = camera.far;
   into.zoom = camera.zoom;
   into.aspect = aspect;
-  const box = camera.projection === 'orthographic' ? drawnBox(camera, aspect) : null;
-  // The engine composes its own projection from the box (`engineCamera.ts`); the host
+  const { left, right, top, bottom, fitAspect } = camera;
+  const box = camera.projection === 'orthographic' ? { left, right, top, bottom, fitAspect } : null;
+  // The box is handed on as declared, fitted where each projection is composed, at the shape it
+  // is drawn at. The engine composes its own projection from it (`engineCamera.ts`); the host
   // renderer that draws the WebGL2 path reads the host matrix, rewritten orthographic here, and
   // its flag, which turns its shading's view vector to the camera's axis.
   into.orthographic = box;
@@ -56,6 +58,7 @@ function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
       into.projectionMatrixInverse?.elements as number[] | undefined,
       box,
       camera,
+      aspect,
     );
   into.updateMatrixWorld();
 }
@@ -66,16 +69,19 @@ export const followPageCamera =
   (camera: () => Camera, canvas: HTMLCanvasElement) => (into: HostCamera) =>
     copyWorldCamera(camera(), into, drawnAspect(canvas));
 
-const view = new Float64Array(4);
+const view = new Float64Array(4),
+  fitted = { left: 0, right: 0, top: 0, bottom: 0 };
 /** The host renderer's orthographic matrix — forward depth, `near` to −1 and `far` to 1 — of
- *  the box a camera sees, scaled by its zoom about the box centre, and its inverse. */
-function hostOrthographic(
+ *  the box a camera sees at `aspect` (`drawnBox`), scaled by its zoom about the box centre, and
+ *  its inverse. */
+export function hostOrthographic(
   out: number[],
   inverse: number[] | undefined,
   box: OrthographicBox,
-  camera: Camera,
+  camera: Pick<Camera, 'zoom' | 'near' | 'far'>,
+  aspect: number,
 ) {
-  const [x, y, w, h] = orthographicView(box, camera.zoom, view),
+  const [x, y, w, h] = orthographicView(drawnBox(box, aspect, fitted), camera.zoom, view),
     depth = camera.far - camera.near;
   out.fill(0);
   out[0] = 1 / w;
