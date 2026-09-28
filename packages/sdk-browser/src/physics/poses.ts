@@ -9,12 +9,15 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
+import type { CookedMadeBody } from './cookedBodies.ts';
 import { extrapolateAll, interpolateAll, landAll } from './drawnPoses.ts';
 import { createPosePlacer } from './placer.ts';
 
-/** The bodies a tick's records name: meshes and generations by slot, and the way out of one. */
+/** The bodies a tick's records name: meshes, a compiled model's moving bodies (`nested`) and
+ *  generations by slot, and the way out of one. */
 export interface PosedBodies {
   readonly meshes: readonly (Bodied | null)[];
+  readonly slots: { readonly nested: readonly (CookedMadeBody | null)[] };
   readonly generation: Uint8Array;
   retire(index: number): void;
 }
@@ -31,7 +34,8 @@ const LONGEST_MS = MAX_CATCH_UP_STEPS * PHYSICS_STEP * 1000;
  * interval at most. Nothing is drawn once there: a world whose bodies all sleep sends no tick.
  *
  * Every write is a flat one (`placer.ts`): the node's position, quaternion and transform tree,
- * and the world matrix straight into the row the renderer reads; no per-body listener runs.
+ * and the world matrix straight into the row the renderer reads; no per-body listener runs. A
+ * compiled model's moving body poses its node, under its ancestors, as a page's move would.
  */
 export function createPhysicsPoses(maxBodies: number, root: Object3D) {
   const to = new Float32Array(maxBodies * 7);
@@ -91,7 +95,7 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
      * met for the first time in its slot.
      */
     receive(words: Uint32Array, records: number, bodies: PosedBodies, ms: number) {
-      const { generation, meshes } = bodies;
+      const { generation, meshes, slots } = bodies;
       const floats = new Float32Array(words.buffer, words.byteOffset, words.length);
       const time = now();
       const interval = start < 0 ? ms : time - start;
@@ -107,12 +111,14 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
           head = words[at],
           index = head & BODY_INDEX,
           g = generation[index],
-          mesh = meshes[index];
-        // A body that left its slot, or a model's own (`bodySlots.ts`), draws nothing here.
-        if (g !== (head >>> GENERATION_SHIFT) % GENERATIONS || mesh == null) continue;
+          mesh = meshes[index],
+          made = slots.nested[index];
+        // A body that left its slot, or a model's moving no node (`bodySlots.ts`), draws nothing.
+        if (g !== (head >>> GENERATION_SHIFT) % GENERATIONS || (mesh ?? made) == null) continue;
         if (bound[index] !== g) {
-          placer.bind(index, g, mesh);
-          decorative[index] = mesh.physics.decorative ? 1 : 0;
+          if (mesh) placer.bind(index, g, mesh);
+          else placer.bindNode(index, g, made!.moves!.node, made!.scale);
+          decorative[index] = mesh?.physics.decorative ? 1 : 0;
         }
         const asleep = (head & ASLEEP_BIT) !== 0,
           v = index * 6;
