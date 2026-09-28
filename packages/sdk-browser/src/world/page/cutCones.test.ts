@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts';
-import { coneHolds, triangleCone } from '../../../../../tests/kit/cone.ts';
+import { coneHolds } from '../../../../../tests/kit/cone.ts';
 import { cutRuntimePrimitive } from './runtimePrimitive.ts';
 import { cutDrawnTriangles, packDrawn } from './runtimeCut.ts';
 
@@ -19,8 +19,8 @@ test('every cut page carries the cone triangle_cone builds on its own triangles'
   const cut = await cutDrawnTriangles(drawn, true, false);
   assert.ok(cut.pages.length > 1, 'the sphere spans several clusters');
   for (const page of cut.pages) {
-    const built = triangleCone(drawn.positions, new Uint32Array(page.index));
-    assert.ok(coneHolds(page.cone!, built), JSON.stringify({ cone: page.cone, built }));
+    const index = new Uint32Array(page.index);
+    assert.ok(coneHolds(page.cone!, drawn.positions, index), JSON.stringify(page.cone));
   }
 });
 
