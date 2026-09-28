@@ -130,13 +130,17 @@ export function createRequestAdmission(
       cutNow === lastCut
     )
       return;
-    visits = top = 0;
-    perLevel.fill(0);
-    filedBy.clear();
-    if (ids) closure.closeOver(ids, visit);
-    else closure.forEachHeld(visit);
-    pages.length = visits;
-    const count = rank(room);
+    // No room: an empty queue, without walking what it would rank.
+    let count = 0;
+    if (room > 0) {
+      visits = top = 0;
+      perLevel.fill(0);
+      filedBy.clear();
+      if (ids) closure.closeOver(ids, visit);
+      else closure.forEachHeld(visit);
+      pages.length = visits;
+      count = rank(room);
+    } else queued.length = 0;
     sets.admit(queue, queued, count);
     last = source;
     lastRoom = room;

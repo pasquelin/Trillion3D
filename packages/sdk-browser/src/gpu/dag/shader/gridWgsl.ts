@@ -1,3 +1,5 @@
+import { DISPATCH_SPAN } from '../../raster/contract.ts';
+
 /**
  * DISPATCHES IN ROWS: a cut's pass counts one thread per page, node, slot or listed entry, and a
  * scene of many can ask more workgroups than one dimension of a dispatch holds
@@ -10,7 +12,7 @@
  * indirect one's from its list's appends, which raise the argument's x and y words as each slice
  * of sixty-four opens (`openSlice`), so `work` carries both words and one copy arms them.
  */
-export const DEFAULT_GROUP_WIDTH = 65535;
+export const DEFAULT_GROUP_WIDTH = DISPATCH_SPAN;
 
 /** The `[x, y]` workgroups of a dispatch of `groups`, in rows of at most `width`. */
 export function dispatchGrid(groups: number, width = DEFAULT_GROUP_WIDTH): [number, number] {

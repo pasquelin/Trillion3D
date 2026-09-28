@@ -17,7 +17,7 @@ export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>;
  * whether from the GPU sample or the CPU cut: one contract for both, so a moving camera costs the
  * pages that changed and a still camera nothing at all. `tracking.wanted` is what the upload queue
  * walks: the desired set itself, unless the page budget forces the coarser subset the admission
- * ranks (`admission.ts`), for either cut.
+ * ranks (`requestAdmission.ts`), for either cut.
  */
 export function createWebgpuResidencySets(options: {
   tracking: Tracking;
@@ -34,7 +34,7 @@ export function createWebgpuResidencySets(options: {
   const entering = createDenseKeySet(enteringPages),
     leaving = createDenseKeySet();
   /** Bumped by every difference that moves what the cut closes over: the admission ranks the held
-   *  cut again only then (`admission.ts`). */
+   *  cut again only then (`requestAdmission.ts`). */
   let cutRevision = 0;
   const desiredPages: PageRec[] = [];
   const desired = createDenseKeySet(desiredPages);

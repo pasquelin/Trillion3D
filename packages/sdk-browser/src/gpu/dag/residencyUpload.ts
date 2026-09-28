@@ -51,7 +51,7 @@ export function createDagResidencyUpload(resources: {
   coldParts: DagParts;
   nodeParts: DagParts;
 }) {
-  const { device, packed, coldParts: pageCones, nodeParts: nodes } = resources,
+  const { device, packed, coldParts, nodeParts } = resources,
     pageCount = packed.pageCount;
   const readiness = createDagReadiness(packed);
   // The bits extend the cold records in their buffer: one view, mirror and write source.
@@ -105,8 +105,8 @@ export function createDagResidencyUpload(resources: {
       source.byteOffset + from * 4,
       words * 4,
     );
-  whole(pageCones, packed.pageCones, residentBase(pageCount), 2 * residentWords(pageCount));
-  whole(nodes, packed.nodes, 0, packed.nodeCount * DAG_NODE_FLOATS);
+  whole(coldParts, packed.pageCones, residentBase(pageCount), 2 * residentWords(pageCount));
+  whole(nodeParts, packed.nodes, 0, packed.nodeCount * DAG_NODE_FLOATS);
   const apply = (next: ArrayLike<number>, changes?: ResidencyChanges) => {
     const settled = readiness.apply(next, changes);
     if (!settled.pages.length && !settled.nodes.length) return false;
@@ -117,14 +117,14 @@ export function createDagResidencyUpload(resources: {
     changed.count = settled.pages.length;
     for (const { values, base } of sets)
       upload(
-        pageCones,
+        coldParts,
         packed.pageCones,
         base,
         1,
         updateResidencyBits(values, pageCount, bits, base, changed, touched),
       );
     touched.set(settled.nodes);
-    upload(nodes, packed.nodes, 0, DAG_NODE_FLOATS, settled.nodes.length);
+    upload(nodeParts, packed.nodes, 0, DAG_NODE_FLOATS, settled.nodes.length);
     return true;
   };
   return Object.defineProperty(apply, 'hostBytes', {
