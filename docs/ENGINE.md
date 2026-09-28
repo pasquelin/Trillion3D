@@ -405,7 +405,8 @@ nothing moves pays neither its bytes nor its pass. Its pipelines, like every sha
 light cut's row map, the page pyramids (the camera's Hi-Z kernels), the occlusion test and, for a
 scene whose blended surfaces cast, the transmittance draws —, are compiled at prepare, in a
 preparation step of their own (`shadow pipelines`, `webgpu/pages/prepare/lights.ts`): no frame
-after it compiles one. A page drawn in full writes its static casters
+after it compiles one, but a blended caster prepare did not see, whose draws compile at its first
+frame. A page drawn in full writes its static casters
 into the layer, then restores itself from it and draws its moving casters over; a page that only
 a moving object crossed is restored and gets its moving casters alone, split by one word per row
 in the page cull. A still moving object stales nothing; it is never demoted, since a rule that
