@@ -306,7 +306,7 @@ Stage version 6 adds `bodies`, one entry per node of the rendered scene whose
 field is additive: a file cooked before it has none, and format 2 still reads it. The node keeps its
 `instances` entries: the page leaves them out once it has restored its body
 (`packages/sdk-browser/src/physics/cookedBodies.ts`) and falls back on them when it refuses the
-body; another node its collider names keeps its own, still static ground. Each entry:
+body; so does another node its collider names (`colliderNode`). Each entry:
 
 - `node`: the declaring node.
 - `motion`: the motion as the node declares it (`isKinematic`, `mass`, `gravityFactor`, …).
@@ -318,7 +318,11 @@ body; another node its collider names keeps its own, still static ground. Each e
   Jolt, turning the hull about `centerOfMass` rather than about the hull's own centre, weighed
   again at the world scale the model is placed at; what the `motion` declares (`mass`,
   `centerOfMass`, `inertiaDiagonal` turned by `inertiaOrientation`) wins over it, the cooked
-  inertia scaled to a declared mass.
+  inertia scaled to a declared mass and, about a declared `centerOfMass`, moved there by the
+  parallel axis theorem.
+- `colliderNode` (stage version 9): the other node whose mesh the hull is cooked from, when the
+  collider names one; absent otherwise, and from a file cooked before it (that node then stays
+  static ground beside the body). Additive: format 2 still reads it.
 - `position`, `rotation`, `scale`: the node's world placement in the model, as an instance's.
 - `friction`, `restitution`: as an instance's.
 
