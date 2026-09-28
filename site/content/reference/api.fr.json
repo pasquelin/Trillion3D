@@ -849,7 +849,7 @@
       "primitives": "Ses primitives.",
       "worstStalls": "La table des blocages du compilateur : au plus dix primitives avec un groupe bloqué qui a gardé des racines au niveau 0, la pire d’abord. Absente d’un cache compilé avant elle.",
       "texturePreviews": "Une entrée par couple (texture, atlas) décodé, rangée par texture puis par atlas ; vide sans image décodable.",
-      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe.",
+      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe. `version` est celle des niveaux (`TEXTURE_PREVIEW_VERSION`) : un lecteur ne lit aucun niveau d’une autre.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel."
     }
   },
@@ -1162,7 +1162,7 @@
   },
   "createGpuPageCache": {
     "summary": "Frontière d’allocation et de file WebGPU.",
-    "description": "Les octets des pages et la règle sont fournis par l’hôte. Les écritures en file sont ordonnées ; la libération attend les envois en cours avant de détruire."
+    "description": "Les octets des pages et la règle sont fournis par l’hôte. Les écritures en file sont ordonnées ; la libération attend les envois en cours avant de détruire. `pin(key, 'held')` conserve une page avant les épingles ordinaires lors de `resize(slots)`, qui n’accepte plus d’ensemble held. Un réépinglage ordinaire conserve ce niveau ; `unpin(key)` le supprime."
   },
   "createJob": {
     "summary": "Pas de minuterie, de DOM, de fichiers ni d’interface."
@@ -1612,6 +1612,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Ce chemin de dessin ne sait pas faire ce changement dans la scène.",
       "BATCHED_WORLD_VIEW": "Ce chemin de dessin ne sait pas faire ce changement dans la scène.",
       "RAYCAST_NO_VIEW": "Un point d’image a été demandé à un canvas sans taille : il n’y a pas d’image à travers laquelle viser.",
+      "SURFACE_CAPTURE_UNSUPPORTED": "Une capture de surfaces (`captureSurfaceView`) a été demandée à un chemin de dessin qui ne sait pas dessiner les surfaces de matériau dans une vue à part : le chemin WebGL2 n’en a pas.",
       "VERTICES_NOT_LOADED": "Les sommets d’un modèle chargé ont été lus avant `await geometry.loadVertices()` : une session les lit au premier besoin, jamais d’avance.",
       "SESSION_OPEN_FAILED": "La session du monde n’a pas pu s’ouvrir, pour une raison sans code propre (`world.diagnostic.error`) : l’erreur levée est dans `details.cause`.",
       "WEBGPU_LOST": "WebGPU a perdu son appareil, ou une erreur sur celui-ci a laissé un état dont rien ne peut dessiner : levée par `render`, `flush` et les lectures qui ont besoin de l’appareil, nommée par le diagnostic `gpu-device-lost`, et sur `world.diagnostic.error` quand une session n’a pas pu s’ouvrir pour cette raison.",
@@ -5489,6 +5490,10 @@
       "shadowPagesTotal": "Pages dessinées depuis l’ouverture de l’explorateur, vidages de `flush()` compris : le coût d’un changement est l’écart entre deux lectures.",
       "shadowPagesPending": "Pages d’ombre en attente.",
       "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
+      "shadowCutDrops": "Lots de la coupe depuis la lumière qui ont abandonné du travail — leurs vues ont gardé plus de clusters que les listes n’en tiennent —, depuis l’ouverture de l’explorateur : chacun renvoie ses pages, retirées jusqu’à être redessinées (#525). Null sur un moteur sans coupe GPU depuis la lumière, comme les trois suivants.",
+      "shadowCutWithdrawnPages": "Pages redessinées parce qu’une coupe depuis la lumière les a mal dessinées, depuis l’ouverture de l’explorateur : son lot a abandonné du travail, ou son drapeau n’a jamais été lu. Elles sont retirées jusqu’à être redessinées.",
+      "shadowCutCoarsePages": "Pages redessinées parce qu’une vue a dessiné un cluster plus grossier qu’elle ne le voulait, depuis l’ouverture de l’explorateur : relâchées une fois la résidence changée et la caméra au repos.",
+      "shadowCutViewLimit": "Vues de lumière dans lesquelles un lot de la coupe depuis la lumière dessine maintenant : le plafond jusqu’à ce qu’un lot abandonne, puis ce qui tient.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
       "tileLightPoolReserved": "Mots que les tuiles au-delà de leur liste ont réservés dans la réserve d’indices de lumières de la vue, sur l’image que l’appareil a échantillonnée en dernier tant que la scène tient plus de lumières qu’une liste ; `null` sinon (#849).",
       "tileLightPoolCapacity": "Mots que la réserve d’indices de lumières tenait sur cette image échantillonnée ; `null` de même.",
@@ -5621,7 +5626,7 @@
       "totalNodes": "Nœuds au total.",
       "autonomousScene": "Sa scène intégrée.",
       "texturePreviews": "Une entrée par couple (texture, atlas) décodé, rangée par texture puis par atlas ; vide sans image décodable.",
-      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe.",
+      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe. `version` est celle des niveaux (`TEXTURE_PREVIEW_VERSION`) : un lecteur ne lit aucun niveau d’une autre.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel.",
       "binary": "Le fichier binaire.",
       "primitives": "Ses primitives.",
@@ -6090,7 +6095,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "Niveaux de texture progressifs, reflétés par `packages/asset-compiler-rust/src/texture_preview.rs` : la fin de la chaîne de mips d’une source dans le fichier annexe, en RGBA8 dans l’encodage propre à l’atlas, du niveau le plus fin dont aucun côté ne dépasse `PREVIEW_BASE` jusqu’à 1×1 — et, au-dessus, un PNG sans perte par niveau dans le cache, `bakedLevels` d’entre eux à partir du niveau 0.",
-    "description": "Chaque niveau suit la règle des mips qu’appliquait la carte graphique quand elle refaisait la chaîne elle-même (`packages/sdk-browser/src/texture/mips.ts`) : moyenne linéaire des couleurs, alpha médian, niveau `k` à partir du niveau quantifié `k - 1`. Leurs tailles ne sont pas écrites : elles découlent des dimensions de la source, que `previewLevels.ts` recalcule. La version 4 cuit chaque niveau au-dessus de la fin, et la fin elle-même, dans les familles de blocs demandées par la cuisson à côté des fichiers sans perte — la famille BC pour les cartes de bureau, ASTC 4×4 pour les mobiles, un octet par texel — pour les chaînes qu’un contrôle de qualité a gardées ; une chaîne sous la barre reste sans perte dans cette famille, et le mot de disposition de son entrée le dit."
+    "description": "Chaque niveau suit la règle des mips qu’appliquait la carte graphique quand elle refaisait la chaîne elle-même (`packages/sdk-browser/src/texture/mips.ts`) : moyenne linéaire des couleurs, alpha médian, niveau `k` à partir du niveau quantifié `k - 1`. Leurs tailles ne sont pas écrites : elles découlent des dimensions de la source, que `previewLevels.ts` recalcule. La version 4 cuit chaque niveau au-dessus de la fin, et la fin elle-même, dans les familles de blocs demandées par la cuisson à côté des fichiers sans perte — la famille BC pour les cartes de bureau, ASTC 4×4 pour les mobiles, un octet par texel — pour les chaînes qu’un contrôle de qualité a gardées ; une chaîne sous la barre reste sans perte dans cette famille, et le mot de disposition de son entrée le dit. La version 6 range un fichier de niveau en blocs par enregistrements de tuiles, une requête HTTP Range chacun (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TextureBlockFormat": {
     "summary": "Une famille de blocs dans laquelle une texture peut être cuite."
@@ -6153,7 +6158,8 @@
       "sha256": "Empreinte de l’image source.",
       "atlas": "Quel atlas.",
       "level": "Quel niveau.",
-      "format": "Quel format."
+      "format": "Quel format.",
+      "range": "Les octets d’un niveau en blocs à lire seuls — l’enregistrement d’une tuile (`tileRecords.ts`) —, par une requête HTTP Range ; un serveur qui l’ignore répond le fichier entier."
     }
   },
   "textureLevelUrl": {
@@ -6776,6 +6782,10 @@
       "shadowPagesTotal": "Pages dessinées depuis l’ouverture de l’explorateur, vidages de `flush()` compris : le coût d’un changement est l’écart entre deux lectures.",
       "shadowPagesPending": "Pages d’ombre en attente.",
       "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
+      "shadowCutDrops": "Lots de la coupe depuis la lumière qui ont abandonné du travail — leurs vues ont gardé plus de clusters que les listes n’en tiennent —, depuis l’ouverture de l’explorateur : chacun renvoie ses pages, retirées jusqu’à être redessinées (#525). Null sur un moteur sans coupe GPU depuis la lumière, comme les trois suivants.",
+      "shadowCutWithdrawnPages": "Pages redessinées parce qu’une coupe depuis la lumière les a mal dessinées, depuis l’ouverture de l’explorateur : son lot a abandonné du travail, ou son drapeau n’a jamais été lu. Elles sont retirées jusqu’à être redessinées.",
+      "shadowCutCoarsePages": "Pages redessinées parce qu’une vue a dessiné un cluster plus grossier qu’elle ne le voulait, depuis l’ouverture de l’explorateur : relâchées une fois la résidence changée et la caméra au repos.",
+      "shadowCutViewLimit": "Vues de lumière dans lesquelles un lot de la coupe depuis la lumière dessine maintenant : le plafond jusqu’à ce qu’un lot abandonne, puis ce qui tient.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
       "tileLightPoolReserved": "Mots que les tuiles au-delà de leur liste ont réservés dans la réserve d’indices de lumières de la vue, sur l’image que l’appareil a échantillonnée en dernier tant que la scène tient plus de lumières qu’une liste ; `null` sinon (#849).",
       "tileLightPoolCapacity": "Mots que la réserve d’indices de lumières tenait sur cette image échantillonnée ; `null` de même.",

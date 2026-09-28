@@ -512,7 +512,7 @@
       "primitives": "Primitifleri.",
       "worstStalls": "Derleyicinin takılma tablosu: düzey 0'da kök bırakan takılmış bir grubu olan en fazla on primitif, en kötüsü önce. Ondan önce derlenmiş bir önbellekte yoktur.",
       "texturePreviews": "Önce dokuya, sonra atlasa göre sıralanmış, çözülen her (doku, atlas) için bir giriş; çözülebilir bir görsel olmadan boş.",
-      "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz.",
+      "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz. `version` seviyelerin sürümüdür (`TEXTURE_PREVIEW_VERSION`): bir okuyucu başka bir sürümün seviyesini okumaz.",
       "proxy": "Yerleşik sahne proxy'sinin ve onun BVH'sinin nereden okunacağı: ışınların çarptığı geometri. Olduğu gibi okunabilir kalan, yansımadan önce derlenmiş bir önbellekte bulunmaz."
     }
   },
@@ -969,6 +969,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Bu çizim yolu sahnede bu değişikliği yapamaz.",
       "BATCHED_WORLD_VIEW": "Bu çizim yolu sahnede bu değişikliği yapamaz.",
       "RAYCAST_NO_VIEW": "Boyutu olmayan bir canvas'tan resim noktası istendi: içinden nişan alınacak bir resim yok.",
+      "SURFACE_CAPTURE_UNSUPPORTED": "Malzeme yüzeylerini kendi görünümünde çizemeyen bir çizim yolundan yüzey yakalaması (`captureSurfaceView`) istendi: WebGL2 yolunda bu yok.",
       "VERTICES_NOT_LOADED": "Yüklenmiş bir modelin köşeleri `await geometry.loadVertices()` öncesinde okundu: oturum onları ilk ihtiyaçta okur, asla önceden okumaz.",
       "SESSION_OPEN_FAILED": "Dünyanın oturumu, kendi kodu olmayan bir nedenle açılamadı (`world.diagnostic.error`): fırlatılan hata `details.cause` içindedir.",
       "WEBGPU_LOST": "WebGPU cihazını kaybetti ya da cihazdaki bir hata hiçbir şeyin çizemeyeceği bir durum bıraktı: `render`, `flush` ve cihaza ihtiyaç duyan okumalar tarafından fırlatılır, `gpu-device-lost` tanılamasıyla adlandırılır ve bu yüzden bir oturum açılamadığında `world.diagnostic.error` üzerinde görünür.",
@@ -3148,6 +3149,10 @@
       "shadowPagesTotal": "Gezgin açıldığından beri çizilen sayfalar, `flush()` boşaltmaları dahil: bir değişikliğin maliyeti, iki okuma arasındaki farktır.",
       "shadowPagesPending": "Bekleyen gölge sayfaları.",
       "shadowWaitMs": "Görüntünün okuduğu en eski eskimiş sayfanın yeniden çizilmek için kaç milisaniye beklediği. Yalnızca görüntünün onu okuduğu süre sayılır; yeniden çizilince 0.",
+      "shadowCutDrops": "Gezgin açıldığından beri iş bırakan ışık kesimi grupları — görünümleri listelerin tutabileceğinden fazla küme tuttu —: her biri sayfalarını geri gönderir, yeniden çizilene dek geri çekilir (#525). GPU ışık kesimi olmayan bir motorda null, aşağıdaki üçü gibi.",
+      "shadowCutWithdrawnPages": "Bir ışık kesimi onları yanlış çizdiği için yeniden çizilen sayfalar, gezgin açıldığından beri: grubu iş bıraktı ya da bayrağı hiç okunmadı. Yeniden çizilene dek geri çekilirler.",
+      "shadowCutCoarsePages": "Bir görünüm istediğinden daha kaba bir küme çizdiği için yeniden çizilen sayfalar, gezgin açıldığından beri: yerleşiklik değişip kamera durduğunda serbest bırakılır.",
+      "shadowCutViewLimit": "Bir ışık kesimi grubunun şu an çizdiği ışık görünümleri: bir grup iş bırakana dek üst sınır, sonra sığan.",
       "gpuLightListsMs": "Işık listelerinin GPU süresi.",
       "tileLightPoolReserved": "Listesinin ötesindeki karoların görünümün ışık dizini havuzunda ayırdığı sözcükler; sahne bir listeden fazla ışık tuttuğu sürece cihazın son örneklediği karede; aksi halde `null` (#849).",
       "tileLightPoolCapacity": "Işık dizini havuzunun o örneklenen karede tuttuğu sözcükler; aynı şekilde `null`.",
@@ -3249,7 +3254,7 @@
       "totalNodes": "Toplam düğüm.",
       "autonomousScene": "Kendi yerleşik sahnesi.",
       "texturePreviews": "Önce dokuya, sonra atlasa göre sıralanmış, çözülen her (doku, atlas) için bir giriş; çözülebilir bir görsel olmadan boş.",
-      "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz.",
+      "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz. `version` seviyelerin sürümüdür (`TEXTURE_PREVIEW_VERSION`): bir okuyucu başka bir sürümün seviyesini okumaz.",
       "proxy": "Yerleşik sahne proxy'sinin ve onun BVH'sinin nereden okunacağı: ışınların çarptığı geometri. Olduğu gibi okunabilir kalan, yansımadan önce derlenmiş bir önbellekte bulunmaz.",
       "binary": "İkili dosya.",
       "primitives": "Primitifleri.",
@@ -3463,7 +3468,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "`packages/asset-compiler-rust/src/texture_preview.rs` tarafından yansıtılan ilerlemeli doku seviyeleri: yardımcı dosyada bir kaynağın mip zincirinin kuyruğu, atlasın kendi kodlamasında RGBA8, hiçbir kenarı `PREVIEW_BASE`'i aşmayan en ince seviyeden 1×1'e kadar — ve, onun üzerinde, önbellekte seviye başına bir kayıpsız PNG, seviye 0'dan itibaren `bakedLevels` tanesi.",
-    "description": "Her seviye, kartın zinciri kendisi yeniden oluşturduğunda uyguladığı mip kuralını izler (`packages/sdk-browser/src/texture/mips.ts`): renklerin doğrusal ortalaması, medyan alfa, `k - 1` kuantalanmış seviyesinden `k` seviyesi. Boyutları yazılmaz: `previewLevels.ts`'in yeniden hesapladığı kaynak boyutlarından çıkarlar. Sürüm 4, kuyruğun üzerindeki her seviyeyi, ve kuyruğun kendisini, pişirmenin kayıpsız dosyaların yanında istediği blok ailelerinde pişirir — masaüstü kartları için BC ailesi, mobil olanlar için ASTC 4×4, teksel başına bir bayt — bir kalite kapısının tuttuğu zincirler için; barın altındaki bir zincir o ailede kayıpsız kalır, ve girdisinin düzen kelimesi bunu söyler."
+    "description": "Her seviye, kartın zinciri kendisi yeniden oluşturduğunda uyguladığı mip kuralını izler (`packages/sdk-browser/src/texture/mips.ts`): renklerin doğrusal ortalaması, medyan alfa, `k - 1` kuantalanmış seviyesinden `k` seviyesi. Boyutları yazılmaz: `previewLevels.ts`'in yeniden hesapladığı kaynak boyutlarından çıkarlar. Sürüm 4, kuyruğun üzerindeki her seviyeyi, ve kuyruğun kendisini, pişirmenin kayıpsız dosyaların yanında istediği blok ailelerinde pişirir — masaüstü kartları için BC ailesi, mobil olanlar için ASTC 4×4, teksel başına bir bayt — bir kalite kapısının tuttuğu zincirler için; barın altındaki bir zincir o ailede kayıpsız kalır, ve girdisinin düzen kelimesi bunu söyler. Sürüm 6, blok seviye dosyasını karo kayıtlarına göre dizer; her biri tek bir HTTP Range isteğidir (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TONE_MAPPING_RANK": {
     "summary": "Sahne parlaklığını ekran aralığına getiren eğriler, shader'ların okuduğu sıraya göre.",
@@ -3681,7 +3686,8 @@
       "sha256": "Kaynak görselin parmak izi.",
       "atlas": "Hangi atlas.",
       "level": "Hangi seviye.",
-      "format": "Hangi format."
+      "format": "Hangi format.",
+      "range": "Bir blok seviyesinin tek başına okunacak baytları — bir karonun kaydı (`tileRecords.ts`) —, bir HTTP Range isteğiyle; bunu yok sayan bir sunucu dosyanın tamamını döndürür."
     }
   },
   "TexturePool": {
@@ -4192,6 +4198,10 @@
       "shadowPagesTotal": "Gezgin açıldığından beri çizilen sayfalar, `flush()` boşaltmaları dahil: bir değişikliğin maliyeti, iki okuma arasındaki farktır.",
       "shadowPagesPending": "Bekleyen gölge sayfaları.",
       "shadowWaitMs": "Görüntünün okuduğu en eski eskimiş sayfanın yeniden çizilmek için kaç milisaniye beklediği. Yalnızca görüntünün onu okuduğu süre sayılır; yeniden çizilince 0.",
+      "shadowCutDrops": "Gezgin açıldığından beri iş bırakan ışık kesimi grupları — görünümleri listelerin tutabileceğinden fazla küme tuttu —: her biri sayfalarını geri gönderir, yeniden çizilene dek geri çekilir (#525). GPU ışık kesimi olmayan bir motorda null, aşağıdaki üçü gibi.",
+      "shadowCutWithdrawnPages": "Bir ışık kesimi onları yanlış çizdiği için yeniden çizilen sayfalar, gezgin açıldığından beri: grubu iş bıraktı ya da bayrağı hiç okunmadı. Yeniden çizilene dek geri çekilirler.",
+      "shadowCutCoarsePages": "Bir görünüm istediğinden daha kaba bir küme çizdiği için yeniden çizilen sayfalar, gezgin açıldığından beri: yerleşiklik değişip kamera durduğunda serbest bırakılır.",
+      "shadowCutViewLimit": "Bir ışık kesimi grubunun şu an çizdiği ışık görünümleri: bir grup iş bırakana dek üst sınır, sonra sığan.",
       "gpuLightListsMs": "Işık listelerinin GPU süresi.",
       "tileLightPoolReserved": "Listesinin ötesindeki karoların görünümün ışık dizini havuzunda ayırdığı sözcükler; sahne bir listeden fazla ışık tuttuğu sürece cihazın son örneklediği karede; aksi halde `null` (#849).",
       "tileLightPoolCapacity": "Işık dizini havuzunun o örneklenen karede tuttuğu sözcükler; aynı şekilde `null`.",
@@ -4811,7 +4821,7 @@
   },
   "createGpuPageCache": {
     "summary": "WebGPU tahsis/kuyruk sınırı.",
-    "description": "Sayfa baytları ve politika host tarafından sağlanır. Kuyruk yazmaları sıralıdır; dispose, yok etmeden önce uçuştaki gönderimleri bekler."
+    "description": "Sayfa baytları ve politika host tarafından sağlanır. Kuyruk yazmaları sıralıdır; dispose, yok etmeden önce uçuştaki gönderimleri bekler. `pin(key, 'held')`, artık held kümesi almayan `resize(slots)` sırasında sayfayı normal sabitlenmiş sayfalardan önce korur. Normal yeniden sabitleme bu önceliği korur; `unpin(key)` kaldırır."
   },
   "createJob": {
     "summary": "Zamanlayıcı, DOM, dosya sistemi ya da UI yok."

@@ -512,7 +512,7 @@
       "primitives": "Suas primitivas.",
       "worstStalls": "A tabela de bloqueios do compilador: no máximo dez primitivas com um grupo bloqueado que manteve raízes no nível 0, a pior primeiro. Ausente de um cache compilado antes dela.",
       "texturePreviews": "Uma entrada por (textura, atlas) decodificado, ordenada por textura e depois por atlas; vazia sem uma imagem decodificável.",
-      "textures": "Modelo para os níveis pré-processados, relativo ao manifesto: {sha} o digest da imagem de origem, {kind} o nome do atlas (PREVIEW_ATLAS_NAMES), {level} o posto do nível. Ausente de um cache compilado antes dos níveis pré-processados, que este leitor recusa pela versão auxiliar.",
+      "textures": "Modelo para os níveis pré-processados, relativo ao manifesto: {sha} o digest da imagem de origem, {kind} o nome do atlas (PREVIEW_ATLAS_NAMES), {level} o posto do nível. Ausente de um cache compilado antes dos níveis pré-processados, que este leitor recusa pela versão auxiliar. `version` é a dos níveis (`TEXTURE_PREVIEW_VERSION`): um leitor não lê nenhum nível de outra.",
       "proxy": "Onde ler o proxy de cena residente e sua BVH: a geometria atingida por raios. Ausente de um cache compilado antes do rebote, que continua legível como está."
     }
   },
@@ -969,6 +969,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Este caminho de desenho não consegue fazer essa mudança na cena.",
       "BATCHED_WORLD_VIEW": "Este caminho de desenho não consegue fazer essa mudança na cena.",
       "RAYCAST_NO_VIEW": "Um ponto de imagem foi pedido a um canvas sem tamanho: não há imagem através da qual mirar.",
+      "SURFACE_CAPTURE_UNSUPPORTED": "Foi pedida uma captura de superfícies (`captureSurfaceView`) a um caminho de desenho que não sabe desenhar as superfícies de material numa vista própria: o caminho WebGL2 não tem.",
       "VERTICES_NOT_LOADED": "Os vértices de um modelo carregado foram lidos antes de `await geometry.loadVertices()`: uma sessão os lê na primeira necessidade, nunca antecipadamente.",
       "SESSION_OPEN_FAILED": "A sessão do mundo não pôde abrir, por um motivo sem código próprio (`world.diagnostic.error`): o erro lançado está em `details.cause`.",
       "WEBGPU_LOST": "O WebGPU perdeu o seu dispositivo, ou um erro nele deixou um estado a partir do qual nada pode desenhar: lançado por `render`, `flush` e pelas leituras que precisam do dispositivo, nomeado pelo diagnóstico `gpu-device-lost`, e em `world.diagnostic.error` quando uma sessão não pôde abrir por isso.",
@@ -3148,6 +3149,10 @@
       "shadowPagesTotal": "Páginas desenhadas desde que o explorador abriu, drenagens de `flush()` incluídas: o que uma mudança custou é a diferença entre duas leituras.",
       "shadowPagesPending": "Páginas de sombra esperando.",
       "shadowWaitMs": "Quantos milissegundos a página desatualizada mais antiga que a imagem lê esperou para ser redesenhada. Só conta o tempo em que a imagem a lê; 0 depois de redesenhada.",
+      "shadowCutDrops": "Lotes do corte a partir da luz que descartaram trabalho — as suas vistas guardaram mais clusters do que as listas comportam —, desde que o explorador abriu: cada um devolve as suas páginas, retiradas até serem redesenhadas (#525). Null num motor sem corte de luz na GPU, tal como os três seguintes.",
+      "shadowCutWithdrawnPages": "Páginas redesenhadas porque um corte a partir da luz as desenhou mal, desde que o explorador abriu: o seu lote descartou trabalho, ou a sua flag nunca foi lida. Ficam retiradas até serem redesenhadas.",
+      "shadowCutCoarsePages": "Páginas redesenhadas porque uma vista desenhou um cluster mais grosseiro do que queria, desde que o explorador abriu: libertadas quando a residência mudou e a câmara repousa.",
+      "shadowCutViewLimit": "Vistas de luz em que um lote do corte a partir da luz desenha agora: o teto até um lote descartar, depois o que cabe.",
       "gpuLightListsMs": "Tempo de GPU das listas de luz.",
       "tileLightPoolReserved": "Palavras que os ladrilhos além de sua lista reservaram no pool de índices de luzes da vista, na imagem que o dispositivo amostrou por último enquanto a cena tem mais luzes que uma lista; `null` caso contrário (#849).",
       "tileLightPoolCapacity": "Palavras que o pool de índices de luzes tinha nessa imagem amostrada; `null` da mesma forma.",
@@ -3249,7 +3254,7 @@
       "totalNodes": "Nós ao todo.",
       "autonomousScene": "Sua cena embutida.",
       "texturePreviews": "Uma entrada por (textura, atlas) decodificado, ordenada por textura e depois por atlas; vazia sem uma imagem decodificável.",
-      "textures": "Modelo para os níveis pré-processados, relativo ao manifesto: {sha} o digest da imagem de origem, {kind} o nome do atlas (PREVIEW_ATLAS_NAMES), {level} o posto do nível. Ausente de um cache compilado antes dos níveis pré-processados, que este leitor recusa pela versão auxiliar.",
+      "textures": "Modelo para os níveis pré-processados, relativo ao manifesto: {sha} o digest da imagem de origem, {kind} o nome do atlas (PREVIEW_ATLAS_NAMES), {level} o posto do nível. Ausente de um cache compilado antes dos níveis pré-processados, que este leitor recusa pela versão auxiliar. `version` é a dos níveis (`TEXTURE_PREVIEW_VERSION`): um leitor não lê nenhum nível de outra.",
       "proxy": "Onde ler o proxy de cena residente e sua BVH: a geometria atingida por raios. Ausente de um cache compilado antes do rebote, que continua legível como está.",
       "binary": "O arquivo binário.",
       "primitives": "Suas primitivas.",
@@ -3463,7 +3468,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "Níveis progressivos de textura, espelhados por `packages/asset-compiler-rust/src/texture_preview.rs`: a cauda da cadeia de mip de uma origem no arquivo auxiliar, RGBA8 na codificação própria do atlas, do nível mais fino cujo lado nenhum excede `PREVIEW_BASE` até 1×1 — e, acima disso, um PNG sem perdas por nível no cache, `bakedLevels` deles a partir do nível 0.",
-    "description": "Todo nível segue a regra de mip que a placa aplicou quando regenerou a cadeia ela mesma (`packages/sdk-browser/src/texture/mips.ts`): média linear das cores, alfa mediano, nível `k` a partir do nível quantizado `k - 1`. Seus tamanhos não são escritos: eles decorrem das dimensões de origem, que `previewLevels.ts` recalcula. A versão 4 pré-processa cada nível acima da cauda, e a própria cauda, nas famílias de blocos que a cozinha pediu ao lado dos arquivos sem perdas — a família BC para placas de desktop, ASTC 4×4 para as móveis, um byte por texel — para as cadeias que um portão de qualidade manteve; uma cadeia abaixo da barra permanece sem perdas nessa família, e a palavra de layout de sua entrada diz isso."
+    "description": "Todo nível segue a regra de mip que a placa aplicou quando regenerou a cadeia ela mesma (`packages/sdk-browser/src/texture/mips.ts`): média linear das cores, alfa mediano, nível `k` a partir do nível quantizado `k - 1`. Seus tamanhos não são escritos: eles decorrem das dimensões de origem, que `previewLevels.ts` recalcula. A versão 4 pré-processa cada nível acima da cauda, e a própria cauda, nas famílias de blocos que a cozinha pediu ao lado dos arquivos sem perdas — a família BC para placas de desktop, ASTC 4×4 para as móveis, um byte por texel — para as cadeias que um portão de qualidade manteve; uma cadeia abaixo da barra permanece sem perdas nessa família, e a palavra de layout de sua entrada diz isso. A versão 6 dispõe um arquivo de nível em blocos em registros de ladrilhos, uma requisição HTTP Range cada (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TONE_MAPPING_RANK": {
     "summary": "As curvas que trazem a radiância da cena para a faixa de exibição, pelo posto que os shaders leem.",
@@ -3681,7 +3686,8 @@
       "sha256": "Impressão digital da imagem de origem.",
       "atlas": "Qual atlas.",
       "level": "Qual nível.",
-      "format": "Qual formato."
+      "format": "Qual formato.",
+      "range": "Os bytes de um nível em blocos a ler sozinhos — o registro de um ladrilho (`tileRecords.ts`) —, por uma requisição HTTP Range; um servidor que a ignora responde o arquivo inteiro."
     }
   },
   "TexturePool": {
@@ -4192,6 +4198,10 @@
       "shadowPagesTotal": "Páginas desenhadas desde que o explorador abriu, drenagens de `flush()` incluídas: o que uma mudança custou é a diferença entre duas leituras.",
       "shadowPagesPending": "Páginas de sombra esperando.",
       "shadowWaitMs": "Quantos milissegundos a página desatualizada mais antiga que a imagem lê esperou para ser redesenhada. Só conta o tempo em que a imagem a lê; 0 depois de redesenhada.",
+      "shadowCutDrops": "Lotes do corte a partir da luz que descartaram trabalho — as suas vistas guardaram mais clusters do que as listas comportam —, desde que o explorador abriu: cada um devolve as suas páginas, retiradas até serem redesenhadas (#525). Null num motor sem corte de luz na GPU, tal como os três seguintes.",
+      "shadowCutWithdrawnPages": "Páginas redesenhadas porque um corte a partir da luz as desenhou mal, desde que o explorador abriu: o seu lote descartou trabalho, ou a sua flag nunca foi lida. Ficam retiradas até serem redesenhadas.",
+      "shadowCutCoarsePages": "Páginas redesenhadas porque uma vista desenhou um cluster mais grosseiro do que queria, desde que o explorador abriu: libertadas quando a residência mudou e a câmara repousa.",
+      "shadowCutViewLimit": "Vistas de luz em que um lote do corte a partir da luz desenha agora: o teto até um lote descartar, depois o que cabe.",
       "gpuLightListsMs": "Tempo de GPU das listas de luz.",
       "tileLightPoolReserved": "Palavras que os ladrilhos além de sua lista reservaram no pool de índices de luzes da vista, na imagem que o dispositivo amostrou por último enquanto a cena tem mais luzes que uma lista; `null` caso contrário (#849).",
       "tileLightPoolCapacity": "Palavras que o pool de índices de luzes tinha nessa imagem amostrada; `null` da mesma forma.",
@@ -4811,7 +4821,7 @@
   },
   "createGpuPageCache": {
     "summary": "Fronteira de alocação/fila do WebGPU.",
-    "description": "Bytes de página e política são fornecidos pelo host. Escritas na fila são ordenadas; dispose espera pelos envios em andamento antes de destruir."
+    "description": "Bytes de página e política são fornecidos pelo host. Escritas na fila são ordenadas; dispose espera pelos envios em andamento antes de destruir. `pin(key, 'held')` mantém uma página antes das fixadas comuns em `resize(slots)`, que não aceita mais um conjunto held. Fixá-la novamente de modo comum preserva esse nível; `unpin(key)` o remove."
   },
   "createJob": {
     "summary": "Sem timers, DOM, sistema de arquivos ou UI."

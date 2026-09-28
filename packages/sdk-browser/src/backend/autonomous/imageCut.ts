@@ -8,6 +8,7 @@ import type { EngineCamera } from '../../camera/world.ts';
 import type { createGeometryBudget } from './pool.ts';
 import { createAutonomousRequests } from './requests.ts';
 import type { HeldResidency } from '../../page/cut/held.ts';
+import type { WebglViewState } from './views.ts';
 
 /**
  * The cut of a WebGL2 image and what it asks the pool for. The cut is drawn at the host's
@@ -18,36 +19,37 @@ import type { HeldResidency } from '../../page/cut/held.ts';
  */
 export function createImageCut(options: {
   roots: ClusterRoot<PageRec>[];
-  viewport: [number, number] | undefined;
-  shown: PageRec[];
-  desired: PageRec[];
-  /** What the image asks for, cut to what the pool admits. */
-  requested: PageRec[];
+  /** The drawn view's lists and size, read at each cut (`views.ts`); what it asks for, `requested`,
+   *  is cut to what the pool admits. */
+  view: Pick<WebglViewState, 'shown' | 'desired' | 'requested' | 'viewport'>;
   /** Moves when the placements change (`requests.ts`). */
   revision: () => number;
   pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'fit'> & { readonly held: object };
   /** The rule's readiness of the placements, moved by the pool's loads and releases. */
   held: HeldResidency;
 }) {
-  const { roots, shown, desired, requested, pool, held } = options;
-  const requests = createAutonomousRequests(roots, options.revision, requested, held);
+  const { roots, view, pool, held } = options;
+  const requests = createAutonomousRequests(roots, options.revision, held);
   // Cut request and result, allocated once: an image allocates nothing here, and the cut writes
-  // `desired` itself instead of being copied into it.
+  // the drawn view's `desired` itself instead of being copied into it.
   const selectOptions = {
     pixelError: 0,
-    viewport: options.viewport,
+    viewport: undefined as [number, number] | undefined,
     held,
-    wanted: desired,
+    wanted: [] as PageRec[],
     result: createSelectionResult<PageRec>(),
   };
   // The pool the requests were last admitted to: another one — a new budget or root cover — is
   // fitted again before the next trim, so the image that first sees it already holds no more.
   let admittedTo: unknown;
   const cut = (cam: EngineCamera, pixelError: number) => {
+    const { desired, requested } = view;
     requests.follow();
     selectOptions.pixelError = pixelError;
-    const selected = selectVisiblePages(roots, cam, selectOptions, shown);
-    requests.of(desired);
+    selectOptions.viewport = view.viewport;
+    selectOptions.wanted = desired;
+    const selected = selectVisiblePages(roots, cam, selectOptions, view.shown);
+    requests.of(desired, requested);
     requested.length = pool.admit(requested, pixelError);
     admittedTo = pool.held;
     return selected;
@@ -62,6 +64,7 @@ export function createImageCut(options: {
     readmit() {
       if (pool.held === admittedTo) return false;
       admittedTo = pool.held;
+      const { requested } = view;
       const n = pool.fit(requested);
       if (n === requested.length) return false;
       requested.length = n;

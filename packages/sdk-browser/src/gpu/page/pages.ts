@@ -8,7 +8,8 @@ import { evictResident } from './commit.ts';
 import { checked, ONE_REQUEST } from '../../cluster/checked.ts';
 import type { ResidentPage, GpuPageContext } from './types.ts';
 export type { ResidentPage } from './types.ts';
-/** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host. Queue writes are ordered; dispose waits for in-flight submits before destroy. */
+/** WebGPU allocation/queue boundary. Page bytes and policy are supplied by the host. Queue writes are ordered; dispose waits for in-flight submits before destroy.
+ * `pin(key, 'held')` keeps a page ahead of ordinary pins during `resize(slots)`, which no longer accepts a held set. Ordinary repinning preserves the held tier; `unpin(key)` removes it. */
 export function createGpuPageCache(
   device: GPUDevice,
   source: PageSource,
@@ -20,6 +21,7 @@ export function createGpuPageCache(
   const buffer = createPageBuffer(device, pageBufferBytes(device, pageBytes, slots));
   const resident = new Map<string, ResidentPage>(),
     pins = new Set<string>(),
+    held = new Set<string>(),
     free = Array.from({ length: slots }, (_, i) => i),
     staging = new Uint8Array(pageBytes),
     abort = new AbortController();
@@ -63,6 +65,7 @@ export function createGpuPageCache(
     buffer,
     resident,
     pins,
+    held,
     free,
     staging,
     abort,
@@ -74,8 +77,8 @@ export function createGpuPageCache(
     reader,
     check,
   };
-  const load = createGpuPageLoader(context);
   const pinning = createGpuPagePins(context);
+  const load = createGpuPageLoader(context, pinning.pin);
   return {
     /** The pool buffer: a new identity after `resize`, to be rebound. */
     get buffer() {
@@ -84,13 +87,13 @@ export function createGpuPageCache(
     load,
     /**
      * Changes the pool size while keeping its pages, behind in-flight loads: nothing is written
-     * into a buffer while it is being copied. `held` names the pages that keep a place before
-     * any other. Returns keys evicted for lack of room.
+     * into a buffer while it is being copied. The cache keeps held pins before ordinary pins.
+     * Returns keys evicted for lack of room.
      */
-    resize(slots: number, held?: ReadonlySet<string>) {
+    resize(slots: number) {
       const operation = state.pending.then(() => {
         check();
-        return resizeGpuPages(context, slots, held);
+        return resizeGpuPages(context, slots);
       });
       state.pending = operation.catch(() => {});
       return operation;
@@ -173,6 +176,7 @@ export function createGpuPageCache(
       abort.abort();
       resident.clear();
       pins.clear();
+      held.clear();
       state.pending = state.pending
         .catch(() => {})
         .then(async () => {

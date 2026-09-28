@@ -16,7 +16,7 @@ import type { ClusterManifest } from '../../../sdk-core/src/index.ts';
  */
 const metadata = {
   autonomousScene: 'scene.gltf',
-  textures: { url: 'textures/v5' },
+  textures: { url: 'textures/v6', version: 6 },
 } as unknown as ClusterManifest;
 const { device } = fakeDevice();
 
