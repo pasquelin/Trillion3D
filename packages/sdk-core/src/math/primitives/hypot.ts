@@ -5,7 +5,8 @@
  * of `packages/page-codec-wasm/src/normal_cone.rs`.
  *
  * Why: the optimising compiler does not inline the builtin, which boxes its arguments into an
- * array and returns a heap number (about 55 ns a call against 1.5 ns for these). Under V8 the
+ * array and returns a heap number (about 55 ns a call in the #917 bench, whose ~1.5 ns side was a
+ * plain `Math.sqrt`, not these helpers: their own cost was not timed). Under V8 the
  * result is the builtin's to the bit (`hypot.test.ts`); elsewhere `Math.hypot` is
  * implementation-defined anyway and these return V8's value.
  *
