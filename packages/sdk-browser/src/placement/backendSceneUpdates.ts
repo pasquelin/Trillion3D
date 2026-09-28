@@ -34,8 +34,7 @@ export type PlacementMount = {
   primitive: Primitive;
 };
 
-/** What an owner hands a session that grows its instance buffers in place (`growth.ts`); its
- *  own contract, apart from `BackendSceneUpdates`, as a partition's frame reaches it. */
+/** What an owner hands a session that grows its instance buffers in place (`growth.ts`). */
 export type PlacementGrowth = {
   /** An instance buffer the session holds was replaced by a larger one, `from`'s rows first and
    *  the rest parked: the session reads `to` from now on and holds its new rows, no table rebuilt
@@ -43,11 +42,11 @@ export type PlacementGrowth = {
   growPlacements(from: PlacementRows, to: PlacementRows): void;
   /** Whether `growPlacements` takes each of `from` grown to `capacity` rows, asked before the
    *  owner replaces any: false leaves them as they are, and the owner opens the session again on
-   *  larger ones. Absent from an engine, it takes every growth. */
+   *  larger ones. */
   growsInPlace(from: readonly PlacementRows[], capacity: number): boolean;
 };
 
-/** Whether `updates` takes that growth (`BackendSceneUpdates.growsInPlace`): absent, every one. */
+/** Whether `updates` takes that growth (`PlacementGrowth.growsInPlace`): absent, every one. */
 export const growsInPlaceOf = (
   updates: BackendSceneUpdates,
   from: readonly PlacementRows[],
