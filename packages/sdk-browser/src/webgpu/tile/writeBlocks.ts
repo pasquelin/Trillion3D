@@ -13,8 +13,8 @@ import { cellOrigin, tailOrigin, type TileRegion } from './write.ts';
  * tiles and gutters are —, its extent is rounded up to the block that contains its last texel,
  * which the level's padded bytes hold; and every destination lies inside the cell, gutter
  * included. A block copy into the middle of a pool cannot stop mid-block: WebGPU refuses it.
- * A level whose bytes are not the whole blocks its dimensions imply is refused once per path:
- * a streamed level where its read resolves (`levels.ts`), a tail's level here.
+ * Bytes that are not the whole blocks their dimensions imply are refused once per path: a streamed
+ * tile's where its read resolves (`levels.ts`), a tail's level here.
  */
 const roundUp = (texels: number) => blocksAcross(texels) * PREVIEW_BLOCK_SIDE;
 
@@ -25,9 +25,8 @@ export class LevelBytesError extends Error {
   }
 }
 
-/** Refuses a level whose bytes are not the whole blocks its dimensions imply — checked before
- *  the level is held or a tile placed, so such a file never occupies a slot with what it held. */
-export function checkLevelBlocks(blocks: Uint8Array, size: readonly [number, number]) {
+/** Refuses a tail level whose bytes are not the whole blocks its dimensions imply. */
+function checkLevelBlocks(blocks: Uint8Array, size: readonly [number, number]) {
   if (blocks.byteLength !== levelBlockBytes(size[0], size[1]))
     throw new LevelBytesError(size, blocks.byteLength);
 }
@@ -59,16 +58,22 @@ function writeBlocks(
   );
 }
 
+/** A tile's record (`../../texture/tileRecords.ts`): its region's blocks, alone, to its cell. */
 export function writeTileFromBlocks(
   queue: GPUQueue,
   pool: GPUTexture,
   place: TilePlace,
-  blocks: Uint8Array,
-  level: readonly [number, number],
+  record: Uint8Array,
   region: TileRegion,
 ) {
-  const [ox, oy] = cellOrigin(place);
-  writeBlocks(queue, pool, [ox + region.dx, oy + region.dy, place.layer], blocks, level, region);
+  const [ox, oy] = cellOrigin(place),
+    { width, height } = region;
+  writeBlocks(queue, pool, [ox + region.dx, oy + region.dy, place.layer], record, [width, height], {
+    sx: 0,
+    sy: 0,
+    width,
+    height,
+  });
 }
 
 /** Queue levels, from the first to 1×1, each at its block-aligned place in the tile. */
