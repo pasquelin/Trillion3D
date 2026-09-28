@@ -93,6 +93,24 @@ test('a model opened again before its settings arrive holds its cooked cloth onc
   assert.equal(bodies.count.softVertices, 9 + 9, 'the streamer’s cloth, and this opening’s once');
 });
 
+test('a late refusal of a cooked cloth its model opened again gives back no slot', async () => {
+  const { model, writer, bodies } = await opened();
+  const softs = createCookedSoftBodies(writer, bodies, () => {}, assert.fail);
+  const owners = () =>
+    Array.from({ length: 8 }, (_, slot) => bodies.slots.at(slot)).filter(Boolean);
+  const streamers = owners();
+  softs.open(model, [cookedCloth(1)], new AbortController().signal);
+  await landed();
+  const [stale] = owners().filter((owner) => !streamers.includes(owner));
+  softs.open(model, [cookedCloth(1)], new AbortController().signal);
+  await landed();
+  const held = owners();
+  assert.ok(!held.includes(stale), 'opened again: the first cloth is out');
+  softs.refused(stale as Parameters<typeof softs.refused>[0]);
+  assert.deepEqual(owners(), held, 'every slot kept by its body');
+  assert.equal(bodies.count.softVertices, 9 + 9);
+});
+
 test('a model moved frame after frame carries its cooked cloth along, never made again', async () => {
   const { model, writer, bodies, tiles, fetched } = await opened();
   const id = writer.take()[1],

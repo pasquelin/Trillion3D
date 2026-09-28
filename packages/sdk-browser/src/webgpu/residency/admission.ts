@@ -43,11 +43,13 @@ export function createPageAdmission(options: {
   const holds = (rec: PageRec) => !!getCache()?.get(pageAddress(rec));
   /** One load, pinned when the image holds the page: the wanted set or the root cover. */
   const load = async (rec: PageRec) => {
-    const address = pageAddress(rec);
-    await current().load(address, signal);
-    const key = tracking.keyOf(rec);
-    if (tracking.wanted.has(key) || bootstrapKey[key]) {
-      current().pin(address);
+    const address = pageAddress(rec),
+      key = tracking.keyOf(rec),
+      held = !!bootstrapKey[key];
+    // The root cover is held on arrival, inside the cache's queue, never left unpinned in between.
+    await current().load(address, signal, held ? 'held' : undefined);
+    if (held || tracking.wanted.has(key)) {
+      if (!held) current().pin(address);
       tracking.markPinned(key);
     }
   };

@@ -1,4 +1,7 @@
-import { clusterErrorAtDepth } from '../../../../sdk-core/src/index.ts';
+import {
+  clusterErrorAtDepth,
+  clusterErrorInFrame,
+} from '../../../../sdk-core/src/lod/screenErrorBound.ts';
 import { clipWeight } from '../../../../sdk-core/src/math/primitives/camera.ts';
 import type { ClusterCut } from './math.ts';
 
@@ -28,7 +31,11 @@ export function viewDepth(sphere: ArrayLike<number>, offset: number, e: ArrayLik
   return viewDepthOf(sphere[offset], sphere[offset + 1], sphere[offset + 2], e);
 }
 
-/** `projectedClusterError` whose axis distance and centre depth are already known. */
+/**
+ * `projectedClusterError` whose axis distance and centre depth are already known. `sound`: the
+ * caller has already found the four frame scalars sound (`SelectionState.flatSound`), and only the
+ * cluster's own values are checked here.
+ */
 export function projectedErrorAt(
   error: number | null | undefined,
   lateral: number,
@@ -38,9 +45,12 @@ export function projectedErrorAt(
   focal: number,
   near: number,
   perspective = 1,
+  sound = false,
 ) {
   if (error === 0) return 0;
   if (error == null || error === Infinity) return Infinity;
+  if (sound)
+    return clusterErrorInFrame(error, stretch, lateral, depth, radius, focal, near, perspective);
   return clusterErrorAtDepth(error, stretch, lateral, depth, radius, focal, near, perspective);
 }
 

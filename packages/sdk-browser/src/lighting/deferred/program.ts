@@ -1,5 +1,6 @@
+import { reflectionPipelines } from '../../reflections/pipelines.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
-import { createDeferredLayouts } from './setup.ts';
+import { createDeferredLightingLayout } from './setup.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts';
@@ -69,16 +70,14 @@ export async function createDeferredProgram(
     sources.lighting,
     `${sources.label}_LIGHTING`,
   );
-  const layouts = createDeferredLayouts(device, sources.direct, sources.bounce);
-  const light = await makeFullscreenPipeline(device, lighting, layouts.lighting, 'lightSurface', [
+  const lightingLayout = createDeferredLightingLayout(device, sources.direct, sources.bounce);
+  const light = await makeFullscreenPipeline(device, lighting, lightingLayout, 'lightSurface', [
     { format: 'rgba16float' },
   ]);
-  const compositions = await createCompositions(
-    device,
-    sources.compose,
-    sources.label,
-    layouts.composition,
-  );
+  const reflection = sources.direct
+    ? await reflectionPipelines(device, sources.lighting, lightingLayout, !!sources.bounce)
+    : undefined;
+  const compositions = await createCompositions(device, sources.compose, sources.label);
   /** What the light group names: rebuilt when one of them is replaced (`bindIdentity.ts`). */
   let identity = createWebgpuBindIdentity(),
     boundSurface: SurfaceBuffer | undefined,
@@ -91,30 +90,31 @@ export async function createDeferredProgram(
   let composed = new WeakMap<GPUTextureView, WeakMap<GPUTextureView, Composition>>();
   return {
     light,
+    reflection,
     get lightGroup() {
       return lightGroup;
     },
     compositions,
     /** The group reading the lit image and its surface flags, or `image` and its as-is share,
-     *  and the input its pipelines compose (`compositions`); `undefined` before `bind`. */
-    composition(image?: ComposedImage) {
+     *  and the input its pipelines compose (`compositions`); `undefined` before `bind`. A frame
+     *  that reads no as-is share (`asIs` false, OMB-11) binds the colour alone. */
+    composition(image?: ComposedImage, asIs = true) {
       const view = image?.color ?? boundHdr,
-        share = image?.share ?? boundFlags;
+        // The flagless group is kept under its colour: no share view is ever a colour one.
+        share = asIs ? (image?.share ?? boundFlags) : view;
       if (!view || !share || !boundSurface) return undefined;
       let byShare = composed.get(view);
       if (!byShare) composed.set(view, (byShare = new WeakMap()));
       const kept = byShare.get(share);
       if (kept) return kept;
       // A colour without its own share (the effect chain's, no TAA) reads the lit image's flags.
-      const input = image?.share ? 'accumulated' : 'still';
-      const group = device.createBindGroup({
-        layout: layouts.composition[input],
-        entries: [
-          { binding: 0, resource: view },
-          { binding: 1, resource: { buffer: bindings.uniform } },
-          { binding: 2, resource: share },
-        ],
-      });
+      const input = !asIs ? 'flagless' : image?.share ? 'accumulated' : 'still';
+      const entries: GPUBindGroupEntry[] = [
+        { binding: 0, resource: view },
+        { binding: 1, resource: { buffer: bindings.uniform } },
+      ];
+      if (asIs) entries.push({ binding: 2, resource: share });
+      const group = device.createBindGroup({ layout: compositions.layouts[input], entries });
       const composition = { group, input } as const;
       byShare.set(share, composition);
       return composition;
@@ -174,7 +174,7 @@ export async function createDeferredProgram(
           { binding: 12, resource: { buffer: direct.probes } },
           { binding: BOUNCE_SURFACE_BINDING, resource: { buffer: direct.surfaceCache } },
         );
-      lightGroup = device.createBindGroup({ layout: layouts.lighting, entries });
+      lightGroup = device.createBindGroup({ layout: lightingLayout, entries });
     },
     release() {
       identity = createWebgpuBindIdentity();

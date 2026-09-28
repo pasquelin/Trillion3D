@@ -11,7 +11,7 @@ import {
 } from './contract.ts';
 import { RESOLVE, rasterSource } from './shader.ts';
 import { SMALL_BINDINGS, atlasLayoutEntries, readOnly } from '../../webgpu/core/bindLayout.ts';
-import { smallBindEntries } from '../../webgpu/core/bindEntries.ts';
+import { createRasterBindings } from './bindings.ts';
 import { createRasterResolves } from './resolve.ts';
 import type { GpuRasterInput } from './types.ts';
 
@@ -77,6 +77,7 @@ export function createGpuRaster(
     ),
   );
   const resolves = createRasterResolves(device, RESOLVE, work, targetBytes);
+  const bindings = createRasterBindings(device, computeLayout, work);
   let group: GPUBindGroup | undefined;
   /** The four indirect dispatches of a mode, in a single compute pass. */
   const encodeMode = (encoder: GPUCommandEncoder, mode: number, label: string) => {
@@ -98,23 +99,7 @@ export function createGpuRaster(
      * encoded.
      */
     encodeOccluders(encoder: GPUCommandEncoder, input: GpuRasterInput) {
-      // Every resource outlives the frame: the caller keeps the groups and names the one this
-      // combination of verdict source and selection uses.
-      group = (input.groups[input.groupKey] ??= device.createBindGroup({
-        layout: computeLayout,
-        entries: smallBindEntries({
-          indices: input.indices,
-          positions: input.positions,
-          pages: input.pages,
-          hizFlags: input.hizFlags,
-          uniform: input.uniform,
-          uvs: input.uvs,
-          textures: input.textures,
-          sampler: input.sampler,
-          work,
-          selectionMask: input.selection?.maskBuffer ?? input.hizFlags,
-        }),
-      })) as GPUBindGroup;
+      group = bindings(input);
       encoder.clearBuffer(work, listOffset, HEADER_CLEAR_BYTES);
       const rows = Math.max(1, input.pageRows),
         spanY = Math.min(rows, DISPATCH_SPAN),

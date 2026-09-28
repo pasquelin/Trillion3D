@@ -49,7 +49,7 @@ fn sunOrigin(index:u32,slot:i32)->vec2i{
  let pair=shadows.records[index].origins[slot/2];
  return select(pair.xy,pair.zw,(slot&1)!=0);
 }
-fn sunShadowFactor(index:u32,P:vec3f,N:vec3f)->f32{
+fn sunShadowFactor(index:u32,P:vec3f,N:vec3f,taps:bool)->f32{
  // Field by field: a record is six matrices wide, and the sun reads none of them.
  let f0=shadows.records[index].frame[0];let f1=shadows.records[index].frame[1];
  let right=f0.xyz;let up=f1.xyz;let axis=shadows.records[index].frame[2].xyz;
@@ -73,11 +73,11 @@ fn sunShadowFactor(index:u32,P:vec3f,N:vec3f)->f32{
   let word=shadowPageWord(map,home);
   if(word==0u){continue;}
   let reference=1.0-(dot(Q,axis)-zNear-shadowDepthMargin(texel,slope,1.0))*invDepth+SHADOW_DEPTH_ROUNDING;
-  return shadowPcf(map,t,reference,home,word,0.0);
+  return shadowPcf(map,t,reference,home,word,0.0,taps);
  }
  return sunFarShadowFactor(P,N,-axis);
 }
-fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
+fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,taps:bool)->f32{
  let info=shadows.records[index].info;
  let cosine=clamp(dot(N,L),1e-3,1.0);
  let radius=length(light.positionRange.xyz-P);
@@ -117,15 +117,16 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
   let facing=dot(N,vec3f(m[0].w,m[1].w,m[2].w));
   let slope=sqrt(max(1.0-facing*facing,0.0))/(dot(d,d)*cosine);
   let reference=ndc.z+k*shadowDepthMargin(texel,slope,1.0/(clip.w*clip.w))+SHADOW_DEPTH_ROUNDING;
-  return shadowPcf(map,t,reference,home,word,side);
+  return shadowPcf(map,t,reference,home,word,side,taps);
  }
  return 1.0;
 }
-/** Fraction of light that reaches the point: 1 in full light, 0 fully in shadow. */
-fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
+/** Fraction of light that reaches the point: 1 in full light, 0 fully in shadow — or 0 when
+ *  \`taps\` is false and a page was read: the point takes no light, its pages are still asked for. */
+fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,taps:bool)->f32{
  if(slice<0){return 1.0;}
  let index=u32(slice);
  if(shadows.records[index].info.x<0.5){return 1.0;}
- if(isSun(light)){return sunShadowFactor(index,P,N);}
- return lampShadowFactor(index,light,P,N,L);
+ if(isSun(light)){return sunShadowFactor(index,P,N,taps);}
+ return lampShadowFactor(index,light,P,N,L,taps);
 }`;

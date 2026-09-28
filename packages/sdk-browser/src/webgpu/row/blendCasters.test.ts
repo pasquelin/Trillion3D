@@ -52,12 +52,15 @@ function mount(pages: PageRec[], blendSlots: number) {
   rows.pageTableFloats = new Float32Array(rows.casterSlots * STRIDE);
   rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer);
   const geometryBlock = { vertexBase: 0, count: 3, hasUv: false, hasNormal: false };
-  const writer = createPageRowWriter({
-    geometryBlocks: new Map(pages.map((p) => [p.attributes, { ...geometryBlock }] as const)),
-    mapLayer: new Map(),
-    dataLayer: new Map(),
-    markRowDirty: rows.markRowDirty,
-  } as never);
+  const writer = createPageRowWriter(
+    {
+      geometryBlocks: new Map(pages.map((p) => [p.attributes, { ...geometryBlock }] as const)),
+      mapLayer: new Map(),
+      dataLayer: new Map(),
+      asIsShown: false,
+    } as never,
+    rows.markRowDirty,
+  );
   pages.forEach((_, page) => {
     rows.pagePositions[page] = {} as GPUBuffer;
     rows.residentOffsetWords[page] = page * 16;

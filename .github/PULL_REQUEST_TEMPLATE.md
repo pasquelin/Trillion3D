@@ -16,8 +16,8 @@ Closes # <!-- one pull request closes one issue (AGENTS.md rule 5) -->
 
 ## Lead verification
 
-<!-- Written by the lead before it opens the pull request, checked by the CI: one line per
-     To do and Proof item, "- <item>: delivered in <file:line>, proved by <test>"; an item not
-     delivered holds the pull request (AGENTS.md rule 5). -->
+<!-- Written by the reviewer, whose OK lets the lead open the pull request; checked by the CI:
+     one line per To do and Proof item, "- <item>: delivered in <file:line>, proved by <test>".
+     An item not delivered holds the pull request unless the boss said yes (AGENTS.md rule 6). -->
 
 ## Not proven / left out

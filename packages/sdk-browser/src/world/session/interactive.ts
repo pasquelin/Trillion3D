@@ -35,7 +35,8 @@ export function startInteractiveExplorer(
   };
   // Captures in flight: an image drawn meanwhile is refused (`SURFACE_CAPTURE_BUSY`), so the loop
   // draws nothing and goes idle until the last one asks the view back.
-  let capturing = 0;
+  let capturing = 0,
+    pageLoads = 0;
   const scheduler = createExplorerFrameScheduler({
     request: view.requestAnimationFrame.bind(view),
     cancel: view.cancelAnimationFrame.bind(view),
@@ -43,8 +44,12 @@ export function startInteractiveExplorer(
       if (capturing) return;
       original.beforeFrame?.();
       const metrics = explorer.render();
+      pageLoads = metrics.pageLoads;
       original.onFrame?.(metrics);
     },
+    // A page landing is the image still arriving: those frames spend none of the settle limit. The
+    // engine's own count of the pages it made resident, else the pages fetched.
+    progress: () => runtime.landings() ?? pageLoads,
     pending: () => (capturing ? Promise.resolve(false) : runtime.pendingFrame()),
     error: reportFailure,
     limited: () =>

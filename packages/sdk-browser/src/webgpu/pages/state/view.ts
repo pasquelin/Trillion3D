@@ -1,4 +1,5 @@
 import { createEngineCamera, type EngineCamera } from '../../../camera/world.ts';
+import type { CutDelta } from '../../cut/delta.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { createWebgpuGpuState, type WebgpuGpuState } from './gpu.ts';
 import { createWebgpuRunState, type WebgpuRunState } from './run.ts';
@@ -8,12 +9,14 @@ import { createWebgpuVisState, type WebgpuVisState } from './vis.ts';
  * What one camera owns in the runtime groups: the cut it draws, its motion, its occlusion history,
  * its frame targets and their temporal history. Everything else is the scene's and every view
  * shares it: the gate's revisions (so an invalidation reaches every view), the GPU cut (the main
- * view's alone), the list the residency is asked for (`desired`, which A2 of #412 makes the union
- * of the views), the pools, the pipelines and the Hi-Z pyramid, which follows the drawn view's size.
+ * view's alone), the residency sets, which ask for the union of the views' cuts under the one page
+ * budget (`../../cut/publication.ts`), the pools, the pipelines and the Hi-Z pyramid, which follows
+ * the drawn view's size.
  */
 export const VIEW_RUN_KEYS = [
   'lastCamera',
   'motion',
+  'desired',
   'shown',
   'drawn',
   'drawnMirrorsShown',
@@ -36,6 +39,7 @@ export const VIEW_GPU_KEYS = [
   'feedbackTexture',
   'feedbackView',
   'backdrop',
+  'reflection',
   'surfaces',
   'targetSize',
   'targetBytes',
@@ -65,6 +69,16 @@ export interface WebgpuView {
   run: Pick<WebgpuRunState, RunKey>;
   gpu: Pick<WebgpuGpuState, GpuKey>;
   vis: Pick<WebgpuVisState, VisKey>;
+  /** The differences the view publishes its cut by (`../../cut/publication.ts`): the main view's
+   *  are the publication's own, another view's are made at its first cut and emptied when it is
+   *  released. */
+  cut?: ViewCut;
+}
+
+/** The cut a view asks for and the one it draws, published by differences into the shared sets. */
+export interface ViewCut {
+  asked: CutDelta;
+  drawn: CutDelta;
 }
 
 /** The runtime's views: the one it opened on, and the one its groups hold now. */
