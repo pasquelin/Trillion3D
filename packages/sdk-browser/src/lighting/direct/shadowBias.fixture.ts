@@ -25,6 +25,7 @@ export const RESTATED = [
   '  let Q=P+N*(texel*offset);\n  // Relative',
   '  map.depth=dot(Q,axis);map.margin=shadowDepthMargin(texel,slope,1.0);',
   ' return max(1.0-(m.depth-range.x-m.margin)*range.y+SHADOW_DEPTH_ROUNDING,SHADOW_PAST_FAR);',
+  'const SHADOW_PAST_FAR:f32=1.17549435e-38;',
   ' let cosine=clamp(dot(N,L),1e-3,1.0);',
   ' let radius=length(light.positionRange.xyz-P);',
   ' let texel0=2.0*info.y*radius/(f32(LAMP_PAGE_COUNT)*SHADOW_PAGE);',
