@@ -57,7 +57,7 @@ export function mount(
     rows,
     { sync: () => {}, dirty: true },
     pages,
-    coupe,
+    { drawn: coupe },
     SLOTS,
     () => true,
     commit,
