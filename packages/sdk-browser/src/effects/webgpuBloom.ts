@@ -23,12 +23,19 @@ type Size = readonly [number, number];
  * written only when the size or a setting of its bloom changed.
  */
 export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffectKind<Bloom>> {
-  const visibility = GPUShaderStage.FRAGMENT;
-  const imageLayout = device.createBindGroupLayout({
-    label: `${BLOOM_PASS} scene`,
-    entries: [{ binding: 0, visibility, texture: { sampleType: 'unfilterable-float' } }],
-  });
-  const layouts = { level: bloomLevelLayout(device), scene: imageLayout };
+  const layouts = {
+    level: bloomLevelLayout(device),
+    scene: device.createBindGroupLayout({
+      label: `${BLOOM_PASS} scene`,
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.FRAGMENT,
+          texture: { sampleType: 'unfilterable-float' },
+        },
+      ],
+    }),
+  };
   const module = await createCheckedShaderModule(device, BLOOM_WGSL, BLOOM_PASS);
   const add: GPUBlendComponent = { srcFactor: 'one', dstFactor: 'one', operation: 'add' };
   const [down, up, composite] = await Promise.all([
