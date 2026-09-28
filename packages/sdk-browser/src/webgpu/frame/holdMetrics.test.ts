@@ -63,8 +63,9 @@ function tenue() {
     context: {},
     gpu: {
       presenter: { present: () => {} },
-      colorTexture: {},
+      displayTexture: {},
       targetSize: [4, 4],
+      displaySize: [4, 4],
       cache: undefined,
       vertexBytes: 0,
       positionBuffers: new Map(),

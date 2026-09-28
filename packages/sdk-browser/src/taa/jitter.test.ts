@@ -7,7 +7,11 @@ import {
   halton,
   jitterViewProjection,
   taaJitter,
+  taaStillFrames,
+  upscaleMipBias,
+  upscalePhases,
 } from './jitter.ts';
+import { renderExtent } from '../webgpu/pages/state/renderScale.ts';
 
 test('the Halton sequence starts with the known terms and stays in [0, 1)', () => {
   assert.deepEqual(
@@ -65,4 +69,36 @@ test('jitter is a translation in clip space, zero when the offset is zero', () =
   jitterViewProjection(out, IDENTITY_MATRIX4, 0.25, 0.25, 640, 480);
   assert.equal(out[12], (2 * 0.25) / 640);
   assert.equal(out[13], (2 * 0.25) / 480);
+});
+
+// #816: the boss's display, drawn at 67 % and 50 % per axis, reconstructed to it.
+test('jitter phases follow the render-to-display ratio, distinct and stratified at every scale', () => {
+  const display = 3456;
+  assert.equal(upscalePhases(display, display), TAA_SAMPLES, 'eight at native size, as before');
+  assert.equal(taaStillFrames(TAA_SAMPLES), TAA_STILL_FRAMES);
+  for (const [scale, expected] of [
+    [0.67, 17],
+    [0.5, 32],
+  ]) {
+    const phases = upscalePhases(renderExtent(display, scale), display);
+    assert.equal(phases, expected, `${phases} phases at ${scale}`);
+    const out = new Float64Array(2),
+      seen = new Set<string>(),
+      quadrants = [0, 0, 0, 0];
+    for (let sample = 0; sample < phases; sample++) {
+      const [x, y] = taaJitter(sample, out, phases);
+      assert.ok(Math.abs(x) < 0.5 && Math.abs(y) < 0.5, 'inside the render pixel');
+      seen.add(`${x},${y}`);
+      quadrants[(x < 0 ? 0 : 1) + (y < 0 ? 0 : 2)]++;
+    }
+    assert.equal(seen.size, phases, 'no two phases share a position');
+    // Stratified: each quarter of the render pixel — a display pixel at half scale — gets its share.
+    for (const count of quadrants) assert.ok(Math.abs(count - phases / 4) <= 1, `${quadrants}`);
+  }
+});
+
+test('the texture level offset is zero at native size and log2 of the scale below it', () => {
+  assert.equal(upscaleMipBias(3456, 3456), 0);
+  assert.equal(upscaleMipBias(1728, 3456), -1);
+  assert.equal(upscaleMipBias(2312, 3456), Math.log2(2312 / 3456));
 });

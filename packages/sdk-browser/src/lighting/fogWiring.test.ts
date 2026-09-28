@@ -53,8 +53,9 @@ test('blended and water surfaces, lit or unlit, are fogged from the eye of the b
     /select\(fogged\(color,P,uni\.eye\.xyz\),color,unlit\|\|vol\.attenuationColor\.w!=0\.0\)/,
   );
   // The eye is the view's last vec4: 112 bytes of fields before it, 16 of its own; the pixel
-  // ratio a line's width is scaled by (#348) follows it, in the struct's 16-byte alignment.
-  assert.match(BLEND_VIEW_WGSL, /viewport:vec2f,eye:vec4f,pixelRatio:f32,\}/);
+  // ratio a line's width is scaled by (#348) and the texture level offset (#816) follow it, in the
+  // struct's 16-byte alignment.
+  assert.match(BLEND_VIEW_WGSL, /viewport:vec2f,eye:vec4f,pixelRatio:f32,mipBias:f32,\}/);
   assert.equal(BLEND_VIEW_SIZE, 144);
 });
 
