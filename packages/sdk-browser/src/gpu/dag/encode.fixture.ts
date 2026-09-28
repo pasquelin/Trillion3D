@@ -87,6 +87,7 @@ export function ressources(residentCut: boolean, levelCount = 3, pageCount = 409
     dispatchArgs: { nom: 'dispatchArgs' },
     ranges: [{ first: 0, count: 2 }],
     bindGroups: [{}],
+    rootLevelPipeline: etape('dagRootLevel'),
     levelPipelines: [etape('dagLevel0'), etape('dagLevel1'), etape('dagLevel2')],
     preparePipeline: etape('dagPrepare'),
     clearDrawnPipeline: etape('dagClearDrawn'),
