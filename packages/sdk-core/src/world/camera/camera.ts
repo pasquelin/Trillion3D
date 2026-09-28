@@ -3,7 +3,7 @@ import { readVec3, type Vec3Input } from '../math/vector3.ts';
 import { Ray } from '../math/volumes.ts';
 import { Matrix4 } from '../math/matrix4.ts';
 import { referenceProjection } from './referenceProjection.ts';
-import { orthographicView, perspectiveSlope } from '../../math/primitives/camera.ts';
+import { drawnBox, orthographicView, perspectiveSlope } from '../../math/primitives/camera.ts';
 
 const view = new Float64Array(4);
 
@@ -144,8 +144,7 @@ export class Camera extends Object3D {
       out.origin.setFromMatrixPosition(m);
       out.direction.set(x * t * aspect, y * t, -1);
     } else {
-      const fit = this.fitAspect ? aspect : undefined;
-      const [cx, cy, w, h] = orthographicView(this, this.zoom, view, fit);
+      const [cx, cy, w, h] = orthographicView(drawnBox(this, aspect), this.zoom, view);
       out.origin.set(cx + x * w, cy + y * h, 0).applyMatrix4(m);
       out.direction.set(0, 0, -1);
     }
