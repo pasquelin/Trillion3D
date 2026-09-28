@@ -58,7 +58,8 @@
       "missingCache": "컴파일된 캐시가 없습니다: pnpm compile:caches를 실행하세요"
     },
     "banner": {
-      "close": "닫기"
+      "close": "닫기",
+      "waiting": "엔진 대기 중 (#{issue})"
     }
   },
   "a-city-from-rules": {
