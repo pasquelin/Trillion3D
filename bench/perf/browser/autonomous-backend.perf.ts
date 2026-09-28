@@ -78,11 +78,11 @@ const passe = (
 
 function cas(name: string, total: number, tailles: readonly number[], mesure = true) {
   const suite = coupes(total, tailles, 0x5eed ^ total);
-  const gauche = monde(total, 0x9e37 ^ total),
-    droite = monde(total, 0x9e37 ^ total);
-  const oracle = referenceAutonomousSync(gauche);
+  const left = monde(total, 0x9e37 ^ total),
+    right = monde(total, 0x9e37 ^ total);
+  const oracle = referenceAutonomousSync(left);
   const paquet = createAutonomousGeometry({
-    ...droite,
+    ...right,
     bootstrap: [],
     byUrl: new Map(),
     descriptors: new Map(),
@@ -95,8 +95,8 @@ function cas(name: string, total: number, tailles: readonly number[], mesure = t
     size: total,
     mesure,
     input: {
-      reference: () => passe(gauche, oracle.sync, oracle.state, suite),
-      optimisee: () => passe(droite, paquet.sync, paquet.state, suite),
+      reference: () => passe(left, oracle.sync, oracle.state, suite),
+      optimisee: () => passe(right, paquet.sync, paquet.state, suite),
     },
   };
 }
