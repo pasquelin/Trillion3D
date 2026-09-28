@@ -5,6 +5,12 @@ import { DIRECT_LIGHT_SAMPLING_WGSL, SAMPLED_RANKS } from './lightSamplingWgsl.t
 import { DIRECT_LIGHTING_WGSL, declaredLightingWgsl } from './lightingWgsl.ts';
 import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from '../deferred/shaders.ts';
 import { HASH_UNIT_WGSL } from '../../math/hashUnitWgsl.ts';
+import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
+import { LIGHT_TILES_SHADER } from '../tiles/shader.ts';
+import {
+  compactTile,
+  tileLayout,
+} from '../../../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1;
 
@@ -29,7 +35,7 @@ test('the sample budget is the published setting, and a list within it is summed
   );
   assert.match(
     DIRECT_LIGHT_SAMPLING_WGSL,
-    /if\(kept<=LIGHT_SAMPLES\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}/,
+    /if\(kept<=LIGHT_SAMPLES\|\|kept>TILE_LIGHTS\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}/,
   );
   // A light worth a sample's share is shaded exactly and leaves the pool; the drawn ones are
   // divided by their probability, copies counted.
@@ -46,22 +52,55 @@ test('the sample budget is the published setting, and a list within it is summed
   assert.ok(SAMPLED_RANKS * 0.61803399 < 2 ** 10, 'the rank keeps the fraction its precision');
 });
 
-test('up to TILE_LIGHTS lights a tile runs the loops of before, and past them the exact walk (#822)', () => {
-  // A listed tile: the list walk and the sampled weights, recomputed where read (#924): no
-  // private array of TILE_LIGHTS weights.
-  assert.match(
-    DIRECT_LIGHTING_WGSL,
-    /if\(kept<=TILE_LIGHTS\)\{\s*for\(var index=0u;index<kept;index\+\+\)\{\s*result\+=declaredLight\(directLights\.items\[tileLights\[base\+firstSlot\+index\]\],rgb,metal,rough,N,V,P,ao\);\s*\}\s*return result;\s*\}\s*return sceneLighting\(/,
-  );
+test('one loop shades the lights of a pixel in full: its list, its pool slice or the scene (#822, #849)', () => {
+  // The sampled weights are recomputed where read (#924): no private array of TILE_LIGHTS weights.
   assert.doesNotMatch(DIRECT_LIGHT_SAMPLING_WGSL, /array<f32,/);
   assert.equal(
     occurrences(DIRECT_LIGHT_SAMPLING_WGSL, 'lightWeight('),
     3,
     'defined once, read by the list and by the factor of a drawn light',
   );
-  // Past the list, every light of the scene in rank order: those that miss add an exact zero.
+  // One call to the shading in the full loop, one in the sampled one: no walk over the scene
+  // beside them, the no-tile fallback of the blend pass included.
+  for (const shader of [DIRECT_LIGHTING_WGSL, declaredLightingWgsl(11, 18, 26)])
+    assert.doesNotMatch(shader, /sceneLighting/);
+  assert.equal(occurrences(DIRECT_LIGHTING_WGSL, 'declaredLight(directLights.items['), 1);
+  assert.equal(occurrences(declaredLightingWgsl(11, 18, 26), 'declaredLight('), 2);
   assert.match(
     DIRECT_LIGHTING_WGSL,
-    /fn sceneLighting\([^)]*\)->vec3f\{\s*var result=vec3f\(0\.0\);\s*for\(var index=0u;index<directLights\.count;index\+\+\)\{\s*result\+=declaredLight\(directLights\.items\[index\]/,
+    /for\(var index=0u;index<slice\.y;index\+\+\)\{\s*var light=index;\s*if\(slice\.x!=TILE_NO_SLICE\)\{light=tileLights\[slice\.x\+index\];\}\s*result\+=declaredLight\(directLights\.items\[light\]/,
   );
+});
+
+test('a tile more than TILE_LIGHTS lights reach reads exactly those, in order (#849)', () => {
+  // The resolve's own tileSlice, run on the record the tile pass's oracle writes.
+  const layout = tileLayout(LIGHT_TILES_SHADER);
+  const TILE_LIGHTS = layout.tileLights;
+  const reached = [...Array(300).keys()].filter((light) => light % 3 !== 1);
+  const read = (tileLights: Uint32Array) => {
+    const { tileSlice } = shaderFunctions<{
+      tileSlice: (base: number, countSlot: number, firstSlot: number) => { x: number; y: number };
+    }>(DIRECT_LIGHTING_WGSL, ['tileSlice'], {
+      tileLights,
+      directLights: { count: 300 },
+      TILE_LIGHTS,
+      TILE_NO_SLICE: layout.noSlice,
+    });
+    const slice = tileSlice(0, 0, layout.opaqueBase);
+    return slice.x === layout.noSlice
+      ? [...Array(slice.y).keys()]
+      : [...tileLights.subarray(slice.x, slice.x + slice.y)];
+  };
+  const pool = { capacity: 400, head: 0, overflow: 0 };
+  assert.deepEqual(
+    read(compactTile(layout, { opaque: reached, blend: [] }, 300, undefined, pool)),
+    reached,
+  );
+  // A pool with no room: the scene, every light, and the overflow raised.
+  const full = { capacity: 100, head: 0, overflow: 0 };
+  const walked = read(compactTile(layout, { opaque: reached, blend: [] }, 300, undefined, full));
+  assert.deepEqual([walked.length, full.overflow], [300, 1]);
+  // Within its list, the list.
+  const few = reached.slice(0, TILE_LIGHTS);
+  assert.deepEqual(read(compactTile(layout, { opaque: few, blend: [] }, 300)), few);
 });
