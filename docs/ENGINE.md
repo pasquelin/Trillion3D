@@ -325,7 +325,10 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   the camera (`sunLevelPages`), addressed by absolute page modulo the window, so a camera step keeps
   every page that stays inside. Sixteen levels (`sunLevels`) start at the near plane's pixel
   footprint. The depth range is the scene's box along the sun, snapped outward to its own
-  power-of-two grid: every caster lies inside, and a small growth changes nothing.
+  power-of-two grid: every caster lies inside, and a small growth changes nothing. A page is read
+  in the range it was drawn in — its table word names one of the `SUN_DEPTH_RANGES` a sun keeps
+  (`sunDepth.ts`) —, so a new range, a walker crossing a grid line, redraws no page its box does
+  not cover.
 - **A lamp face is a mip chain**: 32 × 32 pages at its finest mip, the pool's own side, down to one
   page. Six faces for a point, one for a spot.
 - **The level is chosen per pixel, from its footprint** — the world distance between two adjacent
