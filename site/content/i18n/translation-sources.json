@@ -753,7 +753,7 @@
     "reference:OcclusionFrameMetrics": "22f3c51b a2279ad0 be4e4eee faf1e9e8 ddfcdc80 8f5227c1 d1160a26 3ada0f9d 3b953dce 12e8cecc 0a154493 f0bfab5f 1758c1fe 0eae76c4 1e401217",
     "reference:OpenAiToolDefinition": "8fb1a3a8 a5aab350 97983e96 00cf2af9 cd17d965 f8584c92 e5c937ca 042b37b5 6ac12dc8 611803f0 1d990b20 59c3d1a9 e4d0c541 97c42817 324715c1",
     "reference:OrbitCameraControls": "5c4c1336 277f731f 1ea32ac4 cd89921f 200e4333 6e39fcf4 043c269f 49508879 782251c9 e8ad85db b7f21a40 d25405cc 56b6b83c 2461b270 227a2330",
-    "reference:OrthographicBox": "ebaa41f0 756a806d 83d559d2 8c438717 63cec9a0 33a8254c 2e3bf01f f35c8239 001ceb8e 76ac4199 ffe747ea 5ca17e37 4a5ac285 73be8743 04704d25",
+    "reference:OrthographicBox": "cdcb6ccf 11e74f60 b694fed8 b0fd7cc0 bbd10659 e1084f64 a2c0a264 5d90d4ee 03259760 439890ec d91eb594 1de430f4 ccc08308 ee1659bc 65e0fbad",
     "reference:PAGE_DECODE_FAILURES": "0dc841fa 2c575cfe b36ebecc 1914ede3 d53a6407 15e9939a 4bdfd1fc 4e37f46f 0f002654 11db7c2d d43f6413 79848f59 d8f171d8 97911357 a4ed847e",
     "reference:PAGE_DECODE_PROTOCOL": "93d3fcb9 fcde9732 bae4b175 b4970279 ab002a20 6b534360 1ea10f24 290a4e3c ce9c2a95 571d0628 3787885a 85fd5ef9 fe489044 724faf44 19033b3b",
     "reference:PAGE_INTEGRATION_FAILURES": "359f8046 011958e5 34e107d9 37a17a60 b5b5b8ca 81989060 eaaf7fde dda88022 ca0560c5 15f34aac 005a374e 1dd94c42 95dd4826 aafca5c4 c0b7a53a",

@@ -1,11 +1,5 @@
-import {
-  bumpResources,
-  bumpScene,
-  bumpView,
-  createFrameHold,
-  createFrameRevisions,
-} from './revisions.ts';
-import { createViewRevision } from './viewRevision.ts';
+import { bumpResources, bumpScene, bumpView, createFrameRevisions } from './revisions.ts';
+import { createViewHold, type ViewHold } from './viewRevision.ts';
 import { createHostSceneWatch, type WatchedSources } from '../host/scene/watch.ts';
 import {
   createEngineCamera,
@@ -31,8 +25,7 @@ type FrameGateSources = WatchedSources | (() => WatchedSources);
  */
 export function createFrameGateCore(holdValues: number) {
   const revisions = createFrameRevisions();
-  const viewRevision = createViewRevision();
-  const hold = createFrameHold(holdValues);
+  let own = createViewHold(holdValues, revisions.view);
   const sceneWatch = createHostSceneWatch();
   // Camera the engine owns: frame entry copies the host's into it, once, and everything downstream
   // reads it. Allocated here, never per frame.
@@ -47,7 +40,22 @@ export function createFrameGateCore(holdValues: number) {
     hostPosesOwed = false;
   const gate = {
     revisions,
-    hold,
+    /** The drawn view's held-frame witness: each view keeps its own (`useViewHold`). */
+    get hold() {
+      return own.hold;
+    },
+    /**
+     * Gives the gate `next`'s hold, a fresh one when it has none yet, and returns the one it held:
+     * the hold half of a view switch. The view revision travels with it; scene and resources stay
+     * shared, so what moves them reaches every view, and drawing a view resets no other's hold.
+     */
+    useViewHold(next: ViewHold | undefined) {
+      const from = own;
+      from.view = revisions.view;
+      own = next ?? createViewHold(holdValues, revisions.view);
+      revisions.view = own.view;
+      return from;
+    },
     /** Engine camera of the current frame, as `enterFrame` has just copied it: the drawn view's,
      *  which a view switch replaces (`../webgpu/pages/state/viewSwitch.ts`). */
     cam,
@@ -86,11 +94,11 @@ export function createFrameGateCore(holdValues: number) {
      * breaks the hold.
      */
     resourcesChanged: () => bumpResources(revisions),
-    /** The target no longer carries this view's frame: a capture rendered there from another camera. */
+    /** The drawn view's target will no longer carry its held frame: its own hold alone breaks. */
     viewReplaced: () => bumpView(revisions),
     /** Rereads this frame's view; returns true if any of its numbers moved. */
     viewChanged(vue: EngineCamera, viewport: readonly [number, number] | undefined, error: number) {
-      return viewRevision.read(
+      return own.fingerprint.read(
         revisions,
         vue,
         viewport ? viewport[0] : -1,
@@ -121,7 +129,7 @@ export function createFrameGateCore(holdValues: number) {
       watchRevision = revisions.scene;
     },
     /** True when two identical frames followed each other and nothing has moved since. */
-    held: () => hold.stable && hold.same(revisions),
+    held: () => own.hold.stable && own.hold.same(revisions),
     /** Walks the hierarchy once per scene revision; returns true when it did. A frame nothing
      *  has touched walks nothing: `readScene` is what knows if nothing moved. What is walked is
      *  the engine index: the host scene is neither read nor written. */
