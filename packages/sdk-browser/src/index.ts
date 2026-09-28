@@ -66,17 +66,14 @@ export type {
   SceneMaterial,
   SceneMaterialPatch,
 } from './world/api/materialApi.ts';
-
 export { EngineProfiler, type TelemetryReport } from './diagnostic/telemetry.ts';
-
 export type {
   AssetScope,
   StablePreview,
   FrameMetrics,
   ClusterManifest,
 } from '../../sdk-core/src/index.ts';
-export type { BackendDiagnostic, PointOfInterest } from './backend/types.ts';
-export type { DiagnosticDetail } from './backend/types.ts';
+export type { BackendDiagnostic, PointOfInterest, DiagnosticDetail } from './backend/types.ts';
 /** The rows a mirrored mesh is placed through, reachable from the scene a loader records. */
 export type { PlacementRows } from './placement/rows.ts';
 /** Host resources the engine reads and never builds (`host/resources.ts`): a host declares them
