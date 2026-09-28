@@ -1,6 +1,6 @@
 ---
 name: Task
-about: One bounded piece of work with its proof — written as docs/roles/writer.md shows
+about: One bounded piece of work with its proof — written as skills/t3d-writer/SKILL.md shows
 title: ''
 labels: ''
 ---
@@ -17,7 +17,7 @@ labels: ''
 
 ## Proof
 
-<!-- What shows the work is done: test names, the image proof acceptance runs, the timing scene the measurer runs. -->
+<!-- What shows the work is done: test names, the image proof the acceptance session runs, the timing scene the measurement session runs. -->
 
 ## Links
 
