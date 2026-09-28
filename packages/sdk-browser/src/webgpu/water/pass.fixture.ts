@@ -180,8 +180,7 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
   // Groups are already built on these resources: their identity is primed on them, so the pass
   // need not rebuild them — this test observes draw order, not group construction. The lighting
   // is resolved once, as `encodeBlend` does before any pass.
-  blendState.lighting = blendLightResources(rt);
-  voidStaleBlendGroups(rt, blendState.lighting);
+  voidStaleBlendGroups(rt, blendLightResources(rt));
   for (const item of items) item.group = {} as GPUBindGroup;
   // No paged item here, and the shared group is posted ahead for the same reason.
   blendState.pagedGroup = {} as GPUBindGroup;

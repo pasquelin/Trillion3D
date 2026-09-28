@@ -95,6 +95,29 @@ test('a leaving tile gives its entries back to the finest resident ancestor, or 
   assert.equal(writes.length, 1, 'nothing to send when nothing has moved');
 });
 
+// #962: at 769 texels, level 0 has 7 tiles and level 1 only 3: tile 6 has no parent on level 1.
+// Its departure gives its entry back to level 2, the finest ancestor that exists — the one whose
+// descent reaches it —, where develop threw `TEXTURE_TILE_OUT_OF_LEVEL`.
+test('an orphan edge tile leaves to its finest existing ancestor', () => {
+  const { device } = fakeDevice();
+  const table = createWebgpuTilePageTable(device, [tileLayout(769, 769)], {
+    kind: 'color',
+    feedbackOffset: 0,
+  });
+  const at = (level: number, tx: number) => table.entryOf({ slot: 0, level, tx, ty: 0 });
+  const coarse = { x: 1, y: 0, layer: 0 },
+    middle = { x: 2, y: 0, layer: 0 },
+    orphan = { slot: 0, level: 0, tx: 6, ty: 0 };
+  table.setTile({ slot: 0, level: 2, tx: 1, ty: 0 }, coarse);
+  table.setTile({ slot: 0, level: 1, tx: 2, ty: 0 }, middle);
+  assert.equal(at(0, 6), packEntry(coarse, 2), 'the level-1 tile does not reach the orphan');
+  table.setTile(orphan, { x: 3, y: 0, layer: 0 });
+  table.clearTile(orphan);
+  assert.equal(at(0, 6), packEntry(coarse, 2));
+  table.clearTile({ slot: 0, level: 2, tx: 1, ty: 0 });
+  assert.equal(at(0, 6), 0, 'its ancestor gone, the queue');
+});
+
 test("a texture's queue is posted in its header with its lane, and sent alone", () => {
   const { device, writes } = fakeDevice();
   const table = createWebgpuTilePageTable(device, layouts(), { kind: 'color', feedbackOffset: 0 });

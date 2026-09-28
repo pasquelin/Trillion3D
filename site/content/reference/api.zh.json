@@ -512,7 +512,7 @@
       "primitives": "它的图元。",
       "worstStalls": "编译器的停滞表：至多十个图元，其停滞组在第 0 级留下了根，最差的在前。在它之前编译的缓存中没有。",
       "texturePreviews": "每个已解码的(纹理, 图集)组合对应一条记录,先按纹理、再按图集排序;没有可解码图像时为空。",
-      "textures": "预烘焙层级的路径模板,相对于清单文件:{sha} 是源图像摘要,{kind} 是图集名称(PREVIEW_ATLAS_NAMES),{level} 是层级序号。在支持预烘焙层级之前编译的缓存中不存在,本读取器会通过旁挂文件的版本号拒绝这类缓存。",
+      "textures": "预烘焙层级的路径模板,相对于清单文件:{sha} 是源图像摘要,{kind} 是图集名称(PREVIEW_ATLAS_NAMES),{level} 是层级序号。在支持预烘焙层级之前编译的缓存中不存在,本读取器会通过旁挂文件的版本号拒绝这类缓存。`version` 是层级的版本(`TEXTURE_PREVIEW_VERSION`):读取器不会读取其他版本的层级。",
       "proxy": "从哪里读取常驻场景代理体及其 BVH(供光线命中的几何体)。在支持间接光照之前编译的缓存中不存在,但那类缓存依然可以照常读取。"
     }
   },
@@ -969,6 +969,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "这条绘制路径无法对场景做出那种改动。",
       "BATCHED_WORLD_VIEW": "这条绘制路径无法对场景做出那种改动。",
       "RAYCAST_NO_VIEW": "向一个没有尺寸的 canvas 请求画面上的点：没有可以瞄准的画面。",
+      "SURFACE_CAPTURE_UNSUPPORTED": "向一条无法在独立视图中绘制材质表面的绘制路径请求了表面捕获（`captureSurfaceView`）：WebGL2 路径没有这一能力。",
       "VERTICES_NOT_LOADED": "已加载模型的顶点在 `await geometry.loadVertices()` 之前被读取：会话在首次需要时读取它们，从不预先读取。",
       "SESSION_OPEN_FAILED": "世界的会话无法打开，原因没有自己的代码（`world.diagnostic.error`）：抛出的错误在 `details.cause` 中。",
       "WEBGPU_LOST": "WebGPU 丢失了它的设备，或设备上的错误留下了无法再绘制的状态：由 `render`、`flush` 以及需要设备的读取抛出，由诊断 `gpu-device-lost` 以此命名，并在会话因此无法打开时出现在 `world.diagnostic.error` 上。",
@@ -3148,6 +3149,10 @@
       "shadowPagesTotal": "自探索器打开以来已绘制的页面数,包括 `flush()` 排空的部分:某次变化的开销就是两次读数之间的差值。",
       "shadowPagesPending": "等待中的阴影页面。",
       "shadowWaitMs": "图像读取的最老过期页面等待重绘的毫秒数。只计算图像读取它的时间;重绘后为 0。",
+      "shadowCutDrops": "自打开浏览器以来丢弃了工作的光源裁剪批次数——其视图保留的簇多于列表容量——：每个批次送回其页面，在重绘前撤下(#525)。在没有 GPU 光源裁剪的引擎上为 null，下面三项亦然。",
+      "shadowCutWithdrawnPages": "自打开浏览器以来，因光源裁剪画错而重绘的页面数：其批次丢弃了工作，或其标志从未被读取。这些页面在重绘前被撤下。",
+      "shadowCutCoarsePages": "自打开浏览器以来，因某个视图绘制了比所需更粗的簇而重绘的页面数：在驻留变化且相机静止后释放。",
+      "shadowCutViewLimit": "一个光源裁剪批次当前绘制的光源视图数：在某批次丢弃工作之前为上限，之后为能容纳的数量。",
       "gpuLightListsMs": "光源列表的 GPU 耗时。",
       "tileLightPoolReserved": "超出其列表的图块在视图的光源索引池中预留的字数,取设备最后采样的帧,仅当场景的光源多于一个列表时;否则为 `null`(#849)。",
       "tileLightPoolCapacity": "该采样帧上光源索引池持有的字数;同样为 `null`。",
@@ -3249,7 +3254,7 @@
       "totalNodes": "节点总数。",
       "autonomousScene": "它内置的场景。",
       "texturePreviews": "每个已解码的(纹理, 图集)组合对应一条记录,先按纹理、再按图集排序;没有可解码图像时为空。",
-      "textures": "预烘焙层级的路径模板,相对于清单文件:{sha} 是源图像摘要,{kind} 是图集名称(PREVIEW_ATLAS_NAMES),{level} 是层级序号。在支持预烘焙层级之前编译的缓存中不存在,本读取器会通过旁挂文件的版本号拒绝这类缓存。",
+      "textures": "预烘焙层级的路径模板,相对于清单文件:{sha} 是源图像摘要,{kind} 是图集名称(PREVIEW_ATLAS_NAMES),{level} 是层级序号。在支持预烘焙层级之前编译的缓存中不存在,本读取器会通过旁挂文件的版本号拒绝这类缓存。`version` 是层级的版本(`TEXTURE_PREVIEW_VERSION`):读取器不会读取其他版本的层级。",
       "proxy": "从哪里读取常驻场景代理体及其 BVH(供光线命中的几何体)。在支持间接光照之前编译的缓存中不存在,但那类缓存依然可以照常读取。",
       "binary": "该二进制文件。",
       "primitives": "它的图元。",
@@ -3463,7 +3468,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "渐进式纹理层级,与 `packages/asset-compiler-rust/src/texture_preview.rs` 相对应:旁挂文件中源纹理 mip 链的尾部,采用图集自身的 RGBA8 编码,从没有任何一边超过 `PREVIEW_BASE` 的最精细层级一直到 1×1——在其之上,缓存中每个层级各有一份无损 PNG,从第 0 级往上共 `bakedLevels` 张。",
-    "description": "每个层级都遵循显卡自己重新生成该链条时所用的 mip 规则(`packages/sdk-browser/src/texture/mips.ts`):颜色取线性平均值,alpha 取中位数,第 `k` 级由量化后的第 `k - 1` 级得到。它们的尺寸不会被写下来:而是由源图像的尺寸推导而来,由 `previewLevels.ts` 重新计算得出。第 4 版会把尾部之上的每个层级、以及尾部本身,都烘焙进制作时所要求的、与无损文件并列的数据块族中——桌面显卡用 BC 族,移动设备用 4×4 的 ASTC,每个纹素一个字节——针对通过质量门槛保留下来的那些链条;未达标的链条在该族中保持无损,其条目的布局字会说明这一点。"
+    "description": "每个层级都遵循显卡自己重新生成该链条时所用的 mip 规则(`packages/sdk-browser/src/texture/mips.ts`):颜色取线性平均值,alpha 取中位数,第 `k` 级由量化后的第 `k - 1` 级得到。它们的尺寸不会被写下来:而是由源图像的尺寸推导而来,由 `previewLevels.ts` 重新计算得出。第 4 版会把尾部之上的每个层级、以及尾部本身,都烘焙进制作时所要求的、与无损文件并列的数据块族中——桌面显卡用 BC 族,移动设备用 4×4 的 ASTC,每个纹素一个字节——针对通过质量门槛保留下来的那些链条;未达标的链条在该族中保持无损,其条目的布局字会说明这一点。第 6 版把块压缩层级文件按图块记录排列,每条记录一次 HTTP Range 请求(#962,`sdk-browser/src/texture/tileRecords.ts`)。"
   },
   "TONE_MAPPING_RANK": {
     "summary": "把场景辐亮度带入显示范围的各条曲线,按着色器读取的编号排列。",
@@ -3681,7 +3686,8 @@
       "sha256": "源图像的指纹。",
       "atlas": "对应哪个图集。",
       "level": "对应哪个层级。",
-      "format": "对应哪种格式。"
+      "format": "对应哪种格式。",
+      "range": "单独读取的块压缩层级字节——一个图块的记录(`tileRecords.ts`)——通过 HTTP Range 读取;忽略它的服务器会返回整个文件。"
     }
   },
   "TexturePool": {
@@ -4192,6 +4198,10 @@
       "shadowPagesTotal": "自探索器打开以来已绘制的页面数,包括 `flush()` 排空的部分:某次变化的开销就是两次读数之间的差值。",
       "shadowPagesPending": "等待中的阴影页面。",
       "shadowWaitMs": "图像读取的最老过期页面等待重绘的毫秒数。只计算图像读取它的时间;重绘后为 0。",
+      "shadowCutDrops": "自打开浏览器以来丢弃了工作的光源裁剪批次数——其视图保留的簇多于列表容量——：每个批次送回其页面，在重绘前撤下(#525)。在没有 GPU 光源裁剪的引擎上为 null，下面三项亦然。",
+      "shadowCutWithdrawnPages": "自打开浏览器以来，因光源裁剪画错而重绘的页面数：其批次丢弃了工作，或其标志从未被读取。这些页面在重绘前被撤下。",
+      "shadowCutCoarsePages": "自打开浏览器以来，因某个视图绘制了比所需更粗的簇而重绘的页面数：在驻留变化且相机静止后释放。",
+      "shadowCutViewLimit": "一个光源裁剪批次当前绘制的光源视图数：在某批次丢弃工作之前为上限，之后为能容纳的数量。",
       "gpuLightListsMs": "光源列表的 GPU 耗时。",
       "tileLightPoolReserved": "超出其列表的图块在视图的光源索引池中预留的字数,取设备最后采样的帧,仅当场景的光源多于一个列表时;否则为 `null`(#849)。",
       "tileLightPoolCapacity": "该采样帧上光源索引池持有的字数;同样为 `null`。",
@@ -4811,7 +4821,7 @@
   },
   "createGpuPageCache": {
     "summary": "WebGPU 分配/队列边界。",
-    "description": "页面字节数据和策略由宿主提供。队列写入是有序的;dispose 会等待正在进行中的提交完成后再执行销毁。"
+    "description": "页面字节数据和策略由宿主提供。队列写入是有序的;dispose 会等待正在进行中的提交完成后再执行销毁。 `pin(key, 'held')` 使页面在 `resize(slots)` 时优先于普通固定页面保留，resize 不再接受 held 集合。再次普通固定会保留此优先级；`unpin(key)` 会将其移除。"
   },
   "createJob": {
     "summary": "没有计时器、DOM、文件系统或 UI。"

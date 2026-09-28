@@ -519,7 +519,7 @@
       "primitives": "Primitifnya.",
       "worstStalls": "Tabel macet dari kompiler: paling banyak sepuluh primitif dengan grup macet yang menyisakan akar di level 0, yang terburuk lebih dulu. Tidak ada pada cache yang dikompilasi sebelumnya.",
       "texturePreviews": "Satu entri per (tekstur, atlas) yang terurai, diurutkan menurut tekstur lalu atlas; kosong tanpa gambar yang bisa diurai.",
-      "textures": "Templat untuk tingkat yang sudah dipanggang, relatif terhadap manifest: {sha} digest gambar sumber, {kind} nama atlas (PREVIEW_ATLAS_NAMES), {level} peringkat tingkat. Tidak ada pada cache yang dikompilasi sebelum tingkat panggang, yang ditolak pembaca ini lewat versi sidecar.",
+      "textures": "Templat untuk tingkat yang sudah dipanggang, relatif terhadap manifest: {sha} digest gambar sumber, {kind} nama atlas (PREVIEW_ATLAS_NAMES), {level} peringkat tingkat. Tidak ada pada cache yang dikompilasi sebelum tingkat panggang, yang ditolak pembaca ini lewat versi sidecar. `version` adalah versi level (`TEXTURE_PREVIEW_VERSION`): pembaca tidak membaca level dari versi lain.",
       "proxy": "Di mana membaca proxy scene yang tersimpan dan BVH-nya: geometri yang dikenai sinar. Tidak ada pada cache yang dikompilasi sebelum pantulan, yang tetap bisa dibaca apa adanya."
     }
   },
@@ -976,6 +976,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "BATCHED_WORLD_VIEW": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "RAYCAST_NO_VIEW": "Titik gambar diminta dari canvas yang tidak punya ukuran: tidak ada gambar untuk dibidik.",
+      "SURFACE_CAPTURE_UNSUPPORTED": "Tangkapan permukaan (`captureSurfaceView`) diminta dari jalur gambar yang tidak dapat menggambar permukaan material dalam tampilan tersendiri: jalur WebGL2 tidak memilikinya.",
       "VERTICES_NOT_LOADED": "Verteks model yang dimuat dibaca sebelum `await geometry.loadVertices()`: sesi membacanya saat pertama dibutuhkan, tidak pernah lebih dulu.",
       "SESSION_OPEN_FAILED": "Sesi dunia tidak bisa dibuka, karena alasan yang tidak punya kode sendiri (`world.diagnostic.error`): galat yang dilempar ada di `details.cause`.",
       "WEBGPU_LOST": "WebGPU kehilangan perangkatnya, atau sebuah galat padanya meninggalkan keadaan yang tidak bisa dipakai untuk menggambar: dilempar oleh `render`, `flush`, dan pembacaan yang memerlukan perangkat, dinamai oleh diagnostik `gpu-device-lost`, dan muncul di `world.diagnostic.error` ketika sebuah sesi tidak bisa dibuka karenanya.",
@@ -3232,6 +3233,10 @@
       "shadowPagesTotal": "Halaman digambar sejak explorer dibuka, termasuk kurasan `flush()`: biaya sebuah perubahan adalah selisih antara dua bacaan.",
       "shadowPagesPending": "Halaman bayangan yang menunggu.",
       "shadowWaitMs": "Berapa milidetik halaman usang tertua yang dibaca gambar telah menunggu untuk digambar ulang. Hanya waktu saat gambar membacanya yang dihitung; 0 setelah digambar ulang.",
+      "shadowCutDrops": "Batch potongan cahaya yang membuang pekerjaan — tampilannya menyimpan lebih banyak klaster daripada yang muat di daftar —, sejak penjelajah dibuka: masing-masing mengirim balik halamannya, ditarik hingga digambar ulang (#525). Null pada mesin tanpa potongan cahaya GPU, begitu pula tiga berikutnya.",
+      "shadowCutWithdrawnPages": "Halaman yang digambar ulang karena potongan cahaya menggambarnya salah, sejak penjelajah dibuka: batch-nya membuang pekerjaan, atau flag-nya tidak pernah dibaca. Halaman itu ditarik hingga digambar ulang.",
+      "shadowCutCoarsePages": "Halaman yang digambar ulang karena sebuah tampilan menggambar klaster yang lebih kasar dari yang diinginkan, sejak penjelajah dibuka: dilepas setelah residensi berubah dan kamera diam.",
+      "shadowCutViewLimit": "Tampilan cahaya yang kini digambar oleh satu batch potongan cahaya: batas atas hingga sebuah batch membuang pekerjaan, lalu yang muat.",
       "gpuLightListsMs": "Waktu GPU daftar cahaya.",
       "tileLightPoolReserved": "Kata yang dipesan tile di luar daftarnya dalam pool indeks lampu tampilan, pada frame yang terakhir disampel perangkat selama adegan memuat lebih banyak lampu daripada satu daftar; `null` jika tidak (#849).",
       "tileLightPoolCapacity": "Kata yang dimiliki pool indeks lampu pada frame sampel itu; `null` juga.",
@@ -3333,7 +3338,7 @@
       "totalNodes": "Node secara keseluruhan.",
       "autonomousScene": "Scene bawaannya.",
       "texturePreviews": "Satu entri per (tekstur, atlas) yang terurai, diurutkan menurut tekstur lalu atlas; kosong tanpa gambar yang bisa diurai.",
-      "textures": "Templat untuk tingkat yang sudah dipanggang, relatif terhadap manifest: {sha} digest gambar sumber, {kind} nama atlas (PREVIEW_ATLAS_NAMES), {level} peringkat tingkat. Tidak ada pada cache yang dikompilasi sebelum tingkat panggang, yang ditolak pembaca ini lewat versi sidecar.",
+      "textures": "Templat untuk tingkat yang sudah dipanggang, relatif terhadap manifest: {sha} digest gambar sumber, {kind} nama atlas (PREVIEW_ATLAS_NAMES), {level} peringkat tingkat. Tidak ada pada cache yang dikompilasi sebelum tingkat panggang, yang ditolak pembaca ini lewat versi sidecar. `version` adalah versi level (`TEXTURE_PREVIEW_VERSION`): pembaca tidak membaca level dari versi lain.",
       "proxy": "Di mana membaca proxy scene yang tersimpan dan BVH-nya: geometri yang dikenai sinar. Tidak ada pada cache yang dikompilasi sebelum pantulan, yang tetap bisa dibaca apa adanya.",
       "binary": "Berkas binernya.",
       "primitives": "Primitifnya.",
@@ -3547,7 +3552,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "Tingkat tekstur progresif, dicerminkan `packages/asset-compiler-rust/src/texture_preview.rs`: ekor rantai mip sebuah sumber dalam sidecar, RGBA8 dalam pengkodean atlas sendiri, dari tingkat terhalus yang sisinya tidak melebihi `PREVIEW_BASE` turun sampai 1×1 — dan, di atasnya, satu PNG lossless per tingkat dalam cache, sebanyak `bakedLevels` dari tingkat 0 ke atas.",
-    "description": "Setiap tingkat mengikuti aturan mip yang diterapkan kartu saat meregenerasi rantainya sendiri (`packages/sdk-browser/src/texture/mips.ts`): rata-rata linear warna, alpha median, tingkat `k` dari tingkat terkuantisasi `k - 1`. Ukurannya tidak dituliskan: mengikuti dari dimensi sumber, yang dihitung ulang `previewLevels.ts`. Versi 4 memanggang setiap tingkat di atas ekor, dan ekornya sendiri, dalam keluarga blok yang diminta proses masak di samping berkas lossless — keluarga BC untuk kartu desktop, ASTC 4×4 untuk yang mobile, satu byte per texel — untuk rantai yang disimpan gerbang kualitas; sebuah rantai di bawah palang tetap lossless dalam keluarga itu, dan kata tata letak entrinya mengatakan begitu."
+    "description": "Setiap tingkat mengikuti aturan mip yang diterapkan kartu saat meregenerasi rantainya sendiri (`packages/sdk-browser/src/texture/mips.ts`): rata-rata linear warna, alpha median, tingkat `k` dari tingkat terkuantisasi `k - 1`. Ukurannya tidak dituliskan: mengikuti dari dimensi sumber, yang dihitung ulang `previewLevels.ts`. Versi 4 memanggang setiap tingkat di atas ekor, dan ekornya sendiri, dalam keluarga blok yang diminta proses masak di samping berkas lossless — keluarga BC untuk kartu desktop, ASTC 4×4 untuk yang mobile, satu byte per texel — untuk rantai yang disimpan gerbang kualitas; sebuah rantai di bawah palang tetap lossless dalam keluarga itu, dan kata tata letak entrinya mengatakan begitu. Versi 6 menata berkas level blok dalam rekaman ubin, satu permintaan HTTP Range per rekaman (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TONE_MAPPING_RANK": {
     "summary": "Kurva yang membawa radiansi scene ke rentang tampilan, menurut peringkat yang dibaca shader.",
@@ -3765,7 +3770,8 @@
       "sha256": "Sidik jari gambar sumbernya.",
       "atlas": "Atlas mana.",
       "level": "Tingkat mana.",
-      "format": "Format mana."
+      "format": "Format mana.",
+      "range": "Byte level blok yang dibaca sendiri — rekaman satu ubin (`tileRecords.ts`) —, lewat permintaan HTTP Range; server yang mengabaikannya menjawab dengan seluruh berkas."
     }
   },
   "TexturePool": {
@@ -4170,6 +4176,10 @@
       "shadowPagesTotal": "Halaman digambar sejak explorer dibuka, termasuk kurasan `flush()`: biaya sebuah perubahan adalah selisih antara dua bacaan.",
       "shadowPagesPending": "Halaman bayangan yang menunggu.",
       "shadowWaitMs": "Berapa milidetik halaman usang tertua yang dibaca gambar telah menunggu untuk digambar ulang. Hanya waktu saat gambar membacanya yang dihitung; 0 setelah digambar ulang.",
+      "shadowCutDrops": "Batch potongan cahaya yang membuang pekerjaan — tampilannya menyimpan lebih banyak klaster daripada yang muat di daftar —, sejak penjelajah dibuka: masing-masing mengirim balik halamannya, ditarik hingga digambar ulang (#525). Null pada mesin tanpa potongan cahaya GPU, begitu pula tiga berikutnya.",
+      "shadowCutWithdrawnPages": "Halaman yang digambar ulang karena potongan cahaya menggambarnya salah, sejak penjelajah dibuka: batch-nya membuang pekerjaan, atau flag-nya tidak pernah dibaca. Halaman itu ditarik hingga digambar ulang.",
+      "shadowCutCoarsePages": "Halaman yang digambar ulang karena sebuah tampilan menggambar klaster yang lebih kasar dari yang diinginkan, sejak penjelajah dibuka: dilepas setelah residensi berubah dan kamera diam.",
+      "shadowCutViewLimit": "Tampilan cahaya yang kini digambar oleh satu batch potongan cahaya: batas atas hingga sebuah batch membuang pekerjaan, lalu yang muat.",
       "gpuLightListsMs": "Waktu GPU daftar cahaya.",
       "tileLightPoolReserved": "Kata yang dipesan tile di luar daftarnya dalam pool indeks lampu tampilan, pada frame yang terakhir disampel perangkat selama adegan memuat lebih banyak lampu daripada satu daftar; `null` jika tidak (#849).",
       "tileLightPoolCapacity": "Kata yang dimiliki pool indeks lampu pada frame sampel itu; `null` juga.",
@@ -4803,7 +4813,7 @@
   },
   "createGpuPageCache": {
     "summary": "Batas alokasi/antrean WebGPU.",
-    "description": "Byte halaman dan kebijakannya disediakan host. Penulisan antrean berurutan; dispose menunggu submit yang masih berjalan sebelum destroy."
+    "description": "Byte halaman dan kebijakannya disediakan host. Penulisan antrean berurutan; dispose menunggu submit yang masih berjalan sebelum destroy. `pin(key, 'held')` mempertahankan halaman sebelum halaman yang disematkan biasa saat `resize(slots)`, yang tidak lagi menerima set held. Penyematan ulang biasa mempertahankan tingkat ini; `unpin(key)` menghapusnya."
   },
   "createJob": {
     "summary": "Tanpa timer, DOM, sistem berkas atau UI."
