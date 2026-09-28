@@ -75,7 +75,9 @@ test('an adapter that offers subgroups gets them, and its light tiles run the su
     const tiles = await createGpuLightTiles(await requestExplorerDevice(adapter));
     const granted = offered.length > 0;
     assert.equal(tiles.subgroups, granted);
-    assert.deepEqual(compiled, [LIGHT_TILES_SHADERS[+granted][1]]);
-    assert.equal(compiled[0].startsWith('enable subgroups;'), granted);
+    // The wide pass and the narrow one (#849), both in the granted flavour.
+    const flavour = [0, 2].map((narrow) => LIGHT_TILES_SHADERS[+granted + narrow][1]);
+    assert.deepEqual(compiled, flavour);
+    for (const code of compiled) assert.equal(code.startsWith('enable subgroups;'), granted);
   }
 });

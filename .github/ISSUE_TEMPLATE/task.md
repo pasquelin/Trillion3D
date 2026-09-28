@@ -17,7 +17,7 @@ labels: ''
 
 ## Proof
 
-<!-- What shows the work is done: test names, the image proof the coder runs, the timing scene the measurer runs. -->
+<!-- What shows the work is done: test names, the image proof acceptance runs, the timing scene the measurer runs. -->
 
 ## Links
 

@@ -1,3 +1,4 @@
+import { reflectionLayout } from '../../reflections/gpu.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts';
@@ -99,7 +100,9 @@ export function stageDescriptors(
   fragment: GPUFragmentState,
   depthWrite: boolean,
 ): GPURenderPipelineDescriptor[] {
-  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
+  const pipelineLayout = device.createPipelineLayout({
+    bindGroupLayouts: [layout, reflectionLayout(device)],
+  });
   return CULL_MODES.map((cullMode) => ({
     layout: pipelineLayout,
     vertex: { module, entryPoint: 'vs' },
