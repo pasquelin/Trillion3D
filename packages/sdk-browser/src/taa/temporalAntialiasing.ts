@@ -17,6 +17,7 @@ export interface TaaInputs {
   pages: GPUBuffer;
   motion: GPUBuffer;
   flags?: GPUTextureView;
+  share?: GPUTextureView;
 }
 
 /**
@@ -122,7 +123,11 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
      */
     encode(encoder: GPUCommandEncoder, inputs: TaaInputs) {
       if (images.length !== 2) throw new Error('TAA_TARGETS_MISSING');
-      const resolve = inputs.flags ? resolves.asIs : resolves.flagless;
+      const resolve = inputs.share
+        ? resolves.blended
+        : inputs.flags
+          ? resolves.asIs
+          : resolves.flagless;
       if (
         !bound ||
         bound.current !== inputs.current ||
@@ -130,7 +135,8 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
         bound.ids !== inputs.ids ||
         bound.pages !== inputs.pages ||
         bound.motion !== inputs.motion ||
-        bound.flags !== inputs.flags
+        bound.flags !== inputs.flags ||
+        bound.share !== inputs.share
       ) {
         bound = { ...inputs };
         const { layout } = resolve;
@@ -145,9 +151,9 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
             { binding: TAA_BINDINGS.motion, resource: { buffer: inputs.motion } },
             { binding: TAA_BINDINGS.view, resource: { buffer: uniform } },
           ];
-          if (inputs.flags)
+          if (inputs.flags || inputs.share)
             entries.push(
-              { binding: TAA_BINDINGS.flags, resource: inputs.flags },
+              { binding: TAA_BINDINGS.flags, resource: inputs.share ?? inputs.flags! },
               { binding: TAA_BINDINGS.shareHistory, resource: images[i].share },
             );
           groups[i] = device.createBindGroup({ layout, entries });

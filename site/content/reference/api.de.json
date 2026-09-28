@@ -5501,6 +5501,9 @@
       "shadowPoolPages": "Physische Seiten des festen Pools, die eine virtuelle Seite halten.",
       "shadowPoolBytes": "GPU-Bytes des Schattenpools: seine Tiefenseiten, ihre statische und Transmissionsschicht, sobald angelegt, und die Puffer daneben. Null, bis das erste Bild den Pool dimensioniert.",
       "shadowPoolLayers": "Schichten des Pools, jeweils höchstens 4 096 Seiten, einmal aus Bildschirm und schattenwerfenden Lichtern des ersten Bildes bemessen. Bis dahin null.",
+      "shadowPeakBytes": "Die meisten GPU-Bytes, die das Speicherkontingent der Schatten auf einmal hielt, späte Schichten eingeschlossen. Null, bis das erste Bild den Pool bemisst.",
+      "shadowResolutionBias": "Halbierungen der Bytes des Schattenpools, die die Speicherverweigerungen des Geräts gekostet haben; normalerweise 0.",
+      "shadowMemoryEvents": "Die Speicherdruck-Ereignisse der Schatten seit dem Öffnen der Welt, nach Namen, der Reihe nach; normalerweise leer.",
       "shadowPagesRefetched": "Virtuelle Seiten, die erneut abgebildet wurden, nachdem der Pool sie für Platz verdrängt hatte, seit dem Öffnen des Explorers: die Neuzeichnungen, die ein für die gelesenen Bilder zu kleiner Pool kostet.",
       "shadowCastersKept": "Schattenwerfer, die das Culling pro Seite behalten hat, alle gezeichneten Seiten zusammen, im zuletzt vom Gerät abgetasteten Bild — eines von fünfzehn; `null`, bis eine Probe zurückkam.",
       "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam."
@@ -6654,6 +6657,24 @@
       "modes": "Jeder Ansichtsmodus, den das aktuelle Rendering-Backend bietet."
     }
   },
+  "world.materials": {
+    "summary": "Aktuelle importierte Materialien, gefolgt von den auf der Seite erstellten."
+  },
+  "world.material": {
+    "summary": "Ein Material anhand seiner aufgelisteten ID."
+  },
+  "world.importedMaterials": {
+    "summary": "Werte der Quelldatei vor Änderungen durch die Seite."
+  },
+  "world.setMaterial": {
+    "summary": "Ändert ein importiertes oder erstelltes Material im nächsten Bild."
+  },
+  "world.createMaterial": {
+    "summary": "Erstellt ein Material für diese Seite."
+  },
+  "world.assignMaterial": {
+    "summary": "Weist einem kompilierten `mesh/primitive` das erstellte Material zu."
+  },
   "world.guides": {
     "summary": "Linien, Punkte und Helfer, über das Bild gezeichnet (`Guides`)."
   },
@@ -6832,6 +6853,9 @@
       "shadowPoolPages": "Physische Seiten des festen Pools, die eine virtuelle Seite halten.",
       "shadowPoolBytes": "GPU-Bytes des Schattenpools: seine Tiefenseiten, ihre statische und Transmissionsschicht, sobald angelegt, und die Puffer daneben. Null, bis das erste Bild den Pool dimensioniert.",
       "shadowPoolLayers": "Schichten des Pools, jeweils höchstens 4 096 Seiten, einmal aus Bildschirm und schattenwerfenden Lichtern des ersten Bildes bemessen. Bis dahin null.",
+      "shadowPeakBytes": "Die meisten GPU-Bytes, die das Speicherkontingent der Schatten auf einmal hielt, späte Schichten eingeschlossen. Null, bis das erste Bild den Pool bemisst.",
+      "shadowResolutionBias": "Halbierungen der Bytes des Schattenpools, die die Speicherverweigerungen des Geräts gekostet haben; normalerweise 0.",
+      "shadowMemoryEvents": "Die Speicherdruck-Ereignisse der Schatten seit dem Öffnen der Welt, nach Namen, der Reihe nach; normalerweise leer.",
       "shadowPagesRefetched": "Virtuelle Seiten, die erneut abgebildet wurden, nachdem der Pool sie für Platz verdrängt hatte, seit dem Öffnen des Explorers: die Neuzeichnungen, die ein für die gelesenen Bilder zu kleiner Pool kostet.",
       "shadowCastersKept": "Schattenwerfer, die das Culling pro Seite behalten hat, alle gezeichneten Seiten zusammen, im zuletzt vom Gerät abgetasteten Bild — eines von fünfzehn; `null`, bis eine Probe zurückkam.",
       "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam."
@@ -7736,6 +7760,41 @@
       "isSprite": "Immer `true`: unterscheidet ein Sprite von jedem anderen Mesh.",
       "center": "Der Punkt des Bildes, der auf der Position des Sprites liegt: `(0.5, 0.5)` seine Mitte, `(0, 0)` seine linke untere Ecke, `(0.5, 0)` die Mitte seiner unteren Kante.",
       "material": "Das `material.sprite` des Sprites; weise ein anderes zu, um es zu ändern."
+    }
+  },
+  "CreatedMaterial": {
+    "summary": "Die Werte, die `createMaterial` für ein neues Material der Seite annimmt.",
+    "members": {
+      "metalness": "Wie sehr die Oberfläche aus Metall ist, von 0 bis 1.",
+      "roughness": "Die Rauheit der Oberfläche, von 0 (Spiegel) bis 1 (matt).",
+      "baseColor": "Die Grundfarbe; ändere sie an Ort und Stelle mit `set`.",
+      "emissive": "Die Farbe, die die Oberfläche selbst abgibt.",
+      "opacity": "Wie undurchsichtig die Oberfläche ist, von 0 bis 1.",
+      "alphaMode": "Wie der Alphakanal einer Oberfläche gelesen wird: opak ignoriert ihn, `mask` schneidet bei `alphaCutoff`, `blend` überblendet.",
+      "alphaCutoff": "Pixel, die weniger deckend sind als dieser Wert, verschwinden.",
+      "name": "Ein Name zur Verwendung durch die Seite.",
+      "map": "Ein Bild und die Art, es abzutasten, in den Worten einer Seite (`wrap`, `filter`, `colorSpace`)."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "Eine Momentaufnahme eines Szenenmaterials mit ID, Name, Parametern und Kachelwiederholung.",
+    "members": {
+      "id": "Ein dieser Textur eigener Name.",
+      "name": "Ein Name zur Verwendung durch die Seite.",
+      "tiling": "Wie oft das Bild in Breite und Höhe passt."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "Materialwerte, die `setMaterial` direkt ändert, ohne einen Renderdurchlauf neu aufzubauen.",
+    "members": {
+      "metalness": "Wie sehr die Oberfläche aus Metall ist, von 0 bis 1.",
+      "roughness": "Die Rauheit der Oberfläche, von 0 (Spiegel) bis 1 (matt).",
+      "baseColor": "Die Grundfarbe; ändere sie an Ort und Stelle mit `set`.",
+      "emissive": "Die Farbe, die die Oberfläche selbst abgibt.",
+      "opacity": "Wie undurchsichtig die Oberfläche ist, von 0 bis 1.",
+      "alphaMode": "Wie der Alphakanal einer Oberfläche gelesen wird: opak ignoriert ihn, `mask` schneidet bei `alphaCutoff`, `blend` überblendet.",
+      "alphaCutoff": "Pixel, die weniger deckend sind als dieser Wert, verschwinden.",
+      "tiling": "Wie oft das Bild in Breite und Höhe passt."
     }
   }
 }

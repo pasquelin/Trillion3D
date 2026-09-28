@@ -11,7 +11,7 @@
 //! Maya writes each of these vectors as a block — `.t` — or component by component — `.tx` —,
 //! often both in the same file: both writings are read, the component winning.
 use super::*;
-use crate::compiler_world::{multiply, rotation_matrix, scaling, translation, Mat4, IDENTITY};
+use crate::compiler_world::{axis_rotation, multiply, scaling, translation, Mat4, IDENTITY};
 
 /// The six Euler rotation application orders that `rotateOrder` numbers, each giving the axes
 /// **in the order they apply to the point**.
@@ -82,18 +82,12 @@ fn rotation(node: &Node, names: [&str; 2], order: [usize; 3], degrees_per_unit: 
     let angles = triple(node, names, AXES, [0.0; 3]);
     let mut out = IDENTITY;
     for axis in order.into_iter().rev() {
-        out = multiply(&out, &turn(axis, angles[axis] * degrees_per_unit));
+        out = multiply(
+            &out,
+            &axis_rotation(axis, (angles[axis] * degrees_per_unit).to_radians()),
+        );
     }
     out
-}
-
-/// Rotation of `degrees` around axis `axis` (0 = X, 1 = Y, 2 = Z), by its quaternion: the
-/// compiler's rotation formula is already written, and a second one would drift from it.
-fn turn(axis: usize, degrees: f64) -> Mat4 {
-    let half = degrees.to_radians() / 2.0;
-    let mut quaternion = [0.0, 0.0, 0.0, half.cos()];
-    quaternion[axis] = half.sin();
-    rotation_matrix(quaternion)
 }
 
 /// Matrix of a Maya shear `(XY, XZ, YZ)`: axis `Y` leans toward `X`, axis `Z` toward `X` and
