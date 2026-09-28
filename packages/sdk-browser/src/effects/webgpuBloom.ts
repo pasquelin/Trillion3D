@@ -1,40 +1,21 @@
 import type { Bloom } from '../../../sdk-core/src/world/effect/bloom.ts';
-import type { WebgpuEffectKind } from './webgpuEffects.ts';
+import type { FusedBlend, WebgpuEffectKind } from './webgpuEffects.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { makeFullscreenPipeline } from '../lighting/deferred/fullscreen.ts';
 import { bloomBlend, bloomLevelBytes, bloomLevelSizes } from './bloomFilter.ts';
-import { BLOOM_UNIFORM_BYTES, BLOOM_UNIFORM_STRIDE, BLOOM_WGSL } from './bloomWgsl.ts';
+import { BLOOM_WGSL } from './bloomWgsl.ts';
+import { BLOOM_UNIFORM_BYTES, BLOOM_UNIFORM_STRIDE, bloomLevelLayout } from './bloomLevel.ts';
 
 /** Label of every bloom pass: where it shows in a GPU capture. */
 const BLOOM_PASS = 'Trillion3D bloom';
 const FORMAT: GPUTextureFormat = 'rgba16float';
 type Size = readonly [number, number];
 
-function createLayouts(device: GPUDevice) {
-  const FRAGMENT = GPUShaderStage.FRAGMENT;
-  const level = device.createBindGroupLayout({
-    label: `${BLOOM_PASS} level`,
-    entries: [
-      { binding: 0, visibility: FRAGMENT, texture: { sampleType: 'float' } },
-      { binding: 1, visibility: FRAGMENT, sampler: { type: 'filtering' } },
-      {
-        binding: 2,
-        visibility: FRAGMENT,
-        buffer: { type: 'uniform', hasDynamicOffset: true, minBindingSize: BLOOM_UNIFORM_BYTES },
-      },
-    ],
-  });
-  const scene = device.createBindGroupLayout({
-    label: `${BLOOM_PASS} scene`,
-    entries: [{ binding: 0, visibility: FRAGMENT, texture: { sampleType: 'unfilterable-float' } }],
-  });
-  return { level, scene };
-}
-
 /**
  * The WebGPU bloom (`bloomFilter.ts`): one `rgba16float` texture whose mip levels are the chain,
  * sized with the image (`resize`), and three programs. `encode` writes, into `output`, the image
- * `input` with its glow: the levels are filtered down, summed back up, and the first blended in.
+ * `input` with its glow: the levels are filtered down, summed back up, and the first blended in —
+ * or, with no `output`, that last blend left to the composition (`blend`, #963).
  * Every bloom of the chain draws on the same levels, one after the other, but reads its own
  * uniform slots — the `nth` bloom the `nth` range of the buffer, at its dynamic offsets — since
  * every write of the buffer lands before the frame's first pass. Bind groups follow the targets
@@ -42,7 +23,12 @@ function createLayouts(device: GPUDevice) {
  * written only when the size or a setting of its bloom changed.
  */
 export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffectKind<Bloom>> {
-  const layouts = createLayouts(device);
+  const visibility = GPUShaderStage.FRAGMENT;
+  const imageLayout = device.createBindGroupLayout({
+    label: `${BLOOM_PASS} scene`,
+    entries: [{ binding: 0, visibility, texture: { sampleType: 'unfilterable-float' } }],
+  });
+  const layouts = { level: bloomLevelLayout(device), scene: imageLayout };
   const module = await createCheckedShaderModule(device, BLOOM_WGSL, BLOOM_PASS);
   const add: GPUBlendComponent = { srcFactor: 'one', dstFactor: 'one', operation: 'add' };
   const [down, up, composite] = await Promise.all([
@@ -65,6 +51,7 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
     views: GPUTextureView[] = [],
     groups: GPUBindGroup[] = [],
     inputs = new WeakMap<GPUTextureView, { level: GPUBindGroup; scene: GPUBindGroup }>(),
+    blend: FusedBlend | undefined,
     packed = new Float32Array(0),
     width = 0,
     height = 0,
@@ -169,20 +156,27 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
       );
       groups = views.map(levelGroup);
     },
+    /** The last blend the last `encode` left to the composition. */
+    get blend() {
+      return blend;
+    },
     /** Draws `input` and its glow into `output`, the `nth` bloom of the chain: 2 × levels passes,
-     *  none on an image too small to halve. The chain must be sized for it. */
+     *  one fewer with no `output`, none on an image too small to halve. The chain must be sized
+     *  for it. */
     encode(encoder, bloom, nth, input, output) {
       const count = sizes.length;
+      blend = undefined;
       if (!count) return 0;
       const full: Size = [width, height],
         { keep, glow } = bloomBlend(bloom.intensity, count),
         { radius } = bloom,
-        first = nth * 2 * count;
+        first = nth * 2 * count,
+        last = first + 2 * count - 1;
       for (let level = 0; level < count; level++)
         slot(first + level, sizes[level], level ? sizes[level - 1] : full, radius);
       for (let level = 0; level + 1 < count; level++)
         slot(first + count + level, sizes[level], sizes[level + 1], radius);
-      slot(first + 2 * count - 1, full, sizes[0], radius, keep, glow);
+      slot(last, full, sizes[0], radius, keep, glow);
       const at = first * BLOOM_UNIFORM_STRIDE;
       if (dirty)
         device.queue.writeBuffer(uniform!, at, packed, at / 4, (count * BLOOM_UNIFORM_STRIDE) / 2);
@@ -192,7 +186,11 @@ export async function createWebgpuBloom(device: GPUDevice): Promise<WebgpuEffect
         draw(encoder, views[level], down, level ? groups[level - 1] : source.level, first + level);
       for (let level = count - 2; level >= 0; level--)
         draw(encoder, views[level], up, groups[level + 1], first + count + level);
-      draw(encoder, output, composite, groups[0], first + 2 * count - 1, source.scene);
+      if (!output) {
+        blend = { group: groups[0], offset: last * BLOOM_UNIFORM_STRIDE };
+        return 2 * count - 1;
+      }
+      draw(encoder, output, composite, groups[0], last, source.scene);
       return 2 * count;
     },
     dispose: () => release(),
