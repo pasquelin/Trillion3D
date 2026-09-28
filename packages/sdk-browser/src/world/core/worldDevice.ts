@@ -77,14 +77,14 @@ export function holdWorldDevice(
  * `gpu-device-recovered`, with the pages the cache still held.
  */
 export function worldRecovered(
-  runtime: { renew(): void },
+  runtime: { renew(cause: 'device-lost'): void },
   frames: { add(hook: () => void): () => void },
   notices: WorldNotices,
   kept: { readonly pages: ReadonlyMap<string, unknown> },
   lostAt: number,
 ) {
   const keptPages = kept.pages.size;
-  runtime.renew();
+  runtime.renew('device-lost');
   const remove = frames.add(() => {
     remove();
     notices.say('gpu-device-recovered', 'The world drew again on a device granted after a loss', {

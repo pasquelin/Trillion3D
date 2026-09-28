@@ -53,7 +53,7 @@ class WebglClusterCopyCulling {
   visible(copy: CulledCopy) {
     if (!copy.frustumCulled || neverCulled(visMaterial(copy.material))) return true;
     const box = this.box;
-    if (isInstancedNode(copy)) this.placementsBox(copy);
+    if (isInstancedNode(copy)) placementsBox(box, copy);
     else {
       if (!copy.geometry.boundingBox) copy.geometry.computeBoundingBox();
       readHostBox(box, copy.geometry.boundingBox!);
@@ -61,14 +61,24 @@ class WebglClusterCopyCulling {
     boxTransform(box, 0, box, 0, copy.matrixWorld.elements);
     return !frustumExcludesBox(this.planes, box[0], box[1], box[2], box[3], box[4], box[5]);
   }
-  /** The box around the union of the placements' spheres — the sphere the depth sorts on —
-   *  never the geometry's box alone, which a placement carries elsewhere. */
-  private placementsBox(copy: CulledCopy & Parameters<typeof placementsSphere>[0]) {
-    const geometry = copy.geometry;
-    if (!geometry.boundingSphere) geometry.computeBoundingSphere?.();
-    const { centre: c, radius: r } = placementsSphere(copy, geometry.boundingSphere!);
-    this.box.set([c.x - r, c.y - r, c.z - r, c.x + r, c.y + r, c.z + r]);
-  }
+}
+
+/** The box around the union of an instanced mesh's placement spheres — the sphere the depth
+ *  sorts on and the frustum culls on — never the geometry's box alone, which a placement carries
+ *  elsewhere. In the mesh's own space, into `out`. */
+export function placementsBox(
+  out: Float64Array,
+  mesh: Pick<CulledCopy, 'geometry'> & Parameters<typeof placementsSphere>[0],
+) {
+  const geometry = mesh.geometry;
+  if (!geometry.boundingSphere) geometry.computeBoundingSphere?.();
+  const { centre: c, radius: r } = placementsSphere(mesh, geometry.boundingSphere!);
+  out[0] = c.x - r;
+  out[1] = c.y - r;
+  out[2] = c.z - r;
+  out[3] = c.x + r;
+  out[4] = c.y + r;
+  out[5] = c.z + r;
 }
 
 const isBlended = (material: WholeMesh['material']) => !!firstMaterial(material)?.transparent;

@@ -26,8 +26,6 @@ import { refuseCluster } from './refusal.ts';
 import { WebglClusterCopies, type SceneCopy } from './copyCulling.ts';
 import { submitClusterMesh, submitDiagnosticMesh, type MultiDraw } from './submit.ts';
 
-type Drawn = ClusterDrawMesh | WholeMesh;
-
 export class WebglClusterRenderer {
   private gl: WebGL2RenderingContext;
   private program: WebGLProgram;
@@ -93,6 +91,7 @@ export class WebglClusterRenderer {
       instanced = !record && isInstancedNode(mesh);
     if (!material.visible || (instanced && !mesh.count)) return 0;
     this.geometry.bind(mesh.geometry, record ? undefined : (mesh as WholeMesh));
+    this.lights.lists.use(mesh, this.at('lightSpan'));
     if (this.instanced !== instanced) gl.uniform1i(this.at('instanced'), instanced ? 1 : 0);
     this.instanced = instanced;
     const model = drawWorld(mesh);
@@ -112,7 +111,7 @@ export class WebglClusterRenderer {
     return passes.length;
   }
   private submit(
-    meshes: readonly Drawn[],
+    meshes: readonly (ClusterDrawMesh | WholeMesh)[],
     camera: HostDrawCamera,
     toneMapped: boolean,
     opaque = false,
@@ -148,13 +147,14 @@ export class WebglClusterRenderer {
     gl.disable(gl.STENCIL_TEST);
     gl.uniformMatrix4fv(this.at('projectionMatrix'), false, camera.projection);
     gl.uniform1i(this.at('toneCurve'), this.toneCurve);
-    gl.uniform1i(this.at('lightCount'), this.lights.upload(scene, camera.view));
+    const drawn = [meshes, diagnosticMeshes, plain, blended, transmissive];
+    this.lights.upload(scene, camera.view, drawn);
     this.textures.beginFrame();
     this.instanced = undefined;
     this.pass.beginFrame(camera, gl.getParameter(gl.VIEWPORT) as Int32Array);
     this.geometry.beginFrame();
     this.triangles = 0;
-    const mirrors = receivers([meshes, diagnosticMeshes, plain, blended, transmissive]);
+    const mirrors = receivers(drawn);
     let backdropSubmissions = 0,
       copySubmissions = 0;
     gl.uniform1i(this.at('reflectionEnabled'), 0);
