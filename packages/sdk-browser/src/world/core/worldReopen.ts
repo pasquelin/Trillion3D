@@ -1,0 +1,112 @@
+import { keepCanvasImage, releaseCanvasImage } from '../../gpu/core/canvasHandover.ts';
+import type { WorldNotices } from '../diagnostic/worldNotices.ts';
+import type { MeasuredWorldOptions } from '../session/options.ts';
+
+/** Why a world's session opens again. A lost device and an option the engine cannot take in place
+ *  still need it; every other cause is a content change the session should take in place (#572,
+ *  #838), and a reopen for it a defect (`defect: true`). */
+export type ReopenCause =
+  | 'device-lost'
+  | 'option'
+  | 'scene-change'
+  | 'repaint-refused'
+  | 'background'
+  | 'mount-refused'
+  | 'rows-outgrown';
+const NEEDED: ReadonlySet<ReopenCause> = new Set(['device-lost', 'option']);
+
+/** The measure of a reopen in flight: its causes, its start, the display frames it lasted. */
+type Reopening = { causes: ReopenCause[]; start: number; frames: number };
+
+/**
+ * THE REOPENS OF A WORLD, KEPT AND JUSTIFIED (#837). Its canvas keeps the image of a session that
+ * closes until the next one draws (`canvasHandover.ts`); each reopen is said once that next image
+ * is drawn, under `session-reopen`: its causes, its duration, and the display frames it showed no
+ * new image through. A session's close ends what waited on it (`ended`): a wait carries on with
+ * the next session rather than failing with the one that closed.
+ */
+export function worldReopens(
+  canvas: HTMLCanvasElement,
+  notices: Pick<WorldNotices, 'say'>,
+  pass: () => void,
+) {
+  keepCanvasImage(canvas);
+  const wanted = new Set<ReopenCause>(),
+    ends = new WeakMap<object, { promise: Promise<void>; end: () => void }>();
+  let reopening: Reopening | null = null;
+  const frame = globalThis.requestAnimationFrame?.bind(globalThis);
+  const tick = (by: Reopening) => () => {
+    if (reopening !== by) return;
+    by.frames++;
+    frame?.(tick(by));
+  };
+  const endOf = (session: object) => {
+    let known = ends.get(session);
+    if (!known) {
+      let end = () => {};
+      const promise = new Promise<void>((done) => (end = done));
+      ends.set(session, (known = { promise, end }));
+    }
+    return known;
+  };
+  /** The reopen in flight is over: said, drawn or not. */
+  const settle = (drawn: boolean) => {
+    const by = reopening;
+    if (!by) return;
+    reopening = null;
+    const defect = by.causes.some((cause) => !NEEDED.has(cause));
+    notices.say('session-reopen', `The world's session opened again (${by.causes.join(', ')})`, {
+      kind: defect ? 'error' : 'lifecycle',
+      cause: by.causes.join('+'),
+      defect,
+      drawn,
+      durationMs: performance.now() - by.start,
+      framesWithoutImage: by.frames,
+    });
+  };
+  /** Asks a pass for `cause`, which that pass carries. */
+  const request = (cause: ReopenCause) => {
+    wanted.add(cause);
+    pass();
+  };
+  /** A session drew: the reopen that led to it is said. */
+  const drew = () => settle(true);
+  return {
+    request,
+    /** `request` for `cause`, as a hook to hand on. */
+    asks: (cause: ReopenCause) => () => request(cause),
+    /** A session's options: its frames end the reopen, rows it cannot grow ask the next. */
+    options: (given: MeasuredWorldOptions): MeasuredWorldOptions => ({
+      ...given,
+      onFrame: (metrics) => (drew(), given.onFrame?.(metrics)),
+      onRowsOutgrown: () => request('rows-outgrown'),
+    }),
+    /** A pass begins, `previous` the session it closes, if any: that one is a reopen. */
+    closing(previous: object | null) {
+      const causes = [...wanted];
+      wanted.clear();
+      if (!previous) return;
+      endOf(previous).end();
+      if (reopening) reopening.causes.push(...causes.filter((c) => !reopening!.causes.includes(c)));
+      else {
+        reopening = { causes, start: performance.now(), frames: 0 };
+        frame?.(tick(reopening));
+      }
+    },
+    drew,
+    /** No session follows for now — nothing to draw, or one failed to open: the kept image goes. */
+    none() {
+      releaseCanvasImage(canvas);
+      settle(false);
+    },
+    /** Settles once `session` has closed. */
+    ended: (session: object) => endOf(session).promise,
+    /** The world is gone: a reopen in flight is said undrawn, its canvas released, and every
+     *  wait on its sessions ends. */
+    dispose(last: object | null) {
+      if (last) endOf(last).end();
+      releaseCanvasImage(canvas, true);
+      settle(false);
+    },
+  };
+}

@@ -91,7 +91,10 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     state.pairTargetB?.dispose();
     state.measurementTarget = state.pairTargetA = state.pairTargetB = undefined;
     disposeComposition();
-    streaming.backgroundFetchController?.abort();
+    // A wait on these pages hears why it stopped (#837): `awaitPages` then carries on elsewhere.
+    streaming.backgroundFetchController?.abort(
+      new DOMException('The session closed', 'AbortError'),
+    );
     streamer.dispose();
     releasePageDecoders();
     releasePageIntegration();
