@@ -8,7 +8,6 @@ import { dagFlagsWords } from './shader/lastUseWgsl.ts';
 import { lightCutCapacity, lightQueueCap } from './lightCutCapacity.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import type { createDagResources } from './resources.ts';
-import { dagGroupEntries } from './shader/bindings.ts';
 import { shadowBatchWrites } from '../shadow/batchWrites.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
@@ -87,16 +86,11 @@ export function createDagLightCut(resources: DagResources) {
     liveGroupsOffset: layout.liveGroups * 4,
     candGroupsOffset: layout.candGroups * 4,
     drawnGroupsOffset: layout.drawnGroups * 4,
-    ranges: resources.ranges.map(({ count }, r) => ({
-      count,
-      bindGroup: device.createBindGroup({
-        layout: resources.layout,
-        entries: dagGroupEntries(
-          { ...resources.group, views: uniforms, flags, out: output, work, frames: frames[r] },
-          resources.frames.rangeBindings[r],
-        ),
-      }),
-    })),
+    ranges: resources.frames.bindGroups(
+      resources.layout,
+      { ...resources.group, views: uniforms, flags, out: output, work },
+      frames,
+    ),
     repeat: null,
     light,
   };
