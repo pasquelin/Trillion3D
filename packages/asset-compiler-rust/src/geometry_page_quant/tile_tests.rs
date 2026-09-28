@@ -3,11 +3,11 @@
 //! quantizes under the display quantum.
 
 use super::{tile_log2, TILE_EXTENT_LOG2};
-use crate::tests::random::Xorshift;
 use crate::dag::{build_dag_tallied, DagAttributes, DagStrategy};
 use crate::geometry_page::encode;
 use crate::geometry_page_quant::{primitive_exponent, UV_EXPONENT};
 use crate::tests::fixtures::grid_indices;
+use crate::tests::random::Xorshift;
 use trillion3d_page_codec::bits::grid::grid_exponent;
 use trillion3d_page_codec::bits::{MAX_BITS, MAX_EXPONENT};
 

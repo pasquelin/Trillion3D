@@ -88,12 +88,10 @@ pub use trillion3d_page_codec::vec3::{cross, divide, dot, length, point, scale, 
 /// vector carries no direction and division makes no sense. Fallback belongs to
 /// site — light looks towards `-Z`, missing normal points up — so passed in.
 pub(crate) fn normalized_or(vector: [f64; 3], fallback: [f64; 3]) -> [f64; 3] {
-    let norm = length(vector);
-    if norm > 1e-12 {
-        divide(vector, norm)
-    } else {
-        fallback
-    }
+    (length(vector) > 1e-12)
+        .then(|| unit(vector))
+        .flatten()
+        .unwrap_or(fallback)
 }
 
 /// `v` at unit length, if it has a finite, non-zero one.
