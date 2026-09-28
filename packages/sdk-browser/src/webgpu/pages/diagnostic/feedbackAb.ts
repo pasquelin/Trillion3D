@@ -36,9 +36,13 @@ async function digest(keys: string[]) {
 /** Exact-key snapshots are taken before hashing, so an async GPU readback cannot shift them. */
 export async function feedbackAbResidency(rt: WebgpuPagesRuntime): Promise<ResidencyIdentity> {
   if (!rt.feedbackAB) throw new Error('FEEDBACK_AB_UNAVAILABLE');
-  const geometry = rt.gpu.cache?.residentKeys();
+  const cache = rt.gpu.cache;
   const textures = rt.vis.textures;
-  if (!geometry || !textures) throw new Error('FEEDBACK_AB_RESIDENCY_UNAVAILABLE');
+  if (!cache || !textures) throw new Error('FEEDBACK_AB_RESIDENCY_UNAVAILABLE');
+  // The scene catalogue covers every cache address; reject a partial inventory.
+  const geometry = rt.setup.tracking.pageCatalog.filter((key) => cache.get(key)).sort();
+  if (geometry.length !== cache.stats().residentPages)
+    throw new Error('FEEDBACK_AB_RESIDENCY_CATALOGUE_INCOMPLETE');
   const tiles = [textures.color, textures.data]
     .flatMap((atlas) =>
       atlas.pools.flatMap((pool) =>
