@@ -25,7 +25,7 @@ import {
 import { acceptPage, dropPage } from './io/pageApi.ts';
 import { createArrivalSpecs } from '../../page/integration/arrivalSpecs.ts';
 import { endCpuFrame, hostCpuStep } from './render/cpuSteps.ts';
-import { setWebgpuTransform } from './render/transform.ts';
+import { setWebgpuTransform, setWebgpuTransforms } from './render/transform.ts';
 import { updateWebgpuPlacements } from '../../placement/webgpuPlacements.ts';
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
 import { setWebgpuMemoryBudgets } from './io/memory.ts';
@@ -72,9 +72,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     /** The only engine that carries the contract's shadow atlas: everything else is read in its methods. */
     lighting: { shadows: true },
-    setTransform(nodeName, matrix) {
-      setWebgpuTransform(rt, nodeName, matrix);
-    },
+    setTransform: (nodeName, matrix) => setWebgpuTransform(rt, nodeName, matrix),
+    setTransforms: (nodes, matrices) => setWebgpuTransforms(rt, nodes, matrices),
     setBounce: (on) => setWebgpuBounce(rt, on),
     setTemporalAntialiasing: (on) => setWebgpuTemporalAntialiasing(rt, on),
     updatePlacements(rows, from, to) {
