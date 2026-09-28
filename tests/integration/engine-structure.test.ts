@@ -37,7 +37,6 @@ const RESOLVENT: Record<string, string> = {
   'camera/world.ts': 'the contract itself: the package’s only camera-pose resolution',
   'lighting/sceneLighting.ts': 'light target, not a camera',
   'webgpu/pages/render/transform.ts': 'scene subtree moved by the host, not a camera',
-  'host/graph/node.ts': 'the engine’s own node: the resolution `resolveCameraWorld` calls on it',
   'physics/bodies.ts': 'a body the page moved, not a camera',
   'guides/guideSet.ts': 'a helper the page draws as guides, not a camera',
 };
