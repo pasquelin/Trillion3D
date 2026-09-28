@@ -1,4 +1,6 @@
 use super::*;
+#[path = "compressed/mod.rs"]
+pub(super) mod compressed;
 
 pub fn runtime_manifest(
     file: &str,
@@ -17,6 +19,7 @@ pub(super) fn load_model_file(
     dir: &Path,
     name: &str,
     declared: Option<(Value, Vec<u8>)>,
+    budget: &compressed::Budget<'_>,
 ) -> Result<RuntimeSource> {
     if !is_safe_source_name(name) {
         return Err(invalid("manifest.runtime.file is required"));
@@ -38,7 +41,7 @@ pub(super) fn load_model_file(
         }
     }
     let declared_ref = declared.as_ref().map(|(m, _)| m);
-    let (mut g, binary, offsets, sidecars) = if is_glb(&file_bytes) {
+    let (mut g, binary, mut offsets, sidecars) = if is_glb(&file_bytes) {
         let (g, bin) = parse_glb(&file_bytes)?;
         let (binary, offsets, sidecars) = concat_gltf_buffers(dir, &g, Some(&bin), declared_ref)?;
         (g, binary, offsets, sidecars)
@@ -47,7 +50,9 @@ pub(super) fn load_model_file(
         let (binary, offsets, sidecars) = concat_gltf_buffers(dir, &g, None, declared_ref)?;
         (g, binary, offsets, sidecars)
     };
+    let binary = compressed::meshopt_views(&mut g, binary, &mut offsets, budget)?;
     flatten_buffer_views(&mut g, &offsets, binary.bytes().len())?;
+    let binary = compressed::draco_primitives(&mut g, binary, budget)?;
     expand_gpu_instances(&mut g, binary.bytes())?;
     let bin_hash = hash(binary.bytes());
     let (manifest, manifest_bytes) = if let Some(pair) = declared {
@@ -71,6 +76,10 @@ pub(super) fn load_model_file(
 /// `o.source` onto its cache folder: it is then re-read through its manifest, like
 /// a source that already carries one.
 pub(super) fn load_runtime(o: &Options, prepared: &PreparedScene) -> Result<RuntimeSource> {
+    let budget = compressed::Budget {
+        limit: o.ram_budget_bytes(),
+        cancelled: &o.cancelled,
+    };
     match prepared {
         PreparedScene::InPlace(name) if o.source.is_file() => load_model_file(
             o.source
@@ -79,8 +88,9 @@ pub(super) fn load_runtime(o: &Options, prepared: &PreparedScene) -> Result<Runt
                 .unwrap_or_else(|| Path::new(".")),
             name,
             None,
+            &budget,
         ),
-        PreparedScene::InPlace(name) => load_model_file(&o.source, name, None),
+        PreparedScene::InPlace(name) => load_model_file(&o.source, name, None, &budget),
         PreparedScene::Manifest | PreparedScene::Converted { .. } => {
             let manifest_bytes = fs::read(o.source.join("manifest.json"))?;
             let manifest: Value = serde_json::from_slice(&manifest_bytes)?;
@@ -91,7 +101,12 @@ pub(super) fn load_runtime(o: &Options, prepared: &PreparedScene) -> Result<Runt
                 .and_then(Value::as_str)
                 .map(str::to_owned)
                 .ok_or_else(|| invalid("manifest.runtime.file is required"))?;
-            load_model_file(&o.source, &gltf_file, Some((manifest, manifest_bytes)))
+            load_model_file(
+                &o.source,
+                &gltf_file,
+                Some((manifest, manifest_bytes)),
+                &budget,
+            )
         }
     }
 }
