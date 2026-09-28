@@ -7021,7 +7021,8 @@
       "projection": "Perspectiva ou ortográfica.",
       "position": "Onde o olho está.",
       "quaternion": "Como o olho está girado.",
-      "optics": "Campo, near, far, zoom e caixa, por nome."
+      "optics": "Campo, near, far, zoom e caixa, por nome.",
+      "fitAspect": "Uma caixa ortográfica alargada à forma da imagem (`fitAspect`); ausente quando desligada."
     }
   },
   "SavedGeometry": {

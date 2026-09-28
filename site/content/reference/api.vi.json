@@ -2938,7 +2938,8 @@
       "projection": "Phối cảnh hoặc trực giao.",
       "position": "Mắt đứng ở đâu.",
       "quaternion": "Mắt được xoay thế nào.",
-      "optics": "Góc nhìn, near, far, zoom và hộp, theo tên."
+      "optics": "Góc nhìn, near, far, zoom và hộp, theo tên.",
+      "fitAspect": "Hộp trực giao được nới theo hình dạng của ảnh (`fitAspect`); vắng mặt khi tắt."
     }
   },
   "SavedGeometry": {

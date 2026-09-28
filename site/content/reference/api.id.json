@@ -2938,7 +2938,8 @@
       "projection": "Perspektif atau ortografis.",
       "position": "Di mana mata berada.",
       "quaternion": "Bagaimana mata diputar.",
-      "optics": "Bidang pandang, near, far, zoom, dan kotak, menurut nama."
+      "optics": "Bidang pandang, near, far, zoom, dan kotak, menurut nama.",
+      "fitAspect": "Kotak ortografis yang dilebarkan ke bentuk gambar (`fitAspect`); tidak ada bila nonaktif."
     }
   },
   "SavedGeometry": {

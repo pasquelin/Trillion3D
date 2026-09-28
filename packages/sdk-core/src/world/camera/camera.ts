@@ -73,8 +73,7 @@ export class Camera extends Object3D {
   declare top: number;
   /** Bottom edge of the orthographic box. */
   declare bottom: number;
-  /** An orthographic box as high as declared and as wide as the picture's shape makes it. */
-  fitAspect: boolean;
+  private _fitAspect: boolean;
 
   /** `'perspective'` makes far things small; `'orthographic'` keeps every size. */
   readonly projection: 'perspective' | 'orthographic';
@@ -96,7 +95,15 @@ export class Camera extends Object3D {
       top: p.top ?? 1,
       bottom: p.bottom ?? -1,
     };
-    this.fitAspect = p.fitAspect ?? false;
+    this._fitAspect = p.fitAspect ?? false;
+  }
+  /** An orthographic box as high as declared and as wide as the picture's shape makes it. */
+  get fitAspect() {
+    return this._fitAspect;
+  }
+  set fitAspect(value: boolean) {
+    this._fitAspect = value;
+    this.updateProjectionMatrix();
   }
   protected override get looksDownNegativeZ() {
     return true;
@@ -109,7 +116,7 @@ export class Camera extends Object3D {
     super.copy(source, recursive);
     if (!(source instanceof Camera)) return this;
     (this as { _optics: Camera['_optics'] })._optics = { ...source._optics };
-    this.fitAspect = source.fitAspect;
+    this._fitAspect = source.fitAspect;
     this.updateProjectionMatrix();
     return this;
   }
