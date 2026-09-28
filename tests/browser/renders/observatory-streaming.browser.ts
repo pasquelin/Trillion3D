@@ -6,9 +6,7 @@
 // pauses on its settle limit before the view is full.
 import assert from 'node:assert/strict';
 import { resolve } from 'node:path';
-import { startServer } from '../../kit/server/staticServer.ts';
-import { launchChrome } from '../../../bench/runner/chrome.ts';
-import { galleryMounts } from '../support/renderHarness.ts';
+import { openGalleryPage } from '../support/renderHarness.ts';
 import { manifestUrlOf } from '../../kit/scenes/caches.ts';
 
 /** Once the loop has drawn nothing for this long, the view is what it settled on: a loop that
@@ -19,16 +17,8 @@ const QUIET_MS = 2000;
 const LIMIT_MS = 60_000;
 
 const root = resolve(import.meta.dirname, '../../..');
-const { server, port } = await startServer({ mounts: galleryMounts(root) });
-const browser = await launchChrome({ headless: true });
-const errors: string[] = [];
+const { page, errors, close } = await openGalleryPage(root, { width: 800, height: 520 });
 try {
-  const page = await browser.newPage({
-    viewport: { width: 800, height: 520 },
-    deviceScaleFactor: 2,
-  });
-  page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${port}`);
   const { counts, resident } = await page.evaluate(
     async ({ sdkUrl, manifestUrl, quietMs, limitMs }) => {
       document.body.replaceChildren();
@@ -99,6 +89,5 @@ try {
     `frames drawn while the pages land show them: ${refining} between ${first} and ${full}`,
   );
 } finally {
-  await browser.close();
-  await new Promise((done) => server.close(done));
+  await close();
 }
