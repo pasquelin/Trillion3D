@@ -48,9 +48,14 @@ pub(super) struct Local<'r> {
     /// The group's live triangles, then the solve's, in the region's numbering.
     pub source: Vec<u32>,
     pub indices: Vec<u32>,
+    /// The largest step a placed texture coordinate took from the one it was solved from, clamp
+    /// included, times its set's density: a distance on the surface, charged to the group's error
+    /// so a coordinate that slid off its chart is drawn only where that slide is under a pixel.
+    pub drift: f64,
 }
 impl<'r> Local<'r> {
-    pub fn of(input: &GroupReductionInput, solved: SolvedRegion<'r>) -> Self {
+    /// `densities` per texture set as `charts::densities` measures them in the group.
+    pub fn of(input: &GroupReductionInput, solved: SolvedRegion<'r>, densities: &[f64]) -> Self {
         let region = solved.region;
         let (n, stride) = (region.remap.len(), solved.stride());
         let normals = input.attributes.normals().is_some();
@@ -70,6 +75,7 @@ impl<'r> Local<'r> {
             }
         }
         let mut values = Vec::with_capacity(origin.len() * stride);
+        let mut drift = 0.0_f64;
         let mut positions = Vec::with_capacity(region.source.len() + origin.len() * 3);
         positions.extend_from_slice(&region.source);
         for &i in &origin {
@@ -94,6 +100,11 @@ impl<'r> Local<'r> {
                 } else {
                     source[c]
                 };
+            }
+            for (set, density) in densities.iter().enumerate() {
+                let c = first + set * 2;
+                let (du, dv) = (placed[c] - source[c], placed[c + 1] - source[c + 1]);
+                drift = drift.max(f64::from(du).hypot(f64::from(dv)) * density);
             }
             values.extend(placed);
         }
@@ -123,6 +134,7 @@ impl<'r> Local<'r> {
         Self {
             extents: extents.map(|i| input.extents[global(i)]).collect(),
             source: region.compact.clone(),
+            drift,
             indices: solved.indices.iter().map(|&i| id[i as usize]).collect(),
             n,
             remap: &region.remap,
