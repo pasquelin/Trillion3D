@@ -776,8 +776,9 @@ The engine draws a world's `Geometry` itself. Its `attributes` hold any `VertexA
 `morphAttributes` lists one attribute per morph target for each morphed attribute, and
 `morphTargetsRelative` says that the targets hold displacements. `drawRange`, `name`, `userData`
 and `kind` (`'geometry'`) complete it. `computeBoundingBox()` and `computeBoundingSphere()` span
-every vertex and every shape a morph target gives it. A position that owns its list is read, drawn
-and moved as its stored numbers, as before; an interleaved one as the value it stands for. The sphere is
+every vertex and every shape a morph target gives it. A position is read, drawn, edged, moved and
+given normals at the value it stands for: a normalised integer is scaled back, and a position two
+numbers wide lies in the plane z = 0. The sphere is
 centred on the box and reaches the farthest vertex. Setting an attribute other than `position`, the
 index or a group keeps the bounds. `clone()` copies every list, morph target, group, range, data,
 bound and recipe. `toNonIndexed()` gives every corner a vertex of its own. `dispose()` runs each
