@@ -18,10 +18,10 @@ const B = DAG_BINDING;
 
 /** The tables a cut splits in parts past one binding (`../split.ts`), in the order their extra
  *  bindings follow `range`, and whether the kernel writes them. */
-export const DAG_PART_TABLES = { clusters: false, nodes: false, cold: false, flags: true } as const;
+const DAG_PART_TABLES = { clusters: false, nodes: false, cold: false, flags: true } as const;
 export type DagPartTable = keyof typeof DAG_PART_TABLES;
 /** Parts 1 on of each split table: part 0 is the table's own binding. */
-export type DagExtraParts = Partial<Record<DagPartTable, readonly GPUBuffer[]>>;
+type DagExtraParts = Partial<Record<DagPartTable, readonly GPUBuffer[]>>;
 
 /** The bindings parts 1 on of each table take, from the binding behind `range`, table after table:
  *  `counts` the parts of each. None when every table is whole. */
