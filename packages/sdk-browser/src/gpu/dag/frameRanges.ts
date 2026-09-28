@@ -74,8 +74,7 @@ export function createCameraFrames(
     buffers,
     /** Primitives of the largest range: what one binding of a light cut's rows must hold. */
     per,
-    /** One bind group per range, `group` plus the range's buffer of `targets` and its `range`
-     *  words: the camera cut's and its light cut's. */
+    /** One bind group per range: `group`, its buffer of `targets`, its `range` words. */
     bindGroups(
       layout: GPUBindGroupLayout,
       group: Omit<Parameters<typeof dagGroupEntries>[0], 'frames'>,
