@@ -9,7 +9,8 @@
 
 /**
  * Opens the device, with those of `features` the adapter offers, hooks collection of uncaptured
- * errors, and returns what is needed to compile and close cleanly. Returns `null` when the page has no WebGPU adapter.
+ * errors, and returns what is needed to compile and close cleanly. Returns `null` when the page
+ * has no WebGPU adapter.
  *
  * - `compile(code)` returns `{ module, compilation }`; `compilation` keeps only messages of type
  *   `error`, WGSL compiler warnings not being correctness discrepancies.
