@@ -1,0 +1,170 @@
+// The screen error of what a backend drew, measured against the source surface, the audit's
+// oracle (#959): forward, points of the drawn triangles to the source; reverse, points of the
+// source to the drawn triangles. A distance becomes pixels through the cut's own projection
+// (`screenErrorBound`, radius zero); the camera, its frustum and its focal length are the
+// engine's (`lookAtNode`, `updateCameraFrame`, `pixelScaleOf`), and the nearest-surface queries
+// run on the engine's triangle tree.
+import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
+import {
+  addTransformNode,
+  createCameraFrame,
+  createTransformTree,
+  lookAtNode,
+  perspectiveProjection,
+  setNodePosition,
+  updateCameraFrame,
+  updateNodeMatrixWorld,
+} from '../../packages/sdk-core/src/math/index.ts';
+import { screenErrorBound } from '../../packages/sdk-core/src/lod/screenErrorBound.ts';
+import { closestSegmentTriangle } from '../../packages/sdk-core/src/collision/closest.ts';
+import {
+  buildTriangleTree,
+  type TriangleTree,
+} from '../../packages/sdk-core/src/collision/triangleTree.ts';
+import {
+  forEachTriangleInBox,
+  nearestTriangleOnRay,
+} from '../../packages/sdk-core/src/collision/triangleQuery.ts';
+import { pixelScaleOf } from '../../packages/sdk-browser/src/streaming/priority.ts';
+
+/** Barycentric points sampled on every triangle: corners, edge midpoints, centre and three inner
+ *  points. Fixed, so two runs read the same points. */
+const SAMPLES = [
+  [1, 0, 0],
+  [0, 1, 0],
+  [0, 0, 1],
+  [0.5, 0.5, 0],
+  [0, 0.5, 0.5],
+  [0.5, 0, 0.5],
+  [1 / 3, 1 / 3, 1 / 3],
+  [2 / 3, 1 / 6, 1 / 6],
+  [1 / 6, 2 / 3, 1 / 6],
+  [1 / 6, 1 / 6, 2 / 3],
+];
+
+/** A reverse point is hidden when a drawn surface stands this many pixels (plus the threshold)
+ *  before it on its ray: a drawn surface that close is the point's own, drawn within the error. */
+const HIDDEN_MARGIN_PX = 1;
+/** Direction of the second visibility ray's aim, off every axis and axis plane. */
+const NUDGE = [0.36, 0.8, 0.48];
+
+/** The view one pose gives at `width × height` pixels, read through the engine's camera. */
+export function viewOf(pose: CameraPose, width: number, height: number) {
+  const tree = createTransformTree(1),
+    node = addTransformNode(tree);
+  setNodePosition(tree, node, ...pose.position);
+  lookAtNode(tree, node, ...pose.target, [0, 1, 0], true);
+  updateNodeMatrixWorld(tree, node, true);
+  const projection = perspectiveProjection(
+    new Float64Array(16),
+    pose.fov,
+    width / height,
+    pose.near,
+    1,
+  );
+  const frame = updateCameraFrame(
+    createCameraFrame(),
+    projection,
+    tree.world.slice(node * 16, node * 16 + 16),
+    pose.far,
+  );
+  const [fx, fy] = pixelScaleOf(projection, [width, height], [0, 0]);
+  return { frame, eye: pose.position, near: pose.near, focal: Math.max(fx, fy) };
+}
+type View = ReturnType<typeof viewOf>;
+
+const q = new Float64Array(3);
+/** Writes `p`'s view coordinates into `q`; false when `p` lies outside the frustum. */
+function inView(view: View, p: Float64Array) {
+  const { planes, view: m } = view.frame;
+  for (let i = 0; i < 24; i += 4)
+    if (planes[i] * p[0] + planes[i + 1] * p[1] + planes[i + 2] * p[2] + planes[i + 3] < 0)
+      return false;
+  for (let r = 0; r < 3; r++) q[r] = m[r] * p[0] + m[r + 4] * p[1] + m[r + 8] * p[2] + m[r + 12];
+  return true;
+}
+/** Pixels a displacement `distance` at the point last read by `inView` moves on screen. */
+const pixels = (view: View, distance: number) =>
+  screenErrorBound(distance, 1, Math.hypot(q[0], q[1]), -q[2], 0, view.focal, view.near);
+
+const segment = new Float64Array(6),
+  closest = new Float64Array(6);
+/** Distance from `p` to the nearest triangle of `tree`: boxes grown from `start` until the
+ *  nearest triangle found lies inside the box, which makes it the nearest of all. */
+export function nearestDistance(tree: TriangleTree, p: Float64Array, start: number) {
+  segment.set(p, 0);
+  segment.set(p, 3);
+  let best = Infinity;
+  const min = [0, 0, 0],
+    max = [0, 0, 0];
+  for (let half = start; ; half *= 4) {
+    for (let k = 0; k < 3; k++) [min[k], max[k]] = [p[k] - half, p[k] + half];
+    forEachTriangleInBox(tree, min, max, (at) => {
+      best = Math.min(best, closestSegmentTriangle(closest, segment, tree.triangles, at));
+    });
+    if (Math.sqrt(best) <= half || half > 1e9) return Math.sqrt(best);
+  }
+}
+
+/** Largest value and 99th percentile of a list of pixel errors. */
+function summary(values: number[]) {
+  const sorted = Float64Array.from(values).sort();
+  const at = (share: number) =>
+    sorted[Math.min(sorted.length - 1, Math.floor(share * sorted.length))] ?? 0;
+  return { points: sorted.length, max: at(1), p99: at(0.99) };
+}
+
+/** Every sample point of `triangles` inside the view, with its screen error to `tree`. */
+function errors(
+  view: View,
+  triangles: Float32Array,
+  tree: TriangleTree,
+  keep: (p: Float64Array) => boolean,
+) {
+  const out: number[] = [],
+    p = new Float64Array(3);
+  for (let t = 0; t < triangles.length; t += 9)
+    for (const [a, b, c] of SAMPLES) {
+      for (let k = 0; k < 3; k++)
+        p[k] = a * triangles[t + k] + b * triangles[t + 3 + k] + c * triangles[t + 6 + k];
+      if (!inView(view, p) || !keep(p)) continue;
+      out.push(pixels(view, nearestDistance(tree, p, -q[2] / view.focal)));
+    }
+  return out;
+}
+
+/**
+ * The screen error of `drawn` against `source` under `pose`. Forward counts every drawn point in
+ * the frustum; reverse every source point in the frustum that no drawn surface hides, so a hole
+ * is seen and the far side of a closed mesh is not.
+ */
+export function measureView(o: {
+  source: Float32Array;
+  sourceTree?: TriangleTree;
+  drawn: Float32Array;
+  pose: CameraPose;
+  width: number;
+  height: number;
+  pixelError: number;
+}) {
+  const view = viewOf(o.pose, o.width, o.height);
+  const sourceTree = o.sourceTree ?? buildTriangleTree(o.source),
+    drawnTree = buildTriangleTree(o.drawn);
+  const forward = errors(view, o.drawn, sourceTree, () => true);
+  const ray = new Float64Array(3);
+  /** Whether a drawn surface stands before `p` on the ray aimed at `p + nudge`, `nudge` in pixels. */
+  const blocked = (p: Float64Array, nudge: number) => {
+    const depth = -q[2],
+      shift = (nudge * depth) / view.focal;
+    for (let k = 0; k < 3; k++) ray[k] = p[k] + shift * NUDGE[k] - view.eye[k];
+    const hit = nearestTriangleOnRay(drawnTree, view.eye, ray);
+    const length = Math.hypot(ray[0], ray[1], ray[2]),
+      margin = ((o.pixelError + HIDDEN_MARGIN_PX) * depth) / view.focal;
+    return hit !== null && hit.t * length < length - margin;
+  };
+  // A ray through a shared edge or corner can slip between two drawn triangles; a second ray a
+  // hundredth of a pixel aside does not slip through the same crack.
+  const visible = (p: Float64Array) => !blocked(p, 0) && !blocked(p, 0.01);
+  const reverse = errors(view, o.source, drawnTree, visible);
+  return { triangles: o.drawn.length / 9, forward: summary(forward), reverse: summary(reverse) };
+}
