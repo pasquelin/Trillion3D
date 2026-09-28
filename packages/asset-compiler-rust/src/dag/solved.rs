@@ -29,7 +29,7 @@
 //! stalled it again (Sponza: four groups of five).
 use super::border::required_locks;
 use super::charts::{
-    densities, folded_span, longest_edge, on_mirror, open_border_welded, weighted,
+    densities, folded_span, longest_edge, on_mirror, open_border_welded, weighted, Chart,
 };
 use super::grown::Placed;
 use super::placed::Local;
@@ -60,19 +60,21 @@ pub(super) fn stalled(
     stop: Stop,
 ) -> Result<std::result::Result<Solved, GroupOutcome>> {
     let cause = diagnosis::cause(input, live, children, stop)?;
-    let charts = input.charts();
-    let mirrored = || {
-        let on = |v: &u32| charts.get(*v as usize).is_some_and(|c| on_mirror(c.sides));
-        live.iter().any(on)
-    };
     let solved = match cause {
         StallCause::SeamLocked => match attempt(input, live, children, false)? {
-            None if mirrored() => attempt(input, live, children, true)?,
+            None if live.iter().any(|&v| on_mirror_vertex(input.charts(), v)) => {
+                attempt(input, live, children, true)?
+            }
             kept => kept,
         },
         _ => None,
     };
     Ok(solved.ok_or_else(|| diagnosis::outcome(cause, input, live)))
+}
+
+/// Whether vertex `v` lies where a chart meets its mirror image (`charts::on_mirror`).
+fn on_mirror_vertex(charts: &[Chart], v: u32) -> bool {
+    charts.get(v as usize).is_some_and(|c| on_mirror(c.sides))
 }
 
 /// Reduces the seam-locked group `live` with the solve, across its mirrors when `crossed`;
@@ -87,7 +89,7 @@ fn attempt(
     let required = required_locks(live, input.locks, input.weld);
     let densities = densities(input, live);
     let charts = input.charts();
-    let mirror = |v: u32| !crossed && charts.get(v as usize).is_some_and(|c| on_mirror(c.sides));
+    let mirror = |v: u32| !crossed && on_mirror_vertex(charts, v);
     let (live, weld_error) = &open_border_welded(input, live, &densities, mirror);
     let weighted = weighted(input, live, &densities);
     let region = Region::of(input.positions, &weighted, live)?;
@@ -138,7 +140,7 @@ impl Pass for Solve<'_, '_, '_> {
         };
         let (weld_seam, positions) = (local.weld_seam(input), &local.positions);
         let indices = &mut local.indices;
-        attributes::own_normals(indices, &local.source, &weld_seam, positions, normals);
+        attributes::own_normals(indices, local.source, &weld_seam, positions, normals);
         let error = self.error;
         let tris = indices.as_chunks::<3>().0.iter();
         let seen: Vec<u32> = tris
@@ -170,7 +172,7 @@ fn finish(
     if clusters.len() >= children {
         return Ok(None);
     }
-    let (source, kept) = (&local.source, &local.indices);
+    let (source, kept) = (local.source, &local.indices);
     let vanished =
         vanished::vanished_error(source, kept, &local.positions, &local.weld, &local.extents);
     let global = |cluster: Vec<u32>| cluster.into_iter().map(|v| local.global(v, base)).collect();

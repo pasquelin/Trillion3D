@@ -76,9 +76,7 @@ pub(super) fn build_dag_primitive(
     laps.lap("dagMs");
     // From here on every stage reads the source's vertices followed by those the solve of a
     // seam-locked group placed (`dag::Grown`); `source.bin` keeps the source alone.
-    let solved = grown
-        .as_ref()
-        .map_or(0, |g| (g.positions.len() - pos.len()) / 3);
+    let solved = grown.as_ref().map_or(0, |g| g.origin.len());
     let (pos, carried) = crate::dag::Grown::arrays(&grown, pos, attributes);
     let attributes = crate::dag::DagAttributes { carried: &carried };
     let quality =

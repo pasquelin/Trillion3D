@@ -3,7 +3,6 @@
 use super::invariants::Built;
 use super::*;
 use crate::join::Join;
-use crate::shared_math::{length, point, sub};
 use std::collections::HashMap;
 
 /// No coarse triangle a pixel shows spans two islands of a texture set: one whose corners lie in
@@ -24,10 +23,7 @@ pub(super) fn check_islands(case: &Case, indices: &[u32], built: &Built, label: 
         for cluster in built.dag.iter().filter(|c| c.level > 0) {
             for tri in cluster.indices.as_chunks::<3>().0 {
                 let [a, b, c] = tri.map(|v| island[origin(v) as usize]);
-                let [p, q, r] = tri.map(|v| point(positions, v));
-                let longest = length(sub(q, p))
-                    .max(length(sub(r, q)))
-                    .max(length(sub(p, r)));
+                let longest = crate::dag::charts::longest_edge(positions, tri);
                 assert!(
                     (a == b && b == c) || longest <= cluster.lod_error,
                     "{label}: a coarse triangle at level {} spans two {name} islands",
