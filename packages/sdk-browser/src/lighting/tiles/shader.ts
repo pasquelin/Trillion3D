@@ -79,8 +79,8 @@ fn inwardPlane(normal:vec3f,point:vec3f,inside:vec3f)->vec4f{
 /** The tile's column from the near plane to infinity: four side planes, each through two
  *  neighbouring corner rays, and the near plane, all facing the column's inside. */
 fn tileColumn(){
- var inside=vec3f(0.0);
- for(var i=0u;i<4u;i++){inside+=columnCorner(DEEP_ROW,i)*0.25;}
+ let row=DEEP_ROW*4u; // the centre summed in the table's order, as before: the same bits
+ let inside=(corners[row]+corners[row+1u]+corners[row+2u]+corners[row+3u])*0.25;
  for(var i=0u;i<4u;i++){
   let near=columnCorner(NEAR_ROW,i);
   let deep=columnCorner(DEEP_ROW,i);

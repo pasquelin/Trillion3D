@@ -76,7 +76,8 @@ export function tileColumn(corners: Vec3[]) {
   const order = [0, 1, 3, 2];
   const near = order.map((c) => corners[ROW.near * 4 + c]);
   const deep = order.map((c) => corners[ROW.deep * 4 + c]);
-  const inside = deep.reduce((s, p) => add(s, scale(p, 0.25)), [0, 0, 0] as Vec3);
+  const row = corners.slice(ROW.deep * 4, ROW.deep * 4 + 4);
+  const inside = scale(add(add(add(row[0], row[1]), row[2]), row[3]), 0.25);
   const planes = order.map((_, i) =>
     inwardPlane(cross(sub(deep[(i + 1) % 4], deep[i]), sub(deep[i], near[i])), near[i], inside),
   );
