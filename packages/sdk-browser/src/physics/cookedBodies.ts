@@ -27,6 +27,8 @@ export type NodeMove = { node: Object3D; reach: number; scale: readonly number[]
 /** A declared body made: its entry, its hull's bytes, the world scale it was made at, its id,
  *  and — a dynamic one — the node it moves, or — a kinematic one a dynamic body carries — the
  *  node it follows (`carriedBodies.ts`). */
+/** A declared body a rescale refused: its entry, its hull's bytes, the world scale it was at. */
+type Refused = Pick<CookedMadeBody, 'body' | 'bytes' | 'scale'>;
 export type CookedMadeBody = {
   body: CookedBody;
   bytes?: Uint8Array;
@@ -59,7 +61,7 @@ export function createCookedBodies(
    *  drawing one mesh share it), and the signal its leaving aborts its reads by. */
   type Opening = BodyNodes & {
     made: CookedMadeBody[];
-    refused: Pick<CookedMadeBody, 'body' | 'bytes' | 'scale'>[];
+    refused: Refused[];
     hulls: Map<string, Promise<Uint8Array>>;
     signal: AbortSignal;
   };
@@ -118,14 +120,13 @@ export function createCookedBodies(
   };
   const start = (model: Model, opening: Opening, body: CookedBody) =>
     void add(model, opening, body).catch((error) => refuse(opening, body, error));
-  /** `body` made again at `model`'s scale now, kept in `opening`; refused there, it waits in its
-   *  `refused` list for another scale. */
-  function remake(model: Model, opening: Opening, body: CookedBody, bytes?: Uint8Array) {
+  /** `body` made again at `model`'s `scale` now, kept in `opening`; refused there, it waits in
+   *  its `refused` list for another scale. */
+  function remake(model: Model, opening: Opening, { body, bytes }: Refused, scale: number[]) {
     try {
       return make(model, opening, body, bytes);
     } catch (error) {
-      const { scale } = tilePose({ model, instance: body });
-      opening.refused.push({ body, bytes, scale: [scale.x, scale.y, scale.z] });
+      opening.refused.push({ body, bytes, scale });
       refuse(opening, body, error);
       return null;
     }
@@ -144,7 +145,9 @@ export function createCookedBodies(
     /** A frame's poses drawn: each carried body driven where its node now is. */
     carry() {
       for (const { carried, made } of held.values())
-        if (carried.size) for (const one of made) driveCarried(writer, one);
+        if (carried.size)
+          for (const one of made)
+            if (one.carried) driveCarried(writer, one.carried, one.id & BODY_INDEX);
     },
     /** A model moved: its bodies follow — a kinematic one driven there, pushing what it meets, a
      *  dynamic one put where its node is now drawn —; one rescaled is made again at once at its
@@ -155,32 +158,30 @@ export function createCookedBodies(
       const opening = held.get(model);
       if (!opening) return;
       const { made, refused } = opening;
-      let waiting = 0;
-      for (const one of refused) {
+      for (const one of refused.splice(0)) {
         const { scale } = tilePose({ model, instance: one.body });
-        if (fits(scale, one.scale)) refused[waiting++] = one;
+        if (fits(scale, one.scale)) refused.push(one);
         else {
           countNodes(opening, one.body, 1);
-          const again = remake(model, opening, one.body, one.bytes);
+          const again = remake(model, opening, one, [scale.x, scale.y, scale.z]);
           if (again) made.push(again);
         }
       }
-      // One refused again is pushed behind, met at its new scale and kept.
-      refused.length = waiting;
       let kept = 0;
       for (const one of made) {
         const { position, quaternion, scale } = tilePose({ model, instance: one.body });
         const slot = one.id & BODY_INDEX;
         if (!fits(scale, one.scale)) {
           bodies.release(slot);
-          const again = remake(model, opening, one.body, one.bytes);
+          const again = remake(model, opening, one, [scale.x, scale.y, scale.z]);
           if (again) made[kept++] = again;
           continue;
         }
         if (one.moves) {
           const now = worldPoseOf(one.moves.node);
           writer.teleport(slot, now.position, now.quaternion);
-        } else if (!driveCarried(writer, one)) writer.moveKinematic(slot, position, quaternion);
+        } else if (one.carried) driveCarried(writer, one.carried, slot);
+        else writer.moveKinematic(slot, position, quaternion);
         made[kept++] = one;
       }
       made.length = kept;
