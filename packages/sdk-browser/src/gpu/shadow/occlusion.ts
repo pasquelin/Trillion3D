@@ -121,9 +121,8 @@ export async function createShadowOcclusion(device: GPUDevice, capacity: number)
         slotWords[r * OCCLUSION_SLOT_WORDS] = slot(r);
         slotWords[r * OCCLUSION_SLOT_WORDS + 1] = 0;
       }
-      const words = commands.empty(regions, maxVertexCount);
       shadowBatchWrites(device).write(slots, 0, slotWords, 0, regions * OCCLUSION_SLOT_WORDS);
-      shadowBatchWrites(device).write(visibleIndirect, 0, commands.words, 0, words);
+      shadowBatchWrites(device).write(visibleIndirect, 0, commands.empty(regions, maxVertexCount));
       uni[0] = regions;
       uni[1] = capacity;
       shadowBatchWrites(device).write(uniform, 0, uni);

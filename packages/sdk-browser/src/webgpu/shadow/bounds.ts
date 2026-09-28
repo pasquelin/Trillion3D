@@ -134,7 +134,8 @@ export function uploadRowMobility(
     from = 0;
     to = casterSlots - 1;
   }
-  const buffer = lights.mobilityRows;
+  const buffer = lights.mobilityRows,
+    ints = rows.pageTableInts;
   mobility.writeRows(
     (row) => rows.packedRecs[row]?.placementIndex ?? -1,
     casterSlots,
@@ -142,7 +143,7 @@ export function uploadRowMobility(
     to,
     (first, count) => device.queue.writeBuffer(buffer, first * 4, mobility.rowWords, first, count),
     rows.blendFirst,
-    (row) => !!((rows.pageTableInts?.[row * ROW_WORDS + ROW_FLAGS_WORD] ?? 0) & FLAG_MASK),
+    (row) => !!ints && (ints[row * ROW_WORDS + ROW_FLAGS_WORD] & FLAG_MASK) !== 0,
   );
 }
 

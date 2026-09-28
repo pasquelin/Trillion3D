@@ -75,6 +75,7 @@ function encoded(pages: number, mode: number, casters: boolean) {
       // Region 1's face alone carries an emitter envelope.
       shadows: { faceGroup: 'faces', faceStride: 256, hasEnvelope: (r: number) => r === 1 },
       regions,
+      mobility: { hasCutouts: true },
       shadowRenderPasses: 0,
     },
   } as unknown as WebgpuPagesRuntime;
@@ -168,6 +169,15 @@ test("the pool's depth pass draws each region's opaque then cutout list, by thei
     ['drawIndirect', ['indirect', REGION_BYTES * i + DRAW_INDIRECT_STRIDE]],
   ];
   assert.deepEqual(draws, [...lists('opaque', 0), ...lists('envelope', 1), ...lists('opaque', 2)]);
+  // No cutout row: no cutout list is drawn, and the opaque draws keep one pipeline.
+  rt.lights.mobility = { hasCutouts: false } as never;
+  calls.length = 0;
+  assert.equal(drawRegionCasters(rt, device, recorder(calls), 0, false, 1, depth), 3);
+  assert.equal(
+    calls.filter(([name]) => name === 'setPipeline').length,
+    3,
+    'opaque, envelope, opaque',
+  );
 });
 
 test('a pipeline is set only when it changes, whatever the regions', () => {
