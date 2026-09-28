@@ -42,7 +42,6 @@ test('a frame on the CPU cut keeps the light cut', () => {
     vis: { gpuDraw: {} },
     run: { gpuFrameActive: false, gpuSelection: {}, frame: 3 },
     layout: { rows: { packedCount: 0 } },
-    setup: { maxCorners: 0 },
     timing: {},
   } as unknown as WebgpuPagesRuntime;
   encodeShadowCasters(rt, {} as GPUCommandEncoder, 0, 0, 0, 0);
