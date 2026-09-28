@@ -133,3 +133,4 @@ export {
   normalizeQuaternion,
   rotateByQuaternion,
 } from './matrix/quaternion.ts';
+export { buildCentreTree, centreTreeNodes } from './centreTree.ts';
