@@ -28,17 +28,11 @@ test('a pool starts at a quarter list a tile, and names nothing before its first
   assert.equal(pool.sample(), undefined, 'nothing named before a sample returns');
 });
 
-test('the frame opens its pool: start and room, nothing reserved, no overflow', () => {
-  const fake = fakeDevice();
-  const pool = createTileLightPool(fake.device);
-  pool.open(1300, 1600);
-  const write = fake.writes.find((one) => one.buffer === pool.state)!;
-  assert.deepEqual([...new Uint32Array(write.data as ArrayBuffer)], [1300, 1600, 0, 0]);
-});
-
 test('an overflow is named and grows the pool to what the frame reserved (#849)', async () => {
   const { pool, fake } = await sampleFrame([13000, 1600, 5000, 1], 0);
-  assert.equal(fake.copies[0].from, pool.state, 'the state is copied after the pass');
+  // The frame opened its pool, nothing reserved; its state is copied after the pass.
+  assert.deepEqual([...fake.writes[0].data], [13000, 1600, 0, 0]);
+  assert.equal(fake.copies[0].from, pool.state);
   assert.deepEqual(pool.sample(), { frame: 0, reserved: 5000, capacity: 1600, overflowed: true });
   assert.equal(pool.words(TILES), 5000);
 });
