@@ -29,7 +29,7 @@ export const PATH_SWITCH_RUNS = 5;
 /** One execution in that many plays the other path to refresh its median without costing a frame. */
 export const PATH_EXPLORE_EVERY = 50;
 
-const NS_PAR_MS = 1e6;
+const NS_PER_MS = 1e6;
 
 class Operation {
   readonly js = new SlidingMedian();
@@ -39,7 +39,7 @@ class Operation {
   switches = 0;
   elements = 0;
   /** Consecutive executions where the other path held its lead. Reset to zero as soon as it yields. */
-  avance = 0;
+  lead = 0;
 }
 
 /** Picks, per batch operation, the faster of JavaScript and WebAssembly from measured times. */
@@ -63,33 +63,33 @@ export interface PathGovernor {
 export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto'): PathGovernor {
   const operations = new Map<string, Operation>();
   const resolution = estimateClockResolutionMs(now);
-  const grossiere = resolution === null || resolution > CLOCK_RESOLUTION_MS;
-  let choisi = mode;
-  let disponible = false;
+  const coarse = resolution === null || resolution > CLOCK_RESOLUTION_MS;
+  let chosen = mode;
+  let available = false;
   let simd: boolean | null = null;
   let cause: string | null = 'WebAssembly module not loaded';
 
-  const etat = (nom: string) => {
-    let operation = operations.get(nom);
-    if (!operation) operations.set(nom, (operation = new Operation()));
+  const stateOf = (name: string) => {
+    let operation = operations.get(name);
+    if (!operation) operations.set(name, (operation = new Operation()));
     return operation;
   };
   /** Arbitration is possible only if both paths exist AND the clock can tell them apart. */
-  const arbitrable = () => choisi === 'auto' && disponible && !grossiere;
+  const canArbitrate = () => chosen === 'auto' && available && !coarse;
 
-  function choose(nom: string) {
-    if (choisi !== 'auto') return disponible || choisi === 'js' ? choisi : 'js';
-    if (!arbitrable()) return 'js';
-    const operation = etat(nom);
-    const courant = operation.path ?? 'wasm';
+  function choose(name: string) {
+    if (chosen !== 'auto') return available || chosen === 'js' ? chosen : 'js';
+    if (!canArbitrate()) return 'js';
+    const operation = stateOf(name);
+    const current = operation.path ?? 'wasm';
     // Passive exploration: the other path runs once every `PATH_EXPLORE_EVERY`, otherwise its
     // median would age until it described a machine that no longer exists.
-    const autre = courant === 'js' ? 'wasm' : 'js';
-    return operation.runs % PATH_EXPLORE_EVERY === PATH_EXPLORE_EVERY - 1 ? autre : courant;
+    const other = current === 'js' ? 'wasm' : 'js';
+    return operation.runs % PATH_EXPLORE_EVERY === PATH_EXPLORE_EVERY - 1 ? other : current;
   }
 
-  function observe(nom: string, path: MathPath, ms: number | null, elements: number) {
-    const operation = etat(nom);
+  function observe(name: string, path: MathPath, ms: number | null, elements: number) {
+    const operation = stateOf(name);
     operation.runs++;
     if (elements <= 0) return;
     operation.elements += elements;
@@ -97,32 +97,32 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
       // A missing timer proves nothing: the operation falls back to the reference and stays there
       // as long as no timed execution has fed both medians.
       operation.path = 'js';
-      operation.avance = 0;
+      operation.lead = 0;
       return;
     }
-    operation[path].add((ms * NS_PAR_MS) / elements);
+    operation[path].add((ms * NS_PER_MS) / elements);
     operation.path ??= path;
-    if (!arbitrable()) return;
-    const courant = operation.path;
-    const autre = courant === 'js' ? 'wasm' : 'js';
-    const currentMedian = operation[courant].median();
-    const otherMedian = operation[autre].median();
-    const assez =
-      operation[courant].count >= PATH_MIN_SAMPLES && operation[autre].count >= PATH_MIN_SAMPLES;
-    if (!assez || currentMedian === null || otherMedian === null) return;
-    if (otherMedian < currentMedian * (1 - PATH_SWITCH_MARGIN)) operation.avance++;
-    else operation.avance = 0;
-    if (operation.avance >= PATH_SWITCH_RUNS) {
-      operation.path = autre;
+    if (!canArbitrate()) return;
+    const current = operation.path;
+    const other = current === 'js' ? 'wasm' : 'js';
+    const currentMedian = operation[current].median();
+    const otherMedian = operation[other].median();
+    const enough =
+      operation[current].count >= PATH_MIN_SAMPLES && operation[other].count >= PATH_MIN_SAMPLES;
+    if (!enough || currentMedian === null || otherMedian === null) return;
+    if (otherMedian < currentMedian * (1 - PATH_SWITCH_MARGIN)) operation.lead++;
+    else operation.lead = 0;
+    if (operation.lead >= PATH_SWITCH_RUNS) {
+      operation.path = other;
       operation.switches++;
-      operation.avance = 0;
+      operation.lead = 0;
     }
   }
 
   function metrics(): MathPathMetrics {
-    const releve: Record<string, MathPathOperation> = {};
-    for (const [nom, operation] of operations)
-      releve[nom] = {
+    const readings: Record<string, MathPathOperation> = {};
+    for (const [name, operation] of operations)
+      readings[name] = {
         path: operation.path,
         jsNsPerElement: operation.js.median(),
         wasmNsPerElement: operation.wasm.median(),
@@ -133,24 +133,24 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
       };
     return {
       contract: MATH_PATH_CONTRACT,
-      mode: choisi,
-      wasmAvailable: disponible,
+      mode: chosen,
+      wasmAvailable: available,
       wasmSimd: simd,
       clockResolutionMs: resolution,
-      clockCoarse: grossiere,
+      clockCoarse: coarse,
       unavailableReason: cause,
-      operations: releve,
+      operations: readings,
     };
   }
 
   return {
-    setMode: (valeur) => {
-      choisi = valeur;
+    setMode: (next) => {
+      chosen = next;
     },
-    setWasm: (available, simdActif, raison) => {
-      disponible = available;
-      simd = simdActif;
-      cause = raison;
+    setWasm: (loaded, simdActive, reason) => {
+      available = loaded;
+      simd = simdActive;
+      cause = reason;
     },
     choose,
     observe,
