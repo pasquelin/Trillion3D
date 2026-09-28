@@ -99,10 +99,6 @@ try {
     );
     assert.deepEqual(r.errors, []);
     assert.ok(r.held, 'the still image is held');
-    assert.ok(
-      r.horizons.length && r.horizons.every(Number.isFinite),
-      'frames trace aheadHorizonMs',
-    );
   }
   // #997: an admission pass starts the reads it will wait for before it admits the first, so they
   // share the network; one read at a time leaves a read alone on it.
@@ -110,6 +106,11 @@ try {
     slow.alongside * 2 > slow.transfers.length,
     'most geometry page reads are sent while another is in flight',
   );
+  for (const r of [fast, slow])
+    assert.ok(
+      r.horizons.length && r.horizons.every(Number.isFinite),
+      'frames trace aheadHorizonMs',
+    );
   assert.deepEqual(
     [...slow.admitted].sort(),
     [...fast.admitted].sort(),
