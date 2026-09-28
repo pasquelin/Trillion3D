@@ -3,8 +3,9 @@ import { TAA_BINDINGS } from './shaderWgsl.ts';
 
 /**
  * The display filter's two history targets (`../webgpu/blend/displayFilter.ts`), in ping-pong with
- * the colour's: made by the first image that resolves a filter, dropped by the first that holds
- * none, so a scene without a filtering blend keeps no byte of them.
+ * the colour's: made by the first image that resolves a filter, dropped with the display filter
+ * (`../webgpu/pages/render/encodeDisplayFilter.ts`) or the colour's targets, so a scene without a
+ * filtering blend keeps no byte of them. An image that resolves none keeps them for the next.
  */
 export function createTaaFilterHistory(device: GPUDevice) {
   const textures: GPUTexture[] = [],
@@ -21,9 +22,9 @@ export function createTaaFilterHistory(device: GPUDevice) {
     get bytes() {
       return textures.reduce((sum, texture) => sum + texture.width * texture.height * 4, 0);
     },
-    /** Made for an image that resolves `filter`, dropped by one that holds none. */
+    /** Made for the first image that resolves `filter`. */
     follow(filter: GPUTextureView | undefined, width: number, height: number) {
-      if (!filter) return drop();
+      if (!filter) return;
       for (let i = views.length; i < 2; i++) {
         const texture = device.createTexture({
           label: `Trillion3D TAA display filter ${i}`,
