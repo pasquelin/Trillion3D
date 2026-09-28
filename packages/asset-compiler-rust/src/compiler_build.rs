@@ -165,7 +165,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let proxy_descriptor =
         scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
     // Cache products, each under its own name: lights, node and material tables, physics.
-    let lights = stage_scene_lights(g, bin, &scene_nodes, &directory, &progress)?;
+    let lights = stage_scene_lights(g, bin, (&scene_nodes, &hidden), &directory, &progress)?;
     let (autonomous_scene, autonomous_refusal, autonomous, mut products) =
         write_autonomous_scene(&directory, &source, &primitives, &output_views)?;
     let paged = write_mesh_pages(&primitives, &directory)?;
