@@ -7,12 +7,6 @@ import { validated } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import type { CameraFrames } from './frameRanges.ts';
 
-/** The selection kernel's text under `variant`, frozen at shader compile: it no longer changes
- *  from session open to session close, and the default text is rendered character for character
- *  (`withScreenErrorVariant`). */
-export const dagSelectionCode = (variant = screenErrorVariant(), code = DAG_SELECTION_SHADER) =>
-  withScreenErrorVariant(code, variant);
-
 /** Every selection stage of `module` on `layout`; a split table's stages are its own (`SPLIT`,
  *  `shader/viewsWgsl.ts`). The real-GPU compile probe builds exactly these
  *  (`tests/browser/probes/dag-kernels-compile-gpu.ts`). */
@@ -55,7 +49,12 @@ export function createDagPipeline(
 ) {
   return validated(device, async () => {
     const layout = device.createBindGroupLayout({ entries: dagBindEntries() });
-    const module = device.createShaderModule({ code: dagSelectionCode() });
+    // The screen-error variant is frozen at shader compile: it no longer changes from session
+    // open to session close, and the default text is rendered character for character
+    // (`withScreenErrorVariant`).
+    const module = device.createShaderModule({
+      code: withScreenErrorVariant(DAG_SELECTION_SHADER, screenErrorVariant()),
+    });
     if (await shaderFailed(module)) return undefined;
     const stages = createDagStages(device, layout, module, frames.ranges.length > 1);
     const ranges = frames.bindGroups(layout, buffers);
