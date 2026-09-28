@@ -63,8 +63,28 @@ export function clusterPixels(
     const lateral = viewLateral(sphere, 0, e),
       depth = viewDepth(sphere, 0, e),
       radius = sphere[3];
-    out[0] = projectedErrorAt(own, lateral, depth, radius, stretch, focal, near, perspective, sound);
-    out[1] = projectedErrorAt(parent, lateral, depth, radius, stretch, focal, near, perspective, sound);
+    out[0] = projectedErrorAt(
+      own,
+      lateral,
+      depth,
+      radius,
+      stretch,
+      focal,
+      near,
+      perspective,
+      sound,
+    );
+    out[1] = projectedErrorAt(
+      parent,
+      lateral,
+      depth,
+      radius,
+      stretch,
+      focal,
+      near,
+      perspective,
+      sound,
+    );
     return out;
   }
   out[0] = projectedClusterError(own, sphere, 0, e, stretch, focal, near, perspective, sound);
