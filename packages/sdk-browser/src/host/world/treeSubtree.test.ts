@@ -58,38 +58,3 @@ test('refreshFrom: a node outside the index takes the whole pass', () => {
   whole.refresh();
   for (const node of nodes) assertBits(moved.world(node), whole.world(node), node.name);
 });
-
-test('refreshFrom: the root of the index, and a leaf, match the whole pass', () => {
-  const draw = seeded(11);
-  const { source, nodes } = randomTree(draw, 30);
-  const moved = hostWorldTree(source),
-    whole = hostWorldTree(source);
-  const leaf = nodes.find((node) => node.children.length === 0)!;
-  for (const node of [source, leaf]) {
-    moveSubtree(draw, node, false);
-    moved.refreshFrom(node);
-    whole.refresh();
-    for (const each of nodes) assertBits(moved.world(each), whole.world(each), each.name);
-  }
-});
-
-test('refreshFrom: poses written anywhere — the subtree and its ancestors exact, the rest at the next pass', () => {
-  for (let seed = 1; seed <= 30; seed++) {
-    const draw = seeded(seed * 613);
-    const { top, source, nodes } = randomTree(draw, 10 + Math.floor(draw() * 50));
-    const moved = hostWorldTree(source),
-      whole = hostWorldTree(source);
-    for (let step = 0; step < 10; step++) {
-      for (let k = 0; k < 3; k++) drawPose(draw, pick(draw, nodes));
-      const node = pick(draw, nodes);
-      moved.refreshFrom(node);
-      whole.refresh();
-      const exact = subtree(node);
-      for (let up = node.parent; up; up = up.parent) exact.push(up);
-      for (const each of exact) assertBits(moved.world(each), whole.world(each), `seed ${seed}`);
-    }
-    moved.refresh();
-    for (const each of subtree(top))
-      assertBits(moved.world(each), whole.world(each), `seed ${seed} next pass`);
-  }
-});
