@@ -4,7 +4,8 @@
 // layer's draws at the first blended caster.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSceneLightStore } from '../../../../sdk-core/src/index.ts';
+import { createSceneLightStore, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
+import { MANIFEST_IDENTITY } from '../../backend/pagesBackend.fixture.ts';
 import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { collectClusterPages } from '../../page/selection/selection.ts';
 import { packDagSelection } from '../../gpu/dag/selection.ts';
@@ -40,7 +41,8 @@ function scene(blended: boolean) {
   const mixed = mixedBinScene();
   mixed.metadata.primitives[1].pass = 'clustered-blend';
   Object.assign(mixed.both, { transparent: true, transparentShadow: true, opacity: 0.5 });
-  return { ...mixed, geometry: mixed.geoA, material: mixed.front };
+  const metadata: ClusterManifest = { ...mixed.metadata, ...MANIFEST_IDENTITY };
+  return { ...mixed, metadata, geometry: mixed.geoA, material: mixed.front };
 }
 
 /** The shadow pipelines made after prepare while a caster lit by a sun moves eight frames then
