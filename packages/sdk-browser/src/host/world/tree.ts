@@ -10,7 +10,7 @@ import {
   type TransformTree,
 } from '../../../../sdk-core/src/index.ts';
 import { visitSubtree } from '../../../../sdk-core/src/math/transform-tree/structure.ts';
-import { pushHostPose } from './pose.ts';
+import { heldParentWorld, pushHostPose } from './pose.ts';
 import { createHierarchyLot, type HierarchyLot } from '../../math/batchHierarchy.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
@@ -58,6 +58,8 @@ export interface HostWorldTree {
   /** `refresh()` on the subtree of `node` alone, the whole pass if an ancestor moved, the node is
    *  outside the index or the index runs as a lot. Nodes outside keep their last pass. */
   refreshFrom(node: Object3D): void;
+  /** The world of `node`'s parent as the tree holds it, current with the host (`pose.ts`). */
+  parentWorld(node: Object3D): Float64Array | null;
 }
 
 /** Nodes of the subtree and of its root's ancestors: the EXACT size the lot must carry. */
@@ -188,6 +190,10 @@ export function hostWorldTree(source: Object3D, lot?: HierarchyLot | null): Host
       visitSubtree(at, rank, push);
       updateNodeMatrixWorld(at, rank);
     },
+    parentWorld: (node) =>
+      enLot || !node.parent
+        ? null
+        : heldParentWorld(arbre(), nodes, parents, index.get(node.parent), self.refresh),
   };
   self.refresh();
   return self;
