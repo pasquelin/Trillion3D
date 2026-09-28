@@ -53,3 +53,20 @@ test('a mesh wearing matter that tells nothing enters and leaves a world', () =>
   scene.remove(mesh);
   assert.equal(mesh.geometry._listeners.size, 0);
 });
+
+test('a mesh destroyed in a world leaves it, heard by nothing it wore', () => {
+  const geometry = new Geometry(),
+    material = new Material('meshBasic');
+  const scene = new Group(),
+    group = new Group(),
+    mesh = new Mesh(geometry, material),
+    told: object[] = [];
+  scene._link = { ...countingLink().link, structure: (node: object) => told.push(node) };
+  group.add(mesh);
+  scene.add(group);
+  told.length = 0;
+  group.destroy();
+  assert.equal(geometry._listeners.size + material._listeners.size, 0);
+  assert.deepEqual([group._link, mesh._link, scene.children.length], [null, null, 0]);
+  assert.deepEqual(told, [scene], 'the world is told its structure changed');
+});

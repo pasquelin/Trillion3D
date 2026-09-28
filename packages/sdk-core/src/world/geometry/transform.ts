@@ -1,27 +1,30 @@
 /** A geometry's vertices moved by a matrix: what `Geometry.applyMatrix4` writes in place. */
 import type { Matrix4 } from '../math/matrix4.ts';
 import type { Geometry } from './geometry.ts';
-import { readComponent, readsStored } from './bounds.ts';
+import { plainPoints, pointAt, readComponent, readsStored } from './bounds.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { transformPointsBatch } from '../../math/batch/points.ts';
 import { normalMatrix3 } from '../../math/matrix/matrix3.ts';
 import { applyMatrix3Vector3, normalizeVector3 } from '../../math/primitives/vector.ts';
 
 /** Moves every position of `geometry` by `m` and turns every normal by its normal matrix, in
- *  place. A position that owns its list is moved as its stored numbers, three at a time, as both
- *  the world and the host always moved it; an interleaved one vertex by vertex. A normal is read
+ *  place. A position is moved at its value (`positionAt`): a list of plain numbers three at a
+ *  time, any other vertex by vertex, written back as wide and as normalised as it is. A normal is read
  *  and written as its stored numbers where the geometry reads it so (`readsStored`), else at the
  *  value it stands for, written normalised. */
 export function transformVertices(geometry: Pick<Geometry, 'attributes' | '_owner'>, m: Matrix4) {
   const { position, normal } = geometry.attributes;
-  if (position?.kind === 'attribute') {
-    const points = position.array as Float32Array;
-    transformPointsBatch(points, m.elements, points, position.count);
+  const plain = plainPoints(position);
+  if (plain) {
+    const points = plain.array as Float32Array;
+    transformPointsBatch(points, m.elements, points, plain.count);
   } else if (position) {
-    const v = new Vector3();
+    const v = new Vector3(),
+      point = [0, 0, 0],
+      width = Math.min(3, position.itemSize);
     for (let i = 0; i < position.count; i++) {
-      v.set(position.getX(i), position.getY(i), position.getZ(i)).applyMatrix4(m);
-      position.setXYZ(i, v.x, v.y, v.z);
+      const { elements } = v.fromArray(pointAt(position, i, point)).applyMatrix4(m);
+      for (let c = 0; c < width; c++) position.setComponent(i, c, elements[c]);
     }
   }
   if (normal) {

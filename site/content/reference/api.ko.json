@@ -4955,9 +4955,6 @@
   "disabledStageProfile": {
     "summary": "아무것도 보유하지 않는 엔진의 프로파일: 모든 것이 「측정되지 않음」이며, 아무것도 0이 아니다."
   },
-  "dot": {
-    "summary": "같은 차원을 가진 두 벡터의 내적."
-  },
   "dotVector3": {
     "summary": "`aAt`와 `bAt`에서 읽은 세 성분에 대한 `a · b`: 하나의 버퍼와 오프셋만, 뷰는 결코 사용하지 않는다."
   },
@@ -5399,7 +5396,7 @@
   },
   "loader": {
     "summary": "`loader` 계열: 가져와서 씬이 사용하는 형태로 바뀌는 파일들.",
-    "description": "일반 파일은 엔진의 검증된 fetch(`cluster/pages.ts`)를 통해 읽히며, 이는 상태 코드로 실패한 응답을 거부한다; 그림(`texture`, `cubeTexture`)은 image 요소로 가져오며, 이는 디코딩 실패로 그것을 거부한다."
+    "description": "일반 파일은 엔진의 검증된 fetch(`cluster/checked.ts`)를 통해 읽히며, 이는 상태 코드로 실패한 응답을 거부한다; 그림(`texture`, `cubeTexture`)은 image 요소로 가져오며, 이는 디코딩 실패로 그것을 거부한다."
   },
   "loader.texture": {
     "summary": "그림을 가져와 그것으로 색상 텍스처를 만든다.",

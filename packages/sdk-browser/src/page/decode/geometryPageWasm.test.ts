@@ -104,3 +104,13 @@ test('a forged index count is refused by both decoders before either allocates',
     /GEOMETRY_PAGE_BOUNDS/,
   );
 });
+
+test('a module the server refuses once is asked again, as every engine file is', async (t) => {
+  let asked = 0;
+  t.mock.method(globalThis, 'fetch', async () =>
+    ++asked === 1 ? new Response(null, { status: 503 }) : new Response(MODULE),
+  );
+  const { prepareSdkWasm } = await frais();
+  assert.ok(await prepareSdkWasm(), 'the second answer instantiates');
+  assert.equal(asked, 2);
+});

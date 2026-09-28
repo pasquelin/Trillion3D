@@ -69,7 +69,8 @@ Resolvers that ignore `browser` therefore receive the safe common facade instead
 `api-inventory.json` is generated with the TypeScript checker. It follows aliases and transitive
 star exports, records binding identity and lists every current entry point. It also records the
 documented source-path imports that the facade newly exposes. Experimental comparison and oracle
-bindings stay classified as experimental.
+bindings stay classified as experimental. The former N-dimensional `dot` is removed from the
+exports: write `dotVector3`, the one dot product, on three components.
 
 Measured with esbuild 0.25.12 (ESM, browser platform, minification and tree shaking), a consumer
 importing only `hierarchyUpdateBatch` weighs 1,780 bytes from the common facade and 3,289 bytes from
@@ -159,8 +160,10 @@ reason. What still fails is `RESOURCE_HTTP_ERROR`, the address in its message an
 the status in `details.status` (`null` for the network). A file a cache may lack — `lights.json` and
 `physics.json`, of a model compiled before them — is absent on a 404, or on the 403 of a store that
 hides what it does not hold. A page read (`httpPageSource`) raises `RESOURCE_HTTP_ERROR` where it
-raised `Error('PAGE_HTTP_<status>')`, and a cooked tile or a soft body's settings where they raised
-`PHYSICS_FAILED`.
+raised `Error('PAGE_HTTP_<status>')`; a cooked tile, a soft body's settings and the physics
+module (`joltPhysics.wasm`) where they raised `PHYSICS_FAILED`, which is kept for the simulation's
+own failures. The page codec module (`pageCodec.wasm`) is read the same way; one it cannot read
+still leaves the JavaScript decoder to decode the pages.
 
 ## API rule
 
@@ -773,8 +776,9 @@ The engine draws a world's `Geometry` itself. Its `attributes` hold any `VertexA
 `morphAttributes` lists one attribute per morph target for each morphed attribute, and
 `morphTargetsRelative` says that the targets hold displacements. `drawRange`, `name`, `userData`
 and `kind` (`'geometry'`) complete it. `computeBoundingBox()` and `computeBoundingSphere()` span
-every vertex and every shape a morph target gives it. A position that owns its list is read, drawn
-and moved as its stored numbers, as before; an interleaved one as the value it stands for. The sphere is
+every vertex and every shape a morph target gives it. A position is read, drawn, edged, moved and
+given normals at the value it stands for: a normalised integer is scaled back, and a position two
+numbers wide lies in the plane z = 0. The sphere is
 centred on the box and reaches the farthest vertex. Setting an attribute other than `position`, the
 index or a group keeps the bounds. `clone()` copies every list, morph target, group, range, data,
 bound and recipe. `toNonIndexed()` gives every corner a vertex of its own. `dispose()` runs each

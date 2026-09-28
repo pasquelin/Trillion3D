@@ -88,6 +88,8 @@ async function serveFile(
   // The file is opened before the headers leave, so a file it cannot read is still a 404.
   const stream = createReadStream(file);
   await once(stream, 'open');
+  // A client gone meanwhile closed the response: nothing may pipe onto it, the file closes now.
+  if (response.destroyed) return stream.destroy();
   const encoded = compress?.(file),
     brotli = encoded && acceptsBrotli(acceptEncoding);
   response.writeHead(200, {
