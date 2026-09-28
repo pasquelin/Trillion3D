@@ -66,8 +66,15 @@ function refreshEyeKeys(blendState: BlendState, eye: ArrayLike<number>) {
  * would describe an order the frame did not rank — worse, a plan reseeded to another length
  * since would index them out of itself. A frame without a camera has no paint order; it therefore
  * does not paint.
+ *
+ * `cull` is the frustum verdict: the box tree, or develop's item walk the equivalence test
+ * ranks the same scene with (`hierarchyOracle.fixture.ts`).
  */
-export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> | undefined) {
+export function orderBlendPasses(
+  blendState: BlendState,
+  eye: ArrayLike<number> | undefined,
+  cull: (blendState: BlendState) => number = cullBlendHierarchy,
+) {
   if (!eye || !blendState.blendGpu.length) {
     blendState.runCount[0] = 0;
     blendState.runCount[1] = 0;
@@ -80,7 +87,7 @@ export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> 
   refreshEyeKeys(blendState, eye);
   // A second walk, not one more line in the key walk: the fused loop slowed the sort that follows
   // by four to nine percent on a camera jump (`bench/perf/browser/transparent-orders.perf.ts`).
-  const rejected = cullBlendHierarchy(blendState);
+  const rejected = cull(blendState);
   const { orders, orderMoved, runs, runCount } = blendState;
   for (let pass = 0; pass < orders.length; pass++) {
     const order = orders[pass];
