@@ -7,6 +7,8 @@ import { STALE_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts'
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { refreshWebgpuMaterials } from '../pages/io/refreshMaterials.ts';
+import { deviceAnswering } from '../frame/deviceAnswer.ts';
 import { frameTransmittance, grantShadowTransmittance } from './transmittanceGrant.ts';
 
 const HELD = 1000,
@@ -98,5 +100,24 @@ test('a layer asked late holds the frames until it lands, then every mapped page
   assert.equal(pool.dirty[3], STALE_FULL, 'the mapped page is drawn again, with the layer');
   assert.equal(pool.dirty[4], 0, 'a free page is left alone');
   assert.equal(frameTransmittance(rt, encoder), layer);
+  assert.equal(lights.shadowGrant, grant, 'asked once');
+});
+
+test('a blended surface rewritten to cast asks its layer before any frame, drawn at the first', async () => {
+  const { rt, lights, layer } = sized(),
+    surface = { transparentShadow: false, blending: 'normal', transmission: 0, opacity: 0.5 };
+  Object.assign(rt, {
+    blendState: { blendGpu: [{ surface }] },
+    layout: { rows: { tableEpoch: 0 } },
+    vis: {},
+  });
+  Object.assign(rt.run.gate, { sceneMoved() {} });
+  surface.transparentShadow = true;
+  refreshWebgpuMaterials(rt);
+  const grant = lights.shadowGrant!;
+  assert.equal(grant?.settled, false, 'asked by the rewrite, before any frame is encoded');
+  assert.equal(deviceAnswering(rt), true, 'the next frame is held on it');
+  await grant.done;
+  assert.equal(frameTransmittance(rt, {} as GPUCommandEncoder), layer, 'the first frame reads it');
   assert.equal(lights.shadowGrant, grant, 'asked once');
 });

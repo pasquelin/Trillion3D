@@ -84,15 +84,29 @@ export async function grantShadowTransmittance(
   run.gate.resourcesChanged();
 }
 
+/** Asks the grant for the layer once: never held, denied or already asked. */
+function askShadowTransmittance(rt: WebgpuPagesRuntime) {
+  const { lights } = rt;
+  if (lights.shadows?.transmittanceHeld || lights.transmittanceDenied) return;
+  if (!grantPending(lights.shadowGrant))
+    lights.shadowGrant = startGrant(grantShadowTransmittance(rt));
+}
+
+/**
+ * A blended surface turns casting only by a host rewrite of its values (`castsBlendShadow`,
+ * `refreshWebgpuMaterials`), between two frames: the layer is asked there, before the next frame,
+ * which is held while the device answers (`deviceAnswering`). No frame is drawn without it.
+ */
+export function followBlendedCasting(rt: WebgpuPagesRuntime) {
+  if (rt.lights.shadows?.texture && sceneCastsBlended(rt)) askShadowTransmittance(rt);
+}
+
 /**
  * The transmittance layer a frame whose blended casters hold a row draws into (`readTransmittance`).
- * A layer not asked with the pool — a surface turned casting since — is asked now: the frames after
- * this one are held until the device answers (`deviceAnswer`), then its pages are drawn again.
+ * The layer is asked before the frame — with the pool, or when a surface turns casting
+ * (`followBlendedCasting`) —; the ask here is only a guard, never met by a drawn scene.
  */
 export function frameTransmittance(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
-  const { lights } = rt,
-    atlas = lights.shadows!;
-  if (!atlas.transmittanceHeld && !lights.transmittanceDenied && !grantPending(lights.shadowGrant))
-    lights.shadowGrant = startGrant(grantShadowTransmittance(rt));
-  return atlas.readTransmittance(encoder);
+  askShadowTransmittance(rt);
+  return rt.lights.shadows!.readTransmittance(encoder);
 }
