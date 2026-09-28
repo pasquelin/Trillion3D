@@ -58,6 +58,13 @@ export async function renderForCapture(
   rt.capture.surfaceRenderAllowed = true;
   try {
     renderWebgpuPages(rt, camera, aspect);
+    // Selection can reveal a first mirror after the initial target grant. Finish that grant
+    // and draw its targets before any capture reads them or returns to the original view.
+    if (rt.gpu.targetGrant) {
+      await grantFrameTargets(rt, rt.gpu.device!);
+      renderWebgpuPages(rt, camera, aspect);
+      if (rt.gpu.targetGrant) throw new Error('CAPTURE_TARGETS_CHANGED_DURING_RENDER');
+    }
   } finally {
     rt.capture.surfaceRenderAllowed = false;
   }
@@ -82,4 +89,10 @@ export async function drawResidentCut(
   copyDrawnFromShown(run);
   hooks.beforeEncode?.();
   run.submittedTriangles = encodeDraws(rt, gpuDevice, run.gate.cam);
+  if (rt.gpu.targetGrant) {
+    await grantFrameTargets(rt, gpuDevice);
+    hooks.beforeEncode?.();
+    run.submittedTriangles = encodeDraws(rt, gpuDevice, run.gate.cam);
+    if (rt.gpu.targetGrant) throw new Error('CAPTURE_TARGETS_CHANGED_DURING_ENCODE');
+  }
 }

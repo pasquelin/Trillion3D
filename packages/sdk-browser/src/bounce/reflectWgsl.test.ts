@@ -55,7 +55,7 @@ test('beyond the transition, rough lobes and diffuse or toon models add exactly 
   assert.ok(Math.round(floor * 2 ** 15) / 2 ** 15 <= floor);
 });
 
-test('without bounce the resolve reflects nothing; with it, the cache is bound at its rank', async () => {
+test('the direct base has no proxy fallback; the bounce variant binds its surface cache', async () => {
   assert.doesNotMatch(DIRECT_LIGHTING_SHADER, /mirrorLighting|reflectedRadiance|rayRadiance/);
   // Without probes the reflection returns before firing a ray.
   assert.match(
@@ -85,7 +85,7 @@ test('without bounce the resolve reflects nothing; with it, the cache is bound a
 test('water and probes read the same ray: one reflection model', () => {
   assert.match(
     WATER_COMPOSITE_SHADER,
-    /reflected=F\*reflectedRadiance\(P,Nv,reflect\(-V,Nv\),rough\)/,
+    /reflected=F\*resolvedRadiance\(P,Nv,reflect\(-V,Nv\),rough\)/,
   );
   assert.doesNotMatch(WATER_COMPOSITE_SHADER, /sampleBounce\(P,reflect/);
   assert.ok(BOUNCE_PROBE_SHADER.includes(SURFACE_RAY_WGSL));
@@ -97,7 +97,7 @@ test('water blends its proxy into probe irradiance over the shared mirror transi
   assert.ok(WATER_COMPOSITE_SHADER.includes(`let rough=clamp(normal.a,${ROUGHNESS_FLOOR},1.0);`));
   assert.match(
     WATER_COMPOSITE_SHADER,
-    /reflected=F\*reflectedRadiance\(P,Nv,reflect\(-V,Nv\),rough\)/,
+    /reflected=F\*resolvedRadiance\(P,Nv,reflect\(-V,Nv\),rough\)/,
   );
   const reflected = body(WATER_COMPOSITE_SHADER, 'reflectedRadiance');
   assert.match(reflected, /if\(weight>0\.0\)\{[\s\S]*rayRadiance/);
