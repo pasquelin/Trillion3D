@@ -8,7 +8,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
 
 1. **Pick.** First your open pull requests, if any: unblock each one that is not ready
    (AGENTS.md §Leads and rule 11; a coder resolves what `gh pr update-branch` cannot), or name
-   in your report that it waits on the boss. While two of them are open, start no new coder; a second issue follows AGENTS.md §Leads. Then the open issues of your domain in the order
+   in your report that it waits on the boss. At your agent limit of open ones, start no new coder; a second or third issue follows AGENTS.md §Leads. Then the open issues of your domain in the order
    of AGENTS.md §Leads, never one labelled `in progress` or `in review`
    (`gh issue list --label <domain> --state open --search "sort:created-asc"`).
    Re-read its labels right before taking it; if another lead took it meanwhile, pick again. Then
@@ -18,7 +18,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    (WebGPU, WebGL2, CPU cut) and the two scenes that prove it; one line when they already say it. For a `measure ko` whose cause is `tests`, the note names the fast test
    (no Chrome) that will catch the failing case when one can express it. An issue delivered in
    steps: the brief names the next unticked step. Then launch one `coder` subagent for the issue (`docs/roles/coder.md`), in the foreground
-   (`run_in_background: false`; the one for your second issue, if any, in the background) so its result comes back to you, with a
+   (`run_in_background: false`; those for your other issues, if any, in the background) so its result comes back to you, with a
    brief that names the issue, the files to read and, when the batch needs one, the live example
    below; nothing else. It returns a pull request. A batch that adds or changes something a page can
    show asks for that live example in the same pull request: `site/examples/`, the engine's public
