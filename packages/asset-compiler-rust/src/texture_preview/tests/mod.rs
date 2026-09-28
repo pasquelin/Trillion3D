@@ -102,7 +102,7 @@ pub(super) fn stage_scene_in(
             meshes: &meshes,
             view_map: &view_map,
             to_measure: &BTreeSet::new(),
-            measurements: crate::cutout::MeasureCache::empty(),
+            measurements: crate::cutout::MeasureCache::EMPTY,
         },
         &silent,
     )
