@@ -38,6 +38,7 @@ export function createDagPipeline(device: GPUDevice, buffers: DagBuffers) {
       device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
     const preparePipeline = stage('dagPrepare'),
       clearDrawnPipeline = stage('dagClearDrawn');
+    const rootLevelPipeline = stage('dagRootLevel');
     const levelPipelines = Array.from({ length: LEVEL_QUEUES }, (_, q) => stage(`dagLevel${q}`));
     const wantedPipeline = stage('dagWanted'),
       maskPipeline = stage('dagMask');
@@ -69,6 +70,7 @@ export function createDagPipeline(device: GPUDevice, buffers: DagBuffers) {
       layout,
       preparePipeline,
       clearDrawnPipeline,
+      rootLevelPipeline,
       levelPipelines,
       wantedPipeline,
       maskPipeline,

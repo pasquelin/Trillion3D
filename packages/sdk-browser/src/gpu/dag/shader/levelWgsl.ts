@@ -133,8 +133,12 @@ fn descend(src:u32,node:CullNode){
  if(node.childCount>0u){queueAppend((src+1u)%${LEVEL_QUEUES}u,node.firstChild,node.childCount);return;}
  spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
 }
+/** Pass 0: queue 0 holds one root per primitive at its rank, so a range's dispatch starts at its
+ *  first. Queue 0 reused deeper (level 3, 6…) mixes primitives and is read from zero (\`dagLevel0\`). */
 @compute @workgroup_size(64)
-fn dagLevel0(@builtin(global_invocation_id) id:vec3u){levelStep(0u,id.x+range.first);}
+fn dagRootLevel(@builtin(global_invocation_id) id:vec3u){levelStep(0u,id.x+range.first);}
+@compute @workgroup_size(64)
+fn dagLevel0(@builtin(global_invocation_id) id:vec3u){levelStep(0u,id.x);}
 @compute @workgroup_size(64)
 fn dagLevel1(@builtin(global_invocation_id) id:vec3u){levelStep(1u,id.x);}
 @compute @workgroup_size(64)

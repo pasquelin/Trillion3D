@@ -62,6 +62,7 @@ function encodeOnce(
     bindGroups,
     preparePipeline,
     clearDrawnPipeline,
+    rootLevelPipeline,
     levelPipelines,
     wantedPipeline,
     maskPipeline,
@@ -136,7 +137,7 @@ function encodeOnce(
   // exist. A primitive whose caller supplies an empty hierarchy would make the two diverge. Its
   // entries are its primitives': each range reads its own. A deeper level mixes them, so each
   // range walks the level's whole queue and keeps its own primitives' nodes.
-  perRange(pass, levelPipelines[0], (count) => count * views);
+  perRange(pass, rootLevelPipeline, (count) => count * views);
   // Each following level reads only the nodes the previous one kept, and fills the next of the
   // three queues — the one a level earlier cleared. The dispatched count is that of its stage's
   // nodes, an upper bound the layout knows.
