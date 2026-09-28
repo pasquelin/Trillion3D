@@ -58,7 +58,7 @@ export type BlendLighting = {
   tileLights: GPUBuffer;
   /** The resident proxy: the same far-shadow ray as the opaque resolve, not another. */
   proxy: GPUBuffer;
-  /** The bounce surface cache the water's reflection reads (`../../bounce/reflectWgsl.ts`). */
+  /** The bounce surface cache transparent and water reflections read (`../../bounce/reflectWgsl.ts`). */
   surfaceCache: GPUBuffer;
 };
 
@@ -171,6 +171,7 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     { binding: b.probes, resource: { buffer: r.probes } },
     { binding: b.tileLights, resource: { buffer: r.tileLights } },
     { binding: b.proxy, resource: { buffer: r.proxy } },
+    { binding: b.surfaceCache, resource: { buffer: r.surfaceCache } },
   ];
 }
 

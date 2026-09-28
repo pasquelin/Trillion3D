@@ -46,9 +46,8 @@ export function createWebgpuResidentEnsurer({
   prefetch,
 }: EnsureOptions) {
   /** The published share of the main thread (`STREAMING_FRAME_MS`), read synchronously: past it a
-   *  job yields a task — a due frame goes through; past `STREAMING_SHARES_PER_FRAME` of a visible
-   *  page, a frame — and starts a new share; a hidden tab never waits, so it loads too. Opened only
-   *  after a yield, never by a job: the next job may start in the task the last one ended in. */
+   *  job yields a task, past `STREAMING_SHARES_PER_FRAME` of a visible page a frame (a hidden tab
+   *  never waits), and opens a new share — only after a yield, never in the task a job ended in. */
   const budget = createFrameBudget(STREAMING_FRAME_MS);
   const nextShare = createSharePace(budget.open, STREAMING_SHARES_PER_FRAME);
   /** The reads a pass starts before its admissions, under the job's `reads`; none without `prefetch`. */
@@ -67,9 +66,8 @@ export function createWebgpuResidentEnsurer({
    * What the camera left: the casters the light cuts want, then the pages ahead of the camera,
    * loaded only into slots nobody holds — free, or taken by a page no tier wants. They are never
    * pinned: a camera page evicts them, they never evict a camera page, and an object on screen is
-   * never coarsened for a shadow or for a view to come. The ones already resident are moved to the
-   * far end of the eviction order first, so an arrival of these tiers never takes the slot of
-   * another page of them.
+   * never coarsened for a shadow or for a view to come. Those resident already move to the far end
+   * of the eviction order first: an arrival of these tiers never takes another one's slot.
    */
   const loadLowerTiers = async (
     lower: readonly PageRec[],
@@ -119,6 +117,7 @@ export function createWebgpuResidentEnsurer({
     jobFrame: number,
     jobId: number,
     cameraWaiting: () => boolean = () => false,
+    landed: () => void = () => {},
   ) => {
     let cache = getCache();
     if (!cache) return;
@@ -169,7 +168,8 @@ export function createWebgpuResidentEnsurer({
           if (!tracking.wanted.has(key) || cache.get(address)) continue;
         }
         try {
-          await admit(rec);
+          // A page whose parents lack their bytes is not loaded (-1): nothing to draw, no wake.
+          if ((await admit(rec)) > 0) landed();
           budget.spend();
         } catch (error) {
           if (!String(error).includes('ALL_PAGES_PINNED')) throw error;
