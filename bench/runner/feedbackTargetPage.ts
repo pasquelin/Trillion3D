@@ -138,22 +138,8 @@ export async function runFeedbackTarget(options: {
         gpuFrameMs,
         gpuPassSamples,
         residency,
-        counters: {
-          gpuFrameTargetBytes: last.gpuFrameTargetBytes,
-          residentPages: last.residentPages,
-          pagesLoading: last.pagesLoading,
-          coverageReady: last.coverageReady,
-          selectedTriangles: last.selectedTriangles,
-          drawnTriangles: last.drawnTriangles,
-          uncoveredTriangles: last.uncoveredTriangles,
-          textureTilesResident: last.textureTilesResident,
-          textureTilesPending: last.textureTilesPending,
-          textureTilesRequested: last.textureTilesRequested,
-          textureTilesAtLevel: last.textureTilesAtLevel,
-          textureMissingLevels: last.textureMissingLevels,
-          textureTilesRefused: last.textureTilesRefused,
-          frameHeld: last.frameHeld,
-        },
+        // The last frame's whole metrics: target bytes, residency and tile counters among them.
+        counters: last,
         capture,
       });
     }

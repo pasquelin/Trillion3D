@@ -39,10 +39,7 @@ async function main() {
   }
   const side = { name: 'probe', dist, from: 'folder' };
   const captures = new Map<string, Capture>();
-  const { server, port } = await startServer({
-    mounts: resolveMounts(ROOT, [side]),
-    captures,
-  });
+  const { server, port } = await startServer({ mounts: resolveMounts(ROOT, [side]), captures });
   const report = {
     command: `node bench/runner/feedbackTargetAb.ts ${process.argv.slice(2).join(' ')}`,
     head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
