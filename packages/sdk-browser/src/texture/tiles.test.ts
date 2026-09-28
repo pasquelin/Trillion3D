@@ -66,8 +66,9 @@ const blocks = (lane: string) => (lane === 'lossless' ? 4 : 1);
 // Behaviour: half the budget per atlas, a layer per lane that has textures, the rest by the
 // bytes each lane's tiles would take — a block texel a quarter of an RGBA8 one —, a lane never
 // above what its tiles need, the remainder going to the others; `scene` when every lane is
-// served under the budget, `minimum` when the budget cannot give each lane its layer,
-// `device-limit` when a lane exceeds the layers the device accepts; no layer for an empty lane.
+// served under the budget; under the floor of one layer per lane the layers stay and the budget is
+// held tile by tile (`minimum` only under the tails and one tile to stream into); `device-limit`
+// when a lane exceeds the layers the device accepts; no layer for an empty lane.
 test('the pool budget yields whole layers per lane, and never refuses: it raises or brings back, by name', () => {
   const demand = { color: lanes(5000, 0), data: lanes(5000, 0) };
   const drawn = (bytes: number, device?: GPUDevice) =>
