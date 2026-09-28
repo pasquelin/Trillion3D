@@ -49,7 +49,10 @@ function graph(seed: number, size: number) {
   const shapes = Array.from({ length: 3 }, () =>
     new Geometry().setAttribute(
       'position',
-      new BufferAttribute(Float32Array.from({ length: 9 }, () => rnd() * 4 - 2), 3),
+      new BufferAttribute(
+        Float32Array.from({ length: 9 }, () => rnd() * 4 - 2),
+        3,
+      ),
     ),
   );
   const scene = new Scene(),

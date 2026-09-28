@@ -36,7 +36,10 @@ test('each image draws the graph as the edits since the last one left it', () =>
     const from = context.of('drawElements').length;
     draw.render({} as HostCamera);
     draw.host.drawHostGeometry(createHostDrawCamera(), OUTPUT);
-    return context.of('drawElements').slice(from).map((args) => args[1]);
+    return context
+      .of('drawElements')
+      .slice(from)
+      .map((args) => args[1]);
   };
   assert.deepEqual(frame(), [3, 6]);
   assert.deepEqual(frame(), [3, 6], 'nothing changed: the kept lists');
