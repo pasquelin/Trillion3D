@@ -14,8 +14,10 @@ export const ALPHA_BLEND: GPUBlendState = BLEND_EQUATIONS.normal!;
 export type BlendPipelines = readonly [GPURenderPipeline, GPURenderPipeline, GPURenderPipeline];
 
 /** Pipelines a transparent pass picks by plan rank (`draw.ts`): the water surfaces' three, or the
- *  blend pass's modes. */
-export type RankedPipelines = { at(rank: number): GPURenderPipeline | undefined };
+ *  blend pass's modes, `filtered` in an image with a display filter (`displayFilter.ts`). */
+export type RankedPipelines = {
+  at(rank: number, filtered?: boolean): GPURenderPipeline | undefined;
+};
 
 /** What a transparent pass compiles per blending mode, kept by mode rank (`BLEND_MODES`): `byMode`
  *  holds those compiled so far; `precompile` compiles modes off the frame, and `at` compiles a mode
@@ -67,7 +69,7 @@ export const declaredBlendModes = (items: readonly BlendGpuItem[]) =>
  *  `ModePipelines`, whose `byMode` holds the three culls of each mode compiled so far. */
 export interface BlendModePipelines extends RankedPipelines {
   readonly byMode: readonly (readonly GPURenderPipeline[] | undefined)[];
-  at(rank: number): GPURenderPipeline;
+  at(rank: number, filtered?: boolean): GPURenderPipeline;
 }
 
 /**

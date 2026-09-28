@@ -38,8 +38,9 @@ export interface DeferredSources {
 /** What composition reads: a colour and its accumulated share, else the lit image's flags, and
  *  the chain's last blend when it left it to the composition (#963). */
 export type ComposedImage = { color: GPUTextureView; share?: GPUTextureView; bloom?: FusedBlend };
-/** What the temporal pass resolves: the colour, and each pixel's as-is share beside it. */
-export type AccumulatedImage = Required<Omit<ComposedImage, 'bloom'>>;
+/** What the temporal pass resolves: the colour, each pixel's as-is share beside it, and the
+ *  display filter of an image whose blends filter (`../../webgpu/blend/displayFilter.ts`). */
+export type AccumulatedImage = Required<Omit<ComposedImage, 'bloom'>> & { filter?: GPUTextureView };
 export interface DeferredBindings {
   uniform: GPUBuffer;
   placeholders: {
