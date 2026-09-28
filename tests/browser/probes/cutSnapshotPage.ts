@@ -69,7 +69,7 @@ async function mesure(
   /** The frame's screen threshold: it is what decides the CUT SIZE, hence what a
    *  cap can lose. Time is measured at the last one set. */
   const poseSeuil = (erreur: number): void => {
-    writeDagUniforms(uni, packed, { ...uniforms, pixelError: erreur }, true);
+    writeDagUniforms(uni, packed, { ...uniforms, pixelError: erreur }, true, livre.listCap);
     device.queue.writeBuffer(livre.uniforms, 0, uni);
   };
   poseSeuil(1);

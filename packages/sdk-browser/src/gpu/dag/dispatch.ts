@@ -48,6 +48,8 @@ export function createDagDispatch(
       if (state.mapped.includes(true)) return;
       growDagList(resources, state.grow);
       state.grow = 0;
+      // New uniforms and a new readout: the cut runs again and is read again.
+      state.lastSubmitted = state.lastReadback = undefined;
     }
     const { output, readback, outputBytes, readbackBytes: copied, listCap } = resources;
     const compute =
@@ -111,20 +113,23 @@ export function createDagDispatch(
             const bytes = readback[i].getMappedRange(),
               drawnWordOffset = residentCut ? outputBytes / 4 : 0;
             const parsed = parseDagOutput(bytes, 0, copied, drawnWordOffset, scratch[i]);
-            const needed = parsed?.truncated ? listDemand(bytes, drawnWordOffset) : 0;
+            // A cut past the list: the list grows and the next dispatch cuts again, rather than
+            // hand the host a truncated readout it could only give up to the CPU cut.
+            const grown = parsed?.truncated
+              ? grownListCap(
+                  device.limits,
+                  packed.pageCount,
+                  listCap,
+                  listDemand(bytes, drawnWordOffset),
+                )
+              : undefined;
             readback[i].unmap();
             if (!parsed) {
               fail();
               return;
             }
-            // A cut past the list: the list grows and the next dispatch cuts again, rather than
-            // hand the host a truncated readout it could only give up to the CPU cut.
-            const grown = parsed.truncated
-              ? grownListCap(device.limits, packed.pageCount, listCap, needed)
-              : undefined;
             if (grown) {
               state.grow = Math.max(state.grow, grown);
-              state.submittedResidencyRevision = state.readbackResidencyRevision = -1;
               return;
             }
             // A residency that moved since makes the drawable mask a lie. A pose that moved only
