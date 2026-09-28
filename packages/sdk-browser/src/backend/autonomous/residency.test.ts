@@ -1,5 +1,4 @@
-// A7: residency url sets (pendingUrls, pageUrls, collectPendingUrls) live as long as the
-// host instead of being rebuilt every frame. Oracle: the versions from before batch A, in
+// A7: residency requests and retained ranks live as long as the host. Oracle: the URL versions in
 // `../../../../../bench/oracles/browser/selection.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,6 +12,10 @@ import {
 import type { PageRec } from '../../page/selection/selection.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
+import type { HostRetentionDelta } from '../../streaming/types.ts';
+
+const urlsOf = (delta: HostRetentionDelta) =>
+  Array.from(delta.held.subarray(0, delta.heldCount), (rank) => delta.urls[rank]);
 
 // A minimal but complete geometry store: only `releasePage` is read by
 // `createAutonomousResidency`, but its parameter type is the full geometry-store shape.
@@ -64,7 +67,7 @@ function makeEnv() {
   return { bootstrapUrls, modifiedPages, shown, requested };
 }
 
-test('pendingUrls and pageUrls match the reference on a normal host, called twice in a row', () => {
+test('pending URLs and retained ranks match the former URL set on repeated reads', () => {
   const env = makeEnv();
   const optimisee = createAutonomousResidency({
     ...env,
@@ -79,7 +82,11 @@ test('pendingUrls and pageUrls match the reference on a normal host, called twic
   });
   for (const pass of [0, 1]) {
     assert.deepEqual(optimisee.pendingUrls(), reference.pendingUrls(), `pending pass ${pass}`);
-    assert.deepEqual(optimisee.pageUrls(), reference.pageUrls(), `retained pass ${pass}`);
+    assert.deepEqual(
+      urlsOf(optimisee.retainedRanks()),
+      reference.pageUrls(),
+      `retained pass ${pass}`,
+    );
   }
 });
 
@@ -98,7 +105,7 @@ test('an empty host produces empty sets from both implementations', () => {
   const reference = referenceResidency({ ...empty, desired: [], pending: [], retained: [] });
   assert.deepEqual(optimisee.pendingUrls(), []);
   assert.deepEqual(reference.pendingUrls(), []);
-  assert.deepEqual(optimisee.pageUrls(), []);
+  assert.deepEqual(urlsOf(optimisee.retainedRanks()), []);
   assert.deepEqual(reference.pageUrls(), []);
 });
 
@@ -137,18 +144,19 @@ test('dropPage counts one eviction per page the store held, never the root cover
   assert.equal(residency.cacheEvictions, 1, 'a page that held nothing is not evicted again');
 });
 
-test('the streamer pins the set the image gathered, without gathering it again', () => {
+test('retained ranks hold the image until its cut changes', () => {
   const env = makeEnv();
   const residency = createAutonomousResidency({
     ...env,
     views: [env],
     geometryStore: fakeGeometryStore(),
   });
-  const pinned = [...residency.pageUrls()];
+  const pinned = urlsOf(residency.retainedRanks());
   env.shown.push(fakePageRec('z.bin'));
-  assert.deepEqual(residency.pageUrls(), pinned, 'read, not rebuilt');
-  assert.ok(!residency.pageUrls().includes('z.bin'));
+  assert.deepEqual(urlsOf(residency.retainedRanks()), pinned, 'read, not rebuilt');
+  assert.equal(residency.retainedRanks().enteredCount, 0);
+  assert.ok(!urlsOf(residency.retainedRanks()).includes('z.bin'));
   residency.keptChanged();
-  assert.ok(residency.pageUrls().includes('z.bin'));
-  assert.equal(residency.pageUrls().length, pinned.length + 1);
+  assert.ok(urlsOf(residency.retainedRanks()).includes('z.bin'));
+  assert.equal(urlsOf(residency.retainedRanks()).length, pinned.length + 1);
 });
