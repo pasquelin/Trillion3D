@@ -33,7 +33,7 @@ use border::{live_triangles, lock_triangles_touching, lost_locks, required_locks
 use quality::backlit_corners;
 
 /// Times group restarted with extra locks before declared lost.
-const BORDER_RETRIES: usize = 3;
+pub(super) const BORDER_RETRIES: usize = 3;
 
 /// Succeeded reduction: simplified surface and re-clustered result.
 pub(super) struct Attempt {
@@ -76,8 +76,11 @@ pub(super) fn reduce_group(
         // Reduction yielding no fewer clusters does not advance DAG: refused,
         // even if removing triangles, rather than adding unreplaced level.
         Ok(chosen) if chosen.progresses(children.len()) => chosen,
-        Ok(_) => return stall(input, &live, children.len(), Stop::NoCollapse),
-        Err(stop) => return stall(input, &live, children.len(), stop),
+        stalled => {
+            let stop = stalled.err().unwrap_or(Stop::NoCollapse);
+            let frame = (sphere, child_error, source_rank);
+            return solved::stalled(input, &live, children.len(), stop, frame);
+        }
     };
     let kept = &chosen.simplified.indices;
     let vanished =
@@ -96,16 +99,8 @@ pub(super) fn reduce_group(
         clusters: chosen.clusters,
         source_rank,
         relocked: chosen.relocked,
+        placed: None,
     }))
-}
-
-fn stall(
-    input: &GroupReductionInput,
-    live: &[u32],
-    children: usize,
-    stop: Stop,
-) -> Result<std::result::Result<GroupReduction, GroupOutcome>> {
-    diagnosis::stalled(input, live, children, stop).map(Err)
 }
 
 /// Simplifies `source` to half triangles, restarting with extra locks as long as a shared vertex
@@ -134,7 +129,7 @@ pub(super) fn attempt(
             let _t = Timer::new(Phase::Simplify);
             simplify_with_locked_vertices(
                 input.positions,
-                input.attributes,
+                &input.attributes.weighted(),
                 source,
                 triangles / 2,
                 extra.is_empty(),
@@ -157,7 +152,7 @@ pub(super) fn attempt(
             }
             border_retries += 1;
             lost
-        } else if let Some(normals) = input.normals {
+        } else if let Some(normals) = input.attributes.normals() {
             let foreign = attributes::own_normals(
                 &mut simplified.indices,
                 source,

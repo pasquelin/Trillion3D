@@ -5,14 +5,18 @@ use super::*;
 use crate::join::Join;
 use std::collections::HashMap;
 
-/// No coarse triangle spans two islands of a texture set. The limit: an island is a connected
+/// No coarse triangle spans two islands of a texture set, but one that descends from a
+/// seam-locked group reduced with solved vertices, which may draw across the seams it held. The
+/// limit: an island is a connected
 /// component of the surface once the seams are cut, so a seam whose two sides stay connected
 /// elsewhere — a sphere's or a cylinder's wrap column — is one island and a triangle across it
 /// passes. What is caught is a coarse triangle whose corners lie in different islands.
 pub(super) fn check_islands(case: &Case, indices: &[u32], built: &Built, label: &str) {
     for (name, uvs) in case.uv_sets() {
         let island = islands(&case.positions, uvs, indices);
-        for cluster in built.dag.iter().filter(|c| c.level > 0) {
+        let solved = built.solved(case.vertex_count());
+        let clusters = built.dag.iter().zip(&solved);
+        for (cluster, _) in clusters.filter(|&(c, &solved)| c.level > 0 && !solved) {
             for tri in cluster.indices.chunks(3) {
                 let (a, b, c) = (
                     island[tri[0] as usize],
