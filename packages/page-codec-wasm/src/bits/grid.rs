@@ -1,5 +1,6 @@
-//! The position grid of a primitive, written once for both cuts: the compiler's
-//! (`geometry_page_quant::primitive_exponent`) and the one the world runs on drawn triangles
+//! The position and texture grids of a primitive, written once for both cuts: the compiler's
+//! (`geometry_page_quant::primitive_exponent`, `primitive_uv_exponent`) and the one the engine
+//! runs on drawn triangles or on a compiled primitive's own clusters
 //! (`packages/sdk-browser/src/world/page/runtimeCut.ts`, through `wasm_cone.rs`).
 
 use super::{MAX_BITS, MAX_EXPONENT};
@@ -8,6 +9,21 @@ use super::{MAX_BITS, MAX_EXPONENT};
 /// 4 km, where the 24-bit page field bounds the grid, so a kilometre terrain seen from 2 m
 /// quantizes under half a pixel rather than several.
 pub const TILE_EXTENT_LOG2: i32 = 5;
+
+/// Texture coordinates sit on a fixed grid of 2^-14: a quarter of a texel on a 4096 map.
+pub const UV_EXPONENT: i32 = -14;
+
+/// A tile's width, as a power of two in object units, for a primitive the largest world `scale`
+/// places: 32 m in those units, a missing, zero or non-finite scale taken as a metre per unit.
+/// Rounded down: a tile never spans more than 32 m.
+pub fn tile_log2(scale: Option<f64>) -> i32 {
+    let metres = 2f64.powi(TILE_EXTENT_LOG2);
+    let tile = match scale {
+        Some(value) if value.is_finite() && value > 0.0 => metres / value,
+        _ => metres,
+    };
+    tile.log2().floor() as i32
+}
 
 /// Grid of a primitive, the finer of two rules: its widest extent, capped at 2^`tile_log2`, split
 /// into 2^16 steps, and an eighth of the finest group error its DAG published. Both are
@@ -50,5 +66,15 @@ pub fn primitive_grid_exponent(
         finest_exponent(extent)
     } else {
         grid_exponent(extent, finest_error, tile_log2)
+    }
+}
+
+/// The texture grid of a primitive whose texture coordinates span `span` at most: the format's,
+/// or for a `blended` one the finest grid that span fits, never coarser than the format's (#875).
+pub fn uv_grid_exponent(span: f64, blended: bool) -> i32 {
+    if blended && span > 0.0 {
+        finest_exponent(span).min(UV_EXPONENT)
+    } else {
+        UV_EXPONENT
     }
 }

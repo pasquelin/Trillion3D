@@ -15,6 +15,7 @@ import { drawnInstanced } from '../../placement/autonomousPlacements.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
+import { assertWithinBox, itemSize, pageOf } from './pageCheck.ts';
 
 type GeometryEnvironment = {
   scene: Scene;
@@ -30,21 +31,6 @@ type GeometryEnvironment = {
 };
 
 const released = new WeakSet<object>();
-
-/** A decoded position may leave the page's box by the page's own quantization error, no more. */
-function assertWithinBox(data: DecodedGeometryPage, rec: PageRec) {
-  const positions = data.attributes.position,
-    slack = 1e-5 + data.quantizationError;
-  for (let i = 0; i < positions.length; i++) {
-    const axis = i % 3;
-    if (positions[i] < rec.min[axis] - slack || positions[i] > rec.max[axis] + slack)
-      throw new Error('AUTONOMOUS_PAGE_BOUNDS');
-  }
-}
-
-/** Components of a decoded attribute, by name; anything else is a UV pair. */
-const ITEM_SIZE: Record<string, number> = { position: 3, normal: 3, color: 4 };
-const itemSize = (name: string) => ITEM_SIZE[name] ?? 2;
 
 export function createAutonomousGeometry(env: GeometryEnvironment) {
   const { scene, allPages, byUrl, baseMaterials, colorMaterials } = env;
@@ -132,6 +118,30 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     for (const list of [allPages, env.bootstrap, ...env.views.lists()])
       for (let i = list.length - 1; i >= 0; i--) if (removed.has(list[i])) list.splice(i, 1);
   };
+  /** Each record draws its page: `read`, or the one cut again for its class (`pageOf`). Records
+   *  placed by rows share one geometry per page they draw: its box and the check of it. */
+  const storeRecords = (recs: readonly PageRec[], read: DecodedGeometryPage | undefined) => {
+    const rowed = new Map<DecodedGeometryPage, ReturnType<typeof hostPageGeometry>>(),
+      decoded = new Map<Uint8Array, DecodedGeometryPage>();
+    for (const rec of recs) {
+      release(rec);
+      const data = pageOf(rec, read, decoded),
+        shared = rec.placement ? rowed.get(data) : undefined;
+      if (!shared) assertWithinBox(data, rec);
+      const geometry = shared ?? hostPageGeometry(data, itemSize, rec.min, rec.max);
+      if (rec.placement) rowed.set(data, geometry);
+      const base = baseMaterials.get(rec)!;
+      // Lazily: a page without a colour attribute must not make a vertex-coloured twin.
+      const twin = (one: HostMaterial) => colouredTwin(colorMaterials, one);
+      const paint = () => (Array.isArray(base) ? base.map(twin) : twin(base));
+      wearDeclaration(rec, data.attributes.color ? paint() : base);
+      setArray(rec, data.indices);
+      rec.attributes = geometry.attributes;
+      rec.geometry = geometry;
+      // Each geometry uploads its own buffers: counted as `release` gives them back.
+      if (!shared) state.allocationBytes += hostPageBytes(geometry);
+    }
+  };
   const storeGeometryPage = (url: string, data: DecodedGeometryPage) => {
     const recs = byUrl.get(url);
     if (!recs) return false;
@@ -144,25 +154,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     )
       throw new Error('AUTONOMOUS_PAGE_METADATA_MISMATCH');
     if (recs[0] && !recs[0].array) state.residentPages++;
-    let rowedGeometry: ReturnType<typeof hostPageGeometry> | undefined;
-    for (const rec of recs) {
-      release(rec);
-      // Records placed by rows share the page: its geometry, its box and the check of it.
-      const shared = !!rec.placement && !!rowedGeometry;
-      if (!shared) assertWithinBox(data, rec);
-      const geometry = shared ? rowedGeometry! : hostPageGeometry(data, itemSize, rec.min, rec.max);
-      if (rec.placement) rowedGeometry = geometry;
-      const base = baseMaterials.get(rec)!;
-      // Lazily: a page without a colour attribute must not make a vertex-coloured twin.
-      const twin = (one: HostMaterial) => colouredTwin(colorMaterials, one);
-      const paint = () => (Array.isArray(base) ? base.map(twin) : twin(base));
-      wearDeclaration(rec, data.attributes.color ? paint() : base);
-      setArray(rec, data.indices);
-      rec.attributes = geometry.attributes;
-      rec.geometry = geometry;
-      // Each geometry uploads its own buffers: counted as `release` gives them back.
-      if (!shared) state.allocationBytes += hostPageBytes(geometry);
-    }
+    storeRecords(recs, data);
     return recs.length > 0;
   };
   // True when the store now holds the page: the host did not replace it, and a record draws it.
@@ -194,6 +186,9 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     },
     removeRecords,
     storeGeometryPage,
+    /** Resident records draw their page again, as a class change cut it (#846): `read`, the
+     *  page's own, for those that draw it. */
+    restoreRecords: storeRecords,
     acceptGeometryPage,
   };
 }

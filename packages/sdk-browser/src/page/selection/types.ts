@@ -20,6 +20,10 @@ export type PageRec = {
    *  transparent cluster — its forward draw still reads an index buffer — and on a cache that
    *  carries no geometry page, both of which keep the source float buffers. */
   geometryPage?: GeometryPageDescriptor;
+  /** The cluster page cut again from its source vertices on the grids of the class its material
+   *  moved to in the session, when that class is not the one the compiler cut it for (#846): the
+   *  WebGL2 page path draws it in place of the page it reads at `url`. */
+  recut?: Uint8Array;
   min: number[];
   max: number[];
   role?: 'exact' | 'coarse';

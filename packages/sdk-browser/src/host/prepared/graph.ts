@@ -26,6 +26,7 @@ import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { placedMeshes } from './placed.ts';
+import { registerPagedSource } from './pagedSource.ts';
 import type { RowLink } from '../../scene/partition/rows.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
@@ -39,6 +40,8 @@ type Inputs = {
   /** The meshes the drawn pages were cut from, when not `meshes`: the source document's, at the
    *  same ranks, for the autonomous one, whose primitives are one degenerate triangle each. */
   pagedFrom?: TableDocument['meshes'];
+  /** The geometry of each of those, read when a class change cuts its pages again (#846). */
+  pagedGeometryOf?: (mesh: number, primitive: number) => Geometry;
   geometryOf: (mesh: number, primitive: number) => Geometry;
   materialOf: (rank: number, variant: SurfaceVariant) => Promise<GraphSurface>;
 };
@@ -184,5 +187,10 @@ export async function preparedGraph(inputs: Inputs) {
   for (const root of tables.scene.nodes) scene.add(assemble(root));
   const at = new Map(order.map((rank, index) => [rank, index]));
   const placed = placedMeshes(tables.partition, scene, ranks, (rank) => made[at.get(rank)!]);
+  const { pagedGeometryOf } = inputs;
+  if (pagedGeometryOf)
+    for (const [mesh, { meshes: rank, primitives: p }] of ranks)
+      if (rank !== undefined && p !== undefined)
+        registerPagedSource(mesh, () => pagedGeometryOf(rank, p));
   return { scene, ranks, nodes, placed };
 }

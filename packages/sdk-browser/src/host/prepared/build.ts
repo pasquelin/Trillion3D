@@ -74,7 +74,7 @@ export async function buildPreparedScene(inputs: Inputs) {
   } = await preparedGraph({
     tables,
     meshes: document.meshes,
-    pagedFrom: sceneFile === SOURCE_FILE ? undefined : tables.documents[SOURCE_FILE]?.meshes,
+    ...(sceneFile === SOURCE_FILE ? {} : pagedSource(tables, base)),
     geometryOf: preparedGeometries(document, binary),
     materialOf: preparedMaterials(tables.materials, slot),
   }).finally(() => {
@@ -85,4 +85,17 @@ export async function buildPreparedScene(inputs: Inputs) {
   const associations: BackendContext['associations'] = meshes;
   const textureIndices: Map<HostTexture, number> = ranks;
   return { source, associations, textureIndices, bakedImages: skipped.size, nodes, placed };
+}
+
+/** The source document the autonomous one's pages were cut from: its meshes, and its geometries,
+ *  whose binary is read on the first need of a vertex — a class change cutting pages again (#846). */
+function pagedSource(tables: PreparedSceneTables, base: string) {
+  if (!tables.documents[SOURCE_FILE]) return {};
+  const { document, bufferUrl } = sceneDocument(tables, SOURCE_FILE, base);
+  const binary = readOnce(() =>
+    bufferUrl
+      ? checked(bufferUrl).then((response) => response.arrayBuffer())
+      : Promise.reject(new EngineError('PREPARED_SCENE_MISMATCH', 'the source names no binary')),
+  );
+  return { pagedFrom: document.meshes, pagedGeometryOf: preparedGeometries(document, binary) };
 }
