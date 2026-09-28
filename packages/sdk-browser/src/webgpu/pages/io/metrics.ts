@@ -10,7 +10,7 @@ import { disposeStaticLayer } from '../state/lights.ts';
 import { shadowPoolHeld } from '../../shadow/memoryGrant.ts';
 import { lightCutMetrics } from '../../shadow/casters.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { useWebgpuView } from '../state/viewSwitch.ts';
+import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts';
 
 /**
  * Vertex bytes of an image: the total held at allocation, plus the three concatenated visbuffer
@@ -132,6 +132,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
   markWebgpuLost(rt);
   // The main view's resources are released below; a capture under way releases its own view.
+  for (const view of rt.views.persistent.splice(0)) releaseWebgpuView(rt, view);
   useWebgpuView(rt, rt.views.main);
   rt.run.gate.release();
   services.residency.quietPending();

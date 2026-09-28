@@ -25,7 +25,7 @@ import { SELECTION_HEADER_WORDS } from '../layout.ts';
  */
 export const DAG_COMPACT_WGSL = `const BLOCK:u32=64u;
 const HEAD:u32=${SELECTION_HEADER_WORDS}u;
-fn drawFlag(i:u32)->u32{return flags[views[0u].queueCap+i];}
+fn drawFlag(i:u32)->u32{return flagAt(views[0u].queueCap+i);}
 fn blockCount()->u32{return (views[0u].clusterCount+BLOCK-1u)/BLOCK;}
 /** First word of the block zone in \`work\`, after the thresholds and coverage flags. */
 fn blockBase()->u32{return 0u;}
@@ -58,8 +58,8 @@ fn dagDrawPrefix(@builtin(local_invocation_id) lid:vec3u){
  if(lane==63u){out.pages[views[0u].listCap]=cursor;if(cursor>views[0u].listCap){atomicOr(&out.overflow,1u);}}
 }
 @compute @workgroup_size(64)
-fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u){
- let s=id.x;if(s>=liveCount()){return;}
+fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let s=flatIndex(id.x,id.y,n.x);if(s>=liveCount()){return;}
  // Only live clusters carry a non-zero draw flag; those of the block that are not in the list
  // are zero and add nothing to the rank, exactly as in yesterday's full walk.
  let i=entryIndex(liveAt(s));if(drawFlag(i)==0u){return;}

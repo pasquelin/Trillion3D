@@ -1,5 +1,6 @@
 use super::*;
 use crate::compiler_primitive_warn::primitive_event;
+pub(crate) mod cost;
 
 pub(super) struct PrimitiveInputs<'a> {
     pub o: &'a Options,
@@ -29,6 +30,14 @@ pub(super) struct CompiledPrimitive {
     /// The threshold, in metres, that this cut requested.
     pub proxy_threshold: f64,
     pub collision: Value,
+}
+
+/// `compile_primitive` of one planned `(mesh, primitive)` job, its error naming the job.
+pub(super) fn compile_job(
+    inputs: &PrimitiveInputs<'_>,
+    &(m, p): &(usize, usize),
+) -> Result<CompiledPrimitive> {
+    compile_primitive(inputs, &m, &p).map_err(|e| e.within(m, p))
 }
 
 pub(super) fn compile_primitive(

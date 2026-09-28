@@ -16,8 +16,9 @@ fn external_gltf_load_retains_provenance_and_original_bytes() {
         },
     )
     .unwrap();
-    assert_eq!(loaded.g_bytes, fs::read(root.join("Box.gltf")).unwrap());
-    assert_eq!(loaded.manifest["runtime"]["sha256"], hash(&loaded.g_bytes));
+    let source = fs::read(root.join("Box.gltf")).unwrap();
+    assert_eq!(loaded.g_bytes_len, source.len());
+    assert_eq!(loaded.manifest["runtime"]["sha256"], hash(&source));
     assert_eq!(
         loaded.manifest["runtime"]["sidecars"][0]["sha256"],
         hash(&fs::read(root.join("Box.bin")).unwrap())
@@ -49,7 +50,8 @@ fn embedded_glb_and_triangle_strip_normalize_to_triangles() {
     glb.extend_from_slice(&0x004e4942u32.to_le_bytes());
     glb.extend_from_slice(&bin);
     let (mut g, bin) = parse_glb(&glb).unwrap();
-    let (binary, mut offsets, _) = concat_gltf_buffers(&root, &g, Some(&bin), None).unwrap();
+    let (binary, mut offsets, _) =
+        concat_gltf_buffers(&root, &g, Some(Binary::Owned(bin)), None).unwrap();
     let cancelled = AtomicBool::new(false);
     let budget = Budget {
         limit: 16 * 1024 * 1024,

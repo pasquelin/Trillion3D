@@ -7,6 +7,8 @@ import { createCutDelta } from '../cut/delta.ts';
 import { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import { LAST_USE_WINDOW as W, createWebgpuPinUpdater } from './pinUpdater.ts';
 import { createWebgpuResidencySets } from './sets.ts';
+import { createGroupClosure } from '../../page/cut/groupClosure.ts';
+import { createRequestAdmission } from './requestAdmission.ts';
 import { lruCache, pageOf } from './residentEnsurer.fixture.ts';
 
 /** A binary DAG of `leaves` leaves, heap-ordered: page `i` depends on page `(i - 1) >> 1`. All
@@ -25,6 +27,8 @@ function tree(leaves: number, room: number) {
   });
   const cut = createCutDelta(packed, []),
     drawn = createCutDelta(packed, []);
+  const closure = createGroupClosure([], packed),
+    admission = createRequestAdmission(sets, tracking, closure);
   const cache = lruCache(packed.length);
   for (const page of packed) void cache.load(page.url);
   for (const name of ['get', 'pin', 'unpin', 'touch'] as const) {
@@ -47,11 +51,12 @@ function tree(leaves: number, room: number) {
     const ids = Array.from({ length: span }, (_, i) => first + from + i);
     work.reads = 0;
     cut.apply(ids);
-    sets.applyCut(cut);
+    closure.apply(cut);
+    sets.applyCut(closure.delta);
     // Past the budget the image draws what the pool holds, not the cut: the queue alone keeps it.
     drawn.apply(room < span ? [] : ids);
     sets.applyDrawn(drawn);
-    sets.applyBudget(room);
+    admission.held(room);
     // Every key the pin step is handed is a record it reads.
     work.reads += sets.entering.count + sets.leaving.count;
     pins(cache as never, [], frame, () => {});

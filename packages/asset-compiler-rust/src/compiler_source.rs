@@ -3,10 +3,19 @@
 //! in `plugins`.
 use super::*;
 
+#[cfg(test)]
+mod tests;
+
 pub(super) fn is_glb(bytes: &[u8]) -> bool {
     bytes.len() >= 4 && bytes[0] == b'g' && bytes[1] == b'l' && bytes[2] == b'T' && bytes[3] == b'F'
 }
 pub(super) fn parse_glb(bytes: &[u8]) -> Result<(Value, Vec<u8>)> {
+    let (json, bin) = parse_glb_parts(bytes)?;
+    Ok((json, bytes[bin].to_vec()))
+}
+
+/// Validates the container and locates its BIN without allocating a second copy.
+pub(super) fn parse_glb_parts(bytes: &[u8]) -> Result<(Value, std::ops::Range<usize>)> {
     if bytes.len() < 12 {
         return Err(invalid("GLB too short"));
     }
@@ -41,14 +50,14 @@ pub(super) fn parse_glb(bytes: &[u8]) -> Result<(Value, Vec<u8>)> {
         let data = &bytes[offset..end];
         match chunk_type {
             0x4E4F_534A => json = Some(serde_json::from_slice::<Value>(data)?),
-            0x004E_4942 => bin = Some(data.to_vec()),
+            0x004E_4942 => bin = Some(offset..end),
             _ => {}
         }
         offset = end;
     }
     Ok((
         json.ok_or_else(|| invalid("GLB JSON chunk is required"))?,
-        bin.unwrap_or_default(),
+        bin.unwrap_or(0..0),
     ))
 }
 pub(super) fn primitive_triangles(g: &Value, p: &Value) -> Result<usize> {

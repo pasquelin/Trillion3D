@@ -19,8 +19,7 @@ type QueueOptions = {
   getCache: () => Cache | undefined;
   getFrame: () => number;
   updatePins: () => void;
-  /** The groups the cut closes over: what the GPU cut's admission walks (`requestAdmission.ts`) and
-   *  the CPU cut's ranking is refilled from. */
+  /** The groups the cut closes over: what admission walks for either cut (`requestAdmission.ts`). */
   closure: Pick<GroupClosure, 'closeOver' | 'forEachHeld'>;
   ensureResident: (
     wanted: readonly PageRec[],
@@ -136,14 +135,12 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
      * queue empties, and the image sticks to pinned coverage.
      */
     queueCutResidency(limited: boolean) {
-      sets.decideBy(true, options.closure);
-      sets.applyBudget(limited ? 0 : options.room());
+      admitRequests.held(limited ? 0 : options.room());
       follow();
     },
     /** The GPU cut's: it keeps loading at full budget, admission reading its readback's requests,
      *  coarsest first; the rest is drawn by its nearest resident ancestor. */
     queueGpuCutResidency(cut: GpuCut | null) {
-      sets.decideBy(false, options.closure);
       admitRequests(options.room(), cut);
       follow();
     },

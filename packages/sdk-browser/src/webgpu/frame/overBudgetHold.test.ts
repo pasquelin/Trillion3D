@@ -22,11 +22,11 @@ function overBudgetEngine(slots: number) {
   const cut = world.packed.map((_, id) => id);
   const image = () => {
     world.delta.apply(cut);
-    world.sets.applyCut(world.delta);
+    world.cut();
     cutPending.apply();
     admitGpuCut(rt);
     // Room beyond the pinned cover, as `queueCutResidency` passes it.
-    world.sets.applyBudget(slots - 2);
+    world.budget(slots - 2);
   };
   /** The host serves every page the pool accepted, and nothing else. */
   const serveAccepted = () =>

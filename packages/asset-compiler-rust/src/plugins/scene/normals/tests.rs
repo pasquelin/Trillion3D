@@ -20,13 +20,17 @@ fn shade(order: &[usize], sharp_faces: &[bool], sharp_corners: &[bool]) -> Shade
         corners_of.extend(FAN[*face]);
         offsets.push(corners_of.len() as u32);
     }
-    corners(&Surface {
-        positions: &POINTS,
-        corners: &corners_of,
-        offsets: &offsets,
-        sharp_faces,
-        sharp_corners,
-    })
+    corners(
+        &Surface {
+            positions: &POINTS,
+            corners: &corners_of,
+            offsets: &offsets,
+            sharp_faces,
+            sharp_corners,
+        },
+        &std::sync::atomic::AtomicBool::new(false),
+    )
+    .expect("normal computation")
 }
 
 /// Smoothing groups of the corners, faces placed in this order and all smooth.
@@ -105,5 +109,61 @@ fn v01_a_hard_edge_does_not_weld_the_other_two_faces_of_the_edge() {
         sharp_corners[dure * 3] = true;
         let shaded = shade(&order, &[], &sharp_corners);
         assert_aucun_lissage(&shaded, &order, &format!("hard edge on face {dure}"));
+    }
+}
+
+#[test]
+fn a_pre_cancelled_mesh_returns_no_normals() {
+    let surface = Surface {
+        positions: &POINTS,
+        corners: &FAN[0],
+        offsets: &[0, 3],
+        sharp_faces: &[],
+        sharp_corners: &[],
+    };
+    assert!(corners(&surface, &AtomicBool::new(true)).is_none());
+}
+
+#[test]
+fn cancellation_inside_one_large_polygon_discards_every_partial_stage() {
+    use std::sync::atomic::Ordering;
+    // One polygon exceeds a cancellation slice: face-only checks would finish each stage.
+    let count = 8192usize;
+    let positions: Vec<f32> = (0..count)
+        .flat_map(|rank| {
+            let angle = rank as f32 * std::f32::consts::TAU / count as f32;
+            [angle.cos(), angle.sin(), 0.0]
+        })
+        .collect();
+    let ring: Vec<u32> = (0..count as u32).collect();
+    let surface = Surface {
+        positions: &positions,
+        corners: &ring,
+        offsets: &[0, count as u32],
+        sharp_faces: &[],
+        sharp_corners: &[],
+    };
+    // Newell, all edges, smooth edges, sums, then output. Raise the real token just before
+    // its next slice read, without threads, sleeps, or any mutable production hook.
+    for stage in 1..=5 {
+        let cancelled = AtomicBool::new(false);
+        let mut reached = 0;
+        let mut stopped_at = None;
+        let result = corners_with(&surface, &mut |done| {
+            if done == 4095 {
+                reached += 1;
+                if reached == stage {
+                    cancelled.store(true, Ordering::Relaxed);
+                }
+            }
+            if cancel::stopped(&cancelled, done) {
+                stopped_at = Some(done);
+                return None;
+            }
+            Some(())
+        });
+        assert!(result.is_none(), "partial stage {stage} must not escape");
+        assert_eq!(reached, stage);
+        assert_eq!(stopped_at, Some(4096));
     }
 }
