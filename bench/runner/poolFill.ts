@@ -17,9 +17,8 @@ export function residentFraction(value: string): number | undefined {
 /** The texture pool budget, in bytes, for `fraction` of the `residentBytes` the settled pose holds.
  *  The engine gives each of its two atlases half the budget (`texturePoolFor`) and publishes one
  *  residency for both, so the budget is twice the fraction: each atlas may spend `fraction` of the
- *  whole working set, never less than `fraction` of its own. The engine draws whole layers, one at
- *  least per lane in use, raised by name (`minimum`): a working set under that floor evicts nothing,
- *  and two sides are compared at one absolute budget (`--pool-textures-vivant <MiB>`). */
+ *  whole working set, never less than `fraction` of its own: a lower bound, the engine's floor of
+ *  layers aside (`README.md`). */
 export function residentFractionBudget(fraction: number, residentBytes: number | undefined) {
   if (typeof residentBytes !== 'number' || !(residentBytes > 0))
     throw new Error('the pose holds no texture tile: no working set to take a fraction of');
