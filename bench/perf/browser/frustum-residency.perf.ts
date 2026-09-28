@@ -112,11 +112,14 @@ const residenceResult = await mesure({
     { name: '15k pages', input: grandHote, size: 15000 },
     { name: 'no pages', input: hoteVide, size: 0 },
   ],
-  calcul: (h) => ({
-    pending: [...h.obtenu.pendingUrls()],
-    retained: [...h.obtenu.pageUrls()],
-    attente: collectPendingUrls(h.pages, h.vers).slice(),
-  }),
+  calcul: (h) => {
+    const delta = h.obtenu.retainedRanks();
+    return {
+      pending: [...h.obtenu.pendingUrls()],
+      retained: Array.from(delta.held.subarray(0, delta.heldCount), (rank) => delta.urls[rank]),
+      attente: collectPendingUrls(h.pages, h.vers).slice(),
+    };
+  },
   motif: 'time only — correctness in packages/sdk-browser/src/backend/autonomous/residency.test.ts',
   options: { tours: 60, budgetMs: 1000 },
 });
