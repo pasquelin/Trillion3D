@@ -117,7 +117,7 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
       run.gate.resourcesChanged();
     },
     (error: unknown) => {
-      if (!run.lost && !rt.signal.aborted) diag.diagnosticFailure('shadow-pool-unavailable', error);
+      if (!run.lost) diag.diagnosticFailure('shadow-pool-unavailable', error);
     },
   );
   lights.shadowGrant = startGrant(done);
