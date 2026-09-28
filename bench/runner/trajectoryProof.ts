@@ -31,7 +31,7 @@ export function checkpointIndices(frames: number, interval: number) {
 }
 
 type Measured = Extract<ImageDiff, { pixels: number }>;
-const valid = (diff: ImageDiff): diff is Measured => diff !== null && !('erreur' in diff);
+const valid = (diff: ImageDiff): diff is Measured => diff !== null && 'pixels' in diff;
 
 /** A/A must be exactly zero before a reference capture can serve as a golden. */
 export function trajectoryVerdict(
