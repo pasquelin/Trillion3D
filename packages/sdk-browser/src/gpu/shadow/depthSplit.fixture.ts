@@ -42,9 +42,9 @@ const vector =
     const all = words.length === 1 ? new Array<number>(size).fill(words[0]) : words;
     return Object.fromEntries(all.map((word, i) => [AXES[i], f(word)]));
   };
-export const vec2f = vector(2),
-  vec3f = vector(3),
-  vec4f = vector(4);
+const vec2f = vector(2),
+  vec3f = vector(3);
+export const vec4f = vector(4);
 /** `m * v`, a column at a time, each product and sum rounded to 32 bits. */
 const times = (m: Mat, v: Vec) =>
   Object.fromEntries(
