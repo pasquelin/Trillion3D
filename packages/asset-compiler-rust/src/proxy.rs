@@ -12,6 +12,7 @@ use crate::compiler_validate::{item, required_index, values};
 use crate::compiler_world::{transform_point, world_matrices, Mat4};
 use crate::texture_preview::TexturePreview;
 use crate::Result;
+use assemble::assemble;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -20,15 +21,16 @@ pub(crate) mod assemble;
 pub mod bvh;
 pub mod cut;
 pub mod encode;
+pub mod share;
 pub mod simplify;
 pub mod wide;
 
 /// Product contract. Moving cut, sections or node order requires incrementing.
-pub const SCENE_PROXY_VERSION: u32 = 2;
+pub const SCENE_PROXY_VERSION: u32 = 3;
 /// 'W','G','P','X' read as 32-bit little-endian unsigned int.
 pub const SCENE_PROXY_MAGIC: u32 = 0x5850_4757;
-/// Header integers: signature, version, triangles, nodes.
-pub const SCENE_PROXY_HEADER_WORDS: usize = 4;
+/// Header integers: signature, version, triangles, nodes, shapes, shape triangles, instances.
+pub const SCENE_PROXY_HEADER_WORDS: usize = 7;
 /// Product name in cache key folder, next to `clusters.json`.
 pub const SCENE_PROXY_FILE: &str = "proxy.bin";
 /// Max certified geometric error of retained cluster, in meters. Published setting.
@@ -68,6 +70,8 @@ pub struct SceneProxy {
     pub albedo: Vec<u32>,
     pub node_bounds: Vec<f32>,
     pub node_children: Vec<u32>,
+    /// Placements whose triangles the file stores once as a shape plus a map each.
+    pub sharing: share::Sharing,
 }
 impl SceneProxy {
     pub fn triangle_count(&self) -> usize {
@@ -154,6 +158,7 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     let palette = albedo::material_albedo(inputs.g, inputs.previews);
     let mut triangles: Vec<f32> = Vec::new();
     let mut colours: Vec<u32> = Vec::new();
+    let mut placed = share::Placed::default();
     let by_mesh = primitives_by_mesh(inputs.primitives);
     for node_id in inputs.shown {
         let node = item(nodes, *node_id, "node")?;
@@ -173,8 +178,9 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
             place(cut, &matrix, &mut triangles);
             colours.resize(triangles.len() / PROXY_TRIANGLE_FLOATS, colour);
         }
+        placed.add(mesh_index, matrix, colours.len());
     }
-    Ok(assemble::assemble(inputs.thresholds, triangles, colours))
+    Ok(assemble(inputs.thresholds, triangles, colours, &placed))
 }
 
 /// Cut vertices, transformed once by placing node.

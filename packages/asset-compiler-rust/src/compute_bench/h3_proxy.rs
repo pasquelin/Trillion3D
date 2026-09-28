@@ -41,7 +41,8 @@ fn reference_stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
             colours.resize(triangles.len() / PROXY_TRIANGLE_FLOATS, colour);
         }
     }
-    Ok(assemble(inputs.thresholds, triangles, colours))
+    let flat = Default::default();
+    Ok(assemble(inputs.thresholds, triangles, colours, &flat))
 }
 // jscpd:ignore-end
 
