@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decodeGeometryPage } from './geometryPage.ts';
 import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
-import { octEncode } from '../../../../page-codec/pageGrids.ts';
+import { octDecode, octEncode } from '../../../../page-codec/pageGrids.ts';
 import { anneau } from '../../../../../bench/perf/browser/support/pagesWasm.ts';
 
 test('a page decodes to its triangles, every attribute within the declared error', () => {
@@ -103,15 +103,10 @@ test('a page view off the word boundary decodes bit for bit like the aligned one
 // #846: a normal is written as the compiler writes it (`oct_encode`): of the roundings of its
 // octahedral point, the one that decodes closest, so a page cut at run time carries its normals.
 test('a normal is written as the octahedral code that decodes closest to it', () => {
-  const f = Math.fround;
   const decode = (q: number) => {
-    let x = f(f((q & 255) * f(2 / 255)) - 1),
-      y = f(f(((q >> 8) & 255) * f(2 / 255)) - 1);
-    const z = f(f(1 - Math.abs(x)) - Math.abs(y));
-    if (z < 0)
-      [x, y] = [f(1 - Math.abs(y)) * Math.sign(x || 1), f(1 - Math.abs(x)) * Math.sign(y || 1)];
-    const length = Math.hypot(x, y, z);
-    return [x / length, y / length, z / length];
+    const out = [0, 0, 0];
+    octDecode(q, out);
+    return out;
   };
   let seed = 7;
   const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647) * 2 - 1;

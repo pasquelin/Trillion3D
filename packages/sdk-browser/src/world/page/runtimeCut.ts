@@ -125,10 +125,11 @@ export async function cutDrawnTriangles(
     ...(colors ? { COLOR_0: { itemSize: 4, array: colors } } : {}),
   };
   const ranges = recut ? givenClusters(recut.ends) : [...clusters(indices, positions.length / 3)];
-  const uvSpan = uvs ? widestUvSpan(uvs, indices, ranges) : 0;
+  const texture = (span: number) =>
+    gridExponentFor(span, blended && span > 0 ? -Infinity : UV_EXPONENT);
   const uvExponent =
     (recut && uvs ? await textureGridExponent(primitiveUvSpan(uvs), blended) : null) ??
-    gridExponentFor(uvSpan, blended && uvSpan > 0 ? -Infinity : UV_EXPONENT);
+    texture(uvs ? widestUvSpan(uvs, indices, ranges) : 0);
   const built = cones ? await clusterCones(positions, indices, ranges) : null;
   const positionExponent = (await grid) ?? gridExponentFor(extent > 0 ? extent : 1, -Infinity);
   const cut = [];
