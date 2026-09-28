@@ -33,7 +33,7 @@ Engineering rules: [CONTRIBUTING.md](CONTRIBUTING.md), which wins over this file
 | ---------- | ---------- | -------------------------------------------------------------------------- |
 | CTO        | boss       | carries one issue at a time to its merge; reviews other AIs' pull requests |
 | lead       | CTO        | runs its coder then its reviewer on the issue a CTO hands it               |
-| coder      | lead       | writes the code on a branch and pushes it; no test, no Chrome              |
+| coder      | lead       | writes code and tests, pushes; runs no gate or test; Chrome to diagnose    |
 | reviewer   | lead, CTO  | real `simplify` and `code-review`, then the gates and tests once           |
 | acceptance | CTO        | proves the branch's image before its pull request                          |
 | measurer   | CTO        | times the branch before its pull request                                   |
