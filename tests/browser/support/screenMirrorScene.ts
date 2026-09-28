@@ -1,6 +1,7 @@
 // Synthetic replacement for the unavailable original mirror asset. Geometry is sent through
 // production page decoding, vertex transforms and materials; no shader or vertex is substituted.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
+import { project } from '../probes/cameraRig.ts';
 import { batisseur } from './sharedSceneProof.ts';
 
 export type MirrorOptions = {
@@ -15,7 +16,7 @@ export function mirrorScene(options: MirrorOptions, roughness: number) {
   const tilt = options.arrangement ? -Math.PI / 3 : -Math.PI / 4;
   const normal = new G.Vector3(0, -Math.sin(tilt), Math.cos(tilt));
   const receiver = G.mesh(
-    G.planeGeometry(3.6, 3.6),
+    G.planeGeometry(6.4, 6.4),
     G.standardSurface({
       color: 0xffffff,
       metalness: 1,
@@ -27,11 +28,17 @@ export function mirrorScene(options: MirrorOptions, roughness: number) {
   );
   receiver.rotation.x = tilt;
   builder.source.add(receiver);
-  builder.ajoute(receiver, options.transparent ? 'clustered-blend' : 'exact-clusters', 1.8);
+  builder.ajoute(receiver, options.transparent ? 'clustered-blend' : 'exact-clusters', 3.2);
   const sources = [0xff0000, 0x00ff00].map((color, i) => {
     const mesh = G.mesh(
       G.planeGeometry(0.44, 0.44),
-      G.standardSurface({ color: 0, emissive: color, emissiveIntensity: 2, roughness: 1 }),
+      G.standardSurface({
+        color: 0,
+        emissive: color,
+        emissiveIntensity: 2,
+        side: G.DOUBLE_SIDE,
+        roughness: 1,
+      }),
     );
     mesh.name = `source-${i}`;
     mesh.position.set(i ? 0.65 : -0.65, options.arrangement ? 1.2 : 1, 1);
@@ -51,6 +58,20 @@ export function mirrorScene(options: MirrorOptions, roughness: number) {
     const virtual = source.clone().addScaledVector(normal, -2 * source.dot(normal));
     const ray = options.ortho ? new G.Vector3(0, 0, -1) : virtual.clone().sub(camera.position);
     return virtual.addScaledVector(ray, -virtual.dot(normal) / ray.dot(normal));
+  }
+  // Validate the fixture before rendering: every sampled hit lies inside the finite mirror
+  // and both the direct source and its reflection lie in view for both camera projections.
+  for (const x of [-1.2, -0.65, 0.65]) {
+    const source = sources[0].position.clone();
+    source.x = x;
+    const hit = reflected(source);
+    if (Math.abs(hit.x) >= 3.2 || Math.abs(hit.y / Math.cos(tilt)) >= 3.2)
+      throw new Error('Analytic hit is outside the mirror');
+    for (const point of [source, hit]) {
+      const ndc = project(point.clone(), camera);
+      if (Math.abs(ndc.x) >= 0.95 || Math.abs(ndc.y) >= 0.95)
+        throw new Error('Mirror oracle sample is outside the viewport');
+    }
   }
   return { scene: builder.fini(), camera, sources, reflected };
 }
