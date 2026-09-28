@@ -4947,9 +4947,6 @@
   "disabledStageProfile": {
     "summary": "Profil sebuah mesin yang tidak menyimpan apa pun: semuanya \"tidak terukur\", tidak ada yang nol."
   },
-  "dot": {
-    "summary": "Hasil kali titik dua vektor berdimensi sama."
-  },
   "dotVector3": {
     "summary": "`a · b` pada tiga komponen dibaca di `aAt` dan `bAt`: satu buffer plus sebuah offset, tidak pernah sebuah view."
   },

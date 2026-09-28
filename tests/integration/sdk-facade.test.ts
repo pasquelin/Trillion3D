@@ -176,3 +176,8 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
     ),
   );
 });
+
+test('one dot product is public, on three components: no N-dimensional one beside it', () => {
+  for (const entry of [common, core, browser] as Record<string, unknown>[])
+    assert.equal(entry.dot, undefined);
+});
