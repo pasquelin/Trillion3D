@@ -4,10 +4,10 @@ import type { Limits } from './listCap.ts';
 import type { PackedDag } from './types.ts';
 
 /** Storage buffers the selection kernel binds whole, per stage: WebGPU's guaranteed eight. */
-export const DAG_STORAGE_BINDINGS = 8;
+const DAG_STORAGE_BINDINGS = 8;
 
 /** The limits the device check reads: one binding's bytes, and the storage bindings per stage. */
-export type DagDeviceLimits = Limits & { maxStorageBuffersPerShaderStage?: number };
+type DagDeviceLimits = Limits & { maxStorageBuffersPerShaderStage?: number };
 
 /**
  * WHAT OF A CAMERA CUT THIS DEVICE CANNOT HOLD, by name, or `undefined` when it holds it all. A
