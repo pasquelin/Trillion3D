@@ -7,11 +7,12 @@ const WORDS = LIGHT_SETTINGS.tileSize ** 2 / 32; // one mask bit per thread, a t
 
 /**
  * Light lists per 16 × 16 pixel screen tile. One workgroup per tile: the 256 threads reduce the
- * tile's min and max depth, thread zero derives the tile's world bounds, each thread tests one
- * light, then each kept thread writes its rank at the place the bit count before it names —
- * order stays increasing and determined, so the frame is too. Past 256 lights, batches of 256
- * write after what the batches before kept. Each list holds `TILE_LIGHTS` lights, its memory
- * bounded by the view; its count stays true, and a tile more lights reach walks them all.
+ * tile's min and max depth, sixteen de-project its corners, thread zero derives its world
+ * bounds from them, each thread tests one light, then each kept thread writes its rank at the
+ * place the bit count before it names — order stays increasing and determined, so the frame
+ * is too. Past 256 lights, batches of 256 write after what the batches before kept. Each list
+ * holds `TILE_LIGHTS` lights, its memory bounded by the view; its count stays true, and a tile
+ * more lights reach walks them all.
  *
  * **Two lists per tile, two depth slices.** The opaque list covers the slice between the tile's
  * two depths — its box and the six planes of the tile's frustum —, and deferred resolve loses
@@ -59,16 +60,15 @@ var<workgroup> column:array<vec4f,5>;
 /** The light count, one bound for the whole workgroup, and what the batches before kept. */
 var<workgroup> lightCount:u32;
 var<workgroup> kept:vec2u;
-fn unproject(ndc:vec3f)->vec3f{
- let point=view.inverseViewProjection*vec4f(ndc,1.0);
- return point.xyz/point.w;
-}
-/** World position of a tile corner — bit 0 picks the right edge, bit 1 the bottom — at depth z. */
-fn tileCorner(tile:vec2u,corner:u32,z:f32)->vec3f{
- let size=view.viewport.xy;
- let x=select(f32(tile.x*TILE_SIZE)/size.x,min(f32((tile.x+1u)*TILE_SIZE)/size.x,1.0),(corner&1u)!=0u);
- let y=select(f32(tile.y*TILE_SIZE)/size.y,min(f32((tile.y+1u)*TILE_SIZE)/size.y,1.0),(corner&2u)!=0u);
- return unproject(vec3f(x*2.0-1.0,1.0-y*2.0,z));
+/** World box of the tile between two rows of corners: eight corners, never a radius. */
+fn tileBox(front:u32,back:u32)->Box{
+ var box=Box(corners[front*4u],corners[front*4u]);
+ for(var corner=1u;corner<8u;corner++){
+  let world=corners[select(front,back,(corner&4u)!=0u)*4u+(corner&3u)];
+  box.lo=min(box.lo,world);
+  box.hi=max(box.hi,world);
+ }
+ return box;
 }
 /** Plane through \`point\` along \`normal\`, turned so that \`inside\` is on its positive side. */
 fn inwardPlane(normal:vec3f,point:vec3f,inside:vec3f)->vec4f{
@@ -78,16 +78,16 @@ fn inwardPlane(normal:vec3f,point:vec3f,inside:vec3f)->vec4f{
 }
 /** The tile's column from the near plane to infinity: four side planes, each through two
  *  neighbouring corner rays, and the near plane, all facing the column's inside. */
-fn tileColumn(nearCorners:array<vec3f,4>,deepCorners:array<vec3f,4>){
- var order=array<u32,4>(0u,1u,3u,2u);
- var near=nearCorners; // copies: an array indexed at run time is a variable
- var deep=deepCorners;
- let inside=(deep[0]+deep[1]+deep[2]+deep[3])*0.25;
+fn tileColumn(){
+ let row=DEEP_ROW*4u; // the centre summed in the table's order, as before: the same bits
+ let inside=(corners[row]+corners[row+1u]+corners[row+2u]+corners[row+3u])*0.25;
  for(var i=0u;i<4u;i++){
-  let at=order[i];let next=order[(i+1u)%4u];
-  column[i]=inwardPlane(cross(deep[next]-deep[at],deep[at]-near[at]),near[at],inside);
+  let near=columnCorner(NEAR_ROW,i);
+  let deep=columnCorner(DEEP_ROW,i);
+  column[i]=inwardPlane(cross(columnCorner(DEEP_ROW,(i+1u)%4u)-deep,deep-near),near,inside);
  }
- column[4]=inwardPlane(cross(deep[1]-deep[0],deep[2]-deep[0]),near[0],inside);
+ let first=columnCorner(DEEP_ROW,0u);
+ column[4]=inwardPlane(cross(columnCorner(DEEP_ROW,1u)-first,columnCorner(DEEP_ROW,3u)-first),columnCorner(NEAR_ROW,0u),inside);
 }
 fn sphereTouchesBox(box:Box,centre:vec3f,radius:f32)->bool{
  let outside=max(box.lo-centre,centre-box.hi);
@@ -133,15 +133,15 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
  if(inside){z=textureLoad(depth,vec2i(pixel),0);}
 ${tileDepthBoundsWgsl(subgroups)}
  workgroupBarrier();
+ tileCornerOfLane(tile.xy,lane);
+ workgroupBarrier();
  if(lane==0u&&lightCount>0u){ // no light, no bounds to test it against
-  // Sixteen corners, each unprojected once: the column's four at two depths, then the slice's.
-  let near=tileCorners(tile.xy,${DEPTH_NEAR}.0);
-  tileColumn(near,tileCorners(tile.xy,COLUMN_DEPTH));
+  // The column's sides bound both slices: every tile builds it, before the depth planes.
+  tileColumn();
   if(atomicLoad(&covered)==1u){
-   let back=tileCorners(tile.xy,bitcast<f32>(atomicLoad(&farthest)));
-   tileSlab(tileCorners(tile.xy,bitcast<f32>(atomicLoad(&nearest))),back);
+   opaqueBox=tileBox(FRONT_ROW,BACK_ROW);tileSlab();
    // A pixel that sees the sky has no back to its blend slice: the whole column, never a box.
-   if(atomicLoad(&skyward)==0u){blendBox=boxOf(near,back);}
+   if(atomicLoad(&skyward)==0u){blendBox=tileBox(NEAR_ROW,BACK_ROW);}
   }
  }
  let count=workgroupUniformLoad(&lightCount);
