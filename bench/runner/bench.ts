@@ -51,6 +51,8 @@ async function main() {
   const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))];
   // Measured scene is from named caches; without any, benchmark reference scene.
   const scene = options.sceneOf(sides.find((side) => side.cache)?.cache, flags.get('scene'));
+  if (flags.has('gaze-network') && !readsCache(scene))
+    throw new Error('--gaze-network requires a compiled cache scene');
   const MANIFEST = options.assetsManifest(
     scene,
     readsCache(scene) && sides.some((side) => !side.cache),

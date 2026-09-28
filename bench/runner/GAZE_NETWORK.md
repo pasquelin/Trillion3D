@@ -19,9 +19,9 @@ then lets requests already issued finish for up to ten seconds. It does not call
 `flush`, or the still-image convergence barrier. Chrome's `Network.loadingFinished` encoded data
 length counts actual transfer bytes, including response overhead; a response served from browser
 cache counts as zero. `textureBytes` covers baked files under `/textures/`; `otherBytes` covers
-manifest, geometry, modules, and other traffic. Failed and unfinished requests are reported
-separately. An unfinished count means the byte reading is incomplete and must not be used as a
-bandwidth verdict.
+manifest, geometry, modules, and other traffic. Failed and unfinished requests, plus redirects
+whose transfer size Chrome did not report, are reported separately. Any nonzero count marks the
+byte reading incomplete; do not use it as a bandwidth verdict.
 
 This mode reports network transfer only. Run the ordinary benchmark and image proof separately
 for frame time and fidelity.
