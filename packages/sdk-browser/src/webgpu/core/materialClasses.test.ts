@@ -157,7 +157,7 @@ test('a row carries its resolve class, the census of the scene knows it before a
 test('an opaque row showing a surface as-is tells the image its flags are read', () => {
   const { source, metadata, indices, associations } = scene();
   const collected = collectClusterPages(source, metadata, indices, associations);
-  const floats = new Float32Array(PAGE_INFO_STRIDE / 4),
+  const floats = new Float32Array(PAGE_INFO_STRIDE / 2),
     ints = new Uint32Array(floats.buffer);
   const layers = { geometryBlocks: new Map(), mapLayer: new Map(), dataLayer: new Map() },
     vis = { ...layers, asIsShown: false };

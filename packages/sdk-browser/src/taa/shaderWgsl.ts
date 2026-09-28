@@ -21,13 +21,8 @@ export const TAA_BINDINGS = {
   shareHistory: 9,
 } as const;
 
-/** Bindings only the as-is share reads: a flagless resolve (OMB-11) neither binds nor reads them. */
-export const TAA_SHARE_BINDINGS: readonly number[] = [
-  TAA_BINDINGS.flags,
-  TAA_BINDINGS.shareHistory,
-];
-
-/** The pass's bind group layout: one entry per binding above, in its order, the share's last. */
+/** The pass's bind group layout: one entry per binding above, in its order. The share's two come
+ *  last: a flagless resolve (OMB-11) neither binds nor reads them. */
 export function createTaaLayout(device: GPUDevice, asIs = true) {
   const fragment = GPUShaderStage.FRAGMENT;
   const entries: GPUBindGroupLayoutEntry[] = [
@@ -55,7 +50,7 @@ export function createTaaLayout(device: GPUDevice, asIs = true) {
     },
   ];
   return device.createBindGroupLayout({
-    entries: asIs ? entries : entries.filter((e) => !TAA_SHARE_BINDINGS.includes(e.binding)),
+    entries: asIs ? entries : entries.slice(0, -2),
   });
 }
 
