@@ -7,6 +7,7 @@ probe list.
 ## 1. Directory Tree
 
 <!-- tests-inventory:begin -->
+
 ```
 packages/sdk-core/src/       unit tests (*.test.ts), next to their source
 packages/sdk-browser/src/    unit tests (*.test.ts), next to their source
@@ -24,6 +25,7 @@ bench/oracles/               reference implementations, copied verbatim
 bench/runner/                the measurement harness (README)
 bench/witnesses/             the host-library witnesses, never published
 ```
+
 <!-- tests-inventory:end -->
 
 The tree is rendered by `node scripts/tests-inventory.ts --write`, and
@@ -266,5 +268,9 @@ identifiers, comments and strings of every source file, the strings a program re
 exceptions. A count above `scripts/english-baseline.json` fails; a lower one is written there, to
 be committed with the renaming. `check:translations` fails when an entry's English changed and a
 language's translation did not, against the hashes of `site/content/i18n/translation-sources.json`;
-after translating, `pnpm run check:translations --write` records the new hashes. Both records start
+after translating, `pnpm run check:translations --write` records the new hashes. An English change the
+translations do not need, such as a typo, is accepted by name once each translation was checked:
+`pnpm run check:translations --accept <entry> [<entry>…]` (the entry as the gate names it,
+`portal:nav.primary`) records its new English hash and keeps the translations', so the acceptance
+shows in the record's diff; an entry whose English did not change is refused. Both records start
 from `--write`.
