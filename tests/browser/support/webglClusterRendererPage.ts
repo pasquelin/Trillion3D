@@ -76,7 +76,7 @@ export async function execute() {
   scene.clear();
   const sun = G.directionalLight(0xffffff, 1);
   sun.position.set(0, 0, 1);
-  scene.add(sun, sun.target!);
+  scene.add(sun, sun.target);
   scene.updateMatrixWorld(true);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   renderer.draw([mesh], scene, drawCamera, false, true);
@@ -84,13 +84,13 @@ export async function execute() {
   scene.clear();
   const spot = G.spotLight(0xffffff, 1, 0, 0.5, 0, 2);
   spot.position.set(0, 0, 1);
-  scene.add(spot, spot.target!);
+  scene.add(spot, spot.target);
   scene.updateMatrixWorld(true);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   renderer.draw([mesh], scene, drawCamera, false, true);
   const zeroPenumbraSpot = pixel(gl, 16, 16);
   scene.clear();
-  scene.add(sun, sun.target!);
+  scene.add(sun, sun.target);
   scene.updateMatrixWorld(true);
   placeRig(mesh, camera, sun, drawCamera, 1e8);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);

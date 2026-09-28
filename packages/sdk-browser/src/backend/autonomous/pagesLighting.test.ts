@@ -15,7 +15,7 @@ test('the autonomous path lights from the contract table, not from the source gr
   const metadata = {
     errorModel: 'dag-group-qem-v2',
     clusterStrategy: 'dag-groups',
-    geometryPages: { formatVersion: 3 as const, codec: 'quantized' as const },
+    geometryPages: { formatVersion: 4 as const, codec: 'quantized' as const },
     primitives: [],
   } as unknown as ClusterManifest;
   const source = new G.Group();
@@ -42,7 +42,7 @@ test('the autonomous path lights from the contract table, not from the source gr
       object.visible && (!object.parent || shown(object.parent));
     const lit: number[] = [];
     (backend.scene as G.Scene).traverse((object) => {
-      if (G.isLightNode(object) && shown(object)) lit.push((object as G.GraphLight).intensity);
+      if (G.isLightNode(object) && shown(object)) lit.push(object.intensity);
     });
     // The contract governs: the source-graph copy is switched off, and no intensity of the
     // glTF's photometric scale reaches the renderer.

@@ -1,5 +1,4 @@
-//! The cells of a page — every vertex on every grid, from the primitive's attributes — and the
-//! bit writer that packs them.
+//! The cells of a page — every vertex on every grid, from the primitive's attributes.
 
 use crate::geometry_page::Attribute;
 use crate::geometry_page_quant::{max_error, oct_encode, quantize, COLOR_EXPONENT};
@@ -103,42 +102,4 @@ pub fn grids(
         color: color_record,
         quantization_error,
     })
-}
-
-/// Packs fixed-width fields, least significant bit first, into little-endian words. Every
-/// stream starts on a word: `stream` closes the last one it wrote.
-#[derive(Default)]
-pub struct BitWriter {
-    words: Vec<u32>,
-    bit: usize,
-}
-
-impl BitWriter {
-    pub fn push(&mut self, value: u32, bits: u32) {
-        if bits == 0 {
-            return;
-        }
-        let shift = (self.bit % 32) as u32;
-        if shift == 0 {
-            self.words.push(0);
-        }
-        let index = self.words.len() - 1;
-        self.words[index] |= value << shift;
-        if shift + bits > 32 {
-            self.words.push(value >> (32 - shift));
-        }
-        self.bit += bits as usize;
-    }
-
-    /// One whole stream: its fields, then the padding that closes the last word.
-    pub fn stream(&mut self, values: impl Iterator<Item = u32>, bits: u32) {
-        for value in values {
-            self.push(value, bits);
-        }
-        self.bit = self.words.len() * 32;
-    }
-
-    pub fn words(&self) -> &[u32] {
-        &self.words
-    }
 }
