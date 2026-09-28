@@ -19,8 +19,9 @@ Engineering rules: [CONTRIBUTING.md](CONTRIBUTING.md), which wins over this file
 7. **The witness library stays a witness** (bench and measurement only). Everything is TypeScript.
 8. **Commits:** no trailer, no co-author, no tool name, no forced identity. Branch
    `<issue>-<short-name>`.
-9. **Bounded agents:** lead → coder or reviewer → the review agents of the real `simplify` and
-   `code-review` (4 at most), nothing deeper. Never the Fable model.
+9. **Bounded agents:** CTO → lead, acceptance or measurer; lead → coder or reviewer → the review
+   agents of the real `simplify` and `code-review` (4 at most), nothing deeper. Never the Fable
+   model.
 10. **Measurement outputs** (`.mesure/out/<issue>/`) are deleted once their numbers are posted.
 11. **Pull requests:** opened finished (reviewed, proved, timed), auto-merge on, open one hour at
     most, never closed unmerged. No issue closed as not planned, no item dropped, without the
@@ -31,16 +32,17 @@ Engineering rules: [CONTRIBUTING.md](CONTRIBUTING.md), which wins over this file
 | Role       | Started by | Does                                                                       |
 | ---------- | ---------- | -------------------------------------------------------------------------- |
 | CTO        | boss       | carries one issue at a time to its merge; reviews other AIs' pull requests |
-| lead       | boss       | runs its coder then its reviewer on the issue a CTO hands it               |
+| lead       | CTO        | runs its coder then its reviewer on the issue a CTO hands it               |
 | coder      | lead       | writes the code on a branch and pushes it; no test, no Chrome              |
 | reviewer   | lead, CTO  | real `simplify` and `code-review`, then the gates and tests once           |
-| acceptance | boss       | proves the branch's image before its pull request                          |
-| measurer   | boss       | times the branch before its pull request                                   |
+| acceptance | CTO        | proves the branch's image before its pull request                          |
+| measurer   | CTO        | times the branch before its pull request                                   |
 | writer     | CTO        | writes an issue on the template                                            |
 
-Two CTOs at most (`/t3d-cto oldest`, `/t3d-cto newest`), one lead per domain (geometry,
-lighting, compiler, physics, sdk, textures; site, examples and scripts are sdk), one acceptance,
-one measurer. Everyone reports to a CTO; only the CTOs speak to the boss.
+The boss starts only the CTOs (`/t3d-cto oldest`, `/t3d-cto newest`, two at most). A CTO starts
+every other agent itself, as a subagent that ends with its task: one lead per issue (domains:
+geometry, lighting, compiler, physics, sdk, textures; site, examples and scripts are sdk), and one
+acceptance and one measurer per branch. Only the CTOs speak to the boss.
 
 ## The backlog
 

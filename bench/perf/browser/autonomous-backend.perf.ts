@@ -50,7 +50,10 @@ function monde(total: number, depart: number): Monde {
 }
 
 /** The one view a world draws, as the geometry store reads it (`views.ts`). */
-const viewOf = (m: Monde) => ({ live: m, lists: () => [m.shown, m.desired, m.requested] });
+const viewOf = (w: Record<'shown' | 'desired' | 'requested', PageRec[]>) => ({
+  live: w,
+  lists: () => [w.shown, w.desired, w.requested],
+});
 
 const empreinte = (m: Monde, triangles: number) => ({
   enfants: m.scene.children.map((mesh) => mesh.renderOrder),
