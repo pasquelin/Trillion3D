@@ -57,7 +57,7 @@ pub(super) fn stage_depth_layers(
     let inputs = coplanar::CoplanarInputs {
         g,
         bin,
-        chosen: shown,
+        shown,
         mesh_map,
         source_mesh: &source_mesh,
         primitives,

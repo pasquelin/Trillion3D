@@ -40,12 +40,13 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let (scene_nodes, hidden) = compiler_nodes::scene_nodes(&loaded.g)?;
     let NodeSelection {
         chosen,
-        shown,
         selected_triangles,
         skinned_meshes,
         meshes,
         mesh_map,
-    } = select_nodes(o, &loaded.g, (&scene_nodes, &hidden))?;
+    } = select_nodes(o, &loaded.g, &scene_nodes)?;
+    // Hidden meshes are compiled (`chosen`); the drawn scene derives only from `shown`.
+    let shown: BTreeSet<usize> = chosen.difference(&hidden).copied().collect();
     // Decided cutouts go to masked before any material is read (`cutout.rs`).
     let cutouts = cutout::apply_decisions(&mut loaded.g, bin, &image_root, &meshes, &decisions)?;
     let g = &loaded.g;

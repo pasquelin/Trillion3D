@@ -124,21 +124,19 @@ fn body(
 /// The rigid bodies the rendered scene's nodes but `soft` declare, placed by their `world`
 /// matrices: their `physics.json` entries, and the report's refusals (`node`, `reason`). A node
 /// declaring no motion is no body; one that draws nothing is a body all the same, one whose mesh
-/// the slice left out or a hidden node hides (`chosen`) none.
+/// the slice left out (`shown`) none, nor one a hidden node hides.
 pub(super) fn declared_bodies(
     o: &Options,
     source: (&Value, &[u8]),
-    (chosen, soft): (&BTreeSet<usize>, &BTreeSet<usize>),
+    (shown, soft): (&BTreeSet<usize>, &BTreeSet<usize>),
     world: &[Mat4],
 ) -> Result<(Vec<Value>, Vec<Value>)> {
     let nodes = values(source.0, "nodes")?;
     let (mut bodies, mut refusals, mut cooked) = (Vec::new(), Vec::new(), BTreeMap::new());
     let moving = |i: &&usize| nodes[**i].pointer("/extensions/KHR_physics_rigid_bodies/motion");
     let (reached, hidden) = scene_nodes(source.0)?;
-    // `chosen` holds no hidden node; a meshless one is none either.
-    let drawn = |i: &&usize| match nodes[**i].get("mesh") {
-        None => !hidden.contains(*i),
-        Some(_) => chosen.contains(*i),
+    let drawn = |i: &&usize| {
+        !hidden.contains(*i) && (nodes[**i].get("mesh").is_none() || shown.contains(*i))
     };
     for &index in reached
         .difference(soft)
