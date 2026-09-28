@@ -120,11 +120,11 @@ test('the tile shader writes each kept light at its rank, after the batches befo
   );
 });
 
-test('up to 256 lights, the tile pass waits at the four barriers it always had (#822)', () => {
+test('up to 256 lights, the tile pass waits at five barriers, one per stage (#822, #924)', () => {
   // The count and clear between batches run only when a batch follows: one batch runs init,
-  // depth, bounds and tests, each behind one barrier, as before the batches.
+  // depth, corners (#924), bounds and tests, each behind one barrier, as before the batches.
   const body = LIGHT_TILES_SHADER.slice(LIGHT_TILES_SHADER.indexOf('fn lightTiles('));
   const unguarded = body.split('\n').filter((line) => !/if\(first\+256u<count\)/.test(line));
   const waits = unguarded.join('\n').match(/workgroupBarrier\(\)|workgroupUniformLoad\(/g);
-  assert.equal(waits?.length, 4);
+  assert.equal(waits?.length, 5);
 });

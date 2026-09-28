@@ -82,7 +82,7 @@ fn requestShadowPage(e:u32){
  * clamped at its edge, and its pages per side. Texel coordinates are relative to the map's first
  * page, texel centres at `+0.5`.
  *
- * A tap whose bilinear footprint lies in one page is one hardware comparison in that page; one
+ * A tap whose bilinear footprint lies in one page is one comparison in that page; one
  * that straddles a seam is split along it (\`shadowPcf\`): no seam, no guard band.
  *
  * The filtered result is multiplied by the transmittance layer once, at the footprint's centre
@@ -151,12 +151,12 @@ fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f)->vec4f{
  * Every tap's bilinear footprint lies within 1.5 texels of \`t\`, so the filter reaches at most
  * the home page's neighbours across the one or two edges that close: their words are read, and
  * asked for, once per pixel, before the taps. Away from any edge — all but the pixels within two
- * texels of one — each tap is one hardware comparison in the home page.
+ * texels of one — each tap is one comparison in the home page.
  *
  * Near an edge a tap is split along the seam, never texel by texel: each page's share of the
  * bilinear weight across the seam, \`saturate(0.5 + distance to the seam)\`, multiplies one
- * hardware comparison in that page, clamped to its last texel centre on that axis, the other axis
- * still filtered by the sampler. A tap is thus two comparisons beside one edge, four at a corner,
+ * comparison in that page, clamped to its last texel centre on that axis, the other axis
+ * still filtered bilinearly. A tap is thus two comparisons beside one edge, four at a corner,
  * which the pixel decides once for all its taps. A neighbour not readable is read at the home page's nearest texel.
  */
 fn shadowPcf(m:ShadowMap,t:vec2f,reference:f32,home:vec2i,homeWord:u32,side:f32)->f32{
