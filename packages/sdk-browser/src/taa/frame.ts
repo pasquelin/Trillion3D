@@ -158,9 +158,9 @@ export function encodeTaaPass(
   inputs.motion = temporal.motion.buffer;
   inputs.flags = asIs ? gpu.surfaces.views()[3] : undefined;
   inputs.share = asIs ? share : undefined;
-  const before = temporal.filterHistory.bytes,
+  const before = filter ? temporal.filterHistory.bytes : 0,
     output = temporal.encode(encoder, inputs);
-  gpu.targetBytes += temporal.filterHistory.bytes - before; // the filter's history, made by now
+  if (filter) gpu.targetBytes += temporal.filterHistory.bytes - before; // its history, made by now
   run.gpuDrawCalls++;
   state.sceneSeen = scene;
   state.previousViewProjection.set(cam.viewProjection);
