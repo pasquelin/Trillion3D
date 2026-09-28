@@ -13,15 +13,14 @@ import {
   Scene,
 } from '../packages/sdk-browser/src/index.ts';
 import { describe, type ControlSpec } from '../site/examples/kit/controls.ts';
-import { runExampleModule } from './docs/examples/capture.ts';
+import { catchPagehide, runExampleModule } from './docs/examples/capture.ts';
 
 type Values = { running: boolean; speed: number; direction: string };
 
 test('carousel animates eight phased horses and its controls pause and reverse the ride', async (t) => {
   const html = await readFile(new URL('../site/examples/a-carousel.html', import.meta.url), 'utf8');
   const scene = new Scene(() => Promise.reject(new Error('the page loads no model')));
-  let disposed = false,
-    pagehide = () => {};
+  let disposed = false;
   const world = {
     scene,
     camera: new Camera('perspective'),
@@ -29,11 +28,7 @@ test('carousel animates eight phased horses and its controls pause and reverse t
     invalidate() {},
     dispose: () => void (disposed = true),
   };
-  const previousListener = globalThis.addEventListener;
-  globalThis.addEventListener = ((type: string, listener: () => void) => {
-    if (type === 'pagehide') pagehide = listener;
-  }) as typeof addEventListener;
-  t.after(() => void (globalThis.addEventListener = previousListener));
+  const pagehide = catchPagehide(t);
   let change: (values: Values) => void = () => {};
   let values = {} as Values;
   await runExampleModule(html, {
@@ -84,9 +79,9 @@ test('carousel animates eight phased horses and its controls pause and reverse t
   advanceMixers(scene, 0.5);
   assert.ok(carousel.rotation.y < 0, 'clockwise seen from above');
 
+  const paused = snapshot();
   values.running = false;
   change(values);
-  const paused = snapshot();
   advanceMixers(scene, 0.5);
   assert.deepEqual(snapshot(), paused);
 
