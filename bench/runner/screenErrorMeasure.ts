@@ -42,9 +42,14 @@ const SAMPLES = [
   [1 / 6, 1 / 6, 2 / 3],
 ];
 
-/** A reverse point is hidden when a drawn surface stands this many pixels (plus the threshold)
- *  before it on its ray: a drawn surface that close is the point's own, drawn within the error. */
-const HIDDEN_MARGIN_PX = 1;
+/**
+ * A point is hidden when a drawn surface stands more than this many pixels before it on its ray.
+ * Kept small on purpose: a point counted although a drawn surface stands up to this far before it
+ * lies at most this far from that surface, so the margin is the most it can add to the reverse
+ * error; a point hidden by more is either truly hidden or, behind a drawn surface that bulges
+ * toward the camera, seen by the forward error of that surface.
+ */
+const HIDDEN_MARGIN_PX = 0.05;
 /** Direction of the second visibility ray's aim, off every axis and axis plane. */
 const NUDGE = [0.36, 0.8, 0.48];
 
@@ -134,9 +139,10 @@ function errors(
 }
 
 /**
- * The screen error of `drawn` against `source` under `pose`. Forward counts every drawn point in
- * the frustum; reverse every source point in the frustum that no drawn surface hides, so a hole
- * is seen and the far side of a closed mesh is not.
+ * The screen error of `drawn` against `source` under `pose`. Both directions count the sample
+ * points in the frustum that no drawn surface hides: what is drawn on screen, and what the
+ * source shows through a hole or past a receding drawn surface; the far side of a closed mesh,
+ * drawn or not, is not seen.
  */
 export function measureView(o: {
   source: Float32Array;
@@ -145,12 +151,10 @@ export function measureView(o: {
   pose: CameraPose;
   width: number;
   height: number;
-  pixelError: number;
 }) {
   const view = viewOf(o.pose, o.width, o.height);
   const sourceTree = o.sourceTree ?? buildTriangleTree(o.source),
     drawnTree = buildTriangleTree(o.drawn);
-  const forward = errors(view, o.drawn, sourceTree, () => true);
   const ray = new Float64Array(3);
   /** Whether a drawn surface stands before `p` on the ray aimed at `p + nudge`, `nudge` in pixels. */
   const blocked = (p: Float64Array, nudge: number) => {
@@ -159,12 +163,13 @@ export function measureView(o: {
     for (let k = 0; k < 3; k++) ray[k] = p[k] + shift * NUDGE[k] - view.eye[k];
     const hit = nearestTriangleOnRay(drawnTree, view.eye, ray);
     const length = Math.hypot(ray[0], ray[1], ray[2]),
-      margin = ((o.pixelError + HIDDEN_MARGIN_PX) * depth) / view.focal;
+      margin = (HIDDEN_MARGIN_PX * depth) / view.focal;
     return hit !== null && hit.t * length < length - margin;
   };
   // A ray through a shared edge or corner can slip between two drawn triangles; a second ray a
   // hundredth of a pixel aside does not slip through the same crack.
   const visible = (p: Float64Array) => !blocked(p, 0) && !blocked(p, 0.01);
-  const reverse = errors(view, o.source, drawnTree, visible);
+  const forward = errors(view, o.drawn, sourceTree, visible),
+    reverse = errors(view, o.source, drawnTree, visible);
   return { triangles: o.drawn.length / 9, forward: summary(forward), reverse: summary(reverse) };
 }
