@@ -1,6 +1,7 @@
 import { screenTraceShader } from './traceShader.ts';
 import { MIRROR_LIGHTING_WGSL } from '../bounce/reflectWgsl.ts';
 import { mirrorWeightShader } from './modelShader.ts';
+import { FOG_FREE_SURFACE_FLAG } from '../scene/surfaceModel.ts';
 
 export const SCREEN_REFLECTION_WGSL = `
 struct ReflectionView{matrix:mat4x4f,enabled:vec4f,}
@@ -37,8 +38,8 @@ ${MIRROR_LIGHTING_WGSL}`;
 export function withScreenReflections(shader: string, direct = false) {
   const source = direct
     ? shader.replace(
-        'lit+ambient+emissive.rgb,P,',
-        'lit+ambient+emissive.rgb+mirrorLighting(base.rgb,base.a,normal.a,N,V,P),P,',
+        'var rgb=lit+ambient+emissive.rgb;',
+        'var rgb=lit+ambient+emissive.rgb+mirrorLighting(base.rgb,base.a,normal.a,N,V,P);',
       ) + NO_PROXY_WGSL
     : shader;
   return (
@@ -51,8 +52,8 @@ export function withScreenReflections(shader: string, direct = false) {
 
 /** Source radiance has no camera fog and no recursive mirror: consumed before any blending. */
 export function reflectionSource(shader: string) {
+  const cameraFog = `if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}`;
   return shader
     .replace('+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)', '')
-    .replace('fogged(base.rgb,P,view.display.yzw)', 'base.rgb')
-    .replace(/fogged\((lit[^;]*),P,view.display.yzw\)/, '$1');
+    .replaceAll(cameraFog, '');
 }

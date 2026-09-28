@@ -164,7 +164,7 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
  let premultiplied=t*((1.0-F)*base.rgb*through.color+reflected)+(1.0-t)*alpha*lit;
  // Seen through the fog between the eye and the surface, as every surface is.
  let color=premultiplied/max(a,1e-4);
- return vec4f(select(fogged(color,P,uni.eye.xyz),color,unlit),a);
+ return vec4f(select(fogged(color,P,uni.eye.xyz),color,unlit||vol.attenuationColor.w!=0.0),a);
 }
 
 ${SCREEN_REFLECTION_WGSL}
