@@ -118,8 +118,8 @@ find.
 `page-tangents` compares a normal-mapped surface with authored and mirrored tangents drawn from its
 geometry pages and from its source buffers, on WebGPU: to the pixel when blended, recorded when
 opaque (the proof's header says why). Its four scenes are derived from `normal-tangent-mirror-test`:
-`node bench/runner/scenes/tangentScenes.ts`, then `node bench/runner/assets.ts --only` with the four
-`normal-tangent-{blend,opaque}-{paged,unpaged}` names.
+`node bench/runner/scenes/tangentScenes.ts` writes them and prints the `assets.ts --only` line that
+compiles them.
 
 `tests/browser/test-gpu.test.ts` enforces symmetric guarding across both directories: **executed ∪ excluded ==
 on-disk**, and no exclusion outlives the file it names. Without this guard, forgotten proofs would
