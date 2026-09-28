@@ -2,7 +2,7 @@
 // attach there).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { POINTS, STREET_HALF_WIDTH, plancherDuModele } from './poses.ts';
+import { FRAMES_PER_SEGMENT, STREET_HALF_WIDTH, VIEWS, plancherDuModele, poseAt } from './poses.ts';
 
 test('plancherDuModele falls back to zero plane when geometry spans the floor', () => {
   assert.equal(plancherDuModele({ min: { y: -2 }, max: { y: 5 } }), 0);
@@ -20,11 +20,18 @@ test('plancherDuModele with exact bounds (min or max at zero) does not cross the
   assert.equal(plancherDuModele({ min: { y: -5 }, max: { y: 0 } }), -5);
 });
 
-test('every reference-level point of the trajectory keeps to the middle of the model', () => {
-  // The listed points only: a descent into reference level (point 1 to 2) passes the target's
-  // height just outside the band, a transit no view captures.
-  for (const [x, height, z] of POINTS) {
-    if (height > 2) continue;
-    assert.ok(Math.max(Math.abs(x), Math.abs(z)) <= STREET_HALF_WIDTH, `[${x}, ${height}, ${z}]`);
-  }
+test('every pose a view captures, held or moving, is outside the box or in its middle', () => {
+  const bounds = { min: { x: -15, y: -1, z: -9 }, max: { x: 15, y: 11, z: 9 } };
+  const sx = bounds.max.x - bounds.min.x,
+    sz = bounds.max.z - bounds.min.z;
+  // The held capture is the view's pose; the moving one ends a segment later (60 frames).
+  for (const { index } of Object.values(VIEWS))
+    for (const capture of [index, index + FRAMES_PER_SEGMENT - 1]) {
+      const { position, target } = poseAt(bounds, capture);
+      const x = Math.abs(position[0] - target[0]) / sx,
+        z = Math.abs(position[2] - target[2]) / sz;
+      const inside = x < 0.5 && z < 0.5 && position[1] < bounds.max.y;
+      if (inside)
+        assert.ok(Math.max(x, z) <= STREET_HALF_WIDTH + 1e-9, `pose ${capture}: ${x}, ${z}`);
+    }
 });
