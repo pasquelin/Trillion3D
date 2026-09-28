@@ -14,7 +14,8 @@ import { SUN_DEPTH_RANGES as RANGES } from './virtual.ts';
  */
 export function createSunDepthRanges() {
   const pairs = new Float64Array(MAX_SHADOW_SLICES * RANGES * 2),
-    /** Frame each slot was last current; −1 for a slot taken again without withdrawing a page. */
+    /** Frame each slot was last current; −1 for a slot no readable page holds: never taken, or
+     *  forgotten on a turn of the sun. */
     used = new Int32Array(MAX_SHADOW_SLICES * RANGES).fill(-1),
     current = new Int32Array(MAX_SHADOW_SLICES),
     recycled = new Int32Array(MAX_SHADOW_SLICES).fill(-1);
