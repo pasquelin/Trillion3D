@@ -5,6 +5,8 @@
 //   water <commands.bin> <maxBodies> <threads> <steps> <sliceLength>
 #include "../src/binding.h"
 
+#include "commands.h"
+
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -28,12 +30,8 @@ int main(int argc, char **argv) {
     std::fprintf(stderr, "usage: water <commands.bin> <maxBodies> <threads> <steps> <sliceLength>\n");
     return 2;
   }
-  FILE *file = std::fopen(argv[1], "rb");
-  if (!file) return 1;
   std::vector<uint32_t> words;
-  uint32_t word;
-  while (std::fread(&word, 4, 1, file) == 1) words.push_back(word);
-  std::fclose(file);
+  if (!readCommands(argv[1], words)) return 1;
   uint32_t bodies = std::atoi(argv[2]), threads = std::atoi(argv[3]), steps = std::atoi(argv[4]);
   float slice = std::atof(argv[5]), dt = 1.0f / 60.0f;
   if (jolt_init(bodies, 65536, 10240, 16 * 1024 * 1024, threads) != 0) return 1;
