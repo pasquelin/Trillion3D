@@ -2,6 +2,7 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import type { CutDelta, IdDelta } from '../cut/delta.ts';
 import { createDenseKeySet } from '../cut/denseKeys.ts';
 import { createKeyUnion } from '../cut/keyUnion.ts';
+import type { GroupClosure } from '../../page/cut/groupClosure.ts';
 import { createBudgetRanking } from './budgetRanking.ts';
 import { createHeldKeys } from '../cut/heldKeys.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
@@ -17,7 +18,7 @@ export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>;
  * what the image draws, which the cache must not reclaim under it. The cut arrives as a DELTA,
  * whether from the GPU sample or the CPU cut: one contract for both, so a moving camera costs the
  * pages that changed and a still camera nothing at all. `tracking.wanted` is what the upload queue walks: the desired set itself, unless the
- * page budget forces the coarser subset `applyBudget` computes.
+ * page budget forces the coarser subset `applyBudget` or the GPU cut's admission computes.
  */
 export function createWebgpuResidencySets(options: {
   tracking: Tracking;
@@ -33,9 +34,12 @@ export function createWebgpuResidencySets(options: {
   const enteringPages: (PageRec | undefined)[] = [];
   const entering = createDenseKeySet(enteringPages),
     leaving = createDenseKeySet();
+  /** The CPU cut ranks by level; the GPU cut feeds no ranking (`requestAdmission.ts`, #836). */
+  let cpuCut = true;
   const desiredPages: PageRec[] = [];
   const desired = createDenseKeySet(desiredPages);
   const ranking = createBudgetRanking({ bootstrapKey, keyOf });
+  const weigh = (id: number) => ranking.add(packedPages[id]);
   let followsDesired = true;
   const requested = createKeyUnion({
     members: desired,
@@ -81,34 +85,54 @@ export function createWebgpuResidencySets(options: {
     keyOf: keyOfId,
     retain: (key, id) => requested.retain(key, packedPages[id]),
     release: (key) => requested.release(key),
-    onEnter: (id) => ranking.add(packedPages[id]),
-    onExit: (id) => ranking.remove(packedPages[id]),
+    onEnter: (id) => cpuCut && weigh(id),
+    onExit: (id) => cpuCut && ranking.remove(packedPages[id]),
   });
   const drawnKeys = createHeldKeys({
     keyOf: keyOfId,
     retain: (key: number, id: number) => keep.retain(key, packedPages[id]),
     release: (key: number) => keep.release(key),
   });
-  /**
-   * Makes the queue the first `count` of `keys`, beside their records: the new holds are taken
-   * before the old queue's are let go of, so a key in both never leaves `keep`, and a queue rebuilt
-   * past the budget image after image moves, for the pin step, only the keys that changed (#477).
-   */
-  const refill = (keys: Int32Array, pages: readonly PageRec[], count: number) => {
+  /** Makes the queue the first `count` of `keys`, beside their records, unless it already holds
+   *  those keys: new holds are taken before old ones are let go of, so a key in both never leaves
+   *  `keep`, and a queue ranked again to the same pages changes nothing (#477). */
+  const admit = (keys: Int32Array, pages: readonly PageRec[], count: number) => {
+    followsDesired = false;
+    let same = count === wanted.count;
+    for (let i = 0; same && i < count; i++) same = wanted.has(keys[i]);
+    if (same) return;
     for (let i = 0; i < count; i++) keep.retain(keys[i], pages[i]);
     for (let i = wanted.count - 1; i >= 0; i--) keep.release(wanted.list[i]);
     wanted.clear();
     acceptedRevision++;
     for (let i = 0; i < count; i++) wanted.add(keys[i], pages[i]);
   };
-  const restoreWanted = () => {
+  /** The queue follows the cut whole: every page it asks for fits the pool. */
+  const followDesired = () => {
+    if (followsDesired) return;
+    admit(desired.list, desiredPages, desired.count);
     followsDesired = true;
-    refill(desired.list, desiredPages, desired.count);
   };
   return {
     entering,
     enteringPages,
     leaving,
+    /** Keys the cut asks for beyond the pinned cover. */
+    get desiredCount() {
+      return desired.count;
+    },
+    /** The cut that decides. The GPU cut feeds no ranking; the CPU cut that takes the image back
+     *  refills it from the pages its cut closes over (`../../page/cut/groupClosure.ts`). */
+    decideBy(cpu: boolean, closure: Pick<GroupClosure, 'forEachHeld'>) {
+      if (cpu === cpuCut) return;
+      cpuCut = cpu;
+      ranking.clear();
+      if (cpu) closure.forEachHeld(weigh);
+    },
+    followDesired,
+    admit,
+    /** True for a key of the pinned root cover, which no budget weighs. */
+    covers: (key: number) => bootstrapKey[key] === 1,
     /** Keys this image asks the cache for, the pinned cover included. */
     get requestedCount() {
       return requested.size;
@@ -154,23 +178,19 @@ export function createWebgpuResidencySets(options: {
       drawnKeys.apply(delta);
     },
     /**
-     * The upload queue holds `room` records. A cut that fits is the queue, and the incremental set
-     * already is that queue — nothing is walked. A cut that does not fit is ranked coarsest first and
-     * cut to `room`: coarse clusters cover more surface per slot, so what survives is a complete
-     * cover plus as much detail as fits, never a truncated cut of the surface. Ranking reads the
-     * weighted keys filed by level: it does not walk the cut, only the budget.
-     *
-     * A cut that ranks to the queue already held changes nothing, so nothing is written, and the
-     * queue is rebuilt only where the two differ.
+     * The CPU cut's budget. The upload queue holds `room` records. A cut that fits is the queue, and
+     * the incremental set already is that queue — nothing is walked. A cut that does not fit is
+     * ranked coarsest first and cut to `room`: coarse clusters cover more surface per slot, so what
+     * survives is a complete cover plus as much detail as fits, never a truncated cut of the
+     * surface. Ranking reads the weighted keys filed by level: it does not walk the cut, only the
+     * budget.
      */
     applyBudget(room: number) {
       if (ranking.rank(room) <= room) {
-        if (!followsDesired) restoreWanted();
+        followDesired();
         return false;
       }
-      followsDesired = false;
-      if (ranking.matches(wanted.list, wanted.count, wantedPages)) return true;
-      refill(ranking.keys, ranking.ranked, ranking.length);
+      admit(ranking.keys, ranking.ranked, ranking.length);
       return true;
     },
     wantedPages,

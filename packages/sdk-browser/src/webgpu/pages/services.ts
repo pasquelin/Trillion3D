@@ -97,6 +97,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const hasBytes = (rec: PageRec) => !awaitsPageBytes(rec) || sourceBytes.has(pageAddress(rec));
   /** True while the pool holds the slot this cluster draws from, at its own address. */
   const poolHolds = (rec: PageRec) => !!gpu.cache?.get(pageAddress(rec));
+  /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
+  const closure = createGroupClosure(rt.layout.selectionRoots, packedPages);
   /** The residency sets and the page dependencies: an image that moves no page touches neither. */
   const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages }),
     parentsOf = createPageParents(rt.layout.selectionRoots);
@@ -110,7 +112,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
   });
-  const updatePins = () => pinUpdater(gpu.cache, run.shown, run.frame, (key) => dropPage(rt, key));
   const bootstrapState = createWebgpuBootstrap({
     pages: bootstrap,
     urls: bootstrapUrls,
@@ -129,8 +130,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     diagnosticFailure: diag.diagnosticFailure,
   });
   const room = () => Math.max(0, rt.setup.slots - bootstrapUrls.size);
-  /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
-  const closure = createGroupClosure(rt.layout.selectionRoots, packedPages);
   // The two lower tiers: the casters the light cuts want, then the pages ahead of the camera.
   const tier = { keyOf: tracking.keyOf, room, closeOver: closure.closeOver };
   const shadowTier = createLowerTier(tier),
@@ -162,7 +161,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     room,
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
-    updatePins,
+    updatePins: () => pinUpdater(gpu.cache, run.shown, run.frame, (key) => dropPage(rt, key)),
+    closure,
     ensureResident,
     markLost: (error) => markWebgpuLost(rt, { reason: 'residency', message: String(error) }),
     traceEnabled: diag.traceEnabled,
@@ -187,7 +187,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     residency,
     shadowTier,
     affectsImage,
-    queueCutResidency: residency.queueCutResidency,
     ...publication,
+    hostTableBytes: () => publication.hostTableBytes() + residency.hostBytes, // + GPU admission
   };
 }
