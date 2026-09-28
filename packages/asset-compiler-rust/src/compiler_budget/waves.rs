@@ -56,7 +56,8 @@ mod tests {
     // Behaviour: a wave closes only on the room; a scene that fits is a single wave.
     #[test]
     fn waves_close_on_the_room() {
-        assert_eq!(waves(&[1, 1, 1, 1], 10), Some(vec![0..4]));
+        assert_eq!(waves(&[1, 1, 1, 1], 10).map(|r| r.len()), Some(1));
+        assert_eq!(waves(&[1, 1, 1, 1], 10).unwrap()[0], 0..4);
         assert_eq!(waves(&[6, 5, 4, 1], 10), Some(vec![0..1, 1..4]));
         assert_eq!(waves(&[], 10), Some(vec![]));
     }
