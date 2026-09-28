@@ -5,7 +5,7 @@ const NARROWEST_BITS: [u64; 4] = [
     0xbfcbf36eb7e7de25,
     0xbfe62fc5fca715b1,
     0x3fe5f9bf21ad4e4b,
-    0x3ff1d142e1b9d94b,
+    0x3ff1d141d54a5f45,
 ];
 
 /// Whether `cone` holds every non-degenerate face normal of `indices` over `pos`.
