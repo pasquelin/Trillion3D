@@ -53,13 +53,16 @@ export function textures(
 function liveTexturePool({ reglageVivant: reglage }: Partial<Row>) {
   const pool = reglage?.texturePool;
   if (!reglage || !pool || reglage.texturePoolAskedBytes === undefined) return [];
+  // The tiles the pools may hold; a dist older than #961 reports whole layers only.
+  const count = pool.tiles && Object.values(pool.tiles).flatMap(Object.values<number>);
+  const tiles = count ? ` for ${count.reduce((sum, each) => sum + each, 0)} tiles` : '';
   const asked =
     reglage.residentTextureBytes === undefined
       ? ''
       : ` (from ${mo(reglage.residentTextureBytes)} resident)`;
   return [
     `- Texture pool set live: ${mo(reglage.texturePoolAskedBytes)} asked${asked}, ${mo(pool.allocatedBytes)} ` +
-      `held${pool.clamp ? ` (${pool.clamp})` : ''}; ${reglage.evictedTiles} tiles evicted in ` +
+      `held${tiles}${pool.clamp ? ` (${pool.clamp})` : ''}; ${reglage.evictedTiles} tiles evicted in ` +
       `${n2(reglage.durationMs)} ms, pose held again after ${n(reglage.imagesReprise)} frames`,
   ];
 }

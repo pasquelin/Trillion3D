@@ -131,7 +131,7 @@ test('a texture pool the device refuses is drawn with fewer layers, down to one 
 });
 
 // Behaviour (#726): the floor is where half the bytes draws no smaller pool, not a clamp name: one
-// atlas held at its tails' floor (`minimum`) leaves the other to shrink until the device grants it.
+// atlas held at its tails' floor of layers leaves the other to shrink until the device grants it.
 test('a texture atlas at its floor lets the other shrink until the device grants the pool', async () => {
   const encoding = poolEncoding('bc7'),
     layer = poolLayerBytes(4);
@@ -143,7 +143,10 @@ test('a texture atlas at its floor lets the other shrink until the device grants
   const poolFor = (bytes: number) =>
     texturePoolFor(bytes, undefined, demand, encoding.texelBytes, tails);
   const budget = 2 * 3 * layer - 2;
-  assert.deepEqual([poolFor(budget).clamp, poolFor(budget).layers.data.rgba], ['minimum', 11]);
+  assert.deepEqual(
+    [poolFor(budget).layers.color.lossless, poolFor(budget).layers.data.rgba],
+    [3, 11],
+  );
   // Each texture is counted at four bytes a texel: the colour floor's three layers pass, the data
   // atlas only once drawn under three layers.
   const { device } = refusingDevice(3 * layer);

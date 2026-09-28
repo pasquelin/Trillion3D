@@ -6163,6 +6163,7 @@
     "members": {
       "budgetBytes": "Erlaubte Bytes.",
       "layers": "Schichten jedes Spur-Reservoirs, pro Atlas, und die Bytes aller Reservoirs summiert.",
+      "tiles": "Kacheln, die jeder Spur-Pool halten darf, je Atlas: die Plätze seiner Ebenen, oder weniger, wenn das Budget unter dem Ebenen-Minimum liegt — das Budget wird dann Kachel für Kachel eingehalten.",
       "allocatedBytes": "Belegte Bytes.",
       "clamp": "Warum die Größe begrenzt wurde."
     }

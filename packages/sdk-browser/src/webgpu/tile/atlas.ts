@@ -5,8 +5,8 @@ import type { WebgpuTilePool } from './pool.ts';
 import { createWebgpuTilePageTable, type TileKey, type WebgpuTilePageTable } from './pageTable.ts';
 import { writeTailFromBytes } from './write.ts';
 import { writeTailFromBlocks } from './writeBlocks.ts';
-import type { LaneCounts, PoolEncoding, PoolLane, TailBytes } from '../../texture/blockFormats.ts';
-import { createTileLanes, type Lane } from './lanes.ts';
+import type { LaneCounts, PoolLane, TailBytes } from '../../texture/blockFormats.ts';
+import { createTileLanes, type Lane, type TileLanesOptions } from './lanes.ts';
 import { tailId, tileId } from './ids.ts';
 import { evictTile } from './atlasResize.ts';
 
@@ -61,26 +61,19 @@ export type WebgpuTileAtlas = {
   /** Level that serves a tile today: its own, an ancestor, or the tail. */
   servedLevel(key: TileKey): number;
   flush(device: Pick<GPUDevice, 'queue'>): void;
-  /** Changes each lane's layers while keeping its tiles; returns the evicted tiles and how many
-   *  pools were replaced. */
+  /** Changes each lane's layers or tiles while keeping its tiles; returns the evicted tiles and
+   *  how many pools were replaced. */
   resize(
     device: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,
     layers: LaneCounts,
+    tiles?: LaneCounts,
   ): { evicted: number; replaced: number };
   destroy(): void;
 };
 
 export function createWebgpuTileAtlas(
   device: Pick<GPUDevice, 'createTexture' | 'createBuffer' | 'queue'>,
-  options: {
-    kind: 'color' | 'data';
-    encoding: PoolEncoding;
-    layers: LaneCounts;
-    feedbackOffset: number;
-    textures: TileTexture[];
-    /** A tile gave its place up: the texture it belonged to, for whoever reads it to follow. */
-    onEvicted?: (slot: number) => void;
-  },
+  options: TileLanesOptions & { feedbackOffset: number; textures: TileTexture[] },
 ): WebgpuTileAtlas {
   const { kind, textures, encoding } = options;
   const lanes = createTileLanes(device, options);
@@ -181,8 +174,8 @@ export function createWebgpuTileAtlas(
       return word === 0 ? textures[key.slot].layout.tail : entryLevel(word);
     },
     flush: (target) => pages.flush(target),
-    resize(target, layers) {
-      const result = lanes.resize(target, layers, pages);
+    resize(target, layers, tiles) {
+      const result = lanes.resize(target, layers, pages, tiles);
       if (result.replaced) {
         views = lanes.views();
         pools = lanes.pools();

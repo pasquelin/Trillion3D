@@ -3779,6 +3779,7 @@
     "members": {
       "budgetBytes": "Byte yang diizinkan.",
       "layers": "Lapisan setiap kolam jalur, per atlas, dan byte setiap kolam dijumlahkan.",
+      "tiles": "Ubin yang boleh ditampung setiap pool jalur, per atlas: tempat-tempat lapisannya, atau lebih sedikit bila anggaran di bawah batas bawah lapisan — anggaran lalu dipegang ubin demi ubin.",
       "allocatedBytes": "Byte yang tersimpan.",
       "clamp": "Kenapa ukurannya dibatasi."
     }
