@@ -7,13 +7,13 @@ import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/p
 import { ltcTable } from '../../../packages/sdk-core/src/lighting/ltcTable.ts';
 import { ENVIRONMENT_COEFFICIENTS } from '../../../packages/sdk-core/src/scene/core/environment.ts';
 import { mirrorProxy } from './mirrorProxy.ts';
-import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
+import { ouvrirAppareil as openDevice } from '../probes/webgpuDevice.ts';
 import { mirrorVertex, proxyOnlyReflection } from './blendMirrorVertex.ts';
 /** Render the actual blend fragment with a known one-triangle resident proxy and face radiance. */
 export async function blendMirror() {
-  const opened = await ouvrirAppareil();
+  const opened = await openDevice();
   if (!opened) throw new Error('WebGPU adapter unavailable');
-  const { device, erreurs } = opened;
+  const { device, erreurs: errors } = opened;
   const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
   const buffer = (
     size = 256 * 1024,
@@ -181,7 +181,7 @@ export async function blendMirror() {
     previous,
     off,
     offPrevious,
-    errors: erreurs,
+    errors,
     compilation,
     adapter: info.court,
     width,

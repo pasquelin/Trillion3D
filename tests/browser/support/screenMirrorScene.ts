@@ -13,6 +13,7 @@ export type MirrorOptions = {
 
 export function mirrorScene(options: MirrorOptions, roughness: number) {
   const builder = batisseur();
+  const { ajoute: add } = builder;
   const tilt = options.arrangement ? -Math.PI / 3 : -Math.PI / 4;
   const normal = new G.Vector3(0, -Math.sin(tilt), Math.cos(tilt));
   const receiver = G.mesh(
@@ -28,7 +29,7 @@ export function mirrorScene(options: MirrorOptions, roughness: number) {
   );
   receiver.rotation.x = tilt;
   builder.source.add(receiver);
-  builder.ajoute(receiver, options.transparent ? 'clustered-blend' : 'exact-clusters', 3.2);
+  add(receiver, options.transparent ? 'clustered-blend' : 'exact-clusters', 3.2);
   const sources = [0xff0000, 0x00ff00].map((color, i) => {
     const mesh = G.mesh(
       G.planeGeometry(0.44, 0.44),
@@ -43,7 +44,7 @@ export function mirrorScene(options: MirrorOptions, roughness: number) {
     mesh.name = `source-${i}`;
     mesh.position.set(i ? 0.65 : -0.65, options.arrangement ? 1.2 : 1, 1);
     builder.source.add(mesh);
-    builder.ajoute(mesh, 'exact-clusters', 0.22);
+    add(mesh, 'exact-clusters', 0.22);
     return mesh;
   });
   const camera = options.ortho
