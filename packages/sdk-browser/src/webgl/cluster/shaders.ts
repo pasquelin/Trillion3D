@@ -7,7 +7,11 @@ import { INVERSE_PI, PI, ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.
 import { FOG_GLSL } from '../../lighting/fogShader.ts';
 import { LINE_CLIP_GLSL, LINE_DASH_GLSL } from '../../visibility/shader/lineWgsl.ts';
 import { SPRITE_GLSL } from '../../visibility/shader/spriteWgsl.ts';
-import { SURFACE_MODEL, SURFACE_MODEL_GLSL } from '../../scene/surfaceModel.ts';
+import {
+  NORMAL_VIEW_COLOR_GLSL,
+  SURFACE_MODEL,
+  SURFACE_MODEL_GLSL,
+} from '../../scene/surfaceModel.ts';
 
 // An instanced mesh places each copy by its own matrix before the mesh's: the position first,
 // then the normal, scaled back by the matrix's axes before it is turned — the reference's order.
@@ -79,6 +83,7 @@ if(range>0.0){float r=distance/range,r2=r*r,s=clamp(1.0-r2*r2,0.0,1.0);falloff*=
 float spotFactor(float cosine,float inner,float outer){return inner<=outer?(cosine>=outer?1.0:0.0):smoothstep(outer,inner,cosine);}
 ${OUTPUT_TRANSFER_GLSL}
 ${SURFACE_MODEL_GLSL}
+${NORMAL_VIEW_COLOR_GLSL}
 ${RECT_LIGHT_GLSL}
 ${PROBE_IRRADIANCE_GLSL}
 ${FOG_GLSL}
@@ -117,7 +122,7 @@ vec3 rgb=lit?shade(N,V,base.rgb,metal,rough,ao):base.rgb*ao;
 if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y))).rgb;else rgb+=emissiveFactor;
 if(lit)rgb+=mirrorLighting(base.rgb,metal,rough,N,V,viewPosition);
 if(!fogFree&&!reflectionCapture)rgb=fogged(rgb);
-if(surfaceModel==${SURFACE_MODEL.normal})rgb=N*0.5+0.5;
+if(surfaceModel==${SURFACE_MODEL.normal})rgb=normalViewColor(N);
 if(surfaceModel==${SURFACE_MODEL.depth})rgb=vec3(clamp(depthRamp.x*toEye.z+depthRamp.y,0.0,1.0));
 float alpha=base.a;if(transmissive){vec4 through=transmissionColor(rgb,base.rgb,alpha,N,V,viewPosition,rough,ao);rgb=through.rgb;alpha=through.a;}
 if(toneMapped)rgb=toneMap(rgb);if(srgbDestination)rgb=linearToSrgb(rgb);outColor=vec4(rgb,covering?1.0:alpha);}`;
