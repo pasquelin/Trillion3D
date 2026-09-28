@@ -73,18 +73,22 @@ export function octEncode(x: number, y: number, z: number): number {
 export class Packer {
   words: number[] = [];
   bit = 0;
-  /** `open` leaves the last word open: the next fields continue this stream. */
-  stream(values: readonly number[], bits: number, open = false) {
-    for (const value of values) {
-      if (!bits) continue;
-      const shift = this.bit % 32;
-      if (!shift) this.words.push(0);
-      this.words[this.words.length - 1] =
-        (this.words[this.words.length - 1] | (value << shift)) >>> 0;
-      if (shift + bits > 32) this.words.push(value >>> (32 - shift));
-      this.bit += bits;
-    }
-    if (!open) this.bit = this.words.length * 32;
+  push(value: number, bits: number) {
+    if (!bits) return;
+    const shift = this.bit % 32;
+    if (!shift) this.words.push(0);
+    this.words[this.words.length - 1] =
+      (this.words[this.words.length - 1] | (value << shift)) >>> 0;
+    if (shift + bits > 32) this.words.push(value >>> (32 - shift));
+    this.bit += bits;
+  }
+  /** Pads the last word: the next field starts a new stream. */
+  close() {
+    this.bit = this.words.length * 32;
+  }
+  stream(values: readonly number[], bits: number) {
+    for (const value of values) this.push(value, bits);
+    this.close();
   }
 }
 
@@ -104,18 +108,14 @@ export function packCorners(pack: Packer, corners: readonly number[], indexBits:
     prefixBits = bitsFor(Math.floor(cornerBits / BLOCK_CORNERS));
   let prefix = 0;
   for (const { base, width } of blocks) {
-    pack.stream([base], indexBits, true);
-    pack.stream([width], WIDTH_BITS, true);
-    pack.stream([prefix], prefixBits, true);
+    pack.push(base, indexBits);
+    pack.push(width, WIDTH_BITS);
+    pack.push(prefix, prefixBits);
     prefix += width;
   }
-  pack.stream([], 0);
+  pack.close();
   for (const { corners: block, base, width } of blocks)
-    pack.stream(
-      block.map((corner) => corner - base),
-      width,
-      true,
-    );
-  pack.stream([], 0);
+    for (const corner of block) pack.push(corner - base, width);
+  pack.close();
   return cornerBits;
 }
