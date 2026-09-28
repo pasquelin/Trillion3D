@@ -5,7 +5,7 @@ import { createWorldMaterials, type MaterialEntry } from './worldMaterials.ts';
 import { createWorldBatches } from './worldBatches.ts';
 import { createWorldPoses, shownUnder } from './worldPoses.ts';
 import type { LoadedModel } from './loadedModel.ts';
-import type { PlacementRows } from '../../placement/rows.ts';
+import type { PlacementGrowth } from '../../placement/backendSceneUpdates.ts';
 import { createWorldMembers } from './worldMembers.ts';
 import { noticeFolds, type WorldNotices } from '../diagnostic/worldNotices.ts';
 
@@ -62,30 +62,27 @@ export function createWorldContents(scene: Object3D, notices: WorldNotices) {
     noticeFolds(notices, folded);
     return lights;
   }
-  type Grow = (from: PlacementRows, to: PlacementRows) => void;
   /** Writes a seated mesh's world matrix and flag into its row. */
   const writeRow = (mesh: Mesh) => {
     mesh.updateWorldMatrix(true, false);
     poses.writeSeat(mesh, batches.seats.get(mesh)!, shownUnder(mesh, scene));
   };
   /**
-   * Seats the meshes waiting in batches the session holds, their rows grown in place where a
-   * `grow` hands each replaced buffer and its successor to the session, whose every row is then
-   * sent again, and each mesh seated writes its row.
+   * Seats the meshes waiting in batches the session holds, their rows grown in place where the
+   * session takes it (`grow`), each grown buffer's every row then sent again, and each mesh seated
+   * writes its row.
    */
-  function growHeld(grow?: Grow) {
+  function growHeld(grow?: PlacementGrowth) {
     const seated: Mesh[] = [];
-    for (const { batch, from } of batches.growHeld((mesh) => seated.push(mesh), !!grow)) {
-      grow!(from, batch.rows!);
+    for (const batch of batches.growHeld((mesh) => seated.push(mesh), grow))
       poses.touchRange(batch, 0, batch.rows!.capacity - 1);
-    }
     seated.forEach(writeRow);
   }
   /** Seats the meshes resolved since the last call, writing the rows that were free, then — on a
    *  session that grows its buffers, `grow` — those a full or mounted buffer made wait. A blended or
    *  transmissive surface takes a row like any other: the session draws each row of it as its own
    *  blended draw, ordered by depth. */
-  function seat(grow?: Grow) {
+  function seat(grow?: PlacementGrowth) {
     seatEpoch++;
     growHeld(grow); // a mount drawn seats its meshes before any moves on: each shows every mount
     const seating = [...unseated];
