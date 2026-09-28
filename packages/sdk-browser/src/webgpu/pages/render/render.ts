@@ -14,21 +14,6 @@ import { refreshBlendScene } from '../../blend/resources.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { followLiveTextures } from '../io/memory.ts';
 
-/** The lister of the nodes the host may write, built once per runtime: frame entry calls it only
- *  at a scene change, and an image allocates no closure to hand it over. */
-const watchedSources = new WeakMap<WebgpuPagesRuntime, () => unknown[]>();
-function watchedSourcesOf(rt: WebgpuPagesRuntime) {
-  let list = watchedSources.get(rt);
-  if (!list) {
-    list = () => [
-      ...rt.layout.selectionRoots.map((root) => root.pages[0]),
-      ...rt.blendState.blendGpu,
-    ];
-    watchedSources.set(rt, list);
-  }
-  return list;
-}
-
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut when it is available and to the CPU reference cut otherwise. */
 export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, aspect?: number) {
@@ -53,7 +38,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
     run.motion,
     rt.setup.viewport,
     source,
-    watchedSourcesOf(rt),
+    rt.watchedSources,
     aspect,
   );
   sizeShadowPool(rt);

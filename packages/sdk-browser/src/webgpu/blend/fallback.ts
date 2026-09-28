@@ -142,7 +142,7 @@ export function drawFallbackBlendPass(
       // Each item in its own mode, the one table's equation: a mode no path draws is refused by
       // name. Its draws follow each other, so the pipeline and the group are resolved once.
       const mode = drawnBlending(refreshSurface(item.surface).blending, !!item.transmissive);
-      const pipeline = gpu.pipelineBlend!.at(mode);
+      const [pipeline] = gpu.pipelineBlend!.at(mode);
       if (pipeline !== bound) pass.setPipeline((bound = pipeline));
       item.group ??= device.createBindGroup({
         layout: gpu.bindGroupLayout!,

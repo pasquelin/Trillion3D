@@ -6,11 +6,7 @@ import assert from 'node:assert/strict';
 import { createWebgpuPageTracking } from './pageTracking.ts';
 import { urlsOf } from '../pages/helpers.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
-
-/** A deterministic generator: the same inputs on every run. */
-function random(seed: number) {
-  return () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
-}
+import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 
 /** A catalogue where one page in three is addressed by its geometry page, shared by pairs. */
 function catalogue(size: number) {
