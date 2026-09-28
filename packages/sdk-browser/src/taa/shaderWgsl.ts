@@ -58,8 +58,9 @@ export function createTaaLayout(device: GPUDevice, asIs = true, blended = false)
   });
 }
 
-/** Uniform bytes: two matrices, three quadruplets, then the nine weights in three. */
-export const TAA_VIEW_BYTES = 208;
+/** Uniform bytes: two matrices, two quadruplets, the nine weights in three, then the render grid
+ *  and the jitter. */
+export const TAA_VIEW_BYTES = 240;
 
 /**
  * Pass uniform. `prevViewProj` and `invViewProj` are REPORTED TO THIS FRAME'S EYE and
@@ -67,10 +68,12 @@ export const TAA_VIEW_BYTES = 208;
  * the sample, a position relative to the eye; the previous one takes it as-is — the same
  * anchoring as the partition, so five-digit world coordinates of an urban model do not eat
  * the single-precision of the reprojection. `viewport` = (width, height, 1/width,
- * 1/height); `params` = (current-frame share, history valid, a placement moved, 0);
- * `weights` = the nine weights of the current-frame filter, neighbour by neighbour (`weights.ts`).
+ * 1/height) of the display, which the history has; `params` = (current-frame share, history
+ * valid, a placement moved, 0); `weights` = the nine weights of the current-frame filter at native
+ * size, neighbour by neighbour (`weights.ts`); `render` = the same four of the grid the frame was
+ * drawn in, and `jitter` its offset in render pixels (`upscaleWgsl.ts`).
  */
-const VIEW_WGSL = `struct TaaView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,}`;
+const VIEW_WGSL = `struct TaaView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,}`;
 
 const BINDINGS_WGSL = `
 @group(0) @binding(${TAA_BINDINGS.current}) var current:texture_2d<f32>;
@@ -97,13 +100,14 @@ fn fromYcocg(c:vec3f)->vec3f{return vec3f(c.x+c.y-c.z,c.x+c.z,c.x-c.y-c.z);}`;
  * keeps the silhouette stable when the camera turns. When a placement has moved, a geometry
  * pixel first goes through its own motion matrix — `previous·current⁻¹`, identity
  * for those that have not moved; otherwise nothing is read, neither identifier, nor record, nor matrix.
+ * `coord` is the display pixel, `at` the render texel its depth and identifier were read at.
  */
 export const TAA_REPROJECT_WGSL = `
-fn previousUv(coord:vec2i,depthValue:f32)->vec3f{
+fn previousUv(coord:vec2i,depthValue:f32,at:vec2i)->vec3f{
  let ndc=vec2f((f32(coord.x)+0.5)*view.viewport.z*2.0-1.0,1.0-(f32(coord.y)+0.5)*view.viewport.w*2.0);
  var position=view.invViewProj*vec4f(ndc,depthValue,1.0);
  if(view.params.z!=0.0){
-  let id=textureLoad(ids,coord,0).r;
+  let id=textureLoad(ids,at,0).r;
   if(id!=0u){position=motion[pages[(id>>8u)-1u].placement]*position;}
  }
  let previous=view.prevViewProj*position;
@@ -112,6 +116,12 @@ fn previousUv(coord:vec2i,depthValue:f32)->vec3f{
  let inside=all(uv>=vec2f(0.0))&&all(uv<=vec2f(1.0));
  return vec3f(uv,select(0.0,1.0,inside));
 }`;
+
+/** `text` in a resolve that carries the as-is share, `none` in the flagless one. */
+export const shareText =
+  (asIs: boolean) =>
+  (text: string, none = '') =>
+    asIs ? text : none;
 
 /**
  * Temporal resolve. The current image is refiltered on its 3×3 neighbours with the uniform
@@ -129,15 +139,8 @@ fn previousUv(coord:vec2i,depthValue:f32)->vec3f{
  * reads neither the flags nor the share history, its colour the same text.
  */
 export const taaShader = (asIs: boolean, blended = false) => {
-  const share = (text: string, none = '') => (asIs ? text : none);
-  return `
-${PAGE_INFO_STRUCT_WGSL}
-${VIEW_WGSL}
-${BINDINGS_WGSL}${share(shareBindingsWgsl(blended))}
-${FULLSCREEN_VERTEX}
-${YCOCG_WGSL}
-${TAA_REPROJECT_WGSL}
-struct TaaOut{@location(0) color:vec4f,@location(1) share:f32,}
+  const share = shareText(asIs);
+  return `${taaPrelude(asIs, blended)}
 @fragment fn resolve(@builtin(position) pixel:vec4f)->TaaOut{
  let coord=vec2i(pixel.xy);
  let last=vec2i(view.viewport.xy)-vec2i(1);
@@ -154,15 +157,36 @@ ${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')} var k=0u;
 ${share(`  let asIs=${blended ? 'textureLoad(flags,at,0).r' : `f32(textureLoad(flags,at,0).r==${AS_IS_FLAG}u)`};
   share+=asIs*weight;shareLo=min(shareLo,asIs);shareHi=max(shareHi,asIs);\n`)} }}
  if(view.params.y==0.0){return TaaOut(filtered,${share('share', '0.0')});}
- let previous=previousUv(coord,textureLoad(depth,coord,0));
- if(previous.z==0.0){return TaaOut(filtered,${share('share', '0.0')});}
+ let previous=previousUv(coord,textureLoad(depth,coord,0),coord);
+${taaHistoryBlend(asIs)}
+}`;
+};
+
+/** What both resolves open with: bindings, uniform, the full-screen triangle, YCoCg, reprojection
+ *  and their output. */
+export const taaPrelude = (asIs: boolean, blended: boolean) => `
+${PAGE_INFO_STRUCT_WGSL}
+${VIEW_WGSL}
+${BINDINGS_WGSL}${asIs ? shareBindingsWgsl(blended) : ''}
+${FULLSCREEN_VERTEX}
+${YCOCG_WGSL}
+${TAA_REPROJECT_WGSL}
+struct TaaOut{@location(0) color:vec4f,@location(1) share:f32,}`;
+
+/**
+ * What both resolves close with, once `previous`, `filtered`, the YCoCg box `lo`–`hi` and, with
+ * `asIs`, `share` and its box are known: history read at the reprojected point, clamped to the box,
+ * mixed with the current image by the inverse of each one's luminance.
+ */
+export const taaHistoryBlend = (asIs: boolean) => {
+  const share = shareText(asIs);
+  return ` if(previous.z==0.0){return TaaOut(filtered,${share('share', '0.0')});}
  let read=textureSampleLevel(history,historySampler,previous.xy,0.0);
  let clamped=clamp(vec4f(toYcocg(read.rgb),read.a),lo,hi);
  let kept=vec4f(fromYcocg(clamped.xyz),clamped.w);
 ${share(' let keptShare=clamp(textureSampleLevel(shareHistory,historySampler,previous.xy,0.0).r,shareLo,shareHi);\n')} let alpha=view.params.x;
  let wc=alpha/(1.0+toYcocg(filtered.rgb).x);
  let wh=(1.0-alpha)/(1.0+clamped.x);
- return TaaOut((filtered*wc+kept*wh)/(wc+wh),${share('(share*wc+keptShare*wh)/(wc+wh)', '0.0')});
-}`;
+ return TaaOut((filtered*wc+kept*wh)/(wc+wh),${share('(share*wc+keptShare*wh)/(wc+wh)', '0.0')});`;
 };
 export const TAA_SHADER = taaShader(true);

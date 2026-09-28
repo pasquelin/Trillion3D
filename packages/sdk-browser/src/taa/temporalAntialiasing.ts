@@ -18,16 +18,23 @@ export interface TaaInputs {
   motion: GPUBuffer;
   flags?: GPUTextureView;
   share?: GPUTextureView;
+  /** The frame was drawn below the display: the resolve reconstructs it (`upscaleWgsl.ts`). */
+  upscale?: boolean;
 }
 
 /**
  * Temporal antialiasing pass: two history targets in ping-pong, each a colour and its as-is share,
  * one read and the other written each frame, and composition reads the one just written. Targets
- * follow the image size (`resize`); bind groups are rebuilt when an input changes identity, never
- * per frame.
+ * follow the display size (`resize`); bind groups are rebuilt when an input changes identity, never
+ * per frame. With `upscale`, the resolves that reconstruct a frame drawn below the display are
+ * compiled too.
  */
-export async function createTemporalAntialiasing(device: GPUDevice, roots: readonly MotionRoot[]) {
-  const resolves = await createTaaResolves(device);
+export async function createTemporalAntialiasing(
+  device: GPUDevice,
+  roots: readonly MotionRoot[],
+  upscale = false,
+) {
+  const resolves = await createTaaResolves(device, upscale);
   const motion = createPlacementMotion(device, roots);
   const uniform = device.createBuffer({
     label: 'Trillion3D TAA view v1',
@@ -123,11 +130,9 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
      */
     encode(encoder: GPUCommandEncoder, inputs: TaaInputs) {
       if (images.length !== 2) throw new Error('TAA_TARGETS_MISSING');
-      const resolve = inputs.share
-        ? resolves.blended
-        : inputs.flags
-          ? resolves.asIs
-          : resolves.flagless;
+      const set = inputs.upscale ? resolves.upscale : resolves;
+      if (!set) throw new Error('TAA_UPSCALE_MISSING');
+      const resolve = inputs.share ? set.blended : inputs.flags ? set.asIs : set.flagless;
       if (
         !bound ||
         bound.current !== inputs.current ||
@@ -136,7 +141,8 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
         bound.pages !== inputs.pages ||
         bound.motion !== inputs.motion ||
         bound.flags !== inputs.flags ||
-        bound.share !== inputs.share
+        bound.share !== inputs.share ||
+        bound.upscale !== inputs.upscale
       ) {
         bound = { ...inputs };
         const { layout } = resolve;
