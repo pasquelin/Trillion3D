@@ -27,7 +27,7 @@ export function field(words: Uint32Array, at: number, bits: number) {
 }
 
 /** The widths of a page's corner code (`CornerCode`, `triangles.rs`). */
-type CornerCode = { indexBits: number; prefixBits: number; recordBits: number; cornerBits: number };
+type CornerCode = { indexBits: number; prefixBits: number; recordBits: number };
 
 /** Block `b`'s record, the table at word `table` of `words`: its base, its width and the bit of the
  *  corner stream its first corner lies at (`CornerCode::record`). */
@@ -93,7 +93,7 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
   const indexBits = bitsFor(vertexCount - 1),
     prefixBits = bitsFor(Math.floor(cornerBits / BLOCK_CORNERS)),
     recordBits = indexBits + WIDTH_BITS + prefixBits,
-    corners: CornerCode = { indexBits, prefixBits, recordBits, cornerBits };
+    corners: CornerCode = { indexBits, prefixBits, recordBits };
   let at = 0;
   const stream = (present: boolean, count: number, bits: number) => {
     const start = at;

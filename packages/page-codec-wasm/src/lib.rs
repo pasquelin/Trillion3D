@@ -167,9 +167,9 @@ impl Header {
             && header.quantization_error >= 0.0
             && header.decoded_bytes() <= max_decoded_bytes
             && layout.bytes() == data.len();
-        // The block table lies first, up to the corner stream's word.
-        let table = || &data[HEADER_BYTES..][..layout.triangles[1] * 4];
-        if !sane || !layout.corners.fits(table(), header.index_count) {
+        // The block table lies first, up to the corner stream's word; `sane` guards the slice.
+        let table = HEADER_BYTES..HEADER_BYTES + layout.triangles[1] * 4;
+        if !sane || !layout.corners.fits(&data[table], header.index_count) {
             return Err(PageError::Bounds);
         }
         Ok(header)
