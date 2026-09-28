@@ -18,12 +18,12 @@ const see = (mesh: HostMesh) => !!firstMaterial(mesh.material)?.transparent;
  * INVARIANT: after `refresh()` the lists are exactly those a full walk of the graph would find, in
  * the same order. What changes them is heard by the engine's own change signal, the scene link
  * (`SceneLink`), set on every node here and carried by `add` to every node that joins: a node
- * added, removed or moved out of the graph (`structure`), a node the last walk reached shown or hidden (`pose`, which a
- * move also sends: a node whose `visible` is as the walk read it changes nothing; one under a
- * hidden node joins when that node is shown). A surface turned see-through or back, set or
- * written in place, is read on the members themselves. The
- * copies list only grows (`growBlendCopies`): a longer one walks again. A link the graph already
- * had keeps hearing everything, and gets the graph back at `dispose`.
+ * added, removed or moved out of the graph (`structure`), a node the last walk reached shown or
+ * hidden (`pose`, which a move also sends: a node whose `visible` is as the walk read it changes
+ * nothing; one under a hidden node joins when that node is shown). A surface turned see-through
+ * or back, set or written in place, is read on the members themselves. The copies list only grows
+ * (`growBlendCopies`): a longer one walks again. A link the graph already had keeps hearing
+ * everything, and gets the graph back at `dispose`.
  */
 export function createDrawLists(scene: Object3D, copies: readonly object[]) {
   const copied = new Set<object>();
