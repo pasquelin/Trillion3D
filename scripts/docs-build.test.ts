@@ -69,6 +69,11 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     assert.equal(await readFile(join(out, 'index.html'), 'utf8'), `${root}  </head>\n`);
     assert.equal(await readFile(join(out, 'examples/cube.html'), 'utf8'), example);
     assert.equal(await readFile(join(out, 'robots.txt'), 'utf8'), 'User-agent: *\nAllow: /\n');
+    // The icon a page that names none asks the root for (#945): an icon file, not a 404.
+    assert.deepEqual(
+      [...(await readFile(join(out, 'favicon.ico'))).subarray(0, 6)],
+      [0, 0, 1, 0, 1, 0],
+    );
     assert.equal(await readFile(join(out, 'reports/campaign/report.json'), 'utf8'), '{}');
     assert.equal(await readFile(join(out, 'assets/manifest.json'), 'utf8'), '{}');
     await assert.rejects(stat(join(out, 'reports/contract.ts')));
