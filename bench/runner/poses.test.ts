@@ -21,16 +21,15 @@ test('plancherDuModele with exact bounds (min or max at zero) does not cross the
 });
 
 test('every pose a view captures, held or moving, is outside the box or in its middle', () => {
-  const bounds = { min: { x: -15, y: -1, z: -9 }, max: { x: 15, y: 11, z: 9 } };
-  const sx = bounds.max.x - bounds.min.x,
-    sz = bounds.max.z - bounds.min.z;
-  // The held capture is the view's pose; the moving one ends a segment later (60 frames).
+  const { min, max } = { min: { x: -15, y: -1, z: -9 }, max: { x: 15, y: 11, z: 9 } };
+  // The held capture is the view's pose; the moving one ends the run, one segment by default.
   for (const { index } of Object.values(VIEWS))
     for (const capture of [index, index + FRAMES_PER_SEGMENT - 1]) {
-      const { position, target } = poseAt(bounds, capture);
-      const x = Math.abs(position[0] - target[0]) / sx,
-        z = Math.abs(position[2] - target[2]) / sz;
-      const inside = x < 0.5 && z < 0.5 && position[1] < bounds.max.y;
+      const { position } = poseAt({ min, max }, capture);
+      const x = Math.abs(position[0] - (min.x + max.x) / 2) / (max.x - min.x),
+        z = Math.abs(position[2] - (min.z + max.z) / 2) / (max.z - min.z);
+      const inside = x < 0.5 && z < 0.5 && position[1] < max.y;
+      // 1e-9: a share interpolated onto the band's edge lands a rounding above it.
       if (inside)
         assert.ok(Math.max(x, z) <= STREET_HALF_WIDTH + 1e-9, `pose ${capture}: ${x}, ${z}`);
     }
