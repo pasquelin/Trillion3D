@@ -8,7 +8,8 @@ const listeners = { addEventListener() {}, removeEventListener() {} };
  *  takes its frame out. The id of a frame is the frame itself. */
 const queued = (frames: (() => void)[]) => ({
   requestAnimationFrame: (callback: () => void) => (frames.push(callback), callback),
-  cancelAnimationFrame: (id: unknown) => void frames.splice(frames.indexOf(id as () => void) >>> 0, 1),
+  cancelAnimationFrame: (id: unknown) =>
+    void frames.splice(frames.indexOf(id as () => void) >>> 0, 1),
 });
 
 /** Starts the loop on a stub window and a canvas of `width` × `height` CSS pixels. */
