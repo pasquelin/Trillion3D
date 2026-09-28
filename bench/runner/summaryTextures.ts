@@ -6,6 +6,8 @@ export const go = (b: number | null | undefined) =>
 export const mo = (b: number | null | undefined) =>
   typeof b === 'number' ? `${(b / 1e6).toFixed(1)} MB` : 'unmeasured';
 const n = (v: number | null | undefined) => (typeof v === 'number' ? String(v) : 'unmeasured');
+/** MiB, the unit `--pool-textures-vivant` takes, so a printed budget can be asked again as is. */
+const mib = (b: number) => (b / 1024 / 1024).toFixed(2);
 const n2 = (v: number | null | undefined) => (typeof v === 'number' ? v.toFixed(2) : 'unmeasured');
 
 /**
@@ -53,12 +55,12 @@ export function textures(
 function liveTexturePool({ reglageVivant: reglage }: Partial<Row>) {
   const pool = reglage?.texturePool;
   if (!reglage || !pool || reglage.texturePoolAskedBytes === undefined) return [];
-  const asked =
+  const fromResident =
     reglage.residentTextureBytes === undefined
       ? ''
       : ` (from ${mo(reglage.residentTextureBytes)} resident)`;
   return [
-    `- Texture pool set live: ${mo(reglage.texturePoolAskedBytes)} asked${asked}, ${mo(pool.allocatedBytes)} ` +
+    `- Texture pool set live: ${mo(reglage.texturePoolAskedBytes)} (${mib(reglage.texturePoolAskedBytes)} MiB) asked${fromResident}, ${mo(pool.allocatedBytes)} ` +
       `held${pool.clamp ? ` (${pool.clamp})` : ''}; ${reglage.evictedTiles} tiles evicted in ` +
       `${n2(reglage.durationMs)} ms, pose held again after ${n(reglage.imagesReprise)} frames`,
   ];

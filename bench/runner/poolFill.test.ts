@@ -56,7 +56,7 @@ test('the summary says what the live texture pool asked, held, evicted and cost'
   const line = liveLine(reglage);
   assert.equal(
     line,
-    '- Texture pool set live: 29.6 MB asked (from 59.2 MB resident), 50.3 MB held (minimum); ' +
+    '- Texture pool set live: 29.6 MB (28.24 MiB) asked (from 59.2 MB resident), 50.3 MB held (minimum); ' +
       '212 tiles evicted in 3.46 ms, pose held again after 9 frames',
   );
   assert.equal(liveLine(), undefined, 'nothing set, nothing said');
