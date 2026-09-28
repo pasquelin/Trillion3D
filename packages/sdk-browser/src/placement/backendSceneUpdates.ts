@@ -34,6 +34,11 @@ export type PlacementMount = {
   primitive: Primitive;
 };
 
+/** What an owner hands a session that grows its instance buffers in place (`growth.ts`). */
+export type PlacementGrowth = Required<
+  Pick<BackendSceneUpdates, 'growPlacements' | 'growsInPlace'>
+>;
+
 /** What an engine lets a host change in the scene it prepared, without preparing it again. */
 export interface BackendSceneUpdates {
   /** Moves a named node of the prepared scene; applied to the next frame, without allocation (R8). */
@@ -52,6 +57,10 @@ export interface BackendSceneUpdates {
    *  the rest parked: the session reads `to` from now on and holds its new rows, no table rebuilt
    *  (`growth.ts`). Absent, the owner opens the session again on `to`. */
   growPlacements?(from: PlacementRows, to: PlacementRows): void;
+  /** Whether `growPlacements` takes each of `from` grown to `capacity` rows, asked before the
+   *  owner replaces any: false leaves them as they are, and the owner opens the session again on
+   *  larger ones. Absent, it takes every growth. */
+  growsInPlace?(from: readonly PlacementRows[], capacity: number): boolean;
   /** A resource the session was not opened with enters it (#572): its pages join the same cache,
    *  its roots the same tables. Settles once its root cover is resident; absent, the owner opens
    *  the session again. */
