@@ -10,7 +10,8 @@ import {
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { startModule } from './module.fixture.ts';
 import { lcg } from '../gpu/hiz/buildTranscripts.fixture.ts';
-import { id, softBodiesIn, WRITEBACK_BOUND as BOUND, writeSoftBody } from './soft.fixture.ts';
+import { id } from './records.fixture.ts';
+import { softBodiesIn, WRITEBACK_BOUND as BOUND, writeSoftBody } from './soft.fixture.ts';
 import { writebackScene } from './softWriteback.fixture.ts';
 
 /** Each step's words in `bytes` (`u32` step count, then per step its word count and words). */
