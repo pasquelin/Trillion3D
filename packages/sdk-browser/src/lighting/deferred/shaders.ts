@@ -73,7 +73,7 @@ ${WORLD_AT_WGSL}
  let P=worldAt(pixel.xy,z);
  if(flag==1u){return vec4f(fogged(base.rgb,P,view.display.yzw),1.0);}
  let normal=textureLoad(normalRough,coord,0);let emissive=textureLoad(emissiveAo,coord,0);
- // Its footprint at its depth, the unit of its shadow level; past the target, a helper lane asks for no page.
+ // Its footprint at its depth, the unit of its shadow level; a lane in the target asks per subgroup.
  shadowFootprint=length(worldAt(pixel.xy+vec2f(1.0,0.0),z)-P);shadowRequesting=all(vec2u(pixel.xy)<textureDimensions(depth));
  let V=normalize(view.camera.xyz-P*view.camera.w);let N=normalize(normal.xyz);
  surfaceModel=flag;
