@@ -6,17 +6,23 @@ export type WorldTarget = HTMLCanvasElement | HTMLElement | string;
 
 /**
  * The canvas a world draws on: the target itself when it is one — `resolveExplorerTarget` checks
- * it —, or a canvas made to fill the element it names.
+ * it —, or a canvas made to fill the element it names. `release` takes out a canvas made here and
+ * leaves the host's own where it is.
  */
-export function resolveWorldTarget(target: WorldTarget): HTMLCanvasElement {
+export function resolveWorldTarget(target: WorldTarget): {
+  canvas: HTMLCanvasElement;
+  release(): void;
+} {
   const element =
     typeof target === 'string' && typeof document !== 'undefined'
       ? document.getElementById(target)
       : target;
   // An ID not found, or no document, is refused by its own reason; an element found is not
   // looked up again.
-  if (!element || typeof element === 'string') return resolveExplorerTarget(target as string);
-  if (element.nodeName === 'CANVAS') return resolveExplorerTarget(element as HTMLCanvasElement);
+  if (!element || typeof element === 'string')
+    return { canvas: resolveExplorerTarget(target as string), release() {} };
+  if (element.nodeName === 'CANVAS')
+    return { canvas: resolveExplorerTarget(element as HTMLCanvasElement), release() {} };
   if (typeof element.appendChild !== 'function' || !element.ownerDocument)
     throw new EngineError('INVALID_CANVAS', 'World target must be an element, a canvas or its ID');
   const canvas = element.ownerDocument.createElement('canvas');
@@ -24,5 +30,5 @@ export function resolveWorldTarget(target: WorldTarget): HTMLCanvasElement {
   canvas.style.height = '100%';
   canvas.style.display = 'block';
   element.appendChild(canvas);
-  return canvas;
+  return { canvas, release: () => canvas.remove() };
 }

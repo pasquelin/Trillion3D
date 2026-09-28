@@ -46,8 +46,6 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     'Background colour received by Trillion3D WebGPU',
     inputColor,
   );
-  if (typeof window !== 'undefined')
-    console.info('[trillion3d] background colour received by Trillion3D WebGPU', inputColor);
   const { roots, allPages, blendCopies, requestCount, worlds } = collectClusterPages(
     source,
     metadata,

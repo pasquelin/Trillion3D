@@ -11,8 +11,8 @@ exchange with the boss, at most one rules pull request every two hours.
 1. **Priorities.** The boss's voice lives on the leads' own issues: the CTO sets their priority
    labels (🔴 🟠 🟡 🟢) when the boss speaks, before telling any lead, engine performance and
    optimisation before examples (AGENTS.md §Leads). A task with no issue is a To-do item on an open one,
-   and an issue too big for one pull request gets its To-do ordered as steps, never new issues
-   (AGENTS.md rule 5). There is no separate priorities issue.
+   and an issue too big for one pull request is narrowed, the rest moving onto the next existing
+   issue (AGENTS.md rule 5). There is no separate priorities issue.
 2. **Staffing.** When the boss launches it, the CTO first gives him **one prompt per session to
    open**, each in its own code block, ready to paste: one lead per domain with work, the architect,
    and the acceptance, measurer and analyst sessions when their queues have work. Each prompt calls
