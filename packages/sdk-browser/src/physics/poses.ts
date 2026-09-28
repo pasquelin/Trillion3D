@@ -49,9 +49,9 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
     tick = 0;
   const placer = createPosePlacer(maxBodies, root);
   const { bound, place, position, quaternion } = placer;
-  let start = 0,
+  /** When the last tick arrived (-1 before the first): the page time its targets are drawn from. */
+  let start = -1,
     span = 0,
-    arrived = -1,
     /** Simulated seconds of the last tick, extrapolated over one span at most. */
     seconds = 0,
     /** The latest page time read: the poses' clock never runs back (`now`). */
@@ -94,8 +94,7 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
       const { generation, meshes } = bodies;
       const floats = new Float32Array(words.buffer, words.byteOffset, words.length);
       const time = now();
-      const interval = arrived < 0 ? ms : time - arrived;
-      arrived = time;
+      const interval = start < 0 ? ms : time - start;
       // A first tick, or one after a rest, is drawn over the time it simulates.
       span = ms <= 0 ? 0 : interval > LONGEST_MS ? ms : span > 0 ? span * 0.7 + interval * 0.3 : ms;
       seconds = ms / 1000;
