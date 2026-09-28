@@ -5,8 +5,8 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 /** Releases the display filter, the bytes it counted and its temporal history. */
 function dropDisplayFilter(gpu: WebgpuGpuState) {
   if (!gpu.displayFilter) return undefined;
+  gpu.targetBytes -= gpu.displayFilter.bytes + (gpu.temporal?.filterHistory.bytes ?? 0);
   gpu.temporal?.filterHistory.drop();
-  gpu.targetBytes -= gpu.displayFilter.bytes;
   gpu.displayFilter.dispose();
   gpu.displayFilter = undefined;
 }
