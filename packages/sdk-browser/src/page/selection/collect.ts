@@ -158,13 +158,11 @@ export function collectClusterPages(
     order++;
   }
   /** Whether `alpha` moves the surface a record wears, or gives it another. */
-  const wears = (rec: PageRec, alpha: AlphaChange) => {
-    const mesh = rec.sourceMesh;
-    if (!mesh) return false;
-    return isAssignment(alpha)
+  const wears = ({ sourceMesh: mesh }: PageRec, alpha: AlphaChange) =>
+    !!mesh &&
+    (isAssignment(alpha)
       ? alpha.meshes.has(mesh)
-      : alpha.surfaces.includes(mesh.material as object);
-  };
+      : alpha.surfaces.includes(mesh.material as object));
   /** Whether a record is drawn blended once `alpha` moved its surfaces, before or after they are
    *  written: the family this collection gives the class `alpha.to`, or the one it has. */
   const blendOf = (rec: PageRec, alpha: AlphaChange) => {
