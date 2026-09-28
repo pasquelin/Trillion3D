@@ -47,13 +47,16 @@ export function setWebgpuTemporalAntialiasing(rt: WebgpuPagesRuntime, on: boolea
     { temporal } = mainViewGpu(rt);
   if (gpu.temporalWanted === on) return;
   gpu.temporalWanted = on;
-  forgetTaaHistory(temporal);
-  for (const view of rt.views.persistent) forgetTaaHistory(viewGpu(rt, view).temporal);
   // A barrier (`settlePose`) before the next ordinary image replays the checkpoint: it must not
-  // bring back the history of the images before the switch.
-  if (temporal) {
-    temporal.frame.sampledRank = 0;
-    temporal.checkpoint(false);
+  // bring back the history of the images before the switch, on any view.
+  for (const history of [
+    temporal,
+    ...rt.views.persistent.map((view) => viewGpu(rt, view).temporal),
+  ]) {
+    forgetTaaHistory(history);
+    if (!history) continue;
+    history.frame.sampledRank = 0;
+    history.checkpoint(false);
   }
   if (on && temporal) {
     grantCapability(capabilities, TAA_CAPABILITY);
@@ -62,7 +65,12 @@ export function setWebgpuTemporalAntialiasing(rt: WebgpuPagesRuntime, on: boolea
     void rigTemporalAntialiasing(rt, gpu.device).then(
       () => {
         joinTargets(mainViewGpu(rt));
-        for (const view of rt.views.persistent) void rigViewTemporal(rt, view);
+        for (const view of rt.views.persistent)
+          rigViewTemporal(rt, view).catch(
+            (error: unknown) =>
+              isCancelled(rt.signal) ||
+              rt.diag.diagnosticFailure('temporal-antialiasing-unavailable', error),
+          );
         rt.run.gate.resourcesChanged();
       },
       () => {},

@@ -16,10 +16,23 @@ import { onView } from './viewSwitch.ts';
  * each frame: its presentation clears the canvas, the views' keep what it shows.
  */
 export async function addWebgpuView(rt: WebgpuPagesRuntime, rect: PresentRect) {
-  const view = createWebgpuView(rect.width, rect.height);
-  view.rect = { ...rect };
+  // Whole canvas pixels: the present packs the origin into an integer (`presentAt.ts`).
+  const at = {
+    x: Math.round(rect.x),
+    y: Math.round(rect.y),
+    width: Math.max(1, Math.round(rect.width)),
+    height: Math.max(1, Math.round(rect.height)),
+  };
+  const view = createWebgpuView(at.width, at.height);
+  view.rect = at;
   rt.views.persistent.push(view);
-  await rigViewTemporal(rt, view);
+  try {
+    await rigViewTemporal(rt, view);
+  } catch (error) {
+    // Never handed to the caller, it would never leave: it leaves now.
+    await removeWebgpuView(rt, view);
+    throw error;
+  }
   return view;
 }
 

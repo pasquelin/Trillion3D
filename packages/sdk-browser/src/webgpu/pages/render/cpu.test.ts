@@ -129,9 +129,9 @@ test('bootstrap in progress makes the CPU cut hold nothing', () => {
 test('another view’s CPU cut breaks its own hold alone, the main view’s readback kept', () => {
   const b = banc({ ready: false, resident: false });
   Object.assign(b.rt, { views: { main: {}, active: {} } });
-  Object.assign(b.run.gate, { viewReplaced: () => b.journal.push('vue') });
+  Object.assign(b.run.gate, { viewReplaced: () => b.journal.push('view') });
   image(b);
-  assert.deepEqual(b.journal, ['vue'], 'neither the shared resources nor the readback');
+  assert.deepEqual(b.journal, ['view'], 'neither the shared resources nor the readback');
 });
 
 test('nothing resident yet: the image draws no hole, and still asks for its cut', () => {
