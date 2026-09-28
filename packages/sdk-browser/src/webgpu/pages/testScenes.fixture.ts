@@ -119,10 +119,8 @@ export const SHADOW_LIMITS = {
   maxTextureDimension2D: 8192,
   maxComputeWorkgroupsPerDimension: 65535,
 };
-
 /** A pose `x` metres along the X axis. */
-export const along = (x: number) =>
-  new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1]);
+export const along = (x: number) => Float32Array.of(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1);
 
 export function camera() {
   const cam = frontCamera();
