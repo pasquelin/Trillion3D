@@ -35,8 +35,8 @@
   exceed the Three.js witness. Any measured regression blocks validation and merge. Measurement
   noise is not an exemption, and an unmeasured metric is never evidence of parity.
 - **Every millisecond counts, measured.** The frame's largest costs are ranked on a real scene
-  (`docs/roles/measurer.md`): small calculations repeated per frame or per page,
-  allocations in a frame, a JavaScript kernel that belongs in Rust or WebAssembly, work the
+  (the per-stage profile, `bench/runner/README.md`): small calculations repeated per frame or per
+  page, allocations in a frame, a JavaScript kernel that belongs in Rust or WebAssembly, work the
   compiler could bake once.
 - **Never optimise a path whose cost is not measured.** State its share of the frame first, on a real
   scene, or say plainly that it is unknown. A batch justified by a supposition is a batch to stop.
@@ -204,11 +204,11 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 3. Review the diff twice: first simplify duplicated or unnecessary work — in Claude Code
    `/simplify`, elsewhere a read of the whole diff for what is duplicated, needless or at the wrong
    depth —, then check correctness against the requirements above. Fix findings; then
-   `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate` run once, on the final
-   head (by the reviewer, `docs/roles/reviewer.md`); the image proof and the timing follow on the
-   branch.
+   `pnpm run check:changed`, `pnpm run test:changed` and the `validate` group the diff touches run
+   once, on the final head (by the reviewer, `docs/roles/reviewer.md`), and the CI runs the whole
+   `validate`; the image proof and the timing follow on the branch.
 4. Commit with a descriptive English message and push the branch; write the pull request body in a file, using
-   `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>` (AGENTS.md rule 5). Describe what both local review passes found under "Local review before push". Replace `in progress` with `in review`. No pull request yet (AGENTS.md rule 11).
+   `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>` (AGENTS.md rule 5). Describe what both local review passes found under "Local review before push". Add `in review`; `in progress` stays until the merge. No pull request yet (AGENTS.md rule 11).
 5. Obtain an independent review and resolve its findings, then the image proof and the timing on
    the branch (AGENTS.md rule 2). Only then open the pull request, with its "Lead verification"
    section, one line per To-do and Proof item, and auto-merge on: it merges into `develop` once
