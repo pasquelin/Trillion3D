@@ -5,7 +5,12 @@
 // changed) draws them again.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSceneLightStore, type SceneLight } from '../../../../sdk-core/src/index.ts';
+import {
+  createSceneLightStore,
+  type ClusterManifest,
+  type SceneLight,
+} from '../../../../sdk-core/src/index.ts';
+import { MANIFEST_IDENTITY } from '../../backend/pagesBackend.fixture.ts';
 import { LAMP, SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { collectClusterPages } from '../../page/selection/selection.ts';
 import { packDagSelection } from '../../gpu/dag/selection.ts';
@@ -33,7 +38,11 @@ type Drawn = { pages: number; layerPasses: number; cleared: number; restored: nu
  */
 async function floorAndCaster(light: SceneLight = SUN) {
   installGpuGlobals();
-  const scene = mixedBinScene();
+  const mixed = mixedBinScene();
+  const scene = {
+    ...mixed,
+    metadata: { ...mixed.metadata, ...MANIFEST_IDENTITY } as ClusterManifest,
+  };
   const [caster, floor] = scene.source.children;
   caster.name = 'caster';
   const { roots } = collectClusterPages(
@@ -47,8 +56,6 @@ async function floorAndCaster(light: SceneLight = SUN) {
   lights.add(light);
   const backend = webgpuPagesBackend({
     ...scene,
-    geometry: scene.geoA,
-    material: scene.front,
     gpuDevice: gpu.device,
     maxResidentPages: 4,
     viewport: [32, 32],
