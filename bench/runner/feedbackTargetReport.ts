@@ -5,12 +5,12 @@ import { passesGpu } from './seriesPasses.ts';
 import { imageDiff } from './imageDiff.ts';
 import { gazeDifferentPixels } from './feedbackGaze.ts';
 import type { FeedbackTargetResult } from './feedbackTargetPage.ts';
-export const MIN_GPU_SAMPLES = 12;
+const MIN_GPU_SAMPLES = 12;
 const RESOLVE = 'Trillion3D material surfaces v1';
 const BLEND = 'Trillion3D transparents';
 const REDUCE = 'Trillion3D texture feedback reduce';
 const NAMES = [RESOLVE, BLEND, 'Trillion3D water surfaces', REDUCE];
-export function feedbackGainGate(inputs: {
+function feedbackGainGate(inputs: {
   convergence: boolean;
   sameImage: boolean;
   residency: boolean;
