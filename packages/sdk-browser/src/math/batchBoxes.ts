@@ -115,7 +115,7 @@ export function transformRootBoxes(
   lot: BoxTransformLot,
   roots: readonly ClusterRoot<PageRec>[],
   moved: readonly number[],
-  count = moved.length,
+  count: number,
 ) {
   if (roots.length !== lot.n || !lot.holds(lot.n)) return false;
   for (let k = 0; k < count; k++) ecrit(lot, moved[k], roots[moved[k]]);
