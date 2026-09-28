@@ -90,8 +90,6 @@ pub(super) struct Placed {
     pub carried: Vec<Vec<f32>>,
     pub origins: Vec<u32>,
     pub columns: Columns,
-    /// Their charts, inherited (`charts::Chart`); empty without a texture set.
-    pub charts: Vec<super::charts::Chart>,
 }
 
 impl Local<'_> {
@@ -177,10 +175,9 @@ impl Local<'_> {
                 (weld_seam, seams)
             }
         };
-        let charts = input.charts();
-        let charts = match charts.is_empty() {
+        let charts = match input.charts.is_empty() {
             true => Vec::new(),
-            false => origins.iter().map(|&g| charts[g as usize]).collect(),
+            false => origins.iter().map(|&g| input.charts[g as usize]).collect(),
         };
         Placed {
             positions,
@@ -192,8 +189,8 @@ impl Local<'_> {
                 weld,
                 exact,
                 seams,
+                charts,
             },
-            charts,
         }
     }
 }
