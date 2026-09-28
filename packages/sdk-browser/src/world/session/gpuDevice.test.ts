@@ -54,7 +54,11 @@ test('the session says which optional features its WebGPU device was granted', a
       said.push([message, context]),
   } as unknown as ExplorerSession;
   Object.assign(globalThis, { document: { createElement: () => canvas } });
-  await probeExplorerCapabilities(session);
+  try {
+    await probeExplorerCapabilities(session);
+  } finally {
+    delete (globalThis as { document?: unknown }).document;
+  }
   const granted = said.find(([message]) => message === 'WebGPU device granted');
   assert.deepEqual(granted?.[1]?.features, ['timestamp-query', 'subgroups']);
 });
