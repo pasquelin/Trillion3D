@@ -6,7 +6,7 @@ import {
   setNodeQuaternion,
   setNodeScale,
 } from '../../math/transform-tree/transformTree.ts';
-import { removeTransformNode, reparentTransformNode } from '../../math/transform-tree/structure.ts';
+import { removeTransformNode, reparentTransformNode } from './nodeEdits.ts';
 import { updateNodeWorldMatrix } from '../../math/transform-tree/update.ts';
 import { attachSceneNode } from './nodeAttach.ts';
 import { copySceneNodeState } from './nodeCopy.ts';

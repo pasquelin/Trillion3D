@@ -99,12 +99,14 @@ type Tally = BTreeMap<&'static str, usize>;
 fn report(lights: Vec<Value>, rejected: Tally, counts: Tally) -> Value {
     json!({"version":SCENE_LIGHTS_VERSION,"sceneLightVersion":SCENE_LIGHT_CONTRACT,"units":{"lumensPerWatt":LUMENS_PER_WATT,"rangeCutoffIrradiance":RANGE_CUTOFF_IRRADIANCE,"maxRange":MAX_RANGE},"count":lights.len(),"lights":lights,"rejected":rejected,"counts":counts})
 }
+/// The rendered scene's nodes, and those a hidden node hides (`compiler_nodes::scene_nodes`).
+type Nodes<'a> = (&'a BTreeSet<usize>, &'a BTreeSet<usize>);
 /// glTF lights, in the order of the nodes that instantiate them, in world space.
 /// Only nodes of the rendered scene count: a light placed in another scene does
-/// not light this one. A light whose type, matrix or intensity fails the contract
-/// is counted in `rejected` and left aside: a compilation never dies on a light,
-/// it says so.
-fn scene_lights(g: &Value, bin: &[u8], scene_nodes: &BTreeSet<usize>) -> Result<Value> {
+/// not light this one, nor one a hidden node hides (`KHR_node_visibility`). A
+/// light whose type, matrix or intensity fails the contract is counted in
+/// `rejected` and left aside: a compilation never dies on a light, it says so.
+fn scene_lights(g: &Value, bin: &[u8], (reached, hidden): Nodes<'_>) -> Result<Value> {
     let (mut rejected, mut counts) = (Tally::new(), Tally::new());
     let (Some(nodes), Some(declared)) = (
         g.get("nodes").and_then(Value::as_array),
@@ -118,7 +120,7 @@ fn scene_lights(g: &Value, bin: &[u8], scene_nodes: &BTreeSet<usize>) -> Result<
     let mut seen = BTreeSet::new();
     let mut lights = Vec::new();
     for (index, node) in nodes.iter().enumerate() {
-        if !scene_nodes.contains(&index) {
+        if !reached.contains(&index) || hidden.contains(&index) {
             continue;
         }
         let Some(slot) = node
@@ -148,7 +150,7 @@ fn scene_lights(g: &Value, bin: &[u8], scene_nodes: &BTreeSet<usize>) -> Result<
 pub(super) fn stage_scene_lights(
     g: &Value,
     bin: &[u8],
-    scene_nodes: &BTreeSet<usize>,
+    scene_nodes: Nodes<'_>,
     directory: &Path,
     progress: impl Fn(Value),
 ) -> Result<Product> {
