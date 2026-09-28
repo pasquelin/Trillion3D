@@ -777,7 +777,7 @@
     }
   },
   "DagStallCause": {
-    "summary": "Kenapa sebuah grup DAG macet, dinamai kompiler dengan menjalankan ulang reduksi yang macet setelah sebuah batasan diangkat: `too-small` (kurang dari dua segitiga hidup), `border-locked` (tanpa kunci ia berlanjut), `seam-locked` (tanpa kunci masih macet, dengan salinan posisi juga dilas di setiap jahitan tekstur yang dilaluinya), `unreducible` (keduanya tidak berlanjut), `border-lost` (sebuah posisi bersama hilang di setiap percobaan ulang), `unusable-error`."
+    "summary": "Kenapa sebuah grup DAG macet, dinamai kompiler dengan menjalankan ulang reduksi yang macet setelah sebuah batasan diangkat: `too-small` (kurang dari dua segitiga hidup), `border-locked` (tanpa kunci ia berlanjut), `seam-locked` (tanpa kunci masih macet, dengan salinan posisi juga dilas di setiap jahitan tekstur yang dilaluinya, dan percobaan ulangnya dengan verteks terpecahkan tidak maju), `unreducible` (keduanya tidak berlanjut), `border-lost` (sebuah posisi bersama hilang di setiap percobaan ulang), `unusable-error`."
   },
   "DagStallSummary": {
     "summary": "Yang dihasilkan kemacetan sebuah primitif: segitiga level-0 yang tersisa sebagai root, penyebab kemacetan yang menyimpan segitiga terbanyak (`null` tanpa kemacetan), dan jumlah jahitan, terkunci dan pulau tekstur yang dijumlahkan atas grup-grup macetnya.",
