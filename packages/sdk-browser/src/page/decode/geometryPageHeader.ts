@@ -26,18 +26,13 @@ export function field(words: Uint32Array, at: number, bits: number) {
   return value & ((1 << bits) - 1);
 }
 
+/** The widths of a page's corner code (`CornerCode`, `triangles.rs`). */
+type CornerCode = { indexBits: number; prefixBits: number; recordBits: number; cornerBits: number };
+
 /** Block `b`'s record, the table at word `table` of `words`: its base, its width and the bit of the
  *  corner stream its first corner lies at (`CornerCode::record`). */
-export function blockRecord(
-  words: Uint32Array,
-  table: number,
-  {
-    indexBits,
-    prefixBits,
-    recordBits,
-  }: { indexBits: number; prefixBits: number; recordBits: number },
-  b: number,
-) {
+export function blockRecord(words: Uint32Array, table: number, corners: CornerCode, b: number) {
+  const { indexBits, prefixBits, recordBits } = corners;
   const at = table * 32 + b * recordBits;
   return [
     field(words, at, indexBits),
@@ -100,12 +95,8 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
   // Word offset of each stream, derived from the counts and widths the header declares.
   const indexBits = bitsFor(vertexCount - 1),
     prefixBits = bitsFor(Math.floor(cornerBits / BLOCK_CORNERS)),
-    corners = {
-      indexBits,
-      prefixBits,
-      recordBits: indexBits + WIDTH_BITS + prefixBits,
-      cornerBits,
-    };
+    recordBits = indexBits + WIDTH_BITS + prefixBits,
+    corners: CornerCode = { indexBits, prefixBits, recordBits, cornerBits };
   let at = 0;
   const stream = (present: boolean, count: number, bits: number) => {
     const start = at;
@@ -113,7 +104,7 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     return start;
   };
   const blockCount = Math.ceil(indexCount / 3 / TRIANGLE_BLOCK),
-    blocks = stream(true, blockCount, corners.recordBits),
+    blocks = stream(true, blockCount, recordBits),
     cornerStream = stream(true, cornerBits, 1),
     positions = position.bits.map((b) => stream(true, vertexCount, b)),
     normal = stream(!!(flags & FLAG_NORMAL), vertexCount, 16),
