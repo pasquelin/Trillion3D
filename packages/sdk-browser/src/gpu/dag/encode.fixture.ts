@@ -28,11 +28,13 @@ export function encodeurTemoin() {
   const lancements: Lancement[] = [];
   const copies: Copie[] = [];
   const passes: string[] = [];
+  /** Each bind group a pass sets, in order. */
+  const groupesLies: unknown[] = [];
   let noyau = '';
   let arme = -1;
   let ouverte = false;
   const pass = {
-    setBindGroup() {},
+    setBindGroup: (_: number, groupe: unknown) => void groupesLies.push(groupe),
     setPipeline(next: { entryPoint: string }) {
       noyau = next.entryPoint;
     },
@@ -65,7 +67,7 @@ export function encodeurTemoin() {
       if (vers.nom === 'dispatchArgs') arme = decalage;
     },
   };
-  return { encoder, lancements, copies, passes };
+  return { encoder, lancements, copies, passes, groupesLies };
 }
 
 /** A stage named as the witness will see it pass: `encode.ts` destructures these fields
@@ -85,7 +87,8 @@ export function ressources(residentCut: boolean, levelCount = 3, pageCount = 409
     drawnGroupsOffset: DRAWN,
     work: { nom: 'work' },
     dispatchArgs: { nom: 'dispatchArgs' },
-    bindGroup: {},
+    ranges: [{ count: 2, bindGroup: {} }],
+    rootLevelPipeline: etape('dagRootLevel'),
     levelPipelines: [etape('dagLevel0'), etape('dagLevel1'), etape('dagLevel2')],
     preparePipeline: etape('dagPrepare'),
     clearDrawnPipeline: etape('dagClearDrawn'),

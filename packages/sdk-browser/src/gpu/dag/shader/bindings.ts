@@ -1,4 +1,4 @@
-import { COMPUTE } from '../../core/computeBindings.ts';
+import { COMPUTE, namedBufferEntries } from '../../core/computeBindings.ts';
 
 /** Group-0 binding of each buffer the selection kernel reads, under its WGSL name. */
 export const DAG_BINDING = {
@@ -11,9 +11,21 @@ export const DAG_BINDING = {
   worlds: 6,
   frames: 7,
   cold: 8,
+  range: 9,
 } as const;
 
 const B = DAG_BINDING;
+
+/** Group 0 of the selection kernel, each buffer at its WGSL name's binding, and `range` the
+ *  primitives its `frames` holds (`../frameRanges.ts`): the camera cut's, the light cut's and the
+ *  dispatch bench's. */
+export function dagGroupEntries(
+  buffers: Record<Exclude<keyof typeof DAG_BINDING, 'range'>, GPUBuffer>,
+  range: GPUBufferBinding,
+) {
+  const named = Object.entries(buffers).map(([name, buffer]) => [name, { buffer }]);
+  return namedBufferEntries(DAG_BINDING, { ...Object.fromEntries(named), range });
+}
 
 /** Group-0 declarations of the selection kernel; `shader.ts` inlines them as they stand. */
 export const DAG_BINDINGS_WGSL = `@group(0) @binding(${B.clusters}) var<storage, read> clusters:array<Cluster>;
@@ -24,7 +36,8 @@ export const DAG_BINDINGS_WGSL = `@group(0) @binding(${B.clusters}) var<storage,
 @group(0) @binding(${B.work}) var<storage, read_write> work:array<atomic<u32>>;
 @group(0) @binding(${B.worlds}) var<storage, read> worlds:array<mat4x4f>;
 @group(0) @binding(${B.frames}) var<storage, read_write> frames:array<vec4f>;
-@group(0) @binding(${B.cold}) var<storage, read> cold:array<u32>;`;
+@group(0) @binding(${B.cold}) var<storage, read> cold:array<u32>;
+@group(0) @binding(${B.range}) var<uniform> range:FrameRange;`;
 
 const read = 'read-only-storage',
   write = 'storage';
@@ -38,6 +51,7 @@ const DAG_TYPES: Record<keyof typeof DAG_BINDING, GPUBufferBindingType> = {
   worlds: read,
   frames: write,
   cold: read,
+  range: 'uniform',
 };
 
 /**
