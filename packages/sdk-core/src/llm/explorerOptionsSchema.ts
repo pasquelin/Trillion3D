@@ -1,5 +1,4 @@
 import type { JsonSchemaObject } from './types.ts';
-import { SCREEN_ERROR_VARIANTS } from '../lod/screenErrorVariant.ts';
 
 /**
  * Comprehensive JSON Schema documenting all initialization options for the Trillion3D explorer (MeasuredWorldOptions).
@@ -106,7 +105,7 @@ export const EXPLORER_OPTIONS_SCHEMA: JsonSchemaObject = {
     },
     screenError: {
       type: 'string',
-      enum: [...SCREEN_ERROR_VARIANTS],
+      enum: ['certifiee', 'reference'],
       default: 'certifiee',
       description:
         "Screen-space error metric: 'certifiee' (rigorous bounded formula) or 'reference' (external projection formula).",
