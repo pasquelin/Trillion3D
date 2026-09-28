@@ -550,6 +550,20 @@
       }
     }
   },
+  "a-carousel": {
+    "banner": "Gire em torno do carrossel. Pause ou envie os cavalos de madeira para o outro lado.",
+    "controls": {
+      "running": "Em movimento",
+      "speed": "Velocidade",
+      "direction": "Direção"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "sentido horário",
+        "counterclockwise": "sentido anti-horário"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Arraste para voar em volta da ilha. Suba o mar para inundar os vales.",
     "controls": {
@@ -2257,6 +2271,21 @@
     },
     "words": {
       "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Escolha uma elevação da casa. Afaste a câmera: o desenho ortográfico mantém exatamente a mesma escala.",
+    "controls": {
+      "elevation": "Elevação",
+      "distance": "Distância da câmera",
+      "zoom": "Escala do desenho"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Frente",
+        "right": "Lado direito",
+        "rear": "Fundos"
+      }
     }
   },
   "hover-to-highlight": {

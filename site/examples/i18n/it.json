@@ -550,6 +550,20 @@
       }
     }
   },
+  "a-carousel": {
+    "banner": "Ruota attorno alla giostra. Fermala o manda i cavalli di legno nel verso opposto.",
+    "controls": {
+      "running": "In movimento",
+      "speed": "Velocità",
+      "direction": "Direzione"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "senso orario",
+        "counterclockwise": "senso antiorario"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Trascina per volare intorno all'isola. Alza il mare per allagare le valli.",
     "controls": {
@@ -2257,6 +2271,21 @@
     },
     "words": {
       "credit": "Bandiera su un'asta modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Scegli un prospetto della casa. Allontana la camera: il disegno ortografico mantiene esattamente la stessa scala.",
+    "controls": {
+      "elevation": "Prospetto",
+      "distance": "Distanza camera",
+      "zoom": "Scala del disegno"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Fronte",
+        "right": "Lato destro",
+        "rear": "Retro"
+      }
     }
   },
   "hover-to-highlight": {
