@@ -8,17 +8,15 @@ Build the branch first, then run the diagnostic on the quiet measurement machine
     node bench/runner/feedbackTargetAb.ts --scene sponza,alpha-blend-mode-test \
       --rebuild-cache alpha-blend-mode-test --images 120
 
-The runner prepares assets before Chrome; `--rebuild-cache` refreshes only named derived caches
-through the owned compiler. Each scene and view uses one session at a fixed pose, 2496×1404 DPR 1,
-TAA on. Up to 240 ordinary budgeted frames trace geometry and tiles and sample requested/served
-mips from r32uint feedback without a convergence barrier. The scene-level proof requires center
-at its requested mip while periphery has a gap, then periphery at level in a later checkpoint,
-with both regions still at level in the held frame. MASK and BLEND fidelity uses final image parity.
-The switch forces full GPU renders with settled TAA. A verdict needs 12 distinct GPU samples per
-A/B/A leg, 0px A/A and A/B differences, stable geometry and tile identities, no pending work,
-and the expected target-byte difference. JSON and captures go under `.mesure/out/39-feedback-ab/`.
-Missing values are `null`. The off-side delta bounds any later request-packing gain. Named pass
-p50 duration / whole-frame p50 shares are costs, not additive savings.
+`--rebuild-cache` refreshes named derived caches through the owned compiler. Each scene and view
+is one session at a fixed pose, 2496×1404 DPR 1, TAA on. Up to 240 budgeted frames, with no
+convergence barrier, sample requested/served mips from the r32uint feedback in center and
+periphery patches, whole and per surface kind (opaque, mask, blend). Gaze-first holds when center
+is at level while periphery lags, then periphery reaches level, for the frame and each kind both
+regions request in the held frame. The A/B/A verdict needs 12 GPU samples per leg, 0px A/A and
+A/B, identical geometry and tile residency, and the expected target-byte delta. JSON and captures
+go to `.mesure/out/39-feedback-ab/`; missing values are `null`. Pass/frame shares are costs, not
+savings; the off-side delta bounds any request-packing gain.
 
 A single harness for all test batches. One command, no server to start manually, only this repository on the machine: Playwright and esbuild are its dev dependencies, Chrome is the system browser, assets live under `.mesure/assets/`.
 
