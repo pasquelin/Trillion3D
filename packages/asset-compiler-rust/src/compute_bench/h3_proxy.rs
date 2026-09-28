@@ -22,7 +22,7 @@ fn reference_stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     let palette = albedo::material_albedo(inputs.g, inputs.previews);
     let mut triangles: Vec<f32> = Vec::new();
     let mut colours: Vec<u32> = Vec::new();
-    for node_id in inputs.chosen {
+    for node_id in inputs.shown {
         let node = item(nodes, *node_id, "node")?;
         let old_mesh = required_index(node.get("mesh"), "node.mesh")?;
         let Some(mesh_index) = inputs.mesh_map.get(&old_mesh).copied() else {

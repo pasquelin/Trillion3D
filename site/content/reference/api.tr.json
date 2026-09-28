@@ -2102,7 +2102,6 @@
     "members": {
       "isObject3D": "Her zaman `true`: bir sahne düğümünü ayırır.",
       "type": "Düğümün türü: `'Mesh'`, `'Group'`…",
-      "name": "Düğümü bulmak için bir ad.",
       "position": "Düğümün, ebeveyninden itibaren nerede durduğu.",
       "rotation": "Düğümün üç açı olarak nasıl döndürüldüğü.",
       "quaternion": "Düğümün bir kuaterniyon olarak nasıl döndürüldüğü.",
@@ -2188,6 +2187,7 @@
   "TransformNode": {
     "summary": "Referansın matrisleriyle okunan, motorun dönüşüm ağacında tutulan bir sahne düğümü.",
     "members": {
+      "name": "Düğümü bulmak için bir ad.",
       "matrix": "Yerel matris, bu düğümün dönüşüm ağacındaki yuvasının bir görünümü.",
       "matrixWorld": "En son bileşik hâliyle (`updateMatrixWorld`) dünya matrisi, ağacın bir görünümü.",
       "matrixAutoUpdate": "`matrix` pozun KENDİSİ olduğunda ve hiçbir şey onu yeniden oluşturmadığında yanlış.",

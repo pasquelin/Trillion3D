@@ -27,7 +27,8 @@ pub(super) struct DepthLayerScene<'a> {
     pub o: &'a Options,
     pub g: &'a Value,
     pub bin: &'a [u8],
-    pub chosen: &'a BTreeSet<usize>,
+    /// The chosen nodes no hidden node hides: what the drawn scene derives from.
+    pub shown: &'a BTreeSet<usize>,
     pub mesh_map: &'a BTreeMap<usize, usize>,
     pub cluster_planes: &'a [Vec<Option<coplanar::ClusterPlane>>],
 }
@@ -44,7 +45,7 @@ pub(super) fn stage_depth_layers(
         o,
         g,
         bin,
-        chosen,
+        shown,
         mesh_map,
         cluster_planes,
     } = *scene;
@@ -56,7 +57,7 @@ pub(super) fn stage_depth_layers(
     let inputs = coplanar::CoplanarInputs {
         g,
         bin,
-        chosen,
+        shown,
         mesh_map,
         source_mesh: &source_mesh,
         primitives,
