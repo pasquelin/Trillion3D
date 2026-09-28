@@ -87,7 +87,6 @@ export class WebglClusterTextures {
       cutoff = reader ? this.followed.get(texture)! : null;
     let record = this.records.get(key);
     if (!record || record.version !== texture.version) {
-      ((globalThis as any).__up ??= []).push([performance.now(), key, record ? record.version : null, texture.version, (texture.image as any)?.width, texture.name]);
       record = this.upload(unit, texture, color, cutoff, record);
       this.records.set(key, record);
     } else {
