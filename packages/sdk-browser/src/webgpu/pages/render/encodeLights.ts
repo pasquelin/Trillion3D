@@ -75,10 +75,10 @@ export function encodeDirectLights(
   }
   noteShadowFrame(lights);
   if (!tiles || !gpu.depthView) return directParams;
-  if (!lights.buffer || !tiles.ensure(width, height, gpu.depthView, lights.buffer))
+  if (!lights.buffer || !tiles.ensure(width, height, gpu.depthView, lights.buffer, active))
     return directParams;
   tiles.update(viewProjection, cam.eye, width, height);
-  if (!tiles.encode(encoder)) return directParams;
+  if (!tiles.encode(encoder, rt.run.frame)) return directParams;
   directParams[0] = active;
   directParams[1] = tiles.tilesX;
   directParams[2] = tiles.tilesY;
@@ -181,6 +181,9 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     shadowWaitFrames: lights.plan.counts.waitedFrames,
     /** Shadow casters past the slices: lit without a shadow (#818, #822). */
     shadowCastersUnsliced: lights.plan.counts.unslicedCasters,
+    /** The view's pool of the tiles past their list, as last sampled, while the scene holds more
+     *  lights than a list: `overflowed`, some tile found no room and walked every light (#849). */
+    tileLightPool: lights.tiles?.wide ? { ...lights.tiles.pool } : null,
     poolPages: lights.shadows
       ? { used: lights.plan.counts.poolPages, total: lights.plan.pool.pages }
       : null,
