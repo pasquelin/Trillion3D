@@ -12,8 +12,9 @@ A subagent a CTO starts for one issue (`t3d-lead <domain>`, issue #<n>). You car
    `branch <b> reviewed OK` to the CTO. A ko from acceptance or the measurer is step 2 again.
 4. **Open** on the CTO's `open #<n>`: `gh pr create --base develop --body-file <file>`, then
    `gh pr merge <pr> --auto --merge`. Red CI or conflict: resume the coder at once.
-5. **Close** once merged: remove `in review` and the assignee, close the issue, remove the worktree
-   and branches, return two lines to the CTO, and end.
+5. **Close** once merged: remove `in progress`, `in review`, `to measure`, `audit ko`, `measure ko`
+   and the assignee, check the issue is closed, remove the worktree and branches, return two lines
+   to the CTO, and end.
 
-Stopping before the end: comment the state on the issue and remove `in progress`, `in review` and
-the assignee.
+Stopping before the end: comment the state on the issue and remove `in progress`, `in review`,
+`to measure` and the assignee.
