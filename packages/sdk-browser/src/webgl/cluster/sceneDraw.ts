@@ -43,8 +43,8 @@ const NO_BATCHES: readonly never[] = [];
  *
  * `render(camera)` opens the frame: it zeroes the counters, so that a frame
  * the composer held — nothing drawn — publishes nothing, never the previous draw; `counters()` is
- * `null` before the first frame. The graph's matrices and lists (`drawLists.ts`, walked again only
- * when the graph changed shape) are brought up to date once per drawn image, at the first of
+ * `null` before the first frame. The graph's matrices and lists (`drawLists.ts`: the matrices of
+ * the subtrees that changed, the lists walked again only when the graph changed shape) are brought up to date once per drawn image, at the first of
  * `host.linearRefusal` and `host.drawHostGeometry`: never on a held frame, and never in `render`,
  * which runs before the engine's frame writes the graph (`../../backend/autonomous/pages.ts`). Asked
  * first, that runs before `onBeforeRender`, whose one hook (`../../lighting/unlitAlbedo.ts`) writes
@@ -70,11 +70,10 @@ export function createSceneDraw(
   const screen = new Float64Array(16),
     order = createDrawOrder();
   const counters = { triangles: 0 };
-  /** The image's one pass over the graph: its world matrices, then what it draws, sorted later. */
+  /** The image's one pass over what changed: its world matrices, then what it draws, sorted later. */
   const walk = () => {
     if (walked) return;
     walked = true;
-    display.updateMatrixWorld();
     lists.refresh();
     opaque.length = seeThrough.length = 0;
     for (const mesh of lists.opaque) opaque.push(mesh);
