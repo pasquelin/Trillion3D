@@ -39,6 +39,7 @@ const config: KnipConfig = {
     'bench/runner/threeLodPage.ts',
     'bench/runner/measurePage.ts',
     'bench/runner/fluidsPage.ts',
+    'bench/runner/gazeNetworkPage.ts',
     'bench/runner/limits.ts',
     // The witness entry: bundled into `dist/witnesses/measurement.js` and imported by URL by those
     // pages; it re-exports the engine's measurement seam.
