@@ -18,6 +18,8 @@ libm = "0.2.16"
 
 [profile.release]
 lto = true
-opt-level = "s"
+# 3 rather than "s" (STR-03, #238): the page decoder runs about twice as fast for the same bits —
+# Rust has no fast-math, every float operation is IEEE-exact at any level — in a module no larger.
+opt-level = 3
 codegen-units = 1
 panic = "abort"
