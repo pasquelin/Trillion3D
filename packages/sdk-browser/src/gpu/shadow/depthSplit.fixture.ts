@@ -60,7 +60,6 @@ const sub3 = (a: Vec, b: Vec) => vec3f(a.x - b.x, a.y - b.y, a.z - b.z);
 const dot = (a: Vec, b: Vec) =>
   Object.keys(a).reduce((sum, axis) => f(sum + f(a[axis] * b[axis])), 0);
 
-/** What the shader reads: the page table, the geometry, the lists and the face. */
 /** A page-table row, as far as the depth draws read it. */
 export type ShadowPage = {
   flags: number;
@@ -72,6 +71,7 @@ export type ShadowPage = {
   baseColor: Vec;
 };
 
+/** What the shader reads: the page table, the geometry, the lists and the face. */
 export type ShadowScene = {
   pages: ShadowPage[];
   indices: number[];
