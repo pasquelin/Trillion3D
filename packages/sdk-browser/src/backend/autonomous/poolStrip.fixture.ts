@@ -32,7 +32,7 @@ export function dag0Roots() {
 }
 
 /** The DAG level drawing each leaf unit of the rule DAG. */
-export function levels(dag: ReturnType<typeof ruleDag>, drawn: number[]) {
+function levels(dag: ReturnType<typeof ruleDag>, drawn: number[]) {
   const at = new Int32Array(dag.leaves);
   for (const id of drawn) {
     const [a, b] = dag.pages[id].units;
