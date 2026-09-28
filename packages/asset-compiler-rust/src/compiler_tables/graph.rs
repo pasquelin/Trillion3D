@@ -28,7 +28,7 @@ fn name_of(owner: &Value) -> &str {
 }
 
 /// One entry per node of the document: its name, its children, the mesh, light and camera it carries,
-/// and its local pose as declared.
+/// its local pose as declared, and whether it declares itself visible (`KHR_node_visibility`).
 pub(super) fn node_table(g: &Value) -> Result<Vec<Value>> {
     let nodes = values(g, "nodes")?;
     let meshes = g
@@ -74,6 +74,7 @@ pub(super) fn node_table(g: &Value) -> Result<Vec<Value>> {
             "translation": declared(node, "translation"),
             "rotation": declared(node, "rotation"),
             "scale": declared(node, "scale"),
+            "visible": !crate::compiler_nodes::declared_hidden(node),
         }));
     }
     Ok(table)
