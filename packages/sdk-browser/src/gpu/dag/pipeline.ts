@@ -58,8 +58,12 @@ export function createDagPipeline(
     if (await shaderFailed(module)) return undefined;
     const stages = createDagStages(device, layout, module, frames.ranges.length > 1);
     const ranges = frames.bindGroups(layout, buffers);
-    /** Bind layout, returned with the stages: the dispatch bench mounts the previous cut on
-     *  EXACTLY this one, instead of retyping a fourth copy. */
-    return { layout, ...stages, ranges };
+    return {
+      /** Bind layout, returned with the stages: the dispatch bench mounts the previous cut on
+       *  EXACTLY this one, instead of retyping a fourth copy. */
+      layout,
+      ...stages,
+      ranges,
+    };
   });
 }
