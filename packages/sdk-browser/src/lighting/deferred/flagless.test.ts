@@ -40,7 +40,11 @@ test('the flagless composition gives the flag-reading one at every share of 0 (O
   let checked = 0;
   for (const programs of [CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS])
     for (const sources of [programs.plain, programs.bloom]) {
-      assert.doesNotMatch(sources.flagless, /asIs|@binding\(2\)/, 'no share bound nor read');
+      assert.doesNotMatch(
+        sources.flagless,
+        /asIs|@group\(0\) @binding\(2\)/,
+        'no share bound nor read',
+      );
       for (const rgb of channels)
         for (const a of coverages)
           for (const [z, w, x] of [

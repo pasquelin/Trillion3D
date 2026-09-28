@@ -1,5 +1,6 @@
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { bloomLevelLayout } from '../../effects/bloomLevel.ts';
+import { DISPLAY_FORMAT } from '../../scene/surfaceBuffer.ts';
 import type { ComposeInput } from './shaders.ts';
 import { makeFullscreenPipeline } from './fullscreen.ts';
 
@@ -34,7 +35,7 @@ export async function createCompositions(
     accumulated: layout('unfilterable-float'),
     flagless: layout(),
   };
-  const display = { format: 'rgba8unorm' as const };
+  const display = { format: DISPLAY_FORMAT };
   /** One input's composition: into the capture target, or into it and the canvas at once. */
   const compile = async (input: ComposeInput, bloom = false) => {
     const name = `${label}_COMPOSE_${bloom ? 'BLOOM_' : ''}${input.toUpperCase()}`;
