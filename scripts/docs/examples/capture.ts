@@ -178,11 +178,12 @@ export async function openExample(
         });
     }, slowMs);
   await page.goto(`http://127.0.0.1:${port}/${entry.file}`);
-  // A page asked to draw nothing (`share` 0), parked until the engine draws it, is heard a moment.
   let drawn = 0;
-  for (let attempt = 0; attempt < 30 && (attempt === 0 || drawn < least); attempt++) {
+  // A page asked to draw nothing (`share` 0), parked until the engine draws it, is only heard.
+  if (!least) await page.waitForTimeout(2000);
+  for (let attempt = 0; attempt < 30 && drawn < least; attempt++) {
     await page.waitForTimeout(500);
-    if (least) drawn = await drawnShare(page);
+    drawn = await drawnShare(page);
   }
   return { page, errors, drawn, requests };
 }
