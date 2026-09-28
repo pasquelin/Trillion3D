@@ -205,8 +205,8 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    `/simplify`, elsewhere a read of the whole diff for what is duplicated, needless or at the wrong
    depth —, then check correctness against the requirements above. Fix findings; then
    `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate` run once, on the final
-   head (by the reviewer in the agent company, never the coder); the image proof and the timing
-   follow on the branch.
+   head (by the reviewer, `docs/roles/reviewer.md`); the image proof and the timing follow on the
+   branch.
 4. Commit with a descriptive English message and push the branch; write the pull request body in a file, using
    `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>` (AGENTS.md rule 5). Describe what both local review passes found under "Local review before push". Replace `in progress` with `in review`. No pull request yet (AGENTS.md rule 11).
 5. Obtain an independent review and resolve its findings, then the image proof and the timing on
@@ -215,12 +215,12 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    `validate` is green on a head that merged `develop` and merges cleanly into it (AGENTS.md rule
    11); `main` moves only on the maintainer's word. Never push directly to `develop` or `main`, or
    rewrite published history.
-6. After merge, remove the worktree and merged branch, remove `in progress`, `in review` and
-   `to measure`, and check the issue is closed: GitHub's `Closes #n` acts only on `main`, so
-   [`close-issues.yml`](.github/workflows/close-issues.yml) closes, as completed and with a
-   comment linking the pull request, every issue a body merged into `develop` names with a closing
-   keyword. A regression found after the merge reopens the issue,
-   labelled `audit ko` or `measure ko`, with the findings in a comment.
+6. After merge, remove the worktree and merged branch, remove the lifecycle labels
+   (`docs/roles/lead.md` step 5), and check the issue is closed: GitHub's `Closes #n` acts only on
+   `main`, so [`close-issues.yml`](.github/workflows/close-issues.yml) closes, as completed and
+   with a comment linking the pull request, every issue a body merged into `develop` names with a
+   closing keyword. A regression found after the merge reopens the issue, labelled `audit ko` or
+   `measure ko`, with the findings in a comment.
 
 A release from `develop` to `main` has its own issue and pull request. Its head is `develop`;
 no separate release branch is needed. Use the same template and `Closes #<issue>` first line (the release delivers its whole issue),
