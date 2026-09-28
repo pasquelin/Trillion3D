@@ -101,10 +101,19 @@ export function createWebglParticleDraw(
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         return { framebuffer: gl.createFramebuffer()!, texture, width: 0, height: 0 };
       });
-      /** The depth format each framebuffer's blit took, found on its first copy. */
-      const formats = new Map<WebGLFramebuffer | null, number>();
+      /** The depth format each framebuffer's blit took, found on its first copy; weakly held, a
+       *  target remade on a resize is let go with its framebuffer. The page's is `page`. */
+      const formats = new WeakMap<WebGLFramebuffer, number>();
       const vao = gl.createVertexArray()!;
-      return { program, vao, uniforms, copies, formats, refused: false };
+      return {
+        program,
+        vao,
+        uniforms,
+        copies,
+        formats,
+        page: undefined as number | undefined,
+        refused: false,
+      };
     },
     ({ program, vao, copies }) => {
       gl.deleteProgram(program);
@@ -141,7 +150,7 @@ export function createWebglParticleDraw(
       const live = held.current();
       if (!live || live.refused) return 0; // a refused draw: the step keeps the pools refused
       const { framebuffer, width, height } = output,
-        found = live.formats.get(framebuffer);
+        found = framebuffer ? live.formats.get(framebuffer) : live.page;
       gl.disable(gl.SCISSOR_TEST);
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER, framebuffer);
       // The depth copied for the soft edge, same rectangles, resolved as they are. A framebuffer's
@@ -151,8 +160,9 @@ export function createWebglParticleDraw(
       else {
         for (let n = 0; n < 8 && gl.getError() !== gl.NO_ERROR; n++);
         at = DEPTHS.findIndex((_, i) => copyDepth(live, i, width, height, true));
-        if (at >= 0) live.formats.set(framebuffer, at);
-        else live.refused = true;
+        if (at < 0) live.refused = true;
+        else if (framebuffer) live.formats.set(framebuffer, at);
+        else live.page = at;
       }
       gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
       if (live.refused) {
@@ -172,6 +182,7 @@ export function createWebglParticleDraw(
       gl.depthFunc(gl.LEQUAL);
       gl.depthMask(false);
       gl.disable(gl.CULL_FACE);
+      gl.colorMask(true, true, true, true); // a last mesh drawn without colour writes none here
       let draws = 0;
       for (const pool of order) {
         const state = stateOf(pool);
