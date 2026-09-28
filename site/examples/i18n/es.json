@@ -500,6 +500,24 @@
       "balloon": "SIGUIENDO EL GLOBO"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Mira la ruta grabada por el parque. Repítela, detenla o toma la cámara.",
+    "controls": {
+      "replay": "Repetir",
+      "stop": "Detener"
+    },
+    "readouts": {
+      "currentPart": "Tramo actual"
+    },
+    "words": {
+      "entrance": "Entrada",
+      "pond": "Estanque",
+      "bridge": "Puente",
+      "pavilion": "Pabellón",
+      "overview": "Vista general",
+      "complete": "Completo"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Gira alrededor de la grúa mientras un clip rota la pluma, mueve el carro, eleva la carga y la deja balancearse.",
     "controls": {
@@ -516,6 +534,20 @@
       "ripples": "Ondas",
       "inner": "Interior",
       "outer": "Exterior"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Acerca la cámara a las puertas. Se abren cuando te aproximas.",
+    "controls": {
+      "mode": "Modo",
+      "openingDistance": "Distancia de apertura",
+      "openness": "Apertura"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "proximidad",
+        "manual": "manual"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -1951,6 +1983,7 @@
       "manifest": "manifiesto leído",
       "tables": "tablas de la escena leídas",
       "resources": "archivos de la escena",
+      "session": "abriendo la vista",
       "pages": "primeras páginas",
       "ready": "listo"
     }
@@ -2239,6 +2272,12 @@
         "right": "Lado derecho",
         "rear": "Parte trasera"
       }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Pasa el cursor sobre las piezas del carro para resaltar cada una, o desactiva el resaltado en el panel.",
+    "controls": {
+      "highlightEnabled": "Activar resaltado"
     }
   },
   "a-dolly-along-the-canal": {

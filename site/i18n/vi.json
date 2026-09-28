@@ -1372,8 +1372,10 @@
       "red-cyan-anaglyph": "Anaglyph đỏ-lam",
       "camera-layers": "Các lớp camera",
       "a-robot-that-walks-and-waves": "Pha trộn chuyển động robot",
+      "a-recorded-fly-through": "Phát lại hành trình bay đã ghi",
       "a-crane-that-swings": "Cần cẩu đung đưa tải",
       "a-wave-across-a-grid": "Sóng khối lập phương",
+      "doors-that-open": "Cửa mở khi bạn đến gần",
       "keyframes-by-hand": "Khung khóa thủ công",
       "one-clip-many-objects": "Một clip, nhiều đối tượng",
       "animation-from-the-file": "Hoạt ảnh từ tệp",
@@ -1520,6 +1522,7 @@
       "shadows-through-see-through-panes": "Bóng đổ qua những tấm kính trong",
       "a-walker-among-balls": "Người đi bộ giữa những quả bóng",
       "an-elevation-of-the-house": "Mặt đứng trực giao của ngôi nhà",
+      "hover-to-highlight": "Di chuột để làm nổi bật một bộ phận",
       "a-dolly-along-the-canal": "Máy quay trượt dọc kênh",
       "a-folder-merged-into-one-scene": "Thư mục được gộp thành một cảnh",
       "drag-a-crate": "Kéo thùng hàng"

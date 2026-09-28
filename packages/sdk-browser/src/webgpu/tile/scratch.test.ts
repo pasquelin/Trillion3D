@@ -179,7 +179,7 @@ test('a coverage working texture reduces weighted by alpha unless uploaded premu
     const readers = new CoverageReaders();
     readers.read({ map, alphaTest: coverage ? 0.5 : 0, transparent: false } as PageSurface);
     const size = { width: 1, height: 2, format: 'rgba8unorm' } as const;
-    createTileScratch(device, { map, ...size, errorCode: 'NONE', coverage: readers });
+    createTileScratch(device, { map, ...size, errorCode: 'NONE', coverage: readers }).reduce();
     return renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted);
   };
   assert.deepEqual(rule(true, false), [1], 'straight alpha read as coverage: weighted');

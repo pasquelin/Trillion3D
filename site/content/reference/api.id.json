@@ -12,6 +12,7 @@
       "bindingOf": "Yang ditulis `tr`, diselesaikan sekali; null selama targetnya belum berada di bawah root.",
       "play": "Mulai memainkannya.",
       "stop": "Berhenti, dan kembali ke awal.",
+      "seek": "Menempatkan klip pada `time` detik sekarang juga, menurut mode pengulangannya, sedang diputar atau tidak: aksi yang diputar berlanjut dari situ, aksi yang berhenti mempertahankan pose itu sampai aksi yang diputar pada mixer-nya menimpanya.",
       "clipTime": "Di mana posisi aksi dalam clip, menurut mode loop-nya."
     }
   },
@@ -968,6 +969,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "BATCHED_WORLD_VIEW": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "RAYCAST_NO_VIEW": "Titik gambar diminta dari canvas yang tidak punya ukuran: tidak ada gambar untuk dibidik.",
+      "VERTICES_NOT_LOADED": "Verteks model yang dimuat dibaca sebelum `await geometry.loadVertices()`: sesi membacanya saat pertama dibutuhkan, tidak pernah lebih dulu.",
       "SESSION_OPEN_FAILED": "Sesi dunia tidak bisa dibuka, karena alasan yang tidak punya kode sendiri (`world.diagnostic.error`): galat yang dilempar ada di `details.cause`.",
       "WEBGPU_LOST": "WebGPU kehilangan perangkatnya, atau sebuah galat padanya meninggalkan keadaan yang tidak bisa dipakai untuk menggambar: dilempar oleh `render`, `flush`, dan pembacaan yang memerlukan perangkat, dinamai oleh diagnostik `gpu-device-lost`, dan muncul di `world.diagnostic.error` ketika sebuah sesi tidak bisa dibuka karenanya.",
       "UNSUPPORTED_SCENE_FORMAT": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
@@ -1187,6 +1189,7 @@
       "rotateZ": "Memutar setiap vertex mengelilingi sumbu z, sebesar `angle` radian.",
       "scale": "Meregangkan setiap vertex sebesar `(x, y, z)`.",
       "center": "Memindahkan geometri agar kotaknya berpusat di titik asal.",
+      "loadVertices": "Membaca verteks mesh yang dimuat, yang tidak diambil lebih dulu oleh sesi mana pun; langsung untuk yang lain. Sebelum itu, membacanya (`array`, `getX`) melempar `VERTICES_NOT_LOADED`.",
       "clone": "Geometri baru dengan salinan setiap daftar, grup, rentang, data, dan batasnya, serta resep yang masih membangunnya.",
       "dispose": "Mengembalikan geometri: menjalankan setiap kait pelepasan sekali, melupakan pemegangnya dan pohon raycast; geometri yang dilepas tidak digambar atau dikenai sinar oleh siapa pun.",
       "kind": "Apa sumber dayanya, cara pembaca adegan membedakan sumber daya.",

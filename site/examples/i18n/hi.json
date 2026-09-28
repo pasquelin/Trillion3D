@@ -500,6 +500,24 @@
       "balloon": "गुब्बारे का पीछा"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "पार्क में रिकॉर्ड किया गया मार्ग देखें। इसे दोबारा चलाएँ, रोकें या कैमरा संभालें।",
+    "controls": {
+      "replay": "दोबारा चलाएँ",
+      "stop": "रोकें"
+    },
+    "readouts": {
+      "currentPart": "वर्तमान भाग"
+    },
+    "words": {
+      "entrance": "प्रवेश",
+      "pond": "तालाब",
+      "bridge": "पुल",
+      "pavilion": "मंडप",
+      "overview": "समग्र दृश्य",
+      "complete": "पूर्ण"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "क्रेन के चारों ओर घुमाएँ, जबकि एक क्लिप भुजा घुमाती, ट्रॉली चलाती, भार उठाती और झुलाती है।",
     "controls": {
@@ -516,6 +534,20 @@
       "ripples": "लहरें",
       "inner": "अंदर",
       "outer": "बाहर"
+    }
+  },
+  "doors-that-open": {
+    "banner": "कैमरे को दरवाज़ों की ओर ले जाएँ। पास आने पर वे खुलते हैं।",
+    "controls": {
+      "mode": "मोड",
+      "openingDistance": "खुलने की दूरी",
+      "openness": "खुलाव"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "निकटता",
+        "manual": "मैन्युअल"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -1951,6 +1983,7 @@
       "manifest": "मैनिफ़ेस्ट पढ़ लिया",
       "tables": "सीन की तालिकाएँ पढ़ लीं",
       "resources": "सीन की फ़ाइलें",
+      "session": "दृश्य खुल रहा है",
       "pages": "पहले पेज",
       "ready": "तैयार"
     }
@@ -2239,6 +2272,12 @@
         "right": "दायाँ भाग",
         "rear": "पीछे"
       }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "गाड़ी के हर भाग को उभारने के लिए उस पर होवर करें, या पैनल में हाइलाइट बंद करें।",
+    "controls": {
+      "highlightEnabled": "हाइलाइट चालू करें"
     }
   },
   "a-dolly-along-the-canal": {
