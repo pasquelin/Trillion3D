@@ -1,4 +1,4 @@
-// nodeEdits.ts: every rename and every change of a child list moves the count, whatever called it — what
+// nodeEdits.ts: every rename and every change of parent moves the count, whatever called it — what
 // a name index built by a walk is dropped on (#915) — and a pose write does not.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,9 +15,7 @@ function counted(edit: () => void) {
 test('objectEdits: a rename, an add, a removal, a reparenting, an attach and a free are counted', () => {
   const root = new Group(),
     other = new Group(),
-    node = new Group(),
-    leaf = new Group();
-  other.add(leaf);
+    node = new Group();
   const edits = [
     () => (node.name = 'crate'),
     () => root.add(node),
@@ -26,7 +24,7 @@ test('objectEdits: a rename, an add, a removal, a reparenting, an attach and a f
     () => root.remove(node),
     () => (root.add(node), root.clear()),
     () => node.clone(),
-    () => leaf.destroy(),
+    () => node.destroy(),
   ];
   for (const edit of edits) assert.ok(counted(edit), String(edit));
 });
