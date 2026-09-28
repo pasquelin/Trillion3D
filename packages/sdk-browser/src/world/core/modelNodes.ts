@@ -1,5 +1,5 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/sphere.ts';
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts';
 
 /** The graph node each scene node of a loaded model stands for. */
@@ -54,16 +54,24 @@ export function writeModelNode(node: Object3D) {
   if (!graph.matrixAutoUpdate) graph.matrix.fromArray(node.matrix.elements);
 }
 
+/** Each table of a model's nodes by source index (`graphSubtree`), the index of each node. */
+const indexOfs = new WeakMap<readonly Object3D[], Map<Object3D, number>>();
+const sphere = new Float64Array(4);
+
 /**
  * The subtree of the graph node of source node `index` (`nodes`, by source index): the source
  * indices of the nodes it holds, itself included, and the radius of the box they draw in its
  * parent's frame (0 for none).
  */
 export function graphSubtree(nodes: readonly Object3D[], index: number) {
-  const inside = new Set<Object3D>();
-  nodes[index].traverse((node) => void inside.add(node));
-  const indices = nodes.flatMap((node, i) => (inside.has(node) ? [i] : []));
-  const box = hostWorldBounds(nodes[index], emptyWorldBox());
-  const [x, y, z] = [box[3] - box[0], box[4] - box[1], box[5] - box[2]];
-  return { indices, radius: x >= 0 ? hypot3(x, y, z) / 2 : 0 };
+  let indexOf = indexOfs.get(nodes);
+  if (!indexOf) indexOfs.set(nodes, (indexOf = new Map(nodes.map((node, i) => [node, i]))));
+  const indices: number[] = [];
+  nodes[index].traverse((node) => {
+    const at = indexOf.get(node);
+    if (at !== undefined) indices.push(at);
+  });
+  const b = hostWorldBounds(nodes[index], emptyWorldBox());
+  sphereFromBounds(sphere, 0, b[0], b[1], b[2], b[3], b[4], b[5]);
+  return { indices, radius: Math.max(0, sphere[3]) };
 }

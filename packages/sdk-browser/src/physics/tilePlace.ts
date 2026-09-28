@@ -11,8 +11,9 @@ import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
-import type { MovingBody } from './cookedBodies.ts';
+import type { NodeMove } from './cookedBodies.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
+import { worldPoseOf } from './bodyFrame.ts';
 import { checked, optionalFile } from '../cluster/checked.ts';
 import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 
@@ -118,7 +119,7 @@ export function locate(p: Placed) {
  */
 export function moversOf(
   meshes: readonly (Bodied | null)[],
-  nested: readonly (MovingBody | null)[],
+  nested: ReadonlyMap<number, NodeMove>,
   velocity: Float32Array,
 ) {
   const out: number[] = [];
@@ -132,12 +133,10 @@ export function moversOf(
     out.push(mesh.position.x, mesh.position.y, mesh.position.z);
     out.push(half + hypot3(v.x, v.y, v.z) * LOOKAHEAD_S);
   }
-  for (let slot = 0; slot < nested.length; slot++) {
-    const moves = nested[slot]?.moves;
-    if (!moves) continue;
-    const at = resolveCameraWorld(moves.node).matrixWorld.elements,
+  for (const [slot, moves] of nested) {
+    const at = worldPoseOf(moves.node).position,
       v = slot * 6;
-    out.push(at[12], at[13], at[14]);
+    out.push(at[0], at[1], at[2]);
     out.push(moves.reach + hypot3(velocity[v], velocity[v + 1], velocity[v + 2]) * LOOKAHEAD_S);
   }
   return out;
