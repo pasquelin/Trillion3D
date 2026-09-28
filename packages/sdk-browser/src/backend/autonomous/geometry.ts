@@ -125,8 +125,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   const storeGeometryPage = (url: string, given: DecodedGeometryPage, host = false) => {
     const recs = byUrl.get(url);
     if (!recs) return false;
-    if (host) replaced.set(url, given);
-    const data = replaced.get(url) ?? given;
+    const data = host ? given : (replaced.get(url) ?? given);
     const descriptor = env.descriptors.get(url);
     if (
       !descriptor ||
@@ -155,6 +154,8 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       // Each geometry uploads its own buffers: counted as `release` gives them back.
       if (!shared) state.allocationBytes += hostPageBytes(geometry);
     }
+    // Kept once every check passed: a refused page never stands in for the cache's.
+    if (host) replaced.set(url, given);
     return recs.length > 0;
   };
   // True when the store now holds the page: the host did not replace it, and a record draws it.
