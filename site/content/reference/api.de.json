@@ -4395,7 +4395,8 @@
       "left": "Linker Rand.",
       "right": "Rechter Rand.",
       "top": "Oberer Rand.",
-      "bottom": "Unterer Rand."
+      "bottom": "Unterer Rand.",
+      "fitAspect": "Eine orthografische Box so hoch wie angegeben und so breit, wie die Form des Bildes es verlangt."
     }
   },
   "orthographicProjection": {

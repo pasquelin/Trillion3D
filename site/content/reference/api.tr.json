@@ -2242,7 +2242,8 @@
       "left": "Sol kenar.",
       "right": "Sağ kenar.",
       "top": "Üst kenar.",
-      "bottom": "Alt kenar."
+      "bottom": "Alt kenar.",
+      "fitAspect": "Bildirildiği kadar yüksek ve görüntünün biçiminin gerektirdiği kadar geniş bir ortografik kutu."
     }
   },
   "PAGE_DECODE_FAILURES": {
