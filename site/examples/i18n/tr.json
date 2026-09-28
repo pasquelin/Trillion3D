@@ -1263,6 +1263,25 @@
       "off": "kapalı"
     }
   },
+  "page-materials": {
+    "banner": "Salonu incelemek için sürükleyin. Malzemeleri listeleyin, değiştirin, harmanlayın veya oluşturun.",
+    "controls": {
+      "set": "Rengi değiştir",
+      "switchToBlend": "Harmanlamaya geç",
+      "createAndAssign": "Oluştur ve ata"
+    },
+    "readouts": {
+      "selected material": "Seçili malzeme",
+      "materials": "Malzemeler",
+      "sourceMaterials": "Kaynak malzemeler",
+      "last action": "Son işlem"
+    },
+    "words": {
+      "imported": "{count} içe aktarıldı",
+      "applied": "Uygulandı",
+      "ready": "Hazır"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "Etrafa bakmak için sürükle. Bu lambalar model dosyasının içinden geldi.",
     "controls": {

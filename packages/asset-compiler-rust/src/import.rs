@@ -21,7 +21,7 @@ use std::{
 const PROGRESS_INTERVAL_BYTES: u64 = 8 * 1024 * 1024;
 fn import_error(error: &ufbx::Error) -> CompilerError {
     if error.type_ == ufbx::ErrorType::Cancelled {
-        return CompilerError::new("CANCELLED", "Import cancelled");
+        return CompilerError::new(crate::CANCELLED, "Import cancelled");
     }
     let code = match error.type_ {
         ufbx::ErrorType::UnsupportedVersion => "IMPORT_UNSUPPORTED_VERSION",

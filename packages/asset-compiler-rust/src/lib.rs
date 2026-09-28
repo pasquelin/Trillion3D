@@ -49,17 +49,15 @@ pub const DAG_CLUSTER_STRATEGY: &str = "dag-groups";
 /// Numbers per culling node: min[3], max[3], sphere[4], maxParentError, firstChild, childCount,
 /// firstPage, pageCount. `maxParentError` is -1 when the subtree holds a cluster with no replacement.
 pub const CULLING_STRIDE: usize = 15;
-/// Target size of one streaming bundle: one request carrying dozens of neighbouring clusters of
-/// the same level, so filling a cut costs hundreds of requests instead of tens of thousands. A
-/// cluster stays individually addressable, through its own object and its offset in the bundle.
+/// Target size of one streaming bundle. Clusters remain individually addressable through offsets.
 pub const STREAM_BUNDLE_BYTES: usize = 128 * 1024;
 pub const STRUCTURE_VERSION: u32 = 1;
-/// Target size of one bootstrap object. The root clusters of every primitive share these objects,
-/// so the coarsest complete cover of a whole scene is a handful of large requests instead of one
-/// small request per primitive — which is what the first image waits on.
+/// Target size of one bootstrap object shared by root clusters of every primitive.
 pub const BOOTSTRAP_BUNDLE_BYTES: usize = 1024 * 1024;
 /// The root of the manifest, of fixed size: its pages lie beside it (`compiler_manifest_pages.rs`).
 pub const MANIFEST_FILE: &str = "clusters.json";
+/// Code of a job stopped on a cancel request: what the batch counts and the event reports.
+pub const CANCELLED: &str = "CANCELLED";
 #[derive(Debug)]
 pub struct CompilerError {
     pub code: &'static str,
@@ -112,7 +110,10 @@ pub struct Options {
 }
 fn check(o: &Options) -> Result<()> {
     if o.cancelled.load(Ordering::Relaxed) {
-        return Err(CompilerError::new("CANCELLED", "Compilation cancelled"));
+        return Err(CompilerError::new(
+            crate::CANCELLED,
+            "Compilation cancelled",
+        ));
     }
     Ok(())
 }
@@ -161,8 +162,6 @@ mod compiler_textures;
 mod compiler_types;
 mod compiler_validate;
 mod compiler_world;
-#[cfg(test)]
-mod compute_bench;
 #[cfg(test)]
 mod shared_math_tests;
 #[cfg(test)]
