@@ -78,8 +78,7 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   /** Bundles a finer cut needs, read while the network idles: a small move finds them resident. */
   prefetchUrls?(): string[];
   pageUrls?(): string[];
-  /** The same pins as `pageUrls`, spoken as a difference of request ranks: the host no longer has
-   *  to rebuild a set of strings every frame. An engine that does not implement it keeps `pageUrls`. */
+  /** Page pins as a difference of request ranks; both page backends implement this. */
   retainedRanks?(): import('../streaming/types.ts').HostRetentionDelta;
   /** The catalogue integer sheet for a request: what off-thread integration plans. */
   pageSpecs?(url: string): Int32Array | undefined;
