@@ -1,5 +1,7 @@
 // A texture pool that fills: its budget derived from what the scene itself holds resident, never a
 // number tuned for one scene. Read by `options.ts` in Node and `measurePage.ts` in the page.
+import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
+import type { MeasuredWorld } from '../witnesses/measurement.ts';
 
 /** The fraction of the resident working set `--pool-textures-vivant <n>%` asks, or `undefined`
  *  when the value is not a percentage (then a number of MiB). */
@@ -19,4 +21,19 @@ export function residentFractionBudget(fraction: number, residentBytes: number |
   if (typeof residentBytes !== 'number' || !(residentBytes > 0))
     throw new Error('the pose holds no texture tile: no working set to take a fraction of');
   return Math.max(1, Math.round(fraction * residentBytes));
+}
+
+/** The texture bytes the pose holds once `settle` has held it, and the budget `fraction` of them
+ *  asks (`residentFractionBudget`); `undefined`, nothing rendered, with no fraction asked. */
+export async function residentBudget(
+  explorer: MeasuredWorld,
+  pose: CameraPose,
+  fraction: number | undefined,
+  settle: (explorer: MeasuredWorld, pose: CameraPose) => Promise<unknown>,
+) {
+  if (fraction === undefined) return undefined;
+  await settle(explorer, pose);
+  const bytes = explorer.render(pose).textureResidentBytes ?? undefined;
+  await explorer.flush();
+  return { bytes, budget: residentFractionBudget(fraction, bytes) };
 }
