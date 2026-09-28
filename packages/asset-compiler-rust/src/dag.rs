@@ -126,7 +126,7 @@ struct GroupReductionInput<'a> {
     charts: &'a welds::Charts<'a>,
     /// Canonical vertex by position: locks, borders, adjacency.
     weld: &'a [u32],
-    /// Canonical vertex by position and every carried attribute (`welds::weld_exact`).
+    /// Canonical vertex by position and every carried attribute (`attributes::weld_exact`).
     exact: &'a [u32],
     /// Canonical vertex by position and every texture set: seams, diagnosis, normal copies.
     weld_seam: &'a [u32],
