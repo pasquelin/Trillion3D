@@ -53,7 +53,7 @@ export async function executer({
   );
 
   const uni = new Float32Array(DAG_VIEW_WORDS);
-  writeDagUniforms(uni, packed, uniforms, true);
+  writeDagUniforms(uni, packed, uniforms, true, livre.listCap);
   device.queue.writeBuffer(livre.uniforms, 0, uni);
   device.queue.writeBuffer(avant.uniforms, 0, uni);
 
