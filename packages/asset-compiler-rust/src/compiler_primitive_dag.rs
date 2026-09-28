@@ -66,13 +66,10 @@ pub(super) fn build_dag_primitive(
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
     let attributes = crate::dag::DagAttributes { carried };
     let mut laps = perf::Laps::start();
-    let crate::dag::DagBuild {
-        clusters: dag,
-        groups,
-        tallies,
-        stalls,
-        grown,
-    } = crate::dag::build_dag_tallied(pos, attributes, index_values, strategy, &|| check(o))?;
+    let built =
+        crate::dag::build_dag_tallied(pos, attributes, index_values, strategy, &|| check(o))?;
+    let (dag, groups, grown) = (built.clusters, built.groups, built.grown);
+    let (tallies, stalls) = (built.tallies, built.stalls);
     laps.lap("dagMs");
     // From here on every stage reads the source's vertices followed by those the solve of a
     // seam-locked group placed (`dag::Grown`); `source.bin` keeps the source alone.
@@ -151,15 +148,8 @@ pub(super) fn build_dag_primitive(
     // Flat node array, CULLING_STRIDE numbers per node; -1 marks a subtree holding a root.
     let mut flat = Vec::with_capacity(culling.len() * CULLING_STRIDE);
     for node in &culling {
-        for a in 0..3 {
-            flat.push(json!(node.min[a]));
-        }
-        for a in 0..3 {
-            flat.push(json!(node.max[a]));
-        }
-        for a in 0..4 {
-            flat.push(json!(node.sphere[a]));
-        }
+        let corners = node.min.iter().chain(&node.max);
+        flat.extend(corners.chain(&node.sphere).map(|&v| json!(v)));
         flat.push(if node.max_parent_error.is_finite() {
             json!(node.max_parent_error)
         } else {
