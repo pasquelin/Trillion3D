@@ -2840,7 +2840,7 @@
     "summary": "Host'a ait sahne hiyerarşisi sözleşmesinin sürümü."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Başlık tam sayıları: imza, sürüm, üçgenler, düğümler."
+    "summary": "Başlık tamsayıları: imza, sürüm, üçgen/düğüm/grup/sahip/kaynak sayıları, ayrılmış sıfır."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "İşaretsiz 32 bitlik little-endian bir tam sayı olarak okunan 'W','G','P','X'."
@@ -4908,7 +4908,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Tek bir ışın ona dokunmadan önce yeniden okunan ve yeniden kontrol edilen proxy.",
-    "description": "Düzen, little-endian: `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, sonra dünya köşeleri, albedolar, tam düğüm sınırları ve dört çocukları, birleştirilmiş. Her bölümün başlığın dayattığı bir uzunluğu vardır; başka bir boyuttaki bir dosya toplu olarak reddedilir, çünkü eksik bir üçgeni adlandıran bir düğüm shader'ı herhangi bir şeyi okumaya zorlardı."
+    "description": "Düzen: little-endian sırasındaki sekiz başlık sözcüğünü, kanonik geometri ve ağaç sütunları ile sürümlendirilmiş sahiplik verileri izler. `docs/FORMAT.md` her sayıyı ve sütunu belirtir. Başlık her bölümün uzunluğunu belirler; farklı boyuttaki bir dosya tamamen reddedilir, çünkü eksik bir üçgene işaret eden düğüm, gölgelendiricinin rastgele veri okumasına yol açar."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S`, `position`, `quaternion`, `scale`'e ayrıştırılmış."

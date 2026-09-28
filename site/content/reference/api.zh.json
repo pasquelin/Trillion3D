@@ -2840,7 +2840,7 @@
     "summary": "由宿主拥有的场景层级契约的版本。"
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "头部整数:签名、版本、三角形数、节点数。"
+    "summary": "头部整数：签名、版本、三角形/节点/组/所有者/源的数量，以及保留的零值。"
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "以小端序无符号 32 位整数读取的 'W'、'G'、'P'、'X'。"
@@ -4908,7 +4908,7 @@
   },
   "decodeSceneProxy": {
     "summary": "在任何一条光线接触它之前,会被重新读取并重新校验的代理体。",
-    "description": "布局采用小端序:`u32 'WGPX' · u32 version · u32 triangles · u32 nodes`,随后依次是世界坐标顶点、反照率、精确的节点边界及其四个子节点。每个部分的长度都由文件头强制规定;尺寸不符的文件会被整体拒绝,因为一个指向不存在三角形的节点会让着色器读到任意内容。"
+    "description": "布局：八个小端序头部字，后接规范几何与树的各列，以及带版本的所有权数据。`docs/FORMAT.md` 规定了每个数量和列。头部决定各段的长度；大小不符的文件会被整体拒绝，因为引用缺失三角形的节点会使着色器读取任意数据。"
   },
   "decomposeMatrix4": {
     "summary": "把 `m = T · R · S` 分解为 `position`、`quaternion`、`scale`。"

@@ -2840,7 +2840,7 @@
     "summary": "Versão do contrato de hierarquia de cena de propriedade do host."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Inteiros de cabeçalho: assinatura, versão, triângulos, nós."
+    "summary": "Inteiros do cabeçalho: assinatura, versão, contagens de triângulos/nós/grupos/proprietários/origens, zero reservado."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' lido como um inteiro de 32 bits sem sinal little-endian."
@@ -4908,7 +4908,7 @@
   },
   "decodeSceneProxy": {
     "summary": "O proxy relido e reverificado antes de um único raio o tocar.",
-    "description": "Layout, little-endian: `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, depois os vértices de mundo, albedos, limites exatos de nó e seus quatro filhos, concatenados. Cada seção tem um comprimento que o cabeçalho impõe; um arquivo de outro tamanho é rejeitado por completo, porque um nó que nomeasse um triângulo ausente faria o shader ler qualquer coisa."
+    "description": "Disposição: oito palavras de cabeçalho em little-endian, seguidas pelas colunas de geometria e árvore canônicas e pelos dados de propriedade com versão. `docs/FORMAT.md` especifica cada contagem e coluna. O cabeçalho impõe o comprimento de cada seção; um arquivo de tamanho diferente é rejeitado por inteiro, pois um nó que apontasse para um triângulo ausente faria o shader ler dados arbitrários."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` decomposto em `position`, `quaternion`, `scale`."
