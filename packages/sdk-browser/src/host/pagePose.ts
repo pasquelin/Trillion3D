@@ -1,5 +1,5 @@
 import type { HostMesh } from './resources.ts';
-import type { MatrixElements } from '../math/matrixElements.ts';
+import { copyElements, sameElements, type MatrixElements } from '../math/matrixElements.ts';
 
 /** The pose each page mesh was given last, while it stays in the graph (`forgetHostPose`). */
 const posed = new WeakMap<HostMesh, Float64Array>();
@@ -9,12 +9,10 @@ const posed = new WeakMap<HostMesh, Float64Array>();
  *  frame (#840: 1 465 pages recomposed a frame on sponza, for poses that never moved). */
 export const setHostPose = (mesh: HostMesh, pose: MatrixElements) => {
   const next = pose.elements;
-  let last = posed.get(mesh),
-    i = 0;
-  while (last && i < 16 && last[i] === next[i]) i++;
-  if (i === 16) return;
+  let last = posed.get(mesh);
+  if (last && sameElements(last, next)) return;
   if (!last) posed.set(mesh, (last = new Float64Array(16)));
-  for (let k = 0; k < 16; k++) last[k] = next[k];
+  copyElements(last, next);
   mesh.matrix.fromArray(next);
 };
 

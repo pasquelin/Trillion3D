@@ -15,8 +15,8 @@ import {
 import { createBlendScene } from '../../../cluster/blendSceneRecord.ts';
 import { createHostRankDelta } from '../../../page/hostRanks.ts';
 import { RASTER_BACKGROUND } from '../../../page/raster.ts';
+import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../../residency/pools.ts';
 import {
-  DEFAULT_TEXTURE_POOL_BUDGET,
   textureTransferBytesFor,
   textureUploadMsFor,
   type TexturePools,
