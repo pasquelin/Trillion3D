@@ -4,8 +4,8 @@ This is the on-disk contract implemented today: what the compiler writes and the
 
 ## Layout
 
-| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `native/<scope>/manifest.json` | `native/<scope>/<key>/clusters.json` and its pages, `source.gltf`, `source.bin`, SHA-addressed objects under `native/objects/`: `<digest>.bin`, one file per index page, geometry page or streaming bundle — and baked texture levels under `native/textures/v<N>/<digest>/<kind>-<level>.<format>`, one lossless PNG per mip level above the sidecar's tail, plus the same level in the cooked block family where the quality gate kept it |
 
 `<scope>` is `slice` or `full`. A pointer or payload with another scope is rejected (`SCOPE_MISMATCH`).
@@ -279,6 +279,32 @@ loader's graph, field by field and byte by byte, on every cache `site/assets` pu
 (`packages/sdk-browser/src/host/prepared/build.test.ts`). A layout that names a document the tables
 do not carry, a view outside its binary, or a cell placing a mesh the scene built no rows for,
 is `PREPARED_SCENE_MISMATCH`.
+
+## `proxy.bin` — resident proxy
+
+The coarse world triangles light rays hit, described by `clusters.json` `proxy` (`version`, `url`,
+`sha256`, `bytes`, `triangles`, `nodes`, `bounds`, `errorMetres`, `cellMetres` and the floors the
+budget widened). Version 3; a reader refuses any other (`UNSUPPORTED_FORMAT`). Little-endian 32-bit
+words, end to end, every length set by the header, a file of any other size refused
+(`INVALID_CACHE`):
+
+| Section         | Words                                 | Holds                                                                             |
+| --------------- | ------------------------------------- | --------------------------------------------------------------------------------- |
+| header          | 7                                     | `'WGPX'`, version, triangles T, nodes N, shapes S, shape triangles K, instances I |
+| shape counts    | S                                     | triangles of each shape, shapes end to end                                        |
+| shape triangles | 9 K f32, then K                       | three vertices per triangle, then its packed RGBA8 linear albedo                  |
+| instances       | I, then 12 I f32                      | the shape each instance places, then its row-major 3×4 map                        |
+| positions       | P = Σ counts of the instances' shapes | the flat slot of each placed shape triangle, instance after instance              |
+| loose triangles | 9 L f32, then L, L = T − P            | the triangles no shape carries, in flat order, then their albedos                 |
+| nodes           | 6 N f32, then 12 N                    | exact bounds of each wide BVH node, then its four children                        |
+
+The reader expands the file into the flat proxy the compiler simplified: instance `i` writes shape
+triangle `j` at its next position, each vertex coordinate
+`fround(m[r·4]·x + m[r·4+1]·y + m[r·4+2]·z + m[r·4+3])` in f64, left to right; the loose triangles
+fill the remaining slots in order. The compiler simplifies every placed instance in world space
+first, then stores as a shape only the instances this arithmetic places back bit for bit, so the
+expanded triangles, albedos and BVH leaves are exactly the flat ones and every other instance
+stays loose. A child names a node further on or a range of the T flat triangles.
 
 ## `physics.json` — cooked colliders
 
