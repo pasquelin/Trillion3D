@@ -398,7 +398,10 @@
       "levels": "Chaque niveau.",
       "reach": "Portée des rayons : la diagonale de l’étendue, au-delà de laquelle il n’y a rien à toucher.",
       "shareOf": "Sondes du lot de travail par image, par niveau : parts publiées appliquées à un lot total.",
-      "follow": "Replace les niveaux mobiles autour d’un point de vue. Renvoie vrai quand au moins un indice de case de base a changé : c’est le seul signal dont la convergence a besoin pour repartir, sans aucune relecture GPU."
+      "follow": "Replace les niveaux mobiles autour d’un point de vue. Renvoie vrai quand au moins un indice de case de base a changé : c’est le seul signal dont la convergence a besoin pour repartir, sans aucune relecture GPU.",
+      "reserveCount": "Capacité fixe réservée avant que les transformations puissent agrandir la scène.",
+      "invalidLevels": "Niveaux dont l’espacement ou la présence a changé lors du dernier recalcul. Les décalages de la base utilisent les marques des cellules.",
+      "replan": "Réapplique la politique existante de résolution spatiale aux limites actuelles de la géométrie."
     }
   },
   "BounceOccupancy": {
@@ -408,7 +411,8 @@
       "occupied": "Vrai quand une case d’un niveau dans sa grille mérite une sonde.",
       "marked": "Cases marquées et cases au total du niveau le plus fin : le gain publié.",
       "cells": "Cases du niveau le plus fin.",
-      "bytes": "Octets qu’il prend."
+      "bytes": "Octets qu’il prend.",
+      "allEligible": "La géométrie a bougé : programme par précaution toutes les cellules des cascades, dont le nombre est borné."
     }
   },
   "BoundedNode": {
@@ -5372,7 +5376,12 @@
       "triangles": "Trois sommets dans le monde par triangle, `PROXY_TRIANGLE_FLOATS` nombres chacun.",
       "albedo": "Albédo diffus linéaire du triangle, rangé en RGBA8.",
       "nodeBounds": "Limites exactes de chaque nœud du BVH.",
-      "nodeChildren": "Les quatre enfants de chaque nœud : boîte quantifiée, nombre de triangles, présence, lien."
+      "nodeChildren": "Les quatre enfants de chaque nœud : boîte quantifiée, nombre de triangles, présence, lien.",
+      "triangleGroups": "Groupe partagé des propriétaires sources de chaque triangle canonique, stocké une seule fois.",
+      "groupOffsets": "Décalages des enregistrements de propriétaires de chaque groupe, y compris la sentinelle finale.",
+      "owners": "Enregistrements des propriétaires : indice du nœud source et albédo linéaire compacté en RGBA8.",
+      "bindWorlds": "Matrices monde originales des nœuds sources, seize nombres en double précision par nœud.",
+      "sourceParents": "Hiérarchie source, y compris les nœuds de partition que l’hôte n’a pas actuellement instanciés."
     }
   },
   "SceneProxyDescriptor": {
@@ -5389,7 +5398,10 @@
       "triangleBudget": "Budget de triangles publié, celui qui a décidé du seuil vraiment obtenu.",
       "bounds": "Étendue du proxy dans le monde : trois limites basses puis trois hautes.",
       "triangles": "Triangles.",
-      "nodes": "Nœuds de l’arbre."
+      "nodes": "Nœuds de l’arbre.",
+      "groups": "Groupes de propriétaires partagés et stockés une seule fois.",
+      "owners": "Enregistrements des propriétaires.",
+      "instances": "Matrices des nœuds sources."
     }
   },
   "SceneRoot": {
