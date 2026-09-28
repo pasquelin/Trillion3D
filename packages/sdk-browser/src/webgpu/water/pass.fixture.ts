@@ -110,10 +110,7 @@ export function targets(gpu: WebgpuGpuState) {
     depthTexture: {},
     feedbackView: {},
     surfaces: { views: () => views },
-    backdrop: {
-      ...{ color: {}, colorView: {}, waterDepth: {}, waterDepthView: {} },
-      ...{ waterWord: {}, waterWordView: {}, active: true },
-    },
+    backdrop: { color: {}, colorView: {}, waterDepth: {}, waterDepthView: {}, active: true },
     deferred: {
       uniform: {},
       placeholders: Object.fromEntries(

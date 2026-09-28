@@ -39,22 +39,26 @@ test('WebGL2: the records land as float texels, only emitted rows are drawn, the
 });
 
 test('WebGL2 without a 32-bit float colour target refuses the pools by name, half floats too', () => {
-  const { run } = webgl(['EXT_color_buffer_half_float']);
+  const { run, heard } = webgl(['EXT_color_buffer_half_float']);
   const pool = new ParticlePool({ capacity: 8 });
   pool.emit(0, 0, 0, 0, 1, 0, 2);
-  assert.throws(() => run([pool]), /^Error: PARTICLES_UNSUPPORTED/);
+  assert.equal(run([pool]).draws, 0, 'nothing thrown, nothing stepped');
+  run([pool]);
   assert.deepEqual([pool.moving, pool.emit(0, 0, 0, 0, 1, 0, 2)], [false, false], 'refused');
+  assert.equal(heard.length, 1, 'told once');
+  assert.match(heard[0], /^PARTICLES_UNSUPPORTED: .*32-bit floats/);
 });
 
 test('WebGL2: a context restored without 32-bit float targets refuses the pools, until granted', () => {
   const granted = ['EXT_color_buffer_float'],
-    { run } = webgl(granted);
+    { run, heard } = webgl(granted);
   const pool = new ParticlePool({ capacity: 8 });
   pool.emit(0, 0, 0, 0, 1, 0, 2);
   assert.equal(run([pool]).draws, 1);
   granted.length = 0;
   pool.emit(0, 0, 0, 0, 1, 0, 2);
-  assert.throws(() => run([pool]), /^Error: PARTICLES_UNSUPPORTED/, 'never an incomplete target');
+  assert.equal(run([pool]).draws, 0, 'never an incomplete target');
+  assert.match(heard[0], /^PARTICLES_UNSUPPORTED/);
   granted.push('EXT_color_buffer_float');
   run([pool]);
   assert.equal(pool.emit(0, 0, 0, 0, 1, 0, 2), true, 'granted again: the pool steps again');
