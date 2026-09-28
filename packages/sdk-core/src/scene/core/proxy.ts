@@ -11,6 +11,7 @@ import {
   type SceneProxyColumns,
   type SceneProxyDescriptor,
 } from '../../contracts/proxy.ts';
+import { decodeProxyOwnership } from './proxyOwnership.ts';
 import { EngineError } from '../../contracts/index.ts';
 
 const bad = (message: string, details: Record<string, unknown>) =>
@@ -36,7 +37,7 @@ export function assertSceneProxy(value: unknown): asserts value is SceneProxyDes
       throw new EngineError('UNSUPPORTED_FORMAT', `The scene proxy descriptor misses ${key}`, {
         key,
       });
-  for (const key of ['bytes', 'triangles', 'nodes'] as const)
+  for (const key of ['bytes', 'triangles', 'nodes', 'groups', 'owners', 'instances'] as const)
     if (!Number.isSafeInteger(descriptor[key]) || descriptor[key]! < 0)
       throw new EngineError('UNSUPPORTED_FORMAT', `The scene proxy descriptor misses ${key}`, {
         key,
@@ -87,7 +88,9 @@ export function decodeSceneProxy(
   const wanted =
     header +
     descriptor.triangles * (PROXY_TRIANGLE_FLOATS + 1) * 4 +
-    descriptor.nodes * (PROXY_NODE_FLOATS + PROXY_NODE_WORDS) * 4;
+    descriptor.nodes * (PROXY_NODE_FLOATS + PROXY_NODE_WORDS) * 4 +
+    (descriptor.triangles + descriptor.groups + 1 + descriptor.owners * 2) * 4 +
+    descriptor.instances * (4 + 16 * 8);
   if (buffer.byteLength !== wanted)
     throw bad('The scene proxy object does not have the length its manifest declares', {
       bytes: buffer.byteLength,
@@ -99,7 +102,11 @@ export function decodeSceneProxy(
   if (
     words[1] !== SCENE_PROXY_VERSION ||
     words[2] !== descriptor.triangles ||
-    words[3] !== descriptor.nodes
+    words[3] !== descriptor.nodes ||
+    words[4] !== descriptor.groups ||
+    words[5] !== descriptor.owners ||
+    words[6] !== descriptor.instances ||
+    words[7] !== 0
   )
     throw bad('The scene proxy object disagrees with its manifest', {
       version: words[1],
@@ -120,6 +127,7 @@ export function decodeSceneProxy(
     albedo: take((b, o, n) => new Uint32Array(b, o, n), descriptor.triangles),
     nodeBounds: take((b, o, n) => new Float32Array(b, o, n), descriptor.nodes * PROXY_NODE_FLOATS),
     nodeChildren: take((b, o, n) => new Uint32Array(b, o, n), descriptor.nodes * PROXY_NODE_WORDS),
+    ...decodeProxyOwnership(descriptor, buffer, at),
   };
   checkChildren(descriptor, data);
   return { ...descriptor, data };
