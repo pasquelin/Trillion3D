@@ -19,6 +19,9 @@ import { blendMoves, isAssignment, type AlphaChange } from '../../placement/back
  *  moves between draw classes later (`reassignBlend`). */
 const pagesBlend = (primitive: { pass?: string }, surface: { transparent: boolean }) =>
   primitive.pass === 'clustered-blend' || surface.transparent;
+/** The primitive each collected mesh draws, whichever collection read it: a resource mounted in
+ *  place (#572) is its own collection, and moves class with the open's records (#837). */
+const collected = new WeakMap<object, { pass?: string }>();
 
 export function collectClusterPages(
   source: Object3D,
@@ -61,6 +64,7 @@ export function collectClusterPages(
       continue;
     }
     const template = templates.pagesOf(primitive);
+    collected.set(mesh, primitive);
     const transparent = pagesBlend(primitive, surface);
     // The grid moved every position of this primitive by at most this much: its clusters' boxes
     // grow by it, so culling still encloses the surface an engine draws from the pages.
@@ -162,7 +166,7 @@ export function collectClusterPages(
         (isAssignment(alpha)
           ? alpha.meshes.has(mesh)
           : alpha.surfaces.includes(mesh.material as object)),
-      primitive = worn && primitiveOf(associations.get(mesh));
+      primitive = worn && collected.get(mesh);
     return primitive
       ? pagesBlend(primitive, { transparent: alpha.to === 'blend' })
       : rec.transparent;
