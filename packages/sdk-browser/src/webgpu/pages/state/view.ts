@@ -1,4 +1,5 @@
 import { createEngineCamera, type EngineCamera } from '../../../camera/world.ts';
+import type { CutDelta } from '../../cut/delta.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { createWebgpuGpuState, type WebgpuGpuState } from './gpu.ts';
 import { createWebgpuRunState, type WebgpuRunState } from './run.ts';
@@ -9,7 +10,7 @@ import { createWebgpuVisState, type WebgpuVisState } from './vis.ts';
  * its frame targets and their temporal history. Everything else is the scene's and every view
  * shares it: the gate's revisions (so an invalidation reaches every view), the GPU cut (the main
  * view's alone), the residency sets, which ask for the union of the views' cuts under the one page
- * budget (`../../cut/viewCuts.ts`), the pools, the pipelines and the Hi-Z pyramid, which follows
+ * budget (`../../cut/publication.ts`), the pools, the pipelines and the Hi-Z pyramid, which follows
  * the drawn view's size.
  */
 export const VIEW_RUN_KEYS = [
@@ -67,6 +68,9 @@ export interface WebgpuView {
   run: Pick<WebgpuRunState, RunKey>;
   gpu: Pick<WebgpuGpuState, GpuKey>;
   vis: Pick<WebgpuVisState, VisKey>;
+  /** The differences a view other than the main one publishes its cut by, made at its first cut
+   *  and emptied when it is released; the main view's are the publication's own. */
+  cut?: { asked: CutDelta; drawn: CutDelta };
 }
 
 /** The runtime's views: the one it opened on, and the one its groups hold now. */
