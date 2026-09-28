@@ -14,11 +14,11 @@
  */
 
 /** Version of the "proxy" cache product. A proxy of another version is rejected, never guessed. */
-export const SCENE_PROXY_VERSION = 2;
+export const SCENE_PROXY_VERSION = 3;
 /** 'W','G','P','X' read as an unsigned 32-bit integer little-endian. */
 export const SCENE_PROXY_MAGIC = 0x58504757;
-/** Header integers: signature, version, triangles, nodes. */
-export const SCENE_PROXY_HEADER_WORDS = 4;
+/** Header integers: signature, version, triangles, nodes, shapes, shape triangles, instances. */
+export const SCENE_PROXY_HEADER_WORDS = 7;
 /** Numbers per proxy triangle: three world vertices, no normal — it is deduced from the triangle. */
 export const PROXY_TRIANGLE_FLOATS = 9;
 /** Numbers per BVH node: its exact bounds, frame of its children's quantized boxes. */

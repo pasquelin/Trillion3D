@@ -1,6 +1,6 @@
 use super::{
     SceneProxy, PROXY_CELL_METRES, PROXY_ERROR_METRES, PROXY_TRIANGLE_BUDGET,
-    SCENE_PROXY_HEADER_WORDS, SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION,
+    PROXY_TRIANGLE_FLOATS, SCENE_PROXY_HEADER_WORDS, SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION,
 };
 use serde_json::{json, Value};
 
@@ -23,37 +23,55 @@ impl SceneProxy {
         })
     }
 
-    /// Cache object bytes in little-endian: header, world vertices,
-    /// albedos, node bounds and links end to end. No repeated lengths —
+    /// Cache object bytes in little-endian: header, shape counts, shape vertices and albedos,
+    /// instance shapes and maps, the flat position of each placed shape triangle, then the
+    /// triangles no shape carries, their albedos, node bounds and links. No repeated lengths —
     /// header imposes all, reader refuses file of other size.
     pub fn encode(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(
-            SCENE_PROXY_HEADER_WORDS * 4
-                + self.triangles.len() * 4
-                + self.albedo.len() * 4
-                + self.node_bounds.len() * 4
-                + self.node_children.len() * 4,
-        );
-        for word in [
+        let sharing = &self.sharing;
+        let mut shared = vec![false; self.triangle_count()];
+        for &position in &sharing.positions {
+            shared[position as usize] = true;
+        }
+        let loose: Vec<usize> = (0..shared.len()).filter(|p| !shared[*p]).collect();
+        let shape_triangles: Vec<usize> = sharing
+            .shapes
+            .iter()
+            .flatten()
+            .map(|p| *p as usize)
+            .collect();
+        let mut words: Vec<u32> = vec![
             SCENE_PROXY_MAGIC,
             SCENE_PROXY_VERSION,
             self.triangle_count() as u32,
             self.node_count() as u32,
-        ] {
-            bytes.extend_from_slice(&word.to_le_bytes());
+            sharing.shapes.len() as u32,
+            shape_triangles.len() as u32,
+            sharing.instances.len() as u32,
+        ];
+        debug_assert_eq!(words.len(), SCENE_PROXY_HEADER_WORDS);
+        words.extend(sharing.shapes.iter().map(|shape| shape.len() as u32));
+        let triangles_of = |positions: &[usize], words: &mut Vec<u32>| {
+            for p in positions {
+                let at = p * PROXY_TRIANGLE_FLOATS;
+                let vertices = &self.triangles[at..at + PROXY_TRIANGLE_FLOATS];
+                words.extend(vertices.iter().map(|v| v.to_bits()));
+            }
+            words.extend(positions.iter().map(|p| self.albedo[*p]));
+        };
+        triangles_of(&shape_triangles, &mut words);
+        words.extend(sharing.instances.iter().map(|(shape, _)| *shape));
+        for (_, map) in &sharing.instances {
+            words.extend(map.iter().map(|v| v.to_bits()));
         }
-        for value in &self.triangles {
-            bytes.extend_from_slice(&value.to_le_bytes());
-        }
-        for value in &self.albedo {
-            bytes.extend_from_slice(&value.to_le_bytes());
-        }
-        for value in &self.node_bounds {
-            bytes.extend_from_slice(&value.to_le_bytes());
-        }
-        for value in &self.node_children {
-            bytes.extend_from_slice(&value.to_le_bytes());
-        }
-        bytes
+        words.extend_from_slice(&sharing.positions);
+        triangles_of(&loose, &mut words);
+        words.extend(self.node_bounds.iter().map(|v| v.to_bits()));
+        words.extend_from_slice(&self.node_children);
+        words.iter().flat_map(|word| word.to_le_bytes()).collect()
     }
 }
+
+#[cfg(test)]
+#[path = "encode_tests.rs"]
+pub(crate) mod tests;

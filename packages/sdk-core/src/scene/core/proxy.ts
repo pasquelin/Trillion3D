@@ -12,6 +12,12 @@ import {
   type SceneProxyDescriptor,
 } from '../../contracts/proxy.ts';
 import { EngineError } from '../../contracts/index.ts';
+import {
+  PROXY_TRANSFORM_FLOATS,
+  expandShapes,
+  placedTriangles,
+  type ProxyShapes,
+} from './proxyShapes.ts';
 
 const bad = (message: string, details: Record<string, unknown>) =>
   new EngineError('INVALID_CACHE', message, details);
@@ -73,53 +79,68 @@ function checkChildren(descriptor: SceneProxyDescriptor, columns: SceneProxyColu
 /**
  * The proxy reread and rechecked before a single ray touches it.
  *
- * Layout, little-endian: `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, then the
- * world vertices, albedos, exact node bounds and their four children, concatenated.
- * Each section has a length the header imposes; a file of another size is rejected in
- * bulk, because a node that named a missing triangle would make the shader read anything.
+ * Layout, little-endian: `u32 'WGPX' · version · triangles · nodes · shapes · shape triangles ·
+ * instances`, then the shape counts, shape vertices and albedos, each instance's shape and map, the
+ * flat position of every placed shape triangle, the loose world vertices and albedos, exact node
+ * bounds and their four children, concatenated. Shared shapes are expanded here, so the columns
+ * are the flat proxy the compiler simplified. Each section has a length the header imposes; a file
+ * of another size is rejected in bulk, because a node that named a missing triangle would make
+ * the shader read anything.
  */
 export function decodeSceneProxy(
   descriptor: SceneProxyDescriptor,
   buffer: ArrayBuffer,
 ): SceneProxy {
   assertSceneProxy(descriptor);
-  const header = SCENE_PROXY_HEADER_WORDS * 4;
-  const wanted =
-    header +
-    descriptor.triangles * (PROXY_TRIANGLE_FLOATS + 1) * 4 +
-    descriptor.nodes * (PROXY_NODE_FLOATS + PROXY_NODE_WORDS) * 4;
-  if (buffer.byteLength !== wanted)
-    throw bad('The scene proxy object does not have the length its manifest declares', {
+  const wrongLength = (expected: number) =>
+    bad('The scene proxy object does not have the length its manifest declares', {
       bytes: buffer.byteLength,
-      expected: wanted,
+      expected,
     });
+  const header = SCENE_PROXY_HEADER_WORDS * 4;
+  if (buffer.byteLength < header) throw wrongLength(header);
   const words = new Uint32Array(buffer, 0, SCENE_PROXY_HEADER_WORDS);
   if (words[0] !== SCENE_PROXY_MAGIC)
     throw bad('The scene proxy object has no WGPX signature', { magic: words[0] });
+  const [, version, triangles, nodes, shapeCount, shapeTriangles, instances] = words;
   if (
-    words[1] !== SCENE_PROXY_VERSION ||
-    words[2] !== descriptor.triangles ||
-    words[3] !== descriptor.nodes
+    version !== SCENE_PROXY_VERSION ||
+    triangles !== descriptor.triangles ||
+    nodes !== descriptor.nodes
   )
-    throw bad('The scene proxy object disagrees with its manifest', {
-      version: words[1],
-      triangles: words[2],
-      nodes: words[3],
-    });
+    throw bad('The scene proxy object disagrees with its manifest', { version, triangles, nodes });
+  const tables =
+    header +
+    (shapeCount +
+      shapeTriangles * (PROXY_TRIANGLE_FLOATS + 1) +
+      instances * (1 + PROXY_TRANSFORM_FLOATS)) *
+      4;
+  if (buffer.byteLength < tables) throw wrongLength(tables);
   let at = header;
-  const take = <T>(make: (b: ArrayBuffer, o: number, n: number) => T, elements: number): T => {
-    const column = make(buffer, at, elements);
-    at += elements * 4;
-    return column;
+  const floats = (n: number) => ((at += n * 4), new Float32Array(buffer, at - n * 4, n));
+  const integers = (n: number) => ((at += n * 4), new Uint32Array(buffer, at - n * 4, n));
+  const shapes: ProxyShapes = {
+    counts: integers(shapeCount),
+    triangles: floats(shapeTriangles * PROXY_TRIANGLE_FLOATS),
+    albedo: integers(shapeTriangles),
+    shapeOf: integers(instances),
+    maps: floats(instances * PROXY_TRANSFORM_FLOATS),
   };
+  const placed = placedTriangles(shapes),
+    loose = triangles - placed,
+    wanted =
+      tables +
+      (placed +
+        loose * (PROXY_TRIANGLE_FLOATS + 1) +
+        nodes * (PROXY_NODE_FLOATS + PROXY_NODE_WORDS)) *
+        4;
+  if (loose < 0 || buffer.byteLength !== wanted) throw wrongLength(wanted);
+  const positions = integers(placed);
+  const flat = { triangles: floats(loose * PROXY_TRIANGLE_FLOATS), albedo: integers(loose) };
   const data: SceneProxyColumns = {
-    triangles: take(
-      (b, o, n) => new Float32Array(b, o, n),
-      descriptor.triangles * PROXY_TRIANGLE_FLOATS,
-    ),
-    albedo: take((b, o, n) => new Uint32Array(b, o, n), descriptor.triangles),
-    nodeBounds: take((b, o, n) => new Float32Array(b, o, n), descriptor.nodes * PROXY_NODE_FLOATS),
-    nodeChildren: take((b, o, n) => new Uint32Array(b, o, n), descriptor.nodes * PROXY_NODE_WORDS),
+    ...(instances === 0 ? flat : expandShapes(triangles, shapes, positions, flat)),
+    nodeBounds: floats(nodes * PROXY_NODE_FLOATS),
+    nodeChildren: integers(nodes * PROXY_NODE_WORDS),
   };
   checkChildren(descriptor, data);
   return { ...descriptor, data };
