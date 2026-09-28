@@ -31,6 +31,10 @@ export const MODEL_FLAG = { diffuse: 4, toon: 5 } as const;
 /** Surface-buffer flag of a debug view, a normal or depth surface: shown as-is, never fogged,
  *  and composed with neither exposure nor the display curve (`shownAsIs`). */
 export const AS_IS_FLAG = 3;
+/** The r8 surface target's high bit carries a material's fog opt-out. */
+export const FOG_FREE_SURFACE_FLAG = 128;
+/** The forward item's model lane has one free bit after the three model bits. */
+export const FOG_FREE_MODEL_BIT = 8;
 
 /** The one rule for debug views on both paths: a normal or depth surface is output untouched —
  *  no exposure, no tone mapping —, as the reference never tone maps those two materials. */

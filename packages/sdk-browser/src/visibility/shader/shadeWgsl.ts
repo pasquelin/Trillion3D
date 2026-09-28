@@ -3,11 +3,13 @@ import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { lecture, lectureDonnee, siCarte } from './maps.ts';
 import {
   AS_IS_FLAG,
+  FOG_FREE_SURFACE_FLAG,
   MODEL_FLAG,
   MODEL_SHIFT,
   NORMAL_VIEW_COLOR_WGSL,
   SURFACE_MODEL,
 } from '../../scene/surfaceModel.ts';
+import { FLAG_FOG_FREE } from '../types.ts';
 
 /**
  * Surface resolve of one material class: the fragment stage every class pipeline compiles with its
@@ -147,10 +149,11 @@ ${NORMAL_VIEW_COLOR_WGSL}
  // nor tone mapped.
  if(model==${SURFACE_MODEL.normal}u){rgb=normalViewColor(viewNormal(N));}
  if(model==${SURFACE_MODEL.depth}u){let w=dot(bary,vec3f(c0.w,c1.w,c2.w));let r=uni.depthRamp;rgb=vec3f(clamp(r.x*w+r.y+r.z*dot(bary,vec3f(c0.z,c1.z,c2.z))/w,0.0,1.0));}
- if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),select(${AS_IS_FLAG}u,1u,model==${SURFACE_MODEL.matcap}u),request);}
+ if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),select(${AS_IS_FLAG}u,1u|select(0u,${FOG_FREE_SURFACE_FLAG}u,(page.flags&${FLAG_FOG_FREE}u)!=0u),model==${SURFACE_MODEL.matcap}u),request);}
  var flag=select(1u,2u,(page.flags&1u)!=0u);
  if(flag==2u&&model==${SURFACE_MODEL.diffuse}u){flag=${MODEL_FLAG.diffuse}u;}
  if(flag==2u&&model==${SURFACE_MODEL.toon}u){flag=${MODEL_FLAG.toon}u;}
+ if((page.flags&${FLAG_FOG_FREE}u)!=0u){flag|=${FOG_FREE_SURFACE_FLAG}u;}
  return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),flag,request);
 }
 `;

@@ -1,6 +1,6 @@
 import { SCREEN_REFLECTION_WGSL } from '../../reflections/screenWgsl.ts';
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
-import { MODEL_SHIFT, MODEL_FLAG, SURFACE_MODEL } from '../../scene/surfaceModel.ts';
+import * as surfaceModel from '../../scene/surfaceModel.ts';
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts';
 import { bounceReflectionWgsl, MIRROR_LIGHTING_WGSL } from '../../bounce/reflectWgsl.ts';
@@ -98,7 +98,7 @@ ${FACING_WGSL}
  let local=vertexIndex&((1u<<uni.vertexShift)-1u);
  let flags=(it.flags&${WATER_MAX_ITEMS}u)|uni.viewFlags;
  out.color=it.color;
- out.ids=vec3u(it.mapIndex,flags|(u32(it.emissive.w)<<${MODEL_SHIFT}u),it.emissiveIndex);
+ out.ids=vec3u(it.mapIndex,flags|(u32(it.emissive.w)<<${surfaceModel.MODEL_SHIFT}u),it.emissiveIndex);
  out.maps=vec4u(it.roughIndex,it.metalIndex,it.normalIndex,it.aoIndex);
  out.alphaAo=vec4f(it.alphaTest,it.aoIntensity,it.dash);
  out.pbr=vec4f(it.roughness,it.metalness,it.normalScale);
@@ -188,12 +188,12 @@ ${BLEND_SURFACE_WGSL}
    let m=clamp(s.metal,0.0,1.0);
    shadowFootprint=select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-in.view),uni.camPos.w!=0.0);
    rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
-   let model=(flags>>${MODEL_SHIFT}u)&7u;
-   surfaceModel=select(select(0u,${MODEL_FLAG.diffuse}u,model==${SURFACE_MODEL.diffuse}u),${MODEL_FLAG.toon}u,model==${SURFACE_MODEL.toon}u);
+   let model=(flags>>${surfaceModel.MODEL_SHIFT}u)&7u;
+   surfaceModel=select(select(0u,${surfaceModel.MODEL_FLAG.diffuse}u,model==${surfaceModel.SURFACE_MODEL.diffuse}u),${surfaceModel.MODEL_FLAG.toon}u,model==${surfaceModel.SURFACE_MODEL.toon}u);
    rgb+=mirrorLighting(s.rgb,m,clamped,s.N,V,in.view);
   }
   // Lit or unlit, the surface is seen through the fog.
-  rgb=fogged(rgb,in.view,uni.eye.xyz);
+  if((flags&${surfaceModel.FOG_FREE_MODEL_BIT << surfaceModel.MODEL_SHIFT}u)==0u){rgb=fogged(rgb,in.view,uni.eye.xyz);}
  }
  return BlendOut(vec4f(rgb,s.alpha),s.request,vec4f(0.0,0.0,0.0,s.alpha));
 }
