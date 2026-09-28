@@ -123,20 +123,20 @@ pub(crate) fn stage_physics(
         o,
         g,
         bin,
-        chosen,
+        shown,
         mesh_map,
         ..
     } = scene;
     let world = world_matrices(g)?;
     let nodes = values(g, "nodes")?;
     let (colliders, slot, refused) = gathered(primitives, collisions);
-    let (soft_bodies, soft_refused, soft) = soft_bodies(o, (g, bin), chosen, &world)?;
-    let (bodies, bodies_refused) = declared_bodies(o, (g, bin), (chosen, &soft), &world)?;
+    let (soft_bodies, soft_refused, soft) = soft_bodies(o, (g, bin), shown, &world)?;
+    let (bodies, bodies_refused) = declared_bodies(o, (g, bin), (shown, &soft), &world)?;
     let by_mesh = crate::proxy::primitives_by_mesh(primitives);
     let (mut instances, mut unplaced) = (Vec::new(), 0usize);
     // Every drawn node but a soft body is static ground, as drawn: a node the source declares
     // moving is placed too, beside its `bodies` entry, until the page restores that body.
-    for &node in chosen.difference(&soft) {
+    for &node in shown.difference(&soft) {
         let old = required_index(nodes[node].get("mesh"), "node.mesh")?;
         let Some(mesh) = mesh_map.get(&old) else {
             continue;

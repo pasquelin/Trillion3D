@@ -25,7 +25,7 @@ export interface WebgpuGpuState {
   pipelineBack: GPURenderPipeline | undefined;
   pipelineBackCw: GPURenderPipeline | undefined;
   pipelineNone: GPURenderPipeline | undefined;
-  pipelineBlend: ModePipelines<GPURenderPipeline> | undefined;
+  pipelineBlend: ModePipelines | undefined;
   colorTexture: GPUTexture | undefined;
   depthTexture: GPUTexture | undefined;
   colorView: GPUTextureView | undefined;
