@@ -53,6 +53,14 @@ test('a threaded worker steps only once every pool thread has loaded', async (t)
     'the pool steps once loaded',
   );
   assert.ok(!sent.some((m) => m.type === 'error'), JSON.stringify(sent));
+  // A loaded thread that throws is named to the page, not dropped.
+  held[2].onerror({ message: 'out of stack' });
+  assert.deepEqual(sent.at(-1), {
+    type: 'error',
+    code: 'PHYSICS_FAILED',
+    message: 'Physics: pool thread 3 failed: out of stack',
+    fatal: true,
+  });
 });
 
 test('a pool thread that fails to load stops the start, named', async (t) => {

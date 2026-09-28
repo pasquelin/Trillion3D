@@ -110,7 +110,7 @@ export const JOLT_THREAD_LOADED = { type: 'loaded' } as const;
  * `JOLT_THREAD_LOADED`). A worker a worker starts loads only while its parent's event loop turns,
  * and a step blocks on its jobs: nothing steps before `ready()`, which resolves once every thread
  * spawned so far has loaded and rejects naming the first that did not. Once loaded, a thread's
- * messages go to `relay`.
+ * messages, and a fatal error naming it if it throws, go to `relay`.
  */
 export function joltWorkerPool(
   url: string | URL,
@@ -128,7 +128,12 @@ export function joltWorkerPool(
           failed(
             new EngineError('PHYSICS_FAILED', `Physics: pool thread ${n} did not load: ${why}`),
           );
-        thread.onerror = (event) => refuse(event.message || 'its script failed');
+        thread.onerror = (event) => {
+          const why = event.message || 'its script failed';
+          if (!up) return refuse(why);
+          const message = `Physics: pool thread ${n} failed: ${why}`;
+          relay({ type: 'error', code: 'PHYSICS_FAILED', message, fatal: true });
+        };
         thread.onmessage = ({ data }) => {
           if (up) relay(data);
           else if (data?.type === JOLT_THREAD_LOADED.type) {
