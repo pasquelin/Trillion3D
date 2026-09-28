@@ -10,14 +10,7 @@ import { Group } from './object3d.ts';
 import { Geometry } from '../geometry/geometry.ts';
 import { BufferAttribute } from '../buffer/attribute.ts';
 import { Material } from '../material/material.ts';
-import type { SceneLink } from './sceneLink.ts';
-
-/** A world's link that counts the content changes it hears. */
-function countingLink() {
-  const heard: object[] = [];
-  const link = { content: (node: object) => heard.push(node), pose() {}, structure() {} };
-  return { link: link as unknown as SceneLink, heard };
-}
+import { countingLink } from './sceneLink.fixture.ts';
 
 test('a mesh holds its shape, its matter and its primitive, nothing more of its own', () => {
   const mesh = new Mesh(new Geometry(), new Material('meshBasic'));
