@@ -8,6 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice, type FakeBuffer } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { sunRun } from '../../webgpu/shadow/runs.fixture.ts';
+import { SHADOW_LIMITS } from '../../webgpu/pages/testScenes.fixture.ts';
 import { createDagLightCut } from './lightCut.ts';
 import { FRAME_VEC4 } from './types.ts';
 import { OUT_COUNT, OUT_FLAGS, SELECTION_HEADER_WORDS } from './layout.ts';
@@ -16,18 +17,13 @@ import { COARSER_VIEWS, DAG_UNIFORM_BYTES, LIST_FULL } from './shader/viewsWgsl.
 import { VIEW_FLAGS_WORD } from './uniforms.ts';
 import { VIEW_APPEND } from './shader/pagesWgsl.ts';
 import { createCameraFrames } from './frameRanges.ts';
+import { DRAW_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 
 const CASTERS = 16;
 
 /** A light cut over `CASTERS` catalogue pages, on a device whose copies run as they are encoded. */
 function lightCutFrame() {
-  const { device, writes, buffers } = fakeDevice({
-    limits: {
-      maxComputeWorkgroupsPerDimension: 65535,
-      maxStorageBufferBindingSize: 1 << 27,
-      maxBufferSize: 1 << 28,
-    },
-  });
+  const { device, writes, buffers } = fakeDevice({ limits: SHADOW_LIMITS });
   const bytes = (buffer: GPUBuffer) => (buffer as unknown as FakeBuffer).getMappedRange();
   const encoder = {
     copyBufferToBuffer(from: GPUBuffer, at: number, to: GPUBuffer, toAt: number, size: number) {
@@ -87,7 +83,7 @@ function lightCutFrame() {
     for (const page of pages) {
       cut.encode(encoder, views, 1);
       flags.push(run(page, resident));
-      const settle = cut.redraws.encode(encoder, [page], [0], 1);
+      const settle = cut.redraws.encode(encoder, [page], [0], 1, [DRAW_FULL]);
       if (settle) settles.push(settle);
     }
     const report = cut.encodeReports(encoder);
