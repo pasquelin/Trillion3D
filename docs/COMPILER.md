@@ -681,6 +681,13 @@ blend path, and `cutout`: `true`, `false`, or `null` while nobody has decided. I
 nothing until an entry answers `true`; with no sheet at all, blended stays blended and the product
 is byte-identical to before.
 
+Exact alpha measurements are cached in that same sheet, separately from the rounded display
+values. The image hash and a fingerprint of the measurement algorithm, its cutoff and decoder
+versions identify a reusable result. Missing, outdated, malformed or checksum-invalid cached
+measurements are recomputed; human answers retain their existing validation and are never
+discarded because a measurement cache is invalid. Valid measurements survive when a scene no
+longer references their image. This skips alpha analysis, not image decoding or mip baking.
+
 **The compiler draws nothing.** It publishes what is pending — in the manifest and in a `cutouts`
 progress event — and whoever called it presents the question: a terminal asks it, an application
 shows it in its own panel, and a log or an automated chain is asked nothing at all. `reviewCutouts`
