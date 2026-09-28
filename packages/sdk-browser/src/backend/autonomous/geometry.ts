@@ -123,8 +123,13 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   const storeRecords = (recs: readonly PageRec[], read: DecodedGeometryPage | undefined) => {
     const rowed = new Map<DecodedGeometryPage, ReturnType<typeof hostPageGeometry>>(),
       decoded = new Map<Uint8Array, DecodedGeometryPage>();
+    // A rowed geometry another record of the page still draws stays: some records restored alone.
+    const others = (rec: PageRec) => {
+      const list = byUrl.get(rec.url);
+      return list === recs ? [] : (list ?? []).filter((other) => !recs.includes(other));
+    };
     for (const rec of recs) {
-      release(rec);
+      release(rec, !!rec.placement && others(rec).some((o) => o.geometry === rec.geometry));
       const data = pageOf(rec, read, decoded),
         shared = rec.placement ? rowed.get(data) : undefined;
       if (!shared) assertWithinBox(data, rec);
