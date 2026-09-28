@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  accept,
   currentHashes,
   hashOf,
   parse,
@@ -31,6 +32,18 @@ test('a translation changed with its English, or alone, or a new entry, is not b
     'examples:fire': { en: hashOf('Fire'), fr: hashOf('Feu') },
   };
   assert.deepEqual(staleTranslations(recorded, current), []);
+});
+
+test('an accepted English change clears that entry only, and needs a change to accept', () => {
+  const current = {
+    'portal:nav.primary': { en: hashOf('Main navigation.'), fr: recorded['portal:nav.primary'].fr },
+    'examples:water': { en: hashOf({ banner: 'Water!' }), fr: recorded['examples:water'].fr },
+  };
+  const accepted = accept(recorded, current, ['portal:nav.primary']);
+  assert.deepEqual(accepted['portal:nav.primary'], current['portal:nav.primary']);
+  assert.deepEqual(staleTranslations(accepted, current), ['fr examples:water']);
+  assert.throws(() => accept(accepted, current, ['portal:nav.primary']), /did not change/);
+  assert.throws(() => accept(recorded, current, ['examples:fire']), /did not change/);
 });
 
 test('the record reads back the hashes it was written from', () => {

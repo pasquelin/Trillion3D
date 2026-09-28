@@ -3,7 +3,9 @@
 // a portal section's key, an example, a reference entry — the hash of its English and of each
 // language's translation. An entry whose English changed while a language's translation did not
 // fails; a record that no longer matches the text fails too, until `--write` records it, which it
-// refuses while a translation is left behind. `pnpm run check:translations`.
+// refuses while a translation is left behind. An English change the translations do not need (a
+// typo) is accepted by name, `--accept <entry>…`, in the committed record's diff.
+// `pnpm run check:translations`.
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -73,6 +75,19 @@ export function staleTranslations(recorded: Hashes, current: Hashes): string[] {
   });
 }
 
+/** `recorded` with the English of `entries` moved to today's, each translation's hash kept: the
+ *  translations were checked and still hold. An entry whose English did not change is refused. */
+export function accept(recorded: Hashes, current: Hashes, entries: string[]): Hashes {
+  const accepted = { ...recorded };
+  for (const entry of entries) {
+    const [then, now] = [recorded[entry], current[entry]];
+    if (!then || !now || then[DEFAULT_LANGUAGE] === now[DEFAULT_LANGUAGE])
+      throw new Error(`${entry}: its English did not change, there is nothing to accept.`);
+    accepted[entry] = { ...then, [DEFAULT_LANGUAGE]: now[DEFAULT_LANGUAGE] };
+  }
+  return accepted;
+}
+
 /** The record's text: one line per entry, its hashes in the order of `languages`. */
 export function serialise(hashes: Hashes): string {
   const languages = Object.keys(Object.values(hashes)[0] ?? {});
@@ -101,10 +116,18 @@ export function parse(text: string): Hashes {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const current = currentHashes();
   // No record yet: every entry is new, and `--write` records the first one.
-  const text = existsSync(RECORD) ? readFileSync(RECORD, 'utf8') : '';
+  let text = existsSync(RECORD) ? readFileSync(RECORD, 'utf8') : '';
+  const flag = process.argv.indexOf('--accept');
+  if (flag !== -1) {
+    text = serialise(accept(text ? parse(text) : {}, current, process.argv.slice(flag + 1)));
+    writeFileSync(RECORD, text);
+  }
   const stale = staleTranslations(text ? parse(text) : {}, current);
   if (stale.length) {
-    console.error(`English changed, these translations did not:\n  ${stale.join('\n  ')}`);
+    console.error(
+      `English changed, these translations did not:\n  ${stale.join('\n  ')}\n` +
+        'Translate them, or when they still hold: `pnpm run check:translations --accept <entry>`.',
+    );
     process.exitCode = 1;
   } else if (process.argv.includes('--write')) writeFileSync(RECORD, serialise(current));
   else if (text !== serialise(current)) {
