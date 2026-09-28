@@ -1,8 +1,8 @@
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
-import { MAX_SHADOW_REGIONS as R, SHADOW_FACE_READ_WORDS } from './recordPack.ts';
+import { MAX_SHADOW_REGIONS as R, SHADOW_FACE_READ_BYTES as RECT_OFFSET } from './recordPack.ts';
 import { SHADOW_FACE_STRIDE } from './batchBudget.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
-import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts';
+import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { staticLayerEntries } from './staticLayer.ts';
 import {
   SHADOW_TRANSLUCENT_DEPTH_FORMAT,
@@ -12,8 +12,6 @@ import {
 
 /** Bytes of the faces' entries, before the batch's pass order in the same buffer (`atlas.ts`). */
 const ORDER_OFFSET = R * SHADOW_FACE_STRIDE;
-/** Bytes of an entry the quads read up to its `rect`: the matrix, `params`, `emitter`. */
-const RECT_OFFSET = SHADOW_FACE_READ_WORDS * 4;
 
 /**
  * What the page quads read, in one storage binding — the face buffer: every region's view, `rect`
@@ -85,15 +83,16 @@ export async function createShadowPageQuads(device: GPUDevice, faces: GPUBuffer)
     );
   // Compiled at prepare for a scene whose blended surfaces cast, else at the first transmittance
   // pass: a scene that blends nothing never compiles it.
-  const clearDescriptor = () =>
+  const clearTransmittance = preparedPipeline(
+    device,
     descriptor(
       'transmittance clear',
       dataOnly,
       'transmittance_clear_fs',
       [{ format: SHADOW_TRANSMITTANCE_FORMAT }],
       SHADOW_TRANSLUCENT_DEPTH_FORMAT,
-    );
-  let clearTransmittance: GPURenderPipeline | undefined;
+    ),
+  );
   const group = device.createBindGroup({
     layout: dataLayout,
     entries: [{ binding: 0, resource: { buffer: faces } }],
@@ -133,15 +132,12 @@ export async function createShadowPageQuads(device: GPUDevice, faces: GPUBuffer)
       return +!!clears + +!!restores;
     },
     /** Compiles the transmittance clear off the frame, at prepare. */
-    async prepareTransmittance() {
-      clearTransmittance ??= await buildRenderPipeline(device, clearDescriptor());
-    },
+    prepareTransmittance: clearTransmittance.prepare,
     /** Clears into the transmittance layer's `pass` the `count` regions from rank `first` of the
      *  order, in one draw. */
     clearTransmittance(pass: GPURenderPassEncoder, first: number, count: number) {
-      clearTransmittance ??= device.createRenderPipeline(clearDescriptor());
       pass.setBindGroup(0, group);
-      quads(pass, clearTransmittance, first, count);
+      quads(pass, clearTransmittance.get(), first, count);
     },
   };
 }

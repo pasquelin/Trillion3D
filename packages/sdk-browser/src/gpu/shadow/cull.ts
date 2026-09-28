@@ -1,12 +1,13 @@
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { DRAW_INDIRECT_STRIDE, PAGE_BIND_ALIGN } from '../draw/draw.ts';
+import { DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
 import { MAX_SHADOW_REGIONS } from './atlas.ts';
 import { SHADOW_CULL_SHADER } from './cullShader.ts';
 import { createGpuShadowCullCounts } from './cullCounts.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { createShadowLightCull } from './lightCull.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
-import { CULL_UNIFORM_WORDS, SHADOW_COMMAND_WORDS as COMMAND_WORDS } from './batchBudget.ts';
+import { CULL_UNIFORM_WORDS } from './batchBudget.ts';
 
 /** Words of a draw-slot uniform: the matrix, the frame, then the slot and its indirection. */
 const DRAW_UNIFORM_WORDS = PAGE_BIND_ALIGN / 4;
@@ -114,7 +115,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     });
     const volumes = new Float32Array(MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS),
       volumeWords = new Uint32Array(volumes.buffer);
-    const commands = new Uint32Array(MAX_SHADOW_REGIONS * COMMAND_WORDS);
+    const commands = new Uint32Array(MAX_SHADOW_REGIONS * DRAW_INDIRECT_WORDS);
     const uniData = new Uint32Array(CULL_UNIFORM_WORDS);
     let bound: GPUBuffer[] = [],
       group: GPUBindGroup | undefined;
@@ -134,10 +135,10 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       begin(regions: number, maxVertexCount: number) {
         if (!regions) return;
         shadowBatchWrites(device).write(faceVolumes, 0, volumes, 0, regions * SHADOW_CULL_FLOATS);
-        commands.fill(0, 0, regions * COMMAND_WORDS);
+        commands.fill(0, 0, regions * DRAW_INDIRECT_WORDS);
         for (let region = 0; region < regions; region++)
-          commands[region * COMMAND_WORDS] = maxVertexCount;
-        shadowBatchWrites(device).write(indirect, 0, commands, 0, regions * COMMAND_WORDS);
+          commands[region * DRAW_INDIRECT_WORDS] = maxVertexCount;
+        shadowBatchWrites(device).write(indirect, 0, commands, 0, regions * DRAW_INDIRECT_WORDS);
       },
       /**
        * Encodes the cull of regions `[first, first + faces)` against the list the CPU cut wrote for
