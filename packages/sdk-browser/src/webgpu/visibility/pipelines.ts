@@ -115,6 +115,29 @@ export function createWebgpuCoplanarLayerPipelines(
     return pipelines;
   });
 }
+/** The material pass's bind layout, which the feedback-free diagnostic pipelines share. */
+function shadeLayout(device: GPUDevice) {
+  const b = SHADE_BINDINGS;
+  const fragment = GPUShaderStage.FRAGMENT;
+  return device.createBindGroupLayout({
+    entries: [
+      { binding: b.visView, visibility: fragment, texture: { sampleType: 'uint' } },
+      { binding: b.cache, visibility: fragment, buffer: readOnly },
+      { binding: b.position, visibility: fragment, buffer: readOnly },
+      { binding: b.uv, visibility: fragment, buffer: readOnly },
+      { binding: b.normal, visibility: fragment, buffer: readOnly },
+      { binding: b.pageTable, visibility: fragment, buffer: readOnly },
+      ...atlasLayoutEntries(b.color),
+      { binding: b.sampler, visibility: fragment, sampler: { type: 'filtering' } },
+      {
+        binding: b.uniform,
+        visibility: fragment,
+        buffer: { type: 'uniform', minBindingSize: SHADE_UNIFORM_BYTES },
+      },
+      ...atlasLayoutEntries(b.data),
+    ],
+  });
+}
 /** Builds the depth export and class-specialized material pipelines during preparation. */
 export function createWebgpuShadePipelines(
   device: GPUDevice,
@@ -124,28 +147,7 @@ export function createWebgpuShadePipelines(
   feedback = true,
   sharedLayout?: GPUBindGroupLayout,
 ) {
-  const b = SHADE_BINDINGS;
-  const fragment = GPUShaderStage.FRAGMENT;
-  const shadeBindGroupLayout =
-    sharedLayout ??
-    device.createBindGroupLayout({
-      entries: [
-        { binding: b.visView, visibility: fragment, texture: { sampleType: 'uint' } },
-        { binding: b.cache, visibility: fragment, buffer: readOnly },
-        { binding: b.position, visibility: fragment, buffer: readOnly },
-        { binding: b.uv, visibility: fragment, buffer: readOnly },
-        { binding: b.normal, visibility: fragment, buffer: readOnly },
-        { binding: b.pageTable, visibility: fragment, buffer: readOnly },
-        ...atlasLayoutEntries(b.color),
-        { binding: b.sampler, visibility: fragment, sampler: { type: 'filtering' } },
-        {
-          binding: b.uniform,
-          visibility: fragment,
-          buffer: { type: 'uniform', minBindingSize: SHADE_UNIFORM_BYTES },
-        },
-        ...atlasLayoutEntries(b.data),
-      ],
-    });
+  const shadeBindGroupLayout = sharedLayout ?? shadeLayout(device);
   const layout = device.createPipelineLayout({ bindGroupLayouts: [shadeBindGroupLayout] });
   const primitive: GPUPrimitiveState = { topology: 'triangle-list', cullMode: 'none' };
   const classDepth: GPUDepthStencilState = {
@@ -167,9 +169,7 @@ export function createWebgpuShadePipelines(
         entryPoint,
         constants,
         // The surfaces, then the tile request the image's feedback target receives.
-        targets: shadeTargetFormats(feedback).map((format) => ({
-          format,
-        })),
+        targets: shadeTargetFormats(feedback).map((format) => ({ format })),
       },
       primitive,
       depthStencil: single ? undefined : classDepth,

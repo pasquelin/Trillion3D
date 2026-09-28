@@ -4,13 +4,16 @@ import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts';
 import { createWebgpuShadePipelines } from '../../visibility/pipelines.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-type Pipelines = {
-  shadePipelineFor: WebgpuPagesRuntime['vis']['shadePipelineFor'];
-  shadePipelines: WebgpuPagesRuntime['vis']['shadePipelines'];
-  singleShadePipelines: WebgpuPagesRuntime['vis']['singleShadePipelines'];
-  blendPipelines: WebgpuPagesRuntime['vis']['blendPipelines'];
-  water: WebgpuPagesRuntime['blendState']['water'];
-};
+type Pipelines = Pick<WebgpuPagesRuntime['vis'], (typeof VIS_PIPELINES)[number]> &
+  Pick<WebgpuPagesRuntime['blendState'], 'water'>;
+const VIS_PIPELINES = [
+  'shadePipelineFor',
+  'shadePipelines',
+  'singleShadePipelines',
+  'blendPipelines',
+] as const;
+const pipelinesOf = (vis: Omit<Pipelines, 'water'>, water: Pipelines['water']) =>
+  ({ ...Object.fromEntries(VIS_PIPELINES.map((key) => [key, vis[key]])), water }) as Pipelines;
 
 export type FeedbackAbState = {
   target: boolean;
@@ -63,14 +66,6 @@ export async function captureFeedbackAb(rt: WebgpuPagesRuntime) {
   return readGpuImage(rt.gpu.device, rt.gpu.colorTexture, width, height, rt.signal);
 }
 
-const pipelinesOf = (rt: WebgpuPagesRuntime): Pipelines => ({
-  shadePipelineFor: rt.vis.shadePipelineFor,
-  shadePipelines: rt.vis.shadePipelines,
-  singleShadePipelines: rt.vis.singleShadePipelines,
-  blendPipelines: rt.vis.blendPipelines,
-  water: rt.blendState.water,
-});
-
 /** Prepares both layouts before any diagnostic timing; the live scene and pools stay shared. */
 export async function prepareFeedbackAb(
   rt: WebgpuPagesRuntime,
@@ -100,14 +95,8 @@ export async function prepareFeedbackAb(
   rt.feedbackAB = {
     target: true,
     force: false,
-    on: pipelinesOf(rt),
-    off: {
-      shadePipelineFor: shade.shadePipelineFor,
-      shadePipelines: shade.shadePipelines,
-      singleShadePipelines: shade.singleShadePipelines,
-      blendPipelines: blend.blendPipelines,
-      water: blend.water,
-    },
+    on: pipelinesOf(rt.vis, rt.blendState.water),
+    off: pipelinesOf({ ...shade, blendPipelines: blend.blendPipelines }, blend.water),
   };
 }
 
@@ -149,10 +138,7 @@ export async function setFeedbackTargetAb(rt: WebgpuPagesRuntime, target: boolea
     }
     rt.gpu.targetBytes += (target ? 1 : -1) * width * height * 4;
     const selected = target ? state.on : state.off;
-    rt.vis.shadePipelineFor = selected.shadePipelineFor;
-    rt.vis.shadePipelines = selected.shadePipelines;
-    rt.vis.singleShadePipelines = selected.singleShadePipelines;
-    rt.vis.blendPipelines = selected.blendPipelines;
+    for (const key of VIS_PIPELINES) Object.assign(rt.vis, { [key]: selected[key] });
     rt.blendState.water = selected.water;
     state.target = target;
   }
