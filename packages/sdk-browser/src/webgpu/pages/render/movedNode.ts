@@ -27,7 +27,7 @@ export function underSource(source: Object3D, node: Object3D) {
   return false;
 }
 
-const ascending = (a: number, b: number) => a - b;
+export const ascending = (a: number, b: number) => a - b;
 
 type Roots = readonly ClusterRoot<PageRec>[];
 
