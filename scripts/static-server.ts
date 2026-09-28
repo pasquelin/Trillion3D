@@ -19,6 +19,7 @@ const TYPES: Record<string, string> = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
+  '.ico': 'image/x-icon',
   '.ktx2': 'image/ktx2',
 };
 
