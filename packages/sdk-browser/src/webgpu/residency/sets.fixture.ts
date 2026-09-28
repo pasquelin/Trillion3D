@@ -64,8 +64,12 @@ export function frame(world: World, cutIds: readonly number[], room: number) {
   return { requested, keep: sets.keepCount };
 }
 
-export const keysOf = (set: { list: Int32Array; count: number }) =>
-  new Set([...set.list.subarray(0, set.count)]);
+/** A residency list, in its order. */
+export const queueOf = (set: { list: Int32Array; count: number }) => [
+  ...set.list.subarray(0, set.count),
+];
+
+export const keysOf = (set: { list: Int32Array; count: number }) => new Set(queueOf(set));
 
 export function check(world: World, cutIds: readonly number[], room: number, label: string) {
   const got = frame(world, cutIds, room);
