@@ -5536,7 +5536,7 @@
   },
   "loader": {
     "summary": "A família `loader`: arquivos buscados e transformados no que uma cena usa.",
-    "description": "Um arquivo é lido através do fetch verificado do motor (`cluster/pages.ts`), que recusa uma resposta falha pelo seu status; uma imagem (`texture`, `cubeTexture`) é buscada por um elemento de imagem, que recusa uma ao falhar em decodificá-la."
+    "description": "Um arquivo é lido através do fetch verificado do motor (`cluster/checked.ts`), que recusa uma resposta falha pelo seu status; uma imagem (`texture`, `cubeTexture`) é buscada por um elemento de imagem, que recusa uma ao falhar em decodificá-la."
   },
   "loader.texture": {
     "summary": "Busca uma imagem e faz dela uma textura de cor.",

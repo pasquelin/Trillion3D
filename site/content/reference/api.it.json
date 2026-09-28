@@ -2970,7 +2970,7 @@
   },
   "loader": {
     "summary": "La famiglia `loader`: file recuperati e trasformati in ciò che usa una scena.",
-    "description": "Un file viene letto tramite il recupero verificato del motore (`cluster/pages.ts`), che rifiuta una risposta fallita in base al suo stato; un'immagine (`texture`, `cubeTexture`) viene recuperata da un elemento immagine, che la rifiuta se fallisce a decodificarla."
+    "description": "Un file viene letto tramite il recupero verificato del motore (`cluster/checked.ts`), che rifiuta una risposta fallita in base al suo stato; un'immagine (`texture`, `cubeTexture`) viene recuperata da un elemento immagine, che la rifiuta se fallisce a decodificarla."
   },
   "loader.texture": {
     "summary": "Recupera un'immagine e ne fa una texture di colore.",

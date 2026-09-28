@@ -23,8 +23,8 @@ export function transformVertices(geometry: Pick<Geometry, 'attributes' | '_owne
       point = [0, 0, 0],
       width = Math.min(3, position.itemSize);
     for (let i = 0; i < position.count; i++) {
-      const { x, y, z } = v.fromArray(pointAt(position, i, point)).applyMatrix4(m);
-      for (let c = 0; c < width; c++) position.setComponent(i, c, c === 0 ? x : c === 1 ? y : z);
+      const { elements } = v.fromArray(pointAt(position, i, point)).applyMatrix4(m);
+      for (let c = 0; c < width; c++) position.setComponent(i, c, elements[c]);
     }
   }
   if (normal) {

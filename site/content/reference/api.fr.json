@@ -2978,7 +2978,7 @@
   },
   "loader": {
     "summary": "La famille `loader` : des fichiers récupérés et changés en ce qu’utilise une scène.",
-    "description": "Un fichier est lu par la récupération vérifiée du moteur (`cluster/pages.ts`), qui refuse une réponse en échec d’après son statut ; une image (`texture`, `cubeTexture`) est récupérée par un élément image, qui la refuse en échouant à la décoder."
+    "description": "Un fichier est lu par la récupération vérifiée du moteur (`cluster/checked.ts`), qui refuse une réponse en échec d’après son statut ; une image (`texture`, `cubeTexture`) est récupérée par un élément image, qui la refuse en échouant à la décoder."
   },
   "loader.texture": {
     "summary": "Récupère une image et en fait une texture de couleur.",
