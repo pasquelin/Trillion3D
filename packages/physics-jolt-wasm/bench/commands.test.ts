@@ -1,6 +1,7 @@
 // `bench/commands.h` is the one command-file reader of the native benches (`native.cpp`,
-// `water.cpp`): compiled here with the system C++ compiler and run on each edge case of the file.
-import test, { after, before } from 'node:test';
+// `water.cpp`): compiled here with the system C++ compiler (`c++` on the PATH, as the CI image has)
+// and run on each edge case of the file.
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -8,36 +9,42 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const DRIVER = `#include "commands.h"
-#include <cstdio>
 int main(int, char **argv) {
   std::vector<uint32_t> words;
-  if (!readCommands(argv[1], words)) { std::printf("missing\\n"); return 0; }
+  if (!readCommands(argv[1], words)) { std::printf("missing"); return 0; }
   std::printf("%zu", words.size());
   for (uint32_t word : words) std::printf(" %u", word);
-  std::printf("\\n");
-  return 0;
 }
 `;
 
-let dir = '';
-let driver = '';
-
-before(() => {
-  dir = mkdtempSync(join(tmpdir(), 'bench-commands-'));
-  const source = join(dir, 'driver.cpp');
-  driver = join(dir, 'driver');
-  writeFileSync(source, DRIVER);
-  const flags = ['-std=c++17', '-Wall', '-Wextra', '-Werror', '-I', import.meta.dirname];
-  execFileSync('c++', [...flags, source, '-o', driver]);
-});
-
+const dir = mkdtempSync(join(tmpdir(), 'trillion3d-bench-commands-'));
 after(() => rmSync(dir, { recursive: true, force: true }));
+const driver = join(dir, 'driver');
+execFileSync(
+  'c++',
+  [
+    '-std=c++17',
+    '-Wall',
+    '-Wextra',
+    '-Werror',
+    '-I',
+    import.meta.dirname,
+    '-x',
+    'c++',
+    '-',
+    '-o',
+    driver,
+  ],
+  { input: DRIVER },
+);
+
+let files = 0;
 
 /** What the reader returns for a file holding `bytes`, or for no file when `bytes` is null. */
 function read(bytes: Uint8Array | null): string {
-  const path = join(dir, `commands-${Math.random().toString(36).slice(2)}.bin`);
+  const path = join(dir, `commands-${files++}.bin`);
   if (bytes) writeFileSync(path, bytes);
-  return execFileSync(driver, [path], { encoding: 'utf8' }).trim();
+  return execFileSync(driver, [path], { encoding: 'utf8' });
 }
 
 const words = (...values: number[]) => new Uint8Array(Uint32Array.from(values).buffer);
