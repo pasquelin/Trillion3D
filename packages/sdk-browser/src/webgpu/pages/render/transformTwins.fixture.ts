@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as G from '../../../host/graph/graph.fixture.ts';
+import { BOX_VALUES, boxTransform } from '../../../../../sdk-core/src/index.ts';
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import { racine, runtime } from '../../core/transformShear.fixture.ts';
 import { hostWorldPlacements } from '../../../host/world/placements.ts';
@@ -132,4 +133,38 @@ export function assertSame(a: World, b: World, label: string, worlds: boolean) {
         `${label} world`,
       ),
     );
+}
+
+/**
+ * Roots whose row differs between the batch twin `a` and the one-by-one twin `b`, taken by `b` and
+ * the `others`. The engine index keeps the structure it was built on (`tree.ts`): a node the host
+ * reparented still moves with its old parent there. One by one, such a root keeps the row and box
+ * of the call that listed it while a later call moves it through that old link; the batch writes
+ * both at the pose the root ends at. Each such root is proved that case — `a` agrees with its
+ * world, `b` does not — then its row and box are copied over. Returns their ranks.
+ */
+export function takeFinalRows(a: World, b: World, others: World[]) {
+  const taken = new Set<number>(),
+    box = new Float64Array(BOX_VALUES),
+    bytes = (x: World) => Buffer.from(x.rows.pageTableFloats.buffer);
+  if (bytes(a).equals(bytes(b))) return taken;
+  a.roots.forEach((root, i) => {
+    const row = (x: World) => x.rows.pageTableFloats.subarray(i * ROW_WORDS, i * ROW_WORDS + 16);
+    const [p, q] = [row(a), row(b)];
+    if (p.every((v, k) => Object.is(v, q[k]))) return;
+    const world = (x: World) => Float32Array.from(x.roots[i].world.elements);
+    sameBits(p, world(a), `root ${i}: the batch row is its final world`);
+    assert.ok(
+      !q.every((v, k) => Object.is(v, world(b)[k])),
+      `root ${i}: one by one left no old row`,
+    );
+    if (root.localBox) boxTransform(box, 0, root.localBox, 0, root.world.elements);
+    if (root.localBox) sameBits(root.worldBox!, box, `root ${i}: the batch box is its final one`);
+    for (const x of [b, ...others]) {
+      row(x).set(p);
+      x.roots[i].worldBox?.set(root.worldBox!);
+    }
+    taken.add(i);
+  });
+  return taken;
 }
