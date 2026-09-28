@@ -66,9 +66,19 @@ export function createTileSources(options: {
     options.onFailure,
   );
   const held = (id: number) => live.get(id) ?? scratches.get(id);
-  const dropScratches = () => {
-    for (const scratch of scratches.values()) scratch.destroy();
-    scratches.clear();
+  /** Feedback frame each working texture was asked at, and those a copy read this pass. */
+  const askedAt = new Map<number, number>(),
+    used = new Set<number>();
+  /** Frees the working textures a copy read, or that feedback newer than their ask passed over;
+   *  one built off the frame waits for that feedback: a pass without it would free it unread. */
+  const dropScratches = (frame = Infinity) => {
+    for (const [id, scratch] of scratches)
+      if (used.has(id) || (askedAt.get(id) ?? -1) < frame) {
+        scratch.destroy();
+        scratches.delete(id);
+        askedAt.delete(id);
+      }
+    used.clear();
   };
   return {
     levels,
@@ -115,11 +125,15 @@ export function createTileSources(options: {
       const id = scratchId(atlas, key.slot),
         scratch = held(id);
       if (!scratch) {
-        if (scratches.size + builds.size < MAX_SCRATCHES) builds.ask(id, atlas, key.slot);
+        if (scratches.size + builds.size < MAX_SCRATCHES) {
+          askedAt.set(id, frame);
+          builds.ask(id, atlas, key.slot);
+        }
         return 'waiting';
       }
       const place = atlas.place(key, frame);
       if (!place) return 'refused';
+      if (scratches.has(id)) used.add(id);
       copyTileFromTexture(encoder(), pool, place, scratch.texture, key.level, region);
       return 'served';
     },
@@ -177,10 +191,11 @@ export function createTileSources(options: {
     get liveBytes() {
       return liveBytes;
     },
-    /** End of pass: its copies submitted, its working textures freed. */
-    endPass(encoder?: GPUCommandEncoder) {
+    /** End of pass: its copies submitted, its working textures freed — all but those built for
+     *  tiles whose feedback, `frame`, has not come round since they were asked. */
+    endPass(encoder?: GPUCommandEncoder, frame?: number) {
       if (encoder) device.queue.submit([encoder.finish()]);
-      dropScratches();
+      dropScratches(frame);
     },
     /** True while a level read or a working texture's build is on its way: a tile may come. */
     get reading() {
@@ -190,6 +205,7 @@ export function createTileSources(options: {
     destroy() {
       builds.destroy();
       dropScratches();
+      askedAt.clear();
       for (const scratch of live.values()) scratch.destroy();
       live.clear();
       levels?.destroy();
