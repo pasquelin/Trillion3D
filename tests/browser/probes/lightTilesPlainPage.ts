@@ -12,7 +12,7 @@ import {
   uploadSceneLights,
 } from '../../../packages/sdk-browser/src/webgpu/pages/state/lightBuffer.ts';
 import { TILE_STRIDE_WORDS } from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts';
-import { random } from '../../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts';
+import { seeded } from '../../../site/examples/kit/random.ts';
 import {
   NEAR,
   camera,
@@ -149,13 +149,18 @@ export async function executer(lightCounts: number[]) {
         if (key === 'features' && plain)
           return { has: (name: string) => name !== 'subgroups' && target.features.has(name) };
         if (key === 'createBuffer')
+          // A mapped readback may hold no other usage: only the pass's storage is made copyable.
           return (d: GPUBufferDescriptor) =>
-            target.createBuffer({ ...d, usage: d.usage | GPUBufferUsage.COPY_SRC });
+            target.createBuffer(
+              d.usage & GPUBufferUsage.MAP_READ
+                ? d
+                : { ...d, usage: d.usage | GPUBufferUsage.COPY_SRC },
+            );
         const value = Reflect.get(target, key, target);
         return typeof value === 'function' ? value.bind(target) : value;
       },
     });
-  const r = random(924);
+  const r = seeded(924);
   const depths = depthField(r);
   const depth = depthTexture(device, depths).createView();
   const runs = [];
