@@ -33,6 +33,13 @@ fn product(a: usize, b: usize) -> Result<usize> {
 }
 /// A missing fallback buffer is legal only when every view using it is compressed.
 pub(crate) fn placeholder(g: &Value, buffer: usize) -> bool {
+    if !g
+        .get("extensionsRequired")
+        .and_then(Value::as_array)
+        .is_some_and(|names| names.iter().any(|name| name.as_str() == Some(MESHOPT)))
+    {
+        return false;
+    }
     let Some(views) = g.get("bufferViews").and_then(Value::as_array) else {
         return false;
     };
