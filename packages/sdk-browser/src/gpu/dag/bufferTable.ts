@@ -148,7 +148,7 @@ export type LightCutShape = {
 };
 
 /** Each descent queue: every node, or one root per slot when the slots outnumber the nodes. */
-export const lightQueueCap = (shape: LightCutShape, views: number) =>
+const lightQueueCap = (shape: LightCutShape, views: number) =>
   Math.max(shape.nodeCount, shape.worldCount * views);
 
 /**

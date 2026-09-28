@@ -1,5 +1,5 @@
-import { dagPartCounts, dagSelectionShader } from './shader/splitWgsl.ts';
-import type { DagSplit } from './split.ts';
+import { dagSelectionShader } from './shader/splitWgsl.ts';
+import { dagPartCounts, type DagSplit } from './split.ts';
 import { dagBindEntries, type dagGroupEntries } from './shader/bindings.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { withScreenErrorVariant } from './shader/error.ts';
