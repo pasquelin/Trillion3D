@@ -59,8 +59,28 @@ test('the GLSL programs are the same taps, and the composite the same blend', ()
 // alone, a scalar, as `blendLevel` treats each alike; `quantizeToF16` refuses what WGSL leaves
 // indeterminate (past the finite halves), so no pixel rests on an undefined value.
 const F32_MAX = 3.4028234663852886e38;
-const EDGES = [NaN, 0, -0, Infinity, -Infinity, 65504, -65504, 65519, 65520, -65520, 65536, F32_MAX,
-  -F32_MAX, 2 ** -24, 2 ** -25, -(2 ** -14), 1e-45, 0.3, 1, 7.5];
+const EDGES = [
+  NaN,
+  0,
+  -0,
+  Infinity,
+  -Infinity,
+  65504,
+  -65504,
+  65519,
+  65520,
+  -65520,
+  65536,
+  F32_MAX,
+  -F32_MAX,
+  2 ** -24,
+  2 ** -25,
+  -(2 ** -14),
+  1e-45,
+  0.3,
+  1,
+  7.5,
+];
 /** Seeded values over every order of magnitude the radiance reaches, either sign. */
 function randomValues(count: number) {
   const r = mulberry32(963);
@@ -85,13 +105,13 @@ const quantizeToF16 = (x: number) => {
   return f16(x);
 };
 
-test('the half store matches Node\'s where it has one', { skip: !('f16round' in Math) }, () => {
+test("the half store matches Node's where it has one", { skip: !('f16round' in Math) }, () => {
   const round = (Math as unknown as { f16round: (x: number) => number }).f16round;
   for (const x of [...EDGES, ...randomValues(2000), 65503.99, 2 ** -24 * 1.5, 2 ** -24 * 2.5])
     assert.equal(f16(Math.fround(x)), round(Math.fround(x)), `${x}`);
 });
 
-test('the composition blends the last level in as develop\'s half-float target held it (#963)', () => {
+test("the composition blends the last level in as develop's half-float target held it (#963)", () => {
   const values = [...EDGES, ...randomValues(60)],
     r = mulberry32(1073);
   const intensities = [0, 0.04, 0.25, 1, r(), r()];
