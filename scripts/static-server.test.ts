@@ -150,7 +150,9 @@ test('a request aborted before its file opens leaves no file open and pipes noth
     said = t.mock.method(console, 'error', () => pipe());
   // The client gone as the server starts on the file: its response closes before the file opens.
   server.on('request', (_, response: ServerResponse) => response.destroy());
-  request({ port, path: '/cache/page.bin' }).on('error', () => {}).end();
+  request({ port, path: '/cache/page.bin' })
+    .on('error', () => {})
+    .end();
   const stream = await made;
   // Either the file closes, or the server says it could not pipe onto the closed response.
   await Promise.race([once(stream, 'close'), piped]);
