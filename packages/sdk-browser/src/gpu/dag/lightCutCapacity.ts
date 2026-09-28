@@ -41,7 +41,7 @@ export function lightCutCapacity(limits: LightCutLimits, shape: LightCutShape) {
     bytes = storageBufferCap(limits);
   const fits = (views: number) => {
     const queueCap = lightQueueCap(shape, views);
-    if (Math.max(shape.worldCount * views, shape.blockCount) > threads) return false;
+    if (Math.max(shape.frames.per * views, shape.blockCount) > threads) return false;
     for (let level = 1; level < shape.levelSizes.length; level++)
       if (Math.min(shape.levelSizes[level] * views, queueCap) > threads) return false;
     const frames = views * shape.frames.per * FRAME_VEC4 * 16,
