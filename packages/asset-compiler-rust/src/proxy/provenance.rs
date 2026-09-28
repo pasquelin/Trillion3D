@@ -1,5 +1,5 @@
 //! Source ownership survives world-grid deduplication and BVH permutation.
-use super::{PROXY_TRIANGLE_FLOATS, simplify};
+use super::{simplify, PROXY_TRIANGLE_FLOATS};
 use std::collections::{BTreeSet, HashMap};
 
 /// Interned owner lists: subdivision and repeated geometry share lists, not copies.

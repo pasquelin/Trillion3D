@@ -1,6 +1,6 @@
 //! End of proxy step: world triangles to column-structured format.
 use super::{
-    PROXY_CELL_METRES, PROXY_ERROR_METRES, PROXY_TRIANGLE_BUDGET, SceneProxy, bvh, simplify, wide,
+    bvh, simplify, wide, SceneProxy, PROXY_CELL_METRES, PROXY_ERROR_METRES, PROXY_TRIANGLE_BUDGET,
 };
 
 /// Simplifies placed triangles, builds wide BVH, publishes obtained threshold: max
