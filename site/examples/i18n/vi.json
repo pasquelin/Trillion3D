@@ -500,6 +500,24 @@
       "balloon": "ĐANG THEO KHINH KHÍ CẦU"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Xem lộ trình đã ghi qua công viên. Phát lại, dừng hoặc tự điều khiển camera.",
+    "controls": {
+      "replay": "Phát lại",
+      "stop": "Dừng"
+    },
+    "readouts": {
+      "currentPart": "Phần hiện tại"
+    },
+    "words": {
+      "entrance": "Lối vào",
+      "pond": "Ao",
+      "bridge": "Cầu",
+      "pavilion": "Nhà vọng cảnh",
+      "overview": "Toàn cảnh",
+      "complete": "Hoàn tất"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Xoay quanh cần cẩu khi một clip quay cần, di chuyển xe con, nâng tải và làm tải đung đưa.",
     "controls": {
@@ -1965,6 +1983,7 @@
       "manifest": "đã đọc manifest",
       "tables": "đã đọc bảng cảnh",
       "resources": "tệp của cảnh",
+      "session": "đang mở khung nhìn",
       "pages": "trang đầu tiên",
       "ready": "sẵn sàng"
     }
