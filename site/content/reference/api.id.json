@@ -12,6 +12,7 @@
       "bindingOf": "Yang ditulis `tr`, diselesaikan sekali; null selama targetnya belum berada di bawah root.",
       "play": "Mulai memainkannya.",
       "stop": "Berhenti, dan kembali ke awal.",
+      "seek": "Menempatkan klip pada `time` detik sekarang juga, menurut mode pengulangannya, sedang diputar atau tidak: aksi yang diputar berlanjut dari situ, aksi yang berhenti mempertahankan pose itu sampai aksi yang diputar pada mixer-nya menimpanya.",
       "clipTime": "Di mana posisi aksi dalam clip, menurut mode loop-nya."
     }
   },
