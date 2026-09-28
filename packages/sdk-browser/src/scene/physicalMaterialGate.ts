@@ -54,20 +54,41 @@ const EXTENSION_MAPS = [
   'specularColorMap',
 ] as const;
 
-/** Names every physical extension a material declares beyond the transmission volume, none
- *  when it declares none. The IOR shapes the Fresnel of the transmission pass alone: without
- *  transmission, the cluster BRDF keeps its dielectric F0, so the declared IOR is one of them. */
-export function physicalFeaturesLost(material: PhysicalLike) {
-  if (material.family !== 'physical') return;
-  const lost: string[] = [];
-  if ((material.ior ?? 1.5) !== 1.5 && !((material.transmission ?? 0) > 0)) lost.push('ior');
-  for (const factor of EXTENSION_FACTORS) if ((material[factor] ?? 0) !== 0) lost.push(factor);
-  for (const map of EXTENSION_MAPS) if (material[map]) lost.push(map);
+/** Every feature the gate names, in the order a notice lists them: its rank is its bit. */
+const FEATURES = ['ior', ...EXTENSION_FACTORS, ...EXTENSION_MAPS, 'specular'] as const;
+
+/** The features a material declares beyond the transmission volume, one bit each by their rank
+ *  in `FEATURES`, 0 when it declares none: read on every draw without allocating, so a field
+ *  set on a live surface without `needsUpdate` is read too. The IOR shapes the Fresnel of the
+ *  transmission pass alone: without transmission, the cluster BRDF keeps its dielectric F0, so
+ *  the declared IOR is one of them. */
+export function physicalLostMask(material: PhysicalLike) {
+  if (material.family !== 'physical') return 0;
+  let mask = (material.ior ?? 1.5) !== 1.5 && !((material.transmission ?? 0) > 0) ? 1 : 0,
+    bit = 2;
+  for (const factor of EXTENSION_FACTORS) {
+    if ((material[factor] ?? 0) !== 0) mask |= bit;
+    bit <<= 1;
+  }
+  for (const map of EXTENSION_MAPS) {
+    if (material[map]) mask |= bit;
+    bit <<= 1;
+  }
   const specular = material.specularColor;
   if (
     (material.specularIntensity ?? 1) !== 1 ||
     (specular && (specular.r !== 1 || specular.g !== 1 || specular.b !== 1))
   )
-    lost.push('specular');
-  return lost.length ? lost : undefined;
+    mask |= bit;
+  return mask;
+}
+
+/** The names of the features `mask` holds (`physicalLostMask`). */
+export const featuresOf = (mask: number) => FEATURES.filter((_, rank) => mask & (1 << rank));
+
+/** Names every physical extension a material declares beyond the transmission volume, none
+ *  when it declares none (`physicalLostMask`). */
+export function physicalFeaturesLost(material: PhysicalLike) {
+  const mask = physicalLostMask(material);
+  return mask ? featuresOf(mask) : undefined;
 }

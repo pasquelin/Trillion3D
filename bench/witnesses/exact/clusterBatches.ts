@@ -11,6 +11,7 @@ import { ClusterBatches, type BatchPage } from './batches/batches.ts';
 import { clusterWebglCompatibility } from '../../../packages/sdk-browser/src/webgl/cluster/compatibility.ts';
 import { clusterRefusal } from '../../../packages/sdk-browser/src/webgl/cluster/refusal.ts';
 import { WebglClusterOwner } from '../../../packages/sdk-browser/src/webgl/cluster/owner.ts';
+import { degradedHearer } from '../../../packages/sdk-browser/src/world/diagnostic/worldNotices.ts';
 
 type HostScene = ConstructorParameters<typeof ClusterBatches>[0];
 type SceneCopy = NonNullable<ConstructorParameters<typeof ClusterBatches>[3]>[number] & {
@@ -33,12 +34,12 @@ export function createExactPagesClusterBatches(
   scene: HostScene,
   pages: readonly BatchPage[],
   blendCopies: readonly SceneCopy[],
-  context: Pick<BackendContext, 'webglContext' | 'materialDegraded'>,
+  context: Pick<BackendContext, 'webglContext' | 'materialDegraded' | 'onDiagnostic'>,
 ) {
   const gl = context.webglContext;
   const reason = gl && clusterWebglCompatibility(gl, pages, blendCopies, scene);
   const refusal = reason ? clusterRefusal(reason) : undefined;
-  const owner = gl && !refusal ? new WebglClusterOwner(gl, context.materialDegraded) : undefined;
+  const owner = gl && !refusal ? new WebglClusterOwner(gl, degradedHearer(context)) : undefined;
   for (const copy of blendCopies) {
     copy.userData.sourceGeometry = copy.geometry;
     copy.userData.sourceMaterial = copy.material;
