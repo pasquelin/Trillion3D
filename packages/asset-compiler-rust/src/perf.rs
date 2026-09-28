@@ -149,6 +149,24 @@ impl Laps {
         self.laps.insert(label.into(), json!(ms));
         self.last = now;
     }
+    /// Runs `a` and `b` side by side on the current pool, each timed under its own label, and
+    /// opens the next stage once both are done. The results come back in argument order, whichever
+    /// finished first.
+    pub fn join<A: Send, B: Send>(
+        &mut self,
+        (a_label, a): (&str, impl FnOnce() -> A + Send),
+        (b_label, b): (&str, impl FnOnce() -> B + Send),
+    ) -> (A, B) {
+        fn timed<T>(run: impl FnOnce() -> T) -> (T, f64) {
+            let started = Instant::now();
+            (run(), crate::shared_math::elapsed_ms(started))
+        }
+        let ((a, a_ms), (b, b_ms)) = rayon::join(|| timed(a), || timed(b));
+        self.laps.insert(a_label.into(), json!(a_ms));
+        self.laps.insert(b_label.into(), json!(b_ms));
+        self.last = Instant::now();
+        (a, b)
+    }
     pub fn report(self) -> Value {
         Value::Object(self.laps)
     }
