@@ -1,9 +1,7 @@
 import { DRAW_INDIRECT_STRIDE } from '../draw/draw.ts';
 import { createGpuPeriodicReadback } from '../core/periodicReadback.ts';
 import { SHADOW_COUNT_SAMPLE_BYTES } from './batchBudget.ts';
-
-/** Words of one indirect draw command; the instance count is its second word. */
-const COMMAND_WORDS = DRAW_INDIRECT_STRIDE / 4;
+import { DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
 
 /** What the last sampled frame's region culls kept, and that frame's number. */
 export interface ShadowCullCounts {
@@ -15,7 +13,7 @@ export interface ShadowCullCounts {
 /** Clusters the `regions` first commands draw: the device's own count, never estimated. */
 export function sumKeptClusters(words: Uint32Array, regions: number) {
   let kept = 0;
-  for (let region = 0; region < regions; region++) kept += words[region * COMMAND_WORDS + 1];
+  for (let region = 0; region < regions; region++) kept += words[region * DRAW_INDIRECT_WORDS + 1];
   return kept;
 }
 
