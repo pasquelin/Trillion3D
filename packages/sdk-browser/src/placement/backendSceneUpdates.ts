@@ -39,6 +39,13 @@ export type PlacementGrowth = Required<
   Pick<BackendSceneUpdates, 'growPlacements' | 'growsInPlace'>
 >;
 
+/** Whether `updates` takes that growth (`BackendSceneUpdates.growsInPlace`): absent, every one. */
+export const growsInPlaceOf = (
+  updates: BackendSceneUpdates,
+  from: readonly PlacementRows[],
+  capacity: number,
+) => updates.growsInPlace?.(from, capacity) ?? true;
+
 /** What an engine lets a host change in the scene it prepared, without preparing it again. */
 export interface BackendSceneUpdates {
   /** Moves a named node of the prepared scene; applied to the next frame, without allocation (R8). */

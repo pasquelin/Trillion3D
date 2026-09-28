@@ -15,11 +15,11 @@ export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>;
 /** How many packed pages share each pool address, and the most at one: the rows a slot feeds. */
 export type PoolCopies = { byAddress: Map<string, number>; max: number };
 
-/** Counts `pages` into `copies`, one more placement each. */
-export function countCopies(copies: PoolCopies, pages: readonly PageRec[]) {
+/** Counts `pages` into `copies`, `by` more placements each. */
+export function countCopies(copies: PoolCopies, pages: readonly PageRec[], by = 1) {
   for (const page of pages) {
     const address = pageAddress(page),
-      n = (copies.byAddress.get(address) ?? 0) + 1;
+      n = (copies.byAddress.get(address) ?? 0) + by;
     copies.byAddress.set(address, n);
     copies.max = Math.max(copies.max, n);
   }
@@ -56,7 +56,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
   // One cluster catalogue for one cut: the opaque primitives first, then the transparent ones. The
   // GPU selection, the residency and the page budget read all of it; only the drawing path splits,
   // because a transparent cluster is blended in source order instead of entering the visibility
-  // buffer. Keeping the opaque prefix first leaves every opaque page index exactly where it was.
+  // buffer. Placements grown in place append their opaque pages after the transparent ones: a
+  // page's kind is read from the page, never from its rank.
   const selectionRoots = [...opaqueRoots, ...transparentRoots];
   const packedPages: PageRec[] = selectionRoots.flatMap((root) => root.pages);
   // A page's placement is its root's rank: what the row carries to find the placement motion
@@ -89,7 +90,6 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     /** Root-box batch, reserved at prepare and replayed on every node move; `null` until prepare has
      *  happened or when the batch cannot be fitted. */
     rootBoxes: null as BoxTransformLot | null,
-    opaqueRoots,
     transparentRoots,
     selectionRoots,
     packedPages,
