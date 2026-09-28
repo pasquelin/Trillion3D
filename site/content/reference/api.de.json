@@ -7021,7 +7021,8 @@
       "projection": "Perspektivisch oder orthografisch.",
       "position": "Wo das Auge steht.",
       "quaternion": "Wie das Auge gedreht ist.",
-      "optics": "Sichtfeld, near, far, Zoom und Quader, nach Namen."
+      "optics": "Sichtfeld, near, far, Zoom und Quader, nach Namen.",
+      "fitAspect": "Eine orthografische Box, auf die Form des Bildes verbreitert (`fitAspect`); fehlt, wenn aus."
     }
   },
   "SavedGeometry": {
