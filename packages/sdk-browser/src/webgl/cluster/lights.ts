@@ -33,7 +33,8 @@ export const unsupportedClusterLight = (scene: WebglClusterScene) => {
     // A probe takes no light slot: its coefficients add into the program's irradiance.
     if (!isLightNode(light) || light.kind === 'probe' || !shownChain(light)) return;
     // A world's sky over a ground reaches this path as the environment's irradiance, a probe.
-    if (!DRAWN.has(light.kind)) reason ??= `${light.kind} light is not drawn by the WebGL2 cluster path`;
+    if (!DRAWN.has(light.kind))
+      reason ??= `${light.kind} light is not drawn by the WebGL2 cluster path`;
     // The ambient lights share one slot: `upload` sums them into a single irradiance.
     if (light.kind === 'ambient') ambient = 1;
     else count++;
