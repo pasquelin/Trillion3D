@@ -10,7 +10,7 @@ diagnosis Chrome of AGENTS.md rule 2, killed by its PID.
    `git worktree add .worktrees/<n>-<short-name> -b <n>-<short-name> origin/develop`, then
    `pnpm install` there — it links AGENTS.md and `docs/roles/` into the tree. Work only there.
 3. Code and test as CONTRIBUTING.md requires: one test per changed behaviour, no dead code, 200
-   lines per file, English everywhere, a pull request within the size of AGENTS.md rule 11 (CI refuses more than 600 added lines; an
+   lines per file, English everywhere, a pull request within the size of AGENTS.md rule 11 (CI refuses more than 1,500 added lines; an
    issue that needs more goes back to the lead to be narrowed, AGENTS.md rule 5). Then review your diff twice, **with the real skills,
    invoked through the Skill tool, never imitated by hand**: first the `simplify` skill (it
    launches its own review agents, at most 4, which launch none), then the `code-review` skill

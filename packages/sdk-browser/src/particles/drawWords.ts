@@ -11,6 +11,17 @@ export const DRAW_FLOATS = 44;
 export const DISC_CORNERS =
   'vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0), vec2(-1.0, 1.0), vec2(1.0, -1.0), vec2(1.0, 1.0)';
 
+/** Each blend's factors, one table for both draws: smoke covers colour and coverage alike, fire
+ *  adds light and leaves the coverage. */
+const OVER = { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } as const;
+export const BLENDS: Record<ParticlePool['blend'], GPUBlendState> = {
+  additive: {
+    color: { srcFactor: 'one', dstFactor: 'one' },
+    alpha: { srcFactor: 'zero', dstFactor: 'one' },
+  },
+  premultiplied: { color: OVER, alpha: OVER },
+};
+
 type Vec = ArrayLike<number>;
 const [clip, unclip] = [new Float64Array(16), new Float64Array(16)];
 
