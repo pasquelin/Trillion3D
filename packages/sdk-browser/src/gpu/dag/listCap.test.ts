@@ -101,7 +101,9 @@ test('a cut past its list grows it and stays on the GPU, every drawn cluster lis
   );
   assert.ok(!resources.buffers.some((buffer) => old.includes(buffer)));
   const outOf = (group: GPUBindGroup) =>
-    (group as unknown as GPUBindGroupDescriptor).entries.find((e) => e.binding === DAG_BINDING.out);
+    [...(group as unknown as GPUBindGroupDescriptor).entries].find(
+      (e) => e.binding === DAG_BINDING.out,
+    );
   assert.equal(
     (outOf(resources.ranges[0].bindGroup)?.resource as GPUBufferBinding).buffer,
     resources.output,

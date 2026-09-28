@@ -76,11 +76,7 @@ export function createDagList(
  * list, in `pageCones`, keeps its own (`layout.ts`). A light cut already made keeps the readout it
  * was made with.
  */
-async function growDagList(
-  resources: DagResources,
-  listCap: number,
-  disposed: () => boolean,
-) {
+async function growDagList(resources: DagResources, listCap: number, disposed: () => boolean) {
   const made: GPUBuffer[] = [];
   const make = (descriptor: GPUBufferDescriptor) => {
     const buffer = resources.device.createBuffer(descriptor);
