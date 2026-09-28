@@ -85,6 +85,7 @@ pub(super) struct PreviewInputs<'a> {
     /// Textures whose alpha to measure on pass, designated by `cutout`: this step
     /// knows what it decodes, not what cutout is.
     pub to_measure: &'a BTreeSet<usize>,
+    pub measurements: &'a crate::cutout::MeasureCache,
 }
 
 /// Calculates chain for each atlas texture of retained meshes, single image decode

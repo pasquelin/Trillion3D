@@ -8,6 +8,7 @@ import {
 } from '../../bounce/reflectWgsl.ts';
 import { TONE_MAPPING_WGSL } from '../toneMappingWgsl.ts';
 import { AS_IS_FLAG } from '../../scene/surfaceModel.ts';
+import { BLOOM_COMPOSE_WGSL } from '../../effects/bloomLevel.ts';
 
 export const FULLSCREEN_VERTEX = `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}`;
 /** Last link of every composition: linear radiance carried into display space. */
@@ -143,17 +144,19 @@ const asIsMix = (chaine: string, share: string) =>
  * and so are debug views: a curved chain is weighed back to the pixel as-is by its share
  * (`AS_IS_READ`), as the reference never exposes nor tone maps its normal or depth material. At a
  * share of 0 a lit pixel gets the chain before, bit for bit; the identity chain reads no share.
+ * With `bloom`, `hdr` is the image the chain's last bloom read, blended here (`BLOOM_COMPOSE_WGSL`).
  */
-const composeSource = (courbe: string, chaine: string, input: ComposeInput) => `
+const composeSource = (courbe: string, chaine: string, input: ComposeInput, bloom: boolean) => `
 ${VIEW_WGSL}
 @group(0) @binding(0) var hdr:texture_2d<f32>;
 @group(0) @binding(1) var<uniform> view:View;
 ${courbe ? `@group(0) @binding(2) var asIs:${AS_IS_READ[input].texture};` : ''}
+${bloom ? BLOOM_COMPOSE_WGSL : ''}
 ${FULLSCREEN_VERTEX}
 ${SRGB_WGSL}${courbe}
 fn composeColor(pixel:vec4f)->vec4f{
  let coord=vec2i(pixel.xy);
- let value=textureLoad(hdr,coord,0);
+ let value=${bloom ? 'bloomed(textureLoad(hdr,coord,0),pixel.xy)' : 'textureLoad(hdr,coord,0)'};
  if(value.a==0.0){return view.background;}
  if(view.viewport.z!=0.0){return vec4f(value.rgb,1.0);}
  ${courbe ? asIsMix(chaine, AS_IS_READ[input].share) : `let color=linearToSrgb(${chaine});`}
@@ -166,16 +169,21 @@ struct DisplayOutput{@location(0) capture:vec4f,@location(1) canvas:vec4f,}
  return DisplayOutput(color,color);
 }`;
 /** One composition per input: the still image's surface flags, or the accumulated share. */
-const composeSources = (courbe: string, chaine: string) => ({
-  still: composeSource(courbe, chaine, 'still'),
-  accumulated: composeSource(courbe, chaine, 'accumulated'),
+const composeSources = (courbe: string, chaine: string, bloom = false) => ({
+  still: composeSource(courbe, chaine, 'still', bloom),
+  accumulated: composeSource(courbe, chaine, 'accumulated', bloom),
+});
+/** A program's compositions: plain, and blending in the chain's last bloom (#963). */
+const compositionsOf = (courbe: string, chaine: string) => ({
+  plain: composeSources(courbe, chaine),
+  bloom: composeSources(courbe, chaine, true),
 });
 /**
  * Contract composition: exposure multiplies linear radiance before the display curve the scene
  * chose — ACES unless it chose another —, last link of the chain (P4). That is the one of
  * programs lit by declared lights.
  */
-export const COMPOSE_SHADERS = composeSources(
+export const CONTRACT_COMPOSITIONS = compositionsOf(
   TONE_MAPPING_WGSL,
   'toneMap(value.rgb*view.lightParams.w/max(value.a,1e-6),u32(view.display.x))',
 );
@@ -184,4 +192,4 @@ export const COMPOSE_SHADERS = composeSources(
  * source there is no radiance to expose or bring into the display range (P6) — albedo is
  * read as-is, which is what benches that compare images pixel for pixel ask for.
  */
-export const UNLIT_COMPOSE_SHADERS = composeSources('', 'value.rgb/max(value.a,1e-6)');
+export const UNLIT_COMPOSITIONS = compositionsOf('', 'value.rgb/max(value.a,1e-6)');
