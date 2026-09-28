@@ -6,6 +6,7 @@ import type { EngineCamera } from '../camera/world.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { AccumulatedImage } from '../lighting/deferred/program.ts';
 import type { TemporalAntialiasing } from './temporalAntialiasing.ts';
+import { writtenFilter } from '../webgpu/blend/displayFilter.ts';
 
 /** What the temporal pass keeps from one image to the next on the CPU side. */
 export interface TaaFrameState {
@@ -108,10 +109,9 @@ const anchored = new Float64Array(16),
   weights = taaWeightTable();
 
 /**
- * Encodes this image's temporal pass and returns the accumulated image composition reads, or
- * `undefined` when the image does not accumulate. Writes the uniform, updates placement motion,
- * advances the jitter rank and keeps the view-projection without jitter for the next image. With
- * `asIs` false the flagless resolve reads no flags (OMB-11); a display filter is resolved beside.
+ * Encodes this image's temporal pass, its display filter beside, and returns the accumulated image
+ * composition reads, or `undefined` when it does not accumulate. Writes the uniform, updates motion,
+ * advances the jitter rank, keeps the unjittered view-projection; `asIs` false reads no flags (OMB-11).
  */
 export function encodeTaaPass(
   rt: WebgpuPagesRuntime,
@@ -146,14 +146,11 @@ export function encodeTaaPass(
   packed[36] = state.stillFrames > 0 ? 1 / state.stillFrames : 1 / TAA_SAMPLES;
   packed[37] = state.hasHistory ? 1 : 0;
   packed[38] = temporal.motion.moved ? 1 : 0;
-  // The display filter of an image whose blends filter (`../webgpu/blend/displayFilter.ts`).
-  // Only while this image's filter is open: a diagnostic frame keeps last image's `written`.
-  const filter =
-    gpu.displayFilter?.active && gpu.displayFilter.written ? gpu.displayFilter.view : undefined;
+  const { inputs } = temporal;
+  const filter = (inputs.filter = writtenFilter(gpu.displayFilter)); // `displayFilter.ts`
   packed[39] = filter && temporal.filterHistory.written ? 1 : 0;
   packed.set(weights[state.sample], 40);
   device.queue.writeBuffer(temporal.uniform, 0, packed);
-  const { inputs } = temporal;
   inputs.current = current;
   inputs.depth = gpu.depthView;
   inputs.ids = vis.visView;
@@ -161,11 +158,9 @@ export function encodeTaaPass(
   inputs.motion = temporal.motion.buffer;
   inputs.flags = asIs ? gpu.surfaces.views()[3] : undefined;
   inputs.share = asIs ? share : undefined;
-  inputs.filter = filter;
-  // The filter's history is made by the first image that resolves one: counted with the targets.
-  const filterBytes = filter && temporal.filterHistory.bytes;
-  const output = temporal.encode(encoder, inputs);
-  if (filter) gpu.targetBytes += temporal.filterHistory.bytes - (filterBytes || 0);
+  const before = temporal.filterHistory.bytes,
+    output = temporal.encode(encoder, inputs);
+  gpu.targetBytes += temporal.filterHistory.bytes - before; // the filter's history, made by now
   run.gpuDrawCalls++;
   state.sceneSeen = scene;
   state.previousViewProjection.set(cam.viewProjection);

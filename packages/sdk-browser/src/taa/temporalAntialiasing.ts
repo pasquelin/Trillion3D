@@ -6,12 +6,8 @@ import { createTaaFilterHistory } from './filterHistory.ts';
 import type { AccumulatedImage } from '../lighting/deferred/program.ts';
 
 /** A history target, cleared by the pass that writes it. */
-const cleared = (view: GPUTextureView): GPURenderPassColorAttachment => ({
-  view,
-  loadOp: 'clear',
-  storeOp: 'store',
-  clearValue: [0, 0, 0, 0],
-});
+const CLEAR = { loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] } as const;
+const cleared = (view: GPUTextureView): GPURenderPassColorAttachment => ({ view, ...CLEAR });
 
 /** Bytes per pixel of the two history targets: two `rgba16float`, and their two shares. */
 export const TAA_HISTORY_BYTES_PER_PIXEL = 18;
@@ -32,10 +28,8 @@ export interface TaaInputs {
 
 const INPUTS = ['current', 'depth', 'ids', 'pages', 'motion', 'flags', 'share', 'filter'] as const;
 /** An input changed identity: the bind groups are made again. */
-function inputsMoved(bound: TaaInputs, inputs: TaaInputs) {
-  for (const key of INPUTS) if (bound[key] !== inputs[key]) return true;
-  return false;
-}
+const inputsMoved = (bound: TaaInputs, inputs: TaaInputs) =>
+  INPUTS.some((key) => bound[key] !== inputs[key]);
 
 /**
  * Temporal antialiasing pass: two history targets in ping-pong, each a colour and its as-is share
