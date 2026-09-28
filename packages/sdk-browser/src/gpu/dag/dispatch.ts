@@ -43,7 +43,9 @@ export function createDagDispatch(
   const scratch = Array.from({ length: SLOTS }, createDagOutputScratch);
   const dispatch: GpuSelection['dispatch'] = (next, shared) => {
     if (state.disposed || state.dead) return;
-    if (state.grow && !state.mapped.includes(true)) {
+    // A list to grow waits for the readbacks in flight, and no frame cuts on the old one meanwhile.
+    if (state.grow) {
+      if (state.mapped.includes(true)) return;
       growDagList(resources, state.grow);
       state.grow = 0;
     }
@@ -78,7 +80,7 @@ export function createDagDispatch(
       undoReadbackWorld = state.readbackWorldRevision,
       undoSlot = state.slot;
     if (compute) {
-      writeDagUniforms(uniformData, packed, next, residentCut, undefined, listCap);
+      writeDagUniforms(uniformData, packed, next, residentCut, listCap);
       device.queue.writeBuffer(uniforms, 0, uniformData);
       encodeDagKernels(encoder, resources);
       state.lastSubmitted = copySelectionUniforms(next);
@@ -109,7 +111,7 @@ export function createDagDispatch(
             const bytes = readback[i].getMappedRange(),
               drawnWordOffset = residentCut ? outputBytes / 4 : 0;
             const parsed = parseDagOutput(bytes, 0, copied, drawnWordOffset, scratch[i]);
-            const needed = listDemand(bytes, drawnWordOffset);
+            const needed = parsed?.truncated ? listDemand(bytes, drawnWordOffset) : 0;
             readback[i].unmap();
             if (!parsed) {
               fail();
