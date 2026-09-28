@@ -8,6 +8,7 @@ import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { markWebgpuLost } from './lost.ts';
 import { shadowPoolHeld } from '../../shadow/poolSize.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { useWebgpuView } from '../state/viewSwitch.ts';
 
 /**
  * Vertex bytes of an image: the total held at allocation, plus the three concatenated visbuffer
@@ -122,6 +123,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
     { scene, pagedBlendCopies } = rt.setup;
   // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
   markWebgpuLost(rt);
+  // The main view's resources are released below; a capture under way releases its own view.
+  useWebgpuView(rt, rt.views.main);
   rt.run.gate.release();
   services.residency.quietPending();
   timing.gpuTiming?.dispose();
