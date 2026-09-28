@@ -73,7 +73,7 @@ test('a representation change under an unlit frame stales its pages once the vie
   const rt = settledRt();
   const lights = createWebgpuLightState(32);
   (rt as unknown as { lights: unknown }).lights = lights;
-  rt.gpu.targetSize = [8, 8];
+  Object.assign(rt.gpu, { targetSize: [8, 8], displaySize: [8, 8] });
   const { store, plan } = lights;
   store.add(SUN);
   const view = shadowViewpointOf(CAM as never, 8);

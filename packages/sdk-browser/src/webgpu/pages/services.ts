@@ -31,8 +31,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     { tracking, bootstrap, bootstrapUrls, bootstrapKey } = rt.setup,
     { sourceBytes, byUrl, geometryUrls } = rt.setup;
   const mirror = createWebgpuResidencyMirror({
-    pageIndicesByUrl: rows.pageIndicesByUrl,
-    residentOffsetWords: rows.residentOffsetWords,
+    table: rows,
     tracking,
     engineDiagnostic: diag.engineDiagnostic,
     getCache: () => gpu.cache,
