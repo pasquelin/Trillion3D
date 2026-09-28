@@ -5,6 +5,7 @@ import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
 import type { HostMaterials } from '../../host/resources.ts';
+import { primeMaps } from './texturePrime.ts';
 import { readDegraded, type MaterialDegraded, type ReadDegraded } from './validation.ts';
 
 /**
@@ -25,9 +26,13 @@ export class WebglClusterOwner {
     this.censused = false;
   };
   censused = false;
-  /** Files every mesh, hidden ones too — WebGPU's census at prepare (#42) —; a later one at bind. */
-  census(meshes: readonly { material: HostMaterials }[]) {
-    for (const { material } of meshes) this.display.textures.file(material);
+  /** Files every declared surface, hidden or not yet attached ones too — WebGPU's census at
+   *  prepare (#42) —; a later one at bind.
+   *  Then uploads their maps within `textureBytes` (`texturePrime.ts`). */
+  census(materials: Iterable<HostMaterials>, textureBytes: number) {
+    const declared = new Set(materials);
+    for (const material of declared) this.display.textures.file(material);
+    primeMaps(this.display.textures, declared, textureBytes);
     this.censused = true;
   }
   /** Reads the surfaces drawn without a physical feature for `hear`, across context restores. */

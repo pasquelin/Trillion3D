@@ -13,10 +13,9 @@ import { WebglClusterGeometry } from './geometry.ts';
 import { WebglClusterTextures } from './textures.ts';
 import { unsupportedClusterLight, WebglClusterLights, type WebglClusterScene } from './lights.ts';
 import { WebglClusterState } from './state.ts';
-import { TONE_MAPPING_RANK, normalMatrix3 } from '../../../../sdk-core/src/index.ts';
-import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4Typed.ts';
+import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/index.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
-import { Matrix3UniformCache, setClusterSamplers, setMatrix3 } from './uniforms.ts';
+import { Matrix3UniformCache, ModelUniforms, setClusterSamplers } from './uniforms.ts';
 import { WebglClusterMaterialUniforms } from './materialUniforms.ts';
 import { createClusterProgram } from './program.ts';
 import { validateClusterMeshes, type ReadDegraded } from './validation.ts';
@@ -34,9 +33,7 @@ export class WebglClusterRenderer {
   private geometry: WebglClusterGeometry;
   readonly textures: WebglClusterTextures;
   private uniforms = new Map<string, WebGLUniformLocation | null>();
-  private normal = new Float32Array(9);
-  private modelView = new Float64Array(16);
-  private modelViewUpload = new Float32Array(16);
+  private model: ModelUniforms;
   private lights: WebglClusterLights;
   private state: WebglClusterState;
   private validatedMaterials = new Map<Material, HostAttributes>();
@@ -77,6 +74,7 @@ export class WebglClusterRenderer {
     });
     gl.useProgram(program);
     setClusterSamplers(gl, (name) => this.at(name));
+    this.model = new ModelUniforms(gl, this.at('modelViewMatrix'), this.at('normalMatrix'));
   }
   get backdropBytes() {
     return this.backdrop.bytes + this.reflection.bytes;
@@ -96,12 +94,8 @@ export class WebglClusterRenderer {
     if (this.instanced !== instanced) gl.uniform1i(this.at('instanced'), instanced ? 1 : 0);
     this.instanced = instanced;
     const model = drawWorld(mesh);
-    multiplyMatrix4Typed(this.modelView, camera.view, model);
+    this.model.set(camera.view, model);
     this.state.applyWinding(model);
-    this.modelViewUpload.set(this.modelView);
-    gl.uniformMatrix4fv(this.at('modelViewMatrix'), false, this.modelViewUpload);
-    normalMatrix3(this.normal, this.modelView);
-    setMatrix3(gl, this.at('normalMatrix'), this.normal);
     const passes = drawPasses(material);
     this.triangles += drawTriangles(mesh) * passes.length;
     for (const side of passes) {
@@ -151,6 +145,7 @@ export class WebglClusterRenderer {
     gl.uniform1i(this.at('lightCount'), this.lights.upload(scene, camera.view));
     this.textures.beginFrame();
     this.instanced = undefined;
+    this.model.forget();
     this.pass.beginFrame(camera, gl.getParameter(gl.VIEWPORT) as Int32Array);
     this.geometry.beginFrame();
     this.triangles = 0;
