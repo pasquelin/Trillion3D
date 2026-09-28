@@ -93,7 +93,7 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n
  // The primitive's root opens the descent: one thread, one root, no counter to contend for. A
  // light cut opens none on a primitive that casts no shadow (\`markOf\`, \`castsNoShadow\`).
  let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&${CASTS_NO_SHADOW}u)!=0u);
- flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
+ setFlag(queueBase(0u)+t,select(packEntry(vi,root),root,root==0xffffffffu));
  let pose=worlds[rowOf(w)];let m=transpose(pose);let base=slot*FRAME;
  // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
  let open=!isLightCut()&&unculledOf(w);
@@ -111,15 +111,15 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
   // A page of another range's primitive is that range's dispatch's (\`inRange\`).
   if(inRange(w)){
   vi=entryView(entry);let r=recordOf(i,w);
-  let clusterFlags=clusters[r].flags;
+  let clusterFlags=clusterAt(r).flags;
   var draw=false;
   // The cut rule (\`../../../page/cut/rule.ts\`), on the residency \`../readiness.ts\` derives: a
   // cut without residency holds every cluster and every finer group.
-  let word=flags[coneCache(i)];
+  let word=flagAt(coneCache(i));
   if((word&CONE_REJECTED)==0u){
    let all=views[0u].residentCut==0u;
    if(isLightCut()){
-    let pixels=clusterPixels(clusters[r],viewWorld(w),stretchOf(w),focalPixels());
+    let pixels=clusterPixels(clusterAt(r),viewWorld(w),stretchOf(w),focalPixels());
     draw=drawsCluster(all||isResident(i),pixels.x,pixels.y,all||childResident(i),views[vi].pixelError);
    }else{
     // Camera cut: the rule on the two comparisons \`dagWanted\` made this frame, on the same
@@ -132,7 +132,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:ve
   if(isLightCut()){if(draw){viewDrawnAppend(i);}}
   else{
    let drawn=select(0u,1u,draw);
-   flags[views[0u].queueCap+i]=drawn;
+   setFlag(views[0u].queueCap+i,drawn);
    // Drawn count of this page's block, held here rather than reread later page by page.
    if(drawn!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(i);}
   }
