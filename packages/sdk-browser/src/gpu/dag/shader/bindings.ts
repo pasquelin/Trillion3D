@@ -1,4 +1,4 @@
-import { COMPUTE } from '../../core/computeBindings.ts';
+import { COMPUTE, namedBufferEntries } from '../../core/computeBindings.ts';
 
 /** Group-0 binding of each buffer the selection kernel reads, under its WGSL name. */
 export const DAG_BINDING = {
@@ -15,6 +15,17 @@ export const DAG_BINDING = {
 } as const;
 
 const B = DAG_BINDING;
+
+/** Group 0 of the selection kernel, each buffer at its WGSL name's binding, and `range` the
+ *  primitives its `frames` holds (`../frameRanges.ts`): the camera cut's, the light cut's and the
+ *  dispatch bench's. */
+export function dagGroupEntries(
+  buffers: Record<Exclude<keyof typeof DAG_BINDING, 'range'>, GPUBuffer>,
+  range: GPUBufferBinding,
+) {
+  const named = Object.entries(buffers).map(([name, buffer]) => [name, { buffer }]);
+  return namedBufferEntries(DAG_BINDING, { ...Object.fromEntries(named), range });
+}
 
 /** Group-0 declarations of the selection kernel; `shader.ts` inlines them as they stand. */
 export const DAG_BINDINGS_WGSL = `@group(0) @binding(${B.clusters}) var<storage, read> clusters:array<Cluster>;
