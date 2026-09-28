@@ -59,7 +59,7 @@ export function createCookedBodies(
    *  drawing one mesh share it), and the signal its leaving aborts its reads by. */
   type Opening = BodyNodes & {
     made: CookedMadeBody[];
-    refused: { body: CookedBody; bytes?: Uint8Array; scale: number[] }[];
+    refused: Pick<CookedMadeBody, 'body' | 'bytes' | 'scale'>[];
     hulls: Map<string, Promise<Uint8Array>>;
     signal: AbortSignal;
   };
@@ -143,7 +143,8 @@ export function createCookedBodies(
     holds: (model: Model, node: number) => held.get(model)?.nodes.has(node) ?? false,
     /** A frame's poses drawn: each carried body driven where its node now is. */
     carry() {
-      for (const { made } of held.values()) for (const one of made) driveCarried(writer, one);
+      for (const { carried, made } of held.values())
+        if (carried.size) for (const one of made) driveCarried(writer, one);
     },
     /** A model moved: its bodies follow — a kinematic one driven there, pushing what it meets, a
      *  dynamic one put where its node is now drawn —; one rescaled is made again at once at its

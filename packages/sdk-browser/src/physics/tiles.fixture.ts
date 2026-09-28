@@ -10,6 +10,28 @@ import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createPhysicsBodies } from './bodies.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { createTileStreamer } from './tiles.ts';
+import { readFile } from 'node:fs/promises';
+
+/** The bytes of `tests/fixtures/physics/<name>`. */
+export const fixture = (name: string) =>
+  readFile(new URL(`../../../../tests/fixtures/physics/${name}`, import.meta.url));
+/** Node `node`'s body at `position`, declaring `motion` and `shape`, and `more` fields. */
+export const declared = (
+  node: number,
+  position: number[],
+  motion: object,
+  shape: object,
+  more = {},
+) =>
+  ({
+    node,
+    motion,
+    shape,
+    position,
+    rotation: [0, 0, 0, 1],
+    scale: [1, 1, 1],
+    ...more,
+  }) as CookedBody;
 
 /** Lets the fetches in flight land: `streamedModel`'s fetch answers in microtasks alone, so the
  *  next turn of the event loop comes once every answer has been read. */
