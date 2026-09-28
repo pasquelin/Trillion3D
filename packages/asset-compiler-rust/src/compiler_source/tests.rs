@@ -4,35 +4,20 @@ use crate::compiler_runtime::load_model_file;
 use crate::compiler_types::Binary;
 use std::fs;
 
-fn glb(g: &Value, bin: &[u8]) -> Vec<u8> {
-    let mut json = serde_json::to_vec(g).expect("JSON");
-    let padded_len = crate::shared_math::pad_to_4(json.len()) + json.len();
-    json.resize(padded_len, b' ');
-    let len = 12 + 8 + json.len() + 8 + bin.len();
-    let mut out = Vec::with_capacity(len);
-    out.extend_from_slice(b"glTF");
-    out.extend_from_slice(&2u32.to_le_bytes());
-    out.extend_from_slice(&(len as u32).to_le_bytes());
-    out.extend_from_slice(&(json.len() as u32).to_le_bytes());
-    out.extend_from_slice(&0x4E4F_534Au32.to_le_bytes());
-    out.extend_from_slice(&json);
-    out.extend_from_slice(&(bin.len() as u32).to_le_bytes());
-    out.extend_from_slice(&0x004E_4942u32.to_le_bytes());
-    out.extend_from_slice(bin);
-    out
-}
+use crate::tests::directories::scratch;
+use crate::tests::fixtures::encode_glb as glb;
 
 #[test]
 fn mapped_glb_keeps_one_bin_slice_and_original_source_hash() {
     let g = json!({"buffers":[{"byteLength":4}],"bufferViews":[],"nodes":[]});
     let source = glb(&g, &[1, 2, 3, 4]);
-    let dir = std::env::temp_dir().join(format!("trillion3d-glb-map-{}", std::process::id()));
-    fs::create_dir_all(&dir).expect("directory");
+    let dir = scratch("glb", "map");
     fs::write(dir.join("one.glb"), &source).expect("source");
     let loaded = load_model_file(&dir, "one.glb", None).expect("load GLB");
     assert!(matches!(&loaded.binary, Binary::MappedRange(..)));
     assert_eq!(loaded.binary.bytes(), &[1, 2, 3, 4]);
-    assert_eq!(loaded.g_bytes_len, source.len());
+    // The BIN chunk is the job's binary: only the header and JSON count as glTF bytes.
+    assert_eq!(loaded.g_bytes_len, source.len() - 4);
     assert_eq!(loaded.manifest["runtime"]["sha256"], json!(hash(&source)));
     assert_eq!(loaded.bin_hash, hash(&[1, 2, 3, 4]));
     drop(loaded);
@@ -67,8 +52,7 @@ fn borrowed_glb_parts_preserve_owned_parser_and_length_refusal() {
 #[test]
 fn multiple_buffers_still_pack_and_validate_embedded_length() {
     let g = json!({"buffers":[{"byteLength":4},{"uri":"next.bin","byteLength":4}]});
-    let dir = std::env::temp_dir().join(format!("trillion3d-glb-pack-{}", std::process::id()));
-    fs::create_dir_all(&dir).expect("directory");
+    let dir = scratch("glb", "pack");
     fs::write(dir.join("next.bin"), [5, 6, 7, 8]).expect("sidecar");
     let source = glb(&g, &[1, 2, 3, 4]);
     fs::write(dir.join("many.glb"), &source).expect("source");
