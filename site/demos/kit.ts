@@ -118,3 +118,8 @@ export function localizedCanvasContext(context: CanvasRenderingContext2D, locale
     },
   });
 }
+
+/** A demo vector with independent double-precision storage. */
+export const vector = (x: number, y: number, z: number) => new Float64Array([x, y, z]);
+/** Components shown with the same precision as every other demo value. */
+export const showVector = (v: Float64Array) => Array.from(v, formatNumber).join(', ');
