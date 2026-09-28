@@ -36,6 +36,9 @@ export const VALIDATE_GROUPS = {
     'check:docs-three',
     'check:sdk-facade',
     'check:i18n',
+    'check:translations',
+    'check:english',
+    'check:thumbnails',
   ],
   typescript: [
     'generate:api',
