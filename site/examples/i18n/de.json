@@ -500,6 +500,24 @@
       "balloon": "VERFOLGT DEN BALLON"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Sieh dir die aufgezeichnete Route durch den Park an. Starte sie neu, stoppe sie oder übernimm die Kamera.",
+    "controls": {
+      "replay": "Wiederholen",
+      "stop": "Stopp"
+    },
+    "readouts": {
+      "currentPart": "Aktueller Abschnitt"
+    },
+    "words": {
+      "entrance": "Eingang",
+      "pond": "Teich",
+      "bridge": "Brücke",
+      "pavilion": "Pavillon",
+      "overview": "Überblick",
+      "complete": "Abgeschlossen"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Kreise um den Kran, während ein Clip den Ausleger dreht, die Laufkatze bewegt, die Last hebt und schwingen lässt.",
     "controls": {
@@ -1965,6 +1983,7 @@
       "manifest": "Manifest gelesen",
       "tables": "Szenentabellen gelesen",
       "resources": "Dateien der Szene",
+      "session": "Ansicht wird geöffnet",
       "pages": "erste Seiten",
       "ready": "bereit"
     }
@@ -2238,6 +2257,21 @@
     },
     "words": {
       "credit": "Flagge an einem Mast für dieses Beispiel im Code modelliert, CC0 — siehe assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Wähle eine Hausansicht. Rücke die Kamera weiter weg: Die orthografische Zeichnung behält genau denselben Maßstab.",
+    "controls": {
+      "elevation": "Ansicht",
+      "distance": "Kameraabstand",
+      "zoom": "Zeichnungsmaßstab"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Vorne",
+        "right": "Rechte Seite",
+        "rear": "Hinten"
+      }
     }
   },
   "hover-to-highlight": {

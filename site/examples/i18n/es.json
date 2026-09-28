@@ -500,6 +500,24 @@
       "balloon": "SIGUIENDO EL GLOBO"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Mira la ruta grabada por el parque. Repítela, detenla o toma la cámara.",
+    "controls": {
+      "replay": "Repetir",
+      "stop": "Detener"
+    },
+    "readouts": {
+      "currentPart": "Tramo actual"
+    },
+    "words": {
+      "entrance": "Entrada",
+      "pond": "Estanque",
+      "bridge": "Puente",
+      "pavilion": "Pabellón",
+      "overview": "Vista general",
+      "complete": "Completo"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Gira alrededor de la grúa mientras un clip rota la pluma, mueve el carro, eleva la carga y la deja balancearse.",
     "controls": {
@@ -1965,6 +1983,7 @@
       "manifest": "manifiesto leído",
       "tables": "tablas de la escena leídas",
       "resources": "archivos de la escena",
+      "session": "abriendo la vista",
       "pages": "primeras páginas",
       "ready": "listo"
     }
@@ -2238,6 +2257,21 @@
     },
     "words": {
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Elige un alzado de la casa. Aleja la cámara: el dibujo ortográfico conserva exactamente la misma escala.",
+    "controls": {
+      "elevation": "Alzado",
+      "distance": "Distancia de cámara",
+      "zoom": "Escala del dibujo"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Frente",
+        "right": "Lado derecho",
+        "rear": "Parte trasera"
+      }
     }
   },
   "hover-to-highlight": {

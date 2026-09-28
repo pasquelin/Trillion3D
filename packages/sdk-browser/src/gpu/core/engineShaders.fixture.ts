@@ -32,7 +32,7 @@ import {
   UNLIT_COMPOSE_SHADERS,
   UNLIT_LIGHTING_SHADER,
 } from '../../lighting/deferred/shaders.ts';
-import { LIGHT_TILES_SHADER } from '../../lighting/tiles/shader.ts';
+import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
 import { TAA_SHADER } from '../../taa/shaderWgsl.ts';
 import { MIP_SHADER } from '../../texture/mips.ts';
 import { COVERAGE_WGSL } from '../../texture/coverageMips.ts';
@@ -76,7 +76,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   BOUNCE_LIGHTING_SHADER,
   ...compositions('COMPOSE', COMPOSE_SHADERS),
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSE_SHADERS),
-  LIGHT_TILES_SHADER,
+  ...Object.fromEntries(LIGHT_TILES_SHADERS),
   TAA_SHADER,
   MIP_SHADER,
   COVERAGE_WGSL,

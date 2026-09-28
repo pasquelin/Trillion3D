@@ -118,11 +118,26 @@ reads adds to `completed`, whatever the server says of its length or compression
 dropped, has `completed === total`; a manifest that declares no file is heard once, whole, at the end. Between them come `{ phase: 'manifest' }` once the manifest is read,
 `{ phase: 'tables' }` once the scene tables are, then `{ phase: 'resources', completed, total }`
 as each file the scene reads lands. The first pages follow the load:
-`await world.awaitPages({ onProgress })` settles once the pages the view reads are resident, and
-reports `{ phase: 'pages', completed, total }` as each one it lacked lands (`total` counts each
-page once), the last event with
+`await world.awaitPages({ onProgress })` settles once the pages the view reads are resident. It
+reports `{ phase: 'session' }` first, while the session that draws the view opens, then
+`{ phase: 'pages', completed, total }`: `total` counts each page the view reads once — those the
+engine already holds, since the frames drawn before the wait may have read them all, and every page
+read for the view while the wait runs (a prefetch aside), whether the host reads it for the cut or the WebGPU engine for its own
+residency —, `completed` those resident, rising as each lands; the last event has
 `completed === total`. One callback given to both drives a progress bar from the first byte to
 the first pages (example `watch-a-world-load`).
+
+A model's vertices stay on the server until something reads them: `scene.load` reads no vertex
+buffer (`source.bin`), the pages draw the model. The buffer is read once, on the first need: a
+cluster no geometry page covers, a see-through copy drawn whole, a witness renderer. A page that
+reads a loaded mesh's vertices itself awaits `geometry.loadVertices()` first; before it, `array`,
+`getX` and every synchronous read of them throw `VERTICES_NOT_LOADED`, never an empty array.
+`count` is known at once.
+
+```ts
+await geometry.loadVertices(); // reads the model's buffer once, whichever mesh asks first
+const x = geometry.attributes.position.getX(0);
+```
 
 A host that probes a cache before opening it — to enable a button, to tell a user to recompile —
 calls `assertCachePointer(pointer, scope)` and `assertCacheRoot(root, scope)` on the pointer and on
@@ -243,6 +258,8 @@ const bob = animation.clip('bob', 2, [
   animation.vectorTrack('.position', [0, 1, 2], [0, 1, 0, 0, 2, 0, 0, 1, 0]),
 ]);
 mixer.play(bob);
+// poses the clip at 0.5 s now, playing or not (a stopped action keeps it until a playing one writes over it)
+mixer.clipAction(bob).seek(0.5);
 ```
 
 ```js
@@ -507,7 +524,10 @@ world units whatever its length. A canvas point is read on the CSS box and aimed
 frame is drawn at, the drawing buffer's. `{ objects }` limits the test to some
 subtrees; a canvas with no size refuses a point with `RAYCAST_NO_VIEW`. `raycast(roots, ray)` is
 the same test on any subtree, every hit nearest first, and `camera.rayThrough(x, y, aspect)` the
-ray through a point of the picture. A mesh's triangle tree is kept for the next ray, within
+ray through a point of the picture. An orthographic camera made with `fitAspect: true` keeps its
+box's height and centre and takes its width from the canvas's shape, in the frame drawn and in its
+rays alike, so a resized canvas never stretches the drawing; off by default, a declared or imported
+box is drawn as it is. A mesh's triangle tree is kept for the next ray, within
 `world.budget.raycastTrees` bytes (64 MiB by default, settable, shared by every world on the
 page): past it the tree cast at least
 recently is dropped, and `geometry.dispose()` drops its own at once. Live example:
@@ -1115,7 +1135,7 @@ says the pool is too small for that view). A value that cannot be held as given 
 
 The texture pool's floor, `minimum`, holds every tail (one tile per texture, 900 a layer), as the
 geometry pool holds the root cover, and one tile more to stream into when the lane streams: a lane
-whose tails fill whole layers pays one layer more (63.5 MiB lossless, a quarter of that in a block
+whose tails fill whole layers pays one layer more (64 MiB lossless, a quarter of that in a block
 lane) rather than stay at its tails. A budget under the floor is raised to it; a shrink never
 displaces a tail.
 
@@ -1390,7 +1410,11 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   refused with `PHYSICS_BUDGET` on `world.physics.error`; a step that finds more pairs or contacts
   than its budget says so the same way, and an `enter` past the events budget is counted in
   `stats.droppedEvents` (its `leave` is then never sent). `softVertices` bounds the vertices of
-  every soft body at once (declared: four cloths of 64 × 64).
+  every soft body at once (default 16384, four cloths of 64 × 64). Each vertex is solved every
+  step, so the worker's step grows with them, linearly: the R&D audit measured 6.5–8.2 ms a step
+  at the default and 2.4–2.8 ms at 4096 (four of 32 × 32), natively on one thread (#975). A page
+  that needs fewer lowers it; a soft body past it is refused, `PHYSICS_BUDGET` naming
+  `softVertices`.
 - **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
   `stats.stepMs` (the mean of the last tick's steps) and `stats.stepMaxMs` (its slowest), on its
   own clock: the two are never added.
