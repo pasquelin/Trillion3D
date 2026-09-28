@@ -1,6 +1,7 @@
 import { hideable, overlay } from './overlay.ts';
 import { isCapture } from './play.ts';
-import { exampleWord, kitWord } from './words.ts';
+import { waitingLine } from './waiting.ts';
+import { exampleId, exampleWord, kitWord } from './words.ts';
 
 /**
  * The banner over the example, drawn by the example itself at the top of its frame: at start,
@@ -8,8 +9,9 @@ import { exampleWord, kitWord } from './words.ts';
  * time, the microphone it listens to. Emptied out (`announce('')`), it falls back to that line
  * of what to do rather than vanishing. The reader may close it with its ×; from there, a return
  * to the line of what to do leaves it closed, but a real announcement (a title, or a line) opens
- * it again. The page's show/hide of the panels hides it too, and a page opened for a screenshot
- * (`?capture`) never shows it.
+ * it again. An example parked until the engine draws it keeps, under whatever the banner says, a
+ * line naming the engine issue it waits for, linked to it (`waiting.ts`). The page's show/hide
+ * of the panels hides it too, and a page opened for a screenshot (`?capture`) never shows it.
  */
 let said: string | undefined;
 let closed = false;
@@ -29,6 +31,16 @@ function banner(): HTMLElement {
   text = document.createElement('span');
   const words = document.createElement('p');
   words.append(heading, text);
+  const waiting = waitingLine(exampleId());
+  if (waiting) {
+    const link = document.createElement('a');
+    link.className = 'link block';
+    link.href = waiting.href;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = waiting.text;
+    words.append(link);
+  }
   const close = document.createElement('button');
   close.type = 'button';
   close.className = 'btn btn-sm btn-circle';
