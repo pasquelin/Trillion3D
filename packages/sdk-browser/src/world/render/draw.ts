@@ -1,6 +1,7 @@
 import { EngineError, type GpuPassTimings } from '../../../../sdk-core/src/index.ts';
 import { PAGE_REQUEST_BATCH, PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from '../../backend/common.ts';
 import { PRIORITY_PREFETCH } from '../../streaming/priority.ts';
+import { fenceAllocations, settleAllocations } from '../../webgl/core/allocation.ts';
 import { createWebglFrameTimer } from '../../webgl/core/frameTimer.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { HostCpuProfile } from '../../host/cpuProfile.ts';
@@ -77,6 +78,8 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const drawBackend = (backend: RenderBackend, target: WebglRenderTarget | null) => {
     const { measuring } = state;
     const steps = backend as HostCpuProfile;
+    // Before any command: the errors of allocations the GPU ran past, read without a wait.
+    settleAllocations(webglSurface?.context);
     backend.render(camera);
     const renderEnd = performance.now();
     const missing = backend.pendingUrls?.() ?? [];
@@ -133,6 +136,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     if (directGpu) {
       // The engine draws into the page canvas: nothing to compose, but the frame closes here,
       // where the bounds the host just sampled still belong to it.
+      fenceAllocations(webglSurface?.context);
       steps.cpuFrameEnd?.();
       if (backend.overBudget)
         throw new EngineError('PAGE_BUDGET', 'Visible pages exceed the resident budget');
@@ -149,6 +153,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       state.active = baseline;
       baseline.render(camera);
       compose(baseline, target, false);
+      fenceAllocations(webglSurface?.context);
       emit({
         eventVersion: 1,
         type: 'fallback',
@@ -169,6 +174,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     gpuTimer?.begin(state.hostFrame);
     compose(backend, target);
     gpuTimer?.end();
+    fenceAllocations(webglSurface?.context);
     steps.cpuStep?.('submitMs', performance.now() - retainEnd);
     if (gpuTimer) {
       // A query reread a few frames later: the read never blocks the current frame.

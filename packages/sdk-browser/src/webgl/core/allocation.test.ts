@@ -1,0 +1,66 @@
+// #840: reading a refused allocation never holds the main thread. `getError` waits for the GPU
+// process to run every command sent before it: read after each upload, it held the frame that
+// streamed pages in for the whole upload (a 100–140 ms hitch on sponza `rue`).
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { allocated, fenceAllocations, settleAllocations, takeOutOfMemory } from './allocation.ts';
+
+const OUT_OF_MEMORY = 0x0505,
+  SIGNALED = 0x9119,
+  UNSIGNALED = 0x9118;
+
+/** A context counting its error reads, whose fence the test passes by hand. */
+function context() {
+  const seen = { reads: 0, fences: 0, deleted: 0, passed: false, refuse: false };
+  const gl = {
+    NO_ERROR: 0,
+    OUT_OF_MEMORY,
+    CONTEXT_LOST_WEBGL: 0x9242,
+    SYNC_GPU_COMMANDS_COMPLETE: 0x9117,
+    SYNC_STATUS: 0x9114,
+    SIGNALED,
+    getError: () => (seen.reads++, seen.refuse ? ((seen.refuse = false), OUT_OF_MEMORY) : 0),
+    fenceSync: () => (seen.fences++, {}),
+    getSyncParameter: () => (seen.passed ? SIGNALED : UNSIGNALED),
+    deleteSync: () => seen.deleted++,
+  } as unknown as WebGL2RenderingContext;
+  return { gl, seen };
+}
+
+test('an allocation reads no error: they are read before a frame, once the GPU ran past them', () => {
+  const { gl, seen } = context();
+  let redone = 0;
+  seen.refuse = true;
+  allocated(gl, () => redone++);
+  allocated(gl, () => redone++);
+  assert.equal(seen.reads, 0, 'the allocations read nothing');
+  fenceAllocations(gl);
+  settleAllocations(gl);
+  assert.equal(seen.reads, 0, 'a fence not passed is never waited on');
+  assert.equal(takeOutOfMemory(gl), false);
+  fenceAllocations(gl);
+  assert.deepEqual([seen.fences, seen.deleted], [2, 1], 'the fence moves to the last frame end');
+  allocated(gl, () => redone++); // sent after the fence, in the next frame
+  seen.passed = true;
+  settleAllocations(gl);
+  assert.ok(seen.reads > 0, 'the fence passed: the errors are read');
+  assert.equal(redone, 3, 'a refusal redoes every allocation not yet confirmed');
+  assert.equal(takeOutOfMemory(gl), true, 'the context is marked');
+  assert.equal(takeOutOfMemory(gl), false, 'once');
+  const reads = seen.reads;
+  settleAllocations(gl);
+  fenceAllocations(gl);
+  assert.equal(seen.reads, reads, 'nothing left to read');
+  assert.equal(seen.fences, 2, 'nothing left to fence');
+});
+
+test('allocations the GPU accepted are confirmed and never redone', () => {
+  const { gl, seen } = context();
+  let redone = 0;
+  allocated(gl, () => redone++);
+  fenceAllocations(gl);
+  seen.passed = true;
+  settleAllocations(gl);
+  assert.equal(redone, 0);
+  assert.equal(takeOutOfMemory(gl), false);
+});
