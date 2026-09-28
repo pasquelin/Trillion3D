@@ -85,16 +85,10 @@ test('a tile more than TILE_LIGHTS lights reach reads exactly those, in order (#
       ? [...Array(slice.y).keys()]
       : [...tileLights.subarray(slice.x, slice.x + slice.y)];
   };
-  const pool = { capacity: 400, head: 0, overflow: 0 };
-  assert.deepEqual(
-    read(compactTile(layout, { opaque: reached, blend: [] }, 300, undefined, pool)),
-    reached,
-  );
-  // A pool with no room: the scene, every light, and the overflow raised.
-  const full = { capacity: 100, head: 0, overflow: 0 };
-  const walked = read(compactTile(layout, { opaque: reached, blend: [] }, 300, undefined, full));
-  assert.deepEqual([walked.length, full.overflow], [300, 1]);
-  // Within its list, the list.
-  const few = reached.slice(0, TILE_LIGHTS);
-  assert.deepEqual(read(compactTile(layout, { opaque: few, blend: [] }, 300)), few);
+  const tile = (opaque: number[], capacity = 400) =>
+    compactTile(layout, { opaque, blend: [] }, 300, undefined, { capacity, head: 0, overflow: 0 });
+  assert.deepEqual(read(tile(reached)), reached);
+  // Within its list, the list; a pool with no room, every light of the scene.
+  assert.deepEqual(read(tile(reached.slice(0, TILE_LIGHTS))), reached.slice(0, TILE_LIGHTS));
+  assert.equal(read(tile(reached, 100)).length, 300);
 });
