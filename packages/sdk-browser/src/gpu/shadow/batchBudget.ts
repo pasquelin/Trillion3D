@@ -1,6 +1,6 @@
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { LAYER_PAGES } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { DRAW_INDIRECT_STRIDE, PAGE_BIND_ALIGN } from '../draw/contract.ts';
+import { DRAW_INDIRECT_STRIDE, DRAW_INDIRECT_WORDS, PAGE_BIND_ALIGN } from '../draw/contract.ts';
 import { DAG_UNIFORM_BYTES } from '../dag/shader/viewsWgsl.ts';
 import { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 
@@ -42,6 +42,22 @@ export const CULL_UNIFORM_WORDS = 8,
  *  occlusion test's lists alike (`cullShader.ts`, `KEPT_LISTS_WGSL`). */
 export const SHADOW_REGION_COMMANDS = 2,
   SHADOW_REGION_INDIRECT_BYTES = SHADOW_REGION_COMMANDS * DRAW_INDIRECT_STRIDE;
+const REGION_WORDS = SHADOW_REGION_COMMANDS * DRAW_INDIRECT_WORDS;
+
+/** Every region's commands on the host, both lists each (`words`), and `empty`, which sets the
+ *  `regions` first at zero instances of `maxVertexCount` vertices and returns the words to write. */
+export function regionCommands() {
+  const words = new Uint32Array(MAX_SHADOW_REGIONS * REGION_WORDS);
+  return {
+    words,
+    empty(regions: number, maxVertexCount: number) {
+      const count = regions * REGION_WORDS;
+      words.fill(0, 0, count);
+      for (let at = 0; at < count; at += DRAW_INDIRECT_WORDS) words[at] = maxVertexCount;
+      return count;
+    },
+  };
+}
 
 /** The WGSL struct `name` of `words` words: `fields`, one word each, then padding — the host's
  *  word count, never a literal twin of it. */
