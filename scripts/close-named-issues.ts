@@ -17,8 +17,8 @@ export function namedIssues(body: string): number[] {
   return [...new Set([...prose.matchAll(CLOSING)].map((match) => Number(match[1])))];
 }
 
-async function main(env: NodeJS.ProcessEnv): Promise<void> {
-  const { GITHUB_TOKEN: token, GITHUB_REPOSITORY: repo, PR_URL: url } = env;
+async function main(): Promise<void> {
+  const { GITHUB_TOKEN: token, GITHUB_REPOSITORY: repo, PR_URL: url, PR_BODY: body } = process.env;
   if (!token || !repo || !url) throw new Error('GITHUB_TOKEN, GITHUB_REPOSITORY and PR_URL are required.');
   const api = async (path: string, method = 'GET', payload?: object) => {
     const response = await fetch(`https://api.github.com/repos/${repo}/issues/${path}`, {
@@ -33,10 +33,11 @@ async function main(env: NodeJS.ProcessEnv): Promise<void> {
     if (!response.ok) throw new Error(`${method} ${path}: ${response.status} ${await response.text()}`);
     return response.json() as Promise<{ state: string; pull_request?: object }>;
   };
-  for (const issue of namedIssues(env.PR_BODY ?? '')) {
+  for (const issue of namedIssues(body ?? '')) {
     const current = await api(`${issue}`);
-    if (current.pull_request || current.state === 'closed') {
-      console.log(`#${issue}: skipped (${current.pull_request ? 'a pull request' : 'already closed'}).`);
+    const skip = current.pull_request ? 'a pull request' : current.state === 'closed' ? 'already closed' : '';
+    if (skip) {
+      console.log(`#${issue}: skipped (${skip}).`);
       continue;
     }
     await api(`${issue}/comments`, 'POST', { body: `Closed by ${url} (merged into develop).` });
@@ -46,5 +47,5 @@ async function main(env: NodeJS.ProcessEnv): Promise<void> {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  await main(process.env);
+  await main();
 }
