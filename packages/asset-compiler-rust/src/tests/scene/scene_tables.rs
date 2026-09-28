@@ -69,6 +69,11 @@ fn the_node_table_carries_every_node_and_its_local_pose() {
         Value::Null,
         "no pose declared, none invented"
     );
+    assert_eq!(
+        nodes[1]["visible"],
+        json!(true),
+        "no KHR_node_visibility: visible"
+    );
 }
 
 #[test]

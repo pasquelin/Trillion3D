@@ -2120,7 +2120,6 @@
     "members": {
       "isObject3D": "Luôn là `true`: phân biệt một node của cảnh.",
       "type": "Loại của node: `'Mesh'`, `'Group'`…",
-      "name": "Một tên để tìm node theo đó.",
       "position": "Nơi node đứng, tính từ cha của nó.",
       "rotation": "Node được xoay như thế nào, dưới dạng ba góc.",
       "quaternion": "Node được xoay như thế nào, dưới dạng một quaternion.",
@@ -2206,6 +2205,7 @@
   "TransformNode": {
     "summary": "Một nút cảnh được đọc qua các ma trận của bản tham chiếu, lưu trong cây biến đổi của engine.",
     "members": {
+      "name": "Một tên để tìm node theo đó.",
       "matrix": "Ma trận cục bộ, một view vào vị trí của node này trong cây biến đổi.",
       "matrixWorld": "Ma trận thế giới như lần dựng gần nhất (`updateMatrixWorld`), một view vào cây đó.",
       "matrixAutoUpdate": "Sai (false) khi `matrix` CHÍNH LÀ tư thế và không gì dựng lại nó.",
