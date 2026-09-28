@@ -1,5 +1,4 @@
 import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
-import { blendFootprintHeld, holdBlendRanking } from './footprint.ts';
 import { resliceBlendRuns } from './runs.ts';
 import { precedes, sortPlanFarToNear } from './sortPlan.ts';
 import { notDrawn } from '../../placement/hidden.ts';
@@ -124,11 +123,8 @@ export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> 
     blendState.runCount[0] = 0;
     blendState.runCount[1] = 0;
     blendState.transmissiveInView = 0;
-    blendState.footprint.held = false;
     return 0;
   }
-  // Inputs bit-identical to the last ranking: it stands, mask and runs included (`footprint.ts`).
-  if (blendFootprintHeld(blendState, eye)) return blendState.footprint.rejected;
   refreshEyeKeys(blendState, eye);
   const rejected = rejectByFrustum(blendState);
   const { orders, orderMoved, runs, runCount } = blendState;
@@ -143,7 +139,6 @@ export function orderBlendPasses(blendState: BlendState, eye: ArrayLike<number> 
     // zeroes the count (`plan.ts`), and is then sliced whole.
     runCount[pass] = resliceBlendRuns(order, runs[pass], runCount[pass], first);
   }
-  holdBlendRanking(blendState.footprint, rejected);
   return rejected;
 }
 
