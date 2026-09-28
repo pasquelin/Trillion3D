@@ -1,4 +1,5 @@
-import { checked, corruptObject, ONE_REQUEST, retriableError } from '../cluster/pages.ts';
+import { corruptObject } from '../cluster/pages.ts';
+import { checked, ONE_REQUEST, retriableError } from '../cluster/checked.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
 import type { StreamContext } from './types.ts';
 import { createRoundTrip } from './roundTrip.ts';
