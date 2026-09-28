@@ -9,6 +9,7 @@ import { CLASS_FEATURE } from '../../visibility/shader/materialClass.ts';
 import { ROW_MATERIAL_CLASS_WORD } from '../row/pageRow.ts';
 import { sceneMaterialClasses } from '../row/pageRowMaterial.ts';
 import { createPresentClasses, markPresentClasses } from './materialPasses.ts';
+import { SURFACE_MODEL } from '../../scene/surfaceModel.ts';
 
 const page = (id: number, url: string, start: number) => ({
   id,
@@ -32,7 +33,7 @@ const page = (id: number, url: string, start: number) => ({
 /** Three primitives, one per material class, the way the compiler classifies them. */
 function scene() {
   const source = new G.Group(),
-    meshes: G.GraphMesh[] = [],
+    meshes: G.HostMesh[] = [],
     associations = new Map<G.Object3D, { meshes: number; primitives: number }>();
   const materials = [
     // A cut-out: alphaMode MASK carries an alpha test and is not blended.
@@ -94,12 +95,10 @@ test('a cut-out cluster carries its alpha test into the visibility row', () => {
   const collected = collectClusterPages(source, metadata, indices, associations);
   const floats = new Float32Array(PAGE_INFO_STRIDE / 4),
     ints = new Uint32Array(floats.buffer);
-  const writeRow = createPageRowWriter({
-    geometryBlocks: new Map(),
-    mapLayer: new Map(),
-    dataLayer: new Map(),
-    markRowDirty: () => {},
-  });
+  const writeRow = createPageRowWriter(
+    { geometryBlocks: new Map(), mapLayer: new Map(), dataLayer: new Map(), asIsShown: false },
+    () => {},
+  );
   // A page written as a row belongs to a placement: the WebGPU layout sets it.
   const mask = Object.assign(collected.roots[0].pages[0], { placementIndex: 0 });
   writeRow(mask, 0, 0, 0, floats, ints);
@@ -129,7 +128,7 @@ test('a row carries its resolve class, the census of the scene knows it before a
     ]),
   );
   const layers = { mapLayer: new Map(), dataLayer: new Map() };
-  const writeRow = createPageRowWriter({ geometryBlocks, ...layers, markRowDirty: () => {} });
+  const writeRow = createPageRowWriter({ geometryBlocks, ...layers, asIsShown: false }, () => {});
   const floats = new Float32Array(PAGE_INFO_STRIDE / 2),
     ints = new Uint32Array(floats.buffer),
     stride = PAGE_INFO_STRIDE / 4;
@@ -151,4 +150,30 @@ test('a row carries its resolve class, the census of the scene knows it before a
   const present = createPresentClasses();
   assert.deepEqual(markPresentClasses(ints, 2, present), [cutout, HAS_VERTEX_NORMAL]);
   assert.deepEqual(markPresentClasses(ints.subarray(stride), 1, present), [HAS_VERTEX_NORMAL]);
+});
+
+// OMB-11: the image reads its as-is flags from the first opaque row that shows a surface as-is —
+// a normal or depth view —; a lit row, or a blended one, which writes no flag, leaves it unread.
+test('an opaque row showing a surface as-is tells the image its flags are read', () => {
+  const { source, metadata, indices, associations } = scene();
+  const collected = collectClusterPages(source, metadata, indices, associations);
+  const floats = new Float32Array(PAGE_INFO_STRIDE / 2),
+    ints = new Uint32Array(floats.buffer);
+  const layers = { geometryBlocks: new Map(), mapLayer: new Map(), dataLayer: new Map() },
+    vis = { ...layers, asIsShown: false };
+  const writeRow = createPageRowWriter(vis, () => {});
+  const [opaque, blend] = collected.roots.map((root, index) =>
+    Object.assign(root.pages[0], { placementIndex: index }),
+  );
+  writeRow(opaque, 0, 0, 0, floats, ints);
+  assert.equal(vis.asIsShown, false, 'a lit surface');
+  blend.material.model = SURFACE_MODEL.normal;
+  writeRow(blend, 1, 1, 0, floats, ints);
+  assert.equal(vis.asIsShown, false, 'a blended row draws no surface flag');
+  opaque.material.model = SURFACE_MODEL.matcap;
+  writeRow(opaque, 0, 0, 0, floats, ints);
+  assert.equal(vis.asIsShown, false, 'a matcap is drawn unlit, not as-is');
+  opaque.material.model = SURFACE_MODEL.depth;
+  writeRow(opaque, 0, 0, 0, floats, ints);
+  assert.equal(vis.asIsShown, true, 'a depth view is shown as-is');
 });

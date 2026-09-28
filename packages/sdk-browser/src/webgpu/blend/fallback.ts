@@ -1,11 +1,14 @@
 import { viewProj } from '../pages/helpers.ts';
-import { UNIFORM_STRIDE } from './uniforms.ts';
+import { FALLBACK_UNIFORM, UNIFORM_STRIDE, writeFallbackUniform } from './uniforms.ts';
 import { voidStaleBlendGroups } from './identity.ts';
+import { fallbackBindEntries } from '../core/fallbackEntries.ts';
 import { refreshSurface } from '../../page/surface.ts';
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 import { drawnBlending } from '../../scene/materialBlending.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { createWebgpuBlendState } from './state.ts';
+import { fallbackMode } from '../pages/prepare/shaders.ts';
+import { FLAG_CLUSTER_PAGE } from '../../visibility/buffer.ts';
 
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
@@ -85,21 +88,18 @@ export function writeFallbackBlendUniforms(
       // (`lineClip`), and is refused by name rather than dropped.
       if ((surface.lineWidth ?? 0) > 0) throw new Error('FALLBACK_TRANSPARENT_LINES_UNSUPPORTED');
     }
-    uniformPacked.set(viewProj, base);
-    uniformPacked.set(item.matrix.elements, base + 16);
-    uniformPacked[base + 32] = item.rgba[0];
-    uniformPacked[base + 33] = item.rgba[1];
-    uniformPacked[base + 34] = item.rgba[2];
-    uniformPacked[base + 35] = item.rgba[3];
-    packedInts[base + 36] = list[at + 1];
-    packedInts[base + 37] = list[at + 2];
-    packedInts[base + 38] = run.diagnostic === 'wireframe' ? 1 : 0;
-    packedInts[base + 39] = item.flags;
-    // No width and no dash: the words a line page of the opaque draw may have left here.
-    uniformPacked[base + 40] = 0;
-    uniformPacked[base + 44] = 0;
-    // A sprite turns to face the camera like in every raster (`spriteAt`).
-    writeSpriteWords(uniformPacked, base + 46, surface!.sprite);
+    writeFallbackUniform(uniformPacked, packedInts, base, {
+      projection: viewProj,
+      world: item.matrix.elements,
+      color: surface!.baseColor,
+      opacity: surface!.opacity,
+      pageOffset: list[at + 1],
+      indexCount: list[at + 2],
+      mode: fallbackMode(run.diagnostic, (item.flags & FLAG_CLUSTER_PAGE) !== 0),
+      identity: item.flags,
+    });
+    // Line words are disabled above; sprites retain the encoding shared by every raster.
+    writeSpriteWords(uniformPacked, base + FALLBACK_UNIFORM.sprite, surface!.sprite);
   }
   device.queue.writeBuffer(
     uniformBuffer,
@@ -139,15 +139,11 @@ export function drawFallbackBlendPass(
       // Each item in its own mode, the one table's equation: a mode no path draws is refused by
       // name. Its draws follow each other, so the pipeline and the group are resolved once.
       const mode = drawnBlending(refreshSurface(item.surface).blending, !!item.transmissive);
-      const pipeline = gpu.pipelineBlend!.at(mode);
+      const pipeline = gpu.pipelineBlend!.at(mode)[0];
       if (pipeline !== bound) pass.setPipeline((bound = pipeline));
       item.group ??= device.createBindGroup({
         layout: gpu.bindGroupLayout!,
-        entries: [
-          { binding: 0, resource: { buffer: item.index ?? gpu.cache!.buffer } },
-          { binding: 1, resource: { buffer: item.position } },
-          { binding: 2, resource: { buffer: gpu.uniformBuffer!, size: UNIFORM_STRIDE } },
-        ],
+        entries: fallbackBindEntries(rt, item),
       });
     }
     pass.setBindGroup(0, item.group!, [(uniformBase + d) * UNIFORM_STRIDE]);

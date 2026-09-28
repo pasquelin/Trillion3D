@@ -30,7 +30,8 @@ use textures::texture_table;
 /// distance (`partition.rs`), and the node table keeps the others, renumbered; version 4 keeps
 /// only the root of the cells' index, whose pages lie beside it (`partition/pages.rs`).
 const SCENE_TABLES_VERSION: u32 = 4;
-const NODE_TABLE_VERSION: u32 = 3;
+/// The node table's version: 4 says whether each node declares itself visible (`KHR_node_visibility`).
+const NODE_TABLE_VERSION: u32 = 4;
 const MATERIAL_TABLE_VERSION: u32 = 4;
 const GEOMETRY_TABLE_VERSION: u32 = 1;
 const SCENE_TABLES_FILE: &str = "scene-tables.json";
@@ -68,10 +69,11 @@ impl Materials {
 /// manifest, written from the scene this job publishes and from its autonomous copy when one was
 /// written. Both documents share one node graph and one material
 /// table: the autonomous scene is the published one with its geometry reduced, so only the
-/// geometry layout differs.
+/// geometry layout differs. The partition's region pages name the mesh pages of `mesh_pages`.
 pub(super) fn stage_scene_tables(
     published: &Value,
     autonomous: Option<&Value>,
+    mesh_pages: &crate::compiler_manifest_pages::MeshPages,
     directory: &Path,
     progress: impl Fn(Value),
 ) -> Result<Product> {
@@ -95,7 +97,7 @@ pub(super) fn stage_scene_tables(
     let table = node_table(published)?;
     let roots = crate::compiler_nodes::scene_roots(published, values(published, "nodes")?)?;
     let (nodes, roots, partition, cells) =
-        match partition::partition(published, &table, &roots, directory)? {
+        match partition::partition(published, &table, &roots, &mesh_pages.by_mesh, directory)? {
             Some(split) => (split.nodes, split.roots, split.partition, split.cells),
             None => (table, roots, Value::Null, 0),
         };

@@ -1,5 +1,5 @@
 // The linear output the effect chain asks of a WebGL2 draw (#349). Without a chain the cluster
-// program and the uniforms it is given are the ones drawn before the chain existed; a draw into
+// program is the one drawn before the chain existed, an opaque surface's alpha 1 (#840); a draw into
 // the chain goes through a variant compiled at its first frame: no curve and no sRGB transfer —
 // the chain applies both after its passes —, an opaque surface's alpha is its coverage, and the
 // surfaces whose material skips the curve are marked so the chain's output skips it too.
@@ -9,13 +9,13 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { createSceneDraw } from './sceneDraw.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
-import { GraphScene } from '../../host/graph/scene.ts';
+import { Scene } from '../../world/core/scene.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import { CLUSTER_FRAGMENT, CLUSTER_LINEAR_FRAGMENT, CLUSTER_VERTEX } from './shaders.ts';
 
 /** A standard surface, a transparent one and one the curve skips, drawn once per `linear`. */
 function draw(...linear: boolean[]) {
-  const scene = new GraphScene();
+  const scene = new Scene();
   scene.add(G.triangleMesh(new GraphSurface('standard')));
   scene.add(G.triangleMesh(new GraphSurface('standard', { transparent: true, opacity: 0.5 })));
   scene.add(G.triangleMesh(new GraphSurface('standard', { toneMapped: false })));
@@ -40,16 +40,16 @@ function draw(...linear: boolean[]) {
   };
 }
 
-test('without a chain, the program and its uniforms are the ones before the chain', () => {
+test('without a chain, one program draws, an opaque surface at alpha 1', () => {
   const display = draw(false, false);
   assert.deepEqual(
     display.sources,
     [CLUSTER_VERTEX, CLUSTER_FRAGMENT],
     'one program, compiled once',
   );
-  assert.ok(CLUSTER_FRAGMENT.endsWith('outColor=vec4(rgb,alpha);}'));
-  assert.doesNotMatch(CLUSTER_FRAGMENT, /covering|untoned/);
-  assert.ok(!display.names.includes('covering'), 'no uniform the chain alone reads');
+  assert.ok(CLUSTER_FRAGMENT.endsWith('outColor=vec4(rgb,covering?1.0:alpha);}'));
+  assert.doesNotMatch(CLUSTER_FRAGMENT, /untoned/);
+  assert.deepEqual(display.values('covering'), [1, 0, 1, 0], 'opaque surfaces write alpha 1');
   assert.deepEqual(display.values('srgbDestination'), [1, 1]);
   assert.deepEqual(display.of('bindAttribLocation'), []);
 });

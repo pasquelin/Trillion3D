@@ -8,26 +8,33 @@
  */
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import { PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts';
+import { checked } from '../cluster/checked.ts';
 import { openJolt, startJolt, type JoltModule } from './joltModule.ts';
-import { runJoltThread, type JoltThreadStart } from './joltThreads.ts';
+import { JOLT_THREAD_LOADED, joltWorkerPool, runJoltThread } from './joltThreads.ts';
 import { PHYSICS_PROTOCOL, type FromPhysics, type ToPhysics } from './protocol.ts';
 import { createTickResults } from './tickResults.ts';
 import { createCharacterDriver } from './characterDriver.ts';
 import { createWaterStep } from './water.ts';
 import { createStepClock } from './stepClock.ts';
+import { createThreadTuner } from './threadTuner.ts';
 
 const scope = globalThis as unknown as {
   location: { href: string };
   onmessage: ((event: MessageEvent<ToPhysics>) => void) | null;
-  postMessage(message: FromPhysics, transfer?: Transferable[]): void;
+  postMessage(message: FromPhysics | typeof JOLT_THREAD_LOADED, transfer?: Transferable[]): void;
 };
 
 let jolt: JoltModule | null = null,
-  results: ReturnType<typeof createTickResults> | null = null;
+  results: ReturnType<typeof createTickResults> | null = null,
+  tuner: ReturnType<typeof createThreadTuner> | null = null;
 const buffers: ArrayBuffer[] = [];
 const water = createWaterStep();
 const clock = createStepClock(water);
 const queued: Uint32Array[] = [];
+/** The page's command buffers: `received` until a step ran them, then `spent` until the next
+ *  results hand them back. The character's own words stay here. */
+const received: ArrayBuffer[] = [],
+  spent: ArrayBuffer[] = [];
 const character = createCharacterDriver();
 let timer: ReturnType<typeof setTimeout> | null = null,
   active = 0,
@@ -42,21 +49,25 @@ function fail(error: unknown) {
   const message = String((error as Error)?.message ?? error);
   scope.postMessage({ type: 'error', code, message, fatal: true });
   jolt = results = null;
-  queued.length = 0;
+  queued.length = received.length = 0;
 }
 
 /** Runs the queued commands and one step; `stepMs` counts the step and its buoyancy, the clock
  *  the bench reads in Node (`scripts/bench-physics.ts`), not the copy of its results;
- *  `stepMaxMs` keeps the tick's slowest fixed step. */
+ *  `stepMaxMs` keeps the tick's slowest fixed step; each fixed step's time steers the threads the
+ *  next ones split over (`createThreadTuner`). */
 function run(dt: number) {
   const move = dt > 0 ? character.command(dt, jolt!.active() > 0) : null;
   if (move) queued.push(move);
   const words = queued.length ? concat(queued.splice(0)) : null;
   const t = performance.now();
   const count = water.step(jolt!, words, dt);
-  const spent = performance.now() - t;
-  stepMs += spent;
-  if (dt > 0) stepMaxMs = Math.max(stepMaxMs, spent);
+  const ms = performance.now() - t;
+  stepMs += ms;
+  if (dt > 0) stepMaxMs = Math.max(stepMaxMs, ms);
+  if (dt > 0 && tuner) jolt!.concurrency(tuner.step(ms));
+  for (const buffer of received) spent.push(buffer);
+  received.length = 0;
   character.read(jolt!.character(), dt);
   results!.gather(count);
 }
@@ -94,7 +105,7 @@ function tick() {
 }
 
 function post() {
-  if (results?.post({ steps, stepMs, stepMaxMs }, active, character.report, water))
+  if (results?.post({ steps, stepMs, stepMaxMs }, active, character.report, water, spent))
     steps = stepMs = stepMaxMs = 0;
 }
 
@@ -112,19 +123,17 @@ function schedule(ms: number) {
 async function start(message: Extract<ToPhysics, { type: 'start' }>) {
   if (message.protocol !== PHYSICS_PROTOCOL)
     throw new EngineError('PHYSICS_FAILED', 'Physics: protocol mismatch.');
-  const response = await fetch(message.wasm);
-  if (!response.ok)
-    throw new EngineError('PHYSICS_FAILED', `Physics: ${message.wasm} ${response.status}.`);
+  const response = await checked(message.wasm);
   const budget = message.budget;
-  // The module's threads run in workers of this same script (`thread` messages below).
-  const spawn = (start: JoltThreadStart) => {
-    const thread = new Worker(scope.location.href, { type: 'module' });
-    thread.onmessage = ({ data }) => scope.postMessage(data);
-    thread.postMessage(start);
-  };
-  const threads = message.threads > 1 ? { count: message.threads, spawn } : null;
-  const opened = await openJolt(await response.arrayBuffer(), budget.memoryBytes, threads);
-  jolt = startJolt(opened, budget, message.threads);
+  // The module's threads run in workers of this same script (`thread` messages below); until
+  // each has loaded, `jolt` stays unset: nothing steps, the character's words wait in `queued`.
+  const pool =
+    message.threads > 1 ? joltWorkerPool(scope.location.href, message.threads, fail) : null;
+  const opened = await openJolt(await response.arrayBuffer(), budget.memoryBytes, pool);
+  const started = startJolt(opened, budget, message.threads);
+  await pool?.ready();
+  jolt = started;
+  if (pool) tuner = createThreadTuner(message.threads);
   results = createTickResults(jolt, budget, buffers, scope.postMessage.bind(scope));
   buffers.push(...message.buffers);
   clock.start(performance.now());
@@ -134,7 +143,8 @@ async function start(message: Extract<ToPhysics, { type: 'start' }>) {
 
 scope.onmessage = ({ data: message }) => {
   if (message.type === 'start') start(message).catch(fail);
-  else if (message.type === 'thread') runJoltThread(message).catch(fail);
+  else if (message.type === 'thread')
+    runJoltThread(message, () => scope.postMessage(JOLT_THREAD_LOADED)).catch(fail);
   else if (message.type === 'buffer') {
     buffers.push(message.buffer);
     post();
@@ -159,6 +169,7 @@ scope.onmessage = ({ data: message }) => {
     // Only a running simulation queues them: the page sends none before `ready`.
     if (!jolt) return;
     queued.push(message.words);
+    received.push(message.words.buffer);
     wake();
   } else if (message.type === 'character') {
     // Kept before `ready` too: the module makes the body before its first step.

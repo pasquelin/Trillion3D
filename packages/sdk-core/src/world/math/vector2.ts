@@ -1,6 +1,7 @@
 import { toSpherical } from './spherical.ts';
 import { Observed } from './observed.ts';
 import type { XYLike as XY } from './likes.ts';
+import { hypot2 } from '../../math/primitives/hypot.ts';
 
 /** A point in the plane: texture repeat and offset, lathe profiles, shape outlines. */
 export class Vector2 extends Observed {
@@ -62,7 +63,7 @@ export class Vector2 extends Observed {
   }
   /** How long the 2D arrow is. */
   length() {
-    return Math.hypot(this._x, this._y);
+    return hypot2(this._x, this._y);
   }
   /** Keeps the direction, makes the length 1. */
   normalize() {
@@ -70,7 +71,7 @@ export class Vector2 extends Observed {
   }
   /** How far it is from another 2D point. */
   distanceTo(v: XY) {
-    return Math.hypot(this._x - v.x, this._y - v.y);
+    return hypot2(this._x - v.x, this._y - v.y);
   }
   /** Reads two numbers from a list. */
   fromArray(array: ArrayLike<number>, offset = 0) {

@@ -21,9 +21,11 @@ export function streamCutResidency(
   const lightCut = rt.lights.lightCut,
     asked = lightCut?.reports.takeRequests();
   if (asked) services.shadowTier.offerIds(asked);
-  // Never throttled: past the budget the queue keeps the coarsest pages, and the rest is drawn by
-  // its nearest resident ancestor.
-  services.queueCutResidency(false);
+  // Never throttled: past the budget the queue keeps the coarsest pages the readback asks for, and
+  // the rest is drawn by its nearest resident ancestor (`../../residency/requestAdmission.ts`).
+  services.residency.queueGpuCutResidency(selection.peek());
+  // The cache gives slots back in the order the GPU cut published (`../../residency/evictionFeed.ts`).
+  services.followEvictions(selection);
   // Enumerate the bounded resident candidates once. GPU selection and compaction
   // share their page indices; no CPU frustum/LOD traversal or regrouping follows.
   marks.queueEnd = performance.now();

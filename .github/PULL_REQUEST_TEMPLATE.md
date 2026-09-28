@@ -1,4 +1,4 @@
-Closes # <!-- one pull request, one issue (AGENTS.md rule 5) -->
+Closes # <!-- one pull request closes one issue (AGENTS.md rule 5) -->
 
 ## What changed
 

@@ -4,66 +4,61 @@ import type { createAutonomousGeometry } from './geometry.ts';
 type ResidencyEnvironment = {
   bootstrapUrls: Set<string>;
   modifiedPages: Set<string>;
-  shown: PageRec[];
-  /** What the image asks the pool for: the wanted cut closed over its groups, as far as the pool
-   *  admits it (`requests.ts`, `pool.ts`). */
-  requested: PageRec[];
+  /** Every view, the main one first (`views.ts`): the cut each draws, and what each asks the pool
+   *  for — its wanted cut closed over its groups, as far as the pool admits the union
+   *  (`requests.ts`, `pool.ts`). */
+  views: readonly { readonly shown: readonly PageRec[]; readonly requested: readonly PageRec[] }[];
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
 };
 
 export function createAutonomousResidency(env: ResidencyEnvironment) {
-  const { bootstrapUrls, modifiedPages, shown, requested, geometryStore } = env;
+  const { bootstrapUrls, modifiedPages, views, geometryStore } = env;
   /** The lists `pendingUrls` and `pageUrls` rewrite, from image to image. */
   const pending: string[] = [],
     retained: string[] = [];
   const state = { cacheEvictions: 0 };
-  // Two sets for the life of the host: a frame fills and clears them, it does not allocate them.
+  // One set for the life of the host: a frame fills and clears it, it does not allocate it.
   const kept = new Set<string>(),
-    asked = new Set<string>();
-  let keptStale = true,
-    askedStale = true;
-  /** The root cover, the host's own, `drawn` when given, and what the image asks for. */
-  const gather = (into: Set<string>, drawn?: readonly PageRec[]) => {
-    into.clear();
-    for (const url of bootstrapUrls) into.add(url);
-    for (const url of modifiedPages) into.add(url);
-    if (drawn) for (const rec of drawn) into.add(rec.url);
-    for (const rec of requested) into.add(rec.url);
-    return into;
-  };
-  /** The pages the image keeps — the root cover, the host's own, the cut it drew and what it asks
-   *  for —, gathered once an image, and only when the pool's eviction or the streamer's pins read
-   *  them. */
-  const keptUrls = (): ReadonlySet<string> => {
-    if (keptStale) gather(kept, shown);
-    keptStale = false;
-    return kept;
-  };
+    queued = new Set<string>();
+  let keptStale = true;
   return {
     get cacheEvictions() {
       return state.cacheEvictions;
     },
     pendingUrls() {
-      // One record per page, coarsest first: the streamer takes the head.
+      // One record per page, coarsest first, the main view's ahead: the streamer takes the head.
+      // A view's requests are one record per page (`requests.ts`): only another view's can repeat.
       pending.length = 0;
-      for (const rec of requested) if (!rec.array) pending.push(rec.url);
+      for (const rec of views[0].requested) if (!rec.array) pending.push(rec.url);
+      if (views.length === 1) return pending;
+      queued.clear();
+      for (const url of pending) queued.add(url);
+      for (let v = 1; v < views.length; v++)
+        for (const rec of views[v].requested) {
+          if (rec.array || queued.has(rec.url)) continue;
+          queued.add(rec.url);
+          pending.push(rec.url);
+        }
       return pending;
     },
     /** The image drew another cut: what it keeps is gathered again when next read. */
     keptChanged() {
-      keptStale = askedStale = true;
+      keptStale = true;
     },
-    keptUrls,
-    /** What the pool keeps when the next cut is about to run: the kept pages but the cut drawn,
-     *  which that cut draws again from what stays resident (`pool.ts`). */
-    askedUrls(): ReadonlySet<string> {
-      if (askedStale) gather(asked);
-      askedStale = false;
-      return asked;
-    },
+    /** The pages the images keep — the root cover, the host's own, the cut each view drew and what
+     *  it asks for —, gathered once an image, and only when the streamer's pins read them. */
     pageUrls() {
+      if (!keptStale) return retained;
+      keptStale = false;
+      kept.clear();
+      for (const url of bootstrapUrls) kept.add(url);
+      for (const url of modifiedPages) kept.add(url);
+      for (const view of views) {
+        for (const rec of view.shown) kept.add(rec.url);
+        for (const rec of view.requested) kept.add(rec.url);
+      }
       retained.length = 0;
-      for (const url of keptUrls()) retained.push(url);
+      for (const url of kept) retained.push(url);
       return retained;
     },
     /** Gives a page's geometry back: one eviction per page, as the WebGPU page cache counts them,

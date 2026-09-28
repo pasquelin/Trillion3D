@@ -3,7 +3,7 @@ import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { OrthographicBox } from '../../camera/engineCamera.ts';
-import { orthographicView } from '../../../../sdk-core/src/math/primitives/camera.ts';
+import { drawnBox, orthographicView } from '../../../../sdk-core/src/math/primitives/camera.ts';
 import { createOrbitCameraControls } from '../../camera/controls/orbitControls.ts';
 import { createFlyCameraControls } from '../../camera/controls/flyControls.ts';
 import { createFirstPersonCameraControls } from '../../camera/controls/firstPersonControls.ts';
@@ -43,10 +43,7 @@ function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
   into.far = camera.far;
   into.zoom = camera.zoom;
   into.aspect = aspect;
-  const box =
-    camera.projection === 'orthographic'
-      ? { left: camera.left, right: camera.right, top: camera.top, bottom: camera.bottom }
-      : null;
+  const box = camera.projection === 'orthographic' ? drawnBox(camera, aspect) : null;
   // The engine composes its own projection from the box (`engineCamera.ts`); the host
   // renderer that draws the WebGL2 path reads the host matrix, rewritten orthographic here, and
   // its flag, which turns its shading's view vector to the camera's axis.

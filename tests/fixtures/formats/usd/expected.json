@@ -59,7 +59,7 @@
     "meshInstances": 1,
     "textures": 1
   },
-  "formatVersion": 8,
+  "formatVersion": 10,
   "images": [
     {
       "mimeType": "image/png",
@@ -67,7 +67,7 @@
       "uri": "textures/checker.png"
     }
   ],
-  "manifestBinaryVersion": 9,
+  "manifestBinaryVersion": 10,
   "materials": [
     {
       "alphaMode": "BLEND",
@@ -159,7 +159,7 @@
   },
   "selectedNodes": 1,
   "selectedTriangles": 4,
-  "sidecarSha256": "3386e352d35264c387e79f279aa12b0d6b3a7c5e55c38ffe488db99e23ff3cb7",
+  "sidecarSha256": "a65e23bf84e75cacc2790cb703e4d39a74321bb1e21dbdd4afc2ed1a08796feb",
   "sourceTriangles": 4,
   "textures": [
     {

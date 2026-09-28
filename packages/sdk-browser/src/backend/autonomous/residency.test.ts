@@ -68,6 +68,7 @@ test('pendingUrls and pageUrls match the reference on a normal host, called twic
   const env = makeEnv();
   const optimisee = createAutonomousResidency({
     ...env,
+    views: [env],
     geometryStore: fakeGeometryStore(),
   });
   const reference = referenceResidency({
@@ -91,6 +92,7 @@ test('an empty host produces empty sets from both implementations', () => {
   };
   const optimisee = createAutonomousResidency({
     ...empty,
+    views: [empty],
     geometryStore: fakeGeometryStore(),
   });
   const reference = referenceResidency({ ...empty, desired: [], pending: [], retained: [] });
@@ -126,7 +128,8 @@ test('dropPage counts one eviction per page the store held, never the root cover
     held = false;
     return was;
   };
-  const residency = createAutonomousResidency({ ...makeEnv(), geometryStore });
+  const env = makeEnv();
+  const residency = createAutonomousResidency({ ...env, views: [env], geometryStore });
   residency.dropPage('a.bin');
   assert.equal(held, true, 'the root cover is never given back');
   residency.dropPage('g.bin');
@@ -138,27 +141,14 @@ test('the streamer pins the set the image gathered, without gathering it again',
   const env = makeEnv();
   const residency = createAutonomousResidency({
     ...env,
+    views: [env],
     geometryStore: fakeGeometryStore(),
   });
   const pinned = [...residency.pageUrls()];
   env.shown.push(fakePageRec('z.bin'));
   assert.deepEqual(residency.pageUrls(), pinned, 'read, not rebuilt');
-  assert.ok(!residency.keptUrls().has('z.bin'));
+  assert.ok(!residency.pageUrls().includes('z.bin'));
   residency.keptChanged();
   assert.ok(residency.pageUrls().includes('z.bin'));
-  assert.equal(residency.keptUrls().size, pinned.length + 1);
-});
-
-test('as a cut is about to run, the pool keeps what the image asks for, not what it drew', () => {
-  const env = makeEnv();
-  const residency = createAutonomousResidency({ ...env, geometryStore: fakeGeometryStore() });
-  // `d.bin` is drawn but no longer asked for: the next cut draws its resident ancestor instead.
-  assert.ok(residency.keptUrls().has('d.bin'));
-  assert.deepEqual([...residency.askedUrls()].sort(), [
-    'a.bin',
-    'b.bin',
-    'c.bin',
-    'e.bin',
-    'f.bin',
-  ]);
+  assert.equal(residency.pageUrls().length, pinned.length + 1);
 });

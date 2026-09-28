@@ -5,6 +5,7 @@ import { SAMPLED_RANKS } from '../lighting/direct/lightSamplingWgsl.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { AccumulatedImage } from '../lighting/deferred/program.ts';
+import type { TemporalAntialiasing } from './temporalAntialiasing.ts';
 
 /** What the temporal pass keeps from one image to the next on the CPU side. */
 export interface TaaFrameState {
@@ -109,7 +110,8 @@ const anchored = new Float64Array(16),
 /**
  * Encodes this image's temporal pass and returns the accumulated image composition must read —
  * `undefined` when the image does not accumulate, and composition reads the lit one. Writes the uniform, updates placement motion, advances
- * the jitter rank and keeps the view-projection without jitter for the next image.
+ * the jitter rank and keeps the view-projection without jitter for the next image. With `asIs`
+ * false no as-is pixel is in the image, and the flagless resolve reads no flags (OMB-11).
  */
 export function encodeTaaPass(
   rt: WebgpuPagesRuntime,
@@ -117,6 +119,7 @@ export function encodeTaaPass(
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
   current: GPUTextureView,
+  asIs = true,
 ): AccumulatedImage | undefined {
   const temporal = rt.gpu.temporal,
     { gpu, vis, run } = rt;
@@ -151,7 +154,7 @@ export function encodeTaaPass(
   inputs.ids = vis.visView;
   inputs.pages = vis.pageTable;
   inputs.motion = temporal.motion.buffer;
-  inputs.flags = gpu.surfaces.views()[3];
+  inputs.flags = asIs ? gpu.surfaces.views()[3] : undefined;
   const output = temporal.encode(encoder, inputs);
   run.gpuDrawCalls++;
   state.sceneSeen = scene;
@@ -163,7 +166,11 @@ export function encodeTaaPass(
 
 /** History is to be remade: targets reallocated, or size changed. */
 export function dropTaaHistory(rt: WebgpuPagesRuntime) {
-  const temporal = rt.gpu.temporal;
+  forgetTaaHistory(rt.gpu.temporal);
+}
+
+/** `temporal`'s history is to be remade, whichever view holds it. */
+export function forgetTaaHistory(temporal: TemporalAntialiasing | undefined) {
   if (!temporal) return;
   temporal.frame.hasHistory = false;
   temporal.frame.stillFrames = 0;
@@ -179,9 +186,13 @@ export function taaSampledRank(rt: WebgpuPagesRuntime) {
   return temporal?.frame.active ? temporal.frame.sampledRank : 0;
 }
 
-/** True when the image can be held without freezing an accumulation in progress: without
- *  temporal antialiasing, switched off, or after a full cycle of quiet images. */
+/**
+ * True when a quiet image can be held without freezing an accumulation in progress: without
+ * temporal antialiasing, switched off, or when it closes a full cycle of quiet images. Read before
+ * the image's entry, which a held image never makes: a barrier's convergence image then replays
+ * the image the hold shows, to the bit (#26). A view that does not accumulate keeps the count.
+ */
 export function taaSettled(rt: WebgpuPagesRuntime) {
   const temporal = rt.gpu.temporal;
-  return !temporal || !rt.gpu.temporalWanted || temporal.frame.stillFrames >= TAA_STILL_FRAMES;
+  return !temporal || !rt.gpu.temporalWanted || temporal.frame.stillFrames >= TAA_STILL_FRAMES - 1;
 }

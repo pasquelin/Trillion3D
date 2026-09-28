@@ -1,14 +1,15 @@
+import { unit } from '../../../sdk-core/src/math/primitives/vectorTuple.ts';
 import type { Joint, SixDofAxis } from '../../../sdk-core/src/physics/index.ts';
 import { rotateByQuaternion } from '../../../sdk-core/src/math/matrix/quaternion.ts';
 import {
   addScaledVector3,
   dotVector3,
-  normalizeVector3,
   subVector3,
 } from '../../../sdk-core/src/math/primitives/vector.ts';
 import { readVec3, type Vec3Input } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { worldPoseOf } from './bodyFrame.ts';
+import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 
 type Vec = [number, number, number];
 const turned = new Float64Array(3);
@@ -17,12 +18,7 @@ const turn = (q: ArrayLike<number>, v: Vec): Vec => {
   rotateByQuaternion(turned, q, v[0], v[1], v[2]);
   return [turned[0], turned[1], turned[2]];
 };
-/** `v` made unit length, in place. */
-const unit = (v: Vec): Vec => {
-  normalizeVector3(v);
-  return v;
-};
-const between = (p: Vec, q: Vec) => Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]);
+const between = (p: Vec, q: Vec) => hypot3(q[0] - p[0], q[1] - p[1], q[2] - p[2]);
 /** A unit vector square to `axis`: the direction a joint's angle 0 is read from. */
 const normalTo = ([x, y, z]: Vec): Vec => unit(Math.abs(x) < 0.9 ? [0, z, -y] : [-z, 0, x]);
 /** `near` squared to the unit `axis`, or any square to it when the two are nearly one. */

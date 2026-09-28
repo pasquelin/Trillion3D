@@ -30,6 +30,7 @@ export {
   previewLevelSize,
   previewPixelBytes,
 } from './manifest/binary.ts';
+export { readPagedManifest } from './manifest/paged.ts';
 export {
   textureLevelFormat,
   textureLevelUrl,
@@ -59,7 +60,6 @@ export type {
 } from './manifest/binary.ts';
 export * from './runtime/diagnostics.ts';
 export { dagWarningsDiagnostic } from './contracts/dagWarnings.ts';
-export type { PrimitiveDagStall, PrimitiveDagWarning } from './contracts/dagWarnings.ts';
 export { LOD_QUALITY, lodQuality, adaptivePixelError } from './lod/policy.ts';
 export type { LodQualityId } from './lod/policy.ts';
 export * from './runtime/paths.ts';
@@ -136,7 +136,6 @@ export {
   LIGHT_SETTINGS,
   MAX_SHADOW_SLICES,
   POINT_FACES,
-  SCENE_LIGHT_BUFFER_FLOATS,
   SCENE_LIGHT_FLOATS,
   SCENE_LIGHT_HEADER_FLOATS,
   LIGHT_KIND,

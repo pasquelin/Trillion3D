@@ -22,6 +22,7 @@
  */
 import type { Side } from '../../../sdk-core/src/index.ts';
 import type { HostMaterials } from '../host/resources.ts';
+import { isAssignment, type AlphaChange } from '../placement/backendSceneUpdates.ts';
 import type { HostShadedMaterial } from '../host/shadedMaterial.ts';
 import { unreadMapRefusal } from '../scene/surfaceModel.ts';
 import {
@@ -74,7 +75,8 @@ function fill(into: PageSurface, material: HostMaterials): PageSurface {
 /**
  * The engine record of a host declaration, built at its first page and reread when the host
  * rewrites the declaration in place. Called at the boundaries that hold a host material — the
- * collection, a witness that repaints its pages, the WebGL2 binder's frame — and nowhere else.
+ * collection, a witness that repaints its pages, the WebGL2 binder's frame, the WebGPU refresh of
+ * surfaces a page changed the alpha of — and nowhere else.
  */
 export function surfaceOf(material: HostMaterials): PageSurface {
   const kept = held.get(material as object);
@@ -118,4 +120,44 @@ export function refreshSurface(surface: PageSurface): PageSurface {
   if ((firstMaterial(material)?.version ?? 0) !== surface.version) return fill(surface, material);
   refreshSide(surface);
   return materialRaster(material, surface);
+}
+
+/** The records of the source meshes a created material was assigned to (#847). */
+export const recordsOfMeshes = <T extends { sourceMesh?: object }>(
+  records: readonly T[],
+  meshes: ReadonlyMap<object, unknown>,
+) => records.filter((rec) => !!rec.sourceMesh && meshes.has(rec.sourceMesh));
+
+/** The records of each surface an assignment gives (`SurfaceAssignment`): each mesh's own. */
+export function recordsBySurface<T extends { sourceMesh?: object }>(
+  records: readonly T[],
+  meshes: ReadonlyMap<object, object>,
+) {
+  const by = new Map<object, T[]>();
+  for (const rec of recordsOfMeshes(records, meshes)) {
+    const surface = meshes.get(rec.sourceMesh!)!;
+    let list = by.get(surface);
+    if (!list) by.set(surface, (list = []));
+    list.push(rec);
+  }
+  return by;
+}
+
+/** Why neither engine gives an assigned mesh another surface: none of its records is a page's,
+ *  it is drawn as a forward copy the open laid out, off the surface the copy took then. */
+export function unpagedRefusal(records: readonly { sourceMesh?: object }[], alpha: AlphaChange) {
+  if (!isAssignment(alpha)) return;
+  const unpaged = new Set(alpha.meshes.keys());
+  for (const rec of records) if (rec.sourceMesh) unpaged.delete(rec.sourceMesh);
+  if (unpaged.size)
+    return 'the drawable is drawn as a forward copy laid out when the session opens';
+}
+
+/** A record wears `declaration` from now on, its surface record read at this boundary. */
+export function wearDeclaration(
+  rec: { declaration: HostMaterials; material: PageSurface },
+  declaration: HostMaterials,
+) {
+  rec.declaration = declaration;
+  rec.material = surfaceOf(declaration);
 }

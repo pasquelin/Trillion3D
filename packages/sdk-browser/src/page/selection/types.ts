@@ -1,5 +1,4 @@
 import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
-import type { GraphMesh } from '../../host/graph/mesh.ts';
 import type { HostAttributes, HostMaterials, HostMesh } from '../../host/resources.ts';
 import type { PageSurface } from '../surface.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
@@ -62,14 +61,15 @@ export type PageRec = {
   renderOrder: number;
   geometry?: Geometry;
   /** The mesh of the engine's own graph the WebGL2 page path draws the page as. */
-  mesh?: GraphMesh;
+  mesh?: HostMesh;
   attached: boolean;
   resident?: boolean;
   cone?: NormalCone;
   /** Rank of the request key, set once by `indexPageRequests`: deduplication without hashing. */
   requestIndex?: number;
-  /** Rank of the cluster key in the host catalogue, set once: residency and pinning without
-   *  hashing. The host sets it, nobody else reads it. */
+  /** The residency's key of the page: its rank in the WebGPU host catalogue, set once, or the
+   *  WebGL2 residency's key, checked against the URL it names (`backend/autonomous/pageKeys.ts`).
+   *  Residency and pinning without hashing. */
   keyIndex?: number;
   /** Rank of the page in a WebGPU engine's packed catalogue, set once. Another engine that
    *  rewrites it fools nobody: the reader checks that the catalogue actually yields this page. */

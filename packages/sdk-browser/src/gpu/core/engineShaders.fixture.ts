@@ -18,7 +18,7 @@ import { REST_COMPACT_SHADER } from '../raster/restCompactWgsl.ts';
 import { SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER } from '../shadow/cullShader.ts';
 import { SHADOW_OCCLUSION_SHADER } from '../shadow/occlusionShader.ts';
 import { SHADOW_DEPTH_SHADER } from '../shadow/shader.ts';
-import { RESTORE_WGSL } from '../shadow/staticLayer.ts';
+import { PAGE_QUAD_SHADER } from '../shadow/pageQuads.ts';
 import { BOUNCE_PROBE_SHADER } from '../../bounce/probeWgsl.ts';
 import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts';
 import { DIAGNOSTIC_SHADE_WGSL, DIAGNOSTIC_VIS_WGSL } from '../../diagnostic/gpuGeometry.ts';
@@ -27,13 +27,14 @@ import { BLOOM_WGSL } from '../../effects/bloomWgsl.ts';
 import { GUIDE_WGSL } from '../../guides/guideShaders.ts';
 import {
   BOUNCE_LIGHTING_SHADER,
-  COMPOSE_SHADERS,
+  CONTRACT_COMPOSITIONS,
   DIRECT_LIGHTING_SHADER,
-  UNLIT_COMPOSE_SHADERS,
+  UNLIT_COMPOSITIONS,
   UNLIT_LIGHTING_SHADER,
 } from '../../lighting/deferred/shaders.ts';
-import { LIGHT_TILES_SHADER } from '../../lighting/tiles/shader.ts';
-import { TAA_SHADER } from '../../taa/shaderWgsl.ts';
+import { reflectionSource, withScreenReflections } from '../../reflections/screenWgsl.ts';
+import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
+import { TAA_SHADER, taaShader } from '../../taa/shaderWgsl.ts';
 import { MIP_SHADER } from '../../texture/mips.ts';
 import { COVERAGE_WGSL } from '../../texture/coverageMips.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
@@ -45,6 +46,7 @@ import { TRANSPARENT_COMPACT_SHADER } from '../../webgpu/transparent/shader.ts';
 import { WATER_COMPOSITE_SHADER } from '../../webgpu/water/compositeWgsl.ts';
 import { WATER_SURFACE_WGSL } from '../../webgpu/water/surfaceWgsl.ts';
 import { PARTICLES_WGSL } from '../../particles/webgpuParticles.ts';
+import { PARTICLE_DRAW_WGSL } from '../../particles/webgpuParticleDraw.ts';
 
 const compositions = (label: string, sources: Record<string, string>) =>
   Object.fromEntries(Object.entries(sources).map(([input, code]) => [`${label}_${input}`, code]));
@@ -65,7 +67,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   SHADOW_LIGHT_CULL_SHADER,
   SHADOW_OCCLUSION_SHADER,
   SHADOW_DEPTH_SHADER,
-  RESTORE_WGSL,
+  PAGE_QUAD_SHADER,
   BOUNCE_PROBE_SHADER,
   BOUNCE_SURFACE_SHADER,
   BLOOM_WGSL,
@@ -73,10 +75,17 @@ export const ENGINE_SHADERS: Record<string, string> = {
   UNLIT_LIGHTING_SHADER,
   DIRECT_LIGHTING_SHADER,
   BOUNCE_LIGHTING_SHADER,
-  ...compositions('COMPOSE', COMPOSE_SHADERS),
-  ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSE_SHADERS),
-  LIGHT_TILES_SHADER,
+  REFLECTION_SOURCE_DIRECT: reflectionSource(DIRECT_LIGHTING_SHADER),
+  REFLECTION_SOURCE_BOUNCE: reflectionSource(BOUNCE_LIGHTING_SHADER),
+  REFLECTION_RESOLVE_DIRECT: withScreenReflections(DIRECT_LIGHTING_SHADER, true),
+  REFLECTION_RESOLVE_BOUNCE: withScreenReflections(BOUNCE_LIGHTING_SHADER),
+  ...compositions('COMPOSE', CONTRACT_COMPOSITIONS.plain),
+  ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),
+  ...compositions('COMPOSE_BLOOM', CONTRACT_COMPOSITIONS.bloom),
+  ...compositions('UNLIT_COMPOSE_BLOOM', UNLIT_COMPOSITIONS.bloom),
+  ...Object.fromEntries(LIGHT_TILES_SHADERS),
   TAA_SHADER,
+  TAA_FLAGLESS_SHADER: taaShader(false),
   MIP_SHADER,
   COVERAGE_WGSL,
   VIS_SHADER,
@@ -92,4 +101,5 @@ export const ENGINE_SHADERS: Record<string, string> = {
   TRANSPARENT_COMPACT_SHADER,
   WATER_COMPOSITE_SHADER,
   PARTICLES_WGSL,
+  PARTICLE_DRAW_WGSL,
 };

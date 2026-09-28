@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Seret untuk melihat pantulan logam disikat. Ubah kekuatan dan arahnya.",
+    "controls": {
+      "anisotropy": "Kekuatan sikatan",
+      "direction": "Arah sikatan",
+      "roughness": "Kekasaran",
+      "spin": "Putar"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Bergeraklah mengitari mobil. Ubah cat dan lapisan bening di atasnya.",
+    "controls": {
+      "paint": "Cat",
+      "clearCoat": "Lapisan bening",
+      "coatRoughness": "Kekasaran lapisan",
+      "spin": "Putar"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Pengaturan"
@@ -36,10 +54,12 @@
       "engine CPU": "CPU mesin"
     },
     "failure": {
-      "title": "Contoh ini berhenti karena sebuah kesalahan"
+      "title": "Contoh ini berhenti karena sebuah kesalahan",
+      "missingCache": "Cache yang dikompilasi tidak ada: jalankan pnpm compile:caches"
     },
     "banner": {
-      "close": "Tutup"
+      "close": "Tutup",
+      "waiting": "Menunggu engine (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -309,6 +329,13 @@
       "roof": "Atap"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Seret untuk mengitari. Ubah lebar lampu dan amati tepi bayangan.",
+    "controls": {
+      "lampWidth": "Lebar lampu",
+      "moveSubject": "Gerakkan objek"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Geser untuk berkeliling. Perbesar panel cahaya untuk melembutkan kilaunya.",
     "controls": {
@@ -474,6 +501,32 @@
       "balloon": "MELACAK BALON"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Saksikan rute rekaman melintasi taman. Putar ulang, hentikan, atau ambil alih kamera.",
+    "controls": {
+      "replay": "Putar ulang",
+      "stop": "Hentikan"
+    },
+    "readouts": {
+      "currentPart": "Bagian saat ini"
+    },
+    "words": {
+      "entrance": "Pintu masuk",
+      "pond": "Kolam",
+      "bridge": "Jembatan",
+      "pavilion": "Paviliun",
+      "overview": "Ikhtisar",
+      "complete": "Selesai"
+    }
+  },
+  "a-crane-that-swings": {
+    "banner": "Putari derek saat satu klip memutar lengan, menggerakkan troli, mengangkat muatan, dan mengayunkannya.",
+    "controls": {
+      "speed": "Kecepatan",
+      "paused": "Dijeda",
+      "replay": "Putar ulang"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Geser untuk melihat sekeliling. Buat gelombang kubus lebih tinggi atau lebih cepat.",
     "controls": {
@@ -482,6 +535,34 @@
       "ripples": "Riak",
       "inner": "Dalam",
       "outer": "Luar"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Gerakkan kamera menuju pintu. Pintu terbuka saat Anda mendekat.",
+    "controls": {
+      "mode": "Mode",
+      "openingDistance": "Jarak pembukaan",
+      "openness": "Bukaan"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "kedekatan",
+        "manual": "manual"
+      }
+    }
+  },
+  "a-carousel": {
+    "banner": "Lihat sekeliling komidi putar. Jeda atau gerakkan kuda kayu ke arah sebaliknya.",
+    "controls": {
+      "running": "Berjalan",
+      "speed": "Kecepatan",
+      "direction": "Arah"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "searah jarum jam",
+        "counterclockwise": "berlawanan arah jarum jam"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -535,6 +616,17 @@
       "lamp": "Lampu",
       "colour": "Warna",
       "bricks": "Bata"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Klik dua permukaan untuk mengukur jarak di antaranya. Klik ketiga memulai pengukuran baru. Satu unit mewakili satu meter.",
+    "controls": {
+      "clear": "Hapus"
+    },
+    "readouts": {
+      "pointA": "Titik A",
+      "pointB": "Titik B",
+      "distance": "Jarak"
     }
   },
   "click-to-pick": {
@@ -941,7 +1033,11 @@
     "banner": "Seret untuk melihat sekeliling. Centang Kemudikan untuk mengambil mobil: W atau ↑ mempercepat, S atau ↓ mengerem, A D atau ← → membelok. Jatuhkan lagi menjatuhkan peti dan bola sekali lagi.",
     "words": {
       "credit": "Lembah dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md",
-      "refused": "Ditolak di backend ini"
+      "refused": "Ditolak di backend ini",
+      "close": "Jarak dekat",
+      "far": "Pandangan jauh",
+      "pan": "Geser cepat",
+      "still": "Diam"
     },
     "controls": {
       "drive": "Kemudikan mobil",
@@ -1227,6 +1323,25 @@
         "lod": "tingkat detail",
         "clusters": "klaster"
       }
+    }
+  },
+  "a-walk-through-the-city": {
+    "banner": "Klik tampilan, berjalan dengan W A S D, dan melihat dengan tetikus. Kurangi memori sambil bergerak.",
+    "controls": {
+      "walkSpeed": "Kecepatan jalan",
+      "memory": "Memori",
+      "view": "Tampilan",
+      "home": "Kembali ke awal"
+    },
+    "choices": {
+      "view": {
+        "beauty": "hasil akhir",
+        "lod": "tingkat detail",
+        "clusters": "klaster"
+      }
+    },
+    "words": {
+      "credit": "Jalan raya guci dibuat dengan kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
     }
   },
   "migrating-from-three": {
@@ -1631,7 +1746,8 @@
       "night": "Malam",
       "bounce": "Pantulan",
       "sun": "Matahari",
-      "lamp": "Lampu"
+      "lamp": "Lampu",
+      "spin": "Putar"
     },
     "words": {
       "credit": "Model lampu jalan oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"
@@ -1676,6 +1792,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "Anisotropi lajur keempat"
+    }
+  },
+  "the-home-pose": {
+    "banner": "Pilih tampilan, gerakkan kamera, lalu pilih Awal untuk kembali.",
+    "controls": {
+      "home": "Awal",
+      "tower": "Menara",
+      "square": "Alun-alun",
+      "hillside": "Lereng"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Majukan bidang dekat dan lihat bidang itu memotong setiap dinding.",
+    "controls": {
+      "nearPlane": "Bidang dekat"
     }
   },
   "the-material-family": {
@@ -1868,6 +1999,7 @@
       "manifest": "manifes terbaca",
       "tables": "tabel adegan terbaca",
       "resources": "berkas adegan",
+      "session": "membuka tampilan",
       "pages": "halaman pertama",
       "ready": "siap"
     }
@@ -2141,6 +2273,87 @@
     },
     "words": {
       "credit": "Bendera pada tiang dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Pilih elevasi rumah. Jauhkan kamera: gambar ortografis mempertahankan skala yang persis sama.",
+    "controls": {
+      "elevation": "Elevasi",
+      "distance": "Jarak kamera",
+      "zoom": "Skala gambar"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Depan",
+        "right": "Sisi kanan",
+        "rear": "Belakang"
+      }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Arahkan penunjuk ke bagian troli untuk menyorotnya satu per satu, atau matikan sorotan di panel.",
+    "controls": {
+      "highlightEnabled": "Aktifkan sorotan"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Jeda dolly, ulangi perjalanan, atau ubah kecepatannya saat kamera menyusuri kanal.",
+    "controls": {
+      "paused": "Dijeda",
+      "replay": "Ulangi",
+      "speed": "Kecepatan"
+    },
+    "readouts": {
+      "progress": "Kemajuan"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Seret untuk memeriksa sudut jalan. Kompiler menggabungkan tiga berkas OBJ dari satu folder ke adegan ini.",
+    "controls": {
+      "visible": "Terlihat",
+      "home": "Awal"
+    },
+    "words": {
+      "credit": "Model lampu jalan oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Seret peti di atas lantai. Aktifkan kisi untuk menempatkannya setiap setengah meter.",
+    "controls": {
+      "snap": "Kisi",
+      "home": "Awal"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Klik bentuk untuk memilihnya. Klik lantai untuk menghapus pilihan.",
+    "controls": {
+      "color": "Warna",
+      "thickness": "Ketebalan"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Seret untuk mengitari bidang. Ubah jumlah atau tampilan.",
+    "controls": {
+      "count": "Jumlah",
+      "view": "Tampilan"
+    },
+    "readouts": {
+      "objectsShown": "Objek terlihat",
+      "objectsBuilt": "Objek dibuat"
+    },
+    "choices": {
+      "view": {
+        "beauty": "hasil akhir",
+        "clusters": "klaster"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Pasang atau lepas penampil. Setiap pemasangan memiliki satu dunia dan setiap pelepasan membuangnya.",
+    "controls": {
+      "mount": "Pasang",
+      "unmount": "Lepas",
+      "remount": "Pasang ulang"
     }
   }
 }

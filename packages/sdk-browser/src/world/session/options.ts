@@ -95,7 +95,7 @@ export interface MeasuredWorldOptions {
   geometryPoolCeilingBytes?: number;
   /** Virtual-texture pool bytes of the WebGPU engine — texture memory, regardless of the
    *  scene. 512 MiB by default, split equally between the colour atlas and the data atlas,
-   *  in 63.5 MiB layers; under one layer per atlas the pool is raised to one, by name. What
+   *  in 64 MiB layers; under one layer per atlas the pool is raised to one, by name. What
    *  a view asks beyond that waits for a less-looked-at tile to free, and a missing tile
    *  shows its coarse level: the `textureTiles*` metrics publish it. Set during the session
    *  by `explorer.setMemoryBudgets`. */
@@ -135,6 +135,11 @@ export interface MeasuredWorldOptions {
   guides?: import('../../guides/guideSet.ts').GuideSet;
   /** Particle pools, held by the world (`attachParticles`). */
   particles?: readonly import('../../../../sdk-core/src/fluids/particles.ts').ParticlePool[];
+  /** Hears, once per refusal, why the renderer refused the `particles`; the session goes on. */
+  particlesRefused?: (reason: string) => void;
+  /** Hears a surface WebGL2 draws without a physical feature, held by the world
+   *  (`noticeMaterialDegraded`). */
+  materialDegraded?: import('../../webgl/cluster/validation.ts').MaterialDegraded;
   /** Bounced light. Off by default; `true` turns it on for the whole session. */
   bounce?: boolean;
   /** Target duration of the "Bounce" step per frame, in milliseconds. 0.8 ms by default. */

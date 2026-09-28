@@ -9,7 +9,8 @@ const { compilerOptions } = JSON.parse(readFileSync(resolve(ROOT, 'tsconfig.json
   compilerOptions: { rootDir: string; outDir: string };
 };
 const rootDir = resolve(ROOT, compilerOptions.rootDir);
-const outDir = resolve(ROOT, compilerOptions.outDir);
+/** The build output `dist/`, absolute. */
+export const outDir = resolve(ROOT, compilerOptions.outDir);
 
 /** The file `tsc` emits for the engine source `source`, both absolute paths. */
 export const emittedOf = (source: string) =>

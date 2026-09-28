@@ -21,7 +21,7 @@ export function grantCapability(capabilities: WebgpuPagesRuntime['capabilities']
   capabilities.unsupported = capabilities.unsupported.filter((entry) => entry !== item);
 }
 
-export function resetHizHistory(run: WebgpuRunState) {
+function resetHizHistory(run: WebgpuRunState) {
   invalidateOccluderHistory(run);
   run.previousHizView = undefined;
   run.temporalHizState.viewport = undefined;
@@ -109,6 +109,7 @@ export function dropVis(rt: WebgpuPagesRuntime) {
   vis.materialDepthPipeline = undefined;
   vis.shadePipelines.clear();
   vis.shadePipelineFor = undefined;
+  vis.singleShadePipelines.clear();
   vis.shadeBindGroupLayout = undefined;
   vis.visBindGroupLayout = undefined;
   vis.mapsSampler = undefined;

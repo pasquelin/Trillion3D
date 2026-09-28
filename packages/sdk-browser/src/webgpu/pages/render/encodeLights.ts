@@ -3,9 +3,12 @@ import {
   DEFAULT_TONE_MAPPING,
   TONE_MAPPING_RANK,
 } from '../../../../../sdk-core/src/scene/core/environment.ts';
-import { noteShadowFrame, uploadSceneLights } from '../state/lights.ts';
+import { noteShadowFrame } from '../state/lights.ts';
+import { uploadSceneLights } from '../state/lightBuffer.ts';
 import { planImageShadows } from './encodeShadows.ts';
+import { lightCutMetrics } from '../../shadow/casters.ts';
 import { encodeShadowBatches } from './encodeShadowBatches.ts';
+import { syncPageProxy, syncLightingProxies } from '../prepare/proxyMotion.ts';
 import { ensureBounce } from '../prepare/bounce.ts';
 import { ensureSunFarShadow } from '../prepare/sunFar.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -27,7 +30,7 @@ export function encodeDirectLights(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
-  inverseViewProjection: ArrayLike<number>,
+  viewProjection: ArrayLike<number>,
 ) {
   const { lights, gpu } = rt,
     { store, tiles } = lights,
@@ -60,6 +63,7 @@ export function encodeDirectLights(
   // The sun's far shadow: the proxy is fitted at the first light, like bounce, and its count sample
   // is encoded before the lighting pass that will fill them.
   ensureSunFarShadow(rt, device);
+  syncLightingProxies(rt);
   rt.sunFar.gpu?.prepare(encoder, rt.run.frame);
   // Every page the plan marked is drawn now, batch after batch. A batch may refuse to encode
   // (reject or missing selection): its pages then stay stale, and their table words say what they
@@ -74,9 +78,10 @@ export function encodeDirectLights(
   }
   noteShadowFrame(lights);
   if (!tiles || !gpu.depthView) return directParams;
-  if (!tiles.ensure(width, height, gpu.depthView)) return directParams;
-  tiles.update(inverseViewProjection, width, height);
-  if (!tiles.encode(encoder)) return directParams;
+  if (!lights.buffer || !tiles.ensure(width, height, gpu.depthView, lights.buffer, active))
+    return directParams;
+  tiles.update(viewProjection, cam.eye, width, height);
+  if (!tiles.encode(encoder, rt.run.frame)) return directParams;
   directParams[0] = active;
   directParams[1] = tiles.tilesX;
   directParams[2] = tiles.tilesY;
@@ -113,6 +118,7 @@ function encodeBounce(
   const irradiance = lights.store.lightingView === 'bounce';
   rt.gpu.deferred?.setRawOutput(irradiance);
   if (!probes) return;
+  syncPageProxy(rt, probes);
   probes.setIrradianceView(irradiance);
   // The store revision rises as soon as a light is added, set or removed: that is the only signal
   // the grid needs to restart, and it costs no read. A change of fog alone is not one.
@@ -152,6 +158,8 @@ function logFirstDirectFrame(rt: WebgpuPagesRuntime) {
   diag.engineDiagnostic('direct-lighting-frame', 'First image lit by the contract', {
     version: 1,
     tiles: [lights.tiles?.tilesX ?? 0, lights.tiles?.tilesY ?? 0],
+    // The light tiles' depth bounds reduced per subgroup: the device granted `subgroups`.
+    tileSubgroups: lights.tiles?.subgroups ?? false,
     ...directLightingState(rt),
   });
 }
@@ -175,6 +183,9 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     shadowPagesOverflow: lights.plan.requests.counts.refused + lights.plan.requests.counts.unlisted,
     shadowWaitMs: lights.plan.counts.waitedMs,
     shadowWaitFrames: lights.plan.counts.waitedFrames,
+    ...lightCutMetrics(rt),
+    /** Shadow casters past the slices: lit without a shadow (#818, #822). */
+    shadowCastersUnsliced: lights.plan.counts.unslicedCasters,
     poolPages: lights.shadows
       ? { used: lights.plan.counts.poolPages, total: lights.plan.pool.pages }
       : null,

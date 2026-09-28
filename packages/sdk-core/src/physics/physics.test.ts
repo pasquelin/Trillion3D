@@ -52,7 +52,11 @@ test('RESTORE carries its handle and byte count, then the bytes padded to whole 
   writer.restore(3, Uint8Array.of(9, 8, 7, 6, 5));
   const words = writer.take();
   assert.deepEqual([...words.subarray(0, RESTORE_WORDS)], [OP.restore, 3, 5]);
-  assert.deepEqual([...new Uint8Array(words.buffer, RESTORE_WORDS * 4)], [9, 8, 7, 6, 5, 0, 0, 0]);
+  assert.equal(words.length, RESTORE_WORDS + 2);
+  assert.deepEqual(
+    [...new Uint8Array(words.buffer, RESTORE_WORDS * 4, 8)],
+    [9, 8, 7, 6, 5, 0, 0, 0],
+  );
 });
 
 test('VIEW carries the eye, the facing, the cone and the range', () => {
@@ -61,7 +65,10 @@ test('VIEW carries the eye, the facing, the cone and the range', () => {
   const words = writer.take();
   assert.equal(words.length, VIEW_WORDS);
   assert.equal(words[0], OP.view);
-  assert.deepEqual([...new Float32Array(words.buffer).subarray(1)], [1, 2, 3, 0, 0, -1, 0.5, 400]);
+  assert.deepEqual(
+    [...new Float32Array(words.buffer, 4, VIEW_WORDS - 1)],
+    [1, 2, 3, 0, 0, -1, 0.5, 400],
+  );
 });
 
 test('a body keeps the damping it declares, the simulation’s own left unset, and refuses a negative one', () => {
@@ -142,8 +149,9 @@ test('a dynamic body declared as triangles is refused: triangles hold no mass', 
 test('physics.json of another format, cooked by another Jolt, or malformed, is refused by name', () => {
   const file = { formatVersion: 2, jolt: JOLT_COMMIT, colliders: [], instances: [] };
   assert.equal(readCookedPhysics(file).colliders.length, 0);
+  assert.equal(readCookedPhysics({ ...file, formatVersion: 3 }).formatVersion, 3, 'pieces carried');
   for (const wrong of [
-    { ...file, formatVersion: 3 },
+    { ...file, formatVersion: 4 },
     { ...file, jolt: '0'.repeat(40) },
     { ...file, softBodies: null },
   ])
@@ -155,7 +163,7 @@ test('a physics.json cooked before the matter came from the source is refused: r
   const old = { formatVersion: 1, jolt: JOLT_COMMIT, colliders: [], instances: [], bodies: [] };
   assert.throws(() => readCookedPhysics(old), {
     code: 'PHYSICS_FORMAT',
-    message: /format 1 is not 2: recompile the model/,
+    message: /format 1 is not 2 or 3: recompile the model/,
   });
 });
 

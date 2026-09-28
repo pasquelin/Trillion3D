@@ -61,15 +61,29 @@ fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
  return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*${INVERSE_PI};
 }
 fn pixelTile(pixel:vec2f)->vec2u{return vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);}
-/** Lights of a slice of a tile's list: its count at countSlot, its indices from firstSlot. */
-fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,countSlot:u32,firstSlot:u32)->vec3f{
+/** Where the lights of a slice of a tile's list start, and how many: its count at countSlot, its
+ *  list from firstSlot — past \`TILE_LIGHTS\`, from the start the list's first word names in the
+ *  pool (#849). \`TILE_NO_SLICE\` when the pool had no room: every declared light of the scene. */
+fn tileSlice(base:u32,countSlot:u32,firstSlot:u32)->vec2u{
+ let kept=tileLights[base+countSlot];
+ if(kept<=TILE_LIGHTS){return vec2u(base+firstSlot,kept);}
+ let first=tileLights[base+firstSlot];
+ return vec2u(first,select(kept,directLights.count,first==TILE_NO_SLICE));
+}
+/** The lights of a slice (\`tileSlice\`), or from \`TILE_NO_SLICE\` every light of the scene in rank
+ *  order: the one loop that shades a pixel's lights in full. A light that misses the point adds
+ *  an exact zero. */
+fn sliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->vec3f{
  var result=vec3f(0.0);
- let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
- let kept=min(tileLights[base+countSlot],MAX_LIGHTS);
- for(var index=0u;index<kept;index++){
-  result+=declaredLight(directLights.items[tileLights[base+firstSlot+index]],rgb,metal,rough,N,V,P,ao);
+ for(var index=0u;index<slice.y;index++){
+  var light=index;
+  if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}
+  result+=declaredLight(directLights.items[light],rgb,metal,rough,N,V,P,ao);
  }
  return result;
+}
+fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,countSlot:u32,firstSlot:u32)->vec3f{
+ return sliceLighting(rgb,metal,rough,N,V,P,ao,tileSlice((tile.y*tilesX+tile.x)*TILE_STRIDE,countSlot,firstSlot));
 }`;
 
 /**
@@ -116,7 +130,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  * walked, hence the number of shadow-atlas reads.
  *
  * With no list — a device that could not fit the tile pass —, the loop falls back on the
- * declared lights, bounded by `MAX_LIGHTS`, a constant known before the frame (X2).
+ * declared lights, every one of them.
  */
 export const declaredLightingWgsl = (
   proxyBinding: number,
@@ -129,12 +143,7 @@ fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  let tilesY=u32(uni.lightTiles.y);
  let tile=pixelTile(pixel);
  if(tilesX==0u||tilesY==0u||tile.x>=tilesX||tile.y>=tilesY){
-  var result=vec3f(0.0);
-  let count=min(directLights.count,MAX_LIGHTS);
-  for(var index=0u;index<count;index++){
-   result+=declaredLight(directLights.items[index],rgb,metal,rough,N,V,P,ao);
-  }
-  return result;
+  return sliceLighting(rgb,metal,rough,N,V,P,ao,vec2u(TILE_NO_SLICE,directLights.count));
  }
  return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,1u,TILE_BLEND_BASE);
 }`;

@@ -9,7 +9,7 @@ import {
   type ContractShadows,
 } from './contractLights.ts';
 import { Color } from '../../../sdk-core/src/world/math/color.ts';
-import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 /** The render scene the contract writes into. */
 type RenderScene = Parameters<typeof attachContractLights>[0];
@@ -29,10 +29,10 @@ export const graphBackground = (scene: RenderScene, changed: () => void) => (hex
 };
 
 /** The display graph a WebGL2 engine draws: its clear colour, then the source-graph lights
- *  copied onto it, each aiming at an empty node of the same graph. */
+ *  copied onto it, each aiming at its own target, placed in the same graph. */
 export function installLighting(scene: RenderScene, clearColor: number, source: Object3D) {
   paint(scene, clearColor);
-  return installSceneLighting(scene, source, () => new Object3D());
+  return installSceneLighting(scene, source);
 }
 
 /**
