@@ -115,6 +115,11 @@ second. It reads the caches, never builds them: without
 then `node bench/runner/assets.ts --only facade-7`) it fails by name on the cache it could not
 find.
 
+`blend-page-tangents` compares a blended, normal-mapped surface with authored and mirrored
+tangents drawn from its geometry pages and from its source buffers, on WebGPU, to the pixel. Its two
+scenes are derived from `normal-tangent-mirror-test`: `node bench/runner/scenes/tangentBlend.ts`,
+then `node bench/runner/assets.ts --only normal-tangent-blend-paged,normal-tangent-blend-unpaged`.
+
 `tests/browser/test-gpu.test.ts` enforces symmetric guarding across both directories: **executed ∪ excluded ==
 on-disk**, and no exclusion outlives the file it names. Without this guard, forgotten proofs would
 never execute without notice.
