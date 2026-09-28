@@ -11,7 +11,7 @@ import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
-import type { CookedMadeBody } from './cookedBodies.ts';
+import type { MovingBody } from './cookedBodies.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
 import { checked, optionalFile } from '../cluster/checked.ts';
 import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
@@ -21,8 +21,10 @@ import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 export type Model = Object3D & {
   isLoadedModel: true;
   record: { base: string };
-  _nodeAt?(index: number): { node: Object3D; indices: number[]; radius: number } | null;
+  _nodeAt?(index: number): ModelNode | null;
 };
+/** A source node of a model: its scene node, the source indices below it, its drawn radius. */
+export type ModelNode = { node: Object3D; indices: number[]; radius: number };
 export const isModel = (node: Object3D): node is Model =>
   (node as { isLoadedModel?: boolean }).isLoadedModel === true;
 
@@ -116,7 +118,7 @@ export function locate(p: Placed) {
  */
 export function moversOf(
   meshes: readonly (Bodied | null)[],
-  nested: readonly (CookedMadeBody | null)[],
+  nested: readonly (MovingBody | null)[],
   velocity: Float32Array,
 ) {
   const out: number[] = [];

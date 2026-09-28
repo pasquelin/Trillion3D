@@ -9,7 +9,7 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
-import type { CookedMadeBody } from './cookedBodies.ts';
+import type { MovingBody } from './cookedBodies.ts';
 import { extrapolateAll, interpolateAll, landAll } from './drawnPoses.ts';
 import { createPosePlacer } from './placer.ts';
 
@@ -17,7 +17,7 @@ import { createPosePlacer } from './placer.ts';
  *  generations by slot, and the way out of one. */
 export interface PosedBodies {
   readonly meshes: readonly (Bodied | null)[];
-  readonly slots: { readonly nested: readonly (CookedMadeBody | null)[] };
+  readonly slots: { readonly nested: readonly (MovingBody | null)[] };
   readonly generation: Uint8Array;
   retire(index: number): void;
 }
@@ -117,7 +117,7 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
         if (g !== (head >>> GENERATION_SHIFT) % GENERATIONS || (mesh ?? made) == null) continue;
         if (bound[index] !== g) {
           if (mesh) placer.bind(index, g, mesh);
-          else placer.bindNode(index, g, made!.moves!.node, made!.scale);
+          else placer.bindNode(index, g, made!.moves.node, made!.scale);
           decorative[index] = mesh?.physics.decorative ? 1 : 0;
         }
         const asleep = (head & ASLEEP_BIT) !== 0,
