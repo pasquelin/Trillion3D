@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import type { Primitive } from '../../../../sdk-core/src/index.ts';
+import { decodeGeometryPage } from '../../page/decode/geometryPage.ts';
 import { liveRows, triangleBackend } from './triangle.fixture.ts';
 
 /** The fixture's triangle as a resource of its own, at rank `mesh`, its page served at `url`. */
@@ -51,5 +52,52 @@ test('a resource mounted in place is drawn once its cover is read, and unmounted
     backend.dispose();
     geometry.dispose();
     material.dispose();
+  }
+});
+
+/** A resource of its own mounted beside the fixture's triangle in three rows, `url` its page. */
+function mountBeside({ geometry, paged }: ReturnType<typeof triangleBackend>, url: string) {
+  const node = G.mesh(geometry, G.basicSurface({ side: G.DOUBLE_SIDE }));
+  const association = { meshes: 1, primitives: 0, placements: liveRows(3) };
+  return { node, association, primitive: resourceAt(paged, 1, url) };
+}
+
+test('a mounted resource moves to the blended class with its surface, as an opened one does', async () => {
+  const fixture = triangleBackend({ placements: liveRows(1) });
+  const { backend, camera } = fixture;
+  try {
+    await backend.prepare();
+    const mount = mountBeside(fixture, 'mounted-geometry.bin');
+    await backend.mountPlacements!(mount);
+    backend.render(camera);
+    const opaque = backend.metrics().drawCalls;
+    const surfaces = [mount.node.material];
+    backend.refreshMaterials!(true, { surfaces, from: 'opaque', to: 'blend' });
+    backend.render(camera);
+    // Blended, each of its three rows is a draw of its own, no longer one instanced page.
+    assert.equal(backend.metrics().drawCalls, Number(opaque) + 2);
+    backend.refreshMaterials!(true, { surfaces, from: 'blend', to: 'opaque' });
+    backend.render(camera);
+    assert.equal(backend.metrics().drawCalls, opaque, 'and back to one instanced page');
+  } finally {
+    backend.dispose();
+  }
+});
+
+test('a page the host replaced keeps its geometry when a mount comes to share it', async () => {
+  const fixture = triangleBackend();
+  const { backend, camera, encoded } = fixture;
+  try {
+    await backend.prepare();
+    const replaced = decodeGeometryPage(encoded.data);
+    replaced.attributes.position[0] = -0.25;
+    backend.replaceGeometryPage!('triangle-geometry.bin', replaced);
+    await backend.mountPlacements!(mountBeside(fixture, 'triangle-geometry.bin'));
+    backend.render(camera);
+    const drawn = backend.scene.children.filter(G.isDrawnNode);
+    assert.ok(drawn.length >= 2, 'the opened triangle and the mounted rows');
+    for (const node of drawn) assert.equal(node.geometry.getAttribute('position')!.getX(0), -0.25);
+  } finally {
+    backend.dispose();
   }
 });
