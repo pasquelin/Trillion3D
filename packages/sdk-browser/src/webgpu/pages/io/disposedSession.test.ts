@@ -4,49 +4,20 @@
 // session still reports by name.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createSceneLightStore, type ClusterManifest } from '../../../../../sdk-core/src/index.ts';
 import { SUN } from '../../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
-import { MANIFEST_IDENTITY } from '../../../backend/pagesBackend.fixture.ts';
-import type { BackendDiagnostic } from '../../../backend/types.ts';
-import { collectClusterPages } from '../../../page/selection/selection.ts';
-import { packDagSelection } from '../../../gpu/dag/selection.ts';
-import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
-import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
-import { webgpuPagesBackend } from '../pages.ts';
-import { SHADOW_LIMITS, along, camera, mixedBinScene } from '../testScenes.fixture.ts';
+import { along, camera } from '../testScenes.fixture.ts';
+import { SHADOW_LAYER_PASS } from '../../../gpu/shadow/staticLayer.ts';
+import { floorCasterBackend } from '../../shadow/floorCaster.fixture.ts';
 
 /** A caster over a floor, lit by the sun, moved once: its static layer is on its way. `fail`
  *  breaks the device's layouts from then on; `dispose` closes the session before it lands.
- *  Returns what the session said. */
+ *  Returns what the session said, and whether every static layer made was freed. */
 async function pendingStaticLayer(end: 'dispose' | 'fail') {
-  installGpuGlobals();
-  const mixed = mixedBinScene();
-  const scene = {
-    ...mixed,
-    metadata: { ...mixed.metadata, ...MANIFEST_IDENTITY } as ClusterManifest,
-  };
-  scene.source.children[0].name = 'caster';
-  const { roots } = collectClusterPages(
-    scene.source,
-    scene.metadata,
-    scene.indices,
-    scene.associations,
-  );
-  const gpu = mockGpu({ packed: packDagSelection(roots), limits: SHADOW_LIMITS, compute: true });
   const said: string[] = [];
-  const lights = createSceneLightStore();
-  lights.add(SUN);
-  const backend = webgpuPagesBackend({
-    ...scene,
-    gpuDevice: gpu.device,
-    maxResidentPages: 4,
-    viewport: [32, 32],
-    pixelError: 0,
-    sceneLights: lights,
+  const { backend, gpu } = await floorCasterBackend(SUN, {
     diagnosticDetail: 'summary',
-    onDiagnostic: ({ phase }: BackendDiagnostic) => void said.push(phase),
+    onDiagnostic: ({ phase }) => void said.push(phase),
   });
-  await backend.prepare();
   const view = camera();
   backend.render(view);
   await backend.flush?.();
@@ -60,12 +31,16 @@ async function pendingStaticLayer(end: 'dispose' | 'fail') {
   else void backend.dispose();
   for (let tick = 0; tick < 8; tick++) await new Promise((next) => setTimeout(next, 0));
   if (end === 'fail') void backend.dispose();
-  return said;
+  const layers = gpu.textures.filter(({ label }) => label?.startsWith(SHADOW_LAYER_PASS));
+  assert.ok(layers.length, 'a static layer was on its way');
+  return { said, freed: layers.every(({ destroyed }) => destroyed) };
 }
 
 test('a session disposed before its static shadow layer lands says nothing', async (t) => {
   const warned = t.mock.method(console, 'warn', () => {});
-  assert.deepEqual(await pendingStaticLayer('dispose'), []);
+  const { said, freed } = await pendingStaticLayer('dispose');
+  assert.deepEqual(said, []);
+  assert.ok(freed, 'the layer on its way is freed');
   assert.deepEqual(
     warned.mock.calls.map((call) => call.arguments[0]),
     [],
@@ -74,5 +49,5 @@ test('a session disposed before its static shadow layer lands says nothing', asy
 
 test('a device that fails under a live session still reports the static layer by name', async (t) => {
   t.mock.method(console, 'warn', () => {});
-  assert.ok((await pendingStaticLayer('fail')).includes('shadow-static-layer-unavailable'));
+  assert.ok((await pendingStaticLayer('fail')).said.includes('shadow-static-layer-unavailable'));
 });
