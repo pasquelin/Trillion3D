@@ -137,7 +137,7 @@ fn a_concave_polygon_keeps_its_own_area() {
         sharp_corners: Vec::new(),
     };
     let mut out = Out::default();
-    let normals = normals::corners(&geometry.surface()).normals;
+    let normals = computed_normals(&geometry).normals;
     let (mesh, triangles) = build::mesh_json(
         &geometry,
         &normals,
@@ -176,4 +176,9 @@ fn read<'a>(out: &'a Out, accessor: &Value) -> &'a [u8] {
     let from = out.bin.views[view]["byteOffset"].as_u64().expect("start") as usize;
     let length = out.bin.views[view]["byteLength"].as_u64().expect("length") as usize;
     &out.bin.bytes[from..from + length]
+}
+
+/// Non-cancelled normal computation shared by the Blender geometry fixtures.
+fn computed_normals(geometry: &Geometry) -> normals::Shaded {
+    normals::corners(&geometry.surface(), &AtomicBool::new(false)).expect("normal computation")
 }
