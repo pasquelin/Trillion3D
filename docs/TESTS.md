@@ -56,8 +56,8 @@ touch; neither replaces `validate`.
 
 The CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as parallel jobs, one
 per group of `scripts/validate-steps.ts`: `quick`, `typescript`, `native` (Clippy and the Rust
-tests) and `unit`, the last split into three shards of the same file list
-(`TRILLION3D_TEST_SHARD=i/3`, passed to `node --test --test-shard`). No test is skipped by path.
+tests) and `unit`, the last split into shards of the same file list
+(`TRILLION3D_TEST_SHARD=i/n`, passed to `node --test --test-shard`). No test is skipped by path.
 The single required check, `validate`, needs every job. It runs on every pull request, on
 `develop`, and on every push of an issue branch (`<issue>-<name>`). A push run and a pull request
 run never share a concurrency group, so a push never cancels the run that proves the merge with
