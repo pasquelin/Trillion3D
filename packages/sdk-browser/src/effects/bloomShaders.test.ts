@@ -7,13 +7,14 @@ import { BLOOM_GLSL } from './bloomGlsl.ts';
 import { BLOOM_WGSL } from './bloomWgsl.ts';
 import { publishedDownTaps, publishedUpTaps, tapWords } from './bloom.fixture.ts';
 import { bloomBlend } from './bloomFilter.ts';
+import { fromHalf, toHalf } from '../../../sdk-core/src/lighting/ltcTable.ts';
 import { BLOOM_COMPOSE_WGSL } from './bloomLevel.ts';
 import { shaderFunctions } from '../texture/shaderRule.fixture.ts';
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from '../lighting/deferred/shaders.ts';
 
 type Blend = Record<string, (image: number, pixel: number) => number>;
 /** The nearest half float, ties to even: what an `rgba16float` target stores. */
-const half = (Math as unknown as { f16round: (x: number) => number }).f16round;
+const half = (x: number) => fromHalf(toHalf(x));
 
 /** Every `c+=<read>(uv+vec2(x,y)*stride)*w;` of a text, as taps. */
 function tapsOf(text: string): BloomTap[] {

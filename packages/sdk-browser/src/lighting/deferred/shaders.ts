@@ -181,13 +181,13 @@ const UNLIT_CHAIN = 'value.rgb/max(value.a,1e-6)';
  * chose — ACES unless it chose another —, last link of the chain (P4). That is the one of
  * programs lit by declared lights.
  */
-export const COMPOSE_SHADERS = composeSources(TONE_MAPPING_WGSL, CONTRACT_CHAIN);
+const COMPOSE_SHADERS = composeSources(TONE_MAPPING_WGSL, CONTRACT_CHAIN);
 /**
  * Unlit-view composition: identity, from linear to sRGB and nothing else. With no declared
  * source there is no radiance to expose or bring into the display range (P6) — albedo is
  * read as-is, which is what benches that compare images pixel for pixel ask for.
  */
-export const UNLIT_COMPOSE_SHADERS = composeSources('', UNLIT_CHAIN);
+const UNLIT_COMPOSE_SHADERS = composeSources('', UNLIT_CHAIN);
 /** Each program's compositions: as above, and blending in the chain's last bloom (#963). */
 export const CONTRACT_COMPOSITIONS = {
   plain: COMPOSE_SHADERS,
