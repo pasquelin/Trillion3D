@@ -1,15 +1,7 @@
 import { crossVector3, normalizeVector3 } from '../../math/primitives/vector.ts';
 import { BufferAttribute } from '../buffer/index.ts';
-import type { VertexAttribute } from '../buffer/attribute.ts';
 import { Geometry } from './geometry.ts';
-import { readComponent } from './bounds.ts';
-
-/** The three numbers of vertex `v` of `position`, as `geometry` reads them. */
-const at = (geometry: Geometry, position: VertexAttribute, v: number) => [
-  readComponent(geometry, position, v, 0),
-  readComponent(geometry, position, v, 1),
-  readComponent(geometry, position, v, 2),
-];
+import { pointAt } from './bounds.ts';
 
 /** Every triangle edge of `geometry` once, as `[a, b]` corner pairs and the faces it borders. */
 export function edgesOf(geometry: Geometry) {
@@ -22,7 +14,7 @@ export function edgesOf(geometry: Geometry) {
   const edges = new Map<string, { a: number; b: number; normals: number[][] }>();
   for (let t = 0; t + 2 < corners.length; t += 3) {
     const tri = [corners[t], corners[t + 1], corners[t + 2]];
-    const p = tri.map((v) => at(geometry, position, v));
+    const p = tri.map((v) => pointAt(position, v));
     const keys = p.map(([x, y, z]) => `${x},${y},${z}`);
     const e1 = p[1].map((x, i) => x - p[0][i]),
       e2 = p[2].map((x, i) => x - p[0][i]);
@@ -44,7 +36,7 @@ function segments(geometry: Geometry, keep: (normals: number[][]) => boolean) {
   const position = geometry.attributes.position;
   const out: number[] = [];
   for (const { a, b, normals } of edgesOf(geometry).values())
-    if (keep(normals)) for (const v of [a, b]) out.push(...at(geometry, position, v));
+    if (keep(normals)) for (const v of [a, b]) out.push(...pointAt(position, v));
   const lines = new Geometry();
   lines.setAttribute('position', new BufferAttribute(new Float32Array(out), 3));
   return lines;

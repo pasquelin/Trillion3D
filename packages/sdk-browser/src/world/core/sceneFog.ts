@@ -1,4 +1,4 @@
-import type { Color } from '../../../../sdk-core/src/world/math/color.ts';
+import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import type {
   SceneExponentialFog,
   SceneFog,
@@ -15,3 +15,7 @@ export type Fog =
 /** A fog as the lighting reads it: its colour's linear components, the law as written. */
 export const sceneFogOf = (fog: Fog | null): SceneFog | undefined =>
   fog ? { ...fog, color: [fog.color.r, fog.color.g, fog.color.b] } : undefined;
+
+/** A fog as a scene holds it, from the lighting's: its colour's components in a colour. */
+export const fogOf = (fog: SceneFog | null | undefined): Fog | null =>
+  fog ? { ...fog, color: new Color().setRGB(...fog.color) } : null;

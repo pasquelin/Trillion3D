@@ -5,6 +5,8 @@ import type { GeometryPool, PoolClamp } from '../../residency/pools.ts';
 import { coverageBudgetEvent, sendCoverageBudget } from '../../diagnostic/engineDiagnostic.ts';
 import { createResidentOrder } from './poolOrder.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
+import type { WebglViewState } from './views.ts';
+import { createUnionFit, type Ranked } from './poolUnion.ts';
 
 /**
  * The geometry copies a page holds once resident: one per record that owns its geometry — every
@@ -39,6 +41,9 @@ export type PoolEnvironment = {
   parentsOf: (rec: PageRec) => readonly PageRec[];
   /** Gives a page's geometry back; a held page is never named. */
   drop: (url: string) => void;
+  /** The views not drawn now (`views.ts`): what they ask for and draw joins the drawn view's, the
+   *  union under the one budget. None when the backend has one view. */
+  others?: readonly Pick<WebglViewState, 'requested' | 'shown'>[];
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
 };
 
@@ -59,7 +64,8 @@ export type PoolEnvironment = {
  * costs a few set operations, an image a walk of what it asks for and draws, by integer keys.
  */
 export function createGeometryBudget(env: PoolEnvironment) {
-  const { rootUrls, copies, state, parentsOf, drop, floorBytes, onDiagnostic } = env;
+  const { rootUrls, copies, state, parentsOf, drop, floorBytes, onDiagnostic } = env,
+    others = env.others ?? [];
   const drawn = drawGeometryPool(env),
     current = drawn.current,
     shares = drawn.shares;
@@ -73,15 +79,24 @@ export function createGeometryBudget(env: PoolEnvironment) {
     limit: () => current().allocatedBytes,
     pageBytes: () => current().pageBytes,
     floorBytes,
+    others,
   });
   let used = 0,
     room = 0;
+  const union = createUnionFit(shares, others);
   /** Charges `requested` in its order, the root cover held beforehand, against the slots it leaves;
-   *  returns how many fit. Sets `used` and `room`, never the verdict. */
-  const fit = (requested: readonly { url: string }[]) => {
+   *  returns how many fit. Sets `used` and `room`, never the verdict. With other views, what they
+   *  ask for joins it in one ranking under the same slots (`poolUnion.ts`). */
+  const fit = (requested: readonly Ranked[]) => {
     const { slots, clamp } = current();
     room = clamp === 'scene' ? Infinity : slots;
     used = copies.root();
+    if (others.length) {
+      const admitted = union.fit(requested, room, used);
+      used = union.used;
+      return admitted;
+    }
+    // One view: the admission as it was before views, kept apart from the union's walk.
     let admitted = requested.length;
     for (let i = 0; i < requested.length; i++) {
       used += shares.get(requested[i].url) ?? 0;
@@ -95,7 +110,7 @@ export function createGeometryBudget(env: PoolEnvironment) {
      * leaves; returns how many are admitted. The verdict — whether all of it fits — moves here and
      * waits for `flush`. `pixelError` is the host's threshold the cut was drawn at.
      */
-    admit(requested: readonly { url: string }[], pixelError: number) {
+    admit(requested: readonly Ranked[], pixelError: number) {
       const admitted = fit(requested);
       if (used > room !== limited) {
         limited = !limited;

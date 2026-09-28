@@ -47,8 +47,8 @@ export function mockDagDevice(
     createPipelineLayout: () => ({}),
     createComputePipeline: ({ compute }: { compute: { entryPoint: string } }) => compute,
     createBindGroup: (desc: typeof bind) => {
-      if (!desc || desc.entries.length !== 9)
-        throw new Error('dag selection bind group requires 9 entries');
+      if (!desc || desc.entries.length !== 10)
+        throw new Error('dag selection bind group requires 10 entries');
       bind = desc;
       return desc;
     },

@@ -27,6 +27,7 @@ export const WHEEL_ROLE = { steers: 1, driven: 2, handbrake: 4, sprocket: 8 } as
 /**
  * The vehicles' state after a step (`jolt_vehicles`): per vehicle `id, wheel count, speed (m/s
  * forward), rpm, gear` then per wheel `x, y, z, qx, qy, qz, qw`, its pose in the body's frame.
+ * A vehicle at rest is written only as it comes to rest (`vehicles.cpp`).
  */
 export const VEHICLE_STATE_WORDS = 5;
 export const WHEEL_STATE_WORDS = 7;

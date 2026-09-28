@@ -6,6 +6,7 @@ import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
+import { framesBytes, wholeRange } from '../../../packages/sdk-browser/src/gpu/dag/frameRanges.ts';
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
 import type { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts';
@@ -50,9 +51,10 @@ export function versPage(
   const cold = resident ? withResidency(packed, resident) : packed.pageCones;
   // The whole uniform array the kernel binds; the case fills its first view.
   const uni = new Float32Array(DAG_UNIFORM_BYTES / 4);
-  writeDagUniforms(uni, packed, uniforms, !!resident);
+  writeDagUniforms(uni, packed, uniforms, !!resident, selectionListCap(packed.pageCount));
   const frames = primitiveFrameWords(packed);
-  const blockCount = Math.ceil(Math.max(1, packed.pageCount) / SELECTION_WORKGROUP);
+  const blockCount = Math.ceil(Math.max(1, packed.pageCount) / SELECTION_WORKGROUP),
+    worldCount = Math.max(1, packed.worldCount);
   return {
     name,
     travail: dagWorkLayout(blockCount),
@@ -62,13 +64,18 @@ export function versPage(
     stagedBytes: stagedOutputBytes(selectionListCap(packed.pageCount)),
     pageCount: packed.pageCount,
     nodeCount: packed.nodeCount,
-    worldCount: Math.max(1, packed.worldCount),
+    worldCount,
     levelCount: packed.levelSizes.length,
     clusters: octets(packed.clusters),
     nodes: octets(packed.nodes),
     worlds: octets(packed.worlds),
     pageCones: octets(cold),
     frames: octets(frames),
+    /** Bytes of `frames` as the engine sizes it: the host's row, then what `dagPrepare` derives
+     *  per primitive behind it (`shader/primitiveWgsl.ts`). */
+    framesBytes: framesBytes(worldCount),
+    /** `range`: one range holds every primitive (`frameRanges.ts`). */
+    range: octets(wholeRange(worldCount)),
     uniforms: octets(uni),
   };
 }

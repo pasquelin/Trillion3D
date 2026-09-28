@@ -1,21 +1,26 @@
-import type { SceneLight, SceneLightStore } from '../../../sdk-core/src/index.ts';
-import { GraphAmbientLight, GraphLight, GraphLightProbe } from '../host/graph/light.ts';
-import type { GraphScene } from '../host/graph/scene.ts';
-import { Color } from '../../../sdk-core/src/world/math/color.ts';
+import type { SceneFog, SceneLight, SceneLightStore } from '../../../sdk-core/src/index.ts';
+import { Light } from '../../../sdk-core/src/world/light/light.ts';
+import { aimOf } from '../host/graph/kinds.ts';
+import { numbered } from '../host/graph/serial.ts';
+import type { Scene } from '../world/core/scene.ts';
+import { fogOf } from '../world/core/sceneFog.ts';
 import { createUnlitAlbedo } from './unlitAlbedo.ts';
-import { createLight, writeLight, type ContractLight } from './lightWrite.ts';
+import { createLight, writeLight } from './lightWrite.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
-
-/** The node a light aims at, carried in the graph beside it: a sun's or a spot's, none for a rectangle. */
-const aimOf = (light: ContractLight) => (light instanceof GraphLight ? light.target : undefined);
+import { castsShadow } from '../../../sdk-core/src/scene/light-shadow/casters.ts';
 
 /** A WebGL2 engine applies the contract lights; only their shadows are missing — one map per
  *  light, six faces for a point light, would be outside the frame budget. The engine's published
- *  capabilities say so. */
+ *  capabilities say so, and a light that asks to cast is named (`ContractShadows`). */
 export const CONTRACT_LIGHTS_LIGHTING = {
   shadows: false,
   reason: "contract lights with no cast shadow; the 'bounce' view equals the lit view there",
 };
+
+/** Hears the ids of the lit lights that ask to cast — the contract's, else the source graph's —
+ *  at each change of them: a WebGL2 engine draws them unshadowed and says so
+ *  (`noticeShadowRefusal`), never silently. */
+export type ContractShadows = (casting: readonly string[]) => void;
 
 /** Raw albedo by light: diffuse is `irradiance · albedo / π`, so an ambient irradiance of π
  *  yields albedo — `createUnlitAlbedo` keeps every material's response to it that albedo. */
@@ -29,23 +34,30 @@ const UNLIT_IRRADIANCE = Math.PI;
  * the one from before this batch, pixel for pixel. As soon as it has, the source graph
  * disappears: two stacked light sets would be nobody's lighting.
  */
-function createContractLights(scene: GraphScene, store: SceneLightStore | undefined) {
+function createContractLights(scene: Scene, store: SceneLightStore | undefined) {
   const group = new Group();
   group.visible = false;
   scene.add(group);
-  const ambient = new GraphAmbientLight(new Color().setRGB(1, 1, 1), UNLIT_IRRADIANCE);
+  const ambient = numbered(new Light('ambient', { color: [1, 1, 1], intensity: UNLIT_IRRADIANCE }));
   // The environment's irradiance (`packages/sdk-core/src/scene/core/environment.ts`): the probe
   // carries the same nine coefficients, in the same band order, read with the same cosine-lobe
   // factors (`../../webgl/cluster/probe.ts`).
-  const probe = new GraphLightProbe();
+  const probe = numbered(new Light('probe'));
   ambient.visible = probe.visible = false;
   group.add(ambient, probe);
   const albedo = createUnlitAlbedo(scene);
   // The light type is kept beside it: setting a point light as a spotlight changes the light
   // object, and comparing type strings would cost an allocation per light and per pass.
-  const lights = new Map<string, { light: ContractLight; kind: SceneLight['kind'] }>();
+  const lights = new Map<string, { light: Light; kind: SceneLight['kind'] }>();
   let epoch = -1,
     governs = false;
+  // The lit lights asking to cast, read from the store's own flag at each of its revisions.
+  let casting: readonly string[] = [];
+  // The store's fog the scene holds, converted once: a revision that keeps it rewrites nothing.
+  let heldFog: SceneFog | undefined;
+  const setFog = (fog: SceneFog | undefined) => {
+    if (fog !== heldFog) scene.fog = fogOf((heldFog = fog));
+  };
   const drop = (id: string) => {
     const entry = lights.get(id)!;
     group.remove(entry.light);
@@ -85,7 +97,7 @@ function createContractLights(scene: GraphScene, store: SceneLightStore | undefi
         albedo.setEnabled(false);
         if (governs) dropAll();
         governs = false;
-        scene.fog = null;
+        setFog(undefined);
         group.visible = false;
         epoch = store.epoch;
         return false;
@@ -99,10 +111,20 @@ function createContractLights(scene: GraphScene, store: SceneLightStore | undefi
       albedo.setEnabled(store.unlit);
       if (store.unlit) dropAll();
       else rebuild();
+      // The unlit view draws no light, so no shadow is missing from it.
+      casting = store.unlit ? [] : store.ids.filter((_, slot) => castsShadow(store, slot));
       const sh = store.unlit ? undefined : store.environment?.irradiance;
-      scene.fog = (!store.unlit && store.environment?.fog) || null;
-      if ((probe.visible = !!sh)) probe.sh.fromArray(sh);
+      setFog(store.unlit ? undefined : store.environment?.fog);
+      if ((probe.visible = !!sh)) copyCoefficients(probe, sh);
       return true;
+    },
+    /** True once the contract lights the scene, the source graph then off. */
+    get governs() {
+      return governs;
+    },
+    /** The ids of the lit contract lights asking to cast, as at the store's last revision. */
+    get casting() {
+      return casting;
     },
     /** True when the image comes out in real light: then goes through the display curve (P6). */
     get lit() {
@@ -111,20 +133,40 @@ function createContractLights(scene: GraphScene, store: SceneLightStore | undefi
   };
 }
 
+/** The environment's coefficients written into the probe's own list, in place. */
+function copyCoefficients(probe: Light, sh: ArrayLike<number>) {
+  const into = (probe.sh ??= []);
+  for (let k = 0; k < sh.length; k++) into[k] = sh[k];
+}
+
 /**
  * Hooks the contract onto a WebGL2 engine and returns what it takes to hold it:
- * `apply` on every store revision, `lit` every frame. Imported lights are declared before
- * the engine exists, so the first pass happens here, at construction.
+ * `apply` on every store revision, `lit` every frame; `shadowsRefused` hears the casting lights
+ * of the set that lights, at each change of either.
+ * Imported lights are declared before the engine exists, so the first pass happens here, at
+ * construction.
  */
 export function attachContractLights(
-  scene: GraphScene,
+  scene: Scene,
   store: SceneLightStore | undefined,
-  source: { setEnabled(enabled: boolean): void; readonly lit: boolean },
+  source: {
+    setEnabled(enabled: boolean): void;
+    readonly lit: boolean;
+    readonly casting: readonly string[];
+    castingChanged?: () => void;
+  },
   sceneChanged: () => void,
+  shadowsRefused?: ContractShadows,
 ) {
   const contract = createContractLights(scene, store);
+  // The casting lights of the set that lights now: the contract's once it governs, else the
+  // source graph's. Heard at each change of either, never per frame.
+  const refused = () => shadowsRefused?.(contract.governs ? contract.casting : source.casting);
+  // A source lamp shown, hidden or copied again is named if the source graph lights.
+  source.castingChanged = refused;
   const apply = () => {
     source.setEnabled(!contract.refresh());
+    refused();
     sceneChanged();
   };
   apply();

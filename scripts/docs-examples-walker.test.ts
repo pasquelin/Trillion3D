@@ -2,11 +2,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { CommandWriter, PHYSICS_STEP, SHAPE } from '../packages/sdk-core/src/physics/index.ts';
-import {
-  body,
-  standCharacter,
-  startModule,
-} from '../packages/sdk-browser/src/physics/module.fixture.ts';
+import { standCharacter, startModule } from '../packages/sdk-browser/src/physics/module.fixture.ts';
+import { body } from '../packages/sdk-browser/src/physics/records.fixture.ts';
 import type { GltfDocument } from './docs/examples/gltf-types.ts';
 
 type Mesh = { vertices: Float32Array; indices: Uint32Array };

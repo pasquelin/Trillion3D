@@ -43,14 +43,14 @@ export function normalMapFrames(
 ) {
   const previous = mesh.material,
     previousUv = mesh.geometry.attributes.uv,
-    scene = new G.GraphScene(),
+    scene = new G.Scene(),
     sun = G.directionalLight(0xffffff, 1),
     texel: [number, number, number] = [160, 210, 230],
     tilt = decoded(...texel),
     mapped = G.standardSurface({ roughness: 1, metalness: 0 }),
     baked = G.standardSurface({ roughness: 1, metalness: 0 });
   sun.position.set(0, 1, 1);
-  scene.add(sun, sun.target!);
+  scene.add(sun, sun.target);
   scene.updateMatrixWorld(true);
   (mapped.color as G.Color).setRGB(0.18, 0, 0);
   (baked.color as G.Color).copy(mapped.color as G.Color);

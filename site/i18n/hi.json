@@ -35,7 +35,7 @@
     "jumpTo": "किसी विषय पर जाएँ",
     "waitsFor": "इंजन का इंतज़ार:",
     "partial": "आंशिक",
-    "coming": "जल्द आ रहा है: {{titles}}"
+    "coming": "जल्द आ रहा है"
   },
   "api": {
     "title": "इंजन संदर्भ",
@@ -1258,6 +1258,7 @@
       "a-tube-along-a-spline": "स्प्लाइन के साथ ट्यूब",
       "curved-surfaces": "घुमावदार सतहें",
       "instances-in-colour": "रंगीन इंस्टेंस",
+      "a-hundred-thousand-instances": "एक लाख इंस्टेंस",
       "copies-along-a-path": "पथ के साथ प्रतियाँ",
       "scattered-on-a-surface": "सतह पर बिखरे",
       "a-world-of-blocks": "ब्लॉकों की दुनिया",
@@ -1371,7 +1372,11 @@
       "red-cyan-anaglyph": "लाल-सियान एनाग्लिफ़",
       "camera-layers": "कैमरा लेयर",
       "a-robot-that-walks-and-waves": "रोबोट की चालों को मिलाना",
+      "a-recorded-fly-through": "रिकॉर्ड की गई उड़ान का पुनः प्रदर्शन",
+      "a-crane-that-swings": "भार झुलाती क्रेन",
       "a-wave-across-a-grid": "क्यूब्स की लहर",
+      "doors-that-open": "पास आने पर खुलने वाले दरवाज़े",
+      "a-carousel": "लकड़ी के घोड़ों वाला हिंडोला",
       "keyframes-by-hand": "हाथ से कीफ़्रेम",
       "one-clip-many-objects": "एक क्लिप, कई ऑब्जेक्ट",
       "animation-from-the-file": "फ़ाइल से एनिमेशन",
@@ -1404,6 +1409,7 @@
       "observatory-streamed": "स्ट्रीम किए गए क्लस्टर",
       "health-check": "स्वास्थ्य जाँच",
       "memory-on-a-budget": "मेमोरी बजट",
+      "a-walk-through-the-city": "शहर में पैदल यात्रा",
       "detail-by-pixel-error": "पिक्सेल त्रुटि से डिटेल",
       "watch-a-world-load": "एक दुनिया को लोड होते देखो",
       "ten-thousand-objects": "दस हज़ार ऑब्जेक्ट",
@@ -1411,6 +1417,7 @@
       "what-hides-what": "क्या क्या छुपाता है",
       "create-and-dispose": "बनाना और हटाना",
       "no-hitch-on-first-draw": "पहले ड्रॉ पर कोई रुकावट नहीं",
+      "inside-a-component": "एक कंपोनेंट के अंदर",
       "inside-the-g-buffer": "G-buffer के अंदर",
       "reading-pixels-back": "पिक्सेल वापस पढ़ना",
       "a-city-from-3d-tiles": "3D Tiles से एक शहर",
@@ -1449,6 +1456,7 @@
       "labels-that-follow": "पीछा करने वाले लेबल",
       "select-with-a-box": "एक बॉक्स से चुनें",
       "sound-made-visible": "दिखाई गई ध्वनि",
+      "measure-a-distance": "दो बिंदुओं के बीच दूरी मापें",
       "click-to-pick": "चुनने के लिए क्लिक करें",
       "hover-over-triangles": "त्रिभुजों पर होवर करें",
       "pick-lines-and-points": "रेखाएँ और बिंदु चुनें",
@@ -1514,9 +1522,14 @@
       "shadows-case-by-case": "छायाएँ, एक-एक स्थिति",
       "shadows-through-see-through-panes": "पारदर्शी शीशों से पड़ती छायाएँ",
       "a-walker-among-balls": "गेंदों के बीच चलने वाला",
-      "a-dolly-along-the-canal": "नहर के किनारे कैमरा डॉली"
+      "an-elevation-of-the-house": "घर का लंबकोणीय एलिवेशन",
+      "hover-to-highlight": "किसी भाग को उभारने के लिए उस पर होवर करें",
+      "a-dolly-along-the-canal": "नहर के किनारे कैमरा डॉली",
+      "a-folder-merged-into-one-scene": "एक दृश्य में मिला फ़ोल्डर",
+      "drag-a-crate": "एक पेटी खींचें"
     },
     "missing": {
+      "inside-a-component": "वर्ल्ड हटने पर इंजन द्वारा बनाए कैनवास की सफ़ाई",
       "floating-crates": "हर फ़्रेम में फिर से लिखी गई ज्यामिति",
       "thick-lines": "चौड़ी रेखाएँ",
       "a-line-that-draws-itself": "ज्यामिति ड्रॉ रेंज",

@@ -35,7 +35,7 @@
     "jumpTo": "Chuyển đến chủ đề",
     "waitsFor": "Đang chờ bộ máy:",
     "partial": "Một phần",
-    "coming": "Sắp có: {{titles}}"
+    "coming": "Sắp có"
   },
   "api": {
     "title": "Tài liệu tham khảo bộ máy",
@@ -1258,6 +1258,7 @@
       "a-tube-along-a-spline": "Ống dọc theo đường spline",
       "curved-surfaces": "Bề mặt cong",
       "instances-in-colour": "Thực thể màu sắc",
+      "a-hundred-thousand-instances": "Một trăm nghìn bản thể",
       "copies-along-a-path": "Bản sao dọc đường đi",
       "scattered-on-a-surface": "Rải trên bề mặt",
       "a-world-of-blocks": "Thế giới khối vuông",
@@ -1371,7 +1372,11 @@
       "red-cyan-anaglyph": "Anaglyph đỏ-lam",
       "camera-layers": "Các lớp camera",
       "a-robot-that-walks-and-waves": "Pha trộn chuyển động robot",
+      "a-recorded-fly-through": "Phát lại hành trình bay đã ghi",
+      "a-crane-that-swings": "Cần cẩu đung đưa tải",
       "a-wave-across-a-grid": "Sóng khối lập phương",
+      "doors-that-open": "Cửa mở khi bạn đến gần",
+      "a-carousel": "Vòng quay ngựa gỗ",
       "keyframes-by-hand": "Khung khóa thủ công",
       "one-clip-many-objects": "Một clip, nhiều đối tượng",
       "animation-from-the-file": "Hoạt ảnh từ tệp",
@@ -1404,6 +1409,7 @@
       "observatory-streamed": "Các cụm được truyền phát",
       "health-check": "Kiểm tra sức khỏe",
       "memory-on-a-budget": "Ngân sách bộ nhớ",
+      "a-walk-through-the-city": "Đi bộ qua thành phố",
       "detail-by-pixel-error": "Chi tiết theo sai số pixel",
       "watch-a-world-load": "Xem một thế giới tải lên",
       "ten-thousand-objects": "Mười nghìn đối tượng",
@@ -1411,6 +1417,7 @@
       "what-hides-what": "Cái gì che khuất cái gì",
       "create-and-dispose": "Tạo và hủy",
       "no-hitch-on-first-draw": "Không giật ở lần vẽ đầu",
+      "inside-a-component": "Bên trong một thành phần",
       "inside-the-g-buffer": "Bên trong G-buffer",
       "reading-pixels-back": "Đọc lại các pixel",
       "a-city-from-3d-tiles": "Thành phố từ 3D Tiles",
@@ -1449,6 +1456,7 @@
       "labels-that-follow": "Nhãn theo dõi",
       "select-with-a-box": "Chọn bằng một hộp",
       "sound-made-visible": "Âm thanh được hiển thị",
+      "measure-a-distance": "Đo khoảng cách giữa hai điểm",
       "click-to-pick": "Nhấp để chọn",
       "hover-over-triangles": "Di chuột qua các tam giác",
       "pick-lines-and-points": "Chọn đường và điểm",
@@ -1514,9 +1522,14 @@
       "shadows-case-by-case": "Bóng đổ, từng trường hợp",
       "shadows-through-see-through-panes": "Bóng đổ qua những tấm kính trong",
       "a-walker-among-balls": "Người đi bộ giữa những quả bóng",
-      "a-dolly-along-the-canal": "Máy quay trượt dọc kênh"
+      "an-elevation-of-the-house": "Mặt đứng trực giao của ngôi nhà",
+      "hover-to-highlight": "Di chuột để làm nổi bật một bộ phận",
+      "a-dolly-along-the-canal": "Máy quay trượt dọc kênh",
+      "a-folder-merged-into-one-scene": "Thư mục được gộp thành một cảnh",
+      "drag-a-crate": "Kéo thùng hàng"
     },
     "missing": {
+      "inside-a-component": "dọn canvas do bộ máy tạo khi hủy thế giới",
       "floating-crates": "hình học được ghi lại mỗi khung hình",
       "thick-lines": "đường rộng",
       "a-line-that-draws-itself": "phạm vi vẽ hình học",

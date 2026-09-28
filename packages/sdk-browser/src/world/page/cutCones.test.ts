@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { drawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts';
-import { coneHolds, triangleCone } from '../../../../../tests/kit/cone.ts';
+import { coneHolds } from '../../../../../tests/kit/cone.ts';
 import { cutRuntimePrimitive } from './runtimePrimitive.ts';
 import { cutDrawnTriangles, packDrawn } from './runtimeCut.ts';
 
@@ -16,18 +16,18 @@ await prepareSdkWasm(readFileSync(join(import.meta.dirname, '../../page/decode/p
 
 test('every cut page carries the cone triangle_cone builds on its own triangles', async () => {
   const drawn = drawnTriangles(geometry.sphere(1, 32, 16), 'triangles')!;
-  const cut = await cutDrawnTriangles(drawn, true);
+  const cut = await cutDrawnTriangles(drawn, true, false);
   assert.ok(cut.pages.length > 1, 'the sphere spans several clusters');
   for (const page of cut.pages) {
-    const built = triangleCone(drawn.positions, new Uint32Array(page.index));
-    assert.ok(coneHolds(page.cone!, built), JSON.stringify({ cone: page.cone, built }));
+    const index = new Uint32Array(page.index);
+    assert.ok(coneHolds(page.cone!, drawn.positions, index), JSON.stringify(page.cone));
   }
 });
 
 test('the served pages keep their cone, but those of line and sprite quads', async () => {
   const box = geometry.box(1, 1, 1);
   const serve = async (drawn: NonNullable<ReturnType<typeof drawnTriangles>>) => {
-    const { primitive, urls } = await cutRuntimePrimitive(packDrawn(drawn), drawn);
+    const { primitive, urls } = await cutRuntimePrimitive(packDrawn(drawn, false), drawn);
     urls.forEach((url) => URL.revokeObjectURL(url));
     return primitive.pages.map((page) => page.cone);
   };

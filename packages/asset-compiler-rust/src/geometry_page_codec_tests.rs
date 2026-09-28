@@ -125,7 +125,7 @@ fn round_trip(vertices: usize, seed: u32) {
     let (indices, positions) = mesh(vertices, &mut state);
     let attrs = attributes(vertices, &mut state);
     let carried: Vec<&Attribute> = attrs.iter().collect();
-    let encoded = encode(&indices, &positions, &carried, -9).expect("encode");
+    let encoded = encode(&indices, &positions, &carried, -9, UV_EXPONENT).expect("encode");
     let page = codec::decode(&encoded.bytes, 64 << 20).expect("decode");
     let header = &encoded.header;
     assert_eq!(page.flags, header.flags);
@@ -153,4 +153,27 @@ fn golden_page_reread_within_its_declared_error() {
     for (vertices, seed) in [(3usize, 1u32), (17, 7), (1024, 99), (65_535, 424_242)] {
         round_trip(vertices, seed);
     }
+}
+
+/// A cluster of a regular grid (CMP-09): its corners, numbered by first use, cost well under the
+/// fixed width of a local index, and decode to the same triangles.
+#[test]
+fn a_grid_cluster_codes_its_corners_below_their_fixed_width() {
+    let side = 9u32;
+    let positions: Vec<f32> = (0..side * side)
+        .flat_map(|v| [(v % side) as f32, (v / side) as f32, 0.0])
+        .collect();
+    let indices: Vec<u32> = (0..side - 1)
+        .flat_map(|r| (0..side - 1).map(move |c| r * side + c))
+        .flat_map(|v| [v, v + 1, v + side, v + 1, v + side + 1, v + side])
+        .collect();
+    let encoded = encode(&indices, &positions, &[], -4, UV_EXPONENT).expect("encode");
+    let fixed_bits = indices.len() * 7;
+    let corner_bits = codec::Layout::of(&encoded.header).position[0] * 32;
+    assert!(
+        corner_bits * 10 < fixed_bits * 8,
+        "{corner_bits} of {fixed_bits} bits"
+    );
+    let page = codec::decode(&encoded.bytes, 1 << 20).expect("decode");
+    verify(&page, &indices, &positions, &[], 0.0);
 }

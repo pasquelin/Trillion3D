@@ -67,10 +67,10 @@ test('a copied instanced mesh keeps its placements, count, morph weights and dra
 
 test('the engine numbers the meshes it builds in its one count; a page-built mesh takes none', () => {
   const page = new G.Mesh(G.boxGeometry(), G.basicSurface());
-  const light = new G.GraphLight('point'),
+  const light = G.pointLight(),
     built = G.mesh(),
     copy = hostMeshCopy(built);
   assert.equal(G.serialOf(page), undefined, 'a world mesh: its diagnostic colour keys on its id');
-  assert.ok(light.serial < G.serialOf(built)! && G.serialOf(built)! < G.serialOf(copy)!);
+  assert.ok(G.serialOf(light)! < G.serialOf(built)! && G.serialOf(built)! < G.serialOf(copy)!);
   assert.ok(!('serial' in page), 'the core mesh carries no engine number');
 });

@@ -1,14 +1,15 @@
 // Options, harness views, and server mounts for `bench.ts`.
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { VIEWS } from './poses.ts';
+import { FRAMES_PER_SEGMENT, VIEWS } from './poses.ts';
 import { ASSETS } from './scene.ts';
 import { lightingSettings } from './lightingOptions.ts';
 import type { SideBase } from './dists.ts';
-import type { BenchSettings } from './benchSettings.ts';
+import type { BenchSettings, LivePools } from './benchSettings.ts';
+import { residentFraction } from './poolFill.ts';
 export type { BenchSettings } from './benchSettings.ts';
 
-export { PATH_VERSION, VIEWS, poseAt } from './poses.ts';
+export { PATH_VERSION, VIEWS, poseAt, trajectoryPoses } from './poses.ts';
 export { applySceneFlag, assetsManifest, sceneGltf, sceneOf, scenesOf } from './scene.ts';
 export { resolveSides, sdkEntryUrl } from './dists.ts';
 export { ENGINES, engineOf, equipSide, resolveCache, sideReport } from './sideOptions.ts';
@@ -59,13 +60,18 @@ export function parseArgs(argv: string[]) {
   return flags;
 }
 
-/** In-session memory budgets, or `null` when none requested. */
-function live(flags: Map<string, string>, mio: (name: string) => number | null) {
+/** In-session memory budgets, or `null` when none requested. The live texture pool takes MiB, or
+ *  `<n>%` of the texture bytes the settled pose holds resident: a pool the scene fills. */
+function live(flags: Map<string, string>, mio: (name: string) => number | null): LivePools | null {
+  const TEXTURE = 'pool-textures-vivant';
+  const texture = flags.get(TEXTURE),
+    fraction = texture === undefined ? undefined : residentFraction(texture);
   const budgets = {
     geometryPoolBytes: flags.has('pool-geometrie-vivant')
       ? mio('pool-geometrie-vivant')
       : undefined,
-    texturePoolBytes: flags.has('pool-textures-vivant') ? mio('pool-textures-vivant') : undefined,
+    texturePoolBytes: texture !== undefined && fraction === undefined ? mio(TEXTURE) : undefined,
+    textureResidentFraction: fraction,
   };
   return Object.values(budgets).some((v) => v !== undefined) ? budgets : null;
 }
@@ -111,7 +117,8 @@ export function readOptions(argv: string[], root: string) {
   if (!(dpr > 0)) throw new Error('--dpr must be a strictly positive number');
   const settings: BenchSettings = {
     engine,
-    frames: number('images', 60),
+    // A moving run covers one trajectory segment by default.
+    frames: number('images', FRAMES_PER_SEGMENT),
     warmup: number('chauffe', 8),
     pixelErrors,
     // `--max-pages`: a limit in PAGES on the geometry pool, for test scenes; without it,
@@ -146,6 +153,8 @@ export function readOptions(argv: string[], root: string) {
     ...lightingSettings(flags, number),
     // `--camera-mobile` advances position along benchmark trajectory for each measured frame.
     movingCamera: flags.get('camera-mobile') === 'true',
+    // `--gaze-network`: plays each trajectory once without settle barrier and reads network bytes.
+    gazeNetwork: flags.get('gaze-network') === 'true',
     // `--instances`: number of object copies placed in a grid by the SDK.
     instances: number('instances', 1),
     // `--isolation on` sets COOP/COEP on the harness server: page becomes cross-origin isolated.
@@ -159,6 +168,8 @@ export function readOptions(argv: string[], root: string) {
     throw new Error('--instances must be 1, 4, 9 or 12');
   if (settings.lights < 0) throw new Error('--lampes must be a non-negative integer');
   if (settings.frames < 1) throw new Error('--images must be a positive integer');
+  if (settings.gazeNetwork && settings.textureSource !== 'cache')
+    throw new Error('--gaze-network requires --textures cache');
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const out = resolve(flags.get('out') ?? join(root, '.mesure/out', `${engine}-${stamp}`));
   // `--ressources`: base path referenced by compiled cache glTF via relative path, mounted under `/assets/`.

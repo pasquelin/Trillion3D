@@ -11,7 +11,7 @@
 //! error, and so the triangle's width, is under a pixel — a column the level flattened into a
 //! sliver draws a line, whatever its normals. Its error already said what it lost.
 use super::DagCluster;
-use crate::shared_math::{cross, dot, length, scale, sub};
+use crate::shared_math::{cross, dot, length, sub, unit};
 use crate::{CompilerError, Result};
 use rayon::prelude::*;
 
@@ -133,11 +133,6 @@ pub(crate) fn face_normal(positions: &[f32], tri: &[u32; 3]) -> Option<([f64; 3]
         .max(length(sub(c, b)));
     let area2 = length(normal);
     (area2 > SLIVER * longest * longest).then(|| unit(normal).map(|n| (n, area2 / longest)))?
-}
-
-fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
-    let length = length(v);
-    (length > 0.0 && length.is_finite()).then(|| scale(v, 1.0 / length))
 }
 
 /// Checks a finished DAG and returns, per level in level order, the largest normal deviation and

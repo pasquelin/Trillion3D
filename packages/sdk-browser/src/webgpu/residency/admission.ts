@@ -43,11 +43,13 @@ export function createPageAdmission(options: {
   const holds = (rec: PageRec) => !!getCache()?.get(pageAddress(rec));
   /** One load, pinned when the image holds the page: the wanted set or the root cover. */
   const load = async (rec: PageRec) => {
-    const address = pageAddress(rec);
-    await current().load(address, signal);
-    const key = tracking.keyOf(rec);
-    if (tracking.wanted.has(key) || bootstrapKey[key]) {
-      current().pin(address);
+    const address = pageAddress(rec),
+      key = tracking.keyOf(rec),
+      held = !!bootstrapKey[key];
+    // The root cover is held on arrival, inside the cache's queue, never left unpinned in between.
+    await current().load(address, signal, held ? 'held' : undefined);
+    if (held || tracking.wanted.has(key)) {
+      if (!held) current().pin(address);
       tracking.markPinned(key);
     }
   };
@@ -66,4 +68,45 @@ export function createPageAdmission(options: {
     return loaded + 1;
   };
   return admit;
+}
+
+/**
+ * The reads an admission pass is about to wait for, started before it admits anything: each page of
+ * `pages` that `admits` accepts and the pool does not hold, after the parents its admission would
+ * bring, at most `limit` of them, under `signal`. The walk is `admit`'s and stops where `admit`
+ * would give up (a parent without its bytes). The reads overlap on the network; the pass after them
+ * is not touched — the same pages in the same order, each load joining the read under way.
+ */
+export function createAdmissionReads(options: {
+  hasBytes: (rec: PageRec) => boolean;
+  parentsOf: (rec: PageRec) => readonly PageRec[];
+  prefetch: (rec: PageRec, signal: AbortSignal, priority?: number) => void;
+}) {
+  const { hasBytes, parentsOf, prefetch } = options;
+  return (
+    pages: readonly PageRec[],
+    limit: number,
+    admits: (rec: PageRec) => boolean,
+    pool: Pick<PoolCache, 'get'>,
+    signal: AbortSignal,
+    priority?: number,
+  ) => {
+    // `refused`: a page whose walk stopped, so the pages under a shared ancestor walk it once.
+    const asked = new Set<string>(),
+      refused = new Set<string>();
+    const walk = (rec: PageRec): boolean => {
+      const address = pageAddress(rec);
+      if (pool.get(address) || asked.has(address)) return true;
+      if (refused.has(address)) return false;
+      if (!hasBytes(rec) || !parentsOf(rec).every(walk) || asked.size >= limit) {
+        refused.add(address);
+        return false;
+      }
+      asked.add(address);
+      prefetch(rec, signal, priority);
+      return true;
+    };
+    for (let i = 0; i < pages.length && asked.size < limit; i++)
+      if (admits(pages[i])) walk(pages[i]);
+  };
 }

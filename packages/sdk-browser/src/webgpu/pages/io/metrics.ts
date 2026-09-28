@@ -6,8 +6,11 @@ import { directLightTimings } from '../../../stage/mapping.ts';
 import { taaSampledRank } from '../../../taa/frame.ts';
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { markWebgpuLost } from './lost.ts';
+import { disposeStaticLayer } from '../state/lights.ts';
 import { shadowPoolHeld } from '../../shadow/poolSize.ts';
+import { lightCutMetrics } from '../../shadow/casters.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { useWebgpuView } from '../state/viewSwitch.ts';
 
 /**
  * Vertex bytes of an image: the total held at allocation, plus the three concatenated visbuffer
@@ -112,7 +115,9 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     shadowPagesTotal: lights.shadowPagesTotal,
     shadowPagesPending: lights.plan.counts.pendingPages,
     shadowWaitMs: lights.plan.counts.waitedMs,
+    ...lightCutMetrics(rt),
     ...directLightTimings(timing.lastGpuPassMs),
+    ...lights.tiles?.poolMetrics(),
   };
 }
 
@@ -122,6 +127,8 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
     { scene, pagedBlendCopies } = rt.setup;
   // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
   markWebgpuLost(rt);
+  // The main view's resources are released below; a capture under way releases its own view.
+  useWebgpuView(rt, rt.views.main);
   rt.run.gate.release();
   services.residency.quietPending();
   timing.gpuTiming?.dispose();
@@ -135,7 +142,6 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   blendState.compaction = undefined;
   blendState.table = undefined;
   blendState.blendGpu.length = 0;
-  blendState.pagedBlendGpu.clear();
   blendState.cpuSelectedPlacements.clear();
   blendState.dirtySpans.clear();
   pagedBlendCopies.clear();
@@ -159,12 +165,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.lights.shadows?.dispose();
   rt.lights.pageRequests?.dispose();
   rt.lights.pageRequests = undefined;
-  rt.lights.staticLayer?.dispose();
-  rt.lights.staticLayer = undefined;
-  rt.lights.pageHiz?.dispose();
-  rt.lights.pageHiz = undefined;
-  rt.lights.occlusion?.dispose();
-  rt.lights.occlusion = undefined;
+  disposeStaticLayer(rt.lights);
   rt.lights.mobilityRows?.destroy();
   rt.lights.mobilityRows = undefined;
   rt.bounce.probes?.dispose();

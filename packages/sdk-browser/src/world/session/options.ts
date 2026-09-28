@@ -95,7 +95,7 @@ export interface MeasuredWorldOptions {
   geometryPoolCeilingBytes?: number;
   /** Virtual-texture pool bytes of the WebGPU engine — texture memory, regardless of the
    *  scene. 512 MiB by default, split equally between the colour atlas and the data atlas,
-   *  in 63.5 MiB layers; under one layer per atlas the pool is raised to one, by name. What
+   *  in 64 MiB layers; under one layer per atlas the pool is raised to one, by name. What
    *  a view asks beyond that waits for a less-looked-at tile to free, and a missing tile
    *  shows its coarse level: the `textureTiles*` metrics publish it. Set during the session
    *  by `explorer.setMemoryBudgets`. */
@@ -118,6 +118,9 @@ export interface MeasuredWorldOptions {
   /** Hears the mode of a surface that keeps WebGL2 from drawing `effects` on a frame, drawn
    *  whole without the chain (`ComposedChain.refused`). */
   effectsRefused?: import('../render/compose.ts').ComposedChain['refused'];
+  /** Hears the ids of the lights that ask for a shadow WebGL2 draws not, at each change of them
+   *  (`noticeShadowRefusal`). */
+  shadowsRefused?: import('../../lighting/contractLights.ts').ContractShadows;
   /** Whether the prepared scene reads the source images. `'cache'`, the default: an image whose
    *  mip chain the cache carries is neither fetched nor decoded — the engine reads the baked
    *  levels, which it does whatever this option says. `'host'`: the scene reads and decodes

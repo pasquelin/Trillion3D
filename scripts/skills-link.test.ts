@@ -60,3 +60,20 @@ test('skills-link: a skill linked as a whole folder by an older run becomes a re
   assert.equal(readFileSync(join(root, 'skills', 't3d-cto', 'SKILL.md'), 'utf8'), 'cto');
   assert.equal(readFileSync(join(root, '.claude', 'skills', 't3d-cto', 'SKILL.md'), 'utf8'), 'cto');
 });
+
+test('skills-link: a skill or agent removed from skills/ loses its link, a local one stays', () => {
+  const root = fixture();
+  mkdirSync(join(root, '.claude', 'skills', 't3d-gone'));
+  symlinkSync(
+    '../../../skills/t3d-gone/SKILL.md',
+    join(root, '.claude', 'skills', 't3d-gone', 'SKILL.md'),
+  );
+  mkdirSync(join(root, '.claude', 'skills', 'mine'));
+  writeFileSync(join(root, '.claude', 'skills', 'mine', 'SKILL.md'), 'mine');
+  mkdirSync(join(root, '.claude', 'agents'));
+  symlinkSync('../../skills/agents/gone.md', join(root, '.claude', 'agents', 'gone.md'));
+  linkSkills(root);
+  assert.ok(!lstatSync(join(root, '.claude', 'skills', 't3d-gone'), { throwIfNoEntry: false }));
+  assert.ok(!lstatSync(join(root, '.claude', 'agents', 'gone.md'), { throwIfNoEntry: false }));
+  assert.equal(readFileSync(join(root, '.claude', 'skills', 'mine', 'SKILL.md'), 'utf8'), 'mine');
+});

@@ -9,7 +9,9 @@ import type { EngineCamera } from '../camera/world.ts';
 
 function runtime(temporalAntialiasing: boolean) {
   let changed = 0;
+  const view = {};
   const rt = {
+    views: { main: view, active: view },
     context: { temporalAntialiasing },
     gpu: { temporal: undefined, temporalWanted: true, device: inertTaaDevice(), targetBytes: 0 },
     capabilities: { unsupported: [TAA_CAPABILITY] },
@@ -88,4 +90,16 @@ test('a pass rigged during a capture gets its history targets', async () => {
   const bytes = rt.gpu.temporal!.historyBytes;
   assert.ok(bytes > 0);
   assert.equal(rt.gpu.targetBytes, bytes, 'counted with the targets');
+});
+
+// #412: switched on while a capture draws in a view of its own, the pass is the main view's.
+test('temporal antialiasing rigged during a capture lands on the main view', async () => {
+  const { rt } = runtime(false);
+  await prepareTemporalAntialiasing(rt, rt.gpu.device!);
+  const main = { gpu: { temporal: undefined, targetBytes: 0 } };
+  Object.assign(rt, { views: { main, active: {} } });
+  setWebgpuTemporalAntialiasing(rt, true);
+  for (let turn = 0; turn < 5; turn++) await new Promise(setImmediate);
+  assert.ok(main.gpu.temporal, 'held by the main view');
+  assert.equal(rt.gpu.temporal, undefined, 'the capture view holds none');
 });
