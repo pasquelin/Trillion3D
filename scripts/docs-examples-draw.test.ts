@@ -29,8 +29,9 @@ test('no example prints a physics line by hand; each asks the kit for it', () =>
 
 test("the proof hears every page's errors, the engine's failures included, but those declared for it", async () => {
   const ids = new Set(pages.map(([file]) => file.replace(/\.html$/, '')));
+  // Only a page parked until the engine draws it may declare one; a ready page raises none.
   for (const { page, error, why } of DECLARED_ERRORS)
-    assert.ok(ids.has(page) && error && why, page);
+    assert.ok(ids.has(page) && !ready.some(({ id }) => id === page) && error && why, page);
   const engine = new URL('../packages/sdk-browser/src/', import.meta.url);
   const said: string[] = [];
   for (const source of ['world/session/interactive.ts', 'world/core/worldHandles.ts']) {
