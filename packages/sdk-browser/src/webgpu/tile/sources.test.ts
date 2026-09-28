@@ -177,6 +177,8 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
     await sources.settled();
     assert.equal(sources.reading, false);
     assert.equal(submits.length, 1, 'the working textures reduced in one submit');
+    // A pass with no newer feedback does not free what was built for its tiles unread.
+    sources.endPass(undefined, 1);
     assert.ok(pass().every((verdict) => verdict === 'served'));
     return renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted);
   };

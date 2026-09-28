@@ -131,7 +131,7 @@ export function createWebgpuTileStreamer(options: {
           stop = !unbounded && (bytes >= options.budgetBytes || !budget.admits());
         }
       }
-      sources.endPass(encoder);
+      sources.endPass(encoder, at);
       flushAll();
       requests.defer(wanted, index);
       counters.served += served;
