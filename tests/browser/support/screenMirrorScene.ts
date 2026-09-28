@@ -3,7 +3,12 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { batisseur } from './sharedSceneProof.ts';
 
-export type MirrorOptions = { arrangement: number; transparent: boolean; ortho: boolean };
+export type MirrorOptions = {
+  arrangement: number;
+  transparent: boolean;
+  ortho: boolean;
+  bounce?: boolean;
+};
 
 export function mirrorScene(options: MirrorOptions, roughness: number) {
   const builder = batisseur();
@@ -12,8 +17,12 @@ export function mirrorScene(options: MirrorOptions, roughness: number) {
   const receiver = G.mesh(
     G.planeGeometry(3.6, 3.6),
     G.standardSurface({
-      color: 0xffffff, metalness: 1, roughness,
-      transparent: options.transparent, opacity: 1, side: G.DOUBLE_SIDE,
+      color: 0xffffff,
+      metalness: 1,
+      roughness,
+      transparent: options.transparent,
+      opacity: 1,
+      side: G.DOUBLE_SIDE,
     }),
   );
   receiver.rotation.x = tilt;
