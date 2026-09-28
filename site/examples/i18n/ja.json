@@ -500,6 +500,24 @@
       "balloon": "気球を追跡中"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "公園を通る記録済みルートを見ます。再生、停止、またはカメラ操作へ切り替えられます。",
+    "controls": {
+      "replay": "再生",
+      "stop": "停止"
+    },
+    "readouts": {
+      "currentPart": "現在の区間"
+    },
+    "words": {
+      "entrance": "入口",
+      "pond": "池",
+      "bridge": "橋",
+      "pavilion": "東屋",
+      "overview": "全景",
+      "complete": "完了"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "クレーンの周りを回りながら、1つのクリップがジブを旋回し、台車を動かし、荷を上げて揺らします。",
     "controls": {

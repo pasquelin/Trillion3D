@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { SOFT_STATE_WORDS } from '../../../sdk-core/src/physics/index.ts';
-import { addSoft, FLAT, softWorld } from './soft.fixture.ts';
+import { addSoft, softWorld } from './soft.fixture.ts';
+import { FLAT } from './records.fixture.ts';
 
 /** Steps of the audit's run (PHY-09): 45 × 45 vertices and up diverged well before it. */
 const STEPS = 400;
