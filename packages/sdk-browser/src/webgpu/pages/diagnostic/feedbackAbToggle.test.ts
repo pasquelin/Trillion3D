@@ -10,9 +10,7 @@ test('same-device toggle changes only feedback allocation and selected pipelines
   installGpuGlobals();
   let destroyed = 0,
     created = 0;
-  const destroy = () => {
-    destroyed++;
-  };
+  const destroy = () => void destroyed++;
   const on = { shadePipelines: new Map(), blendPipelines: {} };
   const off = { shadePipelines: new Map([[1, 'off']]), blendPipelines: {} };
   const device = {
@@ -73,10 +71,7 @@ test('forced full renders replay settled TAA and never replace the held checkpoi
       targetSize: [20, 10],
       temporal: {
         frame,
-        replay: () => {
-          replayed++;
-          return true;
-        },
+        replay: () => ++replayed > 0,
       },
     },
     capture: { capturing: false },
@@ -84,11 +79,7 @@ test('forced full renders replay settled TAA and never replace the held checkpoi
       diagnostic: 'beauty',
       textureConverging: false,
       gate: {
-        hold: {
-          keep: () => {
-            kept++;
-          },
-        },
+        hold: { keep: () => void kept++ },
       },
     },
   } as unknown as WebgpuPagesRuntime;

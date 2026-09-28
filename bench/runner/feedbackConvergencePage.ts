@@ -1,5 +1,9 @@
 import type * as Sdk from '../witnesses/measurement.ts';
-import type { CameraPose, FrameMetrics } from '../../packages/sdk-core/src/index.ts';
+import type {
+  CameraPose,
+  FrameMetrics,
+  GpuPassTimings,
+} from '../../packages/sdk-core/src/index.ts';
 import { posterCapture } from './measurePage.ts';
 import type {
   SpatialFeedback,
@@ -18,6 +22,8 @@ export type ConvergenceProof = {
   captures: { frame: number; file: string; final: boolean }[];
   spatial: (SpatialFeedback & { frame: number })[];
   order: Record<Scope, Checkpoint>;
+  /** Distinct GPU pass samples of the frames before the held one: the converging reduce cost. */
+  gpuPassSamples: GpuPassTimings[];
 };
 type Scope = 'all' | SurfaceKind;
 /** Center at its requested mip while periphery lags, then periphery at level; `present` when
@@ -101,6 +107,7 @@ export async function captureConvergence(
   const order = Object.fromEntries(
     SCOPES.map((scope) => [scope, { centerFirst: null, peripheryAtLevel: null, present: false }]),
   ) as Record<Scope, Checkpoint>;
+  const gpuPassSamples: GpuPassTimings[] = [];
   let held = false;
   const capture = async (frame: number) => {
     const file = `${prefix}-convergence-${frame}-final.rgba`;
@@ -111,8 +118,12 @@ export async function captureConvergence(
   };
   for (let i = 0; i < 240; i++) {
     await new Promise<number>((done) => requestAnimationFrame(done));
-    const frame = traceFrame(explorer.render(pose), i);
+    const metrics = explorer.render(pose),
+      frame = traceFrame(metrics, i),
+      pass = metrics.gpuPassMs;
     trace.push(frame);
+    if (pass && !frame.held && pass.frame !== gpuPassSamples.at(-1)?.frame)
+      gpuPassSamples.push(pass);
     const ready = feedbackGeometryReady(frame);
     const open = SCOPES.some((scope) => order[scope].peripheryAtLevel === null);
     if (ready && (frame.held || (open && spatial.length < 48))) {
@@ -151,5 +162,6 @@ export async function captureConvergence(
     captures,
     spatial,
     order,
+    gpuPassSamples,
   };
 }
