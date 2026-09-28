@@ -27,10 +27,12 @@ fn cuts(count: usize, pitch: f64, offsets: [f64; 2]) -> Vec<f64> {
     for k in 0..count {
         all.extend(offsets.map(|o| k as f64 * pitch + o));
     }
-    let mut rounded: Vec<f64> = all.iter().map(|x| (x * 1e6).round() / 1e6).collect();
-    rounded.sort_by(f64::total_cmp);
-    rounded.dedup();
-    rounded
+    for x in &mut all {
+        *x = (*x * 1e6).round() / 1e6;
+    }
+    all.sort_by(f64::total_cmp);
+    all.dedup();
+    all
 }
 
 pub(super) fn building() -> Mesh {
@@ -56,22 +58,13 @@ pub(super) fn building() -> Mesh {
                 let (x0, x1, y0, y1) = (x[0], x[1], y[0], y[1]);
                 let window =
                     ((x0 % pitch) - MARGIN).abs() < 1e-6 && ((y0 % FLOOR) - 0.8).abs() < 1e-6;
-                let q = [
-                    at(x0, y0, 0.0),
-                    at(x0, y1, 0.0),
-                    at(x1, y1, 0.0),
-                    at(x1, y0, 0.0),
-                ];
+                let rect = |z| [at(x0, y0, z), at(x0, y1, z), at(x1, y1, z), at(x1, y0, z)];
+                let q = rect(0.0);
                 if !window {
                     face(&mut mesh, q, out);
                     continue;
                 }
-                let qi = [
-                    at(x0, y0, RECESS),
-                    at(x0, y1, RECESS),
-                    at(x1, y1, RECESS),
-                    at(x1, y0, RECESS),
-                ];
+                let qi = rect(RECESS);
                 face(&mut mesh, qi, out);
                 let walls = [
                     [1.0, 0.0, 0.0],
