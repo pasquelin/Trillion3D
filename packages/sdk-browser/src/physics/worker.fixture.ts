@@ -11,24 +11,28 @@ import {
 } from './protocol.ts';
 import { createWorldPhysics } from './worldPhysics.ts';
 
-/** A physics worker faked in place of `Worker`: it keeps the command words the page sends it. */
+/** A worker faked in place of `Worker`: it keeps the command words the page sends it. */
 interface FakeWorker {
   onmessage(event: { data: unknown }): void;
+  onerror(event: { message: string }): void;
   words: Uint32Array[];
 }
 
-/** Replaces `Worker` with fakes, each listed in `workers`; `restore` puts the real one back. */
-export function fakeWorkers() {
+/** Replaces `Worker` with fakes, each listed in `workers` and handing what it is sent to `post`;
+ *  `restore` puts the real one back. */
+export function fakeWorkers(post: (message: unknown) => void = () => {}) {
   const workers: FakeWorker[] = [];
   const saved = globalThis.Worker;
   globalThis.Worker = class {
     words: Uint32Array[] = [];
     onmessage = (_: { data: unknown }) => {};
+    onerror = (_: { message: string }) => {};
     constructor() {
       workers.push(this);
     }
     postMessage(message: { type: string; words?: Uint32Array }) {
       if (message.words) this.words.push(message.words);
+      post(message);
     }
     terminate() {}
   } as unknown as typeof Worker;
