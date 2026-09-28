@@ -1,7 +1,7 @@
 import { Object3D } from '../object/object3d.ts';
 import { Color, type ColorInput } from '../math/color.ts';
 import { Vector3, readVec3, type Vec3Input } from '../math/vector3.ts';
-import { listen } from '../math/observed.ts';
+import { listen, unlisten } from '../math/observed.ts';
 
 /** What a page may pass to a light member. */
 export interface LightParameters {
@@ -59,7 +59,9 @@ const point = new Vector3();
  */
 export class Light extends Object3D {
   /** Always `true`: tells a light apart from any other object. */
-  readonly isLight = true as const;
+  get isLight(): true {
+    return true;
+  }
   /** The light's colour; change it in place with `set`. */
   readonly color: Color;
   /** A hemisphere light's colour from below. */
@@ -88,6 +90,8 @@ export class Light extends Object3D {
 
   /** Which kind of light this is: `'point'`, `'spot'`, `'directional'`… */
   readonly kind: string;
+  /** What its colours and its target's place call while it is in a world; made on its first entry. */
+  declare private _heard?: () => void;
   constructor(kind: string, p: LightParameters = {}) {
     super();
     this.kind = kind;
@@ -104,15 +108,19 @@ export class Light extends Object3D {
       height: p.height ?? 10,
       radius: p.radius ?? 0,
     };
-    const content = () => this._link?.content(this);
-    listen(this.color, content);
-    listen(this.groundColor, content);
-    listen(this.target.position, content);
     if (p.position) this.position.set(...readVec3(p.position));
     else if (AIMED.has(kind)) this.position.set(0, 1, 0);
     if (p.sh) this.sh = Array.from(p.sh);
     if (p.target) this.target.position.set(...readVec3(p.target));
     this.castShadow = p.castShadow ?? false;
+  }
+  /** Only a light in a world hears its colours and its target's place: out of one, they hold no
+   *  reference to it, and a write reaches nothing. */
+  protected override linked(inWorld: boolean) {
+    const heard = (this._heard ??= () => this._link?.content(this));
+    for (const value of [this.color, this.groundColor, this.target.position])
+      if (inWorld) listen(value, heard);
+      else unlisten(value, heard);
   }
   protected override get looksDownNegativeZ() {
     return true;

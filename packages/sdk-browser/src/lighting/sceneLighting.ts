@@ -1,5 +1,7 @@
 import type { HostColour } from '../host/resources.ts';
-import { isLightNode, isPlacedLight, type GraphAnyLight } from '../host/graph/kinds.ts';
+import { aimOf, isLightNode } from '../host/graph/kinds.ts';
+import { numbered } from '../host/graph/serial.ts';
+import type { Light } from '../../../sdk-core/src/world/light/light.ts';
 import { shownChain } from '../placement/hidden.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
@@ -26,11 +28,12 @@ export type HostLight = {
   decay?: number;
   angle?: number;
   penumbra?: number;
-  /** Aim of a directional or a spot: the node of the display graph it looks at. */
-  target?: unknown;
+  /** Aim of a directional or a spot: its own node, which the placement poses and adds to the
+   *  display graph beside it. */
+  target?: AimNode;
 };
 
-/** An empty node of the display graph a copied light aims at, posed by the placement. */
+/** The node of the display graph a copied light aims at, posed by the placement. */
 type AimNode = { position: CopyVector };
 
 /** The two writes this boundary makes on the display graph it lights. */
@@ -40,8 +43,8 @@ export type HostLightScene = { add(node: unknown): void; remove(node: unknown): 
  *  `to` is the node of the display graph the copy points at in its place. */
 type Aim = { from: Object3D; to: AimNode };
 
-function sceneLights(source: Object3D): GraphAnyLight[] {
-  const lights: GraphAnyLight[] = [];
+function sceneLights(source: Object3D): Light[] {
+  const lights: Light[] = [];
   source.traverse((object) => {
     if (isLightNode(object)) lights.push(object);
   });
@@ -64,15 +67,14 @@ function placeAt(into: AimNode, from: Object3D) {
 export function installSceneLighting(
   scene: HostLightScene,
   source: Object3D,
-  /** An empty node of that graph: what a copied light aims at. The engine poses it, the host
-   *  makes it — the source's own target belongs to the source graph and stays there. */
-  aimNode: () => AimNode,
   /** The copy of a source light the display graph holds, made by the host that draws it: a
-   *  light of the source graph's own library copies itself. */
-  copyOf: (light: GraphAnyLight) => HostLight = (light) => light.clone(),
+   *  light of the engine's graph copies itself, numbered as the engine numbers what it builds. A
+   *  copy that aims holds its own target, which the engine poses — the source's own target
+   *  belongs to the source graph and stays there. */
+  copyOf: (light: Light) => HostLight = (light) => numbered(light.clone()),
 ) {
-  /** One entry per copied light; `aim` only where the source declared a target. */
-  let pairs: Array<{ original: GraphAnyLight; copy: HostLight; aim?: Aim }> = [];
+  /** One entry per copied light; `aim` only where the source's light aims. */
+  let pairs: Array<{ original: Light; copy: HostLight; aim?: Aim }> = [];
   // Source-graph lights are cleared when another lighting contract takes over: two
   // stacked light sets would be nobody's lighting.
   let enabled = true;
@@ -115,12 +117,11 @@ export function installSceneLighting(
     for (const original of sceneLights(source)) {
       const copy = copyOf(original);
       let aim: Aim | undefined;
-      // A light that aims gets an aim of this graph: the copy is posed here, and the source's
-      // own target stays in the graph its owner walks and resolves. The question is asked of
-      // the original — a host whose `clone()` drops the target would otherwise lose the aim.
-      if (isPlacedLight(original) && original.target) {
-        aim = { from: original.target, to: aimNode() };
-        copy.target = aim.to;
+      // A light that aims aims its copy at the copy's own target, posed here: the source's own
+      // target stays in the graph its owner walks and resolves.
+      const from = aimOf(original);
+      if (from && copy.target) {
+        aim = { from, to: copy.target };
         scene.add(aim.to);
       }
       scene.add(copy);
