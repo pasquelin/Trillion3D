@@ -120,12 +120,14 @@ const NARROWEST_MARGIN: f64 = 1e-6;
 
 /// The cone whose axis points at the centre of the smallest ball enclosing the unit face normals
 /// (`min_ball`), its angle measured on every face as the mean cone's is, raised by
-/// [`NARROWEST_MARGIN`]; `None` when that centre is the origin, which gives no axis.
+/// [`NARROWEST_MARGIN`]; `None` when a normal is not a number (a face with a non-finite vertex,
+/// which the mean cone leaves open) or the centre is the origin, which gives no axis.
 fn narrowest_cone(faces: &[([f64; 3], f64)]) -> Option<[f64; 4]> {
     let mut normals: Vec<[f64; 3]> = faces.iter().map(|&(c, len)| divide(c, len)).collect();
     let (centre, _) = min_ball(&mut normals)?;
     let length = hypot3(centre[0], centre[1], centre[2]);
-    if !(length > 1e-9) {
+    let finite = normals.iter().flatten().all(|v| v.is_finite());
+    if !finite || length.is_nan() || length <= 1e-9 {
         return None;
     }
     let axis = divide(centre, length);
