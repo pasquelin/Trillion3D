@@ -32,12 +32,11 @@ impl Grown {
     /// placement copies the source's arrays once; a solve whose survivors all snapped back, never.
     pub(super) fn place(
         grown: &mut Option<Grown>,
-        positions: &[f32],
-        attributes: DagAttributes,
         welds: &mut Welds,
         reduction: &mut GroupReduction,
         base: u32,
     ) {
+        let (positions, attributes) = (welds.positions, welds.attributes);
         let Some(placed) = reduction.placed.take().filter(|p| !p.origins.is_empty()) else {
             return;
         };

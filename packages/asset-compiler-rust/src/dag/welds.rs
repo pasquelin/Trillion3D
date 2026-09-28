@@ -7,6 +7,7 @@ use super::clusters::{normalized_bits, position_key};
 use super::clusters::{weld_positions, weld_positions_and_uv};
 use super::grown::Placed;
 use super::{DagAttributes, GroupReductionInput};
+use crate::geometry_page::Attribute as Carried;
 use crate::qem::Attribute;
 use std::sync::OnceLock;
 
@@ -41,11 +42,14 @@ impl Columns {
 /// What every reduction of a primitive reads beside its level's locks, computed once.
 /// Grown with every vertex a solved reduction places (`grown::Placed`).
 pub(super) struct Welds<'a> {
+    /// The source's positions and carried attributes, which the grown arrays start from.
+    pub positions: &'a [f32],
+    pub attributes: DagAttributes<'a>,
     columns: Columns,
     charts: Charts<'a>,
 }
 impl<'a> Welds<'a> {
-    pub fn of(positions: &[f32], attributes: DagAttributes<'a>, indices: &'a [u32]) -> Self {
+    pub fn of(positions: &'a [f32], attributes: DagAttributes<'a>, indices: &'a [u32]) -> Self {
         let weld = weld_positions(positions, indices);
         let uv_sets = attributes.uv_sets();
         let (weld_seam, seams) = match uv_sets.is_empty() {
@@ -57,6 +61,8 @@ impl<'a> Welds<'a> {
             }
         };
         Self {
+            positions,
+            attributes,
             charts: Charts {
                 found: OnceLock::new(),
                 vertices: weld.len(),
@@ -76,12 +82,12 @@ impl<'a> Welds<'a> {
     pub fn weld(&self) -> &[u32] {
         &self.columns.weld
     }
-    /// The input of one reduction over the level's vertex arrays and the attributes the
-    /// simplifier weighs of them; `normal_bound` is its group's (`quality::deviation_bound`).
+    /// The input of one reduction over the level's vertex arrays, its carried attributes and those
+    /// the simplifier weighs of them; `normal_bound` is its group's (`quality::deviation_bound`).
     pub fn input<'b>(
         &'b self,
         positions: &'b [f32],
-        attributes: DagAttributes<'b>,
+        carried: &'b [&'b Carried],
         weighted: &'b [Attribute<'b>],
         locks: &'b [bool],
         normal_bound: f64,
@@ -89,7 +95,7 @@ impl<'a> Welds<'a> {
         let c = &self.columns;
         GroupReductionInput {
             positions,
-            attributes,
+            attributes: DagAttributes { carried },
             weighted,
             normal_bound,
             locks,

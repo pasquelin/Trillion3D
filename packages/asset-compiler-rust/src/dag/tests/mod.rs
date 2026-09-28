@@ -40,7 +40,7 @@ pub(super) fn build_of(
     positions: &[f32],
     indices: &[u32],
 ) -> (Vec<DagCluster>, Vec<DagGroup>, Vec<GroupTally>) {
-    let build = build_dag_tallied(
+    let (dag, groups, tallies, ..) = build_dag_tallied(
         positions,
         DagAttributes::default(),
         indices,
@@ -48,7 +48,7 @@ pub(super) fn build_of(
         &|| Ok(()),
     )
     .expect("dag");
-    (build.clusters, build.groups, build.tallies)
+    (dag, groups, tallies)
 }
 
 pub(super) fn build(n: usize) -> (Vec<f32>, Vec<u32>, Vec<DagCluster>) {
