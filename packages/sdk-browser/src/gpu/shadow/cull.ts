@@ -6,14 +6,12 @@ import { createGpuShadowCullCounts } from './cullCounts.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { createShadowLightCull } from './lightCull.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
-import { CULL_UNIFORM_WORDS } from './batchBudget.ts';
+import { CULL_UNIFORM_WORDS, SHADOW_COMMAND_WORDS as COMMAND_WORDS } from './batchBudget.ts';
 
 /** Words of a draw-slot uniform: the matrix, the frame, then the slot and its indirection. */
 const DRAW_UNIFORM_WORDS = PAGE_BIND_ALIGN / 4;
 const WORD_DRAW_SLOT = 20,
   WORD_INDIRECT = 21;
-/** Words of one indirect command. */
-const COMMAND_WORDS = DRAW_INDIRECT_STRIDE / 4;
 
 /**
  * The cull's single bind table: its order names both the layout and the group — spheres, source
@@ -144,7 +142,8 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       /**
        * Encodes the cull of regions `[first, first + faces)` against the list the CPU cut wrote for
        * one face. `run` is the face's rank in the frame, its uniform slot; `rows` bounds the
-       * list, whose true length the GPU reads in its commands.
+       * list, whose true length the GPU reads in its commands. An empty list encodes no pass: its
+       * regions keep the zero instances `begin` wrote.
        */
       encode(
         encoder: GPUCommandEncoder,
@@ -154,7 +153,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
         faces: number,
         rows: number,
       ) {
-        if (!faces) return;
+        if (!faces || !rows) return;
         // Group buffers, in bind order. The group is rebuilt only if one of them has changed
         // identity: the GPU cut and the CPU cut each hand the same two every frame.
         if (
