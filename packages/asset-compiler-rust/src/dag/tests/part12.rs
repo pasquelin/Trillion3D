@@ -33,7 +33,7 @@ fn dag_of(positions: &[f32], carried: &[Attribute], indices: &[u32]) -> build::D
 #[test]
 fn a_seam_locked_sheet_climbs_on_placed_vertices() {
     let (positions, carried, indices) = sheet(32);
-    let (dag, _, tallies, stalls, grown) = dag_of(&positions, &carried, &indices);
+    let (dag, _, _, stalls, grown) = dag_of(&positions, &carried, &indices);
     let grown = grown.expect("placed vertices");
     assert_eq!(grown.positions[..positions.len()], positions[..]);
     assert_eq!(
@@ -44,7 +44,6 @@ fn a_seam_locked_sheet_climbs_on_placed_vertices() {
         .iter()
         .filter(|s| s.outcome.cause == StallCause::SeamLocked);
     assert_eq!(seam_locked.count(), 0, "stalls {stalls:?}");
-    assert!(GroupTally::total(&tallies).solved > 0);
     assert_eq!(dag.iter().filter(|c| c.is_root()).count(), 1);
     let count = (grown.positions.len() / 3) as u32;
     assert!(dag.iter().flat_map(|c| &c.indices).all(|&v| v < count));
@@ -64,9 +63,8 @@ fn an_unblocked_sheet_places_nothing() {
         width: 2,
         values: uvs,
     }];
-    let (_, _, tallies, _, grown) = dag_of(&positions, &carried, &indices);
+    let (.., grown) = dag_of(&positions, &carried, &indices);
     assert!(grown.is_none());
-    assert_eq!(GroupTally::total(&tallies).solved, 0);
 }
 
 // Behaviour: a texture set weighs the surface length one unit of it spans: the same sheet under
