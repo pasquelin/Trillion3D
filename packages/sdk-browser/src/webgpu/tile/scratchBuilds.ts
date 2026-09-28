@@ -27,11 +27,9 @@ export function buildHostScratch(
 }
 
 /**
- * The working textures tiles asked for, built off the frame (STR-13, #962): a host texture's whole
- * source uploaded and reduced inside the pass that asks for it is a spike the pass's budget never
- * counted. The pass asks and waits; a task of its own, after the frame, builds what was asked —
- * their mips in one batch (#961) — and hands each over (`onBuilt`); the next pass copies the same
- * texels from it. `building` is held until then.
+ * The working textures tiles asked for, built off the frame (STR-13, #962): built inside the pass,
+ * the whole source uploaded and reduced is a spike its budget never counted. A task after the frame
+ * builds what was asked, their mips in one batch (#961), and hands each over (`onBuilt`).
  */
 export function createScratchBuilds(
   device: GPUDevice,

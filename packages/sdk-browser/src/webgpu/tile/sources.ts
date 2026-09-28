@@ -24,8 +24,8 @@ const MAX_LEVEL_READS = 6;
 const MAX_SCRATCHES = 2;
 
 /**
- * Where a tile's texels come from, and how they reach the pool of its lane: a cooked level —
- * decoded by the browser, or block-compressed as the file holds it — held in the level store, or a
+ * Where a tile's texels come from, and how they reach the pool of its lane: a cooked level decoded
+ * by the browser, or a block tile's record as the file holds it, held in the level store, or a
  * working texture built from the host image, which only the lossless lane receives. A tile whose
  * source is not yet in hand is not served; it will come back on the next feedback. A host texture's
  * queue goes through here too, at prepare: its working texture, the queue copied, submitted, then
@@ -100,17 +100,18 @@ export function createTileSources(options: {
           level: key.level,
           format: encoding.levelFormat(lane),
         };
-        const held = levels?.get(levelKey);
+        const tile = [width, height, key.tx, key.ty] as const;
+        const held = levels?.get(levelKey, tile);
         if (!held) {
           if (!atlas.roomFor(key.slot, frame)) return 'refused';
           const asked = levels && levels.inFlight < MAX_LEVEL_READS;
           // A level that cannot fit beside the pages kept will not come: refused, not waited for.
-          return asked && !levels.request(levelKey, frame, [width, height]) ? 'refused' : 'waiting';
+          return asked && !levels.request(levelKey, frame, tile) ? 'refused' : 'waiting';
         }
         const place = atlas.place(key, frame);
         if (!place) return 'refused';
         if (held instanceof Uint8Array)
-          writeTileFromBlocks(device.queue, pool, place, held, [width, height], region);
+          writeTileFromBlocks(device.queue, pool, place, held, region);
         else writeTileFromBitmap(device.queue, pool, place, held, region);
         return 'served';
       }
@@ -182,7 +183,7 @@ export function createTileSources(options: {
       if (encoder) device.queue.submit([encoder.finish()]);
       dropScratches();
     },
-    /** True while a level read or a working texture's build is on its way: a tile can still come. */
+    /** True while a level read or a working texture's build is on its way: a tile may come. */
     get reading() {
       return (levels?.inFlight ?? 0) > 0 || builds.building !== undefined;
     },
