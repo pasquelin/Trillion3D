@@ -2,7 +2,7 @@
 //! with the benches' xorshift in place of NumPy's generator: a 1,024 m terrain, a smooth sphere,
 //! a hard-surface tower (`building.rs`) and a tree of leaf cards (`vegetation.rs`). Same shapes, sizes and attributes; the random
 //! phases and leaf placements are drawn from another stream.
-use crate::compute_bench::inputs::Xorshift;
+use crate::tests::random::Xorshift;
 use crate::geometry_page::{Attribute, FLAG_NORMAL, FLAG_UV};
 use std::collections::HashMap;
 use std::f64::consts::TAU;
