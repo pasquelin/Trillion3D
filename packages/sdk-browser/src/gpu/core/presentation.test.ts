@@ -75,12 +75,14 @@ test("a session's canvas is configured with the device itself, not the session's
 });
 
 test('a view presents at its rectangle: the canvas keeps its size and what it shows', () => {
+  // The canvas hands a new texture once the last one is shown, as a browser frame does.
+  let current = { createView: () => ({}) };
   const canvas = {
     width: 64,
     height: 48,
     getContext: () => ({
       configure() {},
-      getCurrentTexture: () => ({ createView: () => ({}) }),
+      getCurrentTexture: () => current,
       unconfigure() {},
     }),
   } as unknown as HTMLCanvasElement;
@@ -100,14 +102,21 @@ test('a view presents at its rectangle: the canvas keeps its size and what it sh
   const presenter = createGpuPresenter(fakeDevice().device, canvas);
   const image = { createView: () => ({}) } as GPUTexture;
   presenter.present(encoder, image, 16, 8, { x: 40, y: 44, width: 32, height: 8 });
+  assert.equal(passes.length, 0, 'no whole image this frame: the canvas keeps the last one');
+  presenter.present(encoder, image, 64, 48);
+  calls.length = 0;
+  presenter.present(encoder, image, 16, 8, { x: 40, y: 44, width: 32, height: 8 });
   assert.deepEqual([canvas.width, canvas.height], [64, 48], 'the canvas is not resized');
-  assert.equal(Array.from(passes[0].colorAttachments)[0]?.loadOp, 'load');
+  assert.equal(Array.from(passes[1].colorAttachments)[0]?.loadOp, 'load');
   assert.deepEqual(calls, [
     ['viewport', 40, 44, 24, 4, 0, 1],
     ['scissor', 40, 44, 24, 4],
     ['draw', 3, 1, 0, 40 + 44 * 65536],
   ]);
   presenter.present(encoder, image, 16, 8, { x: 64, y: 0, width: 16, height: 8 });
-  assert.equal(passes.length, 1, 'a rectangle outside the canvas draws nothing');
+  assert.equal(passes.length, 2, 'a rectangle outside the canvas draws nothing');
+  current = { createView: () => ({}) };
+  presenter.present(encoder, image, 16, 8, { x: 40, y: 44, width: 32, height: 8 });
+  assert.equal(passes.length, 2, 'the next frame, not yet drawn whole, keeps its last image');
   presenter.dispose();
 });

@@ -8,7 +8,7 @@ import {
 } from '../../visibility/pipelines.ts';
 import { frameTargetAllocation, makeTargets, releaseTargets, targetsFit } from './targets.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
-import { drawnViewChanged, type WebgpuView } from '../state/view.ts';
+import { drawnViewChanged, viewGpu, type WebgpuView } from '../state/view.ts';
 import { onView } from '../state/viewSwitch.ts';
 
 /** True while no frame can be drawn: its targets are asked of the device, or were refused at
@@ -48,7 +48,7 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (pending && (!pending.settled || (pending.width === width && pending.height === height)))
     return pending.done;
   const view = rt.views.active,
-    granted = () => onView(rt, view, () => (gpu.targetGrant = undefined));
+    granted = () => void (viewGpu(rt, view).targetGrant = undefined);
   // The view's targets are in place, its pyramid is not: it alone is asked.
   if (fit) {
     const done = grantHiz(rt, device, width, height, view).then(granted);

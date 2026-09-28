@@ -35,12 +35,16 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
       fragment: { module, entryPoint: 'present', targets: [{ format }] },
       primitive: { topology: 'triangle-list' },
     });
-    let texture: GPUTexture | undefined, group: GPUBindGroup | undefined;
+    let texture: GPUTexture | undefined,
+      group: GPUBindGroup | undefined,
+      // The canvas texture the whole image was last drawn into: a view is placed on it alone.
+      shown: GPUTexture | undefined;
     const presentAt = createPresentAt(device, layout, format);
     const targetView = (width: number, height: number) => {
       if (canvas.width !== width) canvas.width = width;
       if (canvas.height !== height) canvas.height = height;
-      return context.getCurrentTexture().createView();
+      shown = context.getCurrentTexture();
+      return shown.createView();
     };
     return {
       canvas,
@@ -55,7 +59,10 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
         at?: PresentRect,
       ) {
         if (at) {
-          presentAt(encoder, context.getCurrentTexture().createView(), image, at, canvas);
+          // Not this frame's whole image (its targets still asked, say): the canvas keeps the
+          // last frame it showed, never a blank one with this view alone on it.
+          const current = context.getCurrentTexture();
+          if (current === shown) presentAt(encoder, current.createView(), image, at, canvas);
           return;
         }
         const view = targetView(width, height);
@@ -84,7 +91,7 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
         const { width } = canvas;
         canvas.width = width;
         group = undefined;
-        texture = undefined;
+        texture = shown = undefined;
       },
     };
   } catch (error) {
