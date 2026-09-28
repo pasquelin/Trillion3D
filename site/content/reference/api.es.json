@@ -6654,6 +6654,24 @@
       "modes": "Cada modo de vista que ofrece el motor de renderizado actual."
     }
   },
+  "world.materials": {
+    "summary": "Materiales importados actuales, seguidos de los creados en la página."
+  },
+  "world.material": {
+    "summary": "Un material según su ID de la lista."
+  },
+  "world.importedMaterials": {
+    "summary": "Valores del archivo original antes de los cambios de la página."
+  },
+  "world.setMaterial": {
+    "summary": "Cambia un material importado o creado en el siguiente fotograma."
+  },
+  "world.createMaterial": {
+    "summary": "Crea un material propio de esta página."
+  },
+  "world.assignMaterial": {
+    "summary": "Asigna el material creado a un `mesh/primitive` compilado."
+  },
   "world.guides": {
     "summary": "Líneas, puntos y ayudas dibujados sobre la imagen (`Guides`)."
   },
@@ -7736,6 +7754,41 @@
       "isSprite": "Siempre `true`: distingue un sprite de cualquier otra malla.",
       "center": "El punto de la imagen que se apoya en la posición del sprite: `(0.5, 0.5)` su centro, `(0, 0)` su esquina inferior izquierda, `(0.5, 0)` el centro de su borde inferior.",
       "material": "El `material.sprite` del sprite; asigna otro para cambiarlo."
+    }
+  },
+  "CreatedMaterial": {
+    "summary": "Valores que acepta `createMaterial` para un material nuevo de la página.",
+    "members": {
+      "metalness": "Cuánto es metal la superficie, de 0 a 1.",
+      "roughness": "La rugosidad de la superficie, de 0 (espejo) a 1 (mate).",
+      "baseColor": "El color base; cámbialo en el sitio con `set`.",
+      "emissive": "El color que la superficie emite por sí misma.",
+      "opacity": "Cuán opaca es la superficie, de 0 a 1.",
+      "alphaMode": "Cómo se lee el canal alfa de una superficie: opaco lo ignora, `mask` corta en `alphaCutoff`, `blend` compone.",
+      "alphaCutoff": "Los píxeles menos opacos que esto desaparecen.",
+      "name": "Un nombre para uso de la página.",
+      "map": "Una imagen y la forma de muestrearla, en las palabras de una página (`wrap`, `filter`, `colorSpace`)."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "Instantánea de un material de escena con ID, nombre, parámetros y repetición de mapas.",
+    "members": {
+      "id": "Un nombre propio de esta textura.",
+      "name": "Un nombre para uso de la página.",
+      "tiling": "Cuántas veces cabe la imagen en ancho y en alto."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "Valores del material que `setMaterial` cambia en vivo sin reconstruir una pasada de renderizado.",
+    "members": {
+      "metalness": "Cuánto es metal la superficie, de 0 a 1.",
+      "roughness": "La rugosidad de la superficie, de 0 (espejo) a 1 (mate).",
+      "baseColor": "El color base; cámbialo en el sitio con `set`.",
+      "emissive": "El color que la superficie emite por sí misma.",
+      "opacity": "Cuán opaca es la superficie, de 0 a 1.",
+      "alphaMode": "Cómo se lee el canal alfa de una superficie: opaco lo ignora, `mask` corta en `alphaCutoff`, `blend` compone.",
+      "alphaCutoff": "Los píxeles menos opacos que esto desaparecen.",
+      "tiling": "Cuántas veces cabe la imagen en ancho y en alto."
     }
   }
 }

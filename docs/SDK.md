@@ -949,6 +949,41 @@ on their line.
 No engine loop runs above 0.1 ms of the engine's own frame, so no batch replaces one yet (#80): the
 batches are for hosts until a measured share says otherwise.
 
+## Page materials
+
+A page can inspect and edit the materials of a loaded model through its `world`, after
+`await world.awaitPages()` has opened the drawing session. `world.materials()` lists the
+current materials in cache table order, followed by materials the page created. Each has
+an `id`, `name`, `baseColor`, `opacity`, `metalness`, `roughness`, `emissive`, `side`,
+`alphaMode`, `alphaCutoff` and `tiling` (`null` without a map). `world.material(id)` reads
+one by that listed ID. These reads return detached copies. `world.importedMaterials()`
+returns the source file's values even after the page changes them; created materials are
+not included. An unknown ID raises `UNKNOWN_MATERIAL`.
+
+`world.setMaterial(id, patch)` updates every surface built from that table material for
+the next frame. A patch may name `baseColor` (three linear channels from 0 to 1),
+`opacity`, `metalness`, `roughness` and `alphaCutoff` (each 0 to 1), nonnegative linear
+`emissive` channels, `alphaMode` (`'opaque'`, `'mask'`, `'blend'`), or nonzero finite
+`tiling` coordinates. Tiling needs a map used by that material alone; a shared map is
+refused with `MATERIAL_TEXTURE_SHARED`. An invalid field or value raises
+`INVALID_MATERIAL` before any write. The return value is `true` if every renderer in
+the session took the edit in place, or `false` if another renderer needs a new session.
+
+Changing between opaque, masked and blended also moves the material's drawables into
+the matching draw class. If a renderer cannot move that class in place, the call raises
+`MATERIAL_CLASS_CHANGE` before changing anything. The page can keep the old material
+and show that refusal; it should not assume every renderer accepts a class change.
+
+`world.createMaterial({ name?, baseColor?, opacity?, metalness?, roughness?, emissive?,
+alphaMode?, alphaCutoff? })` makes a material owned by the page and returns its listed
+record. It can be read and edited by ID like an imported material. `map` is not yet
+supported (`UNSUPPORTED_SCENE_UPDATE`), and `tiling` is not a creation field. The
+session holds at most 256 created materials; the next creation raises
+`MATERIAL_CEILING` without creating one. To draw it on a compiled primitive, call
+`world.assignMaterial('mesh/primitive', created.id)`, using the two numbers in that
+model's `metadata.primitives`. Unknown primitives raise `UNKNOWN_SCENE_NODE`. See the
+[live page-material example](../site/examples/page-materials.html).
+
 ## Lights
 
 Nothing lights an opaque surface except a light the host declared. There is no fixed ambient term,

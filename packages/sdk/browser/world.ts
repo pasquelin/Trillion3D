@@ -59,6 +59,7 @@ export type { CaptureSize } from '../../sdk-browser/src/world/capture/index.ts';
 export { Color } from '../../sdk-core/src/world/math/color.ts';
 export type { ColorInput } from '../../sdk-core/src/world/math/color.ts';
 export { controls } from '../../sdk-browser/src/world/controls/index.ts';
+export type { CreatedMaterial } from '../../sdk-browser/src/world/api/createdMaterials.ts';
 export { createWorld } from '../../sdk-browser/src/world/core/world.ts';
 export type { World } from '../../sdk-browser/src/world/core/world.ts';
 export { Curve, Path, Shape, SplineCurve } from '../../sdk-core/src/world/math/curves.ts';
@@ -118,6 +119,10 @@ export type {
   SavedScene,
 } from '../../sdk-browser/src/world/saved/format.ts';
 export type { SceneLink } from '../../sdk-core/src/world/object/sceneLink.ts';
+export type {
+  SceneMaterial,
+  SceneMaterialPatch,
+} from '../../sdk-browser/src/world/api/materialValues.ts';
 export { Spherical, Vector2, Vector4 } from '../../sdk-core/src/world/math/vector2.ts';
 export { Sprite } from '../../sdk-core/src/world/object/sprite.ts';
 export { Texture } from '../../sdk-core/src/world/texture/texture.ts';

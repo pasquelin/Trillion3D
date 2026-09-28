@@ -4092,6 +4092,24 @@
       "modes": "現在のレンダラーが提供するすべてのビューモード。"
     }
   },
+  "world.materials": {
+    "summary": "現在のインポート済みマテリアルと、ページで作成したマテリアル。"
+  },
+  "world.material": {
+    "summary": "一覧のIDで指定したマテリアル。"
+  },
+  "world.importedMaterials": {
+    "summary": "ページで変更する前のソースファイルの値。"
+  },
+  "world.setMaterial": {
+    "summary": "インポート済みまたは作成済みのマテリアルを次のフレームで変更します。"
+  },
+  "world.createMaterial": {
+    "summary": "このページのマテリアルを作成します。"
+  },
+  "world.assignMaterial": {
+    "summary": "作成したマテリアルをコンパイル済みの `mesh/primitive` に割り当てます。"
+  },
   "world.guides": {
     "summary": "画像の上に描かれる線、点、ヘルパー（`Guides`）。"
   },
@@ -7736,6 +7754,41 @@
       "isSprite": "いつも `true`。スプライトをほかのメッシュと見分ける。",
       "center": "スプライトの位置に置かれる絵の点。`(0.5, 0.5)` は真ん中、`(0, 0)` は左下の角、`(0.5, 0)` は下の辺の真ん中。",
       "material": "スプライトの `material.sprite`。別のものを設定すると変わります。"
+    }
+  },
+  "CreatedMaterial": {
+    "summary": "ページの新しいマテリアルを作る際に `createMaterial` が受け取る値。",
+    "members": {
+      "metalness": "表面がどれだけ金属的か、0から1。",
+      "roughness": "表面がどれだけ粗いか、0(鏡)から1(つや消し)。",
+      "baseColor": "ベースカラー; `set`でその場で変更する。",
+      "emissive": "表面それ自体が放つ色。",
+      "opacity": "表面がどれだけ不透明か、0から1。",
+      "alphaMode": "表面のアルファチャンネルをどう読むか: opaqueは無視、`mask`は`alphaCutoff`で切り取り、`blend`は合成する。",
+      "alphaCutoff": "これより不透明度の低いピクセルは破棄される。",
+      "name": "ページ自身が使うための名前。",
+      "map": "画像と、それがどうサンプリングされるか。ページの言葉で(`wrap`、`filter`、`colorSpace`)。"
+    }
+  },
+  "SceneMaterial": {
+    "summary": "ID、名前、パラメーター、マップの繰り返し回数を含むシーンマテリアルのスナップショット。",
+    "members": {
+      "id": "このテクスチャに固有の名前。",
+      "name": "ページ自身が使うための名前。",
+      "tiling": "画像が横と縦に何回収まるか。"
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "描画パスを再構築せずに `setMaterial` が直接変更できるマテリアルの値。",
+    "members": {
+      "metalness": "表面がどれだけ金属的か、0から1。",
+      "roughness": "表面がどれだけ粗いか、0(鏡)から1(つや消し)。",
+      "baseColor": "ベースカラー; `set`でその場で変更する。",
+      "emissive": "表面それ自体が放つ色。",
+      "opacity": "表面がどれだけ不透明か、0から1。",
+      "alphaMode": "表面のアルファチャンネルをどう読むか: opaqueは無視、`mask`は`alphaCutoff`で切り取り、`blend`は合成する。",
+      "alphaCutoff": "これより不透明度の低いピクセルは破棄される。",
+      "tiling": "画像が横と縦に何回収まるか。"
     }
   }
 }
