@@ -11,20 +11,31 @@ import type { PlacementRows } from '../../placement/rows.ts';
 import type { ExplorerSource } from '../session/prepare.ts';
 import { listenWorldNotices } from '../diagnostic/worldNotices.ts';
 import { Scene } from './scene.ts';
-import { runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts';
+import {
+  runtimeOf,
+  sessionStandIn,
+  takeContentReopens,
+  type Open,
+} from './worldRuntime.fixture.ts';
 
-/** A session that mounts, unmounts and grows rows in place, each mount drawn `late` frames after
- *  it is asked (`frame` moves them on), and the rows it draws with the frame that mounted them. */
-function mountingSession(late: number) {
+/** A session that mounts, unmounts and grows rows in place — each growth it `takes` —, each mount
+ *  drawn `late` frames after it is asked (`frame` moves them on), and the rows it draws with the
+ *  frame that mounted them. */
+function mountingSession(late: number, takes = true) {
   const { session } = sessionStandIn();
   const drawn = new Map<PlacementRows, number>();
   const pending: { at: number; done: () => void }[] = [];
   let opened = 0,
     mounts = 0,
+    grown = 0,
     now = 0;
   Object.assign(session, {
     growsPlacements: () => true,
-    growPlacements: (from: PlacementRows, to: PlacementRows) => drawn.set(to, drawn.get(from)!),
+    growsInPlace: () => takes,
+    growPlacements: (from: PlacementRows, to: PlacementRows) => (
+      grown++,
+      drawn.set(to, drawn.get(from)!)
+    ),
     mountsPlacements: () => true,
     mountPlacements: ({ association }: PlacementMount) =>
       new Promise<void>((done) => {
@@ -58,8 +69,44 @@ function mountingSession(late: number) {
       }
     return { rows, newest };
   };
-  return { open, drawn, frame, live, opened: () => opened, mounts: () => mounts };
+  return {
+    open,
+    drawn,
+    frame,
+    live,
+    opened: () => opened,
+    mounts: () => mounts,
+    grown: () => grown,
+  };
 }
+
+test('a growth the session refuses leaves its rows as they are, and a session sized for it opens', async () => {
+  for (const takes of [true, false]) {
+    const scene = new Scene(() => Promise.reject(new Error('no loader')));
+    const { open, opened, grown } = mountingSession(0, takes);
+    const runtime = runtimeOf(
+      scene,
+      Promise.resolve(),
+      (error) => assert.fail(String(error)),
+      open,
+    );
+    const box = geometry.box(1, 1, 1),
+      stone = material.meshStandard({ color: 0x808080 });
+    scene.add(object.mesh(box, stone));
+    await runtime.settled();
+    runtime.render();
+    // A second crate of the same box and stone: one more row of the batch the session holds.
+    scene.add(object.mesh(box, stone));
+    for (let frame = 0; frame < 4; frame++) {
+      await runtime.settled();
+      runtime.render();
+    }
+    runtime.dispose();
+    assert.deepEqual([grown(), opened()], takes ? [1, 1] : [0, 2]);
+    // Refused, the growth takes today's path: one reopen, the one this test asks for.
+    assert.equal(takeContentReopens().length, takes ? 0 : 1);
+  }
+});
 
 test('1 000 frames adding and removing a mesh and replacing a geometry never open the session again', async () => {
   const scene = new Scene(() => Promise.reject(new Error('no loader')));
