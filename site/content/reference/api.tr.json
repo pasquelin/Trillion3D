@@ -2624,6 +2624,13 @@
       "depth": "Bir görsel yığını için katmanlar."
     }
   },
+  "PlacementGrowth": {
+    "summary": "Bir sahibin, örnek arabelleklerini yerinde büyüten bir oturuma verdiği şey (`growth.ts`).",
+    "members": {
+      "growPlacements": "Oturumun tuttuğu bir örnek arabelleği daha büyüğüyle değiştirildi, önce `from`'un satırları, geri kalanı park edildi: oturum artık `to`'yu okur ve yeni satırlarını tutar, hiçbir tablo yeniden kurulmaz (`growth.ts`). Bir motorda yoksa sahip oturumu `to` üzerinde yeniden açar.",
+      "growsInPlace": "`growPlacements`'ın `from`'un her birini `capacity` satıra büyütülmüş olarak kabul edip etmediği; sahip herhangi birini değiştirmeden önce sorulur: false onları olduğu gibi bırakır ve sahip oturumu daha büyükleri üzerinde yeniden açar."
+    }
+  },
   "PlacementRows": {
     "summary": "Aynalanmış meshlerin yerleştirme satırları, yerleştirilmiş kopya başına bir satır.",
     "members": {

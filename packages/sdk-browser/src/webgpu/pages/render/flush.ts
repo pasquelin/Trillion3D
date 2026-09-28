@@ -56,8 +56,8 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
     { clearColor } = run;
   if (!capture.capturePending) {
     const revision = run.imageRevision,
-      [width, height] = gpu.targetSize,
-      texture = gpu.colorTexture!;
+      [width, height] = gpu.displaySize,
+      texture = gpu.displayTexture!;
     capture.capturePending = readGpuImage(gpuDevice, texture, width, height, context.signal)
       .then((pixels) => {
         if (run.lost || revision !== run.imageRevision) return;
@@ -161,7 +161,7 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime, options: { image?
   if (
     options.image !== false &&
     gpuDevice &&
-    gpu.colorTexture &&
+    gpu.displayTexture &&
     !capture.capturing &&
     run.imageRevision > 0 &&
     capture.capturedRevision !== run.imageRevision
