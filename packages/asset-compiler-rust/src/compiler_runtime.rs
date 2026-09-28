@@ -25,7 +25,6 @@ pub(super) fn load_model_file(
         validate_manifest(manifest)?;
     }
     let file_bytes = map_source(&dir.join(name))?;
-    let source_len = file_bytes.len();
     let source_hash = hash(&file_bytes);
     if let Some((ref manifest, _)) = &declared {
         let expected = manifest
@@ -40,8 +39,11 @@ pub(super) fn load_model_file(
         }
     }
     let declared_ref = declared.as_ref().map(|(m, _)| m);
+    // Bytes of the glTF itself: a GLB's BIN chunk is charged once, as the job's binary.
+    let mut g_bytes_len = file_bytes.len();
     let (mut g, binary, offsets, sidecars) = if is_glb(&file_bytes) {
         let (g, range) = compiler_source::parse_glb_parts(&file_bytes)?;
+        g_bytes_len -= range.len();
         let embedded = Binary::MappedRange(file_bytes, range);
         let (binary, offsets, sidecars) =
             concat_gltf_buffers(dir, &g, Some(embedded), declared_ref)?;
@@ -66,7 +68,7 @@ pub(super) fn load_model_file(
         manifest,
         manifest_bytes,
         g,
-        g_bytes_len: source_len,
+        g_bytes_len,
         binary,
         bin_hash,
     })
