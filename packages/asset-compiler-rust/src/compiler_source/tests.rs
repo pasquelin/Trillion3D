@@ -13,7 +13,12 @@ fn mapped_glb_keeps_one_bin_slice_and_original_source_hash() {
     let source = glb(&g, &[1, 2, 3, 4]);
     let dir = scratch("glb", "map");
     fs::write(dir.join("one.glb"), &source).expect("source");
-    let loaded = load_model_file(&dir, "one.glb", None).expect("load GLB");
+    let cancelled = std::sync::atomic::AtomicBool::new(false);
+    let budget = crate::compiler_runtime::compressed::Budget {
+        limit: 1 << 20,
+        cancelled: &cancelled,
+    };
+    let loaded = load_model_file(&dir, "one.glb", None, &budget).expect("load GLB");
     assert!(matches!(&loaded.binary, Binary::MappedRange(..)));
     assert_eq!(loaded.binary.bytes(), &[1, 2, 3, 4]);
     // The BIN chunk is the job's binary: only the header and JSON count as glTF bytes.
@@ -22,7 +27,7 @@ fn mapped_glb_keeps_one_bin_slice_and_original_source_hash() {
     assert_eq!(loaded.bin_hash, hash(&[1, 2, 3, 4]));
     drop(loaded);
     let manifest = crate::compiler_runtime::runtime_manifest("one.glb", "bad", &[], 0, 0);
-    let refusal = load_model_file(&dir, "one.glb", Some((manifest, Vec::new())))
+    let refusal = load_model_file(&dir, "one.glb", Some((manifest, Vec::new())), &budget)
         .err()
         .expect("hash refusal");
     assert_eq!(refusal.code, "SOURCE_HASH_MISMATCH");
