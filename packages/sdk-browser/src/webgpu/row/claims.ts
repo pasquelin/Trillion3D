@@ -29,10 +29,8 @@ export function createWebgpuRowClaims(pageCount: number) {
     /** Enrols a page, unless it is already waiting its turn. */
     add(page: number) {
       if (page >= marks.length) {
-        const wider = new Uint8Array(Math.max(page + 1, marks.length * 2));
-        wider.set(marks);
-        marks = wider;
-        pages = grown(pages, wider.length, count);
+        marks = grown(marks, page + 1, marks.length);
+        pages = grown(pages, marks.length, count);
       }
       if (marks[page]) return;
       marks[page] = 1;
