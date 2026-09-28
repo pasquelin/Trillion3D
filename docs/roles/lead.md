@@ -12,7 +12,7 @@ not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.m
    of AGENTS.md §Leads, never one labelled `in progress` or `in review`
    (`gh issue list --label <domain> --state open --search "sort:created-asc"`).
    Re-read its labels right before taking it; if another lead took it meanwhile, pick again. Then
-   `gh issue edit <n> --add-label "in progress" --add-assignee pasquelin` (the boss sees what is in development) and comment `taken by lead <domain>`.
+   `gh issue edit <n> --add-label "in progress" --add-assignee pasquelin` (the boss sees what is in development: the assignee means an agent is on it now) and comment `taken by lead <domain>`. When a step merges and the next one does not start at once, or you park the issue, remove the assignee and the `in progress` label so another lead can take it.
 2. **Design note, then code.** Before the first coder, comment on the issue what its To do, Code
    context and Proof leave open among: the approach, the budget it holds, the paths it touches
    (WebGPU, WebGL2, CPU cut) and the two scenes that prove it; one line when they already say it. For a `measure ko` whose cause is `tests`, the note names the fast test
