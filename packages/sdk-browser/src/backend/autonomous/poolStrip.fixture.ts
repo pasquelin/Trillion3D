@@ -1,7 +1,8 @@
 import * as THREE from 'three';
+import assert from 'node:assert/strict';
 import { PAGE } from './pool.fixture.ts';
 import { mount } from './poolCut.fixture.ts';
-import { ruleDag } from '../../page/cut/cutRule.fixture.ts';
+import { coverFault, ruleDag } from '../../page/cut/cutRule.fixture.ts';
 import type { DagPage } from '../../../../../bench/perf/browser/support/dagCut.ts';
 import type { HostCamera } from '../../camera/world.ts';
 
@@ -38,4 +39,28 @@ export function levels(dag: ReturnType<typeof ruleDag>, drawn: number[]) {
     at.fill(dag.pages[id].level, a, b);
   }
   return at;
+}
+
+/** Twenty-four images after a cut: none draws a hole, drops a drawn page before it is replaced or
+ *  lets a leaf go more than one level coarser. Returns how many leaf steps went coarser. */
+export function descend({ image, dag, pages, drawnIds }: ReturnType<typeof strip>) {
+  let before = levels(dag, drawnIds()),
+    drawn = drawnIds(),
+    coarser = 0;
+  for (let i = 0; i < 24; i++) {
+    assert.ok(
+      drawn.every((id) => pages[id].array),
+      `image ${i}: a drawn page left`,
+    );
+    image(0.25, 3);
+    drawn = drawnIds();
+    assert.equal(coverFault(dag, drawn), -1, `image ${i}: a leaf not covered exactly once`);
+    const now = levels(dag, drawn);
+    for (let u = 0; u < dag.leaves; u++) {
+      assert.ok(now[u] <= before[u] + 1, `image ${i}, leaf ${u}: ${before[u]} → ${now[u]}`);
+      if (now[u] > before[u]) coarser++;
+    }
+    before = now;
+  }
+  return coarser;
 }
