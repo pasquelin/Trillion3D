@@ -130,14 +130,15 @@ async function start(message: Extract<ToPhysics, { type: 'start' }>) {
   // each has loaded, `jolt` stays unset: nothing steps, the character's words wait in `queued`.
   const pool =
     message.threads > 1
-      ? joltWorkerPool(scope.location.href, (data) => scope.postMessage(data as FromPhysics))
+      ? joltWorkerPool(scope.location.href, message.threads, (data) =>
+          scope.postMessage(data as FromPhysics),
+        )
       : null;
-  const threads = pool && { count: message.threads, spawn: pool.spawn };
-  const opened = await openJolt(await response.arrayBuffer(), budget.memoryBytes, threads);
+  const opened = await openJolt(await response.arrayBuffer(), budget.memoryBytes, pool);
   const started = startJolt(opened, budget, message.threads);
   await pool?.ready();
   jolt = started;
-  if (message.threads > 1) tuner = createThreadTuner(message.threads);
+  if (pool) tuner = createThreadTuner(message.threads);
   results = createTickResults(jolt, budget, buffers, scope.postMessage.bind(scope));
   buffers.push(...message.buffers);
   clock.start(performance.now());
