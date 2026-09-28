@@ -46,7 +46,8 @@ fn cancellation_is_honoured_between_two_images_not_mid_decode() {
     let meshes = BTreeSet::from([0usize]);
     let view_map = BTreeMap::new();
 
-    let already_cancelled = options(&dir);
+    let mut already_cancelled = options(&dir);
+    already_cancelled.ram_budget_mb = 256;
     already_cancelled.cancelled.store(true, Ordering::Relaxed);
     let pool = one_thread();
     let started = Instant::now();
@@ -54,6 +55,7 @@ fn cancellation_is_honoured_between_two_images_not_mid_decode() {
         stage_texture_previews(
             &PreviewInputs {
                 o: &already_cancelled,
+                reserved_bytes: 0,
                 g: &g,
                 bin: &[],
                 image_root: &dir,
@@ -68,7 +70,8 @@ fn cancellation_is_honoured_between_two_images_not_mid_decode() {
     let immediate_elapsed = started.elapsed();
     assert_eq!(immediate.err().expect("cancelled").code, "CANCELLED");
 
-    let mid_flight = options(&dir);
+    let mut mid_flight = options(&dir);
+    mid_flight.ram_budget_mb = 256;
     let flag = mid_flight.cancelled.clone();
     let pool = one_thread();
     let after_first_image = move |_: Value| flag.store(true, Ordering::Relaxed);
@@ -77,6 +80,7 @@ fn cancellation_is_honoured_between_two_images_not_mid_decode() {
         stage_texture_previews(
             &PreviewInputs {
                 o: &mid_flight,
+                reserved_bytes: 0,
                 g: &g,
                 bin: &[],
                 image_root: &dir,
