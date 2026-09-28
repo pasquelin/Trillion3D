@@ -13,8 +13,8 @@ rule 2).
    calls only where a rule needs it; the graph first for cross-module questions.
 3. **Check**, most severe first:
    - the issue's promise: every To-do line and every Proof line of the issue (a `Part of` pull
-     request, its step) is delivered by the merged diff, and nothing it did not ask; an image proof
-     holds only under CONTRIBUTING.md §Image and fidelity (stable A/A);
+     request, its step) is delivered by the merged diff, and nothing it did not ask; the image proof
+     holds under CONTRIBUTING.md §Image and fidelity (stable A/A);
    - no image loss (AGENTS.md rule 1), no tuning on a scene, numbers measured and never
      estimated;
    - reuse: nothing that duplicates an existing mechanism, even under another name;

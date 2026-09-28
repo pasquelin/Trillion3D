@@ -75,13 +75,13 @@
 - Never reduce the displayed resolution or the draw distance (a lower internal resolution only
   under the mission's bar). Never convert transparency to masking **inside the engine**: a source
   material wrongly declared blended is reclassified by the compiler at import.
-- `0 px`, `tri = selected` and A/A noise stay the default proof for geometry and lighting. A batch
-  that keeps them owes no discussion.
+- `0 px` and `tri = selected` stay the default proof for geometry and lighting. A batch that keeps
+  them owes no discussion.
 - **A proof needs a stable A/A.** A branch-against-develop difference proves something only on a
-  capture whose A/A is 0 px, or within the masked exception below. A scene that is not A/A-stable
-  is first made stable (frozen clock, pinned frame) or replaced by a stable scene on the same path;
-  a difference inside a broad A/A spread is not proven. `health-check` is exempt until #26 makes
-  it stable: its proof is no error, pages drawn, and its verdict.
+  capture whose A/A is 0 px (or the masked exception below); a broad A/A spread proves nothing. A
+  scene that is not A/A-stable is first made stable (frozen clock, pinned frame) or replaced by a
+  stable scene on the same path. `health-check` is exempt until #26 makes it stable: its proof is
+  no error, pages drawn, and its verdict.
 - **At most 4 px of A/A on a still capture is accepted** when it is isolated to a masked cut-out at
   the alpha cutoff, below human discrimination at the capture resolution, and declared in the batch.
   That is GPU keep/discard on the same foliage pixel, not a residency, shadow-page or TAA bug.
