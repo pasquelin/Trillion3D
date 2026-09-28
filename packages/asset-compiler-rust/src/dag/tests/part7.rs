@@ -4,6 +4,19 @@ use super::*;
 /// The cause `reduce_group` names for one group holding every triangle of `indices`, every
 /// position locked when `locked`, the seam weld read from `uvs` when there is one.
 fn cause_of(positions: &[f32], indices: &[u32], uvs: Option<&[f32]>, locked: bool) -> StallCause {
+    match reduced(positions, indices, uvs, locked) {
+        Ok(_) => panic!("the group reduced"),
+        Err(outcome) => outcome.cause,
+    }
+}
+
+/// What `reduce_group` makes of that group.
+fn reduced(
+    positions: &[f32],
+    indices: &[u32],
+    uvs: Option<&[f32]>,
+    locked: bool,
+) -> std::result::Result<GroupReduction, GroupOutcome> {
     let children: Vec<DagCluster> = cluster_triangles(positions, indices, DAG_CLUSTER_TRIANGLES)
         .expect("clusters")
         .into_iter()
@@ -38,11 +51,14 @@ fn cause_of(positions: &[f32], indices: &[u32], uvs: Option<&[f32]>, locked: boo
     let carried: Vec<&crate::geometry_page::Attribute> = carried.iter().collect();
     let welds = attributes::Welds::of(positions, DagAttributes { carried: &carried }, indices);
     let locks = vec![locked; positions.len() / 3];
-    let input = welds.input(positions, &locks, quality::NORMAL_DEVIATION_BOUND);
-    match reduce_group(&input, &group).expect("reduce") {
-        Ok(_) => panic!("the group reduced"),
-        Err(outcome) => outcome.cause,
-    }
+    let attributes = DagAttributes { carried: &carried };
+    let input = welds.input(
+        positions,
+        attributes,
+        &locks,
+        quality::NORMAL_DEVIATION_BOUND,
+    );
+    reduce_group(&input, &group).expect("reduce")
 }
 
 // Behaviour: a group of one triangle has nothing to halve.
@@ -67,26 +83,22 @@ fn a_fully_locked_sheet_is_border_locked() {
 }
 
 // Behaviour: a sheet laid out one texture island per quad stalls unlocked, and halves once its
-// position copies are welded across the seams: the seams hold it.
+// position copies are welded across the seams: the seams hold it, and the group is reduced with
+// solved vertices instead (`solved.rs`), which only a `seam-locked` diagnosis runs.
 #[test]
-fn a_sheet_of_one_island_per_quad_is_seam_locked() {
-    let (grid_positions, grid_indices) = grid(16);
-    let (mut positions, mut uvs, mut indices) = (Vec::new(), Vec::new(), Vec::new());
-    for quad in grid_indices.chunks(6) {
-        let base = (positions.len() / 3) as u32;
-        // The quad's corners a, a + 1, a + w, a + 1 + w, each written once for this quad alone.
-        let corners = [quad[0], quad[1], quad[2], quad[4]];
-        for (rank, &corner) in corners.iter().enumerate() {
-            let at = corner as usize * 3;
-            positions.extend_from_slice(&grid_positions[at..at + 3]);
-            uvs.extend([(rank & 1) as f32, (rank >> 1) as f32]);
-        }
-        indices.extend([base, base + 1, base + 2, base + 1, base + 3, base + 2]);
-    }
-    assert_eq!(
-        cause_of(&positions, &indices, Some(&uvs), false),
-        StallCause::SeamLocked
+fn a_sheet_of_one_island_per_quad_is_seam_locked_and_solved() {
+    let (positions, uvs, indices) = island_per_quad(16);
+    let reduction = reduced(&positions, &indices, Some(&uvs), false).expect("solved");
+    let placed = reduction.placed.expect("placed vertices");
+    assert!(!placed.positions.is_empty());
+    let source = (positions.len() / 3) as u32;
+    let corners = reduction.clusters.iter().flatten();
+    assert!(
+        corners.clone().any(|&v| v >= source),
+        "a coarse corner is placed"
     );
+    let triangles: usize = reduction.clusters.iter().map(|c| c.len() / 3).sum();
+    assert!(triangles < indices.len() / 3);
 }
 
 // Behaviour: triangles that touch only at their corners stall with no lock and no seam: every

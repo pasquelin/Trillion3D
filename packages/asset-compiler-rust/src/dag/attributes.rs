@@ -1,6 +1,7 @@
 //! The vertex attributes a reduction answers for: normals and texture sets count in the
 //! simplification error, texture seams are protected, and a coarse corner keeps the normal of
 //! its own face.
+use super::charts::{mirror_vertices, seam_vertices};
 use super::clusters::{normalized_bits, position_key, weld_by};
 use super::clusters::{weld_positions, weld_positions_and_uv};
 use super::quality::{face_normal, unit_normal};
@@ -39,7 +40,7 @@ impl<'a> DagAttributes<'a> {
         self.values(FLAG_UV).chain(self.values(FLAG_UV1)).collect()
     }
     /// The attributes the simplifier weighs, normals first.
-    fn weighted(&self) -> Vec<Attribute<'a>> {
+    pub(super) fn weighted(&self) -> Vec<Attribute<'a>> {
         let normals = self.normals().map(|values| Attribute {
             values,
             width: 3,
@@ -55,20 +56,20 @@ impl<'a> DagAttributes<'a> {
 }
 
 /// What every reduction of a primitive reads beside its level's locks, computed once.
-pub(super) struct Welds<'a> {
+/// Grown with every vertex a solved reduction places (`solved::Placed`).
+pub(super) struct Welds {
     pub weld: Vec<u32>,
     /// `None` without a texture set: the seam weld is then the position weld.
-    weld_seam: Option<Vec<u32>>,
-    exact: Vec<u32>,
-    /// Empty without a texture set: no vertex is then on a seam.
-    seams: Vec<bool>,
+    pub(super) weld_seam: Option<Vec<u32>>,
+    pub(super) exact: Vec<u32>,
+    /// Empty without a texture set: no vertex is then on a seam, nor on a mirror.
+    pub(super) seams: Vec<bool>,
+    pub(super) mirrors: Vec<bool>,
     /// Per vertex, the extent of its part (`vanished::part_extents`).
-    extents: Vec<f64>,
-    weighted: Vec<Attribute<'a>>,
-    normals: Option<&'a [f32]>,
+    pub(super) extents: Vec<f64>,
 }
-impl<'a> Welds<'a> {
-    pub fn of(positions: &[f32], attributes: DagAttributes<'a>, indices: &[u32]) -> Self {
+impl Welds {
+    pub fn of(positions: &[f32], attributes: DagAttributes, indices: &[u32]) -> Self {
         let weld = weld_positions(positions, indices);
         let uv_sets = attributes.uv_sets();
         let weld_seam =
@@ -76,30 +77,32 @@ impl<'a> Welds<'a> {
         let seams = weld_seam.as_deref().map_or_else(Vec::new, |weld_seam| {
             seam_vertices(&weld, weld_seam, indices)
         });
+        let mirrors = mirror_vertices(&weld, &uv_sets, indices);
         Self {
             exact: weld_exact(positions, attributes.carried, indices),
             extents: super::vanished::part_extents(positions, indices, &weld),
             weld,
             weld_seam,
             seams,
-            weighted: attributes.weighted(),
-            normals: attributes.normals(),
+            mirrors,
         }
     }
-    /// The input of one reduction; `normal_bound` is its group's (`quality::deviation_bound`).
+    /// The input of one reduction over the level's vertex arrays; `normal_bound` is its group's
+    /// (`quality::deviation_bound`).
     pub fn input<'b>(
         &'b self,
         positions: &'b [f32],
+        attributes: DagAttributes<'b>,
         locks: &'b [bool],
         normal_bound: f64,
     ) -> GroupReductionInput<'b> {
         GroupReductionInput {
             positions,
-            attributes: &self.weighted,
-            normals: self.normals,
+            attributes,
             normal_bound,
             locks,
             seams: &self.seams,
+            mirrors: &self.mirrors,
             weld: &self.weld,
             exact: &self.exact,
             weld_seam: self.weld_seam.as_deref().unwrap_or(&self.weld),
@@ -113,31 +116,27 @@ impl<'a> Welds<'a> {
 /// lost: coarse levels point at a copy identical in everything the page stores.
 pub fn weld_exact(positions: &[f32], carried: &[&Carried], indices: &[u32]) -> Vec<u32> {
     weld_by(positions.len() / 3, indices, |id| {
-        let mut key = position_key(positions, id).to_vec();
-        for attribute in carried {
-            let i = id as usize * attribute.width;
-            let copy = attribute.values.get(i..i + attribute.width).unwrap_or(&[]);
-            key.extend(copy.iter().map(|&v| normalized_bits(v)));
-        }
-        key
+        key(
+            positions,
+            id as usize,
+            carried.iter().map(|a| (&a.values[..], a.width)),
+        )
     })
 }
 
-/// Per source vertex, whether its position is written under several texture coordinates: a seam
-/// vertex, which permissive simplification must not merge across. `weld` is by position,
-/// `weld_seam` by position and every texture set.
-pub fn seam_vertices(weld: &[u32], weld_seam: &[u32], indices: &[u32]) -> Vec<bool> {
-    let mut first = vec![u32::MAX; weld.len()];
-    let mut seam = vec![false; weld.len()];
-    for &v in indices {
-        let (position, copy) = (weld[v as usize] as usize, weld_seam[v as usize]);
-        if first[position] == u32::MAX {
-            first[position] = copy;
-        } else if first[position] != copy {
-            seam[position] = true;
-        }
+/// The bits of vertex `v`'s position and of its `width` floats of each of `attributes`: equal
+/// keys, one vertex to a page.
+pub(super) fn key<'v>(
+    positions: &[f32],
+    v: usize,
+    attributes: impl Iterator<Item = (&'v [f32], usize)>,
+) -> Vec<u32> {
+    let mut key = position_key(positions, v as u32).to_vec();
+    for (values, width) in attributes {
+        let copy = values.get(v * width..v * width + width).unwrap_or(&[]);
+        key.extend(copy.iter().map(|&x| normalized_bits(x)));
     }
-    (0..weld.len()).map(|v| seam[weld[v] as usize]).collect()
+    key
 }
 
 /// Points every corner of `simplified` at the copy of its position and texture coordinates, among
