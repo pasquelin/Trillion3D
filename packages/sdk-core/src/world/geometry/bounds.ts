@@ -24,12 +24,20 @@ const whole = new Float64Array(6),
   morph = new Float64Array(6),
   sum = new Float64Array(3),
   scratchBox = new Box3(),
-  centre = new Vector3();
+  centre = new Vector3(),
+  point = [0, 0, 0],
+  base = [0, 0, 0];
 
 /** Number `component` of position `index` at the value it stands for, a normalised integer
  *  scaled back; a position two numbers wide lies in the plane z = 0. */
-export const positionAt = (attribute: VertexAttribute, index: number, component: number) =>
+const positionAt = (attribute: VertexAttribute, index: number, component: number) =>
   component < attribute.itemSize ? attribute.getComponent(index, component) : 0;
+
+/** Position `index` at its value (`positionAt`), its three numbers written into `out`. */
+export function pointAt(attribute: VertexAttribute, index: number, out: number[] = [0, 0, 0]) {
+  for (let c = 0; c < 3; c++) out[c] = positionAt(attribute, index, c);
+  return out;
+}
 
 /** The position list itself when its stored numbers are its values: owned, three a vertex, not
  *  normalised; `null` for any other. */
@@ -38,22 +46,15 @@ export const plainPoints = (attribute: VertexAttribute | undefined) =>
     ? attribute
     : null;
 
-/** The box of an attribute's vertices, written into `into` (six numbers). */
-function spanInto(into: Float64Array, attribute: VertexAttribute) {
-  boxEmpty(into, 0);
-  for (let i = 0; i < attribute.count; i++)
-    boxExpandByPoint(
-      into,
-      0,
-      positionAt(attribute, i, 0),
-      positionAt(attribute, i, 1),
-      positionAt(attribute, i, 2),
-    );
-}
-
 /** Grows the box `into` by `point` (three numbers at `at`). */
 const grow = (into: Float64Array, point: ArrayLike<number>, at: number) =>
   boxExpandByPoint(into, 0, point[at], point[at + 1], point[at + 2]);
+
+/** The box of an attribute's vertices, written into `into` (six numbers). */
+function spanInto(into: Float64Array, attribute: VertexAttribute) {
+  boxEmpty(into, 0);
+  for (let i = 0; i < attribute.count; i++) grow(into, pointAt(attribute, i, point), 0);
+}
 
 /** The box of the positions and of every shape a morph target gives them, into `whole`; false
  *  with no position. */
@@ -99,25 +100,25 @@ export function spanSphere(sphere: Sphere, morphed: Morphed) {
   if (!position) return sphere;
   const { x: cx, y: cy, z: cz } = spanBox(scratchBox, morphed).getCenter(centre);
   let far = 0;
-  const reach = (x: number, y: number, z: number) => {
-    const dx = cx - x,
-      dy = cy - y,
-      dz = cz - z;
+  /** Reaches the point of three numbers at `at` in `p`. */
+  const reach = (p: ArrayLike<number>, at = 0) => {
+    const dx = cx - p[at],
+      dy = cy - p[at + 1],
+      dz = cz - p[at + 2];
     far = Math.max(far, dx * dx + dy * dy + dz * dz);
   };
-  if (plain)
-    for (let i = 0, a = plain.array; i + 2 < a.length; i += plain.itemSize)
-      reach(a[i], a[i + 1], a[i + 2]);
+  if (plain) for (let i = 0, a = plain.array; i + 2 < a.length; i += 3) reach(a, i);
   else {
-    const at = (a: VertexAttribute, i: number) =>
-      [0, 1, 2].map((c) => positionAt(a, i, c)) as [number, number, number];
-    for (let i = 0; i < position.count; i++) reach(...at(position, i));
+    for (let i = 0; i < position.count; i++) reach(pointAt(position, i, point));
     const relative = morphed.morphTargetsRelative;
     for (const target of morphed.morphAttributes.position ?? [])
       for (let j = 0; j < target.count; j++) {
-        const moved = at(target, j);
-        if (relative) for (let c = 0; c < 3; c++) moved[c] += positionAt(position, j, c);
-        reach(...moved);
+        pointAt(target, j, point);
+        if (relative) {
+          pointAt(position, j, base);
+          for (let c = 0; c < 3; c++) point[c] += base[c];
+        }
+        reach(point);
       }
   }
   sphere.center.set(cx, cy, cz);
