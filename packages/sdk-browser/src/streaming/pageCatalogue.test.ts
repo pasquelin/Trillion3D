@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createPageCache } from './pageCache.ts';
-import { createPageStreamer } from './pageStreamer.ts';
+import { createPageStreamer, createPageStreamerWith } from './pageStreamer.ts';
 import { servedPages } from './servedPages.fixture.ts';
 
 test('a mounted page joins the catalogue, is read and cached, then leaves it with its bytes', async () => {
@@ -95,12 +95,12 @@ test('a page forgotten while its read waits leaves once that read is dropped', a
 test('a page forgotten while it is read stays in the kept cache the next session holds', async () => {
   const { pages, release } = await heldPages(['open.bin', 'mounted.bin']);
   const cache = createPageCache();
-  const first = createPageStreamer(pages, 'http://site.test/', { cache });
+  const first = createPageStreamerWith(pages, 'http://site.test/', { cache });
   const reading = first.readBytes('mounted.bin').catch(() => undefined);
   first.forget(['mounted.bin']);
   first.dispose();
   await servedPages(['open.bin', 'mounted.bin']);
-  const next = createPageStreamer(pages, 'http://site.test/', { cache });
+  const next = createPageStreamerWith(pages, 'http://site.test/', { cache });
   try {
     await next.readBytes('mounted.bin');
     release();
