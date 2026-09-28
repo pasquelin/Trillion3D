@@ -10,7 +10,10 @@ import { functionText } from './wgslBody.fixture.ts';
 // have controlled inputs; the roughness branches and interpolation are the production text.
 const scalarBody = (name: string) => {
   const text = functionText(BOUNCE_LIGHTING_SHADER, name);
-  return text.slice(text.indexOf('{') + 1).replace(/\b(\d+)u\b/g, '$1');
+  return text
+    .slice(text.indexOf('{') + 1)
+    .replace(/\b(\d+)u\b/g, '$1')
+    .replace(/var (\w+):\w+/g, 'let $1');
 };
 const evaluate = new Function(`
  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x)), vec3f=x=>x;

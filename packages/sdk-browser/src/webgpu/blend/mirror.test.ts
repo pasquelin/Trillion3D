@@ -1,3 +1,4 @@
+import { withScreenReflections } from '../../reflections/screenWgsl.ts';
 import test from 'node:test';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../page/surface.ts';
@@ -19,7 +20,10 @@ import { BOUNCE_LIGHTING_SHADER } from '../../lighting/deferred/shaders.ts';
 
 test('transparent mirrors use the opaque reflection model and bind its surface radiance', () => {
   for (const name of ['mirrorLighting', 'reflectedRadiance', 'rayRadiance'])
-    assert.equal(functionText(BLEND_SHADER, name), functionText(BOUNCE_LIGHTING_SHADER, name));
+    assert.equal(
+      functionText(BLEND_SHADER, name),
+      functionText(withScreenReflections(BOUNCE_LIGHTING_SHADER), name),
+    );
   assert.match(BLEND_SHADER, /rgb\+=mirrorLighting\(s.rgb,m,clamped,s.N,V,in.view\)/);
   const surfaceCache = {} as GPUBuffer;
   const atlas = { views: [], pages: { buffer: {} } };
