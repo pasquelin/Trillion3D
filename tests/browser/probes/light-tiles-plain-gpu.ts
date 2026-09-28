@@ -1,7 +1,7 @@
 // The plain light-tile pass — what a device without `subgroups` runs — builds on a real GPU the
-// lists the subgroup pass builds (#924): one device that granted `subgroups`, the engine's pass
-// compiled both ways, the same depth, lights and view, the narrow pass and the wide one with its
-// pool (`lightTilesPlainPage.ts`).
+// lists the subgroup pass builds (#924): two devices of one adapter, one granted `subgroups` and
+// one not, the engine's pass on each, the same depth, lights and view, the narrow pass and the
+// wide one with its pool (`lightTilesPlainPage.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
@@ -31,8 +31,12 @@ test('the plain tile pass keeps the lists of the subgroup pass, on the GPU', asy
     assert.deepEqual([subgroup.subgroups, plain.subgroups], [true, false], 'one variant each');
     const wide = count > LIGHT_SETTINGS.tileLights;
     assert.deepEqual([subgroup.wide, plain.wide], [wide, wide]);
-    const kept = subgroup.lists.flatMap((list) => (list === 'all' ? [] : [list.length]));
-    assert.ok(kept.some((n) => n > 0) && !subgroup.lists.includes('all'), 'lists to compare');
+    assert.deepEqual([subgroup.overflowed, plain.overflowed], [0, 0], 'every pool had room');
+    const kept = subgroup.lists.map((list) => list.length);
+    assert.ok(
+      kept.some((n) => n > 0),
+      'lists to compare',
+    );
     if (wide) assert.ok(Math.max(...kept) > LIGHT_SETTINGS.tileLights, 'a slice in the pool');
     assert.deepEqual(plain.lists, subgroup.lists, `the same lists, ${count} lights`);
   }

@@ -3,13 +3,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { NEAR, camera } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
-import { depthField, type City, type Light } from './lightTileCity.ts';
+import { blockIndex, depthField, emptyBlocks, type City, type Light } from './lightTileCity.ts';
 import { countView, walkAllPastList } from './lightTileCount.ts';
 import { COST_MODEL, modelMs } from './lightTileIterations.ts';
 
 // Straight down from 100 m onto one 30 m building (x and z 8 to 52 m), the ground all around.
 const view = camera([30, 100, 30], 0, -Math.PI / 2, 60, 64, 48);
-const city = (lights: Light[]): City => ({ blocks: new Map([['0,0', 30]]), lights });
+const city = (lights: Light[]): City => {
+  const blocks = emptyBlocks();
+  blocks[blockIndex(0, 0)] = 30;
+  return { blocks, lights };
+};
 
 test('the city is ray-cast as the depth buffer holds it', () => {
   const depths = depthField(city([]), view);
