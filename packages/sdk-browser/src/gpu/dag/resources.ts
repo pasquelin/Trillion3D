@@ -76,7 +76,7 @@ export async function createDagResources(
       usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
     });
     device.queue.writeBuffer(dispatchArgs, 0, new Uint32Array([0, 1, 1, 0]));
-    const list = createDagList(device, listCap, residentCut),
+    const list = createDagList(own, listCap, residentCut),
       { output, readback } = list;
     // No extra storage buffer, a stage's ceiling is already reached; arming words go to the
     // dispatch argument, hence the copy source.
@@ -90,17 +90,7 @@ export async function createDagResources(
       size: Math.max(48, packed.pageCones.byteLength),
       usage: STORAGE,
     });
-    buffers.push(
-      clusters,
-      nodes,
-      uniforms,
-      flags,
-      dispatchArgs,
-      output,
-      work,
-      pageCones,
-      ...readback,
-    );
+    buffers.push(clusters, nodes, uniforms, flags, dispatchArgs, work, pageCones);
     const frames = createCameraFrames(device, frameData, worldCount, own, packed.worlds);
     const group = {
       clusters,

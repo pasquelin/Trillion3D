@@ -1,7 +1,6 @@
 import { storageBufferCap } from '../../residency/pools.ts';
 import { SELECTION_WORKGROUP } from '../core/selection.ts';
-import { stagedOutputBytes } from './layout.ts';
-import { initialListCap } from './listCap.ts';
+import { deviceListCap } from './listCap.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { dagFlagsWords } from './shader/lastUseWgsl.ts';
 import type { PackedDag } from './types.ts';
@@ -28,13 +27,14 @@ export function dagDeviceRefusal(limits: Limits, packed: PackedDag) {
     pageCones: packed.pageCones.byteLength,
     flags: dagFlagsWords(nodeCount, pageCount) * 4,
     work: dagWorkLayout(blocks).words * 4,
-    out: stagedOutputBytes(initialListCap(limits, pageCount)),
   };
   for (const [buffer, size] of Object.entries(bytes))
     if (size > limit) return { buffer, bytes: size, limit };
+  // The readout starts within one binding (`initialListCap`): refused only if not one rank fits.
+  if (deviceListCap(limits) < 1) return { buffer: 'out', limit };
   // One thread per page, node or primitive, flat along x: the widest pass (`encode.ts`).
   const workgroups = Math.ceil(Math.max(pageCount, nodeCount, worldCount) / SELECTION_WORKGROUP),
-    most = limits?.maxComputeWorkgroupsPerDimension ?? Infinity;
+    most = limits.maxComputeWorkgroupsPerDimension ?? Infinity;
   if (workgroups > most) return { dispatch: 'workgroups', workgroups, limit: most };
   return undefined;
 }

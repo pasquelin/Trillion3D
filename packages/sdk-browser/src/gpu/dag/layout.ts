@@ -94,6 +94,10 @@ export const residentReadbackBytes = (listCap: number) => stagedRequestsWord(lis
 /** Bytes of `out` with the staged requests behind: what the kernels write, more than the frame
  *  copies. */
 export const stagedOutputBytes = (listCap: number) => (stagedRequestsWord(listCap) + listCap) * 4;
+/** The most ranks an `out` of `bytes` holds: `stagedOutputBytes` read backwards, three words a
+ *  rank (requests, drawn list, staged requests) behind the fixed headers and eviction burst. */
+export const listCapHeld = (bytes: number) =>
+  Math.max(0, Math.floor((bytes / 4 - stagedRequestsWord(0)) / 3));
 /** Readback slots the cut alternates between (`dispatch.ts`): the cache reads a drawn list at
  *  most this many frames behind the GPU, plus the frame being encoded. */
 export const DAG_READBACK_SLOTS = 2;
