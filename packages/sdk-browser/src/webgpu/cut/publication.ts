@@ -9,7 +9,6 @@ import type { WebgpuResidencySets } from '../residency/sets.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
 import { createEvictionFeed } from '../residency/evictionFeed.ts';
 import type { WebgpuView } from '../pages/state/view.ts';
-import { createViewCuts, type ViewCut } from './viewCuts.ts';
 
 /**
  * What the rank journal notifies when a page changes coverage: the pending set, and the CPU cut's
@@ -72,18 +71,33 @@ export function createWebgpuCutPublication(
   // The three ways a cluster's coverage flips — bytes received, bytes released, a cache slot taken
   // or given back — all go through the rank journal, which names them one by one.
   rows.watchTouched(coverageWatcher(cutPending, held, packedPages));
-  const publishCut = (cut: CutDelta = cutDelta) => {
+  const publishCut = (cut: CutDelta) => {
     closure.apply(cut);
     residencySets.applyCut(closure.delta);
     cutPending.apply();
   };
-  const publishDrawn = (drawn: CutDelta = drawnDelta) => residencySets.applyDrawn(drawn);
-  const mainCut: ViewCut = { cut: cutDelta, drawn: drawnDelta },
-    viewCuts = createViewCuts(packedPages, run, views, mainCut);
-  /** `own`'s view publishes the cut it asks for, `wanted`, and the one it draws, `shown`. */
-  const adopt = (own: ViewCut, wanted: readonly PageRec[], shown: readonly PageRec[]) => {
-    own.cut.adoptRecords(wanted);
-    publishCut(own.cut);
+  const publishDrawn = (drawn: CutDelta) => residencySets.applyDrawn(drawn);
+  /**
+   * Every view publishes its cut by differences of its own into the same sets, which count each
+   * page per placement: what they ask for, keep and rank under the one page budget is the union of
+   * the views' cuts, a page two views share ranked at its coarsest level
+   * (`../residency/budgetRanking.ts`). The main view's are the two above, which the GPU cut adopts
+   * too: with one view, nothing else is made.
+   */
+  const mainCut = { asked: cutDelta, drawn: drawnDelta };
+  /** The drawn view's differences; another view's are made at its first cut, on its `desired`. */
+  const activeCut = () => {
+    const view = views.active;
+    if (view === views.main) return mainCut;
+    return (view.cut ??= {
+      asked: createCutDelta(packedPages, run.desired),
+      drawn: createCutDelta(packedPages),
+    });
+  };
+  /** A view publishes the cut it asks for, `wanted`, and the one it draws, `shown`. */
+  const adopt = (own: typeof mainCut, wanted: readonly PageRec[], shown: readonly PageRec[]) => {
+    own.asked.adoptRecords(wanted);
+    publishCut(own.asked);
     own.drawn.adoptRecords(shown);
     publishDrawn(own.drawn);
   };
@@ -98,11 +112,11 @@ export function createWebgpuCutPublication(
     delta: cutDelta,
     drawnDelta,
     drawnPages,
-    onDrawnDelta: publishDrawn,
+    onDrawnDelta: () => publishDrawn(drawnDelta),
     onDrawnMirrored: () => markDrawnMirrored(run),
     onAhead: ahead.offerIds,
     onCutDelta: () => {
-      publishCut();
+      publishCut(cutDelta);
       run.pagesEntered = cutDelta.enteredCount;
       run.pagesExited = cutDelta.exitedCount;
     },
@@ -111,7 +125,7 @@ export function createWebgpuCutPublication(
   // Read here and not retained: this publication's lifetime is that of the engine, and a list that
   // only serves bootstrap has no reason to stay hooked on it.
   cutDelta.adoptRecords(rt.layout.gpuWanted);
-  publishCut();
+  publishCut(cutDelta);
   /** Adopts the readback and says whether the IMAGE changed: whether the displayed lists were
    *  rewritten. A fresh readback republishing the same identifiers in the same order rewrites none. */
   const adoptGpuCut = () => {
@@ -152,7 +166,7 @@ export function createWebgpuCutPublication(
       drawnDelta.hostBytes +
       cutPending.hostBytes +
       tiers.all.reduce((bytes, tier) => bytes + tier.hostBytes, 0) +
-      viewCuts.hostBytes,
+      (views.active.cut ? views.active.cut.asked.hostBytes + views.active.cut.drawn.hostBytes : 0),
     adoptGpuCut,
     /**
      * The CPU cut publishes its own through the same differences: `wanted` writes `run.desired`
@@ -163,7 +177,7 @@ export function createWebgpuCutPublication(
      * Republishing it as-is changes nothing: the difference is empty.
      */
     adoptCpuCut(wanted: readonly PageRec[], shown: readonly PageRec[]) {
-      const own = viewCuts.active();
+      const own = activeCut();
       // The CPU cut evaluates no view ahead: what the main view's last readback asked for ahead is
       // let go. The view ahead is the main view's own, so another view's cut leaves it.
       if (own === mainCut) ahead.offerIds(NO_IDS);
@@ -171,8 +185,9 @@ export function createWebgpuCutPublication(
     },
     /** `view`, not the main one, is released: its cut leaves the union, whatever it held. */
     releaseView(view: WebgpuView) {
-      const own = viewCuts.release(view);
-      if (own) adopt(own, NO_PAGES, NO_PAGES);
+      if (!view.cut) return;
+      adopt(view.cut, NO_PAGES, NO_PAGES);
+      view.cut = undefined;
     },
     /** The held readback no longer describes the image's lists: the next one will re-read it whole. */
     forgetReadback: () => (run.cutEpoch++, cutAdopter.forgetReadback()),
