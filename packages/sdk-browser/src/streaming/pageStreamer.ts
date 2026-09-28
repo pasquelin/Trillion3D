@@ -4,6 +4,7 @@ import type { StreamContext, Job, StreamPage, PageStreamerOptions } from './type
 import { createStreamingCache } from './cache.ts';
 import { createIndexViews } from './indexView.ts';
 import { createPageCache, manifestTableBytes, type PageCache } from './pageCache.ts';
+import { createReadWatch } from './readWatch.ts';
 /** Bounded, prioritized and deduplicated reads. A request still waiting in the queue is dropped once
  *  its last consumer leaves; one already transferring is allowed to land in the cache.
  *  The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive
@@ -99,10 +100,11 @@ export function createPageStreamerWith(
   }));
   const { loadOne, roundTrip } = createStreamingFetcher(context, touch);
   const { subscribe } = createStreamingQueue(context, loadOne, touch, evict);
+  const { read, watch } = createReadWatch(subscribe);
   const asIndices = createIndexViews();
   const readBytes = (url: string, signal?: AbortSignal, priority = 0) => {
     state.requested++;
-    return subscribe(url, signal, priority);
+    return read(url, signal, priority);
   };
   return {
     admit: (more: readonly StreamPage[]) => more.forEach((page) => catalog.set(page.url, page)),
@@ -132,14 +134,12 @@ export function createPageStreamerWith(
     reserve,
     /** Pins by rank delta: neither an address list nor a set rebuilt each frame. */
     retainRanks,
-    /** Reads `urls` the catalog holds, once each; `onPage` hears 0 resident, then each landing. */
+    /** Hears every page read, whoever asks it, until the returned stop runs (`readWatch.ts`). */
+    watch,
+    /** Reads `urls` the catalog holds, once each. */
     async request(
       urls: readonly string[],
-      options: {
-        signal?: AbortSignal;
-        priority?: number;
-        onPage?: (resident: number, requested: number) => void;
-      } = {},
+      options: { signal?: AbortSignal; priority?: number } = {},
     ) {
       const unique = [...new Set(urls.filter((url) => catalog.has(url)))];
       state.requested += unique.length;
@@ -148,12 +148,7 @@ export function createPageStreamerWith(
         requested: urls.length,
         unique: unique.length,
       }));
-      let resident = 0;
-      options.onPage?.(resident, unique.length);
-      const landed = () => options.onPage?.(++resident, unique.length);
-      await Promise.all(
-        unique.map((url) => subscribe(url, options.signal, options.priority ?? 1).then(landed)),
-      );
+      await Promise.all(unique.map((url) => read(url, options.signal, options.priority ?? 1)));
     },
     stats() {
       return {

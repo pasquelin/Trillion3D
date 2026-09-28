@@ -500,6 +500,24 @@
       "balloon": "TRACKING THE BALLOON"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Watch the recorded route through the park. Replay it, stop it, or take the camera.",
+    "controls": {
+      "replay": "Replay",
+      "stop": "Stop"
+    },
+    "readouts": {
+      "currentPart": "Current part"
+    },
+    "words": {
+      "entrance": "Entrance",
+      "pond": "Pond",
+      "bridge": "Bridge",
+      "pavilion": "Pavilion",
+      "overview": "Overview",
+      "complete": "Complete"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Orbit the crane while one clip slews the jib, moves the trolley, hoists the load and lets it swing.",
     "controls": {
@@ -1965,6 +1983,7 @@
       "manifest": "manifest read",
       "tables": "scene tables read",
       "resources": "scene files",
+      "session": "opening the view",
       "pages": "first pages",
       "ready": "ready"
     }
