@@ -36,9 +36,8 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   sceneToneMapping?(): SceneToneMapping;
   /** The contract light store has changed: the next frame will reread it. Absent = lights ignored. */
   refreshSceneLights?(): void;
-  /** What no signature says about this engine's lighting: its shadows, and the phrase that names
-   *  what it does not apply. The rest of the capabilities is read from the present methods; see
-   *  `lightingCapabilitiesOf`. Absent from an engine that has nothing more to declare. */
+  /** Extra lighting facts: shadow support and a reason when absent. Other capabilities come
+   *  from present methods; see `lightingCapabilitiesOf`. */
   lighting?: { shadows: boolean; reason?: string };
   /** Sets memory pools during the session; returns what the engine holds afterwards. */
   setMemoryBudgets?(budgets: MemoryBudgets): Promise<MemoryBudgetsReport>;
@@ -182,6 +181,7 @@ export interface BackendContext {
   bounceBudgetMs?: number;
   /** Time every step of the frame. Off by default: only the bench and the harness turn it on. */
   stageProfile?: boolean;
+  feedbackTargetAB?: boolean;
   /** DIAGNOSTIC variant kept by the host, checked (`../diagnostic/gpuVariant.ts`); absent in production. */
   diagnosticGpuVariant?: import('../diagnostic/gpuVariant.ts').DiagnosticGpuVariant;
   shadowPageInvalidation?: boolean; // page-by-page shadow-map invalidation, on by default
