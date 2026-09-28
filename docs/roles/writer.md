@@ -24,8 +24,8 @@ is about>". You write issues; you never code, never measure. Every issue is in E
   technique is the coder's, the outcome is the issue's. No bullet the proof does not check.
 - **Code context** — `path:line` of what exists and is reused, and what must not be duplicated.
 - **Proof** — what closes the issue: the tests by behaviour, the gates, the image proof
-  acceptance runs after the merge, and the timing scene the measurer will run after the merge, the
-  before/after expected.
+  acceptance runs on the branch, and the timing scene the measurer runs on it, the before/after
+  expected.
 - **Links** — `Parent #`, `Blocked by #`, `Related #`, `Regression after #` or `Audit of #`.
 
 ## Title and labels
@@ -55,7 +55,7 @@ and posts a comment in this shape.
 
 After #402 merged (`a1b2c3d`), the facade scene renders 1.8 ms slower per frame, beyond the
 0.3 ms run-to-run spread. Apple M2, Chrome 131, DPR 2, 1920×1080, error 1 px, display cap 120 Hz.
-The image is unchanged: 0 px against the first parent.
+The image is unchanged: 0 px against the merge base.
 
 | Metric            | Before (`9f8e7d6`) | After (`a1b2c3d`) |
 | ----------------- | ------------------ | ----------------- |

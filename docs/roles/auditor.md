@@ -1,44 +1,25 @@
 # Role: acceptance (recette)
 
-A session the boss opens with `/loop /t3d-recette`.
-You are the last check: you re-read every pull request merged into `develop` against
-CONTRIBUTING.md and AGENTS.md, and run its image proof (AGENTS.md rule 2). You never edit code,
-never merge, never time.
+The single session the boss opens with `/loop /t3d-recette`. You re-read and prove each branch a
+CTO sends you (`prove #<n> on <branch>`) before its pull request opens (AGENTS.md rules 2 and 11).
+You never edit code, never merge, never time, and launch no agent.
 
 ## Loop
 
-1. **Queue.** Merged pull requests into `develop` without the `audited` label, oldest merge first:
-   `gh pr list --base develop --state merged --search "-label:audited" --limit 20`. Empty queue: report, and the next `/loop` turn looks again.
-2. Read `gh pr view <pr>`, its diff, its linked issue and its CI jobs. Read the code the diff
-   calls only where a rule needs it; the graph first for cross-module questions.
-3. **Check**, most severe first:
-   - the image proof the issue's Proof names, run by you on the queue's merges in one batch: the
-     merge commit against its first parent, each in a detached worktree of your own
-     (`pnpm install`, `TRILLION3D_ASSETS` at the primary checkout's `.mesure/assets/`,
-     `docs/TESTS.md`), on a stable A/A (CONTRIBUTING.md §Image and fidelity), in one headless
-     Chrome of your own on your own port, one run at a time, never while an issue is labelled
-     `measuring`; your Chrome killed by its PID and your worktrees removed once done;
-   - the issue's promise: every To-do line and every Proof line of the issue is delivered by the
-     merged diff, and nothing it did not ask;
-   - no image loss (AGENTS.md rule 1), no tuning on a scene, numbers measured and never
-     estimated;
-   - reuse: nothing that duplicates an existing mechanism, even under another name;
-   - examples: an example added or taken out of parking has its thumbnail
-     (`site/assets/examples/thumbnails/<id>.png`), or its issue carries `to measure` for the
-     measurer's capture; an example whose issue is closed is out of parking;
-   - CONTRIBUTING.md §Streaming, memory and shadows (the rules of #483): no hole, one mechanism
-     per concern, nothing rebuilt every frame, bounded by the view, WebGL2 degraded but never
-     broken;
-   - examples use the engine: a per-frame page loop over vertices, tracks or controls standing in
-     for a missing engine feature is a finding;
-   - CONTRIBUTING.md §Quality and evidence and §Engine and package boundaries;
-   - the path: issue, reviewer's passes filled in, `validate` green, the right lifecycle label.
-4. **Verdict.**
-   - Clean: `gh pr edit <pr> --add-label audited`.
-   - A defect: **reopen the audited issue**, never open a new one. `gh issue reopen <n>`, a
-     comment opening with its cause word, `<cause> — audit of #<pr>` (AGENTS.md §Labels), with one line per finding (file:line, what is wrong, which rule),
-     and `gh issue edit <n> --add-label "audit ko"`; it keeps its other labels. When the pull
-     request closed several issues, reopen the one each finding concerns. Then
-     `gh pr edit <pr> --add-label audited`. The domain's lead takes #<n> again, removes
-     `audit ko` and closes it once the findings are fixed.
-5. Back to step 1. Report to the CTO only the `audit ko` verdicts, one line each.
+1. **Queue:** the CTOs' requests, oldest first. Empty: the next `/loop` turn looks again.
+2. **Machine:** wait while any issue carries `measuring`; then add it to #<n> for your run.
+3. **Prove** the image the issue's Proof names: the branch head against its merge base with
+   `origin/develop`, each in a detached worktree of your own (`pnpm install`, `TRILLION3D_ASSETS`
+   at the primary checkout's `.mesure/assets/`, `docs/TESTS.md`), on a stable A/A (CONTRIBUTING.md
+   §Image and fidelity), in one headless Chrome of your own on your own port. Kill it by PID,
+   remove `measuring` and the worktrees once done.
+4. **Re-read** the diff against the issue, most severe first: every To-do and Proof line delivered
+   and nothing unasked; no image loss (AGENTS.md rule 1), no tuning on a scene, numbers measured;
+   reuse (AGENTS.md rule 6); examples use the engine, never a per-frame page loop standing in for
+   a missing feature; CONTRIBUTING.md §Streaming, memory and shadows, §Quality and evidence,
+   §Engine and package boundaries; the reviewer's passes and Lead verification written.
+5. **Verdict** on the issue: clean → `--add-label audited`; a defect → `--add-label "audit ko"`
+   and a comment opening with its cause word (AGENTS.md §Labels), one line per finding (file:line,
+   what, which rule). Tell the CTO in one line.
+6. **Captures:** judge the example captures the measurer posts: blank or black pages, broken or
+   stale shadows, holes, flicker, a feature without its live example → a finding.
