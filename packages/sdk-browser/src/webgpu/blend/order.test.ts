@@ -52,8 +52,8 @@ function rankAgainstFresh(blendState: BlendState, eye: number[]) {
   return ranked;
 }
 
-/** A scene ranked twice from the same eye: its inputs are on record, and the next frame skips. */
-function heldScene(items = [item(-4), item(-8), item(-2), item(-6)]) {
+/** A scene already ranked twice from the same eye. */
+function rankedScene(items = [item(-4), item(-8), item(-2), item(-6)]) {
   const blendState = blendSceneOf(items);
   // Rejects every box beyond z = 3: none of the four, but a moved one can be.
   blendState.blendPlanes.set([0, 0, -1, 3]);
@@ -64,22 +64,22 @@ function heldScene(items = [item(-4), item(-8), item(-2), item(-6)]) {
   return { blendState, eye };
 }
 
-test('a still view with still items keeps the last order, bit-identical to a full ranking', () => {
-  const { blendState, eye } = heldScene();
-  assert.equal(rankAgainstFresh(blendState, eye), false, 'the frame did not rank again');
+test('a still view ranks again and produces the same order', () => {
+  const { blendState, eye } = rankedScene();
+  assert.equal(rankAgainstFresh(blendState, eye), true);
 });
 
-test('the first still frame after a move ranks, the second keeps', () => {
+test('every still frame after a move ranks again', () => {
   const blendState = blendSceneOf([item(-4), item(-8)]);
   orderBlendPasses(blendState, [0, 0, 0]);
   orderBlendPasses(blendState, [0, 0, -9]);
   for (const entry of blendState.blendGpu) entry.orderKey = UNRANKED;
-  assert.equal(rankAgainstFresh(blendState, [0, 0, -9]), true, 'items were not on record yet');
+  assert.equal(rankAgainstFresh(blendState, [0, 0, -9]), true);
   for (const entry of blendState.blendGpu) entry.orderKey = UNRANKED;
-  assert.equal(rankAgainstFresh(blendState, [0, 0, -9]), false);
+  assert.equal(rankAgainstFresh(blendState, [0, 0, -9]), true);
 });
 
-const changes: [string, (scene: ReturnType<typeof heldScene>) => void][] = [
+const changes: [string, (scene: ReturnType<typeof rankedScene>) => void][] = [
   ['the eye moves', (scene) => (scene.eye = [0, 0, -9])],
   ['a frustum plane moves', ({ blendState }) => blendState.blendPlanes.set([0, 0, -1, 5])],
   [
@@ -106,33 +106,33 @@ const changes: [string, (scene: ReturnType<typeof heldScene>) => void][] = [
 for (const [what, change] of changes)
   test(`${what}: the frame ranks again, as a full ranking would`, () => {
     const row = { rows: { live: new Uint8Array([1]) }, index: 0 } as unknown as PlacementOf;
-    const scene = heldScene([item(-4), item(-8), item(-2, { placement: row }), item(-6)]);
+    const scene = rankedScene([item(-4), item(-8), item(-2, { placement: row }), item(-6)]);
     change(scene);
     assert.equal(rankAgainstFresh(scene.blendState, scene.eye), true);
   });
 
 test('an item without a box ranks again when its world origin moves', () => {
-  const { blendState, eye } = heldScene([item(-4), item(-8, { bounds: undefined })]);
+  const { blendState, eye } = rankedScene([item(-4), item(-8, { bounds: undefined })]);
   (blendState.blendGpu[1].matrix.elements as number[])[14] = -1;
   assert.equal(rankAgainstFresh(blendState, eye), true);
 });
 
 test('an item that turns transmissive ranks again: the water count follows', () => {
-  const { blendState, eye } = heldScene();
+  const { blendState, eye } = rankedScene();
   blendState.blendGpu[0].transmissive = true;
   orderBlendPasses(blendState, eye);
   assert.notEqual(blendState.blendGpu[0].orderKey, UNRANKED);
   assert.equal(blendState.transmissiveInView, 1);
 });
 
-test('a frame without an eye voids the record', () => {
-  const { blendState, eye } = heldScene();
+test('a frame without an eye resumes ranking when the eye returns', () => {
+  const { blendState, eye } = rankedScene();
   orderBlendPasses(blendState, undefined);
   assert.equal(rankAgainstFresh(blendState, eye), true);
 });
 
 test('the first frame with an eye after one without slices the runs again, its order unmoved', () => {
-  const { blendState, eye } = heldScene();
+  const { blendState, eye } = rankedScene();
   blendState.orderMoved = [false, false];
   orderBlendPasses(blendState, undefined);
   orderBlendPasses(blendState, eye);
