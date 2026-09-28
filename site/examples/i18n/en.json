@@ -536,6 +536,20 @@
       "outer": "Outer"
     }
   },
+  "doors-that-open": {
+    "banner": "Move the camera toward the doors. They open as you approach.",
+    "controls": {
+      "mode": "Mode",
+      "openingDistance": "Opening distance",
+      "openness": "Openness"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "proximity",
+        "manual": "manual"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Drag to fly around the island. Raise the sea to flood the valleys.",
     "controls": {
@@ -587,6 +601,17 @@
       "lamp": "Lamp",
       "colour": "Colour",
       "bricks": "Bricks"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Click two surfaces to measure between them. A third click starts a new measurement. One unit represents one metre.",
+    "controls": {
+      "clear": "Clear"
+    },
+    "readouts": {
+      "pointA": "Point A",
+      "pointB": "Point B",
+      "distance": "Distance"
     }
   },
   "click-to-pick": {
@@ -1958,6 +1983,7 @@
       "manifest": "manifest read",
       "tables": "scene tables read",
       "resources": "scene files",
+      "session": "opening the view",
       "pages": "first pages",
       "ready": "ready"
     }
@@ -2231,6 +2257,12 @@
     },
     "words": {
       "credit": "Flag on a pole modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Move over the cart to highlight each part, or turn highlighting off in the panel.",
+    "controls": {
+      "highlightEnabled": "Enable highlighting"
     }
   },
   "a-dolly-along-the-canal": {

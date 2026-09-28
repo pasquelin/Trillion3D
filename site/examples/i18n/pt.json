@@ -536,6 +536,20 @@
       "outer": "Fora"
     }
   },
+  "doors-that-open": {
+    "banner": "Mova a câmera em direção às portas. Elas se abrem quando você se aproxima.",
+    "controls": {
+      "mode": "Modo",
+      "openingDistance": "Distância de abertura",
+      "openness": "Abertura"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "proximidade",
+        "manual": "manual"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Arraste para voar em volta da ilha. Suba o mar para inundar os vales.",
     "controls": {
@@ -587,6 +601,17 @@
       "lamp": "Lâmpada",
       "colour": "Cor",
       "bricks": "Tijolos"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Clique em duas superfícies para medir a distância entre elas. Um terceiro clique inicia uma nova medição. Uma unidade representa um metro.",
+    "controls": {
+      "clear": "Limpar"
+    },
+    "readouts": {
+      "pointA": "Ponto A",
+      "pointB": "Ponto B",
+      "distance": "Distância"
     }
   },
   "click-to-pick": {
@@ -1958,6 +1983,7 @@
       "manifest": "manifesto lido",
       "tables": "tabelas da cena lidas",
       "resources": "arquivos da cena",
+      "session": "abrindo a vista",
       "pages": "primeiras páginas",
       "ready": "pronto"
     }
@@ -2231,6 +2257,12 @@
     },
     "words": {
       "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Passe o cursor sobre as peças do carrinho para realçar cada uma, ou desative o realce no painel.",
+    "controls": {
+      "highlightEnabled": "Ativar realce"
     }
   },
   "a-dolly-along-the-canal": {

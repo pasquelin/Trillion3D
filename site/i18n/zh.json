@@ -191,6 +191,7 @@
       "a-recorded-fly-through": "重播录制的飞行路线",
       "a-crane-that-swings": "摆动吊物的起重机",
       "a-wave-across-a-grid": "立方体的波浪",
+      "doors-that-open": "靠近时打开的门",
       "keyframes-by-hand": "手动关键帧",
       "one-clip-many-objects": "一个动画片段,多个物体",
       "animation-from-the-file": "来自文件的动画",
@@ -270,6 +271,7 @@
       "labels-that-follow": "跟随的标签",
       "select-with-a-box": "用框选择",
       "sound-made-visible": "让声音可见",
+      "measure-a-distance": "测量两点之间的距离",
       "click-to-pick": "点击来选取",
       "hover-over-triangles": "悬停在三角形上",
       "pick-lines-and-points": "选取线与点",
@@ -335,6 +337,7 @@
       "shadows-case-by-case": "阴影，逐个情形",
       "shadows-through-see-through-panes": "透过半透明玻璃的阴影",
       "a-walker-among-balls": "球堆里的行走者",
+      "hover-to-highlight": "悬停以突出显示部件",
       "a-dolly-along-the-canal": "沿运河移动的摄影机",
       "a-folder-merged-into-one-scene": "合并为一个场景的文件夹",
       "drag-a-crate": "拖动木箱"

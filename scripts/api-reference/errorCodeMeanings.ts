@@ -31,6 +31,8 @@ export const ENGINE_ERROR_MEANINGS: Readonly<Record<string, string>> = {
   UNSUPPORTED_SCENE_UPDATE: 'This drawing path cannot make that change to the scene.',
   RAYCAST_NO_VIEW:
     'A picture point was asked of a canvas with no size: there is no picture to aim through.',
+  VERTICES_NOT_LOADED:
+    "A loaded model's vertices were read before `await geometry.loadVertices()`: a session reads them on first need, never up front.",
   WEBGPU_LOST:
     'WebGPU lost its device, or an error on it left a state nothing can draw from: thrown by `render`, `flush` and the reads that need the device, named by the `gpu-device-lost` diagnostic, and on `world.diagnostic.error` when a session could not open for it.',
   SESSION_OPEN_FAILED:
