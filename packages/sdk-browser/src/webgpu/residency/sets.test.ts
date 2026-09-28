@@ -38,8 +38,8 @@ test('the CPU cut goes through the same delta, and the GPU resumes against it', 
   // It names its records and not ranks; the delta draws the same ranks from them, and the sets move
   // by what moved — neither emptied nor rebuilt.
   delta.adoptRecords([packed[10], packed[11], packed[19]]);
-  sets.applyCut(delta);
-  sets.applyBudget(64);
+  world.cut();
+  world.budget(64);
   assert.deepEqual(
     keysOf(tracking.wanted),
     new Set(
