@@ -23,8 +23,10 @@ export const MAX_SHADOW_BATCHES = Math.ceil(LAYER_PAGES / MAX_SHADOW_PAGES);
 /** Light views, one per face a batch draws, of the granted batches together: a batch draws at
  *  most one view per page, whichever cut selects its casters. */
 export const MAX_SHADOW_RUNS = MAX_SHADOW_BATCHES * MAX_SHADOW_PAGES;
-/** Frames whose light-cut flag words may be in flight at once (`../dag/lightCutRedraws.ts`). */
-export const SHADOW_FLAG_FRAMES = 4;
+/** Frames whose light-cut flag words may be in flight at once (`../dag/lightCutRedraws.ts`): at
+ *  120 frames a second, a readback's round trip — the GPU's queue, then the map — can span more
+ *  than four, and a frame that finds none free draws its light-cut pages a frame later (#1142). */
+export const SHADOW_FLAG_FRAMES = 8;
 
 /** Bytes of a drawn face's uniform entry, one per region (`atlas.ts`): a dynamic-offset stride. */
 export const SHADOW_FACE_STRIDE = PAGE_BIND_ALIGN;
