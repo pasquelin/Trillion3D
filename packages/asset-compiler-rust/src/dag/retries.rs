@@ -16,7 +16,7 @@ pub(super) trait Pass {
     /// The level's vertices the pass kept as they were, one per corner that names one.
     fn kept(&self) -> Cow<'_, [u32]>;
     /// Points each corner at its own face's normal copy and returns the corners to lock, welded:
-    /// those of faces lit from behind and those no copy turned their face's way exists for.
+    /// those of faces lit from behind and, on the endpoint pass, those no copy turned its way.
     fn faces(&mut self) -> Vec<u32>;
 }
 
