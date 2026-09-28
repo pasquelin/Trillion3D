@@ -42,6 +42,7 @@ pub(super) fn stage_textures(
                 meshes: stage.meshes,
                 view_map: stage.view_map,
                 to_measure: &stage.applied.to_measure(),
+                measurements: &stage.decisions.measurements,
             },
             progress,
         )

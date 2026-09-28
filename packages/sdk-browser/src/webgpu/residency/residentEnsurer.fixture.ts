@@ -49,7 +49,7 @@ export function placement() {
     pages.length,
   );
   const root = { world: { elements: [] }, pages, structure } as unknown as ClusterRoot<PageRec>;
-  return { pages, parentsOf: createPageParents([root]) };
+  return { pages, root, parentsOf: createPageParents([root]) };
 }
 
 /** A pool of `slots` pages evicting its oldest unpinned page, as the GPU page cache does. */

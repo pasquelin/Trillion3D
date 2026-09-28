@@ -46,13 +46,15 @@ export class Scene extends Object3D {
     return true as const;
   }
   private _background: Color | null = null;
-  /** Tells the world the background changed, chained on the colour to hear writes in place. */
-  private readonly recoloured = () => (this._link as WorldSceneLink | null)?.background();
+  /** Tells the world the background changed, chained on the colour to hear writes in place; a
+   *  link that is no world's (the WebGL2 draw lists') hears neither the background nor the fog. */
+  private readonly recoloured = () =>
+    (this._link as Partial<WorldSceneLink> | null)?.background?.();
   /** A picture of the surroundings that shiny surfaces reflect; `null` for none. */
   environment: Texture | null = null;
   private _fog: Fog | null = null;
   /** Tells the world the fog changed, chained on its colour to hear writes in place. */
-  private readonly refogged = () => (this._link as WorldSceneLink | null)?.fog();
+  private readonly refogged = () => (this._link as Partial<WorldSceneLink> | null)?.fog?.();
 
   /** Called by a renderer before it draws the scene; none by default. */
   declare onBeforeRender?: () => void;
