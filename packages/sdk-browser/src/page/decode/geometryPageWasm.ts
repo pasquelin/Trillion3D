@@ -78,7 +78,7 @@ export type SdkWasm = {
     out: number,
   ): number;
   /** The compiler's position grid for the run-time cut (`../../world/page/cutGrid.ts`). */
-  position_grid_exponent(extent: number): number;
+  position_grid_exponent(extent: number, blended: number): number;
 };
 type SourceWasm = BufferSource | (() => Promise<BufferSource>);
 
