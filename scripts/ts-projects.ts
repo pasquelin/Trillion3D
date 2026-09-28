@@ -1,7 +1,7 @@
 /** The TypeScript projects of the repository, and the type check `check:changed` runs on those that
  *  own a changed file: `tsc -p <project> --noEmit` through the compiler API, so a test can check
  *  a file that is not on disk. */
-import { resolve } from 'node:path';
+import { dirname, matchesGlob, relative, resolve } from 'node:path';
 import ts from 'typescript';
 
 /** Every tracked `tsconfig*.json` of `files`: the projects the gates type-check. */
@@ -64,11 +64,21 @@ export function typeErrors(program: ts.Program, root: string): string[] {
   return ts.getPreEmitDiagnostics(program).map((d) => ts.formatDiagnostics([d], host).trim());
 }
 
+/** Whether `project` carves `file` (absolute) out on purpose: its `include` covers it and its
+ *  `exclude` takes it back, as `tsc -p` does, such as the `tests/fixtures/public*` sources a test
+ *  type-checks with its own options. A file outside every `include` is never excused. */
+export function excludes(project: ts.ParsedCommandLine, file: string): boolean {
+  const path = relative(dirname(String(project.options.configFilePath)), file);
+  const names = (specs: unknown) =>
+    Array.isArray(specs) && specs.some((spec) => matchesGlob(path, String(spec)));
+  return names(project.raw?.include) && names(project.raw?.exclude);
+}
+
 /**
  * The type errors of every project that owns one of `sources`, the changed TypeScript files
  * (paths relative to `root`): a project owns a file it lists, or else one its program reaches (a
  * `*.fixture.ts` a test imports). A changed file no project reaches is itself an error, never a
- * silent skip.
+ * silent skip, unless a project's `include` covers it and its `exclude` takes it back.
  */
 export function changedTypeErrors(
   root: string,
@@ -92,7 +102,7 @@ export function changedTypeErrors(
     const found = listing.length
       ? listing
       : parsed.filter((project) => programOf(project).getSourceFile(file));
-    if (!found.length)
+    if (!found.length && !parsed.some((project) => excludes(project, file)))
       errors.push(`${source}: no tsconfig project type-checks it (${projects.join(', ')}).`);
     for (const project of found) owners.add(project);
   }
