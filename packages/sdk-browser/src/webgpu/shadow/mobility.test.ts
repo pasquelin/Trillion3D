@@ -134,4 +134,15 @@ test("a cutout row's word carries the cutout bit, beside its moving bit", () => 
   );
   const [MOVING, CUTOUT] = [MOBILITY_MOVING, MOBILITY_CUTOUT];
   assert.deepEqual([...mobility.rowWords], [0, CUTOUT, MOVING | CUTOUT, MOVING, MOVING]);
+  assert.ok(mobility.hasCutouts);
+  // The cutouts rewritten opaque: none is left.
+  mobility.writeRows(
+    (row) => [0, 0, 1, 1][row] ?? -1,
+    5,
+    1,
+    2,
+    () => {},
+    4,
+  );
+  assert.ok(!mobility.hasCutouts);
 });
