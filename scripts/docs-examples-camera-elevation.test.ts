@@ -13,11 +13,11 @@ import {
 import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import { Scene } from '../packages/sdk-browser/src/world/core/scene.ts';
 import { describe, type ControlSpec } from '../site/examples/kit/controls.ts';
-import { runExampleModule } from './docs/examples/capture.ts';
+import { catchPagehide, runExampleModule } from './docs/examples/capture.ts';
 
 type Values = { elevation: string; distance: number; zoom: number };
 
-test('the house elevations use parallel rays and keep their scale across camera distance', async () => {
+test('the house elevations use parallel rays and keep their scale across camera distance', async (t) => {
   const html = await readFile(
     new URL('../site/examples/an-elevation-of-the-house.html', import.meta.url),
     'utf8',
@@ -28,7 +28,6 @@ test('the house elevations use parallel rays and keep their scale across camera 
   let change = (_next: Values, _key?: keyof Values) => {};
   let watched: unknown;
   let disposed = 0;
-  let pagehide: ((event: Event) => void) | undefined;
   const world = {
     scene,
     canvas,
@@ -38,37 +37,30 @@ test('the house elevations use parallel rays and keep their scale across camera 
       disposed++;
     },
   } satisfies Pick<World, 'scene' | 'canvas' | 'camera' | 'invalidate' | 'dispose'>;
+  const hide = catchPagehide(t);
   const previousResizeObserver = globalThis.ResizeObserver;
-  const previousAddEventListener = globalThis.addEventListener;
   globalThis.ResizeObserver = class {
     observe() {}
     disconnect() {}
     unobserve() {}
   } as never;
-  globalThis.addEventListener = ((type: string, listener: (event: Event) => void) => {
-    if (type === 'pagehide') pagehide = listener;
-  }) as typeof globalThis.addEventListener;
-  try {
-    await runExampleModule(html, {
-      engine: { createWorld: () => world, camera, geometry, material, object, light, math },
-      kit: {
-        controls: (
-          specs: Record<string, ControlSpec>,
-          callback: typeof change,
-          statsWorld: unknown,
-        ) => {
-          values = describe(specs).values as Values;
-          change = callback;
-          watched = statsWorld;
-          callback(values);
-          return values;
-        },
+  t.after(() => void (globalThis.ResizeObserver = previousResizeObserver));
+  await runExampleModule(html, {
+    engine: { createWorld: () => world, camera, geometry, material, object, light, math },
+    kit: {
+      controls: (
+        specs: Record<string, ControlSpec>,
+        callback: typeof change,
+        statsWorld: unknown,
+      ) => {
+        values = describe(specs).values as Values;
+        change = callback;
+        watched = statsWorld;
+        callback(values);
+        return values;
       },
-    });
-  } finally {
-    globalThis.ResizeObserver = previousResizeObserver;
-    globalThis.addEventListener = previousAddEventListener;
-  }
+    },
+  });
 
   const active = world.camera;
   assert.equal(active.projection, 'orthographic');
@@ -89,7 +81,6 @@ test('the house elevations use parallel rays and keep their scale across camera 
   values.zoom = 1.5;
   change(values, 'zoom');
   assert.ok(span() < nearSpan, 'zoom changes the drawing scale deliberately');
-  assert.ok(pagehide, 'the page registers its lifecycle cleanup');
-  pagehide(new Event('pagehide'));
+  hide();
   assert.equal(disposed, 1);
 });
