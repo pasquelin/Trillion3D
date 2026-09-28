@@ -1372,8 +1372,10 @@
       "red-cyan-anaglyph": "أنجليف أحمر-سماوي",
       "camera-layers": "طبقات الكاميرا",
       "a-robot-that-walks-and-waves": "مزج حركات روبوت",
+      "a-recorded-fly-through": "جولة مسجلة يعاد تشغيلها",
       "a-crane-that-swings": "رافعة تتأرجح حمولتها",
       "a-wave-across-a-grid": "موجة من المكعبات",
+      "doors-that-open": "أبواب تفتح عند الاقتراب",
       "keyframes-by-hand": "إطارات مفتاحية يدوية",
       "one-clip-many-objects": "مقطع واحد، أشياء كثيرة",
       "animation-from-the-file": "حركة من الملف",
@@ -1520,6 +1522,7 @@
       "shadows-through-see-through-panes": "ظلال عبر ألواح شفافة",
       "a-walker-among-balls": "ماشٍ بين الكرات",
       "an-elevation-of-the-house": "مسقط واجهة متعامد للمنزل",
+      "hover-to-highlight": "مرّر المؤشر لإبراز جزء",
       "a-dolly-along-the-canal": "حركة كاميرا على طول القناة",
       "a-folder-merged-into-one-scene": "مجلد مدمج في مشهد واحد",
       "drag-a-crate": "سحب صندوق"

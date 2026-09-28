@@ -1,6 +1,6 @@
 # Physics fixtures
 
-The files the native compiler's physics cook tests read (`packages/asset-compiler-rust/src/physics_cook/`).
+The files the native compiler's physics cook tests and the physics module's tests read.
 
 - `ramp-tile.bin`, `small-ramp-tile.bin`: golden cooked tiles of a two-triangle ramp, written by
   the cook itself (`TRILLION3D_WRITE_GOLDEN=1`).
@@ -20,3 +20,8 @@ The files the native compiler's physics cook tests read (`packages/asset-compile
   every triangle is one Jolt drops (#562). Positions are the model's, in metres, unchanged. Layout,
   little-endian: `u32` vertex count, then `f32` x, y, z per vertex, then `u32` indices, three per
   triangle.
+- `soft-writeback-develop.bin`: the soft words develop's physics module (`cc7d59061`) wrote at the
+  kept steps of `writebackScene` (`packages/sdk-browser/src/physics/softWriteback.fixture.ts`),
+  before the write-back composed one matrix per body (#975); `softWriteback.test.ts` holds the
+  module to them within its bound. Layout, little-endian `u32`: the step count, then per step its
+  word count and its words (`softLayout.ts`).

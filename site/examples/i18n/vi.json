@@ -500,6 +500,24 @@
       "balloon": "ĐANG THEO KHINH KHÍ CẦU"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Xem lộ trình đã ghi qua công viên. Phát lại, dừng hoặc tự điều khiển camera.",
+    "controls": {
+      "replay": "Phát lại",
+      "stop": "Dừng"
+    },
+    "readouts": {
+      "currentPart": "Phần hiện tại"
+    },
+    "words": {
+      "entrance": "Lối vào",
+      "pond": "Ao",
+      "bridge": "Cầu",
+      "pavilion": "Nhà vọng cảnh",
+      "overview": "Toàn cảnh",
+      "complete": "Hoàn tất"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Xoay quanh cần cẩu khi một clip quay cần, di chuyển xe con, nâng tải và làm tải đung đưa.",
     "controls": {
@@ -516,6 +534,20 @@
       "ripples": "Gợn sóng",
       "inner": "Bên trong",
       "outer": "Bên ngoài"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Di chuyển camera về phía cửa. Cửa sẽ mở khi bạn đến gần.",
+    "controls": {
+      "mode": "Chế độ",
+      "openingDistance": "Khoảng cách mở",
+      "openness": "Độ mở"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "đến gần",
+        "manual": "thủ công"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -1951,6 +1983,7 @@
       "manifest": "đã đọc manifest",
       "tables": "đã đọc bảng cảnh",
       "resources": "tệp của cảnh",
+      "session": "đang mở khung nhìn",
       "pages": "trang đầu tiên",
       "ready": "sẵn sàng"
     }
@@ -2239,6 +2272,12 @@
         "right": "Mặt bên phải",
         "rear": "Mặt sau"
       }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Di chuột lên từng bộ phận của xe để làm nổi bật, hoặc tắt tính năng này trong bảng điều khiển.",
+    "controls": {
+      "highlightEnabled": "Bật làm nổi bật"
     }
   },
   "a-dolly-along-the-canal": {

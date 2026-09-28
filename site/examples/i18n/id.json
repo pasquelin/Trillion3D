@@ -500,6 +500,24 @@
       "balloon": "MELACAK BALON"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Saksikan rute rekaman melintasi taman. Putar ulang, hentikan, atau ambil alih kamera.",
+    "controls": {
+      "replay": "Putar ulang",
+      "stop": "Hentikan"
+    },
+    "readouts": {
+      "currentPart": "Bagian saat ini"
+    },
+    "words": {
+      "entrance": "Pintu masuk",
+      "pond": "Kolam",
+      "bridge": "Jembatan",
+      "pavilion": "Paviliun",
+      "overview": "Ikhtisar",
+      "complete": "Selesai"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Putari derek saat satu klip memutar lengan, menggerakkan troli, mengangkat muatan, dan mengayunkannya.",
     "controls": {
@@ -516,6 +534,20 @@
       "ripples": "Riak",
       "inner": "Dalam",
       "outer": "Luar"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Gerakkan kamera menuju pintu. Pintu terbuka saat Anda mendekat.",
+    "controls": {
+      "mode": "Mode",
+      "openingDistance": "Jarak pembukaan",
+      "openness": "Bukaan"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "kedekatan",
+        "manual": "manual"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -1951,6 +1983,7 @@
       "manifest": "manifes terbaca",
       "tables": "tabel adegan terbaca",
       "resources": "berkas adegan",
+      "session": "membuka tampilan",
       "pages": "halaman pertama",
       "ready": "siap"
     }
@@ -2239,6 +2272,12 @@
         "right": "Sisi kanan",
         "rear": "Belakang"
       }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Arahkan penunjuk ke bagian troli untuk menyorotnya satu per satu, atau matikan sorotan di panel.",
+    "controls": {
+      "highlightEnabled": "Aktifkan sorotan"
     }
   },
   "a-dolly-along-the-canal": {

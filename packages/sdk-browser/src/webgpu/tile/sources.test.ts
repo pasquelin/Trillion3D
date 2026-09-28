@@ -88,24 +88,31 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
     place: () => ({ x: 0, y: 0, layer: 0 }),
     poolOf: () => ({ texture: { format: 'rgba8unorm-srgb' } }),
   } as unknown as WebgpuTileAtlas;
-  // One device per texture: the reduction pipeline it builds says the rule that texture took.
-  const ruleOf = (slot: number) => {
-    const { device, renderPipelines } = mockGpu({ compute: true });
+  // One device per pass: the reduction pipelines it builds say the rules its textures took.
+  const rulesOf = (...slots: number[]) => {
+    const { device, renderPipelines, submits } = mockGpu({ compute: true });
     const sources = createTileSources({
       device,
       encoding,
       counters: createTileCounters(),
       onFailure: (_, error) => assert.fail(error as Error),
     });
-    const served = sources.serve(atlas, { slot, level: 0, tx: 0, ty: 0 }, 1, () =>
-      device.createCommandEncoder(),
-    );
-    assert.equal(served, 'served');
+    for (const slot of slots) {
+      const served = sources.serve(atlas, { slot, level: 0, tx: 0, ty: 0 }, 1, () =>
+        device.createCommandEncoder(),
+      );
+      assert.equal(served, 'served');
+    }
+    // OMB-29, #961: the pass's working textures are reduced together at its end, in one submit.
+    assert.equal(renderPipelines.length, 0, 'nothing reduced before the end of the pass');
+    sources.endPass();
+    assert.equal(submits.length, 1);
     return renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted);
   };
   assert.deepEqual(
-    census.maps.map((_, index) => ruleOf(index + 1)),
+    census.maps.map((_, index) => rulesOf(index + 1)),
     [[1], [0], [0], [1], [0], [0]],
     'masked and blended weighted; opaque, mixed, unblended and transmissive plain',
   );
+  assert.deepEqual(rulesOf(1, 2), [1, 0], 'a masked and an opaque texture, one batch');
 });
