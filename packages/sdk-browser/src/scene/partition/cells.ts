@@ -101,13 +101,15 @@ export function createPartitionCells(inputs: Inputs) {
     }
   };
   /** Sizes the rows for any place of the parents within a reach `bound` and a `stretch`, in place
-   *  under the engine that reads them (`grow`); false when it grows one no longer in place. */
+   *  under the engine that reads them (`grow`); false when it grows one no longer in place, the
+   *  size held unchanged so that the session opened again sizes them (`prime`). */
   const resize = (bound: number, grow?: PlacementGrowth, stretch = sizedStretch(boxes.stretch)) => {
+    const rows = residentRows(partition.cells, bound, stretch);
+    if (!sizeRows(meshes, rows, grow)) return false;
     stretched = stretch;
-    const rows = residentRows(partition.cells, bound, stretched);
     sized = holdsEvery(rows, cells) ? Infinity : bound;
     short = false;
-    return sizeRows(meshes, rows, grow);
+    return true;
   };
   return {
     /** Every cell as the streamer's catalogue reads it. */
