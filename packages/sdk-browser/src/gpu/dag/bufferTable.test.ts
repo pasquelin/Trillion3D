@@ -48,6 +48,7 @@ test('work never needs a split: the largest catalogue holds within the binding e
   const camera = cameraCutBuffers({
     pageCount,
     nodeCount: 0,
+    worldCount: 1,
     clusters: empty,
     nodes: empty,
     pageCones: empty,

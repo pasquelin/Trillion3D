@@ -4,7 +4,8 @@ import { createCameraFrames } from './frameRanges.ts';
 import { createDagPipeline } from './pipeline.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
-import { cameraCutBuffers, makeDagBuffer } from './bufferTable.ts';
+import { cameraCutBuffers, makeDagBuffer, type DagBufferRow } from './bufferTable.ts';
+import { ELEMENT_BYTES, type DagParts } from './split.ts';
 import { createDagList, initialListCap } from './listCap.ts';
 
 export async function createDagResources(
@@ -25,7 +26,7 @@ export async function createDagResources(
   // The buffers, the kernel's block count and the layout of `work`, one table with the device
   // check (`bufferTable.ts`): two counters live behind the blocks in `work`, and only the byte
   // offsets a copy to the dispatch argument asks for are taken here.
-  const { blockCount, travail, rows } = cameraCutBuffers(packed),
+  const { blockCount, travail, rows, parts, split } = cameraCutBuffers(packed, device.limits),
     liveGroupsOffset = travail.liveGroups * 4,
     candGroupsOffset = travail.candGroups * 4,
     drawnGroupsOffset = travail.drawnGroups * 4;
@@ -40,8 +41,11 @@ export async function createDagResources(
     return buffer;
   };
   try {
-    const clusters = makeDagBuffer(own, rows.clusters);
-    const nodes = makeDagBuffer(own, rows.nodes);
+    /** A table's buffers, one per part (`split.ts`): the first at the table's own binding. */
+    const make = (list: DagBufferRow[]) => list.map((row) => makeDagBuffer(own, row));
+    const tables = { clusters: make(parts.clusters), nodes: make(parts.nodes) };
+    const [clusters] = tables.clusters,
+      [nodes] = tables.nodes;
     const uniforms = own({
       size: DAG_UNIFORM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -50,8 +54,10 @@ export async function createDagResources(
     // cone verdict and the cut rule's two comparisons), then the live-cluster list, then the
     // candidate list — which also serves as the previous frame's drawn journal —, then the
     // remaining queues, then each page's last use (`shader/lastUseWgsl.ts`): never read by the
-    // CPU, which still only copies draw flags.
-    const flags = makeDagBuffer(own, rows.flags);
+    // CPU, which still only copies draw flags. Split, each part holds whole sections: the draw
+    // mask lies in one (`split.ts`).
+    const flagParts = make(parts.flags),
+      [flags] = flagParts;
     // Three argument words, of which the last is one once and for all: x and y are copied, once
     // per indirect dispatch (`shader/gridWgsl.ts`). Passes following each other, one buffer is
     // enough.
@@ -64,7 +70,8 @@ export async function createDagResources(
     // No extra storage buffer, a stage's ceiling is already reached; arming words go to the
     // dispatch argument, hence the copy source.
     const work = makeDagBuffer(own, rows.work);
-    const pageCones = makeDagBuffer(own, rows.pageCones);
+    const coldParts = make(parts.pageCones),
+      [pageCones] = coldParts;
     const frames = createCameraFrames(device, frameData, worldCount, own, packed.worlds);
     const group = {
       clusters,
@@ -74,21 +81,37 @@ export async function createDagResources(
       out: list.output,
       work,
       cold: pageCones,
+      parts: {
+        clusters: tables.clusters.slice(1),
+        nodes: tables.nodes.slice(1),
+        cold: coldParts.slice(1),
+        flags: flagParts.slice(1),
+      },
     };
-    const pipeline = await createDagPipeline(device, group, frames);
+    const pipeline = await createDagPipeline(device, group, frames, split);
     if (!pipeline) {
       for (const buffer of buffers) buffer.destroy();
       return undefined;
     }
-    const upload = (target: GPUBuffer, size: number, source: Float32Array) => {
-      const copy = new Uint8Array(size);
-      if (source.byteLength)
-        copy.set(new Uint8Array(source.buffer, source.byteOffset, source.byteLength));
-      device.queue.writeBuffer(target, 0, copy);
+    /** Each part its own span of `source`, padded to its buffer's size. */
+    const upload = (targets: GPUBuffer[], sizes: DagBufferRow[], source: Float32Array) => {
+      const bytes = new Uint8Array(source.buffer, source.byteOffset, source.byteLength);
+      let from = 0;
+      targets.forEach((target, k) => {
+        const copy = new Uint8Array(sizes[k].size);
+        copy.set(bytes.subarray(from, from + copy.byteLength));
+        device.queue.writeBuffer(target, 0, copy);
+        from += copy.byteLength;
+      });
     };
-    upload(clusters, rows.clusters.size, packed.clusters);
-    upload(nodes, rows.nodes.size, packed.nodes);
-    upload(pageCones, rows.pageCones.size, packed.pageCones);
+    upload(tables.clusters, parts.clusters, packed.clusters);
+    upload(tables.nodes, parts.nodes, packed.nodes);
+    upload(coldParts, parts.pageCones, packed.pageCones);
+    /** A table as its parts: what a host write spans (`writeParts`). */
+    const partsOf = (buffers: GPUBuffer[], per: number, element: number): DagParts => ({
+      buffers,
+      bytes: buffers.length > 1 ? per * element : Number.MAX_SAFE_INTEGER,
+    });
     return {
       device,
       packed,
@@ -118,6 +141,11 @@ export async function createDagResources(
       work,
       frames,
       pageCones,
+      /** How the tables split on this device, and each as its parts (`split.ts`). */
+      split,
+      flagParts,
+      nodeParts: partsOf(tables.nodes, split.nodes.per, ELEMENT_BYTES.nodes),
+      coldParts: partsOf(coldParts, split.cold.per, ELEMENT_BYTES.cold),
       ...pipeline,
     };
   } catch {
