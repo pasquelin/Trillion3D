@@ -7021,7 +7021,8 @@
       "projection": "Perspektif ya da ortografik.",
       "position": "Gözün durduğu yer.",
       "quaternion": "Gözün nasıl döndüğü.",
-      "optics": "Görüş alanı, near, far, zoom ve kutu, adlarıyla."
+      "optics": "Görüş alanı, near, far, zoom ve kutu, adlarıyla.",
+      "fitAspect": "Resmin biçimine genişletilen ortografik kutu (`fitAspect`); kapalıyken yok."
     }
   },
   "SavedGeometry": {

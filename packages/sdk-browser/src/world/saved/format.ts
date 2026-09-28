@@ -89,6 +89,8 @@ export interface SavedCamera {
   quaternion: number[];
   /** Field, near, far, zoom and box, by name. */
   optics: Record<string, number>;
+  /** An orthographic box widened to the picture's shape (`fitAspect`); absent when off. */
+  fitAspect?: boolean;
 }
 
 /** A scene as `scene.toJSON` writes it and `scene.fromJSON` reads it: plain JSON. */

@@ -7021,7 +7021,8 @@
       "projection": "透视或正交。",
       "position": "眼睛所在的位置。",
       "quaternion": "眼睛朝向哪里。",
-      "optics": "视场、near、far、zoom 和盒子，按名称。"
+      "optics": "视场、near、far、zoom 和盒子，按名称。",
+      "fitAspect": "按画面形状加宽的正交框（`fitAspect`）；关闭时省略。"
     }
   },
   "SavedGeometry": {

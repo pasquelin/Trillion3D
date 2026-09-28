@@ -7021,7 +7021,8 @@
       "projection": "원근 또는 직교.",
       "position": "눈이 서 있는 곳.",
       "quaternion": "눈이 돌아간 방향.",
-      "optics": "시야, near, far, zoom, 상자를 이름별로."
+      "optics": "시야, near, far, zoom, 상자를 이름별로.",
+      "fitAspect": "그림의 모양에 맞춰 넓힌 직교 상자(`fitAspect`); 꺼져 있으면 없음."
     }
   },
   "SavedGeometry": {

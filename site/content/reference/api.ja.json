@@ -7021,7 +7021,8 @@
       "projection": "透視投影または正投影。",
       "position": "目の位置。",
       "quaternion": "目の向き。",
-      "optics": "視野、near、far、zoom、箱を名前ごとに。"
+      "optics": "視野、near、far、zoom、箱を名前ごとに。",
+      "fitAspect": "画像の形に合わせて広げた正投影のボックス（`fitAspect`）。オフのときは省かれる。"
     }
   },
   "SavedGeometry": {

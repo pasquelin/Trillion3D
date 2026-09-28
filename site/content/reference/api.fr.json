@@ -7021,7 +7021,8 @@
       "projection": "Perspective ou orthographique.",
       "position": "Où se tient l’œil.",
       "quaternion": "Comment l’œil est tourné.",
-      "optics": "Champ, near, far, zoom et boîte, par nom."
+      "optics": "Champ, near, far, zoom et boîte, par nom.",
+      "fitAspect": "Une boîte orthographique élargie à la forme de l’image (`fitAspect`) ; absent quand désactivé."
     }
   },
   "SavedGeometry": {
