@@ -1,9 +1,9 @@
 //! The primitive's vertex arrays as its DAG grows them: the source's, then, level by level,
 //! every vertex a solved reduction placed (`solved.rs`, `placed.rs`).
 use super::placed::Local;
-use super::welds::{key, Welds};
+use super::welds::{key, Columns, Welds};
 use super::{DagAttributes, GroupReduction, GroupReductionInput};
-use crate::geometry_page::{Attribute as Carried, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
+use crate::geometry_page::{Attribute as Carried, FLAG_UV, FLAG_UV1};
 use std::collections::HashMap;
 
 /// The source's positions and carried attributes followed by every placed vertex. The pages,
@@ -12,6 +12,8 @@ use std::collections::HashMap;
 pub struct Grown {
     pub positions: Vec<f32>,
     pub carried: Vec<Carried>,
+    /// Per placed vertex, the source vertex it was solved from, through every level between.
+    pub origin: Vec<u32>,
 }
 impl Grown {
     /// The vertex arrays a stage reads: the grown ones, or the source's when nothing was placed.
@@ -42,6 +44,7 @@ impl Grown {
         let offset = grown
             .as_ref()
             .map_or(0, |g| (g.positions.len() / 3) as u32 - base);
+        let source = (positions.len() / 3) as u32;
         let shift = |v: u32| if v >= base { v + offset } else { v };
         reduction
             .clusters
@@ -59,7 +62,16 @@ impl Grown {
                     values: with_room(&a.values),
                 })
                 .collect(),
+            origin: Vec::new(),
         });
+        for &o in &placed.origins {
+            let origin = if o < source {
+                o
+            } else {
+                grown.origin[(o - source) as usize]
+            };
+            grown.origin.push(origin);
+        }
         grown.positions.extend_from_slice(&placed.positions);
         for (attribute, values) in grown.carried.iter_mut().zip(&placed.carried) {
             attribute.values.extend_from_slice(values);
@@ -77,21 +89,16 @@ fn with_room(values: &[f32]) -> Vec<f32> {
 }
 
 /// The vertices one solved reduction placed, numbered from its level's vertex count: their
-/// positions, every carried attribute, and what the level's welds say of each.
+/// positions, every carried attribute, the level's vertex each was solved from, and what the
+/// level's welds say of each.
 pub(super) struct Placed {
     pub positions: Vec<f32>,
     /// Per carried attribute, in the build's order, `width` floats per placed vertex.
     pub carried: Vec<Vec<f32>>,
-    /// Canonical vertex by position, by position and texture coordinates, and by everything a
-    /// page stores (`welds::Welds`).
-    pub weld: Vec<u32>,
-    pub weld_seam: Vec<u32>,
-    pub exact: Vec<u32>,
-    /// On a texture seam, on a mirror of the source (inherited); empty without a texture set.
-    pub seams: Vec<bool>,
-    pub mirrors: Vec<bool>,
-    /// The extent of the part each was solved in (`vanished::part_extents`).
-    pub extents: Vec<f64>,
+    pub origins: Vec<u32>,
+    pub columns: Columns,
+    /// The sides of their charts, inherited (`charts::chart_sides`); empty without a texture set.
+    pub sides: Vec<u8>,
 }
 
 impl Local<'_> {
@@ -99,21 +106,19 @@ impl Local<'_> {
     /// copied from the vertex it was solved from.
     pub fn placed(&self, input: &GroupReductionInput, base: u32) -> Placed {
         let carried = input.attributes.carried;
-        let normals = usize::from(input.attributes.normals().is_some()) * 3;
-        let uv0 = usize::from(carried.iter().any(|a| a.flag == FLAG_UV)) * 2;
-        let offset = |flag| match flag {
-            FLAG_NORMAL if normals > 0 => Some(0),
-            FLAG_UV => Some(normals),
-            FLAG_UV1 => Some(normals + uv0),
-            _ => None,
+        let weighed = input.attributes.weighed();
+        // Where each carried attribute sits in a solved row: the simplifier's order.
+        let offset = |a: &Carried| {
+            let at = weighed.iter().position(|&w| std::ptr::eq(w, a))?;
+            Some(weighed[..at].iter().map(|w| w.width).sum::<usize>())
         };
         let placed = (self.n..self.n + self.origin.len()).map(|id| id as u32);
         let values: Vec<Vec<f32>> = carried
             .iter()
-            .map(|a| {
+            .map(|&a| {
                 let mut out = Vec::with_capacity(self.origin.len() * a.width);
                 for (k, id) in placed.clone().enumerate() {
-                    out.extend_from_slice(match offset(a.flag) {
+                    out.extend_from_slice(match offset(a) {
                         Some(o) => &self.values[k * self.stride + o..][..a.width],
                         None => &a.values[self.from(id) * a.width..][..a.width],
                     });
@@ -131,7 +136,7 @@ impl Local<'_> {
                 w => self.global(w, base),
             })
             .collect();
-        let origins: Vec<usize> = placed.map(|id| self.from(id)).collect();
+        let origins: Vec<u32> = placed.map(|id| self.from(id) as u32).collect();
         // Per placed vertex, the canonical vertex of what `by` keys: the source vertex it was
         // solved from where their keys agree, else the first placed vertex with its key.
         let canonical = |by: fn(u32) -> bool, of: &[u32]| -> Vec<u32> {
@@ -149,6 +154,7 @@ impl Local<'_> {
             let mut seen: HashMap<Vec<u32>, u32> = HashMap::new();
             let mut out = Vec::with_capacity(origins.len());
             for (k, &g) in origins.iter().enumerate() {
+                let g = g as usize;
                 let placed = key(&positions, k, own.iter().copied());
                 out.push(
                     match placed == key(input.positions, g, source.iter().copied()) {
@@ -159,6 +165,8 @@ impl Local<'_> {
             }
             out
         };
+        // Without a texture set there is no seam: the seam weld is the position weld.
+        let textured = !input.seams.is_empty();
         let weld_seam = canonical(|flag| flag == FLAG_UV || flag == FLAG_UV1, input.weld_seam);
         let exact = canonical(|_| true, input.exact);
         let mut split: HashMap<u32, (u32, bool)> = HashMap::new();
@@ -167,24 +175,27 @@ impl Local<'_> {
             entry.1 |= entry.0 != s;
         }
         let seam = |w: u32| split[&w].1 || (w < base && input.seams[w as usize]);
-        let seams = match input.seams.is_empty() {
-            true => Vec::new(),
-            false => weld.iter().map(|&w| seam(w)).collect(),
+        let seams = match textured {
+            true => weld.iter().map(|&w| seam(w)).collect(),
+            false => Vec::new(),
         };
-        let mirrors = input.mirrors();
-        let mirrors = match mirrors.is_empty() {
+        let sides = input.sides();
+        let sides = match sides.is_empty() {
             true => Vec::new(),
-            false => origins.iter().map(|&g| mirrors[g]).collect(),
+            false => origins.iter().map(|&g| sides[g as usize]).collect(),
         };
         Placed {
-            extents: self.extents[self.n..].to_vec(),
             positions,
             carried: values,
-            weld,
-            weld_seam,
-            exact,
-            seams,
-            mirrors,
+            origins,
+            columns: Columns {
+                weld_seam: if textured { weld_seam } else { Vec::new() },
+                extents: self.extents[self.n..].to_vec(),
+                weld,
+                exact,
+                seams,
+            },
+            sides,
         }
     }
 }

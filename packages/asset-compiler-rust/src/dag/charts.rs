@@ -3,6 +3,7 @@
 //! spans, and the seams on the group's open border.
 use super::border::live_triangles;
 use super::clusters::edge_key;
+use super::placed::Local;
 use super::*;
 use crate::qem::Attribute;
 use crate::shared_math::{cross, length, point, sub};
@@ -77,14 +78,14 @@ pub fn seam_vertices(weld: &[u32], weld_seam: &[u32], indices: &[u32]) -> Vec<bo
     (0..weld.len()).map(|v| seam[weld[v] as usize]).collect()
 }
 
-/// Per source vertex, whether its position is one where a chart meets its mirror image in the
-/// source: around it, the triangles of one texture set turn both ways. The artist's layout, read
-/// once: a coordinate the solve places may fold, a mirror it is not. Empty without a texture set.
-pub fn mirror_vertices(weld: &[u32], uv_sets: &[&[f32]], indices: &[u32]) -> Vec<bool> {
+/// Per source vertex, the ways the triangles of each texture set turn around its position, in
+/// two bits per set: bit `2k` for a triangle of set `k` turning counter-clockwise in texture
+/// space, bit `2k + 1` clockwise. The artist's layout, read once. Empty without a texture set.
+pub fn chart_sides(weld: &[u32], uv_sets: &[&[f32]], indices: &[u32]) -> Vec<u8> {
     if uv_sets.is_empty() {
         return Vec::new();
     }
-    let mut sides = vec![[0u8; 2]; weld.len()];
+    let mut sides = vec![0u8; weld.len()];
     for (set, uvs) in uv_sets.iter().enumerate() {
         for tri in indices.as_chunks::<3>().0 {
             let [s, t, u] = tri.map(|v| [uvs[v as usize * 2], uvs[v as usize * 2 + 1]]);
@@ -95,17 +96,41 @@ pub fn mirror_vertices(weld: &[u32], uv_sets: &[&[f32]], indices: &[u32]) -> Vec
                 _ => continue,
             };
             for &v in tri {
-                sides[weld[v as usize] as usize][set] |= side;
+                sides[weld[v as usize] as usize] |= side << (2 * set);
             }
         }
     }
-    (0..weld.len())
-        .map(|v| sides[weld[v] as usize].contains(&3))
-        .collect()
+    (0..weld.len()).map(|v| sides[weld[v] as usize]).collect()
+}
+
+/// Whether `sides` (`chart_sides`) turn both ways in one texture set: where a chart meets its
+/// mirror image. A coordinate the solve places may fold; a mirror it is not.
+pub fn on_mirror(sides: u8) -> bool {
+    (0..2).any(|set| (sides >> (2 * set)) & 3 == 3)
+}
+
+/// The longest edge of `tri` over `positions`.
+pub(super) fn longest_edge(positions: &[f32], tri: &[u32; 3]) -> f64 {
+    let [a, b, c] = tri.map(|v| point(positions, v));
+    length(sub(b, a))
+        .max(length(sub(c, b)))
+        .max(length(sub(a, c)))
+}
+
+/// The longest edge of the solved faces whose corners' charts (`sides`, per level vertex) turn,
+/// together, both ways in one texture set: a face folded across a mirror, drawn only where it is
+/// under a pixel.
+pub(super) fn mirror_span(local: &Local, sides: &[u8]) -> f64 {
+    let turns = |tri: &&[u32; 3]| on_mirror(tri.iter().fold(0, |s, &c| s | sides[local.from(c)]));
+    let faces = local.indices.as_chunks::<3>().0.iter().filter(turns);
+    faces
+        .map(|tri| longest_edge(&local.positions, tri))
+        .fold(0.0, f64::max)
 }
 
 /// The group's triangles with every copy of a position on its open border — an edge one triangle
-/// alone uses —, but a locked or a mirror one, pointed at the first copy, and what that costs.
+/// alone uses —, but a locked one or one `kept` names, pointed at the first copy, and what that
+/// costs.
 /// meshoptimizer keeps a seam corner on an open border where it is: a sheet of one chart per quad
 /// keeps its whole outline. One copy there slides along the border like any border vertex, its
 /// coordinates solved; the copies it replaces cost their largest coordinate step times their
@@ -114,6 +139,7 @@ pub(super) fn open_border_welded(
     input: &GroupReductionInput,
     live: &[u32],
     densities: &[f64],
+    kept: impl Fn(u32) -> bool,
 ) -> (Vec<u32>, f64) {
     let weld = |v: u32| input.weld[v as usize];
     let mut edges: HashMap<u64, u32> = HashMap::new();
@@ -131,12 +157,10 @@ pub(super) fn open_border_welded(
         .collect();
     let uv_sets = input.attributes.uv_sets();
     let mut first: HashMap<u32, u32> = HashMap::new();
-    let mirrors = input.mirrors();
     let mut error = 0.0_f64;
     let corners = live.iter().map(|&v| {
         let w = weld(v);
-        let kept = input.locks[v as usize] || mirrors.get(v as usize) == Some(&true);
-        if kept || !open.contains(&w) {
+        if input.locks[v as usize] || kept(v) || !open.contains(&w) {
             return v;
         }
         let copy = *first.entry(w).or_insert(v);
