@@ -14,7 +14,16 @@ import {
   RUN_WORDS,
   runOwner,
 } from '../../../../packages/sdk-browser/src/webgpu/blend/runs.ts';
-import { pose, spans, type BenchItem, type BenchSide, type Frame } from './scenesTransparent.ts';
+import {
+  benchSide,
+  glisse,
+  pose,
+  spans,
+  type BenchItem,
+  type BenchSide,
+  type Frame,
+} from './scenesTransparent.ts';
+import type * as THREE from 'three';
 import {
   argumentsReference,
   classementReference,
@@ -122,4 +131,24 @@ export function tours(before: BenchSide, after: BenchSide) {
     tourAvantSeq: (images: Frame[]) => reference(images, true),
     tourApresSeq: (images: Frame[]) => optimisee(images, true),
   };
+}
+
+/** A bench scene: both sides built apart, so neither benefits from the state the other leaves. */
+export function sceneDe(name: string, side: THREE.Side) {
+  const before = benchSide(side),
+    after = benchSide(side);
+  return { name, before, after, ...tours(before, after) };
+}
+export type Scene = ReturnType<typeof sceneDe>;
+
+/** The draw calls of a scene's first frame: one per plan entry before, one per slice after. */
+export function appelsDe(scene: Scene) {
+  const image = glisse[0],
+    etat = scene.before;
+  pose(etat, image);
+  classementReference(etat.scene, etat.order, image.eye);
+  argumentsReference(etat.scene, etat.args);
+  const before = encodeReference(etat.scene, etat.order, etat.args, etat.output);
+  scene.tourApres([image]);
+  return { name: scene.name, before: before.encoded, after: appelsEncodes() };
 }
