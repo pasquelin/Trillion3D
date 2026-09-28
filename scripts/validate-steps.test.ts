@@ -84,16 +84,18 @@ test('the CI gives each group a job, and no gate is left unrun', () => {
 });
 
 test('the unit shards cover shards 1..n of the same file list', () => {
-  const [, list] = /^ {8}shard: \[([\d, ]+)\]$/m.exec(workflow) ?? [];
-  const [, total] =
-    /TRILLION3D_TEST_SHARD: \$\{\{ matrix\.shard \}\}\/(\d+)$/m.exec(workflow) ?? [];
-  assert.ok(list && total, 'a shard matrix and the total it splits into');
+  const [, list] = /^ +shard: \[([\d, ]+)\]$/m.exec(workflow) ?? [];
+  assert.ok(list, 'a shard matrix');
   const shards = list.split(',').map(Number);
   assert.deepEqual(
     shards,
-    Array.from({ length: +total }, (_, i) => i + 1),
+    Array.from({ length: shards.length }, (_, i) => i + 1),
   );
   assert.ok(shards.length > 1, 'a matrix of one shard would not split the suite');
+  assert.match(
+    workflow,
+    /TRILLION3D_TEST_SHARD: \$\{\{ matrix\.shard \}\}\/\$\{\{ strategy\.job-total \}\}$/m,
+  );
   assert.equal(
     workflow.match(/--group unit\b/g)?.length,
     1,
