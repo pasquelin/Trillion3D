@@ -98,7 +98,11 @@ nature (canvas contents and sizes, `disabled`, stat values, generated ids, frame
 (`scene-webgpu`) reads the compiled cache of `DEFAULT_SCENE` (`sponza-derived`) under
 `.mesure/assets/`, off git, and a sibling worktree has none of its own: point `TRILLION3D_ASSETS` at the
 shared folder. Without it the proof stops by name on the cache it could not find, and
-`pnpm run test:gpu` fails with it — loudly, never in silence. `node bench/runner/assets.ts`
+`pnpm run test:gpu` fails with it — loudly, never in silence. The network proof
+(`geometry-network`) reads the same cache over Chrome's emulated network (60 ms, 30 Mb/s) and
+asserts orderings, never durations: geometry page reads overlap, the pool admits the same pages,
+the view ahead grows with the round trip, cache objects arrive brotli-encoded;
+`NETWORK_PROOF_DIST=<other>/dist` runs another build's engine against it. `node bench/runner/assets.ts`
 fetches and compiles every scene the proofs read (`bench/runner/README.md` § Assets). The material proof (`witness-materials`) needs no asset:
 its fixtures are built in the page and served from `tests/browser/support/`, the SDK from `dist/`, so
 `pnpm run build` precedes it.
