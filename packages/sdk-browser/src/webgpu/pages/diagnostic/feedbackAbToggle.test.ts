@@ -70,6 +70,7 @@ test('forced full renders replay settled TAA and never replace the held checkpoi
     gpu: {
       temporalWanted: true,
       targetSize: [20, 10],
+      displaySize: [20, 10],
       temporal: {
         frame,
         replay: () => ++replayed > 0,

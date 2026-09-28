@@ -44,8 +44,12 @@ function runtime() {
       return output;
     },
   };
+  const [targetSize, displaySize] = [
+    [64, 32],
+    [64, 32],
+  ];
   const rt = {
-    gpu: { temporal, temporalWanted: true, targetSize: [64, 32], depthView: {}, hdrView: {} },
+    gpu: { temporal, temporalWanted: true, targetSize, displaySize, depthView: {}, hdrView: {} },
     vis: { visView: { ids: true }, pageTable: { pages: true } },
     run: { diagnostic: 'beauty', gpuDrawCalls: 0, frame: 0, gate: { revisions: { scene: 1 } } },
     capture: { capturing: false },
@@ -82,11 +86,7 @@ test("without accumulation this frame, the render matrix is the camera's and com
 test('an accumulated frame advances jitter, writes the uniform and returns the written target', () => {
   const { rt, cam, temporal, encoded, frame, flags } = runtime();
   let u = frame(false)!;
-  assert.notEqual(
-    taaRenderMatrix(rt, cam),
-    cam.viewProjection,
-    'the render matrix carries the jitter',
-  );
+  assert.notEqual(taaRenderMatrix(rt, cam), cam.viewProjection, 'the matrix carries the jitter');
   assert.equal(encoded.length, 1);
   assert.equal((encoded[0] as TaaInputs).flags, flags, 'what the as-is share comes from');
   assert.equal(temporal.motion.resets, 1, 'the first frame has no history: poses are taken');

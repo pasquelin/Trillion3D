@@ -17,7 +17,7 @@ export const PAGE_INFO_STRUCT_WGSL = `struct PageInfo{world:mat4x4f,baseColor:ve
  *  resolves: `../../webgpu/visibility/uniforms.ts` writes it once per slot. `pixelRatio` is the
  *  host's image pixels per CSS pixel, the scale of a line's width (`lineWgsl.ts`). Its size is
  *  `VIS_UNIFORM_BYTES`. */
-export const VIS_UNIFORMS_WGSL = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,pixelRatio:f32,}`;
+export const VIS_UNIFORMS_WGSL = `struct Uniforms{viewProj:mat4x4f,viewport:vec2f,computeSpan:f32,pageCount:u32,drawSlot:u32,indirect:u32,selectionOffset:u32,selectionEnabled:u32,pixelRatio:f32,mipBias:f32,}`;
 
 /** Description of a cluster, followed by the uniform of a page-geometry pass. */
 export const PAGE_INFO_WGSL = `${PAGE_INFO_STRUCT_WGSL}
