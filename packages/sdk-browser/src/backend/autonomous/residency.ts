@@ -1,5 +1,6 @@
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
+import { createHostRankDelta } from '../../webgpu/pages/io/hostRanks.ts';
 
 type ResidencyEnvironment = {
   bootstrapUrls: Set<string>;
@@ -13,14 +14,30 @@ type ResidencyEnvironment = {
 
 export function createAutonomousResidency(env: ResidencyEnvironment) {
   const { bootstrapUrls, modifiedPages, views, geometryStore } = env;
-  /** The lists `pendingUrls` and `pageUrls` rewrite, from image to image. */
-  const pending: string[] = [],
-    retained: string[] = [];
+  /** The pending requests rewrite from image to image. */
+  const pending: string[] = [];
   const state = { cacheEvictions: 0 };
-  // One set for the life of the host: a frame fills and clears it, it does not allocate it.
-  const kept = new Set<string>(),
-    queued = new Set<string>();
-  let keptStale = true;
+  const queued = new Set<string>();
+  let ranksStale = true;
+  // A mounted page keeps its request rank for the session, including after it is unmounted.
+  const rankUrls: string[] = [],
+    rankByUrl = new Map<string, number>(),
+    ranks = createHostRankDelta(0, rankUrls);
+  const rankOf = (url: string) => {
+    let rank = rankByUrl.get(url);
+    if (rank === undefined) {
+      rank = rankUrls.length;
+      rankUrls.push(url);
+      rankByUrl.set(url, rank);
+      ranks.grow(rankUrls.length);
+    }
+    return rank;
+  };
+  const markRecord = (rec: PageRec) => {
+    const rank = rec.requestIndex;
+    if (rank !== undefined && rankUrls[rank] === rec.url) ranks.markRank(rank);
+    else ranks.markRank((rec.requestIndex = rankOf(rec.url)));
+  };
   return {
     get cacheEvictions() {
       return state.cacheEvictions;
@@ -43,23 +60,20 @@ export function createAutonomousResidency(env: ResidencyEnvironment) {
     },
     /** The image drew another cut: what it keeps is gathered again when next read. */
     keptChanged() {
-      keptStale = true;
+      ranksStale = true;
     },
-    /** The pages the images keep — the root cover, the host's own, the cut each view drew and what
-     *  it asks for —, gathered once an image, and only when the streamer's pins read them. */
-    pageUrls() {
-      if (!keptStale) return retained;
-      keptStale = false;
-      kept.clear();
-      for (const url of bootstrapUrls) kept.add(url);
-      for (const url of modifiedPages) kept.add(url);
+    /** The root cover, host pages, drawn cuts and requests through the shared rank encoder. */
+    retainedRanks() {
+      if (!ranksStale) return ranks.hold();
+      ranksStale = false;
+      ranks.begin();
+      for (const url of bootstrapUrls) ranks.markRank(rankOf(url));
+      for (const url of modifiedPages) ranks.markRank(rankOf(url));
       for (const view of views) {
-        for (const rec of view.shown) kept.add(rec.url);
-        for (const rec of view.requested) kept.add(rec.url);
+        for (const rec of view.shown) markRecord(rec);
+        for (const rec of view.requested) markRecord(rec);
       }
-      retained.length = 0;
-      for (const url of kept) retained.push(url);
-      return retained;
+      return ranks.finish();
     },
     /** Gives a page's geometry back: one eviction per page, as the WebGPU page cache counts them,
      *  and none for a page that held nothing. */
