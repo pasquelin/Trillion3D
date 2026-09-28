@@ -17,18 +17,18 @@ proof and timing. GitHub is the single source of truth: issues, labels and pull 
 
 ## The roles
 
-| Role                 | Skill                     | Started by | Does                                                                                   |
-| -------------------- | ------------------------- | ---------- | -------------------------------------------------------------------------------------- |
-| Boss                 | —                         | —          | sets priorities, tests the result, approves what could lose quality                    |
-| CTO                  | `/t3d-cto oldest\|newest` | boss       | picks one issue at a time, hands it to a lead, sends the branch to proof and timing    |
-| Lead                 | `t3d-lead <domain>`       | CTO        | runs its coder then its reviewer, writes the Lead verification, opens the PR, closes   |
-| Coder                | agent `coder`             | lead       | implements the issue on a branch and pushes it; runs no gate, test or Chrome           |
-| Reviewer             | agent `reviewer`          | lead, CTO  | the real `simplify` and `code-review` skills, the To-do items, the gates and tests     |
-| Acceptance (recette) | `t3d-recette`             | CTO        | re-reads the branch and proves its image before the pull request                       |
-| Measurement          | `t3d-measure`             | CTO        | the only one timing: the branch before its pull request, budgets, thumbnails           |
-| Architect            | `t3d-architect`           | CTO        | finds duplicates and bloat, writes them as To-do items on the domains' issues          |
-| Analyst              | `t3d-analyst`             | CTO        | measures how the company works and proposes simplifications                            |
-| Writer               | `/t3d-writer`             | CTO only   | writes an issue on the template                                                        |
+| Role                 | Skill                     | Started by | Does                                                                                  |
+| -------------------- | ------------------------- | ---------- | ------------------------------------------------------------------------------------- |
+| Boss                 | —                         | —          | sets priorities, tests the result, approves what could lose quality                   |
+| CTO                  | `/t3d-cto oldest\|newest` | boss       | picks one issue at a time, hands it to a lead, sends the branch to proof and timing   |
+| Lead                 | `t3d-lead <domain>`       | CTO        | runs its coder then its reviewer, writes the Lead verification, opens the PR, closes  |
+| Coder                | agent `coder`             | lead       | codes the issue on a branch, pushes it; runs no gate or test, Chrome only to diagnose |
+| Reviewer             | agent `reviewer`          | lead, CTO  | the real `simplify` and `code-review` skills, the To-do items, the gates and tests    |
+| Acceptance (recette) | `t3d-recette`             | CTO        | re-reads the branch and proves its image before the pull request                      |
+| Measurement          | `t3d-measure`             | CTO        | the only one timing: the branch before its pull request, budgets, thumbnails          |
+| Architect            | `t3d-architect`           | CTO        | finds duplicates and bloat, writes them as To-do items on the domains' issues         |
+| Analyst              | `t3d-analyst`             | CTO        | measures how the company works and proposes simplifications                           |
+| Writer               | `/t3d-writer`             | CTO only   | writes an issue on the template                                                       |
 
 ## Running it
 
