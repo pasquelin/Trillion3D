@@ -49,6 +49,12 @@ export async function createDagResources(
   const uniformData = new Float32Array((AHEAD_VIEW + 1) * DAG_VIEW_WORDS);
   const frameData = primitiveFrameWords(packed);
   const buffers: GPUBuffer[] = [];
+  /** A buffer of this cut's, or of its light cut's: the runtime's dispose destroys them all. */
+  const own = (descriptor: GPUBufferDescriptor) => {
+    const buffer = device.createBuffer(descriptor);
+    buffers.push(buffer);
+    return buffer;
+  };
   try {
     const clusters = device.createBuffer({
       label: 'Trillion3D DAG clusters',
@@ -121,22 +127,12 @@ export async function createDagResources(
       pageCones,
       ...readback,
     );
-    const frames = createCameraFrames(device, frameData, worldCount, (descriptor) => {
-      const buffer = device.createBuffer(descriptor);
-      buffers.push(buffer);
-      return buffer;
-    });
-    const pipeline = await createDagPipeline(device, {
-      clusters,
-      nodes,
-      uniforms,
-      flags,
-      output,
-      work,
-      worlds,
+    const frames = createCameraFrames(device, frameData, worldCount, own);
+    const pipeline = await createDagPipeline(
+      device,
+      { clusters, nodes, views: uniforms, flags, out: output, work, worlds, cold: pageCones },
       frames,
-      pageCones,
-    });
+    );
     if (!pipeline) {
       for (const buffer of buffers) buffer.destroy();
       return undefined;
@@ -168,11 +164,10 @@ export async function createDagResources(
       drawnGroupsOffset,
       uniformData,
       frameData,
-      /** Primitives of each range of `frames`: the kernels that read them run once per range. */
-      ranges: frames.ranges,
       /** Writes into \`frames\`: a light cut copies its per-primitive words again when this moves. */
       frameWrites: { count: 0 },
       buffers,
+      own,
       clusters,
       nodes,
       uniforms,
