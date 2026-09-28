@@ -4,8 +4,8 @@ This is the on-disk contract implemented today: what the compiler writes and the
 
 ## Layout
 
-| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `native/<scope>/manifest.json` | `native/<scope>/<key>/clusters.json` and its pages, `source.gltf`, `source.bin`, SHA-addressed objects under `native/objects/`: `<digest>.bin`, one file per index page, geometry page or streaming bundle — and baked texture levels under `native/textures/v<N>/<digest>/<kind>-<level>.<format>`, one lossless PNG per mip level above the sidecar's tail, plus the same level in the cooked block family where the quality gate kept it |
 
 `<scope>` is `slice` or `full`. A pointer or payload with another scope is rejected (`SCOPE_MISMATCH`).
@@ -306,7 +306,7 @@ Stage version 6 adds `bodies`, one entry per node of the rendered scene whose
 field is additive: a file cooked before it has none, and format 2 still reads it. The node keeps its
 `instances` entries: the page leaves them out once it has restored its body
 (`packages/sdk-browser/src/physics/cookedBodies.ts`) and falls back on them when it refuses the
-body; another node its collider names keeps its own, still static ground. Each entry:
+body; so does another node its collider names (`colliderNode`). Each entry:
 
 - `node`: the declaring node.
 - `motion`: the motion as the node declares it (`isKinematic`, `mass`, `gravityFactor`, …).
@@ -318,7 +318,11 @@ body; another node its collider names keeps its own, still static ground. Each e
   Jolt, turning the hull about `centerOfMass` rather than about the hull's own centre, weighed
   again at the world scale the model is placed at; what the `motion` declares (`mass`,
   `centerOfMass`, `inertiaDiagonal` turned by `inertiaOrientation`) wins over it, the cooked
-  inertia scaled to a declared mass.
+  inertia scaled to a declared mass and, about a declared `centerOfMass`, moved there by the
+  parallel axis theorem.
+- `colliderNode`: the other node whose mesh the hull is cooked from, when the collider names one;
+  absent otherwise, and from a file cooked before it was recorded (that node then stays static
+  ground beside the body).
 - `position`, `rotation`, `scale`: the node's world placement in the model, as an instance's.
 - `friction`, `restitution`: as an instance's.
 
