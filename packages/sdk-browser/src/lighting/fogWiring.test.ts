@@ -22,17 +22,20 @@ test('the opaque resolve fogs its lit sum at the pixel, from the eye in display.
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER])
     assert.match(
       shader,
-      /return vec4f\(fogged\(lit\+ambient\+emissive\.rgb.*,P,view\.display\.yzw\),1\.0\);/,
+      /var rgb=lit\+ambient\+emissive\.rgb[^;]*;\s*if\(\(surfaceFlag&128u\)==0u\)\{rgb=fogged\(rgb,P,view\.display\.yzw\);\}/,
     );
   // An unlit or matcap surface (flag 1) is fogged; a diagnostic, normal or depth one (flag 3) is not.
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER]) {
     assert.match(shader, /if\(flag==3u\)\{return vec4f\(base\.rgb,1\.0\);\}/);
     assert.match(
       shader,
-      /if\(flag==1u\)\{return vec4f\(fogged\(base\.rgb,P,view\.display\.yzw\),1\.0\);\}/,
+      /if\(flag==1u\)\{var rgb=base\.rgb;if\(\(surfaceFlag&128u\)==0u\)\{rgb=fogged\(rgb,P,view\.display\.yzw\);\}/,
     );
   }
-  assert.match(SURFACE_SHADE, /select\(3u,1u,model==4u\)/);
+  assert.match(
+    SURFACE_SHADE,
+    /select\(3u,1u\|select\(0u,128u,\(page\.flags&1048576u\)!=0u\),model==4u\)/,
+  );
   assert.doesNotMatch(UNLIT_LIGHTING_SHADER, /fogged/);
   for (const shader of Object.values(CONTRACT_COMPOSITIONS.plain))
     assert.doesNotMatch(shader, /fogged/);
@@ -43,9 +46,12 @@ test('blended and water surfaces, lit or unlit, are fogged from the eye of the b
   // the branch that skips the unlit view.
   assert.match(
     BLEND_SHADER,
-    /if\(!unlit\)\{\s+if\(\(flags&1u\)!=0u\)\{[^]*?\+s\.emissive;[^}]*?rgb\+=mirrorLighting\([^;]+\);\s+\}\s+\/\/.*\s+rgb=fogged\(rgb,in\.view,uni\.eye\.xyz\);\s+\}/,
+    /if\(!unlit\)\{\s+if\(\(flags&1u\)!=0u\)\{[^]*?\+s\.emissive;[^}]*?rgb\+=mirrorLighting\([^;]+\);\s+\}\s+\/\/.*\s+if\(\(flags&1048576u\)==0u\)\{rgb=fogged\(rgb,in\.view,uni\.eye\.xyz\);\}\s+\}/,
   );
-  assert.match(WATER_COMPOSITE_SHADER, /select\(fogged\(color,P,uni\.eye\.xyz\),color,unlit\)/);
+  assert.match(
+    WATER_COMPOSITE_SHADER,
+    /select\(fogged\(color,P,uni\.eye\.xyz\),color,unlit\|\|vol\.attenuationColor\.w!=0\.0\)/,
+  );
   // The eye is the view's last vec4: 112 bytes of fields before it, 16 of its own; the pixel
   // ratio a line's width is scaled by (#348) follows it, in the struct's 16-byte alignment.
   assert.match(BLEND_VIEW_WGSL, /viewport:vec2f,eye:vec4f,pixelRatio:f32,\}/);

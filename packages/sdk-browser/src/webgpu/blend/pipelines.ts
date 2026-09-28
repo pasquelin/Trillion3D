@@ -19,19 +19,24 @@ import {
   DIAGNOSTIC_BLEND_WGSL,
   type DiagnosticGpuVariant,
 } from '../../diagnostic/gpuVariant.ts';
+import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts';
+export const blendTargets = (
+  mode: Blending,
+  mask: GPUColorWriteFlags,
+  feedback: boolean,
+): GPUColorTargetState[] => [
+  { format: 'rgba16float', writeMask: mask, blend: BLEND_EQUATIONS[mode] },
+  ...(feedback ? [{ format: FEEDBACK_FORMAT }] : []),
+  // The share records how much of the debug background remains under a lit transparent
+  // contribution. Additive and subtractive colours also contribute lit pixels, so neither may
+  // leave the background's share at one simply because its colour equation retains the target.
+  { format: 'r8unorm', blend: BLEND_EQUATIONS.normal },
+];
 
-/** Builds the forward-material pipelines for transparent draws, and the water pass of a scene
- *  that transmits. */
-export async function createWebgpuBlendPipelines(
-  device: GPUDevice,
-  items: BlendGpuItem[],
-  variant?: DiagnosticGpuVariant,
-) {
+/** The forward materials' bind layout, which the feedback-free diagnostic pipelines share. */
+function blendLayout(device: GPUDevice) {
   const b = BLEND_BINDINGS;
-  // Without a variant, the module and the targets are exactly those of before: production compiles
-  // no diagnostic stage and has no write mask of its own.
-  const { entryPoint, writeMask } = blendVariantPipeline(variant);
-  const blendBindGroupLayout = device.createBindGroupLayout({
+  return device.createBindGroupLayout({
     entries: [
       { binding: b.indices, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
       { binding: b.positions, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
@@ -86,28 +91,61 @@ export async function createWebgpuBlendPipelines(
       { binding: b.surfaceCache, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
     ],
   });
+}
+
+/** Builds the forward-material pipelines for transparent draws, and the water pass of a scene
+ *  that transmits. */
+export async function createWebgpuBlendPipelines(
+  device: GPUDevice,
+  items: BlendGpuItem[],
+  variant?: DiagnosticGpuVariant,
+  feedback = true,
+  sharedLayout?: GPUBindGroupLayout,
+) {
+  // Without a variant, the module and the targets are exactly those of before: production compiles
+  // no diagnostic stage and has no write mask of its own.
+  const selected = blendVariantPipeline(variant);
+  const entryPoint = feedback ? selected.entryPoint : 'fsWithoutFeedback';
+  const { writeMask } = selected;
+  const blendBindGroupLayout = sharedLayout ?? blendLayout(device);
   // The water pass exists for a scene that transmits, outside any diagnostic variant: under one,
   // the transmission slice draws as one more blend, so the variant measures the same fragment
   // stage on all of it. Its surface stage is compiled into the blend module only then.
   const wantsWater = !variant && items.some((item) => item.transmissive);
-  const blendModule = device.createShaderModule({
-    code:
-      BLEND_SHADER +
-      (wantsWater ? WATER_SURFACE_WGSL : '') +
-      (variant ? DIAGNOSTIC_BLEND_WGSL : ''),
-  });
+  let code =
+    BLEND_SHADER + (wantsWater ? WATER_SURFACE_WGSL : '') + (variant ? DIAGNOSTIC_BLEND_WGSL : '');
+  if (!feedback) {
+    code = feedbackFreeEntry(
+      code,
+      'fs',
+      'BlendOut',
+      [
+        ['color', 'vec4f'],
+        ['asIs', 'vec4f'],
+      ],
+      'in:VSOut,@builtin(front_facing) front:bool',
+      'in,front',
+    );
+    if (wantsWater)
+      code = feedbackFreeEntry(
+        code,
+        'fsWater',
+        'WaterOut',
+        [
+          ['baseMetal', 'vec4f'],
+          ['normalRough', 'vec4f'],
+          ['emissiveAo', 'vec4f'],
+          ['word', 'vec4f'],
+        ],
+        'in:VSOut,@builtin(front_facing) front:bool',
+        'in,front',
+      );
+  }
+  const blendModule = device.createShaderModule({ code: code });
   const fragment = (mode: Blending): GPUFragmentState => ({
     module: blendModule,
     entryPoint,
-    targets: [
-      { format: 'rgba16float', writeMask, blend: BLEND_EQUATIONS[mode] },
-      // Tile rank the pixel requests from the virtual textures: an integer target, without blend,
-      // that reduction rereads after the pass.
-      { format: FEEDBACK_FORMAT },
-      // The lit transparent contribution is curved; blend its zero share over the opaque one
-      // with the same coverage as its HDR colour.
-      { format: 'r8unorm', blend: BLEND_EQUATIONS[mode] },
-    ],
+    targets: blendTargets(mode, writeMask, feedback),
   });
   const perMode = pipelinesByMode(device, (mode) =>
     stageDescriptors(device, blendModule, blendBindGroupLayout, fragment(mode), false),
@@ -128,7 +166,7 @@ export async function createWebgpuBlendPipelines(
   let water: WaterPass | undefined, waterRefused: Error | undefined;
   if (wantsWater)
     try {
-      water = await createWaterPass(device, blendModule, blendBindGroupLayout);
+      water = await createWaterPass(device, blendModule, blendBindGroupLayout, feedback);
     } catch (error) {
       waterRefused = error instanceof Error ? error : new Error(String(error));
     }

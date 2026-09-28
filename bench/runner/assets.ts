@@ -13,7 +13,7 @@
 // compiled if its folder is on disk, which is how a generated facade (`scenes/facade.ts`) is
 // compiled like any other scene.
 // =====================================================================================
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { availableParallelism, totalmem } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -81,6 +81,8 @@ function main() {
   }
   mkdirSync(ASSETS, { recursive: true });
   const only = flags.get('only');
+  if (flags.has('rebuild') && (!only || only === 'true'))
+    throw new Error('--rebuild requires explicit --only scene names');
   const wanted = selectedScenes(only, scenesOnDisk(ASSETS), known);
   const fetched = fetchModels(ASSETS, wanted.fetch);
   process.stdout.write(
@@ -88,6 +90,12 @@ function main() {
   );
   // Recomputed after the fetch: what it just wrote is a scene to compile like the others.
   const scenes = only && only !== 'true' ? wanted.compile : scenesOnDisk(ASSETS);
+  // The source folder is never touched; this opt-in removes only named derived caches.
+  if (flags.has('rebuild')) {
+    if (!existsSync(CLI)) throw new Error(`compiler CLI absent: ${CLI} — run \`pnpm run build\``);
+    requireNativeCompiler();
+    for (const scene of scenes) rmSync(sceneDerived(scene), { recursive: true, force: true });
+  }
   const todo = scenes.filter((scene) => !cacheReady(scene));
   for (const scene of scenes.filter(cacheReady)) process.stdout.write(`cache ready: ${scene}\n`);
   if (todo.length === 0) return;
