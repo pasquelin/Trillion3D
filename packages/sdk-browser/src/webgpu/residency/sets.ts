@@ -2,8 +2,6 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import type { CutDelta, IdDelta } from '../cut/delta.ts';
 import { createDenseKeySet } from '../cut/denseKeys.ts';
 import { createKeyUnion } from '../cut/keyUnion.ts';
-import type { GroupClosure } from '../../page/cut/groupClosure.ts';
-import { createBudgetRanking } from './budgetRanking.ts';
 import { createHeldKeys } from '../cut/heldKeys.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 
@@ -17,8 +15,9 @@ export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>;
  * `desired` is what the image asks the cache for — the pinned cover and the cut — and `keep` adds
  * what the image draws, which the cache must not reclaim under it. The cut arrives as a DELTA,
  * whether from the GPU sample or the CPU cut: one contract for both, so a moving camera costs the
- * pages that changed and a still camera nothing at all. `tracking.wanted` is what the upload queue walks: the desired set itself, unless the
- * page budget forces the coarser subset `applyBudget` or the GPU cut's admission computes.
+ * pages that changed and a still camera nothing at all. `tracking.wanted` is what the upload queue
+ * walks: the desired set itself, unless the page budget forces the coarser subset the admission
+ * ranks (`admission.ts`), for either cut.
  */
 export function createWebgpuResidencySets(options: {
   tracking: Tracking;
@@ -34,12 +33,11 @@ export function createWebgpuResidencySets(options: {
   const enteringPages: (PageRec | undefined)[] = [];
   const entering = createDenseKeySet(enteringPages),
     leaving = createDenseKeySet();
-  /** The CPU cut ranks by level; the GPU cut feeds no ranking (`requestAdmission.ts`, #836). */
-  let cpuCut = true;
+  /** Bumped by every difference that moves what the cut closes over: the admission ranks the held
+   *  cut again only then (`admission.ts`). */
+  let cutRevision = 0;
   const desiredPages: PageRec[] = [];
   const desired = createDenseKeySet(desiredPages);
-  const ranking = createBudgetRanking({ bootstrapKey, keyOf });
-  const weigh = (id: number) => ranking.add(packedPages[id]);
   let followsDesired = true;
   const requested = createKeyUnion({
     members: desired,
@@ -85,8 +83,6 @@ export function createWebgpuResidencySets(options: {
     keyOf: keyOfId,
     retain: (key, id) => requested.retain(key, packedPages[id]),
     release: (key) => requested.release(key),
-    onEnter: (id) => cpuCut && weigh(id),
-    onExit: (id) => cpuCut && ranking.remove(packedPages[id]),
   });
   const drawnKeys = createHeldKeys({
     keyOf: keyOfId,
@@ -121,13 +117,9 @@ export function createWebgpuResidencySets(options: {
     get desiredCount() {
       return desired.count;
     },
-    /** The cut that decides. The GPU cut feeds no ranking; the CPU cut that takes the image back
-     *  refills it from the pages its cut closes over (`../../page/cut/groupClosure.ts`). */
-    decideBy(cpu: boolean, closure: Pick<GroupClosure, 'forEachHeld'>) {
-      if (cpu === cpuCut) return;
-      cpuCut = cpu;
-      ranking.clear();
-      if (cpu) closure.forEachHeld(weigh);
+    /** Changes whenever a difference moved what the cut closes over. */
+    get cutRevision() {
+      return cutRevision;
     },
     followDesired,
     admit,
@@ -151,7 +143,6 @@ export function createWebgpuResidencySets(options: {
         keep.byteLength +
         askedKeys.byteLength +
         drawnKeys.byteLength +
-        ranking.byteLength +
         wanted.byteLength +
         tracking.pinned.byteLength
       );
@@ -171,27 +162,12 @@ export function createWebgpuResidencySets(options: {
     /** Applies one difference of what the cut asks for — its pages and the groups they close over
      *  (`../../page/cut/groupClosure.ts`): only the pages that entered and left are touched. */
     applyCut(delta: IdDelta) {
+      if (delta.enteredCount || delta.exitedCount) cutRevision++;
       askedKeys.apply(delta);
     },
     /** Applies one difference of the drawable cut, which is what the image must not lose. */
     applyDrawn(delta: CutDelta) {
       drawnKeys.apply(delta);
-    },
-    /**
-     * The CPU cut's budget. The upload queue holds `room` records. A cut that fits is the queue, and
-     * the incremental set already is that queue — nothing is walked. A cut that does not fit is
-     * ranked coarsest first and cut to `room`: coarse clusters cover more surface per slot, so what
-     * survives is a complete cover plus as much detail as fits, never a truncated cut of the
-     * surface. Ranking reads the weighted keys filed by level: it does not walk the cut, only the
-     * budget.
-     */
-    applyBudget(room: number) {
-      if (ranking.rank(room) <= room) {
-        followDesired();
-        return false;
-      }
-      admit(ranking.keys, ranking.ranked, ranking.length);
-      return true;
     },
     wantedPages,
   };

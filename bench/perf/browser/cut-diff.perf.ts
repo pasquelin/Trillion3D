@@ -1,4 +1,4 @@
-// GEO-1: cut readers and budget ranking by delta.
+// GEO-1: cut readers by delta. The budget ranking left with #974: both cuts rank by admission.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import {
@@ -6,19 +6,10 @@ import {
   collectPendingUrls,
 } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
-import {
-  createCutDelta,
-  type CutDelta,
-} from '../../../packages/sdk-browser/src/webgpu/cut/delta.ts';
+import { createCutDelta } from '../../../packages/sdk-browser/src/webgpu/cut/delta.ts';
 import { createCutPending } from '../../../packages/sdk-browser/src/webgpu/cut/pending.ts';
-import { createBudgetRanking } from '../../../packages/sdk-browser/src/webgpu/residency/budgetRanking.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
-import {
-  createReferenceRanking,
-  levelHistogram,
-  referenceCutComplete,
-  referencePendingUrls,
-} from '../../oracles/browser/cut-diff.ts';
+import { referenceCutComplete, referencePendingUrls } from '../../oracles/browser/cut-diff.ts';
 
 const alea = graine(97);
 const PAGES = 160000,
@@ -103,55 +94,6 @@ const lecteursOptimisee = (images: number[][]) => {
   return output;
 };
 
-/** Ranking surface `classement` needs of either candidate: the real ranking's `rank` takes no
- *  cut, the oracle's does — a shorter parameter list is always assignable to a longer one. */
-interface RankingLike {
-  readonly keys: Int32Array;
-  readonly length: number;
-  add(page: PageRec): void;
-  remove(page: PageRec): void;
-  rank(room: number, cut?: readonly PageRec[]): number;
-}
-
-const ROOM = 6000;
-const bootstrapKey = new Uint8Array(PAGES);
-const keyOf = (page: PageRec) => page.keyIndex ?? 0;
-const levelOfKey = new Int32Array(PAGES);
-for (const page of pages) levelOfKey[keyOf(page)] = page.level ?? 0;
-
-const rankingReference: RankingLike = createReferenceRanking({
-  keyCount: PAGES,
-  bootstrapKey,
-  keyOf,
-});
-const ranking: RankingLike = createBudgetRanking({ bootstrapKey, keyOf });
-const cutReference: PageRec[] = [];
-const deltaReferenceRang = createCutDelta(pages, cutReference),
-  deltaRang = createCutDelta(pages);
-
-const classement =
-  (classeur: RankingLike, delta: CutDelta, cut: readonly PageRec[] | undefined) =>
-  (images: number[][]) => {
-    const output = [];
-    for (const ids of images) {
-      delta.apply(ids);
-      for (let i = 0; i < delta.exitedCount; i++) classeur.remove(pages[delta.exited[i]]);
-      for (let i = 0; i < delta.enteredCount; i++) classeur.add(pages[delta.entered[i]]);
-      const records = classeur.rank(ROOM, cut);
-      output.push(
-        records <= ROOM
-          ? { length: 0, levels: [] }
-          : {
-              length: classeur.length,
-              levels: levelHistogram(classeur.keys, classeur.length, levelOfKey),
-            },
-      );
-    }
-    return output;
-  };
-const classementReference = classement(rankingReference, deltaReferenceRang, cutReference);
-const classementOptimisee = classement(ranking, deltaRang, undefined);
-
 const mesuresResultats = [];
 for (const [regime, images] of regimes) {
   mesuresResultats.push(
@@ -161,16 +103,6 @@ for (const [regime, images] of regimes) {
       cas: [{ name: `8 frames ${regime}`, input: images, size: COUPE * 8 }],
       calcul: lecteursOptimisee,
       attendu: lecteursReference,
-      options: { tours: 20, budgetMs: 1500 },
-    }),
-  );
-  mesuresResultats.push(
-    await mesure({
-      name: `budget ranking ${regime}`,
-      fichier: 'packages/sdk-browser/src/webgpu/residency/budgetRanking.ts',
-      cas: [{ name: `8 frames budget ${regime}`, input: images, size: COUPE * 8 }],
-      calcul: classementOptimisee,
-      attendu: classementReference,
       options: { tours: 20, budgetMs: 1500 },
     }),
   );
