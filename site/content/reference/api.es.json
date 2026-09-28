@@ -7415,7 +7415,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Flotantes de un registro de sombra, el que lee el sombreado de una luz: seis matrices de caras de lámpara, luego el marco del plano del sol — `right, zNear`, `up, zFar`, `axis, 0` —, luego el origen de la extensión de cada nivel de clipmap en dos enteros, luego una cabecera `vec4f`: caras (lámpara) o niveles (sol), la tangente del medio campo de la lámpara o el nivel más fino del sol, el plano cercano de la lámpara y la primera entrada del registro en la tabla de páginas."
+    "summary": "Flotantes de un registro de sombra, el que lee el sombreado de una luz: seis matrices de caras de lámpara — allí, los rangos de profundidad de un sol, `zNear` e inverso del tramo cada uno (`recordPack.ts`) —, luego el marco del plano del sol — `right`, `up`, `axis`, cada uno completado a cuatro —, luego el origen de la extensión de cada nivel de clipmap en dos enteros, luego una cabecera `vec4f`: caras (lámpara) o niveles (sol), la tangente del medio campo de la lámpara o el nivel más fino del sol, el plano cercano de la lámpara y la primera entrada del registro en la tabla de páginas."
   },
   "ShadowRequestReport": {
     "summary": "Lo que el sombreado leyó en una imagen: las entradas de la tabla que pidió, sin orden.",

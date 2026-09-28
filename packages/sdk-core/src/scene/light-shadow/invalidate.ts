@@ -20,10 +20,12 @@ const ORIGIN = [0, 0, 0] as const;
  * of virtual shadow maps. Only mapped pages can be stale: a page nobody reads has no content to
  * keep, and is drawn whole when first asked for.
  *
- * - **The light moved, changed shape, or its clipmap changed projection** (`whole`): every page,
+ * - **The light moved, changed shape, or its clipmap changed frame** (`whole`): every page,
  *   the floor too, and none is read until redrawn (`pool.withdraw`) — its depth was drawn under a
  *   projection the record no longer holds. The floor is drawn first (`admit.ts`); a face whose
- *   floor the frame cannot draw reads no shadow.
+ *   floor the frame cannot draw reads no shadow. A sun's new depth range stales nothing: each page
+ *   is read in the range it was drawn in (`sunDepth.ts`), save those of the slot the new range
+ *   took (`recycled`), withdrawn alike.
  * - **An object moved within its reach**: in each light view — a sun level, a lamp face at a
  *   mip —, exactly the pages its box covers, never a neighbour's: the entries walked through the
  *   page table, or, when they outnumber the pool's pages, one pool scan against its rectangles.
@@ -73,12 +75,13 @@ export function createPageInvalidation(
   /** The rectangles of box `min..max` in each view of the light: returns the pages covered. */
   const project = (min: ArrayLike<number>, max: ArrayLike<number>) =>
     sunLight ? sunRects(sun, slice, min, max) : lampRects(min, max);
-  /** Every page of the light, or, `covered`, those the rectangles hold: stale at `level`, and
-   *  withdrawn when `wrong`. */
-  const scan = (covered: boolean, level: number, wrong: boolean) => {
+  /** Every page of the light — or only those drawn in depth-range slot `range` —, or, `covered`,
+   *  those the rectangles hold: stale at `level`, and withdrawn when `wrong`. */
+  const scan = (covered: boolean, level: number, wrong: boolean, range = -1) => {
     counts.visitedPages += pool.pages;
     for (let page = 0; page < pool.pages; page++) {
       if (pool.owner[page] < 0 || pool.slice[page] !== slice) continue;
+      if (range >= 0 && pool.range[page] !== range) continue;
       const key = pool.view[page],
         view = sunLight ? key - sun.finest[slice] : (key >> 4) * LAMP_MIPS + (key & 15);
       if (!covered || within(view, pool.x[page], pool.y[page])) mark(page, level, wrong);
@@ -126,6 +129,8 @@ export function createPageInvalidation(
       scan(false, STALE_FULL, true);
       return;
     }
+    const recycled = sunLight ? sun.ranges.recycled[slice] : -1;
+    if (recycled >= 0) scan(false, STALE_FULL, true, recycled);
     const range = sunLight ? 0 : (light.range ?? 0),
       position = light.position ?? ORIGIN;
     if (!sunLight && byPage && changes.count) lampFaces(light);
