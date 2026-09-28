@@ -101,7 +101,9 @@ impl Scene<'_> {
         }
         let name = short(mesh, "Mesh");
         let geometry = mesh::read(mesh, &name)?;
-        let normals = normals::corners(&geometry.surface()).normals;
+        let normals = normals::corners(&geometry.surface(), self.cancelled)
+            .ok_or_else(cancel::refusal)?
+            .normals;
         self.out.count("normalsComputed", 1);
         let slots = self.slots(mesh)?;
         let before = self.out.bin.bytes.len();
