@@ -17,36 +17,41 @@ import {
   type Primitive,
 } from '../../../../sdk-core/src/index.ts';
 
-test('surface capture keeps external renders blocked until main-view restoration has finished', async () => {
+test('a surface capture blocks external renders while its own view is drawn, and not after', async () => {
   installGpuGlobals();
   const { device } = mockGpu();
   const fixture = quadScene();
   const main = camera();
-  let blocked: unknown;
+  let capturing = false,
+    blocked: unknown;
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
     onDiagnostic(event) {
-      if (event.phase === 'surface-capture-ready')
-        queueMicrotask(() => {
-          try {
-            backend.render(main);
-            blocked = false;
-          } catch (error) {
-            blocked = String(error);
-          }
-        });
+      // The capture view's targets are granted: that view is the one drawn now.
+      if (capturing && event.phase === 'frame-allocation')
+        try {
+          backend.render(main);
+          blocked = false;
+        } catch (error) {
+          blocked = String(error);
+        }
     },
   });
   try {
     await backend.prepare();
     backend.render(main);
     await backend.flush?.();
+    capturing = true;
     const surface = await backend.captureSurfaceView!(camera(), { width: 16, height: 16 });
+    capturing = false;
     surface.dispose();
     assert.match(String(blocked), /SURFACE_CAPTURE_BUSY/);
+    // The main view never left its targets: it draws at once, nothing to restore.
+    backend.render(main);
+    assert.equal(backend.metrics().submittedTriangles, 2);
   } finally {
     disposeQuadRun(backend, fixture);
   }

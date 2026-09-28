@@ -48,7 +48,8 @@ export function createFrameGateCore(holdValues: number) {
   const gate = {
     revisions,
     hold,
-    /** Engine camera of the current frame, as `enterFrame` has just copied it. */
+    /** Engine camera of the current frame, as `enterFrame` has just copied it: the drawn view's,
+     *  which a view switch replaces (`../webgpu/pages/state/viewSwitch.ts`). */
     cam,
     /** Quality threshold `enterFrame` has just resolved for the current frame. */
     get pixelError() {
@@ -173,9 +174,9 @@ export function createFrameGateCore(holdValues: number) {
       /** Aspect ratio the image is drawn at, when a second view renders aside at its own. */
       aspect?: number,
     ) {
-      readCameraWorld(cam, camera, aspect);
-      pixelError = resolvePixelError(context, cam, motion);
-      gate.viewChanged(cam, viewport, pixelError);
+      readCameraWorld(gate.cam, camera, aspect);
+      pixelError = resolvePixelError(context, gate.cam, motion);
+      gate.viewChanged(gate.cam, viewport, pixelError);
       gate.readScene(source, drawn);
       return gate.held();
     },
