@@ -1,8 +1,10 @@
 // `lampShadowFactor`, restated for the tests of #456 over the kernel's own face matrices: the
 // lines it restates are pinned with the sun's in `shadowBias.fixture.ts`'s `RESTATED`.
 import { type SceneLight } from '../../../../sdk-core/src/index.ts';
-import { dotVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
-import { transformHomogeneousPoint } from '../../../../sdk-core/src/math/primitives/vector.ts';
+import {
+  dotVector3,
+  transformHomogeneousPoint,
+} from '../../../../sdk-core/src/math/primitives/vector.ts';
 import { writeFace } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { faceBasis } from '../../../../sdk-core/src/scene/light-shadow/math.ts';
 import { LAMP_SIDE, SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';

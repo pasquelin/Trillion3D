@@ -1,7 +1,7 @@
 /** A geometry's vertices moved by a matrix: what `Geometry.applyMatrix4` writes in place. */
 import type { Matrix4 } from '../math/matrix4.ts';
 import type { Geometry } from './geometry.ts';
-import { plainPoints, positionAt, readComponent, readsStored } from './bounds.ts';
+import { plainPoints, pointAt, readComponent, readsStored } from './bounds.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { transformPointsBatch } from '../../math/batch/points.ts';
 import { normalMatrix3 } from '../../math/matrix/matrix3.ts';
@@ -19,12 +19,12 @@ export function transformVertices(geometry: Pick<Geometry, 'attributes' | '_owne
     const points = plain.array as Float32Array;
     transformPointsBatch(points, m.elements, points, plain.count);
   } else if (position) {
-    const v = new Vector3();
+    const v = new Vector3(),
+      point = [0, 0, 0],
+      width = Math.min(3, position.itemSize);
     for (let i = 0; i < position.count; i++) {
-      v.set(positionAt(position, i, 0), positionAt(position, i, 1), positionAt(position, i, 2));
-      const moved = v.applyMatrix4(m).toArray();
-      for (let c = 0; c < Math.min(3, position.itemSize); c++)
-        position.setComponent(i, c, moved[c]);
+      const { x, y, z } = v.fromArray(pointAt(position, i, point)).applyMatrix4(m);
+      for (let c = 0; c < width; c++) position.setComponent(i, c, c === 0 ? x : c === 1 ? y : z);
     }
   }
   if (normal) {
