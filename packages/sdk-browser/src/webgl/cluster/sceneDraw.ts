@@ -17,7 +17,7 @@ import type { BackendHostDraw } from '../../backend/hostDraw.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import { linearRefusalOf } from './linearRefusal.ts';
 import { createDrawLists } from './drawLists.ts';
-import { degradedHearer } from '../../world/diagnostic/worldNotices.ts';
+import { degradedHearer } from '../../world/diagnostic/materialNotices.ts';
 
 /** The scene the owner reads for its lights and background, its world matrices resolved
  *  before the read. */
