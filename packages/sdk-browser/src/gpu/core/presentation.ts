@@ -2,22 +2,32 @@ import { sharedGpuDevice } from './sessionHandle.ts';
 import { FULLSCREEN_VERTEX } from '../../lighting/deferred/deferred.ts';
 import { createCanvasBlit } from '../../webgl/core/canvasBlit.ts';
 import { createPresentAt, type PresentRect } from './presentAt.ts';
+import { canvasImageKept, canvasImageReplaced, closeCanvasImage } from './canvasHandover.ts';
 
 export const PRESENT_SHADER = `@group(0) @binding(0) var image:texture_2d<f32>;
 ${FULLSCREEN_VERTEX}
 @fragment fn present(@builtin(position) pixel:vec4f)->@location(0) vec4f{return textureLoad(image,vec2i(pixel.xy),0);}`;
-/** Source is already display encoded. No second tone map or color conversion. */
+/** Source is already display encoded. No second tone map or color conversion. A canvas that keeps
+ *  its image across sessions (`canvasHandover.ts`) is configured at the first present only. */
 export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement) {
   const context = canvas.getContext('webgpu');
   if (!context) throw new Error('WEBGPU_CANVAS_UNAVAILABLE');
   const format: GPUTextureFormat = 'bgra8unorm';
-  // The canvas takes the device itself: WebGPU refuses a session's handle, which is no `GPUDevice`.
-  context.configure({
-    device: sharedGpuDevice(device),
-    format,
-    alphaMode: 'opaque',
-    colorSpace: 'srgb',
-  });
+  let configured = false;
+  const configure = () => {
+    if (configured) return;
+    // Configuring blanks the canvas: the image of a closed session stays until this one draws.
+    canvasImageReplaced(canvas);
+    // The canvas takes the device itself: WebGPU refuses a session's handle, no `GPUDevice`.
+    context.configure({
+      device: sharedGpuDevice(device),
+      format,
+      alphaMode: 'opaque',
+      colorSpace: 'srgb',
+    });
+    configured = true;
+  };
+  if (!canvasImageKept(canvas)) configure();
   try {
     const layout = device.createBindGroupLayout({
       entries: [
@@ -41,6 +51,7 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
       shown: GPUTexture | undefined;
     const presentAt = createPresentAt(device, layout, format);
     const targetView = (width: number, height: number) => {
+      configure();
       if (canvas.width !== width) canvas.width = width;
       if (canvas.height !== height) canvas.height = height;
       shown = context.getCurrentTexture();
@@ -61,6 +72,7 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
         if (at) {
           // Not this frame's whole image (its targets still asked, say): the canvas keeps the
           // last frame it showed, never a blank one with this view alone on it.
+          if (!configured) return;
           const current = context.getCurrentTexture();
           if (current === shown) presentAt(encoder, current.createView(), image, at, canvas);
           return;
@@ -82,20 +94,24 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
         pass.draw(3);
         pass.end();
       },
-      /** Withdraws the image: nothing that samples the canvas afterwards reads a frame of this device. */
+      /** Withdraws the image: nothing that samples the canvas afterwards reads a frame of this
+       *  device — at once, or once no session follows on a kept canvas (`closeCanvasImage`). */
       dispose() {
-        context.unconfigure();
-        // Unconfiguring replaces the drawing buffer with transparent black, but a reader that
-        // samples the canvas (`texImage2D`) still sees the last image in Chromium: resetting the
-        // bitmap the HTML way — a size write — makes the withdrawal hold for every reader.
-        const { width } = canvas;
-        canvas.width = width;
         group = undefined;
         texture = shown = undefined;
+        if (!configured) return;
+        closeCanvasImage(canvas, () => {
+          context.unconfigure();
+          // Unconfiguring replaces the drawing buffer with transparent black, but a reader that
+          // samples the canvas (`texImage2D`) still sees the last image in Chromium: resetting
+          // the bitmap the HTML way — a size write — makes the withdrawal hold for every reader.
+          const { width } = canvas;
+          canvas.width = width;
+        });
       },
     };
   } catch (error) {
-    context.unconfigure();
+    if (configured) context.unconfigure();
     throw error;
   }
 }
