@@ -105,6 +105,7 @@ pub(crate) fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
 /// The range window of a punctual light at `distance` from its centre: one there, zero at `range`
 /// and beyond. The engine's law (`rangeWindow` of `lightWgsl.ts` and `webgl/cluster/shaders.ts`),
 /// which the oracle traces and a light's reach is bounded against (`compiler_lights/reach.rs`).
+#[cfg(any(test, feature = "oracle"))]
 pub(crate) fn range_window(distance: f64, range: f64) -> f64 {
     let ratio = distance / range;
     (1.0 - ratio.powi(4)).clamp(0.0, 1.0).powi(2)
@@ -123,6 +124,7 @@ pub(crate) fn splitmix_unit(x: u64) -> f64 {
 
 /// A seed mixed into [0, 1) after one golden-ratio step: the same seed, the same draw, whatever
 /// the thread count.
+#[cfg(any(test, feature = "oracle"))]
 pub(crate) fn hash_unit(seed: u64) -> f64 {
     splitmix_unit(seed.wrapping_mul(GOLDEN))
 }

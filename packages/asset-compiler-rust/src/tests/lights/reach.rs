@@ -1,9 +1,10 @@
 //! A light's reach is shortened, never lengthened, and no point's irradiance moves by more than
 //! the display floor (#958, audit CMP-16). The harness weighs the engine's own window
 //! (`range_window`) at every distance, against the range develop published, on random lights and
-//! on the edge cases: zero intensity, infinite, NaN, ±0 and maximal values.
+//! on the edge cases: zero intensity, infinite, NaN and maximal values. Infinite, NaN or ±0
+//! declared ranges never reach it: `range_of` deduces the range instead, as on develop.
 use super::*;
-use crate::compiler_lights::reach::quantum_reach;
+use crate::compiler_lights::reach::{quantum_reach, shorten};
 use crate::compiler_lights::{range_of, MAX_RANGE, MIN_RANGE, RANGE_CUTOFF_IRRADIANCE as FLOOR};
 use crate::shared_math::{hash_unit, range_window};
 
@@ -18,11 +19,18 @@ fn worst_move(peak: f64, old: f64, new: f64) -> f64 {
         .map(|d| peak * (range_window(d, old) - range_window(d, new)).abs() / (d * d).max(1e-4))
         .fold(0.0, f64::max)
 }
-/// The range develop published: declared, else deduced from the floor, within its bounds.
+/// The range develop published, which `range_of` still yields before `shorten`.
 fn develop_range(declared: Option<f64>, peak: f64) -> f64 {
-    declared.map_or((peak / FLOOR).sqrt().clamp(MIN_RANGE, MAX_RANGE), |r| {
-        r.min(MAX_RANGE)
-    })
+    range_of(&json!({ "range": declared }), peak, [1.0; 3])
+}
+/// A converted point light of `radiant` W/sr and this colour, range and envelope, once shortened.
+fn shortened(radiant: f64, colour: [f64; 3], range: f64, envelope: Option<f64>) -> f64 {
+    let mut entry = json!({"kind":"point","color":colour,"intensity":radiant,"range":range});
+    if let Some(radius) = envelope {
+        entry["emitterRadius"] = json!(radius);
+    }
+    shorten(&mut entry);
+    entry["range"].as_f64().expect("a range")
 }
 /// Log-uniform draw in `[10^low, 10^high)`.
 fn draw(seed: u64, low: f64, high: f64) -> f64 {
@@ -63,37 +71,42 @@ fn a_random_light_moves_no_point_beyond_the_floor() {
 #[test]
 fn a_deduced_range_is_shortened_by_the_same_share() {
     for radiant in [0.05, 1.0, 1000.0 / 683.0, 25.0, 4.0e4] {
-        let old = (radiant / FLOOR).sqrt();
-        let share = range_of(&json!({"type":"point"}), radiant, [1.0, 0.5, 0.0]) / old;
+        let colour = [1.0, 0.5, 0.0];
+        let old = range_of(&json!({"type":"point"}), radiant, colour);
+        let share = shortened(radiant, colour, old, None) / old;
         assert!((0.773..0.775).contains(&share), "{radiant}: {share}");
     }
 }
 
-// Behaviour: the edge cases keep a finite range within develop's: an infinite, NaN or ±0 declared
-// range falls back on the deduced one, the largest finite one stays within the cap, a black light shrinks to the minimum, an overflowing or
-// NaN peak leaves the range as it is, and the maximal range still shrinks when it may.
+// Behaviour: an envelope the shortened range would swallow keeps develop's range, so the radius
+// the contract accepted is never dropped; a smaller envelope lets it shorten.
+#[test]
+fn an_envelope_past_the_shortened_range_keeps_the_range() {
+    let old = range_of(&json!({}), 1.0, [1.0; 3]);
+    assert_eq!(shortened(1.0, [1.0; 3], old, Some(0.9 * old)), old);
+    assert!(shortened(1.0, [1.0; 3], old, Some(0.5 * old)) < old);
+}
+
+// Behaviour: the edge cases keep a finite range within develop's: a black light shrinks to the
+// minimum, an overflowing or NaN peak leaves the range as it is, a range at the minimum stays,
+// the maximal range still shrinks when it may, and a directional light is left untouched.
 #[test]
 fn the_edge_cases_keep_a_finite_range_within_develops() {
-    let deduced = range_of(&json!({}), 1.0, [1.0; 3]);
-    for range in [json!(0.0), json!(-0.0), json!(-3.0), json!("NaN")] {
-        assert_eq!(range_of(&json!({ "range": range }), 1.0, [1.0; 3]), deduced);
-    }
-    assert!(deduced < (1.0 / FLOOR).sqrt());
-    assert!(range_of(&json!({"range":f64::MAX}), 1.0, [1.0; 3]) <= MAX_RANGE);
-    assert_eq!(range_of(&json!({"range":5.0}), 1.0, [0.0; 3]), MIN_RANGE);
-    assert_eq!(range_of(&json!({}), 1.0, [0.0; 3]), MIN_RANGE);
+    assert_eq!(shortened(1.0, [0.0; 3], 5.0, None), MIN_RANGE);
+    assert_eq!(shortened(0.0, [1.0; 3], 5.0, None), MIN_RANGE);
     assert_eq!(quantum_reach(5.0, f64::INFINITY), 5.0);
     assert_eq!(quantum_reach(5.0, f64::NAN), 5.0);
     assert_eq!(quantum_reach(MIN_RANGE, 1e-12), MIN_RANGE);
-    let maximal = range_of(&json!({}), 1e300, [1.0; 3]);
+    assert_eq!(quantum_reach(1e-5, 1e-12), 1e-5);
+    let maximal = shortened(1e300, [1.0; 3], MAX_RANGE, None);
     assert!(
         maximal > MAX_RANGE * 0.999 && maximal <= MAX_RANGE,
         "{maximal}"
     );
-    let at_cap = range_of(
-        &json!({"range":1e9}),
-        MAX_RANGE * MAX_RANGE * FLOOR,
-        [1.0; 3],
-    );
+    let at_cap = shortened(MAX_RANGE * MAX_RANGE * FLOOR, [1.0; 3], MAX_RANGE, None);
     assert!((0.773..0.775).contains(&(at_cap / MAX_RANGE)), "{at_cap}");
+    let mut sun = json!({"kind":"directional","color":[1.0,1.0,1.0],"intensity":1.0});
+    let before = sun.clone();
+    shorten(&mut sun);
+    assert_eq!(sun, before);
 }

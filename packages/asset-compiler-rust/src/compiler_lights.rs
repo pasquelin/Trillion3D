@@ -141,6 +141,7 @@ fn scene_lights(g: &Value, bin: &[u8], (reached, hidden): Nodes<'_>) -> Result<V
         match convert(light, &world[index], id) {
             Ok(mut entry) => {
                 emitter.attach(&mut entry, light, index, &mut counts);
+                reach::shorten(&mut entry);
                 lights.push(entry);
             }
             Err(why) => *rejected.entry(why).or_insert(0) += 1,

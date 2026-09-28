@@ -1,4 +1,4 @@
-//! How far a punctual light reaches: its range, shortened as long as no point sees its light move
+//! How far a punctual light reaches: its published range, shortened as long as no point sees its light move
 //! by more than the display floor (#958, audit CMP-16).
 //!
 //! The engine lights a point at distance `d` with `I · range_window(d, R) / d²`
@@ -29,4 +29,22 @@ pub(crate) fn quantum_reach(range: f64, peak: f64) -> f64 {
     let c = 27.0 * budget * budget;
     let a = 1.0 + (c + (c * (256.0 + c)).sqrt()) / 64.0;
     (a.powf(-0.25) * range).max(MIN_RANGE).min(range)
+}
+/// Shortens a converted light's range in place, once its envelope is known: a light whose
+/// `emitterRadius` would no longer sit strictly inside the shortened range keeps its range, so the
+/// envelope the contract accepted is never dropped. A directional light has no range to shorten.
+pub(crate) fn shorten(entry: &mut Value) {
+    let field = |key: &str| entry.get(key).and_then(Value::as_f64);
+    let (Some(range), Some(intensity)) = (field("range"), field("intensity")) else {
+        return;
+    };
+    let colour = entry["color"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_f64);
+    let reach = quantum_reach(range, intensity * colour.fold(0.0, f64::max));
+    if reach > field("emitterRadius").unwrap_or(0.0) {
+        entry["range"] = json!(reach);
+    }
 }
