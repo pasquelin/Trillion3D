@@ -58,7 +58,8 @@
       "missingCache": "ذاكرة التخزين المؤقت المُجمَّعة مفقودة: شغّل pnpm compile:caches"
     },
     "banner": {
-      "close": "إغلاق"
+      "close": "إغلاق",
+      "waiting": "بانتظار المحرك (#{issue})"
     }
   },
   "a-city-from-rules": {
