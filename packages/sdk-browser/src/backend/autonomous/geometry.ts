@@ -15,7 +15,7 @@ import { drawnInstanced } from '../../placement/autonomousPlacements.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
-import { assertWithinBox, itemSize, pageOf } from './pageCheck.ts';
+import { assertWithinBox, itemSize, pageOf } from './pageData.ts';
 
 type GeometryEnvironment = {
   scene: Scene;
@@ -147,9 +147,14 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
       if (!shared) state.allocationBytes += hostPageBytes(geometry);
     }
   };
-  const storeGeometryPage = (url: string, data: DecodedGeometryPage) => {
+  /** The pages the host replaced, as it wrote them: a record that joins one later — a mount —
+   *  draws the host's page, never the cache's, and neither do the others then (#837). */
+  const replaced = new Map<string, DecodedGeometryPage>();
+  /** Stores `given`, or the host's page where it replaced this one; `host` replaces it. */
+  const storeGeometryPage = (url: string, given: DecodedGeometryPage, host = false) => {
     const recs = byUrl.get(url);
     if (!recs) return false;
+    const data = host ? given : (replaced.get(url) ?? given);
     const descriptor = env.descriptors.get(url);
     if (
       !descriptor ||
@@ -191,9 +196,18 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     },
     removeRecords,
     storeGeometryPage,
+    /** Records that joined pages the host replaced — a mount's — draw the host's pages. */
+    storeReplaced(urls: readonly string[]) {
+      for (const url of urls) {
+        const data = replaced.get(url);
+        if (data) storeGeometryPage(url, data);
+      }
+    },
     /** Resident records draw their page again, as a class change cut it (#846): `read`, the
-     *  page's own, for those that draw it. */
-    restoreRecords: storeRecords,
+     *  page's own, for those that draw it — or the host's, where it replaced that page (#837). */
+    restoreRecords(recs: readonly PageRec[], read: DecodedGeometryPage | undefined) {
+      storeRecords(recs, (recs[0] && replaced.get(recs[0].url)) ?? read);
+    },
     acceptGeometryPage,
   };
 }

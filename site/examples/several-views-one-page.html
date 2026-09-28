@@ -159,8 +159,8 @@
         const mill = build(world);
         if (view.eye) {
           // An orthographic box as tall as the view's `half` on each side of its centre, and as
-          // wide as the canvas's shape asks; a wheel zooms it, a drag slides it.
-          const lens = camera.orthographic({ near: 1, far: 200 });
+          // wide as the canvas's shape asks (`fitAspect`); a wheel zooms it, a drag slides it.
+          const lens = camera.orthographic({ near: 1, far: 200, top: view.half, bottom: -view.half, fitAspect: true });
           lens.up.set(...view.up);
           world.camera = lens;
           let pan = [0, 0];
@@ -169,12 +169,6 @@
             lens.position.set(...at);
             lens.lookAt(...to);
           };
-          const shape = () => {
-            const aspect = world.canvas.clientWidth / Math.max(1, world.canvas.clientHeight);
-            Object.assign(lens, { left: -view.half * aspect, right: view.half * aspect, top: view.half, bottom: -view.half });
-          };
-          new ResizeObserver(shape).observe(world.canvas);
-          shape();
           pose();
           world.canvas.addEventListener('wheel', (event) => {
             event.preventDefault();

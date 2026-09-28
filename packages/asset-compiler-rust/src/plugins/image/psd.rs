@@ -1,8 +1,7 @@
 //! PSD and PSB (Photoshop) driver, reader written here from the specification Adobe publishes
 //! for third-party readers — "Adobe Photoshop File Formats Specification" —, which defines the
-//! twenty-six-byte header, the three length-prefixed sections that follow it and the composite
-//! data section at the end of the file. No vendor code or SDK, no third-party library: these
-//! four pieces are read from end to end, which does not justify a dependency.
+//! header, three length-prefixed sections and final composite data. These four pieces
+//! are read without vendor code, SDK or third-party library.
 //!
 //! **The flattened composite, and it alone.** A PSD carries its layers; recomposing them would
 //! require remaking the editor's blend modes, masks and effects, hence producing an image the
@@ -96,7 +95,6 @@ struct Header {
     /// Colour channels of the mode: three in RGB, one in greyscale.
     color_channels: usize,
 }
-
 impl Plugin for Psd {
     fn name(&self) -> &'static str {
         "psd"
@@ -129,8 +127,11 @@ impl ImageDecoder for Psd {
                 VERSION_PSD | VERSION_PSB
             )
     }
-    /// The header first — it gives the size, so the ceiling applies before any allocation —,
-    /// then the three sections to skip, then the composite's planes.
+    fn dimensions(&self, bytes: &[u8]) -> std::result::Result<(u32, u32), &'static str> {
+        let (surface, _) = header(bytes)?;
+        Ok((surface.width, surface.height))
+    }
+    /// Decode the header-checked composite under the allocation ceiling.
     fn decode(
         &self,
         bytes: &[u8],
