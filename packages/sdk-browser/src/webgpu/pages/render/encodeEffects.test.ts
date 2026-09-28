@@ -27,7 +27,7 @@ function drawing(chain: EffectChain) {
   const rt = settledRt();
   rt.context.effects = chain;
   Object.assign(rt.run, { diagnostic: 'beauty' });
-  Object.assign(rt.gpu, { targetSize: [8, 4] });
+  Object.assign(rt.gpu, { targetSize: [8, 4], displaySize: [8, 4] });
   return rt;
 }
 

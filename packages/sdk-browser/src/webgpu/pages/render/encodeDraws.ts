@@ -149,6 +149,13 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       if (context.gpuCanvas || capture.capturing || run.gpuFrameActive) throw error;
     }
   }
+  // The fallback draws into the colour target: targets drawn below the display are remade at its
+  // size first, never presenting a display colour this image did not write.
+  if (gpu.displayTexture && gpu.displayTexture !== gpu.colorTexture) {
+    abandonFrameEncoder(rt);
+    void requestFrameTargets(rt, device);
+    return 0;
+  }
   if (!gpu.pipelineBack) return 0;
   followDirtyRows(rt, device);
   if (!rows.packedCount) {

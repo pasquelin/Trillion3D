@@ -7,7 +7,7 @@ import {
 import { PAGE_GEOMETRY_WGSL } from '../../visibility/shader/pageGeometryWgsl.ts';
 import {
   COLOR_SAMPLE_WGSL,
-  TILE_POOL_WGSL,
+  tilePoolWgsl,
   maskAlphaWgsl,
   tileDeclarations,
 } from '../../webgpu/tile/wgsl.ts';
@@ -58,7 +58,7 @@ struct ShadowView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,}
 struct ShadowOut{@invariant @builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,}
 ${PAGE_LOOKUP_WGSL}
 ${PAGE_GEOMETRY_WGSL}
-${TILE_POOL_WGSL}
+${tilePoolWgsl('0.0')}
 ${COLOR_SAMPLE_WGSL}
 ${maskAlphaWgsl(true)}
 ${MASK_KEEP_WGSL}
