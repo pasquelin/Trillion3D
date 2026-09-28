@@ -167,3 +167,15 @@ fn a_placement_under_an_animated_node_stays_in_the_core() {
         side * side + 1
     );
 }
+
+#[test]
+fn a_hidden_placement_stays_in_the_core_that_says_it_hidden() {
+    // A cell's entry carries no visibility: the node hidden itself is read with the core (#519).
+    let mut nodes = grid(48, 4.0, 1.0);
+    nodes[0]["extensions"] = json!({"KHR_node_visibility": {"visible": false}});
+    let (_root, tables, _dir) = compiled(nodes, false);
+    let core: Vec<_> = (tables["nodes"].as_array().expect("nodes").iter())
+        .map(|node| node["visible"].clone())
+        .collect();
+    assert_eq!(core, [json!(false)], "{}", tables["nodes"]);
+}

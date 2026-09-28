@@ -34,13 +34,13 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let bin = loaded.binary.bytes();
     let manifest = &loaded.manifest;
     let shared_nodes = compiler_mesh_share::share_identical_meshes(&mut loaded.g, bin);
-    // A hierarchy that closes on itself is refused before any publication: world
-    // matrix walk starts from parentless nodes, and would never see a closed cycle.
+    // A cyclic hierarchy is refused before any publication: the world walk would never see it.
     compiler_nodes::check_acyclic(&loaded.g)?;
     // Set of nodes of the rendered scene, shared by selection, the proxy and lights.
     let scene_nodes = compiler_nodes::scene_nodes(&loaded.g)?;
     let NodeSelection {
         chosen,
+        shown,
         selected_triangles,
         skinned_meshes,
         meshes,
@@ -108,7 +108,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         o,
         g,
         bin,
-        chosen: &chosen,
+        chosen: &shown,
         mesh_map: &mesh_map,
         cluster_planes: &cluster_planes,
     };
@@ -148,7 +148,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         let _t = perf::Timer::new(perf::Phase::Manifest);
         proxy::stage_proxy(&proxy::ProxyInputs {
             g,
-            chosen: &chosen,
+            chosen: &shown,
             mesh_map: &mesh_map,
             primitives: &primitives,
             cuts: &proxy_cuts,
