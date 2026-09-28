@@ -6,7 +6,7 @@ import { createShadowPool, DRAW_ALL, DRAW_DYNAMIC, DRAW_FULL, STALE_DYNAMIC } fr
 import { createShadowTable } from './table.ts';
 import { createShadowPlan } from './plan.ts';
 import { createSceneLightStore } from '../light/store.ts';
-import { PAGE_MAPPED } from './virtual.ts';
+import { PAGE_MAPPED, PAGE_RANGE_SHIFT } from './virtual.ts';
 import { SUN, VIEW, lampPages, planFrame, report, sunPages } from './lightShadow.fixture.ts';
 
 function mapped() {
@@ -40,6 +40,15 @@ test('a full stale is never lowered by a moving one, and a page drawn whole has 
   pool.drew(table, page, DRAW_FULL);
   pool.stale(page, 0, 2, STALE_DYNAMIC);
   assert.equal(pool.drawMode(page, true), DRAW_DYNAMIC);
+});
+
+test('a layer drawn in another depth range is drawn again with the page, never restored', () => {
+  const { table, pool, page } = mapped();
+  pool.drew(table, page, DRAW_FULL, 3);
+  assert.equal(table.words[7] >>> PAGE_RANGE_SHIFT, 3, 'the word names the range drawn in');
+  pool.stale(page, 0, 1, STALE_DYNAMIC);
+  assert.equal(pool.drawMode(page, true, 3), DRAW_DYNAMIC, 'the same range: the layer holds');
+  assert.equal(pool.drawMode(page, true, 4), DRAW_FULL, "another range: the layer's is not it");
 });
 
 test('an entry mapped again after the pool evicted it counts as refetched, once', () => {
