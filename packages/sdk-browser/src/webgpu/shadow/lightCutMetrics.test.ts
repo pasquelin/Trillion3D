@@ -21,15 +21,15 @@ function runtime(flag: { value: number }) {
   };
   Object.assign(lights, { lightCut: { redraws }, plan: { resting: false, table: {}, pool } });
   const rt = { lights, diag: { engineDiagnostic() {} } } as unknown as WebgpuPagesRuntime;
-  /** One frame of one batch of `pages` in views 0 and 1, read, then its short pages redrawn. */
-  const frame = async (pages: number[], reported = true) => {
-    const settle = redraws.encode(encoder, pages, [0, 1], pages.length, WHOLE);
+  /** One frame of one batch of `pages` in `views`, read, then its short pages redrawn. */
+  const frame = async (pages: number[], reported = true, views = [0, 1]) => {
+    const settle = redraws.encode(encoder, pages, views, pages.length, WHOLE);
     redraws.reported(reported);
     settle?.(true);
     await redraws.settled();
     redrawShortPages(rt, 1, 0, false);
   };
-  return { rt, frame, withdrawn };
+  return { rt, frame, withdrawn, redraws };
 }
 
 test('the frame metrics count the drops and the pages they send back, withdrawn', async () => {
@@ -44,6 +44,25 @@ test('the frame metrics count the drops and the pages they send back, withdrawn'
     shadowCutCoarsePages: 0,
     shadowCutViewLimit: 1,
   });
+});
+
+// #1142: once the view limit settles, frames that drop nothing withdraw nothing, frame after frame;
+// a residency change lets the limit probe, and a probe that drops still withdraws its pages.
+test('a settled limit withdraws no page until a drop, after a residency change too', async () => {
+  const flag = { value: WORK_DROPPED };
+  const { rt, frame, withdrawn, redraws } = runtime(flag);
+  await frame([3, 4]);
+  flag.value = 0;
+  for (let i = 0; i < 50; i++) await frame([3, 4], true, [0, 0]);
+  assert.deepEqual(withdrawn, [3, 4], 'settled at one view: flat');
+  assert.equal(lightCutMetrics(rt).shadowCutViewLimit, 1);
+  redraws.residencyChanged();
+  await frame([3, 4], true, [0, 0]);
+  assert.equal(lightCutMetrics(rt).shadowCutViewLimit, 2, 'residency moved: it probes');
+  flag.value = WORK_DROPPED;
+  await frame([5, 6]);
+  assert.deepEqual(withdrawn, [3, 4, 5, 6], 'the probe dropped: its pages are withdrawn');
+  assert.equal(lightCutMetrics(rt).shadowCutDrops, 2);
 });
 
 test('the frame metrics count the coarser pages apart, never as drops', async () => {
