@@ -4255,7 +4255,6 @@
     "members": {
       "isObject3D": "Siempre `true`: distingue un nodo de escena.",
       "type": "El tipo de nodo: `'Mesh'`, `'Group'`…",
-      "name": "Un nombre para encontrar el nodo.",
       "position": "Dónde se sitúa el nodo, respecto a su padre.",
       "rotation": "Cómo está girado el nodo, en tres ángulos.",
       "quaternion": "Cómo está girado el nodo, en cuaternión.",
@@ -4341,6 +4340,7 @@
   "TransformNode": {
     "summary": "Un nodo de escena leído a través de las matrices de la referencia, guardado en el árbol de transformaciones del motor.",
     "members": {
+      "name": "Un nombre para encontrar el nodo.",
       "matrix": "La matriz local, una vista sobre el lugar de este nodo en el árbol de transformaciones.",
       "matrixWorld": "Matriz en el mundo tal como se compuso por última vez (`updateMatrixWorld`), una vista sobre el árbol.",
       "matrixAutoUpdate": "Falso cuando `matrix` ES la pose y nada la recompone.",
