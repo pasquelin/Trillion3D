@@ -1,3 +1,6 @@
+/** Why a shadow page turned stale (`ShadowFrameMetrics.shadowPagesStaledBy`). */
+export type ShadowStaleReason = 'light' | 'caster' | 'moving' | 'detail' | 'threshold' | 'range';
+
 /**
  * Lighting and shadow counters of a frame, split from `FrameMetrics` by responsibility.
  * `FrameMetrics` inherits them via `extends`: the public contract seen by consumers
@@ -70,6 +73,26 @@ export interface ShadowFrameMetrics {
   shadowPagesTotal?: number | null;
   /** Shadow pages waiting. */
   shadowPagesPending?: number | null;
+  /** Shadow batches the frame drew: host counts of what it encoded, never read in a shader, as
+   *  are the counts below. Null on an engine without a shadow atlas. */
+  shadowBatches?: number | null;
+  /** Pool layers the frame's shadow passes drew in. */
+  shadowLayersDrawn?: number | null;
+  /** Pages drawn from a copy of their static layer, their moving casters alone rasterised. */
+  shadowPagesRestored?: number | null;
+  /** Pages whose static casters were rasterised again; with the restored ones, every page drawn. */
+  shadowPagesRasterized?: number | null;
+  /** Page copies from the static layer: a restored page, or a page drawn in full over its layer. */
+  shadowRestoreCopies?: number | null;
+  /** Draw calls of static casters: into the static layer, or of a page drawn whole without one. */
+  shadowStaticDrawCalls?: number | null;
+  /** Draw calls of moving casters alone, over pages restored from the static layer. */
+  shadowMovingDrawCalls?: number | null;
+  /** Of `shadowCastersKept`, the clusters kept to draw moving casters alone. */
+  shadowMovingCastersKept?: number | null;
+  /** Pages the frame staled, by reason: light, still caster, moving casters, detail, cut threshold,
+   *  or a sun's depth range. */
+  shadowPagesStaledBy?: Readonly<Record<ShadowStaleReason, number>> | null;
   /** How many milliseconds the oldest out-of-date page the image reads has waited to be redrawn.
    *  Only the time the image reads it counts; 0 once it is redrawn. */
   shadowWaitMs?: number | null;
