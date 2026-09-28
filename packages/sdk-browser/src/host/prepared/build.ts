@@ -93,14 +93,18 @@ export async function buildPreparedScene(inputs: Inputs) {
 function pagedSource(tables: PreparedSceneTables, base: string) {
   if (!tables.documents[SOURCE_FILE]) return {};
   const { document, bufferUrl } = sceneDocument(tables, SOURCE_FILE, base);
-  // A server that ignores the Range answers the whole file: kept, then read no more.
-  let whole: Promise<ArrayBuffer> | undefined;
-  const range = async (offset: number, length: number) => {
+  // A server that ignores the Range answers the whole file: kept, then read no more. Until the
+  // first answer says which, the views asked at once wait on it rather than each fetching.
+  let whole: Promise<ArrayBuffer> | undefined, first: Promise<unknown> | undefined;
+  const range = async (offset: number, length: number): Promise<ArrayBuffer> => {
     if (!bufferUrl) throw new EngineError('PREPARED_SCENE_MISMATCH', 'the source names no binary');
+    if (first) await first.catch(() => {});
     if (!whole) {
-      const response = await checked(bufferUrl, undefined, undefined, {
+      const asked = checked(bufferUrl, undefined, undefined, {
         Range: `bytes=${offset}-${offset + length - 1}`,
       });
+      first ??= asked;
+      const response = await asked;
       if (response.status === 206) return response.arrayBuffer();
       whole ??= response.arrayBuffer();
       // A failed read is not kept: the next need reads again.
