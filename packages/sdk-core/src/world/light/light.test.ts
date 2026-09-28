@@ -7,14 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Light } from './light.ts';
 import { Group } from '../object/object3d.ts';
-import type { SceneLink } from '../object/sceneLink.ts';
-
-/** A world's link that counts the content changes it hears. */
-function countingLink() {
-  const heard: object[] = [];
-  const link = { content: (node: object) => heard.push(node), pose() {}, structure() {} };
-  return { link: link as unknown as SceneLink, heard };
-}
+import { countingLink } from '../object/sceneLink.fixture.ts';
 
 test('a light holds its kind, colours, target, coefficients and numbers, nothing more', () => {
   const light = new Light('spot');
