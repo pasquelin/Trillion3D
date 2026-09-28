@@ -1,13 +1,8 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import {
-  NODE_AUTO_UPDATE,
-  NODE_WORLD_NEEDS_UPDATE,
-} from '../../../../sdk-core/src/math/transform-tree/transformTree.ts';
-import { updateNodeMatrixWorld } from '../../../../sdk-core/src/math/transform-tree/update.ts';
-import { rootedUnder } from '../../host/world/chain.ts';
-
-/** The flags that make the tree's rule reach a node (`updateNodeMatrixWorld`). */
-const REACH = NODE_AUTO_UPDATE | NODE_WORLD_NEEDS_UPDATE;
+  NODE_REACH,
+  updateNodeMatrixWorld,
+} from '../../../../sdk-core/src/math/transform-tree/update.ts';
 
 /**
  * THE WORLD MATRICES OF A DISPLAY GRAPH, BROUGHT UP TO DATE WHERE IT CHANGED (#984, CPU-22): the
@@ -18,44 +13,38 @@ const REACH = NODE_AUTO_UPDATE | NODE_WORLD_NEEDS_UPDATE;
  * INVARIANT: after `run()` every node under `scene` holds the world matrix `scene.updateMatrixWorld()`
  * would give it, bit for bit. The tree recomputes a walked node only when an input changed, and
  * every input change is heard: a pose setter tells the link (`objectPose.ts`), a reparent the
- * parent's `structure`, and a matrix written in place says so itself (`setHostPose`). A heard
- * node is walked with the reach its chain gives it in the full pass — reached when a node above
- * it updates itself or is marked — so a node the full pass skips stays skipped. A node under
+ * parent's `structure`, and whoever writes a matrix in place tells the link itself (`setHostPose`).
+ * A heard node is walked with the reach its chain gives it in the full pass — reached when a node
+ * above it updates itself or is marked — so a node the full pass skips stays skipped. A node under
  * another heard one is walked by that one's pass; one no longer under `scene` is not drawn, and
  * the pass that takes it back walks it again (a reparent marks it).
  */
 export function createChangedSubtrees(scene: Object3D) {
-  const heard = new Set<Object3D>([scene]);
-  /** True when the full pass would reach `node`'s children: `node` or one above it, up to
-   *  `scene` where that pass starts, updates itself or is marked. */
-  const reaches = (node: Object3D) => {
-    for (let at: Object3D | null = node; at; at = at.parent) {
-      if (Object3D._treeOf(at).flags[at.index] & REACH) return true;
-      if (at === scene) return false;
-    }
-    return false;
-  };
-  /** True when a node above `node` was heard too: its pass covers `node`. */
-  const covered = (node: Object3D) => {
-    for (let at = node.parent; at; at = at.parent) if (heard.has(at)) return true;
-    return false;
-  };
+  const pending = new Set<Object3D>([scene]);
   return {
     /** `node`'s pose or children changed: its subtree is walked at the next `run`. */
     heard(node: Object3D) {
-      heard.add(node);
+      pending.add(node);
     },
     /** Walks the subtree of every heard node still under `scene`, parents first; how many nodes
      *  it walked. */
     run() {
       let walked = 0;
-      if (!heard.size) return walked;
-      for (const node of heard)
-        if (rootedUnder(node, scene) && !covered(node)) {
-          const reached = node !== scene && reaches(node.parent!);
-          walked += updateNodeMatrixWorld(Object3D._treeOf(node), node.index, reached);
+      for (const node of pending) {
+        // One climb to `scene`: cut short above a heard node (its pass walks `node`) or a root
+        // (`node` is no longer drawn); on the way, whether the full pass would reach `node`.
+        let at = node,
+          reached = false;
+        while (at !== scene) {
+          const parent: Object3D | null = at.parent;
+          if (!parent || pending.has(parent)) break;
+          reached ||= (Object3D._treeOf(parent).flags[parent.index] & NODE_REACH) !== 0;
+          at = parent;
         }
-      heard.clear();
+        if (at === scene)
+          walked += updateNodeMatrixWorld(Object3D._treeOf(node), node.index, reached);
+      }
+      pending.clear();
       return walked;
     },
   };

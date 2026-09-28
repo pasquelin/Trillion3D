@@ -44,7 +44,8 @@ const NO_BATCHES: readonly never[] = [];
  * `render(camera)` opens the frame: it zeroes the counters, so that a frame
  * the composer held — nothing drawn — publishes nothing, never the previous draw; `counters()` is
  * `null` before the first frame. The graph's matrices and lists (`drawLists.ts`: the matrices of
- * the subtrees that changed, the lists walked again only when the graph changed shape) are brought up to date once per drawn image, at the first of
+ * the subtrees that changed, the lists walked again only when the graph changed shape) are
+ * brought up to date once per drawn image, at the first of
  * `host.linearRefusal` and `host.drawHostGeometry`: never on a held frame, and never in `render`,
  * which runs before the engine's frame writes the graph (`../../backend/autonomous/pages.ts`). Asked
  * first, that runs before `onBeforeRender`, whose one hook (`../../lighting/unlitAlbedo.ts`) writes
