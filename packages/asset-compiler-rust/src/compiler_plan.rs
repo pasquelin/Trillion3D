@@ -7,6 +7,8 @@ pub(super) struct BufferPlan {
     pub views: BTreeSet<usize>,
     pub view_map: BTreeMap<usize, usize>,
     pub estimated_working_bytes: usize,
+    /// Consecutive ranges of `jobs` whose working sets fit the job's budget together.
+    pub waves: Vec<std::ops::Range<usize>>,
 }
 
 /// Bytes an accessor will occupy once decoded into a dense array: `count` elements
@@ -151,33 +153,41 @@ pub(super) fn plan_buffers(
             )?)
             .ok_or_else(|| invalid("Working set overflow"))?;
     }
+    // Each primitive's index buffer and what it keeps until the job ends are committed at once;
+    // its working set only while it compiles, in the waves that fit beside the rest.
+    let mut working = Vec::with_capacity(jobs.len());
     for (old, primitive) in &jobs {
         let p = item(
             values(item(mesh_values, *old, "mesh")?, "primitives")?,
             *primitive,
             "primitive",
         )?;
-        let count = primitive_triangles(g, p)?
-            .checked_mul(3)
+        let cost = compiler_primitive::cost::of(g, p)?;
+        estimated_working_bytes = cost
+            .indices
+            .checked_add(cost.retained)
+            .and_then(|held| held.checked_add(estimated_working_bytes))
             .ok_or_else(|| invalid("Working set overflow"))?;
-        estimated_working_bytes = estimated_working_bytes
-            .checked_add(
-                count
-                    .checked_mul(4)
-                    .ok_or_else(|| invalid("Working set overflow"))?,
-            )
-            .ok_or_else(|| invalid("Working set overflow"))?;
+        working.push(cost.working);
     }
-    estimated_working_bytes = estimated_working_bytes
+    let committed = estimated_working_bytes
         .checked_add(bin.len())
         .and_then(|total| total.checked_add(decoded_bytes))
         .ok_or_else(|| invalid("Working set overflow"))?;
-    if estimated_working_bytes > o.ram_budget_bytes() {
-        return Err(CompilerError::new(
+    // The widest primitive alone is the least the compile stage adds: the job is refused before
+    // any work when even serial compilation would not fit.
+    let refused = || {
+        CompilerError::new(
             "RAM_ADMISSION_BUDGET_EXCEEDED",
             "Estimated working set exceeds configured budget",
-        ));
-    }
+        )
+    };
+    estimated_working_bytes = committed.saturating_add(working.iter().copied().max().unwrap_or(0));
+    let room = o
+        .ram_budget_bytes()
+        .checked_sub(committed)
+        .ok_or_else(refused)?;
+    let waves = compiler_budget::waves::waves(&working, room, o.threads).ok_or_else(refused)?;
     Ok(BufferPlan {
         accessors,
         jobs,
@@ -185,5 +195,6 @@ pub(super) fn plan_buffers(
         views,
         view_map,
         estimated_working_bytes,
+        waves,
     })
 }

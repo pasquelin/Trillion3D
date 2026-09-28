@@ -65,6 +65,8 @@ pub(crate) fn with_ratio(progress: impl Fn(Value) + Sync) -> impl Fn(Value) + Sy
         guard.2 = ratio;
         if let Some(object) = event.as_object_mut() {
             object.insert("ratio".into(), json!((ratio * 1000.0).round() / 1000.0));
+            // The process high-water mark so far: the event where it jumps names the stage (#50).
+            object.insert("peakRssBytes".into(), json!(crate::perf::rss::peak_bytes()));
         }
         progress(event);
     }
