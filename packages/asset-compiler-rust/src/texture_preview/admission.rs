@@ -20,6 +20,10 @@ fn refused() -> CompilerError {
     )
 }
 
+fn remaining_budget(budget: usize, reserved: usize) -> Result<usize> {
+    budget.checked_sub(reserved).ok_or_else(refused)
+}
+
 /// Reserve every output tail before admitting temporary buffers. No later wave
 /// can borrow memory already committed to the final sidecar, even if a codec
 /// eventually rejects its lossy tail and returns fewer bytes.
@@ -118,7 +122,8 @@ pub(super) fn bake(
         }
     }
     let done = AtomicUsize::new(0);
-    execute(&costs, inputs.o.ram_budget_bytes(), |index| {
+    let available = remaining_budget(inputs.o.ram_budget_bytes(), inputs.reserved_bytes)?;
+    execute(&costs, available, |index| {
         check(inputs.o)?;
         let (&image, readers) = jobs[index];
         let outcome = match refusals[index] {

@@ -127,11 +127,11 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         output_views: &output_views,
         offset,
     })?;
-    // Mip chain of each atlas texture and the cutout sheet, on the pool.
     let (texture_previews, texture_preview_report, cutout_report) = stage_textures(
         &pool,
         &TextureStage {
             o,
+            reserved_bytes: estimated_working_bytes,
             g,
             bin,
             image_root: &image_root,

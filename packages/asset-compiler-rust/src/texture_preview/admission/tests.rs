@@ -30,6 +30,23 @@ fn a_wave_bounds_live_work_and_keeps_input_order() {
 }
 
 #[test]
+fn source_and_geometry_reservation_reduces_texture_concurrency() {
+    let costs = [Cost {
+        working: 30,
+        retained: 10,
+    }; 2];
+    assert_eq!(waves(&costs, 100, 4).unwrap().len(), 1);
+    assert_eq!(
+        waves(&costs, remaining_budget(100, 40).unwrap(), 4).unwrap(),
+        [0..1, 1..2]
+    );
+    assert_eq!(
+        remaining_budget(100, 101).unwrap_err().code,
+        "RAM_ADMISSION_BUDGET_EXCEEDED"
+    );
+}
+
+#[test]
 fn impossible_image_or_retained_tails_fail_before_work() {
     let calls = AtomicUsize::new(0);
     for costs in [
@@ -102,7 +119,7 @@ fn every_registered_image_header_agrees_with_its_actual_decoder() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/formats");
     let fixtures = [
         "png/rgb8.png",
-        "tga/vraies-couleurs-32-rle-haut.tga",
+        "tga/vraies-couleurs-32-rle-bas.tga",
         "tiff/rgb8-brut-ii.tiff",
         "webp/sans-perte.webp",
         "bmp/vraies-couleurs-24-bas.bmp",

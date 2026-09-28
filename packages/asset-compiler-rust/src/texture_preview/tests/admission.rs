@@ -16,13 +16,14 @@ fn run(root: &Path, ram: usize, cancelled: bool) -> Result<Vec<TexturePreview>> 
             stage_texture_previews(
                 &PreviewInputs {
                     o: &o,
+                    reserved_bytes: 0,
                     g: &g,
                     bin: &[],
                     image_root: root,
                     meshes: &BTreeSet::from([0]),
                     view_map: &BTreeMap::new(),
                     to_measure: &BTreeSet::new(),
-                    measurements: crate::cutout::MeasureCache::empty(),
+                    measurements: crate::cutout::MeasureCache::EMPTY,
                 },
                 &|_| {},
             )
