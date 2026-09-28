@@ -58,7 +58,8 @@
       "missingCache": "コンパイル済みキャッシュがありません: pnpm compile:caches を実行してください"
     },
     "banner": {
-      "close": "閉じる"
+      "close": "閉じる",
+      "waiting": "エンジン待ち（#{issue}）"
     }
   },
   "a-city-from-rules": {

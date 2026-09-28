@@ -58,7 +58,8 @@
       "missingCache": "Скомпилированный кэш отсутствует: запустите pnpm compile:caches"
     },
     "banner": {
-      "close": "Закрыть"
+      "close": "Закрыть",
+      "waiting": "Ждёт движок (#{issue})"
     }
   },
   "a-city-from-rules": {
