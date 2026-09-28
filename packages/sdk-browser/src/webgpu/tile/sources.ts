@@ -18,10 +18,6 @@ import {
 
 /** Cooked-level reads in flight at most: beyond that, a tile waits for the next image. */
 const MAX_LEVEL_READS = 6;
-/** Working textures held at most per pass — the whole source each, built off the frame
- *  (`scratchBuilds.ts`); tiles of a third texture wait for a pass with room. They live until the
- *  pass is submitted: an encoded copy names its texture, which cannot be destroyed before. */
-const MAX_SCRATCHES = 2;
 
 /**
  * Where a tile's texels come from, and how they reach the pool of its lane: a cooked level decoded
@@ -53,33 +49,13 @@ export function createTileSources(options: {
   /** A working texture's key: its slot and atlas as one number, nothing built per copy. */
   const scratchId = (atlas: WebgpuTileAtlas, slot: number) =>
     slot * 2 + (atlas.kind === 'color' ? 0 : 1);
-  const scratches = new Map<number, TileScratch>();
   /** Working textures of the live host textures, kept from pass to pass, and their bytes (#362). */
   const live = new Map<number, TileScratch>();
   let liveBytes = 0;
   const build = (atlas: WebgpuTileAtlas, slot: number) =>
     buildHostScratch(device, counters, atlas, slot);
-  const builds = createScratchBuilds(
-    device,
-    build,
-    scratches.set.bind(scratches),
-    options.onFailure,
-  );
-  const held = (id: number) => live.get(id) ?? scratches.get(id);
-  /** Feedback frame each working texture was asked at, and those a copy read this pass. */
-  const askedAt = new Map<number, number>(),
-    used = new Set<number>();
-  /** Frees the working textures a copy read, or that feedback newer than their ask passed over;
-   *  one built off the frame waits for that feedback: a pass without it would free it unread. */
-  const dropScratches = (frame = Infinity) => {
-    for (const [id, scratch] of scratches)
-      if (used.has(id) || (askedAt.get(id) ?? -1) < frame) {
-        scratch.destroy();
-        scratches.delete(id);
-        askedAt.delete(id);
-      }
-    used.clear();
-  };
+  const builds = createScratchBuilds(device, build, options.onFailure);
+  const held = (id: number) => live.get(id) ?? builds.get(id);
   return {
     levels,
     /**
@@ -125,15 +101,12 @@ export function createTileSources(options: {
       const id = scratchId(atlas, key.slot),
         scratch = held(id);
       if (!scratch) {
-        if (scratches.size + builds.size < MAX_SCRATCHES) {
-          askedAt.set(id, frame);
-          builds.ask(id, atlas, key.slot);
-        }
+        builds.ask(id, frame, atlas, key.slot);
         return 'waiting';
       }
       const place = atlas.place(key, frame);
       if (!place) return 'refused';
-      if (scratches.has(id)) used.add(id);
+      builds.read(id);
       copyTileFromTexture(encoder(), pool, place, scratch.texture, key.level, region);
       return 'served';
     },
@@ -195,7 +168,7 @@ export function createTileSources(options: {
      *  tiles whose feedback, `frame`, has not come round since they were asked. */
     endPass(encoder?: GPUCommandEncoder, frame?: number) {
       if (encoder) device.queue.submit([encoder.finish()]);
-      dropScratches(frame);
+      builds.drop(frame);
     },
     /** True while a level read or a working texture's build is on its way: a tile may come. */
     get reading() {
@@ -204,8 +177,6 @@ export function createTileSources(options: {
     settled: () => Promise.all([levels?.settled(), builds.building]).then(() => undefined),
     destroy() {
       builds.destroy();
-      dropScratches();
-      askedAt.clear();
       for (const scratch of live.values()) scratch.destroy();
       live.clear();
       levels?.destroy();

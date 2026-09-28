@@ -26,25 +26,35 @@ export function buildHostScratch(
   });
 }
 
+/** Working textures held at most per pass — the whole source each; tiles of a third texture wait
+ *  for a pass with room. They live until the pass is submitted: an encoded copy names its
+ *  texture, which cannot be destroyed before. */
+const MAX_SCRATCHES = 2;
+
 /**
  * The working textures tiles asked for, built off the frame (STR-13, #962): built inside the pass,
  * the whole source uploaded and reduced is a spike its budget never counted. A task after the frame
- * builds what was asked, their mips in one batch (#961), and hands each over (`onBuilt`).
+ * builds what was asked, their mips in one batch (#961), and holds each until a pass copies from
+ * it, or until feedback newer than its ask passes it over (`drop`): a pass run without that
+ * feedback would free it unread.
  */
 export function createScratchBuilds(
   device: GPUDevice,
   build: (atlas: WebgpuTileAtlas, slot: number) => TileScratch,
-  onBuilt: (id: number, scratch: TileScratch) => void,
   onFailure: (phase: string, error: unknown) => void,
 ) {
-  const asked = new Map<number, { atlas: WebgpuTileAtlas; slot: number }>();
+  const asked = new Map<number, { atlas: WebgpuTileAtlas; slot: number }>(),
+    built = new Map<number, TileScratch>(),
+    /** Feedback frame each working texture was asked at, and those a copy read this pass. */
+    askedAt = new Map<number, number>(),
+    copied = new Set<number>();
   let building: Promise<void> | undefined;
   const buildAsked = () => {
     const chains = [];
     for (const [id, { atlas, slot }] of asked)
       try {
         const scratch = build(atlas, slot);
-        onBuilt(id, scratch);
+        built.set(id, scratch);
         chains.push(scratch.chain());
       } catch (error) {
         onFailure('texture-tile-failed', error);
@@ -53,11 +63,14 @@ export function createScratchBuilds(
     generateMaterialMips(device, chains);
   };
   return {
-    /** Working textures asked and not built yet. */
-    get size() {
-      return asked.size;
-    },
-    ask(id: number, atlas: WebgpuTileAtlas, slot: number) {
+    /** The working texture built for `id`, if it is. */
+    get: (id: number) => built.get(id),
+    /** A copy of this pass reads `id`'s working texture: it is freed at the pass's end. */
+    read: (id: number) => void copied.add(id),
+    /** Asks `id`'s working texture for the tiles of feedback `frame`, if a pass has room. */
+    ask(id: number, frame: number, atlas: WebgpuTileAtlas, slot: number) {
+      if (built.size + asked.size >= MAX_SCRATCHES) return;
+      askedAt.set(id, frame);
       asked.set(id, { atlas, slot });
       building ??= new Promise<void>((done) =>
         setTimeout(() => {
@@ -72,10 +85,25 @@ export function createScratchBuilds(
         }),
       );
     },
+    /** End of pass `frame`: frees the working textures a copy read, or that feedback newer than
+     *  their ask passed over; every one without a frame. */
+    drop(frame = Infinity) {
+      for (const [id, scratch] of built)
+        if (copied.has(id) || (askedAt.get(id) ?? -1) < frame) {
+          scratch.destroy();
+          built.delete(id);
+          askedAt.delete(id);
+        }
+      copied.clear();
+    },
     get building() {
       return building;
     },
-    /** Nothing asked is built: a pending task finds nothing to build. */
-    destroy: () => asked.clear(),
+    /** Nothing asked is built, and what was built is freed. */
+    destroy() {
+      asked.clear();
+      this.drop();
+      askedAt.clear();
+    },
   };
 }
