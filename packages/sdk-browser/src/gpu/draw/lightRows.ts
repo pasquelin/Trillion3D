@@ -1,4 +1,5 @@
 import { COMPUTE } from '../core/computeBindings.ts';
+import { oncePerDevice } from '../core/oncePerDevice.ts';
 import { DRAW_ITEM_WGSL, WORKGROUP } from './contract.ts';
 
 /**
@@ -23,6 +24,25 @@ fn mapRows(@builtin(global_invocation_id) id:vec3u){
 }
 `;
 
+/** The map's kernel, compiled once a device: at prepare for a scene that casts shadows
+ *  (`../../webgpu/pages/prepare/lights.ts`), never at the first light cut. */
+export const lightRowMapPipeline = oncePerDevice((device) => {
+  const module = device.createShaderModule({ code: ROW_MAP_SHADER });
+  const kinds = [
+    { type: 'read-only-storage' } as const,
+    { type: 'uniform' } as const,
+    { type: 'storage' } as const,
+  ];
+  const bindLayout = device.createBindGroupLayout({
+    entries: kinds.map((buffer, binding) => ({ binding, visibility: COMPUTE, buffer })),
+  });
+  const pipeline = device.createComputePipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [bindLayout] }),
+    compute: { module, entryPoint: 'mapRows' },
+  });
+  return { bindLayout, pipeline };
+});
+
 /**
  * The map for a catalogue of `pages` pages. Every buffer is pushed onto `owned`, released with the
  * draw that created it.
@@ -42,19 +62,7 @@ export function createLightRowMap(
   const rowOf = make(pages * 4, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
   const pinned = new Uint32Array(1);
   const uniforms = make(16, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
-  const module = device.createShaderModule({ code: ROW_MAP_SHADER });
-  const kinds = [
-    { type: 'read-only-storage' } as const,
-    { type: 'uniform' } as const,
-    { type: 'storage' } as const,
-  ];
-  const bindLayout = device.createBindGroupLayout({
-    entries: kinds.map((buffer, binding) => ({ binding, visibility: COMPUTE, buffer })),
-  });
-  const pipeline = device.createComputePipeline({
-    layout: device.createPipelineLayout({ bindGroupLayouts: [bindLayout] }),
-    compute: { module, entryPoint: 'mapRows' },
-  });
+  const { bindLayout, pipeline } = lightRowMapPipeline(device);
   const bindGroup = device.createBindGroup({
     layout: bindLayout,
     entries: [itemsBuf, uniforms, rowOf].map((buffer, binding) => ({
