@@ -59,8 +59,14 @@ export interface PoolGeometrie {
   saturees: number | null;
 }
 
-/** In-session reservoir tuning report, plus the frames it took the pose to hold again. */
-export type ReglageVivant = MemoryBudgetsReport & { imagesReprise: number | null };
+/** In-session reservoir tuning report, plus the frames it took the pose to hold again, the texture
+ *  budget asked when one was, and, for a texture pool asked as a fraction of the working set, the
+ *  resident bytes it was taken of. */
+export type ReglageVivant = MemoryBudgetsReport & {
+  imagesReprise: number | null;
+  texturePoolAskedBytes?: number;
+  residentTextureBytes?: number;
+};
 
 /** Bytes transferred on the network since a reading, by file kind. */
 export type Reseau = Record<string, number>;
