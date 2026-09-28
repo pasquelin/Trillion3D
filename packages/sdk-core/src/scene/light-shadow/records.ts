@@ -54,6 +54,12 @@ export function createShadowRecords(table: ShadowTable, pool: ShadowPool, sun: S
         ? pool.view[page] === sunFloorLevel(sun.finest[slice])
         : (pool.view[page] & 15) === LAMP_FLOOR_MIP;
     },
+    /** The depth-range slot page `page` is drawn in now: its sun's current one (`sunDepth.ts`),
+     *  0 for a lamp. */
+    rangeOf(page: number) {
+      const slice = pool.slice[page];
+      return kind[slice] === LIGHT_KIND.directional ? sun.ranges.current[slice] : 0;
+    },
     /** The first free slice: there is one per light the store accepts (`MAX_SHADOW_SLICES`). */
     claim() {
       for (let slice = 0; slice < MAX_SHADOW_SLICES; slice++)
