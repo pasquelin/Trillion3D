@@ -82,7 +82,8 @@ export function accept(recorded: Hashes, current: Hashes, entries: string[]): Ha
   for (const entry of entries) {
     const then = recorded[entry];
     const now = current[entry];
-    if (!then || !now || then[DEFAULT_LANGUAGE] === now[DEFAULT_LANGUAGE])
+    if (!now) throw new Error(`${entry}: no such entry.`);
+    if (!then || then[DEFAULT_LANGUAGE] === now[DEFAULT_LANGUAGE])
       throw new Error(`${entry}: its English did not change, there is nothing to accept.`);
     accepted[entry] = { ...then, [DEFAULT_LANGUAGE]: now[DEFAULT_LANGUAGE] };
   }
@@ -124,7 +125,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (flag !== -1) {
     const named = process.argv.slice(flag + 1);
     const end = named.findIndex((arg) => arg.startsWith('--'));
-    recorded = accept(recorded, current, end === -1 ? named : named.slice(0, end));
+    const entries = end === -1 ? named : named.slice(0, end);
+    if (!entries.length) throw new Error('`--accept` needs the entries to accept.');
+    recorded = accept(recorded, current, entries);
     text = serialise(recorded);
     writeFileSync(RECORD, text);
   }
