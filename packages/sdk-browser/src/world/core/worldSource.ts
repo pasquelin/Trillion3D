@@ -167,6 +167,7 @@ export function buildWorldSource(plan: WorldPlan) {
         associations,
         textureIndices: first?.scene.textureIndices ?? new Map(),
         framingLot: null,
+        nodes: null,
         // Each model's cells follow the session's camera; their rows hang under the model's twin.
         partitions: models.flatMap((model) => model.record.scene.partitions),
       },

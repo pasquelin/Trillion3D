@@ -9,6 +9,9 @@ packages/sdk/browser.ts linguist-generated
 packages/sdk/node.mts linguist-generated
 packages/sdk/common/** linguist-generated
 packages/sdk/browser/** linguist-generated
+# The records of scripts/check-english.ts and scripts/check-translations.ts (`--write`)
+scripts/english-baseline.json linguist-generated
+site/content/i18n/translation-sources.json linguist-generated
 # The translations of the generated API reference
 site/content/reference/api.*.json linguist-generated
 # The format goldens: the compiler's output, rewritten by a `regenerate_*` test or on a format bump

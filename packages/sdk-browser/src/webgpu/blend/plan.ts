@@ -1,6 +1,7 @@
 import { matrixWindingCw } from '../../../../sdk-core/src/index.ts';
 import { refreshSurface, surfaceSide, type PageSurface } from '../../page/surface.ts';
 import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts';
+import { buildBlendHierarchy } from './hierarchy.ts';
 import { blendChunkWords, blendVertexShift, planRegions, RUN_WORDS } from './runs.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -128,6 +129,7 @@ export function buildBlendStatics(blendState: BlendState) {
   blendState.instanceCapacity = Math.max(1, room[0] + room[1]);
   blendState.drawsPacked = draws;
   blendState.keepPacked = new Uint32Array(Math.max(1, (items.length + 31) >> 5));
+  buildBlendHierarchy(blendState);
   // Same worst case for the plan tables and its runs, and for the same reason.
   const entries = Math.max(1, items.length) * MAX_SIDES;
   blendState.maxPlanEntries = entries;
