@@ -168,7 +168,8 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       if (live()) ahead(null);
       runtime.render();
     },
-    /** Tells the world the canvas changed size, in CSS pixels; unset, it reads the canvas's. */
+    /** Tells the world the canvas changed size; unset, it reads the canvas's own size.
+     *  @param width - New width, CSS pixels. @param height - New height, CSS pixels. */
     resize(width = canvas.clientWidth, height = canvas.clientHeight) {
       live()?.resize(Math.floor(width), Math.floor(height));
       invalidate();
@@ -178,12 +179,10 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
      *  @param options - `onProgress` hears `pages`, `completed` of `total`, as they land. */
     awaitPages: (options?: { onProgress?: (event: JobProgress) => void }) =>
       awaitViewPages(runtime, live, options?.onProgress),
-    /** Stops the world and gives back all it took, a canvas it made included. */ dispose() {
+    /** Stops the world and gives back all it took: GPU memory, loop, controls. */ dispose() {
       if (disposed) return;
       disposed = true;
-      controls.dispose();
-      physics.dispose();
-      runtime.dispose();
+      for (const part of [controls, physics, runtime]) part.dispose();
       pools.pageCache.clear();
       diagnostic.notices.close();
       frames.clear();
