@@ -24,6 +24,10 @@ export function summarizeFeedbackRun(
 ) {
   const convergence = raw.convergence && {
     ...raw.convergence,
+    gpuPassSamples: raw.convergence.gpuPassSamples.length,
+    convergingReduceMs:
+      passesGpu(raw.convergence.gpuPassSamples)?.passes.find((pass) => pass.name === REDUCE)
+        ?.gpuMs ?? null,
     mipScope: 'scene',
     captures: raw.convergence.captures.map((entry) => ({
       ...entry,
