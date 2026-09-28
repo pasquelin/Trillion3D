@@ -131,7 +131,9 @@ spent (`eviction-queue-spent`) the burst waits for the next readback. The CPU cu
 recent page. Loads on the GPU-cut path are read off the readback's requests, closed over their
 groups (`webgpu/residency/requestAdmission.ts`, #836): past the pool, the coarsest levels whole and
 the one the room straddles in part, what the queue already holds first, from the pool's room alone.
-The GPU cut feeds no `budgetRanking`; the CPU cut that takes the image back refills it.
+The CPU cut ranks by the same admission, off the pages its cut closes over (`closure.forEachHeld`,
+#974): the GPU cut keeps no ranking of its own, and a CPU cut that takes the image back ranks what
+the GPU cut left.
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min

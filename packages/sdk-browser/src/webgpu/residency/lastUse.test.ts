@@ -8,6 +8,8 @@ import { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import { LAST_USE_WINDOW as W, createWebgpuPinUpdater } from './pinUpdater.ts';
 import { createPageAdmission } from './admission.ts';
 import { createWebgpuResidencySets } from './sets.ts';
+import { createGroupClosure } from '../../page/cut/groupClosure.ts';
+import { createRequestAdmission } from './requestAdmission.ts';
 import { lruCache, pageOf, placement } from './residentEnsurer.fixture.ts';
 
 const FULL = /ALL_PAGES_PINNED/;
@@ -23,6 +25,8 @@ function residency(slots: number, spare: string[]) {
   const sets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages: packed });
   const cut = createCutDelta(packed, []),
     drawn = createCutDelta(packed, []);
+  const closure = createGroupClosure([], packed),
+    budget = createRequestAdmission(sets, tracking, closure);
   const cache = lruCache(slots);
   const pins = createWebgpuPinUpdater({
     tracking,
@@ -38,13 +42,14 @@ function residency(slots: number, spare: string[]) {
   /** Publishes a cut outside an image, as a drained readback does: no pin step follows. */
   const ask = (cutUrls: string[]) => {
     cut.apply(ids(cutUrls));
-    sets.applyCut(cut);
+    closure.apply(cut);
+    sets.applyCut(closure.delta);
   };
   const image = (frame: number, cutUrls: string[], drawnUrls: string[]) => {
     ask(cutUrls);
     drawn.apply(ids(drawnUrls));
     sets.applyDrawn(drawn);
-    sets.applyBudget(slots);
+    budget.held(slots);
     pins(cache as never, [], frame, () => {});
   };
   const load = async (...urls: string[]) => {
