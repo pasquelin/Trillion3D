@@ -21,6 +21,9 @@ import { preparedMaterials } from './materials.ts';
 import { preparedTextures, type TextureRanks } from './textures.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
+/** The published source document: the one the cache's pages were cut from. */
+const SOURCE_FILE = 'source.gltf';
+
 type Inputs = {
   tables: PreparedSceneTables;
   metadata: ClusterManifest;
@@ -71,6 +74,7 @@ export async function buildPreparedScene(inputs: Inputs) {
   } = await preparedGraph({
     tables,
     meshes: document.meshes,
+    pagedFrom: sceneFile === SOURCE_FILE ? undefined : tables.documents[SOURCE_FILE]?.meshes,
     geometryOf: preparedGeometries(document, binary),
     materialOf: preparedMaterials(tables.materials, slot),
   }).finally(() => {
