@@ -1,4 +1,5 @@
 use super::*;
+mod compressed_gltf;
 pub(in crate::tests) mod alembic_golden;
 pub(in crate::tests) mod blend_driver;
 pub(in crate::tests) mod blend_golden;

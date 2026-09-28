@@ -43,13 +43,19 @@ pub(super) fn expand(g: &mut Value, binary: Binary, budget: &Budget<'_>) -> Resu
         let source = out
             .get(start..end)
             .ok_or_else(|| invalid("Draco source exceeds buffer"))?;
+        // Sequential connectivity permits at most eight input-backed indices per
+        // source byte and temporarily holds two u32 arrays before its face check.
+        // Allow twice their logical length for Vec capacity growth: 8 * 2 * 4 * 2.
+        if source.get(8) == Some(&0) {
+            budget.admit(add(out.len(), product(source.len(), 128)?)?)?;
+        }
         budget.admit(out.len())?;
         let available = budget.limit - out.len();
         // Reserve headroom for topology and materialized accessors. These are
         // admission estimates, not an exact bound on the codec allocator.
-        // The codec independently enforces the configured count/attribute ceilings.
+        // Mesh decoding enforces faces and aggregate attribute bytes. Its
+        // max_points option applies only to point clouds, so do not rely on it.
         let limits = DecodeLimits::default()
-            .with_max_points((available / 256) as u64)
             .with_max_faces((available / 256) as u64)
             .with_max_decoded_bytes((available / 4) as u64);
         let mut decoded = Mesh::new();
@@ -153,3 +159,6 @@ fn append(
     accessors.push(accessor);
     Ok(id)
 }
+
+#[cfg(test)]
+mod limits_tests;

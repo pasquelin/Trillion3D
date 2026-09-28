@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn expand(
+pub(crate) fn expand(
     g: &mut Value,
     binary: Binary,
     offsets: &mut Vec<usize>,
