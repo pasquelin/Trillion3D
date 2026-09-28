@@ -95,7 +95,7 @@ export interface MeasuredWorldOptions {
   geometryPoolCeilingBytes?: number;
   /** Virtual-texture pool bytes of the WebGPU engine — texture memory, regardless of the
    *  scene. 512 MiB by default, split equally between the colour atlas and the data atlas,
-   *  in 63.5 MiB layers; under one layer per atlas the pool is raised to one, by name. What
+   *  in 64 MiB layers; under one layer per atlas the pool is raised to one, by name. What
    *  a view asks beyond that waits for a less-looked-at tile to free, and a missing tile
    *  shows its coarse level: the `textureTiles*` metrics publish it. Set during the session
    *  by `explorer.setMemoryBudgets`. */

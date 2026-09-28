@@ -500,6 +500,24 @@
       "balloon": "SEGUE IL PALLONE"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Guarda il percorso registrato nel parco. Riproducilo, fermalo o prendi il controllo della telecamera.",
+    "controls": {
+      "replay": "Riproduci",
+      "stop": "Ferma"
+    },
+    "readouts": {
+      "currentPart": "Parte attuale"
+    },
+    "words": {
+      "entrance": "Ingresso",
+      "pond": "Laghetto",
+      "bridge": "Ponte",
+      "pavilion": "Padiglione",
+      "overview": "Panoramica",
+      "complete": "Completato"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Gira attorno alla gru mentre una clip ruota il braccio, muove il carrello, solleva il carico e lo fa oscillare.",
     "controls": {
@@ -1965,6 +1983,7 @@
       "manifest": "manifesto letto",
       "tables": "tabelle della scena lette",
       "resources": "file della scena",
+      "session": "apertura della vista",
       "pages": "prime pagine",
       "ready": "pronto"
     }
@@ -2238,6 +2257,21 @@
     },
     "words": {
       "credit": "Bandiera su un'asta modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Scegli un prospetto della casa. Allontana la camera: il disegno ortografico mantiene esattamente la stessa scala.",
+    "controls": {
+      "elevation": "Prospetto",
+      "distance": "Distanza camera",
+      "zoom": "Scala del disegno"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Fronte",
+        "right": "Lato destro",
+        "rear": "Retro"
+      }
     }
   },
   "hover-to-highlight": {

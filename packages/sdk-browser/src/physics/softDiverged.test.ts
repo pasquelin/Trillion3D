@@ -5,11 +5,14 @@ import { events, startModule, type Module } from './module.fixture.ts';
 import { addBox, BOX, CLOTH, flatCloth, FLOOR, settle, softWorld } from './soft.fixture.ts';
 import { stateDump } from './stateDump.fixture.ts';
 
-/** `stateDump` as develop's module (before PHY-09 and PHY-10) simulated it. */
-const DEVELOP_DUMP = 'd95f69b4be1d841c76fcd9cc90b09b8564b6d67d1639364e2aa6671e109f6da6';
+/** `stateDump`'s motion as develop's module simulated it, which simulated this scene as it did
+ *  before PHY-09 and PHY-10; taken again apart from the vertices when PHY-06 rounded them (#975). */
+const DEVELOP_MOTION = '41af987973f53923437d7cb87e4824690cdfa39fbb50608a8cd5a5a633842e14';
+/** `stateDump` whole, vertices bit for bit, as the write-back of one matrix per body gives it. */
+const FULL_DUMP = '35400505d6bdcfb401731ed390cb869f09cabfb2aae9de61d0930d44010bb865';
 
 test('a finite scene steps exactly as before, but for pinned cloths that never stretch', async () => {
-  assert.equal(stateDump(await startModule()), DEVELOP_DUMP);
+  assert.deepEqual(stateDump(await startModule()), { motion: DEVELOP_MOTION, full: FULL_DUMP });
 });
 
 /** A module whose cloth rests on the floor and on a box (the pairs entered), all wanting events;

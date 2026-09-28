@@ -9,7 +9,7 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import { PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts';
 import { openJolt, startJolt, type JoltModule } from './joltModule.ts';
-import { runJoltThread, type JoltThreadStart } from './joltThreads.ts';
+import { JOLT_THREAD_LOADED, joltWorkerPool, runJoltThread } from './joltThreads.ts';
 import { PHYSICS_PROTOCOL, type FromPhysics, type ToPhysics } from './protocol.ts';
 import { createTickResults } from './tickResults.ts';
 import { createCharacterDriver } from './characterDriver.ts';
@@ -20,7 +20,7 @@ import { createThreadTuner } from './threadTuner.ts';
 const scope = globalThis as unknown as {
   location: { href: string };
   onmessage: ((event: MessageEvent<ToPhysics>) => void) | null;
-  postMessage(message: FromPhysics, transfer?: Transferable[]): void;
+  postMessage(message: FromPhysics | typeof JOLT_THREAD_LOADED, transfer?: Transferable[]): void;
 };
 
 let jolt: JoltModule | null = null,
@@ -126,16 +126,15 @@ async function start(message: Extract<ToPhysics, { type: 'start' }>) {
   if (!response.ok)
     throw new EngineError('PHYSICS_FAILED', `Physics: ${message.wasm} ${response.status}.`);
   const budget = message.budget;
-  // The module's threads run in workers of this same script (`thread` messages below).
-  const spawn = (start: JoltThreadStart) => {
-    const thread = new Worker(scope.location.href, { type: 'module' });
-    thread.onmessage = ({ data }) => scope.postMessage(data);
-    thread.postMessage(start);
-  };
-  const threads = message.threads > 1 ? { count: message.threads, spawn } : null;
-  const opened = await openJolt(await response.arrayBuffer(), budget.memoryBytes, threads);
-  jolt = startJolt(opened, budget, message.threads);
-  if (message.threads > 1) tuner = createThreadTuner(message.threads);
+  // The module's threads run in workers of this same script (`thread` messages below); until
+  // each has loaded, `jolt` stays unset: nothing steps, the character's words wait in `queued`.
+  const pool =
+    message.threads > 1 ? joltWorkerPool(scope.location.href, message.threads, fail) : null;
+  const opened = await openJolt(await response.arrayBuffer(), budget.memoryBytes, pool);
+  const started = startJolt(opened, budget, message.threads);
+  await pool?.ready();
+  jolt = started;
+  if (pool) tuner = createThreadTuner(message.threads);
   results = createTickResults(jolt, budget, buffers, scope.postMessage.bind(scope));
   buffers.push(...message.buffers);
   clock.start(performance.now());
@@ -145,7 +144,8 @@ async function start(message: Extract<ToPhysics, { type: 'start' }>) {
 
 scope.onmessage = ({ data: message }) => {
   if (message.type === 'start') start(message).catch(fail);
-  else if (message.type === 'thread') runJoltThread(message).catch(fail);
+  else if (message.type === 'thread')
+    runJoltThread(message, () => scope.postMessage(JOLT_THREAD_LOADED)).catch(fail);
   else if (message.type === 'buffer') {
     buffers.push(message.buffer);
     post();

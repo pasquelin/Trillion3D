@@ -62,7 +62,9 @@ function readGeometry(saved: SavedGeometry): Geometry {
 function readCamera(saved: SavedCamera, camera: Camera) {
   camera.position.fromArray(saved.position);
   camera.quaternion.fromArray(saved.quaternion);
-  if (saved.projection === camera.projection) Object.assign(camera, saved.optics);
+  if (saved.projection !== camera.projection) return;
+  Object.assign(camera, saved.optics);
+  camera.fitAspect = saved.fitAspect === true;
 }
 
 /**

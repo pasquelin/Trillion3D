@@ -17,7 +17,7 @@ import type {
   GuidePoints,
   World,
 } from '../packages/sdk-browser/src/index.ts';
-import { runExampleModule } from './docs/examples/capture.ts';
+import { catchPagehide, runExampleModule } from './docs/examples/capture.ts';
 
 test('distance picking keeps exact points, restarts, clears and disposes', async (t) => {
   const html = await readFile(
@@ -32,8 +32,7 @@ test('distance picking keeps exact points, restarts, clears and disposes', async
   const lineCalls: GuideLines[] = [],
     pointCalls: GuidePoints[] = [];
   let removed = 0,
-    disposed = false,
-    pagehide = () => {};
+    disposed = false;
   let buttons: Record<string, () => void> = {};
   const handle = (): GuideHandle => ({
     visible: true,
@@ -84,11 +83,7 @@ test('distance picking keeps exact points, restarts, clears and disposes', async
       >
     ]: unknown;
   };
-  const previousListener = globalThis.addEventListener;
-  globalThis.addEventListener = ((type: string, listener: () => void) => {
-    if (type === 'pagehide') pagehide = listener;
-  }) as typeof addEventListener;
-  t.after(() => void (globalThis.addEventListener = previousListener));
+  const pagehide = catchPagehide(t);
 
   await runExampleModule(html, {
     engine: { createWorld: () => world, geometry, light, material, math, object },

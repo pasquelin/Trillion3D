@@ -12,7 +12,8 @@ import {
 import { box, cylinder } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
-import { body, events, startModule, type Module } from './module.fixture.ts';
+import { events, startModule, type Module } from './module.fixture.ts';
+import { body } from './records.fixture.ts';
 
 /** A car whose four wheels sit inside its body's box: the box itself rests on the floor. */
 function car() {
