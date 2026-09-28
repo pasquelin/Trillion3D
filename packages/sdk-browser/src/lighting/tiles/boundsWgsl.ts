@@ -62,9 +62,10 @@ fn tileCorner(tile:vec2u,corner:u32,z:f32)->vec3f{
 }
 /** Thread \`lane\` below 16 de-projects its corner, after the depth bounds: the corners of the
  *  rows are independent, so sixteen threads do at once what thread zero did one after the
- *  other, to the same bits. The row's depth is selected, never indexed: no private array. */
+ *  other, to the same bits. The row's depth is selected, never indexed: no private array. A
+ *  tile no light reaches builds no bounds, so it de-projects nothing. */
 fn tileCornerOfLane(tile:vec2u,lane:u32){
- if(lane<16u){
+ if(lane<16u&&lightCount>0u){
   let row=lane/4u;
   let front=bitcast<f32>(atomicLoad(&nearest));
   let back=bitcast<f32>(atomicLoad(&farthest));

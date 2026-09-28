@@ -140,9 +140,11 @@ ${tileDepthBoundsWgsl(subgroups)}
  if(lane==0u&&lightCount>0u){ // no light, no bounds to test it against
   // The column's sides bound both slices: every tile builds it, before the depth planes.
   tileColumn();
-  if(atomicLoad(&covered)==1u){opaqueBox=tileBox(FRONT_ROW,BACK_ROW);tileSlab();}
-  // A pixel that sees the sky has no back to its blend slice: the whole column, never a box.
-  if(atomicLoad(&skyward)==0u){blendBox=tileBox(NEAR_ROW,BACK_ROW);}
+  if(atomicLoad(&covered)==1u){
+   opaqueBox=tileBox(FRONT_ROW,BACK_ROW);tileSlab();
+   // A pixel that sees the sky has no back to its blend slice: the whole column, never a box.
+   if(atomicLoad(&skyward)==0u){blendBox=tileBox(NEAR_ROW,BACK_ROW);}
+  }
  }
  let count=workgroupUniformLoad(&lightCount);
  // What the tile's pixels saw, read once: the barrier above made it final.

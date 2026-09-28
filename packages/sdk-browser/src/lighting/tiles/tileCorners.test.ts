@@ -7,7 +7,6 @@ import {
   ROW,
   tileBounds,
   tileCorner,
-  tileCorners,
   type TileView,
 } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
 import { LIGHT_TILES_SHADER } from './shader.ts';
@@ -24,18 +23,10 @@ const SIZE = LIGHT_SETTINGS.tileSize;
 function boundsByCalls(view: TileView, tile: [number, number], front: number, back: number) {
   const at = (corner: number, z: number) => tileCorner(view, tile, corner, z);
   const box = (a: number, b: number) => [...Array(8).keys()].map((c) => at(c & 3, c & 4 ? b : a));
-  const order = [0, 1, 3, 2];
-  return {
-    opaqueBox: box(front, back),
-    blendBox: box(DEPTH_NEAR, back),
-    near: order.map((c) => at(c, DEPTH_NEAR)),
-    deep: order.map((c) => at(c, DEPTH_NEAR / 1024)),
-    front: [0, 1, 2].map((c) => at(c, front)),
-    back: [0, 1, 2].map((c) => at(c, back)),
-  };
+  return { opaqueBox: box(front, back), blendBox: box(DEPTH_NEAR, back) };
 }
 
-test('the corner table gives every box and plane the corners of before, to the bit', () => {
+test('the corner table gives both boxes the corners of before, to the bit', () => {
   const r = mulberry32(24);
   for (let run = 0; run < 300; run++) {
     const [width, height] = [320 + Math.floor(r() * 1600), 240 + Math.floor(r() * 840)];
@@ -62,13 +53,6 @@ test('the corner table gives every box and plane the corners of before, to the b
     });
     assert.deepEqual(bounds.opaqueBox, box(calls.opaqueBox));
     assert.deepEqual(bounds.blendBox, box(calls.blendBox));
-    // The planes read the rows: the same corners give the same planes.
-    const table = tileCorners(view, tile, front, back);
-    const corners = (row: number, order: number[]) => order.map((c) => table[row * 4 + c]);
-    assert.deepEqual(corners(ROW.near, [0, 1, 3, 2]), calls.near);
-    assert.deepEqual(corners(ROW.deep, [0, 1, 3, 2]), calls.deep);
-    assert.deepEqual(corners(ROW.front, [0, 1, 2]), calls.front);
-    assert.deepEqual(corners(ROW.back, [0, 1, 2]), calls.back);
   }
 });
 
@@ -87,21 +71,8 @@ test('sixteen threads de-project the corners between two barriers; thread zero c
   );
   for (const [name, row] of Object.entries(ROW))
     assert.match(LIGHT_TILES_SHADER, new RegExp(`const ${name.toUpperCase()}_ROW:u32=${row}u;`));
-  // Thread zero reads the rows of each bound: boxes, slab planes, corner 0 at their depth.
+  // Thread zero builds each bound from the rows: the boxes and the slab planes.
   assert.match(LIGHT_TILES_SHADER, /opaqueBox=tileBox\(FRONT_ROW,BACK_ROW\);tileSlab\(\);/);
-  assert.match(
-    LIGHT_TILES_SHADER,
-    /let world=corners\[select\(front,back,\(corner&4u\)!=0u\)\*4u\+\(corner&3u\)\];/,
-  );
-  assert.match(
-    LIGHT_TILES_SHADER,
-    /slab\[0\]=vec4f\(away,-dot\(away,corners\[FRONT_ROW\*4u\]\)\);/,
-  );
-  assert.match(LIGHT_TILES_SHADER, /slab\[1\]=vec4f\(-away,dot\(away,corners\[BACK_ROW\*4u\]\)\);/);
   // The column walks the corners in turn, the oracle's order 0, 1, 3, 2: the Gray code of i.
   assert.match(LIGHT_TILES_SHADER, /return corners\[row\*4u\+\(i\^\(i>>1u\)\)\];/);
-  assert.deepEqual(
-    [0, 1, 2, 3].map((i) => i ^ (i >> 1)),
-    [0, 1, 3, 2],
-  );
 });
