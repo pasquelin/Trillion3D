@@ -7,14 +7,12 @@ import { BLOOM_GLSL } from './bloomGlsl.ts';
 import { BLOOM_WGSL } from './bloomWgsl.ts';
 import { publishedDownTaps, publishedUpTaps, tapWords } from './bloom.fixture.ts';
 import { bloomBlend } from './bloomFilter.ts';
-import { fromHalf, toHalf } from '../../../sdk-core/src/lighting/ltcTable.ts';
+import { mulberry32 } from '../../../../site/examples/kit/random.ts';
 import { BLOOM_COMPOSE_WGSL } from './bloomLevel.ts';
 import { shaderFunctions } from '../texture/shaderRule.fixture.ts';
 import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from '../lighting/deferred/shaders.ts';
 
 type Blend = Record<string, (image: number, pixel: number) => number>;
-/** The nearest half float, ties to even: what an `rgba16float` target stores. */
-const half = (x: number) => fromHalf(toHalf(x));
 
 /** Every `c+=<read>(uv+vec2(x,y)*stride)*w;` of a text, as taps. */
 function tapsOf(text: string): BloomTap[] {
@@ -55,38 +53,93 @@ test('the GLSL programs are the same taps, and the composite the same blend', ()
   );
 });
 
-// #963: the composition blends the last bloom in itself. Its `bloomed` must give what the bloom's
-// `composite` pass stored in its `rgba16float` target, which the composition then read: every
-// channel is taken alone, a scalar, as `blendLevel` treats each alike.
-test('the composition blends the last level in as the half-float target held it (#963)', () => {
-  const tents = [0, 1e-4, 0.3, 1, 7.5, 1000, 65504];
-  const scope = (image: number) => ({
-    bloom: { keep: 0, glow: 0, outTexel: 1 / 64 },
-    tent: (uv: number) => tents[Math.round(uv * 64) % tents.length],
-    textureLoad: () => image,
-    vec2i: (xy: number) => xy,
-    vec4f: (x: number) => x,
-    quantizeToF16: half,
-  });
-  const names = ['blendLevel', 'bloomed'];
+// #963: the composition blends the last bloom in itself. Its `bloomed` must give what develop's
+// `composite` pass stored in its `rgba16float` target, which the composition then read: the f32
+// blend converted to half, ties to even, ±Inf past the half range, NaN kept. Every channel is taken
+// alone, a scalar, as `blendLevel` treats each alike; `quantizeToF16` refuses what WGSL leaves
+// indeterminate (past the finite halves), so no pixel rests on an undefined value.
+const F32_MAX = 3.4028234663852886e38;
+const EDGES = [
+  NaN,
+  0,
+  -0,
+  Infinity,
+  -Infinity,
+  65504,
+  -65504,
+  65519,
+  65520,
+  -65520,
+  65536,
+  F32_MAX,
+  -F32_MAX,
+  2 ** -24,
+  2 ** -25,
+  -(2 ** -14),
+  1e-45,
+  0.3,
+  1,
+  7.5,
+];
+/** Seeded values over every order of magnitude the radiance reaches, either sign. */
+function randomValues(count: number) {
+  const r = mulberry32(963);
+  return Array.from({ length: count }, () => (r() < 0.2 ? -1 : 1) * 2 ** (r() * 60 - 36));
+}
+/** An `rgba16float` target's store of `x`: the nearest half, ties to even, ±Inf from 65520 on,
+ *  NaN and the zeros' sign kept (`Math.f16round`, missing from Node 22). */
+function f16(x: number) {
+  const a = Math.abs(x);
+  if (!Number.isFinite(x)) return x;
+  if (a >= 65520) return Math.sign(x) * Infinity;
+  let e = Math.max(-14, Math.floor(Math.log2(a || 1)));
+  if (2 ** e > a && e > -14) e--;
+  const step = 2 ** (e - 10),
+    n = a / step,
+    floor = Math.floor(n);
+  const up = n - floor > 0.5 || (n - floor === 0.5 && floor % 2 === 1);
+  return (x < 0 || Object.is(x, -0) ? -1 : 1) * (up ? floor + 1 : floor) * step;
+}
+const quantizeToF16 = (x: number) => {
+  assert.ok(Math.abs(x) <= 65504, `quantizeToF16(${x}) is indeterminate`);
+  return f16(x);
+};
+
+test("the half store matches Node's where it has one", { skip: !('f16round' in Math) }, () => {
+  const round = (Math as unknown as { f16round: (x: number) => number }).f16round;
+  for (const x of [...EDGES, ...randomValues(2000), 65503.99, 2 ** -24 * 1.5, 2 ** -24 * 2.5])
+    assert.equal(f16(Math.fround(x)), round(Math.fround(x)), `${x}`);
+});
+
+test("the composition blends the last level in as develop's half-float target held it (#963)", () => {
+  const values = [...EDGES, ...randomValues(60)],
+    r = mulberry32(1073);
+  const intensities = [0, 0.04, 0.25, 1, r(), r()];
   for (const source of [
     ...Object.values(CONTRACT_COMPOSITIONS.bloom),
     ...Object.values(UNLIT_COMPOSITIONS.bloom),
   ])
-    for (const intensity of [0.04, 0.25, 1])
-      for (const image of [0, 1e-5, 0.1, 0.7, 3, 250, 65504]) {
-        const at = scope(image),
-          blend = bloomBlend(intensity, 6);
-        Object.assign(at.bloom, blend);
-        const pass = shaderFunctions<Blend>(BLOOM_WGSL, names.slice(0, 1), at).blendLevel,
-          fused = shaderFunctions<Blend>(source, names, at).bloomed;
-        for (let pixel = 0; pixel < tents.length; pixel++)
+    for (const intensity of intensities) {
+      const at = {
+        bloom: { ...bloomBlend(intensity, 6), outTexel: 1 / 64 },
+        tent: (uv: number) => values[Math.round(uv * 64)],
+        vec4f: (x: number) => x,
+        abs: Math.abs,
+        clamp: (x: number, low: number, high: number) => Math.min(Math.max(x, low), high),
+        quantizeToF16,
+      };
+      const pass = shaderFunctions<Blend>(BLOOM_WGSL, ['blendLevel'], at).blendLevel;
+      // The GPU's blend is f32: `bloomed` reads it so, and returns f32.
+      const f32 = (image: number, pixel: number) => Math.fround(pass(image, pixel));
+      const fused = shaderFunctions<Blend>(source, ['bloomed'], { ...at, blendLevel: f32 }).bloomed;
+      for (const image of values)
+        for (let pixel = 0; pixel < values.length; pixel++)
           assert.equal(
-            fused(image, pixel),
-            half(pass(image, pixel)),
-            `${intensity} ${image} ${pixel}`,
+            Math.fround(fused(image, pixel)),
+            f16(f32(image, pixel)),
+            `intensity ${intensity}, image ${image}, tent ${values[pixel]}`,
           );
-      }
+    }
 });
 
 test('the bloomed composition is the plain one reading the blend, line for line (#963)', () => {
