@@ -16,18 +16,18 @@ const n2 = (v: number | null | undefined) => (typeof v === 'number' ? v.toFixed(
  */
 export function textures(
   metrics: Partial<FrameMetrics> | null | undefined,
-  resultat: Partial<Row> = {},
+  row: Partial<Row> = {},
 ) {
   const m = metrics ?? ({} as Partial<FrameMetrics>);
-  const reseau = resultat.reseau
-    ? Object.entries(resultat.reseau)
+  const reseau = row.reseau
+    ? Object.entries(row.reseau)
         .sort((a, b) => b[1] - a[1])
         .map(([kind, bytes]) => `${kind} ${go(bytes)}`)
         .join(', ')
     : 'unmeasured';
   const preparation =
-    typeof resultat.preparationMs === 'number'
-      ? `${(resultat.preparationMs / 1000).toFixed(2)} s`
+    typeof row.preparationMs === 'number'
+      ? `${(row.preparationMs / 1000).toFixed(2)} s`
       : 'unmeasured';
   return [
     `- Textures: pool ${go(m.texturePoolBytes)} computed in ${m.texturePoolFormat ?? 'unmeasured'}, ` +
@@ -41,7 +41,7 @@ export function textures(
       `${n2(m.textureUploadMs)} ms, worst pass ${n2(m.textureUploadPeakMs)} ms; ` +
       `baked levels ${n(m.textureLevelReads)} in read, ${n(m.textureLevelsDecoded)} decoded, ` +
       `${mo(m.textureLevelCacheBytes)} held; ${n(m.textureScratchBuilds)} scratch textures`,
-    ...liveTexturePool(resultat.reglageVivant),
+    ...liveTexturePool(row),
     `- Prepare ${preparation}; network since prepare: ${reseau}`,
     '',
   ];
@@ -50,7 +50,7 @@ export function textures(
 /** The texture pool set in session, and what setting it cost; nothing when none was set (a live
  *  geometry pool alone still reports the texture pool in place). The eviction and upload time the
  *  moving series then spends is the streamer's passes above. */
-function liveTexturePool(reglage: Row['reglageVivant'] | undefined) {
+function liveTexturePool({ reglageVivant: reglage }: Partial<Row>) {
   const pool = reglage?.texturePool;
   if (!reglage || !pool || reglage.texturePoolAskedBytes === undefined) return [];
   const asked =

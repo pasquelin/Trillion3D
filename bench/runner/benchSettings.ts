@@ -3,7 +3,7 @@
 
 /** Pools set in session after warmup; a texture pool either in bytes or as a fraction of the
  *  texture bytes the settled pose holds resident (`poolFill.ts`). */
-export type PoolVivant = {
+export type LivePools = {
   geometryPoolBytes?: number | null;
   texturePoolBytes?: number | null;
   textureResidentFraction?: number;
@@ -19,7 +19,7 @@ export interface BenchSettings {
   geometryPoolBytes: number | null;
   texturePoolBytes: number | null;
   geometryPoolCeilingBytes: number | null;
-  poolVivant: PoolVivant | null;
+  poolVivant: LivePools | null;
   width: number;
   height: number;
   dpr: number;
