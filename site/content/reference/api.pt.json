@@ -210,7 +210,10 @@
       "levels": "Cada nível.",
       "reach": "Alcance do raio: diagonal da extensão, além da qual não há nada para atingir.",
       "shareOf": "Sondas do lote de trabalho por quadro, por nível: frações publicadas aplicadas a um lote total.",
-      "follow": "Reposiciona os níveis móveis ao redor de um ponto de vista. Devolve true quando pelo menos um índice de célula base mudou: esse é o único sinal de que a convergência precisa reiniciar, sem custar nenhuma leitura de volta da GPU."
+      "follow": "Reposiciona os níveis móveis ao redor de um ponto de vista. Devolve true quando pelo menos um índice de célula base mudou: esse é o único sinal de que a convergência precisa reiniciar, sem custar nenhuma leitura de volta da GPU.",
+      "reserveCount": "Capacidade fixa reservada antes que as transformações possam ampliar a cena.",
+      "invalidLevels": "Níveis cujo espaçamento ou presença mudou no último replanejamento. Os deslocamentos da base usam as marcas das células.",
+      "replan": "Reaplica a política existente de resolução espacial aos limites atuais da geometria."
     }
   },
   "BounceOccupancy": {
@@ -220,7 +223,8 @@
       "occupied": "Verdadeiro quando a célula de um nível em sua grade global justifica uma sonda.",
       "marked": "Células marcadas e total de células do nível mais fino: ganho publicado.",
       "cells": "Células do nível mais fino.",
-      "bytes": "Bytes que ocupa."
+      "bytes": "Bytes que ocupa.",
+      "allEligible": "A geometria se moveu: agenda de forma conservadora todas as células das cascatas, cuja quantidade é limitada."
     }
   },
   "BoundedNode": {
@@ -2837,7 +2841,7 @@
     "summary": "Versão do contrato de hierarquia de cena de propriedade do host."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Inteiros de cabeçalho: assinatura, versão, triângulos, nós."
+    "summary": "Inteiros do cabeçalho: assinatura, versão, contagens de triângulos/nós/grupos/proprietários/origens, zero reservado."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' lido como um inteiro de 32 bits sem sinal little-endian."
@@ -3069,7 +3073,12 @@
       "triangles": "Três vértices de mundo por triângulo, `PROXY_TRIANGLE_FLOATS` números cada.",
       "albedo": "Albedo difuso linear do triângulo, empacotado RGBA8.",
       "nodeBounds": "Limites exatos de cada nó de BVH.",
-      "nodeChildren": "Os quatro filhos de cada nó: caixa quantizada, contagem de triângulos, presença, link."
+      "nodeChildren": "Os quatro filhos de cada nó: caixa quantizada, contagem de triângulos, presença, link.",
+      "triangleGroups": "Grupo compartilhado dos proprietários de origem de cada triângulo canônico, armazenado uma única vez.",
+      "groupOffsets": "Deslocamentos dos registros de proprietários de cada grupo, incluindo a sentinela final.",
+      "owners": "Registros de proprietários: índice do nó de origem e albedo linear compactado em RGBA8.",
+      "bindWorlds": "Matrizes de mundo originais dos nós de origem, dezesseis valores de precisão dupla por nó.",
+      "sourceParents": "Hierarquia de origem, incluindo os nós de partição que o host não mantém instanciados atualmente."
     }
   },
   "SceneProxyDescriptor": {
@@ -3086,7 +3095,10 @@
       "triangleBudget": "Orçamento de triângulos publicado, aquele que decidiu o limiar realmente obtido.",
       "bounds": "Extensão de mundo do proxy: três limites inferiores depois três superiores.",
       "triangles": "Triângulos.",
-      "nodes": "Nós da árvore."
+      "nodes": "Nós da árvore.",
+      "groups": "Grupos de proprietários compartilhados e armazenados uma única vez.",
+      "owners": "Registros de proprietários.",
+      "instances": "Matrizes dos nós de origem."
     }
   },
   "SceneRoot": {
@@ -4905,7 +4917,7 @@
   },
   "decodeSceneProxy": {
     "summary": "O proxy relido e reverificado antes de um único raio o tocar.",
-    "description": "Layout, little-endian: `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, depois os vértices de mundo, albedos, limites exatos de nó e seus quatro filhos, concatenados. Cada seção tem um comprimento que o cabeçalho impõe; um arquivo de outro tamanho é rejeitado por completo, porque um nó que nomeasse um triângulo ausente faria o shader ler qualquer coisa."
+    "description": "Disposição: oito palavras de cabeçalho em little-endian, seguidas pelas colunas de geometria e árvore canônicas e pelos dados de propriedade com versão. `docs/FORMAT.md` especifica cada contagem e coluna. O cabeçalho impõe o comprimento de cada seção; um arquivo de tamanho diferente é rejeitado por inteiro, pois um nó que apontasse para um triângulo ausente faria o shader ler dados arbitrários."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` decomposto em `position`, `quaternion`, `scale`."

@@ -11,9 +11,9 @@ import { halfFloatTargets } from '../core/renderTarget.ts';
 import type { SceneColour, WebglClusterScene } from './lights.ts';
 
 /** Names the missing capability when the context cannot render a half-float backdrop. */
-export function backdropFormatReason(gl: WebGL2RenderingContext) {
+export function backdropFormatReason(gl: WebGL2RenderingContext, purpose = 'transmission') {
   if (halfFloatTargets(gl)) return;
-  return 'transmission needs a half-float backdrop (EXT_color_buffer_half_float)';
+  return `${purpose} needs a half-float backdrop (EXT_color_buffer_half_float)`;
 }
 
 export class WebglClusterBackdrop {
