@@ -75,10 +75,10 @@ export function encodeDirectLights(
   }
   noteShadowFrame(lights);
   if (!tiles || !gpu.depthView) return directParams;
-  if (!lights.buffer || !tiles.ensure(width, height, gpu.depthView, lights.buffer))
+  if (!lights.buffer || !tiles.ensure(width, height, gpu.depthView, lights.buffer, active))
     return directParams;
   tiles.update(viewProjection, cam.eye, width, height);
-  if (!tiles.encode(encoder)) return directParams;
+  if (!tiles.encode(encoder, rt.run.frame)) return directParams;
   directParams[0] = active;
   directParams[1] = tiles.tilesX;
   directParams[2] = tiles.tilesY;
