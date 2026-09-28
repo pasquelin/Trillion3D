@@ -49,6 +49,9 @@ function monde(total: number, depart: number): Monde {
   return { scene, allPages, shown: [], desired: [], requested: [] };
 }
 
+/** The one view a world draws, as the geometry store reads it (`views.ts`). */
+const vueDe = (m: Monde) => ({ live: m, lists: () => [m.shown, m.desired, m.requested] });
+
 const empreinte = (m: Monde, triangles: number) => ({
   enfants: m.scene.children.map((mesh) => mesh.renderOrder),
   triangles,
@@ -83,6 +86,7 @@ function cas(name: string, total: number, tailles: readonly number[], mesure = t
   const oracle = referenceAutonomousSync(gauche);
   const paquet = createAutonomousGeometry({
     ...droite,
+    views: vueDe(droite),
     bootstrap: [],
     byUrl: new Map(),
     descriptors: new Map(),
@@ -121,6 +125,7 @@ await stress({
   calcul: (m: Monde) =>
     createAutonomousGeometry({
       ...m,
+      views: vueDe(m),
       bootstrap: [],
       byUrl: new Map(),
       descriptors: new Map(),
