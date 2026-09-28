@@ -32,7 +32,7 @@ test('each image draws the graph as the edits since the last one left it', () =>
   group.add(b);
   scene.add(a, group);
   const draw = createSceneDraw(context.gl, scene);
-  scene.background = scene.fog = null; // told to the link it now holds, which hears neither
+  scene.background = scene.fog = null; // told to the link it now holds, which is no world's: heard by nobody
   const frame = () => {
     const from = context.of('drawElements').length;
     draw.render({} as HostCamera);
