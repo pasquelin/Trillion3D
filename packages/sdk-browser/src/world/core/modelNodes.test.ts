@@ -21,7 +21,9 @@ function compiledModel() {
   crane.name = 'crane';
   root.add(turbine, crane);
   turbine.add(rotor);
-  const record = { scene: { source: root } } as unknown as ModelRecord;
+  const record = {
+    scene: { source: root, nodes: [turbine, rotor, crane] },
+  } as unknown as ModelRecord;
   return { model: new LoadedModel(record), turbine, rotor };
 }
 
@@ -94,4 +96,14 @@ test('a loaded model and a scene root refuse to be cloned, by name', () => {
   const refused = { name: 'EngineError', code: 'UNSUPPORTED_SCENE_UPDATE' };
   assert.throws(() => compiledModel().model.clone(), refused);
   assert.throws(() => new Scene(() => Promise.reject(new Error('no load'))).clone(), refused);
+});
+
+test('a source node is reached by its index, with the indices below it; none while unnumbered', () => {
+  const { model } = compiledModel();
+  const found = model._nodeAt(0)!;
+  assert.equal(found.node, model.getObjectByName('turbine'), 'the node a name finds');
+  assert.deepEqual([found.indices, found.radius], [[0, 1], 0], 'its rotor below; nothing drawn');
+  assert.equal(model._nodeAt(7), null);
+  (model.record.scene as { nodes: unknown }).nodes = null;
+  assert.equal(model._nodeAt(0), null, 'a partitioned cache numbers its nodes otherwise');
 });

@@ -27,6 +27,8 @@ mod hull;
 mod mass;
 #[cfg(test)]
 mod mass_tests;
+#[cfg(test)]
+mod parallel_tests;
 mod pieces;
 #[cfg(test)]
 mod pieces_tests;

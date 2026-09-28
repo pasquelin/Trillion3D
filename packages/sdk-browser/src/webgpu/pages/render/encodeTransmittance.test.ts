@@ -10,6 +10,7 @@ import {
 } from '../../../../../sdk-core/src/scene/light-shadow/pool.ts';
 import { SHADOW_PAGE } from '../../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { DRAW_INDIRECT_STRIDE } from '../../../gpu/draw/draw.ts';
+import { SHADOW_REGION_INDIRECT_BYTES as REGION_BYTES } from '../../../gpu/shadow/batchBudget.ts';
 import { MAX_SHADOW_REGIONS as R } from '../../../gpu/shadow/atlas.ts';
 import { createShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
 import {
@@ -71,8 +72,10 @@ function encoded(pages: number, mode: number, casters: boolean) {
       cull: { kept, indirect: 'indirect' },
       shadowGroupsKey: key,
       shadowGroups: Array.from({ length: 2 * R }, (_, i) => `g${i}`),
-      shadows: { faceGroup: 'faces', faceStride: 256 },
+      // Region 1's face alone carries an emitter envelope.
+      shadows: { faceGroup: 'faces', faceStride: 256, hasEnvelope: (r: number) => r === 1 },
       regions,
+      mobility: { hasCutouts: true },
       shadowRenderPasses: 0,
     },
   } as unknown as WebgpuPagesRuntime;
@@ -122,9 +125,9 @@ test('each region draws its list twice at half its page place, after the clear',
     ['setBindGroup', [0, `g${i}`]],
     ['setBindGroup', [1, 'faces', [256 * i]]],
     ['setPipeline', ['rdepth']],
-    ['drawIndirect', ['indirect', DRAW_INDIRECT_STRIDE * i]],
+    ['drawIndirect', ['indirect', REGION_BYTES * i]],
     ['setPipeline', ['rblend']],
-    ['drawIndirect', ['indirect', DRAW_INDIRECT_STRIDE * i]],
+    ['drawIndirect', ['indirect', REGION_BYTES * i]],
   ];
   const [, [clear]] = passes[0].find(([name]) => name === 'setPipeline')! as [
     string,
@@ -151,7 +154,33 @@ test('each region draws its list twice at half its page place, after the clear',
   ]);
 });
 
-test("the pool's depth pass sets its one pipeline once, whatever its regions", () => {
+// #965: a region's opaque list is drawn with no fragment stage — with the fragment that strips the
+// envelope on a face that has one —, its cutout list with the fragment test, from its second command.
+test("the pool's depth pass draws each region's opaque then cutout list, by their own pipelines", () => {
+  const { rt } = encoded(3, DRAW_ALL, false),
+    calls: Calls = [];
+  const depth = { opaque: 'opaque', envelope: 'envelope', cutout: 'cutout' } as never;
+  assert.equal(drawRegionCasters(rt, device, recorder(calls), 0, false, 1, depth), 6);
+  const draws = calls.filter(([name]) => name === 'setPipeline' || name === 'drawIndirect');
+  const lists = (pipeline: string, i: number) => [
+    ['setPipeline', [pipeline]],
+    ['drawIndirect', ['indirect', REGION_BYTES * i]],
+    ['setPipeline', ['cutout']],
+    ['drawIndirect', ['indirect', REGION_BYTES * i + DRAW_INDIRECT_STRIDE]],
+  ];
+  assert.deepEqual(draws, [...lists('opaque', 0), ...lists('envelope', 1), ...lists('opaque', 2)]);
+  // No cutout row: no cutout list is drawn, and the opaque draws keep one pipeline.
+  rt.lights.mobility = { hasCutouts: false } as never;
+  calls.length = 0;
+  assert.equal(drawRegionCasters(rt, device, recorder(calls), 0, false, 1, depth), 3);
+  assert.equal(
+    calls.filter(([name]) => name === 'setPipeline').length,
+    3,
+    'opaque, envelope, opaque',
+  );
+});
+
+test('a pipeline is set only when it changes, whatever the regions', () => {
   for (const pages of [1, R]) {
     const { rt } = encoded(pages, DRAW_ALL, false),
       calls: Calls = [];
