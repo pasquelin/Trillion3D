@@ -3,6 +3,8 @@
 // regimes. Both sides of the bench each build a copy, so neither benefits from the
 // state the other leaves.
 import * as THREE from 'three';
+import { GraphSurface } from '../../../../packages/sdk-browser/src/host/graph/surface.ts';
+import { surfaceOf } from '../../../../packages/sdk-browser/src/page/surface.ts';
 import {
   createWebgpuBlendState,
   type BlendGpuItem,
@@ -16,16 +18,12 @@ import { planReference } from '../../../oracles/browser/transparent-orders.ts';
 
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
-/** The reduced item this bench builds: only the fields the blend order reads (no GPU buffers). */
-export interface BenchItem {
-  material: THREE.Material;
-  matrix: THREE.Matrix4;
-  bounds: Float64Array;
-  count: number;
-  paged: boolean;
-  pagedIndex: number | undefined;
-  tableBase: number;
-}
+/** The reduced item this bench builds: only the fields the blend order reads (no GPU buffers),
+ *  picked from the engine's item so a renamed field fails the type check, not the bench run. */
+export type BenchItem = Pick<
+  BlendGpuItem,
+  'surface' | 'count' | 'paged' | 'pagedIndex' | 'tableBase'
+> & { matrix: THREE.Matrix4; bounds: Float64Array };
 
 /** Order of magnitude of the measured scene: 4 288 transparent items, twelve placements each. */
 const PLACEMENTS = 12,
@@ -42,11 +40,9 @@ const alea = graine(31);
 /**
  * Both sides of a transparent scene, and why the bench measures both.
  *
- * `sidesOf` yields ONE plan entry for a single-sided material, and TWO — back then front, two
- * pipelines — for a double-sided material. A slice stops when the pipeline changes: a
- * double-sided scene, the glass and foliage of an ordinary glTF scene, therefore merges
- * none. Measuring only the single-sided scene is measuring the best case and publishing it as
- * if it were the case.
+ * Both paths yield one entry for a single-sided material and two, back then front, for a
+ * double-sided material. The reference changes pipelines between faces; the current paged
+ * path culls in the vertex stage so both faces can share a run. Keep both cases measured.
  */
 export const FACES: [string, THREE.Side][] = [
   ['single-sided', THREE.FrontSide],
@@ -59,7 +55,7 @@ export const FACES: [string, THREE.Side][] = [
  */
 function batisItems(side: THREE.Side): BenchItem[] {
   const items: BenchItem[] = [],
-    materiau = new THREE.MeshBasicMaterial({ side });
+    surface = surfaceOf(new GraphSurface('basic', { side }));
   for (let i = 0; i < ITEMS; i++) {
     const paged = i < PAGINES;
     const matrix = new THREE.Matrix4().setPosition(
@@ -77,7 +73,7 @@ function batisItems(side: THREE.Side): BenchItem[] {
       m[14] + 1,
     ]);
     items.push({
-      material: materiau,
+      surface,
       matrix,
       bounds,
       count: paged ? 0 : 900,
