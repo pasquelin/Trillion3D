@@ -88,14 +88,14 @@ fn spill(slice:u32,total:u32,slot:u32){
 }`;
 
 /** The second walk of a tile a slice of which passed its list; nothing for any other tile. */
-export const tileSpillWgsl = (words: number) => `
+export const TILE_SPILL_WGSL = `
  // A slice past its list: room in the pool for every light it counted, then the same walk
  // writes them there, in the same order (#849).
  let total=workgroupUniformLoad(&counted);
  if(max(total.x,total.y)>TILE_LIGHTS){
   // The first walk's list writes land before thread zero names the slices over them.
   storageBarrier();
-  if(lane<${2 * words}u){atomicStore(&hits[lane],0u);}
+  if(lane<2u*BLEND_MASK){atomicStore(&hits[lane],0u);}
   if(lane==0u){kept=vec2u(0u);spill(0u,total.x,base+TILE_OPAQUE_BASE);spill(1u,total.y,base+TILE_BLEND_BASE);}
   workgroupBarrier();
   walkLights(lane,count,hasOpaque,seesSky);
