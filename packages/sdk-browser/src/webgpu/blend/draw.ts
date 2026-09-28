@@ -119,7 +119,12 @@ export function drawBlendPass(
         storeOp: 'store',
       },
       // Virtual-texture feedback, opened by the first pass that writes it.
-      feedbackAttachment(rt),
+      ...(rt.feedbackAB?.target === false ? [] : [feedbackAttachment(rt)]),
+      {
+        view: gpu.asIsShare!.view,
+        loadOp: 'load',
+        storeOp: 'store',
+      },
     ],
     depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
   });
