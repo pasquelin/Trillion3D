@@ -6,7 +6,7 @@ import {
   residentProxyWgsl,
 } from '../../bounce/nodeWgsl.ts';
 import {
-  createDeferredLayouts,
+  createDeferredLightingLayout,
   createDeferredPlaceholders,
 } from '../../lighting/deferred/setup.ts';
 import { DIRECT_LIGHTING_WGSL, declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
@@ -75,13 +75,11 @@ test('both lighting passes fire the same ray, counters aside', () => {
 test('the resident proxy is bound to both passes, on a single storage binding', async () => {
   const { device } = fakeDevice();
   const { blendBindGroupLayout } = await createWebgpuBlendPipelines(device, []);
-  const deferred = createDeferredLayouts(device, true, true);
+  const deferred = createDeferredLightingLayout(device, true, true);
   const inBlend = entriesOf(blendBindGroupLayout).filter(
     (entry) => entry.binding === BLEND_BINDINGS.proxy,
   );
-  const inDeferred = entriesOf(deferred.lighting).filter(
-    (entry) => entry.binding === SUN_FAR_PROXY_BINDING,
-  );
+  const inDeferred = entriesOf(deferred).filter((entry) => entry.binding === SUN_FAR_PROXY_BINDING);
   // The blend reads the proxy, deferred resolve writes it: it alone holds the two
   // report counters, and it is that read-only access that gives the blend its early reject.
   for (const [nom, found, type] of [
