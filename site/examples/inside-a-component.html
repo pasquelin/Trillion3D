@@ -21,7 +21,7 @@
     <trillion-viewer></trillion-viewer>
     <script type="module">
       import { createWorld, geometry, light, material, math, object } from '../runtime/engine.js';
-      import { banner, controls } from '../runtime/kit.js';
+      import { controls } from '../runtime/kit.js';
 
       // Waits for #412: disposing a world must remove the canvas createWorld(element) added.
       class TrillionViewer extends HTMLElement {
@@ -75,7 +75,6 @@
         document.body.append(viewer);
       };
       controls({ mount, unmount, remount });
-      banner();
     </script>
   </body>
 </html>
