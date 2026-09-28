@@ -3,14 +3,14 @@
 import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
 import type { MeasuredWorld } from '../witnesses/measurement.ts';
 
-/** The fraction of the resident working set `--pool-textures-vivant <n>%` asks, or `undefined`
+/** The fraction of the resident working set a live texture pool asked as `<n>%` takes, or `undefined`
  *  when the value is not a percentage (then a number of MiB). */
 export function residentFraction(value: string): number | undefined {
   const match = /^(\d+(?:\.\d+)?)%$/.exec(value.trim());
   if (!match) return undefined;
   const fraction = Number(match[1]) / 100;
   if (!(fraction > 0 && fraction < 1))
-    throw new Error('--pool-textures-vivant <n>% must lie strictly between 0 and 100 %');
+    throw new Error('a live texture pool of <n>% must lie strictly between 0 and 100 %');
   return fraction;
 }
 

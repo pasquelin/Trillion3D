@@ -7,7 +7,7 @@ import type { BackendDiagnostic } from '../../packages/sdk-browser/src/backend/t
 import type { MemoryBudgets } from '../witnesses/measurement.ts';
 import type { ReglageVivant, Reseau } from './report/types.ts';
 import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
-import type { PoolVivant } from './benchSettings.ts';
+import type { LivePools } from './benchSettings.ts';
 import { residentBudget } from './poolFill.ts';
 
 interface MovingLight {
@@ -77,7 +77,7 @@ export async function poseCalme(
 export async function reglerReservoirs(
   explorer: MeasuredWorld,
   pose: CameraPose,
-  budgets: PoolVivant | null,
+  budgets: LivePools | null,
 ): Promise<ReglageVivant | null> {
   if (!budgets) return null;
   const resident = await residentBudget(explorer, pose, budgets.textureResidentFraction, poseCalme);
