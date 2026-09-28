@@ -1155,7 +1155,7 @@ as `world.budget.split`:
   a total under them is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`), so no total below 913 MiB is
   taken on the default canvas. The pool a screen takes, its static layer and its fixed buffers always fit that
   share, whatever the screen.
-- CPU: the shadow page table's host mirror first (21.2 MiB, fixed whatever the screen), then the
+- CPU: the shadow page table's host mirror first (25.9 MiB, `SHADOW_HOST_BYTES`, fixed whatever the screen), then the
   decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
   reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
   and its transfer queue, and the engine's cut tables (group closure, residency readiness, the
