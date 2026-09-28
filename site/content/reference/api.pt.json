@@ -969,6 +969,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Este caminho de desenho não consegue fazer essa mudança na cena.",
       "BATCHED_WORLD_VIEW": "Este caminho de desenho não consegue fazer essa mudança na cena.",
       "RAYCAST_NO_VIEW": "Um ponto de imagem foi pedido a um canvas sem tamanho: não há imagem através da qual mirar.",
+      "SURFACE_CAPTURE_UNSUPPORTED": "Foi pedida uma captura de superfícies (`captureSurfaceView`) a um caminho de desenho que não sabe desenhar as superfícies de material numa vista própria: o caminho WebGL2 não tem.",
       "VERTICES_NOT_LOADED": "Os vértices de um modelo carregado foram lidos antes de `await geometry.loadVertices()`: uma sessão os lê na primeira necessidade, nunca antecipadamente.",
       "SESSION_OPEN_FAILED": "A sessão do mundo não pôde abrir, por um motivo sem código próprio (`world.diagnostic.error`): o erro lançado está em `details.cause`.",
       "WEBGPU_LOST": "O WebGPU perdeu o seu dispositivo, ou um erro nele deixou um estado a partir do qual nada pode desenhar: lançado por `render`, `flush` e pelas leituras que precisam do dispositivo, nomeado pelo diagnóstico `gpu-device-lost`, e em `world.diagnostic.error` quando uma sessão não pôde abrir por isso.",

@@ -976,6 +976,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "مسار الرسم هذا لا يستطيع إجراء ذلك التغيير على المشهد.",
       "BATCHED_WORLD_VIEW": "مسار الرسم هذا لا يستطيع إجراء ذلك التغيير على المشهد.",
       "RAYCAST_NO_VIEW": "طُلبت نقطة صورة من canvas بلا حجم: لا توجد صورة يُصوَّب من خلالها.",
+      "SURFACE_CAPTURE_UNSUPPORTED": "طُلب التقاط للأسطح (`captureSurfaceView`) من مسار رسم لا يستطيع رسم أسطح المادة في عرض خاص بها: مسار WebGL2 لا يملك ذلك.",
       "VERTICES_NOT_LOADED": "قُرئت رؤوس نموذج محمّل قبل `await geometry.loadVertices()`: تقرؤها الجلسة عند أول حاجة، ولا تقرؤها مسبقًا أبدًا.",
       "SESSION_OPEN_FAILED": "تعذّر فتح جلسة العالم لسبب ليس له رمز خاص به (`world.diagnostic.error`): الخطأ المُطلق موجود في `details.cause`.",
       "WEBGPU_LOST": "فقد WebGPU جهازه، أو ترك خطأ عليه حالة لا يمكن الرسم منها: تطلقه `render` و`flush` والقراءات التي تحتاج إلى الجهاز، ويسمّيه التشخيص `gpu-device-lost`، ويظهر في `world.diagnostic.error` عندما تعذّر فتح جلسة بسببه.",

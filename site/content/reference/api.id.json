@@ -976,6 +976,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "BATCHED_WORLD_VIEW": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "RAYCAST_NO_VIEW": "Titik gambar diminta dari canvas yang tidak punya ukuran: tidak ada gambar untuk dibidik.",
+      "SURFACE_CAPTURE_UNSUPPORTED": "Tangkapan permukaan (`captureSurfaceView`) diminta dari jalur gambar yang tidak dapat menggambar permukaan material dalam tampilan tersendiri: jalur WebGL2 tidak memilikinya.",
       "VERTICES_NOT_LOADED": "Verteks model yang dimuat dibaca sebelum `await geometry.loadVertices()`: sesi membacanya saat pertama dibutuhkan, tidak pernah lebih dulu.",
       "SESSION_OPEN_FAILED": "Sesi dunia tidak bisa dibuka, karena alasan yang tidak punya kode sendiri (`world.diagnostic.error`): galat yang dilempar ada di `details.cause`.",
       "WEBGPU_LOST": "WebGPU kehilangan perangkatnya, atau sebuah galat padanya meninggalkan keadaan yang tidak bisa dipakai untuk menggambar: dilempar oleh `render`, `flush`, dan pembacaan yang memerlukan perangkat, dinamai oleh diagnostik `gpu-device-lost`, dan muncul di `world.diagnostic.error` ketika sebuah sesi tidak bisa dibuka karenanya.",
