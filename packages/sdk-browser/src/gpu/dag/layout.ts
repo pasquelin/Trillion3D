@@ -57,11 +57,12 @@ export const clusterLevel = (flags: number) => flags >>> CLUSTER_LEVEL_SHIFT;
  * 0.52 ms for a capped readout, when the kernels themselves cost 0.99.
  *
  * The cap is WIDE next to a real cut: the same bench keeps 7,812 ranks of 1,992,187 at
- * threshold 64, 31,250 at threshold 16. Overflow remains possible — a camera placed in
- * the geometry at a tiny threshold — and it is SAID: the kernel sets the overflow bit,
- * the readout is declared truncated and the frame falls back to the CPU cut, which
- * knows how to pick a representable subset. A truncated readout is never adopted as if
- * it were whole.
+ * threshold 64, 31,250 at threshold 16. It is where a cut STARTS: overflow remains possible — a
+ * camera placed in the geometry at a tiny threshold, hundreds of thousands of placements — and
+ * it is SAID: the kernel sets the overflow bit, and the cut grows its list within the device
+ * (`listCap.ts`). Only a list the device cannot hold stays truncated, and the frame falls back
+ * to the CPU cut, which knows how to pick a representable subset. A truncated readout is never
+ * adopted as if it were whole. The pool's list (`poolBase`) keeps this cap.
  */
 export const SELECTION_LIST_CAP = 262144;
 /** Cap of a scene: never more than its catalogue, which no cut can exceed. */
