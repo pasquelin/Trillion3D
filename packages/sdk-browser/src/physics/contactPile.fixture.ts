@@ -21,7 +21,8 @@ import { body, FLAT, id } from './records.fixture.ts';
 export const PILE_BUDGET = { bodies: 64, contactEvents: 256, memoryBytes: 64 << 20 };
 
 /** One step of the pile: the enters dropped, the poses sorted (a pool's threads list the active
- *  bodies in the order they ran), the events in the order the module sent them; words joined. */
+ *  bodies in the order they ran), the events in the order the module sent them, which no thread
+ *  decides (`contacts.cpp`); words joined. */
 export interface PileStep {
   dropped: number;
   poses: string[];
@@ -77,25 +78,12 @@ export function pile(
   return out;
 }
 
-/** The steps with each step's events sorted: what a pool must give as the single thread gives,
- *  since its threads run the contact callbacks in another order. */
-export const settled = (steps: PileStep[]) =>
-  steps.map((step) => ({ ...step, events: [...step.events].sort() }));
-
-/** Every pair's events over the run, in the order the module sent them (`step:type:impulse`):
- *  an enter before its leave, whatever the other pairs did meanwhile. */
-export function pairOrder(steps: PileStep[]) {
-  const pairs = new Map<string, string[]>();
-  steps.forEach(({ events }, s) =>
-    events.forEach((words) => {
-      const [type, a, b, impulse] = words.split(',');
-      const key = `${a},${b}`;
-      let list = pairs.get(key);
-      if (!list) pairs.set(key, (list = []));
-      list.push(`${s}:${type}:${impulse}`);
-    }),
-  );
-  return Object.fromEntries([...pairs].sort(([x], [y]) => (x < y ? -1 : 1)));
+/** `steps` with the events of their first step that holds two different ones reversed: a run
+ *  the single thread's order must tell apart from its own. */
+export function reversedStep(steps: PileStep[]) {
+  const s = steps.findIndex(({ events }) => new Set(events).size > 1);
+  if (s < 0) throw new Error('no step sends two different events');
+  return steps.map((step, i) => (i === s ? { ...step, events: [...step.events].reverse() } : step));
 }
 
 /** Enters and leaves the run sent. */

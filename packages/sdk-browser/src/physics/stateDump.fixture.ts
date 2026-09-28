@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { CommandWriter, FLAG } from '../../../sdk-core/src/physics/index.ts';
+import { CommandWriter, EVENT_WORDS, FLAG } from '../../../sdk-core/src/physics/index.ts';
 import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts';
 import type { JoltModule } from './joltModule.ts';
 import { ropeLine, softBodiesIn, writeSoftBody } from './soft.fixture.ts';
@@ -19,12 +19,26 @@ const soft = (
 const softHeads = (words: Uint32Array) =>
   Uint32Array.from([...softBodiesIn(words)].flatMap((b) => [b.engine, b.count]));
 
+/** A step's event records sorted: the dump holds what was sent, not the order it was sent in,
+ *  which is the pool's proof's (`contactThreads.test.ts`). */
+function sortedEvents(words: Uint32Array) {
+  const rows = Array.from({ length: words.length / EVENT_WORDS }, (_, r) =>
+    words.subarray(r * EVENT_WORDS, (r + 1) * EVENT_WORDS),
+  );
+  rows.sort((x, y) => {
+    const i = x.findIndex((word, k) => word !== y[k]);
+    return i < 0 ? 0 : x[i] - y[i];
+  });
+  return Uint32Array.from(rows.flatMap((row) => [...row]));
+}
+
 /**
  * A scene of every body kind a pin's long range attachment leaves as it was — boxes piling up
  * with their contact events, an unpinned cloth falling on them, a cloth given stretch hanging from
  * its pins, a rope swinging from its pin, a volume bouncing — stepped `steps` times at 60 Hz.
- * Two SHA-256 of every step's words, in order: `motion`, of its poses, events and the bodies its
- * soft words name with their vertex counts; `full`, of its poses, events and whole soft words.
+ * Two SHA-256 of every step's words, in order: `motion`, of its poses, events (sorted) and the
+ * bodies its soft words name with their vertex counts; `full`, of its poses, events and whole soft
+ * words.
  * Two modules that simulate it alike give the same `motion`; `full` also holds the written-back
  * vertices bit for bit, which a change of their rounding alone moves (#975).
  */
@@ -49,7 +63,7 @@ export function stateDump(
     full = createHash('sha256');
   let posed = jolt.step(writer.take(), 0);
   for (let s = 0; s < steps; s++) {
-    const [poses, events, soft] = [jolt.poses(posed), jolt.events(), jolt.soft()];
+    const [poses, events, soft] = [jolt.poses(posed), sortedEvents(jolt.events()), jolt.soft()];
     motion.update(poses).update(events).update(softHeads(soft));
     full.update(poses).update(events).update(soft);
     posed = jolt.step(null, 1 / 60);
