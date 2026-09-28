@@ -104,5 +104,8 @@ test('patience does not pile up across cycles of a catalogue that shrinks and gr
     }
     recoveries.push(batches);
   }
-  assert.ok(Math.max(...recoveries.slice(1)) <= recoveries[1], `recoveries: ${recoveries.join(' ')}`);
+  assert.ok(
+    Math.max(...recoveries.slice(1)) <= recoveries[1],
+    `recoveries: ${recoveries.join(' ')}`,
+  );
 });
