@@ -104,6 +104,9 @@ export async function createWebgpuBlendPipelines(
       // Tile rank the pixel requests from the virtual textures: an integer target, without blend,
       // that reduction rereads after the pass.
       { format: FEEDBACK_FORMAT },
+      // The lit transparent contribution is curved; blend its zero share over the opaque one
+      // with the same coverage as its HDR colour.
+      { format: 'r8unorm', blend: BLEND_EQUATIONS[mode] },
     ],
   });
   const perMode = pipelinesByMode(device, (mode) =>
