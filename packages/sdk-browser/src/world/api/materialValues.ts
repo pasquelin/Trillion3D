@@ -17,8 +17,11 @@ export const MASK_CUTOFF = 0.5;
  *  rank in the cache's material table — its name, and how many times its maps repeat across and
  *  up, `null` for a material without a map. */
 export interface SceneMaterial extends Material {
+  /** String rank in the imported material table, or a page-created ID. */
   readonly id: string;
+  /** Source or page label for the material. */
   name: string;
+  /** Map repetitions across and up, or null when the material has no map. */
   tiling: readonly [number, number] | null;
 }
 
@@ -27,7 +30,10 @@ export type SceneMaterialPatch = Partial<
   Pick<
     SceneMaterial,
     'baseColor' | 'opacity' | 'metalness' | 'roughness' | 'emissive' | 'alphaMode' | 'alphaCutoff'
-  > & { tiling: readonly [number, number] }
+  > & {
+    /** Map repetitions across and up. */
+    tiling: readonly [number, number];
+  }
 >;
 
 /** A material as the engine draws it now, read where every engine path reads a host surface
