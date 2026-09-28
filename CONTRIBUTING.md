@@ -118,8 +118,8 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
   abandoned-format compatibility or claims of unimplemented features.
 - A differential test against a frozen oracle proves only what the two sides do differently. Where
   they share code, prove it directly.
-- **This repository uses pnpm.** `pnpm run check:changed` checks changed-file format, lint, lines,
-  duplicates and import-related unit tests; `pnpm run test:changed` runs only those tests. Also
+- **This repository uses pnpm.** `pnpm run check:changed` checks changed-file format, lint, types,
+  lines, duplicates and import-related unit tests; `pnpm run test:changed` runs only those tests. Also
   inspect dependants after deletions, public-export or configuration changes.
 - Before merge: `pnpm run validate` (format, JS/TS lint + Clippy, unused code/files/dependencies,
   TS/native builds, structure, declarations, links, JS/TS/Rust tests); the image proof and the
@@ -215,7 +215,11 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    that merged `develop` and merges cleanly into it, oldest pull request first (AGENTS.md rule
    11); `main` moves only on the maintainer's word. Never push directly to `develop` or `main`, or
    rewrite published history.
-6. After merge, remove the worktree and merged branch, remove `in review` and close the issue;
+6. After merge, remove the worktree and merged branch, remove `in review` and check the issue is
+   closed: GitHub's `Closes #n` acts only on `main`, so
+   [`close-issues.yml`](.github/workflows/close-issues.yml) closes, as completed and with a
+   comment linking the pull request, every issue a body merged into `develop` names with a closing
+   keyword (`Part of #n` leaves it open);
    a batch in the measurer's scope is labelled `to measure` first. Every merge into `develop` is then re-read
    against this file; a finding reopens the issue, labelled `audit ko`, with the findings in a
    comment.

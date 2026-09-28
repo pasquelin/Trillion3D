@@ -83,6 +83,7 @@ export class Object3D extends TransformNode {
   /** Makes objects children of this node. */ override add(...objects: Object3D[]) {
     for (const object of objects) {
       if (object === this) continue;
+      if (object.parent?._link !== this._link) object.parent?.remove(object); // its world hears it go
       super.add(object);
       object.traverse((node) => (node._link = this._link));
     }
