@@ -11,7 +11,8 @@ import {
   transformDirectionVector3,
 } from '../../../../sdk-core/src/index.ts';
 import { attr2, sampleLinear, triangleAt } from '../math.ts';
-import { frameNormalScaleY, type VisMaterial, type VisPage } from '../types.ts';
+import type { VisMaterial, VisPage } from '../types.ts';
+import { frameNormalScaleY } from '../frameNormal.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 const normalScratch = new Float64Array(9);
