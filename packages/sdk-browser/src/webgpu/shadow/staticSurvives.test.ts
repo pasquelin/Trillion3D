@@ -34,11 +34,9 @@ const CULLS = new Set(['shadowCullScatter', 'shadowCullLight', 'shadowHizTest'])
  * the shadow cull dispatches. The caster is placed by `placements` when given.
  */
 async function floorAndCaster(light: SceneLight = SUN, placements?: PlacementRows) {
-  const { backend, gpu, lights, scene, caster, floor } = await floorCasterBackend(
-    light,
-    {},
+  const { backend, gpu, lights, scene, caster, floor } = await floorCasterBackend(light, {
     placements,
-  );
+  });
   const view = camera();
   const flags = () => {
     const out = gpu.buffers.find(({ label }) => label === 'Trillion3D light cut output')!;
@@ -67,9 +65,10 @@ async function floorAndCaster(light: SceneLight = SUN, placements?: PlacementRow
     };
   };
   const move = (x: number) => () => backend.setTransform!('caster', along(x));
-  /** The caster's first moves: the static layer is made, and the pages it crossed drawn whole. */
-  const warmUp = async () => {
-    for (let step = 1; step <= 4; step++) await frame(move(step * 0.05));
+  /** The caster's first moves, by `to`: the static layer is made, and the pages it crossed drawn
+   *  whole. */
+  const warmUp = async (to = move) => {
+    for (let step = 1; step <= 4; step++) await frame(to(step * 0.05));
   };
   const dispose = () => disposeQuadRun(backend, { geometry: scene.geoA, material: scene.front });
   return { backend, lights, scene, caster, floor, frame, move, warmUp, dispose };
@@ -102,7 +101,9 @@ test('a caster that stops draws nothing, and moving again redraws its moving cas
     assert.deepEqual([rest.pages, rest.culls], [0, 0], 'at rest: nothing drawn, no batch run');
   }
   // Its old place and its new one are drawn again, from the static layer: the old silhouette goes.
-  restoredOnly(await frame(move(0.6)), 'moving again');
+  const moving = await frame(move(0.6));
+  restoredOnly(moving, 'moving again');
+  assert.ok(moving.culls > 0, 'moving: the culls run, so their absence at rest is not a misname');
   run.dispose();
 });
 
@@ -122,14 +123,14 @@ test('a caster removed and put back redraws its pages from the static layer alon
   rows.matrices.set(along(0));
   rows.live[0] = 1;
   const run = await floorAndCaster(SUN, rows);
-  const { backend, frame } = run;
+  const { backend, frame, warmUp } = run;
   /** Writes the caster's row as `act` says, and hands it to the engine. */
   const write = (act: () => void) => () => {
     act();
     backend.updatePlacements!(rows, 0, 0);
   };
   const place = (x: number) => write(() => rows.matrices.set(along(x)));
-  for (let step = 1; step <= 4; step++) await frame(place(step * 0.05));
+  await warmUp(place);
   restoredOnly(await frame(place(0.25)), 'its row moved');
   // Parked, as the world parks a removed mesh's row: the pages it covered are restored, the floor
   // kept, and its silhouette is gone from them.

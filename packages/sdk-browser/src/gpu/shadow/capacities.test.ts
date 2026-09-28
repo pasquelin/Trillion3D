@@ -118,10 +118,10 @@ test('an empty face, an empty list or an empty batch encodes no cull pass and wr
   };
   // The light cut's cull of no region: its log and rows are never read.
   const log = { buffer, offset: 0, work: buffer, offsetWord: 0, countWord: 0, groupsWord: 0 };
-  const light = { ...source, items: buffer, rowOf: buffer, log, blendFirst: 0, blendEnd: 0 };
+  const light = { spheres: buffer, mobility: buffer, items: buffer, rowOf: buffer, log };
   const made = writes.length;
   cull.begin(0, 3);
-  cull.encodeLight(encoder, { ...light, refreshRows() {} }, 0, 8);
+  cull.encodeLight(encoder, { ...light, blendFirst: 0, blendEnd: 0, refreshRows() {} }, 0, 8);
   assert.equal(writes.length, made, 'a batch of no region writes neither volumes nor commands');
   cull.begin(2, 3);
   cull.encode(encoder, source, 0, 0, 2, 0);
