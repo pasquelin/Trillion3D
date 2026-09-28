@@ -574,9 +574,10 @@ Water uses the same scene-radiance lookup with its material Fresnel. Diffuse and
 have no mirror lobe. Reflection sources are allocated only while the view contains an eligible
 receiver: WebGPU adds 8 bytes per pixel and an 80-byte uniform (an 8-byte disabled placeholder
 otherwise); WebGL2 reuses the backdrop allocator for 8-byte colour and 4-byte depth per pixel.
-These allocations are counted, released on resize/disable/dispose, and refused explicitly when
-the device cannot provide them. WebGL2 requires the half-float colour-target capability for
-these linear-radiance sources, as it does for transmission.
+These allocations are counted and released on resize/disable/dispose. WebGPU reports refusals
+through its existing frame-target grant. WebGL2 checks the required half-float colour-target
+capability for these linear-radiance sources, as it does for transmission; that check does not
+guarantee allocation success or framebuffer completeness.
 
 ## Fog
 
