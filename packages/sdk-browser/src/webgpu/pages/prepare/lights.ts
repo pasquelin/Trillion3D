@@ -86,19 +86,13 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
 export async function prepareShadowPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { shadows, pageQuads } = rt.lights;
   if (!shadows || !pageQuads) return;
-  const work: Array<() => unknown> = [
-    () => createHizPipelines(device),
-    () => shadowOcclusionPipeline(device),
-  ];
+  // The Hi-Z kernels alone first: their validation scope stays open across an await, and a
+  // pipeline made meanwhile would lay its error there. The rest opens no scope: compiled together.
+  await createHizPipelines(device).catch(() => undefined);
+  const work: Array<() => unknown> = [() => shadowOcclusionPipeline(device)];
   if (rt.vis.gpuDraw) work.push(() => lightRowMapPipeline(device));
   if (rt.blendState.blendGpu.some((item) => castsBlendShadow(refreshSurface(item.surface))))
     work.push(shadows.prepareTransmittance, pageQuads.prepareTransmittance);
-  // One after the other: the Hi-Z kernels' validation scope stays open across its await, and a
-  // pipeline made meanwhile would lay its error there, the kernels' failure kept for the device.
-  for (const make of work)
-    try {
-      await make();
-    } catch {
-      /* Compiled again, and said, where it is first used. */
-    }
+  // One that fails is compiled again, and said, where it is first used.
+  await Promise.allSettled(work.map(async (make) => make()));
 }
