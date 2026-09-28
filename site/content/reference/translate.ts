@@ -23,19 +23,30 @@ const rowKey = (name: string) => name.replace(/[?(].*$/, '');
 const LINES = ['summary', 'description', 'valuesTitle'] as const;
 const ROWS = ['parameters', 'members', 'values'] as const;
 
-/** The keys a translation of `entry` gives, `summary` to `values.<name>`: every English text of
- *  the generated entry that no written note replaces. */
-export function referenceKeys(entry: PortalEntry, written: WrittenFields = {}): string[] {
-  const lines = LINES.filter((field) => entry[field] && !written[field as keyof WrittenFields]);
+/** The keys a translation of `entry` gives, `summary` to `values.<name>`, each with its English:
+ *  every English text of the generated entry that no written note replaces. */
+export function referenceTexts(
+  entry: PortalEntry,
+  written: WrittenFields = {},
+): [string, string][] {
+  const lines = LINES.flatMap((field): [string, string][] => {
+    const text = entry[field];
+    return text && !written[field as keyof WrittenFields] ? [[field, text]] : [];
+  });
   const rows = ROWS.flatMap((field) =>
     field === 'values' && written.values
       ? []
       : (entry[field] ?? [])
           .filter(({ desc }) => desc)
-          .map(({ name }) => `${field}.${rowKey(name)}`),
+          .map(({ name, desc }): [string, string] => [`${field}.${rowKey(name)}`, desc]),
   );
-  return [...lines, ...(entry.returns?.desc ? ['returns'] : []), ...rows];
+  const returns = entry.returns?.desc;
+  return [...lines, ...(returns ? [['returns', returns] as [string, string]] : []), ...rows];
 }
+
+/** The keys a translation of `entry` gives, in `referenceTexts`'s order. */
+export const referenceKeys = (entry: PortalEntry, written?: WrittenFields) =>
+  referenceTexts(entry, written).map(([key]) => key);
 
 const translateRows = <Row extends { name: string; desc: string }>(
   rows: Row[],

@@ -15,17 +15,17 @@ import type { PortalEntry } from '../site/content/model.ts';
 import type { ReferenceText } from '../site/content/reference/translate.ts';
 
 /** Every dictionary of `site/i18n/` and every translation of the reference, by language code. */
-const DICTIONARIES = readJsonFolder<Dictionary>(
+export const DICTIONARIES = readJsonFolder<Dictionary>(
   new URL('../site/i18n/', import.meta.url),
   /^(.+)\.json$/,
 );
-const REFERENCE_TRANSLATIONS = readJsonFolder<Record<string, ReferenceText>>(
+export const REFERENCE_TRANSLATIONS = readJsonFolder<Record<string, ReferenceText>>(
   new URL('../site/content/reference/', import.meta.url),
   /^api\.(.+)\.json$/,
 );
 
 /** The examples' words (`site/examples/kit/words.ts`), by language code. */
-const EXAMPLE_WORDS = readJsonFolder<object>(
+export const EXAMPLE_WORDS = readJsonFolder<object>(
   new URL('../site/examples/i18n/', import.meta.url),
   /^(.+)\.json$/,
 );
