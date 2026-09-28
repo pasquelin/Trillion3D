@@ -71,7 +71,7 @@ export function traceCpuFrameWaiting(
   const { run, timing, diag } = rt,
     { tracking, bootstrap, slots } = rt.setup;
   if (!diag.traceEnabled) return;
-  diag.traceDiagnostic('frame', 'Snapshot de frame en attente de couverture GPU', () =>
+  diag.traceDiagnostic('frame', 'Frame snapshot waiting for GPU coverage', () =>
     frameTraceSnapshot(rt, cam, cpuSelectionDecision(rt), {
       coverage: {
         loaded: tracking.traceSet('frame.loaded', []),
