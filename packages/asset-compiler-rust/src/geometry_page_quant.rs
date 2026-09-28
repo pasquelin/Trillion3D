@@ -5,9 +5,7 @@
 
 use crate::{CompilerError, Result};
 /// The grid rules, shared with the run-time cut (`trillion3d_page_codec::bits::grid`).
-pub use trillion3d_page_codec::bits::grid::{
-    finest_exponent, grid_exponent, primitive_grid_exponent,
-};
+use trillion3d_page_codec::bits::grid::{finest_exponent, primitive_grid_exponent};
 use trillion3d_page_codec::bits::{bits_for, dequant, oct_decode, pow2, Quant, MAX_BITS};
 pub mod tile;
 
