@@ -4092,6 +4092,24 @@
       "modes": "Mevcut render motorunun sunduğu her görünüm modu."
     }
   },
+  "world.materials": {
+    "summary": "Geçerli içe aktarılmış malzemeler, ardından sayfanın oluşturdukları."
+  },
+  "world.material": {
+    "summary": "Listedeki kimliğine göre bir malzeme."
+  },
+  "world.importedMaterials": {
+    "summary": "Sayfa değişikliklerinden önceki kaynak dosya değerleri."
+  },
+  "world.setMaterial": {
+    "summary": "İçe aktarılmış veya oluşturulmuş malzemeyi sonraki karede değiştirir."
+  },
+  "world.createMaterial": {
+    "summary": "Bu sayfaya ait bir malzeme oluşturur."
+  },
+  "world.assignMaterial": {
+    "summary": "Oluşturulan malzemeyi derlenmiş `mesh/primitive` üzerine atar."
+  },
   "world.guides": {
     "summary": "Görüntünün üzerine çizilen çizgiler, noktalar ve yardımcılar (`Guides`)."
   },

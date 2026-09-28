@@ -6662,6 +6662,24 @@
       "error": "Pourquoi la dernière session n’a pas pu s’ouvrir, sous forme d’erreur nommée du moteur : son `code` est l’un de ceux documentés sur `EngineError` (`WEBGPU_LOST` quand WebGPU a perdu son appareil), ou `SESSION_OPEN_FAILED` pour une raison qui n’en a pas. Une `EngineError` d’un code documenté est celle qui a été levée ; toute autre erreur est convertie, et l’erreur levée est alors dans `details.cause`. `null` dès le début de chaque ouverture, et quand rien n’est tenté."
     }
   },
+  "world.materials": {
+    "summary": "Matériaux importés actuels, suivis de ceux créés par la page."
+  },
+  "world.material": {
+    "summary": "Un matériau selon son identifiant dans la liste."
+  },
+  "world.importedMaterials": {
+    "summary": "Valeurs du fichier source avant les modifications de la page."
+  },
+  "world.setMaterial": {
+    "summary": "Modifie un matériau importé ou créé à l’image suivante."
+  },
+  "world.createMaterial": {
+    "summary": "Crée un matériau appartenant à cette page."
+  },
+  "world.assignMaterial": {
+    "summary": "Attribue le matériau créé par la page à un `mesh/primitive` compilé."
+  },
   "world.guides": {
     "summary": "Lignes, points et aides dessinés par-dessus l’image (`Guides`)."
   },

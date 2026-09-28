@@ -1263,6 +1263,25 @@
       "off": "tắt"
     }
   },
+  "page-materials": {
+    "banner": "Kéo để khám phá sảnh. Liệt kê, thay đổi, pha trộn hoặc tạo vật liệu.",
+    "controls": {
+      "set": "Đổi màu",
+      "switchToBlend": "Chuyển sang pha trộn",
+      "createAndAssign": "Tạo và gán"
+    },
+    "readouts": {
+      "selected material": "Vật liệu đã chọn",
+      "materials": "Vật liệu",
+      "sourceMaterials": "Vật liệu gốc",
+      "last action": "Thao tác gần nhất"
+    },
+    "words": {
+      "imported": "Đã nhập {count}",
+      "applied": "Đã áp dụng",
+      "ready": "Sẵn sàng"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "Kéo để nhìn quanh. Những chiếc đèn này có sẵn trong tệp mô hình.",
     "controls": {
