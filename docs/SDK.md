@@ -159,8 +159,10 @@ reason. What still fails is `RESOURCE_HTTP_ERROR`, the address in its message an
 the status in `details.status` (`null` for the network). A file a cache may lack — `lights.json` and
 `physics.json`, of a model compiled before them — is absent on a 404, or on the 403 of a store that
 hides what it does not hold. A page read (`httpPageSource`) raises `RESOURCE_HTTP_ERROR` where it
-raised `Error('PAGE_HTTP_<status>')`, and a cooked tile or a soft body's settings where they raised
-`PHYSICS_FAILED`.
+raised `Error('PAGE_HTTP_<status>')`; a cooked tile, a soft body's settings and the physics
+module (`joltPhysics.wasm`) where they raised `PHYSICS_FAILED`, which is kept for the simulation's
+own failures. The page codec module (`pageCodec.wasm`) is read the same way; one it cannot read
+still leaves the JavaScript decoder to decode the pages.
 
 ## API rule
 
