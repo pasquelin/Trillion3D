@@ -7,6 +7,7 @@ import {
 } from '../../scene/core/environment.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { Light } from './light.ts';
+import { irradianceQuantum, visibleReach, type Display } from './lightReach.ts';
 
 /** The kinds that are lamps — a position or a direction the engine's light store holds. */
 const LAMPS = new Set(['point', 'spot', 'directional', 'rectArea']);
@@ -31,12 +32,18 @@ const scaled = (colour: { r: number; g: number; b: number }, scale: number) => {
  * or null for a kind the store does not hold or a light giving nothing. Whether it is shown — it
  * and every node above it visible — is the caller's to decide (`worldLights.ts`). `range` is the
  * page's `distance`, or `reach` — what the world derives from its own extent — when the page left
- * it unbounded.
+ * it unbounded, then shortened as far as the frame's `display` shows no difference
+ * (`lightReach.ts`) — a rectangle's radiance aside — never below its emitter's radius.
  *
  * A rectangle (`rectArea`) is the store's `rect`: its radiance `intensity`, its face looking down
  * the light's `-z`, its width along the light's `x`, and no cast shadow — the store refuses one.
  */
-export function lampRecord(light: Light, id: string, reach: number): SceneLight | null {
+export function lampRecord(
+  light: Light,
+  id: string,
+  reach: number,
+  display: Display,
+): SceneLight | null {
   if (!LAMPS.has(light.kind) || !(light.intensity > 0)) return null;
   const rectangle = light.kind === 'rectArea';
   const kind = rectangle ? 'rect' : (light.kind as SceneLight['kind']);
@@ -58,12 +65,16 @@ export function lampRecord(light: Light, id: string, reach: number): SceneLight 
     record.direction = (aim.lengthSq() > 0 ? aim.normalize() : aim.set(0, -1, 0)).toArray();
   if (kind === 'directional') return record;
   record.position = eye.toArray();
-  record.range = light.distance > 0 ? light.distance : reach;
+  const range = light.distance > 0 ? light.distance : reach;
+  const radius = rectangle ? 0 : light.radius;
+  const peak = light.intensity * Math.max(light.color.r, light.color.g, light.color.b);
+  const visible = rectangle ? range : visibleReach(range, peak, irradianceQuantum(display));
+  // An emitter the shortened range would no longer hold keeps the range it had.
+  record.range = visible > radius ? visible : range;
   if (kind === 'spot') {
     record.coneAngle = Math.min(light.angle, WIDEST_CONE);
     if (light.penumbra > 0) record.penumbra = Math.min(1, light.penumbra);
   }
-  const radius = rectangle ? 0 : light.radius;
   if (radius > 0 && radius < record.range) record.emitterRadius = radius;
   return record;
 }

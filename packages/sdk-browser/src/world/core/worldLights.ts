@@ -9,6 +9,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import { isLightNode } from '../../host/graph/kinds.ts';
 import { emptyIrradiance, type SceneLight } from '../../../../sdk-core/src/index.ts';
 import { sameSceneLight } from '../../../../sdk-core/src/scene/light/equal.ts';
+import type { Display } from '../../../../sdk-core/src/world/light/lightReach.ts';
 
 /** The light calls of a session (`world/api/lightApi.ts`) the world writes its lights through. */
 type LightApi = {
@@ -67,8 +68,8 @@ export function createWorldLights() {
     },
     /** Writes the lamps into the store and returns what every other light gives from every
      *  direction — ambient, sky over ground, probe — as the environment's irradiance, or
-     *  undefined when none gives any. */
-    sync(scene: Object3D, api: LightApi): number[] | undefined {
+     *  undefined when none gives any. Each lamp reaches no farther than `display` shows it. */
+    sync(scene: Object3D, api: LightApi, display: Display): number[] | undefined {
       const lights = new Set<Light>();
       const sh = emptyIrradiance();
       let surrounding = false;
@@ -95,7 +96,7 @@ export function createWorldLights() {
       for (const light of lights) {
         const last = stored.get(light);
         const id = last?.id ?? `world-light-${next++}`;
-        const record = lampRecord(light, id, reach(light));
+        const record = lampRecord(light, id, reach(light), display);
         if (!record) {
           if (last) drop(light, id);
           continue;

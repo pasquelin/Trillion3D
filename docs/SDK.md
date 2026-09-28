@@ -966,7 +966,10 @@ light is a `SceneLight` (version 2) of one of three kinds. `point` and `spot` ca
 `range` in metres, `spot` also `direction` and a `coneAngle` half-angle; `directional` (sun,
 overcast sky) carries only `direction` — the propagation direction — and is refused if given a
 `position`, a `range` or a `coneAngle`. All three carry linear `color`, a positive radiometric
-`intensity` and `castsShadow`. Bounds: none on the count — the light table grows with the scene;
+`intensity` and `castsShadow`. A world's `point` or `spot` reaches its `distance` — the scene's
+farthest corner when none is given — shortened as far as its change stays under half an 8-bit step
+after `world.exposure` and `world.toneMapping` (`none`, `linear`, `reinhard`, `aces`; the other
+curves keep the range), recomputed only when those or the light change (#958). Bounds: none on the count — the light table grows with the scene;
 a 16×16 screen tile lists up to 64 lights reaching it and walks every light of the scene past
 that, a walk #849 bounds by the view —; 64 shadow slices,
 past which a caster lights without a shadow (`shadowCastersUnsliced`), and at most 24 shadow
