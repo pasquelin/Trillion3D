@@ -62,10 +62,8 @@ var<workgroup> lightCount:u32;
 var<workgroup> kept:vec2u;
 /** World box of the tile between two rows of corners: eight corners, never a radius. */
 fn tileBox(front:u32,back:u32)->Box{
- var box:Box;
- box.lo=vec3f(1e30);
- box.hi=vec3f(-1e30);
- for(var corner=0u;corner<8u;corner++){
+ var box=Box(corners[front*4u],corners[front*4u]);
+ for(var corner=1u;corner<8u;corner++){
   let world=corners[select(front,back,(corner&4u)!=0u)*4u+(corner&3u)];
   box.lo=min(box.lo,world);
   box.hi=max(box.hi,world);
