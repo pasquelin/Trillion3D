@@ -12,8 +12,8 @@ type Pool = { budgetBytes: number; allocatedBytes: number; clamp: PoolClamp };
 type Diagnose = (phase: string, message: string, context: Record<string, unknown>) => void;
 export type Made = { destroy(): void };
 /** A pool the device granted, and what was allocated for it: the pool itself at prepare, a probe
- *  at a resize (`probed`). */
-export type Granted<P, R> = { pool: P; made: R };
+ *  at a resize (`probed`); `halvings` the refusals it took, 0 when granted as asked. */
+export type Granted<P, R> = { pool: P; made: R; halvings: number };
 
 /**
  * Out of memory, absorbed: what a pool needs is allocated under an out-of-memory scope
@@ -36,7 +36,8 @@ async function grantedPool<P extends Pool, R extends Made>(options: {
   const { device, name, draw, make, diagnose } = options;
   let pool = draw(options.budgetBytes);
   const requestedBytes = pool.allocatedBytes;
-  let made: R | undefined;
+  let made: R | undefined,
+    halvings = 0;
   while (!(made = await deviceMade(device, () => make(pool)))) {
     const half = Math.floor(Math.min(pool.budgetBytes, pool.allocatedBytes) / 2);
     // The floor is where half draws nothing smaller: named by no clamp, which one texture atlas
@@ -52,6 +53,7 @@ async function grantedPool<P extends Pool, R extends Made>(options: {
       return undefined;
     }
     pool = smaller;
+    halvings++;
   }
   if (pool.allocatedBytes !== requestedBytes)
     diagnose('gpu-out-of-memory', `The device refused the ${name} pool; drawn smaller`, {
@@ -61,7 +63,7 @@ async function grantedPool<P extends Pool, R extends Made>(options: {
       grantedBytes: pool.allocatedBytes,
       clamp: pool.clamp,
     });
-  return { pool, made };
+  return { pool, made, halvings };
 }
 
 /**

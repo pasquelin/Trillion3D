@@ -19,5 +19,5 @@ pub(super) fn stopped(cancelled: &AtomicBool, done: usize) -> bool {
 
 /// Refusal that a cancelled compilation carries, the same for every driver.
 pub(super) fn refusal() -> CompilerError {
-    CompilerError::new("CANCELLED", "Import cancelled")
+    CompilerError::new(crate::CANCELLED, "Import cancelled")
 }

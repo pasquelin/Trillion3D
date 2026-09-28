@@ -18,7 +18,9 @@ import {
 /** What `createMaterial` takes: a patch's values but tiling, a name, and a map — refused until
  *  the texture atlas takes one after open (#847). */
 export type CreatedMaterial = Omit<SceneMaterialPatch, 'tiling'> & {
+  /** Page label for the new material. */
   name?: string;
+  /** Unsupported until textures can join a live page material. */
   map?: ImageBitmap;
 };
 
