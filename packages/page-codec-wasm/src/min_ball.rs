@@ -1,8 +1,7 @@
 //! The smallest ball enclosing a set of points, by Welzl's algorithm in its iterative form: one
 //! nested scan per support point, over a deterministic shuffle of the points (expected linear
-//! time, the same result on every host). Shared by the normal cone (`normal_cone.rs`, the ball of
-//! the unit face normals) and the compiler's projection spheres
-//! (`asset-compiler-rust/src/dag/tight.rs`, the ball of a cluster's vertices): one implementation.
+//! time, the same result on every host). The normal cone (`normal_cone.rs`) takes the ball of the
+//! unit face normals; any other smallest ball reuses this one.
 //!
 //! The solver's radius is only as exact as its circumscribed balls: a caller that needs every
 //! point inside re-measures the radius from the returned centre.
