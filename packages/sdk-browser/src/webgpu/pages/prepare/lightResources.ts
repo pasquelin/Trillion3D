@@ -134,6 +134,11 @@ export function wantsContractLighting(rt: WebgpuPagesRuntime) {
   return !rt.lights.store.unlit;
 }
 
+/** Whether the image can hold an as-is pixel: a row showed a surface as-is, or a diagnostic view
+ *  writes the flag. Otherwise every share is 0, and TAA and composition read no flags (OMB-11). */
+export const readsAsIs = ({ vis, run }: WebgpuPagesRuntime) =>
+  vis.asIsShown || run.diagnostic !== 'beauty';
+
 /** The deferred lighting while the image wants the contract but still resolves unlit — its
  *  program compiles, and its arrival changes the image —, else nothing. */
 export function compilingContract(rt: WebgpuPagesRuntime) {
