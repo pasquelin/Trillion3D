@@ -37,7 +37,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     // A cyclic hierarchy is refused before any publication: the world walk would never see it.
     compiler_nodes::check_acyclic(&loaded.g)?;
     // Set of nodes of the rendered scene, shared by selection, the proxy and lights.
-    let scene_nodes = compiler_nodes::scene_nodes(&loaded.g)?;
+    let (scene_nodes, hidden) = compiler_nodes::scene_nodes(&loaded.g)?;
     let NodeSelection {
         chosen,
         shown,
@@ -45,7 +45,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         skinned_meshes,
         meshes,
         mesh_map,
-    } = select_nodes(o, &loaded.g, &scene_nodes)?;
+    } = select_nodes(o, &loaded.g, (&scene_nodes, &hidden))?;
     // Decided cutouts go to masked before any material is read (`cutout.rs`).
     let cutouts = cutout::apply_decisions(&mut loaded.g, bin, &image_root, &meshes, &decisions)?;
     let g = &loaded.g;
@@ -108,7 +108,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         o,
         g,
         bin,
-        chosen: &shown,
+        shown: &shown,
         mesh_map: &mesh_map,
         cluster_planes: &cluster_planes,
     };
@@ -148,7 +148,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         let _t = perf::Timer::new(perf::Phase::Manifest);
         proxy::stage_proxy(&proxy::ProxyInputs {
             g,
-            chosen: &shown,
+            shown: &shown,
             mesh_map: &mesh_map,
             primitives: &primitives,
             cuts: &proxy_cuts,

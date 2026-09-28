@@ -85,14 +85,13 @@ pub(super) fn partition(
         let node = &table[id];
         let mesh = node["mesh"].as_u64()? as usize;
         let leaf = node["children"].as_array().is_some_and(Vec::is_empty);
-        // A node hidden itself stays in the core, whose table says so; one under it hangs there.
         let bare = ["light", "camera", "weights"]
             .iter()
-            .all(|field| node[*field].is_null())
-            && node["visible"] != json!(false);
-        // Its box is written once, from the declared poses: nothing above it may move either.
-        let posed =
-            std::iter::successors(Some(id), |at| parent[*at]).all(|at| !moved.contains(&at));
+            .all(|field| node[*field].is_null());
+        // Its box is written once, from the declared poses: nothing above it may move either; and
+        // a cell's row says no visibility: a node a hidden node hides is read with the core.
+        let posed = std::iter::successors(Some(id), |at| parent[*at])
+            .all(|at| !moved.contains(&at) && table[at]["visible"].as_bool() != Some(false));
         let still = gltf_nodes[id].get("skin").is_none() && posed;
         (reached[id] && leaf && bare && still && boxes.get(mesh)?.is_some()).then_some(mesh)
     };
