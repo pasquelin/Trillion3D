@@ -3,18 +3,11 @@ import type { GroupClosure } from '../../page/cut/groupClosure.ts';
 import { createSparseInts, grown } from '../../page/cut/sparseInts.ts';
 import type { WebgpuResidencySets } from './sets.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
+import type { GpuCut } from '../../gpu/core/selection.ts';
 
 type Tracking = ReturnType<typeof createWebgpuPageTracking>;
-
-/** What admission reads of a GPU cut: its requests (`../../gpu/dag/request.ts`), and whether the
- *  adopter took them (`../cut/adoption.ts`), which a truncated or undrawable readback it does not. */
-type Requests = {
-  readonly result: {
-    readonly pageIds: ArrayLike<number>;
-    readonly truncated?: boolean;
-    readonly drawablePageIds?: unknown;
-  };
-};
+/** What admission reads of a GPU cut: its requests (`../../gpu/dag/request.ts`). */
+type Requests = Pick<GpuCut, 'result'>;
 
 /**
  * Admission on the GPU-cut path (#836): the queue is read off the readback's requests, closed over
@@ -45,7 +38,9 @@ export function createRequestAdmission(
     levels = new Int32Array(0),
     /** Keys filed per level, and the queue written from them. */
     perLevel = new Int32Array(8),
-    queue = new Int32Array(0);
+    queue = new Int32Array(0),
+    /** The filing visits sorted by level, coarsest first, in walk order within a level. */
+    order = new Int32Array(0);
   const pages: PageRec[] = [],
     queued: PageRec[] = [];
   let visits = 0,
@@ -75,15 +70,9 @@ export function createRequestAdmission(
     pages[visits++] = rec;
     filedBy.set(key, visits);
   };
-  /** Writes into `queue` the pages of `level` the walk filed, from `at`, up to `end`; with `held`
-   *  set, only those the queue already holds, otherwise only the others. */
-  const take = (level: number, at: number, end: number, held?: boolean) => {
-    for (let i = 0; i < visits && at < end; i++) {
-      if (levels[i] !== level || (held !== undefined && wanted.has(keys[i]) !== held)) continue;
-      queue[at] = keys[i];
-      queued[at++] = pages[i];
-    }
-    return at;
+  const put = (at: number, i: number) => {
+    queue[at] = keys[i];
+    queued[at] = pages[i];
   };
   /** The coarsest levels whole, then the one that straddles `room`, what the queue holds first. */
   const rank = (room: number) => {
@@ -92,8 +81,20 @@ export function createRequestAdmission(
     while (floor > 0 && taken + perLevel[floor] < room) taken += perLevel[floor--];
     const end = Math.min(room, taken + perLevel[floor]);
     if (queue.length < end) queue = new Int32Array(end);
-    for (let level = top, at = 0; level > floor; level--) at = take(level, at, taken);
-    take(floor, take(floor, taken, end, true), end, false);
+    if (order.length < visits) order = grown(order, visits);
+    // A counting sort: each level from `floor` up gets its slice of `order`, and `perLevel[level]`
+    // ends as where that slice ends. A superseded visit (-1) takes none.
+    for (let level = top, start = 0; level >= floor; level--) {
+      const count = perLevel[level];
+      perLevel[level] = start;
+      start += count;
+    }
+    for (let i = 0; i < visits; i++) if (levels[i] >= floor) order[perLevel[levels[i]]++] = i;
+    for (let at = 0; at < taken; at++) put(at, order[at]);
+    let at = taken;
+    for (const held of [true, false])
+      for (let s = taken; s < perLevel[floor] && at < end; s++)
+        if (wanted.has(keys[order[s]]) === held) put(at++, order[s]);
     queued.length = end;
     return end;
   };
