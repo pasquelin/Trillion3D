@@ -176,6 +176,40 @@ a mirrored mapping that costs the simplification nothing — in a tenth of a sec
 
 Resource base URL is where harness serves sources for compiled glTF texture fetch. Cache fingerprint is `key` in `manifest.json`, recorded in `mesure.json`: comparisons require identical keys.
 
+## Navigation image regression proof
+
+Acceptance can replay the complete versioned camera path without collecting timings:
+
+    node bench/runner/trajectory.ts --scene sponza --cache .mesure/assets/sponza-derived \
+      --avant .worktrees/reference/dist --apres dist --out .mesure/out/8-trajectory
+
+Both builds must already exist. `--avant` is the explicitly chosen golden baseline, never
+automatically replaced by the candidate. Both sides read the same compiled cache, camera poses,
+resolution, error threshold, memory budgets and texture compression. Build hashes, asset identity,
+browser version, settings and path version accompany the PNGs in `trajectory.json`. The output
+directory must be new and under `.mesure/out/`; publish the evidence, then remove that directory.
+
+The default is all 600 poses, with checkpoints every 60 poses and at the final pose. `--images`
+can shorten a diagnosis; `--checkpoint-every` can sample more closely (at most 32 checkpoints).
+Each pass keeps one world open throughout navigation and pauses at checkpoints for a
+64-frame held-image barrier. Every render, including convergence, is observed for coverage and
+streaming errors; no SDK flush is called because it can redraw and converge internally. Canvas
+pixels are copied immediately after render in the same browser frame, before its buffer expires,
+using the same surface path for arrival and settled images. The baseline runs twice: only exact, non-black 0 px A/A images are
+accepted as goldens. The candidate records both its arrival image and its held image. Missing
+captures, page/GPU errors, geometry holes, incomplete triangle coverage, no drawn geometry,
+unsettled images and unstable goldens fail the command. A single changed pixel after convergence
+is a regression. A difference that disappears after convergence is reported separately as
+`transient`, with arrival page counters and settling frame count; this does not attribute every
+transient to streaming (temporal accumulation can also differ), nor certify absence of visible
+popping between checkpoints. No elapsed-frame or GPU timing claim is made.
+
+The default scene is the public benchmark reference, Sponza, shared through `DEFAULT_SCENE`.
+Use `--scene` and `--cache` to select another scene explicitly. A missing cache fails the command;
+it never silently substitutes another scene. Browser execution and golden evidence remain to be
+produced by acceptance. The deterministic unit tests cover verdicts, navigation ordering,
+transient errors and checkpoint coverage without a browser.
+
 ## Measuring Another Scene
 
 Harness is scene-agnostic: measures provided caches, pose bounds read from page model bounds. Three setup steps:

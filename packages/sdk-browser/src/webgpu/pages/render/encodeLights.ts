@@ -7,6 +7,7 @@ import { noteShadowFrame } from '../state/lights.ts';
 import { uploadSceneLights } from '../state/lightBuffer.ts';
 import { planImageShadows } from './encodeShadows.ts';
 import { encodeShadowBatches } from './encodeShadowBatches.ts';
+import { syncPageProxy, syncLightingProxies } from '../prepare/proxyMotion.ts';
 import { ensureBounce } from '../prepare/bounce.ts';
 import { ensureSunFarShadow } from '../prepare/sunFar.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -61,6 +62,7 @@ export function encodeDirectLights(
   // The sun's far shadow: the proxy is fitted at the first light, like bounce, and its count sample
   // is encoded before the lighting pass that will fill them.
   ensureSunFarShadow(rt, device);
+  syncLightingProxies(rt);
   rt.sunFar.gpu?.prepare(encoder, rt.run.frame);
   // Every page the plan marked is drawn now, batch after batch. A batch may refuse to encode
   // (reject or missing selection): its pages then stay stale, and their table words say what they
@@ -75,10 +77,10 @@ export function encodeDirectLights(
   }
   noteShadowFrame(lights);
   if (!tiles || !gpu.depthView) return directParams;
-  if (!lights.buffer || !tiles.ensure(width, height, gpu.depthView, lights.buffer))
+  if (!lights.buffer || !tiles.ensure(width, height, gpu.depthView, lights.buffer, active))
     return directParams;
   tiles.update(viewProjection, cam.eye, width, height);
-  if (!tiles.encode(encoder)) return directParams;
+  if (!tiles.encode(encoder, rt.run.frame)) return directParams;
   directParams[0] = active;
   directParams[1] = tiles.tilesX;
   directParams[2] = tiles.tilesY;
@@ -115,6 +117,7 @@ function encodeBounce(
   const irradiance = lights.store.lightingView === 'bounce';
   rt.gpu.deferred?.setRawOutput(irradiance);
   if (!probes) return;
+  syncPageProxy(rt, probes);
   probes.setIrradianceView(irradiance);
   // The store revision rises as soon as a light is added, set or removed: that is the only signal
   // the grid needs to restart, and it costs no read. A change of fog alone is not one.

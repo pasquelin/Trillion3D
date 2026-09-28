@@ -53,6 +53,19 @@ fn the_root_has_one_size_whatever_the_world_and_every_page_its_limit() {
         compiled(grid(192, 4.0, 1.0), true),
         open_world(8),
     ];
+    for (world, source_rank) in [(0, 48 * 48), (1, 192 * 192)] {
+        let lamp = worlds[world].1["nodes"]
+            .as_array()
+            .expect("nodes")
+            .iter()
+            .find(|node| node["name"] == "lamp")
+            .expect("retained lamp");
+        assert_eq!(
+            lamp["sourceNode"],
+            json!(format!("{source_rank:08x}")),
+            "partition renumbering retains the original source rank at fixed width"
+        );
+    }
     let size = |value: &Value| serde_json::to_vec(value).expect("json").len();
     let root = 1_391; // FORMAT.md, and the index-page root below
     for (options, tables, directory) in &worlds {
