@@ -71,10 +71,12 @@ test('A normal or depth surface resolves to the as-is flag, passed through unlit
   const flagOf = new Function(
     'select',
     'model',
+    'page',
     `return ${js(capture(SHADE_SHADER, /vec4f\(0\.0,0\.0,0\.0,1\.0\),(select\(.*?\)),request\);\}/)[0])};`,
   ).bind(null, helpers.select);
   for (const model of Object.values(SURFACE_MODEL).filter((model) => model >= 3))
-    assert.equal(flagOf(model) === AS_IS_FLAG, shownAsIs(model), `model ${model}`);
+    for (const flags of [0, 1 << 20])
+      assert.equal(flagOf(model, { flags }) === AS_IS_FLAG, shownAsIs(model), `model ${model}`);
   assert.ok(shownAsIs(SURFACE_MODEL.normal) && shownAsIs(SURFACE_MODEL.depth));
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER])
     assert.match(

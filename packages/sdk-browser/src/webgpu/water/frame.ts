@@ -151,7 +151,8 @@ export async function createWaterFrame(device: GPUDevice) {
       if (!group || !surfaces) throw new Error('WATER_NOT_BOUND');
       encoder.copyTextureToTexture(from, color, extent);
       encoder.copyTextureToTexture(depth, waterDepth, extent);
-      attachments[4] = feedbackAttachment(rt);
+      if (rt.feedbackAB?.target !== false) attachments[4] = feedbackAttachment(rt);
+      else attachments.length = 4;
       const pass = encoder.beginRenderPass(surfacePass);
       pass.setViewport(0, 0, extent.width, extent.height, 0, 1);
       const encoded = drawBlendRuns(rt, device, pass, 1, pipelines);
