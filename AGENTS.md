@@ -10,11 +10,11 @@ disagreement is reported to the maintainer.
 
 1. **No image loss.** An optimisation that degrades the image is refused, even declared. Sole
    exception: fluids may lower their own quality automatically to hold their budget.
-2. **The coder proves the image, the measurer alone times.** A lead's coder runs its branch's
-   image and correctness browser proofs (0 px, no error, pages drawn) in its own headless Chrome
-   on its own port; several may run at once, none while an issue is labelled `measuring`. Timing (frame cost, p50/p95/p99, `test:gpu` timings,
-   `perf:*`, the bench) is the measurer's alone, on a quiet machine. Every other role runs the fast
-   gates only.
+2. **The acceptance session proves the image, the measurer alone times.** After the merge,
+   acceptance runs the image and correctness browser proofs (0 px, no error, pages drawn)
+   (`docs/roles/auditor.md`). Timing (frame cost, p50/p95/p99, `test:gpu` timings, `perf:*`, the
+   bench) is the measurer's alone, on a quiet machine. No other role runs Chrome, but a coder may
+   open one headless Chrome to reproduce a bug it must fix: diagnosis only, never a proof.
 3. **Never `pkill`, `killall` or a pattern kill.** Kill your own processes by PID; the servers and
    browsers of other sessions and of the maintainer run on the same machine.
 4. **One branch, one worktree, one session.** Never commit on `develop` or `main` (`main` moves
@@ -27,7 +27,7 @@ disagreement is reported to the maintainer.
    instead), and tells the boss. Existing issues come first: a new need is a To-do item or a
    comment on an open issue. Over any seven days the CTO opens and reopens fewer issues than are
    closed as completed; a boss's request or an extreme case overrides that balance. No other agent
-   opens an issue, not even to split one. **One pull request, one issue**: the CTO orders a too-big issue's To-do as steps; each step's pull request delivers its step's items, says `Part of #n` and ticks it, the last says `Closes #n`. A regression
+   opens an issue, not even to split one. **One issue, one pull request**, which says `Closes #n`: a too-big issue is narrowed to what one pull request closes, and the rest moves onto the next existing issue. A regression
    reopens the measured issue with `measure ko`, a finding the audited one with `audit ko`; a
    defect found on the way is one line in your report to the CTO.
 6. **Search before writing.** Reuse what exists; a second BVH, a second distance or a control
@@ -37,12 +37,12 @@ disagreement is reported to the maintainer.
 8. **Commits carry no trailer, no co-author, no tool name, no forced identity.** Branch
    `<issue>-<short-name>`, never `claude/…`.
 9. **Bounded agents.** Every brief that allows subagents states their maximum and forbids them
-   to spawn their own. A brief bounds what the agent reads; a finished agent is stopped. A coder's run ends when its pull request is `OK`: on a `KO` the lead resumes the
-   same coder with `SendMessage`. The depth is fixed: a lead session → one coder or reviewer → the review agents of the real `simplify` and `code-review` skills (at most 4), which launch none; the CTO runs those two skills itself on its rules pull request. The architect, measurer,
+   to spawn their own; no agent is ever given the Fable model. A brief bounds what the agent reads; a finished agent is stopped. A coder's run ends when its pull request is `OK`: on a `KO` the lead resumes the
+   same coder with `SendMessage`. The depth is fixed: a lead session → its coders or reviewers (§Leads) → the review agents of the real `simplify` and `code-review` skills (at most 4), which launch none; the CTO runs those two skills itself on its rules pull request. The architect, measurer,
    acceptance and analyst agents launch none.
 10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
     in the issue or the pull request, never on disk.
-11. **A pull request is opened finished.** The coder and the reviewer work on the pushed branch, with no pull request; the lead opens the pull request (never a draft) only after the reviewer's `OK`, a passing image proof and its Lead verification, so it waits only for CI and the CTO's merge: minutes, never hours. Only a performance issue (its goal is a timing) is also timed on its branch first. **Small, short-lived pull requests.** One issue per pull request, about 500 hand-written lines at most (generated files excluded); an issue that needs more is delivered in steps (rule 5). A lead brings its conflicting PR up to date at every pick, never lets two of its PRs wait
+11. **A pull request is opened finished.** The coder and the reviewer work on the pushed branch, with no pull request; the lead opens the pull request (never a draft) only after the reviewer's `OK` and its Lead verification, so it waits only for CI and the CTO's merge: minutes, never hours. Only a performance issue (its goal is a timing) is also timed on its branch first. **Small, short-lived pull requests.** One issue per pull request, about 500 hand-written lines at most (generated files excluded); an issue that needs more is narrowed (rule 5). A lead brings its conflicting PR up to date at every pick, never lets two of its PRs wait
     on the same files, and keeps it open one hour at most: that is the limit, not a trigger. The
     CTO merges pull requests oldest first: a younger ready PR waits until every older ready one is merged; a red one holds nobody. No pull request is closed unmerged.
 
@@ -52,21 +52,21 @@ A company. The **boss** (the maintainer) opens the CTO's session (`/t3d-cto`), t
 tests the result and sets priorities. At its start the CTO gives the boss **one prompt per session
 to open** (a lead per domain with work, the architect, measurer, acceptance and analyst when they
 have work); the boss opens each of them. Every role runs in its own session and reports to the CTO
-by `SendMessage`; a lead runs its `coder` and `reviewer` as foreground subagents. Each role is
+by `SendMessage`; a lead runs its `coder` and `reviewer` as subagents (§Leads). Each role is
 `docs/roles/<role>.md`, and its skill in `skills/` is the session's brief; "Prompt by" names who
 writes that brief.
 
-| Role       | Prompt by | Does                                                                                                                                                               | Never                                                        |
-| ---------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| CTO        | boss      | sets the priority labels from the boss's words, starts and supervises the agents, decides technique, opens issues, orders a big issue's steps, reports to the boss | writes code, measures                                        |
-| lead       | CTO       | owns one domain, runs its coder and reviewer, verifies, names ready, closes                                                                                        | writes code, measures                                        |
-| coder      | lead      | implements one issue or one of its steps on its branch, runs its image proofs, pushes it                                                                           | merges, times                                                |
-| reviewer   | lead      | the real `simplify` and `code-review` skills, then the acceptance list                                                                                             | merges, measures                                             |
-| architect  | CTO       | rounds through compiler, engine, site, scripts; writes each duplicate, bloat or tangle as a To-do on the owning domain's issue                                     | codes, owns a pull request, measures                         |
-| analyst    | CTO       | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                                                 | changes anything; what could lose quality waits for the boss |
-| measurer   | CTO       | timing and budgets in batches after merge, a performance issue's branch timing, example captures and thumbnails                                                    | edits code, merges                                           |
-| acceptance | CTO       | re-reads every merge and judges the example captures; a safety net                                                                                                 | edits code, merges, measures                                 |
-| writer     | CTO       | writes one issue on the template, when rule 5 allows one                                                                                                           | codes, measures                                              |
+| Role       | Prompt by | Does                                                                                                                                   | Never                                                        |
+| ---------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| CTO        | boss      | sets the priority labels from the boss's words, starts and supervises the agents, decides technique, opens issues, reports to the boss | writes code, measures                                        |
+| lead       | CTO       | owns one domain, runs its coder and reviewer, verifies, names ready, closes                                                            | writes code, measures                                        |
+| coder      | lead      | implements one issue on its branch and pushes it; runs no gate, test or Chrome (rule 2)                                                | merges, times                                                |
+| reviewer   | lead      | the real `simplify` and `code-review` skills, the acceptance list, then the gates and tests once                                       | merges, measures                                             |
+| architect  | CTO       | rounds through compiler, engine, site, scripts; writes each duplicate, bloat or tangle as a To-do on the owning domain's issue         | codes, owns a pull request, measures                         |
+| analyst    | CTO       | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                     | changes anything; what could lose quality waits for the boss |
+| measurer   | CTO       | timing and budgets in batches after merge, a performance issue's branch timing, example captures and thumbnails                        | edits code, merges                                           |
+| acceptance | CTO       | re-reads every merge, runs its image proof, judges the example captures; a safety net                                                  | edits code, merges, measures                                 |
+| writer     | CTO       | writes one issue on the template, when rule 5 allows one                                                                               | codes, measures                                              |
 
 Domains: geometry, lighting, compiler, physics, sdk, textures. A script or test belongs to the
 domain whose code it checks; `site/`, the examples and anything else but the company's rules to sdk.
@@ -89,13 +89,15 @@ no work is cut midway.
   always working on it: a `measure ko` first, then strict priority order: 🔴, 🟠, 🟡, 🟢, an issue
   with no priority label last. Within a label, `audit ko` first, then a programme's children in
   its order, then engine performance and optimisation before examples, the others oldest first.
-- **One agent working at a time.** A lead runs one coder or one reviewer subagent at a time,
-  never two; a coder waiting on its review is not working.
-- **One open pull request per lead.** While one of its pull requests is open, a lead starts no new coder: it unblocks that one first (red CI, conflict with `develop`,
+- **Two agents at most, three for the audit.** A lead runs at most two subagents at a time (coder
+  or reviewer), on issues that share no file, each coder with its own worktree; a
+  coder waiting on its review is not working. A third is allowed only for an item of the external
+  audit (#913) while none of the lead's pull requests is red, conflicting or unanswered.
+- **As many open pull requests as agents.** While that many of its pull requests are open, a lead starts no new coder: it unblocks them first (red CI, conflict with `develop`,
   unanswered review). A ready pull request waits only on the CTO's merge; `docs/roles/lead.md`
   step 1 says when it still holds back a new coder.
 - **Programmes.** A parent issue that states rules and an order (such as #483) binds every lead
-  working on its children: the order is kept, and each merge passes its checklist. Each step is a child issue of the parent, closed by its own pull request.
+  working on its children: the order is kept, and each merge passes its checklist. Each child issue is closed by its own pull request.
 
 ## Labels: the only channel between sessions
 
@@ -104,7 +106,7 @@ no work is cut midway.
 | `🔴 critical` … `🟢 low` | CTO        | the only priority of the leads' issues (order: §Leads)    |
 | `in progress`            | lead       | taken, assigned to the boss: no other lead touches it     |
 | `in review`              | lead       | branch pushed, reviewer at work                           |
-| `to measure`             | lead       | closed engine issue waiting in the measurer's queue       |
+| `to measure`             | lead       | closed issue waiting in the measurer's queue (its scope)  |
 | `measuring`              | measurer   | being measured now                                        |
 | `measure ok`             | measurer   | measured, no regression; numbers in a comment             |
 | `measure ko`             | measurer   | on the measured issue, reopened: the regression's numbers |

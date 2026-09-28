@@ -1,4 +1,4 @@
-import { DEFAULT_GEOMETRY_POOL_BUDGET } from './pools.ts';
+import { checkBudget, DEFAULT_GEOMETRY_POOL_BUDGET } from './pools.ts';
 import { DEFAULT_TEXTURE_POOL_BUDGET } from '../webgpu/residency/memoryBudgets.ts';
 import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../gpu/shadow/atlas.ts';
 import { shadowRequestBytes } from '../webgpu/shadow/pageRequests.ts';
@@ -82,10 +82,6 @@ export const DEFAULT_GPU_BUDGET = defaultGpuBudget();
  *  default, what a world's cache held before the mirror was counted. */
 export const DEFAULT_CPU_BUDGET = SHADOW_HOST_BYTES + DEFAULT_CACHED_BYTES;
 
-const checkTotal = (bytes: number, name: string) => {
-  if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error(name);
-};
-
 /**
  * One memory budget, split by a fixed rule — never by what the machine says it has:
  * - GPU: the shadow pool first (`SHADOW_POOL_BYTES`), what the atlas, its static layer and its
@@ -112,10 +108,10 @@ export function splitMemoryBudget(
   cpu: number,
   canvas: BudgetCanvas = DEFAULT_BUDGET_CANVAS,
 ) {
-  checkTotal(gpu, 'INVALID_GPU_BUDGET');
-  checkTotal(cpu, 'INVALID_CPU_BUDGET');
-  checkTotal(canvas.width, 'INVALID_BUDGET_CANVAS');
-  checkTotal(canvas.height, 'INVALID_BUDGET_CANVAS');
+  checkBudget(gpu, 'INVALID_GPU_BUDGET');
+  checkBudget(cpu, 'INVALID_CPU_BUDGET');
+  checkBudget(canvas.width, 'INVALID_BUDGET_CANVAS');
+  checkBudget(canvas.height, 'INVALID_BUDGET_CANVAS');
   const fixed = fixedGpuBytes(canvas);
   if (gpu < fixed) throw new Error('GPU_BUDGET_UNDER_SHADOW_POOL');
   if (cpu <= SHADOW_HOST_BYTES) throw new Error('CPU_BUDGET_UNDER_SHADOW_MIRROR');
