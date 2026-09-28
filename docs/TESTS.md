@@ -59,8 +59,9 @@ per group of `scripts/validate-steps.ts`: `quick`, `typescript`, `native` (Clipp
 tests) and `unit`, the last split into three shards of the same file list
 (`TRILLION3D_TEST_SHARD=i/3`, passed to `node --test --test-shard`). No test is skipped by path.
 The single required check, `validate`, needs every job. It runs on every pull request, on
-`develop`, and on every push of an issue branch (`<issue>-<name>`); a push and its open pull
-request share one run.
+`develop`, and on every push of an issue branch (`<issue>-<name>`). A push run and a pull request
+run never share a concurrency group, so a push never cancels the run that proves the merge with
+`develop`.
 
 ### Unit and Integration Tests
 
