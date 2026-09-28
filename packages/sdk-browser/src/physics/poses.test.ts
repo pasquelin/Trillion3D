@@ -20,7 +20,7 @@ import { poseRecord } from './worker.fixture.ts';
 
 /** One mesh in slot 0 at generation 0, as a tick's records name it. */
 const lone = (mesh: Bodied) => ({
-  ...{ meshes: [mesh], slots: { nested: [] }, generation: new Uint8Array(1) },
+  ...{ meshes: [mesh], nested: new Map(), generation: new Uint8Array(1) },
   retire() {},
 });
 

@@ -3,6 +3,7 @@ import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
+import { worldPoseOf } from './bodyFrame.ts';
 
 const world = new Matrix4(),
   parent = new Matrix4(),
@@ -13,10 +14,11 @@ const world = new Matrix4(),
 /**
  * Poses `node` at the world pose `position[p]`, `quaternion[q]`, of world scale `scale[p]`: the
  * pose made local to its parent, which a node nested under others — a compiled model's, under
- * its ancestors and its model — is posed by. Its place and turn are written, as any page's move
- * (the world hears it); its scale, the one its body was made at, stays.
+ * its ancestors and its model — is posed by. Its place and turn are written quietly, into its
+ * numbers and the transform tree (`readPose`): its caller tells the world (`SceneLink.posed`),
+ * and the physics hears nothing of its own write. Its scale, its body's, stays.
  */
-export function placeNode(
+function placeNode(
   node: Object3D,
   position: ArrayLike<number>,
   p: number,
@@ -32,6 +34,58 @@ export function placeNode(
     world.premultiply(parent.invert());
   }
   world.decompose(at, turn, size);
-  node.position.set(at.x, at.y, at.z);
-  node.quaternion.set(turn.x, turn.y, turn.z, turn.w);
+  node.position.elements.set(at.elements);
+  node.quaternion.set(turn.x, turn.y, turn.z, turn.w, true);
+  node.setPosition(at.x, at.y, at.z);
+  node.setQuaternion(turn.x, turn.y, turn.z, turn.w);
+}
+
+/**
+ * The slots of the placer (`placer.ts`) that pose a node nested under others: their world poses
+ * kept in its `position`, `quaternion` and `scale`, by slot, each written as its node's local
+ * pose (`placeNode`).
+ */
+export function createNestedNodes(
+  position: Float64Array,
+  quaternion: Float64Array,
+  scale: Float64Array,
+) {
+  const nodes = new Map<number, Object3D>();
+  /** Slot `index` drawn where its node `target` stands now. */
+  const read = (index: number, target: Object3D) => {
+    const pose = worldPoseOf(target);
+    position.set(pose.position, index * 3);
+    quaternion.set(pose.quaternion, index * 4);
+  };
+  return {
+    /** Slot `index` poses `target`, of world scale `size`, from where it stands. */
+    bind(index: number, target: Object3D, size: readonly number[]) {
+      nodes.set(index, target);
+      read(index, target);
+      scale.set(size, index * 3);
+    },
+    /** Slot `index`'s pose written to its node: that node, which the world is to hear of. */
+    place(index: number) {
+      const node = nodes.get(index)!;
+      placeNode(node, position, index * 3, quaternion, index * 4, scale);
+      return node;
+    },
+    drop: (index: number) => void nodes.delete(index),
+    clear: () => nodes.clear(),
+    /**
+     * `ancestor` moved (a page's move): each node under it, or it, is drawn from where it stands
+     * now, and `target` (7 numbers by slot) holds it there until its body's next tick, not back
+     * where its last tick was simulated before the move.
+     */
+    follow(ancestor: Object3D, target: Float32Array) {
+      for (const [index, node] of nodes) {
+        let at: Object3D | null = node;
+        while (at && at !== ancestor) at = at.parent;
+        if (!at) continue;
+        read(index, node);
+        target.set(position.subarray(index * 3, index * 3 + 3), index * 7);
+        target.set(quaternion.subarray(index * 4, index * 4 + 4), index * 7 + 3);
+      }
+    },
+  };
 }

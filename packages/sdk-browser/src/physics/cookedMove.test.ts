@@ -46,7 +46,7 @@ test('a declared dynamic body simulates, and its compiled node is drawn where it
   assert.ok(close(node.matrixWorld.elements.slice(12), [1, 0.5, 0]), 'drawn where simulated');
   assert.ok(close(still.position.elements, [10, 0, 0]), 'the kinematic node left alone');
   // It wants ground around it as any mover: its radius, at its drawn place.
-  const movers = moversOf(bodies.meshes, bodies.slots.nested, bodies.state.velocity);
+  const movers = moversOf(bodies.meshes, bodies.nested, bodies.state.velocity);
   assert.deepEqual(movers, [1, 0.5, 0, 1]);
 });
 
@@ -57,6 +57,27 @@ test('a model with no dynamic body moves no node and wants no ground for one', a
   await landed();
   const words = writer.take();
   assert.deepEqual([words[0], words[2]], [OP.add, MOTION.kinematic]);
-  assert.deepEqual(bodies.slots.nested.filter(Boolean), [], 'no node moved by the physics');
-  assert.deepEqual(moversOf(bodies.meshes, bodies.slots.nested, bodies.state.velocity), []);
+  assert.equal(bodies.nested.size, 0, 'no node moved by the physics');
+  assert.deepEqual(moversOf(bodies.meshes, bodies.nested, bodies.state.velocity), []);
+});
+
+test('a model moved before its body’s tick is drawn carries its node, never back where it was', async () => {
+  const streamed = await streamedModel(file, new Uint8Array(4), {}, 1, [crate, lift]);
+  const { tiles, scene, model, writer, bodies } = streamed;
+  const [node] = model.children;
+  tiles.update([0, 0, 0], 1000);
+  await landed();
+  const id = writer.take()[1];
+  const poses = createPhysicsPoses(8, scene);
+  const posed = { ...bodies, retire() {} };
+  poses.receive(poseRecord(id, [0, 1, 0, 0, 0, 0, 1]), 1, posed, 0);
+  // The page moves the model (`session.pose`): its body is put where the node now stands.
+  model.position.set(3, 0, 0);
+  model.updateMatrixWorld(true);
+  tiles.moved(model);
+  poses.follow(model);
+  poses.apply(posed);
+  assert.ok(close(node.position.elements, [0, 2, 0]), `${node.position.toArray()}`);
+  node.updateWorldMatrix(true, false);
+  assert.ok(close(node.matrixWorld.elements.slice(12), [3, 2, 0]), 'carried by its model');
 });
