@@ -160,7 +160,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     views: createWebgpuViews({ run, gpu, vis, setup }),
     timing: createWebgpuTimingState(
       context.stageProfile ? createWebgpuStageProfiler() : undefined,
-      layout.selectionRoots.length,
+      () => layout.selectionRoots.length,
     ),
     capabilities,
     blendState,
