@@ -167,7 +167,8 @@ function submitFallback(
   uniformBase: number,
 ) {
   const [width, height] = rt.gpu.targetSize;
-  encodeBlend(rt, device, encoder, uniformBase);
+  // No composition follows: the water word may not borrow the display colour (`encodeWaterPass`).
+  encodeBlend(rt, device, encoder, uniformBase, false);
   if (guidesShown(rt)) encodeWebgpuGuides(rt, device, encoder, cam);
   submitColorCopy(rt, device, encoder, height, width);
 }

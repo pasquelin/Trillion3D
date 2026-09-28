@@ -1,4 +1,5 @@
 import {
+  DISPLAY_FORMAT,
   FEEDBACK_FORMAT,
   checkSurfaceSize,
   createSurfaceBuffer,
@@ -81,7 +82,7 @@ export function makeTargets(
     usage = sampled | GPUTextureUsage.COPY_SRC;
   const target = (label: string, format: GPUTextureFormat, targetUsage = usage) =>
     device.createTexture({ label, size: { width, height }, format, usage: targetUsage });
-  gpu.colorTexture = target('Trillion3D display color', 'rgba8unorm');
+  gpu.colorTexture = target('Trillion3D display color', DISPLAY_FORMAT);
   gpu.depthTexture = target(
     'Trillion3D opaque depth',
     'depth32float',
