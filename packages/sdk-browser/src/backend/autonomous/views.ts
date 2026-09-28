@@ -26,6 +26,15 @@ const VIEW_KEYS = [
   'viewport',
 ] as const satisfies readonly (keyof WebglViewState)[];
 
+/** A view of `viewport` that has drawn nothing yet: no cut, no motion. */
+const blankView = (viewport: [number, number] | undefined): WebglViewState => ({
+  shown: [],
+  desired: [],
+  requested: [],
+  motion: {},
+  viewport,
+});
+
 /** One view's record: it always holds its own state, which the live group holds too while it is
  *  drawn; `cam` is the engine camera frame entry writes (`gate.cam`). */
 export type WebglView = WebglViewState & { cam: EngineCamera };
@@ -41,7 +50,7 @@ export function createWebglViews(
   gate: Pick<WebglFrameGate, 'cam' | 'viewReplaced'>,
   moved: () => void,
 ) {
-  const live: WebglViewState = { shown: [], desired: [], requested: [], motion: {}, viewport };
+  const live = blankView(viewport);
   const main: WebglView = { ...live, cam: gate.cam };
   const all = [main],
     others: WebglView[] = [];
@@ -53,14 +62,7 @@ export function createWebglViews(
     others,
     /** A view of `width × height` that has drawn nothing yet: no cut, no motion. */
     create(width: number, height: number) {
-      const view: WebglView = {
-        shown: [],
-        desired: [],
-        requested: [],
-        motion: {},
-        viewport: [width, height],
-        cam: createEngineCamera(),
-      };
+      const view: WebglView = { ...blankView([width, height]), cam: createEngineCamera() };
       all.push(view);
       return view;
     },
@@ -88,7 +90,6 @@ export function createWebglViews(
       views.use(main);
       all.splice(at, 1);
       others.splice(others.indexOf(view), 1);
-      moved();
     },
     /** Runs `work` in a view of its own at `size`, released after, whatever `work` did: the main
      *  view keeps its cut and its motion. */
