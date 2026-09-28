@@ -109,8 +109,9 @@ export const JOLT_THREAD_LOADED = { type: 'loaded' } as const;
  * of the script at `url` handed its start message (the script runs `runJoltThread` on it and posts
  * `JOLT_THREAD_LOADED`). A worker a worker starts loads only while its parent's event loop turns,
  * and a step blocks on its jobs: nothing steps before `ready()`, which resolves once every thread
- * spawned so far has loaded and rejects naming the first that did not. A loaded thread that then
- * throws, or posts its error, is named to `failed`.
+ * spawned so far has loaded and rejects naming the first that did not, or a loaded one that
+ * faulted meanwhile. A thread that throws, or posts its error, once `ready()` has resolved is named
+ * to `failed`.
  */
 export function joltWorkerPool(
   url: string | URL,
@@ -118,6 +119,10 @@ export function joltWorkerPool(
   failed: (error: EngineError) => void,
 ) {
   const loads: Promise<void>[] = [];
+  let started = false;
+  let broke!: (error: EngineError) => void;
+  const broken = new Promise<never>((_, refused) => (broke = refused));
+  broken.catch(() => {});
   const spawn: SpawnJoltThread = (start) => {
     const n = loads.length + 1;
     const named = (why: string) =>
@@ -126,8 +131,14 @@ export function joltWorkerPool(
     const load = new Promise<void>((loaded, refused) => {
       let up = false;
       const fault = (why: string) =>
-        up ? failed(named(`failed: ${why}`)) : refused(named(`did not load: ${why}`));
-      thread.onerror = (event) => fault(event.message || 'its script failed');
+        up
+          ? (started ? failed : broke)(named(`failed: ${why}`))
+          : refused(named(`did not load: ${why}`));
+      thread.onerror = (event) => {
+        // Handled here: not reported again as this worker's own uncaught error.
+        event.preventDefault();
+        fault(event.message || 'its script failed');
+      };
       thread.onmessageerror = () => fault('a message could not be read');
       thread.onmessage = ({ data }) => {
         if (!up && data?.type === JOLT_THREAD_LOADED.type) {
@@ -139,7 +150,11 @@ export function joltWorkerPool(
     loads.push(load);
     thread.postMessage(start);
   };
-  return { count, spawn, ready: () => Promise.all(loads).then(() => {}) };
+  const ready = () =>
+    Promise.race([Promise.all(loads), broken]).then(() => {
+      started = true;
+    });
+  return { count, spawn, ready };
 }
 
 /**
