@@ -7415,7 +7415,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Gleitkommazahlen eines Schattendatensatzes, den die Schattierung eines Lichts liest: sechs Matrizen der Lampenflächen, dann das Bezugssystem der Sonnenebene — `right, zNear`, `up, zFar`, `axis, 0` —, dann der Ursprung des Ausschnitts jeder Clipmap-Stufe als zwei Ganzzahlen, dann ein Kopf `vec4f`: Flächen (Lampe) oder Stufen (Sonne), der Tangens des halben Felds der Lampe oder die feinste Stufe der Sonne, die nahe Ebene der Lampe und der erste Eintrag des Datensatzes in der Seitentabelle."
+    "summary": "Gleitkommazahlen eines Schattendatensatzes, den die Schattierung eines Lichts liest: sechs Matrizen der Lampenflächen — dort die Tiefenbereiche einer Sonne, je `zNear` und Kehrwert der Spanne (`recordPack.ts`) —, dann das Bezugssystem der Sonnenebene — `right`, `up`, `axis`, jeweils auf vier aufgefüllt —, dann der Ursprung des Ausschnitts jeder Clipmap-Stufe als zwei Ganzzahlen, dann ein Kopf `vec4f`: Flächen (Lampe) oder Stufen (Sonne), der Tangens des halben Felds der Lampe oder die feinste Stufe der Sonne, die nahe Ebene der Lampe und der erste Eintrag des Datensatzes in der Seitentabelle."
   },
   "ShadowRequestReport": {
     "summary": "Was die Schattierung in einem Bild gelesen hat: die angeforderten Tabelleneinträge, ohne Reihenfolge.",
