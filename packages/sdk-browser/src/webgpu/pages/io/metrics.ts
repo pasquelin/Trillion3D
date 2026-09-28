@@ -7,7 +7,7 @@ import { taaSampledRank } from '../../../taa/frame.ts';
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { markWebgpuLost } from './lost.ts';
 import { disposeStaticLayer } from '../state/lights.ts';
-import { shadowPoolHeld } from '../../shadow/poolSize.ts';
+import { shadowPoolHeld } from '../../shadow/memoryGrant.ts';
 import { lightCutMetrics } from '../../shadow/casters.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { useWebgpuView } from '../state/viewSwitch.ts';

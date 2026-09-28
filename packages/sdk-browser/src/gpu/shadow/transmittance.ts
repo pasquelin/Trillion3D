@@ -23,8 +23,10 @@ import type { ShadowTransmittanceDraws } from './transmittanceDraws.ts';
  * once depth only, depth-tested, for the nearest depth; once colour only, blended
  * multiplicatively, without depth. Both discard what the opaque depth of the pool hides.
  *
- * It exists from the first blended caster on: a scene that blends nothing pays neither its bytes
- * nor its pass, and its shading reads no texel of it (one-texel stand-ins are bound instead).
+ * It is made with the pool for a scene whose blended surfaces cast, else once a blended caster
+ * first draws, and read from the first blended caster on: a scene that blends nothing pays neither
+ * its bytes nor its pass, and its shading reads no texel of it (one-texel stand-ins are bound
+ * instead).
  */
 /** Label of the layer's pass: timed with the Shadows stage. */
 export const SHADOW_TRANSMITTANCE_PASS = 'Trillion3D shadow transmittance pass v1';
@@ -97,16 +99,17 @@ fn shadowThroughLit(offset:vec3f,first:vec2f,t:vec2f,reference:f32,lit:f32)->f32
 }`;
 
 /**
- * Creates the layer for a pool of `poolSide` pages a side whose depth is `poolLayers`, both
- * textures cleared by `encoder`, drawn by `made` (`shadowTransmittanceDraws`). Its pages are
- * cleared by the page quads (`pageQuads.ts`).
+ * Creates the layer for a pool of `poolSide` pages a side whose depth is `poolLayers`, drawn by
+ * `made` (`shadowTransmittanceDraws`): made apart from any frame, so the device's answer to its
+ * bytes can be awaited (`../../webgpu/shadow/transmittanceGrant.ts`); `clear` readies both
+ * textures once, by the frame that first draws into them. Its pages are cleared by the page quads
+ * (`pageQuads.ts`).
  */
 export function createShadowTransmittance(
   device: GPUDevice,
   { opaqueLayout, draws }: ShadowTransmittanceDraws,
   poolLayers: GPUTextureView[],
   poolSide: number,
-  encoder: GPUCommandEncoder,
 ) {
   const size = (poolSide * SHADOW_PAGE) / 2;
   const texture = (label: string, format: GPUTextureFormat) =>
@@ -120,21 +123,6 @@ export function createShadowTransmittance(
     nearest = texture('Trillion3D shadow translucent depth v1', SHADOW_TRANSLUCENT_DEPTH_FORMAT);
   const targets = layerViews(colour),
     depthTargets = layerViews(nearest);
-  for (const [layer, view] of targets.entries())
-    encoder
-      .beginRenderPass({
-        label: 'Trillion3D shadow transmittance clear v1',
-        colorAttachments: [
-          { view, loadOp: 'clear', storeOp: 'store', clearValue: TRANSMITTANCE_CLEAR },
-        ],
-        depthStencilAttachment: {
-          view: depthTargets[layer],
-          depthLoadOp: 'clear',
-          depthStoreOp: 'store',
-          depthClearValue: DEPTH_CLEAR,
-        },
-      })
-      .end();
   return {
     view: arrayView(colour),
     depthView: arrayView(nearest),
@@ -147,7 +135,25 @@ export function createShadowTransmittance(
     ),
     /** The depth-only draw, then the colour-only draw, of each region's list. */
     draws,
-    dispose() {
+    /** Both textures cleared by `encoder`: all the light, and far. */
+    clear(encoder: GPUCommandEncoder) {
+      for (const [layer, view] of targets.entries())
+        encoder
+          .beginRenderPass({
+            label: 'Trillion3D shadow transmittance clear v1',
+            colorAttachments: [
+              { view, loadOp: 'clear', storeOp: 'store', clearValue: TRANSMITTANCE_CLEAR },
+            ],
+            depthStencilAttachment: {
+              view: depthTargets[layer],
+              depthLoadOp: 'clear',
+              depthStoreOp: 'store',
+              depthClearValue: DEPTH_CLEAR,
+            },
+          })
+          .end();
+    },
+    destroy() {
       colour.destroy();
       nearest.destroy();
     },

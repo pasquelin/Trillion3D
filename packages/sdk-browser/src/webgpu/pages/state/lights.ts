@@ -106,6 +106,9 @@ export interface WebgpuLightState {
   shadowReason: string | null;
   /** The shadows' fixed memory grant, its peak and its pressure events (`../../shadow/memoryGrant.ts`). */
   memory: ShadowMemory;
+  /** The transmittance layer is past the grant or refused by the device: never asked again
+   *  (`../../shadow/transmittanceGrant.ts`). */
+  transmittanceDenied: boolean;
   /** Configuration of the first image lit by the contract is logged only once. */
   firstFrameLogged: boolean;
 }
@@ -158,6 +161,7 @@ export function createWebgpuLightState(
     shadowRenderPasses: 0,
     shadowReason: null,
     memory: createShadowMemory(),
+    transmittanceDenied: false,
     firstFrameLogged: false,
   };
 }
