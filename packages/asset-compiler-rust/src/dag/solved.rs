@@ -12,12 +12,10 @@
 //! unit of it spans in the group — the square root of the group's surface area over its texture
 //! area: a coordinate that slides by `d` draws the texture as far off as a position moved by `d`
 //! times that length. Normals keep the endpoint reduction's weight (`attributes::NORMAL_WEIGHT`).
-//! The largest step a placed coordinate took, times that length, joins the group's error
-//! (`placed::Local::drift`).
 //!
 //! **Mirrors and islands.** Where a chart meets its mirror image (`charts::on_mirror`) the seam is
 //! first kept: a face folded across a mirror draws one side's texture on the other with every
-//! coordinate in place, a slide the drift does not see. A group those seams still hold is solved
+//! coordinate in place, a slide the solve's error does not see. A group those seams still hold is solved
 //! across them, each face whose corners' charts turn both ways charged its longest edge; so is
 //! every face whose corners lie in two texture islands: under a pixel wherever its level is drawn
 //! (`charts::folded_span`).
@@ -103,7 +101,7 @@ fn attempt(
             return Ok(Err(Stop::NoCollapse));
         };
         let error = solved.error_object.max(*weld_error);
-        let local = Local::of(input, solved, &densities);
+        let local = Local::of(input, solved);
         let span = match charts.is_empty() {
             true => 0.0,
             false => {
@@ -112,7 +110,7 @@ fn attempt(
             }
         };
         Ok(Ok(Solve {
-            error: error.max(local.drift).max(span),
+            error: error.max(span),
             local,
             input,
         }))
@@ -157,9 +155,8 @@ impl Pass for Solve<'_, '_, '_> {
 }
 
 /// The solved group re-clustered, `None` when it yields no fewer clusters than its `children`;
-/// its error is the pass's — the solve's, the copies its open border welded, the slide of its
-/// placed texture coordinates (`Local::drift`), its faces across a mirror — and the parts it
-/// removed.
+/// its error is the pass's — the solve's, the copies its open border welded, its faces across a
+/// mirror — and the parts it removed.
 fn finish(
     input: &GroupReductionInput,
     local: Local,

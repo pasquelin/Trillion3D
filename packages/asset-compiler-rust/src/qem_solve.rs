@@ -21,8 +21,6 @@ pub struct Region {
     /// The weighed attributes, interleaved in the order of `attributes`.
     pub source_values: Vec<f32>,
     weights: Vec<f32>,
-    /// Per weighed component, its largest magnitude in the region (`magnitudes`).
-    magnitudes: Vec<f32>,
     /// The extent meshoptimizer normalises the positions by (`qem::region_extent`).
     extent: f64,
 }
@@ -59,28 +57,13 @@ impl SolvedRegion<'_> {
 }
 
 /// Puts back each value of `solved` that differs from its `source` by rounding alone: a few
-/// ulps of the value, or of its `scale` added to it. `scale` holds one entry per interleaved
-/// component, repeated vertex after vertex.
-fn snap(solved: &mut [f32], source: &[f32], scale: &[f32]) {
-    let scales = scale.iter().cycle();
-    for ((value, &from), &scale) in solved.iter_mut().zip(source).zip(scales) {
+/// ulps of the value, or of `scale` added to it.
+fn snap(solved: &mut [f32], source: &[f32], scale: f32) {
+    for (value, &from) in solved.iter_mut().zip(source) {
         if (*value - from).abs() <= 4.0 * f32::EPSILON * (from.abs() + scale) {
             *value = from;
         }
     }
-}
-
-/// Per interleaved component of `values`, `stride` floats per vertex, its largest magnitude: the
-/// scale meshoptimizer's rewrite of an untouched value is off by a few ulps of. A coordinate of
-/// exactly zero comes back at a few ulps of the region's others, not of itself.
-fn magnitudes(values: &[f32], stride: usize) -> Vec<f32> {
-    let mut scale = vec![0.0_f32; stride];
-    for row in values.chunks_exact(stride.max(1)) {
-        for (s, v) in scale.iter_mut().zip(row) {
-            *s = s.max(v.abs());
-        }
-    }
-    scale
 }
 
 impl Region {
@@ -98,7 +81,6 @@ impl Region {
         let (source_values, weights) = compact_attributes(attributes, &remap);
         Ok(Self {
             extent: region_extent(&source)?,
-            magnitudes: magnitudes(&source_values, weights.len()),
             compact,
             remap,
             source,
@@ -153,8 +135,8 @@ impl Region {
         // meshoptimizer writes every survivor it did not lock back through its own rescaling, a
         // few ulps off where it solved nothing: such a value is the source's, and the vertex
         // stays one.
-        snap(&mut solved, &self.source, &[self.extent as f32]);
-        snap(&mut values, &self.source_values, &self.magnitudes);
+        snap(&mut solved, &self.source, self.extent as f32);
+        snap(&mut values, &self.source_values, 0.0);
         Some(SolvedRegion {
             region: self,
             indices,
@@ -162,22 +144,5 @@ impl Region {
             values,
             error_object: (result_error as f64).min(self.extent),
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{magnitudes, snap};
-
-    // Behaviour: a coordinate of exactly zero that meshoptimizer's rewrite brings back a few ulps
-    // of its region's others off is the source's again, not a placed vertex; a real step is kept.
-    #[test]
-    fn a_zero_coordinate_rewritten_by_rounding_alone_snaps_back() {
-        let source = [0.0, 0.5, 1.0, 0.25];
-        let scale = magnitudes(&source, 2);
-        assert_eq!(scale, [1.0, 0.5]);
-        let mut solved = [1.0e-7, 0.5, 1.0, 0.3];
-        snap(&mut solved, &source, &scale);
-        assert_eq!(solved, [0.0, 0.5, 1.0, 0.3]);
     }
 }
