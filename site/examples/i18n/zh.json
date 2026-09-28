@@ -1745,7 +1745,8 @@
       "night": "夜晚",
       "bounce": "反弹光",
       "sun": "太阳",
-      "lamp": "灯"
+      "lamp": "灯",
+      "spin": "旋转"
     },
     "words": {
       "credit": "路灯模型作者 W. Sitters，CC BY 3.0 — 见 assets/examples/CREDITS.md"

@@ -1745,7 +1745,8 @@
       "night": "Nacht",
       "bounce": "Abprallen",
       "sun": "Sonne",
-      "lamp": "Lampe"
+      "lamp": "Lampe",
+      "spin": "Drehen"
     },
     "words": {
       "credit": "Straßenlaternenmodell von W. Sitters, CC BY 3.0 — siehe assets/examples/CREDITS.md"
