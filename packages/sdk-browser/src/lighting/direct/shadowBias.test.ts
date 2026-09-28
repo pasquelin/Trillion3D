@@ -4,7 +4,7 @@
 // here, and the tests read a sun over profiles of faces through it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dot } from '../../../../sdk-core/src/math/projectionOracles.ts';
+import { dotVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
 import { BIAS, DEVELOP_BIAS, RESTATED, SHADOW_WGSL, sunOverProfile } from './shadowBias.fixture.ts';
 import type { Bias, Face } from './shadowBias.fixture.ts';
 import { lampAt, lampOver } from './shadowLamp.fixture.ts';
@@ -101,7 +101,7 @@ test('a plane off a point light’s or a spot’s axis shades no point of itself
         const read = lampOver(lamp, [{ at: P, normal }]);
         for (let k = 0; k < 20; k++) {
           const step = [1.3e-4 * k, 0, 7e-5 * k],
-            off = dot(step, normal);
+            off = dotVector3(step, normal);
           const on = P.map((v, i) => v + step[i] - off * normal[i]);
           assert.equal(read(on, normal, 0).lit, 1, `${lamp.kind} ${a} ${b} ${tilt}: acne at ${on}`);
         }
@@ -143,18 +143,19 @@ test('a ball under the sun is clean, and the outline shell 5 cm round it shades 
     Array.from({ length: n }, (_, k) => {
       const [a, b] = [k, k + 1].map((i) => (2 * Math.PI * i) / n);
       const at = (t: number) => [radius * Math.cos(t), radius * Math.sin(t)];
-      return { from: at(a), to: at(b), normal: [Math.cos((a + b) / 2), Math.sin((a + b) / 2)] };
+      const normal = [Math.cos((a + b) / 2), Math.sin((a + b) / 2), 0];
+      return { from: at(a), to: at(b), normal };
     });
   const zenith = 1.107,
     ball = ring(1),
-    light = [Math.sin(zenith), -Math.cos(zenith)];
-  const lit = ball.flatMap((face, i) => (dot(face.normal, light) < 0 ? [i] : []));
+    light = [Math.sin(zenith), -Math.cos(zenith), 0];
+  const lit = ball.flatMap((face, i) => (dotVector3(face.normal, light) < 0 ? [i] : []));
   for (const texel of [2 ** -8, 2 ** -6]) {
     const alone = sunOverProfile(ball, zenith, texel),
       shelled = sunOverProfile([...ball, ...ring(1.05)], zenith, texel);
     for (const i of lit) assert.ok(clean(alone, i), `texel ${texel}: face ${i}`);
     const facing = lit.reduce((a, b) =>
-      dot(ball[a].normal, light) < dot(ball[b].normal, light) ? a : b,
+      dotVector3(ball[a].normal, light) < dotVector3(ball[b].normal, light) ? a : b,
     );
     assert.equal(shelled(facing, 0.5), 0, `texel ${texel}: the shell shades the ball`);
   }
