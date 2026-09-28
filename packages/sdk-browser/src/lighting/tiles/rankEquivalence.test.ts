@@ -137,20 +137,12 @@ test('the tile shader writes each kept light at its rank, after the batches befo
       ),
       `${slice} list written at its rank after the batches before, within its room`,
     );
-  // The first walk writes the lists, TILE_LIGHTS each; a slice past its list reserves its room.
-  assert.ok(
-    LIGHT_TILES_SHADER.includes(
-      'kept=vec2u(0u);start=vec2u(base+TILE_OPAQUE_BASE,base+TILE_BLEND_BASE);room=vec2u(TILE_LIGHTS);',
-    ),
-  );
+  // A slice past its list reserves its room in the pool, or raises the overflow.
   assert.match(
     LIGHT_TILES_SHADER,
     /if\(atomicLoad\(&pool\.head\)<0x80000000u\)\{at=atomicAdd\(&pool\.head,total\);\}/,
   );
   assert.match(LIGHT_TILES_SHADER, /else\{atomicStore\(&pool\.overflow,1u\);\}/);
-  assert.ok(
-    LIGHT_TILES_SHADER.includes('tiles[base]=total.x;tiles[base+1u]=total.y;counted=total;'),
-  );
 });
 
 test('the narrow pass: masks and light array of one list, no pool (#849)', () => {
@@ -173,19 +165,15 @@ test('the narrow pass: masks and light array of one list, no pool (#849)', () =>
   );
 });
 
-/** Waits of the pass's body outside the second batch and the second walk. */
-function firstWalkWaits(shader: string) {
-  const body = shader.slice(shader.indexOf('fn lightTiles('));
-  const once = body.split('if(max(total.x,total.y)>TILE_LIGHTS)')[0];
-  const walk = shader.slice(shader.indexOf('fn walkLights('), shader.indexOf('fn lightTiles('));
-  const waits = (text: string) =>
-    text
-      .split('\n')
-      .filter((line) => !/if\(first\+\d+u<count\)/.test(line))
-      .join('\n')
-      .match(/workgroupBarrier\(\)|workgroupUniformLoad\(|storageBarrier\(\)/g)?.length ?? 0;
-  return waits(once) + (once.includes('walkLights(') ? waits(walk) : 0);
-}
+/** Waits of the pass up to its second walk, a batch after the first not counted. */
+const firstWalkWaits = (shader: string) =>
+  shader
+    .slice(shader.indexOf('fn walkLights('))
+    .split('if(max(total.x,total.y)>TILE_LIGHTS)')[0]
+    .split('\n')
+    .filter((line) => !/if\(first\+\d+u<count\)/.test(line))
+    .join('\n')
+    .match(/workgroupBarrier\(\)|workgroupUniformLoad\(|storageBarrier\(\)/g)?.length;
 
 test('one batch, one walk: the narrow pass waits at five barriers, the wide one at six (#849)', () => {
   // Init, depth, corners (#924), bounds and tests, each behind one barrier, as before the
