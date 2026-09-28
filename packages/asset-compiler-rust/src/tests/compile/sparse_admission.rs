@@ -49,36 +49,38 @@ fn a01_a_realistic_sparse_over_budget_is_refused_by_admission() {
 }
 
 /// #50: a scene admitted before waves existed is never refused for what its primitives keep
-/// (a page record per cluster). Two primitives of 600,000 triangles store about 7 MiB of
-/// indices each; their page records leave the 64 MiB budget no room, so they compile one at
-/// a time instead of being refused.
+/// (a page record per cluster). Two primitives of an 18,432-triangle grid and the 1 MiB charged
+/// per worker of 60 threads fit the 64 MiB budget, but their page records leave it no room:
+/// they compile one at a time instead of being refused.
 #[test]
 fn primitives_whose_kept_pages_leave_no_room_compile_one_at_a_time() {
-    let (root, mut options) = fixture();
-    let triangles = 600_000usize;
-    let mut bin = Vec::with_capacity(triangles * 12 + 36);
-    for _ in 0..triangles {
-        for value in [0u32, 1, 2] {
-            bin.extend_from_slice(&value.to_le_bytes());
+    let n = 96usize;
+    let mut bin = Vec::new();
+    for y in 0..=n {
+        for x in 0..=n {
+            for value in [x as f32, y as f32, ((x * y) % 7) as f32] {
+                bin.extend_from_slice(&value.to_le_bytes());
+            }
         }
     }
-    for value in [0f32, 0., 0., 1., 0., 0., 0., 1., 0.] {
-        bin.extend_from_slice(&value.to_le_bytes());
+    let position_bytes = bin.len();
+    for index in crate::tests::fixtures::grid_indices(n, n, |x, y| (y * (n + 1) + x) as u32) {
+        bin.extend_from_slice(&index.to_le_bytes());
     }
     let primitive = json!({"attributes":{"POSITION":0},"indices":1});
-    let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"mesh.bin","byteLength":bin.len()}],
-        "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":triangles * 12},{"buffer":0,"byteOffset":triangles * 12,"byteLength":36}],
-        "accessors":[{"bufferView":1,"componentType":5126,"type":"VEC3","count":3,"min":[0,0,0],"max":[1,1,0]},{"bufferView":0,"componentType":5125,"type":"SCALAR","count":triangles * 3}],
+    let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"waves.bin","byteLength":bin.len()}],
+        "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":position_bytes},{"buffer":0,"byteOffset":position_bytes,"byteLength":bin.len() - position_bytes}],
+        "accessors":[{"bufferView":0,"componentType":5126,"type":"VEC3","count":(n + 1) * (n + 1)},{"bufferView":1,"componentType":5125,"type":"SCALAR","count":n * n * 6}],
         "meshes":[{"primitives":[primitive, primitive]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
-    fs::write(options.source.join("mesh.bin"), &bin).expect("bin write");
-    write_gltf(&options, &gltf, Some(&bin));
-    options.scope = "full".into();
+    let (root, mut options) = crate::tests::fixtures::gltf_fixture("waves", &gltf, &bin);
+    options.threads = 60;
     let result = compile(&options, |_| {}).expect("the scene cooks in smaller waves");
-    assert_eq!(result["status"], "ready", "{result}");
-    assert_eq!(
-        result["metrics"]["compileWaves"], 2,
-        "{}",
-        result["metrics"]
+    let metrics = &result["metrics"];
+    assert_eq!(result["status"], "ready");
+    assert!(
+        metrics["admissionEstimatedBytes"].as_u64() > Some(64 << 20),
+        "{metrics}"
     );
+    assert_eq!(metrics["compileWaves"], 2, "{metrics}");
     fs::remove_dir_all(root).expect("cleanup");
 }
