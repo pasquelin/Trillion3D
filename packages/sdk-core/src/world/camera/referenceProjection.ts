@@ -1,8 +1,9 @@
 import type { Matrix4 } from '../math/matrix4.ts';
 import type { Camera } from './camera.ts';
-import { orthographicView, perspectiveSlope } from '../../math/primitives/camera.ts';
+import { drawnBox, orthographicView, perspectiveSlope } from '../../math/primitives/camera.ts';
 
 const view = new Float64Array(4);
+const box = { left: 0, right: 0, top: 0, bottom: 0 };
 
 /**
  * Writes into `out` the projection a renderer drawing with `camera`'s optics composes, in the
@@ -12,7 +13,7 @@ const view = new Float64Array(4);
 export function referenceProjection(out: Matrix4, camera: Camera) {
   const { near, far, zoom } = camera;
   if (camera.projection === 'orthographic') {
-    const [cx, cy, dx, dy] = orthographicView(camera, zoom, view);
+    const [cx, cy, dx, dy] = orthographicView(drawnBox(camera, camera.aspect, box), zoom, view);
     const left = cx - dx,
       right = cx + dx,
       top = cy + dy,

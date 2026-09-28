@@ -133,8 +133,14 @@ test('a core scene and camera hold no field the engine needs beyond a page one',
     'refogged',
   ]);
   const camera = new Camera('perspective');
-  assert.deepEqual(own(camera), ['isCamera', '_optics', 'projection']);
+  assert.deepEqual(own(camera), ['isCamera', '_optics', '_fitAspect', 'projection']);
   void camera.projectionMatrix;
-  assert.deepEqual(own(camera), ['isCamera', '_optics', 'projection', '_projectionMatrix']);
+  assert.deepEqual(own(camera), [
+    'isCamera',
+    '_optics',
+    '_fitAspect',
+    'projection',
+    '_projectionMatrix',
+  ]);
   await assert.rejects(new Scene().load('model.json'), { code: 'UNSUPPORTED_SCENE_UPDATE' });
 });
