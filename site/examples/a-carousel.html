@@ -57,9 +57,13 @@
         part.rotation.set(...rotation);
         horse.add(part);
       };
-      const horses = [],
-        count = 8,
-        rest = 1.7;
+      // Keys every quarter second: the tracks are linear between keys, so the bob follows a sine closely.
+      const count = 8,
+        rest = 1.7,
+        duration = 8,
+        times = Array.from({ length: duration * 4 + 1 }, (_, key) => key / 4);
+      // A negative turn is clockwise seen from above, the way the horses face.
+      const tracks = [animation.numberTrack('.rotation.y', [0, duration], [0, -Math.PI * 2])];
       for (let index = 0; index < count; index++) {
         const angle = (index / count) * Math.PI * 2,
           radius = index % 2 ? 3.25 : 2.25,
@@ -87,31 +91,22 @@
             addHorsePart(horse, hoofShape, dark, [side * 0.18, -0.82, front * 0.33]);
           }
         carousel.add(pole, horse);
-        horses.push(horse);
-      }
-      world.scene.add(carousel);
-
-      // Keys every quarter second: the tracks are linear between keys, so the bob follows a sine closely.
-      const duration = 8,
-        times = Array.from({ length: duration * 4 + 1 }, (_, key) => key / 4);
-      // A negative turn is clockwise seen from above, the way the horses face.
-      const tracks = [animation.numberTrack('.rotation.y', [0, duration], [0, -Math.PI * 2])];
-      horses.forEach((horse, index) => {
-        const phase = (index / count) * Math.PI * 2;
         tracks.push(
           animation.numberTrack(
             `${horse.name}.position.y`,
             times,
-            times.map((time) => rest + Math.sin((time / 2) * Math.PI + phase) * 0.42),
+            times.map((time) => rest + Math.sin((time / 2) * Math.PI + angle) * 0.42),
           ),
         );
-      });
+      }
+      world.scene.add(carousel);
       const mixer = animation.createMixer(carousel);
       const action = mixer.play(animation.clip('round and round', duration, tracks));
       controls(
         { running: true, speed: [0.2, 2, 0.8], direction: ['clockwise', 'counterclockwise'] },
         (values) => {
           action.timeScale = values.speed * (values.direction === 'clockwise' ? 1 : -1);
+          if (values.running === action.playingNow) return;
           // stop() rewinds, so the pause seeks back to where the ride stood and holds that pose.
           const at = action.time;
           if (values.running) action.play();
@@ -124,6 +119,7 @@
       const ground = object.mesh(geometry.cylinder(13, 13, 0.15, 64), paint('#52633f', 0.95));
       ground.position.y = -0.08;
       ground.receiveShadow = floor.receiveShadow = true;
+      ground.castShadow = false;
       world.scene.add(
         ground,
         light.directional({
