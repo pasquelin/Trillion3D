@@ -5480,6 +5480,9 @@
       "shadowPoolPages": "Pagine fisiche del pool fisso che contengono una pagina virtuale.",
       "shadowPoolBytes": "Byte GPU del pool delle ombre: le sue pagine di profondità, i loro strati statico e di trasmittanza una volta creati, e i buffer accanto. Null finché il primo fotogramma non dimensiona il pool.",
       "shadowPoolLayers": "Strati del pool, di al più 4 096 pagine ciascuno, dimensionati una volta dallo schermo e dalle luci con ombra del primo fotogramma. Null fino ad allora.",
+      "shadowPeakBytes": "Il massimo di byte GPU che le ombre hanno tenuto insieme, uno strato statico o di trasmittanza tardivo contato con ciò che era tenuto al suo arrivo; mai oltre la quota fissa delle ombre nel budget. Null finché il primo fotogramma non dimensiona il pool.",
+      "shadowResolutionBias": "Quanti dimezzamenti dei byte del pool delle ombre sono costati i rifiuti di memoria del dispositivo: pagine più grossolane per la sola memoria, mai per rispettare un tempo di fotogramma. 0 nel caso normale.",
+      "shadowMemoryEvents": "Gli eventi di pressione di memoria delle ombre dall’apertura del mondo, per nome, in ordine: `pool-shrunk`, `pool-refused`, `static-layer-over-grant`, `static-layer-refused`. Vuoto nel caso normale.",
       "shadowPagesRefetched": "Pagine virtuali mappate di nuovo dopo che il pool le aveva espulse per fare spazio, dall’apertura dell’explorer: i ridisegni che costa un pool troppo piccolo per ciò che leggono i fotogrammi.",
       "shadowCastersKept": "Proiettori d’ombra mantenuti dal culling per pagina, tutte le pagine disegnate insieme, nel fotogramma campionato per ultimo dal dispositivo — uno su quindici; `null` finché non torna un campione.",
       "shadowCastersHidden": "Proiettori in movimento che il test di occlusione ha trovato nascosti dietro lo strato statico della loro pagina, nel fotogramma campionato per ultimo; `null` finché non torna un campione."
@@ -6802,6 +6805,9 @@
       "shadowPoolPages": "Pagine fisiche del pool fisso che contengono una pagina virtuale.",
       "shadowPoolBytes": "Byte GPU del pool delle ombre: le sue pagine di profondità, i loro strati statico e di trasmittanza una volta creati, e i buffer accanto. Null finché il primo fotogramma non dimensiona il pool.",
       "shadowPoolLayers": "Strati del pool, di al più 4 096 pagine ciascuno, dimensionati una volta dallo schermo e dalle luci con ombra del primo fotogramma. Null fino ad allora.",
+      "shadowPeakBytes": "Il massimo di byte GPU che le ombre hanno tenuto insieme, uno strato statico o di trasmittanza tardivo contato con ciò che era tenuto al suo arrivo; mai oltre la quota fissa delle ombre nel budget. Null finché il primo fotogramma non dimensiona il pool.",
+      "shadowResolutionBias": "Quanti dimezzamenti dei byte del pool delle ombre sono costati i rifiuti di memoria del dispositivo: pagine più grossolane per la sola memoria, mai per rispettare un tempo di fotogramma. 0 nel caso normale.",
+      "shadowMemoryEvents": "Gli eventi di pressione di memoria delle ombre dall’apertura del mondo, per nome, in ordine: `pool-shrunk`, `pool-refused`, `static-layer-over-grant`, `static-layer-refused`. Vuoto nel caso normale.",
       "shadowPagesRefetched": "Pagine virtuali mappate di nuovo dopo che il pool le aveva espulse per fare spazio, dall’apertura dell’explorer: i ridisegni che costa un pool troppo piccolo per ciò che leggono i fotogrammi.",
       "shadowCastersKept": "Proiettori d’ombra mantenuti dal culling per pagina, tutte le pagine disegnate insieme, nel fotogramma campionato per ultimo dal dispositivo — uno su quindici; `null` finché non torna un campione.",
       "shadowCastersHidden": "Proiettori in movimento che il test di occlusione ha trovato nascosti dietro lo strato statico della loro pagina, nel fotogramma campionato per ultimo; `null` finché non torna un campione."
