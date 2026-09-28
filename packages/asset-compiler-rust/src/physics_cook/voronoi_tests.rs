@@ -59,7 +59,7 @@ fn voronoi_cells_tile_a_convex_solid_without_gap_or_overlap() {
     ] {
         let whole = solid(&pos, &triangles);
         let planes = face_planes(&pos, &triangles, 1e-6);
-        let pieces = cells(&seeds, ([-2.0; 3], [3.0; 3]), &planes);
+        let pieces = cells(&seeds, ([-2.0; 3], [3.0; 3]), &planes, 1e-6);
         let total: f64 = pieces.iter().map(|faces| volume(faces)).sum();
         assert!((total - whole).abs() <= whole * TILED, "{total} of {whole}");
         for (i, a) in pieces.iter().enumerate() {
