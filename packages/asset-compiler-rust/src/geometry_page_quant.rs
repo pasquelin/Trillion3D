@@ -4,30 +4,12 @@
 //! own error with the very function every reader decodes with.
 
 use crate::{CompilerError, Result};
+/// The grid rule, shared with the run-time cut (`trillion3d_page_codec::bits::grid`).
+pub use trillion3d_page_codec::bits::grid::grid_exponent;
 use trillion3d_page_codec::bits::{
     bits_for, dequant, oct_decode, pow2, Quant, MAX_BITS, MAX_EXPONENT,
 };
 pub mod tile;
-
-/// Grid of a primitive, the finer of two rules: its widest extent, capped at 2^`tile_log2`, split
-/// into 2^16 steps, and an eighth of the finest group error its DAG published. Both are
-/// bounded below by the extent in 2^(`MAX_BITS` - 2) steps, so no page needs more than `MAX_BITS`
-/// per coordinate. Every page shares that exponent and rounds absolute coordinates: a vertex two
-/// clusters or two tiles share lands on one cell. The step is a power of two: `q * step` is exact.
-pub fn grid_exponent(extent: f64, finest_error: Option<f64>, tile_log2: i32) -> i32 {
-    let widest = if extent > 0.0 {
-        extent.log2().floor() as i32
-    } else {
-        0
-    };
-    let by_extent = widest.min(tile_log2) - 16;
-    let by_error = finest_error.map_or(by_extent, |e| (e / 8.0).log2().floor() as i32);
-    let finest = widest - (MAX_BITS as i32 - 2);
-    by_extent
-        .min(by_error)
-        .max(finest)
-        .clamp(-MAX_EXPONENT, MAX_EXPONENT)
-}
 
 /// The finest grid on which a positive `span` fits a page's field: at most 2^23 steps, which
 /// rounding at both ends keeps under the 2^`MAX_BITS` a page holds — the runtime cut's rule
