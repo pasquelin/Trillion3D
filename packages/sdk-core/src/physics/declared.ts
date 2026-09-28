@@ -91,7 +91,9 @@ export function declaredMass({ motion, shape, scale: cookedAt }: CookedBody, sca
   const declared = motion.centerOfMass?.map((c, i) => c * s[i]);
   const inertia = motion.inertiaDiagonal
     ? turned(motion.inertiaDiagonal, motion.inertiaOrientation)
-    : cooked ? inertiaAt(cooked, mass, declared) : undefined;
+    : cooked
+      ? inertiaAt(cooked, mass, declared)
+      : undefined;
   const centre = declared ?? cooked?.centerOfMass ?? (inertia && [0, 0, 0]);
   return { mass, massFrame: centre && [...centre, ...(inertia ?? [])] };
 }
