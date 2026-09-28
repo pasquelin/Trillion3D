@@ -1,3 +1,4 @@
+import { reflectionLayout } from '../../../packages/sdk-browser/src/reflections/gpu.ts';
 import { BLEND_SHADER } from '../../../packages/sdk-browser/src/webgpu/blend/shader.ts';
 import { createWebgpuBlendPipelines } from '../../../packages/sdk-browser/src/webgpu/blend/pipelines.ts';
 import { BLEND_BINDINGS as B } from '../../../packages/sdk-browser/src/webgpu/core/bindLayout.ts';
@@ -7,9 +8,7 @@ import { ltcTable } from '../../../packages/sdk-core/src/lighting/ltcTable.ts';
 import { ENVIRONMENT_COEFFICIENTS } from '../../../packages/sdk-core/src/scene/core/environment.ts';
 import type { SceneProxy } from '../../../packages/sdk-core/src/index.ts';
 import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
-
-import { mirrorVertex } from './blendMirrorVertex.ts';
-
+import { mirrorVertex, proxyOnlyReflection } from './blendMirrorVertex.ts';
 /** Render the actual blend fragment with a known one-triangle resident proxy and face radiance. */
 export async function blendMirror() {
   const opened = await ouvrirAppareil();
@@ -71,6 +70,7 @@ export async function blendMirror() {
   const colourView = sampled('rgba8unorm');
   const dataView = sampled('rgba8unorm', 0);
   const depthView = sampled('depth32float');
+  const reflection = proxyOnlyReflection(device);
   const transmittance = sampled('rgba32float');
   const sampler = device.createSampler();
   const comparison = device.createSampler({ compare: 'less-equal' });
@@ -120,7 +120,9 @@ export async function blendMirror() {
     compilation.push(...compiled.compilation);
     if (compiled.compilation.length) return [];
     const pipeline = await device.createRenderPipelineAsync({
-      layout: device.createPipelineLayout({ bindGroupLayouts: [blendBindGroupLayout] }),
+      layout: device.createPipelineLayout({
+        bindGroupLayouts: [blendBindGroupLayout, reflectionLayout(device)],
+      }),
       vertex: { module: compiled.module, entryPoint: 'mirrorVertex' },
       fragment: {
         module: compiled.module,
@@ -139,6 +141,7 @@ export async function blendMirror() {
     });
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, group);
+    pass.setBindGroup(1, reflection.group);
     pass.draw(3);
     pass.end();
     encoder.copyTextureToBuffer({ texture: target }, { buffer: read, bytesPerRow: 256 }, [
@@ -175,6 +178,7 @@ export async function blendMirror() {
   device.queue.writeBuffer(gridBuffer, 0, grid);
   const off = await render(BLEND_SHADER);
   const offPrevious = await render(BLEND_SHADER.replace(term, ''));
+  reflection.dispose();
   const info = await opened.fermer();
   return {
     mirror,
