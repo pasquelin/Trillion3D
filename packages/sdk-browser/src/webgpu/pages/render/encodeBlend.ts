@@ -160,8 +160,6 @@ export function encodeSurfaceLighting(
     directLightResources(rt),
     (error) => rt.diag.diagnosticFailure('direct-lighting-program-failed', error),
   );
-  // Image entry copied the camera, ancestors included: world position is read without recomputing.
-  // The camera as one homogeneous point: the view vector of the resolve is `xyz − P·w`.
   for (let i = 0; i < 4; i++) cameraWorldArray[i] = cam.viewPoint[i];
   gpu.deferred.update(
     inverseViewProj,
@@ -173,7 +171,9 @@ export function encodeSurfaceLighting(
     direct,
     taaSampledRank(rt),
   );
-  gpu.deferred.light(encoder, gpu.hdrView);
+  gpu.reflection?.update(viewProj, gpu.deferred.usesContract && run.diagnostic === 'beauty');
+  gpu.deferred.light(encoder, gpu.hdrView, gpu.reflection);
+  if (gpu.reflection?.active && gpu.deferred.usesContract) run.gpuDrawCalls++;
   run.gpuDrawCalls++;
   encodeShadowReadback(rt, encoder);
   encodeBlend(rt, device, encoder, uniformBase, true);
