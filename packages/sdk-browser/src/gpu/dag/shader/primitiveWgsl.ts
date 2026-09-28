@@ -22,7 +22,7 @@ fn primitiveBase(w:u32)->u32{return rangeCount()*FRAME+rowOf(w)*PRIMITIVE;}
 fn putMatrix(at:u32,m:mat4x4f){frames[at]=m[0];frames[at+1u]=m[1];frames[at+2u]=m[2];frames[at+3u]=m[3];}
 /** \`view · world\` of primitive \`w\` under the current view \`vi\`. */
 fn viewWorld(w:u32)->mat4x4f{
- if(isLightCut()){return views[vi].view*worlds[w];}
+ if(isLightCut()){return views[vi].view*worlds[rowOf(w)];}
  let at=primitiveBase(w)+select(CAMERA_E,AHEAD_E,vi==AHEAD_VIEW);
  return mat4x4f(frames[at],frames[at+1u],frames[at+2u],frames[at+3u]);
 }
