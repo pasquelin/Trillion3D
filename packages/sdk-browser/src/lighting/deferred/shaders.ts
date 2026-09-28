@@ -7,7 +7,7 @@ import {
   bounceReflectionWgsl,
 } from '../../bounce/reflectWgsl.ts';
 import { TONE_MAPPING_WGSL } from '../toneMappingWgsl.ts';
-import { AS_IS_FLAG } from '../../scene/surfaceModel.ts';
+import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG } from '../../scene/surfaceModel.ts';
 import { BLOOM_COMPOSE_WGSL } from '../../effects/bloomLevel.ts';
 
 export const FULLSCREEN_VERTEX = `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}`;
@@ -65,13 +65,13 @@ const contractSurface = (bounce: string, diagnostic = '') => `
 ${FULLSCREEN_VERTEX}
 ${WORLD_AT_WGSL}
 @fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{
- let coord=vec2i(pixel.xy);let flag=textureLoad(flags,coord,0).r;
+ let coord=vec2i(pixel.xy);let surfaceFlag=textureLoad(flags,coord,0).r;let flag=surfaceFlag&${FOG_FREE_SURFACE_FLAG - 1}u;
  if(flag==0u){return vec4f(0.0);}
  let base=textureLoad(baseMetal,coord,0);
  if(flag==${AS_IS_FLAG}u){return vec4f(base.rgb,1.0);}
  let z=textureLoad(depth,coord,0);
  let P=worldAt(pixel.xy,z);
- if(flag==1u){return vec4f(fogged(base.rgb,P,view.display.yzw),1.0);}
+ if(flag==1u){var rgb=base.rgb;if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}return vec4f(rgb,1.0);}
  let normal=textureLoad(normalRough,coord,0);let emissive=textureLoad(emissiveAo,coord,0);
  // The pixel's footprint at its depth, the unit its shadow level is chosen in.
  shadowFootprint=length(worldAt(pixel.xy+vec2f(1.0,0.0),z)-P);
@@ -80,10 +80,10 @@ ${WORLD_AT_WGSL}
  ${diagnostic}
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy);
  let ambient=environmentLighting(base.rgb,base.a,N,emissive.a);
- return vec4f(fogged(lit+ambient+emissive.rgb${bounce},P,view.display.yzw),1.0);
+ var rgb=lit+ambient+emissive.rgb${bounce};if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}
+ return vec4f(rgb,1.0);
 }`;
-/**
- * Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
+/** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
  * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
  * added (P6). An unlit material shows its colour with no response to light, still seen through
  * the fog; a diagnostic, normal or depth surface comes out as-is.
