@@ -67,7 +67,7 @@ test('the pages of a frame that dropped work are drawn again, in fewer views unt
   await frame([4, 9, 12, 20, 21], true, [0, 0, 0, 1, 1]);
   assert.equal(redraws.viewLimit, 2, 'five pages in two views fit: no swing back to three');
   redraws.residencyChanged();
-  assert.equal(redraws.viewLimit, 24, 'residency moved: the drop is forgotten');
+  assert.equal(redraws.viewLimit, 2, 'residency moved: the drop goes stale, the limit stays');
   flag.value = WORK_DROPPED;
   for (let i = 0; i < 6; i++) await frame([1, 2], true, [0, 1]);
   assert.equal(redraws.viewLimit, 1, 'drops floor the limit at one view');
@@ -195,4 +195,23 @@ test('a page drawn short is drawn again as it was drawn: its static casters only
   redraws.residencyChanged();
   redraws.rest();
   assert.deepEqual(seen(), { whole: [5], moving: [6] }, 'a wait keeps what its first draw lacked');
+});
+
+// #525: a residency change keeps the limit, and a batch that drops after it is still drawn again,
+// withdrawn meanwhile — never a page accepted short.
+test('a batch that drops after a residency change still draws its pages again, withdrawn', async () => {
+  const flag = { value: WORK_DROPPED };
+  const { redraws, encoder, frame } = redrawsWith(flag);
+  await frame([4, 9, 12, 20], true, [0, 1, 2, 3]);
+  redraws.residencyChanged();
+  assert.equal(redraws.viewLimit, 2, 'the limit survives the residency change');
+  redraws.encode(encoder, [4, 9], [0, 1], 2, WHOLE)?.(true);
+  await redraws.settled();
+  const seen: [number, boolean][] = [];
+  redraws.takeRedraw((page, withdraw) => seen.push([page, withdraw]));
+  assert.deepEqual(seen, [
+    [4, true],
+    [9, true],
+  ]);
+  assert.equal(redraws.viewLimit, 1, 'the drop lowers the limit again');
 });
