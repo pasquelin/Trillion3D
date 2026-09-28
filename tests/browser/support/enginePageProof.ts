@@ -38,8 +38,18 @@ export async function preuveDansLaPage(
   nom: string,
   titre: string,
   methode = 'executer',
+  workerUrls = false,
 ): Promise<ResultatPagePreuve> {
-  const script = (await empaquetePage(resolve(ici, fixture), nom)) as string;
+  const script = await empaquetePage(resolve(ici, fixture), nom, { workerUrls });
+  const resources = workerUrls
+    ? {
+        '/pageDecodeWorker.js': await empaquetePage(
+          resolve(ici, '../../../packages/sdk-browser/src/page/decode/pageDecodeWorker.ts'),
+          undefined,
+          { format: 'esm' },
+        ),
+      }
+    : undefined;
   const erreursPage: string[] = [];
   const resultat = (await dansPageWebgpu(
     (cible: CiblePage) => (globalThis as FenetreAvecBundles)[cible.nom][cible.methode](),
@@ -48,6 +58,7 @@ export async function preuveDansLaPage(
       titre,
       script,
       erreursPage,
+      resources,
     },
   )) as ResultatPagePreuve;
   return { ...resultat, erreurs: [...(resultat.erreurs ?? []), ...erreursPage] };
