@@ -1745,7 +1745,8 @@
       "night": "Noite",
       "bounce": "Reflexo",
       "sun": "Sol",
-      "lamp": "Lâmpada"
+      "lamp": "Lâmpada",
+      "spin": "Rodar"
     },
     "words": {
       "credit": "Modelo de poste de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"

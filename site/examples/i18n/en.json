@@ -1745,7 +1745,8 @@
       "night": "Night",
       "bounce": "Bounce",
       "sun": "Sun",
-      "lamp": "Lamp"
+      "lamp": "Lamp",
+      "spin": "Spin"
     },
     "words": {
       "credit": "Street lamp model by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md"
