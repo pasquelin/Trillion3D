@@ -7,7 +7,7 @@ import { unresolvedNames } from '../../core/wgslNames.fixture.ts';
 
 test('the DAG layout entries are the bindings the selection shader declares', () => {
   const declared = wgslBufferBindings(DAG_SELECTION_SHADER);
-  assert.equal(declared.length, 9);
+  assert.equal(declared.length, 10);
   assert.deepEqual(entryBufferBindings(dagBindEntries()), declared);
 });
 
