@@ -7417,16 +7417,6 @@
       "handbrake": "Phanh tay có đang kéo không."
     }
   },
-  "GraphNode": {
-    "summary": "Một nút của đồ thị: nút của lõi, phân biệt bằng `kind` của nó, được sao chép bằng `clone` của lõi.",
-    "members": {
-      "serial": "Số của nút, duy nhất trong phiên.",
-      "kind": "Nút là gì: điều mà mọi bên đọc đồ thị dùng để thu hẹp kiểu."
-    }
-  },
-  "GraphNodeKind": {
-    "summary": "Một ánh sáng của đồ thị là gì: một trong các ánh sáng mà một cảnh khai báo."
-  },
   "GraphSurface": {
     "summary": "Một bề mặt: các tham số của một họ, theo giá trị của bản tham chiếu trừ khi cảnh nói khác.",
     "description": "Phiên bản của nó được tăng bởi `needsUpdate`, mà mọi bên đọc đều so sánh.",
