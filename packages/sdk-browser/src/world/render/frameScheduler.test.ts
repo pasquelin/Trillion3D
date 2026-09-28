@@ -151,14 +151,13 @@ test('the next frame is asked right after render, and a stop cancels it (#983)',
 
 test('frames before their feedback are held: no settle round, no revision, same order (#983)', async () => {
   const { run, answers, log } = manual();
-  const queued = run.frames;
   run.invalidate();
-  for (let i = 0; i < 2 * 120 && queued.size; i++) {
+  for (let i = 0; i < 2 * 120 && run.frames.size; i++) {
     const drawn = run.renders;
     await run.frame();
     if (run.renders > drawn) log.push(`render ${run.renders}`);
     // The frame asked right after the render comes before its feedback: held.
-    if (queued.size) await run.frame();
+    if (run.frames.size) await run.frame();
     assert.equal(run.renders, drawn + 1, 'a held frame draws nothing');
     answers.shift()!(true);
     await new Promise(setImmediate);
@@ -171,12 +170,12 @@ test('frames before their feedback are held: no settle round, no revision, same 
 });
 
 test('a held frame moves no revision: a stop answered after one pauses the loop (#983)', async () => {
-  const stop = manual();
-  stop.run.invalidate();
-  await stop.run.frame();
-  await stop.run.frame();
-  stop.answers.shift()!(false);
+  const { run, answers } = manual();
+  run.invalidate();
+  await run.frame();
+  await run.frame();
+  answers.shift()!(false);
   await new Promise(setImmediate);
-  assert.equal(stop.run.frames.size, 0);
-  assert.equal(stop.run.renders, 1);
+  assert.equal(run.frames.size, 0);
+  assert.equal(run.renders, 1);
 });
