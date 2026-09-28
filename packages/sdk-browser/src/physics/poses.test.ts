@@ -13,12 +13,16 @@ import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies, type Bodied } from './bodies.ts';
+import { interpolateAll } from './drawnPoses.ts';
 import { createPosePlacer } from './placer.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { poseRecord } from './worker.fixture.ts';
 
 /** One mesh in slot 0 at generation 0, as a tick's records name it. */
-const lone = (mesh: Bodied) => ({ meshes: [mesh], generation: new Uint8Array(1), retire() {} });
+const lone = (mesh: Bodied) => ({
+  ...{ meshes: [mesh], nested: new Map(), generation: new Uint8Array(1) },
+  retire() {},
+});
 
 test('a pose sent again unchanged moves nothing and asks for no frame', () => {
   const poses = createPhysicsPoses(4, new Group());
@@ -136,7 +140,9 @@ test('a turn is drawn the shorter way round, whichever sign its quaternion comes
   placer.place(0, [0, 0, 0, 0, 0, 0, 1], 0);
   // A quarter turn about y, sent as its opposite quaternion: halfway is an eighth, not 3/8.
   const half = Math.SQRT1_2;
-  placer.draw(new Int32Array([0]), 1, new Float32Array([0, 0, 0, 0, -half, 0, -half]), 0.5);
+  const target = new Float32Array([0, 0, 0, 0, -half, 0, -half]);
+  interpolateAll(new Int32Array([0]), 1, target, 0.5, placer.position, placer.quaternion);
+  placer.commit(new Int32Array([0]), 1);
   placer.end();
   assert.ok(Math.abs(crate.rotation.y - Math.PI / 4) < 1e-3, `an eighth turn, ${crate.rotation.y}`);
 });

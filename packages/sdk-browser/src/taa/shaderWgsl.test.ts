@@ -6,6 +6,7 @@ import {
   TAA_SHADER,
   TAA_VIEW_BYTES,
   YCOCG_WGSL,
+  taaShader,
 } from './shaderWgsl.ts';
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
 import { ROW_PLACEMENT_WORD } from '../webgpu/row/pageRow.ts';
@@ -57,4 +58,27 @@ test('the background, at zero depth, reprojects as a direction and not as a poin
   // Nothing is read — neither identifier, nor record, nor matrix — until a placement has moved.
   assert.match(TAA_REPROJECT_WGSL, /if\(view\.params\.z!=0\.0\)\{\s*let id=textureLoad\(ids/);
   assert.match(TAA_REPROJECT_WGSL, /if\(previous\.w<=0\.0\)\{return vec3f\(0\.0,0\.0,0\.0\);\}/);
+});
+
+// OMB-11: with no as-is pixel every neighbour's share is 0, and history is clamped to [0, 0]: the
+// flag-reading resolve writes 0 wherever its colour is finite. The flagless one writes that 0 and
+// is otherwise the same text — the colour line for line —, reading neither flags nor share history.
+test('the flagless resolve is the flag-reading one without its share, written as 0', () => {
+  const flagless = taaShader(false);
+  assert.doesNotMatch(flagless, /var flags|textureLoad\(flags|shareHistory|shareLo|keptShare/);
+  const outputs = (text: string) => [...text.matchAll(/TaaOut\((.*),([^,]*)\);\}?$/gm)];
+  const kept = outputs(TAA_SHADER),
+    zero = outputs(flagless);
+  assert.equal(zero.length, 3);
+  assert.deepEqual(
+    zero.map(([, color, share]) => [color, share]),
+    kept.map(([, color]) => [color, '0.0']),
+    'the same colour, a share of 0',
+  );
+  const flagged = new Set(TAA_SHADER.split('\n'));
+  const own = flagless.split('\n').filter((line) => !flagged.has(line));
+  assert.equal(own.length, 3, 'only its three outputs are its own');
+  for (const line of own) assert.match(line, /TaaOut\(.*,0\.0\);\}?$/);
+  const removed = TAA_SHADER.split('\n').filter((line) => !flagless.includes(line));
+  for (const line of removed) assert.match(line, /share|var flags|asIs|TaaOut/, line);
 });

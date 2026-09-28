@@ -16,9 +16,9 @@ test('1/4/9/12 replicas share assets, preserve associations and extend real boun
         [mesh, { meshes: 7, primitives: 0 }],
       ]),
       grid = replicateInstances(source, associations, count),
-      meshes: G.GraphMesh[] = [];
+      meshes: G.HostMesh[] = [];
     grid.traverse((o) => {
-      if (o instanceof G.GraphMesh && o.kind === 'mesh') meshes.push(o);
+      if (o instanceof G.Mesh && !(o instanceof G.InstancedMesh)) meshes.push(o as G.HostMesh);
     });
     assert.equal(meshes.length, count);
     for (const copy of meshes) {

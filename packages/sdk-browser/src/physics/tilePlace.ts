@@ -4,18 +4,28 @@ import type {
   CookedTile,
 } from '../../../sdk-core/src/physics/index.ts';
 import { readCookedPhysics } from '../../../sdk-core/src/physics/index.ts';
-import { boxTransform } from '../../../sdk-core/src/math/primitives/box.ts';
+import { boxPointDistance, boxTransform } from '../../../sdk-core/src/math/primitives/box.ts';
 import { Box3 } from '../../../sdk-core/src/world/math/box3.ts';
 import { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts';
 import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
+import type { NodeMove } from './cookedBodies.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
-import { checked, optionalFile } from '../cluster/pages.ts';
+import { worldPoseOf } from './bodyFrame.ts';
+import { checked, optionalFile } from '../cluster/checked.ts';
+import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 
-/** A compiled model as the streamer reads it (`LoadedModel`): where its files are. */
-export type Model = Object3D & { isLoadedModel: true; record: { base: string } };
+/** A compiled model as the streamer reads it (`LoadedModel`): where its files are, and the scene
+ *  node of a source node, the nodes below it and its radius (`_nodeAt`), where it numbers them. */
+export type Model = Object3D & {
+  isLoadedModel: true;
+  record: { base: string };
+  _nodeAt?(index: number): ModelNode | null;
+};
+/** A source node of a model: its scene node, the source indices below it, its drawn radius. */
+export type ModelNode = { node: Object3D; indices: number[]; radius: number };
 export const isModel = (node: Object3D): node is Model =>
   (node as { isLoadedModel?: boolean }).isLoadedModel === true;
 
@@ -32,10 +42,15 @@ export interface Placed {
   id: number;
   /** Its bytes are on their way. */
   loading: boolean;
+  /** Left out by the last update, past the share or unwanted: its bytes landing are not claimed. */
+  out: boolean;
 }
 
 /** Seconds of travel a moving body's tiles are loaded ahead of it. */
 const LOOKAHEAD_S = 1;
+/** How much farther than it came in a resident tile stays, so one at the edge of a reach is not
+ *  loaded and released every frame. */
+const HYSTERESIS = 1.5;
 
 const place = new Matrix4(),
   local = new Matrix4(),
@@ -72,6 +87,7 @@ export function placedOf(model: Model, cooked: CookedPhysics): Placed[] {
         box: new Float64Array(6),
         id: -1,
         loading: false,
+        out: false,
       };
       locate(p);
       return p;
@@ -97,10 +113,15 @@ export function locate(p: Placed) {
 }
 
 /**
- * Where each moving body wants ground: `x, y, z, reach` per dynamic body, the reach its half size
- * plus the way it travels in `LOOKAHEAD_S` seconds.
+ * Where each moving body wants ground: `x, y, z, reach` per dynamic body — a page's mesh, or a
+ * compiled model's body moving its node (`nested`, its `velocity` by slot) —, the reach its half
+ * size plus the way it travels in `LOOKAHEAD_S` seconds.
  */
-export function moversOf(meshes: readonly (Bodied | null)[]) {
+export function moversOf(
+  meshes: readonly (Bodied | null)[],
+  nested: ReadonlyMap<number, NodeMove>,
+  velocity: Float32Array,
+) {
   const out: number[] = [];
   for (const mesh of meshes) {
     if (!mesh || mesh.physics.type !== 'dynamic') continue;
@@ -110,7 +131,26 @@ export function moversOf(meshes: readonly (Bodied | null)[]) {
     const half = bounds.isEmpty() ? 0 : bounds.getSize(size).length() / 2;
     const v = mesh.physics.velocity;
     out.push(mesh.position.x, mesh.position.y, mesh.position.z);
-    out.push(half + Math.hypot(v.x, v.y, v.z) * LOOKAHEAD_S);
+    out.push(half + hypot3(v.x, v.y, v.z) * LOOKAHEAD_S);
+  }
+  for (const [slot, moves] of nested) {
+    const at = worldPoseOf(moves.node).position,
+      v = slot * 6;
+    out.push(at[0], at[1], at[2]);
+    out.push(moves.reach + hypot3(velocity[v], velocity[v + 1], velocity[v + 2]) * LOOKAHEAD_S);
   }
   return out;
+}
+
+/**
+ * How near tile `p` is wanted: 0 within reach of a moving body of `movers` (`moversOf`), its
+ * distance to `eye` within `range`, else `Infinity`; a resident tile `HYSTERESIS` times as far.
+ */
+export function nearness(p: Placed, eye: ArrayLike<number>, range: number, movers: number[]) {
+  const keep = p.id >= 0 ? HYSTERESIS : 1;
+  for (let m = 0; m < movers.length; m += 4)
+    if (boxPointDistance(p.box, 0, movers[m], movers[m + 1], movers[m + 2]) <= movers[m + 3] * keep)
+      return 0;
+  const near = boxPointDistance(p.box, 0, eye[0], eye[1], eye[2]);
+  return near <= range * keep ? near : Infinity;
 }

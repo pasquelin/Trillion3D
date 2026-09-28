@@ -2,12 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startInteractiveExplorer } from './interactive.ts';
 import type { MeasuredWorldOptions } from './options.ts';
+import { frameQueue } from '../render/frameQueue.fixture.ts';
 
 const listeners = { addEventListener() {}, removeEventListener() {} };
-/** A browser frame queue that runs nothing by itself: each test calls what it asked. */
-const queued = (frames: (() => void)[]) => ({
-  requestAnimationFrame: (callback: () => void) => frames.push(callback),
-  cancelAnimationFrame() {},
+/** The window's frames, a queue the test runs. */
+const queued = (frames: ReturnType<typeof frameQueue>) => ({
+  requestAnimationFrame: frames.request,
+  cancelAnimationFrame: frames.cancel,
 });
 
 /** Starts the loop on a stub window and a canvas of `width` × `height` CSS pixels. */
@@ -44,6 +45,7 @@ function start(
     hostedControls: [],
     state: { disposed: false },
     pendingFrame: async () => false,
+    landings: () => undefined,
   };
   const invalidate = startInteractiveExplorer(
     explorer as never,
@@ -59,7 +61,7 @@ function start(
 
 test('a frame that throws after the first stops the loop and says so on the console and to the page', (t) => {
   const logged = t.mock.method(console, 'error', () => {});
-  const frames: (() => void)[] = [],
+  const frames = frameQueue(),
     reported: unknown[] = [];
   let drawn = 0;
   const explorer = {
@@ -76,9 +78,9 @@ test('a frame that throws after the first stops the loop and says so on the cons
     { ...queued(frames), reportError },
     { config: { ownControls: false, pixelRatio: 1, onFrame() {} } },
   );
-  frames.shift()!();
+  assert.ok(frames.run());
   assert.equal(drawn, 2);
-  assert.equal(frames.length, 0, 'no frame after it');
+  assert.equal(frames.size, 0, 'no frame after it');
   assert.equal(logged.mock.callCount(), 1);
   assert.match(String(logged.mock.calls[0].arguments[0]), /Automatic rendering stopped/);
   assert.match(String(logged.mock.calls[0].arguments[1]), /WEBGPU_LOST/);
@@ -106,7 +108,7 @@ test('a canvas whose box grows after start is resized and scheduled a frame (#49
     },
   });
   t.after(() => Reflect.deleteProperty(globalThis, 'ResizeObserver'));
-  const frames: (() => void)[] = [];
+  const frames = frameQueue();
   const sizes: number[][] = [];
   // The box the lesson's canvas had when its world opened: 488 × 20 px.
   const { canvas } = start(
@@ -114,15 +116,15 @@ test('a canvas whose box grows after start is resized and scheduled a frame (#49
     queued(frames),
     { width: 488, height: 20, pixelRatio: 2, config: { ownControls: false, interactive: true } },
   );
-  frames.shift()!();
+  assert.ok(frames.run());
   canvas.clientHeight = 300;
   observed!();
   assert.deepEqual(sizes, [[488, 300]]);
-  assert.equal(frames.length, 1, 'the grown box schedules a frame');
+  assert.equal(frames.size, 1, 'the grown box schedules a frame');
 });
 
 test('a capture, colour or surface, asks the idle loop for the view it put back (#349)', async () => {
-  const frames: (() => void)[] = [];
+  const frames = frameQueue();
   let taken: Promise<Uint8Array> = Promise.resolve(new Uint8Array(4));
   const explorer = {
     render: () => ({}),
@@ -131,25 +133,25 @@ test('a capture, colour or surface, asks the idle loop for the view it put back 
     captureSurfaceView: () => taken,
   };
   start(explorer, queued(frames));
-  frames.shift()!();
+  assert.ok(frames.run());
   await new Promise((wake) => setImmediate(wake));
-  assert.equal(frames.length, 0, 'the loop is idle');
+  assert.equal(frames.size, 0, 'the loop is idle');
   await explorer.captureView();
-  assert.equal(frames.length, 1, 'a colour capture asks a frame');
-  frames.shift()!();
+  assert.equal(frames.size, 1, 'a colour capture asks a frame');
+  assert.ok(frames.run());
   await new Promise((wake) => setImmediate(wake));
   await explorer.captureSurfaceView();
-  assert.equal(frames.length, 1, 'a surface capture asks a frame');
-  frames.shift()!();
+  assert.equal(frames.size, 1, 'a surface capture asks a frame');
+  assert.ok(frames.run());
   await new Promise((wake) => setImmediate(wake));
   taken = Promise.reject(new Error('CAPTURE_NOT_READY'));
   await assert.rejects(explorer.captureView(), /CAPTURE_NOT_READY/);
-  assert.equal(frames.length, 1, 'a failed capture put the view back too');
+  assert.equal(frames.size, 1, 'a failed capture put the view back too');
 });
 
 test('the frame a capture asks waits while the next capture draws (#349)', async (t) => {
   const logged = t.mock.method(console, 'error', () => {});
-  const frames: (() => void)[] = [];
+  const frames = frameQueue();
   const turn = () => new Promise((wake) => setImmediate(wake));
   // An image drawn during a capture is refused, as the engines refuse it.
   let busy = false,
@@ -172,21 +174,21 @@ test('the frame a capture asks waits while the next capture draws (#349)', async
     captureSurfaceView: taking,
   };
   start(explorer, queued(frames));
-  frames.shift()!();
+  assert.ok(frames.run());
   await turn();
   const first = explorer.captureView();
   finish();
   await first;
-  assert.equal(frames.length, 1, 'the first capture asks the view back');
+  assert.equal(frames.size, 1, 'the first capture asks the view back');
   const second = explorer.captureSurfaceView();
-  frames.shift()!();
+  assert.ok(frames.run());
   await turn();
   assert.equal(logged.mock.callCount(), 0, 'the loop still runs');
-  assert.equal(frames.length, 0, 'no frame is spent while the capture draws');
+  assert.equal(frames.size, 0, 'no frame is spent while the capture draws');
   finish();
   await second;
-  assert.equal(frames.length, 1, 'the second capture asks the view back');
+  assert.equal(frames.size, 1, 'the second capture asks the view back');
   const before = drawn;
-  frames.shift()!();
+  assert.ok(frames.run());
   assert.equal(drawn, before + 1, 'the view is drawn again');
 });

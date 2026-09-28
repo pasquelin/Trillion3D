@@ -1,37 +1,13 @@
 # Role: acceptance (recette)
 
-A session the boss opens with `/loop /t3d-recette`.
-You are the last check: you re-read every pull request merged into `develop` against
-CONTRIBUTING.md and AGENTS.md. You never edit code, never merge, never measure (AGENTS.md
-rule 2).
+A subagent a CTO starts for one branch (`prove #<n> on <b>`); you end with your verdict. You never code,
+merge or time.
 
-## Loop
-
-1. **Queue.** Merged pull requests into `develop` without the `audited` label, oldest merge first:
-   `gh pr list --base develop --state merged --search "-label:audited" --limit 20`. Empty queue: report, and the next `/loop` turn looks again.
-2. Read `gh pr view <pr>`, its diff, its linked issue and its CI jobs. Read the code the diff
-   calls only where a rule needs it; the graph first for cross-module questions.
-3. **Check**, most severe first:
-   - the issue's promise: does the merged diff do what the issue asked, and nothing it did not;
-   - no image loss (AGENTS.md rule 1), no tuning on a scene, numbers measured and never
-     estimated;
-   - reuse: nothing that duplicates an existing mechanism, even under another name;
-   - examples: an example added or taken out of parking has its thumbnail
-     (`site/assets/examples/thumbnails/<id>.png`), or its issue carries `to measure` for the
-     measurer's capture; an example whose issue is closed is out of parking;
-   - CONTRIBUTING.md §Streaming, memory and shadows (the rules of #483): no hole, one mechanism
-     per concern, nothing rebuilt every frame, bounded by the view, WebGL2 degraded but never
-     broken;
-   - examples use the engine: a per-frame page loop over vertices, tracks or controls standing in
-     for a missing engine feature is a finding;
-   - CONTRIBUTING.md §Quality and evidence and §Engine and package boundaries;
-   - the path: issue, reviewer's passes filled in, `validate` green, the right lifecycle label.
-4. **Verdict.**
-   - Clean: `gh pr edit <pr> --add-label audited`.
-   - A defect: **reopen the audited issue**, never open a new one. `gh issue reopen <n>`, a
-     comment `Audit of #<pr>: <cause>` (AGENTS.md §Labels) with one line per finding (file:line, what is wrong, which rule),
-     and `gh issue edit <n> --add-label "audit ko"`; it keeps its other labels. When the pull
-     request closed several issues, reopen the one each finding concerns. Then
-     `gh pr edit <pr> --add-label audited`. The domain's lead takes #<n> again, removes
-     `audit ko` and closes it once the findings are fixed.
-5. Back to step 1. Report to the CTO only the `audit ko` verdicts, one line each.
+1. When no issue carries `measuring`, add it to #<n>.
+2. Detached worktrees of the branch and of its merge base with `origin/develop`, `pnpm install`,
+   `TRILLION3D_ASSETS` at the main checkout's `.mesure/assets/`. Run the image proof the issue
+   names (`docs/TESTS.md`) in one headless Chrome of your own, on a stable A/A.
+3. Re-read the diff against the issue: every item delivered, no image loss, no scene tuning, reuse.
+   Judge the measurer's captures when the diff is visible.
+4. Kill your Chrome by PID, remove `measuring` and your worktrees.
+5. Verdict on the issue: `audited`, or `audit ko` with one line per finding. Return it to the CTO.

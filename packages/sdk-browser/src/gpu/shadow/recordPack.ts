@@ -8,7 +8,7 @@ import {
   SHADOW_RECORD_INFO,
   SHADOW_RECORD_ORIGINS,
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
-import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SHADOW_PAGE, pageOrigin } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { SunLevels } from '../../../../sdk-core/src/scene/light-shadow/sunLevels.ts';
 
 /** Pages one GPU batch draws: the size of the per-batch buffers. A frame draws every page it
@@ -16,6 +16,12 @@ import type { SunLevels } from '../../../../sdk-core/src/scene/light-shadow/sunL
 export const MAX_SHADOW_PAGES: number = LIGHT_SETTINGS.shadowPagesPerBatch;
 /** Regions at most in a batch: a page draws its static layer and its moving casters, two at most. */
 export const MAX_SHADOW_REGIONS = 2 * MAX_SHADOW_PAGES;
+/** Words of a face entry the depth pass reads — matrix, `params`, `emitter` —, before the page's
+ *  clip square the page quads read (`writePage`). */
+export const SHADOW_FACE_READ_WORDS = 24,
+  SHADOW_FACE_READ_BYTES = SHADOW_FACE_READ_WORDS * 4;
+/** First word of a face entry's emitter envelope, `emitter`: its centre, then its radius. */
+const FACE_EMITTER = 20;
 
 /**
  * Host mirrors of the two shadow buffers the frame writes — the drawn pages' matrices, read by
@@ -45,15 +51,15 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
   return {
     records,
     facePacked,
-    /** The pool the pages land in has `poolSide` pages a side from now on. */
+    /** The pool the pages land in has `poolSide` pages a layer side from now on. */
     setPoolSide(poolSide: number) {
       side = poolSide;
       size = side * SHADOW_PAGE;
     },
     /**
      * Region `index`: its page's matrix — the page's own projection, which the viewport lands on
-     * physical page `phys` —, that page's atlas rectangle, and the light envelope the depth pass
-     * strips (a zero radius strips nothing).
+     * physical page `phys` —, that page's atlas rectangle, the light envelope the depth pass
+     * strips (a zero radius strips nothing), and the page's clip square in the atlas's.
      */
     writePage(
       index: number,
@@ -65,15 +71,23 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
     ) {
       const uniform = (index * faceStride) / 4;
       for (let i = 0; i < 16; i++) facePacked[uniform + i] = matrices[matrixBase + i];
-      facePacked[uniform + 16] = ((phys % side) * SHADOW_PAGE) / size;
-      facePacked[uniform + 17] = (Math.floor(phys / side) * SHADOW_PAGE) / size;
+      const { x, y } = pageOrigin(phys, side);
+      facePacked[uniform + 16] = x / size;
+      facePacked[uniform + 17] = y / size;
       facePacked[uniform + 18] = SHADOW_PAGE / size;
       facePacked[uniform + 19] = SHADOW_PAGE;
-      facePacked[uniform + 20] = center ? center[0] : 0;
-      facePacked[uniform + 21] = center ? center[1] : 0;
-      facePacked[uniform + 22] = center ? center[2] : 0;
-      facePacked[uniform + 23] = center ? radius : 0;
+      facePacked[uniform + FACE_EMITTER] = center ? center[0] : 0;
+      facePacked[uniform + FACE_EMITTER + 1] = center ? center[1] : 0;
+      facePacked[uniform + FACE_EMITTER + 2] = center ? center[2] : 0;
+      facePacked[uniform + FACE_EMITTER + 3] = center ? radius : 0;
+      // Its clip square in the whole atlas's: `xy * s + o`, what the page draws read.
+      const rect = uniform + SHADOW_FACE_READ_WORDS;
+      facePacked[rect] = (2 * x + SHADOW_PAGE) / size - 1;
+      facePacked[rect + 1] = 1 - (2 * y + SHADOW_PAGE) / size;
+      facePacked[rect + 2] = facePacked[rect + 3] = SHADOW_PAGE / size;
     },
+    /** True when region `index` carries an emitter envelope: a radius the depth pass strips. */
+    hasEnvelope: (index: number) => facePacked[(index * faceStride) / 4 + FACE_EMITTER + 3] > 0,
     /** A lamp's record: its face matrices, face count, tangent half-field, near plane, table base. */
     writeLamp(
       slice: number,

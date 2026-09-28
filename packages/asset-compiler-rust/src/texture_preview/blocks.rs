@@ -105,7 +105,7 @@ impl Layout {
 pub const BLOCK_SIDE: u32 = 4;
 
 /// Blocks across and down a `width` × `height` level.
-fn blocks_of(width: u32, height: u32) -> (u32, u32) {
+pub(super) fn blocks_of(width: u32, height: u32) -> (u32, u32) {
     (width.div_ceil(BLOCK_SIDE), height.div_ceil(BLOCK_SIDE))
 }
 

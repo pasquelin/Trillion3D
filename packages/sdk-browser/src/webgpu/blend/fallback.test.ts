@@ -80,17 +80,16 @@ function writeLines(lineWidth: number) {
     {
       surface: surfaceOf(G.basicSurface({ transparent: true, opacity: 0.5, lineWidth })),
       matrix: new G.Matrix4(),
-      rgba: [1, 1, 1, 0.5],
       count: 6,
-      flags: 0,
+      flags: 0x87654321,
     },
   ] as unknown as typeof blendState.visibleBlend;
   const rt = {
     run: { diagnostic: 'beauty' },
     blendState,
-    gpu: { uniformPacked: new Float32Array(64).fill(7), uniformBuffer: {} },
+    gpu: { uniformPacked: new Float32Array(128).fill(7), uniformBuffer: {} },
   } as unknown as WebgpuPagesRuntime;
-  writeFallbackBlendUniforms(rt, device, 0, listFallbackBlendDraws(blendState, false));
+  writeFallbackBlendUniforms(rt, device, 1, listFallbackBlendDraws(blendState, false));
   return { written: writes, packed: rt.gpu.uniformPacked };
 }
 
@@ -101,7 +100,12 @@ test('the transparent fallback refuses a line surface by name', () => {
 test('the transparent fallback draws a triangle surface with no line width', () => {
   const { written, packed } = writeLines(0);
   assert.equal(written.length, 1);
-  assert.equal(packed[40], 0);
+  assert.equal(written[0].offset, 256);
+  assert.deepEqual(Array.from(packed.subarray(104, 112)), Array(8).fill(0));
+  assert.equal(new Uint32Array(packed.buffer)[103], 0x87654321);
+  assert.equal(packed[99], 0.5);
+  assert.ok(packed.subarray(0, 64).every((word) => word === 7));
+  assert.ok(packed.subarray(112).every((word) => word === 7));
 });
 
 test('the fallback list refuses by name a paged item a GPU cut left without a CPU list', () => {

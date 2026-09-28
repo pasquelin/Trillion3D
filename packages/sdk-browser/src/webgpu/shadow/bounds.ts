@@ -3,6 +3,11 @@ import { forEachDirtyRun } from '../row/dirty.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import { FLAG_MASK, PAGE_INFO_STRIDE } from '../../visibility/types.ts';
+import { ROW_FLAGS_WORD } from '../row/pageRow.ts';
+
+const ROW_WORDS = PAGE_INFO_STRIDE / 4;
 
 /** Floats of a cluster world sphere: centre then radius. */
 const CLUSTER_SPHERE_FLOATS = 4;
@@ -22,7 +27,7 @@ function writeClusterSphere(rec: PageRec, out: Float32Array, base: number) {
     hy = (rec.max[1] - rec.min[1]) / 2,
     hz = (rec.max[2] - rec.min[2]) / 2;
   transformAffinePoint(out, e, cx, cy, cz, base);
-  out[base + 3] = Math.hypot(
+  out[base + 3] = hypot3(
     Math.abs(e[0]) * hx + Math.abs(e[4]) * hy + Math.abs(e[8]) * hz,
     Math.abs(e[1]) * hx + Math.abs(e[5]) * hy + Math.abs(e[9]) * hz,
     Math.abs(e[2]) * hx + Math.abs(e[6]) * hy + Math.abs(e[10]) * hz,
@@ -99,9 +104,10 @@ function uploadSphereRun(rt: WebgpuPagesRuntime, from: number, to: number) {
 }
 
 /**
- * Mobility word of rows `[from, to]` — 1 for a row whose placement moves — pushed on the same dirty
- * interval as the spheres, and every row once when a placement turns moving: what the page cull
- * splits a page's casters by, static layer or moving casters.
+ * Mobility word of rows `[from, to]` — whether its placement moves, whether it is a cutout — pushed
+ * on the same dirty interval as the spheres and the page table's flags, and every row once when a
+ * placement turns moving: what the page cull splits a page's casters by, static layer or moving
+ * casters, and drawn with no fragment stage or with the cutout test (#965).
  */
 export function uploadRowMobility(
   rt: WebgpuPagesRuntime,
@@ -128,7 +134,8 @@ export function uploadRowMobility(
     from = 0;
     to = casterSlots - 1;
   }
-  const buffer = lights.mobilityRows;
+  const buffer = lights.mobilityRows,
+    ints = rows.pageTableInts;
   mobility.writeRows(
     (row) => rows.packedRecs[row]?.placementIndex ?? -1,
     casterSlots,
@@ -136,6 +143,7 @@ export function uploadRowMobility(
     to,
     (first, count) => device.queue.writeBuffer(buffer, first * 4, mobility.rowWords, first, count),
     rows.blendFirst,
+    (row) => !!ints && (ints[row * ROW_WORDS + ROW_FLAGS_WORD] & FLAG_MASK) !== 0,
   );
 }
 

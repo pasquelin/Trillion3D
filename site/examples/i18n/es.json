@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Gira para observar los reflejos cepillados. Cambia su fuerza y dirección.",
+    "controls": {
+      "anisotropy": "Fuerza del cepillado",
+      "direction": "Dirección del cepillado",
+      "roughness": "Rugosidad",
+      "spin": "Girar"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Gira alrededor del coche. Cambia la pintura y la capa transparente.",
+    "controls": {
+      "paint": "Pintura",
+      "clearCoat": "Capa transparente",
+      "coatRoughness": "Rugosidad de la capa",
+      "spin": "Girar"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Ajustes"
@@ -36,10 +54,12 @@
       "engine CPU": "CPU del motor"
     },
     "failure": {
-      "title": "Este ejemplo se detuvo por un error"
+      "title": "Este ejemplo se detuvo por un error",
+      "missingCache": "Falta la caché compilada: ejecuta pnpm compile:caches"
     },
     "banner": {
-      "close": "Cerrar"
+      "close": "Cerrar",
+      "waiting": "En espera del motor (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -309,6 +329,13 @@
       "roof": "Tejado"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Arrastra para girar. Cambia el ancho de la lámpara y observa los bordes de las sombras.",
+    "controls": {
+      "lampWidth": "Ancho de la lámpara",
+      "moveSubject": "Mover objeto"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Arrastra para rodear la escena. Agranda el panel de luz para suavizar el brillo.",
     "controls": {
@@ -474,6 +501,32 @@
       "balloon": "SIGUIENDO EL GLOBO"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Mira la ruta grabada por el parque. Repítela, detenla o toma la cámara.",
+    "controls": {
+      "replay": "Repetir",
+      "stop": "Detener"
+    },
+    "readouts": {
+      "currentPart": "Tramo actual"
+    },
+    "words": {
+      "entrance": "Entrada",
+      "pond": "Estanque",
+      "bridge": "Puente",
+      "pavilion": "Pabellón",
+      "overview": "Vista general",
+      "complete": "Completo"
+    }
+  },
+  "a-crane-that-swings": {
+    "banner": "Gira alrededor de la grúa mientras un clip rota la pluma, mueve el carro, eleva la carga y la deja balancearse.",
+    "controls": {
+      "speed": "Velocidad",
+      "paused": "En pausa",
+      "replay": "Repetir"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Arrastra para mirar alrededor. Haz la ola de cubos más alta o más rápida.",
     "controls": {
@@ -482,6 +535,34 @@
       "ripples": "Ondas",
       "inner": "Interior",
       "outer": "Exterior"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Acerca la cámara a las puertas. Se abren cuando te aproximas.",
+    "controls": {
+      "mode": "Modo",
+      "openingDistance": "Distancia de apertura",
+      "openness": "Apertura"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "proximidad",
+        "manual": "manual"
+      }
+    }
+  },
+  "a-carousel": {
+    "banner": "Gira alrededor del carrusel. Páralo o mueve los caballos de madera en sentido contrario.",
+    "controls": {
+      "running": "En marcha",
+      "speed": "Velocidad",
+      "direction": "Dirección"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "sentido horario",
+        "counterclockwise": "sentido antihorario"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -535,6 +616,17 @@
       "lamp": "Lámpara",
       "colour": "Color",
       "bricks": "Ladrillos"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Haz clic en dos superficies para medir la distancia entre ellas. Un tercer clic inicia una nueva medición. Una unidad representa un metro.",
+    "controls": {
+      "clear": "Borrar"
+    },
+    "readouts": {
+      "pointA": "Punto A",
+      "pointB": "Punto B",
+      "distance": "Distancia"
     }
   },
   "click-to-pick": {
@@ -941,7 +1033,11 @@
     "banner": "Arrastra para mirar alrededor. Marca Conducir para tomar el coche: W o ↑ acelera, S o ↓ frena, A D o ← → giran. Soltar hace caer de nuevo las cajas y las pelotas.",
     "words": {
       "credit": "Valle modelado en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md",
-      "refused": "Rechazado en este backend"
+      "refused": "Rechazado en este backend",
+      "close": "Primer plano",
+      "far": "Vista lejana",
+      "pan": "Barrido rápido",
+      "still": "Quieto"
     },
     "controls": {
       "drive": "Conducir el coche",
@@ -1227,6 +1323,25 @@
         "lod": "niveles de detalle",
         "clusters": "clústeres"
       }
+    }
+  },
+  "a-walk-through-the-city": {
+    "banner": "Haz clic en la vista, camina con W A S D y mira con el ratón. Reduce la memoria mientras avanzas.",
+    "controls": {
+      "walkSpeed": "Velocidad",
+      "memory": "Memoria",
+      "view": "Vista",
+      "home": "Volver al inicio"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagen",
+        "lod": "niveles de detalle",
+        "clusters": "clústeres"
+      }
+    },
+    "words": {
+      "credit": "Avenida de urnas modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
     }
   },
   "migrating-from-three": {
@@ -1631,7 +1746,8 @@
       "night": "Noche",
       "bounce": "Rebote",
       "sun": "Sol",
-      "lamp": "Lámpara"
+      "lamp": "Lámpara",
+      "spin": "Girar"
     },
     "words": {
       "credit": "Modelo de farola de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
@@ -1676,6 +1792,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "Anisotropía del cuarto carril"
+    }
+  },
+  "the-home-pose": {
+    "banner": "Elige una vista, mueve la cámara y luego elige Inicio para volver.",
+    "controls": {
+      "home": "Inicio",
+      "tower": "Torre",
+      "square": "Plaza",
+      "hillside": "Ladera"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Avanza el plano cercano y observa cómo corta cada pared.",
+    "controls": {
+      "nearPlane": "Plano cercano"
     }
   },
   "the-material-family": {
@@ -1868,6 +1999,7 @@
       "manifest": "manifiesto leído",
       "tables": "tablas de la escena leídas",
       "resources": "archivos de la escena",
+      "session": "abriendo la vista",
       "pages": "primeras páginas",
       "ready": "listo"
     }
@@ -2141,6 +2273,87 @@
     },
     "words": {
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Elige un alzado de la casa. Aleja la cámara: el dibujo ortográfico conserva exactamente la misma escala.",
+    "controls": {
+      "elevation": "Alzado",
+      "distance": "Distancia de cámara",
+      "zoom": "Escala del dibujo"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Frente",
+        "right": "Lado derecho",
+        "rear": "Parte trasera"
+      }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Pasa el cursor sobre las piezas del carro para resaltar cada una, o desactiva el resaltado en el panel.",
+    "controls": {
+      "highlightEnabled": "Activar resaltado"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pausa el travelling, repite el recorrido o cambia su velocidad mientras la cámara avanza por el canal.",
+    "controls": {
+      "paused": "En pausa",
+      "replay": "Repetir",
+      "speed": "Velocidad"
+    },
+    "readouts": {
+      "progress": "Progreso"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Arrastra para examinar la esquina. El compilador fusionó tres archivos OBJ de una carpeta en esta escena.",
+    "controls": {
+      "visible": "Visible",
+      "home": "Inicio"
+    },
+    "words": {
+      "credit": "Modelo de farola de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Arrastra la caja por el suelo. Activa el ajuste para colocarla en pasos de medio metro.",
+    "controls": {
+      "snap": "Ajustar",
+      "home": "Inicio"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Haz clic en una forma para seleccionarla. Haz clic en el suelo para borrar la selección.",
+    "controls": {
+      "color": "Color",
+      "thickness": "Grosor"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Arrastra para rodear el campo. Cambia la cantidad o la vista.",
+    "controls": {
+      "count": "Cantidad",
+      "view": "Vista"
+    },
+    "readouts": {
+      "objectsShown": "Objetos visibles",
+      "objectsBuilt": "Objetos creados"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagen",
+        "clusters": "clústeres"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Monta o desmonta el visor. Cada montaje posee un mundo y cada retirada lo libera.",
+    "controls": {
+      "mount": "Montar",
+      "unmount": "Desmontar",
+      "remount": "Volver a montar"
     }
   }
 }

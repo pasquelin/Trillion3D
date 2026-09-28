@@ -2,12 +2,10 @@
 // Measurement benchmark common to all batches. One command, no server to start manually:
 //   node bench/runner/bench.ts --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
 //        --vues generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
-// All options described in `README.md`.
-// Harness writes `mesure.json`, `resume.md` and one PNG per view, per threshold and per side, plus
-// A/A witness capture. A field is `null` when not measured: nothing is inferred.
-// Everything it launches — static server, Chromium — it stops, including on error.
-// NO SERIOUS TIMING IS PROMISED HERE: harness records durations and machine load at start/end
-// of each series. Caller judges if machine was quiet.
+// All options in `README.md`. Writes `mesure.json`, `resume.md` and one PNG per view, threshold and
+// side, plus A/A capture. `null` = not measured, never inferred; a black capture is an error.
+// Everything it launches it stops, including on error. NO SERIOUS TIMING IS PROMISED HERE: it
+// records machine load at each series boundary. Caller judges if the machine was quiet.
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
@@ -16,7 +14,8 @@ import { launchChrome } from './chrome.ts';
 import * as options from './options.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
 import { readBounds } from './page.ts';
-import { imageDiff, resume } from './summary.ts';
+import { resume } from './summary.ts';
+import { imageDiff, refuseBlackCaptures } from './imageDiff.ts';
 import { benchLights } from './lamps.ts';
 import { measurementProvenance } from './report/provenance.ts';
 import { recordInputs, recordCuts } from './report/evidence.ts';
@@ -97,6 +96,7 @@ async function main() {
     report.provenance.browser = browser.version();
     const page = await browser.newPage({
       viewport: { width: settings.width, height: settings.height },
+      deviceScaleFactor: settings.dpr,
     });
     page.on('pageerror', (e) =>
       report.errors.push({ kind: 'pageerror', message: String(e.message) }),
@@ -120,7 +120,7 @@ async function main() {
     report.limits = await onFreshPage((page) => readLimits(page, options.sdkEntryUrl(sides[0])));
     if (!readsCache(scene)) {
       report.fluids = await runFluids(sides, onFreshPage, settings, OUT, captures);
-      return await publish(report, sides);
+      return await publish(report, sides, captures);
     }
     report.bounds = await onFreshPage((page) =>
       page.evaluate(readBounds, {
@@ -169,21 +169,21 @@ async function main() {
         serie.ecartAvantApres = files.avant
           ? imageDiff(captures.get(files.avant), captures.get(files.apres))
           : null;
-        const avant = serie.sides.avant,
-          apres = serie.sides.apres;
+        const { avant, apres } = serie.sides;
         serie.coupeIdentique =
           avant && apres ? avant.selection.sha256 === apres.selection.sha256 : null;
       }
   } finally {
     await new Promise((done) => server.close(done));
   }
-  await publish(report, sides);
+  await publish(report, sides, captures);
 }
 
 /** Writes `mesure.json` and `resume.md`, and says where. */
-async function publish(report: Report, sides: Side[]) {
+async function publish(report: Report, sides: Side[], captures: Map<string, Capture>) {
   report.finishedAt = new Date().toISOString();
-  recordCuts(report, sides, OUT);
+  refuseBlackCaptures(report.errors, captures);
+  await recordCuts(report, sides, OUT);
   await writeFile(join(OUT, 'mesure.json'), JSON.stringify(report, null, 1));
   const appendix = [...limitsLines(report.limits), ...fluidsLines(report.fluids)];
   await writeFile(join(OUT, 'resume.md'), [resume(report), ...appendix].join('\n'));

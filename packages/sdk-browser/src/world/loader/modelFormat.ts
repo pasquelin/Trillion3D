@@ -1,5 +1,5 @@
 import { EngineError } from '../../../../sdk-core/src/index.ts';
-import { checked } from '../../cluster/pages.ts';
+import { checked } from '../../cluster/checked.ts';
 
 /** What a model resource is, read from its content: never from its extension. */
 export type ModelFormat = 'manifest' | 'gltf' | 'glb' | 'obj' | 'unknown';

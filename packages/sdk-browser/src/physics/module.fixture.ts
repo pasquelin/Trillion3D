@@ -8,9 +8,11 @@ import {
   MISS,
   type PhysicsBudget,
 } from '../../../sdk-core/src/physics/index.ts';
+import { HUMAN_BODY } from '../../../sdk-core/src/collision/characterSettings.ts';
 import type { Ray } from '../../../sdk-core/src/world/math/volumes.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { createPhysicsBodies } from './bodies.ts';
+import { createCharacterDriver } from './characterDriver.ts';
 import { openJolt, startJolt } from './joltModule.ts';
 import { physicsRaycast, type PhysicsRaycastOptions } from './raycast.ts';
 import type { PhysicsSession } from './session.ts';
@@ -29,49 +31,37 @@ export async function startModule(
   const jolt = startJolt(opened, full, pool?.count ?? 1);
   /** A diagnostic count the module keeps since it started: the joints some work has visited. */
   const count = (name: string) => () => (opened.exports[name] as () => number)();
-  /** By the gear linking, the step's path carry and the step's breaking (`jolt_*_visits`). */
+  /** By the gear linking, the step's path carry, the step's breaking, and the bodies placed
+   *  against the view (`jolt_*_visits`). */
   const visits = {
     link: count('jolt_link_visits'),
     path: count('jolt_path_visits'),
     break: count('jolt_break_visits'),
+    place: count('jolt_place_visits'),
   };
-  return { ...jolt, visits };
+  /** The module's own exports and memory, for a test that writes its buffers itself. */
+  return { ...jolt, visits, raw: opened };
+}
+
+/** One of the threaded module's threads run in a Node worker. */
+export function nodeThread(start: JoltThreadStart) {
+  const loader = new URL('./joltThreads.ts', import.meta.url).href;
+  return new NodeWorker(
+    `import(${JSON.stringify(loader)}).then((m) => m.runJoltThread(require('node:worker_threads').workerData))`,
+    { eval: true, workerData: start },
+  );
 }
 
 /** The threaded module stepped by `count` threads (Node workers); `close` stops them. */
 export async function startThreaded(count: number, budget: Partial<PhysicsBudget> = {}) {
   const threads: NodeWorker[] = [];
-  const loader = new URL('./joltThreads.ts', import.meta.url).href;
-  const spawn = (start: JoltThreadStart) =>
-    threads.push(
-      new NodeWorker(
-        `import(${JSON.stringify(loader)}).then((m) => m.runJoltThread(require('node:worker_threads').workerData))`,
-        { eval: true, workerData: start },
-      ),
-    );
+  const spawn = (start: JoltThreadStart) => threads.push(nodeThread(start));
   const jolt = await startModule(budget, { count, spawn });
   return { jolt, threads, close: () => Promise.all(threads.map((thread) => thread.terminate())) };
 }
 
 /** A started test module. */
 export type Module = Awaited<ReturnType<typeof startModule>>;
-
-/** A box body for the ADD command: engine id `id`, a motion, its height and half size. */
-export const body = (id: number, motion: number, y: number, half: number, flags = 0) => ({
-  id,
-  motion,
-  layer: motion === 0 ? 0 : 1,
-  shape: 0 as const,
-  flags,
-  position: [0, y, 0],
-  quaternion: [0, 0, 0, 1],
-  size: [half, half, half] as const,
-  mass: 0,
-  density: 600,
-  friction: 0.5,
-  restitution: 0,
-  gravityScale: 1,
-});
 
 /** The last step's events: `[type, a, b, impulse]` each. */
 export function events(jolt: Module) {
@@ -102,4 +92,17 @@ export function moduleRaycast(jolt: Module, bodies: ReturnType<typeof createPhys
   };
   return (ray: Ray, options: PhysicsRaycastOptions) =>
     physicsRaycast(session as unknown as PhysicsSession, ray, options, 1000);
+}
+
+/** The human character made standing at `feet` in `jolt`, in the one step that adds the bodies
+ *  `words` writes: its driver, read once. */
+export function standCharacter(jolt: Module, words: Uint32Array, feet: number[]) {
+  const driver = createCharacterDriver();
+  const made = driver.configure({ ...HUMAN_BODY }, feet)!;
+  const all = new Uint32Array(words.length + made.length);
+  all.set(words);
+  all.set(made, words.length);
+  jolt.step(all, 0);
+  driver.read(jolt.character(), 0);
+  return driver;
 }

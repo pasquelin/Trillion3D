@@ -80,6 +80,7 @@ export function submitColorCopy(
   rt.sunFar.gpu?.submitted();
   rt.lights.cull?.counts.submitted();
   rt.lights.occlusion?.counts.submitted();
+  rt.lights.tiles?.submitted();
   settleShadowRequests(rt, true);
   // Every encode path has sent what its rows need before it submits: the image that leaves consumed
   // the row change, whether it drew rows or had none to draw (#198).
@@ -91,19 +92,27 @@ export function submitColorCopy(
     timing.frameSelection = undefined;
     settle?.(true);
   }
-  rt.diag.traceDiagnostic('encoding-submit', 'Commandes WebGPU soumises', () => ({
-    frame: run.frame,
-    submission: run.imageRevision,
-    pose: run.lastCamera ? enginePose(run.gate.cam) : null,
-    width,
-    height,
-    drawCalls: run.gpuDrawCalls,
-    // Synchronous cut count, held where the hole is: nothing here waits for the GPU count readback,
-    // so the guard that hid it covered nothing.
-    drawnTriangles: run.drawnTriangles,
-    transparent: { drawCalls: run.blendDrawCalls, submittedTriangles: run.blendSubmittedTriangles },
-    presentation: capture.capturing ? 'surface-capture' : context.gpuCanvas ? 'direct' : 'composed',
-  }));
+  if (rt.diag.traceEnabled)
+    rt.diag.traceDiagnostic('encoding-submit', 'Commandes WebGPU soumises', () => ({
+      frame: run.frame,
+      submission: run.imageRevision,
+      pose: run.lastCamera ? enginePose(run.gate.cam) : null,
+      width,
+      height,
+      drawCalls: run.gpuDrawCalls,
+      // Synchronous cut count, held where the hole is: nothing here waits for the GPU count readback,
+      // so the guard that hid it covered nothing.
+      drawnTriangles: run.drawnTriangles,
+      transparent: {
+        drawCalls: run.blendDrawCalls,
+        submittedTriangles: run.blendSubmittedTriangles,
+      },
+      presentation: capture.capturing
+        ? 'surface-capture'
+        : context.gpuCanvas
+          ? 'direct'
+          : 'composed',
+    }));
   if (timing.gpuTiming?.isSampled(encoder))
     timing.gpuTiming.submitted(encoder, {
       submission: run.imageRevision,

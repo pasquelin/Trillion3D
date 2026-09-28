@@ -1,14 +1,20 @@
+import { reflectionPipelines } from '../../reflections/pipelines.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
-import { createDeferredLayouts } from './setup.ts';
+import { createDeferredLightingLayout } from './setup.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts';
 import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts';
 import type { ComposeInput } from './shaders.ts';
 import { makeFullscreenPipeline } from './fullscreen.ts';
+import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts';
+import { createCompositions, type CompositionSources } from './compositions.ts';
+import type { FusedBlend } from '../../effects/webgpuEffects.ts';
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. */
 export interface DirectLightResources {
+  /** The declared lights, grown with the scene: the one buffer a contract program reads them from. */
+  lights?: GPUBuffer;
   tiles?: GPUBuffer;
   /** Shadow records and page table, and the buffer the resolve records its shadow reads in. */
   slices?: GPUBuffer;
@@ -24,19 +30,18 @@ export interface DirectLightResources {
 }
 export interface DeferredSources {
   lighting: string;
-  /** One composition per input it reads the as-is share from (`AS_IS_READ`). */
-  compose: Record<ComposeInput, string>;
+  compose: CompositionSources;
   label: string;
   direct: boolean;
   bounce?: boolean;
 }
-/** What composition reads: a colour and its accumulated share, else the lit image's flags. */
-export type ComposedImage = { color: GPUTextureView; share?: GPUTextureView };
+/** What composition reads: a colour and its accumulated share, else the lit image's flags, and
+ *  the chain's last blend when it left it to the composition (#963). */
+export type ComposedImage = { color: GPUTextureView; share?: GPUTextureView; bloom?: FusedBlend };
 /** What the temporal pass resolves: the colour, and each pixel's as-is share beside it. */
-export type AccumulatedImage = Required<ComposedImage>;
+export type AccumulatedImage = Required<Omit<ComposedImage, 'bloom'>>;
 export interface DeferredBindings {
   uniform: GPUBuffer;
-  directLights: GPUBuffer;
   placeholders: {
     tiles: GPUBuffer;
     slices: GPUBuffer;
@@ -65,69 +70,52 @@ export async function createDeferredProgram(
     sources.lighting,
     `${sources.label}_LIGHTING`,
   );
-  const layouts = createDeferredLayouts(device, sources.direct, sources.bounce);
-  const make = makeFullscreenPipeline,
-    hdr = { format: 'rgba16float' as const },
-    display = { format: 'rgba8unorm' as const };
-  const light = await make(device, lighting, layouts.lighting, 'lightSurface', [hdr]);
-  /** The composition of one input: into the capture target, or into it and the canvas at once. */
-  const compile = async (input: ComposeInput) => {
-    const label = `${sources.label}_COMPOSE_${input.toUpperCase()}`;
-    const module = await createCheckedShaderModule(device, sources.compose[input], label);
-    const layout = layouts.composition[input];
-    return {
-      layout,
-      draw: await make(device, module, layout, 'compose', [display]),
-      present: await make(device, module, layout, 'composePresent', [
-        display,
-        { format: 'bgra8unorm' },
-      ]),
-    };
-  };
-  const compositions = {
-    still: await compile('still'),
-    accumulated: await compile('accumulated'),
-  };
-  let boundSurface: SurfaceBuffer | undefined,
-    boundTiles: GPUBuffer | undefined,
-    boundAtlas: GPUTextureView | undefined,
-    boundTransmittance: GPUTextureView | undefined,
-    boundRequests: GPUBuffer | undefined,
-    boundProbes: GPUBuffer | undefined,
-    boundProxy: GPUBuffer | undefined,
+  const lightingLayout = createDeferredLightingLayout(device, sources.direct, sources.bounce);
+  const light = await makeFullscreenPipeline(device, lighting, lightingLayout, 'lightSurface', [
+    { format: 'rgba16float' },
+  ]);
+  const reflection = sources.direct
+    ? await reflectionPipelines(device, sources.lighting, lightingLayout, !!sources.bounce)
+    : undefined;
+  const compositions = await createCompositions(device, sources.compose, sources.label);
+  /** What the light group names: rebuilt when one of them is replaced (`bindIdentity.ts`). */
+  let identity = createWebgpuBindIdentity(),
+    boundSurface: SurfaceBuffer | undefined,
     boundHdr: GPUTextureView | undefined,
     /** The bound surface's flags: the share the lit image is composed with. */
     boundFlags: GPUTextureView | undefined,
     lightGroup: GPUBindGroup | undefined;
   // One per colour and share read, weakly keyed by every view it reads: nothing to reset.
-  type Composition = { group: GPUBindGroup; draw: GPURenderPipeline; present: GPURenderPipeline };
+  type Composition = { group: GPUBindGroup; input: ComposeInput };
   let composed = new WeakMap<GPUTextureView, WeakMap<GPUTextureView, Composition>>();
   return {
     light,
+    reflection,
     get lightGroup() {
       return lightGroup;
     },
-    /** The pipelines and group reading the lit image and its surface flags, or `image` and its
-     *  as-is share; `undefined` before `bind`. */
-    composition(image?: ComposedImage) {
+    compositions,
+    /** The group reading the lit image and its surface flags, or `image` and its as-is share,
+     *  and the input its pipelines compose (`compositions`); `undefined` before `bind`. A frame
+     *  that reads no as-is share (`asIs` false, OMB-11) binds the colour alone. */
+    composition(image?: ComposedImage, asIs = true) {
       const view = image?.color ?? boundHdr,
-        share = image?.share ?? boundFlags;
+        // The flagless group is kept under its colour: no share view is ever a colour one.
+        share = asIs ? (image?.share ?? boundFlags) : view;
       if (!view || !share || !boundSurface) return undefined;
       let byShare = composed.get(view);
       if (!byShare) composed.set(view, (byShare = new WeakMap()));
       const kept = byShare.get(share);
       if (kept) return kept;
       // A colour without its own share (the effect chain's, no TAA) reads the lit image's flags.
-      const { layout, draw, present } = compositions[image?.share ? 'accumulated' : 'still'];
-      const group = device.createBindGroup({
-        layout,
-        entries: [
-          { binding: 0, resource: view },
-          { binding: 1, resource: { buffer: bindings.uniform } },
-          { binding: 2, resource: share },
-        ],
-      });
-      const composition = { group, draw, present };
+      const input = !asIs ? 'flagless' : image?.share ? 'accumulated' : 'still';
+      const entries: GPUBindGroupEntry[] = [
+        { binding: 0, resource: view },
+        { binding: 1, resource: { buffer: bindings.uniform } },
+      ];
+      if (asIs) entries.push({ binding: 2, resource: share });
+      const group = device.createBindGroup({ layout: compositions.layouts[input], entries });
+      const composition = { group, input } as const;
       byShare.set(share, composition);
       return composition;
     },
@@ -138,7 +126,8 @@ export async function createDeferredProgram(
       direct: DirectLightResources,
     ) {
       const { placeholders } = bindings;
-      const tiles = direct.tiles ?? placeholders.tiles,
+      const lights = direct.lights,
+        tiles = direct.tiles ?? placeholders.tiles,
         slices = direct.slices ?? placeholders.slices,
         atlas = direct.atlas ?? placeholders.atlasView,
         transmittance = direct.transmittance?.view ?? placeholders.transmittanceView,
@@ -147,32 +136,27 @@ export async function createDeferredProgram(
         probes = direct.probes,
         proxy = direct.proxy ?? placeholders.proxy;
       boundHdr = hdr;
-      if (
-        boundSurface === surface &&
-        boundTiles === tiles &&
-        boundAtlas === atlas &&
-        boundTransmittance === transmittance &&
-        boundRequests === requests &&
-        boundProbes === probes &&
-        boundProxy === proxy
-      )
-        return;
+      const { next } = identity;
+      next[0] = surface;
+      next[1] = lights;
+      next[2] = tiles;
+      next[3] = atlas;
+      next[4] = transmittance;
+      next[5] = requests;
+      next[6] = probes;
+      next[7] = proxy;
+      if (!identity.moved()) return;
       boundSurface = surface;
       boundFlags = surface.views()[3];
-      boundTiles = tiles;
-      boundAtlas = atlas;
-      boundTransmittance = transmittance;
-      boundRequests = requests;
-      boundProbes = probes;
-      boundProxy = proxy;
       const entries: GPUBindGroupEntry[] = [
         ...surface.views().map((resource, binding) => ({ binding, resource })),
         { binding: 4, resource: depth },
         { binding: 5, resource: { buffer: bindings.uniform } },
       ];
-      if (sources.direct)
+      if (sources.direct) {
+        if (!lights) throw new Error('the contract program binds no declared-light buffer');
         entries.push(
-          { binding: 6, resource: { buffer: bindings.directLights } },
+          { binding: 6, resource: { buffer: lights } },
           { binding: 7, resource: { buffer: tiles } },
           { binding: 8, resource: { buffer: slices } },
           { binding: 9, resource: atlas },
@@ -183,17 +167,18 @@ export async function createDeferredProgram(
           { binding: CONTRACT_SHADOW_BINDINGS.transmittance, resource: transmittance },
           { binding: CONTRACT_SHADOW_BINDINGS.translucentDepth, resource: translucentDepth },
         );
+      }
       if (sources.bounce && direct.bounceGrid && direct.probes && direct.surfaceCache)
         entries.push(
           { binding: 11, resource: { buffer: direct.bounceGrid } },
           { binding: 12, resource: { buffer: direct.probes } },
           { binding: BOUNCE_SURFACE_BINDING, resource: { buffer: direct.surfaceCache } },
         );
-      lightGroup = device.createBindGroup({ layout: layouts.lighting, entries });
+      lightGroup = device.createBindGroup({ layout: lightingLayout, entries });
     },
     release() {
-      boundSurface = boundTiles = boundAtlas = boundTransmittance = undefined;
-      boundRequests = boundProbes = boundProxy = boundHdr = boundFlags = lightGroup = undefined;
+      identity = createWebgpuBindIdentity();
+      boundSurface = boundHdr = boundFlags = lightGroup = undefined;
       composed = new WeakMap();
     },
   };

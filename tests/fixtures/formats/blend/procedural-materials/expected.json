@@ -65,11 +65,11 @@
       "normalsComputed": 1,
       "textures": 1
     },
-    "formatVersion": 8,
+    "formatVersion": 10,
     "notes": [],
     "plugin": {
       "name": "blend",
-      "version": "blend-sdna-attributes-flate2-1.1.10-ruzstd-0.7.3-gltf-10"
+      "version": "blend-sdna-layouts-scoped-flate2-1.1.10-ruzstd-0.7.3-gltf-11"
     },
     "unsupported": {
       "blend-emission-clamped": 1

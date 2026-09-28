@@ -13,14 +13,19 @@ import {
 } from '../../webgpu/tile/wgsl.ts';
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { FLAG_BLEND_CASTER } from '../../visibility/types.ts';
-import { BLEND_TRANSMITTANCE_WGSL, TRANSMITTANCE_CLEAR_WGSL } from './transmittance.ts';
+import { BLEND_TRANSMITTANCE_WGSL } from './transmittance.ts';
 
 /**
  * Shadow depth passes. Group 0 is that of the visibility-buffer raster, but for one binding:
  * same page table, same cluster selection, same indirect buffer. Only the matrix changes, and
  * it comes from group 1 with a dynamic offset — one face per offset.
  *
- * The depth's fragment stage writes nothing: it exists only to discard. An opacity-mask material —
+ * The depth's fragment stage writes nothing: it exists only to discard, and only where something can
+ * be discarded (#965). The cull files each region's casters in two lists (`KEPT_LISTS_WGSL`): the
+ * opaque ones are drawn by `shadow_depth_vs` with no fragment stage — early depth, no fragment
+ * invocation —, unless the face carries an emitter envelope, then by `shadow_vs` with it; the
+ * cutout ones by `shadow_cutout_vs` with it. All three place a corner through `shadowVertex`, whose
+ * position is `@invariant`: the depth is the same whichever draws it. An opacity-mask material —
  * foliage, grille, lattice — casts the shadow of its cutout and not the full silhouette of its
  * cluster, because the mask test is the raster's (`MASK_KEEP_WGSL`), read at the map level the
  * shadow texel asks for — its derivatives, not the camera's.
@@ -50,7 +55,7 @@ ${PAGE_BINDING.slotOffsets}
 struct ShadowView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,}
 @group(1) @binding(0) var<uniform> shadow:ShadowView;
 @group(2) @binding(0) var shadowOpaque:texture_depth_2d;
-struct ShadowOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,}
+struct ShadowOut{@invariant @builtin(position) position:vec4f,@location(0) @interpolate(flat) instance:u32,@location(1) uv:vec2f,@location(2) fromEmitter:vec3f,}
 ${PAGE_LOOKUP_WGSL}
 ${PAGE_GEOMETRY_WGSL}
 ${TILE_POOL_WGSL}
@@ -58,11 +63,10 @@ ${COLOR_SAMPLE_WGSL}
 ${maskAlphaWgsl(true)}
 ${MASK_KEEP_WGSL}
 ${BLEND_TRANSMITTANCE_WGSL}
-/** A caster's corner, or none when its row is not of the kind drawn: \`blended\` casters alone
- *  into the transmittance layer, the others alone into the depth. */
-fn shadowVertex(vertexIndex:u32,instanceIndex:u32,blended:bool)->ShadowOut{
+/** Corner \`vertexIndex\` of page-table row \`pageIndex\`, or none when its row is not of the kind
+ *  drawn: \`blended\` casters alone into the transmittance layer, the others alone into the depth. */
+fn shadowVertex(vertexIndex:u32,pageIndex:u32,blended:bool)->ShadowOut{
  var out:ShadowOut;
- let pageIndex=drawPage(instanceIndex);
  let page=pages[pageIndex];
  out.instance=pageIndex;out.uv=vec2f(0.0);out.fromEmitter=vec3f(0.0);
  let kind=(page.flags&${FLAG_BLEND_CASTER}u)!=0u;
@@ -77,11 +81,20 @@ fn shadowVertex(vertexIndex:u32,instanceIndex:u32,blended:bool)->ShadowOut{
  if((page.flags&4u)!=0u){out.uv=pageUv(page,h,id);}
  return out;
 }
+/** Row of a region's \`i\`-th cutout caster: its list runs from the slot's end down, and the slot
+ *  table holds one offset more than regions, the end of the last. */
+fn cutoutPage(i:u32)->u32{return instances[slotOffsets[uni.drawSlot+1u]-1u-i];}
 @vertex fn shadow_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
- return shadowVertex(vertexIndex,instanceIndex,false);
+ return shadowVertex(vertexIndex,drawPage(instanceIndex),false);
+}
+@vertex fn shadow_depth_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->@invariant @builtin(position) vec4f{
+ return shadowVertex(vertexIndex,drawPage(instanceIndex),false).position;
+}
+@vertex fn shadow_cutout_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
+ return shadowVertex(vertexIndex,cutoutPage(instanceIndex),false);
 }
 @vertex fn shadow_blend_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
- return shadowVertex(vertexIndex,instanceIndex,true);
+ return shadowVertex(vertexIndex,drawPage(instanceIndex),true);
 }
 /** False on the emitter envelope and on a cutout's hole: what no caster keeps. */
 fn shadowKeep(in:ShadowOut,gx:vec2f,gy:vec2f)->bool{
@@ -107,13 +120,4 @@ fn shadowHiddenByOpaque(p:vec4f)->bool{
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
  if(!shadowKeep(in,gx,gy)||shadowHiddenByOpaque(in.position)){discard;}
  return blendTransmittance(pages[in.instance],in.uv,gx,gy);
-}
-/** The transmittance of a page cleared: all the light, no translucent caster. */
-@fragment fn shadow_clear_fs()->@location(0) vec4f{
- return ${TRANSMITTANCE_CLEAR_WGSL};
-}
-/** Resets the slice to FAR without clearing the rest of the atlas. Face depth is reverse-Z
- *  like the camera's (\`../../camera/depthConvention.ts\`): far is zero. */
-@vertex fn shadow_clear_vs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{
- return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);
 }`;

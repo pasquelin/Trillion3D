@@ -1,4 +1,22 @@
 {
+  "brushed-metal": {
+    "banner": "Rode para observar os reflexos escovados. Altere a força e a direção.",
+    "controls": {
+      "anisotropy": "Força da escovagem",
+      "direction": "Direção da escovagem",
+      "roughness": "Rugosidade",
+      "spin": "Rodar"
+    }
+  },
+  "car-paint-under-clear-coat": {
+    "banner": "Rode em volta do carro. Altere a pintura e o verniz.",
+    "controls": {
+      "paint": "Pintura",
+      "clearCoat": "Verniz",
+      "coatRoughness": "Rugosidade do verniz",
+      "spin": "Rodar"
+    }
+  },
   "kit": {
     "panel": {
       "controls": "Ajustes"
@@ -36,10 +54,12 @@
       "engine CPU": "CPU do motor"
     },
     "failure": {
-      "title": "Este exemplo parou por causa de um erro"
+      "title": "Este exemplo parou por causa de um erro",
+      "missingCache": "O cache compilado está ausente: execute pnpm compile:caches"
     },
     "banner": {
-      "close": "Fechar"
+      "close": "Fechar",
+      "waiting": "À espera do motor (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -309,6 +329,13 @@
       "roof": "Telhado"
     }
   },
+  "soft-shadows-from-a-wide-lamp": {
+    "banner": "Arraste para girar. Mude a largura da lâmpada e observe as bordas das sombras.",
+    "controls": {
+      "lampWidth": "Largura da lâmpada",
+      "moveSubject": "Mover objeto"
+    }
+  },
   "a-softbox-panel": {
     "banner": "Arraste para andar em volta. Aumente o painel de luz para suavizar o brilho.",
     "controls": {
@@ -474,6 +501,32 @@
       "balloon": "SEGUINDO O BALÃO"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Assista à rota gravada pelo parque. Reproduza, pare ou assuma a câmera.",
+    "controls": {
+      "replay": "Reproduzir",
+      "stop": "Parar"
+    },
+    "readouts": {
+      "currentPart": "Parte atual"
+    },
+    "words": {
+      "entrance": "Entrada",
+      "pond": "Lago",
+      "bridge": "Ponte",
+      "pavilion": "Pavilhão",
+      "overview": "Visão geral",
+      "complete": "Concluído"
+    }
+  },
+  "a-crane-that-swings": {
+    "banner": "Gire à volta do guindaste enquanto um clipe roda a lança, move o carro, eleva a carga e a deixa balançar.",
+    "controls": {
+      "speed": "Velocidade",
+      "paused": "Em pausa",
+      "replay": "Repetir"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Arraste para olhar em volta. Deixe a onda de cubos mais alta ou mais rápida.",
     "controls": {
@@ -482,6 +535,34 @@
       "ripples": "Ondulações",
       "inner": "Dentro",
       "outer": "Fora"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Mova a câmera em direção às portas. Elas se abrem quando você se aproxima.",
+    "controls": {
+      "mode": "Modo",
+      "openingDistance": "Distância de abertura",
+      "openness": "Abertura"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "proximidade",
+        "manual": "manual"
+      }
+    }
+  },
+  "a-carousel": {
+    "banner": "Gire em torno do carrossel. Pause ou envie os cavalos de madeira para o outro lado.",
+    "controls": {
+      "running": "Em movimento",
+      "speed": "Velocidade",
+      "direction": "Direção"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "sentido horário",
+        "counterclockwise": "sentido anti-horário"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -535,6 +616,17 @@
       "lamp": "Lâmpada",
       "colour": "Cor",
       "bricks": "Tijolos"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Clique em duas superfícies para medir a distância entre elas. Um terceiro clique inicia uma nova medição. Uma unidade representa um metro.",
+    "controls": {
+      "clear": "Limpar"
+    },
+    "readouts": {
+      "pointA": "Ponto A",
+      "pointB": "Ponto B",
+      "distance": "Distância"
     }
   },
   "click-to-pick": {
@@ -941,7 +1033,11 @@
     "banner": "Arraste para olhar em volta. Marque Conduzir para pegar o carro: W ou ↑ acelera, S ou ↓ trava, A D ou ← → viram. Soltar faz cair de novo as caixas e as bolas.",
     "words": {
       "credit": "Vale modelado em código para este exemplo, CC0 — ver assets/examples/CREDITS.md",
-      "refused": "Recusado neste backend"
+      "refused": "Recusado neste backend",
+      "close": "Close-up",
+      "far": "Vista distante",
+      "pan": "Panorâmica rápida",
+      "still": "Parado"
     },
     "controls": {
       "drive": "Conduzir o carro",
@@ -1227,6 +1323,25 @@
         "lod": "níveis de detalhe",
         "clusters": "clusters"
       }
+    }
+  },
+  "a-walk-through-the-city": {
+    "banner": "Clique na vista, caminhe com W A S D e olhe com o rato. Reduza a memória enquanto avança.",
+    "controls": {
+      "walkSpeed": "Velocidade",
+      "memory": "Memória",
+      "view": "Vista",
+      "home": "Voltar ao início"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagem",
+        "lod": "níveis de detalhe",
+        "clusters": "clusters"
+      }
+    },
+    "words": {
+      "credit": "Avenida de urnas modelada em código para este exemplo, CC0 — veja assets/examples/CREDITS.md"
     }
   },
   "migrating-from-three": {
@@ -1631,7 +1746,8 @@
       "night": "Noite",
       "bounce": "Reflexo",
       "sun": "Sol",
-      "lamp": "Lâmpada"
+      "lamp": "Lâmpada",
+      "spin": "Rodar"
     },
     "words": {
       "credit": "Modelo de poste de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"
@@ -1676,6 +1792,21 @@
     },
     "readouts": {
       "fourthLaneAnisotropy": "Anisotropia da quarta pista"
+    }
+  },
+  "the-home-pose": {
+    "banner": "Escolha uma vista, mova a câmera e depois escolha Início para voltar.",
+    "controls": {
+      "home": "Início",
+      "tower": "Torre",
+      "square": "Praça",
+      "hillside": "Encosta"
+    }
+  },
+  "the-near-plane-cuts-a-wall": {
+    "banner": "Avance o plano próximo e veja-o cortar cada parede.",
+    "controls": {
+      "nearPlane": "Plano próximo"
     }
   },
   "the-material-family": {
@@ -1868,6 +1999,7 @@
       "manifest": "manifesto lido",
       "tables": "tabelas da cena lidas",
       "resources": "arquivos da cena",
+      "session": "abrindo a vista",
       "pages": "primeiras páginas",
       "ready": "pronto"
     }
@@ -2141,6 +2273,87 @@
     },
     "words": {
       "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Escolha uma elevação da casa. Afaste a câmera: o desenho ortográfico mantém exatamente a mesma escala.",
+    "controls": {
+      "elevation": "Elevação",
+      "distance": "Distância da câmera",
+      "zoom": "Escala do desenho"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Frente",
+        "right": "Lado direito",
+        "rear": "Fundos"
+      }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Passe o cursor sobre as peças do carrinho para realçar cada uma, ou desative o realce no painel.",
+    "controls": {
+      "highlightEnabled": "Ativar realce"
+    }
+  },
+  "a-dolly-along-the-canal": {
+    "banner": "Pause o travelling, repita o percurso ou mude a velocidade enquanto a câmera segue pelo canal.",
+    "controls": {
+      "paused": "Pausado",
+      "replay": "Repetir",
+      "speed": "Velocidade"
+    },
+    "readouts": {
+      "progress": "Progresso"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Arraste para examinar a esquina. O compilador reuniu três arquivos OBJ de uma pasta nesta cena.",
+    "controls": {
+      "visible": "Visível",
+      "home": "Início"
+    },
+    "words": {
+      "credit": "Modelo de poste de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Arraste a caixa pelo chão. Ative o ajuste para posicioná-la em passos de meio metro.",
+    "controls": {
+      "snap": "Ajustar",
+      "home": "Início"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Clique numa forma para selecioná-la. Clique no chão para limpar a seleção.",
+    "controls": {
+      "color": "Cor",
+      "thickness": "Espessura"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Arraste para orbitar o campo. Altere a quantidade ou a vista.",
+    "controls": {
+      "count": "Quantidade",
+      "view": "Vista"
+    },
+    "readouts": {
+      "objectsShown": "Objetos exibidos",
+      "objectsBuilt": "Objetos criados"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagem",
+        "clusters": "clusters"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Monte ou desmonte o visualizador. Cada montagem possui um mundo e cada remoção o descarta.",
+    "controls": {
+      "mount": "Montar",
+      "unmount": "Desmontar",
+      "remount": "Montar novamente"
     }
   }
 }

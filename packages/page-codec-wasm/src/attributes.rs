@@ -1,7 +1,8 @@
-//! Streams of a page and their unpacking into one block of words: the mirror of `decodeGeometryPage`.
+//! Streams of a page and the block of words they unpack into (`unpack.rs`).
 
-use crate::bits::{bits_for, dequant, field, oct_decode, stream_words, Quant};
-use crate::{Header, PageError, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1, HEADER_BYTES};
+use crate::bits::stream_words;
+use crate::triangles::CornerCode;
+use crate::{Header, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1, HEADER_BYTES};
 
 /// Presence bit and float width of each optional attribute, in stream order: normal, uv, uv1,
 /// colour. Position, three floats wide, precedes them in a decoded page.
@@ -73,8 +74,9 @@ impl core::fmt::Debug for DecodedPage {
 /// the widths, so the header stores no offset and a reader trusts none.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Layout {
-    pub index_bits: u32,
-    pub indices: usize,
+    pub corners: CornerCode,
+    /// The block table then the corner stream (`triangles.rs`).
+    pub triangles: [usize; 2],
     pub position: [usize; 3],
     pub normal: usize,
     pub uv: [usize; 2],
@@ -86,7 +88,7 @@ pub struct Layout {
 
 impl Layout {
     pub fn of(h: &Header) -> Self {
-        let index_bits = bits_for(h.vertex_count.saturating_sub(1) as u32);
+        let corners = CornerCode::of(h.vertex_count, h.index_count, h.corner_bits);
         let mut at = 0usize;
         let mut stream = |present: bool, count: usize, bits: u32| {
             let start = at;
@@ -95,7 +97,10 @@ impl Layout {
             }
             start
         };
-        let indices = stream(true, h.index_count, index_bits);
+        let triangles = [
+            stream(true, corners.blocks, corners.record_bits()),
+            stream(true, corners.bits, 1),
+        ];
         let position = h.position.bits.map(|b| stream(true, h.vertex_count, b));
         let normal = stream(h.flags & FLAG_NORMAL != 0, h.vertex_count, 16);
         let uv =
@@ -110,8 +115,8 @@ impl Layout {
             .bits
             .map(|b| stream(h.flags & FLAG_COLOR != 0, h.vertex_count, b));
         Self {
-            index_bits,
-            indices,
+            corners,
+            triangles,
             position,
             normal,
             uv,
@@ -125,66 +130,4 @@ impl Layout {
     pub fn bytes(&self) -> usize {
         HEADER_BYTES.saturating_add(self.words.saturating_mul(4))
     }
-}
-
-/// One dequantized vector attribute into `out`: component `c` of vertex `i` sits at bit
-/// `i * bits[c]` of stream `c`. A component of zero width reads its minimum for every vertex.
-/// The header's bounds keep every value finite: a 24-bit field on the coarsest grid adds at
-/// most 2^88 to a finite minimum, which rounds back into the float's range.
-fn vector<const N: usize>(out: &mut [u32], words: &[u32], starts: [usize; N], record: &Quant<N>) {
-    let step = record.step();
-    for c in 0..N {
-        let bits = record.bits[c];
-        let base = starts[c] * 32;
-        for (i, vertex) in out.as_chunks_mut::<N>().0.iter_mut().enumerate() {
-            let q = field(words, base + i * bits as usize, bits);
-            vertex[c] = dequant(record.min[c], q, step).to_bits();
-        }
-    }
-}
-
-/// Indices first, all checked before a single float is written, then the attributes in stream order.
-pub fn split(words: &[u32], h: &Header) -> Result<DecodedPage, PageError> {
-    let layout = Layout::of(h);
-    let n = h.vertex_count;
-    let mut out = vec![0u32; h.decoded_bytes() / 4];
-    let (indices, mut rest) = out.split_at_mut(h.index_count);
-    for (i, index) in indices.iter_mut().enumerate() {
-        *index = field(
-            words,
-            layout.indices * 32 + i * layout.index_bits as usize,
-            layout.index_bits,
-        );
-        if *index as usize >= n {
-            return Err(PageError::Index);
-        }
-    }
-    let mut take = |width: usize| {
-        let (head, tail) = core::mem::take(&mut rest).split_at_mut(n * width);
-        rest = tail;
-        head
-    };
-    vector(take(3), words, layout.position, &h.position);
-    if h.flags & FLAG_NORMAL != 0 {
-        for (i, normal) in take(3).as_chunks_mut::<3>().0.iter_mut().enumerate() {
-            let unit = oct_decode(field(words, layout.normal * 32 + i * 16, 16));
-            *normal = unit.map(f32::to_bits);
-        }
-    }
-    if h.flags & FLAG_UV != 0 {
-        vector(take(2), words, layout.uv, &h.uv);
-    }
-    if h.flags & FLAG_UV1 != 0 {
-        vector(take(2), words, layout.uv1, &h.uv1);
-    }
-    if h.flags & FLAG_COLOR != 0 {
-        vector(take(4), words, layout.color, &h.color);
-    }
-    Ok(DecodedPage {
-        words: out,
-        vertex_count: n,
-        index_count: h.index_count,
-        flags: h.flags,
-        quantization_error: h.quantization_error,
-    })
 }

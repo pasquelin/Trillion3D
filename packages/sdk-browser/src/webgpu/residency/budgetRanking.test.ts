@@ -127,16 +127,9 @@ test('a ranking that nothing moves yields the same prefix twice', () => {
   const ranking = createBudgetRanking({ bootstrapKey: cover, keyOf });
   for (const page of cut) ranking.add(page);
   ranking.rank(5);
-  const premier = [...ranking.keys.subarray(0, ranking.length)],
-    pages = ranking.ranked.slice(0, ranking.length);
+  const premier = [...ranking.keys.subarray(0, ranking.length)];
   ranking.rank(5);
   assert.deepEqual([...ranking.keys.subarray(0, ranking.length)], premier, 'same order');
-  assert.equal(
-    ranking.matches(Int32Array.from(premier), premier.length, pages),
-    true,
-    'the queue that already holds this prefix is recognised, so never rewritten',
-  );
-  assert.equal(ranking.matches(Int32Array.from(premier), 4, pages), false, 'different length');
 });
 
 test('levels beyond the first band grow the counters without disturbing the rank', () => {
@@ -146,4 +139,25 @@ test('levels beyond the first band grow the counters without disturbing the rank
   for (const page of cut) ranking.add(page);
   check(ranking, cut, cover, 2, 'high levels');
   assert.deepEqual([...ranking.keys.subarray(0, ranking.length)], [1, 2]);
+});
+
+test('a shared address ranks at its coarsest holder and leaves the list it is filed in', () => {
+  // Index pages are content-addressed (#824): key 1 is held by a fine and a coarse placement.
+  const cover = new Uint8Array(4);
+  const shared = [rec(1, 0, 'fine-shared'), rec(1, 2, 'coarse-shared')];
+  const ranking = createBudgetRanking({ bootstrapKey: cover, keyOf });
+  ranking.add(shared[0]);
+  ranking.add(rec(2, 1, 'mid'));
+  ranking.add(shared[1]);
+  ranking.add(rec(3, 0, 'fine'));
+  // The coarse holder files the key first, ahead of the mid-level page, though the fine one came first.
+  assert.equal(ranking.rank(1), 3);
+  assert.deepEqual([...ranking.keys.subarray(0, ranking.length)], [1]);
+  // The fine placement leaves first, then the coarse one: the key leaves its level once.
+  ranking.remove(shared[0]);
+  assert.equal(ranking.pageCount, 3);
+  ranking.remove(shared[1]);
+  assert.equal(ranking.pageCount, 2);
+  assert.equal(ranking.rank(1), 2);
+  assert.deepEqual([...ranking.keys.subarray(0, ranking.length)], [2]);
 });

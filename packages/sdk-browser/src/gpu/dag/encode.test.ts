@@ -48,11 +48,30 @@ test('every light view of a frame shares one traversal: the same commands as one
   const flat = (noyau: string) => lancements.filter((l) => l.noyau === noyau).map((l) => l.groupes);
   assert.deepEqual(flat('dagPrepare'), [1], 'one thread per slot: two primitives × three views');
   assert.deepEqual(
-    [...flat('dagLevel0'), ...flat('dagLevel1'), ...flat('dagLevel2')].sort(),
+    [
+      ...flat('dagRootLevel'),
+      ...flat('dagLevel0'),
+      ...flat('dagLevel1'),
+      ...flat('dagLevel2'),
+    ].sort(),
     [1, 1, 2, 8, 16].sort(),
     'stages [2, 9, 40, 150, 600] per view, three views, capped at 1000 queued nodes',
   );
   const noyaux = lancements.map((l) => l.noyau);
   assert.ok(!noyaux.includes('dagClearDrawn') && !noyaux.includes('dagDrawPrefix'));
+  assert.ok(!noyaux.includes('dagSortRequests'), 'a light cut sorts its requests on the host');
   assert.ok(noyaux.indexOf('dagViewOffsets') < noyaux.indexOf('dagMask'));
+});
+
+test('the camera cut sorts its requests once, then lists its evictions, one workgroup each', () => {
+  for (const residentCut of [true, false]) {
+    const { encoder, lancements } = encodeurTemoin();
+    encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(residentCut));
+    const last = residentCut ? ['dagSortRequests', 'dagListEvictions'] : ['dagSortRequests'];
+    assert.deepEqual(
+      lancements.slice(-last.length),
+      last.map((noyau) => ({ noyau, groupes: 1 })),
+    );
+    assert.equal(lancements.filter((l) => l.noyau === 'dagSortRequests').length, 1);
+  }
 });

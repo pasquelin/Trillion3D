@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { repaintHostGraph, type BeautyMaterials } from './graphDiagnostic.ts';
 import { hashId } from '../../diagnostic/colors.ts';
 import { triangleGeometry } from '../../diagnostic/triangleDiagnostic.ts';
+import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
+import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type {
   HostDiagnosticFactory,
   HostDiagnosticGeometry,
@@ -35,17 +37,13 @@ function hostGeometry(count: number, tag: string) {
   return {
     tag,
     attributes: { position: { count } },
+    morphAttributes: {},
     dispose() {},
   } as unknown as HostDiagnosticGeometry & { tag: string };
 }
-function hostMesh(id: number, material: HostDiagnosticMesh['material'], count = 6) {
-  return {
-    kind: 'mesh' as const,
-    id,
-    material,
-    geometry: hostGeometry(count, `g${id}`),
-    userData: {} as Record<string, unknown>,
-  } satisfies HostDiagnosticMesh & { kind: 'mesh' };
+/** The core's mesh, as the engine builds it, wearing the fake geometry `g<n>` and `material`. */
+function hostMesh(n: number, material: HostDiagnosticMesh['material'], count = 6) {
+  return new Mesh(hostGeometry(count, `g${n}`) as unknown as Geometry, material);
 }
 function hostScene(...meshes: HostDiagnosticMesh[]): HostScene {
   return {

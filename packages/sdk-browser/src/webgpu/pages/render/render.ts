@@ -9,7 +9,7 @@ import { holdWebgpuFrame } from '../../frame/hold.ts';
 import { sizeShadowPool } from '../../shadow/poolSize.ts';
 import { requestFrameTargets } from '../prepare/targetGrant.ts';
 import { pumpResidentTiles } from '../prepare/lightResources.ts';
-import { refreshBlendWorlds } from '../../blend/worlds.ts';
+import { refreshBlendBoxes } from '../../blend/hierarchy.ts';
 import { refreshBlendScene } from '../../blend/resources.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { followLiveTextures } from '../io/memory.ts';
@@ -20,7 +20,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   const { run, gpu, vis, capture, context, blendState } = rt,
     { source } = rt.setup,
     gpuDevice = gpu.device,
-    { selectionRoots, rows } = rt.layout;
+    { rows } = rt.layout;
   if (capture.capturing && !capture.surfaceRenderAllowed) throw new Error('SURFACE_CAPTURE_BUSY');
   if (context.signal?.aborted) context.signal.throwIfAborted();
   if (run.lost) throw new Error('WEBGPU_LOST');
@@ -38,7 +38,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
     run.motion,
     rt.setup.viewport,
     source,
-    () => [...selectionRoots.map((root) => root.pages[0]), ...blendState.blendGpu],
+    rt.watchedSources,
     aspect,
   );
   sizeShadowPool(rt);
@@ -85,7 +85,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   // A transparent item READS the world matrix of its source mesh: nothing is to be copied. Only
   // its world box, which is a computation, is remade — and only when the scene has changed matrices.
   if (worldsMoved && gpuDevice) {
-    refreshBlendWorlds(blendState.blendGpu);
+    refreshBlendBoxes(blendState);
     // Records, boxes and the plan follow the scene, not the camera: it is here, and nowhere in
     // the image, that the transparent list is walked again.
     refreshBlendScene(rt, gpuDevice);
@@ -107,7 +107,13 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   run.hizPyramidFresh = false;
   run.gpuMetricsReady = false;
   if (run.gpuSelection?.failed()) fallbackToCpuCut(rt, 'selection readback failed');
-  if (!capture.capturing && run.gpuSelection?.residentCut && vis.gpuDraw && vis.visEnabled) {
+  // The GPU cut is the main view's: a view drawn aside — a capture's — draws the CPU cut.
+  if (
+    rt.views.active === rt.views.main &&
+    run.gpuSelection?.residentCut &&
+    vis.gpuDraw &&
+    vis.visEnabled
+  ) {
     if (!renderGpuCut(rt, cam, pixelError, cpuStart, lightsEnd)) renderWebgpuPages(rt, camera);
   } else renderCpuCut(rt, cam, pixelError, cpuStart, lightsEnd);
 }

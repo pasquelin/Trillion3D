@@ -43,16 +43,20 @@ export type ComposedChain = {
  * (`../../effects/webglEffects.ts`); the copy kept is the chain's image, and a chain changed
  * since it was kept is drawn again. The page's `guides` are drawn over the image the destination
  * got, the chain's included, before that copy is kept, at the host's `pixelRatio`; a change to
- * them spares no redraw. The world's `particles` step on every image drawn here, and an image
- * they moved in is drawn, never the kept copy (`../../particles/webglParticles.ts`).
+ * them spares no redraw. The world's `particles` step before, and draw over the engine's image
+ * before the chain, on every image drawn here: when they move, the image is drawn, never kept
+ * (`../../particles/webglParticles.ts`). A refusal never fails the session: the pools are
+ * refused by name, `particlesRefused` hearing why once, and the frame goes on without them.
  * Nothing here belongs to a rendering library.
  */
 export function createFrameComposer(
   gl: WebGL2RenderingContext,
   camera: HostCamera,
-  layers: { effects?: ComposedChain; particles?: readonly ParticlePool[] } & (
-    { guides?: undefined } | { guides: GuideSet; pixelRatio: () => number }
-  ) = {},
+  layers: {
+    effects?: ComposedChain;
+    particles?: readonly ParticlePool[];
+    particlesRefused?: (reason: string) => void;
+  } & ({ guides?: undefined } | { guides: GuideSet; pixelRatio: () => number }) = {},
 ) {
   const { effects: composed, particles = [] } = layers;
   const heldFrame = createHeldFrame(gl);
@@ -76,6 +80,8 @@ export function createFrameComposer(
     background: [0, 0, 0],
   };
   let keptRevision = 0;
+  /** True when the kept frame shows particles: never put back, pools let go since included. */
+  let keptParticles = false;
   /** The engine's background, sRGB-encoded like everything the destinations store. */
   const encode = (background: SceneColour) => {
     const { r, g, b } = background?.isColor ? background : { r: 0, g: 0, b: 0 };
@@ -125,7 +131,7 @@ export function createFrameComposer(
     if (present(backend)) return;
     const moved = anyMoving(particles);
     // Made by the first pool, then run with none left too: it frees a released pool's targets.
-    if (particles.length) stepped ??= createWebglParticles(gl);
+    if (particles.length) stepped ??= createWebglParticles(gl, layers.particlesRefused);
     if (stepped?.run(particles)) bindWebglTarget(gl, target);
     const revision = composed?.chain.revision ?? 0;
     const guidesHeld = !layers.guides || layers.guides.revision === guidesDrawn;
@@ -133,6 +139,7 @@ export function createFrameComposer(
       reuse &&
       guidesHeld &&
       !moved &&
+      !keptParticles &&
       backend.frameHeld === true &&
       !target &&
       heldFrame.holds(width, height) &&
@@ -157,6 +164,7 @@ export function createFrameComposer(
     encode(backend.scene.background as SceneColour);
     if (!linear) clear();
     backend.drawHostGeometry(readHostDrawCamera(drawCamera, camera), output);
+    stepped?.draw(particles, drawCamera, output);
     if (linear) {
       display.toneMapped = output.toneMapped;
       display.toneCurve = TONE_MAPPING_RANK[output.toneMapping];
@@ -171,9 +179,10 @@ export function createFrameComposer(
     if (target) return;
     heldFrame.keep(width, height);
     keptRevision = revision;
+    keptParticles = moved;
   };
-  /** Bytes of the chain's targets on this context. */
-  compose.effectBytes = () => effects?.bytes ?? 0;
+  /** Bytes of the chain's targets and the particles' depth copy on this context. */
+  compose.effectBytes = () => (effects?.bytes ?? 0) + (stepped?.bytes() ?? 0);
   compose.dispose = () => {
     present.dispose();
     heldFrame.dispose();

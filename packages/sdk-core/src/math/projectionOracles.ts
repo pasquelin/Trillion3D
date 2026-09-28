@@ -1,18 +1,6 @@
 // Mathematical oracles and reference algorithms for Trillion3D: pure TypeScript, no DOM
 // and no platform dependency.
 
-/** Dot product of two vectors of the same dimension. */
-export function dot(left: readonly number[], right: readonly number[]): number {
-  if (left.length !== right.length) {
-    throw new Error('Incompatible dimensions');
-  }
-  let sum = 0;
-  for (let i = 0; i < left.length; i++) {
-    sum += left[i] * right[i];
-  }
-  return sum;
-}
-
 /**
  * Largest factor by which a 3x3 linear map can stretch a distance: its largest singular value,
  * obtained in closed form from the symmetric matrix A^T A. A rotation reports exactly 1.

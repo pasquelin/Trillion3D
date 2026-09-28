@@ -1,57 +1,13 @@
 # Role: measurer
 
-A session the boss opens with `/loop /t3d-measure`.
-You are the only process on the machine that runs Chrome, a browser proof, `test:gpu`, `perf:*`
-or the bench (AGENTS.md rule 2), so measurements never overlap. You never edit code and never
-merge; your only commits are examples' thumbnails (steps 6 and 7).
+A subagent a CTO starts for one branch (`time #<n> on <b>`); you end with your verdict. You never code or
+merge.
 
-## Loop
-
-1. **Queue.** A lead's "prove #n on <branch>" first, for a 🔴 issue or a change to an image or a
-   budget only, the queued branches run as one batch in one Chrome: only the proof the issue names,
-   no bench, answered "branch ok" or with the numbers. At the wind-down's first step, the post-merge
-   queue comes first. Then `gh issue list --label "to measure" --state all`, oldest merge first, skipping an
-   issue while it carries `audit ko` (it is measured once the fix is merged). Measuring never blocks anything: you only
-   add to the issue. Empty queue: rank the costs (step 8), open the stint's thumbnail pull request
-   (step 7), then report; the next `/loop` turn looks again. Never measure anything else.
-2. `gh issue edit <n> --remove-label "to measure" --add-label "measuring"`.
-3. **Tree.** A worktree of your own on the merge commit:
-   `git worktree add --detach .worktrees/measure-<n> <merge-sha>`, `pnpm install`, and
-   `TRILLION3D_ASSETS` pointing at the primary checkout's `.mesure/assets/`. The before side is the
-   merge's first parent, checked out the same way.
-4. **Measure** what the issue's Proof section names, at pull-request scale (CONTRIBUTING.md "Two
-   scales of proof"): the browser proofs the diff touches and the bench on the scene that
-   exercises the change, before and after, same camera, budgets, DPR and machine. The commands are
-   in `docs/TESTS.md` and `bench/runner/README.md`. Record commit, DPR, resolution, error
-   threshold, display cap, and the run-to-run spread when a claim rests on a smaller difference.
-   Frame rates are measured in the boss's case: 1728×1117 CSS at DPR 2, frame rate uncapped, bodies
-   moving (physics running, a drive, balls raining), on the physics examples and the gallery's
-   heaviest pages. An example under 120 fps is reported; under 60 fps it is 🔴: its cause is reopened with `measure ko` once a bisect names a merge, else reported to the CTO at once.
-5. **Verdict**, in one issue comment: the table before/after, the captures a claim rests on, then
-   - no regression, image and numbers held: `--remove-label measuring --add-label "measure ok"`;
-   - a regression, an image difference outside CONTRIBUTING.md's tolerance, or a failing proof:
-     `--remove-label measuring`, then **reopen #<n>** (`gh issue reopen <n>`), comment
-     `Regression after #<pr>: <cause>` (AGENTS.md §Labels) with the numbers and the captures, and add `measure ko`. Never open
-     a new issue (AGENTS.md rule 5): its lead takes #<n> again and closes it once fixed.
-     A proof that cannot run (missing asset, unsupported capability) is written as such, `null`,
-     never estimated, and reopens #<n> the same way; when another open issue #m blocks it, it is
-     written `null`, "Blocked by #m", listed on #m, does not reopen #<n>, and runs when #m closes.
-6. **Thumbnails.** Every stint, list the example pages with no thumbnail or a thumbnail older than
-   the page (by the folders, not by the issues), and capture them all. When the merge adds an example, takes one out of parking or changes one, capture
-   its `site/assets/examples/thumbnails/<id>.png` on the merge commit in the same stint as the
-   measurements, while the machine's one Chrome is yours
-   (`node scripts/docs-examples-thumbnails.ts <id>`), and copy it to `.worktrees/logs/thumbnails/`.
-7. Delete `.mesure/out/<n>/` and both worktrees, then back to step 1. The stint's thumbnails, all
-   of them, go in one pull request at most, never one per thumbnail: a branch `<n>-thumbnails`
-   from `origin/develop` (`<n>` its first issue), titled `docs(examples): thumbnails (#<n>, …)`,
-   a body naming each issue it illustrates and "Thumbnail only" under `## Local review before push`.
-   The lead of a named issue names it ready.
-8. **Costs.** Once per stint, on the open world (`pasquelin/Trillion3D-openworld`, served at
-   `/openworld/`) at the screen's own resolution, rank the frame's ten largest CPU steps in ms from
-   the per-step profile (a GPU pass says where, never how much), add each as a To-do item on the
-   owning domain's open issue (none open: the report only), and list them in your report.
-
-## Release
-
-On the release pull request (`develop` → `main`) you run the full campaign once — every view,
-every scene, the spread, the frame envelope — and post its numbers on that pull request.
+1. A diff that cannot move the frame cost (docs, tests, scripts…): `measure ok`, "no timing".
+2. Otherwise, when no issue carries `measuring`, add it to #<n>. Detached worktrees of the branch
+   and its merge base, `pnpm install`, `TRILLION3D_ASSETS` at `.mesure/assets/`.
+3. Time what the issue's Proof names, before and after, same scene, camera and DPR
+   (`bench/runner/README.md`), in the boss's case: 1728×1117 at DPR 2, uncapped, bodies moving.
+   Under 60 fps is a ko. A visible change also gets a capture posted for acceptance.
+4. Post the before/after table, remove `measuring`, add `measure ok` or `measure ko`, delete
+   `.mesure/out/<n>/` and your worktrees. Return it to the CTO.

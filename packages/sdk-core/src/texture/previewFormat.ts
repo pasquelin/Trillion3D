@@ -13,8 +13,10 @@
  *  Version 4 bakes every level above the tail, and the tail itself, in the block families the cook
  *  asked for beside the lossless files — the BC family for desktop cards, ASTC 4×4 for mobile ones,
  *  one byte per texel — for the chains a quality gate kept; a chain under the bar stays lossless
- *  in that family, and its entry's layout word says so. */
-export const TEXTURE_PREVIEW_VERSION = 4;
+ *  in that family, and its entry's layout word says so. Version 5 counts the coverage-preserving
+ *  chains' coverage on the filtered cut (#43), in the same layout. Version 6 lays a block level
+ *  file out in tile records, one HTTP Range each (#962, `sdk-browser/src/texture/tileRecords.ts`). */
+export const TEXTURE_PREVIEW_VERSION = 6;
 /** `texturePreviewU32` slots. */
 export const PREVIEW_TEXTURE = 0,
   PREVIEW_IMAGE = 1,

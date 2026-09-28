@@ -1,11 +1,13 @@
 import { maxStretch, worldToRenderOrigin } from '../../../../sdk-core/src/index.ts';
+import { translationToRenderOrigin } from '../../../../sdk-core/src/math/primitives/renderOrigin.ts';
 import { REQUEST_PAGE_MAX } from './request.ts';
 import { SELECTION_NONE as NONE } from '../core/selection.ts';
 import { DAG_NODE_FLOATS, type DagCutLinks, type DagRoot, type PackedDag } from './types.ts';
 import { linksFor } from '../../page/cut/links.ts';
 import { cullingBoundsFor, packCullingNodes } from './packNodes.ts';
 import { flatHierarchy, hierarchyLevelSizes } from './hierarchy.ts';
-import { CLUSTER_WORDS, COLD_WORDS, coldBase } from './layout.ts';
+import { CLUSTER_WORDS, COLD_WORDS, coldBase, keyBase } from './layout.ts';
+import { writeKeyColumn } from './evict.ts';
 import { createRecordTable } from './packRecords.ts';
 
 /**
@@ -121,6 +123,7 @@ export function packDagSelection(roots: readonly DagRoot[]): PackedDag {
   const clusters = new Float32Array(recordSlots * CLUSTER_WORDS),
     pageCones = new Float32Array(coldAt + recordSlots * COLD_WORDS);
   new Uint32Array(pageCones.buffer).set(pageWorlds);
+  writeKeyColumn(roots, new Uint32Array(pageCones.buffer), keyBase(clusterCount));
   records.finish(clusters, pageCones, coldAt);
   return {
     kind: 'dag',
@@ -169,4 +172,19 @@ export function rootWorldsToRenderOrigin(
 ) {
   for (let w = 0; w < roots.length; w++)
     worldToRenderOrigin(worlds, roots[w].world.elements, origin, w * 16);
+}
+
+/**
+ * The same loop when only the origin moved since the last `rootWorldsToRenderOrigin` into
+ * `worlds`, the roots unchanged: the three translation numbers of each root, the only ones that
+ * depend on the origin, rewritten by the same subtraction — the buffer ends bit for bit as a full
+ * rebase would leave it.
+ */
+export function rootTranslationsToRenderOrigin(
+  worlds: Float32Array,
+  roots: readonly DagRoot[],
+  origin: ArrayLike<number>,
+) {
+  for (let w = 0; w < roots.length; w++)
+    translationToRenderOrigin(worlds, roots[w].world.elements, origin, w * 16);
 }

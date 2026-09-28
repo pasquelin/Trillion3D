@@ -1,3 +1,4 @@
+import type { ScreenReflection } from '../../../reflections/gpu.ts';
 import type { HostAttribute, HostAttributes } from '../../../host/resources.ts';
 import type { createGpuPageCache } from '../../../gpu/page/pages.ts';
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../core/bindIdentity.ts';
@@ -25,7 +26,7 @@ export interface WebgpuGpuState {
   pipelineBack: GPURenderPipeline | undefined;
   pipelineBackCw: GPURenderPipeline | undefined;
   pipelineNone: GPURenderPipeline | undefined;
-  pipelineBlend: ModePipelines<GPURenderPipeline> | undefined;
+  pipelineBlend: ModePipelines | undefined;
   colorTexture: GPUTexture | undefined;
   depthTexture: GPUTexture | undefined;
   colorView: GPUTextureView | undefined;
@@ -40,6 +41,7 @@ export interface WebgpuGpuState {
    *  blends, and the depth its surfaces write. A 1×1 texel while the scene carries no transmissive
    *  surface — the binding then exists without costing anything. */
   backdrop: TransmissionBackdrop | undefined;
+  reflection?: ScreenReflection;
   surfaces: SurfaceBuffer | undefined;
   /** The last adopted sample exceeded the ceiling: the image cannot use it. */
   cutTruncated: boolean;
@@ -94,7 +96,7 @@ export interface WebgpuGpuState {
   particles: WebgpuParticles | undefined;
 }
 
-/** The frozen colour the water composite rereads, and the depth its surface stage tests and
+/** The frozen colour the water composite rereads and the depth its surface stage tests and
  *  writes, with their views (`../../transparent/transmission.ts`). */
 export interface TransmissionBackdrop {
   color: GPUTexture;

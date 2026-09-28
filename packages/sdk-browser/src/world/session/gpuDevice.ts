@@ -2,20 +2,33 @@ import { WEBGPU_REQUIRED_LIMITS } from '../../backend/common.ts';
 import { BLOCK_FEATURES } from '../../texture/blockFormats.ts';
 
 /**
- * The WebGPU device of a session: every optional feature the engine can use that the adapter
- * offers — instanced indirect draws, GPU timestamps, and the block-compressed texture formats
- * the cache bakes for it — and the adapter's own limits. A feature the adapter lacks is not
- * requested, and the engine publishes its absence where it matters (`texturePoolFormat`,
- * `gpuTiming`), never guesses it.
+ * Every optional feature the engine can use, in request order: instanced indirect draws, GPU
+ * timestamps, subgroups (the light tiles' depth bounds), 16-bit shader floats, and the
+ * block-compressed texture formats the cache bakes. A kernel that uses one branches on the
+ * device's own `features` and keeps its plain path as the fallback when it is absent; the session
+ * publishes what the device got (`grantedGpuFeatures`), never guesses it.
  */
-export async function requestExplorerDevice(adapter: GPUAdapter) {
-  const features: GPUFeatureName[] = [];
-  const optional: GPUFeatureName[] = [
-    'indirect-first-instance',
-    'timestamp-query',
-    ...Object.values(BLOCK_FEATURES),
-  ];
-  for (const feature of optional) if (adapter.features.has(feature)) features.push(feature);
+const OPTIONAL_GPU_FEATURES: readonly GPUFeatureName[] = [
+  'indirect-first-instance',
+  'timestamp-query',
+  'subgroups',
+  'shader-f16',
+  ...Object.values(BLOCK_FEATURES),
+];
+
+/**
+ * The WebGPU device of a session: the optional features the adapter offers, minus those the host
+ * URL's test switch `trillion3dGpuFeaturesOff=subgroups,shader-f16` names (the fallback's proof on
+ * a machine that has them), and the adapter's own limits.
+ */
+export async function requestExplorerDevice(
+  adapter: GPUAdapter,
+  search = typeof location === 'undefined' ? '' : location.search,
+) {
+  const off = new URLSearchParams(search).get('trillion3dGpuFeaturesOff')?.split(',') ?? [];
+  const features = OPTIONAL_GPU_FEATURES.filter(
+    (feature) => adapter.features.has(feature) && !off.some((name) => name.trim() === feature),
+  );
   const adapterLimits = adapter.limits;
   const requiredLimits: Record<string, number> = {};
   for (const name of WEBGPU_REQUIRED_LIMITS) {
@@ -24,3 +37,7 @@ export async function requestExplorerDevice(adapter: GPUAdapter) {
   }
   return adapter.requestDevice({ requiredFeatures: features, requiredLimits });
 }
+
+/** The optional features `device` was granted, in request order: what the session publishes. */
+export const grantedGpuFeatures = (device: GPUDevice) =>
+  OPTIONAL_GPU_FEATURES.filter((feature) => device.features.has(feature));

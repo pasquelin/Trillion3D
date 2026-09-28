@@ -1,5 +1,5 @@
 import type { ResidencyChanges } from '../core/selection.ts';
-import { RESIDENCY_RANGE_MAX, coalesceResidencyRanges } from '../../webgpu/residency/ranges.ts';
+import { RESIDENCY_RULE, coalesceRanges } from '../../webgpu/residency/ranges.ts';
 import { childBase, residentBase, residentWords } from './layout.ts';
 import { grown } from '../../page/cut/sparseInts.ts';
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts';
@@ -61,7 +61,7 @@ export function createDagResidencyUpload(resources: {
   );
   /** Words or nodes the last apply changed, and the ranges that cover them. */
   let touched = new Int32Array(8);
-  const ranges = new Int32Array(RESIDENCY_RANGE_MAX * 2);
+  const ranges = new Int32Array(RESIDENCY_RULE.cap * 2);
   const changed = { pages: new Int32Array(8), count: 0, sorted: true };
   const sets = [
     { values: readiness.isReady, base: residentBase(pageCount) },
@@ -76,7 +76,7 @@ export function createDagResidencyUpload(resources: {
     stride: number,
     count: number,
   ) => {
-    const spans = coalesceResidencyRanges(touched, count, ranges);
+    const spans = coalesceRanges(touched, count, ranges, RESIDENCY_RULE);
     for (let r = 0; r < spans; r++) {
       const from = (base + ranges[r * 2] * stride) * 4,
         bytes = (ranges[r * 2 + 1] - ranges[r * 2] + 1) * stride * 4;
