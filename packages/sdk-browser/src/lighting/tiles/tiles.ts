@@ -42,10 +42,13 @@ export async function createGpuLightTiles(device: GPUDevice) {
   const subgroups = device.features.has('subgroups');
   // The wide pass, then the narrow one (`LIGHT_TILES_SHADERS`).
   const modules = await Promise.all(
-    [0, 2].map((narrow) => {
-      const [label, code] = LIGHT_TILES_SHADERS[+subgroups + narrow];
-      return createCheckedShaderModule(device, code, label);
-    }),
+    [0, 2].map((narrow) =>
+      createCheckedShaderModule(
+        device,
+        LIGHT_TILES_SHADERS[+subgroups + narrow][1],
+        LIGHT_TILES_SHADERS[+subgroups + narrow][0],
+      ),
+    ),
   );
   const layout = device.createBindGroupLayout({
     entries: [
