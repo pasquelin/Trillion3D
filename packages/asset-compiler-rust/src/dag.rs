@@ -170,7 +170,7 @@ pub(crate) mod attributes;
 pub(crate) mod border;
 pub(crate) mod bounds;
 mod build;
-mod charts;
+pub(crate) mod charts;
 pub(crate) mod clusters;
 mod culling;
 mod diagnosis;

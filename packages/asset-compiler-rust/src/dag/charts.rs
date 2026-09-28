@@ -48,7 +48,7 @@ pub(super) fn weighted<'a>(
 ) -> Vec<Attribute<'a>> {
     let (low, high) = cluster_bounds(input.positions, live);
     let extent = (0..3).map(|a| high[a] - low[a]).fold(0.0, f64::max);
-    let mut weighted = input.attributes.weighted();
+    let mut weighted = input.weighted.to_vec();
     let textures = weighted.iter_mut().filter(|a| a.width == 2);
     for (attribute, density) in textures.zip(densities) {
         let weight = density / extent;
@@ -117,7 +117,7 @@ pub fn on_mirror(sides: u8) -> bool {
 }
 
 /// The longest edge of `tri` over `positions`.
-pub(super) fn longest_edge(positions: &[f32], tri: &[u32; 3]) -> f64 {
+pub(crate) fn longest_edge(positions: &[f32], tri: &[u32; 3]) -> f64 {
     let [a, b, c] = tri.map(|v| point(positions, v));
     length(sub(b, a))
         .max(length(sub(c, b)))

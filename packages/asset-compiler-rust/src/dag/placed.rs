@@ -26,7 +26,7 @@ pub(super) struct Local<'r> {
     pub weld: Vec<u32>,
     pub extents: Vec<f64>,
     /// The group's live triangles, then the solve's, in the region's numbering.
-    pub source: Vec<u32>,
+    pub source: &'r [u32],
     pub indices: Vec<u32>,
     /// The largest step a placed texture coordinate took from the one it was solved from, clamp
     /// included, times its set's density: a distance on the surface, charged to the group's error
@@ -113,7 +113,7 @@ impl<'r> Local<'r> {
         let extents = (0..n as u32).chain(origin.iter().copied());
         Self {
             extents: extents.map(|i| input.extents[global(i)]).collect(),
-            source: region.compact.clone(),
+            source: &region.compact,
             drift,
             indices: solved.indices.iter().map(|&i| id[i as usize]).collect(),
             n,
