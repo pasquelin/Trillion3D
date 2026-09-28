@@ -52,8 +52,6 @@ pub fn build_dag_tallied(
     let mut grown: Option<Grown> = None;
     for level in 1..=DAG_MAX_LEVELS {
         checkpoint()?;
-        let (level_positions, carried) = Grown::arrays(&grown, positions, attributes);
-        let level_attributes = DagAttributes { carried: &carried };
         if current.len() < 2 {
             break;
         }
@@ -87,6 +85,11 @@ pub fn build_dag_tallied(
             .iter()
             .map(|g| g.iter().map(|&s| descent[current[s]]).fold(0.0, f64::max))
             .collect();
+        // The level reads the vertices placed so far; placing its own waits for every reduction.
+        let (level_positions, carried) = Grown::arrays(&grown, positions, attributes);
+        let base = (level_positions.len() / 3) as u32;
+        let level_attributes = DagAttributes { carried: &carried };
+        let weighted = level_attributes.weighted();
         let reductions: Vec<std::result::Result<GroupReduction, GroupOutcome>> = groups
             .par_iter()
             .zip(&worst)
@@ -96,14 +99,15 @@ pub fn build_dag_tallied(
                     let children: Vec<&DagCluster> =
                         group.iter().map(|&slot| &dag[current[slot]]).collect();
                     let bound = quality::deviation_bound(worst);
-                    let input = welds.input(level_positions, level_attributes, &locks, bound);
+                    let input =
+                        welds.input(level_positions, level_attributes, &weighted, &locks, bound);
                     reduce_group(&input, &children)
                 },
             )
             .collect::<Result<Vec<_>>>()?;
         let mut next = Vec::new();
         let mut tally = GroupTally::default();
-        let base = (level_positions.len() / 3) as u32;
+        drop(weighted);
         drop(carried);
         for ((group, reduction), &worst) in groups.iter().zip(reductions).zip(&worst) {
             let mut reduction = match reduction {
@@ -119,8 +123,14 @@ pub fn build_dag_tallied(
                     continue;
                 }
             };
-            let source = (positions, attributes);
-            Grown::place(&mut grown, source, &mut welds, &mut reduction, base);
+            Grown::place(
+                &mut grown,
+                positions,
+                attributes,
+                &mut welds,
+                &mut reduction,
+                base,
+            );
             let first_parent = dag.len();
             let group_index = reductions_kept.len();
             let mut children = Vec::with_capacity(group.len());

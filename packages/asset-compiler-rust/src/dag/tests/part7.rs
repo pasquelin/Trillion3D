@@ -52,9 +52,11 @@ fn reduced(
     let welds = attributes::Welds::of(positions, DagAttributes { carried: &carried }, indices);
     let locks = vec![locked; positions.len() / 3];
     let attributes = DagAttributes { carried: &carried };
+    let weighted = attributes.weighted();
     let input = welds.input(
         positions,
         attributes,
+        &weighted,
         &locks,
         quality::NORMAL_DEVIATION_BOUND,
     );
