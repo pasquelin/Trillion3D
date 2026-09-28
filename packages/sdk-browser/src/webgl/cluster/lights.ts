@@ -5,35 +5,25 @@ import { WebglClusterFog } from './fog.ts';
 import { sceneFogOf, type Fog } from '../../world/core/sceneFog.ts';
 import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
 import { isLightNode } from '../../host/graph/kinds.ts';
+import { shownChain } from '../../placement/hidden.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
-type MatrixNode = {
-  visible: boolean;
-  parent: MatrixNode | null;
-  matrixWorld: { elements: ArrayLike<number> };
-};
 /** The ambient irradiance a frame sums (r, g, b, and whether any ambient light counted), reused. */
 const AMBIENT = new Float64Array(4);
 
 /** A host scene background read by shape: a colour, in linear components, or anything else. */
 export type SceneColour = { isColor?: boolean; r: number; g: number; b: number } | null | undefined;
 export type WebglClusterScene = {
-  traverse(visitor: (entry: MatrixNode) => void): void;
+  traverse(visitor: (entry: object) => void): void;
   /** Host background: a colour clears the transmission backdrop, anything else clears to black. */
   background?: SceneColour | object;
   /** The contract's fog, over every drawn surface; none when absent. */
   fog?: Fog | null;
 };
 
-/** The kinds this path draws; a probe adds into the irradiance, the others take a slot. */
-const DRAWN = new Set(['directional', 'point', 'spot', 'rectArea', 'ambient', 'probe']);
-
-const visibleThroughParents = (object: MatrixNode) => {
-  for (let current: MatrixNode | null = object; current; current = current.parent)
-    if (!current.visible) return false;
-  return true;
-};
+/** The kinds that take a slot of this path; a probe adds into the irradiance instead. */
+const DRAWN = new Set(['directional', 'point', 'spot', 'rectArea', 'ambient']);
 
 export const unsupportedClusterLight = (scene: WebglClusterScene) => {
   let reason: string | undefined;
@@ -41,7 +31,7 @@ export const unsupportedClusterLight = (scene: WebglClusterScene) => {
     ambient = 0;
   scene.traverse((light) => {
     // A probe takes no light slot: its coefficients add into the program's irradiance.
-    if (!isLightNode(light) || light.kind === 'probe' || !visibleThroughParents(light)) return;
+    if (!isLightNode(light) || light.kind === 'probe' || !shownChain(light)) return;
     // A world's sky over a ground reaches this path as the environment's irradiance, a probe.
     if (!DRAWN.has(light.kind)) reason ??= `${light.kind} light is not drawn by the WebGL2 cluster path`;
     // The ambient lights share one slot: `upload` sums them into a single irradiance.
@@ -107,7 +97,7 @@ export class WebglClusterLights {
     lights.length = 0;
     const ambient = AMBIENT.fill(0);
     scene.traverse((light) => {
-      if (!isLightNode(light) || !visibleThroughParents(light)) return;
+      if (!isLightNode(light) || !shownChain(light)) return;
       if (light.kind === 'probe') return this.probe.add(light);
       if (light.kind !== 'ambient') return void lights.push(light);
       ambient[0] += light.color.r * light.intensity;

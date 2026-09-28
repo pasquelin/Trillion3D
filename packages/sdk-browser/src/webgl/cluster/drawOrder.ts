@@ -18,9 +18,9 @@ export type OrderedNode = Parameters<typeof depthOf>[0] & {
  * sorted by the comparators' own arithmetic: the same comparison results, hence the same stable
  * order, NaN, ±0 and ±Inf included (`drawOrder.test.ts`). A surface's number is still taken where
  * the comparison first asks for it, so the surfaces are numbered in the order they always were.
- * `screen` is the projection times the view.
+ * `screen` is the projection times the view; `serial` reads a node's creation number.
  */
-export function createDrawOrder() {
+export function createDrawOrder(serial: (node: OrderedNode) => number | undefined = serialOf) {
   const ranks = new WeakMap<object, number>();
   let nextRank = 0;
   // Reused from frame to frame: a sort allocates only when a list outgrows them.
@@ -72,7 +72,7 @@ export function createDrawOrder() {
       nodes[i] = node;
       depths[i] = depthOf(node, screen);
       orders[i] = node.renderOrder;
-      serials[i] = serialOf(node) ?? 0;
+      serials[i] = serial(node) ?? 0;
     }
     if (compare === frontToBack) surfaceRanks.fill(-1, 0, count);
     permutation.sort(compare);
