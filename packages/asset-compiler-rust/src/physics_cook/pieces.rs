@@ -45,8 +45,7 @@ fn draw(state: &mut u64) -> f64 {
 pub(super) fn pieces(
     o: &Options,
     (pos, triangles, mesh): (&[f32], &[u32], usize),
-    seed: u64,
-    scale: [f64; 3],
+    (seed, scale): (u64, [f64; 3]),
 ) -> Result<Vec<Value>> {
     let weight = |mass: &Value| mass["mass"].as_f64().unwrap_or_default();
     let whole = weight(&solid_mass(pos, triangles, scale, mesh)?);
@@ -58,7 +57,7 @@ pub(super) fn pieces(
         extend_aabb(&mut low, &mut high, p);
     }
     let eps = length(sub(high, low)) * 1e-6;
-    let planes = face_planes(pos, triangles, eps);
+    let planes = face_planes((pos, triangles), &corners, eps);
     let (mut state, mut seeds) = (seed, Vec::new());
     // A seed is a random mean of four corners: inside a convex mesh, whatever its shape.
     for _ in 0..ATTEMPTS {
@@ -77,20 +76,26 @@ pub(super) fn pieces(
             break;
         }
     }
-    let out: Vec<Value> = cells(&seeds, (low, high), &planes, eps / 10.0)
+    // Weighed before Jolt cooks and stores any: a refused body leaves no object behind.
+    let weighed: Vec<(Vec<f32>, Value)> = cells(&seeds, (low, high), &planes, eps / 10.0)
         .par_iter()
         .map(|faces| {
             let (pos, triangles) = welded(faces);
-            let mut shape = cooked_shape(o, &pos)?;
-            shape["mass"] = solid_mass(&pos, &triangles, scale, mesh)?;
-            Ok(shape)
+            let mass = solid_mass(&pos, &triangles, scale, mesh)?;
+            Ok((pos, mass))
         })
         .collect::<Result<_>>()?;
-    let total: f64 = out.iter().map(|piece| weight(&piece["mass"])).sum();
+    let total: f64 = weighed.iter().map(|(_, mass)| weight(mass)).sum();
     // No seed inside, or cells that miss part of the mesh: its planes bound less than it.
     if (total - whole).abs() > whole * MASS_TOLERANCE {
         let reason = "is not convex: a breakable body is cut from a convex mesh";
         return Err(refused(format!("Mesh {mesh} {reason}.")));
     }
-    Ok(out)
+    (weighed.into_par_iter())
+        .map(|(pos, mass)| {
+            let mut shape = cooked_shape(o, &pos)?;
+            shape["mass"] = mass;
+            Ok(shape)
+        })
+        .collect()
 }

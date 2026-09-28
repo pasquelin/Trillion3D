@@ -68,18 +68,11 @@ fn a_breakable_body_is_cut_into_weighed_pieces_beside_its_node() {
     let (bytes, stored) = cooked("broken", breakable.clone());
     assert_eq!(bytes, cooked("again", breakable).0);
     let [plain, broken]: [Value; 2] = [plain, bytes].map(|b| serde_json::from_slice(&b).unwrap());
-    assert_eq!(
-        (&plain["formatVersion"], &broken["formatVersion"]),
-        (&json!(2), &json!(3))
-    );
+    assert_eq!([&plain, &broken].map(|f| &f["formatVersion"]), [2, 3]);
     let mut entry = broken["bodies"][0].clone();
     assert_eq!(entry["breakable"], json!(5.0));
     let pieces = entry["pieces"].as_array().unwrap().clone();
-    assert_eq!(
-        pieces.len(),
-        PIECES,
-        "seeds drawn from mesh 0's corners alone"
-    );
+    assert_eq!(pieces.len(), PIECES, "seeds from mesh 0's corners");
     let stored = |p: &Value| stored.contains(&format!("{}.bin", p["sha256"].as_str().unwrap()));
     assert!(pieces.iter().all(|p| p["type"] == "cooked" && stored(p)));
     let kg = |p: &Value| p["mass"]["mass"].as_f64().unwrap();
