@@ -34,9 +34,9 @@ export function createImageCut(options: {
   // the drawn view's `desired` itself instead of being copied into it.
   const selectOptions = {
     pixelError: 0,
-    viewport: view.viewport,
+    viewport: undefined as [number, number] | undefined,
     held,
-    wanted: view.desired,
+    wanted: [] as PageRec[],
     result: createSelectionResult<PageRec>(),
   };
   // The pool the requests were last admitted to: another one — a new budget or root cover — is

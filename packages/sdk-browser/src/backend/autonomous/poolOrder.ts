@@ -25,7 +25,8 @@ export function createResidentOrder(env: {
   /** The views not drawn now: each `keep` holds what they ask for and draw too (`pool.ts`). */
   others?: readonly Pick<WebglViewState, 'requested' | 'shown'>[];
 }) {
-  const { state, drop, limit } = env;
+  const { state, drop, limit } = env,
+    others = env.others ?? [];
   const keys = createPageKeys();
   // Resident pages above the root cover; the released ones by last use; arrivals since the cut.
   const resident = new Set<string>(),
@@ -86,7 +87,7 @@ export function createResidentOrder(env: {
     entering.length = 0;
     enter(requested, previous);
     enter(shown, previous);
-    for (const view of env.others ?? []) {
+    for (const view of others) {
       enter(view.requested, previous);
       enter(view.shown, previous);
     }
