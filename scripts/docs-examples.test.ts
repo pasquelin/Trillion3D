@@ -9,6 +9,7 @@ import { markdownLinks } from './check-links.ts';
 import { loadReactComponents } from './docs/render-react.ts';
 import { modelScenes } from './docs/examples/models.ts';
 import { exampleModules, thumbnailDelay } from './docs/examples/capture.ts';
+import { examplePages } from './docs/examples/pages.ts';
 import exampleWords from '../site/examples/i18n/en.json' with { type: 'json' };
 import type { Example as ExampleComponent } from '../site/app/examples/Example.tsx';
 import type { ExampleList as ExampleListComponent } from '../site/app/layout/ExampleList.tsx';
@@ -101,14 +102,10 @@ test('every example is one standalone HTML file that imports the built engine', 
 
 test('every example page parses, so a slip that stops it before its first frame fails here', async () => {
   // #534: a name declared twice left the flight page blank, and no test read that part of it.
-  const pages = (await readdir(new URL('examples/', site))).filter((file) =>
-    file.endsWith('.html'),
-  );
+  const pages = await examplePages();
   assert.ok(pages.length >= written.length);
-  for (const page of pages)
-    await exampleModules(await readFile(new URL(`examples/${page}`, site), 'utf8')).catch(
-      (error: Error) => assert.fail(`${page}: ${error.message}`),
-    );
+  for (const { file, html } of pages)
+    await exampleModules(html).catch((error: Error) => assert.fail(`${file}: ${error.message}`));
   await assert.rejects(exampleModules('<script type="module">const a = 1, a = 2;</script>'));
 });
 
