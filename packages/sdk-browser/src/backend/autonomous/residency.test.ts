@@ -30,6 +30,7 @@ function fakeGeometryStore() {
     dispose: () => {},
     removeRecords: () => {},
     storeGeometryPage: () => false,
+    storeReplaced() {},
     acceptGeometryPage: () => false,
   };
 }

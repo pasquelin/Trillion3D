@@ -1,6 +1,7 @@
 import { normalMatrix3 } from '../../../../sdk-core/src/index.ts';
 import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4Typed.ts';
 import { LTC_UNIT } from './rectGlsl.ts';
+import { LIGHT_DATA_UNIT, LIGHT_LIST_UNIT } from './lightTexture.ts';
 
 /**
  * The model-view and normal matrices of the draws, sent only when the drawn node's world matrix
@@ -85,4 +86,6 @@ export const setClusterSamplers = (
   gl.uniform1i(location('ltcTable'), LTC_UNIT);
   gl.uniform1i(location('reflectionColor'), LTC_UNIT + 1);
   gl.uniform1i(location('reflectionDepth'), LTC_UNIT + 2);
+  gl.uniform1i(location('lightData'), LIGHT_DATA_UNIT);
+  gl.uniform1i(location('lightList'), LIGHT_LIST_UNIT);
 };
