@@ -98,21 +98,15 @@
         light.hemisphere({ color: '#dcecff', groundColor: '#786b59', intensity: 1.1 }),
       );
 
-      const lens = camera.orthographic({ near: 0.1, far: 200 });
+      // The box is 12.4 high; the engine widens it to the canvas's shape (`fitAspect`).
+      const lens = camera.orthographic({
+        near: 0.1,
+        far: 200,
+        top: 6.2,
+        bottom: -6.2,
+        fitAspect: true,
+      });
       world.camera = lens;
-      const halfHeight = 6.2;
-      const frame = () => {
-        const aspect = world.canvas.clientWidth / Math.max(1, world.canvas.clientHeight);
-        Object.assign(lens, {
-          left: -halfHeight * aspect,
-          right: halfHeight * aspect,
-          top: halfHeight,
-          bottom: -halfHeight,
-        });
-      };
-      const resize = new ResizeObserver(frame);
-      resize.observe(world.canvas);
-      frame();
       const eye = 4.3,
         sides = { front: [0, 1], right: [1, 0], rear: [0, -1] };
       controls(
@@ -130,14 +124,7 @@
         },
         world,
       );
-      addEventListener(
-        'pagehide',
-        () => {
-          resize.disconnect();
-          world.dispose();
-        },
-        { once: true },
-      );
+      addEventListener('pagehide', () => world.dispose(), { once: true });
     </script>
   </body>
 </html>
