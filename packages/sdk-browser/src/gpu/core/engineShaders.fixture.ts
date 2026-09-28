@@ -46,10 +46,10 @@ import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilter.ts';
 import { SHADER as PREPARE_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
 import { REDUCE_WGSL } from '../../webgpu/tile/reduce.ts';
 import { TRANSPARENT_COMPACT_SHADER } from '../../webgpu/transparent/shader.ts';
-import { WATER_COMPOSITE_SHADER } from '../../webgpu/water/compositeWgsl.ts';
+import { WATER_COMPOSITE_SHADER, WATER_ROUTED_SHADER } from '../../webgpu/water/compositeWgsl.ts';
 import { WATER_SURFACE_WGSL } from '../../webgpu/water/surfaceWgsl.ts';
 import { PARTICLES_WGSL } from '../../particles/webgpuParticles.ts';
-import { PARTICLE_DRAW_WGSL } from '../../particles/webgpuParticleDraw.ts';
+import { PARTICLE_DRAW_WGSL, PARTICLE_ROUTED_WGSL } from '../../particles/webgpuParticleDraw.ts';
 
 const compositions = (label: string, sources: Record<string, string>) =>
   Object.fromEntries(Object.entries(sources).map(([input, code]) => [`${label}_${input}`, code]));
@@ -109,6 +109,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   REDUCE_WGSL,
   TRANSPARENT_COMPACT_SHADER,
   WATER_COMPOSITE_SHADER,
+  WATER_ROUTED: WATER_ROUTED_SHADER,
   PARTICLES_WGSL,
   PARTICLE_DRAW_WGSL,
+  PARTICLE_ROUTED_WGSL,
 };

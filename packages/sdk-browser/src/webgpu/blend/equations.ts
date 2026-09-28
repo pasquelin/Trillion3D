@@ -31,13 +31,28 @@ export const FILTERED_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
   multiply: { color: KEEP, alpha: KEEP },
 };
 
-/** The display filter's equation per mode, white where nothing filters. A filtering mode writes
- *  its display colour `s`: multiply keeps `f·s`, subtractive `f·(1 − s)`. The others write white
- *  at their alpha: normal lifts the filter where it covers it, additive keeps it, none resets it. */
-export const FILTER_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
-  normal: BLEND_EQUATIONS.normal,
-  additive: { color: KEEP, alpha: KEEP },
-  subtractive: { color: SUBTRACT, alpha: KEEP },
-  multiply: { color: MULTIPLY, alpha: KEEP },
-  none: undefined,
+/** How a pipeline of a filtered image routes its colour (`DISPLAY_ROUTE`, `displayFilter.ts`):
+ *  a normal or additive layer goes to the display layers where a filter covers the pixel, a
+ *  filtering mode always does, `none` resets them. */
+export const displayRoute = (blending: Blending) =>
+  filtersDisplay(blending) ? 2 : blending === 'none' ? 0 : 1;
+
+const OVER: GPUBlendComponent = { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' };
+const LAYER = (color: GPUBlendComponent): GPUBlendState => ({ color, alpha: KEEP });
+const FILTERING = { subtractive: LAYER(SUBTRACT), multiply: LAYER(MULTIPLY), none: undefined };
+
+/** The display layers, over the composed display value `c`: the image shows `c·t + a`. A layer
+ *  `(s, α)` in display value maps `(t, a)` as the witness's canvas maps what it holds: normal to
+ *  `(t·(1 − α), a·(1 − α) + s·α)`, additive to `(t, a + s·α)`, multiply to `(t·s, a·s)`,
+ *  subtractive to `(t·(1 − s), a·(1 − s))`; `none` replaces them with `(1, 0)`. The tint: */
+export const TINT_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
+  normal: LAYER({ srcFactor: 'zero', dstFactor: 'one-minus-src-alpha' }),
+  additive: LAYER(KEEP),
+  ...FILTERING,
+};
+/** …and the added value, written premultiplied. */
+export const ADD_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
+  normal: LAYER(OVER),
+  additive: LAYER({ srcFactor: 'one', dstFactor: 'one' }),
+  ...FILTERING,
 };

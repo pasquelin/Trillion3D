@@ -2,7 +2,7 @@ import { TAA_BINDINGS, TAA_PASS, TAA_VIEW_BYTES } from './shaderWgsl.ts';
 import { SHARE_FORMAT, createTaaResolves } from './resolve.ts';
 import { createTaaCheckpoint, createTaaFrameState } from './frame.ts';
 import { createPlacementMotion, type MotionRoot } from './motion.ts';
-import { createTaaFilterHistory } from './filterHistory.ts';
+import { createTaaFilterHistory, type DisplayLayers } from './filterHistory.ts';
 import type { AccumulatedImage } from '../lighting/deferred/program.ts';
 
 /** A history target, cleared by the pass that writes it. */
@@ -23,7 +23,7 @@ export interface TaaInputs {
   motion: GPUBuffer;
   flags?: GPUTextureView;
   share?: GPUTextureView;
-  filter?: GPUTextureView;
+  filter?: DisplayLayers;
 }
 
 const INPUTS = ['current', 'depth', 'ids', 'pages', 'motion', 'flags', 'share', 'filter'] as const;
@@ -170,7 +170,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
         filter = inputs.filter && filterHistory.target(write);
       const pass = encoder.beginRenderPass({
         label: TAA_PASS,
-        colorAttachments: (filter ? [color, share, filter] : [color, share]).map(cleared),
+        colorAttachments: [color, share, ...(filter ?? [])].map(cleared),
       });
       pass.setPipeline(resolve.pipeline);
       pass.setBindGroup(0, groups[read]!);
