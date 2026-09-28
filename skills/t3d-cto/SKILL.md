@@ -41,8 +41,8 @@ origin/develop`, nothing else written there) at start and after every merge you 
    issues in the order of AGENTS.md §Leads, its queue, its area). You start none of them yourself.
 
 3. **Each session's skill carries its own brief**: it brings its checkout up to `origin/develop`,
-   re-reads the rules, picks its work from GitHub, runs its `coder` and `reviewer` in the
-   foreground, and reaches you by `SendMessage` (your session is in `ListAgents`).
+   re-reads the rules, picks its work from GitHub, runs its `coder` and `reviewer` (two or three
+   issues, AGENTS.md §Leads), and reaches you by `SendMessage` (your session is in `ListAgents`).
 4. **Supervise** with `/loop 10m` on the checks below until the boss says stop. Talk only to the
    sessions' leads (never to a coder or reviewer); merge in age order what a lead names ready.
 
@@ -52,7 +52,13 @@ origin/develop`, nothing else written there) at start and after every merge you 
 - **Open pull requests first, every pass:** a ready one is merged within minutes (age order); one
   with no push for 20 minutes gets a `SendMessage` to its lead; one whose lead session is gone
   is named to the boss at once with its command (`/t3d-lead <domain>`). No pull request stays
-  open past the hour of AGENTS.md rule 11.
+  open past the hour of AGENTS.md rule 11. A pull request from the boss's outside AI worker (its
+  body says "manual" review, or no lead named it ready) gets a `reviewer` subagent on its branch,
+  running the real `simplify` and `code-review`, before any merge: same bar. A pull request
+  with a Claude-authored commit is squash-merged with a clean subject and an empty body
+  (AGENTS.md rule 8).
+- **Assignment** (docs/roles/lead.md step 1): an assigned open issue with no agent on it loses
+  its assignee at the pass.
 - **Flow:** each lead within AGENTS.md §Leads; one lead per issue. Name to each lead its
   green-but-unmerged, red, conflicting or stale PR; merge the ready ones in the order of
   AGENTS.md rule 11.
@@ -83,7 +89,9 @@ origin/develop`, nothing else written there) at start and after every merge you 
   down: no new agent anywhere; every lead finishes its current agent, names ready what is green
   (you merge it), comments the rest on its issue, cleans its worktrees and stops. Never cut an agent in the middle
   of its work: before the boss closes your session, every agent has ended.
-  Tell the boss when you start winding down and when it resumes.
+  Tell the boss when you start winding down and when it resumes. Just after each 5-hour reset,
+  wake the sessions stopped on the limit with the session-management `send_message` tool
+  (`SendMessage` only queues).
 - **Context.** Keep your own context small: read counts and states (`gh … --json` with `--jq`),
   never whole diffs or logs; delegate any deep read to a bounded subagent that launches none.
   An agent is fresh by design: it stops after its bounded run and the next one starts clean from
