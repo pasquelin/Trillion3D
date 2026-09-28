@@ -55,7 +55,7 @@ export function submitColorCopy(
   // nor a separate presentation pass. That is what isolates what Presentation actually contains.
   const offscreen = composesOffscreen(context.diagnosticGpuVariant);
   if (!presented && !offscreen && gpu.presenter && gpu.colorTexture && !capture.capturing) {
-    gpu.presenter.present(encoder, gpu.colorTexture, width, height);
+    gpu.presenter.present(encoder, gpu.colorTexture, width, height, rt.views.active.rect);
     run.gpuDrawCalls++;
   }
   const owned = encoder === timing.frameEncoder;

@@ -2260,7 +2260,8 @@
       "left": "Cạnh trái.",
       "right": "Cạnh phải.",
       "top": "Cạnh trên.",
-      "bottom": "Cạnh dưới."
+      "bottom": "Cạnh dưới.",
+      "fitAspect": "Một hộp trực giao cao như đã khai báo và rộng theo hình dạng của ảnh."
     }
   },
   "PAGE_DECODE_FAILURES": {
