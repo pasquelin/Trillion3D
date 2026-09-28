@@ -315,14 +315,19 @@ light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 wo
 (`SHADOW_TABLE_ENTRIES`), so every shadow-casting light that holds a slice holds its range.
 The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`); that share, less the
 batches' reserve, is the shadows' one grant (`SHADOW_GRANT_BYTES`, `webgpu/shadow/memoryGrant.ts`):
-the pool is drawn within it, and a late allocation — the static layer, with the transmittance layer
-a blended caster may still add — is asked of it with what is already held. Memory pressure never passes for performance: it lowers no
+the pool is drawn within it, and a late allocation — the static layer, the transmittance layer — is
+asked of it with what is already held, then of the device under an out-of-memory check, never
+inside a frame (`webgpu/shadow/transmittanceGrant.ts`): a scene whose blended surfaces cast asks
+the transmittance layer with the pool, the frame held; one turned casting later holds the frames
+after it until the layer lands, then draws every mapped page again. Memory pressure never passes for performance: it lowers no
 page to meet a frame time, and each pressure is a named event in `shadowMemoryEvents`. A pool the
 device refuses is drawn smaller (`pool-shrunk`, its halvings in `shadowResolutionBias`, 0 in the
 normal case) or not at all (`pool-refused`, the `shadows-off` error); a static layer past the grant
 (`static-layer-over-grant`) or refused by the device (`static-layer-refused`, `gpu-out-of-memory`)
-is never made, and every page stays drawn whole, every caster at once: no shadow is lost.
-`shadowPeakBytes` publishes the most the grant held at once. The table's host mirror — the
+is never made, and every page stays drawn whole, every caster at once: no shadow is lost. A
+transmittance layer past the grant (`transmittance-over-grant`) or refused
+(`transmittance-refused`) is never made nor asked again: the opaque shadows stay whole and the
+blended casters cast nothing, by name. `shadowPeakBytes` publishes the most the grant held at once. The table's host mirror — the
 words, a change flag per word, the pool's page records and eviction bitset, and the frame's page
 list (`admit.ts`) at the largest pool, with the shadow batches' host lists
 (`SHADOW_BATCH_HOST_BYTES`), 21.0 MiB (`SHADOW_HOST_BYTES`, summed from `shadowTableHostBytes`,
