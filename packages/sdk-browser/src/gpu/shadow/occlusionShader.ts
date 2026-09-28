@@ -1,10 +1,10 @@
+import { DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
 import { HIZ_HIDES_WGSL, HIZ_LEVEL_WGSL } from '../hiz/rectWgsl.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { PAGE_HIZ_LEVELS, PAGE_HIZ_OFFSETS, PAGE_HIZ_WORDS } from './pageHiz.ts';
 import {
   OCCLUSION_SLOT_WORDS as SLOT,
   OCCLUSION_UNIFORM_WORDS,
-  SHADOW_COMMAND_WORDS as COMMAND,
   SHADOW_FACE_STRIDE,
   wordStruct,
 } from './batchBudget.ts';
@@ -59,10 +59,10 @@ fn shadowHizTest(@builtin(global_invocation_id) id:vec3u){
  let r=id.y;
  if(r>=uni.regions){return;}
  let slot=atomicLoad(&slots[r*${SLOT}u]);
- if(slot==${HIZ_UNTESTED}u||id.x>=min(indirect[r*${COMMAND}u+1u],uni.capacity)){return;}
+ if(slot==${HIZ_UNTESTED}u||id.x>=min(indirect[r*${DRAW_INDIRECT_WORDS}u+1u],uni.capacity)){return;}
  let row=kept[r*uni.capacity+id.x];
  if(hiddenInPage(spheres[row],views[r].viewProjection,slot)){atomicAdd(&slots[r*${SLOT}u+1u],1u);return;}
- let rank=atomicAdd(&visibleIndirect[r*${COMMAND}u+1u],1u);
+ let rank=atomicAdd(&visibleIndirect[r*${DRAW_INDIRECT_WORDS}u+1u],1u);
  visible[r*uni.capacity+rank]=row;
 }
 `;

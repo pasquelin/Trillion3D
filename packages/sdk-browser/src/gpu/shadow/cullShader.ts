@@ -1,11 +1,7 @@
+import { DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
 import { DRAW_ITEM_WGSL } from '../draw/contract.ts';
 import { MAX_SHADOW_REGIONS } from './recordPack.ts';
-import {
-  CULL_UNIFORM_WORDS,
-  LIGHT_CULL_UNIFORM_WORDS,
-  SHADOW_COMMAND_WORDS as COMMAND,
-  wordStruct,
-} from './batchBudget.ts';
+import { CULL_UNIFORM_WORDS, LIGHT_CULL_UNIFORM_WORDS, wordStruct } from './batchBudget.ts';
 
 /**
  * Per-shadow-region reject: from the instance list the LIGHT CUT of the region's face produced,
@@ -64,7 +60,7 @@ fn keepCaster(face:u32,row:u32,capacity:u32){
    if(sh*tangent+ch*sphere.radius>0.0&&along<limit-1e-4*distance){return;}
   }
  }
- let rank=atomicAdd(&indirect[face*${COMMAND}u+1u],1u);
+ let rank=atomicAdd(&indirect[face*${DRAW_INDIRECT_WORDS}u+1u],1u);
  kept[face*capacity+rank]=row;
 }
 `;
@@ -79,7 +75,7 @@ ${wordStruct('Uni', ['firstFace:u32', 'faces:u32', 'sourceBase:u32', 'indirectBa
 /** Instances of the face's list: the sum of its commands, contiguous from \`sourceBase\`. */
 fn listed()->u32{
  var sum=0u;
- for(var command=0u;command<uni.commands;command++){sum=sum+sourceIndirect[uni.indirectBase+command*${COMMAND}u+1u];}
+ for(var command=0u;command<uni.commands;command++){sum=sum+sourceIndirect[uni.indirectBase+command*${DRAW_INDIRECT_WORDS}u+1u];}
  return min(sum,uni.capacity);
 }
 
