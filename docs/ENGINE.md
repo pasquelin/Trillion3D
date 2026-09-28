@@ -229,7 +229,12 @@ revision and asks for a frame.
 - **Kinds**: each renderer holds one table from pass kind to implementation (`WEBGPU_KINDS`,
   `WEBGL_KINDS`); a new built-in or the custom pass is one entry. The kinds of a chain share its two
   pass targets; each holds its own resources besides, sized for the passes of its kind — the
-  WebGPU bloom gives every bloom pass its own uniform range, read at a dynamic offset.
+  WebGPU bloom gives every bloom pass its own uniform range, read at a dynamic offset. On WebGPU a
+  chain that ends on a bloom leaves that bloom's last blend to the composition, once the
+  composition's bloom programs are compiled (`deferred/compositions.ts`, #963): the composition
+  reads the image the bloom read and blends the first level in itself, rounded to half precision as
+  the pass target held it, so the chain draws one pass and holds one target fewer for the same
+  image. WebGL2 still draws that blend into its pass target.
 
 Parity rules, each held by a unit test: an empty chain adds no pass, no copy and no target — the
 frame is composed call for call as without one; a held frame redisplays the image the chain drew and
@@ -879,6 +884,15 @@ Phases carry `pipelineVersion: 1`: `gpu-presentation`, `frame-allocation`, `mate
 transparent counters), surface-capture phases, `gpu-device-lost`, `gpu-closed-session-error`
 (`kind: 'warning'`: an error of a session already closed on the same device, never a loss). Observer exceptions cannot
 interrupt a backend. These durations are not frame-performance measurements.
+
+**Optional device features.** The session asks for every optional feature a kernel can use that the
+adapter offers — `indirect-first-instance`, `timestamp-query`, `subgroups`, `shader-f16` and the
+block-compressed texture formats (`world/session/gpuDevice.ts`) — and each session says what its
+device got under the `WebGPU device granted` capability diagnostic (`features`). A kernel branches on the
+device's own `features` and keeps its plain path as the named fallback. The host URL parameter
+`trillion3dGpuFeaturesOff=subgroups,shader-f16` keeps the named features unrequested: the plain paths
+then run on a device that has the features, the fallback's proof (0 px against the features on). It
+acts only on a device the engine requests; a host's own `gpuDevice` is taken as it is.
 
 **GPU timing.** `timestamp-query` is requested when the adapter advertises it (`gpu-timing-status`).
 Summary mode instruments at most one submission in 60, trace mode every one, with one outstanding
