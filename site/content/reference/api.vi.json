@@ -7756,5 +7756,40 @@
       "center": "Điểm của hình nằm trên vị trí của sprite: `(0.5, 0.5)` là giữa, `(0, 0)` là góc dưới bên trái, `(0.5, 0)` là giữa cạnh dưới.",
       "material": "`material.sprite` của sprite; gán một cái khác để thay đổi."
     }
+  },
+  "CreatedMaterial": {
+    "summary": "Tạo vật liệu thuộc trang này.",
+    "members": {
+      "metalness": "Bề mặt là kim loại đến mức nào, từ 0 đến 1.",
+      "roughness": "Bề mặt nhám đến mức nào, từ 0 (gương) đến 1 (mờ đục).",
+      "baseColor": "Màu nền; thay đổi tại chỗ bằng `set`.",
+      "emissive": "Màu mà bề mặt tự phát ra.",
+      "opacity": "Bề mặt mờ đục đến mức nào, từ 0 đến 1.",
+      "alphaMode": "Cách đọc kênh alpha của một bề mặt: opaque bỏ qua nó, `mask` cắt tại `alphaCutoff`, `blend` pha trộn.",
+      "alphaCutoff": "Các điểm ảnh mờ đục kém hơn mức này bị loại bỏ.",
+      "name": "Một tên để trang tự dùng riêng.",
+      "map": "Một hình ảnh và cách nó được lấy mẫu, theo lời của một trang (`wrap`, `filter`, `colorSpace`)."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "Một vật liệu theo ID trong danh sách.",
+    "members": {
+      "id": "Một tên duy nhất cho kết cấu này.",
+      "name": "Một tên để trang tự dùng riêng.",
+      "tiling": "Hình ảnh vừa khít bao nhiêu lần theo chiều ngang và chiều dọc."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "Thay đổi vật liệu đã nhập hoặc đã tạo ở khung hình kế tiếp.",
+    "members": {
+      "metalness": "Bề mặt là kim loại đến mức nào, từ 0 đến 1.",
+      "roughness": "Bề mặt nhám đến mức nào, từ 0 (gương) đến 1 (mờ đục).",
+      "baseColor": "Màu nền; thay đổi tại chỗ bằng `set`.",
+      "emissive": "Màu mà bề mặt tự phát ra.",
+      "opacity": "Bề mặt mờ đục đến mức nào, từ 0 đến 1.",
+      "alphaMode": "Cách đọc kênh alpha của một bề mặt: opaque bỏ qua nó, `mask` cắt tại `alphaCutoff`, `blend` pha trộn.",
+      "alphaCutoff": "Các điểm ảnh mờ đục kém hơn mức này bị loại bỏ.",
+      "tiling": "Hình ảnh vừa khít bao nhiêu lần theo chiều ngang và chiều dọc."
+    }
   }
 }

@@ -7755,5 +7755,40 @@
       "center": "Le point de l’image posé sur la position du sprite : `(0.5, 0.5)` son milieu, `(0, 0)` son coin en bas à gauche, `(0.5, 0)` le milieu de son bord du bas.",
       "material": "Le `material.sprite` du sprite ; affectez-en un autre pour le changer."
     }
+  },
+  "CreatedMaterial": {
+    "summary": "Crée un matériau appartenant à cette page.",
+    "members": {
+      "metalness": "À quel point la surface est en métal, de 0 à 1.",
+      "roughness": "La rugosité de la surface, de 0 (miroir) à 1 (mat).",
+      "baseColor": "La couleur de base ; change-la sur place avec `set`.",
+      "emissive": "La couleur que la surface émet d’elle-même.",
+      "opacity": "À quel point la surface est opaque, de 0 à 1.",
+      "alphaMode": "Comment le canal alpha d’une surface est lu : opaque l’ignore, `mask` coupe à `alphaCutoff`, `blend` compose.",
+      "alphaCutoff": "Les pixels moins opaques que ceci disparaissent.",
+      "name": "Un nom à l’usage de la page.",
+      "map": "Une image et la façon de l’échantillonner, dans les mots d’une page (`wrap`, `filter`, `colorSpace`)."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "Un matériau selon son identifiant dans la liste.",
+    "members": {
+      "id": "Un nom propre à cette texture.",
+      "name": "Un nom à l’usage de la page.",
+      "tiling": "Combien de fois l’image tient en largeur et en hauteur."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "Modifie un matériau importé ou créé à l’image suivante.",
+    "members": {
+      "metalness": "À quel point la surface est en métal, de 0 à 1.",
+      "roughness": "La rugosité de la surface, de 0 (miroir) à 1 (mat).",
+      "baseColor": "La couleur de base ; change-la sur place avec `set`.",
+      "emissive": "La couleur que la surface émet d’elle-même.",
+      "opacity": "À quel point la surface est opaque, de 0 à 1.",
+      "alphaMode": "Comment le canal alpha d’une surface est lu : opaque l’ignore, `mask` coupe à `alphaCutoff`, `blend` compose.",
+      "alphaCutoff": "Les pixels moins opaques que ceci disparaissent.",
+      "tiling": "Combien de fois l’image tient en largeur et en hauteur."
+    }
   }
 }

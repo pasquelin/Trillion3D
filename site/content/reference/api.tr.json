@@ -7755,5 +7755,40 @@
       "center": "Resmin sprite'ın konumuna oturan noktası: `(0.5, 0.5)` ortası, `(0, 0)` sol alt köşesi, `(0.5, 0)` alt kenarının ortası.",
       "material": "Sprite’ın `material.sprite`’ı; değiştirmek için başka birini atayın."
     }
+  },
+  "CreatedMaterial": {
+    "summary": "Bu sayfaya ait bir malzeme oluşturur.",
+    "members": {
+      "metalness": "Yüzeyin ne kadar metal olduğu, 0'dan 1'e.",
+      "roughness": "Yüzeyin ne kadar pürüzlü olduğu, 0'dan (ayna) 1'e (mat).",
+      "baseColor": "Temel renk; `set` ile yerinde değiştirin.",
+      "emissive": "Yüzeyin kendi başına yaydığı renk.",
+      "opacity": "Yüzeyin ne kadar opak olduğu, 0'dan 1'e.",
+      "alphaMode": "Bir yüzeyin alfa kanalının nasıl okunduğu: opak onu yok sayar, `mask` `alphaCutoff`'ta keser, `blend` karıştırır.",
+      "alphaCutoff": "Bundan daha az opak pikseller atılır.",
+      "name": "Sayfanın kendi kullanımı için bir ad.",
+      "map": "Bir görsel ve nasıl örneklendiği, bir sayfanın kelimeleriyle (`wrap`, `filter`, `colorSpace`)."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "Listedeki kimliğine göre bir malzeme.",
+    "members": {
+      "id": "Bu dokuya özgü bir ad.",
+      "name": "Sayfanın kendi kullanımı için bir ad.",
+      "tiling": "Görselin yatayda ve dikeyde kaç kez sığdığı."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "İçe aktarılmış veya oluşturulmuş malzemeyi sonraki karede değiştirir.",
+    "members": {
+      "metalness": "Yüzeyin ne kadar metal olduğu, 0'dan 1'e.",
+      "roughness": "Yüzeyin ne kadar pürüzlü olduğu, 0'dan (ayna) 1'e (mat).",
+      "baseColor": "Temel renk; `set` ile yerinde değiştirin.",
+      "emissive": "Yüzeyin kendi başına yaydığı renk.",
+      "opacity": "Yüzeyin ne kadar opak olduğu, 0'dan 1'e.",
+      "alphaMode": "Bir yüzeyin alfa kanalının nasıl okunduğu: opak onu yok sayar, `mask` `alphaCutoff`'ta keser, `blend` karıştırır.",
+      "alphaCutoff": "Bundan daha az opak pikseller atılır.",
+      "tiling": "Görselin yatayda ve dikeyde kaç kez sığdığı."
+    }
   }
 }
