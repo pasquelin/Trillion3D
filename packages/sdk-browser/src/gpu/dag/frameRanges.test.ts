@@ -52,6 +52,7 @@ test('each range is its own buffer and bind group, and the stages know the split
     const entries = Array.from((bindGroup as unknown as GPUBindGroupDescriptor).entries);
     const at = (binding: number) => entries.find((e) => e.binding === binding)!.resource;
     assert.equal((at(DAG_BINDING.frames) as GPUBufferBinding).buffer, frames.buffers[r]);
+    assert.equal((at(DAG_BINDING.worlds) as GPUBufferBinding).buffer, frames.worldBuffers[r]);
     assert.equal((at(DAG_BINDING.range) as GPUBufferBinding).offset, r * 256);
     bounds = (at(DAG_BINDING.range) as GPUBufferBinding).buffer;
   }
@@ -73,6 +74,11 @@ test("the host's rows and words land in their range, at their row there", async 
   const rows = fake.writes.filter((w) => at(w.buffer) >= 0);
   const row = (w: (typeof rows)[number]) => `${at(w.buffer)}:${w.dataOffset / 28}+${w.size! / 28}`;
   assert.equal(rows.map(row).join(' '), '0:0+20 1:20+20 2:40+8');
+  // The world matrices follow the same ranges, 64 bytes a primitive.
+  const world = (w: (typeof rows)[number]) =>
+    `${frames.worldBuffers.indexOf(w.buffer)}:${w.dataOffset / 64}+${w.size! / 64}`;
+  const worlds = fake.writes.filter((w) => frames.worldBuffers.includes(w.buffer));
+  assert.equal(worlds.map(world).join(' '), '0:0+20 1:20+20 2:40+8');
   frames.writeWord(25, 1, 7);
   const word = fake.writes.at(-1)!;
   assert.equal(word.buffer, frames.buffers[1]);
