@@ -7,6 +7,7 @@ probe list.
 ## 1. Directory Tree
 
 <!-- tests-inventory:begin -->
+
 ```
 packages/sdk-core/src/       unit tests (*.test.ts), next to their source
 packages/sdk-browser/src/    unit tests (*.test.ts), next to their source
@@ -24,6 +25,7 @@ bench/oracles/               reference implementations, copied verbatim
 bench/runner/                the measurement harness (README)
 bench/witnesses/             the host-library witnesses, never published
 ```
+
 <!-- tests-inventory:end -->
 
 The tree is rendered by `node scripts/tests-inventory.ts --write`, and
@@ -53,6 +55,14 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 
 `pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
 touch; neither replaces `validate`.
+
+The CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as parallel jobs, one
+per group of `scripts/validate-steps.ts`: `quick`, `typescript`, `native` (Clippy and the Rust
+tests) and `unit`, the last split into three shards of the same file list
+(`TRILLION3D_TEST_SHARD=i/3`, passed to `node --test --test-shard`). No test is skipped by path.
+The single required check, `validate`, needs every job. It runs on every pull request, on
+`develop`, and on every push of an issue branch (`<issue>-<name>`); a push and its open pull
+request share one run.
 
 ### Unit and Integration Tests
 
