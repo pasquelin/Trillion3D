@@ -12,6 +12,7 @@ import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../../visibility/shader/materialClass.ts';
 import { MATERIAL_DEPTH_PASS } from '../../core/materialPasses.ts';
+import { createAsIsShare } from '../../../lighting/deferred/asIsShare.ts';
 
 /**
  * Bytes of the image targets at this size. As in the reference, targets follow resolution: no byte
@@ -32,6 +33,7 @@ export function frameTargetAllocation(
   return (
     frameTargetBytes(width, height, reserveHiz) -
     (rt.feedbackAB?.target === false ? width * height * 4 : 0) +
+    width * height +
     additional +
     (wantsReflections(rt) ? width * height * 8 : 8) +
     80
@@ -68,6 +70,8 @@ export function releaseTargets(rt: WebgpuPagesRuntime) {
   gpu.reflection = undefined;
   gpu.surfaces?.dispose();
   gpu.surfaces = undefined;
+  gpu.asIsShare?.dispose();
+  gpu.asIsShare = undefined;
   vis.gpuRaster?.dispose();
   vis.gpuRaster = undefined;
   capture.capturedPixels = undefined;
@@ -121,6 +125,7 @@ export function makeTargets(
   gpu.hdrTexture = target('Trillion3D HDR lighting', 'rgba16float');
   if (rt.feedbackAB?.target !== false) makeFeedbackTarget(rt, device, width, height);
   gpu.surfaces = createSurfaceBuffer(device, width, height);
+  gpu.asIsShare = createAsIsShare(device, gpu.surfaces.views()[3], width, height);
   gpu.colorView = gpu.colorTexture.createView();
   gpu.depthView = gpu.depthTexture.createView();
   gpu.hdrView = gpu.hdrTexture.createView();

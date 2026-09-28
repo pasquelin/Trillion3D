@@ -109,6 +109,7 @@ export function targets(gpu: WebgpuGpuState) {
     hdrTexture: {},
     depthTexture: {},
     feedbackView: {},
+    asIsShare: { view: {} },
     surfaces: { views: () => views },
     backdrop: { color: {}, colorView: {}, waterDepth: {}, waterDepthView: {}, active: true },
     deferred: {

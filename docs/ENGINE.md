@@ -313,8 +313,24 @@ pages are evicted least recently read first. A lamp face's finest mip is 32 × 3
 The table gives each of the 64 shadow slices (`MAX_SHADOW_SLICES`) a fixed window of the largest range a
 light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
 (`SHADOW_TABLE_ENTRIES`), so every shadow-casting light that holds a slice holds its range.
-The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`). Its host mirror — the
-words, a change flag per word, the pool's page records and eviction bitset, and the frame's page
+The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`); that share, less the
+batches' reserve, is the shadows' one grant (`SHADOW_GRANT_BYTES`, `webgpu/shadow/memoryGrant.ts`):
+the pool is drawn within it, and a late allocation — the static layer, the transmittance layer — is
+asked of it with what is already held, then of the device under an out-of-memory check, never
+inside a frame (`webgpu/shadow/transmittanceGrant.ts`): a scene whose blended surfaces cast asks
+the transmittance layer with the pool, the frame held; one turned casting later, by a rewrite of its
+values, asks it at that rewrite, before the next frame, held until the layer lands, which then draws
+every mapped page again with it: no frame is drawn without the layer. Memory pressure never passes
+for performance: it lowers no page to meet a frame time, and each pressure is a named event in
+`shadowMemoryEvents`. A pool the device refuses is drawn smaller (`pool-shrunk`, its halvings in
+`shadowResolutionBias`, 0 in the normal case) or not at all (`pool-refused`, the `shadows-off`
+error); a static layer past the grant (`static-layer-over-grant`) or refused by the device
+(`static-layer-refused`, `gpu-out-of-memory`) is never made, and every page stays drawn whole, every
+caster at once: no shadow is lost. A transmittance layer past the grant (`transmittance-over-grant`)
+or refused (`transmittance-refused`) is never made nor asked again: the opaque shadows stay whole
+and the blended casters cast nothing, by name. `shadowPeakBytes` publishes the most the grant held
+at once. The table's host mirror — the words, a change flag per word, the pool's page records and
+eviction bitset, and the frame's page
 list (`admit.ts`) at the largest pool, with the shadow batches' host lists
 (`SHADOW_BATCH_HOST_BYTES`), 21.0 MiB (`SHADOW_HOST_BYTES`, summed from `shadowTableHostBytes`,
 `shadowPoolHostBytes`, `shadowAdmissionHostBytes` and `batchBudget.ts`, which tests check against
@@ -424,16 +440,23 @@ after it compiles one, but a blended caster prepare did not see, whose draws com
 frame. A page drawn in full writes its static casters
 into the layer, then restores itself from it and draws its moving casters over; a page that only
 a moving object crossed is restored and gets its moving casters alone, split by one word per row
-in the page cull. A still moving object stales nothing; it is never demoted, since a rule that
-did would redraw the layer each time a pausing object moved again, and an object already moving
-that the host hides or shows, or that stops or starts casting, redraws the moving casters of its
-pages alone: the layer never held it. A residency flag that drops
-and rises within a frame — every row follows the table epoch when a pose moves — is no change
-for the shadows: only a flag that differs from the last plan's restales its cluster's pages
-(`webgpu/shadow/residence.ts`). On a code-built scene with one ball moving over a static ground,
-1280×720, the virtual pages redraw 4.4 pages a frame (6 at most) with one light cut, against 224
-pages a frame on `develop`, and the frame after the motion is 0 px from a fresh render of the
-same pose.
+in the page cull. A still moving object stales nothing; it is never demoted (#993). Staying
+moving costs its casters only in the pages another mover makes the frame redraw, where they are
+drawn over the restored layer; rejoining the layer would cost a full redraw of its pages, static
+casters included, when it rests, and another when it wakes — two layer redraws per pause, bought
+back only if other movers redraw its pages often enough in between, and any rest timer would be
+a scene-tuned constant. The policy changes only if a measure of falling boxes and a walker or car
+at 1728×1117 CSS, DPR 2, shows a net gain beyond run spread, transition frames included. An
+object already moving that the host hides or shows, that stops or starts casting, or whose alpha
+mode, cutout texture or pages' residency changes, and a blended caster whose coverage changes,
+redraw the moving casters of their pages alone: the layer never held them. Such a representation
+change waits for the camera to rest in a union of its own, apart from the one of still objects.
+A residency flag that drops and rises within a frame — every row follows the table epoch when a
+pose moves — is no change for the shadows: only a flag that differs from the last plan's restales
+its cluster's pages (`webgpu/shadow/residence.ts`). On a code-built scene with one ball moving over
+a static ground, 1280×720, the virtual pages redraw 4.4 pages a frame (6 at most) with one light
+cut, against 224 pages a frame on `develop`, and the frame after the motion is 0 px from a fresh
+render of the same pose.
 
 **Shadow casters are selected from the light.** The pages of one light view a frame draws — a sun
 level, a lamp face at one mip — form a run, and every run of the frame is selected by ONE traversal

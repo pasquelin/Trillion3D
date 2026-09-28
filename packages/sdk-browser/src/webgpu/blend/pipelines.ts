@@ -27,6 +27,10 @@ export const blendTargets = (
 ): GPUColorTargetState[] => [
   { format: 'rgba16float', writeMask: mask, blend: BLEND_EQUATIONS[mode] },
   ...(feedback ? [{ format: FEEDBACK_FORMAT }] : []),
+  // The share records how much of the debug background remains under a lit transparent
+  // contribution. Additive and subtractive colours also contribute lit pixels, so neither may
+  // leave the background's share at one simply because its colour equation retains the target.
+  { format: 'r8unorm', blend: BLEND_EQUATIONS.normal },
 ];
 
 /** The forward materials' bind layout, which the feedback-free diagnostic pipelines share. */
@@ -115,7 +119,10 @@ export async function createWebgpuBlendPipelines(
       code,
       'fs',
       'BlendOut',
-      [['color', 'vec4f']],
+      [
+        ['color', 'vec4f'],
+        ['asIs', 'vec4f'],
+      ],
       'in:VSOut,@builtin(front_facing) front:bool',
       'in,front',
     );

@@ -1263,6 +1263,25 @@
       "off": "выкл"
     }
   },
+  "page-materials": {
+    "banner": "Перетащите, чтобы осмотреть зал. Просматривайте, меняйте, смешивайте и создавайте материалы.",
+    "controls": {
+      "set": "Изменить цвет",
+      "switchToBlend": "Переключить на смешивание",
+      "createAndAssign": "Создать и назначить"
+    },
+    "readouts": {
+      "selected material": "Выбранный материал",
+      "materials": "Материалы",
+      "sourceMaterials": "Исходные материалы",
+      "last action": "Последнее действие"
+    },
+    "words": {
+      "imported": "Импортировано: {count}",
+      "applied": "Применено",
+      "ready": "Готово"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "Тяни, чтобы осмотреться. Эти лампы пришли в файле модели.",
     "controls": {
