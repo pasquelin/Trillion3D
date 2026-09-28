@@ -21,12 +21,7 @@ const SIZE = LIGHT_SETTINGS.tileSize;
  * term is not an exact zero there. `missed` counts lights in `reach` but not in `after`: 0 when
  * the lists stay image-exact. `null` for a tile with no covered pixel, which the resolve skips.
  */
-export function countTile(
-  view: TileView,
-  tile: [number, number],
-  depths: Float32Array,
-  lights: Light[],
-) {
+function countTile(view: TileView, tile: [number, number], depths: Float32Array, lights: Light[]) {
   const pixels: [number, number, number][] = [];
   for (let y = tile[1] * SIZE; y < Math.min((tile[1] + 1) * SIZE, view.height); y++)
     for (let x = tile[0] * SIZE; x < Math.min((tile[0] + 1) * SIZE, view.width); x++) {
@@ -51,12 +46,14 @@ export function countTile(
     if (gap > (radius * 1.001 + 1e-3) ** 2) continue;
     const at = toTileFrame(view, centre);
     const before = sphereTouchesBox(bounds.opaqueBox, at, radius);
-    const after = sliceHits(bounds, at, radius).opaque;
+    // The planes only ever narrow the box: a light out of it is out of both lists.
+    const after = before && sliceHits(bounds, at, radius).opaque;
     // The box holds every covered pixel: a light out of it reaches none.
     const reach =
       before &&
       (points ??= pixels.map(([x, y, z]) => pixelPoint(view, x, y, z))).some(
-        (p) => Math.hypot(p[0] - centre[0], p[1] - centre[1], p[2] - centre[2]) < radius,
+        (p) =>
+          (p[0] - centre[0]) ** 2 + (p[1] - centre[1]) ** 2 + (p[2] - centre[2]) ** 2 < radius ** 2,
       );
     count.before += +before;
     count.after += +after;
@@ -66,16 +63,11 @@ export function countTile(
   return count;
 }
 
-/** A list's cost in iterations per pixel: its length where the resolve walks it, every light of
- *  the scene where it walks them all. */
-export type ListRule = (kept: number) => number;
-/** The audit's rule, develop's before #849: past `tileLights`, the tile walks every light. */
-export const walkAllPastList =
-  (sceneLights: number): ListRule =>
-  (kept) =>
-    kept > LIGHT_SETTINGS.tileLights ? sceneLights : kept;
-/** Develop's since #849: past its list, the tile's own slice in the pool (pool with room). */
-export const walkPool: ListRule = (kept) => kept;
+/** A list's cost in iterations per pixel under the audit's rule, develop's before #849: past
+ *  `tileLights`, the tile walks every light. Since #849 it walks its own slice of the pool (pool
+ *  with room), so its cost is its length. */
+export const walkAllPastList = (sceneLights: number) => (kept: number) =>
+  kept > LIGHT_SETTINGS.tileLights ? sceneLights : kept;
 
 /**
  * Every tile of `view`: the covered pixels, and the light iterations summed over them — each
@@ -84,7 +76,7 @@ export const walkPool: ListRule = (kept) => kept;
  */
 export function countView(view: TileView, depths: Float32Array, lights: Light[]) {
   const sceneLights = lights.length + 1;
-  const rules = { beforeAllPastList: walkAllPastList(sceneLights), pool: walkPool };
+  const allPastList = walkAllPastList(sceneLights);
   const sums = { beforeAllPastList: 0, before: 0, after: 0, reach: 0 };
   let covered = 0,
     tiles = 0,
@@ -98,9 +90,9 @@ export function countView(view: TileView, depths: Float32Array, lights: Light[])
       covered += tile.covered;
       missed += tile.missed;
       overflowing += +(tile.before > LIGHT_SETTINGS.tileLights);
-      sums.beforeAllPastList += tile.covered * rules.beforeAllPastList(tile.before);
-      sums.before += tile.covered * rules.pool(tile.before);
-      sums.after += tile.covered * rules.pool(tile.after);
+      sums.beforeAllPastList += tile.covered * allPastList(tile.before);
+      sums.before += tile.covered * tile.before;
+      sums.after += tile.covered * tile.after;
       sums.reach += tile.covered * tile.reach;
     }
   const pixels = view.width * view.height;

@@ -12,11 +12,12 @@ import {
 } from '../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
 import { buildCity, depthField } from './lightTileCity.ts';
 import { countView } from './lightTileCount.ts';
+import { LIGHT_SETTINGS } from '../../packages/sdk-core/src/index.ts';
 
 const deg = (d: number) => (d * Math.PI) / 180;
 /** The audit's five views (`t03_tiles_sim.py`, `t03b_tiles_views.py`), 60° vertical field. Its
  *  yaw turns toward +x, the engine's toward −x: the sign is flipped. */
-export const CITY_VIEWS: Record<string, { eye: Vec3; yaw: number; pitch: number }> = {
+const CITY_VIEWS: Record<string, { eye: Vec3; yaw: number; pitch: number }> = {
   street: { eye: [34, 1.8, 10], yaw: -deg(30), pitch: deg(-2) },
   raised60: { eye: [0, 60, 0], yaw: -deg(45), pitch: deg(-15) },
   avenue: { eye: [34, 1.8, 0], yaw: 0, pitch: deg(-1) },
@@ -63,7 +64,10 @@ async function main() {
   const [width, height] = [Number(values.width), Number(values.height)];
   assert.ok(Number.isInteger(width) && Number.isInteger(height), '--width and --height: integers');
   const city = buildCity();
-  console.log(`Open city: ${city.blocks.size} buildings, ${city.lights.length} lights + the sun`);
+  console.log(
+    `Open city: ${city.blocks.filter(Boolean).length} buildings, ${city.lights.length} lights + the sun`,
+  );
+  const past = `past ${LIGHT_SETTINGS.tileLights}`;
   const counts = [],
     model = [];
   for (const name of values.views.split(',')) {
@@ -77,8 +81,8 @@ async function main() {
       'covered px': result.covered,
       coverage: `${(100 * result.coverage).toFixed(1)} %`,
       tiles: result.tiles,
-      'tiles > 64 (box)': result.overflowingTilesBefore,
-      'box, all past 64': it.beforeAllPastList.toFixed(2),
+      [`tiles ${past} (box)`]: result.overflowingTilesBefore,
+      [`box, all ${past}`]: it.beforeAllPastList.toFixed(2),
       'box, pool': it.before.toFixed(2),
       planes: it.after.toFixed(2),
       reach: it.reach.toFixed(2),
@@ -90,10 +94,10 @@ async function main() {
       model.push({
         view: name,
         class: key,
-        'before, all past 64 (ms)': allPast.toFixed(3),
+        [`before, all ${past} (ms)`]: allPast.toFixed(3),
         'before, pool (ms)': pool.toFixed(3),
         'after (ms)': after.toFixed(3),
-        'saving vs all past 64 (ms)': (allPast - after).toFixed(3),
+        [`saving vs all ${past} (ms)`]: (allPast - after).toFixed(3),
         'saving vs pool (ms)': (pool - after).toFixed(3),
       });
     }

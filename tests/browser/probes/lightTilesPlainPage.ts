@@ -1,23 +1,26 @@
 /**
  * Page side of the plain light-tile probe (#924): the engine's tile pass (`createGpuLightTiles`)
- * built twice on one device that granted `subgroups` — once as granted, which compiles the
- * subgroup variant, once through a view of the device that reports no `subgroups`, which compiles
- * the plain one every other device runs. Same depth, same lights, same view: the tile lists read
- * back from both, decoded tile by tile (the pool's slices land where each run's atomics put them).
+ * built on two devices of one adapter — one that granted `subgroups`, which compiles the subgroup
+ * variant, and one opened without it, which compiles the plain one every other device runs. Same
+ * depth, same lights, same view: the tile lists read back from both, decoded tile by tile as the
+ * resolve walks them (the pool's slices land where each run's atomics put them).
  */
-import { LIGHT_SETTINGS, createSceneLightStore } from '../../../packages/sdk-core/src/index.ts';
+import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts';
 import { createGpuLightTiles } from '../../../packages/sdk-browser/src/lighting/tiles/tiles.ts';
+import { LIGHT_TILES_SHADER } from '../../../packages/sdk-browser/src/lighting/tiles/shader.ts';
 import {
   createSceneLightContractBuffer,
   uploadSceneLights,
 } from '../../../packages/sdk-browser/src/webgpu/pages/state/lightBuffer.ts';
-import { TILE_STRIDE_WORDS } from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts';
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts';
 import { seeded } from '../../../site/examples/kit/random.ts';
 import {
-  NEAR,
   camera,
   pixelPoint,
+  pixelRay,
+  rayDepth,
 } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts';
+import { tileLayout, tileLists } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
 
 const [WIDTH, HEIGHT] = [333, 207]; // cut tiles on both axes
@@ -28,10 +31,9 @@ function depthField(r: () => number) {
   const depths = new Float32Array(WIDTH * HEIGHT);
   for (let py = 0; py < HEIGHT; py++)
     for (let px = 0; px < WIDTH; px++) {
-      const near = pixelPoint(view, px, py, 1),
-        far = pixelPoint(view, px, py, NEAR / 1e5);
-      const t = near[1] / (near[1] - far[1]);
-      const ground = t > 0 && t < 1 && r() > 0.03 ? NEAR / (NEAR + t * (1e5 - NEAR)) : 0;
+      const { o, d } = pixelRay(view, px, py);
+      const t = d[1] < 0 ? -o[1] / d[1] : Infinity;
+      const ground = t < 1 && r() > 0.03 ? rayDepth(t) : 0;
       depths[py * WIDTH + px] =
         ground && r() < 0.05 ? Math.min(1, ground / (0.2 + 0.8 * r())) : ground;
     }
@@ -119,52 +121,24 @@ function sceneLights(r: () => number, depths: Float32Array, count: number) {
   return store;
 }
 
-/** A tile list, decoded: the light indices, or `all` where the pool had no room. */
-function decode(words: Uint32Array, tiles: number) {
-  const lists: (number[] | 'all')[] = [];
-  for (let tile = 0; tile < tiles; tile++)
-    for (const slot of [0, 1]) {
-      const base = tile * TILE_STRIDE_WORDS,
-        kept = words[base + slot],
-        first = base + 2 + slot * LIGHT_SETTINGS.tileLights;
-      if (kept <= LIGHT_SETTINGS.tileLights) lists.push([...words.subarray(first, first + kept)]);
-      else if (words[first] === 0xffffffff) lists.push('all');
-      else lists.push([...words.subarray(words[first], words[first] + kept)]);
-    }
-  return lists;
-}
+const LAYOUT = tileLayout(LIGHT_TILES_SHADER);
 
-export async function executer(lightCounts: number[]) {
-  const appareil = await ouvrirAppareil(['subgroups']);
-  if (!appareil) return { indisponible: 'no WebGPU adapter' };
+/** One device's pass over the probe's depth, per light count: whether it compiled the subgroup
+ *  variant, whether it ran wide, and each tile's opaque and blend lists as the resolve walks
+ *  them; `overflowed` counts the tiles whose pool had no room (they walk every light). */
+async function tileListsOn(
+  features: GPUFeatureName[],
+  depths: Float32Array<ArrayBuffer>,
+  counts: number[],
+) {
+  const appareil = await ouvrirAppareil(features);
+  if (!appareil) return { indisponible: 'no WebGPU adapter' } as const;
   const { device, erreurs } = appareil;
-  if (!device.features.has('subgroups')) {
-    await appareil.fermer();
-    return { indisponible: 'the adapter offers no subgroups' };
-  }
-  // The device as a device without `subgroups` sees it; every buffer readable back.
-  const seenAs = (plain: boolean) =>
-    new Proxy(device, {
-      get: (target, key) => {
-        if (key === 'features' && plain)
-          return { has: (name: string) => name !== 'subgroups' && target.features.has(name) };
-        if (key === 'createBuffer')
-          // A mapped readback may hold no other usage: only the pass's storage is made copyable.
-          return (d: GPUBufferDescriptor) =>
-            target.createBuffer(
-              d.usage & GPUBufferUsage.MAP_READ
-                ? d
-                : { ...d, usage: d.usage | GPUBufferUsage.COPY_SRC },
-            );
-        const value = Reflect.get(target, key, target);
-        return typeof value === 'function' ? value.bind(target) : value;
-      },
-    });
-  const r = seeded(924);
-  const depths = depthField(r);
   const depth = depthTexture(device, depths).createView();
+  const tiles = await createGpuLightTiles(device);
+  const r = seeded(924);
   const runs = [];
-  for (const count of lightCounts) {
+  for (const count of counts) {
     const store = sceneLights(r, depths, count);
     const lights = {
       store,
@@ -172,32 +146,48 @@ export async function executer(lightCounts: number[]) {
       uploadedEpoch: -1,
     };
     uploadSceneLights(device, lights as Parameters<typeof uploadSceneLights>[1]);
+    tiles.ensure(WIDTH, HEIGHT, depth, lights.buffer, count);
+    tiles.update(view.viewProjection, view.eye, WIDTH, HEIGHT);
+    const encoder = device.createCommandEncoder();
+    tiles.encode(encoder, 1);
+    device.queue.submit([encoder.finish()]);
+    const words = (await readGpuBuffer(device, tiles.buffer!, tiles.buffer!.size))!;
     const lists = [];
-    for (const plain of [false, true]) {
-      const tiles = await createGpuLightTiles(seenAs(plain));
-      tiles.ensure(WIDTH, HEIGHT, depth, lights.buffer, count);
-      tiles.update(view.viewProjection, view.eye, WIDTH, HEIGHT);
-      const readback = device.createBuffer({
-        size: tiles.buffer!.size,
-        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-      });
-      const encoder = device.createCommandEncoder();
-      tiles.encode(encoder, 1);
-      encoder.copyBufferToBuffer(tiles.buffer!, 0, readback, 0, readback.size);
-      device.queue.submit([encoder.finish()]);
-      await readback.mapAsync(GPUMapMode.READ);
-      const words = new Uint32Array(readback.getMappedRange().slice(0));
-      readback.destroy();
-      lists.push({
-        subgroups: tiles.subgroups,
-        wide: tiles.wide,
-        lists: decode(words, tiles.tilesX * tiles.tilesY),
-      });
-      tiles.dispose();
+    let overflowed = 0;
+    for (let tile = 0; tile < tiles.tilesX * tiles.tilesY; tile++) {
+      const record = tile * LAYOUT.stride;
+      for (const [slot, base] of [
+        [0, LAYOUT.opaqueBase],
+        [1, LAYOUT.blendBase],
+      ])
+        overflowed += +(
+          words[record + slot] > LAYOUT.tileLights && words[record + base] === LAYOUT.noSlice
+        );
+      const { opaque, blend } = tileLists(LAYOUT, words, count, record);
+      lists.push(opaque, blend);
     }
     lights.buffer.destroy();
-    runs.push({ count, subgroup: lists[0], plain: lists[1] });
+    runs.push({ count, subgroups: tiles.subgroups, wide: tiles.wide, overflowed, lists });
   }
+  tiles.dispose();
   const info = await appareil.fermer();
-  return { adaptateur: info.court, erreurs, runs };
+  return { adaptateur: info.court, granted: device.features.has('subgroups'), erreurs, runs };
+}
+
+export async function executer(lightCounts: number[]) {
+  const depths = depthField(seeded(923));
+  const subgroup = await tileListsOn(['subgroups'], depths, lightCounts);
+  if ('indisponible' in subgroup) return subgroup;
+  if (!subgroup.granted) return { indisponible: 'the adapter offers no subgroups' };
+  const plain = await tileListsOn([], depths, lightCounts);
+  if ('indisponible' in plain) return plain;
+  return {
+    adaptateur: subgroup.adaptateur,
+    erreurs: [...subgroup.erreurs, ...plain.erreurs],
+    runs: subgroup.runs.map((run, k) => ({
+      count: run.count,
+      subgroup: run,
+      plain: plain.runs[k],
+    })),
+  };
 }
