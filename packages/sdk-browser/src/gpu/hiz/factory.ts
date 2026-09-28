@@ -32,7 +32,9 @@ export async function createGpuHiz(
   let disposed = false,
     // The drawn view's pyramid; another view keeps its own while this one is drawn (`swap`).
     at: Pyramid | undefined,
-    bindGroup: GPUBindGroup | undefined;
+    bindGroup: GPUBindGroup | undefined,
+    // Bumped when the partition's buffers change: a pyramid's cached bind group is then stale.
+    bindings = 0;
   try {
     const pipelines = await createHizPipelines(device);
     if (!pipelines) return undefined;
@@ -57,9 +59,12 @@ export async function createGpuHiz(
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     });
     buffers.push(uniforms, idle, flags);
+    /** The drawn pyramid's bind group, made once per pyramid and per `attach`, never per swap. */
     const bind = () => {
       if (!at) return void (bindGroup = undefined);
-      bindGroup = device.createBindGroup({
+      if (at.group && at.bindings === bindings) return void (bindGroup = at.group);
+      at.bindings = bindings;
+      bindGroup = at.group = device.createBindGroup({
         layout,
         entries: [
           { binding: 0, resource: { buffer: at.pyramid } },
@@ -82,9 +87,12 @@ export async function createGpuHiz(
       gpu.level0 = next.level0;
       gpu.level0View = next.level0View;
     };
-    const gpu = {
+    const first = (at = allocPyramid(device, level0Usage, width, height));
+    const gpu: GpuHiz = {
       width: 0,
       height: 0,
+      level0: first.level0,
+      level0View: first.level0View,
       flags,
       // One compute pass builds the whole pyramid, four mips per dispatch (`buildHiz`).
       encodePyramid(encoder) {
@@ -95,6 +103,7 @@ export async function createGpuHiz(
       attach(nextBounds: GPUBuffer, nextState: GPUBuffer) {
         bounds = nextBounds;
         state = nextState;
+        bindings++;
         bind();
       },
       /** Pyramid mips, with their offset and width: what the partition reads to express a
@@ -140,11 +149,11 @@ export async function createGpuHiz(
         at?.destroy();
         at = bindGroup = undefined;
       },
-    } as GpuHiz;
-    install(allocPyramid(device, level0Usage, width, height));
+    };
+    install(first);
     return gpu;
   } catch {
-    cleanupFailedHiz(buffers, at?.level0, at?.pyramid);
+    cleanupFailedHiz(buffers, at);
     return undefined;
   }
 }
@@ -158,6 +167,9 @@ type Pyramid = HizPyramid & {
   words: ReturnType<typeof hizBuildWords>;
   /** Mips with their offset and width: they depend only on the size. */
   levels: Array<{ offset: number; width: number }>;
+  /** Its bind group, and the `attach` generation it was made for. */
+  group?: GPUBindGroup;
+  bindings?: number;
 };
 
 /** One view's pyramid at `width × height`: its level 0 and its packed mips. */

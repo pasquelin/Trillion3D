@@ -3,7 +3,7 @@ import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { OrthographicBox } from '../../camera/engineCamera.ts';
-import { drawnBox, orthographicView } from '../../../../sdk-core/src/math/primitives/camera.ts';
+import { drawnView } from '../../../../sdk-core/src/math/primitives/camera.ts';
 import { createOrbitCameraControls } from '../../camera/controls/orbitControls.ts';
 import { createFlyCameraControls } from '../../camera/controls/flyControls.ts';
 import { createFirstPersonCameraControls } from '../../camera/controls/firstPersonControls.ts';
@@ -69,10 +69,9 @@ export const followPageCamera =
   (camera: () => Camera, canvas: HTMLCanvasElement) => (into: HostCamera) =>
     copyWorldCamera(camera(), into, drawnAspect(canvas));
 
-const view = new Float64Array(4),
-  fitted = { left: 0, right: 0, top: 0, bottom: 0 };
+const view = new Float64Array(4);
 /** The host renderer's orthographic matrix — forward depth, `near` to −1 and `far` to 1 — of
- *  the box a camera sees at `aspect` (`drawnBox`), scaled by its zoom about the box centre, and
+ *  the box a camera sees at `aspect` (`drawnView`), scaled by its zoom about the box centre, and
  *  its inverse. */
 export function hostOrthographic(
   out: number[],
@@ -81,7 +80,7 @@ export function hostOrthographic(
   camera: Pick<Camera, 'zoom' | 'near' | 'far'>,
   aspect: number,
 ) {
-  const [x, y, w, h] = orthographicView(drawnBox(box, aspect, fitted), camera.zoom, view),
+  const [x, y, w, h] = drawnView(box, aspect, camera.zoom, view),
     depth = camera.far - camera.near;
   out.fill(0);
   out[0] = 1 / w;
