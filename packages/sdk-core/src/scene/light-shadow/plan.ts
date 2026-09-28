@@ -105,7 +105,8 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     ) {
       counts.beginFrame();
       records.release(store);
-      const still = changes.observeView(view);
+      const still = changes.observeView(view),
+        quiet = still && !changes.worldMoved();
       resting = still;
       if (!still) views++;
       for (let slot = 0; slot < store.count; slot++) {
@@ -144,6 +145,8 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       }
       changes.settled();
       if (still) counts.invalidatedPages += thresholds.restale(nowMs, frame);
+      // Nothing moves: the pages of an older depth range are drawn in the current one.
+      if (quiet) counts.invalidatedPages += sun.ranges.restale(pool, nowMs, frame);
       if (report) {
         const before = stampOf(store),
           read = report;
