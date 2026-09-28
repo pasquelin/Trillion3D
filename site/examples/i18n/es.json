@@ -58,7 +58,8 @@
       "missingCache": "Falta la caché compilada: ejecuta pnpm compile:caches"
     },
     "banner": {
-      "close": "Cerrar"
+      "close": "Cerrar",
+      "waiting": "En espera del motor (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -1745,7 +1746,8 @@
       "night": "Noche",
       "bounce": "Rebote",
       "sun": "Sol",
-      "lamp": "Lámpara"
+      "lamp": "Lámpara",
+      "spin": "Girar"
     },
     "words": {
       "credit": "Modelo de farola de W. Sitters, CC BY 3.0 — ver assets/examples/CREDITS.md"

@@ -58,7 +58,8 @@
       "missingCache": "Cache yang dikompilasi tidak ada: jalankan pnpm compile:caches"
     },
     "banner": {
-      "close": "Tutup"
+      "close": "Tutup",
+      "waiting": "Menunggu engine (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -1745,7 +1746,8 @@
       "night": "Malam",
       "bounce": "Pantulan",
       "sun": "Matahari",
-      "lamp": "Lampu"
+      "lamp": "Lampu",
+      "spin": "Putar"
     },
     "words": {
       "credit": "Model lampu jalan oleh W. Sitters, CC BY 3.0 — lihat assets/examples/CREDITS.md"
