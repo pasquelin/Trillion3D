@@ -14,7 +14,7 @@ import { createWorldPhysics } from './worldPhysics.ts';
 /** A worker faked in place of `Worker`: it keeps the command words the page sends it. */
 interface FakeWorker {
   onmessage(event: { data: unknown }): void;
-  onerror(event: { message: string }): void;
+  onerror(event: { message: string; preventDefault(): void }): void;
   words: Uint32Array[];
 }
 
@@ -26,7 +26,7 @@ export function fakeWorkers(post: (message: unknown) => void = () => {}) {
   globalThis.Worker = class {
     words: Uint32Array[] = [];
     onmessage = (_: { data: unknown }) => {};
-    onerror = (_: { message: string }) => {};
+    onerror = (_: { message: string; preventDefault(): void }) => {};
     constructor() {
       workers.push(this);
     }

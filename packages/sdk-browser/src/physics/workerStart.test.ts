@@ -55,7 +55,7 @@ test('a threaded worker steps only once every pool thread has loaded', async (t)
   assert.ok(!sent.some((m) => m.type === 'error'), JSON.stringify(sent));
   // A loaded thread that throws is named to the page, and the worker steps no more.
   ticks.length = 0;
-  held[2].onerror({ message: 'out of stack' });
+  held[2].onerror({ message: 'out of stack', preventDefault() {} });
   assert.deepEqual(sent.at(-1), {
     type: 'error',
     code: 'PHYSICS_FAILED',
@@ -74,13 +74,33 @@ test('a pool thread that fails to load stops the start, named', async (t) => {
   const { sent } = await launchedWorker(() => 0, THREADS);
   await until(() => held.length === THREADS - 1);
   held[0].onmessage({ data: JOLT_THREAD_LOADED });
-  held[1].onerror({ message: 'its script failed to parse' });
+  held[1].onerror({ message: 'its script failed to parse', preventDefault() {} });
   await until(() => sent.length > 0);
   assert.deepEqual(sent, [
     {
       type: 'error',
       code: 'PHYSICS_FAILED',
       message: 'Physics: pool thread 2 did not load: its script failed to parse',
+      fatal: true,
+    },
+  ]);
+});
+
+test('a loaded pool thread that fails before the others load stops the start, once', async (t) => {
+  const { held, close } = heldThreads();
+  t.after(close);
+  const { sent } = await launchedWorker(() => 0, THREADS);
+  await until(() => held.length === THREADS - 1);
+  held[0].onmessage({ data: JOLT_THREAD_LOADED });
+  held[0].onerror({ message: 'out of stack', preventDefault() {} });
+  await until(() => sent.length > 0);
+  for (const thread of held.slice(1)) thread.onmessage({ data: JOLT_THREAD_LOADED });
+  for (let turn = 0; turn < 20; turn++) await setImmediate();
+  assert.deepEqual(sent, [
+    {
+      type: 'error',
+      code: 'PHYSICS_FAILED',
+      message: 'Physics: pool thread 1 failed: out of stack',
       fatal: true,
     },
   ]);
