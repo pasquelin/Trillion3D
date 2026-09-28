@@ -80,6 +80,8 @@ export function createFrameComposer(
     background: [0, 0, 0],
   };
   let keptRevision = 0;
+  /** True when the kept frame shows particles: never put back, pools let go since included. */
+  let keptParticles = false;
   /** The engine's background, sRGB-encoded like everything the destinations store. */
   const encode = (background: SceneColour) => {
     const { r, g, b } = background?.isColor ? background : { r: 0, g: 0, b: 0 };
@@ -137,6 +139,7 @@ export function createFrameComposer(
       reuse &&
       guidesHeld &&
       !moved &&
+      !keptParticles &&
       backend.frameHeld === true &&
       !target &&
       heldFrame.holds(width, height) &&
@@ -176,6 +179,7 @@ export function createFrameComposer(
     if (target) return;
     heldFrame.keep(width, height);
     keptRevision = revision;
+    keptParticles = moved;
   };
   /** Bytes of the chain's targets and the particles' depth copy on this context. */
   compose.effectBytes = () => (effects?.bytes ?? 0) + (stepped?.bytes() ?? 0);
