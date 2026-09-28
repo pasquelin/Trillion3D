@@ -26,7 +26,7 @@ import { worldSwitches } from './worldSwitches.ts';
  * await world.scene.load('/cache/city/manifest.json'); */
 export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   if (options.controls === 'vehicle') throw noVehicle();
-  const canvas = resolveWorldTarget(target);
+  const { canvas, release: releaseCanvas } = resolveWorldTarget(target);
   const frames = createWorldFrames();
   const pools = worldPools();
   let camera = new Camera('perspective'),
@@ -168,8 +168,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       if (live()) ahead(null);
       runtime.render();
     },
-    /** Tells the world the canvas changed size; unset, it reads the canvas's own size.
-     *  @param width - New width, CSS pixels. @param height - New height, CSS pixels. */
+    /** Tells the world the canvas changed size, in CSS pixels; unset, it reads the canvas's. */
     resize(width = canvas.clientWidth, height = canvas.clientHeight) {
       live()?.resize(Math.floor(width), Math.floor(height));
       invalidate();
@@ -179,7 +178,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
      *  @param options - `onProgress` hears `pages`, `completed` of `total`, as they land. */
     awaitPages: (options?: { onProgress?: (event: JobProgress) => void }) =>
       awaitViewPages(runtime, live, options?.onProgress),
-    /** Stops the world and gives back all it took: GPU memory, loop, controls. */ dispose() {
+    /** Stops the world and gives back all it took, a canvas it made included. */ dispose() {
       if (disposed) return;
       disposed = true;
       controls.dispose();
@@ -189,6 +188,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
       diagnostic.notices.close();
       frames.clear();
       device.dispose();
+      releaseCanvas();
     },
   };
   frames.add(noticeEffectBudget(world.budget, canvas, world.effects, diagnostic.notices));
