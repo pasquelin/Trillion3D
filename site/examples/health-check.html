@@ -182,8 +182,10 @@
         { name: 'pan', position: wide, target: swept, seconds: 0.8, hold: 0.4 },
         { name: 'still', position: wide, target: swept, seconds: 0.1, hold: 3 },
       ]);
+      // The verdict waits for the lighting capability below too: a slow session settles after the tour.
+      let asked = false;
       const judged = world.onFrame(() => {
-        if (flown.gliding) return;
+        if (flown.gliding || !asked) return;
         judged();
         showVerdict(check.verdict(), say);
       });
@@ -202,6 +204,7 @@
       drawn(world.renderer);
       const { reason } = capability.lighting(world);
       if (reason) refuse(reason, true);
+      asked = true;
     </script>
   </body>
 </html>
