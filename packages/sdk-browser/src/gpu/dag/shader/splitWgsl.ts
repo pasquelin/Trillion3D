@@ -43,7 +43,7 @@ fn setFlag(i:u32,v:u32){${write}${last}[${at(cuts.length)}]=v;}`;
 }
 
 /** Declarations of every further part `split` binds, then the accessors that read across them. */
-export function dagSplitAccessWgsl(split: DagSplit) {
+function dagSplitAccessWgsl(split: DagSplit) {
   const types = { clusters: 'Cluster', nodes: 'CullNode', cold: 'u32', flags: 'u32' };
   const declared = dagPartBindings(dagPartCounts(split)).map(
     ({ name, table, binding }) =>
