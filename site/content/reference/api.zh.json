@@ -3213,6 +3213,9 @@
       "commit": "本帧列表中的 `[from, to)` 页已编码，第 `from + i` 页使用 `modes[i]`：它们的绘制在任何读取之前完成。最后一批关闭列表。"
     }
   },
+  "ShadowStaleReason": {
+    "summary": "阴影页面失效的原因 (`ShadowFrameMetrics.shadowPagesStaledBy`)。"
+  },
   "ShadowViewpoint": {
     "summary": "调度器对视角所了解的信息:是一台摄像机,而不是一个矩阵,以此保持无依赖。",
     "members": {

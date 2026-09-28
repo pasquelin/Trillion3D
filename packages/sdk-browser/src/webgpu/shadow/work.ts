@@ -12,8 +12,8 @@ import type { ShadowCullCounts } from '../../gpu/shadow/cullCounts.ts';
  * or every caster of a page drawn whole without one — apart from moving.
  */
 export function createShadowWork() {
-  /** One bit per pool layer a pass of the frame drew in. */
-  let layerBits = new Uint32Array(1);
+  /** The pool layers a pass of the frame drew in. */
+  const drawn = new Set<number>();
   const work = {
     batches: 0,
     layers: 0,
@@ -28,25 +28,17 @@ export function createShadowWork() {
       work.batches = work.layers = work.regions = 0;
       work.restoredPages = work.rasterizedPages = work.restoreCopies = 0;
       work.staticDrawCalls = work.movingDrawCalls = 0;
-      layerBits.fill(0);
+      drawn.clear();
     },
     /** A pass drew in pool layer `layer`: a layer counts once a frame. */
     drewLayer(layer: number) {
-      const word = layer >> 5,
-        bit = 1 << (layer & 31);
-      if (word >= layerBits.length) {
-        const grown = new Uint32Array(word + 1);
-        grown.set(layerBits);
-        layerBits = grown;
-      }
-      if (layerBits[word] & bit) return;
-      layerBits[word] |= bit;
-      work.layers++;
+      drawn.add(layer);
+      work.layers = drawn.size;
     },
-    /** A pass drew `draws` caster draw calls, of moving casters alone or not, and `copies` pages
-     *  restored from the static layer. */
-    drewPass(draws: number, moving: boolean, copies: number) {
-      if (moving) work.movingDrawCalls += draws;
+    /** A pass drew `draws` caster draw calls over `copies` pages restored from the static layer:
+     *  of moving casters alone when it restored any (`pool.drawMode`). */
+    drewPass(draws: number, copies: number) {
+      if (copies > 0) work.movingDrawCalls += draws;
       else work.staticDrawCalls += draws;
       work.restoreCopies += copies;
     },
@@ -75,7 +67,8 @@ type WorkSource = {
 export function shadowWorkMetrics({ shadowWork: work, plan, cull }: WorkSource) {
   const reasons = {} as Record<ShadowStaleReason, number>,
     culled = cull?.counts.counts();
-  STALE_REASONS.forEach((reason, i) => (reasons[reason] = plan.counts.staledBy[i]));
+  for (let i = 0; i < STALE_REASONS.length; i++)
+    reasons[STALE_REASONS[i]] = plan.counts.staledBy[i];
   return {
     shadowBatches: work.batches,
     shadowLayersDrawn: work.layers,

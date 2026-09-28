@@ -3297,6 +3297,9 @@
       "commit": "Halaman `[from, to)` dari daftar frame telah dikodekan, halaman `from + i` dalam `modes[i]`: gambarnya selesai sebelum ada yang membacanya. Batch terakhir menutup daftar."
     }
   },
+  "ShadowStaleReason": {
+    "summary": "Mengapa sebuah halaman bayangan menjadi usang (`ShadowFrameMetrics.shadowPagesStaledBy`)."
+  },
   "ShadowViewpoint": {
     "summary": "Yang diketahui penjadwal tentang tampilan: sebuah kamera, bukan sebuah matriks, agar tetap tanpa ketergantungan.",
     "members": {
