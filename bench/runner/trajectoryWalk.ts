@@ -41,6 +41,9 @@ export async function walkTrajectory(
     throw new Error('initial pose did not settle within 64 frames');
   for (const [index, pose] of poses.entries()) {
     const frame = await render(pose, index);
+    // Backends reuse their metrics object on later renders.
+    const pagesRequested = frame.pagesRequested ?? null;
+    const residentPages = frame.residentPages ?? null;
     if (!indices.includes(index)) continue;
     const name = `${prefix}-${index}`;
     const arrival = prefix === 'candidate' ? await port.capture(`${name}-arrival.png`) : null;
@@ -50,8 +53,8 @@ export async function walkTrajectory(
       arrival,
       settleFrames,
       settled: await port.capture(`${name}-settled.png`),
-      pagesRequested: frame.pagesRequested ?? null,
-      residentPages: frame.residentPages ?? null,
+      pagesRequested,
+      residentPages,
     });
   }
   return { checkpoints, coverageFailures, drawn, incidents };
