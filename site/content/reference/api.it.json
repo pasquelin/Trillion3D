@@ -398,7 +398,10 @@
       "levels": "Ogni livello.",
       "reach": "Portata dei raggi: la diagonale dell'estensione, oltre la quale non c'è nulla da toccare.",
       "shareOf": "Sonde del lotto di lavoro per fotogramma, per livello: quote pubblicate applicate a un lotto totale.",
-      "follow": "Riposiziona i livelli mobili attorno a un punto di vista. Restituisce vero quando almeno un indice di cella base è cambiato: è l'unico segnale di cui la convergenza ha bisogno per ripartire, senza alcuna rilettura dalla GPU."
+      "follow": "Riposiziona i livelli mobili attorno a un punto di vista. Restituisce vero quando almeno un indice di cella base è cambiato: è l'unico segnale di cui la convergenza ha bisogno per ripartire, senza alcuna rilettura dalla GPU.",
+      "reserveCount": "Capacità fissa riservata prima che le trasformazioni possano ampliare la scena.",
+      "invalidLevels": "Livelli la cui spaziatura o presenza è cambiata nell’ultima ripianificazione. Gli spostamenti della base usano i contrassegni delle celle.",
+      "replan": "Riapplica la politica esistente di risoluzione spaziale ai limiti attuali della geometria."
     }
   },
   "BounceOccupancy": {
@@ -408,7 +411,8 @@
       "occupied": "Vero quando una cella di un livello nella sua griglia merita una sonda.",
       "marked": "Celle marcate e celle totali del livello più fine: il guadagno pubblicato.",
       "cells": "Celle del livello più fine.",
-      "bytes": "Byte che occupa."
+      "bytes": "Byte che occupa.",
+      "allEligible": "La geometria si è mossa: pianifica in modo conservativo tutte le celle delle cascate, il cui numero è limitato."
     }
   },
   "BoundedNode": {
@@ -1368,7 +1372,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Il proxy riletto e riverificato prima che un solo raggio lo tocchi.",
-    "description": "Disposizione, in little-endian: `u32 'WGPX' · u32 versione · u32 triangoli · u32 nodi`, poi i vertici nel mondo, gli albedo, i limiti esatti dei nodi e i loro quattro figli, uno dopo l'altro. Ogni sezione ha una lunghezza imposta dall'intestazione; un file di dimensione diversa viene rifiutato in blocco, perché un nodo che nominasse un triangolo assente farebbe leggere qualsiasi cosa allo shader."
+    "description": "Disposizione: otto parole di intestazione little-endian, seguite dalle colonne della geometria e dell’albero canonici e dai dati di proprietà con versione. `docs/FORMAT.md` specifica ogni conteggio e colonna. L’intestazione impone la lunghezza di ogni sezione; un file di dimensione diversa viene rifiutato interamente, perché un nodo che indicasse un triangolo mancante farebbe leggere dati arbitrari allo shader."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` scomposta in `position`, `quaternion`, `scale`."
@@ -2877,7 +2881,7 @@
     "summary": "Impostazioni pubblicate dell'illuminazione diretta.",
     "description": "Sono scelte di prodotto nominate, non costanti sepolte: ogni limite a runtime le rilegge, e la diagnostica le pubblica così come sono.",
     "members": {
-      "tileLights": "Luci che la lista di una tessera di schermo tiene, in ciascuna delle sue due fette di profondità: la sua memoria è questa, per tessera, qualunque cosa tenga la scena. Una tessera raggiunta da più luci non tiene lista e percorre ogni luce della scena — quelle che la mancano aggiungono uno zero esatto —, così nessuna luce va mai persa (X2).",
+      "tileLights": "Luci che la lista di una tessera di schermo tiene, in ciascuna delle sue due fette di profondità: la sua memoria è questa, per tessera, qualunque cosa tenga la scena. Una tessera raggiunta da più luci prende i loro indici da un pool grande quanto la vista e percorre esattamente quelle; una per cui il pool non ha più posto percorre ogni luce della scena — quelle che la mancano aggiungono uno zero esatto —, così nessuna luce va mai persa (X2).",
       "tileSize": "Lato in pixel di una tessera di schermo della lista di luci.",
       "samplesPerPixel": "Luci illuminate per intero — lettura dell'ombra inclusa — per pixel di un'immagine IN MOVIMENTO (X2): le altre sono pesate senza la loro ombra, e quelle illuminate sono estratte a sorte in proporzione, quindi la stima è senza distorsioni e l'antialiasing temporale ne fa la media. Un'immagine ferma illumina ogni luce della sua tessera e converge verso la somma esatta; lì, questo numero non gioca alcun ruolo.",
       "shadowPage": "Lato di una pagina d’ombra, in texel: l’unità del pool fisico, delle mappe virtuali e dell’invalidazione. Un oggetto in movimento invalida solo le pagine coperte dal suo box proiettato.",
@@ -5217,7 +5221,7 @@
     "summary": "Versione del contratto della gerarchia di scena mantenuta dall'host."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Interi di intestazione: firma, versione, triangoli, nodi."
+    "summary": "Interi dell’intestazione: firma, versione, conteggi di triangoli/nodi/gruppi/proprietari/origini, zero riservato."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' letti come un intero senza segno a 32 bit little-endian."
@@ -5364,7 +5368,12 @@
       "triangles": "Tre vertici nel mondo per triangolo, `PROXY_TRIANGLE_FLOATS` numeri ciascuno.",
       "albedo": "Albedo diffuso lineare del triangolo, disposto in RGBA8.",
       "nodeBounds": "Limiti esatti di ogni nodo del BVH.",
-      "nodeChildren": "I quattro figli di ogni nodo: scatola quantizzata, numero di triangoli, presenza, collegamento."
+      "nodeChildren": "I quattro figli di ogni nodo: scatola quantizzata, numero di triangoli, presenza, collegamento.",
+      "triangleGroups": "Gruppo condiviso dei proprietari di origine di ogni triangolo canonico, memorizzato una sola volta.",
+      "groupOffsets": "Offset dei record dei proprietari di ogni gruppo, inclusa la sentinella finale.",
+      "owners": "Record dei proprietari: indice del nodo di origine e albedo lineare compattato in RGBA8.",
+      "bindWorlds": "Matrici mondo originali dei nodi di origine, sedici valori a doppia precisione per nodo.",
+      "sourceParents": "Gerarchia di origine, inclusi i nodi di partizione non attualmente istanziati dall’host."
     }
   },
   "SceneProxyDescriptor": {
@@ -5381,7 +5390,10 @@
       "triangleBudget": "Budget di triangoli pubblicato, quello che ha deciso la soglia realmente ottenuta.",
       "bounds": "Estensione del proxy nel mondo: tre limiti bassi poi tre alti.",
       "triangles": "Triangoli.",
-      "nodes": "Nodi dell'albero."
+      "nodes": "Nodi dell'albero.",
+      "groups": "Gruppi di proprietari condivisi e memorizzati una sola volta.",
+      "owners": "Record dei proprietari.",
+      "instances": "Matrici dei nodi di origine."
     }
   },
   "SceneRoot": {
@@ -5470,6 +5482,10 @@
       "shadowPagesPending": "Pagine d'ombra in attesa.",
       "shadowWaitMs": "Quanti millisecondi la pagina obsoleta più vecchia che l'immagine legge ha atteso di essere ridisegnata. Conta solo il tempo in cui l'immagine la legge; 0 una volta ridisegnata.",
       "gpuLightListsMs": "Tempo GPU delle liste di luci.",
+      "tileLightPoolReserved": "Parole che le tessere oltre la loro lista hanno riservato nella riserva di indici di luci della vista, sull’immagine che il dispositivo ha campionato per ultima mentre la scena tiene più luci di una lista; `null` altrimenti (#849).",
+      "tileLightPoolCapacity": "Parole che la riserva di indici di luci teneva su quell’immagine campionata; `null` allo stesso modo.",
+      "tileLightPoolOverflowed": "Se una tessera non ha trovato posto nella riserva su quell’immagine campionata e ha percorso ogni luce.",
+      "tileLightPoolGrowths": "Volte in cui la riserva è cresciuta fino a ciò che chiedeva un’immagine traboccante, dall’apertura dell’esploratore.",
       "gpuShadowsMs": "Tempo GPU delle ombre.",
       "gpuShadowCullMs": "Tempo GPU per scegliere i proiettori delle pagine d’ombra che un fotogramma disegna: il taglio dalla luce, lo scarto per pagina e il test di occlusione dei proiettori in movimento con le piramidi che legge.",
       "gpuShadowRasterMs": "Tempo GPU per disegnare quei proiettori nelle pagine: lo strato statico, poi il pool.",
@@ -6753,6 +6769,10 @@
       "shadowPagesPending": "Pagine d'ombra in attesa.",
       "shadowWaitMs": "Quanti millisecondi la pagina obsoleta più vecchia che l'immagine legge ha atteso di essere ridisegnata. Conta solo il tempo in cui l'immagine la legge; 0 una volta ridisegnata.",
       "gpuLightListsMs": "Tempo GPU delle liste di luci.",
+      "tileLightPoolReserved": "Parole che le tessere oltre la loro lista hanno riservato nella riserva di indici di luci della vista, sull’immagine che il dispositivo ha campionato per ultima mentre la scena tiene più luci di una lista; `null` altrimenti (#849).",
+      "tileLightPoolCapacity": "Parole che la riserva di indici di luci teneva su quell’immagine campionata; `null` allo stesso modo.",
+      "tileLightPoolOverflowed": "Se una tessera non ha trovato posto nella riserva su quell’immagine campionata e ha percorso ogni luce.",
+      "tileLightPoolGrowths": "Volte in cui la riserva è cresciuta fino a ciò che chiedeva un’immagine traboccante, dall’apertura dell’esploratore.",
       "gpuShadowsMs": "Tempo GPU delle ombre.",
       "gpuShadowCullMs": "Tempo GPU per scegliere i proiettori delle pagine d’ombra che un fotogramma disegna: il taglio dalla luce, lo scarto per pagina e il test di occlusione dei proiettori in movimento con le piramidi che legge.",
       "gpuShadowRasterMs": "Tempo GPU per disegnare quei proiettori nelle pagine: lo strato statico, poi il pool.",

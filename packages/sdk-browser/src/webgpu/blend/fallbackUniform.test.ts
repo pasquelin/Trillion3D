@@ -1,6 +1,37 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFallbackUniform } from './uniforms.ts';
+import { FALLBACK_UNIFORM, writeFallbackUniform } from './uniforms.ts';
+import { SHADER } from '../pages/prepare/shaders.ts';
+
+const WGSL_WORDS: Record<string, number> = { mat4x4f: 16, vec4f: 4, vec2f: 2, u32: 1, f32: 1 };
+
+test('the fallback offsets follow the shader struct they fill', () => {
+  const fields = /struct Uniforms\{([^}]*)\}/.exec(SHADER)![1].split(',').filter(Boolean);
+  const at: Record<string, number> = {};
+  let word = 0;
+  for (const field of fields) {
+    const [name, type] = field.split(':');
+    at[name] = word;
+    word += WGSL_WORDS[type];
+  }
+  const { projection, world, color, pageOffset, indexCount, mode, identity } = FALLBACK_UNIFORM;
+  const { lineWidth, pixelRatio, width, dash, sprite } = FALLBACK_UNIFORM;
+  assert.deepEqual(at, {
+    viewProj: projection,
+    world,
+    color,
+    pageOffset,
+    indexCount,
+    mode,
+    identity,
+    lineWidth,
+    pixelRatio,
+    viewport: width,
+    dash,
+    sprite,
+  });
+  assert.equal(word, FALLBACK_UNIFORM.spriteMode + 1);
+});
 
 test('fallback packing writes every shader word at its offset and preserves integer bits', () => {
   const packed = new Float32Array(128).fill(7),
