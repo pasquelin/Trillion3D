@@ -56,15 +56,18 @@ impl CornerCode {
         (field(words, at, ib), width, prefix as usize * CORNERS)
     }
 
-    /// True when every record of `table` — the block table's bytes — keeps a width of 16 at most
-    /// and its corners inside the corner stream: the header gate, which a reader that decodes in
-    /// place, the GPU, relies on to never read past the stream.
-    pub fn fits(&self, table: &[u8], index_count: usize) -> bool {
+    /// True when every record of `table` — the block table's bytes — keeps its base below the
+    /// vertex count, a width no wider than an index (16 at most) and its corners inside the corner
+    /// stream: the header gate, which a reader that decodes in place, the GPU, relies on to never
+    /// read past the stream.
+    pub fn fits(&self, table: &[u8], vertex_count: usize, index_count: usize) -> bool {
         let words: Vec<u32> = le_words(table).collect();
         (0..self.blocks).all(|b| {
-            let (_, width, start) = self.record(&words, 0, b);
+            let (base, width, start) = self.record(&words, 0, b);
             let corners = (index_count - b * CORNERS).min(CORNERS);
-            width as usize <= MAX_WIDTH && start + corners * width as usize <= self.bits
+            (base as usize) < vertex_count
+                && width <= self.index_bits
+                && start + corners * width as usize <= self.bits
         })
     }
 
