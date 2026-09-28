@@ -4,6 +4,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { createAutonomousGeometry } from '../../../packages/sdk-browser/src/backend/autonomous/geometry.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { WebglViewState } from '../../../packages/sdk-browser/src/backend/autonomous/views.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceAutonomousSync } from '../../oracles/browser/autonomous-backend.ts';
 import { HOSTILE_FLOATS } from '../../../tests/kit/assert/hostile.ts';
@@ -50,7 +51,7 @@ function monde(total: number, depart: number): Monde {
 }
 
 /** The one view a world draws, as the geometry store reads it (`views.ts`). */
-const viewOf = (w: Record<'shown' | 'desired' | 'requested', PageRec[]>) => ({
+const viewOf = (w: Pick<WebglViewState, 'shown' | 'desired' | 'requested'>) => ({
   live: w,
   lists: () => [w.shown, w.desired, w.requested],
 });
