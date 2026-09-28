@@ -1,4 +1,4 @@
-import type { StreamContext } from './types.ts';
+import type { Job, StreamContext } from './types.ts';
 import { compacteFile, findAdmissible, insereTravail } from './queueOrder.ts';
 
 export function createStreamingQueue(
@@ -24,15 +24,19 @@ export function createStreamingQueue(
   /** Pages `forget` asked to drop while a job held them: they leave when it settles, unless
    *  `keep` takes them back first (#572). */
   const forgotten = new Set<string>();
-  /** A forgotten page leaves the catalogue with its bytes and failure once no job holds it. */
-  const leave = (url: string) => {
-    if (jobs.has(url) || !forgotten.delete(url)) return;
+  /** A page leaves the catalogue with its bytes and its failure. */
+  const drop = (url: string) => {
     failures.delete(url);
     if (catalog.delete(url)) store.drop(url);
   };
   const forget = (url: string) => {
-    forgotten.add(url);
-    leave(url);
+    if (jobs.has(url)) forgotten.add(url);
+    else drop(url);
+  };
+  /** The single exit of a job: it releases its url, and a page forgotten meanwhile leaves. */
+  const end = (url: string, job: Job) => {
+    if (jobs.get(url) === job) jobs.delete(url);
+    if (!jobs.has(url) && forgotten.delete(url)) drop(url);
   };
   const octetsDe = (url: string) => catalog.get(url)?.bytes;
   const pump = () => {
@@ -63,8 +67,7 @@ export function createStreamingQueue(
         .finally(() => {
           state.active--;
           state.activeBytes -= catalog.get(job.url)!.bytes;
-          if (jobs.get(job.url) === job) jobs.delete(job.url);
-          leave(job.url);
+          end(job.url, job);
           emit('page-transfer-end', 'Page transfer finished', () => ({
             version: 1,
             url: job.url,
@@ -158,14 +161,13 @@ export function createStreamingQueue(
         // more and keeps a superseded camera from throwing away bytes it is about to ask for again.
         // Only a request still waiting in the queue is dropped.
         if (shared.consumers.size === 0 && jobs.get(url) === shared && shared.state === 'queued') {
-          jobs.delete(url);
+          end(url, shared);
           shared.controller.abort(abortError());
           emit('page-stream-abort', 'Pending request cancelled', () => ({ version: 1, url }));
           // Marked, not removed: `pump` compacts the queue in one pass, and `stats()` subtracts
           // the marked from its length, so the published pending count does not move.
           shared.state = 'dropped';
           state.dropped++;
-          leave(url);
         }
         if (ok) resolve(value as Uint8Array);
         else reject(value);
