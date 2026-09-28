@@ -18,16 +18,12 @@ import { planReference } from '../../../oracles/browser/transparent-orders.ts';
 
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
-/** The reduced item this bench builds: only the fields the blend order reads (no GPU buffers). */
-export interface BenchItem {
-  surface: BlendGpuItem['surface'];
-  matrix: THREE.Matrix4;
-  bounds: Float64Array;
-  count: number;
-  paged: boolean;
-  pagedIndex: number | undefined;
-  tableBase: number;
-}
+/** The reduced item this bench builds: only the fields the blend order reads (no GPU buffers),
+ *  picked from the engine's item so a renamed field fails the type check, not the bench run. */
+export type BenchItem = Pick<
+  BlendGpuItem,
+  'surface' | 'count' | 'paged' | 'pagedIndex' | 'tableBase'
+> & { matrix: THREE.Matrix4; bounds: Float64Array };
 
 /** Order of magnitude of the measured scene: 4 288 transparent items, twelve placements each. */
 const PLACEMENTS = 12,
