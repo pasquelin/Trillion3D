@@ -159,9 +159,8 @@ function encodeOnce(
 
 /**
  * The kernels that read a primitive's words run once per range of `frames`, each under its
- * range's bind group, and take only its range's primitives (`frameRanges.ts`); one range keeps the
- * group the pass opened with, the commands of before. Flat: `threads`, plus `perPrimitive` per
- * primitive of the range, at least `firstFloor` on the first.
+ * range's bind group, on its range's primitives (`frameRanges.ts`): `threads`, plus `perPrimitive`
+ * per primitive of the range, at least `firstFloor` on the first. One range: the commands of before.
  */
 function perRange(
   pass: GPUComputePassEncoder,
