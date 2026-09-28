@@ -44,6 +44,8 @@ test('an accepted English change clears that entry only, and needs a change to a
   assert.deepEqual(staleTranslations(accepted, current), ['fr examples:water']);
   assert.throws(() => accept(accepted, current, ['portal:nav.primary']), /did not change/);
   assert.throws(() => accept(recorded, current, ['examples:fire']), /no such entry/);
+  const added = { ...current, 'examples:fire': { en: hashOf('Fire'), fr: '-' } };
+  assert.throws(() => accept(recorded, added, ['examples:fire']), /not recorded yet/);
 });
 
 test('the record reads back the hashes it was written from', () => {
