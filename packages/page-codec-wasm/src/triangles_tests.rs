@@ -57,7 +57,8 @@ fn page(state: &mut u32, corners: usize) -> Vec<u32> {
 fn ten_thousand_random_pages_decode_to_the_same_corners() {
     let mut state = 0x9E37_79B9;
     for _ in 0..10_000 {
-        let indices = page(&mut state, 3 + 3 * (xorshift(&mut state) as usize % 300));
+        let corners = 3 + 3 * (xorshift(&mut state) as usize % 300);
+        let indices = page(&mut state, corners);
         let count = 1 + *indices.iter().max().unwrap() as usize;
         assert_eq!(round_trip(&indices, count).unwrap(), indices);
     }

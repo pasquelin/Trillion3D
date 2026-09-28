@@ -132,12 +132,9 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     head.getUint32((CLUSTER_HEADER_WORDS + i) * 4, true),
   );
   for (let b = 0; b < blockCount; b++) {
-    const [, width, start] = blockRecord(table, blocks, corners, b);
-    if (
-      width > MAX_WIDTH ||
-      start + Math.min(BLOCK_CORNERS, indexCount - b * BLOCK_CORNERS) * width > cornerBits
-    )
-      throw new Error('GEOMETRY_PAGE_BOUNDS');
+    const [, width, start] = blockRecord(table, blocks, corners, b),
+      end = start + Math.min(BLOCK_CORNERS, indexCount - b * BLOCK_CORNERS) * width;
+    if (width > MAX_WIDTH || end > cornerBits) throw new Error('GEOMETRY_PAGE_BOUNDS');
   }
   return {
     vertexCount,
