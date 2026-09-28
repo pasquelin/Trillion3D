@@ -8,12 +8,9 @@ import {
   normalizeVector3,
   scaleVector3,
 } from './engine.ts';
-import { canvasView, formatNumber, slider, valueView } from './kit.ts';
+import { showVector as show, vector, canvasView, formatNumber, slider, valueView } from './kit.ts';
 import type { DemoDef, DemoState } from './kit.ts';
 import { drawVectors } from './draw.ts';
-
-const vector = (x: number, y: number, z: number) => new Float64Array([x, y, z]);
-const show = (v: Float64Array) => Array.from(v, formatNumber).join(', ');
 
 /** Two vectors the reader turns, in the xz plane, plus their heights. */
 function pair(state: DemoState) {

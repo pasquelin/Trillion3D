@@ -54,6 +54,15 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 `pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
 touch; neither replaces `validate`.
 
+The CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as parallel jobs, one
+per group of `scripts/validate-steps.ts`: `quick`, `typescript`, `native` (Clippy and the Rust
+tests) and `unit`, the last split into shards of the same file list
+(`TRILLION3D_TEST_SHARD=i/n`, passed to `node --test --test-shard`). No test is skipped by path.
+The single required check, `validate`, needs every job. It runs on every pull request, on
+`develop`, and on every push of an issue branch (`<issue>-<name>`). A push run and a pull request
+run never share a concurrency group, so a push never cancels the run that proves the merge with
+`develop`.
+
 ### Unit and Integration Tests
 
 They validate algorithms, package boundaries, and public contracts. They do not initialize
@@ -84,9 +93,13 @@ category and reason, and the command prints it before starting — never in sile
 
 ### Site proofs
 
-The learning portal under `site/` has its own proofs, run on demand in system Chrome. The three
+The learning portal under `site/` has its own proofs, run on demand in system Chrome. The two
 `scripts/docs-*.browser.ts` and `tests/browser/renders/explorer-startup.browser.ts` build the site into
-`dist/site/` before serving it, so they need no committed bundle. A behaviour-neutral change to the
+`dist/site/` before serving it, so they need no committed bundle; CI has no GPU and runs none of
+them, the coder runs them. `scripts/docs-examples.browser.ts` opens every page of `site/examples/`
+on WebGPU and on WebGL2 (`navigator.gpu` hidden) and fails on any error a page raises or logs — an
+import that fails, a 404, the engine's own failures — but those `DECLARED_ERRORS` names for it
+(`scripts/docs/examples/capture.ts`), each with its reason. A behaviour-neutral change to the
 site is proved by `node scripts/site-diff.browser.ts <beforeDir> <afterDir>`: every portal route
 (entries and examples in every language, examples index, API index, reports, not found),
 served from two built trees, settled, its DOM compared after normalising what is dynamic by
@@ -114,6 +127,13 @@ second. It reads the caches, never builds them: without
 `node bench/runner/assets.ts` and a facade (`node bench/runner/scenes/facade.ts --seed 7`,
 then `node bench/runner/assets.ts --only facade-7`) it fails by name on the cache it could not
 find.
+
+`page-tangents` compares a normal-mapped surface with authored and mirrored tangents drawn from its
+geometry pages and from its source buffers, on WebGPU: to the pixel when blended, recorded when
+opaque (the proof's header says why). Its four scenes are derived from `normal-tangent-mirror-test`:
+`node bench/runner/scenes/tangentScenes.ts` writes them and prints the `assets.ts --only` line that
+compiles them; then `node tests/browser/test-gpu.ts tests/browser/renders/page-tangents.browser.ts`
+runs it. The recette runs it after the merge.
 
 `tests/browser/test-gpu.test.ts` enforces symmetric guarding across both directories: **executed ∪ excluded ==
 on-disk**, and no exclusion outlives the file it names. Without this guard, forgotten proofs would
