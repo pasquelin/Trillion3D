@@ -4,6 +4,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
 import { createAutonomousGeometry } from '../../../packages/sdk-browser/src/backend/autonomous/geometry.ts';
 import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { WebglViewState } from '../../../packages/sdk-browser/src/backend/autonomous/views.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import { referenceAutonomousSync } from '../../oracles/browser/autonomous-backend.ts';
 import { HOSTILE_FLOATS } from '../../../tests/kit/assert/hostile.ts';
@@ -49,6 +50,12 @@ function monde(total: number, depart: number): Monde {
   return { scene, allPages, shown: [], desired: [], requested: [] };
 }
 
+/** The one view a world draws, as the geometry store reads it (`views.ts`). */
+const viewOf = (w: Pick<WebglViewState, 'shown' | 'desired' | 'requested'>) => ({
+  live: w,
+  lists: () => [w.shown, w.desired, w.requested],
+});
+
 const empreinte = (m: Monde, triangles: number) => ({
   enfants: m.scene.children.map((mesh) => mesh.renderOrder),
   triangles,
@@ -78,11 +85,12 @@ const passe = (
 
 function cas(name: string, total: number, tailles: readonly number[], mesure = true) {
   const suite = coupes(total, tailles, 0x5eed ^ total);
-  const gauche = monde(total, 0x9e37 ^ total),
-    droite = monde(total, 0x9e37 ^ total);
-  const oracle = referenceAutonomousSync(gauche);
+  const left = monde(total, 0x9e37 ^ total),
+    right = monde(total, 0x9e37 ^ total);
+  const oracle = referenceAutonomousSync(left);
   const paquet = createAutonomousGeometry({
-    ...droite,
+    ...right,
+    views: viewOf(right),
     bootstrap: [],
     byUrl: new Map(),
     descriptors: new Map(),
@@ -95,8 +103,8 @@ function cas(name: string, total: number, tailles: readonly number[], mesure = t
     size: total,
     mesure,
     input: {
-      reference: () => passe(gauche, oracle.sync, oracle.state, suite),
-      optimisee: () => passe(droite, paquet.sync, paquet.state, suite),
+      reference: () => passe(left, oracle.sync, oracle.state, suite),
+      optimisee: () => passe(right, paquet.sync, paquet.state, suite),
     },
   };
 }
@@ -121,6 +129,7 @@ await stress({
   calcul: (m: Monde) =>
     createAutonomousGeometry({
       ...m,
+      views: viewOf(m),
       bootstrap: [],
       byUrl: new Map(),
       descriptors: new Map(),

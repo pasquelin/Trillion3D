@@ -210,7 +210,10 @@
       "levels": "Từng tầng.",
       "reach": "Tầm với của tia: đường chéo khu vực, ngoài đó không có gì để va chạm.",
       "shareOf": "Số đầu dò trong lô công việc mỗi khung hình, theo từng tầng: tỉ lệ đã công bố áp dụng lên tổng một lô.",
-      "follow": "Định vị lại các tầng có thể di chuyển quanh một điểm nhìn. Trả về đúng khi ít nhất một chỉ số ô gốc thay đổi: đây là tín hiệu duy nhất mà sự hội tụ cần để khởi động lại, không tốn chi phí đọc lại GPU."
+      "follow": "Định vị lại các tầng có thể di chuyển quanh một điểm nhìn. Trả về đúng khi ít nhất một chỉ số ô gốc thay đổi: đây là tín hiệu duy nhất mà sự hội tụ cần để khởi động lại, không tốn chi phí đọc lại GPU.",
+      "reserveCount": "Dung lượng cố định được dành sẵn trước khi các phép biến đổi có thể mở rộng cảnh.",
+      "invalidLevels": "Các cấp có khoảng cách hoặc sự hiện diện thay đổi trong lần lập kế hoạch lại gần nhất. Việc dịch gốc dùng dấu nhận diện ô.",
+      "replan": "Áp dụng lại chính sách độ phân giải không gian hiện có cho các giới hạn hình học hiện tại."
     }
   },
   "BounceOccupancy": {
@@ -220,7 +223,8 @@
       "occupied": "Đúng khi ô của một tầng trên lưới toàn cục của nó xứng đáng có một đầu dò.",
       "marked": "Số ô được đánh dấu và tổng số ô của tầng mịn nhất: mức lợi đã công bố.",
       "cells": "Các ô của tầng mịn nhất.",
-      "bytes": "Số byte nó chiếm dụng."
+      "bytes": "Số byte nó chiếm dụng.",
+      "allEligible": "Hình học đã di chuyển: đưa toàn bộ ô của các tầng chuyển tiếp vào lịch xử lý để tránh bỏ sót; số ô vẫn có giới hạn."
     }
   },
   "BoundedNode": {
@@ -515,7 +519,7 @@
       "primitives": "Các nguyên thủy của nó.",
       "worstStalls": "Bảng tắc nghẽn của trình biên dịch: tối đa mười primitive có một nhóm bị tắc giữ lại gốc ở cấp 0, tệ nhất trước. Không có trong bộ nhớ đệm biên dịch trước nó.",
       "texturePreviews": "Một mục cho mỗi cặp (kết cấu, atlas) đã giải mã, sắp theo kết cấu rồi theo atlas; rỗng nếu không có ảnh nào giải mã được.",
-      "textures": "Mẫu cho các mức đã nướng sẵn, tương đối so với tệp kê khai: {sha} là mã băm ảnh nguồn, {kind} là tên atlas (PREVIEW_ATLAS_NAMES), {level} là thứ hạng mức. Không có trong bộ nhớ đệm được biên dịch trước khi có tính năng nướng mức, mà trình đọc này từ chối qua phiên bản tệp phụ.",
+      "textures": "Mẫu cho các mức đã nướng sẵn, tương đối so với tệp kê khai: {sha} là mã băm ảnh nguồn, {kind} là tên atlas (PREVIEW_ATLAS_NAMES), {level} là thứ hạng mức. Không có trong bộ nhớ đệm được biên dịch trước khi có tính năng nướng mức, mà trình đọc này từ chối qua phiên bản tệp phụ. `version` là phiên bản của các mức (`TEXTURE_PREVIEW_VERSION`): bộ đọc không đọc mức nào của phiên bản khác.",
       "proxy": "Nơi để đọc proxy cảnh đang lưu trú và BVH của nó: hình học bị các tia va vào. Không có trong bộ nhớ đệm được biên dịch trước khi có tính năng dội lại, vẫn đọc được nguyên trạng."
     }
   },
@@ -972,6 +976,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Đường vẽ này không thể thực hiện thay đổi đó lên cảnh.",
       "BATCHED_WORLD_VIEW": "Đường vẽ này không thể thực hiện thay đổi đó lên cảnh.",
       "RAYCAST_NO_VIEW": "Một điểm ảnh được yêu cầu từ một canvas không có kích thước: không có hình ảnh nào để ngắm qua.",
+      "SURFACE_CAPTURE_UNSUPPORTED": "Một ảnh chụp bề mặt (`captureSurfaceView`) được yêu cầu từ một đường vẽ không thể vẽ các bề mặt vật liệu trong một góc nhìn riêng: đường WebGL2 không có.",
       "VERTICES_NOT_LOADED": "Các đỉnh của một mô hình đã nạp bị đọc trước `await geometry.loadVertices()`: phiên đọc chúng khi cần lần đầu, không bao giờ đọc trước.",
       "SESSION_OPEN_FAILED": "Phiên của thế giới không thể mở, vì một lý do không có mã riêng (`world.diagnostic.error`): lỗi được ném nằm trong `details.cause`.",
       "WEBGPU_LOST": "WebGPU đã mất thiết bị của nó, hoặc một lỗi trên thiết bị để lại trạng thái mà không gì có thể vẽ từ đó: được ném bởi `render`, `flush` và các lượt đọc cần thiết bị, được đặt tên bởi chẩn đoán `gpu-device-lost`, và xuất hiện trên `world.diagnostic.error` khi một phiên không thể mở vì lý do đó.",
@@ -1632,7 +1637,7 @@
     "summary": "Các cài đặt đã công bố của ánh sáng trực tiếp.",
     "description": "Đây là các lựa chọn sản phẩm có tên, không phải các hằng số bị chôn giấu: mọi giới hạn khi chạy đều đọc lại chúng, và bảng chẩn đoán công bố chúng nguyên trạng.",
     "members": {
-      "tileLights": "Số nguồn sáng mà danh sách của một ô màn hình giữ, trong mỗi lát độ sâu của nó: bộ nhớ của nó là bấy nhiêu, mỗi ô, bất kể cảnh chứa gì. Một ô được nhiều nguồn sáng hơn chạm tới sẽ không giữ danh sách và duyệt mọi nguồn sáng của cảnh — những nguồn không chạm tới nó cộng thêm một số không chính xác —, nên không nguồn sáng nào bị bỏ (X2).",
+      "tileLights": "Số nguồn sáng mà danh sách của một ô màn hình giữ, trong mỗi lát độ sâu của nó: bộ nhớ của nó là bấy nhiêu, mỗi ô, bất kể cảnh chứa gì. Một ô được nhiều nguồn sáng hơn chạm tới sẽ lấy chỉ số của chúng từ một vùng nhớ cỡ khung nhìn và duyệt đúng những nguồn đó; một ô mà vùng nhớ không còn chỗ sẽ duyệt mọi nguồn sáng của cảnh — những nguồn không chạm tới nó cộng thêm một số không chính xác —, nên không nguồn sáng nào bị bỏ (X2).",
       "tileSize": "Cạnh tính bằng điểm ảnh của một ô màn hình trong danh sách nguồn sáng.",
       "samplesPerPixel": "Số nguồn sáng được tô bóng đầy đủ — kể cả đọc bóng đổ — cho mỗi điểm ảnh của một hình ảnh ĐANG CHUYỂN ĐỘNG (X2): những nguồn còn lại được cân nhắc mà không có bóng đổ của chúng, và những nguồn được tô bóng thì được vẽ theo tỉ lệ, nên ước lượng không thiên lệch và khử răng cưa theo thời gian sẽ lấy trung bình nó. Một hình ảnh đứng yên tô bóng mọi nguồn sáng trong ô của nó và hội tụ về tổng chính xác; ở đó, con số này không có vai trò gì.",
       "shadowPage": "Cạnh của một trang bóng, tính bằng texel: đơn vị của bể vật lý, của các bản đồ ảo và của việc vô hiệu hóa. Một vật chuyển động chỉ làm cũ các trang mà hộp chiếu của nó phủ.",
@@ -2860,7 +2865,7 @@
     "summary": "Phiên bản của hợp đồng phân cấp cảnh do ứng dụng chủ sở hữu."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Các số nguyên tiêu đề: chữ ký, phiên bản, tam giác, node."
+    "summary": "Các số nguyên trong phần đầu: chữ ký, phiên bản, số lượng tam giác/nút/nhóm/chủ sở hữu/nguồn, số không dành riêng."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' đọc như một số nguyên 32-bit không dấu theo thứ tự little-endian."
@@ -3152,7 +3157,12 @@
       "triangles": "Ba đỉnh thế giới cho mỗi tam giác, mỗi tam giác `PROXY_TRIANGLE_FLOATS` con số.",
       "albedo": "Albedo khuếch tán tuyến tính của tam giác, đóng gói RGBA8.",
       "nodeBounds": "Giới hạn chính xác của mỗi node BVH.",
-      "nodeChildren": "Bốn con của mỗi node: hộp đã lượng tử hóa, số tam giác, sự hiện diện, liên kết."
+      "nodeChildren": "Bốn con của mỗi node: hộp đã lượng tử hóa, số tam giác, sự hiện diện, liên kết.",
+      "triangleGroups": "Nhóm chủ sở hữu nguồn dùng chung của mỗi tam giác chuẩn; các nhóm giống nhau chỉ được lưu một lần.",
+      "groupOffsets": "Độ lệch của các bản ghi chủ sở hữu trong mỗi nhóm, bao gồm giá trị đánh dấu cuối.",
+      "owners": "Bản ghi chủ sở hữu: chỉ số nút nguồn và suất phản chiếu tuyến tính được đóng gói theo RGBA8.",
+      "bindWorlds": "Các ma trận thế giới ban đầu của nút nguồn, mỗi nút có mười sáu giá trị độ chính xác kép.",
+      "sourceParents": "Cấu trúc phân cấp nguồn, bao gồm các nút phân vùng mà phía chủ hiện chưa tạo thực thể."
     }
   },
   "SceneProxyDescriptor": {
@@ -3169,7 +3179,10 @@
       "triangleBudget": "Ngân sách tam giác đã công bố, cái quyết định ngưỡng thực sự đạt được.",
       "bounds": "Phạm vi thế giới của proxy: ba cận dưới rồi ba cận trên.",
       "triangles": "Các tam giác.",
-      "nodes": "Các node của cây."
+      "nodes": "Các node của cây.",
+      "groups": "Các nhóm chủ sở hữu dùng chung, chỉ được lưu một lần.",
+      "owners": "Các bản ghi chủ sở hữu.",
+      "instances": "Ma trận của các nút nguồn."
     }
   },
   "SceneRoot": {
@@ -3220,7 +3233,15 @@
       "shadowPagesTotal": "Các trang đã vẽ kể từ khi trình khám phá mở, bao gồm cả các lần xả của `flush()`: chi phí của một thay đổi là hiệu số giữa hai lần đọc.",
       "shadowPagesPending": "Các trang bóng đổ đang chờ.",
       "shadowWaitMs": "Số mili giây trang lỗi thời cũ nhất mà hình ảnh đọc đã chờ để được vẽ lại. Chỉ tính thời gian hình ảnh đọc nó; 0 khi đã được vẽ lại.",
+      "shadowCutDrops": "Các lô của phép cắt từ ánh sáng đã bỏ công việc — các góc nhìn của chúng giữ nhiều cụm hơn sức chứa của danh sách —, kể từ khi mở trình khám phá: mỗi lô gửi lại các trang của nó, bị rút ra cho đến khi được vẽ lại (#525). Null trên engine không có phép cắt ánh sáng trên GPU, như ba mục dưới.",
+      "shadowCutWithdrawnPages": "Các trang được vẽ lại vì một phép cắt từ ánh sáng đã vẽ sai chúng, kể từ khi mở trình khám phá: lô của nó đã bỏ công việc, hoặc cờ của nó chưa bao giờ được đọc. Chúng bị rút ra cho đến khi được vẽ lại.",
+      "shadowCutCoarsePages": "Các trang được vẽ lại vì một góc nhìn đã vẽ một cụm thô hơn mong muốn, kể từ khi mở trình khám phá: được giải phóng khi độ thường trú thay đổi và camera đứng yên.",
+      "shadowCutViewLimit": "Số góc nhìn ánh sáng mà một lô của phép cắt từ ánh sáng hiện vẽ vào: mức trần cho đến khi một lô bỏ công việc, sau đó là mức vừa đủ.",
       "gpuLightListsMs": "Thời gian GPU của các danh sách nguồn sáng.",
+      "tileLightPoolReserved": "Số từ mà các ô vượt quá danh sách của chúng đã đặt trước trong vùng chỉ số nguồn sáng của khung nhìn, trên khung hình thiết bị lấy mẫu gần nhất khi cảnh có nhiều nguồn sáng hơn một danh sách; nếu không thì `null` (#849).",
+      "tileLightPoolCapacity": "Số từ vùng chỉ số nguồn sáng giữ trên khung hình được lấy mẫu đó; tương tự là `null`.",
+      "tileLightPoolOverflowed": "Liệu có ô nào không tìm được chỗ trong vùng trên khung hình được lấy mẫu đó và đã duyệt mọi nguồn sáng.",
+      "tileLightPoolGrowths": "Số lần vùng tăng lên đến mức một khung hình tràn yêu cầu, kể từ khi trình khám phá mở.",
       "gpuShadowsMs": "Thời gian GPU của các bóng đổ.",
       "gpuShadowCullMs": "Thời gian GPU để chọn các vật đổ bóng của những trang bóng mà khung vẽ: lát cắt từ ánh sáng, loại bỏ theo trang, và phép thử che khuất vật đổ bóng đang chuyển động cùng các kim tự tháp nó đọc.",
       "gpuShadowRasterMs": "Thời gian GPU để vẽ các vật đổ bóng đó vào trang: lớp tĩnh, rồi đến pool.",
@@ -3317,7 +3338,7 @@
       "totalNodes": "Tổng số node.",
       "autonomousScene": "Cảnh tích hợp sẵn của nó.",
       "texturePreviews": "Một mục cho mỗi cặp (kết cấu, atlas) đã giải mã, sắp theo kết cấu rồi theo atlas; rỗng nếu không có ảnh nào giải mã được.",
-      "textures": "Mẫu cho các mức đã nướng sẵn, tương đối so với tệp kê khai: {sha} là mã băm ảnh nguồn, {kind} là tên atlas (PREVIEW_ATLAS_NAMES), {level} là thứ hạng mức. Vắng mặt khỏi bộ nhớ đệm được biên dịch trước khi có tính năng nướng mức, mà trình đọc này từ chối qua phiên bản tệp phụ.",
+      "textures": "Mẫu cho các mức đã nướng sẵn, tương đối so với tệp kê khai: {sha} là mã băm ảnh nguồn, {kind} là tên atlas (PREVIEW_ATLAS_NAMES), {level} là thứ hạng mức. Vắng mặt khỏi bộ nhớ đệm được biên dịch trước khi có tính năng nướng mức, mà trình đọc này từ chối qua phiên bản tệp phụ. `version` là phiên bản của các mức (`TEXTURE_PREVIEW_VERSION`): bộ đọc không đọc mức nào của phiên bản khác.",
       "proxy": "Nơi để đọc proxy cảnh đang lưu trú và BVH của nó: hình học bị các tia va vào. Vắng mặt khỏi bộ nhớ đệm được biên dịch trước khi có tính năng dội lại, vẫn đọc được nguyên trạng.",
       "binary": "Tệp nhị phân.",
       "primitives": "Các nguyên thủy của nó.",
@@ -3531,7 +3552,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "Các mức kết cấu lũy tiến, phản chiếu bởi `packages/asset-compiler-rust/src/texture_preview.rs`: đuôi chuỗi mip của một nguồn trong tệp phụ, RGBA8 theo mã hóa riêng của atlas, từ mức mịn nhất mà không cạnh nào vượt quá `PREVIEW_BASE` xuống tới 1×1 — và, phía trên nó, một tệp PNG không mất dữ liệu cho mỗi mức trong bộ nhớ đệm, tức `bakedLevels` tệp từ mức 0 trở lên.",
-    "description": "Mỗi mức tuân theo quy tắc mip mà card đã áp dụng khi tự tái tạo chuỗi đó (`packages/sdk-browser/src/texture/mips.ts`): trung bình tuyến tính của các màu, alpha trung vị, mức `k` từ mức đã lượng tử hóa `k - 1`. Kích thước của chúng không được ghi ra: chúng suy ra từ kích thước nguồn, thứ mà `previewLevels.ts` tính lại. Phiên bản 4 nướng mọi mức trên đuôi, và cả đuôi đó, vào các họ khối mà quá trình chế biến yêu cầu bên cạnh các tệp không mất dữ liệu — họ BC cho card để bàn, ASTC 4×4 cho card di động, một byte mỗi texel — cho các chuỗi mà một cổng chất lượng đã giữ lại; một chuỗi dưới ngưỡng vẫn không mất dữ liệu trong họ đó, và từ bố cục của mục đó nói lên điều này."
+    "description": "Mỗi mức tuân theo quy tắc mip mà card đã áp dụng khi tự tái tạo chuỗi đó (`packages/sdk-browser/src/texture/mips.ts`): trung bình tuyến tính của các màu, alpha trung vị, mức `k` từ mức đã lượng tử hóa `k - 1`. Kích thước của chúng không được ghi ra: chúng suy ra từ kích thước nguồn, thứ mà `previewLevels.ts` tính lại. Phiên bản 4 nướng mọi mức trên đuôi, và cả đuôi đó, vào các họ khối mà quá trình chế biến yêu cầu bên cạnh các tệp không mất dữ liệu — họ BC cho card để bàn, ASTC 4×4 cho card di động, một byte mỗi texel — cho các chuỗi mà một cổng chất lượng đã giữ lại; một chuỗi dưới ngưỡng vẫn không mất dữ liệu trong họ đó, và từ bố cục của mục đó nói lên điều này. Phiên bản 6 sắp xếp tệp mức dạng khối theo bản ghi ô, mỗi bản ghi một yêu cầu HTTP Range (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TONE_MAPPING_RANK": {
     "summary": "Các đường cong đưa độ chói của cảnh vào phạm vi hiển thị, theo thứ hạng mà các shader đọc.",
@@ -3749,7 +3770,8 @@
       "sha256": "Dấu vân tay của hình ảnh nguồn.",
       "atlas": "Atlas nào.",
       "level": "Mức nào.",
-      "format": "Định dạng nào."
+      "format": "Định dạng nào.",
+      "range": "Các byte của một mức dạng khối được đọc riêng — bản ghi của một ô (`tileRecords.ts`) —, bằng một yêu cầu HTTP Range; máy chủ bỏ qua nó sẽ trả về toàn bộ tệp."
     }
   },
   "TexturePool": {
@@ -4154,7 +4176,15 @@
       "shadowPagesTotal": "Các trang đã vẽ kể từ khi trình khám phá mở, bao gồm cả các lần xả của `flush()`: chi phí của một thay đổi là hiệu số giữa hai lần đọc.",
       "shadowPagesPending": "Các trang bóng đổ đang chờ.",
       "shadowWaitMs": "Số mili giây trang lỗi thời cũ nhất mà hình ảnh đọc đã chờ để được vẽ lại. Chỉ tính thời gian hình ảnh đọc nó; 0 khi đã được vẽ lại.",
+      "shadowCutDrops": "Các lô của phép cắt từ ánh sáng đã bỏ công việc — các góc nhìn của chúng giữ nhiều cụm hơn sức chứa của danh sách —, kể từ khi mở trình khám phá: mỗi lô gửi lại các trang của nó, bị rút ra cho đến khi được vẽ lại (#525). Null trên engine không có phép cắt ánh sáng trên GPU, như ba mục dưới.",
+      "shadowCutWithdrawnPages": "Các trang được vẽ lại vì một phép cắt từ ánh sáng đã vẽ sai chúng, kể từ khi mở trình khám phá: lô của nó đã bỏ công việc, hoặc cờ của nó chưa bao giờ được đọc. Chúng bị rút ra cho đến khi được vẽ lại.",
+      "shadowCutCoarsePages": "Các trang được vẽ lại vì một góc nhìn đã vẽ một cụm thô hơn mong muốn, kể từ khi mở trình khám phá: được giải phóng khi độ thường trú thay đổi và camera đứng yên.",
+      "shadowCutViewLimit": "Số góc nhìn ánh sáng mà một lô của phép cắt từ ánh sáng hiện vẽ vào: mức trần cho đến khi một lô bỏ công việc, sau đó là mức vừa đủ.",
       "gpuLightListsMs": "Thời gian GPU của các danh sách nguồn sáng.",
+      "tileLightPoolReserved": "Số từ mà các ô vượt quá danh sách của chúng đã đặt trước trong vùng chỉ số nguồn sáng của khung nhìn, trên khung hình thiết bị lấy mẫu gần nhất khi cảnh có nhiều nguồn sáng hơn một danh sách; nếu không thì `null` (#849).",
+      "tileLightPoolCapacity": "Số từ vùng chỉ số nguồn sáng giữ trên khung hình được lấy mẫu đó; tương tự là `null`.",
+      "tileLightPoolOverflowed": "Liệu có ô nào không tìm được chỗ trong vùng trên khung hình được lấy mẫu đó và đã duyệt mọi nguồn sáng.",
+      "tileLightPoolGrowths": "Số lần vùng tăng lên đến mức một khung hình tràn yêu cầu, kể từ khi trình khám phá mở.",
       "gpuShadowsMs": "Thời gian GPU của các bóng đổ.",
       "gpuShadowCullMs": "Thời gian GPU để chọn các vật đổ bóng của những trang bóng mà khung vẽ: lát cắt từ ánh sáng, loại bỏ theo trang, và phép thử che khuất vật đổ bóng đang chuyển động cùng các kim tự tháp nó đọc.",
       "gpuShadowRasterMs": "Thời gian GPU để vẽ các vật đổ bóng đó vào trang: lớp tĩnh, rồi đến pool.",
@@ -4783,7 +4813,7 @@
   },
   "createGpuPageCache": {
     "summary": "Ranh giới cấp phát/hàng đợi WebGPU.",
-    "description": "Các byte trang và chính sách do ứng dụng chủ cung cấp. Các lần ghi hàng đợi có thứ tự; dispose chờ các lần gửi đang bay trước khi hủy."
+    "description": "Các byte trang và chính sách do ứng dụng chủ cung cấp. Các lần ghi hàng đợi có thứ tự; dispose chờ các lần gửi đang bay trước khi hủy. `pin(key, 'held')` giữ trang trước các trang ghim thông thường khi `resize(slots)`, vốn không còn nhận tập held. Ghim lại theo cách thông thường vẫn giữ mức ưu tiên này; `unpin(key)` xóa mức đó."
   },
   "createJob": {
     "summary": "Không có bộ đếm giờ, DOM, hệ thống tệp hay giao diện người dùng."
@@ -4888,7 +4918,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Proxy được đọc lại và kiểm tra lại trước khi một tia duy nhất chạm vào nó.",
-    "description": "Bố cục, little-endian: `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, sau đó là các đỉnh thế giới, các albedo, các cận chính xác của node và bốn con của chúng, được nối lại. Mỗi phần có một độ dài mà tiêu đề áp đặt; một tệp có kích thước khác bị từ chối hàng loạt, vì một node nêu tên một tam giác bị thiếu sẽ khiến shader đọc bất cứ thứ gì."
+    "description": "Bố cục: tám từ ở phần đầu theo thứ tự little-endian, tiếp theo là các cột hình học và cây chuẩn cùng dữ liệu quyền sở hữu có phiên bản. `docs/FORMAT.md` quy định từng số lượng và cột. Phần đầu ấn định độ dài mỗi phần; tệp có kích thước khác bị từ chối toàn bộ, vì nút trỏ đến một tam giác không tồn tại sẽ khiến bộ đổ bóng đọc dữ liệu tùy ý."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` được phân tách thành `position`, `quaternion`, `scale`."

@@ -1,19 +1,17 @@
 ---
 name: t3d-writer
-description: Writes one issue on the house template; CTO only. /t3d-writer <subject>.
+description: Writes one issue on the house template; CTO, recette or measure only. /t3d-writer <subject>.
 argument-hint: <what the issue is about>
 ---
 
-Write the issue for: **$ARGUMENTS**.
+Write the issue for: **$ARGUMENTS**. Only a CTO, recette or measure uses this skill; any other agent
+refuses and reports the need to a CTO in one line.
 
-1. `AGENTS.md` is already in your context; follow `docs/roles/writer.md`, to the letter: search first, map what
-   exists, one subject per issue, its pattern, its title and labels.
-2. Only the CTO uses this skill; any other agent refuses and reports the need to the
-   CTO in one line. The CTO shows the boss the title and the "To do" in French in five lines
-   before `gh issue create`, unless the boss already asked for it in those words.
-3. Return the issue URL, one line.
-
-## Context economy
-
-Read only your role file and the issue at hand. Query GitHub with `--json … --jq` for counts and
-states, never whole diffs, logs or transcripts; delegate a deep read to a bounded subagent.
+1. Search first (`gh issue list --state all --search …`): an open issue that covers it gets a To-do
+   item instead.
+2. One subject, sized for one pull request, on `.github/ISSUE_TEMPLATE/task.md`: **Why**, **To do**
+   (what, never how), **Code context** (`path:line` to reuse), **Proof**, **Links**.
+3. Title: the outcome ("Shadows stay stable while the camera moves"). One domain label, one priority
+   label.
+4. A CTO shows the boss the title and the To do in French before `gh issue create`, unless he asked
+   for it in those words; recette and measure open their defects directly. Return the issue URL.

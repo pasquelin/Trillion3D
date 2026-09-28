@@ -2,10 +2,11 @@
 // or that says both (AGENTS.md rule 5), or whose
 // "Local review before push" section lacks its simplification and correctness lines once HTML
 // comments are removed. "Lead verification" is required unless PR_DRAFT=true: a draft waits for
-// its lead. Usage: [PR_DRAFT=true] node scripts/check-pr-body.ts < body  (the CI feeds it the
+// its reviewer. Usage: [PR_DRAFT=true] node scripts/check-pr-body.ts < body  (the CI feeds it the
 // pull request body).
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
+import { namedIssues, prose } from './close-named-issues.ts';
 
 const REVIEW_LINES = ['Simplification pass', 'Correctness review'];
 
@@ -23,19 +24,20 @@ export function bodyProblem(raw: string, draft: boolean): string | undefined {
   const body = raw.replace(/<!--[\s\S]*?-->/g, '');
   if (!/^(Closes|Part of) #\d+/m.test(body))
     return 'The body must start with "Closes #<issue>", or "Part of #<issue>" for a step.';
-  if (/Closes #\d+/.test(body) && /Part of #\d+/.test(body))
-    return 'The body says both "Closes" and "Part of"; a step says "Part of" (AGENTS.md rule 5).';
+  // The same grammar as close-issues.yml, in any case: a step naming a closing keyword closes an issue.
+  if (namedIssues(body).length && /\bpart of #\d+/i.test(prose(body)))
+    return 'The body says both a closing keyword ("Closes", "fixes"…) and "Part of"; a step says "Part of" only (AGENTS.md rule 5).';
   const lines = body.split('\n');
   const review = section(lines, 'Local review before push');
   if (!review.join('').trim())
     return 'The section "Local review before push" is empty: run the simplification and correctness passes first.';
   // A thumbnail-only pull request carries no code to review.
   if (body.includes('Thumbnail only')) return undefined;
-  if (
-    !draft &&
-    !section(lines, 'Lead verification').some((l) => /^[-*] .+: (not )?delivered/.test(l))
-  )
-    return 'The section "Lead verification" is missing or empty: the lead maps every To-do item to its file and test before marking the pull request ready.';
+  const verified = section(lines, 'Lead verification');
+  if (!draft && !verified.some((l) => /^[-*] .+: (not )?delivered/.test(l)))
+    return 'The section "Lead verification" is missing or empty: the reviewer maps every To-do item to its file and test before the pull request is ready.';
+  if (verified.some((l) => /^[-*] .+: not delivered/.test(l) && !/boss/i.test(l)))
+    return 'An item is "not delivered" without the boss\'s yes: the whole issue is due (AGENTS.md rule 6).';
   for (const name of REVIEW_LINES) {
     const line = new RegExp(`^[-* ]*\`?${name}\`?:\\s*\\S`);
     if (!review.some((l) => line.test(l)))

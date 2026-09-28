@@ -128,7 +128,10 @@ page per held slot fed by the cache's arrivals and departures (`gpu/dag/poolList
 catalogue. On the GPU-cut path the cache evicts only from that queue, skipping pinned pages and
 taking a page a lower tier touched since the last queue (a shadow caster) after every other; once
 spent (`eviction-queue-spent`) the burst waits for the next readback. The CPU cut evicts the least
-recent page; `budgetRanking` still chooses loads (#836).
+recent page. Loads on the GPU-cut path are read off the readback's requests, closed over their
+groups (`webgpu/residency/requestAdmission.ts`, #836): past the pool, the coarsest levels whole and
+the one the room straddles in part, what the queue already holds first, from the pool's room alone.
+The GPU cut feeds no `budgetRanking`; the CPU cut that takes the image back refills it.
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min
@@ -150,8 +153,11 @@ metalness, world normal and roughness, emission and AO, surface flags. Depth is 
 Lighting consumes these surfaces and reconstructs world position from depth. Transparency is shaded
 separately into the HDR target; a transmissive material (`KHR_materials_transmission` with IOR and
 volume) is composed after it by one fullscreen pass on a frozen copy of the lit image, bounded by the
-opaque depth; its rank and opacity go to a target of its own, so the surface flags temporal
-antialiasing and composition read stay the opaque ones. ACES and sRGB conversion happen at final composition, which writes the display value
+opaque depth; its rank and opacity borrow the display target, which only the final composition
+writes after it, so the surface flags temporal antialiasing and composition read stay the opaque ones
+at no extra target. Those two read the flags only for the as-is share of a normal or depth surface:
+until a row shows one, and outside a diagnostic view, they run flagless variants, compiled beside
+the others, that bind no flags. ACES and sRGB conversion happen at final composition, which writes the display value
 to the capture target and the canvas in one pass.
 
 The reconstruction runs one pass per **material class**, the published visibility-buffer design,
@@ -268,11 +274,12 @@ doubled when full, the GPU light buffer with it, and every pass that binds it bi
 per thread of a 16 × 16 tile, and keeps in each of its two lists those whose range reaches the
 tile's depth slice, in increasing rank, up to `tileLights` (64): the lists' memory follows the view
 alone, 4.2 MB at 1920 × 1080 and 15.7 MB at 3456 × 2234, whatever the scene holds. A tile reached
-by more than `tileLights` (64) lights keeps its true count, reads no list, and walks every light of the
-scene: those that miss it add an exact zero, so nothing is dropped and the sum is the same, only
-dearer on that tile. A pixel costs what the lamps reaching its tile cost while they are 64 or fewer,
-and what every lamp of the scene costs past that; a per-tile pool bounding that walk by the view is
-#849. A shadow caster past the 64 shadow slices lights without a shadow and is counted
+by more than `tileLights` (64) lights walks exactly those, written in order into a view-sized pool
+after the tile records (#849): a quarter list per tile, grown to what a sampled frame asked, four
+lists at most. A tile the pool has no room for walks every light, exactly, and the overflow is named
+(`tileLightPoolOverflowed`, `tileLightPoolGrowths` of the frame metrics). A scene of 64 lights or fewer runs a
+narrow tile pass (64-bit masks, a 64-light array) and holds no pool. A shadow caster past the 64
+shadow slices lights without a shadow and is counted
 (`shadowCastersUnsliced`, #818). WebGL2 keeps its 64 slots until #835 and refuses more out loud.
 
 **A moving image shades a drawn subset of each pixel's lights.** A moving image weighs every light
@@ -493,7 +500,10 @@ binding one-texel stand-ins it never samples. One nearest depth per texel: a rec
 stacked panes takes both. Each product is kept in 8 bits. Opacity 0 takes no row and casts
 nothing; opacity 1 lets no light through. Additive and transmissive surfaces cast nothing yet: the tinted
 shadow of transmission is #33's, which colours the same RGB layer. An unpaged blended mesh casts
-nothing. WebGL2 has no shadow path, so none of this exists there.
+nothing. WebGL2 has no shadow path, so none of this exists there: `CONTRACT_LIGHTS_LIGHTING`
+publishes `shadows: false`, and the lights of the set that lights (the contract's, else the source
+graph's) that ask to cast are handed to `ContractShadows` at each change of that set. The world,
+or a session opened without one, names each as `shadows-refused` (`noticeShadowRefusal`).
 
 When a colour tile arrives, the shadow pages of the masked surfaces that read its texture are
 invalidated, and those alone. A masked cut-out is read at the mip level the reading texel's
@@ -545,21 +555,33 @@ bounce is **off by default**: its stage costs about 1.1 ms, above the one-millis
 and transparency are not bounced. `setLightingView('bounce')` outputs the indirect irradiance alone,
 the quantity `bench/runner/oracle.ts` compares.
 
-**Mirrors.** With the bounce on, a surface at the roughness floor (0.0525, the clamp every shading
-path applies) reflects the scene: the resolve fires one ray along the mirror direction against the
-resident proxy, from the origin the sun's far shadow uses, and reads the face it hits in the surface
-cache; a ray that leaves the proxy reads the probe irradiance in that direction over π. The radiance
-is weighed by the GGX lobe's directional albedo, the magnitude and Schlick share of the table the
-rectangular light reads. The water composite reflects through the same function, weighted by its
-Fresnel, so the engine has one reflection model (`packages/sdk-browser/src/bounce/reflectWgsl.ts`):
-mirror-smooth water, at the floor, traces the proxy; rougher water keeps the blurred probe
-irradiance over π it read before, never a sharp image. What a mirror shows is the proxy: its
-certified error, one radiance per triangle face, and nothing nearer than one proxy cell along the
-ray. A rougher opaque surface, a diffuse or toon one, and every surface with the bounce off add
-exactly zero: the
-floor is a material threshold, so a roughness map that crosses it shows reflecting and
-non-reflecting texels side by side until rough reflections (#33) fill the lobes above it. Screen
-traces stay on #31, planar views are #353. WebGL2 has no bounce, hence no reflection.
+**Mirrors.** WebGPU and WebGL2 trace the camera-visible opaque scene from mirror receivers,
+including transparent standard materials, independently of the bounce setting. Both backends
+share a projected pixel-grid traversal clipped against all six homogeneous frustum planes.
+Each crossed pixel tests its exact ray-depth interval; work is bounded by viewport width plus
+height. A separate linear, unfogged, unreflected source prevents render-target feedback,
+recursive reflections and applying the camera fog twice. The source is regenerated with each
+changed image and belongs to its camera view, including captures and resizing.
+
+A screen hit replaces the proxy contribution in the one reflection model. On a screen miss,
+WebGPU with bounce enabled keeps the resident-proxy ray and probe fallback; without bounce,
+and on WebGL2, a miss contributes zero. Screen traces cannot reveal offscreen or occluded
+geometry. Reflected-camera planar views remain #353. No screen-space result is stretched over
+a viewport edge or carried from an older image. The original `miroir.gltf` cited in #31 is not
+present in the reachable repository history; the production proof uses generated geometric
+scenes with analytic reflected-point positions and records that provenance explicitly.
+
+The mirror contribution uses the same GGX directional-albedo table as rectangular lights,
+with full contribution at the roughness floor (0.0525). It fades smoothly over one table sample
+(1/63) above that floor; this is a numerical transition, not the filtered rough lobe of #33.
+Water uses the same scene-radiance lookup with its material Fresnel. Diffuse and toon materials
+have no mirror lobe. Reflection sources are allocated only while the view contains an eligible
+receiver: WebGPU adds 8 bytes per pixel and an 80-byte uniform (an 8-byte disabled placeholder
+otherwise); WebGL2 reuses the backdrop allocator for 8-byte colour and 4-byte depth per pixel.
+These allocations are counted and released on resize/disable/dispose. WebGPU reports refusals
+through its existing frame-target grant. WebGL2 checks the required half-float colour-target
+capability for these linear-radiance sources, as it does for transmission; that check does not
+guarantee allocation success or framebuffer completeness.
 
 ## Fog
 
@@ -683,6 +705,13 @@ the root cover and the pages the host replaced (`replaceGeometryPage`) stay abov
 counted as the pages' bytes are, every geometry copy included. No pool is reserved:
 `geometryPoolAllocatedBytes` is `null`, and what the pages hold is `geometryAllocationBytes`.
 Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
+A composed WebGL2 capture draws in a view of its own (`backend/autonomous/views.ts`), as WebGPU's
+does: each view holds its cut, what it asks for, its motion and its size, and one switch trades
+their references (it never runs with one view). The views share the page store and the pool, which
+admits what the drawn view asks for after what the other views asked for, each page charged once:
+the union stays under the one budget, never multiplied. The residency holds the union and the
+streamer pins it, the main view's requests queued first; a released view's pages leave it. The main
+view keeps its cut and its motion across a capture.
 
 **What WebGL2 declares it cannot carry.** WebGL2 keeps the cut rule, the residency and the budget
 above; what it lacks it names in `capabilities.unsupported` and in the `render-capabilities`
@@ -853,10 +882,13 @@ writes a pose buffer and an event buffer. No emscripten glue is kept; the engine
   Each pool is then one instanced disc draw over the lit image after the transparents
   (`particles/webgpuParticleDraw.ts`), unsorted: `additive` in any order, `premultiplied` far to
   near by origin, soft within `softness` of the opaque depth.
-  WebGL2 draws no particle yet (#844; its 32-bit float step, `particles/webglParticles.ts`,
-  waits for it): the frame composer refuses the pools by name (`PARTICLES_UNSUPPORTED`), heard
-  once as the world notice `particles-refused`, and the session draws on without them. WebGPU
-  without the visibility buffer refuses them on the same notice.
+  On WebGL2 the same pools step in a 32-bit float ping-pong pass (`particles/webglParticles.ts`)
+  and draw alike over the engine's image (`particles/webglParticleDraw.ts`), soft on a copy of
+  the frame's depth, made in `DEPTH24_STENCIL8`, else `DEPTH_COMPONENT24`, as the blit allows.
+  A context without `EXT_color_buffer_float`, or a depth neither format copies, refuses the
+  pools by name (`PARTICLES_UNSUPPORTED`), never drawing them hard-edged: heard once as the
+  world notice `particles-refused`, and the session draws on without them. WebGPU without the
+  visibility buffer refuses them on the same notice.
 - **Threads.** On a cross-origin isolated page the page loads `joltPhysicsThreads.wasm` (atomics,
   bulk memory, shared memory) and Jolt's own thread pool steps it: each pool thread starts in C
   through `pthread_create`, which the loader (`physics/joltThreads.ts`) answers with a worker that
@@ -910,8 +942,9 @@ added to it. CPU and GPU times are never added together.
 **Surface capture for global illumination.** `explorer.captureSurfaceView(pose, { width, height,
 signal })` returns an owned `SurfaceCapture` version 1 — the four material textures, depth, inverse
 view-projection, camera position and selected triangle count — for future lighting work. It reuses
-the page cache, selects for the requested camera, restores the main view afterwards and must be
-serialized with ordinary rendering; translucency is excluded.
+the page cache, selects for the requested camera in a view of its own, leaves the main view as it
+was and must be serialized with ordinary rendering; translucency is excluded. The WebGL2 path draws
+no material surfaces and refuses it by name (`SURFACE_CAPTURE_UNSUPPORTED`).
 
 ## Proofs
 

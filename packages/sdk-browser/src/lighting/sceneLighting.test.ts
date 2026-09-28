@@ -89,3 +89,30 @@ test('a point, an ambient and a probe are placed with no aim node', () => {
   assert.equal(installed.lit, true);
   assert.equal(added.length, 3, 'each light aims at nothing: its copy alone');
 });
+
+// #558 (D): a casting lamp shown or hidden after the copy is heard at the placement that sees it,
+// so WebGL2 never draws it unshadowed silently.
+test('a source lamp shown, hidden or set to cast after the copy changes the casting list', () => {
+  const sun = G.directionalLight();
+  sun.name = 'sun';
+  sun.castShadow = true;
+  sun.visible = false;
+  const source = new G.Group();
+  source.add(sun, G.pointLight());
+  const lighting = installSceneLighting({ add() {}, remove() {} }, source);
+  let heard = 0;
+  lighting.castingChanged = () => void heard++;
+  assert.deepEqual(lighting.casting, []);
+  sun.visible = true;
+  lighting.update();
+  assert.deepEqual([lighting.casting, heard], [['sun'], 1]);
+  lighting.update();
+  assert.equal(heard, 1, 'a placement that shows no lamp anew says nothing');
+  sun.castShadow = false;
+  lighting.update();
+  assert.deepEqual([lighting.casting, heard], [[], 2], 'its cast cleared, it is no longer named');
+  sun.castShadow = true;
+  sun.visible = false;
+  lighting.update();
+  assert.equal(heard, 2, 'hidden, it asks for no shadow');
+});

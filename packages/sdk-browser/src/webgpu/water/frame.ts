@@ -68,6 +68,7 @@ export async function createWaterFrame(device: GPUDevice) {
         !gpu.hdrView ||
         !gpu.depthTexture ||
         !gpu.depthView ||
+        !gpu.colorView ||
         !backdrop?.active ||
         !deferred ||
         !volumeBuffer
@@ -92,6 +93,7 @@ export async function createWaterFrame(device: GPUDevice) {
       // The translucent depth is made and dropped with it.
       next[15] = lighting.shadowTransmittance;
       next[16] = lighting.surfaceCache;
+      next[17] = gpu.colorView;
       if (!identity.moved()) return true;
       surfaces = gpu.surfaces;
       from.texture = gpu.hdrTexture;
@@ -101,7 +103,7 @@ export async function createWaterFrame(device: GPUDevice) {
       [extent.width, extent.height] = gpu.targetSize;
       surfaceDepth.view = backdrop.waterDepthView;
       target.view = gpu.hdrView;
-      word.view = backdrop.waterWordView;
+      word.view = gpu.colorView;
       attachments.length = 0;
       attachments.push(...surfaceColorAttachments(surfaces).slice(0, 3), word);
       const b = WATER_BINDINGS;
@@ -112,7 +114,7 @@ export async function createWaterFrame(device: GPUDevice) {
             .views()
             .slice(0, 3)
             .map((resource, binding) => ({ binding, resource })),
-          { binding: b.flags, resource: backdrop.waterWordView },
+          { binding: b.word, resource: gpu.colorView },
           { binding: b.depth, resource: backdrop.waterDepthView },
           { binding: b.view, resource: { buffer: deferred.uniform } },
           { binding: b.directLights, resource: { buffer: lighting.directLights } },
@@ -138,8 +140,9 @@ export async function createWaterFrame(device: GPUDevice) {
      * Encodes the water pass on the image the blends left. The backdrop is frozen — the lit image
      * copied, the opaque depth copied into the depth the surface stage tests —, the transmissive
      * surfaces draw into the opaque resolve's material surfaces, free since that resolve consumed
-     * them, and into the pass's own water word — the surface flags stay the opaque resolve's, read
-     * by temporal antialiasing and the composition after this pass —, with hardware depth written
+     * them, and the water word into the display colour the composition writes later — the surface
+     * flags stay the opaque resolve's, read by temporal antialiasing and the composition after this
+     * pass —, with hardware depth written
      * so the nearest surface of a pixel is the one kept; then one
      * fullscreen triangle lights and composes every water pixel into the HDR target, which keeps
      * what it held wherever no water is. Returns the surface draws encoded.
@@ -156,6 +159,7 @@ export async function createWaterFrame(device: GPUDevice) {
       const composite = encoder.beginRenderPass(compositePass);
       composite.setPipeline(pipeline);
       composite.setBindGroup(0, group);
+      if (rt.gpu.reflection) composite.setBindGroup(1, rt.gpu.reflection.group);
       composite.draw(3);
       composite.end();
       return encoded;

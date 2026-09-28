@@ -1,6 +1,11 @@
 import { DRAW_INDIRECT_WORDS, DRAW_ITEM_WGSL } from '../draw/contract.ts';
 import { MAX_SHADOW_REGIONS } from './recordPack.ts';
-import { CULL_UNIFORM_WORDS, LIGHT_CULL_UNIFORM_WORDS, wordStruct } from './batchBudget.ts';
+import {
+  CULL_UNIFORM_WORDS,
+  LIGHT_CULL_UNIFORM_WORDS,
+  SHADOW_REGION_COMMANDS,
+  wordStruct,
+} from './batchBudget.ts';
 
 /**
  * Per-shadow-region reject: from the instance list the LIGHT CUT of the region's face produced,
@@ -23,9 +28,22 @@ import { CULL_UNIFORM_WORDS, LIGHT_CULL_UNIFORM_WORDS, wordStruct } from './batc
 export const CASTERS_ALL = 0,
   CASTERS_STATIC = 1,
   CASTERS_MOVING = 2;
+/** Bits of a row's mobility word (`../../webgpu/shadow/mobility.ts`): its placement moves; its
+ *  fragments can be cut — a cutout (`FLAG_MASK`) that is no blended caster (#965). */
+export const MOBILITY_MOVING = 1,
+  MOBILITY_CUTOUT = 2;
+/**
+ * A region's two lists in its slot of `capacity` rows (#965): the casters no fragment can cut from
+ * the slot's start up, counted by the region's first command and drawn with no fragment stage; the
+ * cutout casters from its end down, counted by its second and drawn with the fragment test. A row is
+ * kept once per region, so the two never meet. The cull and the occlusion test file alike.
+ */
+export const KEPT_LISTS_WGSL = `fn keptCount(region:u32,cutout:bool)->u32{return (region*${SHADOW_REGION_COMMANDS}u+select(0u,1u,cutout))*${DRAW_INDIRECT_WORDS}u+1u;}
+fn keptAt(region:u32,rank:u32,capacity:u32,cutout:bool)->u32{return region*capacity+select(rank,capacity-1u-rank,cutout);}`;
 /** What both entries share: the spheres and mobility words they test, the kept lists they fill,
  *  and the test itself — one caster row against one region. Each declares the volumes itself. */
-const CULL_COMMON = `struct Sphere{center:vec3f,radius:f32,}
+const CULL_COMMON = `${KEPT_LISTS_WGSL}
+struct Sphere{center:vec3f,radius:f32,}
 struct Face{center:vec3f,far:f32,axis:vec3f,halfAngle:f32,right:vec3f,halfU:f32,up:vec3f,halfV:f32,casters:u32,view:u32,pad1:u32,pad2:u32,}
 @group(0) @binding(0) var<storage, read> spheres:array<Sphere>;
 @group(0) @binding(3) var<storage, read_write> kept:array<u32>;
@@ -36,8 +54,9 @@ struct Face{center:vec3f,far:f32,axis:vec3f,halfAngle:f32,right:vec3f,halfU:f32,
  *  minimum, and a minimum does not depend on write order. */
 fn keepCaster(face:u32,row:u32,capacity:u32){
  let volume=faces[face];
+ let word=mobility[row];
  // Which casters the region draws: every one, the static ones, or the moving ones.
- if(volume.casters!=${CASTERS_ALL}u&&(mobility[row]!=0u)!=(volume.casters==${CASTERS_MOVING}u)){return;}
+ if(volume.casters!=${CASTERS_ALL}u&&((word&${MOBILITY_MOVING}u)!=0u)!=(volume.casters==${CASTERS_MOVING}u)){return;}
  let sphere=spheres[row];
  let delta=sphere.center-volume.center;
  if(volume.halfAngle<0.0){
@@ -59,8 +78,8 @@ fn keepCaster(face:u32,row:u32,capacity:u32){
    if(sh*tangent+ch*sphere.radius>0.0&&along<limit-1e-4*distance){return;}
   }
  }
- let rank=atomicAdd(&indirect[face*${DRAW_INDIRECT_WORDS}u+1u],1u);
- kept[face*capacity+rank]=row;
+ let cutout=(word&${MOBILITY_CUTOUT}u)!=0u;
+ kept[keptAt(face,atomicAdd(&indirect[keptCount(face,cutout)],1u),capacity,cutout)]=row;
 }
 `;
 

@@ -58,7 +58,8 @@
       "missingCache": "缺少已编译的缓存：请运行 pnpm compile:caches"
     },
     "banner": {
-      "close": "关闭"
+      "close": "关闭",
+      "waiting": "等待引擎（#{issue}）"
     }
   },
   "a-city-from-rules": {
@@ -1745,7 +1746,8 @@
       "night": "夜晚",
       "bounce": "反弹光",
       "sun": "太阳",
-      "lamp": "灯"
+      "lamp": "灯",
+      "spin": "旋转"
     },
     "words": {
       "credit": "路灯模型作者 W. Sitters，CC BY 3.0 — 见 assets/examples/CREDITS.md"

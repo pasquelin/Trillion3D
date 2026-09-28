@@ -187,5 +187,9 @@ export async function loadPreparedScene(
   // Camera framing takes these same bounds on the FINAL scene: its buffer is reserved here,
   // at the size it has once replicated, and returned by the caller.
   const framingLot = await sceneBoundsLot(source, associations, metadata, autonomous);
-  return { source, sceneLightingSource, associations, textureIndices, framingLot, partitions };
+  return {
+    ...{ source, sceneLightingSource, associations, textureIndices, framingLot, partitions },
+    // Each glTF node's host node, by its index: a partition renumbers the table, replicas copy it.
+    nodes: tables.partition || replicas > 1 ? null : built.nodes,
+  };
 }

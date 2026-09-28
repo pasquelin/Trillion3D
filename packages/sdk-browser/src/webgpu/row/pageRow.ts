@@ -16,6 +16,7 @@ import {
   VIS_TRIANGLE_BITS,
 } from '../../visibility/buffer.ts';
 import { surfaceOpacity } from '../../page/surface.ts';
+import { shownAsIs } from '../../scene/surfaceModel.ts';
 import { neverCulled, writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 
 export const ROW_ID_BASE_WORD = 27,
@@ -64,12 +65,18 @@ export const rowIndexCount = (rec: PageRec) =>
   rec.geometryPage?.indexCount ?? rec.array?.length ?? 0;
 type PageRowResources = MaterialLayers & {
   geometryBlocks: Map<HostAttributes, GeometryBlock>;
-  markRowDirty: (row: number) => void;
+  /** Set once an opaque row shows a surface as-is (`shownAsIs`): from then on the image has flags
+   *  temporal antialiasing and the composition must read (OMB-11). Never unset: a row it no longer
+   *  draws only keeps the reading variant, which is right for every image. */
+  asIsShown: boolean;
 };
 
 /** Serializes one drawable cluster row after its occupant, slot, or input epoch changes. */
-export function createPageRowWriter(resources: PageRowResources) {
-  const { geometryBlocks, markRowDirty } = resources;
+export function createPageRowWriter(
+  resources: PageRowResources,
+  markRowDirty: (row: number) => void,
+) {
+  const { geometryBlocks } = resources;
   // What the catalogue fixes once and for all is not recomputed for every arriving page.
   const constants = createPageRowConstants();
   // Filled again at every row write, never allocated again.
@@ -88,6 +95,7 @@ export function createPageRowWriter(resources: PageRowResources) {
       geo = rowGeometry(rec, geometryBlocks, block);
     const mat = material.mat,
       maps = rowMaterial(mat, geo, resources);
+    if (!rec.transparent && shownAsIs(mat.model)) resources.asIsShown = true;
     floats.set(rec.matrix.elements, base);
     floats[base + 16] = mat.baseColor[0];
     floats[base + 17] = mat.baseColor[1];

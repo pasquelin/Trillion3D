@@ -1,3 +1,4 @@
+import type { ScreenReflection } from '../../../reflections/gpu.ts';
 import type { HostAttribute, HostAttributes } from '../../../host/resources.ts';
 import type { createGpuPageCache } from '../../../gpu/page/pages.ts';
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../core/bindIdentity.ts';
@@ -40,6 +41,7 @@ export interface WebgpuGpuState {
    *  blends, and the depth its surfaces write. A 1×1 texel while the scene carries no transmissive
    *  surface — the binding then exists without costing anything. */
   backdrop: TransmissionBackdrop | undefined;
+  reflection?: ScreenReflection;
   surfaces: SurfaceBuffer | undefined;
   /** The last adopted sample exceeded the ceiling: the image cannot use it. */
   cutTruncated: boolean;
@@ -94,16 +96,13 @@ export interface WebgpuGpuState {
   particles: WebgpuParticles | undefined;
 }
 
-/** The frozen colour the water composite rereads, the depth its surface stage tests and writes,
- *  and the word (rank, opacity) that stage writes, with their views
- *  (`../../transparent/transmission.ts`). */
+/** The frozen colour the water composite rereads and the depth its surface stage tests and
+ *  writes, with their views (`../../transparent/transmission.ts`). */
 export interface TransmissionBackdrop {
   color: GPUTexture;
   colorView: GPUTextureView;
   waterDepth: GPUTexture;
   waterDepthView: GPUTextureView;
-  waterWord: GPUTexture;
-  waterWordView: GPUTextureView;
   /** True when the copies are at the target size and the copy is worth it. */
   active: boolean;
 }
