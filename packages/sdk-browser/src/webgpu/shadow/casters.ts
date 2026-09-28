@@ -30,7 +30,8 @@ const lightSource = {} as ShadowLightSource;
  * Under the CPU cut, the same selection has already run on the CPU (`cpuCasters.ts`), and each
  * face's list waits at its own place in one buffer, every batch's: only the region cull runs here.
  *
- * Returns false when a resource the frame needs is missing: the caller then reissues the pages.
+ * Returns false when a resource the frame needs is missing — a flag slot among them: the caller
+ * then reissues the pages.
  */
 export function encodeShadowCasters(
   rt: WebgpuPagesRuntime,
@@ -52,6 +53,9 @@ export function encodeShadowCasters(
   if (light) lights.lightCut = light;
   // A batch holds no more views than its cut runs at once (`encodeShadowBatches.ts`).
   if (light && runs.count > light.capacity) return false;
+  // Every flag slot still read: the batch draws nothing rather than pages it could not check, and
+  // they stay stale for a frame with a slot (`../../gpu/dag/lightCutRedraws.ts`, #1142).
+  if (light && runs.count && !light.redraws.ready) return false;
   if (light) {
     const map = gpuDraw.lightRows(light.pageCount);
     // The blended casters' rows are no draw record's: their pages are pinned in the map instead.
