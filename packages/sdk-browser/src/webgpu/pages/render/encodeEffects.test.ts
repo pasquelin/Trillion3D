@@ -143,3 +143,20 @@ test('a diagnostic view, a capture and an empty chain make nothing and hand the 
   assert.deepEqual([rt.gpu.effects, textures.length], [undefined, 0]);
   assert.equal(rt.gpu.effectsRevision, chain.revision, 'the revision drawn is kept all the same');
 });
+
+test('a composition that blends the last bloom in gets its blend, and reads the image it read (#963)', async () => {
+  const { device } = fakeDevice();
+  const rt = drawing(new EffectChain().add(effect.bloom()));
+  let composes = false;
+  const asked: unknown[] = [];
+  const deferred = { composesBloom: (fail: unknown) => (asked.push(fail), composes) };
+  Object.assign(rt.gpu, { deferred });
+  encodeEffects(rt, device, encoder, input);
+  await rt.gpu.effects!.settled();
+  assert.equal(encodeEffects(rt, device, encoder, input)?.bloom, undefined, 'still compiling');
+  composes = true;
+  const composed = encodeEffects(rt, device, encoder, input);
+  assert.deepEqual([composed?.color, composed?.share], [input.color, input.share]);
+  assert.ok(composed?.bloom?.group, 'the level group and slot the composition binds');
+  assert.ok(asked.length > 0);
+});
