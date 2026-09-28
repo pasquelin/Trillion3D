@@ -152,6 +152,15 @@ export function createWebgpuLightState(
   };
 }
 
+/** Frees the static layer with its page pyramids and occlusion test: at dispose, and for a layer
+ *  that lands after it. */
+export function disposeStaticLayer(lights: WebgpuLightState) {
+  lights.staticLayer?.dispose();
+  lights.pageHiz?.dispose();
+  lights.occlusion?.dispose();
+  lights.staticLayer = lights.pageHiz = lights.occlusion = undefined;
+}
+
 /** Closes the frame's shadow work: what its batches drew joins the cumulative total a host reads
  *  across frames and settle drains; the pages from a batch that could not be encoded on are not
  *  counted (`encodeShadowBatches.ts`). */
