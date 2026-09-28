@@ -125,19 +125,28 @@ test('the flag slots are made once, for the most batches a frame draws, and neve
   assert.deepEqual(taken(), [], 'whole: nothing drawn again once read');
 });
 
-// A GPU so far behind that every slot is still being read: the frame cannot know what its cuts
-// drew short, so its pages are drawn again, withdrawn meanwhile — never read on a guess.
-test('a frame that finds every flag slot still read draws its pages again, withdrawn', () => {
-  const { redraws, encoder } = redrawsWith({ value: 0 });
-  for (let frame = 0; frame < SHADOW_FLAG_FRAMES; frame++)
-    redraws.encode(encoder, [frame], [0], 1, WHOLE)!(true);
-  assert.equal(redraws.encode(encoder, [40, 41], [0, 0], 2, WHOLE), undefined);
-  const seen: [number, boolean][] = [];
-  redraws.takeRedraw((page, withdraw) => seen.push([page, withdraw]));
-  assert.deepEqual(seen, [
-    [40, true],
-    [41, true],
-  ]);
+// #1142: a GPU so far behind that every slot is still being read. A page drawn then could not be
+// checked: withdrawn on a guess, its redraw — as starved — was withdrawn again each frame. The
+// frame is not ready instead: its pages are not drawn, nothing is withdrawn, and the next frame
+// with a slot draws them.
+test('a frame that finds every flag slot still read is not ready, and withdraws nothing', async () => {
+  const { redraws, encoder, taken } = redrawsWith({ value: 0 });
+  for (let frame = 0; frame < SHADOW_FLAG_FRAMES; frame++) {
+    assert.equal(redraws.ready, true, 'a slot is free');
+    const settle = redraws.encode(encoder, [frame], [0], 1, WHOLE)!;
+    assert.equal(redraws.ready, true, 'the next batch of the open frame rides in its slot');
+    settle(true);
+  }
+  assert.equal(redraws.ready, false, 'every slot still read');
+  assert.throws(
+    () => redraws.encode(encoder, [40], [0], 1, WHOLE),
+    /ready/,
+    'never drawn unchecked',
+  );
+  assert.deepEqual(taken(), [], 'no page sent back for want of a slot');
+  await redraws.settled();
+  assert.equal(redraws.ready, true, 'the reads free the slots');
+  assert.deepEqual(taken(), [], 'whole: nothing drawn again');
 });
 
 // #990: a page restored from the static layer drew its moving casters alone; drawn short, only they

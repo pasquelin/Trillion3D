@@ -108,12 +108,8 @@ export function createGpuPageCache(
       context.eviction.epoch++;
       context.eviction.held.length = context.eviction.late.length = 0;
     },
-    /**
-     * Strictly increases on every membership change of the residency and on nothing else: an arrival
-     * stamps a new generation, a departure counts an eviction, and the LRU touch of a page already
-     * resident does neither. A caller that held a verdict derived from `get` can compare this one
-     * number instead of asking again page by page.
-     */
+    /** Membership changes increase this counter; LRU touches do not. Callers with a verdict from
+     * `get` can compare it instead of querying every page again. */
     get residencyRevision() {
       return state.generation + state.evictions;
     },
