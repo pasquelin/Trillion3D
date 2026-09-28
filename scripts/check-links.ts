@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { decodeLinkComponent as decode } from '../site/content/uri.ts';
 // Zero-dependency Markdown link checker. Walks every *.md file in the repo
 // (hidden files included), checks relative links/images/hrefs resolve to a
 // real file, and that a fragment into another Markdown file names a real
@@ -74,14 +75,6 @@ function anchors(path: string): Set<string> {
     result.add(n ? `${key}-${n}` : key);
   }
   return result;
-}
-
-function decode(part: string): string {
-  try {
-    return decodeURIComponent(part);
-  } catch {
-    return part;
-  }
 }
 
 // Minimal stand-in for urllib.parse.urlsplit on the plain relative/absolute
