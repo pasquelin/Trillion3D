@@ -8,7 +8,8 @@ import {
   floatTargets,
   type WebglRenderTarget,
 } from '../webgl/core/renderTarget.ts';
-import { createPoolStates, usedSlots } from './poolStates.ts';
+import { createPoolStates, refuseAll, usedSlots } from './poolStates.ts';
+import { createWebglParticleDraw } from './webglParticleDraw.ts';
 
 /** Particles per texture row, two texels each: position and age, then velocity and lifetime. */
 export const PARTICLE_ROW = 512;
@@ -47,10 +48,14 @@ type PoolState = { targets: [WebglRenderTarget, WebglRenderTarget]; staged: Webg
  * full-screen pass over the rows its emitted slots fill, reading the other target and the
  * pool's records staged as 32-bit float texels. Its targets are made the first time a pool
  * moves, given back the image after the world lets it go, and rebuilt after a lost context. A
- * context without `EXT_color_buffer_float` refuses every pool by name, never steps it with less.
- * The pass leaves no framebuffer, program or vertex array bound.
+ * context without `EXT_color_buffer_float` refuses every pool, `refused` hearing why, never steps
+ * it with less. The pass leaves no framebuffer, program or vertex array bound. Its `draw` is
+ * `./webglParticleDraw.ts`, which reads each pool's latest target in place.
  */
-export function createWebglParticles(gl: WebGL2RenderingContext) {
+export function createWebglParticles(
+  gl: WebGL2RenderingContext,
+  refused: (reason: string) => void = () => {},
+) {
   /** Each pool's targets, made on the live context and lost with it. */
   const poolStates = () =>
     createPoolStates<PoolState>(
@@ -91,23 +96,28 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
       gl.texSubImage2D(TEXTURE_2D, 0, 0, full, 2 * rest, 1, RGBA, FLOAT, pool.staging, from);
     }
   };
+  const latest = (pool: ParticlePool) => held.current()?.made.peek(pool)?.targets[0].texture;
+  const drawn = createWebglParticleDraw(gl, TEXELS, latest, refused);
   return {
-    /** Steps `pools`; returns the draws made. Throws `PARTICLES_UNSUPPORTED`, the pools refused,
-     *  on a context without 32-bit float targets. */
+    draw: drawn.draw,
+    bytes: drawn.bytes,
+    /** Steps `pools`; returns the draws made. On a context without 32-bit float targets the
+     *  pools are refused, `refused` hearing `PARTICLES_UNSUPPORTED` once; nothing throws. */
     run(pools: readonly ParticlePool[]) {
       const live = held.current();
       if (!live) return 0;
       if (!floatTargets(gl)) {
-        for (const pool of pools) pool.refused = true; // it asks no frame of its own
-        if (!pools.length) return 0;
-        throw new Error(
-          'PARTICLES_UNSUPPORTED: WebGL2 particles render 32-bit floats, and this context ' +
-            'does not grant EXT_color_buffer_float',
-        );
+        // It asks no frame of its own; told once per refusal, the session goes on.
+        if (refuseAll(pools))
+          refused(
+            'PARTICLES_UNSUPPORTED: WebGL2 particles render 32-bit floats, and this context ' +
+              'does not grant EXT_color_buffer_float',
+          );
+        return 0;
       }
       let draws = 0;
       for (const pool of pools) {
-        pool.refused = false; // stepped here, as WebGPU does once its pipeline is made
+        pool.refused = drawn.refused(); // stepped here unless its draw refused it, as on WebGPU
         const { first, count, dt } = pool.flush();
         if (!count && !dt) continue;
         const { targets, staged } = live.made.of(pool);
@@ -140,6 +150,6 @@ export function createWebglParticles(gl: WebGL2RenderingContext) {
       live.made.keep(pools);
       return draws;
     },
-    dispose: held.dispose,
+    dispose: () => (held.dispose(), drawn.dispose()),
   };
 }
