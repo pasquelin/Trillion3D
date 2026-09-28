@@ -159,8 +159,9 @@ export function createLightCutRedraws(
     reported(copied: boolean) {
       if (open) open.reported = copied;
     },
-    /** Residency the light cuts see changed: the drop is forgotten, and the pages that waited on
-     *  it are drawn again once the camera rests (`rest`). */
+    /** Residency the light cuts see changed: the drop goes stale, not forgotten (the limit may
+     *  probe upward, `createViewLimit`), and the pages that waited on it are drawn again once the
+     *  camera rests (`rest`). */
     residencyChanged() {
       moved = true;
       limit.residencyChanged();
@@ -173,7 +174,8 @@ export function createLightCutRedraws(
       waiting.forEach(again);
       waiting.clear();
     },
-    /** Light views one batch draws in: `viewCap` until a batch drops (`createViewLimit`). */
+    /** Light views one batch draws in: `viewCap` until a batch drops, then what fits
+     *  (`createViewLimit`). */
     get viewLimit() {
       return limit.value;
     },
