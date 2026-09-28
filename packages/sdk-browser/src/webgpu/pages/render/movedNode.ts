@@ -53,11 +53,14 @@ export function rootsUnder(roots: Roots, node: Object3D, out: number[]) {
   found = out;
   out.length = 0;
   node.traverse(collect);
+  // Let go of the layout's meshes: a released scene is not kept alive by the last move.
+  walking = NONE;
   return out.sort(ascending);
 }
 
 // The walk's state and its one callback, declared once: a move allocates no closure.
-let walking = new Map<Object3D, number[]>(),
+const NONE = new Map<Object3D, number[]>();
+let walking = NONE,
   found: number[] = [];
 const collect = (walk: Object3D) => {
   const list = walking.get(walk);
