@@ -1,3 +1,4 @@
+import { decodeLinkComponent } from '../site/content/uri.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
@@ -49,4 +50,17 @@ test('a `:line` or `:line:column` suffix designates a location in the file, not 
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+});
+
+test('links decode UTF-8 once and preserve malformed escapes verbatim', () => {
+  for (const [encoded, decoded] of [
+    ['a%2Fb%20c', 'a/b c'],
+    ['%C3%A9', 'é'],
+    ['%252F', '%2F'],
+    ['a+b', 'a+b'],
+    ['', ''],
+    ['%E0%A4%A', '%E0%A4%A'],
+    ['valid%20then%', 'valid%20then%'],
+  ])
+    assert.equal(decodeLinkComponent(encoded), decoded);
 });
