@@ -20,7 +20,8 @@
 //! most; a face lit from behind locks its surroundings as long as that locks something new.
 use super::border::{lock_triangles_touching, lost_locks, required_locks};
 use super::charts::{densities, open_border_welded, weighted};
-use super::placed::{Local, Placed};
+use super::grown::Placed;
+use super::placed::Local;
 use super::quality::backlit_corners;
 use super::reduce::{Stop, BORDER_RETRIES};
 use super::*;

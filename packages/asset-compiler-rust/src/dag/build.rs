@@ -43,7 +43,7 @@ pub fn build_dag_tallied(
     }
     let mut welds = {
         let _t = Timer::new(Phase::Weld);
-        attributes::Welds::of(positions, attributes, indices)
+        welds::Welds::of(positions, attributes, indices)
     };
     // Per cluster, the worst normal deviation of the source triangles it descends from: a group's
     // reduction is held to the bound of its own descendants (`quality::deviation_bound`).
