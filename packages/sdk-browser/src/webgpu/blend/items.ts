@@ -2,6 +2,7 @@ import type { BlendGpuItem } from './state.ts';
 import { refreshSurface } from '../../page/surface.ts';
 import { layerSlot, sampledFlag, type MaterialLayers } from '../row/pageRowMaterial.ts';
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
+import { FLAG_HAS_TANGENT, frameNormalScaleY } from '../../visibility/buffer.ts';
 
 /**
  * Record of a transparent item: everything a blend draw reads about IT, and nothing that
@@ -53,7 +54,7 @@ export function writeBlendItemRecord(
   floats[base + 28] = mat.roughness;
   floats[base + 29] = mat.metalness;
   floats[base + 30] = mat.normalScale;
-  floats[base + 31] = mat.normalScaleY;
+  floats[base + 31] = frameNormalScaleY(mat, (item.flags & FLAG_HAS_TANGENT) !== 0);
   ints[base + 32] = rough;
   ints[base + 33] = metal;
   ints[base + 34] = normal;

@@ -86,7 +86,10 @@ export type VisMaterial = {
   roughnessMap?: Texture;
   normalMap?: Texture;
   normalScale: number;
+  /** The second normal factor in the frame a triangle gives, which shades every page. */
   normalScaleY: number;
+  /** The second normal factor in a frame read from vertex tangents; unsaid, `normalScaleY`. */
+  tangentNormalScaleY?: number;
   aoMap?: Texture;
   aoIntensity: number;
   emissive: [number, number, number];
@@ -115,6 +118,12 @@ export type VisMaterial = {
    *  surface. */
   sprite?: { rotation: number; sizeAttenuation: boolean };
 };
+
+/** The second normal factor of `mat` in the frame a pass shades in: one read from vertex
+ *  tangents takes the factor written for them, one rebuilt from the triangle — every page's —
+ *  the factor turned for it (`../host/surfaceImport.ts`). */
+export const frameNormalScaleY = (mat: VisMaterial, vertexTangents: boolean) =>
+  vertexTangents ? (mat.tangentNormalScaleY ?? mat.normalScaleY) : mat.normalScaleY;
 
 export type UnpackedVisibility = { pageIndex: number; triangleIndex: number };
 

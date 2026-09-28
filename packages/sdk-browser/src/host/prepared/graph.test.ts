@@ -80,6 +80,30 @@ test('a primitive that carries COLOR_0 asks for the vertex-coloured variant of i
   assert.deepEqual(records, [true, false]);
 });
 
+// #846: the autonomous document's primitives hold one degenerate triangle, positions only; the
+// pages they are drawn from carry the source primitive's normals, so their surface is not flat.
+test('a primitive of the autonomous document is flat only where its source primitive has no normal', async () => {
+  const { tables, meshes } = oneNode('paged', null);
+  const pagedFrom = [
+    {
+      ...meshes[0],
+      primitives: [{ attributes: { POSITION: 0, NORMAL: 1 } }, { attributes: { POSITION: 0 } }],
+    },
+  ] as unknown as TableDocument['meshes'];
+  const geometryOf = () => {
+    const geometry = new Geometry();
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
+    return geometry;
+  };
+  const flat: boolean[] = [];
+  const materialOf = (_rank: number, variant: { flatShading: boolean }) => {
+    flat.push(variant.flatShading);
+    return Promise.resolve(new GraphSurface('standard'));
+  };
+  await preparedGraph({ tables, meshes, pagedFrom, geometryOf, materialOf });
+  assert.deepEqual(flat, [false, true]);
+});
+
 // #519: a node declaring `KHR_node_visibility` `visible: false` is built hidden, so the pages it
 // draws are parked by the one hide/show path (`followHostVisibility`) until a page shows it.
 test('a node the table says hidden is built hidden, every primitive it draws with it', async () => {

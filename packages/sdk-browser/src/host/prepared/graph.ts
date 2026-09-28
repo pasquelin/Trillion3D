@@ -36,12 +36,16 @@ type MeshRanks = RowLink;
 type Inputs = {
   tables: PreparedSceneTables;
   meshes: TableDocument['meshes'];
+  /** The meshes the drawn pages were cut from, when not `meshes`: the source document's, at the
+   *  same ranks, for the autonomous one, whose primitives are one degenerate triangle each. */
+  pagedFrom?: TableDocument['meshes'];
   geometryOf: (mesh: number, primitive: number) => Geometry;
   materialOf: (rank: number, variant: SurfaceVariant) => Promise<GraphSurface>;
 };
 
 /** The prepared scene as a host graph, and the ranks each drawn host mesh answers to. */
-export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: Inputs) {
+export async function preparedGraph(inputs: Inputs) {
+  const { tables, meshes, pagedFrom, geometryOf, materialOf } = inputs;
   const unique = uniqueNames();
   const ranks = new Map<Object3D, MeshRanks>();
   const scene = new Group();
@@ -110,6 +114,9 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
     meshes[rank].primitives.map((primitive, p) => {
       const geometry = geometryOf(rank, p);
       const variant = surfaceVariantOf(geometry.attributes);
+      // The pages carry the normals of the primitive they were cut from: flat only without them.
+      const cut = pagedFrom?.[rank]?.primitives[p];
+      if (cut) variant.flatShading = cut.attributes.NORMAL === undefined;
       return { geometry, material: materialOf(primitive.material, variant) };
     }),
   );
