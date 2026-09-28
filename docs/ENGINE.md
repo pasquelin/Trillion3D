@@ -435,12 +435,12 @@ object already moving that the host hides or shows, that stops or starts casting
 mode, cutout texture or pages' residency changes, and a blended caster whose coverage changes,
 redraw the moving casters of their pages alone: the layer never held them. Such a representation
 change waits for the camera to rest in a union of its own, apart from the one of still objects.
-A residency flag that drops and rises within a frame — every row follows the table epoch when a pose moves — is no change
-for the shadows: only a flag that differs from the last plan's restales its cluster's pages
-(`webgpu/shadow/residence.ts`). On a code-built scene with one ball moving over a static ground,
-1280×720, the virtual pages redraw 4.4 pages a frame (6 at most) with one light cut, against 224
-pages a frame on `develop`, and the frame after the motion is 0 px from a fresh render of the
-same pose.
+A residency flag that drops and rises within a frame — every row follows the table epoch when a
+pose moves — is no change for the shadows: only a flag that differs from the last plan's restales
+its cluster's pages (`webgpu/shadow/residence.ts`). On a code-built scene with one ball moving over
+a static ground, 1280×720, the virtual pages redraw 4.4 pages a frame (6 at most) with one light
+cut, against 224 pages a frame on `develop`, and the frame after the motion is 0 px from a fresh
+render of the same pose.
 
 **Shadow casters are selected from the light.** The pages of one light view a frame draws — a sun
 level, a lamp face at one mip — form a run, and every run of the frame is selected by ONE traversal
