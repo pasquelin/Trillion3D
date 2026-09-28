@@ -1,12 +1,14 @@
-// #971: three twins take the same random edits and moves: one moves by node handle in batches, one
-// moves the same nodes one by one, one moves them one by one passing the whole index each time.
-// Rows, boxes, worlds and declared motion keep the same bits, and each local pose set is the one
-// the host chain composes (develop's parent world), over host writes, renames and reparenting.
+// #915, #971: three twins take the same random edits and moves: one moves by node handle in
+// batches, one moves the same nodes one by one, one moves them one by one passing the whole index
+// each time. Rows, boxes, worlds and declared motion keep the same bits, each local pose set is the
+// one the host chain composes (develop's parent world), and the name index and subtree walk answer
+// as the whole walks did, over host writes, renames, additions, removals and reparenting.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { invertMatrix4, multiplyMatrix4 } from '../../../../../sdk-core/src/index.ts';
 import { setWebgpuTransform, setWebgpuTransforms } from './transform.ts';
-import { findNode } from './movedNode.ts';
+import * as G from '../../../host/graph/graph.fixture.ts';
+import { findNode, rootsUnder } from './movedNode.ts';
 import { hostWorldChainInto } from '../../../host/world/chain.ts';
 import { pick, seeded, type Draw } from '../../../host/world/randomTree.fixture.ts';
 import {
@@ -62,6 +64,10 @@ function oneByOne(x: World, at: readonly number[], poses: Float32Array[], label:
   }
 }
 
+/** The roots whose mesh climbs to `node`, in rank order: how a move found them before #915. */
+const climbUnder = (roots: World['roots'], node: Object3D) =>
+  roots.flatMap((root, i) => (isAncestor(node, root.pages[0].sourceMesh as Object3D) ? [i] : []));
+
 /** Mobility entries (rank, pose) and motion boxes, apart: a batch reports every root before the boxes. */
 function split(log: unknown[]) {
   const moves = log.filter(Array.isArray).map((entry) => JSON.stringify(entry));
@@ -107,7 +113,7 @@ function drawBatch(draw: Draw, nodes: readonly Object3D[], edited: number) {
 
 for (const lot of [false, true])
   test(`moves by handle in a batch: the bits of the same moves one by one — ${lot ? 'box lot' : 'box by box'}`, async () => {
-    for (let seed = 1; seed <= 2; seed++) {
+    for (let seed = 1; seed <= 3; seed++) {
       const twins = [
         await world(seed, lot, false),
         await world(seed, lot, false),
@@ -127,6 +133,11 @@ for (const lot of [false, true])
           at.every((q, j) => i === j || !isAncestor(a.nodes[p], a.nodes[q])),
         );
         const handles = at.map((rank) => a.nodes[rank]);
+        // Identity alone: a failing message would print the whole graph.
+        const name = handles[0]?.name ?? '',
+          named = G.byName(a.source, name);
+        assert.ok(findNode(a.source, name) === named, `${label}: ${name} is not the walk's`);
+        if (named) assert.deepEqual(rootsUnder(a.roots, named, []), climbUnder(a.roots, named));
         const code = refused(() => setWebgpuTransforms(a.rt, handles, matrices));
         assert.equal(code, oneByOne(b, at, poses, label), label);
         assert.equal(code, oneByOne(c, at, poses, label), label);
