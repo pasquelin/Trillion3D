@@ -1,11 +1,11 @@
-import roadmap from '../../content/gallery-roadmap.json' with { type: 'json' };
-import type { RoadmapEntry } from '../../app/examples/list.ts';
+import { parkedEntries } from '../../app/examples/list.ts';
+import { issueUrl } from '../../content/model.ts';
 
-/** Each example parked until the engine draws it (`waiting-engine` in the gallery roadmap), by
- *  its id, and the issue it waits for. The runtime build runs this module and bundles only this
- *  map (`scripts/docs/inline-modules.ts`), not the roadmap. */
-export const WAITING_ISSUES: Record<string, number> = Object.fromEntries(
-  (roadmap.entries as RoadmapEntry[]).flatMap(({ id, status, issue }) =>
-    status === 'waiting-engine' && issue !== undefined ? [[id, issue] as const] : [],
+/** Each example parked until the engine draws it, by its id: the issue it waits for and that
+ *  issue's address. The runtime build runs this module and bundles only this map
+ *  (`scripts/docs/inline-modules.ts`), not the roadmap. */
+export const WAITING_ISSUES: Record<string, { issue: number; href: string }> = Object.fromEntries(
+  parkedEntries.flatMap(({ id, issue }) =>
+    issue === undefined ? [] : [[id, { issue, href: issueUrl(issue) }] as const],
   ),
 );
