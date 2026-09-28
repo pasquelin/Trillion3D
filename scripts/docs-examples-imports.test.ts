@@ -3,6 +3,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { RUNTIME_ENTRIES } from './docs/build-runtime.ts';
+import { inlineModules } from './docs/inline-modules.ts';
 import { exampleModules, RUNTIME_IMPORT } from './docs/examples/capture.ts';
 import { examplePages } from './docs/examples/pages.ts';
 
@@ -19,6 +20,7 @@ async function runtimeExports(): Promise<Record<Runtime, Set<string>>> {
     metafile: true,
     format: 'esm',
     platform: 'browser',
+    plugins: [inlineModules],
     logLevel: 'silent',
   });
   const outputs = Object.values(metafile.outputs);

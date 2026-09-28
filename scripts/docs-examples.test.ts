@@ -20,6 +20,7 @@ import {
   exampleMissing,
   examplePlaceholder,
   exampleTitle,
+  parkedEntries as parked,
   readyEntries as ready,
   roadmapEntries,
   themedEntries,
@@ -29,7 +30,6 @@ import { loadDictionary } from '../site/content/i18n/dictionary.ts';
 import roadmap from '../site/content/gallery-roadmap.json' with { type: 'json' };
 const site = new URL('../site/', import.meta.url);
 const written = roadmapEntries.filter(({ file }) => file);
-const parked = written.filter(({ status }) => status === 'waiting-engine');
 const captured = new Set(
   await readdir(new URL('../site/assets/examples/thumbnails/', import.meta.url)),
 );

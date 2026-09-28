@@ -58,7 +58,8 @@
       "missingCache": "Der kompilierte Cache fehlt: führen Sie pnpm compile:caches aus"
     },
     "banner": {
-      "close": "Schließen"
+      "close": "Schließen",
+      "waiting": "Wartet auf die Engine (#{issue})"
     }
   },
   "a-city-from-rules": {
