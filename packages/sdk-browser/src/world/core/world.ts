@@ -26,7 +26,7 @@ import { worldSwitches } from './worldSwitches.ts';
  * await world.scene.load('/cache/city/manifest.json'); */
 export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   if (options.controls === 'vehicle') throw noVehicle();
-  const canvas = resolveWorldTarget(target);
+  const { canvas, release: releaseCanvas } = resolveWorldTarget(target);
   const frames = createWorldFrames();
   const pools = worldPools();
   let camera = new Camera('perspective'),
@@ -182,13 +182,12 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     /** Stops the world and gives back all it took: GPU memory, loop, controls. */ dispose() {
       if (disposed) return;
       disposed = true;
-      controls.dispose();
-      physics.dispose();
-      runtime.dispose();
+      for (const part of [controls, physics, runtime]) part.dispose();
       pools.pageCache.clear();
       diagnostic.notices.close();
       frames.clear();
       device.dispose();
+      releaseCanvas();
     },
   };
   frames.add(noticeEffectBudget(world.budget, canvas, world.effects, diagnostic.notices));
