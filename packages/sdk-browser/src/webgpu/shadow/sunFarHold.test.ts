@@ -21,11 +21,19 @@ const sceneProxy = () =>
     bytes: 0,
     triangles: 0,
     nodes: 0,
+    groups: 0,
+    owners: 0,
+    instances: 0,
     data: {
       triangles: new Float32Array(0),
       albedo: new Uint32Array(0),
       nodeBounds: new Float32Array(0),
       nodeChildren: new Uint32Array(0),
+      triangleGroups: new Uint32Array(0),
+      groupOffsets: new Uint32Array([0]),
+      owners: new Uint32Array(0),
+      sourceParents: new Int32Array(0),
+      bindWorlds: new Float64Array(0),
     },
   }) as unknown as SceneProxy;
 
@@ -36,8 +44,16 @@ function sunFarRt(readSceneProxy?: () => Promise<SceneProxy>) {
   // proxy in a scene that no longer moves.
   run.gate.hold.keep(run.gate.revisions);
   run.gate.hold.keep(run.gate.revisions);
+  const { device } = fakeDevice({
+    limits: {
+      maxStorageBufferBindingSize: 1 << 28,
+      maxBufferSize: 1 << 28,
+    } as GPUSupportedLimits,
+  });
   const rt = {
     run,
+    gpu: { device },
+    setup: { source: { traverse() {} }, worlds: { refresh() {} } },
     sunFar: createWebgpuSunFarState(),
     bounce: { probes: undefined as unknown, wanted: false, reason: null as string | null },
     context: { readSceneProxy },
@@ -66,7 +82,7 @@ test('GEO-02: the proxy loaded for the far shadow announces its adoption', async
   const rt = sunFarRt(async () => sceneProxy());
   assert.equal(rt.run.gate.hold.stable, true, 'the hold is armed before adoption');
   const before = rt.run.gate.revisions.resources;
-  ensureSunFarShadow(rt, fakeDevice().device);
+  ensureSunFarShadow(rt, rt.gpu.device);
   await rt.sunFar.pending;
   assertAdoption(rt, before);
 });
@@ -76,7 +92,7 @@ test('GEO-02: the proxy borrowed from bounce also announces its adoption', () =>
   const emprunte = { bounds: [0, 0, 0, 1, 1, 1], cellMetres: 0.5, nodeCount: 1 };
   rt.bounce.probes = { proxy: emprunte } as unknown as WebgpuPagesRuntime['bounce']['probes'];
   const before = rt.run.gate.revisions.resources;
-  ensureSunFarShadow(rt, fakeDevice().device);
+  ensureSunFarShadow(rt, rt.gpu.device);
   assert.equal(rt.sunFar.borrowed, true, 'the bounce proxy is borrowed, never reloaded');
   assertAdoption(rt, before);
 });
