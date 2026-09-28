@@ -1,7 +1,8 @@
 import type { PageRec } from '../../page/selection/selection.ts';
-import type { IdDelta } from '../cut/delta.ts';
+import type { CutDelta, IdDelta } from '../cut/delta.ts';
 import { createDenseKeySet } from '../cut/denseKeys.ts';
 import { createKeyUnion } from '../cut/keyUnion.ts';
+import type { GroupClosure } from '../../page/cut/groupClosure.ts';
 import { createBudgetRanking } from './budgetRanking.ts';
 import { createHeldKeys } from '../cut/heldKeys.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
@@ -14,19 +15,21 @@ export type WebgpuResidencySets = ReturnType<typeof createWebgpuResidencySets>;
  * The sets an image decides residency with, carried from one image to the next instead of rebuilt.
  *
  * `desired` is what the image asks the cache for — the pinned cover and the cut — and `keep` adds
- * what the image draws, which the cache must not reclaim under it. The cut arrives as a DELTA from
- * either cut, so a moving camera costs the pages that changed and a still camera nothing at all.
- * `tracking.wanted`, what the upload queue walks, is the desired set unless the budget cuts it.
+ * what the image draws, which the cache must not reclaim under it. The cut arrives as a DELTA,
+ * whether from the GPU sample or the CPU cut: one contract for both, so a moving camera costs the
+ * pages that changed and a still camera nothing at all. `tracking.wanted` is what the upload queue walks: the desired set itself, unless the
+ * page budget forces the coarser subset `applyBudget` or the GPU cut's admission computes.
  */
 export function createWebgpuResidencySets(options: {
   tracking: Tracking;
   bootstrapKey: Uint8Array;
   packedPages: readonly PageRec[];
-  /** Visits every page the cut closes over (`../../page/cut/groupClosure.ts`). */
-  heldIds?: (visit: (id: number) => void) => void;
+  /** The groups the cut closes over (`../../page/cut/groupClosure.ts`). */
+  closure?: Pick<GroupClosure, 'forEachHeld'>;
 }) {
   const { tracking, bootstrapKey, packedPages } = options;
   const { keyCount, keyOf, wanted, wantedPages } = tracking;
+  /** A packed page's cache key, cached on its record by the tracking (`PageRec.keyIndex`). */
   const keyOfId = (id: number) => keyOf(packedPages[id]);
   /** What joined and left `keep` since the pin step last ran, each joining key beside the record
    *  it joined by (none for the pinned cover): the pin step reads its parents there. */
@@ -63,7 +66,7 @@ export function createWebgpuResidencySets(options: {
     },
   });
   for (let key = 0; key < keyCount; key++) if (bootstrapKey[key]) keep.retain(key);
-  const cover = tracking.keep.count;
+  /** Entering the upload queue is what makes the image hold a page; leaving it lets the page go. */
   /** Bumped whenever the upload queue changes, so what `accepts` answers may have changed. */
   let acceptedRevision = 0;
   const enqueue = (key: number, page?: PageRec) => {
@@ -91,13 +94,13 @@ export function createWebgpuResidencySets(options: {
     retain: (key: number, id: number) => keep.retain(key, packedPages[id]),
     release: (key: number) => keep.release(key),
   });
-  /** Makes the queue the first `count` of `keys`, beside their records, unless it already is: new
-   *  holds are taken before old ones are let go of, so a key in both never leaves `keep` (#477). */
+  /** Makes the queue the first `count` of `keys`, beside their records, unless it already holds
+   *  those keys: new holds are taken before old ones are let go of, so a key in both never leaves
+   *  `keep`, and a queue ranked again to the same pages changes nothing (#477). */
   const admit = (keys: Int32Array, pages: readonly PageRec[], count: number) => {
     followsDesired = false;
     let same = count === wanted.count;
-    for (let i = 0; same && i < count; i++)
-      same = wanted.list[i] === keys[i] && wantedPages[i] === pages[i];
+    for (let i = 0; same && i < count; i++) same = wanted.has(keys[i]);
     if (same) return;
     for (let i = 0; i < count; i++) keep.retain(keys[i], pages[i]);
     for (let i = wanted.count - 1; i >= 0; i--) keep.release(wanted.list[i]);
@@ -119,24 +122,18 @@ export function createWebgpuResidencySets(options: {
     get desiredCount() {
       return desired.count;
     },
-    /** Keys the image holds outside the queue and the cover: what it draws with what that needs. */
-    get heldOutsideQueue() {
-      return tracking.keep.count - wanted.count - cover;
-    },
-    /** The cut that decides; true on a switch, the CPU's ranking and pin feed refilled, `leaving` kept. */
+    /** The cut that decides. The GPU cut feeds no ranking; the CPU cut that takes the image back
+     *  refills it from the pages its cut closes over. */
     decideBy(cpu: boolean) {
-      if (cpu === cpuCut) return false;
+      if (cpu === cpuCut) return;
       cpuCut = cpu;
-      entering.clear();
-      if (!cpu) leaving.clear();
       ranking.clear();
-      const { list, count } = tracking.keep;
-      if (cpu) for (let i = 0; i < count; i++) entering.add(list[i], tracking.keepPages[i]);
-      if (cpu) options.heldIds?.((id) => ranking.add(packedPages[id]));
-      return true;
+      if (cpu) options.closure?.forEachHeld((id) => ranking.add(packedPages[id]));
     },
     followDesired,
     admit,
+    /** True for a key of the pinned root cover, which no budget weighs. */
+    covers: (key: number) => bootstrapKey[key] === 1,
     /** Keys this image asks the cache for, the pinned cover included. */
     get requestedCount() {
       return requested.size;
@@ -178,11 +175,17 @@ export function createWebgpuResidencySets(options: {
       askedKeys.apply(delta);
     },
     /** Applies one difference of the drawable cut, which is what the image must not lose. */
-    applyDrawn(delta: IdDelta) {
+    applyDrawn(delta: CutDelta) {
       drawnKeys.apply(delta);
     },
-    /** The CPU cut's budget: a cut that fits `room` is the queue; one that does not is ranked
-     *  coarsest first and cut to `room`, walking the budget, never the cut. */
+    /**
+     * The CPU cut's budget. The upload queue holds `room` records. A cut that fits is the queue, and
+     * the incremental set already is that queue — nothing is walked. A cut that does not fit is
+     * ranked coarsest first and cut to `room`: coarse clusters cover more surface per slot, so what
+     * survives is a complete cover plus as much detail as fits, never a truncated cut of the
+     * surface. Ranking reads the weighted keys filed by level: it does not walk the cut, only the
+     * budget.
+     */
     applyBudget(room: number) {
       if (ranking.rank(room) <= room) {
         followDesired();
