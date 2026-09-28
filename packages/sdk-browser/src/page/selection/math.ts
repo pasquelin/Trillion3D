@@ -8,7 +8,8 @@ export type ClusterCut = {
   group?: number | null;
   source?: number | null;
 };
-/** Projected screen error of one (error, object-space sphere) pair, in the frame given by `e`. */
+/** Projected screen error of one (error, object-space sphere) pair, in the frame given by `e`;
+ *  `sound` as in `projectedErrorAt`. */
 export function projectedClusterError(
   error: number | null | undefined,
   sphere: ArrayLike<number> | null | undefined,
@@ -18,6 +19,7 @@ export function projectedClusterError(
   focal: number,
   near: number,
   perspective = 1,
+  sound = false,
 ) {
   // One extra guard over `projectedErrorAt`, which is left the projection: a missing sphere.
   // The other two stay here, before the projection's two square roots, because the most common
@@ -33,6 +35,7 @@ export function projectedClusterError(
     focal,
     near,
     perspective,
+    sound,
   );
 }
 /**
@@ -41,7 +44,7 @@ export function projectedClusterError(
  *
  * A cluster whose parent has no sphere of its own reuses its own: both sides then project the same
  * sphere, so its view distance is taken once and both errors read it, `projectedErrorAt` getting
- * the same operands in the same order as `projectedClusterError`.
+ * the same operands in the same order as `projectedClusterError`. `sound` as in `projectedErrorAt`.
  */
 export function clusterPixels(
   rec: ClusterCut,
@@ -51,6 +54,7 @@ export function clusterPixels(
   near: number,
   perspective: number,
   out: Float64Array,
+  sound = false,
 ) {
   const sphere = rec.sphere,
     own = rec.lodError ?? 0,
@@ -59,11 +63,11 @@ export function clusterPixels(
     const lateral = viewLateral(sphere, 0, e),
       depth = viewDepth(sphere, 0, e),
       radius = sphere[3];
-    out[0] = projectedErrorAt(own, lateral, depth, radius, stretch, focal, near, perspective);
-    out[1] = projectedErrorAt(parent, lateral, depth, radius, stretch, focal, near, perspective);
+    out[0] = projectedErrorAt(own, lateral, depth, radius, stretch, focal, near, perspective, sound);
+    out[1] = projectedErrorAt(parent, lateral, depth, radius, stretch, focal, near, perspective, sound);
     return out;
   }
-  out[0] = projectedClusterError(own, sphere, 0, e, stretch, focal, near, perspective);
+  out[0] = projectedClusterError(own, sphere, 0, e, stretch, focal, near, perspective, sound);
   out[1] = projectedClusterError(
     parent,
     rec.parentSphere ?? sphere,
@@ -73,6 +77,7 @@ export function clusterPixels(
     focal,
     near,
     perspective,
+    sound,
   );
   return out;
 }
