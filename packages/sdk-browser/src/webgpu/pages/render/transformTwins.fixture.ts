@@ -1,13 +1,11 @@
-// #915: twin worlds take the same random moves and edits, one moving by index and subtree, the other
-// walking the whole index as before; rows, boxes and declared motion keep the same bits throughout.
-import test from 'node:test';
+// Twin worlds for the equivalence tests of a move (#915, #971): a random host tree of 3000 nodes,
+// a root per mesh, a row per root, a log of what moves declared, the same edits drawn on each twin.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as G from '../../../host/graph/graph.fixture.ts';
+import { BOX_VALUES, boxTransform } from '../../../../../sdk-core/src/index.ts';
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
-import { setWebgpuTransform } from './transform.ts';
-import { findNode, rootsUnder } from './movedNode.ts';
 import { racine, runtime } from '../../core/transformShear.fixture.ts';
 import { hostWorldPlacements } from '../../../host/world/placements.ts';
 import {
@@ -29,7 +27,7 @@ await prepareSdkWasm(
 const ROW_WORDS = PAGE_INFO_STRIDE / 4;
 
 /** A world pose drawn at random: translation, a turn, a positive scale. */
-function worldPose(draw: Draw) {
+export function worldPose(draw: Draw) {
   const turn = new G.Quaternion(draw() - 0.5, draw() - 0.5, draw() - 0.5, draw() + 0.1).normalize();
   const at = new G.Vector3(draw() * 20 - 10, draw() * 20 - 10, -0),
     scale = new G.Vector3(0.5 + draw(), 0.5 + draw(), 0.5 + draw());
@@ -38,7 +36,7 @@ function worldPose(draw: Draw) {
 
 /** One world of 3000 nodes, two to a name, a root per mesh, a row per root, and a log of what moves declared.
  *  `whole`: every move walks the whole index, as before #915. */
-async function world(seed: number, lot: boolean, whole: boolean) {
+export async function world(seed: number, lot: boolean, whole: boolean) {
   const draw = seeded(seed);
   const { source, nodes } = randomTree(draw, 3000, 1500);
   const worlds = hostWorldPlacements(source);
@@ -78,25 +76,28 @@ async function world(seed: number, lot: boolean, whole: boolean) {
     run.gate.updateWorlds(worlds);
   };
   image();
-  return { rt, source, nodes, roots, rows, log, image };
+  /** Nodes the host removed or reparented: their link in the engine index may be stale. */
+  const cut = new Set<Object3D>();
+  return { rt, source, nodes, roots, rows, log, image, cut };
 }
-type World = Awaited<ReturnType<typeof world>>;
+export type World = Awaited<ReturnType<typeof world>>;
 
 /** True when `node` is `of` or one of its ancestors. */
-function isAncestor(node: Object3D, of: Object3D) {
+export function isAncestor(node: Object3D, of: Object3D) {
   for (let walk: Object3D | null = of; walk; walk = walk.parent) if (walk === node) return true;
   return false;
 }
 
-/** The same drawn edit on both twins: a pose, a rename, an addition, a removal, a reparenting or
+/** The same drawn edit on every twin: a pose, a rename, an addition, a removal, a reparenting or
  *  an image. Returns the rank edited. */
-function edit(draw: Draw, kind: number, [a, b]: World[]) {
+export function edit(draw: Draw, kind: number, twins: World[]) {
+  const [a] = twins;
   // Early ranks carry the deep subtrees: they are edited more often.
   const at = Math.floor(draw() ** 3 * a.nodes.length),
     to = Math.floor(draw() * a.nodes.length),
     seed = Math.floor(draw() * 1e9),
     name = draw() < 0.5 ? pick(draw, a.nodes).name : `fresh${seed}`;
-  for (const { nodes, image } of [a, b]) {
+  for (const { nodes, image, cut } of twins) {
     const node = nodes[at],
       parent = nodes[to];
     if (kind === 0) drawPose(seeded(seed), node);
@@ -106,40 +107,24 @@ function edit(draw: Draw, kind: number, [a, b]: World[]) {
       added.name = name;
       parent.add(added);
       nodes.push(added);
-    } else if (kind === 3 && node !== nodes[0]) node.removeFromParent();
-    else if (kind === 4 && !isAncestor(node, parent)) parent.add(node);
+    } else if (kind === 3 && node !== nodes[0]) cut.add(node.removeFromParent());
+    else if (kind === 4 && !isAncestor(node, parent)) cut.add(parent.add(node) && node);
     else if (kind === 5) image();
   }
   return at;
 }
 
-/** Runs a move; the engine code it was refused with, if any — anything else fails the test. */
-function moveBy(x: World, name: string, pose: Float32Array) {
-  try {
-    setWebgpuTransform(x.rt, name, pose);
-  } catch (error) {
-    const code = (error as { code?: string }).code;
-    if (!code) throw error;
-    return code;
-  }
-}
-
-/** The roots whose mesh climbs to `node`, in rank order: how a move found them before #915. */
-const climbUnder = (roots: World['roots'], node: Object3D) =>
-  roots.flatMap((root, i) => (isAncestor(node, root.pages[0].sourceMesh as Object3D) ? [i] : []));
-
 /** Bit-identical typed arrays; the slow per-component message only once they differ. */
-function sameBits(a: Float32Array | Float64Array | Uint8Array, b: typeof a, label: string) {
+export function sameBits(a: Float32Array | Float64Array | Uint8Array, b: typeof a, label: string) {
   const bytes = (x: typeof a) => Buffer.from(x.buffer, x.byteOffset, x.byteLength);
   if (!bytes(a).equals(bytes(b))) assertBits(a, b, label);
 }
 
-function assertSame(a: World, b: World, label: string, worlds: boolean) {
+/** Rows, dirty marks and boxes bit-identical; the engine's worlds too when `worlds`. */
+export function sameState(a: World, b: World, label: string, worlds: boolean) {
   sameBits(a.rows.pageTableFloats, b.rows.pageTableFloats, `${label} rows`);
   sameBits(a.rows.dirty, b.rows.dirty, `${label} dirty`);
   a.roots.forEach((root, i) => sameBits(root.worldBox!, b.roots[i].worldBox!, `${label} box`));
-  assert.deepEqual(a.log, b.log, `${label} motion and mobility`);
-  a.log.length = b.log.length = 0;
   if (worlds)
     a.roots.forEach((root, i) =>
       // The engine's poses are views on its world buffer (`placements.ts`).
@@ -151,35 +136,44 @@ function assertSame(a: World, b: World, label: string, worlds: boolean) {
     );
 }
 
-for (const lot of [false, true])
-  test(`move by index and subtree: the bits of the whole walk — ${lot ? 'box lot' : 'box by box'}`, async () => {
-    for (let seed = 1; seed <= 3; seed++) {
-      const twins = [await world(seed, lot, false), await world(seed, lot, true)];
-      const [a, b] = twins,
-        draw = seeded(seed * 7907 + (lot ? 1 : 0)),
-        out: number[] = [];
-      let edited = 0;
-      for (let step = 0; step < 300; step++) {
-        const label = `seed ${seed} step ${step}`;
-        // Poses and renames come twice as often as the other edits.
-        if (draw() < 0.4) edited = edit(draw, Math.floor(draw() * 8) % 6, twins);
-        // Half the moves fall below the node last edited: a pose the host set above them.
-        const below: Object3D[] = [];
-        a.nodes[edited].traverse((node) => void below.push(node));
-        const name = pick(draw, draw() < 0.5 && below.length > 1 ? below.slice(1) : a.nodes).name,
-          pose = worldPose(draw);
-        const node = G.byName(a.source, name);
-        // Identity alone: a failing message would print the whole graph.
-        assert.ok(findNode(a.source, name) === node, `${label}: ${name} is not the walk's`);
-        if (node)
-          assert.deepEqual(rootsUnder(a.roots, node, out), climbUnder(a.roots, node), label);
-        assert.equal(moveBy(a, name, pose), moveBy(b, name, pose), label);
-        assertSame(a, b, label, false);
-        if (draw() < 0.2) {
-          a.image();
-          b.image();
-          assertSame(a, b, `${label} image`, true);
-        }
-      }
+export function assertSame(a: World, b: World, label: string, worlds: boolean) {
+  sameState(a, b, label, worlds);
+  assert.deepEqual(a.log, b.log, `${label} motion and mobility`);
+  a.log.length = b.log.length = 0;
+}
+
+/**
+ * Roots whose row differs between the batch twin `a` and the one-by-one twin `b`, taken by `b` and
+ * the `others`. The engine index keeps the links it was built on (`tree.ts`): one by one, a root
+ * under a node the host cut keeps the row and box of the call that listed it while a later call
+ * moves it through the old link; the batch writes both final. Proved that case (`a` is its world,
+ * `b` is not, a cut node on its chain, the one-by-one twins agree), then copied. Returns the ranks.
+ */
+export function takeFinalRows(a: World, b: World, others: World[]) {
+  const taken = new Set<number>(),
+    box = new Float64Array(BOX_VALUES),
+    bytes = (x: World) => Buffer.from(x.rows.pageTableFloats.buffer);
+  if (bytes(a).equals(bytes(b))) return taken;
+  a.roots.forEach((root, i) => {
+    const row = (x: World) => x.rows.pageTableFloats.subarray(i * ROW_WORDS, i * ROW_WORDS + 16);
+    const [p, q] = [row(a), row(b)];
+    if (p.every((v, k) => Object.is(v, q[k]))) return;
+    const world = (x: World) => Float32Array.from(x.roots[i].world.elements);
+    sameBits(p, world(a), `root ${i}: the batch row is its final world`);
+    assert.ok(!q.every((v, k) => Object.is(v, world(b)[k])), `root ${i}: one by one is final`);
+    if (root.localBox) boxTransform(box, 0, root.localBox, 0, root.world.elements);
+    if (root.localBox) sameBits(root.worldBox!, box, `root ${i}: the batch box is its final one`);
+    const mesh = root.pages[0].sourceMesh as Object3D;
+    assert.ok(
+      [...a.cut].some((n) => isAncestor(n, mesh)),
+      `root ${i}: no link cut above`,
+    );
+    for (const x of others) sameBits(row(x), q, `root ${i}: one by one, the twins' rows`);
+    for (const x of [b, ...others]) {
+      row(x).set(p);
+      x.roots[i].worldBox?.set(root.worldBox!);
     }
+    taken.add(i);
   });
+  return taken;
+}
