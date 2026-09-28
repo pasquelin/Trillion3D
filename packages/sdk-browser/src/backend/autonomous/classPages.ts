@@ -59,8 +59,12 @@ const largestScale = (records: readonly PageRec[]) =>
 export function createClassPages(env: ClassPagesEnvironment) {
   const { context, geometryStore } = env;
   const primitiveOf = primitiveFinder(context.metadata.primitives);
-  const compiledOf = (rec: PageRec) =>
-    rec.sourceMesh && primitiveOf(context.associations.get(rec.sourceMesh));
+  /** The compiled primitive a record draws a page of: none for a resource mounted later, which
+   *  the open's manifest does not list. */
+  const compiledOf = (rec: PageRec) => {
+    const primitive = rec.sourceMesh && primitiveOf(context.associations.get(rec.sourceMesh));
+    return primitive && primitive.pages[rec.id]?.geometry?.url === rec.url ? primitive : undefined;
+  };
   /** The records whose class `alpha` moves into or out of blended, whatever family draws them. */
   const moved = (alpha: AlphaChange, records: readonly PageRec[]) =>
     blendMoves(alpha) ? records.filter((rec) => env.wears(rec, alpha)) : [];
