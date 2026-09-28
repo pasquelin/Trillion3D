@@ -18,7 +18,7 @@ use crate::compiler_primitive_dag::{build_dag_primitive, DagResult};
 use crate::geometry_page::Attribute;
 use std::collections::HashMap;
 use std::sync::Mutex;
-use trillion3d_page_codec::cut_error::{node_ceiling_error, Lens};
+use trillion3d_page_codec::cut_error::{node_ceiling_error, Lens, PLANE_VALUES};
 use trillion3d_page_codec::vec3::{length, point, sub};
 
 /// Focal length in pixels of 1080 lines under a 60° vertical field.
@@ -32,7 +32,7 @@ const MARGIN: f64 = 0.1;
 
 /// A stored page, in metres of the world: its level, its error and its parent's (none for a
 /// root), and the largest distance of a decoded corner to its source vertex.
-pub(super) struct Page {
+struct Page {
     level: u32,
     error: f64,
     parent: Option<f64>,
@@ -41,13 +41,13 @@ pub(super) struct Page {
 
 /// A primitive as the compiler holds it: positions, carried attributes, triangles, whether it
 /// blends, the largest world scale it is placed under, and its tile (`tile::tile_log2`).
-pub(super) struct Primitive<'a> {
-    pub positions: &'a [f32],
-    pub carried: &'a [&'a Attribute],
-    pub indices: &'a [u32],
-    pub blended: bool,
-    pub scale: Option<f64>,
-    pub tile_log2: i32,
+struct Primitive<'a> {
+    positions: &'a [f32],
+    carried: &'a [&'a Attribute],
+    indices: &'a [u32],
+    blended: bool,
+    scale: Option<f64>,
+    tile_log2: i32,
 }
 
 /// Largest distance between a decoded corner and the source vertex it stands for.
@@ -62,7 +62,7 @@ fn displacement(bytes: &[u8], slice: &[u32], positions: &[f32]) -> f64 {
 }
 
 /// Every page of `primitive`, compiled into a scratch cache and measured back from it.
-pub(super) fn measure(primitive: &Primitive) -> Vec<Page> {
+fn measure(primitive: &Primitive) -> Vec<Page> {
     let root = crate::texture_preview::tests::temp_dir("screen-error");
     let mut o = crate::texture_preview::tests::options(&root);
     o.simplification = "qem-endpoints".into();
@@ -86,8 +86,19 @@ pub(super) fn measure(primitive: &Primitive) -> Vec<Page> {
             uv,
         )?;
         let digest = value["sha256"].as_str().expect("digest").to_owned();
+        if reused && shifts.lock().expect("shifts").contains_key(&digest) {
+            return Ok((value, reused));
+        }
         let bytes = std::fs::read(crate::object_path(&o, &digest)).expect("stored page");
         let shift = displacement(&bytes, slice, primitive.positions);
+        // The header's error is what the manifest's `maxPositionError` and the run-time cut read.
+        let published = value["quantizationError"]
+            .as_f64()
+            .expect("quantization error");
+        assert!(
+            shift <= published * (1.0 + 1e-6) + 1e-9,
+            "{shift} > {published}"
+        );
         shifts.lock().expect("shifts").insert(digest, shift);
         Ok((value, reused))
     };
@@ -119,7 +130,7 @@ pub(super) fn measure(primitive: &Primitive) -> Vec<Page> {
 /// The cut's lens at `pixel_error`, the camera at the origin looking down `−z`, nothing culled.
 fn lens(pixel_error: f64) -> Lens {
     // Six planes `0·x + 0·y + 0·z + 1` hold every point; the view is the identity.
-    let mut planes = [0.0; 24];
+    let mut planes = [0.0; PLANE_VALUES];
     for plane in planes.as_chunks_mut::<4>().0 {
         plane[3] = 1.0;
     }
@@ -145,7 +156,7 @@ fn pixels(error: f64, depth: f64, lens: &Lens) -> f64 {
 }
 
 /// The worst screen error of a drawn page, the camera `distance` metres away or further.
-pub(super) fn worst(pages: &[Page], distance: f64, pixel_error: f64) -> f64 {
+fn worst(pages: &[Page], distance: f64, pixel_error: f64) -> f64 {
     let lens = lens(pixel_error);
     pages
         .iter()
@@ -161,7 +172,7 @@ pub(super) fn worst(pages: &[Page], distance: f64, pixel_error: f64) -> f64 {
 }
 
 /// The finest pages' displacement, in pixels at `distance`: what the grid alone costs.
-pub(super) fn exact_pixels(pages: &[Page], distance: f64) -> f64 {
+fn exact_pixels(pages: &[Page], distance: f64) -> f64 {
     let shift = pages
         .iter()
         .filter(|p| p.level == 0)
@@ -171,7 +182,7 @@ pub(super) fn exact_pixels(pages: &[Page], distance: f64) -> f64 {
 }
 
 /// Prints `name`'s numbers and asserts the audit's criterion at every distance and threshold.
-pub(super) fn assert_within_margin(name: &str, pages: &[Page]) {
+fn assert_within_margin(name: &str, pages: &[Page]) {
     let shift = pages.iter().map(|p| p.shift).fold(0.0, f64::max);
     println!(
         "{name}: {} pages, largest displacement {:.4} mm",
