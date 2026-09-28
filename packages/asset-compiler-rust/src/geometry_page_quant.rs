@@ -7,6 +7,8 @@ use crate::{CompilerError, Result};
 /// The grid rules, shared with the run-time cut (`trillion3d_page_codec::bits::grid`).
 use trillion3d_page_codec::bits::grid::{primitive_grid_exponent, uv_grid_exponent};
 use trillion3d_page_codec::bits::{bits_for, dequant, oct_decode, pow2, Quant, MAX_BITS};
+#[cfg(test)]
+mod screen;
 pub mod tile;
 
 /// The grid of a primitive from its positions and the errors its DAG published; a zero error is
