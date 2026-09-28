@@ -8,7 +8,7 @@ import type { SideBase } from './dists.ts';
 import type { BenchSettings } from './benchSettings.ts';
 export type { BenchSettings } from './benchSettings.ts';
 
-export { PATH_VERSION, VIEWS, poseAt } from './poses.ts';
+export { PATH_VERSION, VIEWS, poseAt, trajectoryPoses } from './poses.ts';
 export { applySceneFlag, assetsManifest, sceneGltf, sceneOf, scenesOf } from './scene.ts';
 export { resolveSides, sdkEntryUrl } from './dists.ts';
 export { ENGINES, engineOf, equipSide, resolveCache, sideReport } from './sideOptions.ts';
@@ -147,6 +147,8 @@ export function readOptions(argv: string[], root: string) {
     ...lightingSettings(flags, number),
     // `--camera-mobile` advances position along benchmark trajectory for each measured frame.
     movingCamera: flags.get('camera-mobile') === 'true',
+    // `--gaze-network`: plays each trajectory once without settle barrier and reads network bytes.
+    gazeNetwork: flags.get('gaze-network') === 'true',
     // `--instances`: number of object copies placed in a grid by the SDK.
     instances: number('instances', 1),
     // `--isolation on` sets COOP/COEP on the harness server: page becomes cross-origin isolated.
@@ -160,6 +162,8 @@ export function readOptions(argv: string[], root: string) {
     throw new Error('--instances must be 1, 4, 9 or 12');
   if (settings.lights < 0) throw new Error('--lampes must be a non-negative integer');
   if (settings.frames < 1) throw new Error('--images must be a positive integer');
+  if (settings.gazeNetwork && settings.textureSource !== 'cache')
+    throw new Error('--gaze-network requires --textures cache');
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const out = resolve(flags.get('out') ?? join(root, '.mesure/out', `${engine}-${stamp}`));
   // `--ressources`: base path referenced by compiled cache glTF via relative path, mounted under `/assets/`.
