@@ -500,7 +500,10 @@ binding one-texel stand-ins it never samples. One nearest depth per texel: a rec
 stacked panes takes both. Each product is kept in 8 bits. Opacity 0 takes no row and casts
 nothing; opacity 1 lets no light through. Additive and transmissive surfaces cast nothing yet: the tinted
 shadow of transmission is #33's, which colours the same RGB layer. An unpaged blended mesh casts
-nothing. WebGL2 has no shadow path, so none of this exists there.
+nothing. WebGL2 has no shadow path, so none of this exists there: `CONTRACT_LIGHTS_LIGHTING`
+publishes `shadows: false`, and the lights of the set that lights (the contract's, else the source
+graph's) that ask to cast are handed to `ContractShadows` at each change of that set. The world,
+or a session opened without one, names each as `shadows-refused` (`noticeShadowRefusal`).
 
 When a colour tile arrives, the shadow pages of the masked surfaces that read its texture are
 invalidated, and those alone. A masked cut-out is read at the mip level the reading texel's
