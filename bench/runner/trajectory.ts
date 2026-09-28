@@ -10,7 +10,7 @@ import { fingerprintBuild } from '../../scripts/write-build-provenance.ts';
 import { assetIdentity } from './report/provenance.ts';
 import { readOptions, resolveMounts, equipSide, sdkEntryUrl } from './options.ts';
 import { resolveCache, sideReport } from './sideOptions.ts';
-import { ASSETS, sceneDerived } from './scene.ts';
+import { ASSETS, DEFAULT_SCENE, sceneDerived } from './scene.ts';
 import { PATH_POSES, PATH_VERSION, poseAt } from './poses.ts';
 import { readBounds } from './page.ts';
 import { benchLights } from './lamps.ts';
@@ -41,7 +41,7 @@ async function main() {
   if (settings.movingLight || settings.movingNode || settings.poolVivant)
     throw new Error('trajectory supports camera motion only, with fixed memory budgets');
   settings.stageProfile = false;
-  const scene = flags.get('scene') ?? 'emerald';
+  const scene = flags.get('scene') ?? DEFAULT_SCENE;
   const cache = resolveCache(flags.get('cache') ?? sceneDerived(scene, ASSETS))!;
   const sides = ['avant', 'apres'].map((name) => {
     const dist = resolve(flags.get(name) ?? join(root, 'dist'));

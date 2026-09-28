@@ -179,7 +179,7 @@ Resource base URL is where harness serves sources for compiled glTF texture fetc
 
 Acceptance can replay the complete versioned camera path without collecting timings:
 
-    node bench/runner/trajectory.ts --scene emerald --cache .mesure/assets/emerald-derived \
+    node bench/runner/trajectory.ts --scene sponza --cache .mesure/assets/sponza-derived \
       --avant .worktrees/reference/dist --apres dist --out .mesure/out/8-trajectory
 
 Both builds must already exist. `--avant` is the explicitly chosen golden baseline, never
@@ -203,11 +203,11 @@ is a regression. A difference that disappears after convergence is reported sepa
 transient to streaming (temporal accumulation can also differ), nor certify absence of visible
 popping between checkpoints. No elapsed-frame or GPU timing claim is made.
 
-The Emerald cache named in #8 is no longer distributed or present with the public benchmark
-assets. The command fails explicitly if it is missing; it never silently substitutes another
-scene. `--scene sponza` exercises the same harness with a public cache, but is not an Emerald
-proof. Emerald image execution and its golden evidence remain pending until that cache is made
-available. The deterministic unit tests cover verdicts and checkpoint coverage without a browser.
+The default scene is the public benchmark reference, Sponza, shared through `DEFAULT_SCENE`.
+Use `--scene` and `--cache` to select another scene explicitly. A missing cache fails the command;
+it never silently substitutes another scene. Browser execution and golden evidence remain to be
+produced by acceptance. The deterministic unit tests cover verdicts, navigation ordering,
+transient errors and checkpoint coverage without a browser.
 
 ## Measuring Another Scene
 
