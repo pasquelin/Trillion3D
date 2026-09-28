@@ -44,7 +44,7 @@ const sides = resolveSides({ root: ROOT });
 const sdkUrl = sdkEntryUrl(sides[0]);
 const full = join(sceneDerived(scene), 'native/full');
 const manifestUrl = `/benchmark-assets/${scene}-derived/native/full/manifest.json`;
-const source = await sourceTriangles(full),
+const { triangles: source, twoSided } = await sourceTriangles(full),
   sourceTree = buildTriangleTree(source);
 const captures = new Map<string, Capture>();
 const { server, port } = await startServer({ captures, mounts: resolveMounts(ROOT, sides) });
@@ -114,6 +114,7 @@ try {
           : Float32Array.from(new Float64Array(new Uint8Array(tri!.body).buffer));
         const measured = measureView({
           source,
+          twoSided,
           sourceTree,
           drawn,
           pose: poses[i].pose,
