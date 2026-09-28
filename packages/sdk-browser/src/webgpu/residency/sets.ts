@@ -85,12 +85,8 @@ export function createWebgpuResidencySets(options: {
     keyOf: keyOfId,
     retain: (key, id) => requested.retain(key, packedPages[id]),
     release: (key) => requested.release(key),
-    onEnter: (id) => {
-      if (cpuCut) weigh(id);
-    },
-    onExit: (id) => {
-      if (cpuCut) ranking.remove(packedPages[id]);
-    },
+    onEnter: (id) => cpuCut && weigh(id),
+    onExit: (id) => cpuCut && ranking.remove(packedPages[id]),
   });
   const drawnKeys = createHeldKeys({
     keyOf: keyOfId,

@@ -195,7 +195,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     shadowTier,
     affectsImage,
     ...publication,
-    /** The cut's host tables (`../cut/publication.ts`) and the GPU cut's admission beside them. */
-    hostTableBytes: () => publication.hostTableBytes() + residency.hostBytes,
+    hostTableBytes: () => publication.hostTableBytes() + residency.hostBytes, // + GPU admission
   };
 }
