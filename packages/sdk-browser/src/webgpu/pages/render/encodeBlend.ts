@@ -184,12 +184,12 @@ export function encodeSurfaceLighting(
   const asIs = readsAsIs(rt);
   const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView, asIs);
   const composed = encodeEffects(rt, device, encoder, accumulated);
-  // Diagnostic only: the off-screen variant does not ask for the swap-chain view. The composition
-  // pass stays the same, one colour target aside — that is what isolates presentation. Guides
-  // draw on the composed target after it, which the presentation copy then carries.
-  const guided = guidesShown(rt);
+  // The off-screen diagnostic asks no swap-chain view, which isolates presentation; guides drawn
+  // over the composed target, and a view at its rectangle of the canvas, go by the copy instead.
+  const guided = guidesShown(rt),
+    placed = !!rt.views.active.rect;
   const presentation =
-    capture.capturing || guided || composesOffscreen(rt.context.diagnosticGpuVariant)
+    capture.capturing || guided || placed || composesOffscreen(rt.context.diagnosticGpuVariant)
       ? undefined
       : gpu.presenter?.targetView(width, height);
   run.gpuDrawCalls++;

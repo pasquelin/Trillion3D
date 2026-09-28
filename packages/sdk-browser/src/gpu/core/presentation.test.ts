@@ -73,3 +73,41 @@ test("a session's canvas is configured with the device itself, not the session's
   createGpuPresenter(claim.device, canvas).dispose();
   assert.equal(given, device);
 });
+
+test('a view presents at its rectangle: the canvas keeps its size and what it shows', () => {
+  const canvas = {
+    width: 64,
+    height: 48,
+    getContext: () => ({
+      configure() {},
+      getCurrentTexture: () => ({ createView: () => ({}) }),
+      unconfigure() {},
+    }),
+  } as unknown as HTMLCanvasElement;
+  const calls: unknown[][] = [],
+    passes: GPURenderPassDescriptor[] = [];
+  const record =
+    (name: string) =>
+    (...args: unknown[]) =>
+      void calls.push([name, ...args]);
+  const encoder = {
+    beginRenderPass(descriptor: GPURenderPassDescriptor) {
+      passes.push(descriptor);
+      const [setViewport, setScissorRect, draw] = ['viewport', 'scissor', 'draw'].map(record);
+      return { setPipeline() {}, setBindGroup() {}, setViewport, setScissorRect, draw, end() {} };
+    },
+  } as unknown as GPUCommandEncoder;
+  const presenter = createGpuPresenter(fakeDevice().device, canvas);
+  const image = { createView: () => ({}) } as GPUTexture;
+  presenter.present(encoder, image, 16, 8, { x: 40, y: 44, width: 32, height: 8 });
+  assert.deepEqual([canvas.width, canvas.height], [64, 48], 'the canvas is not resized');
+  assert.equal(Array.from(passes[0].colorAttachments)[0]?.loadOp, 'load');
+  assert.deepEqual(calls, [
+    ['viewport', 40, 44, 24, 4, 0, 1],
+    ['scissor', 40, 44, 24, 4],
+    ['draw', 3, 1, 0, 40 + 44 * 65536],
+  ]);
+  presenter.present(encoder, image, 16, 8, { x: 64, y: 0, width: 16, height: 8 });
+  assert.equal(passes.length, 1, 'a rectangle outside the canvas draws nothing');
+  presenter.dispose();
+});
