@@ -50,9 +50,9 @@ fn hardwareIdle(page:PageInfo,vertexIndex:u32)->bool{
 const HARDWARE_SKIP=0xffffffffu;
 fn hardwareCorner(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->u32{
  if(uni.computeSpan<=0.0){return pageCorner(page,h,vertexIndex);}
- let corners=pageTriangle(page,h,vertexIndex/3u);
+ let corners=pageTriangle(page,h,vertexIndex/3u);let ia=corners.x;let ib=corners.y;let ic=corners.z;
  let vp=uni.viewProj*page.world;
- if(computeTakes(pageClip(vp,page,h,corners.x),pageClip(vp,page,h,corners.y),pageClip(vp,page,h,corners.z))){return HARDWARE_SKIP;}
+ if(computeTakes(pageClip(vp,page,h,ia),pageClip(vp,page,h,ib),pageClip(vp,page,h,ic))){return HARDWARE_SKIP;}
  return corners[vertexIndex%3u];
 }
 @vertex fn vis_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
