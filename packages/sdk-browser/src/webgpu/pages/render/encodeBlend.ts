@@ -40,6 +40,7 @@ export function encodeBlend(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   uniformBase: number,
+  composes = false,
 ) {
   const { gpu, vis, run, timing, blendState, diag } = rt;
   // Every image path reaches this stage: the particles step here, beside the water.
@@ -110,8 +111,8 @@ export function encodeBlend(
   // Water comes after blends, on a frozen backdrop: the copy splits the two, so no transmissive
   // surface reads a half-composed image. Without the pass — a diagnostic view, which colours the
   // surface instead of lighting it, a diagnostic variant measuring the blend stage, a capture from
-  // a second camera — the slice draws as one more blend.
-  if (blendState.transmissive && !encodeWaterPass(rt, encoder))
+  // a second camera, an image no composition follows — the slice draws as one more blend.
+  if (blendState.transmissive && !encodeWaterPass(rt, encoder, composes))
     drawBlendPass(rt, device, encoder, true);
   const finished = performance.now();
   timing.transparentDrawMs += finished - prepared;
@@ -145,7 +146,7 @@ export function encodeSurfaceLighting(
   uniformBase: number,
 ) {
   const { gpu, run, capture } = rt,
-    { clearColor } = run;
+    clear = clearValueOf(run.clearColor);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView || !gpu.depthView || !gpu.colorView)
     throw new Error('DEFERRED_UNAVAILABLE');
   const [width, height] = gpu.targetSize;
@@ -168,7 +169,7 @@ export function encodeSurfaceLighting(
     cameraWorldArray,
     width,
     height,
-    clearColor,
+    run.clearColor,
     run.diagnostic !== 'beauty',
     direct,
     taaSampledRank(rt),
@@ -176,7 +177,7 @@ export function encodeSurfaceLighting(
   gpu.deferred.light(encoder, gpu.hdrView);
   run.gpuDrawCalls++;
   encodeShadowReadback(rt, encoder);
-  encodeBlend(rt, device, encoder, uniformBase);
+  encodeBlend(rt, device, encoder, uniformBase, true);
   drawParticles(rt, encoder);
   // Temporal accumulation reads the lit and blended image, and yields what composition reads — the
   // lit image itself when this image does not accumulate. The effect chain follows: its passes
@@ -193,7 +194,6 @@ export function encodeSurfaceLighting(
       ? undefined
       : gpu.presenter?.targetView(width, height);
   run.gpuDrawCalls++;
-  const clear = clearValueOf(clearColor);
   gpu.deferred.compose(encoder, gpu.colorView, clear, presentation, composed, asIs);
   if (guided) encodeWebgpuGuides(rt, device, encoder, cam);
   return !!presentation;
