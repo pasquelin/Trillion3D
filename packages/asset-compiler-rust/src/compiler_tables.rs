@@ -30,7 +30,8 @@ use textures::texture_table;
 /// distance (`partition.rs`), and the node table keeps the others, renumbered; version 4 keeps
 /// only the root of the cells' index, whose pages lie beside it (`partition/pages.rs`).
 const SCENE_TABLES_VERSION: u32 = 4;
-const NODE_TABLE_VERSION: u32 = 3;
+/// The node table's version: 4 says whether each node declares itself visible (`KHR_node_visibility`).
+const NODE_TABLE_VERSION: u32 = 4;
 const MATERIAL_TABLE_VERSION: u32 = 4;
 const GEOMETRY_TABLE_VERSION: u32 = 1;
 const SCENE_TABLES_FILE: &str = "scene-tables.json";

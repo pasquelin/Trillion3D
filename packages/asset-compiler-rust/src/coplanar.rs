@@ -69,7 +69,8 @@ impl Default for CoplanarBounds {
 pub struct CoplanarInputs<'a> {
     pub g: &'a Value,
     pub bin: &'a [u8],
-    pub chosen: &'a BTreeSet<usize>,
+    /// The compiled nodes no hidden node hides: the drawn scene.
+    pub shown: &'a BTreeSet<usize>,
     pub mesh_map: &'a BTreeMap<usize, usize>,
     /// Compiled mesh index back to the glTF mesh it came from.
     pub source_mesh: &'a BTreeMap<usize, usize>,
