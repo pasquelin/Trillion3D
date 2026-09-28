@@ -120,6 +120,7 @@ export function encodeTaaPass(
   cam: EngineCamera,
   current: GPUTextureView,
   asIs = true,
+  share?: GPUTextureView,
 ): AccumulatedImage | undefined {
   const temporal = rt.gpu.temporal,
     { gpu, vis, run } = rt;
@@ -155,6 +156,7 @@ export function encodeTaaPass(
   inputs.pages = vis.pageTable;
   inputs.motion = temporal.motion.buffer;
   inputs.flags = asIs ? gpu.surfaces.views()[3] : undefined;
+  inputs.share = asIs ? share : undefined;
   const output = temporal.encode(encoder, inputs);
   run.gpuDrawCalls++;
   state.sceneSeen = scene;

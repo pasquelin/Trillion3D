@@ -92,6 +92,10 @@ const TOON_BANDS = 'mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5))';
 const DIFFUSE_COSINE = 'max(nl,0.0)';
 /** The matcap coordinate of the view-space normal `n`. */
 const MATCAP_UV = 'n.x*0.495+0.5,0.5-n.y*0.495';
+/** Encodes a view-space unit normal as the debug colour on both backends. */
+export const NORMAL_VIEW_COLOR = 'N*0.5+0.5';
+export const NORMAL_VIEW_COLOR_WGSL = `fn normalViewColor(N:vec3f)->vec3f{return ${NORMAL_VIEW_COLOR};}`;
+export const NORMAL_VIEW_COLOR_GLSL = `vec3 normalViewColor(vec3 N){return ${NORMAL_VIEW_COLOR};}`;
 
 /**
  * What a declared lamp gives a pixel of a diffuse or toon surface, read by `declaredLight` through

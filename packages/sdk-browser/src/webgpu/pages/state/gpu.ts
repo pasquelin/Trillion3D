@@ -8,6 +8,7 @@ import type {
 } from '../../../gpu/core/presentation.ts';
 import type { createDeferredLighting } from '../../../lighting/deferred/deferred.ts';
 import type { SurfaceBuffer } from '../../../scene/surfaceBuffer.ts';
+import type { AsIsShare } from '../../../lighting/deferred/asIsShare.ts';
 import type { TemporalAntialiasing } from '../../../taa/temporalAntialiasing.ts';
 import type { WebgpuEffects } from '../../../effects/webgpuEffects.ts';
 import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
@@ -43,6 +44,7 @@ export interface WebgpuGpuState {
   backdrop: TransmissionBackdrop | undefined;
   reflection?: ScreenReflection;
   surfaces: SurfaceBuffer | undefined;
+  asIsShare: AsIsShare | undefined;
   /** The last adopted sample exceeded the ceiling: the image cannot use it. */
   cutTruncated: boolean;
   /** GPU selection has been dropped for the session: what is measured since is the fallback CPU cut.
@@ -126,6 +128,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     feedbackView: undefined,
     backdrop: undefined,
     surfaces: undefined,
+    asIsShare: undefined,
     cutTruncated: false,
     selectionFallback: false,
     targetSize: [viewport[0] ?? 1, viewport[1] ?? 1],
