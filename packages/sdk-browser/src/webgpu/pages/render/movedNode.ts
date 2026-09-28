@@ -49,11 +49,17 @@ function rootsByMesh(roots: Roots) {
  * walked once: the same relation as climbing each root's parent chain up to the node.
  */
 export function rootsUnder(roots: Roots, node: Object3D, out: number[]) {
-  const byMesh = rootsByMesh(roots);
+  walking = rootsByMesh(roots);
+  found = out;
   out.length = 0;
-  node.traverse((walk) => {
-    const list = byMesh.get(walk);
-    if (list) for (const i of list) out.push(i);
-  });
+  node.traverse(collect);
   return out.sort(ascending);
 }
+
+// The walk's state and its one callback, declared once: a move allocates no closure.
+let walking = new Map<Object3D, number[]>(),
+  found: number[] = [];
+const collect = (walk: Object3D) => {
+  const list = walking.get(walk);
+  if (list) for (const i of list) found.push(i);
+};
