@@ -500,6 +500,24 @@
       "balloon": "追踪气球"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "观看穿过公园的录制路线。可以重播、停止或接管相机。",
+    "controls": {
+      "replay": "重播",
+      "stop": "停止"
+    },
+    "readouts": {
+      "currentPart": "当前部分"
+    },
+    "words": {
+      "entrance": "入口",
+      "pond": "池塘",
+      "bridge": "桥",
+      "pavilion": "凉亭",
+      "overview": "全景",
+      "complete": "完成"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "环绕起重机观察一个动画片段如何转动吊臂、移动小车、提升并摆动吊物。",
     "controls": {

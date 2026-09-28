@@ -500,6 +500,24 @@
       "balloon": "SUIT LE BALLON"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Regardez le parcours enregistré dans le parc. Relancez-le, arrêtez-le ou prenez la caméra.",
+    "controls": {
+      "replay": "Rejouer",
+      "stop": "Arrêter"
+    },
+    "readouts": {
+      "currentPart": "Partie actuelle"
+    },
+    "words": {
+      "entrance": "Entrée",
+      "pond": "Étang",
+      "bridge": "Pont",
+      "pavilion": "Pavillon",
+      "overview": "Vue d’ensemble",
+      "complete": "Terminé"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Tourne autour de la grue pendant qu’un clip pivote la flèche, déplace le chariot, lève la charge et la laisse se balancer.",
     "controls": {
