@@ -2624,6 +2624,13 @@
       "depth": "Camadas, para uma pilha de imagens."
     }
   },
+  "PlacementGrowth": {
+    "summary": "O que um proprietário entrega a uma sessão que aumenta os seus buffers de instâncias no lugar (`growth.ts`).",
+    "members": {
+      "growPlacements": "Um buffer de instâncias que a sessão mantém foi substituído por um maior, primeiro as linhas de `from` e o resto estacionado: a sessão lê `to` a partir de agora e mantém as suas novas linhas, sem reconstruir tabelas (`growth.ts`). Ausente de um motor, o proprietário abre de novo a sessão sobre `to`.",
+      "growsInPlace": "Se `growPlacements` aceita cada um de `from` aumentado para `capacity` linhas, perguntado antes de o proprietário substituir algum: false deixa-os como estão, e o proprietário abre de novo a sessão sobre outros maiores."
+    }
+  },
   "PlacementRows": {
     "summary": "As linhas de posicionamento de meshes espelhados, uma linha por cópia posicionada.",
     "members": {

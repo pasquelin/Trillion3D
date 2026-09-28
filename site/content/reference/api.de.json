@@ -4765,6 +4765,13 @@
       "depth": "Schichten, für einen Bildstapel."
     }
   },
+  "PlacementGrowth": {
+    "summary": "Was ein Besitzer einer Sitzung übergibt, die ihre Instanzpuffer an Ort und Stelle vergrößert (`growth.ts`).",
+    "members": {
+      "growPlacements": "Ein Instanzpuffer der Sitzung wurde durch einen größeren ersetzt, zuerst die Zeilen von `from`, der Rest geparkt: Die Sitzung liest ab jetzt `to` und hält ihre neuen Zeilen, ohne eine Tabelle neu aufzubauen (`growth.ts`). Fehlt es einer Engine, öffnet der Besitzer die Sitzung erneut auf `to`.",
+      "growsInPlace": "Ob `growPlacements` jeden von `from`, auf `capacity` Zeilen vergrößert, annimmt – gefragt, bevor der Besitzer einen ersetzt: false lässt sie, wie sie sind, und der Besitzer öffnet die Sitzung erneut auf größeren."
+    }
+  },
   "PlacementRows": {
     "summary": "Die Platzierungszeilen der Spiegelmeshes, eine Zeile pro platzierter Kopie.",
     "members": {

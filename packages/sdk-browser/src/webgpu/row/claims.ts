@@ -1,4 +1,5 @@
 import { sortPages } from '../../../../sdk-core/src/index.ts';
+import { grown } from '../../page/cut/sparseInts.ts';
 import type { FrameClock } from '../../page/integration/frameBudget.ts';
 
 /**
@@ -11,19 +12,26 @@ import type { FrameClock } from '../../page/integration/frameBudget.ts';
  *
  * A page enrols only once: per-page marking is what guarantees it, so a page claimed twice before it
  * is served does not double the work. The list is sorted before it is served, because the residency
- * journal writes ranges only while the indices it is given increase.
+ * journal writes ranges only while the indices it is given increase. Both tables follow the
+ * catalogue when pages join it in place (`../../placement/webgpuGrowth.ts`).
  */
 export function createWebgpuRowClaims(pageCount: number) {
-  const marks = new Uint8Array(Math.max(1, pageCount));
-  const pages = new Int32Array(Math.max(1, pageCount));
+  let marks = new Uint8Array(Math.max(1, pageCount));
+  let pages = new Int32Array(Math.max(1, pageCount));
   let count = 0;
   return {
-    pages,
+    get pages() {
+      return pages;
+    },
     get count() {
       return count;
     },
     /** Enrols a page, unless it is already waiting its turn. */
     add(page: number) {
+      if (page >= marks.length) {
+        marks = grown(marks, page + 1, marks.length);
+        pages = grown(pages, marks.length, count);
+      }
       if (marks[page]) return;
       marks[page] = 1;
       pages[count++] = page;
