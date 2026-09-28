@@ -37,6 +37,9 @@ export interface CameraParameters {
   top?: number;
   /** Bottom edge of an orthographic camera's view box. */
   bottom?: number;
+  /** An orthographic camera keeps its box's height and centre and takes its width from the
+   *  picture's shape, so a resized canvas never stretches the drawing. Off by default. */
+  fitAspect?: boolean;
 }
 
 /** The optics a camera declares; a write redraws the frame, nothing more to call. */
@@ -70,6 +73,8 @@ export class Camera extends Object3D {
   declare top: number;
   /** Bottom edge of the orthographic box. */
   declare bottom: number;
+  /** An orthographic box as high as declared and as wide as the picture's shape makes it. */
+  fitAspect: boolean;
 
   /** `'perspective'` makes far things small; `'orthographic'` keeps every size. */
   readonly projection: 'perspective' | 'orthographic';
@@ -91,6 +96,7 @@ export class Camera extends Object3D {
       top: p.top ?? 1,
       bottom: p.bottom ?? -1,
     };
+    this.fitAspect = p.fitAspect ?? false;
   }
   protected override get looksDownNegativeZ() {
     return true;
@@ -103,6 +109,7 @@ export class Camera extends Object3D {
     super.copy(source, recursive);
     if (!(source instanceof Camera)) return this;
     (this as { _optics: Camera['_optics'] })._optics = { ...source._optics };
+    this.fitAspect = source.fitAspect;
     this.updateProjectionMatrix();
     return this;
   }
@@ -137,7 +144,8 @@ export class Camera extends Object3D {
       out.origin.setFromMatrixPosition(m);
       out.direction.set(x * t * aspect, y * t, -1);
     } else {
-      const [cx, cy, w, h] = orthographicView(this, this.zoom, view);
+      const fit = this.fitAspect ? aspect : undefined;
+      const [cx, cy, w, h] = orthographicView(this, this.zoom, view, fit);
       out.origin.set(cx + x * w, cy + y * h, 0).applyMatrix4(m);
       out.direction.set(0, 0, -1);
     }
