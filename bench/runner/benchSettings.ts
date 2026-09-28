@@ -1,6 +1,14 @@
 // Validated, resolved campaign settings, split out of `options.ts` to keep it under the file
 // line budget.
 
+/** Pools set in session after warmup; a texture pool either in bytes or as a fraction of the
+ *  texture bytes the settled pose holds resident (`poolFill.ts`). */
+export type LivePools = {
+  geometryPoolBytes?: number | null;
+  texturePoolBytes?: number | null;
+  textureResidentFraction?: number;
+};
+
 /** Every field a series or a report reads. */
 export interface BenchSettings {
   engine: string;
@@ -11,7 +19,7 @@ export interface BenchSettings {
   geometryPoolBytes: number | null;
   texturePoolBytes: number | null;
   geometryPoolCeilingBytes: number | null;
-  poolVivant: { geometryPoolBytes?: number | null; texturePoolBytes?: number | null } | null;
+  poolVivant: LivePools | null;
   width: number;
   height: number;
   dpr: number;
