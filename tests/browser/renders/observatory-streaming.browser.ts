@@ -15,6 +15,8 @@ import { manifestUrlOf } from '../../kit/scenes/caches.ts';
  *  draws nothing that long while its pages load fails the proof, as the defect it is. About the
  *  scheduler's 120-frame settle limit at 60 Hz. */
 const QUIET_MS = 2000;
+/** The longest the loop may keep drawing before it must go quiet: past it the proof fails. */
+const LIMIT_MS = 60_000;
 
 const root = resolve(import.meta.dirname, '../../..');
 const { server, port } = await startServer({ mounts: galleryMounts(root) });
@@ -28,7 +30,7 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${port}`);
   const { counts, resident } = await page.evaluate(
-    async ({ sdkUrl, manifestUrl, quietMs }) => {
+    async ({ sdkUrl, manifestUrl, quietMs, limitMs }) => {
       document.body.replaceChildren();
       document.body.style.margin = '0';
       const canvas = document.createElement('canvas');
@@ -37,7 +39,9 @@ try {
       const { createWorld, pose } = await import(sdkUrl);
       const world = createWorld(canvas, { controls: 'orbit' });
       const counts: number[] = [];
-      // Resolves once the loop has drawn nothing for `quietMs`, each frame restarting the wait.
+      // Resolves once the loop has drawn nothing for `quietMs`, each frame restarting the wait;
+      // rejects if it never goes quiet within `limitMs`, so a loop that never pauses fails the
+      // proof instead of hanging it (neither Playwright's evaluate nor `node --test` times out).
       let settled = () => {},
         quiet: ReturnType<typeof setTimeout> | undefined;
       const rearm = () => {
@@ -45,8 +49,15 @@ try {
         quiet = setTimeout(() => settled(), quietMs);
       };
       const idle = () =>
-        new Promise<void>((done) => {
-          settled = done;
+        new Promise<void>((done, fail) => {
+          const limit = setTimeout(
+            () => fail(new Error(`the loop never went quiet within ${limitMs} ms`)),
+            limitMs,
+          );
+          settled = () => {
+            clearTimeout(limit);
+            done();
+          };
           rearm();
         });
       world.onFrame(({ metrics }: { metrics: { residentPages?: number | null } }) => {
@@ -73,6 +84,7 @@ try {
       sdkUrl: '/sdk/sdk/browser.js',
       manifestUrl: manifestUrlOf('site/assets/gallery/signature-architecture'),
       quietMs: QUIET_MS,
+      limitMs: LIMIT_MS,
     },
   );
   assert.deepEqual(errors, []);
