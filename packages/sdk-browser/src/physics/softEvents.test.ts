@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CommandWriter, EVENT, FLAG } from '../../../sdk-core/src/physics/index.ts';
-import { body, events } from './module.fixture.ts';
+import { events } from './module.fixture.ts';
 import type { Module } from './module.fixture.ts';
 import { addBox, at, BOX, CLOTH, flatCloth, FLOOR, settle, softWorld } from './soft.fixture.ts';
+import { body } from './records.fixture.ts';
 
 /** A step's events: `[type, a, b, impulse]`. */
 function step(jolt: Module, words: Uint32Array | null = null) {

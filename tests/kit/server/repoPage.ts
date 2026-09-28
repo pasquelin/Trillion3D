@@ -40,8 +40,9 @@ function engineInDist(root: string, refuseStale: boolean) {
 
 /** The server of a repository page: the harness mounts, `dist/`, `tests/`, `scripts/` and the
  *  engine sources, each emitted one resolved to `dist/` (`engineInDist`). `refuseStale: false`
- *  serves the map of a build older than its sources, for a check of the map alone. */
-export function repoServer(root: string, { refuseStale = true } = {}) {
+ *  serves the map of a build older than its sources, for a check of the map alone; `isolation`
+ *  isolates the page across origins (`startServer`). */
+export function repoServer(root: string, { refuseStale = true, isolation = false } = {}) {
   assert.ok(
     existsSync(resolve(root, 'dist/witnesses/measurement.js')),
     'dist missing: run `pnpm run build` first',
@@ -55,6 +56,7 @@ export function repoServer(root: string, { refuseStale = true } = {}) {
       { prefix: '/packages/', dir: resolve(root, 'packages') },
     ],
     imports: engineInDist(root, refuseStale),
+    isolation,
   });
 }
 
@@ -64,8 +66,9 @@ export async function withRepoPage<T>(
   root: string,
   headless: boolean,
   use: (page: Page) => Promise<T>,
+  { isolation = false } = {},
 ): Promise<T> {
-  const { server, port } = await repoServer(root);
+  const { server, port } = await repoServer(root, { isolation });
   const browser = await launchChrome({ headless }).catch((error: unknown) => {
     server.close();
     throw error;
