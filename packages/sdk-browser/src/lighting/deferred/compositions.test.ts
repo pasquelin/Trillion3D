@@ -34,7 +34,7 @@ test('a composition handed a bloom blend reads it through the bloom pipelines (#
     'compiling',
   );
   await new Promise((resolve) => setTimeout(resolve));
-  assert.equal(renderPipelines.length, compiled + 4, 'two inputs, capture and present');
+  assert.equal(renderPipelines.length, compiled + 6, 'three inputs, capture and present');
   assert.equal(
     lighting.composesBloom((error) => failures.push(error)),
     true,
