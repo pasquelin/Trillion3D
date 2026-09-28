@@ -1,6 +1,6 @@
 import type { GpuPageContext, ResidentPage } from './types.ts';
 import { commitGpuPage } from './commit.ts';
-import { refusedStatus, retriableError } from '../../cluster/pages.ts';
+import { refusedStatus, retriableError } from '../../cluster/checked.ts';
 
 export function createGpuPageLoader(context: GpuPageContext) {
   const { abort, resident, fetches, state, reader, check, pageBytes, pins } = context;

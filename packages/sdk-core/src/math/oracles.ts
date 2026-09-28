@@ -1,4 +1,4 @@
-export { dot, maxStretch, coneRejects } from './projectionOracles.ts';
+export { maxStretch, coneRejects } from './projectionOracles.ts';
 export {
   clusterErrorPixels,
   clusterErrorAtDepth,
