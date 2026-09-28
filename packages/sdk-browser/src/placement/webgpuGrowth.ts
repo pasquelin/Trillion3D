@@ -11,6 +11,7 @@
  * growth they read is refused, as is one past the table, and the owner opens the session again.
  */
 import { askedTableRows, countCopies } from '../webgpu/pages/prepare/layout.ts';
+import { pageAddress } from '../webgpu/row/pageSlots.ts';
 import { reserveRootBoxes } from '../math/batchBoxes.ts';
 import { mainViewGpu, viewGpu } from '../webgpu/pages/state/view.ts';
 import { forgetRootsByMesh } from '../webgpu/pages/render/movedNode.ts';
@@ -27,19 +28,27 @@ export function webgpuGrowsInPlace(
 ) {
   const { layout, run, gpu, setup, blendState } = rt;
   if (!gpu.device || run.lost || run.gpuSelection) return false;
-  const copies = { byAddress: new Map(layout.copies.byAddress), max: layout.copies.max };
-  let opaque = layout.opaquePageCount;
-  for (const rows of from) {
-    if (placedBy(setup.blendCopies, rows) || placedBy(blendState.blendGpu, rows)) return false;
-    const template = layout.selectionRoots.find((root) => root.placement?.rows === rows);
+  // The placements each pool address would feed: the grown buffers' addresses alone move.
+  const copies = new Map<string, number>();
+  let opaque = layout.opaquePageCount,
+    maxCopies = layout.copies.max;
+  for (const buffer of from) {
+    if (placedBy(setup.blendCopies, buffer) || placedBy(blendState.blendGpu, buffer)) return false;
+    const template = layout.selectionRoots.find((root) => root.placement?.rows === buffer);
     if (!template) continue;
     if (template.pages[0]?.transparent) return false;
-    for (let row = rows.capacity; row < capacity; row++) countCopies(copies, template.pages);
-    opaque += (capacity - rows.capacity) * template.pages.length;
+    const more = capacity - buffer.capacity;
+    opaque += more * template.pages.length;
+    for (const page of template.pages) {
+      const address = pageAddress(page),
+        n = (copies.get(address) ?? layout.copies.byAddress.get(address) ?? 0) + more;
+      copies.set(address, n);
+      maxCopies = Math.max(maxCopies, n);
+    }
   }
   const { rows } = layout,
     blended = layout.packedPages.length - layout.opaquePageCount,
-    asked = askedTableRows(opaque, blended, setup.cap, copies.max, rt.context.gpuDevice?.limits);
+    asked = askedTableRows(opaque, blended, setup.cap, maxCopies, rt.context.gpuDevice?.limits);
   return (
     asked.drawSlots <= layout.drawSlots && asked.blendSlots === rows.casterSlots - rows.blendFirst
   );

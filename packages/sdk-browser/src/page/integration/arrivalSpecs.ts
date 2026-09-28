@@ -30,7 +30,7 @@ export function createArrivalSpecs<T extends SpecRec>(
     const known = cache.get(url),
       recs = byUrl.get(url);
     if (!recs) return undefined;
-    // A list that grew since — placements added in place (`placement/growth.ts`) — is specified anew.
+    // A list placements grew since (`placement/growth.ts`) is specified anew.
     if (known?.length === recs.length * PAGE_SPEC_STRIDE) return known;
     const specs = new Int32Array(recs.length * PAGE_SPEC_STRIDE);
     for (let i = 0; i < recs.length; i++) {
