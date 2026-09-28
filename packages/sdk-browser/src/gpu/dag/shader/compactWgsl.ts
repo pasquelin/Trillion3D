@@ -58,8 +58,8 @@ fn dagDrawPrefix(@builtin(local_invocation_id) lid:vec3u){
  if(lane==63u){out.pages[views[0u].listCap]=cursor;if(cursor>views[0u].listCap){atomicOr(&out.overflow,1u);}}
 }
 @compute @workgroup_size(64)
-fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u){
- let s=id.x;if(s>=liveCount()){return;}
+fn dagDrawScatter(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let s=flatIndex(id.x,id.y,n.x);if(s>=liveCount()){return;}
  // Only live clusters carry a non-zero draw flag; those of the block that are not in the list
  // are zero and add nothing to the rank, exactly as in yesterday's full walk.
  let i=entryIndex(liveAt(s));if(drawFlag(i)==0u){return;}

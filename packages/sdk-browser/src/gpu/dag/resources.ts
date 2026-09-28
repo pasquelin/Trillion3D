@@ -52,8 +52,9 @@ export async function createDagResources(
     // remaining queues, then each page's last use (`shader/lastUseWgsl.ts`): never read by the
     // CPU, which still only copies draw flags.
     const flags = makeDagBuffer(own, rows.flags);
-    // Three argument words, of which the last two are one once and for all: only the first is
-    // copied, once per indirect dispatch. Passes following each other, one buffer is enough.
+    // Three argument words, of which the last is one once and for all: x and y are copied, once
+    // per indirect dispatch (`shader/gridWgsl.ts`). Passes following each other, one buffer is
+    // enough.
     const dispatchArgs = own({
       size: 16,
       usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,

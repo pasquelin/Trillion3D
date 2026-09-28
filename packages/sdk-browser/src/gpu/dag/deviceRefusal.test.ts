@@ -1,5 +1,6 @@
 // A camera cut the device cannot hold is refused by name before any buffer (#973): the host says
-// why the CPU cut draws, instead of a GPU cut gone without a word.
+// why the CPU cut draws, instead of a GPU cut gone without a word. A dispatch is no longer one of
+// them: past one dimension, it runs in rows (#974).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dagDeviceRefusal } from './deviceRefusal.ts';
@@ -37,13 +38,9 @@ test('each camera cut buffer past one binding is refused by its name', () => {
   assert.equal(dagDeviceRefusal(tiny, dag())?.buffer, 'flags');
 });
 
-test('a flat dispatch past the workgroups of one dimension is refused', () => {
+test('a dispatch past the workgroups of one dimension is not refused: it runs in rows', () => {
   const limits = { maxStorageBufferBindingSize: LIMIT, maxComputeWorkgroupsPerDimension: 15 };
-  assert.deepEqual(dagDeviceRefusal(limits, dag()), {
-    dispatch: 'workgroups',
-    workgroups: 16,
-    limit: 15,
-  });
+  assert.equal(dagDeviceRefusal(limits, dag()), undefined, '16 groups of pages, rows of 15');
 });
 
 test('the host is told why, and no buffer is made', async () => {

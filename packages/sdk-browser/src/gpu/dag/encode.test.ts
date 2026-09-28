@@ -24,13 +24,13 @@ test('the dispatch argument is copied outside a pass, between two cut passes', (
   const { encoder, copies, passes } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(true));
   // WebGPU refuses `work` both written and as an argument in the same scope: each arming
-  // therefore cuts the pass, and carries only the head word, the other two being one since
-  // creation. Only three remain, for the three lists whose layout knows no upper bound: the
-  // previous frame's drawn journal, the candidates and the live ones.
+  // therefore cuts the pass, and carries the x and y words, z being one since creation
+  // (`shader/gridWgsl.ts`). Only three remain, for the three lists whose layout knows no upper
+  // bound: the previous frame's drawn journal, the candidates and the live ones.
   assert.deepEqual(copies, [
-    { de: 'work', decalage: DRAWN, vers: 'dispatchArgs', octets: 4, enPasse: false },
-    { de: 'work', decalage: CAND, vers: 'dispatchArgs', octets: 4, enPasse: false },
-    { de: 'work', decalage: LIVE, vers: 'dispatchArgs', octets: 4, enPasse: false },
+    { de: 'work', decalage: DRAWN, vers: 'dispatchArgs', octets: 8, enPasse: false },
+    { de: 'work', decalage: CAND, vers: 'dispatchArgs', octets: 8, enPasse: false },
+    { de: 'work', decalage: LIVE, vers: 'dispatchArgs', octets: 8, enPasse: false },
   ]);
   assert.deepEqual(passes, new Array(3).fill('Trillion3D DAG selection'));
 });
@@ -61,6 +61,20 @@ test('every light view of a frame shares one traversal: the same commands as one
   assert.ok(!noyaux.includes('dagClearDrawn') && !noyaux.includes('dagDrawPrefix'));
   assert.ok(!noyaux.includes('dagSortRequests'), 'a light cut sorts its requests on the host');
   assert.ok(noyaux.indexOf('dagViewOffsets') < noyaux.indexOf('dagMask'));
+});
+
+test('a flat dispatch past the device width runs in rows of it', () => {
+  // Stages [2, 9, 40, 150, 600] per view, three views, capped at 1000 queued nodes: 1, 1, 2, 8 and
+  // 16 groups, on a device four groups wide.
+  const base = ressources(true, 5),
+    device = { limits: { maxComputeWorkgroupsPerDimension: 4 } };
+  const light = { ...base, light: { views: 3, queueCap: 1000 }, device } as unknown as typeof base;
+  const { encoder, lancements } = encodeurTemoin();
+  encodeDagKernels(encoder as unknown as GPUCommandEncoder, light);
+  const levels = lancements
+    .filter((l) => /^dag(Root)?Level/.test(l.noyau))
+    .map((l) => `${l.groupes}x${l.rangees ?? 1}`);
+  assert.deepEqual(levels.sort(), ['1x1', '1x1', '2x1', '4x2', '4x4']);
 });
 
 test('the camera cut sorts its requests once, then lists its evictions, one workgroup each', () => {
