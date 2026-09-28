@@ -57,9 +57,8 @@ impl CornerCode {
     }
 
     /// True when every record of `table` — the block table's bytes — keeps its base below the
-    /// vertex count, a width no wider than an index (16 at most) and its corners inside the corner
-    /// stream: the header gate, which a reader that decodes in place, the GPU, relies on to never
-    /// read past the stream.
+    /// vertex count, a width no wider than an index and its corners inside the corner stream: the
+    /// header gate, which the GPU, decoding in place, relies on to never read past the page.
     pub fn fits(&self, table: &[u8], vertex_count: usize, index_count: usize) -> bool {
         let words: Vec<u32> = le_words(table).collect();
         (0..self.blocks).all(|b| {
