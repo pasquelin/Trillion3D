@@ -1,14 +1,7 @@
+import { decodeLinkComponent as decodeId } from '../../content/uri.ts';
 import { DEFAULT_LANGUAGE, isLanguage } from '../../content/i18n/dictionary.ts';
 import type { Locale } from '../../content/locale.ts';
 import type { PortalEntry } from '../../content/model.ts';
-
-function decodeId(value: string) {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
-}
 
 /** The areas of the header, in navigation order; the sandbox and the editor take the whole width. */
 const AREAS = ['learn', 'sandbox', 'examples', 'editor', 'api', 'reports'] as const;

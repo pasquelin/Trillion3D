@@ -23,17 +23,11 @@
  */
 import { pathToFileURL } from 'node:url';
 import { encodeLtcTable, LTC_SIZE } from '../packages/sdk-core/src/lighting/ltcTable.ts';
-import { normalizeVector3 } from '../packages/sdk-core/src/math/primitives/vector.ts';
+import { unit as normalize } from '../packages/sdk-core/src/math/primitives/vectorTuple.ts';
 import { minimise } from './ltc-minimise.ts';
 
 type V3 = [number, number, number];
 const PI = Math.PI;
-
-/** `v` made unit in place, and returned. */
-const normalize = (v: V3): V3 => {
-  normalizeVector3(v);
-  return v;
-};
 
 /** The engine's specular lobe times the cosine, Fresnel at 1: `standardLighting`'s D·Vis·NdotL. */
 function lobe(v: V3, l: V3, alpha: number) {

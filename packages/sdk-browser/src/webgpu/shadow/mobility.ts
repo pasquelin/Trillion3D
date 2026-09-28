@@ -27,6 +27,8 @@ export function createShadowMobility() {
     get layered() {
       return anyMoving;
     },
+    /** True once placement `rank` has moved: the static layer does not hold it. */
+    moves: (rank: number) => moving[rank] === 1,
     /** One word per row, 1 for a row of a moving placement. */
     get rowWords() {
       return rows;
