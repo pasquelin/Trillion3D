@@ -14,6 +14,8 @@ type CachedGeometry = {
   instances: GpuBuffer | null;
   /** Frees this entry when its geometry is given back; removed at the renderer's dispose. */
   release?: () => void;
+  /** The frame its arrays were last checked against the geometry's versions. */
+  checked?: number;
 };
 /** A geometry of the engine's own graph announces its release; a host one never does. */
 type Releasing = { released?: Set<() => void> };
@@ -64,9 +66,12 @@ export class WebglClusterGeometry {
     }
     gl.bindVertexArray(cached.vao);
     // The vertex array holds its buffers and pointers: they are specified again only when an
-    // attribute was replaced or rewritten since. The constant of an absent attribute is context
-    // state, not the array's, and is set once per frame.
-    if (!this.current(cached, geometry)) this.specify(cached, geometry);
+    // attribute was replaced or rewritten since, read once a frame — the frame's passes draw the
+    // same geometry (#840). The constant of an absent attribute is context state, not the
+    // array's, and is set once per frame.
+    if (cached.checked !== this.frame && !this.current(cached, geometry))
+      this.specify(cached, geometry);
+    cached.checked = this.frame;
     if (!this.generics) this.setGenerics();
     cached.instances = this.placements.bind(
       cached.instances,
@@ -122,9 +127,13 @@ export class WebglClusterGeometry {
   }
   /** Whether the constants of absent attributes were set this frame. */
   private generics = false;
-  /** A new frame: the context's constants may have been written by another program since. */
+  /** The frame drawn, counted by `beginFrame`. */
+  private frame = 0;
+  /** A new frame: the context's constants may have been written by another program since, and
+   *  the geometries rewritten. */
   beginFrame() {
     this.generics = false;
+    this.frame++;
   }
   /** White for an absent colour, zero for any other absent attribute. */
   private setGenerics() {

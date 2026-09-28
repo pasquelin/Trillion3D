@@ -5,8 +5,8 @@ import {
   hostPageGeometry,
   hostPageMesh,
   releaseHostGeometry,
-  setHostPose,
 } from '../../host/pageObjects.ts';
+import { forgetHostPose, setHostPose } from '../../host/pagePose.ts';
 import { wearDeclaration } from '../../page/surface.ts';
 import { EngineError, type GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { HostMaterial, HostMaterials } from '../../host/resources.ts';
@@ -63,6 +63,7 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
   const detach = (rec: PageRec) => {
     if (rec.attached && rec.mesh) {
       scene.remove(rec.mesh);
+      forgetHostPose(rec.mesh);
       rec.attached = false;
       attachees.delete(rec);
     }
