@@ -12,7 +12,9 @@
  * residency change at or above what fitted — a probe, or a lifted limit, that did not hold —
  * doubles `patience`, so a catalogue that stays too small costs a drop per doubling run of
  * fitting batches, not one per residency change. Read after that drop, a fit at a count that
- * dropped is no evidence: the drop wins.
+ * dropped is no evidence: the drop wins. A probe that fits above the count whose drop last doubled
+ * `patience` proves the catalogue grew: `patience` starts again at one, so it never piles up across
+ * stretches of a catalogue that shrinks and grows back.
  */
 export function createViewLimit(viewCap: number) {
   let fits = 0,
@@ -22,11 +24,18 @@ export function createViewLimit(viewCap: number) {
     /** Batches at the settled limit that fitted since the last drop. */
     streak = 0,
     /** The fitting batches at the limit a probe one view above it waits for. */
-    patience = 1;
+    patience = 1,
+    /** The count whose drop last doubled `patience`. */
+    failed = viewCap + 1;
+  /** Residency changed and the limit sits one view below the fewest that dropped. */
+  const settledStale = () => stale && fits + 1 === drops;
   return {
     read(count: number, dropped: boolean) {
       if (dropped) {
-        if (stale && drops <= viewCap && count >= fits) patience *= 2;
+        if (settledStale() && drops <= viewCap && count >= fits) {
+          patience *= 2;
+          failed = count;
+        }
         stale = false;
         streak = 0;
         drops = Math.min(drops, count);
@@ -35,9 +44,10 @@ export function createViewLimit(viewCap: number) {
         if (!stale) return;
         fits = count;
         drops = count + 1;
+        if (count > failed) patience = 1;
       } else {
         fits = Math.max(fits, count);
-        if (stale && fits + 1 === drops && count >= fits) streak++;
+        if (settledStale() && count >= fits) streak++;
       }
     },
     residencyChanged() {
@@ -45,7 +55,7 @@ export function createViewLimit(viewCap: number) {
     },
     get value() {
       if (drops > viewCap) return viewCap;
-      if (fits + 1 === drops && stale && streak >= patience) return drops;
+      if (settledStale() && streak >= patience) return drops;
       return Math.max(1, Math.floor((fits + drops) / 2));
     },
   };
