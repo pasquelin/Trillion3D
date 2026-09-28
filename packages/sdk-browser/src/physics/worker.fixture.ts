@@ -68,14 +68,16 @@ export async function fakePhysicsWorld() {
 }
 
 /**
- * The physics worker's own code run in this thread on `clock`, started on an 8-body budget and
- * ready: its ticks wait in `ticks` (with the delay asked) until the test runs them, and its results
- * are kept in `sent`, each buffer copied as it was sent. The globals it replaces stay replaced.
+ * The physics worker's own code run in this thread on `clock`, sent its start on an 8-body budget
+ * for `threads` threads; `ready` resolves when it says so. From then its ticks wait in `ticks`
+ * (with the delay asked) until the test runs them; its messages are kept in `sent`, each buffer
+ * copied as it was sent. The globals it replaces stay replaced.
  */
-export async function startedWorker(clock: () => number) {
+export async function launchedWorker(clock: () => number, threads = 1) {
   Object.defineProperty(performance, 'now', { value: clock, configurable: true });
   const scope = globalThis as unknown as Record<string, unknown>;
-  const bytes = await readFile(new URL('./joltPhysics.wasm', import.meta.url));
+  const file = threads > 1 ? './joltPhysicsThreads.wasm' : './joltPhysics.wasm';
+  const bytes = await readFile(new URL(file, import.meta.url));
   scope.fetch = async () => new Response(bytes);
   scope.location = { href: import.meta.url };
   const ticks: [() => void, number][] = [];
@@ -96,7 +98,13 @@ export async function startedWorker(clock: () => number) {
     (scope.onmessage as (event: { data: ToPhysics }) => void)({ data });
   const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, memoryBytes: 64 << 20 };
   const buffers = [0, 1].map(() => new ArrayBuffer(resultWords(budget) * 4));
-  receive({ type: 'start', protocol: PHYSICS_PROTOCOL, wasm: 'x', budget, threads: 1, buffers });
+  receive({ type: 'start', protocol: PHYSICS_PROTOCOL, wasm: 'x', budget, threads, buffers });
+  return { ticks, sent, receive, budget, ready };
+}
+
+/** `launchedWorker` on one thread, once ready. */
+export async function startedWorker(clock: () => number) {
+  const { ready, ...worker } = await launchedWorker(clock);
   await ready;
-  return { ticks, sent, receive, budget };
+  return worker;
 }

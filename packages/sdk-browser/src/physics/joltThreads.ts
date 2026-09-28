@@ -7,6 +7,7 @@
  * threads proposal (shared memory, one instance per thread, globals per instance) and emscripten's
  * documented thread model (a thread block per thread, set with `_emscripten_thread_init`).
  */
+import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 
 /** The exports of the threaded module a thread's set-up reads. */
 interface ThreadExports {
@@ -100,12 +101,49 @@ export function joltImports(
   return { env, wasi_snapshot_preview1: wasi } as WebAssembly.Imports;
 }
 
+/** What a thread's worker posts once its instance is up, before it runs the thread. */
+export const JOLT_THREAD_LOADED = { type: 'loaded' } as const;
+
 /**
- * Runs one of the module's threads in this worker, and never returns while the world lives. The
- * stack is set before any other call: until then the instance's stack pointer is the stepping
- * thread's, in the same memory.
+ * The module's pool threads as workers of the script at `url`, each handed its start message (the
+ * script runs `runJoltThread` on it and posts `JOLT_THREAD_LOADED`). A worker a worker starts
+ * loads only while its parent's event loop turns, and a step blocks on its jobs: nothing steps
+ * before `ready()`, which resolves once every thread spawned so far has loaded and rejects naming
+ * the first that did not. Once loaded, a thread's messages go to `relay`.
  */
-export async function runJoltThread(start: JoltThreadStart) {
+export function joltWorkerPool(url: string | URL, relay: (data: unknown) => void = () => {}) {
+  const loads: Promise<void>[] = [];
+  const spawn: SpawnJoltThread = (start) => {
+    const n = loads.length + 1;
+    const thread = new Worker(url, { type: 'module' });
+    loads.push(
+      new Promise((loaded, failed) => {
+        let up = false;
+        const refuse = (why: string) =>
+          failed(
+            new EngineError('PHYSICS_FAILED', `Physics: pool thread ${n} did not load: ${why}`),
+          );
+        thread.onerror = (event) => refuse(event.message || 'its script failed');
+        thread.onmessage = ({ data }) => {
+          if (up) relay(data);
+          else if (data?.type === JOLT_THREAD_LOADED.type) {
+            up = true;
+            loaded();
+          } else refuse(String(data?.message ?? data));
+        };
+      }),
+    );
+    thread.postMessage(start);
+  };
+  return { spawn, ready: () => Promise.all(loads).then(() => {}) };
+}
+
+/**
+ * Runs one of the module's threads in this worker, and never returns while the world lives;
+ * `loaded` is called once its instance is up. The stack is set before any other call: until then
+ * the instance's stack pointer is the stepping thread's, in the same memory.
+ */
+export async function runJoltThread(start: JoltThreadStart, loaded = () => {}) {
   let e: ThreadExports | null = null;
   const imports = joltImports(start.memory, () => e!, {
     module: start.module,
@@ -116,6 +154,7 @@ export async function runJoltThread(start: JoltThreadStart) {
   });
   const instance = await WebAssembly.instantiate(start.module, imports);
   e = instance.exports as unknown as ThreadExports;
+  loaded();
   e.emscripten_stack_set_limits(start.top, start.low);
   e._emscripten_stack_restore(start.top);
   e._emscripten_thread_init(start.thread, 0, 0, 1, 0, 0);
