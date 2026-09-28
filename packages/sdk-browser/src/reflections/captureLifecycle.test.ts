@@ -12,7 +12,9 @@ test('first mirror capture waits for its late target grant and draws before retu
   const gpu = mockGpu(),
     fixture = quadScene();
   const mirror = new G.GraphSurface('standard', { roughness: 1, metalness: 1 });
-  (fixture.source.children[0] as G.Mesh).material = mirror;
+  const mesh = fixture.associations.keys().next().value;
+  assert.ok(mesh);
+  mesh.material = mirror;
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: gpu.device,
