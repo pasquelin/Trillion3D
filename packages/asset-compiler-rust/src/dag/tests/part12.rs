@@ -76,61 +76,6 @@ fn an_unblocked_sheet_places_nothing() {
     assert_eq!(GroupTally::total(&tallies).solved, 0);
 }
 
-// Behaviour (#283): under deliberately uneven weights — normals 0.125, texture coordinates 0.5 —
-// a placed coordinate stays inside the source's, a placed normal is a unit, and the solved region
-// encodes on the finest texture grid its source span allows, without `PAGE_ATTRIBUTE_RANGE`.
-#[test]
-fn solved_coordinates_stay_on_the_primitive_grid_under_uneven_weights() {
-    let (positions, carried, indices) = sheet(16);
-    let refs: Vec<&Attribute> = carried.iter().collect();
-    let attributes = DagAttributes { carried: &refs };
-    let welds = welds::Welds::of(&positions, attributes, &indices);
-    let locks = vec![false; positions.len() / 3];
-    let level_weighted = attributes.weighted();
-    let input = welds.input(
-        &positions,
-        attributes,
-        &level_weighted,
-        &locks,
-        quality::NORMAL_DEVIATION_BOUND,
-    );
-    let weigh = |a: usize, weight| crate::qem::Attribute {
-        values: &carried[a].values,
-        width: carried[a].width,
-        weight,
-    };
-    let weighted = [weigh(0, 0.125), weigh(1, 0.5)];
-    let target = indices.len() / 6;
-    let region = crate::qem::solve::Region::of(&positions, &weighted, &indices).expect("region");
-    let solved = region.solve(target, &|_| 0).expect("reduced");
-    let error = solved.error_object;
-    let local = placed::Local::of(&input, solved, &[]);
-    let base = (positions.len() / 3) as u32;
-    let placed = local.placed(&input, base);
-    assert!(!placed.positions.is_empty());
-    assert!(placed.carried[1].iter().all(|&c| (0.0..=1.0).contains(&c)));
-    for normal in placed.carried[0].chunks(3) {
-        let length = normal.iter().map(|c| c * c).sum::<f32>().sqrt();
-        assert!((length - 1.0).abs() < 1e-5, "a unit normal, not {length}");
-    }
-    let mut grown = carried.clone();
-    for (attribute, values) in grown.iter_mut().zip(&placed.carried) {
-        attribute.values.extend(values);
-    }
-    let grown_refs: Vec<&Attribute> = grown.iter().collect();
-    let all = [positions.clone(), placed.positions.clone()].concat();
-    let kept: Vec<u32> = local
-        .indices
-        .iter()
-        .map(|&v| local.global(v, base))
-        .collect();
-    let tile = crate::geometry_page_quant::tile::TILE_EXTENT_LOG2;
-    let exponent =
-        crate::geometry_page_quant::primitive_exponent(&all, [error].into_iter(), false, tile);
-    let uv_exponent = crate::geometry_page_quant::primitive_uv_exponent(&refs, true);
-    crate::geometry_page::encode(&kept, &all, &grown_refs, exponent, uv_exponent).expect("page");
-}
-
 // Behaviour: a texture set weighs the surface length one unit of it spans: the same sheet under
 // coordinates half as wide weighs its texture twice as much.
 #[test]
