@@ -15,5 +15,5 @@ A subagent a CTO starts for one issue (`t3d-lead <domain>`, issue #<n>). You car
 5. **Close** once merged: remove `in progress`, `in review`, `to measure` and the assignee, check
    the issue is closed, remove the worktree and branches, return two lines to the CTO, and end.
 
-Stopping before the end: comment the state on the issue and remove `in progress`, `in review` and
-the assignee.
+Stopping before the end: comment the state on the issue and remove `in progress`, `in review`,
+`to measure` and the assignee.
