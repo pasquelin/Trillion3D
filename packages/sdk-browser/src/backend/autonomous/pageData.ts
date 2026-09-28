@@ -16,15 +16,14 @@ export function assertWithinBox(data: DecodedGeometryPage, rec: PageRec) {
 const ITEM_SIZE: Record<string, number> = { position: 3, normal: 3, color: 4 };
 export const itemSize = (name: string) => ITEM_SIZE[name] ?? 2;
 
+/** Each page cut again for its class, decoded once for as long as a record holds its bytes. */
+const recutPages = new WeakMap<Uint8Array, DecodedGeometryPage>();
+
 /** The page `rec` draws: the one cut again for its class in session (`PageRec.recut`, #846),
- *  decoded once per store however many records share it, or else `read`, the page's own. */
-export function pageOf(
-  rec: PageRec,
-  read: DecodedGeometryPage | undefined,
-  decoded: Map<Uint8Array, DecodedGeometryPage>,
-) {
+ *  decoded once however many records share it or turn resident again, or else `read`. */
+export function pageOf(rec: PageRec, read: DecodedGeometryPage | undefined) {
   if (!rec.recut) return read!;
-  let page = decoded.get(rec.recut);
-  if (!page) decoded.set(rec.recut, (page = decodeGeometryPage(rec.recut)));
+  let page = recutPages.get(rec.recut);
+  if (!page) recutPages.set(rec.recut, (page = decodeGeometryPage(rec.recut)));
   return page;
 }
