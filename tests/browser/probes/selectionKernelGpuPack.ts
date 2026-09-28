@@ -5,10 +5,8 @@ import { writeDagUniforms } from '../../../packages/sdk-browser/src/gpu/dag/unif
 import { SELECTION_WORKGROUP } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import type { SelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
-import {
-  cameraFramesBytes,
-  primitiveFrameWords,
-} from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
+import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
+import { framesBytes } from '../../../packages/sdk-browser/src/gpu/dag/frameRanges.ts';
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/types.ts';
 import type { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bindings.ts';
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts';
@@ -74,7 +72,9 @@ export function versPage(
     frames: octets(frames),
     /** Bytes of `frames` as the engine sizes it: the host's row, then what `dagPrepare` derives
      *  per primitive behind it (`shader/primitiveWgsl.ts`). */
-    framesBytes: cameraFramesBytes(frames),
+    framesBytes: framesBytes(Math.max(1, packed.worldCount)),
+    /** `range`: one range holds every primitive (`frameRanges.ts`). */
+    range: octets(new Uint32Array([0, Math.max(1, packed.worldCount), 0, 0])),
     uniforms: octets(uni),
   };
 }
