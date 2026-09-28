@@ -67,7 +67,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         views,
         view_map,
         estimated_working_bytes,
-    } = plan_buffers(o, g, bin, &loaded.g_bytes, &meshes)?;
+    } = plan_buffers(o, g, bin, loaded.g_bytes_len, &meshes)?;
     let (directory, output_views, source_bin) = copy_source_bin(o, bin, view_values, &views, &key)?;
     let offset = source_bin.bytes as usize;
     let import_ms = shared_math::elapsed_ms(started);
