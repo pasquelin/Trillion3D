@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { ENGINE_FAILURE, leastDrawn, SPARSE } from './docs/examples/capture.ts';
+import { declaredError, DECLARED_ERRORS, leastDrawn, SPARSE } from './docs/examples/capture.ts';
 import { physicsExamples, turnsPhysicsOn } from './docs/examples/physics.ts';
 import { readyEntries as ready } from '../site/app/examples/list.ts';
 
@@ -27,18 +27,27 @@ test('no example prints a physics line by hand; each asks the kit for it', () =>
     assert.doesNotMatch(html, /physics\.stats|readout\('(?:bodies|awake|step|page)'\)/, file);
 });
 
-test("the proof hears the engine's own failures on the console", async () => {
+test("the proof hears every page's errors, the engine's failures included, but those declared for it", async () => {
+  const ids = new Set(pages.map(([file]) => file.replace(/\.html$/, '')));
+  for (const { page, error, why } of DECLARED_ERRORS)
+    assert.ok(ids.has(page) && error && why, page);
   const engine = new URL('../packages/sdk-browser/src/', import.meta.url);
+  const said: string[] = [];
   for (const source of ['world/session/interactive.ts', 'world/core/worldHandles.ts']) {
     const code = await readFile(new URL(source, engine), 'utf8');
-    const said = [...code.matchAll(/console\.error\('([^']+)'/g)].map(([, line]) => line);
-    assert.ok(said.length > 0, source);
-    for (const line of said) assert.match(`${line} Error: refused`, ENGINE_FAILURE, source);
+    const lines = [...code.matchAll(/console\.error\('([^']+)'/g)].map(([, line]) => line);
+    assert.ok(lines.length > 0, source);
+    said.push(...lines);
   }
   const lost = await readFile(new URL('webgpu/pages/io/lost.ts', engine), 'utf8');
   assert.ok(lost.includes('console.error(`[trillion3d] WebGPU device lost ('));
-  assert.match('[trillion3d] WebGPU device lost (destroyed): gone', ENGINE_FAILURE);
-  assert.doesNotMatch('THREE.WebGLRenderer: context lost', ENGINE_FAILURE);
+  // #945: the icon every page asks the root for is served, its 404 never declared.
+  said.push(
+    '[trillion3d] WebGPU device lost (destroyed): gone',
+    'Failed to load resource: the server responded with a status of 404 (Not Found) http://127.0.0.1/favicon.ico',
+  );
+  for (const page of ids)
+    for (const line of said) assert.ok(!declaredError(page, line), `${page}: ${line}`);
 });
 
 test('a sparse example is declared by name and backend under the tenth; every other keeps the tenth', () => {
