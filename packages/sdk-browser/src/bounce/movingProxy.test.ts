@@ -26,6 +26,12 @@ test('expanded cascade extent schedules every new level without growing the queu
   );
   assert.equal(levels.size, cascades.levels.length);
   assert.equal(schedule.queue, queue);
+  assert.equal(cascades.replan([100, 0, 0, 100100, 100000, 100000]), false);
+  assert.equal(
+    cascades.invalidLevels,
+    0,
+    'translation preserves the lattice and accumulated probes',
+  );
 });
 
 test('moving hit radiance evaluates the actual owner before any canonical cache read', () => {
