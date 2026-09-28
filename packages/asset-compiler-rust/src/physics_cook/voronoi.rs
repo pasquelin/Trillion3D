@@ -1,10 +1,8 @@
 //! The Voronoi cut of a convex solid: each seed's cell, the points nearer it than any other seed,
-//! inside the solid its closed mesh's face planes bound. The cells of seeds inside a convex solid
-//! tile it: their union is the solid and no two share more than a face. Each cell is a box clipped
-//! half-space by half-space, by its bisectors then by the solid's planes; a point where an edge
-//! crosses a plane is computed from the edge's two ends in one order, so the two faces sharing the
-//! edge meet at the same bits, and each cut is capped along the edges no touched face walks back:
-//! every cell comes out a closed mesh.
+//! inside the face planes of the solid's closed mesh; cells of seeds inside it tile it. Each cell
+//! is a box clipped by its bisectors then the solid's planes; an edge's crossing is computed from
+//! its two ends in one order, so neighbouring faces meet to the bit, and each cut is capped along
+//! the edges no touched face walks back: every cell comes out a closed mesh.
 use crate::shared_math::{cross, divide, dot, length, point, scale, sub};
 use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
