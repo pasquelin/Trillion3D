@@ -1,9 +1,9 @@
 import { storageBufferCap } from '../../residency/pools.ts';
 import {
   DAG_READBACK_SLOTS,
-  EVICTION_BURST,
   OUT_COUNT,
   SELECTION_HEADER_WORDS as HEAD,
+  listCapHeld,
   residentReadbackBytes,
   selectionListCap,
   stagedOutputBytes,
@@ -13,9 +13,8 @@ import type { createDagResources } from './resources.ts';
 type Limits = Parameters<typeof storageBufferCap>[0];
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 
-/** The most ranks one `out` binding holds on this device: `stagedOutputBytes` read backwards. */
-export const deviceListCap = (limits: Limits) =>
-  Math.max(0, Math.floor((storageBufferCap(limits) / 4 - 3 * HEAD - EVICTION_BURST) / 3));
+/** The most ranks one `out` binding holds on this device. */
+export const deviceListCap = (limits: Limits) => listCapHeld(storageBufferCap(limits));
 
 /** The cap a cut starts with: the readout's (`selectionListCap`, `layout.ts`), within the device. */
 export const initialListCap = (limits: Limits, pageCount: number) =>
@@ -41,20 +40,24 @@ export function listDemand(bytes: ArrayBuffer, drawnWordOffset: number) {
 }
 
 /** The readout of a cut whose list holds `listCap` ranks: the buffer the kernels write, and the
- *  readback slots the frame copies it into. */
-export function createDagList(device: GPUDevice, listCap: number, residentCut: boolean) {
+ *  readback slots the frame copies it into, each made by `own` (`resources.ts`). */
+export function createDagList(
+  own: (descriptor: GPUBufferDescriptor) => GPUBuffer,
+  listCap: number,
+  residentCut: boolean,
+) {
   const outputBytes = (HEAD + listCap) * 4,
     // A resident cut adds its drawn list and one burst of its eviction queue (`EVICTION_BURST`).
     readbackBytes = residentCut ? residentReadbackBytes(listCap) : outputBytes;
   // Behind the eviction queue, the requests wait for their sort, outside what the frame copies
   // (`shader/snapshotWgsl.ts`).
-  const output = device.createBuffer({
+  const output = own({
     label: 'Trillion3D DAG readback',
     size: stagedOutputBytes(listCap),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
   });
   const readback = Array.from({ length: DAG_READBACK_SLOTS }, () =>
-    device.createBuffer({
+    own({
       size: readbackBytes,
       usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
     }),
@@ -70,11 +73,12 @@ export function createDagList(device: GPUDevice, listCap: number, residentCut: b
  */
 export function growDagList(resources: DagResources, listCap: number) {
   const old = [resources.output, ...resources.readback],
-    list = createDagList(resources.device, listCap, resources.residentCut);
+    list = createDagList(resources.own, listCap, resources.residentCut);
   Object.assign(resources, list);
   resources.group.out = list.output;
   resources.ranges = resources.frames.bindGroups(resources.layout, resources.group);
-  const kept = resources.buffers.filter((buffer) => !old.includes(buffer));
-  resources.buffers.splice(0, resources.buffers.length, ...kept, list.output, ...list.readback);
-  for (const buffer of old) buffer.destroy();
+  for (const buffer of old) {
+    resources.buffers.splice(resources.buffers.indexOf(buffer), 1);
+    buffer.destroy();
+  }
 }
