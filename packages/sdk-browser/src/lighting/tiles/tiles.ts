@@ -8,6 +8,7 @@ import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts';
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts';
 import { createTileLightPool } from './pool.ts';
+import { storageBufferCap } from '../../residency/pools.ts';
 /** Label of the measured pass; `gpuLightListsMs` is read under this name, not by its rank. */
 export const LIGHT_TILES_PASS = 'Trillion3D light tiles v1';
 /** Tiles on one axis: the list always covers the whole target, never one tile short. */
@@ -116,7 +117,10 @@ export async function createGpuLightTiles(device: GPUDevice) {
       const wantedX = tilesOn(width),
         wantedY = tilesOn(height);
       wide = lightCount > LIGHT_SETTINGS.tileLights;
-      const wantedPool = wide ? pool.words(wantedX * wantedY) : 0;
+      // The pool never takes the buffer past what the device binds: a tile with no room walks all.
+      const room =
+        Math.floor(storageBufferCap(device.limits) / 4) - wantedX * wantedY * TILE_STRIDE_WORDS;
+      const wantedPool = wide ? Math.max(0, Math.min(pool.words(wantedX * wantedY), room)) : 0;
       if (!tiles || wantedX !== tilesX || wantedY !== tilesY || wantedPool > poolWords) {
         tiles?.destroy();
         tilesX = wantedX;
