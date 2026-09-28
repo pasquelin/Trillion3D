@@ -626,6 +626,11 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
   missing shape, a shearing node, a mesh it cannot read, a dynamic body's mesh that is not closed
   (every edge meeting its reverse, positions welded) or bounds no volume, a hull Jolt refuses — is
   named in `report.bodiesRefused`; the compile goes on.
+- **Breakable bodies** (`pieces.rs`, `voronoi.rs`). A shapeless body declaring `breakable` (above
+  0) is cut into at most 12 Voronoi cells around seeds drawn from the node's index, each clipped by
+  its bisectors and the mesh's face planes into a closed piece with Jolt's hull (`hull.rs`) and its
+  exact mass, centre and inertia (`mass.rs`). Pieces missing the mesh's mass by over 1e-5 (a
+  concave mesh, until decomposition) refuse the body, as does a declared shape.
 
 Primitives without a DAG (skinned, morphed, shared blend) cook no collider. A primitive whose shape Jolt
 still refuses (every triangle of zero area) cooks no collider either: `physics.json`'s
