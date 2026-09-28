@@ -107,7 +107,11 @@ test('a loaded pool thread that fails before the others load stops the start, on
 });
 
 test('a physics module the server refuses stops the start, named by its address', async () => {
-  const { sent } = await launchedWorker(() => 0, 1, () => new Response(null, { status: 404 }));
+  const { sent } = await launchedWorker(
+    () => 0,
+    1,
+    () => new Response(null, { status: 404 }),
+  );
   await until(() => sent.length > 0);
   assert.deepEqual(sent, [
     {
