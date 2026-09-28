@@ -29,6 +29,66 @@ export const blendTargets = (
   ...(feedback ? [{ format: FEEDBACK_FORMAT }] : []),
 ];
 
+/** The forward materials' bind layout, which the feedback-free diagnostic pipelines share. */
+function blendLayout(device: GPUDevice) {
+  const b = BLEND_BINDINGS;
+  return device.createBindGroupLayout({
+    entries: [
+      { binding: b.indices, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.positions, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.uvs, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      {
+        binding: b.uniform,
+        visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+        buffer: { type: 'uniform', minBindingSize: BLEND_VIEW_SIZE },
+      },
+      // Each item's record, read at the rank the vertex index carries: it is what replaces the
+      // dynamic uniform offset, and therefore the bind group per draw.
+      { binding: b.items, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      ...atlasLayoutEntries(b.color),
+      { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
+      ...atlasLayoutEntries(b.data),
+      { binding: b.normals, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.directLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      { binding: b.clusterDiagnostic, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.planInstances, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.clusterSpans, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
+      { binding: b.shadowData, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      {
+        binding: b.shadowAtlas,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: SHADOW_ARRAY,
+      },
+      {
+        binding: b.shadowSampler,
+        visibility: GPUShaderStage.FRAGMENT,
+        sampler: { type: 'comparison' },
+      },
+      {
+        binding: b.shadowTransmittance,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
+      },
+      {
+        binding: b.shadowTranslucentDepth,
+        visibility: GPUShaderStage.FRAGMENT,
+        texture: SHADOW_ARRAY,
+      },
+      { binding: b.bounceGrid, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+      { binding: b.probes, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      { binding: b.tileLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      // Resident proxy of the far sun shadow: **read-only**, and that is the condition of early
+      // depth rejection for the whole pass. A binding writable from the fragment stage forces the
+      // GPU to shade every fragment before testing it, side effect and all — here 4232 fragment
+      // draws fully hidden behind opaque. The shadow ray is the same; only the two census counters
+      // stay with deferred resolve, which can write. The surface cache below takes the eighth
+      // and last storage binding the spec guarantees for this fragment stage.
+      { binding: b.proxy, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      { binding: b.surfaceCache, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+    ],
+  });
+}
+
 /** Builds the forward-material pipelines for transparent draws, and the water pass of a scene
  *  that transmits. */
 export async function createWebgpuBlendPipelines(
@@ -38,69 +98,12 @@ export async function createWebgpuBlendPipelines(
   feedback = true,
   sharedLayout?: GPUBindGroupLayout,
 ) {
-  const b = BLEND_BINDINGS;
   // Without a variant, the module and the targets are exactly those of before: production compiles
   // no diagnostic stage and has no write mask of its own.
   const selected = blendVariantPipeline(variant);
   const entryPoint = feedback ? selected.entryPoint : 'fsWithoutFeedback';
   const { writeMask } = selected;
-  const blendBindGroupLayout =
-    sharedLayout ??
-    device.createBindGroupLayout({
-      entries: [
-        { binding: b.indices, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-        { binding: b.positions, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-        { binding: b.uvs, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-        {
-          binding: b.uniform,
-          visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
-          buffer: { type: 'uniform', minBindingSize: BLEND_VIEW_SIZE },
-        },
-        // Each item's record, read at the rank the vertex index carries: it is what replaces the
-        // dynamic uniform offset, and therefore the bind group per draw.
-        { binding: b.items, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-        ...atlasLayoutEntries(b.color),
-        { binding: b.sampler, visibility: GPUShaderStage.FRAGMENT, sampler: { type: 'filtering' } },
-        ...atlasLayoutEntries(b.data),
-        { binding: b.normals, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-        { binding: b.directLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
-        { binding: b.clusterDiagnostic, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-        { binding: b.planInstances, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-        { binding: b.clusterSpans, visibility: GPUShaderStage.VERTEX, buffer: readOnly },
-        { binding: b.shadowData, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
-        {
-          binding: b.shadowAtlas,
-          visibility: GPUShaderStage.FRAGMENT,
-          texture: SHADOW_ARRAY,
-        },
-        {
-          binding: b.shadowSampler,
-          visibility: GPUShaderStage.FRAGMENT,
-          sampler: { type: 'comparison' },
-        },
-        {
-          binding: b.shadowTransmittance,
-          visibility: GPUShaderStage.FRAGMENT,
-          texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
-        },
-        {
-          binding: b.shadowTranslucentDepth,
-          visibility: GPUShaderStage.FRAGMENT,
-          texture: SHADOW_ARRAY,
-        },
-        { binding: b.bounceGrid, visibility: GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
-        { binding: b.probes, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
-        { binding: b.tileLights, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
-        // Resident proxy of the far sun shadow: **read-only**, and that is the condition of early
-        // depth rejection for the whole pass. A binding writable from the fragment stage forces the
-        // GPU to shade every fragment before testing it, side effect and all — here 4232 fragment
-        // draws fully hidden behind opaque. The shadow ray is the same; only the two census counters
-        // stay with deferred resolve, which can write. The surface cache below takes the eighth
-        // and last storage binding the spec guarantees for this fragment stage.
-        { binding: b.proxy, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
-        { binding: b.surfaceCache, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
-      ],
-    });
+  const blendBindGroupLayout = sharedLayout ?? blendLayout(device);
   // The water pass exists for a scene that transmits, outside any diagnostic variant: under one,
   // the transmission slice draws as one more blend, so the variant measures the same fragment
   // stage on all of it. Its surface stage is compiled into the blend module only then.
