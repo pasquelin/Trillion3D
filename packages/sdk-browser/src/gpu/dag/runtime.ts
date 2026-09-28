@@ -5,7 +5,7 @@ import {
   type GpuSelection,
   type SelectionUniforms,
 } from '../core/selection.ts';
-import { primitiveWordAt, refreshWorldStretch, worldsChanged } from './worlds.ts';
+import { refreshWorldStretch, worldsChanged } from './worlds.ts';
 import { createDagResidencyUpload } from './residencyUpload.ts';
 import { createDagPoolList } from './poolList.ts';
 import { createDagDispatch } from './dispatch.ts';
@@ -50,8 +50,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   };
   // A dead selection dispatches and drains nothing more.
   const fail = () => ((state.dead = true), voidCuts());
-  const previousWorlds = packed.worlds.slice(),
-    frameInts = new Uint32Array(frameData.buffer);
+  const previousWorlds = packed.worlds.slice();
   // The cut rule's residency, derived from the pool's and uploaded by difference.
   const uploadResidency = residentCut ? createDagResidencyUpload(resources) : undefined;
   const dispatch = createDagDispatch(resources, state, fail);
@@ -61,8 +60,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   /** Writes word `slot` of primitive `w`'s frame words, one word up. The cut in hand holds pages
    *  the new word no longer lets through, or lacks some it does: another cut from here. */
   const writeFrameWord = (w: number, slot: number, value: number) => {
-    frameInts[primitiveWordAt(w) + slot] = value;
-    frames.writeWord(w, slot);
+    frames.writeWord(w, slot, value);
     resources.frameWrites.count++;
     voidCuts();
   };
