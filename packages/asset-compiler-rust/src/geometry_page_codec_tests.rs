@@ -154,3 +154,26 @@ fn golden_page_reread_within_its_declared_error() {
         round_trip(vertices, seed);
     }
 }
+
+/// A cluster of a regular grid (CMP-09): its corners, numbered by first use, cost well under the
+/// fixed width of a local index, and decode to the same triangles.
+#[test]
+fn a_grid_cluster_codes_its_corners_below_their_fixed_width() {
+    let side = 9u32;
+    let positions: Vec<f32> = (0..side * side)
+        .flat_map(|v| [(v % side) as f32, (v / side) as f32, 0.0])
+        .collect();
+    let indices: Vec<u32> = (0..side - 1)
+        .flat_map(|r| (0..side - 1).map(move |c| r * side + c))
+        .flat_map(|v| [v, v + 1, v + side, v + 1, v + side + 1, v + side])
+        .collect();
+    let encoded = encode(&indices, &positions, &[], -4, UV_EXPONENT).expect("encode");
+    let fixed_bits = indices.len() * 7;
+    let corner_bits = codec::Layout::of(&encoded.header).position[0] * 32;
+    assert!(
+        corner_bits * 10 < fixed_bits * 8,
+        "{corner_bits} of {fixed_bits} bits"
+    );
+    let page = codec::decode(&encoded.bytes, 1 << 20).expect("decode");
+    verify(&page, &indices, &positions, &[], 0.0);
+}
