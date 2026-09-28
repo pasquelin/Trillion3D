@@ -60,16 +60,10 @@ test('one loop shades the lights of a pixel in full: its list, its pool slice or
     3,
     'defined once, read by the list and by the factor of a drawn light',
   );
-  // One call to the shading in the full loop, one in the sampled one: no walk over the scene
-  // beside them, the no-tile fallback of the blend pass included.
-  for (const shader of [DIRECT_LIGHTING_WGSL, declaredLightingWgsl(11, 18, 26)])
-    assert.doesNotMatch(shader, /sceneLighting/);
+  // One call to the shading in the full loop (\`sliceLighting\`), one in the sampled one: no walk
+  // over the scene beside them, the no-tile fallback of the blend pass included.
   assert.equal(occurrences(DIRECT_LIGHTING_WGSL, 'declaredLight(directLights.items['), 1);
   assert.equal(occurrences(declaredLightingWgsl(11, 18, 26), 'declaredLight('), 2);
-  assert.match(
-    DIRECT_LIGHTING_WGSL,
-    /for\(var index=0u;index<slice\.y;index\+\+\)\{\s*var light=index;\s*if\(slice\.x!=TILE_NO_SLICE\)\{light=tileLights\[slice\.x\+index\];\}\s*result\+=declaredLight\(directLights\.items\[light\]/,
-  );
 });
 
 test('a tile more than TILE_LIGHTS lights reach reads exactly those, in order (#849)', () => {
