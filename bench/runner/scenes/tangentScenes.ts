@@ -3,8 +3,7 @@
 // Four normal-mapped scenes derived from the public `normal-tangent-mirror-test`: its authored
 // tangents, mirrored on half the texture, drawn paged and unpaged, blended and opaque (#875).
 //
-//   node bench/runner/scenes/tangentScenes.ts
-//   node bench/runner/assets.ts --only normal-tangent-blend-paged,normal-tangent-blend-unpaged,normal-tangent-opaque-paged,normal-tangent-opaque-unpaged
+//   node bench/runner/scenes/tangentScenes.ts   (prints the `assets.ts --only` line that compiles them)
 //
 // Every folder holds the same mesh and images. A blended pair wears the material at
 // `TANGENT_BLEND_ALPHA`, an opaque pair the source material as it is. Within a pair only the pass
@@ -21,7 +20,7 @@ import { ASSETS } from '../scene.ts';
 import { sceneGltfFile } from '../assetsCatalogue.ts';
 
 /** The public scene all four are derived from. */
-export const TANGENT_SOURCE = 'normal-tangent-mirror-test';
+const TANGENT_SOURCE = 'normal-tangent-mirror-test';
 /** The derived scenes, by surface and by the path it takes, with the pass each compiles to. */
 export const TANGENT_SCENES = {
   blend: {
@@ -91,22 +90,27 @@ export function tangentSceneGltf(source: Gltf, blended: boolean, unpaged: boolea
   return { gltf, zeroBytes };
 }
 
-/** Writes the four scenes under `assets`, from the source scene already there. */
-export function writeTangentScenes(assets = ASSETS) {
-  const from = join(assets, TANGENT_SOURCE);
+/** Writes the four scenes under `ASSETS`, from the source scene already there, and prints the
+ *  command that compiles them. */
+function writeTangentScenes() {
+  const from = join(ASSETS, TANGENT_SOURCE);
   const file = sceneGltfFile(from);
   if (!file) throw new Error(`no glTF under ${from}: run node bench/runner/assets.ts first`);
   const source = JSON.parse(readFileSync(join(from, file), 'utf8')) as Gltf;
   const resources = readdirSync(from).filter((name) => !name.endsWith('.gltf'));
   for (const [surface, pair] of Object.entries(TANGENT_SCENES))
     for (const [path, { scene }] of Object.entries(pair)) {
-      const to = join(assets, scene);
+      const to = join(ASSETS, scene);
       mkdirSync(to, { recursive: true });
       for (const name of resources) copyFileSync(join(from, name), join(to, name));
       const { gltf, zeroBytes } = tangentSceneGltf(source, surface === 'blend', path === 'unpaged');
       if (zeroBytes) writeFileSync(join(to, ZEROS_FILE), Buffer.alloc(zeroBytes));
       writeFileSync(join(to, `${scene}.gltf`), `${JSON.stringify(gltf, null, 1)}\n`);
     }
+  const names = Object.values(TANGENT_SCENES).flatMap((pair) =>
+    Object.values(pair).map(({ scene }) => scene),
+  );
+  process.stdout.write(`node bench/runner/assets.ts --only ${names.join(',')}\n`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename))
