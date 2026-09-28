@@ -103,9 +103,9 @@ fn report(lights: Vec<Value>, rejected: Tally, counts: Tally) -> Value {
 type Nodes<'a> = (&'a BTreeSet<usize>, &'a BTreeSet<usize>);
 /// glTF lights, in the order of the nodes that instantiate them, in world space.
 /// Only nodes of the rendered scene count: a light placed in another scene does
-/// not light this one, nor one a hidden node hides (`KHR_node_visibility`). A light whose type, matrix or intensity fails the contract
-/// is counted in `rejected` and left aside: a compilation never dies on a light,
-/// it says so.
+/// not light this one, nor one a hidden node hides (`KHR_node_visibility`). A
+/// light whose type, matrix or intensity fails the contract is counted in
+/// `rejected` and left aside: a compilation never dies on a light, it says so.
 fn scene_lights(g: &Value, bin: &[u8], (reached, hidden): Nodes<'_>) -> Result<Value> {
     let (mut rejected, mut counts) = (Tally::new(), Tally::new());
     let (Some(nodes), Some(declared)) = (
