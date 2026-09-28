@@ -2259,6 +2259,21 @@
       "credit": "旗杆上的旗帜为本示例用代码建模，CC0 — 见 assets/examples/CREDITS.md"
     }
   },
+  "an-elevation-of-the-house": {
+    "banner": "选择房屋立面。将摄影机移远时，正交图仍保持完全相同的比例。",
+    "controls": {
+      "elevation": "立面",
+      "distance": "摄影机距离",
+      "zoom": "图纸比例"
+    },
+    "choices": {
+      "elevation": {
+        "front": "正面",
+        "right": "右侧面",
+        "rear": "背面"
+      }
+    }
+  },
   "hover-to-highlight": {
     "banner": "将指针移到小车的各个部件上以逐一突出显示，或在面板中关闭突出显示。",
     "controls": {
