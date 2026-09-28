@@ -18,7 +18,7 @@ use crate::compiler_primitive_dag::{build_dag_primitive, DagResult};
 use crate::geometry_page::Attribute;
 use std::collections::HashMap;
 use std::sync::Mutex;
-use trillion3d_page_codec::cut_error::{node_ceiling_error, Lens, PLANE_VALUES};
+use trillion3d_page_codec::cut_error::{node_ceiling_error, Lens};
 use trillion3d_page_codec::vec3::{length, point, sub};
 
 /// Focal length in pixels of 1080 lines under a 60° vertical field.
@@ -130,17 +130,9 @@ fn measure(primitive: &Primitive) -> Vec<Page> {
 /// The cut's lens at `pixel_error`, the camera at the origin looking down `−z`, nothing culled.
 fn lens(pixel_error: f64) -> Lens {
     // Six planes `0·x + 0·y + 0·z + 1` hold every point; the view is the identity.
-    let mut planes = [0.0; PLANE_VALUES];
-    for plane in planes.as_chunks_mut::<4>().0 {
-        plane[3] = 1.0;
-    }
-    let mut view = [0.0; 16];
-    for i in 0..4 {
-        view[i * 5] = 1.0;
-    }
     Lens {
-        planes,
-        view,
+        planes: std::array::from_fn(|i| f64::from(u8::from(i % 4 == 3))),
+        view: std::array::from_fn(|i| f64::from(u8::from(i % 5 == 0))),
         stretch: 1.0,
         focal: FOCAL,
         near: 1e-3,
