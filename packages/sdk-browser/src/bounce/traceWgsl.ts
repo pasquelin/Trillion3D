@@ -3,6 +3,7 @@ import {
   PROXY_CHILDREN,
   PROXY_TRIANGLE_FLOATS,
 } from '../../../sdk-core/src/index.ts';
+import { PROXY_OWNER_WGSL } from './ownerWgsl.ts';
 import { BOUNCE_NODE_WGSL } from './nodeWgsl.ts';
 
 /**
@@ -26,13 +27,14 @@ const LEAF_TRIANGLES:u32=${BOUNCE_SETTINGS.proxyLeafTriangles}u;
 const TRIANGLE_FLOATS:u32=${PROXY_TRIANGLE_FLOATS}u;
 const CHILDREN:u32=${PROXY_CHILDREN}u;
 const STACK_DEPTH:u32=${BOUNCE_SETTINGS.traversalStack}u;
-struct ProxyHit{distance:f32,triangle:u32,found:bool,}
+struct ProxyHit{distance:f32,triangle:u32,owner:u32,found:bool,}
 ${BOUNCE_NODE_WGSL}
+${PROXY_OWNER_WGSL}
 /** Möller–Trumbore, two-sided: a wall has no front or back for light. */
-fn triangleHit(index:u32,origin:vec3f,direction:vec3f,limit:f32)->f32{
- let a=proxyVertex(index,0u);
- let edge0=proxyVertex(index,1u)-a;
- let edge1=proxyVertex(index,2u)-a;
+fn triangleHit(index:u32,owner:u32,origin:vec3f,direction:vec3f,limit:f32)->f32{
+ let a=proxyOwnerVertex(index,0u,owner);
+ let edge0=proxyOwnerVertex(index,1u,owner)-a;
+ let edge1=proxyOwnerVertex(index,2u,owner)-a;
  let perpendicular=cross(direction,edge1);
  let determinant=dot(edge0,perpendicular);
  if(abs(determinant)<1e-12){return limit;}
@@ -49,13 +51,13 @@ fn triangleHit(index:u32,origin:vec3f,direction:vec3f,limit:f32)->f32{
 }
 /** The nearest triangle hit, or nothing. The direction is assumed normalized. */
 fn traceProxy(origin:vec3f,direction:vec3f,limit:f32)->ProxyHit{
- var best=ProxyHit(limit,0u,false);
+ var best=ProxyHit(limit,0u,0u,false);
  if(proxyNodeCount()==0u){return best;}
  let inverse=rayInverse(direction);
  var stack:array<u32,${BOUNCE_SETTINGS.traversalStack}>;
  var depth=0u;
  var node=0u;
- for(var step=0u;step<TRAVERSAL_STEPS;step++){
+ for(var step=0u;step<select(TRAVERSAL_STEPS,proxyNodeCount(),proxy.dynamic!=0u);step++){
   let frame=nodeBox(node);
   if(boxEntry(frame,origin,inverse,best.distance)>best.distance){
    if(depth==0u){break;}
@@ -72,8 +74,12 @@ fn traceProxy(origin:vec3f,direction:vec3f,limit:f32)->ProxyHit{
     for(var k=0u;k<LEAF_TRIANGLES;k++){
      if(k>=child.count){break;}
      let index=child.offset+k;
-     let distance=triangleHit(index,origin,direction,best.distance);
-     if(distance<best.distance){best=ProxyHit(distance,index,true);}
+     let owners=proxyOwnerRange(index);
+     let end=select(owners.x+1u,owners.y,proxy.dynamic!=0u);
+     for(var owner=owners.x;owner<end;owner++){
+      let distance=triangleHit(index,owner,origin,direction,best.distance);
+      if(distance<best.distance){best=ProxyHit(distance,index,owner,true);}
+     }
     }
     continue;
    }
@@ -96,7 +102,7 @@ fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32)->bool{
  var stack:array<u32,${BOUNCE_SETTINGS.traversalStack}>;
  var depth=0u;
  var node=0u;
- for(var step=0u;step<TRAVERSAL_STEPS;step++){
+ for(var step=0u;step<select(TRAVERSAL_STEPS,proxyNodeCount(),proxy.dynamic!=0u);step++){
   let frame=nodeBox(node);
   var descend=false;
   var next=0u;
@@ -108,7 +114,12 @@ fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32)->bool{
     if(child.count>0u){
      for(var k=0u;k<LEAF_TRIANGLES;k++){
       if(k>=child.count){break;}
-      if(triangleHit(child.offset+k,origin,direction,limit)<limit){return true;}
+      let index=child.offset+k;
+      let owners=proxyOwnerRange(index);
+      let end=select(owners.x+1u,owners.y,proxy.dynamic!=0u);
+      for(var owner=owners.x;owner<end;owner++){
+       if(triangleHit(index,owner,origin,direction,limit)<limit){return true;}
+      }
      }
      continue;
     }

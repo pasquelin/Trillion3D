@@ -121,6 +121,7 @@ export function renderGpuCut(
       residentCandidates: rows.candidateCount,
     });
   }
+  const imageBeforeEncode = run.imageRevision;
   marks.encodeStart = performance.now();
   try {
     encodeDraws(rt, gpuDevice, cam);
@@ -140,6 +141,6 @@ export function renderGpuCut(
   traceGpuCutFrame(rt, cam);
   // The image was encoded and submitted in full: it alone allows a hold, and only if the previous
   // one was already identical to it.
-  keepWebgpuFrame(rt);
+  if (run.imageRevision !== imageBeforeEncode) keepWebgpuFrame(rt);
   return true;
 }
