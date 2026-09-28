@@ -12,7 +12,8 @@ import { startGrant } from '../../gpu/core/errorScope.ts';
 import type { PoolClamp } from '../../residency/pools.ts';
 import { createShadowRegionList } from './regions.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
-import { admitShadowBytes, noteShadowPressure } from './memoryGrant.ts';
+import { admitShadowBytes, noteShadowPressure, shadowPoolHeld } from './memoryGrant.ts';
+import { grantShadowTransmittance, sceneCastsBlended } from './transmittanceGrant.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -36,11 +37,6 @@ export const shadowPoolFor = (wanted: number, layerSide?: number) => (budgetByte
   return { budgetBytes, side, layers, allocatedBytes: shadowAtlasBytes(side, layers), clamp };
 };
 
-/** GPU bytes the shadow pool holds: its buffers and depth pages, their transmittance and static
- *  layers once made, and its request buffer. */
-export const shadowPoolHeld = ({ shadows, staticLayer, pageRequests }: WebgpuLightState) =>
-  (shadows?.allocationBytes ?? 0) + (staticLayer?.bytes ?? 0) + (pageRequests?.bytes ?? 0);
-
 /** Whether the shadows' grant holds the static layer beside what the pool holds and the
  *  transmittance layer still to come; past it, said and recorded (`memoryGrant.ts`). */
 export function staticLayerGranted(
@@ -50,7 +46,8 @@ export function staticLayerGranted(
 ) {
   const { side, layers } = lights.plan.pool,
     bytes = shadowAtlasBytes(side, layers),
-    transmittance = lights.shadows?.transmittance ? 0 : shadowTransmittanceBytes(side, layers);
+    later = lights.shadows?.transmittanceHeld || lights.transmittanceDenied,
+    transmittance = later ? 0 : shadowTransmittanceBytes(side, layers);
   const held = shadowPoolHeld(lights);
   if (admitShadowBytes(lights.memory, held, bytes + transmittance, grantBytes)) return true;
   noteShadowPressure(lights.memory, 'static-layer-over-grant');
@@ -83,7 +80,8 @@ export function staticLayerGranted(
  * (`deviceAnswer`). When it refuses even the floor, the shadowed mode cannot be drawn: it is
  * refused by the `shadows-off` error (`pool-refused`), and the session goes on without shadows,
  * never lost. A world without a light that casts a shadow sizes nothing: its pool would hold no
- * page. The first frame that has one sizes it, before its plan maps any page.
+ * page. The first frame that has one sizes it, before its plan maps any page. A scene whose
+ * blended surfaces cast asks their transmittance layer in the same grant (`transmittanceGrant.ts`).
  */
 export function sizeShadowPool(rt: WebgpuPagesRuntime) {
   const { lights, capture, diag, run } = rt,
@@ -107,7 +105,7 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
     (pool) => atlas.makePool(pool.side, pool.layers),
   );
   const done = granting.then(
-    (granted) => {
+    async (granted) => {
       if (!granted) {
         // Never silent: the image loses its shadows, and the page is told so by name, in the
         // diagnostic and in every frame's shadow report (`unavailable`).
@@ -143,6 +141,8 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
         bytes: allocatedBytes,
         clamp,
       });
+      // A scene whose blended surfaces cast asks their layer with the pool, the frame still held.
+      if (sceneCastsBlended(rt)) await grantShadowTransmittance(rt);
       run.gate.resourcesChanged();
     },
     (error: unknown) => {
