@@ -3,7 +3,13 @@ import assert from 'node:assert/strict';
 import { preuveDansLaPage, preuveSaine } from '../support/enginePageProof.ts';
 import type { MirrorCase } from '../support/screenMirrorPage.ts';
 
-const result = await preuveDansLaPage('screenMirrorPage.ts', 'screenMirror', 'Screen mirrors');
+const result = await preuveDansLaPage(
+  'screenMirrorPage.ts',
+  'screenMirror',
+  'Screen mirrors',
+  'executer',
+  true,
+);
 preuveSaine(result);
 const cases = (result as typeof result & { cases: MirrorCase[] }).cases;
 assert.equal(cases.length, 17, 'both renderers, arrangements, alpha passes and camera projections');

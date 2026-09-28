@@ -52,7 +52,7 @@ export async function mirrorRenderer(
           Number(event.context.proxyTriangles) > 0 && event.context.unavailable === null;
     },
   };
-  const gl = path === 'webgl2' ? canvas.getContext('webgl2') : null;
+  const gl = path === 'webgl2' ? canvas.getContext('webgl2', { antialias: false }) : null;
   if (path === 'webgl2' && !gl) throw new Error('WebGL2 unavailable');
   const backend = gl
     ? autonomousPagesBackend({
