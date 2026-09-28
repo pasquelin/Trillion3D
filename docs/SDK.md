@@ -258,6 +258,8 @@ const bob = animation.clip('bob', 2, [
   animation.vectorTrack('.position', [0, 1, 2], [0, 1, 0, 0, 2, 0, 0, 1, 0]),
 ]);
 mixer.play(bob);
+// poses the clip at 0.5 s now, playing or not (a stopped action keeps it until a playing one writes over it)
+mixer.clipAction(bob).seek(0.5);
 ```
 
 ```js
