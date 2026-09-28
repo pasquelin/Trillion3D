@@ -28,7 +28,7 @@ function estate() {
 }
 
 test('a cut delta of the estate applies when placements of one address differ in level', () => {
-  const { packed, tracking, sets, delta } = estate();
+  const { packed, tracking, sets, delta, cut: publish, budget } = estate();
   const ids = (keep: (level: number) => boolean) => {
     const cut: number[] = [];
     for (let id = 0; id < packed.length; id++) if (keep(packed[id].level ?? 0)) cut.push(id);
@@ -43,12 +43,12 @@ test('a cut delta of the estate applies when placements of one address differ in
     ['far again', ids((level) => level >= 1)],
   ] as const) {
     delta.apply(cut);
-    sets.applyCut(delta);
+    publish();
     const keys = new Set(cut.map((id) => tracking.keyOf(packed[id])));
     assert.equal(sets.requestedCount, keys.size, `${label}: requested pages`);
     // A budget below the cut ranks it: every queued key belongs to the cut, once.
     const room = keys.size >> 1;
-    assert.equal(sets.applyBudget(room), true, `${label}: over budget`);
+    assert.equal(budget(room), true, `${label}: over budget`);
     const queued = keysOf(tracking.wanted);
     assert.equal(queued.size, room, `${label}: queue fills the budget`);
     for (const key of queued) assert.ok(keys.has(key), `${label}: key ${key} left the cut`);

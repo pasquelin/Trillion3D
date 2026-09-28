@@ -126,7 +126,9 @@ engine already holds, since the frames drawn before the wait may have read them 
 read for the view while the wait runs (a prefetch aside), whether the host reads it for the cut or the WebGPU engine for its own
 residency —, `completed` those resident, rising as each lands; the last event has
 `completed === total`. One callback given to both drives a progress bar from the first byte to
-the first pages (example `watch-a-world-load`).
+the first pages (example `watch-a-world-load`). A session that closes during the wait — a lost
+device, an option it cannot take in place — never rejects it: the wait carries on with the session
+opened again.
 
 A model's vertices stay on the server until something reads them: `scene.load` reads no vertex
 buffer (`source.bin`), the pages draw the model. The buffer is read once, on the first need: a
@@ -949,6 +951,41 @@ on their line.
 No engine loop runs above 0.1 ms of the engine's own frame, so no batch replaces one yet (#80): the
 batches are for hosts until a measured share says otherwise.
 
+## Page materials
+
+A page can inspect and edit the materials of a loaded model through its `world`, after
+`await world.awaitPages()` has opened the drawing session. `world.materials()` lists the
+current materials in cache table order, followed by materials the page created. Each has
+an `id`, `name`, `baseColor`, `opacity`, `metalness`, `roughness`, `emissive`, `side`,
+`alphaMode`, `alphaCutoff` and `tiling` (`null` without a map). `world.material(id)` reads
+one by that listed ID. These reads return detached copies. `world.importedMaterials()`
+returns the source file's values even after the page changes them; created materials are
+not included. An unknown ID raises `UNKNOWN_MATERIAL`.
+
+`world.setMaterial(id, patch)` updates every surface built from that table material for
+the next frame. A patch may name `baseColor` (three linear channels from 0 to 1),
+`opacity`, `metalness`, `roughness` and `alphaCutoff` (each 0 to 1), nonnegative linear
+`emissive` channels, `alphaMode` (`'opaque'`, `'mask'`, `'blend'`), or nonzero finite
+`tiling` coordinates. Tiling needs a map used by that material alone; a shared map is
+refused with `MATERIAL_TEXTURE_SHARED`. An invalid field or value raises
+`INVALID_MATERIAL` before any write. The return value is `true` if every renderer in
+the session took the edit in place, or `false` if another renderer needs a new session.
+
+Changing between opaque, masked and blended also moves the material's drawables into
+the matching draw class. If a renderer cannot move that class in place, the call raises
+`MATERIAL_CLASS_CHANGE` before changing anything. The page can keep the old material
+and show that refusal; it should not assume every renderer accepts a class change.
+
+`world.createMaterial({ name?, baseColor?, opacity?, metalness?, roughness?, emissive?,
+alphaMode?, alphaCutoff? })` makes a material owned by the page and returns its listed
+record. It can be read and edited by ID like an imported material. `map` is not yet
+supported (`UNSUPPORTED_SCENE_UPDATE`), and `tiling` is not a creation field. The
+session holds at most 256 created materials; the next creation raises
+`MATERIAL_CEILING` without creating one. To draw it on a compiled primitive, call
+`world.assignMaterial('mesh/primitive', created.id)`, using the two numbers in that
+model's `metadata.primitives`. Unknown primitives raise `UNKNOWN_SCENE_NODE`. See the
+[live page-material example](../site/examples/page-materials.html).
+
 ## Lights
 
 Nothing lights an opaque surface except a light the host declared. There is no fixed ambient term,
@@ -1005,10 +1042,11 @@ overcast sky) carries only `direction` — the propagation direction — and is 
 a 16×16 screen tile lists up to 64 lights reaching it, and past that takes exactly the lights
 reaching it from a pool sized from the view (#849) —; 64 shadow slices,
 past which a caster lights without a shadow (`shadowCastersUnsliced`), and at most 24 shadow
-regions redrawn per frame. WebGL2 draws 64 lights and refuses more (#835). The shadow pool is sized
+regions redrawn per frame. WebGL2 draws every light, each draw only those whose range reaches it (#835). The shadow pool is sized
 once, at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
 128² pages as wide as the device draws, within the budget's shadow share; `metric.frame(world)`
-publishes its `shadowPoolBytes` and `shadowPoolLayers`.
+publishes its `shadowPoolBytes` and `shadowPoolLayers`, and its memory pressure by name
+(`shadowPeakBytes`, `shadowResolutionBias`, `shadowMemoryEvents`).
 
 `capability.lighting(world)` reports what the **active** renderer applies — `{ sceneLights,
 lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light
@@ -1528,7 +1566,10 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   session on it and rebuilds from its decoded-page cache, fetching no page, bundle or resident proxy
   it still holds (the proxy and the decoded texture levels are kept inside `world.budget.cpu`
   unless they yielded to the pages). `gpu-device-recovered` says the time from the loss to the
-  first frame drawn after it (`recoveryMs`). `lights.json` is read again, and cross-API fallback is
+  first frame drawn after it (`recoveryMs`). Until then the canvas keeps the last image drawn.
+  Every reopen of a world's session is said once as `session-reopen`: its `cause` (`device-lost`,
+  `option`, or a content change — `defect: true`, a change the session should have taken in
+  place), `durationMs`, and `framesWithoutImage`, the display frames it showed no new image through. `lights.json` is read again, and cross-API fallback is
   not implemented.
 - Frame targets the device refused are asked again only when the view's size changes, or by a
   capture; until then the frames stay held on the previous image.

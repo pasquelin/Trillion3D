@@ -134,7 +134,7 @@ export type WebgpuParticles = ReturnType<typeof createWebgpuParticles>;
 export const particlesMoved = (rt: WebgpuPagesRuntime) => anyMoving(rt.context.particles);
 
 /** The world's pools on this image, stepped in the image's command buffer ahead of its
- *  transparent stage, which draws them (#755). */
+ *  transparent stage, which draws them (#755), once a frame whatever the views drawn. */
 export function encodeParticles(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -154,6 +154,8 @@ export function encodeParticles(
     rt.gpu.particles = undefined;
     return;
   }
+  // One step a frame, the main view's: a view drawn beside it draws the pools as they stand.
+  if (rt.views.active !== rt.views.main) return;
   rt.gpu.particles ??= createWebgpuParticles(device, (error) =>
     rt.diag.diagnosticFailure('particles-unavailable', error),
   );

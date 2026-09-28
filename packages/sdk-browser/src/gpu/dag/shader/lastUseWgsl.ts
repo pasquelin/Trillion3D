@@ -23,5 +23,5 @@ fn lastUseAt(i:u32)->u32{return queueBase(${LEVEL_QUEUES}u)+i;}
 fn countFrame(){if(!isLightCut()){atomicAdd(&work[frameWord()],1u);}}
 /** Page \`i\` is used by this camera cut, drawn or requested: its key's canonical page is stamped
  *  (\`../evict.ts\`). */
-fn stampUse(i:u32){if(!isLightCut()){flags[lastUseAt(cold[keyBase()+i]&KEY_PAGE)]=atomicLoad(&work[frameWord()]);}}
+fn stampUse(i:u32){if(!isLightCut()){setFlag(lastUseAt(coldAt(keyBase()+i)&KEY_PAGE),atomicLoad(&work[frameWord()]));}}
 `;

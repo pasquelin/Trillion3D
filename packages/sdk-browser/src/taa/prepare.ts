@@ -3,7 +3,7 @@ import { dropTaaHistory, forgetTaaHistory } from './frame.ts';
 import { grantCapability } from '../webgpu/pages/io/drops.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { isCancelled } from '../backend/common.ts';
-import { mainViewGpu } from '../webgpu/pages/state/view.ts';
+import { mainViewGpu, viewGpu, type WebgpuView } from '../webgpu/pages/state/view.ts';
 import { MOTION_CAPABILITY, TAA_CAPABILITY } from './capability.ts';
 
 /**
@@ -47,12 +47,16 @@ export function setWebgpuTemporalAntialiasing(rt: WebgpuPagesRuntime, on: boolea
     { temporal } = mainViewGpu(rt);
   if (gpu.temporalWanted === on) return;
   gpu.temporalWanted = on;
-  forgetTaaHistory(temporal);
   // A barrier (`settlePose`) before the next ordinary image replays the checkpoint: it must not
-  // bring back the history of the images before the switch.
-  if (temporal) {
-    temporal.frame.sampledRank = 0;
-    temporal.checkpoint(false);
+  // bring back the history of the images before the switch, on any view.
+  for (const history of [
+    temporal,
+    ...rt.views.persistent.map((view) => viewGpu(rt, view).temporal),
+  ]) {
+    forgetTaaHistory(history);
+    if (!history) continue;
+    history.frame.sampledRank = 0;
+    history.checkpoint(false);
   }
   if (on && temporal) {
     grantCapability(capabilities, TAA_CAPABILITY);
@@ -60,12 +64,13 @@ export function setWebgpuTemporalAntialiasing(rt: WebgpuPagesRuntime, on: boolea
   } else if (on && gpu.device) {
     void rigTemporalAntialiasing(rt, gpu.device).then(
       () => {
-        // The history joins the main view's targets as they stand, a capture drawn aside
-        // meanwhile or not; unallocated, `makeTargets` counts it.
-        const main = mainViewGpu(rt),
-          rigged = main.temporal;
-        if (rigged && main.colorTexture && rigged.resize(...main.targetSize))
-          main.targetBytes += rigged.historyBytes;
+        joinTargets(mainViewGpu(rt));
+        for (const view of rt.views.persistent)
+          rigViewTemporal(rt, view).catch(
+            (error: unknown) =>
+              isCancelled(rt.signal) ||
+              rt.diag.diagnosticFailure('temporal-antialiasing-unavailable', error),
+          );
         rt.run.gate.resourcesChanged();
       },
       () => {},
@@ -74,6 +79,29 @@ export function setWebgpuTemporalAntialiasing(rt: WebgpuPagesRuntime, on: boolea
     for (const item of [TAA_CAPABILITY, MOTION_CAPABILITY])
       if (!capabilities.unsupported.includes(item)) capabilities.unsupported.push(item);
   }
+  rt.run.gate.resourcesChanged();
+}
+
+/** The history joins the view's targets as they stand, a capture drawn aside meanwhile or not;
+ *  unallocated, `makeTargets` counts it. */
+function joinTargets(gpu: WebgpuView['gpu']) {
+  const { temporal } = gpu;
+  if (temporal && gpu.colorTexture && temporal.resize(...gpu.targetSize))
+    gpu.targetBytes += temporal.historyBytes;
+}
+
+/** A persistent view's own pass and history, when the main view accumulates: never another
+ *  view's history, never a capture's (`../webgpu/pages/state/persistentView.ts`). */
+export async function rigViewTemporal(rt: WebgpuPagesRuntime, view: WebgpuView) {
+  const device = rt.gpu.device;
+  if (!device || !mainViewGpu(rt).temporal || viewGpu(rt, view).temporal) return;
+  const temporal = await createTemporalAntialiasing(device, rt.layout.selectionRoots);
+  const gpu = viewGpu(rt, view);
+  // Removed, closed or rigged meanwhile: not kept.
+  if (!rt.views.persistent.includes(view) || isCancelled(rt.signal) || gpu.temporal)
+    return temporal.dispose();
+  gpu.temporal = temporal;
+  joinTargets(gpu);
   rt.run.gate.resourcesChanged();
 }
 

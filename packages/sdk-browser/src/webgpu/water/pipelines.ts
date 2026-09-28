@@ -14,6 +14,8 @@ const SURFACE_TARGETS: GPUColorTargetState[] = [
   { format: DISPLAY_FORMAT },
   { format: FEEDBACK_FORMAT },
 ];
+export const waterSurfaceTargets = (feedback: boolean) =>
+  feedback ? SURFACE_TARGETS : SURFACE_TARGETS.slice(0, 4);
 
 /**
  * Surface stage: the blend module's vertex stage and `fsWater`, on the blend bind group layout —
@@ -25,12 +27,17 @@ export const createWaterSurfacePipelines = (
   device: GPUDevice,
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
+  feedback = true,
 ) =>
   blendStagePipelines(
     device,
     module,
     layout,
-    { module, entryPoint: 'fsWater', targets: SURFACE_TARGETS },
+    {
+      module,
+      entryPoint: feedback ? 'fsWater' : 'fsWaterWithoutFeedback',
+      targets: waterSurfaceTargets(feedback),
+    },
     true,
   );
 

@@ -25,6 +25,7 @@ const config: KnipConfig = {
     'scripts/site-first-load.ts',
     'scripts/ltc-fit.ts',
     'bench/runner/bench.ts',
+    'bench/runner/feedbackTargetAb.ts',
     'bench/runner/trajectory.ts',
     // Compiled by path by the public types audit (`public-types-audit.test.ts`), never imported.
     'tests/integration/public-types-union.fixture.ts',
@@ -39,6 +40,7 @@ const config: KnipConfig = {
     'bench/runner/threeLodPage.ts',
     'bench/runner/measurePage.ts',
     'bench/runner/fluidsPage.ts',
+    'bench/runner/feedbackTargetPage.ts',
     'bench/runner/gazeNetworkPage.ts',
     'bench/runner/limits.ts',
     // The witness entry: bundled into `dist/witnesses/measurement.js` and imported by URL by those
@@ -76,6 +78,8 @@ const config: KnipConfig = {
   paths: {
     '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
   },
+  // The harness server maps this browser URL to the page entry above.
+  ignoreUnresolved: ['/runner/feedbackTargetPage.ts'],
   // Rust is a platform tool; DaisyUI is loaded by Tailwind; the site build copies SVG files of
   // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.
   ignoreDependencies: ['daisyui', 'flag-icons'],

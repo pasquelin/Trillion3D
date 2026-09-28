@@ -1,7 +1,6 @@
 // #772: the WebGL2 program draws the Lambert, toon and matcap families, and the Phong and normal
 // ones beside them, through the WebGPU path's one surface model (`../../scene/surfaceModel.ts`).
-// The shaders cannot run under node: their functions are read out of the shipped texts and run on
-// known normals, lights and views (`runShaderText`), so a shader edit is what the tests see.
+// Shader functions are read from shipped text and evaluated by `runShaderText`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
@@ -11,7 +10,13 @@ import { CLUSTER_FRAGMENT } from './shaders.ts';
 import { runShaderText } from '../../visibility/shader/shaderText.fixture.ts';
 import { DIRECT_LIGHTING_SHADER } from '../../lighting/deferred/shaders.ts';
 import { PI } from '../../lighting/shaderConstants.ts';
-import { MODEL_FLAG, SURFACE_MODEL, SURFACE_MODEL_SHADE_WGSL } from '../../scene/surfaceModel.ts';
+import {
+  MODEL_FLAG,
+  NORMAL_VIEW_COLOR,
+  SURFACE_MODEL,
+  SURFACE_MODEL_SHADE_WGSL,
+} from '../../scene/surfaceModel.ts';
+import { SHADE_SHADER } from '../../visibility/shader/shadeWgsl.ts';
 import {
   crossVector3,
   dotVector3,
@@ -167,5 +172,29 @@ test('a matcap reads its image where the WebGPU resolve does, and a normal view 
       `if(surfaceModel==${SURFACE_MODEL.matcap})base*=textureLod(baseMap,mapUv(baseUv,matcapUv(normalize(viewNormal))),0.0);`,
     ),
   );
-  assert.ok(CLUSTER_FRAGMENT.includes(`if(surfaceModel==${SURFACE_MODEL.normal})rgb=N*0.5+0.5;`));
+  assert.ok(
+    CLUSTER_FRAGMENT.includes(`if(surfaceModel==${SURFACE_MODEL.normal})rgb=normalViewColor(N);`),
+  );
+});
+
+test('meshNormal encodes the same view-space normal on WebGL2 and WebGPU', () => {
+  assert.ok(
+    CLUSTER_FRAGMENT.includes(`if(surfaceModel==${SURFACE_MODEL.normal})rgb=normalViewColor(N);`),
+  );
+  assert.ok(
+    SHADE_SHADER.includes(
+      `if(model==${SURFACE_MODEL.normal}u){rgb=normalViewColor(viewNormal(N));}`,
+    ),
+  );
+  assert.equal(NORMAL_VIEW_COLOR, 'N*0.5+0.5');
+  const gl = runShaderText<number[]>(declared(CLUSTER_FRAGMENT, 'normalViewColor'));
+  const gpu = runShaderText<number[]>(declared(SHADE_SHADER, 'normalViewColor'));
+  for (const normal of [
+    [0, 0, 1],
+    [0.6, -0.8, 0],
+    [-1, 0, 0],
+  ]) {
+    assert.deepEqual(gl(normal), gpu(normal));
+    assert.notDeepEqual(gl(normal), [0.8, 0.2, 0.4], 'meshNormal does not show the base colour');
+  }
 });

@@ -97,3 +97,18 @@ test('WebGPU without the visibility buffer refuses the pools by name, heard once
   );
   assert.match(heard[0], /^PARTICLES_UNSUPPORTED: particles draw on the visibility buffer/);
 });
+
+test('WebGPU: the pools step once a frame, on the main view; another view draws them as they are', () => {
+  let steps = 0;
+  const [smoke] = scene(),
+    main = {},
+    views = { main, active: {} },
+    gpu = { particles: { run: () => (steps++, 1) } },
+    rt = { context: { particles: [smoke] }, vis: { visEnabled: true }, gpu, run: {}, views };
+  const encode = () => encodeParticles(rt as never, fakeDevice().device, {} as GPUCommandEncoder);
+  encode();
+  assert.equal(steps, 0, 'another view steps nothing');
+  views.active = main;
+  encode();
+  assert.equal(steps, 1);
+});
