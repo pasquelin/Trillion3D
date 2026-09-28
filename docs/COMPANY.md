@@ -9,7 +9,7 @@ contribution workflow never requires it.
 ## The idea in one paragraph
 
 The boss sets priorities and tests the result. The boss opens the **CTO** session; it gives him ten launch commands, and he opens one session per command: a **lead** per domain, the architect, the analyst, measurement and acceptance. The CTO keeps the company honest and merges. Leads run a **coder** and a
-**reviewer** for one issue at a time, verify the result themselves, name it ready for the CTO to
+**reviewer** per issue (two or three issues at a time, AGENTS.md §Leads), verify the result themselves, name it ready for the CTO to
 merge, and close the issue. After every
 merge, **measurement** times the merged changes in batches and captures the live example, and **acceptance**
 re-reads the change as a safety net. An **architect** keeps the code small and logical; an
