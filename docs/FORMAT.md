@@ -4,8 +4,8 @@ This is the on-disk contract implemented today: what the compiler writes and the
 
 ## Layout
 
-| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `native/<scope>/manifest.json` | `native/<scope>/<key>/clusters.json` and its pages, `source.gltf`, `source.bin`, SHA-addressed objects under `native/objects/`: `<digest>.bin`, one file per index page, geometry page or streaming bundle — and baked texture levels under `native/textures/v<N>/<digest>/<kind>-<level>.<format>`, one lossless PNG per mip level above the sidecar's tail, plus the same level in the cooked block family where the quality gate kept it |
 
 `<scope>` is `slice` or `full`. A pointer or payload with another scope is rejected (`SCOPE_MISMATCH`).
@@ -324,7 +324,7 @@ body; another node its collider names keeps its own, still static ground. Each e
 `report.bodies` counts them; `report.bodiesRefused` lists each declaring node the cook refused
 (`node`, `reason`): it has no body, and stays static ground.
 
-A body whose node's `extras.physics` declares `breakable` also carries `breakable`, the threshold
+Stage version 8: a body whose node's `extras.physics` declares `breakable` also carries `breakable`, the threshold
 as declared, and `pieces`: at most 12 convex pieces cut from its mesh
 ([COMPILER.md](COMPILER.md#physicsjson--the-cooked-colliders-stage-physics-cook)), each a shape as a
 `cooked` body's, in the body's frame at unit scale, with its own `mass` at the body's `scale` (a
