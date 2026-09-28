@@ -31,7 +31,7 @@ test('the ensurer hears each camera page it lands, never a lower tier page', asy
   assert.equal(landed, 2, 'b and c: the resident page and the tier ahead are not heard');
 });
 
-test('progress resolves at the first page landed while the job still runs; pending at its end', async () => {
+test('progress resolves at each page landed, heard or not, while the job runs; pending at its end', async () => {
   let release!: () => void;
   const gate = new Promise<void>((open) => (release = open));
   const queue = createWebgpuResidencyQueue({
@@ -43,6 +43,8 @@ test('progress resolves at the first page landed while the job still runs; pendi
     updatePins() {},
     async ensureResident(_wanted, _frame, _job, _waiting, landed) {
       landed();
+      await new Promise(setImmediate);
+      landed(); // while no frame waits
       await gate;
     },
     markLost() {},
@@ -56,9 +58,14 @@ test('progress resolves at the first page landed while the job still runs; pendi
   void queue.pending.then(() => heard.push('pending'));
   await new Promise(setImmediate);
   assert.deepEqual(heard, ['progress'], 'a page landed: the next frame can draw it');
+  await new Promise(setImmediate);
+  void queue.progress().then(() => heard.push('landed unheard'));
+  void queue.progress().then(() => heard.push('next'));
+  await new Promise(setImmediate);
+  assert.deepEqual(heard, ['progress', 'landed unheard'], 'a page no frame waited for is drawn');
   release();
   await queue.pending;
   await new Promise(setImmediate);
-  assert.deepEqual(heard, ['progress', 'pending']);
+  assert.deepEqual(heard, ['progress', 'landed unheard', 'pending', 'next']);
   assert.equal(queue.progress(), queue.pending, 'no job running: its end is all there is to wait');
 });
