@@ -22,27 +22,18 @@ test('the house elevations use parallel rays and keep their scale across camera 
     'utf8',
   );
   const scene = new Scene(() => Promise.reject(new Error('the page loads no model')));
-  const canvas = { clientWidth: 1600, clientHeight: 900 } as HTMLCanvasElement;
   let values = {} as Values;
   let change = (_next: Values, _key?: keyof Values) => {};
   let disposed = 0;
   const world = {
     scene,
-    canvas,
     camera: camera.perspective(),
     invalidate() {},
     dispose() {
       disposed++;
     },
-  } satisfies Pick<World, 'scene' | 'canvas' | 'camera' | 'invalidate' | 'dispose'>;
+  } satisfies Pick<World, 'scene' | 'camera' | 'invalidate' | 'dispose'>;
   const hide = catchPagehide(t);
-  const previousResizeObserver = globalThis.ResizeObserver;
-  globalThis.ResizeObserver = class {
-    observe() {}
-    disconnect() {}
-    unobserve() {}
-  } as never;
-  t.after(() => void (globalThis.ResizeObserver = previousResizeObserver));
   await runExampleModule(html, {
     engine: { createWorld: () => world, camera, geometry, material, object, light, math },
     kit: {
@@ -62,7 +53,8 @@ test('the house elevations use parallel rays and keep their scale across camera 
 
   const active = world.camera;
   assert.equal(active.projection, 'orthographic');
-  const aspect = canvas.clientWidth / canvas.clientHeight;
+  assert.ok(active.fitAspect, 'the engine fits the box to the canvas');
+  const aspect = 16 / 9;
   const span = () => {
     const left = active.rayThrough(-0.5, 0, aspect);
     const right = active.rayThrough(0.5, 0, aspect);
