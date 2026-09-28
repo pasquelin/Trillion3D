@@ -23,7 +23,11 @@ import { encodeShadowReadback } from './encodeShadows.ts';
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts';
 import { encodeTaaPass, taaSampledRank } from '../../../taa/frame.ts';
 import { encodeEffects } from './encodeEffects.ts';
-import { directLightResources, wantsContractLighting } from '../prepare/lightResources.ts';
+import {
+  directLightResources,
+  readsAsIs,
+  wantsContractLighting,
+} from '../prepare/lightResources.ts';
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
@@ -177,7 +181,8 @@ export function encodeSurfaceLighting(
   // Temporal accumulation reads the lit and blended image, and yields what composition reads — the
   // lit image itself when this image does not accumulate. The effect chain follows: its passes
   // read that image and hand composition the last.
-  const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView);
+  const asIs = readsAsIs(rt);
+  const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView, asIs);
   const composed = encodeEffects(rt, device, encoder, accumulated);
   // Diagnostic only: the off-screen variant does not ask for the swap-chain view. The composition
   // pass stays the same, one colour target aside — that is what isolates presentation. Guides
@@ -188,7 +193,8 @@ export function encodeSurfaceLighting(
       ? undefined
       : gpu.presenter?.targetView(width, height);
   run.gpuDrawCalls++;
-  gpu.deferred.compose(encoder, gpu.colorView, clearValueOf(clearColor), presentation, composed);
+  const clear = clearValueOf(clearColor);
+  gpu.deferred.compose(encoder, gpu.colorView, clear, presentation, composed, asIs);
   if (guided) encodeWebgpuGuides(rt, device, encoder, cam);
   return !!presentation;
 }
