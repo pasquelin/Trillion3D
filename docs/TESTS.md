@@ -138,7 +138,7 @@ geometry pages and from its source buffers, on WebGPU: to the pixel when blended
 opaque (the proof's header says why). Its four scenes are derived from `normal-tangent-mirror-test`:
 `node bench/runner/scenes/tangentScenes.ts` writes them and prints the `assets.ts --only` line that
 compiles them; then `node tests/browser/test-gpu.ts tests/browser/renders/page-tangents.browser.ts`
-runs it. The recette runs it after the merge.
+runs it. Acceptance runs it on the branch (AGENTS.md rule 2).
 
 `tests/browser/test-gpu.test.ts` enforces symmetric guarding across both directories: **executed ∪ excluded ==
 on-disk**, and no exclusion outlives the file it names. Without this guard, forgotten proofs would

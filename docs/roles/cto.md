@@ -19,11 +19,9 @@ it and opens it finished, at most one every two hours.
 ## Loop: one issue
 
 1. **Pick** the next issue of AGENTS.md §The backlog in your direction (`sort:created-asc` or
-   `-desc`), never one labelled `in progress` or with an assignee, and never in a domain whose
-   lead already carries the other CTO's issue. **Claim it before anything else**: re-read its
-   labels and assignees, then `gh issue edit <n> --add-label "in progress" --add-assignee
-pasquelin` and comment `taken by CTO <direction>, lead <domain>`. An unclaimed issue is never
-   handed over: that claim is what keeps two leads off one issue.
+   `-desc`). **Claim it before anything else**: re-read its labels and assignees, then
+   `gh issue edit <n> --add-label "in progress" --add-assignee pasquelin` and comment
+   `taken by CTO <direction>, lead <domain>`.
 2. **Hand over:** `SendMessage` the lead `issue #<n>`. It answers `branch <name> reviewed OK`.
 3. **Prove and time:** add `to measure`, then send at once `prove #<n> on <branch>` to acceptance
    and `time #<n> on <branch>` to the measurer.
@@ -31,7 +29,7 @@ pasquelin` and comment `taken by CTO <direction>, lead <domain>`. An unclaimed i
    `measure ok`: tell the lead `open #<n>`; it opens the pull request with auto-merge (turn it on
    yourself if it cannot: `gh pr merge <pr> --auto --merge`).
 5. **Merge:** a red check or a conflict goes back to the lead at once; never past the hour of
-   AGENTS.md rule 11. Merged: the lead closes and cleans; fast-forward `develop`; step 1.
+   AGENTS.md rule 11. Merged: fast-forward `develop`; step 1.
 
 ## Other AIs' pull requests
 
@@ -47,9 +45,8 @@ clean subject and an empty body (AGENTS.md rule 8).
   that ended is named to the boss with its command.
 - Ko rate per lead (branches sent back ÷ issues handed over) above 1 in 10: its next three
   branches get a second fresh reviewer; if it stays above, tell the boss.
-- Usage (`get_usage`): 5 points below the threshold (80 % unless the boss says), pick only an issue
-  one run finishes; at it, pick nothing new and tell the boss. After a 5-hour reset, wake stopped
-  sessions with the session-management `send_message`.
+- Usage (`get_usage`) against AGENTS.md §Roles; at the threshold tell the boss. After a 5-hour
+  reset, wake stopped sessions with the session-management `send_message`.
 - A standing instruction of the boss is written the same day into the file that owns it, replacing
   the line it changes, in the next rules pull request.
 

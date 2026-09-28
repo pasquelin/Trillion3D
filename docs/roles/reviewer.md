@@ -9,8 +9,8 @@ or the bench (AGENTS.md rule 2).
    worktree. It launches its own review agents (at most 4, which launch none): never replace it
    with your own reading. Apply its fixes.
 3. **Correctness pass** — invoke the real `code-review` skill with `--fix`. Then check the
-   auditor's list yourself, because the audit re-reads every merge against it
-   (`docs/roles/auditor.md` step 3):
+   auditor's list yourself, because acceptance re-reads the branch against it
+   (`docs/roles/auditor.md` step 4):
    - every To do and Proof item of the issue is delivered and the body says `Closes #<n>`; a
      diff that leaves part of its goal undelivered is `KO`;
    - the diff follows the lead's design note on the issue, and a `tests` return adds the fast test the note names;
