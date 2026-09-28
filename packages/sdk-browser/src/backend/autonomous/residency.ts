@@ -27,10 +27,14 @@ export function createAutonomousResidency(env: ResidencyEnvironment) {
     },
     pendingUrls() {
       // One record per page, coarsest first, the main view's ahead: the streamer takes the head.
+      // A view's requests are one record per page (`requests.ts`): only another view's can repeat.
       pending.length = 0;
+      for (const rec of views[0].requested) if (!rec.array) pending.push(rec.url);
+      if (views.length === 1) return pending;
       queued.clear();
-      for (const view of views)
-        for (const rec of view.requested) {
+      for (const url of pending) queued.add(url);
+      for (let v = 1; v < views.length; v++)
+        for (const rec of views[v].requested) {
           if (rec.array || queued.has(rec.url)) continue;
           queued.add(rec.url);
           pending.push(rec.url);
