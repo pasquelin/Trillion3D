@@ -74,8 +74,11 @@ export const IRRADIANCE_BAND = {
   quadraticDifference: 0.429043,
 } as const;
 
-/** The 27 numbers an irradiance is summed into: a list, or the floats a program uploads. */
-export type IrradianceSum = number[] | Float32Array;
+/** The 27 numbers an irradiance is summed into, read and written by index: a list, or the
+ *  floats a program uploads. */
+export interface IrradianceSum {
+  [index: number]: number;
+}
 
 /** An irradiance with nothing in it, ready to receive sources. */
 export const emptyIrradiance = () => new Array<number>(ENVIRONMENT_COEFFICIENTS * 3).fill(0);
