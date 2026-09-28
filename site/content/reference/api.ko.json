@@ -965,6 +965,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "이 그리기 경로는 씬에 그런 변경을 가할 수 없다.",
       "BATCHED_WORLD_VIEW": "이 그리기 경로는 씬에 그런 변경을 가할 수 없다.",
       "RAYCAST_NO_VIEW": "크기가 없는 canvas에 그림의 점을 요청했습니다: 겨눌 그림이 없습니다.",
+      "SURFACE_CAPTURE_UNSUPPORTED": "재질 표면을 별도의 뷰에 그릴 수 없는 그리기 경로에 표면 캡처(`captureSurfaceView`)를 요청했습니다. WebGL2 경로에는 이것이 없습니다.",
       "VERTICES_NOT_LOADED": "로드된 모델의 정점을 `await geometry.loadVertices()` 전에 읽었습니다. 세션은 처음 필요할 때 읽으며 미리 읽지 않습니다.",
       "SESSION_OPEN_FAILED": "고유 코드가 없는 이유로 월드의 세션을 열 수 없었습니다(`world.diagnostic.error`). 발생한 오류는 `details.cause`에 있습니다.",
       "WEBGPU_LOST": "WebGPU가 장치를 잃었거나, 장치의 오류로 아무것도 그릴 수 없는 상태가 되었습니다. `render`, `flush` 및 장치가 필요한 읽기에서 발생하며, 진단 `gpu-device-lost`가 이 이름으로 알리고, 이 때문에 세션을 열 수 없었을 때 `world.diagnostic.error`에 나타납니다.",
