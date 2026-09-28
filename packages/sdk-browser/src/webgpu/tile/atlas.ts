@@ -73,7 +73,7 @@ export type WebgpuTileAtlas = {
 
 export function createWebgpuTileAtlas(
   device: Pick<GPUDevice, 'createTexture' | 'createBuffer' | 'queue'>,
-  options: TileLanesOptions & { feedbackOffset: number; textures: TileTexture[] },
+  options: Omit<TileLanesOptions, 'textures'> & { feedbackOffset: number; textures: TileTexture[] },
 ): WebgpuTileAtlas {
   const { kind, textures, encoding } = options;
   const lanes = createTileLanes(device, options);
