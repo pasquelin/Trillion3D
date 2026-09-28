@@ -12,10 +12,6 @@ import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts';
 import type { WebglSurface } from '../../webgl/core/surface.ts';
 import type { JobProgress } from '../../../../sdk-core/src/runtime/jobs.ts';
-import type { createReadWatch } from '../../streaming/readWatch.ts';
-
-/** One watch over the streamer's reads (`readWatch.ts`), module-internal: no facade names it. */
-type PageWatch = ReturnType<ReturnType<typeof createReadWatch>['watch']>;
 
 /** How `awaitPages` waits: with or without a picture, and who hears the pages land. */
 type PageWait = { image?: boolean; onProgress?: (event: JobProgress) => void };
@@ -113,12 +109,16 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     await diagnosticChannel.flush();
   };
   /** Counts as landed, once, the pages `backend`'s view reads that the streamer holds, `missing`
-   *  aside: resident already. A page read again later — the WebGPU residency uploading it — or
-   *  shared with another backend is not counted twice. */
-  const holdPages = (backend: RenderBackend, missing: readonly string[], read: PageWatch) => {
+   *  aside: resident already, through the watch's `hold`. A page read again later — the WebGPU
+   *  residency uploading it — or shared with another backend is not counted twice. */
+  const holdPages = (
+    backend: RenderBackend,
+    missing: readonly string[],
+    hold: (url: string) => void,
+  ) => {
     const lacking = new Set(missing);
     for (const url of backend.pageUrls?.() ?? [])
-      if (!lacking.has(url) && streamer.has(url)) read.hold(url);
+      if (!lacking.has(url) && streamer.has(url)) hold(url);
   };
   /** The pages the view reads, made resident; `image: false` takes no picture of them.
    *  `onProgress` hears `pages`: `total` the pages the view reads — those the streamer held already
@@ -150,7 +150,7 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
           backend,
           camera,
           async (missing) => {
-            holdPages(backend, missing, read);
+            holdPages(backend, missing, read.hold);
             // `load` hears the cut even when it lacks nothing; an empty batch is not asked.
             if (missing.length) await streamer.request(missing);
             for (const url of missing) {
