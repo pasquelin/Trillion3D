@@ -49,7 +49,7 @@ fn derived(hidden: bool) -> [Value; 7] {
         proxy.expect("proxy report"),
         physics["instances"].clone(),
         json!(bodies),
-        json!(oracle / 9),
+        json!(oracle),
         tables["nodes"][1]["visible"].clone(),
     ]
 }
@@ -63,19 +63,15 @@ fn a_hidden_node_is_compiled_but_derives_no_surface_proxy_oracle_or_collider() {
         (json!(2), json!(2), json!(1))
     );
     assert_eq!(visible, json!(true));
-    let hidden = derived(true);
-    assert_eq!(hidden[0], json!(2), "its mesh is compiled all the same");
-    assert_eq!(hidden[1], json!(1), "no coplanar surface");
+    let [primitives, surfaces, fewer, instances, bodies, less, visible] = derived(true);
+    assert_eq!(primitives, json!(2), "its mesh is compiled all the same");
+    assert_eq!(surfaces, json!(1), "no coplanar surface");
+    let count = |v: &Value| v.as_u64().expect("a count");
     assert!(
-        hidden[2].as_u64() < proxy.as_u64(),
-        "no proxy triangle: {proxy} then {}",
-        hidden[2]
+        count(&fewer) < count(&proxy),
+        "no proxy triangle: {proxy} then {fewer}"
     );
-    assert_eq!(
-        (hidden[3].clone(), hidden[4].clone()),
-        (json!(1), json!(0)),
-        "no collider"
-    );
-    assert!(hidden[5].as_u64() < oracle.as_u64(), "no oracle triangle");
-    assert_eq!(hidden[6], json!(false), "the table says it hidden");
+    assert_eq!((instances, bodies), (json!(1), json!(0)), "no collider");
+    assert!(count(&less) < count(&oracle), "no oracle triangle");
+    assert_eq!(visible, json!(false), "the table says it hidden");
 }
