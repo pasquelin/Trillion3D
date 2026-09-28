@@ -11,6 +11,10 @@ import {
 } from '../../diagnostic/gpuGeometry.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../visibility/shader/materialClass.ts';
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
+export const shadeTargetFormats = (feedback: boolean) => [
+  ...SURFACE_FORMATS,
+  ...(feedback ? [FEEDBACK_FORMAT] : []),
+];
 const LAYER_CULLS: Array<[GPUCullMode, GPUFrontFace]> = [
   ['back', 'ccw'],
   ['none', 'ccw'],
@@ -20,16 +24,13 @@ const LAYER_CULLS: Array<[GPUCullMode, GPUFrontFace]> = [
 ];
 const VIS_LAYER_CULLS = LAYER_CULLS.length;
 const VIS_LAYER_PIPELINES = VIS_LAYER_CULLS * 2;
-/** Rank of a layer pipeline in `visLayerPipelines`. Layer 0 is not in it. */
 export const visLayerPipelineIndex = (layer: number, rest: boolean, cull: number) =>
   (layer - 1) * VIS_LAYER_PIPELINES + (rest ? VIS_LAYER_CULLS : 0) + cull;
-
 async function scoped<T>(device: GPUDevice, run: () => T): Promise<T> {
   const { value, error } = await validationScope(device, run);
   if (error) throw error;
   return value;
 }
-
 export function createWebgpuVisibilityRasterPipelines(
   device: GPUDevice,
   visModule: GPUShaderModule,
@@ -114,7 +115,6 @@ export function createWebgpuCoplanarLayerPipelines(
     return pipelines;
   });
 }
-
 /** Builds the depth export and class-specialized material pipelines during preparation. */
 export function createWebgpuShadePipelines(
   device: GPUDevice,
@@ -167,7 +167,7 @@ export function createWebgpuShadePipelines(
         entryPoint,
         constants,
         // The surfaces, then the tile request the image's feedback target receives.
-        targets: [...SURFACE_FORMATS, ...(feedback ? [FEEDBACK_FORMAT] : [])].map((format) => ({
+        targets: shadeTargetFormats(feedback).map((format) => ({
           format,
         })),
       },

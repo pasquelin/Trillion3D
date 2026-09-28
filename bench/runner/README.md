@@ -11,12 +11,17 @@ Build the branch first, then run the diagnostic on the quiet measurement machine
 The runner calls `assets.ts` before Chrome opens. `--rebuild-cache` removes only the named
 derived cache and recompiles it through the owned compiler; source assets are preserved. Omit
 that option after the stale cache has been refreshed. Each scene and view uses one browser
-session for the A/B/A switch: identical pose, 2496×1404 at DPR 1, TAA on, fully resident and
-held before timing. The switch then forces real full GPU renders while replaying the settled
-TAA sample. JSON and captures go under `.mesure/out/39-feedback-ab/`. A missing timestamp,
-nonzero pixel delta, pending tile, changed residency, or target-byte mismatch invalidates a
-gain verdict; missing measurements are `null`. The off side omits the feedback attachment and
-reduction, so its delta is an upper bound on any later request packing change.
+session at an identical pose, 2496×1404 at DPR 1 with TAA on. Before A/B/A, up to 240 ordinary
+budgeted frames provide a per-frame tile and geometry trace, intermediate direct GPU readbacks,
+and a final held reference. No convergence barrier runs between these captures. The report
+records each capture's whole-image and central-gaze difference from the held reference. A view
+without covered geometry, a visible intermediate texture gap, or a held reference is unsupported.
+The switch then forces real full GPU renders while replaying the settled TAA sample. JSON and
+captures go under `.mesure/out/39-feedback-ab/`. A verdict requires at least 12 distinct GPU
+samples per leg, exact A/A and A/B image equality, unchanged SHA-256 identities of resident
+geometry pages and texture tile keys, no pending work, and the expected target-byte difference.
+Missing measurements are `null`. The off side omits the feedback attachment and reduction, so
+its delta is an upper bound on any later request packing change.
 
 A single harness for all test batches. One command, no server to start manually, only this repository on the machine: Playwright and esbuild are its dev dependencies, Chrome is the system browser, assets live under `.mesure/assets/`.
 

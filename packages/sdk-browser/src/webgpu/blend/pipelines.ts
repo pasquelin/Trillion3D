@@ -20,6 +20,14 @@ import {
   type DiagnosticGpuVariant,
 } from '../../diagnostic/gpuVariant.ts';
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts';
+export const blendTargets = (
+  mode: Blending,
+  mask: GPUColorWriteFlags,
+  feedback: boolean,
+): GPUColorTargetState[] => [
+  { format: 'rgba16float', writeMask: mask, blend: BLEND_EQUATIONS[mode] },
+  ...(feedback ? [{ format: FEEDBACK_FORMAT }] : []),
+];
 
 /** Builds the forward-material pipelines for transparent draws, and the water pass of a scene
  *  that transmits. */
@@ -127,12 +135,7 @@ export async function createWebgpuBlendPipelines(
   const fragment = (mode: Blending): GPUFragmentState => ({
     module: blendModule,
     entryPoint,
-    targets: [
-      { format: 'rgba16float', writeMask, blend: BLEND_EQUATIONS[mode] },
-      // Tile rank the pixel requests from the virtual textures: an integer target, without blend,
-      // that reduction rereads after the pass.
-      ...(feedback ? [{ format: FEEDBACK_FORMAT }] : []),
-    ],
+    targets: blendTargets(mode, writeMask, feedback),
   });
   const perMode = pipelinesByMode(device, (mode) =>
     stageDescriptors(device, blendModule, blendBindGroupLayout, fragment(mode), false),

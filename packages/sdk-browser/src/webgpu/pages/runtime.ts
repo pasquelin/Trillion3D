@@ -23,12 +23,14 @@ import {
 } from './state/timing.ts';
 import type { HostCpuProfile } from '../../host/cpuProfile.ts';
 import type { WebgpuPagesSetup } from './prepare/setup.ts';
-import type { FeedbackAbState } from './diagnostic/feedbackAb.ts';
+import type { FeedbackAbState, ResidencyIdentity } from './diagnostic/feedbackAb.ts';
 
 export type WebgpuPagesBackend = RenderBackend &
   HostCpuProfile & {
     flush(): Promise<void>;
     setFeedbackTargetAb(target: boolean): Promise<void>;
+    feedbackAbResidency(): Promise<ResidencyIdentity>;
+    captureFeedbackAb(): Promise<Uint8Array>;
     rasterRgba(): Uint8Array;
     selectedPageIds(): string[];
     visibilityIds(): Uint32Array;
