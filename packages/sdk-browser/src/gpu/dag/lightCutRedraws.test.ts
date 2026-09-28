@@ -1,7 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { createLightCutRedraws } from './lightCutRedraws.ts';
+import { redrawsWith, WHOLE } from './lightCutRedraws.fixture.ts';
 import { COARSER_VIEWS, WORK_DROPPED } from './shader/viewsWgsl.ts';
 import { MAX_SHADOW_BATCHES, SHADOW_FLAG_FRAMES } from '../shadow/batchBudget.ts';
 import {
@@ -10,38 +9,7 @@ import {
   DRAW_FULL,
 } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 
-/** Modes of pages drawn whole: static casters and moving ones. */
-const WHOLE = new Array<number>(8).fill(DRAW_FULL);
 const coarserView = (view: number) => (1 << (COARSER_VIEWS + view)) >>> 0;
-
-/** A light cut's flag readback whose word is `flag.value`, and one frame through it. */
-function redrawsWith(flag: { value: number }) {
-  installGpuGlobals();
-  const made: GPUBufferDescriptor[] = [];
-  const buffer = (descriptor: GPUBufferDescriptor) => {
-    made.push(descriptor);
-    return {
-      mapAsync: () => Promise.resolve(),
-      getMappedRange: () => new Uint32Array(descriptor.size / 4).fill(flag.value).buffer,
-      unmap() {},
-    } as unknown as GPUBuffer;
-  };
-  const redraws = createLightCutRedraws(buffer, {} as GPUBuffer, 24);
-  const encoder = { copyBufferToBuffer() {} } as unknown as GPUCommandEncoder;
-  const taken = () => {
-    const again: number[] = [];
-    redraws.takeRedraw((page) => again.push(page));
-    return again;
-  };
-  const frame = async (pages: number[], reported = true, views?: number[]) => {
-    const settle = redraws.encode(encoder, pages, views ?? pages.map(() => 0), pages.length, WHOLE);
-    redraws.reported(reported);
-    settle?.(true);
-    await redraws.settled();
-    return taken();
-  };
-  return { redraws, encoder, frame, taken, made };
-}
 
 // A frame whose light cut dropped work drew its pages without all their casters: they are drawn
 // again, in fewer views a frame, and the limit comes back once frames stay whole. It bounds views,

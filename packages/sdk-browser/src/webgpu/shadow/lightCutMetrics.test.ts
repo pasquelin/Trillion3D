@@ -2,27 +2,16 @@
 // through `redrawShortPages`, the path that draws those pages again — no second tally beside it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { createLightCutRedraws } from '../../gpu/dag/lightCutRedraws.ts';
+import { redrawsWith, WHOLE } from '../../gpu/dag/lightCutRedraws.fixture.ts';
 import { COARSER_VIEWS, WORK_DROPPED } from '../../gpu/dag/shader/viewsWgsl.ts';
-import { DRAW_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { lightCutMetrics, redrawShortPages } from './casters.ts';
 
-const WHOLE = [DRAW_FULL, DRAW_FULL];
-
 /** A runtime whose light cut reads `flag.value` for every batch, over a pool whose page 9 has no
  *  owner; returns it with the pages withdrawn. */
 function runtime(flag: { value: number }) {
-  installGpuGlobals();
-  const buffer = (descriptor: GPUBufferDescriptor) =>
-    ({
-      mapAsync: () => Promise.resolve(),
-      getMappedRange: () => new Uint32Array(descriptor.size / 4).fill(flag.value).buffer,
-      unmap() {},
-    }) as unknown as GPUBuffer;
-  const redraws = createLightCutRedraws(buffer, {} as GPUBuffer, 24);
+  const { redraws, encoder } = redrawsWith(flag);
   const lights = createWebgpuLightState(32),
     withdrawn: number[] = [];
   const pool = {
@@ -32,7 +21,6 @@ function runtime(flag: { value: number }) {
   };
   Object.assign(lights, { lightCut: { redraws }, plan: { resting: false, table: {}, pool } });
   const rt = { lights, diag: { engineDiagnostic() {} } } as unknown as WebgpuPagesRuntime;
-  const encoder = { copyBufferToBuffer() {} } as unknown as GPUCommandEncoder;
   /** One frame of one batch of `pages` in views 0 and 1, read, then its short pages redrawn. */
   const frame = async (pages: number[], reported = true) => {
     const settle = redraws.encode(encoder, pages, [0, 1], pages.length, WHOLE);
