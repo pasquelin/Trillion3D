@@ -1,7 +1,7 @@
 /**
- * The two measurement tools of the path governor (`governor.ts`): the fineness of
- * the thread clock, and the sliding median it arbitrates on. Nothing here knows
- * paths or operations.
+ * The measurement tools of the path governor (`governor.ts`): the fineness of the thread clock,
+ * the pooled timing a coarse clock needs, and the sliding median it arbitrates on. Nothing here
+ * knows paths or operations.
  */
 
 /** Executions retained per path: the median then follows a minute of play, not a frame. */
@@ -13,6 +13,10 @@ const PATH_WINDOW = 30;
  * what is measured.
  */
 export const CLOCK_RESOLUTION_MS = 0.1;
+/** Nanoseconds in a millisecond: samples are durations per element in ns. */
+export const NS_PER_MS = 1e6;
+/** Clock steps one pooled sample spans on a coarse clock: its rounding then weighs a tenth at most. */
+export const POOLED_CLOCK_STEPS = 10;
 /** Clock reads used to estimate its resolution: enough to see the smallest step. */
 const CLOCK_PROBES = 32;
 
@@ -30,6 +34,36 @@ export function estimateClockResolutionMs(now: () => number) {
     previous = current;
   }
   return smallest;
+}
+
+/**
+ * Consecutive executions of one path timed as one longer batch (CPU-20, #919). A clock coarser than
+ * `CLOCK_RESOLUTION_MS` reads an engine batch as zero or one step; summed until they span `spanMs`,
+ * those reads give one sample whose rounding error is a small share of it — the audit's "time
+ * bigger batches". Without cross-origin isolation, the only clock a browser gives is that coarse.
+ */
+export class PooledTiming {
+  private ms = 0;
+  private elements = 0;
+  private readonly spanMs: number;
+  constructor(spanMs: number) {
+    this.spanMs = spanMs;
+  }
+  /** Pools one execution; the pool's duration per element in ns once it spans `spanMs`, else
+   *  `null`. A NaN or infinite duration closes the pool at once, as it would feed a fine clock. */
+  add(ms: number, elements: number) {
+    this.ms += ms;
+    this.elements += elements;
+    if (this.ms < this.spanMs) return null;
+    const perElement = (this.ms * NS_PER_MS) / this.elements;
+    this.clear();
+    return perElement;
+  }
+  /** Drops what was pooled: a missing timer breaks the batch. */
+  clear() {
+    this.ms = 0;
+    this.elements = 0;
+  }
 }
 
 /** Whether `a` comes strictly before `b` in a typed array's sort: ascending, -0 before +0, NaN last. */
