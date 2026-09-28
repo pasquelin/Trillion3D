@@ -37,11 +37,30 @@ export function halton(index: number, base: number) {
 }
 
 /**
- * Pixel offset for cycle sample `sample`, in pixels and centred: each component
- * is in (−0.5, 0.5). Writes `out[0]` and `out[1]`.
+ * Jitter phases of a frame drawn `render` pixels wide and shown `display` wide (FSR 2's phase
+ * count, `8 · (display / render)²`): eight at native size, 32 at half, so every display pixel
+ * receives samples of its own. A still frame is held after two full cycles (`taaStillFrames`).
  */
-export function taaJitter(sample: number, out: Float64Array) {
-  const index = (sample % TAA_SAMPLES) + 1;
+export const upscalePhases = (render: number, display: number) =>
+  Math.floor(TAA_SAMPLES * (display / render) ** 2);
+
+/** Still frames accumulated before one can be held, at `phases` jitter phases: two cycles. */
+export const taaStillFrames = (phases: number) => 2 * phases;
+
+/**
+ * Texture level offset of a frame drawn at `render` pixels per display row of `display`: the
+ * material pass's footprint is a render pixel, `log2(render / display)` brings it back to a display
+ * pixel, so a texture keeps its native texel density. Zero at native size. FSR 2's extra −1 is not
+ * taken: the truth is the native image, and one level finer would show more than it and shimmer.
+ */
+export const upscaleMipBias = (render: number, display: number) => Math.log2(render / display);
+
+/**
+ * Pixel offset for cycle sample `sample` among `phases`, in the pixels the frame is drawn in and
+ * centred: each component is in (−0.5, 0.5). Writes `out[0]` and `out[1]`.
+ */
+export function taaJitter(sample: number, out: Float64Array, phases = TAA_SAMPLES) {
+  const index = (sample % phases) + 1;
   out[0] = halton(index, 2) - 0.5;
   out[1] = halton(index, 3) - 0.5;
   return out;

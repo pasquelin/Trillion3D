@@ -1,30 +1,42 @@
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { makeFullscreenPipeline } from '../lighting/deferred/fullscreen.ts';
 import { createTaaLayout, taaShader } from './shaderWgsl.ts';
+import { taaUpscaleShader } from './upscaleWgsl.ts';
 
 /** Format of the as-is share accumulated beside the colour: one channel, filtered like it. */
 export const SHARE_FORMAT: GPUTextureFormat = 'r8unorm';
 
 /**
- * The pass's two resolves, both compiled at preparation, so a frame that switches compiles
- * nothing: the one of a frame with an as-is pixel, and the flagless one, which binds and reads
- * neither the surface flags nor the share history (OMB-11).
+ * The pass's resolves, all compiled at preparation, so a frame that switches compiles nothing: the
+ * one of a frame with an as-is pixel, the flagless one, which binds and reads neither the surface
+ * flags nor the share history (OMB-11), and the blended one. With `upscale` — a session whose frame
+ * is drawn below the display — the same three again, reconstructing to the display
+ * (`upscaleWgsl.ts`); at native size they are never compiled.
  */
-export async function createTaaResolves(device: GPUDevice) {
-  const resolve = async (asIs: boolean, blended = false) => {
+export async function createTaaResolves(device: GPUDevice, upscale = false) {
+  const resolve = async (asIs: boolean, blended: boolean, scaled: boolean) => {
     const layout = createTaaLayout(device, asIs, blended),
-      name = blended ? 'TAA_RESOLVE_BLENDED' : asIs ? 'TAA_RESOLVE' : 'TAA_RESOLVE_FLAGLESS';
-    const module = await createCheckedShaderModule(device, taaShader(asIs, blended), name);
+      kind = blended ? 'TAA_RESOLVE_BLENDED' : asIs ? 'TAA_RESOLVE' : 'TAA_RESOLVE_FLAGLESS',
+      name = scaled ? `${kind}_UPSCALE` : kind;
+    const module = await createCheckedShaderModule(
+      device,
+      (scaled ? taaUpscaleShader : taaShader)(asIs, blended),
+      name,
+    );
     const targets = [{ format: 'rgba16float' as const }, { format: SHARE_FORMAT }];
     return {
       layout,
       pipeline: await makeFullscreenPipeline(device, module, layout, 'resolve', targets),
     };
   };
-  const [asIs, flagless, blended] = await Promise.all([
-    resolve(true),
-    resolve(false),
-    resolve(true, true),
-  ]);
-  return { asIs, flagless, blended };
+  const set = async (scaled: boolean) => {
+    const [asIs, flagless, blended] = await Promise.all([
+      resolve(true, false, scaled),
+      resolve(false, false, scaled),
+      resolve(true, true, scaled),
+    ]);
+    return { asIs, flagless, blended };
+  };
+  const [native, upscaled] = await Promise.all([set(false), upscale ? set(true) : undefined]);
+  return { ...native, upscale: upscaled };
 }
