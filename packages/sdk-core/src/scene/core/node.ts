@@ -6,10 +6,9 @@ import {
   setNodeQuaternion,
   setNodeScale,
 } from '../../math/transform-tree/transformTree.ts';
-import { removeTransformNode, reparentTransformNode } from '../../math/transform-tree/structure.ts';
+import { removeTransformNode, reparentTransformNode } from './nodeEdits.ts';
 import { updateNodeWorldMatrix } from '../../math/transform-tree/update.ts';
 import { attachSceneNode } from './nodeAttach.ts';
-import { noteObjectEdit } from './nodeEdits.ts';
 import { copySceneNodeState } from './nodeCopy.ts';
 import { refuseSceneRoot, sceneNodeFail, sceneNodeVisibility } from './nodeError.ts';
 import type { SceneNodeOptions, SceneState } from './nodeContracts.ts';
@@ -74,7 +73,6 @@ export class SceneNode {
     this.assertCompatible(child);
     refuseSceneRoot(this.state, child.index);
     reparentTransformNode(this.state.tree, child.index, this.index);
-    noteObjectEdit();
     child.parentNode?.detachChild(child);
     this.childNodes.push(child);
     this.childView = null;
@@ -86,7 +84,6 @@ export class SceneNode {
     this.assertCompatible(child);
     if (child.parent !== this) return this;
     reparentTransformNode(this.state.tree, child.index, -1);
-    noteObjectEdit();
     this.detachChild(child);
     return this;
   }
@@ -167,7 +164,6 @@ export class SceneNode {
     this.parent?.detachChild(this);
     this.invalidate();
     removeTransformNode(this.state.tree, this.index);
-    noteObjectEdit();
   }
 
   protected assertAlive() {
