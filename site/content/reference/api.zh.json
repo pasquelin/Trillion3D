@@ -2102,7 +2102,6 @@
     "members": {
       "isObject3D": "始终为 `true`:用来标识场景节点。",
       "type": "节点的种类:`'Mesh'`、`'Group'`……",
-      "name": "用来查找该节点的名字。",
       "position": "该节点相对其父节点所在的位置。",
       "rotation": "该节点的旋转状态,以三个角度表示。",
       "quaternion": "该节点的旋转状态,以四元数表示。",
@@ -2188,6 +2187,7 @@
   "TransformNode": {
     "summary": "通过参考实现的矩阵读取的场景节点，保存在引擎的变换树中。",
     "members": {
+      "name": "用来查找该节点的名字。",
       "matrix": "局部矩阵,是该节点在变换树中所占槽位的一个视图。",
       "matrixWorld": "最近一次合成得到的世界矩阵(`updateMatrixWorld`),是变换树的一个视图。",
       "matrixAutoUpdate": "当 `matrix` 本身就是位姿、没有任何东西重新合成它时为 false。",
