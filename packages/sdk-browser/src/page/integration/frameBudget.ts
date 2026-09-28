@@ -44,7 +44,7 @@ export function createFrameBudget(ms: number, now = () => performance.now()) {
  * millisecond ceiling a nested `setTimeout` eventually suffers, and it runs in a hidden tab, where
  * no animation frame ever comes.
  */
-export const yieldToEventLoop = () =>
+const yieldToEventLoop = () =>
   new Promise<void>((done) => {
     const channel = new MessageChannel();
     channel.port1.onmessage = () => {
