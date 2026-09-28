@@ -23,6 +23,9 @@ export const isReady = ({ file, status }: RoadmapEntry) => Boolean(file) && !sta
 
 export const readyEntries = roadmapEntries.filter(isReady);
 
+/** Written examples parked until the engine draws them, each naming the issue it waits for. */
+export const parkedEntries = roadmapEntries.filter(({ status }) => status === 'waiting-engine');
+
 /** Complete examples used by capture and browser proofs. */
 export const readyExampleIds = readyEntries.map(({ id }) => id);
 
