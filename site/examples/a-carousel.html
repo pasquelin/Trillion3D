@@ -112,8 +112,10 @@
         { running: true, speed: [0.2, 2, 0.8], direction: ['clockwise', 'counterclockwise'] },
         (values) => {
           action.timeScale = values.speed * (values.direction === 'clockwise' ? 1 : -1);
+          // stop() rewinds, so the pause seeks back to where the ride stood and holds that pose.
+          const at = action.time;
           if (values.running) action.play();
-          else action.playingNow = false;
+          else action.stop().seek(at);
           world.invalidate();
         },
         world,
