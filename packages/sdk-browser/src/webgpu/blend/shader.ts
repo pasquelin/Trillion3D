@@ -116,15 +116,16 @@ ${FACING_WGSL}
  }
  // A padding lane past the cluster's corners reads nothing, not even the page header.
  var h:ClusterHeader;
- let triangle=(local/3u)*3u;
+ var corners=vec3u(0u);
  var facing=0u;
  if(local<count){
   h=pageHeader(page);
-  if(cull!=0u){facing=vertexFacing(cull,it.world,page,h,triangle);}
+  corners=pageTriangle(page,h,local/3u);
+  if(cull!=0u){facing=vertexFacing(cull,it.world,page,h,corners);}
  }
  out.water=(it.flags>>${WATER_RANK_SHIFT}u)|(facing<<${FACING_SHIFT}u);
  if(local>=count||facing==${FACING_DROP}u){out.position=vec4f(0.0,0.0,2.0,1.0);out.color=vec4f(0.0);out.uv=vec2f(0.0);out.view=vec3f(0.0);out.normal=vec3f(0.0,0.0,1.0);out.tangent=vec3f(0.0);out.bitangent=vec3f(0.0);out.tri=0u;out.bary=vec3f(0.0);out.diagId=0u;return out;}
- let v=pageCorner(page,h,local);
+ let v=corners[local%3u];
  // The material colour times the vertex colour, alpha included, as the forward path reads it.
  if((flags&${FLAG_HAS_COLOR}u)!=0u){out.color*=pageColor(page,h,v);}
  let p=pagePosition(page,h,v);
@@ -138,7 +139,7 @@ ${FACING_WGSL}
  out.diagId=0u;
  if((flags&0x1c000000u)!=0u){out.diagId=clusterId;}
  if((flags&0x20000000u)!=0u){
-  let corners=pageTriangle(page,h,triangle/3u);let a=triangleHash(corners.x);let b=triangleHash(corners.y);let c=triangleHash(corners.z);
+  let a=triangleHash(corners.x);let b=triangleHash(corners.y);let c=triangleHash(corners.z);
   out.tri=a^((b<<1u)|(b>>31u))^((c<<2u)|(c>>30u));
  }
  let corner=local%3u;
