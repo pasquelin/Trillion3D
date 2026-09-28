@@ -9,7 +9,8 @@ import {
   type AssetScope,
   type ClusterManifest,
 } from '../../../sdk-core/src/index.ts';
-import { checked, fetchVerified } from '../cluster/pages.ts';
+import { fetchVerified } from '../cluster/pages.ts';
+import { checked } from '../cluster/checked.ts';
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
 
 async function jsonResource(
