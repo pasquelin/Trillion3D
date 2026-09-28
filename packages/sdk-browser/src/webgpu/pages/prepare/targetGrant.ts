@@ -6,7 +6,13 @@ import {
   createWebgpuCoplanarLayerPipelines,
   createWebgpuVisibilityRasterPipelines,
 } from '../../visibility/pipelines.ts';
-import { frameTargetAllocation, makeTargets, releaseTargets, targetsFit } from './targets.ts';
+import {
+  frameTargetAllocation,
+  hizFits,
+  makeTargets,
+  releaseTargets,
+  targetsFit,
+} from './targets.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** True while no frame can be drawn: its targets are asked of the device, or were refused at
@@ -37,10 +43,18 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { gpu, capture, diag, run } = rt,
     width = Math.max(1, rt.setup.viewport[0]),
     height = Math.max(1, rt.setup.viewport[1]);
-  if (targetsFit(rt, width, height)) return;
+  const fit = targetsFit(rt, width, height);
+  if (fit && hizFits(rt, width, height)) return;
   const pending = gpu.targetGrant;
   if (pending && (!pending.settled || (pending.width === width && pending.height === height)))
     return pending.done;
+  // The view's targets are in place, and another view drew at its own size: the shared pyramid
+  // alone follows. Released, it leaves as for the targets.
+  if (fit) {
+    const done = grantHiz(rt, device, width, height).then(() => void (gpu.targetGrant = undefined));
+    gpu.targetGrant = startGrant(done, { width, height });
+    return gpu.targetGrant.done;
+  }
   diag.traceDiagnostic('targets-request', 'GPU frame targets request', () => ({
     frame: run.frame,
     width,
@@ -120,6 +134,22 @@ async function grantTargets(rt: WebgpuPagesRuntime, device: GPUDevice, asked: As
   diag.engineDiagnostic('frame-allocation', 'GPU targets allocated', allocation);
   run.gate.resourcesChanged();
   return true;
+}
+
+/** The shared Hi-Z pyramid at `width × height`, under the device's out-of-memory check; refused,
+ *  Hi-Z leaves — its absence changes no image — and the raster pipelines follow. */
+async function grantHiz(rt: WebgpuPagesRuntime, device: GPUDevice, width: number, height: number) {
+  const { vis, run } = rt,
+    hiz = vis.gpuHiz!;
+  const made = await deviceMade(device, () => ({
+    fits: hiz.resize(device, width, height),
+    destroy() {},
+  }));
+  if (!made?.fits && !stopped(rt) && vis.gpuHiz) {
+    dropGpuHiz(rt);
+    if (vis.visModule) await rasterWithoutHiz(rt, device, vis.visModule);
+  }
+  run.gate.resourcesChanged();
 }
 
 /** The visibility raster pipelines, those of the coplanar layers included, made without Hi-Z. */
