@@ -9,7 +9,6 @@ import {
   OUT_TRANSPARENT_TRIANGLES,
   SELECTION_HEADER_WORDS,
   evictionWord,
-  selectionListCap,
 } from './layout.ts';
 import type { SelectionResult } from '../core/selection.ts';
 import { VIEW_APPEND, VIEW_LIGHT, VIEW_PAGES } from './shader/pagesWgsl.ts';
@@ -63,13 +62,15 @@ function writeAheadBlock(target: Float32Array, ints: Uint32Array, uniforms: DagV
 /**
  * One view's block of the uniform array (`shader/viewsWgsl.ts`). `views` says how many views the
  * cut runs and how many its buffers were sized for, and the capacity of each descent queue: a
- * camera runs one view on buffers sized for one, whose queues hold every node.
+ * camera runs one view on buffers sized for one, whose queues hold every node. `listCap` is the
+ * ranks its readout holds (`listCap.ts`).
  */
 export function writeDagUniforms(
   target: Float32Array,
   packed: PackedDag,
   uniforms: DagViewUniforms,
   residentCut: boolean,
+  listCap: number,
   views?: DagCutViews,
 ) {
   target.fill(0);
@@ -92,8 +93,8 @@ export function writeDagUniforms(
   }
   target[51] = uniforms.cameraStretch ?? 1;
   // Sample cap the kernel reads to bound its two halves and to say, when it happens, that it
-  // truncated (`layout.ts`).
-  ints[52] = selectionListCap(packed.pageCount);
+  // truncated (`listCap.ts`).
+  ints[52] = listCap;
   // The projection's clip-w weight: 1 perspective, 0 orthographic (`screenErrorBound.ts`).
   target[53] = uniforms.perspective ?? 1;
   // A light cut's view: its kind, then the face pages it draws into (`shader/pagesWgsl.ts`).
