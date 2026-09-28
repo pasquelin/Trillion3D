@@ -550,6 +550,20 @@
       }
     }
   },
+  "a-carousel": {
+    "banner": "Gire em torno do carrossel. Pause ou envie os cavalos de madeira para o outro lado.",
+    "controls": {
+      "running": "Em movimento",
+      "speed": "Velocidade",
+      "direction": "Direção"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "sentido horário",
+        "counterclockwise": "sentido anti-horário"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Arraste para voar em volta da ilha. Suba o mar para inundar os vales.",
     "controls": {

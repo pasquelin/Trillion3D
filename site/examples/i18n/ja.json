@@ -550,6 +550,20 @@
       }
     }
   },
+  "a-carousel": {
+    "banner": "メリーゴーラウンドを見回します。一時停止したり、木馬を反対方向に動かしたりできます。",
+    "controls": {
+      "running": "運転",
+      "speed": "速度",
+      "direction": "方向"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "時計回り",
+        "counterclockwise": "反時計回り"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "ドラッグして島のまわりを飛ぼう。海を上げて谷を水びたしにしよう。",
     "controls": {
