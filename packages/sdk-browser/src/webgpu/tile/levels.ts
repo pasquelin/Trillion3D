@@ -95,9 +95,10 @@ export function createWebgpuTileLevels(options: {
       // Range answers each read with the whole file, and six of them would all download it.
       if (ranges && probing) return true;
       if (frame !== roomFrame) [roomFrame, room] = [frame, store.room()];
-      const levelBytes = requestedLevelBytes(level, size),
+      // The whole file's length is reckoned where it is needed: a waiting tile asks every frame.
+      const wholeBytes = () => requestedLevelBytes(level, size),
         record = ranges ? tileRecord(size[0], size[1], tx, ty) : undefined,
-        bytes = record?.bytes ?? levelBytes;
+        bytes = record?.bytes ?? wholeBytes();
       if (bytes > room) return false;
       // The reads in flight hold their room: one that fits only once they have landed waits for
       // them, rather than landing to shed a level read for a tile not cut yet.
@@ -108,6 +109,7 @@ export function createWebgpuTileLevels(options: {
       const landing = read(record ? { ...level, range: record } : level)
         .then((texels) => {
           let held = id;
+          const levelBytes = wholeBytes();
           if (texels instanceof Uint8Array && texels.byteLength !== record?.bytes) {
             if (texels.byteLength !== levelBytes)
               throw new LevelBytesError(size, texels.byteLength);
