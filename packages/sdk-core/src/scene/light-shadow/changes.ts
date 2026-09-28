@@ -135,6 +135,11 @@ export function createShadowChanges(capacity: number) {
       }
       return readBox;
     },
+    /** True when a box of the list is a world change: something moved this frame. */
+    worldMoved() {
+      for (let box = 0; box < changes.count; box++) if (!detail[box]) return true;
+      return false;
+    },
     /** The boxes are consumed: the pages they stale now carry the state. */
     settled() {
       changes.count = 0;
