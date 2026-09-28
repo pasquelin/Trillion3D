@@ -69,7 +69,7 @@ test('an unmounted host surface leaves the cache: disposed, and no repaint write
   });
   const [, first, second] = mirror.placed.map(({ node }) => node as HostMesh);
   const surface = worn(first);
-  const disposed = t.mock.method(surface, 'dispose');
+  const disposed = t.mock.method(surface as { dispose(): void }, 'dispose');
   mirror.unplace(first as never);
   assert.equal(disposed.mock.callCount(), 0, 'another mesh still wears it');
   mirror.unplace(second as never);
