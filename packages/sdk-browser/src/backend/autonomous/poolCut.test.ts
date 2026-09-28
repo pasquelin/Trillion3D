@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE } from './pool.fixture.ts';
 import { mount } from './poolCut.fixture.ts';
-import { dag0Roots, levels, strip, wholeStrip } from './poolStrip.fixture.ts';
+import { dag0Roots, descend, strip, wholeStrip } from './poolStrip.fixture.ts';
 import { coverFault } from '../../page/cut/cutRule.fixture.ts';
 import { dagCamera } from '../../../../../bench/perf/browser/support/dagCut.ts';
 
@@ -100,23 +100,10 @@ for (const [label, budget] of [
   ['the root cover and a tenth', Math.ceil(dag0Roots() * 1.1)],
 ] as const)
   test(`a budget cut to ${label}: no hole, drawn pages kept, one level coarser per image`, () => {
-    const { image, dag, pages, drawnIds, pool, state } = strip(1000, wholeStrip());
+    const run = strip(1000, wholeStrip()),
+      { image, pool, state } = run;
     for (let i = 0; i < 24; i++) image(0.25);
-    let before = levels(dag, drawnIds()),
-      drawn = drawnIds();
     pool.resize(budget * PAGE);
-    for (let i = 0; i < 24; i++) {
-      assert.ok(
-        drawn.every((id) => pages[id].array),
-        `image ${i}: a drawn page left`,
-      );
-      image(0.25, 3);
-      drawn = drawnIds();
-      assert.equal(coverFault(dag, drawn), -1, `image ${i}: a leaf not covered exactly once`);
-      const now = levels(dag, drawn);
-      for (let u = 0; u < dag.leaves; u++)
-        assert.ok(now[u] <= before[u] + 1, `image ${i}, leaf ${u}: ${before[u]} → ${now[u]}`);
-      before = now;
-    }
+    descend(run);
     assert.ok(state.allocationBytes <= budget * PAGE, 'the pool converged to its budget');
   });
