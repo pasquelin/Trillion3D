@@ -194,7 +194,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     residency,
     shadowTier,
     affectsImage,
-    queueCutResidency: residency.queueCutResidency,
     ...publication,
   };
 }
