@@ -10,9 +10,10 @@ import { SHADOW_LAYER_PASS } from '../../../gpu/shadow/staticLayer.ts';
 import { floorCasterBackend } from '../../shadow/floorCaster.fixture.ts';
 
 /** A caster over a floor, lit by the sun, moved once: its static layer is on its way. `fail`
- *  breaks the device's layouts from then on; `dispose` closes the session before it lands.
- *  Returns what the session said, and whether every static layer made was freed. */
-async function pendingStaticLayer(end: 'dispose' | 'fail') {
+ *  breaks the device's layouts from then on; `dispose` closes the session before it lands; `late`
+ *  closes it once the layer is made, while its occlusion test is being made. Returns what the
+ *  session said, and whether every static layer made was freed. */
+async function pendingStaticLayer(end: 'dispose' | 'fail' | 'late') {
   const said: string[] = [];
   const { backend, gpu } = await floorCasterBackend(SUN, {
     diagnosticDetail: 'summary',
@@ -29,7 +30,15 @@ async function pendingStaticLayer(end: 'dispose' | 'fail') {
       () => {
         throw new Error('device failed');
       };
-  else void backend.dispose();
+  else if (end === 'dispose') void backend.dispose();
+  else {
+    const device = gpu.device as unknown as { createBuffer: (d: GPUBufferDescriptor) => unknown };
+    const make = device.createBuffer.bind(device);
+    device.createBuffer = (descriptor) => {
+      if (descriptor.label?.startsWith('Trillion3D shadow visible casters')) void backend.dispose();
+      return make(descriptor);
+    };
+  }
   for (let tick = 0; tick < 8; tick++) await new Promise((next) => setTimeout(next, 0));
   if (end === 'fail') void backend.dispose();
   const layers = gpu.textures.filter(({ label }) => label?.startsWith(SHADOW_LAYER_PASS));
@@ -46,6 +55,14 @@ test('a session disposed before its static shadow layer lands says nothing', asy
     warned.mock.calls.map((call) => call.arguments[0]),
     [],
   );
+});
+
+test('a static layer that lands after its session is disposed is freed, silently', async (t) => {
+  const warned = t.mock.method(console, 'warn', () => {});
+  const { said, freed } = await pendingStaticLayer('late');
+  assert.deepEqual(said, []);
+  assert.ok(freed, 'the layer that landed is freed');
+  assert.equal(warned.mock.callCount(), 0);
 });
 
 test('a device that fails under a live session still reports the static layer by name', async (t) => {
