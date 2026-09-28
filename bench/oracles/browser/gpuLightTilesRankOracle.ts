@@ -144,8 +144,11 @@ export function compactTile(
     const slot = start[slice];
     room[slice] = 0;
     if (total[slice] <= layout.tileLights) continue;
-    const at = pool.head;
-    pool.head += total[slice];
+    let at = 0xffffffff;
+    if (pool.head < 0x80000000) {
+      at = pool.head;
+      pool.head += total[slice];
+    }
     let first = layout.noSlice;
     if (at < pool.capacity && total[slice] <= pool.capacity - at) {
       first = layout.stride + at;
