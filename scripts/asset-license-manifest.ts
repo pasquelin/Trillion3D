@@ -1,3 +1,5 @@
+import { posix } from 'node:path';
+
 /** Versioned declarations and evidence references; these are assertions, not legal verdicts. */
 const USAGES = ['internal', 'embedded-product', 'public-demo', 'raw-distribution'] as const;
 const EVIDENCE = ['terms', 'acquisition', 'redistribution', 'attribution', 'changes'] as const;
@@ -39,9 +41,10 @@ export function parseAssetManifest(value: unknown): Asset[] {
       if (!member(EVIDENCE, key) || !object(ref) || !text(ref.path) || !hash(ref.sha256))
         return fail();
     const asset = entry as Asset;
-    if (ids.has(asset.id) || paths.has(asset.path)) return fail();
+    const path = posix.normalize(asset.path);
+    if (ids.has(asset.id) || paths.has(path)) return fail();
     ids.add(asset.id);
-    paths.add(asset.path);
+    paths.add(path);
     return asset;
   });
 }
