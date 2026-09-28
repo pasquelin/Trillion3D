@@ -14,6 +14,7 @@ import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts';
 import type { PartitionCells } from '../../scene/partition/cells.ts';
 import { cellReach } from '../../scene/partition/plan.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
+import { growsInPlaceOf } from '../../placement/backendSceneUpdates.ts';
 
 type Streamer = ReturnType<typeof createPageStreamer>;
 
@@ -87,13 +88,16 @@ export function createPartitionFrame(inputs: Inputs) {
   };
   const step = () => {
     const backend = active();
-    const io = {
+    const io: Parameters<PartitionCells['frame']>[2] = {
       bytes: (url: string) => streamer.getBytes(url),
       loading: (url: string) => streamer.loading(url),
       request,
       update: (...range: Parameters<NonNullable<RenderBackend['updatePlacements']>>) =>
         backend.updatePlacements?.(...range),
-      grow: backend.growPlacements?.bind(backend),
+      grow: backend.growPlacements && {
+        growPlacements: backend.growPlacements.bind(backend),
+        growsInPlace: (from, capacity) => growsInPlaceOf(backend, from, capacity),
+      },
       outgrown: renew,
     };
     const { eye, reach } = viewOf(camera);
