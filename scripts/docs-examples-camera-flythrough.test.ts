@@ -39,19 +39,13 @@ test('recorded fly-through replays, stops, yields to the viewer and disposes', a
     scene,
     canvas,
     camera: new Camera('perspective'),
-    controls: {
-      target: new Vector3(),
-      update() {},
-      minDistance: 0,
-      maxDistance: 0,
-      maxPolarAngle: 0,
-    },
+    controls: { target: new Vector3(), update() {} },
     onFrame: (hook: (frame: { delta: number }) => void) => (
       hooks.add(hook),
       () => hooks.delete(hook)
     ),
     invalidate() {},
-    dispose: () => (hooks.clear(), void (disposed = true)),
+    dispose: () => void (disposed = true),
   };
   const frame = (count = 1) => {
     for (let at = 0; at < count; at++) for (const hook of [...hooks]) hook({ delta: 0.05 });
@@ -92,7 +86,7 @@ test('recorded fly-through replays, stops, yields to the viewer and disposes', a
 
   pagehide();
   assert.ok(disposed);
-  assert.equal(hooks.size, 0);
+  assert.equal(hooks.size, 1, 'the tour unhooks; only the readout hook, gone with the world, stays');
   assert.equal(listeners.get('pointerdown')?.size, 0);
   assert.equal(listeners.get('wheel')?.size, 0);
 });
