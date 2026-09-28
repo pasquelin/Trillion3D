@@ -80,7 +80,7 @@ export async function fakePhysicsWorld() {
 export async function launchedWorker(
   clock: () => number,
   threads = 1,
-  answer = (bytes: Uint8Array) => new Response(bytes),
+  answer = (bytes: Buffer<ArrayBuffer>) => new Response(bytes),
 ) {
   Object.defineProperty(performance, 'now', { value: clock, configurable: true });
   const scope = globalThis as unknown as Record<string, unknown>;
