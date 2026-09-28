@@ -156,8 +156,8 @@ volume) is composed after it by one fullscreen pass on a frozen copy of the lit 
 opaque depth; its rank and opacity borrow the display target, which only the final composition
 writes after it, so the surface flags temporal antialiasing and composition read stay the opaque ones
 at no extra target. Those two read the flags only for the as-is share of a normal or depth surface:
-until a row shows one, or under a diagnostic view, they run flagless variants compiled beside the
-others and bind no flags. ACES and sRGB conversion happen at final composition, which writes the display value
+until a row shows one, and outside a diagnostic view, they run flagless variants, compiled beside
+the others, that bind no flags. ACES and sRGB conversion happen at final composition, which writes the display value
 to the capture target and the canvas in one pass.
 
 The reconstruction runs one pass per **material class**, the published visibility-buffer design,
