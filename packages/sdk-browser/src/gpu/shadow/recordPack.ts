@@ -20,8 +20,8 @@ export const MAX_SHADOW_REGIONS = 2 * MAX_SHADOW_PAGES;
  *  clip square the page quads read (`writePage`). */
 export const SHADOW_FACE_READ_WORDS = 24,
   SHADOW_FACE_READ_BYTES = SHADOW_FACE_READ_WORDS * 4;
-/** Word of a face entry holding the emitter envelope's radius, `emitter.w`. */
-const FACE_EMITTER_RADIUS = 23;
+/** First word of a face entry's emitter envelope, `emitter`: its centre, then its radius. */
+const FACE_EMITTER = 20;
 
 /**
  * Host mirrors of the two shadow buffers the frame writes — the drawn pages' matrices, read by
@@ -76,10 +76,10 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
       facePacked[uniform + 17] = y / size;
       facePacked[uniform + 18] = SHADOW_PAGE / size;
       facePacked[uniform + 19] = SHADOW_PAGE;
-      facePacked[uniform + 20] = center ? center[0] : 0;
-      facePacked[uniform + 21] = center ? center[1] : 0;
-      facePacked[uniform + 22] = center ? center[2] : 0;
-      facePacked[uniform + FACE_EMITTER_RADIUS] = center ? radius : 0;
+      facePacked[uniform + FACE_EMITTER] = center ? center[0] : 0;
+      facePacked[uniform + FACE_EMITTER + 1] = center ? center[1] : 0;
+      facePacked[uniform + FACE_EMITTER + 2] = center ? center[2] : 0;
+      facePacked[uniform + FACE_EMITTER + 3] = center ? radius : 0;
       // Its clip square in the whole atlas's: `xy * s + o`, what the page draws read.
       const rect = uniform + SHADOW_FACE_READ_WORDS;
       facePacked[rect] = (2 * x + SHADOW_PAGE) / size - 1;
@@ -87,7 +87,7 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
       facePacked[rect + 2] = facePacked[rect + 3] = SHADOW_PAGE / size;
     },
     /** True when region `index` carries an emitter envelope: a radius the depth pass strips. */
-    hasEnvelope: (index: number) => facePacked[(index * faceStride) / 4 + FACE_EMITTER_RADIUS] > 0,
+    hasEnvelope: (index: number) => facePacked[(index * faceStride) / 4 + FACE_EMITTER + 3] > 0,
     /** A lamp's record: its face matrices, face count, tangent half-field, near plane, table base. */
     writeLamp(
       slice: number,

@@ -98,7 +98,7 @@ export function createShadowMobility() {
           blended = row >= alwaysMoving,
           moves = blended || (placement >= 0 && moving[placement] === 1),
           word = (moves ? MOBILITY_MOVING : 0) | (!blended && cutout(row) ? MOBILITY_CUTOUT : 0);
-        cutouts += (word >> 1) - (rows[row] >> 1);
+        cutouts += +((word & MOBILITY_CUTOUT) !== 0) - +((rows[row] & MOBILITY_CUTOUT) !== 0);
         rows[row] = word;
       }
       push(from, last - from + 1);

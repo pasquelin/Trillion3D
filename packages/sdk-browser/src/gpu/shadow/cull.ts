@@ -92,9 +92,9 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     // starts down (#965) —, and its draw slot: set once.
     const offsetWords = new Uint32Array(MAX_SHADOW_REGIONS + 1);
     const drawWords = new Uint32Array(MAX_SHADOW_REGIONS * DRAW_UNIFORM_WORDS);
-    offsetWords[MAX_SHADOW_REGIONS] = MAX_SHADOW_REGIONS * capacity;
-    for (let region = 0; region < MAX_SHADOW_REGIONS; region++) {
+    for (let region = 0; region <= MAX_SHADOW_REGIONS; region++)
       offsetWords[region] = region * capacity;
+    for (let region = 0; region < MAX_SHADOW_REGIONS; region++) {
       drawWords[region * DRAW_UNIFORM_WORDS + WORD_DRAW_SLOT] = region;
       drawWords[region * DRAW_UNIFORM_WORDS + WORD_INDIRECT] = 1;
     }
