@@ -26,6 +26,9 @@ export interface HostWorldPlacements {
   /** Recomputes the index from the host's local poses. Every pose already handed out reads the
    *  result: they are views on it. */
   refresh(): void;
+  /** The same pass on the subtree of `node` alone, exact while the host wrote no pose outside it
+   *  (`tree.ts`, `refreshFrom`). */
+  refreshFrom(node: Object3D): void;
 }
 
 /**
@@ -59,6 +62,10 @@ export function hostWorldPlacements(source: Object3D): HostWorldPlacements {
     },
     refresh() {
       tree.refresh();
+      assertStable(tree);
+    },
+    refreshFrom(node) {
+      tree.refreshFrom(node);
       assertStable(tree);
     },
   };

@@ -83,9 +83,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   );
   /**
    * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the
-   * host's page reader at the address the manifest gives it, or — for a transparent cluster and
-   * for a cache that carries no geometry page — the index page the arrival already left in
-   * memory. The slot is written from one of the two, never from both.
+   * host's page reader at the address the manifest gives it, or — for a cache that carries no
+   * geometry page — the index page the arrival already left in memory. The slot is written from
+   * one of the two, never from both.
    */
   const read = async (key: string) => {
     const geometryUrl = geometryUrls.get(key);
@@ -158,7 +158,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceDiagnostic: diag.traceDiagnostic,
     // A camera cut the pool does not hold whole leaves the lower tiers nothing.
     lowerTiers: () => lowerTiers,
-    prefetch: readGeometryAhead(geometryUrls, context.readGeometryPage),
+    prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
   });
   const residency = createWebgpuResidencyQueue({
     tracking,

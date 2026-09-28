@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   clusterErrorPixels,
-  dot,
+  dotVector3,
   coneRejects,
   exclusiveScan,
   compact,
@@ -23,7 +23,7 @@ function createSeededRandom(seed: number) {
 test('wide cone must not reject a visible normal', () => {
   const angle = (2 * Math.PI) / 3;
   const normal = [Math.sqrt(3) / 2, 0, -0.5];
-  assert.ok(dot(normal, [0, 0, -1]) > 0);
+  assert.ok(dotVector3(normal, [0, 0, -1]) > 0);
   assert.ok(-1 < -Math.sin(angle));
   assert.equal(coneRejects(-1, angle), false);
 });

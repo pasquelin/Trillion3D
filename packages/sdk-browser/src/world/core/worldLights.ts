@@ -6,6 +6,7 @@ import {
   lampRecord,
 } from '../../../../sdk-core/src/world/light/lightRecord.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { isLightNode } from '../../host/graph/kinds.ts';
 import { emptyIrradiance, type SceneLight } from '../../../../sdk-core/src/index.ts';
 import { sameSceneLight } from '../../../../sdk-core/src/scene/light/equal.ts';
 
@@ -18,11 +19,9 @@ type LightApi = {
 
 const eye = new Vector3();
 
-export const isLight = (node: Object3D) => (node as { isLight?: boolean }).isLight === true;
-
 /** True when `node` is a light or one hangs under it: moving the node moves the light. */
 export function lightsUnder(node: Object3D): boolean {
-  return isLight(node) || node.children.some(lightsUnder);
+  return isLightNode(node) || node.children.some(lightsUnder);
 }
 
 /** The same optional members, so a patch of `next` over `last` leaves none of `last`'s behind. */
@@ -78,10 +77,10 @@ export function createWorldLights() {
       // hidden one is still held, so showing it again relights.
       const visit = (node: Object3D, shown: boolean) => {
         shown &&= node.visible;
-        if (isLight(node)) {
+        if (isLightNode(node)) {
           held++;
-          if (shown) lights.add(node as Light);
-          if (shown && addLightIrradiance(node as Light, sh)) surrounding = true;
+          if (shown) lights.add(node);
+          if (shown && addLightIrradiance(node, sh)) surrounding = true;
         }
         for (const child of node.children) visit(child, shown);
       };

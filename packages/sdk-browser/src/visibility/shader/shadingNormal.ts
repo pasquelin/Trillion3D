@@ -12,6 +12,7 @@ import {
 } from '../../../../sdk-core/src/index.ts';
 import { attr2, sampleLinear, triangleAt } from '../math.ts';
 import type { VisMaterial, VisPage } from '../types.ts';
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 const normalScratch = new Float64Array(9);
 const frameNormals = [new Float64Array(3), new Float64Array(3), new Float64Array(3)];
@@ -97,7 +98,7 @@ export function shadingNormal(
       Nz *= face;
     }
   } else {
-    const length = Math.hypot(Nx, Ny, Nz) || 1;
+    const length = hypot3(Nx, Ny, Nz) || 1;
     Nx *= screenFace / length;
     Ny *= screenFace / length;
     Nz *= screenFace / length;

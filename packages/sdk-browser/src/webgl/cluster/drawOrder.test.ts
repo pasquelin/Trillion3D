@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createDrawOrder, type OrderedNode } from './drawOrder.ts';
 import { depthOf } from './meshDepth.ts';
-import { serialOf } from '../../host/graph/serial.ts';
+import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
+import { IDENTITY_ELEMENTS } from '../../math/matrixElements.ts';
 
 /** The screen the depths are read through: the identity, so a node's depth is its centre's z
  *  over its matrix's w (`node` below). */
-const SCREEN = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+const SCREEN = IDENTITY_ELEMENTS;
 const EDGES = [NaN, 0, -0, Infinity, -Infinity, 1e308, -1e308, 5e-324];
 
 /** A test's node: its own bounding sphere, which its depth reads first, and maybe a number. */
@@ -14,6 +15,9 @@ type Node = OrderedNode & {
   readonly boundingSphere: { readonly center: { x: number; y: number; z: number } };
   readonly serial?: number;
 };
+
+/** A test node's creation number: its own, the engine's side table holding none of these. */
+const serialOfNode = (n: OrderedNode) => (n as Node).serial;
 
 /** A node whose depth is `z / w` (`w` = ±1 gives ±0 from a zero `z`). */
 function node(z: number, w: number, renderOrder: number, material: object, serial?: number): Node {
@@ -37,7 +41,7 @@ function frozenOrder() {
   };
   const depths = new Map<Node, number>();
   const depth = (n: Node) => depths.get(n)!;
-  const made = (n: Node) => serialOf(n) ?? 0;
+  const made = (n: Node) => serialOfNode(n) ?? 0;
   const frontToBack = (a: Node, b: Node) =>
     a.renderOrder - b.renderOrder ||
     rankOf(a) - rankOf(b) ||
@@ -51,16 +55,6 @@ function frozenOrder() {
     for (const n of seeThrough) depths.set(n, depthOf(n, screen));
     opaque.sort(frontToBack);
     seeThrough.sort(backToFront);
-  };
-}
-
-/** A seeded generator (mulberry32): the same lists at every run. */
-function random(seed: number) {
-  return () => {
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
@@ -87,7 +81,7 @@ const firstDifference = (actual: readonly Node[], expected: readonly Node[]) =>
 /** Sorts the same frames with both orders, the surfaces growing between frames, and compares. */
 function compare(seed: number, sizes: readonly number[], edges: boolean) {
   const next = random(seed),
-    flat = createDrawOrder(),
+    flat = createDrawOrder(serialOfNode),
     frozen = frozenOrder(),
     surfaces: object[] = [];
   for (const size of sizes) {
@@ -122,7 +116,7 @@ test('a -0 depth sorts as the node comparators sort it', () => {
   const lists = [zero, negativeZero],
     expected = lists.slice();
   frozenOrder()(expected, [], SCREEN);
-  createDrawOrder()(lists, [], SCREEN);
+  createDrawOrder(serialOfNode)(lists, [], SCREEN);
   assert.deepEqual(lists, expected);
   assert.deepEqual(lists, [negativeZero, zero], 'equal depths: the creation number decides');
 });

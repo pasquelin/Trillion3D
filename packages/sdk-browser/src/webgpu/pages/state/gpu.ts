@@ -25,7 +25,7 @@ export interface WebgpuGpuState {
   pipelineBack: GPURenderPipeline | undefined;
   pipelineBackCw: GPURenderPipeline | undefined;
   pipelineNone: GPURenderPipeline | undefined;
-  pipelineBlend: ModePipelines<GPURenderPipeline> | undefined;
+  pipelineBlend: ModePipelines | undefined;
   colorTexture: GPUTexture | undefined;
   depthTexture: GPUTexture | undefined;
   colorView: GPUTextureView | undefined;
@@ -94,13 +94,16 @@ export interface WebgpuGpuState {
   particles: WebgpuParticles | undefined;
 }
 
-/** The frozen colour the water composite rereads, and the depth its surface stage tests and
- *  writes, with their views (`../../transparent/transmission.ts`). */
+/** The frozen colour the water composite rereads, the depth its surface stage tests and writes,
+ *  and the word (rank, opacity) that stage writes, with their views
+ *  (`../../transparent/transmission.ts`). */
 export interface TransmissionBackdrop {
   color: GPUTexture;
   colorView: GPUTextureView;
   waterDepth: GPUTexture;
   waterDepthView: GPUTextureView;
+  waterWord: GPUTexture;
+  waterWordView: GPUTextureView;
   /** True when the copies are at the target size and the copy is worth it. */
   active: boolean;
 }

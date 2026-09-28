@@ -11,7 +11,9 @@ export const LEVEL_BIN_BYTES = 1024;
  * level's medians from the one above — in its level's 256 bins, through a workgroup's own 256;
  * `choose` then picks that level's `t`, one thread, and leaves it in bin 0, which it never reads
  * (`t >= 1`). `level`: the source's extent, `C`, `t`, then level
- * 0's extent and the level.
+ * 0's extent and the level. A texel's square reads its neighbours' alphas: the workgroup reads its
+ * 9×9 alphas once into its own memory, not four times each (OMB-29, #961) — the same alphas,
+ * clamped at the edge as before, so the same bins.
  */
 export const COVERAGE_WGSL = `
  @group(0) @binding(0) var source:texture_2d<f32>;
@@ -31,11 +33,14 @@ export const COVERAGE_WGSL = `
    textureLoad(source,min(s+vec2i(0,1),hi),0).w,textureLoad(source,min(s+vec2i(1,1),hi),0).w));
  }
  var<workgroup> tally:array<atomic<u32>,256>;
- @compute @workgroup_size(8,8) fn count(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) i:u32){
-  let k=level.base.z;
+ var<workgroup> alphas:array<u32,81>;
+ @compute @workgroup_size(8,8) fn count(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) i:u32,@builtin(workgroup_id) g:vec3u){
+  let k=level.base.z;let o=g.xy*8u;
+  for(var j=i;j<81u;j+=64u){alphas[j]=alphaAt(o+vec2u(j%9u,j/9u));}
+  workgroupBarrier();
   if(all(id.xy<sizeOf(k))){
-   let q=id.xy;
-   let a=vec4u(alphaAt(q),alphaAt(q+vec2u(1u,0u)),alphaAt(q+vec2u(0u,1u)),alphaAt(q+vec2u(1u,1u)));
+   let j=(id.y-o.y)*9u+id.x-o.x;
+   let a=vec4u(alphas[j],alphas[j+1u],alphas[j+9u],alphas[j+10u]);
    for(var s=0u;s<4u;s++){atomicAdd(&tally[cutBin(a,s,level.extent.z)],1u);}
   }
   // Foliage lands nearly every texel in two bins: the workgroup counts apart, then adds its own
@@ -78,12 +83,13 @@ function coverageProgram(device: GPUDevice): CoverageProgram {
 }
 
 /** What a chain's counts read: its size, its levels' views, the uniform blocks of
- *  `generateMaterialMips`, one per level, and the device's bins, cleared. */
+ *  `generateMaterialMips`, one per level from block `first`, and the device's bins, cleared. */
 export type CoverageChain = {
   width: number;
   height: number;
   views: GPUTextureView[];
   uniforms: GPUBuffer;
+  first: number;
   stride: number;
   bins: GPUBuffer;
 };
@@ -97,13 +103,13 @@ export function countCoverage(
   level: number,
 ) {
   const { layout, count, pick } = coverageProgram(sharedGpuDevice(device));
-  const { width, height, views, uniforms, stride, bins } = chain;
+  const { width, height, views, uniforms, first, stride, bins } = chain;
   const group = (block: number, source: number) =>
     device.createBindGroup({
       layout,
       entries: [
         { binding: 0, resource: views[source] },
-        { binding: 1, resource: { buffer: uniforms, offset: block * stride, size: 32 } },
+        { binding: 1, resource: { buffer: uniforms, offset: (first + block) * stride, size: 32 } },
         { binding: 2, resource: { buffer: bins } },
       ],
     });
@@ -121,5 +127,11 @@ export function countCoverage(
   pass.dispatchWorkgroups(1);
   pass.end();
   // `t` lands in the block's fourth word, the `extent.w` its reduction scales by.
-  encoder.copyBufferToBuffer(bins, level * LEVEL_BIN_BYTES, uniforms, level * stride + 12, 4);
+  encoder.copyBufferToBuffer(
+    bins,
+    level * LEVEL_BIN_BYTES,
+    uniforms,
+    (first + level) * stride + 12,
+    4,
+  );
 }

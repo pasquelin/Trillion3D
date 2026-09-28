@@ -62,7 +62,7 @@ fn setupTriangle(pageIndex:u32,triangle:u32,vp:mat4x4f,det:f32)->Tri{
  if(uni.selectionEnabled!=0u&&selectionMask[uni.selectionOffset+page.selectionIndex]==0u){return t;}
  if(triangle*3u+2u>=page.indexCount){return t;}
  let h=pageHeader(page);
- let ia=pageCorner(page,h,triangle*3u);let ib=pageCorner(page,h,triangle*3u+1u);let ic=pageCorner(page,h,triangle*3u+2u);
+ let corners=pageTriangle(page,h,triangle);let ia=corners.x;let ib=corners.y;let ic=corners.z;
  let ca=pageClip(vp,page,h,ia);let cb=pageClip(vp,page,h,ib);let cc=pageClip(vp,page,h,ic);
  if(!computeTakes(ca,cb,cc)){return t;}
  // Only a mask material clips in the raster: it alone pays the read of its three UVs and of the

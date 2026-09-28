@@ -81,6 +81,32 @@ test('a decorative body retired asleep breaks its joints at once, told once, wri
   }
 });
 
+test('a diverged body the worker takes out breaks its joints at once; a refused one only leaves', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  for (const code of ['PHYSICS_DIVERGED', 'PHYSICS_FAILED']) {
+    const { scene, physics, worker, restore } = await fakePhysicsWorld();
+    try {
+      const crate = new Mesh(box(), new Material('meshStandard'));
+      crate.physics = 'dynamic';
+      scene.add(crate);
+      const pin = joint.hinge(crate, null);
+      let told = 0;
+      pin.on('break', () => told++);
+      physics.handle.add(pin);
+      physics.frame();
+      const bodies = [crate.physics!._index | (1 << GENERATION_SHIFT)];
+      worker.onmessage({ data: { type: 'error', code, message: '', fatal: false, bodies } });
+      assert.equal(crate.physics!._index, -1, `${code}: retired`);
+      assert.equal(physics.handle.error?.code, code);
+      const diverged = code === 'PHYSICS_DIVERGED';
+      assert.ok(pin.broken === diverged && told === +diverged, `${code}: broken, told once`);
+      physics.dispose();
+    } finally {
+      restore();
+    }
+  }
+});
+
 test('a physics set anew before the asleep tick arrives keeps the joints added on it', async () => {
   const { scene, physics, worker, restore } = await fakePhysicsWorld();
   try {

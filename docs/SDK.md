@@ -69,7 +69,8 @@ Resolvers that ignore `browser` therefore receive the safe common facade instead
 `api-inventory.json` is generated with the TypeScript checker. It follows aliases and transitive
 star exports, records binding identity and lists every current entry point. It also records the
 documented source-path imports that the facade newly exposes. Experimental comparison and oracle
-bindings stay classified as experimental.
+bindings stay classified as experimental. The former N-dimensional `dot` is removed from the
+exports: write `dotVector3`, the one dot product, on three components.
 
 Measured with esbuild 0.25.12 (ESM, browser platform, minification and tree shaking), a consumer
 importing only `hierarchyUpdateBatch` weighs 1,780 bytes from the common facade and 3,289 bytes from
@@ -118,11 +119,26 @@ reads adds to `completed`, whatever the server says of its length or compression
 dropped, has `completed === total`; a manifest that declares no file is heard once, whole, at the end. Between them come `{ phase: 'manifest' }` once the manifest is read,
 `{ phase: 'tables' }` once the scene tables are, then `{ phase: 'resources', completed, total }`
 as each file the scene reads lands. The first pages follow the load:
-`await world.awaitPages({ onProgress })` settles once the pages the view reads are resident, and
-reports `{ phase: 'pages', completed, total }` as each one it lacked lands (`total` counts each
-page once), the last event with
+`await world.awaitPages({ onProgress })` settles once the pages the view reads are resident. It
+reports `{ phase: 'session' }` first, while the session that draws the view opens, then
+`{ phase: 'pages', completed, total }`: `total` counts each page the view reads once — those the
+engine already holds, since the frames drawn before the wait may have read them all, and every page
+read for the view while the wait runs (a prefetch aside), whether the host reads it for the cut or the WebGPU engine for its own
+residency —, `completed` those resident, rising as each lands; the last event has
 `completed === total`. One callback given to both drives a progress bar from the first byte to
 the first pages (example `watch-a-world-load`).
+
+A model's vertices stay on the server until something reads them: `scene.load` reads no vertex
+buffer (`source.bin`), the pages draw the model. The buffer is read once, on the first need: a
+cluster no geometry page covers, a see-through copy drawn whole, a witness renderer. A page that
+reads a loaded mesh's vertices itself awaits `geometry.loadVertices()` first; before it, `array`,
+`getX` and every synchronous read of them throw `VERTICES_NOT_LOADED`, never an empty array.
+`count` is known at once.
+
+```ts
+await geometry.loadVertices(); // reads the model's buffer once, whichever mesh asks first
+const x = geometry.attributes.position.getX(0);
+```
 
 A host that probes a cache before opening it — to enable a button, to tell a user to recompile —
 calls `assertCachePointer(pointer, scope)` and `assertCacheRoot(root, scope)` on the pointer and on
@@ -144,8 +160,10 @@ reason. What still fails is `RESOURCE_HTTP_ERROR`, the address in its message an
 the status in `details.status` (`null` for the network). A file a cache may lack — `lights.json` and
 `physics.json`, of a model compiled before them — is absent on a 404, or on the 403 of a store that
 hides what it does not hold. A page read (`httpPageSource`) raises `RESOURCE_HTTP_ERROR` where it
-raised `Error('PAGE_HTTP_<status>')`, and a cooked tile or a soft body's settings where they raised
-`PHYSICS_FAILED`.
+raised `Error('PAGE_HTTP_<status>')`; a cooked tile, a soft body's settings and the physics
+module (`joltPhysics.wasm`) where they raised `PHYSICS_FAILED`, which is kept for the simulation's
+own failures. The page codec module (`pageCodec.wasm`) is read the same way; one it cannot read
+still leaves the JavaScript decoder to decode the pages.
 
 ## API rule
 
@@ -243,6 +261,8 @@ const bob = animation.clip('bob', 2, [
   animation.vectorTrack('.position', [0, 1, 2], [0, 1, 0, 0, 2, 0, 0, 1, 0]),
 ]);
 mixer.play(bob);
+// poses the clip at 0.5 s now, playing or not (a stopped action keeps it until a playing one writes over it)
+mixer.clipAction(bob).seek(0.5);
 ```
 
 ```js
@@ -507,7 +527,10 @@ world units whatever its length. A canvas point is read on the CSS box and aimed
 frame is drawn at, the drawing buffer's. `{ objects }` limits the test to some
 subtrees; a canvas with no size refuses a point with `RAYCAST_NO_VIEW`. `raycast(roots, ray)` is
 the same test on any subtree, every hit nearest first, and `camera.rayThrough(x, y, aspect)` the
-ray through a point of the picture. A mesh's triangle tree is kept for the next ray, within
+ray through a point of the picture. An orthographic camera made with `fitAspect: true` keeps its
+box's height and centre and takes its width from the canvas's shape, in the frame drawn and in its
+rays alike, so a resized canvas never stretches the drawing; off by default, a declared or imported
+box is drawn as it is. A mesh's triangle tree is kept for the next ray, within
 `world.budget.raycastTrees` bytes (64 MiB by default, settable, shared by every world on the
 page): past it the tree cast at least
 recently is dropped, and `geometry.dispose()` drops its own at once. Live example:
@@ -710,11 +733,15 @@ one hierarchy that holds none of them: a dropped object frees its slot when it i
 
 The engine's graph is built of the same classes: a bare node is an `Object3D`, a group a `Group`,
 a drawn node a `Mesh` (or the core's instanced mesh) wearing the engine's surfaces, its root a
-`Scene` and its eye a `Camera`, and every function of the browser facade that takes or returns a
-node of that graph names `Object3D`. `GraphNode` is abstract: it is only the base of the light
-classes the engine builds, which add a `kind` and a creation number; the engine numbers the
-scenes, cameras and meshes it builds in the same count, beside them, so a node a page builds
-carries none. A `Scene` built with no loader, as the engine builds its own, refuses `load`
+`Scene`, its eye a `Camera` and its lights `Light`s — a `rectArea` for a rectangle, a `probe`
+carrying its 27 coefficients in `sh` — and every function of the browser facade that takes or
+returns a node of that graph names `Object3D`. The engine numbers the scenes, cameras, meshes and
+lights it builds in one count, kept beside them, so a node a page builds carries none. A light
+hears its colours and its target only while it is in a world. The former light base `GraphNode`
+and its `GraphNodeKind` are removed from the exports: write `Light` and read its `kind`. The WebGL2
+cluster path draws the directional, point, spot, rectangle, ambient and probe lights, and refuses a
+`hemisphere` light by name: a world hands it the sky over a ground as the environment's
+irradiance. A `Scene` built with no loader, as the engine builds its own, refuses `load`
 (`UNSUPPORTED_SCENE_UPDATE`); its `onBeforeRender` and `onAfterRender`, none by default, are
 called around each draw of it. A `Camera` gives the projection its optics compose in the
 reference's convention, finite far plane, as `projectionMatrix`, made at its first read and
@@ -749,8 +776,9 @@ The engine draws a world's `Geometry` itself. Its `attributes` hold any `VertexA
 `morphAttributes` lists one attribute per morph target for each morphed attribute, and
 `morphTargetsRelative` says that the targets hold displacements. `drawRange`, `name`, `userData`
 and `kind` (`'geometry'`) complete it. `computeBoundingBox()` and `computeBoundingSphere()` span
-every vertex and every shape a morph target gives it. A position that owns its list is read, drawn
-and moved as its stored numbers, as before; an interleaved one as the value it stands for. The sphere is
+every vertex and every shape a morph target gives it. A position is read, drawn, edged, moved and
+given normals at the value it stands for: a normalised integer is scaled back, and a position two
+numbers wide lies in the plane z = 0. The sphere is
 centred on the box and reaches the farthest vertex. Setting an attribute other than `position`, the
 index or a group keeps the bounds. `clone()` copies every list, morph target, group, range, data,
 bound and recipe. `toNonIndexed()` gives every corner a vertex of its own. `dispose()` runs each
@@ -1115,7 +1143,7 @@ says the pool is too small for that view). A value that cannot be held as given 
 
 The texture pool's floor, `minimum`, holds every tail (one tile per texture, 900 a layer), as the
 geometry pool holds the root cover, and one tile more to stream into when the lane streams: a lane
-whose tails fill whole layers pays one layer more (63.5 MiB lossless, a quarter of that in a block
+whose tails fill whole layers pays one layer more (64 MiB lossless, a quarter of that in a block
 lane) rather than stay at its tails. A budget under the floor is raised to it; a shrink never
 displaces a tail.
 
@@ -1230,7 +1258,9 @@ crate.physics.on('contact', ({ other, impulse }) => console.log(other?.name, imp
   enabled; bodies set before then are queued.
 - **World.** `world.physics.enabled`, `gravity` (a live vector, or `'earth'`, `'moon'`, `'mars'`,
   `'none'`), `paused`, `timeScale` (0.25 is slow motion, 0 stands still; a negative or infinite
-  scale throws `RangeError`), `stats` and `error`. `world.physics.water = { level, waves, density,
+  scale throws `RangeError`), `simulationRange` (metres around the camera within which bodies
+  are simulated; `null`, the default, follows `camera.far`; anything but `null` or a finite
+  distance above 0 throws `RangeError`), `stats` and `error`. `world.physics.water = { level, waves, density,
 linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in: each step, the
   worker fits a plane of the waves to every piece under water and pushes it by the weight of the
   water it displaces, so a body lighter than the water floats; the drags set how fast it settles,
@@ -1240,7 +1270,7 @@ linearDrag, angularDrag, current }` (or `null`) is the water the bodies float in
   `normal(x, z, out)`, and `wavesNow()`, the waves with their phases carried, so water set again
   goes on from where it is. Its example, floating crates, waits for geometry written every frame
   to be uploaded in place (#573).
-  `createWorld(canvas, { physics: { gravity, budget } })` sets them at creation.
+  `createWorld(canvas, { physics: { gravity, budget, simulationRange } })` sets them at creation.
 - **Bodies.** `mesh.physics = 'static' | 'dynamic' | 'kinematic'` or options `{ type, mass, shape,
 gravityScale, sensor, ccd, decorative, friction, restitution, damping }`. The shape is read from the
   geometry: a box, sphere, capsule or cylinder is that exact primitive (scaled); any other mesh is
@@ -1353,7 +1383,12 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   direct child of the scene; moved by the page, it is carried there with its vertices, its
   simulation kept; placed at another scale than it was made at, it is refused with
   `PHYSICS_FAILED` and leaves the simulation until it is back at that scale (Jolt scales no soft
-  body once made), as a compiled model's cooked one does; hidden, its vertices are not sent. It takes no velocity, impulse, joint or
+  body once made), as a compiled model's cooked one does; hidden, its vertices are not sent. A
+  pinned cloth that never stretches (`stretch` 0) keeps each free vertex within its rest distance
+  of the nearest pin (Jolt's long range attachments), so a large one never stretches without end;
+  one given stretch keeps its give. A body, soft or rigid, whose
+  vertices or pose go non-finite sends none of them: it keeps its last finite one on screen and
+  leaves the simulation with `PHYSICS_DIVERGED` (the mesh named). It takes no velocity, impulse, joint or
   vehicle. Rigid bodies and the character collide with its vertices: the
   character is turned aside or stopped, never pushing it; a rigid body much heavier than the skin
   it lands on can push between its vertices; soft bodies pass through each other (Jolt collides
@@ -1366,8 +1401,9 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   in place (#573).
 - **Stillness.** A body that sleeps sends nothing: once every body sleeps, the worker stops
   ticking and the world draws no frame.
-- **Distance and view.** Beyond the camera's draw distance (`camera.far`), a body is frozen with its
-  velocities kept, and thaws when it returns. Out of view, or hidden, it sends no pose and keeps
+- **Distance and view.** Beyond the simulation range (`world.physics.simulationRange`, else the
+  camera's draw distance `camera.far`), a body is frozen with its velocities kept, and thaws when
+  it returns. Out of view, or hidden, it sends no pose and keeps
   falling; the pose it has when it falls asleep is sent all the same. `decorative` bodies meet the
   static world only, are simulated only in range and in view, and leave the simulation once asleep:
   their mesh stays where it came to rest (set `physics` again to simulate it anew), and their
@@ -1377,18 +1413,23 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   collision, a static triangle mesh past it refused naming `memoryBytes`), body pairs
   and contacts per step, contact events per step, and threads (Jolt's thread pool, the worker's
   included, when the page is cross-origin isolated; never more than the logical cores minus the
-  page's own; one elsewhere). The defaults are `DEFAULT_PHYSICS_BUDGET`; a key that is no budget (the removed `triangles`) is refused by name, `PHYSICS_BUDGET` from `createWorld`, a `TypeError` when added to `world.budget.physics`. A request past one is
+  page's own; one elsewhere; the worker times its steps and splits them over fewer threads while
+  more only contend, and Jolt computes the same step on any count). The defaults are `DEFAULT_PHYSICS_BUDGET`; a key that is no budget (the removed `triangles`) is refused by name, `PHYSICS_BUDGET` from `createWorld`, a `TypeError` when added to `world.budget.physics`. A request past one is
   refused with `PHYSICS_BUDGET` on `world.physics.error`; a step that finds more pairs or contacts
   than its budget says so the same way, and an `enter` past the events budget is counted in
   `stats.droppedEvents` (its `leave` is then never sent). `softVertices` bounds the vertices of
-  every soft body at once (declared: four cloths of 64 × 64).
+  every soft body at once (default 16384, four cloths of 64 × 64). Each vertex is solved every
+  step, so the worker's step grows with them, linearly: the R&D audit measured 6.5–8.2 ms a step
+  at the default and 2.4–2.8 ms at 4096 (four of 32 × 32), natively on one thread (#975). A page
+  that needs fewer lowers it; a soft body past it is refused, `PHYSICS_BUDGET` naming
+  `softVertices`.
 - **Cost.** The `physics` CPU stage is the page's share (`stats.mainMs`); the worker's step is
   `stats.stepMs` (the mean of the last tick's steps) and `stats.stepMaxMs` (its slowest), on its
   own clock: the two are never added.
 - **Compiled models.** A model loaded with `scene.load()` collides with its own triangles once the
   physics is on: the compiler cooked them (`physics.json`, [FORMAT.md](FORMAT.md)) and the physics
   streams its tiles in, restored from Jolt's binary state, around every moving body and around the
-  eye up to `camera.far`, nearest first, within half of `budget.physics.memoryBytes`, and releases
+  eye up to the simulation range, nearest first, within half of `budget.physics.memoryBytes`, and releases
   them as they move away (a tile stays until half as far again as it came in). A scene is never
   refused for its size: a tile that does not fit waits, the farthest leaving for it. A file of another format or cooked by
   another Jolt is refused (`PHYSICS_FORMAT`); a model compiled before the cook collides nowhere.

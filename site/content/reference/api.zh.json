@@ -12,6 +12,7 @@
       "bindingOf": "`tr` 所写入的对象,只解析一次;在其目标不在根节点之下时为 null。",
       "play": "开始播放。",
       "stop": "停止,并回到起点。",
+      "seek": "无论是否在播放,都按循环方式立即把片段摆到 `time` 秒处的姿态:正在播放的动作从那里继续,已停止的动作保持该姿态,直到同一混合器中正在播放的动作将其覆盖。",
       "clipTime": "根据其循环模式,该动作在片段中所处的位置。"
     }
   },
@@ -377,7 +378,8 @@
       "p.left": "正交摄像机视野盒的左边界。",
       "p.right": "正交摄像机视野盒的右边界。",
       "p.top": "正交摄像机视野盒的上边界。",
-      "p.bottom": "正交摄像机视野盒的下边界。"
+      "p.bottom": "正交摄像机视野盒的下边界。",
+      "p.fitAspect": "正交相机保持其视框的高度和中心，宽度取自画面的形状，因此画布改变尺寸时绘图不会被拉伸。默认关闭。"
     },
     "members": {
       "isCamera": "始终为 `true`:用来把摄像机和其他任何对象区分开来。",
@@ -390,6 +392,7 @@
       "right": "正交视野盒的右边界。",
       "top": "正交视野盒的上边界。",
       "bottom": "正交视野盒的下边界。",
+      "fitAspect": "高度如声明、宽度随画面形状而定的正交视框。",
       "projection": "`'perspective'` 会让远处的物体变小;`'orthographic'` 则保持所有尺寸不变。",
       "copy": "取 `source` 的节点值，若为相机则取其光学参数；自身的 `projection` 保持不变。",
       "updateProjectionMatrix": "重新组成 `projectionMatrix`；每次写入光学参数都已这样做，并会重绘。",
@@ -430,7 +433,8 @@
       "left": "正交摄像机视野盒的左边界。",
       "right": "正交摄像机视野盒的右边界。",
       "top": "正交摄像机视野盒的上边界。",
-      "bottom": "正交摄像机视野盒的下边界。"
+      "bottom": "正交摄像机视野盒的下边界。",
+      "fitAspect": "正交相机保持其视框的高度和中心，宽度取自画面的形状，因此画布改变尺寸时绘图不会被拉伸。默认关闭。"
     }
   },
   "CameraPose-common": {
@@ -961,13 +965,15 @@
       "UNSUPPORTED_SCENE_UPDATE": "这条绘制路径无法对场景做出那种改动。",
       "BATCHED_WORLD_VIEW": "这条绘制路径无法对场景做出那种改动。",
       "RAYCAST_NO_VIEW": "向一个没有尺寸的 canvas 请求画面上的点：没有可以瞄准的画面。",
+      "VERTICES_NOT_LOADED": "已加载模型的顶点在 `await geometry.loadVertices()` 之前被读取：会话在首次需要时读取它们，从不预先读取。",
       "SESSION_OPEN_FAILED": "世界的会话无法打开，原因没有自己的代码（`world.diagnostic.error`）：抛出的错误在 `details.cause` 中。",
       "WEBGPU_LOST": "WebGPU 丢失了它的设备，或设备上的错误留下了无法再绘制的状态：由 `render`、`flush` 以及需要设备的读取抛出，由诊断 `gpu-device-lost` 以此命名，并在会话因此无法打开时出现在 `world.diagnostic.error` 上。",
       "UNSUPPORTED_SCENE_FORMAT": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
-      "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
-      "PHYSICS_NESTED": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
-      "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
+      "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
+      "PHYSICS_NESTED": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
+      "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
+      "PHYSICS_DIVERGED": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
       "PHYSICS_FORMAT": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
       "PHYSICS_OFF": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
       "NO_VEHICLE": "在 `world.controls.vehicle` 为 `null` 时把 `world.controls.kind` 设为了 `'vehicle'`：没有可驾驶的东西。",
@@ -1178,6 +1184,7 @@
       "rotateZ": "把每个顶点绕 z 轴旋转 `angle` 弧度。",
       "scale": "把每个顶点按 `(x, y, z)` 缩放。",
       "center": "移动这个几何体,使其包围盒以原点为中心。",
+      "loadVertices": "读取已加载网格的顶点，任何会话都不会预先获取它们；其他几何体立即完成。在此之前，读取它们（`array`、`getX`）会抛出 `VERTICES_NOT_LOADED`。",
       "clone": "一个新的几何体，带有每个列表、其组、范围、数据和边界的副本，以及仍能构建它的配方。",
       "dispose": "归还几何体：每个释放钩子只运行一次，忘记持有者和射线树；已释放的几何体没有人绘制，也没有射线命中。",
       "kind": "资源是什么，场景的读者据此区分资源。",
@@ -2095,7 +2102,6 @@
     "members": {
       "isObject3D": "始终为 `true`:用来标识场景节点。",
       "type": "节点的种类:`'Mesh'`、`'Group'`……",
-      "name": "用来查找该节点的名字。",
       "position": "该节点相对其父节点所在的位置。",
       "rotation": "该节点的旋转状态,以三个角度表示。",
       "quaternion": "该节点的旋转状态,以四元数表示。",
@@ -2181,6 +2187,7 @@
   "TransformNode": {
     "summary": "通过参考实现的矩阵读取的场景节点，保存在引擎的变换树中。",
     "members": {
+      "name": "用来查找该节点的名字。",
       "matrix": "局部矩阵,是该节点在变换树中所占槽位的一个视图。",
       "matrixWorld": "最近一次合成得到的世界矩阵(`updateMatrixWorld`),是变换树的一个视图。",
       "matrixAutoUpdate": "当 `matrix` 本身就是位姿、没有任何东西重新合成它时为 false。",
@@ -4616,7 +4623,8 @@
       "p.left": "正交摄像机视野盒的左边界。",
       "p.right": "正交摄像机视野盒的右边界。",
       "p.top": "正交摄像机视野盒的上边界。",
-      "p.bottom": "正交摄像机视野盒的下边界。"
+      "p.bottom": "正交摄像机视野盒的下边界。",
+      "p.fitAspect": "正交相机保持其视框的高度和中心，宽度取自画面的形状，因此画布改变尺寸时绘图不会被拉伸。默认关闭。"
     }
   },
   "camera.orthographic": {
@@ -4631,7 +4639,8 @@
       "p.left": "正交摄像机视野盒的左边界。",
       "p.right": "正交摄像机视野盒的右边界。",
       "p.top": "正交摄像机视野盒的上边界。",
-      "p.bottom": "正交摄像机视野盒的下边界。"
+      "p.bottom": "正交摄像机视野盒的下边界。",
+      "p.fitAspect": "正交相机保持其视框的高度和中心，宽度取自画面的形状，因此画布改变尺寸时绘图不会被拉伸。默认关闭。"
     }
   },
   "camera.cube": {
@@ -4945,9 +4954,6 @@
   },
   "disabledStageProfile": {
     "summary": "一个不保留任何数据的引擎性能剖析:一切都是“未测量”,没有任何值是零。"
-  },
-  "dot": {
-    "summary": "两个相同维度向量的点积。"
   },
   "dotVector3": {
     "summary": "对在 `aAt` 和 `bAt` 处读取的三个分量计算 `a · b`:只用一个缓冲区加一个偏移量,不使用视图。"
@@ -5390,7 +5396,7 @@
   },
   "loader": {
     "summary": "`loader` 系列:被获取并转换成场景可用形式的文件。",
-    "description": "普通文件通过引擎自带校验的 fetch(`cluster/pages.ts`)读取,它会根据状态码拒绝一次失败的响应;图片(`texture`、`cubeTexture`)则通过一个 image 元素获取,它会因解码失败而拒绝该图片。"
+    "description": "普通文件通过引擎自带校验的 fetch(`cluster/checked.ts`)读取,它会根据状态码拒绝一次失败的响应;图片(`texture`、`cubeTexture`)则通过一个 image 元素获取,它会因解码失败而拒绝该图片。"
   },
   "loader.texture": {
     "summary": "获取一张图片,并用它制作一个颜色纹理。",
@@ -7012,7 +7018,8 @@
       "projection": "透视或正交。",
       "position": "眼睛所在的位置。",
       "quaternion": "眼睛朝向哪里。",
-      "optics": "视场、near、far、zoom 和盒子，按名称。"
+      "optics": "视场、near、far、zoom 和盒子，按名称。",
+      "fitAspect": "按画面形状加宽的正交框（`fitAspect`）；关闭时省略。"
     }
   },
   "SavedGeometry": {
@@ -7153,6 +7160,7 @@
       "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "simulationRange": "相机周围模拟物体的范围（米）；超出范围的物体保持原状冻结，也不加载碰撞图块；`null` 跟随 `camera.far`。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
@@ -7359,6 +7367,7 @@
       "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "simulationRange": "相机周围模拟物体的范围（米）；超出范围的物体保持原状冻结，也不加载碰撞图块；`null` 跟随 `camera.far`。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
@@ -7371,6 +7380,7 @@
     "summary": "`createWorld(canvas, { physics })` 除 `true` 外接受的内容。",
     "members": {
       "budget": "固定上限，物理启动时读取一次。",
+      "simulationRange": "相机周围模拟物体的范围（米，`world.physics.simulationRange`）；`null` 跟随 `camera.far`。",
       "gravity": "世界的重力：预设或向量。"
     }
   },
@@ -7402,16 +7412,6 @@
       "steer": "方向盘，−1 左打到底到 1 右打到底。",
       "handbrake": "手刹是否拉起。"
     }
-  },
-  "GraphNode": {
-    "summary": "图的一个节点：核心的节点，以其 `kind` 区分，由核心的 `clone` 复制。",
-    "members": {
-      "serial": "节点的编号，在会话中唯一。",
-      "kind": "节点是什么：图的每个读取方据此收窄类型。"
-    }
-  },
-  "GraphNodeKind": {
-    "summary": "图中的光源是什么：场景声明的光源之一。"
   },
   "GraphSurface": {
     "summary": "表面：一个族的参数，除非场景另有说明，取参考实现的值。",

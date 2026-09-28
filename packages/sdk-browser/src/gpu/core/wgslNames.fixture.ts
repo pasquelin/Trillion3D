@@ -24,7 +24,8 @@ const WGSL_OWN = new Set(
     'degrees determinant distance dot dpdx dpdy exp exp2 extractBits faceForward firstLeadingBit ' +
     'floor fma fract fwidth insertBits inverseSqrt ldexp length log log2 max min mix normalize ' +
     'pack2x16float pack4x8unorm pow reflect refract reverseBits round saturate select sign sin ' +
-    'smoothstep sqrt step storageBarrier tan tanh textureDimensions textureGather textureLoad ' +
+    'smoothstep sqrt step storageBarrier subgroupAny subgroupElect subgroupMax subgroupMin ' +
+    'tan tanh textureDimensions textureGather textureGatherCompare textureLoad ' +
     'textureNumLevels textureSample textureSampleBias textureSampleCompare ' +
     'textureSampleCompareLevel textureSampleGrad textureSampleLevel textureStore transpose ' +
     'trunc unpack2x16float unpack4x8unorm workgroupBarrier workgroupUniformLoad'
@@ -39,13 +40,14 @@ function declaredNames(code: string) {
   return new Set([...code.matchAll(declares)].map((m) => m[1] ?? m[2]));
 }
 
-/** The names `source` uses and declares nowhere, sorted: comments, attributes and structure
- *  member names left out (their types kept, and an attribute's argument unless it is a
- *  built-in's, an interpolation's or a diagnostic's word), a case selector never taken for a
- *  declaration, a member after a dot never taken for a name. */
+/** The names `source` uses and declares nowhere, sorted: comments, directives (`enable`,
+ *  `requires`), attributes and structure member names left out (their types kept, and an
+ *  attribute's argument unless it is a built-in's, an interpolation's or a diagnostic's word), a
+ *  case selector never taken for a declaration, a member after a dot never taken for a name. */
 export function unresolvedNames(source: string) {
   const code = source
     .replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
+    .replace(/\b(?:enable|requires)\s[^;]*;/g, '')
     .replace(/@(?:builtin|interpolate|diagnostic)\s*\([^()]*\)|@\w+/g, '')
     .replace(/(\bstruct\s+\w+\s*\{)([^}]*)\}/g, (_, head: string, body: string) => {
       return `${head}${body.replace(/\w+\s*:/g, ':')}}`;

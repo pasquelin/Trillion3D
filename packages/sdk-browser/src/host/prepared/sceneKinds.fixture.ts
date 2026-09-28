@@ -14,7 +14,7 @@ const NODE_FLAGS = [
   ['isPointLight', 'point'],
   ['isSpotLight', 'spot'],
   ['isAmbientLight', 'ambient'],
-  ['isRectAreaLight', 'rect'],
+  ['isRectAreaLight', 'rectArea'],
   ['isLightProbe', 'probe'],
   ['isCamera', 'camera'],
   ['isScene', 'scene'],
@@ -42,7 +42,7 @@ export const nodeKind = (node: Fields): string =>
 /** Whether the node is drawn, lit by, or an eye. */
 export const isDrawnKind = (kind: string) => kind === 'mesh' || kind === 'instancedMesh';
 export const isLightKind = (kind: string) =>
-  ['directional', 'point', 'spot', 'ambient', 'rect', 'probe'].includes(kind);
+  ['directional', 'point', 'spot', 'ambient', 'rectArea', 'probe'].includes(kind);
 
 /** The surface's family. */
 export const surfaceFamily = (surface: Fields) =>

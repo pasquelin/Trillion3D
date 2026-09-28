@@ -4,6 +4,7 @@ import type { StreamContext, Job, StreamPage, PageStreamerOptions } from './type
 import { createStreamingCache } from './cache.ts';
 import { createIndexViews } from './indexView.ts';
 import { createPageCache, manifestTableBytes, type PageCache } from './pageCache.ts';
+import { createReadWatch } from './readWatch.ts';
 /** Bounded, prioritized and deduplicated reads. A request still waiting in the queue is dropped once
  *  its last consumer leaves; one already transferring is allowed to land in the cache.
  *  The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive
@@ -97,9 +98,14 @@ export function createPageStreamerWith(
     cpuBudgetBytes: store.cpuBytes,
     totalBytes: pages.reduce((sum, page) => sum + page.bytes, 0),
   }));
-  const loadOne = createStreamingFetcher(context, touch);
+  const { loadOne, roundTrip } = createStreamingFetcher(context, touch);
   const { subscribe } = createStreamingQueue(context, loadOne, touch, evict);
+  const { read, watch } = createReadWatch(subscribe);
   const asIndices = createIndexViews();
+  const readBytes = (url: string, signal?: AbortSignal, priority = 0) => {
+    state.requested++;
+    return read(url, signal, priority);
+  };
   return {
     admit: (more: readonly StreamPage[]) => more.forEach((page) => catalog.set(page.url, page)),
     forget: (urls: readonly string[]) =>
@@ -118,28 +124,22 @@ export function createPageStreamerWith(
     has: (url: string) => cache.has(url),
     loading: (url: string) => jobs.has(url),
     failed: (url: string) => failures.has(url),
-    read(url: string, requestSignal?: AbortSignal) {
-      state.requested++;
-      return subscribe(url, requestSignal, 0).then(asIndices);
-    },
-    readBytes(url: string, requestSignal?: AbortSignal) {
-      state.requested++;
-      return subscribe(url, requestSignal, 0);
-    },
+    /** The reads' measured round trip in milliseconds, 0 before the first (`roundTrip.ts`). */
+    roundTripMs: roundTrip.ms,
+    read: (url: string, signal?: AbortSignal) => readBytes(url, signal).then(asIndices),
+    readBytes,
     /** Texture levels held beside the pages: its world's, kept across a device loss, or its own. */
     textureLevels: store.levels,
     retain,
     reserve,
     /** Pins by rank delta: neither an address list nor a set rebuilt each frame. */
     retainRanks,
-    /** Reads `urls` the catalog holds, once each; `onPage` hears 0 resident, then each landing. */
+    /** Hears every page read, whoever asks it, until the returned stop runs (`readWatch.ts`). */
+    watch,
+    /** Reads `urls` the catalog holds, once each. */
     async request(
       urls: readonly string[],
-      options: {
-        signal?: AbortSignal;
-        priority?: number;
-        onPage?: (resident: number, requested: number) => void;
-      } = {},
+      options: { signal?: AbortSignal; priority?: number } = {},
     ) {
       const unique = [...new Set(urls.filter((url) => catalog.has(url)))];
       state.requested += unique.length;
@@ -148,12 +148,7 @@ export function createPageStreamerWith(
         requested: urls.length,
         unique: unique.length,
       }));
-      let resident = 0;
-      options.onPage?.(resident, unique.length);
-      const landed = () => options.onPage?.(++resident, unique.length);
-      await Promise.all(
-        unique.map((url) => subscribe(url, options.signal, options.priority ?? 1).then(landed)),
-      );
+      await Promise.all(unique.map((url) => read(url, options.signal, options.priority ?? 1)));
     },
     stats() {
       return {

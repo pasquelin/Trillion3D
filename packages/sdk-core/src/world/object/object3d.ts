@@ -24,7 +24,6 @@ const aim = new Vector3(),
 export class Object3D extends TransformNode {
   /** Always `true`: tells a scene node apart. */ readonly isObject3D = true as const;
   /** The kind of node: `'Mesh'`, `'Group'`… */ type = 'Object3D';
-  /** A name to find the node by. */ name = '';
   /** Where the node stands, from its parent. */ readonly position = new Vector3();
   /** How the node is turned, as three angles. */ readonly rotation = new Euler();
   /** How the node is turned, as a quaternion. */ readonly quaternion = new Quaternion();
@@ -106,8 +105,8 @@ export class Object3D extends TransformNode {
     readPose(child, this.state.tree);
     return this;
   }
-  /** Frees the node and all below it now, rather than when they are collected. */
-  override destroy() {
+  /** Frees it and all below it now, not when collected; off its world. */ override destroy() {
+    this.removeFromParent();
     this.traverse(uncollectSlot);
     super.destroy();
   }

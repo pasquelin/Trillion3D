@@ -55,11 +55,11 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
       traceDiagnostic('residency-queue', 'GPU residency queued', () => ({
         frame: jobFrame,
         jobId,
-        pages: tracking.traceSet('queue', items.map(pageAddress)),
+        pages: tracking.traceRecs('queue', items),
         wanted: tracking.traceKeys('wanted', tracking.wanted),
-        loaded: tracking.traceSet(
+        loaded: tracking.traceRecs(
           'queue.loaded',
-          items.map(pageAddress).filter((address) => !!getCache()?.get(address)),
+          items.filter((rec) => !!getCache()?.get(pageAddress(rec))),
         ),
         queueDepth: items.length,
         residentPages: getCache()?.stats().residentPages ?? null,
@@ -73,7 +73,7 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
         jobId,
         scope: 'async-residency-job',
         queueWaitMs: started - queuedAt,
-        pages: tracking.traceSet('job', items.map(pageAddress)),
+        pages: tracking.traceRecs('job', items),
         elapsedMs: null,
         cpuWorkIncluded: true,
         gpuQueueWaitIncluded: false,

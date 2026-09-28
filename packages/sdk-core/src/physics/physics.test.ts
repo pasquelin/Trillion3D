@@ -149,8 +149,9 @@ test('a dynamic body declared as triangles is refused: triangles hold no mass', 
 test('physics.json of another format, cooked by another Jolt, or malformed, is refused by name', () => {
   const file = { formatVersion: 2, jolt: JOLT_COMMIT, colliders: [], instances: [] };
   assert.equal(readCookedPhysics(file).colliders.length, 0);
+  assert.equal(readCookedPhysics({ ...file, formatVersion: 3 }).formatVersion, 3, 'pieces carried');
   for (const wrong of [
-    { ...file, formatVersion: 3 },
+    { ...file, formatVersion: 4 },
     { ...file, jolt: '0'.repeat(40) },
     { ...file, softBodies: null },
   ])
@@ -162,7 +163,7 @@ test('a physics.json cooked before the matter came from the source is refused: r
   const old = { formatVersion: 1, jolt: JOLT_COMMIT, colliders: [], instances: [], bodies: [] };
   assert.throws(() => readCookedPhysics(old), {
     code: 'PHYSICS_FORMAT',
-    message: /format 1 is not 2: recompile the model/,
+    message: /format 1 is not 2 or 3: recompile the model/,
   });
 });
 

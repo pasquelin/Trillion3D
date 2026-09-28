@@ -1,49 +1,35 @@
 /**
- * The lights of a test scene, built of the engine's own graph (`./light.ts`) with the reference's
- * argument lists and defaults: re-exported by `./graph.fixture.ts`, where tests take them.
+ * The lights of a test scene, the core's `Light` built as the engine builds its own — numbered in
+ * its count — with the reference's argument lists and defaults: re-exported by
+ * `./graph.fixture.ts`, where tests take them.
  */
-import { Color, type ColorInput } from '../../../../sdk-core/src/world/math/color.ts';
-import { GraphAmbientLight, GraphLight, GraphLightProbe } from './light.ts';
-
-const colour = (value: ColorInput | undefined) => new Color(value ?? 0xffffff);
+import type { ColorInput } from '../../../../sdk-core/src/world/math/color.ts';
+import { Light } from '../../../../sdk-core/src/world/light/light.ts';
+import { numbered } from './serial.ts';
 
 /** A light that shines one way from far off. */
-export function directionalLight(color?: ColorInput, intensity = 1) {
-  const light = new GraphLight('directional', colour(color));
-  light.intensity = intensity;
-  return light;
-}
+export const directionalLight = (color: ColorInput = 0xffffff, intensity = 1) =>
+  numbered(new Light('directional', { color, intensity }));
 
 /** A light that shines every way from a point, fading with distance. */
-export function pointLight(color?: ColorInput, intensity = 1, distance = 0, decay = 2) {
-  const light = new GraphLight('point', colour(color));
-  Object.assign(light, { intensity, distance, decay });
-  return light;
-}
+export const pointLight = (color: ColorInput = 0xffffff, intensity = 1, distance = 0, decay = 2) =>
+  numbered(new Light('point', { color, intensity, distance, decay }));
 
 /** A light that shines in a cone. */
-export function spotLight(
-  color?: ColorInput,
+export const spotLight = (
+  color: ColorInput = 0xffffff,
   intensity = 1,
   distance = 0,
   angle = Math.PI / 3,
   penumbra = 0,
   decay = 2,
-) {
-  const light = new GraphLight('spot', colour(color));
-  Object.assign(light, { intensity, distance, angle, penumbra, decay });
-  return light;
-}
+) => numbered(new Light('spot', { color, intensity, distance, angle, penumbra, decay }));
 
 /** A light that lights every face alike. */
-export const ambientLight = (color?: ColorInput, intensity = 1) =>
-  new GraphAmbientLight(colour(color), intensity);
+export const ambientLight = (color: ColorInput = 0xffffff, intensity = 1) =>
+  numbered(new Light('ambient', { color, intensity }));
 
 /** An environment's irradiance as nine coefficients: what a sky over a ground becomes in the
  *  engine (`addLightIrradiance`, `sdk-core/src/world/light/lightRecord.ts`). */
-export function lightProbe(coefficients: ArrayLike<number> = new Float32Array(27), intensity = 1) {
-  const probe = new GraphLightProbe();
-  probe.sh.fromArray(coefficients);
-  probe.intensity = intensity;
-  return probe;
-}
+export const lightProbe = (coefficients: ArrayLike<number> = new Float32Array(27), intensity = 1) =>
+  numbered(new Light('probe', { sh: coefficients, intensity }));
