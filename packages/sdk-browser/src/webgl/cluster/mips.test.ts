@@ -101,7 +101,8 @@ test('a chain follows the coverage rule of its readers, switched after its image
   assert.equal(held, 3, 'three chains, the scratches returned after an image with no reduction');
 });
 
-// Filed once — the census at the first draw, hidden meshes too —, reread per drawn map and image.
+// Filed once — the census at the first draw, hidden meshes too —, reread per drawn map and image,
+// and once by the census, which uploads the maps ahead (#840, `texturePrime.ts`).
 test('a still scene files each surface once across frames, a hidden opaque one included', (t) => {
   const read = t.mock.method(CoverageReaders.prototype, 'read');
   const follow = t.mock.method(CoverageReaders.prototype, 'follow');
@@ -118,7 +119,7 @@ test('a still scene files each surface once across frames, a hidden opaque one i
     draw.host.drawHostGeometry(createHostDrawCamera(), output);
   }
   const filed = read.mock.calls.filter((call) => call.result).length;
-  assert.deepEqual([filed, follow.mock.callCount()], [2, 3]);
+  assert.deepEqual([filed, follow.mock.callCount()], [2, 4]);
   assert.equal(gl.chains(), 'box', 'plain, the box chain: the hidden reader is opaque');
   draw.dispose();
 });
