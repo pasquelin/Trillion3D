@@ -16,7 +16,7 @@ import type { PageCutPage, PageCutPayload } from '../../../../sdk-core/src/page/
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import { sha256Hex } from '../../measurement/sha256Hex.ts';
 import { clusterCones } from './cutCones.ts';
-import { tiledGridExponent } from './cutGrid.ts';
+import { positionGridExponent } from './cutGrid.ts';
 
 /** A cluster holds at most this many triangles and vertices: the page format's cluster, the one
  *  the compiler cuts (`docs/FORMAT.md`). */
@@ -100,7 +100,7 @@ export async function cutDrawnTriangles(
     boxExpandByPoint(bounds, 0, positions[i], positions[i + 1], positions[i + 2]);
   const extent = Math.max(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]);
   // Asked first, awaited last: the module loads while the clusters are cut.
-  const grid = tiledGridExponent(extent, blended);
+  const grid = positionGridExponent(extent, blended);
   const attributes: PageAttributes = {
     POSITION: { itemSize: 3, array: positions },
     NORMAL: { itemSize: 3, array: normals },
