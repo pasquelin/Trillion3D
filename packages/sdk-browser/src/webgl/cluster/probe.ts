@@ -1,7 +1,4 @@
-import {
-  addIrradianceCoefficients,
-  ENVIRONMENT_COEFFICIENTS,
-} from '../../../../sdk-core/src/scene/core/environment.ts';
+import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/environment.ts';
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts';
 import { addLightIrradiance } from '../../../../sdk-core/src/world/light/lightRecord.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
@@ -37,10 +34,7 @@ export class WebglClusterProbe {
     this.sh.fill(0);
   }
   add(probe: Light) {
-    // Nothing allocated for the probe the engine writes; one with no coefficients, never the
-    // engine's, adds its colour everywhere.
-    if (probe.sh) addIrradianceCoefficients(this.sh, probe.sh, probe.intensity);
-    else addLightIrradiance(probe, this.sh);
+    addLightIrradiance(probe, this.sh);
   }
   /** Writes the coefficients and the world-to-view rotation of `view`, column-major: the
    *  program multiplies a view-space normal on the left, its transpose, the view-to-world. */

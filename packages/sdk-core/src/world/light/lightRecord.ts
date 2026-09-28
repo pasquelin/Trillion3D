@@ -70,18 +70,21 @@ export function lampRecord(light: Light, id: string, reach: number): SceneLight 
 export function addLightIrradiance(light: Light, sh: IrradianceSum) {
   if (!(light.intensity > 0)) return false;
   const scale = light.intensity;
-  const colour = light.color.toArray().map((c) => c * scale);
-  if (light.kind === 'ambient' || (light.kind === 'probe' && !light.sh))
-    addUniformIrradiance(sh, colour);
-  else if (light.kind === 'probe') addIrradianceCoefficients(sh, light.sh!, scale);
+  // The colour is read only by the kinds that use it: a probe's coefficients allocate nothing.
+  const colour = () => light.color.toArray().map((c) => c * scale);
+  if (light.kind === 'probe' && light.sh) addIrradianceCoefficients(sh, light.sh, scale);
+  else if (light.kind === 'ambient' || light.kind === 'probe') addUniformIrradiance(sh, colour());
   else if (light.kind === 'hemisphere') {
     light.getWorldPosition(aim);
     if (!(aim.lengthSq() > 0)) aim.set(0, 1, 0);
     const ground = light.groundColor.toArray().map((c) => c * scale);
-    addHemisphereIrradiance(sh, colour, ground, aim.normalize().toArray());
+    addHemisphereIrradiance(sh, colour(), ground, aim.normalize().toArray());
   } else return false;
   return true;
 }
+
+/** The core light kind of a store lamp's kind: the store's `rect` is a `rectArea`. */
+export const lightKindOf = (kind: SceneLight['kind']) => (kind === 'rect' ? 'rectArea' : kind);
 
 /**
  * The node of a lamp the engine's store describes — a light the source file carried — which a
@@ -91,7 +94,7 @@ export function addLightIrradiance(light: Light, sh: IrradianceSum) {
 export function lightFromRecord(record: SceneLight): Light {
   const along = record.direction ?? [0, -1, 0];
   const at = record.position ?? [-along[0], -along[1], -along[2]];
-  const node = new Light(record.kind === 'rect' ? 'rectArea' : record.kind, {
+  const node = new Light(lightKindOf(record.kind), {
     width: record.size?.[0],
     height: record.size?.[1],
     color: record.color,
