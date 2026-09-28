@@ -55,16 +55,14 @@ export function tangentBlendGltf(source: Gltf, unpaged: boolean) {
     material.alphaMode = 'BLEND';
   }
   if (!unpaged) return { gltf, zeroBytes: 0 };
-  const counts = gltf.meshes.flatMap((mesh) =>
-    mesh.primitives.map((p) => gltf.accessors[p.attributes.POSITION].count),
-  );
-  const zeroBytes = Math.max(...counts) * 12;
-  const buffer = gltf.buffers.push({ uri: ZEROS_FILE, byteLength: zeroBytes }) - 1;
-  const view = gltf.bufferViews.push({ buffer, byteOffset: 0, byteLength: zeroBytes }) - 1;
+  // Every target reads the start of one buffer of zeros, as long as the largest primitive.
+  const view = gltf.bufferViews.length,
+    zero = [0, 0, 0];
+  let largest = 0;
   for (const mesh of gltf.meshes) {
     for (const primitive of mesh.primitives) {
       const count = gltf.accessors[primitive.attributes.POSITION].count;
-      const zero = [0, 0, 0];
+      largest = Math.max(largest, count);
       const accessor =
         gltf.accessors.push({
           bufferView: view,
@@ -78,6 +76,9 @@ export function tangentBlendGltf(source: Gltf, unpaged: boolean) {
     }
     mesh.weights = [0];
   }
+  const zeroBytes = largest * 12;
+  const buffer = gltf.buffers.push({ uri: ZEROS_FILE, byteLength: zeroBytes }) - 1;
+  gltf.bufferViews.push({ buffer, byteOffset: 0, byteLength: zeroBytes });
   return { gltf, zeroBytes };
 }
 
@@ -87,11 +88,11 @@ export function writeTangentBlendScenes(assets = ASSETS) {
   const file = sceneGltfFile(from);
   if (!file) throw new Error(`no glTF under ${from}: run node bench/runner/assets.ts first`);
   const source = JSON.parse(readFileSync(join(from, file), 'utf8')) as Gltf;
+  const resources = readdirSync(from).filter((name) => !name.endsWith('.gltf'));
   for (const [path, scene] of Object.entries(TANGENT_BLEND_SCENES)) {
     const to = join(assets, scene);
     mkdirSync(to, { recursive: true });
-    for (const name of readdirSync(from))
-      if (!name.endsWith('.gltf')) copyFileSync(join(from, name), join(to, name));
+    for (const name of resources) copyFileSync(join(from, name), join(to, name));
     const { gltf, zeroBytes } = tangentBlendGltf(source, path === 'unpaged');
     if (zeroBytes) writeFileSync(join(to, ZEROS_FILE), Buffer.alloc(zeroBytes));
     writeFileSync(join(to, `${scene}.gltf`), `${JSON.stringify(gltf, null, 1)}\n`);
