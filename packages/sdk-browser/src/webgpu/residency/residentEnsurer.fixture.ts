@@ -55,10 +55,12 @@ export function placement() {
 /** A pool of `slots` pages evicting its oldest unpinned page, as the GPU page cache does. */
 export function lruCache(slots: number) {
   const resident = new Map<string, { key: string }>(),
-    pins = new Set<string>();
+    pins = new Set<string>(),
+    held = new Set<string>();
   return {
     resident,
     pins,
+    held,
     get: (url: string) => resident.get(url),
     async load(url: string) {
       if (resident.size >= slots) {
@@ -68,8 +70,11 @@ export function lruCache(slots: number) {
       }
       resident.set(url, { key: url });
     },
-    pin: (url: string) => pins.add(url),
-    unpin: (url: string) => pins.delete(url),
+    pin(url: string, tier: 'held' | 'pinned' = 'pinned') {
+      pins.add(url);
+      if (tier === 'held') held.add(url);
+    },
+    unpin: (url: string) => (held.delete(url), pins.delete(url)),
     touch(url: string) {
       const page = resident.get(url);
       if (!page) return false;

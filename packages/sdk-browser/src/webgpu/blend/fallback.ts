@@ -1,6 +1,7 @@
 import { viewProj } from '../pages/helpers.ts';
 import { FALLBACK_UNIFORM, UNIFORM_STRIDE, writeFallbackUniform } from './uniforms.ts';
-import { blendFallbackEntries, voidStaleBlendGroups } from './identity.ts';
+import { voidStaleBlendGroups } from './identity.ts';
+import { fallbackBindEntries } from '../core/fallbackEntries.ts';
 import { refreshSurface } from '../../page/surface.ts';
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
 import { drawnBlending } from '../../scene/materialBlending.ts';
@@ -142,7 +143,7 @@ export function drawFallbackBlendPass(
       if (pipeline !== bound) pass.setPipeline((bound = pipeline));
       item.group ??= device.createBindGroup({
         layout: gpu.bindGroupLayout!,
-        entries: blendFallbackEntries(rt, item),
+        entries: fallbackBindEntries(rt, item),
       });
     }
     pass.setBindGroup(0, item.group!, [(uniformBase + d) * UNIFORM_STRIDE]);
