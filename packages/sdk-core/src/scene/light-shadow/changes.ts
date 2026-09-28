@@ -30,7 +30,8 @@ const readMin = new Float64Array(3),
  * at the first frame the camera rests. Under a moving camera the cut churns every frame, and
  * staling the far pages for a sub-texel change of detail cost a whole scene draw per frame;
  * at rest the union restales exactly what changed, so a settled map is that of the current
- * cut, whatever the history (#159).
+ * cut, whatever the history (#159). A representation change of objects already moving is held
+ * in a union of its own, released as a moving box: the static layer never held them (#993).
  */
 export function createShadowChanges(capacity: number) {
   const min = new Float64Array(capacity * 3),
@@ -40,11 +41,15 @@ export function createShadowChanges(capacity: number) {
     /** The box holds only the released union of representation changes: the pages under it are
      *  coarser than the cut, not wrong, and stay read until redrawn. */
     detail = new Uint8Array(capacity);
-  /** The union of representation changes held until the camera rests: empty when none waits. */
-  const defer = new Float64Array(6),
-    deferMin = defer.subarray(0, 3),
-    deferMax = defer.subarray(3, 6);
-  boxEmpty(defer, 0);
+  /** The unions of representation changes held until the camera rests — whatever it touches,
+   *  then objects already moving alone —: empty when none waits. */
+  const defer = new Float64Array(12),
+    held = [
+      { at: 0, min: defer.subarray(0, 3), max: defer.subarray(3, 6), movingOnly: false },
+      { at: 6, min: defer.subarray(6, 9), max: defer.subarray(9, 12), movingOnly: true },
+    ];
+  const emptyHeld = () => held.forEach(({ at }) => boxEmpty(defer, at));
+  emptyHeld();
   /** The view of the last frame and this frame's, to compare them. */
   const lastView = new Float64Array(VIEW_NUMBERS).fill(NaN),
     viewNow = new Float64Array(VIEW_NUMBERS);
@@ -69,25 +74,28 @@ export function createShadowChanges(capacity: number) {
   };
   const worldChanged = (lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) =>
     add(lo, hi, movingOnly, false);
-  /** The held union enters the list as one box, when one waits. */
+  /** Each held union enters the list as one box, when one waits. */
   const release = () => {
-    if (boxIsEmpty(defer, 0)) return;
-    add(deferMin, deferMax, false, true);
-    boxEmpty(defer, 0);
+    for (const { at, min: lo, max: hi, movingOnly } of held) {
+      if (boxIsEmpty(defer, at)) continue;
+      add(lo, hi, movingOnly, true);
+      boxEmpty(defer, at);
+    }
   };
   const changes = {
     /** Boxes in the list. */
     count: 0,
     /** A representation change waits for the camera to rest: the hold must not close before. */
-    deferred: () => !boxIsEmpty(defer, 0),
+    deferred: () => held.some(({ at }) => !boxIsEmpty(defer, at)),
     /**
      * A node has moved: its box enters the list, or the overflow box past the budget. `movingOnly`
      * says it holds objects that were already moving — the static casters under it did not change.
      */
     worldChanged,
-    /** The same world at another precision: its box joins the union held until the camera rests. */
-    representationChanged(lo: ArrayLike<number>, hi: ArrayLike<number>) {
-      boxUnion(defer, 0, lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
+    /** The same world at another precision: its box joins the union held until the camera rests;
+     *  `movingOnly`, the one of objects already moving, whose static casters did not change. */
+    representationChanged(lo: ArrayLike<number>, hi: ArrayLike<number>, movingOnly = false) {
+      boxUnion(defer, held[+movingOnly].at, lo[0], lo[1], lo[2], hi[0], hi[1], hi[2]);
     },
     /**
      * The frame's view. When it is the one of the previous frame the camera rests, and what
@@ -141,7 +149,7 @@ export function createShadowChanges(capacity: number) {
     /** Nothing waits anymore, and the next view is a first one. */
     reset() {
       changes.count = 0;
-      boxEmpty(defer, 0);
+      emptyHeld();
       lastView.fill(NaN);
     },
   };
