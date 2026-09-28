@@ -1965,6 +1965,7 @@
       "manifest": "manifeste lu",
       "tables": "tables de la scène lues",
       "resources": "fichiers de la scène",
+      "session": "ouverture de la vue",
       "pages": "premières pages",
       "ready": "prêt"
     }

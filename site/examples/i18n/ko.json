@@ -1965,6 +1965,7 @@
       "manifest": "매니페스트 읽음",
       "tables": "씬 테이블 읽음",
       "resources": "씬 파일",
+      "session": "뷰 여는 중",
       "pages": "첫 페이지",
       "ready": "준비됨"
     }
