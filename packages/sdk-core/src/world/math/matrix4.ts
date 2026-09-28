@@ -5,6 +5,7 @@ import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts';
 import { normalMatrix3 } from '../../math/matrix/matrix3.ts';
 import { axisAngleQuaternion } from '../../math/matrix/quaternion.ts';
 import type { XYZSink as V, XYZWLike as Q, XYZWSink as QOut } from './likes.ts';
+import { hypot3 } from '../../math/primitives/hypot.ts';
 
 const t = new Float64Array(3),
   r = new Float64Array(4),
@@ -114,7 +115,7 @@ export class Matrix4 {
   }
   /** The rotation about `axis`, made unit first (`axisAngleQuaternion`). */
   makeRotationAxis(axis: { x: number; y: number; z: number }, angle: number) {
-    const n = Math.hypot(axis.x, axis.y, axis.z) || 1;
+    const n = hypot3(axis.x, axis.y, axis.z) || 1;
     t[0] = axis.x / n;
     t[1] = axis.y / n;
     t[2] = axis.z / n;

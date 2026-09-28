@@ -50,6 +50,14 @@ test('a core camera is drawn from: a draw reads the reference projection, kept c
   assert.deepEqual([...eye.matrixWorldInverse.elements], witness.matrixWorldInverse.elements);
 });
 
+test('a draw reads the eye as the world translation, each coordinate rounded to float32', () => {
+  const eye = new Camera('perspective', { fov: 47, aspect: 1.6, near: 0.3, far: 900 });
+  eye.position.set(0.1, -1 / 3, 1e7 + 0.7);
+  eye.updateMatrixWorld();
+  const drawn = readHostDrawCamera(createHostDrawCamera(), eye);
+  assert.deepEqual([...drawn.eye], [...new Float32Array([0.1, -1 / 3, 1e7 + 0.7])]);
+});
+
 test('a core scene is lit: the contract lights hang on it and its fog lands on it', () => {
   const [scene, store] = [new Scene(), createSceneLightStore()];
   const contract = attachContractLights(
@@ -125,8 +133,14 @@ test('a core scene and camera hold no field the engine needs beyond a page one',
     'refogged',
   ]);
   const camera = new Camera('perspective');
-  assert.deepEqual(own(camera), ['isCamera', '_optics', 'projection']);
+  assert.deepEqual(own(camera), ['isCamera', '_optics', '_fitAspect', 'projection']);
   void camera.projectionMatrix;
-  assert.deepEqual(own(camera), ['isCamera', '_optics', 'projection', '_projectionMatrix']);
+  assert.deepEqual(own(camera), [
+    'isCamera',
+    '_optics',
+    '_fitAspect',
+    'projection',
+    '_projectionMatrix',
+  ]);
   await assert.rejects(new Scene().load('model.json'), { code: 'UNSUPPORTED_SCENE_UPDATE' });
 });

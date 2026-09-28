@@ -18,27 +18,30 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  // Only pages of the kept leaves: a page under a rejected node is never read, and its draw flag
  // is already zero — \`dagClearDrawn\` cleared the only ones that were one.
  let entry=flags[candBase()+s];let i=entryIndex(entry);vi=entryView(entry);
- let w=pageWorld(i);let r=recordOf(i,w);
+ let w=pageWorld(i);if(!inRange(w)){return;}let r=recordOf(i,w);
  let cluster=clusters[r];
  // A page of the view ahead is only requested, never live; one the camera does not request is
  // tried there (\`aheadWgsl.ts\`).
  if(aheadOn()&&vi==AHEAD_VIEW){wantAhead(i,w,r,cluster);return;}
  if(!visible(r,w,cluster)){atomicAdd(&out.frustumRejected,1u);wantAhead(i,w,r,cluster);return;}
  liveAppend(entry);
- let rejected=(views[0u].viewFlags&VIEW_LIGHT)==0u&&coneRejects(r,w);
- flags[coneCache(i)]=select(0u,1u,rejected);
- let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
- if(!selects(cluster,e,stretch,focal,views[vi].pixelError)||rejected){wantAhead(i,w,r,cluster);return;}
+ let light=isLightCut();
+ let rejected=!light&&coneRejects(r,w);
+ let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
+ // The two screen errors \`selects\` compares, computed ONCE: the request's priority reuses them
+ // (\`replacementPixels\`), and a camera cut keeps the two comparisons of the cut rule behind the
+ // cone bit, for \`dagMask\` — same operands, same frame, so the same bits.
+ let pixels=clusterPixels(cluster,e,stretch,focal);let t=views[vi].pixelError;
+ // A light cut's views share the page index: its word stays the lone cone bit, zero, as before.
+ flags[coneCache(i)]=select(select(0u,CONE_REJECTED,rejected)|select(0u,PARENT_ABOVE,pixels.x>t)|select(0u,OWN_WITHIN,pixels.y<=t),0u,light);
+ if(!selects(pixels,t)||rejected){wantAhead(i,w,r,cluster);return;}
  atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);
- emitOne(i,replacementPixels(cluster,e,stretch,focal));
+ emitOne(i,replacementPixels(cluster,pixels));
  stampUse(i);
  if(views[0u].residentCut!=0u&&!isResident(i)){noteCoarser();}
 }
 /** The REPLACEMENT's error, what the eye would see if this cluster were missing: that is what
  *  ranks a request, as \`orderPendingUrls\` (../../../streaming/priority.ts) does on the other path.
  *  A cluster nothing replaces falls back on its own, as that path does. */
-fn replacementPixels(cluster:Cluster,e:mat4x4f,stretch:f32,focal:f32)->f32{
- if(cluster.parentError<0.0){return projected(cluster.lodError,cluster.sphere,e,stretch,focal);}
- return projected(cluster.parentError,cluster.parentSphere,e,stretch,focal);
-}
+fn replacementPixels(cluster:Cluster,pixels:vec2f)->f32{return select(pixels.x,pixels.y,cluster.parentError<0.0);}
 `;

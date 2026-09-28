@@ -1,10 +1,14 @@
 import { sameRenderOrigin } from '../../../camera/renderOrigin.ts';
-import { rootWorldsToRenderOrigin } from '../../../gpu/dag/pack.ts';
+import { rootTranslationsToRenderOrigin, rootWorldsToRenderOrigin } from '../../../gpu/dag/pack.ts';
 import { invalidateOccluderHistory } from '../io/drops.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
 import { followHostVisibility } from '../../../placement/hidden.ts';
 import { flipWorld } from '../../../placement/webgpuPlacements.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+
+/** The scene revision whose worlds a buffer last received whole: an image at the same revision
+ *  only moved the eye, and rewrites the three translation numbers of each root alone. */
+const fullyRebased = new WeakMap<Float32Array, number>();
 
 /**
  * Brings the scene's world matrices to the image. A world matrix is a function of the scene alone:
@@ -40,11 +44,17 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   rt.timing.worldCounts.racinesRebasees = rebased ? selectionRoots.length : 0;
   let posted: boolean | undefined;
   if (rebased) {
-    run.worldUploadRevision = run.gate.revisions.scene;
+    const scene = run.gate.revisions.scene;
+    run.worldUploadRevision = scene;
     run.worldUploadOrigin.set(cam.eye);
+    const translationsOnly = !worldsMoved && fullyRebased.get(worldUpdates) === scene;
     // The subtraction is done in double, the single-precision rounding comes after it.
-    rootWorldsToRenderOrigin(worldUpdates, selectionRoots, cam.eye);
-    posted = run.gpuSelection?.updateWorlds(worldUpdates, worldsMoved);
+    if (translationsOnly) rootTranslationsToRenderOrigin(worldUpdates, selectionRoots, cam.eye);
+    else rootWorldsToRenderOrigin(worldUpdates, selectionRoots, cam.eye);
+    posted = run.gpuSelection?.updateWorlds(worldUpdates, worldsMoved, translationsOnly);
+    // A send the cut refused — or threw on — leaves it holding older worlds: sent whole next time.
+    if (posted === false) fullyRebased.delete(worldUpdates);
+    else if (!translationsOnly) fullyRebased.set(worldUpdates, scene);
   }
   // A host write names no root: every row's world matrix, the only shared input to a row the
   // scene can still change after `prepare()`, is written again. The GPU cut compares the worlds it

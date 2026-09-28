@@ -69,16 +69,16 @@ export const shadowThroughWgsl = (
 ) => `@group(0) @binding(${binding}) var shadowTransmittance:texture_2d_array<f32>;
 @group(0) @binding(${binding + 1}) var shadowTranslucentDepth:texture_depth_2d_array;
 /**
- * Light the translucent casters let through at atlas texel \`a\`, to a receiver at \`reference\`:
- * the layer's four texels around \`a / 2\` — kept within \`a\`'s page —, each its transmittance
- * where the receiver's reference lies behind its translucent depth and 1 elsewhere, filtered
- * bilinearly. Where the receiver is in front of all four, no transmittance is read.
+ * Light the translucent casters let through at texel \`local\` of the page whose first texel is
+ * \`page\` in the pool, to a receiver at \`reference\`: the layer's four texels around
+ * \`local / 2\` — kept within the page —, each its transmittance where the receiver's reference
+ * lies behind its translucent depth and 1 elsewhere, filtered bilinearly. Integer page origin plus
+ * page-local texels: the page's content alone decides, wherever the pool puts it (#831). Where
+ * the receiver is in front of all four, no transmittance is read.
  */
-fn shadowThrough(at:vec3f,reference:f32)->f32{
- let a=at.xy;let l=i32(at.z);
- let o=floor(a/SHADOW_PAGE)*(0.5*SHADOW_PAGE);
- let h=clamp(0.5*a,o+0.5,o+(0.5*SHADOW_PAGE-0.5))-0.5;
- let i=vec2i(floor(h));let f=h-floor(h);
+fn shadowThrough(page:vec3f,local:vec2f,reference:f32)->f32{
+ let h=clamp(0.5*local,vec2f(0.5),vec2f(0.5*SHADOW_PAGE-0.5))-0.5;
+ let i=vec2i(page.xy)/2+vec2i(floor(h));let f=h-floor(h);let l=i32(page.z);
  let x=vec2i(1,0);let y=vec2i(0,1);
  let d=vec4f(textureLoad(shadowTranslucentDepth,i,l,0),textureLoad(shadowTranslucentDepth,i+x,l,0),textureLoad(shadowTranslucentDepth,i+y,l,0),textureLoad(shadowTranslucentDepth,i+x+y,l,0));
  let behind=vec4f(reference)<d;
@@ -87,10 +87,12 @@ fn shadowThrough(at:vec3f,reference:f32)->f32{
  let s=select(vec4f(1.0),t,behind);
  return mix(mix(s.x,s.y,f.x),mix(s.z,s.w,f.x),f.y);
 }
-/** The PCF's \`lit\` at \`a\` times the layer there, read once per footprint (its taps lie within a
- *  texel of \`a\`); \`lit\` itself, no texel read, with no layer (a one-texel stand-in) or no light. */
-fn shadowThroughLit(a:vec3f,reference:f32,lit:f32)->f32{
- if(lit==0.0||textureDimensions(shadowTransmittance).x==1u){return lit;}return lit*shadowThrough(a,reference);
+/** The PCF's \`lit\` at map texel \`t\` of the page whose first map texel is \`first\`, placed by
+ *  \`offset\` (\`shadowOffset\`), times the layer there, read once per footprint (its taps lie within
+ *  a texel of \`t\`); \`lit\` itself, no texel read, with no layer (a one-texel stand-in) or no light. */
+fn shadowThroughLit(offset:vec3f,first:vec2f,t:vec2f,reference:f32,lit:f32)->f32{
+ if(lit==0.0||textureDimensions(shadowTransmittance).x==1u){return lit;}
+ return lit*shadowThrough(offset+vec3f(first,0.0),t-first,reference);
 }`;
 
 /**

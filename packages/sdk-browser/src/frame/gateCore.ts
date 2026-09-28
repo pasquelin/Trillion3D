@@ -37,6 +37,9 @@ export function createFrameGateCore(holdValues: number) {
   // Camera the engine owns: frame entry copies the host's into it, once, and everything downstream
   // reads it. Allocated here, never per frame.
   const cam = createEngineCamera();
+  /** Rebuilds the watched set; declared once, so a frame that reads the scene allocates nothing. */
+  const observe = (source: Object3D, drawn: FrameGateSources) =>
+    sceneWatch.observe(source, typeof drawn === 'function' ? drawn() : drawn);
   let worldsRevision = 0,
     watchRevision = -1,
     pixelError = 0,
@@ -104,15 +107,13 @@ export function createFrameGateCore(holdValues: number) {
      * — never per frame, and never after a pose write, which changes no node's membership.
      */
     readScene(source: Object3D, drawn: FrameGateSources) {
-      const observe = () =>
-        sceneWatch.observe(source, typeof drawn === 'function' ? drawn() : drawn);
-      if (watchRevision !== revisions.scene) observe();
+      if (watchRevision !== revisions.scene) observe(source, drawn);
       const verdict = sceneWatch.take();
       if (verdict) {
         bumpScene(revisions);
         // The list is rebuilt in this very frame: a node the reshape brought in is hooked before
         // the host can write it again, so no write falls between the reshape and the rebuild.
-        if (verdict === 'reshaped') observe();
+        if (verdict === 'reshaped') observe(source, drawn);
       }
       watchRevision = revisions.scene;
     },

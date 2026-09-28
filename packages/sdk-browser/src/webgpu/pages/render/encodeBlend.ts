@@ -147,7 +147,7 @@ export function encodeSurfaceLighting(
   const [width, height] = gpu.targetSize;
   invertMatrix4(inverseViewProj, viewProj);
   // Shadows and light lists encode before resolve: they are its inputs.
-  const direct = encodeDirectLights(rt, device, encoder, cam, inverseViewProj);
+  const direct = encodeDirectLights(rt, device, encoder, cam, viewProj);
   gpu.deferred.bind(
     gpu.surfaces,
     gpu.depthView,
