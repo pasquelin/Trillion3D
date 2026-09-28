@@ -18,8 +18,22 @@ export function createStreamingQueue(
     jobs,
     failures,
     cache,
+    store,
     abortError,
   } = context;
+  /** Pages `forget` asked to drop while a job held them: they leave when it settles, unless
+   *  `keep` takes them back first (#572). */
+  const forgotten = new Set<string>();
+  /** A forgotten page leaves the catalogue with its bytes and failure once no job holds it. */
+  const leave = (url: string) => {
+    if (jobs.has(url) || !forgotten.delete(url)) return;
+    failures.delete(url);
+    if (catalog.delete(url)) store.drop(url);
+  };
+  const forget = (url: string) => {
+    forgotten.add(url);
+    leave(url);
+  };
   const octetsDe = (url: string) => catalog.get(url)?.bytes;
   const pump = () => {
     if (state.disposed || abort.signal.aborted) return;
@@ -50,6 +64,7 @@ export function createStreamingQueue(
           state.active--;
           state.activeBytes -= catalog.get(job.url)!.bytes;
           if (jobs.get(job.url) === job) jobs.delete(job.url);
+          leave(job.url);
           emit('page-transfer-end', 'Page transfer finished', () => ({
             version: 1,
             url: job.url,
@@ -150,6 +165,7 @@ export function createStreamingQueue(
           // the marked from its length, so the published pending count does not move.
           shared.state = 'dropped';
           state.dropped++;
+          leave(url);
         }
         if (ok) resolve(value as Uint8Array);
         else reject(value);
@@ -165,5 +181,5 @@ export function createStreamingQueue(
     pump();
     return result;
   };
-  return { pump, subscribe };
+  return { pump, subscribe, forget, keep: (url: string) => forgotten.delete(url) };
 }
