@@ -161,18 +161,24 @@ export const changeBox = new Float64Array(6),
   changeMin = changeBox.subarray(0, 3),
   changeMax = changeBox.subarray(3, 6);
 
+/** True when the record's placement already moves: the static layer does not hold its casters,
+ *  and a change of its own redraws the moving casters alone (#993). */
+export const recordMoves = ({ mobility }: WebgpuLightState, rec: PageRec) =>
+  rec.placementIndex !== undefined && mobility.moves(rec.placementIndex);
+
 /**
  * A page entered residency or left it since the last plan: the scene is drawn at another
  * precision where it is, so the shadow maps of lights whose range touches this box
  * no longer describe it exactly and become candidates again — once the camera rests, since
  * the change is one of representation, not of the world. Without that, a settled map would
  * keep the shadow of a cluster that left, or ignore that of a cluster that arrived (#159). The
- * declared box is that of the cluster's world sphere.
+ * declared box is that of the cluster's world sphere; a moving placement's leaves the static
+ * layer as it is.
  */
 export function noteResidenceChange(lights: WebgpuLightState, rec: PageRec) {
   const { store, plan } = lights;
   if (!store.count) return;
   boxEmpty(changeBox, 0);
   growClusterBox(rec, changeBox);
-  plan.representationChanged(changeMin, changeMax);
+  plan.representationChanged(changeMin, changeMax, recordMoves(lights, rec));
 }
