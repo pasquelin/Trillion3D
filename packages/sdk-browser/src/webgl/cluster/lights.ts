@@ -71,7 +71,7 @@ export class WebglClusterLights {
     this.ltc = createLtcTexture(gl);
     this.probe = new WebglClusterProbe(gl, program);
     this.fog = new WebglClusterFog(gl, program);
-    allocated(gl); // refused, the context is marked: the next frame draws a level coarser
+    allocated(gl); // refused, the context is marked once read: its engine draws a level coarser
   }
   upload(scene: WebglClusterScene, view: ArrayLike<number>) {
     let count = 0;

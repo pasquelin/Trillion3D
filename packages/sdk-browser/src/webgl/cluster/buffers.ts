@@ -21,7 +21,7 @@ export const glType = (gl: WebGL2RenderingContext, array: ArrayBufferView) => {
 };
 
 /** Uploads what changed of `attribute` since `known`, into its buffer or a new one; a buffer sized
- *  again is checked for out of memory (`../core/allocation.ts`). */
+ *  again is recorded for the out-of-memory read (`../core/allocation.ts`). */
 export const upload = (
   gl: WebGL2RenderingContext,
   target: number,
@@ -37,11 +37,11 @@ export const upload = (
         attribute.array,
         target === gl.ELEMENT_ARRAY_BUFFER ? gl.DYNAMIC_DRAW : gl.STATIC_DRAW,
       );
-      // Refused: the buffer holds nothing, and the next frame, a level coarser, sizes it again.
-      if (!allocated(gl)) {
+      // Refused: the buffer holds nothing, and a frame after, a level coarser, sizes it again.
+      allocated(gl, () => {
         current.bytes = 0;
-        return current;
-      }
+        current.version = -1;
+      });
     } else if (attribute.updateRanges.length) {
       const bytes = attribute.array.BYTES_PER_ELEMENT;
       for (const range of attribute.updateRanges)
