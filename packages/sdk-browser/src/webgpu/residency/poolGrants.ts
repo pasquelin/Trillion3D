@@ -147,12 +147,15 @@ export async function probed<P>(granted: Promise<Granted<P, Made> | undefined>) 
   return result?.pool;
 }
 
+/** True when two texture pools hold the same layers in every lane: no texture to allocate. */
+export const sameLayers = (a: TexturePool, b: TexturePool) =>
+  (['color', 'data'] as const).every((kind) =>
+    POOL_LANES.every((lane) => a.layers[kind][lane] === b.layers[kind][lane]),
+  );
+
 /** True when two texture pools hold the same layers and tiles in every lane: nothing to replace. */
 export const samePool = (a: TexturePool, b: TexturePool) =>
+  sameLayers(a, b) &&
   (['color', 'data'] as const).every((kind) =>
-    POOL_LANES.every(
-      (lane) =>
-        a.layers[kind][lane] === b.layers[kind][lane] &&
-        a.tiles[kind][lane] === b.tiles[kind][lane],
-    ),
+    POOL_LANES.every((lane) => a.tiles[kind][lane] === b.tiles[kind][lane]),
   );

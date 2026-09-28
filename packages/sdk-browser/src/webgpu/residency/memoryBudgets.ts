@@ -85,8 +85,8 @@ export function texturePoolFor(
     const layers = laneCounts();
     const open = new Set(POOL_LANES.filter((lane) => lanes[lane] > 0));
     // The tails, and one slot to stream into when the lane streams: never frozen at its tails.
-    for (const lane of open)
-      layers[lane] = layersFor(kept[lane] + Number(lanes[lane] > kept[lane]));
+    const least = (lane: PoolLane) => kept[lane] + Number(lanes[lane] > kept[lane]);
+    for (const lane of open) layers[lane] = layersFor(least(lane));
     const floor = { ...layers },
       weight = (lane: PoolLane) => lanes[lane] * tileBytes(texelBytes(lane)),
       weights = [...open].reduce((sum, lane) => sum + weight(lane), 0);
@@ -94,16 +94,15 @@ export function texturePoolFor(
       budgetBytes / 2 - [...open].reduce((sum, lane) => sum + floor[lane] * layerBytes(lane), 0);
     // Under the layers' floor, each lane holds the tiles its share of the budget pays for, never
     // fewer than its tails and one to stream into: the floor, counted in tiles.
-    const capped = laneCounts();
+    const held = new Map<PoolLane, number>();
     if (budget < 0) {
       budget = 0;
       for (const lane of open) {
-        const least = kept[lane] + Number(lanes[lane] > kept[lane]),
-          share = Math.floor(
-            ((budgetBytes / 2) * (weight(lane) / weights)) / tileBytes(texelBytes(lane)),
-          );
-        if (share < least) clamps.add('minimum');
-        capped[lane] = Math.max(least, share);
+        const share = Math.floor(
+          ((budgetBytes / 2) * (weight(lane) / weights)) / tileBytes(texelBytes(lane)),
+        );
+        if (share < least(lane)) clamps.add('minimum');
+        held.set(lane, Math.max(least(lane), share));
       }
     }
     // The remainder by weight; a lane served under its share gives the rest back to the others.
@@ -137,7 +136,7 @@ export function texturePoolFor(
       }
     const tiles = laneCounts();
     for (const lane of POOL_LANES)
-      tiles[lane] = Math.min(layers[lane] * TILES_PER_LAYER, capped[lane] || Infinity);
+      tiles[lane] = Math.min(layers[lane] * TILES_PER_LAYER, held.get(lane) ?? Infinity);
     return { layers, tiles };
   };
   const color = atlas(demand.color, tails.color),
