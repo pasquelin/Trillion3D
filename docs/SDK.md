@@ -1002,6 +1002,34 @@ write of `.r`, `.g` or `.b` is not heard: set `scene.background` again after one
 background, or any value without `getHex`, is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws
 one yet.
 
+### Scene fog
+
+Set `world.scene.fog` to place distance or height fog over opaque and transparent surfaces on
+WebGPU and WebGL2. Its `color` is a `Color` in linear RGB; `null` (the default) removes fog.
+The distance is measured from the camera, and height uses the scene's positive Y direction:
+
+```js
+import { Color } from 'trillion3d';
+
+const color = new Color().setRGB(0.35, 0.45, 0.6);
+world.scene.fog = { color, near: 10, far: 100 }; // Linear: clear before 10, all fog after 100.
+world.scene.fog = { color, density: 0.02 }; // Exponential: uniform medium.
+world.scene.fog = { color, density: 0.02, heightFalloff: 0.15, baseHeight: 0 }; // Height fog.
+world.scene.fog = null; // No fog.
+```
+
+`near` and `far` must be finite with `0 ≤ near < far`. `density` and `heightFalloff` must be
+finite and nonnegative; `baseHeight` must be finite. The three colour components must be finite
+and nonnegative. Invalid settings throw `INVALID_SCENE_ENVIRONMENT`. Assigning a new fog or
+changing its colour with a `Color` method takes effect on the next frame. After changing `near`,
+`far`, `density`, `heightFalloff` or `baseHeight` directly, assign `scene.fog` again to notify the
+world. A material with `fog: false` keeps its unfogged colour on both renderers.
+
+The lower-level scene contract uses `SceneEnvironment.fog` with a three-number linear colour and
+the same linear or exponential fields; omitting it means no fog. `SavedScene.fog` stores the same
+`SceneFog` value, or `null` when absent, so a saved scene restores the effect. See the
+[fog lighting law](ENGINE.md#fog) for how the renderers apply it.
+
 A world declares lights like any other object: `scene.add(light.point({ intensity: 2, position:
 [0, 3, 0] }))`, `light.intensity = 2` afterwards, `scene.remove(light)` to drop it. Underneath, every
 light is a `SceneLight` (version 2) of one of three kinds. `point` and `spot` carry `position` and
