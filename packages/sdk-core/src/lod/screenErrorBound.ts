@@ -129,13 +129,11 @@ export function clusterErrorAtDepth(
   near: number,
   perspective = 1,
 ): number {
-  if (
-    clusterError !== 0 &&
-    clusterError !== Infinity &&
-    !frameParametersSound(stretch, focal, near, perspective)
-  )
+  if (clusterError === 0) return 0;
+  if (clusterError === Infinity) return Infinity;
+  if (!frameParametersSound(stretch, focal, near, perspective))
     throw new Error('Invalid cluster parameters');
-  return clusterErrorInFrame(clusterError, stretch, lateral, depth, radius, focal, near, perspective);
+  return boundOfCluster(clusterError, stretch, lateral, depth, radius, focal, near, perspective);
 }
 
 /**
@@ -157,6 +155,20 @@ export function clusterErrorInFrame(
 ): number {
   if (clusterError === 0) return 0;
   if (clusterError === Infinity) return Infinity;
+  return boundOfCluster(clusterError, stretch, lateral, depth, radius, focal, near, perspective);
+}
+
+/** The cluster's half of the guard, then `screenErrorBound`: callers have taken 0 and ∞ out. */
+function boundOfCluster(
+  clusterError: number,
+  stretch: number,
+  lateral: number,
+  depth: number,
+  radius: number,
+  focal: number,
+  near: number,
+  perspective: number,
+): number {
   if (
     !Number.isFinite(clusterError) ||
     clusterError < 0 ||
