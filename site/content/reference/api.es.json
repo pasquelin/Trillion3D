@@ -5501,6 +5501,9 @@
       "shadowPoolPages": "Páginas físicas del pool fijo que contienen una página virtual.",
       "shadowPoolBytes": "Bytes de GPU del pool de sombras: sus páginas de profundidad, sus capas estática y de transmitancia una vez creadas, y los búferes a su lado. Null hasta que el primer fotograma dimensiona el pool.",
       "shadowPoolLayers": "Capas del pool, de 4 096 páginas como máximo cada una, dimensionadas una vez a partir de la pantalla y las luces con sombra del primer fotograma. Null hasta entonces.",
+      "shadowPeakBytes": "El máximo de bytes de GPU que la asignación de memoria de las sombras ha tenido a la vez, capas tardías incluidas. Null hasta que la primera imagen dimensiona el pool.",
+      "shadowResolutionBias": "Reducciones a la mitad de los bytes del pool de sombras que costaron los rechazos de memoria del dispositivo; 0 normalmente.",
+      "shadowMemoryEvents": "Los eventos de presión de memoria de las sombras desde que se abrió el mundo, por nombre, en orden; vacío normalmente.",
       "shadowPagesRefetched": "Páginas virtuales asignadas de nuevo después de que el pool las desalojara para hacer sitio, desde que se abrió el explorador: los redibujados que cuesta un pool demasiado pequeño para lo que leen las imágenes.",
       "shadowCastersKept": "Proyectores que conservó el descarte por página, todas las páginas dibujadas juntas, en la imagen que el dispositivo muestreó por última vez — una de cada quince; `null` hasta que vuelva una muestra.",
       "shadowCastersHidden": "Proyectores en movimiento que la prueba de oclusión encontró ocultos tras la capa estática de su página, en la imagen muestreada por última vez; `null` hasta que vuelva una muestra."
@@ -6654,6 +6657,24 @@
       "modes": "Cada modo de vista que ofrece el motor de renderizado actual."
     }
   },
+  "world.materials": {
+    "summary": "Materiales importados actuales, seguidos de los creados en la página."
+  },
+  "world.material": {
+    "summary": "Un material según su ID de la lista."
+  },
+  "world.importedMaterials": {
+    "summary": "Valores del archivo original antes de los cambios de la página."
+  },
+  "world.setMaterial": {
+    "summary": "Cambia un material importado o creado en el siguiente fotograma."
+  },
+  "world.createMaterial": {
+    "summary": "Crea un material propio de esta página."
+  },
+  "world.assignMaterial": {
+    "summary": "Asigna el material creado a un `mesh/primitive` compilado."
+  },
   "world.guides": {
     "summary": "Líneas, puntos y ayudas dibujados sobre la imagen (`Guides`)."
   },
@@ -6832,6 +6853,9 @@
       "shadowPoolPages": "Páginas físicas del pool fijo que contienen una página virtual.",
       "shadowPoolBytes": "Bytes de GPU del pool de sombras: sus páginas de profundidad, sus capas estática y de transmitancia una vez creadas, y los búferes a su lado. Null hasta que el primer fotograma dimensiona el pool.",
       "shadowPoolLayers": "Capas del pool, de 4 096 páginas como máximo cada una, dimensionadas una vez a partir de la pantalla y las luces con sombra del primer fotograma. Null hasta entonces.",
+      "shadowPeakBytes": "El máximo de bytes de GPU que la asignación de memoria de las sombras ha tenido a la vez, capas tardías incluidas. Null hasta que la primera imagen dimensiona el pool.",
+      "shadowResolutionBias": "Reducciones a la mitad de los bytes del pool de sombras que costaron los rechazos de memoria del dispositivo; 0 normalmente.",
+      "shadowMemoryEvents": "Los eventos de presión de memoria de las sombras desde que se abrió el mundo, por nombre, en orden; vacío normalmente.",
       "shadowPagesRefetched": "Páginas virtuales asignadas de nuevo después de que el pool las desalojara para hacer sitio, desde que se abrió el explorador: los redibujados que cuesta un pool demasiado pequeño para lo que leen las imágenes.",
       "shadowCastersKept": "Proyectores que conservó el descarte por página, todas las páginas dibujadas juntas, en la imagen que el dispositivo muestreó por última vez — una de cada quince; `null` hasta que vuelva una muestra.",
       "shadowCastersHidden": "Proyectores en movimiento que la prueba de oclusión encontró ocultos tras la capa estática de su página, en la imagen muestreada por última vez; `null` hasta que vuelva una muestra."
@@ -7736,6 +7760,41 @@
       "isSprite": "Siempre `true`: distingue un sprite de cualquier otra malla.",
       "center": "El punto de la imagen que se apoya en la posición del sprite: `(0.5, 0.5)` su centro, `(0, 0)` su esquina inferior izquierda, `(0.5, 0)` el centro de su borde inferior.",
       "material": "El `material.sprite` del sprite; asigna otro para cambiarlo."
+    }
+  },
+  "CreatedMaterial": {
+    "summary": "Valores que acepta `createMaterial` para un material nuevo de la página.",
+    "members": {
+      "metalness": "Cuánto es metal la superficie, de 0 a 1.",
+      "roughness": "La rugosidad de la superficie, de 0 (espejo) a 1 (mate).",
+      "baseColor": "El color base; cámbialo en el sitio con `set`.",
+      "emissive": "El color que la superficie emite por sí misma.",
+      "opacity": "Cuán opaca es la superficie, de 0 a 1.",
+      "alphaMode": "Cómo se lee el canal alfa de una superficie: opaco lo ignora, `mask` corta en `alphaCutoff`, `blend` compone.",
+      "alphaCutoff": "Los píxeles menos opacos que esto desaparecen.",
+      "name": "Un nombre para uso de la página.",
+      "map": "Una imagen y la forma de muestrearla, en las palabras de una página (`wrap`, `filter`, `colorSpace`)."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "Instantánea de un material de escena con ID, nombre, parámetros y repetición de mapas.",
+    "members": {
+      "id": "Un nombre propio de esta textura.",
+      "name": "Un nombre para uso de la página.",
+      "tiling": "Cuántas veces cabe la imagen en ancho y en alto."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "Valores del material que `setMaterial` cambia en vivo sin reconstruir una pasada de renderizado.",
+    "members": {
+      "metalness": "Cuánto es metal la superficie, de 0 a 1.",
+      "roughness": "La rugosidad de la superficie, de 0 (espejo) a 1 (mate).",
+      "baseColor": "El color base; cámbialo en el sitio con `set`.",
+      "emissive": "El color que la superficie emite por sí misma.",
+      "opacity": "Cuán opaca es la superficie, de 0 a 1.",
+      "alphaMode": "Cómo se lee el canal alfa de una superficie: opaco lo ignora, `mask` corta en `alphaCutoff`, `blend` compone.",
+      "alphaCutoff": "Los píxeles menos opacos que esto desaparecen.",
+      "tiling": "Cuántas veces cabe la imagen en ancho y en alto."
     }
   }
 }

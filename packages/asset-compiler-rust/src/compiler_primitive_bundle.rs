@@ -109,7 +109,6 @@ pub(super) fn bundle_dag_pages(
     dag: &[DagCluster],
     groups: &[DagGroup],
     order: &[usize],
-    base_id: usize,
     pos: &[f32],
     store_packed: &(impl Fn(&[u32]) -> Result<(Value, bool)> + Sync),
 ) -> Result<(Vec<Value>, i32, Value)> {
@@ -153,7 +152,7 @@ pub(super) fn bundle_dag_pages(
       {let _t=perf::Timer::new(perf::Phase::PageWrite);if object_intact(&target,&digest)?.is_some(){reused+=1;}else{store_object(&target,bytes)?;}}
       let (geometry,packed_reused)={let _t=perf::Timer::new(perf::Phase::PagePacked);store_packed(&cluster.indices)?};if packed_reused{reused+=1;}
       let finite_parent=cluster.parent_error.is_finite();
-      emitted.push((base_id+rank,json!({"id":base_id+rank,"url":name,"sha256":digest,"bytes":bytes.len(),"count":cluster.indices.len(),"start":cluster.source_rank as usize*3,"min":min,"max":max,
+      emitted.push((rank,json!({"id":rank,"url":name,"sha256":digest,"bytes":bytes.len(),"count":cluster.indices.len(),"start":cluster.source_rank as usize*3,"min":min,"max":max,
        "cone":({let [x,y,z,a]=trillion3d_page_codec::normal_cone::triangle_cone(pos,&cluster.indices);json!({"axis":[x,y,z],"angle":a})}),"role":if cluster.level==0{"exact"}else{"coarse"},"geometry":geometry,"level":cluster.level,
        "lodError":cluster.lod_error,"sphere":cluster.sphere,
        "parentError":if finite_parent{json!(cluster.parent_error)}else{Value::Null},
@@ -173,7 +172,7 @@ pub(super) fn bundle_dag_pages(
         reused += bundle.reused;
         streams.push(json!({"url":bundle.url,"sha256":bundle.digest,"bytes":bundle.bytes,"count":bundle.count,"dependencies":dependencies}));
         for (id, page) in bundle.pages {
-            ordered[id - base_id] = Some(page);
+            ordered[id] = Some(page);
         }
     }
     pages.reserve(ordered.len());

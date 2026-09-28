@@ -3168,6 +3168,9 @@
       "shadowPoolPages": "固定池中保存虚拟页的物理页。",
       "shadowPoolBytes": "阴影池的 GPU 字节数：其深度页、创建后的静态层和透射层，以及旁边的缓冲区。在第一帧确定池大小之前为 null。",
       "shadowPoolLayers": "池的层数，每层最多 4 096 页，由第一帧的屏幕和投射阴影的光源一次确定。在此之前为 null。",
+      "shadowPeakBytes": "阴影内存配额同时持有的最多 GPU 字节，包括后来创建的层。在第一帧确定池的大小之前为 null。",
+      "shadowResolutionBias": "设备的内存拒绝使阴影池字节减半的次数；通常为 0。",
+      "shadowMemoryEvents": "自世界打开以来阴影的内存压力事件，按名称，按顺序；通常为空。",
       "shadowPagesRefetched": "自 explorer 打开以来，被池为腾出空间而逐出后重新映射的虚拟页：池相对于帧读取量过小所付出的重绘。",
       "shadowCastersKept": "逐页剔除保留的投射体（所有绘制页合计），取设备最后采样的帧 — 每十五帧一次；样本返回前为 `null`。",
       "shadowCastersHidden": "遮挡测试发现隐藏在其页静态层后的移动投射体，取最后采样的帧；样本返回前为 `null`。"
@@ -4092,6 +4095,24 @@
       "modes": "当前渲染器提供的所有视图模式。"
     }
   },
+  "world.materials": {
+    "summary": "当前导入的材质，以及页面创建的材质。"
+  },
+  "world.material": {
+    "summary": "按列表中的 ID 获取一个材质。"
+  },
+  "world.importedMaterials": {
+    "summary": "页面修改前源文件中的值。"
+  },
+  "world.setMaterial": {
+    "summary": "在下一帧更改导入或创建的材质。"
+  },
+  "world.createMaterial": {
+    "summary": "创建属于此页面的材质。"
+  },
+  "world.assignMaterial": {
+    "summary": "将创建的材质指定给已编译的 `mesh/primitive`。"
+  },
   "world.guides": {
     "summary": "绘制在图像之上的线、点和辅助对象（`Guides`）。"
   },
@@ -4256,6 +4277,9 @@
       "shadowPoolPages": "固定池中保存虚拟页的物理页。",
       "shadowPoolBytes": "阴影池的 GPU 字节数：其深度页、创建后的静态层和透射层，以及旁边的缓冲区。在第一帧确定池大小之前为 null。",
       "shadowPoolLayers": "池的层数，每层最多 4 096 页，由第一帧的屏幕和投射阴影的光源一次确定。在此之前为 null。",
+      "shadowPeakBytes": "阴影内存配额同时持有的最多 GPU 字节，包括后来创建的层。在第一帧确定池的大小之前为 null。",
+      "shadowResolutionBias": "设备的内存拒绝使阴影池字节减半的次数；通常为 0。",
+      "shadowMemoryEvents": "自世界打开以来阴影的内存压力事件，按名称，按顺序；通常为空。",
       "shadowPagesRefetched": "自 explorer 打开以来，被池为腾出空间而逐出后重新映射的虚拟页：池相对于帧读取量过小所付出的重绘。",
       "shadowCastersKept": "逐页剔除保留的投射体（所有绘制页合计），取设备最后采样的帧 — 每十五帧一次；样本返回前为 `null`。",
       "shadowCastersHidden": "遮挡测试发现隐藏在其页静态层后的移动投射体，取最后采样的帧；样本返回前为 `null`。"
@@ -7736,6 +7760,41 @@
       "isSprite": "始终为 `true`：把精灵与其他任何网格区分开。",
       "center": "图片中落在精灵位置上的点：`(0.5, 0.5)` 是中间，`(0, 0)` 是左下角，`(0.5, 0)` 是下边的中点。",
       "material": "精灵的 `material.sprite`；设置另一个即可更换。"
+    }
+  },
+  "CreatedMaterial": {
+    "summary": "`createMaterial` 为页面新材质接受的属性值。",
+    "members": {
+      "metalness": "表面的金属度,0 到 1。",
+      "roughness": "表面的粗糙度,0(镜面)到 1(哑光)。",
+      "baseColor": "基础颜色;用 `set` 原地修改它。",
+      "emissive": "表面自身发出的颜色。",
+      "opacity": "表面的不透明度,0 到 1。",
+      "alphaMode": "表面的 alpha 通道如何被读取:opaque 忽略它,`mask` 按 `alphaCutoff` 裁切,`blend` 进行合成。",
+      "alphaCutoff": "不透明度低于此值的像素会被丢弃。",
+      "name": "供页面自己使用的一个名字。",
+      "map": "一张图像及其采样方式,以页面的措辞表示(`wrap`、`filter`、`colorSpace`)。"
+    }
+  },
+  "SceneMaterial": {
+    "summary": "场景材质的快照，包含 ID、名称、参数和贴图重复次数。",
+    "members": {
+      "id": "该纹理独有的一个名称。",
+      "name": "供页面自己使用的一个名字。",
+      "tiling": "图像在横向和纵向各能重复放下多少次。"
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "`setMaterial` 无需重建渲染通道即可实时修改的材质值。",
+    "members": {
+      "metalness": "表面的金属度,0 到 1。",
+      "roughness": "表面的粗糙度,0(镜面)到 1(哑光)。",
+      "baseColor": "基础颜色;用 `set` 原地修改它。",
+      "emissive": "表面自身发出的颜色。",
+      "opacity": "表面的不透明度,0 到 1。",
+      "alphaMode": "表面的 alpha 通道如何被读取:opaque 忽略它,`mask` 按 `alphaCutoff` 裁切,`blend` 进行合成。",
+      "alphaCutoff": "不透明度低于此值的像素会被丢弃。",
+      "tiling": "图像在横向和纵向各能重复放下多少次。"
     }
   }
 }
