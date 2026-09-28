@@ -1,9 +1,10 @@
+import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
-import { createWorldNotices } from '../diagnostic/worldNotices.ts';
+import { createWorldNotices, listenWorldNotices } from '../diagnostic/worldNotices.ts';
 import type { Scene } from './scene.ts';
 import { createWorldRuntime } from './worldRuntime.ts';
 
@@ -32,7 +33,14 @@ const serve = async (input: string | URL | Request) => {
 globalThis.fetch = serve as typeof fetch;
 Reflect.set(globalThis, 'location', new URL(HOST));
 Reflect.set(globalThis, 'ProgressEvent', globalThis.ProgressEvent ?? Event);
+/** Every reopen a content change caused in these tests' runtimes: each one a defect (#837). */
+const contentReopens: unknown[] = [];
+const stopListening = listenWorldNotices(({ phase, context }) => {
+  if (phase === 'session-reopen' && context?.defect) contentReopens.push(context);
+});
 after(() => {
+  stopListening();
+  assert.deepEqual(contentReopens, [], 'a content change reopened a session');
   globalThis.fetch = saved.fetch;
   Reflect.set(globalThis, 'location', saved.location);
 });
@@ -46,9 +54,10 @@ export const runtimeOf = (
   failed: (error: unknown) => void,
   open?: Open,
   opening: () => void = () => {},
+  canvas = { width: 1, height: 1 } as HTMLCanvasElement,
 ) =>
   createWorldRuntime({
-    canvas: { width: 1, height: 1 } as HTMLCanvasElement,
+    canvas,
     scene,
     ready: () => ready,
     open,
