@@ -18,6 +18,7 @@ import type { BackendDiagnostic } from '../../../backend/types.ts';
 import type { WebgpuPagesBackend, WebgpuPagesRuntime } from '../runtime.ts';
 import { requestFrameTargets } from './targetGrant.ts';
 import { createExplorerFrameScheduler } from '../../../world/render/frameScheduler.ts';
+import { frameQueue } from '../../../world/render/frameQueue.fixture.ts';
 
 const COLOR = 'Trillion3D display color';
 type Backend = WebgpuPagesBackend & { pendingFrame(): Promise<boolean> };
@@ -144,10 +145,10 @@ test('a refused target grant holds the frame, then draws it complete; then nothi
   const s = await resized((raise) => refusals-- > 0 && raise('Out of memory'));
   let asked = 0,
     stillAt: number | undefined;
-  const requested: FrameRequestCallback[] = [];
+  const requested = frameQueue();
   const scheduler = createExplorerFrameScheduler({
-    request: (callback) => (asked++, requested.push(callback)),
-    cancel() {},
+    request: (callback) => (asked++, requested.request(callback)),
+    cancel: requested.cancel,
     render: () => s.backend.render(s.cam),
     pending: () => s.backend.pendingFrame(),
     error: (error) => assert.fail(String(error)),
@@ -156,13 +157,13 @@ test('a refused target grant holds the frame, then draws it complete; then nothi
   try {
     const draws = s.gpu.draws.length;
     scheduler.invalidate();
-    requested.shift()!(0);
+    requested.run();
     assert.equal(s.gpu.draws.length, draws, 'held: nothing is drawn into targets not granted');
     assert.equal(s.backend.metrics().frameHeld, false, 'not the still frame while asked');
-    for (let round = 0; round < 200 && (requested.length || stillAt === undefined); round++) {
+    for (let round = 0; round < 200 && (requested.size || stillAt === undefined); round++) {
       await new Promise((done) => setImmediate(done));
       if (s.backend.metrics().frameHeld) stillAt ??= asked;
-      requested.shift()?.(0);
+      requested.run();
     }
     assert.equal(asked, stillAt, 'no request once the scene says it is still');
     assert.ok(s.gpu.draws.length > draws, 'the frame is drawn once granted');
