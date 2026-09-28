@@ -57,7 +57,8 @@ export function staticLayerGranted(
   diagnose('shadow-memory', 'The shadow static layer is past the shadow grant', {
     kind: 'warning',
     pressure: 'static-layer-over-grant',
-    requestedBytes: bytes,
+    requestedBytes: bytes + transmittance,
+    heldBytes: held,
     grantBytes,
   });
   return false;
