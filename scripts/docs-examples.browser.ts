@@ -4,19 +4,10 @@ import type { Browser, Page } from 'playwright';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
 import { leastDrawn, openExample, RENDER_ONLY } from './docs/examples/capture.ts';
-import { examplePages } from './docs/examples/pages.ts';
+import { examplePages, parkedExampleIds as parked } from './docs/examples/pages.ts';
 import { physicsExamples } from './docs/examples/physics.ts';
-import {
-  readyEntries as ready,
-  readyExampleIds,
-  roadmapEntries,
-} from '../site/app/examples/list.ts';
+import { readyEntries as ready } from '../site/app/examples/list.ts';
 import { flagged, type HealthVerdict } from '../site/examples/kit/verdict.ts';
-
-/** The pages parked until the engine draws them: opened for their errors, never asked to draw. */
-const parked = new Set(
-  roadmapEntries.filter(({ status }) => status === 'waiting-engine').map(({ id }) => id),
-);
 
 /** The centre of the render, the kit's panels outside it. */
 const centre = (page: Page) =>
@@ -110,6 +101,7 @@ test('every example file loads with no error and renders an image on its own, fe
     // #945: every page of site/examples, a parked one or one the gallery does not list included,
     // loads with no error; a parked page is not asked to draw.
     const [physics, pages] = await Promise.all([physicsExamples(ready), examplePages()]);
+    const listed = new Set(ready.map(({ id }) => id));
     const blank: string[] = [],
       jolt: string[] = [];
     for (const gpu of [true, false])
@@ -132,7 +124,7 @@ test('every example file loads with no error and renders an image on its own, fe
         const fetched = opened.requests.some((url) =>
           /physicsWorker\.js|joltPhysics\w*\.wasm|\/session-\w+\.js/.test(url),
         );
-        if (readyExampleIds.includes(example.id) && fetched !== physics.has(example.id))
+        if (listed.has(example.id) && fetched !== physics.has(example.id))
           jolt.push(`${example.id} ${fetched ? 'fetched' : 'did not fetch'} the physics`);
         await opened.page.close();
       }

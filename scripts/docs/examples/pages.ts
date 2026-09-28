@@ -1,4 +1,5 @@
 import { readdir, readFile } from 'node:fs/promises';
+import { roadmapEntries } from '../../../site/app/examples/list.ts';
 
 const folder = new URL('../../../site/examples/', import.meta.url);
 
@@ -14,3 +15,8 @@ export async function examplePages() {
     })),
   );
 }
+
+/** The pages parked until the engine draws them: opened for their errors, never asked to draw. */
+export const parkedExampleIds = new Set(
+  roadmapEntries.filter(({ status }) => status === 'waiting-engine').map(({ id }) => id),
+);

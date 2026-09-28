@@ -15,6 +15,9 @@ export async function exampleModules(html: string): Promise<string[]> {
   return sources;
 }
 
+/** An example module's import of the built engine or kit: its names, then `engine` or `kit`. */
+export const RUNTIME_IMPORT = /import \{([^}]*)\} from '\.\.\/runtime\/(engine|kit)\.js';/g;
+
 /** The constructor of async functions: a module's body may `await` at its top level. */
 const AsyncFunction = (async () => {}).constructor as new (
   ...args: string[]
@@ -27,10 +30,7 @@ const AsyncFunction = (async () => {}).constructor as new (
  */
 export async function runExampleModule(html: string, modules: { engine: object; kit: object }) {
   const [source] = await exampleModules(html);
-  const body = source.replace(
-    /import \{([^}]*)\} from '\.\.\/runtime\/(engine|kit)\.js';/g,
-    'const {$1} = modules.$2;',
-  );
+  const body = source.replace(RUNTIME_IMPORT, 'const {$1} = modules.$2;');
   await new AsyncFunction('modules', `'use strict';${body}`)(modules);
 }
 
