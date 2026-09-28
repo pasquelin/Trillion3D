@@ -24,8 +24,6 @@ export function createWebgpuResidencySets(options: {
   tracking: Tracking;
   bootstrapKey: Uint8Array;
   packedPages: readonly PageRec[];
-  /** The groups the cut closes over (`../../page/cut/groupClosure.ts`). */
-  closure?: Pick<GroupClosure, 'forEachHeld'>;
 }) {
   const { tracking, bootstrapKey, packedPages } = options;
   const { keyCount, keyOf, wanted, wantedPages } = tracking;
@@ -41,6 +39,7 @@ export function createWebgpuResidencySets(options: {
   const desiredPages: PageRec[] = [];
   const desired = createDenseKeySet(desiredPages);
   const ranking = createBudgetRanking({ bootstrapKey, keyOf });
+  const weigh = (id: number) => ranking.add(packedPages[id]);
   let followsDesired = true;
   const requested = createKeyUnion({
     members: desired,
@@ -86,8 +85,12 @@ export function createWebgpuResidencySets(options: {
     keyOf: keyOfId,
     retain: (key, id) => requested.retain(key, packedPages[id]),
     release: (key) => requested.release(key),
-    onEnter: (id) => cpuCut && ranking.add(packedPages[id]),
-    onExit: (id) => cpuCut && ranking.remove(packedPages[id]),
+    onEnter: (id) => {
+      if (cpuCut) weigh(id);
+    },
+    onExit: (id) => {
+      if (cpuCut) ranking.remove(packedPages[id]);
+    },
   });
   const drawnKeys = createHeldKeys({
     keyOf: keyOfId,
@@ -123,12 +126,12 @@ export function createWebgpuResidencySets(options: {
       return desired.count;
     },
     /** The cut that decides. The GPU cut feeds no ranking; the CPU cut that takes the image back
-     *  refills it from the pages its cut closes over. */
-    decideBy(cpu: boolean) {
+     *  refills it from the pages its cut closes over (`../../page/cut/groupClosure.ts`). */
+    decideBy(cpu: boolean, closure: Pick<GroupClosure, 'forEachHeld'>) {
       if (cpu === cpuCut) return;
       cpuCut = cpu;
       ranking.clear();
-      if (cpu) options.closure?.forEachHeld((id) => ranking.add(packedPages[id]));
+      if (cpu) closure.forEachHeld(weigh);
     },
     followDesired,
     admit,

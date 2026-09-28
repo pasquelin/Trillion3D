@@ -129,6 +129,8 @@ export function createBudgetRanking(options: {
       levelOfKey.clear();
       held.fill(0);
       for (const pages of pageLists) if (pages) pages.length = 0;
+      ranked.length = 0;
+      keys = new Int32Array(0);
       weighed = length = 0;
     },
     /** One placement leaves it; the page leaves only with its last placement. */
