@@ -21,6 +21,12 @@ export function findNode(source: Object3D, nodeName: string) {
   return index.names.get(nodeName);
 }
 
+/** True when `node` is `source` or hangs below it: a handle whose node the host removed is not. */
+export function underSource(source: Object3D, node: Object3D) {
+  for (let walk: Object3D | null = node; walk; walk = walk.parent) if (walk === source) return true;
+  return false;
+}
+
 const ascending = (a: number, b: number) => a - b;
 
 type Roots = readonly ClusterRoot<PageRec>[];
