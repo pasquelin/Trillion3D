@@ -1,10 +1,5 @@
-import {
-  BOX_VALUES,
-  boxEmpty,
-  boxUnion,
-  buildCentreTree,
-  centreTreeNodes,
-} from '../../../../sdk-core/src/index.ts';
+import { BOX_VALUES, boxEmpty, boxUnion } from '../../../../sdk-core/src/index.ts';
+import { buildCentreTree, centreTreeNodes } from '../../../../sdk-core/src/math/centreTree.ts';
 import { refreshBlendWorlds } from './worlds.ts';
 import type { createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
