@@ -865,8 +865,8 @@ measured faster, operation by operation. `metric.frame(world).mathBatch` publish
 `MathPathMetrics` (`MATH_PATH_CONTRACT` 1): `operations[name].path` is the path the next call
 plays, `jsNsPerElement` and `wasmNsPerElement` the sliding medians in nanoseconds per element
 (`null` while unmeasured — never zero), `switches` how many times the decision changed, `elements`
-the total processed; `clockCoarse` says the thread clock is too coarse to arbitrate, and everything
-then stays on JavaScript. The other batches have no kernel: a kernel is written only where a loop's
+the total processed; `clockCoarse` says the thread clock is too coarse to time one call (no
+cross-origin isolation), so the governor times pooled runs of ten clock steps instead (#919). The other batches have no kernel: a kernel is written only where a loop's
 share of the engine's own frame is measured above 0.1 ms, and none of their loops reaches it (#80).
 
 ## Maths reference
