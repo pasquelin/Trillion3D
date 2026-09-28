@@ -4,8 +4,8 @@ This is the on-disk contract implemented today: what the compiler writes and the
 
 ## Layout
 
-| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pointer                        | Payload                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `native/<scope>/manifest.json` | `native/<scope>/<key>/clusters.json` and its pages, `source.gltf`, `source.bin`, SHA-addressed objects under `native/objects/`: `<digest>.bin`, one file per index page, geometry page or streaming bundle — and baked texture levels under `native/textures/v<N>/<digest>/<kind>-<level>.<format>`, one lossless PNG per mip level above the sidecar's tail, plus the same level in the cooked block family where the quality gate kept it |
 
 `<scope>` is `slice` or `full`. A pointer or payload with another scope is rejected (`SCOPE_MISMATCH`).
@@ -367,3 +367,29 @@ The compiler writes a compacted `source.gltf` + `source.bin` for the selected no
 ## Source files
 
 Input is a directory with `manifest.json`, a directory with exactly one `.gltf`/`.glb`, or a `.gltf`/`.glb` file. When `manifest.json` is present, `manifest.runtime.file` names the glTF JSON or GLB. For `.gltf`, the first buffer URI names the sidecar binary. Both names must be a single relative path segment (no `/`, `\\`, or `..`). The compiler verifies SHA-256 of the glTF against `runtime.sha256` and of the sidecar against the matching `runtime.sidecars[]` entry. A GLB carries its BIN chunk; sidecar hashes are not required. Without a manifest, hashes are computed from the files. Multiple glTF buffers are concatenated into one `source.bin` (4-byte padded) and `bufferView.buffer` is remapped to 0. Unknown layouts, data URIs as buffer URIs, and path escape are rejected. Unindexed triangle lists (`POSITION` count a multiple of three, no `indices`) are indexed during clustering. In `slice` scope, if no mesh instance fits the triangle budget, the smallest overflowing instance is kept.
+
+## Resident lighting proxy
+
+`proxy.bin` version 3 keeps the existing canonical triangle, albedo and wide-BVH columns.
+All fields are little-endian. Its eight `u32` header words are `WGPX`, version, triangle count,
+node count, owner-group count, owner-record count, source-node count and reserved zero.
+The payload columns, in order, are:
+
+- Nine `f32` coordinates and one `u32` linear RGBA8 colour per canonical triangle.
+- Six `f32` bounds and twelve `u32` child words per wide BVH node.
+- One `u32` owner-group rank per triangle, followed by `groups + 1` owner offsets.
+- Owner records: source-node rank and linear RGBA8 colour, both `u32`.
+- One `i32` parent rank per source node (`-1` for roots), then sixteen `f64` bind-world values per node.
+
+The manifest publishes `groups`, `owners` and `instances` alongside existing sizes and counts.
+Identical owner lists are interned; subdivision shares a group and BVH permutation moves its rank
+with the canonical triangle. Group offsets are monotonic, groups nonempty, ranks in range and the
+source hierarchy acyclic. Unknown proxy versions are rejected. Compiler implementation hashes
+include these source modules, so version-three products cannot reuse version-two cache keys.
+
+The node table's optional `sourceNode` carries the original unsigned 32-bit document rank as
+exactly eight lowercase hexadecimal digits through partition renumbering. Its fixed width keeps
+the core table's byte size independent of the world's node count. The runtime decodes it to the
+original numeric rank, rejecting malformed values; when absent, the table rank applies. A proxy owner whose leaf is not currently instantiated follows its nearest loaded
+ancestor. Each session keeps its mutable refit and transforms separately from shared cache bytes.
+Cook-time geometry eliminated by simplification is not reconstructed when an object later grows.

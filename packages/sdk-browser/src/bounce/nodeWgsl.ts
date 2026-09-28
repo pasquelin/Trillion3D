@@ -4,26 +4,10 @@ import {
   PROXY_NODE_WORDS,
 } from '../../../sdk-core/src/index.ts';
 
-/**
- * The resident proxy lives in **a single storage buffer**, header included.
- *
- * Three separate columns — triangles, node bounds, children — plus the distant-shadow
- * settings block made four bindings. Deferred resolve just held them; the blend pass,
- * which already binds seven storage buffers at its fragment stage, had only one free
- * of the eight the spec guarantees. That missing binding, and nothing else, is what
- * denied transparents the sun shadow beyond the last clipmap level.
- *
- * One binding therefore carries everything: a twelve-word header, then the three
- * columns back to back, whose start ranks are written in the header. Float columns
- * are reread by `bitcast` — a word is a word, and the proxy is neither copied nor
- * converted. Albedo stays aside: a shadow looks for an occluder, not a colour, and
- * the column that carries it is one more binding that only bounced light asks for.
- *
- * The header is the only part written after prepare: ray settings, the count flag
- * and the two counters. The columns themselves are written once and never move.
- */
+/** One storage binding holds shadow settings, canonical triangles, refitted BVH columns,
+ *  owner ranges and transforms. Only the bounds, quantized children and owner poses change. */
 /** Header words, before the first column. */
-export const PROXY_HEADER_WORDS = 12;
+export const PROXY_HEADER_WORDS = 20;
 export const PROXY_HEADER_BYTES = PROXY_HEADER_WORDS * 4;
 /** The four shadow-ray settings, at the front: offset, start, range, presence. */
 export const PROXY_PARAM_FLOATS = 4;
@@ -52,7 +36,9 @@ export const residentProxyWgsl = (binding: number, writable = true) => `
 struct ResidentProxy{
  offsetMetres:f32,startMetres:f32,maxMetres:f32,present:f32,
  counting:u32,${writable ? 'tested:atomic<u32>,blocked:atomic<u32>' : 'tested:u32,blocked:u32'},nodeCount:u32,
- trianglesWord:u32,boundsWord:u32,childrenWord:u32,pad:u32,
+ trianglesWord:u32,boundsWord:u32,childrenWord:u32,dynamic:u32,
+ groupsWord:u32,rangesWord:u32,ownersWord:u32,transformsWord:u32,
+ revision:u32,pad0:u32,pad1:u32,pad2:u32,
  words:array<u32>,
 }
 @group(0) @binding(${binding}) var<storage,${writable ? 'read_write' : 'read'}> proxy:ResidentProxy;`;
