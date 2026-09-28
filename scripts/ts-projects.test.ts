@@ -37,7 +37,7 @@ test('the changed-files gate refuses a type error in a changed browser proof', (
 });
 
 test('a changed TypeScript file no project type-checks is an error, not a skip', () => {
-  assert.deepEqual(changedTypeErrors(ROOT, [], ['README.md']), []);
+  assert.deepEqual(changedTypeErrors(ROOT, [], []), []);
   assert.match(
     changedTypeErrors(ROOT, [], ['tests/browser/renders/pair.browser.ts']).join(),
     /pair\.browser\.ts: no tsconfig project type-checks it/,

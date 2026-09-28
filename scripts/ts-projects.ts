@@ -4,8 +4,6 @@
 import { resolve } from 'node:path';
 import ts from 'typescript';
 
-const TS_SOURCE = /\.(?:[cm]?ts|tsx)$/;
-
 /** Every tracked `tsconfig*.json` of `files`: the projects the gates type-check. */
 export function tsProjects(files: readonly string[]): string[] {
   return files.filter((file) => /(?:^|\/)tsconfig(?:\.[\w-]+)?\.json$/.test(file));
@@ -24,10 +22,14 @@ export function parseProject(config: string): ts.ParsedCommandLine {
       onUnRecoverableConfigFileDiagnostic: fail,
     },
   );
-  if (!parsed) throw new Error(`${config}: not a TypeScript project.`);
-  if (parsed.errors.length) fail(parsed.errors[0]!);
-  return parsed;
+  // Undefined only after `fail` has thrown.
+  if (parsed!.errors.length) fail(parsed!.errors[0]!);
+  return parsed!;
 }
+
+// One parse per file and language shared by every program of a run: the projects overlap, and all
+// of them read the same `lib` and `@types` declarations.
+const parsedFiles = new Map<string, ts.SourceFile>();
 
 /** The program of `project`, rooted at `rootNames`; `sources` stands in for files by absolute path. */
 export function projectProgram(
@@ -36,13 +38,18 @@ export function projectProgram(
   sources: ReadonlyMap<string, string> = new Map(),
 ): ts.Program {
   const host = ts.createCompilerHost(project.options);
-  if (!sources.size) return ts.createProgram({ rootNames, options: project.options, host });
   const { fileExists, readFile } = host;
   host.fileExists = (file) => sources.has(file) || fileExists(file);
   host.readFile = (file) => sources.get(file) ?? readFile(file);
   host.getSourceFile = (file, language) => {
+    const key = `${file}\0${JSON.stringify(language)}`;
+    const cached = sources.has(file) ? undefined : parsedFiles.get(key);
+    if (cached) return cached;
     const text = host.readFile(file);
-    return text === undefined ? undefined : ts.createSourceFile(file, text, language);
+    if (text === undefined) return undefined;
+    const parsed = ts.createSourceFile(file, text, language);
+    if (!sources.has(file)) parsedFiles.set(key, parsed);
+    return parsed;
   };
   return ts.createProgram({ rootNames, options: project.options, host });
 }
@@ -58,18 +65,19 @@ export function typeErrors(program: ts.Program, root: string): string[] {
 }
 
 /**
- * The type errors of every project that owns one of `changed` (paths relative to `root`): a project
- * owns a file it lists, or else one its program reaches (a `*.fixture.ts` a test imports). A
- * changed TypeScript file no project reaches is itself an error, never a silent skip.
+ * The type errors of every project that owns one of `sources`, the changed TypeScript files
+ * (paths relative to `root`): a project owns a file it lists, or else one its program reaches (a
+ * `*.fixture.ts` a test imports). A changed file no project reaches is itself an error, never a
+ * silent skip.
  */
 export function changedTypeErrors(
   root: string,
   projects: readonly string[],
-  changed: readonly string[],
+  sources: readonly string[],
 ): string[] {
-  const sources = changed.filter((file) => TS_SOURCE.test(file));
   if (!sources.length) return [];
   const parsed = projects.map((project) => parseProject(resolve(root, project)));
+  const listed = new Map(parsed.map((project) => [project, new Set(project.fileNames)]));
   const programs = new Map<ts.ParsedCommandLine, ts.Program>();
   const programOf = (project: ts.ParsedCommandLine) => {
     const program = programs.get(project) ?? projectProgram(project);
@@ -80,7 +88,7 @@ export function changedTypeErrors(
   const owners = new Set<ts.ParsedCommandLine>();
   for (const source of sources) {
     const file = resolve(root, source);
-    const listing = parsed.filter((project) => project.fileNames.includes(file));
+    const listing = parsed.filter((project) => listed.get(project)!.has(file));
     const found = listing.length
       ? listing
       : parsed.filter((project) => programOf(project).getSourceFile(file));
