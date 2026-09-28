@@ -95,3 +95,7 @@ export function poseAt(bounds: Bounds, index: number): CameraPose {
     far: radius * 20,
   };
 }
+
+/** One pose per frame along the trajectory from index `index`. */
+export const trajectoryPoses = (bounds: Bounds, index: number, frames: number) =>
+  Array.from({ length: frames }, (_, i) => poseAt(bounds, index + i));
