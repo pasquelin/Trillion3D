@@ -3,8 +3,6 @@ import assert from 'node:assert/strict';
 import * as G from '../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { rowMaterial } from '../webgpu/row/pageRowMaterial.ts';
-import { FLAG_FOG_FREE } from '../visibility/types.ts';
-import { FOG_FREE_MODEL_BIT, MODEL_SHIFT } from '../scene/surfaceModel.ts';
 import { BLEND_ITEM_WORDS, writeBlendItemRecord } from '../webgpu/blend/items.ts';
 import { BLEND_SHADER } from '../webgpu/blend/shader.ts';
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
@@ -20,32 +18,22 @@ test('a fog-free material reaches both the opaque flag and transparent shader', 
   assert.equal(surface.fog, false);
   const layers = { mapLayer: new Map(), dataLayer: new Map() };
   const row = rowMaterial(surface, undefined, layers);
-  assert.equal(row.flags & FLAG_FOG_FREE, FLAG_FOG_FREE);
-  assert.match(SHADE_SHADER, new RegExp(`page.flags&${FLAG_FOG_FREE}u`));
+  assert.equal(row.flags & (1 << 20), 1 << 20);
+  assert.match(SHADE_SHADER, /page.flags&1048576u/);
   assert.match(DIRECT_LIGHTING_SHADER, /surfaceFlag&128u/);
 
   const floats = new Float32Array(BLEND_ITEM_WORDS);
   const ints = new Uint32Array(floats.buffer);
-  writeBlendItemRecord(
-    floats,
-    ints,
-    0,
-    {
-      surface,
-      matrix: new G.Matrix4(),
-      flags: 1,
-      count: 3,
-      sourceGeometry: new G.Geometry(),
-      orderKey: 0,
-      orderRank: 0,
-    },
-    layers,
-  );
-  assert.equal(floats[39], FOG_FREE_MODEL_BIT);
-  assert.match(BLEND_SHADER, new RegExp(`flags&${FOG_FREE_MODEL_BIT << MODEL_SHIFT}u`));
+  const item = prepared().blendState.blendGpu.find((entry) => !entry.transmissive);
+  assert.ok(item);
+  item.surface = surface;
+  writeBlendItemRecord(floats, ints, 0, item, layers);
+  assert.equal(floats[39], 8);
+  assert.match(BLEND_SHADER, /flags&1048576u/);
   material.fog = true;
-  assert.equal(surfaceOf(material).fog, true, 'an in-place material change is heard');
-  assert.equal(rowMaterial(surface, undefined, layers).flags & FLAG_FOG_FREE, 0);
+  material.needsUpdate = true;
+  assert.equal(surfaceOf(material).fog, true, 'a declared material change is heard');
+  assert.equal(rowMaterial(surface, undefined, layers).flags & (1 << 20), 0);
 });
 
 test('a fog-free transmissive material reaches the water composite without changing opacity', () => {

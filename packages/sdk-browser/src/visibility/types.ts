@@ -74,7 +74,6 @@ export type VisPage = {
   material: PageSurface;
   clusterId?: string;
 };
-
 export type VisMaterial = {
   baseColor: [number, number, number];
   metalness: number;
