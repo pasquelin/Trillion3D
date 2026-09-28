@@ -51,6 +51,8 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
   let epoch = NaN,
     direct = false,
     placed: Object3D[] = [];
+  /** The nested slots written in this batch, posed at its end, each after its ancestors'. */
+  const due: number[] = [];
   /** The tree's stores, read once per batch: they are replaced when the tree grows. */
   let tp = tree.position,
     tq = tree.quaternion,
@@ -67,7 +69,7 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
     const p = index * 3,
       q = index * 4,
       n = node[index];
-    if (n < 0) return void placed.push(nested.place(index));
+    if (n < 0) return void due.push(index);
     sp[n * 3] = position[p];
     sp[n * 3 + 1] = position[p + 1];
     sp[n * 3 + 2] = position[p + 2];
@@ -154,6 +156,7 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
       for (const mesh of [...slotOf.keys()]) release(mesh);
       owner.length = 0;
       nested.clear();
+      due.length = 0;
       bound.fill(-1);
     },
     /** Opens a batch of writes: the rows asked before are dropped when the world moved them. */
@@ -179,6 +182,10 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
     /** Closes the batch: the world hears the written rows and the nodes it recomposes itself. */
     end() {
       const link = root._link;
+      // A nested node's local pose is read against its parent's world: ancestors first.
+      if (due.length > 1) nested.order(due);
+      for (const index of due) placed.push(nested.place(index));
+      due.length = 0;
       for (let b = 0; b < batches.length; b++)
         if (to[b] >= 0) link?.placed?.(batches[b], from[b], to[b]);
       // The list is read before the next frame, which gets a fresh one.
