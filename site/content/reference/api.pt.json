@@ -770,7 +770,7 @@
     }
   },
   "DagStallCause": {
-    "summary": "Por que um grupo de DAG parou, nomeado pelo compilador ao rodar de novo a redução parada com uma restrição levantada: `too-small` (menos de dois triângulos vivos), `border-locked` (sem trava, avança), `seam-locked` (sem trava ainda para, com cópias de posição também soldadas em cada costura de textura ele avança), `unreducible` (nenhuma das duas avança), `border-lost` (uma posição compartilhada desapareceu em cada nova tentativa), `unusable-error`."
+    "summary": "Por que um grupo de DAG parou, nomeado pelo compilador ao rodar de novo a redução parada com uma restrição levantada: `too-small` (menos de dois triângulos vivos), `border-locked` (sem trava, avança), `seam-locked` (sem trava ainda para, com cópias de posição também soldadas em cada costura de textura ele avança, e sua nova tentativa com vértices resolvidos não avança), `unreducible` (nenhuma das duas avança), `border-lost` (uma posição compartilhada desapareceu em cada nova tentativa), `unusable-error`."
   },
   "DagStallSummary": {
     "summary": "O que resultam as paradas de uma primitiva: os triângulos de nível 0 restantes como raízes, a causa das paradas que retêm mais triângulos (`null` sem nenhuma parada), e as contagens de costura, travados e ilhas de textura somadas sobre seus grupos parados.",

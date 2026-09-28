@@ -777,7 +777,7 @@
     }
   },
   "DagStallCause": {
-    "summary": "Vì sao một nhóm DAG bị nghẽn, được trình biên dịch đặt tên bằng cách chạy lại phép rút gọn bị nghẽn sau khi gỡ bỏ một ràng buộc: `too-small` (ít hơn hai tam giác sống), `border-locked` (nếu không khóa nó sẽ tiếp tục), `seam-locked` (nếu không khóa vẫn nghẽn, với các bản sao vị trí cũng được hàn qua mọi đường nối kết cấu mà nó đi qua), `unreducible` (cả hai đều không tiếp tục), `border-lost` (một vị trí chung biến mất ở mọi lần thử lại), `unusable-error`."
+    "summary": "Vì sao một nhóm DAG bị nghẽn, được trình biên dịch đặt tên bằng cách chạy lại phép rút gọn bị nghẽn sau khi gỡ bỏ một ràng buộc: `too-small` (ít hơn hai tam giác sống), `border-locked` (nếu không khóa nó sẽ tiếp tục), `seam-locked` (nếu không khóa vẫn nghẽn, với các bản sao vị trí cũng được hàn qua mọi đường nối kết cấu mà nó đi qua, và lần thử lại với các đỉnh được giải không tiến được), `unreducible` (cả hai đều không tiếp tục), `border-lost` (một vị trí chung biến mất ở mọi lần thử lại), `unusable-error`."
   },
   "DagStallSummary": {
     "summary": "Kết quả của các điểm nghẽn của một nguyên thủy: các tam giác mức 0 còn lại làm gốc, nguyên nhân của các điểm nghẽn giữ nhiều tam giác nhất (`null` khi không có điểm nghẽn), và tổng số đường nối, số đỉnh bị khóa và số đảo kết cấu cộng dồn qua các nhóm bị nghẽn của nó.",
