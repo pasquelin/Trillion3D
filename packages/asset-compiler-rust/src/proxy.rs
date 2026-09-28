@@ -1,7 +1,7 @@
-use crate::Result;
 use crate::compiler_validate::{item, required_index, values};
-use crate::compiler_world::{Mat4, transform_point, world_matrices};
+use crate::compiler_world::{transform_point, world_matrices, Mat4};
 use crate::texture_preview::TexturePreview;
+use crate::Result;
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -18,7 +18,7 @@ pub mod wide;
 pub const SCENE_PROXY_VERSION: u32 = 3;
 /// 'W','G','P','X' read as 32-bit little-endian unsigned int.
 pub const SCENE_PROXY_MAGIC: u32 = 0x5850_4757;
-/// Header integers: signature, version, triangles, nodes.
+/// Header: signature, version, triangle/node/group/owner/source counts, reserved zero.
 pub const SCENE_PROXY_HEADER_WORDS: usize = 8;
 /// Product name in cache key folder, next to `clusters.json`.
 pub const SCENE_PROXY_FILE: &str = "proxy.bin";
