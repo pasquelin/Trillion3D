@@ -114,16 +114,22 @@ async function drawnShare(page: Page): Promise<number> {
   );
 }
 
-/** The console lines the engine writes when it stops drawing (`worldHandles.ts`,
- *  `interactive.ts`, `webgpu/pages/io/lost.ts`). */
-export const ENGINE_FAILURE =
-  /^(?:World session failed|\[trillion3d\] (?:Automatic rendering stopped|WebGPU device lost))/;
+/**
+ * The errors an example page may raise or log, each named with its page and why; every other one
+ * fails the proofs (#945): the engine's own failures (`worldHandles.ts`, `interactive.ts`,
+ * `webgpu/pages/io/lost.ts`), a module whose import fails, a resource answered 404.
+ */
+export const DECLARED_ERRORS: readonly { page: string; error: string; why: string }[] = [];
+
+/** Whether `error`, raised or logged by the example `page`, is one declared for it. */
+export const declaredError = (page: string, error: string) =>
+  DECLARED_ERRORS.some((declared) => declared.page === page && declared.error === error);
 
 /**
  * Opens one example file in a new page of `browser` and waits until its canvas shows an image,
  * `share` of it drawn at least, `leastDrawn` on that backend unless given (an engine that failed
- * leaves the canvas blank); resolves with the page and the errors it raised or the engine logged,
- * which the caller closes and judges.
+ * leaves the canvas blank); resolves with the page and the errors it raised or logged, those
+ * `DECLARED_ERRORS` names for it aside, which the caller closes and judges.
  *
  * `gpu: false` hides `navigator.gpu` from the page, the machine an example must render on too:
  * naming no backend, it reaches `chooseBackends`, which takes the engine's own WebGL2 path.
@@ -142,12 +148,14 @@ export async function openExample(
   const page = await browser.newPage({ viewport });
   const errors: string[] = [],
     requests: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  // The engine catches its own failures — a session that cannot open, a frame the WebGL2
-  // program refuses — and says them on the console: the page stays blank, and this names why.
+  const heard = (error: string) => declaredError(entry.id, error) || errors.push(error);
+  page.on('pageerror', (error) => heard(error.message));
+  // The engine says its own failures on the console — a session that cannot open, a frame the
+  // WebGL2 program refuses —, and Chrome a resource it could not load, which it names here.
   page.on('console', (message) => {
-    if (message.type() === 'error' && ENGINE_FAILURE.test(message.text()))
-      errors.push(message.text());
+    if (message.type() !== 'error') return;
+    const text = message.text();
+    heard(text.startsWith('Failed to load resource') ? `${text} ${message.location().url}` : text);
   });
   page.on('request', (request) => requests.push(request.url()));
   if (!gpu)
@@ -164,10 +172,11 @@ export async function openExample(
         });
     }, slowMs);
   await page.goto(`http://127.0.0.1:${port}/${entry.file}`);
+  // A page asked to draw nothing (`share` 0), parked until the engine draws it, is heard a moment.
   let drawn = 0;
-  for (let attempt = 0; attempt < 30 && drawn < least; attempt++) {
+  for (let attempt = 0; attempt < 30 && (attempt === 0 || drawn < least); attempt++) {
     await page.waitForTimeout(500);
-    drawn = await drawnShare(page);
+    if (least) drawn = await drawnShare(page);
   }
   return { page, errors, drawn, requests };
 }
