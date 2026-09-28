@@ -78,12 +78,12 @@ function span({ attributes, morphAttributes, morphTargetsRelative: relative }: M
 }
 
 /** The position read straight from its list (`plainPoints`) when no morph target moves it. */
-const stored = ({ attributes, morphAttributes }: Morphed) =>
+const plainUnmorphed = ({ attributes, morphAttributes }: Morphed) =>
   morphAttributes.position?.length ? null : plainPoints(attributes.position);
 
 /** Writes the box over every vertex and morphed shape into `box`; empty with no position. */
 export function spanBox(box: Box3, morphed: Morphed) {
-  const plain = stored(morphed);
+  const plain = plainUnmorphed(morphed);
   if (plain) return box.setFromArray(plain.array, plain.itemSize);
   if (!span(morphed)) return box.makeEmpty();
   return box.set(
@@ -96,7 +96,7 @@ export function spanBox(box: Box3, morphed: Morphed) {
  *  `sphere`; left as it is with no position. */
 export function spanSphere(sphere: Sphere, morphed: Morphed) {
   const position = morphed.attributes.position,
-    plain = stored(morphed);
+    plain = plainUnmorphed(morphed);
   if (!position) return sphere;
   const { x: cx, y: cy, z: cz } = spanBox(scratchBox, morphed).getCenter(centre);
   let far = 0;
@@ -153,7 +153,6 @@ export function readPoints(attribute: VertexAttribute | undefined): ArrayLike<nu
   const plain = plainPoints(attribute);
   if (plain) return plain.array;
   const out = new Float32Array(attribute.count * 3);
-  for (let i = 0; i < attribute.count; i++)
-    for (let c = 0; c < 3; c++) out[i * 3 + c] = positionAt(attribute, i, c);
+  for (let i = 0; i < attribute.count; i++) out.set(pointAt(attribute, i, point), i * 3);
   return out;
 }
