@@ -57,7 +57,7 @@ function lightCutFrame() {
     frameData,
     frameWrites: { count: 0 },
     own,
-    frames: createCameraFrames(device, frameData, 1, own),
+    frames: createCameraFrames(device, frameData, 1, own, new Float32Array(16)),
   } as unknown as Parameters<typeof createDagLightCut>[0]);
   const output = buffers.find(({ label }) => label === 'Trillion3D light cut output')!;
   /** The GPU running the cut just encoded, over the view of `caster`, against `resident`. */

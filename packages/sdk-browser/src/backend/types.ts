@@ -100,12 +100,12 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   flush?(options?: { image?: boolean }): Promise<void>; // image: false skips the readback
   /** Wait for submitted work without image readback; true asks for another interactive frame. */
   pendingFrame?(): Promise<boolean>;
+  landings?(): number; // camera pages made resident so far: the view still arriving (#836)
   /** Current GPU image, bottom-left origin. Prefer flush() first; browser hosts can explicitly read synchronously. */
   capture?(): Uint8Array;
   /** The composed image of `camera` at a size of its own, drawn aside: nothing is presented. */
   captureColorView?(camera: HostCamera, size: ViewSize): Promise<Uint8Array>;
-  /** Runs `work` in a view of its own at `size`, released after: the main view keeps its cut. */
-  captureAside?<T>(size: ViewSize, work: () => T): T;
+  captureAside?<T>(size: ViewSize, work: () => T): T; // `work` in its own view; main cut kept
   captureSurfaceView?(
     camera: HostCamera,
     options: { width: number; height: number; signal?: AbortSignal },
