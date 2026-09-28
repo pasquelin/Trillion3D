@@ -1,6 +1,11 @@
-import { invertMatrix4, matrixAtRenderOrigin } from '../../../sdk-core/src/index.ts';
-import { TAA_SAMPLES, TAA_STILL_FRAMES, jitterViewProjection, taaJitter } from './jitter.ts';
-import { TAA_WEIGHTS, taaWeightTable } from './weights.ts';
+import {
+  TAA_SAMPLES,
+  jitterViewProjection,
+  taaJitter,
+  taaStillFrames,
+  upscalePhases,
+} from './jitter.ts';
+import { writeTaaView } from './view.ts';
 import { SAMPLED_RANKS } from '../lighting/direct/lightSamplingWgsl.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
@@ -9,8 +14,11 @@ import type { TemporalAntialiasing } from './temporalAntialiasing.ts';
 
 /** What the temporal pass keeps from one image to the next on the CPU side. */
 export interface TaaFrameState {
-  /** Jitter rank of the next accumulated image; only advances on those. */
+  /** Jitter rank of the next accumulated image; only advances on those, over `phases`. */
   sample: number;
+  /** Jitter phases of the frame's render-to-display ratio (`upscalePhases`): eight at native size. */
+  phases: number;
+  /** This image's jitter, in the pixels it is drawn in. */
   jitter: Float64Array;
   /** Render view-projection of this image, jitter included: what the raster, shading, blend and
    *  the partition read, decided once at image entry. */
@@ -18,7 +26,7 @@ export interface TaaFrameState {
   /** View-projection WITHOUT jitter of the last accumulated image: what the history describes. */
   previousViewProjection: Float64Array;
   hasHistory: boolean;
-  /** Quiet images accumulated in a row; see `TAA_STILL_FRAMES`. Zero as soon as something moves. */
+  /** Quiet images accumulated in a row; see `taaStillFrames`. Zero as soon as something moves. */
   stillFrames: number;
   /** Scene revision of the last accumulated image: another one causes poses to be compared. */
   sceneSeen: number;
@@ -46,6 +54,7 @@ export function createTaaCheckpoint() {
 export function createTaaFrameState(): TaaFrameState {
   return {
     sample: 0,
+    phases: TAA_SAMPLES,
     jitter: new Float64Array(2),
     viewProjection: new Float64Array(16),
     previousViewProjection: new Float64Array(16),
@@ -84,15 +93,17 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
     state.hasHistory = false;
     state.sample = 0;
   }
-  const [width, height] = rt.gpu.targetSize;
-  taaJitter(state.sample, state.jitter);
+  // The jitter is in the pixels the frame is drawn in; its phases follow the ratio to the display.
+  const { targetSize, displaySize } = rt.gpu;
+  state.phases = upscalePhases(targetSize[0], displaySize[0]);
+  taaJitter(state.sample, state.jitter, state.phases);
   jitterViewProjection(
     state.viewProjection,
     cam.viewProjection,
     state.jitter[0],
     state.jitter[1],
-    width,
-    height,
+    targetSize[0],
+    targetSize[1],
   );
 }
 
@@ -102,16 +113,12 @@ export function taaRenderMatrix(rt: WebgpuPagesRuntime, cam: EngineCamera): Arra
   return temporal?.frame.active ? temporal.frame.viewProjection : cam.viewProjection;
 }
 
-const anchored = new Float64Array(16),
-  packed = new Float32Array(40 + TAA_WEIGHTS),
-  /** Filter weights for each of the eight jitter ranks: they depend only on it. */
-  weights = taaWeightTable();
-
 /**
  * Encodes this image's temporal pass and returns the accumulated image composition must read —
- * `undefined` when the image does not accumulate, and composition reads the lit one. Writes the uniform, updates placement motion, advances
- * the jitter rank and keeps the view-projection without jitter for the next image. With `asIs`
- * false no as-is pixel is in the image, and the flagless resolve reads no flags (OMB-11).
+ * `undefined` when the image does not accumulate, and composition reads the lit one. Writes the
+ * uniform, updates placement motion, advances the jitter rank and keeps the view-projection without
+ * jitter for the next image. With `asIs` false no as-is pixel is in the image, and the flagless
+ * resolve reads no flags (OMB-11). A frame drawn below the display is reconstructed to it.
  */
 export function encodeTaaPass(
   rt: WebgpuPagesRuntime,
@@ -130,26 +137,18 @@ export function encodeTaaPass(
     scene = run.gate.revisions.scene;
   if (!state.hasHistory) temporal.motion.reset();
   else temporal.motion.update(cam.eye, state.sceneSeen !== scene);
-  const [width, height] = gpu.targetSize;
-  matrixAtRenderOrigin(packed, state.previousViewProjection, cam.eye, 0);
-  // Inverse of the view-projection WITHOUT jitter: the reprojected pixel is its unshifted centre,
-  // with the depth read at the shifted sample. At a fixed camera, history is thus re-read exactly
-  // on its texel — re-read to the jitter, it would be resampled bilinearly every image and would
-  // soften without end.
-  matrixAtRenderOrigin(anchored, cam.viewProjection, cam.eye);
-  packed.set(invertMatrix4(anchored, anchored), 16);
-  packed[32] = width;
-  packed[33] = height;
-  packed[34] = 1 / width;
-  packed[35] = 1 / height;
-  // Share of the current image: 1/k at the k-th quiet image, one eighth in motion.
-  packed[36] = state.stillFrames > 0 ? 1 / state.stillFrames : 1 / TAA_SAMPLES;
-  packed[37] = state.hasHistory ? 1 : 0;
-  packed[38] = temporal.motion.moved ? 1 : 0;
-  packed[39] = 0;
-  packed.set(weights[state.sample], 40);
-  device.queue.writeBuffer(temporal.uniform, 0, packed);
+  const { targetSize, displaySize } = gpu;
+  writeTaaView(
+    device,
+    temporal.uniform,
+    state,
+    cam,
+    targetSize,
+    displaySize,
+    temporal.motion.moved,
+  );
   const { inputs } = temporal;
+  inputs.upscale = targetSize[0] !== displaySize[0] || targetSize[1] !== displaySize[1];
   inputs.current = current;
   inputs.depth = gpu.depthView;
   inputs.ids = vis.visView;
@@ -162,7 +161,7 @@ export function encodeTaaPass(
   state.sceneSeen = scene;
   state.previousViewProjection.set(cam.viewProjection);
   state.hasHistory = true;
-  state.sample = (state.sample + 1) % TAA_SAMPLES;
+  state.sample = (state.sample + 1) % state.phases;
   return output;
 }
 
@@ -196,5 +195,6 @@ export function taaSampledRank(rt: WebgpuPagesRuntime) {
  */
 export function taaSettled(rt: WebgpuPagesRuntime) {
   const temporal = rt.gpu.temporal;
-  return !temporal || !rt.gpu.temporalWanted || temporal.frame.stillFrames >= TAA_STILL_FRAMES - 1;
+  if (!temporal || !rt.gpu.temporalWanted) return true;
+  return temporal.frame.stillFrames >= taaStillFrames(temporal.frame.phases) - 1;
 }
