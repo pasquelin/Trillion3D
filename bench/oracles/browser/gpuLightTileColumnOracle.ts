@@ -58,13 +58,14 @@ export function tileCorners(view: TileView, tile: [number, number], front: numbe
   );
 }
 
-function tileBox(corners: Vec3[], front: number, back: number) {
-  const eight = [...Array(8).keys()].map((c) => corners[(c & 4 ? back : front) * 4 + (c & 3)]);
-  return {
-    lo: map((a) => Math.min(...eight.map((p) => p[a]))),
-    hi: map((a) => Math.max(...eight.map((p) => p[a]))),
-  };
-}
+/** The box of a set of points: the min and max of each axis. */
+export const boxOf = (points: Vec3[]): Box => ({
+  lo: map((a) => Math.min(...points.map((p) => p[a]))),
+  hi: map((a) => Math.max(...points.map((p) => p[a]))),
+});
+
+const tileBox = (corners: Vec3[], front: number, back: number) =>
+  boxOf([...Array(8).keys()].map((c) => corners[(c & 4 ? back : front) * 4 + (c & 3)]));
 
 function inwardPlane(normal: Vec3, point: Vec3, inside: Vec3): Plane {
   const n = scale(normal, f(1 / f(Math.sqrt(dot(normal, normal)))));
@@ -73,15 +74,18 @@ function inwardPlane(normal: Vec3, point: Vec3, inside: Vec3): Plane {
 }
 
 export function tileColumn(corners: Vec3[]) {
-  const order = [0, 1, 3, 2];
-  const near = order.map((c) => corners[ROW.near * 4 + c]);
-  const deep = order.map((c) => corners[ROW.deep * 4 + c]);
-  const row = corners.slice(ROW.deep * 4, ROW.deep * 4 + 4);
-  const inside = scale(add(add(add(row[0], row[1]), row[2]), row[3]), 0.25);
-  const planes = order.map((_, i) =>
-    inwardPlane(cross(sub(deep[(i + 1) % 4], deep[i]), sub(deep[i], near[i])), near[i], inside),
+  // `columnCorner`: the `i`th corner of a row in turn around the tile, the Gray code of `i`.
+  const near = (i: number) => corners[ROW.near * 4 + (i ^ (i >> 1))];
+  const deep = (i: number) => corners[ROW.deep * 4 + (i ^ (i >> 1))];
+  const row = ROW.deep * 4; // the centre summed in the table's order
+  const inside = scale(
+    add(add(add(corners[row], corners[row + 1]), corners[row + 2]), corners[row + 3]),
+    0.25,
   );
-  planes.push(inwardPlane(cross(sub(deep[1], deep[0]), sub(deep[3], deep[0])), near[0], inside));
+  const planes = [0, 1, 2, 3].map((i) =>
+    inwardPlane(cross(sub(deep((i + 1) % 4), deep(i)), sub(deep(i), near(i))), near(i), inside),
+  );
+  planes.push(inwardPlane(cross(sub(deep(1), deep(0)), sub(deep(3), deep(0))), near(0), inside));
   return planes;
 }
 

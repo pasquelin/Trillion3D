@@ -47,9 +47,7 @@ fn sampledTileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:
  // A tile past its list walks every light, exactly.
  if(kept>TILE_LIGHTS){return sceneLighting(rgb,metal,rough,N,V,P,ao);}
  if(kept<=LIGHT_SAMPLES){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
- // No array of weights: each loop recomputes the weight it reads, the same function of the same
- // light at the same point, so the same value to the bit, and the registers a list of
- // TILE_LIGHTS weights would hold are left to the rest of the resolve.
+ // No private array of weights (#924): each loop recomputes the weight it reads, the same bits.
  var total=0.0;
  for(var index=0u;index<kept;index++){total+=listedWeight(base,index,N,P);}
  if(total<=0.0){return vec3f(0.0);}

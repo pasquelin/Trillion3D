@@ -5,6 +5,7 @@ import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
 import { DEPTH_NEAR } from '../../camera/depthConvention.ts';
 import {
   ROW,
+  boxOf,
   tileBounds,
   tileCorner,
   type TileView,
@@ -28,7 +29,7 @@ function boundsByCalls(view: TileView, tile: [number, number], front: number, ba
 
 test('the corner table gives both boxes the corners of before, to the bit', () => {
   const r = mulberry32(24);
-  for (let run = 0; run < 300; run++) {
+  for (let run = 0; run < 10000; run++) {
     const [width, height] = [320 + Math.floor(r() * 1600), 240 + Math.floor(r() * 840)];
     const view = camera(
       [r() * 1e4 - 5e3, r() * 2e3, r() * 1e4 - 5e3],
@@ -42,17 +43,13 @@ test('the corner table gives both boxes the corners of before, to the bit', () =
       Math.floor(r() * Math.ceil(width / SIZE)),
       Math.floor(r() * Math.ceil(height / SIZE)),
     ];
-    const edge = [1, 0, -0, NaN, 1e-7][Math.floor(run / 6) % 5];
+    const edge = [1, 0, -0, NaN, 1e-7, Infinity, -Infinity][Math.floor(run / 6) % 7];
     const back = Math.fround(run % 6 ? NEAR / (1 + r() * 3000) : edge);
     const front = Math.fround(Math.max(back, run % 7 ? r() : 1));
     const bounds = tileBounds(view, tile, front, back);
     const calls = boundsByCalls(view, tile, front, back);
-    const box = (points: number[][]) => ({
-      lo: [0, 1, 2].map((a) => Math.min(...points.map((p) => p[a]))),
-      hi: [0, 1, 2].map((a) => Math.max(...points.map((p) => p[a]))),
-    });
-    assert.deepEqual(bounds.opaqueBox, box(calls.opaqueBox));
-    assert.deepEqual(bounds.blendBox, box(calls.blendBox));
+    assert.deepEqual(bounds.opaqueBox, boxOf(calls.opaqueBox));
+    assert.deepEqual(bounds.blendBox, boxOf(calls.blendBox));
   }
 });
 
@@ -67,7 +64,7 @@ test('sixteen threads de-project the corners between two barriers; thread zero c
   // The rows' depths, near, column, front, back: \`ROW\` and \`tileCorners\` of the oracle.
   assert.match(
     LIGHT_TILES_SHADER,
-    /let z=select\(select\(1\.0,COLUMN_DEPTH,row==DEEP_ROW\),select\(front,back,row==BACK_ROW\),row>=FRONT_ROW\);/,
+    /var z=select\(1\.0,COLUMN_DEPTH,row==DEEP_ROW\);\s*if\(row==FRONT_ROW\)\{z=bitcast<f32>\(atomicLoad\(&nearest\)\);\}\s*if\(row==BACK_ROW\)\{z=bitcast<f32>\(atomicLoad\(&farthest\)\);\}/,
   );
   for (const [name, row] of Object.entries(ROW))
     assert.match(LIGHT_TILES_SHADER, new RegExp(`const ${name.toUpperCase()}_ROW:u32=${row}u;`));

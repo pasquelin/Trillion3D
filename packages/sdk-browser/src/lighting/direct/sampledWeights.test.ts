@@ -101,7 +101,7 @@ const EDGE = [NaN, 0, -0, Infinity, -Infinity, 1e-45, 3.4e38, 1, 0.25];
 
 test('recomputed weights choose the lights and factors of the weight array, to the bit', () => {
   const r = mulberry32(20);
-  for (let run = 0; run < 5000; run++) {
+  for (let run = 0; run < 10000; run++) {
     const kept = SAMPLES + 1 + Math.floor(r() * (MAX - SAMPLES));
     const edgy = run % 4 === 0,
       heavy = run % 3 === 0;
