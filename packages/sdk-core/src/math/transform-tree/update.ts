@@ -91,6 +91,9 @@ function refreshNode(tree: TransformTree, node: number, fromWorldMatrix: boolean
 
 const stepWorldMatrix = (tree: TransformTree, node: number) => refreshNode(tree, node, true);
 
+/** The flags that make `updateNodeMatrixWorld`'s rule reach a node, and its children after it. */
+export const NODE_REACH = NODE_AUTO_UPDATE | NODE_WORLD_NEEDS_UPDATE;
+
 /**
  * `node.updateMatrixWorld(force)`: the node and its whole subtree, parents first, and how many
  * nodes it walked — the subtree, whatever else shares the tree. A node is reached if it updates
@@ -100,15 +103,14 @@ const stepWorldMatrix = (tree: TransformTree, node: number) => refreshNode(tree,
  */
 export function updateNodeMatrixWorld(tree: TransformTree, node: number, force = false) {
   const { parent, stamp, flags } = tree;
-  const visited = nextStamp(tree) * 2,
-    reach = NODE_AUTO_UPDATE | NODE_WORLD_NEEDS_UPDATE;
-  const reached = force || (flags[node] & reach) !== 0;
+  const visited = nextStamp(tree) * 2;
+  const reached = force || (flags[node] & NODE_REACH) !== 0;
   if (reached) refreshNode(tree, node, false);
   stamp[node] = reached ? visited | 1 : visited;
   let walked = 1;
   for (let j = nextInSubtree(tree, node, node); j >= 0; j = nextInSubtree(tree, j, node)) {
     walked++;
-    if (stamp[parent[j]] !== visited || (flags[j] & reach) !== 0) {
+    if (stamp[parent[j]] !== visited || (flags[j] & NODE_REACH) !== 0) {
       refreshNode(tree, j, false);
       stamp[j] = visited | 1;
     } else stamp[j] = visited;

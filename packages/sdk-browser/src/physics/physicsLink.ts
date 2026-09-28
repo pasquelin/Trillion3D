@@ -5,7 +5,7 @@ import type { SceneLink } from '../../../sdk-core/src/world/object/object3d.ts';
  *  hear the batches too (`posed`). */
 export function physicsLink(
   link: SceneLink | null,
-  physics: Omit<SceneLink, 'posed'> & Partial<Pick<SceneLink, 'posed'>>,
+  physics: Omit<SceneLink, 'posed'> & { posed?: SceneLink['posed'] },
 ): SceneLink {
   return {
     ...link,
@@ -13,7 +13,7 @@ export function physicsLink(
       link?.pose(node);
       physics.pose(node);
     },
-    // Only the physics places nodes by the batch: nothing to tell it of its own writes.
+    // The physics places nodes by the batch, so it has no `posed` of its own; another listener may.
     posed(nodes) {
       link?.posed(nodes);
       physics.posed?.(nodes);

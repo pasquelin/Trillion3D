@@ -10,15 +10,11 @@ import { Group, type Object3D } from '../../../../sdk-core/src/world/object/obje
 import { setHostPose } from '../../host/pageObjects.ts';
 import type { HostMesh } from '../../host/resources.ts';
 import { pick as pickOf, seeded } from '../../host/world/randomTree.fixture.ts';
+import { rootedUnder } from '../../host/world/chain.ts';
 import { HOSTILE_FLOATS } from '../../../../../tests/kit/assert/hostile.ts';
 
 const EDGES = [...HOSTILE_FLOATS, 1e308, -1e308, 1, -2.5, 0.75];
 
-/** True when `node` hangs under `top`, or is it. */
-function within(node: Object3D, top: Object3D) {
-  for (let at: Object3D | null = node; at; at = at.parent) if (at === top) return true;
-  return false;
-}
 
 /** A random graph and the edits a page or the engine makes to it, each told through the link. */
 function graph(seed: number, size: number) {
@@ -38,8 +34,8 @@ function graph(seed: number, size: number) {
     nodes.push(node);
     return node;
   };
-  const placed = () => [scene, ...nodes.filter((node) => within(node, scene))];
-  const members = () => nodes.filter((node) => within(node, scene));
+  const members = () => nodes.filter((node) => rootedUnder(node, scene));
+  const placed = () => [scene, ...members()];
   // Every node made so far hangs under the scene: no filter while it is built.
   for (let i = 0; i < size; i++) pick([scene, ...nodes]).add(make());
   const matrix = () => Array.from({ length: 16 }, value);
@@ -48,7 +44,7 @@ function graph(seed: number, size: number) {
     remove: () => pick(members())?.removeFromParent(),
     reparent: () => {
       const node = pick(members());
-      if (node) pick(placed().filter((n) => !within(n, node))).add(node);
+      if (node) pick(placed().filter((n) => !rootedUnder(n, node))).add(node);
     },
     detach: () => pick(members()) && aside.add(pick(members())),
     move: () => pick([...nodes, scene]).position.set(value(), value(), value()),
@@ -144,7 +140,7 @@ test('an image walks only the subtrees that changed, never the whole graph', () 
   leaf.position.z = 3;
   assert.equal(
     pass.run(),
-    size + (within(leaf, holder) ? 0 : 1),
+    size + (rootedUnder(leaf, holder) ? 0 : 1),
     'a moved group walks its subtree',
   );
 });
