@@ -4,9 +4,9 @@ pub(crate) mod directories;
 /// The RAM budget, in bytes, a test driver request runs under.
 pub(crate) const RAM_BUDGET: usize = 1 << 30;
 pub(crate) mod fixtures;
-pub(crate) mod random;
 pub(crate) mod golden;
 mod golden_digest;
+pub(crate) mod random;
 use base::*;
 use directories::scratch;
 use fixtures::*;

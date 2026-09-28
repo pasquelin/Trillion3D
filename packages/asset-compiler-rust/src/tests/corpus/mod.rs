@@ -17,9 +17,8 @@ mod solids;
 mod topology;
 mod uv;
 mod uv_degenerate;
-mod xorshift;
 
-pub(super) use xorshift::Xorshift;
+pub(super) use crate::tests::random::Xorshift;
 
 /// The generator of a case: the corpus xorshift, its seed spread over the whole state so that
 /// neighbouring seeds draw unrelated cases. The same case on every platform, no libm in the way.
