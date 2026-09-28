@@ -33,11 +33,13 @@ export async function empaquetePage(
   input: string,
   // Only read below for `format: 'iife'`; every ESM caller may omit it.
   nomGlobal?: string,
-  { format = 'iife' }: { format?: Format } = {},
+  { format = 'iife', workerUrls = false }: { format?: Format; workerUrls?: boolean } = {},
 ) {
   const paquet = await esbuild.build({
     entryPoints: [input],
     bundle: true,
+    // IIFE bundles have no import.meta; worker siblings resolve from the served page.
+    ...(workerUrls ? { define: { 'import.meta.url': 'globalThis.location.href' } } : {}),
     write: false,
     format,
     ...(format === 'iife' ? { globalName: nomGlobal } : {}),
@@ -61,10 +63,15 @@ export async function empaquetePage(
 export async function dansPageWebgpu<A, R>(
   fonction: (argument: A) => R | Promise<R>,
   argument: A,
-  options: { titre?: string; script?: string | null; erreursPage?: string[] | null } = {},
+  options: {
+    titre?: string;
+    script?: string | null;
+    erreursPage?: string[] | null;
+    resources?: Readonly<Record<string, string>>;
+  } = {},
 ) {
   const { titre = 'Trillion3D WebGPU', script = null, erreursPage = null } = options;
-  const { server, port } = await blankPageServer(titre, script);
+  const { server, port } = await blankPageServer(titre, script, options.resources);
   const browser = await launchChrome({ headless: true });
   try {
     const page = await browser.newPage();
