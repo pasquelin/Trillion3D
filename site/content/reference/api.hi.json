@@ -7001,6 +7001,24 @@
       "modes": "हर दृश्य मोड जो वर्तमान renderer प्रस्तुत करता है।"
     }
   },
+  "world.materials": {
+    "summary": "वर्तमान आयातित सामग्री, फिर पेज पर बनाई गई सामग्री।"
+  },
+  "world.material": {
+    "summary": "सूची में दिए ID से एक सामग्री।"
+  },
+  "world.importedMaterials": {
+    "summary": "पेज के बदलावों से पहले स्रोत फ़ाइल के मान।"
+  },
+  "world.setMaterial": {
+    "summary": "अगले फ़्रेम में आयातित या बनाई गई सामग्री बदलता है।"
+  },
+  "world.createMaterial": {
+    "summary": "इस पेज की सामग्री बनाता है।"
+  },
+  "world.assignMaterial": {
+    "summary": "बनाई गई सामग्री को संकलित `mesh/primitive` पर लगाता है।"
+  },
   "world.guides": {
     "summary": "छवि के ऊपर बनाई गई रेखाएँ, बिंदु और सहायक (`Guides`)।"
   },

@@ -7001,6 +7001,24 @@
       "modes": "كل وضع منظر يقدّمه المُصيِّر (renderer) الحالي."
     }
   },
+  "world.materials": {
+    "summary": "المواد المستوردة الحالية، ثم المواد التي أنشأتها الصفحة."
+  },
+  "world.material": {
+    "summary": "مادة واحدة حسب معرّفها في القائمة."
+  },
+  "world.importedMaterials": {
+    "summary": "قيم الملف الأصلي قبل أي تعديل من الصفحة."
+  },
+  "world.setMaterial": {
+    "summary": "يغيّر مادة مستوردة أو مُنشأة في الإطار التالي."
+  },
+  "world.createMaterial": {
+    "summary": "ينشئ مادة تملكها هذه الصفحة."
+  },
+  "world.assignMaterial": {
+    "summary": "يسند مادة أنشأتها الصفحة إلى `mesh/primitive` مُجمّع."
+  },
   "world.guides": {
     "summary": "خطوط ونقاط ومساعدات مرسومة فوق الصورة (`Guides`)."
   },

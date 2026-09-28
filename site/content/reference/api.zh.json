@@ -4092,6 +4092,24 @@
       "modes": "当前渲染器提供的所有视图模式。"
     }
   },
+  "world.materials": {
+    "summary": "当前导入的材质，以及页面创建的材质。"
+  },
+  "world.material": {
+    "summary": "按列表中的 ID 获取一个材质。"
+  },
+  "world.importedMaterials": {
+    "summary": "页面修改前源文件中的值。"
+  },
+  "world.setMaterial": {
+    "summary": "在下一帧更改导入或创建的材质。"
+  },
+  "world.createMaterial": {
+    "summary": "创建属于此页面的材质。"
+  },
+  "world.assignMaterial": {
+    "summary": "将创建的材质指定给已编译的 `mesh/primitive`。"
+  },
   "world.guides": {
     "summary": "绘制在图像之上的线、点和辅助对象（`Guides`）。"
   },

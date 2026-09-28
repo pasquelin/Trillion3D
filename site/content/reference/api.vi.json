@@ -7001,6 +7001,24 @@
       "modes": "Mọi chế độ khung nhìn mà trình dựng hình hiện tại cung cấp."
     }
   },
+  "world.materials": {
+    "summary": "Vật liệu đã nhập hiện tại, tiếp theo là vật liệu do trang tạo."
+  },
+  "world.material": {
+    "summary": "Một vật liệu theo ID trong danh sách."
+  },
+  "world.importedMaterials": {
+    "summary": "Giá trị tệp gốc trước khi trang chỉnh sửa."
+  },
+  "world.setMaterial": {
+    "summary": "Thay đổi vật liệu đã nhập hoặc đã tạo ở khung hình kế tiếp."
+  },
+  "world.createMaterial": {
+    "summary": "Tạo vật liệu thuộc trang này."
+  },
+  "world.assignMaterial": {
+    "summary": "Gán vật liệu đã tạo cho `mesh/primitive` đã biên dịch."
+  },
   "world.guides": {
     "summary": "Đường, điểm và công cụ trợ giúp vẽ đè lên hình ảnh (`Guides`)."
   },

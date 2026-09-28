@@ -1263,6 +1263,25 @@
       "off": "オフ"
     }
   },
+  "page-materials": {
+    "banner": "ドラッグしてホールを見回します。マテリアルの一覧表示、変更、ブレンド、作成ができます。",
+    "controls": {
+      "set": "色を変更",
+      "switchToBlend": "ブレンドに切り替え",
+      "createAndAssign": "作成して割り当て"
+    },
+    "readouts": {
+      "selected material": "選択中のマテリアル",
+      "materials": "マテリアル",
+      "sourceMaterials": "元のマテリアル",
+      "last action": "最後の操作"
+    },
+    "words": {
+      "imported": "{count} 件をインポート",
+      "applied": "適用しました",
+      "ready": "準備完了"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "ドラッグして見回そう。このランプはモデルのファイルに入っていたよ。",
     "controls": {
