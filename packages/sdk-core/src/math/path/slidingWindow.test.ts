@@ -73,7 +73,10 @@ test('an observation takes no view of a window and sorts none, full or not (#983
   let t = 0;
   const governor = createPathGovernor(() => (t += 0.001));
   governor.setWasm(true, true, null);
-  const prototype = Float64Array.prototype as unknown as Record<string, Function>;
+  const prototype = Float64Array.prototype as unknown as Record<
+    string,
+    (...args: unknown[]) => unknown
+  >;
   const { subarray, sort } = Float64Array.prototype;
   let calls = 0;
   for (const name of ['subarray', 'sort']) {
