@@ -82,6 +82,7 @@ test('a host hide parks the root, hides its blend items and stales the shadow pa
     timing: { worldCounts: {} },
     blendState,
     lights: {
+      mobility: { moves: () => false },
       plan: { worldChanged: (lo: number[], hi: number[]) => changed.push([...lo, ...hi]) },
     },
   } as unknown as WebgpuPagesRuntime;
