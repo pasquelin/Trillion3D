@@ -1,7 +1,9 @@
 /**
  * THE CREATION NUMBER OF THE ENGINE'S NODES: one count, from one, for every node the engine builds
- * — its scenes, cameras, meshes and lights, the core's, numbered here as they are built or copied. A draw breaks depth ties with it; a diagnostic seeds a colour with
- * it. A node a page builds takes no number: it is the world's, drawn through the engine's own copy.
+ * — its scenes, cameras, meshes and lights, the core's, numbered here as they are built or copied.
+ * A draw breaks depth ties with it; a diagnostic seeds a colour with it. A light's number is read
+ * by neither: it is taken so the meshes built after it keep theirs. A node a page builds takes no
+ * number: it is the world's, drawn through the engine's own copy.
  */
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
