@@ -4,7 +4,7 @@
 // axes, 1,500 lit windows and 40 large lights. Synthetic: it stands for an aerial view over many
 // lights, never for a scene of the repository. `depthField` ray-casts it as the engine's depth
 // buffer holds it — reverse-Z, infinite far, 0 on the sky.
-import { random } from '../../packages/sdk-browser/src/page/cut/cutRuleChecks.fixture.ts';
+import { seeded } from '../../site/examples/kit/random.ts';
 import {
   NEAR,
   pixelPoint,
@@ -28,7 +28,7 @@ export const SKY_DISTANCE = 4000;
 const FAR_CAST = 1e5;
 
 export function buildCity(seed = 42): City {
-  const r = random(seed),
+  const r = seeded(seed),
     u = (lo: number, hi: number) => lo + (hi - lo) * r();
   const blocks = new Map<string, number>();
   for (let i = -HALF; i < HALF; i++)
