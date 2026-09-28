@@ -12,9 +12,9 @@ const HEADROOM = 1.25;
 
 /**
  * The view's light-index pool, after the tile records in the same buffer (#849): a tile slice
- * past its list takes its room there. Its state is sampled one frame in fifteen, never waited
- * for: an overflow is named (`tileLightPoolOverflowed`) and grows the pool to `HEADROOM` times
- * what that frame reserved, within `MOST_WORDS_PER_TILE`. Until then, and past that bound, a tile with no room walks every light of the scene, exactly.
+ * past its list takes its room there. Sampled one frame in fifteen, an overflow is named
+ * (`tileLightPoolOverflowed`) and grows the pool to `HEADROOM` times what it reserved, within
+ * `MOST_WORDS_PER_TILE`; until then, and past it, a tile with no room walks every light exactly.
  */
 export function createTileLightPool(device: GPUDevice) {
   const words = new Uint32Array(4);
