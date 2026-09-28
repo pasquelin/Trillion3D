@@ -76,6 +76,8 @@ export type {
 export type { BackendDiagnostic, PointOfInterest, DiagnosticDetail } from './backend/types.ts';
 /** The rows a mirrored mesh is placed through, reachable from the scene a loader records. */
 export type { PlacementRows } from './placement/rows.ts';
+/** How a partition's frame hands a session the rows it grows in place, reachable from that scene. */
+export type { PlacementGrowth } from './placement/backendSceneUpdates.ts';
 /** Host resources the engine reads and never builds (`host/resources.ts`): a host declares them
  *  with whatever library it draws with, the contract names only their shape. */
 export type {
