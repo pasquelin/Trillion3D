@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { buildBundles, copyStatics, SITE_URL } from './docs/site.ts';
@@ -55,6 +55,7 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     await writeFile(join(source, 'reports/contract.ts'), 'export {};');
     await writeFile(join(source, 'reports/campaign/report.json'), '{}');
     await writeFile(join(source, 'assets/manifest.json'), '{}');
+    await copyFile(new URL('../site/favicon.ico', import.meta.url), join(source, 'favicon.ico'));
     // What an earlier build copied and the sources no longer have: a removed example, a page.
     await mkdir(join(out, 'examples'), { recursive: true });
     await writeFile(join(out, 'examples/removed.html'), '');
@@ -69,10 +70,10 @@ test('the statics are copied as served, sources excluded, up-to-date copies left
     assert.equal(await readFile(join(out, 'index.html'), 'utf8'), `${root}  </head>\n`);
     assert.equal(await readFile(join(out, 'examples/cube.html'), 'utf8'), example);
     assert.equal(await readFile(join(out, 'robots.txt'), 'utf8'), 'User-agent: *\nAllow: /\n');
-    // The icon a page that names none asks the root for (#945): an icon file, not a 404.
+    // The site's icon, which a page that names none asks the root for (#945): one 16-pixel image.
     assert.deepEqual(
-      [...(await readFile(join(out, 'favicon.ico'))).subarray(0, 6)],
-      [0, 0, 1, 0, 1, 0],
+      [...(await readFile(join(out, 'favicon.ico'))).subarray(0, 8)],
+      [0, 0, 1, 0, 1, 0, 16, 16],
     );
     assert.equal(await readFile(join(out, 'reports/campaign/report.json'), 'utf8'), '{}');
     assert.equal(await readFile(join(out, 'assets/manifest.json'), 'utf8'), '{}');

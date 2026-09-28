@@ -3,7 +3,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { RUNTIME_ENTRIES } from './docs/build-runtime.ts';
-import { exampleModules } from './docs/examples/capture.ts';
+import { exampleModules, RUNTIME_IMPORT } from './docs/examples/capture.ts';
 import { examplePages } from './docs/examples/pages.ts';
 
 type Runtime = keyof typeof RUNTIME_ENTRIES;
@@ -32,14 +32,19 @@ test('every name an example imports from the runtime is one it exports (#945)', 
   // imports a missing name fails before its first line runs, on every backend.
   const [exported, pages] = await Promise.all([runtimeExports(), examplePages()]);
   assert.ok(exported.engine.has('createWorld') && exported.kit.has('controls'));
-  const missing: string[] = [];
-  for (const { file, html } of pages)
-    for (const source of await exampleModules(html))
-      for (const [, names, module] of source.matchAll(
-        /import \{([^}]*)\} from '\.\.\/runtime\/(engine|kit)\.js'/g,
-      ))
-        for (const name of names.split(',').map((one) => one.trim().split(/\s+as\s+/)[0]))
-          if (name && !exported[module as Runtime].has(name))
-            missing.push(`${file}: ${name} from ${module}.js`);
+  const sources = await Promise.all(
+    pages.map(async ({ file, html }) => ({ file, modules: await exampleModules(html) })),
+  );
+  const missing = sources.flatMap(({ file, modules }) =>
+    modules.flatMap((source) =>
+      [...source.matchAll(RUNTIME_IMPORT)].flatMap(([, names, module]) =>
+        names
+          .split(',')
+          .map((one) => one.trim().split(/\s+as\s+/)[0])
+          .filter((name) => name && !exported[module as Runtime].has(name))
+          .map((name) => `${file}: ${name} from ${module}.js`),
+      ),
+    ),
+  );
   assert.deepEqual(missing, []);
 });
