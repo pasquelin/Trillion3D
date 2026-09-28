@@ -702,6 +702,13 @@ the root cover and the pages the host replaced (`replaceGeometryPage`) stay abov
 counted as the pages' bytes are, every geometry copy included. No pool is reserved:
 `geometryPoolAllocatedBytes` is `null`, and what the pages hold is `geometryAllocationBytes`.
 Backends without pools throw `UNSUPPORTED_MEMORY_BUDGETS`.
+A composed WebGL2 capture draws in a view of its own (`backend/autonomous/views.ts`), as WebGPU's
+does: each view holds its cut, what it asks for, its motion and its size, and one switch trades
+their references (it never runs with one view). The views share the page store and the pool, which
+admits what the drawn view asks for after what the other views asked for, each page charged once:
+the union stays under the one budget, never multiplied. The residency holds the union and the
+streamer pins it, the main view's requests queued first; a released view's pages leave it. The main
+view keeps its cut and its motion across a capture.
 
 **What WebGL2 declares it cannot carry.** WebGL2 keeps the cut rule, the residency and the budget
 above; what it lacks it names in `capabilities.unsupported` and in the `render-capabilities`
@@ -932,8 +939,9 @@ added to it. CPU and GPU times are never added together.
 **Surface capture for global illumination.** `explorer.captureSurfaceView(pose, { width, height,
 signal })` returns an owned `SurfaceCapture` version 1 — the four material textures, depth, inverse
 view-projection, camera position and selected triangle count — for future lighting work. It reuses
-the page cache, selects for the requested camera, restores the main view afterwards and must be
-serialized with ordinary rendering; translucency is excluded.
+the page cache, selects for the requested camera in a view of its own, leaves the main view as it
+was and must be serialized with ordinary rendering; translucency is excluded. The WebGL2 path draws
+no material surfaces and refuses it by name (`SURFACE_CAPTURE_UNSUPPORTED`).
 
 ## Proofs
 
