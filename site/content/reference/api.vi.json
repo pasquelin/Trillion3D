@@ -3252,6 +3252,9 @@
       "shadowPoolPages": "Các trang vật lý của bể cố định đang giữ một trang ảo.",
       "shadowPoolBytes": "Số byte GPU của pool bóng: các trang độ sâu, lớp tĩnh và lớp truyền qua khi đã tạo, và các bộ đệm bên cạnh. Null cho đến khi khung hình đầu tiên định cỡ pool.",
       "shadowPoolLayers": "Số lớp của pool, mỗi lớp tối đa 4 096 trang, được định cỡ một lần theo màn hình và các đèn có bóng của khung hình đầu tiên. Null cho đến lúc đó.",
+      "shadowPeakBytes": "Số byte GPU lớn nhất mà phần bộ nhớ của bóng đổ giữ cùng lúc, kể cả các lớp đến muộn. Null cho đến khi khung hình đầu tiên định cỡ pool.",
+      "shadowResolutionBias": "Số lần byte của pool bóng đổ bị chia đôi do thiết bị từ chối bộ nhớ; bình thường là 0.",
+      "shadowMemoryEvents": "Các sự kiện áp lực bộ nhớ của bóng đổ kể từ khi thế giới mở, theo tên, theo thứ tự; bình thường là rỗng.",
       "shadowPagesRefetched": "Các trang ảo được ánh xạ lại sau khi bể đẩy chúng ra để lấy chỗ, kể từ khi explorer mở: những lần vẽ lại mà một bể quá nhỏ so với những gì các khung đọc phải trả.",
       "shadowCastersKept": "Các vật đổ bóng mà bước loại theo trang giữ lại, gộp mọi trang đã vẽ, ở khung hình thiết bị lấy mẫu gần nhất — một trên mười lăm; `null` cho đến khi có mẫu trả về.",
       "shadowCastersHidden": "Các vật đổ bóng chuyển động mà phép thử che khuất thấy bị ẩn sau lớp tĩnh của trang chúng, ở khung lấy mẫu gần nhất; `null` cho đến khi có mẫu trả về."
@@ -4234,6 +4237,9 @@
       "shadowPoolPages": "Các trang vật lý của bể cố định đang giữ một trang ảo.",
       "shadowPoolBytes": "Số byte GPU của pool bóng: các trang độ sâu, lớp tĩnh và lớp truyền qua khi đã tạo, và các bộ đệm bên cạnh. Null cho đến khi khung hình đầu tiên định cỡ pool.",
       "shadowPoolLayers": "Số lớp của pool, mỗi lớp tối đa 4 096 trang, được định cỡ một lần theo màn hình và các đèn có bóng của khung hình đầu tiên. Null cho đến lúc đó.",
+      "shadowPeakBytes": "Số byte GPU lớn nhất mà phần bộ nhớ của bóng đổ giữ cùng lúc, kể cả các lớp đến muộn. Null cho đến khi khung hình đầu tiên định cỡ pool.",
+      "shadowResolutionBias": "Số lần byte của pool bóng đổ bị chia đôi do thiết bị từ chối bộ nhớ; bình thường là 0.",
+      "shadowMemoryEvents": "Các sự kiện áp lực bộ nhớ của bóng đổ kể từ khi thế giới mở, theo tên, theo thứ tự; bình thường là rỗng.",
       "shadowPagesRefetched": "Các trang ảo được ánh xạ lại sau khi bể đẩy chúng ra để lấy chỗ, kể từ khi explorer mở: những lần vẽ lại mà một bể quá nhỏ so với những gì các khung đọc phải trả.",
       "shadowCastersKept": "Các vật đổ bóng mà bước loại theo trang giữ lại, gộp mọi trang đã vẽ, ở khung hình thiết bị lấy mẫu gần nhất — một trên mười lăm; `null` cho đến khi có mẫu trả về.",
       "shadowCastersHidden": "Các vật đổ bóng chuyển động mà phép thử che khuất thấy bị ẩn sau lớp tĩnh của trang chúng, ở khung lấy mẫu gần nhất; `null` cho đến khi có mẫu trả về."

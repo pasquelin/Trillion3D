@@ -3252,6 +3252,9 @@
       "shadowPoolPages": "Halaman fisik pool tetap yang menyimpan halaman virtual.",
       "shadowPoolBytes": "Byte GPU pool bayangan: halaman kedalamannya, lapisan statis dan transmitansnya setelah dibuat, serta buffer di sampingnya. Null sampai frame pertama menentukan ukuran pool.",
       "shadowPoolLayers": "Lapisan pool, masing-masing paling banyak 4 096 halaman, diukur sekali dari layar dan cahaya berbayang pada frame pertama. Null sampai saat itu.",
+      "shadowPeakBytes": "Byte GPU terbanyak yang ditahan jatah memori bayangan sekaligus, termasuk lapisan yang datang belakangan. Null sampai frame pertama menentukan ukuran pool.",
+      "shadowResolutionBias": "Berapa kali byte pool bayangan dibagi dua akibat penolakan memori oleh perangkat; biasanya 0.",
+      "shadowMemoryEvents": "Peristiwa tekanan memori bayangan sejak dunia dibuka, menurut nama, berurutan; biasanya kosong.",
       "shadowPagesRefetched": "Halaman virtual yang dipetakan lagi setelah pool mengusirnya untuk memberi tempat, sejak explorer dibuka: penggambaran ulang yang menjadi biaya pool yang terlalu kecil untuk yang dibaca bingkai.",
       "shadowCastersKept": "Pembuat bayangan yang dipertahankan culling per halaman, semua halaman yang digambar bersama, pada bingkai yang terakhir diambil sampelnya oleh perangkat — satu dari lima belas; `null` sampai sampel kembali.",
       "shadowCastersHidden": "Pembuat bayangan bergerak yang oleh uji oklusi ditemukan tersembunyi di balik lapisan statis halamannya, pada bingkai yang terakhir diambil sampelnya; `null` sampai sampel kembali."
@@ -4234,6 +4237,9 @@
       "shadowPoolPages": "Halaman fisik pool tetap yang menyimpan halaman virtual.",
       "shadowPoolBytes": "Byte GPU pool bayangan: halaman kedalamannya, lapisan statis dan transmitansnya setelah dibuat, serta buffer di sampingnya. Null sampai frame pertama menentukan ukuran pool.",
       "shadowPoolLayers": "Lapisan pool, masing-masing paling banyak 4 096 halaman, diukur sekali dari layar dan cahaya berbayang pada frame pertama. Null sampai saat itu.",
+      "shadowPeakBytes": "Byte GPU terbanyak yang ditahan jatah memori bayangan sekaligus, termasuk lapisan yang datang belakangan. Null sampai frame pertama menentukan ukuran pool.",
+      "shadowResolutionBias": "Berapa kali byte pool bayangan dibagi dua akibat penolakan memori oleh perangkat; biasanya 0.",
+      "shadowMemoryEvents": "Peristiwa tekanan memori bayangan sejak dunia dibuka, menurut nama, berurutan; biasanya kosong.",
       "shadowPagesRefetched": "Halaman virtual yang dipetakan lagi setelah pool mengusirnya untuk memberi tempat, sejak explorer dibuka: penggambaran ulang yang menjadi biaya pool yang terlalu kecil untuk yang dibaca bingkai.",
       "shadowCastersKept": "Pembuat bayangan yang dipertahankan culling per halaman, semua halaman yang digambar bersama, pada bingkai yang terakhir diambil sampelnya oleh perangkat — satu dari lima belas; `null` sampai sampel kembali.",
       "shadowCastersHidden": "Pembuat bayangan bergerak yang oleh uji oklusi ditemukan tersembunyi di balik lapisan statis halamannya, pada bingkai yang terakhir diambil sampelnya; `null` sampai sampel kembali."
