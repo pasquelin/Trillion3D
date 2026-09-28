@@ -70,7 +70,7 @@ fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32){
  let at=atomicAdd(&work[counter],count);
  for(var k=0u;k<count;k++){
   if(at+k>=views[0u].clusterCount){dropWork();return;}
-  flags[base+at+k]=packEntry(vi,first+k);
+  setFlag(base+at+k,packEntry(vi,first+k));
   if(((at+k)&63u)==0u){openSlice(groups,(at+k)>>6u);}
  }
 }
@@ -80,7 +80,7 @@ fn queueAppend(dst:u32,first:u32,count:u32){
  let base=queueBase(dst);
  for(var k=0u;k<count;k++){
   if(at+k>=views[0u].queueCap){dropWork();return;}
-  flags[base+at+k]=packEntry(vi,first+k);
+  setFlag(base+at+k,packEntry(vi,first+k));
  }
 }
 fn drawnAppend(page:u32){spanAppend(drawnCounter(),drawnGroups(),candBase(),page,1u);}
@@ -100,7 +100,7 @@ fn resetGrid(groups:u32){atomicStore(&work[groups],0u);atomicStore(&work[groups+
 @compute @workgroup_size(64)
 fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let s=flatIndex(id.x,id.y,n.x);if(s>=atomicLoad(&work[drawnCounter()])){return;}
- flags[views[0u].queueCap+flags[candBase()+s]]=0u;
+ setFlag(views[0u].queueCap+flagAt(candBase()+s),0u);
 }
 /** A node of queue \`src\`: rejected, it yields nothing; kept, it deposits its children
  *  in the NEXT of the three queues, or its pages in the candidate list when it is a leaf. */
@@ -108,10 +108,10 @@ fn levelStep(src:u32,s:u32){
  // The queue the next level will fill resets to zero here: this level neither reads nor writes it.
  if(s==0u){atomicStore(&work[queueCounter((src+2u)%${LEVEL_QUEUES}u)],0u);}
  if(s>=min(atomicLoad(&work[queueCounter(src)]),views[0u].queueCap)){return;}
- let entry=flags[queueBase(src)+s];
+ let entry=flagAt(queueBase(src)+s);
  if(entry==0xffffffffu){return;}
  vi=entryView(entry);
- let node=nodes[entryIndex(entry)];
+ let node=nodeAt(entryIndex(entry));
  let w=node.worldIndex;
  if(!inRange(w)){return;}
  // A node of the view ahead is only that view's (\`aheadWgsl.ts\`); one the camera rejects is tried there.

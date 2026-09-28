@@ -25,7 +25,7 @@ import { SELECTION_HEADER_WORDS } from '../layout.ts';
  */
 export const DAG_COMPACT_WGSL = `const BLOCK:u32=64u;
 const HEAD:u32=${SELECTION_HEADER_WORDS}u;
-fn drawFlag(i:u32)->u32{return flags[views[0u].queueCap+i];}
+fn drawFlag(i:u32)->u32{return flagAt(views[0u].queueCap+i);}
 fn blockCount()->u32{return (views[0u].clusterCount+BLOCK-1u)/BLOCK;}
 /** First word of the block zone in \`work\`, after the thresholds and coverage flags. */
 fn blockBase()->u32{return 0u;}
