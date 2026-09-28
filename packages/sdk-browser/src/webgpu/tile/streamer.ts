@@ -179,9 +179,9 @@ export function createWebgpuTileStreamer(options: {
       return results.reduce((total, result) => total + result.evicted, 0);
     },
     metrics: () => counters.metrics(atlases, sources, encoding.name),
-    /** True while a cooked level is being read: a missing tile can still arrive. */
+    /** True while a cooked level is read or a working texture built: a missing tile can still come. */
     get reading() {
-      return (sources.levels?.inFlight ?? 0) > 0;
+      return sources.reading;
     },
     /** Held when in-flight image feedback has come back and level reads have completed. */
     settled: () => Promise.all([feedback.settled(), sources.settled()]).then(() => undefined),
