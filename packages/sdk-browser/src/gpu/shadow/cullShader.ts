@@ -1,5 +1,4 @@
-import { DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
-import { DRAW_ITEM_WGSL } from '../draw/contract.ts';
+import { DRAW_INDIRECT_WORDS, DRAW_ITEM_WGSL } from '../draw/contract.ts';
 import { MAX_SHADOW_REGIONS } from './recordPack.ts';
 import { CULL_UNIFORM_WORDS, LIGHT_CULL_UNIFORM_WORDS, wordStruct } from './batchBudget.ts';
 
