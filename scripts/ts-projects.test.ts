@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { repositoryFiles } from './repository-files.ts';
 import {
   changedTypeErrors,
+  excludes,
   parseProject,
   projectProgram,
   tsProjects,
@@ -42,6 +43,11 @@ test('a changed TypeScript file no project type-checks is an error, not a skip',
     changedTypeErrors(ROOT, [], ['tests/browser/renders/pair.browser.ts']).join(),
     /pair\.browser\.ts: no tsconfig project type-checks it/,
   );
+  const tools = parseProject(resolve(ROOT, 'tsconfig.tools.json'));
+  assert.ok(excludes(tools, resolve(ROOT, 'tests/fixtures/publicTypesOnly.ts')));
+  assert.ok(!excludes(tools, resolve(ROOT, 'tests/browser/renders/pair.browser.ts')));
+  const build = parseProject(resolve(ROOT, 'tsconfig.json'));
+  assert.ok(!excludes(build, resolve(ROOT, 'site/app/x.test.ts')), 'outside its include');
 });
 
 test('the projects are the tracked tsconfig files', () => {
