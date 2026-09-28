@@ -1,10 +1,8 @@
 // What the WebGL2 proofs hear of a surface drawn without a physical feature (#772): the world's
 // own hearer (`noticeMaterialDegraded`) on a world's notices, read through the public diagnostic
 // channel a page opens (`diagnostic.createChannel`).
-import {
-  createWorldNotices,
-  noticeMaterialDegraded,
-} from '../../../packages/sdk-browser/src/world/diagnostic/worldNotices.ts';
+import { createWorldNotices } from '../../../packages/sdk-browser/src/world/diagnostic/worldNotices.ts';
+import { noticeMaterialDegraded } from '../../../packages/sdk-browser/src/world/diagnostic/materialNotices.ts';
 import { diagnostic } from '../../../packages/sdk-browser/src/world/diagnostic/index.ts';
 
 /** One `material-degraded` notice as the page channel delivers it. */
