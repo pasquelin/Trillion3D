@@ -53,6 +53,8 @@ test('every rank and opacity reads back as the word the stage packed', () => {
   for (let rank = 1; rank <= WATER_MAX_ITEMS; rank += 257)
     for (const opacity of [0, 1, 127, 128, 255, 256, 32767, 65534, 65535])
       words.push((rank | (opacity << WATER_RANK_SHIFT)) >>> 0);
+  // A backend may truncate rather than round the float-to-unorm8 store: every byte survives both.
+  for (let k = 0; k < 256; k++) assert.equal(Math.trunc(f32(f32(k / 255) * 255)), k, `byte ${k}`);
   for (const word of words) {
     texel = unpack4x8unorm(word).map(stored);
     // `waterRank` and `waterOpacity` read the same word the `r32uint` target returned.
