@@ -9,6 +9,7 @@ import {
 import { localTurnQuaternion } from '../../../../sdk-core/src/math/matrix/quaternion.ts';
 import type { TileView } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
 import { tileViewInverse } from './tiles.ts';
+import { depthDistance } from '../../camera/depthConvention.ts';
 
 // The views and world points the tile-bounds tests draw lights around, in f64.
 
@@ -25,7 +26,7 @@ export function camera(
   fov: number,
   width: number,
   height: number,
-): TileView & { viewProjection: Float64Array; eye: Vec3 } {
+) {
   const m4 = () => new Float64Array(16);
   const turn = localTurnQuaternion(new Float64Array(4), pitch, yaw, 0, 'YXZ');
   const world = composeMatrix4(m4(), eye, turn, [1, 1, 1]);
@@ -43,6 +44,23 @@ export function pixelPoint(view: TileView, px: number, py: number, z: number): V
   const p = transformHomogeneousPoint([0, 0, 0, 0], view.inverseViewProjection, x, y, z);
   return [0, 1, 2].map((i) => p[i] / p[3] + view.origin[i]) as Vec3;
 }
+
+/** The view distance the pixel rays of `pixelRay` reach: depth NEAR / FAR_CAST. */
+const FAR_CAST = 1e5;
+
+/** The ray through a pixel centre, from the near plane (`s` = 0) to the view distance
+ *  FAR_CAST (`s` = 1); the view distance, hence the depth, is linear in `s` along it. */
+export function pixelRay(view: TileView, px: number, py: number) {
+  const o = pixelPoint(view, px, py, 1),
+    far = pixelPoint(view, px, py, NEAR / FAR_CAST);
+  return { o, d: [far[0] - o[0], far[1] - o[1], far[2] - o[2]] as Vec3 };
+}
+
+/** The ray parameter of `pixelRay` at view distance `distance`. */
+export const rayParameter = (distance: number) => (distance - NEAR) / (FAR_CAST - NEAR);
+
+/** The depth the buffer holds at parameter `s` of a `pixelRay`. */
+export const rayDepth = (s: number) => depthDistance(NEAR + s * (FAR_CAST - NEAR), NEAR);
 
 /** Distance from `c` to the segment `a`–`b`. */
 export function segmentDistance(a: Vec3, b: Vec3, c: Vec3) {
