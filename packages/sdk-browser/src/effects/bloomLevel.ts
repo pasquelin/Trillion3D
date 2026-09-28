@@ -33,7 +33,8 @@ fn blendLevel(image:vec4f,pixel:vec2f)->vec4f{return image*bloom.keep+tent(pixel
  * the half range holds is rounded by `quantizeToF16`, fed only finite halves since it is
  * indeterminate past them; one the target turned infinite or kept not a number (|v| from 65520 on,
  * ±Inf, NaN) leaves as that: `v` times the largest `f32`'s order overflows to its signed infinity,
- * and a NaN stays a NaN.
+ * and a NaN stays a NaN. Those edges hold on IEEE arithmetic, as the target's own store did: WGSL
+ * lets a compiler assume no infinity nor NaN, and then neither path is defined.
  */
 export const BLOOM_COMPOSE_WGSL = `${bloomLevelWgsl(1)}
 fn bloomed(image:vec4f,pixel:vec2f)->vec4f{let v=blendLevel(image,pixel);let held=abs(v)<vec4f(65520.0);
