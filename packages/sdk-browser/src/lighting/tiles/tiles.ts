@@ -87,6 +87,7 @@ export async function createGpuLightTiles(device: GPUDevice) {
     tilesX = 0,
     tilesY = 0,
     poolWords = 0,
+    growths = 0,
     wide = false;
   const bound = createWebgpuBindIdentity();
   return {
@@ -106,8 +107,16 @@ export async function createGpuLightTiles(device: GPUDevice) {
     get wide() {
       return wide;
     },
-    /** What the last sampled wide frame asked of the pool (#849), once a sample returned. */
-    pool: pool.sample,
+    /** The pool's frame metrics (#849): the last sample of a wide frame, and its growths. */
+    poolMetrics() {
+      const sample = wide ? pool.sample() : undefined;
+      return {
+        tileLightPoolReserved: sample?.reserved ?? null,
+        tileLightPoolCapacity: sample?.capacity ?? null,
+        tileLightPoolOverflowed: sample?.overflowed ?? null,
+        tileLightPoolGrowths: growths,
+      };
+    },
     /** Ensures the target buffer and the bind group for `count` lights; `true` if the pass is ready. */
     ensure(width: number, height: number, depth: GPUTextureView, lights: GPUBuffer, count: number) {
       const wantedX = tilesOn(width),
@@ -119,6 +128,8 @@ export async function createGpuLightTiles(device: GPUDevice) {
       const wantedPool = wide ? Math.max(0, Math.min(pool.words(wantedX * wantedY), room)) : 0;
       if (!tiles || wantedX !== tilesX || wantedY !== tilesY || wantedPool > poolWords) {
         tiles?.destroy();
+        // The same view with more pool words: the pool grew to what an overflowing frame asked.
+        if (poolWords && wantedX === tilesX && wantedY === tilesY) growths++;
         tilesX = wantedX;
         tilesY = wantedY;
         poolWords = wantedPool;
