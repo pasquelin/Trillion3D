@@ -44,7 +44,9 @@ export function createViewLimit(viewCap: number) {
         drops = Math.min(drops, count);
         fits = Math.min(fits, drops - 1);
       } else if (count >= drops) {
-        if (!stale) return;
+        // Only a probe the limit offered lifts it: a batch encoded before the drop was read fits
+        // at a count that dropped too, and is no evidence.
+        if (!settledStale() || streak < patience) return;
         fits = count;
         drops = count + 1;
         if (count > failed) patience = 1;
