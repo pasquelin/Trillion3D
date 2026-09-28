@@ -16,9 +16,10 @@ const square = (half: number, depth: number) =>
   // prettier-ignore
   [-half, -half, -depth, half, -half, -depth, half, half, -depth,
    -half, -half, -depth, half, half, -depth, -half, half, -depth];
-const measure = (source: number[], drawn: number[]) =>
+const measure = (source: number[], drawn: number[], twoSided?: Uint8Array) =>
   measureView({
     source: Float32Array.from(source),
+    twoSided,
     drawn: Float32Array.from(drawn),
     pose,
     width: 1000,
@@ -39,4 +40,13 @@ test('a source surface hidden behind the drawn one is not counted, a hole is', (
   assert.ok(measure(hiddenBehind, square(1, 10)).reverse.max < 1e-9);
   const holed = square(1, 10).slice(0, 9);
   assert.ok(measure(hiddenBehind, holed).reverse.max > 100);
+});
+
+test('a single-sided source triangle seen from behind is not counted, a double-sided one is', () => {
+  const front = square(0.2, 5),
+    behind = [...front.slice(3, 6), ...front.slice(0, 3), ...front.slice(6, 9)];
+  const source = [...square(1, 10), ...behind];
+  assert.ok(measure(source, square(1, 10)).reverse.max < 1e-9);
+  const doubleSided = Uint8Array.of(0, 0, 1);
+  assert.ok(measure(source, square(1, 10), doubleSided).reverse.max > 100);
 });

@@ -16,7 +16,10 @@ import {
   updateNodeMatrixWorld,
 } from '../../packages/sdk-core/src/math/index.ts';
 import { screenErrorBound } from '../../packages/sdk-core/src/lod/screenErrorBound.ts';
-import { closestSegmentTriangle } from '../../packages/sdk-core/src/collision/closest.ts';
+import {
+  closestSegmentTriangle,
+  triangleNormal,
+} from '../../packages/sdk-core/src/collision/closest.ts';
 import {
   buildTriangleTree,
   type TriangleTree,
@@ -124,7 +127,7 @@ function errors(
   view: View,
   triangles: Float32Array,
   tree: TriangleTree,
-  keep: (p: Float64Array) => boolean,
+  keep: (p: Float64Array, triangle: number) => boolean,
 ) {
   const out: number[] = [],
     p = new Float64Array(3);
@@ -132,7 +135,7 @@ function errors(
     for (const [a, b, c] of SAMPLES) {
       for (let k = 0; k < 3; k++)
         p[k] = a * triangles[t + k] + b * triangles[t + 3 + k] + c * triangles[t + 6 + k];
-      if (!inView(view, p) || !keep(p)) continue;
+      if (!inView(view, p) || !keep(p, t / 9)) continue;
       out.push(pixels(view, nearestDistance(tree, p, -q[2] / view.focal)));
     }
   return out;
@@ -146,6 +149,8 @@ function errors(
  */
 export function measureView(o: {
   source: Float32Array;
+  /** Per source triangle, 1 when its material is double-sided; all single-sided if omitted. */
+  twoSided?: Uint8Array;
   sourceTree?: TriangleTree;
   drawn: Float32Array;
   pose: CameraPose;
@@ -169,7 +174,16 @@ export function measureView(o: {
   // A ray through a shared edge or corner can slip between two drawn triangles; a second ray a
   // hundredth of a pixel aside does not slip through the same crack.
   const visible = (p: Float64Array) => !blocked(p, 0) && !blocked(p, 0.01);
+  // A single-sided source triangle seen from behind is culled by every backend and shows nothing:
+  // at a silhouette its points lie on the ray of a surface drawn behind them, on the same pixel.
+  const normal = new Float64Array(3);
+  const facing = (t: number) => {
+    triangleNormal(normal, o.source, 9 * t);
+    let side = 0;
+    for (let k = 0; k < 3; k++) side += normal[k] * (view.eye[k] - o.source[9 * t + k]);
+    return side > 0 || o.twoSided?.[t] === 1;
+  };
   const forward = errors(view, o.drawn, sourceTree, visible),
-    reverse = errors(view, o.source, drawnTree, visible);
+    reverse = errors(view, o.source, drawnTree, (p, t) => facing(t) && visible(p));
   return { triangles: o.drawn.length / 9, forward: summary(forward), reverse: summary(reverse) };
 }
