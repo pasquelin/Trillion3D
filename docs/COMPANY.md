@@ -9,7 +9,7 @@ contribution workflow never requires it.
 ## The idea in one paragraph
 
 The boss sets priorities and tests the result. The boss opens the **CTO** session; it gives him ten launch commands, and he opens one session per command: a **lead** per domain, the architect, the analyst, measurement and acceptance. The CTO keeps the company honest and merges. Leads run a **coder** and a
-**reviewer** per issue, on at most two issues at a time, verify the result themselves, name it ready for the CTO to
+**reviewer** per issue (at most two issues at a time, AGENTS.md §Leads), verify the result themselves, name it ready for the CTO to
 merge, and close the issue. After every
 merge, **measurement** times the merged changes in batches and captures the live example, and **acceptance**
 re-reads the change as a safety net. An **architect** keeps the code small and logical; an
@@ -40,7 +40,7 @@ and pull requests.
    - its open pull requests;
    - its `measure ko` / `audit ko` issues;
    - then its issues by priority label (AGENTS.md §Leads).
-3. For each issue (at most two at a time, sharing no file), the lead runs one coder, who pushes its branch, then one reviewer on that branch. It then writes `## Lead verification`, one line per To-do item, opens the pull request finished, and tells the CTO once CI is green; the CTO merges it within minutes. CI refuses a PR without that section, and any PR without real `Simplification pass:` and
+3. For each issue, the lead runs one coder, who pushes its branch, then one reviewer on that branch. It then writes `## Lead verification`, one line per To-do item, opens the pull request finished, and tells the CTO once CI is green; the CTO merges it within minutes. CI refuses a PR without that section, and any PR without real `Simplification pass:` and
    `Correctness review:` lines.
 4. After the merge:
    - the issue closes;

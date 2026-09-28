@@ -38,7 +38,7 @@ disagreement is reported to the maintainer.
    `<issue>-<short-name>`, never `claude/…`.
 9. **Bounded agents.** Every brief that allows subagents states their maximum and forbids them
    to spawn their own. A brief bounds what the agent reads; a finished agent is stopped. A coder's run ends when its pull request is `OK`: on a `KO` the lead resumes the
-   same coder with `SendMessage`. The depth is fixed: a lead session → at most two coders or reviewers → the review agents of the real `simplify` and `code-review` skills (at most 4), which launch none; the CTO runs those two skills itself on its rules pull request. The architect, measurer,
+   same coder with `SendMessage`. The depth is fixed: a lead session → its coders or reviewers (§Leads) → the review agents of the real `simplify` and `code-review` skills (at most 4), which launch none; the CTO runs those two skills itself on its rules pull request. The architect, measurer,
    acceptance and analyst agents launch none.
 10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
     in the issue or the pull request, never on disk.
@@ -89,8 +89,9 @@ no work is cut midway.
   always working on it: a `measure ko` first, then strict priority order: 🔴, 🟠, 🟡, 🟢, an issue
   with no priority label last. Within a label, `audit ko` first, then a programme's children in
   its order, then engine performance and optimisation before examples, the others oldest first.
-- **Two agents at most.** A lead runs at most two subagents at a time (coder or reviewer), each on
-  its own issue, two issues that share no file; a coder waiting on its review is not working.
+- **Two agents at most.** A lead runs at most two subagents at a time (coder or reviewer), on two
+  issues that share no file, each coder with its own worktree and Chrome port; a coder waiting on
+  its review is not working.
 - **Two open pull requests per lead at most.** While two of its pull requests are open, a lead starts no new coder: it unblocks them first (red CI, conflict with `develop`,
   unanswered review). A ready pull request waits only on the CTO's merge; `docs/roles/lead.md`
   step 1 says when it still holds back a new coder.
