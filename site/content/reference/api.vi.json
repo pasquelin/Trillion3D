@@ -3297,6 +3297,9 @@
       "commit": "Các trang `[from, to)` trong danh sách của khung hình đã được mã hóa, trang `from + i` trong `modes[i]`: bản vẽ của chúng xong trước khi có ai đọc. Lô cuối đóng danh sách."
     }
   },
+  "ShadowStaleReason": {
+    "summary": "Lý do một trang bóng trở nên lỗi thời (`ShadowFrameMetrics.shadowPagesStaledBy`)."
+  },
   "ShadowViewpoint": {
     "summary": "Những gì bộ lập lịch biết về góc nhìn: một camera, không phải một ma trận, để giữ không phụ thuộc.",
     "members": {

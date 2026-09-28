@@ -5546,6 +5546,9 @@
       "commit": "Die Seiten `[from, to)` der Liste des Bildes wurden kodiert, Seite `from + i` in `modes[i]`: ihre Zeichnungen landen, bevor sie jemand liest. Der letzte Stapel schließt die Liste."
     }
   },
+  "ShadowStaleReason": {
+    "summary": "Warum eine Schattenseite veraltet ist (`ShadowFrameMetrics.shadowPagesStaledBy`)."
+  },
   "ShadowViewpoint": {
     "summary": "Was der Planer über die Ansicht weiß: eine Kamera, keine Matrix, um abhängigkeitsfrei zu bleiben.",
     "members": {

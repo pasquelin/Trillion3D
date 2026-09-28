@@ -4,24 +4,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { STALE_BY } from './counts.ts';
-import { createShadowPlan, type ShadowPlan } from './plan.ts';
-import { SUN, cycle, planFrame, sunPages } from './lightShadow.fixture.ts';
+import type { ShadowPlan } from './plan.ts';
+import { planFrame, settledSun } from './lightShadow.fixture.ts';
 
 const BOX_MIN = [-1e3, 0, -1e3],
   BOX_MAX = [1e3, 2, 1e3];
-
-/** A sun whose pages around the eye are all mapped and drawn, the camera at rest. */
-function settled() {
-  const store = createSceneLightStore();
-  const plan = createShadowPlan(32);
-  store.add(SUN);
-  planFrame(plan, store, 0);
-  const slice = store.sliceOf(0);
-  const read = () => sunPages(plan, slice, plan.sun.finest[slice] + 6, [[0, 0]]);
-  let frame = 1;
-  for (; frame < 4; frame++) cycle(plan, store, frame, read);
-  return { store, plan, frame };
-}
 
 type Store = ReturnType<typeof createSceneLightStore>;
 
@@ -33,7 +20,7 @@ test('each page a frame stales counts under its reason, and the reasons add up',
     ['light', (_, store) => store.set('sun', { direction: [Math.sin(0.1), -Math.cos(0.1), 0] })],
   ];
   for (const [reason, act] of cases) {
-    const { store, plan, frame } = settled();
+    const { store, plan, frame } = settledSun();
     act(plan, store);
     planFrame(plan, store, frame);
     const by = Array.from(plan.counts.staledBy);

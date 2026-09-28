@@ -902,6 +902,7 @@
     "reference:ShadowFrameMetrics": "4d538fb5 11af7c5a fa8f5b9c 00763d49 dcb75938 9f58b4b0 512e98f5 6eaf5423 c3bc0873 e43c204d c31b1a9c bbffaf5c c65d0fc1 319687c3 cac4229d",
     "reference:ShadowPlan": "3e8b3c8b 3bfc14ba a7cf7a81 82fcb8f4 268b04f5 b7694db5 3e1ad5bc 4351c98e d327e029 e0bfd66b 7a329725 36e411d5 67964c6c fcfd4e0b 13a69ec1",
     "reference:ShadowRequestReport": "f5bfc8c9 401aa0f3 611a5083 d903fede dde4d47f 5f7d9a05 8aab60af 179b5f11 690b56af 2e1b7a3c 8156fee2 48ef663c c3e69e79 6ec0ef1a 1e21a7cf",
+    "reference:ShadowStaleReason": "e077e5e0 4d50189c 08cf9838 46ed7813 172d6f7d 05d12cf2 ef2a0084 b050aba6 a57fae7a adf1bc76 bdef75ae 01ea4b70 9bee562c f5e90d90 e5089565",
     "reference:ShadowViewpoint": "e9cc0a27 2ca4959f 4f0c1a51 8a3d5519 9783cb8a 1f58ea63 ff5a3fc9 4dda1c54 db32d9b7 ea2549e4 af3794dc 67c9dd86 01636158 3a213357 c7f1252f",
     "reference:Shape": "3fb2af10 e7603300 c23ae1c2 3f3a4018 d8b68275 278d3171 66d2e1b4 0ff90762 c192304d 8a1f5ffc dbe70a7f 130bb478 ead654a8 36d46c58 fc3e0ffd",
     "reference:Side-common": "8e939aaf 4d9d38d2 dfcdc92c e466ca65 3ddac01c d969a0de 33612462 8e3c286d fd6c467b cbe35b3e 2174bef5 97be4973 4ac91d5d 7ae5dbee b79cb412",

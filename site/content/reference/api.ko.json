@@ -3213,6 +3213,9 @@
       "commit": "프레임 목록의 `[from, to)` 페이지가 인코딩되었습니다. 페이지 `from + i`는 `modes[i]`로 그려지며, 누가 읽기 전에 그리기가 끝납니다. 마지막 배치가 목록을 닫습니다."
     }
   },
+  "ShadowStaleReason": {
+    "summary": "그림자 페이지가 오래된 상태가 된 이유 (`ShadowFrameMetrics.shadowPagesStaledBy`)."
+  },
   "ShadowViewpoint": {
     "summary": "스케줄러가 뷰에 대해 아는 것: 행렬이 아니라 카메라. 의존성 없이 유지하기 위해.",
     "members": {

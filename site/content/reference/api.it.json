@@ -5546,6 +5546,9 @@
       "commit": "Le pagine `[from, to)` della lista del fotogramma sono state codificate, la pagina `from + i` in `modes[i]`: i loro disegni arrivano prima che qualcuno le legga. L’ultimo lotto chiude la lista."
     }
   },
+  "ShadowStaleReason": {
+    "summary": "Perché una pagina d’ombra è diventata obsoleta (`ShadowFrameMetrics.shadowPagesStaledBy`)."
+  },
   "ShadowViewpoint": {
     "summary": "Ciò che il pianificatore sa della vista: una camera, non una matrice, per restare senza dipendenza.",
     "members": {

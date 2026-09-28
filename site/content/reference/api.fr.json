@@ -5554,6 +5554,9 @@
       "commit": "Les pages `[from, to)` de la liste de l’image ont été encodées, la page `from + i` dans `modes[i]` : leurs dessins arrivent avant que quiconque les lise. Le dernier lot ferme la liste."
     }
   },
+  "ShadowStaleReason": {
+    "summary": "Pourquoi une page d’ombre est devenue périmée (`ShadowFrameMetrics.shadowPagesStaledBy`)."
+  },
   "ShadowViewpoint": {
     "summary": "Ce que le planificateur sait de la vue : une caméra, pas une matrice, pour rester sans dépendance.",
     "members": {

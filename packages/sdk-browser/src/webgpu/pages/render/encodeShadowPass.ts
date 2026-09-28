@@ -66,7 +66,7 @@ export function encodeShadowAtlas(
       // A pool pass restores its pages from the static layer and draws their moving casters, or
       // clears them and draws every caster: no frame does both (`pool.drawMode`).
       lights.shadowWork.drewLayer(at);
-      lights.shadowWork.drewPass(draws, !inLayer && restores[k] > 0, inLayer ? 0 : restores[k]);
+      lights.shadowWork.drewPass(draws, inLayer ? 0 : restores[k]);
       pass.end();
     }
   };
