@@ -49,16 +49,9 @@ export function projectedErrorAt(
 ) {
   if (error === 0) return 0;
   if (error == null || error === Infinity) return Infinity;
-  return (sound ? clusterErrorInFrame : clusterErrorAtDepth)(
-    error,
-    stretch,
-    lateral,
-    depth,
-    radius,
-    focal,
-    near,
-    perspective,
-  );
+  if (sound)
+    return clusterErrorInFrame(error, stretch, lateral, depth, radius, focal, near, perspective);
+  return clusterErrorAtDepth(error, stretch, lateral, depth, radius, focal, near, perspective);
 }
 
 /**
