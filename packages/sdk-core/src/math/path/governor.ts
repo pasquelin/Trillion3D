@@ -1,4 +1,11 @@
-import { CLOCK_RESOLUTION_MS, SlidingMedian, estimateClockResolutionMs } from './slidingWindow.ts';
+import {
+  CLOCK_RESOLUTION_MS,
+  NS_PER_MS,
+  POOLED_CLOCK_STEPS,
+  PooledTiming,
+  SlidingMedian,
+  estimateClockResolutionMs,
+} from './slidingWindow.ts';
 import {
   MATH_PATH_CONTRACT,
   type MathPath,
@@ -16,8 +23,11 @@ import {
  * a late frame or a garbage collection is an outlier, not a trend.
  *
  * It switches only when the other path is clearly and lastingly better, and it keeps
- * the other median fresh by playing it from time to time. Without a fine enough clock, it does not
- * arbitrate at all: it stays on the JavaScript path, which is the reference.
+ * the other median fresh by playing it from time to time. A clock too coarse to time one execution
+ * (no cross-origin isolation) times pooled batches instead (CPU-20, #919): consecutive executions of
+ * a path are summed until they span `POOLED_CLOCK_STEPS` clock steps, and each pool is one sample.
+ * On a fine clock every execution is its own sample, exactly as before. Only a clock that never
+ * moves leaves it on the JavaScript path, the reference.
  */
 
 /** Minimum executions before any arbitration: under this number, a single value would make the median. */
@@ -29,11 +39,17 @@ export const PATH_SWITCH_RUNS = 5;
 /** One execution in that many plays the other path to refresh its median without costing a frame. */
 export const PATH_EXPLORE_EVERY = 50;
 
-const NS_PER_MS = 1e6;
-
 class Operation {
   readonly js = new SlidingMedian();
   readonly wasm = new SlidingMedian();
+  /** Per path, the executions a coarse clock pools into one sample; `null` on a fine clock. */
+  readonly pools: Record<MathPath, PooledTiming> | null;
+  constructor(poolSpanMs: number | null) {
+    this.pools =
+      poolSpanMs === null
+        ? null
+        : { js: new PooledTiming(poolSpanMs), wasm: new PooledTiming(poolSpanMs) };
+  }
   path: MathPath | null = null;
   runs = 0;
   switches = 0;
@@ -64,6 +80,7 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
   const operations = new Map<string, Operation>();
   const resolution = estimateClockResolutionMs(now);
   const coarse = resolution === null || resolution > CLOCK_RESOLUTION_MS;
+  const poolSpanMs = coarse && resolution !== null ? resolution * POOLED_CLOCK_STEPS : null;
   let chosen = mode;
   let available = false;
   let simd: boolean | null = null;
@@ -71,11 +88,11 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
 
   const stateOf = (name: string) => {
     let operation = operations.get(name);
-    if (!operation) operations.set(name, (operation = new Operation()));
+    if (!operation) operations.set(name, (operation = new Operation(poolSpanMs)));
     return operation;
   };
-  /** Arbitration is possible only if both paths exist AND the clock can tell them apart. */
-  const canArbitrate = () => chosen === 'auto' && available && !coarse;
+  /** Arbitration is possible only if both paths exist AND the clock moves: a coarse one is pooled. */
+  const canArbitrate = () => chosen === 'auto' && available && resolution !== null;
 
   function choose(name: string) {
     if (chosen !== 'auto') return available || chosen === 'js' ? chosen : 'js';
@@ -98,9 +115,16 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
       // as long as no timed execution has fed both medians.
       operation.path = 'js';
       operation.lead = 0;
+      operation.pools?.js.clear();
+      operation.pools?.wasm.clear();
       return;
     }
-    operation[path].add((ms * NS_PER_MS) / elements);
+    // A fine clock keeps one sample per execution, bit for bit (-0 included): no pool there.
+    const sample = operation.pools
+      ? operation.pools[path].add(ms, elements)
+      : (ms * NS_PER_MS) / elements;
+    if (sample === null) return;
+    operation[path].add(sample);
     operation.path ??= path;
     if (!canArbitrate()) return;
     const current = operation.path;
