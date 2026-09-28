@@ -8,7 +8,7 @@ import { markDrawnMirrored } from '../pages/helpers.ts';
 import type { WebgpuResidencySets } from '../residency/sets.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
 import { createEvictionFeed } from '../residency/evictionFeed.ts';
-import type { WebgpuView } from '../pages/state/view.ts';
+import type { ViewCut, WebgpuView } from '../pages/state/view.ts';
 
 /**
  * What the rank journal notifies when a page changes coverage: the pending set, and the CPU cut's
@@ -76,7 +76,6 @@ export function createWebgpuCutPublication(
     residencySets.applyCut(closure.delta);
     cutPending.apply();
   };
-  const publishDrawn = (drawn: CutDelta) => residencySets.applyDrawn(drawn);
   /**
    * Every view publishes its cut by differences of its own into the same sets, which count each
    * page per placement: what they ask for, keep and rank under the one page budget is the union of
@@ -84,22 +83,19 @@ export function createWebgpuCutPublication(
    * (`../residency/budgetRanking.ts`). The main view's are the two above, which the GPU cut adopts
    * too: with one view, nothing else is made.
    */
-  const mainCut = { asked: cutDelta, drawn: drawnDelta };
+  views.main.cut = { asked: cutDelta, drawn: drawnDelta };
   /** The drawn view's differences; another view's are made at its first cut, on its `desired`. */
-  const activeCut = () => {
-    const view = views.active;
-    if (view === views.main) return mainCut;
-    return (view.cut ??= {
+  const activeCut = () =>
+    (views.active.cut ??= {
       asked: createCutDelta(packedPages, run.desired),
       drawn: createCutDelta(packedPages),
     });
-  };
   /** A view publishes the cut it asks for, `wanted`, and the one it draws, `shown`. */
-  const adopt = (own: typeof mainCut, wanted: readonly PageRec[], shown: readonly PageRec[]) => {
+  const adopt = (own: ViewCut, wanted: readonly PageRec[], shown: readonly PageRec[]) => {
     own.asked.adoptRecords(wanted);
     publishCut(own.asked);
     own.drawn.adoptRecords(shown);
-    publishDrawn(own.drawn);
+    residencySets.applyDrawn(own.drawn);
   };
   // Readback describes submitted work and future streaming requests. It never
   // decides the cut drawn for a moving camera; the current GPU mask does that.
@@ -112,7 +108,7 @@ export function createWebgpuCutPublication(
     delta: cutDelta,
     drawnDelta,
     drawnPages,
-    onDrawnDelta: () => publishDrawn(drawnDelta),
+    onDrawnDelta: () => residencySets.applyDrawn(drawnDelta),
     onDrawnMirrored: () => markDrawnMirrored(run),
     onAhead: ahead.offerIds,
     onCutDelta: () => {
@@ -166,7 +162,10 @@ export function createWebgpuCutPublication(
       drawnDelta.hostBytes +
       cutPending.hostBytes +
       tiers.all.reduce((bytes, tier) => bytes + tier.hostBytes, 0) +
-      (views.active.cut ? views.active.cut.asked.hostBytes + views.active.cut.drawn.hostBytes : 0),
+      // Another view's differences, counted while it is drawn: a capture's live only for its call.
+      (views.active === views.main
+        ? 0
+        : (views.active.cut?.asked.hostBytes ?? 0) + (views.active.cut?.drawn.hostBytes ?? 0)),
     adoptGpuCut,
     /**
      * The CPU cut publishes its own through the same differences: `wanted` writes `run.desired`
@@ -177,15 +176,14 @@ export function createWebgpuCutPublication(
      * Republishing it as-is changes nothing: the difference is empty.
      */
     adoptCpuCut(wanted: readonly PageRec[], shown: readonly PageRec[]) {
-      const own = activeCut();
       // The CPU cut evaluates no view ahead: what the main view's last readback asked for ahead is
       // let go. The view ahead is the main view's own, so another view's cut leaves it.
-      if (own === mainCut) ahead.offerIds(NO_IDS);
-      adopt(own, wanted, shown);
+      if (views.active === views.main) ahead.offerIds(NO_IDS);
+      adopt(activeCut(), wanted, shown);
     },
     /** `view`, not the main one, is released: its cut leaves the union, whatever it held. */
     releaseView(view: WebgpuView) {
-      if (!view.cut) return;
+      if (view === views.main || !view.cut) return;
       adopt(view.cut, NO_PAGES, NO_PAGES);
       view.cut = undefined;
     },

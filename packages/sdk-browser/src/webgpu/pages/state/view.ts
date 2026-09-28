@@ -68,9 +68,16 @@ export interface WebgpuView {
   run: Pick<WebgpuRunState, RunKey>;
   gpu: Pick<WebgpuGpuState, GpuKey>;
   vis: Pick<WebgpuVisState, VisKey>;
-  /** The differences a view other than the main one publishes its cut by, made at its first cut
-   *  and emptied when it is released; the main view's are the publication's own. */
-  cut?: { asked: CutDelta; drawn: CutDelta };
+  /** The differences the view publishes its cut by (`../../cut/publication.ts`): the main view's
+   *  are the publication's own, another view's are made at its first cut and emptied when it is
+   *  released. */
+  cut?: ViewCut;
+}
+
+/** The cut a view asks for and the one it draws, published by differences into the shared sets. */
+export interface ViewCut {
+  asked: CutDelta;
+  drawn: CutDelta;
 }
 
 /** The runtime's views: the one it opened on, and the one its groups hold now. */
