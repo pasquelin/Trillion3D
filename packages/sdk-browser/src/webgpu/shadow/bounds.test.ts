@@ -10,6 +10,7 @@ import { noteResidenceChange } from './bounds.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { referenceClusterSphere } from '../../../../../bench/oracles/browser/core-math.ts';
 import type { PageRec } from '../../page/selection/types.ts';
+import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 
 function record(matrice: number[], min: number[], max: number[]) {
   return { matrix: new G.Matrix4().fromArray(matrice), min, max } as unknown as PageRec;
@@ -51,4 +52,19 @@ test('noteResidenceChange: matrices and boxes hostile to signed zeros — the bo
     for (let i = 0; i < 6; i++)
       assert.ok(Object.is(attendu[i], recu![i]), `composante ${i} : ${attendu[i]} ≠ ${recu![i]}`);
   }
+});
+
+// #993: a moving placement is not in the static layer, so its residency change must not redraw that layer.
+test('a page of a placement already moving changes residency: its box stales the moving casters alone', () => {
+  const lights = createWebgpuLightState(32);
+  lights.store.add(SUN);
+  const identity = new G.Matrix4().elements;
+  lights.mobility.ensure(2, 2, () => identity);
+  lights.mobility.move(1, new G.Matrix4().makeTranslation(1, 0, 0).elements);
+  const declared: boolean[] = [];
+  lights.plan.representationChanged = (_min, _max, movingOnly = false) =>
+    void declared.push(movingOnly);
+  for (const placementIndex of [0, 1, undefined])
+    noteResidenceChange(lights, { ...CAS[0], placementIndex } as PageRec);
+  assert.deepEqual(declared, [false, true, false], 'still, moving, then no placement known');
 });

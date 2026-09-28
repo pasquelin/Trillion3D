@@ -5,8 +5,8 @@ import type { PageSurface } from '../../../page/surface.ts';
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { WebgpuLightState } from '../state/lights.ts';
-import { boxEmpty } from '../../../../../sdk-core/src/index.ts';
-import { changeBox, changeMax, changeMin, growClusterBox } from '../../shadow/bounds.ts';
+import { boxEmpty, boxIsEmpty } from '../../../../../sdk-core/src/index.ts';
+import { growClusterBox, recordMoves } from '../../shadow/bounds.ts';
 
 const EVERYWHERE_MIN = [-1e30, -1e30, -1e30],
   EVERYWHERE_MAX = [1e30, 1e30, 1e30];
@@ -75,16 +75,27 @@ export function shadowsFollowSurfaces(
     );
 }
 
-/** Stales the box of the rows, visibility then blended casters, that `stale` names; one box, as
- *  the same world at another precision or, `worldChanged`, as another world. */
+/** The box of the rows whose static casters changed, then of those already moving: allocated
+ *  once. */
+const rowBoxes = [new Float64Array(6), new Float64Array(6)].map((box) => ({
+  box,
+  min: box.subarray(0, 3),
+  max: box.subarray(3, 6),
+}));
+
+/**
+ * Stales the box of the rows, visibility then blended casters, that `stale` names, as the same
+ * world at another precision or, `worldChanged`, as another world: one box for the rows the static
+ * layer holds, one for the rows already moving — a blended caster's always is —, whose change
+ * redraws the moving casters alone and leaves the static layer as it is (#993).
+ */
 function shadowsFollowRows(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
   stale: (row: number) => boolean,
   change: 'representationChanged' | 'worldChanged' = 'representationChanged',
 ) {
-  boxEmpty(changeBox, 0);
-  let touched = false;
+  for (const { box } of rowBoxes) boxEmpty(box, 0);
   for (const [from, to] of [
     [0, rows.rowCount],
     [rows.blendFirst, rows.casterSlots],
@@ -92,10 +103,12 @@ function shadowsFollowRows(
     for (let row = from; row < to; row++) {
       const rec = stale(row) && rows.packedRecs[row];
       if (!rec) continue;
-      growClusterBox(rec, changeBox);
-      touched = true;
+      const moving = row >= rows.blendFirst || recordMoves(lights, rec);
+      growClusterBox(rec, rowBoxes[+moving].box);
     }
-  if (touched) lights.plan[change](changeMin, changeMax);
+  rowBoxes.forEach(({ box, min, max }, moving) => {
+    if (!boxIsEmpty(box, 0)) lights.plan[change](min, max, moving === 1);
+  });
 }
 
 /**
