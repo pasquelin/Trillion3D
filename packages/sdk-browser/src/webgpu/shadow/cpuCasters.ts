@@ -2,7 +2,10 @@ import { invertMatrix4, updateCameraFrame } from '../../../../sdk-core/src/index
 import { createEngineCamera, type EngineCamera } from '../../camera/world.ts';
 import { selectVisiblePages, type PageRec } from '../../page/selection/selection.ts';
 import { createSelectionResult } from '../../page/cut/state.ts';
-import { MAX_SHADOW_RUNS } from '../../gpu/shadow/batchBudget.ts';
+import {
+  MAX_SHADOW_RUNS,
+  SHADOW_COMMAND_WORDS as COMMAND_WORDS,
+} from '../../gpu/shadow/batchBudget.ts';
 import { DRAW_INDIRECT_STRIDE } from '../../gpu/draw/contract.ts';
 import { planImageShadows } from '../pages/render/encodeShadows.ts';
 import { forEachShadowBatch } from '../pages/render/encodeShadowBatches.ts';
@@ -18,9 +21,6 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
  * start and never grow. The rows' buffer grows to the next power of two a frame needs.
  */
 export type CpuCasterLists = ReturnType<typeof createCpuCasterLists>;
-
-/** Words of one face's indirect command. */
-const COMMAND_WORDS = DRAW_INDIRECT_STRIDE / 4;
 
 /** Usage of the lists' buffers, read when one is made: the GPU globals exist only then. */
 const storage = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
