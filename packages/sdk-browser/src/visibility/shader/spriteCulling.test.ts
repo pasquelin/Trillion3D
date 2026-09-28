@@ -71,7 +71,7 @@ test('the GPU cut reads the mark behind the record shift and opens its planes to
   );
   assert.ok(
     DAG_SELECTION_SHADER.includes(
-      'fn markOf(w:u32)->u32{return bitcast<u32>(frames[w*FRAME+6u].w);}',
+      'fn markOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+6u].w);}',
     ),
   );
   fixture.geometry.dispose();

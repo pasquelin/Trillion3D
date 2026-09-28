@@ -550,6 +550,20 @@
       }
     }
   },
+  "a-carousel": {
+    "banner": "Quan sát quanh vòng quay. Tạm dừng hoặc cho ngựa gỗ chạy theo chiều ngược lại.",
+    "controls": {
+      "running": "Đang chạy",
+      "speed": "Tốc độ",
+      "direction": "Hướng"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "theo chiều kim đồng hồ",
+        "counterclockwise": "ngược chiều kim đồng hồ"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Kéo để bay quanh hòn đảo. Dâng nước biển để làm ngập thung lũng.",
     "controls": {

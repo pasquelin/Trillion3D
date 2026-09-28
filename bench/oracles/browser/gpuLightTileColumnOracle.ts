@@ -1,13 +1,13 @@
 /**
  * Oracle of a tile's bounds, a line-by-line port of packages/sdk-browser/src/lighting/tiles/
- * {shader,boundsWgsl}.ts, every operation rounded to f32. `inverseViewProjection` is column-major
- * and maps to the frame of `origin` (`tileViewInverse`), where points are given (`toTileFrame`).
+ * {shader,boundsWgsl}.ts, corner table included, every operation rounded to f32.
+ * `inverseViewProjection` is column-major and maps to the frame of `origin` (`tileViewInverse`),
+ * where points are given (`toTileFrame`).
  */
 import { LIGHT_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
 import { DEPTH_NEAR } from '../../../packages/sdk-browser/src/camera/depthConvention.ts';
 
 type Vec3 = [number, number, number];
-type Corners = [Vec3, Vec3, Vec3, Vec3];
 export type TileView = {
   inverseViewProjection: ArrayLike<number>;
   origin: ArrayLike<number>;
@@ -48,16 +48,24 @@ export function tileCorner(view: TileView, tile: [number, number], corner: numbe
   return unproject(view.inverseViewProjection, f(f(x * 2) - 1), f(1 - f(y * 2)), f(z));
 }
 
-const tileCorners = (view: TileView, tile: [number, number], z: number) =>
-  [0, 1, 2, 3].map((c) => tileCorner(view, tile, c, z)) as Corners;
-
-function boxOf(a: Corners, b: Corners): Box {
-  const all = [...a, ...b];
-  return {
-    lo: map((i) => Math.min(...all.map((p) => p[i]))),
-    hi: map((i) => Math.max(...all.map((p) => p[i]))),
-  };
+/** The corner table sixteen lanes fill, `corners[row * 4 + corner]`: the rows are the near
+ *  plane, the column's depth, the tile's front and its back. */
+export const ROW = { near: 0, deep: 1, front: 2, back: 3 };
+export function tileCorners(view: TileView, tile: [number, number], front: number, back: number) {
+  const depths = [DEPTH_NEAR, DEPTH_NEAR / 1024, front, back];
+  return [...Array(16).keys()].map((lane) =>
+    tileCorner(view, tile, lane % 4, depths[Math.floor(lane / 4)]),
+  );
 }
+
+/** The box of a set of points: the min and max of each axis. */
+export const boxOf = (points: Vec3[]): Box => ({
+  lo: map((a) => Math.min(...points.map((p) => p[a]))),
+  hi: map((a) => Math.max(...points.map((p) => p[a]))),
+});
+
+const tileBox = (corners: Vec3[], front: number, back: number) =>
+  boxOf([...Array(8).keys()].map((c) => corners[(c & 4 ? back : front) * 4 + (c & 3)]));
 
 function inwardPlane(normal: Vec3, point: Vec3, inside: Vec3): Plane {
   const n = scale(normal, f(1 / f(Math.sqrt(dot(normal, normal)))));
@@ -65,19 +73,31 @@ function inwardPlane(normal: Vec3, point: Vec3, inside: Vec3): Plane {
   return { n: facing, w: -dot(facing, point) };
 }
 
-function columnOf(near: Corners, deep: Corners) {
-  const order = [0, 1, 3, 2];
-  const inside = scale(add(add(add(deep[0], deep[1]), deep[2]), deep[3]), 0.25);
-  const planes = order.map((at, i) => {
-    const next = order[(i + 1) % 4];
-    return inwardPlane(cross(sub(deep[next], deep[at]), sub(deep[at], near[at])), near[at], inside);
-  });
-  planes.push(inwardPlane(cross(sub(deep[1], deep[0]), sub(deep[2], deep[0])), near[0], inside));
+export function tileColumn(corners: Vec3[]) {
+  // `columnCorner`: the `i`th corner of a row in turn around the tile, the Gray code of `i`.
+  const near = (i: number) => corners[ROW.near * 4 + (i ^ (i >> 1))];
+  const deep = (i: number) => corners[ROW.deep * 4 + (i ^ (i >> 1))];
+  const row = ROW.deep * 4; // the centre summed in the table's order
+  const inside = scale(
+    add(add(add(corners[row], corners[row + 1]), corners[row + 2]), corners[row + 3]),
+    0.25,
+  );
+  const planes = [0, 1, 2, 3].map((i) =>
+    inwardPlane(cross(sub(deep((i + 1) % 4), deep(i)), sub(deep(i), near(i))), near(i), inside),
+  );
+  planes.push(inwardPlane(cross(sub(deep(1), deep(0)), sub(deep(3), deep(0))), near(0), inside));
   return planes;
 }
 
-export const tileColumn = (view: TileView, tile: [number, number]) =>
-  columnOf(tileCorners(view, tile, DEPTH_NEAR), tileCorners(view, tile, DEPTH_NEAR / 1024));
+/** The opaque slice's front and back planes: the column's near normal through each depth. */
+function tileSlab(corners: Vec3[], column: Plane[]): Plane[] {
+  const away = column[4].n;
+  const at = (row: number) => dot(away, corners[row * 4]);
+  return [
+    { n: away, w: -at(ROW.front) },
+    { n: scale(away, -1), w: at(ROW.back) },
+  ];
+}
 
 const sphereBehind = (plane: Plane, centre: Vec3, radius: number) =>
   f(dot(plane.n, centre) + plane.w) < -radius;
@@ -93,23 +113,17 @@ export function sphereTouchesBox(box: Box, centre: Vec3, radius: number) {
   return dot(clamped, clamped) <= f(radius * radius);
 }
 
-type TileBounds = ReturnType<typeof tileBounds>;
+export type TileBounds = { opaqueBox: Box; blendBox: Box; column: Plane[]; slab: Plane[] };
 
-/** What thread zero builds for a tile whose opaque pixels span `front` to `back`. */
+/** What the tile's threads build for a tile whose opaque pixels span `front` to `back`. */
 export function tileBounds(view: TileView, tile: [number, number], front: number, back: number) {
-  const near = tileCorners(view, tile, DEPTH_NEAR);
-  const column = columnOf(near, tileCorners(view, tile, DEPTH_NEAR / 1024));
-  const frontCorners = tileCorners(view, tile, front);
-  const backCorners = tileCorners(view, tile, back);
-  const away = column[4].n;
+  const corners = tileCorners(view, tile, front, back);
+  const column = tileColumn(corners);
   return {
-    opaqueBox: boxOf(frontCorners, backCorners),
-    blendBox: boxOf(near, backCorners),
+    opaqueBox: tileBox(corners, ROW.front, ROW.back),
+    blendBox: tileBox(corners, ROW.near, ROW.back),
     column,
-    slab: [
-      { n: away, w: -dot(away, frontCorners[0]) },
-      { n: scale(away, -1), w: dot(away, backCorners[0]) },
-    ],
+    slab: tileSlab(corners, column),
   };
 }
 

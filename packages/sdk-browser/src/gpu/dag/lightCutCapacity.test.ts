@@ -15,6 +15,7 @@ const shape = (worldCount: number): LightCutShape => ({
   pageCount: worldCount,
   blockCount: Math.ceil(worldCount / 64),
   levelSizes: [worldCount, worldCount],
+  frames: { per: worldCount },
 });
 
 // A small scene runs every view a frame may draw; a scene of many roots runs fewer, bounded by
