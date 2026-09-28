@@ -1,11 +1,10 @@
-import { FRAME_VEC4, type DagViewUniforms, type DrawnLog } from './types.ts';
+import type { DagViewUniforms, DrawnLog } from './types.ts';
 import { writeDagUniforms, type DagCutViews } from './uniforms.ts';
 import { createLightCutReports } from './lightCutReports.ts';
 import { createLightCutRedraws } from './lightCutRedraws.ts';
 import { encodeDagKernels, type DagView } from './encode.ts';
-import { dagWorkLayout } from './shader/floorWgsl.ts';
-import { dagFlagsWords } from './shader/lastUseWgsl.ts';
-import { lightCutCapacity, lightQueueCap } from './lightCutCapacity.ts';
+import { lightCutCapacity } from './lightCutCapacity.ts';
+import { lightCutBuffers, makeDagBuffer } from './bufferTable.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import type { createDagResources } from './resources.ts';
 import { shadowBatchWrites } from '../shadow/batchWrites.ts';
@@ -38,29 +37,17 @@ export type DagLightCut = ReturnType<typeof createDagLightCut>;
  */
 export function createDagLightCut(resources: DagResources) {
   const { device, packed, residentCut, pageCount, outputBytes, readbackBytes } = resources;
-  const { blockCount, own, listCap } = resources;
+  const { own, listCap } = resources;
   const capacity = lightCutCapacity(device.limits, resources),
-    queueCap = lightQueueCap(resources, capacity),
-    layout = dagWorkLayout(blockCount, capacity);
+    table = lightCutBuffers(resources, capacity),
+    { queueCap, travail: layout } = table;
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
-  const flags = own({
-    label: 'Trillion3D light cut flags',
-    size: dagFlagsWords(queueCap, pageCount, false) * 4,
-    usage: storage,
-  });
-  const work = own({
-    label: 'Trillion3D light cut work',
-    size: layout.words * 4,
-    usage: storage | GPUBufferUsage.COPY_SRC,
-  });
+  const flags = makeDagBuffer(own, table.rows.flags);
+  const work = makeDagBuffer(own, table.rows.work);
   // One row of per-primitive planes per view, in the camera's ranges (`frameRanges.ts`); the root
   // and stretch words the kernel reads sit in the first row, as the camera's frames hold them.
   const frames = resources.frames.ranges.map(({ count }) =>
-    own({
-      label: 'Trillion3D light cut frames',
-      size: capacity * count * FRAME_VEC4 * 16,
-      usage: storage,
-    }),
+    makeDagBuffer(own, table.frames(count)),
   );
   resources.frames.writeRows(frames);
   let frameWrites = resources.frameWrites.count;
