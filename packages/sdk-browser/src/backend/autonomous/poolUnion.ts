@@ -39,9 +39,9 @@ export function createUnionFit(
      *  many of `requested` fit. */
     fit(requested: readonly Ranked[], room: number, used: number) {
       lists.length = cursors.length = ends.length = 0;
-      lists.push(requested);
-      for (const view of others) lists.push(view.requested);
-      for (const list of lists) {
+      for (let l = -1; l < others.length; l++) {
+        const list = l < 0 ? requested : others[l].requested;
+        lists.push(list);
         cursors.push(0);
         ends.push(list.length);
       }

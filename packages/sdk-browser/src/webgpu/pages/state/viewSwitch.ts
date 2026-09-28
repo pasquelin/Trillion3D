@@ -1,4 +1,4 @@
-import { tradeView as trade } from '../../../frame/viewTrade.ts';
+import { tradeCamera, tradeView as trade } from '../../../frame/viewTrade.ts';
 import { releaseTargets } from '../prepare/targets.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { VIEW_GPU_KEYS, VIEW_RUN_KEYS, VIEW_VIS_KEYS, type WebgpuView } from './view.ts';
@@ -17,14 +17,12 @@ export function useWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   trade(run, from.run, view.run, VIEW_RUN_KEYS);
   trade(gpu, from.gpu, view.gpu, VIEW_GPU_KEYS);
   trade(vis, from.vis, view.vis, VIEW_VIS_KEYS);
-  from.cam = run.gate.cam;
-  run.gate.cam = view.cam;
   // The arrays are traded, never copied: the host's, which its resizes write, stays the main
   // view's, and a resize during a capture is not undone when the main view comes back.
   from.viewport = setup.viewport;
   setup.viewport = view.viewport;
   views.active = view;
-  run.gate.viewReplaced();
+  tradeCamera(run.gate, from, view);
   run.cutEpoch++;
 }
 

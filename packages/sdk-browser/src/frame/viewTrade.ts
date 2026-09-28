@@ -14,3 +14,15 @@ export function tradeView<T, K extends keyof T>(
     live[key] = to[key];
   }
 }
+
+/** Hands the gate's engine camera back to `from` and gives it `to`'s, then tells the gate the view
+ *  was replaced, so no view holds on another's image: the camera half of both engines' switch. */
+export function tradeCamera<C>(
+  gate: { cam: C; viewReplaced(): void },
+  from: { cam: C },
+  to: { cam: C },
+) {
+  from.cam = gate.cam;
+  gate.cam = to.cam;
+  gate.viewReplaced();
+}

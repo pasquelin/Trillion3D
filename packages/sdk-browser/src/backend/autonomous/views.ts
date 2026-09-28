@@ -1,5 +1,5 @@
 import { createEngineCamera, type CameraMotion, type EngineCamera } from '../../camera/world.ts';
-import { tradeView } from '../../frame/viewTrade.ts';
+import { tradeCamera, tradeView } from '../../frame/viewTrade.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
 
@@ -18,7 +18,7 @@ export type WebglViewState = {
   /** The main view's is the host's own array, which a resize writes. */
   viewport: [number, number] | undefined;
 };
-const VIEW_KEYS = [
+export const VIEW_KEYS = [
   'shown',
   'desired',
   'requested',
@@ -64,6 +64,7 @@ export function createWebglViews(
     create(width: number, height: number) {
       const view: WebglView = { ...blankView([width, height]), cam: createEngineCamera() };
       all.push(view);
+      others.push(view);
       return view;
     },
     /**
@@ -75,12 +76,10 @@ export function createWebglViews(
       const from = views.active;
       if (from === view) return;
       tradeView(live, from, view, VIEW_KEYS);
-      from.cam = gate.cam;
-      gate.cam = view.cam;
       views.active = view;
       others.length = 0;
       for (const other of all) if (other !== view) others.push(other);
-      gate.viewReplaced();
+      tradeCamera(gate, from, view);
       moved();
     },
     /** `view`, not the main one, leaves: its cut leaves the union, the main view is drawn. */
