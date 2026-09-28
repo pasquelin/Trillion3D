@@ -7,6 +7,7 @@ import { generateApiFiles } from './generate-api-reference.ts';
 import { gitPaths } from './git-paths.ts';
 import { repositoryFiles } from './repository-files.ts';
 import { compileSiteCaches } from './site-caches.ts';
+import { changedTypeErrors, tsProjects } from './ts-projects.ts';
 import { INVENTORY_TEST, isUnitTest, movesInventory } from './unit-tests.ts';
 
 const sourcePattern = /\.(?:[cm]?ts|tsx)$/;
@@ -87,6 +88,12 @@ async function main(): Promise<void> {
     );
     if (formatted.length) run('node_modules/.bin/prettier', ['--check', ...formatted]);
     if (linted.length) run('node_modules/.bin/eslint', linted);
+    // `tsc --noEmit` on every project that owns a changed file (#1071).
+    const typeErrors = changedTypeErrors(process.cwd(), tsProjects(paths), existing);
+    if (typeErrors.length) {
+      console.error(typeErrors.join('\n'));
+      process.exit(1);
+    }
     if (duplicateCandidates.length)
       run('node_modules/.bin/jscpd', [
         ...duplicateCandidates,
