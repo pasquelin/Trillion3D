@@ -68,6 +68,7 @@ test('pendingUrls and pageUrls match the reference on a normal host, called twic
   const env = makeEnv();
   const optimisee = createAutonomousResidency({
     ...env,
+    views: [env],
     geometryStore: fakeGeometryStore(),
   });
   const reference = referenceResidency({
@@ -91,6 +92,7 @@ test('an empty host produces empty sets from both implementations', () => {
   };
   const optimisee = createAutonomousResidency({
     ...empty,
+    views: [empty],
     geometryStore: fakeGeometryStore(),
   });
   const reference = referenceResidency({ ...empty, desired: [], pending: [], retained: [] });
@@ -126,7 +128,8 @@ test('dropPage counts one eviction per page the store held, never the root cover
     held = false;
     return was;
   };
-  const residency = createAutonomousResidency({ ...makeEnv(), geometryStore });
+  const env = makeEnv();
+  const residency = createAutonomousResidency({ ...env, views: [env], geometryStore });
   residency.dropPage('a.bin');
   assert.equal(held, true, 'the root cover is never given back');
   residency.dropPage('g.bin');
@@ -138,6 +141,7 @@ test('the streamer pins the set the image gathered, without gathering it again',
   const env = makeEnv();
   const residency = createAutonomousResidency({
     ...env,
+    views: [env],
     geometryStore: fakeGeometryStore(),
   });
   const pinned = [...residency.pageUrls()];
