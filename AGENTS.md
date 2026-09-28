@@ -89,10 +89,11 @@ no work is cut midway.
   always working on it: a `measure ko` first, then strict priority order: 🔴, 🟠, 🟡, 🟢, an issue
   with no priority label last. Within a label, `audit ko` first, then a programme's children in
   its order, then engine performance and optimisation before examples, the others oldest first.
-- **Two agents at most.** A lead runs at most two subagents at a time (coder or reviewer), on two
-  issues that share no file, each coder with its own worktree and Chrome port; a coder waiting on
-  its review is not working.
-- **Two open pull requests per lead at most.** While two of its pull requests are open, a lead starts no new coder: it unblocks them first (red CI, conflict with `develop`,
+- **Two agents at most, three for the audit.** A lead runs at most two subagents at a time (coder
+  or reviewer), on issues that share no file, each coder with its own worktree and Chrome port; a
+  coder waiting on its review is not working. A third is allowed only for an item of the external
+  audit (#913) while none of the lead's pull requests is red, conflicting or unanswered.
+- **As many open pull requests as agents.** While that many of its pull requests are open, a lead starts no new coder: it unblocks them first (red CI, conflict with `develop`,
   unanswered review). A ready pull request waits only on the CTO's merge; `docs/roles/lead.md`
   step 1 says when it still holds back a new coder.
 - **Programmes.** A parent issue that states rules and an order (such as #483) binds every lead
