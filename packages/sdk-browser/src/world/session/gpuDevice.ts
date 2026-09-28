@@ -17,22 +17,17 @@ const OPTIONAL_GPU_FEATURES: readonly GPUFeatureName[] = [
 ];
 
 /**
- * Test switch: the features `trillion3dGpuFeaturesOff=subgroups,shader-f16` names on the host
- * URL are never requested, so a device that could have them runs every kernel's plain path —
- * the proof of the fallback on the machine that has the feature.
+ * The WebGPU device of a session: the optional features the adapter offers, minus those the host
+ * URL's test switch `trillion3dGpuFeaturesOff=subgroups,shader-f16` names (the fallback's proof on
+ * a machine that has them), and the adapter's own limits.
  */
-export function gpuFeaturesForcedOff(
+export async function requestExplorerDevice(
+  adapter: GPUAdapter,
   search = typeof location === 'undefined' ? '' : location.search,
-): ReadonlySet<string> {
-  const named = new URLSearchParams(search).get('trillion3dGpuFeaturesOff');
-  return new Set(named ? named.split(',').map((name) => name.trim()) : []);
-}
-
-/** The WebGPU device of a session: the optional features offered and not forced off, and the
- *  adapter's own limits. */
-export async function requestExplorerDevice(adapter: GPUAdapter, off = gpuFeaturesForcedOff()) {
+) {
+  const off = new URLSearchParams(search).get('trillion3dGpuFeaturesOff')?.split(',') ?? [];
   const features = OPTIONAL_GPU_FEATURES.filter(
-    (feature) => adapter.features.has(feature) && !off.has(feature),
+    (feature) => adapter.features.has(feature) && !off.some((name) => name.trim() === feature),
   );
   const adapterLimits = adapter.limits;
   const requiredLimits: Record<string, number> = {};
