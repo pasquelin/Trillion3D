@@ -26,8 +26,6 @@ for (const scene of rebuild)
     throw new Error(`--rebuild-cache names a scene outside --scene: ${scene}`);
 async function main() {
   await mkdir(output, { recursive: true });
-  // The owned asset tool preserves source folders and compiles only missing derived caches.
-  // An explicit rebuild refreshes a stale cache through that same route before Chrome opens.
   for (const scene of scenes) {
     const args = [
       'bench/runner/assets.ts',
