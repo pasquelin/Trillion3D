@@ -121,7 +121,10 @@ export async function captureSurfaceView(
       await renderForCapture(rt, camera, aspect);
       await drawResidentCut(rt, gpuDevice, {
         admitted: () => {
-          const missing = collectPendingUrls(awaitedPages(run.desired, run.awaitedScratch), []);
+          // Before the cover is resident a view's CPU cut publishes nothing (`../render/cpu.ts`):
+          // the capture's own `desired` is still empty, so it awaits the cover.
+          const asked = rt.services.bootstrapState.ready ? run.desired : rt.layout.gpuWanted;
+          const missing = collectPendingUrls(awaitedPages(asked, run.awaitedScratch), []);
           if (missing.length) throw new Error(`SURFACE_PAGES_NOT_RESIDENT: ${missing.length}`);
           if (run.coverageBudgetLimited) throw new Error('SURFACE_PAGE_BUDGET');
         },
