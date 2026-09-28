@@ -102,7 +102,12 @@ export function clusterErrorPixels(
  * The frame's half of `clusterErrorAtDepth`'s guard: stretch, focal length, near plane and clip-w
  * weight, the four scalars every cluster of a root's cut shares. True when they pass.
  */
-export function frameParametersSound(stretch: number, focal: number, near: number, perspective = 1) {
+export function frameParametersSound(
+  stretch: number,
+  focal: number,
+  near: number,
+  perspective = 1,
+) {
   return (
     Number.isFinite(stretch) &&
     stretch >= 0 &&

@@ -125,4 +125,3 @@ test('20,000 random clusters and frames give the per-cluster verdict, to the bit
   // Both sides of the guard are walked, not only one.
   assert.ok(projected > 5000 && refused > 1000, `${projected} projected, ${refused} refused`);
 });
-
