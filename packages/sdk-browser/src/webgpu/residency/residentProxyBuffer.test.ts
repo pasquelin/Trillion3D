@@ -7,7 +7,7 @@ import {
   PROXY_LAYOUT_WORD,
   PROXY_PARAM_FLOATS,
 } from '../../bounce/nodeWgsl.ts';
-import { proxyIdentity } from '../../../../sdk-core/src/scene/core/proxy.fixture.ts';
+import { ownedProxy, proxyIdentity } from '../../../../sdk-core/src/scene/core/proxy.fixture.ts';
 import { createGpuBounceProxy } from '../../bounce/proxy.ts';
 import { createGpuSunFarShadow } from '../../gpu/shadow/sunFarShadow.ts';
 import { fakeDevice, type FakeBuffer } from '../../../../../tests/kit/gpu/fakeDevice.ts';
@@ -73,7 +73,7 @@ test('resident proxy fits in single buffer, at offsets published by its header',
     limits: {
       maxStorageBufferBindingSize: 1 << 28,
       maxBufferSize: 1 << 28,
-    } as GPUSupportedLimits,
+    },
   });
   const resident = createGpuBounceProxy(device, proxy);
   const words = new Uint32Array(proxyBytes(buffers));
@@ -113,4 +113,43 @@ test('resident proxy fits in single buffer, at offsets published by its header',
       4 +
       4,
   );
+});
+
+test('motion uploads owner poses and conservative bounds once without rewriting geometry', () => {
+  const { device, buffers, writes } = fakeDevice({
+    limits: { maxStorageBufferBindingSize: 1 << 28, maxBufferSize: 1 << 28 },
+  });
+  const resident = createGpuBounceProxy(device, ownedProxy());
+  const initial = new Uint32Array(proxyBytes(buffers));
+  const canonical = initial.slice(PROXY_HEADER_WORDS, PROXY_HEADER_WORDS + 9);
+  const identity = proxyIdentity(),
+    moved = proxyIdentity();
+  assert.equal(
+    resident.sync(() => identity),
+    false,
+  );
+  assert.equal(writes.length, 0, 'a still scene submits no geometry writes');
+  moved[12] = 10;
+  assert.equal(
+    resident.sync((node) => (node === 0 ? moved : identity)),
+    true,
+  );
+  for (const write of writes) {
+    assert.equal(write.buffer, resident.buffer, 'albedo stays immutable');
+    new Uint8Array(initial.buffer, write.offset, write.data.byteLength).set(
+      new Uint8Array(write.data.buffer, write.data.byteOffset, write.data.byteLength),
+    );
+  }
+  assert.deepEqual(initial.slice(PROXY_HEADER_WORDS, PROXY_HEADER_WORDS + 9), canonical);
+  const floats = new Float32Array(initial.buffer);
+  assert.equal(initial[11], 1, 'rays use owner geometry after motion');
+  assert.equal(floats[PROXY_HEADER_WORDS + initial[15] + 12], 10);
+  assert.equal(floats[PROXY_HEADER_WORDS + initial[15] + 28], 0);
+  assert.ok(floats[PROXY_HEADER_WORDS + initial[9] + 3] >= 11);
+  const count = writes.length;
+  assert.equal(
+    resident.sync((node) => (node === 0 ? moved : identity)),
+    false,
+  );
+  assert.equal(writes.length, count, 'repeating a pose submits no writes');
 });
