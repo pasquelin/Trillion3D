@@ -38,7 +38,7 @@ disagreement is reported to the maintainer.
    `<issue>-<short-name>`, never `claude/…`.
 9. **Bounded agents.** Every brief that allows subagents states their maximum and forbids them
    to spawn their own. A brief bounds what the agent reads; a finished agent is stopped. A coder's run ends when its pull request is `OK`: on a `KO` the lead resumes the
-   same coder with `SendMessage`. The depth is fixed: a lead session → one coder or reviewer → the review agents of the real `simplify` and `code-review` skills (at most 4), which launch none; the CTO runs those two skills itself on its rules pull request. The architect, measurer,
+   same coder with `SendMessage`. The depth is fixed: a lead session → its coders or reviewers (§Leads) → the review agents of the real `simplify` and `code-review` skills (at most 4), which launch none; the CTO runs those two skills itself on its rules pull request. The architect, measurer,
    acceptance and analyst agents launch none.
 10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
     in the issue or the pull request, never on disk.
@@ -52,7 +52,7 @@ A company. The **boss** (the maintainer) opens the CTO's session (`/t3d-cto`), t
 tests the result and sets priorities. At its start the CTO gives the boss **one prompt per session
 to open** (a lead per domain with work, the architect, measurer, acceptance and analyst when they
 have work); the boss opens each of them. Every role runs in its own session and reports to the CTO
-by `SendMessage`; a lead runs its `coder` and `reviewer` as foreground subagents. Each role is
+by `SendMessage`; a lead runs its `coder` and `reviewer` as subagents (§Leads). Each role is
 `docs/roles/<role>.md`, and its skill in `skills/` is the session's brief; "Prompt by" names who
 writes that brief.
 
@@ -89,9 +89,11 @@ no work is cut midway.
   always working on it: a `measure ko` first, then strict priority order: 🔴, 🟠, 🟡, 🟢, an issue
   with no priority label last. Within a label, `audit ko` first, then a programme's children in
   its order, then engine performance and optimisation before examples, the others oldest first.
-- **One agent working at a time.** A lead runs one coder or one reviewer subagent at a time,
-  never two; a coder waiting on its review is not working.
-- **One open pull request per lead.** While one of its pull requests is open, a lead starts no new coder: it unblocks that one first (red CI, conflict with `develop`,
+- **Two agents at most, three for the audit.** A lead runs at most two subagents at a time (coder
+  or reviewer), on issues that share no file, each coder with its own worktree and Chrome port; a
+  coder waiting on its review is not working. A third is allowed only for an item of the external
+  audit (#913) while none of the lead's pull requests is red, conflicting or unanswered.
+- **As many open pull requests as agents.** While that many of its pull requests are open, a lead starts no new coder: it unblocks them first (red CI, conflict with `develop`,
   unanswered review). A ready pull request waits only on the CTO's merge; `docs/roles/lead.md`
   step 1 says when it still holds back a new coder.
 - **Programmes.** A parent issue that states rules and an order (such as #483) binds every lead
