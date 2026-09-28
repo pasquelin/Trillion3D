@@ -108,10 +108,10 @@ const anchored = new Float64Array(16),
   weights = taaWeightTable();
 
 /**
- * Encodes this image's temporal pass and returns the accumulated image composition must read —
- * `undefined` when the image does not accumulate, and composition reads the lit one. Writes the uniform, updates placement motion, advances
- * the jitter rank and keeps the view-projection without jitter for the next image. With `asIs`
- * false no as-is pixel is in the image, and the flagless resolve reads no flags (OMB-11).
+ * Encodes this image's temporal pass and returns the accumulated image composition reads, or
+ * `undefined` when the image does not accumulate. Writes the uniform, updates placement motion,
+ * advances the jitter rank and keeps the view-projection without jitter for the next image. With
+ * `asIs` false the flagless resolve reads no flags (OMB-11); a display filter is resolved beside.
  */
 export function encodeTaaPass(
   rt: WebgpuPagesRuntime,
@@ -146,7 +146,9 @@ export function encodeTaaPass(
   packed[36] = state.stillFrames > 0 ? 1 / state.stillFrames : 1 / TAA_SAMPLES;
   packed[37] = state.hasHistory ? 1 : 0;
   packed[38] = temporal.motion.moved ? 1 : 0;
-  packed[39] = 0;
+  // The display filter of an image whose blends filter (`../webgpu/blend/displayFilter.ts`).
+  const filter = gpu.displayFilter?.active ? gpu.displayFilter.view : undefined;
+  packed[39] = filter && temporal.filterHistory.written ? 1 : 0;
   packed.set(weights[state.sample], 40);
   device.queue.writeBuffer(temporal.uniform, 0, packed);
   const { inputs } = temporal;
@@ -157,6 +159,7 @@ export function encodeTaaPass(
   inputs.motion = temporal.motion.buffer;
   inputs.flags = asIs ? gpu.surfaces.views()[3] : undefined;
   inputs.share = asIs ? share : undefined;
+  inputs.filter = filter;
   const output = temporal.encode(encoder, inputs);
   run.gpuDrawCalls++;
   state.sceneSeen = scene;
@@ -178,11 +181,8 @@ export function forgetTaaHistory(temporal: TemporalAntialiasing | undefined) {
   temporal.frame.stillFrames = 0;
 }
 
-/**
- * Rank of this image among those whose lighting is SAMPLED — a moving image that
- * accumulates on a history, which averages its draws —, or zero: a still image shades every
- * light and converges to the exact sum, and an image nothing averages must never be noisy.
- */
+/** Rank of this image among those whose lighting is SAMPLED (moving, on a history that averages
+ *  its draws), or zero: a still image, or one nothing averages, shades every light. */
 export function taaSampledRank(rt: WebgpuPagesRuntime) {
   const temporal = rt.gpu.temporal;
   return temporal?.frame.active ? temporal.frame.sampledRank : 0;

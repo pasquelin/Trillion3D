@@ -42,6 +42,7 @@ import { COVERAGE_WGSL } from '../../texture/coverageMips.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts';
 import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
+import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilter.ts';
 import { SHADER as PREPARE_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
 import { REDUCE_WGSL } from '../../webgpu/tile/reduce.ts';
 import { TRANSPARENT_COMPACT_SHADER } from '../../webgpu/transparent/shader.ts';
@@ -90,6 +91,9 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...Object.fromEntries(LIGHT_TILES_SHADERS),
   TAA_SHADER,
   TAA_FLAGLESS_SHADER: taaShader(false),
+  TAA_RESOLVE_FILTERED: taaShader(true, false, true),
+  TAA_RESOLVE_FILTERED_FLAGLESS: taaShader(false, false, true),
+  TAA_RESOLVE_FILTERED_BLENDED: taaShader(true, true, true),
   MIP_SHADER,
   COVERAGE_WGSL,
   VIS_SHADER,
@@ -97,6 +101,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   SHADE_SHADER,
   SHADE_DIAGNOSTIC: SHADE_SHADER + DIAGNOSTIC_SHADE_WGSL,
   BLEND_SHADER,
+  DISPLAY_FILTER_SHADER,
   BLEND_WATER: BLEND_SHADER + WATER_SURFACE_WGSL,
   BLEND_DIAGNOSTIC: BLEND_SHADER + DIAGNOSTIC_BLEND_WGSL,
   BLEND_EXPAND_SHADER,

@@ -39,7 +39,8 @@ function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice, item: BlendGp
  * the draw of an item wholly out of view.
  *
  * `slice` says which pass is encoded — blends, or the water surfaces — and `pipelines` what
- * draws it; the bind groups are the same, and they are the blend pass's. Returns the draws encoded.
+ * draws it, `filtered` with the display filter attached; the bind groups are the same, and they
+ * are the blend pass's. Returns the draws encoded.
  */
 export function drawBlendRuns(
   rt: WebgpuPagesRuntime,
@@ -47,6 +48,7 @@ export function drawBlendRuns(
   pass: GPURenderPassEncoder,
   slice: number,
   pipelines: RankedPipelines,
+  filtered = false,
 ) {
   const { blendState } = rt,
     items = blendState.blendGpu,
@@ -72,7 +74,7 @@ export function drawBlendRuns(
     if (boundPipeline !== planPipeline(entry)) {
       boundPipeline = planPipeline(entry);
       // The blend pass compiles a mode first written after it was built (`pipelines.ts`).
-      const pipeline = pipelines.at(boundPipeline);
+      const pipeline = pipelines.at(boundPipeline, filtered);
       if (!pipeline) throw new Error(`blend pipeline ${boundPipeline} was not built for the scene`);
       pass.setPipeline(pipeline);
     }
@@ -102,7 +104,8 @@ export function drawBlendPass(
   transmissive = false,
 ): boolean {
   const { gpu, vis, blendState } = rt,
-    slice = transmissive ? 1 : 0;
+    slice = transmissive ? 1 : 0,
+    filter = gpu.displayFilter?.active ? gpu.displayFilter : undefined;
   // Nothing to encode without runs, or without the arguments the GPU wrote for them.
   if (!blendState.runCount[slice] || !blendState.argsBuffer) return false;
   // Diagnostic only: the counting variant opens an occlusion query around the pass.
@@ -125,12 +128,14 @@ export function drawBlendPass(
         loadOp: 'load',
         storeOp: 'store',
       },
+      // The display filter of an image whose blends filter (`displayFilter.ts`).
+      ...(filter ? [{ view: filter.view, loadOp: 'load', storeOp: 'store' } as const] : []),
     ],
     depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
   });
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
   overdraw?.begin(pass, transmissive);
-  const encoded = drawBlendRuns(rt, device, pass, slice, vis.blendPipelines!);
+  const encoded = drawBlendRuns(rt, device, pass, slice, vis.blendPipelines!, !!filter);
   overdraw?.end(pass);
   pass.end();
   overdraw?.after(encoder);

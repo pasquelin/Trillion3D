@@ -33,9 +33,10 @@ test('the temporal shader assembles each fragment once, on the shared page recor
 });
 
 test('shader bindings are those of the layout, and the uniform has the declared size', () => {
+  // The filtered resolve declares every binding, the display filter's two last.
   for (const [name, binding] of Object.entries(TAA_BINDINGS))
     assert.match(
-      TAA_SHADER,
+      taaShader(true, false, true),
       new RegExp(`@binding\\(${binding}\\) var(<[a-z,]+>)? ${name}:`),
       `binding ${name}`,
     );
