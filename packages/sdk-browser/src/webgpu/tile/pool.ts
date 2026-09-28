@@ -63,9 +63,6 @@ export type TilePoolOptions = {
   format: GPUTextureFormat;
   texelBytes: number;
   layers: number;
-  /** Tiles the pool may hold: every place of its layers unless fewer are given, the budget then
-   *  held tile by tile (`texturePoolFor`); the places past them are never taken. */
-  tiles?: number;
 };
 
 /** The texture a pool of this shape holds: what the pool creates, and what a probe asks the device
@@ -94,9 +91,7 @@ export function createWebgpuTilePool(
 ): WebgpuTilePool {
   const descriptor = tilePoolTexture(options);
   const { layers, texelBytes } = options;
-  const tiles = options.tiles ?? layers * TILES_PER_LAYER;
-  if (!Number.isSafeInteger(tiles) || tiles < 1 || tiles > layers * TILES_PER_LAYER)
-    throw new Error('TEXTURE_POOL_TILES');
+  const tiles = layers * TILES_PER_LAYER;
   const perTile = tileBytes(texelBytes);
   const label = descriptor.label;
   const texture = device.createTexture(descriptor);

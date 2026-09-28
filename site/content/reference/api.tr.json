@@ -3695,7 +3695,6 @@
     "members": {
       "budgetBytes": "İzin verilen baytlar.",
       "layers": "Atlas başına her şerit havuzunun katmanları, ve her havuzun baytları toplanmış.",
-      "tiles": "Her şerit havuzunun tutabileceği karolar, atlas başına: katmanlarının yerleri ya da bütçe katman tabanının altındayken daha azı — bütçe o zaman karo karo tutulur.",
       "allocatedBytes": "Tutulan baytlar.",
       "clamp": "Boyutun neden sınırlandığı."
     }

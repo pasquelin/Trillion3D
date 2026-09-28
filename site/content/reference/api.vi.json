@@ -3779,7 +3779,6 @@
     "members": {
       "budgetBytes": "Số byte được cho phép.",
       "layers": "Các lớp của mỗi bể làn, theo từng atlas, và số byte của mỗi bể cộng lại.",
-      "tiles": "Số ô mà mỗi bể làn có thể giữ, theo từng atlas: các chỗ của các lớp của nó, hoặc ít hơn khi ngân sách dưới mức sàn của các lớp — khi đó ngân sách được giữ theo từng ô.",
       "allocatedBytes": "Số byte được giữ.",
       "clamp": "Vì sao kích thước bị giới hạn."
     }

@@ -12,7 +12,7 @@ import {
   grantedGeometryPool,
   grantedTexturePool,
   probed,
-  samePool,
+  sameLayers,
   textureProbe,
 } from '../../residency/poolGrants.ts';
 import type { TexturePool } from '../../residency/memoryBudgets.ts';
@@ -83,13 +83,12 @@ export async function setWebgpuMemoryBudgets(
         { bytes, deducted } = budgetBeside(budgets.texturePoolBytes, live);
       pools.liveBytes = live;
       let pool: TexturePool | undefined = pools.poolFor(bytes);
-      // Other tiles alone still replace the lane pools (`atlasResize.ts`): the device is asked too.
-      if (!samePool(pool, pools.pool) && vis.textures && device && !run.lost)
+      if (!sameLayers(pool, pools.pool) && vis.textures && device && !run.lost)
         pool = await probed(
           grantedTexturePool(device, bytes, pools, diagnose, textureProbe(device, pools.encoding)),
         );
       if (pool) {
-        if (vis.textures && !run.lost) evictedTiles = vis.textures.resize(pool);
+        if (vis.textures && !run.lost) evictedTiles = vis.textures.resize(pool.layers);
         pools.pool = pool;
         // What the device granted, not what was asked: a refusal keeps the budget in place.
         setup.texturePoolBudget = pool.budgetBytes + deducted;
