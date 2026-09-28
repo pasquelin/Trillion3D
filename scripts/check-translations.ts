@@ -9,9 +9,13 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import generated from '../site/content/reference/api.json' with { type: 'json' };
 import { DEFAULT_LANGUAGE } from '../site/content/i18n/dictionary.ts';
-import { referenceTexts } from '../site/content/reference/translate.ts';
 import type { PortalEntry } from '../site/content/model.ts';
-import { DICTIONARIES, EXAMPLE_WORDS, REFERENCE_TRANSLATIONS } from './i18n-keys.ts';
+import {
+  DICTIONARIES,
+  EXAMPLE_WORDS,
+  REFERENCE_TRANSLATIONS,
+  englishReferenceTexts,
+} from './i18n-keys.ts';
 
 /** Each entry's hash, by entry then by language: `{ 'examples:water': { en: 'a1b2c3d4' } }`. */
 type Hashes = Record<string, Record<string, string>>;
@@ -23,8 +27,6 @@ export const hashOf = (value: unknown) =>
   value === undefined
     ? '-'
     : createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 8);
-
-const written = DICTIONARIES[DEFAULT_LANGUAGE].written as Record<string, object | undefined>;
 
 /** The entries of one language: `(entry, text)` for each. */
 function entriesOf(code: string): [string, unknown][] {
@@ -41,7 +43,7 @@ function entriesOf(code: string): [string, unknown][] {
   const reference = (generated as PortalEntry[]).map((entry): [string, unknown] => [
     `reference:${entry.id}`,
     code === DEFAULT_LANGUAGE
-      ? Object.fromEntries(referenceTexts(entry, written[entry.id]))
+      ? Object.fromEntries(englishReferenceTexts(entry))
       : REFERENCE_TRANSLATIONS[code]?.[entry.id],
   ]);
   return [...portal, ...examples, ...reference];
