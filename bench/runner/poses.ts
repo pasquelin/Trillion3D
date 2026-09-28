@@ -3,12 +3,15 @@
 // change of the points, so two readings only compare at equal trajectory.
 import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
 
-const PATH_VERSION = 5;
+const PATH_VERSION = 6;
+// Each point is `[x, height, z]`: `x` and `z` as shares of the box from its centre, `height` in
+// eye heights above the floor. At reference level (height ≤ 2) the camera keeps to the model's
+// middle, where a street or courtyard runs; `poses.test.ts` says how far.
 const POINTS = [
   [0.72, 28, 0.78],
   [0.2, 8, 0.26],
-  [0.05, 1.2, 0.08],
-  [-0.08, 1.7, 0.12],
+  [0.05, 1.2, 0.04],
+  [-0.06, 1.7, 0.06],
   [-0.03, 1.5, 0.04],
   [-0.03, 1.5, 0.04],
   [0.3, 10, -0.26],
