@@ -5,7 +5,8 @@ on:
     branches: [develop, main]
     types: [opened, synchronize, reopened]
   # `develop`, and an issue's branch (`<issue>-<name>`) from its first push, so CI runs during the
-  # review and the native cache is warm when the pull request opens.
+  # review. Such a run reads only its branch's caches and `main`'s (GitHub's cache scopes), not
+  # `develop`'s: its first run rebuilds the compiler, the pull request's reads `develop`'s.
   push:
     branches: [develop, '[0-9]+-*']
   workflow_dispatch:
@@ -15,7 +16,7 @@ on:
 # its own run, since that is the record that the branch is green.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'push' && github.ref == 'refs/heads/develop' && github.ref || github.head_ref || github.ref_name }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref != 'refs/heads/develop' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/develop' }}
 
 permissions:
   contents: read
@@ -100,7 +101,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         id: rust
       # On a hit the restored binary replaces the release build; on a miss each shard builds it
-      # rather than wait for the `native` job, which alone publishes it once its gates pass.
+      # rather than wait for the `native` job, which alone publishes it once its gates pass: more
+      # runner minutes on a Rust change, no job waiting on another.
       - uses: ./.github/actions/native-cache
         id: native
         with:
@@ -113,7 +115,7 @@ jobs:
       - run: pnpm run validate --group unit
         env:
           TRILLION3D_SKIP_NATIVE: ${{ steps.native.outputs.hit == 'true' && '1' || '' }}
-          TRILLION3D_TEST_SHARD: ${{ matrix.shard }}/3
+          TRILLION3D_TEST_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
 
   # The one required check of `.github/ruleset.json`: it stays a single stable name whatever the
   # jobs above are split into. A group that failed, was cancelled or never ran fails it.
@@ -128,4 +130,4 @@ jobs:
           RESULTS: ${{ toJSON(needs) }}
         run: |
           echo "$RESULTS"
-          echo "$RESULTS" | jq -e 'length > 0 and all(.[]; .result == "success")'
+          echo "$RESULTS" | jq -e 'all(.[]; .result == "success")'
