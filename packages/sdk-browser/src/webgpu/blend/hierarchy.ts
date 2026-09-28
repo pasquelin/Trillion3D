@@ -94,7 +94,16 @@ function refitNodes(blendState: BlendState) {
     if (!counts[node]) {
       const r = links[node] * BOX_VALUES;
       boxes.copyWithin(o, o + BOX_VALUES, o + 2 * BOX_VALUES);
-      boxUnion(boxes, o, boxes[r], boxes[r + 1], boxes[r + 2], boxes[r + 3], boxes[r + 4], boxes[r + 5]);
+      boxUnion(
+        boxes,
+        o,
+        boxes[r],
+        boxes[r + 1],
+        boxes[r + 2],
+        boxes[r + 3],
+        boxes[r + 4],
+        boxes[r + 5],
+      );
       continue;
     }
     boxEmpty(boxes, o);
