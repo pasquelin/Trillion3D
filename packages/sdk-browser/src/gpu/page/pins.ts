@@ -1,10 +1,10 @@
 import type { GpuPageContext } from './types.ts';
 
 export function createGpuPagePins(context: GpuPageContext) {
-  const { resident, pins, free, check, reader } = context;
+  const { resident, pins, held, free, check, reader } = context;
   const { emit } = reader;
   return {
-    pin(key: string) {
+    pin(key: string, tier: 'held' | 'pinned' = 'pinned') {
       check();
       const page = resident.get(key);
       if (!page) {
@@ -17,6 +17,7 @@ export function createGpuPagePins(context: GpuPageContext) {
       }
       const changed = !pins.has(key);
       pins.add(key);
+      if (tier === 'held') held.add(key);
       if (changed)
         emit('gpu-page-pin', 'GPU page pinned', () => ({
           version: 1,
@@ -45,6 +46,7 @@ export function createGpuPagePins(context: GpuPageContext) {
     },
     unpin(key: string) {
       const changed = pins.delete(key);
+      held.delete(key);
       if (changed)
         emit('gpu-page-unpin', 'GPU pin removed', () => ({
           version: 1,

@@ -1,3 +1,4 @@
+import { bufferEntry, resourceEntry } from './liveEntries.ts';
 import type { WebgpuTileStreamer } from '../tile/streamer.ts';
 import {
   BLEND_BINDINGS,
@@ -38,12 +39,7 @@ export type ShadeBindResources = AtlasResources & {
   uniform: GPUBuffer;
 };
 
-/**
- * Lighting a transparent mesh reads: the contract's declared lamps, their shadow slices, the atlas
- * and its sampler, the probe grid and its coefficients. These are the opaque-resolve resources,
- * never a light of the blend's own (P6); those that do not exist yet are held by the deferred
- * resolve's stand-ins.
- */
+/** Lighting shared with the opaque resolve; deferred stand-ins cover resources not ready yet. */
 export type BlendLighting = {
   directLights: GPUBuffer;
   shadowData: GPUBuffer;
@@ -68,8 +64,7 @@ export type BlendBindResources = AtlasResources &
     indices: GPUBuffer;
     positions: GPUBuffer;
     uvs: GPUBuffer;
-    /** VIEW uniform of the image: projection, eye, lamp tiles, diagnostic flags. One for the
-     *  whole pass, and it no longer carries anything that belongs to an item. */
+    /** One VIEW uniform for the pass: projection, eye, lamp tiles and diagnostic flags. */
     uniform: GPUBuffer;
     uniformSize: number;
     /** Item records, indexed by the item's rank in the scene (`../blend/items.ts`). */
@@ -99,10 +94,10 @@ export type SmallBindResources = AtlasResources & {
 /** The four entries of an atlas: one view per lane, in `POOL_LANES` order, and its page table. */
 const atlasEntries = (
   bindings: AtlasBindings,
-  atlas: WebgpuTileStreamer['color'],
+  read: () => WebgpuTileStreamer['color'],
 ): GPUBindGroupEntry[] => [
-  ...bindings.lanes.map((binding, lane) => ({ binding, resource: atlas.views[lane] })),
-  { binding: bindings.pages, resource: { buffer: atlas.pages.buffer } },
+  ...bindings.lanes.map((binding, lane) => resourceEntry(binding, () => read()?.views[lane])),
+  bufferEntry(bindings.pages, () => read()?.pages.buffer),
 ];
 
 /** The unique entry list of `visBindGroupLayout`. Both of its constructors — the direct group and
@@ -111,19 +106,21 @@ const atlasEntries = (
 export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
   const b = VIS_BINDINGS;
   return [
-    { binding: b.cache, resource: { buffer: r.cache } },
-    { binding: b.position, resource: { buffer: r.position } },
-    { binding: b.pageTable, resource: { buffer: r.pageTable } },
-    { binding: b.flags, resource: { buffer: r.flags } },
-    {
-      binding: b.uniform,
-      resource: { buffer: r.uniform, offset: r.uniformOffset, size: VIS_UNIFORM_BYTES },
-    },
-    { binding: b.uv, resource: { buffer: r.uv } },
-    ...atlasEntries(b.color, r.textures.color),
-    { binding: b.sampler, resource: r.sampler },
-    { binding: b.instances, resource: { buffer: r.instances } },
-    { binding: b.slotOffsets, resource: { buffer: r.slotOffsets } },
+    bufferEntry(b.cache, () => r.cache),
+    bufferEntry(b.position, () => r.position),
+    bufferEntry(b.pageTable, () => r.pageTable),
+    bufferEntry(b.flags, () => r.flags),
+    bufferEntry(
+      b.uniform,
+      () => r.uniform,
+      () => r.uniformOffset,
+      () => VIS_UNIFORM_BYTES,
+    ),
+    bufferEntry(b.uv, () => r.uv),
+    ...atlasEntries(b.color, () => r.textures?.color),
+    resourceEntry(b.sampler, () => r.sampler),
+    bufferEntry(b.instances, () => r.instances),
+    bufferEntry(b.slotOffsets, () => r.slotOffsets),
   ];
 }
 
@@ -132,16 +129,16 @@ export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
 export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
   const b = SHADE_BINDINGS;
   return [
-    { binding: b.visView, resource: r.visView },
-    { binding: b.cache, resource: { buffer: r.cache } },
-    { binding: b.position, resource: { buffer: r.position } },
-    { binding: b.uv, resource: { buffer: r.uv } },
-    { binding: b.normal, resource: { buffer: r.normal } },
-    { binding: b.pageTable, resource: { buffer: r.pageTable } },
-    ...atlasEntries(b.color, r.textures.color),
-    { binding: b.sampler, resource: r.sampler },
-    { binding: b.uniform, resource: { buffer: r.uniform } },
-    ...atlasEntries(b.data, r.textures.data),
+    resourceEntry(b.visView, () => r.visView),
+    bufferEntry(b.cache, () => r.cache),
+    bufferEntry(b.position, () => r.position),
+    bufferEntry(b.uv, () => r.uv),
+    bufferEntry(b.normal, () => r.normal),
+    bufferEntry(b.pageTable, () => r.pageTable),
+    ...atlasEntries(b.color, () => r.textures?.color),
+    resourceEntry(b.sampler, () => r.sampler),
+    bufferEntry(b.uniform, () => r.uniform),
+    ...atlasEntries(b.data, () => r.textures?.data),
   ];
 }
 
@@ -149,28 +146,33 @@ export function shadeBindEntries(r: ShadeBindResources): GPUBindGroupEntry[] {
 export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
   const b = BLEND_BINDINGS;
   return [
-    { binding: b.indices, resource: { buffer: r.indices } },
-    { binding: b.positions, resource: { buffer: r.positions } },
-    { binding: b.uvs, resource: { buffer: r.uvs } },
-    { binding: b.uniform, resource: { buffer: r.uniform, size: r.uniformSize } },
-    { binding: b.items, resource: { buffer: r.items } },
-    ...atlasEntries(b.color, r.textures.color),
-    { binding: b.sampler, resource: r.sampler },
-    ...atlasEntries(b.data, r.textures.data),
-    { binding: b.normals, resource: { buffer: r.normals } },
-    { binding: b.directLights, resource: { buffer: r.directLights } },
-    { binding: b.clusterDiagnostic, resource: { buffer: r.clusterDiagnostic } },
-    { binding: b.planInstances, resource: { buffer: r.planInstances } },
-    { binding: b.clusterSpans, resource: { buffer: r.clusterSpans } },
-    { binding: b.shadowData, resource: { buffer: r.shadowData } },
-    { binding: b.shadowAtlas, resource: r.shadowAtlas },
-    { binding: b.shadowSampler, resource: r.shadowSampler },
-    { binding: b.shadowTransmittance, resource: r.shadowTransmittance },
-    { binding: b.shadowTranslucentDepth, resource: r.shadowTranslucentDepth },
-    { binding: b.bounceGrid, resource: { buffer: r.bounceGrid } },
-    { binding: b.probes, resource: { buffer: r.probes } },
-    { binding: b.tileLights, resource: { buffer: r.tileLights } },
-    { binding: b.proxy, resource: { buffer: r.proxy } },
+    bufferEntry(b.indices, () => r.indices),
+    bufferEntry(b.positions, () => r.positions),
+    bufferEntry(b.uvs, () => r.uvs),
+    bufferEntry(
+      b.uniform,
+      () => r.uniform,
+      undefined,
+      () => r.uniformSize,
+    ),
+    bufferEntry(b.items, () => r.items),
+    ...atlasEntries(b.color, () => r.textures?.color),
+    resourceEntry(b.sampler, () => r.sampler),
+    ...atlasEntries(b.data, () => r.textures?.data),
+    bufferEntry(b.normals, () => r.normals),
+    bufferEntry(b.directLights, () => r.directLights),
+    bufferEntry(b.clusterDiagnostic, () => r.clusterDiagnostic),
+    bufferEntry(b.planInstances, () => r.planInstances),
+    bufferEntry(b.clusterSpans, () => r.clusterSpans),
+    bufferEntry(b.shadowData, () => r.shadowData),
+    resourceEntry(b.shadowAtlas, () => r.shadowAtlas),
+    resourceEntry(b.shadowSampler, () => r.shadowSampler),
+    resourceEntry(b.shadowTransmittance, () => r.shadowTransmittance),
+    resourceEntry(b.shadowTranslucentDepth, () => r.shadowTranslucentDepth),
+    bufferEntry(b.bounceGrid, () => r.bounceGrid),
+    bufferEntry(b.probes, () => r.probes),
+    bufferEntry(b.tileLights, () => r.tileLights),
+    bufferEntry(b.proxy, () => r.proxy),
   ];
 }
 
@@ -178,15 +180,20 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
 export function smallBindEntries(r: SmallBindResources): GPUBindGroupEntry[] {
   const b = SMALL_BINDINGS;
   return [
-    { binding: b.indices, resource: { buffer: r.indices } },
-    { binding: b.positions, resource: { buffer: r.positions } },
-    { binding: b.pages, resource: { buffer: r.pages } },
-    { binding: b.hizFlags, resource: { buffer: r.hizFlags } },
-    { binding: b.uniform, resource: { buffer: r.uniform, offset: 0, size: VIS_UNIFORM_BYTES } },
-    { binding: b.uvs, resource: { buffer: r.uvs } },
-    ...atlasEntries(b.color, r.textures.color),
-    { binding: b.sampler, resource: r.sampler },
-    { binding: b.work, resource: { buffer: r.work } },
-    { binding: b.selectionMask, resource: { buffer: r.selectionMask } },
+    bufferEntry(b.indices, () => r.indices),
+    bufferEntry(b.positions, () => r.positions),
+    bufferEntry(b.pages, () => r.pages),
+    bufferEntry(b.hizFlags, () => r.hizFlags),
+    bufferEntry(
+      b.uniform,
+      () => r.uniform,
+      () => 0,
+      () => VIS_UNIFORM_BYTES,
+    ),
+    bufferEntry(b.uvs, () => r.uvs),
+    ...atlasEntries(b.color, () => r.textures?.color),
+    resourceEntry(b.sampler, () => r.sampler),
+    bufferEntry(b.work, () => r.work),
+    bufferEntry(b.selectionMask, () => r.selectionMask),
   ];
 }
