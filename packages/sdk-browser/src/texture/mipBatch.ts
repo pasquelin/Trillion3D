@@ -1,4 +1,5 @@
 import { sharedGpuDevice } from '../gpu/core/sessionHandle.ts';
+import { uniformStride } from '../residency/pools.ts';
 import { levelSize, mipLevelCountFor } from './tiles.ts';
 import { countCoverage, LEVEL_BIN_BYTES, type CoverageChain } from './coverageMips.ts';
 import { heldBuffer, mipPipeline } from './mips.ts';
@@ -33,7 +34,7 @@ export function generateMaterialMips(device: GPUDevice, chains: MipChain[]) {
   }
   if (!reduced.length) return;
   const shared = sharedGpuDevice(device);
-  const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
+  const stride = uniformStride(device.limits);
   // A block holds its level's reduction: the extent of the source level, so as not to read off the
   // image, and the cutoff; for the counts, level 0's extent and the level. Block 0 is level 0's own
   // count.

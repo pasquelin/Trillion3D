@@ -1,4 +1,4 @@
-import { DEPTH_CLEAR } from '../../camera/depthConvention.ts';
+import { DEPTH_CLEAR, DEPTH_NEAR } from '../../camera/depthConvention.ts';
 
 /**
  * The tile's depth bounds, one atomic per thread: what every device runs. Positive floats order
@@ -33,31 +33,59 @@ export const tileDepthBoundsWgsl = (subgroups: boolean) =>
   subgroups ? SUBGROUP_DEPTH_BOUNDS : ATOMIC_DEPTH_BOUNDS;
 
 /**
- * The slice planes and tests, beside the tile's column (`./shader.ts`): a light is kept only if
- * its range sphere meets the slice's box and the planes of the tile's frustum. In the pass's eye
- * frame a plane's terms are the size of the view: a sphere is out only when wholly behind one, no
- * margin. `oracles/browser/gpuLightTileColumnOracle.ts` ports it line by line.
+ * The tile's corner table, one corner per thread of the first sixteen, and the slice planes and
+ * tests, beside the tile's column (`./shader.ts`): a light is kept only if its range sphere meets
+ * the slice's box and the planes of the tile's frustum. In the pass's eye frame a plane's terms
+ * are the size of the view: a sphere is out only when wholly behind one, no margin.
+ * `oracles/browser/gpuLightTileColumnOracle.ts` ports it line by line.
  */
 export const TILE_BOUNDS_WGSL = `/** The opaque slice's front and back depth planes, facing each other. */
 var<workgroup> slab:array<vec4f,2>;
-/** The tile's four corners at depth z, in \`tileCorner\`'s order. */
-fn tileCorners(tile:vec2u,z:f32)->array<vec3f,4>{
- return array<vec3f,4>(tileCorner(tile,0u,z),tileCorner(tile,1u,z),tileCorner(tile,2u,z),tileCorner(tile,3u,z));
+/** The tile's corners, \`corners[row*4+corner]\`: one row per depth — the near plane, the
+ *  column's depth, the tile's front, its back —, the corner's bit 0 the right edge, bit 1 the
+ *  bottom. */
+const NEAR_ROW:u32=0u;
+const DEEP_ROW:u32=1u;
+const FRONT_ROW:u32=2u;
+const BACK_ROW:u32=3u;
+var<workgroup> corners:array<vec3f,16>;
+fn unproject(ndc:vec3f)->vec3f{
+ let point=view.inverseViewProjection*vec4f(ndc,1.0);
+ return point.xyz/point.w;
 }
-/** Box of four corners at one depth and four at another: eight corners, never a radius. */
-fn boxOf(a:array<vec3f,4>,b:array<vec3f,4>)->Box{
- let lo=min(min(min(a[0],a[1]),min(a[2],a[3])),min(min(b[0],b[1]),min(b[2],b[3])));
- let hi=max(max(max(a[0],a[1]),max(a[2],a[3])),max(max(b[0],b[1]),max(b[2],b[3])));
- return Box(lo,hi);
+/** World position of a tile corner — bit 0 picks the right edge, bit 1 the bottom — at depth z. */
+fn tileCorner(tile:vec2u,corner:u32,z:f32)->vec3f{
+ let size=view.viewport.xy;
+ let x=select(f32(tile.x*TILE_SIZE)/size.x,min(f32((tile.x+1u)*TILE_SIZE)/size.x,1.0),(corner&1u)!=0u);
+ let y=select(f32(tile.y*TILE_SIZE)/size.y,min(f32((tile.y+1u)*TILE_SIZE)/size.y,1.0),(corner&2u)!=0u);
+ return unproject(vec3f(x*2.0-1.0,1.0-y*2.0,z));
 }
-/** The opaque slice's box and depth planes, after \`tileColumn\`. A plane of one depth is parallel
- *  to the near plane — one depth is one distance along the view axis —, so both take its normal,
+/** Thread \`lane\` below 16 de-projects its corner, after the depth bounds: the corners of the
+ *  rows are independent, so sixteen threads do at once what thread zero did one after the
+ *  other, to the same bits (#924). The row's depth is chosen, never indexed: no private array. A
+ *  tile no light reaches builds no bounds, so it de-projects nothing. */
+fn tileCornerOfLane(tile:vec2u,lane:u32){
+ if(lane<16u&&lightCount>0u){
+  let row=lane/4u;
+  // Only the lanes of the front and back rows read the depth bounds.
+  var z=select(${DEPTH_NEAR}.0,COLUMN_DEPTH,row==DEEP_ROW);
+  if(row==FRONT_ROW){z=bitcast<f32>(atomicLoad(&nearest));}
+  if(row==BACK_ROW){z=bitcast<f32>(atomicLoad(&farthest));}
+  corners[lane]=tileCorner(tile,lane%4u,z);
+ }
+}
+/** The \`i\`th corner of a row in turn around the tile — top left, top right, bottom right,
+ *  bottom left —: the Gray code of \`i\`, so no private array of the order. */
+fn columnCorner(row:u32,i:u32)->vec3f{
+ return corners[row*4u+(i^(i>>1u))];
+}
+/** The opaque slice's depth planes, after \`tileColumn\`. A plane of one depth is parallel to
+ *  the near plane — one depth is one distance along the view axis —, so both take its normal,
  *  \`away\` from the eye, through a corner at their depth. */
-fn tileSlab(front:array<vec3f,4>,back:array<vec3f,4>){
- opaqueBox=boxOf(front,back);
+fn tileSlab(){
  let away=column[4].xyz;
- slab[0]=vec4f(away,-dot(away,front[0]));
- slab[1]=vec4f(-away,dot(away,back[0]));
+ slab[0]=vec4f(away,-dot(away,corners[FRONT_ROW*4u]));
+ slab[1]=vec4f(-away,dot(away,corners[BACK_ROW*4u]));
 }
 /** A sphere wholly behind a plane: out of every slice the plane bounds. */
 fn sphereBehind(plane:vec4f,centre:vec3f,radius:f32)->bool{
