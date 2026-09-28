@@ -43,7 +43,7 @@ test('the physics.json the cook writes, with or without pieces, is a version its
   }
 });
 
-// The binary is built by the `native` gate group before the unit suite runs; a checkout that has
+// The binary is built by the `unit` gate group before the unit suite runs; a checkout that has
 // not built it keeps the comparison above, which needs no compiler.
 test(
   'the compiler descriptor publishes the format the runtime reads',
