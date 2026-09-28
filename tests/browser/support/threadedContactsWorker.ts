@@ -1,11 +1,12 @@
 // Worker side of the threaded contact proof: a page may not block on Jolt's jobs, a worker may.
 // It steps the contact pile on the single-thread module, then on the threaded one, whose pool's
-// threads run in workers of this same script (`runJoltThread`, as the physics worker runs them).
-// A worker a worker starts loads only while its parent's event loop turns: the pile, which never
-// yields, starts once every thread has said it loaded.
+// threads run in workers of this same script (`joltWorkerPool`, as the physics worker runs them):
+// the pile, which never yields, starts once the pool is ready.
 import { DEFAULT_PHYSICS_BUDGET } from '../../../packages/sdk-core/src/physics/index.ts';
 import { openJolt, startJolt } from '../../../packages/sdk-browser/src/physics/joltModule.ts';
 import {
+  JOLT_THREAD_LOADED,
+  joltWorkerPool,
   runJoltThread,
   type JoltThreadStart,
 } from '../../../packages/sdk-browser/src/physics/joltThreads.ts';
@@ -24,7 +25,7 @@ type Order = JoltThreadStart | { type: 'proof'; threads: number; steps: number }
 
 const scope = globalThis as unknown as {
   onmessage: ((event: MessageEvent<Order>) => void) | null;
-  postMessage(message: ThreadedContacts | 'loaded'): void;
+  postMessage(message: ThreadedContacts | typeof JOLT_THREAD_LOADED): void;
 };
 
 const MODULES = '../../../packages/sdk-browser/src/physics/';
@@ -38,27 +39,20 @@ async function bytesOf(file: string) {
   return response.arrayBuffer();
 }
 
-/** A module stepped by `threads` threads, the threaded module's when more than one, once each
- *  of its threads has loaded. */
+/** A module stepped by `threads` threads, the threaded module's when more than one, once its
+ *  pool is ready. */
 async function started(threads: number, bytes: ArrayBuffer) {
-  const loaded: Promise<void>[] = [];
-  const spawn = (start: JoltThreadStart) => {
-    const thread = new Worker(import.meta.url, { type: 'module' });
-    loaded.push(new Promise((done) => (thread.onmessage = () => done())));
-    thread.onerror = (event) => scope.postMessage({ error: event.message || 'a thread failed' });
-    thread.postMessage(start);
-  };
-  const pool = threads > 1 ? { count: threads, spawn } : null;
-  const jolt = startJolt(await openJolt(bytes, BUDGET.memoryBytes, pool), BUDGET, threads);
-  await Promise.all(loaded);
+  const failed = (error: Error) => scope.postMessage({ error: error.message });
+  const pool = threads > 1 ? joltWorkerPool(import.meta.url, threads, failed) : null;
+  const opened = await openJolt(bytes, BUDGET.memoryBytes, pool);
+  const jolt = startJolt(opened, BUDGET, threads);
+  await pool?.ready();
   return jolt;
 }
 
 scope.onmessage = async ({ data }) => {
-  if (data.type === 'thread') {
-    scope.postMessage('loaded');
-    return runJoltThread(data);
-  }
+  if (data.type === 'thread')
+    return runJoltThread(data, () => scope.postMessage(JOLT_THREAD_LOADED));
   try {
     // Both modules fetched at once: the threaded one's bytes arrive while the first pile runs.
     const [one, many] = [bytesOf('joltPhysics.wasm'), bytesOf('joltPhysicsThreads.wasm')];
