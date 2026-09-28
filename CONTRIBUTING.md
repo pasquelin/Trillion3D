@@ -118,8 +118,8 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
   abandoned-format compatibility or claims of unimplemented features.
 - A differential test against a frozen oracle proves only what the two sides do differently. Where
   they share code, prove it directly.
-- **This repository uses pnpm.** `pnpm run check:changed` checks changed-file format, lint, lines,
-  duplicates and import-related unit tests; `pnpm run test:changed` runs only those tests. Also
+- **This repository uses pnpm.** `pnpm run check:changed` checks changed-file format, lint, types,
+  lines, duplicates and import-related unit tests; `pnpm run test:changed` runs only those tests. Also
   inspect dependants after deletions, public-export or configuration changes.
 - Before merge: `pnpm run validate` (format, JS/TS lint + Clippy, unused code/files/dependencies,
   TS/native builds, structure, declarations, links, JS/TS/Rust tests); the image proof and the
