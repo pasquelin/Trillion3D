@@ -1,9 +1,9 @@
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import {
   BOUNCE_LIGHTING_SHADER,
-  COMPOSE_SHADERS,
+  CONTRACT_COMPOSITIONS,
   DIRECT_LIGHTING_SHADER,
-  UNLIT_COMPOSE_SHADERS,
+  UNLIT_COMPOSITIONS,
   UNLIT_LIGHTING_SHADER,
 } from './shaders.ts';
 import { createDeferredPlaceholders } from './setup.ts';
@@ -43,7 +43,7 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
       // exposed or brought into the display range, and albedo must be read as-is (P6).
       {
         lighting: UNLIT_LIGHTING_SHADER,
-        compose: UNLIT_COMPOSE_SHADERS,
+        compose: UNLIT_COMPOSITIONS,
         label: 'UNLIT',
         direct: false,
       },
@@ -113,7 +113,7 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
             device,
             {
               lighting: wantsBounce ? BOUNCE_LIGHTING_SHADER : DIRECT_LIGHTING_SHADER,
-              compose: COMPOSE_SHADERS,
+              compose: CONTRACT_COMPOSITIONS,
               label: wantsBounce ? 'BOUNCE' : 'DIRECT',
               direct: true,
               bounce: wantsBounce,
@@ -150,7 +150,11 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
         pass.draw(3);
         pass.end();
       },
-      /** Composes the lit image, or `composed`: the temporal output, or the effect chain's. */
+      /** True once the frame's program composes the chain's last bloom in (#963); the first call
+       *  compiles what it needs, and `fail` hears why it cannot. */
+      composesBloom: (fail: (error: unknown) => void) => active.compositions.composesBloom(fail),
+      /** Composes the lit image, or `composed`: the temporal output, or the effect chain's, with
+       *  the bloom blend it left. */
       compose(
         encoder: GPUCommandEncoder,
         target: GPUTextureView,
@@ -170,8 +174,11 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
             : 'Trillion3D HDR composition',
           colorAttachments,
         });
-        pass.setPipeline(presentation ? composition.present : composition.draw);
+        const blend = composed?.bloom,
+          { draw, present } = active.compositions.pipelines(composition.input, !!blend);
+        pass.setPipeline(presentation ? present : draw);
         pass.setBindGroup(0, composition.group);
+        if (blend) pass.setBindGroup(1, blend.group, [blend.offset]);
         pass.draw(3);
         pass.end();
       },

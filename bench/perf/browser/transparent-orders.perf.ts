@@ -2,28 +2,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mesure, stress, rapport } from '../../core/index.ts';
-import {
-  benchSide,
-  FACES,
-  glisse,
-  ITEMS,
-  pose,
-  regimes,
-  type Frame,
-} from './support/scenesTransparent.ts';
-import { appelsEncodes, tours } from './support/transparentRounds.ts';
-import {
-  argumentsReference,
-  classementReference,
-  encodeReference,
-} from '../../oracles/browser/transparent-orders.ts';
+import { FACES, glisse, ITEMS, regimes, type Frame } from './support/scenesTransparent.ts';
+import { appelsDe, sceneDe } from './support/transparentRounds.ts';
 
-const scenes = FACES.map(([name, side]) => {
-  const before = benchSide(side),
-    after = benchSide(side);
-  return { name, before, after, ...tours(before, after) };
-});
-type Scene = (typeof scenes)[number];
+const scenes = FACES.map(([name, side]) => sceneDe(name, side));
 
 const casDe = (images: Frame[]) => [
   { name: `8 frames of ${ITEMS} items`, input: images, size: ITEMS * 8 },
@@ -54,21 +36,11 @@ for (const scene of scenes) {
   }
 }
 
-function appelsDe(scene: Scene) {
-  const image = glisse[0],
-    etat = scene.before;
-  pose(etat, image);
-  classementReference(etat.scene, etat.order, image.eye);
-  argumentsReference(etat.scene, etat.args);
-  const before = encodeReference(etat.scene, etat.order, etat.args, etat.output);
-  scene.tourApres([image]);
-  return { name: scene.name, before: before.encoded, after: appelsEncodes() };
-}
-
 test('GEO-2: draw calls, single-sided and double-sided', () => {
   const comptes = scenes.map(appelsDe);
-  assert.ok(comptes[0].after < comptes[0].before / 100, 'single-sided: a few orders');
-  assert.equal(comptes[1].after, comptes[1].before, 'double-sided: no call removed');
+  console.table(comptes);
+  for (const { name, before, after } of comptes)
+    assert.ok(after < before / 100, `${name}: a few orders`);
 });
 
 await stress({

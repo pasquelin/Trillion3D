@@ -1,10 +1,15 @@
 /** Colour demos: the engine's own curve and HSL conversion, on values the reader moves. */
 import { hslToLinearRgb, linearToSrgb, srgbToLinear } from './engine.ts';
-import { canvasView, formatNumber, slider, swatchView, valueView } from './kit.ts';
+import {
+  showVector as show,
+  canvasView,
+  formatNumber,
+  slider,
+  swatchView,
+  valueView,
+} from './kit.ts';
 import type { DemoDef } from './kit.ts';
 import { drawCurve } from './draw.ts';
-
-const show = (v: Float64Array) => Array.from(v, formatNumber).join(', ');
 
 export const COLOR_DEMOS: Record<string, DemoDef> = {
   srgbToLinear: {
