@@ -7,7 +7,6 @@ probe list.
 ## 1. Directory Tree
 
 <!-- tests-inventory:begin -->
-
 ```
 packages/sdk-core/src/       unit tests (*.test.ts), next to their source
 packages/sdk-browser/src/    unit tests (*.test.ts), next to their source
@@ -25,7 +24,6 @@ bench/oracles/               reference implementations, copied verbatim
 bench/runner/                the measurement harness (README)
 bench/witnesses/             the host-library witnesses, never published
 ```
-
 <!-- tests-inventory:end -->
 
 The tree is rendered by `node scripts/tests-inventory.ts --write`, and
