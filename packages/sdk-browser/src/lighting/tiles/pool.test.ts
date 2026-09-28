@@ -1,85 +1,48 @@
-// #849: the view's light-index pool of the tiles past their list. A sampled frame whose pool
-// overflowed is named (`overflowed`) and sizes the pool to what it reserved, within a bound per
-// tile; a scene no list can overflow holds no pool at all.
+// #849: the view's light-index pool of the tiles past their list, as the frame metrics carry it.
+// A sampled frame whose pool overflowed is named and sizes the pool to what it reserved, within a
+// bound per tile; a scene no list can overflow samples no pool.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import { createTileLightPool } from './pool.ts';
 import { createGpuLightTiles } from './tiles.ts';
 
-const TILES = 100;
+const START = (100 * LIGHT_SETTINGS.tileLights) / 4,
+  MOST = 100 * LIGHT_SETTINGS.tileLights * 4;
 
-/** Runs one sampled frame whose pool state the GPU left as `state`. */
-async function sampleFrame(state: number[], frame: number) {
-  const fake = fakeDevice();
-  const pool = createTileLightPool(fake.device);
-  pool.open(TILES * 130, pool.words(TILES));
-  pool.sampleState(fake.device.createCommandEncoder(), frame);
-  const readback = fake.buffers.find((buffer) => buffer.label?.includes('readback'))!;
-  new Uint32Array(readback.getMappedRange()).set(state);
-  pool.submitted();
-  await new Promise((settled) => setTimeout(settled));
-  return { pool, fake };
-}
-
-test('a pool starts at a quarter list a tile, and names nothing before its first sample', () => {
-  const pool = createTileLightPool(fakeDevice().device);
-  assert.equal(pool.words(TILES), (TILES * LIGHT_SETTINGS.tileLights) / 4);
-  assert.equal(pool.sample(), undefined, 'nothing named before a sample returns');
-});
-
-test('an overflow is named and grows the pool to what the frame reserved (#849)', async () => {
-  const { pool, fake } = await sampleFrame([13000, 1600, 5000, 1], 0);
-  // The frame opened its pool, nothing reserved; its state is copied after the pass.
-  assert.deepEqual([...fake.writes[0].data], [13000, 1600, 0, 0]);
-  assert.equal(fake.copies[0].from, pool.state);
-  assert.deepEqual(pool.sample(), { frame: 0, reserved: 5000, capacity: 1600, overflowed: true });
-  assert.equal(pool.words(TILES), 5000);
-});
-
-test('the pool grows no further than its bound per tile, and a frame with room says so', async () => {
-  const most = TILES * LIGHT_SETTINGS.tileLights * 4;
-  const { pool } = await sampleFrame([13000, 1600, most * 3, 1], 0);
-  assert.equal(pool.words(TILES), most);
-  const calm = await sampleFrame([13000, 1600, 900, 0], 0);
-  assert.deepEqual(calm.pool.sample(), {
-    frame: 0,
-    reserved: 900,
-    capacity: 1600,
-    overflowed: false,
-  });
-  assert.equal(calm.pool.words(TILES), TILES * 16);
-});
-
-test('the frame metrics carry the sampled pool and count its growths (#849)', async () => {
+test('the frame metrics carry the sampled pool and count its growths', async () => {
   const fake = fakeDevice();
   Object.assign(fake.device, { features: new Set() });
   const tiles = await createGpuLightTiles(fake.device);
-  const frame = (count: number, at: number) => {
+  const pass = { setPipeline() {}, setBindGroup() {}, dispatchWorkgroups() {}, end() {} };
+  const encoder = { ...fake.device.createCommandEncoder(), beginComputePass: () => pass };
+  const readback = fake.buffers.find((buffer) => buffer.label?.includes('pool readback'))!;
+  const state = fake.buffers.find((buffer) => buffer.label?.includes('pool v1'))!;
+  const pools = () => fake.writes.filter((write) => write.buffer === (state as never));
+  /** One frame of 160 × 160 pixels (100 tiles) and `count` lights, the GPU's pool state `words`. */
+  const frame = async (count: number, at: number, words?: number[]) => {
     tiles.ensure(160, 160, {} as GPUTextureView, fake.buffers[0] as never, count);
     tiles.update(new Float64Array(16), [0, 0, 0], 160, 160);
-    const pass = { setPipeline() {}, setBindGroup() {}, dispatchWorkgroups() {}, end() {} };
-    const encoder = { ...fake.device.createCommandEncoder(), beginComputePass: () => pass };
     tiles.encode(encoder as unknown as GPUCommandEncoder, at);
+    if (words) new Uint32Array(readback.getMappedRange()).set(words);
+    tiles.submitted();
+    await new Promise((settled) => setTimeout(settled));
+    return tiles.poolMetrics();
   };
-  frame(200, 0);
-  const none = { tileLightPoolReserved: null, tileLightPoolCapacity: null };
-  assert.deepEqual(
-    { ...tiles.poolMetrics(), ...none },
-    { ...none, tileLightPoolOverflowed: null, tileLightPoolGrowths: 0 },
-  );
-  const readback = fake.buffers.find((buffer) => buffer.label?.includes('pool readback'))!;
-  new Uint32Array(readback.getMappedRange()).set([1300, 1600, 5000, 1]);
-  tiles.submitted();
-  await new Promise((settled) => setTimeout(settled));
-  frame(200, 1);
-  assert.deepEqual(tiles.poolMetrics(), {
-    tileLightPoolReserved: 5000,
-    tileLightPoolCapacity: 1600,
+  // Nothing named before a sample returns; the frame opens its pool, nothing reserved.
+  const opened = tiles.poolMetrics();
+  assert.deepEqual(opened, { ...opened, tileLightPoolOverflowed: null, tileLightPoolGrowths: 0 });
+  await frame(200, 0, [13000, START, 5000, 1]);
+  assert.deepEqual([...pools()[0].data], [13000, START, 0, 0]);
+  assert.deepEqual(await frame(200, 15, [13000, 5000, MOST * 3, 1]), {
+    tileLightPoolReserved: MOST * 3,
+    tileLightPoolCapacity: 5000,
     tileLightPoolOverflowed: true,
     tileLightPoolGrowths: 1,
   });
-  frame(64, 2);
-  assert.equal(tiles.poolMetrics().tileLightPoolReserved, null, 'a narrow frame samples no pool');
+  // Grown to its bound, then a frame with room says so; a narrow frame samples no pool.
+  const calm = await frame(200, 30, [13000, MOST, 900, 0]);
+  assert.deepEqual([calm.tileLightPoolOverflowed, calm.tileLightPoolGrowths], [false, 2]);
+  assert.deepEqual([...pools().at(-1)!.data].slice(1, 2), [MOST]);
+  assert.equal((await frame(64, 45)).tileLightPoolReserved, null);
 });
