@@ -57,3 +57,27 @@ test('one material worn with and without colours gets one surface per case, both
   assert.deepEqual(refreshed, [true], 'the session reads them again once');
   [a, b].forEach((mesh, i) => assert.ok(worn(mesh).version > versions[i]!));
 });
+
+test('an unmounted host surface leaves the cache: disposed, and no repaint writes it', (t) => {
+  const [kept, gone] = [0x808080, 0x1d6d8c].map((color) => material.meshStandard({ color }));
+  const rows = {} as PlacementRows;
+  const placed = [kept, gone, gone].map((paint) => ({ cut: cut(false), material: paint, rows }));
+  const mirror = buildWorldMirror({
+    placed: placed.map((batch) => ({ ...batch, name: '' })),
+    models: [],
+    rankOf: () => 0,
+  });
+  const [, first, second] = mirror.placed.map(({ node }) => node as HostMesh);
+  const surface = worn(first);
+  const disposed = t.mock.method(surface, 'dispose');
+  mirror.unplace(first as never);
+  assert.equal(disposed.mock.callCount(), 0, 'another mesh still wears it');
+  mirror.unplace(second as never);
+  assert.equal(disposed.mock.callCount(), 1, 'given back with its last mesh');
+  const version = surface.version,
+    refreshed: boolean[] = [];
+  const entry = { id: 0, key: '', material: gone };
+  mirror.repaint([{ entry, values: true }], (values) => refreshed.push(values) > 0);
+  assert.deepEqual([surface.version, refreshed], [version, []], 'the repaint finds nothing');
+  assert.equal(mirror.root.children.length, 1, 'the other resource stays');
+});

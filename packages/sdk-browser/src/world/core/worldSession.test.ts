@@ -15,7 +15,10 @@ test('world.awaitPages says the view opens, waits for it, then for pages alone, 
   const session = {
     awaitPages: async (options?: { image?: boolean }) => void steps.push(options),
   } as unknown as MeasuredWorld;
-  const runtime = { settled: async () => void steps.push('settled') };
+  const runtime = {
+    settled: async () => void steps.push('settled'),
+    ended: () => new Promise<void>(() => {}), // the session stays
+  };
   const onProgress = (event: JobProgress) => void steps.push(event.phase);
   await awaitViewPages(runtime, () => session, onProgress);
   assert.deepEqual(steps, ['session', 'settled', { image: false, onProgress }]);
