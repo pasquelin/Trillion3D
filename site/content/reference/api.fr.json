@@ -7757,7 +7757,7 @@
     }
   },
   "CreatedMaterial": {
-    "summary": "Crée un matériau appartenant à cette page.",
+    "summary": "Valeurs acceptées par `createMaterial` pour un nouveau matériau de la page.",
     "members": {
       "metalness": "À quel point la surface est en métal, de 0 à 1.",
       "roughness": "La rugosité de la surface, de 0 (miroir) à 1 (mat).",
@@ -7771,7 +7771,7 @@
     }
   },
   "SceneMaterial": {
-    "summary": "Un matériau selon son identifiant dans la liste.",
+    "summary": "État d’un matériau de la scène avec son ID, son nom, ses paramètres et la répétition de ses textures.",
     "members": {
       "id": "Un nom propre à cette texture.",
       "name": "Un nom à l’usage de la page.",
@@ -7779,7 +7779,7 @@
     }
   },
   "SceneMaterialPatch": {
-    "summary": "Modifie un matériau importé ou créé à l’image suivante.",
+    "summary": "Valeurs du matériau que `setMaterial` modifie en direct sans reconstruire une passe de rendu.",
     "members": {
       "metalness": "À quel point la surface est en métal, de 0 à 1.",
       "roughness": "La rugosité de la surface, de 0 (miroir) à 1 (mat).",

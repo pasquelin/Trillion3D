@@ -7757,7 +7757,7 @@
     }
   },
   "CreatedMaterial": {
-    "summary": "创建属于此页面的材质。",
+    "summary": "`createMaterial` 为页面新材质接受的属性值。",
     "members": {
       "metalness": "表面的金属度,0 到 1。",
       "roughness": "表面的粗糙度,0(镜面)到 1(哑光)。",
@@ -7771,7 +7771,7 @@
     }
   },
   "SceneMaterial": {
-    "summary": "按列表中的 ID 获取一个材质。",
+    "summary": "场景材质的快照，包含 ID、名称、参数和贴图重复次数。",
     "members": {
       "id": "该纹理独有的一个名称。",
       "name": "供页面自己使用的一个名字。",
@@ -7779,7 +7779,7 @@
     }
   },
   "SceneMaterialPatch": {
-    "summary": "在下一帧更改导入或创建的材质。",
+    "summary": "`setMaterial` 无需重建渲染通道即可实时修改的材质值。",
     "members": {
       "metalness": "表面的金属度,0 到 1。",
       "roughness": "表面的粗糙度,0(镜面)到 1(哑光)。",
