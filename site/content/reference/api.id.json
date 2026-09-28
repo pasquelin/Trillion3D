@@ -7758,7 +7758,7 @@
     }
   },
   "CreatedMaterial": {
-    "summary": "Membuat material milik halaman ini.",
+    "summary": "Nilai yang diterima `createMaterial` untuk material baru milik halaman.",
     "members": {
       "metalness": "Seberapa banyak permukaan itu logam, 0 sampai 1.",
       "roughness": "Seberapa kasar permukaan itu, 0 (cermin) sampai 1 (matte).",
@@ -7772,7 +7772,7 @@
     }
   },
   "SceneMaterial": {
-    "summary": "Satu material menurut ID dalam daftar.",
+    "summary": "Salinan material adegan yang memuat ID, nama, parameter, dan pengulangan peta.",
     "members": {
       "id": "Sebuah nama unik untuk tekstur ini.",
       "name": "Sebuah nama untuk pemakaian sendiri halaman itu.",
@@ -7780,7 +7780,7 @@
     }
   },
   "SceneMaterialPatch": {
-    "summary": "Mengubah material impor atau buatan pada bingkai berikutnya.",
+    "summary": "Nilai material yang diubah langsung oleh `setMaterial` tanpa membangun ulang lintasan render.",
     "members": {
       "metalness": "Seberapa banyak permukaan itu logam, 0 sampai 1.",
       "roughness": "Seberapa kasar permukaan itu, 0 (cermin) sampai 1 (matte).",

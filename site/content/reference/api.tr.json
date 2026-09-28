@@ -7757,7 +7757,7 @@
     }
   },
   "CreatedMaterial": {
-    "summary": "Bu sayfaya ait bir malzeme oluşturur.",
+    "summary": "Sayfanın yeni malzemesi için `createMaterial` tarafından kabul edilen değerler.",
     "members": {
       "metalness": "Yüzeyin ne kadar metal olduğu, 0'dan 1'e.",
       "roughness": "Yüzeyin ne kadar pürüzlü olduğu, 0'dan (ayna) 1'e (mat).",
@@ -7771,7 +7771,7 @@
     }
   },
   "SceneMaterial": {
-    "summary": "Listedeki kimliğine göre bir malzeme.",
+    "summary": "Kimliği, adı, parametreleri ve harita tekrarlarını içeren sahne malzemesi anlık görüntüsü.",
     "members": {
       "id": "Bu dokuya özgü bir ad.",
       "name": "Sayfanın kendi kullanımı için bir ad.",
@@ -7779,7 +7779,7 @@
     }
   },
   "SceneMaterialPatch": {
-    "summary": "İçe aktarılmış veya oluşturulmuş malzemeyi sonraki karede değiştirir.",
+    "summary": "İşleme geçişini yeniden kurmadan `setMaterial` ile canlı değiştirilen malzeme değerleri.",
     "members": {
       "metalness": "Yüzeyin ne kadar metal olduğu, 0'dan 1'e.",
       "roughness": "Yüzeyin ne kadar pürüzlü olduğu, 0'dan (ayna) 1'e (mat).",
