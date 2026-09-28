@@ -7433,7 +7433,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Floats de um registro de sombra, o que o sombreamento de uma luz lê: seis matrizes de faces de lâmpada — ali, os intervalos de profundidade de um sol, `zNear` e inverso da extensão cada um (`recordPack.ts`) —, depois o referencial do plano do sol — `right`, `up`, `axis`, cada um completado a quatro —, depois a origem da extensão de cada nível de clipmap em dois inteiros, depois um cabeçalho `vec4f`: faces (lâmpada) ou níveis (sol), a tangente do meio campo da lâmpada ou o nível mais fino do sol, o plano próximo da lâmpada e a primeira entrada do registro na tabela de páginas."
+    "summary": "Valores float de um registo de sombra lido pela iluminação: seis matrizes de faces de lâmpada, depois o referencial do plano de luz solar (`right, zNear`, `up, zFar`, `axis, 0`), a origem da extensão de cada nível da clipmap em dois inteiros e um cabeçalho `vec4f` com faces ou níveis, meio campo tangente da lâmpada ou nível solar mais fino, plano próximo da lâmpada e primeira entrada da tabela de páginas."
   },
   "ShadowRequestReport": {
     "summary": "O que o sombreamento leu num quadro: as entradas da tabela que pediu, sem ordem.",
