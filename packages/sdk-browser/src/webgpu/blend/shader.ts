@@ -1,6 +1,6 @@
 import { SCREEN_REFLECTION_WGSL } from '../../reflections/screenWgsl.ts';
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
-import { MODEL_SHIFT, MODEL_FLAG, SURFACE_MODEL } from '../../scene/surfaceModel.ts';
+import { FOG_FREE_MODEL_BIT, MODEL_SHIFT, MODEL_FLAG, SURFACE_MODEL } from '../../scene/surfaceModel.ts';
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts';
 import { bounceReflectionWgsl, MIRROR_LIGHTING_WGSL } from '../../bounce/reflectWgsl.ts';
@@ -193,7 +193,7 @@ ${BLEND_SURFACE_WGSL}
    rgb+=mirrorLighting(s.rgb,m,clamped,s.N,V,in.view);
   }
   // Lit or unlit, the surface is seen through the fog.
-  rgb=fogged(rgb,in.view,uni.eye.xyz);
+  if((flags&${FOG_FREE_MODEL_BIT << MODEL_SHIFT}u)==0u){rgb=fogged(rgb,in.view,uni.eye.xyz);}
  }
  return BlendOut(vec4f(rgb,s.alpha),s.request);
 }
