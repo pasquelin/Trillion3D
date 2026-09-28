@@ -105,6 +105,7 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   capture?(): Uint8Array;
   /** The composed image of `camera` at a size of its own, drawn aside: nothing is presented. */
   captureColorView?(camera: HostCamera, size: ViewSize): Promise<Uint8Array>;
+  captureAside?<T>(size: ViewSize, work: () => T): T; // `work` in its own view; main cut kept
   captureSurfaceView?(
     camera: HostCamera,
     options: { width: number; height: number; signal?: AbortSignal },
