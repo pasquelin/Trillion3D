@@ -3,29 +3,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuCutPublication } from './publication.ts';
-import { fixtureUniforms } from './adopter.fixture.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 import { keysOf, rec, world } from '../residency/sets.fixture.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
-import type { WebgpuPagesCore } from '../pages/runtime.ts';
-import type { WebgpuView } from '../pages/state/view.ts';
+import { createWebgpuRunState } from '../pages/state/run.ts';
+import { createWebgpuGpuState } from '../pages/state/gpu.ts';
+import { createWebgpuVisState } from '../pages/state/vis.ts';
+import { createWebgpuView, createWebgpuViews, type WebgpuView } from '../pages/state/view.ts';
+import { useWebgpuView } from '../pages/state/viewSwitch.ts';
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
-/** Eight pages, levels 0 to 3 twice over, published through one publication and real sets. */
+/** Eight pages, levels 0 to 3 twice over, published through one publication and real sets, on
+ *  the runtime groups the view switch trades. */
 function bench() {
   const scene = world(Array.from({ length: 8 }, (_, i) => rec(`p${i}`, i % 4)));
-  const run = {
-    desired: [] as PageRec[],
-    shown: [] as PageRec[],
-    drawn: [] as PageRec[],
-    selectionUniforms: fixtureUniforms(),
-    gpuSelection: undefined,
-    cutEpoch: 0,
-    gate: { resourcesChanged: () => {} },
-  };
-  // Records standing for views: the switch trades each view's `desired` with the groups'.
-  const main = { run: { desired: [] as PageRec[] } } as unknown as WebgpuView,
-    side = { run: { desired: [] as PageRec[] } } as unknown as WebgpuView;
-  const views = { main, active: main };
+  const run = createWebgpuRunState(),
+    gpu = createWebgpuGpuState([1, 1]),
+    vis = createWebgpuVisState(),
+    setup = { viewport: [1, 1] as [number, number] };
   const aheadOffers: number[][] = [];
   const ahead = {
     hostBytes: 0,
@@ -33,15 +27,17 @@ function bench() {
   };
   const rt = {
     run,
-    gpu: {},
-    views,
+    gpu,
+    vis,
+    setup,
+    views: createWebgpuViews({ run, gpu, vis, setup } as unknown as WebgpuPagesRuntime),
     layout: {
       packedPages: scene.packed,
       gpuWanted: [],
       selectionRoots: [],
       rows: { watchTouched: () => {} },
     },
-  } as unknown as WebgpuPagesCore;
+  } as unknown as WebgpuPagesRuntime;
   const publication = createWebgpuCutPublication(
     rt,
     scene.sets,
@@ -49,19 +45,20 @@ function bench() {
     { all: [ahead], ahead },
     () => false,
   );
+  const { main } = rt.views,
+    side = createWebgpuView(1, 1);
   /** `view` draws the pages `ids` name, as `../pages/render/cpu.ts` publishes a CPU cut. */
   const draw = (view: WebgpuView, ids: number[]) => {
-    if (views.active !== view) {
-      views.active.run.desired = run.desired;
-      run.desired = view.run.desired;
-      views.active = view;
-    }
+    useWebgpuView(rt, view);
     const pages = ids.map((id) => scene.packed[id]);
     publication.adoptCpuCut(pages, pages);
   };
   const keys = (ids: number[]) => new Set(ids.map((id) => scene.tracking.keyOf(scene.packed[id])));
   return { ...scene, publication, main, side, draw, keys, aheadOffers };
 }
+
+/** The upload queue, in its order. */
+const queueOf = (set: { list: Int32Array; count: number }) => [...set.list.subarray(0, set.count)];
 
 test('a second view keeps its pages while the main view draws, all under the one budget', () => {
   const { sets, tracking, publication, main, side, draw, keys } = bench();
@@ -100,9 +97,11 @@ test('one view asks, keeps and ranks what it did before views existed', () => {
     for (const room of [2, 64]) {
       sets.applyBudget(room);
       before.sets.applyBudget(room);
-      const wanted = [...tracking.wanted.list.subarray(0, tracking.wanted.count)];
-      const was = [...before.tracking.wanted.list.subarray(0, before.tracking.wanted.count)];
-      assert.deepEqual(wanted, was, `cut ${ids}, room ${room}: the queue, in its order`);
+      assert.deepEqual(
+        queueOf(tracking.wanted),
+        queueOf(before.tracking.wanted),
+        `cut ${ids}, room ${room}: the queue, in its order`,
+      );
       assert.deepEqual(keysOf(tracking.keep), keysOf(before.tracking.keep));
       assert.equal(sets.requestedCount, before.sets.requestedCount);
     }
