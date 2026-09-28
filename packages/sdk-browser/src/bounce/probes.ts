@@ -97,7 +97,7 @@ export async function createGpuBounceProbes(
     release();
     throw error;
   }
-  let clearOwed = false;
+  let clearOwed = 0;
   let generation = 1,
     frame = 0,
     updates = 0;
@@ -111,7 +111,7 @@ export async function createGpuBounceProbes(
     sync(worldOf: (source: number) => ArrayLike<number> | undefined) {
       if (!resident.sync(worldOf)) return false;
       occupancy.allEligible();
-      if (cascades.replan(resident.bounds)) clearOwed = true;
+      if (cascades.replan(resident.bounds)) clearOwed |= cascades.invalidLevels;
       generation++;
       schedule.restart();
       surface.restart();
@@ -158,10 +158,10 @@ export async function createGpuBounceProbes(
      */
     encode(encoder: GPUCommandEncoder, lightsActive: number, viewpoint: ArrayLike<number>) {
       updates = 0;
-      if (clearOwed) {
-        encoder.clearBuffer(probes);
-        clearOwed = false;
-      }
+      const levelBytes = bounceProbeBytes(cascades.probesPerLevel);
+      for (let level = 0; level < BOUNCE_SETTINGS.cascadeLevels; level++)
+        if (clearOwed & (1 << level)) encoder.clearBuffer(probes, level * levelBytes, levelBytes);
+      clearOwed = 0;
       if (lights() !== boundLights) {
         boundLights = lights();
         group = bounceGroup(device, layout, [

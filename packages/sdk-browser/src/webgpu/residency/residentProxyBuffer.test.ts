@@ -7,6 +7,7 @@ import {
   PROXY_LAYOUT_WORD,
   PROXY_PARAM_FLOATS,
 } from '../../bounce/nodeWgsl.ts';
+import { proxyIdentity } from '../../../../sdk-core/src/scene/core/proxy.fixture.ts';
 import { createGpuBounceProxy } from '../../bounce/proxy.ts';
 import { createGpuSunFarShadow } from '../../gpu/shadow/sunFarShadow.ts';
 import { fakeDevice, type FakeBuffer } from '../../../../../tests/kit/gpu/fakeDevice.ts';
@@ -57,10 +58,13 @@ test('resident proxy fits in single buffer, at offsets published by its header',
       groupOffsets: new Uint32Array([0, 1]),
       owners: new Uint32Array([0, 7]),
       sourceParents: new Int32Array([-1]),
-      bindWorlds: new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
+      bindWorlds: proxyIdentity(),
     },
     triangles: 1,
     nodes: 1,
+    groups: 1,
+    owners: 1,
+    instances: 1,
     bounds: [0, 0, 0, 1, 1, 1],
     errorMetres: 0.5,
     cellMetres: 2,
