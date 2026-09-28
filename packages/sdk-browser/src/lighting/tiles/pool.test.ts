@@ -29,7 +29,8 @@ test('the frame metrics carry the sampled pool and count its growths', async () 
     await new Promise((settled) => setTimeout(settled));
     return tiles.poolMetrics();
   };
-  // Nothing named before a sample returns; the frame opens its pool, nothing reserved.
+  // A wide view names nothing before a sample returns; the frame opens its pool, nothing reserved.
+  tiles.ensure(160, 160, {} as GPUTextureView, fake.buffers[0] as never, 200);
   const opened = tiles.poolMetrics();
   assert.deepEqual(opened, { ...opened, tileLightPoolOverflowed: null, tileLightPoolGrowths: 0 });
   await frame(200, 0, [13000, START, 5000, 1]);
@@ -43,6 +44,6 @@ test('the frame metrics carry the sampled pool and count its growths', async () 
   // Grown to its bound, then a frame with room says so; a narrow frame samples no pool.
   const calm = await frame(200, 30, [13000, MOST, 900, 0]);
   assert.deepEqual([calm.tileLightPoolOverflowed, calm.tileLightPoolGrowths], [false, 2]);
-  assert.deepEqual([...pools().at(-1)!.data].slice(1, 2), [MOST]);
+  assert.deepEqual(pools().map((write) => write.data[1]), [START, 5000, MOST]);
   assert.equal((await frame(64, 45)).tileLightPoolReserved, null);
 });
