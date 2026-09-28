@@ -15,17 +15,16 @@ import { SHADOW_LAYER_PASS } from '../../gpu/shadow/staticLayer.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { webgpuPagesBackend } from '../pages/pages.ts';
-import { camera, mixedBinScene } from '../pages/testScenes.fixture.ts';
+import {
+  SHADOW_LIMITS,
+  along,
+  camera,
+  disposeQuadRun,
+  mixedBinScene,
+} from '../pages/testScenes.fixture.ts';
 
-const LIMITS = {
-  maxBufferSize: 1 << 28,
-  maxStorageBufferBindingSize: 1 << 27,
-  maxTextureDimension2D: 8192,
-  maxComputeWorkgroupsPerDimension: 65535,
-};
-
-/** A pose `x` metres along the X axis. */
-const along = (x: number) => new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1]);
+/** What a frame's shadow pass drew. */
+type Drawn = { pages: number; layerPasses: number; cleared: number; restored: number };
 
 /**
  * A floor that never moves and a caster over it, lit by `light` under the GPU cut. `frame` runs one
@@ -43,7 +42,7 @@ async function floorAndCaster(light: SceneLight = SUN) {
     scene.indices,
     scene.associations,
   );
-  const gpu = mockGpu({ packed: packDagSelection(roots), limits: LIMITS, compute: true });
+  const gpu = mockGpu({ packed: packDagSelection(roots), limits: SHADOW_LIMITS, compute: true });
   const lights = createSceneLightStore();
   lights.add(light);
   const backend = webgpuPagesBackend({
@@ -62,7 +61,7 @@ async function floorAndCaster(light: SceneLight = SUN) {
     const out = gpu.buffers.find(({ label }) => label === 'Trillion3D light cut output')!;
     return new Uint32Array(out.data.buffer, out.data.byteOffset, OUT_FLAGS + 1);
   };
-  const frame = async (act?: () => void, dropped = false) => {
+  const frame = async (act?: () => void, dropped = false): Promise<Drawn> => {
     const passes = gpu.passes.length,
       draws = gpu.draws.length,
       pages = backend.metrics().shadowPagesTotal ?? 0;
@@ -87,14 +86,12 @@ async function floorAndCaster(light: SceneLight = SUN) {
   const warmUp = async () => {
     for (let step = 1; step <= 4; step++) await frame(move(step * 0.05));
   };
-  return { backend, lights, scene, caster, floor, frame, move, warmUp };
+  const dispose = () => disposeQuadRun(backend, { geometry: scene.geoA, material: scene.front });
+  return { backend, lights, scene, caster, floor, frame, move, warmUp, dispose };
 }
 
 /** Asserts that a frame drew pages, every one restored from the static layer, none into it. */
-function restoredOnly(
-  drawn: Awaited<ReturnType<Awaited<ReturnType<typeof floorAndCaster>>['frame']>>,
-  what: string,
-) {
+function restoredOnly(drawn: Drawn, what: string) {
   assert.ok(drawn.pages > 0, `${what}: pages drawn`);
   assert.equal(drawn.layerPasses, 0, `${what}: no static caster drawn`);
   assert.equal(drawn.cleared, 0, `${what}: no page cleared, the floor's depth kept`);
@@ -102,44 +99,54 @@ function restoredOnly(
 }
 
 test('a caster moving over a fixed floor draws no static caster after warm-up, even drawn short', async () => {
-  const { frame, move, warmUp } = await floorAndCaster();
+  const run = await floorAndCaster();
+  const { frame, move, warmUp } = run;
   await warmUp();
   for (let step = 5; step < 9; step++) restoredOnly(await frame(move(step * 0.05)), `move ${step}`);
   // Drawn short, its pages are drawn again: their moving casters, over the static layer.
   restoredOnly(await frame(move(0.45), true), 'the light cut dropped work, its pages drawn again');
+  run.dispose();
 });
 
 test('a caster that stops draws nothing, and moving again redraws its moving casters alone', async () => {
-  const { frame, move, warmUp } = await floorAndCaster();
+  const run = await floorAndCaster();
+  const { frame, move, warmUp } = run;
   await warmUp();
   for (let still = 0; still < 3; still++)
     assert.equal((await frame(move(0.2))).pages, 0, 'at rest: nothing drawn');
   // Its old place and its new one are drawn again, from the static layer: the old silhouette goes.
   restoredOnly(await frame(move(0.6)), 'moving again');
+  run.dispose();
 });
 
 test('hiding a moving caster redraws its pages from the static layer; hiding the floor redraws it', async () => {
-  const { frame, warmUp, caster, floor } = await floorAndCaster();
+  const run = await floorAndCaster();
+  const { frame, warmUp, caster, floor } = run;
   await warmUp();
   restoredOnly(await frame(() => void (caster.visible = false)), 'the moving caster hidden');
   restoredOnly(await frame(() => void (caster.visible = true)), 'shown again');
   const hidden = await frame(() => void (floor.visible = false));
   assert.ok(hidden.layerPasses > 0, 'the still floor hidden: the static layer drawn again');
+  run.dispose();
 });
 
 test('a lamp that moves draws its static casters again', async () => {
-  const { frame, warmUp, lights } = await floorAndCaster(LAMP);
+  const run = await floorAndCaster(LAMP);
+  const { frame, warmUp, lights } = run;
   await warmUp();
   assert.equal((await frame()).layerPasses, 0, 'nothing moved: nothing drawn');
   const moved = await frame(() => lights.set(LAMP.id, { position: [0.5, 3, 0] }));
   assert.ok(moved.pages > 0 && moved.layerPasses > 0, 'every page of the lamp, static layer too');
+  run.dispose();
 });
 
 test("a still surface's changed alpha draws its static casters again", async () => {
-  const { backend, frame, warmUp, scene } = await floorAndCaster();
+  const run = await floorAndCaster();
+  const { backend, frame, warmUp, scene } = run;
   await warmUp();
   const changed = await frame(() =>
     backend.refreshMaterials!(true, { surfaces: [scene.both], from: 'opaque', to: 'mask' }),
   );
   assert.ok(changed.layerPasses > 0, 'the floor re-rasterised into the static layer');
+  run.dispose();
 });
