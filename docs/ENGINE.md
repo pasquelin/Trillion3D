@@ -612,7 +612,9 @@ A world keeps its device across sessions, and each session creates through its o
 the handle before anything else, and a released handle is inert: its `create*` throw an `AbortError`,
 so a preparation still running stops there (cancelled, torn down once after it stopped), and its
 queue writes and submits nothing. From `dispose` on, the backend reads as lost: its audits and
-digests answer `null`. The device's error scopes are one stack every session shares: each creation
+digests answer `null`, and what its pending work throws — a program still compiling, the static
+shadow layer, an upload — is its cancellation, said nowhere (`webgpu/pages/io/diagnostics.ts`); a
+failure under a live session, a real device loss among them, is still said by name. The device's error scopes are one stack every session shares: each creation
 path closes the scope it opened in every case, an abort included (`gpu/core/errorScope.ts`), so no
 scope is left to swallow the next session's errors. What a closed session submitted before may still raise an error:
 one that names only closed sessions' objects is a console warning and a `gpu-closed-session-error`
