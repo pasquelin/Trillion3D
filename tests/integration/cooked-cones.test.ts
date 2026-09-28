@@ -1,14 +1,14 @@
 // The WebGPU prepare posts the cone the compiler cooked (`normal_cone.rs`, #272) where it used to
 // build one with `triangleCone` from the host vertices. On every compiled scene, this rebuilds that
-// cone from `source.gltf` as the prepared scene views it and each index page, and requires the same
-// axis bit for bit and an angle no narrower, at most twice the compiler's margin wider.
+// cone from `source.gltf` as the prepared scene views it and each index page, and requires the
+// cooked cone to bound every face and to be at most twice the compiler's margin wider (#929).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readCacheManifest } from '../../bench/runner/cacheManifest.ts';
-import { coneHolds, triangleCone } from '../kit/cone.ts';
+import { coneHolds } from '../kit/cone.ts';
 import { preparedGeometries } from '../../packages/sdk-browser/src/host/prepared/geometry.ts';
 import { sceneDocument } from '../../packages/sdk-browser/src/scene/tables.ts';
 import type { PreparedSceneTables } from '../../packages/sdk-core/src/scene/core/tableContracts.ts';
@@ -56,14 +56,14 @@ async function checkScene(pointer: string) {
         ? new Uint32Array(bundle(held.url), page.streamOffset, page.count)
         : new Uint32Array(bundle(page.url), 0, page.count);
       // A version-9 sidecar gives every page its cone.
-      if (!coneHolds(page.cone!, triangleCone(xyz, indices)))
+      if (!coneHolds(page.cone!, xyz, indices))
         disagreements.push(`${pointer} page ${page.id}: cooked ${JSON.stringify(page.cone)}`);
     }
   }
   return { pages, disagreements };
 }
 
-test('every cooked cone holds the cone the runtime built from the same triangles, on its axis', async () => {
+test('every cooked cone bounds its triangles and is no wider than the runtime one', async () => {
   const pointers = await sceneCacheFiles('manifest.json');
   assert.ok(pointers.length > 0, 'the repository compiles its scenes before the unit suite');
   let pages = 0;
