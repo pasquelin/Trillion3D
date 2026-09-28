@@ -143,6 +143,8 @@ export interface MeasuredWorldOptions {
   bounceBudgetMs?: number;
   /** Time every step of the frame and publish `explorer.stageProfile()`. Off by default. */
   stageProfile?: boolean;
+  /** Opt-in same-session GPU feedback-target A/B diagnostic; never enabled by production. */
+  feedbackTargetAB?: boolean;
   /** A GPU DIAGNOSTIC variant (`../../diagnostic/gpuVariant.ts`): it neutralises a factor of the
    *  frame to split its duration, and therefore renders an image different from production.
    *  Absent by default; refused outside `diagnosticDetail: 'trace'`. */

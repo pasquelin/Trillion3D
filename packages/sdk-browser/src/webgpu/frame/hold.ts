@@ -184,7 +184,7 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
  *  ordinary frames remain two consecutive frames in its eyes. */
 export function keepWebgpuFrame(rt: WebgpuPagesRuntime) {
   const { gate, textureConverging } = rt.run;
-  if (textureConverging) return;
+  if (textureConverging || rt.feedbackAB?.force) return;
   sampleWebgpuFrame(rt, gate.hold.sample);
   gate.hold.keep(gate.revisions);
 }
