@@ -1,5 +1,5 @@
 import type { ClusterDrawMesh, HostAttributes, WholeMesh } from '../../cluster/batchMesh.ts';
-import { clusterMaterialReason } from './compatibility.ts';
+import { attributeReason, surfaceReasons } from '../../host/surfaceGate.ts';
 import { refuseCluster as refuse } from './refusal.ts';
 import type { Material } from './materialBinding.ts';
 import { physicalFeaturesLost } from '../../scene/physicalMaterialGate.ts';
@@ -23,6 +23,22 @@ export function readDegraded(hear: MaterialDegraded): ReadDegraded {
   };
 }
 
+/** A surface's own reasons this frame, by pass (`surfaceReasons`): a frame drawing many pages of
+ *  one surface reads it once, its attributes per page (#840: sponza read the whole gate for
+ *  1 465 pages a frame). Cleared at every frame: a mutation is read at the next draw. */
+const surfaces = [
+  new Map<Material, ReturnType<typeof surfaceReasons>>(),
+  new Map<Material, ReturnType<typeof surfaceReasons>>(),
+];
+
+/** The gate's reason for one mesh (`clusterMaterialReason`), its surface's part read once. */
+function meshReason(material: Material, attributes: HostAttributes, transmissive: boolean) {
+  const read = surfaces[transmissive ? 1 : 0];
+  let reasons = read.get(material);
+  if (!reasons) read.set(material, (reasons = surfaceReasons(material, transmissive)));
+  return reasons[0] ?? attributeReason(material, attributes) ?? reasons[1];
+}
+
 const validateMeshes = (
   meshes: readonly (ClusterDrawMesh | WholeMesh)[],
   seen: Map<Material, HostAttributes>,
@@ -35,7 +51,7 @@ const validateMeshes = (
     if (Array.isArray(material)) refuse('material arrays are unsupported');
     const previous = seen.get(material);
     if (previous === attributes) continue;
-    const reason = clusterMaterialReason(material, attributes, transmissive);
+    const reason = meshReason(material, attributes, transmissive);
     if (reason) refuse(reason);
     if (previous) continue;
     seen.set(material, attributes);
@@ -60,6 +76,7 @@ export function validateClusterMeshes(
   degraded?: ReadDegraded,
 ) {
   seen.clear();
+  for (const read of surfaces) read.clear();
   validateMeshes(meshes, seen, false, degraded);
   validateMeshes(wholeMeshes, seen, false, degraded);
   validateMeshes(copies.plain, seen, false, degraded);

@@ -31,21 +31,33 @@ const textureReason = (texture: HostMap) => {
  *  its own, not as one view interleaved into a shared one. */
 const ownBuffer = (attribute: HostAttribute | undefined) => attribute?.kind === 'attribute';
 
+/** The six maps the import reads, in its order: a basic material declares none of the lit ones,
+ *  so the list is the host's own properties, not a second rule. An occlusion map its model
+ *  ignores asks for no UV. */
+const mapsOf = (host: HostShadedMaterial) => [
+  host.map,
+  host.metalnessMap,
+  host.roughnessMap,
+  host.normalMap,
+  readsOcclusion(host) ? host.aoMap : undefined,
+  host.emissiveMap,
+];
+
 /**
- * Names material input the autonomous WebGL2 program cannot preserve before it submits a draw.
- * A physical extension is not one: it is drawn without, by name (`physicalFeaturesLost`).
- * A transmissive physical material is accepted only where `transmissive` says the draw reads
- * the frozen backdrop: a scene copy of the transmission pass does, a paged cluster never does.
+ * What a surface answers alone, in the gate's order: the reason read before its attributes, and
+ * the one read after them (its maps' pictures). `clusterMaterialReason` reads the three parts; a
+ * frame that draws many pages of one surface reads its two parts once (`../webgl/cluster/
+ * validation.ts`).
  */
-export function clusterMaterialReason(
-  material: HostMaterials,
-  attributes: HostAttributes,
-  transmissive = false,
-) {
-  if (Array.isArray(material)) return 'material arrays are unsupported';
+export function surfaceReasons(material: HostMaterials, transmissive = false) {
+  if (Array.isArray(material)) return ['material arrays are unsupported', undefined] as const;
   const host = material as HostShadedMaterial;
+  return [surfaceReason(host, transmissive), mapsReason(host)] as const;
+}
+
+function surfaceReason(host: HostShadedMaterial, transmissive: boolean) {
   // The draws' own refusal (`drawnBlending`): a mode admitted here is one every path draws.
-  const refusal = blendingRefusal(blendingOf(host.blending), isTransmissive(material));
+  const refusal = blendingRefusal(blendingOf(host.blending), isTransmissive(host));
   if (refusal) return `material ${host.family}: ${refusal} (blending ${host.blending})`;
   if (
     host.alphaHash ||
@@ -54,7 +66,7 @@ export function clusterMaterialReason(
     host.clippingPlanes?.length
   )
     return `material ${host.family} uses an unsupported blend state`;
-  if (!transmissive && isTransmissive(material))
+  if (!transmissive && isTransmissive(host))
     return 'a transmissive material is drawn as a scene copy, not as a paged cluster';
   if (
     host.envMap ||
@@ -71,18 +83,13 @@ export function clusterMaterialReason(
   if (host.normalMap && host.normalMapType !== HOST_NORMAL_MAP_TANGENT_SPACE)
     return 'object-space normal mapping is unsupported';
   if (declaresCompileHook(host)) return `material ${host.family} carries a shader hook`;
+}
+
+/** What the attributes of one mesh wearing `material` lack. */
+export function attributeReason(material: HostMaterials, attributes: HostAttributes) {
+  const host = material as HostShadedMaterial,
+    maps = mapsOf(host);
   if (!ownBuffer(attributes.position)) return 'position attribute is unsupported';
-  // The same six maps the import reads, in the same order: a basic material declares none of the
-  // lit ones, so the list is the host's own properties, not a second rule. An occlusion map its
-  // model ignores asks for no UV.
-  const maps = [
-    host.map,
-    host.metalnessMap,
-    host.roughnessMap,
-    host.normalMap,
-    readsOcclusion(host) ? host.aoMap : undefined,
-    host.emissiveMap,
-  ];
   if (maps.some(Boolean) && !ownBuffer(attributes.uv))
     return 'textured material has no UV attribute';
   if (maps.some((texture) => texture?.channel === 1) && !ownBuffer(attributes.uv1))
@@ -93,10 +100,28 @@ export function clusterMaterialReason(
     return `material ${host.family} has no normal attribute`;
   if (host.vertexColors && !ownBuffer(attributes.color))
     return 'vertex-colour material has no color attribute';
-  for (const texture of maps) {
+}
+
+function mapsReason(host: HostShadedMaterial) {
+  for (const texture of mapsOf(host)) {
     const reason = textureReason(texture);
     if (reason) return reason;
   }
   // A matcap's image is read at its normal's coordinate, never by a UV attribute.
   return textureReason(host.matcap);
+}
+
+/**
+ * Names material input the autonomous WebGL2 program cannot preserve before it submits a draw.
+ * A physical extension is not one: it is drawn without, by name (`physicalFeaturesLost`).
+ * A transmissive physical material is accepted only where `transmissive` says the draw reads
+ * the frozen backdrop: a scene copy of the transmission pass does, a paged cluster never does.
+ */
+export function clusterMaterialReason(
+  material: HostMaterials,
+  attributes: HostAttributes,
+  transmissive = false,
+) {
+  const [before, after] = surfaceReasons(material, transmissive);
+  return before ?? attributeReason(material, attributes) ?? after;
 }
