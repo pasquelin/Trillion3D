@@ -196,13 +196,12 @@
       });
 
       // The path drawing the world, and what it documents it refuses of the scene's lights, with why:
-      // asked once its first frame is drawn, so of a session that is open.
-      const asked = world.onFrame(() => {
-        asked();
-        drawn(world.renderer);
-        const { reason } = capability.lighting(world);
-        if (reason) refuse(reason, true);
-      });
+      // asked once the view's pages are resident, so of the session that settled on the whole
+      // scene — a frame hook may run while that session is still opening.
+      await world.awaitPages();
+      drawn(world.renderer);
+      const { reason } = capability.lighting(world);
+      if (reason) refuse(reason, true);
     </script>
   </body>
 </html>
