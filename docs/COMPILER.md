@@ -627,16 +627,12 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
   (every edge meeting its reverse, positions welded) or bounds no volume, a hull Jolt refuses — is
   named in `report.bodiesRefused`; the compile goes on.
 - **Breakable bodies** (`pieces.rs`, `voronoi.rs`). A shapeless body whose node's `extras.physics`
-  declares `breakable` (a threshold above 0) is also cut into at most 12 Voronoi pieces around seeds
-  drawn inside its mesh by a generator seeded from the node's index: the same source cooks the same
-  bytes. Each seed's cell is a box clipped by its bisectors, then by the mesh's face planes (those
-  no corner lies beyond: a sliver's plane, tilted by 32-bit rounding, is left out), each cut capped
-  along the edges no touched face walks back; a point on an edge is computed from its ends in one
-  order, so the faces sharing it meet exactly and every piece is closed. Each piece gets Jolt's hull
-  (`hull.rs`) and its exact mass, centre and inertia (`mass.rs`) at the body's scale. The pieces
-  must weigh the mesh within 1e-5, or the body is refused: a mesh not convex, until concave bodies
-  are decomposed; so are a breakable body declaring a shape and a threshold not above 0. The runtime
-  carries the pieces unused: the body is drawn and collides as one.
+  declares `breakable` (a threshold above 0) is also cut into at most 12 Voronoi cells around seeds
+  drawn inside its mesh from the node's index (same source, same bytes), each cell clipped by its
+  bisectors then the mesh's face planes into a closed piece, given Jolt's hull (`hull.rs`) and its
+  exact mass, centre and inertia (`mass.rs`). Pieces that miss the mesh's mass by more than 1e-5
+  refuse the body (a concave mesh, until bodies are decomposed), as do a declared shape and a
+  threshold not above 0. The runtime carries the pieces unused: the body is drawn as one.
 
 Primitives without a DAG (skinned, morphed, shared blend) cook no collider. A primitive whose shape Jolt
 still refuses (every triangle of zero area) cooks no collider either: `physics.json`'s
