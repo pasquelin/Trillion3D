@@ -1,9 +1,7 @@
 // The WebGPU prepare posts the cone the compiler cooked (`normal_cone.rs`, #272) where it used to
 // build one with `triangleCone` from the host vertices. On every compiled scene, this rebuilds that
 // cone from `source.gltf` as the prepared scene views it and each index page, and requires the
-// cooked cone to bound every face and to be at most twice the compiler's margin wider (#929). A
-// page naming a vertex a solve placed (#877) is drawn from its geometry page alone: it must have
-// one, and is left out of the count.
+// cooked cone to bound every face and to be at most twice the compiler's margin wider (#929).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -56,9 +54,8 @@ async function checkScene(pointer: string) {
       const indices = held
         ? new Uint32Array(bundle(held.url), page.streamOffset, page.count)
         : new Uint32Array(bundle(page.url), 0, page.count);
-      // A page a seam-locked group's solve reduced names vertices placed after the source's
-      // (`dag/solved.rs`): they live in its geometry page alone, which every engine path draws
-      // it from, and its cone was cooked on them. The source cannot rebuild it.
+      // A vertex a seam-locked solve placed (#877) lives in the page's geometry page alone: the
+      // source cannot rebuild its cone.
       if (indices.some((v) => v >= position.count)) {
         assert.ok(page.geometry, `${pointer} page ${page.id}: a placed vertex without its page`);
         continue;
