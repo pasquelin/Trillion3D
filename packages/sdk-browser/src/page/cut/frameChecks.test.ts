@@ -51,7 +51,9 @@ test('a cut checks its frame once per root, not in each cluster projection', () 
     const calls = isFinite.mock.calls,
       frameChecks = calls.filter((call) => call.arguments[0] === NEAR).length,
       // The fixture's cluster errors: each is checked where it projects.
-      clusterChecks = calls.filter((call) => [0.02, 0.2].includes(call.arguments[0])).length;
+      clusterChecks = calls.filter((call) =>
+        [0.02, 0.2].includes(call.arguments[0] as number),
+      ).length;
     assert.ok(result.shown.length > 0, 'the cut shows clusters');
     assert.ok(clusterChecks >= 4, `culling ${culling}: ${clusterChecks} clusters projected`);
     assert.equal(frameChecks, roots.length, `culling ${culling}: one frame check per root`);
