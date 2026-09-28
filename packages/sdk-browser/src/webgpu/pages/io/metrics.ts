@@ -6,6 +6,7 @@ import { directLightTimings } from '../../../stage/mapping.ts';
 import { taaSampledRank } from '../../../taa/frame.ts';
 import { gpuDeviceLedgerOf } from '../../../gpu/core/deviceLedger.ts';
 import { markWebgpuLost } from './lost.ts';
+import { disposeStaticLayer } from '../state/lights.ts';
 import { shadowPoolHeld } from '../../shadow/poolSize.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -158,12 +159,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   rt.lights.shadows?.dispose();
   rt.lights.pageRequests?.dispose();
   rt.lights.pageRequests = undefined;
-  rt.lights.staticLayer?.dispose();
-  rt.lights.staticLayer = undefined;
-  rt.lights.pageHiz?.dispose();
-  rt.lights.pageHiz = undefined;
-  rt.lights.occlusion?.dispose();
-  rt.lights.occlusion = undefined;
+  disposeStaticLayer(rt.lights);
   rt.lights.mobilityRows?.destroy();
   rt.lights.mobilityRows = undefined;
   rt.bounce.probes?.dispose();
