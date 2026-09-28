@@ -210,7 +210,10 @@
       "levels": "Her seviye.",
       "reach": "Işın erişimi: vurulacak hiçbir şey olmadığı genişlik köşegeni.",
       "shareOf": "Seviyeye göre, kare başına iş yükü paketi probları: toplam bir pakete uygulanan yayımlanmış paylar.",
-      "follow": "Hareketli seviyeleri bir bakış noktası etrafında yeniden konumlandırır. En az bir taban hücre indeksi değiştiğinde true döndürür: bu, yakınsamanın yeniden başlaması için gereken tek sinyaldir, hiçbir GPU geri okumasına mal olmaz."
+      "follow": "Hareketli seviyeleri bir bakış noktası etrafında yeniden konumlandırır. En az bir taban hücre indeksi değiştiğinde true döndürür: bu, yakınsamanın yeniden başlaması için gereken tek sinyaldir, hiçbir GPU geri okumasına mal olmaz.",
+      "reserveCount": "Dönüşümler sahneyi genişletmeden önce ayrılan sabit kapasite.",
+      "invalidLevels": "Son yeniden planlamada aralığı veya varlığı değişen seviyeler. Taban kaymaları hücre işaretlerini kullanır.",
+      "replan": "Mevcut uzamsal çözünürlük politikasını geometrinin güncel sınırlarına yeniden uygular."
     }
   },
   "BounceOccupancy": {
@@ -220,7 +223,8 @@
       "occupied": "Bir seviyenin küresel kafesindeki hücresi bir probu haklı çıkardığında doğru.",
       "marked": "En ince seviyenin işaretlenmiş hücreleri ve toplam hücreleri: yayımlanmış kazanç.",
       "cells": "En ince seviyenin hücreleri.",
-      "bytes": "Kapladığı bayt."
+      "bytes": "Kapladığı bayt.",
+      "allEligible": "Geometri hareket etti: sayısı sınırlı olan kaskat hücrelerinin tümünü ihtiyatlı biçimde işleme alır."
     }
   },
   "BoundedNode": {
@@ -2837,7 +2841,7 @@
     "summary": "Host'a ait sahne hiyerarşisi sözleşmesinin sürümü."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Başlık tam sayıları: imza, sürüm, üçgenler, düğümler."
+    "summary": "Başlık tamsayıları: imza, sürüm, üçgen/düğüm/grup/sahip/kaynak sayıları, ayrılmış sıfır."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "İşaretsiz 32 bitlik little-endian bir tam sayı olarak okunan 'W','G','P','X'."
@@ -3069,7 +3073,12 @@
       "triangles": "Üçgen başına üç dünya köşesi, her biri `PROXY_TRIANGLE_FLOATS` sayı.",
       "albedo": "Üçgenin doğrusal difüz albedosu, paketlenmiş RGBA8.",
       "nodeBounds": "Her BVH düğümünün tam sınırları.",
-      "nodeChildren": "Her düğümün dört çocuğu: kuantalanmış kutu, üçgen sayımı, varlık, bağlantı."
+      "nodeChildren": "Her düğümün dört çocuğu: kuantalanmış kutu, üçgen sayımı, varlık, bağlantı.",
+      "triangleGroups": "Her kanonik üçgenin kaynak sahiplerinden oluşan ortak grup; aynı grup yalnızca bir kez saklanır.",
+      "groupOffsets": "Son nöbetçi değer dahil, her grubun sahip kayıtlarının ofsetleri.",
+      "owners": "Sahip kayıtları: kaynak düğüm indeksi ve RGBA8 biçiminde paketlenmiş doğrusal albedo.",
+      "bindWorlds": "Kaynak düğümlerin özgün dünya matrisleri; düğüm başına on altı çift duyarlıklı değer.",
+      "sourceParents": "Konağın şu anda örneğini oluşturmadığı bölüm düğümleri dahil kaynak hiyerarşisi."
     }
   },
   "SceneProxyDescriptor": {
@@ -3086,7 +3095,10 @@
       "triangleBudget": "Gerçekte elde edilen eşiğe karar veren, yayımlanmış üçgen bütçesi.",
       "bounds": "Proxy'nin dünya genişliği: üç alt sınır sonra üç üst sınır.",
       "triangles": "Üçgenler.",
-      "nodes": "Ağaç düğümleri."
+      "nodes": "Ağaç düğümleri.",
+      "groups": "Ortak kullanılan ve yalnızca bir kez saklanan sahip grupları.",
+      "owners": "Sahip kayıtları.",
+      "instances": "Kaynak düğüm matrisleri."
     }
   },
   "SceneRoot": {
@@ -4905,7 +4917,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Tek bir ışın ona dokunmadan önce yeniden okunan ve yeniden kontrol edilen proxy.",
-    "description": "Düzen, little-endian: `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, sonra dünya köşeleri, albedolar, tam düğüm sınırları ve dört çocukları, birleştirilmiş. Her bölümün başlığın dayattığı bir uzunluğu vardır; başka bir boyuttaki bir dosya toplu olarak reddedilir, çünkü eksik bir üçgeni adlandıran bir düğüm shader'ı herhangi bir şeyi okumaya zorlardı."
+    "description": "Düzen: little-endian sırasındaki sekiz başlık sözcüğünü, kanonik geometri ve ağaç sütunları ile sürümlendirilmiş sahiplik verileri izler. `docs/FORMAT.md` her sayıyı ve sütunu belirtir. Başlık her bölümün uzunluğunu belirler; farklı boyuttaki bir dosya tamamen reddedilir, çünkü eksik bir üçgene işaret eden düğüm, gölgelendiricinin rastgele veri okumasına yol açar."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S`, `position`, `quaternion`, `scale`'e ayrıştırılmış."

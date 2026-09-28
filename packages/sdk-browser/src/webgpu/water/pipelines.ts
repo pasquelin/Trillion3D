@@ -1,3 +1,4 @@
+import { reflectionLayout } from '../../reflections/gpu.ts';
 import { DISPLAY_FORMAT, FEEDBACK_FORMAT, SURFACE_FORMATS } from '../../scene/surfaceBuffer.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { deferredLayoutEntries } from '../../lighting/deferred/setup.ts';
@@ -60,7 +61,11 @@ export function createWaterCompositeLayout(device: GPUDevice) {
  */
 export async function createWaterCompositePipeline(device: GPUDevice, layout: GPUBindGroupLayout) {
   const module = await createCheckedShaderModule(device, WATER_COMPOSITE_SHADER, 'WATER_COMPOSITE');
-  return makeFullscreenPipeline(device, module, layout, 'composeWater', [
-    { format: 'rgba16float', blend: ALPHA_BLEND },
-  ]);
+  return makeFullscreenPipeline(
+    device,
+    module,
+    [layout, reflectionLayout(device)],
+    'composeWater',
+    [{ format: 'rgba16float', blend: ALPHA_BLEND }],
+  );
 }

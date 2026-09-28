@@ -77,6 +77,7 @@ export function drawBlendRuns(
     args = blendState.argsBuffer!,
     // Resolved once per image by `encodeBlend`, with the groups it voided: the same for every pass.
     lighting = blendState.lighting!;
+  if (rt.gpu.reflection) pass.setBindGroup(1, rt.gpu.reflection.group);
   blendState.pagedGroup ??= blendBindGroup(rt, device, undefined, lighting);
   let boundPipeline = -1,
     boundGroup: GPUBindGroup | undefined,
@@ -143,7 +144,7 @@ export function drawBlendPass(
       // Virtual-texture feedback, opened by the first pass that writes it.
       feedbackAttachment(rt),
     ],
-    depthStencilAttachment: { view: gpu.depthView!, depthLoadOp: 'load', depthStoreOp: 'store' },
+    depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
   });
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
   overdraw?.begin(pass, transmissive);
