@@ -6163,6 +6163,7 @@
     "members": {
       "budgetBytes": "Byte consentiti.",
       "layers": "Strati di ogni riserva di corsia, per atlante, e i byte di tutte le riserve sommati.",
+      "tiles": "Tessere che ogni pool di corsia può contenere, per atlante: i posti dei suoi strati, o meno quando il budget è sotto il minimo di strati — il budget è allora rispettato tessera per tessera.",
       "allocatedBytes": "Byte occupati.",
       "clamp": "Perché la dimensione è stata limitata."
     }

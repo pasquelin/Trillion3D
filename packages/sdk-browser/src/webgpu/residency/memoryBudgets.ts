@@ -32,6 +32,9 @@ export const textureUploadMsFor = (declared: number | undefined) =>
   /** Bytes allowed. */ budgetBytes: number;
   /** Layers of each lane pool, per atlas, and the bytes of every pool added up. */
   layers: AtlasLanes;
+  /** Tiles each lane pool may hold, per atlas: its layers' places, or fewer when the budget is
+   *  under the layers' floor — the budget is then held tile by tile. */
+  tiles: AtlasLanes;
   /** Bytes held. */ allocatedBytes: number;
   /** Why the size was limited. */ clamp: PoolClamp;
 };
@@ -58,7 +61,9 @@ export type TexturePools = {
  * bytes its textures would take resident, a block texel costing a quarter of an RGBA8 one, and
  * never more layers than its tiles need, what a capped lane leaves going to the others (`scene`
  * when every lane is served under the budget). A lane no texture takes has no layer. A budget
- * under the floor is raised to it, by name (`minimum`); above the layer count the device accepts,
+ * under the floor keeps the floor's layers but is held tile by tile: each lane may hold the tiles
+ * its share pays for (`tiles`), never fewer than its tails and one to stream into — raised to
+ * those, by name (`minimum`). Above the layer count the device accepts,
  * a lane is brought back to that limit, by name. Only the device limit can refuse, when even the
  * tails do not fit (`TEXTURE_POOL_DEVICE_LIMIT`).
  */
@@ -82,16 +87,27 @@ export function texturePoolFor(
     // The tails, and one slot to stream into when the lane streams: never frozen at its tails.
     for (const lane of open)
       layers[lane] = layersFor(kept[lane] + Number(lanes[lane] > kept[lane]));
-    const floor = { ...layers };
+    const floor = { ...layers },
+      weight = (lane: PoolLane) => lanes[lane] * tileBytes(texelBytes(lane)),
+      weights = [...open].reduce((sum, lane) => sum + weight(lane), 0);
     let budget =
       budgetBytes / 2 - [...open].reduce((sum, lane) => sum + floor[lane] * layerBytes(lane), 0);
+    // Under the layers' floor, each lane holds the tiles its share of the budget pays for, never
+    // fewer than its tails and one to stream into: the floor, counted in tiles.
+    const capped = laneCounts();
     if (budget < 0) {
-      clamps.add('minimum');
       budget = 0;
+      for (const lane of open) {
+        const least = kept[lane] + Number(lanes[lane] > kept[lane]),
+          share = Math.floor(
+            ((budgetBytes / 2) * (weight(lane) / weights)) / tileBytes(texelBytes(lane)),
+          );
+        if (share < least) clamps.add('minimum');
+        capped[lane] = Math.max(least, share);
+      }
     }
     // The remainder by weight; a lane served under its share gives the rest back to the others.
     for (let round = 0; open.size && round < POOL_LANES.length; round++) {
-      const weight = (lane: PoolLane) => lanes[lane] * tileBytes(texelBytes(lane));
       const total = [...open].reduce((sum, lane) => sum + weight(lane), 0);
       const share = (lane: PoolLane) =>
         Math.floor((budget * weight(lane)) / total / layerBytes(lane));
@@ -119,9 +135,15 @@ export function texturePoolFor(
         layers[lane] = limit;
         clamps.add('device-limit');
       }
-    return layers;
+    const tiles = laneCounts();
+    for (const lane of POOL_LANES)
+      tiles[lane] = Math.min(layers[lane] * TILES_PER_LAYER, capped[lane] || Infinity);
+    return { layers, tiles };
   };
-  const layers = { color: atlas(demand.color, tails.color), data: atlas(demand.data, tails.data) };
+  const color = atlas(demand.color, tails.color),
+    data = atlas(demand.data, tails.data);
+  const layers = { color: color.layers, data: data.layers },
+    tiles = { color: color.tiles, data: data.tiles };
   const allocatedBytes = [layers.color, layers.data].reduce(
     (bytes, lanes) =>
       bytes + POOL_LANES.reduce((sum, lane) => sum + lanes[lane] * layerBytes(lane), 0),
@@ -129,5 +151,5 @@ export function texturePoolFor(
   );
   const clamp =
     (['device-limit', 'minimum', 'scene'] as const).find((name) => clamps.has(name)) ?? null;
-  return { budgetBytes, layers, allocatedBytes, clamp };
+  return { budgetBytes, layers, tiles, allocatedBytes, clamp };
 }

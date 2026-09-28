@@ -80,3 +80,23 @@ test('eviction candidates are unpinned tiles that neither this image nor the pre
   pool.release(tail);
   assert.equal(pool.resident, 3);
 });
+
+// Behaviour (#961): a budget under the layers' floor gives the pool fewer tiles than its places;
+// it refuses past them, eviction frees within them, and no place past them is ever handed out.
+test('a pool of fewer tiles than places refuses past them and frees within them', () => {
+  const { device } = fakeDevice();
+  const pool = createWebgpuTilePool(device, { ...rgba, layers: 1, tiles: 3 });
+  assert.deepEqual([pool.tiles, pool.bytes], [3, poolLayerBytes(4)]);
+  const taken = [pool.acquire(1, 0), pool.acquire(2, 0), pool.acquire(3, 5)];
+  assert.deepEqual(taken, [0, 1, 2]);
+  assert.equal(pool.acquire(4, 5), undefined, 'full at its tiles');
+  const victims = pool.victims(5);
+  assert.deepEqual([victims.take(), victims.take(), victims.take()], [0, 1, undefined]);
+  pool.release(0);
+  assert.equal(pool.acquire(4, 6), 0, 'what eviction frees is taken again');
+  for (const tiles of [0, TILES_PER_LAYER + 1, 1.5])
+    assert.throws(
+      () => createWebgpuTilePool(device, { ...rgba, layers: 1, tiles }),
+      /TEXTURE_POOL_TILES/,
+    );
+});

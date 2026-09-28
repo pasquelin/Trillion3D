@@ -29,8 +29,9 @@ export function createWebgpuTileStreamer(options: {
   device: GPUDevice;
   color: TileTexture[];
   data: TileTexture[];
-  /** Layers of each lane's pool, per atlas. */
+  /** Layers of each lane's pool, per atlas, and the tiles each may hold when fewer. */
   layers: AtlasLanes;
+  tiles?: AtlasLanes;
   /** The encoding the lanes take: their formats, their texel cost, their level file. */
   encoding: PoolEncoding;
   /** Tile bytes admitted per image outside a barrier. */
@@ -51,21 +52,18 @@ export function createWebgpuTileStreamer(options: {
     budget = createFrameBudget(options.budgetMs, now);
   /** Colour textures a pump served or evicted a tile of: named once each, however many tiles. */
   const colorChanged = new Set<number>();
-  const color = createWebgpuTileAtlas(device, {
-    kind: 'color',
-    encoding,
-    layers: options.layers.color,
-    feedbackOffset: 0,
-    textures: options.color,
-    onEvicted: (slot) => colorChanged.add(slot),
-  });
-  const data = createWebgpuTileAtlas(device, {
-    kind: 'data',
-    encoding,
-    layers: options.layers.data,
-    feedbackOffset: color.pages.entries,
-    textures: options.data,
-  });
+  const atlas = (kind: 'color' | 'data', feedbackOffset: number) =>
+    createWebgpuTileAtlas(device, {
+      kind,
+      encoding,
+      feedbackOffset,
+      onEvicted: kind === 'color' ? (slot: number) => colorChanged.add(slot) : undefined,
+      textures: options[kind],
+      layers: options.layers[kind],
+      tiles: options.tiles?.[kind],
+    });
+  const color = atlas('color', 0);
+  const data = atlas('data', color.pages.entries);
   const feedback = createWebgpuTileFeedback(device, color.pages.entries + data.pages.entries);
   const reduce = createWebgpuTileReduce(device);
   const counters = createTileCounters();
@@ -169,9 +167,10 @@ export function createWebgpuTileStreamer(options: {
     get requestReduce() {
       return reduce !== undefined;
     },
-    /** Lane pools whose layers change are replaced, tiles kept; returns the evicted tiles. */
-    resize(layers: AtlasLanes) {
-      const results = [color.resize(device, layers.color), data.resize(device, layers.data)];
+    /** Lane pools whose layers or tiles change are replaced, tiles kept; returns the evicted. */
+    resize(layers: AtlasLanes, tiles?: AtlasLanes) {
+      const results = [color.resize(device, layers.color, tiles?.color)];
+      results.push(data.resize(device, layers.data, tiles?.data));
       if (results.some((result) => result.replaced)) {
         flushAll();
         options.onColorChanged(-1);
