@@ -72,7 +72,7 @@ export function settledRt() {
     capture: { capturing: false, capturePending: false },
     services: {
       bootstrapState: { ready: true },
-      residency: { busy: false },
+      residency: { busy: false, progress: async () => {} },
       // Count of cut pages still waiting for their bytes, held by the difference.
       cutPending: { count: 0 },
     },

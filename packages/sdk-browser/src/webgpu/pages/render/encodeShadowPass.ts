@@ -5,9 +5,6 @@ import { encodeShadowCasters } from '../../shadow/casters.ts';
 import { drawRegionCasters, encodeOcclusion } from './encodeRegionDraws.ts';
 import { encodeTransmittance } from './encodeTransmittance.ts';
 
-/** The pool's one draw of each region's casters, reused by every batch. */
-const depthDraw: GPURenderPipeline[] = [];
-
 /**
  * Shadow depth pass of one batch, pages `[from, to)` of the frame's list in `count` regions: first
  * their face uniforms, then the casters of each light view drawn, selected from the light and
@@ -46,7 +43,7 @@ export function encodeShadowAtlas(
   planPagePasses(regions, count);
   const { order, layer, first, clears, restores, layerPasses } = pagePlan;
   quads.begin(count, order);
-  depthDraw[0] = shadows.depth;
+  const depthDraws = shadows.depthDraws();
   // Each pass of the static layer's (`inLayer`) or the pool's: its clears and restores, two
   // instanced draws, then each region's casters in its page's viewport.
   const draw = (passes: GPURenderPassDescriptor[], inLayer: boolean, tested: boolean) => {
@@ -62,7 +59,7 @@ export function encodeShadowAtlas(
         restores[k],
         staticLayer?.groups[at],
       );
-      run.gpuDrawCalls += drawRegionCasters(rt, device, pass, k, tested, 1, depthDraw);
+      run.gpuDrawCalls += drawRegionCasters(rt, device, pass, k, tested, 1, depthDraws);
       pass.end();
     }
   };

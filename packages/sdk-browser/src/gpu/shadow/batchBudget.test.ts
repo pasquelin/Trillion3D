@@ -19,7 +19,7 @@ import {
   SHADOW_BATCH_GPU_BYTES,
   SHADOW_BATCH_HOST_BYTES,
   SHADOW_BATCH_WRITE_BYTES,
-  SHADOW_COUNT_SAMPLERS,
+  SHADOW_REGION_COMMANDS,
   SHADOW_FLAG_FRAMES,
   SHADOW_STAGING_BYTES,
   shadowBatchCapacity,
@@ -62,14 +62,16 @@ test('the GPU bytes the batches add are what the staging, flags, CPU lists and c
   writes.end();
   createLightCutRedraws((d) => device.createBuffer(d), target, DAG_MAX_VIEWS);
   const lists = createCpuCasterLists(device, 1);
-  // The cull's and the occlusion test's count samples.
-  for (let k = 0; k < SHADOW_COUNT_SAMPLERS; k++) createGpuShadowCullCounts(device);
+  // The cull's count sample, both lists a region (#965), and the occlusion test's.
+  createGpuShadowCullCounts(device, SHADOW_REGION_COMMANDS);
+  createGpuShadowCullCounts(device);
   const made = buffers.filter(
     (buffer) => buffer !== (target as unknown) && buffer !== (lists.source as unknown),
   );
   const gpu = made.reduce((sum, { size }) => sum + size, 0);
   assert.equal(gpu, SHADOW_BATCH_GPU_BYTES);
-  assert.ok(SHADOW_BATCH_GPU_BYTES < 5 * MiB, `${SHADOW_BATCH_GPU_BYTES} bytes`);
+  // A region's second command (#965) is staged and sampled with its first: about 0.4 MiB more.
+  assert.ok(SHADOW_BATCH_GPU_BYTES < 5.5 * MiB, `${SHADOW_BATCH_GPU_BYTES} bytes`);
   const cpuHost = lists.bases.byteLength + lists.lengths.byteLength + lists.commands.byteLength;
   assert.equal(cpuHost, MAX_SHADOW_RUNS * 24);
   assert.ok(SHADOW_BATCH_HOST_BYTES > SHADOW_FLAG_FRAMES * MAX_SHADOW_BATCHES * MAX_SHADOW_PAGES);

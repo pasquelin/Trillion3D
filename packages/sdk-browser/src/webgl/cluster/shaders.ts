@@ -1,3 +1,4 @@
+import { SCREEN_REFLECTION_GLSL } from '../../reflections/screenGlsl.ts';
 import { TRANSMISSION_GLSL } from './transmissionGlsl.ts';
 import { OUTPUT_TRANSFER_GLSL } from '../core/outputGlsl.ts';
 import { RECT_LIGHT_GLSL, WEBGL_RECT_KIND } from './rectGlsl.ts';
@@ -99,6 +100,7 @@ color*=attenuation(length(toLight),positionRange.w,cone.z);}
 if(surfaceModel==${SURFACE_MODEL.diffuse}||surfaceModel==${SURFACE_MODEL.toon}){direct+=modelLight(base,metal,N,L,1.0,ao)*color;continue;}
 vec3 E=clamp(dot(N,L),0.0,1.0)*color;specular+=E*specularLobe(L,V,N,f0,rough);direct+=E*(INVERSE_PI*diffuse);}
 irradiance+=probeIrradiance(N);return(direct+irradiance*(INVERSE_PI*diffuse)*ao)+specular;}
+${SCREEN_REFLECTION_GLSL}
 ${TRANSMISSION_GLSL}
 void main(){if(!lineDash(texcoord0.x,dash))discard;viewPosition=-toEye;vec4 base=baseFactor;
 if((mapMask&1)!=0){if(surfaceModel==${SURFACE_MODEL.matcap})base*=textureLod(baseMap,mapUv(baseUv,matcapUv(normalize(viewNormal))),0.0);
@@ -113,7 +115,8 @@ CotangentFrame frame=cotangentFrame(N,dFdx(viewPosition),dFdy(viewPosition),dFdx
 float p=-projectionMatrix[2][3];vec3 V=normalize(vec3(0.0,0.0,1.0-p)-viewPosition*p);float ao=1.0;if((mapMask&16)!=0)ao=(texture(aoMap,mapUv(aoUv,sourceUv(extraChannels.x))).r-1.0)*aoStrength+1.0;
 vec3 rgb=lit?shade(N,V,base.rgb,metal,rough,ao):base.rgb*ao;
 if((mapMask&32)!=0)rgb+=emissiveFactor*texture(emissiveMap,mapUv(emissiveUv,sourceUv(extraChannels.y))).rgb;else rgb+=emissiveFactor;
-if(!fogFree)rgb=fogged(rgb);
+if(lit)rgb+=mirrorLighting(base.rgb,metal,rough,N,V,viewPosition);
+if(!fogFree&&!reflectionCapture)rgb=fogged(rgb);
 if(surfaceModel==${SURFACE_MODEL.normal})rgb=N*0.5+0.5;
 if(surfaceModel==${SURFACE_MODEL.depth})rgb=vec3(clamp(depthRamp.x*toEye.z+depthRamp.y,0.0,1.0));
 float alpha=base.a;if(transmissive){vec4 through=transmissionColor(rgb,base.rgb,alpha,N,V,viewPosition,rough,ao);rgb=through.rgb;alpha=through.a;}

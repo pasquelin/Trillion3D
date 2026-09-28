@@ -58,7 +58,8 @@
       "missingCache": "The cooked cache is missing: run pnpm compile:caches"
     },
     "banner": {
-      "close": "Close"
+      "close": "Close",
+      "waiting": "Waiting for the engine (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -1745,7 +1746,8 @@
       "night": "Night",
       "bounce": "Bounce",
       "sun": "Sun",
-      "lamp": "Lamp"
+      "lamp": "Lamp",
+      "spin": "Spin"
     },
     "words": {
       "credit": "Street lamp model by W. Sitters, CC BY 3.0 — see assets/examples/CREDITS.md"

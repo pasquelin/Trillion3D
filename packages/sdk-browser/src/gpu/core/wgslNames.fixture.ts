@@ -23,8 +23,8 @@ const WGSL_OWN = new Set(
     'atomicMax atomicMin atomicOr atomicStore atomicSub ceil clamp cos countLeadingZeros countOneBits cross ' +
     'degrees determinant distance dot dpdx dpdy exp exp2 extractBits faceForward firstLeadingBit ' +
     'floor fma fract fwidth insertBits inverseSqrt ldexp length log log2 max min mix normalize ' +
-    'pack2x16float pack4x8unorm pow reflect refract reverseBits round saturate select sign sin ' +
-    'smoothstep sqrt step storageBarrier subgroupAny subgroupElect subgroupMax subgroupMin ' +
+    'pack2x16float pack4x8unorm pow quantizeToF16 reflect refract reverseBits round saturate select ' +
+    'sign sin smoothstep sqrt step storageBarrier subgroupAny subgroupElect subgroupMax subgroupMin ' +
     'tan tanh textureDimensions textureGather textureGatherCompare textureLoad ' +
     'textureNumLevels textureSample textureSampleBias textureSampleCompare ' +
     'textureSampleCompareLevel textureSampleGrad textureSampleLevel textureStore transpose ' +

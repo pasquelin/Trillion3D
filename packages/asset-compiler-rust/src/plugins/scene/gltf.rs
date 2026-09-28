@@ -10,9 +10,9 @@ impl Plugin for Gltf {
     fn name(&self) -> &'static str {
         "gltf"
     }
-    /// The glTF enters as-is: this version only follows the routing rules, not a decoder.
+    /// The compiler normalizes compressed transport before ordinary accessor loading.
     fn version(&self) -> &'static str {
-        "gltf-2.0-direct-1"
+        "gltf-2.0-compression-2"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["gltf", "glb"]

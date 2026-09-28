@@ -12,7 +12,7 @@ import { byteMeter, unmetered } from '../../cluster/byteMeter.ts';
 import { loadPreparedScene } from '../scene/scene.ts';
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts';
 import type { ExplorerScene } from '../session/prepare.ts';
-import { findGraphNode, modelNode } from './modelNodes.ts';
+import { findGraphNode, graphSubtree, modelNode } from './modelNodes.ts';
 
 /** A compiled model as the world holds it: its manifest, and the graph its loader built. */
 export type ModelRecord = {
@@ -78,6 +78,14 @@ export class LoadedModel extends Object3D {
     if (this.name === name) return this;
     const graph = findGraphNode(this.record.scene.source, name);
     return graph ? this.nodeOf(graph) : super.getObjectByName(name);
+  }
+  /** The scene node of source node `index` (`nodeOf`), the nodes below it and its radius
+   *  (`graphSubtree`): what the physics moves a body's node by. `null` where the cache numbers
+   *  its nodes otherwise than the source (a partitioned scene). */
+  _nodeAt(index: number) {
+    const nodes = this.record.scene.nodes;
+    if (!nodes?.[index]) return null;
+    return { node: this.nodeOf(nodes[index]), ...graphSubtree(nodes, index) };
   }
   constructor(record: ModelRecord) {
     super();
