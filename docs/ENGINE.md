@@ -282,7 +282,9 @@ lists at most. A tile the pool has no room for walks every light, exactly, and t
 (`tileLightPoolOverflowed`, `tileLightPoolGrowths` of the frame metrics). A scene of 64 lights or fewer runs a
 narrow tile pass (64-bit masks, a 64-light array) and holds no pool. A shadow caster past the 64
 shadow slices lights without a shadow and is counted
-(`shadowCastersUnsliced`, #818). WebGL2 keeps its 64 slots until #835 and refuses more out loud.
+(`shadowCastersUnsliced`, #818). WebGL2 holds every light in a float texture grown with the
+count, and each draw evaluates only the lights whose range reaches its world box, listed per draw
+on the CPU in one integer texture (`webgl/cluster/lightLists.ts`, #835).
 
 **A moving image shades a drawn subset of each pixel's lights.** A moving image weighs every light
 of its tile without its shadow (the cheap part) and shades in full, shadow included, four of them. A
