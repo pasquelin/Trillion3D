@@ -14,13 +14,10 @@ const source = () => ({
 test('a blended scene blends the material and keeps its normal map and the authored tangents', () => {
   for (const unpaged of [false, true]) {
     const { gltf } = tangentSceneGltf(source(), true, unpaged);
-    const [material] = gltf.materials as {
-      alphaMode: string;
-      normalTexture: unknown;
-      pbrMetallicRoughness: { baseColorFactor: number[] };
-    }[];
+    const [material] = gltf.materials;
+    const pbr = material.pbrMetallicRoughness as { baseColorFactor: number[] };
     assert.equal(material.alphaMode, 'BLEND');
-    assert.deepEqual(material.pbrMetallicRoughness.baseColorFactor, [1, 1, 1, TANGENT_BLEND_ALPHA]);
+    assert.deepEqual(pbr.baseColorFactor, [1, 1, 1, TANGENT_BLEND_ALPHA]);
     assert.deepEqual(material.normalTexture, { index: 1 });
     assert.equal(gltf.meshes[0].primitives[0].attributes.TANGENT, 2);
   }
