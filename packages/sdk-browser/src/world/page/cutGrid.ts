@@ -7,7 +7,10 @@ import { prepareSdkWasm } from '../../page/decode/geometryPageWasm.ts';
  * no second rule exists. `null` when the module is not there: the caller then takes the finest
  * grid a page holds, never coarser than the tiled one, so no pixel is lost.
  */
-export async function positionGridExponent(extent: number, blended: boolean): Promise<number | null> {
+export async function positionGridExponent(
+  extent: number,
+  blended: boolean,
+): Promise<number | null> {
   const wasm = await prepareSdkWasm();
   if (!wasm || typeof wasm.position_grid_exponent !== 'function') return null;
   return wasm.position_grid_exponent(extent, Number(blended));
