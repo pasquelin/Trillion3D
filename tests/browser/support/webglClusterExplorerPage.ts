@@ -9,7 +9,7 @@ import { mountExplorerProof } from './webglClusterExplorerMount.ts';
 /** `RenderBackend` does not declare `selectedPageIds` publicly; the object `exactPagesBackend`
  *  returns still carries it. Read here through a local extension rather than widening the
  *  engine's public contract. */
-interface BackendAvecSelectedPageIds extends RenderBackend {
+interface BackendWithSelectedPageIds extends RenderBackend {
   selectedPageIds?(): string[];
 }
 
@@ -25,7 +25,7 @@ export function execute() {
   const { backend, draw, target, calls } = mounted;
   if (!backend.setDiagnostic) throw new Error('backend missing setDiagnostic');
   const setDiagnostic = backend.setDiagnostic;
-  const withSelectedIds = backend as BackendAvecSelectedPageIds;
+  const withSelectedIds = backend as BackendWithSelectedPageIds;
   if (!withSelectedIds.selectedPageIds) throw new Error('backend missing selectedPageIds');
 
   backend.render(camera);
