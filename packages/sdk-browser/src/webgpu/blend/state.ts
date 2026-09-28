@@ -12,6 +12,7 @@ import type { TransparentTable } from '../transparent/table.ts';
 import type { BlendExpand } from './expand.ts';
 import type { WaterPass } from '../water/pass.ts';
 import { BLEND_VIEW_SIZE } from './uniforms.ts';
+import { createBlendHierarchy } from './hierarchy.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 export type BlendGpuItem = {
@@ -138,6 +139,8 @@ export function createWebgpuBlendState() {
      *  as a word of the mask has changed since the last write to the GPU. */
     keepPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     keepMoved: true,
+    /** Box tree the frustum verdict walks: built per item list, refit on a move (`hierarchy.ts`). */
+    hierarchy: createBlendHierarchy(),
     /** Static tables of the encoding plan (`plan.ts`). */
     drawsPacked: new Uint32Array(0) as Uint32Array<ArrayBuffer>,
     /** Seeded entries of each pass: blend, then transmission. Like `runCount`, `orderMoved` and

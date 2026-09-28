@@ -16,6 +16,7 @@ import { createPhysicsVehicles } from './vehicles.ts';
 import { engineIdOf } from './simulatedIds.ts';
 import { receiveSoft } from './softBodies.ts';
 import { createTileStreamer } from './tiles.ts';
+import { followMove } from './nodePose.ts';
 import { createPhysicsView } from './view.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
 import { createCharacterPort, createPhysicsCharacter } from './physicsCharacter.ts';
@@ -70,8 +71,7 @@ export function createPhysicsSession(
     const words = ready && writer.length ? writer.take() : null;
     if (words) worker.postMessage({ type: 'commands', words }, [words.buffer]);
   };
-  /** Page milliseconds spent on ticks since the last frame: they count in its `physics` stage. */
-  let received = 0;
+  let received = 0; // Page ms spent on ticks since the last frame: its `physics` stage's.
   const results = (m: PhysicsResults) => {
     const began = performance.now();
     const words = new Uint32Array(m.buffer);
@@ -128,12 +128,12 @@ export function createPhysicsSession(
       Object.assign(clock, { paused, timeScale });
       worker.postMessage({ type: 'clock', paused: paused || timeScale === 0, timeScale });
     },
-    /** The water the bodies float in, or none: buoyancy runs in the worker, before each step, on
-     *  the awake bodies; every dynamic body is woken, so one at rest floats or falls. */
+    /** The water, or none (buoyancy in the worker): each dynamic body woken, to float or fall. */
     setWater(water: WaterSpec | null) {
       worker.postMessage({ type: 'water', water, epoch: waves.reset() });
       for (const mesh of bodies.meshes)
         if (mesh?.physics.type === 'dynamic') writer.wake(mesh.physics._index);
+      for (const slot of bodies.nested.keys()) writer.wake(slot);
     },
     /** Simulated seconds the water's waves have run, for a frame drawn now. */
     waterTime: () => waves.time(),
@@ -148,6 +148,7 @@ export function createPhysicsSession(
     pose(node: Object3D) {
       dirty = placeBodies(node, bodies, writer, failed) || dirty;
       tiles.moved(node);
+      followMove(node, bodies.nested, writer, poses.follow);
     },
     /** The frame's physics: bodies reconciled, poses drawn, the view (`range`), commands sent. */
     frame(camera: Camera, range: number | null) {
@@ -162,8 +163,7 @@ export function createPhysicsSession(
         stats.bodies = bodies.count.bodies;
       }
       const moving = poses.apply(bodies);
-      stats.mainMs = received;
-      received = 0;
+      [stats.mainMs, received] = [received, 0];
       const reach = view(camera, writer, range);
       tiles.update(resolveCameraWorld(camera).matrixWorld.elements.slice(12, 15), reach);
       flush();

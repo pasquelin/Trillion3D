@@ -62,6 +62,7 @@ export function selectVisiblePages<T extends PageRecord>(
   state.flatStretch = 1;
   state.flatFocal = 1;
   state.flatExact = false;
+  state.flatSound = false;
   state.shownCount = 0;
   state.wantedCount = 0;
   state.wantedTriangles = 0;

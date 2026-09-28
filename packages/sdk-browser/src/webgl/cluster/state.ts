@@ -5,7 +5,7 @@ import { isTransmissive } from '../../visibility/shader/material.ts';
 type Material = Exclude<ClusterDrawMesh['material'], unknown[]>;
 
 /** The WebGL2 enum of each blend factor and operation `BLEND_EQUATIONS` writes. */
-const glBlendEnums = (gl: WebGL2RenderingContext): Record<string, number> => ({
+export const glBlendEnums = (gl: WebGL2RenderingContext): Record<string, number> => ({
   zero: gl.ZERO,
   one: gl.ONE,
   src: gl.SRC_COLOR,
