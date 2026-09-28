@@ -98,3 +98,27 @@ test('a node the table says hidden is built hidden, every primitive it draws wit
     for (const part of parts) assert.equal(shownChain(part), visible, `visible ${visible}`);
   }
 });
+
+// #519: a mesh one hidden core node names is its node, hidden; the cells' copies of that same mesh
+// place shown nodes only, so they are built visible.
+test('a mesh a hidden core node names is placed visible by the cells', async () => {
+  const { tables, meshes } = oneNode('hidden', null, false);
+  const single = [{ ...meshes[0], primitives: [{ material: 0 }] }] as typeof meshes;
+  const partition = { bounds: [0, 0, 0, 1, 1, 1], meshes: [0], cells: [] };
+  const geometryOf = () => {
+    const geometry = new Geometry();
+    geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3));
+    return geometry;
+  };
+  const materialOf = () => Promise.resolve(new GraphSurface('standard'));
+  const { scene } = await preparedGraph({
+    tables: { ...tables, partition } as PreparedSceneTables,
+    meshes: single,
+    geometryOf,
+    materialOf,
+  });
+  assert.deepEqual(
+    scene.children.map((part) => part.visible),
+    [false, true],
+  );
+});
