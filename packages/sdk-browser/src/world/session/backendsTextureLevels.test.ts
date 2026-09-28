@@ -158,3 +158,19 @@ test('a failed preparation falls back without waiting for the release, still dia
     'backend-dispose-error',
   ]);
 });
+
+// #558 (D): a WebGL2 engine never draws a casting light unshadowed silently. A world hands its
+// hearer to the session; a session opened alone says `shadows-refused` on its own channel.
+test('a session opened alone says the shadows its engine refuses on its own channel', async () => {
+  const said: string[] = [];
+  const diagnose = (phase: string, _: string, context?: Record<string, unknown>) =>
+    void said.push(`${phase} ${context?.light}`);
+  const alone = await run({}, undefined, {}, { diagnose } as never);
+  alone.shadowsRefused!(['sun']);
+  assert.deepEqual(said, ['shadows-refused sun']);
+  const world = (casting: readonly string[]) => void said.push(`world ${casting}`);
+  const heard = await probeBackendContext(metadata(), pageSources, {
+    options: { shadowsRefused: world },
+  });
+  assert.equal(heard.shadowsRefused, world, "a world's session hands the world's hearer over");
+});
