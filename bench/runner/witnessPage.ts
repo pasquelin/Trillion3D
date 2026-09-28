@@ -20,7 +20,8 @@
 // off` on both sides, otherwise the measured delta first carries the shadows only the
 // engine draws.
 import type { MeasuredWorld } from '../witnesses/measurement.ts';
-import type { GraphLight } from '../../packages/sdk-browser/src/host/graph/light.ts';
+import type { Light } from '../../packages/sdk-core/src/world/light/light.ts';
+import type { numbered } from '../../packages/sdk-browser/src/host/graph/serial.ts';
 import type { SceneLight } from '../../packages/sdk-core/src/scene/light/contracts.ts';
 import type { Group } from '../../packages/sdk-core/src/world/object/object3d.ts';
 
@@ -37,14 +38,17 @@ function penombre(coneAngle: number, douceur: number) {
   return Math.min(1, Math.max(0, 1 - interieur / Math.max(coneAngle, 1e-6)));
 }
 
-/** The graph classes the witness entry exports (`../witnesses/measurement.ts`): this module is
- *  served alone to the page, so it builds with the ones the page's dist hands it. */
-export type WitnessGraph = { Group: typeof Group; GraphLight: typeof GraphLight };
+/** The graph classes the witness entry exports (`../witnesses/measurement.ts`), and the engine's
+ *  numbering of what it builds: this module is served alone to the page, so it builds with the
+ *  ones the page's dist hands it. */
+export type WitnessGraph = { Group: typeof Group; Light: typeof Light; numbered: typeof numbered };
 
 /** The light of the declared kind. Three kinds in the contract, three here, and nothing else. */
-export function creer(graph: WitnessGraph, light: SceneLight): GraphLight {
-  return new graph.GraphLight(
-    light.kind === 'directional' ? 'directional' : light.kind === 'spot' ? 'spot' : 'point',
+export function creer(graph: WitnessGraph, light: SceneLight): Light {
+  return graph.numbered(
+    new graph.Light(
+      light.kind === 'directional' ? 'directional' : light.kind === 'spot' ? 'spot' : 'point',
+    ),
   );
 }
 
@@ -119,7 +123,7 @@ const resume = (lights: SceneLight[]) => ({
  */
 export function creerEclairageTemoin(graph: WitnessGraph) {
   const groupe = new graph.Group();
-  const poses = new Map<string, GraphLight>();
+  const poses = new Map<string, Light>();
   let signature: string | null = null;
   return {
     groupe,
