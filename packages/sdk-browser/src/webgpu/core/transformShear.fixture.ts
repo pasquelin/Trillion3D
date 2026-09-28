@@ -60,7 +60,7 @@ export function runtime(
   roots: Array<ClusterRoot<PageRec>> = [],
   worlds: HostWorldPlacements = hostWorldPlacements(source),
 ) {
-  const mouvements: Array<{ min: number[]; max: number[] }> = [],
+  const mouvements: Array<{ min: number[]; max: number[]; movingOnly: boolean }> = [],
     // Rows no page holds yet: a moved root rewrites none.
     layout = {
       selectionRoots: roots,
@@ -78,8 +78,8 @@ export function runtime(
     blendState: { occlusionEpoch: 0 },
     lights: {
       plan: {
-        worldChanged: (min: number[], max: number[]) =>
-          mouvements.push({ min: [...min], max: [...max] }),
+        worldChanged: (min: number[], max: number[], movingOnly: boolean) =>
+          mouvements.push({ min: [...min], max: [...max], movingOnly }),
       },
       mobility: createShadowMobility(),
     },
