@@ -1,5 +1,5 @@
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
-import { createDeferredLayouts } from './setup.ts';
+import { createDeferredLightingLayout } from './setup.ts';
 import { SUN_FAR_PROXY_BINDING } from '../../gpu/shadow/sunFarShadowWgsl.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/lightingWgsl.ts';
@@ -69,7 +69,7 @@ export async function createDeferredProgram(
     sources.lighting,
     `${sources.label}_LIGHTING`,
   );
-  const lightingLayout = createDeferredLayouts(device, sources.direct, sources.bounce).lighting;
+  const lightingLayout = createDeferredLightingLayout(device, sources.direct, sources.bounce);
   const light = await makeFullscreenPipeline(device, lighting, lightingLayout, 'lightSurface', [
     { format: 'rgba16float' },
   ]);

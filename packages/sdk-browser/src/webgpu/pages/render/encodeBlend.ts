@@ -40,7 +40,7 @@ export function encodeBlend(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   uniformBase: number,
-  composes = false,
+  composes: boolean,
 ) {
   const { gpu, vis, run, timing, blendState, diag } = rt;
   // Every image path reaches this stage: the particles step here, beside the water.

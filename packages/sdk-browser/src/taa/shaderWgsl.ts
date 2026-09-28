@@ -50,7 +50,7 @@ export function createTaaLayout(device: GPUDevice, asIs = true) {
     },
   ];
   return device.createBindGroupLayout({
-    entries: asIs ? entries : entries.slice(0, -2),
+    entries: asIs ? entries : entries.filter(({ binding }) => binding < TAA_BINDINGS.flags),
   });
 }
 
