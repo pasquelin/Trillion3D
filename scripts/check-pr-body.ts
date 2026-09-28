@@ -6,7 +6,7 @@
 // pull request body).
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { namedIssues } from './close-named-issues.ts';
+import { namedIssues, prose } from './close-named-issues.ts';
 
 const REVIEW_LINES = ['Simplification pass', 'Correctness review'];
 
@@ -24,8 +24,8 @@ export function bodyProblem(raw: string, draft: boolean): string | undefined {
   const body = raw.replace(/<!--[\s\S]*?-->/g, '');
   if (!/^(Closes|Part of) #\d+/m.test(body))
     return 'The body must start with "Closes #<issue>", or "Part of #<issue>" for a step.';
-  // The same grammar as close-issues.yml: a step that names a closing keyword would close an issue.
-  if (namedIssues(body).length && /Part of #\d+/.test(body))
+  // The same grammar as close-issues.yml, in any case: a step naming a closing keyword closes an issue.
+  if (namedIssues(body).length && /\bpart of #\d+/i.test(prose(body)))
     return 'The body says both a closing keyword ("Closes", "fixes"…) and "Part of"; a step says "Part of" only (AGENTS.md rule 5).';
   const lines = body.split('\n');
   const review = section(lines, 'Local review before push');
