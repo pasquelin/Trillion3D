@@ -1,4 +1,4 @@
-import { CLOCK_RESOLUTION_MS, Fenetre, estimateClockResolutionMs } from './slidingWindow.ts';
+import { CLOCK_RESOLUTION_MS, SlidingMedian, estimateClockResolutionMs } from './slidingWindow.ts';
 import {
   MATH_PATH_CONTRACT,
   type MathPath,
@@ -32,8 +32,8 @@ export const PATH_EXPLORE_EVERY = 50;
 const NS_PAR_MS = 1e6;
 
 class Operation {
-  readonly js = new Fenetre();
-  readonly wasm = new Fenetre();
+  readonly js = new SlidingMedian();
+  readonly wasm = new SlidingMedian();
   path: MathPath | null = null;
   runs = 0;
   switches = 0;
@@ -100,17 +100,17 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
       operation.avance = 0;
       return;
     }
-    operation[path].ajoute((ms * NS_PAR_MS) / elements);
+    operation[path].add((ms * NS_PAR_MS) / elements);
     operation.path ??= path;
     if (!arbitrable()) return;
     const courant = operation.path;
     const autre = courant === 'js' ? 'wasm' : 'js';
-    const iciMediane = operation[courant].mediane();
-    const laMediane = operation[autre].mediane();
+    const currentMedian = operation[courant].median();
+    const otherMedian = operation[autre].median();
     const assez =
       operation[courant].count >= PATH_MIN_SAMPLES && operation[autre].count >= PATH_MIN_SAMPLES;
-    if (!assez || iciMediane === null || laMediane === null) return;
-    if (laMediane < iciMediane * (1 - PATH_SWITCH_MARGIN)) operation.avance++;
+    if (!assez || currentMedian === null || otherMedian === null) return;
+    if (otherMedian < currentMedian * (1 - PATH_SWITCH_MARGIN)) operation.avance++;
     else operation.avance = 0;
     if (operation.avance >= PATH_SWITCH_RUNS) {
       operation.path = autre;
@@ -124,8 +124,8 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
     for (const [nom, operation] of operations)
       releve[nom] = {
         path: operation.path,
-        jsNsPerElement: operation.js.mediane(),
-        wasmNsPerElement: operation.wasm.mediane(),
+        jsNsPerElement: operation.js.median(),
+        wasmNsPerElement: operation.wasm.median(),
         jsSamples: operation.js.count,
         wasmSamples: operation.wasm.count,
         switches: operation.switches,
