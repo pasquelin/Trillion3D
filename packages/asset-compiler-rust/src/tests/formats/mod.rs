@@ -1,9 +1,9 @@
 use super::*;
-mod compressed_gltf;
 pub(in crate::tests) mod alembic_golden;
 pub(in crate::tests) mod blend_driver;
 pub(in crate::tests) mod blend_golden;
 pub(in crate::tests) mod blend_layouts;
+mod compressed_gltf;
 pub(in crate::tests) mod driver_uris;
 pub(in crate::tests) mod gltf_cycle;
 pub(in crate::tests) mod gltf_scenes;
