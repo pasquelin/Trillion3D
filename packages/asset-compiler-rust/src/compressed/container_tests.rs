@@ -78,16 +78,14 @@ fn absent_meshopt_fallback_is_not_allocated_or_usable_as_source() {
     assert_eq!(binary.bytes().len(), 120);
     assert_eq!(offsets[0], usize::MAX);
     let cancelled = AtomicBool::new(false);
-    assert!(
-        meshopt_views(
-            &mut g,
-            binary,
-            &mut offsets,
-            &Budget {
-                limit: 4096,
-                cancelled: &cancelled
-            }
-        )
-        .is_err()
-    );
+    assert!(meshopt_views(
+        &mut g,
+        binary,
+        &mut offsets,
+        &Budget {
+            limit: 4096,
+            cancelled: &cancelled
+        }
+    )
+    .is_err());
 }
