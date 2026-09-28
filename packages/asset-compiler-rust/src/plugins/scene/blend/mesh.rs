@@ -1,19 +1,16 @@
 //! A Blender mesh to triangulated geometry.
 //!
-//! The mesh is described by corners: an offset array says where each face starts in the corner
-//! sequence, and each corner points to a vertex. UVs live at the corner, the material index and
-//! the "sharp face" mark live at the face. N-gons are ear-clipped in the plane of their normal,
-//! which keeps exactly the vertices, area and orientation of a planar face, whether convex or
-//! concave.
-//!
-//! No normal is stored in a Blender file: they are computed at read time, flat for a sharp face,
-//! area-averaged for a smooth face, and cut on the edges `sharp_edge` marks — it is
-//! `.corner_edge` that says which edge leaves each corner.
+//! Corners point to vertices; face offsets delimit corners; N-gons are ear-clipped.
+//! Normals are computed at read time from face and sharp-edge marks.
 use super::*;
 
-/// Mesh-read ceilings, so a damaged file never asks for an allocation it does not have the bytes to fill.
-const MAX_VERTICES: usize = 64 * 1024 * 1024;
-const MAX_CORNERS: usize = 256 * 1024 * 1024;
+/// Minimum allocation from announced counts, checked against the job's RAM budget.
+pub(super) fn announced_bytes(vertices: usize, corners: usize, edges: usize) -> usize {
+    vertices
+        .saturating_mul(12)
+        .saturating_add(corners.saturating_mul(4))
+        .saturating_add(edges)
+}
 
 /// The geometry of a mesh, as the file carries it.
 pub(super) struct Geometry {
@@ -61,15 +58,17 @@ fn unsupported(mesh: &str, what: &str) -> CompilerError {
 
 /// Reads the geometry of a mesh, whichever layout `attrs` decoded it from. A mesh that carries
 /// none of them is refused by name rather than guessed.
-pub(super) fn read(mesh: &At<'_>, name: &str) -> Result<Geometry> {
+/// `room` is what the job's RAM budget leaves the scene binary.
+pub(super) fn read(mesh: &At<'_>, name: &str, room: usize) -> Result<Geometry> {
     let vertices = mesh.int("totvert", 0).max(0) as usize;
     let corner_count = mesh.int("totloop", 0).max(0) as usize;
     let faces = mesh.int("totpoly", 0).max(0) as usize;
     let edges = mesh.int("totedge", 0).max(0) as usize;
-    if vertices > MAX_VERTICES || corner_count > MAX_CORNERS || edges > MAX_CORNERS {
+    let needed = announced_bytes(vertices, corner_count, edges);
+    if needed > room {
         return Err(refused(
             "blend-too-large",
-            format!("blend: mesh {name} announces more vertices or corners than this reader reads"),
+            format!("blend: mesh {name} announces {vertices} vertices, {corner_count} corners and {edges} edges, at least {needed} bytes, past the {room} bytes this job's RAM budget (ramBudgetMb) leaves the scene binary"),
         ));
     }
     let table = attrs::attributes(mesh);

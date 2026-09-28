@@ -3,15 +3,7 @@ use super::scene::World;
 use super::trace::Hit;
 use crate::proxy::PROXY_TRIANGLE_FLOATS;
 
-use crate::shared_math::{cross, dot, length, scale, sub};
-pub fn normalise(a: [f64; 3]) -> [f64; 3] {
-    let norm = length(a);
-    if norm <= 0.0 {
-        a
-    } else {
-        scale(a, 1.0 / norm)
-    }
-}
+use crate::shared_math::{cross, dot, normalized_or, scale, sub};
 pub fn vertex(world: &World, triangle: usize, corner: usize) -> [f64; 3] {
     let base = triangle * PROXY_TRIANGLE_FLOATS + corner * 3;
     [
@@ -22,10 +14,11 @@ pub fn vertex(world: &World, triangle: usize, corner: usize) -> [f64; 3] {
 }
 pub fn normal_of(world: &World, triangle: usize) -> [f64; 3] {
     let a = vertex(world, triangle, 0);
-    normalise(cross(
+    let normal = cross(
         sub(vertex(world, triangle, 1), a),
         sub(vertex(world, triangle, 2), a),
-    ))
+    );
+    normalized_or(normal, normal)
 }
 /// Hit point and facing normal. Source has no reliable winding order:
 /// ray determines which surface side it arrives at.
