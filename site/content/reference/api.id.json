@@ -378,7 +378,8 @@
       "p.left": "Tepi kiri kotak pandang kamera orthographic.",
       "p.right": "Tepi kanan kotak pandang kamera orthographic.",
       "p.top": "Tepi atas kotak pandang kamera orthographic.",
-      "p.bottom": "Tepi bawah kotak pandang kamera orthographic."
+      "p.bottom": "Tepi bawah kotak pandang kamera orthographic.",
+      "p.fitAspect": "Kamera ortografis mempertahankan tinggi dan pusat kotaknya dan mengambil lebarnya dari bentuk gambar, sehingga kanvas yang diubah ukurannya tidak pernah meregangkan gambar. Mati secara bawaan."
     },
     "members": {
       "isCamera": "Selalu `true`: membedakan sebuah kamera dari objek lain.",
@@ -391,6 +392,7 @@
       "right": "Tepi kanan kotak orthographic.",
       "top": "Tepi atas kotak orthographic.",
       "bottom": "Tepi bawah kotak orthographic.",
+      "fitAspect": "Kotak ortografis setinggi yang dinyatakan dan selebar yang dibuat oleh bentuk gambar.",
       "projection": "`'perspective'` membuat benda jauh kecil; `'orthographic'` menjaga setiap ukuran.",
       "copy": "Mengambil nilai simpul dari `source` dan, dari kamera, optiknya; `projection` miliknya sendiri tetap.",
       "updateProjectionMatrix": "Menyusun kembali `projectionMatrix`; setiap penulisan optik sudah melakukannya, dan menggambar ulang.",
@@ -431,7 +433,8 @@
       "left": "Tepi kiri kotak pandang kamera orthographic.",
       "right": "Tepi kanan kotak pandang kamera orthographic.",
       "top": "Tepi atas kotak pandang kamera orthographic.",
-      "bottom": "Tepi bawah kotak pandang kamera orthographic."
+      "bottom": "Tepi bawah kotak pandang kamera orthographic.",
+      "fitAspect": "Kamera ortografis mempertahankan tinggi dan pusat kotaknya dan mengambil lebarnya dari bentuk gambar, sehingga kanvas yang diubah ukurannya tidak pernah meregangkan gambar. Mati secara bawaan."
     }
   },
   "CameraPose": {
@@ -4609,7 +4612,8 @@
       "p.left": "Tepi kiri kotak pandang kamera ortografik.",
       "p.right": "Tepi kanan kotak pandang kamera ortografik.",
       "p.top": "Tepi atas kotak pandang kamera ortografik.",
-      "p.bottom": "Tepi bawah kotak pandang kamera ortografik."
+      "p.bottom": "Tepi bawah kotak pandang kamera ortografik.",
+      "p.fitAspect": "Kamera ortografis mempertahankan tinggi dan pusat kotaknya dan mengambil lebarnya dari bentuk gambar, sehingga kanvas yang diubah ukurannya tidak pernah meregangkan gambar. Mati secara bawaan."
     }
   },
   "camera.perspective": {
@@ -4624,7 +4628,8 @@
       "p.left": "Tepi kiri kotak pandang kamera ortografik.",
       "p.right": "Tepi kanan kotak pandang kamera ortografik.",
       "p.top": "Tepi atas kotak pandang kamera ortografik.",
-      "p.bottom": "Tepi bawah kotak pandang kamera ortografik."
+      "p.bottom": "Tepi bawah kotak pandang kamera ortografik.",
+      "p.fitAspect": "Kamera ortografis mempertahankan tinggi dan pusat kotaknya dan mengambil lebarnya dari bentuk gambar, sehingga kanvas yang diubah ukurannya tidak pernah meregangkan gambar. Mati secara bawaan."
     }
   },
   "camera.stereo": {
