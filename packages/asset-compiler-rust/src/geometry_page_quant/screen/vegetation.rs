@@ -1,6 +1,6 @@
 //! The audit's tree (`gen_meshes.py::vegetation`): the typical foliage asset.
 use super::meshes::{gaussian, normalize, uniform, Mesh, V};
-use crate::compute_bench::inputs::Xorshift;
+use crate::tests::random::Xorshift;
 use std::f64::consts::TAU;
 use trillion3d_page_codec::vec3::{add, cross, length, scale as scaled, sub};
 
