@@ -1001,7 +1001,13 @@ A blended material (`transparent: true`) lets the light pass by default, as glas
 of light do in the reference solution: it casts no shadow. `transparentShadow: true` asks for one,
 as dark as the surface is opaque: `material.meshStandard({ transparent: true, opacity: 0.5,
 transparentShadow: true })` casts half a shadow. An additive, transmissive or fully transparent
-surface casts none either way, and WebGL2 draws no shadow at all.
+surface casts none either way, and WebGL2 draws no shadow at all: its published capability says
+`shadows: false`, and a light set `castShadow: true` there — the sun, a point lamp or a spot, a
+world's or the loaded scene's own — is drawn unshadowed and named `shadows-refused` on the world's
+diagnostic channel, or on the session's `onDiagnostic` when no world opened it. `context.light`
+holds its store id, or its name in the loaded scene. It is said once per light, again only after
+it stopped casting (its `castShadow` off, the light removed or hidden, or the unlit view shown) and casts
+anew. WebGPU draws that shadow.
 
 ### A luminaire does not block its own light
 

@@ -77,8 +77,7 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   /** Bundles a finer cut needs, read while the network idles: a small move finds them resident. */
   prefetchUrls?(): string[];
   pageUrls?(): string[];
-  /** The same pins as `pageUrls`, spoken as a difference of request ranks: the host no longer has
-   *  to rebuild a set of strings every frame. An engine that does not implement it keeps `pageUrls`. */
+  /** Page pins as a difference of request ranks; both page backends implement this. */
   retainedRanks?(): import('../streaming/types.ts').HostRetentionDelta;
   /** The catalogue integer sheet for a request: what off-thread integration plans. */
   pageSpecs?(url: string): Int32Array | undefined;
@@ -172,8 +171,8 @@ export interface BackendContext {
   /** Hears once why the engine refused the `particles`; the session goes on without them. */
   particlesRefused?: (reason: string) => void;
   materialDegraded?: import('../webgl/cluster/validation.ts').MaterialDegraded; // `noticeMaterialDegraded`
-  /** Contract lights, owned by the host and shared by every engine of the session. */
-  sceneLights?: SceneLightStore;
+  sceneLights?: SceneLightStore; // the host's contract lights, shared by the session's engines
+  shadowsRefused?: import('../lighting/contractLights.ts').ContractShadows; // `noticeShadowRefusal`
   /** Imported light ids, in cache order: the host sets or removes them (`importedLights()`). */
   importedLightIds?: string[];
   /** Bounced light, off by default: its step stays above the measured one-millisecond bar.
