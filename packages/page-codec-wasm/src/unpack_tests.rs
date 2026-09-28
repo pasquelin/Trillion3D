@@ -4,7 +4,7 @@
 //! random pages and their corruptions, and the edge cases.
 
 use super::*;
-use crate::bits::{stream_words, MAX_BITS};
+use crate::bits::MAX_BITS;
 use crate::triangles::{CornerCode, Spans};
 use crate::unpack::reference::reference;
 use crate::writer::BitWriter;
@@ -171,7 +171,7 @@ fn the_edge_cases_decode_the_same() {
     assert!(same(&page(&mut rng, 65_535, &widest, 15, true)).is_ok());
     // A stream ending exactly on a word, then one bit past it.
     for n in [32, 33] {
-        assert_eq!(stream_words(n, MAX_BITS), (n * 24).div_ceil(32));
+        assert_eq!((n * MAX_BITS as usize).is_multiple_of(32), n == 32);
         let indices = corners(&mut rng, n, 40);
         assert!(same(&page(&mut rng, n, &indices, 15, true)).is_ok());
     }

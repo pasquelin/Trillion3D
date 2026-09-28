@@ -1,6 +1,6 @@
 //! A page's streams unpacked into one block of words — the mirror of `decodeGeometryPage` —, each
-//! stream walked once by a `BitReader` (STR-01, #238): the same bits as reading every field at
-//! random with `field`, which the equivalence harness (`unpack_tests.rs`) proves.
+//! stream walked once by a `BitReader` (STR-01, #238): the same bits as develop's decoder, which
+//! reads every field at random (`unpack_reference.rs`), as the equivalence harness proves.
 
 use crate::bits::{dequant, le_words, oct_decode, BitReader, Quant};
 use crate::{DecodedPage, Header, Layout, PageError};
@@ -86,7 +86,7 @@ fn split(words: &[u32], h: &Header, out: &mut [u32]) -> Result<(), PageError> {
 
 #[cfg(test)]
 #[path = "unpack_reference.rs"]
-pub(crate) mod reference;
+mod reference;
 #[cfg(test)]
 #[path = "unpack_tests.rs"]
 mod tests;
