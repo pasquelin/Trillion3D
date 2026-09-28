@@ -19,8 +19,8 @@ const soft = (
 const softHeads = (words: Uint32Array) =>
   Uint32Array.from([...softBodiesIn(words)].flatMap((b) => [b.engine, b.count]));
 
-/** A step's event records sorted: the dump holds what was sent, not the order it was sent in,
- *  which is the pool's proof's (`contactThreads.test.ts`). */
+/** A step's event records sorted: `motion` holds what was sent, not the order it was sent in,
+ *  which develop's module decided otherwise (#934); `full` pins this module's order. */
 function sortedEvents(words: Uint32Array) {
   const rows = Array.from({ length: words.length / EVENT_WORDS }, (_, r) =>
     words.subarray(r * EVENT_WORDS, (r + 1) * EVENT_WORDS),
@@ -37,8 +37,8 @@ function sortedEvents(words: Uint32Array) {
  * with their contact events, an unpinned cloth falling on them, a cloth given stretch hanging from
  * its pins, a rope swinging from its pin, a volume bouncing — stepped `steps` times at 60 Hz.
  * Two SHA-256 of every step's words, in order: `motion`, of its poses, events (sorted) and the
- * bodies its soft words name with their vertex counts; `full`, of its poses, events and whole soft
- * words.
+ * bodies its soft words name with their vertex counts; `full`, of its poses, events in the order
+ * they were sent and whole soft words.
  * Two modules that simulate it alike give the same `motion`; `full` also holds the written-back
  * vertices bit for bit, which a change of their rounding alone moves (#975).
  */
@@ -63,8 +63,8 @@ export function stateDump(
     full = createHash('sha256');
   let posed = jolt.step(writer.take(), 0);
   for (let s = 0; s < steps; s++) {
-    const [poses, events, soft] = [jolt.poses(posed), sortedEvents(jolt.events()), jolt.soft()];
-    motion.update(poses).update(events).update(softHeads(soft));
+    const [poses, events, soft] = [jolt.poses(posed), jolt.events(), jolt.soft()];
+    motion.update(poses).update(sortedEvents(events)).update(softHeads(soft));
     full.update(poses).update(events).update(soft);
     posed = jolt.step(null, 1 / 60);
   }
