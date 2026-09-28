@@ -1,16 +1,15 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DECLARED_ERRORS, leastDrawn, SPARSE } from './docs/examples/capture.ts';
-import { examplePages } from './docs/examples/pages.ts';
+import { examplePages, parkedExampleIds } from './docs/examples/pages.ts';
 import { physicsExamples, turnsPhysicsOn } from './docs/examples/physics.ts';
-import { readyEntries as ready, readyExampleIds } from '../site/app/examples/list.ts';
+import { readyEntries as ready } from '../site/app/examples/list.ts';
 
 // #527: what left an example blank or stopped in the examples proof, read from the files.
-const listed = await examplePages();
-const pages = listed.map(({ id, html }) => [`${id}.html`, html] as const);
+const pages = await examplePages();
 
 test('a readout is declared after the controls panel it joins', () => {
-  for (const [file, html] of pages) {
+  for (const { file, html } of pages) {
     const readout = html.search(/\b(?:readout|physicsReadouts)\(/);
     if (readout < 0) continue;
     const panel = html.search(/\bcontrols\(/);
@@ -19,14 +18,14 @@ test('a readout is declared after the controls panel it joins', () => {
 });
 
 test('no example prints a physics line by hand; each asks the kit for it', () => {
-  for (const [file, html] of pages)
+  for (const { file, html } of pages)
     assert.doesNotMatch(html, /physics\.stats|readout\('(?:bodies|awake|step|page)'\)/, file);
 });
 
 test('only a parked page declares an error, never a 404 nor an engine failure (#945)', () => {
-  const ids = new Set(listed.map(({ id }) => id));
+  const ids = new Set(pages.map(({ id }) => id));
   for (const { page, error, why } of DECLARED_ERRORS) {
-    assert.ok(ids.has(page) && !readyExampleIds.includes(page) && why, page);
+    assert.ok(ids.has(page) && parkedExampleIds.has(page) && why, page);
     // The engine's failures (`worldHandles.ts`, `interactive.ts`, `lost.ts`) and a resource
     // Chrome could not load, the icon every page asks for included, are always heard.
     assert.doesNotMatch(error, /^(?:World session failed|\[trillion3d\]|Failed to load resource)/);
@@ -76,7 +75,7 @@ test('the proof expects Jolt from the pages whose own source turns physics on, a
   // #503: a ready page that sets a body or reads the world's physics is one that turns it on,
   // `ride-a-roller-coaster` (#634) included, which the hand-kept list the derivation replaced
   // missed; a page with no physics is left out.
-  const sources = new Map(pages.map(([file, html]) => [`examples/${file}`, html]));
+  const sources = new Map(pages.map(({ file, html }) => [file, html]));
   const physics = await physicsExamples(ready);
   const used = ready
     .filter(({ file }) => /\.physics\b/.test(sources.get(file) ?? assert.fail(file)))
