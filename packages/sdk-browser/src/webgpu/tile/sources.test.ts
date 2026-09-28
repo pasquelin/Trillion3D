@@ -152,21 +152,22 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
     place: () => ({ x: 0, y: 0, layer: 0 }),
     poolOf: () => ({ texture: { format: 'rgba8unorm-srgb' } }),
   } as unknown as WebgpuTileAtlas;
-  // One device per pass: the reduction pipelines it builds say the rules its textures took.
-  const rulesOf = async (...slots: number[]) => {
-    const { device, renderPipelines, submits, textures: made } = mockGpu({ compute: true });
+  const on = (device: GPUDevice, slots: number[]) => {
     const sources = createTileSources({
       device,
       encoding,
       counters: createTileCounters(),
       onFailure: (_, error) => assert.fail(error as Error),
     });
+    const encoder = () => device.createCommandEncoder();
     const pass = () =>
-      slots.map((slot) =>
-        sources.serve(atlas, { slot, level: 0, tx: 0, ty: 0 }, 1, () =>
-          device.createCommandEncoder(),
-        ),
-      );
+      slots.map((slot) => sources.serve(atlas, { slot, level: 0, tx: 0, ty: 0 }, 1, encoder));
+    return { sources, pass };
+  };
+  // One device per pass: the reduction pipelines it builds say the rules its textures took.
+  const rulesOf = async (...slots: number[]) => {
+    const { device, renderPipelines, submits, textures: made } = mockGpu({ compute: true });
+    const { sources, pass } = on(device, slots);
     // STR-13, #962: the pass that asks builds nothing — no texture, no upload, no submit —; a task
     // after it builds the working textures asked, their mips in one submit (OMB-29, #961).
     const before = made.length;
@@ -191,19 +192,7 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
   );
   assert.deepEqual(await rulesOf(1, 2), [1, 0], 'a masked and an opaque texture, one batch');
   // Two working textures at most a pass: a third texture's tiles wait for a pass with room.
-  const { device } = mockGpu({ compute: true });
-  const sources = createTileSources({
-    device,
-    encoding,
-    counters: createTileCounters(),
-    onFailure: () => {},
-  });
-  const pass = () =>
-    [1, 2, 3].map((slot) =>
-      sources.serve(atlas, { slot, level: 0, tx: 0, ty: 0 }, 1, () =>
-        device.createCommandEncoder(),
-      ),
-    );
+  const { sources, pass } = on(mockGpu({ compute: true }).device, [1, 2, 3]);
   pass();
   await sources.settled();
   assert.deepEqual(pass(), ['served', 'served', 'waiting']);
