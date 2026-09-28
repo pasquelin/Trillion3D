@@ -31,9 +31,15 @@ export async function createWaterPass(
  * Encodes the water pass after the blends, on the image they left (`frame.ts`).
  * Returns whether the pass was encoded: without a transmissive surface in view, without the
  * pipelines, under a diagnostic view or a capture from a second camera, nothing of it exists in
- * the frame, and the transmission slice draws as one more blend.
+ * the frame, and the transmission slice draws as one more blend. So too when no composition
+ * `composes` the image after it: the water word borrows the display colour (`surfaceWgsl.ts`),
+ * which only that composition writes over.
  */
-export function encodeWaterPass(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+export function encodeWaterPass(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  composes = true,
+) {
   const { gpu, run, capture, blendState } = rt,
     water = blendState.water;
   // A diagnostic view colours a surface instead of lighting it: the slice draws as a blend, whose
@@ -42,6 +48,7 @@ export function encodeWaterPass(rt: WebgpuPagesRuntime, encoder: GPUCommandEncod
   if (
     run.diagnostic !== 'beauty' ||
     capture.capturing ||
+    !composes ||
     !water ||
     !blendState.transmissiveInView ||
     !blendState.argsBuffer ||
