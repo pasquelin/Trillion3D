@@ -7,8 +7,9 @@
 import assert from 'node:assert/strict';
 import type { encodeDagKernels } from './encode.ts';
 
-/** `liste`: offset of the group count armed before the dispatch, hence the list walked. */
-type Lancement = { noyau: string; groupes: number | 'indirect'; liste?: number };
+/** `liste`: offset of the group count armed before the dispatch, hence the list walked;
+ *  `rangees`: the rows of a flat dispatch past one row (`shader/gridWgsl.ts`). */
+type Lancement = { noyau: string; groupes: number | 'indirect'; liste?: number; rangees?: number };
 type Copie = {
   de: string;
   decalage: number;
@@ -38,8 +39,8 @@ export function encodeurTemoin() {
     setPipeline(next: { entryPoint: string }) {
       noyau = next.entryPoint;
     },
-    dispatchWorkgroups(groupes: number) {
-      lancements.push({ noyau, groupes });
+    dispatchWorkgroups(groupes: number, rangees = 1) {
+      lancements.push({ noyau, groupes, ...(rangees > 1 && { rangees }) });
     },
     dispatchWorkgroupsIndirect(buffer: { nom: string }, decalage: number) {
       assert.equal(buffer.nom, 'dispatchArgs');
