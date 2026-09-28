@@ -883,6 +883,15 @@ transparent counters), surface-capture phases, `gpu-device-lost`, `gpu-closed-se
 (`kind: 'warning'`: an error of a session already closed on the same device, never a loss). Observer exceptions cannot
 interrupt a backend. These durations are not frame-performance measurements.
 
+**Optional device features.** The session asks for every optional feature a kernel can use that the
+adapter offers — `indirect-first-instance`, `timestamp-query`, `subgroups`, `shader-f16` and the
+block-compressed texture formats (`world/session/gpuDevice.ts`) — and each session says what its
+device got under the `WebGPU device granted` capability diagnostic (`features`). A kernel branches on the
+device's own `features` and keeps its plain path as the named fallback. The host URL parameter
+`trillion3dGpuFeaturesOff=subgroups,shader-f16` keeps the named features unrequested: the plain paths
+then run on a device that has the features, the fallback's proof (0 px against the features on). It
+acts only on a device the engine requests; a host's own `gpuDevice` is taken as it is.
+
 **GPU timing.** `timestamp-query` is requested when the adapter advertises it (`gpu-timing-status`).
 Summary mode instruments at most one submission in 60, trace mode every one, with one outstanding
 readback, and as many pass pairs as the frame that redraws the largest shadow pool encodes: 256

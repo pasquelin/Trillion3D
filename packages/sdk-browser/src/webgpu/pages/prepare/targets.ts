@@ -30,7 +30,7 @@ export function frameTargetAllocation(
   return frameTargetBytes(width, height, reserveHiz) + additional;
 }
 
-/** True when the frame targets in place are those of `width × height`. */
+/** True when the drawn view's frame targets in place are those of `width × height`. */
 export function targetsFit(rt: WebgpuPagesRuntime, width: number, height: number) {
   const { gpu, vis } = rt;
   return (
@@ -38,13 +38,12 @@ export function targetsFit(rt: WebgpuPagesRuntime, width: number, height: number
     gpu.targetSize[0] === width &&
     gpu.targetSize[1] === height &&
     !!gpu.surfaces &&
-    (!vis.visEnabled || !!vis.visTexture) &&
-    (!vis.gpuHiz || (vis.gpuHiz.width === width && vis.gpuHiz.height === height))
+    (!vis.visEnabled || !!vis.visTexture)
   );
 }
 
 /** Releases the frame targets in place: none is drawn into or presented until the next are made.
- *  The view's history goes with them, never under a capture, which leaves it whole. */
+ *  The view's temporal history goes with them: a capture draws in a view of its own. */
 export function releaseTargets(rt: WebgpuPagesRuntime) {
   const { gpu, vis, capture } = rt;
   const textures = [gpu.colorTexture, gpu.depthTexture, gpu.hdrTexture, gpu.feedbackTexture];
@@ -61,7 +60,7 @@ export function releaseTargets(rt: WebgpuPagesRuntime) {
   vis.gpuRaster = undefined;
   capture.capturedPixels = undefined;
   capture.capturedRevision = -1;
-  if (!capture.capturing) gpu.temporal?.release();
+  gpu.temporal?.release();
 }
 
 /**

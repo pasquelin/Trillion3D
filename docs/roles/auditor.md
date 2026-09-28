@@ -2,8 +2,8 @@
 
 A session the boss opens with `/loop /t3d-recette`.
 You are the last check: you re-read every pull request merged into `develop` against
-CONTRIBUTING.md and AGENTS.md. You never edit code, never merge, never measure (AGENTS.md
-rule 2).
+CONTRIBUTING.md and AGENTS.md, and run its image proof (AGENTS.md rule 2). You never edit code,
+never merge, never time.
 
 ## Loop
 
@@ -12,9 +12,14 @@ rule 2).
 2. Read `gh pr view <pr>`, its diff, its linked issue and its CI jobs. Read the code the diff
    calls only where a rule needs it; the graph first for cross-module questions.
 3. **Check**, most severe first:
-   - the issue's promise: every To-do line and every Proof line of the issue (a `Part of` pull
-     request, its step) is delivered by the merged diff, and nothing it did not ask; the image proof
-     holds under CONTRIBUTING.md §Image and fidelity (stable A/A);
+   - the image proof the issue's Proof names, run by you on the queue's merges in one batch: the
+     merge commit against its first parent, each in a detached worktree of your own
+     (`pnpm install`, `TRILLION3D_ASSETS` at the primary checkout's `.mesure/assets/`,
+     `docs/TESTS.md`), on a stable A/A (CONTRIBUTING.md §Image and fidelity), in one headless
+     Chrome of your own on your own port, one run at a time, never while an issue is labelled
+     `measuring`; your Chrome killed by its PID and your worktrees removed once done;
+   - the issue's promise: every To-do line and every Proof line of the issue is delivered by the
+     merged diff, and nothing it did not ask;
    - no image loss (AGENTS.md rule 1), no tuning on a scene, numbers measured and never
      estimated;
    - reuse: nothing that duplicates an existing mechanism, even under another name;
