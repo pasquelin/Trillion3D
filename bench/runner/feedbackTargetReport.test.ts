@@ -65,6 +65,7 @@ const result = (): FeedbackTargetResult => ({
       mask: checkpoint(false),
       blend: checkpoint(false),
     },
+    gpuPassSamples: [sample(1, true), sample(2, true)],
   },
   readings: [
     reading(true, 'a1.rgba', 10),
@@ -106,10 +107,11 @@ test('A/B/A gain requires samples, parity, residency, mip order, bytes and low s
   assert.equal(verdict(raw), false);
 });
 
-test('WebGPU null uncovered metric permits resident verdict and reports pass shares', () => {
+test('WebGPU null uncovered metric permits resident verdict and reports pass shares, converging too', () => {
   const summary = summarizeFeedbackRun(result(), 'alpha-blend-mode-test', 'sol', captures(), []);
   assert.equal(summary.beyondSpread, true);
   assert.equal(summary.readings[0].passFrameShare['Trillion3D material surfaces v1'], 0.2);
   assert.equal(summary.readings[0].passFrameShare['Trillion3D texture feedback reduce'], 0.02);
   assert.equal(summary.readings[1].passFrameShare['Trillion3D texture feedback reduce'], null);
+  assert.equal(summary.convergence?.convergingReduceMs?.p50, 0.2);
 });
