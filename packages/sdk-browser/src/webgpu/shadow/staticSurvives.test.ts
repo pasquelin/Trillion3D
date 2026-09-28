@@ -1,8 +1,8 @@
 // #990: a page whose static casters did not change keeps them in the static layer. Once a caster
 // moves, the pages it crosses are restored from that layer and its moving casters drawn over —
 // also when the light cut draws one short, and when a moving caster is hidden —, while what
-// changes the static casters themselves (a still caster hidden, a lamp moved, a surface's alpha
-// changed) draws them again.
+// changes the static casters themselves (a still caster hidden, a lamp moved, a still surface's
+// alpha changed) draws them again; a moving surface's alpha redraws its moving casters alone.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
@@ -115,5 +115,16 @@ test("a still surface's changed alpha draws its static casters again", async () 
     backend.refreshMaterials!(true, { surfaces: [scene.both], from: 'opaque', to: 'mask' }),
   );
   assert.ok(changed.layerPasses > 0, 'the floor re-rasterised into the static layer');
+  run.dispose();
+});
+
+test("a moving surface's changed alpha redraws its moving casters alone (#993)", async () => {
+  const run = await floorAndCaster();
+  const { backend, frame, warmUp, scene } = run;
+  await warmUp();
+  const changed = await frame(() =>
+    backend.refreshMaterials!(true, { surfaces: [scene.front], from: 'opaque', to: 'mask' }),
+  );
+  restoredOnly(changed, "the caster's alpha changed");
   run.dispose();
 });

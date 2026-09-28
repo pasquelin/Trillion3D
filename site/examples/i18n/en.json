@@ -1263,6 +1263,25 @@
       "off": "off"
     }
   },
+  "page-materials": {
+    "banner": "Drag to inspect the hall. List, change, blend, or create a material.",
+    "controls": {
+      "set": "Set colour",
+      "switchToBlend": "Switch to blend",
+      "createAndAssign": "Create and assign"
+    },
+    "readouts": {
+      "selected material": "Selected material",
+      "materials": "Materials",
+      "sourceMaterials": "Source materials",
+      "last action": "Last action"
+    },
+    "words": {
+      "imported": "{count} imported",
+      "applied": "Applied",
+      "ready": "Ready"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "Drag to look around. These lamps came inside the model file.",
     "controls": {

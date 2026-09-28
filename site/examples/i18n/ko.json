@@ -1263,6 +1263,25 @@
       "off": "꺼짐"
     }
   },
+  "page-materials": {
+    "banner": "드래그하여 홀을 둘러보세요. 재질을 나열, 변경, 혼합하거나 만드세요.",
+    "controls": {
+      "set": "색상 변경",
+      "switchToBlend": "혼합으로 전환",
+      "createAndAssign": "만들어 적용"
+    },
+    "readouts": {
+      "selected material": "선택한 재질",
+      "materials": "재질",
+      "sourceMaterials": "원본 재질",
+      "last action": "마지막 작업"
+    },
+    "words": {
+      "imported": "{count}개 가져옴",
+      "applied": "적용됨",
+      "ready": "준비됨"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "끌어서 둘러봐. 이 램프들은 모델 파일에 들어 있었어.",
     "controls": {
