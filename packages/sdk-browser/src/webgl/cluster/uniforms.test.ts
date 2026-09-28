@@ -48,8 +48,8 @@ test('the model matrices cross the GL boundary only when the drawn world matrix 
   const model = new ModelUniforms(gl, at('modelView'), at('normal'));
   const view = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, -5, 1],
     world = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2, 0, 0, 1];
-  model.set(view, world);
-  model.set(view, world.slice());
+  assert.equal(model.set(view, world), true, 'sent: its winding is read');
+  assert.equal(model.set(view, world.slice()), false, 'not sent: the winding stands');
   assert.deepEqual(sent, ['modelView', 'normal'], 'a page of the same placement sends nothing');
   model.set(view, [...world.slice(0, 12), 3, 0, 0, 1]);
   assert.equal(sent.length, 4, 'another placement sends both');
