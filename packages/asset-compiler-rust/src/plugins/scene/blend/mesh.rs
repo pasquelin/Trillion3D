@@ -1,20 +1,11 @@
 //! A Blender mesh to triangulated geometry.
 //!
-//! The mesh is described by corners: an offset array says where each face starts in the corner
-//! sequence, and each corner points to a vertex. UVs live at the corner, the material index and
-//! the "sharp face" mark live at the face. N-gons are ear-clipped in the plane of their normal,
-//! which keeps exactly the vertices, area and orientation of a planar face, whether convex or
-//! concave.
-//!
-//! No normal is stored in a Blender file: they are computed at read time, flat for a sharp face,
-//! area-averaged for a smooth face, and cut on the edges `sharp_edge` marks — it is
-//! `.corner_edge` that says which edge leaves each corner.
+//! Corners point to vertices; face offsets delimit corners; N-gons are ear-clipped.
+//! Normals are computed at read time from face and sharp-edge marks.
 use super::*;
 
-/// The least a mesh's announced counts allocate before a value is read: three floats per vertex,
-/// a vertex index per corner and a mark per edge. A damaged file announcing more than the job's
-/// RAM budget leaves is refused before any of it is asked for.
-fn announced_bytes(vertices: usize, corners: usize, edges: usize) -> usize {
+/// Minimum allocation from announced counts, checked against the job's RAM budget.
+pub(super) fn announced_bytes(vertices: usize, corners: usize, edges: usize) -> usize {
     vertices
         .saturating_mul(12)
         .saturating_add(corners.saturating_mul(4))

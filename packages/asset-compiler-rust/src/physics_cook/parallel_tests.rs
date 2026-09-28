@@ -4,8 +4,8 @@
 //! ±Inf, a mesh of many tiles).
 use super::hausdorff::{one_sided_distance, Level0};
 use crate::compiler_primitive_dag::{build_dag_primitive, DagResult};
-use crate::tests::random::Xorshift;
 use crate::tests::fixtures::{files, grid_indices, portable_sin};
+use crate::tests::random::Xorshift;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
