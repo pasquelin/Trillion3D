@@ -12,6 +12,10 @@ import { nanosecondsToMs } from '../../gpu/timing/types.ts';
 /** Queries reread later: beyond this, the device cannot keep up and no more are opened. */
 const MAX_PENDING = 4;
 
+/** A poll with no duration to publish, and why. */
+type Reading = { ms: number | null; reason: string | null; frame: number | null };
+const none = (reason: string): Reading => ({ ms: null, reason, frame: null });
+
 type TimerExtension = {
   TIME_ELAPSED_EXT: number;
   GPU_DISJOINT_EXT: number;
@@ -26,7 +30,7 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
       reason,
       begin(_frame: number) {},
       end() {},
-      poll: () => ({ ms: null as number | null, reason, frame: null as number | null }),
+      poll: () => none(reason),
     };
   let open: { query: WebGLQuery; frame: number } | null = null;
   const pending: { query: WebGLQuery; frame: number }[] = [];
@@ -51,23 +55,17 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
       gl.flush();
     },
     /** Duration of a past image and the image it names, or the reason none is publishable. */
-    poll(): { ms: number | null; reason: string | null; frame: number | null } {
-      if (!pending.length) return { ms: null, reason: 'no pending query', frame: null };
+    poll(): Reading {
+      if (!pending.length) return none('no pending query');
       const { query, frame } = pending[0];
       if (!gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE))
-        return { ms: null, reason: 'result not ready yet', frame: null };
+        return none('result not ready yet');
       pending.shift();
       const disjoint = gl.getParameter(ext.GPU_DISJOINT_EXT);
       const nanoseconds = gl.getQueryParameter(query, gl.QUERY_RESULT) as number;
       gl.deleteQuery(query);
-      if (disjoint)
-        return {
-          ms: null,
-          reason: 'the driver interrupted the measurement (GPU_DISJOINT_EXT)',
-          frame: null,
-        };
-      if (!Number.isFinite(nanoseconds))
-        return { ms: null, reason: 'unreadable duration', frame: null };
+      if (disjoint) return none('the driver interrupted the measurement (GPU_DISJOINT_EXT)');
+      if (!Number.isFinite(nanoseconds)) return none('unreadable duration');
       return { ms: nanosecondsToMs(nanoseconds), reason: null, frame };
     },
   };
