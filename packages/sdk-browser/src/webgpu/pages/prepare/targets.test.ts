@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
-import { frameTargetAllocation } from './targets.ts';
+import { frameTargetAllocation, targetsFit } from './targets.ts';
 import { requestFrameTargets } from './targetGrant.ts';
 import { standardSurface } from '../../../host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../page/surface.ts';
@@ -13,6 +13,14 @@ import {
   MEASURE_WIDTH,
 } from '../../../../../../tests/browser/support/sceneProvenance.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+
+/** Both sizes of a frame drawn at the display's. */
+const native = (width: number, height: number) => ({
+  width,
+  height,
+  renderWidth: width,
+  renderHeight: height,
+});
 
 /** An engine reduced to its targets, with a dummy temporal pass that notes its resizes. */
 function runtime(reflective = false) {
@@ -54,7 +62,7 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
     [MEASURE_WIDTH, MEASURE_HEIGHT],
     [3840, 2160],
   ]) {
-    const base = frameTargetAllocation(rt, width, height);
+    const base = frameTargetAllocation(rt, native(width, height));
     assert.equal(base, frameTargetBytes(width, height, true) + width * height + 8 + 80);
     assert.equal(ensureTaaTargets(rt, width, height), width * height * TAA_HISTORY_BYTES_PER_PIXEL);
   }
@@ -66,7 +74,7 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
   // Reallocated targets no longer have history.
   assert.equal(temporal.frame.hasHistory, false);
   assert.equal(temporal.frame.stillFrames, 0);
-  assert.throws(() => frameTargetAllocation(rt, 8193, 16), /SURFACE_DEVICE_LIMIT/);
+  assert.throws(() => frameTargetAllocation(rt, native(8193, 16)), /SURFACE_DEVICE_LIMIT/);
 });
 
 test("a surface capture does not touch the view's history targets", () => {
@@ -79,7 +87,7 @@ test("a surface capture does not touch the view's history targets", () => {
 test('an eligible receiver accounts for viewport reflection colour and its uniform', () => {
   const { rt } = runtime(true);
   assert.equal(
-    frameTargetAllocation(rt, 64, 32),
+    frameTargetAllocation(rt, native(64, 32)),
     frameTargetBytes(64, 32, true) + 64 * 32 * 9 + 80,
   );
 });
@@ -94,6 +102,7 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
       colorTexture: {},
       feedbackTexture: {},
       targetSize: [32, 32],
+      displaySize: [32, 32],
       surfaces: {},
       reflection: { active: false },
       targetGrant: undefined,
@@ -102,4 +111,25 @@ test('targets that fit ask nothing of the device: the steady frame is free', () 
   } as unknown as WebgpuPagesRuntime;
   // A bare device: any creation or error scope would throw.
   assert.equal(requestFrameTargets(rt, {} as GPUDevice), undefined);
+});
+
+// #816: every pass up to the resolve draws at the render size; the display colour is apart.
+test('a frame drawn below the display costs its render targets and one display colour', () => {
+  const { rt } = runtime();
+  const scaled = { width: 64, height: 32, renderWidth: 32, renderHeight: 16 };
+  assert.equal(
+    frameTargetAllocation(rt, scaled),
+    frameTargetAllocation(rt, native(32, 16)) + 64 * 32 * 4,
+  );
+  Object.assign(rt.gpu, {
+    colorTexture: {},
+    surfaces: {},
+    feedbackTexture: {},
+    reflection: { active: false },
+    targetSize: [32, 16],
+    displaySize: [64, 32],
+  });
+  Object.assign(rt, { feedbackAB: undefined, vis: {} });
+  assert.equal(targetsFit(rt, scaled), true);
+  assert.equal(targetsFit(rt, native(64, 32)), false, 'the same display at native size is remade');
 });

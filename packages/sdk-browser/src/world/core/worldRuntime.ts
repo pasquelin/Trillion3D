@@ -115,7 +115,7 @@ export function createWorldRuntime(inputs: Inputs) {
     const session = explorer;
     if (seatWanted) {
       seatWanted = false;
-      contents.seat(session?.growsPlacements() ? session.growPlacements : undefined);
+      contents.seat(session?.growsPlacements() ? session : undefined);
       if (session && mirror) mounts.apply(mirror, session);
       if (contents.reopenNeeded() || (!session && !reopens.running)) request('scene-change');
       // Values or pictures alone repaint the built surface (#335, #362, #572); a reopened one is new.

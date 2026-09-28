@@ -12,7 +12,7 @@ import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts
 /**
  * An `rt` reduced to the strict necessary read by `frameSettled`/`holdWebgpuFrame`/`keepWebgpuFrame`:
  * every `frameSettled` condition is true there by construction. `gpu.presenter` and
- * `gpu.colorTexture` stay absent so hold encodes no present command.
+ * `gpu.displayTexture` stay absent so hold encodes no present command.
  */
 export function settledRt() {
   const run = {
@@ -95,7 +95,8 @@ export function settledRt() {
     texturePump: { inFlight: false },
     gpu: {
       presenter: undefined as unknown,
-      colorTexture: undefined as unknown,
+      displayTexture: undefined as unknown,
+      displaySize: [4, 4] as [number, number],
       deferred: undefined as Awaited<ReturnType<typeof createDeferredLighting>> | undefined,
       effects: undefined as WebgpuEffects | undefined,
       effectsRevision: 0,
