@@ -54,6 +54,7 @@ fn cancellation_is_honoured_between_two_images_not_mid_decode() {
         stage_texture_previews(
             &PreviewInputs {
                 o: &already_cancelled,
+                reserved_bytes: 0,
                 g: &g,
                 bin: &[],
                 image_root: &dir,
@@ -77,6 +78,7 @@ fn cancellation_is_honoured_between_two_images_not_mid_decode() {
         stage_texture_previews(
             &PreviewInputs {
                 o: &mid_flight,
+                reserved_bytes: 0,
                 g: &g,
                 bin: &[],
                 image_root: &dir,
