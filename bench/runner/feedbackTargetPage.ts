@@ -6,14 +6,23 @@ import type {
 } from '../../packages/sdk-core/src/index.ts';
 import { poseAt, type Bounds } from './poses.ts';
 import { posterCapture } from './measurePage.ts';
+import { captureConvergence, type ConvergenceProof } from './feedbackConvergencePage.ts';
 
-type Probe = { setFeedbackTargetAb(target: boolean): Promise<void> };
+type Probe = {
+  setFeedbackTargetAb(target: boolean): Promise<void>;
+  feedbackAbResidency(): Promise<{
+    geometry: { count: number; sha256: string };
+    tiles: { count: number; sha256: string };
+  }>;
+  captureFeedbackAb(): Promise<Uint8Array>;
+};
 type Reading = {
   target: boolean;
   frames: number;
   gpuFrameMs: number[];
   gpuPassSamples: GpuPassTimings[];
   counters: Partial<FrameMetrics>;
+  residency: Awaited<ReturnType<Probe['feedbackAbResidency']>>;
   capture: string;
 };
 
@@ -22,6 +31,7 @@ export type FeedbackTargetResult = {
   reason: string | null;
   pose: CameraPose | null;
   readings: Reading[];
+  convergence: ConvergenceProof | null;
   size: { width: number; height: number } | null;
 };
 
@@ -37,11 +47,13 @@ export async function runFeedbackTarget(options: {
   const sdk = (await import(options.sdkUrl)) as typeof Sdk;
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
+  let convergence: ConvergenceProof | null = null;
   const unsupported = (reason: string): FeedbackTargetResult => ({
     supported: false,
     reason,
     pose: null,
     readings: [],
+    convergence,
     size: null,
   });
   let explorer: Sdk.MeasuredWorld | undefined;
@@ -68,7 +80,8 @@ export async function runFeedbackTarget(options: {
     });
     const backend = explorer.backends.find((item) => item.id === 'webgpu-page-raster') as
       (Sdk.RenderBackend & Partial<Probe>) | undefined;
-    if (!backend?.setFeedbackTargetAb) return unsupported('FEEDBACK_AB_UNAVAILABLE');
+    if (!backend?.setFeedbackTargetAb || !backend.feedbackAbResidency || !backend.captureFeedbackAb)
+      return unsupported('FEEDBACK_AB_UNAVAILABLE');
     const box = explorer.bounds;
     const bounds: Bounds = {
       min: { x: box.min.x, y: box.min.y, z: box.min.z },
@@ -76,45 +89,42 @@ export async function runFeedbackTarget(options: {
     };
     const pose = poseAt(bounds, options.view);
     explorer.setPose(pose);
-    let held = false;
-    for (let i = 0; i < 600; i++) {
-      await explorer.awaitPages();
-      const frame = explorer.render(pose);
-      await explorer.flush();
-      if (
-        frame.frameHeld &&
-        frame.textureTilesPending === 0 &&
-        frame.textureMissingLevels === 0 &&
-        frame.textureTilesRequested === frame.textureTilesAtLevel
-      ) {
-        held = true;
-        break;
-      }
-    }
-    if (!held) return unsupported('FEEDBACK_AB_POSE_NOT_RESIDENT_AND_HELD');
+    convergence = await captureConvergence(
+      explorer,
+      backend as Probe,
+      pose,
+      `${options.scene}-${options.view}`,
+      canvas,
+    );
+    if (!convergence.supported) return unsupported(convergence.reason!);
     const readings: Reading[] = [];
     for (const [index, target] of [true, false, true].entries()) {
       await backend.setFeedbackTargetAb(target);
       const gpuFrameMs: number[] = [];
       const gpuPassSamples: GpuPassTimings[] = [];
       let last: FrameMetrics | null = null;
-      let seen = -1;
+      let seen = -1,
+        warmFrame = -1;
       // The first frames after a toggle are outside the timed window.
       for (let i = 0; i < options.frames + 12; i++) {
         await new Promise<number>((done) => requestAnimationFrame(done));
         last = explorer.render(pose);
         const sample = last.gpuPassMs;
-        if (i < 12 || !sample || sample.frame === seen) continue;
+        if (i < 12) {
+          if (sample) warmFrame = Math.max(warmFrame, sample.frame);
+          continue;
+        }
+        if (!sample || sample.frame <= warmFrame || sample.frame === seen) continue;
         seen = sample.frame;
         gpuPassSamples.push(sample);
         if (typeof last.gpuFrameMs === 'number') gpuFrameMs.push(last.gpuFrameMs);
       }
-      await explorer.flush();
       if (!last) return unsupported('FEEDBACK_AB_NO_FRAME');
       const capture = `${options.scene}-${options.view}-${index}.rgba`;
+      const residency = await backend.feedbackAbResidency();
       const response = await posterCapture(
         capture,
-        explorer.capture(),
+        await backend.captureFeedbackAb(),
         canvas.width,
         canvas.height,
       );
@@ -124,6 +134,7 @@ export async function runFeedbackTarget(options: {
         frames: options.frames,
         gpuFrameMs,
         gpuPassSamples,
+        residency,
         counters: {
           gpuFrameTargetBytes: last.gpuFrameTargetBytes,
           residentPages: last.residentPages,
@@ -145,6 +156,7 @@ export async function runFeedbackTarget(options: {
       reason: null,
       pose,
       readings,
+      convergence,
       size: { width: canvas.width, height: canvas.height },
     };
   } catch (error) {

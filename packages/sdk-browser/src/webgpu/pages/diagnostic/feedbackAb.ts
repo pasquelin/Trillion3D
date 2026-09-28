@@ -1,4 +1,5 @@
 import { FEEDBACK_FORMAT } from '../../../scene/surfaceBuffer.ts';
+import { readGpuImage } from '../../../gpu/core/presentation.ts';
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts';
 import { createWebgpuShadePipelines } from '../../visibility/pipelines.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -17,6 +18,46 @@ export type FeedbackAbState = {
   on: Pipelines;
   off: Pipelines;
 };
+
+export type ResidencyIdentity = {
+  geometry: { count: number; sha256: string };
+  tiles: { count: number; sha256: string };
+};
+
+async function digest(keys: string[]) {
+  const data = new TextEncoder().encode(JSON.stringify(keys));
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', data));
+  return {
+    count: keys.length,
+    sha256: [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join(''),
+  };
+}
+
+/** Exact-key snapshots are taken before hashing, so an async GPU readback cannot shift them. */
+export async function feedbackAbResidency(rt: WebgpuPagesRuntime): Promise<ResidencyIdentity> {
+  if (!rt.feedbackAB) throw new Error('FEEDBACK_AB_UNAVAILABLE');
+  const geometry = rt.gpu.cache?.residentKeys();
+  const textures = rt.vis.textures;
+  if (!geometry || !textures) throw new Error('FEEDBACK_AB_RESIDENCY_UNAVAILABLE');
+  const tiles = [textures.color, textures.data]
+    .flatMap((atlas) =>
+      atlas.pools.flatMap((pool) =>
+        pool.occupied().map((index) => `${pool.label}:${pool.keyOf(index)}`),
+      ),
+    )
+    .sort();
+  const [pages, keys] = await Promise.all([digest(geometry), digest(tiles)]);
+  return { geometry: pages, tiles: keys };
+}
+
+/** Captures the last submitted color target directly, without the convergence barrier. */
+export async function captureFeedbackAb(rt: WebgpuPagesRuntime) {
+  if (!rt.feedbackAB || !rt.gpu.device || !rt.gpu.colorTexture || rt.capture.capturing)
+    throw new Error('FEEDBACK_AB_CAPTURE_UNAVAILABLE');
+  const [width, height] = rt.gpu.targetSize;
+  if (!width || !height || !rt.run.imageRevision) throw new Error('FEEDBACK_AB_IMAGE_MISSING');
+  return readGpuImage(rt.gpu.device, rt.gpu.colorTexture, width, height, rt.signal);
+}
 
 const pipelinesOf = (rt: WebgpuPagesRuntime): Pipelines => ({
   shadePipelineFor: rt.vis.shadePipelineFor,
