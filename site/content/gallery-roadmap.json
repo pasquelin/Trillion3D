@@ -711,6 +711,11 @@
       "file": "examples/several-views-one-page.html"
     },
     {
+      "id": "a-recorded-fly-through",
+      "theme": "camera",
+      "file": "examples/a-recorded-fly-through.html"
+    },
+    {
       "id": "before-and-after-slider",
       "theme": "camera",
       "file": "examples/before-and-after-slider.html"

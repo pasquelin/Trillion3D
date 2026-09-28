@@ -500,6 +500,24 @@
       "balloon": "SEGUINDO O BALÃO"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Assista à rota gravada pelo parque. Reproduza, pare ou assuma a câmera.",
+    "controls": {
+      "replay": "Reproduzir",
+      "stop": "Parar"
+    },
+    "readouts": {
+      "currentPart": "Parte atual"
+    },
+    "words": {
+      "entrance": "Entrada",
+      "pond": "Lago",
+      "bridge": "Ponte",
+      "pavilion": "Pavilhão",
+      "overview": "Visão geral",
+      "complete": "Concluído"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Gire à volta do guindaste enquanto um clipe roda a lança, move o carro, eleva a carga e a deixa balançar.",
     "controls": {

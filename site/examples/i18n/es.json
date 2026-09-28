@@ -500,6 +500,24 @@
       "balloon": "SIGUIENDO EL GLOBO"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Mira la ruta grabada por el parque. Repítela, detenla o toma la cámara.",
+    "controls": {
+      "replay": "Repetir",
+      "stop": "Detener"
+    },
+    "readouts": {
+      "currentPart": "Tramo actual"
+    },
+    "words": {
+      "entrance": "Entrada",
+      "pond": "Estanque",
+      "bridge": "Puente",
+      "pavilion": "Pabellón",
+      "overview": "Vista general",
+      "complete": "Completo"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Gira alrededor de la grúa mientras un clip rota la pluma, mueve el carro, eleva la carga y la deja balancearse.",
     "controls": {
