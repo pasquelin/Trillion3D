@@ -1162,7 +1162,7 @@
   },
   "createGpuPageCache": {
     "summary": "Confine di allocazione e coda WebGPU.",
-    "description": "I byte delle pagine e la regola sono forniti dall'host. Le scritture in coda sono ordinate; il rilascio attende gli invii in corso prima di distruggere."
+    "description": "I byte delle pagine e la regola sono forniti dall'host. Le scritture in coda sono ordinate; il rilascio attende gli invii in corso prima di distruggere. `pin(key, 'held')` conserva una pagina prima di quelle fissate normalmente durante `resize(slots)`, che non accetta più un insieme held. Fissarla nuovamente in modo ordinario conserva il livello; `unpin(key)` lo rimuove."
   },
   "createJob": {
     "summary": "Nessun timer, nessun DOM, nessun file né interfaccia."

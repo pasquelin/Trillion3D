@@ -31,10 +31,12 @@ test('transparent mirrors use the opaque reflection model and bind its surface r
     surfaceCache,
     textures: { color: atlas, data: atlas },
   } as unknown as BlendBindResources);
-  assert.deepEqual(
-    entries.find((entry) => entry.binding === BLEND_BINDINGS.surfaceCache)?.resource,
-    { buffer: surfaceCache },
-  );
+  const binding = entries.find((entry) => entry.binding === BLEND_BINDINGS.surfaceCache)
+    ?.resource as GPUBufferBinding;
+  assert.equal(binding.buffer, surfaceCache);
+  // The whole cache is bound: no range narrows it.
+  assert.equal(binding.offset, undefined);
+  assert.equal(binding.size, undefined);
 });
 
 test('a replaced surface cache invalidates both blend groups, unchanged radiance storage does not', () => {
