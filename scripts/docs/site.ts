@@ -21,8 +21,7 @@ export const SITE_OUTPUT = resolve(ROOT, 'dist/site');
  * and the deployment checks the address the built page declares. */
 export const SITE_URL = 'https://www.trillion3d.com/';
 
-/** What the site serves as is: examples, scene assets, data records, the reports, and the one
- *  icon the portal links and a page linking none, every example, asks the root for (#945). */
+/** What the site serves as is: examples, assets, data, reports, and the icon every page gets. */
 export const STATIC_ENTRIES = ['examples', 'assets', 'data', 'reports', 'favicon.ico'];
 /** The pages the portal replaced, each moved to its route: an old link still lands on it. */
 const REDIRECTS: Record<string, string> = { 'report.html': '#/en/reports' };
