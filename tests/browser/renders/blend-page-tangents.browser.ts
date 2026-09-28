@@ -11,10 +11,12 @@
 //   node tests/browser/test-gpu.ts tests/browser/renders/blend-page-tangents.browser.ts
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { join, resolve } from 'node:path';
+import type { Page } from 'playwright';
 import { startServer } from '../../kit/server/staticServer.ts';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
-import { ASSETS, assetsManifest } from '../../../bench/runner/scene.ts';
+import { ASSETS, assetsManifest, sceneDerived } from '../../../bench/runner/scene.ts';
+import { readCacheManifest } from '../../../bench/runner/cacheManifest.ts';
 import { SUN } from '../../../bench/runner/lamps.ts';
 import { TANGENT_BLEND_SCENES } from '../../../bench/runner/scenes/tangentBlend.ts';
 import { measureOutput } from '../../../bench/core/paths.ts';
@@ -26,13 +28,47 @@ import {
   defaultBackendCapturePng,
 } from '../support/defaultBackendImages.ts';
 
+type Side = keyof typeof TANGENT_BLEND_SCENES;
+
 const root = resolve(import.meta.dirname, '../../..');
 const out = measureOutput('blend-page-tangents');
 await mkdir(out, { recursive: true });
-const manifests = {
-  paged: assetsManifest(TANGENT_BLEND_SCENES.paged, true),
-  unpaged: assetsManifest(TANGENT_BLEND_SCENES.unpaged, true),
-};
+/** The pass each scene must have been compiled to: the proof compares nothing otherwise. */
+const PASSES: Record<Side, string> = { paged: 'clustered-blend', unpaged: 'shared-blend' };
+const manifests = {} as Record<Side, string>;
+for (const side of ['paged', 'unpaged'] as const) {
+  const scene = TANGENT_BLEND_SCENES[side];
+  manifests[side] = assetsManifest(scene, true);
+  const { manifest } = await readCacheManifest(join(sceneDerived(scene), 'native/full'));
+  assert.deepEqual(
+    manifest.primitives.map((primitive) => primitive.pass),
+    manifest.primitives.map(() => PASSES[side]),
+    `${scene} compiled to ${PASSES[side]}`,
+  );
+}
+
+/** One capture on `page` of the scene `manifestUrl` names, stored under `key` and written beside
+ *  the result; drawn by `backend` when one is named. */
+async function capture(page: Page, key: string, manifestUrl: string, backend?: string) {
+  const result = (await page.evaluate(runDefaultBackendCase, {
+    manifestUrl,
+    key,
+    request: 'default' as const,
+    repeats: 0,
+    frames: 0,
+    lights: [SUN],
+  })) as CaseResult;
+  assert.equal(result.error, null, key);
+  if (backend) assert.equal(result.backend, backend, key);
+  const url = await page.evaluate(defaultBackendCapturePng, key);
+  await writeFile(resolve(out, `${key}.png`), Buffer.from(url.split(',')[1], 'base64'));
+  const drawn = await page.evaluate(countDrawnPixels, key);
+  assert.ok(drawn.drawn > drawn.totalPixels / 20, `${key}: ${JSON.stringify(drawn)}`);
+  return { backend: result.backend, metrics: result.metrics };
+}
+
+const compare = (page: Page, a: string, b: string) =>
+  page.evaluate(compareDefaultBackendCaptures, [a, b] as [string, string]);
 
 const { server, port } = await startServer({
   mounts: [
@@ -44,37 +80,20 @@ const browser = await launchChrome({ headless: true });
 const errors: string[] = [];
 try {
   const { context, page } = await openMachine({ browser, port, webgpu: true, errors });
-  /** One capture of the scene `manifestUrl` names, stored under `key` and written beside the result. */
-  const capture = async (key: string, manifestUrl: string) => {
-    const result = (await page.evaluate(runDefaultBackendCase, {
-      manifestUrl,
-      key,
-      request: 'default' as const,
-      repeats: 0,
-      frames: 0,
-      lights: [SUN],
-    })) as CaseResult;
-    assert.equal(result.error, null, key);
-    assert.equal(result.backend, 'webgpu-page-raster', key);
-    const url = await page.evaluate(defaultBackendCapturePng, key);
-    await writeFile(resolve(out, `${key}.png`), Buffer.from(url.split(',')[1], 'base64'));
-    const drawn = await page.evaluate(countDrawnPixels, key);
-    assert.ok(drawn.drawn > drawn.totalPixels / 20, `${key}: ${JSON.stringify(drawn)}`);
-    return result.metrics;
-  };
-  const compare = (a: string, b: string) =>
-    page.evaluate(compareDefaultBackendCaptures, [a, b] as [string, string]);
   // Interleaved, twice each: the A/A of a side says what the harness itself moves.
-  const metrics = {
-    'paged-1': await capture('paged-1', manifests.paged),
-    'unpaged-1': await capture('unpaged-1', manifests.unpaged),
-    'paged-2': await capture('paged-2', manifests.paged),
-    'unpaged-2': await capture('unpaged-2', manifests.unpaged),
-  };
+  const captures: Record<string, Awaited<ReturnType<typeof capture>>> = {};
+  for (const run of [1, 2])
+    for (const side of ['paged', 'unpaged'] as const)
+      captures[`${side}-${run}`] = await capture(
+        page,
+        `${side}-${run}`,
+        manifests[side],
+        'webgpu-page-raster',
+      );
   const deltas = {
-    pagedAA: await compare('paged-1', 'paged-2'),
-    unpagedAA: await compare('unpaged-1', 'unpaged-2'),
-    pagedVsUnpaged: await compare('paged-1', 'unpaged-1'),
+    pagedAA: await compare(page, 'paged-1', 'paged-2'),
+    unpagedAA: await compare(page, 'unpaged-1', 'unpaged-2'),
+    pagedVsUnpaged: await compare(page, 'paged-1', 'unpaged-1'),
   };
   const carried = await page.evaluate(() => window.proof!.images['unpaged-1']);
   await context.close();
@@ -83,26 +102,12 @@ try {
   await webgl.page.evaluate((bytes: number[]) => {
     (window.proof ??= { images: {} }).images['webgpu-unpaged'] = bytes;
   }, carried);
-  const reference = (await webgl.page.evaluate(runDefaultBackendCase, {
-    manifestUrl: manifests.unpaged,
-    key: 'webgl2-unpaged',
-    request: 'default' as const,
-    repeats: 0,
-    frames: 0,
-    lights: [SUN],
-  })) as CaseResult;
-  assert.equal(reference.error, null, 'webgl2-unpaged');
-  const png = await webgl.page.evaluate(defaultBackendCapturePng, 'webgl2-unpaged');
-  await writeFile(resolve(out, 'webgl2-unpaged.png'), Buffer.from(png.split(',')[1], 'base64'));
-  const webglAgainstWebgpu = await webgl.page.evaluate(compareDefaultBackendCaptures, [
-    'webgl2-unpaged',
-    'webgpu-unpaged',
-  ] as [string, string]);
+  const reference = await capture(webgl.page, 'webgl2-unpaged', manifests.unpaged);
+  const webglAgainstWebgpu = await compare(webgl.page, 'webgl2-unpaged', 'webgpu-unpaged');
   await webgl.context.close();
   const result = {
     scenes: TANGENT_BLEND_SCENES,
-    capture: { width: 480, height: 320, devicePixelRatio: 1 },
-    metrics,
+    captures,
     deltas,
     webgl2: { backend: reference.backend, againstWebgpuUnpaged: webglAgainstWebgpu },
   };
