@@ -138,33 +138,27 @@ export function clusterErrorAtDepth(
   if (clusterError === Infinity) return Infinity;
   if (!frameParametersSound(stretch, focal, near, perspective))
     throw new Error('Invalid cluster parameters');
-  return boundOfCluster(clusterError, stretch, lateral, depth, radius, focal, near, perspective);
+  return clusterErrorInFrame(
+    clusterError,
+    stretch,
+    lateral,
+    depth,
+    radius,
+    focal,
+    near,
+    perspective,
+  );
 }
 
 /**
- * `clusterErrorAtDepth` of a frame whose `frameParametersSound` already holds (#980, VIS-16): the
- * CPU cut checks its four scalars once per root, and each cluster only its own error, radius, axis
- * distance and depth. Same short-circuits, same error on the same call: the frame's half of the
- * guard can only fail where it was taken out, so the verdicts are those of `clusterErrorAtDepth`.
- * The Rust walk (`projected_error_at`, `cut_error.rs`) keeps the whole guard per cluster: same verdicts.
+ * `clusterErrorAtDepth` of a frame whose `frameParametersSound` already holds and of an error that
+ * is neither 0 nor ∞, which the caller has returned as is (#980, VIS-16): the CPU cut checks its four
+ * scalars once per root, and each cluster only its own error, radius, axis distance and depth. The
+ * frame's half of the guard can only fail where it was taken out, so the verdicts are those of
+ * `clusterErrorAtDepth`, the same error on the same call. The Rust walk (`projected_error_at`,
+ * `cut_error.rs`) keeps the whole guard per cluster: same verdicts.
  */
 export function clusterErrorInFrame(
-  clusterError: number,
-  stretch: number,
-  lateral: number,
-  depth: number,
-  radius: number,
-  focal: number,
-  near: number,
-  perspective = 1,
-): number {
-  if (clusterError === 0) return 0;
-  if (clusterError === Infinity) return Infinity;
-  return boundOfCluster(clusterError, stretch, lateral, depth, radius, focal, near, perspective);
-}
-
-/** The cluster's half of the guard, then `screenErrorBound`: callers have taken 0 and ∞ out. */
-function boundOfCluster(
   clusterError: number,
   stretch: number,
   lateral: number,

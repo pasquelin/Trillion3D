@@ -55,12 +55,14 @@ function outcome(run: () => number): number | string {
   }
 }
 
-/** The CPU cut's way: the frame checked once, the cluster through `clusterErrorInFrame` when it
- *  passed, through the whole guard otherwise. */
+/** The CPU cut's way (`projectedErrorAt`): 0 and ∞ returned as is, then the frame checked once,
+ *  the cluster through `clusterErrorInFrame` when it passed, through the whole guard otherwise. */
 function checkedOnce(a: Args) {
-  const [, stretch, , , , focal, near, perspective] = a;
+  const [error, stretch, lateral, depth, radius, focal, near, perspective = 1] = a;
+  if (error === 0) return 0;
+  if (error === Infinity) return Infinity;
   return frameParametersSound(stretch, focal, near, perspective)
-    ? clusterErrorInFrame(...a)
+    ? clusterErrorInFrame(error, stretch, lateral, depth, radius, focal, near, perspective)
     : clusterErrorAtDepth(...a);
 }
 
