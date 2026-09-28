@@ -117,13 +117,13 @@ export function createShadowPool(side: number, layers = 1) {
       return true;
     },
     /** How the page is drawn in depth-range slot `drawn` (`DRAW_*`): a layer of another is redrawn. */
-    drawMode(page: number, staticLayer: boolean, drawn = 0) {
+    drawMode(page: number, staticLayer: boolean, drawn: number) {
       if (!staticLayer) return DRAW_ALL;
       const kept = dirty[page] !== STALE_FULL && layered[page] && range[page] === drawn;
       return kept ? DRAW_DYNAMIC : DRAW_FULL;
     },
     /** The page's draw in `mode`, in depth-range slot `drawn`, has landed: current, readable. */
-    drew(table: ShadowTable, page: number, mode: number, drawn = 0) {
+    drew(table: ShadowTable, page: number, mode: number, drawn: number) {
       dirty[page] = 0;
       valid[page] = 1;
       layered[page] = mode === DRAW_FULL || (mode === DRAW_DYNAMIC && layered[page]) ? 1 : 0;
