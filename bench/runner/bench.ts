@@ -51,8 +51,10 @@ async function main() {
   const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))];
   // Measured scene is from named caches; without any, benchmark reference scene.
   const scene = options.sceneOf(sides.find((side) => side.cache)?.cache, flags.get('scene'));
-  if (flags.has('gaze-network') && !readsCache(scene))
+  if (settings.gazeNetwork && !readsCache(scene))
     throw new Error('--gaze-network requires a compiled cache scene');
+  if (settings.gazeNetwork && sides.some((side) => side.engine.id !== 'webgpu-page-raster'))
+    throw new Error('--gaze-network requires the WebGPU page engine on every side');
   const MANIFEST = options.assetsManifest(
     scene,
     readsCache(scene) && sides.some((side) => !side.cache),
@@ -134,7 +136,7 @@ async function main() {
     // Lights once bounds are known: geometric rule, no named scene.
     CTX.lights = benchLights(bounds, settings);
     report.lampes = CTX.lights ? CTX.lights.resume : null;
-    if (flags.has('gaze-network')) {
+    if (settings.gazeNetwork) {
       report.gazeNetwork = await runGazeSeries(CTX, sides, views, bounds, onFreshPage);
       return await publish(report, sides, captures, OUT);
     }
@@ -144,7 +146,7 @@ async function main() {
         const pose = options.poseAt(bounds, index);
         // Moving camera: one pose per measured frame along benchmark trajectory.
         CTX.poses = settings.movingCamera
-          ? Array.from({ length: settings.frames }, (_, i) => options.poseAt(bounds, index + i))
+          ? options.trajectoryPoses(bounds, index, settings.frames)
           : null;
         const serie: Serie = {
           view,

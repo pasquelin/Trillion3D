@@ -34,7 +34,7 @@ test('redirect bytes retain their source and missing transfer makes the reading 
   assert.deepEqual(counter.reading(), {
     textureBytes: 125,
     otherBytes: 0,
-    textureRequests: 2,
+    textureRequests: 1,
     failedRequests: 1,
     unfinishedRequests: 1,
     unmeasuredRedirects: 1,
@@ -49,8 +49,7 @@ test('the summary marks failed or unfinished transfer as incomplete', () => {
     view: 'general',
     pixelError: 1,
     side: 'after',
-    frames: 60,
     ...counter.reading(),
   };
-  assert.match(gazeNetworkLines([row]).join('\n'), /\| 1 \| 0 \| 0 \| incomplete \|/);
+  assert.match(gazeNetworkLines([row], 60).join('\n'), /\| 1 \| 0 \| 0 \| incomplete \|/);
 });

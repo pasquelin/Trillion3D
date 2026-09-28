@@ -24,7 +24,7 @@ export async function publish(
   const appendix = [
     ...limitsLines(report.limits),
     ...fluidsLines(report.fluids),
-    ...gazeNetworkLines(report.gazeNetwork),
+    ...gazeNetworkLines(report.gazeNetwork, report.settings.frames),
   ];
   await writeFile(join(out, 'resume.md'), [resume(report), ...appendix].join('\n'));
   process.stdout.write(`\nJSON: ${join(out, 'mesure.json')}\nSummary: ${join(out, 'resume.md')}\n`);
