@@ -5,8 +5,7 @@ import { createPageRowWriter } from '../row/pageRow.ts';
 import { createWebgpuRowCommit } from '../row/commit.ts';
 import { createWebgpuRowSync } from '../row/sync.ts';
 import { createWebgpuResidencySets } from '../residency/sets.ts';
-import { createWebgpuPinSteps } from '../residency/pinSteps.ts';
-import { createRequestAdmission } from '../residency/requestAdmission.ts';
+import { createWebgpuPinUpdater } from '../residency/pinUpdater.ts';
 import { createWebgpuBootstrap } from '../frame/bootstrap.ts';
 import { createWebgpuResidentEnsurer } from '../residency/residentEnsurer.ts';
 import { createWebgpuResidencyQueue } from '../residency/queue.ts';
@@ -15,7 +14,7 @@ import { createLowerTier } from '../residency/lowerTier.ts';
 import { createGroupClosure } from '../../page/cut/groupClosure.ts';
 import { createImageRelevance } from '../residency/imageRelevance.ts';
 import { createWebgpuCutPublication } from '../cut/publication.ts';
-import { acceptPage } from './io/pageApi.ts';
+import { acceptPage, dropPage } from './io/pageApi.ts';
 import { readGeometryPageHeader } from '../../page/decode/geometryPageHeader.ts';
 import { awaitsPageBytes, pageAddress, readGeometryAhead } from '../row/pageSlots.ts';
 import { markWebgpuLost } from './io/lost.ts';
@@ -30,7 +29,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const { run, gpu, diag, context } = rt,
     { rows, packedPages, drawSlots } = rt.layout,
     { tracking, bootstrap, bootstrapUrls, bootstrapKey } = rt.setup,
-    { sourceBytes, geometryUrls } = rt.setup;
+    { sourceBytes, byUrl, geometryUrls } = rt.setup;
   const mirror = createWebgpuResidencyMirror({
     pageIndicesByUrl: rows.pageIndicesByUrl,
     residentOffsetWords: rows.residentOffsetWords,
@@ -108,14 +107,18 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
   const closure = createGroupClosure(rt.layout.selectionRoots, packedPages);
   /** The residency sets and the page dependencies: an image that moves no page touches neither. */
-  const residencySets = createWebgpuResidencySets({
-      tracking,
-      bootstrapKey,
-      packedPages,
-      heldIds: closure.forEachHeld,
-    }),
+  const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages, closure }),
     parentsOf = createPageParents(rt.layout.selectionRoots);
-  const pins = createWebgpuPinSteps(rt, residencySets, parentsOf);
+  const pinUpdater = createWebgpuPinUpdater({
+    tracking,
+    sets: residencySets,
+    bootstrapUrls,
+    deferredDrops: run.deferredDrops,
+    byUrl,
+    parentsOf,
+    traceEnabled: diag.traceEnabled,
+    traceDiagnostic: diag.traceDiagnostic,
+  });
   const bootstrapState = createWebgpuBootstrap({
     pages: bootstrap,
     urls: bootstrapUrls,
@@ -156,7 +159,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     isLost: () => run.lost,
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
-    // A camera cut the pool does not hold whole leaves the lower tiers nothing.
     lowerTiers: () => lowerTiers,
     prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
   });
@@ -166,9 +168,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     room,
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
-    updatePins: pins.cpu,
-    admitRequests: createRequestAdmission(residencySets, tracking, bootstrapKey, closure),
-    followRequestPins: pins.gpu,
+    updatePins: () => pinUpdater(gpu.cache, run.shown, run.frame, (key) => dropPage(rt, key)),
+    closure,
     ensureResident,
     markLost: (error) => markWebgpuLost(rt, { reason: 'residency', message: String(error) }),
     traceEnabled: diag.traceEnabled,
@@ -194,7 +195,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     shadowTier,
     affectsImage,
     queueCutResidency: residency.queueCutResidency,
-    queueGpuCutResidency: residency.queueGpuCutResidency,
     ...publication,
   };
 }

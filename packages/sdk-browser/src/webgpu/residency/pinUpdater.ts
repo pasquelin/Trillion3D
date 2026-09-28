@@ -6,7 +6,6 @@ import { createDenseKeySet } from '../cut/denseKeys.ts';
 import type { WebgpuResidencySets } from './sets.ts';
 import { createLastUse } from '../../residency/lastUse.ts';
 import { DAG_READBACK_SLOTS } from '../../gpu/dag/layout.ts';
-import { settleDeferredDrops } from './requestPins.ts';
 type Cache = ReturnType<typeof createGpuPageCache>;
 type Trace = ReturnType<typeof createWebgpuDiagnostics>['traceDiagnostic'];
 type Tracking = ReturnType<typeof createWebgpuPageTracking>;
@@ -56,7 +55,6 @@ export function createWebgpuPinUpdater(options: {
     onHeld: want,
     onIdle: (key) => current.touch(tracking.pageCatalog[key]),
   });
-  const holds = (rec: PageRec) => lastUse.holds(tracking.keyOf(rec));
   /** The cache of the running update, read by the callbacks built once above and below. */
   let current: Cache;
   /** True when the key held a slot pinned: unpinning it gives that slot back. */
@@ -123,7 +121,18 @@ export function createWebgpuPinUpdater(options: {
     // released pages in their last-use order. What the image still misses beyond the unpinned
     // slots is the pressure: the window gives way to it (`../../residency/lastUse.ts`).
     lastUse.release(frame, unpin, missing - cache.unpinnedSlots());
-    settleDeferredDrops(deferredDrops, byUrl, holds, drop);
+    // Kept keys are clusters; a deferred drop names the request that carries them. The question is
+    // therefore asked request by request — a handful — and not by copying the kept set into two
+    // string tables on every image where a drop waits, which the cluster count of a city makes
+    // impractical: the catalogue already says which clusters a request carries.
+    for (const key of deferredDrops) {
+      const recs = byUrl.get(key);
+      let kept = false;
+      if (recs)
+        for (let i = 0; i < recs.length && !kept; i++)
+          kept = lastUse.holds(tracking.keyOf(recs[i]));
+      if (!kept) drop(key);
+    }
     if (!traceEnabled || (!added.length && !removed.length)) return;
     traceDiagnostic('residency-pins', 'GPU pins updated', () => ({
       frame,

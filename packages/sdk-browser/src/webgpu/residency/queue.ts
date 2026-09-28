@@ -5,6 +5,8 @@ import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import type { WebgpuResidencySets } from './sets.ts';
 import { pageAddress } from '../row/pageSlots.ts';
 import type { GpuCut } from '../../gpu/core/selection.ts';
+import type { GroupClosure } from '../../page/cut/groupClosure.ts';
+import { createRequestAdmission } from './requestAdmission.ts';
 
 type Cache = ReturnType<typeof createGpuPageCache>;
 type Diagnostics = ReturnType<typeof createWebgpuDiagnostics>;
@@ -16,12 +18,9 @@ type QueueOptions = {
   room: () => number;
   getCache: () => Cache | undefined;
   getFrame: () => number;
-  /** The CPU cut's pin step (`pinUpdater.ts`); `fresh` when it takes over from the GPU cut's. */
-  updatePins: (fresh: boolean) => void;
-  /** The GPU cut's admission and pin step (`requestAdmission.ts`, `requestPins.ts`); `resync`
-   *  when it takes over from the CPU cut's. */
-  admitRequests: (room: number, cut: GpuCut | null) => void;
-  followRequestPins: (resync: boolean) => void;
+  updatePins: () => void;
+  /** The groups the GPU cut's requests close over, what its admission walks (`requestAdmission.ts`). */
+  closure: Pick<GroupClosure, 'closeOver'>;
   ensureResident: (
     wanted: readonly PageRec[],
     frame: number,
@@ -38,6 +37,7 @@ type QueueOptions = {
 export function createWebgpuResidencyQueue(options: QueueOptions) {
   const { tracking, sets, getCache, getFrame, updatePins, ensureResident } = options;
   const { markLost, traceEnabled, traceDiagnostic, diagnosticFailure } = options;
+  const admitRequests = createRequestAdmission(sets, tracking, options.closure);
   /** The pages of the wanted set, one record per key: the queue is that set, not a copy of it. */
   const items = tracking.wantedPages;
   let pending: Promise<unknown> = Promise.resolve();
@@ -45,11 +45,11 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
     running = false,
     job = 0;
 
-  const follow = (pins: () => void) => {
+  const follow = () => {
     const queuedAt = performance.now(),
       jobId = ++job,
       jobFrame = getFrame();
-    pins();
+    updatePins();
     scheduled = true;
     if (traceEnabled)
       traceDiagnostic('residency-queue', 'GPU residency queued', () => ({
@@ -118,16 +118,16 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
      * queue empties, and the image sticks to pinned coverage.
      */
     queueCutResidency(limited: boolean) {
-      const fresh = sets.decideBy(true);
+      sets.decideBy(true);
       sets.applyBudget(limited ? 0 : options.room());
-      follow(() => updatePins(fresh));
+      follow();
     },
-    /** The GPU cut's: it keeps loading at full budget, admission following its sorted requests
-     *  and the pins what it admitted; the rest is drawn by its nearest resident ancestor. */
+    /** The GPU cut's: it keeps loading at full budget, admission reading its readback's requests,
+     *  coarsest first; the rest is drawn by its nearest resident ancestor. */
     queueGpuCutResidency(cut: GpuCut | null) {
-      const resync = sets.decideBy(false);
-      options.admitRequests(options.room(), cut);
-      follow(() => options.followRequestPins(resync));
+      sets.decideBy(false);
+      admitRequests(options.room(), cut);
+      follow();
     },
     nextJobId: () => ++job,
     quietPending: () => {
