@@ -67,6 +67,10 @@ impl ImageDecoder for Hdr {
             .iter()
             .any(|signature| head.starts_with(signature))
     }
+    fn dimensions(&self, bytes: &[u8]) -> std::result::Result<(u32, u32), &'static str> {
+        let (width, height, _) = header(bytes)?;
+        Ok((width, height))
+    }
     /// The header first — it gives the size, so the ceiling applies before any allocation —,
     /// then the pixel lines, each in one of the format's three writings.
     fn decode(
