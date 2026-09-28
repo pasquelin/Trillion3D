@@ -35,8 +35,8 @@
   exceed the Three.js witness. Any measured regression blocks validation and merge. Measurement
   noise is not an exemption, and an unmeasured metric is never evidence of parity.
 - **Every millisecond counts, measured.** The frame's largest costs are ranked on a real scene
-  (`docs/roles/measurer.md` step 7): small calculations repeated per frame or per page,
-  allocations in a frame, a JavaScript kernel that belongs in Rust or WebAssembly, work the
+  (the per-stage profile, `bench/runner/README.md`): small calculations repeated per frame or per
+  page, allocations in a frame, a JavaScript kernel that belongs in Rust or WebAssembly, work the
   compiler could bake once.
 - **Never optimise a path whose cost is not measured.** State its share of the frame first, on a real
   scene, or say plainly that it is unknown. A batch justified by a supposition is a batch to stop.
@@ -121,8 +121,7 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
   lines, duplicates and import-related unit tests; `pnpm run test:changed` runs only those tests. Also
   inspect dependants after deletions, public-export or configuration changes.
 - Before merge: `pnpm run validate` (format, JS/TS lint + Clippy, unused code/files/dependencies,
-  TS/native builds, structure, declarations, links, JS/TS/Rust tests); the image proof and the
-  timing follow the merge.
+  TS/native builds, structure, declarations, links, JS/TS/Rust tests).
 - **All wording in the repository must be in English.** Comments, docstrings, documentation,
   commit messages and test descriptions are strictly written in English.
 - Every maintained JS/TS/Rust source file, including variants, must fit 200 physical lines; no legacy
@@ -204,25 +203,24 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 2. Implement the issue and record the relevant proof. Keep changes limited to the batch.
 3. Review the diff twice: first simplify duplicated or unnecessary work — in Claude Code
    `/simplify`, elsewhere a read of the whole diff for what is duplicated, needless or at the wrong
-   depth —, then check correctness against the requirements above. Fix findings and run
-   `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate` once, on the final
-   head; the image proof and the timing follow on the branch.
+   depth —, then check correctness against the requirements above. Fix findings; then
+   `pnpm run check:changed`, `pnpm run test:changed` and the `validate` group the diff touches run
+   once, on the final head (by the reviewer, `docs/roles/reviewer.md`), and the CI runs the whole
+   `validate`; the image proof and the timing follow on the branch.
 4. Commit with a descriptive English message and push the branch; write the pull request body in a file, using
-   `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>` (AGENTS.md rule 5). Describe what both local review passes found under "Local review before push". Replace `in progress` with `in review`. No pull request yet (AGENTS.md rule 11).
+   `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>` (AGENTS.md rule 5). Describe what both local review passes found under "Local review before push". Add `in review`; `in progress` stays until the merge. No pull request yet (AGENTS.md rule 11).
 5. Obtain an independent review and resolve its findings, then the image proof and the timing on
    the branch (AGENTS.md rule 2). Only then open the pull request, with its "Lead verification"
    section, one line per To-do and Proof item, and auto-merge on: it merges into `develop` once
    `validate` is green on a head that merged `develop` and merges cleanly into it (AGENTS.md rule
    11); `main` moves only on the maintainer's word. Never push directly to `develop` or `main`, or
    rewrite published history.
-6. After merge, remove the worktree and merged branch, remove `in review` and check the issue is
-   closed: GitHub's `Closes #n` acts only on `main`, so
-   [`close-issues.yml`](.github/workflows/close-issues.yml) closes, as completed and with a
-   comment linking the pull request, every issue a body merged into `develop` names with a closing
-   keyword (`Part of #n` leaves it open). A regression found after the merge reopens the issue,
-   labelled `audit ko` or `measure ko`, with the findings in a comment.
-   If a pull request is closed without merging, remove both lifecycle labels; add `in progress`
-   only if work resumes.
+6. After merge, remove the worktree and merged branch, remove the lifecycle labels
+   (`docs/roles/lead.md` step 5), and check the issue is closed: GitHub's `Closes #n` acts only on
+   `main`, so [`close-issues.yml`](.github/workflows/close-issues.yml) closes, as completed and
+   with a comment linking the pull request, every issue a body merged into `develop` names with a
+   closing keyword. A regression found after the merge reopens the issue, labelled `audit ko` or
+   `measure ko`, with the findings in a comment.
 
 A release from `develop` to `main` has its own issue and pull request. Its head is `develop`;
 no separate release branch is needed. Use the same template and `Closes #<issue>` first line (the release delivers its whole issue),
