@@ -42,7 +42,8 @@ pub(crate) fn declared_matter(g: &Value, node: &Value) -> Value {
 /// its collider names, as declared; else the cooked hull of the mesh its collider names (its own
 /// without a collider), moved into the body's frame, and, a dynamic body's, the exact mass of the
 /// solid it bounds — one hull, whether or not the collider asks for `convexHull`; bodies drawing
-/// the same mesh in their own frame share it, whatever scale each is weighed at.
+/// the same mesh in their own frame share it, whatever scale each is weighed at. A collider
+/// naming another node's mesh records that node (`colliderNode`).
 fn body(
     o: &Options,
     source: (&Value, &[u8]),
@@ -114,6 +115,11 @@ fn body(
     entry["node"] = json!(index);
     entry["motion"] = declared["motion"].clone();
     entry["shape"] = shape;
+    // Another node's mesh collides as the body: the page takes that node's static ground out.
+    let named = field("node").and_then(Value::as_u64);
+    if let Some(at) = named.filter(|&n| field("shape").is_none() && n as usize != index) {
+        entry["colliderNode"] = json!(at);
+    }
     if let Some((threshold, pieces)) = cut {
         (entry["breakable"], entry["pieces"]) = (json!(threshold), json!(pieces));
     }
