@@ -7,7 +7,8 @@
  * In linear light, with `s` the source colour, `a` its opacity, `d` what the target holds and `t`
  * its alpha: normal is `s·a + d·(1 − a)` (alpha `a + t·(1 − a)`), additive `d + s·a` (alpha
  * `t + a·a`), subtractive `d·(1 − s)` (alpha `t`), multiply `d·s` (alpha `t·a`), and none writes
- * `s` as it is — what the witness, three@0.174, computes for the same material. A custom equation
+ * `s` as it is — what the witness, three@0.174, computes for the same material; WebGPU's lit
+ * target keeps its coverage under multiply (`COVERAGE_EQUATIONS`). A custom equation
  * is not a mode the engine draws. The WebGPU fallback pass (`webgpu/pages/prepare/shaders.ts`)
  * applies the same equations after its tone map and sRGB encoding: it blends display values, not
  * linear light.
@@ -71,7 +72,7 @@ export function drawnBlending(blending: Blending | undefined, transmissive: bool
 export const composesWithBackground = (blending: Blending) =>
   blending === 'additive' || blending === 'subtractive' || blending === 'multiply';
 
-/** The target keeps its own alpha: subtractive composes the colour alone. */
+/** The target keeps its own alpha: subtractive composes the colour alone, and multiply on WebGPU. */
 const KEEP_ALPHA: GPUBlendComponent = { srcFactor: 'zero', dstFactor: 'one', operation: 'add' };
 const ADD: GPUBlendComponent = { srcFactor: 'src-alpha', dstFactor: 'one', operation: 'add' };
 const MULTIPLY: GPUBlendComponent = { srcFactor: 'zero', dstFactor: 'src', operation: 'add' };
@@ -90,6 +91,15 @@ export const BLEND_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
   },
   multiply: { color: MULTIPLY, alpha: MULTIPLY },
   none: undefined,
+};
+
+/** The same equations on WebGPU's lit target, whose alpha is the coverage the composition lays
+ *  the background under (`../lighting/deferred/shaders.ts`): the witness draws over a canvas that
+ *  already holds the background, opaque, so its `t·a` of multiply hides nothing there. Multiply
+ *  keeps the target's coverage, as subtractive does: the background never shows through it. */
+export const COVERAGE_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
+  ...BLEND_EQUATIONS,
+  multiply: { color: MULTIPLY, alpha: KEEP_ALPHA },
 };
 
 /** A mode whose colour weighs the source by its alpha (`normal`, `additive`): its alpha is
