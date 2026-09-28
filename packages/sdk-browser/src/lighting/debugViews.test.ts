@@ -151,7 +151,7 @@ test('a lit transparent over a debug view contributes zero as-is share at its op
   assert.match(BLEND_SHADER, /@location\(2\) asIs:vec4f/);
   assert.match(
     BLEND_SHADER,
-    /BlendOut\(vec4f\(rgb,s\.alpha\),s\.request,vec4f\(0\.0,0\.0,0\.0,s\.alpha\)\)/,
+    /BlendOut\(vec4f\(rgb,s\.alpha\),s\.request,vec4f\(0\.0,0\.0,0\.0,s\.alpha\),/,
   );
   assert.equal(BLEND_EQUATIONS.normal?.color.srcFactor, 'src-alpha');
   assert.equal(BLEND_EQUATIONS.normal?.color.dstFactor, 'one-minus-src-alpha');

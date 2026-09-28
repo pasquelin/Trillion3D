@@ -19,11 +19,14 @@ export const TAA_BINDINGS = {
   view: 7,
   flags: 8,
   shareHistory: 9,
+  filterNow: 10,
+  filterHistory: 11,
 } as const;
 
 /** The pass's bind group layout: one entry per binding above, in its order. The share's two come
- *  last: a flagless resolve (OMB-11) neither binds nor reads them. */
-export function createTaaLayout(device: GPUDevice, asIs = true, blended = false) {
+ *  after the colour's: a flagless resolve (OMB-11) neither binds nor reads them. The display
+ *  filter's two come last, bound by a `filtered` resolve alone. */
+export function createTaaLayout(device: GPUDevice, asIs = true, blended = false, filtered = false) {
   const fragment = GPUShaderStage.FRAGMENT;
   const entries: GPUBindGroupLayoutEntry[] = [
     {
@@ -53,12 +56,18 @@ export function createTaaLayout(device: GPUDevice, asIs = true, blended = false)
       texture: { sampleType: 'float' },
     },
   ];
+  if (filtered)
+    for (const binding of [TAA_BINDINGS.filterNow, TAA_BINDINGS.filterHistory])
+      entries.push({ binding, visibility: fragment, texture: { sampleType: 'float' } });
+  const flagged = (binding: number) =>
+    asIs || binding < TAA_BINDINGS.flags || binding >= TAA_BINDINGS.filterNow;
   return device.createBindGroupLayout({
-    entries: asIs ? entries : entries.filter(({ binding }) => binding < TAA_BINDINGS.flags),
+    entries: entries.filter(({ binding }) => flagged(binding)),
   });
 }
 
-/** Uniform bytes: two matrices, three quadruplets, then the nine weights in three. */
+/** Uniform bytes: two matrices, three quadruplets, then the nine weights in three. `params.w` says
+ *  the display filter's history holds the last image's filter. */
 export const TAA_VIEW_BYTES = 208;
 
 /**
@@ -84,6 +93,9 @@ const BINDINGS_WGSL = `
 const shareBindingsWgsl = (blended: boolean) => `
 @group(0) @binding(${TAA_BINDINGS.flags}) var flags:texture_2d<${blended ? 'f32' : 'u32'}>;
 @group(0) @binding(${TAA_BINDINGS.shareHistory}) var shareHistory:texture_2d<f32>;`;
+const FILTER_BINDINGS_WGSL = `
+@group(0) @binding(${TAA_BINDINGS.filterNow}) var filterNow:texture_2d<f32>;
+@group(0) @binding(${TAA_BINDINGS.filterHistory}) var filterHistory:texture_2d<f32>;`;
 
 /** YCoCg, the space where the neighbour box tightens best around the colour. */
 export const YCOCG_WGSL = `
@@ -126,24 +138,29 @@ fn previousUv(coord:vec2i,depthValue:f32)->vec3f{
  * surface settles on one blend of the curve and none, never flipping with the jitter. Without an
  * as-is pixel in the frame (`asIs` false, OMB-11) that share is exactly 0 wherever the colour is
  * finite — each neighbour 0, and history clamped to [0, 0] —: the flagless resolve writes 0 and
- * reads neither the flags nor the share history, its colour the same text.
+ * reads neither the flags nor the share history, its colour the same text. A `filtered` resolve
+ * does the same for the display filter (`../webgpu/blend/displayFilter.ts`), whose history it
+ * reads only when it holds the last image's (`params.w`).
  */
-export const taaShader = (asIs: boolean, blended = false) => {
+export const taaShader = (asIs: boolean, blended = false, filtered = false) => {
   const share = (text: string, none = '') => (asIs ? text : none);
+  const filter = (text: string) => (filtered ? text : '');
+  const out = (color: string, value: string, filterValue: string) =>
+    `TaaOut(${color},${share(value, '0.0')}${filter(`,${filterValue}`)})`;
   return `
 ${PAGE_INFO_STRUCT_WGSL}
 ${VIEW_WGSL}
-${BINDINGS_WGSL}${share(shareBindingsWgsl(blended))}
+${BINDINGS_WGSL}${share(shareBindingsWgsl(blended))}${filter(FILTER_BINDINGS_WGSL)}
 ${FULLSCREEN_VERTEX}
 ${YCOCG_WGSL}
 ${TAA_REPROJECT_WGSL}
-struct TaaOut{@location(0) color:vec4f,@location(1) share:f32,}
+struct TaaOut{@location(0) color:vec4f,@location(1) share:f32,${filter('@location(2) tint:vec4f,')}}
 @fragment fn resolve(@builtin(position) pixel:vec4f)->TaaOut{
  let coord=vec2i(pixel.xy);
  let last=vec2i(view.viewport.xy)-vec2i(1);
  var filtered=vec4f(0.0);
  var lo=vec4f(1e9);var hi=vec4f(-1e9);
-${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')} var k=0u;
+${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')}${filter(' var tint=vec4f(0.0);var tintLo=vec4f(1.0);var tintHi=vec4f(0.0);\n')} var k=0u;
  for(var dy=-1;dy<=1;dy++){for(var dx=-1;dx<=1;dx++){
   let at=clamp(coord+vec2i(dx,dy),vec2i(0),last);
   let sample=textureLoad(current,at,0);
@@ -152,17 +169,17 @@ ${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')} var k=0u;
   let y=vec4f(toYcocg(sample.rgb),sample.a);
   lo=min(lo,y);hi=max(hi,y);
 ${share(`  let asIs=${blended ? 'textureLoad(flags,at,0).r' : `f32(textureLoad(flags,at,0).r==${AS_IS_FLAG}u)`};
-  share+=asIs*weight;shareLo=min(shareLo,asIs);shareHi=max(shareHi,asIs);\n`)} }}
- if(view.params.y==0.0){return TaaOut(filtered,${share('share', '0.0')});}
+  share+=asIs*weight;shareLo=min(shareLo,asIs);shareHi=max(shareHi,asIs);\n`)}${filter(`  let f=textureLoad(filterNow,at,0);tint+=f*weight;tintLo=min(tintLo,f);tintHi=max(tintHi,f);\n`)} }}
+ if(view.params.y==0.0){return ${out('filtered', 'share', 'tint')};}
  let previous=previousUv(coord,textureLoad(depth,coord,0));
- if(previous.z==0.0){return TaaOut(filtered,${share('share', '0.0')});}
+ if(previous.z==0.0){return ${out('filtered', 'share', 'tint')};}
  let read=textureSampleLevel(history,historySampler,previous.xy,0.0);
  let clamped=clamp(vec4f(toYcocg(read.rgb),read.a),lo,hi);
  let kept=vec4f(fromYcocg(clamped.xyz),clamped.w);
 ${share(' let keptShare=clamp(textureSampleLevel(shareHistory,historySampler,previous.xy,0.0).r,shareLo,shareHi);\n')} let alpha=view.params.x;
  let wc=alpha/(1.0+toYcocg(filtered.rgb).x);
  let wh=(1.0-alpha)/(1.0+clamped.x);
- return TaaOut((filtered*wc+kept*wh)/(wc+wh),${share('(share*wc+keptShare*wh)/(wc+wh)', '0.0')});
+${filter(' let keptTint=select(tint,clamp(textureSampleLevel(filterHistory,historySampler,previous.xy,0.0),tintLo,tintHi),view.params.w!=0.0);\n')} return ${out('(filtered*wc+kept*wh)/(wc+wh)', '(share*wc+keptShare*wh)/(wc+wh)', '(tint*wc+keptTint*wh)/(wc+wh)')};
 }`;
 };
 export const TAA_SHADER = taaShader(true);
