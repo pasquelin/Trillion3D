@@ -19,7 +19,8 @@ export function namedIssues(body: string): number[] {
 
 async function main(): Promise<void> {
   const { GITHUB_TOKEN: token, GITHUB_REPOSITORY: repo, PR_URL: url, PR_BODY: body } = process.env;
-  if (!token || !repo || !url) throw new Error('GITHUB_TOKEN, GITHUB_REPOSITORY and PR_URL are required.');
+  if (!token || !repo || !url)
+    throw new Error('GITHUB_TOKEN, GITHUB_REPOSITORY and PR_URL are required.');
   const api = async (path: string, method = 'GET', payload?: object) => {
     const response = await fetch(`https://api.github.com/repos/${repo}/issues/${path}`, {
       method,
@@ -30,19 +31,30 @@ async function main(): Promise<void> {
       },
       body: payload && JSON.stringify(payload),
     });
-    if (!response.ok) throw new Error(`${method} ${path}: ${response.status} ${await response.text()}`);
+    if (!response.ok)
+      throw new Error(`${method} ${path}: ${response.status} ${await response.text()}`);
     return response.json() as Promise<{ state: string; pull_request?: object }>;
   };
+  // One issue that fails (a typo'd number, a deleted issue) never keeps the others open.
   for (const issue of namedIssues(body ?? '')) {
-    const current = await api(`${issue}`);
-    const skip = current.pull_request ? 'a pull request' : current.state === 'closed' ? 'already closed' : '';
-    if (skip) {
-      console.log(`#${issue}: skipped (${skip}).`);
-      continue;
+    try {
+      const current = await api(`${issue}`);
+      const skip = current.pull_request
+        ? 'a pull request'
+        : current.state === 'closed'
+          ? 'already closed'
+          : '';
+      if (skip) {
+        console.log(`#${issue}: skipped (${skip}).`);
+        continue;
+      }
+      await api(`${issue}/comments`, 'POST', { body: `Closed by ${url} (merged into develop).` });
+      await api(`${issue}`, 'PATCH', { state: 'closed', state_reason: 'completed' });
+      console.log(`#${issue}: closed.`);
+    } catch (error) {
+      console.error(`#${issue}: ${error instanceof Error ? error.message : String(error)}`);
+      process.exitCode = 1;
     }
-    await api(`${issue}/comments`, 'POST', { body: `Closed by ${url} (merged into develop).` });
-    await api(`${issue}`, 'PATCH', { state: 'closed', state_reason: 'completed' });
-    console.log(`#${issue}: closed.`);
   }
 }
 
