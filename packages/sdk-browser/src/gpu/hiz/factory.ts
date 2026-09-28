@@ -9,7 +9,7 @@ import {
   writeHizTestUniforms,
   type HizBuildPass,
 } from './uniforms.ts';
-import { cleanupFailedHiz, createHizPipelines } from './pipelines.ts';
+import { cleanupFailedHiz, createHizPipelines, hizPagesGroup } from './pipelines.ts';
 import { TESTED_U32 } from '../partition/contract.ts';
 import type { GpuHiz } from './types.ts';
 const TEST_WORKGROUP = 64;
@@ -42,7 +42,8 @@ export async function createGpuHiz(
   try {
     const pipelines = await createHizPipelines(device);
     if (!pipelines) return undefined;
-    const { layout, buildPipeline, testPipeline, pagesGroup } = pipelines;
+    const { layout, buildPipeline, testPipeline } = pipelines;
+    const pagesGroup = hizPagesGroup(device, pipelines.pagesLayout);
     const uniforms = device.createBuffer({
       // The deepest pyramid's build passes, then the test's slot.
       size: UNIFORM_BYTES * (Math.ceil((HIZ_MAX_LEVELS - 1) / HIZ_PASS_LEVELS) + 1),

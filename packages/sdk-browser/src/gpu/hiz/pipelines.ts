@@ -22,15 +22,16 @@ export const createHizPipelines = oncePerDevice((device) =>
       });
     return {
       layout,
-      pagesGroup: hizPagesGroup(device, pagesLayout),
+      pagesLayout,
       buildPipeline: stage('buildHiz'),
       testPipeline: stage('testHiz', [layout, pagesLayout]),
     };
   }),
 );
 
-/** The test's page-table group (group 1), remade only when the table changes identity (it grows). */
-function hizPagesGroup(device: GPUDevice, layout: GPUBindGroupLayout) {
+/** The test's page-table group (group 1), remade only when the table changes identity (it grows):
+ *  one per pyramid, never in the device's shared pipelines, where two pyramids would remake it. */
+export function hizPagesGroup(device: GPUDevice, layout: GPUBindGroupLayout) {
   let bound: GPUBuffer | undefined, group: GPUBindGroup | undefined;
   return (pages: GPUBuffer) => {
     if (pages !== bound || !group)
