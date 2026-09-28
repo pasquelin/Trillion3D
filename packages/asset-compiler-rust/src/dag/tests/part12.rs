@@ -77,7 +77,7 @@ fn solved_coordinates_stay_on_the_primitive_grid_under_uneven_weights() {
     let (positions, carried, indices) = sheet(16);
     let refs: Vec<&Attribute> = carried.iter().collect();
     let attributes = DagAttributes { carried: &refs };
-    let welds = attributes::Welds::of(&positions, attributes, &indices);
+    let welds = welds::Welds::of(&positions, attributes, &indices);
     let locks = vec![false; positions.len() / 3];
     let level_weighted = attributes.weighted();
     let input = welds.input(
@@ -149,7 +149,7 @@ fn a_texture_weight_follows_its_density() {
     let weight = |carried: &[Attribute]| {
         let refs: Vec<&Attribute> = carried.iter().collect();
         let attributes = DagAttributes { carried: &refs };
-        let welds = attributes::Welds::of(&positions, attributes, &indices);
+        let welds = welds::Welds::of(&positions, attributes, &indices);
         let locks = vec![false; positions.len() / 3];
         let bound = quality::NORMAL_DEVIATION_BOUND;
         let weighted = attributes.weighted();
@@ -171,7 +171,7 @@ fn a_placed_coordinate_charges_its_slide() {
     let (positions, carried, indices) = sheet(16);
     let refs: Vec<&Attribute> = carried.iter().collect();
     let attributes = DagAttributes { carried: &refs };
-    let welds = attributes::Welds::of(&positions, attributes, &indices);
+    let welds = welds::Welds::of(&positions, attributes, &indices);
     let locks = vec![false; positions.len() / 3];
     let weighted = attributes.weighted();
     let bound = quality::NORMAL_DEVIATION_BOUND;

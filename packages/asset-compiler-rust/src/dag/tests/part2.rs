@@ -57,7 +57,7 @@ fn group_simplification_pins_shared_vertices_and_frees_the_open_boundary() {
         .iter()
         .flat_map(|c| c.indices.iter().copied())
         .collect();
-    let welds = attributes::Welds::of(&positions, DagAttributes::default(), &indices);
+    let welds = welds::Welds::of(&positions, DagAttributes::default(), &indices);
     let bound = quality::NORMAL_DEVIATION_BOUND;
     let input = welds.input(&positions, DagAttributes::default(), &[], &locks, bound);
     let reduction = reduce_group(&input, &group)
@@ -118,7 +118,7 @@ fn an_isolated_sheet_simplifies_its_whole_boundary() {
         })
         .collect();
     let group: Vec<&DagCluster> = children.iter().collect();
-    let welds = attributes::Welds::of(&positions, DagAttributes::default(), &indices);
+    let welds = welds::Welds::of(&positions, DagAttributes::default(), &indices);
     let bound = quality::NORMAL_DEVIATION_BOUND;
     let input = welds.input(&positions, DagAttributes::default(), &[], &locks, bound);
     let reduction = reduce_group(&input, &group)
