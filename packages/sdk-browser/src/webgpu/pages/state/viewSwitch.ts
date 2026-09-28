@@ -1,19 +1,7 @@
+import { tradeView as trade } from '../../../frame/viewTrade.ts';
 import { releaseTargets } from '../prepare/targets.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { VIEW_GPU_KEYS, VIEW_RUN_KEYS, VIEW_VIS_KEYS, type WebgpuView } from './view.ts';
-
-/** Moves `keys` of the live group into `from`'s record, then `to`'s into the live group. */
-function trade<T, K extends keyof T>(
-  live: T,
-  from: Pick<T, K>,
-  to: Pick<T, K>,
-  keys: readonly K[],
-) {
-  for (const key of keys) {
-    from[key] = live[key];
-    live[key] = to[key];
-  }
-}
 
 /**
  * The one place a view is switched: every reader goes through the runtime groups, and they hold
