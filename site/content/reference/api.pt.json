@@ -3695,7 +3695,6 @@
     "members": {
       "budgetBytes": "Bytes permitidos.",
       "layers": "Camadas de cada pool de faixa, por atlas, e os bytes de cada pool somados.",
-      "tiles": "Blocos que cada reservatório de faixa pode conter, por atlas: os lugares das suas camadas, ou menos quando o orçamento está abaixo do mínimo de camadas — o orçamento é então respeitado bloco a bloco.",
       "allocatedBytes": "Bytes mantidos.",
       "clamp": "Por que o tamanho foi limitado."
     }

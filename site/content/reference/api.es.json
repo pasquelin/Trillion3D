@@ -6163,7 +6163,6 @@
     "members": {
       "budgetBytes": "Bytes permitidos.",
       "layers": "Capas de cada reserva de carril, por atlas, y los bytes de todas las reservas sumados.",
-      "tiles": "Teselas que puede contener cada reserva de carril, por atlas: los lugares de sus capas, o menos cuando el presupuesto está por debajo del mínimo de capas; el presupuesto se respeta entonces tesela a tesela.",
       "allocatedBytes": "Bytes ocupados.",
       "clamp": "Por qué se limitó el tamaño."
     }

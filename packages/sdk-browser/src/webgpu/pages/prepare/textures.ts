@@ -5,7 +5,7 @@ import { previewsByAtlas, tileCatalogue } from '../../tile/catalogue.ts';
 import { createWebgpuTileStreamer } from '../../tile/streamer.ts';
 import { chooseBlockFormat, laneCounts, poolEncoding } from '../../../texture/blockFormats.ts';
 import { texturePoolFor, type TexturePool } from '../../residency/memoryBudgets.ts';
-import { grantedTexturePool, samePool } from '../../residency/poolGrants.ts';
+import { grantedTexturePool, sameLayers } from '../../residency/poolGrants.ts';
 import { grantedLatest } from './grantLatest.ts';
 import { shadowsFollowTextures } from './lightResources.ts';
 import {
@@ -103,13 +103,12 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   const tails = { color: laneTails(color), data: laneTails(data) };
   const poolFor = (budgetBytes: number) =>
     texturePoolFor(budgetBytes, gpuDevice, demand, encoding.texelBytes, tails);
-  const streamer = ({ layers, tiles }: TexturePool) =>
+  const streamer = (layers: TexturePool['layers']) =>
     createWebgpuTileStreamer({
       device: gpuDevice,
       color,
       data,
       layers,
-      tiles,
       encoding,
       budgetBytes: rt.setup.textureBudget,
       budgetMs: rt.setup.textureUploadMs,
@@ -130,10 +129,10 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
   const granted = await grantedLatest({
     budget: () => rt.setup.texturePoolBudget,
     draw: (asked) => ({ asked, pool: poolFor(asked) }),
-    same: samePool,
+    same: sameLayers,
     grant: ({ asked }) =>
       grantedTexturePool(gpuDevice, asked, { poolFor }, diag.engineDiagnostic, (pool) =>
-        streamer(pool),
+        streamer(pool.layers),
       ),
     stopped: () => rt.signal.aborted || run.lost,
   });
@@ -150,7 +149,6 @@ export async function prepareWebgpuTextures(rt: WebgpuPagesRuntime, gpuDevice: G
     data: catalogueReport(data),
     pool: {
       layers: pools.pool.layers,
-      tiles: pools.pool.tiles,
       bytes: pools.pool.allocatedBytes,
       clamp: pools.pool.clamp,
       compression: choice,
