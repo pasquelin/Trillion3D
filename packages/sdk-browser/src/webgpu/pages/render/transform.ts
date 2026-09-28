@@ -1,46 +1,38 @@
-import { MOVE_PROMOTED } from '../../../placement/update.ts';
 import {
-  BOX_VALUES,
   EngineError,
-  boxEmpty,
-  boxIsEmpty,
-  boxTransform,
-  boxUnionBatch,
+  decomposeMatrix4,
+  determinantMatrix4,
+  invertMatrix4,
+  multiplyMatrix4,
 } from '../../../../../sdk-core/src/index.ts';
-import { moveRootRows } from './movedRoot.ts';
-import { findNode, rootsUnder, underSource } from './movedNode.ts';
-import { poseNode } from './movedPose.ts';
-import { transformRootBoxes } from '../../../math/batchBoxes.ts';
+import { assertFiniteTransform, hostLocalInto } from '../../../host/world/matrices.ts';
+import { hostWorldChainInto } from '../../../host/world/chain.ts';
+import { copyElements, sameElements } from '../../../math/matrixElements.ts';
+import { findNode, underSource } from './movedNode.ts';
+import { finishMoves, noteMoved } from './movedBatch.ts';
+import type { HostWorldPlacements } from '../../../host/world/placements.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts';
 
-const moved = new Float64Array(BOX_VALUES),
-  movedMin = moved.subarray(0, 3),
-  movedMax = moved.subarray(3, 6),
+const local = new Float64Array(16),
+  current = new Float64Array(16),
+  parentWorld = new Float64Array(16),
+  parentInverse = new Float64Array(16),
+  trs = new Float64Array(3),
+  trsRotation = new Float64Array(4),
+  trsScale = new Float64Array(3),
   request = new Float32Array(16);
-/** The nodes a move names, reused: one call builds no array. Emptied after the move, so that a
- *  released scene is not kept alive by it. */
+/** The node a named move resolves, as a list of one reused: a move builds no array. */
 const one: Object3D[] = [];
-/** Ranks of the roots under each moved node, node after node, each node's increasing; where each
- *  node's ranks end; the distinct ranks, increasing; one node's. All reused from call to call. */
-const movedList: number[] = [],
-  movedEnds: number[] = [],
-  distinct: number[] = [],
-  under: number[] = [];
-/** Each moved node's box before its move, `BOX_VALUES` per node; 1 for a root whose move in this
- *  call was its first. Grown only by a call larger than every one before it. */
-let movedBoxes = new Float64Array(BOX_VALUES),
-  promotedRoots = new Uint8Array(0);
-/** Below one moved root in this many, the moved boxes are transformed one by one rather than as
- *  the lot, which transforms every root: the same `boxTransform` yields the same bits. */
-const LOT_SHARE = 8;
-const ascending = (a: number, b: number) => a - b;
 
-/**
- * Moves a named node of the prepared scene (R8): `setWebgpuTransforms` on that one node. The name
- * is looked up in the index of `movedNode.ts`; a host moving the same nodes frame after frame
- * resolves them once and hands them to `setWebgpuTransforms` instead.
- */
+/** True when `world`, rounded to single precision, is `matrix`. */
+function standsAt(world: Float64Array, matrix: Float32Array) {
+  for (let i = 0; i < 16; i++) if (Math.fround(world[i]) !== matrix[i]) return false;
+  return true;
+}
+
+/** Moves a named node of the prepared scene (R8): `setWebgpuTransforms` on the node the name index
+ *  finds (`movedNode.ts`). A host moving nodes frame after frame resolves them once instead. */
 export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, matrix: Float32Array) {
   if (matrix.length !== 16)
     throw new EngineError('INVALID_TRANSFORM', `${nodeName}: sixteen floats expected`, {
@@ -59,20 +51,16 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   try {
     setWebgpuTransforms(rt, one, matrix);
   } finally {
-    one.length = 0;
+    one.length = 0; // a released scene is not kept alive by the last move
   }
 }
 
 /**
- * Moves nodes of the prepared scene in one call (#971, CPU-19). `nodes` are handles the host holds
- * — nodes of the scene it prepared, no name looked up —, `matrices` their column-major WORLD poses,
- * sixteen floats per node, in the same order. Each node takes its pose exactly as its own call would,
- * in order, so a node reads the poses the nodes before it just set (`movedPose.ts`); only its subtree
- * is passed again. The rest is paid once for the call: the moved roots' boxes are reprojected in
- * one pass, their rows alone rewritten (`movedRoot.ts`), the scene revision bumped once, and each
- * node's motion box declared to the shadow scheduler — two nodes far apart are two boxes, never
- * the room between them. A refused node throws once the nodes before it took effect, as the same
- * calls one by one would.
+ * Moves nodes the host holds — handles, no name looked up — to column-major WORLD poses, sixteen
+ * floats per node in the same order (#971, CPU-19). Each node is posed as its own call would, in
+ * order, so a node reads the poses the nodes before it set; its subtree alone is passed again.
+ * Boxes, rows, the scene revision and the shadow boxes follow once for the call (`movedBatch.ts`).
+ * A refused node throws once the nodes before it took effect, as the calls one by one would.
  *
  * Nothing is drawn here: the moves take effect at the next image, with no per-image allocation.
  */
@@ -85,14 +73,14 @@ export function setWebgpuTransforms(
     throw new EngineError('INVALID_TRANSFORM', `${nodes.length} nodes: sixteen floats each`, {
       length: matrices.length,
     });
-  const { setup, run, layout } = rt;
+  const { setup, run } = rt;
   // A host pose written in this same task is read before the engine's own write hides it: the
-  // first move then passes the whole index, which leaves it current for every move after.
-  let whole = run.gate.engineWriting();
+  // first move then passes the whole index, which leaves it current for the moves after it.
+  let wholePass = run.gate.engineWriting();
   try {
     for (let k = 0; k < nodes.length; k++) {
       const node = nodes[k];
-      // A handle outlives nothing: a node the host removed, or never prepared, is refused by name.
+      // A handle outlives nothing: a node the host removed from the scene is refused by name.
       if (!underSource(setup.source, node))
         throw new EngineError(
           'UNKNOWN_SCENE_NODE',
@@ -100,87 +88,87 @@ export function setWebgpuTransforms(
           { nodeName: node.name },
         );
       for (let i = 0; i < 16; i++) request[i] = matrices[k * 16 + i];
-      if (!poseNode(setup.worlds, node, request, !whole)) continue;
-      // The moved roots are those whose mesh lies in the node's subtree, walked once, visited in
-      // increasing rank, as the loop over every root visited them; their box is taken before.
-      rootsUnder(layout.selectionRoots, node, under);
-      boxEmpty(moved, 0);
-      for (const i of under) {
-        movedList.push(i);
-        const box = layout.selectionRoots[i].worldBox;
-        if (box) boxUnionBatch(moved, box, 1);
-      }
-      noteMovedBox();
-      // The pose is set: the engine index takes it, and every matrix it holds carries the new
-      // place at that instant. With no host write owed, only the moved subtree and its ancestors
-      // have new inputs (`refreshFrom`); a matrix set by hand elsewhere is announced by the next
-      // image's scan, whose walk runs first.
-      if (whole) setup.worlds.refresh();
+      if (!poseNode(setup.worlds, node, request, !wholePass)) continue;
+      noteMoved(rt, node);
+      // The pose is set: the engine index takes it, and every matrix it holds — page records,
+      // selection roots, transparent copies — carries the new place at that instant. With no host
+      // write owed, only the moved subtree and its ancestors have new inputs (`refreshFrom`). A
+      // matrix set by hand elsewhere is announced by the next image's scan, whose walk runs first.
+      if (wholePass) setup.worlds.refresh();
       else setup.worlds.refreshFrom(node);
-      whole = false;
+      wholePass = false;
     }
   } finally {
-    if (movedEnds.length) finishMoves(rt);
+    finishMoves(rt);
   }
 }
 
-/** The box in `moved` kept as the next moved node's, and where its roots end. */
-function noteMovedBox() {
-  const at = movedEnds.length * BOX_VALUES;
-  if (at + BOX_VALUES > movedBoxes.length) {
-    const grown = new Float64Array(movedBoxes.length * 2);
-    grown.set(movedBoxes);
-    movedBoxes = grown;
+/**
+ * Sets the local pose of `node` so that its world is `matrix`: brought back into the parent's
+ * space, then set as-is as the local matrix, so that `updateMatrixWorld` finds it identical.
+ * False when that moves nothing. `held`: no host write is owed, the engine tree mirrors the host.
+ */
+function poseNode(
+  worlds: HostWorldPlacements,
+  node: Object3D,
+  matrix: Float32Array,
+  held: boolean,
+) {
+  // A non-finite pose is refused here, before any inversion: further on it would become a NaN
+  // world matrix, then a null normal, then a black surface with no readable cause.
+  assertFiniteTransform(matrix, node.name);
+  // The requested pose is a WORLD pose: bringing it back into the parent's space needs the
+  // parent's world matrix, and the host is allowed to have written a local pose above without
+  // climbing the graph. The engine reads it from ITS tree when that tree is current (#971,
+  // `host/world/pose.ts`), and otherwise computes it from the local poses of the ancestor chain
+  // (`../../../host/world/chain.ts`): the same bits, nothing asked of the host or written to it.
+  // Without that, inversion would bear on a stale parent — a child requested at x = 3 under a
+  // parent that moved to x = 10 would end at x = 13 — and the comparisons that follow would judge
+  // "no effect" a request remade after the parent moved. It therefore precedes them.
+  const parent = node.parent,
+    above = parent
+      ? ((held ? worlds.parentWorld(node) : null) ?? hostWorldChainInto(parentWorld, parent))
+      : null;
+  // The world the node already stands at, to the precision the request carries: moving it there
+  // moves nothing — a node's first write included, which the local comparison below cannot judge.
+  hostLocalInto(current, node);
+  if (above) multiplyMatrix4(current, above, current);
+  if (standsAt(current, matrix)) return false;
+  copyElements(local, matrix);
+  if (parent && above) {
+    // A parent flattened onto a plane or a line has no inverse: the base would yield sixteen
+    // zeros and the node would silently leave for the origin. The determinant is the only test
+    // that distinguishes this case from the exit, and it also catches a non-finite matrix.
+    const parentDeterminant = determinantMatrix4(above);
+    if (parentDeterminant === 0 || !Number.isFinite(parentDeterminant))
+      throw new EngineError(
+        'SINGULAR_PARENT_TRANSFORM',
+        `${node.name}: parent world matrix not invertible`,
+        { nodeName: node.name, parentName: parent.name, determinant: parentDeterminant },
+      );
+    invertMatrix4(parentInverse, above);
+    multiplyMatrix4(local, parentInverse, local);
   }
-  movedBoxes.set(moved, at);
-  movedEnds.push(movedList.length);
-}
-
-/** One pass over the distinct moved roots, then each moved node's motion box. */
-function finishMoves(rt: WebgpuPagesRuntime) {
-  const { lights, run, layout } = rt,
-    roots = layout.selectionRoots;
-  for (const i of movedList) distinct.push(i);
-  distinct.sort(ascending);
-  let count = 0;
-  for (let j = 0; j < distinct.length; j++)
-    if (!count || distinct[count - 1] !== distinct[j]) distinct[count++] = distinct[j];
-  distinct.length = count;
-  if (promotedRoots.length < roots.length) promotedRoots = new Uint8Array(roots.length);
-  // World boxes of the moved roots reproject IN BATCH, through the governor, in the buffer
-  // reserved at prepare. A missing or released buffer hands over to the box-by-box computation,
-  // which yields the same bits — the same `boxTransform` on the same inputs.
-  const lot = count * LOT_SHARE >= roots.length ? layout.rootBoxes : null;
-  const enLot = !!lot && transformRootBoxes(lot, roots, distinct);
-  for (const i of distinct) {
-    const root = roots[i];
-    moveRootRows(rt, root);
-    if (!root.worldBox) continue;
-    // A node moved: each root under it moved, at the pose it now reads.
-    promotedRoots[i] = lights.mobility.move(i, root.world.elements, true) === MOVE_PROMOTED ? 1 : 0;
-    if (root.localBox && !enLot)
-      boxTransform(root.worldBox, 0, root.localBox, 0, root.world.elements);
-  }
-  // Origin of the scene change: these subtrees' world matrices have just been rewritten. Only
-  // poses moved — no node entered or left the scene — so the watched set is left as it stands
-  // instead of being rebuilt from a walk of the source graph on the next image.
-  run.gate.sceneMoved();
-  // The hierarchy already carries this revision's matrices: the next image does not climb it.
-  run.gate.noteWorldsUpdated();
-  let start = 0;
-  for (let k = 0; k < movedEnds.length; k++) {
-    for (let v = 0; v < BOX_VALUES; v++) moved[v] = movedBoxes[k * BOX_VALUES + v];
-    let promoted = false;
-    for (let j = start; j < movedEnds[k]; j++) {
-      const root = roots[movedList[j]];
-      if (!root.worldBox) continue;
-      promoted = promotedRoots[movedList[j]] === 1 || promoted;
-      if (root.localBox) boxUnionBatch(moved, root.worldBox, 1);
-    }
-    start = movedEnds[k];
-    // A root's first move changes the static layer: the pages it crossed are staled whole.
-    if (!boxIsEmpty(moved, 0)) lights.plan.worldChanged(movedMin, movedMax, !promoted);
-  }
-  for (const i of distinct) promotedRoots[i] = 0;
-  movedList.length = movedEnds.length = distinct.length = 0;
+  // A pose identical to the one this node already carries — and set from here, hence
+  // `matrixAutoUpdate` false — changes no world matrix: declaring it changed would invalidate
+  // shadow pages and refuse the held image for a result identical to the pixel. A host's direct
+  // write leaves `node.matrix` different and therefore takes the full path again. `local` is
+  // expressed in the parent space JUST RESOLVED: a moved parent gives another `local` for the
+  // same requested world pose, and the request is therefore not judged as no-effect.
+  if (!node.matrixAutoUpdate && sameElements(node.matrix.elements, local)) return false;
+  // The local matrix is authoritative, not the three fields: not every matrix is a
+  // translation-rotation-scale product. A shear — two non-orthogonal axes, which a non-uniform
+  // scale under a rotation produces — does not decompose into it, and `updateMatrixWorld` would
+  // recompose `matrix` from `position`, `quaternion` and `scale` over the one set here, leaving
+  // the engine drawing another transform than the one requested. Cutting recomposition on the
+  // moved node alone is what keeps it intact. The base's decompose still fills the three fields,
+  // at the same bits as `Matrix4.decompose`: exact without shear and approximate otherwise, for
+  // whoever reads them.
+  decomposeMatrix4(local, trs, trsRotation, trsScale);
+  node.position.set(trs[0], trs[1], trs[2]);
+  node.quaternion.set(trsRotation[0], trsRotation[1], trsRotation[2], trsRotation[3]);
+  node.scale.set(trsScale[0], trsScale[1], trsScale[2]);
+  copyElements(node.matrix.elements, local);
+  node.matrixAutoUpdate = false;
+  return true;
 }
