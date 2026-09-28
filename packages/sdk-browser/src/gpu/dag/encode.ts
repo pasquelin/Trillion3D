@@ -96,7 +96,7 @@ function encodeOnce(
     pass.dispatchWorkgroupsIndirect(dispatchArgs, 0);
   }
   // The first range's dispatch also resets the block counts.
-  perRange(pass, ranges, preparePipeline, [0, views, blockCount]);
+  perRange(pass, ranges, preparePipeline, 0, views, blockCount);
   // The whole descent in THIS pass: dispatches of the same pass run in order and see what the
   // previous ones wrote — prepare and pass 0 already depended on that. Nothing else cut the
   // descent but the dispatch argument, and there is no more of it.
@@ -107,19 +107,19 @@ function encodeOnce(
   // roots that exist. A primitive whose caller supplies an empty hierarchy would make the two
   // diverge. Each range reads its own roots; a deeper level mixes them, so each range walks the
   // level's whole queue and keeps its own primitives' nodes.
-  perRange(pass, ranges, rootLevelPipeline, [0, views]);
+  perRange(pass, ranges, rootLevelPipeline, 0, views);
   // Each following level reads only the nodes the previous one kept, and fills the next of the
   // three queues — the one a level earlier cleared. The dispatched count is that of its stage's
   // nodes, an upper bound the layout knows.
   for (let level = 1; level < levelSizes.length; level++) {
     const pipeline = levelPipelines[level % levelPipelines.length];
-    perRange(pass, ranges, pipeline, [Math.min(levelSizes[level] * views, queueCap), 0]);
+    perRange(pass, ranges, pipeline, Math.min(levelSizes[level] * views, queueCap), 0);
   }
   pass.end();
   // Pages of kept leaves, and they alone: a page under a rejected node is not read.
   arm(candGroupsOffset);
   const wanted = open();
-  perRange(wanted, ranges, wantedPipeline, dispatchArgs);
+  perRangeIndirect(wanted, ranges, wantedPipeline, dispatchArgs);
   wanted.end();
   if (headOnly) return;
   arm(liveGroupsOffset);
@@ -135,7 +135,7 @@ function encodeOnce(
     live.setPipeline(viewOffsetsPipeline);
     live.dispatchWorkgroups(1);
   }
-  perRange(live, ranges, maskPipeline, dispatchArgs);
+  perRangeIndirect(live, ranges, maskPipeline, dispatchArgs);
   // The drawable-page list is compacted here, in increasing order: the snapshot no longer
   // reports one flag per page but the count alone and its ranks.
   // Then the camera's requests, staged by `dagWanted`, go into the snapshot sorted by rank: one
@@ -160,23 +160,35 @@ function encodeOnce(
 /**
  * The kernels that read a primitive's words run once per range of `frames`, each under its
  * range's bind group, and take only its range's primitives (`frameRanges.ts`); one range keeps the
- * group the pass opened with, the commands of before. Indirect on `args`, or flat: `threads`, plus
- * `perPrimitive` per primitive of the range, at least `firstFloor` on the first.
+ * group the pass opened with, the commands of before. Flat: `threads`, plus `perPrimitive` per
+ * primitive of the range, at least `firstFloor` on the first.
  */
 function perRange(
   pass: GPUComputePassEncoder,
   ranges: DagView['ranges'],
   pipeline: GPUComputePipeline,
-  args: GPUBuffer | [threads: number, perPrimitive: number, firstFloor?: number],
+  threads: number,
+  perPrimitive: number,
+  firstFloor = 0,
 ) {
   pass.setPipeline(pipeline);
   for (let r = 0; r < ranges.length; r++) {
     if (ranges.length > 1) pass.setBindGroup(0, ranges[r].bindGroup);
-    if (!Array.isArray(args)) pass.dispatchWorkgroupsIndirect(args, 0);
-    else {
-      const [threads, perPrimitive, firstFloor = 0] = args;
-      const count = Math.max(threads + perPrimitive * ranges[r].count, r ? 0 : firstFloor);
-      pass.dispatchWorkgroups(Math.max(1, Math.ceil(count / WORKGROUP)));
-    }
+    const count = Math.max(threads + perPrimitive * ranges[r].count, r ? 0 : firstFloor);
+    pass.dispatchWorkgroups(Math.max(1, Math.ceil(count / WORKGROUP)));
+  }
+}
+
+/** `perRange`, each range's dispatch indirect on `args`. */
+function perRangeIndirect(
+  pass: GPUComputePassEncoder,
+  ranges: DagView['ranges'],
+  pipeline: GPUComputePipeline,
+  args: GPUBuffer,
+) {
+  pass.setPipeline(pipeline);
+  for (let r = 0; r < ranges.length; r++) {
+    if (ranges.length > 1) pass.setBindGroup(0, ranges[r].bindGroup);
+    pass.dispatchWorkgroupsIndirect(args, 0);
   }
 }

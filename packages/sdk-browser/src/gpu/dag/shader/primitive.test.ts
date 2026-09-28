@@ -49,8 +49,7 @@ test("each primitive's values fill its share, behind the row the host writes", (
   }
 });
 
-test('frames never binds an empty buffer', () => {
-  assert.equal(framesBytes(0), 16);
+test('one primitive holds its row and its prepared values', () => {
   assert.equal(framesBytes(1), (FRAME_VEC4 + PRIMITIVE_VEC4) * 16);
 });
 

@@ -1,5 +1,5 @@
 import { DAG_SELECTION_SHADER } from './shader/shader.ts';
-import { dagBindEntries, dagGroupEntries } from './shader/bindings.ts';
+import { dagBindEntries, type dagGroupEntries } from './shader/bindings.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { withScreenErrorVariant } from './shader/error.ts';
 import { screenErrorVariant } from '../../../../sdk-core/src/index.ts';
@@ -32,8 +32,9 @@ export function createDagPipeline(
       });
     const preparePipeline = stage('dagPrepare'),
       clearDrawnPipeline = stage('dagClearDrawn');
-    const rootLevelPipeline = stage('dagRootLevel');
     const levelPipelines = Array.from({ length: LEVEL_QUEUES }, (_, q) => stage(`dagLevel${q}`));
+    // One range: pass 0 reads the whole queue 0, `dagLevel0` itself.
+    const rootLevelPipeline = constants ? stage('dagRootLevel') : levelPipelines[0];
     const wantedPipeline = stage('dagWanted'),
       maskPipeline = stage('dagMask');
     const drawPrefixPipeline = stage('dagDrawPrefix'),
@@ -41,16 +42,7 @@ export function createDagPipeline(
       viewOffsetsPipeline = stage('dagViewOffsets'),
       requestSortPipeline = stage('dagSortRequests'),
       evictPipeline = stage('dagListEvictions');
-    const ranges = frames.ranges.map(({ count }, r) => ({
-      count,
-      bindGroup: device.createBindGroup({
-        layout,
-        entries: dagGroupEntries(
-          { ...buffers, frames: frames.buffers[r] },
-          frames.rangeBindings[r],
-        ),
-      }),
-    }));
+    const ranges = frames.bindGroups(layout, buffers);
     return {
       /** Bind layout, returned with the stages: the dispatch bench mounts the previous
        *  cut on EXACTLY this one, instead of retyping a fourth copy. */
