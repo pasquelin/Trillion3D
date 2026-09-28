@@ -44,7 +44,7 @@ export function createDagStages(
  *  one validation scope. */
 export function createDagPipeline(
   device: GPUDevice,
-  buffers: Omit<Parameters<typeof dagGroupEntries>[0], 'frames'>,
+  buffers: Omit<Parameters<typeof dagGroupEntries>[0], 'frames' | 'worlds'>,
   frames: CameraFrames,
 ) {
   return validated(device, async () => {
