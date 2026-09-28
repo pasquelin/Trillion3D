@@ -64,7 +64,7 @@ function run(jolt: Module, seconds: number) {
   return last;
 }
 
-test('a declared dynamic box is held kinematic at its drawn pose, its node’s tile left out', async () => {
+test('a dynamic box its model places no node for is held kinematic where drawn, its tile left out', async () => {
   const box = declared(0, [0, 2, 0], { mass: 5 }, { type: 'box', box: { size: [2, 1, 1] } });
   const collider = { tiles: [tile()], material: null };
   const file = { ...cooked([collider, collider], [place(0), place(1)]), bodies: [box] };
@@ -106,8 +106,8 @@ test('a shapeless node restores its cooked hull and mass, and turns about the co
   // Its inertia provided a thousand times the cooked one's: the same fall barely turns it.
   const stiff = declared(2, [0, 0, 5], { inertiaDiagonal: [2e5, 2e5, 2e5] }, tipped.shape);
   const fetched = stubFetch(cooked([], []), bytes);
-  const { model, writer, bodies } = modelStreamer();
-  const released = createCookedBodies(writer, bodies, () => {}, assert.fail, true);
+  const { model, writer, bodies } = modelStreamer({}, 1, [upright, tipped, stiff]);
+  const released = createCookedBodies(writer, bodies, () => {}, assert.fail);
   released.open(model, [upright, tipped, stiff], new AbortController().signal);
   await landed();
   const words = writer.take();

@@ -2,6 +2,7 @@ import {
   CommandWriter,
   DEFAULT_PHYSICS_BUDGET,
   JOLT_COMMIT,
+  type CookedBody,
   type PhysicsBudget,
   type PhysicsHost,
 } from '../../../sdk-core/src/physics/index.ts';
@@ -44,19 +45,38 @@ export function stubFetch(file: object, bytes: Uint8Array) {
   return fetched;
 }
 
-/** A compiled model at the origin, as `world.scene.load` places one. */
-export const compiledModel = () =>
-  Object.assign(new Object3D(), {
+/** A compiled model at the origin, as `world.scene.load` places one. Given the bodies it
+ *  `declared`, it numbers its nodes as its source does (`_nodeAt`): each body's node a child of
+ *  it, posed as declared, alone in its subtree, of radius 1. */
+export function compiledModel(declared: readonly CookedBody[] = []) {
+  const nodes: Object3D[] = [];
+  const nodeAt = (index: number) =>
+    nodes[index] ? { node: nodes[index], indices: [index], radius: 1 } : null;
+  const model = Object.assign(new Object3D(), {
     isLoadedModel: true as const,
     record: { base: 'https://cache.test/model/' },
+    _nodeAt: declared.length ? nodeAt : undefined,
   });
+  for (const { node, position, rotation } of declared) {
+    nodes[node] = new Object3D();
+    nodes[node].position.set(...position);
+    nodes[node].quaternion.set(...rotation);
+    model.add(nodes[node]);
+  }
+  return model;
+}
 
 /**
  * A tile streamer within `budget` (8 bodies) over a scene holding one compiled model at the
- * origin, scaled by `scale`, not scanned yet: the streamer, the scene, the model, the writer, the
- * bodies, the errors raised, and `heard`, which settles at the next change or error it reports.
+ * origin, scaled by `scale`, numbering the nodes of the bodies it `declared` (`compiledModel`), not
+ * scanned yet: the streamer, the scene, the model, the writer, the bodies, the errors raised, and
+ * `heard`, which settles at the next change or error it reports.
  */
-export function modelStreamer(budget: Partial<PhysicsBudget> = {}, scale = 1) {
+export function modelStreamer(
+  budget: Partial<PhysicsBudget> = {},
+  scale = 1,
+  declared: readonly CookedBody[] = [],
+) {
   const limits = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, ...budget };
   const [scene, writer, errors] = [new Group(), new CommandWriter(), [] as { code: string }[]];
   const { state } = createPhysicsPoses(limits.bodies, scene);
@@ -70,7 +90,7 @@ export function modelStreamer(budget: Partial<PhysicsBudget> = {}, scale = 1) {
     () => wake(),
     (e) => (errors.push(e), wake()),
   );
-  const model = compiledModel();
+  const model = compiledModel(declared);
   model.scale.setScalar(scale);
   model.updateMatrixWorld(true);
   scene.add(model);
@@ -78,18 +98,20 @@ export function modelStreamer(budget: Partial<PhysicsBudget> = {}, scale = 1) {
 }
 
 /**
- * A model at the origin, scaled by `scale`, whose `physics.json` is `file` and every other file
- * `bytes`, opened by a tile streamer within `budget` (8 bodies): the streamer, the scene, the model,
- * the writer, the bodies, the errors raised and the files fetched.
+ * A model at the origin, scaled by `scale`, numbering the nodes of the bodies it `declared`,
+ * whose `physics.json` is `file` and every other file `bytes`, opened by a tile streamer within
+ * `budget` (8 bodies): the streamer, the scene, the model, the writer, the bodies, the errors
+ * raised and the files fetched.
  */
 export async function streamedModel(
   file: object,
   bytes: Uint8Array,
   budget: Partial<PhysicsBudget> = {},
   scale = 1,
+  declared: readonly CookedBody[] = [],
 ) {
   const fetched = stubFetch(file, bytes);
-  const streamer = modelStreamer(budget, scale);
+  const streamer = modelStreamer(budget, scale, declared);
   streamer.tiles.scan(streamer.scene);
   await landed();
   return { ...streamer, fetched };
