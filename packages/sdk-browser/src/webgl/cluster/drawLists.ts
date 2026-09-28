@@ -34,21 +34,16 @@ export function createDrawLists(scene: Object3D, copies: readonly object[]) {
   let stale = true;
   const previous = scene._link;
   // The link chained as the physics chains its own (`physicsLink`): the one it replaces hears all.
-  // A scene root tells its link its background and fog (`WorldSceneLink`): nobody else hears them.
-  const link = {
-    background() {},
-    fog() {},
-    ...physicsLink(previous, {
-      pose(node) {
-        const was = shown.get(node);
-        if (was !== undefined && was !== node.visible) stale = true;
-      },
-      structure() {
-        stale = true;
-      },
-      content() {},
-    }),
-  };
+  const link = physicsLink(previous, {
+    pose(node) {
+      const was = shown.get(node);
+      if (was !== undefined && was !== node.visible) stale = true;
+    },
+    structure() {
+      stale = true;
+    },
+    content() {},
+  });
   scene.traverse((node) => (node._link = link));
   const collect = (node: Object3D) => {
     shown.set(node, node.visible);

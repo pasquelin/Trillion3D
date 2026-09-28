@@ -27,10 +27,6 @@ type DrawnNode = Partial<SceneCopy> & {
   readonly matrixWorld: SceneCopy['matrixWorld'];
   readonly renderOrder: number;
 };
-type DisplayScene = ClusterDrawScene & {
-  onBeforeRender?(): void;
-  onAfterRender?(): void;
-};
 
 /** What the session gives the draw: its pixel ratio and its degraded-surface notice. */
 type DrawHosts = Pick<BackendContext, 'pixelRatio' | 'materialDegraded'>;
@@ -62,7 +58,6 @@ export function createSceneDraw(
   copies: readonly object[] = [],
   { pixelRatio = () => DEFAULT_PIXEL_RATIO, materialDegraded }: DrawHosts = {},
 ) {
-  const scene: DisplayScene = display;
   // The graph's lists, walked again only when it changed shape (`drawLists.ts`); the draw sorts
   // copies of them, reused from frame to frame: a draw allocates no list.
   const lists = createDrawLists(display, copies);
@@ -79,11 +74,11 @@ export function createSceneDraw(
   const walk = () => {
     if (walked) return;
     walked = true;
-    scene.updateMatrixWorld();
+    display.updateMatrixWorld();
     lists.refresh();
     opaque.length = seeThrough.length = 0;
-    for (const mesh of lists.opaque) opaque.push(mesh as unknown as WholeMesh & DrawnNode);
-    for (const mesh of lists.seeThrough) seeThrough.push(mesh as unknown as DrawnNode);
+    for (const mesh of lists.opaque) opaque.push(mesh);
+    for (const mesh of lists.seeThrough) seeThrough.push(mesh);
   };
   const host: Required<BackendHostDraw> = {
     // Only a see-through mesh can refuse: the list of them, in graph order.
@@ -101,7 +96,7 @@ export function createSceneDraw(
       if (!owner.censused) owner.census(meshes(display));
       owner.toneCurve = TONE_MAPPING_RANK[output.toneMapping ?? DEFAULT_TONE_MAPPING];
       owner.pixelRatio = pixelRatio();
-      scene.onBeforeRender?.();
+      display.onBeforeRender?.();
       try {
         walk();
         multiplyMatrix4Typed(screen, drawCamera.projection, drawCamera.view);
@@ -110,7 +105,7 @@ export function createSceneDraw(
         // encoding to the chain and marks the surfaces the curve skips.
         owner.draw(
           NO_BATCHES,
-          scene,
+          display,
           drawCamera,
           output.toneMapped,
           !output.linear,
@@ -121,7 +116,7 @@ export function createSceneDraw(
       } finally {
         // A second draw of the same image — a capture — walks again, as every draw did.
         walked = false;
-        scene.onAfterRender?.();
+        display.onAfterRender?.();
       }
       counters.triangles = owner.submittedTriangles;
     },
