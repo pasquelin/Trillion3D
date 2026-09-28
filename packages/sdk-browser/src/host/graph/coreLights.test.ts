@@ -15,7 +15,7 @@ import { unsupportedClusterLight, WebglClusterLights } from '../../webgl/cluster
 import { aimOf, isLightNode, isPlacedLight } from './kinds.ts';
 import { serialOf } from './serial.ts';
 
-/** A WebGL2 context that answers every call and keeps the light block and probe uniforms. */
+/** A WebGL2 context that answers every call and keeps the light records and probe uniforms. */
 function recordingGl() {
   const seen = { block: new Float32Array(0), probe: new Float32Array(0) };
   const gl = new Proxy({} as Record<string | symbol, unknown>, {
@@ -23,8 +23,7 @@ function recordingGl() {
   });
   function record(name: string | symbol) {
     return (...args: unknown[]) => {
-      if (name === 'bufferSubData')
-        seen.block = (args[2] as Float32Array).slice(0, args[4] as number);
+      if (name === 'texSubImage2D' && args[8] instanceof Float32Array) seen.block = args[8];
       if (name === 'uniform3fv') seen.probe = Float32Array.from(args[1] as Float32Array);
       if (name === 'getUniformLocation') return args[1];
       return {};
@@ -33,9 +32,9 @@ function recordingGl() {
   return { gl: gl as unknown as WebGL2RenderingContext, seen };
 }
 
-/** The kind each slot of the uploaded block carries (its second vec4's `w`). */
-const slotKinds = (block: Float32Array) =>
-  Array.from({ length: block.length / 16 }, (_, i) => block[i * 16 + 7]);
+/** The kind each of the first `count` slots of the uploaded records carries (its second vec4's `w`). */
+const slotKinds = (block: Float32Array, count: number) =>
+  Array.from({ length: count }, (_, i) => block[i * 16 + 7]);
 
 test('each kind the contract declares becomes the core light, numbered, aiming only when it aims', () => {
   const made = (['point', 'spot', 'directional', 'rect'] as const).map((kind) =>
@@ -84,7 +83,11 @@ test('the WebGL2 cluster path uploads each kind in its slot, in the reference or
   const { gl, seen } = recordingGl();
   const count = new WebglClusterLights(gl, {} as WebGLProgram).upload(scene, IDENTITY_ELEMENTS);
   assert.equal(count, 5, 'four direct lights and one ambient slot; the probe takes none');
-  assert.deepEqual(slotKinds(seen.block), [1, 2, 0, 4, 3], 'points, spots, suns, rectangles');
+  assert.deepEqual(
+    slotKinds(seen.block, count),
+    [1, 2, 0, 4, 3],
+    'points, spots, suns, rectangles',
+  );
   assert.deepEqual([seen.block[3], seen.block[16 + 3]], [7, 9], 'the ranges of the point and spot');
   assert.deepEqual([seen.block[60], seen.block[63]], [2, 1], 'the rectangle: its half sides');
   assert.deepEqual([...seen.block.slice(72, 76)], [1, 1, 1, 1], 'the ambient: colour × intensity');
