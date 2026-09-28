@@ -139,7 +139,7 @@ test('every page-geometry raster widens a line page, and a triangle page draws a
   assert.ok(FALLBACK_SHADER.includes(LINE_CLIP_WGSL));
   assert.match(
     FALLBACK_SHADER,
-    /local=clusterPosition\(h,uni\.pageOffset,clusterIndex\(h,uni\.pageOffset,vertexIndex\)\);\n/,
+    /let id=clusterIndex\(h,uni\.pageOffset,vertexIndex\);\n {2}local=clusterPosition\(h,uni\.pageOffset,id\);\n/,
   );
   assert.match(
     FALLBACK_SHADER,

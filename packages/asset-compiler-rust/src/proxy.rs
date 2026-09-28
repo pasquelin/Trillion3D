@@ -81,7 +81,8 @@ impl SceneProxy {
 /// Step reads: scene, retained coarse cuts, texture previews.
 pub struct ProxyInputs<'a> {
     pub g: &'a Value,
-    pub chosen: &'a BTreeSet<usize>,
+    /// The chosen nodes no hidden node hides: the proxy stands in for what is drawn.
+    pub shown: &'a BTreeSet<usize>,
     pub mesh_map: &'a BTreeMap<usize, usize>,
     pub primitives: &'a [Value],
     /// Per compiled primitive: coarse cut vertices, in object space.
@@ -102,6 +103,15 @@ pub fn world_scale(matrix: &Mat4) -> f64 {
             .sqrt()
         })
         .fold(0.0f64, f64::max)
+}
+
+/// A length of `metres` in the object units of a primitive the largest world `scale` places; a
+/// missing, zero or non-finite scale leaves it as is, nothing guessed.
+pub fn object_units(metres: f64, scale: Option<f64>) -> f64 {
+    match scale {
+        Some(value) if value.is_finite() && value > 0.0 => metres / value,
+        _ => metres,
+    }
 }
 
 /// Max world scale under which each source mesh placed. Primitive placed
@@ -145,7 +155,7 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     let mut triangles: Vec<f32> = Vec::new();
     let mut colours: Vec<u32> = Vec::new();
     let by_mesh = primitives_by_mesh(inputs.primitives);
-    for node_id in inputs.chosen {
+    for node_id in inputs.shown {
         let node = item(nodes, *node_id, "node")?;
         let old_mesh = required_index(node.get("mesh"), "node.mesh")?;
         let Some(mesh_index) = inputs.mesh_map.get(&old_mesh).copied() else {

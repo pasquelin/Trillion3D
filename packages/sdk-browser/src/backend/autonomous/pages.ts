@@ -17,6 +17,7 @@ import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts';
 import type { BackendFactory } from '../types.ts';
 import { createBlendCopy } from '../../cluster/blendCopyMesh.ts';
 import type { HostMaterial } from '../../host/resources.ts';
+import { loadHostVertices } from '../../scene/meshes.ts';
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
@@ -127,7 +128,9 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
       if (heldFloor.overCeiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       const urls = [...bootstrapUrls];
-      (await readPages(context, urls)).forEach((data, i) => acceptGeometryPage(urls[i], data));
+      // A copy drawn whole reads its host vertices, which no session fetches up front.
+      const [pages] = await Promise.all([readPages(context, urls), loadHostVertices(blendCopies)]);
+      pages.forEach((data, i) => acceptGeometryPage(urls[i], data));
       heldFloor.changed();
       ready = true;
       for (const page of bootstrap) lists.shown.push(page); // a spread overflows the stack

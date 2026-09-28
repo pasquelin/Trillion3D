@@ -2,6 +2,7 @@ import { copyMatrix4, multiplyMatrix4 } from '../../math/matrix/matrix4.ts';
 import { orthographicProjection } from '../../math/primitives/camera.ts';
 import { crossVector3, dotVector3 } from '../../math/primitives/vector.ts';
 import { LIGHT_SETTINGS } from '../light/contracts.ts';
+import { hypot3 } from '../../math/primitives/hypot.ts';
 
 /**
  * COMPOSITION BUFFERS OF A FACE, in double precision and rounded BY HAND.
@@ -93,7 +94,7 @@ export function faceFrame(
 ) {
   // A frame axis parallel to the direction would make a zero cross product: the up axis is switched.
   crossVector3(outRight, forward, Math.abs(forward[1]) > 0.999 ? UP_Z : UP_Y);
-  const rl = Math.hypot(outRight[0], outRight[1], outRight[2]) || 1;
+  const rl = hypot3(outRight[0], outRight[1], outRight[2]) || 1;
   outRight[0] /= rl;
   outRight[1] /= rl;
   outRight[2] /= rl;

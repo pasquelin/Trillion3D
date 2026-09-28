@@ -59,9 +59,9 @@ fn candGroups()->u32{return candCounter()+1u;}
 fn drawnCounter()->u32{return liveCounter()+7u;}
 fn drawnGroups()->u32{return drawnCounter()+1u;}
 /** Index of the primitive's root node, deposited once and for all behind its stretch. */
-fn rootOf(w:u32)->u32{return bitcast<u32>(frames[w*FRAME+6u].y);}
+fn rootOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+6u].y);}
 /** The primitive's root mark (\`PackedDag.mark\`), the word behind its record shift. */
-fn markOf(w:u32)->u32{return bitcast<u32>(frames[w*FRAME+6u].w);}
+fn markOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+6u].w);}
 /** A range append, each entry tagged with the current view: the group count follows the
  *  opening of each sixty-four slice, so it equals \`ceil(total/64)\` without a one-thread kernel
  *  pulling it afterwards. What passes the list's capacity is dropped and said (\`dropWork\`). */
@@ -110,6 +110,7 @@ fn levelStep(src:u32,s:u32){
  vi=entryView(entry);
  let node=nodes[entryIndex(entry)];
  let w=node.worldIndex;
+ if(!inRange(w)){return;}
  // A node of the view ahead is only that view's (\`aheadWgsl.ts\`); one the camera rejects is tried there.
  if(aheadOn()&&vi==AHEAD_VIEW){descendAhead(src,node,w);return;}
  if(outsideFrustum(slotOf(w)*FRAME,node.minimum,node.maximum)||pageMissed(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w);return;}
@@ -118,7 +119,7 @@ fn levelStep(src:u32,s:u32){
  // unless the subtree is open, holding the nearest resident ancestor of something missing
  // (\`floorWgsl.ts\`). The trunk-reject count moves for neither: a subtree dropped here is
  // not dropped by the trunk, and the readout would say something other than what it names.
- let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
+ let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
  if(tooCoarse(node,e,stretch,focal)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w);return;}
  if(floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal)){descendAhead(src,node,w);return;}
  descend(src,node);
@@ -132,6 +133,10 @@ fn descend(src:u32,node:CullNode){
  if(node.childCount>0u){queueAppend((src+1u)%${LEVEL_QUEUES}u,node.firstChild,node.childCount);return;}
  spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
 }
+/** Pass 0: queue 0 holds one root per slot, so a range's dispatch reads its own slots
+ *  (\`rangeSlot\`). Queue 0 reused deeper (level 3, 6…) mixes primitives: read whole (\`dagLevel0\`). */
+@compute @workgroup_size(64)
+fn dagRootLevel(@builtin(global_invocation_id) id:vec3u){levelStep(0u,rangeSlot(id.x));}
 @compute @workgroup_size(64)
 fn dagLevel0(@builtin(global_invocation_id) id:vec3u){levelStep(0u,id.x);}
 @compute @workgroup_size(64)

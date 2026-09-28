@@ -3,18 +3,32 @@
 // change of the points, so two readings only compare at equal trajectory.
 import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
 
-const PATH_VERSION = 5;
-const POINTS = [
-  [0.72, 28, 0.78],
-  [0.2, 8, 0.26],
-  [0.05, 1.2, 0.08],
-  [-0.08, 1.7, 0.12],
-  [-0.03, 1.5, 0.04],
-  [-0.03, 1.5, 0.04],
-  [0.3, 10, -0.26],
-  [-0.38, 8, -0.36],
-  [-0.48, 12, 0.46],
-  [0.72, 28, 0.78],
+const PATH_VERSION = 7;
+/** Share of the box from its centre within which a street or courtyard runs clear of the
+ *  arcades and galleries along the edges. A path point is in that street, or over the model's
+ *  top: every segment then stays in one or the other and the camera never crosses a wall. */
+export const STREET_HALF_WIDTH = 0.06;
+/** `x` and `z` as shares of the box from its centre; `height` in eye heights above the floor
+ *  (`street`) or above the model's top (`over`, always one eye). */
+interface PathPoint {
+  x: number;
+  z: number;
+  height: number;
+  over: boolean;
+}
+const street = (x: number, height: number, z: number) => ({ x, z, height, over: false });
+const over = (x: number, z: number) => ({ x, z, height: 1, over: true });
+const POINTS: PathPoint[] = [
+  over(0.72, 0.78),
+  over(0.06, 0.02),
+  street(0.05, 1.2, 0.04),
+  street(-0.06, 1.7, 0.06),
+  street(-0.03, 1.5, 0.04),
+  street(-0.03, 1.5, 0.04),
+  over(-0.03, 0.04),
+  over(-0.38, -0.36),
+  over(-0.48, 0.46),
+  over(0.72, 0.78),
 ];
 const FRAMES_PER_SEGMENT = 60;
 /** One pose per frame, `FRAMES_PER_SEGMENT` frames between two consecutive points. */
@@ -49,7 +63,8 @@ export interface Bounds {
 export const plancherDuModele = (bounds: FloorBounds) =>
   bounds.min.y < 0 && bounds.max.y > 0 ? 0 : bounds.min.y;
 
-/** The bench pose at trajectory index `index`, of `PATH_POSES`. */
+/** The bench pose at trajectory index `index`. The path is a loop (its last point is its first),
+ *  so an index past `PATH_POSES` wraps: a run longer than the path goes round again. */
 export function poseAt(bounds: Bounds, index: number): CameraPose {
   const min = bounds.min,
     max = bounds.max;
@@ -62,14 +77,18 @@ export function poseAt(bounds: Bounds, index: number): CameraPose {
   const ground = plancherDuModele(bounds),
     block = Math.max(sx, sz);
   const eye = Math.max(block * 0.008, sy > 0 ? Math.min(2, sy * 0.03) : 1.6);
-  const segment = Math.floor(index / FRAMES_PER_SEGMENT),
-    frame = index % FRAMES_PER_SEGMENT;
-  const t = frame / (FRAMES_PER_SEGMENT - 1);
-  const a = POINTS[segment],
-    b = POINTS[segment + 1] ?? POINTS[0];
-  const p = a.map((v, i) => v + (b[i] - v) * t);
+  const place = ({ x, z, height, over }: PathPoint) => [
+    cx + x * sx,
+    (over ? max.y : ground) + height * eye,
+    cz + z * sz,
+  ];
+  const step = index % PATH_POSES,
+    segment = Math.floor(step / FRAMES_PER_SEGMENT);
+  const t = (step % FRAMES_PER_SEGMENT) / (FRAMES_PER_SEGMENT - 1);
+  const a = place(POINTS[segment]),
+    b = place(POINTS[segment + 1] ?? POINTS[0]);
   return {
-    position: [cx + p[0] * sx, Math.max(ground + eye, ground + p[1] * eye), cz + p[2] * sz],
+    position: a.map((v, i) => v + (b[i] - v) * t) as [number, number, number],
     target: [cx, ground + eye * 2, cz],
     fov: 55,
     near: Math.max(radius / 10000, 0.01),

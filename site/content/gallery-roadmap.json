@@ -711,6 +711,11 @@
       "file": "examples/several-views-one-page.html"
     },
     {
+      "id": "a-recorded-fly-through",
+      "theme": "camera",
+      "file": "examples/a-recorded-fly-through.html"
+    },
+    {
       "id": "before-and-after-slider",
       "theme": "camera",
       "file": "examples/before-and-after-slider.html"
@@ -719,6 +724,11 @@
       "id": "side-by-side-stereo",
       "theme": "camera",
       "file": "examples/side-by-side-stereo.html"
+    },
+    {
+      "id": "an-elevation-of-the-house",
+      "theme": "camera",
+      "file": "examples/an-elevation-of-the-house.html"
     },
     {
       "id": "the-near-plane-cuts-a-wall",
@@ -761,6 +771,16 @@
       "id": "a-wave-across-a-grid",
       "theme": "animation",
       "file": "examples/a-wave-across-a-grid.html"
+    },
+    {
+      "id": "doors-that-open",
+      "theme": "animation",
+      "file": "examples/doors-that-open.html"
+    },
+    {
+      "id": "a-carousel",
+      "theme": "animation",
+      "file": "examples/a-carousel.html"
     },
     {
       "id": "keyframes-by-hand",
@@ -1222,6 +1242,16 @@
       "id": "click-to-pick",
       "theme": "interaction",
       "file": "examples/click-to-pick.html"
+    },
+    {
+      "id": "measure-a-distance",
+      "theme": "interaction",
+      "file": "examples/measure-a-distance.html"
+    },
+    {
+      "id": "hover-to-highlight",
+      "theme": "interaction",
+      "file": "examples/hover-to-highlight.html"
     },
     {
       "id": "drag-a-crate",

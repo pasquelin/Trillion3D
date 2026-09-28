@@ -12,7 +12,8 @@ import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
-import { checked, optionalFile } from '../cluster/pages.ts';
+import { checked, optionalFile } from '../cluster/checked.ts';
+import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 
 /** A compiled model as the streamer reads it (`LoadedModel`): where its files are. */
 export type Model = Object3D & { isLoadedModel: true; record: { base: string } };
@@ -116,7 +117,7 @@ export function moversOf(meshes: readonly (Bodied | null)[]) {
     const half = bounds.isEmpty() ? 0 : bounds.getSize(size).length() / 2;
     const v = mesh.physics.velocity;
     out.push(mesh.position.x, mesh.position.y, mesh.position.z);
-    out.push(half + Math.hypot(v.x, v.y, v.z) * LOOKAHEAD_S);
+    out.push(half + hypot3(v.x, v.y, v.z) * LOOKAHEAD_S);
   }
   return out;
 }

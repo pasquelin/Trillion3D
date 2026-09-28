@@ -500,6 +500,24 @@
       "balloon": "풍선 추적 중"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "공원을 지나는 녹화 경로를 봅니다. 다시 재생하거나 멈추거나 카메라를 직접 조작하세요.",
+    "controls": {
+      "replay": "다시 재생",
+      "stop": "정지"
+    },
+    "readouts": {
+      "currentPart": "현재 구간"
+    },
+    "words": {
+      "entrance": "입구",
+      "pond": "연못",
+      "bridge": "다리",
+      "pavilion": "정자",
+      "overview": "전체 보기",
+      "complete": "완료"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "크레인 주위를 돌며 하나의 클립이 지브를 돌리고, 트롤리를 움직이고, 짐을 들어 흔드는 모습을 보세요.",
     "controls": {
@@ -516,6 +534,34 @@
       "ripples": "물결 수",
       "inner": "안쪽",
       "outer": "바깥쪽"
+    }
+  },
+  "doors-that-open": {
+    "banner": "카메라를 문 쪽으로 움직이세요. 가까이 가면 문이 열립니다.",
+    "controls": {
+      "mode": "모드",
+      "openingDistance": "열림 거리",
+      "openness": "열림 정도"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "근접",
+        "manual": "수동"
+      }
+    }
+  },
+  "a-carousel": {
+    "banner": "회전목마 주위를 둘러보세요. 멈추거나 목마를 반대 방향으로 움직여 보세요.",
+    "controls": {
+      "running": "운행",
+      "speed": "속도",
+      "direction": "방향"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "시계 방향",
+        "counterclockwise": "시계 반대 방향"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -569,6 +615,17 @@
       "lamp": "램프",
       "colour": "색",
       "bricks": "벽돌"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "두 표면을 클릭해 사이의 거리를 측정합니다. 세 번째 클릭은 새 측정을 시작합니다. 1단위는 1미터입니다.",
+    "controls": {
+      "clear": "지우기"
+    },
+    "readouts": {
+      "pointA": "점 A",
+      "pointB": "점 B",
+      "distance": "거리"
     }
   },
   "click-to-pick": {
@@ -1940,6 +1997,7 @@
       "manifest": "매니페스트 읽음",
       "tables": "씬 테이블 읽음",
       "resources": "씬 파일",
+      "session": "뷰 여는 중",
       "pages": "첫 페이지",
       "ready": "준비됨"
     }
@@ -2213,6 +2271,27 @@
     },
     "words": {
       "credit": "이 예제를 위해 코드로 만든 깃대의 깃발, CC0 — assets/examples/CREDITS.md 참고"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "집의 입면을 선택하세요. 카메라를 멀리 옮겨도 정투영 도면은 정확히 같은 축척을 유지합니다.",
+    "controls": {
+      "elevation": "입면",
+      "distance": "카메라 거리",
+      "zoom": "도면 축척"
+    },
+    "choices": {
+      "elevation": {
+        "front": "정면",
+        "right": "우측면",
+        "rear": "배면"
+      }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "카트의 각 부품에 마우스를 올려 강조하거나 패널에서 강조 표시를 끄세요.",
+    "controls": {
+      "highlightEnabled": "강조 표시 켜기"
     }
   },
   "a-dolly-along-the-canal": {

@@ -22,19 +22,14 @@ export const AHEAD_VIEW = 1;
 
 export const DAG_AHEAD_WGSL = `const AHEAD_VIEW:u32=${AHEAD_VIEW}u;
 fn aheadOn()->bool{return views[0u].ahead!=0u;}
-/** The view-ahead frustum brought into the primitive's space as \`dagPrepare\` brings the camera's,
- *  then the same box test (\`outsidePlane\`). A primitive no camera culls is never outside it. */
-fn outsideAhead(w:u32,bmin:vec3f,bmax:vec3f)->bool{
- if(unculledOf(w)){return false;}
- let m=transpose(worlds[w]);
- for(var i=0u;i<6u;i++){if(outsidePlane(m*views[AHEAD_VIEW].planes[i],bmin,bmax)){return true;}}
- return false;
-}
+/** The view-ahead frustum, brought into the primitive's space by \`dagPrepare\` as the camera's
+ *  (\`primitiveWgsl.ts\`), then the same box test. A primitive no camera culls is never outside it. */
+fn outsideAhead(w:u32,bmin:vec3f,bmax:vec3f)->bool{return outsideFrustum(aheadPlanes(w),bmin,bmax);}
 /** \`levelStep\`'s verdict under the view ahead: inside its frustum, not too fine, not too coarse. */
 fn keepsAhead(node:CullNode,w:u32)->bool{
  vi=AHEAD_VIEW;
  if(outsideAhead(w,node.minimum,node.maximum)){return false;}
- let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
+ let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
  return !tooCoarse(node,e,stretch,focal)&&!floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal);
 }
 /** A node the camera rejected, tried against the view ahead. */
@@ -47,8 +42,9 @@ fn wantAhead(i:u32,w:u32,r:u32,cluster:Cluster){
  if(!aheadOn()||aheadFull()){return;}
  vi=AHEAD_VIEW;
  if((cluster.flags&2u)!=0u||outsideAhead(w,boxMin(r),boxMax(r))){return;}
- let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
- if(!selects(cluster,e,stretch,focal,views[vi].pixelError)){return;}
- emitAhead(i,replacementPixels(cluster,e,stretch,focal));
+ let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
+ let pixels=clusterPixels(cluster,e,stretch,focal);
+ if(!selects(pixels,views[vi].pixelError)){return;}
+ emitAhead(i,replacementPixels(cluster,pixels));
 }
 `;

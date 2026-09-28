@@ -1,4 +1,5 @@
 import { BOUNCE_SETTINGS } from './contracts.ts';
+import { hypot3 } from '../math/primitives/hypot.ts';
 
 /**
  * Probe cascades: nested probe cubes, from tightest around camera to largest over full scene.
@@ -117,7 +118,7 @@ export function createBounceCascades(bounds: readonly number[]): BounceCascades 
     probes: probesPerLevel * levels.length,
     levels,
     reach:
-      Math.hypot(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]) *
+      hypot3(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]) *
       BOUNCE_SETTINGS.rayReachFraction,
     shareOf(total) {
       // At least one probe per level: a level left with nothing by rounding would never

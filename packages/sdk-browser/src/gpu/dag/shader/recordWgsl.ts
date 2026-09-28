@@ -15,7 +15,7 @@
 export const DAG_RECORD_WGSL = `const COLD:u32=13u;
 fn pageWorld(i:u32)->u32{return cold[i];}
 /** Shared record of page \`i\` of primitive \`w\`: a wrapping add, as \`recordOf\` on the host. */
-fn recordOf(i:u32,w:u32)->u32{return i+bitcast<u32>(frames[w*FRAME+6u].z);}
+fn recordOf(i:u32,w:u32)->u32{return i+bitcast<u32>(frames[rowOf(w)*FRAME+6u].z);}
 fn residentWords()->u32{return (views[0u].clusterCount+31u)>>5u;}
 fn poolBase()->u32{return views[0u].clusterCount+2u*residentWords();}
 fn keyBase()->u32{return poolBase()+1u+views[0u].listCap;}

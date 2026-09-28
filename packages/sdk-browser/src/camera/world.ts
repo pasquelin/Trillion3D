@@ -175,7 +175,7 @@ export function readHostDrawCamera(into: HostDrawCamera, camera: HostCamera) {
   into.projection.set(camera.projectionMatrix.elements);
   into.world.set(camera.matrixWorld.elements);
   invertMatrix4(into.view, into.world);
-  into.eye.set(into.world.subarray(12, 15));
+  for (let k = 0; k < 3; k++) into.eye[k] = into.world[12 + k]; // No `subarray` view per frame.
   ({ near: into.near, far: into.far } = camera);
   return into;
 }

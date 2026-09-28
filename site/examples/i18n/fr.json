@@ -500,6 +500,24 @@
       "balloon": "SUIT LE BALLON"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Regardez le parcours enregistré dans le parc. Relancez-le, arrêtez-le ou prenez la caméra.",
+    "controls": {
+      "replay": "Rejouer",
+      "stop": "Arrêter"
+    },
+    "readouts": {
+      "currentPart": "Partie actuelle"
+    },
+    "words": {
+      "entrance": "Entrée",
+      "pond": "Étang",
+      "bridge": "Pont",
+      "pavilion": "Pavillon",
+      "overview": "Vue d’ensemble",
+      "complete": "Terminé"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Tourne autour de la grue pendant qu’un clip pivote la flèche, déplace le chariot, lève la charge et la laisse se balancer.",
     "controls": {
@@ -516,6 +534,34 @@
       "ripples": "Ondes",
       "inner": "Intérieur",
       "outer": "Extérieur"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Rapprochez la caméra des portes. Elles s’ouvrent à votre approche.",
+    "controls": {
+      "mode": "Mode",
+      "openingDistance": "Distance d’ouverture",
+      "openness": "Ouverture"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "proximité",
+        "manual": "manuel"
+      }
+    }
+  },
+  "a-carousel": {
+    "banner": "Tournez autour du carrousel. Mettez-le en pause ou envoyez les chevaux de bois dans l’autre sens.",
+    "controls": {
+      "running": "En marche",
+      "speed": "Vitesse",
+      "direction": "Direction"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "sens horaire",
+        "counterclockwise": "sens antihoraire"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -569,6 +615,17 @@
       "lamp": "Lampe",
       "colour": "Couleur",
       "bricks": "Briques"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Cliquez sur deux surfaces pour mesurer leur distance. Un troisième clic commence une nouvelle mesure. Une unité représente un mètre.",
+    "controls": {
+      "clear": "Effacer"
+    },
+    "readouts": {
+      "pointA": "Point A",
+      "pointB": "Point B",
+      "distance": "Distance"
     }
   },
   "click-to-pick": {
@@ -1940,6 +1997,7 @@
       "manifest": "manifeste lu",
       "tables": "tables de la scène lues",
       "resources": "fichiers de la scène",
+      "session": "ouverture de la vue",
       "pages": "premières pages",
       "ready": "prêt"
     }
@@ -2213,6 +2271,27 @@
     },
     "words": {
       "credit": "Drapeau sur un mât modélisé en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Choisissez une élévation de la maison. Éloignez la caméra : le dessin orthographique garde exactement la même échelle.",
+    "controls": {
+      "elevation": "Élévation",
+      "distance": "Distance de la caméra",
+      "zoom": "Échelle du dessin"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Façade",
+        "right": "Côté droit",
+        "rear": "Arrière"
+      }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Survolez les pièces du chariot pour les mettre en évidence, ou désactivez le surlignage dans le panneau.",
+    "controls": {
+      "highlightEnabled": "Activer la mise en évidence"
     }
   },
   "a-dolly-along-the-canal": {

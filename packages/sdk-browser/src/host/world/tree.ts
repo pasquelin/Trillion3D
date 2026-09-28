@@ -9,6 +9,7 @@ import {
   updateNodeMatrixWorld,
   type TransformTree,
 } from '../../../../sdk-core/src/index.ts';
+import { visitSubtree } from '../../../../sdk-core/src/math/transform-tree/structure.ts';
 import { pushHostPose } from './pose.ts';
 import { createHierarchyLot, type HierarchyLot } from '../../math/batchHierarchy.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
@@ -54,6 +55,9 @@ export interface HostWorldTree {
   world(node: Object3D): Float64Array;
   /** Recomputes the index from the local poses the host carries at this instant. */
   refresh(): void;
+  /** `refresh()` on the subtree of `node` alone, the whole pass if an ancestor moved, the node is
+   *  outside the index or the index runs as a lot. Nodes outside keep their last pass. */
+  refreshFrom(node: Object3D): void;
 }
 
 /** Nodes of the subtree and of its root's ancestors: the EXACT size the lot must carry. */
@@ -153,6 +157,7 @@ export function hostWorldTree(source: Object3D, lot?: HierarchyLot | null): Host
     return views;
   };
   const arbre = () => (tree ??= socle(nodes, parents));
+  const push = (into: TransformTree, rank: number) => void pushHostPose(into, rank, nodes[rank]);
   const self: HostWorldTree = {
     n: nodes.length,
     get batched() {
@@ -171,6 +176,17 @@ export function hostWorldTree(source: Object3D, lot?: HierarchyLot | null): Host
       batched = enLot !== null && composent(nodes);
       if (batched && enLot) parLot(nodes, parents, enLot);
       else parArbre(nodes, arbre());
+    },
+    refreshFrom(node) {
+      const rank = index.get(node);
+      // A lot pass is all or nothing, and a node outside the index has no subtree here.
+      if (rank === undefined || enLot) return self.refresh();
+      const at = arbre();
+      // An ancestor posed since the last pass moves the subtree from above: whole pass then.
+      for (let up = parents[rank]; up >= 0; up = parents[up])
+        if (pushHostPose(at, up, nodes[up])) return self.refresh();
+      visitSubtree(at, rank, push);
+      updateNodeMatrixWorld(at, rank);
     },
   };
   self.refresh();
