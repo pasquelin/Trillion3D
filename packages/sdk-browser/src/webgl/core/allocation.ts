@@ -41,7 +41,7 @@ export function refusedNow(gl: WebGL2RenderingContext) {
   let outOfMemory = false;
   for (let n = 0; n < MAX_FLAGS; n++) {
     const error = gl.getError();
-    if (!error || error === gl.NO_ERROR || error === gl.CONTEXT_LOST_WEBGL) break;
+    if (!error || error === gl.CONTEXT_LOST_WEBGL) break;
     if (error === gl.OUT_OF_MEMORY) outOfMemory = true;
   }
   if (outOfMemory) refused.add(gl);

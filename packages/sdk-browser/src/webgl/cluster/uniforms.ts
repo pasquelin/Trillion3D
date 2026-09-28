@@ -1,5 +1,6 @@
 import { normalMatrix3 } from '../../../../sdk-core/src/index.ts';
 import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4Typed.ts';
+import { sameElements } from '../../math/matrixElements.ts';
 import { LTC_UNIT } from './rectGlsl.ts';
 import { LIGHT_DATA_UNIT, LIGHT_LIST_UNIT } from './lightTexture.ts';
 
@@ -17,25 +18,25 @@ export class ModelUniforms {
   private upload = new Float32Array(16);
   private normal = new Float32Array(9);
   private gl: WebGL2RenderingContext;
-  private at: [WebGLUniformLocation | null, WebGLUniformLocation | null];
+  private modelViewAt: WebGLUniformLocation | null;
+  private normalAt: WebGLUniformLocation | null;
   constructor(
     gl: WebGL2RenderingContext,
     modelView: WebGLUniformLocation | null,
     normal: WebGLUniformLocation | null,
   ) {
     this.gl = gl;
-    this.at = [modelView, normal];
+    this.modelViewAt = modelView;
+    this.normalAt = normal;
   }
   set(view: ArrayLike<number>, model: ArrayLike<number>) {
-    let i = 0;
-    while (i < 16 && this.model[i] === model[i]) i++;
-    if (i === 16) return false;
+    if (sameElements(this.model, model)) return false;
     this.model.set(model);
     multiplyMatrix4Typed(this.modelView, view, model);
     this.upload.set(this.modelView);
-    this.gl.uniformMatrix4fv(this.at[0], false, this.upload);
+    this.gl.uniformMatrix4fv(this.modelViewAt, false, this.upload);
     normalMatrix3(this.normal, this.modelView);
-    this.gl.uniformMatrix3fv(this.at[1], false, this.normal);
+    this.gl.uniformMatrix3fv(this.normalAt, false, this.normal);
     return true;
   }
   forget() {
