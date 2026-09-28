@@ -17,6 +17,7 @@ import {
   edit,
   isAncestor,
   sameBits,
+  sameState,
   takeFinalRows,
   world,
   worldPose,
@@ -81,16 +82,7 @@ function split(log: unknown[]) {
  *  host has since cut are taken at their final row first (`takeFinalRows`). */
 function assertBatch(a: World, b: World, c: World, disjoint: boolean, label: string) {
   const taken = takeFinalRows(a, b, [c]);
-  sameBits(a.rows.pageTableFloats, b.rows.pageTableFloats, `${label} rows`);
-  sameBits(a.rows.dirty, b.rows.dirty, `${label} dirty`);
-  a.roots.forEach((root, i) => sameBits(root.worldBox!, b.roots[i].worldBox!, `${label} box`));
-  a.roots.forEach((root, i) =>
-    sameBits(
-      root.world.elements as Float64Array,
-      b.roots[i].world.elements as Float64Array,
-      `${label} world`,
-    ),
-  );
+  sameState(a, b, label, true);
   const [x, y] = [split(a.log), split(b.log)];
   const last = (moves: string[]) =>
     new Map(moves.map((m) => [JSON.parse(m)[0], m]).filter(([rank]) => !taken.has(rank)));
@@ -100,11 +92,8 @@ function assertBatch(a: World, b: World, c: World, disjoint: boolean, label: str
   } else {
     assert.deepEqual(last(x.moves), last(y.moves), `${label} mobility`);
     // A root under two moved nodes moves once, and its first move still stales the static layer.
-    assert.equal(
-      x.moves.length,
-      new Set(x.moves.map((m) => JSON.parse(m)[0])).size,
-      `${label} one move per root`,
-    );
+    const ranks = x.moves.map((m) => JSON.parse(m)[0]);
+    assert.equal(new Set(ranks).size, ranks.length, `${label} one move per root`);
     const whole = (boxes: unknown[]) =>
       boxes.some((box) => !(box as { movingOnly: boolean }).movingOnly);
     if (whole(y.boxes)) assert.ok(whole(x.boxes), `${label} static layer`);

@@ -76,7 +76,9 @@ export async function world(seed: number, lot: boolean, whole: boolean) {
     run.gate.updateWorlds(worlds);
   };
   image();
-  return { rt, source, nodes, roots, rows, log, image };
+  /** Nodes the host removed or reparented: their link in the engine index may be stale. */
+  const cut = new Set<Object3D>();
+  return { rt, source, nodes, roots, rows, log, image, cut };
 }
 export type World = Awaited<ReturnType<typeof world>>;
 
@@ -95,7 +97,7 @@ export function edit(draw: Draw, kind: number, twins: World[]) {
     to = Math.floor(draw() * a.nodes.length),
     seed = Math.floor(draw() * 1e9),
     name = draw() < 0.5 ? pick(draw, a.nodes).name : `fresh${seed}`;
-  for (const { nodes, image } of twins) {
+  for (const { nodes, image, cut } of twins) {
     const node = nodes[at],
       parent = nodes[to];
     if (kind === 0) drawPose(seeded(seed), node);
@@ -105,8 +107,8 @@ export function edit(draw: Draw, kind: number, twins: World[]) {
       added.name = name;
       parent.add(added);
       nodes.push(added);
-    } else if (kind === 3 && node !== nodes[0]) node.removeFromParent();
-    else if (kind === 4 && !isAncestor(node, parent)) parent.add(node);
+    } else if (kind === 3 && node !== nodes[0]) cut.add(node.removeFromParent());
+    else if (kind === 4 && !isAncestor(node, parent)) cut.add(parent.add(node) && node);
     else if (kind === 5) image();
   }
   return at;
@@ -118,12 +120,11 @@ export function sameBits(a: Float32Array | Float64Array | Uint8Array, b: typeof 
   if (!bytes(a).equals(bytes(b))) assertBits(a, b, label);
 }
 
-export function assertSame(a: World, b: World, label: string, worlds: boolean) {
+/** Rows, dirty marks and boxes bit-identical; the engine's worlds too when `worlds`. */
+export function sameState(a: World, b: World, label: string, worlds: boolean) {
   sameBits(a.rows.pageTableFloats, b.rows.pageTableFloats, `${label} rows`);
   sameBits(a.rows.dirty, b.rows.dirty, `${label} dirty`);
   a.roots.forEach((root, i) => sameBits(root.worldBox!, b.roots[i].worldBox!, `${label} box`));
-  assert.deepEqual(a.log, b.log, `${label} motion and mobility`);
-  a.log.length = b.log.length = 0;
   if (worlds)
     a.roots.forEach((root, i) =>
       // The engine's poses are views on its world buffer (`placements.ts`).
@@ -135,13 +136,18 @@ export function assertSame(a: World, b: World, label: string, worlds: boolean) {
     );
 }
 
+export function assertSame(a: World, b: World, label: string, worlds: boolean) {
+  sameState(a, b, label, worlds);
+  assert.deepEqual(a.log, b.log, `${label} motion and mobility`);
+  a.log.length = b.log.length = 0;
+}
+
 /**
  * Roots whose row differs between the batch twin `a` and the one-by-one twin `b`, taken by `b` and
- * the `others`. The engine index keeps the structure it was built on (`tree.ts`): a node the host
- * reparented still moves with its old parent there. One by one, such a root keeps the row and box
- * of the call that listed it while a later call moves it through that old link; the batch writes
- * both at the pose the root ends at. Each such root is proved that case — `a` agrees with its
- * world, `b` does not — then its row and box are copied over. Returns their ranks.
+ * the `others`. The engine index keeps the links it was built on (`tree.ts`): one by one, a root
+ * under a node the host cut keeps the row and box of the call that listed it while a later call
+ * moves it through the old link; the batch writes both final. Proved that case (`a` is its world,
+ * `b` is not, a cut node on its chain, the one-by-one twins agree), then copied. Returns the ranks.
  */
 export function takeFinalRows(a: World, b: World, others: World[]) {
   const taken = new Set<number>(),
@@ -154,12 +160,15 @@ export function takeFinalRows(a: World, b: World, others: World[]) {
     if (p.every((v, k) => Object.is(v, q[k]))) return;
     const world = (x: World) => Float32Array.from(x.roots[i].world.elements);
     sameBits(p, world(a), `root ${i}: the batch row is its final world`);
-    assert.ok(
-      !q.every((v, k) => Object.is(v, world(b)[k])),
-      `root ${i}: one by one left no old row`,
-    );
+    assert.ok(!q.every((v, k) => Object.is(v, world(b)[k])), `root ${i}: one by one is final`);
     if (root.localBox) boxTransform(box, 0, root.localBox, 0, root.world.elements);
     if (root.localBox) sameBits(root.worldBox!, box, `root ${i}: the batch box is its final one`);
+    const mesh = root.pages[0].sourceMesh as Object3D;
+    assert.ok(
+      [...a.cut].some((n) => isAncestor(n, mesh)),
+      `root ${i}: no link cut above`,
+    );
+    for (const x of others) sameBits(row(x), q, `root ${i}: one by one, the twins' rows`);
     for (const x of [b, ...others]) {
       row(x).set(p);
       x.roots[i].worldBox?.set(root.worldBox!);
