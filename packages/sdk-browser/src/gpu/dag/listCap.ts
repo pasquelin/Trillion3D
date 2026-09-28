@@ -1,4 +1,5 @@
 import { storageBufferCap } from '../../residency/pools.ts';
+import { validationScope } from '../core/errorScope.ts';
 import {
   DAG_READBACK_SLOTS,
   OUT_COUNT,
@@ -9,6 +10,7 @@ import {
   stagedOutputBytes,
 } from './layout.ts';
 import type { createDagResources } from './resources.ts';
+import type { DagRuntimeState } from './dispatch.ts';
 
 export type Limits = Parameters<typeof storageBufferCap>[0];
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
@@ -68,17 +70,66 @@ export function createDagList(
 /**
  * Gives the camera cut a list of `listCap` ranks, between two frames and with no readback in
  * flight: a new readout and its slots, the bind groups that name it, and the old ones destroyed.
- * The kernels read the cap from the uniforms (`uniforms.ts`); the pool's list, in `pageCones`,
- * keeps its own (`layout.ts`). A light cut already made keeps the readout it was made with.
+ * Made under an out-of-memory scope: a device that cannot grant the larger list keeps the old one
+ * whole and says `false`, so the host falls back on the next truncated readout rather than on an
+ * error of the whole device. The kernels read the cap from the uniforms (`uniforms.ts`); the pool's
+ * list, in `pageCones`, keeps its own (`layout.ts`). A light cut already made keeps the readout it
+ * was made with.
  */
-export function growDagList(resources: DagResources, listCap: number) {
-  const old = [resources.output, ...resources.readback],
-    list = createDagList(resources.own, listCap, resources.residentCut);
+async function growDagList(
+  resources: DagResources,
+  listCap: number,
+  disposed: () => boolean,
+) {
+  const made: GPUBuffer[] = [];
+  const make = (descriptor: GPUBufferDescriptor) => {
+    const buffer = resources.device.createBuffer(descriptor);
+    made.push(buffer);
+    return buffer;
+  };
+  let list: ReturnType<typeof createDagList> | undefined;
+  try {
+    const { value, error } = await validationScope(
+      resources.device,
+      () => createDagList(make, listCap, resources.residentCut),
+      'out-of-memory',
+    );
+    if (!error) list = value;
+  } catch {
+    /* A creation the device throws on is a refusal too. */
+  }
+  // Refused, or `dispose` came meanwhile: nothing made outlives this call.
+  if (!list || disposed()) {
+    for (const buffer of made) buffer.destroy();
+    return false;
+  }
+  const old = [resources.output, ...resources.readback];
   Object.assign(resources, list);
+  resources.buffers.push(...made);
   resources.group.out = list.output;
   resources.ranges = resources.frames.bindGroups(resources.layout, resources.group);
   for (const buffer of old) {
     resources.buffers.splice(resources.buffers.indexOf(buffer), 1);
     buffer.destroy();
   }
+  return true;
+}
+
+/** Grows the list to `state.grow` behind the readbacks in `state.pending`; no frame cuts until it
+ *  is in place or refused, and the next one cuts and reads again — on the grown list, or, refused,
+ *  to hand the truncated readout to the host. */
+export function queueDagListGrowth(resources: DagResources, state: DagRuntimeState) {
+  const wanted = state.grow;
+  state.grow = 0;
+  state.growing = true;
+  state.pending = state.pending
+    .catch(() => {})
+    .then(async () => {
+      try {
+        if (!(await growDagList(resources, wanted, () => state.disposed))) state.listFull = true;
+      } finally {
+        state.growing = false;
+        state.submittedResidencyRevision = state.readbackResidencyRevision = -1;
+      }
+    });
 }
