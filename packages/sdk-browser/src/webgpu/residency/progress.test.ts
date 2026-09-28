@@ -72,17 +72,18 @@ test('progress resolves at each page landed, heard or not, while the job runs, a
   release();
   await queue.pending;
   await new Promise(setImmediate);
-  assert.deepEqual(heard, ['progress', 'landed unheard', 'next', 'pending']);
+  assert.deepEqual(heard, ['progress', 'landed unheard', 'pending', 'next']);
   assert.equal(queue.progress(), queue.pending, 'no job running: its end is all there is to wait');
+  assert.equal(queue.landings, 2, 'the loop counts both landings');
 });
 
-test('a failed job wakes the frame waiting on it; the wait after throws its error', async () => {
+test('a failed job rejects the frame waiting on it with its error, and the wait after', async () => {
   let fail!: (error: Error) => void;
   const queue = queueOf(() => new Promise<void>((_, reject) => (fail = reject)));
   queue.queueCutResidency(false);
   await new Promise(setImmediate);
   const woken = queue.progress();
-  fail(new Error('WEBGPU_LOST'));
-  await woken;
-  await assert.rejects(queue.progress(), /WEBGPU_LOST/);
+  fail(new Error('PAGE_STREAM_FAILED'));
+  await assert.rejects(woken, /PAGE_STREAM_FAILED/);
+  await assert.rejects(queue.progress(), /PAGE_STREAM_FAILED/);
 });
