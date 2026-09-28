@@ -1,9 +1,9 @@
 // Every stage of the DAG selection kernel compiled on a real WebGPU device (#922): the text the
 // engine compiles — `shader.ts` with the normal cone of `coneWgsl.ts` and the cut kernels it feeds
 // (`wantedWgsl.ts`, `compactWgsl.ts`, `aheadWgsl.ts`, `error.ts`) — under each screen-error
-// variant (`dagSelectionCode`), then the engine's own stages (`createDagStages`) with and without
-// the `SPLIT` override. Any compiler error or validation error fails. The Node gate only parses
-// the text; here the GPU's own WGSL compiler reads it.
+// variant (`withScreenErrorVariant`, as `pipeline.ts` renders it), then the engine's own stages
+// (`createDagStages`) with and without the `SPLIT` override. Any compiler error or validation
+// error fails. The Node gate only parses the text; here the GPU's own WGSL compiler reads it.
 //
 // The probe proves it can fail: the same run on a copy with a WGSL syntax error in the cone, and
 // one with a type error, must each be refused.
@@ -14,7 +14,7 @@ import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DAG_SELECTION_SHADER } from '../../../packages/sdk-browser/src/gpu/dag/shader/shader.ts';
-import { dagSelectionCode } from '../../../packages/sdk-browser/src/gpu/dag/pipeline.ts';
+import { withScreenErrorVariant } from '../../../packages/sdk-browser/src/gpu/dag/shader/error.ts';
 import { SCREEN_ERROR_VARIANTS } from '../../../packages/sdk-core/src/lod/screenErrorVariant.ts';
 import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
 import type { compileKernels, KernelText } from './dagKernelsCompilePage.ts';
@@ -37,7 +37,7 @@ const SOURCES = {
 const texts: KernelText[] = Object.entries(SOURCES).flatMap(([source, code]) =>
   SCREEN_ERROR_VARIANTS.map((variant) => ({
     name: `${source} ${variant}`,
-    code: dagSelectionCode(variant, code),
+    code: withScreenErrorVariant(code, variant),
   })),
 );
 
