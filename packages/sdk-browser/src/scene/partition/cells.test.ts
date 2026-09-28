@@ -131,7 +131,11 @@ test('a parent scaled down grows the rows in place, on an engine that takes it, 
     if (!grows) {
       assert.deepEqual(grown, [], 'no buffer replaced: the session reads the ones it holds');
       assert.ok(links.every((link, at) => link.placements === before[at]));
-      continue; // it asks its owner to reopen
+      // The session opened again sizes the rows for the reach and places the far cell.
+      await cells.prime([0, 0, 0], 100, async (url) => bytes(url)!, true);
+      const { held: placedAgain, rows } = cells.stats();
+      assert.deepEqual([placedAgain, rows], [2, 4]);
+      continue;
     }
     const after = links.map((link) => link.placements!);
     assert.deepEqual(
