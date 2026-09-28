@@ -87,13 +87,16 @@ export function createPartitionFrame(inputs: Inputs) {
   };
   const step = () => {
     const backend = active();
-    const io = {
+    const io: Parameters<PartitionCells['frame']>[2] = {
       bytes: (url: string) => streamer.getBytes(url),
       loading: (url: string) => streamer.loading(url),
       request,
       update: (...range: Parameters<NonNullable<RenderBackend['updatePlacements']>>) =>
         backend.updatePlacements?.(...range),
-      grow: backend.growPlacements?.bind(backend),
+      grow: backend.growPlacements && {
+        growPlacements: backend.growPlacements.bind(backend),
+        growsInPlace: (from, capacity) => backend.growsInPlace?.(from, capacity) ?? true,
+      },
       outgrown: renew,
     };
     const { eye, reach } = viewOf(camera);
