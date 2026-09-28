@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore, type SceneLight } from '../../../../../sdk-core/src/index.ts';
-import { followLightThreshold, wantsContractLighting } from './lightResources.ts';
+import { followLightThreshold, readsAsIs, wantsContractLighting } from './lightResources.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -63,4 +63,13 @@ test('the light cuts select at the camera threshold, which no budget raises', ()
   const lights = createWebgpuLightState(32);
   assert.equal(followLightThreshold(lights, 1), 1);
   assert.equal(followLightThreshold(lights, 8), 8);
+});
+
+// OMB-11: the flagless variants are chosen only when nothing in the image can write the as-is flag.
+test('the image reads its as-is flags once a row shows one, or under a diagnostic view', () => {
+  const at = (asIsShown: boolean, diagnostic: string) =>
+    readsAsIs({ vis: { asIsShown }, run: { diagnostic } } as unknown as WebgpuPagesRuntime);
+  assert.equal(at(false, 'beauty'), false, 'no as-is surface: flagless');
+  assert.equal(at(true, 'beauty'), true, 'a normal or depth surface took a row');
+  assert.equal(at(false, 'wireframe'), true, 'a diagnostic view writes the flag');
 });
