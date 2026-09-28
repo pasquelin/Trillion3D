@@ -55,14 +55,10 @@ test('a resource mounted in place is drawn once its cover is read, and unmounted
   }
 });
 
-/** A resource of its own mounted beside the fixture's triangle, `rows` placing it, `url` its page. */
-function mountBeside(
-  { geometry, paged }: ReturnType<typeof triangleBackend>,
-  url: string,
-  rows = liveRows(3),
-) {
+/** A resource of its own mounted beside the fixture's triangle in three rows, `url` its page. */
+function mountBeside({ geometry, paged }: ReturnType<typeof triangleBackend>, url: string) {
   const node = G.mesh(geometry, G.basicSurface({ side: G.DOUBLE_SIDE }));
-  const association = { meshes: 1, primitives: 0, placements: rows };
+  const association = { meshes: 1, primitives: 0, placements: liveRows(3) };
   return { node, association, primitive: resourceAt(paged, 1, url) };
 }
 
