@@ -73,7 +73,7 @@ export function poseAt(bounds: Bounds, index: number): CameraPose {
     block = Math.max(sx, sz);
   const eye = Math.max(block * 0.008, sy > 0 ? Math.min(2, sy * 0.03) : 1.6);
   const above = max.y + eye;
-  const place = ([x, height, z]: number[]) => {
+  const place = ([x, height, z]: number[]): [number, number, number] => {
     const inStreet = Math.max(Math.abs(x), Math.abs(z)) <= STREET_HALF_WIDTH;
     const y = height === ABOVE ? above : ground + height * eye;
     return [cx + x * sx, Math.max(ground + eye, inStreet ? y : Math.max(y, above)), cz + z * sz];
@@ -84,7 +84,7 @@ export function poseAt(bounds: Bounds, index: number): CameraPose {
   const a = place(POINTS[segment]),
     b = place(POINTS[segment + 1] ?? POINTS[0]);
   return {
-    position: a.map((v, i) => v + (b[i] - v) * t),
+    position: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t],
     target: [cx, ground + eye * 2, cz],
     fov: 55,
     near: Math.max(radius / 10000, 0.01),
