@@ -112,6 +112,8 @@ test('a shadow pool the device refuses is drawn smaller, said, and never taken f
   assert.equal(phase, 'gpu-out-of-memory');
   assert.equal(context.pool, 'shadow');
   assert.equal(context.grantedBytes, shadowAtlasBytes(side));
+  assert.deepEqual(s.lights.memory.events, ['pool-shrunk'], 'a pressure, by name');
+  assert.equal(s.lights.memory.bias, 2, 'a quarter of the bytes: two halvings');
   assert.equal(s.uncaptured, 0, 'every refusal was caught by its scope: no device loss');
 });
 
@@ -131,6 +133,7 @@ test('a shadow pool refused even at its floor leaves the frame whole and says sh
   );
   assert.equal(s.lights.shadowGrant?.settled, true, 'the grant settled: no frame waits on it');
   assert.match(String(s.lights.shadowReason), /refused/, "every frame's shadow report says so");
+  assert.deepEqual(s.lights.memory.events, ['pool-refused']);
   await s.size();
   assert.equal(s.said.length, 2, 'a refusal is asked once, not every frame');
   assert.equal(s.uncaptured, 0);
