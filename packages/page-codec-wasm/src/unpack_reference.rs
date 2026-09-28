@@ -2,22 +2,10 @@
 //! every field read at random, the first corner out of range refusing.
 
 use super::*;
+use crate::bits::tests::random_field;
 use crate::triangles::{BLOCK, WIDTH_BITS};
 
 const CORNERS: usize = 3 * BLOCK;
-
-/// Develop's `field`: two word reads, a shift and a mask per field.
-pub fn random_field(words: &[u32], at: usize, bits: u32) -> u32 {
-    if bits == 0 {
-        return 0;
-    }
-    let (shift, index) = ((at % 32) as u32, at / 32);
-    let mut value = u64::from(words[index]) >> shift;
-    if shift + bits > 32 {
-        value |= u64::from(words[index + 1]) << (32 - shift);
-    }
-    (value & ((1u64 << bits) - 1)) as u32
-}
 
 fn random_vector<const N: usize>(out: &mut [u32], w: &[u32], at: [usize; N], q: &Quant<N>) {
     for c in 0..N {

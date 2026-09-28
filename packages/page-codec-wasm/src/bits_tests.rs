@@ -1,7 +1,19 @@
 //! Bit fields, the sequential reader, the step and the octahedral normals.
 
 use super::*;
-use crate::unpack::reference::random_field;
+
+/// Develop's `field`: two word reads, a shift and a mask per field.
+pub fn random_field(words: &[u32], at: usize, bits: u32) -> u32 {
+    if bits == 0 {
+        return 0;
+    }
+    let (shift, index) = ((at % 32) as u32, at / 32);
+    let mut value = u64::from(words[index]) >> shift;
+    if shift + bits > 32 {
+        value |= u64::from(words[index + 1]) << (32 - shift);
+    }
+    (value & ((1u64 << bits) - 1)) as u32
+}
 
 #[test]
 fn a_field_crosses_a_word_boundary_and_a_zero_width_field_reads_zero() {

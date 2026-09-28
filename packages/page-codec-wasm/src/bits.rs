@@ -157,4 +157,4 @@ impl<const N: usize> Quant<N> {
 
 #[cfg(test)]
 #[path = "bits_tests.rs"]
-mod tests;
+pub(crate) mod tests;
