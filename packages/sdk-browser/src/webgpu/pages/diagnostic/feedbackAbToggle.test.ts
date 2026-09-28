@@ -4,8 +4,10 @@ import { createTaaFrameState, beginTaaFrame } from '../../../taa/frame.ts';
 import { keepWebgpuFrame } from '../../frame/hold.ts';
 import { setFeedbackTargetAb } from './feedbackAb.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 
 test('same-device toggle changes only feedback allocation and selected pipelines', async () => {
+  installGpuGlobals();
   let destroyed = 0,
     created = 0;
   const on = {

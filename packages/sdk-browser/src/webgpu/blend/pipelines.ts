@@ -131,7 +131,7 @@ export async function createWebgpuBlendPipelines(
         'in,front',
       );
   }
-  const blendModule = device.createShaderModule({ code });
+  const blendModule = device.createShaderModule({ code: code });
   const fragment = (mode: Blending): GPUFragmentState => ({
     module: blendModule,
     entryPoint,
