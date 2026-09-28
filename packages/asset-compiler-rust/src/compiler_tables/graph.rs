@@ -65,6 +65,7 @@ pub(super) fn node_table(g: &Value) -> Result<Vec<Value>> {
         }
         table.push(json!({
             "name": name_of(node),
+            "sourceNode": id,
             "children": crate::compiler_nodes::children_of(nodes, id)?,
             "mesh": mesh,
             "light": light,

@@ -34,6 +34,8 @@ const GEOMETRY_TABLE_VERSION = 1;
  * and scale, each `null` when silent. Several nodes naming one mesh is what instancing is here.
  */
 export interface TableNode {
+  /** Original document rank, retained when partition tables renumber core nodes. */
+  sourceNode?: number;
   /** The node's name. */
   name: string;
   /** Its children, in order. */
