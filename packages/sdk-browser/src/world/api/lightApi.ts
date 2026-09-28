@@ -10,6 +10,7 @@ import {
 } from '../../../../sdk-core/src/index.ts';
 import type { BackendDiagnostic, RenderBackend } from '../../backend/types.ts';
 import { lightingCapabilitiesOf } from '../../lighting/capabilities.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 type Inputs = {
   check: () => void;
@@ -32,7 +33,7 @@ type Inputs = {
  * marks the scene modified, and the next render — the host's `render()`, or the already
  * scheduled residency refresh — takes it. Ten poses set before a frame cost one submit, not
  * eleven: the frame gate refuses to hold the previous frame from the first pose, so the
- * screen never keeps a stale pose.
+ * screen never keeps a stale pose. `setTransforms` does the same for many nodes at once.
  */
 export function createExplorerLightApi(inputs: Inputs) {
   const { check, store, imported, backends, active, onDiagnostic } = inputs;
@@ -155,6 +156,22 @@ export function createExplorerLightApi(inputs: Inputs) {
           'UNSUPPORTED_SCENE_UPDATE',
           'no engine of this session moves a named node',
           { nodeName },
+        );
+    },
+    /** `setTransform` on many nodes the host resolved once: sixteen floats per node, in order. */
+    setTransforms(nodes: readonly Object3D[], matrices: Float32Array) {
+      check();
+      let applied = 0;
+      for (const backend of backends)
+        if (backend.setTransforms) {
+          backend.setTransforms(nodes, matrices);
+          applied++;
+        }
+      if (!applied)
+        throw new EngineError(
+          'UNSUPPORTED_SCENE_UPDATE',
+          'no engine of this session moves a named node',
+          { nodeName: nodes[0]?.name },
         );
     },
   };
