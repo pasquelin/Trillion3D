@@ -69,7 +69,8 @@ function graph(seed: number, size: number) {
     return false;
   };
   const placed = () => nodes.filter((node) => within(node, scene));
-  const holders: Object3D[] = [scene];
+  const holders: Object3D[] = [scene],
+    aside = new Group();
   for (let i = 0; i < size; i++) {
     const node = make();
     pick(holders).add(node);
@@ -85,6 +86,12 @@ function graph(seed: number, size: number) {
       const node = pick(members());
       if (node) pick(placed().filter((n) => !within(n, node))).add(node);
     },
+    // Moved under a group no graph holds: the graph it left must hear it go.
+    detach: () => {
+      const node = pick(members());
+      if (node) aside.add(node);
+    },
+
     hide: () => {
       const node = pick(members());
       if (node) node.visible = !node.visible;

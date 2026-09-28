@@ -18,7 +18,7 @@ const see = (mesh: HostMesh) => !!firstMaterial(mesh.material)?.transparent;
  * INVARIANT: after `refresh()` the lists are exactly those a full walk of the graph would find, in
  * the same order. What changes them is heard by the engine's own change signal, the scene link
  * (`SceneLink`), set on every node here and carried by `add` to every node that joins: a node
- * added or removed (`structure`), a node the last walk reached shown or hidden (`pose`, which a
+ * added, removed or moved out of the graph (`structure`), a node the last walk reached shown or hidden (`pose`, which a
  * move also sends: a node whose `visible` is as the walk read it changes nothing; one under a
  * hidden node joins when that node is shown). A surface turned see-through or back, set or
  * written in place, is read on the members themselves. The
