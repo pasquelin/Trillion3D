@@ -2,10 +2,19 @@ import { clusterPixels, projectedClusterError } from './math.ts';
 import type { PageRecord, SelectionState } from '../cut/state.ts';
 
 /** `clusterPixels` through the frame's own lens — its view, stretch, focal length, near plane and
- *  projection — into `out`. */
+ *  projection, checked once per root (`flatSound`) — into `out`. */
 export function framePixels<T extends PageRecord>(s: SelectionState<T>, rec: T, out: Float64Array) {
-  const { flatElements, flatStretch, flatFocal, cam } = s;
-  return clusterPixels(rec, flatElements, flatStretch, flatFocal, cam.near, cam.perspective, out);
+  const { flatElements, flatStretch, flatFocal, cam, flatSound } = s;
+  return clusterPixels(
+    rec,
+    flatElements,
+    flatStretch,
+    flatFocal,
+    cam.near,
+    cam.perspective,
+    out,
+    flatSound,
+  );
 }
 
 /** `projectedClusterError` of one (error, sphere at `offset`) pair through the frame's lens. */
@@ -15,7 +24,7 @@ export function frameClusterError<T extends PageRecord>(
   sphere: ArrayLike<number> | null | undefined,
   offset = 0,
 ) {
-  const { flatElements, flatStretch, flatFocal, cam } = s;
+  const { flatElements, flatStretch, flatFocal, cam, flatSound } = s;
   const { near, perspective } = cam;
   return projectedClusterError(
     error,
@@ -26,5 +35,6 @@ export function frameClusterError<T extends PageRecord>(
     flatFocal,
     near,
     perspective,
+    flatSound,
   );
 }
