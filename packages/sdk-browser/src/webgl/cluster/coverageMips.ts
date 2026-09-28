@@ -79,7 +79,10 @@ function buildCounts(gl: WebGL2RenderingContext) {
   gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, counts, 0);
   // Refused (`../core/allocation.ts`, read now: built once, and read back already) or incomplete:
   // the chains stay box chains.
-  if (refusedNow(gl) || gl.checkFramebufferStatus(gl.DRAW_FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+  if (
+    refusedNow(gl) ||
+    gl.checkFramebufferStatus(gl.DRAW_FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE
+  ) {
     gl.deleteFramebuffer(frame);
     gl.deleteTexture(counts);
     gl.deleteProgram(count);
