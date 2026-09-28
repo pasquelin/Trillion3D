@@ -41,7 +41,7 @@ function sampleAt(origin: number, error: number, texels: number) {
   return shaderFunctions<Sample>(SHADOW_SAMPLE_WGSL, ['shadowSample'], device).shadowSample;
 }
 
-test('a page reads the same comparison wherever it lies, however the sampler rounds (#26)', () => {
+test('a page reads its exact comparison wherever it lies, however the sampler rounds (#26)', () => {
   for (const pages of [51, 53, 64]) {
     const texels = pages * SHADOW_PAGE;
     const reads = [0, 17, pages - 1, pages * 30 + 7].flatMap((k) => {
@@ -52,10 +52,14 @@ test('a page reads the same comparison wherever it lies, however the sampler rou
       }));
     });
     for (let step = 0.5 * STEPS; step <= (SHADOW_PAGE - 0.5) * STEPS; step += 97) {
-      const read = new Set(
-        reads.map(({ origin, sample }) => sample(origin + step / STEPS, 0, texels, 0.5)),
-      );
-      assert.equal(read.size, 1, `side ${pages}, texel ${step / STEPS}`);
+      // The page's own bilinear comparison at that exact texel, whatever the place or the error.
+      const exact = compare(step / STEPS, 0.5, (x) => hash(Math.floor(x)), 0.5);
+      for (const { origin, sample } of reads)
+        assert.equal(
+          sample(origin + step / STEPS, 0, texels, 0.5),
+          exact,
+          `side ${pages}, texel ${step / STEPS}`,
+        );
     }
   }
 });
