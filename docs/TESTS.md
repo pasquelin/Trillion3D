@@ -52,7 +52,9 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 | `pnpm run validate` | full pre-merge validation gate                                       |
 
 `pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
-touch; neither replaces `validate`.
+touch; neither replaces `validate`. `check:changed` also type-checks (`tsc --noEmit`) every
+tracked `tsconfig*.json` project that owns a changed TypeScript file, by listing it or reaching it
+through an import (`scripts/ts-projects.ts`); a changed file no project reaches fails the gate.
 
 The CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as parallel jobs, one
 per group of `scripts/validate-steps.ts`: `quick`, `typescript`, `native` (Clippy and the Rust
