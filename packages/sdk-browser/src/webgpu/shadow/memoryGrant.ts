@@ -42,16 +42,18 @@ export const shadowPoolHeld = ({ shadows, staticLayer, pageRequests }: WebgpuLig
 
 export const createShadowMemory = (): ShadowMemory => ({ peakBytes: 0, bias: 0, events: [] });
 
-/** Asks the grant for `bytes` more beside the `heldBytes` it holds: true, and the peak raised to
- *  their sum, when it holds both; false, and nothing counted, past it. */
+/** Asks the grant for `bytes` more beside the `heldBytes` it holds and the `reserveBytes` kept for
+ *  a later layer: true, and the peak raised to what is held then (the reserve not counted), when it
+ *  holds all three; false, and nothing counted, past it. */
 export function admitShadowBytes(
   memory: ShadowMemory,
   heldBytes: number,
   bytes: number,
   grantBytes = SHADOW_GRANT_BYTES,
+  reserveBytes = 0,
 ) {
   const total = heldBytes + bytes;
-  if (total > grantBytes) return false;
+  if (total + reserveBytes > grantBytes) return false;
   memory.peakBytes = Math.max(memory.peakBytes, total);
   return true;
 }
@@ -63,16 +65,17 @@ export function grantsShadowLayer(
   diagnose: WebgpuPagesRuntime['diag']['engineDiagnostic'],
   pressure: 'static-layer-over-grant' | 'transmittance-over-grant',
   message: string,
-  requestedBytes: number,
+  bytes: number,
   grantBytes = SHADOW_GRANT_BYTES,
+  reserveBytes = 0,
 ) {
   const heldBytes = shadowPoolHeld(lights);
-  if (admitShadowBytes(lights.memory, heldBytes, requestedBytes, grantBytes)) return true;
+  if (admitShadowBytes(lights.memory, heldBytes, bytes, grantBytes, reserveBytes)) return true;
   noteShadowPressure(lights.memory, pressure);
   diagnose('shadow-memory', message, {
     kind: 'warning',
     pressure,
-    requestedBytes,
+    requestedBytes: bytes + reserveBytes,
     heldBytes,
     grantBytes,
   });

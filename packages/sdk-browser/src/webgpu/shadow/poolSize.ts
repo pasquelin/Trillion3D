@@ -55,8 +55,9 @@ export function staticLayerGranted(
     diagnose,
     'static-layer-over-grant',
     'The shadow static layer is past the shadow grant',
-    shadowAtlasBytes(side, layers) + transmittance,
+    shadowAtlasBytes(side, layers),
     grantBytes,
+    transmittance,
   );
 }
 
