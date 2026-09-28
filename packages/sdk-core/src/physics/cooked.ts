@@ -103,6 +103,9 @@ type CookedHull = Omit<CookedTile, 'triangles' | 'bounds'> & {
 /** A rigid body a node of the model declares, placed by it, with its collider's matter. */
 export interface CookedBody extends Omit<CookedInstance, 'collider'> {
   motion: DeclaredMotion;
+  /** The other node whose mesh its hull is cooked from, when its collider names one (absent
+   *  from a file cooked before it was recorded): that node's static ground is the body's too. */
+  colliderNode?: number;
   shape: ImplicitShape | CookedHull;
 }
 

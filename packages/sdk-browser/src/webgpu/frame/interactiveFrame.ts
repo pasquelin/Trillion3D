@@ -26,7 +26,8 @@ export async function pendingWebgpuFrame(rt: WebgpuPagesRuntime) {
   await gpu.device?.queue.onSubmittedWorkDone();
   await run.gpuSelection?.flush();
   if (gpu.deferred && wantsContractLighting(rt)) await gpu.deferred.settle();
-  await services.residency.pending;
+  // The next page the job lands, not its last: the frames draw while a long job loads (#836).
+  await services.residency.progress();
   await vis.textures?.settled();
   // An image drawn while the effect programs compile is drawn again once, when they arrive,
   // rather than on every frame meanwhile, which would spend the loop's rounds (#349). Waited

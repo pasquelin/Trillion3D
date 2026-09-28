@@ -159,6 +159,7 @@ export async function createWaterFrame(device: GPUDevice) {
       const composite = encoder.beginRenderPass(compositePass);
       composite.setPipeline(pipeline);
       composite.setBindGroup(0, group);
+      if (rt.gpu.reflection) composite.setBindGroup(1, rt.gpu.reflection.group);
       composite.draw(3);
       composite.end();
       return encoded;
