@@ -1,12 +1,24 @@
 import assert from 'node:assert/strict';
+import { readdir } from 'node:fs/promises';
 import test from 'node:test';
 import type { Browser, Page } from 'playwright';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
 import { leastDrawn, openExample, RENDER_ONLY } from './docs/examples/capture.ts';
 import { physicsExamples } from './docs/examples/physics.ts';
-import { readyEntries as ready } from '../site/app/examples/list.ts';
+import { readyEntries as ready, roadmapEntries } from '../site/app/examples/list.ts';
 import { flagged, type HealthVerdict } from '../site/examples/kit/verdict.ts';
+
+/** The pages parked until the engine draws them: opened for their errors, never asked to draw. */
+const parked = new Set(
+  roadmapEntries.filter(({ status }) => status === 'waiting-engine').map(({ id }) => id),
+);
+
+/** Every example page on disk, listed by the gallery or not. */
+const examplePages = async () =>
+  (await readdir(new URL('../site/examples/', import.meta.url)))
+    .filter((file) => file.endsWith('.html'))
+    .map((file) => ({ id: file.slice(0, -'.html'.length), file: `examples/${file}` }));
 
 /** The centre of the render, the kit's panels outside it. */
 const centre = (page: Page) =>
@@ -75,7 +87,7 @@ async function healthCheckJudges(browser: Browser, port: number) {
   assert.deepEqual(found, []);
 }
 
-test('every example file renders an image on its own, fetching Jolt only when it has physics, the portal page fills with it, and the health check judges itself', async () => {
+test('every example file loads with no error and renders an image on its own, fetching Jolt only when it has physics, the portal page fills with it, and the health check judges itself', async () => {
   const { server, port } = await startDocsServer();
   const browser = await launchChrome({ headless: true });
   try {
@@ -88,16 +100,23 @@ test('every example file renders an image on its own, fetching Jolt only when it
     // The live render is the page: the iframe takes most of the height under the header.
     const view = await frame.boundingBox();
     assert.ok(view && view.height > 900 * 0.7, `the demo fills the content area (${view?.height})`);
+    // #945: the icon every example asks the root for, naming none, is served and decodes.
+    const icon = await page.evaluate(
+      async () => (await createImageBitmap(await (await fetch('/favicon.ico')).blob())).width,
+    );
+    assert.equal(icon, 16);
     await page.close();
     // #276: with the machine's WebGPU device, then with none — a published example renders on
     // both, since it names no backend and the engine reads the machine it was opened on. Every
     // page is opened before the verdict, so the list names every example that stayed blank.
+    // #945: every page of site/examples, a parked one or one the gallery does not list included,
+    // loads with no error; a parked page is not asked to draw.
     const physics = await physicsExamples(ready);
     const blank: string[] = [],
       jolt: string[] = [];
     for (const gpu of [true, false])
-      for (const example of ready) {
-        const share = leastDrawn(example.id, gpu);
+      for (const example of await examplePages()) {
+        const share = parked.has(example.id) ? 0 : leastDrawn(example.id, gpu);
         const opened = await openExample(
           browser,
           port,
@@ -108,14 +127,14 @@ test('every example file renders an image on its own, fetching Jolt only when it
         );
         if (opened.errors.length > 0 || opened.drawn < share)
           blank.push(
-            `${example.id} ${gpu ? 'with' : 'without'} WebGPU drew ${opened.drawn}${opened.errors[0] ? `: ${opened.errors[0]}` : ''}`,
+            `${example.id} ${gpu ? 'with' : 'without'} WebGPU drew ${opened.drawn}${opened.errors.map((error) => `: ${error}`).join('')}`,
           );
         // #395, #397: Jolt, and the page's code that drives it, are fetched by a page that turns
         // physics on, read from its own source (#503), and by no other.
         const fetched = opened.requests.some((url) =>
           /physicsWorker\.js|joltPhysics\w*\.wasm|\/session-\w+\.js/.test(url),
         );
-        if (fetched !== physics.has(example.id))
+        if (ready.some(({ id }) => id === example.id) && fetched !== physics.has(example.id))
           jolt.push(`${example.id} ${fetched ? 'fetched' : 'did not fetch'} the physics`);
         await opened.page.close();
       }
