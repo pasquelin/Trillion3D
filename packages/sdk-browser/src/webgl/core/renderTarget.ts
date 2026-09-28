@@ -1,4 +1,5 @@
 import type { SceneToneMapping } from '../../../../sdk-core/src/scene/core/environment.ts';
+import { allocated } from './allocation.ts';
 /**
  * An engine-owned render target: one colour texture and, unless declined, one 24-bit depth
  * renderbuffer on a framebuffer of the host context, sized in drawing-buffer pixels. It holds a
@@ -66,6 +67,8 @@ export function createWebglRenderTarget(
       gl.bindRenderbuffer(gl.RENDERBUFFER, depth);
       gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, nextWidth, nextHeight);
     }
+    // Refused: sized again at the next resize, the geometry a level coarser (`allocation.ts`).
+    if (!allocated(gl)) currentWidth = currentHeight = 0;
   };
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, texture);
