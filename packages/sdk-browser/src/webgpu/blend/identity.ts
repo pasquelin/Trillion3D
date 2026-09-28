@@ -40,7 +40,9 @@ export function blendEntries(rt: WebgpuPagesRuntime, item?: BlendGpuItem) {
   );
 }
 
-/** The representative paged and fallback groups cover the resources shared by every item. */
+/** The representative paged and fallback groups cover the resources shared by every item. Also
+ *  publishes the image's `lighting` on `blendState`, which the live entries and the water pass
+ *  read: the fallback pass calls it without, and names no lighting. */
 export function voidStaleBlendGroups(rt: WebgpuPagesRuntime, lighting?: BlendLighting) {
   const { gpu, vis, blendState } = rt,
     identity = blendState.identity;

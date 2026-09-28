@@ -54,6 +54,7 @@ test('fallback groups key positions separately and invalidate when a shared entr
     bindGroupLayout: {},
     cache: { buffer: {} },
     uniformBuffer: {},
+    zeroUv: {},
     positionIds: new WeakMap(),
     nextPositionId: 1,
     bindGroups: new Map(),
