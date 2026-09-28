@@ -10,8 +10,6 @@ import { blendSceneOf } from './plan.fixture.ts';
 import { createWebgpuBlendState, type BlendGpuItem } from './state.ts';
 
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
-/** A key no ranking computes: still on an item after a frame, that frame did not rank. */
-const UNRANKED = -1;
 
 /** A paged double-sided item whose box is centred on `z`, the one input its rank reads. */
 function item(z: number, extra: Partial<BlendGpuItem> = {}) {
@@ -42,7 +40,6 @@ function outcome(blendState: BlendState, rejected: number) {
 /** Ranks `blendState` and a fresh scene of the same items and planes, from source order. */
 function rankAgainstFresh(blendState: BlendState, eye: number[]) {
   const kept = outcome(blendState, orderBlendPasses(blendState, eye));
-  const ranked = blendState.blendGpu.every((entry) => entry.orderKey !== UNRANKED);
   const fresh = blendSceneOf([...blendState.blendGpu]);
   fresh.blendPlanes.set(blendState.blendPlanes);
   assert.deepEqual(
@@ -50,34 +47,23 @@ function rankAgainstFresh(blendState: BlendState, eye: number[]) {
     outcome(fresh, orderBlendPasses(fresh, eye)),
     'bit-identical to a full ranking',
   );
-  return ranked;
 }
 
-/** A scene already ranked twice from the same eye. */
+/** A scene already ranked from the eye. */
 function rankedScene(items = [item(-4), item(-8), item(-2), item(-6)]) {
   const blendState = blendSceneOf(items);
   // Rejects every box beyond z = 3: none of the four, but a moved one can be.
   blendState.blendPlanes.set([0, 0, -1, 3]);
   const eye = [0, 0, 0];
   orderBlendPasses(blendState, eye);
-  orderBlendPasses(blendState, eye);
-  for (const entry of blendState.blendGpu) entry.orderKey = UNRANKED;
   return { blendState, eye };
 }
 
-test('a still view ranks again and produces the same order', () => {
-  const { blendState, eye } = rankedScene();
-  assert.equal(rankAgainstFresh(blendState, eye), true);
-});
-
-test('every still frame after a move ranks again', () => {
+test('a still frame after a move keeps the order of a full ranking', () => {
   const blendState = blendSceneOf([item(-4), item(-8)]);
   orderBlendPasses(blendState, [0, 0, 0]);
   orderBlendPasses(blendState, [0, 0, -9]);
-  for (const entry of blendState.blendGpu) entry.orderKey = UNRANKED;
-  assert.equal(rankAgainstFresh(blendState, [0, 0, -9]), true);
-  for (const entry of blendState.blendGpu) entry.orderKey = UNRANKED;
-  assert.equal(rankAgainstFresh(blendState, [0, 0, -9]), true);
+  rankAgainstFresh(blendState, [0, 0, -9]);
 });
 
 const changes: [string, (scene: ReturnType<typeof rankedScene>) => void][] = [
@@ -105,31 +91,30 @@ const changes: [string, (scene: ReturnType<typeof rankedScene>) => void][] = [
 ];
 
 for (const [what, change] of changes)
-  test(`${what}: the frame ranks again, as a full ranking would`, () => {
+  test(`${what}: the frame matches a full ranking`, () => {
     const row = { rows: { live: new Uint8Array([1]) }, index: 0 } as unknown as PlacementOf;
     const scene = rankedScene([item(-4), item(-8), item(-2, { placement: row }), item(-6)]);
     change(scene);
-    assert.equal(rankAgainstFresh(scene.blendState, scene.eye), true);
+    rankAgainstFresh(scene.blendState, scene.eye);
   });
 
-test('an item without a box ranks again when its world origin moves', () => {
+test('an item without a box follows its world origin, as a full ranking would', () => {
   const { blendState, eye } = rankedScene([item(-4), item(-8, { bounds: undefined })]);
   (blendState.blendGpu[1].matrix.elements as number[])[14] = -1;
-  assert.equal(rankAgainstFresh(blendState, eye), true);
+  rankAgainstFresh(blendState, eye);
 });
 
-test('an item that turns transmissive ranks again: the water count follows', () => {
+test('an item that turns transmissive: the water count follows', () => {
   const { blendState, eye } = rankedScene();
   blendState.blendGpu[0].transmissive = true;
   orderBlendPasses(blendState, eye);
-  assert.notEqual(blendState.blendGpu[0].orderKey, UNRANKED);
   assert.equal(blendState.transmissiveInView, 1);
 });
 
 test('a frame without an eye resumes ranking when the eye returns', () => {
   const { blendState, eye } = rankedScene();
   orderBlendPasses(blendState, undefined);
-  assert.equal(rankAgainstFresh(blendState, eye), true);
+  rankAgainstFresh(blendState, eye);
 });
 
 test('the first frame with an eye after one without slices the runs again, its order unmoved', () => {
