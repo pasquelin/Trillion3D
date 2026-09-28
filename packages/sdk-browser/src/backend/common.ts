@@ -30,6 +30,12 @@ export const DEFAULT_FOV = 55,
    */
   STREAMING_FRAME_MS = 1,
   /**
+   * Shares of `STREAMING_FRAME_MS` the residency queue opens at most between two frames of a visible
+   * page, 2 ms cumulated (#983): past them it waits for the next frame, so no burst of shares holds
+   * a frame back. A hidden page, where no frame comes, keeps opening one per task.
+   */
+  STREAMING_SHARES_PER_FRAME = 2,
+  /**
    * How far ahead of a moving camera the cut requests pages, in milliseconds: the programme's time
    * to full detail after a stop (#483). A page the camera reaches within it is asked for now, so the
    * queue that fills a stopped view in that time has it when the view does (`../gpu/core/aheadView.ts`).
