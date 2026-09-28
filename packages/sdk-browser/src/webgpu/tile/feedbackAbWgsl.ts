@@ -16,8 +16,8 @@ export function feedbackFreeEntry(
   const plain = parameters.replace(/@builtin\([^)]*\)\s*/g, '');
   const source = shader
     .replace(marked, `fn ${entry}Source(${plain}`)
-    .replace(new RegExp(`struct ${output}\\{[^}]*\\}`), (declaration) =>
-      declaration.replace(/@location\(\d+\)\s*/g, ''),
+    .replace(new RegExp(`struct ${output}\\{[^}]*\\}`), (structText) =>
+      structText.replace(/@location\(\d+\)\s*/g, ''),
     );
   return `${source}
 struct ${output}WithoutFeedback{${members}}
