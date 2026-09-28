@@ -38,12 +38,11 @@ test('a kinematic body inside a dynamic body’s subtree follows its moving pare
   inner.position.set(1, 0, 0);
   top.add(inner);
   model.updateMatrixWorld(true);
-  model._nodeAt = (i: number) =>
-    i === 0
-      ? { node: top, indices: [0, 2], radius: 1 }
-      : i === 2
-        ? { node: inner, indices: [2], radius: 1 }
-        : null;
+  const nodes = new Map([
+    [0, { node: top, indices: [0, 2], radius: 1 }],
+    [2, { node: inner, indices: [2], radius: 1 }],
+  ]);
+  model._nodeAt = (i: number) => nodes.get(i) ?? null;
   tiles.scan(scene);
   await landed();
   tiles.update([0, 0, 0], 1000);
