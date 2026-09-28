@@ -36,6 +36,7 @@ export interface BenchSettings {
   movingNode: string | null;
   movingNodeRadius: number;
   movingCamera: boolean;
+  gazeNetwork: boolean;
   instances: number;
   isolation: boolean;
   mathPath: 'auto' | 'js' | 'wasm';
