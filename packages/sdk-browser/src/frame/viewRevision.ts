@@ -11,7 +11,7 @@ import { bumpView, createFrameHold, type FrameRevisions } from './revisions.ts';
  * View, projection, near plane and viewport are the fingerprint common to both frame holds
  * (`viewFingerprint.ts`); far-plane range and the quality threshold belong only to this one.
  */
-export function createViewRevision() {
+function createViewRevision() {
   const fingerprint = createViewFingerprint();
   // `NaN` never equals `cam.far`: the first read always counts as a motion.
   let far = NaN,
