@@ -55,7 +55,8 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 touch; neither replaces `validate`. `check:changed` also type-checks (`tsc --noEmit`) every
 tracked `tsconfig*.json` project that owns a changed TypeScript file, by listing it or reaching it
 through an import (`scripts/ts-projects.ts`); a changed file no project reaches fails the gate,
-unless a project's `include` covers it and its `exclude` takes it back.
+unless a project's `include` covers it and its `exclude` takes it back. A project that reads `trillion3d`
+from `dist/` (the site, the tools) is checked after `pnpm run build`, against current declarations.
 
 The CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as parallel jobs, one
 per group of `scripts/validate-steps.ts`: `quick`, `typescript`, `native` (Clippy and the Rust
