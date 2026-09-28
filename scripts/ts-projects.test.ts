@@ -7,11 +7,14 @@ import {
   excludes,
   parseProject,
   projectProgram,
+  readsDist,
   tsProjects,
   typeErrors,
 } from './ts-projects.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
+const refuse = () => assert.fail('no owner reads dist/: nothing to build');
+const project = (name: string) => parseProject(resolve(ROOT, name));
 
 // The #1071 case: a browser proof handed `page.evaluate` a `string[]` where its callback takes a
 // `[string, string]`; `check:changed` let it through, and CI's `check:tools-types` refused it.
@@ -23,7 +26,7 @@ export async function pair(page: Page, names: ${names}): Promise<string> {
 
 function errorsOf(names: string): string[] {
   const file = resolve(ROOT, 'tests/browser/renders/pair.browser.ts');
-  const tools = parseProject(resolve(ROOT, 'tsconfig.tools.json'));
+  const tools = project('tsconfig.tools.json');
   return typeErrors(projectProgram(tools, [file], new Map([[file, proof(names)]])), ROOT);
 }
 
@@ -38,16 +41,22 @@ test('the changed-files gate refuses a type error in a changed browser proof', (
 });
 
 test('a changed TypeScript file no project type-checks is an error, not a skip', () => {
-  assert.deepEqual(changedTypeErrors(ROOT, [], []), []);
+  assert.deepEqual(changedTypeErrors(ROOT, [], [], refuse), []);
   assert.match(
-    changedTypeErrors(ROOT, [], ['tests/browser/renders/pair.browser.ts']).join(),
+    changedTypeErrors(ROOT, [], ['tests/browser/renders/pair.browser.ts'], refuse).join(),
     /pair\.browser\.ts: no tsconfig project type-checks it/,
   );
-  const tools = parseProject(resolve(ROOT, 'tsconfig.tools.json'));
+  const tools = project('tsconfig.tools.json');
   assert.ok(excludes(tools, resolve(ROOT, 'tests/fixtures/publicTypesOnly.ts')));
   assert.ok(!excludes(tools, resolve(ROOT, 'tests/browser/renders/pair.browser.ts')));
-  const build = parseProject(resolve(ROOT, 'tsconfig.json'));
+  const build = project('tsconfig.json');
   assert.ok(!excludes(build, resolve(ROOT, 'site/app/x.test.ts')), 'outside its include');
+});
+
+test('the site and the tools read trillion3d from dist/, so their check builds first', () => {
+  assert.ok(readsDist(project('tsconfig.tools.json'), ROOT));
+  assert.ok(readsDist(project('tsconfig.site.json'), ROOT));
+  assert.ok(!readsDist(project('tsconfig.core.json'), ROOT), 'the SDK sources need no build');
 });
 
 test('the projects are the tracked tsconfig files', () => {
