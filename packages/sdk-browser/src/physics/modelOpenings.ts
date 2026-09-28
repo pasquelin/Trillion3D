@@ -27,13 +27,14 @@ export function createOpenings<O extends { made: { id: number }[] }>(
     /** Whether `opening` is still `model`'s: forgotten or opened again meanwhile, it is not. */
     current: (model: Model, opening: O) => held.get(model) === opening,
     /** `made` out of `model`'s opening, its slot given back: the opening, or `undefined` when
-     *  `made` was no longer in it (its slot then given back all the same). */
+     *  `made` was no longer in it — its slot then already given back, perhaps taken again. */
     drop(model: Model, made: O['made'][number]) {
       const opening = held.get(model);
       const at = opening?.made.indexOf(made) ?? -1;
-      if (at >= 0) opening!.made.splice(at, 1);
+      if (at < 0) return undefined;
+      opening!.made.splice(at, 1);
       release(made.id & BODY_INDEX);
-      return at >= 0 ? opening : undefined;
+      return opening;
     },
   };
 }

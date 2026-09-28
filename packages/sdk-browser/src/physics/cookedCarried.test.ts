@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { OP, SHAPE, type CookedBody } from '../../../sdk-core/src/physics/index.ts';
+import { OP, SHAPE } from '../../../sdk-core/src/physics/index.ts';
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsPoses } from './poses.ts';
 import {
   cooked,
+  declared,
+  fixture,
   landed,
   modelStreamer,
   place,
@@ -15,21 +16,7 @@ import {
 } from './tiles.fixture.ts';
 import { poseRecord } from './worker.fixture.ts';
 
-const ramp = async () =>
-  new Uint8Array(
-    await readFile(new URL('../../../../tests/fixtures/physics/ramp-tile.bin', import.meta.url)),
-  );
-/** Node `node`'s body at `position`, declaring `motion` and `shape`. */
-const declared = (node: number, position: number[], motion: object, shape: object, more = {}) =>
-  ({
-    node,
-    motion,
-    shape,
-    position,
-    rotation: [0, 0, 0, 1],
-    scale: [1, 1, 1],
-    ...more,
-  }) as CookedBody;
+const ramp = async () => new Uint8Array(await fixture('ramp-tile.bin'));
 const box = { type: 'box', box: { size: [1, 1, 1] } };
 const close = (a: ArrayLike<number>, b: number[]) => b.every((v, i) => Math.abs(a[i] - v) < 1e-5);
 /** The pose command (TELEPORT or MOVE_KINEMATIC, 9 words) at word `at` of `words`: its op, slot
