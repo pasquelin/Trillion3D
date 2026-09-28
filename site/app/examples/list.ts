@@ -8,7 +8,7 @@ import { EXAMPLE_THUMBNAILS } from './thumbnails.inline.ts';
  *  API but parked until the engine draws it is `waiting-engine`: its `file`, the feature it lacks
  *  and the `issue` that delivers it. Its words — title, the feature it lacks — are each language's
  *  `gallery`, by its id. */
-export interface RoadmapEntry {
+interface RoadmapEntry {
   id: string;
   theme: string;
   file: string;
@@ -22,6 +22,9 @@ export const roadmapEntries = roadmap.entries as RoadmapEntry[];
 export const isReady = ({ file, status }: RoadmapEntry) => Boolean(file) && !status;
 
 export const readyEntries = roadmapEntries.filter(isReady);
+
+/** Written examples parked until the engine draws them, each naming the issue it waits for. */
+export const parkedEntries = roadmapEntries.filter(({ status }) => status === 'waiting-engine');
 
 /** Complete examples used by capture and browser proofs. */
 export const readyExampleIds = readyEntries.map(({ id }) => id);
