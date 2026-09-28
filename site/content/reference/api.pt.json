@@ -7755,5 +7755,40 @@
       "center": "O ponto da imagem que fica na posição do sprite: `(0.5, 0.5)` seu meio, `(0, 0)` seu canto inferior esquerdo, `(0.5, 0)` o meio da sua borda de baixo.",
       "material": "O `material.sprite` do sprite; atribua outro para mudá-lo."
     }
+  },
+  "CreatedMaterial": {
+    "summary": "Cria um material pertencente a esta página.",
+    "members": {
+      "metalness": "Quanto a superfície é metal, de 0 a 1.",
+      "roughness": "Quão áspera é a superfície, de 0 (espelho) a 1 (fosca).",
+      "baseColor": "A cor base; mude-a no lugar com `set`.",
+      "emissive": "A cor que a superfície emite por si mesma.",
+      "opacity": "Quão opaca é a superfície, de 0 a 1.",
+      "alphaMode": "Como o canal alfa de uma superfície é lido: opaco o ignora, `mask` corta em `alphaCutoff`, `blend` compõe.",
+      "alphaCutoff": "Pixels menos opacos que isso são descartados.",
+      "name": "Um nome para o uso próprio da página.",
+      "map": "Uma imagem e como ela é amostrada, nas palavras de uma página (`wrap`, `filter`, `colorSpace`)."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "Um material pelo seu ID na lista.",
+    "members": {
+      "id": "Um nome único para essa textura.",
+      "name": "Um nome para o uso próprio da página.",
+      "tiling": "Quantas vezes a imagem cabe na horizontal e na vertical."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "Altera um material importado ou criado no fotograma seguinte.",
+    "members": {
+      "metalness": "Quanto a superfície é metal, de 0 a 1.",
+      "roughness": "Quão áspera é a superfície, de 0 (espelho) a 1 (fosca).",
+      "baseColor": "A cor base; mude-a no lugar com `set`.",
+      "emissive": "A cor que a superfície emite por si mesma.",
+      "opacity": "Quão opaca é a superfície, de 0 a 1.",
+      "alphaMode": "Como o canal alfa de uma superfície é lido: opaco o ignora, `mask` corta em `alphaCutoff`, `blend` compõe.",
+      "alphaCutoff": "Pixels menos opacos que isso são descartados.",
+      "tiling": "Quantas vezes a imagem cabe na horizontal e na vertical."
+    }
   }
 }

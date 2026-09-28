@@ -7755,5 +7755,40 @@
       "center": "스프라이트의 위치에 놓이는 그림의 점: `(0.5, 0.5)`는 가운데, `(0, 0)`은 왼쪽 아래 모서리, `(0.5, 0)`은 아래 가장자리의 가운데.",
       "material": "스프라이트의 `material.sprite`입니다. 다른 것을 설정하면 바뀝니다."
     }
+  },
+  "CreatedMaterial": {
+    "summary": "이 페이지의 재질을 만듭니다.",
+    "members": {
+      "metalness": "표면이 얼마나 금속인가, 0에서 1.",
+      "roughness": "표면이 얼마나 거친가, 0(거울)에서 1(무광).",
+      "baseColor": "기본 색상; `set`으로 그 자리에서 바꾼다.",
+      "emissive": "표면 스스로 내는 색.",
+      "opacity": "표면이 얼마나 불투명한가, 0에서 1.",
+      "alphaMode": "표면의 알파 채널을 어떻게 읽는가: opaque는 무시하고, `mask`는 `alphaCutoff`로 잘라내며, `blend`는 합성한다.",
+      "alphaCutoff": "이보다 불투명도가 낮은 픽셀은 버려진다.",
+      "name": "페이지 자신이 쓰기 위한 이름.",
+      "map": "이미지와 그것이 샘플링되는 방식. 페이지의 용어로(`wrap`, `filter`, `colorSpace`)."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "목록의 ID로 찾은 재질 하나입니다.",
+    "members": {
+      "id": "이 텍스처에 고유한 이름.",
+      "name": "페이지 자신이 쓰기 위한 이름.",
+      "tiling": "이미지가 가로와 세로로 몇 번 들어맞는가."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "다음 프레임에서 가져온 재질이나 만든 재질을 변경합니다.",
+    "members": {
+      "metalness": "표면이 얼마나 금속인가, 0에서 1.",
+      "roughness": "표면이 얼마나 거친가, 0(거울)에서 1(무광).",
+      "baseColor": "기본 색상; `set`으로 그 자리에서 바꾼다.",
+      "emissive": "표면 스스로 내는 색.",
+      "opacity": "표면이 얼마나 불투명한가, 0에서 1.",
+      "alphaMode": "표면의 알파 채널을 어떻게 읽는가: opaque는 무시하고, `mask`는 `alphaCutoff`로 잘라내며, `blend`는 합성한다.",
+      "alphaCutoff": "이보다 불투명도가 낮은 픽셀은 버려진다.",
+      "tiling": "이미지가 가로와 세로로 몇 번 들어맞는가."
+    }
   }
 }

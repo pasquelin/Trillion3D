@@ -7756,5 +7756,40 @@
       "center": "Titik gambar yang berada di posisi sprite: `(0.5, 0.5)` tengahnya, `(0, 0)` sudut kiri bawahnya, `(0.5, 0)` tengah tepi bawahnya.",
       "material": "`material.sprite` milik sprite; set yang lain untuk menggantinya."
     }
+  },
+  "CreatedMaterial": {
+    "summary": "Membuat material milik halaman ini.",
+    "members": {
+      "metalness": "Seberapa banyak permukaan itu logam, 0 sampai 1.",
+      "roughness": "Seberapa kasar permukaan itu, 0 (cermin) sampai 1 (matte).",
+      "baseColor": "Warna dasarnya; ubah di tempat dengan `set`.",
+      "emissive": "Warna yang dipancarkan permukaan itu sendiri.",
+      "opacity": "Seberapa opaque permukaan itu, 0 sampai 1.",
+      "alphaMode": "Bagaimana kanal alpha sebuah permukaan dibaca: opaque mengabaikannya, `mask` memotong pada `alphaCutoff`, `blend` menggabungkan.",
+      "alphaCutoff": "Piksel yang kurang opaque dari ini dijatuhkan.",
+      "name": "Sebuah nama untuk pemakaian sendiri halaman itu.",
+      "map": "Sebuah gambar dan bagaimana ia disampel, dalam kata-kata sebuah halaman (`wrap`, `filter`, `colorSpace`)."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "Satu material menurut ID dalam daftar.",
+    "members": {
+      "id": "Sebuah nama unik untuk tekstur ini.",
+      "name": "Sebuah nama untuk pemakaian sendiri halaman itu.",
+      "tiling": "Berapa kali gambar itu muat melintang dan menaik."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "Mengubah material impor atau buatan pada bingkai berikutnya.",
+    "members": {
+      "metalness": "Seberapa banyak permukaan itu logam, 0 sampai 1.",
+      "roughness": "Seberapa kasar permukaan itu, 0 (cermin) sampai 1 (matte).",
+      "baseColor": "Warna dasarnya; ubah di tempat dengan `set`.",
+      "emissive": "Warna yang dipancarkan permukaan itu sendiri.",
+      "opacity": "Seberapa opaque permukaan itu, 0 sampai 1.",
+      "alphaMode": "Bagaimana kanal alpha sebuah permukaan dibaca: opaque mengabaikannya, `mask` memotong pada `alphaCutoff`, `blend` menggabungkan.",
+      "alphaCutoff": "Piksel yang kurang opaque dari ini dijatuhkan.",
+      "tiling": "Berapa kali gambar itu muat melintang dan menaik."
+    }
   }
 }

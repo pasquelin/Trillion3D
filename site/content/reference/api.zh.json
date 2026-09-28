@@ -7755,5 +7755,40 @@
       "center": "图片中落在精灵位置上的点：`(0.5, 0.5)` 是中间，`(0, 0)` 是左下角，`(0.5, 0)` 是下边的中点。",
       "material": "精灵的 `material.sprite`；设置另一个即可更换。"
     }
+  },
+  "CreatedMaterial": {
+    "summary": "创建属于此页面的材质。",
+    "members": {
+      "metalness": "表面的金属度,0 到 1。",
+      "roughness": "表面的粗糙度,0(镜面)到 1(哑光)。",
+      "baseColor": "基础颜色;用 `set` 原地修改它。",
+      "emissive": "表面自身发出的颜色。",
+      "opacity": "表面的不透明度,0 到 1。",
+      "alphaMode": "表面的 alpha 通道如何被读取:opaque 忽略它,`mask` 按 `alphaCutoff` 裁切,`blend` 进行合成。",
+      "alphaCutoff": "不透明度低于此值的像素会被丢弃。",
+      "name": "供页面自己使用的一个名字。",
+      "map": "一张图像及其采样方式,以页面的措辞表示(`wrap`、`filter`、`colorSpace`)。"
+    }
+  },
+  "SceneMaterial": {
+    "summary": "按列表中的 ID 获取一个材质。",
+    "members": {
+      "id": "该纹理独有的一个名称。",
+      "name": "供页面自己使用的一个名字。",
+      "tiling": "图像在横向和纵向各能重复放下多少次。"
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "在下一帧更改导入或创建的材质。",
+    "members": {
+      "metalness": "表面的金属度,0 到 1。",
+      "roughness": "表面的粗糙度,0(镜面)到 1(哑光)。",
+      "baseColor": "基础颜色;用 `set` 原地修改它。",
+      "emissive": "表面自身发出的颜色。",
+      "opacity": "表面的不透明度,0 到 1。",
+      "alphaMode": "表面的 alpha 通道如何被读取:opaque 忽略它,`mask` 按 `alphaCutoff` 裁切,`blend` 进行合成。",
+      "alphaCutoff": "不透明度低于此值的像素会被丢弃。",
+      "tiling": "图像在横向和纵向各能重复放下多少次。"
+    }
   }
 }
