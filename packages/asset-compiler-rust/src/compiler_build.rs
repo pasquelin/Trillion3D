@@ -36,7 +36,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let shared_nodes = compiler_mesh_share::share_identical_meshes(&mut loaded.g, bin);
     // A cyclic hierarchy is refused before any publication: the world walk would never see it.
     compiler_nodes::check_acyclic(&loaded.g)?;
-    // Set of nodes of the rendered scene, shared by selection, the proxy and lights.
+    // The rendered scene's nodes, and the hidden ones: compiled (`chosen`), not drawn (`shown`).
     let (scene_nodes, hidden) = compiler_nodes::scene_nodes(&loaded.g)?;
     let NodeSelection {
         chosen,
@@ -45,7 +45,6 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         meshes,
         mesh_map,
     } = select_nodes(o, &loaded.g, &scene_nodes)?;
-    // Hidden meshes are compiled (`chosen`); the drawn scene derives only from `shown`.
     let shown: BTreeSet<usize> = chosen.difference(&hidden).copied().collect();
     // Decided cutouts go to masked before any material is read (`cutout.rs`).
     let cutouts = cutout::apply_decisions(&mut loaded.g, bin, &image_root, &meshes, &decisions)?;
