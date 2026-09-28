@@ -1328,7 +1328,7 @@
     }
   },
   "DagStallCause": {
-    "summary": "Warum eine DAG-Gruppe blockierte, vom Compiler benannt, indem er die blockierte Reduktion mit gelöster Einschränkung wiederholt: `too-small` (weniger als zwei lebende Dreiecke), `border-locked` (ohne Sperre kommt sie voran), `seam-locked` (ohne Sperre blockiert sie noch; mit auch den an jeder Texturnaht verschweißten Positionskopien kommt sie voran), `unreducible` (keines von beiden kommt voran), `border-lost` (eine geteilte Position verschwand bei jedem Versuch), `unusable-error`."
+    "summary": "Warum eine DAG-Gruppe blockierte, vom Compiler benannt, indem er die blockierte Reduktion mit gelöster Einschränkung wiederholt: `too-small` (weniger als zwei lebende Dreiecke), `border-locked` (ohne Sperre kommt sie voran), `seam-locked` (ohne Sperre blockiert sie noch; mit auch den an jeder Texturnaht verschweißten Positionskopien kommt sie voran, und ihr neuer Versuch mit gelösten Eckpunkten kommt nicht voran), `unreducible` (keines von beiden kommt voran), `border-lost` (eine geteilte Position verschwand bei jedem Versuch), `unusable-error`."
   },
   "DagStallSummary": {
     "summary": "Worauf sich die Blockaden einer Primitive belaufen: die als Wurzeln verbliebenen Stufe-0-Dreiecke, die Ursache der Blockaden, die die meisten Dreiecke halten (`null` ohne Blockade), und die über ihre blockierten Gruppen summierten Zahlen von Nähten, Sperren und Textur-Inseln.",

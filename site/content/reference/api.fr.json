@@ -1328,7 +1328,7 @@
     }
   },
   "DagStallCause": {
-    "summary": "Pourquoi un groupe du DAG s’est bloqué, nommé par le compilateur en refaisant la réduction bloquée avec une contrainte levée : `too-small` (moins de deux triangles vivants), `border-locked` (sans verrou, il avance), `seam-locked` (sans verrou, il bloque encore ; avec aussi les copies de positions soudées à travers chaque couture de texture, il avance), `unreducible` (aucun des deux n’avance), `border-lost` (une position partagée a disparu à chaque essai), `unusable-error`."
+    "summary": "Pourquoi un groupe du DAG s’est bloqué, nommé par le compilateur en refaisant la réduction bloquée avec une contrainte levée : `too-small` (moins de deux triangles vivants), `border-locked` (sans verrou, il avance), `seam-locked` (sans verrou, il bloque encore ; avec aussi les copies de positions soudées à travers chaque couture de texture, il avance, et sa reprise avec des sommets résolus n’avance pas), `unreducible` (aucun des deux n’avance), `border-lost` (une position partagée a disparu à chaque essai), `unusable-error`."
   },
   "DagStallSummary": {
     "summary": "À quoi reviennent les blocages d’une primitive : les triangles de niveau 0 restés racines, la cause des blocages qui tiennent le plus de triangles (`null` sans blocage), et les nombres de coutures, de verrous et d’îlots de texture additionnés sur ses groupes bloqués.",

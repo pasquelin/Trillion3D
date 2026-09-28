@@ -770,7 +770,7 @@
     }
   },
   "DagStallCause": {
-    "summary": "Bir DAG grubunun neden durduğu, derleyici tarafından duraklamış indirgemeyi bir kısıtlama kaldırılmış halde yeniden çalıştırarak adlandırılır: `too-small` (ikiden az canlı üçgen), `border-locked` (kilitsiz ilerler), `seam-locked` (kilitsiz hâlâ durur, her doku dikişinde de kaynaklanmış pozisyon kopyalarıyla ilerler), `unreducible` (ikisi de ilerlemez), `border-lost` (her yeniden denemede paylaşılan bir pozisyon kayboldu), `unusable-error`."
+    "summary": "Bir DAG grubunun neden durduğu, derleyici tarafından duraklamış indirgemeyi bir kısıtlama kaldırılmış halde yeniden çalıştırarak adlandırılır: `too-small` (ikiden az canlı üçgen), `border-locked` (kilitsiz ilerler), `seam-locked` (kilitsiz hâlâ durur, her doku dikişinde de kaynaklanmış pozisyon kopyalarıyla ilerler, çözülmüş köşelerle yeniden denemesi de ilerlemez), `unreducible` (ikisi de ilerlemez), `border-lost` (her yeniden denemede paylaşılan bir pozisyon kayboldu), `unusable-error`."
   },
   "DagStallSummary": {
     "summary": "Bir primitifin duraklamalarının neye vardığı: kök olarak kalan seviye-0 üçgenleri, en çok üçgen tutan duraklama nedeni (duraklama yoksa `null`), ve duraklamış grupları üzerinden toplanan dikiş, kilitli ve doku adası sayıları.",
