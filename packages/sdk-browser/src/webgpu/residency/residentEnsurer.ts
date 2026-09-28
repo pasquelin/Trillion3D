@@ -1,5 +1,5 @@
-import { STREAMING_FRAME_MS } from '../../backend/common.ts';
-import { createFrameBudget, yieldToEventLoop } from '../../page/integration/frameBudget.ts';
+import { STREAMING_FRAME_MS, STREAMING_SHARES_PER_FRAME } from '../../backend/common.ts';
+import { createFrameBudget, createSharePace } from '../../page/integration/frameBudget.ts';
 import { pageAddress } from '../row/pageSlots.ts';
 import { PRIORITY_PREFETCH } from '../../streaming/priority.ts';
 import { createAdmissionReads, createPageAdmission } from './admission.ts';
@@ -46,11 +46,11 @@ export function createWebgpuResidentEnsurer({
   prefetch,
 }: EnsureOptions) {
   /** The published share of the main thread (`STREAMING_FRAME_MS`), read synchronously: past it a
-   *  job yields a task and starts a new share — a due frame goes through, and the job resumes
-   *  without waiting for one, so a hidden tab loads too. Opened only after a yield, never by a job:
-   *  the next job may start in the task the last one ended in. */
+   *  job yields a task — a due frame goes through; past `STREAMING_SHARES_PER_FRAME` of a visible
+   *  page, a frame — and starts a new share; a hidden tab never waits, so it loads too. Opened only
+   *  after a yield, never by a job: the next job may start in the task the last one ended in. */
   const budget = createFrameBudget(STREAMING_FRAME_MS);
-  const nextShare = () => yieldToEventLoop().then(budget.open);
+  const nextShare = createSharePace(budget.open, STREAMING_SHARES_PER_FRAME);
   /** The reads a pass starts before its admissions, under the job's `reads`; none without `prefetch`. */
   const readAhead = prefetch && createAdmissionReads({ hasBytes, parentsOf, prefetch });
   /** Every load of both tiers goes through the install order; what the image holds is pinned. */

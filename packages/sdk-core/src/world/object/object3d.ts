@@ -106,8 +106,8 @@ export class Object3D extends TransformNode {
     readPose(child, this.state.tree);
     return this;
   }
-  /** Frees the node and all below it now, rather than when they are collected. */
-  override destroy() {
+  /** Frees it and all below it now, not when collected; off its world. */ override destroy() {
+    this.removeFromParent();
     this.traverse(uncollectSlot);
     super.destroy();
   }

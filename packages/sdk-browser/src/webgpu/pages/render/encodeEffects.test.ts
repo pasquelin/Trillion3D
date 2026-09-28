@@ -11,6 +11,7 @@ import { encodeEffects } from './encodeEffects.ts';
 import { pendingWebgpuFrame } from '../../frame/interactiveFrame.ts';
 import { WEBGPU_KINDS } from '../../../effects/webgpuEffects.ts';
 import { createExplorerFrameScheduler } from '../../../world/render/frameScheduler.ts';
+import { frameQueue } from '../../../world/render/frameQueue.fixture.ts';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { AccumulatedImage } from '../../../lighting/deferred/program.ts';
 
@@ -94,10 +95,10 @@ test('an idle loop waits for the programs, then draws the image with the chain o
   const chain = new EffectChain().add(effect.bloom());
   const rt = drawing(chain);
   const turn = () => new Promise((resolve) => setImmediate(resolve));
-  const requested: FrameRequestCallback[] = [];
+  const requested = frameQueue();
   const scheduler = createExplorerFrameScheduler({
-    request: (callback) => requested.push(callback),
-    cancel() {},
+    request: requested.request,
+    cancel: requested.cancel,
     // `renderWebgpuPages` reduced to its two outcomes: the frame held, or encoded and kept.
     render() {
       if (holdWebgpuFrame(rt, device)) return;
@@ -111,15 +112,19 @@ test('an idle loop waits for the programs, then draws the image with the chain o
     limited: () => assert.fail('the loop hit its frame limit'),
   });
   scheduler.invalidate();
-  requested.shift()!(0);
+  requested.run();
+  // The frame asked right after comes while the programs compile: held, nothing drawn (#983).
+  const frame = rt.run.frame;
+  requested.run();
   for (let i = 0; i < 4; i++) await turn();
   assert.equal(rt.gpu.effects!.loading, true);
-  assert.equal(requested.length, 0, 'no frame is spent while the programs compile');
+  assert.equal(rt.run.frame, frame, 'no frame is spent while the programs compile');
+  assert.equal(requested.size, 0);
   arrive();
   while (rt.gpu.effects!.loading) await turn();
   await turn();
-  assert.equal(requested.length, 1, 'their arrival asks the image with the chain');
-  requested.shift()!(0);
+  assert.equal(requested.size, 1, 'their arrival asks the image with the chain');
+  requested.run();
   assert.equal(rt.gpu.effectsRevision, chain.revision, 'the image carries the chain');
 });
 

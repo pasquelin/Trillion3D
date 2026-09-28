@@ -98,7 +98,7 @@ test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = JSON.parse(
     await readFile(new URL('../../site/data/api-inventory.json', import.meta.url), 'utf8'),
   );
-  assert.equal(inventory.exports.length, 745);
+  assert.equal(inventory.exports.length, 744);
   assert.deepEqual(inventory.collisions, []);
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair.
@@ -175,4 +175,9 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
       ([path, contribution]) => path.includes('/sdk-browser/') && contribution.bytesInOutput > 0,
     ),
   );
+});
+
+test('one dot product is public, on three components: no N-dimensional one beside it', () => {
+  for (const entry of [common, core, browser] as Record<string, unknown>[])
+    assert.equal(entry.dot, undefined);
 });

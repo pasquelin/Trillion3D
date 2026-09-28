@@ -4947,9 +4947,6 @@
   "disabledStageProfile": {
     "summary": "Profil sebuah mesin yang tidak menyimpan apa pun: semuanya \"tidak terukur\", tidak ada yang nol."
   },
-  "dot": {
-    "summary": "Hasil kali titik dua vektor berdimensi sama."
-  },
   "dotVector3": {
     "summary": "`a · b` pada tiga komponen dibaca di `aAt` dan `bAt`: satu buffer plus sebuah offset, tidak pernah sebuah view."
   },
@@ -5531,7 +5528,7 @@
   },
   "loader": {
     "summary": "Keluarga `loader`: berkas yang diambil dan diubah menjadi apa yang dipakai sebuah scene.",
-    "description": "Sebuah berkas dibaca lewat fetch tervalidasi mesin (`cluster/pages.ts`), yang menolak respons gagal menurut statusnya; sebuah gambar (`texture`, `cubeTexture`) diambil lewat sebuah elemen gambar, yang menolak satu dengan gagal men-decode."
+    "description": "Sebuah berkas dibaca lewat fetch tervalidasi mesin (`cluster/checked.ts`), yang menolak respons gagal menurut statusnya; sebuah gambar (`texture`, `cubeTexture`) diambil lewat sebuah elemen gambar, yang menolak satu dengan gagal men-decode."
   },
   "loader.cubeTexture": {
     "summary": "Mengambil enam gambar dan membuat sebuah tekstur cube: wajah `+x, -x, +y, -y, +z, -z`.",
