@@ -88,7 +88,7 @@ fn read(world: &mut World<'_>, node: usize) -> Option<Surface> {
         bases,
         shading: Shading::Corner,
     };
-    shade::fill(world, &mut surface, mesh, polygons, &edges);
+    shade::fill(world, &mut surface, mesh, polygons, &edges)?;
     Some(surface)
 }
 
