@@ -2120,7 +2120,6 @@
     "members": {
       "isObject3D": "Selalu `true`: membedakan sebuah node scene.",
       "type": "Jenis node itu: `'Mesh'`, `'Group'`…",
-      "name": "Sebuah nama untuk menemukan node itu.",
       "position": "Tempat node itu berdiri, dari induknya.",
       "rotation": "Bagaimana node itu diputar, sebagai tiga sudut.",
       "quaternion": "Bagaimana node itu diputar, sebagai sebuah quaternion.",
@@ -2206,6 +2205,7 @@
   "TransformNode": {
     "summary": "Simpul adegan yang dibaca melalui matriks referensi, disimpan di pohon transformasi mesin.",
     "members": {
+      "name": "Sebuah nama untuk menemukan node itu.",
       "matrix": "Matriks lokal, sebuah view slot node ini di pohon transform.",
       "matrixWorld": "Matriks dunia seperti terakhir disusun (`updateMatrixWorld`), sebuah view pohon itu.",
       "matrixAutoUpdate": "Salah (false) ketika `matrix` ADALAH pose dan tidak ada yang menyusunnya ulang.",
