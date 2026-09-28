@@ -10,6 +10,7 @@ import { sizeShadowPool } from '../../shadow/poolSize.ts';
 import { requestFrameTargets } from '../prepare/targetGrant.ts';
 import { pumpResidentTiles } from '../prepare/lightResources.ts';
 import { refreshBlendWorlds } from '../../blend/worlds.ts';
+import { refitBlendHierarchy } from '../../blend/hierarchy.ts';
 import { refreshBlendScene } from '../../blend/resources.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { followLiveTextures } from '../io/memory.ts';
@@ -86,6 +87,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   // its world box, which is a computation, is remade — and only when the scene has changed matrices.
   if (worldsMoved && gpuDevice) {
     refreshBlendWorlds(blendState.blendGpu);
+    refitBlendHierarchy(blendState);
     // Records, boxes and the plan follow the scene, not the camera: it is here, and nowhere in
     // the image, that the transparent list is walked again.
     refreshBlendScene(rt, gpuDevice);
