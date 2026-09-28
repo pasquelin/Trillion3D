@@ -10,6 +10,7 @@ import {
 } from '../../../../sdk-core/src/index.ts';
 import type { BackendDiagnostic, RenderBackend } from '../../backend/types.ts';
 import { lightingCapabilitiesOf } from '../../lighting/capabilities.ts';
+import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
 type Inputs = {
   check: () => void;
@@ -27,7 +28,8 @@ type Inputs = {
  * and an engine that does not know direct lighting ignores it without crashing —
  * `refreshSceneLights` is missing, its missing capability is declared in its diagnostic.
  *
- * `setTransform` goes to the active engine if it can move a node; otherwise the call is
+ * `setTransform` — `setTransforms` for many nodes at once — goes to the engines that can move a
+ * node; otherwise the call is
  * refused by a named `EngineError`, never by an anonymous exception. It draws nothing: it
  * marks the scene modified, and the next render — the host's `render()`, or the already
  * scheduled residency refresh — takes it. Ten poses set before a frame cost one submit, not
@@ -59,6 +61,13 @@ export function createExplorerLightApi(inputs: Inputs) {
     if (!store)
       throw new EngineError('SCENE_LIGHTS_UNAVAILABLE', 'session without a light store', {});
     return store;
+  };
+  const unsupported = (nodeName?: string): never => {
+    throw new EngineError(
+      'UNSUPPORTED_SCENE_UPDATE',
+      'no engine of this session moves a named node',
+      { nodeName },
+    );
   };
   const notify = () => {
     for (const backend of backends) backend.refreshSceneLights?.();
@@ -150,12 +159,18 @@ export function createExplorerLightApi(inputs: Inputs) {
           backend.setTransform(nodeName, matrix);
           applied++;
         }
-      if (!applied)
-        throw new EngineError(
-          'UNSUPPORTED_SCENE_UPDATE',
-          'no engine of this session moves a named node',
-          { nodeName },
-        );
+      if (!applied) unsupported(nodeName);
+    },
+    /** `setTransform` on many nodes the host resolved once: sixteen floats per node, in order. */
+    setTransforms(nodes: readonly Object3D[], matrices: Float32Array) {
+      check();
+      let applied = 0;
+      for (const backend of backends)
+        if (backend.setTransforms) {
+          backend.setTransforms(nodes, matrices);
+          applied++;
+        }
+      if (!applied) unsupported(nodes[0]?.name);
     },
   };
 }
