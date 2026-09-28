@@ -101,8 +101,7 @@ test('a chain follows the coverage rule of its readers, switched after its image
   assert.equal(held, 3, 'three chains, the scratches returned after an image with no reduction');
 });
 
-// Filed once — the census at the first draw, hidden meshes too —, reread per drawn map and image,
-// and once by the census, which uploads the maps ahead (#840, `texturePrime.ts`).
+// Filed once by the census (hidden meshes too), which uploads maps ahead (#840); reread per image.
 test('a still scene files each surface once across frames, a hidden opaque one included', (t) => {
   const read = t.mock.method(CoverageReaders.prototype, 'read');
   const follow = t.mock.method(CoverageReaders.prototype, 'follow');
