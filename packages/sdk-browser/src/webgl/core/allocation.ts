@@ -34,9 +34,10 @@ export function allocated(gl: WebGL2RenderingContext, redo: Redo = nothing) {
   state.pending.push(redo);
 }
 
-/** Reads the errors `gl` holds, now: true when one was `OUT_OF_MEMORY`. Other errors are cleared
- *  unchanged: they are not the allocation's to answer. Only a one-time build that already reads
- *  the context back (a framebuffer's status) calls it directly. */
+/** Reads the errors `gl` holds, now: true when one was `OUT_OF_MEMORY`, and then every allocation
+ *  not yet confirmed is redone — the flag read here is theirs too, never read again. Other errors
+ *  are cleared unchanged: they are not the allocation's to answer. Only a one-time build that
+ *  already reads the context back (a framebuffer's status) calls it directly. */
 export function refusedNow(gl: WebGL2RenderingContext) {
   let outOfMemory = false;
   for (let n = 0; n < MAX_FLAGS; n++) {
@@ -44,8 +45,15 @@ export function refusedNow(gl: WebGL2RenderingContext) {
     if (!error || error === gl.CONTEXT_LOST_WEBGL) break;
     if (error === gl.OUT_OF_MEMORY) outOfMemory = true;
   }
-  if (outOfMemory) refused.add(gl);
-  return outOfMemory;
+  if (!outOfMemory) return false;
+  refused.add(gl);
+  const state = unconfirmed.get(gl);
+  if (state) {
+    const redos = [...state.fenced, ...state.pending];
+    state.fenced.length = state.pending.length = 0;
+    for (const redo of redos) redo();
+  }
+  return true;
 }
 
 /** At the end of a frame's commands: fences every allocation not yet confirmed. The fence moves to
@@ -72,9 +80,8 @@ export function settleAllocations(gl: WebGL2RenderingContext | null | undefined)
     return;
   gl.deleteSync(state.fence);
   state.fence = null;
-  // Allocations sent since the fence may have been read too: they are redone with the rest.
-  if (refusedNow(gl)) for (const redo of [...state.fenced, ...state.pending.splice(0)]) redo();
-  state.fenced.length = 0;
+  // Allocations sent since the fence may have been read too: a refusal redoes them with the rest.
+  if (!refusedNow(gl)) state.fenced.length = 0;
 }
 
 /** Whether `gl` refused an allocation since the last call; the mark is cleared. */

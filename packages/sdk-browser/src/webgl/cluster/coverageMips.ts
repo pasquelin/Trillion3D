@@ -67,6 +67,9 @@ function buildCounts(gl: WebGL2RenderingContext) {
     gl.deleteProgram(count);
     throw error;
   }
+  // Errors already held belong to allocations sent before: read (and redone) now, so a refusal
+  // read after the counts' storage is theirs alone.
+  refusedNow(gl);
   const counts = gl.createTexture()!,
     frame = gl.createFramebuffer()!;
   gl.bindTexture(gl.TEXTURE_2D, counts);
