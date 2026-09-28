@@ -81,14 +81,13 @@ export const facingDiscarded = (mode: number, front: boolean) =>
   (mode === 1 && front) || (mode === 2 && !front);
 
 /** The two functions in WGSL; the host shader declares the page geometry
- *  (`../../visibility/shader/pageGeometryWgsl.ts`) and `uni` first. `triangle` is the first corner
- *  of the triangle in its page. */
+ *  (`../../visibility/shader/pageGeometryWgsl.ts`) and `uni` first. `corners` are the
+ *  triangle's local vertex indices (`pageTriangle`). */
 export const FACING_WGSL = `
-fn vertexFacing(cull:u32,world:mat4x4f,page:PageInfo,h:ClusterHeader,triangle:u32)->u32{
+fn vertexFacing(cull:u32,world:mat4x4f,page:PageInfo,h:ClusterHeader,corners:vec3u)->u32{
  var c:array<vec3f,3>;
  var p:array<vec2f,3>;
  var inside=true;
- let corners=pageTriangle(page,h,triangle/3u);
  for(var k=0u;k<3u;k++){
   let q=uni.viewProj*(world*vec4f(pagePosition(page,h,corners[k]),1.0));
   c[k]=q.xyw;
