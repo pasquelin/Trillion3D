@@ -120,15 +120,13 @@ pub(crate) fn declared_hidden(node: &Value) -> bool {
     node.pointer("/extensions/KHR_node_visibility/visible") == Some(&Value::Bool(false))
 }
 
-/// Nodes the rendered scene reaches from its roots, and those of them a hidden node hides: itself
-/// and every node under it, whose meshes are compiled but from which no surface, proxy triangle
-/// or collider is derived. A node of another scene, or that no scene names, does not belong to
-/// what is compiled: neither its geometry, nor its light, nor its stand-in in the proxy. This walk
-/// is the only one selection, the proxy and lights consult, so they cannot answer differently.
+/// Nodes the rendered scene reaches from its roots, and those a hidden node hides (itself and
+/// every node under it: compiled, but no surface, proxy triangle or collider comes from them). A
+/// node no scene reaches is not compiled at all. Selection, the proxy and lights read this walk.
 pub(crate) fn scene_nodes(g: &Value) -> Result<(BTreeSet<usize>, BTreeSet<usize>)> {
     let nodes = values(g, "nodes")?;
     let roots = scene_roots(g, nodes)?;
-    let mut stack: Vec<(usize, bool)> = roots.into_iter().map(|id| (id, false)).collect();
+    let mut stack: Vec<_> = roots.into_iter().map(|id| (id, false)).collect();
     let (mut reached, mut hidden) = (BTreeSet::new(), BTreeSet::new());
     while let Some((id, above)) = stack.pop() {
         if !reached.insert(id) {
@@ -138,11 +136,8 @@ pub(crate) fn scene_nodes(g: &Value) -> Result<(BTreeSet<usize>, BTreeSet<usize>
         if under {
             hidden.insert(id);
         }
-        stack.extend(
-            children_of(nodes, id)?
-                .into_iter()
-                .map(|child| (child, under)),
-        );
+        let children = children_of(nodes, id)?;
+        stack.extend(children.into_iter().map(|child| (child, under)));
     }
     Ok((reached, hidden))
 }
@@ -159,10 +154,8 @@ pub(super) fn select_nodes(
     let mut skinned_meshes = BTreeSet::new();
     for (i, n) in nodes.iter().enumerate() {
         if scene_nodes.contains(&i) && n.get("mesh").is_some() {
-            if n.get("skin").is_some() {
-                if let Ok(m) = required_index(n.get("mesh"), "node.mesh") {
-                    skinned_meshes.insert(m);
-                }
+            if let (Some(_), Ok(m)) = (n.get("skin"), required_index(n.get("mesh"), "node.mesh")) {
+                skinned_meshes.insert(m);
             }
             let triangles = node_triangles(g, n)?;
             if o.scope == "full" || selected_triangles + triangles <= o.triangle_budget {
