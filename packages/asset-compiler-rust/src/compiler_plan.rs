@@ -153,9 +153,10 @@ pub(super) fn plan_buffers(
             )?)
             .ok_or_else(|| invalid("Working set overflow"))?;
     }
-    // Each primitive's index buffer and what it keeps until the job ends are committed at once;
-    // its working set only while it compiles, in the waves that fit beside the rest.
-    let mut working = Vec::with_capacity(jobs.len());
+    // Each primitive's index buffer is committed from decoding to the job's end, and admitted
+    // before any work: a job refused here would fail whatever the order of its primitives.
+    // What a primitive keeps and its working set only shrink the waves it compiles in.
+    let (mut retained, mut working) = (0usize, Vec::with_capacity(jobs.len()));
     for (old, primitive) in &jobs {
         let p = item(
             values(item(mesh_values, *old, "mesh")?, "primitives")?,
@@ -163,31 +164,27 @@ pub(super) fn plan_buffers(
             "primitive",
         )?;
         let cost = compiler_primitive::cost::of(g, p)?;
-        estimated_working_bytes = cost
-            .indices
-            .checked_add(cost.retained)
-            .and_then(|held| held.checked_add(estimated_working_bytes))
+        estimated_working_bytes = estimated_working_bytes
+            .checked_add(cost.indices)
             .ok_or_else(|| invalid("Working set overflow"))?;
+        retained = retained.saturating_add(cost.retained);
         working.push(cost.working);
     }
     let committed = estimated_working_bytes
         .checked_add(bin.len())
         .and_then(|total| total.checked_add(decoded_bytes))
         .ok_or_else(|| invalid("Working set overflow"))?;
-    // The widest primitive alone is the least the compile stage adds: the job is refused before
-    // any work when even serial compilation would not fit.
-    let refused = || {
-        CompilerError::new(
+    if committed > o.ram_budget_bytes() {
+        return Err(CompilerError::new(
             "RAM_ADMISSION_BUDGET_EXCEEDED",
             "Estimated working set exceeds configured budget",
-        )
-    };
-    estimated_working_bytes = committed.saturating_add(working.iter().copied().max().unwrap_or(0));
-    let room = o
-        .ram_budget_bytes()
-        .checked_sub(committed)
-        .ok_or_else(refused)?;
-    let waves = compiler_budget::waves::waves(&working, room).ok_or_else(refused)?;
+        ));
+    }
+    // What the budget leaves once every page record is kept: the tighter, the smaller the
+    // waves, down to one primitive at a time.
+    let held = committed.saturating_add(retained);
+    let waves = compiler_budget::waves::waves(&working, o.ram_budget_bytes().saturating_sub(held));
+    estimated_working_bytes = held.saturating_add(working.iter().copied().max().unwrap_or(0));
     Ok(BufferPlan {
         accessors,
         jobs,
