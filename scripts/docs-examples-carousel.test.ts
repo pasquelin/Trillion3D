@@ -1,19 +1,9 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import {
-  advanceMixers,
-  animation,
-  Camera,
-  geometry,
-  light,
-  material,
-  math,
-  object,
-  Scene,
-} from '../packages/sdk-browser/src/index.ts';
-import { describe, type ControlSpec } from '../site/examples/kit/controls.ts';
-import { catchPagehide, runExampleModule } from './docs/examples/capture.ts';
+import { advanceMixers, Camera, Scene } from '../packages/sdk-browser/src/index.ts';
+import { catchPagehide } from './docs/examples/capture.ts';
+import { runControlledExample } from './docs/examples/controlled.ts';
 
 type Values = { running: boolean; speed: number; direction: string };
 
@@ -29,26 +19,7 @@ test('carousel animates eight phased horses and its controls pause and reverse t
     dispose: () => void (disposed = true),
   };
   const pagehide = catchPagehide(t);
-  let change: (values: Values) => void = () => {};
-  let values = {} as Values;
-  await runExampleModule(html, {
-    engine: {
-      animation,
-      createWorld: () => world,
-      geometry,
-      light,
-      material,
-      math,
-      object,
-    },
-    kit: {
-      controls: (specs: Record<string, ControlSpec>, callback: (next: Values) => void) => {
-        values = describe(specs).values as Values;
-        change = callback;
-        callback(values);
-      },
-    },
-  });
+  const { values, change } = await runControlledExample<Values>(html, world);
 
   const carousel = scene.getObjectByName('carousel');
   assert.ok(carousel);
