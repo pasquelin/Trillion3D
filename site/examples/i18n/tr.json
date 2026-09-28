@@ -1745,7 +1745,8 @@
       "night": "Gece",
       "bounce": "Sekme",
       "sun": "Güneş",
-      "lamp": "Lamba"
+      "lamp": "Lamba",
+      "spin": "Döndür"
     },
     "words": {
       "credit": "Sokak lambası modeli: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"

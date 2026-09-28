@@ -1745,7 +1745,8 @@
       "night": "Nuit",
       "bounce": "Rebond",
       "sun": "Soleil",
-      "lamp": "Lampe"
+      "lamp": "Lampe",
+      "spin": "Rotation"
     },
     "words": {
       "credit": "Modèle de réverbère par W. Sitters, CC BY 3.0 — voir assets/examples/CREDITS.md"
