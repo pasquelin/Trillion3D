@@ -37,7 +37,14 @@ const reading = (target: boolean, file: string, ms: number) => ({
     textureTilesAtLevel: 3,
   },
 });
-const region = (atLevel: number) => ({ pixels: 100, requested: 80, atLevel, mips: {} });
+const count = (requested: number, atLevel: number) => ({ requested, atLevel });
+const region = (atLevel: number) => ({
+  ...count(80, atLevel),
+  pixels: 100,
+  mips: {},
+  kinds: { opaque: count(80, atLevel), mask: count(0, 0), blend: count(0, 0) },
+});
+const checkpoint = (present = true) => ({ centerFirst: 2, peripheryAtLevel: 12, present });
 const result = (): FeedbackTargetResult => ({
   supported: true,
   reason: null,
@@ -52,8 +59,12 @@ const result = (): FeedbackTargetResult => ({
       { frame: 12, center: region(80), periphery: region(80) },
       { frame: 20, center: region(80), periphery: region(80) },
     ],
-    centerBeforePeriphery: 2,
-    peripheryAtLevel: 12,
+    order: {
+      all: checkpoint(),
+      opaque: checkpoint(),
+      mask: checkpoint(false),
+      blend: checkpoint(false),
+    },
   },
   readings: [
     reading(true, 'a1.rgba', 10),
@@ -78,7 +89,8 @@ test('A/B/A gain requires samples, parity, residency, mip order, bytes and low s
     (raw) => (raw.readings[1].gpuPassSamples = []),
     (raw) => (raw.readings[1].residency.tiles.sha256 = 'different'),
     (raw) => (raw.convergence!.supported = false),
-    (raw) => (raw.convergence!.peripheryAtLevel = null),
+    (raw) => (raw.convergence!.order.all.peripheryAtLevel = null),
+    (raw) => (raw.convergence!.order.blend = { ...checkpoint(), centerFirst: null }),
     (raw) => (raw.readings[1].counters.gpuFrameTargetBytes = 123),
   ];
   for (const mutate of failures) {
