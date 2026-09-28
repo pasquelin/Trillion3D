@@ -58,7 +58,8 @@
       "missingCache": "Derlenmiş önbellek eksik: pnpm compile:caches komutunu çalıştırın"
     },
     "banner": {
-      "close": "Kapat"
+      "close": "Kapat",
+      "waiting": "Motoru bekliyor (#{issue})"
     }
   },
   "a-city-from-rules": {
