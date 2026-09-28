@@ -8,7 +8,7 @@ import { EXAMPLE_THUMBNAILS } from './thumbnails.inline.ts';
  *  API but parked until the engine draws it is `waiting-engine`: its `file`, the feature it lacks
  *  and the `issue` that delivers it. Its words — title, the feature it lacks — are each language's
  *  `gallery`, by its id. */
-interface RoadmapEntry {
+export interface RoadmapEntry {
   id: string;
   theme: string;
   file: string;
