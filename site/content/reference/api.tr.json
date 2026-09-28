@@ -969,6 +969,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Bu çizim yolu sahnede bu değişikliği yapamaz.",
       "BATCHED_WORLD_VIEW": "Bu çizim yolu sahnede bu değişikliği yapamaz.",
       "RAYCAST_NO_VIEW": "Boyutu olmayan bir canvas'tan resim noktası istendi: içinden nişan alınacak bir resim yok.",
+      "SURFACE_CAPTURE_UNSUPPORTED": "Malzeme yüzeylerini kendi görünümünde çizemeyen bir çizim yolundan yüzey yakalaması (`captureSurfaceView`) istendi: WebGL2 yolunda bu yok.",
       "VERTICES_NOT_LOADED": "Yüklenmiş bir modelin köşeleri `await geometry.loadVertices()` öncesinde okundu: oturum onları ilk ihtiyaçta okur, asla önceden okumaz.",
       "SESSION_OPEN_FAILED": "Dünyanın oturumu, kendi kodu olmayan bir nedenle açılamadı (`world.diagnostic.error`): fırlatılan hata `details.cause` içindedir.",
       "WEBGPU_LOST": "WebGPU cihazını kaybetti ya da cihazdaki bir hata hiçbir şeyin çizemeyeceği bir durum bıraktı: `render`, `flush` ve cihaza ihtiyaç duyan okumalar tarafından fırlatılır, `gpu-device-lost` tanılamasıyla adlandırılır ve bu yüzden bir oturum açılamadığında `world.diagnostic.error` üzerinde görünür.",
