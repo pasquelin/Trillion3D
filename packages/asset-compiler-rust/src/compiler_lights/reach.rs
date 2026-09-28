@@ -10,39 +10,23 @@
 //! anywhere is exactly `I/R² · g(s)`.
 //!
 //! Invariant: the published range is never longer than the one it bounds, and no point's
-//! irradiance moves by more than `RANGE_CUTOFF_IRRADIANCE` — the eight-bit floor, after the
-//! exposure the host sets, that the deduced range already cuts at. Everything comes from the
-//! light: its peak intensity and its range, never a scene. A deduced range has `I/R² = floor`,
+//! irradiance moves by more than `RANGE_CUTOFF_IRRADIANCE` — the floor the deduced range already
+//! cuts at, published in `lights.json` (`units.rangeCutoffIrradiance`). The host sets exposure,
+//! never import: the compiler takes that published floor as the post-exposure quantum. Everything
+//! else comes from the light: its peak intensity and its range, never a scene. A deduced range has `I/R² = floor`,
 //! so it always comes out at the same share of itself (`g(s) = 1`, about 0.774).
 use super::*;
 
-/// Shortest range ever published, in metres: a range is never zero.
-pub(crate) const MIN_RANGE: f64 = 1e-3;
-
-/// Worst irradiance change, in units of `I/R²`, of shortening a range to the share `s` of itself.
-fn worst_change(s: f64) -> f64 {
-    let a = s.powi(-4);
-    4.0 / 3.0 * (a - 1.0) * (2.0 / (3.0 * (a + 1.0))).sqrt()
-}
-
 /// The shortest range, at most `range`, whose window moves the irradiance of a light of `peak`
-/// radiant intensity (W/sr, its strongest channel) by at most the floor anywhere.
+/// radiant intensity (W/sr, its strongest channel) by at most the floor anywhere. `g(s) = b`
+/// squared is the quadratic `32(a − 1)² = 27b²(a + 1)`: its root above one gives `s = a^(−1/4)`.
 pub(crate) fn quantum_reach(range: f64, peak: f64) -> f64 {
     let budget = RANGE_CUTOFF_IRRADIANCE * range * range / peak;
     // An overflowing peak leaves no budget and a NaN no answer: the range stays as it is.
     if budget.is_nan() || budget <= 0.0 {
         return range;
     }
-    // `g` falls from +∞ at 0 to 0 at 1: bisect for the smallest share it allows. `high` always
-    // holds a share that keeps the invariant, so the result does too.
-    let (mut low, mut high) = (0.0_f64, 1.0_f64);
-    for _ in 0..64 {
-        let mid = 0.5 * (low + high);
-        if worst_change(mid) <= budget {
-            high = mid;
-        } else {
-            low = mid;
-        }
-    }
-    (high * range).max(MIN_RANGE).min(range)
+    let c = 27.0 * budget * budget;
+    let a = 1.0 + (c + (c * (256.0 + c)).sqrt()) / 64.0;
+    (a.powf(-0.25) * range).max(MIN_RANGE).min(range)
 }

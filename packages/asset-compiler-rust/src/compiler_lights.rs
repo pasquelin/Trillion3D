@@ -29,6 +29,8 @@ const LUMENS_PER_WATT: f64 = 683.0;
 /// under an eight-bit image floor, and keeps the range — hence the shadow map —
 /// at a useful size. It is also the most any range shortening may move (`reach.rs`).
 pub(crate) const RANGE_CUTOFF_IRRADIANCE: f64 = 1e-2;
+/// Shortest range ever published, in metres: a range is never zero.
+pub(crate) const MIN_RANGE: f64 = 1e-3;
 /// Maximum range, declared or deduced, in metres: beyond it, the light covers any playable scene.
 pub(crate) const MAX_RANGE: f64 = 1.0e4;
 /// Version of the `lights.json` cache product. It lives outside the manifest: its version is its own.

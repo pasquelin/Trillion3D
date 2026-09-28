@@ -121,6 +121,12 @@ pub(crate) fn splitmix_unit(x: u64) -> f64 {
     ((x ^ (x >> 31)) >> 11) as f64 / (1u64 << 53) as f64
 }
 
+/// A seed mixed into [0, 1) after one golden-ratio step: the same seed, the same draw, whatever
+/// the thread count.
+pub(crate) fn hash_unit(seed: u64) -> f64 {
+    splitmix_unit(seed.wrapping_mul(GOLDEN))
+}
+
 /// Elapsed milliseconds from instant: compiler publishes durations in
 /// milliseconds only, converting in one place prevents seconds leak.
 pub fn elapsed_ms(since: std::time::Instant) -> f64 {

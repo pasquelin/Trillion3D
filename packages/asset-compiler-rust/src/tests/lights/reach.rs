@@ -3,9 +3,9 @@
 //! (`range_window`) at every distance, against the range develop published, on random lights and
 //! on the edge cases: zero intensity, infinite, NaN, ±0 and maximal values.
 use super::*;
-use crate::compiler_lights::reach::{quantum_reach, MIN_RANGE};
-use crate::compiler_lights::{range_of, MAX_RANGE, RANGE_CUTOFF_IRRADIANCE as FLOOR};
-use crate::shared_math::{range_window, splitmix_unit, GOLDEN};
+use crate::compiler_lights::reach::quantum_reach;
+use crate::compiler_lights::{range_of, MAX_RANGE, MIN_RANGE, RANGE_CUTOFF_IRRADIANCE as FLOOR};
+use crate::shared_math::{hash_unit, range_window};
 
 /// Largest irradiance change, over the whole old range, between a light of `peak` W/sr windowed by
 /// `old` and by `new`, as the shaders weigh it (inverse square floored at 1e-4 m²): sampled finely
@@ -26,7 +26,7 @@ fn develop_range(declared: Option<f64>, peak: f64) -> f64 {
 }
 /// Log-uniform draw in `[10^low, 10^high)`.
 fn draw(seed: u64, low: f64, high: f64) -> f64 {
-    10f64.powf(low + (high - low) * splitmix_unit(seed.wrapping_mul(GOLDEN)))
+    10f64.powf(low + (high - low) * hash_unit(seed))
 }
 
 // Behaviour: on random lights the reach never grows, never moves a point by more than the floor,

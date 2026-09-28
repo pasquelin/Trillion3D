@@ -1,7 +1,7 @@
 //! Fields of a glTF light, read one by one and mapped into what the engine contract accepts.
 //! A missing, non-finite, or out-of-bounds field takes the default published in : the light
 //! remains on, it does not disappear because an exporter wrote an impossible number.
-use super::reach::{quantum_reach, MIN_RANGE};
+use super::reach::quantum_reach;
 use super::*;
 use crate::shared_math::{divide, length};
 
