@@ -45,7 +45,7 @@ fn declared_bodies_are_cooked_beside_the_static_ground() {
         o: &o,
         g: &g,
         bin: &bin,
-        chosen: &chosen,
+        shown: &chosen,
         mesh_map: &mesh_map,
         cluster_planes: &[],
     };

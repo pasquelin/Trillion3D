@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CommandWriter, EVENT, FLAG } from '../../../sdk-core/src/physics/index.ts';
-import { body, events } from './module.fixture.ts';
+import { events } from './module.fixture.ts';
 import type { Module } from './module.fixture.ts';
 import { addBox, at, BOX, CLOTH, flatCloth, FLOOR, settle, softWorld } from './soft.fixture.ts';
+import { body } from './records.fixture.ts';
 
 /** A step's events: `[type, a, b, impulse]`. */
 function step(jolt: Module, words: Uint32Array | null = null) {
@@ -50,9 +51,13 @@ test('a body that wants events hears the cloth it lands on, and leaves it thrown
   const jolt = await softWorld();
   flatCloth(jolt, 1, BORDER, false);
   addBox(jolt, 0.1, 1.5, FLAG.events);
-  // It lands at 2.8 m/s on a cloth at rest: its 0.1 kg against the vertices it meets.
+  // It lands at 2.8 m/s on a cloth at rest: its 0.1 kg against the vertices it meets, which give
+  // little, each held within its rest distance of the pinned border.
   const enter = until(jolt, EVENT.begin, CLOTH, BOX);
-  assert.ok(enter && enter[3] > 0.01 && enter[3] < 0.1 * 3, `the box lands on the cloth: ${enter}`);
+  assert.ok(
+    enter && enter[3] > 0.001 && enter[3] < 0.1 * 3,
+    `the box lands on the cloth: ${enter}`,
+  );
   jolt.step(null, 0);
   assert.equal(jolt.events().length, 0, 'a step that does not collide leaves nothing');
   const writer = new CommandWriter();

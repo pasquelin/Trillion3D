@@ -20,6 +20,7 @@ import { webgpuPagesBackend } from '../../webgpu/pages/pages.ts';
 import { createExplorerPageSources } from '../session/pageSources.ts';
 import { createDiagnosticChannel } from '../../diagnostic/channel.ts';
 import { createExplorerFrameScheduler } from '../render/frameScheduler.ts';
+import { frameQueue } from '../render/frameQueue.fixture.ts';
 import { collectClusterPages } from '../../page/selection/selection.ts';
 import { packDagSelection } from '../../gpu/dag/selection.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
@@ -114,12 +115,12 @@ test(HIDDEN_AND_SHOWN, HUNG, async () => {
   await runtime.settled();
   const backend = opened.backend!;
   // The loop as `startInteractiveExplorer` wires it; the page's animation frames are a queue.
-  const requested: FrameRequestCallback[] = [];
+  const requested = frameQueue();
   /** The drain the loop waits on for the frame just drawn: the engine's own completion. */
   let draining: Promise<boolean> | undefined;
   const scheduler = createExplorerFrameScheduler({
-    request: (callback) => requested.push(callback),
-    cancel() {},
+    request: requested.request,
+    cancel: requested.cancel,
     render: () => void runtime.render(),
     pending: () => (draining = backend.pendingFrame!()),
     error: (error) => failures.push(error),
@@ -133,8 +134,7 @@ test(HIDDEN_AND_SHOWN, HUNG, async () => {
    * waits on is work the image never gets.
    */
   const untilIdle = async () => {
-    while (requested.length) {
-      requested.shift()!(0);
+    while (requested.run()) {
       const drain = draining;
       draining = undefined;
       await drain?.catch(() => {});

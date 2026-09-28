@@ -21,7 +21,7 @@ import { createPhysicsBodies, type Bodied } from './bodies.ts';
 import { createSessionHost } from './sessionHost.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { receiveSoft } from './softBodies.ts';
-import { createSoftTick } from './softTick.ts';
+import { createSoftTick } from './recordTick.ts';
 
 /** A scene whose bodies are written to `writer`, `softVertices` soft vertices allowed. */
 function sceneOf(softVertices: number, host = {} as PhysicsHost) {
@@ -48,9 +48,10 @@ test('soft-body vertices past their budget are refused with PHYSICS_BUDGET, and 
   const { writer, bodies, cloth } = sceneOf(100);
   const small = cloth(5),
     large = cloth(10);
-  const refused: { code: string }[] = [];
-  bodies.reconcile(new Set(), (error) => refused.push(error as { code: string }));
+  const refused: { code: string; details: object }[] = [];
+  bodies.reconcile(new Set(), (error) => refused.push(error as (typeof refused)[number]));
   assert.equal(refused[0]?.code, 'PHYSICS_BUDGET', '121 vertices past 100');
+  assert.deepEqual(refused[0].details, { budget: 'softVertices', limit: 100, requested: 157 });
   assert.equal(large.physics._host, null);
   assert.equal(bodies.count.softVertices, 36, 'the 6 × 6 cloth is counted');
   assert.equal(writer.take()[0], OP.soft);

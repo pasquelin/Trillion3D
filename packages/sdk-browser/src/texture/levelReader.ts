@@ -5,7 +5,7 @@ import {
   type ClusterManifest,
   type TextureLevelFormat,
 } from '../../../sdk-core/src/index.ts';
-import { checked } from '../cluster/pages.ts';
+import { checked } from '../cluster/checked.ts';
 import type { TextureLevelStore } from './levelStore.ts';
 
 /** What an engine reads of a baked level: the image decoded by the browser, ready to copy —

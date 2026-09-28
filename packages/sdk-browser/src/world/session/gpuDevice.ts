@@ -3,16 +3,17 @@ import { BLOCK_FEATURES } from '../../texture/blockFormats.ts';
 
 /**
  * The WebGPU device of a session: every optional feature the engine can use that the adapter
- * offers — instanced indirect draws, GPU timestamps, and the block-compressed texture formats
- * the cache bakes for it — and the adapter's own limits. A feature the adapter lacks is not
- * requested, and the engine publishes its absence where it matters (`texturePoolFormat`,
- * `gpuTiming`), never guesses it.
+ * offers — instanced indirect draws, GPU timestamps, subgroups (the light tiles' depth bounds),
+ * and the block-compressed texture formats the cache bakes for it — and the adapter's own
+ * limits. A feature the adapter lacks is not requested, and the engine publishes its absence
+ * where it matters (`texturePoolFormat`, `gpuTiming`, `tileSubgroups`), never guesses it.
  */
 export async function requestExplorerDevice(adapter: GPUAdapter) {
   const features: GPUFeatureName[] = [];
   const optional: GPUFeatureName[] = [
     'indirect-first-instance',
     'timestamp-query',
+    'subgroups',
     ...Object.values(BLOCK_FEATURES),
   ];
   for (const feature of optional) if (adapter.features.has(feature)) features.push(feature);

@@ -7,6 +7,7 @@ import {
   type TilePlace,
 } from '../../texture/tiles.ts';
 import { createPageUploads } from './pageUploads.ts';
+import { descendTile } from './pageDescent.ts';
 import { TRANSFORM_WORDS, samplingWords } from './sampling.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 
@@ -100,20 +101,8 @@ export function createWebgpuTilePageTable(
     uploads.mark(index);
     return true;
   };
-  /** Entries finer than a tile, under it: those its presence or departure serves. */
-  const descend = (key: TileKey, visit: (index: number) => void) => {
-    const layout = layouts[key.slot];
-    for (let level = key.level - 1; level >= 0; level--) {
-      const shift = key.level - level,
-        [tw, th] = tilesAt(layout.width, layout.height, level);
-      const x0 = key.tx << shift,
-        y0 = key.ty << shift,
-        x1 = Math.min(tw, (key.tx + 1) << shift),
-        y1 = Math.min(th, (key.ty + 1) << shift);
-      const base = entriesAt + bases[key.slot] + layout.offsets[level];
-      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) visit(base + y * tw + x);
-    }
-  };
+  const descend = (key: TileKey, visit: (index: number) => boolean) =>
+    descendTile(layouts[key.slot], entriesAt + bases[key.slot], key, visit);
   return {
     words,
     entries,
@@ -153,11 +142,14 @@ export function createWebgpuTilePageTable(
     setTile(key, place) {
       const word = packEntry(place, key.level);
       write(wordIndex(key), word);
-      // Downward: every finer entry served by a coarser ancestor, or by nothing, is better
-      // served by this one.
+      // Downward: every finer entry served by a coarser ancestor, or by nothing, is better served
+      // by this one; one served by this very tile at its former place — an atlas resize moves a
+      // resident tile (`atlasResize.ts`) — follows it to the new one.
       descend(key, (index) => {
         const current = words[index];
-        if (current === 0 || entryLevel(current) > key.level) write(index, word);
+        if (current !== 0 && entryLevel(current) < key.level) return false;
+        write(index, word);
+        return true;
       });
     },
     clearTile(key) {
@@ -178,7 +170,9 @@ export function createWebgpuTilePageTable(
       }
       write(own, replacement);
       descend(key, (index) => {
-        if (words[index] === leaving) write(index, replacement);
+        if (words[index] !== leaving) return false;
+        write(index, replacement);
+        return true;
       });
     },
     flush: (target) => uploads.flush(target.queue, buffer, words),

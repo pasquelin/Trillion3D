@@ -500,6 +500,24 @@
       "balloon": "追踪气球"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "观看穿过公园的录制路线。可以重播、停止或接管相机。",
+    "controls": {
+      "replay": "重播",
+      "stop": "停止"
+    },
+    "readouts": {
+      "currentPart": "当前部分"
+    },
+    "words": {
+      "entrance": "入口",
+      "pond": "池塘",
+      "bridge": "桥",
+      "pavilion": "凉亭",
+      "overview": "全景",
+      "complete": "完成"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "环绕起重机观察一个动画片段如何转动吊臂、移动小车、提升并摆动吊物。",
     "controls": {
@@ -516,6 +534,34 @@
       "ripples": "波纹",
       "inner": "内圈",
       "outer": "外圈"
+    }
+  },
+  "doors-that-open": {
+    "banner": "将相机移向门。靠近时门会打开。",
+    "controls": {
+      "mode": "模式",
+      "openingDistance": "开启距离",
+      "openness": "开启程度"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "接近",
+        "manual": "手动"
+      }
+    }
+  },
+  "a-carousel": {
+    "banner": "环绕旋转木马观察。暂停它，或让木马反向运动。",
+    "controls": {
+      "running": "运行",
+      "speed": "速度",
+      "direction": "方向"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "顺时针",
+        "counterclockwise": "逆时针"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -569,6 +615,17 @@
       "lamp": "灯",
       "colour": "颜色",
       "bricks": "砖块"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "点击两个表面以测量它们之间的距离。第三次点击会开始新的测量。 一个单位代表一米。",
+    "controls": {
+      "clear": "清除"
+    },
+    "readouts": {
+      "pointA": "点 A",
+      "pointB": "点 B",
+      "distance": "距离"
     }
   },
   "click-to-pick": {
@@ -1940,6 +1997,7 @@
       "manifest": "清单已读",
       "tables": "场景表已读",
       "resources": "场景文件",
+      "session": "正在打开视图",
       "pages": "首批页面",
       "ready": "就绪"
     }
@@ -2213,6 +2271,27 @@
     },
     "words": {
       "credit": "旗杆上的旗帜为本示例用代码建模，CC0 — 见 assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "选择房屋立面。将摄影机移远时，正交图仍保持完全相同的比例。",
+    "controls": {
+      "elevation": "立面",
+      "distance": "摄影机距离",
+      "zoom": "图纸比例"
+    },
+    "choices": {
+      "elevation": {
+        "front": "正面",
+        "right": "右侧面",
+        "rear": "背面"
+      }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "将指针移到小车的各个部件上以逐一突出显示，或在面板中关闭突出显示。",
+    "controls": {
+      "highlightEnabled": "启用突出显示"
     }
   },
   "a-dolly-along-the-canal": {

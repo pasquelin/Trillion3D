@@ -1,6 +1,7 @@
 import { SELECTION_WORKGROUP } from '../core/selection.ts';
 import type { PackedDag } from './types.ts';
 import { primitiveFrameWords } from './worlds.ts';
+import { createCameraFrames } from './frameRanges.ts';
 import { createDagPipeline } from './pipeline.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
@@ -48,6 +49,12 @@ export async function createDagResources(
   const uniformData = new Float32Array((AHEAD_VIEW + 1) * DAG_VIEW_WORDS);
   const frameData = primitiveFrameWords(packed);
   const buffers: GPUBuffer[] = [];
+  /** A buffer of this cut's, or of its light cut's: the runtime's dispose destroys them all. */
+  const own = (descriptor: GPUBufferDescriptor) => {
+    const buffer = device.createBuffer(descriptor);
+    buffers.push(buffer);
+    return buffer;
+  };
   try {
     const clusters = device.createBuffer({
       label: 'Trillion3D DAG clusters',
@@ -63,10 +70,11 @@ export async function createDagResources(
       size: DAG_UNIFORM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-    // Descent queue 0, then draw flags, then the cone rejection kept by `dagWanted` for the four
-    // passes that reread it, then the live-cluster list, then the candidate list — which also
-    // serves as the previous frame's drawn journal —, then the remaining queues, then each page's
-    // last use (`shader/lastUseWgsl.ts`): never read by the CPU, which still only copies draw flags.
+    // Descent queue 0, then draw flags, then the cone word `dagWanted` keeps for `dagMask` (the
+    // cone verdict and the cut rule's two comparisons), then the live-cluster list, then the
+    // candidate list — which also serves as the previous frame's drawn journal —, then the
+    // remaining queues, then each page's last use (`shader/lastUseWgsl.ts`): never read by the
+    // CPU, which still only copies draw flags.
     const flags = device.createBuffer({
       label: 'Trillion3D DAG flags',
       size: Math.max(16, dagFlagsWords(nodeCount, pageCount) * 4),
@@ -96,10 +104,6 @@ export async function createDagResources(
       size: Math.max(64, packed.worlds.byteLength),
       usage: STORAGE,
     });
-    const frames = device.createBuffer({
-      size: Math.max(16, frameData.byteLength),
-      usage: STORAGE | GPUBufferUsage.COPY_SRC,
-    });
     const pageCones = device.createBuffer({
       label: 'Trillion3D DAG page cones',
       size: Math.max(48, packed.pageCones.byteLength),
@@ -120,21 +124,21 @@ export async function createDagResources(
       output,
       work,
       worlds,
-      frames,
       pageCones,
       ...readback,
     );
-    const pipeline = await createDagPipeline(device, {
+    const frames = createCameraFrames(device, frameData, worldCount, own);
+    const group = {
       clusters,
       nodes,
-      uniforms,
+      views: uniforms,
       flags,
-      output,
+      out: output,
       work,
       worlds,
-      frames,
-      pageCones,
-    });
+      cold: pageCones,
+    };
+    const pipeline = await createDagPipeline(device, group, frames);
     if (!pipeline) {
       for (const buffer of buffers) buffer.destroy();
       return undefined;
@@ -148,7 +152,6 @@ export async function createDagResources(
     upload(clusters, Math.max(64, packed.clusters.byteLength), packed.clusters);
     upload(nodes, Math.max(64, packed.nodes.byteLength), packed.nodes);
     upload(worlds, Math.max(64, packed.worlds.byteLength), packed.worlds);
-    upload(frames, Math.max(16, frameData.byteLength), frameData);
     upload(pageCones, Math.max(48, packed.pageCones.byteLength), packed.pageCones);
     return {
       device,
@@ -170,6 +173,8 @@ export async function createDagResources(
       /** Writes into \`frames\`: a light cut copies its per-primitive words again when this moves. */
       frameWrites: { count: 0 },
       buffers,
+      own,
+      group,
       clusters,
       nodes,
       uniforms,

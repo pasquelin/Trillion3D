@@ -12,6 +12,7 @@
       "bindingOf": "O que `tr` escreve, resolvido uma vez; null enquanto seu alvo não está sob a raiz.",
       "play": "Começa a tocar.",
       "stop": "Para, e volta ao início.",
+      "seek": "Põe o clip em `time` segundos agora, segundo o seu modo de repetição, esteja a tocar ou não: uma ação que toca continua dali, uma parada mantém a pose até que uma ação a tocar no seu misturador a sobrescreva.",
       "clipTime": "Onde no clipe a ação está, conforme seu modo de repetição."
     }
   },
@@ -377,7 +378,8 @@
       "p.left": "Borda esquerda da caixa de visão de uma câmera ortográfica.",
       "p.right": "Borda direita da caixa de visão de uma câmera ortográfica.",
       "p.top": "Borda superior da caixa de visão de uma câmera ortográfica.",
-      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica."
+      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica.",
+      "p.fitAspect": "Uma câmera ortográfica mantém a altura e o centro da sua caixa e tira a largura da forma da imagem, assim um canvas redimensionado nunca estica o desenho. Desativado por padrão."
     },
     "members": {
       "isCamera": "Sempre `true`: distingue uma câmera de qualquer outro objeto.",
@@ -390,6 +392,7 @@
       "right": "Borda direita da caixa ortográfica.",
       "top": "Borda superior da caixa ortográfica.",
       "bottom": "Borda inferior da caixa ortográfica.",
+      "fitAspect": "Uma caixa ortográfica tão alta quanto declarada e tão larga quanto a forma da imagem a torna.",
       "projection": "`'perspective'` faz coisas distantes ficarem pequenas; `'orthographic'` mantém todo tamanho.",
       "copy": "Toma os valores de nó de `source` e, de uma câmera, sua óptica; sua própria `projection` permanece.",
       "updateProjectionMatrix": "Recompõe `projectionMatrix`; cada escrita da óptica já o faz, e redesenha.",
@@ -430,7 +433,8 @@
       "left": "Borda esquerda da caixa de visão de uma câmera ortográfica.",
       "right": "Borda direita da caixa de visão de uma câmera ortográfica.",
       "top": "Borda superior da caixa de visão de uma câmera ortográfica.",
-      "bottom": "Borda inferior da caixa de visão de uma câmera ortográfica."
+      "bottom": "Borda inferior da caixa de visão de uma câmera ortográfica.",
+      "fitAspect": "Uma câmera ortográfica mantém a altura e o centro da sua caixa e tira a largura da forma da imagem, assim um canvas redimensionado nunca estica o desenho. Desativado por padrão."
     }
   },
   "CameraPose-common": {
@@ -961,13 +965,15 @@
       "UNSUPPORTED_SCENE_UPDATE": "Este caminho de desenho não consegue fazer essa mudança na cena.",
       "BATCHED_WORLD_VIEW": "Este caminho de desenho não consegue fazer essa mudança na cena.",
       "RAYCAST_NO_VIEW": "Um ponto de imagem foi pedido a um canvas sem tamanho: não há imagem através da qual mirar.",
+      "VERTICES_NOT_LOADED": "Os vértices de um modelo carregado foram lidos antes de `await geometry.loadVertices()`: uma sessão os lê na primeira necessidade, nunca antecipadamente.",
       "SESSION_OPEN_FAILED": "A sessão do mundo não pôde abrir, por um motivo sem código próprio (`world.diagnostic.error`): o erro lançado está em `details.cause`.",
       "WEBGPU_LOST": "O WebGPU perdeu o seu dispositivo, ou um erro nele deixou um estado a partir do qual nada pode desenhar: lançado por `render`, `flush` e pelas leituras que precisam do dispositivo, nomeado pelo diagnóstico `gpu-device-lost`, e em `world.diagnostic.error` quando uma sessão não pôde abrir por isso.",
       "UNSUPPORTED_SCENE_FORMAT": "Uma cena salva é de outro formato ou versão, ou contém algo que uma cena salva não pode armazenar.",
       "SCENE_NOT_SAVABLE": "Uma cena salva é de outro formato ou versão, ou contém algo que uma cena salva não pode armazenar.",
-      "PHYSICS_BUDGET": "Pediu-se à física mais do que um dos seus limites (`world.budget.physics`: corpos, corpos decorativos, memória), ou um corpo dinâmico não era filho direto da cena (`PHYSICS_NESTED`), ou o módulo de física falhou (`PHYSICS_FAILED`): em `world.physics.error`.",
-      "PHYSICS_NESTED": "Pediu-se à física mais do que um dos seus limites (`world.budget.physics`: corpos, corpos decorativos, memória), ou um corpo dinâmico não era filho direto da cena (`PHYSICS_NESTED`), ou o módulo de física falhou (`PHYSICS_FAILED`): em `world.physics.error`.",
-      "PHYSICS_FAILED": "Pediu-se à física mais do que um dos seus limites (`world.budget.physics`: corpos, corpos decorativos, memória), ou um corpo dinâmico não era filho direto da cena (`PHYSICS_NESTED`), ou o módulo de física falhou (`PHYSICS_FAILED`): em `world.physics.error`.",
+      "PHYSICS_BUDGET": "Pediu-se à física mais do que um dos seus limites (`world.budget.physics`: corpos, corpos decorativos, memória), ou um corpo dinâmico não era filho direto da cena (`PHYSICS_NESTED`), ou o módulo de física falhou (`PHYSICS_FAILED`), ou a pose ou os vértices de um corpo deixaram de ser finitos e ele saiu da simulação (`PHYSICS_DIVERGED`): em `world.physics.error`.",
+      "PHYSICS_NESTED": "Pediu-se à física mais do que um dos seus limites (`world.budget.physics`: corpos, corpos decorativos, memória), ou um corpo dinâmico não era filho direto da cena (`PHYSICS_NESTED`), ou o módulo de física falhou (`PHYSICS_FAILED`), ou a pose ou os vértices de um corpo deixaram de ser finitos e ele saiu da simulação (`PHYSICS_DIVERGED`): em `world.physics.error`.",
+      "PHYSICS_FAILED": "Pediu-se à física mais do que um dos seus limites (`world.budget.physics`: corpos, corpos decorativos, memória), ou um corpo dinâmico não era filho direto da cena (`PHYSICS_NESTED`), ou o módulo de física falhou (`PHYSICS_FAILED`), ou a pose ou os vértices de um corpo deixaram de ser finitos e ele saiu da simulação (`PHYSICS_DIVERGED`): em `world.physics.error`.",
+      "PHYSICS_DIVERGED": "Pediu-se à física mais do que um dos seus limites (`world.budget.physics`: corpos, corpos decorativos, memória), ou um corpo dinâmico não era filho direto da cena (`PHYSICS_NESTED`), ou o módulo de física falhou (`PHYSICS_FAILED`), ou a pose ou os vértices de um corpo deixaram de ser finitos e ele saiu da simulação (`PHYSICS_DIVERGED`): em `world.physics.error`.",
       "PHYSICS_FORMAT": "A física preparada de um modelo compilado (`physics.json`) é de outro formato, ou foi preparada por outro Jolt que não o do motor (`PHYSICS_FORMAT`): compile-o de novo. Foi pedido um raycast exato com a física desligada (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "A física preparada de um modelo compilado (`physics.json`) é de outro formato, ou foi preparada por outro Jolt que não o do motor (`PHYSICS_FORMAT`): compile-o de novo. Foi pedido um raycast exato com a física desligada (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` recebeu `'vehicle'` enquanto `world.controls.vehicle` é `null`: não há nada para conduzir.",
@@ -1178,6 +1184,7 @@
       "rotateZ": "Gira cada vértice ao redor do eixo z, por `angle` radianos.",
       "scale": "Estica cada vértice por `(x, y, z)`.",
       "center": "Move a geometria para que sua caixa fique centrada na origem.",
+      "loadVertices": "Lê os vértices de uma malha carregada, que nenhuma sessão busca antecipadamente; de imediato para qualquer outra. Antes disso, lê-los (`array`, `getX`) lança `VERTICES_NOT_LOADED`.",
       "clone": "Uma nova geometria com cópias de cada lista, os seus grupos, intervalo, dados e limites, e a receita que ainda a constrói.",
       "dispose": "Devolve a geometria: executa cada gancho de libertação uma vez, esquece quem a segura e a árvore de raycast; ninguém desenha nem atinge uma geometria libertada.",
       "kind": "O que o recurso é, como um leitor da cena distingue os recursos.",
@@ -2095,7 +2102,6 @@
     "members": {
       "isObject3D": "Sempre `true`: distingue um nó de cena.",
       "type": "O tipo do nó: `'Mesh'`, `'Group'`…",
-      "name": "Um nome para encontrar o nó.",
       "position": "Onde o nó está, a partir de seu pai.",
       "rotation": "Como o nó está girado, como três ângulos.",
       "quaternion": "Como o nó está girado, como um quatérnio.",
@@ -2181,6 +2187,7 @@
   "TransformNode": {
     "summary": "Um nó de cena lido pelas matrizes da referência, guardado na árvore de transformações do motor.",
     "members": {
+      "name": "Um nome para encontrar o nó.",
       "matrix": "Matriz local, uma view do slot desse nó na árvore de transformações.",
       "matrixWorld": "Matriz de mundo como composta pela última vez (`updateMatrixWorld`), uma view da árvore.",
       "matrixAutoUpdate": "Falso quando `matrix` É a pose e nada a recompõe.",
@@ -4616,7 +4623,8 @@
       "p.left": "Borda esquerda da caixa de visão de uma câmera ortográfica.",
       "p.right": "Borda direita da caixa de visão de uma câmera ortográfica.",
       "p.top": "Borda superior da caixa de visão de uma câmera ortográfica.",
-      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica."
+      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica.",
+      "p.fitAspect": "Uma câmera ortográfica mantém a altura e o centro da sua caixa e tira a largura da forma da imagem, assim um canvas redimensionado nunca estica o desenho. Desativado por padrão."
     }
   },
   "camera.orthographic": {
@@ -4631,7 +4639,8 @@
       "p.left": "Borda esquerda da caixa de visão de uma câmera ortográfica.",
       "p.right": "Borda direita da caixa de visão de uma câmera ortográfica.",
       "p.top": "Borda superior da caixa de visão de uma câmera ortográfica.",
-      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica."
+      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica.",
+      "p.fitAspect": "Uma câmera ortográfica mantém a altura e o centro da sua caixa e tira a largura da forma da imagem, assim um canvas redimensionado nunca estica o desenho. Desativado por padrão."
     }
   },
   "camera.cube": {
@@ -4945,9 +4954,6 @@
   },
   "disabledStageProfile": {
     "summary": "Perfil de um motor que não mantém nenhum: tudo é \"não medido\", nada é zero."
-  },
-  "dot": {
-    "summary": "Produto escalar de dois vetores da mesma dimensão."
   },
   "dotVector3": {
     "summary": "`a · b` sobre três componentes lidos em `aAt` e `bAt`: um buffer mais um deslocamento, nunca uma view."
@@ -5530,7 +5536,7 @@
   },
   "loader": {
     "summary": "A família `loader`: arquivos buscados e transformados no que uma cena usa.",
-    "description": "Um arquivo é lido através do fetch verificado do motor (`cluster/pages.ts`), que recusa uma resposta falha pelo seu status; uma imagem (`texture`, `cubeTexture`) é buscada por um elemento de imagem, que recusa uma ao falhar em decodificá-la."
+    "description": "Um arquivo é lido através do fetch verificado do motor (`cluster/checked.ts`), que recusa uma resposta falha pelo seu status; uma imagem (`texture`, `cubeTexture`) é buscada por um elemento de imagem, que recusa uma ao falhar em decodificá-la."
   },
   "loader.texture": {
     "summary": "Busca uma imagem e faz dela uma textura de cor.",
@@ -7012,7 +7018,8 @@
       "projection": "Perspectiva ou ortográfica.",
       "position": "Onde o olho está.",
       "quaternion": "Como o olho está girado.",
-      "optics": "Campo, near, far, zoom e caixa, por nome."
+      "optics": "Campo, near, far, zoom e caixa, por nome.",
+      "fitAspect": "Uma caixa ortográfica alargada à forma da imagem (`fitAspect`); ausente quando desligada."
     }
   },
   "SavedGeometry": {
@@ -7153,6 +7160,7 @@
       "gravity": "Gravidade em m/s², um vetor vivo; define uma predefinição (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou um vetor.",
       "paused": "Se o tempo está parado; as escritas continuam a chegar aos corpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
+      "simulationRange": "Metros em torno da câmera dentro dos quais os corpos são simulados (congelados além disso, como estavam, e nenhum bloco de colisão carregado); `null` segue `camera.far`.",
       "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
       "waterSurface": "A superfície da água à hora da simulação, para a desenhar: as ondas que a flutuação lê, os mesmos números (`height`, `point`, `normal`).",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
@@ -7359,6 +7367,7 @@
       "gravity": "Gravidade em m/s², um vetor vivo; define uma predefinição (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou um vetor.",
       "paused": "Se o tempo está parado; as escritas continuam a chegar aos corpos.",
       "timeScale": "Segundos simulados por segundo real: 0.25 é câmara lenta.",
+      "simulationRange": "Metros em torno da câmera dentro dos quais os corpos são simulados (congelados além disso, como estavam, e nenhum bloco de colisão carregado); `null` segue `camera.far`.",
       "water": "A água onde os corpos flutuam: o seu nível, as suas ondas, a sua densidade e os seus arrastos. Um corpo mais leve que a água flutua, empurrado pelo peso da água que desloca.",
       "waterSurface": "A superfície da água à hora da simulação, para a desenhar: as ondas que a flutuação lê, os mesmos números (`height`, `point`, `normal`).",
       "stats": "Contagens e os dois relógios: milissegundos do worker por passo, milissegundos da página por imagem.",
@@ -7371,6 +7380,7 @@
     "summary": "O que `createWorld(canvas, { physics })` aceita além de `true`.",
     "members": {
       "budget": "Limites fixos, lidos uma vez no arranque da física.",
+      "simulationRange": "Metros em torno da câmera dentro dos quais os corpos são simulados (`world.physics.simulationRange`); `null` segue `camera.far`.",
       "gravity": "A gravidade do mundo: uma predefinição ou um vetor."
     }
   },
@@ -7402,13 +7412,6 @@
       "steer": "Volante, de −1 todo à esquerda a 1 todo à direita.",
       "handbrake": "Se o travão de mão está puxado."
     }
-  },
-  "GraphNode": {
-    "members": {
-      "serial": "O número do nó, único na sessão.",
-      "kind": "O que o nó é: aquilo por que cada leitor do grafo o distingue."
-    },
-    "summary": "Um nó do grafo: o nó do núcleo, distinguido pelo seu `kind`, copiado pelo `clone` do núcleo."
   },
   "GraphSurface": {
     "members": {
@@ -7472,9 +7475,6 @@
       "rotation": "A rotação, em radianos."
     },
     "summary": "Uma imagem e o estado de amostragem com que é lida, e a transformação das suas coordenadas."
-  },
-  "GraphNodeKind": {
-    "summary": "O que é uma luz do grafo: uma das luzes que uma cena declara."
   },
   "Joint": {
     "summary": "Uma junta entre dois corpos, ou entre um corpo e o mundo (`b` null), criada com `joint.*` e adicionada à simulação com `world.physics.add`.",

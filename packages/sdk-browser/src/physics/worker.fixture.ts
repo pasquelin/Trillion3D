@@ -11,24 +11,28 @@ import {
 } from './protocol.ts';
 import { createWorldPhysics } from './worldPhysics.ts';
 
-/** A physics worker faked in place of `Worker`: it keeps the command words the page sends it. */
+/** A worker faked in place of `Worker`: it keeps the command words the page sends it. */
 interface FakeWorker {
   onmessage(event: { data: unknown }): void;
+  onerror(event: { message: string; preventDefault(): void }): void;
   words: Uint32Array[];
 }
 
-/** Replaces `Worker` with fakes, each listed in `workers`; `restore` puts the real one back. */
-export function fakeWorkers() {
+/** Replaces `Worker` with fakes, each listed in `workers` and handing what it is sent to `post`;
+ *  `restore` puts the real one back. */
+export function fakeWorkers(post: (message: unknown) => void = () => {}) {
   const workers: FakeWorker[] = [];
   const saved = globalThis.Worker;
   globalThis.Worker = class {
     words: Uint32Array[] = [];
     onmessage = (_: { data: unknown }) => {};
+    onerror = (_: { message: string; preventDefault(): void }) => {};
     constructor() {
       workers.push(this);
     }
     postMessage(message: { type: string; words?: Uint32Array }) {
       if (message.words) this.words.push(message.words);
+      post(message);
     }
     terminate() {}
   } as unknown as typeof Worker;
@@ -68,15 +72,21 @@ export async function fakePhysicsWorld() {
 }
 
 /**
- * The physics worker's own code run in this thread on `clock`, started on an 8-body budget and
- * ready: its ticks wait in `ticks` (with the delay asked) until the test runs them, and its results
- * are kept in `sent`, each buffer copied as it was sent. The globals it replaces stay replaced.
+ * The physics worker's own code run in this thread on `clock`, sent its start on an 8-body budget
+ * for `threads` threads, its module fetched as `answer` has it; `ready` resolves when it says so. From then its ticks wait in `ticks`
+ * (with the delay asked) until the test runs them; its messages are kept in `sent`, each buffer
+ * copied as it was sent. The globals it replaces stay replaced.
  */
-export async function startedWorker(clock: () => number) {
+export async function launchedWorker(
+  clock: () => number,
+  threads = 1,
+  answer = (bytes: Buffer<ArrayBuffer>) => new Response(bytes),
+) {
   Object.defineProperty(performance, 'now', { value: clock, configurable: true });
   const scope = globalThis as unknown as Record<string, unknown>;
-  const bytes = await readFile(new URL('./joltPhysics.wasm', import.meta.url));
-  scope.fetch = async () => new Response(bytes);
+  const file = threads > 1 ? './joltPhysicsThreads.wasm' : './joltPhysics.wasm';
+  const bytes = await readFile(new URL(file, import.meta.url));
+  scope.fetch = async () => answer(bytes);
   scope.location = { href: import.meta.url };
   const ticks: [() => void, number][] = [];
   const sent: FromPhysics[] = [];
@@ -96,7 +106,13 @@ export async function startedWorker(clock: () => number) {
     (scope.onmessage as (event: { data: ToPhysics }) => void)({ data });
   const budget = { ...DEFAULT_PHYSICS_BUDGET, bodies: 8, memoryBytes: 64 << 20 };
   const buffers = [0, 1].map(() => new ArrayBuffer(resultWords(budget) * 4));
-  receive({ type: 'start', protocol: PHYSICS_PROTOCOL, wasm: 'x', budget, threads: 1, buffers });
+  receive({ type: 'start', protocol: PHYSICS_PROTOCOL, wasm: 'x', budget, threads, buffers });
+  return { ticks, sent, receive, budget, ready };
+}
+
+/** `launchedWorker` on one thread, once ready. */
+export async function startedWorker(clock: () => number) {
+  const { ready, ...worker } = await launchedWorker(clock);
   await ready;
-  return { ticks, sent, receive, budget };
+  return worker;
 }

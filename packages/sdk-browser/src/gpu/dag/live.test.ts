@@ -23,7 +23,7 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
   // following level from its level's node count — known at packing too. No
   // indirection, hence no argument recopy, and no level visits the whole hierarchy.
   assert.deepEqual(lancements.slice(2, 5), [
-    { noyau: 'dagLevel0', groupes: 1 },
+    { noyau: 'dagRootLevel', groupes: 1 },
     { noyau: 'dagLevel1', groupes: Math.ceil(ETAGES[1] / 64) },
     { noyau: 'dagLevel2', groupes: Math.ceil(ETAGES[2] / 64) },
   ]);
@@ -35,7 +35,7 @@ test('each cut kernel dispatches over the list the previous one filled', () => {
   const plats = lancements.filter((l) => l.groupes !== 'indirect').map((l) => l.noyau);
   assert.deepEqual(plats, [
     'dagPrepare',
-    'dagLevel0',
+    'dagRootLevel',
     'dagLevel1',
     'dagLevel2',
     'dagDrawPrefix',
@@ -76,7 +76,7 @@ test('without a resident cut, the mask follows the list and nothing is compacted
   assert.equal(masque?.groupes, 'indirect');
   assert.equal(masque?.liste, LIVE);
   // Descent itself is encoded in both cases: it does not depend on residency.
-  assert.ok(noyaux.includes('dagLevel0') && noyaux.includes('dagLevel1'));
+  assert.ok(noyaux.includes('dagRootLevel') && noyaux.includes('dagLevel1'));
   assert.ok(noyaux.includes('dagLevel2'));
 });
 

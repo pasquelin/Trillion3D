@@ -1,5 +1,6 @@
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { DRAW_INDIRECT_STRIDE, PAGE_BIND_ALIGN } from '../draw/draw.ts';
+import { DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
 import { MAX_SHADOW_REGIONS } from './atlas.ts';
 import { SHADOW_CULL_SHADER } from './cullShader.ts';
 import { createGpuShadowCullCounts } from './cullCounts.ts';
@@ -12,8 +13,6 @@ import { CULL_UNIFORM_WORDS } from './batchBudget.ts';
 const DRAW_UNIFORM_WORDS = PAGE_BIND_ALIGN / 4;
 const WORD_DRAW_SLOT = 20,
   WORD_INDIRECT = 21;
-/** Words of one indirect command. */
-const COMMAND_WORDS = DRAW_INDIRECT_STRIDE / 4;
 
 /**
  * The cull's single bind table: its order names both the layout and the group — spheres, source
@@ -116,7 +115,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     });
     const volumes = new Float32Array(MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS),
       volumeWords = new Uint32Array(volumes.buffer);
-    const commands = new Uint32Array(MAX_SHADOW_REGIONS * COMMAND_WORDS);
+    const commands = new Uint32Array(MAX_SHADOW_REGIONS * DRAW_INDIRECT_WORDS);
     const uniData = new Uint32Array(CULL_UNIFORM_WORDS);
     let bound: GPUBuffer[] = [],
       group: GPUBindGroup | undefined;
@@ -136,15 +135,16 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       begin(regions: number, maxVertexCount: number) {
         if (!regions) return;
         shadowBatchWrites(device).write(faceVolumes, 0, volumes, 0, regions * SHADOW_CULL_FLOATS);
-        commands.fill(0, 0, regions * COMMAND_WORDS);
+        commands.fill(0, 0, regions * DRAW_INDIRECT_WORDS);
         for (let region = 0; region < regions; region++)
-          commands[region * COMMAND_WORDS] = maxVertexCount;
-        shadowBatchWrites(device).write(indirect, 0, commands, 0, regions * COMMAND_WORDS);
+          commands[region * DRAW_INDIRECT_WORDS] = maxVertexCount;
+        shadowBatchWrites(device).write(indirect, 0, commands, 0, regions * DRAW_INDIRECT_WORDS);
       },
       /**
        * Encodes the cull of regions `[first, first + faces)` against the list the CPU cut wrote for
        * one face. `run` is the face's rank in the frame, its uniform slot; `rows` bounds the
-       * list, whose true length the GPU reads in its commands.
+       * list, whose true length the GPU reads in its commands. An empty list encodes no pass: its
+       * regions keep the zero instances `begin` wrote.
        */
       encode(
         encoder: GPUCommandEncoder,
@@ -154,7 +154,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
         faces: number,
         rows: number,
       ) {
-        if (!faces) return;
+        if (!faces || !rows) return;
         // Group buffers, in bind order. The group is rebuilt only if one of them has changed
         // identity: the GPU cut and the CPU cut each hand the same two every frame.
         if (

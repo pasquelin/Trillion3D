@@ -65,10 +65,10 @@ const MORPHED = [
 ] as const;
 
 /**
- * The geometry of each primitive of `document`, built on first request and shared after it.
- * `binary` is the document's buffer; `null` only for a document that lays out no view.
+ * The geometry of each primitive of `document`, built on first request and shared after it; its
+ * vertices are read by `binary` when a reader loads them (`Geometry.loadVertices`).
  */
-export function preparedGeometries(document: TableDocument, binary: ArrayBuffer | null) {
+export function preparedGeometries(document: TableDocument, binary: () => Promise<ArrayBuffer>) {
   const attributeOf = preparedAccessors(document, binary);
   const geometries = new Map<string, Geometry>();
 
