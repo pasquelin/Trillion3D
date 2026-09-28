@@ -18,6 +18,7 @@ import {
   type TablePartition,
 } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
+import type { PlacementGrowth } from '../../placement/backendSceneUpdates.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
 import { createCellBoxes } from './boxes.ts';
@@ -26,7 +27,6 @@ import { holdsEvery, outstretched, residentRows, sizedStretch, type Stretch } fr
 import { capacityOf, createTouchedRows, releaseRow, rowLocal, rowsFree } from './rows.ts';
 import { sizeRows, takeRow, type PlacedMesh } from './rows.ts';
 
-type Grow = (from: PlacementRows, to: PlacementRows) => void;
 type Placement = { mesh: PlacedMesh; row: number; parent: Object3D; local: Float64Array };
 type Inputs = {
   partition: TablePartition;
@@ -100,14 +100,14 @@ export function createPartitionCells(inputs: Inputs) {
         for (const placement of placements) if (placement.parent === node) write(placement);
     }
   };
-  /** Sizes the rows for any place of the parents within a reach `bound` and a `stretch`; `grown`
-   *  hands each buffer replaced to its engine, absent before one reads it. */
-  const resize = (bound: number, grown?: Grow, stretch = sizedStretch(boxes.stretch)) => {
+  /** Sizes the rows for `bound` and `stretch`, in place under `grow`; false, unsized, if refused. */
+  const resize = (bound: number, grow?: PlacementGrowth, stretch = sizedStretch(boxes.stretch)) => {
+    const rows = residentRows(partition.cells, bound, stretch);
+    if (!sizeRows(meshes, rows, grow)) return false;
     stretched = stretch;
-    const rows = residentRows(partition.cells, bound, stretched);
-    sizeRows(meshes, rows, grown);
     sized = holdsEvery(rows, cells) ? Infinity : bound;
     short = false;
+    return true;
   };
   return {
     /** Every cell as the streamer's catalogue reads it. */
@@ -132,7 +132,7 @@ export function createPartitionCells(inputs: Inputs) {
         loading(url: string): boolean;
         request(urls: readonly string[], ahead: boolean): void;
         update(rows: PlacementRows, from: number, to: number): void;
-        grow?(from: PlacementRows, to: PlacementRows): void;
+        grow?: PlacementGrowth;
         outgrown?: () => void;
       },
       budget: { admits(): boolean; spend(): void }, // structurally a `FrameBudget`, kept internal
@@ -146,8 +146,8 @@ export function createPartitionCells(inputs: Inputs) {
       if (beyond || over) {
         // Twice what outgrew them, as buffers grow: an ongoing zoom or shrink resizes O(log) times.
         const stretch = over ? sizedStretch(boxes.stretch, 2) : stretched;
-        if (io.grow) resize(beyond ? Math.max(2 * sized, wanted) : sized, io.grow, stretch);
-        else {
+        const bound = beyond ? Math.max(2 * sized, wanted) : sized;
+        if (!io.grow || !resize(bound, io.grow, stretch)) {
           short = true;
           io.outgrown?.();
         }

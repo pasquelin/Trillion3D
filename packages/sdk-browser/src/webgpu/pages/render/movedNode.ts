@@ -23,8 +23,12 @@ export function findNode(source: Object3D, nodeName: string) {
 
 type Roots = readonly ClusterRoot<PageRec>[];
 
-/** Selection-root ranks by source mesh, built once per root list: the layout never edits it. */
+/** Selection-root ranks by source mesh, built once per root list, again once it grew in place. */
 const rootsByMeshOf = new WeakMap<Roots, Map<Object3D, number[]>>();
+
+/** `roots` grew in place (`../../../placement/webgpuGrowth.ts`): its index is built at the next
+ *  move. */
+export const forgetRootsByMesh = (roots: Roots) => void rootsByMeshOf.delete(roots);
 
 function rootsByMesh(roots: Roots) {
   let map = rootsByMeshOf.get(roots);

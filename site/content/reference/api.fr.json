@@ -4773,6 +4773,13 @@
       "depth": "Couches, pour une pile d’images."
     }
   },
+  "PlacementGrowth": {
+    "summary": "Ce qu’un propriétaire remet à une session qui agrandit ses tampons d’instances sur place (`growth.ts`).",
+    "members": {
+      "growPlacements": "Un tampon d’instances que la session tient a été remplacé par un plus grand, les rangées de `from` d’abord et le reste rangé de côté : la session lit `to` désormais et tient ses nouvelles rangées, sans reconstruire de table (`growth.ts`). Absent d’un moteur, le propriétaire rouvre la session sur `to`.",
+      "growsInPlace": "Si `growPlacements` accepte chacun de `from` agrandi à `capacity` rangées, demandé avant que le propriétaire n’en remplace aucun : false les laisse tels quels, et le propriétaire rouvre la session sur de plus grands."
+    }
+  },
   "PlacementRows": {
     "summary": "Les rangées de placement des maillages en miroir, une rangée par copie placée.",
     "members": {
