@@ -31,9 +31,12 @@ const MODULES = '../../../packages/sdk-browser/src/physics/';
 /** The Node proof's budget (`startModule`). */
 const BUDGET = { ...DEFAULT_PHYSICS_BUDGET, ...PILE_BUDGET };
 
-/** A module's bytes. */
-const bytesOf = async (file: string) =>
-  (await fetch(new URL(MODULES + file, import.meta.url))).arrayBuffer();
+/** A module's bytes; a module not served is named. */
+async function bytesOf(file: string) {
+  const response = await fetch(new URL(MODULES + file, import.meta.url));
+  if (!response.ok) throw new Error(`${file}: ${response.status}`);
+  return response.arrayBuffer();
+}
 
 /** A module stepped by `threads` threads, the threaded module's when more than one, once each
  *  of its threads has loaded. */
