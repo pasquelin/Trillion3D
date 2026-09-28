@@ -550,6 +550,20 @@
       }
     }
   },
+  "a-carousel": {
+    "banner": "Umkreise das Karussell. Halte es an oder lasse die Holzpferde andersherum laufen.",
+    "controls": {
+      "running": "Läuft",
+      "speed": "Tempo",
+      "direction": "Richtung"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "im Uhrzeigersinn",
+        "counterclockwise": "gegen den Uhrzeigersinn"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Ziehe, um um die Insel zu fliegen. Heb das Meer, um die Täler zu fluten.",
     "controls": {
