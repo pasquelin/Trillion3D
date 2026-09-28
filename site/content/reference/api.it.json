@@ -4395,7 +4395,8 @@
       "left": "Bordo sinistro.",
       "right": "Bordo destro.",
       "top": "Bordo superiore.",
-      "bottom": "Bordo inferiore."
+      "bottom": "Bordo inferiore.",
+      "fitAspect": "Un box ortografico alto quanto dichiarato e largo quanto lo rende la forma dell’immagine."
     }
   },
   "orthographicProjection": {

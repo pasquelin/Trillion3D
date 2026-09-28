@@ -2260,7 +2260,8 @@
       "left": "Tepi kiri.",
       "right": "Tepi kanan.",
       "top": "Tepi atas.",
-      "bottom": "Tepi bawah."
+      "bottom": "Tepi bawah.",
+      "fitAspect": "Kotak ortografis setinggi yang dinyatakan dan selebar yang dibuat oleh bentuk gambar."
     }
   },
   "PAGE_DECODE_FAILURES": {

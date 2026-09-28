@@ -27,10 +27,7 @@ import {
   transformAffinePoint,
 } from '../../../../sdk-core/src/index.ts';
 import { boxPointDistance } from '../../../../sdk-core/src/math/primitives/box.ts';
-import {
-  drawnView,
-  perspectiveSlope,
-} from '../../../../sdk-core/src/math/primitives/camera.ts';
+import { drawnView, perspectiveSlope } from '../../../../sdk-core/src/math/primitives/camera.ts';
 import type { CameraOptics } from '../../camera/engineCamera.ts';
 import { stretchOf } from './boxes.ts';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';

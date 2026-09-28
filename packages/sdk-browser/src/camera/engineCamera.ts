@@ -54,9 +54,7 @@ export type OrthographicBox = {
   /** Right edge. */ right: number;
   /** Top edge. */ top: number;
   /** Bottom edge. */ bottom: number;
-  /** As wide as the picture's shape makes it, as high about the same centre (`drawnView`): the
-   *  box is fitted where a projection is composed, at the shape it is drawn at — a capture's
-   *  included, never the canvas's alone. */
+  /** An orthographic box as high as declared and as wide as the picture's shape makes it. */
   fitAspect?: boolean;
 };
 const seen = new Float64Array(4);
