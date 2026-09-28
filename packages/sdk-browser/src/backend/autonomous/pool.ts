@@ -2,7 +2,11 @@ import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { BackendDiagnostic } from '../types.ts';
 import { drawGeometryPool } from './poolDraw.ts';
 import type { GeometryPool, PoolClamp } from '../../residency/pools.ts';
-import { coverageBudgetEvent, sendCoverageBudget } from '../../diagnostic/engineDiagnostic.ts';
+import {
+  coverageBudgetEvent,
+  sendCoverageBudget,
+  sendEngineDiagnostic,
+} from '../../diagnostic/engineDiagnostic.ts';
 import { createResidentOrder } from './poolOrder.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { WebglViewState } from './views.ts';
@@ -154,6 +158,28 @@ export function createGeometryBudget(env: PoolEnvironment) {
     resize(budgetBytes: number) {
       drawn.resize(budgetBytes);
       return resident.shed();
+    },
+    /**
+     * The context ran out of memory (`../../webgl/core/allocation.ts`): the pool is drawn again at
+     * half the bytes it holds, as WebGPU's refusal shrinks its own (`poolGrants.ts`), and the
+     * residency lets the finest pages go one DAG level per image, never a hole. Published as
+     * `gpu-out-of-memory`; false at the floor, where half draws no smaller pool.
+     */
+    outOfMemory() {
+      const before = current(),
+        half = Math.floor(Math.min(before.budgetBytes, before.allocatedBytes) / 2);
+      if (half >= 1) drawn.resize(half);
+      const after = current(),
+        smaller = after.allocatedBytes < before.allocatedBytes;
+      sendEngineDiagnostic(onDiagnostic, 'gpu-out-of-memory', 'WebGL2 refused an allocation', {
+        kind: 'warning',
+        pool: 'geometry',
+        requestedBytes: before.allocatedBytes,
+        grantedBytes: smaller ? after.allocatedBytes : null,
+        clamp: after.clamp,
+      });
+      if (smaller) resident.shed();
+      return smaller;
     },
   };
 }

@@ -8,6 +8,7 @@ import {
 } from '../../../../../bench/perf/browser/support/dagCut.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import { createGeometryBudget } from './pool.ts';
+import { takeOutOfMemory } from '../../webgl/core/allocation.ts';
 import { PAGE } from './pool.fixture.ts';
 import { createImageCut } from './imageCut.ts';
 import { createWebglViews } from './views.ts';
@@ -34,6 +35,7 @@ export function mount(
     bytes = () => PAGE,
     camera: view,
     rootCharged = false,
+    gl,
   }: {
     pages?: DagPage[];
     primitives?: DagPage[][];
@@ -41,6 +43,8 @@ export function mount(
     bytes?: (url: string) => number;
     camera?: HostCamera;
     rootCharged?: boolean;
+    /** The context whose refused allocations the image answers, as `render.ts`'s frame does. */
+    gl?: WebGL2RenderingContext;
   } = {},
 ) {
   const all = primitives.flat();
@@ -100,9 +104,11 @@ export function mount(
    *  read. */
   const frame = { after: 0, stand: 0 };
   let last: ReturnType<typeof cut> | undefined;
-  // The order of `render.ts`'s frame, copied by hand: readmit, trim, cut, then what it keeps.
+  // The order of `render.ts`'s frame, copied by hand: out of memory, readmit, trim, cut, then what
+  // it keeps.
   const image = (pixelError: number, arrivals = Infinity) => {
     const { requested, shown } = live;
+    if (takeOutOfMemory(gl)) pool.outOfMemory();
     if (cut.readmit()) pool.follow(requested, shown);
     pool.trim();
     const drawn = (last = cut(cameraMoteur(camera), pixelError));

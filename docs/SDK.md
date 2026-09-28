@@ -1265,12 +1265,14 @@ never allocated at the full request outside the check:
   `FALLBACK_TRANSPARENT_LINES_UNSUPPORTED`, a transparent line it cannot widen, and
   `FALLBACK_BLEND_WITHOUT_CPU_CUT`, a frame the GPU cut selected, which leaves it no cluster list.
 
-WebGL2 has no out-of-memory check to allocate under: nothing there is absorbed. It reserves no
-pool — each page's buffers are made as the page arrives — and it does not read `gl.getError()` after
-an allocation, so a refused one is not seen by the engine. A browser that answers it by losing the
-context takes the WebGL2 context-loss path (`webglcontextlost`, then `webglcontextrestored`): nothing
-is drawn while the context is lost. That out of memory on WebGL2 costs one level and never a hole
-is not proven yet.
+WebGL2 has no out-of-memory scope to allocate under, so the engine reads `gl.getError()` after each
+allocation instead — a buffer, a texture level or a target sized again, never an upload in place.
+An `OUT_OF_MEMORY` marks the context, and the next frame halves the geometry pool, as WebGPU's
+refusal does, published as `gpu-out-of-memory`; the residency lets the finest pages go one DAG
+level per image, never a hole, and the refused allocation is made again once memory is granted.
+It reserves no pool — each page's buffers are made as the page arrives. A browser that answers by
+losing the context takes the WebGL2 context-loss path (`webglcontextlost`, then
+`webglcontextrestored`): nothing is drawn while the context is lost.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.

@@ -1,4 +1,5 @@
 import { multiplyMatrix4Typed } from '../../../sdk-core/src/math/matrix/matrix4Typed.ts';
+import { allocated } from '../webgl/core/allocation.ts';
 import { boundToContext } from '../webgl/core/contextBound.ts';
 import { createWebglProgram } from '../webgl/core/program.ts';
 import type { HostDrawCamera } from '../camera/world.ts';
@@ -79,7 +80,8 @@ export function createWebglGuideDraw(gl: WebGL2RenderingContext) {
       if (uploaded !== packed) {
         gl.bindBuffer(gl.ARRAY_BUFFER, live.buffer);
         gl.bufferData(gl.ARRAY_BUFFER, packed.data, gl.DYNAMIC_DRAW);
-        uploaded = packed;
+        // Refused: sent again next frame (`../webgl/core/allocation.ts`).
+        if (allocated(gl)) uploaded = packed;
       }
       gl.uniformMatrix4fv(live.matrix, false, view.subarray(0, 16));
       gl.uniform4fv(live.viewport, view.subarray(16, 20));

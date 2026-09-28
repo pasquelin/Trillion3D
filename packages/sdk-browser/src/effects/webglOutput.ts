@@ -1,4 +1,5 @@
 import { FULLSCREEN_VERTEX } from '../webgl/core/fullscreenPass.ts';
+import { allocated } from '../webgl/core/allocation.ts';
 import { OUTPUT_TRANSFER_GLSL } from '../webgl/core/outputGlsl.ts';
 import { createWebglProgram } from '../webgl/core/program.ts';
 import {
@@ -59,6 +60,8 @@ export function createWebglSceneTarget(gl: WebGL2RenderingContext, w: number, h:
   };
   const untoned = attach(gl.COLOR_ATTACHMENT1, gl.R8, gl.RED, gl.UNSIGNED_BYTE),
     depth = attach(gl.DEPTH_ATTACHMENT, gl.DEPTH_COMPONENT24, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT);
+  // Refused, the context is marked: its engine draws the next frame a level coarser.
+  allocated(gl);
   gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
   return {
     target,

@@ -1,3 +1,4 @@
+import { allocated } from '../webgl/core/allocation.ts';
 import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { multiplyMatrix4Typed } from '../../../sdk-core/src/math/matrix/matrix4Typed.ts';
 import {
@@ -94,6 +95,8 @@ export function createWebglParticleDraw(
       bindWebglTexture(gl, 1, copy.texture);
       gl.texImage2D(texture, 0, gl[internal], width, height, 0, gl[format], gl[type], null);
       gl.framebufferTexture2D(draw, gl[point], texture, copy.texture, 0);
+      // Refused: remade at the next copy (`../webgl/core/allocation.ts`).
+      if (!allocated(gl)) [copy.width, copy.height] = [0, 0];
     }
     gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
     return !probing || gl.getError() !== gl.INVALID_OPERATION;
