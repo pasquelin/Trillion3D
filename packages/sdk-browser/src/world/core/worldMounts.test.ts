@@ -11,7 +11,12 @@ import type { PlacementRows } from '../../placement/rows.ts';
 import type { ExplorerSource } from '../session/prepare.ts';
 import { listenWorldNotices } from '../diagnostic/worldNotices.ts';
 import { Scene } from './scene.ts';
-import { runtimeOf, sessionStandIn, takeContentReopens, type Open } from './worldRuntime.fixture.ts';
+import {
+  runtimeOf,
+  sessionStandIn,
+  takeContentReopens,
+  type Open,
+} from './worldRuntime.fixture.ts';
 
 /** A session that mounts, unmounts and grows rows in place — each growth it `takes` —, each mount
  *  drawn `late` frames after it is asked (`frame` moves them on), and the rows it draws with the
