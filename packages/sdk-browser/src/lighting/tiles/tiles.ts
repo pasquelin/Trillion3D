@@ -108,18 +108,11 @@ export async function createGpuLightTiles(device: GPUDevice) {
     },
     /** What the last sampled wide frame asked of the pool (#849), once a sample returned. */
     pool: pool.sample,
-    /** Ensures the target buffer and the bind group for `lightCount` lights; returns `true` if
-     *  the pass is ready. */
-    ensure(
-      width: number,
-      height: number,
-      depth: GPUTextureView,
-      lights: GPUBuffer,
-      lightCount: number,
-    ) {
+    /** Ensures the target buffer and the bind group for `count` lights; `true` if the pass is ready. */
+    ensure(width: number, height: number, depth: GPUTextureView, lights: GPUBuffer, count: number) {
       const wantedX = tilesOn(width),
         wantedY = tilesOn(height);
-      wide = lightCount > LIGHT_SETTINGS.tileLights;
+      wide = count > LIGHT_SETTINGS.tileLights;
       // The pool never takes the buffer past what the device binds: a tile with no room walks all.
       const room =
         Math.floor(storageBufferCap(device.limits) / 4) - wantedX * wantedY * TILE_STRIDE_WORDS;
