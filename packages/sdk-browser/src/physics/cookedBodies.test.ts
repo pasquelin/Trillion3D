@@ -142,7 +142,14 @@ test('a declared mass and centre win over the cooked ones; a model scaled weighs
   const [won] = adds(own.writer.take());
   assert.deepEqual([won.w[2], won.f[16]], [MOTION.kinematic, 5], 'held, at its declared mass');
   assert.deepEqual([...won.f.subarray(FRAME, FRAME + 3)], [0.2, 0.3, 0.4].map(Math.fround));
-  assert.ok(Math.abs(won.f[FRAME + 3] - 5 / 6) < 1e-5, 'the cooked inertia, to the declared mass');
+  // The cooked inertia to the declared mass, moved to the declared centre, d = (-0.3, -0.2, -0.1)
+  // off the cooked one: I + m(|d|² E − d dᵀ).
+  const inertia = [...won.f.subarray(FRAME + 3, FRAME + 12)];
+  const moved = [5 / 6 + 0.25, -0.3, -0.15, -0.3, 5 / 6 + 0.5, -0.1, -0.15, -0.1, 5 / 6 + 0.65];
+  assert.ok(
+    inertia.every((v, n) => Math.abs(v - moved[n]) < 1e-5),
+    `moved to the declared centre: ${inertia}`,
+  );
   const file = { ...cooked([], []), bodies: [declared(0, [0, 0, 0], {}, cube())] };
   const [scaled] = adds((await streamedModel(file, await hull(), {}, 2)).writer.take());
   assert.deepEqual([...scaled.f.subarray(13, 17)], [2, 2, 2, 8000], 'the hull and its mass');

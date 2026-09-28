@@ -1440,13 +1440,15 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn, but one declaring a
   `motion`: its body is restored as cooked (its implicit shape, or its hull fetched), counted
   against `budget.physics`, with the mass, centre of mass and inertia its motion declares, else the
-  cooked ones; its tiles then leave. A kinematic one follows its model, pushing what it meets; a
-  dynamic one simulates: its node, with what hangs under it, is drawn where the simulation puts
+  cooked ones (a cooked inertia moved to a declared centre); its tiles then leave, and so do those
+  of another node its collider is made from. A kinematic one follows its model, pushing what it
+  meets, or, under a dynamic one, its node as that body carries it; a dynamic one simulates: its node, with what hangs under it, is drawn where the simulation puts
   it, the tiles of that subtree leave, and ground streams in around it as around any moving body;
   its model or its node moved by the page, it is put where its node is then drawn. In a
   partitioned model, whose cache numbers its nodes otherwise, it is held kinematic and asleep
   where its node is drawn. A shape Jolt cannot make at the body's scale is `PHYSICS_FAILED` naming
-  its node, and the node stays static ground.
+  its node, and the node stays static ground; a body refused at a rescale is made again once its
+  model is at another scale.
 - **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
   is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
   any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,
