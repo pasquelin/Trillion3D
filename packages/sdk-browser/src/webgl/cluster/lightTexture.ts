@@ -1,5 +1,6 @@
 import { grown } from '../../../../sdk-core/src/math/transform-tree/transformTree.ts';
 import { LTC_UNIT } from './rectGlsl.ts';
+import { refuseCluster } from './refusal.ts';
 
 /** Texels in a row of a light texture: WebGL2 guarantees 2048 a side, so one row fits every
  *  device and the rows grow with the scene. The program folds an index the same way (`LIGHT_TEXTURE_GLSL`). */
@@ -44,6 +45,8 @@ export const INT_TEXELS: Layout = {
 export class WebglLightTexture<T extends Float32Array | Int32Array> {
   data: T;
   private rows = 0;
+  /** The device's tallest texture (`MAX_TEXTURE_SIZE`), read at the first growth. */
+  private maxRows = 0;
   private texture: WebGLTexture;
   private gl: WebGL2RenderingContext;
   private unit: number;
@@ -70,9 +73,14 @@ export class WebglLightTexture<T extends Float32Array | Int32Array> {
   reserve(texels: number) {
     const rows = Math.ceil(texels / LIGHT_ROW_TEXELS);
     if (rows <= this.rows) return;
-    this.rows = Math.max(rows, this.rows * 2);
-    this.data = grown(this.data, this.make, this.rows * LIGHT_ROW_TEXELS * this.layout.channels);
     const { gl, layout } = this;
+    const most = (this.maxRows ||= Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)) || Infinity);
+    // Past the device's height the texture cannot hold them: refused out loud, never a GL error
+    // that leaves the lights unread; the doubling itself never passes the height.
+    if (rows > most)
+      refuseCluster(`${texels} light texels exceed the ${most}-row light texture of this device`);
+    this.rows = Math.min(Math.max(rows, this.rows * 2), most);
+    this.data = grown(this.data, this.make, this.rows * LIGHT_ROW_TEXELS * layout.channels);
     this.bind();
     gl.texImage2D(
       gl.TEXTURE_2D,
