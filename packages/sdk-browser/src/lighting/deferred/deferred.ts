@@ -1,3 +1,4 @@
+import type { ScreenReflection } from '../../reflections/gpu.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import {
   BOUNCE_LIGHTING_SHADER,
@@ -19,18 +20,7 @@ export { DIRECT_LIGHTING_SHADER, FULLSCREEN_VERTEX } from './shaders.ts';
 /** Label of the measured pass; `gpuLightingMs` is read under this name. */
 export const DEFERRED_LIGHTING_PASS = 'Trillion3D deferred lighting';
 
-/**
- * Deferred resolve. Two programs live here: the unlit view — raw material albedo, composed
- * by identity, which is also what a scene with no declared light renders — and the contract
- * one, exposed then passed through ACES. The second is compiled only on the first frame that
- * carries a light: a scene that has none never pays for it.
- *
- * `onReady` is called on every arrival of a contract program, DIRECT as BOUNCE. That is the
- * only announcement of this frame change: compilation finishes between two frames, without
- * the caller having asked for anything, and the next frame would still render raw albedo if
- * no one said so. A program that arrives while its variant is no longer wanted causes one
- * more frame to be redone, never a wrong frame.
- */
+/** Deferred and frozen-source lighting programs, compiled lazily for the active lighting mode. */
 export async function createDeferredLighting(device: GPUDevice, onReady?: () => void) {
   const view = createDeferredView(device);
   const uniform = view.buffer;
@@ -65,7 +55,6 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
       setRawOutput(value: boolean) {
         rawOutput = value;
       },
-      /** True when the current frame is rendered by a contract program. */
       get usesContract() {
         return active !== unlit;
       },
@@ -92,12 +81,7 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
           sampledRank,
         );
       },
-      /**
-       * Picks the frame program and binds its resources. `wantsContract` stays false as long as
-       * the host has declared no light, or as long as it asks for the unlit view; compilation
-       * of the contract program is started on the first request and the unlit view stays
-       * correct while it finishes.
-       */
+      /** Select and lazily compile the active lighting program. */
       bind(
         surface: SurfaceBuffer,
         depth: GPUTextureView,
@@ -132,20 +116,37 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
           (wantsContract ? (variant.program ?? variants.direct.program) : undefined) ?? unlit;
         active.bind(surface, depth, hdr, direct);
       },
-      /** Waits for in-flight contract-program compiles, when there are any. */
       settle() {
         return Promise.all([variants.direct.pending, variants.bounce.pending]).then(() => {});
       },
-      light(encoder: GPUCommandEncoder, target: GPUTextureView) {
+      light(encoder: GPUCommandEncoder, target: GPUTextureView, reflection?: ScreenReflection) {
         const group = active.lightGroup;
         if (!group) throw new Error('SURFACE_NOT_BOUND');
+        const reflected = reflection?.active && active.reflection;
+        if (reflected) {
+          const source = encoder.beginRenderPass({
+            colorAttachments: [
+              {
+                view: reflection.view,
+                loadOp: 'clear',
+                storeOp: 'store',
+                clearValue: [0, 0, 0, 0],
+              },
+            ],
+          });
+          source.setPipeline(reflected.source);
+          source.setBindGroup(0, group);
+          source.draw(3);
+          source.end();
+        }
         const pass = encoder.beginRenderPass({
           label: DEFERRED_LIGHTING_PASS,
           colorAttachments: [
             { view: target, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
           ],
         });
-        pass.setPipeline(active.light);
+        pass.setPipeline(reflected ? reflected.final : active.light);
+        if (reflected) pass.setBindGroup(1, reflection.group);
         pass.setBindGroup(0, group);
         pass.draw(3);
         pass.end();
