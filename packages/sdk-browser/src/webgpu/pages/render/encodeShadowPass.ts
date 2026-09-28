@@ -39,8 +39,8 @@ export function encodeShadowAtlas(
   if (!shadowRegionGroup(rt, device, 0)) return false;
   shadows.flushPages(count);
   if (!encodeShadowCasters(rt, encoder, count, from, to, runBase)) return false;
-  cull.counts.sample(encoder, cull.indirect, count, run.frame);
-  lights.shadowDraws += count;
+  cull.counts.sample(encoder, cull.indirect, count, run.frame, regions.moving);
+  lights.shadowWork.regions += count;
   const drawsBefore = run.gpuDrawCalls;
   planPagePasses(regions, count);
   const { order, layer, first, clears, restores, layerPasses } = pagePlan;
@@ -61,7 +61,12 @@ export function encodeShadowAtlas(
         restores[k],
         staticLayer?.groups[at],
       );
-      run.gpuDrawCalls += drawRegionCasters(rt, device, pass, k, tested, 1, depthDraws);
+      const draws = drawRegionCasters(rt, device, pass, k, tested, 1, depthDraws);
+      run.gpuDrawCalls += draws;
+      // A pool pass restores its pages from the static layer and draws their moving casters, or
+      // clears them and draws every caster: no frame does both (`pool.drawMode`).
+      lights.shadowWork.drewLayer(at);
+      lights.shadowWork.drewPass(draws, inLayer ? 0 : restores[k]);
       pass.end();
     }
   };
