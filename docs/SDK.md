@@ -1441,9 +1441,12 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   `motion`: its body is restored as cooked (its implicit shape, or its hull fetched), counted
   against `budget.physics`, with the mass, centre of mass and inertia its motion declares, else the
   cooked ones; its tiles then leave. A kinematic one follows its model, pushing what it meets; a
-  dynamic one is held kinematic and asleep where its node is drawn until compiled nodes can move
-  (#432, `COMPILED_NODES_MOVE`). A shape Jolt cannot make at the body's scale is `PHYSICS_FAILED`
-  naming its node, and the node stays static ground.
+  dynamic one simulates: its node, with what hangs under it, is drawn where the simulation puts
+  it, the tiles of that subtree leave, and ground streams in around it as around any moving body;
+  its model or its node moved by the page, it is put where its node is then drawn. In a
+  partitioned model, whose cache numbers its nodes otherwise, it is held kinematic and asleep
+  where its node is drawn. A shape Jolt cannot make at the body's scale is `PHYSICS_FAILED` naming
+  its node, and the node stays static ground.
 - **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
   is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
   any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,
