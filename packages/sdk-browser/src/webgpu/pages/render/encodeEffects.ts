@@ -10,10 +10,11 @@ const COMPILING = -1;
  * run before tone mapping, over the resolved linear image — `accumulated`, or the lit image when
  * the image does not accumulate —; returns what composition reads, `accumulated` itself when the
  * chain draws nothing, and the last bloom's blend when the composition takes it over. The chain's
- * output keeps the as-is share of the image it read. A diagnostic view and a surface capture show the engine's image as it is, without the chain. The revision
- * drawn is kept, so a change of the chain breaks the hold (`../../frame/hold.ts`); an image drawn
- * while its programs compile keeps none, so the loop draws it again once they arrive
- * (`../../frame/interactiveFrame.ts`), without restarting the accumulation.
+ * output keeps the as-is share of the image it read. A diagnostic view and a surface capture show
+ * the engine's image as it is, without the chain. The revision drawn is kept, so a change of the
+ * chain breaks the hold (`../../frame/hold.ts`); an image drawn while its programs compile keeps
+ * none, so the loop draws it again once they arrive (`../../frame/interactiveFrame.ts`), without
+ * restarting the accumulation.
  */
 export function encodeEffects(
   rt: WebgpuPagesRuntime,
