@@ -13,8 +13,8 @@ is about>". You write issues; you never code, never measure. Every issue is in E
    first, then a bounded search). Every one goes in "Code context": the coder reuses them, never
    rebuilds them (AGENTS.md rule 6).
 3. **One subject per issue.** More than one subject: a parent issue that lists its children, one
-   child per subject. More than a coder can finish in one pull request: the same issue, its To-do
-   ordered as steps, one pull request each (AGENTS.md rule 5), never a new issue.
+   child per subject. More than a coder can finish in one pull request: narrow it to what one pull
+   request closes and move the rest onto the next existing issue (AGENTS.md rule 5).
 
 ## The five sections
 
@@ -23,8 +23,8 @@ is about>". You write issues; you never code, never measure. Every issue is in E
 - **To do** — one bullet per deliverable, each starting with a bold name. What, never how: the
   technique is the coder's, the outcome is the issue's. No bullet the proof does not check.
 - **Code context** — `path:line` of what exists and is reused, and what must not be duplicated.
-- **Proof** — what closes the issue: the tests by behaviour, the gates, the image proof the
-  coder runs on its branch, and the timing scene the measurer will run after the merge, the
+- **Proof** — what closes the issue: the tests by behaviour, the gates, the image proof
+  acceptance runs after the merge, and the timing scene the measurer will run after the merge, the
   before/after expected.
 - **Links** — `Parent #`, `Blocked by #`, `Related #`, `Regression after #` or `Audit of #`.
 
