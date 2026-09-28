@@ -1,7 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { Server } from 'node:http';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import type { Server, ServerResponse } from 'node:http';
+import {
+  fstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { request } from 'node:http';
 import { join, resolve } from 'node:path';
 import { brotliDecompressSync } from 'node:zlib';
@@ -128,4 +137,37 @@ test('the deploy pre-compresses the cache objects only, which decode to themselv
   assert.ok(encoded.byteLength < page.byteLength);
   assert.deepEqual(brotliDecompressSync(encoded), page);
   assert.throws(() => readFileSync(join(root, 'cache/page.bin.br')), { code: 'ENOENT' });
+});
+
+/** How many descriptors this process holds open on `file`. */
+function openOn(file: string) {
+  const { ino } = statSync(file);
+  return readdirSync('/dev/fd').filter((fd) => {
+    try {
+      return fstatSync(Number(fd)).ino === ino;
+    } catch {
+      return false; // the descriptor `readdirSync` read `/dev/fd` through, closed since
+    }
+  }).length;
+}
+
+test('a request aborted before its file opens leaves no file open and pipes nothing', async (t) => {
+  const root = cacheTree(t, Buffer.alloc(4096, 7)),
+    file = join(root, 'cache/page.bin');
+  const server = staticServer({ mounts: [{ prefix: '/', dir: root }] }),
+    port = await listen(server),
+    said = t.mock.method(console, 'error', () => {});
+  // The client gone as the server starts on the file: its response closes before the file opens.
+  server.on('request', (_, response: ServerResponse) => response.destroy());
+  await new Promise((gone) => request({ port, path: '/cache/page.bin' }).on('error', gone).end());
+  await new Promise((settled) => setTimeout(settled, 100));
+  await closeAll(server);
+  assert.equal(openOn(file), 0, 'the file stream is closed with the response');
+  assert.equal(said.mock.callCount(), 0, 'no pipe onto the closed response');
+});
+
+test('the docs server isolates every page across origins, as the published site does', async (t) => {
+  const answer = await raw(createDocsServer(cacheTree(t, Buffer.alloc(8))), '/cache/page.bin');
+  assert.equal(answer.headers['cross-origin-opener-policy'], 'same-origin');
+  assert.equal(answer.headers['cross-origin-embedder-policy'], 'credentialless');
 });
