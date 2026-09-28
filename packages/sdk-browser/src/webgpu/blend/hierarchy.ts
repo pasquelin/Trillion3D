@@ -11,20 +11,16 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
 /**
  * BOX TREE OF THE TRANSPARENT ITEMS, which the frustum verdict walks node by node
- * (`hierarchyCull.ts`, #981). Its shape is the engine's median split (`buildCentreTree`, the one
- * the collision triangle tree uses); its boxes are double precision, the items' own. It is BUILT
- * with each item list (`buildBlendStatics`) and REFIT where boxes are rewritten
- * (`refreshBlendBoxes`), never per frame.
+ * (`hierarchyCull.ts`, #981): the engine's median split (`buildCentreTree`), double-precision boxes.
  *
  * INVARIANT: the kept set, the mask, the reject and water counts are exactly those of the item by
  * item walk. A node is rejected only when `frustumExcludesBox` rejects its box, and then it rejects
  * every box inside it, bit for bit: the chosen corner of a child is never beyond its parent's
  * (`Math.min`/`Math.max` unions), a product and a rounded sum are monotonic, and a NaN never
  * rejects. The one hole — a zero plane coefficient times an infinite bound, NaN in the child but
- * not in the parent — is closed by giving a leaf holding an item with a non-finite bound, or
- * without a box, a NaN box: NaN climbs every union above it, those nodes never reject, and their
- * items are judged one by one. An item the tree does not hold (no box at build) is judged alone
- * every frame.
+ * not in the parent — is closed by giving a leaf holding an item with a non-finite bound a NaN
+ * box: NaN climbs every union above it, those nodes never reject. An item without a box is never
+ * rejected, in the tree or out of it (no box at build: judged alone every frame).
  */
 const LEAF_ITEMS = 8;
 
@@ -39,8 +35,7 @@ export function createBlendHierarchy() {
     nodes: 0,
     /** Per node, its span's first entry in `leaves`; one more slot ends the last span. */
     first: new Uint32Array(0),
-    /** Per node, the right child of an inner node (the left follows it) and a leaf's entry count,
-     *  zero for an inner node (`buildCentreTree`). */
+    /** Per node, as `buildCentreTree` fills them. */
     links: new Int32Array(0),
     counts: new Int32Array(0),
     /** Node after this one's subtree: the walk passes a whole subtree in one step. */
@@ -60,12 +55,12 @@ export function buildBlendHierarchy(blendState: BlendState) {
   const boxed: number[] = [],
     loose: number[] = [];
   for (let i = 0; i < items.length; i++) (items[i].bounds ? boxed : loose).push(i);
-  const centres = new Float64Array(items.length * 3);
-  for (const rank of boxed)
-    for (let a = 0; a < 3; a++) {
-      const box = items[rank].bounds!;
-      centres[rank * 3 + a] = (box[a] + box[a + 3]) / 2;
-    }
+  // The shape never changes a verdict, only how much a node spares: single precision is enough.
+  const centres = new Float32Array(items.length * 3);
+  for (const rank of boxed) {
+    const box = items[rank].bounds!;
+    for (let a = 0; a < 3; a++) centres[rank * 3 + a] = (box[a] + box[a + 3]) / 2;
+  }
   const capacity = centreTreeNodes(boxed.length, LEAF_ITEMS);
   tree.leaves = Uint32Array.from(boxed);
   tree.loose = Uint32Array.from(loose);
@@ -75,24 +70,17 @@ export function buildBlendHierarchy(blendState: BlendState) {
   tree.skip = new Uint32Array(capacity);
   tree.boxes = new Float64Array(capacity * BOX_VALUES);
   tree.mask = new Uint32Array((items.length + 31) >>> 5);
-  const first = tree.first;
+  const { first, links, counts, skip } = tree;
   tree.nodes = boxed.length
-    ? buildCentreTree(
-        centres,
-        tree.leaves,
-        boxed.length,
-        LEAF_ITEMS,
-        tree.links,
-        tree.counts,
-        (node, start) => {
-          first[node] = start;
-        },
-      )
+    ? buildCentreTree(centres, tree.leaves, boxed.length, LEAF_ITEMS, links, counts)
     : 0;
   first[tree.nodes] = boxed.length;
-  // A leaf's subtree ends at the next node, an inner node's where its right child's does.
-  for (let node = tree.nodes - 1; node >= 0; node--)
-    tree.skip[node] = tree.counts[node] ? node + 1 : tree.skip[tree.links[node]];
+  // A leaf starts at its link and its subtree ends at the next node; an inner node starts with its
+  // left child and ends where its right child's subtree does.
+  for (let node = tree.nodes - 1; node >= 0; node--) {
+    first[node] = counts[node] ? links[node] : first[node + 1];
+    skip[node] = counts[node] ? node + 1 : skip[links[node]];
+  }
   tree.count = items.length;
   refitNodes(blendState);
 }
@@ -104,21 +92,20 @@ function refitNodes(blendState: BlendState) {
   for (let node = nodes - 1; node >= 0; node--) {
     const o = node * BOX_VALUES;
     if (!counts[node]) {
-      const l = (node + 1) * BOX_VALUES,
-        r = links[node] * BOX_VALUES;
-      for (let v = 0; v < 3; v++) {
-        boxes[o + v] = Math.min(boxes[l + v], boxes[r + v]);
-        boxes[o + v + 3] = Math.max(boxes[l + v + 3], boxes[r + v + 3]);
-      }
+      const r = links[node] * BOX_VALUES;
+      boxes.copyWithin(o, o + BOX_VALUES, o + 2 * BOX_VALUES);
+      boxUnion(boxes, o, boxes[r], boxes[r + 1], boxes[r + 2], boxes[r + 3], boxes[r + 4], boxes[r + 5]);
       continue;
     }
     boxEmpty(boxes, o);
     // Each item's own bounds are checked: a union would hide an infinite one behind a finite one.
+    // An item that lost its box is left out: it is never rejected (`hierarchyCull.ts`).
     let finite = true;
     for (let k = first[node]; k < first[node] + counts[node] && finite; k++) {
       const box = items[leaves[k]].bounds;
-      finite = !!box && box.every(Number.isFinite);
-      if (finite) boxUnion(boxes, o, box![0], box![1], box![2], box![3], box![4], box![5]);
+      if (!box) continue;
+      finite = box.every(Number.isFinite);
+      if (finite) boxUnion(boxes, o, box[0], box[1], box[2], box[3], box[4], box[5]);
     }
     if (!finite) boxes.fill(NaN, o, o + BOX_VALUES);
   }

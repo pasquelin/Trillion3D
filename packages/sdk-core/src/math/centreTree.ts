@@ -21,7 +21,7 @@ export const centreTreeNodes = (count: number, leaf: number) =>
  * entry span as it is created, before its split. Returns the node count.
  */
 export function buildCentreTree(
-  centres: ArrayLike<number>,
+  centres: Float32Array,
   order: Uint32Array,
   count: number,
   leaf: number,
@@ -50,7 +50,7 @@ export function buildCentreTree(
   return nodes;
 }
 
-function longestAxis(centres: ArrayLike<number>, order: Uint32Array, start: number, end: number) {
+function longestAxis(centres: Float32Array, order: Uint32Array, start: number, end: number) {
   let axis = 0,
     widest = -1;
   for (let k = 0; k < 3; k++) {
@@ -70,7 +70,7 @@ function longestAxis(centres: ArrayLike<number>, order: Uint32Array, start: numb
  *  smaller before it and the larger after: a linear-time selection by repeated partition. */
 function selectMedian(
   order: Uint32Array,
-  centres: ArrayLike<number>,
+  centres: Float32Array,
   axis: number,
   start: number,
   end: number,
