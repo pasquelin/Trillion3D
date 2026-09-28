@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   BOUNCE_LIGHTING_SHADER,
-  COMPOSE_SHADERS,
+  CONTRACT_COMPOSITIONS,
   DIRECT_LIGHTING_SHADER,
   UNLIT_LIGHTING_SHADER,
 } from './deferred/shaders.ts';
@@ -34,14 +34,16 @@ test('the opaque resolve fogs its lit sum at the pixel, from the eye in display.
   }
   assert.match(SURFACE_SHADE, /select\(3u,1u,model==4u\)/);
   assert.doesNotMatch(UNLIT_LIGHTING_SHADER, /fogged/);
-  for (const shader of Object.values(COMPOSE_SHADERS)) assert.doesNotMatch(shader, /fogged/);
+  for (const shader of Object.values(CONTRACT_COMPOSITIONS.plain))
+    assert.doesNotMatch(shader, /fogged/);
 });
 
 test('blended and water surfaces, lit or unlit, are fogged from the eye of the blend view', () => {
-  // The lit sum closes inside the lit branch; the fog closes the branch that skips the unlit view.
+  // The lit sum, including the mirror term, closes inside the lit branch; the fog closes
+  // the branch that skips the unlit view.
   assert.match(
     BLEND_SHADER,
-    /if\(!unlit\)\{\s+if\(\(flags&1u\)!=0u\)\{[^]*?\+s\.emissive;\s+\}\s+\/\/.*\s+rgb=fogged\(rgb,in\.view,uni\.eye\.xyz\);\s+\}/,
+    /if\(!unlit\)\{\s+if\(\(flags&1u\)!=0u\)\{[^]*?\+s\.emissive;[^}]*?rgb\+=mirrorLighting\([^;]+\);\s+\}\s+\/\/.*\s+rgb=fogged\(rgb,in\.view,uni\.eye\.xyz\);\s+\}/,
   );
   assert.match(WATER_COMPOSITE_SHADER, /select\(fogged\(color,P,uni\.eye\.xyz\),color,unlit\)/);
   // The eye is the view's last vec4: 112 bytes of fields before it, 16 of its own; the pixel
@@ -52,7 +54,8 @@ test('blended and water surfaces, lit or unlit, are fogged from the eye of the b
 
 test('the WebGL2 program fogs every surface before its display curve, a depth or diagnostic one excepted', () => {
   // A diagnostic view's surface declares itself fog-free (`materialBinding.test.ts`).
-  const fogAt = CLUSTER_FRAGMENT.indexOf('\nif(!fogFree)rgb=fogged(rgb);');
+  const fogAt = CLUSTER_FRAGMENT.indexOf('\nif(!fogFree&&!reflectionCapture)rgb=fogged(rgb);');
+  assert.ok(fogAt > CLUSTER_FRAGMENT.indexOf('if(lit)rgb+=mirrorLighting('));
   assert.ok(fogAt > 0);
   // A depth material's ramp is written over the fogged colour.
   assert.ok(fogAt < CLUSTER_FRAGMENT.indexOf(`if(surfaceModel==${SURFACE_MODEL.depth})rgb=`));

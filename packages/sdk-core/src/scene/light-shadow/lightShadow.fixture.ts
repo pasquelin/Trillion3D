@@ -34,8 +34,14 @@ export const LAMP: SceneLight = {
   range: 20,
 };
 
+/** The fixture scene's box: a ground a hundred metres wide, ten metres deep. */
 const SCENE_MIN = [-50, 0, -50],
   SCENE_MAX = [50, 10, 50];
+/** A 12 × 12 square of pages round the camera, `[ax, ay]` each. */
+export const SUN_GRID = Array.from({ length: 144 }, (_, i) => [
+  (i % 12) - 6,
+  Math.floor(i / 12) - 6,
+]);
 
 /** The fixture's view moved by `step` hairs: no extent moves by a page, the camera moves. */
 export const nudged = (step: number): ShadowViewpoint => ({
@@ -43,13 +49,15 @@ export const nudged = (step: number): ShadowViewpoint => ({
   position: [VIEW.position[0] + step * 1e-6, VIEW.position[1], VIEW.position[2]],
 });
 
-/** Plans a frame over the fixture scene. */
+/** Plans a frame over the fixture scene, or the scene of box `min..max`. */
 export const planFrame = (
   plan: ShadowPlan,
   store: SceneLightStore,
   frame: number,
   view: ShadowViewpoint = VIEW,
-) => plan.plan(store, view, SCENE_MIN, SCENE_MAX, frame, frame * 16);
+  min: ArrayLike<number> = SCENE_MIN,
+  max: ArrayLike<number> = SCENE_MAX,
+) => plan.plan(store, view, min, max, frame, frame * 16);
 
 /** The report the shading of `frame` writes when it reads `entries`, stamped with the plan. */
 export function report(plan: ShadowPlan, store: SceneLightStore, frame: number, entries: number[]) {
@@ -93,8 +101,10 @@ export function cycleDrawn(
   frame: number,
   read: () => number[],
   view: ShadowViewpoint = VIEW,
+  min: ArrayLike<number> = SCENE_MIN,
+  max: ArrayLike<number> = SCENE_MAX,
 ) {
-  planFrame(plan, store, frame, view);
+  planFrame(plan, store, frame, view, min, max);
   const drawn = new Set(plan.admission.list.subarray(0, plan.admission.count));
   plan.commit();
   report(plan, store, frame, read());
@@ -111,6 +121,15 @@ export function readPages(plan: ShadowPlan, slice: number) {
   for (let page = 0; page < pool.pages; page++)
     if (pool.owner[page] >= 0 && pool.slice[page] === slice && pool.valid[page]) pages.push(page);
   return pages;
+}
+
+/** Table entries of the stale pages, in order. */
+export function staleEntries(plan: ShadowPlan) {
+  const { pool } = plan,
+    entries: number[] = [];
+  for (let page = 0; page < pool.pages; page++)
+    if (pool.owner[page] >= 0 && pool.dirty[page]) entries.push(pool.owner[page]);
+  return entries.sort((a, b) => a - b);
 }
 
 /** The sun, planned once so its slice and clipmap exist, its floor drawn: its store, its plan and

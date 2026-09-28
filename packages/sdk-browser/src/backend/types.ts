@@ -40,8 +40,6 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
    *  what it does not apply. The rest of the capabilities is read from the present methods; see
    *  `lightingCapabilitiesOf`. Absent from an engine that has nothing more to declare. */
   lighting?: { shadows: boolean; reason?: string };
-  /** Moves a named node of the prepared scene; applied to the next frame, without allocation (R8). */
-  setTransform?(nodeName: string, matrix: Float32Array): void;
   /** Sets memory pools during the session; returns what the engine holds afterwards. */
   setMemoryBudgets?(budgets: MemoryBudgets): Promise<MemoryBudgetsReport>;
   signal?: AbortSignal; // Aborted by its dispose or its session's: `prepare` then fails as cancelled.
@@ -80,8 +78,7 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   /** Bundles a finer cut needs, read while the network idles: a small move finds them resident. */
   prefetchUrls?(): string[];
   pageUrls?(): string[];
-  /** The same pins as `pageUrls`, spoken as a difference of request ranks: the host no longer has
-   *  to rebuild a set of strings every frame. An engine that does not implement it keeps `pageUrls`. */
+  /** Page pins as a difference of request ranks; both page backends implement this. */
   retainedRanks?(): import('../streaming/types.ts').HostRetentionDelta;
   /** The catalogue integer sheet for a request: what off-thread integration plans. */
   pageSpecs?(url: string): Int32Array | undefined;
@@ -102,10 +99,12 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   flush?(options?: { image?: boolean }): Promise<void>; // image: false skips the readback
   /** Wait for submitted work without image readback; true asks for another interactive frame. */
   pendingFrame?(): Promise<boolean>;
+  landings?(): number; // camera pages made resident so far: the view still arriving (#836)
   /** Current GPU image, bottom-left origin. Prefer flush() first; browser hosts can explicitly read synchronously. */
   capture?(): Uint8Array;
   /** The composed image of `camera` at a size of its own, drawn aside: nothing is presented. */
   captureColorView?(camera: HostCamera, size: ViewSize): Promise<Uint8Array>;
+  captureAside?<T>(size: ViewSize, work: () => T): T; // `work` in its own view; main cut kept
   captureSurfaceView?(
     camera: HostCamera,
     options: { width: number; height: number; signal?: AbortSignal },
@@ -173,8 +172,8 @@ export interface BackendContext {
   /** Hears once why the engine refused the `particles`; the session goes on without them. */
   particlesRefused?: (reason: string) => void;
   materialDegraded?: import('../webgl/cluster/validation.ts').MaterialDegraded; // `noticeMaterialDegraded`
-  /** Contract lights, owned by the host and shared by every engine of the session. */
-  sceneLights?: SceneLightStore;
+  sceneLights?: SceneLightStore; // the host's contract lights, shared by the session's engines
+  shadowsRefused?: import('../lighting/contractLights.ts').ContractShadows; // `noticeShadowRefusal`
   /** Imported light ids, in cache order: the host sets or removes them (`importedLights()`). */
   importedLightIds?: string[];
   /** Bounced light, off by default: its step stays above the measured one-millisecond bar.

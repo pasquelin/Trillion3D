@@ -1,3 +1,4 @@
+import { proxyIdentity } from '../../../../sdk-core/src/scene/core/proxy.fixture.ts';
 import { probeBackendContext } from './backends.fixture.ts';
 import { createExplorerPageSources } from './pageSources.ts';
 import { createDiagnosticChannel, type DiagnosticObserver } from '../../diagnostic/channel.ts';
@@ -25,9 +26,23 @@ export async function servedScene(
   pages: number,
   { triangles = 1, held = [] as string[], missing = [] as string[] } = {},
 ) {
-  // The header, the triangles, their albedos.
-  const words = new Uint32Array(SCENE_PROXY_HEADER_WORDS + triangles * (PROXY_TRIANGLE_FLOATS + 1));
-  words.set([SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, triangles, 0]);
+  // One static identity owner for every triangle, and an empty group range for an empty proxy.
+  const groups = triangles ? 1 : 0,
+    owners = groups,
+    instances = groups;
+  const prefix = SCENE_PROXY_HEADER_WORDS + triangles * (PROXY_TRIANGLE_FLOATS + 1);
+  const suffix = triangles + groups + 1 + owners * 2 + instances;
+  const words = new Uint32Array(prefix + suffix + instances * 32);
+  words.set([SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, triangles, 0, groups, owners, instances, 0]);
+  if (instances) {
+    const range = prefix + triangles;
+    words[range + 1] = 1;
+    const parent = range + 2 + owners * 2;
+    words[parent] = 0xffffffff;
+    const view = new DataView(words.buffer),
+      identity = proxyIdentity();
+    for (let i = 0; i < 16; i++) view.setFloat64((parent + 1) * 4 + i * 8, identity[i], true);
+  }
   const pageSha = await sha256Hex(page.buffer);
   const urls = Array.from({ length: pages }, (_, i) => `p${i}.bin`);
   const metadata = {
@@ -39,6 +54,9 @@ export async function servedScene(
       sha256: await sha256Hex(words.buffer),
       triangles,
       nodes: 0,
+      groups,
+      owners,
+      instances,
       bounds: [0, 0, 0, 1, 1, 0],
     },
   } as unknown as ClusterManifest;

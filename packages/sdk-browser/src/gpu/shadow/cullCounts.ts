@@ -10,10 +10,11 @@ export interface ShadowCullCounts {
   kept: number;
 }
 
-/** Clusters the `regions` first commands draw: the device's own count, never estimated. */
-export function sumKeptClusters(words: Uint32Array, regions: number) {
+/** Clusters the `commands` first commands draw: the device's own count, never estimated. */
+export function sumKeptClusters(words: Uint32Array, commands: number) {
   let kept = 0;
-  for (let region = 0; region < regions; region++) kept += words[region * DRAW_INDIRECT_WORDS + 1];
+  for (let command = 0; command < commands; command++)
+    kept += words[command * DRAW_INDIRECT_WORDS + 1];
   return kept;
 }
 
@@ -22,10 +23,13 @@ export function sumKeptClusters(words: Uint32Array, regions: number) {
  * copied one frame in fifteen and mapped after submission, never waited for. A diagnostic
  * count for the profile, outside the measured pass: the other fourteen frames copy nothing.
  *
- * The sampled frame copies every batch's commands after the last (`SHADOW_COUNT_SAMPLE_BYTES`,
- * sized for the most batches a frame draws), so the count covers all the frame's pages.
+ * The sampled frame copies every batch's commands after the last (`SHADOW_COUNT_SAMPLE_BYTES` a
+ * command a region, sized for the most batches a frame draws), so the count covers all the frame's
+ * pages. A region holds `commands` of them — the cull's two lists (#965) —, all summed.
  */
-export function createGpuShadowCullCounts(device: GPUDevice) {
+export function createGpuShadowCullCounts(device: GPUDevice, commands = 1) {
+  const sampleBytes = commands * SHADOW_COUNT_SAMPLE_BYTES,
+    regionBytes = commands * DRAW_INDIRECT_STRIDE;
   const counted: ShadowCullCounts = { frame: -1, regions: 0, kept: 0 };
   let sampledRegions = 0,
     sampledFrame = -1;
@@ -34,12 +38,12 @@ export function createGpuShadowCullCounts(device: GPUDevice) {
   const reader = createGpuPeriodicReadback((mapped) => {
     counted.frame = sampledFrame;
     counted.regions = sampledRegions;
-    counted.kept = sumKeptClusters(new Uint32Array(mapped), sampledRegions);
+    counted.kept = sumKeptClusters(new Uint32Array(mapped), sampledRegions * commands);
   });
   reader.adopt(
     device.createBuffer({
       label: 'Trillion3D shadow cull counts readback',
-      size: SHADOW_COUNT_SAMPLE_BYTES,
+      size: sampleBytes,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     }),
   );
@@ -53,8 +57,8 @@ export function createGpuShadowCullCounts(device: GPUDevice) {
         sampledFrame = frame;
         reader.sampled(frame);
       }
-      const size = regions * DRAW_INDIRECT_STRIDE;
-      if (sampledRegions * DRAW_INDIRECT_STRIDE + size > SHADOW_COUNT_SAMPLE_BYTES) return;
+      const size = regions * regionBytes;
+      if (sampledRegions * regionBytes + size > sampleBytes) return;
       reader.copy(encoder, indirect, 0, size);
       sampledRegions += regions;
     },

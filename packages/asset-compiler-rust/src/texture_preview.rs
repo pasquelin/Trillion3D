@@ -50,8 +50,10 @@ pub use levels::*;
 /// no increment: the `Coverage` chain (#42) is one, and so is each cutoff's
 /// coverage-preserving chain (#44), `srgb-coverage-<C>`. Version 5 counts that
 /// chain's coverage on the filtered cut (#43): its bytes move under the same
-/// names, and level files are written only when missing.
-pub const TEXTURE_PREVIEW_VERSION: u32 = 5;
+/// names, and level files are written only when missing. Version 6 lays a block
+/// level file out in tile records, one HTTP Range each (#962, `tile_records`);
+/// the manifest's `textures.version` names it for the engine.
+pub const TEXTURE_PREVIEW_VERSION: u32 = 6;
 pub use bake_write::{level_path, texture_version_dir, LEVEL_WRITE_FAILED, LOSSLESS, TEXTURE_DIR};
 pub use blocks::{BlockFormat, Layout};
 pub use reduce::AtlasKind;
@@ -85,6 +87,7 @@ pub(super) struct PreviewInputs<'a> {
     /// Textures whose alpha to measure on pass, designated by `cutout`: this step
     /// knows what it decodes, not what cutout is.
     pub to_measure: &'a BTreeSet<usize>,
+    pub measurements: &'a crate::cutout::MeasureCache,
 }
 
 /// Calculates chain for each atlas texture of retained meshes, single image decode

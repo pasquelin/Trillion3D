@@ -48,7 +48,7 @@ function environnement(
   shown: PageRec[],
 ): Parameters<typeof createAutonomousGeometry>[0] {
   return {
-    ...{ scene, allPages, bootstrap: [], shown, desired: [], requested: [] },
+    ...{ scene, allPages, bootstrap: [], views: { live: { shown }, lists: () => [shown] } },
     ...{ byUrl: new Map(), descriptors: new Map(), baseMaterials: new Map() },
     ...{ colorMaterials: new Map(), modifiedPages: new Set() },
   };

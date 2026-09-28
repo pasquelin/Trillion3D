@@ -178,7 +178,7 @@ Progress phases, in order:
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `import-source` | `step` = `parse` (`file`, `index`, `files`, `completed`, `total` in bytes) → `meshes` (`completed`, `total` in nodes) → `write` (`bytes`) → `complete` (`key`, `triangles`, `meshNodes`, `ms`), or `reused` (`key`) when a previous import is reused | FBX/OBJ only                                                                                                                                                                                                              |
 | `import`        | `completed`, `total`, `ms`, `primitives`, `nodes`                                                                                                                                                                                                    | glTF loaded and validated, source geometry written; `primitives` is the number of `primitive` events to expect                                                                                                            |
-| `primitive`     | `mesh`, `primitive`, `pages`; on a DAG primitive `timings` (elapsed ms of its own stages, each from the end of the one before: `dagMs`, `cullingMs`, `pagesMs`, `reportMs`), and `warnings` when it has any                                          | One primitive clustered and paged (order is not deterministic: primitives run in parallel)                                                                                                                                |
+| `primitive`     | `mesh`, `primitive`, `pages`; on a DAG primitive `timings` (elapsed ms of its own stages, each from the end of the one before: `dagMs`, `cullingMs`, then `physicsMs` and `pagesMs` side by side, `reportMs`), and `warnings` when it has any                                          | One primitive clustered and paged (order is not deterministic: primitives run in parallel)                                                                                                                                |
 | `bootstrap`     | `completed`, `total`                                                                                                                                                                                                                                 | Root bundles assembled                                                                                                                                                                                                    |
 | `textures`      | `completed`, `total`                                                                                                                                                                                                                                 | One source image decoded, its mip chain baked for every atlas that reads it, its levels written                                                                                                                           |
 | `cutouts`       | `pending`, `sheet`                                                                                                                                                                                                                                   | Cutout sheet written; `pending` counts the textures nobody has answered yet, `sheet` is where the answer sheet landed                                                                                                     |
@@ -468,6 +468,8 @@ The compiler knows no format. It routes each source to a driver (interpretation 
 
 ### Content Licenses — Independent of Format
 
+Audit local asset and license manifests with [the offline license audit](ASSET_LICENSE_AUDIT.md).
+
 - FAB Standard License: use with other tools and engines permitted, standalone asset redistribution prohibited; historical licenses apply for some items, keep purchase EULA.
 - Quixel Megascans under Epic Engine plan: restricted to Epic Engine, unusable in Trillion3D.
 - Unity Asset Store: use in other engines permitted, but not a product whose purpose is raw asset distribution; model library distributor is not a finished game.
@@ -678,6 +680,14 @@ blend path, and `cutout`: `true`, `false`, or `null` while nobody has decided. I
 `cutouts.version` in the compiled manifest publishes its contract number. The compiler applies
 nothing until an entry answers `true`; with no sheet at all, blended stays blended and the product
 is byte-identical to before.
+
+Exact alpha measurements are cached in that same sheet, separately from the rounded display
+values. The image hash, the compiler's implementation hash (the one its cache key uses) and the
+decoder versions identify a reusable result, so any compiler change measures again. Missing,
+outdated, malformed or checksum-invalid cached measurements are recomputed; human answers retain
+their existing validation and are never discarded because a measurement cache is invalid. Valid
+measurements survive when a scene no longer references their image. This skips alpha analysis,
+not image decoding or mip baking.
 
 **The compiler draws nothing.** It publishes what is pending — in the manifest and in a `cutouts`
 progress event — and whoever called it presents the question: a terminal asks it, an application

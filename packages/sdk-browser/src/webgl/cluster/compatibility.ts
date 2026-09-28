@@ -1,3 +1,5 @@
+import { reflects } from '../../reflections/eligible.ts';
+import { surfaceOf } from '../../page/surface.ts';
 import type { BatchPage } from '../../cluster/batchRange.ts';
 import { clusterMaterialReason } from '../../host/surfaceGate.ts';
 import { isTransmissive } from '../../visibility/shader/material.ts';
@@ -24,7 +26,13 @@ export function clusterWebglCompatibility(
   if (lightReason) return lightReason;
   // Every scene copy is the owner's; only a transmissive one reads the frozen backdrop.
   const transmits = copies.some((copy) => isTransmissive(copy.material));
-  const formatReason = transmits ? backdropFormatReason(gl) : undefined;
+  const mirrors =
+    copies.some((copy) => reflects(surfaceOf(copy.material))) ||
+    pages.some((page) => reflects(surfaceOf(page.declaration)));
+  const formatReason =
+    transmits || mirrors
+      ? backdropFormatReason(gl, mirrors ? 'reflections' : 'transmission')
+      : undefined;
   if (formatReason) return formatReason;
   for (const copy of copies) {
     const reason = clusterMaterialReason(

@@ -91,6 +91,10 @@ export interface WebgpuLightState {
   shadowPages: number;
   /** Pages drawn since the state was created, every frame and drain together. */
   shadowPagesTotal: number;
+  /** Pages the light cut drew short and sent back to be drawn again, since the state was created:
+   *  withdrawn — a cut dropped work, or its flag was never read — or coarser (`redrawShortPages`). */
+  lightCutWithdrawnPages: number;
+  lightCutCoarsePages: number;
   shadowDraws: number;
   /** Draw calls actually encoded by the shadow pass: per render pass its clears and restores, then
    *  an indirect draw per region. */
@@ -147,6 +151,8 @@ export function createWebgpuLightState(
     shadowFaces: 0,
     shadowPages: 0,
     shadowPagesTotal: 0,
+    lightCutWithdrawnPages: 0,
+    lightCutCoarsePages: 0,
     shadowDraws: 0,
     shadowDrawCalls: 0,
     shadowRenderPasses: 0,

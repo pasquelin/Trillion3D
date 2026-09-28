@@ -1,4 +1,5 @@
 import {
+  LIGHT_SETTINGS,
   SCENE_ENVIRONMENT_FLOATS,
   SCENE_LIGHT_FLOATS,
   SCENE_LIGHT_HEADER_FLOATS,
@@ -13,13 +14,16 @@ const HEAD_BYTES = SCENE_LIGHT_HEADER_FLOATS * 4,
   LTC_BYTES = HEAD_BYTES + SCENE_ENVIRONMENT_FLOATS * 4,
   ITEMS_BYTES = LTC_BYTES + LTC_SIZE * LTC_SIZE * 32;
 const SLOT_BYTES = SCENE_LIGHT_FLOATS * 4;
+/** Light slots of the buffer: the store's, and never fewer than a tile list's, the light array
+ *  the narrow tile pass declares (`../../../lighting/tiles/shader.ts`). */
+const bufferSlots = (store: SceneLightStore) => Math.max(store.capacity, LIGHT_SETTINGS.tileLights);
 
 /** Contract light buffer for the store's light slots — the header, the environment's irradiance,
  *  the fitted lobe of the rectangles, written here once, then every slot. */
 export function createSceneLightContractBuffer(device: GPUDevice, store: SceneLightStore) {
   const buffer = device.createBuffer({
     label: 'Trillion3D direct lights v1',
-    size: ITEMS_BYTES + store.capacity * SLOT_BYTES,
+    size: ITEMS_BYTES + bufferSlots(store) * SLOT_BYTES,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   device.queue.writeBuffer(buffer, LTC_BYTES, ltcTable());
@@ -38,7 +42,7 @@ const contractBufferSlots = (buffer: GPUBuffer) => (buffer.size - ITEMS_BYTES) /
 export function uploadSceneLights(device: GPUDevice, lights: WebgpuLightState) {
   const { store } = lights;
   if (!lights.buffer) return false;
-  if (contractBufferSlots(lights.buffer) !== store.capacity) {
+  if (contractBufferSlots(lights.buffer) !== bufferSlots(store)) {
     lights.buffer.destroy();
     lights.buffer = createSceneLightContractBuffer(device, store);
     lights.uploadedEpoch = -1;

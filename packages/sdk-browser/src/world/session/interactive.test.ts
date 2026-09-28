@@ -45,6 +45,7 @@ function start(
     hostedControls: [],
     state: { disposed: false },
     pendingFrame: async () => false,
+    landings: () => undefined,
   };
   const invalidate = startInteractiveExplorer(
     explorer as never,

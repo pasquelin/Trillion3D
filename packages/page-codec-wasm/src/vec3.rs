@@ -11,6 +11,9 @@ pub fn point(positions: &[f32], id: u32) -> [f64; 3] {
         positions[i + 2] as f64,
     ]
 }
+pub fn add(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
+}
 pub fn sub(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
     [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
 }
