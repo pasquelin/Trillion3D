@@ -1,6 +1,7 @@
 import { SELECTION_WORKGROUP } from '../core/selection.ts';
 import type { PackedDag } from './types.ts';
-import { cameraFramesBytes, primitiveFrameWords } from './worlds.ts';
+import { primitiveFrameWords } from './worlds.ts';
+import { createCameraFrames } from './frameRanges.ts';
 import { createDagPipeline } from './pipeline.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
@@ -97,10 +98,6 @@ export async function createDagResources(
       size: Math.max(64, packed.worlds.byteLength),
       usage: STORAGE,
     });
-    const frames = device.createBuffer({
-      size: cameraFramesBytes(frameData),
-      usage: STORAGE | GPUBufferUsage.COPY_SRC,
-    });
     const pageCones = device.createBuffer({
       label: 'Trillion3D DAG page cones',
       size: Math.max(48, packed.pageCones.byteLength),
@@ -121,10 +118,14 @@ export async function createDagResources(
       output,
       work,
       worlds,
-      frames,
       pageCones,
       ...readback,
     );
+    const frames = createCameraFrames(device, frameData, worldCount, (descriptor) => {
+      const buffer = device.createBuffer(descriptor);
+      buffers.push(buffer);
+      return buffer;
+    });
     const pipeline = await createDagPipeline(device, {
       clusters,
       nodes,
@@ -149,7 +150,6 @@ export async function createDagResources(
     upload(clusters, Math.max(64, packed.clusters.byteLength), packed.clusters);
     upload(nodes, Math.max(64, packed.nodes.byteLength), packed.nodes);
     upload(worlds, Math.max(64, packed.worlds.byteLength), packed.worlds);
-    upload(frames, Math.max(16, frameData.byteLength), frameData); // `dagPrepare` writes the rest
     upload(pageCones, Math.max(48, packed.pageCones.byteLength), packed.pageCones);
     return {
       device,
@@ -168,6 +168,8 @@ export async function createDagResources(
       drawnGroupsOffset,
       uniformData,
       frameData,
+      /** Primitives of each range of `frames`: the kernels that read them run once per range. */
+      ranges: frames.ranges,
       /** Writes into \`frames\`: a light cut copies its per-primitive words again when this moves. */
       frameWrites: { count: 0 },
       buffers,

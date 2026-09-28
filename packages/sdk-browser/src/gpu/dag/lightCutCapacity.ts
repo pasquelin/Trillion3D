@@ -1,4 +1,5 @@
 import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts';
+import { storageBufferCap } from '../../residency/pools.ts';
 import { FRAME_VEC4 } from './types.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { dagFlagsWords } from './shader/lastUseWgsl.ts';
@@ -34,7 +35,7 @@ export const lightQueueCap = (shape: LightCutShape, views: number) =>
  */
 export function lightCutCapacity(limits: LightCutLimits, shape: LightCutShape) {
   const threads = limits.maxComputeWorkgroupsPerDimension * WORKGROUP,
-    bytes = Math.min(limits.maxStorageBufferBindingSize, limits.maxBufferSize);
+    bytes = storageBufferCap(limits);
   const fits = (views: number) => {
     const queueCap = lightQueueCap(shape, views);
     if (Math.max(shape.worldCount * views, shape.blockCount) > threads) return false;

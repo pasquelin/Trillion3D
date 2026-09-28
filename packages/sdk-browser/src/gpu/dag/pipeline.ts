@@ -6,6 +6,7 @@ import { withScreenErrorVariant } from './shader/error.ts';
 import { screenErrorVariant } from '../../../../sdk-core/src/index.ts';
 import { validated } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
+import type { CameraFrames } from './frameRanges.ts';
 
 type DagBuffers = {
   clusters: GPUBuffer;
@@ -15,11 +16,12 @@ type DagBuffers = {
   output: GPUBuffer;
   work: GPUBuffer;
   worlds: GPUBuffer;
-  frames: GPUBuffer;
+  frames: CameraFrames;
   pageCones: GPUBuffer;
 };
 
-/** The selection stages and their bind group, under one validation scope. */
+/** The selection stages and their bind groups, one per range of `frames`, under one validation
+ *  scope. */
 export function createDagPipeline(device: GPUDevice, buffers: DagBuffers) {
   const { clusters, nodes, uniforms, flags, output, work, worlds, frames, pageCones } = buffers;
   return validated(device, async () => {
@@ -44,20 +46,23 @@ export function createDagPipeline(device: GPUDevice, buffers: DagBuffers) {
       viewOffsetsPipeline = stage('dagViewOffsets'),
       requestSortPipeline = stage('dagSortRequests'),
       evictPipeline = stage('dagListEvictions');
-    const bindGroup = device.createBindGroup({
-      layout,
-      entries: namedBufferEntries(DAG_BINDING, {
-        clusters: { buffer: clusters },
-        nodes: { buffer: nodes },
-        views: { buffer: uniforms },
-        flags: { buffer: flags },
-        out: { buffer: output },
-        work: { buffer: work },
-        worlds: { buffer: worlds },
-        frames: { buffer: frames },
-        cold: { buffer: pageCones },
+    const bindGroups = frames.buffers.map((buffer, r) =>
+      device.createBindGroup({
+        layout,
+        entries: namedBufferEntries(DAG_BINDING, {
+          clusters: { buffer: clusters },
+          nodes: { buffer: nodes },
+          views: { buffer: uniforms },
+          flags: { buffer: flags },
+          out: { buffer: output },
+          work: { buffer: work },
+          worlds: { buffer: worlds },
+          frames: { buffer },
+          cold: { buffer: pageCones },
+          range: frames.rangeBinding(r),
+        }),
       }),
-    });
+    );
     return {
       /** Bind layout, returned with the stages: the dispatch bench mounts the previous
        *  cut on EXACTLY this one, instead of retyping a fourth copy. */
@@ -72,7 +77,7 @@ export function createDagPipeline(device: GPUDevice, buffers: DagBuffers) {
       viewOffsetsPipeline,
       requestSortPipeline,
       evictPipeline,
-      bindGroup,
+      bindGroups,
     };
   });
 }
