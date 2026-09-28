@@ -1,5 +1,6 @@
 import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts';
 import type { createDagResources } from './resources.ts';
+import { dispatchGrid, groupWidth } from './shader/gridWgsl.ts';
 
 /** The cut's resources, as it encodes them. A light cut brings its own flags, work, frames, output
  *  and bind group, the views it runs this frame and its queue capacity (`lightCut.ts`); it keeps no
@@ -77,9 +78,11 @@ function encodeOnce(
   const views = light?.views ?? 1,
     queueCap = light?.queueCap ?? resources.nodeCount;
   const label = light ? LIGHT_CUT_PASS : 'Trillion3D DAG selection';
-  // Head word of the dispatch argument, copied outside a pass: the other two have been one since
-  // the buffer was created. That is the only reason for cuts between passes.
-  const arm = (offset: number) => encoder.copyBufferToBuffer(work, offset, dispatchArgs, 0, 4);
+  // The argument's x and y words, copied outside a pass: z has been one since the buffer was
+  // created. That is the only reason for cuts between passes. Flat dispatches run in rows of the
+  // device's width (`shader/gridWgsl.ts`).
+  const arm = (offset: number) => encoder.copyBufferToBuffer(work, offset, dispatchArgs, 0, 8);
+  const width = groupWidth(resources.device?.limits);
   const open = () => {
     const pass = encoder.beginComputePass({ label });
     pass.setBindGroup(0, ranges[0].bindGroup);
@@ -96,7 +99,7 @@ function encodeOnce(
     pass.dispatchWorkgroupsIndirect(dispatchArgs, 0);
   }
   // The first range's dispatch also resets the block counts.
-  perRange(pass, ranges, preparePipeline, 0, views, blockCount);
+  perRange(pass, ranges, preparePipeline, width, 0, views, blockCount);
   // The whole descent in THIS pass: dispatches of the same pass run in order and see what the
   // previous ones wrote — prepare and pass 0 already depended on that. Nothing else cut the
   // descent but the dispatch argument, and there is no more of it.
@@ -107,19 +110,19 @@ function encodeOnce(
   // roots that exist. A primitive whose caller supplies an empty hierarchy would make the two
   // diverge. Each range reads its own roots; a deeper level mixes them, so each range walks the
   // level's whole queue and keeps its own primitives' nodes.
-  perRange(pass, ranges, rootLevelPipeline, 0, views);
+  perRange(pass, ranges, rootLevelPipeline, width, 0, views);
   // Each following level reads only the nodes the previous one kept, and fills the next of the
   // three queues — the one a level earlier cleared. The dispatched count is that of its stage's
   // nodes, an upper bound the layout knows.
   for (let level = 1; level < levelSizes.length; level++) {
     const pipeline = levelPipelines[level % levelPipelines.length];
-    perRange(pass, ranges, pipeline, Math.min(levelSizes[level] * views, queueCap));
+    perRange(pass, ranges, pipeline, width, Math.min(levelSizes[level] * views, queueCap));
   }
   pass.end();
   // Pages of kept leaves, and they alone: a page under a rejected node is not read.
   arm(candGroupsOffset);
   const wanted = open();
-  perRange(wanted, ranges, wantedPipeline, dispatchArgs);
+  perRange(wanted, ranges, wantedPipeline, width, dispatchArgs);
   wanted.end();
   if (headOnly) return;
   arm(liveGroupsOffset);
@@ -131,7 +134,7 @@ function encodeOnce(
     live.setPipeline(viewOffsetsPipeline);
     live.dispatchWorkgroups(1);
   }
-  perRange(live, ranges, maskPipeline, dispatchArgs);
+  perRange(live, ranges, maskPipeline, width, dispatchArgs);
   // The drawable-page list is compacted here, in increasing order: the snapshot no longer
   // reports one flag per page but the count alone and its ranks.
   // Then the camera's requests, staged by `dagWanted`, go into the snapshot sorted by rank: one
@@ -157,13 +160,14 @@ function encodeOnce(
 /**
  * The kernels that read a primitive's words run once per range of `frames`, each under its
  * range's bind group, on its range's primitives (`frameRanges.ts`): `threads`, plus `perPrimitive`
- * per primitive of the range, at least `firstFloor` on the first; or each indirect on `threads`, a
- * dispatch-argument buffer. One range: the commands of before.
+ * per primitive of the range, at least `firstFloor` on the first, in rows of `width` workgroups;
+ * or each indirect on `threads`, a dispatch-argument buffer. One range: the commands of before.
  */
 function perRange(
   pass: GPUComputePassEncoder,
   ranges: DagView['ranges'],
   pipeline: GPUComputePipeline,
+  width: number,
   threads: number | GPUBuffer,
   perPrimitive = 0,
   firstFloor = 0,
@@ -174,7 +178,7 @@ function perRange(
     if (typeof threads !== 'number') pass.dispatchWorkgroupsIndirect(threads, 0);
     else {
       const count = Math.max(threads + perPrimitive * ranges[r].count, r ? 0 : firstFloor);
-      pass.dispatchWorkgroups(Math.max(1, Math.ceil(count / WORKGROUP)));
+      pass.dispatchWorkgroups(...dispatchGrid(Math.max(1, Math.ceil(count / WORKGROUP)), width));
     }
   }
 }

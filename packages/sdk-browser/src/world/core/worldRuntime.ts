@@ -1,8 +1,5 @@
-import type { FrameMetrics, SceneFog, SceneToneMapping } from '../../../../sdk-core/src/index.ts';
-import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { openMeasuredWorld, type MeasuredWorld } from '../session/explorer.ts';
-import type { MeasuredWorldOptions } from '../session/options.ts';
 import { buildWorldSource } from './worldSource.ts';
 import { createRequestLoop } from './requestLoop.ts';
 import { createWorldContents } from './worldContents.ts';
@@ -12,31 +9,10 @@ import { createWorldLights } from './worldLights.ts';
 import { createWorldLink } from './worldLink.ts';
 import { createWorldBackground } from './worldBackground.ts';
 import { watchFirstFrame } from '../session/openWatch.ts';
+import { worldReopens } from './worldReopen.ts';
 import { createCanvasFit, followPageCamera } from './worldCamera.ts';
 import type { PosedTwin } from './worldPoses.ts';
-import type { Scene } from './scene.ts';
-import type { worldDiagnostic } from './worldHandles.ts';
-
-type Inputs = {
-  canvas: HTMLCanvasElement;
-  scene: Scene;
-  camera: () => Camera;
-  /** The session options of the moment: renderer, pools, loop and hooks. */
-  options: () => MeasuredWorldOptions;
-  /** Runs on every new session, before its first frame: diagnostic mode, pools. */
-  opened: (explorer: MeasuredWorld) => void;
-  frame: (metrics: FrameMetrics) => void;
-  /** What the page set: exposure, curve and fog; the lights add their irradiance. */
-  display: () => { exposure: number; toneMapping: SceneToneMapping; fog?: SceneFog };
-  /** Whether the world has drawn a frame yet. */
-  drawn: () => boolean;
-  /** Settles once the world's renderer — and its device — is granted, a lost one asked again. */
-  ready: () => Promise<unknown>;
-  /** The world's notices; each opening, tried or not; a session or a scene that failed, kept. */
-  diagnostic: Pick<ReturnType<typeof worldDiagnostic>, 'notices' | 'failed' | 'opening'>;
-  /** Opens a session; stands for the engine's own. */
-  open?: typeof openMeasuredWorld;
-};
+import type { WorldRuntimeInputs as Inputs } from './worldRuntimeInputs.ts';
 
 /** The session drawing a world, fed by a per-frame change list: what the scene asks is resolved
  *  off the frame (`worldContents.ts`), applied once before each frame — rows taken, parked or grown
@@ -49,6 +25,8 @@ export function createWorldRuntime(inputs: Inputs) {
     background = createWorldBackground(scene);
   const { poses, cuts } = contents;
   const placeCamera = followPageCamera(camera, canvas);
+  const track = worldReopens(canvas, inputs.diagnostic.notices, () => reopens.request()),
+    { request } = track;
   let explorer: MeasuredWorld | null = null,
     mirror: NonNullable<ReturnType<typeof buildWorldSource>> | null = null,
     twins = new Map<Object3D, PosedTwin>(),
@@ -74,6 +52,7 @@ export function createWorldRuntime(inputs: Inputs) {
     const plan = contents.plan();
     const built = buildWorldSource(plan);
     const release = mounts.opening(plan.batches);
+    track.closing(explorer);
     explorer?.dispose();
     if (mirror) releaseWorldMirror(mirror.root);
     explorer = mirror = null;
@@ -86,19 +65,19 @@ export function createWorldRuntime(inputs: Inputs) {
     inputs.diagnostic.opening();
     if (!built) {
       closed = 'nothing to draw: the scene holds no mesh and no loaded model';
-      return;
+      return track.none();
     }
     mirror = built;
     try {
       const scope = built.source.metadata.scope; // its first model's scope, or the default
       await inputs.ready(); // a lost device is asked again: it opens on what is granted, or fails
-      const options = { ...inputs.options(), scope, onRowsOutgrown: reopens.request };
+      const options = track.options({ ...inputs.options(), scope });
       // The first frame is read for the page's camera, not a framing one (`prepare.ts`).
       explorer = await open(canvas, options, { ...built.source, placeCamera });
     } catch (error) {
       closed = 'its session failed to open';
       if (!disposed) inputs.diagnostic.failed(error); // cut short by disposal, it failed nothing
-      return;
+      return track.none();
     }
     if (disposed) return explorer.dispose();
     // Lit and a frame asked before the page's own settings: the first image had no lights.
@@ -129,7 +108,8 @@ export function createWorldRuntime(inputs: Inputs) {
     structureChanged = true;
     resolving ??= inputs.ready().then(resolve, resolve);
   };
-  const mounts = createWorldMounts(contents, () => explorer, schedule, reopens.request);
+  const mounts = createWorldMounts(contents, () => explorer, schedule, track.asks('mount-refused'));
+  const backgroundRefused = track.asks('background');
   /** The change list, applied once before a frame: rows seated, poses written, lights stored. */
   const apply = () => {
     const session = explorer;
@@ -137,12 +117,12 @@ export function createWorldRuntime(inputs: Inputs) {
       seatWanted = false;
       contents.seat(session?.growsPlacements() ? session.growPlacements : undefined);
       if (session && mirror) mounts.apply(mirror, session);
-      if (contents.reopenNeeded() || (!session && !reopens.running)) reopens.request();
+      if (contents.reopenNeeded() || (!session && !reopens.running)) request('scene-change');
       // Values or pictures alone repaint the built surface (#335, #362, #572); a reopened one is new.
       const painted = contents.repainted(),
         open = explorer === session ? session : null;
       if (painted.length && mirror && !mirror.repaint(painted, open?.refreshMaterials.bind(open)))
-        reopens.request();
+        request('repaint-refused');
     }
     if (!session || explorer !== session) return;
     if (poses.pending)
@@ -152,7 +132,7 @@ export function createWorldRuntime(inputs: Inputs) {
     if (lightsChanged)
       session.setEnvironment({ ...inputs.display(), irradiance: lights.sync(scene, session) });
     lightsChanged = false;
-    background.write(session, reopens.request);
+    background.write(session, backgroundRefused);
   };
   const fit = createCanvasFit(canvas, inputs.options().interactive === false);
   const beforeFrame = () => {
@@ -170,8 +150,10 @@ export function createWorldRuntime(inputs: Inputs) {
   return {
     beforeFrame,
     invalidate,
-    /** A session option changed: the next opening takes it, whatever the scene holds. */
-    renew: reopens.request,
+    /** A session option changed, or the device was lost: the next opening takes it. */
+    renew: request,
+    /** Settles once `session` has closed: what waited on it carries on with the next one. */
+    ended: track.ended,
     /** Exposure or curve changed: written with the lights before the next frame. */
     displayChanged: relight,
     get explorer() {
@@ -186,12 +168,14 @@ export function createWorldRuntime(inputs: Inputs) {
       beforeFrame(); // what it applies may close the session: that frame has no image
       if (!explorer) return null;
       const metrics = explorer.render();
+      track.drew();
       inputs.frame(metrics);
       return metrics;
     },
     dispose() {
       disposed = true;
       explorer?.dispose();
+      track.dispose(explorer);
       if (mirror) releaseWorldMirror(mirror.root);
       cuts.dispose();
       scene.traverse((node) => (node._link = null));

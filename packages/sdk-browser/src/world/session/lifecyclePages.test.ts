@@ -155,3 +155,19 @@ test('awaitPages counts a held page once when a backend reads it again after the
   assert.deepEqual(heard.at(-1), [1, 1]);
   streamer.dispose();
 });
+
+test('a disposed session stops its page reads with a reason, never "aborted without reason"', () => {
+  const controller = new AbortController();
+  const stub = { dispose() {} };
+  const inputs = {
+    ...{ check() {}, state: { active: { id: 'stub' } }, profiler: stub, hostedControls: [] },
+    ...{ disposeComposition() {}, streamer: stub, overlays: [], backends: [], source: undefined },
+    streaming: { backgroundFetchController: controller },
+  } as unknown as Inputs;
+  const channel = { flushSync() {}, close() {} };
+  const session = { scope: 'slice', diagnosticChannel: channel, diagnose() {}, options: {} };
+  createExplorerLifecycle(session as unknown as Session, inputs).dispose();
+  assert.equal(controller.signal.aborted, true);
+  const reason = controller.signal.reason as DOMException;
+  assert.deepEqual([reason.name, reason.message], ['AbortError', 'The session closed']);
+});

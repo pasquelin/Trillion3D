@@ -2242,7 +2242,8 @@
       "left": "Sol kenar.",
       "right": "Sağ kenar.",
       "top": "Üst kenar.",
-      "bottom": "Alt kenar."
+      "bottom": "Alt kenar.",
+      "fitAspect": "Bildirildiği kadar yüksek ve görüntünün biçiminin gerektirdiği kadar geniş bir ortografik kutu."
     }
   },
   "PAGE_DECODE_FAILURES": {
@@ -3168,6 +3169,9 @@
       "shadowPoolPages": "Sabit havuzun sanal bir sayfa tutan fiziksel sayfaları.",
       "shadowPoolBytes": "Gölge havuzunun GPU baytları: derinlik sayfaları, oluşturulduklarında statik ve geçirgenlik katmanları ve yanındaki arabellekler. İlk kare havuzu boyutlandırana kadar null.",
       "shadowPoolLayers": "Havuzun katmanları, her biri en fazla 4 096 sayfa; ilk karenin ekranından ve gölgeli ışıklarından bir kez boyutlandırılır. O zamana kadar null.",
+      "shadowPeakBytes": "Gölgelerin bellek payının aynı anda tuttuğu en fazla GPU baytı, geç katmanlar dahil. İlk kare havuzu boyutlandırana kadar null.",
+      "shadowResolutionBias": "Aygıtın bellek retlerinin gölge havuzunun baytlarından aldığı yarıya indirmeler; normalde 0.",
+      "shadowMemoryEvents": "Dünya açıldığından beri gölgelerin bellek baskısı olayları, adıyla, sırayla; normalde boş.",
       "shadowPagesRefetched": "Havuzun yer açmak için çıkardıktan sonra yeniden eşlenen sanal sayfalar, explorer açıldığından beri: karelerin okuduğuna göre fazla küçük bir havuzun maliyeti olan yeniden çizimler.",
       "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
       "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`."
@@ -4092,6 +4096,24 @@
       "modes": "Mevcut render motorunun sunduğu her görünüm modu."
     }
   },
+  "world.materials": {
+    "summary": "Geçerli içe aktarılmış malzemeler, ardından sayfanın oluşturdukları."
+  },
+  "world.material": {
+    "summary": "Listedeki kimliğine göre bir malzeme."
+  },
+  "world.importedMaterials": {
+    "summary": "Sayfa değişikliklerinden önceki kaynak dosya değerleri."
+  },
+  "world.setMaterial": {
+    "summary": "İçe aktarılmış veya oluşturulmuş malzemeyi sonraki karede değiştirir."
+  },
+  "world.createMaterial": {
+    "summary": "Bu sayfaya ait bir malzeme oluşturur."
+  },
+  "world.assignMaterial": {
+    "summary": "Oluşturulan malzemeyi derlenmiş `mesh/primitive` üzerine atar."
+  },
   "world.guides": {
     "summary": "Görüntünün üzerine çizilen çizgiler, noktalar ve yardımcılar (`Guides`)."
   },
@@ -4256,6 +4278,9 @@
       "shadowPoolPages": "Sabit havuzun sanal bir sayfa tutan fiziksel sayfaları.",
       "shadowPoolBytes": "Gölge havuzunun GPU baytları: derinlik sayfaları, oluşturulduklarında statik ve geçirgenlik katmanları ve yanındaki arabellekler. İlk kare havuzu boyutlandırana kadar null.",
       "shadowPoolLayers": "Havuzun katmanları, her biri en fazla 4 096 sayfa; ilk karenin ekranından ve gölgeli ışıklarından bir kez boyutlandırılır. O zamana kadar null.",
+      "shadowPeakBytes": "Gölgelerin bellek payının aynı anda tuttuğu en fazla GPU baytı, geç katmanlar dahil. İlk kare havuzu boyutlandırana kadar null.",
+      "shadowResolutionBias": "Aygıtın bellek retlerinin gölge havuzunun baytlarından aldığı yarıya indirmeler; normalde 0.",
+      "shadowMemoryEvents": "Dünya açıldığından beri gölgelerin bellek baskısı olayları, adıyla, sırayla; normalde boş.",
       "shadowPagesRefetched": "Havuzun yer açmak için çıkardıktan sonra yeniden eşlenen sanal sayfalar, explorer açıldığından beri: karelerin okuduğuna göre fazla küçük bir havuzun maliyeti olan yeniden çizimler.",
       "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
       "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`."
@@ -7736,6 +7761,41 @@
       "isSprite": "Her zaman `true`: bir sprite'ı diğer tüm meshlerden ayırır.",
       "center": "Resmin sprite'ın konumuna oturan noktası: `(0.5, 0.5)` ortası, `(0, 0)` sol alt köşesi, `(0.5, 0)` alt kenarının ortası.",
       "material": "Sprite’ın `material.sprite`’ı; değiştirmek için başka birini atayın."
+    }
+  },
+  "CreatedMaterial": {
+    "summary": "Sayfanın yeni malzemesi için `createMaterial` tarafından kabul edilen değerler.",
+    "members": {
+      "metalness": "Yüzeyin ne kadar metal olduğu, 0'dan 1'e.",
+      "roughness": "Yüzeyin ne kadar pürüzlü olduğu, 0'dan (ayna) 1'e (mat).",
+      "baseColor": "Temel renk; `set` ile yerinde değiştirin.",
+      "emissive": "Yüzeyin kendi başına yaydığı renk.",
+      "opacity": "Yüzeyin ne kadar opak olduğu, 0'dan 1'e.",
+      "alphaMode": "Bir yüzeyin alfa kanalının nasıl okunduğu: opak onu yok sayar, `mask` `alphaCutoff`'ta keser, `blend` karıştırır.",
+      "alphaCutoff": "Bundan daha az opak pikseller atılır.",
+      "name": "Sayfanın kendi kullanımı için bir ad.",
+      "map": "Bir görsel ve nasıl örneklendiği, bir sayfanın kelimeleriyle (`wrap`, `filter`, `colorSpace`)."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "Kimliği, adı, parametreleri ve harita tekrarlarını içeren sahne malzemesi anlık görüntüsü.",
+    "members": {
+      "id": "Bu dokuya özgü bir ad.",
+      "name": "Sayfanın kendi kullanımı için bir ad.",
+      "tiling": "Görselin yatayda ve dikeyde kaç kez sığdığı."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "İşleme geçişini yeniden kurmadan `setMaterial` ile canlı değiştirilen malzeme değerleri.",
+    "members": {
+      "metalness": "Yüzeyin ne kadar metal olduğu, 0'dan 1'e.",
+      "roughness": "Yüzeyin ne kadar pürüzlü olduğu, 0'dan (ayna) 1'e (mat).",
+      "baseColor": "Temel renk; `set` ile yerinde değiştirin.",
+      "emissive": "Yüzeyin kendi başına yaydığı renk.",
+      "opacity": "Yüzeyin ne kadar opak olduğu, 0'dan 1'e.",
+      "alphaMode": "Bir yüzeyin alfa kanalının nasıl okunduğu: opak onu yok sayar, `mask` `alphaCutoff`'ta keser, `blend` karıştırır.",
+      "alphaCutoff": "Bundan daha az opak pikseller atılır.",
+      "tiling": "Görselin yatayda ve dikeyde kaç kez sığdığı."
     }
   }
 }

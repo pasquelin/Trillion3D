@@ -18,9 +18,10 @@ pub(super) fn expand(g: &mut Value, binary: Binary, budget: &Budget<'_>) -> Resu
     budget.admit(product(binary.bytes().len(), 2)?)?;
     let mut out = match binary {
         Binary::Owned(v) => v,
-        Binary::Mapped(v) => {
-            let mut out = reserve(v.len())?;
-            out.extend_from_slice(&v);
+        mapped => {
+            let bytes = mapped.bytes();
+            let mut out = reserve(bytes.len())?;
+            out.extend_from_slice(bytes);
             out
         }
     };
