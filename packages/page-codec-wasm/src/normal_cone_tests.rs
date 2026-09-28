@@ -5,15 +5,12 @@ const NARROWEST_BITS: [u64; 4] = [
     0xbfcbf36eb7e7de25,
     0xbfe62fc5fca715b1,
     0x3fe5f9bf21ad4e4b,
-    0x3ff1d142e1b9d94c,
+    0x3ff1d142e1b9d94b,
 ];
 
 /// Whether `cone` holds every non-degenerate face normal of `indices` over `pos`.
 fn holds(cone: [f64; 4], pos: &[f32], indices: &[u32]) -> bool {
-    let axis = [cone[0], cone[1], cone[2]];
-    faces(pos, indices)
-        .iter()
-        .all(|&(c, len)| libm::acos((dot(c, axis) / len).clamp(-1.0, 1.0)) <= cone[3])
+    widest_angle(&faces(pos, indices), [cone[0], cone[1], cone[2]]) <= cone[3]
 }
 
 #[test]
@@ -107,12 +104,8 @@ fn a_range_or_an_index_outside_the_input_writes_nothing() {
 #[test]
 fn a_random_mesh_gets_a_cone_holding_every_face_never_looser_than_the_mean_one() {
     let mut state = 0x2545_f491_4f6c_dd1du64;
-    let mut next = move || {
-        state ^= state << 13;
-        state ^= state >> 7;
-        state ^= state << 17;
-        (state >> 40) as f32 / (1u32 << 23) as f32 - 1.0
-    };
+    let mut next =
+        move || (crate::min_ball::xorshift(&mut state) >> 40) as f32 / (1u32 << 23) as f32 - 1.0;
     let mut narrowed = 0;
     let odd = [0.0, -0.0, f32::NAN, f32::INFINITY, f32::MAX];
     for case in 0..400 {

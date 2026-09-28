@@ -63,6 +63,10 @@ pub(crate) fn hypot3(x: f64, y: f64, z: f64) -> f64 {
 pub fn triangle_cone(pos: &[f32], indices: &[u32]) -> [f64; 4] {
     let faces = faces(pos, indices);
     let mean = mean_cone(&faces);
+    // A mean cone within the margin leaves the narrowest nothing to win.
+    if mean[3] <= NARROWEST_MARGIN {
+        return mean;
+    }
     match narrowest_cone(&faces) {
         Some(narrow) if narrow[3] < mean[3] => narrow,
         _ => mean,
@@ -119,24 +123,27 @@ fn widest_angle(faces: &[([f64; 3], f64)], axis: [f64; 3]) -> f64 {
 const NARROWEST_MARGIN: f64 = 1e-6;
 
 /// The cone whose axis points at the centre of the smallest ball enclosing the unit face normals
-/// (`min_ball`), its angle measured on every face as the mean cone's is, raised by
-/// [`NARROWEST_MARGIN`]; `None` when a normal is not a number (a face with a non-finite vertex,
-/// which the mean cone leaves open) or the centre is the origin, which gives no axis.
+/// (`min_ball`), its angle that of the least aligned face (arccosine decreases: one call, on the
+/// smallest cosine), raised by [`NARROWEST_MARGIN`]; `None` when a normal is not a number (a face
+/// with a non-finite vertex, which the mean cone leaves open) or the centre is the origin.
 fn narrowest_cone(faces: &[([f64; 3], f64)]) -> Option<[f64; 4]> {
-    let mut normals: Vec<[f64; 3]> = faces.iter().map(|&(c, len)| divide(c, len)).collect();
+    let mut normals = Vec::with_capacity(faces.len());
+    for &(c, len) in faces {
+        let n = divide(c, len);
+        if !n.iter().all(|v| v.is_finite()) {
+            return None;
+        }
+        normals.push(n);
+    }
     let (centre, _) = min_ball(&mut normals)?;
     let length = hypot3(centre[0], centre[1], centre[2]);
-    let finite = normals.iter().flatten().all(|v| v.is_finite());
-    if !finite || length.is_nan() || length <= 1e-9 {
+    if length.is_nan() || length <= 1e-9 {
         return None;
     }
     let axis = divide(centre, length);
-    Some([
-        axis[0],
-        axis[1],
-        axis[2],
-        widest_angle(faces, axis) + NARROWEST_MARGIN,
-    ])
+    let cosine = normals.iter().map(|&n| dot(n, axis)).fold(1.0, f64::min);
+    let angle = libm::acos(cosine.clamp(-1.0, 1.0)) + NARROWEST_MARGIN;
+    Some([axis[0], axis[1], axis[2], angle])
 }
 
 /// The cone of each cluster `[start, end)` of `ranges` over `indices`, written as four floats per
