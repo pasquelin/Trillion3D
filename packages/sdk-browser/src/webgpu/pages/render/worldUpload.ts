@@ -24,14 +24,21 @@ export function uploadWorlds(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const hostWalked = run.gate.updateWorlds(rt.setup.worlds);
   // A node the host hid or showed parks its roots and hides its blend items, or takes them back,
   // in every cut, and one set to cast or not leaves or enters every light cut; the shadow pages its
-  // roots covered are drawn again, static casters included.
+  // roots covered are drawn again, static casters included unless every root that flipped was
+  // moving already: the static layer never held those (`../../shadow/mobility.ts`, #990).
   if (hostWalked) {
+    const flip = flipWorld(rt),
+      { mobility } = rt.lights;
+    let movingOnly = true;
     const flipped = followHostVisibility(
       selectionRoots,
       { entries: rt.blendState.blendGpu, sourceOf: (item) => item.sourceMesh },
-      flipWorld(rt),
+      (rank, root) => {
+        movingOnly &&= mobility.moves(rank);
+        flip(rank, root);
+      },
     );
-    if (flipped) rt.lights.plan.worldChanged(flipped.min, flipped.max);
+    if (flipped) rt.lights.plan.worldChanged(flipped.min, flipped.max, movingOnly);
   }
   const worldsMoved = run.worldUploadRevision !== run.gate.revisions.scene;
   // What leaves toward the cut kernel is brought back to the eye (`../../../camera/renderOrigin.ts`):
