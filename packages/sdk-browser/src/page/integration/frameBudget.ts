@@ -88,17 +88,18 @@ const pageFrames = {
  * between two frames stay bounded. A hidden page never waits for a frame: one share per task, as
  * before, and it loads no slower.
  */
-export function createSharePace(open: () => void, shares: number, frames = pageFrames) {
+export function createSharePace(open: () => void, shares: number) {
   let opened = 0,
     tick: Promise<void> | undefined;
   const arm = () =>
-    (tick ??= frames.next().then(() => {
+    (tick ??= pageFrames.next().then(() => {
       tick = undefined;
       opened = 0;
     }));
   return async () => {
-    await (frames.visible() && opened >= shares ? arm() : yieldToEventLoop());
-    if (frames.visible()) {
+    await (pageFrames.visible() && opened >= shares ? arm() : yieldToEventLoop());
+    // Read again: the page may have been hidden or shown during the wait.
+    if (pageFrames.visible()) {
       void arm();
       opened++;
     }

@@ -73,22 +73,22 @@ test('an observation takes no view of a window and sorts none, full or not (#983
   let t = 0;
   const governor = createPathGovernor(() => (t += 0.001));
   governor.setWasm(true, true, null);
+  const prototype = Float64Array.prototype as unknown as Record<string, Function>;
   const { subarray, sort } = Float64Array.prototype;
-  let views = 0;
-  Float64Array.prototype.subarray = function (this: Float64Array, ...args) {
-    views++;
-    return subarray.apply(this, args);
-  };
-  Float64Array.prototype.sort = function (this: Float64Array, ...args) {
-    views++;
-    return sort.apply(this, args);
-  };
+  let calls = 0;
+  for (const name of ['subarray', 'sort']) {
+    const original = prototype[name];
+    prototype[name] = function (this: Float64Array, ...args: unknown[]) {
+      calls++;
+      return original.apply(this, args);
+    };
+  }
   try {
     const perObservation: number[] = [];
     for (let i = 0; i < 2 * WINDOW + 10; i++) {
-      const before = views;
+      const before = calls;
       governor.observe('boxes', i % 2 ? 'js' : 'wasm', 1 + (i % 7) * 0.1, 100);
-      perObservation.push(views - before);
+      perObservation.push(calls - before);
     }
     assert.deepEqual(perObservation, new Array(2 * WINDOW + 10).fill(0));
   } finally {
