@@ -43,20 +43,17 @@ export function orthographicView(box: Box, zoom: number, out = new Float64Array(
   return out;
 }
 
-/** The box an orthographic camera draws at a picture of `aspect`, written into `out`: its own,
- *  or with `fitAspect` as high about the same centre and as wide as that height times `aspect`. */
-export function drawnBox(
-  camera: Box & { fitAspect: boolean },
+/** `orthographicView` of the box an orthographic camera draws at a picture of `aspect`: its own,
+ *  or with `fitAspect` as high about the same centre, its half width the half height times
+ *  `aspect`. */
+export function drawnView(
+  box: Box & { fitAspect?: boolean },
   aspect: number,
-  out: Box = { left: 0, right: 0, top: 0, bottom: 0 },
-): Box {
-  const { left, right, top, bottom } = camera;
-  const x = (left + right) / 2,
-    w = ((top - bottom) / 2) * aspect;
-  out.left = camera.fitAspect ? x - w : left;
-  out.right = camera.fitAspect ? x + w : right;
-  out.top = top;
-  out.bottom = bottom;
+  zoom: number,
+  out = new Float64Array(4),
+) {
+  orthographicView(box, zoom, out);
+  if (box.fitAspect) out[2] = out[3] * aspect;
   return out;
 }
 

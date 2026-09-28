@@ -41,7 +41,13 @@ test('capture release waits for a late grant, including rejection, before restor
     const rt = {
       gpu: { ...main.gpu },
       vis: { ...main.vis },
-      run: { ...main.run, cutEpoch: 0, gate: { cam: main.cam, viewReplaced() {} } },
+      run: {
+        ...main.run,
+        gate: { cam: main.cam, useViewHold: () => undefined },
+        pendingHeld: {},
+        urlsHeld: {},
+        ranksHeld: {},
+      },
       setup: { viewport: main.viewport },
       capture: {},
       views: { main, active: main },
