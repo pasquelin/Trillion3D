@@ -97,8 +97,8 @@ pub(super) struct Placed {
     pub carried: Vec<Vec<f32>>,
     pub origins: Vec<u32>,
     pub columns: Columns,
-    /// The sides of their charts, inherited (`charts::chart_sides`); empty without a texture set.
-    pub sides: Vec<u8>,
+    /// Their charts, inherited (`charts::Chart`); empty without a texture set.
+    pub charts: Vec<super::charts::Chart>,
 }
 
 impl Local<'_> {
@@ -179,10 +179,10 @@ impl Local<'_> {
             true => weld.iter().map(|&w| seam(w)).collect(),
             false => Vec::new(),
         };
-        let sides = input.sides();
-        let sides = match sides.is_empty() {
+        let charts = input.charts();
+        let charts = match charts.is_empty() {
             true => Vec::new(),
-            false => origins.iter().map(|&g| sides[g as usize]).collect(),
+            false => origins.iter().map(|&g| charts[g as usize]).collect(),
         };
         Placed {
             positions,
@@ -195,7 +195,7 @@ impl Local<'_> {
                 exact,
                 seams,
             },
-            sides,
+            charts,
         }
     }
 }

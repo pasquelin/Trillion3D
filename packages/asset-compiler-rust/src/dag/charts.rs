@@ -1,10 +1,10 @@
-//! The texture charts of a primitive: where their seams and mirrors fall, and what the solve of a
-//! seam-locked group reads of them (`solved.rs`) — how much surface a unit of each texture set
-//! spans, and the seams on the group's open border.
+//! The texture charts of a primitive: where their seams, mirrors and islands fall, and what the
+//! solve of a seam-locked group reads of them (`solved.rs`) — how much surface a unit of each
+//! texture set spans, the seams on the group's open border, the faces it folds across charts.
 use super::border::live_triangles;
 use super::clusters::edge_key;
-use super::placed::Local;
 use super::*;
+use crate::join::Join;
 use crate::qem::Attribute;
 use crate::shared_math::{cross, length, point, sub};
 
@@ -61,33 +61,35 @@ pub(super) fn weighted<'a>(
     weighted
 }
 
-/// Per source vertex, whether its position is written under several texture coordinates: a seam
-/// vertex, which permissive simplification must not merge across. `weld` is by position,
-/// `weld_seam` by position and every texture set.
-pub fn seam_vertices(weld: &[u32], weld_seam: &[u32], indices: &[u32]) -> Vec<bool> {
-    let mut first = vec![u32::MAX; weld.len()];
-    let mut seam = vec![false; weld.len()];
-    for &v in indices {
-        let (position, copy) = (weld[v as usize] as usize, weld_seam[v as usize]);
-        if first[position] == u32::MAX {
-            first[position] = copy;
-        } else if first[position] != copy {
-            seam[position] = true;
-        }
-    }
-    (0..weld.len()).map(|v| seam[weld[v] as usize]).collect()
+/// What the artist's layout says of a source vertex, read once (`vertex_charts`) and inherited by
+/// every vertex solved from it.
+#[derive(Clone, Copy)]
+pub struct Chart {
+    /// The ways the triangles of each texture set turn around its position, two bits per set:
+    /// bit `2k` for a triangle of set `k` turning counter-clockwise in texture space, `2k + 1`
+    /// clockwise.
+    pub sides: u8,
+    /// Its texture island: the triangles its copy by position and every texture set joins.
+    pub island: u32,
 }
 
-/// Per source vertex, the ways the triangles of each texture set turn around its position, in
-/// two bits per set: bit `2k` for a triangle of set `k` turning counter-clockwise in texture
-/// space, bit `2k + 1` clockwise. The artist's layout, read once. Empty without a texture set.
-pub fn chart_sides(weld: &[u32], uv_sets: &[&[f32]], indices: &[u32]) -> Vec<u8> {
+/// Per source vertex, its chart (`Chart`); empty without a texture set. `weld` is by position,
+/// `weld_seam` by position and every texture set.
+pub fn vertex_charts(
+    weld: &[u32],
+    weld_seam: &[u32],
+    uv_sets: &[&[f32]],
+    indices: &[u32],
+) -> Vec<Chart> {
     if uv_sets.is_empty() {
         return Vec::new();
     }
     let mut sides = vec![0u8; weld.len()];
-    for (set, uvs) in uv_sets.iter().enumerate() {
-        for tri in indices.as_chunks::<3>().0 {
+    let mut islands = Join::new(weld.len());
+    for tri in indices.as_chunks::<3>().0 {
+        islands.unite(tri[0], tri[1]);
+        islands.unite(tri[1], tri[2]);
+        for (set, uvs) in uv_sets.iter().enumerate() {
             let [s, t, u] = tri.map(|v| [uvs[v as usize * 2], uvs[v as usize * 2 + 1]]);
             let turn = (t[0] - s[0]) * (u[1] - s[1]) - (u[0] - s[0]) * (t[1] - s[1]);
             let side = match turn {
@@ -100,10 +102,15 @@ pub fn chart_sides(weld: &[u32], uv_sets: &[&[f32]], indices: &[u32]) -> Vec<u8>
             }
         }
     }
-    (0..weld.len()).map(|v| sides[weld[v] as usize]).collect()
+    (0..weld.len() as u32).for_each(|v| islands.unite(v, weld_seam[v as usize]));
+    let chart = |v: u32| Chart {
+        sides: sides[weld[v as usize] as usize],
+        island: islands.root(v),
+    };
+    (0..weld.len() as u32).map(chart).collect()
 }
 
-/// Whether `sides` (`chart_sides`) turn both ways in one texture set: where a chart meets its
+/// Whether `sides` (`Chart::sides`) turn both ways in one texture set: where a chart meets its
 /// mirror image. A coordinate the solve places may fold; a mirror it is not.
 pub fn on_mirror(sides: u8) -> bool {
     (0..2).any(|set| (sides >> (2 * set)) & 3 == 3)
@@ -117,14 +124,23 @@ pub(super) fn longest_edge(positions: &[f32], tri: &[u32; 3]) -> f64 {
         .max(length(sub(a, c)))
 }
 
-/// The longest edge of the solved faces whose corners' charts (`sides`, per level vertex) turn,
-/// together, both ways in one texture set: a face folded across a mirror, drawn only where it is
-/// under a pixel.
-pub(super) fn mirror_span(local: &Local, sides: &[u8]) -> f64 {
-    let turns = |tri: &&[u32; 3]| on_mirror(tri.iter().fold(0, |s, &c| s | sides[local.from(c)]));
-    let faces = local.indices.as_chunks::<3>().0.iter().filter(turns);
+/// The longest edge of the faces of `indices` a pixel must hide: those whose corners lie in two
+/// texture islands, and, when `mirrors`, those whose corners' charts turn together both ways in
+/// one set — a face folded across a mirror. `chart` answers per corner.
+pub(super) fn folded_span(
+    indices: &[u32],
+    positions: &[f32],
+    chart: impl Fn(u32) -> Chart,
+    mirrors: bool,
+) -> f64 {
+    let folded = |tri: &&[u32; 3]| {
+        let [a, b, c] = tri.map(&chart);
+        let turns = mirrors && on_mirror(a.sides | b.sides | c.sides);
+        turns || a.island != b.island || b.island != c.island
+    };
+    let faces = indices.as_chunks::<3>().0.iter().filter(folded);
     faces
-        .map(|tri| longest_edge(&local.positions, tri))
+        .map(|tri| longest_edge(positions, tri))
         .fold(0.0, f64::max)
 }
 
