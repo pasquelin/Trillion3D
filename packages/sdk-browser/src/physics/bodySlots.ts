@@ -1,6 +1,6 @@
 import { BODY_INDEX, type ObjectPhysics } from '../../../sdk-core/src/physics/index.ts';
 import type { Bodied } from './bodies.ts';
-import type { CookedMadeBody, MovingBody } from './cookedBodies.ts';
+import type { CookedMadeBody, NodeMove } from './cookedBodies.ts';
 import type { CookedMade } from './cookedSoft.ts';
 import { createSimulatedIds } from './simulatedIds.ts';
 import type { Model, Placed } from './tilePlace.ts';
@@ -16,12 +16,12 @@ export type SlotOwner =
 /**
  * The one owner of each body slot, read by engine id (`createSimulatedIds`), so the id of a slot's
  * earlier body, in a tick or a ray's hit, names nothing. `meshes` is the page's column of it, by
- * slot, for the poses; `nested` the column of a compiled model's bodies that move their node.
+ * slot, for the poses; `nested` the slots of a compiled model's bodies that move their node.
  */
 export function createBodySlots(size: number) {
   const ids = createSimulatedIds<SlotOwner, Uint8Array>(new Uint8Array(size));
   const meshes: (Bodied | null)[] = [];
-  const nested = new Array<MovingBody | null>(size).fill(null);
+  const nested = new Map<number, NodeMove>();
   const { of } = ids;
   return {
     meshes,
@@ -31,14 +31,14 @@ export function createBodySlots(size: number) {
     take(owner: SlotOwner) {
       const id = ids.take(owner);
       meshes[id & BODY_INDEX] = 'mesh' in owner ? owner.mesh : null;
-      nested[id & BODY_INDEX] =
-        'body' in owner && owner.body.moves ? (owner.body as MovingBody) : null;
+      if ('body' in owner && owner.body.moves) nested.set(id & BODY_INDEX, owner.body.moves);
       return id;
     },
     /** Slot `index` given back: no id of it names anything until it is taken again. */
     release(index: number) {
       ids.release(index);
-      meshes[index] = nested[index] = null;
+      meshes[index] = null;
+      nested.delete(index);
     },
     of,
     /** What slot `index` holds now, whatever id asks. */

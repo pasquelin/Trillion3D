@@ -18,17 +18,18 @@ import { worldPoseOf } from './bodyFrame.ts';
 import { fits } from './softBodies.ts';
 import { cookedBytes, tilePose, type Model, type ModelNode } from './tilePlace.ts';
 
+/** The scene node a dynamic body's poses move, how far around it it wants ground, and the world
+ *  scale its body was made at: what the poses and the tiles read (`bodySlots.ts`). */
+export type NodeMove = { node: Object3D; reach: number; scale: readonly number[] };
 /** A declared body made: its entry, its hull's bytes, the world scale it was made at, its id,
- *  and — a dynamic one — the scene node its poses move and how far around it it wants ground. */
+ *  and — a dynamic one — the node it moves. */
 export type CookedMadeBody = {
   body: CookedBody;
   bytes?: Uint8Array;
   scale: number[];
   id: number;
-  moves: { node: Object3D; reach: number } | null;
+  moves: NodeMove | null;
 };
-/** A made body whose poses move its node: what the poses and the tiles read (`bodySlots.ts`). */
-export type MovingBody = CookedMadeBody & { moves: NonNullable<CookedMadeBody['moves']> };
 
 /**
  * The rigid bodies the compiled models in a scene declare (`physics.json` `bodies`), each one a
@@ -68,17 +69,14 @@ export function createCookedBodies(
     const { scale } = placed;
     const resolved = declaredShape(body, scale);
     const at = opening.moving.get(body);
+    const size = [scale.x, scale.y, scale.z];
     // Its radius is in its parent's frame: scaled by that parent's world scale.
-    const frame = (node: Object3D) => resolveCameraWorld(node.parent ?? model).matrixWorld;
-    const moves = at && { node: at.node, reach: at.radius * frame(at.node).getMaxScaleOnAxis() };
+    const parent = at && resolveCameraWorld(at.node.parent ?? model).matrixWorld;
+    const moves = at
+      ? { node: at.node, reach: at.radius * parent!.getMaxScaleOnAxis(), scale: size }
+      : null;
     const { position, quaternion } = at ? worldPoseOf(at.node) : placed;
-    const made: CookedMadeBody = {
-      body,
-      bytes,
-      scale: [scale.x, scale.y, scale.z],
-      id: -1,
-      moves: moves ?? null,
-    };
+    const made: CookedMadeBody = { body, bytes, scale: size, id: -1, moves };
     made.id = bodies.claim(resolved.triangles * TRIANGLE_BYTES, 0, { model, body: made });
     const handle = made.id & BODY_INDEX;
     const matter = physicsMatterOf(body);
