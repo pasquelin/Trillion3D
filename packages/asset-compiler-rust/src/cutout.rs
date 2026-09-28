@@ -100,10 +100,12 @@ fn source_directory(source: &Path) -> PathBuf {
     source.parent().unwrap_or(Path::new(".")).to_path_buf()
 }
 
-/// Sheet answers. An unreadable sheet, unknown version, or non-boolean/non-null
-/// answer is an error: a user answer is never dropped in silence.
+fn refuse(message: String) -> CompilerError {
+    CompilerError::new("INVALID_CUTOUT_DECISIONS", message)
+}
+
+/// The sheet, parsed. An unreadable sheet or an unknown version is an error.
 fn parse_sheet(path: &Path, bytes: &[u8]) -> Result<Value> {
-    let refuse = |message: String| CompilerError::new("INVALID_CUTOUT_DECISIONS", message);
     let parsed: Value = serde_json::from_slice(bytes)
         .map_err(|error| refuse(format!("{} is not readable JSON: {error}", path.display())))?;
     if parsed.get("version").and_then(Value::as_u64) != Some(SHEET_VERSION) {
@@ -115,8 +117,9 @@ fn parse_sheet(path: &Path, bytes: &[u8]) -> Result<Value> {
     Ok(parsed)
 }
 
+/// Sheet answers. A non-boolean/non-null answer is an error: a user answer is never dropped in
+/// silence.
 fn read_answers(path: &Path, parsed: &Value) -> Result<BTreeMap<String, bool>> {
-    let refuse = |message: String| CompilerError::new("INVALID_CUTOUT_DECISIONS", message);
     let mut answers = BTreeMap::new();
     let textures = parsed.get("textures").and_then(Value::as_object);
     for (sha256, entry) in textures.into_iter().flatten() {

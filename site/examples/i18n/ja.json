@@ -58,7 +58,8 @@
       "missingCache": "コンパイル済みキャッシュがありません: pnpm compile:caches を実行してください"
     },
     "banner": {
-      "close": "閉じる"
+      "close": "閉じる",
+      "waiting": "エンジン待ち（#{issue}）"
     }
   },
   "a-city-from-rules": {
@@ -1745,7 +1746,8 @@
       "night": "夜",
       "bounce": "はね返り",
       "sun": "太陽",
-      "lamp": "ランプ"
+      "lamp": "ランプ",
+      "spin": "回転"
     },
     "words": {
       "credit": "W. Sitters による街灯のモデル、CC BY 3.0 — assets/examples/CREDITS.md を見てね"
