@@ -39,8 +39,7 @@ async function checkScene(pointer: string) {
   const bundle = (url: string) =>
     bundles.get(url) ?? bundles.set(url, bytesOf(join(dir, url))).get(url)!;
   const disagreements: string[] = [];
-  let pages = 0,
-    placed = 0;
+  let pages = 0;
   for (const primitive of manifest.primitives) {
     if (!primitive.pages.length) continue;
     const geometry = await geometryOf(primitive.mesh, primitive.primitive).loadVertices();
@@ -53,7 +52,6 @@ async function checkScene(pointer: string) {
       xyz[i * 3 + 2] = position.getZ(i);
     }
     for (const page of primitive.pages) {
-      pages++;
       const held = page.stream === undefined ? undefined : primitive.streams?.pages[page.stream];
       const indices = held
         ? new Uint32Array(bundle(held.url), page.streamOffset, page.count)
@@ -63,15 +61,15 @@ async function checkScene(pointer: string) {
       // it from, and its cone was cooked on them. The source cannot rebuild it.
       if (indices.some((v) => v >= position.count)) {
         assert.ok(page.geometry, `${pointer} page ${page.id}: a placed vertex without its page`);
-        placed++;
         continue;
       }
+      pages++;
       // A version-9 sidecar gives every page its cone.
       if (!coneHolds(page.cone!, xyz, indices))
         disagreements.push(`${pointer} page ${page.id}: cooked ${JSON.stringify(page.cone)}`);
     }
   }
-  return { pages: pages - placed, disagreements };
+  return { pages, disagreements };
 }
 
 test('every cooked cone bounds its triangles and is no wider than the runtime one', async () => {

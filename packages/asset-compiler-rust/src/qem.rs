@@ -71,6 +71,7 @@ pub const VERTEX_PROTECT: u8 = 2;
 
 /// One per-vertex attribute counted in the simplification error: `width` floats per source
 /// vertex, each weighted by `weight` against the positions normalised to the region's extent.
+#[derive(Clone, Copy)]
 pub struct Attribute<'a> {
     pub values: &'a [f32],
     pub width: usize,
@@ -113,7 +114,6 @@ pub fn simplify_with_locked_vertices(
     let (compact_pos, compact_idx, remap) = compact_region(positions, indices);
     let flags: Vec<u8> = remap.iter().map(|&source| flags(source)).collect();
     let (values, weights) = compact_attributes(attributes, &remap);
-    let extent = region_extent(&compact_pos)?;
     let mut options = SimplifyOptions::ErrorAbsolute | SimplifyOptions::Permissive;
     if prune {
         options |= SimplifyOptions::Prune;
@@ -149,6 +149,7 @@ pub fn simplify_with_locked_vertices(
             error_object: 0.0,
         });
     }
+    let extent = region_extent(&compact_pos)?;
     Ok(SimplifiedMesh {
         indices: out.into_iter().map(|i| remap[i as usize]).collect(),
         triangles,

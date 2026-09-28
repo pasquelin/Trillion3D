@@ -48,13 +48,13 @@ impl<'a> Welds<'a> {
     pub fn of(positions: &[f32], attributes: DagAttributes<'a>, indices: &'a [u32]) -> Self {
         let weld = weld_positions(positions, indices);
         let uv_sets = attributes.uv_sets();
-        let weld_seam = match uv_sets.is_empty() {
-            true => Vec::new(),
-            false => weld_positions_and_uv(positions, &uv_sets, indices),
-        };
-        let seams = match uv_sets.is_empty() {
-            true => Vec::new(),
-            false => seam_vertices(&weld, &weld_seam, indices),
+        let (weld_seam, seams) = match uv_sets.is_empty() {
+            true => (Vec::new(), Vec::new()),
+            false => {
+                let weld_seam = weld_positions_and_uv(positions, &uv_sets, indices);
+                let seams = seam_vertices(&weld, &weld_seam, indices);
+                (weld_seam, seams)
+            }
         };
         Self {
             charts: Charts {
@@ -187,7 +187,9 @@ impl<'a> GroupReductionInput<'a> {
     }
     /// The charts, when `live` names a vertex a solve placed and the primitive has a texture set.
     pub(super) fn placed_charts(&self, live: &[u32]) -> Option<&'a [Chart]> {
-        let placed = live.iter().any(|&v| v as usize >= self.charts.vertices);
-        Some(self.charts()).filter(|charts| placed && !charts.is_empty())
+        if !live.iter().any(|&v| v as usize >= self.charts.vertices) {
+            return None;
+        }
+        Some(self.charts()).filter(|charts| !charts.is_empty())
     }
 }
