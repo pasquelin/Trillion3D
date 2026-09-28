@@ -121,8 +121,9 @@ fn jitterSlack(p: vec2i, centre: f32) -> f32 {
     + abs(view.viewport.w) * slopeAlong(p, vec2i(0, 1), centre);
 }
 // Reversed depth: the greater is nearer; the scene in front, beyond the slack, hides the guide.
+// The guide draws at the display; the scene depth may be drawn below it: its texel under the pixel.
 @fragment fn fragmentMain(in: Out) -> @location(0) vec4f {
-  let p = vec2i(floor(in.position.xy));
+  let p = vec2i(floor(in.position.xy * (vec2f(textureDimensions(sceneDepth)) / view.viewport.xy)));
   let scene = sceneAt(p);
   if (in.position.z < scene - jitterSlack(p, scene)) { discard; }
   return in.color;

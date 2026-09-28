@@ -62,7 +62,12 @@ test('capture release waits for a late grant, including rejection, before restor
       assert.equal(rt.views.active, capture, 'late grant completes on its own view');
       if (refused) throw new Error('late target refusal');
     });
-    rt.gpu.targetGrant = startGrant(work, { width: 32, height: 16 });
+    rt.gpu.targetGrant = startGrant(work, {
+      width: 32,
+      height: 16,
+      renderWidth: 32,
+      renderHeight: 16,
+    });
     const cleanup = releaseSettledCapture(rt, capture);
     await Promise.resolve();
     assert.equal(rt.views.active, capture);

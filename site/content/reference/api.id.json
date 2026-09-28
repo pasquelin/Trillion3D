@@ -2642,6 +2642,13 @@
       "depth": "Lapisan, untuk tumpukan gambar."
     }
   },
+  "PlacementGrowth": {
+    "summary": "Apa yang diserahkan pemilik kepada sesi yang memperbesar buffer instansnya di tempat (`growth.ts`).",
+    "members": {
+      "growPlacements": "Sebuah buffer instans yang dipegang sesi diganti dengan yang lebih besar, baris `from` lebih dulu dan sisanya diparkir: sesi membaca `to` mulai sekarang dan memegang baris barunya, tanpa membangun ulang tabel (`growth.ts`). Jika tidak ada pada mesin, pemilik membuka lagi sesi pada `to`.",
+      "growsInPlace": "Apakah `growPlacements` menerima setiap `from` yang diperbesar menjadi `capacity` baris, ditanyakan sebelum pemilik mengganti satu pun: false membiarkannya apa adanya, dan pemilik membuka lagi sesi pada yang lebih besar."
+    }
+  },
   "PlacementRows": {
     "summary": "Baris penempatan mesh yang dicerminkan, satu baris per salinan yang ditempatkan.",
     "members": {
