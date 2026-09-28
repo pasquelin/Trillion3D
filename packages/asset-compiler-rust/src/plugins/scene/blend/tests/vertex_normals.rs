@@ -40,13 +40,13 @@ use crate::tests::fixtures::{ROOF_LEFT as LEFT, ROOF_RIGHT as RIGHT};
 // share a soft edge average theirs on the corners of that edge.
 #[test]
 fn sharp_faces_keep_their_own_normal_and_smooth_faces_share_it() {
-    let flat = normals::corners(&roof(vec![true, true], Vec::new()).surface()).normals;
+    let flat = computed_normals(&roof(vec![true, true], Vec::new())).normals;
     assert_eq!(flat.len(), 24);
     for rank in 0..4 {
         assert!(close(corner(&flat, rank), LEFT), "{flat:?}");
         assert!(close(corner(&flat, rank + 4), RIGHT), "{flat:?}");
     }
-    let smooth = normals::corners(&roof(vec![false, false], Vec::new()).surface()).normals;
+    let smooth = computed_normals(&roof(vec![false, false], Vec::new())).normals;
     // The four ridge corners — `v2` and `v3` in each of the two faces — average the two slopes:
     // their normal is vertical.
     for rank in [1, 2, 4, 7] {
@@ -70,7 +70,7 @@ fn a_hard_edge_splits_the_normals_of_the_two_smooth_faces_it_borders() {
     let mut hard = vec![false; 8];
     hard[1] = true;
     hard[7] = true;
-    let shaded = normals::corners(&roof(vec![false, false], hard).surface());
+    let shaded = computed_normals(&roof(vec![false, false], hard));
     for rank in 0..4 {
         assert!(
             close(corner(&shaded.normals, rank), LEFT),

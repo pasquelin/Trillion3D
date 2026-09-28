@@ -79,6 +79,7 @@ export function createWebglViews(
       others.length = 0;
       for (const other of all) if (other !== view) others.push(other);
       tradeCamera(gate, from, view);
+      gate.viewReplaced();
       moved();
     },
     /** `view`, not the main one, leaves: its cut leaves the union, the main view is drawn. */

@@ -29,6 +29,20 @@ pub(crate) fn raw_image_bytes(
     image_root: &Path,
     image: &Value,
 ) -> std::result::Result<(Vec<u8>, Option<usize>), &'static str> {
+    with_image_bytes(g, bin, image_root, image, |bytes, view| {
+        Ok((bytes.to_vec(), view))
+    })
+}
+
+/// Inspect mapped or already resident bytes without allocating the encoded file again.
+/// Like every mapped compiler input, the source must stay unchanged during its cook.
+pub(super) fn with_image_bytes<T>(
+    g: &Value,
+    bin: &[u8],
+    image_root: &Path,
+    image: &Value,
+    inspect: impl FnOnce(&[u8], Option<usize>) -> std::result::Result<T, &'static str>,
+) -> std::result::Result<T, &'static str> {
     if let Some(view) = image.get("bufferView").and_then(Value::as_u64) {
         let view = view as usize;
         let descriptor = g
@@ -50,14 +64,17 @@ pub(crate) fn raw_image_bytes(
         let bytes = bin
             .get(offset..end)
             .ok_or("image-buffer-view-out-of-bounds")?;
-        return Ok((bytes.to_vec(), Some(view)));
+        return inspect(bytes, Some(view));
     }
     let uri = image
         .get("uri")
         .and_then(Value::as_str)
         .ok_or("image-without-source")?;
     let path = crate::uri::resolve_under(image_root, uri)?;
-    fs::read(&path)
-        .map(|bytes| (bytes, None))
-        .map_err(|_| "image-missing")
+    let bytes = match crate::map_source(&path) {
+        Ok(bytes) => bytes,
+        Err(_) if fs::metadata(&path).is_ok_and(|m| m.len() == 0) => return inspect(&[], None),
+        Err(_) => return Err("image-missing"),
+    };
+    inspect(&bytes, None)
 }

@@ -1,4 +1,7 @@
 import { createEngineCamera, type EngineCamera } from '../../../camera/world.ts';
+import type { ViewHold } from '../../../frame/viewRevision.ts';
+import type { HizPyramid } from '../../../gpu/hiz/types.ts';
+import type { PresentRect } from '../../../gpu/core/presentAt.ts';
 import type { CutDelta } from '../../cut/delta.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { createWebgpuGpuState, type WebgpuGpuState } from './gpu.ts';
@@ -6,12 +9,13 @@ import { createWebgpuRunState, type WebgpuRunState } from './run.ts';
 import { createWebgpuVisState, type WebgpuVisState } from './vis.ts';
 
 /**
- * What one camera owns in the runtime groups: the cut it draws, its motion, its occlusion history,
- * its frame targets and their temporal history. Everything else is the scene's and every view
- * shares it: the gate's revisions (so an invalidation reaches every view), the GPU cut (the main
- * view's alone), the residency sets, which ask for the union of the views' cuts under the one page
- * budget (`../../cut/publication.ts`), the pools, the pipelines and the Hi-Z pyramid, which follows
- * the drawn view's size.
+ * What one camera owns in the runtime groups: the cut it draws and what its image made of it, its
+ * motion, its occlusion history, its frame targets, their temporal history and effect chain.
+ * Everything else is the scene's and every view shares it: the gate's scene and resource revisions
+ * (so an invalidation reaches every view), the GPU cut (the main view's alone), the residency sets,
+ * which ask for the union of the views' cuts under the one page budget
+ * (`../../cut/publication.ts`), the pools, the pipelines and the Hi-Z programs, whose pyramid is
+ * each view's own (`WebgpuView.hiz`).
  */
 export const VIEW_RUN_KEYS = [
   'lastCamera',
@@ -28,6 +32,16 @@ export const VIEW_RUN_KEYS = [
   'cpuHizCounts',
   'cpuHizCounted',
   'occluderSignature',
+  'cutHeld',
+  'gpuFrameActive',
+  'gpuMetricsReady',
+  'overBudget',
+  'visible',
+  'selectedTriangles',
+  'submittedTriangles',
+  'drawnTriangles',
+  'frustumRejected',
+  'lodLevel',
 ] as const satisfies readonly (keyof WebgpuRunState)[];
 export const VIEW_GPU_KEYS = [
   'colorTexture',
@@ -45,6 +59,8 @@ export const VIEW_GPU_KEYS = [
   'targetBytes',
   'targetGrant',
   'temporal',
+  'effects',
+  'effectsRevision',
 ] as const satisfies readonly (keyof WebgpuGpuState)[];
 export const VIEW_VIS_KEYS = [
   'visTexture',
@@ -66,6 +82,13 @@ export interface WebgpuView {
   viewport: [number, number];
   /** The engine camera frame entry writes (`rt.run.gate.cam`). */
   cam: EngineCamera;
+  /** Its held-frame witness, and its Hi-Z pyramid, while another view is drawn: the gate and the
+   *  shared Hi-Z programs hold the drawn view's (`./viewSwitch.ts`). */
+  hold?: ViewHold;
+  hiz?: HizPyramid;
+  /** Where a persistent view presents on the canvas (`./persistentView.ts`); the main view and a
+   *  capture have none. */
+  rect?: PresentRect;
   run: Pick<WebgpuRunState, RunKey>;
   gpu: Pick<WebgpuGpuState, GpuKey>;
   vis: Pick<WebgpuVisState, VisKey>;
@@ -81,10 +104,12 @@ export interface ViewCut {
   drawn: CutDelta;
 }
 
-/** The runtime's views: the one it opened on, and the one its groups hold now. */
+/** The runtime's views: the one it opened on, the one its groups hold now, and those drawn beside
+ *  the main one every frame. */
 export interface WebgpuViews {
   main: WebgpuView;
   active: WebgpuView;
+  persistent: WebgpuView[];
 }
 
 function pick<T, K extends keyof T>(from: T, keys: readonly K[]) {
@@ -115,12 +140,21 @@ export function createWebgpuViews(rt: Pick<WebgpuPagesRuntime, 'run' | 'gpu' | '
     gpu: pick(rt.gpu, VIEW_GPU_KEYS),
     vis: pick(rt.vis, VIEW_VIS_KEYS),
   };
-  return { main, active: main } satisfies WebgpuViews;
+  return { main, active: main, persistent: [] } satisfies WebgpuViews;
 }
 
-/** The main view's share of the GPU group, wherever it is held now: a session-wide pass such as
- *  temporal antialiasing is rigged for the main view, never for a capture drawn aside. */
-export function mainViewGpu(rt: Pick<WebgpuPagesRuntime, 'gpu' | 'views'>) {
-  const { views } = rt;
-  return views.active === views.main ? rt.gpu : views.main.gpu;
+/** `view`'s share of the GPU group, wherever it is held now: the runtime's while it is drawn. */
+export const viewGpu = (rt: Pick<WebgpuPagesRuntime, 'gpu' | 'views'>, view: WebgpuView) =>
+  rt.views.active === view ? rt.gpu : view.gpu;
+
+/** The main view's share of the GPU group: a session-wide pass such as temporal antialiasing is
+ *  rigged for the main view, never for a capture drawn aside. */
+export const mainViewGpu = (rt: Pick<WebgpuPagesRuntime, 'gpu' | 'views'>) =>
+  viewGpu(rt, rt.views.main);
+
+/** The drawn view's image is out of date: the main view's by the shared resource revision, as
+ *  before any other view existed; another view's by its own hold alone, the main one kept. */
+export function drawnViewChanged(rt: Pick<WebgpuPagesRuntime, 'run' | 'views'>) {
+  if (rt.views.active === rt.views.main) rt.run.gate.resourcesChanged();
+  else rt.run.gate.viewReplaced();
 }

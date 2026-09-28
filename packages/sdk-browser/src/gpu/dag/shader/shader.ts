@@ -11,6 +11,7 @@ import { DAG_LEVEL_WGSL } from './levelWgsl.ts';
 import { DAG_LAST_USE_WGSL } from './lastUseWgsl.ts';
 import { DAG_EVICT_WGSL } from './evictWgsl.ts';
 import { DAG_FLOOR_WGSL } from './floorWgsl.ts';
+import { DAG_GRID_WGSL } from './gridWgsl.ts';
 import { DAG_PAGES_WGSL } from './pagesWgsl.ts';
 import { CASTS_NO_SHADOW, SPRITE_UNCULLED } from '../../../visibility/shader/spriteWgsl.ts';
 import { DAG_VIEWS_WGSL, LIST_FULL } from './viewsWgsl.ts';
@@ -74,8 +75,8 @@ fn stretchOf(world:u32)->f32{return frames[rowOf(world)*FRAME+6u].x*views[vi].ca
  *  One thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot is its primitive. Each
  *  range's dispatch takes its range's slots (\`rangeSlot\`); the first one resets the frame. */
 @compute @workgroup_size(64)
-fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
- let head=rangeFirst()==0u;let i=id.x;
+fn dagPrepare(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let head=rangeFirst()==0u;let i=flatIndex(id.x,id.y,n.x);
  if(head&&i==0u){
   // A later batch's cut appends its requests to the frame's list (\`VIEW_APPEND\`): the count and
   // the list-full bit carry on, the other flags are the batch's own.
@@ -92,7 +93,7 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  // The primitive's root opens the descent: one thread, one root, no counter to contend for. A
  // light cut opens none on a primitive that casts no shadow (\`markOf\`, \`castsNoShadow\`).
  let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&${CASTS_NO_SHADOW}u)!=0u);
- flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
+ setFlag(queueBase(0u)+t,select(packEntry(vi,root),root,root==0xffffffffu));
  let pose=worlds[rowOf(w)];let m=transpose(pose);let base=slot*FRAME;
  // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
  let open=!isLightCut()&&unculledOf(w);
@@ -100,25 +101,25 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  if(!isLightCut()){preparePrimitive(w,pose,m,open);}
 }
 @compute @workgroup_size(64)
-fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lid:u32){
+fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lid:u32){
  // Totals are summed in the workgroup first (\`totalsWgsl.ts\`), so EVERY thread in the
  // group crosses both barriers: a thread with no cluster does not return early, it does nothing.
  ouvreTotaux(lid);
- let s=id.x;
+ let s=flatIndex(id.x,id.y,n.x);
  if(s<liveCount()){
   let entry=liveAt(s);let i=entryIndex(entry);let w=pageWorld(i);
   // A page of another range's primitive is that range's dispatch's (\`inRange\`).
   if(inRange(w)){
   vi=entryView(entry);let r=recordOf(i,w);
-  let clusterFlags=clusters[r].flags;
+  let clusterFlags=clusterAt(r).flags;
   var draw=false;
   // The cut rule (\`../../../page/cut/rule.ts\`), on the residency \`../readiness.ts\` derives: a
   // cut without residency holds every cluster and every finer group.
-  let word=flags[coneCache(i)];
+  let word=flagAt(coneCache(i));
   if((word&CONE_REJECTED)==0u){
    let all=views[0u].residentCut==0u;
    if(isLightCut()){
-    let pixels=clusterPixels(clusters[r],viewWorld(w),stretchOf(w),focalPixels());
+    let pixels=clusterPixels(clusterAt(r),viewWorld(w),stretchOf(w),focalPixels());
     draw=drawsCluster(all||isResident(i),pixels.x,pixels.y,all||childResident(i),views[vi].pixelError);
    }else{
     // Camera cut: the rule on the two comparisons \`dagWanted\` made this frame, on the same
@@ -131,7 +132,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
   if(isLightCut()){if(draw){viewDrawnAppend(i);}}
   else{
    let drawn=select(0u,1u,draw);
-   flags[views[0u].queueCap+i]=drawn;
+   setFlag(views[0u].queueCap+i,drawn);
    // Drawn count of this page's block, held here rather than reread later page by page.
    if(drawn!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(i);}
   }
@@ -148,7 +149,7 @@ ${DAG_LIVE_WGSL}
 ${DAG_LEVEL_WGSL}
 ${DAG_LAST_USE_WGSL}${DAG_EVICT_WGSL}
 ${DAG_FLOOR_WGSL}
-${DAG_PAGES_WGSL}
+${DAG_GRID_WGSL}${DAG_PAGES_WGSL}
 ${DAG_VIEWS_WGSL}
 ${DAG_RECORD_WGSL}
 ${DAG_AHEAD_WGSL}`;
