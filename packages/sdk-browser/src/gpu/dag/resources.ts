@@ -128,11 +128,18 @@ export async function createDagResources(
       ...readback,
     );
     const frames = createCameraFrames(device, frameData, worldCount, own);
-    const pipeline = await createDagPipeline(
-      device,
-      { clusters, nodes, views: uniforms, flags, out: output, work, worlds, cold: pageCones },
-      frames,
-    );
+    // Group 0 by WGSL name, but for `frames`: a light cut swaps its own in (`lightCut.ts`).
+    const group = {
+      clusters,
+      nodes,
+      views: uniforms,
+      flags,
+      out: output,
+      work,
+      worlds,
+      cold: pageCones,
+    };
+    const pipeline = await createDagPipeline(device, group, frames);
     if (!pipeline) {
       for (const buffer of buffers) buffer.destroy();
       return undefined;
@@ -168,6 +175,7 @@ export async function createDagResources(
       frameWrites: { count: 0 },
       buffers,
       own,
+      group,
       clusters,
       nodes,
       uniforms,

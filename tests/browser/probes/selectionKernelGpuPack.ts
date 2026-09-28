@@ -53,7 +53,8 @@ export function versPage(
   const uni = new Float32Array(DAG_UNIFORM_BYTES / 4);
   writeDagUniforms(uni, packed, uniforms, !!resident);
   const frames = primitiveFrameWords(packed);
-  const blockCount = Math.ceil(Math.max(1, packed.pageCount) / SELECTION_WORKGROUP);
+  const blockCount = Math.ceil(Math.max(1, packed.pageCount) / SELECTION_WORKGROUP),
+    worldCount = Math.max(1, packed.worldCount);
   return {
     name,
     travail: dagWorkLayout(blockCount),
@@ -63,7 +64,7 @@ export function versPage(
     stagedBytes: stagedOutputBytes(selectionListCap(packed.pageCount)),
     pageCount: packed.pageCount,
     nodeCount: packed.nodeCount,
-    worldCount: Math.max(1, packed.worldCount),
+    worldCount,
     levelCount: packed.levelSizes.length,
     clusters: octets(packed.clusters),
     nodes: octets(packed.nodes),
@@ -72,9 +73,9 @@ export function versPage(
     frames: octets(frames),
     /** Bytes of `frames` as the engine sizes it: the host's row, then what `dagPrepare` derives
      *  per primitive behind it (`shader/primitiveWgsl.ts`). */
-    framesBytes: framesBytes(Math.max(1, packed.worldCount)),
+    framesBytes: framesBytes(worldCount),
     /** `range`: one range holds every primitive (`frameRanges.ts`). */
-    range: octets(wholeRange(Math.max(1, packed.worldCount))),
+    range: octets(wholeRange(worldCount)),
     uniforms: octets(uni),
   };
 }
