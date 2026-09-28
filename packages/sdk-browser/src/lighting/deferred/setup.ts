@@ -85,9 +85,8 @@ export function deferredLayoutEntries(
 }
 
 /** The resolve's layout; each composition's is its own (`compositions.ts`). */
-export const createDeferredLayouts = (device: GPUDevice, direct: boolean, bounce = false) => ({
-  lighting: device.createBindGroupLayout({ entries: deferredLayoutEntries(direct, bounce) }),
-});
+export const createDeferredLightingLayout = (device: GPUDevice, direct: boolean, bounce = false) =>
+  device.createBindGroupLayout({ entries: deferredLayoutEntries(direct, bounce) });
 
 /**
  * Contract substitute resources: an empty tile list, shadow records with no light and an empty
