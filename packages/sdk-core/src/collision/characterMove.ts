@@ -1,5 +1,6 @@
 import type { Capsule, CapsuleContact, CapsulePush } from './capsule.ts';
 import type { CharacterCollision } from './characterCollision.ts';
+import { hypot2, hypot3 } from '../math/primitives/hypot.ts';
 
 /**
  * HOW A BODY MOVES THROUGH TRIANGLES: in parts no longer than half its radius, each followed by
@@ -75,7 +76,7 @@ export function isFloor({ normal, surface, point }: CapsuleContact, how: MoveRul
 const push: CapsulePush = (contact) => {
   const { normal, depth } = contact;
   const under = normal[1] > 0,
-    across = Math.hypot(normal[0], normal[2]);
+    across = hypot2(normal[0], normal[2]);
   let amount = depth;
   if (isFloor(contact, rules)) {
     // Straight up until the touched point is one radius from the centre: exact for an edge or
@@ -121,7 +122,7 @@ export function slide(
 ) {
   [body, report, rules] = [moving, into, how];
   const { capsule } = moving;
-  const length = Math.hypot(delta[0], delta[1], delta[2]);
+  const length = hypot3(delta[0], delta[1], delta[2]);
   // Half a radius a part, so that nothing thinner than the body is crossed; a body with no
   // thickness (a radius of 0, or not a number) has nothing to part by and moves in one.
   const parts = capsule.radius > 0 ? Math.max(1, Math.ceil(length / (0.5 * capsule.radius))) : 1;

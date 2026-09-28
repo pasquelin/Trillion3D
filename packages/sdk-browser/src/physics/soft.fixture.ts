@@ -1,7 +1,6 @@
 import {
   CommandWriter,
   FLAG,
-  GENERATION_SHIFT,
   SOFT_STATE_WORDS,
   softBodyOf,
   writeSoft,
@@ -12,14 +11,13 @@ import { softSettings } from '../../../sdk-core/src/physics/soft.ts';
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { fromArrays } from '../../../sdk-core/src/world/geometry/builder.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
-import { body, startModule, type Module } from './module.fixture.ts';
+import { startModule, type Module } from './module.fixture.ts';
+import { FLAT, body, id } from './records.fixture.ts';
 
-/** Generation 1 of an engine id. */
-const GENERATION = 1 << GENERATION_SHIFT;
 /** The engine ids of the floor in slot 0, the soft body in slot 1, the box in slot 2. */
-export const FLOOR = GENERATION,
-  CLOTH = 1 | GENERATION,
-  BOX = 2 | GENERATION;
+export const FLOOR = id(0),
+  CLOTH = id(1),
+  BOX = id(2);
 
 /** A box of `mass` kg and 0.2 m in slot 2, its centre at `y`, with `flags`. */
 export function addBox(jolt: Module, mass: number, y: number, flags = 0) {
@@ -27,9 +25,6 @@ export function addBox(jolt: Module, mass: number, y: number, flags = 0) {
   writer.add({ ...body(BOX, 2, y, 0.1, flags), mass });
   jolt.step(writer.take(), 0);
 }
-
-/** Laid flat: the plane's `+y` turned to the world's `−z`, so its `−z` is the world's down. */
-export const FLAT: [number, number, number, number] = [-Math.SQRT1_2, 0, 0, Math.SQRT1_2];
 
 /** A committed module with Earth's gravity and a floor in slot 0, its top at y = 0, turned by
  *  `quaternion` about its centre. */
@@ -42,6 +37,27 @@ export async function softWorld(quaternion = [0, 0, 0, 1]) {
   return jolt;
 }
 
+/** Writes `geometry` as a soft body of engine id `id`, at `position` turned by `quaternion`;
+ *  `words` override the record's. Its record. */
+export function writeSoftBody(
+  writer: CommandWriter,
+  id: number,
+  geometry: Geometry,
+  options: SoftBodyOptions,
+  position: number[],
+  quaternion = [0, 0, 0, 1],
+  words: Partial<SoftBodyRecord> = {},
+) {
+  const settings = softSettings(options);
+  const record = softBodyOf(geometry, { x: 1, y: 1, z: 1 }, settings);
+  writeSoft(writer, {
+    ...{ id, position, quaternion, scale: [1, 1, 1] },
+    ...{ friction: 0.5, restitution: 0, gravityScale: 1, linearDamping: 0.05 },
+    ...{ settings, record, ...words },
+  });
+  return record;
+}
+
 /** Adds `geometry` as a soft body in slot 1, at `position`; `words` override the record's. */
 export function addSoft(
   jolt: Module,
@@ -50,14 +66,8 @@ export function addSoft(
   position: number[],
   words: Partial<SoftBodyRecord> = {},
 ) {
-  const settings = softSettings(options);
-  const record = softBodyOf(geometry, { x: 1, y: 1, z: 1 }, settings);
   const writer = new CommandWriter();
-  writeSoft(writer, {
-    ...{ id: CLOTH, position, quaternion: [0, 0, 0, 1], scale: [1, 1, 1] },
-    ...{ friction: 0.5, restitution: 0, gravityScale: 1, linearDamping: 0.05 },
-    ...{ settings, record, ...words },
-  });
+  const record = writeSoftBody(writer, CLOTH, geometry, options, position, undefined, words);
   jolt.step(writer.take(), 0);
   return record;
 }
@@ -97,4 +107,18 @@ export function flatCloth(jolt: Module, y: number, pins: number[], events = fals
   if (events) writer.flags(1, FLAG.events);
   jolt.step(writer.take(), 0);
   return record;
+}
+
+/**
+ * How far a written-back vertex may stray from the per-vertex chain it replaced (PHY-06, #975):
+ * four float spacings at 32 m, the reach of the soft tests' scenes (2⁻¹⁹ m each), 7.6 µm; a tenth
+ * of a pixel is millimetres at any distance the page draws a soft body from.
+ */
+export const WRITEBACK_BOUND = 4 * 2 ** -19;
+
+/** Each body a step's soft words name (`softLayout.ts`): its engine id, its vertex count, and the
+ *  word its vertices start at. */
+export function* softBodiesIn(words: Uint32Array) {
+  for (let at = 0; at < words.length; at += SOFT_STATE_WORDS + words[at + 1] * 3)
+    yield { engine: words[at], count: words[at + 1], from: at + SOFT_STATE_WORDS };
 }

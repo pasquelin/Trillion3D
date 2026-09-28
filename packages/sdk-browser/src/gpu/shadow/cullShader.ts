@@ -47,8 +47,15 @@ fn keepCaster(face:u32,row:u32,capacity:u32){
   let distance=length(delta);
   if(distance-sphere.radius>volume.far){return;}
   if(volume.halfAngle<3.14159&&distance>sphere.radius){
-   let axis=clamp(dot(delta,volume.axis)/distance,-1.0,1.0);
-   if(acos(axis)-asin(clamp(sphere.radius/distance,0.0,1.0))>volume.halfAngle){return;}
+   // Outside the cone when the angle to its axis exceeds halfAngle + the sphere's angular radius
+   // β, sin β = r / d (#OMB-07): compared by cosines, cos(h + β)·d = cos h·√(d² − r²) − sin h·r,
+   // with no inverse trigonometry. Only while h + β < π (sin(h + β) > 0); the margin keeps the test
+   // conservative — a sphere it drops, the angles dropped too.
+   let ch=cos(volume.halfAngle);let sh=sin(volume.halfAngle);
+   let tangent=sqrt(max(distance*distance-sphere.radius*sphere.radius,0.0));
+   let along=dot(delta,volume.axis);
+   let limit=ch*tangent-sh*sphere.radius;
+   if(sh*tangent+ch*sphere.radius>0.0&&along<limit-1e-4*distance){return;}
   }
  }
  let rank=atomicAdd(&indirect[face*4u+1u],1u);

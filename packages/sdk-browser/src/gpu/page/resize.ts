@@ -1,10 +1,10 @@
 import type { GpuPageContext, ResidentPage } from './types.ts';
 import { evictResident } from './commit.ts';
-import { pageBufferCap } from '../../residency/pools.ts';
+import { storageBufferCap } from '../../residency/pools.ts';
 
 export const pageBufferBytes = (device: GPUDevice, pageBytes: number, slots: number) => {
   const size = pageBytes * slots;
-  if (!Number.isSafeInteger(slots) || slots < 1 || size > pageBufferCap(device.limits))
+  if (!Number.isSafeInteger(slots) || slots < 1 || size > storageBufferCap(device.limits))
     throw new Error('INVALID_PAGE_BUDGET');
   return size;
 };

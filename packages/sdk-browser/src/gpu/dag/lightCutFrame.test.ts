@@ -15,6 +15,7 @@ import { packRequest } from './request.ts';
 import { COARSER_VIEWS, DAG_UNIFORM_BYTES, LIST_FULL } from './shader/viewsWgsl.ts';
 import { VIEW_FLAGS_WORD } from './uniforms.ts';
 import { VIEW_APPEND } from './shader/pagesWgsl.ts';
+import { createCameraFrames } from './frameRanges.ts';
 
 const CASTERS = 16;
 
@@ -42,6 +43,8 @@ function lightCutFrame() {
   } as unknown as GPUCommandEncoder;
   const outputBytes = (SELECTION_HEADER_WORDS + CASTERS) * 4;
   const packed = { pageCount: CASTERS, nodeCount: CASTERS, worldCount: 1 };
+  const frameData = new Float32Array(FRAME_VEC4 * 4),
+    own = (descriptor: GPUBufferDescriptor) => device.createBuffer(descriptor);
   const cut = createDagLightCut({
     device,
     packed,
@@ -51,12 +54,14 @@ function lightCutFrame() {
     worldCount: 1,
     blockCount: 1,
     levelSizes: [1],
+    rootLevelPipeline: {},
     levelPipelines: [{}],
     outputBytes,
     readbackBytes: outputBytes,
-    frameData: new Float32Array(FRAME_VEC4 * 4),
+    frameData,
     frameWrites: { count: 0 },
-    buffers: [],
+    own,
+    frames: createCameraFrames(device, frameData, 1, own),
   } as unknown as Parameters<typeof createDagLightCut>[0]);
   const output = buffers.find(({ label }) => label === 'Trillion3D light cut output')!;
   /** The GPU running the cut just encoded, over the view of `caster`, against `resident`. */
