@@ -1,6 +1,6 @@
 //! What the DAG builder guarantees on every case, asserted on the DAG it builds in memory.
 use super::*;
-use crate::dag::{build_dag_tallied, DagAttributes, DagCluster, DagStall, DagStrategy};
+use crate::dag::{build_dag_tallied, DagCluster, DagStall, DagStrategy};
 use std::collections::HashSet;
 
 pub(super) struct Built {
@@ -26,7 +26,7 @@ pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
     let carried: Vec<&geometry_page::Attribute> = attributes.iter().collect();
     let (dag, _, _, stalls, grown) = build_dag_tallied(
         &case.positions,
-        DagAttributes { carried: &carried },
+        crate::dag::DagAttributes { carried: &carried },
         indices,
         DagStrategy::QemEndpoints,
         &|| Ok(()),
@@ -46,8 +46,7 @@ pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
 }
 
 /// Level 0 partitions the source triangles; every coarse index names a vertex the source uses or
-/// one a solve placed; errors are finite and climb up the DAG; the cook's own check passes
-/// (`dag::quality`).
+/// a solve placed; errors are finite and climb up the DAG; the cook's check passes (`dag::quality`).
 pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label: &str) {
     let level0: Vec<&DagCluster> = built.dag.iter().filter(|c| c.level == 0).collect();
     assert_eq!(
@@ -66,7 +65,7 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
         "{label}: level 0 is the source partition"
     );
     let carried: Vec<&geometry_page::Attribute> = built.attributes.iter().collect();
-    let normals = DagAttributes { carried: &carried }.normals();
+    let normals = crate::dag::DagAttributes { carried: &carried }.normals();
     let quality = crate::dag::quality::check(&built.dag, &built.positions, normals);
     if let Err(refusal) = quality {
         panic!("{label}: the cook refuses the DAG: {refusal}");
