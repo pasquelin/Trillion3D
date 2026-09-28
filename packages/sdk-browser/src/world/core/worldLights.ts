@@ -9,7 +9,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import { isLightNode } from '../../host/graph/kinds.ts';
 import { emptyIrradiance, type SceneLight } from '../../../../sdk-core/src/index.ts';
 import { sameSceneLight } from '../../../../sdk-core/src/scene/light/equal.ts';
-import type { Display } from '../../../../sdk-core/src/world/light/lightReach.ts';
+import { boundReach, irradianceQuantum, type Display } from './lightReach.ts';
 
 /** The light calls of a session (`world/api/lightApi.ts`) the world writes its lights through. */
 type LightApi = {
@@ -93,14 +93,16 @@ export function createWorldLights() {
         stored.delete(light);
       };
       for (const [light, { id }] of stored) if (!lights.has(light)) drop(light, id);
+      const quantum = irradianceQuantum(display);
       for (const light of lights) {
         const last = stored.get(light);
         const id = last?.id ?? `world-light-${next++}`;
-        const record = lampRecord(light, id, reach(light), display);
+        const record = lampRecord(light, id, reach(light));
         if (!record) {
           if (last) drop(light, id);
           continue;
         }
+        boundReach(record, quantum);
         if (last && sameSceneLight(last.record, record)) continue;
         // A lamp keeping its members is written in its slot; one gaining or losing one is
         // written anew, so no member of its former record survives.

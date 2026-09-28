@@ -150,7 +150,6 @@ export function createWorldRuntime(inputs: Inputs) {
         session.updatePlacements(rows, from, to),
       );
     if (lightsChanged) {
-      // A lamp's reach follows the exposure and curve: both change only through `displayChanged`.
       const display = inputs.display();
       session.setEnvironment({ ...display, irradiance: lights.sync(scene, session, display) });
     }
