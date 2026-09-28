@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_SCENE, sceneOf } from './scene.ts';
-import { ENGINES, engineOf, parseArgs, readOptions } from './options.ts';
+import { ENGINES, engineOf, parseArgs, poseAt, readOptions, trajectoryPoses } from './options.ts';
 
 test('readOptions parses command line arguments correctly', () => {
   const root = '/tmp/test';
@@ -101,4 +101,25 @@ test('only engines rendering through Three receive lights placed by the host', (
   assert.strictEqual(ENGINES.webgl.three, true);
   assert.strictEqual(ENGINES.webgl2.three, true);
   assert.strictEqual(ENGINES.webgpu.three, undefined);
+});
+
+test('--gaze-network is a recorded setting that requires baked cache textures', () => {
+  const root = '/tmp/test';
+  assert.strictEqual(readOptions([], root).settings.gazeNetwork, false);
+  assert.strictEqual(
+    readOptions(['--gaze-network', '--textures', 'cache'], root).settings.gazeNetwork,
+    true,
+  );
+  assert.throws(
+    () => readOptions(['--gaze-network'], root),
+    /--gaze-network requires --textures cache/,
+  );
+});
+
+test('trajectoryPoses plays one pose per frame from the view index', () => {
+  const bounds = { min: { x: -1, y: 0, z: -1 }, max: { x: 1, y: 1, z: 1 } };
+  const poses = trajectoryPoses(bounds, 3, 4);
+  assert.strictEqual(poses.length, 4);
+  assert.deepStrictEqual(poses[0], poseAt(bounds, 3));
+  assert.deepStrictEqual(poses[3], poseAt(bounds, 6));
 });
