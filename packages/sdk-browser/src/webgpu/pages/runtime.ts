@@ -16,6 +16,8 @@ import { createWebgpuSunFarState, type WebgpuSunFarState } from './state/sunFar.
 import { createWebgpuRunState, type WebgpuRunState } from './state/run.ts';
 import { createWebgpuCaptureState, type WebgpuCaptureState } from './state/capture.ts';
 import { createWebgpuViews, type WebgpuViews } from './state/view.ts';
+import type { PresentRect } from '../../gpu/core/presentAt.ts';
+import type { HostCamera } from '../../camera/world.ts';
 import {
   createWebgpuStageProfiler,
   createWebgpuTimingState,
@@ -36,6 +38,10 @@ export type WebgpuPagesBackend = RenderBackend &
     rasterRgba(): Uint8Array;
     selectedPageIds(): string[];
     visibilityIds(): Uint32Array;
+    /** A view drawn beside the main one, after it, each frame (`./state/persistentView.ts`). */
+    addView(
+      rect: PresentRect,
+    ): Promise<{ render(camera: HostCamera): void; release(): Promise<void> }>;
   };
 
 /** The runtime before its services exist: what the service factory and the draw helpers are handed. */

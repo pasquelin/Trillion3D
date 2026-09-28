@@ -47,7 +47,7 @@ fn the_v_coordinate_is_flipped_like_in_the_other_drivers() {
         sharp_corners: Vec::new(),
     };
     let mut out = Out::default();
-    let normals = normals::corners(&geometry.surface()).normals;
+    let normals = computed_normals(&geometry).normals;
     let (mesh, _) = build::mesh_json(
         &geometry,
         &normals,

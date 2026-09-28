@@ -6,7 +6,7 @@
 //! continuity cuts. Computing them flat as if every edge were hard rendered a faceted sphere;
 //! smoothing everywhere would have rounded every sharp edge. The file says it, edge by edge.
 use super::*;
-use crate::plugins::scene::normals;
+use crate::plugins::scene::{cancel, normals};
 
 /// Fills the surface normals and says where each corner reads its own.
 pub(super) fn fill(
@@ -15,7 +15,7 @@ pub(super) fn fill(
     mesh: &Node,
     polygons: &[faces::Face],
     edges: &[[f64; 3]],
-) {
+) -> Option<()> {
     let corners: usize = polygons.iter().map(|face| face.edges.len()).sum();
     let written: Vec<[f64; 3]> =
         value::elements(mesh.attr(&["n", "normal"]).map_or(&[][..], Attr::numbers)).collect();
@@ -26,43 +26,68 @@ pub(super) fn fill(
         if written.len() == count {
             surface.normals = written;
             surface.shading = shading;
-            return;
+            return Some(());
         }
     }
     if !written.is_empty() {
         world.refuse(report::NORMALS_DROPPED);
     }
     world.refuse(report::NORMALS_COMPUTED);
-    compute(surface, polygons, edges, corners);
+    compute(surface, polygons, edges, corners, world.cancelled)
 }
 
 /// Computes normals from geometry and places each corner at the slot `.fc` gives it — the same
 /// as corner-written normals, so the reader knows only one layout.
-fn compute(surface: &mut Surface, polygons: &[faces::Face], edges: &[[f64; 3]], corners: usize) {
-    let positions: Vec<f32> = surface
-        .positions
-        .iter()
-        .flat_map(|point| point.map(|axis| axis as f32))
-        .collect();
+fn compute(
+    surface: &mut Surface,
+    polygons: &[faces::Face],
+    edges: &[[f64; 3]],
+    corners: usize,
+    cancelled: &std::sync::atomic::AtomicBool,
+) -> Option<()> {
+    let mut positions = Vec::with_capacity(surface.positions.len() * 3);
+    for (rank, point) in surface.positions.iter().enumerate() {
+        if cancel::stopped(cancelled, rank) {
+            return None;
+        }
+        positions.extend(point.map(|axis| axis as f32));
+    }
     let (mut ring, mut offsets, mut hard) = (Vec::new(), vec![0u32], Vec::new());
     for (face, loops) in surface.loops.iter().enumerate() {
-        ring.extend_from_slice(loops);
-        offsets.push(ring.len() as u32);
+        if cancel::stopped(cancelled, face) {
+            return None;
+        }
         let written = polygons.get(face).map_or(&[][..], |face| &face.edges);
-        hard.extend((0..loops.len()).map(|rank| is_hard(edges, written.get(rank).copied())));
+        for (rank, vertex) in loops.iter().enumerate() {
+            if cancel::stopped(cancelled, ring.len()) {
+                return None;
+            }
+            ring.push(*vertex);
+            hard.push(is_hard(edges, written.get(rank).copied()));
+        }
+        offsets.push(ring.len() as u32);
     }
-    let shaded = normals::corners(&normals::Surface {
-        positions: &positions,
-        corners: &ring,
-        offsets: &offsets,
-        sharp_faces: &[],
-        sharp_corners: &hard,
-    });
+    let shaded = normals::corners(
+        &normals::Surface {
+            positions: &positions,
+            corners: &ring,
+            offsets: &offsets,
+            sharp_faces: &[],
+            sharp_corners: &hard,
+        },
+        cancelled,
+    )?;
     surface.normals = vec![[0.0, 1.0, 0.0]; corners];
     surface.groups = vec![0; corners];
     let mut at = 0usize;
     for (face, loops) in surface.loops.iter().enumerate() {
+        if cancel::stopped(cancelled, face) {
+            return None;
+        }
         for rank in 0..loops.len() {
+            if cancel::stopped(cancelled, at + rank) {
+                return None;
+            }
             let Some(into) = surface.bases.get(face).map(|base| base + rank) else {
                 continue;
             };
@@ -73,6 +98,7 @@ fn compute(surface: &mut Surface, polygons: &[faces::Face], edges: &[[f64; 3]], 
         at += loops.len();
     }
     surface.shading = Shading::Corner;
+    (!cancel::stopped(cancelled, 0)).then_some(())
 }
 
 /// Is the edge this corner carries hard? Maya writes three numbers per edge — its two vertices,

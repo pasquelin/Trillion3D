@@ -910,6 +910,7 @@ dependencies = [
  "exr",
  "flate2",
  "image",
+ "libc",
  "libm",
  "memmap2",
  "meshopt",
