@@ -22,7 +22,7 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
  let page=pages[pageIndex];
  if(tri*3u+2u>=page.indexCount){return emptySurface();}
  let h=pageHeader(page);
- let i0=pageCorner(page,h,tri*3u);let i1=pageCorner(page,h,tri*3u+1u);let i2=pageCorner(page,h,tri*3u+2u);
+ let corners=pageTriangle(page,h,tri);let i0=corners.x;let i1=corners.y;let i2=corners.z;
  let p0=pagePosition(page,h,i0);let p1=pagePosition(page,h,i1);let p2=pagePosition(page,h,i2);
  var w0=page.world*vec4f(p0,1.0);var w1=page.world*vec4f(p1,1.0);var w2=page.world*vec4f(p2,1.0);
  // A sprite page's triangle is its quad turned to the camera (\`pageSprite\`), as the rasters drew it.

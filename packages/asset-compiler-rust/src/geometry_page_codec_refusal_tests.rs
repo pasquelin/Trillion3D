@@ -14,20 +14,22 @@ fn the_decoder_refuses_what_the_encoder_never_writes() {
         .expect("encode")
         .bytes;
     assert!(codec::decode(&good, 1 << 20).is_ok());
-    // An index past the vertex count, forged in the index stream: two bits per index.
+    // An index past the vertex count, forged in the corner stream after the one-word block table:
+    // a base of zero, two bits per corner.
     let mut forged = good.clone();
-    forged[HEADER_BYTES] = 0b11_01_00;
+    forged[HEADER_BYTES + 4] = 0b11_01_00;
     assert_eq!(
         codec::decode(&forged, 1 << 20).unwrap_err(),
         codec::PageError::Index
     );
     // The widest field on the coarsest grid, from the largest minimum: still a finite float, so
     // no page needs a nonfinite refusal and the decoder has none. Three corners on one cell make
-    // a single vertex, so the page is its header and one word of `x`.
+    // a single vertex, so the page is its header, the block table's one word (a zero width) and
+    // one word of `x`.
     let mut extreme = encode(&[0, 1, 2], &[0.0; 9], &[], -8, UV_EXPONENT)
         .expect("flat")
         .bytes;
-    assert_eq!(extreme.len(), HEADER_BYTES);
+    assert_eq!(extreme.len(), HEADER_BYTES + 4);
     extreme[24..28].copy_from_slice(&f32::MAX.to_le_bytes());
     extreme[20] = 24;
     extreme[23] = 64;

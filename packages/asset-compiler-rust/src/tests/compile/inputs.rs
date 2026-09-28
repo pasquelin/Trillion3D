@@ -110,7 +110,7 @@ fn compile_writes_pages_and_namespaced_pointer() {
     let directory = options.cache.join("native/slice").join(key);
     assert!(directory.join("source.gltf").exists());
     assert!(directory.join("scene.gltf").exists());
-    assert_eq!(result["geometryPages"]["formatVersion"], 3);
+    assert_eq!(result["geometryPages"]["formatVersion"], 4);
     assert_eq!(result["geometryPages"]["codec"], "quantized");
     let geometry = &result["primitives"][0]["pages"][0]["geometry"];
     assert!(geometry.get("formatVersion").is_none());

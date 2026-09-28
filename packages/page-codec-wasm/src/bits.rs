@@ -38,6 +38,15 @@ pub fn field(words: &[u32], at: usize, bits: u32) -> u32 {
     (value & ((1u64 << bits) - 1)) as u32
 }
 
+/// The little-endian words of `bytes`, a trailing partial word dropped.
+pub fn le_words(bytes: &[u8]) -> impl Iterator<Item = u32> + '_ {
+    bytes
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|b| u32::from_le_bytes(*b))
+}
+
 /// `2^exponent` as an exact `f32`, built from its bits: no rounding, whatever the platform.
 pub fn pow2(exponent: i32) -> f32 {
     f32::from_bits(((exponent + 127) as u32) << 23)
