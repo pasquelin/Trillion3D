@@ -320,9 +320,9 @@ body; so does another node its collider names (`colliderNode`). Each entry:
   `centerOfMass`, `inertiaDiagonal` turned by `inertiaOrientation`) wins over it, the cooked
   inertia scaled to a declared mass and, about a declared `centerOfMass`, moved there by the
   parallel axis theorem.
-- `colliderNode`: the other node whose mesh the hull is cooked from, when the collider names one;
-  absent otherwise, and from a file cooked before it was recorded (that node then stays static
-  ground beside the body).
+- `colliderNode` (stage version 9): the other node whose mesh the hull is cooked from, when the
+  collider names one; absent otherwise, and from a file cooked before it (that node then stays
+  static ground beside the body). Additive: format 2 still reads it.
 - `position`, `rotation`, `scale`: the node's world placement in the model, as an instance's.
 - `friction`, `restitution`: as an instance's.
 
