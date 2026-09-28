@@ -39,7 +39,7 @@ fn cooked(name: &str, nodes: Value) -> (Vec<u8>, BTreeSet<String>) {
         o: &o,
         g: &g,
         bin: &bin,
-        chosen: &chosen,
+        shown: &chosen,
         mesh_map: &mesh_map,
         cluster_planes: &[],
     };

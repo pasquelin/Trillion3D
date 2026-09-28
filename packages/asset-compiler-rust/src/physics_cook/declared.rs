@@ -7,7 +7,7 @@ use super::hull::{cooked_hull, Hull};
 use super::pieces::declared_breakable;
 use super::stage::{place, trs};
 use super::{refused, PHYSICS_COOK_FAILED};
-use crate::compiler_nodes::{hidden_nodes, scene_nodes};
+use crate::compiler_nodes::scene_nodes;
 use crate::compiler_validate::values;
 use crate::compiler_world::{multiply, rotation_matrix, scaling, translation, Mat4};
 use crate::{Options, Result};
@@ -134,12 +134,14 @@ pub(super) fn declared_bodies(
     let nodes = values(source.0, "nodes")?;
     let (mut bodies, mut refusals, mut cooked) = (Vec::new(), Vec::new(), BTreeMap::new());
     let moving = |i: &&usize| nodes[**i].pointer("/extensions/KHR_physics_rigid_bodies/motion");
-    let drawn = |i: &&usize| nodes[**i].get("mesh").is_none() || chosen.contains(*i);
-    // A hidden node is none, drawn or not (`chosen` holds none).
-    let hidden = hidden_nodes(source.0)?;
-    for &index in scene_nodes(source.0)?
+    let (reached, hidden) = scene_nodes(source.0)?;
+    // `chosen` holds no hidden node; a meshless one is none either.
+    let drawn = |i: &&usize| match nodes[**i].get("mesh") {
+        None => !hidden.contains(*i),
+        Some(_) => chosen.contains(*i),
+    };
+    for &index in reached
         .difference(soft)
-        .filter(|i| !hidden.contains(i))
         .filter(|i| moving(i).is_some() && drawn(i))
     {
         match body(o, source, nodes, (index, world), &mut cooked) {
