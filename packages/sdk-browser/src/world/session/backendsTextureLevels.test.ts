@@ -4,6 +4,7 @@ import { probeBackendContext } from './backends.fixture.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import type { ExplorerSession } from './session.ts';
+import type { MeasuredWorldOptions } from './options.ts';
 import { createPageCache } from '../../streaming/pageCache.ts';
 
 /**
@@ -34,7 +35,7 @@ const pageSources = {
 } as never;
 
 const run = (
-  options: { textureSource?: 'host' | 'cache' },
+  options: Partial<MeasuredWorldOptions>,
   cacheTextures?: { url: string },
   probe: Partial<RenderBackend> = {},
   session: Partial<ExplorerSession> = {},
@@ -157,4 +158,18 @@ test('a failed preparation falls back without waiting for the release, still dia
     'fallback',
     'backend-dispose-error',
   ]);
+});
+
+// #558 (D): a WebGL2 engine never draws a casting light unshadowed silently. A world hands its
+// hearer to the session; a session opened alone says `shadows-refused` on its own channel.
+test('a session opened alone says the shadows its engine refuses on its own channel', async () => {
+  const said: string[] = [];
+  const diagnose = (phase: string, _: string, context?: Record<string, unknown>) =>
+    void (phase === 'shadows-refused' && said.push(`${phase} ${context?.light}`));
+  const alone = await run({}, undefined, {}, { diagnose } as never);
+  alone.shadowsRefused!(['sun']);
+  assert.deepEqual(said, ['shadows-refused sun']);
+  const world = () => {};
+  const heard = await run({ shadowsRefused: world });
+  assert.equal(heard.shadowsRefused, world, "a world's session hands the world's hearer over");
 });
