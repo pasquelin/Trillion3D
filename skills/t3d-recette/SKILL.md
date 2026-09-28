@@ -5,5 +5,4 @@ description: Acceptance (recette): re-reads and proves the image of each branch 
 
 You are the single acceptance (recette) session of Trillion3D, opened with `/loop /t3d-recette`.
 Bring your checkout up to `origin/develop`, then follow `docs/roles/auditor.md` to the letter;
-`AGENTS.md` is in your context. Reach the CTOs only by `SendMessage` (`ListAgents`). Read only
-your role file and the issue at hand; `gh … --json --jq` for states.
+`AGENTS.md` is in your context. Reach the CTOs only by `SendMessage` (`ListAgents`).

@@ -10,10 +10,11 @@ disagreement is reported to the maintainer.
 
 1. **No image loss.** An optimisation that degrades the image is refused, even declared. Sole
    exception: fluids may lower their own quality automatically to hold their budget.
-2. **The acceptance session proves the image, the measurer alone times,** both on the issue's
-   branch before its pull request opens, so CI never runs for nothing. Acceptance runs the image
-   and correctness browser proofs (0 px, no error, pages drawn) (`docs/roles/auditor.md`). Timing (frame cost, p50/p95/p99, `test:gpu` timings, `perf:*`, the
-   bench) is the measurer's alone, on a quiet machine they share one run at a time. No other role runs Chrome, but a coder may
+2. **The acceptance session proves the image, the measurer alone times,** both on the reviewed
+   branch (rule 11). Acceptance runs the image and correctness browser proofs (0 px, no error,
+   pages drawn) (`docs/roles/auditor.md`). Timing (frame cost, p50/p95/p99, `test:gpu` timings,
+   `perf:*`, the bench) is the measurer's alone. Both share one quiet machine, one run at a time
+   (the `measuring` label). No other role runs Chrome, but a coder may
    open one headless Chrome to reproduce a bug it must fix: diagnosis only, never a proof.
 3. **Never `pkill`, `killall` or a pattern kill.** Kill your own processes by PID; the servers and
    browsers of other sessions and of the maintainer run on the same machine.
@@ -42,15 +43,14 @@ disagreement is reported to the maintainer.
    acceptance and analyst agents launch none.
 10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
     in the issue or the pull request, never on disk.
-11. **A pull request is opened finished.** The coder and the reviewer work on the pushed branch, with no pull request; acceptance and the measurer then prove and time that branch (rule 2); the lead opens the pull request (never a draft) only on the CTO's word after the reviewer's `OK`, its Lead verification, acceptance's `audited` and the measurer's `measure ok` or "no timing", with GitHub auto-merge on, so it waits only for CI: minutes, never hours. **Small, short-lived pull requests.** One issue per pull request, 1,500 hand-written lines at most (generated files excluded); an issue that needs more is narrowed (rule 5). A lead brings its conflicting PR up to date at once and keeps it open one hour at most: that is the limit, not a trigger. No pull request is closed unmerged, and no issue is abandoned: none is closed as not planned, and no item of it is refused or ticked as dropped, without the boss's explicit approval; the finding goes on the issue, the issue stays open, and the CTO asks the boss.
+11. **A pull request is opened finished.** The coder and the reviewer work on the pushed branch, with no pull request; acceptance and the measurer then prove and time that branch (rule 2), so CI never runs for nothing; the lead opens the pull request (never a draft) only on the CTO's word after the reviewer's `OK`, its Lead verification, acceptance's `audited` and the measurer's `measure ok`, with GitHub auto-merge on, so it waits only for CI: minutes, never hours. **Small, short-lived pull requests.** One issue per pull request, 1,500 hand-written lines at most (generated files excluded); an issue that needs more is narrowed (rule 5). A lead brings its conflicting PR up to date at once and keeps it open one hour at most: that is the limit, not a trigger. No pull request is closed unmerged, and no issue is abandoned: none is closed as not planned, and no item of it is refused or ticked as dropped, without the boss's explicit approval; the finding goes on the issue, the issue stays open, and the CTO asks the boss.
 
 ## Roles
 
 A company. The **boss** (the maintainer) opens one or two CTO sessions (`/t3d-cto oldest`,
 `/t3d-cto newest`), talks only to them, tests the result and sets priorities. **Each CTO carries
 one issue at a time**: it picks the next issue of the backlog, hands it to the lead of its domain,
-sends the lead's reviewed branch to acceptance and the measurer, has the lead open the pull request
-once both pass, and picks the next issue when it merges. The CTO asks the boss to open the
+and picks the next when it merges (§The backlog, `docs/roles/cto.md`). The CTO asks the boss to open the
 sessions it needs (the measurer, acceptance, and the lead of each issue it hands over). Every role runs in its own session and reports to the CTO
 by `SendMessage`; a lead runs its `coder` and `reviewer` as subagents (§The backlog). Each role is
 `docs/roles/<role>.md`, and its skill in `skills/` is the session's brief; "Prompt by" names who
@@ -75,8 +75,7 @@ acceptance, measurer and analyst never code and own no pull request: they add a 
 open issue, send a branch back (`audit ko`, `measure ko`) or report to the CTO. Sole exception: the
 measurer's thumbnail pull request (captured images, no code). The company's rules (AGENTS.md,
 CONTRIBUTING.md, `docs/roles/`, `docs/COMPANY.md`, `skills/`) are the CTO's: it writes their pull
-request and starts its reviewer. Pull requests merge themselves: GitHub auto-merge, on once
-acceptance and the measurer have passed the branch; the CTO turns it on where a lead cannot. A bug
+request and starts its reviewer. Pull requests merge themselves by auto-merge (rule 11). A bug
 goes to its domain's lead; there is no bug domain. There are at most two CTO sessions, one
 `oldest` and one `newest`, one measurer and one acceptance agent. Every agent reports to the CTO; only the CTO speaks to the boss. The CTO watches
 the plan usage: 5 points below the threshold (80 % unless the boss sets another) no CTO hands out an
@@ -87,8 +86,9 @@ no work is cut midway.
 
 - **Claim first.** An issue is taken only by labelling it `in progress`, assigning it and
   commenting who carries it, before any agent works on it; one labelled or assigned is never
-  taken again. Two leads never share an issue.
-- **Order.** A CTO picks the next open issue of the leads' domains, never a claimed one: a `measure ko` or `audit ko` first, then 🔴, 🟠, 🟡, 🟢, an issue with no
+  taken again, so two leads never share an issue.
+- **Order.** A CTO picks the next open issue of the leads' domains, never in a domain whose lead
+  carries the other CTO's issue: a `measure ko` or `audit ko` first, then 🔴, 🟠, 🟡, 🟢, an issue with no
   priority label last. Within a label, a programme's children in its order, then engine
   performance and optimisation before examples; then the oldest first for `/t3d-cto oldest`,
   the newest first for `/t3d-cto newest`, so two CTOs never meet.
@@ -104,18 +104,16 @@ no work is cut midway.
 | `🔴 critical` … `🟢 low` | CTO                  | the only priority of the leads' issues (order: §The backlog)                  |
 | `in progress`            | CTO                  | handed to a lead, assigned to the boss: no other CTO takes it                 |
 | `in review`              | lead, CTO            | branch pushed, reviewer at work; on another AI's PR, its CTO's review         |
-| `to measure`             | CTO                  | reviewed branch waiting for acceptance and the measurer                       |
+| `to measure`             | CTO                  | reviewed branch waiting for acceptance and the measurer; the lead removes it  |
 | `measuring`              | measurer, acceptance | the quiet machine is in use on this issue; nobody else starts Chrome          |
 | `measure ok`             | measurer             | the branch timed with no regression, or needs no timing; a comment says which |
 | `measure ko`             | measurer             | the branch regresses: back to its lead, the numbers in a comment              |
 | `audited`                | acceptance           | the branch re-read and its image proved                                       |
 | `audit ko`               | acceptance           | the branch fails: back to its lead, the findings in a comment                 |
 
-Acceptance and timing run on the branch before the pull request (rule 11); the lead closes the
-issue right after the merge (`Closes #n` does not close it from `develop`). A regression found
-after a merge **reopens** the original issue with `measure ko` or `audit ko`; neither opens a new
-one, and every ko comment's first word is its cause: promise, tests, paperwork or design. A CTO
-takes a ko issue first (§The backlog).
+The lead closes the issue right after the merge (`Closes #n` does not close it from `develop`).
+A regression found after a merge **reopens** the original issue (rule 5), never a new one. Every
+ko comment's first word is its cause: promise, tests, paperwork or design.
 
 ## Interaction
 
