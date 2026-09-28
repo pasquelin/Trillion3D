@@ -13,6 +13,8 @@
 //! unit of it spans in the group — the square root of the group's surface area over its texture
 //! area: a coordinate that slides by `d` draws the texture as far off as a position moved by `d`
 //! times that length. Normals keep the endpoint reduction's weight (`attributes::NORMAL_WEIGHT`).
+//! The largest step a placed coordinate took, clamp included, times that length joins the
+//! group's error (`placed::Local::drift`).
 //!
 //! The retries are the endpoint reduction's: a lost lock locks its triangles, three times at
 //! most; a face lit from behind locks its surroundings as long as that locks something new.
@@ -85,7 +87,7 @@ fn attempt(input: &GroupReductionInput, live: &[u32], children: usize) -> Result
                 continue;
             }
         }
-        let local = Local::of(input, solved);
+        let local = Local::of(input, solved, &densities);
         if let (true, Some(normals)) = (lost.is_empty(), &local.normals) {
             let (indices, positions) = (&local.indices, &local.positions);
             let bound = input.normal_bound;
@@ -104,7 +106,8 @@ fn attempt(input: &GroupReductionInput, live: &[u32], children: usize) -> Result
 }
 
 /// The solved group re-clustered, `None` when it yields no fewer clusters than its `children`;
-/// its error is the solve's, the parts it removed and the copies its open border welded.
+/// its error is the solve's, the parts it removed, the copies its open border welded and the
+/// slide of its placed texture coordinates (`Local::drift`).
 fn finish(
     input: &GroupReductionInput,
     local: Local,
@@ -122,7 +125,7 @@ fn finish(
         vanished::vanished_error(source, kept, &local.positions, &local.weld, &local.extents);
     let global = |cluster: Vec<u32>| cluster.into_iter().map(|v| local.global(v, base)).collect();
     Ok(Some(Solved {
-        error: error.max(vanished).max(weld_error),
+        error: error.max(vanished).max(weld_error).max(local.drift),
         clusters: clusters.into_iter().map(global).collect(),
         placed: local.placed(input, base),
         relocked: !extra.is_empty(),
