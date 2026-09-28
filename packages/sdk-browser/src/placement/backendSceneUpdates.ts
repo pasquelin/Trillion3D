@@ -36,6 +36,10 @@ export type PlacementMount = {
 
 /** What an engine lets a host change in the scene it prepared, without preparing it again. */
 export interface BackendSceneUpdates {
+  /** Moves a named node of the prepared scene; applied to the next frame, without allocation (R8). */
+  setTransform?(nodeName: string, matrix: Float32Array): void;
+  /** `setTransform` on nodes of the prepared scene the host holds, sixteen floats each, one pass. */
+  setTransforms?(nodes: readonly Object3D[], matrices: Float32Array): void;
   replaceGeometryPage?(url: string, data: DecodedGeometryPage): void;
   /** Prepared-scene instance placed by sixteen column-major floats the engine copies. */
   addInstance?(id: string, transform: Float64Array): void;

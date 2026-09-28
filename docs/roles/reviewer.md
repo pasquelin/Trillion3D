@@ -33,8 +33,8 @@ or the bench (AGENTS.md rule 2).
 4. Commit `refactor|fix(scope): … (#<issue>)`, then merge `origin/develop` into the branch
    (`git fetch origin`, `git merge origin/develop`), then the gates and tests on that final head:
    `pnpm run check:changed`, `pnpm run test:changed`, and the validate group the diff touches —
-   `--group quick` (sources), `--group typescript` (build and products), `--group native` (Rust
-   and the unit suite). Push once: one CI run covers the
+   `--group quick` (sources), `--group typescript` (build and products), `--group native` (Rust),
+   `--group unit` (the unit suite). Push once: one CI run covers the
    update and the fixes.
 5. Fill "Local review before push" in the body file: one line `Simplification pass: …` and one line
    `Correctness review: …` with what each skill found and fixed, copied from its report (CI refuses a

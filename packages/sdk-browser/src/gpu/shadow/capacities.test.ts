@@ -15,6 +15,7 @@ import {
   OCCLUSION_SLOT_WORDS,
   OCCLUSION_UNIFORM_WORDS,
   SHADOW_FACE_STRIDE,
+  SHADOW_REGION_COMMANDS,
   shadowBatchCapacity,
 } from './batchBudget.ts';
 import { SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER } from './cullShader.ts';
@@ -52,8 +53,11 @@ test('the shaders declare the contract: views, regions, strides and uniform word
   assert.equal(words(SHADOW_CULL_SHADER, 'Uni'), CULL_UNIFORM_WORDS);
   assert.equal(words(SHADOW_LIGHT_CULL_SHADER, 'Uni'), LIGHT_CULL_UNIFORM_WORDS);
   assert.equal(words(SHADOW_OCCLUSION_SHADER, 'Uni'), OCCLUSION_UNIFORM_WORDS);
-  assert.equal(read(SHADOW_CULL_SHADER, /indirect\[face\*(\d+)u\+1u\]/), DRAW_INDIRECT_WORDS);
-  assert.equal(read(SHADOW_OCCLUSION_SHADER, /indirect\[r\*(\d+)u\+1u\]/), DRAW_INDIRECT_WORDS);
+  // Both lists of a region (#965), in the cull's commands as in the occlusion test's.
+  for (const shader of [SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER, SHADOW_OCCLUSION_SHADER]) {
+    assert.equal(read(shader, /\(region\*(\d+)u\+select/), SHADOW_REGION_COMMANDS);
+    assert.equal(read(shader, /select\(0u,1u,cutout\)\)\*(\d+)u\+1u/), DRAW_INDIRECT_WORDS);
+  }
   assert.equal(read(SHADOW_OCCLUSION_SHADER, /slots\[r\*(\d+)u\]/), OCCLUSION_SLOT_WORDS);
 });
 

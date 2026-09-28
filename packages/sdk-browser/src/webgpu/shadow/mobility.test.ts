@@ -2,6 +2,7 @@
 // splits a page's casters by, and every row is rewritten when a placement turns moving.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { MOBILITY_CUTOUT, MOBILITY_MOVING } from '../../gpu/shadow/cullShader.ts';
 import { createShadowMobility } from './mobility.ts';
 import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts';
 import { createShadowResidence } from './residence.ts';
@@ -113,4 +114,35 @@ test("a blended caster's row always counts as moving", () => {
     2,
   );
   assert.deepEqual([...mobility.rowWords], [0, 0, 1, 1]);
+});
+
+// #965: a cutout's row is filed with the casters drawn with the fragment test; a blended caster's
+// never is, cutout or not — the transmittance pass reads the other list alone.
+test("a cutout row's word carries the cutout bit, beside its moving bit", () => {
+  const mobility = createShadowMobility();
+  mobility.ensure(2, 5, () => new Float64Array(16));
+  mobility.move(1, new Float64Array(16).fill(1));
+  const cutouts = new Set([1, 2, 4]);
+  mobility.writeRows(
+    (row) => [0, 0, 1, 1][row] ?? -1,
+    5,
+    0,
+    4,
+    () => {},
+    4,
+    (row) => cutouts.has(row),
+  );
+  const [MOVING, CUTOUT] = [MOBILITY_MOVING, MOBILITY_CUTOUT];
+  assert.deepEqual([...mobility.rowWords], [0, CUTOUT, MOVING | CUTOUT, MOVING, MOVING]);
+  assert.ok(mobility.hasCutouts);
+  // The cutouts rewritten opaque: none is left.
+  mobility.writeRows(
+    (row) => [0, 0, 1, 1][row] ?? -1,
+    5,
+    1,
+    2,
+    () => {},
+    4,
+  );
+  assert.ok(!mobility.hasCutouts);
 });
