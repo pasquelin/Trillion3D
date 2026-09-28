@@ -15,8 +15,9 @@ export function residentFraction(value: string): number | undefined {
 }
 
 /** The texture pool budget, in bytes, that holds `fraction` of the `residentBytes` the settled pose
- *  holds: the pool then fills and a moving camera evicts. The engine raises a budget under its
- *  floor to it, by name (`clamp`), and says so in its report. */
+ *  holds: the pool then fills and a moving camera evicts. Under the engine's floor of layers the
+ *  budget is held tile by tile (`texturePoolFor`), raised by name (`minimum`) only under each
+ *  lane's tails and one tile to stream into. */
 export function residentFractionBudget(fraction: number, residentBytes: number | undefined) {
   if (typeof residentBytes !== 'number' || !(residentBytes > 0))
     throw new Error('the pose holds no texture tile: no working set to take a fraction of');
