@@ -24,14 +24,16 @@ const EXCEPTED = new RegExp(
 
 /** The French words of `text`, lower case and without accents, in order of appearance. */
 export function frenchWords(text: string): string[] {
+  // Accents go before the camelCase split, which needs the case; the case goes after it.
   const words = text
     .replace(EXCEPTED, ' ')
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
     .replace(/(\p{Ll})(\p{Lu})/gu, '$1 $2')
     .replace(/(\p{Lu})(\p{Lu}\p{Ll})/gu, '$1 $2')
+    .toLowerCase()
     .match(/\p{L}+/gu);
-  return (words ?? [])
-    .map((word) => word.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase())
-    .filter((word) => FRENCH_WORDS.has(word));
+  return (words ?? []).filter((word) => FRENCH_WORDS.has(word));
 }
 
 /** The package a file belongs to: `packages/<name>`, else its top folder. */
@@ -90,13 +92,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       for (const [file, words] of found)
         if (unitOf(file) === unit) console.error(`  ${file}: ${words.join(', ')}`);
     }
-    if (risen.length) process.exitCode = 1;
-    else if (fallen) {
+    if (risen.length) {
+      console.error(
+        `Named exceptions, strings a program reads: ${Object.keys(FRENCH_EXCEPTIONS).join(', ')}`,
+      );
+      process.exitCode = 1;
+    } else if (fallen) {
       write();
       console.log(`Fewer French words: ${BASELINE} lowered, commit it.`);
     } else console.log('No new French word in the code.');
   }
-  console.log(
-    `Named exceptions, strings a program reads: ${Object.keys(FRENCH_EXCEPTIONS).join(', ')}`,
-  );
 }
