@@ -19,7 +19,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
+      # The script and the Node version only: the job reads nothing else.
       - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/close-named-issues.ts
+            package.json
+          sparse-checkout-cone-mode: false
       # Node alone, no dependencies: the script imports only Node's own modules.
       - uses: actions/setup-node@v7
         with:
