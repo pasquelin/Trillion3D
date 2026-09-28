@@ -6,8 +6,9 @@ use super::{tile_log2, TILE_EXTENT_LOG2};
 use crate::compute_bench::inputs::Xorshift;
 use crate::dag::{build_dag_tallied, DagAttributes, DagStrategy};
 use crate::geometry_page::encode;
-use crate::geometry_page_quant::{grid_exponent, primitive_exponent, UV_EXPONENT};
+use crate::geometry_page_quant::{primitive_exponent, UV_EXPONENT};
 use crate::tests::fixtures::grid_indices;
+use trillion3d_page_codec::bits::grid::grid_exponent;
 use trillion3d_page_codec::bits::{MAX_BITS, MAX_EXPONENT};
 
 /// The grid rule before tiles: a tile no primitive reaches leaves the extent rule whole.

@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { Server } from 'node:http';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import type { Server, ServerResponse } from 'node:http';
+import fs, { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { once } from 'node:events';
+import { syncBuiltinESMExports } from 'node:module';
 import { request } from 'node:http';
 import { join, resolve } from 'node:path';
 import { brotliDecompressSync } from 'node:zlib';
@@ -128,4 +130,42 @@ test('the deploy pre-compresses the cache objects only, which decode to themselv
   assert.ok(encoded.byteLength < page.byteLength);
   assert.deepEqual(brotliDecompressSync(encoded), page);
   assert.throws(() => readFileSync(join(root, 'cache/page.bin.br')), { code: 'ENOENT' });
+});
+
+test('a request aborted before its file opens leaves no file open and pipes nothing', async (t) => {
+  const root = cacheTree(t, Buffer.alloc(4096, 7)),
+    read = fs.createReadStream;
+  // The server's file stream, caught as it is made (a built-in's exports follow its object).
+  const made = new Promise<fs.ReadStream>((make) =>
+    t.mock.method(fs, 'createReadStream', (...args: Parameters<typeof read>) => {
+      const stream = read(...args);
+      make(stream);
+      return stream;
+    }),
+  );
+  syncBuiltinESMExports();
+  t.after(syncBuiltinESMExports);
+  const server = staticServer({ mounts: [{ prefix: '/', dir: root }] }),
+    port = await listen(server);
+  let said = 0;
+  const piped = new Promise<void>((pipe) =>
+    t.mock.method(console, 'error', () => (said++, pipe())),
+  );
+  // The client gone as the server starts on the file: its response closes before the file opens.
+  server.on('request', (_, response: ServerResponse) => response.destroy());
+  request({ port, path: '/cache/page.bin' })
+    .on('error', () => {})
+    .end();
+  const stream = await made;
+  // Either the file closes, or the server says it could not pipe onto the closed response.
+  await Promise.race([once(stream, 'close'), piped]);
+  await closeAll(server);
+  assert.equal(said, 0, 'no pipe onto the closed response');
+  assert.ok(stream.closed, 'the file stream is closed with the response');
+});
+
+test('the docs server isolates every page across origins, as the published site does', async (t) => {
+  const answer = await raw(createDocsServer(cacheTree(t, Buffer.alloc(8))), '/cache/page.bin');
+  assert.equal(answer.headers['cross-origin-opener-policy'], 'same-origin');
+  assert.equal(answer.headers['cross-origin-embedder-policy'], 'credentialless');
 });
