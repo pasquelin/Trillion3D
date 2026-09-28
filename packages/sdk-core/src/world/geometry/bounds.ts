@@ -1,8 +1,8 @@
 /**
  * The local bounds of a geometry, as the reference spans them: every vertex and every shape a
- * morph target gives it. A position that owns its list and has no morph target is read as its
- * stored numbers, `itemSize` apart, as `drawnTriangles` draws it; any other (interleaved, or
- * morphed) through `getComponent`, at the value it stands for.
+ * morph target gives it. A position is read at the value it stands for, as `drawnTriangles` draws
+ * it (`positionAt`): straight from its list when it owns three plain numbers a vertex and no morph
+ * target moves it, else vertex by vertex.
  */
 import { boxEmpty, boxExpandByPoint } from '../../math/primitives/box.ts';
 import type { VertexAttribute } from '../buffer/attribute.ts';
@@ -26,6 +26,18 @@ const whole = new Float64Array(6),
   scratchBox = new Box3(),
   centre = new Vector3();
 
+/** Number `component` of position `index` at the value it stands for, a normalised integer
+ *  scaled back; a position two numbers wide lies in the plane z = 0. */
+export const positionAt = (attribute: VertexAttribute, index: number, component: number) =>
+  component < attribute.itemSize ? attribute.getComponent(index, component) : 0;
+
+/** The position list itself when its stored numbers are its values: owned, three a vertex, not
+ *  normalised; `null` for any other. */
+export const plainPoints = (attribute: VertexAttribute | undefined) =>
+  attribute?.kind === 'attribute' && attribute.itemSize === 3 && !attribute.normalized
+    ? attribute
+    : null;
+
 /** The box of an attribute's vertices, written into `into` (six numbers). */
 function spanInto(into: Float64Array, attribute: VertexAttribute) {
   boxEmpty(into, 0);
@@ -33,9 +45,9 @@ function spanInto(into: Float64Array, attribute: VertexAttribute) {
     boxExpandByPoint(
       into,
       0,
-      attribute.getComponent(i, 0),
-      attribute.getComponent(i, 1),
-      attribute.getComponent(i, 2),
+      positionAt(attribute, i, 0),
+      positionAt(attribute, i, 1),
+      positionAt(attribute, i, 2),
     );
 }
 
@@ -64,11 +76,9 @@ function span({ attributes, morphAttributes, morphTargetsRelative: relative }: M
   return true;
 }
 
-/** The position when it owns its list and no morph target moves it: read as stored. */
-function stored({ attributes, morphAttributes }: Morphed) {
-  const position = attributes.position;
-  return position?.kind === 'attribute' && !morphAttributes.position?.length ? position : null;
-}
+/** The position read straight from its list (`plainPoints`) when no morph target moves it. */
+const stored = ({ attributes, morphAttributes }: Morphed) =>
+  morphAttributes.position?.length ? null : plainPoints(attributes.position);
 
 /** Writes the box over every vertex and morphed shape into `box`; empty with no position. */
 export function spanBox(box: Box3, morphed: Morphed) {
@@ -99,20 +109,15 @@ export function spanSphere(sphere: Sphere, morphed: Morphed) {
     for (let i = 0, a = plain.array; i + 2 < a.length; i += plain.itemSize)
       reach(a[i], a[i + 1], a[i + 2]);
   else {
-    for (let i = 0; i < position.count; i++)
-      reach(position.getX(i), position.getY(i), position.getZ(i));
+    const at = (a: VertexAttribute, i: number) =>
+      [0, 1, 2].map((c) => positionAt(a, i, c)) as [number, number, number];
+    for (let i = 0; i < position.count; i++) reach(...at(position, i));
     const relative = morphed.morphTargetsRelative;
     for (const target of morphed.morphAttributes.position ?? [])
       for (let j = 0; j < target.count; j++) {
-        let x = target.getX(j),
-          y = target.getY(j),
-          z = target.getZ(j);
-        if (relative) {
-          x += position.getX(j);
-          y += position.getY(j);
-          z += position.getZ(j);
-        }
-        reach(x, y, z);
+        const moved = at(target, j);
+        if (relative) for (let c = 0; c < 3; c++) moved[c] += positionAt(position, j, c);
+        reach(...moved);
       }
   }
   sphere.center.set(cx, cy, cz);
@@ -123,9 +128,8 @@ export function spanSphere(sphere: Sphere, morphed: Morphed) {
 /** Whether `geometry` reads `attribute` as its stored numbers, a normalised integer unscaled: a
  *  list a world geometry owns, as the world has always drawn, edged and turned it. A host
  *  geometry's lists are read at the value they stand for, as the host always read them, and so
- *  is a view of an interleaved buffer, as `readPoints` and `spanBox` read it. Not asked for the
- *  drawn positions, the box or a moved position list: an owned one is read as stored for every
- *  owner. */
+ *  is a view of an interleaved buffer. Not asked for a position, which every owner reads at its
+ *  value (`positionAt`). */
 export const readsStored = (geometry: Pick<Geometry, '_owner'>, attribute: VertexAttribute) =>
   geometry._owner === 'world' && attribute.kind === 'attribute';
 
@@ -140,15 +144,15 @@ export const readComponent = (
     ? attribute.stored(index, component)
     : attribute.getComponent(index, component);
 
-/** The positions as a list of numbers: the stored array itself when the attribute owns it, as the
- *  world's geometry has always been drawn; an interleaved one copied vertex by vertex, three per
- *  vertex; none without an attribute. */
+/** The positions as a list of numbers, three a vertex, at their values: the list itself when its
+ *  numbers are (`plainPoints`), else a copy read vertex by vertex (`positionAt`); none without an
+ *  attribute. */
 export function readPoints(attribute: VertexAttribute | undefined): ArrayLike<number> {
   if (!attribute) return [];
-  if (attribute.kind === 'attribute') return attribute.array;
+  const plain = plainPoints(attribute);
+  if (plain) return plain.array;
   const out = new Float32Array(attribute.count * 3);
   for (let i = 0; i < attribute.count; i++)
-    for (let c = 0; c < Math.min(3, attribute.itemSize); c++)
-      out[i * 3 + c] = attribute.getComponent(i, c);
+    for (let c = 0; c < 3; c++) out[i * 3 + c] = positionAt(attribute, i, c);
   return out;
 }
