@@ -1,43 +1,49 @@
-import { BOX_VALUES, boxEmpty, boxUnion } from '../../../../sdk-core/src/index.ts';
-import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
+import {
+  BOX_VALUES,
+  boxEmpty,
+  boxUnion,
+  buildCentreTree,
+  centreTreeNodes,
+} from '../../../../sdk-core/src/index.ts';
+import { refreshBlendWorlds } from './worlds.ts';
+import type { createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
 /**
  * BOX TREE OF THE TRANSPARENT ITEMS, which the frustum verdict walks node by node
- * (`hierarchyCull.ts`, #981).
- *
- * The engine has no scene-item tree to borrow — the cluster DAG is per geometry and compiled —,
- * so this one is minimal: a binary tree split at the median centre, leaves of a few items, laid
- * out in pre-order with a skip link, so the walk is a loop, not a recursion. It is BUILT when the
- * item list changes and REFIT when boxes move (`refitBlendHierarchy`), never per frame.
+ * (`hierarchyCull.ts`, #981). Its shape is the engine's median split (`buildCentreTree`, the one
+ * the collision triangle tree uses); its boxes are double precision, the items' own. It is BUILT
+ * with each item list (`buildBlendStatics`) and REFIT where boxes are rewritten
+ * (`refreshBlendBoxes`), never per frame.
  *
  * INVARIANT: the kept set, the mask, the reject and water counts are exactly those of the item by
  * item walk. A node is rejected only when `frustumExcludesBox` rejects its box, and then it rejects
  * every box inside it, bit for bit: the chosen corner of a child is never beyond its parent's
  * (`Math.min`/`Math.max` unions), a product and a rounded sum are monotonic, and a NaN never
  * rejects. The one hole — a zero plane coefficient times an infinite bound, NaN in the child but
- * not in the parent — is closed by giving a leaf node holding an item with a non-finite bound, or
+ * not in the parent — is closed by giving a leaf holding an item with a non-finite bound, or
  * without a box, a NaN box: NaN climbs every union above it, those nodes never reject, and their
  * items are judged one by one. An item the tree does not hold (no box at build) is judged alone
- * every frame. The tree is only as current as its last refit: every box write
- * (`refreshBlendWorlds`) is followed by one (`render.ts`).
+ * every frame.
  */
 const LEAF_ITEMS = 8;
 
 export function createBlendHierarchy() {
   return {
-    /** The mask and item count the tree was built for: `buildBlendStatics` gives every new item
-     *  list a new mask, so either one differing rebuilds. */
-    builtFor: undefined as Uint32Array | undefined,
+    /** Items the tree was built for: another count is another list, built again. */
     count: -1,
     /** Ranks of the boxed items in tree order: a node covers a contiguous span of them. */
     leaves: new Uint32Array(0),
     /** Ranks of the items without a box at build: never rejected by a node. */
     loose: new Uint32Array(0),
     nodes: 0,
+    /** Per node, its span's first entry in `leaves`; one more slot ends the last span. */
     first: new Uint32Array(0),
-    end: new Uint32Array(0),
-    /** Node after this one's subtree; `n + 1` marks a leaf node. */
+    /** Per node, the right child of an inner node (the left follows it) and a leaf's entry count,
+     *  zero for an inner node (`buildCentreTree`). */
+    links: new Int32Array(0),
+    counts: new Int32Array(0),
+    /** Node after this one's subtree: the walk passes a whole subtree in one step. */
     skip: new Uint32Array(0),
     boxes: new Float64Array(0),
     /** The frame's mask, composed here then copied word by word where it changed. */
@@ -46,40 +52,11 @@ export function createBlendHierarchy() {
     tested: 0,
   };
 }
-export type BlendHierarchy = ReturnType<typeof createBlendHierarchy>;
 
-/** Splits `leaves[from, to)` at the median centre on its widest axis, pre-order from `node`. */
-function split(tree: BlendHierarchy, centres: Float64Array, from: number, to: number) {
-  const node = tree.nodes++;
-  tree.first[node] = from;
-  tree.end[node] = to;
-  if (to - from > LEAF_ITEMS) {
-    const span = tree.leaves.subarray(from, to);
-    let axis = 0,
-      widest = -1;
-    for (let a = 0; a < 3; a++) {
-      let lo = Infinity,
-        hi = -Infinity;
-      for (const rank of span) {
-        lo = Math.min(lo, centres[rank * 3 + a]);
-        hi = Math.max(hi, centres[rank * 3 + a]);
-      }
-      if (hi - lo > widest) {
-        axis = a;
-        widest = hi - lo;
-      }
-    }
-    // A NaN centre compares as equal: the tree gets looser, never wrong.
-    span.sort((p, q) => centres[p * 3 + axis] - centres[q * 3 + axis] || p - q);
-    const mid = (from + to) >>> 1;
-    split(tree, centres, from, mid);
-    split(tree, centres, mid, to);
-  }
-  tree.skip[node] = tree.nodes;
-}
-
-/** Builds the tree over `items` as they stand, then fits its boxes. */
-function buildBlendHierarchy(tree: BlendHierarchy, items: readonly BlendGpuItem[]) {
+/** Builds the tree over the scene's items as they stand, then fits its boxes. */
+export function buildBlendHierarchy(blendState: BlendState) {
+  const tree = blendState.hierarchy,
+    items = blendState.blendGpu;
   const boxed: number[] = [],
     loose: number[] = [];
   for (let i = 0; i < items.length; i++) (items[i].bounds ? boxed : loose).push(i);
@@ -89,78 +66,75 @@ function buildBlendHierarchy(tree: BlendHierarchy, items: readonly BlendGpuItem[
       const box = items[rank].bounds!;
       centres[rank * 3 + a] = (box[a] + box[a + 3]) / 2;
     }
-  // Halves of a span past `LEAF_ITEMS` hold at least half of it: a leaf holds four items or more.
-  const capacity = 2 * Math.max(1, Math.ceil(boxed.length / (LEAF_ITEMS / 2)));
+  const capacity = centreTreeNodes(boxed.length, LEAF_ITEMS);
   tree.leaves = Uint32Array.from(boxed);
   tree.loose = Uint32Array.from(loose);
-  tree.first = new Uint32Array(capacity);
-  tree.end = new Uint32Array(capacity);
+  tree.first = new Uint32Array(capacity + 1);
+  tree.links = new Int32Array(capacity);
+  tree.counts = new Int32Array(capacity);
   tree.skip = new Uint32Array(capacity);
   tree.boxes = new Float64Array(capacity * BOX_VALUES);
   tree.mask = new Uint32Array((items.length + 31) >>> 5);
-  tree.nodes = 0;
-  if (boxed.length) split(tree, centres, 0, boxed.length);
+  const first = tree.first;
+  tree.nodes = boxed.length
+    ? buildCentreTree(
+        centres,
+        tree.leaves,
+        boxed.length,
+        LEAF_ITEMS,
+        tree.links,
+        tree.counts,
+        (node, start) => {
+          first[node] = start;
+        },
+      )
+    : 0;
+  first[tree.nodes] = boxed.length;
+  // A leaf's subtree ends at the next node, an inner node's where its right child's does.
+  for (let node = tree.nodes - 1; node >= 0; node--)
+    tree.skip[node] = tree.counts[node] ? node + 1 : tree.skip[tree.links[node]];
   tree.count = items.length;
-  refitNodes(tree, items);
-}
-
-/** Widens the box at `o` by node `child`'s box. */
-function unionNode(boxes: Float64Array, o: number, child: number) {
-  const c = child * BOX_VALUES;
-  boxUnion(
-    boxes,
-    o,
-    boxes[c],
-    boxes[c + 1],
-    boxes[c + 2],
-    boxes[c + 3],
-    boxes[c + 4],
-    boxes[c + 5],
-  );
+  refitNodes(blendState);
 }
 
 /** Fits every node box to its items' boxes, children first: pre-order read backwards. */
-function refitNodes(tree: BlendHierarchy, items: readonly BlendGpuItem[]) {
-  const { boxes, first, end, skip, leaves } = tree;
-  for (let node = tree.nodes - 1; node >= 0; node--) {
+function refitNodes(blendState: BlendState) {
+  const items = blendState.blendGpu,
+    { boxes, first, links, counts, leaves, nodes } = blendState.hierarchy;
+  for (let node = nodes - 1; node >= 0; node--) {
     const o = node * BOX_VALUES;
-    boxEmpty(boxes, o);
-    if (skip[node] !== node + 1) {
-      unionNode(boxes, o, node + 1);
-      unionNode(boxes, o, skip[node + 1]);
+    if (!counts[node]) {
+      const l = (node + 1) * BOX_VALUES,
+        r = links[node] * BOX_VALUES;
+      for (let v = 0; v < 3; v++) {
+        boxes[o + v] = Math.min(boxes[l + v], boxes[r + v]);
+        boxes[o + v + 3] = Math.max(boxes[l + v + 3], boxes[r + v + 3]);
+      }
       continue;
     }
+    boxEmpty(boxes, o);
     // Each item's own bounds are checked: a union would hide an infinite one behind a finite one.
     let finite = true;
-    for (let k = first[node]; k < end[node] && finite; k++) {
+    for (let k = first[node]; k < first[node] + counts[node] && finite; k++) {
       const box = items[leaves[k]].bounds;
-      finite = !!box;
-      for (let v = 0; v < BOX_VALUES && finite; v++) finite = Number.isFinite(box![v]);
+      finite = !!box && box.every(Number.isFinite);
       if (finite) boxUnion(boxes, o, box![0], box![1], box![2], box![3], box![4], box![5]);
     }
     if (!finite) boxes.fill(NaN, o, o + BOX_VALUES);
   }
 }
 
-/** True when the tree was built for the scene's current item list. */
-const builtForList = (blendState: BlendState) =>
-  blendState.hierarchy.builtFor === blendState.keepPacked &&
-  blendState.hierarchy.count === blendState.blendGpu.length;
-
 /**
- * Refits the tree to boxes that moved: called where they are refreshed (`refreshBlendWorlds`'s
- * caller). A tree not yet built for this list is left for the next frame to build.
+ * The transparent items' world boxes rebuilt after a matrix move (`refreshBlendWorlds`), and the
+ * tree refit to them: the only box writes after prepare, so the tree never lags a box.
  */
-export function refitBlendHierarchy(blendState: BlendState) {
-  if (builtForList(blendState)) refitNodes(blendState.hierarchy, blendState.blendGpu);
+export function refreshBlendBoxes(blendState: BlendState) {
+  refreshBlendWorlds(blendState.blendGpu);
+  if (blendState.hierarchy.count === blendState.blendGpu.length) refitNodes(blendState);
 }
 
-/** The tree of the scene's current item list, built first when the list changed. */
+/** The tree of the scene's items, built first when the list changed without `buildBlendStatics`. */
 export function currentBlendHierarchy(blendState: BlendState) {
-  const tree = blendState.hierarchy;
-  if (!builtForList(blendState)) {
-    buildBlendHierarchy(tree, blendState.blendGpu);
-    tree.builtFor = blendState.keepPacked;
-  }
-  return tree;
+  if (blendState.hierarchy.count !== blendState.blendGpu.length) buildBlendHierarchy(blendState);
+  return blendState.hierarchy;
 }

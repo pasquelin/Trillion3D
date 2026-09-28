@@ -7,7 +7,7 @@ import { random } from '../../page/cut/cutRuleChecks.fixture.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { notDrawn } from '../../placement/hidden.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
-import { refitBlendHierarchy } from './hierarchy.ts';
+import { refreshBlendBoxes } from './hierarchy.ts';
 import { developOrder, outcome } from './hierarchyOracle.fixture.ts';
 import { orderBlendPasses } from './order.ts';
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts';
@@ -28,18 +28,22 @@ function box(next: () => number, edges: boolean) {
   return bounds;
 }
 
-/** Six planes: an axis box of view around a random centre, or random half-spaces. */
-function planes(into: Float64Array, next: () => number, edges: boolean) {
-  const c = [0, 1, 2].map(() => (next() - 0.5) * 150),
-    r = 5 + next() * 60,
-    tilted = next() < 0.3;
+/** Six planes keeping the axis box of half-size `r` around `c`; `tilt` draws random normals. */
+function viewBox(into: Float64Array, c: number[], r: number, tilt?: () => number) {
   for (let p = 0; p < 6; p++) {
     const axis = p >> 1,
       sign = p & 1 ? -1 : 1;
-    const n = tilted ? [next() - 0.5, next() - 0.5, next() - 0.5] : [0, 0, 0];
-    if (!tilted) n[axis] = sign;
+    const n = tilt ? [tilt() - 0.5, tilt() - 0.5, tilt() - 0.5] : [0, 0, 0];
+    if (!tilt) n[axis] = sign;
     into.set([n[0], n[1], n[2], r - sign * c[axis]], p * 4);
   }
+}
+
+/** A view around a random centre, or random half-spaces; `edges` may write a special value. */
+function planes(into: Float64Array, next: () => number, edges: boolean) {
+  const c = [0, 1, 2].map(() => (next() - 0.5) * 150),
+    r = 5 + next() * 60;
+  viewBox(into, c, r, next() < 0.3 ? next : undefined);
   if (edges && next() < 0.2)
     into[Math.floor(next() * 24)] = EDGES[Math.floor(next() * EDGES.length)];
 }
@@ -83,7 +87,7 @@ function walk(count: number, seed: number, frames: number, edges = false) {
       else item.placement!.rows.live[0] ^= 1;
     }
     // A move is refit where production refreshes boxes (`render.ts`).
-    refitBlendHierarchy(tree);
+    refreshBlendBoxes(tree);
     if (next() < 0.05)
       for (const state of [tree, oracle]) {
         buildBlendStatics(state);
@@ -119,13 +123,7 @@ test('an off-screen cluster is rejected by its nodes, not box by box', () => {
     items = scene(4000, next, false);
   const blendState = blendSceneOf(items);
   // A view of 20 units at a corner of the 200-unit world.
-  for (let p = 0; p < 6; p++) {
-    const axis = p >> 1,
-      sign = p & 1 ? -1 : 1,
-      n = [0, 0, 0];
-    n[axis] = sign;
-    blendState.blendPlanes.set([n[0], n[1], n[2], 10 - sign * 90], p * 4);
-  }
+  viewBox(blendState.blendPlanes, [90, 90, 90], 10);
   orderBlendPasses(blendState, [90, 90, 90]);
   assert.ok(blendState.hierarchy.tested < items.length / 4, `${blendState.hierarchy.tested} boxes`);
 });
@@ -140,7 +138,7 @@ test('a box moved into view is kept once the tree is refit', () => {
   orderBlendPasses(blendState, [0, 0, 0]);
   const item = items.find((entry) => entry.bounds && !notDrawn(entry))!;
   item.bounds = new Float64Array([200, 0, 0, 201, 1, 1]);
-  refitBlendHierarchy(blendState);
+  refreshBlendBoxes(blendState);
   orderBlendPasses(blendState, [0, 0, 1]);
   assert.ok(blendState.keepPacked[item.orderRank >>> 5] & (1 << (item.orderRank & 31)));
 });
