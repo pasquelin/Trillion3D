@@ -32,7 +32,7 @@ function partRows(row: DagBufferRow, total: number, per: number, parts: number) 
 }
 
 /** Each part of `parts` a row of the one table, named `name`, `name1`… as the kernel binds them. */
-export const namedParts = (name: string, parts: DagBufferRow[]) =>
+const namedParts = (name: string, parts: DagBufferRow[]) =>
   Object.fromEntries(parts.map((row, k) => [k ? `${name}${k}` : name, row]));
 
 /**
