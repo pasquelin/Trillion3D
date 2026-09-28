@@ -85,11 +85,6 @@ export async function createDagResources(
       size: Math.max(8, travail.words * 4),
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
-    const worlds = device.createBuffer({
-      label: 'Trillion3D DAG worlds',
-      size: Math.max(64, packed.worlds.byteLength),
-      usage: STORAGE,
-    });
     const pageCones = device.createBuffer({
       label: 'Trillion3D DAG page cones',
       size: Math.max(48, packed.pageCones.byteLength),
@@ -103,11 +98,10 @@ export async function createDagResources(
       dispatchArgs,
       output,
       work,
-      worlds,
       pageCones,
       ...readback,
     );
-    const frames = createCameraFrames(device, frameData, worldCount, own);
+    const frames = createCameraFrames(device, frameData, worldCount, own, packed.worlds);
     const group = {
       clusters,
       nodes,
@@ -115,7 +109,6 @@ export async function createDagResources(
       flags,
       out: output,
       work,
-      worlds,
       cold: pageCones,
     };
     const pipeline = await createDagPipeline(device, group, frames);
@@ -131,7 +124,6 @@ export async function createDagResources(
     };
     upload(clusters, Math.max(64, packed.clusters.byteLength), packed.clusters);
     upload(nodes, Math.max(64, packed.nodes.byteLength), packed.nodes);
-    upload(worlds, Math.max(64, packed.worlds.byteLength), packed.worlds);
     upload(pageCones, Math.max(48, packed.pageCones.byteLength), packed.pageCones);
     return {
       device,
@@ -160,7 +152,6 @@ export async function createDagResources(
       flags,
       dispatchArgs,
       work,
-      worlds,
       frames,
       pageCones,
       ...pipeline,
