@@ -1,7 +1,4 @@
 import { pendingWebgpuFrame } from '../frame/interactiveFrame.ts';
-import { readShadowAtlasDigest } from '../../gpu/shadow/digest.ts';
-import { readPartitionAudit } from '../core/partitionAudit.ts';
-import { readTransparentOcclusionAudit } from '../transparent/occlusionAudit.ts';
 import { disabledStageProfile } from '../../../../sdk-core/src/index.ts';
 import type { BackendFactory } from '../../backend/types.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './runtime.ts';
@@ -34,6 +31,7 @@ import * as materials from './io/refreshMaterials.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
 import { namesNoSession } from '../../gpu/core/sessionHandle.ts';
 import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts';
+import { webgpuAudits } from './io/audits.ts';
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
 export { outputColorDiagnostic } from './helpers.ts';
 
@@ -176,17 +174,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
         disabledStageProfile('webgpu-page-raster', 'per-step profile not requested by the host')
       );
     },
-    partitionAudit() {
-      return readPartitionAudit(rt);
-    },
-    transparentOcclusionAudit() {
-      return readTransparentOcclusionAudit(rt);
-    },
-    shadowAtlasDigest() {
-      const atlas = rt.lights.shadows;
-      if (rt.run.lost || !rt.gpu.device || !atlas?.texture) return Promise.resolve(null);
-      return readShadowAtlasDigest(rt.gpu.device, atlas.texture, atlas.size);
-    },
+    ...webgpuAudits(rt),
     dispose() {
       // Inert and read as lost at once; torn down once, after the preparation stopped.
       rt.closer.abort();
