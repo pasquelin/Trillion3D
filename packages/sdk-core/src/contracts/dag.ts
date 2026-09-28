@@ -1,9 +1,8 @@
 /** Why a DAG group stalled, named by the compiler by rerunning the stalled reduction with a
  *  constraint lifted: `too-small` (fewer than two live triangles), `border-locked` (with no lock
  *  it advances), `seam-locked` (with no lock it still stalls, with position copies also welded
- *  across every texture seam it advances, and its retry with solved vertices does not),
- *  `unreducible` (neither advances), `border-lost` (a shared position disappeared on every
- *  retry), `unusable-error`. */
+ *  across every texture seam it advances), `unreducible` (neither advances), `border-lost` (a
+ *  shared position disappeared on every retry), `unusable-error`. */
 export type DagStallCause =
   'too-small' | 'seam-locked' | 'border-locked' | 'unreducible' | 'border-lost' | 'unusable-error';
 /** What the stalls of a primitive come to: the level-0 triangles left as roots, the cause of
