@@ -6,7 +6,7 @@ import { grantFrameTargets } from '../prepare/targetGrant.ts';
 import { sizeShadowPool } from '../../shadow/poolSize.ts';
 import { deviceAnswer } from '../../frame/deviceAnswer.ts';
 import { grantPending } from '../../../gpu/core/errorScope.ts';
-import { createWebgpuView } from '../state/view.ts';
+import { createWebgpuView, type WebgpuView } from '../state/view.ts';
 import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -41,8 +41,11 @@ export async function captureAside<T>(
     return await work();
   } finally {
     // Drawn, the view is released, even after a dispose switched back; never drawn, it made nothing.
-    if (drawn) releaseWebgpuView(rt, view);
-    capture.capturing = false;
+    try {
+      if (drawn) await releaseSettledCapture(rt, view);
+    } finally {
+      capture.capturing = false;
+    }
   }
 }
 
@@ -94,5 +97,15 @@ export async function drawResidentCut(
     hooks.beforeEncode?.();
     run.submittedTriangles = encodeDraws(rt, gpuDevice, run.gate.cam);
     if (rt.gpu.targetGrant) throw new Error('CAPTURE_TARGETS_CHANGED_DURING_ENCODE');
+  }
+}
+
+/** A rejected retry may still own a target grant. Its completion must run on the capture
+ * view, never against the restored main view's mutable GPU state. Cleanup holds on rejection. */
+export async function releaseSettledCapture(rt: WebgpuPagesRuntime, view: WebgpuView) {
+  try {
+    await grantPending(rt.views.active === view ? rt.gpu.targetGrant : view.gpu.targetGrant);
+  } finally {
+    releaseWebgpuView(rt, view);
   }
 }
