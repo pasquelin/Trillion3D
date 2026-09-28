@@ -30,7 +30,9 @@ export const lightQueueCap = (shape: LightCutShape, views: number) =>
  * many primitives times `DAG_MAX_VIEWS` views can pass the workgroups a dispatch may count or the
  * bytes a storage binding may span, and one invalid dispatch invalidates the frame's whole command
  * buffer — the camera's image with it. The capacity is the most views whose buffers and dispatches
- * all fit, down to one: one view never spans more than the camera cut, which the device already holds.
+ * all fit, down to one. One view is not bounded here: its frames are one binding, where the
+ * camera's are split in ranges (`frameRanges.ts`), so past `storageBufferCap` / 112 bytes of
+ * primitives a single view's own frames no longer fit.
  * The frame's pages are bounded by it, and so are its views (`lightCutRedraws.ts`).
  */
 export function lightCutCapacity(limits: LightCutLimits, shape: LightCutShape) {

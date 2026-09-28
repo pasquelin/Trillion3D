@@ -46,6 +46,4 @@ fn liveAppend(entry:u32){
  if(isLightCut()){atomicAdd(&work[viewWord(0u,vi)],1u);}
 }
 fn liveAt(s:u32)->u32{return flags[liveBase()+s];}
-/** A live cluster at \`s\`, of a primitive in the bound range: another range's dispatch takes the others. */
-fn liveInRange(s:u32)->bool{return s<liveCount()&&inRange(pageWorld(entryIndex(liveAt(s))));}
 `;

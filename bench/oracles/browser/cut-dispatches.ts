@@ -23,7 +23,7 @@ import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/sha
 import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts';
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts';
 import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
-import { framesBytes } from '../../../packages/sdk-browser/src/gpu/dag/frameRanges.ts';
+import { framesBytes, wholeRange } from '../../../packages/sdk-browser/src/gpu/dag/frameRanges.ts';
 import {
   selectionListCap,
   stagedOutputBytes,
@@ -99,11 +99,7 @@ export function ressourcesAvant(
     cold: { buffer: tampon(48, packed.pageCones) },
     // One range holds every primitive (`frameRanges.ts`).
     range: {
-      buffer: tampon(
-        16,
-        new Uint32Array([0, worldCount, 0, 0]),
-        GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-      ),
+      buffer: tampon(16, wholeRange(worldCount), GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
     },
   };
   const dispatchArgs = device.createBuffer({
