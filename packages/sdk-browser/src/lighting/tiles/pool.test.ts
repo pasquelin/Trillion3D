@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { createTileLightPool } from './pool.ts';
+import { createGpuLightTiles } from './tiles.ts';
 
 const TILES = 100;
 
@@ -49,4 +50,36 @@ test('the pool grows no further than its bound per tile, and a frame with room s
     overflowed: false,
   });
   assert.equal(calm.pool.words(TILES), TILES * 16);
+});
+
+test('the frame metrics carry the sampled pool and count its growths (#849)', async () => {
+  const fake = fakeDevice();
+  Object.assign(fake.device, { features: new Set() });
+  const tiles = await createGpuLightTiles(fake.device);
+  const frame = (count: number, at: number) => {
+    tiles.ensure(160, 160, {} as GPUTextureView, fake.buffers[0] as never, count);
+    tiles.update(new Float64Array(16), [0, 0, 0], 160, 160);
+    const pass = { setPipeline() {}, setBindGroup() {}, dispatchWorkgroups() {}, end() {} };
+    const encoder = { ...fake.device.createCommandEncoder(), beginComputePass: () => pass };
+    tiles.encode(encoder as unknown as GPUCommandEncoder, at);
+  };
+  frame(200, 0);
+  const none = { tileLightPoolReserved: null, tileLightPoolCapacity: null };
+  assert.deepEqual(
+    { ...tiles.poolMetrics(), ...none },
+    { ...none, tileLightPoolOverflowed: null, tileLightPoolGrowths: 0 },
+  );
+  const readback = fake.buffers.find((buffer) => buffer.label?.includes('pool readback'))!;
+  new Uint32Array(readback.getMappedRange()).set([1300, 1600, 5000, 1]);
+  tiles.submitted();
+  await new Promise((settled) => setTimeout(settled));
+  frame(200, 1);
+  assert.deepEqual(tiles.poolMetrics(), {
+    tileLightPoolReserved: 5000,
+    tileLightPoolCapacity: 1600,
+    tileLightPoolOverflowed: true,
+    tileLightPoolGrowths: 1,
+  });
+  frame(64, 2);
+  assert.equal(tiles.poolMetrics().tileLightPoolReserved, null, 'a narrow frame samples no pool');
 });
