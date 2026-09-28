@@ -99,8 +99,8 @@ export async function cutDrawnTriangles(
   for (let i = 0; i + 2 < positions.length; i += 3)
     boxExpandByPoint(bounds, 0, positions[i], positions[i + 1], positions[i + 2]);
   const extent = Math.max(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]);
-  const tiled = blended ? null : await tiledGridExponent(extent);
-  const positionExponent = tiled ?? gridExponentFor(extent > 0 ? extent : 1, -Infinity);
+  // Asked first, awaited last: the module loads while the clusters are cut.
+  const grid = tiledGridExponent(extent, blended);
   const attributes: PageAttributes = {
     POSITION: { itemSize: 3, array: positions },
     NORMAL: { itemSize: 3, array: normals },
@@ -111,6 +111,7 @@ export async function cutDrawnTriangles(
   const uvSpan = uvs ? widestUvSpan(uvs, indices, ranges) : 0;
   const uvExponent = gridExponentFor(uvSpan, blended && uvSpan > 0 ? -Infinity : UV_EXPONENT);
   const built = cones ? await clusterCones(positions, indices, ranges) : null;
+  const positionExponent = (await grid) ?? gridExponentFor(extent > 0 ? extent : 1, -Infinity);
   const cut = [];
   let maxPositionError = 0;
   for (const [start, end] of ranges) {

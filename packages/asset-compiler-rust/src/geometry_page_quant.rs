@@ -4,19 +4,10 @@
 //! own error with the very function every reader decodes with.
 
 use crate::{CompilerError, Result};
-/// The grid rule, shared with the run-time cut (`trillion3d_page_codec::bits::grid`).
-pub use trillion3d_page_codec::bits::grid::grid_exponent;
-use trillion3d_page_codec::bits::{
-    bits_for, dequant, oct_decode, pow2, Quant, MAX_BITS, MAX_EXPONENT,
-};
+/// The grid rules, shared with the run-time cut (`trillion3d_page_codec::bits::grid`).
+pub use trillion3d_page_codec::bits::grid::{finest_exponent, grid_exponent};
+use trillion3d_page_codec::bits::{bits_for, dequant, oct_decode, pow2, Quant, MAX_BITS};
 pub mod tile;
-
-/// The finest grid on which a positive `span` fits a page's field: at most 2^23 steps, which
-/// rounding at both ends keeps under the 2^`MAX_BITS` a page holds — the runtime cut's rule
-/// (`gridExponentFor`, `pageGrids.ts`), so a blended surface sits on one grid however it is cut.
-pub fn finest_exponent(span: f64) -> i32 {
-    (span.log2().ceil() as i32 - (MAX_BITS as i32 - 1)).clamp(-MAX_EXPONENT, MAX_EXPONENT)
-}
 
 /// The grid of a primitive from its positions and the errors its DAG published; a zero error is
 /// a root's, not a rule. A `blended` primitive takes the finest grid its pages hold: a coarser
