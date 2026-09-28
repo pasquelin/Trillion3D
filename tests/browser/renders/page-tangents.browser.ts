@@ -35,20 +35,15 @@ import {
   defaultBackendCapturePng,
 } from '../support/defaultBackendImages.ts';
 
-type Surface = keyof typeof TANGENT_SCENES;
-const SURFACES = Object.keys(TANGENT_SCENES) as Surface[];
-const PATHS = ['paged', 'unpaged'] as const;
-/** Every scene, keyed `<surface>-<path>`, with the pass it compiles to. */
-const SCENES = SURFACES.flatMap((surface) =>
-  PATHS.map((path) => ({ key: `${surface}-${path}`, ...TANGENT_SCENES[surface][path] })),
-);
+const SURFACES = [...new Set(TANGENT_SCENES.map(({ surface }) => surface))];
 
 const root = resolve(import.meta.dirname, '../../..');
 const out = measureOutput('page-tangents');
 await mkdir(out, { recursive: true });
 // Each scene must have been compiled to its pass: a pair of one path compares nothing.
-for (const { scene, pass } of SCENES) {
+for (const { scene, pass } of TANGENT_SCENES) {
   const { manifest } = await readCacheManifest(join(sceneDerived(scene), 'native/full'));
+  assert.ok(manifest.primitives.length > 0, `${scene} compiled no primitive`);
   assert.deepEqual(
     manifest.primitives.map((primitive) => primitive.pass),
     manifest.primitives.map(() => pass),
@@ -81,15 +76,15 @@ try {
     assert.ok(drawn.drawn > drawn.totalPixels / 20, `${key}: ${JSON.stringify(drawn)}`);
     return result.metrics;
   };
-  const compare = (a: string, b: string) =>
-    page.evaluate(compareDefaultBackendCaptures, [a, b] as [string, string]);
+  const compare = (a: string, b: string) => page.evaluate(compareDefaultBackendCaptures, [a, b]);
   // Interleaved, twice each: the A/A of a scene says what the harness itself moves.
-  const captures: Record<string, Awaited<ReturnType<typeof capture>>> = {};
+  const captures: Record<string, unknown> = {};
   for (const run of [1, 2])
-    for (const { key, scene } of SCENES)
+    for (const { key, scene } of TANGENT_SCENES)
       captures[`${key}-${run}`] = await capture(`${key}-${run}`, scene);
   const deltas: Record<string, Awaited<ReturnType<typeof compare>>> = {};
-  for (const { key } of SCENES) deltas[`${key} A/A`] = await compare(`${key}-1`, `${key}-2`);
+  for (const { key } of TANGENT_SCENES)
+    deltas[`${key} A/A`] = await compare(`${key}-1`, `${key}-2`);
   for (const surface of SURFACES)
     deltas[`${surface} paged vs unpaged`] = await compare(
       `${surface}-paged-1`,
@@ -100,7 +95,8 @@ try {
   await writeFile(resolve(out, 'result.json'), `${JSON.stringify(result, null, 2)}\n`);
   console.log(JSON.stringify(result, null, 2));
   assert.deepEqual(errors, []);
-  for (const { key } of SCENES) assert.equal(deltas[`${key} A/A`].differentPixels, 0, `${key} A/A`);
+  for (const { key } of TANGENT_SCENES)
+    assert.equal(deltas[`${key} A/A`].differentPixels, 0, `${key} A/A`);
   const blend = deltas['blend paged vs unpaged'];
   assert.equal(blend.differentPixels, 0, `blend paged vs unpaged: ${JSON.stringify(blend)}`);
 } finally {
