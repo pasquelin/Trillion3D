@@ -64,6 +64,8 @@ export const FLAG_LIT = 1,
    *  depth, only the transmittance of its coverage (`PageInfo.blendCoverage`,
    *  `../gpu/shadow/transmittance.ts`). */
   FLAG_BLEND_CASTER = 65536;
+/** Material fog opt-out above the three model bits in the page row. */
+export const FLAG_FOG_FREE = 1 << 20;
 export type VisPage = {
   array: Uint32Array;
   attributes: HostAttributes;
@@ -72,12 +74,13 @@ export type VisPage = {
   material: PageSurface;
   clusterId?: string;
 };
-
 export type VisMaterial = {
   baseColor: [number, number, number];
   metalness: number;
   roughness: number;
   lit: boolean;
+  /** False keeps this material's colour outside the scene's fog. */
+  fog?: boolean;
   doubleSided: boolean;
   backSide: boolean;
   alphaTest: number;
