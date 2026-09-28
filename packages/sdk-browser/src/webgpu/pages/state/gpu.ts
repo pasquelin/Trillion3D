@@ -16,6 +16,7 @@ import type { ModePipelines } from '../../blend/stagePipelines.ts';
 import type { WebgpuGuidePass } from '../../../guides/guidePass.ts';
 import type { WebgpuParticles } from '../../../particles/webgpuParticles.ts';
 import type { DeviceGrant } from '../../../gpu/core/errorScope.ts';
+import type { FrameSize } from './renderScale.ts';
 
 /** GPU resources of the forward path: page cache, pipelines, frame targets and presentation. */
 export interface WebgpuGpuState {
@@ -34,6 +35,11 @@ export interface WebgpuGpuState {
   depthView: GPUTextureView | undefined;
   hdrTexture: GPUTexture | undefined;
   hdrView: GPUTextureView | undefined;
+  /** The display colour composition writes, guides draw over and presentation shows: the colour
+   *  target itself at native size, a target of the display's size when the frame is drawn below
+   *  it (`../prepare/targets.ts`). */
+  displayTexture: GPUTexture | undefined;
+  displayView: GPUTextureView | undefined;
   /** What transparents ask of virtual textures, one tile rank per pixel: a target, never a fragment-
    *  stage write, which would cost early-z reject. */
   feedbackTexture: GPUTexture | undefined;
@@ -50,12 +56,16 @@ export interface WebgpuGpuState {
   /** GPU selection has been dropped for the session: what is measured since is the fallback CPU cut.
    *  Published in the metrics under `gpuSelectionFallback`. */
   selectionFallback: boolean;
+  /** The size every pass up to the temporal resolve draws at: the display's, or below it. */
   targetSize: [number, number];
+  /** The size the resolve, the effect chain, composition, guides and presentation run at, and
+   *  what decides detail reads: the host's viewport when the targets were made. */
+  displaySize: [number, number];
   /** Bytes of the image targets of this size, those the image budget admitted. */
   targetBytes: number;
   /** The frame targets asked of the device (`targetGrant.ts`): in flight, or settled when refused
    *  at that size; gone once granted. */
-  targetGrant: ({ width: number; height: number } & DeviceGrant) | undefined;
+  targetGrant: (FrameSize & DeviceGrant) | undefined;
   positionBuffers: Map<HostAttributes, GPUBuffer>;
   /** Indices, UVs and normals of transparents, held by the source geometry: two instances of the same
    *  object share the same geometry, therefore the same buffers. `undefined` kept in the table says
@@ -124,6 +134,8 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     depthView: undefined,
     hdrTexture: undefined,
     hdrView: undefined,
+    displayTexture: undefined,
+    displayView: undefined,
     feedbackTexture: undefined,
     feedbackView: undefined,
     backdrop: undefined,
@@ -132,6 +144,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     cutTruncated: false,
     selectionFallback: false,
     targetSize: [viewport[0] ?? 1, viewport[1] ?? 1],
+    displaySize: [viewport[0] ?? 1, viewport[1] ?? 1],
     targetBytes: 0,
     targetGrant: undefined,
     positionBuffers: new Map(),
