@@ -61,7 +61,7 @@ const dot = (a: Vec, b: Vec) =>
   Object.keys(a).reduce((sum, axis) => f(sum + f(a[axis] * b[axis])), 0);
 
 /** A page-table row, as far as the depth draws read it. */
-export type ShadowPage = {
+type ShadowPage = {
   flags: number;
   indexCount: number;
   pageOffset: number;
