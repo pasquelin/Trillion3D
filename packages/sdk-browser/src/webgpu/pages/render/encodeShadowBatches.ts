@@ -85,6 +85,7 @@ export function encodeShadowBatches(
         const regions = writeShadowPages(lights, eye, from, to);
         if (!encodeShadowAtlas(rt, device, encoder, regions, from, to, runBase)) return false;
         lights.shadowFaces += lights.runs.count;
+        lights.shadowWork.drewBatch(pageModes, to - from);
         plan.commit(pageModes, from, to);
         return true;
       },

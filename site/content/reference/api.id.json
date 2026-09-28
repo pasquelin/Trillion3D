@@ -3233,6 +3233,15 @@
       "shadowPagesDrawn": "Yang dihasilkan invalidasi halaman: halaman digambar ulang bingkai ini, halaman ditinggalkan dalam antrean karena kekurangan anggaran, dan berapa lama halaman usang tertua yang dibaca gambar telah menunggu. Nol di mana pun adalah nilai normal sebuah scene diam; `null` pada mesin tanpa atlas bayangan.",
       "shadowPagesTotal": "Halaman digambar sejak explorer dibuka, termasuk kurasan `flush()`: biaya sebuah perubahan adalah selisih antara dua bacaan.",
       "shadowPagesPending": "Halaman bayangan yang menunggu.",
+      "shadowBatches": "Batch bayangan yang digambar bingkai: hitungan host atas apa yang dienkodenya, tidak pernah dibaca di shader, seperti hitungan berikut. Null pada mesin tanpa atlas bayangan.",
+      "shadowLayersDrawn": "Lapisan pool tempat pass bayangan bingkai menggambar.",
+      "shadowPagesRestored": "Halaman yang digambar dari salinan lapisan statisnya, hanya caster bergeraknya yang dirasterisasi.",
+      "shadowPagesRasterized": "Halaman yang caster statisnya dirasterisasi lagi; bersama yang dipulihkan, setiap halaman yang digambar.",
+      "shadowRestoreCopies": "Salinan halaman dari lapisan statis: halaman yang dipulihkan, atau halaman yang digambar penuh di atas lapisannya.",
+      "shadowStaticDrawCalls": "Panggilan gambar caster statis: ke lapisan statis, atau dari halaman yang digambar utuh tanpa lapisan itu.",
+      "shadowMovingDrawCalls": "Panggilan gambar caster bergerak saja, di atas halaman yang dipulihkan dari lapisan statis.",
+      "shadowMovingCastersKept": "Dari `shadowCastersKept`, kluster yang disimpan untuk menggambar caster bergerak saja.",
+      "shadowPagesStaledBy": "Halaman yang dibuat usang oleh bingkai, menurut alasan: cahaya, caster diam, caster bergerak, detail, ambang potongan, atau rentang kedalaman matahari.",
       "shadowWaitMs": "Berapa milidetik halaman usang tertua yang dibaca gambar telah menunggu untuk digambar ulang. Hanya waktu saat gambar membacanya yang dihitung; 0 setelah digambar ulang.",
       "shadowCutDrops": "Batch potongan cahaya yang membuang pekerjaan — tampilannya menyimpan lebih banyak klaster daripada yang muat di daftar —, sejak penjelajah dibuka: masing-masing mengirim balik halamannya, ditarik hingga digambar ulang (#525). Null pada mesin tanpa potongan cahaya GPU, begitu pula tiga berikutnya.",
       "shadowCutWithdrawnPages": "Halaman yang digambar ulang karena potongan cahaya menggambarnya salah, sejak penjelajah dibuka: batch-nya membuang pekerjaan, atau flag-nya tidak pernah dibaca. Halaman itu ditarik hingga digambar ulang.",
@@ -4179,6 +4188,15 @@
       "shadowPagesDrawn": "Yang dihasilkan invalidasi halaman: halaman digambar ulang bingkai ini, halaman ditinggalkan dalam antrean karena kekurangan anggaran, dan berapa lama halaman usang tertua yang dibaca gambar telah menunggu. Nol di mana pun adalah nilai normal sebuah scene diam; `null` pada mesin tanpa atlas bayangan.",
       "shadowPagesTotal": "Halaman digambar sejak explorer dibuka, termasuk kurasan `flush()`: biaya sebuah perubahan adalah selisih antara dua bacaan.",
       "shadowPagesPending": "Halaman bayangan yang menunggu.",
+      "shadowBatches": "Batch bayangan yang digambar bingkai: hitungan host atas apa yang dienkodenya, tidak pernah dibaca di shader, seperti hitungan berikut. Null pada mesin tanpa atlas bayangan.",
+      "shadowLayersDrawn": "Lapisan pool tempat pass bayangan bingkai menggambar.",
+      "shadowPagesRestored": "Halaman yang digambar dari salinan lapisan statisnya, hanya caster bergeraknya yang dirasterisasi.",
+      "shadowPagesRasterized": "Halaman yang caster statisnya dirasterisasi lagi; bersama yang dipulihkan, setiap halaman yang digambar.",
+      "shadowRestoreCopies": "Salinan halaman dari lapisan statis: halaman yang dipulihkan, atau halaman yang digambar penuh di atas lapisannya.",
+      "shadowStaticDrawCalls": "Panggilan gambar caster statis: ke lapisan statis, atau dari halaman yang digambar utuh tanpa lapisan itu.",
+      "shadowMovingDrawCalls": "Panggilan gambar caster bergerak saja, di atas halaman yang dipulihkan dari lapisan statis.",
+      "shadowMovingCastersKept": "Dari `shadowCastersKept`, kluster yang disimpan untuk menggambar caster bergerak saja.",
+      "shadowPagesStaledBy": "Halaman yang dibuat usang oleh bingkai, menurut alasan: cahaya, caster diam, caster bergerak, detail, ambang potongan, atau rentang kedalaman matahari.",
       "shadowWaitMs": "Berapa milidetik halaman usang tertua yang dibaca gambar telah menunggu untuk digambar ulang. Hanya waktu saat gambar membacanya yang dihitung; 0 setelah digambar ulang.",
       "shadowCutDrops": "Batch potongan cahaya yang membuang pekerjaan — tampilannya menyimpan lebih banyak klaster daripada yang muat di daftar —, sejak penjelajah dibuka: masing-masing mengirim balik halamannya, ditarik hingga digambar ulang (#525). Null pada mesin tanpa potongan cahaya GPU, begitu pula tiga berikutnya.",
       "shadowCutWithdrawnPages": "Halaman yang digambar ulang karena potongan cahaya menggambarnya salah, sejak penjelajah dibuka: batch-nya membuang pekerjaan, atau flag-nya tidak pernah dibaca. Halaman itu ditarik hingga digambar ulang.",
@@ -7441,7 +7459,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Float dari catatan bayangan yang dibaca shading sebuah cahaya: enam matriks muka lampu — di sana rentang kedalaman matahari, masing-masing `zNear` dan kebalikan bentangnya (`recordPack.ts`) —, lalu kerangka bidang matahari — `right`, `up`, `axis`, masing-masing diisi hingga empat —, lalu asal cakupan setiap tingkat clipmap sebagai dua bilangan bulat, lalu header `vec4f`: muka (lampu) atau tingkat (matahari), tangen setengah bidang lampu atau tingkat terhalus matahari, bidang dekat lampu, dan entri pertama catatan di tabel halaman."
+    "summary": "Float dari rekaman bayangan, yang dibaca shading sebuah cahaya: enam matriks muka lampu — di sana rentang kedalaman matahari, masing-masing `zNear, zFar` (`recordPack.ts`) —, lalu kerangka bidang cahaya matahari — `right, zNear`, `up, zFar`, `axis`, lalu slot rentang saat ini —, lalu asal jendela tiap slot clipmap sebagai dua bilangan bulat, lalu header `vec4f`: muka (lampu) atau level (matahari), setengah bidang tangen lampu atau level terhalus matahari, bidang dekat lampu, dan entri pertama rekaman di tabel halaman."
   },
   "ShadowRequestReport": {
     "summary": "Yang dibaca shading dalam satu bingkai: entri tabel yang dimintanya, tanpa urutan.",

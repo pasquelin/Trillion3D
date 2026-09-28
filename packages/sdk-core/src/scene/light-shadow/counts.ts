@@ -1,6 +1,23 @@
+import type { ShadowStaleReason } from '../../contracts/shadowMetrics.ts';
 import { LIGHT_KIND, MAX_SHADOW_SLICES } from '../light/contracts.ts';
 import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
+
+/**
+ * Why a page turns stale, each a frame's count in `counts.staledBy` (#991): its light moved or
+ * changed shape or frame; a still caster moved or changed; moving casters alone did; its casters'
+ * representation changed (detail); it was drawn at another cut threshold than the one at rest; it
+ * was drawn in another depth range than its sun's current one (`sunDepth.ts`).
+ */
+export const STALE_BY: Readonly<Record<ShadowStaleReason, number>> = {
+  light: 0,
+  caster: 1,
+  moving: 2,
+  detail: 3,
+  threshold: 4,
+  range: 5,
+};
+export const STALE_REASONS = Object.keys(STALE_BY) as ShadowStaleReason[];
 
 /**
  * What the shadow scheduler did in a frame, in pages: pages staled, drawn, left pending — 0 unless
@@ -15,6 +32,8 @@ export function createShadowCounts() {
     lights: 0,
     sunLights: 0,
     invalidatedPages: 0,
+    /** Of those, the pages staled for each reason (`STALE_BY`). */
+    staledBy: new Int32Array(STALE_REASONS.length),
     /** Pages the invalidation examined — table entries the moved boxes cover, or pool pages when
      *  they cover more —: its work, which the pool's size does not set (`invalidate.ts`). */
     visitedPages: 0,
@@ -31,6 +50,12 @@ export function createShadowCounts() {
       counts.unslicedCasters = 0;
       counts.sunLights = 0;
       counts.invalidatedPages = counts.visitedPages = 0;
+      counts.staledBy.fill(0);
+    },
+    /** `pages` pages turned stale for `reason` (`STALE_BY`). */
+    staled(reason: number, pages = 1) {
+      counts.invalidatedPages += pages;
+      counts.staledBy[reason] += pages;
     },
     /** A page of this slice's light is drawn this frame: the light counts once per frame. */
     drewLight(slice: number, rank: number, frame: number) {
