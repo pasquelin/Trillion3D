@@ -113,29 +113,25 @@ function encodeOnce(
   // nodes, an upper bound the layout knows.
   for (let level = 1; level < levelSizes.length; level++) {
     const pipeline = levelPipelines[level % levelPipelines.length];
-    perRange(pass, ranges, pipeline, Math.min(levelSizes[level] * views, queueCap), 0);
+    perRange(pass, ranges, pipeline, Math.min(levelSizes[level] * views, queueCap));
   }
   pass.end();
   // Pages of kept leaves, and they alone: a page under a rejected node is not read.
   arm(candGroupsOffset);
   const wanted = open();
-  perRangeIndirect(wanted, ranges, wantedPipeline, dispatchArgs);
+  perRange(wanted, ranges, wantedPipeline, dispatchArgs);
   wanted.end();
   if (headOnly) return;
   arm(liveGroupsOffset);
   const live = open();
   // These kernels visit only live clusters, those `dagWanted` has just listed: their verdict is
   // the previous one, it is no longer spoken on those it said nothing about.
-  const runLive = (pipeline: GPUComputePipeline) => {
-    live.setPipeline(pipeline);
-    live.dispatchWorkgroupsIndirect(dispatchArgs, 0);
-  };
   // Each view's share of the drawn log, once every view's live clusters are counted.
   if (light) {
     live.setPipeline(viewOffsetsPipeline);
     live.dispatchWorkgroups(1);
   }
-  perRangeIndirect(live, ranges, maskPipeline, dispatchArgs);
+  perRange(live, ranges, maskPipeline, dispatchArgs);
   // The drawable-page list is compacted here, in increasing order: the snapshot no longer
   // reports one flag per page but the count alone and its ranks.
   // Then the camera's requests, staged by `dagWanted`, go into the snapshot sorted by rank: one
@@ -145,7 +141,8 @@ function encodeOnce(
     if (residentCut) {
       live.setPipeline(drawPrefixPipeline);
       live.dispatchWorkgroups(1);
-      runLive(drawScatterPipeline);
+      live.setPipeline(drawScatterPipeline);
+      live.dispatchWorkgroupsIndirect(dispatchArgs, 0);
     }
     live.setPipeline(requestSortPipeline);
     live.dispatchWorkgroups(1);
@@ -160,34 +157,24 @@ function encodeOnce(
 /**
  * The kernels that read a primitive's words run once per range of `frames`, each under its
  * range's bind group, on its range's primitives (`frameRanges.ts`): `threads`, plus `perPrimitive`
- * per primitive of the range, at least `firstFloor` on the first. One range: the commands of before.
+ * per primitive of the range, at least `firstFloor` on the first; or each indirect on `threads`, a
+ * dispatch-argument buffer. One range: the commands of before.
  */
 function perRange(
   pass: GPUComputePassEncoder,
   ranges: DagView['ranges'],
   pipeline: GPUComputePipeline,
-  threads: number,
-  perPrimitive: number,
+  threads: number | GPUBuffer,
+  perPrimitive = 0,
   firstFloor = 0,
 ) {
   pass.setPipeline(pipeline);
   for (let r = 0; r < ranges.length; r++) {
     if (ranges.length > 1) pass.setBindGroup(0, ranges[r].bindGroup);
-    const count = Math.max(threads + perPrimitive * ranges[r].count, r ? 0 : firstFloor);
-    pass.dispatchWorkgroups(Math.max(1, Math.ceil(count / WORKGROUP)));
-  }
-}
-
-/** `perRange`, each range's dispatch indirect on `args`. */
-function perRangeIndirect(
-  pass: GPUComputePassEncoder,
-  ranges: DagView['ranges'],
-  pipeline: GPUComputePipeline,
-  args: GPUBuffer,
-) {
-  pass.setPipeline(pipeline);
-  for (let r = 0; r < ranges.length; r++) {
-    if (ranges.length > 1) pass.setBindGroup(0, ranges[r].bindGroup);
-    pass.dispatchWorkgroupsIndirect(args, 0);
+    if (typeof threads !== 'number') pass.dispatchWorkgroupsIndirect(threads, 0);
+    else {
+      const count = Math.max(threads + perPrimitive * ranges[r].count, r ? 0 : firstFloor);
+      pass.dispatchWorkgroups(Math.max(1, Math.ceil(count / WORKGROUP)));
+    }
   }
 }
