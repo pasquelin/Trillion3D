@@ -154,13 +154,20 @@ ${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')} var k=0u;
   filtered+=sample*weight;
   let y=vec4f(toYcocg(sample.rgb),sample.a);
   lo=min(lo,y);hi=max(hi,y);
-${share(`  let asIs=${blended ? 'textureLoad(flags,at,0).r' : `f32(textureLoad(flags,at,0).r==${AS_IS_FLAG}u)`};
-  share+=asIs*weight;shareLo=min(shareLo,asIs);shareHi=max(shareHi,asIs);\n`)} }}
+${taaShareTap(asIs, blended)} }}
  if(view.params.y==0.0){return TaaOut(filtered,${share('share', '0.0')});}
  let previous=previousUv(coord,textureLoad(depth,coord,0),coord);
 ${taaHistoryBlend(asIs)}
 }`;
 };
+
+/** One neighbour's as-is share, weighed like its colour, in both resolves: nothing in the flagless
+ *  one. */
+export const taaShareTap = (asIs: boolean, blended: boolean) =>
+  shareText(
+    asIs,
+  )(`  let asIs=${blended ? 'textureLoad(flags,at,0).r' : `f32(textureLoad(flags,at,0).r==${AS_IS_FLAG}u)`};
+  share+=asIs*weight;shareLo=min(shareLo,asIs);shareHi=max(shareHi,asIs);\n`);
 
 /** What both resolves open with: bindings, uniform, the full-screen triangle, YCoCg, reprojection
  *  and their output. */

@@ -15,10 +15,10 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 function runtime(scale: number, render = [1728, 1120], display = [3456, 2234]) {
   return {
     setup: { viewport: display, pixelRatio: () => 2 },
+    context: { renderScale: scale },
     gpu: {
       temporal: {},
       temporalWanted: true,
-      renderScale: scale,
       targetSize: render,
       displaySize: display,
     },

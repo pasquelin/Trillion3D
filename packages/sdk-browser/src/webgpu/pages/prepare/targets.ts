@@ -13,7 +13,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../../visibility/shader/materialClass.ts';
 import { MATERIAL_DEPTH_PASS } from '../../core/materialPasses.ts';
 import { createAsIsShare } from '../../../lighting/deferred/asIsShare.ts';
-import type { FrameSize } from '../state/renderScale.ts';
+import { drawnBelow, type FrameSize } from '../state/renderScale.ts';
 
 /** Bytes per pixel of the display colour (`DISPLAY_FORMAT`). */
 const DISPLAY_BYTES = 4;
@@ -29,7 +29,7 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
   const { reserveHiz } = rt.setup,
     gpuDevice = rt.gpu.device,
     { renderWidth: width, renderHeight: height } = size,
-    display = size.width * size.height;
+    display = drawnBelow(size) ? size.width * size.height : 0;
   if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
   checkSurfaceSize(gpuDevice, size.width, size.height, 1);
   return (
@@ -38,7 +38,7 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     width * height +
     additional +
     (wantsReflections(rt) ? width * height * 8 : 8) +
-    (display === width * height ? 0 : display * DISPLAY_BYTES) +
+    display * DISPLAY_BYTES +
     80
   );
 }
@@ -122,8 +122,12 @@ export function makeTargets(
   releaseTargets(rt);
   const sampled = GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
     usage = sampled | GPUTextureUsage.COPY_SRC;
-  const target = (label: string, format: GPUTextureFormat, targetUsage = usage) =>
-    device.createTexture({ label, size: { width, height }, format, usage: targetUsage });
+  const target = (
+    label: string,
+    format: GPUTextureFormat,
+    targetUsage = usage,
+    extent: GPUExtent3DDict = { width, height },
+  ) => device.createTexture({ label, size: extent, format, usage: targetUsage });
   gpu.colorTexture = target('Trillion3D display color', DISPLAY_FORMAT);
   gpu.depthTexture = target(
     'Trillion3D opaque depth',
@@ -135,13 +139,11 @@ export function makeTargets(
   gpu.surfaces = createSurfaceBuffer(device, width, height);
   gpu.asIsShare = createAsIsShare(device, gpu.surfaces.views()[3], width, height);
   gpu.colorView = gpu.colorTexture.createView();
-  const scaled = width !== size.width || height !== size.height;
+  const scaled = drawnBelow(size);
   gpu.displayTexture = scaled
-    ? device.createTexture({
-        label: 'Trillion3D display',
-        size: { width: size.width, height: size.height },
-        format: DISPLAY_FORMAT,
-        usage,
+    ? target('Trillion3D display', DISPLAY_FORMAT, usage, {
+        width: size.width,
+        height: size.height,
       })
     : gpu.colorTexture;
   gpu.displayView = scaled ? gpu.displayTexture.createView() : gpu.colorView;

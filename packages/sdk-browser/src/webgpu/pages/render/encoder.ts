@@ -55,15 +55,8 @@ export function submitColorCopy(
   // nor a separate presentation pass. That is what isolates what Presentation actually contains.
   const offscreen = composesOffscreen(context.diagnosticGpuVariant);
   if (!presented && !offscreen && gpu.presenter && gpu.displayTexture && !capture.capturing) {
-    // The display colour, at the display's size: the frame's own below it is the resolve's input.
-    const [shownWidth, shownHeight] = gpu.displaySize;
-    gpu.presenter.present(
-      encoder,
-      gpu.displayTexture,
-      shownWidth,
-      shownHeight,
-      rt.views.active.rect,
-    );
+    // The display colour at its size: a frame drawn below it is the resolve's input, never shown.
+    gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize, rt.views.active.rect);
     run.gpuDrawCalls++;
   }
   const owned = encoder === timing.frameEncoder;
