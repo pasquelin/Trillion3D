@@ -52,7 +52,12 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 | `pnpm run validate` | full pre-merge validation gate                                       |
 
 `pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
-touch; neither replaces `validate`.
+touch; neither replaces `validate`. `check:changed` also type-checks (`tsc --noEmit`) every
+tracked `tsconfig*.json` project that owns a changed TypeScript file, by listing it or reaching it
+through an import (`scripts/ts-projects.ts`); a changed file no project reaches fails the gate,
+unless a type-check-only (`noEmit`) project's `include` covers it and its `exclude` takes it
+back. A project that reads `trillion3d` from `dist/` (the site, the tools) is checked after
+`pnpm run build`, against current declarations.
 
 The CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as parallel jobs, one
 per group of `scripts/validate-steps.ts`: `quick`, `typescript`, `native` (Clippy and the Rust
@@ -245,6 +250,9 @@ identical budgets, scenes, and poses.
 | `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                    |
 | `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                               |
 | `pnpm run check:helpers`      | No small helper copied into a second module of the same package              |
+| `pnpm run check:english`      | No new French word in the code: a count per package that only goes down      |
+| `pnpm run check:translations` | No translation left behind when its English changes                          |
+| `pnpm run check:thumbnails`   | Every gallery example that is not parked has its thumbnail                   |
 | `pnpm run check:structure`    | sdk-core typed without DOM; the boundary tests run in the unit suite         |
 | `pnpm run check:unused`       | Dead exports and files (`knip`)                                              |
 | `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript                   |
@@ -252,3 +260,15 @@ identical budgets, scenes, and poses.
 | `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git                |
 | `pnpm run check:site-types`   | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off)     |
 | `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links          |
+
+`check:english` counts, per package, the French words of `scripts/french-words.ts` in the
+identifiers, comments and strings of every source file, the strings a program reads named there as
+exceptions. A count above `scripts/english-baseline.json` fails; a lower one is written there, to
+be committed with the renaming. `check:translations` fails when an entry's English changed and a
+language's translation did not, against the hashes of `site/content/i18n/translation-sources.json`;
+after translating, `pnpm run check:translations --write` records the new hashes. An English
+change the translations do not need, such as a typo, is accepted by name once each translation was
+checked: `pnpm run check:translations --accept <entry> [<entry>…]` (the entry as the gate names
+it, `portal:nav.primary`) records its new English hash and keeps the translations', so the
+acceptance shows in the record's diff; an entry whose English did not change is refused. Both
+records start from `--write`.

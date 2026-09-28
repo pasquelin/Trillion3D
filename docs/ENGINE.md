@@ -153,8 +153,11 @@ metalness, world normal and roughness, emission and AO, surface flags. Depth is 
 Lighting consumes these surfaces and reconstructs world position from depth. Transparency is shaded
 separately into the HDR target; a transmissive material (`KHR_materials_transmission` with IOR and
 volume) is composed after it by one fullscreen pass on a frozen copy of the lit image, bounded by the
-opaque depth; its rank and opacity go to a target of its own, so the surface flags temporal
-antialiasing and composition read stay the opaque ones. ACES and sRGB conversion happen at final composition, which writes the display value
+opaque depth; its rank and opacity borrow the display target, which only the final composition
+writes after it, so the surface flags temporal antialiasing and composition read stay the opaque ones
+at no extra target. Those two read the flags only for the as-is share of a normal or depth surface:
+until a row shows one, and outside a diagnostic view, they run flagless variants, compiled beside
+the others, that bind no flags. ACES and sRGB conversion happen at final composition, which writes the display value
 to the capture target and the canvas in one pass.
 
 The reconstruction runs one pass per **material class**, the published visibility-buffer design,
@@ -857,10 +860,13 @@ writes a pose buffer and an event buffer. No emscripten glue is kept; the engine
   Each pool is then one instanced disc draw over the lit image after the transparents
   (`particles/webgpuParticleDraw.ts`), unsorted: `additive` in any order, `premultiplied` far to
   near by origin, soft within `softness` of the opaque depth.
-  WebGL2 draws no particle yet (#844; its 32-bit float step, `particles/webglParticles.ts`,
-  waits for it): the frame composer refuses the pools by name (`PARTICLES_UNSUPPORTED`), heard
-  once as the world notice `particles-refused`, and the session draws on without them. WebGPU
-  without the visibility buffer refuses them on the same notice.
+  On WebGL2 the same pools step in a 32-bit float ping-pong pass (`particles/webglParticles.ts`)
+  and draw alike over the engine's image (`particles/webglParticleDraw.ts`), soft on a copy of
+  the frame's depth, made in `DEPTH24_STENCIL8`, else `DEPTH_COMPONENT24`, as the blit allows.
+  A context without `EXT_color_buffer_float`, or a depth neither format copies, refuses the
+  pools by name (`PARTICLES_UNSUPPORTED`), never drawing them hard-edged: heard once as the
+  world notice `particles-refused`, and the session draws on without them. WebGPU without the
+  visibility buffer refuses them on the same notice.
 - **Threads.** On a cross-origin isolated page the page loads `joltPhysicsThreads.wasm` (atomics,
   bulk memory, shared memory) and Jolt's own thread pool steps it: each pool thread starts in C
   through `pthread_create`, which the loader (`physics/joltThreads.ts`) answers with a worker that

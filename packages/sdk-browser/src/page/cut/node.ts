@@ -53,6 +53,7 @@ export function nodeDecision<T extends PageRecord>(
     focal,
     s.cam.near,
     perspective,
+    s.flatSound,
   );
   if (ownCeil > limit) return 0;
   // All are fine enough; the cut keeps them if no replacement still covers them.
