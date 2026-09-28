@@ -100,6 +100,7 @@ export interface RenderBackend extends BackendSceneUpdates, BackendHostDraw {
   flush?(options?: { image?: boolean }): Promise<void>; // image: false skips the readback
   /** Wait for submitted work without image readback; true asks for another interactive frame. */
   pendingFrame?(): Promise<boolean>;
+  landings?(): number; // camera pages made resident so far: the view still arriving (#836)
   /** Current GPU image, bottom-left origin. Prefer flush() first; browser hosts can explicitly read synchronously. */
   capture?(): Uint8Array;
   /** The composed image of `camera` at a size of its own, drawn aside: nothing is presented. */
