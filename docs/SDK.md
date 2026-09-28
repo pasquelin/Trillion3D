@@ -348,6 +348,12 @@ The world is not a family: it is the object `createWorld` returns, carrying `sce
 There is no level-of-detail object and no instanced or batched mesh type: one cut through a DAG
 per frame, instancing and draw grouping are what the engine does natively.
 
+For compiled scenes, changing a node or parent pose also updates its resident lighting proxy,
+including the proxy used by distant sun shadows while bounce is off. Bounce probes restart their
+convergence against the new geometry; no separate lighting invalidation call is needed. This
+requires a version-3 proxy cache (recompile older caches). Motion preserves existing proxy surfaces;
+it cannot restore geometry already discarded during cooking. See [FORMAT.md](FORMAT.md#resident-lighting-proxy).
+
 ## Loop
 
 The world owns the loop, and it stops when the image is stable: after 120 frames with nothing
@@ -967,8 +973,8 @@ light is a `SceneLight` (version 2) of one of three kinds. `point` and `spot` ca
 overcast sky) carries only `direction` — the propagation direction — and is refused if given a
 `position`, a `range` or a `coneAngle`. All three carry linear `color`, a positive radiometric
 `intensity` and `castsShadow`. Bounds: none on the count — the light table grows with the scene;
-a 16×16 screen tile lists up to 64 lights reaching it and walks every light of the scene past
-that, a walk #849 bounds by the view —; 64 shadow slices,
+a 16×16 screen tile lists up to 64 lights reaching it, and past that takes exactly the lights
+reaching it from a pool sized from the view (#849) —; 64 shadow slices,
 past which a caster lights without a shadow (`shadowCastersUnsliced`), and at most 24 shadow
 regions redrawn per frame. WebGL2 draws 64 lights and refuses more (#835). The shadow pool is sized
 once, at the first frame that casts a shadow, from its screen and its shadowed lights: layers of

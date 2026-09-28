@@ -1,6 +1,6 @@
 //! Exact measurements survive the sheet; invalid cache data never changes human answers.
 use super::*;
-use crate::cutout::cache::{algorithm, record};
+use crate::cutout::cache::{algorithm, checksum, record};
 
 fn image() -> image::RgbaImage {
     image::RgbaImage::from_fn(7, 3, |x, y| {
@@ -74,9 +74,9 @@ fn changed_source_dimensions_or_algorithm_and_old_sheets_are_cache_misses() {
             .is_none());
         assert!(read_answers(Path::new("decoupes.json"), &changed).unwrap()["image-a"]);
     }
-    assert!(MeasureCache::read(&json!({"version":1,"textures":{}}))
-        .entries()
-        .is_empty());
+    let mut rows = serde_json::Map::new();
+    MeasureCache::read(&json!({"version":1,"textures":{}})).keep_unused(&mut rows);
+    assert!(rows.is_empty());
 }
 
 #[test]
@@ -95,7 +95,7 @@ fn corrupt_optional_measurements_are_ignored_but_invalid_answers_still_fail() {
         let mut invalid = sheet.clone();
         let stored = &mut invalid["textures"]["image-a"]["measurement"];
         stored["values"][field] = value;
-        stored["checksum"] = json!(hash(format!("image-a:{}", stored["values"]).as_bytes()));
+        stored["checksum"] = json!(checksum("image-a", &stored["values"]));
         assert!(
             MeasureCache::read(&invalid)
                 .get("image-a", &image)
@@ -120,20 +120,31 @@ fn integrity_check_rejects_changed_values_or_a_record_moved_to_another_image() {
     assert!(MeasureCache::read(&sheet).get("image-a", &image).is_none());
 }
 
+/// The key a compiler whose whole source hashes to `implementation` stamps on its sheet.
+fn stamped_by(implementation: &str, shape: &AlphaShape) -> Value {
+    let key = hash(format!("{implementation}:{}", crate::plugins::fingerprint()).as_bytes());
+    let mut sheet = cached(shape);
+    sheet["measurementAlgorithm"] = json!(key);
+    sheet
+}
+
+// The key follows the whole compiler's source hash, the one the compilation cache key uses: a
+// change in any helper the measurement calls — not only in measure.rs — is another
+// implementation hash, so the stored measurement is dropped instead of reused stale.
 #[test]
-fn a_hit_skips_alpha_analysis_and_a_miss_computes_it_once() {
+fn a_measurement_is_reused_by_the_same_implementation_only() {
     let image = image();
     let measured = measure(&image);
-    let cache = MeasureCache::read(&cached(&measured));
-    let reused = cache.get_or_else("image-a", &image, || panic!("a hit must not analyze alpha"));
+    let same = MeasureCache::read(&stamped_by(crate::implementation_hash(), &measured));
+    let reused = same
+        .get("image-a", &image)
+        .expect("same implementation: a hit");
     assert_eq!(bits(&reused), bits(&measured));
-    let mut calls = 0;
-    let fresh = cache.get_or_else("new-image", &image, || {
-        calls += 1;
-        measure(&image)
-    });
-    assert_eq!(calls, 1);
-    assert_eq!(bits(&fresh), bits(&measured));
+    let helper_changed = stamped_by("a compiler whose helper changed", &measured);
+    assert!(MeasureCache::read(&helper_changed)
+        .get("image-a", &image)
+        .is_none());
+    assert!(read_answers(Path::new("decoupes.json"), &helper_changed).unwrap()["image-a"]);
 }
 
 #[test]
@@ -150,7 +161,6 @@ fn freshly_measured_rows_publish_reusable_values_without_answering_for_the_user(
         sha256: "image-a".into(),
         name: "leaf.png".into(),
         shape: shape.clone(),
-        proposal: shape.looks_like_cutout(),
         answer: None,
         weight: 3,
     };
@@ -159,8 +169,8 @@ fn freshly_measured_rows_publish_reusable_values_without_answering_for_the_user(
     assert_eq!(sheet["textures"]["image-a"]["measure"], shape.report());
     let encoded = serde_json::to_vec(&sheet).unwrap();
     let parsed = parse_sheet(Path::new("decoupes.json"), &encoded).unwrap();
-    let reused = MeasureCache::read(&parsed).get_or_else("image-a", &image, || {
-        panic!("the next compilation should use the published measurement")
-    });
+    let reused = MeasureCache::read(&parsed)
+        .get("image-a", &image)
+        .expect("the next compilation should use the published measurement");
     assert_eq!(bits(&reused), bits(&shape));
 }
