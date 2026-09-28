@@ -150,7 +150,8 @@ pub(super) fn worst(pages: &[Page], distance: f64, pixel_error: f64) -> f64 {
     pages
         .iter()
         .filter_map(|page| {
-            let depth = distance.max(page.error * FOCAL / pixel_error);
+            // `pixels(e, d)` is `e·FOCAL / (d − e)`: the depth where it meets the threshold.
+            let depth = distance.max(page.error * (FOCAL / pixel_error + 1.0));
             let replaced = page
                 .parent
                 .is_some_and(|p| pixels(p, depth, &lens) <= pixel_error);
