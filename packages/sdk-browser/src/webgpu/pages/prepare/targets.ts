@@ -75,6 +75,25 @@ export function releaseTargets(rt: WebgpuPagesRuntime) {
   gpu.temporal?.release();
 }
 
+/** The texture-feedback target; only the A/B diagnostic copies it out. */
+export function makeFeedbackTarget(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  width: number,
+  height: number,
+) {
+  rt.gpu.feedbackTexture = device.createTexture({
+    label: 'Trillion3D texture feedback target',
+    size: { width, height },
+    format: FEEDBACK_FORMAT,
+    usage:
+      GPUTextureUsage.RENDER_ATTACHMENT |
+      GPUTextureUsage.TEXTURE_BINDING |
+      (rt.context.feedbackTargetAB ? GPUTextureUsage.COPY_SRC : 0),
+  });
+  rt.gpu.feedbackView = rt.gpu.feedbackTexture.createView();
+}
+
 /**
  * Makes the frame targets of `width × height`, of `targetBytes` before the history: what
  * `targetGrant.ts` runs under the device's out-of-memory check, the targets in place released
@@ -100,14 +119,7 @@ export function makeTargets(
     usage | GPUTextureUsage.COPY_DST,
   );
   gpu.hdrTexture = target('Trillion3D HDR lighting', 'rgba16float');
-  if (rt.feedbackAB?.target !== false) {
-    gpu.feedbackTexture = target(
-      'Trillion3D texture feedback target',
-      FEEDBACK_FORMAT,
-      sampled | (rt.context.feedbackTargetAB ? GPUTextureUsage.COPY_SRC : 0),
-    );
-    gpu.feedbackView = gpu.feedbackTexture.createView();
-  }
+  if (rt.feedbackAB?.target !== false) makeFeedbackTarget(rt, device, width, height);
   gpu.surfaces = createSurfaceBuffer(device, width, height);
   gpu.colorView = gpu.colorTexture.createView();
   gpu.depthView = gpu.depthTexture.createView();

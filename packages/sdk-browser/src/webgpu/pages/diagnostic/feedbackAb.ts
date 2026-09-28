@@ -1,4 +1,5 @@
-import { FEEDBACK_FORMAT } from '../../../scene/surfaceBuffer.ts';
+import { makeFeedbackTarget } from '../prepare/targets.ts';
+import { sha256Hex } from '../../../measurement/sha256Hex.ts';
 import { readGpuImage } from '../../../gpu/core/presentation.ts';
 import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts';
 import { createWebgpuShadePipelines } from '../../visibility/pipelines.ts';
@@ -27,14 +28,10 @@ export type ResidencyIdentity = {
   tiles: { count: number; sha256: string };
 };
 
-async function digest(keys: string[]) {
-  const data = new TextEncoder().encode(JSON.stringify(keys));
-  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', data));
-  return {
-    count: keys.length,
-    sha256: [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join(''),
-  };
-}
+const digest = async (keys: string[]) => ({
+  count: keys.length,
+  sha256: await sha256Hex(new TextEncoder().encode(JSON.stringify(keys)).buffer as ArrayBuffer),
+});
 
 /** Exact-key snapshots are taken before hashing, so an async GPU readback cannot shift them. */
 export async function feedbackAbResidency(rt: WebgpuPagesRuntime): Promise<ResidencyIdentity> {
@@ -121,18 +118,8 @@ export async function setFeedbackTargetAb(rt: WebgpuPagesRuntime, target: boolea
   if (state.target !== target) {
     const [width, height] = rt.gpu.targetSize;
     if (!width || !height) throw new Error('FEEDBACK_AB_TARGETS_MISSING');
-    if (target) {
-      rt.gpu.feedbackTexture = device.createTexture({
-        label: 'Trillion3D texture feedback target',
-        size: { width, height },
-        format: FEEDBACK_FORMAT,
-        usage:
-          GPUTextureUsage.RENDER_ATTACHMENT |
-          GPUTextureUsage.TEXTURE_BINDING |
-          GPUTextureUsage.COPY_SRC,
-      });
-      rt.gpu.feedbackView = rt.gpu.feedbackTexture.createView();
-    } else {
+    if (target) makeFeedbackTarget(rt, device, width, height);
+    else {
       rt.gpu.feedbackTexture?.destroy();
       rt.gpu.feedbackTexture = rt.gpu.feedbackView = undefined;
     }
