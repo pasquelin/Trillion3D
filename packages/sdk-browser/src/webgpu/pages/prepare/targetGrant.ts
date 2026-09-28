@@ -135,11 +135,12 @@ async function grantTargets(rt: WebgpuPagesRuntime, device: GPUDevice, asked: As
 async function grantHiz(rt: WebgpuPagesRuntime, device: GPUDevice, width: number, height: number) {
   const { vis, run } = rt,
     hiz = vis.gpuHiz!;
+  // A resize that throws is refused like one the device declines: the grant never stays settled.
   const fits = await validated(
     device,
     () => hiz.resize(device, width, height) || undefined,
     'out-of-memory',
-  );
+  ).catch(() => undefined);
   if (!fits && !stopped(rt) && vis.gpuHiz) {
     hizRefused(rt, 'The device refused the Hi-Z pyramid');
     if (vis.visModule) await rasterWithoutHiz(rt, device, vis.visModule);
