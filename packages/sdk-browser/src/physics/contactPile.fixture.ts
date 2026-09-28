@@ -78,11 +78,11 @@ export function pile(
   return out;
 }
 
-/** `steps` with the events of their first step that holds two different ones reversed: a run
- *  the single thread's order must tell apart from its own. */
+/** `steps` with the events of their first step that reversal changes reversed: a run the single
+ *  thread's order must tell apart from its own. */
 export function reversedStep(steps: PileStep[]) {
-  const s = steps.findIndex(({ events }) => new Set(events).size > 1);
-  if (s < 0) throw new Error('no step sends two different events');
+  const s = steps.findIndex(({ events }) => events.join() !== [...events].reverse().join());
+  if (s < 0) throw new Error('no step sends its events in an order reversal changes');
   return steps.map((step, i) => (i === s ? { ...step, events: [...step.events].reverse() } : step));
 }
 
