@@ -4,27 +4,14 @@ import { currentBlendHierarchy } from './hierarchy.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
-const PARKED = 0,
-  REJECTED = 1,
-  KEPT = 2;
-
-/**
- * The item-by-item verdict: parked (hidden node or parked row), rejected, or kept — without a
- * usable box, never rejected. `cut` says its node is rejected: the box test would say the same
- * (`hierarchy.ts`), and is not asked.
- */
-function verdict(item: BlendGpuItem, planes: Float64Array, cut: boolean) {
-  if (notDrawn(item)) return PARKED;
-  const box = item.bounds;
-  if (!box) return KEPT;
-  return cut || frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])
-    ? REJECTED
-    : KEPT;
-}
-
 /** Counts of the frame, module scratch so the walk allocates nothing. */
 const tally = { rejected: 0, water: 0 };
 
+/**
+ * The item-by-item verdict of `rank`: a hidden or parked item is kept out without counting as
+ * rejected; without a usable box, it is never rejected. `cut` says its node is rejected: its box
+ * would be too (`hierarchy.ts`), and is not tested.
+ */
 function judge(
   items: readonly BlendGpuItem[],
   rank: number,
@@ -33,9 +20,11 @@ function judge(
   cut: boolean,
 ) {
   const item = items[rank],
-    said = verdict(item, planes, cut);
-  if (said === REJECTED) tally.rejected++;
-  else if (said === KEPT) {
+    box = item.bounds;
+  if (notDrawn(item)) return;
+  if (box && (cut || frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])))
+    tally.rejected++;
+  else {
     mask[rank >>> 5] |= 1 << (rank & 31);
     // The water pass is encoded for a surface in view, never for a scene that merely has one.
     if (item.transmissive) tally.water++;
@@ -56,7 +45,7 @@ export function cullBlendHierarchy(blendState: BlendState) {
   const items = blendState.blendGpu,
     planes = blendState.blendPlanes,
     tree = currentBlendHierarchy(blendState);
-  const { mask, loose, leaves, first, end, skip, boxes } = tree;
+  const { mask, loose, leaves, first, counts, skip, boxes } = tree;
   mask.fill(0);
   tally.rejected = 0;
   tally.water = 0;
@@ -75,12 +64,13 @@ export function cullBlendHierarchy(blendState: BlendState) {
       boxes[o + 5],
     );
     // A kept inner node is entered; a leaf or a rejected node is judged item by item, then passed.
-    if (!cut && skip[node] !== node + 1) {
+    if (!cut && !counts[node]) {
       node++;
       continue;
     }
-    if (!cut) tree.tested += end[node] - first[node];
-    for (let k = first[node]; k < end[node]; k++) judge(items, leaves[k], planes, mask, cut);
+    const end = first[skip[node]];
+    if (!cut) tree.tested += end - first[node];
+    for (let k = first[node]; k < end; k++) judge(items, leaves[k], planes, mask, cut);
     node = skip[node];
   }
   // Written only where a word changed: a still pose changes none, and the GPU copy is spared.
