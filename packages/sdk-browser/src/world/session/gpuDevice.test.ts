@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { probeExplorerCapabilities } from './capabilityProbe.ts';
-import { gpuFeaturesForcedOff, grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts';
+import { grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts';
 import type { ExplorerSession } from './session.ts';
 
 /** An adapter offering `offered`; its device grants exactly what was asked. */
@@ -22,17 +22,15 @@ const OFFERED = ['shader-f16', 'float32-filterable', 'subgroups', 'texture-compr
 
 test('the device asks exactly the optional features the adapter offers, and publishes them', async () => {
   const { adapter, asked } = adapterOffering(OFFERED);
-  const device = await requestExplorerDevice(adapter, new Set());
+  const device = await requestExplorerDevice(adapter, '?other=1');
   // `float32-filterable` is offered but used by no kernel: it is not asked for.
   assert.deepEqual(asked, [['subgroups', 'shader-f16', 'texture-compression-bc']]);
   assert.deepEqual(grantedGpuFeatures(device), asked[0]);
 });
 
 test('a feature the URL forces off is neither asked for nor published', async () => {
-  const off = gpuFeaturesForcedOff('?trillion3dGpuFeaturesOff=subgroups,%20shader-f16');
-  assert.deepEqual([...off], ['subgroups', 'shader-f16']);
-  assert.equal(gpuFeaturesForcedOff('?other=1').size, 0);
   const { adapter, asked } = adapterOffering(OFFERED);
+  const off = '?trillion3dGpuFeaturesOff=subgroups,%20shader-f16';
   const device = await requestExplorerDevice(adapter, off);
   assert.deepEqual(asked, [['texture-compression-bc']]);
   assert.deepEqual(grantedGpuFeatures(device), ['texture-compression-bc']);
