@@ -6171,7 +6171,6 @@
     "members": {
       "budgetBytes": "Octets permis.",
       "layers": "Couches de chaque réservoir de couloir, par atlas, et les octets de tous les réservoirs additionnés.",
-      "tiles": "Tuiles que chaque réservoir de couloir peut porter, par atlas : les places de ses couches, ou moins quand le budget est sous le plancher des couches — le budget est alors tenu tuile par tuile.",
       "allocatedBytes": "Octets occupés.",
       "clamp": "Pourquoi la taille a été limitée."
     }

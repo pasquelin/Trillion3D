@@ -8,20 +8,6 @@ import {
   type PoolLane,
 } from '../../texture/blockFormats.ts';
 import { resizeTileAtlas } from './atlasResize.ts';
-import { TILES_PER_LAYER } from '../../texture/tiles.ts';
-
-/** What an atlas's lanes are made of. */
-export type TileLanesOptions = {
-  kind: 'color' | 'data';
-  encoding: PoolEncoding;
-  /** Layers of each lane's pool; a lane no texture takes has none, and no pool. */
-  layers: LaneCounts;
-  /** Tiles each lane's pool may hold, when fewer than its layers' places. */
-  tiles?: LaneCounts;
-  textures: readonly { lane: PoolLane }[];
-  /** A tile gave its place up, by a resize or to make room: its texture. */
-  onEvicted?: (slot: number) => void;
-};
 
 /** A lane's pool, the tiles resident in it by id, and its eviction victims of the image. */
 export type Lane = { pool: WebgpuTilePool; resident: Map<number, number>; victims: VictimQueue };
@@ -35,25 +21,29 @@ export type Lane = { pool: WebgpuTilePool; resident: Map<number, number>; victim
  */
 export function createTileLanes(
   device: Pick<GPUDevice, 'createTexture'>,
-  options: TileLanesOptions,
+  options: {
+    kind: 'color' | 'data';
+    encoding: PoolEncoding;
+    /** Layers of each lane's pool; a lane no texture takes has none, and no pool. */
+    layers: LaneCounts;
+    textures: readonly { lane: PoolLane }[];
+    /** A tile a resize gave up: its texture. */
+    onEvicted?: (slot: number) => void;
+  },
 ) {
   const { kind, encoding, textures } = options;
-  const shape = (lane: PoolLane, layers: number, tiles?: number) => ({
+  const shape = (lane: PoolLane, layers: number) => ({
     kind,
     lane,
     format: encoding.formatOf(kind, lane),
     texelBytes: encoding.texelBytes(lane),
     layers,
-    tiles,
   });
   const lanes = new Map<PoolLane, Lane>();
   for (const lane of POOL_LANES)
     if (options.layers[lane] > 0)
       lanes.set(lane, {
-        pool: createWebgpuTilePool(
-          device,
-          shape(lane, options.layers[lane], options.tiles?.[lane]),
-        ),
+        pool: createWebgpuTilePool(device, shape(lane, options.layers[lane])),
         resident: new Map(),
         victims: NO_VICTIMS,
       });
@@ -75,23 +65,21 @@ export function createTileLanes(
       return lane;
     },
     views,
-    /** Every lane whose layers or tiles change gets a new pool that keeps its tiles; returns the
-     *  evicted tiles and how many pools were replaced — none when the shapes are those held. */
+    /** Every lane whose layers change gets a new pool that keeps its tiles; returns the evicted
+     *  tiles and how many pools were replaced — none when the layers are those already held. */
     resize(
       target: Pick<GPUDevice, 'createTexture' | 'createCommandEncoder' | 'queue'>,
       layers: LaneCounts,
       pages: WebgpuTilePageTable,
-      tiles?: LaneCounts,
     ) {
       let evicted = 0,
         replaced = 0;
       for (const [name, lane] of lanes) {
-        const capacity = tiles?.[name] ?? layers[name] * TILES_PER_LAYER;
-        if (layers[name] === lane.pool.layers && capacity === lane.pool.tiles) continue;
+        if (layers[name] === lane.pool.layers) continue;
         replaced++;
         const result = resizeTileAtlas(
           target,
-          shape(name, layers[name], capacity),
+          shape(name, layers[name]),
           encoding.tapOf(name),
           lane.pool,
           pages,
