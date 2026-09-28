@@ -1,11 +1,12 @@
 //! The smallest ball enclosing a set of points, by Welzl's algorithm in its iterative form: one
 //! nested scan per support point, over a deterministic shuffle of the points (expected linear
 //! time, the same result on every host). The normal cone (`normal_cone.rs`) takes the ball of the
-//! unit face normals; any other smallest ball reuses this one.
+//! unit face normals; it is the one smallest-ball solver, beside the box-centred sphere of
+//! `asset-compiler-rust/src/dag/bounds.rs`.
 //!
-//! The solver's radius is only as exact as its circumscribed balls: a caller that needs every
-//! point inside re-measures the radius from the returned centre.
-use crate::vec3::{cross, dot, length, sub};
+//! The circumscribed balls round, so the returned radius is re-measured from the final centre:
+//! every point is inside by construction, not by the solver.
+use crate::vec3::{add, cross, dot, length, scale, sub};
 
 /// A ball as its centre and radius.
 pub type Ball = ([f64; 3], f64);
@@ -14,17 +15,15 @@ pub type Ball = ([f64; 3], f64);
 /// inside despite the rounding of the circumcentre.
 const SLACK: f64 = 1e-12;
 
+/// Squared distances: no square root in the solver's innermost test.
 fn contains(ball: &Ball, p: [f64; 3]) -> bool {
-    length(sub(p, ball.0)) <= ball.1 * (1.0 + SLACK) + 1e-300
+    let (d, r) = (sub(p, ball.0), ball.1 * (1.0 + SLACK));
+    dot(d, d) <= r * r + 1e-300
 }
 
 /// The ball of which `a` and `b` are a diameter.
 fn diameter(a: [f64; 3], b: [f64; 3]) -> Ball {
-    let centre = [
-        (a[0] + b[0]) * 0.5,
-        (a[1] + b[1]) * 0.5,
-        (a[2] + b[2]) * 0.5,
-    ];
+    let centre = scale(add(a, b), 0.5);
     (centre, length(sub(a, centre)))
 }
 
@@ -53,7 +52,7 @@ fn circumscribed(p: &[[f64; 3]]) -> Ball {
             }
             let (t, u) = (cross(n, ab), cross(ac, n));
             let k = [0, 1, 2].map(|i| (dot(ac, ac) * t[i] + dot(ab, ab) * u[i]) / d);
-            ([p[0][0] + k[0], p[0][1] + k[1], p[0][2] + k[2]], length(k))
+            (add(p[0], k), length(k))
         }
         _ => {
             let (u, v, w) = (sub(p[1], p[0]), sub(p[2], p[0]), sub(p[3], p[0]));
@@ -69,7 +68,7 @@ fn circumscribed(p: &[[f64; 3]]) -> Ball {
             let (vw, wu, uv) = (cross(v, w), cross(w, u), cross(u, v));
             let (uu, vv, ww) = (dot(u, u), dot(v, v), dot(w, w));
             let k = [0, 1, 2].map(|i| (uu * vw[i] + vv * wu[i] + ww * uv[i]) / det);
-            ([p[0][0] + k[0], p[0][1] + k[1], p[0][2] + k[2]], length(k))
+            (add(p[0], k), length(k))
         }
     }
 }
@@ -79,14 +78,20 @@ fn circumscribed(p: &[[f64; 3]]) -> Ball {
 fn shuffle(points: &mut [[f64; 3]]) {
     let mut state = 0x2545_f491_4f6c_dd1du64 ^ points.len() as u64;
     for i in (1..points.len()).rev() {
-        state ^= state << 13;
-        state ^= state >> 7;
-        state ^= state << 17;
-        points.swap(i, (state % (i as u64 + 1)) as usize);
+        points.swap(i, (xorshift(&mut state) % (i as u64 + 1)) as usize);
     }
 }
 
-/// The smallest ball enclosing `points`, which it shuffles; `None` when there is none.
+/// One step of the crate's xorshift (13, 7, 17): the shuffle's and the tests' draws.
+pub(crate) fn xorshift(state: &mut u64) -> u64 {
+    *state ^= *state << 13;
+    *state ^= *state >> 7;
+    *state ^= *state << 17;
+    *state
+}
+
+/// The smallest ball enclosing `points`, which it shuffles, its radius re-measured; `None` when
+/// there is none.
 pub fn min_ball(points: &mut [[f64; 3]]) -> Option<Ball> {
     shuffle(points);
     let p = &*points;
@@ -114,7 +119,11 @@ pub fn min_ball(points: &mut [[f64; 3]]) -> Option<Ball> {
             }
         }
     }
-    Some(ball)
+    let radius = p
+        .iter()
+        .map(|&q| length(sub(q, ball.0)))
+        .fold(0.0, f64::max);
+    Some((ball.0, radius))
 }
 
 #[cfg(test)]
