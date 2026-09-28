@@ -6,10 +6,9 @@ import type { BlendGpuItem } from './state.ts';
 import { BLEND_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts';
 import { WATER_SURFACE_WGSL } from '../water/surfaceWgsl.ts';
 import {
-  blendStagePipelines,
-  blendStagePipelinesNow,
   declaredBlendModes,
   pipelinesByMode,
+  stageDescriptors,
   type BlendModePipelines,
 } from './stagePipelines.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
@@ -106,10 +105,8 @@ export async function createWebgpuBlendPipelines(
       { format: FEEDBACK_FORMAT },
     ],
   });
-  const perMode = pipelinesByMode(
-    (mode) =>
-      blendStagePipelinesNow(device, blendModule, blendBindGroupLayout, fragment(mode), false),
-    (mode) => blendStagePipelines(device, blendModule, blendBindGroupLayout, fragment(mode), false),
+  const perMode = pipelinesByMode(device, (mode) =>
+    stageDescriptors(device, blendModule, blendBindGroupLayout, fragment(mode), false),
   );
   // Normal always — the transmission slice draws on it under a diagnostic —, then every mode a
   // blend item declares. A mode written on a surface later is compiled by the first draw that
