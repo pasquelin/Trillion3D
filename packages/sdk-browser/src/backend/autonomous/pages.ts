@@ -40,12 +40,13 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     cap = hostCeiling < Infinity ? hostCeiling : pageDefault,
     scene = hostPageScene(blendCopies);
   const baseMaterials = new Map(allPages.map((rec) => [rec, rec.declaration] as const)),
+    declared = () => baseMaterials.values(), // every page's surface: the draw's census (#840)
     colorMaterials = new Map<HostMaterial, HostMaterial>(),
     modifiedPages = new Set<string>();
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
     views = createWebglViews(context.viewport, gate, () => residency.keptChanged()),
-    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, context);
+    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, context, declared);
   // The engine's own lighting (`contractLightingApi.ts`): the cache's lights, else the graph's.
   const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
   let ready = false;
@@ -60,7 +61,6 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     colorMaterials,
     modifiedPages,
   });
-  const { sync, acceptGeometryPage } = geometryStore;
   // The tables a placement enters: instances and instance-buffer rows append to the same.
   const tables = { roots, allPages, bootstrap, byUrl, baseMaterials, blendOf };
   const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl, hostCeiling });
@@ -131,11 +131,11 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       const urls = [...bootstrapUrls];
       // A copy drawn whole reads its host vertices, which no session fetches up front.
       const [pages] = await Promise.all([readPages(context, urls), loadHostVertices(blendCopies)]);
-      pages.forEach((data, i) => acceptGeometryPage(urls[i], data));
+      pages.forEach((data, i) => geometryStore.acceptGeometryPage(urls[i], data));
       heldFloor.changed();
       ready = true;
       for (const page of bootstrap) views.live.shown.push(page); // a spread overflows the stack
-      sync();
+      geometryStore.sync();
       residency.keptChanged();
       publishAutonomousCapabilities(context.onDiagnostic);
     },
@@ -163,7 +163,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     ...pool.api,
     syncResident() {
       gate.resourcesChanged();
-      sync();
+      geometryStore.sync();
     },
     refreshMaterials(values = true, alpha) {
       // Values reach the twins, clones; a picture alone (#362), shared, only lets the image go.
