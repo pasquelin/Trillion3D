@@ -71,7 +71,6 @@ pub(super) fn build_dag_primitive(
     laps.lap("dagMs");
     // From here on every stage reads the source's vertices followed by those the solve of a
     // seam-locked group placed (`dag::Grown`); `source.bin` keeps the source alone.
-    let solved = grown.as_ref().map_or(0, |g| g.origin.len());
     let (pos, carried) = crate::dag::Grown::arrays(&grown, pos, attributes);
     let attributes = crate::dag::DagAttributes { carried: &carried };
     let quality =
@@ -80,7 +79,7 @@ pub(super) fn build_dag_primitive(
     // at hand; further on, clusters exist only as cache objects.
     let (proxy_threshold, proxy_cut) = crate::proxy::cut::coarse_cut(&dag, pos, proxy_demand);
     let (dag_report, warnings) =
-        compiler_primitive_stalls::dag_report(strategy, &dag, &tallies, &stalls, solved, &quality);
+        compiler_primitive_stalls::dag_report(strategy, &dag, &tallies, &stalls, &quality);
     // Pages follow the culling order so every hierarchy node owns a contiguous page range.
     let (order, culling) = {
         let _t = perf::Timer::new(perf::Phase::Culling);

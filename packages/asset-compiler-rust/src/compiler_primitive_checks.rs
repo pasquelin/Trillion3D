@@ -86,7 +86,6 @@ mod tests {
             &dag,
             &[],
             &[],
-            0,
             &quality,
         );
         for row in report["levels"].as_array().expect("levels") {
