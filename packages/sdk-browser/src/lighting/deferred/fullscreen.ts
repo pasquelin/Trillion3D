@@ -7,6 +7,29 @@ export const buildRenderPipeline = (device: GPUDevice, descriptor: GPURenderPipe
     ? device.createRenderPipelineAsync(descriptor)
     : Promise.resolve(device.createRenderPipeline(descriptor));
 
+/** Builds a compute pipeline, asynchronously when the device offers it. */
+export const buildComputePipeline = (
+  device: GPUDevice,
+  descriptor: GPUComputePipelineDescriptor,
+) =>
+  device.createComputePipelineAsync
+    ? device.createComputePipelineAsync(descriptor)
+    : Promise.resolve(device.createComputePipeline(descriptor));
+
+/** A render pipeline compiled off the frame by `prepare`, or at once by `get` when nothing
+ *  prepared it: a frame never compiles what prepare did. */
+export function preparedPipeline(device: GPUDevice, descriptor: GPURenderPipelineDescriptor) {
+  let made: GPURenderPipeline | undefined;
+  return {
+    async prepare() {
+      if (made) return;
+      const built = await buildRenderPipeline(device, descriptor);
+      made ??= built;
+    },
+    get: () => (made ??= device.createRenderPipeline(descriptor)),
+  };
+}
+
 /** A fullscreen-triangle pipeline on one bind group layout or one per group, at the targets given. */
 export function makeFullscreenPipeline(
   device: GPUDevice,

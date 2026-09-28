@@ -194,7 +194,7 @@ export function createWorldRuntime(inputs: Inputs) {
       explorer?.dispose();
       if (mirror) releaseWorldMirror(mirror.root);
       cuts.dispose();
-      scene._link = null;
+      scene.traverse((node) => (node._link = null));
     },
   };
 }

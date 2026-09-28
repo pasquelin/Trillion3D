@@ -10,7 +10,8 @@ import {
   type PreparedSceneTables,
 } from '../../../sdk-core/src/scene/core/tableContracts.ts';
 import { readTablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts';
-import { checked, fetchVerified } from '../cluster/pages.ts';
+import { fetchVerified } from '../cluster/pages.ts';
+import { checked } from '../cluster/checked.ts';
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
 
 /** Where a cache keeps its scene tables: the one address their reader and a load's plan use. */

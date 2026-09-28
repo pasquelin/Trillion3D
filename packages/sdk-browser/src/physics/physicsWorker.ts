@@ -8,6 +8,7 @@
  */
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import { PHYSICS_STEP } from '../../../sdk-core/src/physics/index.ts';
+import { checked } from '../cluster/checked.ts';
 import { openJolt, startJolt, type JoltModule } from './joltModule.ts';
 import { JOLT_THREAD_LOADED, joltWorkerPool, runJoltThread } from './joltThreads.ts';
 import { PHYSICS_PROTOCOL, type FromPhysics, type ToPhysics } from './protocol.ts';
@@ -122,9 +123,7 @@ function schedule(ms: number) {
 async function start(message: Extract<ToPhysics, { type: 'start' }>) {
   if (message.protocol !== PHYSICS_PROTOCOL)
     throw new EngineError('PHYSICS_FAILED', 'Physics: protocol mismatch.');
-  const response = await fetch(message.wasm);
-  if (!response.ok)
-    throw new EngineError('PHYSICS_FAILED', `Physics: ${message.wasm} ${response.status}.`);
+  const response = await checked(message.wasm);
   const budget = message.budget;
   // The module's threads run in workers of this same script (`thread` messages below); until
   // each has loaded, `jolt` stays unset: nothing steps, the character's words wait in `queued`.
