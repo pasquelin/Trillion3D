@@ -4765,6 +4765,13 @@
       "depth": "Capas, para una pila de imágenes."
     }
   },
+  "PlacementGrowth": {
+    "summary": "Lo que un propietario entrega a una sesión que amplía sus búferes de instancias en el sitio (`growth.ts`).",
+    "members": {
+      "growPlacements": "Un búfer de instancias que la sesión tiene fue sustituido por uno mayor, primero las filas de `from` y el resto apartado: la sesión lee `to` desde ahora y conserva sus filas nuevas, sin reconstruir ninguna tabla (`growth.ts`). Si un motor no lo tiene, el propietario abre de nuevo la sesión sobre `to`.",
+      "growsInPlace": "Si `growPlacements` acepta cada uno de `from` ampliado a `capacity` filas, preguntado antes de que el propietario sustituya alguno: false los deja como están, y el propietario abre de nuevo la sesión sobre otros mayores."
+    }
+  },
   "PlacementRows": {
     "summary": "Las filas de colocación de las mallas espejo, una fila por copia colocada.",
     "members": {
