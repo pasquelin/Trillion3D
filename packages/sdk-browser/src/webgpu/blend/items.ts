@@ -2,6 +2,7 @@ import type { BlendGpuItem } from './state.ts';
 import { refreshSurface } from '../../page/surface.ts';
 import { layerSlot, sampledFlag, type MaterialLayers } from '../row/pageRowMaterial.ts';
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
+import { FOG_FREE_MODEL_BIT } from '../../scene/surfaceModel.ts';
 
 /**
  * Record of a transparent item: everything a blend draw reads about IT, and nothing that
@@ -61,8 +62,8 @@ export function writeBlendItemRecord(
   floats[base + 36] = mat.emissive[0];
   floats[base + 37] = mat.emissive[1];
   floats[base + 38] = mat.emissive[2];
-  // Unused emissive lane carries the model without growing the record.
-  floats[base + 39] = mat.model ?? 0;
+  // Unused emissive lane carries the model and fog opt-out without growing the record.
+  floats[base + 39] = (mat.model ?? 0) | (mat.fog === false ? FOG_FREE_MODEL_BIT : 0);
   // A dashed line's dash and gap (`lineDash`), zero on any other item.
   floats[base + 40] = mat.dashSize ?? 0;
   floats[base + 41] = mat.gapSize ?? 0;
