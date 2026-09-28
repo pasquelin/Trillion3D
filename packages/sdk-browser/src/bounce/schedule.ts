@@ -1,5 +1,6 @@
 import {
   BOUNCE_PROBES_PER_FRAME,
+  BOUNCE_SETTINGS,
   type BounceCascades,
   type BounceOccupancy,
 } from '../../../sdk-core/src/index.ts';
@@ -22,7 +23,7 @@ import {
  * No per-frame allocation: the queue and the cursors are set once and for all.
  */
 export function createBounceSchedule(cascades: BounceCascades, occupancy: BounceOccupancy) {
-  const levels = cascades.levels.length;
+  const levels = BOUNCE_SETTINGS.cascadeLevels;
   const side = cascades.size;
   const cursors = new Uint32Array(levels);
   const rounds = new Uint32Array(levels);
@@ -48,11 +49,11 @@ export function createBounceSchedule(cascades: BounceCascades, occupancy: Bounce
     queue,
     /** Complete rounds of the slowest level since the last invalidation. */
     get sweeps() {
-      return Math.min(...rounds);
+      return Math.min(...rounds.subarray(0, cascades.levels.length));
     },
     /** Frames of a complete round, the longest of the level measurements: the lag bound. */
     get sweepFrames() {
-      return Math.max(1, ...roundFrames);
+      return Math.max(1, ...roundFrames.subarray(0, cascades.levels.length));
     },
     /**
      * A light has changed, or the cascade has slid: the bounce series is no longer closed and
@@ -71,7 +72,7 @@ export function createBounceSchedule(cascades: BounceCascades, occupancy: Bounce
     plan(total: number) {
       const shares = cascades.shareOf(total);
       let groups = 0;
-      for (let level = 0; level < levels; level++) {
+      for (let level = 0; level < cascades.levels.length; level++) {
         let taken = 0;
         elapsed[level]++;
         for (
