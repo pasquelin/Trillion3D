@@ -134,20 +134,23 @@ test('the deploy pre-compresses the cache objects only, which decode to themselv
 
 test('a request aborted before its file opens leaves no file open and pipes nothing', async (t) => {
   const root = cacheTree(t, Buffer.alloc(4096, 7)),
-    read = fs.createReadStream,
-    { promise: made, resolve: make } = Promise.withResolvers<fs.ReadStream>(),
-    { promise: piped, resolve: pipe } = Promise.withResolvers<void>();
+    read = fs.createReadStream;
   // The server's file stream, caught as it is made (a built-in's exports follow its object).
-  t.mock.method(fs, 'createReadStream', (...args: Parameters<typeof read>) => {
-    const stream = read(...args);
-    make(stream);
-    return stream;
-  });
+  const made = new Promise<fs.ReadStream>((make) =>
+    t.mock.method(fs, 'createReadStream', (...args: Parameters<typeof read>) => {
+      const stream = read(...args);
+      make(stream);
+      return stream;
+    }),
+  );
   syncBuiltinESMExports();
   t.after(syncBuiltinESMExports);
   const server = staticServer({ mounts: [{ prefix: '/', dir: root }] }),
-    port = await listen(server),
-    said = t.mock.method(console, 'error', () => pipe());
+    port = await listen(server);
+  let said = 0;
+  const piped = new Promise<void>((pipe) =>
+    t.mock.method(console, 'error', () => (said++, pipe())),
+  );
   // The client gone as the server starts on the file: its response closes before the file opens.
   server.on('request', (_, response: ServerResponse) => response.destroy());
   request({ port, path: '/cache/page.bin' })
@@ -157,7 +160,7 @@ test('a request aborted before its file opens leaves no file open and pipes noth
   // Either the file closes, or the server says it could not pipe onto the closed response.
   await Promise.race([once(stream, 'close'), piped]);
   await closeAll(server);
-  assert.equal(said.mock.callCount(), 0, 'no pipe onto the closed response');
+  assert.equal(said, 0, 'no pipe onto the closed response');
   assert.ok(stream.closed, 'the file stream is closed with the response');
 });
 
