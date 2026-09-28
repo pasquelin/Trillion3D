@@ -398,7 +398,10 @@
       "levels": "Ogni livello.",
       "reach": "Portata dei raggi: la diagonale dell'estensione, oltre la quale non c'è nulla da toccare.",
       "shareOf": "Sonde del lotto di lavoro per fotogramma, per livello: quote pubblicate applicate a un lotto totale.",
-      "follow": "Riposiziona i livelli mobili attorno a un punto di vista. Restituisce vero quando almeno un indice di cella base è cambiato: è l'unico segnale di cui la convergenza ha bisogno per ripartire, senza alcuna rilettura dalla GPU."
+      "follow": "Riposiziona i livelli mobili attorno a un punto di vista. Restituisce vero quando almeno un indice di cella base è cambiato: è l'unico segnale di cui la convergenza ha bisogno per ripartire, senza alcuna rilettura dalla GPU.",
+      "reserveCount": "Capacità fissa riservata prima che le trasformazioni possano ampliare la scena.",
+      "invalidLevels": "Livelli la cui spaziatura o presenza è cambiata nell’ultima ripianificazione. Gli spostamenti della base usano i contrassegni delle celle.",
+      "replan": "Riapplica la politica esistente di risoluzione spaziale ai limiti attuali della geometria."
     }
   },
   "BounceOccupancy": {
@@ -408,7 +411,8 @@
       "occupied": "Vero quando una cella di un livello nella sua griglia merita una sonda.",
       "marked": "Celle marcate e celle totali del livello più fine: il guadagno pubblicato.",
       "cells": "Celle del livello più fine.",
-      "bytes": "Byte che occupa."
+      "bytes": "Byte che occupa.",
+      "allEligible": "La geometria si è mossa: pianifica in modo conservativo tutte le celle delle cascate, il cui numero è limitato."
     }
   },
   "BoundedNode": {
@@ -5364,7 +5368,12 @@
       "triangles": "Tre vertici nel mondo per triangolo, `PROXY_TRIANGLE_FLOATS` numeri ciascuno.",
       "albedo": "Albedo diffuso lineare del triangolo, disposto in RGBA8.",
       "nodeBounds": "Limiti esatti di ogni nodo del BVH.",
-      "nodeChildren": "I quattro figli di ogni nodo: scatola quantizzata, numero di triangoli, presenza, collegamento."
+      "nodeChildren": "I quattro figli di ogni nodo: scatola quantizzata, numero di triangoli, presenza, collegamento.",
+      "triangleGroups": "Gruppo condiviso dei proprietari di origine di ogni triangolo canonico, memorizzato una sola volta.",
+      "groupOffsets": "Offset dei record dei proprietari di ogni gruppo, inclusa la sentinella finale.",
+      "owners": "Record dei proprietari: indice del nodo di origine e albedo lineare compattato in RGBA8.",
+      "bindWorlds": "Matrici mondo originali dei nodi di origine, sedici valori a doppia precisione per nodo.",
+      "sourceParents": "Gerarchia di origine, inclusi i nodi di partizione non attualmente istanziati dall’host."
     }
   },
   "SceneProxyDescriptor": {
@@ -5381,7 +5390,10 @@
       "triangleBudget": "Budget di triangoli pubblicato, quello che ha deciso la soglia realmente ottenuta.",
       "bounds": "Estensione del proxy nel mondo: tre limiti bassi poi tre alti.",
       "triangles": "Triangoli.",
-      "nodes": "Nodi dell'albero."
+      "nodes": "Nodi dell'albero.",
+      "groups": "Gruppi di proprietari condivisi e memorizzati una sola volta.",
+      "owners": "Record dei proprietari.",
+      "instances": "Matrici dei nodi di origine."
     }
   },
   "SceneRoot": {
