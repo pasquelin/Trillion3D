@@ -1,14 +1,14 @@
-import { WATER_RANK_SHIFT, WATER_WORD_FORMAT } from '../water/surfaceWgsl.ts';
+import { WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
 import type { TransmissionBackdrop, WebgpuGpuState } from '../pages/state/gpu.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** `transmission`, `ior`, `thickness`, `attenuationDistance`, then aligned `attenuationColor`:
  *  one record per transmissive item, read by water rank in a storage buffer. */
 export const VOLUME_WORDS = 8;
-/** The frozen backdrop costs a half-float colour (8 bytes) per pixel, the depth the surface stage
- *  tests and writes 4 more, and its water word 4; the other surfaces are the opaque resolve's,
- *  already paid. */
-const WATER_BYTES_PER_PIXEL = 8 + 4 + 4;
+/** The frozen backdrop costs a half-float colour (8 bytes) per pixel, and the depth the surface
+ *  stage tests and writes 4 more; the other surfaces are the opaque resolve's, and the water word
+ *  borrows the display colour (`../water/surfaceWgsl.ts`), already paid. */
+export const WATER_BYTES_PER_PIXEL = 8 + 4;
 
 /** What the water pass adds to the image budget, zero with no transmissive surface. */
 export function backdropBytes(rt: WebgpuPagesRuntime, width: number, height: number) {
@@ -16,8 +16,8 @@ export function backdropBytes(rt: WebgpuPagesRuntime, width: number, height: num
 }
 
 /**
- * Allocates what the water pass owns: the frozen colour its composite rereads, and the depth and
- * the water word its surface stage writes. With no transmissive surface they are one texel: the bind
+ * Allocates what the water pass owns: the frozen colour its composite rereads, and the depth its
+ * surface stage writes. With no transmissive surface they are one texel: the bind
  * layouts are the same for the whole scene, and nothing is reserved for a class the scene does
  * not carry.
  */
@@ -41,19 +41,11 @@ export function createBackdrop(
     format: 'depth32float',
     usage: usage | GPUTextureUsage.RENDER_ATTACHMENT,
   });
-  const waterWord = device.createTexture({
-    label: 'Trillion3D water word',
-    size,
-    format: WATER_WORD_FORMAT,
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
-  });
   return {
     color,
     colorView: color.createView(),
     waterDepth,
     waterDepthView: waterDepth.createView(),
-    waterWord,
-    waterWordView: waterWord.createView(),
     active,
   };
 }
@@ -63,7 +55,6 @@ export function disposeBackdrop(gpu: WebgpuGpuState) {
   if (!backdrop) return;
   backdrop.color.destroy();
   backdrop.waterDepth.destroy();
-  backdrop.waterWord.destroy();
   gpu.backdrop = undefined;
 }
 
