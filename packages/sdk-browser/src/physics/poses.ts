@@ -9,12 +9,14 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
+import type { NodeMove } from './cookedBodies.ts';
 import { extrapolateAll, interpolateAll, landAll } from './drawnPoses.ts';
 import { createPosePlacer } from './placer.ts';
 
-/** The bodies a tick's records name: meshes and generations by slot, and the way out of one. */
+/** The bodies a tick's records name, by slot: meshes, moved compiled nodes, generations. */
 export interface PosedBodies {
   readonly meshes: readonly (Bodied | null)[];
+  readonly nested: ReadonlyMap<number, NodeMove>;
   readonly generation: Uint8Array;
   retire(index: number): void;
 }
@@ -83,6 +85,8 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
     state,
     /** Every mesh keeps its own pose numbers again (the physics stops). */
     clear: placer.clear,
+    /** The page moved `node`: a compiled node posed under it is drawn where it now stands. */
+    follow: (node: Object3D) => placer.follow(node, to),
     /**
      * A tick's pose records arrived, simulating `ms` of the page's time; returns how many moved a
      * body from where it is drawn (a pose sent again unchanged asks for no frame). A record of a
@@ -91,7 +95,7 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
      * met for the first time in its slot.
      */
     receive(words: Uint32Array, records: number, bodies: PosedBodies, ms: number) {
-      const { generation, meshes } = bodies;
+      const { generation, meshes, nested } = bodies;
       const floats = new Float32Array(words.buffer, words.byteOffset, words.length);
       const time = now();
       const interval = start < 0 ? ms : time - start;
@@ -107,12 +111,14 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
           head = words[at],
           index = head & BODY_INDEX,
           g = generation[index],
-          mesh = meshes[index];
-        // A body that left its slot, or a model's own (`bodySlots.ts`), draws nothing here.
-        if (g !== (head >>> GENERATION_SHIFT) % GENERATIONS || mesh == null) continue;
+          mesh = meshes[index],
+          made = mesh ? undefined : nested.get(index);
+        // A body that left its slot, or a model's moving no node (`bodySlots.ts`), draws nothing.
+        if (g !== (head >>> GENERATION_SHIFT) % GENERATIONS || !(mesh || made)) continue;
         if (bound[index] !== g) {
-          placer.bind(index, g, mesh);
-          decorative[index] = mesh.physics.decorative ? 1 : 0;
+          if (mesh) placer.bind(index, g, mesh);
+          else if (made) placer.bindNode(index, g, made.node, made.scale);
+          decorative[index] = mesh?.physics.decorative ? 1 : 0;
         }
         const asleep = (head & ASLEEP_BIT) !== 0,
           v = index * 6;

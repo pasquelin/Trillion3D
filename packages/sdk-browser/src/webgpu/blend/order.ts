@@ -1,4 +1,3 @@
-import { blendFootprintHeld, holdBlendRanking } from './footprint.ts';
 import { cullBlendHierarchy } from './hierarchyCull.ts';
 import { resliceBlendRuns } from './runs.ts';
 import { precedes, sortPlanFarToNear } from './sortPlan.ts';
@@ -79,11 +78,8 @@ export function orderBlendPasses(
     blendState.runCount[0] = 0;
     blendState.runCount[1] = 0;
     blendState.transmissiveInView = 0;
-    blendState.footprint.held = false;
     return 0;
   }
-  // Inputs bit-identical to the last ranking: it stands, mask and runs included (`footprint.ts`).
-  if (blendFootprintHeld(blendState, eye)) return blendState.footprint.rejected;
   refreshEyeKeys(blendState, eye);
   // A second walk, not one more line in the key walk: the fused loop slowed the sort that follows
   // by four to nine percent on a camera jump (`bench/perf/browser/transparent-orders.perf.ts`).
@@ -100,7 +96,6 @@ export function orderBlendPasses(
     // zeroes the count (`plan.ts`), and is then sliced whole.
     runCount[pass] = resliceBlendRuns(order, runs[pass], runCount[pass], first);
   }
-  holdBlendRanking(blendState.footprint, rejected);
   return rejected;
 }
 

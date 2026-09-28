@@ -1,5 +1,5 @@
 import { viewProj } from '../pages/helpers.ts';
-import { UNIFORM_STRIDE } from './uniforms.ts';
+import { FALLBACK_UNIFORM, UNIFORM_STRIDE, writeFallbackUniform } from './uniforms.ts';
 import { voidStaleBlendGroups } from './identity.ts';
 import { refreshSurface } from '../../page/surface.ts';
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts';
@@ -87,22 +87,18 @@ export function writeFallbackBlendUniforms(
       // (`lineClip`), and is refused by name rather than dropped.
       if ((surface.lineWidth ?? 0) > 0) throw new Error('FALLBACK_TRANSPARENT_LINES_UNSUPPORTED');
     }
-    uniformPacked.set(viewProj, base);
-    uniformPacked.set(item.matrix.elements, base + 16);
-    uniformPacked[base + 32] = surface!.baseColor[0];
-    uniformPacked[base + 33] = surface!.baseColor[1];
-    uniformPacked[base + 34] = surface!.baseColor[2];
-    uniformPacked[base + 35] = surface!.opacity;
-    packedInts[base + 36] = list[at + 1];
-    packedInts[base + 37] = list[at + 2];
-    // A paged item read from its quantized pages decodes its corners there, as an opaque row does.
-    packedInts[base + 38] = fallbackMode(run.diagnostic, (item.flags & FLAG_CLUSTER_PAGE) !== 0);
-    packedInts[base + 39] = item.flags;
-    // No width and no dash: the words a line page of the opaque draw may have left here.
-    uniformPacked[base + 40] = 0;
-    uniformPacked[base + 44] = 0;
-    // A sprite turns to face the camera like in every raster (`spriteAt`).
-    writeSpriteWords(uniformPacked, base + 46, surface!.sprite);
+    writeFallbackUniform(uniformPacked, packedInts, base, {
+      projection: viewProj,
+      world: item.matrix.elements,
+      color: surface!.baseColor,
+      opacity: surface!.opacity,
+      pageOffset: list[at + 1],
+      indexCount: list[at + 2],
+      mode: fallbackMode(run.diagnostic, (item.flags & FLAG_CLUSTER_PAGE) !== 0),
+      identity: item.flags,
+    });
+    // Line words are disabled above; sprites retain the encoding shared by every raster.
+    writeSpriteWords(uniformPacked, base + FALLBACK_UNIFORM.sprite, surface!.sprite);
   }
   device.queue.writeBuffer(
     uniformBuffer,
