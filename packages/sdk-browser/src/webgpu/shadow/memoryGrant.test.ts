@@ -35,7 +35,8 @@ test('a static layer past the grant is never made, and said by name', () => {
     void said.push(`${phase}:${String(context.pressure)}`);
   assert.equal(staticLayerGranted(lights, say), true, 'the grant holds it');
   const late = shadowAtlasBytes(8) + shadowTransmittanceBytes(8);
-  assert.equal(lights.memory.peakBytes, late, 'the transmittance layer to come is reserved');
+  assert.equal(lights.memory.peakBytes, shadowAtlasBytes(8), 'the peak holds only what is made');
+  assert.equal(staticLayerGranted(lights, say, late), true, 'the layer to come is reserved');
   assert.equal(staticLayerGranted(lights, say, late - 1), false);
   assert.deepEqual(lights.memory.events, ['static-layer-over-grant']);
   assert.deepEqual(said, ['shadow-memory:static-layer-over-grant']);
