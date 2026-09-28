@@ -83,7 +83,7 @@ export async function reglerReservoirs(
   const resident = await residentBudget(explorer, pose, budgets.textureResidentFraction, poseCalme);
   const requested: MemoryBudgets = {
     geometryPoolBytes: budgets.geometryPoolBytes ?? undefined,
-    texturePoolBytes: resident ? resident.budget : (budgets.texturePoolBytes ?? undefined),
+    texturePoolBytes: resident?.budget ?? budgets.texturePoolBytes ?? undefined,
   };
   const rapport = await explorer.setMemoryBudgets(requested);
   const imagesReprise = await poseCalme(explorer, pose);
