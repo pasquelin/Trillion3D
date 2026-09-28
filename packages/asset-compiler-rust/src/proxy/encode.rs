@@ -20,6 +20,9 @@ impl SceneProxy {
          "bounds": self.bounds,
          "triangles": self.triangle_count(),
          "nodes": self.node_count(),
+         "groups": self.provenance.group_offsets.len().saturating_sub(1),
+         "owners": self.provenance.owners.len() / 2,
+         "instances": self.provenance.bind_worlds.len() / 16,
         })
     }
 
@@ -39,6 +42,10 @@ impl SceneProxy {
             SCENE_PROXY_VERSION,
             self.triangle_count() as u32,
             self.node_count() as u32,
+            self.provenance.group_offsets.len().saturating_sub(1) as u32,
+            (self.provenance.owners.len() / 2) as u32,
+            (self.provenance.bind_worlds.len() / 16) as u32,
+            0,
         ] {
             bytes.extend_from_slice(&word.to_le_bytes());
         }
@@ -52,6 +59,21 @@ impl SceneProxy {
             bytes.extend_from_slice(&value.to_le_bytes());
         }
         for value in &self.node_children {
+            bytes.extend_from_slice(&value.to_le_bytes());
+        }
+        for column in [
+            &self.provenance.triangle_groups,
+            &self.provenance.group_offsets,
+            &self.provenance.owners,
+        ] {
+            for value in column {
+                bytes.extend_from_slice(&value.to_le_bytes());
+            }
+        }
+        for value in &self.provenance.source_parents {
+            bytes.extend_from_slice(&value.to_le_bytes());
+        }
+        for value in &self.provenance.bind_worlds {
             bytes.extend_from_slice(&value.to_le_bytes());
         }
         bytes
