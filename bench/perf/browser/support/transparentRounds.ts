@@ -32,7 +32,7 @@ import {
 
 /** What the encode loop counted on the last lap: read by the sample, not by the lap. */
 let comptes = 0;
-export const appelsEncodes = () => comptes;
+const appelsEncodes = () => comptes;
 
 /**
  * THE ENCODE LOOP, counted: a slice that names its item and that the frustum rejects is not
@@ -92,7 +92,7 @@ function etale(
 }
 
 /** The four laps of a scene, and the CPU-fallback mirrors allocated outside the lap. */
-export function tours(before: BenchSide, after: BenchSide) {
+function tours(before: BenchSide, after: BenchSide) {
   const blendState = after.blendState;
   const miroir = {
     expanded: new Uint32Array(blendState.instanceCapacity * 2),
