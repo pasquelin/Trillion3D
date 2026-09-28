@@ -1,4 +1,5 @@
 import { WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
+import { refreshSurface } from '../../page/surface.ts';
 import type { TransmissionBackdrop, WebgpuGpuState } from '../pages/state/gpu.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
@@ -72,7 +73,7 @@ export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
     const rank = waterRankOf(item.flags);
     if (!rank) continue;
     const base = (rank - 1) * VOLUME_WORDS,
-      mat = item.surface;
+      mat = refreshSurface(item.surface);
     packed[base] = mat.transmission;
     packed[base + 1] = mat.ior;
     packed[base + 2] = mat.thickness;
@@ -80,7 +81,7 @@ export function writeVolumeRecords(rt: WebgpuPagesRuntime, device: GPUDevice) {
     packed[base + 4] = mat.attenuationColor[0];
     packed[base + 5] = mat.attenuationColor[1];
     packed[base + 6] = mat.attenuationColor[2];
-    packed[base + 7] = 0;
+    packed[base + 7] = mat.fog === false ? 1 : 0;
   }
   device.queue.writeBuffer(gpu.volumeBuffer, 0, packed);
 }

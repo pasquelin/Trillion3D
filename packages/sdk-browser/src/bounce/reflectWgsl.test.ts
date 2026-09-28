@@ -19,7 +19,7 @@ test('with bounce, a smooth surface adds what its mirror direction meets in the 
   // The term is part of the lit sum, fed the pixel's own roughness.
   assert.match(
     BOUNCE_LIGHTING_SHADER,
-    /fogged\(lit\+ambient\+emissive\.rgb\+bounceLighting\([^)]*\)\+mirrorLighting\(base\.rgb,base\.a,normal\.a,N,V,P\),P,/,
+    /var rgb=lit\+ambient\+emissive\.rgb\+bounceLighting\([^)]*\)\+mirrorLighting\(base\.rgb,base\.a,normal\.a,N,V,P\);if\(\(surfaceFlag&128u\)==0u\)\{rgb=fogged\(rgb,P,/,
   );
   const mirror = body(BOUNCE_LIGHTING_SHADER, 'mirrorLighting');
   assert.ok(mirror.includes(`reflectedRadiance(P,N,reflect(-V,N),${ROUGHNESS_FLOOR})*weight`));
