@@ -28,3 +28,20 @@ pub fn grid_exponent(extent: f64, finest_error: Option<f64>, tile_log2: i32) -> 
         .max(finest)
         .clamp(-MAX_EXPONENT, MAX_EXPONENT)
 }
+
+/// The finest grid on which a positive `span` fits a page's field: at most 2^23 steps, which
+/// rounding at both ends keeps under the 2^`MAX_BITS` a page holds (`gridExponentFor`,
+/// `pageGrids.ts`, for texture coordinates), so a blended surface sits on one grid however it is cut.
+pub fn finest_exponent(span: f64) -> i32 {
+    (span.log2().ceil() as i32 - (MAX_BITS as i32 - 1)).clamp(-MAX_EXPONENT, MAX_EXPONENT)
+}
+
+/// The grid of a primitive the world cuts at run time, of widest `extent`: a `blended` one takes
+/// the finest grid its pages hold, as the compiler's does (#875); any other the compiler's rule
+/// with no DAG — every run-time cluster is a root — at no known world scale, a metre per unit.
+pub fn drawn_exponent(extent: f64, blended: bool) -> i32 {
+    match blended && extent > 0.0 {
+        true => finest_exponent(extent),
+        false => grid_exponent(extent, None, TILE_EXTENT_LOG2),
+    }
+}

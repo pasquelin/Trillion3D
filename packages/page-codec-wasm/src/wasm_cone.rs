@@ -2,14 +2,14 @@
 //! pages the world cuts at run time: byte offsets into `arena_alloc` reservations, like
 //! `wasm_cut.rs`. The loaders are `packages/sdk-browser/src/world/page/cutCones.ts` and `cutGrid.ts`.
 
-use crate::bits::grid::{grid_exponent, TILE_EXTENT_LOG2};
+use crate::bits::grid::drawn_exponent;
 use crate::normal_cone::cluster_cones;
 
-/// The compiler's grid exponent for a primitive of widest `extent`, placed at no known world
-/// scale (a metre per unit) and with no DAG: every run-time cluster is a root, drawn as it is.
+/// The position grid exponent of a run-time primitive of widest `extent` (`drawn_exponent`);
+/// `blended` is 0 or 1.
 #[no_mangle]
-pub extern "C" fn position_grid_exponent(extent: f64) -> i32 {
-    grid_exponent(extent, None, TILE_EXTENT_LOG2)
+pub extern "C" fn position_grid_exponent(extent: f64, blended: u32) -> i32 {
+    drawn_exponent(extent, blended != 0)
 }
 
 /// Writes the cone of each of `clusters` index ranges into `out` and returns 0; or 1, `out`
