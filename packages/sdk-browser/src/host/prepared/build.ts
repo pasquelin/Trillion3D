@@ -88,14 +88,19 @@ export async function buildPreparedScene(inputs: Inputs) {
 }
 
 /** The source document the autonomous one's pages were cut from: its meshes, and its geometries,
- *  whose binary is read on the first need of a vertex — a class change cutting pages again (#846). */
+ *  each view of whose binary is read alone, by an HTTP Range, on the first need of a vertex — a
+ *  class change cutting pages again (#846): the session never reads the whole `source.bin`. */
 function pagedSource(tables: PreparedSceneTables, base: string) {
   if (!tables.documents[SOURCE_FILE]) return {};
   const { document, bufferUrl } = sceneDocument(tables, SOURCE_FILE, base);
-  const binary = readOnce(() =>
-    bufferUrl
-      ? checked(bufferUrl).then((response) => response.arrayBuffer())
-      : Promise.reject(new EngineError('PREPARED_SCENE_MISMATCH', 'the source names no binary')),
-  );
-  return { pagedFrom: document.meshes, pagedGeometryOf: preparedGeometries(document, binary) };
+  const range = async (offset: number, length: number) => {
+    if (!bufferUrl) throw new EngineError('PREPARED_SCENE_MISMATCH', 'the source names no binary');
+    const response = await checked(bufferUrl, undefined, undefined, {
+      Range: `bytes=${offset}-${offset + length - 1}`,
+    });
+    const bytes = await response.arrayBuffer();
+    // A server that ignores the Range answers the whole file.
+    return response.status === 206 ? bytes : bytes.slice(offset, offset + length);
+  };
+  return { pagedFrom: document.meshes, pagedGeometryOf: preparedGeometries(document, { range }) };
 }

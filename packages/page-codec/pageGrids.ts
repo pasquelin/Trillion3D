@@ -57,23 +57,27 @@ export function ceil32(value: number): number {
   return float[0];
 }
 
-const f = Math.fround;
-/** The octahedron folded over its lower half, in 32-bit steps: `[x, y]` for `z < 0`. */
-const fold = (x: number, y: number) => [
-  f(f(1 - Math.abs(y)) * (x >= 0 ? 1 : -1)),
-  f(f(1 - Math.abs(x)) * (y >= 0 ? 1 : -1)),
-];
+const f = Math.fround,
+  OCT_STEP = f(2 / 255);
 
-/** A normal's octahedral bytes back to a unit vector, in 32-bit steps as every reader does. */
-function octDecode(q: number) {
-  let x = f(f((q & 255) * f(2 / 255)) - 1),
-    y = f(f(((q >>> 8) & 255) * f(2 / 255)) - 1);
+/** A normal's octahedral bytes (`x` low, `y` high) back to a unit vector at `out[at..at + 3]`, in
+ *  32-bit steps: the one decoder the reader and the encoder below share. */
+export function octDecode(q: number, out: { [i: number]: number }, at = 0) {
+  let x = f(f((q & 255) * OCT_STEP) - 1),
+    y = f(f(((q >>> 8) & 255) * OCT_STEP) - 1);
   const z = f(f(1 - Math.abs(x)) - Math.abs(y));
-  if (z < 0) [x, y] = fold(x, y);
+  if (z < 0) {
+    const fx = f(f(1 - Math.abs(y)) * (x >= 0 ? 1 : -1));
+    y = f(f(1 - Math.abs(x)) * (y >= 0 ? 1 : -1));
+    x = fx;
+  }
   const length = f(Math.sqrt(f(f(f(x * x) + f(y * y)) + f(z * z))));
-  return [f(x / length), f(y / length), f(z / length)];
+  out[at] = f(x / length);
+  out[at + 1] = f(y / length);
+  out[at + 2] = f(z / length);
 }
 
+const decoded = new Float32Array(3);
 /**
  * Octahedral bytes of a normal, `x` low and `y` high; a zero normal takes `+z`. Of the four
  * roundings of the projected point, the one that decodes closest to the normal is kept: the
@@ -81,23 +85,38 @@ function octDecode(q: number) {
  * 32-bit steps, so a page cut at run time carries the normals the compiler's would.
  */
 export function octEncode(x: number, y: number, z: number): number {
-  [x, y, z] = [f(x), f(y), f(z)];
+  x = f(x);
+  y = f(y);
+  z = f(z);
   const sum = f(f(Math.abs(x) + Math.abs(y)) + Math.abs(z));
   if (!sum || !Number.isFinite(sum)) return 128 | (128 << 8);
-  let [px, py] = [f(x / sum), f(y / sum)];
-  if (z < 0) [px, py] = fold(px, py);
+  let px = f(x / sum),
+    py = f(y / sum);
+  if (z < 0) {
+    const fx = f(f(1 - Math.abs(py)) * (px >= 0 ? 1 : -1));
+    py = f(f(1 - Math.abs(px)) * (py >= 0 ? 1 : -1));
+    px = fx;
+  }
   const cell = (v: number) => Math.min(254, Math.max(0, Math.floor(f(f(v + 1) * 127.5))));
-  const [bx, by] = [cell(px), cell(py)];
-  const length = f(Math.sqrt(f(f(f(x * x) + f(y * y)) + f(z * z))));
-  const unit = [f(x / length), f(y / length), f(z / length)];
+  const bx = cell(px),
+    by = cell(py),
+    length = f(Math.sqrt(f(f(f(x * x) + f(y * y)) + f(z * z)))),
+    ux = f(x / length),
+    uy = f(y / length),
+    uz = f(z / length);
   let best = Infinity,
     chosen = 0;
-  const candidates = [bx | (by << 8), bx | ((by + 1) << 8), (bx + 1) | (by << 8)];
-  for (const candidate of [...candidates, (bx + 1) | ((by + 1) << 8)]) {
-    const [dx, dy, dz] = octDecode(candidate);
-    const error = f(1 - f(f(f(dx * unit[0]) + f(dy * unit[1])) + f(dz * unit[2])));
-    if (error < best) [best, chosen] = [error, candidate];
-  }
+  // The compiler's order, `x` outer: a tie keeps the same code.
+  for (let dx = 0; dx < 2; dx++)
+    for (let dy = 0; dy < 2; dy++) {
+      const candidate = (bx + dx) | ((by + dy) << 8);
+      octDecode(candidate, decoded);
+      const error = f(1 - f(f(f(decoded[0] * ux) + f(decoded[1] * uy)) + f(decoded[2] * uz)));
+      if (error < best) {
+        best = error;
+        chosen = candidate;
+      }
+    }
   return chosen;
 }
 
