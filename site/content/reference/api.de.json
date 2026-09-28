@@ -398,7 +398,10 @@
       "levels": "Jede Stufe.",
       "reach": "Reichweite der Strahlen: die Diagonale der Ausdehnung, jenseits derer nichts zu berühren ist.",
       "shareOf": "Sonden des Arbeitsstapels pro Bild, nach Stufe: veröffentlichte Anteile, angewendet auf einen Gesamtstapel.",
-      "follow": "Verschiebt die beweglichen Stufen um einen Blickpunkt. Gibt wahr zurück, wenn sich mindestens ein Basis-Zellindex geändert hat: das ist das einzige Signal, das die Konvergenz braucht, um neu zu starten, ganz ohne GPU-Rücklesung."
+      "follow": "Verschiebt die beweglichen Stufen um einen Blickpunkt. Gibt wahr zurück, wenn sich mindestens ein Basis-Zellindex geändert hat: das ist das einzige Signal, das die Konvergenz braucht, um neu zu starten, ganz ohne GPU-Rücklesung.",
+      "reserveCount": "Feste Kapazität, die reserviert wird, bevor Transformationen die Szene vergrößern können.",
+      "invalidLevels": "Ebenen, deren Abstand oder Vorhandensein sich bei der letzten Neuplanung geändert hat. Basisverschiebungen verwenden Zellmarkierungen.",
+      "replan": "Wendet die bestehende Regel für die räumliche Auflösung erneut auf die aktuellen Geometriegrenzen an."
     }
   },
   "BounceOccupancy": {
@@ -408,7 +411,8 @@
       "occupied": "Wahr, wenn eine Zelle einer Stufe in ihrem Gitter eine Sonde verdient.",
       "marked": "Markierte Zellen und Gesamtzellen der feinsten Stufe: der veröffentlichte Gewinn.",
       "cells": "Zellen der feinsten Stufe.",
-      "bytes": "Bytes, die sie belegt."
+      "bytes": "Bytes, die sie belegt.",
+      "allEligible": "Die Geometrie wurde bewegt: Plant vorsorglich alle Zellen der Kaskaden mit begrenzter Zellanzahl ein."
     }
   },
   "BoundedNode": {
@@ -5364,7 +5368,12 @@
       "triangles": "Drei Scheitelpunkte in der Welt pro Dreieck, je `PROXY_TRIANGLE_FLOATS` Zahlen.",
       "albedo": "Lineares diffuses Albedo des Dreiecks, als RGBA8 angeordnet.",
       "nodeBounds": "Exakte Grenzen jedes BVH-Knotens.",
-      "nodeChildren": "Die vier Kinder jedes Knotens: quantisierte Box, Dreieckszahl, Präsenz, Verbindung."
+      "nodeChildren": "Die vier Kinder jedes Knotens: quantisierte Box, Dreieckszahl, Präsenz, Verbindung.",
+      "triangleGroups": "Einmal gespeicherte, gemeinsam genutzte Gruppe der Quellbesitzer jedes kanonischen Dreiecks.",
+      "groupOffsets": "Offsets der Besitzerdatensätze jeder Gruppe, einschließlich des abschließenden Wächterwerts.",
+      "owners": "Besitzerdatensätze: Index des Quellknotens und als RGBA8 gepackte lineare Albedo.",
+      "bindWorlds": "Ursprüngliche Weltmatrizen der Quellknoten, sechzehn Werte doppelter Genauigkeit pro Knoten.",
+      "sourceParents": "Quellhierarchie, einschließlich der Partitionsknoten, die der Host derzeit nicht instanziiert hat."
     }
   },
   "SceneProxyDescriptor": {
@@ -5381,7 +5390,10 @@
       "triangleBudget": "Veröffentlichtes Dreiecksbudget, das über die wirklich erreichte Schwelle entschied.",
       "bounds": "Ausdehnung des Proxys in der Welt: drei untere Grenzen dann drei obere.",
       "triangles": "Dreiecke.",
-      "nodes": "Knoten des Baums."
+      "nodes": "Knoten des Baums.",
+      "groups": "Einmal gespeicherte, gemeinsam genutzte Besitzergruppen.",
+      "owners": "Besitzerdatensätze.",
+      "instances": "Matrizen der Quellknoten."
     }
   },
   "SceneRoot": {
