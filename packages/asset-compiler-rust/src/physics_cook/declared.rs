@@ -117,7 +117,9 @@ fn body(
     entry["shape"] = shape;
     // Another node's mesh collides as the body: the page takes that node's static ground out.
     let named = field("node").and_then(Value::as_u64);
-    if let Some(at) = named.filter(|&n| field("shape").is_none() && n as usize != index) {
+    if let Some(at) =
+        named.filter(|&n| field("shape").and_then(Value::as_u64).is_none() && n as usize != index)
+    {
         entry["colliderNode"] = json!(at);
     }
     if let Some((threshold, pieces)) = cut {

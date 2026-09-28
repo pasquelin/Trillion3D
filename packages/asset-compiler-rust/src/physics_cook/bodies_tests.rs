@@ -72,7 +72,11 @@ fn declared_bodies_are_cooked_beside_the_static_ground() {
     );
     assert_boxes(&shape["mass"], &UNIT);
     assert_eq!(offset["node"], json!(5));
-    assert_eq!(offset["colliderNode"], json!(2), "the node whose ground the body replaces");
+    assert_eq!(
+        offset["colliderNode"],
+        json!(2),
+        "the node whose ground the body replaces"
+    );
     assert_eq!(shapeless.get("colliderNode"), None);
     assert_boxes(&offset["shape"]["mass"], &[([-5.0, 0.0, 0.0], [1.0; 3])]);
     let sha = shape["sha256"].as_str().unwrap();
