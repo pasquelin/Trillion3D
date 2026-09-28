@@ -9,7 +9,6 @@ use super::grown::Placed;
 use super::{DagAttributes, GroupReductionInput};
 use crate::geometry_page::Attribute as Carried;
 use crate::qem::Attribute;
-use std::sync::OnceLock;
 
 /// One entry per vertex of the level for each question the welds answer; the source's first,
 /// then every vertex a solved reduction placed.
@@ -26,6 +25,9 @@ pub(super) struct Columns {
     pub seams: Vec<bool>,
     /// The extent of the part each lies in (`vanished::part_extents`).
     pub extents: Vec<f64>,
+    /// Its chart (`charts::vertex_charts`), a placed vertex its origin's; empty without a texture
+    /// set.
+    pub charts: Vec<Chart>,
 }
 impl Columns {
     /// Appends `other`'s entries, `shift` renumbering the vertices they name.
@@ -36,6 +38,7 @@ impl Columns {
         self.exact.extend(other.exact.into_iter().map(&shift));
         self.seams.extend(other.seams);
         self.extents.extend(other.extents);
+        self.charts.extend(other.charts);
     }
 }
 
@@ -46,10 +49,9 @@ pub(super) struct Welds<'a> {
     pub positions: &'a [f32],
     pub attributes: DagAttributes<'a>,
     columns: Columns,
-    charts: Charts<'a>,
 }
 impl<'a> Welds<'a> {
-    pub fn of(positions: &'a [f32], attributes: DagAttributes<'a>, indices: &'a [u32]) -> Self {
+    pub fn of(positions: &'a [f32], attributes: DagAttributes<'a>, indices: &[u32]) -> Self {
         let weld = weld_positions(positions, indices);
         let uv_sets = attributes.uv_sets();
         let (weld_seam, seams) = match uv_sets.is_empty() {
@@ -63,13 +65,8 @@ impl<'a> Welds<'a> {
         Self {
             positions,
             attributes,
-            charts: Charts {
-                found: OnceLock::new(),
-                vertices: weld.len(),
-                uv_sets,
-                indices,
-            },
             columns: Columns {
+                charts: vertex_charts(&weld, &weld_seam, &uv_sets, indices),
                 exact: weld_exact(positions, attributes.carried, indices),
                 extents: super::vanished::part_extents(positions, indices, &weld),
                 weld,
@@ -100,7 +97,8 @@ impl<'a> Welds<'a> {
             normal_bound,
             locks,
             seams: &c.seams,
-            charts: &self.charts,
+            charts: &c.charts,
+            source_vertices: self.positions.len() / 3,
             weld: &c.weld,
             exact: &c.exact,
             weld_seam: if c.weld_seam.is_empty() {
@@ -115,29 +113,6 @@ impl<'a> Welds<'a> {
     /// renumbering them after those already placed at the level.
     pub fn extend(&mut self, placed: Placed, shift: impl Fn(u32) -> u32) {
         self.columns.extend(placed.columns, shift);
-        // The solve that placed them read the charts first: they are found.
-        if let Some(charts) = self.charts.found.get_mut() {
-            charts.extend(placed.charts);
-        }
-    }
-}
-
-/// The chart of every vertex (`charts::vertex_charts`), found the first time a solve asks: a
-/// primitive no group of which is seam-locked never pays for them.
-pub(super) struct Charts<'a> {
-    found: OnceLock<Vec<Chart>>,
-    /// The source's vertex count, texture sets and triangles.
-    vertices: usize,
-    uv_sets: Vec<&'a [f32]>,
-    indices: &'a [u32],
-}
-impl Charts<'_> {
-    /// Per vertex, its chart; empty without a texture set. `weld` and `weld_seam` are the level's.
-    pub fn of(&self, weld: &[u32], weld_seam: &[u32]) -> &[Chart] {
-        let n = self.vertices;
-        let (uv_sets, indices) = (&self.uv_sets, self.indices);
-        let find = || vertex_charts(&weld[..n], &weld_seam[..n], uv_sets, indices);
-        self.found.get_or_init(find)
     }
 }
 
@@ -157,15 +132,9 @@ pub(super) fn key<'v>(
 }
 
 impl<'a> GroupReductionInput<'a> {
-    /// Per vertex, its chart (`charts::Chart`); empty without a texture set.
-    pub(super) fn charts(&self) -> &'a [Chart] {
-        self.charts.of(self.weld, self.weld_seam)
-    }
     /// The charts, when `live` names a vertex a solve placed and the primitive has a texture set.
     pub(super) fn placed_charts(&self, live: &[u32]) -> Option<&'a [Chart]> {
-        if !live.iter().any(|&v| v as usize >= self.charts.vertices) {
-            return None;
-        }
-        Some(self.charts()).filter(|charts| !charts.is_empty())
+        let placed = live.iter().any(|&v| v as usize >= self.source_vertices);
+        Some(self.charts).filter(|charts| placed && !charts.is_empty())
     }
 }

@@ -59,7 +59,6 @@ fn a_solve_that_placed_nothing_copies_no_array() {
             carried: Vec::new(),
             origins: Vec::new(),
             columns: welds::Columns::default(),
-            charts: Vec::new(),
         }),
     };
     let (mut grown, base) = (None, (positions.len() / 3) as u32);

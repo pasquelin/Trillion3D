@@ -60,7 +60,7 @@ pub(super) fn stalled(
     let cause = diagnosis::cause(input, live, children, stop)?;
     let solved = match cause {
         StallCause::SeamLocked => match attempt(input, live, children, false)? {
-            None if live.iter().any(|&v| on_mirror_vertex(input.charts(), v)) => {
+            None if live.iter().any(|&v| on_mirror_vertex(input.charts, v)) => {
                 attempt(input, live, children, true)?
             }
             kept => kept,
@@ -86,7 +86,7 @@ fn attempt(
     let base = (input.positions.len() / 3) as u32;
     let required = required_locks(live, input.locks, input.weld);
     let densities = densities(input, live);
-    let charts = input.charts();
+    let charts = input.charts;
     let mirror = |v: u32| !crossed && on_mirror_vertex(charts, v);
     let (live, weld_error) = &open_border_welded(input, live, &densities, mirror);
     let weighted = weighted(input, live, &densities);
