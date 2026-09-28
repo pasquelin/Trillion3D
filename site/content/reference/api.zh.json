@@ -2242,7 +2242,8 @@
       "left": "左边界。",
       "right": "右边界。",
       "top": "上边界。",
-      "bottom": "下边界。"
+      "bottom": "下边界。",
+      "fitAspect": "高度如声明、宽度随画面形状而定的正交视框。"
     }
   },
   "PAGE_DECODE_FAILURES": {

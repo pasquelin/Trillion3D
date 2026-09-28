@@ -4403,7 +4403,8 @@
       "left": "Bord gauche.",
       "right": "Bord droit.",
       "top": "Bord du haut.",
-      "bottom": "Bord du bas."
+      "bottom": "Bord du bas.",
+      "fitAspect": "Une boîte orthographique aussi haute que déclarée et aussi large que la forme de l’image le veut."
     }
   },
   "orthographicProjection": {
