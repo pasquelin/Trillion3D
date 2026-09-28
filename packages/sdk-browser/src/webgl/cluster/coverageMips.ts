@@ -7,6 +7,7 @@ import {
   COVERAGE_SCALE_GLSL,
 } from '../../texture/coverageRule.ts';
 import { levelSize } from '../../texture/tiles.ts';
+import { allocated } from '../core/allocation.ts';
 
 /** Four points per texel of a level, one per filtered sample of its square (`cutBin`), its alpha
  *  bytes level 0's own or a level's medians from the copy of the one above (`halved`): on the
@@ -76,7 +77,11 @@ function buildCounts(gl: WebGL2RenderingContext) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, frame);
   gl.framebufferTexture2D(gl.DRAW_FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, counts, 0);
-  if (gl.checkFramebufferStatus(gl.DRAW_FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+  // Refused (`../core/allocation.ts`) or incomplete: the chains stay box chains.
+  if (
+    !allocated(gl) ||
+    gl.checkFramebufferStatus(gl.DRAW_FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE
+  ) {
     gl.deleteFramebuffer(frame);
     gl.deleteTexture(counts);
     gl.deleteProgram(count);

@@ -10,6 +10,7 @@ import { attachedPages } from '../../placement/autonomousPlacements.ts';
 import { followHostVisibility } from '../../placement/hidden.ts';
 import type { createGeometryBudget } from './pool.ts';
 import { createImageCut } from './imageCut.ts';
+import { takeOutOfMemory } from '../../webgl/core/allocation.ts';
 import type { createAutonomousResidency } from './residency.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import type { WebglViewState } from './views.ts';
@@ -63,7 +64,10 @@ export function createAutonomousRender(options: {
   residency: Pick<ReturnType<typeof createAutonomousResidency>, 'keptChanged'>;
   /** The geometry pool: what it admits of the requests, what it holds of what the image asks for
    *  and draws, and the shedding of what it no longer holds (`pool.ts`). */
-  pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'fit' | 'held' | 'follow' | 'trim'>;
+  pool: Pick<
+    ReturnType<typeof createGeometryBudget>,
+    'admit' | 'fit' | 'held' | 'follow' | 'trim' | 'outOfMemory'
+  >;
 }) {
   const {
     state,
@@ -87,6 +91,8 @@ export function createAutonomousRender(options: {
     pool.follow(view.requested, view.shown);
   };
   const frame = (camera: HostCamera) => {
+    // An allocation the context refused since the last frame draws this one a level coarser.
+    if (takeOutOfMemory(context.webglContext) && pool.outOfMemory()) gate.resourcesChanged();
     // Frame entry: the order and its guarantees live in `../../frame/gateCore.ts`, which also copies
     // the host camera into the engine camera — the cut now reads only the latter.
     state.frameHeld = gate.enterFrame(

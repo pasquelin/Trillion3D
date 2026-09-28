@@ -1,4 +1,4 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts';
+import { EngineError, type GpuPassTimings } from '../../../../sdk-core/src/index.ts';
 import { PAGE_REQUEST_BATCH, PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from '../../backend/common.ts';
 import { PRIORITY_PREFETCH } from '../../streaming/priority.ts';
 import { createWebglFrameTimer } from '../../webgl/core/frameTimer.ts';
@@ -22,7 +22,7 @@ type Inputs = {
   directGpu: boolean;
   webglSurface?: WebglSurface;
   baseline: RenderBackend;
-  state: Pick<ExplorerHostState, 'measuring' | 'fallbackReason' | 'active'>;
+  state: Pick<ExplorerHostState, 'measuring' | 'fallbackReason' | 'active' | 'hostFrame'>;
   compose: ReturnType<typeof createFrameComposer>;
 };
 
@@ -53,16 +53,27 @@ export function empileEnAttente(attente: Set<string>, urls: readonly string[]) {
   for (const url of urls) attente.add(url);
 }
 
+/**
+ * The sample of an image WebGL2 timed: its frame names the image, for a reader that keeps one
+ * reading per sample; no pass is listed, since only the whole image is timeable, so its pass
+ * blocks read `null` and never `0`. Its duration is `gpuFrameMs`.
+ */
+const webglImageSample = (frame: number): GpuPassTimings => ({
+  frame,
+  totalMs: null,
+  passes: [],
+  truncated: true,
+  error: 'WebGL2 times the whole image, never a pass',
+});
+
 export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { scope, emit, diagnose } = session;
   const { camera, geometryUrls, streamer, streaming, baseline, state, compose } = inputs;
   const { directGpu, webglSurface } = inputs;
   // WebGL2 cannot timestamp a pass: the timer wraps the whole-frame submit on the engine's
-  // context, and is only mounted if the host asked for the per-step profile.
-  const gpuTimer =
-    session.options.stageProfile === true && webglSurface
-      ? createWebglFrameTimer(webglSurface.context)
-      : null;
+  // context, whenever the context grants the extension, and its reading is the frame metrics'.
+  const gpuTimer = webglSurface && !directGpu ? createWebglFrameTimer(webglSurface.context) : null;
+  const gpu = { frameMs: null as number | null, passes: null as GpuPassTimings | null };
   const drawBackend = (backend: RenderBackend, target: WebglRenderTarget | null) => {
     const { measuring } = state;
     const steps = backend as HostCpuProfile;
@@ -155,7 +166,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       });
       return;
     }
-    gpuTimer?.begin();
+    gpuTimer?.begin(state.hostFrame);
     compose(backend, target);
     gpuTimer?.end();
     steps.cpuStep?.('submitMs', performance.now() - retainEnd);
@@ -163,8 +174,13 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       // A query reread a few frames later: the read never blocks the current frame.
       const read = gpuTimer.poll();
       steps.gpuImageMs?.(read.ms, gpuTimer.supported, read.reason ?? gpuTimer.reason);
+      if (read.ms !== null && read.frame !== null) {
+        gpu.frameMs = read.ms;
+        gpu.passes = webglImageSample(read.frame);
+      }
     }
     steps.cpuFrameEnd?.();
   };
-  return drawBackend;
+  /** The last image the timer read, as the frame metrics carry it (`webglImageSample`). */
+  return Object.assign(drawBackend, { gpu: gpu as Readonly<typeof gpu> });
 }

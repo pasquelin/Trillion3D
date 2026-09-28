@@ -8,6 +8,7 @@ import { isLightNode } from '../../host/graph/kinds.ts';
 import { shownChain } from '../../placement/hidden.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import { allocated } from '../core/allocation.ts';
 
 /** The ambient irradiance a frame sums (r, g, b, and whether any ambient light counted), reused. */
 const AMBIENT = new Float64Array(4);
@@ -70,6 +71,7 @@ export class WebglClusterLights {
     this.ltc = createLtcTexture(gl);
     this.probe = new WebglClusterProbe(gl, program);
     this.fog = new WebglClusterFog(gl, program);
+    allocated(gl); // refused, the context is marked: the next frame draws a level coarser
   }
   upload(scene: WebglClusterScene, view: ArrayLike<number>) {
     let count = 0;
