@@ -7,6 +7,7 @@ probe list.
 ## 1. Directory Tree
 
 <!-- tests-inventory:begin -->
+
 ```
 packages/sdk-core/src/       unit tests (*.test.ts), next to their source
 packages/sdk-browser/src/    unit tests (*.test.ts), next to their source
@@ -24,6 +25,7 @@ bench/oracles/               reference implementations, copied verbatim
 bench/runner/                the measurement harness (README)
 bench/witnesses/             the host-library witnesses, never published
 ```
+
 <!-- tests-inventory:end -->
 
 The tree is rendered by `node scripts/tests-inventory.ts --write`, and
@@ -250,6 +252,9 @@ identical budgets, scenes, and poses.
 | `pnpm run check:lines`        | Maximum 200 physical lines per maintained JS/TS/Rust file                    |
 | `pnpm run check:duplicates`   | No duplicated blocks ≥ 8 lines and ≥ 64 tokens                               |
 | `pnpm run check:helpers`      | No small helper copied into a second module of the same package              |
+| `pnpm run check:english`      | No new French word in the code: a count per package that only goes down      |
+| `pnpm run check:translations` | No translation left behind when its English changes                          |
+| `pnpm run check:thumbnails`   | Every gallery example that is not parked has its thumbnail                   |
 | `pnpm run check:structure`    | sdk-core typed without DOM; the boundary tests run in the unit suite         |
 | `pnpm run check:unused`       | Dead exports and files (`knip`)                                              |
 | `pnpm run check:no-js`        | No JavaScript source under `site/`: the site is TypeScript                   |
@@ -257,3 +262,11 @@ identical budgets, scenes, and poses.
 | `pnpm run check:docs-bundles` | No build product of the site (`dist/site/`) is tracked by git                |
 | `pnpm run check:site-types`   | The site under `site/` type-checks (`tsconfig.site.json`, `allowJs` off)     |
 | `pnpm run validate`           | Complete gate: formatting, linting, tests, builds, structure, links          |
+
+`check:english` counts, per package, the French words of `scripts/french-words.ts` in the
+identifiers, comments and strings of every source file, the strings a program reads named there as
+exceptions. A count above `scripts/english-baseline.json` fails; a lower one is written there, to
+be committed with the renaming. `check:translations` fails when an entry's English changed and a
+language's translation did not, against the hashes of `site/content/i18n/translation-sources.json`;
+after translating, `pnpm run check:translations --write` records the new hashes. Both records start
+from `--write`.
