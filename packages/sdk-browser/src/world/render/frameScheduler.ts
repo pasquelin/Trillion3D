@@ -23,9 +23,11 @@ export function createExplorerFrameScheduler(inputs: {
   let frame: number | undefined,
     disposed = false,
     waiting = false,
-    asked = false,
     rounds = 0,
     revision = 0;
+  /** Whether the frame to come is an invalidate's: an invalidate resets the rounds, and that frame
+   *  draws the first round, even before the feedback it no longer waits for. */
+  const asked = () => rounds === 0;
   const schedule = () => {
     if (disposed || frame !== undefined) return;
     if (rounds >= SETTLE_LIMIT) {
@@ -46,7 +48,7 @@ export function createExplorerFrameScheduler(inputs: {
     void inputs.pending().then((again) => {
       waiting = false;
       if (again || submitted !== revision) schedule();
-      else if (frame !== undefined && !asked) {
+      else if (frame !== undefined && !asked()) {
         inputs.cancel(frame);
         frame = undefined;
       }
@@ -54,8 +56,7 @@ export function createExplorerFrameScheduler(inputs: {
   };
   function draw() {
     frame = undefined;
-    if (disposed || (waiting && !asked)) return;
-    asked = false;
+    if (disposed || (waiting && !asked())) return;
     try {
       rounds++;
       revision++;
@@ -75,7 +76,6 @@ export function createExplorerFrameScheduler(inputs: {
   return {
     invalidate() {
       rounds = 0;
-      asked = true;
       schedule();
     },
     dispose,

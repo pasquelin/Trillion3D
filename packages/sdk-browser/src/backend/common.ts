@@ -32,7 +32,8 @@ export const DEFAULT_FOV = 55,
   /**
    * Shares of `STREAMING_FRAME_MS` the residency queue opens at most between two frames of a visible
    * page, 2 ms cumulated (#983): past them it waits for the next frame, so no burst of shares holds
-   * a frame back. A hidden page, where no frame comes, keeps opening one per task.
+   * a frame back. A hidden page, where no frame comes, or a visible one whose frames stopped, keeps
+   * opening one per task.
    */
   STREAMING_SHARES_PER_FRAME = 2,
   /**

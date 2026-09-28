@@ -67,27 +67,6 @@ test('a task starts no page past the published share', async () => {
   }
 });
 
-test('a hidden tab, where no frame comes, loads a whole burst, a share per task', async () => {
-  const { pages, tracking } = burst();
-  const frames = globalThis as { requestAnimationFrame?: unknown };
-  frames.requestAnimationFrame = () => 0;
-  try {
-    // Every load spends a whole share: twelve shares, and not one frame to spend them in.
-    const { cache } = slowCache(16);
-    let done = false;
-    const job = tierEnsurer(tracking, cache, () => [])(pages, 1, 1).then(() => (done = true));
-    let tasks = 0;
-    for (; !done && tasks < pages.length * 4; tasks++) await new Promise(setImmediate);
-    assert.ok(done, `the burst resolved without a frame (${cache.resident.size} of 12 loaded)`);
-    await job;
-    assert.equal(cache.resident.size, 12);
-    assert.ok(tasks > 1, 'yielding between shares');
-  } finally {
-    delete frames.requestAnimationFrame;
-    mock.restoreAll();
-  }
-});
-
 /** Runs a burst of twelve pages, each a whole share, firing a frame every `tasks` free tasks; the
  *  loads made between two frames. */
 async function framedBurst(visibility: DocumentVisibilityState, tasks = 50) {

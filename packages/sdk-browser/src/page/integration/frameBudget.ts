@@ -1,3 +1,5 @@
+import { nextFrame } from '../../frame/scheduling.ts';
+
 /**
  * The main thread's budget, one definition for every stage that spends it (CONTRIBUTING.md
  * §Streaming rule 4): whether one more piece of work is admitted — the first always is, so a piece
@@ -54,53 +56,58 @@ const yieldToEventLoop = () =>
     channel.port2.postMessage(0);
   });
 
-/** The longest a share waits for a frame: a visible page whose frames stop (an iframe scrolled
- *  out of view) still loads, a share pair per wait. */
+/** The longest a share waits for a frame: past it, a visible page whose frames stopped (an iframe
+ *  scrolled out of view) loads a share per task, as a hidden one, until a frame comes again. */
 const FRAME_WAIT_MS = 100;
 
-/** The page's frames: whether they come, and the next one. A hidden page has none. */
-const pageFrames = {
-  visible: () =>
-    typeof document !== 'undefined' &&
-    document.visibilityState === 'visible' &&
-    typeof requestAnimationFrame === 'function',
-  /** The next frame, or the page hidden meanwhile, where none would come, or `FRAME_WAIT_MS`. */
-  next: () =>
-    new Promise<void>((done) => {
-      const hidden = () => {
-        if (document.visibilityState === 'hidden') finish();
-      };
-      const finish = () => {
-        cancelAnimationFrame(id);
-        clearTimeout(late);
-        document.removeEventListener('visibilitychange', hidden);
-        done();
-      };
-      const id = requestAnimationFrame(finish),
-        late = setTimeout(finish, FRAME_WAIT_MS);
-      document.addEventListener('visibilitychange', hidden);
-    }),
-};
+/** Whether the page's frames come: a hidden page has none. */
+const pageVisible = () =>
+  typeof document !== 'undefined' &&
+  document.visibilityState === 'visible' &&
+  typeof requestAnimationFrame === 'function';
+
+/** The page's next frame (true), or the page hidden meanwhile, or `FRAME_WAIT_MS` without one. */
+function nextPageFrame() {
+  const page = document,
+    stop = new AbortController(),
+    hidden = () => {
+      if (page.visibilityState === 'hidden') stop.abort();
+    },
+    late = setTimeout(() => stop.abort(), FRAME_WAIT_MS);
+  page.addEventListener('visibilitychange', hidden);
+  return nextFrame(stop.signal)
+    .then(
+      () => true,
+      () => false,
+    )
+    .finally(() => {
+      clearTimeout(late);
+      page.removeEventListener('visibilitychange', hidden);
+    });
+}
 
 /**
- * Opens a budget's next share (#983): after a task yield, as long as fewer than `shares` opened
- * since the last frame of a visible page; past them, at its next frame, so the shares cumulated
- * between two frames stay bounded. A hidden page never waits for a frame: one share per task, as
- * before, and it loads no slower.
+ * Opens a budget's next share (#983), always in a task of its own, so a share never runs inside a
+ * frame's callbacks, ahead of its render: on a visible page, once `shares` opened since its last
+ * frame, only after the next one, so the shares cumulated between two frames stay bounded. A
+ * hidden page, or a visible one whose frames stopped, never waits for a frame: one share per task,
+ * as before, and it loads no slower.
  */
 export function createSharePace(open: () => void, shares: number) {
   let opened = 0,
+    framed = true,
     tick: Promise<void> | undefined;
-  const arm = () =>
-    (tick ??= pageFrames.next().then(() => {
-      tick = undefined;
-      opened = 0;
-    }));
   return async () => {
-    await (pageFrames.visible() && opened >= shares ? arm() : yieldToEventLoop());
+    // `tick` is set whenever a share opened since the last frame of a visible page.
+    if (framed && opened >= shares && pageVisible()) await tick;
+    await yieldToEventLoop();
     // Read again: the page may have been hidden or shown during the wait.
-    if (pageFrames.visible()) {
-      void arm();
+    if (pageVisible()) {
+      tick ??= nextPageFrame().then((came) => {
+        tick = undefined;
+        opened = 0;
+        framed = came;
+      });
       opened++;
     }
     open();

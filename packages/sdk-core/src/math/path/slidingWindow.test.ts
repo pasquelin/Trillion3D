@@ -1,6 +1,7 @@
-// The sliding median (`slidingWindow.ts`) keeps its values sorted as they arrive: every read must still equal the median of the last values, recomputed from
-// scratch, on random inputs and on the values a typed sort orders specially (NaN, ±0, ±Inf).
-import test from 'node:test';
+// The sliding median (`slidingWindow.ts`) keeps its values sorted as they arrive: every read must
+// still equal the median of the last values, recomputed from scratch, on random inputs and on the
+// values a typed sort orders specially (NaN, ±0, ±Inf).
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { Fenetre } from './slidingWindow.ts';
 import { createPathGovernor } from './governor.ts';
@@ -73,28 +74,13 @@ test('an observation takes no view of a window and sorts none, full or not (#983
   let t = 0;
   const governor = createPathGovernor(() => (t += 0.001));
   governor.setWasm(true, true, null);
-  const prototype = Float64Array.prototype as unknown as Record<
-    string,
-    (...args: unknown[]) => unknown
-  >;
-  const { subarray, sort } = Float64Array.prototype;
-  let calls = 0;
-  for (const name of ['subarray', 'sort']) {
-    const original = prototype[name];
-    prototype[name] = function (this: Float64Array, ...args: unknown[]) {
-      calls++;
-      return original.apply(this, args);
-    };
-  }
+  const views = mock.method(Float64Array.prototype, 'subarray'),
+    sorts = mock.method(Float64Array.prototype, 'sort');
   try {
-    const perObservation: number[] = [];
-    for (let i = 0; i < 2 * WINDOW + 10; i++) {
-      const before = calls;
+    for (let i = 0; i < 2 * WINDOW + 10; i++)
       governor.observe('boxes', i % 2 ? 'js' : 'wasm', 1 + (i % 7) * 0.1, 100);
-      perObservation.push(calls - before);
-    }
-    assert.deepEqual(perObservation, new Array(2 * WINDOW + 10).fill(0));
+    assert.equal(views.mock.callCount() + sorts.mock.callCount(), 0);
   } finally {
-    Object.assign(Float64Array.prototype, { subarray, sort });
+    mock.restoreAll();
   }
 });
