@@ -36,34 +36,49 @@ test('a truncated list doubles past what the cut asked, within the catalogue and
 });
 
 /** Forty-eight placements of the fixture's primitive, cut on a list of `cap` ranks. */
-async function cut(cap: number, limits = {}) {
+async function cut(cap: number, options: Parameters<typeof fakeDevice>[0] = {}) {
   const [root] = packed(dagFixture()).roots;
   const dag = packDagSelection(Array.from({ length: 48 }, () => root));
-  const fake = fakeDevice({ limits });
+  const fake = fakeDevice(options);
+  // Every readback maps what the kernels would have written for `drawn` on the list in place: the
+  // drain cuts again on a grown list by itself (`runtime.ts`).
+  let drawn: number[] = [];
+  // The list in place when a readback maps: it grows only with none in flight (`dispatch.ts`).
+  let held = () => cap;
+  const create = fake.device.createBuffer.bind(fake.device);
+  fake.device.createBuffer = (descriptor: GPUBufferDescriptor) => {
+    const buffer = create(descriptor);
+    if (descriptor.usage & GPUBufferUsage.MAP_READ)
+      buffer.getMappedRange = () => {
+        const listCap = held(),
+          bytes = new ArrayBuffer(descriptor.size),
+          ints = new Uint32Array(bytes),
+          kept = drawn.slice(0, listCap);
+        ints.set([drawn.length, 0, 0, drawn.length > listCap ? 1 : 0]);
+        ints.set(
+          kept.map((page) => packRequest(page, 1)),
+          HEAD,
+        );
+        ints[HEAD + listCap] = drawn.length;
+        ints.set(kept, 2 * HEAD + listCap);
+        return bytes;
+      };
+    return buffer;
+  };
+  // The encoder's compute passes do nothing: the readbacks above stand for what they write.
+  const encode = fake.device.createCommandEncoder.bind(fake.device);
+  const pass = new Proxy({}, { get: () => () => {} });
+  fake.device.createCommandEncoder = () =>
+    Object.assign(encode(), { beginComputePass: () => pass }) as unknown as GPUCommandEncoder;
   const resources = await createDagResources(fake.device, dag, true, null, cap);
   assert.ok(resources);
+  held = () => resources.listCap;
   const selection = createDagRuntime(resources);
   const uniforms = createSelectionUniforms();
-  // The image's encoder: its compute passes do nothing, its copy names the readback slot.
-  let slot: GPUBuffer | undefined;
-  const pass = new Proxy({}, { get: () => () => {} });
-  const encoder = {
-    beginComputePass: () => pass,
-    copyBufferToBuffer: (_: GPUBuffer, _at: number, to: GPUBuffer) => void (slot = to),
-  } as unknown as GPUCommandEncoder;
-  /** One dispatch whose readback holds `drawn` pages under the list it was cut on. */
-  const frame = async (drawn: number[]) => {
-    selection.dispatch(uniforms, encoder)?.(true);
-    const { listCap } = resources,
-      kept = drawn.slice(0, listCap);
-    const ints = new Uint32Array(slot!.getMappedRange());
-    ints.set([drawn.length, 0, 0, drawn.length > listCap ? 1 : 0]);
-    ints.set(
-      kept.map((page) => packRequest(page, 1)),
-      HEAD,
-    );
-    ints[HEAD + listCap] = drawn.length;
-    ints.set(kept, 2 * HEAD + listCap);
+  /** One frame and its drain, whose readbacks hold `pages` under the list they were cut on. */
+  const frame = async (pages: number[]) => {
+    drawn = pages;
+    selection.dispatch(uniforms);
     await selection.flush();
     return selection.peek();
   };
@@ -74,12 +89,11 @@ test('a cut past its list grows it and stays on the GPU, every drawn cluster lis
   const { fake, resources, frame } = await cut(4);
   const old = [resources.output, ...resources.readback];
   const drawn = Array.from({ length: 10 }, (_, page) => page);
-  assert.equal(await frame(drawn), null, 'the truncated readout is not handed over');
   const grown = await frame(drawn);
-  assert.equal(resources.listCap, 20);
+  assert.equal(resources.listCap, 20, 'the drain grew the list and cut again on it');
   assert.deepEqual(grown?.result.drawablePageIds, drawn, 'no visible cluster dropped');
   assert.deepEqual(grown?.result.pageIds, drawn);
-  assert.equal(grown?.result.truncated, false);
+  assert.equal(grown?.result.truncated, false, 'the truncated readout is not handed over');
   assert.equal(resources.output.size, stagedOutputBytes(20));
   assert.ok(
     old.every((buffer) => fake.destroyed.includes(buffer)),
@@ -97,9 +111,25 @@ test('a cut past its list grows it and stays on the GPU, every drawn cluster lis
 });
 
 test('a list the device cannot hold stays truncated, for the host to fall back', async () => {
-  const { resources, frame } = await cut(4, { maxStorageBufferBindingSize: stagedOutputBytes(4) });
+  const { resources, frame } = await cut(4, {
+    limits: { maxStorageBufferBindingSize: stagedOutputBytes(4) },
+  });
   const drawn = Array.from({ length: 10 }, (_, page) => page);
   assert.equal((await frame(drawn))?.result.truncated, true);
   assert.equal((await frame(drawn))?.result.truncated, true);
   assert.equal(resources.listCap, 4, 'no growth past the device');
+});
+
+test('a larger list the device refuses keeps the old one and hands the truncated readout over', async () => {
+  const refused = stagedOutputBytes(20);
+  const { fake, resources, frame } = await cut(4, {
+    refuse: (descriptor) => (descriptor.size === refused ? 'oom' : undefined),
+  });
+  const old = [resources.output, ...resources.readback];
+  const drawn = Array.from({ length: 10 }, (_, page) => page);
+  assert.equal((await frame(drawn))?.result.truncated, true, 'for the host to fall back');
+  assert.equal(resources.listCap, 4);
+  assert.ok(!old.some((buffer) => fake.destroyed.includes(buffer)), 'the old readout kept');
+  assert.equal(fake.scopes.length, 0, 'the scope closed');
+  assert.equal((await frame(drawn))?.result.truncated, true, 'no second try');
 });
