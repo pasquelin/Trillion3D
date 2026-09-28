@@ -123,8 +123,12 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   run.gpuMetricsReady = false;
   if (run.gpuSelection?.failed()) fallbackToCpuCut(rt, 'selection readback failed');
   // The GPU cut is the main view's: a view drawn aside — a capture's — draws the CPU cut.
-  const mainView = !capture.capturing && rt.views.active === rt.views.main;
-  if (mainView && run.gpuSelection?.residentCut && vis.gpuDraw && vis.visEnabled) {
+  if (
+    rt.views.active === rt.views.main &&
+    run.gpuSelection?.residentCut &&
+    vis.gpuDraw &&
+    vis.visEnabled
+  ) {
     if (!renderGpuCut(rt, cam, pixelError, cpuStart, lightsEnd)) renderWebgpuPages(rt, camera);
   } else renderCpuCut(rt, cam, pixelError, cpuStart, lightsEnd);
 }

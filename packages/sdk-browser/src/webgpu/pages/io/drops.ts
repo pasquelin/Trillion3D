@@ -21,7 +21,7 @@ export function grantCapability(capabilities: WebgpuPagesRuntime['capabilities']
   capabilities.unsupported = capabilities.unsupported.filter((entry) => entry !== item);
 }
 
-export function resetHizHistory(run: WebgpuRunState) {
+function resetHizHistory(run: WebgpuRunState) {
   invalidateOccluderHistory(run);
   run.previousHizView = undefined;
   run.temporalHizState.viewport = undefined;
@@ -69,6 +69,17 @@ function dropGpuPartition(rt: WebgpuPagesRuntime) {
   rt.blendState.occlusionEpoch = -1;
   rt.vis.gpuPartition?.dispose();
   rt.vis.gpuPartition = undefined;
+}
+
+/** The shared Hi-Z pyramid takes the size of the drawn view's targets; refused, it leaves. */
+export function fitGpuHiz(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  width: number,
+  height: number,
+) {
+  const hiz = rt.vis.gpuHiz;
+  if (hiz && !hiz.resize(device, width, height)) dropGpuHiz(rt);
 }
 
 export function dropGpuHiz(rt: WebgpuPagesRuntime) {

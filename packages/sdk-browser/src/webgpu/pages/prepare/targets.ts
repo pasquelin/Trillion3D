@@ -4,7 +4,7 @@ import {
   createSurfaceBuffer,
   frameTargetBytes,
 } from '../../../scene/surfaceBuffer.ts';
-import { dropGpuHiz } from '../io/drops.ts';
+import { fitGpuHiz } from '../io/drops.ts';
 import { createBackdrop, disposeBackdrop } from '../../transparent/transmission.ts';
 import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -44,7 +44,7 @@ export function targetsFit(rt: WebgpuPagesRuntime, width: number, height: number
 }
 
 /** Releases the frame targets in place: none is drawn into or presented until the next are made.
- *  The view's history goes with them, never under a capture, which leaves it whole. */
+ *  The view's temporal history goes with them: a capture draws in a view of its own. */
 export function releaseTargets(rt: WebgpuPagesRuntime) {
   const { gpu, vis, capture } = rt;
   const textures = [gpu.colorTexture, gpu.depthTexture, gpu.hdrTexture, gpu.feedbackTexture];
@@ -61,7 +61,7 @@ export function releaseTargets(rt: WebgpuPagesRuntime) {
   vis.gpuRaster = undefined;
   capture.capturedPixels = undefined;
   capture.capturedRevision = -1;
-  if (!capture.capturing) gpu.temporal?.release();
+  gpu.temporal?.release();
 }
 
 /**
@@ -110,7 +110,7 @@ export function makeTargets(
     GPUTextureUsage.RENDER_ATTACHMENT,
   );
   vis.materialDepthView = vis.materialDepthTexture.createView();
-  if (vis.gpuHiz && !vis.gpuHiz.resize(device, width, height)) dropGpuHiz(rt);
+  fitGpuHiz(rt, device, width, height);
   const allocation = {
     frame: run.frame,
     width,
