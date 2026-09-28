@@ -7,8 +7,7 @@ import type { PhysicsOption } from './options.ts';
  * names are Jolt binary state, readable only by the Jolt that wrote them: the file names that
  * commit, and a reader refuses another.
  */
-/** The formats read: 2, and 3, whose bodies may carry the pieces a breakable one is cut into at
- *  cook time, carried unused: the body is drawn and collides as one. */
+/** The formats read: 2, and 3, whose breakable bodies carry pieces, unused until they break. */
 const PHYSICS_FORMAT_VERSIONS: readonly unknown[] = [2, 3];
 /** The Jolt commit the engine's physics module is built from: the pin of the submodule
  *  `packages/physics-jolt-wasm/JoltPhysics`, which the compiler's cook reads (`build.rs`). A test
