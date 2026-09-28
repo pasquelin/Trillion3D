@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { directShadowWgsl } from './shadowWgsl.ts';
 import { SHADOW_SUBTEXELS as STEPS } from './shadowSampleWgsl.ts';
 import { pcf, type Sampler, type Stored } from './shadowBias.fixture.ts';
-import { throughAxis, type Pair } from './shadowPages.fixture.ts';
+import { hash, throughAxis, type Pair } from './shadowPages.fixture.ts';
 import {
   SHADOW_PAGE as S,
   pageOrigin,
@@ -17,11 +17,6 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
 const f = Math.fround;
-const hash = (x: number) => {
-  let h = Math.imul(x ^ 0x9e3779b9, 0x85ebca6b);
-  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-  return ((h ^ (h >>> 16)) >>> 0) / 2 ** 32;
-};
 /** The page's content: a depth per page-local texel. Anything outside it is another page's. */
 const content = (x: number, y: number) => hash(x * 131 + y * 7919 + 17);
 const elsewhere = (x: number, y: number) => hash(x * 977 + y * 131071 + 3);
