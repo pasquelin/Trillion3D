@@ -174,6 +174,12 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
         lights.pageHiz = undefined;
         rt.diag.diagnosticFailure('shadow-occlusion-unavailable', error);
       }
+      // A session disposed meanwhile tore its layer down already: what landed after is freed.
+      if (rt.signal.aborted) {
+        for (const made of [layer, lights.pageHiz, lights.occlusion]) made?.dispose();
+        lights.pageHiz = lights.occlusion = undefined;
+        return;
+      }
       lights.staticLayer = layer;
     })
     .catch((error) => rt.diag.diagnosticFailure('shadow-static-layer-unavailable', error));
