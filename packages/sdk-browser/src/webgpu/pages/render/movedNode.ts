@@ -21,8 +21,6 @@ export function findNode(source: Object3D, nodeName: string) {
   return index.names.get(nodeName);
 }
 
-const ascending = (a: number, b: number) => a - b;
-
 type Roots = readonly ClusterRoot<PageRec>[];
 
 /** Selection-root ranks by source mesh, built once per root list: the layout never edits it. */
@@ -44,18 +42,10 @@ function rootsByMesh(roots: Roots) {
 }
 
 /**
- * Ranks of the roots whose source mesh is `node` or lies below it, increasing — the order a loop
- * over every root visits them — written into `out`, which is returned. The node's LIVE subtree is
- * walked once: the same relation as climbing each root's parent chain up to the node.
- */
-export function rootsUnder(roots: Roots, node: Object3D, out: number[]) {
-  out.length = appendRootsUnder(roots, node, out, 0);
-  return out.sort(ascending);
-}
-
-/**
- * `rootsUnder` in the walk's order, each rank once, written into `out` from `at` on; returns where
- * they end. `out` is never truncated: it keeps its storage and grows only past its length.
+ * Ranks of the roots whose source mesh is `node` or lies below it, each once, in the walk's order,
+ * written into `out` from `at` on; returns where they end. The node's LIVE subtree is walked once:
+ * the same relation as climbing each root's parent chain up to the node. `out` is never
+ * truncated: it keeps its storage and grows only past its length.
  */
 export function appendRootsUnder(roots: Roots, node: Object3D, out: number[], at: number) {
   walking = rootsByMesh(roots);
