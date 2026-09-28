@@ -1263,6 +1263,25 @@
       "off": "مطفأ"
     }
   },
+  "page-materials": {
+    "banner": "اسحب لاستكشاف القاعة. اعرض المواد أو غيّرها أو امزجها أو أنشئ مادة.",
+    "controls": {
+      "set": "تغيير اللون",
+      "switchToBlend": "التحويل إلى المزج",
+      "createAndAssign": "إنشاء وتعيين"
+    },
+    "readouts": {
+      "selected material": "المادة المحددة",
+      "materials": "المواد",
+      "sourceMaterials": "المواد الأصلية",
+      "last action": "آخر إجراء"
+    },
+    "words": {
+      "imported": "{count} مادة مستوردة",
+      "applied": "تم التطبيق",
+      "ready": "جاهز"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "اسحب لتنظر حولك. جاءت هذه المصابيح داخل ملف النموذج.",
     "controls": {

@@ -7001,6 +7001,24 @@
       "modes": "Setiap mode tampilan yang ditawarkan renderer sekarang."
     }
   },
+  "world.materials": {
+    "summary": "Material impor saat ini, diikuti material yang dibuat halaman."
+  },
+  "world.material": {
+    "summary": "Satu material menurut ID dalam daftar."
+  },
+  "world.importedMaterials": {
+    "summary": "Nilai berkas sumber sebelum diubah halaman."
+  },
+  "world.setMaterial": {
+    "summary": "Mengubah material impor atau buatan pada bingkai berikutnya."
+  },
+  "world.createMaterial": {
+    "summary": "Membuat material milik halaman ini."
+  },
+  "world.assignMaterial": {
+    "summary": "Menerapkan material buatan halaman ke `mesh/primitive` terkompilasi."
+  },
   "world.guides": {
     "summary": "Garis, titik, dan alat bantu yang digambar di atas gambar (`Guides`)."
   },

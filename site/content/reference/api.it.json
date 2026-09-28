@@ -6654,6 +6654,24 @@
       "modes": "Ogni modalità di vista offerta dal motore di rendering attuale."
     }
   },
+  "world.materials": {
+    "summary": "Materiali importati attuali, seguiti da quelli creati dalla pagina."
+  },
+  "world.material": {
+    "summary": "Un materiale secondo il suo ID nell’elenco."
+  },
+  "world.importedMaterials": {
+    "summary": "Valori del file sorgente prima delle modifiche della pagina."
+  },
+  "world.setMaterial": {
+    "summary": "Modifica un materiale importato o creato nel fotogramma successivo."
+  },
+  "world.createMaterial": {
+    "summary": "Crea un materiale di questa pagina."
+  },
+  "world.assignMaterial": {
+    "summary": "Assegna il materiale creato a un `mesh/primitive` compilato."
+  },
   "world.guides": {
     "summary": "Linee, punti e aiuti disegnati sopra l’immagine (`Guides`)."
   },

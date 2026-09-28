@@ -224,11 +224,6 @@
       "file": "examples/glass-on-the-table.html"
     },
     {
-      "id": "page-materials",
-      "theme": "materials",
-      "file": "examples/page-materials.html"
-    },
-    {
       "id": "a-neon-sign",
       "theme": "materials",
       "file": "examples/a-neon-sign.html"

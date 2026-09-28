@@ -1263,6 +1263,25 @@
       "off": "apagada"
     }
   },
+  "page-materials": {
+    "banner": "Arrastra para explorar la sala. Consulta, cambia, mezcla o crea un material.",
+    "controls": {
+      "set": "Cambiar color",
+      "switchToBlend": "Cambiar a mezcla",
+      "createAndAssign": "Crear y asignar"
+    },
+    "readouts": {
+      "selected material": "Material seleccionado",
+      "materials": "Materiales",
+      "sourceMaterials": "Materiales originales",
+      "last action": "Última acción"
+    },
+    "words": {
+      "imported": "{count} importados",
+      "applied": "Aplicado",
+      "ready": "Listo"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "Arrastra para mirar alrededor. Estas lámparas venían en el archivo del modelo.",
     "controls": {
