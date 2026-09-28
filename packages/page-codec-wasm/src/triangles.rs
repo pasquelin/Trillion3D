@@ -104,21 +104,13 @@ pub struct Spans {
 
 impl Spans {
     pub fn of(indices: &[u32]) -> Self {
-        let spans: Vec<(u32, u32)> = indices
-            .chunks(CORNERS)
-            .map(|block| {
-                let base = block.iter().copied().min().unwrap_or(0);
-                (
-                    base,
-                    bits_for(block.iter().copied().max().unwrap_or(0) - base),
-                )
-            })
-            .collect();
-        let bits = indices
-            .chunks(CORNERS)
-            .zip(&spans)
-            .map(|(block, &(_, width))| block.len() * width as usize)
-            .sum();
+        let (mut spans, mut bits) = (Vec::new(), 0);
+        for block in indices.chunks(CORNERS) {
+            let base = block.iter().copied().min().unwrap_or(0);
+            let width = bits_for(block.iter().copied().max().unwrap_or(0) - base);
+            bits += block.len() * width as usize;
+            spans.push((base, width));
+        }
         Self { spans, bits }
     }
 
