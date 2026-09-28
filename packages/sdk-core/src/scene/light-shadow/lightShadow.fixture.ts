@@ -143,6 +143,16 @@ export function sunScene() {
   return { store, plan, slice: store.sliceOf(0) };
 }
 
+/** The sun, its pages around the eye mapped and drawn over three frames of a view at rest: its
+ *  store, its plan, the next frame and what a frame reads. */
+export function settledSun() {
+  const { store, plan, slice } = sunScene();
+  const read = () => sunPages(plan, slice, plan.sun.finest[slice] + 6, [[0, 0]]);
+  let frame = 1;
+  for (; frame < 4; frame++) cycle(plan, store, frame, read);
+  return { store, plan, frame, read };
+}
+
 /** A point lamp three units up that casts, planned once: its store, its plan and its slice. */
 export function lampScene() {
   const store = createSceneLightStore();

@@ -359,7 +359,10 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   power-of-two grid: every caster lies inside, and a small growth changes nothing. A page is read
   in the range it was drawn in — its table word names one of the `SUN_DEPTH_RANGES` a sun keeps
   (`sunDepth.ts`) —, so a new range, a walker crossing a grid line, redraws no page its box does
-  not cover.
+  not cover. Once nothing moves, the pages of an older range are drawn again in the current one,
+  read meanwhile: a scene at rest shows the image one range draws. A page in the current range is
+  read at the one reference a single range computes; a neighbour page of another range than the
+  home page's is not read by the filter, whose taps keep to the home page.
 - **A lamp face is a mip chain**: 32 × 32 pages at its finest mip, the pool's own side, down to one
   page. Six faces for a point, one for a spot.
 - **The level is chosen per pixel, from its footprint** — the world distance between two adjacent
@@ -433,7 +436,14 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   pool is touched. `shadowPagesRequested`, `shadowPagesCached`, `shadowPoolPages`,
   `shadowPagesDrawn`, `shadowPagesPending` and `shadowWaitMs` publish the work — the wait, in ms
   and in frames (`shadowWaitFrames`, the direct-lighting diagnostic only), of the oldest stale page
-  the image reads, counted only while a report names it (#489);
+  the image reads, counted only while a report names it (#489). The work splits apart (#991),
+  counted on the host, never in a shader: `shadowPagesRestored` — pages copied from the static
+  layer, their moving casters alone rasterised — against `shadowPagesRasterized`, whose static
+  casters were drawn again; `shadowRestoreCopies`; `shadowStaticDrawCalls` against
+  `shadowMovingDrawCalls`, and of the sampled clusters `shadowMovingCastersKept`; `shadowBatches`
+  and `shadowLayersDrawn`; and `shadowPagesStaledBy`, the pages staled by reason — light, still
+  caster, moving casters, detail, cut threshold, depth range. Allocated and peak bytes are
+  `shadowPoolBytes` and `shadowPeakBytes`;
   `diagnostic.shadowAtlas(world)` returns the pool's raw depth hash. A still scene runs no resolve
   and asks for nothing; the image holds once a report proves it reads only pages drawn.
 - **The floor is always current.** Every page a report names asks for its light's floor under it
