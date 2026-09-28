@@ -5,11 +5,16 @@ import {
   SHADOW_TABLE_ENTRIES,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_DEPTH_SHADER } from './shader.ts';
-import { MAX_SHADOW_REGIONS, createShadowRecordPack } from './recordPack.ts';
+import {
+  MAX_SHADOW_REGIONS,
+  SHADOW_FACE_READ_WORDS,
+  createShadowRecordPack,
+} from './recordPack.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { arrayView, layerPasses, layerViews } from './layers.ts';
 import { createShadowTransmittance, type ShadowTransmittance } from './transmittance.ts';
+import { transmittanceDrawsOf } from './transmittanceDraws.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import { SHADOW_FACE_STRIDE as FACE_STRIDE } from './batchBudget.ts';
 
@@ -18,7 +23,7 @@ export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 /** Label of the measured pass; `gpuShadowsMs` is read under this name. */
 export const SHADOW_PASS = 'Trillion3D shadow atlas v1';
 /** Bytes actually read of an entry: the matrix, the atlas rectangle, the light envelope. */
-const FACE_BYTES = 96;
+const FACE_BYTES = SHADOW_FACE_READ_WORDS * 4;
 /** Bytes of the records, before the page table in the same buffer. */
 const RECORD_BYTES = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
 /** Bytes of the records then the page table, one buffer. */
@@ -92,6 +97,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       primitive: { topology: 'triangle-list', cullMode: 'none' },
       depthStencil: depthState(DEPTH_COMPARE),
     });
+    const transmittanceDraws = transmittanceDrawsOf(device, module, [pageLayout, faceLayout]);
     const faceGroup = device.createBindGroup({
       layout: faceLayout,
       entries: [{ binding: 0, resource: { buffer: faceUniform, size: FACE_BYTES } }],
@@ -145,19 +151,15 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
         atlas.allocationBytes += shadowAtlasBytes(poolSide, layers);
         pack.setPoolSide(poolSide);
       },
+      /** Compiles the transmittance layer's draws off the frame (`transmittanceDrawsOf`). */
+      prepareTransmittance: transmittanceDraws.prepare,
       /** Creates the transmittance layer, cleared by `encoder`, once the pool is sized: the
        *  first frame a blended caster holds a row. */
       ensureTransmittance(encoder: GPUCommandEncoder) {
         if (transmittance || !texture) return transmittance;
-        const side = atlas.size / SHADOW_PAGE;
-        transmittance = createShadowTransmittance(
-          device,
-          module,
-          [pageLayout, faceLayout],
-          atlas.targets,
-          side,
-          encoder,
-        );
+        const side = atlas.size / SHADOW_PAGE,
+          draws = transmittanceDraws.made();
+        transmittance = createShadowTransmittance(device, draws, atlas.targets, side, encoder);
         atlas.allocationBytes += transmittance.bytes;
         return transmittance;
       },
