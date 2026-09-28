@@ -10,6 +10,7 @@ import { ROW_FLAGS_WORD, ROW_INDEX_WORDS } from '../../row/pageRow.ts';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { quadScene, camera } from '../testScenes.fixture.ts';
+import { surfaceOf } from '../../../page/surface.ts';
 
 test('a blended surface rewritten in place reaches its item record at the values refresh', async () => {
   installGpuGlobals();
@@ -82,21 +83,43 @@ test('an opaque surface turned masked cuts every row of its material', async () 
   }
 });
 
-// #572: under a light that casts, a cutoff moved in place leaves a few shadowed pixels off the
-// image a session opened on it draws once temporal antialiasing settles: the refresh asks the
-// owner for a new session there, and takes the move in place where nothing casts.
-test('an alpha move asks for a new session once a light casts, never before', () => {
+// #838: a cutoff moved in place under a casting light drew a few shadowed pixels off the image of a
+// session opened on it (#572): its redrawn shadow pages land in other pool slots, and a shadow read
+// depended on the slot. Read texel-exact wherever a page lies (#1010), they draw that session's
+// image: the move is taken in place, the shadow over its rows drawn again.
+test('an alpha move is taken in place under a casting light, the shadow over its rows drawn again', () => {
   const { material } = quadScene();
-  const alpha = { surfaces: [material], from: 'opaque', to: 'mask' } as const;
-  const runtime = (shadows: object | undefined, count = 1) =>
-    ({
-      lights: { store: { count }, shadows },
-      layout: { rows: { tableEpoch: 1 } },
-      run: { gate: { sceneMoved() {} } },
-      vis: {},
-    }) as unknown as Parameters<typeof refreshWebgpuMaterials>[0];
-  assert.equal(refreshWebgpuMaterials(runtime(undefined), true, alpha), true, 'nothing casts');
-  assert.equal(refreshWebgpuMaterials(runtime({}, 0), true, alpha), true, 'an atlas, no light');
-  assert.equal(refreshWebgpuMaterials(runtime({}), true, alpha), false, 'a light casts');
-  assert.equal(refreshWebgpuMaterials(runtime({}), true), true, 'values alone stay in place');
+  const worlds: number[][] = [];
+  const cutout = {
+    material: surfaceOf(material),
+    placementIndex: 0,
+    matrix: new G.Matrix4(),
+    min: [-1, -1, 0],
+    max: [1, 1, 0],
+  };
+  const runtime = {
+    lights: {
+      store: { count: 1 },
+      shadows: {},
+      mobility: { moves: () => false },
+      plan: { worldChanged: (min: number[], max: number[]) => worlds.push([...min, ...max]) },
+    },
+    layout: {
+      rows: {
+        tableEpoch: 1,
+        rowCount: 1,
+        blendFirst: 1,
+        casterSlots: 1,
+        pageTableInts: new Uint32Array(PAGE_INFO_STRIDE / 4),
+        packedRecs: [cutout],
+      },
+    },
+    run: { gate: { sceneMoved() {} } },
+    vis: {},
+  } as unknown as Parameters<typeof refreshWebgpuMaterials>[0];
+  const alpha = { surfaces: [material], from: 'mask', to: 'mask' } as const;
+  assert.equal(refreshWebgpuMaterials(runtime, true, alpha), true, 'no new session');
+  assert.equal(worlds.length, 1, 'the shadow pages over the cutout drawn again');
+  assert.equal(refreshWebgpuMaterials(runtime, true), true, 'values alone stay in place');
+  assert.equal(worlds.length, 1, 'and stale no shadow');
 });
