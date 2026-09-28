@@ -5,6 +5,7 @@ use super::{
 
 /// Simplifies placed triangles, builds wide BVH, publishes obtained threshold: max
 /// requested cut threshold, plus simplification cell addition.
+#[cfg(test)]
 pub(crate) fn assemble(thresholds: &[f64], triangles: Vec<f32>, colours: Vec<u32>) -> SceneProxy {
     assemble_owned(thresholds, triangles, colours, &[], &[])
 }

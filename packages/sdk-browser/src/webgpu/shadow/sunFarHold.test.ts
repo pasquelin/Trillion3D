@@ -48,7 +48,7 @@ function sunFarRt(readSceneProxy?: () => Promise<SceneProxy>) {
     limits: {
       maxStorageBufferBindingSize: 1 << 28,
       maxBufferSize: 1 << 28,
-    } as GPUSupportedLimits,
+    },
   });
   const rt = {
     run,
