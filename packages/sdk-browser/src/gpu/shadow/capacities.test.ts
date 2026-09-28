@@ -120,7 +120,7 @@ test('a face whose casters list is empty encodes no cull pass', async () => {
     indirectBase: 0,
     commands: 1,
   };
-  cull.begin(2, 3);
+  cull.begin(2);
   cull.encode(encoder, source, 0, 0, 2, 0);
   assert.deepEqual(passes, [], 'nothing listed: the regions keep the zero instances begin wrote');
   cull.encode(encoder, source, 1, 0, 2, 5);
