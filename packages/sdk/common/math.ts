@@ -78,7 +78,7 @@ export {
   composeMatrix4,
   composeMatrix4Batch,
 } from '../../sdk-core/src/math/matrix/matrix4Compose.ts';
-export { coneRejects, dot, maxStretch } from '../../sdk-core/src/math/projectionOracles.ts';
+export { coneRejects, maxStretch } from '../../sdk-core/src/math/projectionOracles.ts';
 export {
   copyMatrix4,
   determinantMatrix4,

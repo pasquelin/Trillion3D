@@ -1,6 +1,6 @@
 import type { TestContext } from 'node:test';
 import { EngineError } from '../../../sdk-core/src/index.ts';
-import { refusedStatus } from './pages.ts';
+import { refusedStatus } from './checked.ts';
 
 /** An answer `answering` gives: a status, a whole answer, `'network'` — a failed request —, or
  *  `'hang'` — no answer until the request aborts. */

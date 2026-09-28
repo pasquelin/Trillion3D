@@ -2,7 +2,7 @@
 // the receiver's bias, and the PCF's bilinear comparisons, over a depth map a test describes as
 // a function. `RESTATED` holds the WGSL lines restated here; the tests pin them.
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { dot } from '../../../../sdk-core/src/math/projectionOracles.ts';
+import { dotVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { DIRECT_LIGHT_WGSL } from './lightWgsl.ts';
 import { SHADOW_DEPTH_ROUNDING } from './shadowFactorWgsl.ts';
@@ -117,10 +117,19 @@ const float32Depth = (s: number, range: number) => range * (1 - Math.fround(1 - 
  * point `x` along face `index` (0 at `from`, 1 at `to`); `truth` asks a ray-cast of the faces
  * instead, 1 lit or 0. In a map `deep` metres deep, both depths round as the depth format does.
  */
-export function sunOverProfile(faces: Face[], angle: number, texel: number, deep = 0, bias = BIAS) {
+export function sunOverProfile(
+  profile: Face[],
+  angle: number,
+  texel: number,
+  deep = 0,
+  bias = BIAS,
+) {
   const depth = (s: number) => (deep ? float32Depth(s, deep) : s);
-  const light = [Math.sin(angle), -Math.cos(angle)],
-    across = [Math.cos(angle), Math.sin(angle)];
+  // The profile's plane is z = 0 of space, where its points and directions are dotted.
+  const flat = (v: Vec) => [v[0], v[1], 0],
+    faces = profile.map((f) => ({ from: flat(f.from), to: flat(f.to), normal: flat(f.normal) }));
+  const light = [Math.sin(angle), -Math.cos(angle), 0],
+    across = [Math.cos(angle), Math.sin(angle), 0];
   /** The distance along the light of the first face met at `u` across it. */
   const stored = (u: number) => {
     let first = Infinity;
@@ -138,10 +147,10 @@ export function sunOverProfile(faces: Face[], angle: number, texel: number, deep
   return (index: number, x: number, truth = false) => {
     const { from, to, normal } = faces[index];
     const P = along(from, sub(to, from), x);
-    if (truth) return stored(dot(P, across)) < dot(P, light) - 1e-9 ? 0 : 1;
-    const [offset, margin] = bias(texel, clamp(-dot(normal, light), 1e-3, 1));
+    if (truth) return stored(dotVector3(P, across)) < dotVector3(P, light) - 1e-9 ? 0 : 1;
+    const [offset, margin] = bias(texel, clamp(-dotVector3(normal, light), 1e-3, 1));
     const Q = along(P, normal, offset);
-    const reference = depth(dot(Q, light) - margin) - deep * SHADOW_DEPTH_ROUNDING;
-    return pcf([dot(Q, across) / texel, 0.5], (cx) => depth(stored(cx * texel)), reference);
+    const reference = depth(dotVector3(Q, light) - margin) - deep * SHADOW_DEPTH_ROUNDING;
+    return pcf([dotVector3(Q, across) / texel, 0.5], (cx) => depth(stored(cx * texel)), reference);
   };
 }
