@@ -1,6 +1,6 @@
 // #849: the view's light-index pool of the tiles past their list, as the frame metrics carry it.
-// A sampled frame whose pool overflowed is named and sizes the pool to what it reserved, within a
-// bound per tile; a scene no list can overflow samples no pool.
+// A sampled frame whose pool overflowed is named and grows the pool to 1.25 × what it reserved,
+// within a bound per tile; a scene no list can overflow samples no pool.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
