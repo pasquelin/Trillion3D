@@ -19,6 +19,7 @@ use crate::geometry_page::Attribute;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use trillion3d_page_codec::cut_error::{node_ceiling_error, Lens};
+use trillion3d_page_codec::vec3::{length, point, sub};
 
 /// Focal length in pixels of 1080 lines under a 60° vertical field.
 const FOCAL: f64 = 540.0 / 0.577_350_269_189_625_8;
@@ -53,15 +54,10 @@ pub(super) struct Primitive<'a> {
 fn displacement(bytes: &[u8], slice: &[u32], positions: &[f32]) -> f64 {
     let page = trillion3d_page_codec::decode(bytes, 64 << 20).expect("stored page decodes");
     let decoded = page.attribute(0).expect("positions");
-    let point = trillion3d_page_codec::vec3::point;
     slice
         .iter()
         .zip(page.indices())
-        .map(|(&source, &local)| {
-            let shift =
-                trillion3d_page_codec::vec3::sub(point(decoded, local), point(positions, source));
-            trillion3d_page_codec::vec3::length(shift)
-        })
+        .map(|(&source, &local)| length(sub(point(decoded, local), point(positions, source))))
         .fold(0.0, f64::max)
 }
 
@@ -72,7 +68,12 @@ pub(super) fn measure(primitive: &Primitive) -> Vec<Page> {
     o.simplification = "qem-endpoints".into();
     std::fs::create_dir_all(o.cache.join("native/objects")).expect("objects");
     let triangles = primitive.indices.len() / 3;
-    let demand = crate::proxy::cut::cut_demand(primitive.scale, 4096, triangles, triangles);
+    let demand = crate::proxy::cut::cut_demand(
+        primitive.scale,
+        crate::proxy::PROXY_TRIANGLE_BUDGET,
+        triangles,
+        triangles,
+    );
     let uv = super::primitive_uv_exponent(primitive.carried, primitive.blended);
     let shifts = Mutex::new(HashMap::new());
     let store = |slice: &[u32], exponent: i32| {
@@ -118,8 +119,14 @@ pub(super) fn measure(primitive: &Primitive) -> Vec<Page> {
 /// The cut's lens at `pixel_error`, the camera at the origin looking down `−z`, nothing culled.
 fn lens(pixel_error: f64) -> Lens {
     // Six planes `0·x + 0·y + 0·z + 1` hold every point; the view is the identity.
-    let planes = std::array::from_fn(|i| f64::from(u8::from(i % 4 == 3)));
-    let view = std::array::from_fn(|i| f64::from(u8::from(i % 5 == 0)));
+    let mut planes = [0.0; 24];
+    for plane in planes.as_chunks_mut::<4>().0 {
+        plane[3] = 1.0;
+    }
+    let mut view = [0.0; 16];
+    for i in 0..4 {
+        view[i * 5] = 1.0;
+    }
     Lens {
         planes,
         view,

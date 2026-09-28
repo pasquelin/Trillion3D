@@ -27,8 +27,9 @@ pub(super) fn vegetation() -> Mesh {
         let u = normalize([0; 3].map(|_| gaussian(&mut rng)));
         let v = normalize(cross(u, [0; 3].map(|_| gaussian(&mut rng))));
         let s = uniform(&mut rng, 0.12, 0.22);
-        let (u, v) = (scaled(u, s), scaled(v, s * 1.4));
-        let o = add(c, scaled(add(u, scaled(v, 1.0 / 1.4)), -0.5));
+        let (u, v) = (scaled(u, s), scaled(v, s));
+        let o = add(c, scaled(add(u, v), -0.5));
+        let v = scaled(v, 1.4);
         mesh.quad(o, u, v, normalize(cross(u, v)), 1.0 / s);
     }
     mesh
@@ -55,11 +56,10 @@ fn cylinder(mesh: &mut Mesh, p0: V, p1: V, (r0, r1): (f64, f64), (segments, ring
             );
         }
     }
-    for i in 0..rings {
-        for j in 0..segments {
-            let a0 = base + i * (segments + 1) + j;
-            let c0 = a0 + segments + 1;
-            mesh.indices.extend([a0, c0, a0 + 1, a0 + 1, c0, c0 + 1]);
-        }
-    }
+    let at = |ring: usize, segment: usize| base + (ring * (segments as usize + 1) + segment) as u32;
+    mesh.indices.extend(crate::tests::fixtures::grid_indices(
+        rings as usize,
+        segments as usize,
+        at,
+    ));
 }
