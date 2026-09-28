@@ -14,12 +14,14 @@
 use super::*;
 
 mod apply;
+mod cache;
 pub(crate) mod measure;
 mod sheet;
 #[cfg(test)]
 mod tests;
 
 pub(crate) use apply::{apply_decisions, CutoutApplied};
+pub(crate) use cache::MeasureCache;
 pub(crate) use measure::{measure, AlphaShape};
 pub(crate) use sheet::{build_sheet, draw_weights, entries, write_sheet};
 
@@ -41,6 +43,7 @@ pub(crate) struct Decisions {
     path: PathBuf,
     found: bool,
     by_image: BTreeMap<String, bool>,
+    pub(crate) measurements: MeasureCache,
 }
 
 impl Decisions {
@@ -76,10 +79,13 @@ pub(crate) fn load_decisions(cache: &Path, source: &Path) -> Result<Decisions> {
             path,
             found: false,
             by_image: BTreeMap::new(),
+            measurements: MeasureCache::default(),
         });
     };
+    let parsed = parse_sheet(&path, &bytes)?;
     Ok(Decisions {
-        by_image: read_answers(&path, &bytes)?,
+        by_image: read_answers(&path, &parsed)?,
+        measurements: MeasureCache::read(&parsed),
         path,
         found: true,
     })
@@ -96,7 +102,7 @@ fn source_directory(source: &Path) -> PathBuf {
 
 /// Sheet answers. An unreadable sheet, unknown version, or non-boolean/non-null
 /// answer is an error: a user answer is never dropped in silence.
-fn read_answers(path: &Path, bytes: &[u8]) -> Result<BTreeMap<String, bool>> {
+fn parse_sheet(path: &Path, bytes: &[u8]) -> Result<Value> {
     let refuse = |message: String| CompilerError::new("INVALID_CUTOUT_DECISIONS", message);
     let parsed: Value = serde_json::from_slice(bytes)
         .map_err(|error| refuse(format!("{} is not readable JSON: {error}", path.display())))?;
@@ -106,6 +112,11 @@ fn read_answers(path: &Path, bytes: &[u8]) -> Result<BTreeMap<String, bool>> {
             path.display()
         )));
     }
+    Ok(parsed)
+}
+
+fn read_answers(path: &Path, parsed: &Value) -> Result<BTreeMap<String, bool>> {
+    let refuse = |message: String| CompilerError::new("INVALID_CUTOUT_DECISIONS", message);
     let mut answers = BTreeMap::new();
     let textures = parsed.get("textures").and_then(Value::as_object);
     for (sha256, entry) in textures.into_iter().flatten() {
