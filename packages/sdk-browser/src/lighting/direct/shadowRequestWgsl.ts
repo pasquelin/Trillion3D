@@ -18,41 +18,46 @@ const claimWgsl = (name: string) => `fn ${name}(e:u32){
  *  `SUBGROUP_REQUEST_WGSL`, and the text `withSubgroupShadowRequests` replaces. */
 export const LANE_REQUEST_WGSL = claimWgsl('requestShadowPage');
 
+/** Election rounds a subgroup runs before its lanes left claim their own pages: a bound on the
+ *  serial work of a subgroup whose lanes read many pages, never a change of the pages asked for. */
+const SUBGROUP_REQUEST_ROUNDS = 4;
+
 /**
  * The request per subgroup (OMB-21, #966), when the device granted `subgroups`: the active lanes
  * take their pages in turn, the first lane's page, then the next one left, and one lane of those
  * that ask for it claims it — one claim, hence one global atomic, per distinct page and subgroup
  * where each lane made its own. A claim is idempotent, so the bits set, the count and the pages
- * listed are those of `LANE_REQUEST_WGSL` (the list's order is free). Every lane leaves in the
- * round of its own page, which the first active lane always holds: the loop ends in at most one
- * round per lane, whatever the device reconverges.
+ * listed are those of `LANE_REQUEST_WGSL` (the list's order is free), whatever the device
+ * reconverges and however many rounds run: a lane still waiting after the last claims its own.
  *
- * A lane that must not ask (`shadowRequesting` false: a helper invocation, whose atomics touch
- * nothing) leaves first, so it is never elected in place of a pixel that asks for its page.
+ * Only a lane the pass says asks (`shadowRequesting`) is elected: any other — a helper invocation,
+ * whose atomics touch nothing, or a pass that never said — claims its own page, so no helper is
+ * elected in place of a pixel that asks for its page, and a pass that forgets asks per lane.
  */
-const SUBGROUP_REQUEST_WGSL = `${claimWgsl('shadowClaimPage')}
+export const SUBGROUP_REQUEST_WGSL = `${claimWgsl('shadowClaimPage')}
 fn requestShadowPage(e:u32){
- if(!shadowRequesting){return;}
- loop{
+ if(!shadowRequesting){shadowClaimPage(e);return;}
+ for(var round=0u;round<${SUBGROUP_REQUEST_ROUNDS}u;round++){
   let first=subgroupBroadcastFirst(e);
   if(e==first){
    if(subgroupElect()){shadowClaimPage(e);}
    return;
   }
  }
+ shadowClaimPage(e);
 }`;
 
 /**
  * What a reading asks of the scheduler. The shading that marks writes the page into the request
  * buffer the first time any pixel reads it this frame, a bit per table entry. A pass that does
  * not mark — the blend forward stage, which keeps its early depth reject — reads without asking.
- * `shadowRequesting` is the pass's to clear on a lane that must not ask.
+ * `shadowRequesting` is the pass's to set on a lane that asks per subgroup.
  */
 export const shadowRequestWgsl = (binding: number | null) =>
   binding === null
     ? 'fn requestShadowPage(e:u32){}'
     : `@group(0) @binding(${binding}) var<storage,read_write> shadowRequests:array<atomic<u32>>;
-var<private> shadowRequesting:bool=true;
+var<private> shadowRequesting:bool=false;
 ${LANE_REQUEST_WGSL}`;
 
 /**
@@ -61,8 +66,9 @@ ${LANE_REQUEST_WGSL}`;
  * and the loop above holds for any set of active lanes.
  */
 export function withSubgroupShadowRequests(shader: string) {
-  if (!shader.includes(LANE_REQUEST_WGSL)) throw new Error('SHADOW_REQUESTS_ABSENT');
+  const swapped = shader.replace(LANE_REQUEST_WGSL, () => SUBGROUP_REQUEST_WGSL);
+  if (swapped === shader) throw new Error('SHADOW_REQUESTS_ABSENT');
   return `enable subgroups;
 diagnostic(off,subgroup_uniformity);
-${shader.replace(LANE_REQUEST_WGSL, () => SUBGROUP_REQUEST_WGSL)}`;
+${swapped}`;
 }
