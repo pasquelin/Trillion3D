@@ -6,9 +6,11 @@ import { screenErrorVariant } from '../../../../sdk-core/src/index.ts';
 import { validated } from '../core/errorScope.ts';
 import { shaderFailed } from '../core/shaderModule.ts';
 import type { CameraFrames } from './frameRanges.ts';
+import { DEFAULT_GROUP_WIDTH, groupWidth } from './shader/gridWgsl.ts';
 
 /** Every selection stage of `module` on `layout`; a split table's stages are its own (`SPLIT`,
- *  `shader/viewsWgsl.ts`). The real-GPU compile probe builds exactly these
+ *  `shader/viewsWgsl.ts`), and a device whose dispatch width is not WebGPU's default sets its own
+ *  (`GROUP_WIDTH`, `shader/gridWgsl.ts`). The real-GPU compile probe builds exactly these
  *  (`tests/browser/probes/dag-kernels-compile-gpu.ts`). */
 export function createDagStages(
   device: GPUDevice,
@@ -16,7 +18,12 @@ export function createDagStages(
   module: GPUShaderModule,
   split: boolean,
 ) {
-  const constants = split ? { SPLIT: 1 } : undefined;
+  const width = groupWidth(device.limits);
+  const set = {
+    ...(split && { SPLIT: 1 }),
+    ...(width !== DEFAULT_GROUP_WIDTH && { GROUP_WIDTH: width }),
+  };
+  const constants = Object.keys(set).length ? set : undefined;
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
   const stage = (entryPoint: string) =>
     device.createComputePipeline({
