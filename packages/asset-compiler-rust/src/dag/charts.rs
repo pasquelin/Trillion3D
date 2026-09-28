@@ -8,10 +8,10 @@ use crate::join::Join;
 use crate::qem::Attribute;
 use crate::shared_math::{cross, length, point, sub};
 
-/// Per texture set, the surface length one unit of it spans in the group: the square root of the
-/// group's surface area over its texture area; zero where the set spans no area.
-pub(super) fn densities(input: &GroupReductionInput, live: &[u32]) -> Vec<f64> {
-    let point = |v: u32| point(input.positions, v);
+/// Per texture set of `uv_sets`, the surface length one unit of it spans over the triangles `live`:
+/// the square root of their surface area over their texture area; zero where the set spans no area.
+pub(super) fn densities(positions: &[f32], uv_sets: &[&[f32]], live: &[u32]) -> Vec<f64> {
+    let point = |v: u32| point(positions, v);
     let area = |[a, b, c]: [[f64; 3]; 3]| length(cross(sub(b, a), sub(c, a)));
     let density = |uvs: &[f32]| {
         let texel = |v: u32| {
@@ -23,19 +23,11 @@ pub(super) fn densities(input: &GroupReductionInput, live: &[u32]) -> Vec<f64> {
             surface += area(tri.map(point));
             texture += area(tri.map(texel));
         }
-        let density = (surface / texture).sqrt();
-        if density.is_finite() {
-            density
-        } else {
-            0.0
-        }
+        Some((surface / texture).sqrt())
+            .filter(|d| d.is_finite())
+            .unwrap_or(0.0)
     };
-    input
-        .attributes
-        .uv_sets()
-        .into_iter()
-        .map(density)
-        .collect()
+    uv_sets.iter().map(|uvs| density(uvs)).collect()
 }
 
 /// The attributes the solve weighs: normals as the endpoint reduction weighs them, each texture

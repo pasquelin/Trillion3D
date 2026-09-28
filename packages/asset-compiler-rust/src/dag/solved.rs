@@ -85,7 +85,7 @@ fn attempt(
 ) -> Result<Option<Solved>> {
     let base = (input.positions.len() / 3) as u32;
     let required = required_locks(live, input.locks, input.weld);
-    let densities = densities(input, live);
+    let densities = densities(input.positions, &input.attributes.uv_sets(), live);
     let charts = input.charts;
     let mirror = |v: u32| !crossed && on_mirror_vertex(charts, v);
     let (live, weld_error) = &open_border_welded(input, live, &densities, mirror);

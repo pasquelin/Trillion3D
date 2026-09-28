@@ -70,23 +70,13 @@ fn an_unblocked_sheet_places_nothing() {
 }
 
 // Behaviour: a texture set weighs the surface length one unit of it spans: the same sheet under
-// coordinates half as wide weighs its texture twice as much.
+// coordinates half as wide spans twice the surface per unit.
 #[test]
-fn a_texture_weight_follows_its_density() {
+fn a_texture_density_follows_its_coordinates() {
     let (positions, carried, indices) = sheet(8);
-    let mut halved = carried.clone();
-    halved[1].values.iter_mut().for_each(|c| *c *= 0.5);
-    let weight = |carried: &[Attribute]| {
-        let refs: Vec<&Attribute> = carried.iter().collect();
-        let attributes = DagAttributes { carried: &refs };
-        let welds = welds::Welds::of(&positions, attributes, &indices);
-        let locks = vec![false; positions.len() / 3];
-        let bound = quality::NORMAL_DEVIATION_BOUND;
-        let weighted = attributes.weighted();
-        let input = welds.input(&positions, &refs, &weighted, &locks, bound);
-        charts::weighted(&input, &indices, &charts::densities(&input, &indices))[1].weight
-    };
-    let (full, half) = (weight(&carried), weight(&halved));
+    let halved: Vec<f32> = carried[1].values.iter().map(|c| c * 0.5).collect();
+    let density = |uvs: &[f32]| charts::densities(&positions, &[uvs], &indices)[0];
+    let (full, half) = (density(&carried[1].values), density(&halved));
     assert!(
         full > 0.0 && (half / full - 2.0).abs() < 1e-5,
         "{full} then {half}"
