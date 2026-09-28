@@ -4765,6 +4765,13 @@
       "depth": "Strati, per una pila di immagini."
     }
   },
+  "PlacementGrowth": {
+    "summary": "Ciò che un proprietario consegna a una sessione che ingrandisce sul posto i suoi buffer di istanze (`growth.ts`).",
+    "members": {
+      "growPlacements": "Un buffer di istanze della sessione è stato sostituito da uno più grande, prima le righe di `from` e il resto parcheggiato: la sessione legge `to` d’ora in poi e tiene le sue nuove righe, senza ricostruire tabelle (`growth.ts`). Se un motore non lo ha, il proprietario riapre la sessione su `to`.",
+      "growsInPlace": "Se `growPlacements` accetta ciascuno di `from` ingrandito a `capacity` righe, chiesto prima che il proprietario ne sostituisca uno: false li lascia come sono, e il proprietario riapre la sessione su buffer più grandi."
+    }
+  },
   "PlacementRows": {
     "summary": "Le righe di posizionamento delle mesh a specchio, una riga per copia posizionata.",
     "members": {

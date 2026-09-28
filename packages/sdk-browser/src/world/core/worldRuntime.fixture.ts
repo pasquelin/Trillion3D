@@ -38,6 +38,9 @@ const contentReopens: unknown[] = [];
 const stopListening = listenWorldNotices(({ phase, context }) => {
   if (phase === 'session-reopen' && context?.defect) contentReopens.push(context);
 });
+/** The content reopens heard since the last call, for a test that asks one on purpose: taken,
+ *  they are no longer counted a defect of these tests. */
+export const takeContentReopens = () => contentReopens.splice(0);
 after(() => {
   stopListening();
   assert.deepEqual(contentReopens, [], 'a content change reopened a session');

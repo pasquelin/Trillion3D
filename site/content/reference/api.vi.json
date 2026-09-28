@@ -2642,6 +2642,13 @@
       "depth": "Số lớp, cho một chồng hình ảnh."
     }
   },
+  "PlacementGrowth": {
+    "summary": "Thứ mà chủ sở hữu giao cho một phiên mở rộng bộ đệm thực thể của nó tại chỗ (`growth.ts`).",
+    "members": {
+      "growPlacements": "Một bộ đệm thực thể mà phiên giữ đã được thay bằng một bộ lớn hơn, các hàng của `from` trước và phần còn lại được cất đi: từ nay phiên đọc `to` và giữ các hàng mới, không dựng lại bảng nào (`growth.ts`). Nếu động cơ không có, chủ sở hữu mở lại phiên trên `to`.",
+      "growsInPlace": "Liệu `growPlacements` có nhận từng `from` được mở rộng đến `capacity` hàng hay không, được hỏi trước khi chủ sở hữu thay bất kỳ cái nào: false giữ nguyên chúng, và chủ sở hữu mở lại phiên trên các bộ lớn hơn."
+    }
+  },
   "PlacementRows": {
     "summary": "Các hàng đặt vị trí của các mesh được nhân bản, một hàng cho mỗi bản sao được đặt.",
     "members": {
