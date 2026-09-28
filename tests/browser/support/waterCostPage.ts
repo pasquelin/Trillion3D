@@ -23,12 +23,26 @@ export interface WaterCostOptions {
   warmup: number;
 }
 
+// WebGPU attachment costs for water/pipelines.ts: three rgba16float (8 each),
+// rgba8unorm (8 attachment bytes, not its 4 storage bytes), then r32uint (4).
+const WATER_ATTACHMENT_BYTES = 3 * 8 + 8 + 4;
+
 export async function run(factory: BackendFactory, options: WaterCostOptions) {
   const adapter = await navigator.gpu?.requestAdapter();
   if (!adapter) return { unavailable: 'no WebGPU adapter' };
   if (!adapter.features.has('timestamp-query'))
     return { unavailable: 'timestamp-query unavailable' };
-  const device = await adapter.requestDevice({ requiredFeatures: ['timestamp-query'] });
+  if (adapter.limits.maxColorAttachmentBytesPerSample < WATER_ATTACHMENT_BYTES)
+    return {
+      unavailable: `water requires ${WATER_ATTACHMENT_BYTES} color attachment bytes per sample`,
+    };
+  // Ask for only the five-target requirement, not the adapter's whole attachment budget.
+  const device = await adapter.requestDevice({
+    requiredFeatures: ['timestamp-query'],
+    requiredLimits: {
+      maxColorAttachmentBytesPerSample: WATER_ATTACHMENT_BYTES,
+    },
+  });
   const errors: string[] = [];
   device.addEventListener('uncapturederror', (event) => errors.push(event.error.message));
   const scene = waterCostScene(options.fraction, options.enabled);
@@ -38,7 +52,7 @@ export async function run(factory: BackendFactory, options: WaterCostOptions) {
     scene,
     device,
     (e) => {
-      if (/failed|unavailable|status|lost/.test(e.phase)) diagnostics.push(e);
+      if (/failed|unavailable|status|lost|refused/.test(e.phase)) diagnostics.push(e);
     },
     {
       viewport: [...SIZE],
@@ -50,6 +64,7 @@ export async function run(factory: BackendFactory, options: WaterCostOptions) {
     },
   );
   const camera = waterCostCamera();
+  const observedPassNames = new Set<string>();
   const samples: { frame: number; submittedMs: number; hostGapMs: number | null }[] = [];
   let waterPassMismatches = 0,
     invalidSamples = 0;
@@ -82,6 +97,7 @@ export async function run(factory: BackendFactory, options: WaterCostOptions) {
       minCoverage = Math.min(minCoverage, coverage);
       maxCoverage = Math.max(maxCoverage, coverage);
       if (fresh) {
+        for (const pass of sample.passes) observedPassNames.add(pass.name);
         if (
           sample.truncated ||
           sample.error ||
@@ -121,9 +137,14 @@ export async function run(factory: BackendFactory, options: WaterCostOptions) {
         description: adapter.info.description,
       },
       browser: navigator.userAgent,
+      colorAttachmentBytesPerSample: {
+        adapter: adapter.limits.maxColorAttachmentBytesPerSample,
+        device: device.limits.maxColorAttachmentBytesPerSample,
+      },
       held,
       samples,
       waterPassMismatches,
+      observedPassNames: [...observedPassNames],
       invalidSamples,
       gpuFrameMs: summarize(samples.map((s) => s.submittedMs)),
       gpuEnvelopeMs: summarize(

@@ -128,9 +128,10 @@ try {
             if (reading.dpr !== 1) errors.push(`DPR must be 1, got ${reading.dpr}`);
             if (reading.size[0] !== 1280 || reading.size[1] !== 720)
               errors.push('Canvas size mismatch');
-            if (reading.diagnostics.some((e) => /failed|lost/.test(e.phase)))
+            if (reading.diagnostics.some((e) => /failed|lost|refused/.test(e.phase)))
               errors.push('Engine failure diagnostic');
           }
+          if (errors.length) throw new Error(`Water measurement incomplete: ${errors.join('; ')}`);
           console.log(
             JSON.stringify({
               run: repeat + 1,
@@ -181,4 +182,3 @@ try {
     ) + '\n',
   );
 }
-if (errors.length) throw new Error(`Water measurement incomplete: ${errors.join('; ')}`);
