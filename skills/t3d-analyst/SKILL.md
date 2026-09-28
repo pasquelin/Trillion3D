@@ -36,9 +36,8 @@ A short report to the CTO:
 2. ranked proposals, each giving the expected gain (time, tokens, fewer returns), the risk to
    quality, and how it will be measured after.
 
-Examples: a new CI gate that catches a frequent audit finding before merge; a shorter coder
-brief; a reviewer check moved earlier; a merge order that avoids conflicts; a role that idles and
-can be merged with another.
+Proposals simplify, never add a rule (`docs/roles/analyst.md` step 2): a shorter coder brief; a
+check that catches nothing removed; a role that idles merged with another.
 
 ## Hard limits
 
