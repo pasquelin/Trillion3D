@@ -197,3 +197,31 @@ test('the store keeps a page by page, checked against the catalogue even when no
   store.dispose();
   material.dispose();
 });
+
+// #846: a class change restores some of the records a rowed page shares: the geometry the others
+// still draw is not given back.
+test('records restored alone leave the rowed geometry the others draw', () => {
+  const { scene } = fakeScene();
+  const [moved, kept] = [makeRec(0, 1), makeRec(1, 1)];
+  const shared = new G.Geometry();
+  let disposed = 0;
+  shared.dispose = () => void disposed++;
+  for (const rec of [moved, kept])
+    Object.assign(rec, { url: 'u', geometry: shared, placement: {}, mesh: undefined });
+  const env = environnement(scene, [moved, kept], []);
+  env.byUrl.set('u', [moved, kept]);
+  env.baseMaterials.set(moved, new G.GraphSurface('basic') as never);
+  const store = createAutonomousGeometry(env);
+  const page = {
+    indices: Uint32Array.of(0, 1, 2),
+    attributes: { position: Float32Array.of(0, 0, 0, 1, 0, 0, 0, 1, 0) },
+    vertexCount: 3,
+    flags: 0,
+    decodedBytes: 48,
+    quantizationError: 0,
+  };
+  store.restoreRecords([moved], page);
+  assert.equal(disposed, 0, 'the record left on the page still draws it');
+  assert.equal(kept.geometry, shared);
+  assert.notEqual(moved.geometry, shared);
+});

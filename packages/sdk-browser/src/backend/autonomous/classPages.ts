@@ -87,6 +87,9 @@ export function createClassPages(env: ClassPagesEnvironment) {
       indices.set(page, k ? ends[k - 1] : 0);
       ends[k] = (k ? ends[k - 1] : 0) + page.length;
     });
+    // A mesh with no registered source reads its one-triangle stand-in: refused, never cut.
+    if (indices.some((v) => v * 3 >= drawn.positions.length))
+      throw new Error('MATERIAL_CLASS_SOURCE_MISSING');
     // The attributes the compiled pages carry, and those alone.
     const flags = primitive.pages[0].geometry!.flags;
     const carried = {
@@ -109,14 +112,16 @@ export function createClassPages(env: ClassPagesEnvironment) {
     pages: Map<number, Uint8Array> | null,
     mine: number,
   ) {
-    const own = records.filter((rec) => turns.get(rec) === mine);
-    const urls = pages ? [] : [...new Set(own.filter((rec) => rec.array).map((rec) => rec.url))];
+    const current = () => records.filter((rec) => turns.get(rec) === mine);
+    // Written before the pages are read: a record that turns resident meanwhile draws its class's.
+    for (const rec of current()) rec.recut = pages?.get(rec.id);
+    const urls = pages
+      ? []
+      : [...new Set(current().flatMap((rec) => (rec.array ? [rec.url] : [])))];
     const read = await Promise.all(
       urls.map(async (url) => decodePageOffThread(await context.readGeometryPage!(url))),
     );
-    const current = own.filter((rec) => turns.get(rec) === mine);
-    for (const rec of current) rec.recut = pages?.get(rec.id);
-    const resident = current.filter((rec) => rec.array);
+    const resident = current().filter((rec) => rec.array);
     if (pages) geometryStore.restoreRecords(resident, undefined);
     urls.forEach((url, k) =>
       geometryStore.restoreRecords(

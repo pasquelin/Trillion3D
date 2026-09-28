@@ -93,14 +93,20 @@ export async function buildPreparedScene(inputs: Inputs) {
 function pagedSource(tables: PreparedSceneTables, base: string) {
   if (!tables.documents[SOURCE_FILE]) return {};
   const { document, bufferUrl } = sceneDocument(tables, SOURCE_FILE, base);
+  // A server that ignores the Range answers the whole file: kept, then read no more.
+  let whole: Promise<ArrayBuffer> | undefined;
   const range = async (offset: number, length: number) => {
     if (!bufferUrl) throw new EngineError('PREPARED_SCENE_MISMATCH', 'the source names no binary');
-    const response = await checked(bufferUrl, undefined, undefined, {
-      Range: `bytes=${offset}-${offset + length - 1}`,
-    });
-    const bytes = await response.arrayBuffer();
-    // A server that ignores the Range answers the whole file.
-    return response.status === 206 ? bytes : bytes.slice(offset, offset + length);
+    if (!whole) {
+      const response = await checked(bufferUrl, undefined, undefined, {
+        Range: `bytes=${offset}-${offset + length - 1}`,
+      });
+      if (response.status === 206) return response.arrayBuffer();
+      whole ??= response.arrayBuffer();
+      // A failed read is not kept: the next need reads again.
+      whole.catch(() => (whole = undefined));
+    }
+    return (await whole).slice(offset, offset + length);
   };
   return { pagedFrom: document.meshes, pagedGeometryOf: preparedGeometries(document, { range }) };
 }
