@@ -14,7 +14,7 @@ import { createShadowRegionList } from './regions.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
 import { admitShadowBytes, noteShadowPressure } from './memoryGrant.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
-import { SHADOW_ATLAS_BYTES } from '../../residency/memoryBudget.ts';
+import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
 
@@ -41,24 +41,24 @@ export const shadowPoolFor = (wanted: number, layerSide?: number) => (budgetByte
 export const shadowPoolHeld = ({ shadows, staticLayer, pageRequests }: WebgpuLightState) =>
   (shadows?.allocationBytes ?? 0) + (staticLayer?.bytes ?? 0) + (pageRequests?.bytes ?? 0);
 
-/** Whether the shadows' one grant holds the static layer's `bytes` beside what the pool holds and
- *  the transmittance layer a blended caster may still add (`admitShadowBytes`). Past it the layer
- *  is never made — the pages stay drawn whole, every caster at once, no shadow lost —, said under
- *  `shadow-memory` and recorded as the `static-layer-over-grant` pressure. */
+/** Whether the shadows' grant holds the static layer beside what the pool holds and the
+ *  transmittance layer still to come; past it, said and recorded (`memoryGrant.ts`). */
 export function staticLayerGranted(
   lights: WebgpuLightState,
-  bytes: number,
   diagnose: WebgpuPagesRuntime['diag']['engineDiagnostic'],
+  grantBytes = SHADOW_GRANT_BYTES,
 ) {
   const { side, layers } = lights.plan.pool,
+    bytes = shadowAtlasBytes(side, layers),
     transmittance = lights.shadows?.transmittance ? 0 : shadowTransmittanceBytes(side, layers);
-  if (admitShadowBytes(lights.memory, shadowPoolHeld(lights), bytes + transmittance)) return true;
+  const held = shadowPoolHeld(lights);
+  if (admitShadowBytes(lights.memory, held, bytes + transmittance, grantBytes)) return true;
   noteShadowPressure(lights.memory, 'static-layer-over-grant');
   diagnose('shadow-memory', 'The shadow static layer is past the shadow grant', {
     kind: 'warning',
     pressure: 'static-layer-over-grant',
     requestedBytes: bytes,
-    grantBytes: lights.memory.grantBytes,
+    grantBytes,
   });
   return false;
 }
@@ -76,13 +76,13 @@ export function staticLayerGranted(
  *
  * The atlas texture is allocated under an out-of-memory check, like the geometry and texture pools
  * (`grantedShadowPool`): a pool the device refuses is drawn at half its bytes, down to the smallest
- * screen's side — coarser shadow pages —, said under `gpu-out-of-memory` and recorded as the
- * `pool-shrunk` pressure with its bias (`memoryGrant.ts`). Until the device answers, the frame is
- * held (`holdWebgpuFrame`) — the previous image stays, or nothing yet, never one without its
- * shadows — and a capture waits (`deviceAnswer`). When it refuses even the floor, the shadowed
- * mode cannot be drawn: it is refused by the `shadows-off` error (`pool-refused`), and the session
- * goes on without shadows, never lost. A world without a light that casts a shadow sizes nothing: its pool would hold no page. The first
- * frame that has one sizes it, before its plan maps any page.
+ * screen's side — coarser shadow pages —, and said under `gpu-out-of-memory` (`pool-shrunk`,
+ * `memoryGrant.ts`). Until the device answers, the frame is held (`holdWebgpuFrame`) — the
+ * previous image stays, or nothing yet, never one without its shadows — and a capture waits
+ * (`deviceAnswer`). When it refuses even the floor, the shadowed mode cannot be drawn: it is
+ * refused by the `shadows-off` error (`pool-refused`), and the session goes on without shadows,
+ * never lost. A world without a light that casts a shadow sizes nothing: its pool would hold no
+ * page. The first frame that has one sizes it, before its plan maps any page.
  */
 export function sizeShadowPool(rt: WebgpuPagesRuntime) {
   const { lights, capture, diag, run } = rt,
@@ -124,12 +124,7 @@ export function sizeShadowPool(rt: WebgpuPagesRuntime) {
       if (run.lost || rt.signal.aborted || lights.shadows !== atlas) return granted.made.destroy();
       const { side, layers, clamp, allocatedBytes } = granted.pool;
       // Coarser pages for memory alone, by name: the halvings the device's refusals took.
-      if (allocatedBytes < asked)
-        noteShadowPressure(
-          lights.memory,
-          'pool-shrunk',
-          Math.max(1, Math.round(Math.log2(asked / allocatedBytes))),
-        );
+      if (granted.halvings) noteShadowPressure(lights.memory, 'pool-shrunk', granted.halvings);
       if (side !== lights.plan.pool.side || layers !== lights.plan.pool.layers) {
         const before = lights.plan;
         lights.plan = createShadowPlan(side, layers);
