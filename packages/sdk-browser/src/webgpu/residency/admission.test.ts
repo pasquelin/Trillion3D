@@ -37,6 +37,20 @@ test('a requested page brings its missing dependencies, each loaded before what 
   assert.deepEqual([...cache.pins].sort(), ['a', 'b'], 'only what the image holds is pinned');
 });
 
+test('a root-cover page admitted by the ensurer is pinned in the held tier', async () => {
+  const { pages, parentsOf } = placement();
+  const [root, , a] = pages;
+  const tracking = createWebgpuPageTracking(pages),
+    cache = lruCache(8),
+    base = ensurerOptions(tracking, cache);
+  base.bootstrapKey[tracking.keyOf(root)] = 1;
+  const ensure = createWebgpuResidentEnsurer({ ...base, parentsOf });
+  tracking.wanted.add(tracking.keyOf(a), a);
+  await ensure([a], 1, 1);
+  assert.deepEqual([...cache.held], ['r'], 'the cover keeps its tier ahead of ordinary pins');
+  assert.ok(cache.pins.has('a') && !cache.held.has('a'));
+});
+
 test('a page whose parent is outside the cut brings its bundle, then both load in order', async () => {
   const { pages, parentsOf } = placement();
   const [r, m, a] = pages;

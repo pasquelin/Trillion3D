@@ -1,5 +1,4 @@
 import { fallbackBindEntries } from '../../core/fallbackEntries.ts';
-import { entriesIdentity } from '../../core/bindIdentity.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
 import { projectedPageError } from '../../../page/selection/selection.ts';
 import { BASE_SLOTS, BIN_BACK, BIN_FRONT, BIN_NONE } from '../../../gpu/draw/draw.ts';
@@ -68,19 +67,13 @@ export const visBin = (rec: PageRec): 0 | 1 | 2 => {
   return (side === 'back') !== windingCw(rec) ? BIN_FRONT : BIN_BACK;
 };
 
-/** Voids every fallback group when the layout, the page pool or the uniform they name changed
+/** Voids every fallback group when the layout or a resource their shared entries name changed
  *  identity. Read once before the fallback pass serves a group. */
 export function voidStaleFallbackGroups(rt: WebgpuPagesCore) {
   const { gpu } = rt,
-    { next } = gpu.fallbackIdentity;
-  next[0] = gpu.bindGroupLayout;
-  const entries = (gpu.fallbackIdentity.entries[0] ??= fallbackBindEntries(
-    () => rt.gpu.cache?.buffer,
-    () => rt.gpu.zeroUv,
-    () => rt.gpu.uniformBuffer,
-  ));
-  next.length = entriesIdentity(entries, next, 1);
-  if (gpu.fallbackIdentity.moved()) gpu.bindGroups.clear();
+    identity = gpu.fallbackIdentity;
+  identity.entries[0] ??= fallbackBindEntries(rt);
+  if (identity.entriesMoved(gpu.bindGroupLayout)) gpu.bindGroups.clear();
 }
 
 /** Position identity is the cache key; the fallback entry list governs every shared resource.
@@ -96,11 +89,7 @@ export function bindGroupFor(rt: WebgpuPagesCore, device: GPUDevice, position: G
   if (!group && gpu.bindGroupLayout && gpu.cache && gpu.uniformBuffer) {
     group = device.createBindGroup({
       layout: gpu.bindGroupLayout,
-      entries: fallbackBindEntries(
-        () => rt.gpu.cache?.buffer,
-        () => position,
-        () => rt.gpu.uniformBuffer,
-      ),
+      entries: fallbackBindEntries(rt, { position }),
     });
     gpu.bindGroups.set(id, group);
   }

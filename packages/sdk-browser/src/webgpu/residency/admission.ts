@@ -47,7 +47,7 @@ export function createPageAdmission(options: {
     await current().load(address, signal);
     const key = tracking.keyOf(rec);
     if (tracking.wanted.has(key) || bootstrapKey[key]) {
-      current().pin(address);
+      current().pin(address, bootstrapKey[key] ? 'held' : 'pinned');
       tracking.markPinned(key);
     }
   };

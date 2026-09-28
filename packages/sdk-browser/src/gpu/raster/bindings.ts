@@ -1,7 +1,6 @@
 import { smallBindEntries, type SmallBindResources } from '../../webgpu/core/bindEntries.ts';
 import {
   createWebgpuBindIdentity,
-  entriesIdentity,
   type WebgpuBindIdentity,
 } from '../../webgpu/core/bindIdentity.ts';
 import { liveResources } from '../../webgpu/core/liveEntries.ts';
@@ -32,8 +31,7 @@ export function createRasterBindings(
         selectionMask: () => current.selection?.maskBuffer ?? current.hizFlags,
       }),
     ));
-    identity.next.length = entriesIdentity(entries, identity.next);
-    if (identity.moved()) input.groups[input.groupKey] = undefined;
+    if (identity.entriesMoved(layout)) input.groups[input.groupKey] = undefined;
     return (input.groups[input.groupKey] ??= device.createBindGroup({
       layout,
       entries,

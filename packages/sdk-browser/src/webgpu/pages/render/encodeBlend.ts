@@ -100,8 +100,7 @@ export function encodeBlend(
   // The lighting resources of the image, resolved once for the blends and the water pass: the
   // shadow atlas and the probe grid do not exist from the first frame, and a group built on the
   // placeholders is voided the day the real resources arrive.
-  blendState.lighting = blendLightResources(rt);
-  voidStaleBlendGroups(rt, blendState.lighting);
+  voidStaleBlendGroups(rt, blendLightResources(rt));
   // The GPU then expands the sorted plan: an instance list, one indirect argument per slice, and
   // nothing more per item. With no compute stage, the CPU writes the same words.
   encodeBlendExpansion(rt, device, encoder);

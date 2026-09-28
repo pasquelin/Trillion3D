@@ -1,5 +1,5 @@
 import { visBindEntries, type VisBindResources } from '../core/bindEntries.ts';
-import { entriesIdentity } from '../core/bindIdentity.ts';
+import { entriesReady } from '../core/bindIdentity.ts';
 import { liveResources } from '../core/liveEntries.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
@@ -21,20 +21,15 @@ export function visibilityEntries(rt: WebgpuPagesRuntime, hiz: boolean, slot = -
   );
 }
 
-/** The descriptors used to create the groups are also their identity, including atlas tables. */
+/** The descriptors used to create the groups are also their identity, including atlas tables.
+ *  Slot groups differ from the representative slot 0 by their uniform offset alone. */
 function voidStaleVisibilityGroups(rt: WebgpuPagesRuntime) {
   const { vis } = rt,
-    identity = vis.visIdentity,
-    { next } = identity;
+    identity = vis.visIdentity;
   identity.entries[0] ??= visibilityEntries(rt, false);
   identity.entries[1] ??= visibilityEntries(rt, true);
   identity.entries[2] ??= visibilityEntries(rt, false, 0);
-  next[0] = vis.visBindGroupLayout;
-  let at = entriesIdentity(identity.entries[0], next, 1);
-  at = entriesIdentity(identity.entries[1], next, at);
-  at = entriesIdentity(identity.entries[2], next, at);
-  next.length = at;
-  if (!identity.moved()) return;
+  if (!identity.entriesMoved(vis.visBindGroupLayout)) return;
   vis.visBindGroup = undefined;
   vis.visHizBindGroup = undefined;
   vis.visSlotGroups.fill(undefined);
@@ -44,26 +39,11 @@ function voidStaleVisibilityGroups(rt: WebgpuPagesRuntime) {
 /** Binds row visibility inputs once for untested and Hi-Z-tested passes, on `rt.vis`. */
 export function ensureWebgpuVisibilityBindings(rt: WebgpuPagesRuntime, device: GPUDevice) {
   voidStaleVisibilityGroups(rt);
-  const { vis } = rt;
-  if (
-    vis.visBindGroupLayout &&
-    rt.gpu.cache &&
-    vis.concatPos &&
-    vis.concatUv &&
-    vis.pageTable &&
-    vis.visUniform &&
-    vis.zeroFlags &&
-    vis.textures &&
-    vis.mapsSampler
-  ) {
-    vis.visBindGroup ??= device.createBindGroup({
-      layout: vis.visBindGroupLayout,
-      entries: vis.visIdentity.entries[0],
-    });
-    if (vis.gpuHiz?.flags)
-      vis.visHizBindGroup ??= device.createBindGroup({
-        layout: vis.visBindGroupLayout,
-        entries: vis.visIdentity.entries[1],
-      });
-  }
+  const { vis } = rt,
+    layout = vis.visBindGroupLayout,
+    direct = vis.visIdentity.entries[0],
+    hiz = vis.visIdentity.entries[1];
+  if (!layout || !entriesReady(direct)) return;
+  vis.visBindGroup ??= device.createBindGroup({ layout, entries: direct });
+  if (entriesReady(hiz)) vis.visHizBindGroup ??= device.createBindGroup({ layout, entries: hiz });
 }

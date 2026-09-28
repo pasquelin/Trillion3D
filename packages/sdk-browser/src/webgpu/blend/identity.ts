@@ -3,7 +3,6 @@ import {
   type BlendBindResources,
   type BlendLighting,
 } from '../core/bindEntries.ts';
-import { entriesIdentity } from '../core/bindIdentity.ts';
 import { liveResources } from '../core/liveEntries.ts';
 import { fallbackBindEntries } from '../core/fallbackEntries.ts';
 import { BLEND_VIEW_SIZE } from './uniforms.ts';
@@ -41,28 +40,14 @@ export function blendEntries(rt: WebgpuPagesRuntime, item?: BlendGpuItem) {
   );
 }
 
-export function blendFallbackEntries(rt: WebgpuPagesRuntime, item?: BlendGpuItem) {
-  return fallbackBindEntries(
-    () => item?.index ?? rt.gpu.cache?.buffer,
-    () => item?.position ?? rt.gpu.zeroUv,
-    () => rt.gpu.uniformBuffer,
-  );
-}
-
 /** The representative paged and fallback groups cover the resources shared by every item. */
 export function voidStaleBlendGroups(rt: WebgpuPagesRuntime, lighting?: BlendLighting) {
   const { gpu, vis, blendState } = rt,
-    identity = blendState.identity,
-    { next } = identity;
+    identity = blendState.identity;
   blendState.lighting = lighting;
   identity.entries[0] ??= blendEntries(rt);
-  identity.entries[1] ??= blendFallbackEntries(rt);
-  next[0] = vis.blendBindGroupLayout;
-  next[1] = gpu.bindGroupLayout;
-  let at = entriesIdentity(identity.entries[0], next, 2);
-  at = entriesIdentity(identity.entries[1], next, at);
-  next.length = at;
-  if (!identity.moved()) return;
+  identity.entries[1] ??= fallbackBindEntries(rt);
+  if (!identity.entriesMoved(vis.blendBindGroupLayout, gpu.bindGroupLayout)) return;
   blendState.pagedGroup = undefined;
   for (const item of blendState.blendGpu) item.group = undefined;
 }
