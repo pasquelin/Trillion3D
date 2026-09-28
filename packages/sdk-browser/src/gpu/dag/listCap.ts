@@ -10,7 +10,7 @@ import {
 } from './layout.ts';
 import type { createDagResources } from './resources.ts';
 
-type Limits = Parameters<typeof storageBufferCap>[0];
+export type Limits = Parameters<typeof storageBufferCap>[0];
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 
 /** The most ranks one `out` binding holds on this device. */

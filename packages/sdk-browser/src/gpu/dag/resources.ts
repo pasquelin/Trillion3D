@@ -1,12 +1,10 @@
-import { SELECTION_WORKGROUP } from '../core/selection.ts';
 import type { PackedDag } from './types.ts';
 import { primitiveFrameWords } from './worlds.ts';
 import { createCameraFrames } from './frameRanges.ts';
 import { createDagPipeline } from './pipeline.ts';
-import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
-import { dagFlagsWords } from './shader/lastUseWgsl.ts';
+import { dagBufferBytes } from './deviceRefusal.ts';
 import { createDagList, initialListCap } from './listCap.ts';
 
 export async function createDagResources(
@@ -25,12 +23,10 @@ export async function createDagResources(
   // is what the frame copies and maps, and the worst case never happens (`layout.ts`,
   // measured by `tests/browser/probes/cut-snapshot-gpu.ts`); a cut that keeps more grows it
   // (`listCap.ts`).
-  // The same block count as the kernel's `blockCount()`, word for word: two counters live
-  // behind them in `work` and the second is copied to the dispatch argument.
-  const blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP),
-    // Layout of `work` comes from `dagWorkLayout`, which sets it for the kernel as for the
-    // benches; here only the byte offsets a copy to the argument asks for are taken.
-    travail = dagWorkLayout(blockCount),
+  // The buffers' bytes, the kernel's block count and the layout of `work`, one table with the
+  // device check (`deviceRefusal.ts`): two counters live behind the blocks in `work`, and only the
+  // byte offsets a copy to the dispatch argument asks for are taken here.
+  const { blockCount, travail, bytes } = dagBufferBytes(packed),
     liveGroupsOffset = travail.liveGroups * 4,
     candGroupsOffset = travail.candGroups * 4,
     drawnGroupsOffset = travail.drawnGroups * 4;
@@ -47,12 +43,12 @@ export async function createDagResources(
   try {
     const clusters = device.createBuffer({
       label: 'Trillion3D DAG clusters',
-      size: Math.max(64, packed.clusters.byteLength),
+      size: bytes.clusters,
       usage: STORAGE,
     });
     const nodes = device.createBuffer({
       label: 'Trillion3D DAG nodes',
-      size: Math.max(64, packed.nodes.byteLength),
+      size: bytes.nodes,
       usage: STORAGE,
     });
     const uniforms = device.createBuffer({
@@ -66,7 +62,7 @@ export async function createDagResources(
     // CPU, which still only copies draw flags.
     const flags = device.createBuffer({
       label: 'Trillion3D DAG flags',
-      size: Math.max(16, dagFlagsWords(nodeCount, pageCount) * 4),
+      size: bytes.flags,
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     // Three argument words, of which the last two are one once and for all: only the first is
@@ -76,18 +72,17 @@ export async function createDagResources(
       usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
     });
     device.queue.writeBuffer(dispatchArgs, 0, new Uint32Array([0, 1, 1, 0]));
-    const list = createDagList(own, listCap, residentCut),
-      { output, readback } = list;
+    const list = createDagList(own, listCap, residentCut);
     // No extra storage buffer, a stage's ceiling is already reached; arming words go to the
     // dispatch argument, hence the copy source.
     const work = device.createBuffer({
       label: 'Trillion3D DAG work',
-      size: Math.max(8, travail.words * 4),
+      size: bytes.work,
       usage: STORAGE | GPUBufferUsage.COPY_SRC,
     });
     const pageCones = device.createBuffer({
       label: 'Trillion3D DAG page cones',
-      size: Math.max(48, packed.pageCones.byteLength),
+      size: bytes.pageCones,
       usage: STORAGE,
     });
     buffers.push(clusters, nodes, uniforms, flags, dispatchArgs, work, pageCones);
@@ -97,7 +92,7 @@ export async function createDagResources(
       nodes,
       views: uniforms,
       flags,
-      out: output,
+      out: list.output,
       work,
       cold: pageCones,
     };
@@ -112,9 +107,9 @@ export async function createDagResources(
         copy.set(new Uint8Array(source.buffer, source.byteOffset, source.byteLength));
       device.queue.writeBuffer(target, 0, copy);
     };
-    upload(clusters, Math.max(64, packed.clusters.byteLength), packed.clusters);
-    upload(nodes, Math.max(64, packed.nodes.byteLength), packed.nodes);
-    upload(pageCones, Math.max(48, packed.pageCones.byteLength), packed.pageCones);
+    upload(clusters, bytes.clusters, packed.clusters);
+    upload(nodes, bytes.nodes, packed.nodes);
+    upload(pageCones, bytes.pageCones, packed.pageCones);
     return {
       device,
       packed,
