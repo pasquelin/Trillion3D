@@ -1,7 +1,7 @@
 /** The TypeScript projects of the repository, and the type check `check:changed` runs on those that
  *  own a changed file: `tsc -p <project> --noEmit` through the compiler API, so a test can check
  *  a file that is not on disk. */
-import { dirname, matchesGlob, relative, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import ts from 'typescript';
 
 /** Every tracked `tsconfig*.json` of `files`: the projects the gates type-check. */
@@ -65,25 +65,42 @@ export function typeErrors(program: ts.Program, root: string): string[] {
 }
 
 /** Whether `project` carves `file` (absolute) out on purpose: its `include` covers it and its
- *  `exclude` takes it back, as `tsc -p` does, such as the `tests/fixtures/public*` sources a test
- *  type-checks with its own options. A file outside every `include` is never excused. */
+ *  `exclude` takes it back, such as the `tests/fixtures/public*` sources a test type-checks with its
+ *  own options. TypeScript expands the `include` itself, so the globs mean what they mean to `tsc`. */
 export function excludes(project: ts.ParsedCommandLine, file: string): boolean {
-  const path = relative(dirname(String(project.options.configFilePath)), file);
-  const names = (specs: unknown) =>
-    Array.isArray(specs) && specs.some((spec) => matchesGlob(path, String(spec)));
-  return names(project.raw?.include) && names(project.raw?.exclude);
+  const base = dirname(String(project.options.configFilePath));
+  const included = ts.parseJsonConfigFileContent({ ...project.raw, exclude: [] }, ts.sys, base);
+  return included.fileNames.includes(file) && !project.fileNames.includes(file);
+}
+
+/** Whether `project` reads the `trillion3d` package from the build output `dist/`, as the site and
+ *  the tools do: checked against a missing or stale build, it would report the wrong errors. */
+export function readsDist(project: ts.ParsedCommandLine, root: string): boolean {
+  const lookup = ts.resolveModuleName(
+    'trillion3d',
+    resolve(root, 'index.ts'),
+    project.options,
+    ts.sys,
+  ) as ts.ResolvedModuleWithFailedLookupLocations & { failedLookupLocations?: string[] };
+  const dist = resolve(root, 'dist') + '/';
+  return [
+    lookup.resolvedModule?.resolvedFileName ?? '',
+    ...(lookup.failedLookupLocations ?? []),
+  ].some((file) => file.startsWith(dist));
 }
 
 /**
  * The type errors of every project that owns one of `sources`, the changed TypeScript files
  * (paths relative to `root`): a project owns a file it lists, or else one its program reaches (a
  * `*.fixture.ts` a test imports). A changed file no project reaches is itself an error, never a
- * silent skip, unless a project's `include` covers it and its `exclude` takes it back.
+ * silent skip, unless a project's `include` covers it and its `exclude` takes it back. When an
+ * owner reads `trillion3d` from `dist/`, `build` runs first, so the check reads current declarations.
  */
 export function changedTypeErrors(
   root: string,
   projects: readonly string[],
   sources: readonly string[],
+  build: () => void,
 ): string[] {
   if (!sources.length) return [];
   const parsed = projects.map((project) => parseProject(resolve(root, project)));
@@ -105,6 +122,11 @@ export function changedTypeErrors(
     if (!found.length && !parsed.some((project) => excludes(project, file)))
       errors.push(`${source}: no tsconfig project type-checks it (${projects.join(', ')}).`);
     for (const project of found) owners.add(project);
+  }
+  if ([...owners].some((project) => readsDist(project, root))) {
+    build();
+    programs.clear();
+    parsedFiles.clear();
   }
   for (const project of owners) errors.push(...typeErrors(programOf(project), root));
   return errors;
