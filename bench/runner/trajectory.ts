@@ -11,7 +11,7 @@ import { readOptions, resolveMounts, equipSide, sdkEntryUrl } from './options.ts
 import { isDist } from './dists.ts';
 import { resolveCache, sideReport } from './sideOptions.ts';
 import { ASSETS, DEFAULT_SCENE, sceneDerived, sceneOf } from './scene.ts';
-import { PATH_POSES, PATH_VERSION, poseAt } from './poses.ts';
+import { PATH_POSES, PATH_VERSION, poseAt, trajectoryPoses } from './poses.ts';
 import { readBounds } from './page.ts';
 import { benchLights } from './lamps.ts';
 import { measurePayload, withGpuIncidents } from './seriesPage.ts';
@@ -117,7 +117,7 @@ async function main() {
             sdkUrl: sdkEntryUrl(side),
             manifestUrl: side.manifestUrl!,
           });
-          poses = Array.from({ length: settings.frames }, (_, index) => poseAt(bounds!, index));
+          poses = trajectoryPoses(bounds, 0, settings.frames);
         }
         const payload = measurePayload(
           side,
