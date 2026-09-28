@@ -6,14 +6,16 @@ import { DRAW_ITEM_U32 } from '../../../gpu/draw/draw.ts';
 import { createCornerUploadHold } from '../../visibility/corners.ts';
 import { createDrawItemWordsHold } from '../../visibility/itemWords.ts';
 import { VIS_MAX_PAGES } from '../../../visibility/buffer.ts';
+import { boundTableRows } from '../../row/tableRows.ts';
 import type { WebgpuPagesSetup } from './setup.ts';
 import type { BoxTransformLot } from '../../../math/batchRuntime.ts';
 
 export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>;
 
 /** The fixed geometry of the drawing path: the packed opaque pages, the row table sized to the slot
- *  budget, and every per-row scratch array the image reuses instead of reallocating. */
-export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
+ *  budget and to one binding of the device (`limits`), and every per-row scratch array the image
+ *  reuses instead of reallocating. */
+export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSupportedLimits) {
   const { roots, bootstrap, cap: slots, pageBytes } = setup;
   const opaqueRoots = roots.filter((root) => !root.pages[0]?.transparent),
     transparentRoots = roots.filter((root) => root.pages[0]?.transparent);
@@ -42,10 +44,12 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
   }
   // Visibility IDs reserve 24 bits for row+1 (zero means background) and 8 for the triangle.
   // Rows are the visibility buffer's, and only opaque clusters ever claim one.
-  const drawSlots = Math.max(1, Math.min(VIS_MAX_PAGES, opaquePageCount || 1, slots * maxCopies));
+  const askedDraw = Math.max(1, Math.min(VIS_MAX_PAGES, opaquePageCount || 1, slots * maxCopies));
   // Blended clusters cast from rows behind them, which only the shadow pass reads: as many as the
   // pool can hold resident at once, and none in a scene that blends nothing.
-  const blendSlots = Math.min(packedPages.length - opaquePageCount, slots * maxCopies);
+  const askedBlend = Math.min(packedPages.length - opaquePageCount, slots * maxCopies);
+  // Both within what one binding of the page table holds (`../../row/tableRows.ts`).
+  const { drawSlots, blendSlots, bounded } = boundTableRows(limits, askedDraw, askedBlend);
   const rows = createWebgpuRowState(packedPages, drawSlots, blendSlots);
   /** Every triangle of every drawable row: the bound a raster list cannot exceed. */
   const rasterCapacity = drawSlots * Math.ceil(Math.max(1, pageBytes / 4) / 3);
@@ -69,6 +73,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup) {
     gpuWanted,
     drawSlots,
     rows,
+    /** The rows the scene asked when one binding of the device held fewer, else null. */
+    pageTableBound: bounded,
     rasterCapacity,
     cornerPacked,
     cornerHold,

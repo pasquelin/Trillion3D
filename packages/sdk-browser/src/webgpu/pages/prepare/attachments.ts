@@ -48,6 +48,7 @@ export function feedbackAttachment(rt: WebgpuPagesRuntime) {
 /** Surfaces then the feedback target: the five attachments of the hardware resolve. */
 export function shadeColorAttachments(rt: WebgpuPagesRuntime, surfaces: SurfaceBuffer) {
   const base = surfaceColorAttachments(surfaces);
+  if (rt.feedbackAB?.target === false) return base;
   withFeedback ??= [...base, feedback];
   feedbackAttachment(rt);
   return withFeedback;

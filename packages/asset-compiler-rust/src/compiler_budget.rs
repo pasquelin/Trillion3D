@@ -6,6 +6,7 @@
 //! count what it commits: two workers each given the floor share used to commit
 //! twice that share, whatever total the batch announced.
 use crate::Options;
+pub mod waves;
 
 /// Share under which a job has not enough to decode the smallest scene.
 pub const MIN_JOB_RAM_MB: usize = 64;

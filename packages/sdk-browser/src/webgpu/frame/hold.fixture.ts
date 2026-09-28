@@ -54,8 +54,11 @@ export function settledRt() {
     packedCount: 1,
     rowCount: 1,
   };
+  // The main view alone, drawn.
+  const main = {};
   const rt = {
     run,
+    views: { main, active: main, persistent: [] },
     layout: { rows },
     vis: { visEnabled: true, gpuDraw: true, textureJobs: [] as unknown[], gpuHiz: undefined },
     lights: {

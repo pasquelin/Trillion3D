@@ -16,6 +16,8 @@ import { createWebgpuSunFarState, type WebgpuSunFarState } from './state/sunFar.
 import { createWebgpuRunState, type WebgpuRunState } from './state/run.ts';
 import { createWebgpuCaptureState, type WebgpuCaptureState } from './state/capture.ts';
 import { createWebgpuViews, type WebgpuViews } from './state/view.ts';
+import type { PresentRect } from '../../gpu/core/presentAt.ts';
+import type { HostCamera } from '../../camera/world.ts';
 import {
   createWebgpuStageProfiler,
   createWebgpuTimingState,
@@ -23,13 +25,23 @@ import {
 } from './state/timing.ts';
 import type { HostCpuProfile } from '../../host/cpuProfile.ts';
 import type { WebgpuPagesSetup } from './prepare/setup.ts';
+import type { FeedbackAbState, ResidencyIdentity } from './diagnostic/feedbackAb.ts';
+import type { SpatialFeedback } from './diagnostic/feedbackSpatial.ts';
 
 export type WebgpuPagesBackend = RenderBackend &
   HostCpuProfile & {
     flush(): Promise<void>;
+    setFeedbackTargetAb(target: boolean): Promise<void>;
+    feedbackAbResidency(): Promise<ResidencyIdentity>;
+    captureFeedbackAb(): Promise<Uint8Array>;
+    feedbackAbSpatial(): Promise<SpatialFeedback>;
     rasterRgba(): Uint8Array;
     selectedPageIds(): string[];
     visibilityIds(): Uint32Array;
+    /** A view drawn beside the main one, after it, each frame (`./state/persistentView.ts`). */
+    addView(
+      rect: PresentRect,
+    ): Promise<{ render(camera: HostCamera): void; release(): Promise<void> }>;
   };
 
 /** The runtime before its services exist: what the service factory and the draw helpers are handed. */
@@ -47,6 +59,8 @@ export const VIS_FEATURES = [
  *  part of it. `setup` and `layout` never change after construction; the other groups do. */
 export interface WebgpuPagesRuntime {
   context: BackendContext;
+  /** Opt-in, same-session frame-target measurement; absent from production sessions. */
+  feedbackAB?: FeedbackAbState;
   /** Aborted by `dispose`; `signal` is aborted by it or by the session's. */
   closer: AbortController;
   signal: AbortSignal;
@@ -84,7 +98,14 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     traceEnabled,
   };
   const setup = createWebgpuPagesSetup(context, diag);
-  const layout = createWebgpuPagesLayout(setup);
+  const layout = createWebgpuPagesLayout(setup, context.gpuDevice?.limits);
+  // A page table past one binding holds what the binding does, said: a page left without a row
+  // draws through its nearest resident ancestor (`../row/tableRows.ts`).
+  if (layout.pageTableBound)
+    diag.engineDiagnostic('page-table-bounded', 'The device bounds the page table', {
+      kind: 'warning',
+      ...layout.pageTableBound,
+    });
   const vis = createWebgpuVisState();
   const run = createWebgpuRunState(context.clearColor);
   const blendState = createWebgpuBlendState();
