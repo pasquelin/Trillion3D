@@ -15,9 +15,8 @@ import { PREFETCH_HORIZON_MS } from '../../../packages/sdk-browser/src/backend/c
 import { readOverNetwork } from '../support/geometryNetworkPage.ts';
 
 const ROOT = resolve(import.meta.dirname, '../../..');
-const DIST = resolve(process.env.NETWORK_PROOF_DIST ?? resolve(ROOT, 'dist'));
+const DIST = resolve(ROOT, process.env.NETWORK_PROOF_DIST ?? 'dist');
 const LATENCY_MS = 60;
-const OBJECT = /\/objects\/[^/]+\.bin$/;
 
 /** One cache object's transfer as Chrome's network stack saw it, on its own clock. */
 type Transfer = { sent: number; done: number; encoding?: string };
@@ -42,7 +41,8 @@ async function open(throttled: boolean) {
   const cdp = await context.newCDPSession(page);
   const transfers = new Map<string, Transfer>();
   cdp.on('Network.requestWillBeSent', ({ requestId, request, timestamp }) => {
-    if (OBJECT.test(request.url)) transfers.set(requestId, { sent: timestamp, done: Infinity });
+    if (isCacheObject(new URL(request.url).pathname))
+      transfers.set(requestId, { sent: timestamp, done: Infinity });
   });
   cdp.on('Network.responseReceived', ({ requestId, response }) => {
     const transfer = transfers.get(requestId);
@@ -85,10 +85,19 @@ async function open(throttled: boolean) {
 try {
   const fast = await open(false),
     slow = await open(true);
-  for (const [name, r] of Object.entries({ fast, slow }))
+  const read = (r: typeof fast) => ({
+    alongside: sentAlongside(r.transfers),
+    farthest: Math.max(...r.horizons),
+  });
+  const fastRead = read(fast),
+    slowRead = read(slow);
+  for (const [name, r, f] of [
+    ['fast', fast, fastRead],
+    ['slow', slow, slowRead],
+  ] as const)
     console.log(
-      `${name}: ${r.admitted.length} admitted, ${sentAlongside(r.transfers)}/${r.transfers.length} ` +
-        `reads sent alongside another, horizon up to ${Math.max(...r.horizons)} ms, encodings ` +
+      `${name}: ${r.admitted.length} admitted, ${f.alongside}/${r.transfers.length} reads sent ` +
+        `alongside another, horizon up to ${f.farthest} ms, encodings ` +
         `${[...new Set(r.transfers.map((t) => t.encoding ?? 'identity'))]}, held ${r.held}, ` +
         `errors ${r.errors.join(' | ') || 'none'}`,
     );
@@ -99,7 +108,7 @@ try {
   // #997: an admission pass starts the reads it will wait for before it admits the first, so they
   // share the network; one read at a time leaves a read alone on it.
   assert.ok(
-    sentAlongside(slow.transfers) * 2 > slow.transfers.length,
+    slowRead.alongside * 2 > slow.transfers.length,
     'most geometry page reads are sent while another is in flight',
   );
   assert.deepEqual(
@@ -108,9 +117,16 @@ try {
     'the pool admits the same pages',
   );
   // #999: the view ahead adds the measured round trip, which the emulation keeps above its latency.
-  const farthest = (r: typeof fast) => Math.max(...r.horizons);
-  assert.ok(farthest(slow) >= PREFETCH_HORIZON_MS + LATENCY_MS, 'the horizon adds the round trip');
-  assert.ok(farthest(fast) < farthest(slow), 'a nearer network looks less far ahead');
+  for (const r of [fast, slow])
+    assert.ok(
+      r.horizons.length && r.horizons.every(Number.isFinite),
+      'frames trace aheadHorizonMs',
+    );
+  assert.ok(
+    slowRead.farthest >= PREFETCH_HORIZON_MS + LATENCY_MS,
+    'the horizon adds the round trip',
+  );
+  assert.ok(fastRead.farthest < slowRead.farthest, 'a nearer network looks less far ahead');
   assert.ok(
     slow.transfers.length > 0 && slow.transfers.every((t) => t.encoding === 'br'),
     'the cache objects arrive brotli-encoded',

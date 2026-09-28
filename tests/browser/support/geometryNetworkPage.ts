@@ -55,8 +55,9 @@ export async function readOverNetwork({
         if (!moving) admitted.push(String(context?.key));
       } else if (phase === 'gpu-selection-current-frame') {
         if (moving) horizons.push(Number(context?.aheadHorizonMs));
-        // A record the bounded channel dropped (`diagnostic-loss`) would hide an admission.
-      } else if (/failed|lost|loss/.test(phase)) failures.push(phase);
+      }
+      // A record the bounded channel dropped (`diagnostic-loss`) would hide an admission.
+      else if (/failed|lost|loss/.test(phase)) failures.push(phase);
     },
   });
   world.select('webgpu-page-raster');
