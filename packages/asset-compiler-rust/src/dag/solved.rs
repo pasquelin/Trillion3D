@@ -15,11 +15,12 @@
 //! The largest step a placed coordinate took, clamp included, times that length joins the
 //! group's error (`placed::Local::drift`).
 //!
-//! **Mirrors.** Where a chart meets its mirror image (`charts::on_mirror`) the seam is first kept:
-//! a face folded across a mirror draws one side's texture on the other with every coordinate in
-//! place, a slide the drift does not see. A group those seams still hold is solved across them,
-//! each face whose corners' charts turn both ways charged its longest edge: under a pixel
-//! wherever its level is drawn (`charts::mirror_span`).
+//! **Mirrors and islands.** Where a chart meets its mirror image (`charts::on_mirror`) the seam is
+//! first kept: a face folded across a mirror draws one side's texture on the other with every
+//! coordinate in place, a slide the drift does not see. A group those seams still hold is solved
+//! across them, each face whose corners' charts turn both ways charged its longest edge; so is
+//! every face whose corners lie in two texture islands: under a pixel wherever its level is drawn
+//! (`charts::folded_span`).
 //!
 //! **Retries.** The endpoint reduction's (`retries.rs`), and so is the check of its faces: a kept
 //! corner points at the copy of its own face's normal (`attributes::own_normals`), a face lit
