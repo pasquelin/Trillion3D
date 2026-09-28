@@ -2970,7 +2970,7 @@
   },
   "loader": {
     "summary": "Die Familie `loader`: abgerufene Dateien, umgewandelt in das, was eine Szene nutzt.",
-    "description": "Eine Datei wird durch den geprüften Abruf der Engine gelesen (`cluster/pages.ts`), der eine fehlgeschlagene Antwort anhand ihres Status ablehnt; ein Bild (`texture`, `cubeTexture`) wird von einem Bildelement abgerufen, das es beim Fehlschlagen der Dekodierung ablehnt."
+    "description": "Eine Datei wird durch den geprüften Abruf der Engine gelesen (`cluster/checked.ts`), der eine fehlgeschlagene Antwort anhand ihres Status ablehnt; ein Bild (`texture`, `cubeTexture`) wird von einem Bildelement abgerufen, das es beim Fehlschlagen der Dekodierung ablehnt."
   },
   "loader.texture": {
     "summary": "Ruft ein Bild ab und macht daraus eine Farbtextur.",

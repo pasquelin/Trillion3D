@@ -5536,7 +5536,7 @@
   },
   "loader": {
     "summary": "`loader` ailesi: getirilen ve bir sahnenin kullandığı şeye dönüştürülen dosyalar.",
-    "description": "Bir dosya, durumuna göre başarısız bir yanıtı reddeden motorun kontrollü fetch'i (`cluster/pages.ts`) aracılığıyla okunur; bir görsel (`texture`, `cubeTexture`), çözmeyi başaramayarak birini reddeden bir görsel elemanı tarafından getirilir."
+    "description": "Bir dosya, durumuna göre başarısız bir yanıtı reddeden motorun kontrollü fetch'i (`cluster/checked.ts`) aracılığıyla okunur; bir görsel (`texture`, `cubeTexture`), çözmeyi başaramayarak birini reddeden bir görsel elemanı tarafından getirilir."
   },
   "loader.texture": {
     "summary": "Bir görsel getirir ve ondan bir renk dokusu yapar.",
