@@ -19,7 +19,7 @@ impl Jeu {
     pub(crate) fn inputs(&self) -> ProxyInputs<'_> {
         ProxyInputs {
             g: &self.g,
-            chosen: &self.chosen,
+            shown: &self.chosen,
             mesh_map: &self.mesh_map,
             primitives: &self.primitives,
             cuts: &self.cuts,

@@ -1,6 +1,7 @@
-import { STREAMING_FRAME_MS } from '../../backend/common.ts';
-import { createFrameBudget, yieldToEventLoop } from '../../page/integration/frameBudget.ts';
+import { STREAMING_FRAME_MS, STREAMING_SHARES_PER_FRAME } from '../../backend/common.ts';
+import { createFrameBudget, createSharePace } from '../../page/integration/frameBudget.ts';
 import { pageAddress } from '../row/pageSlots.ts';
+import { PRIORITY_PREFETCH } from '../../streaming/priority.ts';
 import { createAdmissionReads, createPageAdmission } from './admission.ts';
 import { mergeLowerTiers, type LowerList } from './lowerTier.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
@@ -26,8 +27,8 @@ type EnsureOptions = {
    *  with the keys it names (`lowerTier.ts`). */
   lowerTiers: () => readonly LowerList[];
   /** Starts the read of a page's bytes ahead of its admission, dropped with `signal` if nothing
-   *  joined it; absent, each page is read when its admission reaches it. */
-  prefetch?: (page: PageRec, signal: AbortSignal) => void;
+   *  joined it; the lower tiers' at PRIORITY_PREFETCH, behind the camera's. Absent, at admission. */
+  prefetch?: (page: PageRec, signal: AbortSignal, priority?: number) => void;
 };
 
 /** Loads newly wanted pages without acting on a stale camera cut. */
@@ -45,11 +46,11 @@ export function createWebgpuResidentEnsurer({
   prefetch,
 }: EnsureOptions) {
   /** The published share of the main thread (`STREAMING_FRAME_MS`), read synchronously: past it a
-   *  job yields a task and starts a new share — a due frame goes through, and the job resumes
-   *  without waiting for one, so a hidden tab loads too. Opened only after a yield, never by a job:
-   *  the next job may start in the task the last one ended in. */
+   *  job yields a task — a due frame goes through; past `STREAMING_SHARES_PER_FRAME` of a visible
+   *  page, a frame — and starts a new share; a hidden tab never waits, so it loads too. Opened only
+   *  after a yield, never by a job: the next job may start in the task the last one ended in. */
   const budget = createFrameBudget(STREAMING_FRAME_MS);
-  const nextShare = () => yieldToEventLoop().then(budget.open);
+  const nextShare = createSharePace(budget.open, STREAMING_SHARES_PER_FRAME);
   /** The reads a pass starts before its admissions, under the job's `reads`; none without `prefetch`. */
   const readAhead = prefetch && createAdmissionReads({ hasBytes, parentsOf, prefetch });
   /** Every load of both tiers goes through the install order; what the image holds is pinned. */
@@ -85,7 +86,7 @@ export function createWebgpuResidentEnsurer({
     for (let i = 0; i < lower.length; i++)
       if (!skip(lower[i]) && cache.touch(pageAddress(lower[i]), true)) held++;
     let spare = cache.unpinnedSlots() - held;
-    readAhead?.(lower, spare, (rec) => !skip(rec), cache, reads);
+    readAhead?.(lower, spare, (rec) => !skip(rec), cache, reads, PRIORITY_PREFETCH);
     // The share, as the camera's burst: past it the job yields — and leaves if a camera cut asked
     // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only
     // ends on a tier pass nobody interrupted, so every wait on it finds the tiers posted (#281).

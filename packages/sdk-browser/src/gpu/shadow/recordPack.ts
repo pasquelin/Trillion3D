@@ -8,7 +8,7 @@ import {
   SHADOW_RECORD_INFO,
   SHADOW_RECORD_ORIGINS,
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
-import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SHADOW_PAGE, pageOrigin } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import type { SunLevels } from '../../../../sdk-core/src/scene/light-shadow/sunLevels.ts';
 
 /** Pages one GPU batch draws: the size of the per-batch buffers. A frame draws every page it
@@ -16,6 +16,10 @@ import type { SunLevels } from '../../../../sdk-core/src/scene/light-shadow/sunL
 export const MAX_SHADOW_PAGES: number = LIGHT_SETTINGS.shadowPagesPerBatch;
 /** Regions at most in a batch: a page draws its static layer and its moving casters, two at most. */
 export const MAX_SHADOW_REGIONS = 2 * MAX_SHADOW_PAGES;
+/** Words of a face entry the depth pass reads — matrix, `params`, `emitter` —, before the page's
+ *  clip square the page quads read (`writePage`). */
+export const SHADOW_FACE_READ_WORDS = 24,
+  SHADOW_FACE_READ_BYTES = SHADOW_FACE_READ_WORDS * 4;
 
 /**
  * Host mirrors of the two shadow buffers the frame writes — the drawn pages' matrices, read by
@@ -65,9 +69,7 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
     ) {
       const uniform = (index * faceStride) / 4;
       for (let i = 0; i < 16; i++) facePacked[uniform + i] = matrices[matrixBase + i];
-      const local = phys % (side * side),
-        x = (local % side) * SHADOW_PAGE,
-        y = Math.floor(local / side) * SHADOW_PAGE;
+      const { x, y } = pageOrigin(phys, side);
       facePacked[uniform + 16] = x / size;
       facePacked[uniform + 17] = y / size;
       facePacked[uniform + 18] = SHADOW_PAGE / size;
@@ -77,9 +79,10 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
       facePacked[uniform + 22] = center ? center[2] : 0;
       facePacked[uniform + 23] = center ? radius : 0;
       // Its clip square in the whole atlas's: `xy * s + o`, what the page draws read.
-      facePacked[uniform + 24] = (2 * x + SHADOW_PAGE) / size - 1;
-      facePacked[uniform + 25] = 1 - (2 * y + SHADOW_PAGE) / size;
-      facePacked[uniform + 26] = facePacked[uniform + 27] = SHADOW_PAGE / size;
+      const rect = uniform + SHADOW_FACE_READ_WORDS;
+      facePacked[rect] = (2 * x + SHADOW_PAGE) / size - 1;
+      facePacked[rect + 1] = 1 - (2 * y + SHADOW_PAGE) / size;
+      facePacked[rect + 2] = facePacked[rect + 3] = SHADOW_PAGE / size;
     },
     /** A lamp's record: its face matrices, face count, tangent half-field, near plane, table base. */
     writeLamp(

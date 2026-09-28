@@ -47,7 +47,13 @@ inline JPH::Ref<JPH::SoftBodySharedSettings> softSettings(const uint32_t *vertic
       if (face.IsDegenerate()) return nullptr;
       shared->AddFace(face);
     }
-    SoftBodySharedSettings::VertexAttributes attributes(stretch, stretch, bend);
+    // A cloth that never stretches holds each free vertex within its rest distance of the nearest
+    // pin (a long range attachment), a bound its edges, kept exactly, never pass on a flat cloth:
+    // a large pinned cloth no longer stretches without end and diverges. One given stretch keeps
+    // its give.
+    using LRA = SoftBodySharedSettings::ELRAType;
+    const LRA attach = stretch == 0 ? LRA::EuclideanDistance : LRA::None;
+    SoftBodySharedSettings::VertexAttributes attributes(stretch, stretch, bend, attach);
     using Bend = SoftBodySharedSettings::EBendType;
     shared->CreateConstraints(&attributes, 1, bend < FLT_MAX ? Bend::Dihedral : Bend::None);
   }

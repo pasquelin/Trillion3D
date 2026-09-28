@@ -23,7 +23,7 @@ import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { isDrawnNode } from '../graph/kinds.ts';
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
-import { type GraphLight } from '../graph/light.ts';
+import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { placedMeshes } from './placed.ts';
 import type { RowLink } from '../../scene/partition/rows.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
@@ -73,7 +73,7 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
   // Names first, depth first: node, then its camera, then its light; each camera and each light
   // is built at its first use.
   const cameras = new Map<number, Camera>();
-  const lights = new Map<number, GraphLight>();
+  const lights = new Map<number, Light>();
   const nodeNames = new Map<number, string>();
   const order: number[] = [];
   const named = new Set<number>();
@@ -166,6 +166,8 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
       node.name = nodeNames.get(id)!;
     }
     pose(node, declared);
+    // Hidden, it is parked as any hidden node (`placement/hidden.ts`); its subtree with it.
+    node.visible = declared.visible;
     nodes[id] = node;
     for (const child of declared.children) node.add(assemble(child));
     return node;

@@ -91,3 +91,17 @@ test('a scene change with nothing to draw does not stop the next one from openin
   runtime.dispose();
   assert.equal(openings.length, 1, 'the mesh asks for a session');
 });
+
+test('a disposed runtime unlinks every node: no geometry or material hears a mesh any more', async () => {
+  const ready = Promise.resolve();
+  const scene = new Scene(worldModelLoader(ready, undefined, () => 'webgpu'));
+  const runtime = runtimeOf(scene, ready, () => {});
+  const mesh = object.mesh(geometry.box(1, 1, 1)),
+    group = object.group();
+  group.add(mesh);
+  scene.add(group);
+  await runtime.settled();
+  runtime.dispose();
+  assert.deepEqual([scene._link, group._link, mesh._link], [null, null, null]);
+  assert.equal(mesh.geometry._listeners.size, 0);
+});

@@ -4,6 +4,8 @@
 //! one multiply and one add per component, both correctly rounded — so a position decoded on
 //! the GPU is the same 32-bit float as one decoded here.
 
+pub mod grid;
+
 /// Widest field of the format: a 24-bit field read at any bit offset spans two words at most.
 pub const MAX_BITS: u32 = 24;
 /// Largest magnitude of a grid exponent: the step stays a normal `f32`.
@@ -36,6 +38,15 @@ pub fn field(words: &[u32], at: usize, bits: u32) -> u32 {
         value |= u64::from(words[index + 1]) << (32 - shift);
     }
     (value & ((1u64 << bits) - 1)) as u32
+}
+
+/// The little-endian words of `bytes`, a trailing partial word dropped.
+pub fn le_words(bytes: &[u8]) -> impl Iterator<Item = u32> + '_ {
+    bytes
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|b| u32::from_le_bytes(*b))
 }
 
 /// `2^exponent` as an exact `f32`, built from its bits: no rounding, whatever the platform.

@@ -36,12 +36,11 @@ export {
 } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 export { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 export { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
-export { GraphLight } from './light.ts';
+export { Light } from '../../../../sdk-core/src/world/light/light.ts';
 export { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 export { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts';
 export type { HostMesh } from '../resources.ts';
 export { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-export { GraphNode } from './node.ts';
 export { Scene } from '../../world/core/scene.ts';
 export { GraphSurface } from './surface.ts';
 export { GraphTexture } from './texture.ts';

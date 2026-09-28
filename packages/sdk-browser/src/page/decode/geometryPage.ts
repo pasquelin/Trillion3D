@@ -4,9 +4,10 @@ import {
   FLAG_NORMAL,
   FLAG_UV,
   FLAG_UV1,
+  BLOCK_CORNERS,
   OCT_SCALE,
 } from '../../cluster/format.ts';
-import { readGeometryPageHeader, type Quant } from './geometryPageHeader.ts';
+import { blockRecord, field, readGeometryPageHeader, type Quant } from './geometryPageHeader.ts';
 import { pageAttributeNames, pageViews } from './geometryPageBlock.ts';
 
 /**
@@ -35,16 +36,6 @@ export type DecodedGeometryPage = {
 };
 
 const fround = Math.fround;
-/** The `bits`-bit field at bit `at` of `words`; a field spans two words at most. */
-function field(words: Uint32Array, at: number, bits: number) {
-  if (!bits) return 0;
-  const shift = at % 32,
-    index = at >>> 5;
-  let value = words[index] >>> shift;
-  if (shift + bits > 32) value |= words[index + 1] << (32 - shift);
-  return value & ((1 << bits) - 1);
-}
-
 /** Octahedral bytes (`x` low, `y` high) back to a unit vector, in 32-bit steps. */
 function octDecode(q: number, out: Float32Array, at: number) {
   let x = fround(fround((q & 255) * OCT_SCALE) - 1),
@@ -91,10 +82,10 @@ export function decodeGeometryPage(
     uv,
     uv2,
     color,
-    indexBits,
+    corners,
     bodyWords: at,
     decodedBytes,
-    streams: { indices, positions, normal, uvs, uv2s, colors },
+    streams: { blocks, corners: cornerStream, positions, normal, uvs, uv2s, colors },
   } = readGeometryPageHeader(data, maxDecodedBytes);
   // The streams are read in place when the page sits on a word boundary, from a copy otherwise.
   const body = data.subarray(CLUSTER_HEADER_WORDS * 4);
@@ -107,9 +98,14 @@ export function decodeGeometryPage(
     pageAttributeNames(flags),
     vertexCount,
   );
-  for (let i = 0; i < indexCount; i++) {
-    decodedIndices[i] = field(words, indices * 32 + i * indexBits, indexBits);
-    if (decodedIndices[i] >= vertexCount) throw new Error('GEOMETRY_PAGE_INDEX');
+  // Corners block by block (`CornerCode::read`), every record inside the stream (the header gate).
+  for (let b = 0, i = 0; i < indexCount; b++) {
+    const [base, width, start] = blockRecord(words, blocks, corners, b),
+      end = Math.min(i + BLOCK_CORNERS, indexCount);
+    for (let k = 0; i < end; i++, k++) {
+      decodedIndices[i] = base + field(words, cornerStream * 32 + start + k * width, width);
+      if (decodedIndices[i] >= vertexCount) throw new Error('GEOMETRY_PAGE_INDEX');
+    }
   }
   vector(attributes.position, words, positions, position);
   if (flags & FLAG_NORMAL)

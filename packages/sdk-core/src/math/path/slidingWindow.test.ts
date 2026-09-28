@@ -1,7 +1,7 @@
-// The sliding median (`slidingWindow.ts`) keeps its median until a value arrives and sorts a full
-// window in place: every read must still equal the median of the last values, recomputed from
-// scratch, on random inputs and on the values a typed sort orders specially (NaN, ±0, ±Inf).
-import test from 'node:test';
+// The sliding median (`slidingWindow.ts`) keeps its values sorted as they arrive: every read must
+// still equal the median of the last values, recomputed from scratch, on random inputs and on the
+// values a typed sort orders specially (NaN, ±0, ±Inf).
+import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { Fenetre } from './slidingWindow.ts';
 import { createPathGovernor } from './governor.ts';
@@ -70,26 +70,17 @@ test('the edge values alone keep their order: NaN last, -0 before +0', () => {
   sameMedian(window, values, 'signed zeros');
 });
 
-test('an observation takes one view of a window at most, and none once both are full', () => {
+test('an observation takes no view of a window and sorts none, full or not (#983)', () => {
   let t = 0;
   const governor = createPathGovernor(() => (t += 0.001));
   governor.setWasm(true, true, null);
-  const subarray = Float64Array.prototype.subarray;
-  let views = 0;
-  Float64Array.prototype.subarray = function (this: Float64Array, ...args) {
-    views++;
-    return subarray.apply(this, args);
-  };
+  const views = mock.method(Float64Array.prototype, 'subarray'),
+    sorts = mock.method(Float64Array.prototype, 'sort');
   try {
-    const perObservation: number[] = [];
-    for (let i = 0; i < 2 * WINDOW + 10; i++) {
-      const before = views;
+    for (let i = 0; i < 2 * WINDOW + 10; i++)
       governor.observe('boxes', i % 2 ? 'js' : 'wasm', 1 + (i % 7) * 0.1, 100);
-      perObservation.push(views - before);
-    }
-    assert.ok(Math.max(...perObservation) <= 1, `views per observation: ${perObservation}`);
-    assert.deepEqual(perObservation.slice(-10), new Array(10).fill(0));
+    assert.equal(views.mock.callCount() + sorts.mock.callCount(), 0);
   } finally {
-    Float64Array.prototype.subarray = subarray;
+    mock.restoreAll();
   }
 });

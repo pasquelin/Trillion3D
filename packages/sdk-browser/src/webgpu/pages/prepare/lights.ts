@@ -6,6 +6,11 @@ import { createShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
 import { grantCapability } from '../io/drops.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { isCancelled } from '../../../backend/common.ts';
+import { createHizPipelines } from '../../../gpu/hiz/pipelines.ts';
+import { shadowOcclusionPipeline } from '../../../gpu/shadow/occlusion.ts';
+import { castsBlendShadow } from '../../../gpu/shadow/transmittance.ts';
+import { refreshSurface } from '../../../page/surface.ts';
+import { lightRowMapPipeline } from '../../../gpu/draw/lightRows.ts';
 
 /** What the capability declares when the direct-lighting contract is not fitted on this device. */
 const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas';
@@ -68,4 +73,26 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     unavailable: lights.shadowReason,
     approximations: SHADOW_APPROXIMATIONS,
   });
+}
+
+/**
+ * Every pipeline the shadow pass may need after prepare, compiled now — its own preparation step,
+ * cold work said apart from every frame (#989): the light cut's row map, the page pyramids and the
+ * occlusion test the static layer needs from an object's first move — the pyramids' kernels are
+ * the camera's Hi-Z's —, and, for a scene whose blended surfaces cast, the transmittance layer's
+ * draws. A frame then compiles none. One that fails here is compiled again, and said, where it is
+ * first used.
+ */
+export async function prepareShadowPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { shadows, pageQuads } = rt.lights;
+  if (!shadows || !pageQuads) return;
+  // The Hi-Z kernels alone first: their validation scope stays open across an await, and a
+  // pipeline made meanwhile would lay its error there. The rest opens no scope: compiled together.
+  await createHizPipelines(device).catch(() => undefined);
+  const work: Array<() => unknown> = [() => shadowOcclusionPipeline(device)];
+  if (rt.vis.gpuDraw) work.push(() => lightRowMapPipeline(device));
+  if (rt.blendState.blendGpu.some((item) => castsBlendShadow(refreshSurface(item.surface))))
+    work.push(shadows.prepareTransmittance, pageQuads.prepareTransmittance);
+  // One that fails is compiled again, and said, where it is first used.
+  await Promise.allSettled(work.map(async (make) => make()));
 }

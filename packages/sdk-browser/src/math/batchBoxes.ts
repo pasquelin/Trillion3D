@@ -108,17 +108,17 @@ export async function reserveRootBoxes(roots: readonly ClusterRoot<PageRec>[]) {
 }
 
 /**
- * Replays batch for the roots whose flag in `moved` is set, one flag per root. Returns `false` when
- * buffer unplayable (released or size changed): caller falls back box by box with identical result.
+ * Replays batch for the roots whose ranks `moved` lists. Returns `false` when buffer unplayable
+ * (released or size changed): caller falls back box by box with identical result.
  */
 export function transformRootBoxes(
   lot: BoxTransformLot,
   roots: readonly ClusterRoot<PageRec>[],
-  moved: ArrayLike<number>,
+  moved: readonly number[],
 ) {
   if (roots.length !== lot.n || !lot.holds(lot.n)) return false;
-  for (let i = 0; i < roots.length; i++) if (moved[i]) ecrit(lot, i, roots[i]);
+  for (const i of moved) ecrit(lot, i, roots[i]);
   lot.run();
-  for (let i = 0; i < roots.length; i++) if (moved[i]) relit(lot, i, roots[i]);
+  for (const i of moved) relit(lot, i, roots[i]);
   return true;
 }

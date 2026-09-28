@@ -98,6 +98,7 @@ export function banc(panne?: 'debordement' | 'envoi') {
     run: {
       gpuSelection: selection,
       selectionUniforms: uniforms,
+      motion: {}, // a still camera: no view ahead
       ...createWebgpuBudgetState(),
       gpuMetricsReady: false,
       desired,
@@ -110,8 +111,10 @@ export function banc(panne?: 'debordement' | 'envoi') {
     capabilities: { gpuDriven: true, unsupported: [] },
     diag: {
       traceEnabled: true,
-      traceDiagnostic: () => {
-        comptes.attentes++;
+      // Only the waiting record counts (`traceGpuCutWaiting`): another trace is no wait.
+      traceDiagnostic: (_phase: string, _message: string, payload: unknown) => {
+        if ((payload as { coverage?: { ready: boolean } } | undefined)?.coverage?.ready === false)
+          comptes.attentes++;
       },
       engineDiagnostic: (code: string) => codes.push(code),
       diagnosticFailure: (code: string) => codes.push(code),

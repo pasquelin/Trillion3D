@@ -1,27 +1,28 @@
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { LAYER_PAGES } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { DRAW_INDIRECT_STRIDE, PAGE_BIND_ALIGN } from '../draw/contract.ts';
-import { DAG_MAX_VIEWS, DAG_UNIFORM_BYTES } from '../dag/shader/viewsWgsl.ts';
+import { DAG_UNIFORM_BYTES } from '../dag/shader/viewsWgsl.ts';
 import { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 
 /**
- * THE MEMORY OF A FRAME'S SHADOW BATCHES, SIZED ONCE FROM A POOL LAYER. A frame draws every page
- * it marks, in as many batches as that takes (`../../webgpu/pages/render/encodeShadowBatches.ts`);
- * what each batch adds — its staged writes, its flag word, its CPU cut's faces, its sampled counts —
- * is sized here from one rule, never grown at run time, and counted in the memory budget
- * (`residency/memoryBudget.ts`).
+ * THE MEMORY OF A FRAME'S SHADOW BATCHES. A frame draws every page it marks, in as many batches as
+ * that takes (`../../webgpu/pages/render/encodeShadowBatches.ts`); what each batch adds — its
+ * staged writes, its flag word, its CPU cut's faces, its sampled counts — is sized here from one
+ * rule and counted in the memory budget (`residency/memoryBudget.ts`).
  *
- * The rule: a frame draws at most `LAYER_PAGES` pages, and a batch holds `MAX_SHADOW_PAGES` of them,
- * so a frame needs at most `MAX_SHADOW_BATCHES` full batches, each in at most `DAG_MAX_VIEWS` light
- * views. A frame that lists more — a larger pool (#850), or a view limit a light cut bisected
- * after dropping work (`../dag/lightCutRedraws.ts`) — draws `MAX_SHADOW_BATCHES` and leaves the
- * rest pending, drawn the next frame.
+ * The grant: a batch holds `MAX_SHADOW_PAGES` pages — the shaders' arrays —, in at most one light
+ * view per page, and the memory budget holds `MAX_SHADOW_BATCHES` batches, one pool layer
+ * (`LAYER_PAGES`) in full batches. What a frame may draw is the current pool's, within that grant
+ * (`shadowBatchCapacity`); a frame that lists more — a view limit a light cut bisected after
+ * dropping work (`../dag/lightCutRedraws.ts`) — draws its capacity and leaves the rest pending,
+ * drawn the next frame.
  */
 
-/** Batches one frame draws at most: `LAYER_PAGES` pages, in full batches. */
+/** Batches the memory grant holds: one pool layer, `LAYER_PAGES` pages, in full batches. */
 export const MAX_SHADOW_BATCHES = Math.ceil(LAYER_PAGES / MAX_SHADOW_PAGES);
-/** Light views, one per face a batch draws, of one frame's batches together. */
-export const MAX_SHADOW_RUNS = MAX_SHADOW_BATCHES * DAG_MAX_VIEWS;
+/** Light views, one per face a batch draws, of the granted batches together: a batch draws at
+ *  most one view per page, whichever cut selects its casters. */
+export const MAX_SHADOW_RUNS = MAX_SHADOW_BATCHES * MAX_SHADOW_PAGES;
 /** Frames whose light-cut flag words may be in flight at once (`../dag/lightCutRedraws.ts`). */
 export const SHADOW_FLAG_FRAMES = 4;
 
@@ -37,19 +38,39 @@ export const CULL_UNIFORM_WORDS = 8,
   OCCLUSION_UNIFORM_WORDS = 4,
   PAGE_BOUNDS_WORDS = 12;
 
+/** The WGSL struct `name` of `words` words: `fields`, one word each, then padding — the host's
+ *  word count, never a literal twin of it. */
+export const wordStruct = (name: string, fields: readonly string[], words: number) =>
+  `struct ${name}{${fields.concat(Array.from({ length: words - fields.length }, (_, i) => `pad${i}:u32`)).join(',')},}`;
+
 /** The most one batch writes through `batchWrites.ts`, writer by writer. */
 export const SHADOW_BATCH_WRITE_BYTES =
   DAG_UNIFORM_BYTES +
   MAX_SHADOW_REGIONS * SHADOW_FACE_STRIDE +
   MAX_SHADOW_REGIONS * (SHADOW_CULL_FLOATS * 4 + DRAW_INDIRECT_STRIDE) +
-  DAG_MAX_VIEWS * CULL_UNIFORM_WORDS * 4 +
+  MAX_SHADOW_PAGES * CULL_UNIFORM_WORDS * 4 +
   (LIGHT_CULL_UNIFORM_WORDS + LIGHT_CULL_ARG_WORDS) * 4 +
   MAX_SHADOW_REGIONS * (OCCLUSION_SLOT_WORDS * 4 + DRAW_INDIRECT_STRIDE) +
   OCCLUSION_UNIFORM_WORDS * 4 +
   MAX_SHADOW_PAGES * PAGE_BOUNDS_WORDS * 4 +
   MAX_SHADOW_REGIONS * 4;
-/** The staging buffer: every batch but the first, which writes straight (`batchWrites.ts`). */
+/** The staging buffer at the grant: every batch but the first, which writes straight
+ *  (`batchWrites.ts`). */
 export const SHADOW_STAGING_BYTES = (MAX_SHADOW_BATCHES - 1) * SHADOW_BATCH_WRITE_BYTES;
+
+/**
+ * THE BATCHES ONE FRAME MAY DRAW, AND THE STAGING THEY TAKE: every page of the current pool of
+ * `poolPages`, in batches that hold at least the fewer of `MAX_SHADOW_PAGES` and the `views` one
+ * batch runs — a batch cut ends at either (`admit.ts`, `batchEnd`) —, never past the grant
+ * (`MAX_SHADOW_BATCHES`, what the memory budget counts) nor past the staging buffer the device can
+ * make (`maxBufferSize`). A bound, never a command: a frame runs only the batches its pages fill.
+ */
+export function shadowBatchCapacity(poolPages: number, views: number, maxBufferSize: number) {
+  const fewest = Math.max(1, Math.min(MAX_SHADOW_PAGES, views)),
+    staged = 1 + Math.floor(maxBufferSize / SHADOW_BATCH_WRITE_BYTES),
+    batches = Math.max(1, Math.min(Math.ceil(poolPages / fewest), MAX_SHADOW_BATCHES, staged));
+  return { batches, stagingBytes: (batches - 1) * SHADOW_BATCH_WRITE_BYTES };
+}
 
 /** A frame's flag words on the GPU, and on the host each batch's pages, their views and where the
  *  batch ends (`../dag/lightCutRedraws.ts`). */

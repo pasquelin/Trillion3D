@@ -4,6 +4,7 @@
 //! engine's default matter); and, for a node declaring motion, the body it is: its motion and
 //! implicit shape as declared, else the hull of a mesh (`hull.rs`), weighed here, at cook time.
 use super::hull::{cooked_hull, Hull};
+use super::pieces::declared_breakable;
 use super::stage::{place, trs};
 use super::{refused, PHYSICS_COOK_FAILED};
 use crate::compiler_nodes::scene_nodes;
@@ -53,10 +54,17 @@ fn body(
     let pose = trs(&world[index])
         .ok_or_else(|| refused("A body's node shears or has no scale.".into()))?;
     let field = |key: &str| declared.pointer(&format!("/collider/geometry/{key}"));
-    let shape = match field("shape").and_then(Value::as_u64) {
+    let breakable = declared_breakable(&nodes[index])?;
+    if breakable.is_some() && field("shape").is_some() {
+        return Err(refused(
+            "A breakable body is cut from its mesh: it declares no shape.".into(),
+        ));
+    }
+    let (shape, cut) = match field("shape").and_then(Value::as_u64) {
         Some(id) => (source.0)
             .pointer(&format!("/extensions/KHR_implicit_shapes/shapes/{id}"))
             .cloned()
+            .map(|shape| (shape, None))
             .ok_or_else(|| {
                 refused(format!(
                     "A body's collider names shape {id}, which is missing."
@@ -86,21 +94,29 @@ fn body(
             let kinematic = declared.pointer("/motion/isKinematic") == Some(&Value::Bool(true));
             let weigh = (!kinematic).then_some(s);
             let mesh = mesh as usize;
-            if frame.is_some() {
-                cooked_hull(o, source, (mesh, frame))?.weighed(weigh)?
+            let moved;
+            let hull: &Hull = if frame.is_some() {
+                moved = cooked_hull(o, source, (mesh, frame))?;
+                &moved
             } else {
-                let hull = match cooked.entry(mesh) {
+                match cooked.entry(mesh) {
                     Entry::Occupied(shared) => shared.into_mut(),
                     Entry::Vacant(slot) => slot.insert(cooked_hull(o, source, (mesh, None))?),
-                };
-                hull.weighed(weigh)?
-            }
+                }
+            };
+            let shape = hull.weighed(weigh)?;
+            // A piece falls once broken, a kinematic body's too: every piece is weighed.
+            let cut = breakable.map(|t| hull.pieces(o, (index as u64, s)).map(|p| (t, p)));
+            (shape, cut.transpose()?)
         }
     };
     let mut entry = declared_matter(source.0, &nodes[index]);
     entry["node"] = json!(index);
     entry["motion"] = declared["motion"].clone();
     entry["shape"] = shape;
+    if let Some((threshold, pieces)) = cut {
+        (entry["breakable"], entry["pieces"]) = (json!(threshold), json!(pieces));
+    }
     place(&mut entry, pose);
     Ok(entry)
 }
@@ -108,18 +124,21 @@ fn body(
 /// The rigid bodies the rendered scene's nodes but `soft` declare, placed by their `world`
 /// matrices: their `physics.json` entries, and the report's refusals (`node`, `reason`). A node
 /// declaring no motion is no body; one that draws nothing is a body all the same, one whose mesh
-/// the slice left out (`chosen`) none.
+/// the slice left out (`shown`) none, nor one a hidden node hides.
 pub(super) fn declared_bodies(
     o: &Options,
     source: (&Value, &[u8]),
-    (chosen, soft): (&BTreeSet<usize>, &BTreeSet<usize>),
+    (shown, soft): (&BTreeSet<usize>, &BTreeSet<usize>),
     world: &[Mat4],
 ) -> Result<(Vec<Value>, Vec<Value>)> {
     let nodes = values(source.0, "nodes")?;
     let (mut bodies, mut refusals, mut cooked) = (Vec::new(), Vec::new(), BTreeMap::new());
     let moving = |i: &&usize| nodes[**i].pointer("/extensions/KHR_physics_rigid_bodies/motion");
-    let drawn = |i: &&usize| nodes[**i].get("mesh").is_none() || chosen.contains(*i);
-    for &index in scene_nodes(source.0)?
+    let (reached, hidden) = scene_nodes(source.0)?;
+    let drawn = |i: &&usize| {
+        !hidden.contains(*i) && (nodes[**i].get("mesh").is_none() || shown.contains(*i))
+    };
+    for &index in reached
         .difference(soft)
         .filter(|i| moving(i).is_some() && drawn(i))
     {
