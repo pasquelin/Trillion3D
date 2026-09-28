@@ -1,12 +1,12 @@
-import { AS_IS_FLAG } from '../scene/surfaceModel.ts';
-import { shareText, taaHistoryBlend, taaPrelude } from './shaderWgsl.ts';
+import { PI } from '../lighting/shaderConstants.ts';
+import { shareText, taaHistoryBlend, taaPrelude, taaShareTap } from './shaderWgsl.ts';
 
 /** Lanczos-2, `sinc(x)·sinc(x/2)` on `|x| < 2`: the kernel the current image is resampled with. */
 export const LANCZOS2_WGSL = `
 fn lanczos2(x:f32)->f32{
  if(x<1e-4){return 1.0;}
  if(x>=2.0){return 0.0;}
- let p=3.14159265*x;
+ let p=${PI}*x;
  return 2.0*sin(p)*sin(0.5*p)/(p*p);
 }`;
 
@@ -36,7 +36,7 @@ ${LANCZOS2_WGSL}
  let last=vec2i(view.render.xy)-vec2i(1);
  let sampled=vec2f(-view.jitter.x,view.jitter.y)-r;
  var near=clamp(base,vec2i(0),last);
- var nearDepth=textureLoad(depth,near,0);
+ var nearDepth=-1.0;
  var sum=vec4f(0.0);var total=0.0;
  var lo=vec4f(1e9);var hi=vec4f(-1e9);var ringLo=vec4f(1e9);var ringHi=vec4f(-1e9);
 ${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')} for(var dy=-1;dy<=1;dy++){for(var dx=-1;dx<=1;dx++){
@@ -51,8 +51,7 @@ ${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')} for(var dy=-1;dy<=
   lo=min(lo,y);hi=max(hi,y);
   let ring=tap-low;
   if(all(ring>=vec2i(0))&&all(ring<=vec2i(1))){ringLo=min(ringLo,sample);ringHi=max(ringHi,sample);}
-${share(`  let asIs=${blended ? 'textureLoad(flags,at,0).r' : `f32(textureLoad(flags,at,0).r==${AS_IS_FLAG}u)`};
-  share+=asIs*weight;shareLo=min(shareLo,asIs);shareHi=max(shareHi,asIs);\n`)} }}
+${taaShareTap(asIs, blended)} }}
  let filtered=clamp(sum/max(total,1e-4),ringLo,ringHi);
 ${share(' share=clamp(share/max(total,1e-4),shareLo,shareHi);\n')} if(view.params.y==0.0){return TaaOut(filtered,${share('share', '0.0')});}
  let previous=previousUv(coord,nearDepth,near);

@@ -14,10 +14,18 @@ export const SHARE_FORMAT: GPUTextureFormat = 'r8unorm';
  * (`upscaleWgsl.ts`); at native size they are never compiled.
  */
 export async function createTaaResolves(device: GPUDevice, upscale = false) {
-  const resolve = async (asIs: boolean, blended: boolean, scaled: boolean) => {
-    const layout = createTaaLayout(device, asIs, blended),
-      kind = blended ? 'TAA_RESOLVE_BLENDED' : asIs ? 'TAA_RESOLVE' : 'TAA_RESOLVE_FLAGLESS',
-      name = scaled ? `${kind}_UPSCALE` : kind;
+  // One layout per kind, shared by its native and upscaling resolves: a bind group serves both.
+  const layouts = {
+    asIs: createTaaLayout(device, true, false),
+    flagless: createTaaLayout(device, false, false),
+    blended: createTaaLayout(device, true, true),
+  };
+  const resolve = async (kind: keyof typeof layouts, scaled: boolean) => {
+    const layout = layouts[kind],
+      asIs = kind !== 'flagless',
+      blended = kind === 'blended',
+      label = blended ? 'TAA_RESOLVE_BLENDED' : asIs ? 'TAA_RESOLVE' : 'TAA_RESOLVE_FLAGLESS',
+      name = scaled ? `${label}_UPSCALE` : label;
     const module = await createCheckedShaderModule(
       device,
       (scaled ? taaUpscaleShader : taaShader)(asIs, blended),
@@ -31,9 +39,9 @@ export async function createTaaResolves(device: GPUDevice, upscale = false) {
   };
   const set = async (scaled: boolean) => {
     const [asIs, flagless, blended] = await Promise.all([
-      resolve(true, false, scaled),
-      resolve(false, false, scaled),
-      resolve(true, true, scaled),
+      resolve('asIs', scaled),
+      resolve('flagless', scaled),
+      resolve('blended', scaled),
     ]);
     return { asIs, flagless, blended };
   };
