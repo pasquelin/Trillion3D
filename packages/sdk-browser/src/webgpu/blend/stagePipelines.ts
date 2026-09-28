@@ -14,9 +14,11 @@ export const ALPHA_BLEND: GPUBlendState = BLEND_EQUATIONS.normal!;
 export type BlendPipelines = readonly [GPURenderPipeline, GPURenderPipeline, GPURenderPipeline];
 
 /** Pipelines a transparent pass picks by plan rank (`draw.ts`): the water surfaces' three, or the
- *  blend pass's modes, `filtered` in an image with a display filter (`displayFilter.ts`). */
+ *  blend pass's modes, `filtered` in an image with display layers (`displayFilter.ts`); a rank
+ *  the pass `skips` is not drawn (the display mask draws the filtering modes alone). */
 export type RankedPipelines = {
   at(rank: number, filtered?: boolean): GPURenderPipeline | undefined;
+  skips?(rank: number): boolean;
 };
 
 /** What a transparent pass compiles per blending mode, kept by mode rank (`BLEND_MODES`): `byMode`
@@ -69,6 +71,8 @@ export const declaredBlendModes = (items: readonly BlendGpuItem[]) =>
  *  `ModePipelines`, whose `byMode` holds the three culls of each mode compiled so far. */
 export interface BlendModePipelines extends RankedPipelines {
   readonly byMode: readonly (readonly GPURenderPipeline[] | undefined)[];
+  /** The display mask's, whose target is attachment `slot` (`routedPipelines.ts`). */
+  readonly mask: RankedPipelines & { slot: number };
   at(rank: number, filtered?: boolean): GPURenderPipeline;
 }
 
@@ -94,16 +98,18 @@ export async function blendStagePipelines(
 
 const CULL_MODES: readonly GPUCullMode[] = ['none', 'front', 'back'];
 
-/** The descriptors of those three, one per cull mode: what a blend mode compiles. */
+/** The descriptors of those three, one per cull mode: what a blend mode compiles; `mask`, the
+ *  display mask's layout, as group 2 of a filtered image's pipelines. */
 export function stageDescriptors(
   device: GPUDevice,
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
   fragment: GPUFragmentState,
   depthWrite: boolean,
+  mask?: GPUBindGroupLayout,
 ): GPURenderPipelineDescriptor[] {
   const pipelineLayout = device.createPipelineLayout({
-    bindGroupLayouts: [layout, reflectionLayout(device)],
+    bindGroupLayouts: [layout, reflectionLayout(device), ...(mask ? [mask] : [])],
   });
   return CULL_MODES.map((cullMode) => ({
     layout: pipelineLayout,
