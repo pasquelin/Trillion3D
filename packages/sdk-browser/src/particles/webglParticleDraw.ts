@@ -1,0 +1,178 @@
+import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
+import { multiplyMatrix4Typed } from '../../../sdk-core/src/math/matrix/matrix4Typed.ts';
+import {
+  DEFAULT_TONE_MAPPING,
+  TONE_MAPPING_RANK,
+} from '../../../sdk-core/src/scene/core/environment.ts';
+import type { HostDrawCamera } from '../camera/world.ts';
+import { boundToContext } from '../webgl/core/contextBound.ts';
+import { createWebglProgram } from '../webgl/core/program.ts';
+import { bindWebglTexture, type HostDrawOutput } from '../webgl/core/renderTarget.ts';
+import { glBlendEnums } from '../webgl/cluster/state.ts';
+import { BLENDS, DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
+import { usedSlots } from './poolStates.ts';
+import { PARTICLE_FRAGMENT_GLSL, particleVertexGlsl } from './webglParticleGlsl.ts';
+
+/** The copy's depth formats: packed with stencil first, as browsers often keep a drawing buffer's
+ *  depth even unasked; a blit is refused between two formats, so the copy takes the one allowed. */
+const DEPTHS = [
+  ['DEPTH24_STENCIL8', 'DEPTH_STENCIL', 'UNSIGNED_INT_24_8', 'DEPTH_STENCIL_ATTACHMENT'],
+  ['DEPTH_COMPONENT24', 'DEPTH_COMPONENT', 'UNSIGNED_INT', 'DEPTH_ATTACHMENT'],
+] as const;
+
+/** The WebGL2 particle draw over the host's image, its depth copied for the soft edge: `additive`
+ *  in any order, `premultiplied` far to near by emitter (`drawOrder`). A depth it cannot copy
+ *  refuses the pools, `refused` hearing `PARTICLES_UNSUPPORTED` once: never drawn hard-edged. */
+export function createWebglParticleDraw(
+  gl: WebGL2RenderingContext,
+  texels: number,
+  stateOf: (pool: ParticlePool) => WebGLTexture | undefined,
+  refused: (reason: string) => void,
+) {
+  const words = new Float32Array(DRAW_FLOATS),
+    matrices = words.subarray(0, 32),
+    look = words.subarray(32, 44),
+    screen = new Float64Array(16),
+    eye = new Float64Array(3),
+    order: ParticlePool[] = [],
+    blendEnum = glBlendEnums(gl);
+  const held = boundToContext(
+    gl,
+    () => {
+      const program = createWebglProgram(gl, particleVertexGlsl(texels), PARTICLE_FRAGMENT_GLSL);
+      const at = (name: string) => gl.getUniformLocation(program, name);
+      const uniforms = {
+        m: at('m'),
+        look: at('look'),
+        linear: at('linearOut'),
+        curve: at('toneCurve'),
+      };
+      gl.useProgram(program);
+      gl.uniform1i(at('sceneDepth'), 1); // the state samples unit 0, where samplers start
+      gl.useProgram(null);
+      // One copy a format, sized on its first blit: destinations of both formats never remake it.
+      const copies = DEPTHS.map(() => {
+        const texture = gl.createTexture()!;
+        bindWebglTexture(gl, 1, texture);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        return { framebuffer: gl.createFramebuffer()!, texture, width: 0, height: 0 };
+      });
+      /** The depth format each framebuffer's blit took, found on its first copy; weakly held, a
+       *  target remade on a resize is let go with its framebuffer. The page's is `page`. */
+      const formats = new WeakMap<WebGLFramebuffer, number>();
+      const vao = gl.createVertexArray()!;
+      return {
+        program,
+        vao,
+        uniforms,
+        copies,
+        formats,
+        page: undefined as number | undefined,
+        refused: false,
+      };
+    },
+    ({ program, vao, copies }) => {
+      gl.deleteProgram(program);
+      gl.deleteVertexArray(vao);
+      for (const copy of copies) {
+        gl.deleteTexture(copy.texture);
+        gl.deleteFramebuffer(copy.framebuffer);
+      }
+    },
+  );
+  type Live = NonNullable<ReturnType<typeof held.current>>;
+  /** Copies the bound read framebuffer's depth into the copy of format `at`, remade when its
+   *  size changed; true unless the blit was refused. */
+  const copyDepth = (live: Live, at: number, width: number, height: number, probing: boolean) => {
+    const { TEXTURE_2D: texture, DRAW_FRAMEBUFFER: draw } = gl,
+      copy = live.copies[at];
+    gl.bindFramebuffer(draw, copy.framebuffer);
+    if (copy.width !== width || copy.height !== height) {
+      [copy.width, copy.height] = [width, height];
+      const [internal, format, type, point] = DEPTHS[at];
+      bindWebglTexture(gl, 1, copy.texture);
+      gl.texImage2D(texture, 0, gl[internal], width, height, 0, gl[format], gl[type], null);
+      gl.framebufferTexture2D(draw, gl[point], texture, copy.texture, 0);
+    }
+    gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
+    return !probing || gl.getError() !== gl.INVALID_OPERATION;
+  };
+  return {
+    /** Draws `pools` into `output` seen by `camera`; returns the draws made. */
+    draw(pools: readonly ParticlePool[], camera: HostDrawCamera, output: HostDrawOutput) {
+      // The eye in double precision, the world matrix's: the host's 32-bit eye rounds 10 km out.
+      for (let i = 0; i < 3; i++) eye[i] = camera.world[12 + i];
+      if (!drawOrder(pools, eye, order).some((pool) => stateOf(pool))) return 0;
+      const live = held.current();
+      if (!live || live.refused) return 0; // a refused draw: the step keeps the pools refused
+      const { framebuffer, width, height } = output,
+        found = framebuffer ? live.formats.get(framebuffer) : live.page;
+      gl.disable(gl.SCISSOR_TEST);
+      gl.bindFramebuffer(gl.READ_FRAMEBUFFER, framebuffer);
+      // The depth copied for the soft edge, same rectangles, resolved as they are. A framebuffer's
+      // first copy, older errors cleared, probes each format in order until a blit is allowed.
+      let at = found ?? -1;
+      if (found !== undefined) copyDepth(live, found, width, height, false);
+      else {
+        for (let n = 0; n < 8 && gl.getError() !== gl.NO_ERROR; n++);
+        at = DEPTHS.findIndex((_, i) => copyDepth(live, i, width, height, true));
+        if (at < 0) live.refused = true;
+        else if (framebuffer) live.formats.set(framebuffer, at);
+        else live.page = at;
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+      if (live.refused) {
+        refused('PARTICLES_UNSUPPORTED: WebGL2 particles fade on a depth it cannot copy');
+        return 0;
+      }
+      multiplyMatrix4Typed(screen, camera.projection, camera.view);
+      gl.useProgram(live.program);
+      gl.bindVertexArray(live.vao);
+      gl.viewport(0, 0, width, height);
+      gl.uniform1i(live.uniforms.linear, output.linear ? 1 : 0);
+      const curve = output.toneMapped ? (output.toneMapping ?? DEFAULT_TONE_MAPPING) : 'none';
+      gl.uniform1i(live.uniforms.curve, TONE_MAPPING_RANK[curve]);
+      bindWebglTexture(gl, 1, live.copies[at].texture);
+      gl.enable(gl.BLEND);
+      gl.enable(gl.DEPTH_TEST); // hidden fragments skipped; the soft edge fades the rest
+      gl.depthFunc(gl.LEQUAL);
+      gl.depthMask(false);
+      gl.disable(gl.CULL_FACE);
+      gl.colorMask(true, true, true, true); // a last mesh drawn without colour writes none here
+      let draws = 0;
+      for (const pool of order) {
+        const state = stateOf(pool);
+        if (!state) continue;
+        writeDrawWords(words, pool, screen, eye);
+        gl.uniformMatrix4fv(live.uniforms.m, false, matrices);
+        gl.uniform4fv(live.uniforms.look, look);
+        const { color, alpha } = BLENDS[pool.blend];
+        gl.blendFuncSeparate(
+          blendEnum[color.srcFactor!],
+          blendEnum[color.dstFactor!],
+          blendEnum[alpha.srcFactor!],
+          blendEnum[alpha.dstFactor!],
+        );
+        bindWebglTexture(gl, 0, state);
+        gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, usedSlots(pool));
+        draws++;
+      }
+      // The state is unbound, its step's next target: no feedback loop, blend or depth left on.
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+      gl.disable(gl.BLEND);
+      gl.depthMask(true);
+      gl.bindVertexArray(null);
+      gl.useProgram(null);
+      return draws;
+    },
+    refused: () => held.alive() && !!held.current()?.refused,
+    /** Bytes of the depth copies, 4 a texel in either format, none before the first. */
+    bytes() {
+      const live = held.alive() ? held.current() : undefined;
+      return live?.copies.reduce((sum, { width, height }) => sum + width * height * 4, 0) ?? 0;
+    },
+    dispose: held.dispose,
+  };
+}
