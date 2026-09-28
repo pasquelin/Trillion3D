@@ -50,7 +50,7 @@ function monde(total: number, depart: number): Monde {
 }
 
 /** The one view a world draws, as the geometry store reads it (`views.ts`). */
-const vueDe = (m: Monde) => ({ live: m, lists: () => [m.shown, m.desired, m.requested] });
+const viewOf = (m: Monde) => ({ live: m, lists: () => [m.shown, m.desired, m.requested] });
 
 const empreinte = (m: Monde, triangles: number) => ({
   enfants: m.scene.children.map((mesh) => mesh.renderOrder),
@@ -81,12 +81,12 @@ const passe = (
 
 function cas(name: string, total: number, tailles: readonly number[], mesure = true) {
   const suite = coupes(total, tailles, 0x5eed ^ total);
-  const gauche = monde(total, 0x9e37 ^ total),
-    droite = monde(total, 0x9e37 ^ total);
-  const oracle = referenceAutonomousSync(gauche);
+  const left = monde(total, 0x9e37 ^ total),
+    right = monde(total, 0x9e37 ^ total);
+  const oracle = referenceAutonomousSync(left);
   const paquet = createAutonomousGeometry({
-    ...droite,
-    views: vueDe(droite),
+    ...right,
+    views: viewOf(right),
     bootstrap: [],
     byUrl: new Map(),
     descriptors: new Map(),
@@ -99,8 +99,8 @@ function cas(name: string, total: number, tailles: readonly number[], mesure = t
     size: total,
     mesure,
     input: {
-      reference: () => passe(gauche, oracle.sync, oracle.state, suite),
-      optimisee: () => passe(droite, paquet.sync, paquet.state, suite),
+      reference: () => passe(left, oracle.sync, oracle.state, suite),
+      optimisee: () => passe(right, paquet.sync, paquet.state, suite),
     },
   };
 }
@@ -125,7 +125,7 @@ await stress({
   calcul: (m: Monde) =>
     createAutonomousGeometry({
       ...m,
-      views: vueDe(m),
+      views: viewOf(m),
       bootstrap: [],
       byUrl: new Map(),
       descriptors: new Map(),
