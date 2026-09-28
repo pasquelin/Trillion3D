@@ -155,7 +155,11 @@ export function noticeMaterialDegraded(notices: Pick<WorldNotices, 'say'>) {
  */
 export function noticeShadowRefusal(notices: Pick<WorldNotices, 'say'>) {
   let said = new Set<string>();
+  let last: readonly string[] | undefined;
   return (casting: readonly string[]) => {
+    // Each light set keeps its list between its changes: the same list says nothing new.
+    if (casting === last) return;
+    last = casting;
     for (const light of casting)
       if (!said.has(light))
         notices.say(

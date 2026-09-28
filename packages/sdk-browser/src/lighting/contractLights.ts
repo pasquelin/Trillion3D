@@ -118,6 +118,10 @@ function createContractLights(scene: Scene, store: SceneLightStore | undefined) 
       if ((probe.visible = !!sh)) copyCoefficients(probe, sh);
       return true;
     },
+    /** True once the contract lights the scene, the source graph then off. */
+    get governs() {
+      return governs;
+    },
     /** The ids of the lit contract lights asking to cast, as at the store's last revision. */
     get casting() {
       return casting;
@@ -156,10 +160,9 @@ export function attachContractLights(
   const contract = createContractLights(scene, store);
   // The casting lights of the set that lights now: the contract's once it governs, else the
   // source graph's. Heard at each change of either, never per frame.
-  let governs = false;
-  const refused = () => shadowsRefused?.(governs ? contract.casting : source.casting);
+  const refused = () => shadowsRefused?.(contract.governs ? contract.casting : source.casting);
   const apply = () => {
-    source.setEnabled(!(governs = contract.refresh()));
+    source.setEnabled(!contract.refresh());
     refused();
     sceneChanged();
   };

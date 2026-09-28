@@ -2,6 +2,7 @@ import type { HostColour } from '../host/resources.ts';
 import { aimOf, isLightNode } from '../host/graph/kinds.ts';
 import { numbered } from '../host/graph/serial.ts';
 import type { Light } from '../../../sdk-core/src/world/light/light.ts';
+import { lampCastsShadow } from '../../../sdk-core/src/world/light/lightRecord.ts';
 import { shownChain } from '../placement/hidden.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
@@ -43,9 +44,6 @@ export type HostLightScene = { add(node: unknown): void; remove(node: unknown): 
  *  `to` is the node of the display graph the copy points at in its place. */
 type Aim = { from: Object3D; to: AimNode };
 
-/** The kinds whose light a shadow map would stop: a sun, a point lamp, a spot. */
-const CASTING = new Set(['directional', 'point', 'spot']);
-
 function sceneLights(source: Object3D): Light[] {
   const lights: Light[] = [];
   source.traverse((object) => {
@@ -81,8 +79,7 @@ export function installSceneLighting(
   // Source-graph lights are cleared when another lighting contract takes over: two
   // stacked light sets would be nobody's lighting.
   let enabled = true;
-  // The shown lights asking to cast, named at each copy (`ContractShadows`): a WebGL2 engine
-  // draws them unshadowed. A rectangle, an ambient or a probe casts nothing.
+  // The shown lamps asking to cast, named at each copy (`ContractShadows`).
   let casting: string[] = [];
   const update = () => {
     for (const { original, copy, aim } of pairs) {
@@ -132,8 +129,7 @@ export function installSceneLighting(
         scene.add(aim.to);
       }
       scene.add(copy);
-      if (original.castShadow && CASTING.has(original.kind) && shownChain(original))
-        casting.push(original.name || `source-light-${pairs.length}`);
+      if (lampCastsShadow(original) && shownChain(original)) casting.push(original.name || `light_${pairs.length}`);
       pairs.push({ original, copy, aim });
     }
     update();
