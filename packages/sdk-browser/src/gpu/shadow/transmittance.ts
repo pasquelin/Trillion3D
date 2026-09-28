@@ -1,8 +1,9 @@
 import { FLAG_HAS_MAP, FLAG_HAS_UV, FLAG_SAMPLED } from '../../visibility/types.ts';
-import { DEPTH_CLEAR, DEPTH_COMPARE } from '../../camera/depthConvention.ts';
+import { DEPTH_CLEAR } from '../../camera/depthConvention.ts';
 import type { PageSurface } from '../../page/surface.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { arrayView, layerPasses, layerViews } from './layers.ts';
+import type { ShadowTransmittanceDraws } from './transmittanceDraws.ts';
 
 /**
  * THE TRANSMITTANCE LAYER of the shadow pool: what the translucent casters let through, at half
@@ -97,14 +98,12 @@ fn shadowThroughLit(offset:vec3f,first:vec2f,t:vec2f,reference:f32,lit:f32)->f32
 
 /**
  * Creates the layer for a pool of `poolSide` pages a side whose depth is `poolLayers`, both
- * textures cleared by `encoder`, and the two draws of its pass: depth only, then colour only.
- * `layouts` are the shadow depth pass's groups 0 and 1; group 2 is the pool's depth, which the
- * blended fragments test against. Its pages are cleared by the page quads (`pageQuads.ts`).
+ * textures cleared by `encoder`, drawn by `made` (`shadowTransmittanceDraws`). Its pages are
+ * cleared by the page quads (`pageQuads.ts`).
  */
 export function createShadowTransmittance(
   device: GPUDevice,
-  module: GPUShaderModule,
-  layouts: GPUBindGroupLayout[],
+  { opaqueLayout, draws }: ShadowTransmittanceDraws,
   poolLayers: GPUTextureView[],
   poolSide: number,
   encoder: GPUCommandEncoder,
@@ -136,28 +135,6 @@ export function createShadowTransmittance(
         },
       })
       .end();
-  const opaqueLayout = device.createBindGroupLayout({
-    entries: [
-      { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: { sampleType: 'depth' } },
-    ],
-  });
-  const layout = device.createPipelineLayout({ bindGroupLayouts: [...layouts, opaqueLayout] });
-  // The blended casters' two draws, from the same entry points.
-  const pipeline = (
-    label: string,
-    target: GPUColorTargetState,
-    depthWriteEnabled: boolean,
-    depthCompare: GPUCompareFunction,
-  ) =>
-    device.createRenderPipeline({
-      label,
-      layout,
-      vertex: { module, entryPoint: 'shadow_blend_vs' },
-      fragment: { module, entryPoint: 'shadow_blend_fs', targets: [target] },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
-      depthStencil: { format: SHADOW_TRANSLUCENT_DEPTH_FORMAT, depthWriteEnabled, depthCompare },
-    });
-  const format = SHADOW_TRANSMITTANCE_FORMAT;
   return {
     view: arrayView(colour),
     depthView: arrayView(nearest),
@@ -169,20 +146,7 @@ export function createShadowTransmittance(
       device.createBindGroup({ layout: opaqueLayout, entries: [{ binding: 0, resource }] }),
     ),
     /** The depth-only draw, then the colour-only draw, of each region's list. */
-    draws: [
-      pipeline(
-        'Trillion3D shadow translucent depth v1',
-        { format, writeMask: 0 },
-        true,
-        DEPTH_COMPARE,
-      ),
-      pipeline(
-        'Trillion3D shadow transmittance v1',
-        { format, blend: TRANSMITTANCE_BLEND },
-        false,
-        'always',
-      ),
-    ] as const,
+    draws,
     dispose() {
       colour.destroy();
       nearest.destroy();

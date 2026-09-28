@@ -1,4 +1,5 @@
 import { SHADOW_BATCH_WRITE_BYTES, SHADOW_STAGING_BYTES } from './batchBudget.ts';
+import { oncePerDevice } from '../core/oncePerDevice.ts';
 
 type Words = Uint32Array<ArrayBuffer> | Int32Array<ArrayBuffer> | Float32Array<ArrayBuffer>;
 
@@ -79,11 +80,5 @@ function createBatchWrites(device: GPUDevice) {
   };
 }
 
-const writers = new WeakMap<GPUDevice, ReturnType<typeof createBatchWrites>>();
-
 /** The shadow batches' writer of `device`: one per device, shared by every per-batch buffer. */
-export function shadowBatchWrites(device: GPUDevice) {
-  let writer = writers.get(device);
-  if (!writer) writers.set(device, (writer = createBatchWrites(device)));
-  return writer;
-}
+export const shadowBatchWrites = oncePerDevice(createBatchWrites);
