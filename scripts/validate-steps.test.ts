@@ -123,6 +123,7 @@ test('a push run never cancels the pull request run that proves the merge with d
     });
   const push = { workflow: 'Quality', event_name: 'push', ref: 'refs/heads/1054-ci-shards' };
   const pr = { workflow: 'Quality', event_name: 'pull_request', ref: 'refs/pull/7/merge' };
+  assert.doesNotMatch(of(push), /\$\{\{/, 'every expression of the key is rendered');
   assert.notEqual(of(push), of(pr));
   assert.notEqual(of(push), of({ ...push, ref: 'refs/heads/1055-other' }), 'one group per branch');
 });
