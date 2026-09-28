@@ -169,7 +169,7 @@ export async function run({
   const sun = G.directionalLight(new G.Color(SUN.color), SUN.intensity);
   const [dx, dy, dz] = SUN.direction ?? [0, -1, 0];
   sun.position.set(-dx, -dy, -dz);
-  sun.target!.position.set(0, 0, 0);
+  sun.target.position.set(0, 0, 0);
   const stores = { none: createSceneLightStore(), sun: createSceneLightStore() };
   stores.sun.add(SUN);
   const camera = cameraFace();

@@ -7416,13 +7416,6 @@
       "handbrake": "Si le frein à main est tiré."
     }
   },
-  "GraphNode": {
-    "members": {
-      "serial": "Le numéro du nœud, unique dans la session.",
-      "kind": "Ce qu’est le nœud : ce sur quoi chaque lecteur du graphe se restreint."
-    },
-    "summary": "Un nœud du graphe : le nœud du cœur, distingué par son `kind`, copié par le `clone` du cœur."
-  },
   "GraphSurface": {
     "members": {
       "version": "Augmenté par l’hôte à chaque changement : ce qu’une rangée en cache compare pour refaire ses champs.",
@@ -7485,9 +7478,6 @@
       "rotation": "La rotation, en radians."
     },
     "summary": "Une image et l’état d’échantillonnage avec lequel elle est lue, et la transformation de ses coordonnées."
-  },
-  "GraphNodeKind": {
-    "summary": "Ce qu’est une lumière du graphe : l’une des lumières qu’une scène déclare."
   },
   "Joint": {
     "summary": "Une liaison entre deux corps, ou entre un corps et le monde (`b` à null), créée par `joint.*` et ajoutée à la simulation par `world.physics.add`.",
