@@ -16,7 +16,7 @@ import { resolveCameraWorld } from '../camera/world.ts';
 import type { createPhysicsBodies } from './bodies.ts';
 import { worldPoseOf } from './bodyFrame.ts';
 import { fits } from './softBodies.ts';
-import { cookedBytes, tilePose, type Model } from './tilePlace.ts';
+import { cookedBytes, tilePose, type Model, type ModelNode } from './tilePlace.ts';
 
 /** A declared body made: its entry, its hull's bytes, the world scale it was made at, its id,
  *  and — a dynamic one — the scene node its poses move and how far around it it wants ground. */
@@ -27,8 +27,8 @@ export type CookedMadeBody = {
   id: number;
   moves: { node: Object3D; reach: number } | null;
 };
-/** Where a dynamic body's node is (`Model._nodeAt`): its scene node, the nodes below, its radius. */
-type BodyNode = NonNullable<ReturnType<NonNullable<Model['_nodeAt']>>>;
+/** A made body whose poses move its node: what the poses and the tiles read (`bodySlots.ts`). */
+export type MovingBody = CookedMadeBody & { moves: NonNullable<CookedMadeBody['moves']> };
 
 /**
  * The rigid bodies the compiled models in a scene declare (`physics.json` `bodies`), each one a
@@ -52,7 +52,7 @@ export function createCookedBodies(
   type Opening = {
     made: CookedMadeBody[];
     nodes: Set<number>;
-    moving: Map<CookedBody, BodyNode>;
+    moving: Map<CookedBody, ModelNode>;
     hulls: Map<string, Promise<Uint8Array>>;
     signal: AbortSignal;
   };
@@ -68,14 +68,16 @@ export function createCookedBodies(
     const { scale } = placed;
     const resolved = declaredShape(body, scale);
     const at = opening.moving.get(body);
-    const moves = at && {
-      node: at.node,
-      reach: at.radius * resolveCameraWorld(model).matrixWorld.getMaxScaleOnAxis(),
-    };
+    // Its radius is in its parent's frame: scaled by that parent's world scale.
+    const frame = (node: Object3D) => resolveCameraWorld(node.parent ?? model).matrixWorld;
+    const moves = at && { node: at.node, reach: at.radius * frame(at.node).getMaxScaleOnAxis() };
     const { position, quaternion } = at ? worldPoseOf(at.node) : placed;
     const made: CookedMadeBody = {
-      ...{ body, bytes, scale: [scale.x, scale.y, scale.z] },
-      ...{ id: -1, moves: moves ?? null },
+      body,
+      bytes,
+      scale: [scale.x, scale.y, scale.z],
+      id: -1,
+      moves: moves ?? null,
     };
     made.id = bodies.claim(resolved.triangles * TRIANGLE_BYTES, 0, { model, body: made });
     const handle = made.id & BODY_INDEX;
@@ -122,13 +124,18 @@ export function createCookedBodies(
     /** Makes the bodies `model` declares, read until `signal` aborts, the last opening's out. */
     open(model: Model, declared: readonly CookedBody[], signal: AbortSignal) {
       forget(model);
-      const moving = new Map<CookedBody, BodyNode>();
+      const opening: Opening = {
+        made: [],
+        nodes: new Set(),
+        moving: new Map(),
+        hulls: new Map(),
+        signal,
+      };
       for (const body of declared) {
         const at = body.motion.isKinematic ? null : model._nodeAt?.(body.node);
-        if (at) moving.set(body, at);
+        if (at) opening.moving.set(body, at);
+        unwanted(opening, body).forEach((node) => opening.nodes.add(node));
       }
-      const opening: Opening = { made: [], nodes: new Set(), moving, hulls: new Map(), signal };
-      for (const body of declared) unwanted(opening, body).forEach((n) => opening.nodes.add(n));
       held.set(model, opening);
       for (const body of declared) start(model, opening, body);
     },

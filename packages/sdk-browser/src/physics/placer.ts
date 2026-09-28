@@ -37,7 +37,7 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
     node = new Int32Array(maxBodies);
   const slotOf = new Map<Bodied, number>();
   /** Each slot's nested node (`bindNode`), or none. */
-  const nested: (Object3D | null)[] = [];
+  const nested = new Array<Object3D | null>(maxBodies).fill(null);
   /** Each slot's row (`UNASKED` until asked, `NO_ROW` when it has none or must not use it) and
    *  batch, as a rank in `batches`, whose written span is `from`..`to`. */
   const rowOf = new Int32Array(maxBodies).fill(UNASKED),
@@ -155,7 +155,8 @@ export function createPosePlacer(maxBodies: number, root: Object3D) {
     /** Every mesh keeps its own numbers again (the physics stops). */
     clear() {
       for (const mesh of [...slotOf.keys()]) release(mesh);
-      owner.length = nested.length = 0;
+      owner.length = 0;
+      nested.fill(null);
       bound.fill(-1);
     },
     /** Opens a batch of writes: the rows asked before are dropped when the world moved them. */
