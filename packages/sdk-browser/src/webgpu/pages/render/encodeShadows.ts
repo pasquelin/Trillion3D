@@ -11,6 +11,7 @@ import { createShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
 import { createShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import { noteResidenceChange } from '../../shadow/bounds.ts';
 import { redrawShortPages } from '../../shadow/casters.ts';
+import { disposeStaticLayer } from '../state/lights.ts';
 
 const viewpoint: ShadowViewpoint & {
   position: [number, number, number];
@@ -175,6 +176,8 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
         rt.diag.diagnosticFailure('shadow-occlusion-unavailable', error);
       }
       lights.staticLayer = layer;
+      // A session disposed meanwhile tore its layer down already: what landed after is freed.
+      if (rt.signal.aborted) disposeStaticLayer(lights);
     })
     .catch((error) => rt.diag.diagnosticFailure('shadow-static-layer-unavailable', error));
 }
