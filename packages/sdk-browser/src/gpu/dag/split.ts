@@ -44,9 +44,10 @@ export const PAGE_SECTIONS = 4;
 /** Sections of a camera cut's `flags`: queue 0, the four page sections, the other queues, then
  *  each page's last use (`shader/lastUseWgsl.ts`); a light cut has all but the last. */
 export const FLAG_SECTIONS = 1 + PAGE_SECTIONS + (LEVEL_QUEUES - 1) + 1;
-/** The draw mask's section, and the candidate list's: what a reader outside the kernel binds. */
+/** The draw mask's section, and the candidate list's behind the cone words and the live list:
+ *  what a reader outside the kernel binds. */
 export const MASK_SECTION = 1,
-  CANDIDATE_SECTION = PAGE_SECTIONS;
+  CANDIDATE_SECTION = MASK_SECTION + 3;
 
 /** First word of section `s` of a `flags` of `queueCap` per queue over `pageCount` pages: the
  *  kernel's `queueBase` and page bases, as `shader/splitWgsl.ts` states them in WGSL. */

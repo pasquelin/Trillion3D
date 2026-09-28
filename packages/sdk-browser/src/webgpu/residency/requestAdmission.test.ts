@@ -68,6 +68,15 @@ test('a readback that reorders equal requests leaves the queue as it is', () => 
   assert.equal(cut.sets.acceptedRevision, revision, 'nothing rewritten: the view settles');
 });
 
+test('a room that shrinks inside a level keeps what the queue holds, in its order', () => {
+  const cut = gpuCut();
+  cut.image(8, 'f0 m0 f1 c0 m1');
+  const held = cut.queue().filter((page) => page.startsWith('f'));
+  // The next readback lists the level-0 pages the other way round, and the room drops by one.
+  cut.image(4, 'f1 m0 f0 c0 m1');
+  assert.deepEqual(cut.queue(), ['c0', 'm0', 'm1', held[0]], 'the first held, not the first asked');
+});
+
 test('what the image draws never moves the room: a cut the pool holds is queued whole', () => {
   const cut = gpuCut();
   // The image still draws `c0` and `m` from the last cut while the new one asks for two pages.
