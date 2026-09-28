@@ -63,14 +63,7 @@ fn a_solve_that_placed_nothing_copies_no_array() {
         }),
     };
     let (mut grown, base) = (None, (positions.len() / 3) as u32);
-    grown::Grown::place(
-        &mut grown,
-        &positions,
-        attributes,
-        &mut welds,
-        &mut reduction,
-        base,
-    );
+    grown::Grown::place(&mut grown, &mut welds, &mut reduction, base);
     assert!(grown.is_none());
     assert_eq!(reduction.clusters, [indices]);
 }

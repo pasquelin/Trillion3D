@@ -24,7 +24,7 @@ impl Built {
 pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
     let attributes = case.attributes();
     let carried: Vec<&geometry_page::Attribute> = attributes.iter().collect();
-    let build = build_dag_tallied(
+    let (dag, _, _, stalls, grown) = build_dag_tallied(
         &case.positions,
         DagAttributes { carried: &carried },
         indices,
@@ -32,13 +32,13 @@ pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
         &|| Ok(()),
     )
     .expect("dag");
-    let (positions, attributes, origin) = match build.grown {
+    let (positions, attributes, origin) = match grown {
         Some(grown) => (grown.positions, grown.carried, grown.origin),
         None => (case.positions.clone(), attributes, Vec::new()),
     };
     Built {
-        dag: build.clusters,
-        stalls: build.stalls,
+        dag,
+        stalls,
         positions,
         attributes,
         origin,

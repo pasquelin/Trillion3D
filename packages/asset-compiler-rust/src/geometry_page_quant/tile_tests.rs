@@ -164,15 +164,14 @@ fn a_kilometre_terrain_seen_from_two_metres_quantizes_under_the_display_quantum(
     // field: 0.52 mm.
     let quantum = 0.5 * 2.0 * 2.0 * (30f64).to_radians().tan() / 2234.0;
     let (positions, indices) = terrain(1024.0, 128);
-    let dag = build_dag_tallied(
+    let (dag, ..) = build_dag_tallied(
         &positions,
         DagAttributes { carried: &[] },
         &indices,
         DagStrategy::QemEndpoints,
         &|| Ok(()),
     )
-    .expect("dag")
-    .clusters;
+    .expect("dag");
     let errors = || dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error);
     let exponent = primitive_exponent(&positions, errors(), false, TILE_EXTENT_LOG2);
     assert_eq!(exponent, TILE_EXTENT_LOG2 - 16);

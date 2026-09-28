@@ -49,17 +49,11 @@ fn reduced(
         .into_iter()
         .collect();
     let carried: Vec<&crate::geometry_page::Attribute> = carried.iter().collect();
-    let welds = welds::Welds::of(positions, DagAttributes { carried: &carried }, indices);
-    let locks = vec![locked; positions.len() / 3];
     let attributes = DagAttributes { carried: &carried };
-    let weighted = attributes.weighted();
-    let input = welds.input(
-        positions,
-        attributes,
-        &weighted,
-        &locks,
-        quality::NORMAL_DEVIATION_BOUND,
-    );
+    let welds = welds::Welds::of(positions, attributes, indices);
+    let locks = vec![locked; positions.len() / 3];
+    let (weighted, bound) = (attributes.weighted(), quality::NORMAL_DEVIATION_BOUND);
+    let input = welds.input(positions, &carried, &weighted, &locks, bound);
     reduce_group(&input, &group).expect("reduce")
 }
 
