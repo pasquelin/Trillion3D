@@ -51,6 +51,7 @@ function lightCutFrame() {
     worldCount: 1,
     blockCount: 1,
     levelSizes: [1],
+    rootLevelPipeline: {},
     levelPipelines: [{}],
     outputBytes,
     readbackBytes: outputBytes,
