@@ -1505,9 +1505,6 @@
   "disabledStageProfile": {
     "summary": "Profil d’un moteur qui n’en garde aucun : tout est « non mesuré », rien ne vaut zéro."
   },
-  "dot": {
-    "summary": "Produit scalaire de deux vecteurs de même dimension."
-  },
   "dotVector3": {
     "summary": "`a · b` sur trois composantes lues en `aAt` et `bAt` : un tampon plus un décalage, jamais une vue."
   },

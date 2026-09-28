@@ -69,7 +69,8 @@ Resolvers that ignore `browser` therefore receive the safe common facade instead
 `api-inventory.json` is generated with the TypeScript checker. It follows aliases and transitive
 star exports, records binding identity and lists every current entry point. It also records the
 documented source-path imports that the facade newly exposes. Experimental comparison and oracle
-bindings stay classified as experimental.
+bindings stay classified as experimental. The former N-dimensional `dot` is removed from the
+exports: write `dotVector3`, the one dot product, on three components.
 
 Measured with esbuild 0.25.12 (ESM, browser platform, minification and tree shaking), a consumer
 importing only `hierarchyUpdateBatch` weighs 1,780 bytes from the common facade and 3,289 bytes from

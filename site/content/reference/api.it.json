@@ -1505,9 +1505,6 @@
   "disabledStageProfile": {
     "summary": "Profilo di un motore che non ne mantiene nessuno: tutto è «non misurato», nulla vale zero."
   },
-  "dot": {
-    "summary": "Prodotto scalare di due vettori della stessa dimensione."
-  },
   "dotVector3": {
     "summary": "`a · b` su tre componenti lette in `aAt` e `bAt`: un buffer più un offset, mai una vista."
   },

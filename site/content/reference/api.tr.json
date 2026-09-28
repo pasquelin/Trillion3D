@@ -4955,9 +4955,6 @@
   "disabledStageProfile": {
     "summary": "Hiçbirini tutmayan bir motorun profili: her şey \"ölçülmemiş\"tir, hiçbir şey sıfır değildir."
   },
-  "dot": {
-    "summary": "Aynı boyuttaki iki vektörün nokta çarpımı."
-  },
   "dotVector3": {
     "summary": "`aAt` ve `bAt`'te okunan üç bileşen üzerinde `a · b`: bir tampon artı bir ofset, asla bir görünüm değil."
   },

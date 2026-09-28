@@ -1505,9 +1505,6 @@
   "disabledStageProfile": {
     "summary": "Profil einer Engine, die keines behält: alles ist „nicht gemessen“, nichts ist gleich null."
   },
-  "dot": {
-    "summary": "Skalarprodukt zweier Vektoren gleicher Dimension."
-  },
   "dotVector3": {
     "summary": "`a · b` auf drei Komponenten, gelesen bei `aAt` und `bAt`: ein Puffer plus ein Versatz, nie eine Sicht."
   },
