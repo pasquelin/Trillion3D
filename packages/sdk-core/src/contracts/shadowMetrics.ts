@@ -67,8 +67,8 @@ export interface ShadowFrameMetrics {
   shadowWaitMs?: number | null;
   /** GPU time of light lists. */
   gpuLightListsMs?: number | null;
-  /** Words the tiles past their list reserved in the view's light-index pool, on the frame the
-   *  device last sampled while the scene holds more lights than a list; `null` otherwise (#849). */
+  /** Words the tiles past their list reserved in the light-index pool, on the last sampled frame
+   *  of a scene of more lights than a list; `null` otherwise (#849). */
   tileLightPoolReserved?: number | null;
   /** Words the light-index pool held on that sampled frame; `null` likewise. */
   tileLightPoolCapacity?: number | null;
