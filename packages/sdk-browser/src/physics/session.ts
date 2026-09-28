@@ -16,6 +16,7 @@ import { createPhysicsVehicles } from './vehicles.ts';
 import { engineIdOf } from './simulatedIds.ts';
 import { receiveSoft } from './softBodies.ts';
 import { createTileStreamer } from './tiles.ts';
+import { followMove } from './nodePose.ts';
 import { createPhysicsView } from './view.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
 import { createCharacterPort, createPhysicsCharacter } from './physicsCharacter.ts';
@@ -147,7 +148,7 @@ export function createPhysicsSession(
     pose(node: Object3D) {
       dirty = placeBodies(node, bodies, writer, failed) || dirty;
       tiles.moved(node);
-      poses.follow(node);
+      followMove(node, bodies.nested, writer, poses.follow);
     },
     /** The frame's physics: bodies reconciled, poses drawn, the view (`range`), commands sent. */
     frame(camera: Camera, range: number | null) {
@@ -162,8 +163,7 @@ export function createPhysicsSession(
         stats.bodies = bodies.count.bodies;
       }
       const moving = poses.apply(bodies);
-      stats.mainMs = received;
-      received = 0;
+      [stats.mainMs, received] = [received, 0];
       const reach = view(camera, writer, range);
       tiles.update(resolveCameraWorld(camera).matrixWorld.elements.slice(12, 15), reach);
       flush();

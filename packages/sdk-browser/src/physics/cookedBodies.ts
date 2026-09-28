@@ -52,7 +52,7 @@ export function createCookedBodies(
    *  drawing one mesh share it), and the signal its leaving aborts its reads by. */
   type Opening = {
     made: CookedMadeBody[];
-    nodes: Set<number>;
+    nodes: Map<number, number>;
     moving: Map<CookedBody, ModelNode>;
     hulls: Map<string, Promise<Uint8Array>>;
     signal: AbortSignal;
@@ -61,6 +61,15 @@ export function createCookedBodies(
   /** The nodes whose static tiles `body` stands for: a dynamic one's subtree, else its node. */
   const unwanted = (opening: Opening, body: CookedBody) =>
     opening.moving.get(body)?.indices ?? [body.node];
+  /** `body`'s nodes unwanted (`by` 1) or wanted again (`by` -1), each counted by the bodies that
+   *  stand for it: a body nested in a dynamic one's subtree keeps its node unwanted alone. */
+  const count = (opening: Opening, body: CookedBody, by: 1 | -1) => {
+    for (const node of unwanted(opening, body)) {
+      const left = (opening.nodes.get(node) ?? 0) + by;
+      if (left > 0) opening.nodes.set(node, left);
+      else opening.nodes.delete(node);
+    }
+  };
   /** `body` made where its model places it now — a dynamic one where its node is drawn —, from
    *  its hull's `bytes`; throws, nothing held, for a shape the scale bends or a body past the
    *  budget. */
@@ -108,7 +117,7 @@ export function createCookedBodies(
    *  again. */
   const refuse = (opening: Opening, body: CookedBody, error: unknown) => {
     if (opening.signal.aborted) return;
-    for (const node of unwanted(opening, body)) opening.nodes.delete(node);
+    count(opening, body, -1);
     failed(error as EngineError);
   };
   const start = (model: Model, opening: Opening, body: CookedBody) =>
@@ -124,7 +133,7 @@ export function createCookedBodies(
       forget(model);
       const opening: Opening = {
         made: [],
-        nodes: new Set(),
+        nodes: new Map(),
         moving: new Map(),
         hulls: new Map(),
         signal,
@@ -132,7 +141,7 @@ export function createCookedBodies(
       for (const body of declared) {
         const at = body.motion.isKinematic ? null : model._nodeAt?.(body.node);
         if (at) opening.moving.set(body, at);
-        unwanted(opening, body).forEach((node) => opening.nodes.add(node));
+        count(opening, body, 1);
       }
       held.set(model, opening);
       for (const body of declared) start(model, opening, body);
@@ -178,7 +187,7 @@ export function createCookedBodies(
       const at = opening?.made.indexOf(body) ?? -1;
       if (at < 0) return;
       opening!.made.splice(at, 1);
-      for (const node of unwanted(opening!, body.body)) opening!.nodes.delete(node);
+      count(opening!, body.body, -1);
       bodies.release(body.id & BODY_INDEX);
     },
   };
