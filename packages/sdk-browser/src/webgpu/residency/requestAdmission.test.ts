@@ -20,14 +20,14 @@ function gpuCut() {
   const loose = ['c0', 'm0', 'm1', 'f0', 'f1'].map(pageOf);
   loose.forEach((page, i) => (page.level = [2, 1, 1, 0, 0][i]));
   const closure = createGroupClosure([root], [...pages, ...loose]);
-  const w = world([...pages, ...loose], [pages[0]], closure);
+  const w = world([...pages, ...loose], [pages[0]]);
   const admit = createRequestAdmission(w.sets, w.tracking, closure);
   const id = (url: string) => w.packed.findIndex((page) => page.url === url);
   const drawn = createCutDelta(w.packed);
   /** One GPU-cut image: the readback's requests in the GPU's order, then admission at `room`. */
   const image = (room: number, urls: string, draws = '') => {
     const pageIds = urls.split(' ').map(id);
-    w.sets.decideBy(false);
+    w.sets.decideBy(false, closure);
     w.delta.apply(pageIds);
     closure.apply(w.delta);
     w.sets.applyCut(closure.delta);
@@ -37,7 +37,7 @@ function gpuCut() {
   };
   const url = (key: number) => w.tracking.pageCatalog[key];
   const queue = () => Array.from(w.tracking.wanted.list.subarray(0, w.tracking.wanted.count), url);
-  return { ...w, image, queue };
+  return { ...w, closure, admit, image, queue };
 }
 
 test('past the pool, the queue keeps the coarsest levels whole, whatever the GPU rank', () => {
@@ -48,6 +48,7 @@ test('past the pool, the queue keeps the coarsest levels whole, whatever the GPU
   assert.deepEqual(cut.queue(), ['c0', 'm0', 'm1', 'f0'], 'the straddled level in request order');
   cut.image(8, 'f0 m0 f1 c0 m1');
   assert.deepEqual(new Set(cut.queue()), new Set(['c0', 'm0', 'm1', 'f0', 'f1']), 'all fits');
+  assert.ok(cut.admit.hostBytes() > 0, 'its tables are counted in the host tables');
 });
 
 test('a request brings the groups its cut rule needs, filed at their own level', () => {
@@ -82,7 +83,7 @@ test('back on the CPU cut, the ranking weighs the cut the GPU cut left', () => {
   const cut = gpuCut();
   cut.image(8, 'f0 f1 m0');
   cut.image(8, 'f1 a c0');
-  cut.sets.decideBy(true);
+  cut.sets.decideBy(true, cut.closure);
   assert.equal(cut.sets.applyBudget(3), true, 'five pages past the cover weighed against three');
   assert.deepEqual(cut.queue().slice(0, 2), ['c0', 'm'], 'coarsest first');
   assert.equal(cut.sets.applyBudget(8), false, 'and the whole cut fits eight');
