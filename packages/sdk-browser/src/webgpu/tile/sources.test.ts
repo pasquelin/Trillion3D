@@ -14,6 +14,8 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
+import { createTextureLevelReader } from '../../texture/levelReader.ts';
+import { tileRecord, tiledLevelBytes } from '../../texture/tileRecords.ts';
 
 // Behaviour: a block level whose bytes are not the whole blocks its dimensions imply is refused
 // where its read resolves — one failure, never held, never read again — and no tile of it takes
@@ -54,6 +56,61 @@ test('a block level of the wrong length fails once, is never held, and takes no 
   assert.deepEqual(placed, []);
   assert.deepEqual(textureWrites, [], 'nothing to write');
   assert.deepEqual(read, ['bc7'], "the level file of the texture's lane, read once");
+});
+
+// STR-12, #962: a block tile is one request of its record, by Range, written as the file holds
+// it; a server that ignores Range sends the whole file once, and every tile of the level is cut
+// from it with no second request.
+test('a block tile is read by its Range; a whole-file answer serves the whole level', async () => {
+  globalThis.createImageBitmap ??= (() => Promise.reject(new Error('unused'))) as never;
+  const file = Uint8Array.from({ length: tiledLevelBytes(256, 256) }, (_, i) => (i * 13) & 255);
+  const tail = { levels: [], blocks: { bc7: [], astc: [] } };
+  const source = { kind: 'baked', sha256: 'c'.repeat(64), atlas: 0, tail };
+  const atlas = {
+    kind: 'color',
+    textures: [{ layout: tileLayout(256, 256), lane: 'rgba', source }],
+    roomFor: () => true,
+    place: () => ({ x: 0, y: 0, layer: 0 }),
+    poolOf: () => ({ texture: {} }),
+  } as unknown as WebgpuTileAtlas;
+  const tiles = [0, 1, 2, 3].map((i) => ({ slot: 0, level: 0, tx: i & 1, ty: i >> 1 }));
+  const records = tiles.map(({ tx, ty }) => tileRecord(256, 256, tx, ty));
+  const run = async (ranges: boolean) => {
+    const asked: (string | null)[] = [];
+    globalThis.fetch = (async (_: string, init?: RequestInit) => {
+      const range = new Headers(init?.headers).get('range'),
+        [from, to] = (range?.slice(6).split('-') ?? []).map(Number);
+      asked.push(range);
+      return ranges && range
+        ? new Response(file.slice(from, to + 1), { status: 206 })
+        : new Response(file, { status: 200 });
+    }) as typeof fetch;
+    const { device } = fakeDevice();
+    const written: Uint8Array[] = [];
+    device.queue.writeTexture = (_: unknown, data: Uint8Array) => void written.push(data);
+    const readLevel = createTextureLevelReader(
+      { textures: { url: '{sha}/{kind}-{level}.{format}', version: 6 }, key: 'k' },
+      'https://host/',
+    );
+    const sources = createTileSources({
+      device,
+      readLevel,
+      encoding: poolEncoding('bc7'),
+      counters: createTileCounters(),
+      onFailure: (_, error) => assert.fail(error as Error),
+    });
+    const pass = (frame: number, keys = tiles) =>
+      keys.map((key) => sources.serve(atlas, key, frame, () => ({}) as never));
+    pass(1, ranges ? tiles : tiles.slice(0, 1));
+    await sources.settled();
+    assert.deepEqual(pass(2), ['served', 'served', 'served', 'served']);
+    const slices = records.map(({ offset, bytes }) => file.subarray(offset, offset + bytes));
+    assert.deepEqual(written, slices, 'each tile written from its record, a slice of the file');
+    return asked;
+  };
+  const ranges = records.map(({ offset, bytes }) => `bytes=${offset}-${offset + bytes - 1}`);
+  assert.deepEqual(await run(true), ranges, 'one request per tile, its Range');
+  assert.equal((await run(false)).length, 1, 'the whole file, once');
 });
 
 // #42, the wiring from the material census to the GPU reduction: a hosted colour texture reduces
