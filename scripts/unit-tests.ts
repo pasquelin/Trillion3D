@@ -11,18 +11,9 @@ export function movesInventory(file: string): boolean {
   return isUnitTest(file) || file.startsWith('tests/') || file.startsWith('bench/');
 }
 
-/**
- * The `node --test` flag that runs one shard of the suite, from `TRILLION3D_TEST_SHARD` (`2/3`):
- * the CI splits the suite over parallel jobs, each given the same file list. None when the variable
- * is unset, so a local run keeps every test; a malformed value stops the run rather than drop tests.
- */
+/** The `node --test` flag that runs one shard of the suite, `TRILLION3D_TEST_SHARD` (`2/3`), which
+ *  `node` itself checks: the CI splits the one file list over parallel jobs. None when unset, so a
+ *  local run keeps every test. */
 export function shardFlags(env: NodeJS.ProcessEnv): string[] {
-  const shard = env.TRILLION3D_TEST_SHARD;
-  if (!shard) return [];
-  const [, index, total] = /^(\d+)\/(\d+)$/.exec(shard) ?? [];
-  if (!index || !total || +index < 1 || +index > +total)
-    throw new Error(
-      `TRILLION3D_TEST_SHARD='${shard}': expected <index>/<total>, 1 <= index <= total.`,
-    );
-  return [`--test-shard=${index}/${total}`];
+  return env.TRILLION3D_TEST_SHARD ? [`--test-shard=${env.TRILLION3D_TEST_SHARD}`] : [];
 }
