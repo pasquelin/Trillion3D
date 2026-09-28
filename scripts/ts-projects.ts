@@ -1,8 +1,10 @@
 /** The TypeScript projects of the repository, and the type check `check:changed` runs on those that
  *  own a changed file: `tsc -p <project> --noEmit` through the compiler API, so a test can check
  *  a file that is not on disk. */
+import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import ts from 'typescript';
+import { outDir } from './engine-dist.ts';
 
 /** Every tracked `tsconfig*.json` of `files`: the projects the gates type-check. */
 export function tsProjects(files: readonly string[]): string[] {
@@ -73,20 +75,19 @@ export function excludes(project: ts.ParsedCommandLine, file: string): boolean {
   return included.fileNames.includes(file) && !project.fileNames.includes(file);
 }
 
-/** Whether `project` reads the `trillion3d` package from the build output `dist/`, as the site and
- *  the tools do: checked against a missing or stale build, it would report the wrong errors. */
+/** Whether `project` reads the `trillion3d` package from the build output, as the site and the
+ *  tools do (`package.json` `exports`): checked against a missing or stale build, it would report
+ *  the wrong errors. Without a build, such a project resolves nothing, where the SDK's own projects
+ *  still resolve their sources. */
 export function readsDist(project: ts.ParsedCommandLine, root: string): boolean {
-  const lookup = ts.resolveModuleName(
+  const { resolvedModule } = ts.resolveModuleName(
     'trillion3d',
     resolve(root, 'index.ts'),
     project.options,
     ts.sys,
-  ) as ts.ResolvedModuleWithFailedLookupLocations & { failedLookupLocations?: string[] };
-  const dist = resolve(root, 'dist') + '/';
-  return [
-    lookup.resolvedModule?.resolvedFileName ?? '',
-    ...(lookup.failedLookupLocations ?? []),
-  ].some((file) => file.startsWith(dist));
+  );
+  const file = resolvedModule?.resolvedFileName;
+  return file ? file.startsWith(`${outDir}/`) : !existsSync(outDir);
 }
 
 /**
@@ -123,10 +124,11 @@ export function changedTypeErrors(
       errors.push(`${source}: no tsconfig project type-checks it (${projects.join(', ')}).`);
     for (const project of found) owners.add(project);
   }
-  if ([...owners].some((project) => readsDist(project, root))) {
+  const readers = [...owners].filter((project) => readsDist(project, root));
+  if (readers.length) {
     build();
-    programs.clear();
-    parsedFiles.clear();
+    for (const project of readers) programs.delete(project);
+    for (const key of parsedFiles.keys()) if (key.startsWith(`${outDir}/`)) parsedFiles.delete(key);
   }
   for (const project of owners) errors.push(...typeErrors(programOf(project), root));
   return errors;
