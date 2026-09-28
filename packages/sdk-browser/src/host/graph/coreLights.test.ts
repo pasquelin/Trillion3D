@@ -23,7 +23,8 @@ function recordingGl() {
   });
   function record(name: string | symbol) {
     return (...args: unknown[]) => {
-      if (name === 'bufferSubData') seen.block = (args[2] as Float32Array).slice(0, args[4] as number);
+      if (name === 'bufferSubData')
+        seen.block = (args[2] as Float32Array).slice(0, args[4] as number);
       if (name === 'uniform3fv') seen.probe = Float32Array.from(args[1] as Float32Array);
       if (name === 'getUniformLocation') return args[1];
       return {};
@@ -46,7 +47,11 @@ test('each kind the contract declares becomes the core light, numbered, aiming o
   );
   assert.ok(made.every((light) => light instanceof Light && isLightNode(light)));
   const numbers = made.map((light) => serialOf(light)!);
-  assert.deepEqual(numbers, [...numbers].sort((a, b) => a - b), 'numbered in creation order');
+  assert.deepEqual(
+    numbers,
+    [...numbers].sort((a, b) => a - b),
+    'numbered in creation order',
+  );
   assert.deepEqual(
     made.map((light) => aimOf(light) === light.target),
     [false, true, true, false],
@@ -97,7 +102,10 @@ test('a probe with no coefficients adds its colour everywhere, as a world adds i
   new WebglClusterLights(gl, {} as WebGLProgram).upload(scene, IDENTITY_ELEMENTS);
   const constant = [1, 0.5, 2].map((c) => Math.fround(c / IRRADIANCE_BAND.constant));
   assert.deepEqual([...seen.probe.slice(0, 3)], constant);
-  assert.ok(seen.probe.slice(3).every((c) => c === 0), 'the other bands stay empty');
+  assert.ok(
+    seen.probe.slice(3).every((c) => c === 0),
+    'the other bands stay empty',
+  );
 });
 
 test('a sky over a ground is refused by name on the WebGL2 cluster path', () => {
