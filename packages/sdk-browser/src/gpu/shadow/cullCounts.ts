@@ -1,9 +1,6 @@
 import { DRAW_INDIRECT_STRIDE } from '../draw/draw.ts';
 import { createGpuPeriodicReadback } from '../core/periodicReadback.ts';
-import { SHADOW_COUNT_SAMPLE_BYTES } from './batchBudget.ts';
-
-/** Words of one indirect draw command; the instance count is its second word. */
-const COMMAND_WORDS = DRAW_INDIRECT_STRIDE / 4;
+import { SHADOW_COMMAND_WORDS as COMMAND_WORDS, SHADOW_COUNT_SAMPLE_BYTES } from './batchBudget.ts';
 
 /** What the last sampled frame's region culls kept, and that frame's number. */
 export interface ShadowCullCounts {
