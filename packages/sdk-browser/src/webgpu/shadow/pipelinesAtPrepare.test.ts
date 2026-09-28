@@ -12,14 +12,15 @@ import { packDagSelection } from '../../gpu/dag/selection.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { webgpuPagesBackend } from '../pages/pages.ts';
-import { camera, disposeQuadRun, mixedBinScene, quadScene } from '../pages/testScenes.fixture.ts';
+import {
+  SHADOW_LIMITS,
+  along,
+  camera,
+  disposeQuadRun,
+  mixedBinScene,
+  quadScene,
+} from '../pages/testScenes.fixture.ts';
 
-const LIMITS = {
-  maxBufferSize: 1 << 28,
-  maxStorageBufferBindingSize: 1 << 27,
-  maxTextureDimension2D: 8192,
-  maxComputeWorkgroupsPerDimension: 65535,
-};
 const MAKERS = [
   'createRenderPipeline',
   'createComputePipeline',
@@ -31,9 +32,6 @@ const MAKERS = [
 const SHADOW_ENTRY = /^(shadow|page_quad|mapRows|buildHiz|testHiz)/;
 
 type Stages = Partial<Record<'vertex' | 'compute', { entryPoint: string }>>;
-
-/** A pose `x` metres along the X axis. */
-const along = (x: number) => new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, 0, 0, 1]);
 
 /** The red quad, or an opaque triangle beside a blended one that casts. */
 function scene(blended: boolean) {
@@ -58,7 +56,7 @@ async function shadowPipelinesAfterPrepare(gpuCut: boolean, blended = false) {
   );
   const gpu = mockGpu({
     packed: gpuCut ? packDagSelection(roots) : undefined,
-    limits: LIMITS,
+    limits: SHADOW_LIMITS,
     compute: true,
   });
   const made: string[] = [];
