@@ -80,8 +80,8 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
  * cold work said apart from every frame (#989): the pool's three caster draws (#965), the light
  * cut's row map, the page pyramids and the occlusion test the static layer needs from an object's
  * first move — the pyramids' kernels are the camera's Hi-Z's —, and, for a scene whose blended
- * surfaces cast, the transmittance layer's draws. A frame then compiles none. One that fails here is compiled again, and said, where it is
- * first used.
+ * surfaces cast, the transmittance layer's draws. A frame then compiles none. One that fails here
+ * is compiled again, and said, where it is first used.
  */
 export async function prepareShadowPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { shadows, pageQuads } = rt.lights;
