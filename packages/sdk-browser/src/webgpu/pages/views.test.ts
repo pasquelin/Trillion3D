@@ -152,6 +152,8 @@ test('a capture leaves the main view’s targets, TAA and Hi-Z history intact', 
   assert.equal(rt.run.noOccluderHistory, noOccluderHistory);
   assert.deepEqual(rt.setup.viewport, [32, 32]);
   assert.equal(rt.capture.capturing, false);
-  const made = gpu.textures.slice(textures).filter((texture) => texture.label && texture.width === 16);
+  const made = gpu.textures
+    .slice(textures)
+    .filter((texture) => texture.label && texture.width === 16);
   assert.ok(made.length && made.every((texture) => texture.destroyed), 'the capture view is freed');
 });
