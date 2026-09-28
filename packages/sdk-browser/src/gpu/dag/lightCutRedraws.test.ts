@@ -55,23 +55,23 @@ test('the pages of a frame that dropped work are drawn again, in fewer views unt
     'a frame without pages copies nothing',
   );
   assert.deepEqual(await frame([4, 9, 12, 20], true, [0, 1, 2, 3]), [4, 9, 12, 20], 'all again');
-  assert.equal(redraws.viewLimit, 2, 'half the views that dropped');
+  assert.equal(redraws.limit.value, 2, 'half the views that dropped');
   assert.equal(redraws.unsettled, false);
   flag.value = 0;
   assert.deepEqual(await frame([4, 9], true, [0, 1]), [], 'whole: nothing drawn again');
-  assert.equal(redraws.viewLimit, 3, 'bisected between what fitted and what dropped');
+  assert.equal(redraws.limit.value, 3, 'bisected between what fitted and what dropped');
   flag.value = WORK_DROPPED;
   await frame([4, 9, 12], true, [0, 1, 2]);
-  assert.equal(redraws.viewLimit, 2, 'three dropped, two fitted: it stays at two');
+  assert.equal(redraws.limit.value, 2, 'three dropped, two fitted: it stays at two');
   flag.value = 0;
   await frame([4, 9, 12, 20, 21], true, [0, 0, 0, 1, 1]);
-  assert.equal(redraws.viewLimit, 2, 'five pages in two views fit: no swing back to three');
+  assert.equal(redraws.limit.value, 2, 'five pages in two views fit: no swing back to three');
   redraws.residencyChanged();
-  assert.equal(redraws.viewLimit, 2, 'residency moved: the drop goes stale, the limit stays');
+  assert.equal(redraws.limit.value, 2, 'residency moved: the drop goes stale, the limit stays');
   flag.value = WORK_DROPPED;
   assert.deepEqual(await frame([1, 2], true, [0, 1]), [1, 2], 'dropped: drawn again');
   for (let i = 0; i < 5; i++) await frame([1, 2], true, [0, 1]);
-  assert.equal(redraws.viewLimit, 1, 'drops floor the limit at one view');
+  assert.equal(redraws.limit.value, 1, 'drops floor the limit at one view');
 });
 
 // A view drew a placement coarser than it wanted: every page it drew waits for residency to move
@@ -88,7 +88,7 @@ test('the pages a view drew coarse are drawn again once residency changes at res
   assert.equal(redraws.unsettled, true, 'the next rest releases them');
   redraws.rest();
   assert.deepEqual(taken(), [3, 7], 'residency moved, the camera rests: drawn again');
-  assert.equal(redraws.viewLimit, 24, 'coarse is not a drop: the limit stays');
+  assert.equal(redraws.limit.value, 24, 'coarse is not a drop: the limit stays');
 });
 
 // A frame whose requests were never copied cannot wait on them: its coarse pages are drawn again.
