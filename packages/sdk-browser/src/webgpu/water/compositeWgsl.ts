@@ -1,7 +1,7 @@
 import {
   CONTRACT_BINDINGS_WGSL,
   FULLSCREEN_VERTEX,
-  SURFACE_BINDINGS_WGSL,
+  surfaceBindingsWgsl,
   VIEW_WGSL,
   WORLD_AT_WGSL,
 } from '../../lighting/deferred/shaders.ts';
@@ -26,7 +26,7 @@ export const WATER_BINDINGS = {
   normalRough: 1,
   emissiveAo: 2,
   /** The water word the surface stage wrote (`surfaceWgsl.ts`), on the surface flags' number. */
-  flags: 3,
+  word: 3,
   depth: 4,
   view: 5,
   directLights: 6,
@@ -70,7 +70,7 @@ export const WATER_BINDINGS = {
 export const WATER_COMPOSITE_SHADER = `${VIEW_WGSL}
 ${BLEND_VIEW_WGSL}
 struct Volume{transmission:f32,ior:f32,thickness:f32,attenuationDistance:f32,attenuationColor:vec4f,}
-${SURFACE_BINDINGS_WGSL}
+${surfaceBindingsWgsl('waterWord:texture_2d<f32>')}
 ${CONTRACT_BINDINGS_WGSL}
 @group(0) @binding(${WATER_BINDINGS.backdrop}) var backdrop:texture_2d<f32>;
 @group(0) @binding(${WATER_BINDINGS.backdropDepth}) var backdropDepth:texture_depth_2d;
@@ -121,7 +121,7 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
 }
 @fragment fn composeWater(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let coord=vec2i(pixel.xy);
- let packed=textureLoad(flags,coord,0).r;
+ let packed=waterWordAt(coord);
  if(packed==0u){discard;}
  let vol=volumes[waterRank(packed)];
  let alpha=waterOpacity(packed);

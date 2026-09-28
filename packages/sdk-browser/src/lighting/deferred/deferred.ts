@@ -154,15 +154,16 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
        *  compiles what it needs, and `fail` hears why it cannot. */
       composesBloom: (fail: (error: unknown) => void) => active.compositions.composesBloom(fail),
       /** Composes the lit image, or `composed`: the temporal output, or the effect chain's, with
-       *  the bloom blend it left. */
+       *  the bloom blend it left; reading no as-is share when `asIs` says none is in the frame. */
       compose(
         encoder: GPUCommandEncoder,
         target: GPUTextureView,
         clear: GPUColor,
         presentation?: GPUTextureView,
         composed?: ComposedImage,
+        asIs = true,
       ) {
-        const composition = active.composition(composed);
+        const composition = active.composition(composed, asIs);
         if (!composition) throw new Error('SURFACE_NOT_BOUND');
         const colorAttachments: GPURenderPassColorAttachment[] = [
           { view: target, loadOp: 'clear', storeOp: 'store', clearValue: clear },
