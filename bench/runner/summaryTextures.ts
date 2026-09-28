@@ -6,7 +6,7 @@ export const go = (b: number | null | undefined) =>
 export const mo = (b: number | null | undefined) =>
   typeof b === 'number' ? `${(b / 1e6).toFixed(1)} MB` : 'unmeasured';
 const n = (v: number | null | undefined) => (typeof v === 'number' ? String(v) : 'unmeasured');
-/** MiB, the unit `--pool-textures-vivant` takes, so a printed budget can be asked again as is. */
+/** MiB, the unit the live texture pool option takes, so a printed budget can be asked again as is. */
 const mib = (b: number) => (b / 1024 / 1024).toFixed(2);
 const n2 = (v: number | null | undefined) => (typeof v === 'number' ? v.toFixed(2) : 'unmeasured');
 
