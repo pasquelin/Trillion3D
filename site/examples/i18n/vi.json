@@ -1746,7 +1746,8 @@
       "night": "Đêm",
       "bounce": "Ánh sáng dội",
       "sun": "Mặt Trời",
-      "lamp": "Đèn"
+      "lamp": "Đèn",
+      "spin": "Xoay"
     },
     "words": {
       "credit": "Mô hình đèn đường của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"

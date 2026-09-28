@@ -210,7 +210,10 @@
       "levels": "Setiap tingkat.",
       "reach": "Jangkauan sinar: diagonal area, di luarnya tidak ada apa pun yang bisa dikenai.",
       "shareOf": "Probe batch kerja per bingkai, per tingkat: porsi yang dipublikasikan diterapkan pada total sebuah batch.",
-      "follow": "Memposisikan ulang tingkat-tingkat yang bisa bergerak di sekitar sebuah titik pandang. Mengembalikan benar saat setidaknya satu indeks sel dasar berubah: ini satu-satunya sinyal yang dibutuhkan konvergensi untuk memulai ulang, tanpa biaya pembacaan balik GPU."
+      "follow": "Memposisikan ulang tingkat-tingkat yang bisa bergerak di sekitar sebuah titik pandang. Mengembalikan benar saat setidaknya satu indeks sel dasar berubah: ini satu-satunya sinyal yang dibutuhkan konvergensi untuk memulai ulang, tanpa biaya pembacaan balik GPU.",
+      "reserveCount": "Kapasitas tetap yang dicadangkan sebelum transformasi dapat memperluas adegan.",
+      "invalidLevels": "Tingkat yang jarak antarprobenya atau keberadaannya berubah pada perencanaan ulang terakhir. Pergeseran dasar menggunakan penanda sel.",
+      "replan": "Menerapkan kembali kebijakan resolusi spasial yang ada pada batas geometri saat ini."
     }
   },
   "BounceOccupancy": {
@@ -220,7 +223,8 @@
       "occupied": "Benar saat sel sebuah tingkat pada kisi globalnya layak mendapat probe.",
       "marked": "Sel yang ditandai dan total sel tingkat terhalus: keuntungan yang dipublikasikan.",
       "cells": "Sel-sel tingkat terhalus.",
-      "bytes": "Byte yang dibutuhkannya."
+      "bytes": "Byte yang dibutuhkannya.",
+      "allEligible": "Geometri telah bergerak: menjadwalkan secara konservatif semua sel kaskade, yang jumlahnya dibatasi."
     }
   },
   "BoundedNode": {
@@ -2860,7 +2864,7 @@
     "summary": "Versi kontrak hierarki scene milik host."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Bilangan bulat header: signature, versi, segitiga, node."
+    "summary": "Bilangan bulat header: tanda pengenal, versi, jumlah segitiga/node/grup/pemilik/sumber, nol yang dicadangkan."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' dibaca sebagai bilangan bulat 32-bit tak bertanda little-endian."
@@ -3152,7 +3156,12 @@
       "triangles": "Tiga vertex dunia per segitiga, masing-masing sebanyak angka `PROXY_TRIANGLE_FLOATS`.",
       "albedo": "Albedo difus linear segitiga itu, dikemas RGBA8.",
       "nodeBounds": "Batas pasti setiap node BVH.",
-      "nodeChildren": "Keempat anak setiap node: kotak terkuantisasi, jumlah segitiga, kehadiran, tautan."
+      "nodeChildren": "Keempat anak setiap node: kotak terkuantisasi, jumlah segitiga, kehadiran, tautan.",
+      "triangleGroups": "Kelompok bersama pemilik sumber untuk setiap segitiga kanonis, yang hanya disimpan sekali.",
+      "groupOffsets": "Offset rekaman pemilik setiap kelompok, termasuk penanda akhir.",
+      "owners": "Rekaman pemilik: indeks simpul sumber dan albedo linear yang dikemas dalam RGBA8.",
+      "bindWorlds": "Matriks dunia asli dari simpul sumber, enam belas nilai presisi ganda per simpul.",
+      "sourceParents": "Hierarki sumber, termasuk simpul partisi yang saat ini belum diinstansiasi oleh host."
     }
   },
   "SceneProxyDescriptor": {
@@ -3169,7 +3178,10 @@
       "triangleBudget": "Anggaran segitiga yang dipublikasikan, yang memutuskan ambang batas yang sungguh diperoleh.",
       "bounds": "Luasan dunia proxy: tiga batas bawah lalu tiga atas.",
       "triangles": "Segitiga.",
-      "nodes": "Node pohon."
+      "nodes": "Node pohon.",
+      "groups": "Kelompok pemilik bersama yang hanya disimpan sekali.",
+      "owners": "Rekaman pemilik.",
+      "instances": "Matriks simpul sumber."
     }
   },
   "SceneRoot": {
@@ -4897,7 +4909,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Proxy dibaca dan diperiksa ulang sebelum satu sinar pun menyentuhnya.",
-    "description": "Tata letak, little-endian: `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, lalu vertex dunia, albedo, batas node eksak dan keempat anaknya, digabung. Setiap bagian punya panjang yang diwajibkan header; sebuah berkas ukuran lain ditolak sepenuhnya, karena sebuah node yang menyebut segitiga yang hilang akan membuat shader membaca apa pun."
+    "description": "Tata letak: delapan kata header little-endian, diikuti kolom geometri dan pohon kanonis serta data kepemilikan berversi. `docs/FORMAT.md` menentukan setiap jumlah dan kolom. Header menetapkan panjang setiap bagian; berkas dengan ukuran berbeda ditolak seluruhnya, karena node yang merujuk segitiga yang tidak ada akan membuat shader membaca data sembarang."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` diuraikan menjadi `position`, `quaternion`, `scale`."

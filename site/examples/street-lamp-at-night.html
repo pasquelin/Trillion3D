@@ -36,7 +36,7 @@
       // The compiled corner: two facades behind a raised pavement and its kerb, the road a step
       // lower, the buildings across it, a door, the street lamp with the bulb in its globe, and
       // the windows — a lit pane glows by itself, a dark one only mirrors the sky.
-      await world.scene.load('../assets/examples/street-corner/cache/native/full/manifest.json');
+      const corner = await world.scene.load('../assets/examples/street-corner/cache/native/full/manifest.json');
 
       // By day a sun and a blue sky. By night the lamp around its bulb — `radius` is its glass
       // globe's, so the lamp casts no shadow on itself —, the shop window pouring its light onto
@@ -61,7 +61,9 @@
       world.camera.lookAt(0.75, 1.6, 1);
 
       // `world.bounce` adds the light the surfaces send back, traced against the compiled model.
-      controls({ night: true, bounce: true, sun: [-80, 80, 30, 1], lamp: '#ffb866' }, (values) => {
+      let spin = false;
+      controls({ night: true, bounce: true, spin: false, sun: [-80, 80, 30, 1], lamp: '#ffb866' }, (values) => {
+        spin = values.spin;
         sun.visible = !values.night;
         lamp.visible = shopLight.visible = values.night;
         lamp.color.set(values.lamp);
@@ -74,6 +76,12 @@
         world.exposure = values.night ? 1.6 : 1;
         world.invalidate();
       }, world);
+      // Turn the compiled parent under fixed lights: bounce and far shadows follow its world pose.
+      world.onFrame(({ delta }) => {
+        if (!spin) return;
+        corner.rotation.y += Math.min(delta, 0.05) * 0.15;
+        world.invalidate();
+      });
     </script>
   </body>
 </html>
