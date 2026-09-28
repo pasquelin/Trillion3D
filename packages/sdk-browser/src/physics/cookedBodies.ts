@@ -27,8 +27,6 @@ export type NodeMove = { node: Object3D; reach: number; scale: readonly number[]
 /** A declared body made: its entry, its hull's bytes, the world scale it was made at, its id,
  *  and — a dynamic one — the node it moves, or — a kinematic one a dynamic body carries — the
  *  node it follows (`carriedBodies.ts`). */
-/** A declared body a rescale refused: its entry, its hull's bytes, the world scale it was at. */
-type Refused = Pick<CookedMadeBody, 'body' | 'bytes' | 'scale'>;
 export type CookedMadeBody = {
   body: CookedBody;
   bytes?: Uint8Array;
@@ -37,6 +35,8 @@ export type CookedMadeBody = {
   moves: NodeMove | null;
   carried?: Carried;
 };
+/** A declared body a rescale refused: its entry, its hull's bytes, the world scale it was at. */
+type Refused = Pick<CookedMadeBody, 'body' | 'bytes' | 'scale'>;
 
 /**
  * The rigid bodies the compiled models in a scene declare (`physics.json` `bodies`), each one a
