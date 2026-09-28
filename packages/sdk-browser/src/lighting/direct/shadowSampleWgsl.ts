@@ -3,7 +3,7 @@
 
 /** Steps a texel of the comparison filter's weights: their 8 bits, the subtexel precision of
  *  Direct3D and Metal, rounded to nearest (measured on Apple M2, #831). A tap snaps its texel to
- *  a step, so its weights are the hardware filter's own. */
+ *  a step, so the weights `shadowSample` computes are exactly those steps (#26). */
 export const SHADOW_SUBTEXELS = 256;
 
 /** The page reads. Requires `shadowAtlas`, `shadowSampler`, `SHADOW_PAGE`, `SHADOW_SUBTEXELS`, `SHADOW_SUBTEXEL` and
@@ -29,9 +29,9 @@ fn shadowAtlasTexels()->f32{return f32(textureDimensions(shadowAtlas).x);}
  *  any other, so no rounding of \`corner / texels\` — a side is rarely a power of two — changes
  *  them; the weights are \`at\`'s own steps, never the sampler's view of that quotient. */
 fn shadowSample(at:vec2f,layer:i32,texels:f32,reference:f32)->f32{
- let corner=floor(at+0.5);
+ let shifted=at+0.5;let corner=floor(shifted);
  let lit=textureGatherCompare(shadowAtlas,shadowSampler,corner/texels,layer,reference);
- return shadowBilinear(lit,at+0.5-corner);
+ return shadowBilinear(lit,shifted-corner);
 }
 /** \`textureGatherCompare\`'s texels (x: low u high v, y: high u high v, z: high u low v, w: low u
  *  low v) weighted by \`w\`, the fraction toward the high texel on each axis. */
