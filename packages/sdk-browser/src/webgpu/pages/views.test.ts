@@ -2,48 +2,13 @@
 // function (`state/viewSwitch.ts`); a capture draws in a view of its own.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as G from '../../host/graph/graph.fixture.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
-import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
-import { quadScene, camera } from './testScenes.fixture.ts';
-import { createWebgpuPagesRuntime } from './runtime.ts';
-import { prepareWebgpuBackend } from './prepare/prepare.ts';
+import { camera } from './testScenes.fixture.ts';
+import { awayCamera, drawnQuad } from './drawnQuad.fixture.ts';
 import { renderWebgpuPages } from './render/render.ts';
 import { flushWebgpuPages } from './render/flush.ts';
 import { captureColorView } from './io/colorCapture.ts';
 import { VIEW_GPU_KEYS, VIEW_RUN_KEYS, VIEW_VIS_KEYS, createWebgpuView } from './state/view.ts';
 import { releaseWebgpuView, useWebgpuView } from './state/viewSwitch.ts';
-import type { BackendDiagnostic } from '../../backend/types.ts';
-
-/** The red quad on a prepared runtime, its main view drawn twice from the front. */
-async function drawnQuad(compute: boolean) {
-  installGpuGlobals();
-  const gpu = mockGpu({ compute });
-  const fixture = quadScene(),
-    events: BackendDiagnostic[] = [];
-  const rt = createWebgpuPagesRuntime({
-    ...fixture,
-    gpuDevice: gpu.device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-    onDiagnostic: (event) => events.push(event),
-  });
-  await prepareWebgpuBackend(rt, gpu.device);
-  for (let i = 0; i < 2; i++) {
-    renderWebgpuPages(rt, camera());
-    await flushWebgpuPages(rt);
-  }
-  return { rt, gpu, events };
-}
-
-/** A camera beside the quad, looking away from it. */
-function awayCamera() {
-  const away = G.perspectiveCamera(55, 1, 0.1, 100);
-  away.position.set(0, 0, 3);
-  away.lookAt(0, 0, 6);
-  away.updateMatrixWorld();
-  return away;
-}
 
 /** What the main view holds in the runtime groups, by reference. */
 function heldBy(rt: Awaited<ReturnType<typeof drawnQuad>>['rt']) {
@@ -73,8 +38,8 @@ test('no reader keeps the main view once another is drawn, and switching back fi
   renderWebgpuPages(rt, awayCamera());
   await flushWebgpuPages(rt);
   assert.deepEqual(rt.gpu.targetSize, [16, 16]);
-  assert.equal(rt.vis.gpuHiz!.width, 16, 'the shared pyramid follows the drawn view');
-  assert.equal(rt.gpu.temporal, undefined, 'the side view accumulates no history of its own yet');
+  assert.equal(rt.vis.gpuHiz!.width, 16, 'the side view draws its own pyramid');
+  assert.equal(rt.gpu.temporal, undefined, 'a view made as a capture’s accumulates no history');
   assert.notDeepEqual([...rt.run.gate.cam.eye], eye);
   useWebgpuView(rt, rt.views.main);
   assert.deepEqual(heldBy(rt), main, 'the main view gets back every state it held');
@@ -86,23 +51,23 @@ test('no reader keeps the main view once another is drawn, and switching back fi
   releaseWebgpuView(rt, side);
   renderWebgpuPages(rt, camera());
   await flushWebgpuPages(rt);
-  assert.equal(rt.vis.gpuHiz!.width, 32, 'the pyramid follows the main view back');
+  assert.equal(rt.vis.gpuHiz!.width, 32, 'the main view finds its own pyramid back');
   assert.equal(rt.gpu.temporal, temporal, 'its targets fit: history kept');
 });
 
-test('a Hi-Z pyramid the device refuses on the way back is dropped, the session kept', async () => {
+test('a Hi-Z pyramid the device refuses another view is dropped, the session kept', async () => {
   const { rt, gpu, events } = await drawnQuad(true);
   const side = createWebgpuView(16, 16);
-  useWebgpuView(rt, side);
-  renderWebgpuPages(rt, awayCamera());
-  await flushWebgpuPages(rt);
-  releaseWebgpuView(rt, side);
   const pop = gpu.device.popErrorScope.bind(gpu.device);
   let refused = false;
   Object.assign(gpu.device, {
     popErrorScope: async () =>
       refused ? pop() : ((refused = true), await pop(), { message: 'Out of memory' }),
   });
+  useWebgpuView(rt, side);
+  renderWebgpuPages(rt, awayCamera());
+  await flushWebgpuPages(rt);
+  releaseWebgpuView(rt, side);
   renderWebgpuPages(rt, camera());
   await flushWebgpuPages(rt);
   assert.ok(refused);

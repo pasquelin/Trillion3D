@@ -8,7 +8,7 @@ impl CompilerError {
     /// restart at 0 in every primitive, so a page named alone is ambiguous in a cook of several.
     /// A cancellation is no refusal of that primitive and keeps its message.
     pub(super) fn within(mut self, mesh: usize, primitive: usize) -> Self {
-        if self.code != "CANCELLED" {
+        if self.code != crate::CANCELLED {
             self.message = format!("Mesh {mesh} primitive {primitive}: {}", self.message);
         }
         self

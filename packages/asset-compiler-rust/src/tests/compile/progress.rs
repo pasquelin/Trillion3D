@@ -77,3 +77,26 @@ fn a_reused_folder_is_a_known_phase_and_the_bar_still_ends_at_one() {
     assert_eq!(steps.last().expect("an end").1, 1.0, "{steps:?}");
     fs::remove_dir_all(root).expect("cleanup");
 }
+
+// Behaviour: every event carries the process peak resident bytes, never decreasing, and the
+// manifest publishes the peak its compilation reached (#50).
+#[cfg(unix)]
+#[test]
+fn every_event_carries_the_process_peak_rss() {
+    let (root, options) = grid_fixture_displaced(24, 24, 1.0);
+    let peaks = std::sync::Mutex::new(Vec::new());
+    let result = compile(&options, |event| {
+        let peak = event["peakRssBytes"]
+            .as_u64()
+            .expect("a peak on every event");
+        peaks.lock().expect("peaks").push(peak);
+    })
+    .expect("compile");
+    let peaks = peaks.into_inner().expect("peaks");
+    assert!(peaks.windows(2).all(|pair| pair[0] <= pair[1]), "{peaks:?}");
+    let published = result["metrics"]["peakRssBytes"]
+        .as_u64()
+        .expect("published");
+    assert!(published > 0 && published <= *peaks.last().expect("events"));
+    fs::remove_dir_all(root).expect("cleanup");
+}

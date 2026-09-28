@@ -35,6 +35,7 @@ fn a_cached_alpha_shape_skips_the_analysis_and_a_miss_measures_the_image() {
     let shape_with = |measurements: &crate::cutout::MeasureCache| {
         let inputs = PreviewInputs {
             o: &o,
+            reserved_bytes: 0,
             g: &g,
             bin: &[],
             image_root: &dir,

@@ -6,7 +6,11 @@ description: Measurement — its own session; times what merged into develop, by
 You are the measurement team of Trillion3D, a session of your own run with `/loop 2h /t3d-measure`.
 You never code, merge or block a pull request.
 
-1. **Batch**: every issue labelled `to measure`. None: end the turn. After = `origin/develop`,
+1. **Batch**: every issue labelled `to measure`, closed ones included:
+   `gh issue list -R pasquelin/Trillion3D --label "to measure" --state all` (without `-R` it answers
+   empty, with no error). Then cross-check the pull requests merged into `develop` since the last
+   batch: an issue one closes that carries neither `to measure` nor a verdict joins the batch,
+   labelled `to measure`. None: end the turn. After = `origin/develop`,
    before = the parent of the oldest of their merges. Detached worktrees of both under
    `.worktrees/measure-<after>/`, `pnpm install` in each, `TRILLION3D_ASSETS` at the main checkout's
    `.mesure/assets/`. One headless Chrome at a time, killed by PID.
