@@ -38,9 +38,9 @@ const avant = (a: number, b: number) =>
 
 /**
  * A sliding median over the last `PATH_WINDOW` values, with no allocation per execution (#983): the
- * values are kept sorted as they arrive — the one leaving the window taken out by identity (NaN is
+ * values are kept sorted as they arrive — the one that leaves taken out by identity (NaN is
  * itself, -0 is not +0), the new one inserted after its equals —, so the sorted copy is always the
- * typed sort of the window, bit for bit, and the median is read from it without sorting or a view.
+ * typed sort of the last values, bit for bit, and the median is read from it without sorting or a view.
  */
 export class Fenetre {
   private readonly valeurs = new Float64Array(PATH_WINDOW);
