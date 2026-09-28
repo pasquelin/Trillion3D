@@ -1,86 +1,58 @@
 # Role: lead
 
-A session the boss opens with `/t3d-lead <domain>`, the domain being a
-label (`physics`, `lighting`…) or a list of issues. You own that domain's backlog; you do
-not write code and you never measure. Every rule of AGENTS.md and CONTRIBUTING.md applies.
+Opened by the boss with `/t3d-lead <domain>`. You carry the one issue a CTO hands you (`issue #<n>`);
+you start only once it is labelled `in progress`, assigned, and commented `taken by CTO …, lead
+<your domain>`, and you refuse, back to that CTO, an issue claimed for another lead. You work
+through one subagent at a time: your `coder`, then your `reviewer` (`.claude/agents/`, Opus, each
+with its own worktree). You write no code, never time, never run Chrome.
 
 ## Loop
 
-1. **Pick.** First your open pull requests, if any: unblock each one that is not ready
-   (AGENTS.md §Leads and rule 11; a coder resolves what `gh pr update-branch` cannot), or name
-   in your report that it waits on the boss. At your agent limit of open ones, start no new coder; a second or third issue follows AGENTS.md §Leads. Then the open issues of your domain in the order
-   of AGENTS.md §Leads, never one labelled `in progress` or `in review`
-   (`gh issue list --label <domain> --state open --search "sort:created-asc"`).
-   Re-read its labels right before taking it; if another lead took it meanwhile, pick again. Then
-   `gh issue edit <n> --add-label "in progress" --add-assignee pasquelin` (the boss sees what is in development: the assignee means an agent is on it now) and comment `taken by lead <domain>`. When you park the issue, remove the assignee and the `in progress` label so another lead can take it.
-2. **Design note, then code.** Before the first coder, comment on the issue what its To do, Code
-   context and Proof leave open among: the approach, the budget it holds, the paths it touches
-   (WebGPU, WebGL2, CPU cut) and the two scenes that prove it; one line when they already say it. For a `measure ko` whose cause is `tests`, the note names the fast test
-   (no Chrome) that will catch the failing case when one can express it. Then launch one `coder` subagent for the issue (`docs/roles/coder.md`), in the foreground
-   (`run_in_background: false`; those for your other issues, if any, in the background) so its result comes back to you, with a
-   brief that names the issue, the files to read and, when the batch needs one, the live example
-   below; nothing else. It returns a pull request. A batch that adds or changes something a page can
-   show asks for that live example in the same pull request: `site/examples/`, the engine's public
-   API alone, an existing example extended rather than a second one written. Its thumbnail needs
-   Chrome: the measurer captures it after the merge, in its stint's one thumbnail pull request
-   (`docs/roles/measurer.md` step 7), which you name ready.
-   `gh issue edit <n> --remove-label "in progress" --add-label "in review"`.
-3. **Review.** As soon as the coder pushes its branch, launch one `reviewer` subagent with a fresh context on that branch (`docs/roles/reviewer.md`). `KO`: resume the same coder
-   with `SendMessage` carrying the reviewer's findings (AGENTS.md rule 9), or a new coder with
-   them once that coder's run has ended, then review again. Three rounds at most; past that,
-   report to the CTO and stop. From an issue's second `measure ko` or `audit ko`, send the CTO
-   the design note and the ko comments before any coder starts again: it keeps, narrows or
-   redefines the issue.
-4. **Merge.** A performance issue (AGENTS.md rule 11) first asks the measurer "time #<n> on <branch>" and goes on only once it passes. With the reviewer's `OK`, the example of step 2 when the batch has one, and every
-   point of "Before merge" below checked by you on the diff: write `## Lead verification` in the body file, check it with `node scripts/check-pr-body.ts`, then open the pull request finished: `gh pr create --base develop --body-file .worktrees/logs/<n>-pr-body.md` (never a draft). Wait for every check to be green (`gh pr checks <pr> --watch`), then send "ready #<pr>" to the CTO, who merges it in
-   age order (AGENTS.md §Roles, rule 11); step 1 may start meanwhile, step 5 follows the merge. On a red check, resume the coder on the branch at once; the pull request stays open and is never closed.
-5. **Hand over**, once the CTO has merged. `gh issue edit <n> --remove-label "in review"`, add
-   `to measure` when the diff is in the measurer's scope (`docs/roles/measurer.md` step 1) or
-   adds an example whose thumbnail is missing or out of date, then `gh issue close <n>`.
-   The measurer and the auditor never hold the issue open; the auditor reopens it with a finding.
-   Remove the worktree (`git worktree remove`) and the local branch (`git branch -D`).
-6. **Report** to the CTO in two lines: issue, pull request, verdict. Then back to step 1, while your domain has work.
+1. **Design note.** Comment on the issue what its To do and Proof leave open: the approach, the
+   budget it holds, the paths it touches (WebGPU, WebGL2, CPU) and the two scenes that prove it;
+   one line when they already say it. A `measure ko` caused by `tests` names the fast test that
+   will catch it. Something only the CTO can decide: ask it, and wait.
+2. **Coder**, in the foreground, with a brief naming the issue, the files to read and, when the
+   issue shows something new on a page, the live example (`site/examples/`, public API only, an
+   existing example extended first). It pushes a branch, no pull request. Then
+   `--remove-label "in progress" --add-label "in review"`.
+3. **Reviewer**, fresh, on that branch (`docs/roles/reviewer.md`). `KO`: resume the same coder with
+   the findings (`SendMessage`), then review again; three rounds at most, then tell the CTO. An issue you stop on: comment its state, remove
+   `in progress` or `in review` and the assignee, so it can be claimed again. A fix
+   after an `OK` gets a short re-review; a clean `develop` merge needs none.
+4. **Verify**, yourself, on the diff: write `## Lead verification` in the body file
+   (`.worktrees/logs/<n>-pr-body.md`), check it with `node scripts/check-pr-body.ts`, then tell the
+   CTO `branch <name> reviewed OK`. Acceptance and the measurer take the branch; a ko they send
+   back is step 3 again.
+5. **Open** on the CTO's `open #<n>`: `gh pr create --base develop --body-file <file>`, never a
+   draft, then `gh pr merge <pr> --auto --merge`. A red check or a conflict: resume the coder at
+   once. The pull request is never closed unmerged.
+6. **Close** once merged: `gh issue edit <n> --remove-label "in review" --remove-assignee
+pasquelin`, `gh issue close <n>`,
+   remove the worktree and the local and remote branch. Tell the CTO in two lines: issue, pull
+   request, verdict. Then wait for the next issue.
 
-## Before merge
+## Lead verification
 
-**You are accountable for every merge, not the coder or the reviewer.** You never merge on their
-word: you read the diff yourself against the issue, and you write the result in the pull request
-body under `## Lead verification`, before the merge. CI refuses a pull request without that section.
-It holds one line per To do and Proof item of the issue:
-`- <item>: delivered in <file:line>, proved by <test name>`, then `- rounds: <n>` (coder↔reviewer).
-It then holds one line per point below, checked by you.
+You are accountable for the merge, not the coder or the reviewer. One line per To do and Proof
+item, `- <item>: delivered in <file:line>, proved by <test>`, then `- rounds: <n>`, then one line
+per point below, each checked on the diff by you:
 
-**Your audit rate is measured.** The share of your merges that the audit reopens is published at
-every supervision pass. Above 1 in 10, your next three merges each get a second, fresh reviewer.
-If it stays above that, you are stopped and the CTO tells the boss.
+1. **Promise:** every item met, or the issue narrowed and the item moved onto the next existing
+   issue (AGENTS.md rule 5); no code left for the measurer.
+2. **Tests that bite:** each changed behaviour has a test that fails before and passes after, on
+   the fixture the issue names, waiting on events, never a delay.
+3. **No image loss** (AGENTS.md rule 1): an intended difference is declared on the issue and
+   accepted, by the CTO for a correction, by the boss otherwise. A mode a path cannot draw is
+   refused with an error, never drawn as something else.
+4. **Reuse** (AGENTS.md rule 6): each new exported symbol searched (`graphify query`), no twin.
+5. **Docs:** a changed public member updates `docs/SDK.md`, the API reference and every
+   translation.
+6. **Measured first:** an optimisation states the path's measured share of the frame.
+7. **Path:** a deviation from the issue is written on it; #483's checklist and CONTRIBUTING.md
+   §Streaming, memory and shadows are met.
 
-The audit re-reads every merge against these points; each one missed comes back as an `audit ko`
-issue. Check them yourself on the diff, not on the coder's or the reviewer's word. A lead whose
-merges keep coming back `audit ko` is stopped by the CTO.
+## Context
 
-1. **The whole promise.** Every "To do" and "Proof" item of the issue is met. An item left out holds the pull request, or the issue is narrowed to what it closes and the item moves onto the next existing issue; you never open an issue (AGENTS.md rule 5). Code (a test, a fixture,
-   a kernel) is never handed to the measurer, who does not write code.
-2. **Tests that bite.** Each changed behaviour has a test that fails before the change and passes
-   after. It runs on the fixture the issue names, never on a hand-built stand-in, and waits for
-   events, never a fixed delay. An oracle ports the new code, not the old.
-3. **No image loss** (AGENTS.md rule 1). Acceptance proves the image after the merge (AGENTS.md rule 2); a
-   difference the diff means to make is declared in the issue and accepted before the merge: by the CTO when it is proved closer to a reference image
-   (a correction), by the maintainer otherwise. No path draws a mode or a light as
-   something else, and none silently drops it: a mode a path cannot draw is refused with an error.
-4. **Reuse** (AGENTS.md rule 6). Search before accepting a new function, class, table or public
-   entry point: its line says every new exported symbol was searched in the graph
-   (`graphify query`, or a bounded search where `graphify-out/` is absent) with no twin found. A
-   second copy of an existing one, under any name, is sent back.
-5. **Docs follow the code.** A changed public member updates `docs/SDK.md`, the API reference
-   and every translation. The pull request body describes this diff and closes this issue.
-6. **Measured first** (CONTRIBUTING.md §Measure before optimising). An optimisation states the
-   path's measured share of the frame; a supposition is not a reason.
-7. **Path.** A deviation from the issue is decided and written in the issue before the merge.
-   Lifecycle labels are right: `in review` removed, `to measure` set as step 5 says.
-
-## Bounds
-
-- After a reviewer's `OK`, a fix commit or a hand-resolved conflict gets a short re-review before
-  the merge; a clean `develop` merge needs none.
-- An issue that is wrong, blocked or left at a stop: `gh issue comment` with the reason or the state reached, remove `in progress` and the assignee (`--remove-assignee pasquelin`),
-  report, move on.
+Read only this file and the issue. `gh … --json --jq` for states; a deep read goes to your coder
+or reviewer, the only agents you launch (AGENTS.md rule 9).

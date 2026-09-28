@@ -56,11 +56,11 @@
   campaign — every view, every scene, the run-to-run spread, the frame envelope — runs once, on the
   release pull request from `develop` to `main`, and its numbers are the ones published. The site
   keeps one report, the latest, each image stored once.
-- **Image proof and timing after the merge** (AGENTS.md rules 2 and 11). Both run on merged
-  batches, against the merge's first parent, and never block a pull request but a performance
-  issue's timing: acceptance runs the image proof; a merged batch in the measurer's scope is
-  labelled `to measure`, timed and commented (`measure ok`). A failure reopens the issue, labelled
-  `audit ko` or `measure ko`, with the numbers in a comment. A pull request carries the gates.
+- **Image proof and timing on the branch, before the pull request** (AGENTS.md rules 2 and 11).
+  Both run on the reviewed branch against its merge base with `develop`, so CI never runs for
+  nothing: acceptance proves the image (`audited`), the measurer times what can move the frame
+  cost (`measure ok`). A failure sends the branch back, labelled `audit ko` or `measure ko`, with
+  the numbers in a comment. A pull request carries the gates.
 - **A campaign's outputs are deleted once published.** A cook, a bench or a proof writes under
   `.mesure/out/<batch>/` and nowhere else; the numbers, and any capture a claim rests on, go into
   the pull request body, and the folder is removed before the pull request is opened.
@@ -207,22 +207,21 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    `/simplify`, elsewhere a read of the whole diff for what is duplicated, needless or at the wrong
    depth —, then check correctness against the requirements above. Fix findings and run
    `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate` once, on the final
-   head; the image proof and the timing follow the merge.
+   head; the image proof and the timing follow on the branch.
 4. Commit with a descriptive English message and push the branch; write the pull request body in a file, using
    `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>` (AGENTS.md rule 5). Describe what both local review passes found under "Local review before push". Replace `in progress` with `in review`. No pull request yet (AGENTS.md rule 11).
-5. Obtain an independent review and resolve its findings before integration. The maintainer, or
-   whoever the maintainer entrusts with it, merges into `develop` once the review holds on the branch, the lead has opened the pull request with its "Lead verification" section, one line per To-do and Proof item, and `validate` is green on a head
-   that merged `develop` and merges cleanly into it, oldest pull request first (AGENTS.md rule
+5. Obtain an independent review and resolve its findings, then the image proof and the timing on
+   the branch (AGENTS.md rule 2). Only then open the pull request, with its "Lead verification"
+   section, one line per To-do and Proof item, and auto-merge on: it merges into `develop` once
+   `validate` is green on a head that merged `develop` and merges cleanly into it (AGENTS.md rule
    11); `main` moves only on the maintainer's word. Never push directly to `develop` or `main`, or
    rewrite published history.
 6. After merge, remove the worktree and merged branch, remove `in review` and check the issue is
    closed: GitHub's `Closes #n` acts only on `main`, so
    [`close-issues.yml`](.github/workflows/close-issues.yml) closes, as completed and with a
    comment linking the pull request, every issue a body merged into `develop` names with a closing
-   keyword (`Part of #n` leaves it open);
-   a batch in the measurer's scope is labelled `to measure` first. Every merge into `develop` is then re-read
-   against this file; a finding reopens the issue, labelled `audit ko`, with the findings in a
-   comment.
+   keyword (`Part of #n` leaves it open). A regression found after the merge reopens the issue,
+   labelled `audit ko` or `measure ko`, with the findings in a comment.
    If a pull request is closed without merging, remove both lifecycle labels; add `in progress`
    only if work resumes.
 
