@@ -32,6 +32,7 @@ const filter = (gl: WebGL2RenderingContext, value: TextureFilter) =>
   })[value];
 
 const WHITE: readonly number[] = [255, 255, 255, 255];
+const uploadAgain = (r: TextureRecord) => () => void (r.version = -1); // refused: sent again
 
 export class WebglClusterTextures {
   private records = new Map<string, TextureRecord>();
@@ -105,12 +106,9 @@ export class WebglClusterTextures {
         this.setSampler(texture);
       }
       if (mips) {
-        const allocate = record.cutoff === undefined,
-          chained = record;
-        record.cutoff = cutoff;
-        // A chain sized now and refused: uploaded again once the refusal is read.
-        if (allocate) allocated(gl, () => (chained.version = -1));
-        this.mips.reduce(unit, record, allocate);
+        const allocate = record.cutoff === undefined;
+        if (allocate) allocated(gl, uploadAgain(record));
+        this.mips.reduce(unit, Object.assign(record, { cutoff }), allocate);
       }
     }
     this.bound[unit] = record.texture;
@@ -159,9 +157,7 @@ export class WebglClusterTextures {
     };
     const mips = mipFiltered(texture.minFilter),
       allocate = !inPlace || held?.cutoff == null;
-    // A level or a chain sized again and refused: uploaded again once the refusal is read.
-    // Recorded before the chain: its first build reads the errors now (`coverageMips.ts`).
-    if (!inPlace || (mips && allocate)) allocated(gl, () => (record.version = -1));
+    if (!inPlace || (mips && allocate)) allocated(gl, uploadAgain(record));
     if (mips) this.mips.reduce(unit, Object.assign(record, { cutoff }), allocate);
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
