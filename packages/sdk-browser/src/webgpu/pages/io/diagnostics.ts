@@ -1,9 +1,17 @@
 import type { BackendDiagnostic } from '../../../backend/types.ts';
 import { sendEngineDiagnostic } from '../../../diagnostic/engineDiagnostic.ts';
+import { isCancelled } from '../../../backend/common.ts';
 
+/**
+ * The backend's diagnostic channel. What the session says once its `signal` is aborted — the
+ * session disposed, its pending compiles, layers and uploads cut short by the released device — is
+ * that cancellation, not a failure nor a warning: it is said nowhere (#990). A real device loss aborts nothing,
+ * and its failures are said by name.
+ */
 export function createWebgpuDiagnostics(
   onDiagnostic: ((diagnostic: BackendDiagnostic) => void) | undefined,
   traceEnabled: boolean,
+  signal?: AbortSignal,
 ) {
   type TraceDiagnostic = { phase: string; message: string; context: Record<string, unknown> };
   const traceQueue: TraceDiagnostic[] = [];
@@ -72,11 +80,13 @@ export function createWebgpuDiagnostics(
     });
     flushTraceQueue();
   };
-  const engineDiagnostic = (phase: string, message: string, details: Record<string, unknown>) =>
-    sendEngineDiagnostic(onDiagnostic, phase, message, details);
+  const engineDiagnostic = (phase: string, message: string, details: Record<string, unknown>) => {
+    if (!isCancelled(signal)) sendEngineDiagnostic(onDiagnostic, phase, message, details);
+  };
   const loggedFailures = new Set<string>(),
     failureOccurrences = new Map<string, number>();
   const diagnosticFailure = (phase: string, error: unknown) => {
+    if (isCancelled(signal)) return;
     const objectError =
       error && typeof error === 'object'
         ? (error as { message?: unknown; name?: unknown; stack?: unknown; cause?: unknown })
