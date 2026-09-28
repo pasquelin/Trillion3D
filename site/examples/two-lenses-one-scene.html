@@ -83,7 +83,7 @@
       // lens of field `fov` sees it from `half / tan(fov / 2)`; the orthographic box is `half`
       // tall at any distance. Going from one to the other narrows the field while backing away —
       // a dolly zoom — until the rays are near parallel, then swaps the lens.
-      const eye = world.camera, flatEye = camera.orthographic({ near: 0.1, far: 6000 });
+      const eye = world.camera, flatEye = camera.orthographic({ near: 0.1, far: 6000, fitAspect: true });
       eye.far = 6000;
       const target = [0, 1.5, 0], NARROWEST = 0.8, HALF = [3, 26];
       eye.position.set(20, 15, 22);
@@ -141,11 +141,10 @@
       world.canvas.addEventListener('pointerdown', takeOver);
       world.canvas.addEventListener('wheel', takeOver, { passive: true });
 
-      // The orthographic box at the canvas's shape, written only when it changed.
+      // The orthographic box `half` high each side of its centre, written only when it changed;
+      // `fitAspect` makes it as wide as the canvas's shape asks.
       const frameOrtho = () => {
-        const { clientWidth: w, clientHeight: h } = world.canvas, aspect = w && h ? w / h : 1;
-        if (flatEye.top !== half || flatEye.right !== half * aspect)
-          Object.assign(flatEye, { top: half, bottom: -half, left: -half * aspect, right: half * aspect });
+        if (flatEye.top !== half) Object.assign(flatEye, { top: half, bottom: -half });
       };
 
       let time = 0;
