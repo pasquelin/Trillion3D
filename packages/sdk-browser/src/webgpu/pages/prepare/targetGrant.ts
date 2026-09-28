@@ -6,13 +6,7 @@ import {
   createWebgpuCoplanarLayerPipelines,
   createWebgpuVisibilityRasterPipelines,
 } from '../../visibility/pipelines.ts';
-import {
-  frameTargetAllocation,
-  hizFits,
-  makeTargets,
-  releaseTargets,
-  targetsFit,
-} from './targets.ts';
+import { frameTargetAllocation, makeTargets, releaseTargets, targetsFit } from './targets.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 /** True while no frame can be drawn: its targets are asked of the device, or were refused at
@@ -43,8 +37,10 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { gpu, capture, diag, run } = rt,
     width = Math.max(1, rt.setup.viewport[0]),
     height = Math.max(1, rt.setup.viewport[1]);
-  const fit = targetsFit(rt, width, height);
-  if (fit && hizFits(rt, width, height)) return;
+  const fit = targetsFit(rt, width, height),
+    hiz = rt.vis.gpuHiz;
+  // The Hi-Z pyramid, which the views share, fits too, or is absent.
+  if (fit && (!hiz || (hiz.width === width && hiz.height === height))) return;
   const pending = gpu.targetGrant;
   if (pending && (!pending.settled || (pending.width === width && pending.height === height)))
     return pending.done;
@@ -82,8 +78,8 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
 }
 
 /**
- * The frame targets of the view's size, granted before a capture or prepare draws
- * with them: a grant in flight is waited for first, and a size refused before is asked again.
+ * The frame targets of the view's size, granted before a capture or prepare draws with
+ * them: a grant in flight is waited for first, and a size refused before is asked again.
  * What the device refuses even without Hi-Z is refused by name: `WEBGPU_FRAME_TARGETS_REFUSED`.
  */
 export async function grantFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
@@ -136,11 +132,8 @@ async function grantHiz(rt: WebgpuPagesRuntime, device: GPUDevice, width: number
   const { vis, run } = rt,
     hiz = vis.gpuHiz!;
   // A resize that throws is refused like one the device declines: the grant never stays settled.
-  const fits = await validated(
-    device,
-    () => hiz.resize(device, width, height) || undefined,
-    'out-of-memory',
-  ).catch(() => undefined);
+  const size = () => hiz.resize(device, width, height) || undefined;
+  const fits = await validated(device, size, 'out-of-memory').catch(() => undefined);
   if (!fits && !stopped(rt) && vis.gpuHiz) {
     hizRefused(rt, 'The device refused the Hi-Z pyramid');
     if (vis.visModule) await rasterWithoutHiz(rt, device, vis.visModule);
@@ -153,7 +146,7 @@ function hizRefused(rt: WebgpuPagesRuntime, message: string, requestedBytes?: nu
   rt.diag.engineDiagnostic('gpu-out-of-memory', message, {
     kind: 'warning',
     pool: 'frame-targets',
-    ...(requestedBytes === undefined ? {} : { requestedBytes }),
+    requestedBytes,
     dropped: 'hi-z',
   });
   dropGpuHiz(rt);

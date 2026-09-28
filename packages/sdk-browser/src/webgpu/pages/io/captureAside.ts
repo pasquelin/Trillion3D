@@ -22,9 +22,8 @@ export async function captureAside<T>(
   work: () => Promise<T>,
 ) {
   const { capture } = rt;
-  // A light that casts asks its shadow pool of the device before anything is drawn: the capture
-  // waits for the answer, never drawn without its shadows (#483). The pool is sized from the
-  // canvas, before the capture's own view is drawn.
+  // A casting light's pool is asked of the device, sized from the canvas, before the capture's
+  // view is drawn: never drawn without its shadows (#483).
   sizeShadowPool(rt);
   capture.capturing = true;
   const view = createWebgpuView(size.width, size.height);
@@ -33,8 +32,7 @@ export async function captureAside<T>(
     await deviceAnswer(rt);
     await rt.services.residency.pending;
     await rt.gpu.device?.queue.onSubmittedWorkDone();
-    // The main view's grant in flight settles on the main view: once switched, it would clear
-    // the capture's grant and stay settled on the main view, holding its frames.
+    // The main view's grant in flight settles before the switch, on the main view.
     await grantPending(rt.gpu.targetGrant);
     // A session closed meanwhile draws nothing.
     rt.context.signal?.throwIfAborted();
@@ -42,8 +40,7 @@ export async function captureAside<T>(
     drawn = true;
     return await work();
   } finally {
-    // A view never drawn made nothing: the main view is not switched out and back for it. One
-    // drawn is released even when a dispose switched the main view back meanwhile.
+    // Drawn, the view is released, even after a dispose switched back; never drawn, it made nothing.
     if (drawn) releaseWebgpuView(rt, view);
     capture.capturing = false;
   }

@@ -105,8 +105,8 @@ test('a Hi-Z pyramid the device refuses on the way back is dropped, the session 
   await flushWebgpuPages(rt);
   assert.ok(refused);
   assert.equal(rt.vis.gpuHiz, undefined);
-  const said = events.filter((event) => event.phase === 'gpu-out-of-memory');
-  assert.equal(said.at(-1)?.context.dropped, 'hi-z', 'the drop is said, never silent');
+  const said = events.findLast((event) => event.phase === 'gpu-out-of-memory');
+  assert.equal(said?.context.dropped, 'hi-z', 'the drop is said, never silent');
   assert.equal(rt.run.lost, false);
   renderWebgpuPages(rt, camera());
   assert.equal(rt.gpu.targetGrant, undefined, 'frames draw again, without Hi-Z');
