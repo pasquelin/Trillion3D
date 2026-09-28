@@ -14,26 +14,28 @@ import {
   MAX_SHADOW_BATCHES,
   OCCLUSION_SLOT_WORDS,
   OCCLUSION_UNIFORM_WORDS,
-  SHADOW_COMMAND_WORDS,
   SHADOW_FACE_STRIDE,
   shadowBatchCapacity,
 } from './batchBudget.ts';
 import { SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER } from './cullShader.ts';
 import { SHADOW_OCCLUSION_SHADER } from './occlusionShader.ts';
 import { PAGE_QUAD_SHADER } from './pageQuads.ts';
+import { SHADOW_DEPTH_SHADER } from './shader.ts';
 import { createGpuShadowCull, type ShadowCullSource } from './cull.ts';
+import { DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 /** The first integer `pattern` captures in `wgsl`. */
 const read = (wgsl: string, pattern: RegExp) => Number(wgsl.match(pattern)![1]);
-/** Words of struct `name` in `wgsl`, whose fields are 32-bit scalars and `vec3f`s each followed by
- *  a scalar — the only shapes the shadow uniforms use. */
+/** Words of struct `name` in `wgsl`, whose fields are 32-bit scalars, `mat4x4f`s, `vec4f`s and
+ *  `vec3f`s each followed by a scalar — the only shapes the shadow uniforms use. */
+const SIZES: Record<string, number> = { mat4x4f: 16, vec4f: 4, vec3f: 3 };
 const words = (wgsl: string, name: string) =>
   wgsl
     .match(new RegExp(`struct ${name}\\{([^}]*)\\}`))![1]
     .split(',')
     .filter(Boolean)
-    .reduce((sum, field) => sum + (field.endsWith('vec3f') ? 3 : 1), 0);
+    .reduce((sum, field) => sum + (SIZES[field.split(':')[1]] ?? 1), 0);
 
 test('the shaders declare the contract: views, regions, strides and uniform words', () => {
   assert.equal(read(DAG_VIEWS_WGSL, /const MAX_VIEWS:u32=(\d+)u/), MAX_SHADOW_PAGES);
@@ -44,13 +46,14 @@ test('the shaders declare the contract: views, regions, strides and uniform word
   // to the stride.
   const rect = read(PAGE_QUAD_SHADER, /@size\((\d+)\) rect/);
   assert.equal(SHADOW_FACE_READ_WORDS * 4 + rect, SHADOW_FACE_STRIDE);
+  assert.equal(words(SHADOW_DEPTH_SHADER, 'ShadowView'), SHADOW_FACE_READ_WORDS);
   assert.equal(read(SHADOW_OCCLUSION_SHADER, /struct View\{@size\((\d+)\)/), SHADOW_FACE_STRIDE);
   assert.equal(words(SHADOW_CULL_SHADER, 'Face'), SHADOW_CULL_FLOATS);
   assert.equal(words(SHADOW_CULL_SHADER, 'Uni'), CULL_UNIFORM_WORDS);
   assert.equal(words(SHADOW_LIGHT_CULL_SHADER, 'Uni'), LIGHT_CULL_UNIFORM_WORDS);
   assert.equal(words(SHADOW_OCCLUSION_SHADER, 'Uni'), OCCLUSION_UNIFORM_WORDS);
-  assert.equal(read(SHADOW_CULL_SHADER, /indirect\[face\*(\d+)u\+1u\]/), SHADOW_COMMAND_WORDS);
-  assert.equal(read(SHADOW_OCCLUSION_SHADER, /indirect\[r\*(\d+)u\+1u\]/), SHADOW_COMMAND_WORDS);
+  assert.equal(read(SHADOW_CULL_SHADER, /indirect\[face\*(\d+)u\+1u\]/), DRAW_INDIRECT_WORDS);
+  assert.equal(read(SHADOW_OCCLUSION_SHADER, /indirect\[r\*(\d+)u\+1u\]/), DRAW_INDIRECT_WORDS);
   assert.equal(read(SHADOW_OCCLUSION_SHADER, /slots\[r\*(\d+)u\]/), OCCLUSION_SLOT_WORDS);
 });
 

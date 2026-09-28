@@ -28,8 +28,6 @@ export const SHADOW_FLAG_FRAMES = 4;
 
 /** Bytes of a drawn face's uniform entry, one per region (`atlas.ts`): a dynamic-offset stride. */
 export const SHADOW_FACE_STRIDE = PAGE_BIND_ALIGN;
-/** Words of one region's indirect command, its instance count the second: the shaders' stride. */
-export const SHADOW_COMMAND_WORDS = DRAW_INDIRECT_STRIDE / 4;
 /** Words of one face's cull uniform (`cull.ts`), of the light cut's cull uniform and its
  *  dispatch argument (`lightCull.ts`), of a region's occlusion slot and the occlusion uniform
  *  (`occlusion.ts`), and of one page's bounds in the page pyramids (`pageHiz.ts`). */
