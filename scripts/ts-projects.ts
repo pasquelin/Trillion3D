@@ -28,28 +28,28 @@ export function parseProject(config: string): ts.ParsedCommandLine {
   return parsed!;
 }
 
-// One parse per file and language shared by every program of a run: the projects overlap, and all
-// of them read the same `lib` and `@types` declarations.
-const parsedFiles = new Map<string, ts.SourceFile>();
-
-/** The program of `project`, rooted at `rootNames`; `sources` stands in for files by absolute path. */
+/** The program of `project`, rooted at `rootNames`; `sources` stands in for files by absolute path.
+ *  `parses` shares one parse per file and language across the programs of a run (the projects
+ *  overlap and all read the same `lib` and `@types` declarations); a parse is reused only while its
+ *  file still reads the same, so a rebuilt `dist/` is parsed again. */
 export function projectProgram(
   project: ts.ParsedCommandLine,
   rootNames: readonly string[] = project.fileNames,
   sources: ReadonlyMap<string, string> = new Map(),
+  parses: Map<string, ts.SourceFile> = new Map(),
 ): ts.Program {
   const host = ts.createCompilerHost(project.options);
   const { fileExists, readFile } = host;
   host.fileExists = (file) => sources.has(file) || fileExists(file);
   host.readFile = (file) => sources.get(file) ?? readFile(file);
   host.getSourceFile = (file, language) => {
-    const key = `${file}\0${JSON.stringify(language)}`;
-    const cached = sources.has(file) ? undefined : parsedFiles.get(key);
-    if (cached) return cached;
     const text = host.readFile(file);
     if (text === undefined) return undefined;
+    const key = `${file}\0${JSON.stringify(language)}`;
+    const cached = parses.get(key);
+    if (cached?.text === text) return cached;
     const parsed = ts.createSourceFile(file, text, language);
-    if (!sources.has(file)) parsedFiles.set(key, parsed);
+    parses.set(key, parsed);
     return parsed;
   };
   return ts.createProgram({ rootNames, options: project.options, host });
@@ -65,10 +65,12 @@ export function typeErrors(program: ts.Program, root: string): string[] {
   return ts.getPreEmitDiagnostics(program).map((d) => ts.formatDiagnostics([d], host).trim());
 }
 
-/** Whether `project` carves `file` (absolute) out on purpose: its `include` covers it and its
- *  `exclude` takes it back, such as the `tests/fixtures/public*` sources a test type-checks with its
- *  own options. TypeScript expands the `include` itself, so the globs mean what they mean to `tsc`. */
+/** Whether `project`, a type-check-only (`noEmit`) project, carves `file` (absolute) out on purpose:
+ *  its `include` covers it and its `exclude` takes it back, such as the `tests/fixtures/public*`
+ *  sources a test type-checks with its own options. An emitting project's `exclude` only says what
+ *  not to emit. TypeScript expands the `include` itself, so the globs mean what they mean to `tsc`. */
 export function excludes(project: ts.ParsedCommandLine, file: string): boolean {
+  if (!project.options.noEmit) return false;
   const base = dirname(String(project.options.configFilePath));
   const included = ts.parseJsonConfigFileContent({ ...project.raw, exclude: [] }, ts.sys, base);
   return included.fileNames.includes(file) && !project.fileNames.includes(file);
@@ -76,26 +78,19 @@ export function excludes(project: ts.ParsedCommandLine, file: string): boolean {
 
 /** Whether `project` reads the `trillion3d` package from the build output, as the site and the
  *  tools do (`package.json` `exports`): checked against a missing or stale build, it would report
- *  the wrong errors. Such a project looks the package up in `dist/`, found or not (a missing or
- *  half-removed build), where the SDK's own projects map it back to their sources. */
-export function readsDist(project: ts.ParsedCommandLine, root: string): boolean {
-  let looked = false;
-  const host: ts.ModuleResolutionHost = {
-    ...ts.sys,
-    fileExists: (file) => {
-      looked ||= file.startsWith(`${outDir}/`);
-      return ts.sys.fileExists(file);
-    },
-  };
-  ts.resolveModuleName('trillion3d', resolve(root, 'index.ts'), project.options, host);
-  return looked;
+ *  the wrong errors. The package resolving under `dist/`, or not at all (a missing or half-removed
+ *  build), means it does; the SDK's own projects map it back to their sources. */
+export function readsDist(project: ts.ParsedCommandLine): boolean {
+  const importer = resolve(dirname(String(project.options.configFilePath)), 'index.ts');
+  const { resolvedModule } = ts.resolveModuleName('trillion3d', importer, project.options, ts.sys);
+  return !resolvedModule || resolvedModule.resolvedFileName.startsWith(`${outDir}/`);
 }
 
 /**
  * The type errors of every project that owns one of `sources`, the changed TypeScript files
  * (paths relative to `root`): a project owns a file it lists, or else one its program reaches (a
  * `*.fixture.ts` a test imports). A changed file no project reaches is itself an error, never a
- * silent skip, unless a project's `include` covers it and its `exclude` takes it back. When an
+ * silent skip, unless a `noEmit` project's `include` covers it and its `exclude` takes it back. When an
  * owner reads `trillion3d` from `dist/`, `build` runs first, so the check reads current declarations.
  */
 export function changedTypeErrors(
@@ -106,10 +101,10 @@ export function changedTypeErrors(
 ): string[] {
   if (!sources.length) return [];
   const parsed = projects.map((project) => parseProject(resolve(root, project)));
-  const listed = new Map(parsed.map((project) => [project, new Set(project.fileNames)]));
+  const parses = new Map<string, ts.SourceFile>();
   const programs = new Map<ts.ParsedCommandLine, ts.Program>();
   const programOf = (project: ts.ParsedCommandLine) => {
-    const program = programs.get(project) ?? projectProgram(project);
+    const program = programs.get(project) ?? projectProgram(project, undefined, undefined, parses);
     programs.set(project, program);
     return program;
   };
@@ -117,7 +112,7 @@ export function changedTypeErrors(
   const owners = new Set<ts.ParsedCommandLine>();
   for (const source of sources) {
     const file = resolve(root, source);
-    const listing = parsed.filter((project) => listed.get(project)!.has(file));
+    const listing = parsed.filter((project) => project.fileNames.includes(file));
     const found = listing.length
       ? listing
       : parsed.filter((project) => programOf(project).getSourceFile(file));
@@ -125,12 +120,14 @@ export function changedTypeErrors(
       errors.push(`${source}: no tsconfig project type-checks it (${projects.join(', ')}).`);
     for (const project of found) owners.add(project);
   }
-  const readers = [...owners].filter((project) => readsDist(project, root));
+  const readers = [...owners].filter(readsDist);
   if (readers.length) {
     build();
     for (const project of readers) programs.delete(project);
-    for (const key of parsedFiles.keys()) if (key.startsWith(`${outDir}/`)) parsedFiles.delete(key);
   }
-  for (const project of owners) errors.push(...typeErrors(programOf(project), root));
+  for (const project of owners) {
+    errors.push(...typeErrors(programOf(project), root));
+    programs.delete(project);
+  }
   return errors;
 }

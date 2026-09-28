@@ -51,12 +51,14 @@ test('a changed TypeScript file no project type-checks is an error, not a skip',
   assert.ok(!excludes(tools, resolve(ROOT, 'tests/browser/renders/pair.browser.ts')));
   const build = project('tsconfig.json');
   assert.ok(!excludes(build, resolve(ROOT, 'site/app/x.test.ts')), 'outside its include');
+  const fixture = resolve(ROOT, 'packages/sdk-browser/src/x.fixture.ts');
+  assert.ok(!excludes(build, fixture), 'an emitting project excludes from its output only');
 });
 
 test('the site and the tools read trillion3d from dist/, so their check builds first', () => {
-  assert.ok(readsDist(project('tsconfig.tools.json'), ROOT));
-  assert.ok(readsDist(project('tsconfig.site.json'), ROOT));
-  assert.ok(!readsDist(project('tsconfig.core.json'), ROOT), 'the SDK sources need no build');
+  assert.ok(readsDist(project('tsconfig.tools.json')));
+  assert.ok(readsDist(project('tsconfig.site.json')));
+  assert.ok(!readsDist(project('tsconfig.core.json')), 'the SDK sources need no build');
 });
 
 test('the projects are the tracked tsconfig files', () => {
