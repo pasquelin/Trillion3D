@@ -734,9 +734,11 @@ a drawn node a `Mesh` (or the core's instanced mesh) wearing the engine's surfac
 carrying its 27 coefficients in `sh` — and every function of the browser facade that takes or
 returns a node of that graph names `Object3D`. The engine numbers the scenes, cameras, meshes and
 lights it builds in one count, kept beside them, so a node a page builds carries none. A light
-hears its colours and its target only while it is in a world. The WebGL2 cluster path draws the
-directional, point, spot, rectangle, ambient and probe lights, and refuses a `hemisphere` light by
-name: a world hands it the sky over a ground as the environment's irradiance. A `Scene` built with no loader, as the engine builds its own, refuses `load`
+hears its colours and its target only while it is in a world. The former light base `GraphNode`
+and its `GraphNodeKind` are removed from the exports: write `Light` and read its `kind`. The WebGL2
+cluster path draws the directional, point, spot, rectangle, ambient and probe lights, and refuses a
+`hemisphere` light by name: a world hands it the sky over a ground as the environment's
+irradiance. A `Scene` built with no loader, as the engine builds its own, refuses `load`
 (`UNSUPPORTED_SCENE_UPDATE`); its `onBeforeRender` and `onAfterRender`, none by default, are
 called around each draw of it. A `Camera` gives the projection its optics compose in the
 reference's convention, finite far plane, as `projectionMatrix`, made at its first read and
