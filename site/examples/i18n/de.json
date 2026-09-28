@@ -500,6 +500,24 @@
       "balloon": "VERFOLGT DEN BALLON"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Sieh dir die aufgezeichnete Route durch den Park an. Starte sie neu, stoppe sie oder übernimm die Kamera.",
+    "controls": {
+      "replay": "Wiederholen",
+      "stop": "Stopp"
+    },
+    "readouts": {
+      "currentPart": "Aktueller Abschnitt"
+    },
+    "words": {
+      "entrance": "Eingang",
+      "pond": "Teich",
+      "bridge": "Brücke",
+      "pavilion": "Pavillon",
+      "overview": "Überblick",
+      "complete": "Abgeschlossen"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Kreise um den Kran, während ein Clip den Ausleger dreht, die Laufkatze bewegt, die Last hebt und schwingen lässt.",
     "controls": {
@@ -1965,6 +1983,7 @@
       "manifest": "Manifest gelesen",
       "tables": "Szenentabellen gelesen",
       "resources": "Dateien der Szene",
+      "session": "Ansicht wird geöffnet",
       "pages": "erste Seiten",
       "ready": "bereit"
     }
