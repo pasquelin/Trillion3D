@@ -95,6 +95,11 @@ test('a pool with no room left raises its overflow, and that tile walks every li
   const bare = compactTile(layout, mask(opaque, blend), 300, undefined, none);
   assert.equal(none.overflow, 1);
   assert.deepEqual(tileLists(layout, bare, 300), { opaque: range(300), blend: range(300) });
+  // A count of what was asked near the word's end never wraps back into room.
+  const worn = { capacity: 1000, head: 0x80000000, overflow: 0 };
+  const late = compactTile(layout, mask(opaque, blend), 300, undefined, worn);
+  assert.deepEqual([worn.overflow, worn.head], [1, 0x80000000]);
+  assert.deepEqual(tileLists(layout, late, 300), { opaque: range(300), blend: range(300) });
 });
 
 test('fuzz: random masks and counts, any thread order gives the ascending list', () => {
@@ -138,7 +143,10 @@ test('the tile shader writes each kept light at its rank, after the batches befo
       'kept=vec2u(0u);start=vec2u(base+TILE_OPAQUE_BASE,base+TILE_BLEND_BASE);room=vec2u(TILE_LIGHTS);',
     ),
   );
-  assert.match(LIGHT_TILES_SHADER, /let at=atomicAdd\(&pool\.head,total\);/);
+  assert.match(
+    LIGHT_TILES_SHADER,
+    /if\(atomicLoad\(&pool\.head\)<0x80000000u\)\{at=atomicAdd\(&pool\.head,total\);\}/,
+  );
   assert.match(LIGHT_TILES_SHADER, /else\{atomicStore\(&pool\.overflow,1u\);\}/);
   assert.ok(
     LIGHT_TILES_SHADER.includes('tiles[base]=total.x;tiles[base+1u]=total.y;counted=total;'),

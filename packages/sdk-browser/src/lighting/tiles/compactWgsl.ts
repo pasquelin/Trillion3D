@@ -83,7 +83,9 @@ var<workgroup> counted:vec2u;
 fn spill(slice:u32,total:u32,slot:u32){
  room[slice]=0u;
  if(total<=TILE_LIGHTS){return;}
- let at=atomicAdd(&pool.head,total);
+ // The count of what was asked stops at half the word's range: it never wraps back into room.
+ var at=0xffffffffu;
+ if(atomicLoad(&pool.head)<0x80000000u){at=atomicAdd(&pool.head,total);}
  var first=TILE_NO_SLICE;
  if(at<pool.capacity&&total<=pool.capacity-at){first=pool.start+at;room[slice]=total;}
  else{atomicStore(&pool.overflow,1u);}
