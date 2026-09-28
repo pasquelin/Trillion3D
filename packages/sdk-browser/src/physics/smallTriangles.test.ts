@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { CommandWriter, SHAPE } from '../../../sdk-core/src/physics/index.ts';
-import { body, castDown, startModule, type Module } from './module.fixture.ts';
+import { castDown, startModule, type Module } from './module.fixture.ts';
+import { body } from './records.fixture.ts';
 
 /** The ramp 2^-12 as large (`physics_cook/small_tests.rs`): its triangles are under the area Jolt keeps,
  *  so the tile is the ramp cooked larger inside a `ScaledShape` of the inverse (#562). */
