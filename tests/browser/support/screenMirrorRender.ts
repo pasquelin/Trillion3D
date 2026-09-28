@@ -6,6 +6,7 @@ import { createFrameComposer } from '../../../packages/sdk-browser/src/world/ren
 import type { BackendContext } from '../../../packages/sdk-browser/src/backend/types.ts';
 import { libere } from './sharedSceneProof.ts';
 import { image, PLAFOND, difference } from './sceneImageProof.ts';
+import { mirrorProxy } from './mirrorProxy.ts';
 import type { mirrorScene } from './screenMirrorScene.ts';
 
 export type MirrorPath = 'webgpu' | 'webgl2';
@@ -31,6 +32,7 @@ export async function mirrorRenderer(
     castsShadow: false,
   });
   const { scene, camera } = rig;
+  let bounceReady = false;
   const context: BackendContext = {
     source: scene.source,
     metadata: scene.metadata,
@@ -40,8 +42,15 @@ export async function mirrorRenderer(
     clearColor: 0,
     temporalAntialiasing: false,
     bounce,
+    // Black proxy outside all reflected source rays: activate probes without adding radiance.
+    readSceneProxy: bounce ? async () => mirrorProxy(10, 0xff000000) : undefined,
     sceneLights: lights,
-    onDiagnostic: (event) => events.push(event),
+    onDiagnostic: (event) => {
+      events.push(event);
+      if (event.phase === 'bounce-lighting')
+        bounceReady =
+          Number(event.context.proxyTriangles) > 0 && event.context.unavailable === null;
+    },
   };
   const gl = path === 'webgl2' ? canvas.getContext('webgl2') : null;
   if (path === 'webgl2' && !gl) throw new Error('WebGL2 unavailable');
@@ -77,13 +86,25 @@ export async function mirrorRenderer(
     async held() {
       for (let i = 0; i < PLAFOND; i++) {
         const result = await frame();
-        if (result.held) {
+        // Active probes intentionally keep the backend awake. Zero diffuse energy in this
+        // scene makes consecutive completed images deterministic without waiting for hold.
+        if (bounce && bounceReady) {
+          const completed = await frame();
+          const repeated = await frame();
+          return {
+            pixels: completed.pixels,
+            stable: difference(completed.pixels, repeated.pixels),
+          };
+        }
+        if (!bounce && result.held) {
           const repeated = await frame();
           if (!repeated.held) throw new Error('Static mirror frame unexpectedly woke');
           return { pixels: result.pixels, stable: difference(result.pixels, repeated.pixels) };
         }
       }
-      throw new Error(`${path}: mirror frame never held`);
+      throw new Error(
+        `${path}: mirror ${bounce ? 'bounce never became available' : 'frame never held'}`,
+      );
     },
     dispose() {
       compose?.dispose();

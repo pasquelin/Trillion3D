@@ -6,7 +6,7 @@ import { PROXY_HEADER_BYTES } from '../../../packages/sdk-browser/src/bounce/nod
 import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/proxy.ts';
 import { ltcTable } from '../../../packages/sdk-core/src/lighting/ltcTable.ts';
 import { ENVIRONMENT_COEFFICIENTS } from '../../../packages/sdk-core/src/scene/core/environment.ts';
-import type { SceneProxy } from '../../../packages/sdk-core/src/index.ts';
+import { mirrorProxy } from './mirrorProxy.ts';
 import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
 import { mirrorVertex, proxyOnlyReflection } from './blendMirrorVertex.ts';
 /** Render the actual blend fragment with a known one-triangle resident proxy and face radiance. */
@@ -39,16 +39,7 @@ export async function blendMirror() {
   const gridBuffer = buffer(1024, grid);
   const colours = new Float32Array([0.8, 0.2, 0.05, 1, 0.8, 0.2, 0.05, 1]);
   const cache = buffer(32, colours);
-  const proxy = createGpuBounceProxy(device, {
-    triangles: 1,
-    nodes: 1,
-    data: {
-      triangles: new Float32Array([-0.7, -0.6, 1, 0.6, -0.6, 1, -0.7, 0.71, 1]),
-      albedo: new Uint32Array([0xffffffff]),
-      nodeBounds: new Float32Array([-0.7, -0.6, 1, 0.6, 0.71, 1]),
-      nodeChildren: new Uint32Array([0xff000000, 0x0101ffff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
-    },
-  } as SceneProxy);
+  const proxy = createGpuBounceProxy(device, mirrorProxy());
   const sampled = (format: GPUTextureFormat, green = 255) => {
     const texture = device.createTexture({
       size: [1, 1, 1],
