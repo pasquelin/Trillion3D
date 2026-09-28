@@ -5,22 +5,11 @@ import type { MeasuredWorldOptions } from './options.ts';
 
 const listeners = { addEventListener() {}, removeEventListener() {} };
 /** A browser frame queue that runs nothing by itself: each test calls what it asked; a cancel
- *  takes its frame out. */
-const queued = (frames: (() => void)[]) => {
-  const asked = new Map<number, () => void>();
-  let id = 0;
-  return {
-    requestAnimationFrame: (callback: () => void) => {
-      frames.push(callback);
-      asked.set(++id, callback);
-      return id;
-    },
-    cancelAnimationFrame: (id: number) => {
-      const at = frames.indexOf(asked.get(id)!);
-      if (at >= 0) frames.splice(at, 1);
-    },
-  };
-};
+ *  takes its frame out. The id of a frame is the frame itself. */
+const queued = (frames: (() => void)[]) => ({
+  requestAnimationFrame: (callback: () => void) => (frames.push(callback), callback),
+  cancelAnimationFrame: (id: unknown) => void frames.splice(frames.indexOf(id as () => void) >>> 0, 1),
+});
 
 /** Starts the loop on a stub window and a canvas of `width` × `height` CSS pixels. */
 function start(
