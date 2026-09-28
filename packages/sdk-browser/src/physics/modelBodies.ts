@@ -26,6 +26,7 @@ export function createModelBodies(
     forget: (model: Model) => both.forEach((kind) => kind.forget(model)),
     moved: (model: Model) => both.forEach((kind) => kind.moved(model)),
     holds: rigid.holds,
+    carry: rigid.carry,
     /** The worker refused the body `owner` holds: one of these leaves; any other is ignored. */
     refused(owner: SlotOwner) {
       if ('soft' in owner) softs.refused(owner);

@@ -58,7 +58,8 @@
       "missingCache": "Manca la cache compilata: esegui pnpm compile:caches"
     },
     "banner": {
-      "close": "Chiudi"
+      "close": "Chiudi",
+      "waiting": "In attesa del motore (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -1745,7 +1746,8 @@
       "night": "Notte",
       "bounce": "Rimbalzo",
       "sun": "Sole",
-      "lamp": "Lampada"
+      "lamp": "Lampada",
+      "spin": "Rotazione"
     },
     "words": {
       "credit": "Modello di lampione di W. Sitters, CC BY 3.0 — vedi assets/examples/CREDITS.md"

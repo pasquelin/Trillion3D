@@ -58,7 +58,8 @@
       "missingCache": "Скомпилированный кэш отсутствует: запустите pnpm compile:caches"
     },
     "banner": {
-      "close": "Закрыть"
+      "close": "Закрыть",
+      "waiting": "Ждёт движок (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -1745,7 +1746,8 @@
       "night": "Ночь",
       "bounce": "Отражённый свет",
       "sun": "Солнце",
-      "lamp": "Лампа"
+      "lamp": "Лампа",
+      "spin": "Вращение"
     },
     "words": {
       "credit": "Модель фонаря: W. Sitters, CC BY 3.0 — см. assets/examples/CREDITS.md"

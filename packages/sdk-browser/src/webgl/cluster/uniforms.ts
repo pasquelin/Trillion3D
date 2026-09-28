@@ -41,6 +41,8 @@ export const setClusterSamplers = (
   ];
   for (let unit = 0; unit < names.length; unit++) gl.uniform1i(location(names[unit]), unit);
   gl.uniform1i(location('ltcTable'), LTC_UNIT);
+  gl.uniform1i(location('reflectionColor'), LTC_UNIT + 1);
+  gl.uniform1i(location('reflectionDepth'), LTC_UNIT + 2);
 };
 
 export const setMatrix3 = (
