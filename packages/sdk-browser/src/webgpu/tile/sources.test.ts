@@ -88,7 +88,7 @@ test('a block tile is read by its Range; a whole-file answer serves the whole le
     }) as typeof fetch;
     const { device } = fakeDevice();
     const written: Uint8Array[] = [];
-    device.queue.writeTexture = (_: unknown, data: Uint8Array) => void written.push(data);
+    device.queue.writeTexture = (_, data) => void written.push(data as Uint8Array);
     const readLevel = createTextureLevelReader(
       { textures: { url: '{sha}/{kind}-{level}.{format}', version: 6 }, key: 'k' },
       'https://host/',
