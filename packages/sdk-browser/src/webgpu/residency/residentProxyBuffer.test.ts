@@ -48,14 +48,29 @@ test('resident proxy fits in single buffer, at offsets published by its header',
   const nodeBounds = new Float32Array([-1, -2, -3, 4, 5, 6]);
   const nodeChildren = new Uint32Array([11, 12, 13, 14]);
   const proxy = {
-    data: { triangles, albedo: new Uint32Array([7]), nodeBounds, nodeChildren },
+    data: {
+      triangles,
+      albedo: new Uint32Array([7]),
+      nodeBounds,
+      nodeChildren,
+      triangleGroups: new Uint32Array([0]),
+      groupOffsets: new Uint32Array([0, 1]),
+      owners: new Uint32Array([0, 7]),
+      sourceParents: new Int32Array([-1]),
+      bindWorlds: new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
+    },
     triangles: 1,
     nodes: 1,
     bounds: [0, 0, 0, 1, 1, 1],
     errorMetres: 0.5,
     cellMetres: 2,
   } as unknown as SceneProxy;
-  const { device, buffers } = fakeDevice();
+  const { device, buffers } = fakeDevice({
+    limits: {
+      maxStorageBufferBindingSize: 1 << 28,
+      maxBufferSize: 1 << 28,
+    } as GPUSupportedLimits,
+  });
   const resident = createGpuBounceProxy(device, proxy);
   const words = new Uint32Array(proxyBytes(buffers));
   assert.equal(words[PROXY_LAYOUT_WORD], nodeBounds.length / PROXY_NODE_FLOATS, 'tree nodes');
@@ -83,6 +98,15 @@ test('resident proxy fits in single buffer, at offsets published by its header',
   );
   assert.equal(
     resident.bytes,
-    (triangles.length + nodeBounds.length + nodeChildren.length) * 4 + 4,
+    (PROXY_HEADER_WORDS +
+      triangles.length +
+      nodeBounds.length +
+      nodeChildren.length +
+      1 +
+      2 +
+      2 +
+      16) *
+      4 +
+      4,
   );
 });
