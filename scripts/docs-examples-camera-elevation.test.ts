@@ -10,7 +10,6 @@ import {
   object,
   type World,
 } from '../packages/sdk-browser/src/index.ts';
-import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import { Scene } from '../packages/sdk-browser/src/world/core/scene.ts';
 import { describe, type ControlSpec } from '../site/examples/kit/controls.ts';
 import { catchPagehide, runExampleModule } from './docs/examples/capture.ts';
@@ -31,7 +30,7 @@ test('the house elevations use parallel rays and keep their scale across camera 
   const world = {
     scene,
     canvas,
-    camera: new Camera('perspective'),
+    camera: camera.perspective(),
     invalidate() {},
     dispose() {
       disposed++;
