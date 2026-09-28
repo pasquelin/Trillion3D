@@ -169,12 +169,7 @@ pub(super) fn terrain(n: usize, size: f64) -> Mesh {
             );
         }
     }
-    let at = |i: usize, j: usize| (j * n + i) as u32;
-    for j in 0..n - 1 {
-        for i in 0..n - 1 {
-            let (a, b, c, d) = (at(i, j), at(i + 1, j), at(i, j + 1), at(i + 1, j + 1));
-            mesh.indices.extend([a, c, b, b, c, d]);
-        }
-    }
+    // Transposed so that the triangles face up (+y).
+    mesh.indices = crate::tests::fixtures::grid_indices(n - 1, n - 1, |j, i| (j * n + i) as u32);
     mesh
 }
