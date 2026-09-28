@@ -43,6 +43,7 @@ export function createFrameGateCore(holdValues: number) {
   let worldsRevision = 0,
     watchRevision = -1,
     pixelError = 0,
+    // A host write no world pass has read yet: announced by the scan, or unread when the engine wrote.
     hostPosesOwed = false;
   const gate = {
     revisions,
@@ -111,6 +112,7 @@ export function createFrameGateCore(holdValues: number) {
       const verdict = sceneWatch.take();
       if (verdict) {
         bumpScene(revisions);
+        hostPosesOwed = true;
         // The list is rebuilt in this very frame: a node the reshape brought in is hooked before
         // the host can write it again, so no write falls between the reshape and the rebuild.
         if (verdict === 'reshaped') observe(source, drawn);
@@ -136,9 +138,13 @@ export function createFrameGateCore(holdValues: number) {
      * Such a write is kept owed instead: `noteWorldsUpdated` no longer spares the next world pass,
      * which walks the index and reports it, exactly as after a host write alone. One comparison
      * of two integers when the host wrote nothing, which is every image a model moves.
+     * True when a pass on the moved subtree alone may not be exact: such a write is owed, one the
+     * scan reported is unread by any world pass, or the watch does not hook the current scene yet
+     * (first image, reshape), so a write went unseen.
      */
     engineWriting() {
       if (sceneWatch.pending()) hostPosesOwed = true;
+      return hostPosesOwed || watchRevision !== revisions.scene;
     },
     /** The hierarchy already carries the current revision's matrices: written by whoever just
      *  walked them itself, on the only subtree it moved — unless a host write is owed. */
