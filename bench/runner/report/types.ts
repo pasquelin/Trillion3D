@@ -14,7 +14,7 @@ import type { Bounds } from '../poses.ts';
 import type { LightsPlan } from '../lamps.ts';
 import type { LimitsRecord } from '../limits.ts';
 import type { FluidsRow } from '../fluids.ts';
-import type { GazeNetworkReading } from '../gazeNetwork.ts';
+import type { GazeNetworkReading } from '../gazeNetworkRun.ts';
 
 /** What `bench.ts` builds before playing series, and `series.ts` reads to run one. */
 export interface RunContext {

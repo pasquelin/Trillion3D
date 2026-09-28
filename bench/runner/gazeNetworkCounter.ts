@@ -1,6 +1,6 @@
 /** CDP network events for one camera session. Redirects retain their request id. */
 export function gazeNetworkCounter() {
-  const pending = new Map<string, { url: string; cached: boolean }>();
+  const pending = new Map<string, { texture: boolean; cached: boolean }>();
   let textureBytes = 0;
   let otherBytes = 0;
   let textureRequests = 0;
@@ -8,12 +8,10 @@ export function gazeNetworkCounter() {
   let unmeasuredRedirects = 0;
   let lastActivity = Date.now();
 
-  const account = (request: { url: string; cached: boolean }, encodedBytes: number) => {
+  const account = (request: { texture: boolean; cached: boolean }, encodedBytes: number) => {
     const bytes = request.cached ? 0 : encodedBytes;
-    if (new URL(request.url).pathname.includes('/textures/')) {
-      textureBytes += bytes;
-      textureRequests++;
-    } else otherBytes += bytes;
+    if (request.texture) textureBytes += bytes;
+    else otherBytes += bytes;
   };
 
   return {
@@ -24,7 +22,7 @@ export function gazeNetworkCounter() {
         if (redirectBytes === undefined) unmeasuredRedirects++;
         else account(previous, redirectBytes);
       }
-      pending.set(id, { url, cached: false });
+      pending.set(id, { texture: new URL(url).pathname.includes('/textures/'), cached: false });
     },
     cache(id: string) {
       const request = pending.get(id);
@@ -35,6 +33,8 @@ export function gazeNetworkCounter() {
       const request = pending.get(id);
       if (!request) return;
       account(request, encodedBytes);
+      // One finished request, however many redirect hops it followed.
+      if (request.texture) textureRequests++;
       pending.delete(id);
     },
     fail(id: string) {
