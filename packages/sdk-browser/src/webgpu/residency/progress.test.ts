@@ -36,7 +36,7 @@ const queueOf = (
 ) =>
   createWebgpuResidencyQueue({
     tracking: createWebgpuPageTracking([]),
-    sets: { applyBudget() {}, decideBy() {} } as never,
+    sets: { desiredCount: 0, followDesired() {} } as never,
     closure: {} as never,
     room: () => 0,
     getCache: () => undefined,
