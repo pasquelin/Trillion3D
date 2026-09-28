@@ -8,6 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice, type FakeBuffer } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { sunRun } from '../../webgpu/shadow/runs.fixture.ts';
+import { SHADOW_LIMITS } from '../../webgpu/pages/testScenes.fixture.ts';
 import { createDagLightCut } from './lightCut.ts';
 import { FRAME_VEC4 } from './types.ts';
 import { OUT_COUNT, OUT_FLAGS, SELECTION_HEADER_WORDS } from './layout.ts';
@@ -22,13 +23,7 @@ const CASTERS = 16;
 
 /** A light cut over `CASTERS` catalogue pages, on a device whose copies run as they are encoded. */
 function lightCutFrame() {
-  const { device, writes, buffers } = fakeDevice({
-    limits: {
-      maxComputeWorkgroupsPerDimension: 65535,
-      maxStorageBufferBindingSize: 1 << 27,
-      maxBufferSize: 1 << 28,
-    },
-  });
+  const { device, writes, buffers } = fakeDevice({ limits: SHADOW_LIMITS });
   const bytes = (buffer: GPUBuffer) => (buffer as unknown as FakeBuffer).getMappedRange();
   const encoder = {
     copyBufferToBuffer(from: GPUBuffer, at: number, to: GPUBuffer, toAt: number, size: number) {
