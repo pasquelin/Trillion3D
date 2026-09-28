@@ -80,7 +80,7 @@ export function createRequestAdmission(
       taken = 0;
     while (floor > 0 && taken + perLevel[floor] < room) taken += perLevel[floor--];
     const end = Math.min(room, taken + perLevel[floor]);
-    if (queue.length < end) queue = new Int32Array(end);
+    if (queue.length < end) queue = grown(queue, end);
     if (order.length < visits) order = grown(order, visits);
     // A counting sort: each level from `floor` up gets its slice of `order`, and `perLevel[level]`
     // ends as where that slice ends. A superseded visit (-1) takes none.
@@ -92,13 +92,23 @@ export function createRequestAdmission(
     for (let i = 0; i < visits; i++) if (levels[i] >= floor) order[perLevel[levels[i]]++] = i;
     for (let at = 0; at < taken; at++) put(at, order[at]);
     let at = taken;
-    for (const held of [true, false])
-      for (let s = taken; s < perLevel[floor] && at < end; s++)
-        if (wanted.has(keys[order[s]]) === held) put(at++, order[s]);
+    for (let s = taken; s < perLevel[floor] && at < end; s++)
+      if (wanted.has(keys[order[s]])) put(at++, order[s]);
+    for (let s = taken; s < perLevel[floor] && at < end; s++)
+      if (!wanted.has(keys[order[s]])) put(at++, order[s]);
     queued.length = end;
     return end;
   };
-  return (room: number, cut: Requests | null) => {
+  /** Bytes of its tables, sized by the view's closed requests and the room: the CPU budget holds
+   *  them with the cut's other host tables (`../cut/publication.ts`, `hostTableBytes`). */
+  const hostBytes = () =>
+    filedBy.byteLength +
+    keys.byteLength +
+    levels.byteLength +
+    perLevel.byteLength +
+    queue.byteLength +
+    order.byteLength;
+  const admit = (room: number, cut: Requests | null) => {
     if (sets.desiredCount <= room) return sets.followDesired();
     // A readback the adopter refused, or none yet: the queue the image holds stands.
     if (!cut || cut.result.truncated || !cut.result.drawablePageIds) return;
@@ -107,10 +117,12 @@ export function createRequestAdmission(
     perLevel.fill(0);
     filedBy.clear();
     closure.closeOver(cut.result.pageIds, visit);
+    pages.length = visits;
     const count = rank(room);
     sets.admit(queue, queued, count);
     last = cut;
     lastRoom = room;
     lastRevision = sets.acceptedRevision;
   };
+  return Object.assign(admit, { hostBytes });
 }
