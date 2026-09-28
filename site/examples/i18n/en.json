@@ -58,7 +58,8 @@
       "missingCache": "The cooked cache is missing: run pnpm compile:caches"
     },
     "banner": {
-      "close": "Close"
+      "close": "Close",
+      "waiting": "Waiting for the engine (#{issue})"
     }
   },
   "a-city-from-rules": {

@@ -161,7 +161,7 @@ const checkSize = (cwd: string) =>
     encoding: 'utf8',
   });
 
-test("check-pr-size: more than 600 hand-written lines fail, with the base's attributes", () => {
+test("check-pr-size: more than 1,500 hand-written lines fail, with the base's attributes", () => {
   const work = makeRepo();
   ok(work, 'switch', '-q', '-c', '12-thing');
   const attributes = readFileSync(new URL('.gitattributes', repo), 'utf8');
@@ -173,8 +173,8 @@ test("check-pr-size: more than 600 hand-written lines fail, with the base's attr
   ok(work, 'tag', 'base');
   ok(work, 'rm', '-q', 'old.ts');
   const files = {
-    'pnpm-lock.yaml': 'x\n'.repeat(601),
-    'a.ts': 'x\n'.repeat(599),
+    'pnpm-lock.yaml': 'x\n'.repeat(1501),
+    'a.ts': 'x\n'.repeat(1499),
     'src/b.ts': 'x\n',
     'image.bin': 'x\0\n'.repeat(700),
   };
@@ -182,12 +182,12 @@ test("check-pr-size: more than 600 hand-written lines fail, with the base's attr
   // From a subfolder: the whole tree still counts.
   const accepted = checkSize(join(work, 'src'));
   assert.equal(accepted.status, 0, accepted.stderr);
-  assert.match(accepted.stdout, /added: 600 \(limit 600\)/);
+  assert.match(accepted.stdout, /added: 1500 \(limit 1500\)/);
   // The base's attributes decide: marking its own code generated does not exempt it.
   const selfExempt = { '.gitattributes': `${attributes}*.ts linguist-generated\n` };
   assert.equal(commit(work, 'self exemption', selfExempt).status, 0);
   const refused = checkSize(work);
   assert.equal(refused.status, 1);
-  assert.match(refused.stdout, /added: 601 \(limit 600\)/);
-  assert.match(refused.stderr, /AGENTS\.md rule 11: deliver the issue in steps/);
+  assert.match(refused.stdout, /added: 1501 \(limit 1500\)/);
+  assert.match(refused.stderr, /AGENTS\.md rule 11: narrow the issue/);
 });
