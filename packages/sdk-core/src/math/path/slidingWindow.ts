@@ -32,30 +32,39 @@ export function estimateClockResolutionMs(now: () => number) {
   return plusPetit;
 }
 
+/** Whether `a` comes strictly before `b` in a typed array's sort: ascending, -0 before +0, NaN last. */
+const avant = (a: number, b: number) =>
+  a < b || (b !== b && a === a) || (a === 0 && b === 0 && 1 / a < 0 && 1 / b > 0);
+
 /**
- * A sliding median over the last `PATH_WINDOW` values, with no allocation per execution. The median
- * is kept until the next value arrives: an observation feeds one median and reads two, so only the
- * one it fed sorts again, and a full set of values sorts in place, with no view of its start.
+ * A sliding median over the last `PATH_WINDOW` values, with no allocation per execution (#983): the
+ * values are kept sorted as they arrive — the one leaving the window taken out by identity (NaN is
+ * itself, -0 is not +0), the new one inserted after its equals —, so the sorted copy is always the
+ * typed sort of the window, bit for bit, and the median is read from it without sorting or a view.
  */
 export class Fenetre {
   private readonly valeurs = new Float64Array(PATH_WINDOW);
   private readonly triee = new Float64Array(PATH_WINDOW);
   private prochain = 0;
-  /** The median of the values as they stand; `undefined` once a value has arrived since. */
-  private held: number | null | undefined = null;
   count = 0;
   ajoute(valeur: number) {
-    this.valeurs[this.prochain] = valeur;
+    const { triee, valeurs } = this;
+    let n = this.count;
+    if (n === PATH_WINDOW) {
+      const sortant = valeurs[this.prochain];
+      let i = 0;
+      while (!Object.is(triee[i], sortant)) i++;
+      triee.copyWithin(i, i + 1, n--);
+    } else this.count++;
+    valeurs[this.prochain] = valeur;
     this.prochain = (this.prochain + 1) % PATH_WINDOW;
-    if (this.count < PATH_WINDOW) this.count++;
-    this.held = undefined;
+    for (; n > 0 && avant(valeur, triee[n - 1]); n--) triee[n] = triee[n - 1];
+    triee[n] = valeur;
   }
   mediane() {
-    if (this.held !== undefined) return this.held;
-    const { triee, valeurs, count } = this;
-    for (let i = 0; i < count; i++) triee[i] = valeurs[i];
-    (count === PATH_WINDOW ? triee : triee.subarray(0, count)).sort();
+    const { triee, count } = this;
+    if (!count) return null;
     const milieu = count >> 1;
-    return (this.held = count % 2 ? triee[milieu] : (triee[milieu - 1] + triee[milieu]) / 2);
+    return count % 2 ? triee[milieu] : (triee[milieu - 1] + triee[milieu]) / 2;
   }
 }
