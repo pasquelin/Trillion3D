@@ -24,11 +24,8 @@ export interface NodeState {
   parent: Object3D | null;
   auto: boolean;
   matrix: Float64Array | null;
-  light: LightState | null;
-}
-
-interface LightState {
-  values: Float64Array;
+  /** A light's numbers as last read; its target, read-only on the core's `Light`, never changes. */
+  light: Float64Array | null;
 }
 
 function lightValues(light: Light, into: Float64Array) {
@@ -46,16 +43,16 @@ function lightValues(light: Light, into: Float64Array) {
   into[10] = light.groundColor.b;
 }
 
-/** A light as it stands: its numbers. */
-function lightState(light: Light): LightState {
-  const state = { values: new Float64Array(LIGHT_VALUES) };
-  lightValues(light, state.values);
-  return state;
+/** A light's numbers as they stand. */
+function lightState(light: Light) {
+  const values = new Float64Array(LIGHT_VALUES);
+  lightValues(light, values);
+  return values;
 }
 
 /** The node as it stands: the first read after it announces nothing. */
 export function snapshot(node: Object3D): NodeState {
-  const lit: LightState | null = isLightNode(node) ? lightState(node) : null;
+  const lit = isLightNode(node) ? lightState(node) : null;
   return {
     node,
     visible: node.visible,
@@ -67,10 +64,9 @@ export function snapshot(node: Object3D): NodeState {
   };
 }
 
-function scanLight(light: Light, state: LightState): boolean {
+function scanLight(light: Light, held: Float64Array): boolean {
   // A colour replaced as a whole is read through the new object: its numbers are what count.
   lightValues(light, scratch);
-  const held = state.values;
   let moved = false;
   for (let k = 0; k < LIGHT_VALUES; k++)
     if (held[k] !== scratch[k]) {

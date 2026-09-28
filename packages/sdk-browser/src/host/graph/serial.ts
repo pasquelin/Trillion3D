@@ -27,7 +27,5 @@ export function numbered<T extends object>(node: T): T {
   return node;
 }
 
-/** The engine's number of a node, or `undefined` for one it did not build; a bare object that
- *  carries its own `serial`, as the draw order's tests build, is read by it. */
-export const serialOf = (node: object): number | undefined =>
-  numbers.get(node) ?? (node as { serial?: number }).serial;
+/** The engine's number of a node, or `undefined` for one it did not build. */
+export const serialOf = (node: object): number | undefined => numbers.get(node);
