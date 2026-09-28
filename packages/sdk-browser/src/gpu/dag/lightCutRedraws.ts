@@ -174,11 +174,9 @@ export function createLightCutRedraws(
       waiting.forEach(again);
       waiting.clear();
     },
-    /** Light views one batch draws in: `viewCap` until a batch drops, then what fits
-     *  (`createViewLimit`). */
-    get viewLimit() {
-      return limit.value;
-    },
+    /** Light views one batch draws in (`value`): `viewCap` until a batch drops, then what fits;
+     *  and the batches read as dropped (`dropsRead`) — `createViewLimit`. */
+    limit: limit as Pick<typeof limit, 'value' | 'dropsRead'>,
     /** Hands every page to draw again to `visit`, whether it is withdrawn until then, and whether
      *  its static casters are drawn again too; forgets them; returns how many. */
     takeRedraw(visit: (page: number, withdraw: boolean, staticCasters: boolean) => void) {

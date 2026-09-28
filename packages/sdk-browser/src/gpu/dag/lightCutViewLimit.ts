@@ -26,12 +26,15 @@ export function createViewLimit(viewCap: number) {
     /** The fitting batches at the limit a probe one view above it waits for. */
     patience = 1,
     /** The count whose drop last doubled `patience`. */
-    failed = viewCap + 1;
+    failed = viewCap + 1,
+    /** Batches read as dropped since creation. */
+    dropsRead = 0;
   /** Residency changed and the limit sits one view below the fewest that dropped. */
   const settledStale = () => stale && fits + 1 === drops;
   return {
     read(count: number, dropped: boolean) {
       if (dropped) {
+        dropsRead++;
         if (settledStale() && drops <= viewCap && count >= fits) {
           patience *= 2;
           failed = count;
@@ -52,6 +55,9 @@ export function createViewLimit(viewCap: number) {
     },
     residencyChanged() {
       stale = true;
+    },
+    get dropsRead() {
+      return dropsRead;
     },
     get value() {
       if (drops > viewCap) return viewCap;
