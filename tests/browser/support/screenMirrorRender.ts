@@ -4,7 +4,7 @@ import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pag
 import { pagedManifest } from '../../../packages/sdk-browser/src/backend/autonomous/geometryPages.fixture.ts';
 import { createFrameComposer } from '../../../packages/sdk-browser/src/world/render/compose.ts';
 import type { BackendContext } from '../../../packages/sdk-browser/src/backend/types.ts';
-import { libere } from './sharedSceneProof.ts';
+import { libere as releaseScene } from './sharedSceneProof.ts';
 import { image, PLAFOND, difference } from './sceneImageProof.ts';
 import { mirrorProxy } from './mirrorProxy.ts';
 import type { mirrorScene } from './screenMirrorScene.ts';
@@ -108,7 +108,7 @@ export async function mirrorRenderer(
     },
     dispose() {
       compose?.dispose();
-      libere(backend, canvas, scene);
+      releaseScene(backend, canvas, scene);
     },
   };
 }

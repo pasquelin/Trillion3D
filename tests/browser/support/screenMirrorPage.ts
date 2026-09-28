@@ -1,6 +1,6 @@
 import { Matrix4 } from '../../../packages/sdk-core/src/world/math/matrix4.ts';
-import { executerAppareil } from './deviceProof.ts';
-import { couleurEn } from './sceneImageProof.ts';
+import { executerAppareil as withDevice } from './deviceProof.ts';
+import { couleurEn as sampleColor } from './sceneImageProof.ts';
 import { versApi } from './sharedSceneProof.ts';
 import { mirrorScene, type MirrorOptions } from './screenMirrorScene.ts';
 import { mirrorRenderer, MIRROR_SIZE, type MirrorPath } from './screenMirrorRender.ts';
@@ -48,7 +48,7 @@ async function sequence(
       }
       const { pixels, stable } = await renderer.held();
       const sample = (point: typeof old) =>
-        couleurEn(pixels, rig.camera, point.x, point.y, point.z, [size, size]);
+        sampleColor(pixels, rig.camera, point.x, point.y, point.z, [size, size]);
       readings.push({
         stable,
         direct: positions.map(sample),
@@ -62,8 +62,8 @@ async function sequence(
   }
 }
 
-export function executer() {
-  return executerAppareil<{ cases: MirrorCase[] }>(async (device, events, result) => {
+export function run() {
+  return withDevice<{ cases: MirrorCase[] }>(async (device, events, result) => {
     const cases: MirrorCase[] = (result.cases = []);
     for (const path of ['webgpu', 'webgl2'] as const)
       for (const arrangement of [0, 1])
