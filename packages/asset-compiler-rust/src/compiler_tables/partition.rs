@@ -85,9 +85,11 @@ pub(super) fn partition(
         let node = &table[id];
         let mesh = node["mesh"].as_u64()? as usize;
         let leaf = node["children"].as_array().is_some_and(Vec::is_empty);
+        // A node hidden itself stays in the core, whose table says so; one under it hangs there.
         let bare = ["light", "camera", "weights"]
             .iter()
-            .all(|field| node[*field].is_null());
+            .all(|field| node[*field].is_null())
+            && node["visible"] != json!(false);
         // Its box is written once, from the declared poses: nothing above it may move either.
         let posed =
             std::iter::successors(Some(id), |at| parent[*at]).all(|at| !moved.contains(&at));

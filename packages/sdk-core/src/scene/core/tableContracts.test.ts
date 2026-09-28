@@ -11,7 +11,7 @@ const hasCode =
 /** Tables at the versions this runtime reads, every table empty. */
 const tables = () => ({
   version: 4,
-  nodeTableVersion: 3,
+  nodeTableVersion: 4,
   materialTableVersion: 4,
   geometryTableVersion: 1,
   scene: { name: null, nodes: [] },
@@ -31,6 +31,11 @@ test('tables of an unknown version are refused rather than half-read', () => {
       () => assertSceneTables({ ...tables(), [field]: 1 }),
       hasCode('UNSUPPORTED_SCENE_TABLES', `${field} 1`),
     );
+  // #519: a node table of version 3 says no node's visibility; it is refused, never read visible.
+  assert.throws(
+    () => assertSceneTables({ ...tables(), nodeTableVersion: 3 }),
+    hasCode('UNSUPPORTED_SCENE_TABLES', 'nodeTableVersion 3'),
+  );
   assert.throws(
     () => assertSceneTables({ ...tables(), geometryTableVersion: 99 }),
     hasCode('UNSUPPORTED_SCENE_TABLES', 'geometryTableVersion 99'),
