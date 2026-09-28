@@ -71,8 +71,8 @@ export function writeDagUniforms(
   packed: PackedDag,
   uniforms: DagViewUniforms,
   residentCut: boolean,
-  views?: DagCutViews,
   listCap = selectionListCap(packed.pageCount),
+  views?: DagCutViews,
 ) {
   target.fill(0);
   target.set(uniforms.planes, 0);
