@@ -9,7 +9,8 @@ import { DAG_SELECTION_SHADER } from './shader.ts';
 import { DAG_CONE_WGSL } from './coneWgsl.ts';
 import { DAG_PRIMITIVE_WGSL } from './primitiveWgsl.ts';
 import { FRAME_VEC4, PRIMITIVE_VEC4 } from '../types.ts';
-import { cameraFramesBytes, primitiveFrameWords } from '../worlds.ts';
+import { primitiveFrameWords } from '../worlds.ts';
+import { framesBytes } from '../frameRanges.ts';
 import { wgslScope } from '../../../page/cut/wgslPredicate.fixture.ts';
 import { wgslConstants } from '../../../page/cut/cutRuleBackends.fixture.ts';
 import { random } from '../../../page/cut/cutRuleChecks.fixture.ts';
@@ -39,24 +40,18 @@ test("each primitive's values fill its share, behind the row the host writes", (
   assert.equal(c.PRIMITIVE, PRIMITIVE_VEC4);
   assert.equal(c.FRAME, FRAME_VEC4);
   for (const worldCount of [1, 3, 1000]) {
-    const views = [{ worldCount }];
-    const base = wgslScope(DAG_SELECTION_SHADER, { ...c, views }).fn('primitiveBase');
+    const range = { first: 0, count: worldCount };
+    const base = wgslScope(DAG_SELECTION_SHADER, { ...c, range }).fn('primitiveBase');
     const frames = primitiveFrameWords(packed(worldCount));
     assert.equal(frames.length, worldCount * FRAME_VEC4 * 4, 'the host writes its row alone');
     assert.equal(base(0), worldCount * FRAME_VEC4, 'behind the first row');
-    assert.equal(
-      ((base(worldCount - 1) as number) + PRIMITIVE_VEC4) * 16,
-      cameraFramesBytes(frames),
-    );
+    assert.equal(((base(worldCount - 1) as number) + PRIMITIVE_VEC4) * 16, framesBytes(worldCount));
   }
 });
 
 test('frames never binds an empty buffer', () => {
-  assert.equal(cameraFramesBytes(new Float32Array(0)), 16);
-  assert.equal(
-    cameraFramesBytes(primitiveFrameWords(packed(0))),
-    (FRAME_VEC4 + PRIMITIVE_VEC4) * 16,
-  );
+  assert.equal(framesBytes(0), 16);
+  assert.equal(framesBytes(1), (FRAME_VEC4 + PRIMITIVE_VEC4) * 16);
 });
 
 test('every site reads the prepared values; only a light view still multiplies', () => {

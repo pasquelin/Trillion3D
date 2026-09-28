@@ -69,6 +69,9 @@ export function createDagLightCut(resources: DagResources) {
     usage: storage,
   });
   device.queue.writeBuffer(frames, 0, resources.frameData);
+  // Its frames hold every primitive: one range, from zero (`frameRanges.ts`).
+  const range = own({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  device.queue.writeBuffer(range, 0, new Uint32Array([0, worldCount, 0, 0]));
   let frameWrites = resources.frameWrites.count;
   const output = own({
     label: 'Trillion3D light cut output',
@@ -88,25 +91,28 @@ export function createDagLightCut(resources: DagResources) {
     flags,
     output,
     work,
-    frames,
     dispatchArgs,
     liveGroupsOffset: layout.liveGroups * 4,
     candGroupsOffset: layout.candGroups * 4,
     drawnGroupsOffset: layout.drawnGroups * 4,
-    bindGroup: device.createBindGroup({
-      layout: resources.layout,
-      entries: namedBufferEntries(DAG_BINDING, {
-        clusters: { buffer: resources.clusters },
-        nodes: { buffer: resources.nodes },
-        views: { buffer: uniforms },
-        flags: { buffer: flags },
-        out: { buffer: output },
-        work: { buffer: work },
-        worlds: { buffer: resources.worlds },
-        frames: { buffer: frames },
-        cold: { buffer: resources.pageCones },
+    ranges: [{ first: 0, count: worldCount }],
+    bindGroups: [
+      device.createBindGroup({
+        layout: resources.layout,
+        entries: namedBufferEntries(DAG_BINDING, {
+          clusters: { buffer: resources.clusters },
+          nodes: { buffer: resources.nodes },
+          views: { buffer: uniforms },
+          flags: { buffer: flags },
+          out: { buffer: output },
+          work: { buffer: work },
+          worlds: { buffer: resources.worlds },
+          frames: { buffer: frames },
+          cold: { buffer: resources.pageCones },
+          range: { buffer: range },
+        }),
       }),
-    }),
+    ],
     repeat: null,
     light,
   };
@@ -152,7 +158,7 @@ export function createDagLightCut(resources: DagResources) {
       // A placement's stretch or a parked root changed on the camera's side: the first row follows.
       if (frameWrites !== resources.frameWrites.count) {
         frameWrites = resources.frameWrites.count;
-        encoder.copyBufferToBuffer(resources.frames, 0, frames, 0, resources.frameData.byteLength);
+        resources.frames.copyRows(encoder, frames);
       }
       encodeDagKernels(encoder, view);
     },

@@ -10,8 +10,10 @@ import type { TexturePool } from '../webgpu/residency/memoryBudgets.ts';
  */
 export const DEFAULT_GEOMETRY_POOL_BUDGET = 512 * 1024 * 1024;
 
-/** Bytes a page buffer may occupy on this device: the smaller of its limits. */
-export const pageBufferCap = (limits?: {
+/** Bytes one storage buffer may occupy and bind on this device: the smaller of its limits. Every
+ *  buffer sized from the device reads it — the page pool, and the DAG cut's per-primitive tables
+ *  (`../gpu/dag/lightCutCapacity.ts`, `../gpu/dag/frameRanges.ts`). */
+export const storageBufferCap = (limits?: {
   maxBufferSize?: number;
   maxStorageBufferBindingSize?: number;
 }) => Math.min(limits?.maxBufferSize ?? Infinity, limits?.maxStorageBufferBindingSize ?? Infinity);
@@ -55,7 +57,7 @@ export function geometryPoolFor(options: {
   rootPages: number;
   maxResidentPages?: number;
   ceilingSlots?: number;
-  limits?: Parameters<typeof pageBufferCap>[0];
+  limits?: Parameters<typeof storageBufferCap>[0];
 }): GeometryPool {
   const { budgetBytes, pageBytes, uniquePages, maxResidentPages, ceilingSlots, limits } = options;
   checkGeometryPoolBudget(budgetBytes);
@@ -78,7 +80,7 @@ export function geometryPoolFor(options: {
     slots = floor;
     clamp = 'root-cover';
   }
-  const deviceBytes = pageBufferCap(limits);
+  const deviceBytes = storageBufferCap(limits);
   const deviceSlots = Math.floor(deviceBytes / pageBytes);
   if (deviceSlots < slots) {
     if (deviceSlots < floor)

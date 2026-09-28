@@ -61,9 +61,8 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   /** Writes word `slot` of primitive `w`'s frame words, one word up. The cut in hand holds pages
    *  the new word no longer lets through, or lacks some it does: another cut from here. */
   const writeFrameWord = (w: number, slot: number, value: number) => {
-    const at = primitiveWordAt(w) + slot;
-    frameInts[at] = value;
-    device.queue.writeBuffer(frames, at * 4, frameInts.buffer as ArrayBuffer, at * 4, 4);
+    frameInts[primitiveWordAt(w) + slot] = value;
+    frames.writeWord(w, slot);
     resources.frameWrites.count++;
     voidCuts();
   };
@@ -98,7 +97,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
         next.byteLength,
       );
       if (stretched) {
-        device.queue.writeBuffer(frames, 0, frameData as Float32Array<ArrayBuffer>);
+        frames.writeRows();
         resources.frameWrites.count++;
       }
       // Cuts in hand and in flight keep their revision and still name what to stream (#358).

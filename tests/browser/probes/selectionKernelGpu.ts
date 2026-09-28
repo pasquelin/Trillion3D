@@ -40,8 +40,7 @@ async function executer({
   const etape = (entryPoint: string) =>
     device.createComputePipeline({ layout: pipelineLayout, compute: { module, entryPoint } });
   const preparePipeline = etape('dagPrepare');
-  // Level descent: pass 0 starts from the roots, each following pass runs on the
-  // three queues `levelStep` fills in turn (see `packages/sdk-browser/src/gpu/dag/shader/levelWgsl.ts`).
+  // Level descent: the roots, then the three queues `levelStep` fills in turn (`levelWgsl.ts`).
   const levelPipelines = [etape('dagLevel0'), etape('dagLevel1'), etape('dagLevel2')];
   const wantedPipeline = etape('dagWanted');
   const maskPipeline = etape('dagMask'),
@@ -76,6 +75,7 @@ async function executer({
       worlds: { buffer: tampon(64, c.worlds) },
       frames: { buffer: tampon(c.framesBytes, c.frames) },
       cold: { buffer: tampon(48, c.pageCones) },
+      range: { buffer: tampon(16, c.range, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST) },
     };
     const lecture = device.createBuffer({
       size: sortieOctets,
