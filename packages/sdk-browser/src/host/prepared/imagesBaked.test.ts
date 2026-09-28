@@ -55,7 +55,7 @@ async function decoded(t: test.TestContext, previews: { image: number }[]) {
   const read = preparedImages({
     document,
     documentUrl: folder.href,
-    binary,
+    binary: async () => binary,
     signal: undefined,
     meter: unmetered,
     skipped: bakedImages(metadata, document.images.length),

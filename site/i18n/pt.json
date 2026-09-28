@@ -191,6 +191,7 @@
       "a-recorded-fly-through": "Um sobrevoo gravado e reproduzido",
       "a-crane-that-swings": "Um guindaste que balança a carga",
       "a-wave-across-a-grid": "Onda de cubos",
+      "doors-that-open": "Portas que se abrem ao se aproximar",
       "keyframes-by-hand": "Quadros-chave à mão",
       "one-clip-many-objects": "Um clipe, vários objetos",
       "animation-from-the-file": "Animação do arquivo",
@@ -270,6 +271,7 @@
       "labels-that-follow": "Rótulos que seguem",
       "select-with-a-box": "Selecionar com uma caixa",
       "sound-made-visible": "O som tornado visível",
+      "measure-a-distance": "Medir a distância entre dois pontos",
       "click-to-pick": "Clique para escolher",
       "hover-over-triangles": "Passar o cursor sobre triângulos",
       "pick-lines-and-points": "Escolher linhas e pontos",
@@ -335,6 +337,7 @@
       "shadows-case-by-case": "As sombras, caso a caso",
       "shadows-through-see-through-panes": "Sombras através de vidros",
       "a-walker-among-balls": "Um caminhante entre bolas",
+      "hover-to-highlight": "Passe o cursor para realçar uma peça",
       "a-dolly-along-the-canal": "Um travelling ao longo do canal",
       "a-folder-merged-into-one-scene": "Uma pasta reunida numa cena",
       "drag-a-crate": "Arrastar uma caixa"

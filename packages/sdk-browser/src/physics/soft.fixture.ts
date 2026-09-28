@@ -15,7 +15,9 @@ import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import { body, startModule, type Module } from './module.fixture.ts';
 
 /** Generation 1 of an engine id. */
-export const GENERATION = 1 << GENERATION_SHIFT;
+const GENERATION = 1 << GENERATION_SHIFT;
+/** Generation 1 of slot `slot`'s engine id. */
+export const id = (slot: number) => slot | GENERATION;
 /** The engine ids of the floor in slot 0, the soft body in slot 1, the box in slot 2. */
 export const FLOOR = 0 | GENERATION,
   CLOTH = 1 | GENERATION,
@@ -112,4 +114,18 @@ export function flatCloth(jolt: Module, y: number, pins: number[], events = fals
   if (events) writer.flags(1, FLAG.events);
   jolt.step(writer.take(), 0);
   return record;
+}
+
+/**
+ * How far a written-back vertex may stray from the per-vertex chain it replaced (PHY-06, #975):
+ * four float spacings at 32 m, the reach of the soft tests' scenes (2⁻¹⁹ m each), 7.6 µm; a tenth
+ * of a pixel is millimetres at any distance the page draws a soft body from.
+ */
+export const WRITEBACK_BOUND = 4 * 2 ** -19;
+
+/** Each body a step's soft words name (`softLayout.ts`): its engine id, its vertex count, and the
+ *  word its vertices start at. */
+export function* softBodiesIn(words: Uint32Array) {
+  for (let at = 0; at < words.length; at += SOFT_STATE_WORDS + words[at + 1] * 3)
+    yield { engine: words[at], count: words[at + 1], from: at + SOFT_STATE_WORDS };
 }

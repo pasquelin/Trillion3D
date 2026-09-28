@@ -536,6 +536,20 @@
       "outer": "Esterno"
     }
   },
+  "doors-that-open": {
+    "banner": "Avvicina la camera alle porte. Si aprono quando ti avvicini.",
+    "controls": {
+      "mode": "Modalità",
+      "openingDistance": "Distanza di apertura",
+      "openness": "Apertura"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "prossimità",
+        "manual": "manuale"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Trascina per volare intorno all'isola. Alza il mare per allagare le valli.",
     "controls": {
@@ -587,6 +601,17 @@
       "lamp": "Lampada",
       "colour": "Colore",
       "bricks": "Mattoni"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Fai clic su due superfici per misurare la distanza tra loro. Un terzo clic avvia una nuova misura. Un’unità rappresenta un metro.",
+    "controls": {
+      "clear": "Cancella"
+    },
+    "readouts": {
+      "pointA": "Punto A",
+      "pointB": "Punto B",
+      "distance": "Distanza"
     }
   },
   "click-to-pick": {
@@ -1958,6 +1983,7 @@
       "manifest": "manifesto letto",
       "tables": "tabelle della scena lette",
       "resources": "file della scena",
+      "session": "apertura della vista",
       "pages": "prime pagine",
       "ready": "pronto"
     }
@@ -2231,6 +2257,12 @@
     },
     "words": {
       "credit": "Bandiera su un'asta modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Passa sopra le parti del carrello per evidenziarle una alla volta, oppure disattiva l’evidenziazione nel pannello.",
+    "controls": {
+      "highlightEnabled": "Attiva evidenziazione"
     }
   },
   "a-dolly-along-the-canal": {

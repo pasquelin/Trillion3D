@@ -536,6 +536,20 @@
       "outer": "外圈"
     }
   },
+  "doors-that-open": {
+    "banner": "将相机移向门。靠近时门会打开。",
+    "controls": {
+      "mode": "模式",
+      "openingDistance": "开启距离",
+      "openness": "开启程度"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "接近",
+        "manual": "手动"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "拖动绕着小岛飞。把海水升高，淹没山谷。",
     "controls": {
@@ -587,6 +601,17 @@
       "lamp": "灯",
       "colour": "颜色",
       "bricks": "砖块"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "点击两个表面以测量它们之间的距离。第三次点击会开始新的测量。 一个单位代表一米。",
+    "controls": {
+      "clear": "清除"
+    },
+    "readouts": {
+      "pointA": "点 A",
+      "pointB": "点 B",
+      "distance": "距离"
     }
   },
   "click-to-pick": {
@@ -1958,6 +1983,7 @@
       "manifest": "清单已读",
       "tables": "场景表已读",
       "resources": "场景文件",
+      "session": "正在打开视图",
       "pages": "首批页面",
       "ready": "就绪"
     }
@@ -2231,6 +2257,12 @@
     },
     "words": {
       "credit": "旗杆上的旗帜为本示例用代码建模，CC0 — 见 assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "将指针移到小车的各个部件上以逐一突出显示，或在面板中关闭突出显示。",
+    "controls": {
+      "highlightEnabled": "启用突出显示"
     }
   },
   "a-dolly-along-the-canal": {
