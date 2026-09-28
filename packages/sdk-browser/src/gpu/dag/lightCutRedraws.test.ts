@@ -138,6 +138,11 @@ test('a frame that finds every flag slot still read is not ready, and withdraws 
     settle(true);
   }
   assert.equal(redraws.ready, false, 'every slot still read');
+  assert.throws(
+    () => redraws.encode(encoder, [40], [0], 1, WHOLE),
+    /ready/,
+    'never drawn unchecked',
+  );
   assert.deepEqual(taken(), [], 'no page sent back for want of a slot');
   await redraws.settled();
   assert.equal(redraws.ready, true, 'the reads free the slots');

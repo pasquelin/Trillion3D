@@ -94,13 +94,13 @@ export function shadowBatchCapacity(poolPages: number, views: number, maxBufferS
   return { batches, stagingBytes: (batches - 1) * SHADOW_BATCH_WRITE_BYTES };
 }
 
-/** A frame's flag words on the GPU, and on the host each batch's pages, their views and where the
- *  batch ends (`../dag/lightCutRedraws.ts`). */
+/** A frame's flag words on the GPU, and on the host each batch's pages, their views, their caster
+ *  bits and where the batch ends (`../dag/lightCutRedraws.ts`). */
 const FLAG_GPU_BYTES = MAX_SHADOW_BATCHES * 4,
   FLAG_HOST_BYTES =
     MAX_SHADOW_BATCHES *
       MAX_SHADOW_PAGES *
-      (Int32Array.BYTES_PER_ELEMENT + Uint8Array.BYTES_PER_ELEMENT) +
+      (Int32Array.BYTES_PER_ELEMENT + 2 * Uint8Array.BYTES_PER_ELEMENT) +
     MAX_SHADOW_BATCHES * Uint16Array.BYTES_PER_ELEMENT;
 /** The CPU cut's per-face offsets, lengths and commands on the host, its commands on the GPU
  *  (`../../webgpu/shadow/cpuCasters.ts`). */

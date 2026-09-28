@@ -30,7 +30,7 @@ const lightSource = {} as ShadowLightSource;
  * Under the CPU cut, the same selection has already run on the CPU (`cpuCasters.ts`), and each
  * face's list waits at its own place in one buffer, every batch's: only the region cull runs here.
  *
- * Returns false when a resource the frame needs is missing — a flag slot among them: the caller
+ * Returns false when a resource the frame needs is missing, or no flag slot is free: the caller
  * then reissues the pages.
  */
 export function encodeShadowCasters(
