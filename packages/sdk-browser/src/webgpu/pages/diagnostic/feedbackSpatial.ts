@@ -1,17 +1,48 @@
 import { readGpuImage } from '../../../gpu/core/presentation.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-type Region = { pixels: number; requested: number; atLevel: number; mips: Record<string, number> };
+import type { Texture } from '../../../../../sdk-core/src/index.ts';
+import type { PageSurface } from '../../../page/surface.ts';
+
+/** Which pass reads a texture: the opaque resolve, its alpha-tested (mask) branch, or the blend. */
+export type SurfaceKind = 'opaque' | 'mask' | 'blend';
+type Count = { requested: number; atLevel: number };
+type Region = Count & {
+  pixels: number;
+  mips: Record<string, number>;
+  kinds: Record<SurfaceKind, Count>;
+};
 export type SpatialFeedback = { center: Region; periphery: Region };
 type Atlases = NonNullable<WebgpuPagesRuntime['vis']['textures']>;
+
+/** Blend wins over mask over opaque for a texture several surfaces share. */
+export function textureKinds(rt: Pick<WebgpuPagesRuntime, 'setup'>) {
+  const kinds = new Map<Texture, SurfaceKind>();
+  const mark = (s: PageSurface, kind: SurfaceKind) => {
+    for (const map of [s.map, s.emissiveMap, s.roughnessMap, s.metalnessMap, s.normalMap, s.aoMap])
+      if (map && kinds.get(map) !== 'blend' && (kind !== 'opaque' || !kinds.has(map)))
+        kinds.set(map, kind);
+  };
+  for (const rec of rt.setup.allPages)
+    mark(rec.material, rec.transparent ? 'blend' : rec.material.alphaTest > 0 ? 'mask' : 'opaque');
+  for (const copy of rt.setup.blendCopies) mark(copy.surface, 'blend');
+  return (texture: Texture | undefined): SurfaceKind => (texture && kinds.get(texture)) || 'opaque';
+}
 
 export function spatialMipCounts(
   ranks: Uint32Array,
   width: number,
   height: number,
   textures: Atlases,
+  kindOf: (texture: Texture | undefined) => SurfaceKind = () => 'opaque',
 ): SpatialFeedback {
-  const region = (): Region => ({ pixels: 0, requested: 0, atLevel: 0, mips: {} });
+  const count = (): Count => ({ requested: 0, atLevel: 0 });
+  const region = (): Region => ({
+    ...count(),
+    pixels: 0,
+    mips: {},
+    kinds: { opaque: count(), mask: count(), blend: count() },
+  });
   const result: SpatialFeedback = { center: region(), periphery: region() };
   // Eight-by-eight patches cover 1/16 feedback phases and map picks; Y flip keeps the bands symmetric.
   for (let gy = 0; gy < 9; gy++)
@@ -31,10 +62,14 @@ export function spatialMipCounts(
           const atlas = index < textures.color.pages.entries ? textures.color : textures.data;
           const key = atlas.pages.tileOf(index);
           const served = atlas.servedLevel(key);
+          const kind = group.kinds[kindOf(atlas.textures[key.slot]?.texture)];
           group.requested++;
-          if (served === key.level) group.atLevel++;
+          kind.requested++;
           const pair = `${key.level}->${served}`;
           group.mips[pair] = (group.mips[pair] ?? 0) + 1;
+          if (served !== key.level) continue;
+          group.atLevel++;
+          kind.atLevel++;
         }
     }
   return result;
@@ -55,5 +90,6 @@ export async function feedbackAbSpatial(rt: WebgpuPagesRuntime): Promise<Spatial
     width,
     height,
     textures,
+    textureKinds(rt),
   );
 }

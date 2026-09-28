@@ -112,10 +112,16 @@ export function summarizeFeedbackRun(
         : present(reading.gpuPassSamples, REDUCE)),
   );
   const samples = readings.map((reading) => reading.gpuSamples);
+  // The whole frame and every surface kind both regions request converge center first.
   const orderedMip =
-    convergence?.centerBeforePeriphery != null &&
-    convergence.peripheryAtLevel != null &&
-    convergence.centerBeforePeriphery < convergence.peripheryAtLevel;
+    !!convergence &&
+    Object.entries(convergence.order).every(
+      ([scope, at]) =>
+        (scope !== 'all' && !at.present) ||
+        (at.centerFirst !== null &&
+          at.peripheryAtLevel !== null &&
+          at.centerFirst < at.peripheryAtLevel),
+    );
   const parityValid =
     raw.convergence?.supported === true &&
     orderedMip &&
