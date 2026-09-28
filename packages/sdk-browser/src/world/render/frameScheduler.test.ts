@@ -151,17 +151,22 @@ test('the next frame is asked right after render, and a stop cancels it (#983)',
 
 test('frames before their feedback are held: no settle round, no revision, same order (#983)', async () => {
   const { run, answers, log } = manual();
+  let held = 0;
   run.invalidate();
   for (let i = 0; i < 2 * 120 && run.frames.size; i++) {
     const drawn = run.renders;
     await run.frame();
     if (run.renders > drawn) log.push(`render ${run.renders}`);
     // The frame asked right after the render comes before its feedback: held.
-    if (run.frames.size) await run.frame();
+    if (run.frames.size) {
+      await run.frame();
+      held++;
+    }
     assert.equal(run.renders, drawn + 1, 'a held frame draws nothing');
     answers.shift()!(true);
     await new Promise(setImmediate);
   }
+  assert.equal(held, 119, 'every frame but the last asked its next before its feedback');
   assert.equal(run.renders, 120, 'held frames spent none of the settle limit');
   assert.equal(run.limited, 1);
   // Frame n's feedback always lands before frame n+1 draws.
