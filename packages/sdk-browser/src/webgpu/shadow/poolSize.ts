@@ -12,8 +12,12 @@ import { startGrant } from '../../gpu/core/errorScope.ts';
 import type { PoolClamp } from '../../residency/pools.ts';
 import { createShadowRegionList } from './regions.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
-import { admitShadowBytes, noteShadowPressure, shadowPoolHeld } from './memoryGrant.ts';
-import { grantShadowTransmittance, sceneCastsBlended } from './transmittanceGrant.ts';
+import { grantsShadowLayer, noteShadowPressure } from './memoryGrant.ts';
+import {
+  grantShadowTransmittance,
+  sceneCastsBlended,
+  transmittanceSettled,
+} from './transmittanceGrant.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
@@ -45,20 +49,15 @@ export function staticLayerGranted(
   grantBytes = SHADOW_GRANT_BYTES,
 ) {
   const { side, layers } = lights.plan.pool,
-    bytes = shadowAtlasBytes(side, layers),
-    later = lights.shadows?.transmittanceHeld || lights.transmittanceDenied,
-    transmittance = later ? 0 : shadowTransmittanceBytes(side, layers);
-  const held = shadowPoolHeld(lights);
-  if (admitShadowBytes(lights.memory, held, bytes + transmittance, grantBytes)) return true;
-  noteShadowPressure(lights.memory, 'static-layer-over-grant');
-  diagnose('shadow-memory', 'The shadow static layer is past the shadow grant', {
-    kind: 'warning',
-    pressure: 'static-layer-over-grant',
-    requestedBytes: bytes + transmittance,
-    heldBytes: held,
+    transmittance = transmittanceSettled(lights) ? 0 : shadowTransmittanceBytes(side, layers);
+  return grantsShadowLayer(
+    lights,
+    diagnose,
+    'static-layer-over-grant',
+    'The shadow static layer is past the shadow grant',
+    shadowAtlasBytes(side, layers) + transmittance,
     grantBytes,
-  });
-  return false;
+  );
 }
 
 /**

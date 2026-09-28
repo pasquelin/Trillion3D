@@ -46,6 +46,7 @@ function session(viewport: [number, number], limit = Infinity, textureSide = 819
     lights,
     capture,
     setup: { viewport },
+    blendState: { blendGpu: [] },
     gpu: { device: gpu.device },
     run: { lost: false, gate: { resourcesChanged: () => changed++ } },
     signal: new AbortController().signal,
