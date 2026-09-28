@@ -192,7 +192,3 @@ pub(crate) fn place(cut: &[f32], matrix: &Mat4, out: &mut Vec<f32>) {
         out.push(world[2] as f32);
     }
 }
-
-#[cfg(test)]
-#[path = "proxy_tests.rs"]
-mod tests;

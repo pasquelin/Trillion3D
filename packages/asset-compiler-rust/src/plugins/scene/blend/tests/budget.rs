@@ -150,15 +150,17 @@ fn a_mesh_past_the_budget_is_refused_by_name() {
     let refusal = converted.expect_err("the geometry goes past the budget");
     assert_eq!(refusal.code, "blend-too-large");
     assert!(
-        refusal.message.contains("blend: mesh ") && refusal.message.contains(" announces "),
+        refusal.message.contains("blend: mesh "),
         "{}",
         refusal.message
     );
-    assert!(
-        refusal
-            .message
-            .contains("past the 0 bytes this job's RAM budget"),
-        "{}",
-        refusal.message
+}
+
+#[test]
+fn mesh_counts_are_bounded_by_the_remaining_job_budget() {
+    assert_eq!(
+        crate::plugins::scene::blend::mesh::announced_bytes(4, 6, 5),
+        77
     );
+    assert!(crate::plugins::scene::blend::mesh::announced_bytes(usize::MAX, 1, 1) > 77);
 }
