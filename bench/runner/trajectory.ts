@@ -34,8 +34,11 @@ async function main() {
   );
   const indices = checkpointIndices(settings.frames, Number(flags.get('checkpoint-every') ?? 60));
   if (settings.pixelErrors.length !== 1) throw new Error('trajectory requires one pixelError');
-  if (!flags.has('avant')) throw new Error('--avant must name a built golden baseline directory');
-  if (flags.has('cache-avant') || flags.has('cache-apres'))
+  // Side names are the bench's flags: the baseline first, then the candidate.
+  const names = ['avant', 'apres'];
+  if (!flags.has(names[0]))
+    throw new Error(`--${names[0]} must name a built golden baseline directory`);
+  if ([...flags.keys()].some((flag) => flag.startsWith('cache-')))
     throw new Error('use --cache for the identical cache on both sides');
   if (settings.movingLight || settings.movingNode || settings.poolVivant)
     throw new Error('trajectory supports camera motion only, with fixed memory budgets');
@@ -44,7 +47,7 @@ async function main() {
   const cache = resolveCache(flags.get('cache') ?? sceneDerived(named ?? DEFAULT_SCENE, ASSETS))!;
   // A `--cache` alone names its scene: the evidence never records Sponza for another cache.
   const scene = named ?? sceneOf(cache);
-  const sides = ['avant', 'apres'].map((name) => {
+  const sides = names.map((name) => {
     const dist = resolve(flags.get(name) ?? join(root, 'dist'));
     flags.set(`cache-${name}`, cache);
     const side = equipSide({ name, dist, from: 'folder' }, flags, settings);
