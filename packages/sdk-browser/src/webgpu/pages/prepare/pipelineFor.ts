@@ -1,3 +1,5 @@
+import { fallbackBindEntries } from '../../core/fallbackEntries.ts';
+import { entriesIdentity } from '../../core/bindIdentity.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
 import { projectedPageError } from '../../../page/selection/selection.ts';
 import { BASE_SLOTS, BIN_BACK, BIN_FRONT, BIN_NONE } from '../../../gpu/draw/draw.ts';
@@ -72,13 +74,17 @@ export function voidStaleFallbackGroups(rt: WebgpuPagesCore) {
   const { gpu } = rt,
     { next } = gpu.fallbackIdentity;
   next[0] = gpu.bindGroupLayout;
-  next[1] = gpu.cache?.buffer;
-  next[2] = gpu.uniformBuffer;
+  const entries = (gpu.fallbackIdentity.entries[0] ??= fallbackBindEntries(
+    () => rt.gpu.cache?.buffer,
+    () => rt.gpu.zeroUv,
+    () => rt.gpu.uniformBuffer,
+  ));
+  next.length = entriesIdentity(entries, next, 1);
   if (gpu.fallbackIdentity.moved()) gpu.bindGroups.clear();
 }
 
-/** The fallback group of one position buffer, built once per position and kept until
- *  `voidStaleFallbackGroups` drops it. */
+/** Position identity is the cache key; the fallback entry list governs every shared resource.
+ *  A replaced position therefore gets its own group, independently of family invalidation. */
 export function bindGroupFor(rt: WebgpuPagesCore, device: GPUDevice, position: GPUBuffer) {
   const { gpu } = rt;
   let id = gpu.positionIds.get(position);
@@ -90,11 +96,11 @@ export function bindGroupFor(rt: WebgpuPagesCore, device: GPUDevice, position: G
   if (!group && gpu.bindGroupLayout && gpu.cache && gpu.uniformBuffer) {
     group = device.createBindGroup({
       layout: gpu.bindGroupLayout,
-      entries: [
-        { binding: 0, resource: { buffer: gpu.cache.buffer } },
-        { binding: 1, resource: { buffer: position } },
-        { binding: 2, resource: { buffer: gpu.uniformBuffer, size: UNIFORM_STRIDE } },
-      ],
+      entries: fallbackBindEntries(
+        () => rt.gpu.cache?.buffer,
+        () => position,
+        () => rt.gpu.uniformBuffer,
+      ),
     });
     gpu.bindGroups.set(id, group);
   }
