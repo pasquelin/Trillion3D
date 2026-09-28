@@ -40,7 +40,7 @@ export async function createGpuHiz(
   // The mip table depends only on the target size: built at allocation, reread as-is.
   let levelTable: Array<{ offset: number; width: number }> | undefined;
   try {
-    const pipelines = await createHizPipelines(device, UNIFORM_BYTES);
+    const pipelines = await createHizPipelines(device);
     if (!pipelines) return undefined;
     const { layout, buildPipeline, testPipeline, pagesGroup } = pipelines;
     const uniforms = device.createBuffer({
