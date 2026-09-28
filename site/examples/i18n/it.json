@@ -58,7 +58,8 @@
       "missingCache": "Manca la cache compilata: esegui pnpm compile:caches"
     },
     "banner": {
-      "close": "Chiudi"
+      "close": "Chiudi",
+      "waiting": "In attesa del motore (#{issue})"
     }
   },
   "a-city-from-rules": {

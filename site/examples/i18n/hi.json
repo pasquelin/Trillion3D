@@ -58,7 +58,8 @@
       "missingCache": "संकलित कैश मौजूद नहीं है: pnpm compile:caches चलाएँ"
     },
     "banner": {
-      "close": "बंद करो"
+      "close": "बंद करो",
+      "waiting": "इंजन की प्रतीक्षा में (#{issue})"
     }
   },
   "a-city-from-rules": {
