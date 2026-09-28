@@ -29,7 +29,7 @@ impl Grown {
     }
     /// Appends the vertices `reduction` placed, if any, after those already placed at its level,
     /// whose vertex count was `base`; the reduction's clusters and the welds follow. The first
-    /// placement copies the source's `positions` and `attributes` once.
+    /// placement copies the source's arrays once; a solve whose survivors all snapped back, never.
     pub(super) fn place(
         grown: &mut Option<Grown>,
         positions: &[f32],
@@ -38,7 +38,6 @@ impl Grown {
         reduction: &mut GroupReduction,
         base: u32,
     ) {
-        // A solve whose every survivor snapped back placed nothing: the source's arrays serve.
         let Some(placed) = reduction.placed.take().filter(|p| !p.origins.is_empty()) else {
             return;
         };
@@ -47,11 +46,9 @@ impl Grown {
             .map_or(0, |g| (g.positions.len() / 3) as u32 - base);
         let source = (positions.len() / 3) as u32;
         let shift = |v: u32| if v >= base { v + offset } else { v };
-        reduction
-            .clusters
-            .iter_mut()
-            .flatten()
-            .for_each(|v| *v = shift(*v));
+        for v in reduction.clusters.iter_mut().flatten() {
+            *v = shift(*v);
+        }
         let grown = grown.get_or_insert_with(|| Grown {
             positions: with_room(positions),
             carried: attributes
@@ -79,17 +76,15 @@ impl Grown {
     }
 }
 
-/// A copy of `values` with room for the vertices the solve will place, so the first placement
-/// does not copy them a second time.
+/// A copy of `values` with room for the vertices the solve will place, copied once.
 fn with_room(values: &[f32]) -> Vec<f32> {
     let mut copy = Vec::with_capacity(values.len() + values.len() / 8);
     copy.extend_from_slice(values);
     copy
 }
 
-/// The vertices one solved reduction placed, numbered from its level's vertex count: their
-/// positions, every carried attribute, the level's vertex each was solved from, and what the
-/// level's welds say of each.
+/// The vertices one solved reduction placed, numbered from its level's vertex count, with every
+/// carried attribute, the level's vertex each was solved from and what the level's welds say.
 pub(super) struct Placed {
     pub positions: Vec<f32>,
     /// Per carried attribute, in the build's order, `width` floats per placed vertex.

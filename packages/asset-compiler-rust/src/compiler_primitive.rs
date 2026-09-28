@@ -144,8 +144,6 @@ pub(super) fn compile_primitive(
     };
     let carried = carried_attributes(&attributes, material);
     let uv_exponent = geometry_page_quant::primitive_uv_exponent(&carried, clustered_blend);
-    // The DAG hands the vertex arrays its pages read: the source's, grown with every vertex a
-    // seam-locked group's solve placed.
     let store = |slice: &[u32], pos: &[f32], carried: &[&_], position_exponent: i32| {
         compiler_page_object::store_page(o, slice, pos, carried, position_exponent, uv_exponent)
     };
