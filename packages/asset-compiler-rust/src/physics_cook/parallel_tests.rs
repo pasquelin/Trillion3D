@@ -7,7 +7,7 @@ use crate::compiler_primitive_dag::{build_dag_primitive, DagResult};
 use crate::compute_bench::inputs::Xorshift;
 use crate::tests::fixtures::{files, grid_indices, portable_sin};
 use serde_json::Value;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 /// Runs `work` on the compiler's pool of one thread, the serial cook, or of eight.
@@ -18,21 +18,36 @@ fn on<T: Send>(parallel: bool, work: impl FnOnce() -> T + Send) -> T {
     pools[usize::from(parallel)].install(work)
 }
 
-/// The distance as measured before #956: one side after the other, on one thread.
+/// The distance as measured before #956, one side after the other, and as a search measures it
+/// now, on the pool: both as bits.
 fn serial_distance(pos: &[f32], level0: &[u32], cut: &[u32]) -> u64 {
-    on(false, || {
-        let there = one_sided_distance(pos, level0, cut);
-        there.max(one_sided_distance(pos, cut, level0)).to_bits()
-    })
+    let there = one_sided_distance(pos, level0, cut);
+    there.max(one_sided_distance(pos, cut, level0)).to_bits()
+}
+fn parallel_distance(pos: &[f32], level0: &[u32], cut: &[u32]) -> u64 {
+    Level0::new(pos, level0).distance(cut).to_bits()
+}
+
+/// Every case measured on one thread, then on many, in one pass each.
+fn assert_same_distances(cases: &[(Vec<f32>, Vec<u32>, Vec<u32>)]) {
+    let measure = |parallel: bool| -> Vec<u64> {
+        let each = if parallel {
+            parallel_distance
+        } else {
+            serial_distance
+        };
+        on(parallel, || {
+            cases.iter().map(|(p, a, b)| each(p, a, b)).collect()
+        })
+    };
+    let (serial, parallel) = (measure(false), measure(true));
+    for (case, (s, p)) in cases.iter().zip(serial.iter().zip(&parallel)) {
+        assert_eq!(p, s, "{case:?}");
+    }
 }
 
 fn assert_same_distance(pos: &[f32], level0: &[u32], cut: &[u32]) {
-    let parallel = on(true, || Level0::new(pos, level0).distance(cut).to_bits());
-    assert_eq!(
-        parallel,
-        serial_distance(pos, level0, cut),
-        "{pos:?} {level0:?} {cut:?}"
-    );
+    assert_same_distances(&[(pos.to_vec(), level0.to_vec(), cut.to_vec())]);
 }
 
 /// A surface of `n`² vertices, bumped and jittered so it is no regular grid.
@@ -61,6 +76,7 @@ fn surface(n: usize, random: &mut Xorshift) -> (Vec<f32>, Vec<u32>) {
 fn a_cut_measures_the_serial_distance_on_random_meshes() {
     let mut random = Xorshift::new(956);
     let special = [f32::NAN, 0.0, -0.0];
+    let mut cases = Vec::new();
     for _ in 0..10_000 {
         let vertices = 3 + random.below(22);
         let pos: Vec<f32> = (0..vertices * 3)
@@ -74,8 +90,9 @@ fn a_cut_measures_the_serial_distance_on_random_meshes() {
             (0..count * 3).map(|_| r.below(vertices) as u32).collect()
         };
         let (level0, cut) = (triangles(&mut random), triangles(&mut random));
-        assert_same_distance(&pos, &level0, &cut);
+        cases.push((pos, level0, cut));
     }
+    assert_same_distances(&cases);
 }
 
 // Behaviour: the edge cases measure the serial distance too — empty sides, one triangle, an
@@ -100,8 +117,14 @@ fn a_cut_measures_the_serial_distance_on_edge_cases() {
     assert_same_distance(&pos, &level0, &halved);
 }
 
-/// A primitive built on one thread or many into its own store: its result and every object stored.
-fn primitive(parallel: bool, pos: &[f32], triangles: &[u32], root: &Path) -> (Value, Vec<Vec<u8>>) {
+/// A primitive built on one thread or many into its own store: its result and every object stored,
+/// by name.
+fn primitive(
+    parallel: bool,
+    pos: &[f32],
+    triangles: &[u32],
+    root: &Path,
+) -> (Value, Vec<(PathBuf, Vec<u8>)>) {
     let mut o = crate::texture_preview::tests::options(root);
     o.simplification = "qem-endpoints".into();
     let demand = crate::proxy::cut::cut_demand(None, 4096, triangles.len() / 3, 0);
@@ -128,10 +151,13 @@ fn primitive(parallel: bool, pos: &[f32], triangles: &[u32], root: &Path) -> (Va
     };
     let mut stored = files(&o.cache);
     stored.sort();
-    (
-        result,
-        stored.iter().map(|p| std::fs::read(p).unwrap()).collect(),
-    )
+    let object = |p: &PathBuf| {
+        (
+            p.strip_prefix(&o.cache).unwrap().to_path_buf(),
+            std::fs::read(p).unwrap(),
+        )
+    };
+    (result, stored.iter().map(object).collect())
 }
 
 fn assert_same_primitive(name: &str, pos: &[f32], triangles: &[u32]) {
