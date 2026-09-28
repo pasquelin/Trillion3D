@@ -9,6 +9,7 @@ import { API_FILES, API_SOURCES, generateApiFiles } from '../generate-api-refere
 import { gitPathsSync } from '../git-paths.ts';
 import { cacheOf, COOKED_SCENES, compileSiteCaches } from '../site-caches.ts';
 import { buildFlags } from './build-flags.ts';
+import { favicon } from './favicon.ts';
 import { FRAMED_MEASUREMENT_TAG, withMeasurement } from './measurement.ts';
 import { buildPortal } from './build-portal.ts';
 import { buildRuntime } from './build-runtime.ts';
@@ -25,9 +26,8 @@ export const SITE_URL = 'https://www.trillion3d.com/';
 export const STATIC_ENTRIES = ['examples', 'assets', 'data', 'reports'];
 /** The pages the portal replaced, each moved to its route: an old link still lands on it. */
 const REDIRECTS: Record<string, string> = { 'report.html': '#/en/reports' };
-/** What the build writes at the root from `SITE_URL`: the portal page, the crawler rules and the
- *  redirects. */
-const METADATA_ENTRIES = ['index.html', 'robots.txt', ...Object.keys(REDIRECTS)];
+/** What the build writes at the root: the portal page, crawler rules, redirects and the icon. */
+const METADATA_ENTRIES = ['index.html', 'robots.txt', 'favicon.ico', ...Object.keys(REDIRECTS)];
 /** Source modules living beside the reports' records are not served. */
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx']);
 
@@ -147,8 +147,8 @@ export const buildBundles = (root: string, out: string) =>
     SITE_STEPS.filter(({ folder }) => folder),
   );
 
-/** Writes the portal page with its canonical link, and crawler rules that allow everything. The
- * portal routes by hash, so the root is the only address a crawler can list: no sitemap. */
+/** Writes the portal page with its canonical link, crawler rules that allow everything and the
+ * icon (`favicon.ts`). The portal routes by hash: the root is all a crawler lists, no sitemap. */
 async function writeMetadata(source: string, out: string, published: boolean) {
   const page = await readFile(resolve(source, 'index.html'), 'utf8');
   const canonical = `    <link rel="canonical" href="${SITE_URL}" />\n  </head>`;
@@ -159,6 +159,7 @@ async function writeMetadata(source: string, out: string, published: boolean) {
      one published without it. */
   await writeFile(resolve(out, 'index.html'), published ? withMeasurement(written) : written);
   await writeFile(resolve(out, 'robots.txt'), 'User-agent: *\nAllow: /\n');
+  await writeFile(resolve(out, 'favicon.ico'), favicon());
   for (const [page, route] of Object.entries(REDIRECTS))
     await writeFile(
       resolve(out, page),
@@ -169,8 +170,7 @@ async function writeMetadata(source: string, out: string, published: boolean) {
     );
 }
 
-/** Copies the served statics of the site `source` tree into `out`, sources excluded, and writes
- * the root pages the site address shapes; `published`, with the audience measurement. */
+/** Copies the statics of `source` into `out`, sources excluded, then writes the root files. */
 export async function copyStatics(source: string, out: string, published = false) {
   await mkdir(out, { recursive: true });
   for (const name of STATIC_ENTRIES)
