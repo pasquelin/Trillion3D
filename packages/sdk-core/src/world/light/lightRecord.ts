@@ -3,6 +3,7 @@ import {
   addHemisphereIrradiance,
   addIrradianceCoefficients,
   addUniformIrradiance,
+  type IrradianceSum,
 } from '../../scene/core/environment.ts';
 import { Vector3 } from '../math/vector3.ts';
 import { Light } from './light.ts';
@@ -66,7 +67,7 @@ export function lampRecord(light: Light, id: string, reach: number): SceneLight 
  * or its colour everywhere when it carries none. A lamp adds nothing here; whether the light is
  * shown is the caller's to decide, as for `lampRecord`. Returns whether it added anything.
  */
-export function addLightIrradiance(light: Light, sh: number[]) {
+export function addLightIrradiance(light: Light, sh: IrradianceSum) {
   if (!(light.intensity > 0)) return false;
   const scale = light.intensity;
   const colour = light.color.toArray().map((c) => c * scale);
