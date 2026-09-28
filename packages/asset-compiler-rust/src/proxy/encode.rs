@@ -1,8 +1,8 @@
 use super::{
-    PROXY_CELL_METRES, PROXY_ERROR_METRES, PROXY_TRIANGLE_BUDGET, SCENE_PROXY_HEADER_WORDS,
-    SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, SceneProxy,
+    SceneProxy, PROXY_CELL_METRES, PROXY_ERROR_METRES, PROXY_TRIANGLE_BUDGET,
+    SCENE_PROXY_HEADER_WORDS, SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION,
 };
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 impl SceneProxy {
     /// Descriptor manifest carries: where to read object, weight, value.

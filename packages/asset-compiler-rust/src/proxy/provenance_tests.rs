@@ -30,13 +30,11 @@ fn coincident_owners_survive_without_changing_static_geometry() {
     assert_eq!(original.node_children, owned.node_children);
     assert_eq!(owned.provenance.group_offsets, [0, 2]);
     assert_eq!(owned.provenance.owners, [0, 0xff00_00ff, 1, 0xff00_ff00]);
-    assert!(
-        owned
-            .provenance
-            .triangle_groups
-            .iter()
-            .all(|group| *group == 0)
-    );
+    assert!(owned
+        .provenance
+        .triangle_groups
+        .iter()
+        .all(|group| *group == 0));
     assert!(
         owned.triangle_count() > 1,
         "subdivision must preserve the shared group"
@@ -80,5 +78,30 @@ fn repeated_cells_intern_the_same_source_group() {
         bytes.len(),
         expected,
         "all version-three suffix lengths are explicit"
+    );
+}
+
+#[test]
+fn static_triangle_columns_match_the_literal_version_two_fixture() {
+    let proxy = assemble_owned(
+        &[],
+        vec![0., 0., 0., 0.5, 0., 0., 0., 0.5, 0.],
+        vec![0xff00_00ff],
+        &[0],
+        &[identity()],
+    );
+    // A half-metre right triangle subdivides at n=2; the single leaf keeps emission order.
+    assert_eq!(
+        proxy.triangles,
+        [
+            0., 0., 0., 0.25, 0., 0., 0., 0.25, 0., 0.25, 0., 0., 0.25, 0.25, 0., 0., 0.25, 0., 0.,
+            0.25, 0., 0.25, 0.25, 0., 0., 0.5, 0., 0.25, 0., 0., 0.5, 0., 0., 0.25, 0.25, 0.,
+        ]
+    );
+    assert_eq!(proxy.albedo, [0xff00_00ff; 4]);
+    assert_eq!(proxy.node_bounds, [0., 0., 0., 0.5, 0.5, 0.]);
+    assert_eq!(
+        proxy.node_children,
+        [0xff00_0000, 0x0104_ffff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     );
 }

@@ -17,7 +17,7 @@
 export const SCENE_PROXY_VERSION = 3;
 /** 'W','G','P','X' read as an unsigned 32-bit integer little-endian. */
 export const SCENE_PROXY_MAGIC = 0x58504757;
-/** Header integers: signature, version, triangles, nodes. */
+/** Header integers: signature, version, triangle/node/group/owner/source counts, reserved zero. */
 export const SCENE_PROXY_HEADER_WORDS = 8;
 /** Numbers per proxy triangle: three world vertices, no normal — it is deduced from the triangle. */
 export const PROXY_TRIANGLE_FLOATS = 9;
