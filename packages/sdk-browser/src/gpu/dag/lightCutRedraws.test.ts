@@ -4,6 +4,11 @@ import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { createLightCutRedraws } from './lightCutRedraws.ts';
 import { COARSER_VIEWS, WORK_DROPPED } from './shader/viewsWgsl.ts';
 import { MAX_SHADOW_BATCHES, SHADOW_FLAG_FRAMES } from '../shadow/batchBudget.ts';
+import {
+  DRAW_ALL,
+  DRAW_DYNAMIC,
+  DRAW_FULL,
+} from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 
 const coarserView = (view: number) => (1 << (COARSER_VIEWS + view)) >>> 0;
 
@@ -162,4 +167,44 @@ test('a frame that finds every flag slot still read draws its pages again, withd
     [40, true],
     [41, true],
   ]);
+});
+
+// #990: a page restored from the static layer drew its moving casters alone; drawn short, only they
+// are drawn again. A page whose static casters were drawn — or drawn with no mode said — draws them
+// again, also when it waited for residency.
+test('a page drawn short is drawn again as it was drawn: its static casters only if it drew them', async () => {
+  const flag = { value: WORK_DROPPED };
+  const { redraws, encoder } = redrawsWith(flag);
+  const drawn = async (pages: number[], modes?: number[]) => {
+    const settle = redraws.encode(encoder, pages, [0, 0, 0], pages.length, modes);
+    redraws.reported(true);
+    settle?.(true);
+    await redraws.settled();
+  };
+  const seen = () => {
+    const again: [number, boolean][] = [];
+    redraws.takeRedraw((page, _withdraw, staticCasters) => again.push([page, staticCasters]));
+    return again;
+  };
+  await drawn([1, 2, 3], [DRAW_DYNAMIC, DRAW_FULL, DRAW_ALL]);
+  assert.deepEqual(seen(), [
+    [1, false],
+    [2, true],
+    [3, true],
+  ]);
+  await drawn([4]);
+  assert.deepEqual(seen(), [[4, true]], 'no mode said: every caster');
+  flag.value = coarserView(0);
+  await drawn([5, 6], [DRAW_FULL, DRAW_DYNAMIC]);
+  await drawn([5], [DRAW_DYNAMIC]);
+  redraws.residencyChanged();
+  redraws.rest();
+  assert.deepEqual(
+    seen(),
+    [
+      [5, true],
+      [6, false],
+    ],
+    'a page that waited keeps what its first draw lacked',
+  );
 });
