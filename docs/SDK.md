@@ -949,6 +949,41 @@ on their line.
 No engine loop runs above 0.1 ms of the engine's own frame, so no batch replaces one yet (#80): the
 batches are for hosts until a measured share says otherwise.
 
+## Page materials
+
+A page can inspect and edit the materials of a loaded model through its `world`, after
+`await world.awaitPages()` has opened the drawing session. `world.materials()` lists the
+current materials in cache table order, followed by materials the page created. Each has
+an `id`, `name`, `baseColor`, `opacity`, `metalness`, `roughness`, `emissive`, `side`,
+`alphaMode`, `alphaCutoff` and `tiling` (`null` without a map). `world.material(id)` reads
+one by that listed ID. These reads return detached copies. `world.importedMaterials()`
+returns the source file's values even after the page changes them; created materials are
+not included. An unknown ID raises `UNKNOWN_MATERIAL`.
+
+`world.setMaterial(id, patch)` updates every surface built from that table material for
+the next frame. A patch may name `baseColor` (three linear channels from 0 to 1),
+`opacity`, `metalness`, `roughness` and `alphaCutoff` (each 0 to 1), nonnegative linear
+`emissive` channels, `alphaMode` (`'opaque'`, `'mask'`, `'blend'`), or nonzero finite
+`tiling` coordinates. Tiling needs a map used by that material alone; a shared map is
+refused with `MATERIAL_TEXTURE_SHARED`. An invalid field or value raises
+`INVALID_MATERIAL` before any write. The return value is `true` if every renderer in
+the session took the edit in place, or `false` if another renderer needs a new session.
+
+Changing between opaque, masked and blended also moves the material's drawables into
+the matching draw class. If a renderer cannot move that class in place, the call raises
+`MATERIAL_CLASS_CHANGE` before changing anything. The page can keep the old material
+and show that refusal; it should not assume every renderer accepts a class change.
+
+`world.createMaterial({ name?, baseColor?, opacity?, metalness?, roughness?, emissive?,
+alphaMode?, alphaCutoff? })` makes a material owned by the page and returns its listed
+record. It can be read and edited by ID like an imported material. `map` is not yet
+supported (`UNSUPPORTED_SCENE_UPDATE`), and `tiling` is not a creation field. The
+session holds at most 256 created materials; the next creation raises
+`MATERIAL_CEILING` without creating one. To draw it on a compiled primitive, call
+`world.assignMaterial('mesh/primitive', created.id)`, using the two numbers in that
+model's `metadata.primitives`. Unknown primitives raise `UNKNOWN_SCENE_NODE`. See the
+[live page-material example](../site/examples/page-materials.html).
+
 ## Lights
 
 Nothing lights an opaque surface except a light the host declared. There is no fixed ambient term,
@@ -967,6 +1002,34 @@ write of `.r`, `.g` or `.b` is not heard: set `scene.background` again after one
 background, or any value without `getHex`, is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws
 one yet.
 
+### Scene fog
+
+Set `world.scene.fog` to place distance or height fog over opaque and transparent surfaces on
+WebGPU and WebGL2. Its `color` is a `Color` in linear RGB; `null` (the default) removes fog.
+The distance is measured from the camera, and height uses the scene's positive Y direction:
+
+```js
+import { Color } from 'trillion3d';
+
+const color = new Color().setRGB(0.35, 0.45, 0.6);
+world.scene.fog = { color, near: 10, far: 100 }; // Linear: clear before 10, all fog after 100.
+world.scene.fog = { color, density: 0.02 }; // Exponential: uniform medium.
+world.scene.fog = { color, density: 0.02, heightFalloff: 0.15, baseHeight: 0 }; // Height fog.
+world.scene.fog = null; // No fog.
+```
+
+`near` and `far` must be finite with `0 ≤ near < far`. `density` and `heightFalloff` must be
+finite and nonnegative; `baseHeight` must be finite. The three colour components must be finite
+and nonnegative. Invalid settings throw `INVALID_SCENE_ENVIRONMENT`. Assigning a new fog or
+changing its colour with a `Color` method takes effect on the next frame. After changing `near`,
+`far`, `density`, `heightFalloff` or `baseHeight` directly, assign `scene.fog` again to notify the
+world. A material with `fog: false` keeps its unfogged colour on both renderers.
+
+The lower-level scene contract uses `SceneEnvironment.fog` with a three-number linear colour and
+the same linear or exponential fields; omitting it means no fog. `SavedScene.fog` stores the same
+`SceneFog` value, or `null` when absent, so a saved scene restores the effect. See the
+[fog lighting law](ENGINE.md#fog) for how the renderers apply it.
+
 A world declares lights like any other object: `scene.add(light.point({ intensity: 2, position:
 [0, 3, 0] }))`, `light.intensity = 2` afterwards, `scene.remove(light)` to drop it. Underneath, every
 light is a `SceneLight` (version 2) of one of three kinds. `point` and `spot` carry `position` and
@@ -980,7 +1043,8 @@ past which a caster lights without a shadow (`shadowCastersUnsliced`), and at mo
 regions redrawn per frame. WebGL2 draws 64 lights and refuses more (#835). The shadow pool is sized
 once, at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
 128² pages as wide as the device draws, within the budget's shadow share; `metric.frame(world)`
-publishes its `shadowPoolBytes` and `shadowPoolLayers`.
+publishes its `shadowPoolBytes` and `shadowPoolLayers`, and its memory pressure by name
+(`shadowPeakBytes`, `shadowResolutionBias`, `shadowMemoryEvents`).
 
 `capability.lighting(world)` reports what the **active** renderer applies — `{ sceneLights,
 lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light

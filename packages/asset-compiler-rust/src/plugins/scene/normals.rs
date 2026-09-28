@@ -188,9 +188,5 @@ fn marked(marks: &[bool], rank: usize) -> bool {
 
 /// Unit vector, or the null vector when there is no direction to give.
 fn unit(vector: [f32; 3]) -> [f32; 3] {
-    let length = (vector[0] * vector[0] + vector[1] * vector[1] + vector[2] * vector[2]).sqrt();
-    if !length.is_finite() || length == 0.0 {
-        return [0.0, 0.0, 0.0];
-    }
-    [vector[0] / length, vector[1] / length, vector[2] / length]
+    crate::shared_math::normalized_or(vector.map(f64::from), [0.0; 3]).map(|part| part as f32)
 }

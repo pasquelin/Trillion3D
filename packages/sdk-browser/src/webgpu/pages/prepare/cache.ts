@@ -60,7 +60,7 @@ export async function grantWebgpuPagesCache(rt: WebgpuPagesRuntime, gpuDevice: G
           return { cache, destroy: () => void cache.dispose() };
         },
       );
-      return granted && { pool: declared(granted.pool), made: granted.made };
+      return granted && { ...granted, pool: declared(granted.pool) };
     },
     stopped: () => signal.aborted || run.lost,
   });

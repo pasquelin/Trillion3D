@@ -106,6 +106,7 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     texturePoolBytes: options.texturePoolBytes,
     textureCompression: options.textureCompression,
     stageProfile: options.stageProfile === true,
+    feedbackTargetAB: options.feedbackTargetAB === true,
     // The diagnostic variant is checked here, once: outside `trace`, it is refused.
     diagnosticGpuVariant: resolveDiagnosticGpuVariant(
       options.diagnosticGpuVariant,

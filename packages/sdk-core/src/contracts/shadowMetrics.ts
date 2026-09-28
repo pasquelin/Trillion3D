@@ -44,6 +44,14 @@ export interface ShadowFrameMetrics {
   /** Layers of the pool, 4 096 pages each at most, sized once from the first frame's screen and
    *  shadowed lights. Null until then. */
   shadowPoolLayers?: number | null;
+  /** The most GPU bytes the shadows' memory grant held at once, late layers included. Null until
+   *  the first frame sizes the pool. */
+  shadowPeakBytes?: number | null;
+  /** Halvings of the shadow pool's bytes the device's out-of-memory refusals took; 0 normally. */
+  shadowResolutionBias?: number | null;
+  /** The shadows' memory-pressure events since the world opened, by name, in order; empty
+   *  normally. */
+  shadowMemoryEvents?: readonly string[] | null;
   /** Virtual pages mapped again after the pool evicted them to make room, since the explorer
    *  opened: the redraws a pool too small for what the frames read costs. */
   shadowPagesRefetched?: number | null;

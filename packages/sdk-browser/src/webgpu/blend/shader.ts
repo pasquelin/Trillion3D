@@ -1,6 +1,6 @@
 import { SCREEN_REFLECTION_WGSL } from '../../reflections/screenWgsl.ts';
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
-import { MODEL_SHIFT, MODEL_FLAG, SURFACE_MODEL } from '../../scene/surfaceModel.ts';
+import * as surfaceModel from '../../scene/surfaceModel.ts';
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts';
 import { bounceReflectionWgsl, MIRROR_LIGHTING_WGSL } from '../../bounce/reflectWgsl.ts';
@@ -64,7 +64,7 @@ ${DATA_SAMPLE_WGSL}
 ${TILE_REQUEST_WGSL}
 // The blended colour, and the tile rank this pixel asks of the virtual textures, set in its own
 // target: the fragment stage writes nothing to memory, it keeps its early reject.
-struct BlendOut{@location(0) color:vec4f,@location(1) request:u32,}
+struct BlendOut{@location(0) color:vec4f,@location(1) request:u32,@location(2) asIs:vec4f,}
 ${BLEND_REQUEST_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
 ${LINE_CLIP_WGSL}
@@ -98,7 +98,7 @@ ${FACING_WGSL}
  let local=vertexIndex&((1u<<uni.vertexShift)-1u);
  let flags=(it.flags&${WATER_MAX_ITEMS}u)|uni.viewFlags;
  out.color=it.color;
- out.ids=vec3u(it.mapIndex,flags|(u32(it.emissive.w)<<${MODEL_SHIFT}u),it.emissiveIndex);
+ out.ids=vec3u(it.mapIndex,flags|(u32(it.emissive.w)<<${surfaceModel.MODEL_SHIFT}u),it.emissiveIndex);
  out.maps=vec4u(it.roughIndex,it.metalIndex,it.normalIndex,it.aoIndex);
  out.alphaAo=vec4f(it.alphaTest,it.aoIntensity,it.dash);
  out.pbr=vec4f(it.roughness,it.metalness,it.normalScale);
@@ -175,7 +175,7 @@ ${BLEND_SURFACE_WGSL}
   }else if((flags&0x10000000u)!=0u){color=select(vec3f(0.5,0.55,0.6),hashColor(in.diagId&0x00ffffffu),in.diagId!=0u);}
   else if((flags&0x08000000u)!=0u){color=select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),(in.diagId&0x80000000u)!=0u);}
   else if((flags&0x04000000u)!=0u){let ratio=f32((in.diagId>>24u)&127u)/127.0;color=vec3f(ratio,1.0-ratio,0.12);}
-  return BlendOut(vec4f(color,1.0),s.request);
+  return BlendOut(vec4f(color,1.0),s.request,vec4f(0.0,0.0,0.0,1.0));
  }
  var rgb=s.rgb;
  // No declared lamp, or an unlit view requested: the raw albedo, exactly like the opaque
@@ -188,13 +188,13 @@ ${BLEND_SURFACE_WGSL}
    let m=clamp(s.metal,0.0,1.0);
    shadowFootprint=select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-in.view),uni.camPos.w!=0.0);
    rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
-   let model=(flags>>${MODEL_SHIFT}u)&7u;
-   surfaceModel=select(select(0u,${MODEL_FLAG.diffuse}u,model==${SURFACE_MODEL.diffuse}u),${MODEL_FLAG.toon}u,model==${SURFACE_MODEL.toon}u);
+   let model=(flags>>${surfaceModel.MODEL_SHIFT}u)&7u;
+   surfaceModel=select(select(0u,${surfaceModel.MODEL_FLAG.diffuse}u,model==${surfaceModel.SURFACE_MODEL.diffuse}u),${surfaceModel.MODEL_FLAG.toon}u,model==${surfaceModel.SURFACE_MODEL.toon}u);
    rgb+=mirrorLighting(s.rgb,m,clamped,s.N,V,in.view);
   }
   // Lit or unlit, the surface is seen through the fog.
-  rgb=fogged(rgb,in.view,uni.eye.xyz);
+  if((flags&${surfaceModel.FOG_FREE_MODEL_BIT << surfaceModel.MODEL_SHIFT}u)==0u){rgb=fogged(rgb,in.view,uni.eye.xyz);}
  }
- return BlendOut(vec4f(rgb,s.alpha),s.request);
+ return BlendOut(vec4f(rgb,s.alpha),s.request,vec4f(0.0,0.0,0.0,s.alpha));
 }
 `;

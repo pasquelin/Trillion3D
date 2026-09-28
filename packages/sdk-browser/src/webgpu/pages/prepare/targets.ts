@@ -12,6 +12,7 @@ import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../../visibility/shader/materialClass.ts';
 import { MATERIAL_DEPTH_PASS } from '../../core/materialPasses.ts';
+import { createAsIsShare } from '../../../lighting/deferred/asIsShare.ts';
 
 /**
  * Bytes of the image targets at this size. As in the reference, targets follow resolution: no byte
@@ -30,7 +31,9 @@ export function frameTargetAllocation(
   if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
   checkSurfaceSize(gpuDevice, width, height, 1);
   return (
-    frameTargetBytes(width, height, reserveHiz) +
+    frameTargetBytes(width, height, reserveHiz) -
+    (rt.feedbackAB?.target === false ? width * height * 4 : 0) +
+    width * height +
     additional +
     (wantsReflections(rt) ? width * height * 8 : 8) +
     80
@@ -45,6 +48,7 @@ export function targetsFit(rt: WebgpuPagesRuntime, width: number, height: number
     gpu.targetSize[0] === width &&
     gpu.targetSize[1] === height &&
     !!gpu.surfaces &&
+    !!gpu.feedbackTexture === (rt.feedbackAB?.target !== false) &&
     gpu.reflection?.active === wantsReflections(rt) &&
     (!vis.visEnabled || !!vis.visTexture)
   );
@@ -66,11 +70,32 @@ export function releaseTargets(rt: WebgpuPagesRuntime) {
   gpu.reflection = undefined;
   gpu.surfaces?.dispose();
   gpu.surfaces = undefined;
+  gpu.asIsShare?.dispose();
+  gpu.asIsShare = undefined;
   vis.gpuRaster?.dispose();
   vis.gpuRaster = undefined;
   capture.capturedPixels = undefined;
   capture.capturedRevision = -1;
   gpu.temporal?.release();
+}
+
+/** The texture-feedback target; only the A/B diagnostic copies it out. */
+export function makeFeedbackTarget(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  width: number,
+  height: number,
+) {
+  rt.gpu.feedbackTexture = device.createTexture({
+    label: 'Trillion3D texture feedback target',
+    size: { width, height },
+    format: FEEDBACK_FORMAT,
+    usage:
+      GPUTextureUsage.RENDER_ATTACHMENT |
+      GPUTextureUsage.TEXTURE_BINDING |
+      (rt.context.feedbackTargetAB ? GPUTextureUsage.COPY_SRC : 0),
+  });
+  rt.gpu.feedbackView = rt.gpu.feedbackTexture.createView();
 }
 
 /**
@@ -98,9 +123,9 @@ export function makeTargets(
     usage | GPUTextureUsage.COPY_DST,
   );
   gpu.hdrTexture = target('Trillion3D HDR lighting', 'rgba16float');
-  gpu.feedbackTexture = target('Trillion3D texture feedback target', FEEDBACK_FORMAT, sampled);
-  gpu.feedbackView = gpu.feedbackTexture.createView();
+  if (rt.feedbackAB?.target !== false) makeFeedbackTarget(rt, device, width, height);
   gpu.surfaces = createSurfaceBuffer(device, width, height);
+  gpu.asIsShare = createAsIsShare(device, gpu.surfaces.views()[3], width, height);
   gpu.colorView = gpu.colorTexture.createView();
   gpu.depthView = gpu.depthTexture.createView();
   gpu.hdrView = gpu.hdrTexture.createView();
