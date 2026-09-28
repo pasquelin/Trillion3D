@@ -12,6 +12,7 @@ import type { ScreenErrorVariant } from '../../packages/sdk-core/src/index.ts';
 import type { TextureCompression } from '../../packages/sdk-browser/src/texture/blockFormats.ts';
 import type { MovingLightPlan } from './lamps.ts';
 import type { Coupe, MovingNode, ReglageVivant, Reseau } from './report/types.ts';
+import type { PoolVivant } from './benchSettings.ts';
 
 /** What `runSerie` sends into the page: everything `measureView` needs, nothing it infers. */
 export interface MeasureViewOptions {
@@ -34,7 +35,7 @@ export interface MeasureViewOptions {
   geometryPoolBytes: number | null;
   texturePoolBytes: number | null;
   geometryPoolCeilingBytes: number | null;
-  poolVivant: { geometryPoolBytes?: number | null; texturePoolBytes?: number | null } | null;
+  poolVivant: PoolVivant | null;
   instances: number;
   width: number;
   height: number;

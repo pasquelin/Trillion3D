@@ -1,0 +1,22 @@
+// A texture pool that fills: its budget derived from what the scene itself holds resident, never a
+// number tuned for one scene. Read by `options.ts` in Node and `measurePage.ts` in the page.
+
+/** The fraction of the resident working set `--pool-textures-vivant <n>%` asks, or `null` when the
+ *  value is not a percentage (then a number of MiB). */
+export function residentFraction(value: string): number | null {
+  const match = /^(\d+(?:\.\d+)?)%$/.exec(value.trim());
+  if (!match) return null;
+  const fraction = Number(match[1]) / 100;
+  if (!(fraction > 0 && fraction < 1))
+    throw new Error('--pool-textures-vivant <n>% must lie strictly between 0 and 100 %');
+  return fraction;
+}
+
+/** The texture pool budget, in bytes, that holds `fraction` of the `residentBytes` the settled pose
+ *  holds: the pool then fills and a moving camera evicts. The engine raises a budget under its
+ *  floor to it, by name (`clamp`), and says so in its report. */
+export function residentFractionBudget(fraction: number, residentBytes: number | null | undefined) {
+  if (typeof residentBytes !== 'number' || !(residentBytes > 0))
+    throw new Error('the pose holds no texture tile: no working set to take a fraction of');
+  return Math.max(1, Math.round(fraction * residentBytes));
+}
