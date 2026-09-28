@@ -37,7 +37,7 @@ pub mod writer;
 
 pub use attributes::{DecodedPage, Layout, OPTIONAL};
 use bits::Quant;
-pub use unpack::{decode, decode_into};
+pub use unpack::decode;
 
 pub const MAGIC: u32 = 0x3350_4757;
 pub const VERSION: u32 = 4;
