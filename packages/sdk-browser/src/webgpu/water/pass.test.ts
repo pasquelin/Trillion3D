@@ -93,7 +93,6 @@ test('without the pass, or without a backdrop, nothing of it is encoded', () => 
   targets(gpu);
   const encoder = { copyTextureToTexture: () => assert.fail('no copy without the pass') };
   const rt = {
-    vis: { visEnabled: true },
     gpu,
     blendState,
     run: { diagnostic: 'beauty' },
@@ -140,8 +139,7 @@ test('a diagnostic view, or a capture from a second camera, keeps the pass out o
   rt.capture.capturing = true;
   assert.equal(encodeWaterPass(rt, encoder), false, 'the capture reads the surfaces as opaque');
   rt.capture.capturing = false;
-  // Off the visibility path the blends draw into the display colour the word would borrow.
-  rt.vis.visEnabled = false;
-  assert.equal(encodeWaterPass(rt, encoder), false, 'no composition follows to overwrite it');
+  // An image no composition follows keeps its display colour: the word may not borrow it.
+  assert.equal(encodeWaterPass(rt, encoder, false), false, 'no composition overwrites the word');
   assert.equal(counters.copies, 0, 'the backdrop is not even frozen');
 });

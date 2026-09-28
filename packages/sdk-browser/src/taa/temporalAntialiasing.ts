@@ -122,6 +122,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
      */
     encode(encoder: GPUCommandEncoder, inputs: TaaInputs) {
       if (images.length !== 2) throw new Error('TAA_TARGETS_MISSING');
+      const resolve = inputs.flags ? resolves.asIs : resolves.flagless;
       if (
         !bound ||
         bound.current !== inputs.current ||
@@ -132,7 +133,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
         bound.flags !== inputs.flags
       ) {
         bound = { ...inputs };
-        const { layout } = inputs.flags ? resolves.asIs : resolves.flagless;
+        const { layout } = resolve;
         for (let i = 0; i < 2; i++) {
           const entries: GPUBindGroupEntry[] = [
             { binding: TAA_BINDINGS.current, resource: inputs.current },
@@ -162,7 +163,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
           clearValue: [0, 0, 0, 0],
         })),
       });
-      pass.setPipeline((inputs.flags ? resolves.asIs : resolves.flagless).pipeline);
+      pass.setPipeline(resolve.pipeline);
       pass.setBindGroup(0, groups[read]!);
       pass.draw(3);
       pass.end();
