@@ -34,14 +34,16 @@
  */
 
 import { clipWeight } from '../math/primitives/camera.ts';
+/** Every screen-error variant; the setter refuses any other. */
+export const SCREEN_ERROR_VARIANTS = ['certifiee', 'reference'] as const;
 /** How a cluster's screen error is measured: the proven bound, or the reference formula. */
-export type ScreenErrorVariant = 'certifiee' | 'reference';
+export type ScreenErrorVariant = (typeof SCREEN_ERROR_VARIANTS)[number];
 
 let current: ScreenErrorVariant = 'certifiee';
 
 /** Sets the variant for the whole page. `null`/`undefined` restores ours: no session inherits. */
 export function setScreenErrorVariant(variant: ScreenErrorVariant | null | undefined): void {
-  if (variant != null && variant !== 'certifiee' && variant !== 'reference')
+  if (variant != null && !SCREEN_ERROR_VARIANTS.includes(variant))
     throw new Error('Unknown screen-error variant');
   current = variant ?? 'certifiee';
 }

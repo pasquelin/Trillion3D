@@ -53,13 +53,12 @@ function runtime() {
   rt.gpu.surfaces = { views: () => [{}, {}, {}, flags] } as never;
   const { device, writes } = fakeDevice();
   const cam = { viewProjection: IDENTITY_MATRIX4, eye: [0, 0, 0] } as unknown as EngineCamera;
-  const hdr = rt.gpu.hdrView!;
   /** A whole frame: input, render matrix, pass; returns the written uniform, or `null`. */
-  const frame = (quiet: boolean) => {
+  const frame = (quiet: boolean, asIs = true) => {
     beginTaaFrame(rt, cam, quiet);
     taaRenderMatrix(rt, cam);
     const before = writes.length;
-    encodeTaaPass(rt, device, {} as GPUCommandEncoder, cam, hdr);
+    encodeTaaPass(rt, device, {} as GPUCommandEncoder, cam, rt.gpu.hdrView!, asIs);
     return writes.length > before ? (writes[writes.length - 1].data as Float32Array) : null;
   };
   return { rt, cam, temporal, encoded, frame, flags };
@@ -89,8 +88,7 @@ test('an accumulated frame advances jitter, writes the uniform and returns the w
     'the render matrix carries the jitter',
   );
   assert.equal(encoded.length, 1);
-  // The surface flags the as-is share is resolved from, beside the colour.
-  assert.equal((encoded[0] as TaaInputs).flags, flags);
+  assert.equal((encoded[0] as TaaInputs).flags, flags, 'what the as-is share comes from');
   assert.equal(temporal.motion.resets, 1, 'the first frame has no history: poses are taken');
   // Without history, `params.y` is 0; the next frame has it, and nobody moved (`params.z`).
   assert.equal(u[37], 0);
@@ -109,6 +107,8 @@ test('an accumulated frame advances jitter, writes the uniform and returns the w
   u = frame(false)!;
   assert.deepEqual(temporal.motion.updates, [false, true]);
   assert.equal(u[38], 1);
+  frame(false, false);
+  assert.equal((encoded.at(-1) as TaaInputs).flags, undefined, 'no as-is pixel, no flags (OMB-11)');
 });
 
 test('hold waits for a full cycle of still frames, averaged uniformly from a fixed phase', () => {
