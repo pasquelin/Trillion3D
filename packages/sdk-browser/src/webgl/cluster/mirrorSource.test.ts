@@ -23,6 +23,7 @@ test('WebGL reflection captures are counted and their allocations leave when the
   assert.equal(renderer.triangles, 2);
   assert.equal(renderer.backdropBytes, 8 * 4 * 12);
   material.roughness = 1;
+  material.needsUpdate = true;
   draw();
   assert.equal(renderer.backdropPasses, 0);
   assert.equal(renderer.backdropBytes, 0);
