@@ -1,5 +1,6 @@
 import {
   EngineError,
+  copyMatrix4,
   decomposeMatrix4,
   determinantMatrix4,
   invertMatrix4,
@@ -87,7 +88,7 @@ export function setWebgpuTransforms(
           `node ${node.name} missing from the prepared scene`,
           { nodeName: node.name },
         );
-      for (let i = 0; i < 16; i++) request[i] = matrices[k * 16 + i];
+      copyMatrix4(request, matrices, 0, k * 16);
       if (!poseNode(setup.worlds, node, request, !wholePass)) continue;
       noteMoved(rt, node);
       // The pose is set: the engine index takes it, and every matrix it holds — page records,
