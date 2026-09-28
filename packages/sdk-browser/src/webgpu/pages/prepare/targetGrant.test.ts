@@ -15,8 +15,7 @@ import { collectClusterPages } from '../../../page/selection/selection.ts';
 import { packDagSelection } from '../../../gpu/dag/selection.ts';
 import { refusing } from './refusing.fixture.ts';
 import type { BackendDiagnostic } from '../../../backend/types.ts';
-import type { WebgpuPagesBackend, WebgpuPagesRuntime } from '../runtime.ts';
-import { requestFrameTargets } from './targetGrant.ts';
+import type { WebgpuPagesBackend } from '../runtime.ts';
 import { createExplorerFrameScheduler } from '../../../world/render/frameScheduler.ts';
 import { frameQueue } from '../../../world/render/frameQueue.fixture.ts';
 
