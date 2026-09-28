@@ -13,7 +13,7 @@ import type { PageRec, ClusterRoot } from './types.ts';
 import { placementsOf } from '../../placement/roots.ts';
 import { rowShadowless, type PlacementRows } from '../../placement/rows.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { blendMoves, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
+import { blendMoves, isAssignment, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
 
 /** Whether a primitive's pages are drawn blended: the rule of the open, and of a material a page
  *  moves between draw classes later (`reassignBlend`). */
@@ -86,9 +86,9 @@ export function collectClusterPages(
           array: entry.array,
           triangles: page.count / 3,
           indexBytes: entry.array?.byteLength ?? page.bytes,
-          // A transparent cluster keeps its index page: its forward draw reads an index buffer and
-          // the source vertices, which no page replaces (`../../webgpu/blend/shader.ts`).
-          geometryPage: transparent ? undefined : page.geometry,
+          // A transparent cluster draws from its geometry page as an opaque one does
+          // (`../../webgpu/blend/shader.ts`).
+          geometryPage: page.geometry,
           min: mins[pageIndex],
           max: maxs[pageIndex],
           role: page.role,
@@ -157,7 +157,11 @@ export function collectClusterPages(
    *  written: the family this collection gives the class `alpha.to`, or the one it has. */
   const blendOf = (rec: PageRec, alpha: AlphaChange) => {
     const mesh = rec.sourceMesh,
-      worn = mesh && alpha.surfaces.includes(mesh.material as object),
+      worn =
+        mesh &&
+        (isAssignment(alpha)
+          ? alpha.meshes.has(mesh)
+          : alpha.surfaces.includes(mesh.material as object)),
       primitive = worn && primitiveOf(associations.get(mesh));
     return primitive
       ? pagesBlend(primitive, { transparent: alpha.to === 'blend' })

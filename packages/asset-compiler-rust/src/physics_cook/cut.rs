@@ -145,9 +145,10 @@ pub(crate) fn collision_cut(
         .collect();
     thresholds.sort_by(f64::total_cmp);
     thresholds.dedup();
+    let level0 = hausdorff::Level0::new(pos, source);
     let measure = |threshold: f64| {
         let tiles = cut_tiles(dag, order, culling, threshold);
-        let hausdorff = hausdorff::distance(pos, source, &tiles.concat());
+        let hausdorff = level0.distance(&tiles.concat());
         (tiles, hausdorff)
     };
     let (mut held, mut failed) = (0, thresholds.len() - 1);

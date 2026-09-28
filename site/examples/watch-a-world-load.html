@@ -74,7 +74,8 @@
 
       // One listener for the whole load. The bytes of every file fill the first nine tenths of
       // the bar as they arrive; the pages the first view lacks fill the last tenth as they land.
-      // The other phases — manifest, tables, resources — name the step. The bar only ever grows.
+      // The other phases — manifest, tables, resources, the view opening — name the step. The bar
+      // only ever grows.
       let filled = 0;
       const fillTo = (percent) => {
         filled = Math.max(filled, percent);

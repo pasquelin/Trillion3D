@@ -1,9 +1,11 @@
 // Native counterpart of the buoyancy timed by `scripts/bench-fluids.ts`, for comparison only (never
 // shipped): the same scene words, and per step the module's own share of buoyancy — the pieces
 // query and the BUOYANCY command — timed apart from the collision step. The planes are flat at
-// the rest height (the wave model is TypeScript, timed by the TS bench).
+// the rest height (the waves' planes, `jolt_water_planes`, are timed by the TS bench).
 //   water <commands.bin> <maxBodies> <threads> <steps> <sliceLength>
 #include "../src/binding.h"
+
+#include "commands.h"
 
 #include <chrono>
 #include <cstdio>
@@ -28,12 +30,8 @@ int main(int argc, char **argv) {
     std::fprintf(stderr, "usage: water <commands.bin> <maxBodies> <threads> <steps> <sliceLength>\n");
     return 2;
   }
-  FILE *file = std::fopen(argv[1], "rb");
-  if (!file) return 1;
   std::vector<uint32_t> words;
-  uint32_t word;
-  while (std::fread(&word, 4, 1, file) == 1) words.push_back(word);
-  std::fclose(file);
+  if (!readCommands(argv[1], words)) return 1;
   uint32_t bodies = std::atoi(argv[2]), threads = std::atoi(argv[3]), steps = std::atoi(argv[4]);
   float slice = std::atof(argv[5]), dt = 1.0f / 60.0f;
   if (jolt_init(bodies, 65536, 10240, 16 * 1024 * 1024, threads) != 0) return 1;

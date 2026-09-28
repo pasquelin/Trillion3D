@@ -52,12 +52,15 @@ function mount(pages: PageRec[], blendSlots: number) {
   rows.pageTableFloats = new Float32Array(rows.casterSlots * STRIDE);
   rows.pageTableInts = new Uint32Array(rows.pageTableFloats.buffer);
   const geometryBlock = { vertexBase: 0, count: 3, hasUv: false, hasNormal: false };
-  const writer = createPageRowWriter({
-    geometryBlocks: new Map(pages.map((p) => [p.attributes, { ...geometryBlock }] as const)),
-    mapLayer: new Map(),
-    dataLayer: new Map(),
-    markRowDirty: rows.markRowDirty,
-  } as never);
+  const writer = createPageRowWriter(
+    {
+      geometryBlocks: new Map(pages.map((p) => [p.attributes, { ...geometryBlock }] as const)),
+      mapLayer: new Map(),
+      dataLayer: new Map(),
+      asIsShown: false,
+    } as never,
+    rows.markRowDirty,
+  );
   pages.forEach((_, page) => {
     rows.pagePositions[page] = {} as GPUBuffer;
     rows.residentOffsetWords[page] = page * 16;
@@ -155,7 +158,7 @@ test('the opaque visibility tables are the same with or without blended casters'
       rows,
       { sync: () => {}, dirty: true },
       pages,
-      [],
+      { drawn: [] },
       1,
       () => true,
       createWebgpuRowCommit(rows, writer),
@@ -175,4 +178,16 @@ test('the opaque visibility tables are the same with or without blended casters'
   assert.deepEqual([none, blendRow], [-1, 1], 'the caster row sits behind the one visibility row');
   assert.deepEqual(withCasters, without);
   assert.deepEqual(without.rowOfPage, [0, -1], 'the blended page holds no visibility row');
+});
+
+// #875: a blended cluster drawn from its geometry page never fetches an index page; it still casts.
+test('a blended caster read from its geometry page takes its row without an index page', () => {
+  const pages = catalogue(0.4);
+  Object.assign(pages[1], {
+    array: undefined,
+    geometryPage: { url: 'g1', sha256: 'g', bytes: 64, vertexCount: 3, indexCount: 3, flags: 0 },
+  });
+  const { rows, casters } = mount(pages, 1);
+  casters.refresh();
+  assert.equal(rows.blendRowOf[1], rows.blendFirst);
 });

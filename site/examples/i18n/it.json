@@ -58,7 +58,8 @@
       "missingCache": "Manca la cache compilata: esegui pnpm compile:caches"
     },
     "banner": {
-      "close": "Chiudi"
+      "close": "Chiudi",
+      "waiting": "In attesa del motore (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -500,6 +501,32 @@
       "balloon": "SEGUE IL PALLONE"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Guarda il percorso registrato nel parco. Riproducilo, fermalo o prendi il controllo della telecamera.",
+    "controls": {
+      "replay": "Riproduci",
+      "stop": "Ferma"
+    },
+    "readouts": {
+      "currentPart": "Parte attuale"
+    },
+    "words": {
+      "entrance": "Ingresso",
+      "pond": "Laghetto",
+      "bridge": "Ponte",
+      "pavilion": "Padiglione",
+      "overview": "Panoramica",
+      "complete": "Completato"
+    }
+  },
+  "a-crane-that-swings": {
+    "banner": "Gira attorno alla gru mentre una clip ruota il braccio, muove il carrello, solleva il carico e lo fa oscillare.",
+    "controls": {
+      "speed": "Velocità",
+      "paused": "In pausa",
+      "replay": "Ripeti"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Trascina per guardarti intorno. Rendi l'onda di cubi più alta o più veloce.",
     "controls": {
@@ -508,6 +535,34 @@
       "ripples": "Increspature",
       "inner": "Interno",
       "outer": "Esterno"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Avvicina la camera alle porte. Si aprono quando ti avvicini.",
+    "controls": {
+      "mode": "Modalità",
+      "openingDistance": "Distanza di apertura",
+      "openness": "Apertura"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "prossimità",
+        "manual": "manuale"
+      }
+    }
+  },
+  "a-carousel": {
+    "banner": "Ruota attorno alla giostra. Fermala o manda i cavalli di legno nel verso opposto.",
+    "controls": {
+      "running": "In movimento",
+      "speed": "Velocità",
+      "direction": "Direzione"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "senso orario",
+        "counterclockwise": "senso antiorario"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -561,6 +616,17 @@
       "lamp": "Lampada",
       "colour": "Colore",
       "bricks": "Mattoni"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Fai clic su due superfici per misurare la distanza tra loro. Un terzo clic avvia una nuova misura. Un’unità rappresenta un metro.",
+    "controls": {
+      "clear": "Cancella"
+    },
+    "readouts": {
+      "pointA": "Punto A",
+      "pointB": "Punto B",
+      "distance": "Distanza"
     }
   },
   "click-to-pick": {
@@ -1259,6 +1325,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Fai clic sulla vista, cammina con W A S D e guarda con il mouse. Riduci la memoria mentre ti muovi.",
+    "controls": {
+      "walkSpeed": "Velocità",
+      "memory": "Memoria",
+      "view": "Vista",
+      "home": "Torna all’inizio"
+    },
+    "choices": {
+      "view": {
+        "beauty": "immagine",
+        "lod": "livelli di dettaglio",
+        "clusters": "cluster"
+      }
+    },
+    "words": {
+      "credit": "Viale di urne modellato nel codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 di Rico Cilliers, Poly Haven, CC0; cassa di W. Sitters, CC BY 3.0 — vedi assets/examples/CREDITS.md"
@@ -1661,7 +1746,8 @@
       "night": "Notte",
       "bounce": "Rimbalzo",
       "sun": "Sole",
-      "lamp": "Lampada"
+      "lamp": "Lampada",
+      "spin": "Rotazione"
     },
     "words": {
       "credit": "Modello di lampione di W. Sitters, CC BY 3.0 — vedi assets/examples/CREDITS.md"
@@ -1710,11 +1796,18 @@
   },
   "the-home-pose": {
     "banner": "Scegli una vista, muovi la camera, poi scegli Inizio per tornare.",
-    "controls": { "home": "Inizio", "tower": "Torre", "square": "Piazza", "hillside": "Collina" }
+    "controls": {
+      "home": "Inizio",
+      "tower": "Torre",
+      "square": "Piazza",
+      "hillside": "Collina"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Avanza il piano vicino e guardalo tagliare ogni muro.",
-    "controls": { "nearPlane": "Piano vicino" }
+    "controls": {
+      "nearPlane": "Piano vicino"
+    }
   },
   "the-material-family": {
     "banner": "Trascina per girare intorno. Metti la luce di notte e guarda cosa brilla ancora.",
@@ -1906,6 +1999,7 @@
       "manifest": "manifesto letto",
       "tables": "tabelle della scena lette",
       "resources": "file della scena",
+      "session": "apertura della vista",
       "pages": "prime pagine",
       "ready": "pronto"
     }
@@ -2181,6 +2275,27 @@
       "credit": "Bandiera su un'asta modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
     }
   },
+  "an-elevation-of-the-house": {
+    "banner": "Scegli un prospetto della casa. Allontana la camera: il disegno ortografico mantiene esattamente la stessa scala.",
+    "controls": {
+      "elevation": "Prospetto",
+      "distance": "Distanza camera",
+      "zoom": "Scala del disegno"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Fronte",
+        "right": "Lato destro",
+        "rear": "Retro"
+      }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Passa sopra le parti del carrello per evidenziarle una alla volta, oppure disattiva l’evidenziazione nel pannello.",
+    "controls": {
+      "highlightEnabled": "Attiva evidenziazione"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "Metti in pausa la carrellata, ripeti il percorso o cambia la velocità mentre la camera segue il canale.",
     "controls": {
@@ -2190,6 +2305,55 @@
     },
     "readouts": {
       "progress": "Avanzamento"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Trascina per osservare l’angolo della strada. Il compilatore ha unito tre file OBJ di una cartella in questa scena.",
+    "controls": {
+      "visible": "Visibile",
+      "home": "Vista iniziale"
+    },
+    "words": {
+      "credit": "Modello di lampione di W. Sitters, CC BY 3.0 — vedi assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Trascina la cassa sul pavimento. Attiva lo scatto per posizionarla a passi di mezzo metro.",
+    "controls": {
+      "snap": "Scatto",
+      "home": "Inizio"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Fai clic su una forma per selezionarla. Fai clic sul pavimento per cancellare la selezione.",
+    "controls": {
+      "color": "Colore",
+      "thickness": "Spessore"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Trascina per orbitare sul campo. Cambia il numero o la vista.",
+    "controls": {
+      "count": "Numero",
+      "view": "Vista"
+    },
+    "readouts": {
+      "objectsShown": "Oggetti mostrati",
+      "objectsBuilt": "Oggetti creati"
+    },
+    "choices": {
+      "view": {
+        "beauty": "immagine",
+        "clusters": "cluster"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Monta o smonta il visore. Ogni montaggio possiede un mondo e ogni rimozione lo elimina.",
+    "controls": {
+      "mount": "Monta",
+      "unmount": "Smonta",
+      "remount": "Rimonta"
     }
   }
 }

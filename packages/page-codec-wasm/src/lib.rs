@@ -12,16 +12,18 @@
 //! build:wasm`), one shipped resource, one instantiation and one linear memory on the browser side.
 //! Beside the page decoder it therefore carries the math-foundation batch kernels (`math.rs`, ABI
 //! in `wasm_math.rs`), the CPU cut's node walk (`cut.rs`, ABI in `wasm_cut.rs`), the normal cone
-//! of the pages the world cuts at run time (`normal_cone.rs`, ABI in `wasm_cone.rs`) and the buffer
-//! they share with JavaScript.
-
+//! and position grid of the pages the world cuts at run time (`normal_cone.rs`, `bits/grid.rs`,
+//! ABI in `wasm_cone.rs`) and the buffer they share with JavaScript.
 mod attributes;
 pub mod bits;
 pub mod cut;
 pub mod cut_error;
 pub mod math;
 pub mod math_hierarchy;
+mod min_ball;
 pub mod normal_cone;
+pub mod triangles;
+mod unpack;
 pub mod vec3;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
@@ -31,14 +33,17 @@ mod wasm_cone;
 mod wasm_cut;
 #[cfg(target_arch = "wasm32")]
 mod wasm_math;
+pub mod writer;
 
 pub use attributes::{DecodedPage, Layout, OPTIONAL};
 use bits::Quant;
+pub use unpack::decode;
 
 pub const MAGIC: u32 = 0x3350_4757;
-pub const VERSION: u32 = 3;
+pub const VERSION: u32 = 4;
 /// Twenty-four little-endian words open a page: counts, flags, the quantization records of the
-/// four vector attributes, the error, and three reserved words that must read zero.
+/// four vector attributes, the error, the bits of the corner stream, and two reserved words that
+/// must read zero.
 pub const HEADER_WORDS: usize = 24;
 pub const HEADER_BYTES: usize = HEADER_WORDS * 4;
 pub const MAX_VERTICES: usize = 65_535;
@@ -73,6 +78,8 @@ pub struct Header {
     pub color: Quant<4>,
     /// Largest distance, in object units, between a source position and its decoded value.
     pub quantization_error: f32,
+    /// Bits of the corner stream (`triangles.rs`): the one stream whose length the counts do not give.
+    pub corner_bits: usize,
 }
 
 impl Header {
@@ -113,6 +120,7 @@ impl Header {
         w[15] = self.color.packed();
         w[16..20].copy_from_slice(&self.color.min.map(f32::to_bits));
         w[20] = self.quantization_error.to_bits();
+        w[21] = self.corner_bits as u32;
         w
     }
 
@@ -122,7 +130,10 @@ impl Header {
         if data.len() < HEADER_BYTES {
             return Err(PageError::Header);
         }
-        let w = header_words(&data[..HEADER_BYTES]);
+        let mut w = [0u32; HEADER_WORDS];
+        for (word, value) in w.iter_mut().zip(bits::le_words(&data[..HEADER_BYTES])) {
+            *word = value;
+        }
         if w[0] != MAGIC || w[1] != VERSION {
             return Err(PageError::Version);
         }
@@ -145,54 +156,26 @@ impl Header {
             uv1,
             color,
             quantization_error: f(w[20]),
+            corner_bits: w[21] as usize,
         };
-        let sane = w[21..].iter().all(|&word| word == 0)
+        let layout = Layout::of(&header);
+        let (table, v, n) = (layout.triangles[1] * 4, w[2] as usize, w[3] as usize);
+        let sane = w[22..].iter().all(|&word| word == 0)
             && (1..=MAX_VERTICES).contains(&header.vertex_count)
             && (3..=max_decoded_bytes / 4).contains(&header.index_count)
             && header.index_count.is_multiple_of(3)
+            && header.corner_bits <= header.index_count.saturating_mul(triangles::MAX_WIDTH)
             && header.flags & !FLAGS_ALL == 0
             && header.quantization_error.is_finite()
             && header.quantization_error >= 0.0
             && header.decoded_bytes() <= max_decoded_bytes
-            && Layout::of(&header).bytes() == data.len();
+            && layout.bytes() == data.len()
+            && layout.corners.fits(&data[HEADER_BYTES..][..table], v, n);
         if !sane {
             return Err(PageError::Bounds);
         }
         Ok(header)
     }
-}
-
-/// The twenty-four little-endian words of a header.
-fn header_words(bytes: &[u8]) -> [u32; HEADER_WORDS] {
-    let mut w = [0u32; HEADER_WORDS];
-    for (word, chunk) in w.iter_mut().zip(bytes.as_chunks::<4>().0) {
-        *word = u32::from_le_bytes(*chunk);
-    }
-    w
-}
-
-/// A complete page, its streams unpacked and dequantized: the same bytes as `decodeGeometryPage`.
-/// The streams are read in place when the page sits on a word boundary — a `page_alloc`
-/// reservation always does — and from a copy otherwise.
-pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, PageError> {
-    let header = Header::parse(data, max_decoded_bytes)?;
-    let body = &data[HEADER_BYTES..];
-    // SAFETY: every bit pattern is a valid `u32`; the byte count is a multiple of four, so an
-    // empty head leaves no tail. Only a little-endian host may read the words as they lie.
-    let (head, aligned, _) = unsafe { body.align_to::<u32>() };
-    let copied: Vec<u32>;
-    let words = if cfg!(target_endian = "little") && head.is_empty() {
-        aligned
-    } else {
-        copied = body
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .map(|b| u32::from_le_bytes(*b))
-            .collect();
-        &copied
-    };
-    attributes::split(words, &header)
 }
 
 #[cfg(test)]

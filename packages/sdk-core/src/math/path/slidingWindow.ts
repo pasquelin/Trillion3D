@@ -21,34 +21,50 @@ const CLOCK_PROBES = 32;
  * deliberately truncated clock yields it as-is; `null` if no read has moved.
  */
 export function estimateClockResolutionMs(now: () => number) {
-  let plusPetit: number | null = null;
-  let precedent = now();
+  let smallest: number | null = null;
+  let previous = now();
   for (let i = 0; i < CLOCK_PROBES; i++) {
-    const courant = now();
-    const pas = courant - precedent;
-    if (pas > 0 && (plusPetit === null || pas < plusPetit)) plusPetit = pas;
-    precedent = courant;
+    const current = now();
+    const step = current - previous;
+    if (step > 0 && (smallest === null || step < smallest)) smallest = step;
+    previous = current;
   }
-  return plusPetit;
+  return smallest;
 }
 
-/** A sliding median over the last `PATH_WINDOW` values, with no allocation per execution. */
-export class Fenetre {
-  private readonly valeurs = new Float64Array(PATH_WINDOW);
-  private readonly triee = new Float64Array(PATH_WINDOW);
-  private prochain = 0;
+/** Whether `a` comes strictly before `b` in a typed array's sort: ascending, -0 before +0, NaN last. */
+const sortsBefore = (a: number, b: number) =>
+  a < b || (b !== b && a === a) || (a === 0 && b === 0 && 1 / a < 0 && 1 / b > 0);
+
+/**
+ * A sliding median over the last `PATH_WINDOW` values, with no allocation per execution (#983): the
+ * values are kept sorted as they arrive — the one that leaves taken out by identity (NaN is
+ * itself, -0 is not +0), the new one inserted after its equals —, so the sorted copy is always the
+ * typed sort of the last values, bit for bit, and the median is read from it without sorting or a view.
+ */
+export class SlidingMedian {
+  private readonly values = new Float64Array(PATH_WINDOW);
+  private readonly sorted = new Float64Array(PATH_WINDOW);
+  private next = 0;
   count = 0;
-  ajoute(valeur: number) {
-    this.valeurs[this.prochain] = valeur;
-    this.prochain = (this.prochain + 1) % PATH_WINDOW;
-    if (this.count < PATH_WINDOW) this.count++;
+  add(value: number) {
+    const { sorted, values } = this;
+    let n = this.count;
+    if (n === PATH_WINDOW) {
+      const leaving = values[this.next];
+      let i = 0;
+      while (!Object.is(sorted[i], leaving)) i++;
+      sorted.copyWithin(i, i + 1, n--);
+    } else this.count++;
+    values[this.next] = value;
+    this.next = (this.next + 1) % PATH_WINDOW;
+    for (; n > 0 && sortsBefore(value, sorted[n - 1]); n--) sorted[n] = sorted[n - 1];
+    sorted[n] = value;
   }
-  mediane() {
-    if (!this.count) return null;
-    const { triee, valeurs, count } = this;
-    for (let i = 0; i < count; i++) triee[i] = valeurs[i];
-    triee.subarray(0, count).sort();
-    const milieu = count >> 1;
-    return count % 2 ? triee[milieu] : (triee[milieu - 1] + triee[milieu]) / 2;
+  median() {
+    const { sorted, count } = this;
+    if (!count) return null;
+    const middle = count >> 1;
+    return count % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
   }
 }

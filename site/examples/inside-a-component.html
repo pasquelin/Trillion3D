@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Inside a component</title>
+    <style>
+      html,
+      body,
+      trillion-viewer {
+        display: block;
+        margin: 0;
+        width: 100%;
+        height: 100%;
+      }
+      body {
+        background: #182431;
+      }
+    </style>
+  </head>
+  <body>
+    <trillion-viewer></trillion-viewer>
+    <script type="module">
+      import { createWorld, geometry, light, material, math, object } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      // Waits for #412: disposing a world must remove the canvas createWorld(element) added.
+      class TrillionViewer extends HTMLElement {
+        world = null;
+
+        connectedCallback() {
+          if (this.world) return;
+          const world = (this.world = createWorld(this, { controls: 'orbit' }));
+          world.canvas.id = 'view';
+          world.scene.background = math.color('#182431');
+          const gold = material.meshStandard({
+            color: '#e5a93f',
+            roughness: 0.25,
+            metalness: 0.65,
+          });
+          const dark = material.meshStandard({ color: '#263746', roughness: 0.75 });
+          const knot = object.mesh(geometry.torusKnot(1.7, 0.5, 160, 24), gold);
+          knot.castShadow = true;
+          knot.receiveShadow = true;
+          const floor = object.mesh(geometry.cylinder(4.5, 5, 0.35, 64), dark);
+          floor.position.y = -2.25;
+          floor.receiveShadow = true;
+          world.scene.add(
+            knot,
+            floor,
+            light.directional({
+              color: '#fff0d2',
+              intensity: 3.5,
+              position: [6, 8, 5],
+              castShadow: true,
+            }),
+            light.hemisphere({ color: '#b7d6ff', groundColor: '#38402f', intensity: 0.9 }),
+          );
+          world.camera.position.set(7, 4, 8);
+          world.controls.target.set(0, -0.2, 0);
+          world.controls.maxPolarAngle = Math.PI / 2 - 0.05;
+        }
+
+        disconnectedCallback() {
+          this.world?.dispose();
+          this.world = null;
+        }
+      }
+
+      customElements.define('trillion-viewer', TrillionViewer);
+      const viewer = document.querySelector('trillion-viewer');
+      const mount = () => !viewer.isConnected && document.body.append(viewer);
+      const unmount = () => viewer.remove();
+      const remount = () => {
+        viewer.remove();
+        document.body.append(viewer);
+      };
+      controls({ mount, unmount, remount });
+    </script>
+  </body>
+</html>

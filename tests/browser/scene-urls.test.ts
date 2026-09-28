@@ -31,13 +31,14 @@ test('every scene a browser file names is a scene folder, never a cache path', (
 });
 
 // The #683 proof derived nothing wrong: its own server mounted too little. A proof that opens a
-// gallery scene starts its server on the gallery mounts, and those serve every scene it names.
+// gallery scene starts its server on the gallery mounts (`openGalleryPage` does), and those serve
+// every scene it names.
 test('a proof that opens a gallery scene serves it on the gallery mounts', () => {
   const mounts = galleryMounts(ROOT);
   const proofs = files.filter(({ text }) => /\bawait openGalleryScene\(/.test(text));
   assert.ok(proofs.length > 0, 'no proof opens a gallery scene');
   for (const { file, text } of proofs) {
-    assert.match(text, /\bmounts:\s*galleryMounts\(/, `${file}: not served`);
+    assert.match(text, /\bmounts:\s*galleryMounts\(|\bopenGalleryPage\(/, `${file}: not served`);
     for (const { path: scene } of named.filter((entry) => entry.file === file)) {
       const url = manifestUrlOf(scene);
       const mount = mounts.find(({ prefix }) => url.startsWith(prefix));

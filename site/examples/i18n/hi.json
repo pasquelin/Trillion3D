@@ -58,7 +58,8 @@
       "missingCache": "संकलित कैश मौजूद नहीं है: pnpm compile:caches चलाएँ"
     },
     "banner": {
-      "close": "बंद करो"
+      "close": "बंद करो",
+      "waiting": "इंजन की प्रतीक्षा में (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -500,6 +501,32 @@
       "balloon": "गुब्बारे का पीछा"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "पार्क में रिकॉर्ड किया गया मार्ग देखें। इसे दोबारा चलाएँ, रोकें या कैमरा संभालें।",
+    "controls": {
+      "replay": "दोबारा चलाएँ",
+      "stop": "रोकें"
+    },
+    "readouts": {
+      "currentPart": "वर्तमान भाग"
+    },
+    "words": {
+      "entrance": "प्रवेश",
+      "pond": "तालाब",
+      "bridge": "पुल",
+      "pavilion": "मंडप",
+      "overview": "समग्र दृश्य",
+      "complete": "पूर्ण"
+    }
+  },
+  "a-crane-that-swings": {
+    "banner": "क्रेन के चारों ओर घुमाएँ, जबकि एक क्लिप भुजा घुमाती, ट्रॉली चलाती, भार उठाती और झुलाती है।",
+    "controls": {
+      "speed": "गति",
+      "paused": "रुका हुआ",
+      "replay": "फिर चलाएँ"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "चारों ओर देखने के लिए खींचो। घनों की लहर ऊँची या तेज़ करो।",
     "controls": {
@@ -508,6 +535,34 @@
       "ripples": "लहरें",
       "inner": "अंदर",
       "outer": "बाहर"
+    }
+  },
+  "doors-that-open": {
+    "banner": "कैमरे को दरवाज़ों की ओर ले जाएँ। पास आने पर वे खुलते हैं।",
+    "controls": {
+      "mode": "मोड",
+      "openingDistance": "खुलने की दूरी",
+      "openness": "खुलाव"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "निकटता",
+        "manual": "मैन्युअल"
+      }
+    }
+  },
+  "a-carousel": {
+    "banner": "हिंडोले के चारों ओर देखें। इसे रोकें या लकड़ी के घोड़ों को उलटी दिशा में चलाएँ।",
+    "controls": {
+      "running": "चल रहा है",
+      "speed": "गति",
+      "direction": "दिशा"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "घड़ी की दिशा",
+        "counterclockwise": "घड़ी की उलटी दिशा"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -561,6 +616,17 @@
       "lamp": "लैंप",
       "colour": "रंग",
       "bricks": "ईंटें"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "दो सतहों के बीच की दूरी मापने के लिए उन पर क्लिक करें। तीसरा क्लिक नया माप शुरू करता है। एक इकाई एक मीटर को दर्शाती है।",
+    "controls": {
+      "clear": "साफ़ करें"
+    },
+    "readouts": {
+      "pointA": "बिंदु A",
+      "pointB": "बिंदु B",
+      "distance": "दूरी"
     }
   },
   "click-to-pick": {
@@ -1259,6 +1325,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "दृश्य पर क्लिक करें, W A S D से चलें और माउस से देखें। चलते समय मेमोरी बजट घटाएँ।",
+    "controls": {
+      "walkSpeed": "चलने की गति",
+      "memory": "मेमोरी",
+      "view": "दृश्य",
+      "home": "आरंभ पर लौटें"
+    },
+    "choices": {
+      "view": {
+        "beauty": "तैयार चित्र",
+        "lod": "विवरण स्तर",
+        "clusters": "क्लस्टर"
+      }
+    },
+    "words": {
+      "credit": "इस उदाहरण के लिए कोड में बनाई गई कलशों की सड़क, CC0 — देखो assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01, Rico Cilliers द्वारा, Poly Haven, CC0; बक्सा W. Sitters द्वारा, CC BY 3.0 — देखो assets/examples/CREDITS.md"
@@ -1661,7 +1746,8 @@
       "night": "रात",
       "bounce": "उछाल",
       "sun": "सूरज",
-      "lamp": "लैंप"
+      "lamp": "लैंप",
+      "spin": "घुमाएँ"
     },
     "words": {
       "credit": "W. Sitters का सड़क-लैंप मॉडल, CC BY 3.0 — देखो assets/examples/CREDITS.md"
@@ -1710,11 +1796,18 @@
   },
   "the-home-pose": {
     "banner": "एक दृश्य चुनें, कैमरा घुमाएँ, फिर लौटने के लिए होम चुनें।",
-    "controls": { "home": "होम", "tower": "मीनार", "square": "चौक", "hillside": "पहाड़ी" }
+    "controls": {
+      "home": "होम",
+      "tower": "मीनार",
+      "square": "चौक",
+      "hillside": "पहाड़ी"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "निकट तल को आगे बढ़ाएँ और उसे हर दीवार काटते देखें।",
-    "controls": { "nearPlane": "निकट तल" }
+    "controls": {
+      "nearPlane": "निकट तल"
+    }
   },
   "the-material-family": {
     "banner": "चारों ओर चलने के लिए खींचो। रोशनी को रात करो और देखो क्या अब भी चमकता है।",
@@ -1906,6 +1999,7 @@
       "manifest": "मैनिफ़ेस्ट पढ़ लिया",
       "tables": "सीन की तालिकाएँ पढ़ लीं",
       "resources": "सीन की फ़ाइलें",
+      "session": "दृश्य खुल रहा है",
       "pages": "पहले पेज",
       "ready": "तैयार"
     }
@@ -2181,6 +2275,27 @@
       "credit": "इस उदाहरण के लिए कोड में बनाया गया खंभे पर झंडा, CC0 — देखें assets/examples/CREDITS.md"
     }
   },
+  "an-elevation-of-the-house": {
+    "banner": "घर का एलिवेशन चुनें। कैमरा दूर ले जाएँ: लंबकोणीय चित्र का पैमाना बिल्कुल समान रहता है।",
+    "controls": {
+      "elevation": "एलिवेशन",
+      "distance": "कैमरा दूरी",
+      "zoom": "चित्र पैमाना"
+    },
+    "choices": {
+      "elevation": {
+        "front": "सामने",
+        "right": "दायाँ भाग",
+        "rear": "पीछे"
+      }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "गाड़ी के हर भाग को उभारने के लिए उस पर होवर करें, या पैनल में हाइलाइट बंद करें।",
+    "controls": {
+      "highlightEnabled": "हाइलाइट चालू करें"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "कैमरा नहर के साथ चलते समय डॉली को रोकें, यात्रा फिर चलाएँ या गति बदलें।",
     "controls": {
@@ -2190,6 +2305,55 @@
     },
     "readouts": {
       "progress": "प्रगति"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "सड़क के कोने को देखने के लिए खींचें। कंपाइलर ने एक फ़ोल्डर की तीन OBJ फ़ाइलों को इस दृश्य में मिला दिया।",
+    "controls": {
+      "visible": "दिखाएँ",
+      "home": "आरंभिक दृश्य"
+    },
+    "words": {
+      "credit": "W. Sitters का सड़क-लैंप मॉडल, CC BY 3.0 — देखो assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "पेटी को फ़र्श पर खींचें। उसे आधे मीटर के चरणों में रखने के लिए स्नैप चालू करें।",
+    "controls": {
+      "snap": "स्नैप",
+      "home": "आरंभ"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "किसी आकार को चुनने के लिए क्लिक करें। चयन हटाने के लिए फर्श पर क्लिक करें।",
+    "controls": {
+      "color": "रंग",
+      "thickness": "मोटाई"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "मैदान के चारों ओर घूमने के लिए खींचें। संख्या या दृश्य बदलें।",
+    "controls": {
+      "count": "संख्या",
+      "view": "दृश्य"
+    },
+    "readouts": {
+      "objectsShown": "दिखाई गई वस्तुएँ",
+      "objectsBuilt": "बनाई गई वस्तुएँ"
+    },
+    "choices": {
+      "view": {
+        "beauty": "तैयार चित्र",
+        "clusters": "क्लस्टर"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "व्यूअर को माउंट या अनमाउंट करें। हर माउंट का एक वर्ल्ड है और हर हटाव उसे मुक्त करता है।",
+    "controls": {
+      "mount": "माउंट करें",
+      "unmount": "अनमाउंट करें",
+      "remount": "फिर माउंट करें"
     }
   }
 }

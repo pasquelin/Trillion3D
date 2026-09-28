@@ -7,6 +7,7 @@ import {
 } from '../../bounce/nodeWgsl.ts';
 import type { GpuBounceProxy } from '../../bounce/proxy.ts';
 import { createGpuPeriodicReadback } from '../core/periodicReadback.ts';
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 /** The two sampled counters, in bytes: the copy size as well as the mapping size. */
 const COUNT_BYTES = PROXY_COUNTS * 4;
@@ -67,6 +68,7 @@ export function createGpuSunFarShadow(device: GPUDevice) {
     device.queue.writeBuffer(proxy.buffer, PROXY_COUNTING_OFFSET, countingFlag);
   };
 
+  let proxyRevision = -1;
   return {
     /**
      * Buffer to bind, or nothing until a proxy is resident. It is the proxy's own, returned
@@ -103,7 +105,7 @@ export function createGpuSunFarShadow(device: GPUDevice) {
       params[START] = resident.cellMetres * LIGHT_SETTINGS.sunFarShadowStartCells;
       // Range of a shadow ray: the diagonal of the proxy extent. Beyond, there is nothing left
       // to cut, and a sun is far enough that every occluder fits inside.
-      params[MAX_DISTANCE] = Math.hypot(x1 - x0, y1 - y0, z1 - z0);
+      params[MAX_DISTANCE] = hypot3(x1 - x0, y1 - y0, z1 - z0);
       params[PRESENT] = resident.nodeCount > 0 ? 1 : 0;
       device.queue.writeBuffer(resident.buffer, 0, params);
       // The new header carries a sample flag of zero: that is also the state this module holds.
@@ -115,6 +117,12 @@ export function createGpuSunFarShadow(device: GPUDevice) {
      */
     prepare(encoder: GPUCommandEncoder, frame: number) {
       if (!proxy) return;
+      if (proxyRevision !== proxy.revision) {
+        proxyRevision = proxy.revision;
+        const b = proxy.bounds;
+        params[MAX_DISTANCE] = hypot3(b[3] - b[0], b[4] - b[1], b[5] - b[2]);
+        device.queue.writeBuffer(proxy.buffer, 0, params);
+      }
       if (copyOwed) {
         reader.copy(encoder, proxy.buffer, PROXY_COUNT_OFFSET, COUNT_BYTES);
         copyOwed = false;

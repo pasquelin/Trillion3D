@@ -5,7 +5,7 @@ import { preparedAccessors } from './accessors.ts';
 
 // #457: a sparse accessor over an interleaved base copied the whole interleaved array and read it
 // as if packed: the colour between two positions became a position.
-test('a sparse accessor over an interleaved base substitutes into its own elements alone', () => {
+test('a sparse accessor over an interleaved base substitutes into its own elements alone', async () => {
   // View 0: two vertices of six floats, a position then a colour; view 1: rank 1; view 2: (7, 8, 9).
   const floats = new Float32Array([1, 2, 3, 0.5, 0.5, 0.5, 4, 5, 6, 0.5, 0.5, 0.5]);
   const binary = new Uint8Array(48 + 4 + 12);
@@ -36,7 +36,8 @@ test('a sparse accessor over an interleaved base substitutes into its own elemen
       },
     ],
   } as unknown as TableDocument;
-  const position = preparedAccessors(document, binary.buffer)(0);
+  const position = preparedAccessors(document, async () => binary.buffer)(0);
   assert.equal(position.count, 2);
+  await position._load();
   assert.deepEqual(Array.from(position.array), [1, 2, 3, 7, 8, 9]);
 });

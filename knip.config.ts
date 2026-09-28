@@ -25,16 +25,21 @@ const config: KnipConfig = {
     'scripts/site-first-load.ts',
     'scripts/ltc-fit.ts',
     'bench/runner/bench.ts',
+    'bench/runner/trajectory.ts',
+    // Compiled by path by the public types audit (`public-types-audit.test.ts`), never imported.
+    'tests/integration/public-types-union.fixture.ts',
     // Served to the harness page and imported by URL, never by local import.
     'bench/runner/cutPage.ts',
     'bench/runner/witnessPage.ts',
     'bench/runner/explorerPage.ts',
     'bench/runner/lightingPage.ts',
+    'bench/runner/trajectoryPage.ts',
     'bench/runner/poses.ts',
     'bench/runner/threeBarePage.ts',
     'bench/runner/threeLodPage.ts',
     'bench/runner/measurePage.ts',
     'bench/runner/fluidsPage.ts',
+    'bench/runner/gazeNetworkPage.ts',
     'bench/runner/limits.ts',
     // The witness entry: bundled into `dist/witnesses/measurement.js` and imported by URL by those
     // pages; it re-exports the engine's measurement seam.
@@ -46,6 +51,7 @@ const config: KnipConfig = {
     'bench/runner/oracle.ts',
     'bench/runner/lampFixture.ts',
     'bench/runner/anisotropyCost.ts',
+    'bench/runner/waterCost.ts',
     'bench/perf/*/*.perf.ts',
     'bench/runner/perf/*.ts',
     // Tests by rule: unit and integration tests, the browser proof runners (render proofs and

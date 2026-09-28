@@ -5,6 +5,7 @@ import { createSceneProxyReader } from '../../scene/proxyLoad.ts';
 import { createTextureLevelReader } from '../../texture/levelReader.ts';
 import { resolveDiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
 import { declareImportedLights, loadImportedLights } from '../../lighting/importedLights.ts';
+import { noticeShadowRefusal } from '../diagnostic/worldNotices.ts';
 import type { BackendContext, BackendFactory, RenderBackend } from '../../backend/types.ts';
 import type { createExplorerPageSources } from './pageSources.ts';
 import type { ExplorerSession } from './session.ts';
@@ -74,7 +75,9 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     metadata,
     indices,
     readPage: (url) => streamer.read(url),
-    readGeometryPage: (url) => streamer.readBytes(url),
+    readGeometryPage: streamer.readBytes,
+    pageCatalogue: streamer,
+    pageRoundTripMs: streamer.roundTripMs,
     associations: associations,
     textureIndices,
     signal,
@@ -125,6 +128,8 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
     // come from. Its levels are held beside the pages the streamer reads (`textureLevels`).
     readTextureLevel: createTextureLevelReader(metadata, base, streamer.textureLevels, signal),
     sceneLights,
+    // A world hears its session's refused shadows; a session opened alone says them on its own.
+    shadowsRefused: options.shadowsRefused ?? noticeShadowRefusal({ say: diagnose }),
     importedLightIds,
     frameBudget: inputs.frameBudget,
   };

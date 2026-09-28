@@ -142,7 +142,7 @@ Run it with `cargo test --release corpus --manifest-path packages/asset-compiler
 
 A glTF document renders one scene (glTF 2.0 §3.5). The compiler takes the scene `scene` names, otherwise the first of `scenes`, and compiles only the nodes reachable from that scene's roots — node selection, the resident proxy and `lights.json` read that one set, so a mesh or a `KHR_lights_punctual` lamp that lives in another scene, or in none, is not compiled. A document with **no** `scenes` (or an empty one) names no scene at all: every root of the node hierarchy is compiled then, and `selectedNodes` counts the nodes kept. A `scene`, `scenes[].nodes` or `children` index outside the node table is refused (`INVALID_GLTF`), and so is a `children` chain that closes back on itself: the whole node table is checked for cycles before anything is published, whether or not the rendered scene reaches them, because the published document carries every node. A node with no parent that no scene names is not a cycle and stays accepted, uncompiled.
 
-A node's world placement is its parents' transforms composed down to it, the one walk every stage reads; a `KHR_lights_punctual` lamp under a moved parent is written in `lights.json` at that world position. A node drawn through `EXT_mesh_gpu_instancing` is expanded when the document loads: each instance becomes a child node carrying the mesh, its skin and morph weights, and the instance's translation, rotation and scale, so it is selected, tabled, proxied and cooked for physics like any other mesh node, and the instanced node keeps its transform, children and light without the mesh. Instance attributes of different counts, or none, are refused (`INVALID_GLTF`).
+A node's world placement is its parents' transforms composed down to it, the one walk every stage reads; a `KHR_lights_punctual` lamp under a moved parent is written in `lights.json` at that world position. A node drawn through `EXT_mesh_gpu_instancing` is expanded when the document loads: each instance becomes a child node carrying the mesh, its skin and morph weights, and the instance's translation, rotation and scale, so it is selected, tabled, proxied and cooked for physics like any other mesh node, and the instanced node keeps its transform, children and light without the mesh. Instance attributes of different counts, or none, are refused (`INVALID_GLTF`). A node declaring `KHR_node_visibility` `visible: false` hides itself and every node under it (`compiler_nodes.rs`, `scene_nodes`): its meshes are selected and compiled like any other, so a page can show them later, and the node table says it hidden, but no coplanar surface, proxy triangle, oracle triangle, static collider or body is derived from a hidden node, and a `KHR_lights_punctual` lamp it hides is off, left out of `lights.json`.
 
 ## The three streams
 
@@ -178,7 +178,7 @@ Progress phases, in order:
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `import-source` | `step` = `parse` (`file`, `index`, `files`, `completed`, `total` in bytes) → `meshes` (`completed`, `total` in nodes) → `write` (`bytes`) → `complete` (`key`, `triangles`, `meshNodes`, `ms`), or `reused` (`key`) when a previous import is reused | FBX/OBJ only                                                                                                                                                                                                              |
 | `import`        | `completed`, `total`, `ms`, `primitives`, `nodes`                                                                                                                                                                                                    | glTF loaded and validated, source geometry written; `primitives` is the number of `primitive` events to expect                                                                                                            |
-| `primitive`     | `mesh`, `primitive`, `pages`; on a DAG primitive `timings` (elapsed ms of its own stages, each from the end of the one before: `dagMs`, `cullingMs`, `pagesMs`, `reportMs`), and `warnings` when it has any                                          | One primitive clustered and paged (order is not deterministic: primitives run in parallel)                                                                                                                                |
+| `primitive`     | `mesh`, `primitive`, `pages`; on a DAG primitive `timings` (elapsed ms of its own stages, each from the end of the one before: `dagMs`, `cullingMs`, then `physicsMs` and `pagesMs` side by side, `reportMs`), and `warnings` when it has any                                          | One primitive clustered and paged (order is not deterministic: primitives run in parallel)                                                                                                                                |
 | `bootstrap`     | `completed`, `total`                                                                                                                                                                                                                                 | Root bundles assembled                                                                                                                                                                                                    |
 | `textures`      | `completed`, `total`                                                                                                                                                                                                                                 | One source image decoded, its mip chain baked for every atlas that reads it, its levels written                                                                                                                           |
 | `cutouts`       | `pending`, `sheet`                                                                                                                                                                                                                                   | Cutout sheet written; `pending` counts the textures nobody has answered yet, `sheet` is where the answer sheet landed                                                                                                     |
@@ -468,6 +468,8 @@ The compiler knows no format. It routes each source to a driver (interpretation 
 
 ### Content Licenses — Independent of Format
 
+Audit local asset and license manifests with [the offline license audit](ASSET_LICENSE_AUDIT.md).
+
 - FAB Standard License: use with other tools and engines permitted, standalone asset redistribution prohibited; historical licenses apply for some items, keep purchase EULA.
 - Quixel Megascans under Epic Engine plan: restricted to Epic Engine, unusable in Trillion3D.
 - Unity Asset Store: use in other engines permitted, but not a product whose purpose is raw asset distribution; model library distributor is not a finished game.
@@ -626,6 +628,11 @@ key, so a cache cooked by another Jolt is another key, never reused. The algorit
   missing shape, a shearing node, a mesh it cannot read, a dynamic body's mesh that is not closed
   (every edge meeting its reverse, positions welded) or bounds no volume, a hull Jolt refuses — is
   named in `report.bodiesRefused`; the compile goes on.
+- **Breakable bodies** (`pieces.rs`, `voronoi.rs`). A shapeless body declaring `breakable` (above
+  0) is cut into at most 12 Voronoi cells around seeds drawn from the node's index, each clipped by
+  its bisectors and the mesh's face planes into a closed piece with Jolt's hull (`hull.rs`) and its
+  exact mass, centre and inertia (`mass.rs`). Pieces missing the mesh's mass by over 1e-5 (a
+  concave mesh, until decomposition) refuse the body, as does a declared shape.
 
 Primitives without a DAG (skinned, morphed, shared blend) cook no collider. A primitive whose shape Jolt
 still refuses (every triangle of zero area) cooks no collider either: `physics.json`'s
@@ -673,6 +680,14 @@ blend path, and `cutout`: `true`, `false`, or `null` while nobody has decided. I
 `cutouts.version` in the compiled manifest publishes its contract number. The compiler applies
 nothing until an entry answers `true`; with no sheet at all, blended stays blended and the product
 is byte-identical to before.
+
+Exact alpha measurements are cached in that same sheet, separately from the rounded display
+values. The image hash, the compiler's implementation hash (the one its cache key uses) and the
+decoder versions identify a reusable result, so any compiler change measures again. Missing,
+outdated, malformed or checksum-invalid cached measurements are recomputed; human answers retain
+their existing validation and are never discarded because a measurement cache is invalid. Valid
+measurements survive when a scene no longer references their image. This skips alpha analysis,
+not image decoding or mip baking.
 
 **The compiler draws nothing.** It publishes what is pending — in the manifest and in a `cutouts`
 progress event — and whoever called it presents the question: a terminal asks it, an application

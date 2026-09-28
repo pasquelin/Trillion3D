@@ -187,8 +187,7 @@ test('a footprint extending outside the viewport is tested on its clipped part a
 });
 
 test('Hi-Z compute shader declares this-frame min reduction, background at the far value', () => {
-  assert.match(HIZ_SHADER, /@compute[\s\S]*fn copyDepth/);
-  assert.match(HIZ_SHADER, /@compute[\s\S]*fn reduceHiz/);
+  assert.match(HIZ_SHADER, /@compute[\s\S]*fn buildHiz/);
   assert.match(HIZ_SHADER, /@compute[\s\S]*fn testHiz/);
   assert.match(HIZ_SHADER, /min\(/);
   assert.doesNotMatch(HIZ_SHADER, /far=max\(/);

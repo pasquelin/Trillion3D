@@ -9,7 +9,6 @@
  * by its `kind` (`../graph/kinds.ts`); the pose shapes below stay shapes because a camera controller
  * writes them on whatever pose it is handed.
  */
-import type { GraphAnyLight } from '../graph/kinds.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { HostBox } from '../resources.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
@@ -48,6 +47,3 @@ export type HostBoundedNode = Object3D & {
   boundingBox?: HostBox | null;
   computeBoundingBox?(): void;
 };
-
-/** A light of the graph, with the numbers its kind declares. A watch compares them per frame. */
-export type HostLightNode = GraphAnyLight;

@@ -128,7 +128,7 @@ bool runCommands(const uint32_t *w, uint32_t count) {
       continue;
     }
     if (op == VIEW) {
-      world.view = {vec3(w + 1), vec3(w + 4).NormalizedOr(Vec3(0, 0, -1)), f32(w + 7), f32(w + 8)};
+      setView({vec3(w + 1), vec3(w + 4).NormalizedOr(Vec3(0, 0, -1)), f32(w + 7), f32(w + 8)});
       w += 9;
       continue;
     }
@@ -149,16 +149,9 @@ bool runCommands(const uint32_t *w, uint32_t count) {
       continue;
     }
     switch (op) {
-      case REMOVE: {
-        BodyID id = slot.id;
-        leaveAll(slot.engine);
-        dropJoints(index);
-        dropVehicles(index);
-        slot = Slot{};
-        bodies.RemoveBody(id);
-        bodies.DestroyBody(id);
+      case REMOVE:
+        removeBody(index);
         break;
-      }
       case TELEPORT:
         if (slot.soft) teleportSoft(slot, vec3(w + 2), quat(w + 5));
         else bodies.SetPositionAndRotation(slot.id, RVec3(vec3(w + 2)), quat(w + 5), EActivation::Activate);

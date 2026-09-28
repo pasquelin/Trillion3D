@@ -4,7 +4,7 @@ import {
   type SceneLightStore,
 } from '../../../sdk-core/src/index.ts';
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
-import { optionalFile } from '../cluster/pages.ts';
+import { optionalFile } from '../cluster/checked.ts';
 
 /** Lights cache product, next to the neighbouring manifest. Its version is its own. */
 const IMPORTED_LIGHTS_FILE = 'lights.json';
