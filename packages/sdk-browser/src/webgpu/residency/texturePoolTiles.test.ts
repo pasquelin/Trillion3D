@@ -68,3 +68,28 @@ test('a budget under the tails and one streaming slot per lane is raised to them
     data: { lossless: 0, rgba: 21, 'two-channel': 31 },
   });
 });
+
+test('under the floor, a lane past its places gives the rest of its share to the others', () => {
+  const lanes = (rgba: number, two: number) => ({ lossless: 0, rgba, 'two-channel': two });
+  const pool = texturePoolFor(
+    2 * 2600 * tileBytes(1),
+    undefined,
+    { color: lanes(800, 0), data: lanes(5000, 5000) },
+    encoding.texelBytes,
+    { color: lanes(5, 0), data: lanes(5, 950) },
+  );
+  assert.deepEqual(
+    pool.tiles.data,
+    lanes(900, 1700),
+    'rgba at its one layer, the rest to two-channel',
+  );
+  // A lane whose demand fits its floor of layers but not the tiles the budget pays is not served.
+  const small = texturePoolFor(
+    2 * 300 * tileBytes(1),
+    undefined,
+    { color: lanes(800, 0), data: lanes(0, 0) },
+    encoding.texelBytes,
+    { color: lanes(5, 0), data: lanes(0, 0) },
+  );
+  assert.deepEqual([small.tiles.color.rgba, small.clamp], [300, null]);
+});

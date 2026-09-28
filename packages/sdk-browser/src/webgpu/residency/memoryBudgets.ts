@@ -88,21 +88,33 @@ export function texturePoolFor(
     const least = (lane: PoolLane) => kept[lane] + Number(lanes[lane] > kept[lane]);
     for (const lane of open) layers[lane] = layersFor(least(lane));
     const floor = { ...layers },
-      weight = (lane: PoolLane) => lanes[lane] * tileBytes(texelBytes(lane)),
-      weights = [...open].reduce((sum, lane) => sum + weight(lane), 0);
+      weight = (lane: PoolLane) => lanes[lane] * tileBytes(texelBytes(lane));
     let budget =
       budgetBytes / 2 - [...open].reduce((sum, lane) => sum + floor[lane] * layerBytes(lane), 0);
     // Under the layers' floor, each lane holds the tiles its share of the budget pays for, never
-    // fewer than its tails and one to stream into: the floor, counted in tiles.
+    // fewer than its tails and one to stream into: the floor, counted in tiles. A lane whose share
+    // passes its layers' places gives the rest back to the others.
     const held = new Map<PoolLane, number>();
     if (budget < 0) {
       budget = 0;
-      for (const lane of open) {
-        const share = Math.floor(
-          ((budgetBytes / 2) * (weight(lane) / weights)) / tileBytes(texelBytes(lane)),
-        );
-        if (share < least(lane)) clamps.add('minimum');
-        held.set(lane, Math.max(least(lane), share));
+      let left = budgetBytes / 2;
+      const pending = new Set(open);
+      const places = (lane: PoolLane) => floor[lane] * TILES_PER_LAYER;
+      for (let round = 0; pending.size && round < POOL_LANES.length; round++) {
+        const total = [...pending].reduce((sum, lane) => sum + weight(lane), 0);
+        const share = (lane: PoolLane) =>
+          Math.floor((left * weight(lane)) / total / tileBytes(texelBytes(lane)));
+        const full = [...pending].filter((lane) => share(lane) >= places(lane));
+        for (const lane of full.length ? full : pending) {
+          const tiles = Math.min(share(lane), places(lane));
+          if (tiles < least(lane)) clamps.add('minimum');
+          held.set(lane, Math.max(least(lane), tiles));
+        }
+        if (!full.length) break;
+        for (const lane of full) {
+          left -= places(lane) * tileBytes(texelBytes(lane));
+          pending.delete(lane);
+        }
       }
     }
     // The remainder by weight; a lane served under its share gives the rest back to the others.
@@ -122,7 +134,9 @@ export function texturePoolFor(
         budget -= (layers[lane] - floor[lane]) * layerBytes(lane);
         open.delete(lane);
       }
-      if (!open.size) clamps.add('scene');
+      // Under the floor a lane is served only when its held tiles cover its demand.
+      if (!open.size && [...held].every(([lane, tiles]) => tiles >= lanes[lane]))
+        clamps.add('scene');
     }
     // The device refuses only tails it cannot hold: the slot to stream into gives way to its limit.
     for (const lane of POOL_LANES)
