@@ -3297,6 +3297,9 @@
       "commit": "رُمِّزت الصفحات `[from, to)` من قائمة الإطار، الصفحة `from + i` في `modes[i]`: يكتمل رسمها قبل أن يقرأها أحد. آخر دفعة تغلق القائمة."
     }
   },
+  "ShadowStaleReason": {
+    "summary": "سبب تقادم صفحة ظل (`ShadowFrameMetrics.shadowPagesStaledBy`)."
+  },
   "ShadowViewpoint": {
     "summary": "ما يعرفه المجدوِل عن العرض: كاميرا، لا مصفوفة، ليبقى دون اعتماديّة.",
     "members": {

@@ -116,13 +116,13 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
         set(slice, i, pairs[first + i]);
         set(slice, i + 1, pairs[first + i + 1]);
       }
-      // Each row's fourth float: the current range's `zNear`, `zFar`, then its slot.
-      const tail = [sun.depth[slice * 2], sun.depth[slice * 2 + 1], sun.ranges.current[slice]];
-      for (let row = 0; row < 3; row++) {
+      for (let row = 0; row < 3; row++)
         for (let a = 0; a < 3; a++)
           set(slice, SHADOW_RECORD_FRAME + row * 4 + a, sun.frame[slice * 9 + row * 3 + a]);
-        set(slice, SHADOW_RECORD_FRAME + row * 4 + 3, tail[row]);
-      }
+      // Each row's fourth float: the current range's `zNear`, `zFar`, then its slot.
+      set(slice, SHADOW_RECORD_FRAME + 3, sun.depth[slice * 2]);
+      set(slice, SHADOW_RECORD_FRAME + 7, sun.depth[slice * 2 + 1]);
+      set(slice, SHADOW_RECORD_FRAME + 11, sun.ranges.current[slice]);
       for (let i = 0; i < levels * 2; i++)
         setInt(slice, SHADOW_RECORD_ORIGINS + i, sun.origins[slice * levels * 2 + i]);
       set(slice, SHADOW_RECORD_INFO, levels);
