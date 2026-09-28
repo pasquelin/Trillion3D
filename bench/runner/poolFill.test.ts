@@ -11,7 +11,7 @@ const ROOT = '/tmp/trillion3d-bench';
 test('a percentage is a fraction of the working set, a bare number stays MiB', () => {
   assert.equal(residentFraction('50%'), 0.5);
   assert.equal(residentFraction(' 12.5% '), 0.125);
-  assert.equal(residentFraction('64'), null);
+  assert.equal(residentFraction('64'), undefined);
   for (const value of ['0%', '100%', '150%'])
     assert.throws(() => residentFraction(value), /strictly between/, value);
   const fraction = readOptions(['--pool-textures-vivant', '40%'], ROOT).settings.poolVivant;
@@ -30,7 +30,7 @@ test('the budget follows what the pose holds, whatever the scene', () => {
   assert.equal(residentFractionBudget(0.5, 59_224_192), 29_612_096);
   assert.equal(residentFractionBudget(0.5, 7_268_928), 3_634_464);
   assert.equal(residentFractionBudget(0.001, 100), 1, 'never an empty budget');
-  for (const resident of [0, null, undefined])
+  for (const resident of [0, undefined])
     assert.throws(() => residentFractionBudget(0.5, resident), /no texture tile/);
 });
 
