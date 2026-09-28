@@ -24,9 +24,9 @@ fn a_mirror_column_is_found() {
 fn a_face_across_islands_or_a_crossed_mirror_is_charged_its_longest_edge() {
     let positions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0];
     let indices = [0, 1, 2, 1, 3, 2];
-    let span = |last: Chart, mirrors: bool| {
+    let span = |sides: u8, island: u32, mirrors: bool| {
         let chart = |v: u32| match v {
-            3 => last,
+            3 => Chart { sides, island },
             _ => Chart {
                 sides: 1,
                 island: 0,
@@ -35,46 +35,10 @@ fn a_face_across_islands_or_a_crossed_mirror_is_charged_its_longest_edge() {
         folded_span(&indices, &positions, chart, mirrors)
     };
     let diagonal = 2.0_f64.sqrt();
-    assert_eq!(
-        span(
-            Chart {
-                sides: 1,
-                island: 0
-            },
-            true
-        ),
-        0.0
-    );
-    assert_eq!(
-        span(
-            Chart {
-                sides: 1,
-                island: 1
-            },
-            false
-        ),
-        diagonal
-    );
-    assert_eq!(
-        span(
-            Chart {
-                sides: 2,
-                island: 0
-            },
-            true
-        ),
-        diagonal
-    );
-    assert_eq!(
-        span(
-            Chart {
-                sides: 2,
-                island: 0
-            },
-            false
-        ),
-        0.0
-    );
+    assert_eq!(span(1, 0, true), 0.0);
+    assert_eq!(span(1, 1, false), diagonal);
+    assert_eq!(span(2, 0, true), diagonal);
+    assert_eq!(span(2, 0, false), 0.0);
 }
 
 // Behaviour: a solve whose every survivor snapped back to its source placed nothing: its clusters
