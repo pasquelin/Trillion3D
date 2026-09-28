@@ -2,6 +2,8 @@
 // flat C API compiled natively against the same Jolt, fed the same command words (a file the TS
 // bench writes), stepped the same way, timed by the same rule.
 //   native <commands.bin> <maxBodies> <bodyPairs> <contactConstraints> <threads> <steps>
+#include "commands.h"
+
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -41,12 +43,8 @@ int main(int argc, char **argv) {
                          "<contactConstraints> <threads> <steps>\n");
     return 2;
   }
-  FILE *file = std::fopen(argv[1], "rb");
-  if (!file) return 1;
   std::vector<uint32_t> words;
-  uint32_t word;
-  while (std::fread(&word, 4, 1, file) == 1) words.push_back(word);
-  std::fclose(file);
+  if (!readCommands(argv[1], words)) return 1;
   uint32_t maxBodies = std::atoi(argv[2]), pairs = std::atoi(argv[3]),
            constraints = std::atoi(argv[4]), threads = std::atoi(argv[5]), steps = std::atoi(argv[6]);
   // The same scratch and buffers as the web loader (`joltModule.ts`).
