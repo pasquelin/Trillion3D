@@ -47,17 +47,18 @@ export function textures(
   ];
 }
 
-/** The texture pool set in session, and what setting it cost; nothing when none was set. The
- *  eviction and upload time the moving series then spends is the streamer's passes above. */
+/** The texture pool set in session, and what setting it cost; nothing when none was set (a live
+ *  geometry pool alone still reports the texture pool in place). The eviction and upload time the
+ *  moving series then spends is the streamer's passes above. */
 function liveTexturePool(reglage: Row['reglageVivant'] | undefined) {
   const pool = reglage?.texturePool;
-  if (!reglage || !pool) return [];
+  if (!reglage || !pool || reglage.texturePoolAskedBytes === undefined) return [];
   const asked =
     reglage.residentTextureBytes === undefined
       ? ''
       : ` (from ${mo(reglage.residentTextureBytes)} resident)`;
   return [
-    `- Texture pool set live: ${mo(pool.budgetBytes)} asked${asked}, ${mo(pool.allocatedBytes)} ` +
+    `- Texture pool set live: ${mo(reglage.texturePoolAskedBytes)} asked${asked}, ${mo(pool.allocatedBytes)} ` +
       `held${pool.clamp ? ` (${pool.clamp})` : ''}; ${reglage.evictedTiles} tiles evicted in ` +
       `${n2(reglage.durationMs)} ms, pose held again after ${n(reglage.imagesReprise)} frames`,
   ];
