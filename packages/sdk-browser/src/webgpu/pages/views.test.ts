@@ -66,8 +66,10 @@ test('no reader keeps the main view once another is drawn, and switching back fi
   const side = createWebgpuView(16, 16);
   useWebgpuView(rt, side);
   const objects = (values: unknown[]) => values.filter((v) => typeof v === 'object' && v);
-  for (const value of objects(heldBy(rt)))
-    assert.equal(objects(main).includes(value), false, 'a group still names the main view');
+  // Every runtime group, not only the traded keys: a reader elsewhere holding the main view fails.
+  for (const [name, group] of Object.entries(rt).filter(([name]) => name !== 'views'))
+    for (const value of objects(Object.values(group ?? {})))
+      assert.equal(objects(main).includes(value), false, `${name} still names the main view`);
   renderWebgpuPages(rt, awayCamera());
   await flushWebgpuPages(rt);
   assert.deepEqual(rt.gpu.targetSize, [16, 16]);
