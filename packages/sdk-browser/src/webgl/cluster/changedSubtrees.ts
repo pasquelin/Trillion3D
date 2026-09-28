@@ -1,8 +1,12 @@
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import {
-  NODE_REACH,
-  updateNodeMatrixWorld,
-} from '../../../../sdk-core/src/math/transform-tree/update.ts';
+  NODE_AUTO_UPDATE,
+  NODE_WORLD_NEEDS_UPDATE,
+} from '../../../../sdk-core/src/math/transform-tree/transformTree.ts';
+import { updateNodeMatrixWorld } from '../../../../sdk-core/src/math/transform-tree/update.ts';
+
+/** The flags that make the tree's rule reach a node (`reach` in `updateNodeMatrixWorld`). */
+const NODE_REACH = NODE_AUTO_UPDATE | NODE_WORLD_NEEDS_UPDATE;
 
 /**
  * THE WORLD MATRICES OF A DISPLAY GRAPH, BROUGHT UP TO DATE WHERE IT CHANGED (#984, CPU-22): the
