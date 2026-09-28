@@ -69,8 +69,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
       run.gate.resourcesChanged(),
       rt.lights.residence.noteRow(rows.pageIndexOf(rec) ?? -1, packedPages.length)
     ),
-    // A blended caster's opacity moved: the shadow pages under it are drawn again.
-    (rec) => noteResidenceChange(rt.lights, rec),
+    // A blended caster's opacity moved: the shadow pages under it redraw their moving casters, as
+    // the static layer never holds a blended caster (#993).
+    (rec) => noteResidenceChange(rt.lights, rec, true),
     context.frameBudget,
   );
   /**

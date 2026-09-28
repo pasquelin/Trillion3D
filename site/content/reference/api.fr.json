@@ -5510,6 +5510,9 @@
       "shadowPoolPages": "Pages physiques du pool fixe qui portent une page virtuelle.",
       "shadowPoolBytes": "Octets GPU du pool d’ombres : ses pages de profondeur, leurs couches statique et de transmittance une fois créées, et les tampons à côté. Null tant que la première image n’a pas dimensionné le pool.",
       "shadowPoolLayers": "Couches du pool, de 4 096 pages chacune au plus, dimensionnées une fois d’après l’écran et les lumières ombrées de la première image. Null jusque-là.",
+      "shadowPeakBytes": "Le plus d’octets GPU que la part mémoire des ombres a tenus à la fois, couches tardives comprises. Null tant que la première image n’a pas dimensionné le pool.",
+      "shadowResolutionBias": "Divisions par deux des octets du pool d’ombres qu’ont coûté les refus de mémoire de l’appareil ; 0 normalement.",
+      "shadowMemoryEvents": "Les événements de pression mémoire des ombres depuis l’ouverture du monde, par nom, dans l’ordre ; vide normalement.",
       "shadowPagesRefetched": "Pages virtuelles placées de nouveau après que le pool les a évincées pour faire de la place, depuis l’ouverture de l’explorer : les redessins que coûte un pool trop petit pour ce que lisent les images.",
       "shadowCastersKept": "Projeteurs gardés par le tri par page, toutes pages dessinées réunies, sur l’image que l’appareil a échantillonnée en dernier — une sur quinze ; `null` tant qu’aucun échantillon n’est revenu.",
       "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu."
@@ -6663,6 +6666,24 @@
       "error": "Pourquoi la dernière session n’a pas pu s’ouvrir, sous forme d’erreur nommée du moteur : son `code` est l’un de ceux documentés sur `EngineError` (`WEBGPU_LOST` quand WebGPU a perdu son appareil), ou `SESSION_OPEN_FAILED` pour une raison qui n’en a pas. Une `EngineError` d’un code documenté est celle qui a été levée ; toute autre erreur est convertie, et l’erreur levée est alors dans `details.cause`. `null` dès le début de chaque ouverture, et quand rien n’est tenté."
     }
   },
+  "world.materials": {
+    "summary": "Matériaux importés actuels, suivis de ceux créés par la page."
+  },
+  "world.material": {
+    "summary": "Un matériau selon son identifiant dans la liste."
+  },
+  "world.importedMaterials": {
+    "summary": "Valeurs du fichier source avant les modifications de la page."
+  },
+  "world.setMaterial": {
+    "summary": "Modifie un matériau importé ou créé à l’image suivante."
+  },
+  "world.createMaterial": {
+    "summary": "Crée un matériau appartenant à cette page."
+  },
+  "world.assignMaterial": {
+    "summary": "Attribue le matériau créé par la page à un `mesh/primitive` compilé."
+  },
   "world.guides": {
     "summary": "Lignes, points et aides dessinés par-dessus l’image (`Guides`)."
   },
@@ -6841,6 +6862,9 @@
       "shadowPoolPages": "Pages physiques du pool fixe qui portent une page virtuelle.",
       "shadowPoolBytes": "Octets GPU du pool d’ombres : ses pages de profondeur, leurs couches statique et de transmittance une fois créées, et les tampons à côté. Null tant que la première image n’a pas dimensionné le pool.",
       "shadowPoolLayers": "Couches du pool, de 4 096 pages chacune au plus, dimensionnées une fois d’après l’écran et les lumières ombrées de la première image. Null jusque-là.",
+      "shadowPeakBytes": "Le plus d’octets GPU que la part mémoire des ombres a tenus à la fois, couches tardives comprises. Null tant que la première image n’a pas dimensionné le pool.",
+      "shadowResolutionBias": "Divisions par deux des octets du pool d’ombres qu’ont coûté les refus de mémoire de l’appareil ; 0 normalement.",
+      "shadowMemoryEvents": "Les événements de pression mémoire des ombres depuis l’ouverture du monde, par nom, dans l’ordre ; vide normalement.",
       "shadowPagesRefetched": "Pages virtuelles placées de nouveau après que le pool les a évincées pour faire de la place, depuis l’ouverture de l’explorer : les redessins que coûte un pool trop petit pour ce que lisent les images.",
       "shadowCastersKept": "Projeteurs gardés par le tri par page, toutes pages dessinées réunies, sur l’image que l’appareil a échantillonnée en dernier — une sur quinze ; `null` tant qu’aucun échantillon n’est revenu.",
       "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu."
@@ -7737,6 +7761,41 @@
       "isSprite": "Toujours `true` : distingue un sprite de tout autre maillage.",
       "center": "Le point de l’image posé sur la position du sprite : `(0.5, 0.5)` son milieu, `(0, 0)` son coin en bas à gauche, `(0.5, 0)` le milieu de son bord du bas.",
       "material": "Le `material.sprite` du sprite ; affectez-en un autre pour le changer."
+    }
+  },
+  "CreatedMaterial": {
+    "summary": "Valeurs acceptées par `createMaterial` pour un nouveau matériau de la page.",
+    "members": {
+      "metalness": "À quel point la surface est en métal, de 0 à 1.",
+      "roughness": "La rugosité de la surface, de 0 (miroir) à 1 (mat).",
+      "baseColor": "La couleur de base ; change-la sur place avec `set`.",
+      "emissive": "La couleur que la surface émet d’elle-même.",
+      "opacity": "À quel point la surface est opaque, de 0 à 1.",
+      "alphaMode": "Comment le canal alpha d’une surface est lu : opaque l’ignore, `mask` coupe à `alphaCutoff`, `blend` compose.",
+      "alphaCutoff": "Les pixels moins opaques que ceci disparaissent.",
+      "name": "Un nom à l’usage de la page.",
+      "map": "Une image et la façon de l’échantillonner, dans les mots d’une page (`wrap`, `filter`, `colorSpace`)."
+    }
+  },
+  "SceneMaterial": {
+    "summary": "État d’un matériau de la scène avec son ID, son nom, ses paramètres et la répétition de ses textures.",
+    "members": {
+      "id": "Un nom propre à cette texture.",
+      "name": "Un nom à l’usage de la page.",
+      "tiling": "Combien de fois l’image tient en largeur et en hauteur."
+    }
+  },
+  "SceneMaterialPatch": {
+    "summary": "Valeurs du matériau que `setMaterial` modifie en direct sans reconstruire une passe de rendu.",
+    "members": {
+      "metalness": "À quel point la surface est en métal, de 0 à 1.",
+      "roughness": "La rugosité de la surface, de 0 (miroir) à 1 (mat).",
+      "baseColor": "La couleur de base ; change-la sur place avec `set`.",
+      "emissive": "La couleur que la surface émet d’elle-même.",
+      "opacity": "À quel point la surface est opaque, de 0 à 1.",
+      "alphaMode": "Comment le canal alpha d’une surface est lu : opaque l’ignore, `mask` coupe à `alphaCutoff`, `blend` compose.",
+      "alphaCutoff": "Les pixels moins opaques que ceci disparaissent.",
+      "tiling": "Combien de fois l’image tient en largeur et en hauteur."
     }
   }
 }

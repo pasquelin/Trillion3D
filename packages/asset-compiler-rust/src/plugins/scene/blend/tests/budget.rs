@@ -155,3 +155,12 @@ fn a_mesh_past_the_budget_is_refused_by_name() {
         refusal.message
     );
 }
+
+#[test]
+fn mesh_counts_are_bounded_by_the_remaining_job_budget() {
+    assert_eq!(
+        crate::plugins::scene::blend::mesh::announced_bytes(4, 6, 5),
+        77
+    );
+    assert!(crate::plugins::scene::blend::mesh::announced_bytes(usize::MAX, 1, 1) > 77);
+}
