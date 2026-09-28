@@ -4,46 +4,55 @@ import type { createAutonomousGeometry } from './geometry.ts';
 type ResidencyEnvironment = {
   bootstrapUrls: Set<string>;
   modifiedPages: Set<string>;
-  shown: PageRec[];
-  /** What the image asks the pool for: the wanted cut closed over its groups, as far as the pool
-   *  admits it (`requests.ts`, `pool.ts`). */
-  requested: PageRec[];
+  /** Every view, the main one first (`views.ts`): the cut each draws, and what each asks the pool
+   *  for — its wanted cut closed over its groups, as far as the pool admits the union
+   *  (`requests.ts`, `pool.ts`). */
+  views: readonly { readonly shown: readonly PageRec[]; readonly requested: readonly PageRec[] }[];
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
 };
 
 export function createAutonomousResidency(env: ResidencyEnvironment) {
-  const { bootstrapUrls, modifiedPages, shown, requested, geometryStore } = env;
+  const { bootstrapUrls, modifiedPages, views, geometryStore } = env;
   /** The lists `pendingUrls` and `pageUrls` rewrite, from image to image. */
   const pending: string[] = [],
     retained: string[] = [];
   const state = { cacheEvictions: 0 };
   // One set for the life of the host: a frame fills and clears it, it does not allocate it.
-  const kept = new Set<string>();
+  const kept = new Set<string>(),
+    queued = new Set<string>();
   let keptStale = true;
   return {
     get cacheEvictions() {
       return state.cacheEvictions;
     },
     pendingUrls() {
-      // One record per page, coarsest first: the streamer takes the head.
+      // One record per page, coarsest first, the main view's ahead: the streamer takes the head.
       pending.length = 0;
-      for (const rec of requested) if (!rec.array) pending.push(rec.url);
+      queued.clear();
+      for (const view of views)
+        for (const rec of view.requested) {
+          if (rec.array || queued.has(rec.url)) continue;
+          queued.add(rec.url);
+          pending.push(rec.url);
+        }
       return pending;
     },
     /** The image drew another cut: what it keeps is gathered again when next read. */
     keptChanged() {
       keptStale = true;
     },
-    /** The pages the image keeps — the root cover, the host's own, the cut it drew and what it
-     *  asks for —, gathered once an image, and only when the streamer's pins read them. */
+    /** The pages the images keep — the root cover, the host's own, the cut each view drew and what
+     *  it asks for —, gathered once an image, and only when the streamer's pins read them. */
     pageUrls() {
       if (!keptStale) return retained;
       keptStale = false;
       kept.clear();
       for (const url of bootstrapUrls) kept.add(url);
       for (const url of modifiedPages) kept.add(url);
-      for (const rec of shown) kept.add(rec.url);
-      for (const rec of requested) kept.add(rec.url);
+      for (const view of views) {
+        for (const rec of view.shown) kept.add(rec.url);
+        for (const rec of view.requested) kept.add(rec.url);
+      }
       retained.length = 0;
       for (const url of kept) retained.push(url);
       return retained;
