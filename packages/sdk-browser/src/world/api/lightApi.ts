@@ -28,12 +28,12 @@ type Inputs = {
  * and an engine that does not know direct lighting ignores it without crashing —
  * `refreshSceneLights` is missing, its missing capability is declared in its diagnostic.
  *
- * `setTransform` — `setTransforms` for many nodes at once — goes to the engines that can move a
- * node; otherwise the call is refused by a named `EngineError`, never by an anonymous exception.
- * It draws nothing: it marks the scene modified, and the next render — the host's `render()`, or
- * the already scheduled residency refresh — takes it. Ten poses set before a frame cost one submit, not
+ * `setTransform` goes to the active engine if it can move a node; otherwise the call is
+ * refused by a named `EngineError`, never by an anonymous exception. It draws nothing: it
+ * marks the scene modified, and the next render — the host's `render()`, or the already
+ * scheduled residency refresh — takes it. Ten poses set before a frame cost one submit, not
  * eleven: the frame gate refuses to hold the previous frame from the first pose, so the
- * screen never keeps a stale pose.
+ * screen never keeps a stale pose. `setTransforms` does the same for many nodes at once.
  */
 export function createExplorerLightApi(inputs: Inputs) {
   const { check, store, imported, backends, active, onDiagnostic } = inputs;
@@ -60,13 +60,6 @@ export function createExplorerLightApi(inputs: Inputs) {
     if (!store)
       throw new EngineError('SCENE_LIGHTS_UNAVAILABLE', 'session without a light store', {});
     return store;
-  };
-  const unsupported = (nodeName?: string): never => {
-    throw new EngineError(
-      'UNSUPPORTED_SCENE_UPDATE',
-      'no engine of this session moves a named node',
-      { nodeName },
-    );
   };
   const notify = () => {
     for (const backend of backends) backend.refreshSceneLights?.();
@@ -158,7 +151,12 @@ export function createExplorerLightApi(inputs: Inputs) {
           backend.setTransform(nodeName, matrix);
           applied++;
         }
-      if (!applied) unsupported(nodeName);
+      if (!applied)
+        throw new EngineError(
+          'UNSUPPORTED_SCENE_UPDATE',
+          'no engine of this session moves a named node',
+          { nodeName },
+        );
     },
     /** `setTransform` on many nodes the host resolved once: sixteen floats per node, in order. */
     setTransforms(nodes: readonly Object3D[], matrices: Float32Array) {
@@ -169,7 +167,12 @@ export function createExplorerLightApi(inputs: Inputs) {
           backend.setTransforms(nodes, matrices);
           applied++;
         }
-      if (!applied) unsupported(nodes[0]?.name);
+      if (!applied)
+        throw new EngineError(
+          'UNSUPPORTED_SCENE_UPDATE',
+          'no engine of this session moves a named node',
+          { nodeName: nodes[0]?.name },
+        );
     },
   };
 }
