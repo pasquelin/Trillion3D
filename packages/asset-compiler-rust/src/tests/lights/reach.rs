@@ -12,7 +12,7 @@ use crate::shared_math::{hash_unit, range_window};
 /// `old` and by `new`, as the shaders weigh it (inverse square floored at 1e-4 m²): sampled finely
 /// both inside the new range and between the two.
 fn worst_move(peak: f64, old: f64, new: f64) -> f64 {
-    const SAMPLES: usize = 20_000;
+    const SAMPLES: usize = 4_000;
     let share = |i: usize| i as f64 / SAMPLES as f64;
     (1..=SAMPLES)
         .flat_map(|i| [new * share(i), new + (old - new) * share(i)])

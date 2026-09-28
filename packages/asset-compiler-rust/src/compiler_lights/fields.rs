@@ -33,17 +33,17 @@ pub(super) fn axis(m: &Mat4) -> Option<[f64; 3]> {
 /// strongest channel drops below `RANGE_CUTOFF_IRRADIANCE`. Never infinite, never zero; the
 /// published one is then shortened as far as the display floor allows (`reach.rs`).
 pub(crate) fn range_of(light: &Value, radiant: f64, colour: [f64; 3]) -> f64 {
-    let peak = radiant * colour[0].max(colour[1]).max(colour[2]);
-    match light
+    if let Some(range) = light
         .get("range")
         .and_then(Value::as_f64)
         .filter(|r| r.is_finite() && *r > 0.0)
     {
-        Some(range) => range.min(MAX_RANGE),
-        None => (peak / RANGE_CUTOFF_IRRADIANCE)
-            .sqrt()
-            .clamp(MIN_RANGE, MAX_RANGE),
+        return range.min(MAX_RANGE);
     }
+    let peak = radiant * colour[0].max(colour[1]).max(colour[2]);
+    (peak / RANGE_CUTOFF_IRRADIANCE)
+        .sqrt()
+        .clamp(MIN_RANGE, MAX_RANGE)
 }
 /// Spot cone half-angle, mapped into the open interval accepted by the contract.
 ///  has no equivalent: the engine softens the edge using its own published setting.
