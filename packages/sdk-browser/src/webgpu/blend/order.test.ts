@@ -5,6 +5,7 @@ import { surfaceOf } from '../../page/surface.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts';
 import { orderBlendPasses } from './order.ts';
+import { RUN_WORDS } from './runs.ts';
 import { blendSceneOf } from './plan.fixture.ts';
 import { createWebgpuBlendState, type BlendGpuItem } from './state.ts';
 
@@ -30,7 +31,7 @@ function outcome(blendState: BlendState, rejected: number) {
     rejected,
     orders: blendState.orders.map((order) => Array.from(order)),
     runs: blendState.runs.map((runs, pass) =>
-      Array.from(runs.subarray(0, blendState.runCount[pass] * 4)),
+      Array.from(runs.subarray(0, blendState.runCount[pass] * RUN_WORDS)),
     ),
     runCount: [...blendState.runCount],
     keep: Array.from(blendState.keepPacked),
