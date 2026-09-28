@@ -128,7 +128,6 @@ export async function createDagResources(
       ...readback,
     );
     const frames = createCameraFrames(device, frameData, worldCount, own);
-    // Group 0 by WGSL name, but for `frames`: a light cut swaps its own in (`lightCut.ts`).
     const group = {
       clusters,
       nodes,
