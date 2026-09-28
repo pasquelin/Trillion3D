@@ -42,10 +42,6 @@ export function targetsFit(rt: WebgpuPagesRuntime, width: number, height: number
   );
 }
 
-/** True when the Hi-Z pyramid, which the views share, is that of `width × height`, or absent. */
-export const hizFits = ({ vis: { gpuHiz } }: WebgpuPagesRuntime, width: number, height: number) =>
-  !gpuHiz || (gpuHiz.width === width && gpuHiz.height === height);
-
 /** Releases the frame targets in place: none is drawn into or presented until the next are made.
  *  The view's temporal history goes with them: a capture draws in a view of its own. */
 export function releaseTargets(rt: WebgpuPagesRuntime) {
