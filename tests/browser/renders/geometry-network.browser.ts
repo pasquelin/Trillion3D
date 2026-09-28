@@ -18,8 +18,9 @@ const ROOT = resolve(import.meta.dirname, '../../..');
 const DIST = resolve(ROOT, process.env.NETWORK_PROOF_DIST ?? 'dist');
 const LATENCY_MS = 60;
 
-/** One cache object's transfer as Chrome's network stack saw it, on its own clock. */
-type Transfer = { sent: number; done: number; encoding?: string };
+/** One cache object's transfer as Chrome's network stack saw it, on its own clock; `answered` once
+ *  its response came, so a read aborted before it (the view moved on) says nothing of its encoding. */
+type Transfer = { sent: number; done: number; answered: boolean; encoding?: string };
 
 /** How many transfers were sent while another was still in flight: reads issued one after the
  *  other's end count none, reads issued together all but the first. */
@@ -42,11 +43,13 @@ async function open(throttled: boolean) {
   const transfers = new Map<string, Transfer>();
   cdp.on('Network.requestWillBeSent', ({ requestId, request, timestamp }) => {
     if (isCacheObject(new URL(request.url).pathname))
-      transfers.set(requestId, { sent: timestamp, done: Infinity });
+      transfers.set(requestId, { sent: timestamp, done: Infinity, answered: false });
   });
   cdp.on('Network.responseReceived', ({ requestId, response }) => {
     const transfer = transfers.get(requestId);
-    if (transfer) transfer.encoding = response.headers['content-encoding'];
+    if (!transfer) return;
+    transfer.answered = true;
+    transfer.encoding = response.headers['content-encoding'];
   });
   const end = ({ requestId, timestamp }: { requestId: string; timestamp: number }) => {
     const transfer = transfers.get(requestId);
@@ -98,7 +101,7 @@ try {
     console.log(
       `${name}: ${r.admitted.length} admitted, ${f.alongside}/${r.transfers.length} reads sent ` +
         `alongside another, horizon up to ${f.farthest} ms, encodings ` +
-        `${[...new Set(r.transfers.map((t) => t.encoding ?? 'identity'))]}, held ${r.held}, ` +
+        `${[...new Set(r.transfers.filter((t) => t.answered).map((t) => t.encoding ?? 'identity'))]}, held ${r.held}, ` +
         `errors ${r.errors.join(' | ') || 'none'}`,
     );
   for (const r of [fast, slow]) {
@@ -127,8 +130,9 @@ try {
     'the horizon adds the round trip',
   );
   assert.ok(fastRead.farthest < slowRead.farthest, 'a nearer network looks less far ahead');
+  const answered = slow.transfers.filter((t) => t.answered);
   assert.ok(
-    slow.transfers.length > 0 && slow.transfers.every((t) => t.encoding === 'br'),
+    answered.length > 0 && answered.every((t) => t.encoding === 'br'),
     'the cache objects arrive brotli-encoded',
   );
 } finally {
