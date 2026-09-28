@@ -36,7 +36,8 @@ export type PoolClamp =
   /** Why the size was limited. */ clamp: PoolClamp;
 };
 
-const checkBudget = (bytes: number, name: string) => {
+/** A positive safe integer, refused with the caller's error identifier. */
+export const checkBudget = (bytes: number, name: string) => {
   if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error(name);
 };
 /** A texture budget refused by name before any pool is drawn from it. */
