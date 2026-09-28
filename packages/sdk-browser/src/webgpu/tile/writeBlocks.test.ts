@@ -22,23 +22,17 @@ const level = (width: number, height: number) =>
   new Uint8Array(Math.ceil(width / 4) * Math.ceil(height / 4) * 16);
 
 // Behaviour: a tile at the edge of a 130-texel level is 6 texels wide; WebGPU copies whole
-// blocks, so the write is 8 texels wide, read at the block row the region starts on, and never
-// beyond the level's padded blocks.
-test('a tile region is written in whole blocks, from the block row and column it starts on', () => {
+// blocks, so the write is 8 texels wide, read from its record alone (#962) — its region's blocks,
+// two a row.
+test('a tile region is written in whole blocks, from its record', () => {
   const { queue, writes } = fakeQueue();
-  const source = level(130, 130);
   const region = tileRegion(130, 130, 1, 0);
   assert.deepEqual([region.sx, region.width, region.dx], [124, 6, 0]);
-  writeTileFromBlocks(queue, pool, { x: 2, y: 1, layer: 3 }, source, [130, 130], region);
+  writeTileFromBlocks(queue, pool, { x: 2, y: 1, layer: 3 }, level(6, 132), region);
   assert.equal(writes.length, 1);
   assert.deepEqual(writes[0].origin, [2 * TILE_PITCH, TILE_PITCH + region.dy, 3]);
   assert.deepEqual(writes[0].size, { width: 8, height: 132 });
-  const rowBytes = Math.ceil(130 / 4) * 16;
-  assert.deepEqual(writes[0].layout, {
-    offset: (124 / 4) * 16,
-    bytesPerRow: rowBytes,
-    rowsPerImage: 33,
-  });
+  assert.deepEqual(writes[0].layout, { offset: 0, bytesPerRow: 2 * 16, rowsPerImage: 33 });
 });
 
 // Behaviour: tail levels land on their block-aligned offsets, the 1×1 as one block at 128, and a
