@@ -9,7 +9,7 @@ use crate::tests::fixtures::encode_glb as glb;
 
 #[test]
 fn mapped_glb_keeps_one_bin_slice_and_original_source_hash() {
-    let g = json!({"buffers":[{"byteLength":4}],"bufferViews":[],"nodes":[]});
+    let g = json!({"buffers":[{"byteLength":4}],"bufferViews":[],"meshes":[],"nodes":[]});
     let source = glb(&g, &[1, 2, 3, 4]);
     let dir = scratch("glb", "map");
     fs::write(dir.join("one.glb"), &source).expect("source");
