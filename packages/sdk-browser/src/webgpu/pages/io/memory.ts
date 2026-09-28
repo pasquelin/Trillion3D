@@ -12,7 +12,7 @@ import {
   grantedGeometryPool,
   grantedTexturePool,
   probed,
-  sameLayers,
+  samePool,
   textureProbe,
 } from '../../residency/poolGrants.ts';
 import type { TexturePool } from '../../residency/memoryBudgets.ts';
@@ -83,8 +83,8 @@ export async function setWebgpuMemoryBudgets(
         { bytes, deducted } = budgetBeside(budgets.texturePoolBytes, live);
       pools.liveBytes = live;
       let pool: TexturePool | undefined = pools.poolFor(bytes);
-      // Only other layers need memory the device may refuse; other tiles alone reuse the layers.
-      if (!sameLayers(pool, pools.pool) && vis.textures && device && !run.lost)
+      // Other tiles alone still replace the lane pools (`atlasResize.ts`): the device is asked too.
+      if (!samePool(pool, pools.pool) && vis.textures && device && !run.lost)
         pool = await probed(
           grantedTexturePool(device, bytes, pools, diagnose, textureProbe(device, pools.encoding)),
         );
