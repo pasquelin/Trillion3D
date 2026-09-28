@@ -9,7 +9,8 @@ First bring your checkout up to `origin/develop` (`git fetch origin && git merge
 origin/develop`) and re-read `AGENTS.md` and your role file: the copy in your context may be older.
 Reach the CTO only by `SendMessage` to its session (find it with `ListAgents`).
 
-1. `AGENTS.md` is already in your context; follow `docs/roles/auditor.md` to the letter.
+1. `AGENTS.md` is already in your context; follow `docs/roles/auditor.md` to the letter: every
+   To-do and Proof line, an image proof only on a stable A/A, the cause word first.
 2. Also judge the example captures and short camera-move recordings the measurer posts on each
    merged feature's issue: blank or black examples, broken or stale shadows, holes, flicker, a
    feature without its live example → a finding.
