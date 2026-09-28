@@ -35,7 +35,7 @@
   exceed the Three.js witness. Any measured regression blocks validation and merge. Measurement
   noise is not an exemption, and an unmeasured metric is never evidence of parity.
 - **Every millisecond counts, measured.** The frame's largest costs are ranked on a real scene
-  (`docs/roles/measurer.md` step 8): small calculations repeated per frame or per page,
+  (`docs/roles/measurer.md` step 7): small calculations repeated per frame or per page,
   allocations in a frame, a JavaScript kernel that belongs in Rust or WebAssembly, work the
   compiler could bake once.
 - **Never optimise a path whose cost is not measured.** State its share of the frame first, on a real
@@ -57,8 +57,7 @@
   release pull request from `develop` to `main`, and its numbers are the ones published. The site
   keeps one report, the latest, each image stored once.
 - **Image proof and timing on the branch, before the pull request** (AGENTS.md rules 2 and 11).
-  Both run on the reviewed branch against its merge base with `develop`, so CI never runs for
-  nothing: acceptance proves the image (`audited`), the measurer times what can move the frame
+  Both run on the reviewed branch against its merge base with `develop`: acceptance proves the image (`audited`), the measurer times what can move the frame
   cost (`measure ok`). A failure sends the branch back, labelled `audit ko` or `measure ko`, with
   the numbers in a comment. A pull request carries the gates.
 - **A campaign's outputs are deleted once published.** A cook, a bench or a proof writes under
