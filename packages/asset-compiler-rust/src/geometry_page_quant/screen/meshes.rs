@@ -1,4 +1,4 @@
-//! The R&D audit's four procedural meshes (`preuves/CMP/scripts/gen_meshes.py`, #930), rebuilt
+//! The R&D audit's four procedural meshes (the audit's `gen_meshes.py`, #930), rebuilt
 //! with the benches' xorshift in place of NumPy's generator: a 1,024 m terrain, a smooth sphere,
 //! a hard-surface tower (`building.rs`) and a tree of leaf cards (`vegetation.rs`). Same shapes, sizes and attributes; the random
 //! phases and leaf placements are drawn from another stream.
