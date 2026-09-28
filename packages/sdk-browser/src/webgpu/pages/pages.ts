@@ -4,7 +4,6 @@ import { readPartitionAudit } from '../core/partitionAudit.ts';
 import { readTransparentOcclusionAudit } from '../transparent/occlusionAudit.ts';
 import { disabledStageProfile } from '../../../../sdk-core/src/index.ts';
 import type { BackendFactory } from '../../backend/types.ts';
-import { isCancelled } from '../../backend/common.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './runtime.ts';
 import { prepareWebgpuBackend } from './prepare/prepare.ts';
 import { setWebgpuBounce } from './prepare/bounce.ts';
@@ -100,7 +99,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       try {
         await building;
       } catch (error) {
-        if (!isCancelled(rt.signal)) diag.diagnosticFailure('webgpu-prepare-failed', error);
+        diag.diagnosticFailure('webgpu-prepare-failed', error);
         throw error;
       } finally {
         setup.preparing = undefined;
