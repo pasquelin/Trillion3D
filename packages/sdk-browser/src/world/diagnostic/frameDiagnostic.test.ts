@@ -7,6 +7,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { emitExplorerFrameDiagnostic } from './frameDiagnostic.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
+import { createHostRankDelta } from '../../page/hostRanks.ts';
 
 test('emitExplorerFrameDiagnostic: the published camera is the world pose, under a rig the host does not walk', () => {
   const rig = new G.Object3D();
@@ -41,4 +42,42 @@ test('emitExplorerFrameDiagnostic: the published camera is the world pose, under
   const published = events[0].context.camera as { position: number[]; target: number[] };
   assert.deepEqual(published.position, attendu);
   assert.deepEqual(published.target, [1, 2, 3]);
+});
+
+test('frame diagnostic includes retained rank pages beside pending pages', () => {
+  const ranks = createHostRankDelta(2, ['root', 'detail']);
+  ranks.begin();
+  ranks.markRank(0);
+  ranks.markRank(1);
+  const delta = ranks.finish();
+  const events: Array<Record<string, unknown>> = [];
+  let retained = 0;
+  const active = {
+    id: 'test-backend',
+    metrics: () => ({}) as ReturnType<RenderBackend['metrics']>,
+    pendingUrls: () => ['detail'],
+    retainedRanks: () => delta,
+  } as unknown as RenderBackend;
+  emitExplorerFrameDiagnostic({
+    diagnosticChannel: { enabled: true, detail: 'trace' } as never,
+    active,
+    camera: G.perspectiveCamera(),
+    lookAtTarget: { x: 0, y: 0, z: 0 },
+    metricsScratch: {} as FrameMetrics,
+    pageIdByUrl: new Map([
+      ['root', 3],
+      ['detail', 4],
+    ]),
+    streamer: {
+      stats: () => ({ resident: 0, evictions: 0 }),
+      retainRanks: () => void retained++,
+    } as never,
+    measuring: false,
+    scope: 'default' as never,
+    frameNumber: 1,
+    diagnose: (_phase, _message, context) => events.push(context as never),
+  });
+  const display = events[0].display as { protectedOrRequestedPageIds: number[] };
+  assert.deepEqual(display.protectedOrRequestedPageIds, [4, 3]);
+  assert.equal(retained, 1, 'a diagnostic that reads ranks applies their delta');
 });

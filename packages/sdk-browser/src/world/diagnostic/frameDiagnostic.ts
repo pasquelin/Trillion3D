@@ -41,15 +41,22 @@ export function emitExplorerFrameDiagnostic(inputs: Inputs) {
   // Snapshot construction and enqueueing happen after cpuFrameMs is closed;
   // the channel defers all observer work to a later microtask.
   if (diagnosticChannel.enabled && diagnosticChannel.detail === 'trace') {
+    const protectedOrRequested = new Set<string | number>();
+    const addPage = (url: string) => protectedOrRequested.add(pageIdByUrl.get(url) ?? url);
+    for (const url of active.pendingUrls?.() ?? []) addPage(url);
+    const ranks = active.retainedRanks?.();
+    if (ranks) {
+      // A failed draw may reach the trace before normal retention; consume its delta here.
+      streamer.retainRanks(ranks);
+      for (let i = 0; i < ranks.heldCount; i++) {
+        const url = ranks.urls[ranks.held[i]];
+        if (url !== undefined) addPage(url);
+      }
+    } else {
+      for (const url of active.pageUrls?.() ?? []) addPage(url);
+    }
     const { eye } = readCameraWorld(diagnosticCam, camera),
-      pendingUrls = [...(active.pendingUrls?.() ?? [])],
-      protectedOrRequestedPageIds = [
-        ...new Set(
-          [...pendingUrls, ...(active.pageUrls?.() ?? [])].map(
-            (url) => pageIdByUrl.get(url) ?? url,
-          ),
-        ),
-      ],
+      protectedOrRequestedPageIds = [...protectedOrRequested],
       stream = streamer.stats(),
       backendReport = active.metrics();
     diagnose('frame', 'Rendered frame', {
