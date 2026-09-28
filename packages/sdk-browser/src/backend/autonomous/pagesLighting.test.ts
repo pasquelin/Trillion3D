@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { autonomousPagesBackend } from './pages.ts';
 import { createSceneLightStore, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
+import { Light } from '../../../../sdk-core/src/world/light/light.ts';
+import { lampRecord } from '../../../../sdk-core/src/world/light/lightRecord.ts';
 import {
   createWorldNotices,
   listenWorldNotices,
@@ -47,8 +49,8 @@ test('the autonomous path lights from the contract table, not from the source gr
     const shown = (object: G.Object3D): boolean =>
       object.visible && (!object.parent || shown(object.parent));
     const lit: number[] = [];
-    (backend.scene as G.GraphScene).traverse((object) => {
-      if (G.isLightNode(object) && shown(object)) lit.push((object as G.GraphLight).intensity);
+    (backend.scene as G.Scene).traverse((object) => {
+      if (G.isLightNode(object) && shown(object)) lit.push(object.intensity);
     });
     // The contract governs: the source-graph copy is switched off, and no intensity of the
     // glTF's photometric scale reaches the renderer.
@@ -60,23 +62,20 @@ test('the autonomous path lights from the contract table, not from the source gr
   }
 });
 
-// #558 (D): the WebGL2 path draws no shadow map. A light that asks to cast is drawn unshadowed
-// and named on the world's channel as `shadows-refused`, once until its `castShadow` changes;
-// a light that casts none is never named.
-test('a casting light on the WebGL2 path is named once, never silently unshadowed', async () => {
+// #558 (D): the WebGL2 path draws no shadow map. A light that asks to cast — the sun as a point
+// lamp or a spot — is drawn unshadowed and named on the world's channel as `shadows-refused`,
+// once until it changes; a light that casts none is never named. The lights are the page's, made
+// store records as the world makes them (`lampRecord`).
+test('every casting light on the WebGL2 path is named once, never silently unshadowed', async () => {
   const sceneLights = createSceneLightStore();
-  const lamp = (id: string, castsShadow: boolean) =>
-    sceneLights.add({
-      id,
-      kind: 'point',
-      position: [0, 2, 0],
-      range: 8,
-      color: [1, 1, 1],
-      intensity: 5,
-      castsShadow,
-    });
-  lamp('lamp', true);
-  lamp('bulb', false);
+  const page = {
+    sun: new Light('directional', { castShadow: true, intensity: 3, target: [0, -1, 0] }),
+    lamp: new Light('point', { castShadow: true, position: [0, 2, 0], distance: 8 }),
+    spot: new Light('spot', { castShadow: true, position: [0, 4, 0], target: [0, 0, 0] }),
+    bulb: new Light('point', { position: [2, 2, 0], distance: 8 }),
+  };
+  const record = (id: keyof typeof page) => lampRecord(page[id], id, 10)!;
+  for (const id of Object.keys(page) as (keyof typeof page)[]) sceneLights.add(record(id));
   const notices = createWorldNotices();
   const said: string[] = [];
   const stop = listenWorldNotices((n) => void said.push(`${n.phase} ${n.context.light}`));
@@ -89,16 +88,27 @@ test('a casting light on the WebGL2 path is named once, never silently unshadowe
     shadowsRefused: noticeShadowRefusal(notices),
     readGeometryPage: async () => new Uint8Array(),
   });
-  const refresh = () => backend.refreshSceneLights!();
-  try {
-    sceneLights.set('lamp', { intensity: 6 });
-    refresh(); // a change of the lights that leaves the cast alone says nothing again
-    sceneLights.set('lamp', { castsShadow: false });
-    refresh();
-    sceneLights.set('lamp', { castsShadow: true });
-    refresh(); // off then on again: named anew
+  const heard = async () => {
+    backend.refreshSceneLights!();
     await new Promise(setImmediate);
-    assert.deepEqual(said, ['shadows-refused lamp', 'shadows-refused lamp']);
+    return said.splice(0).sort();
+  };
+  try {
+    assert.deepEqual(await heard(), [
+      'shadows-refused lamp',
+      'shadows-refused spot',
+      'shadows-refused sun',
+    ]);
+    sceneLights.set('sun', { intensity: 6 });
+    assert.deepEqual(await heard(), [], 'a change that keeps the cast says nothing again');
+    page.sun.castShadow = false;
+    sceneLights.set('sun', record('sun'));
+    sceneLights.remove('spot');
+    assert.deepEqual(await heard(), []);
+    page.sun.castShadow = true;
+    sceneLights.set('sun', record('sun'));
+    sceneLights.add(record('spot'));
+    assert.deepEqual(await heard(), ['shadows-refused spot', 'shadows-refused sun']);
     assert.equal(backend.lighting?.shadows, false, 'the capability still says no shadow');
   } finally {
     stop();

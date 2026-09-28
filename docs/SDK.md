@@ -1002,10 +1002,11 @@ of light do in the reference solution: it casts no shadow. `transparentShadow: t
 as dark as the surface is opaque: `material.meshStandard({ transparent: true, opacity: 0.5,
 transparentShadow: true })` casts half a shadow. An additive, transmissive or fully transparent
 surface casts none either way, and WebGL2 draws no shadow at all: its published capability says
-`shadows: false`, and a light set `castShadow: true` there is drawn unshadowed and named on the
-world's diagnostic channel as `shadows-refused` (its store id in `context.light`), once per light,
-said again only after it stopped casting (its `castShadow` off, the light removed, or the
-unlit view shown) and casts anew. WebGPU draws that shadow.
+`shadows: false`, and a light set `castShadow: true` there — the sun, a point lamp or a spot — is
+drawn unshadowed and named `shadows-refused` (its store id in `context.light`) on the world's
+diagnostic channel, or on the session's `onDiagnostic` when no world opened it: once per light,
+said again only after it stopped casting (its `castShadow` off, the light removed, or the unlit
+view shown) and casts anew. WebGPU draws that shadow.
 
 ### A luminaire does not block its own light
 
