@@ -14,6 +14,18 @@ import {
 import { VIS_BINDINGS } from '../../webgpu/core/bindLayout.ts';
 import { FLAG_BLEND_CASTER } from '../../visibility/types.ts';
 import { BLEND_TRANSMITTANCE_WGSL } from './transmittance.ts';
+import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SHADOW_SUBTEXELS } from '../../lighting/direct/shadowSampleWgsl.ts';
+
+/** Steps across a page of the rasterizer's grid: `SHADOW_SUBTEXELS` a texel, its 8 bits. */
+const PAGE_STEPS = SHADOW_PAGE * SHADOW_SUBTEXELS;
+
+/** A sun page's corner, \`xy\` of its clip position, on the rasterizer's grid of the page. Its
+ *  window position — the page's integer place in the pool plus that — is then exact in f32,
+ *  so the rasterizer covers the same texels with the same depths in every slot (#26). */
+export const SHADOW_CORNER_WGSL = `fn shadowPageCorner(xy:vec2f)->vec2f{
+ return round((xy*0.5+0.5)*${PAGE_STEPS}.0)*${2 / PAGE_STEPS}-1.0;
+}`;
 
 /**
  * Shadow depth passes. Group 0 is that of the visibility-buffer raster, but for one binding:
@@ -58,6 +70,7 @@ ${COLOR_SAMPLE_WGSL}
 ${maskAlphaWgsl(true)}
 ${MASK_KEEP_WGSL}
 ${BLEND_TRANSMITTANCE_WGSL}
+${SHADOW_CORNER_WGSL}
 /** A caster's corner, or none when its row is not of the kind drawn: \`blended\` casters alone
  *  into the transmittance layer, the others alone into the depth. */
 fn shadowVertex(vertexIndex:u32,instanceIndex:u32,blended:bool)->ShadowOut{
@@ -73,6 +86,8 @@ fn shadowVertex(vertexIndex:u32,instanceIndex:u32,blended:bool)->ShadowOut{
  // The out.position product is not reassociated: world position is composed apart, otherwise
  // the written depth would no longer be that from before this batch, to the bit.
  out.position=shadow.viewProjection*page.world*vec4f(vertex,1.0);
+ // A sun's projection is orthographic; a lamp's corner is divided by the hardware, as it is.
+ if(out.position.w==1.0){out.position=vec4f(shadowPageCorner(out.position.xy),out.position.zw);}
  out.fromEmitter=(page.world*vec4f(vertex,1.0)).xyz-shadow.emitter.xyz;
  if((page.flags&4u)!=0u){out.uv=pageUv(page,h,id);}
  return out;
