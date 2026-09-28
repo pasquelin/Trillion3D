@@ -33,26 +33,30 @@ test('a group runs its own gates, the API files written first, and a full run ru
 });
 
 test('the unit suite runs where the compiled compiler and dist both exist', () => {
-  const native: readonly string[] = VALIDATE_GROUPS.native;
+  const unit: readonly string[] = VALIDATE_GROUPS.unit;
   assert.ok(
-    native.indexOf('build') < native.indexOf('test'),
+    unit.indexOf('build') < unit.indexOf('test'),
     'dist/ is read by the integration tests, so tsc comes first',
   );
   assert.ok(
-    native.indexOf('build:native') < native.indexOf('test'),
+    unit.indexOf('build:native') < unit.indexOf('test'),
     'a suite run without the binary would skip the compiler tests in silence',
   );
-  for (const gates of [VALIDATE_GROUPS.quick, VALIDATE_GROUPS.typescript])
-    assert.ok(
-      !(gates as readonly string[]).includes('test'),
-      'nowhere else: the binary is only in the native job',
+  for (const [group, gates] of Object.entries(VALIDATE_GROUPS))
+    assert.equal(
+      (gates as readonly string[]).includes('test'),
+      group === 'unit',
+      'nowhere else: the unit job is the one the CI shards',
     );
 });
 
 test('the scene caches, never tracked, are compiled between the compiler and the tests that read them', () => {
   const native: readonly string[] = VALIDATE_GROUPS.native;
+  const unit: readonly string[] = VALIDATE_GROUPS.unit;
   assert.ok(native.indexOf('build:native') < native.indexOf('compile:caches'));
   assert.ok(native.indexOf('compile:caches') < native.indexOf('test:native'), 'the colliders test');
+  assert.ok(unit.indexOf('build:native') < unit.indexOf('compile:caches'));
+  assert.ok(unit.indexOf('compile:caches') < unit.indexOf('test'));
 });
 
 test('an unknown group stops the run instead of silently checking nothing', () => {
@@ -60,7 +64,7 @@ test('an unknown group stops the run instead of silently checking nothing', () =
 });
 
 test('restored binaries drop the Rust gates, and keep the suite that drives them', () => {
-  assert.deepEqual(stepsToRun({ TRILLION3D_SKIP_NATIVE: '1' }, 'native'), [
+  assert.deepEqual(stepsToRun({ TRILLION3D_SKIP_NATIVE: '1' }, 'unit'), [
     'compile:caches',
     'build',
     'test',
@@ -72,11 +76,37 @@ test('restored binaries drop the Rust gates, and keep the suite that drives them
   );
 });
 
+const workflow = readFileSync(new URL('../.github/workflows/quality.yml', import.meta.url), 'utf8');
+
 test('the CI gives each group a job, and no gate is left unrun', () => {
-  const workflow = readFileSync(
-    new URL('../.github/workflows/quality.yml', import.meta.url),
-    'utf8',
-  );
   const run = [...workflow.matchAll(/pnpm run validate --group (\w+)/g)].map(([, group]) => group);
   assert.deepEqual(run.sort(), Object.keys(VALIDATE_GROUPS).sort());
+});
+
+test('the unit shards cover shards 1..n of the same file list', () => {
+  const [, list] = /^ {8}shard: \[([\d, ]+)\]$/m.exec(workflow) ?? [];
+  const [, total] =
+    /TRILLION3D_TEST_SHARD: \$\{\{ matrix\.shard \}\}\/(\d+)$/m.exec(workflow) ?? [];
+  assert.ok(list && total, 'a shard matrix and the total it splits into');
+  const shards = list.split(',').map(Number);
+  assert.deepEqual(
+    shards,
+    Array.from({ length: +total }, (_, i) => i + 1),
+  );
+  assert.ok(shards.length > 1, 'a matrix of one shard would not split the suite');
+  assert.equal(
+    workflow.match(/--group unit\b/g)?.length,
+    1,
+    'every shard runs the one command, hence the one list of scripts/test-unit.ts',
+  );
+});
+
+test('the one required check needs every job of the workflow', () => {
+  const jobs = [...workflow.slice(workflow.indexOf('\njobs:\n')).matchAll(/^ {2}([\w-]+):$/gm)]
+    .map(([, job]) => job)
+    .filter((job) => job !== 'validate');
+  const [, needs] = /^ {2}validate:\n {4}needs: \[([^\]]+)\]$/m.exec(workflow) ?? [];
+  assert.ok(needs, '`validate` lists its needs');
+  assert.deepEqual(needs.split(', ').sort(), jobs.sort());
+  assert.ok(jobs.length >= 4, jobs.join());
 });
