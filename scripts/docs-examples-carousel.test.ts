@@ -14,7 +14,7 @@ test('carousel animates eight phased horses and its controls pause and reverse t
   const world = {
     scene,
     camera: new Camera('perspective'),
-    controls: { target: { set() {} }, minDistance: 0, maxDistance: 0, maxPolarAngle: 0 },
+    controls: { target: { set() {} } },
     invalidate() {},
     dispose: () => void (disposed = true),
   };
@@ -63,11 +63,9 @@ test('carousel animates eight phased horses and its controls pause and reverse t
   assert.equal(carousel.rotation.y, paused[0]);
   values.running = true;
   change(values);
-  advanceMixers(scene, 0.25);
+  advanceMixers(scene, 0.1);
   assert.ok(carousel.rotation.y > paused[0]!, 'counterclockwise seen from above');
 
-  values.running = false;
-  change(values);
   pagehide();
   assert.ok(disposed);
 });
