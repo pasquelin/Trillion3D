@@ -66,12 +66,14 @@ export const prefetchHorizonMs = (roundTripMs?: number) =>
 export const devicePixels = (logical: number, pixelRatio: number | undefined) =>
   Math.floor(logical * (pixelRatio ?? DEFAULT_PIXEL_RATIO));
 /** The adapter's own limits the session's device asks for: WebGPU grants the portable defaults
- *  otherwise — a shadow pool layer is as wide as `maxTextureDimension2D` (`shadow/poolSize.ts`). */
+ *  otherwise — a shadow pool layer is as wide as `maxTextureDimension2D` (`shadow/poolSize.ts`),
+ *  and a cut's tables split past one binding bind each part at once (`gpu/dag/split.ts`). */
 export const WEBGPU_REQUIRED_LIMITS = [
   'maxTextureDimension2D',
   'maxTextureArrayLayers',
   'maxStorageBufferBindingSize',
   'maxBufferSize',
+  'maxStorageBuffersPerShaderStage',
 ] as const;
 /**
  * True when the work under `signal` was cancelled: an error then is its cancellation, whatever its

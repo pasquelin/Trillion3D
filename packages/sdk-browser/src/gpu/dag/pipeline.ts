@@ -1,4 +1,5 @@
-import { DAG_SELECTION_SHADER } from './shader/shader.ts';
+import { dagPartCounts, dagSelectionShader } from './shader/splitWgsl.ts';
+import type { DagSplit } from './split.ts';
 import { dagBindEntries, type dagGroupEntries } from './shader/bindings.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { withScreenErrorVariant } from './shader/error.ts';
@@ -48,19 +49,23 @@ export function createDagStages(
 }
 
 /** The selection stages, and one bind group per range of `frames` with its primitive count, under
- *  one validation scope. */
+ *  one validation scope. `split`, the tables in parts on this device (`split.ts`): the layout binds
+ *  every part, and the text reads across them. */
 export function createDagPipeline(
   device: GPUDevice,
   buffers: Omit<Parameters<typeof dagGroupEntries>[0], 'frames' | 'worlds'>,
   frames: CameraFrames,
+  split?: DagSplit,
 ) {
   return validated(device, async () => {
-    const layout = device.createBindGroupLayout({ entries: dagBindEntries() });
+    const layout = device.createBindGroupLayout({
+      entries: dagBindEntries(split && dagPartCounts(split)),
+    });
     // The screen-error variant is frozen at shader compile: it no longer changes from session
     // open to session close, and the default text is rendered character for character
     // (`withScreenErrorVariant`).
     const module = device.createShaderModule({
-      code: withScreenErrorVariant(DAG_SELECTION_SHADER, screenErrorVariant()),
+      code: withScreenErrorVariant(dagSelectionShader(split), screenErrorVariant()),
     });
     if (await shaderFailed(module)) return undefined;
     const stages = createDagStages(device, layout, module, frames.ranges.length > 1);

@@ -4,6 +4,7 @@ import { childBase, residentBase, residentWords } from './layout.ts';
 import { grown } from '../../page/cut/sparseInts.ts';
 import { DAG_NODE_FLOATS, type PackedDag } from './types.ts';
 import { createDagReadiness } from './readiness.ts';
+import { writeParts, type DagParts } from './split.ts';
 
 /**
  * One of the cut rule's residency bit sets: one word for thirty-two clusters, which is by itself
@@ -47,10 +48,10 @@ export function updateResidencyBits(
 export function createDagResidencyUpload(resources: {
   device: GPUDevice;
   packed: PackedDag;
-  pageCones: GPUBuffer;
-  nodes: GPUBuffer;
+  coldParts: DagParts;
+  nodeParts: DagParts;
 }) {
-  const { device, packed, pageCones, nodes } = resources,
+  const { device, packed, coldParts: pageCones, nodeParts: nodes } = resources,
     pageCount = packed.pageCount;
   const readiness = createDagReadiness(packed);
   // The bits extend the cold records in their buffer: one view, mirror and write source.
@@ -70,7 +71,7 @@ export function createDagResidencyUpload(resources: {
   /** One write per contiguous range of the `count` sorted ranks of `touched`, `stride` words each
    *  from `base`: a thousand small writes are not worth the single one they replace. */
   const upload = (
-    target: GPUBuffer,
+    target: DagParts,
     source: Float32Array,
     base: number,
     stride: number,
@@ -80,7 +81,8 @@ export function createDagResidencyUpload(resources: {
     for (let r = 0; r < spans; r++) {
       const from = (base + ranges[r * 2] * stride) * 4,
         bytes = (ranges[r * 2 + 1] - ranges[r * 2] + 1) * stride * 4;
-      device.queue.writeBuffer(
+      writeParts(
+        device,
         target,
         from,
         source.buffer as ArrayBuffer,
@@ -94,8 +96,9 @@ export function createDagResidencyUpload(resources: {
   const words = new Int32Array(Math.max(1, residentWords(pageCount)));
   for (const { values, base } of sets)
     updateResidencyBits(values, pageCount, bits, base, undefined, words);
-  const whole = (target: GPUBuffer, source: Float32Array, from: number, words: number) =>
-    device.queue.writeBuffer(
+  const whole = (target: DagParts, source: Float32Array, from: number, words: number) =>
+    writeParts(
+      device,
       target,
       from * 4,
       source.buffer as ArrayBuffer,
