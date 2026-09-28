@@ -52,8 +52,6 @@
     "check:changed": "node scripts/check-changed.ts",
     "test:watch": "node --experimental-strip-types --test --watch \"packages/*/src/**/*.test.ts\" \"tests/integration/*.test.ts\"",
     "test:native": "cargo test --release --locked --all-features --manifest-path packages/asset-compiler-rust/Cargo.toml",
-    "bench:native": "cargo test --release --locked --all-features --manifest-path packages/asset-compiler-rust/Cargo.toml -- --ignored --nocapture compute_bench",
-    "bench:native:g": "cargo test --release --locked --all-features --manifest-path packages/asset-compiler-rust/Cargo.toml -- --ignored --nocapture compute_bench_g",
     "lint": "pnpm run lint:js && pnpm run lint:native",
     "lint:js": "eslint .",
     "lint:native": "cargo clippy --release --locked --manifest-path packages/asset-compiler-rust/Cargo.toml --all-targets --all-features -- -D warnings && cargo clippy --release --locked --manifest-path packages/page-codec-wasm/Cargo.toml --all-targets -- -D warnings",

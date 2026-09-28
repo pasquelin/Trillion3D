@@ -120,7 +120,8 @@ export function autonomousPlacements(env: Placements) {
         blendCopy: createBlendCopy,
       });
       const cover = autonomousBootstrap(collected.roots);
-      const urls = [...new Set(cover.map((rec) => rec.url))];
+      const covered = new Set(cover.map((rec) => rec.url)),
+        urls = [...covered];
       const admitted = [...read.descriptors.keys()];
       context.pageCatalogue?.admit([...read.descriptors.values()]);
       count(admitted, 1);
@@ -139,6 +140,8 @@ export function autonomousPlacements(env: Placements) {
       for (const copy of collected.blendCopies) blendCopies.push(copy);
       for (const copy of collected.blendCopies) scene.add(copy as unknown as Object3D);
       urls.forEach((url, i) => geometryStore.storeGeometryPage(url, pages[i]));
+      // A page the host replaced stays the host's, the cover's as the others (#837).
+      geometryStore.storeReplaced(admitted.filter((url) => !covered.has(url)));
       changed();
     },
     /** The resource `rows` place leaves: its roots, copies, and each page with its last record. */

@@ -15,14 +15,10 @@ export function tradeView<T, K extends keyof T>(
   }
 }
 
-/** Hands the gate's engine camera back to `from` and gives it `to`'s, then tells the gate the view
- *  was replaced, so no view holds on another's image: the camera half of both engines' switch. */
-export function tradeCamera<C>(
-  gate: { cam: C; viewReplaced(): void },
-  from: { cam: C },
-  to: { cam: C },
-) {
+/** Hands the gate's engine camera back to `from` and gives it `to`'s: the camera half of both
+ *  engines' switch. Each engine then tells its hold (`gateCore.ts`): WebGPU hands the gate the
+ *  view's own hold, WebGL2 breaks its one hold, its attached scene being the other view's. */
+export function tradeCamera<C>(gate: { cam: C }, from: { cam: C }, to: { cam: C }) {
   from.cam = gate.cam;
   gate.cam = to.cam;
-  gate.viewReplaced();
 }

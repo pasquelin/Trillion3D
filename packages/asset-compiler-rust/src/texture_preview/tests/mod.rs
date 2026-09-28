@@ -1,6 +1,7 @@
 use super::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+mod admission;
 mod atlas_rule;
 mod bake_files;
 mod box_reduce;
@@ -98,6 +99,7 @@ pub(super) fn stage_scene_in(
     let (previews, _, report) = stage_texture_previews(
         &PreviewInputs {
             o: &o,
+            reserved_bytes: 0,
             g,
             bin: &[],
             image_root: dir,

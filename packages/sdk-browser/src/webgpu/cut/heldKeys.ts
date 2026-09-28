@@ -14,10 +14,8 @@ export function createHeldKeys(options: {
   keyOf: (id: number) => number;
   retain: (key: number, id: number) => void;
   release: (key: number) => void;
-  onEnter?: (id: number) => void;
-  onExit?: (id: number) => void;
 }) {
-  const { keyOf, retain, release, onEnter, onExit } = options;
+  const { keyOf, retain, release } = options;
   // The reference count IS membership: a count above zero says exactly "this key is held". A
   // list beside it would say nothing more, and would be paid on each key that enters or leaves,
   // every frame. Counts are held for the held keys only: the view's, never the catalogue's.
@@ -30,14 +28,12 @@ export function createHeldKeys(options: {
       for (let i = 0; i < delta.exitedCount; i++) {
         const id = delta.exited[i],
           key = keyOf(id);
-        onExit?.(id);
         if (refs.add(key, -1) > 0) continue;
         release(key);
       }
       for (let i = 0; i < delta.enteredCount; i++) {
         const id = delta.entered[i],
           key = keyOf(id);
-        onEnter?.(id);
         if (refs.add(key, 1) > 1) continue;
         retain(key, id);
       }
