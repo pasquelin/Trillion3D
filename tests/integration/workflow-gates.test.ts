@@ -128,8 +128,22 @@ test('check-pr-body: a step says "Part of", never beside "Closes"', () => {
   const filled = review(verify(linked));
   assert.equal(problem(filled.replace('Closes #65', 'Part of #65')), '');
   const both = filled.replace('## What changed', 'Part of #65\n\n## What changed');
-  assert.match(problem(both), /says both "Closes" and "Part of"/);
+  assert.match(problem(both), /says both a closing keyword .* and "Part of"/);
   assert.match(problem(filled.replace('Closes #65', 'Closes #65 (Part of #483)')), /says both/);
+  // The closer's grammar: any closing keyword, any case; code never counts.
+  const step = filled.replace('Closes #65', 'Part of #65');
+  assert.match(
+    problem(step.replace('## What changed', 'It fixes #66.\n\n## What changed')),
+    /says both/,
+  );
+  assert.match(
+    problem(filled.replace('## What changed', 'part of #483\n\n## What changed')),
+    /says both/,
+  );
+  assert.equal(
+    problem(step.replace('## What changed', 'Write `fixes #66`.\n\n## What changed')),
+    '',
+  );
 });
 
 test('check-pr-body: a draft passes without Lead verification, a ready pull request needs it', () => {
