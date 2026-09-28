@@ -8,7 +8,7 @@ import { surfaceOf } from '../../page/surface.ts';
 import { notDrawn } from '../../placement/hidden.ts';
 import type { PlacementOf } from '../../placement/rows.ts';
 import { refreshBlendBoxes } from './hierarchy.ts';
-import { developOrder, outcome } from './hierarchyOracle.fixture.ts';
+import { outcome, rejectByFrustum } from './hierarchyOracle.fixture.ts';
 import { orderBlendPasses } from './order.ts';
 import { buildBlendStatics, refreshBlendPlan } from './plan.ts';
 import { blendSceneOf } from './plan.fixture.ts';
@@ -96,7 +96,7 @@ function walk(count: number, seed: number, frames: number, edges = false) {
     const kept = outcome(tree, orderBlendPasses(tree, eye));
     assert.deepEqual(
       kept,
-      outcome(oracle, developOrder(oracle, eye)),
+      outcome(oracle, orderBlendPasses(oracle, eye, rejectByFrustum)),
       `seed ${seed}, frame ${frame}`,
     );
   }
