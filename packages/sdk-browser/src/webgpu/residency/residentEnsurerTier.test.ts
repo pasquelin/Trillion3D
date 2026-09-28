@@ -1,9 +1,10 @@
 import test, { mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { createWebgpuPageTracking } from '../row/pageTracking.ts';
-import { STREAMING_FRAME_MS } from '../../backend/common.ts';
+import { STREAMING_FRAME_MS, STREAMING_SHARES_PER_FRAME } from '../../backend/common.ts';
 import { createWebgpuResidencyQueue } from './queue.ts';
 import { lruCache, pageOf, tierEnsurer } from './residentEnsurer.fixture.ts';
+import { stubPage } from '../../world/render/frameQueue.fixture.ts';
 
 /** A pool whose every load spends `cost` of the main-thread share (a whole one by default), on a
  *  clock the test owns. `perTask` counts the loads between two yields: each posts one message
@@ -66,25 +67,44 @@ test('a task starts no page past the published share', async () => {
   }
 });
 
-test('a hidden tab, where no frame comes, loads a whole burst, a share per task', async () => {
+/** Runs a burst of twelve pages, each a whole share, firing a frame every `tasks` free tasks; the
+ *  loads made between two frames. */
+async function framedBurst(visibility: DocumentVisibilityState, tasks = 50) {
   const { pages, tracking } = burst();
-  const frames = globalThis as { requestAnimationFrame?: unknown };
-  frames.requestAnimationFrame = () => 0;
+  const host = stubPage(visibility),
+    fire = () => {
+      for (let due = host.frames.size; due > 0; due--) host.frames.run();
+    };
   try {
-    // Every load spends a whole share: twelve shares, and not one frame to spend them in.
-    const { cache } = slowCache(16);
+    const { cache, order, perTask } = slowCache(16);
     let done = false;
     const job = tierEnsurer(tracking, cache, () => [])(pages, 1, 1).then(() => (done = true));
-    let tasks = 0;
-    for (; !done && tasks < pages.length * 4; tasks++) await new Promise(setImmediate);
-    assert.ok(done, `the burst resolved without a frame (${cache.resident.size} of 12 loaded)`);
+    const perFrame: number[] = [];
+    for (let last = 0; !done && perFrame.length < 100; last = order.length, fire()) {
+      for (let task = 0; task < tasks && !done; task++) await new Promise(setImmediate);
+      perFrame.push(order.length - last);
+    }
     await job;
-    assert.equal(cache.resident.size, 12);
-    assert.ok(tasks > 1, 'yielding between shares');
+    assert.equal(cache.resident.size, 12, 'every page admitted');
+    return { perFrame, perTask: perTask.filter(Boolean), asked: host.frames.size };
   } finally {
-    delete frames.requestAnimationFrame;
+    host.restore();
     mock.restoreAll();
   }
+}
+
+test('a visible page opens a bounded number of shares between two frames (#983)', async () => {
+  const { perFrame } = await framedBurst('visible');
+  // The shares the pace opens, and the piece begun before the first.
+  for (const loads of perFrame) assert.ok(loads <= STREAMING_SHARES_PER_FRAME + 1, `${perFrame}`);
+  assert.ok(perFrame.length > 1, 'the burst spread over frames');
+});
+
+test('a hidden page never waits for a frame: a share per task, as before (#983)', async () => {
+  const { perFrame, perTask, asked } = await framedBurst('hidden');
+  assert.deepEqual(perFrame, [12], 'the whole burst loaded with no frame');
+  assert.deepEqual(perTask, new Array(12).fill(1), 'a whole share per task, no task lost');
+  assert.equal(asked, 0, 'no frame asked');
 });
 
 test('a camera cut queued during a long caster load is served before the tier ends', async () => {
