@@ -23,6 +23,8 @@ serde_json = "1"
 sha2 = "0.10"
 rayon = "1.10"
 memmap2 = "0.9"
+# Process peak resident memory (`getrusage`), published beside each progress event (#50).
+libc = "0.2"
 meshopt = "0.6"
 # A portable arc cosine for `dag/quality.rs` (#415), pure Rust from musl (MIT); already in the
 # tree through `num-traits`.
@@ -71,13 +73,12 @@ draco-core = { version = "=2.1.0", default-features = false, features = ["decode
 [build-dependencies]
 sha2 = "0.10"
 
-# The dev profile, which `cargo test` inherits, keeps file and line tables only (backtraces still
-# name file:line, dependencies included) and no incremental cache, so the build folder stays small
-# (#737); an edit rebuilds the crate whole, `cargo check` included. Every script builds with
-# `--release`, so this profile only reaches cargo run by hand and the editor.
+# The dev profile, which `cargo test` inherits, keeps file and line tables only. The previous
+# `incremental = false` made the reported test run slower (570 to 708 seconds, #940); retaining
+# Cargo's incremental default keeps edit/test cycles responsive. The measurement session checks
+# the resulting target size on develop. Release builds use their separate profile.
 [profile.dev]
 debug = "line-tables-only"
-incremental = false
 
 [profile.release]
 lto = "thin"
