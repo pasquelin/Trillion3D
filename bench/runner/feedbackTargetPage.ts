@@ -7,6 +7,7 @@ import type {
 import { poseAt, type Bounds } from './poses.ts';
 import { posterCapture } from './measurePage.ts';
 import { captureConvergence, type ConvergenceProof } from './feedbackConvergencePage.ts';
+import type { SpatialFeedback } from '../../packages/sdk-browser/src/webgpu/pages/diagnostic/feedbackSpatial.ts';
 
 type Probe = {
   setFeedbackTargetAb(target: boolean): Promise<void>;
@@ -15,10 +16,10 @@ type Probe = {
     tiles: { count: number; sha256: string };
   }>;
   captureFeedbackAb(): Promise<Uint8Array>;
+  feedbackAbSpatial(): Promise<SpatialFeedback>;
 };
 type Reading = {
   target: boolean;
-  frames: number;
   gpuFrameMs: number[];
   gpuPassSamples: GpuPassTimings[];
   counters: Partial<FrameMetrics>;
@@ -32,7 +33,6 @@ export type FeedbackTargetResult = {
   pose: CameraPose | null;
   readings: Reading[];
   convergence: ConvergenceProof | null;
-  size: { width: number; height: number } | null;
 };
 
 /** One page, one device, one pose. The backend switch never reloads pages or the scene. */
@@ -54,7 +54,6 @@ export async function runFeedbackTarget(options: {
     pose: null,
     readings: [],
     convergence,
-    size: null,
   });
   let explorer: Sdk.MeasuredWorld | undefined;
   try {
@@ -80,7 +79,12 @@ export async function runFeedbackTarget(options: {
     });
     const backend = explorer.backends.find((item) => item.id === 'webgpu-page-raster') as
       (Sdk.RenderBackend & Partial<Probe>) | undefined;
-    if (!backend?.setFeedbackTargetAb || !backend.feedbackAbResidency || !backend.captureFeedbackAb)
+    if (
+      !backend?.setFeedbackTargetAb ||
+      !backend.feedbackAbResidency ||
+      !backend.captureFeedbackAb ||
+      !backend.feedbackAbSpatial
+    )
       return unsupported('FEEDBACK_AB_UNAVAILABLE');
     const box = explorer.bounds;
     const bounds: Bounds = {
@@ -131,7 +135,6 @@ export async function runFeedbackTarget(options: {
       if (!response.ok) return unsupported(`FEEDBACK_AB_CAPTURE_${response.status}`);
       readings.push({
         target,
-        frames: options.frames,
         gpuFrameMs,
         gpuPassSamples,
         residency,
@@ -160,7 +163,6 @@ export async function runFeedbackTarget(options: {
       pose,
       readings,
       convergence,
-      size: { width: canvas.width, height: canvas.height },
     };
   } catch (error) {
     return unsupported(String(error));

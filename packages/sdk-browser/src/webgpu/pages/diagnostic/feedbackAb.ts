@@ -137,7 +137,10 @@ export async function setFeedbackTargetAb(rt: WebgpuPagesRuntime, target: boolea
         label: 'Trillion3D texture feedback target',
         size: { width, height },
         format: FEEDBACK_FORMAT,
-        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+        usage:
+          GPUTextureUsage.RENDER_ATTACHMENT |
+          GPUTextureUsage.TEXTURE_BINDING |
+          GPUTextureUsage.COPY_SRC,
       });
       rt.gpu.feedbackView = rt.gpu.feedbackTexture.createView();
     } else {

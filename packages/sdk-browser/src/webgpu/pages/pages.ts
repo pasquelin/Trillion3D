@@ -35,6 +35,7 @@ import {
   feedbackAbResidency,
   setFeedbackTargetAb,
 } from './diagnostic/feedbackAb.ts';
+import { feedbackAbSpatial } from './diagnostic/feedbackSpatial.ts';
 import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts';
 import { webgpuAudits } from './io/audits.ts';
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
@@ -112,6 +113,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     setFeedbackTargetAb: (target) => setFeedbackTargetAb(rt, target),
     feedbackAbResidency: () => feedbackAbResidency(rt),
     captureFeedbackAb: () => captureFeedbackAb(rt),
+    feedbackAbSpatial: () => feedbackAbSpatial(rt),
     pendingFrame: () => pendingWebgpuFrame(rt),
     landings: () => rt.services.residency.landings,
     flush(options?: { image?: boolean }) {
