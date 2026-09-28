@@ -29,9 +29,8 @@ export type ConvergenceProof = {
   captures: { frame: number; file: string; final: boolean }[];
 };
 
-const geometryReady = (frame: ConvergenceFrame) =>
+export const feedbackGeometryReady = (frame: ConvergenceFrame) =>
   frame.coverageReady === true &&
-  frame.uncovered === 0 &&
   frame.pagesLoading === 0 &&
   frame.selected !== null &&
   frame.selected > 0 &&
@@ -90,7 +89,7 @@ export async function captureConvergence(
     await new Promise<number>((done) => requestAnimationFrame(done));
     const frame = traceFrame(explorer.render(pose), i);
     trace.push(frame);
-    const ready = geometryReady(frame);
+    const ready = feedbackGeometryReady(frame);
     const missing = frame.missingLevels !== null && frame.missingLevels > 0;
     if (ready && missing) gap = true;
     // Preserve the first textured gap and later improvements; cap large RGBA readbacks.

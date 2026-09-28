@@ -30,7 +30,10 @@ const reading = (target: boolean, file: string, ms: number) => ({
     gpuFrameTargetBytes: 1000 + (target ? bytes : 0),
     residentPages: 2,
     pagesLoading: 0,
-    uncoveredTriangles: 0,
+    coverageReady: true,
+    selectedTriangles: 10,
+    drawnTriangles: 10,
+    uncoveredTriangles: null,
     textureTilesResident: 3,
     textureTilesPending: 0,
     textureMissingLevels: 0,
@@ -116,4 +119,12 @@ test('A/A spread and convergence evidence can withhold a gain', () => {
     summarizeFeedbackRun(raw, 'alpha-blend-mode-test', 'sol', captures(), []).beyondSpread,
     null,
   );
+});
+
+test('WebGPU null uncovered metric permits resident verdict and reports pass shares', () => {
+  const summary = summarizeFeedbackRun(result(), 'alpha-blend-mode-test', 'sol', captures(), []);
+  assert.equal(summary.beyondSpread, true);
+  assert.equal(summary.readings[0].passFrameShare['Trillion3D material surfaces v1'], 0.2);
+  assert.equal(summary.readings[0].passFrameShare['Trillion3D texture feedback reduce'], 0.02);
+  assert.equal(summary.readings[1].passFrameShare['Trillion3D texture feedback reduce'], null);
 });
