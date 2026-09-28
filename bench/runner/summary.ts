@@ -1,7 +1,6 @@
-// Statistics, image deltas, machine load and `resume.md`, for `bench.ts`, on the SDK's calculations.
+// Statistics, machine load and `resume.md`, for `bench.ts`, on the SDK's calculations.
 import { loadavg } from 'node:os';
-import { compareImages, summarize } from '../../packages/sdk-core/src/index.ts';
-import type { Capture } from '../../tests/kit/server/staticServer.ts';
+import { summarize } from '../../packages/sdk-core/src/index.ts';
 import { cheminsCalcul } from './summaryCompute.ts';
 import { p50p95, passes, type Distribution } from './summaryPasses.ts';
 import { textures } from './summaryTextures.ts';
@@ -15,15 +14,6 @@ export const distribution = (values?: readonly number[] | null): Distribution =>
 
 /** The three system load averages, read as-is. */
 export const machineLoad = () => loadavg();
-
-/** Delta between two RGBA captures: different pixels and maximum error on a channel. */
-export function imageDiff(a: Capture | undefined, b: Capture | undefined): ImageDiff {
-  if (!a || !b) return null;
-  if (a.w !== b.w || a.h !== b.h)
-    return { erreur: `different sizes ${a.w}×${a.h} / ${b.w}×${b.h}` };
-  const diff = compareImages(a.body, b.body);
-  return { pixels: diff.differentPixels, maxCanal: diff.maxChannelError, total: a.w * a.h };
-}
 
 const ms = (d: Distribution, key: 'p50' | 'p95') => (d ? d[key].toFixed(3) : '—');
 const num = (value: number | string | null | undefined) => (value == null ? '—' : String(value));
