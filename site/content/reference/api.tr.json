@@ -378,7 +378,8 @@
       "p.left": "Ortografik bir kameranın görüş kutusunun sol kenarı.",
       "p.right": "Ortografik bir kameranın görüş kutusunun sağ kenarı.",
       "p.top": "Ortografik bir kameranın görüş kutusunun üst kenarı.",
-      "p.bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı."
+      "p.bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı.",
+      "p.fitAspect": "Ortografik kamera kutusunun yüksekliğini ve merkezini korur, genişliğini görüntünün biçiminden alır; böylece boyutu değişen bir tuval çizimi asla germez. Varsayılan olarak kapalı."
     },
     "members": {
       "isCamera": "Her zaman `true`: bir kamerayı başka herhangi bir nesneden ayırır.",
@@ -391,6 +392,7 @@
       "right": "Ortografik kutunun sağ kenarı.",
       "top": "Ortografik kutunun üst kenarı.",
       "bottom": "Ortografik kutunun alt kenarı.",
+      "fitAspect": "Bildirildiği kadar yüksek ve görüntünün biçiminin gerektirdiği kadar geniş bir ortografik kutu.",
       "projection": "`'perspective'` uzak şeyleri küçük yapar; `'orthographic'` her boyutu korur.",
       "copy": "`source` düğüm değerlerini ve, bir kameradan, optiğini alır; kendi `projection` değeri kalır.",
       "updateProjectionMatrix": "`projectionMatrix` değerini yeniden oluşturur; optiğe her yazma bunu zaten yapar ve yeniden çizer.",
@@ -431,7 +433,8 @@
       "left": "Ortografik bir kameranın görüş kutusunun sol kenarı.",
       "right": "Ortografik bir kameranın görüş kutusunun sağ kenarı.",
       "top": "Ortografik bir kameranın görüş kutusunun üst kenarı.",
-      "bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı."
+      "bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı.",
+      "fitAspect": "Ortografik kamera kutusunun yüksekliğini ve merkezini korur, genişliğini görüntünün biçiminden alır; böylece boyutu değişen bir tuval çizimi asla germez. Varsayılan olarak kapalı."
     }
   },
   "CameraPose-common": {
@@ -4620,7 +4623,8 @@
       "p.left": "Ortografik bir kameranın görüş kutusunun sol kenarı.",
       "p.right": "Ortografik bir kameranın görüş kutusunun sağ kenarı.",
       "p.top": "Ortografik bir kameranın görüş kutusunun üst kenarı.",
-      "p.bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı."
+      "p.bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı.",
+      "p.fitAspect": "Ortografik kamera kutusunun yüksekliğini ve merkezini korur, genişliğini görüntünün biçiminden alır; böylece boyutu değişen bir tuval çizimi asla germez. Varsayılan olarak kapalı."
     }
   },
   "camera.orthographic": {
@@ -4635,7 +4639,8 @@
       "p.left": "Ortografik bir kameranın görüş kutusunun sol kenarı.",
       "p.right": "Ortografik bir kameranın görüş kutusunun sağ kenarı.",
       "p.top": "Ortografik bir kameranın görüş kutusunun üst kenarı.",
-      "p.bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı."
+      "p.bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı.",
+      "p.fitAspect": "Ortografik kamera kutusunun yüksekliğini ve merkezini korur, genişliğini görüntünün biçiminden alır; böylece boyutu değişen bir tuval çizimi asla germez. Varsayılan olarak kapalı."
     }
   },
   "camera.cube": {
@@ -7016,7 +7021,8 @@
       "projection": "Perspektif ya da ortografik.",
       "position": "Gözün durduğu yer.",
       "quaternion": "Gözün nasıl döndüğü.",
-      "optics": "Görüş alanı, near, far, zoom ve kutu, adlarıyla."
+      "optics": "Görüş alanı, near, far, zoom ve kutu, adlarıyla.",
+      "fitAspect": "Resmin biçimine genişletilen ortografik kutu (`fitAspect`); kapalıyken yok."
     }
   },
   "SavedGeometry": {
