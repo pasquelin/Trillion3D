@@ -33,7 +33,7 @@ function gpuCut() {
     w.sets.applyCut(closure.delta);
     drawn.apply(draws ? draws.split(' ').map(id) : []);
     w.sets.applyDrawn(drawn);
-    admit(room, { result: { pageIds, drawablePageIds: [] } });
+    admit(room, { result: { pageIds, drawablePageIds: [] } } as never);
   };
   const url = (key: number) => w.tracking.pageCatalog[key];
   const queue = () => Array.from(w.tracking.wanted.list.subarray(0, w.tracking.wanted.count), url);
