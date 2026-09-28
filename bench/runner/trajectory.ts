@@ -10,7 +10,7 @@ import { assetIdentity } from './report/provenance.ts';
 import { readOptions, resolveMounts, equipSide, sdkEntryUrl } from './options.ts';
 import { isDist } from './dists.ts';
 import { resolveCache, sideReport } from './sideOptions.ts';
-import { ASSETS, DEFAULT_SCENE, sceneDerived } from './scene.ts';
+import { ASSETS, DEFAULT_SCENE, sceneDerived, sceneOf } from './scene.ts';
 import { PATH_POSES, PATH_VERSION, poseAt } from './poses.ts';
 import { readBounds } from './page.ts';
 import { benchLights } from './lamps.ts';
@@ -40,8 +40,10 @@ async function main() {
   if (settings.movingLight || settings.movingNode || settings.poolVivant)
     throw new Error('trajectory supports camera motion only, with fixed memory budgets');
   settings.stageProfile = false;
-  const scene = flags.get('scene') ?? DEFAULT_SCENE;
-  const cache = resolveCache(flags.get('cache') ?? sceneDerived(scene, ASSETS))!;
+  const named = flags.get('scene');
+  const cache = resolveCache(flags.get('cache') ?? sceneDerived(named ?? DEFAULT_SCENE, ASSETS))!;
+  // A `--cache` alone names its scene: the evidence never records Sponza for another cache.
+  const scene = named ?? sceneOf(cache);
   const sides = ['avant', 'apres'].map((name) => {
     const dist = resolve(flags.get(name) ?? join(root, 'dist'));
     flags.set(`cache-${name}`, cache);
