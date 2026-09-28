@@ -10,9 +10,9 @@ import { AS_IS_FLAG, SURFACE_MODEL, shownAsIs } from '../scene/surfaceModel.ts';
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
 import {
   BOUNCE_LIGHTING_SHADER,
-  COMPOSE_SHADERS,
+  CONTRACT_COMPOSITIONS,
   DIRECT_LIGHTING_SHADER,
-  UNLIT_COMPOSE_SHADERS,
+  UNLIT_COMPOSITIONS,
 } from './deferred/shaders.ts';
 import { TAA_SHADER } from '../taa/shaderWgsl.ts';
 
@@ -64,8 +64,8 @@ function composition(shader: string) {
       },
     ) as number;
 }
-const still = composition(COMPOSE_SHADERS.still);
-const accumulated = composition(COMPOSE_SHADERS.accumulated);
+const still = composition(CONTRACT_COMPOSITIONS.plain.still);
+const accumulated = composition(CONTRACT_COMPOSITIONS.plain.accumulated);
 
 test('A normal or depth surface resolves to the as-is flag, passed through unlit', () => {
   const flagOf = new Function(
@@ -91,7 +91,7 @@ test('A still image: a debug view reaches sRGB untouched, a lit surface keeps ex
   assert.equal(accumulated(0.5, 1), 0.5);
   assert.equal(accumulated(2, 0), curve(2 * EXPOSURE));
   // The identity chain has nothing to keep off, and reads no share.
-  for (const shader of Object.values(UNLIT_COMPOSE_SHADERS))
+  for (const shader of Object.values(UNLIT_COMPOSITIONS.plain))
     assert.doesNotMatch(shader, /@binding\(2\)|share/);
 });
 
