@@ -28,7 +28,7 @@ import { endCpuFrame, hostCpuStep } from './render/cpuSteps.ts';
 import { setWebgpuTransform, setWebgpuTransforms } from './render/transform.ts';
 import { updateWebgpuPlacements } from '../../placement/webgpuPlacements.ts';
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
-import { setWebgpuMemoryBudgets } from './io/memory.ts';
+import { hostTableBytesOf, setWebgpuMemoryBudgets } from './io/memory.ts';
 import { setWebgpuClearColor } from './io/clearColor.ts';
 import * as materials from './io/refreshMaterials.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
@@ -147,10 +147,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     acceptPage(url, array, plan) {
       acceptPage(rt, url, array, plan, rt.services.affectsImage);
     },
-    hostTableBytes: () =>
-      rt.services.hostTableBytes() +
-      (rt.bounce.probes?.proxy.hostBytes ?? 0) +
-      (rt.sunFar.borrowed ? 0 : (rt.sunFar.gpu?.proxy?.hostBytes ?? 0)),
+    hostTableBytes: () => hostTableBytesOf(rt),
     dropPage(url) {
       dropPage(rt, url);
     },
