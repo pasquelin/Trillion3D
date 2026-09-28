@@ -146,6 +146,21 @@ test('a seek on a playing action moves it, and playing goes on from there', () =
   close(arm.position.x, 7.5);
 });
 
+test('a seek on a stopped action beside a playing one poses it once, never advancing it', () => {
+  const { root, arm, action } = slide();
+  const lift = animation.clip('lift', 1, [animation.numberTrack('arm.position.y', [0, 1], [0, 10])]);
+  const other = action.mixer.clipAction(lift).play();
+  action.mixer.update(0.1);
+  action.seek(0.25);
+  close(arm.position.x, 2.5);
+  close(arm.position.y, 1);
+  assert.equal(advanceMixers(root, 0.5), true);
+  close(action.time, 0.25);
+  close(other.time, 0.6);
+  close(arm.position.x, 2.5);
+  close(arm.position.y, 6);
+});
+
 test('a seek past the end follows the loop mode', () => {
   const { arm, action } = slide();
   const at = (loop: typeof action.loop, time: number) => {
