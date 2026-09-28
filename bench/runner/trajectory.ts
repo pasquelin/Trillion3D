@@ -1,0 +1,165 @@
+#!/usr/bin/env node
+// Acceptance entry point. Goldens come from an explicit built baseline, repeated for stable A/A.
+import { mkdir, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
+import { launchChrome } from './chrome.ts';
+import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
+import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
+import { fingerprintBuild } from '../../scripts/write-build-provenance.ts';
+import { assetIdentity } from './report/provenance.ts';
+import { readOptions, resolveMounts, equipSide, sdkEntryUrl } from './options.ts';
+import { resolveCache, sideReport } from './sideOptions.ts';
+import { ASSETS, sceneDerived } from './scene.ts';
+import { PATH_POSES, PATH_VERSION, poseAt } from './poses.ts';
+import { readBounds } from './page.ts';
+import { benchLights } from './lamps.ts';
+import { measurePayload, withGpuIncidents } from './seriesPage.ts';
+import { checkpointIndices, trajectoryVerdict } from './trajectoryProof.ts';
+import type { captureTrajectory } from './trajectoryPage.ts';
+
+async function main() {
+  const root = resolve(import.meta.dirname, '../..');
+  const { flags, settings, out, resources } = readOptions(
+    [
+      '--moteur',
+      'webgpu',
+      '--images',
+      String(PATH_POSES),
+      '--textures',
+      'cache',
+      ...process.argv.slice(2),
+    ],
+    root,
+  );
+  const indices = checkpointIndices(settings.frames, Number(flags.get('checkpoint-every') ?? 60));
+  if (indices.length > 32) throw new Error('at most 32 checkpoints per proof');
+  if (settings.pixelErrors.length !== 1) throw new Error('trajectory requires one pixelError');
+  if (!flags.has('avant')) throw new Error('--avant must name a built golden baseline directory');
+  if (flags.has('cache-avant') || flags.has('cache-apres'))
+    throw new Error('use --cache for the identical cache on both sides');
+  if (settings.movingLight || settings.movingNode || settings.poolVivant)
+    throw new Error('trajectory supports camera motion only, with fixed memory budgets');
+  settings.stageProfile = false;
+  const scene = flags.get('scene') ?? 'emerald';
+  const cache = resolveCache(flags.get('cache') ?? sceneDerived(scene, ASSETS))!;
+  const sides = ['avant', 'apres'].map((name) => {
+    const dist = resolve(flags.get(name) ?? join(root, 'dist'));
+    const side = equipSide({ name, dist, from: 'folder' }, flags, settings);
+    side.cache = cache;
+    side.manifestUrl = `/cache/${name}/native/full/manifest.json`;
+    if (side.engine.id !== 'webgpu-page-raster' || side.variant || side.errorMetric)
+      throw new Error('trajectory requires the standard WebGPU engine on both sides');
+    if (!existsSync(join(dist, sdkEntryUrl(side).replace(`/sdk/${name}/`, ''))))
+      throw new Error(`built SDK missing: ${dist}`);
+    return side;
+  });
+  if (sides[0].compression !== sides[1].compression)
+    throw new Error('texture compression must match on both sides');
+  const builds = await Promise.all(
+    sides.map(async (side) => (await fingerprintBuild(side.dist)).hash),
+  );
+  const captures = new Map<string, Capture>();
+  const report = {
+    scene,
+    pathVersion: PATH_VERSION,
+    settings,
+    indices,
+    assetKey: assetIdentity(cache),
+    sides: sides.map((side, i) => ({ ...sideReport(side)[1], buildHash: builds[i] })),
+    browser: '',
+    runs: [] as Awaited<ReturnType<typeof captureTrajectory>>[],
+    verdicts: [] as ReturnType<typeof trajectoryVerdict>[],
+    errors: [] as string[],
+  };
+  // Refuse to overwrite goldens or previous evidence.
+  const outputPath = relative(join(root, '.mesure/out'), out);
+  if (!outputPath || outputPath.startsWith('..'))
+    throw new Error('--out must be under .mesure/out/');
+  await mkdir(dirname(out), { recursive: true });
+  await mkdir(out, { recursive: false });
+  const { server, port } = await startServer({
+    mounts: resolveMounts(root, sides, resources),
+    captures,
+    isolation: settings.isolation,
+  });
+  try {
+    let bounds: Awaited<ReturnType<typeof readBounds>> | undefined;
+    for (const [pass, side] of [sides[0], sides[0], sides[1]].entries()) {
+      const browser = await launchChrome({ headless: !settings.visible, args: side.engine.flags });
+      try {
+        report.browser = browser.version();
+        const page = await browser.newPage({
+          viewport: { width: settings.width, height: settings.height },
+          deviceScaleFactor: settings.dpr,
+        });
+        page.setDefaultTimeout(120_000);
+        page.on('pageerror', (error) => report.errors.push(error.message));
+        page.on('console', (message) => {
+          if (message.type() === 'error') report.errors.push(message.text());
+        });
+        page.on('response', (response) => {
+          if (response.status() >= 400)
+            report.errors.push(`${response.status()} ${response.url()}`);
+        });
+        await page.goto(`http://127.0.0.1:${port}/`);
+        bounds ??= await page.evaluate(readBounds, {
+          sdkUrl: sdkEntryUrl(side),
+          manifestUrl: side.manifestUrl!,
+        });
+        const poses = Array.from({ length: settings.frames }, (_, index) => poseAt(bounds!, index));
+        const payload = measurePayload(
+          side,
+          'trajectory',
+          settings.pixelErrors[0],
+          poses[0],
+          poses,
+          ['golden', 'golden-aa', 'candidate'][pass],
+          settings,
+          benchLights(bounds, settings),
+          side.manifestUrl!,
+        );
+        const run = await withGpuIncidents(page, () =>
+          page.evaluate(
+            async ({ payload, indices }) => {
+              const module = (await import(`${payload.modulesUrl}trajectoryPage.ts`)) as {
+                captureTrajectory: typeof captureTrajectory;
+              };
+              return module.captureTrajectory(payload, indices);
+            },
+            { payload, indices },
+          ),
+        );
+        report.runs.push(run);
+        if (!run.drawn || run.coverageFailures.length || run.incidents.length)
+          report.errors.push(`pass ${pass}: missing coverage, no geometry drawn, or GPU incidents`);
+      } finally {
+        await browser.close();
+      }
+    }
+    const [reference, repeat, candidate] = report.runs;
+    report.verdicts = reference.checkpoints.map((checkpoint, i) =>
+      trajectoryVerdict(checkpoint, repeat.checkpoints[i], candidate.checkpoints[i], captures),
+    );
+  } catch (error) {
+    report.errors.push(String(error));
+  } finally {
+    await new Promise<void>((done) => server.close(() => done()));
+    for (const [file, capture] of captures)
+      if (capture)
+        await writeFile(join(out, file), encodePng(capture.w, capture.h, capture.body, true));
+    await writeFile(join(out, 'trajectory.json'), JSON.stringify(report, null, 2));
+  }
+  if (
+    report.errors.length ||
+    report.verdicts.length !== indices.length ||
+    report.verdicts.some(({ status }) => status !== 'match' && status !== 'transient')
+  )
+    throw new Error(`trajectory proof failed: ${join(out, 'trajectory.json')}`);
+  console.log(`trajectory proof passed: ${join(out, 'trajectory.json')}`);
+}
+
+await main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

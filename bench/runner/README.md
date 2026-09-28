@@ -56,7 +56,7 @@ through the witness entry point (`bench/witnesses/measurement.ts`, bundled by `p
   engine-owned WebGL2 program — glTF 2.0 metallic-roughness maps, Lambert diffuse with a
   Cook-Torrance GGX specular, correlated Smith visibility and Schlick Fresnel (Karis, SIGGRAPH 2013
   Physically Based Shading course notes), with the geometric specular antialiasing of
-  Tokuyoshi and Kaplanyan, *Improved Geometric Specular Antialiasing* (2019). Transmissive meshes are
+  Tokuyoshi and Kaplanyan, _Improved Geometric Specular Antialiasing_ (2019). Transmissive meshes are
   composed after the clusters over a frozen backdrop of the frame. A material the program cannot
   preserve fails preparation with `CLUSTER_MATERIAL_UNSUPPORTED`, whose `details.reason` names the
   input; a physical extension beyond the transmission volume (clearcoat, sheen…) is no refusal: the
@@ -88,7 +88,6 @@ by substituting materials: one white ambient light of irradiance π returns the 
 `metalness`, `aoMapIntensity`, `lightMapIntensity` and `transmission` are zeroed for the length of
 each frame; a material's own emission is still added. The WebGL witnesses read back their rendered
 default framebuffer so captures match the displayed image.
-
 
 The measured camera path also advances once per `requestAnimationFrame` on both sides. Its
 `rafIntervalMs` distribution is the real moving-frame envelope, including browser backpressure and
@@ -176,6 +175,37 @@ a mirrored mapping that costs the simplification nothing — in a tenth of a sec
 
 Resource base URL is where harness serves sources for compiled glTF texture fetch. Cache fingerprint is `key` in `manifest.json`, recorded in `mesure.json`: comparisons require identical keys.
 
+## Navigation image regression proof
+
+Acceptance can replay the complete versioned camera path without collecting timings:
+
+    node bench/runner/trajectory.ts --scene emerald --cache .mesure/assets/emerald-derived \
+      --avant .worktrees/reference/dist --apres dist --out .mesure/out/8-trajectory
+
+Both builds must already exist. `--avant` is the explicitly chosen golden baseline, never
+automatically replaced by the candidate. Both sides read the same compiled cache, camera poses,
+resolution, error threshold, memory budgets and texture compression. Build hashes, asset identity,
+browser version, settings and path version accompany the PNGs in `trajectory.json`. The output
+directory must be new and under `.mesure/out/`; publish the evidence, then remove that directory.
+
+The default is all 600 poses, with checkpoints every 60 poses and at the final pose. `--images`
+can shorten a diagnosis; `--checkpoint-every` can sample more closely (at most 32 checkpoints).
+Each pass keeps one world open throughout navigation and pauses at checkpoints for the shared
+64-frame held-image barrier. The baseline runs twice: only exact, non-black 0 px A/A images are
+accepted as goldens. The candidate records both its arrival image and its held image. Missing
+captures, page/GPU errors, geometry holes, incomplete triangle coverage, no drawn geometry,
+unsettled images and unstable goldens fail the command. A single changed pixel after convergence
+is a regression. A difference that disappears after convergence is reported separately as
+`transient`, with arrival page counters and settling frame count; this does not attribute every
+transient to streaming (temporal accumulation can also differ), nor certify absence of visible
+popping between checkpoints. No elapsed-frame or GPU timing claim is made.
+
+The Emerald cache named in #8 is no longer distributed or present with the public benchmark
+assets. The command fails explicitly if it is missing; it never silently substitutes another
+scene. `--scene sponza` exercises the same harness with a public cache, but is not an Emerald
+proof. Emerald image execution and its golden evidence remain pending until that cache is made
+available. The deterministic unit tests cover verdicts and checkpoint coverage without a browser.
+
 ## Measuring Another Scene
 
 Harness is scene-agnostic: measures provided caches, pose bounds read from page model bounds. Three setup steps:
@@ -220,7 +250,7 @@ separate operations; rebuilding the interface never launches Chrome or benchmark
    manifest, browser version and machine, and a completed measurement without errors. A mismatch refuses to
    overwrite evidence: select another output directory. Browser-version changes invalidate resume and comparisons.
 2. Export with `node bench/runner/summaryGlobal.ts --dossier .mesure/out/<campaign>
-   --vers .mesure/out/<campaign>-report --id <campaign>` (on one line).
+--vers .mesure/out/<campaign>-report --id <campaign>` (on one line).
 3. Stage with `node bench/runner/publishReport.ts --dossier .mesure/out/<campaign>-report`.
    The site keeps one report: the script writes `site/reports/<id>/`, then removes the campaign
    staged before and writes a catalogue naming the new one, which the portal's Measurements area
