@@ -51,15 +51,20 @@ export const ONE_REQUEST = 1;
  * fails in a way that may pass (`retriable`), after the wait its `Retry-After` asks, capped
  * (`RETRY_AFTER_CAP_MS`); a refusal another request would meet again — a 404, a 403 — is not
  * asked twice. What still fails is refused by an `EngineError` naming the address. An aborted
- * `signal` rejects with its reason and asks nothing more. The SDK guide states this policy
- * (docs/SDK.md).
+ * `signal` rejects with its reason and asks nothing more; `headers` go with every request (a
+ * texture tile's `Range`). The SDK guide states this policy (docs/SDK.md).
  */
-export async function checked(url: string, signal?: AbortSignal, attempts = 2) {
+export async function checked(
+  url: string,
+  signal?: AbortSignal,
+  attempts = 2,
+  headers?: HeadersInit,
+) {
   let response: Response | undefined, cause: unknown;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     signal?.throwIfAborted();
     try {
-      response = await fetch(url, { signal });
+      response = await fetch(url, { signal, headers });
     } catch (error) {
       signal?.throwIfAborted();
       [response, cause] = [undefined, error];
