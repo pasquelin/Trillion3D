@@ -19,7 +19,10 @@ import { createPhysicsPoses } from './poses.ts';
 import { poseRecord } from './worker.fixture.ts';
 
 /** One mesh in slot 0 at generation 0, as a tick's records name it. */
-const lone = (mesh: Bodied) => ({ meshes: [mesh], generation: new Uint8Array(1), retire() {} });
+const lone = (mesh: Bodied) => ({
+  ...{ meshes: [mesh], nested: new Map(), generation: new Uint8Array(1) },
+  retire() {},
+});
 
 test('a pose sent again unchanged moves nothing and asks for no frame', () => {
   const poses = createPhysicsPoses(4, new Group());

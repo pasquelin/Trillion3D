@@ -11,10 +11,10 @@ import {
   createShadowRecordPack,
 } from './recordPack.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
-import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { arrayView, layerPasses, layerViews } from './layers.ts';
 import { createShadowTransmittance, type ShadowTransmittance } from './transmittance.ts';
 import { shadowTransmittanceDraws } from './transmittanceDraws.ts';
+import { shadowDepthDraws } from './depthDraws.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import { SHADOW_FACE_STRIDE as FACE_STRIDE } from './batchBudget.ts';
 
@@ -80,21 +80,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       ],
     });
     const layout = device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faceLayout] });
-    const depthState = (compare: GPUCompareFunction): GPUDepthStencilState => ({
-      format: 'depth32float',
-      depthWriteEnabled: true,
-      depthCompare: compare,
-    });
-    const depth = device.createRenderPipeline({
-      label: 'Trillion3D shadow depth v1',
-      layout,
-      vertex: { module, entryPoint: 'shadow_vs' },
-      // No colour target: the fragment stage exists only to discard an opacity-mask cutout, and
-      // returns nothing.
-      fragment: { module, entryPoint: 'shadow_fs', targets: [] },
-      primitive: { topology: 'triangle-list', cullMode: 'none' },
-      depthStencil: depthState(DEPTH_COMPARE),
-    });
+    const depthDraws = shadowDepthDraws(device, module, layout);
     const transmittanceDraws = shadowTransmittanceDraws(device, module, [pageLayout, faceLayout]);
     const faceGroup = device.createBindGroup({
       layout: faceLayout,
@@ -131,7 +117,13 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       dataBuffer,
       /** Host mirror of the records: what the shading rereads. */
       records: records as Readonly<Float32Array>,
-      depth,
+      /** Compiles the pool's draws off the frame (`shadowDepthDraws`), at prepare. */
+      prepareDepth: depthDraws.prepare,
+      /** The pool's draws, compiled by `prepareDepth` or, failing it, now. */
+      depthDraws: depthDraws.made,
+      /** True when region `index`'s face carries an emitter envelope, which only a fragment
+       *  discards. */
+      hasEnvelope: pack.hasEnvelope,
       faceGroup,
       faceUniform,
       faceStride: FACE_STRIDE,

@@ -1,4 +1,6 @@
 import { DRAW_INDIRECT_STRIDE } from '../../../gpu/draw/draw.ts';
+import { SHADOW_REGION_INDIRECT_BYTES } from '../../../gpu/shadow/batchBudget.ts';
+import type { ShadowDepthDraws } from '../../../gpu/shadow/depthDraws.ts';
 import { MAX_SHADOW_REGIONS } from '../../../gpu/shadow/atlas.ts';
 import { HIZ_UNTESTED } from '../../../gpu/shadow/occlusion.ts';
 import { REGION_RESTORE } from '../../shadow/regions.ts';
@@ -49,11 +51,14 @@ export function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncod
 }
 
 /**
- * The casters of each region of pass `k` of `pagePlan` drawn into `pass` by each of `pipelines`,
- * in its page's viewport and scissor — the page's texels divided by `scale`, 2 in the
- * transmittance layer —: the page fills the clip square, so the rasterizer clips every caster at
- * its edge and no other page is touched. A region draws its visible list when `tested` and it has
- * a pyramid, else the cull's. Returns the draws encoded.
+ * The casters of each region of pass `k` of `pagePlan` drawn into `pass`, in its page's viewport
+ * and scissor — the page's texels divided by `scale`, 2 in the transmittance layer —: the page
+ * fills the clip square, so the rasterizer clips every caster at its edge and no other page is
+ * touched. A region draws its visible lists when `tested` and it has a pyramid, else the cull's.
+ * The pool's `draws` draw both of a region's lists (#965): the opaque one with no fragment stage,
+ * or with the fragment that strips the face's emitter envelope, then the cutout one while any row
+ * is a cutout; the transmittance layer's draw the first list, which holds the blended casters,
+ * once each. A pipeline is set only when it changes. Returns the draws encoded.
  */
 export function drawRegionCasters(
   rt: WebgpuPagesRuntime,
@@ -62,16 +67,20 @@ export function drawRegionCasters(
   k: number,
   tested: boolean,
   scale: number,
-  pipelines: readonly GPURenderPipeline[],
+  draws: readonly GPURenderPipeline[] | ShadowDepthDraws,
 ) {
   const { shadows, cull, regions, occlusion } = rt.lights,
     { order, first, clears, restores } = pagePlan,
     side = SHADOW_PAGE / scale;
-  // One pipeline is set once for the pass, two alternate in each region (depth, then colour):
-  // develop's call sequences, kept as they are.
-  const one = pipelines.length === 1;
-  if (one) pass.setPipeline(pipelines[0]);
-  let draws = 0;
+  const pool = 'cutout' in draws ? draws : undefined,
+    cutouts = rt.lights.mobility.hasCutouts;
+  let current: GPURenderPipeline | undefined,
+    drawn = 0;
+  const draw = (pipeline: GPURenderPipeline, commands: GPUBuffer, offset: number) => {
+    if (pipeline !== current) pass.setPipeline((current = pipeline));
+    pass.drawIndirect(commands, offset);
+    drawn++;
+  };
   for (let i = first[k]; i < first[k] + clears[k] + restores[k]; i++) {
     const region = order[i],
       visible = tested && slotOf[region] !== HIZ_UNTESTED;
@@ -83,12 +92,13 @@ export function drawRegionCasters(
     pass.setScissorRect(x, y, side, side);
     pass.setBindGroup(0, group);
     pass.setBindGroup(1, shadows!.faceGroup, [region * shadows!.faceStride]);
-    const commands = visible ? occlusion!.visibleIndirect : cull!.indirect;
-    for (const pipeline of pipelines) {
-      if (!one) pass.setPipeline(pipeline);
-      pass.drawIndirect(commands, region * DRAW_INDIRECT_STRIDE);
-    }
-    draws += pipelines.length;
+    const commands = visible ? occlusion!.visibleIndirect : cull!.indirect,
+      at = region * SHADOW_REGION_INDIRECT_BYTES;
+    if (pool) {
+      draw(shadows!.hasEnvelope(region) ? pool.envelope : pool.opaque, commands, at);
+      if (cutouts) draw(pool.cutout, commands, at + DRAW_INDIRECT_STRIDE);
+    } else
+      for (const pipeline of draws as readonly GPURenderPipeline[]) draw(pipeline, commands, at);
   }
-  return draws;
+  return drawn;
 }
