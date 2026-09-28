@@ -41,7 +41,7 @@ export function createDagLightCut(resources: DagResources) {
   const { own, listCap } = resources;
   const capacity = lightCutCapacity(device.limits, resources),
     table = lightCutBuffers(resources, capacity),
-    { queueCap, travail: layout } = table;
+    { queueCap, workLayout: layout } = table;
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   // Its flags in the camera's parts (`split.ts`): one kernel text, one layout.
   const flagParts = table.flags.map((row) => makeDagBuffer(own, row)),
