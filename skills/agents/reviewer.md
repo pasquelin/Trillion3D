@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Invokes the real simplify skill then the real code-review skill (--fix) through the Skill tool on one pushed branch before any pull request, checks the auditor's list, pushes the fixes and answers OK or KO. Never merges, never measures. Use with a branch.
+description: Invokes the real simplify skill then the real code-review skill (--fix) through the Skill tool on one pushed branch before any pull request, checks the issue's To-do items, pushes the fixes and answers OK or KO. Never merges, never measures. Use with a branch.
 tools: Read, Edit, Write, Grep, Glob, Bash, Skill, Agent
 ---
 
