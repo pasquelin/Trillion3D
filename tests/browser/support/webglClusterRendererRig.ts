@@ -45,14 +45,14 @@ export type TriangleMesh = ReturnType<typeof triangle>['mesh'];
 export const placeRig = (
   mesh: TriangleMesh,
   camera: host.HostCamera,
-  light: G.GraphLight,
+  light: G.Light,
   drawCamera: host.HostDrawCamera,
   offset: number,
 ) => {
   mesh.matrix.makeTranslation(offset, offset, offset);
   camera.position.set(offset, offset, offset);
   light.position.set(offset, offset, offset + 1);
-  light.target!.position.set(offset, offset, offset);
+  light.target.position.set(offset, offset, offset);
   if (!light.parent) throw new Error('light missing parent');
   light.parent.updateMatrixWorld(true);
   host.readHostDrawCamera(drawCamera, camera);
