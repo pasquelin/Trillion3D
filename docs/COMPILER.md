@@ -724,7 +724,7 @@ temporal antialiasing.
 
 - `threads` sizes the rayon pool of one job; clustering, simplification and paging run in parallel per primitive.
 - `RAM_MB` is an **admission** check made from the source size (a GLB's BIN chunk counted once, as the mapped binary), the selected buffer views, the triangle count and the dense expansion of every accessor that will be decoded — `count × components × 4` bytes, counted the same way for an accessor whose values are stored, absent or carried by a `sparse` — before any work starts. It also charges, per primitive, the index buffer and what the job keeps until it ends (the manifest record of every page, its culling and structure entries and their published text), and refuses a job whose widest primitive could not compile beside all that. Primitives then compile in consecutive waves whose DAG working sets fit together in what the budget leaves (a scene that fits is one wave) (`compiler_budget/waves.rs`); each cost is derived from the primitive's triangle and vertex counts and the structures the compiler allocates for them (`compiler_primitive/cost.rs`). These are estimates, not a cap on the process (`unsupported: "hard RSS enforcement"`); texture baking is admitted by #56.
-- The source buffer is memory-mapped when it is a single external `.bin`; embedded or multi-buffer sources are copied.
+- The source buffer is memory-mapped when it is a single external `.bin` or a GLB's single BIN chunk; multi-buffer sources are copied.
 - The FBX/OBJ importer loads the whole ufbx scene in memory, then streams the glTF out; expect roughly 3–4× the source size during import.
 - In batch mode the process memory is the sum of the running workers; size `workers` accordingly.
 
