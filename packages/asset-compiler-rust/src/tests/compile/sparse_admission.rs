@@ -48,25 +48,37 @@ fn a01_a_realistic_sparse_over_budget_is_refused_by_admission() {
     fs::remove_dir_all(root).expect("cleanup");
 }
 
-/// #50: what a primitive keeps until the job ends (a page record per cluster) is charged
-/// before any work. 600,000 triangles over three vertices store about 7 MiB of indices, which
-/// the stored and decoded bytes alone admit within 64 MiB; their page records do not fit.
+/// #50: a scene admitted before waves existed is never refused for what its primitives keep
+/// (a page record per cluster). Two primitives of 600,000 triangles store about 7 MiB of
+/// indices each; their page records leave the 64 MiB budget no room, so they compile one at
+/// a time instead of being refused.
 #[test]
-fn a_primitive_whose_kept_pages_exceed_the_budget_is_refused_before_any_work() {
+fn primitives_whose_kept_pages_leave_no_room_compile_one_at_a_time() {
     let (root, mut options) = fixture();
     let triangles = 600_000usize;
-    let mut bin = vec![0u8; triangles * 12];
+    let mut bin = Vec::with_capacity(triangles * 12 + 36);
+    for _ in 0..triangles {
+        for value in [0u32, 1, 2] {
+            bin.extend_from_slice(&value.to_le_bytes());
+        }
+    }
     for value in [0f32, 0., 0., 1., 0., 0., 0., 1., 0.] {
         bin.extend_from_slice(&value.to_le_bytes());
     }
+    let primitive = json!({"attributes":{"POSITION":0},"indices":1});
     let gltf = json!({"asset":{"version":"2.0"},"buffers":[{"uri":"mesh.bin","byteLength":bin.len()}],
         "bufferViews":[{"buffer":0,"byteOffset":0,"byteLength":triangles * 12},{"buffer":0,"byteOffset":triangles * 12,"byteLength":36}],
         "accessors":[{"bufferView":1,"componentType":5126,"type":"VEC3","count":3,"min":[0,0,0],"max":[1,1,0]},{"bufferView":0,"componentType":5125,"type":"SCALAR","count":triangles * 3}],
-        "meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
+        "meshes":[{"primitives":[primitive, primitive]}],"nodes":[{"mesh":0}],"materials":[],"images":[]});
     fs::write(options.source.join("mesh.bin"), &bin).expect("bin write");
     write_gltf(&options, &gltf, Some(&bin));
     options.scope = "full".into();
-    let error = compile(&options, |_| {}).expect_err("the kept page records exceed the budget");
-    assert_eq!(error.code, "RAM_ADMISSION_BUDGET_EXCEEDED", "{error}");
+    let result = compile(&options, |_| {}).expect("the scene cooks in smaller waves");
+    assert_eq!(result["status"], "ready", "{result}");
+    assert_eq!(
+        result["metrics"]["compileWaves"], 2,
+        "{}",
+        result["metrics"]
+    );
     fs::remove_dir_all(root).expect("cleanup");
 }
