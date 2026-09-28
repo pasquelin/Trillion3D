@@ -4,7 +4,9 @@
 // NaN, ±0, ±Inf, empty and maximal inputs. Both run the shipped WGSL (`depthSplit.fixture.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { FLAG_BLEND_CASTER, FLAG_MASK } from '../../visibility/types.ts';
+import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
+import { HOSTILE_FLOATS } from '../../../../../tests/kit/assert/hostile.ts';
+import { FLAG_BLEND_CASTER, FLAG_HAS_UV, FLAG_MASK } from '../../visibility/types.ts';
 import { createShadowMobility } from '../../webgpu/shadow/mobility.ts';
 import { MOBILITY_CUTOUT } from './cullShader.ts';
 import {
@@ -12,29 +14,19 @@ import {
   shadowEntries,
   vec4f,
   type Mat,
+  type ShadowOut,
   type ShadowScene,
 } from './depthSplit.fixture.ts';
 
 const SIDE = 24,
-  REGION = 1,
-  FLAG_UV = 4;
-
-/** Mulberry32: the same casters on every run. */
-function random(seed: number) {
-  return () => {
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+  REGION = 1;
 
 type Options = {
   rows: number;
   cutoutShare?: number;
   blended?: number;
   envelope?: number;
-  /** A value written over one input word in `spoil` of them: NaN, ±0, ±Inf. */
+  /** A value written over one input word in `spoil` of them (`HOSTILE_FLOATS`). */
   special?: number;
   spoil?: number;
   triangles?: number;
@@ -46,7 +38,6 @@ function scene(rng: () => number, o: Options) {
   const odd = (value: number) =>
     o.special !== undefined && rng() < (o.spoil ?? 0) ? o.special : value;
   const around = (spread: number) => odd((rng() * 2 - 1) * spread);
-  const column = (...words: number[]) => vec4f(...words);
   const blendedFrom = o.rows - (o.blended ?? 0);
   const positions: number[] = [],
     uvs: number[] = [],
@@ -61,14 +52,14 @@ function scene(rng: () => number, o: Options) {
       uvs.push(odd(rng() * 4), rng());
     }
     const cutout = rng() < (o.cutoutShare ?? 0.3);
-    const flags = row >= blendedFrom ? FLAG_BLEND_CASTER : cutout ? FLAG_MASK | FLAG_UV : 0;
-    const world = [column(1 + around(0.1), 0, 0, 0), column(0, 1, around(0.1), 0)];
-    world.push(column(0, 0, 1, 0), column(around(0.2), around(0.2), around(0.02), 1));
+    const flags = row >= blendedFrom ? FLAG_BLEND_CASTER : cutout ? FLAG_MASK | FLAG_HAS_UV : 0;
+    const world = [vec4f(1 + around(0.1), 0, 0, 0), vec4f(0, 1, around(0.1), 0)];
+    world.push(vec4f(0, 0, 1, 0), vec4f(around(0.2), around(0.2), around(0.02), 1));
     const dash = { x: odd(0.5 * rng()), y: 0.5 * rng() };
     return { flags, indexCount: corners, pageOffset, vertexBase, world, dash, baseColor: { w: 0 } };
   });
-  const viewProjection: Mat = [column(1, 0, 0, 0), column(0, 1, 0, 0), column(0, 0, odd(1), 0)];
-  viewProjection.push(column(0, 0, 0, odd(1)));
+  const viewProjection: Mat = [vec4f(1, 0, 0, 0), vec4f(0, 1, 0, 0), vec4f(0, 0, odd(1), 0)];
+  viewProjection.push(vec4f(0, 0, 0, odd(1)));
   const emitter = vec4f(around(1), around(1), rng(), odd(o.envelope ?? 0));
   // The slot, filed as the cull files it: the real mobility words, then `keptAt`.
   const mobility = createShadowMobility();
@@ -107,19 +98,18 @@ function scene(rng: () => number, o: Options) {
 /** develop's page and the split's, from the same casters. */
 function bothDepths(rng: () => number, o: Options) {
   const { world, entries, order, plain, cutouts, capacity } = scene(rng, o);
-  const vertexCount = Math.max(
-    0,
-    ...world.pages.map((page) => (page as { indexCount: number }).indexCount),
-  );
-  const keep = (frag: Parameters<typeof entries.shadowKeep>[0]) =>
-    entries.shadowKeep(frag, { x: 0, y: 0 }, { x: 0, y: 0 });
+  const vertexCount = Math.max(0, ...world.pages.map((page) => page.indexCount));
+  const keep = (frag: ShadowOut) => entries.shadowKeep(frag, { x: 0, y: 0 }, { x: 0, y: 0 });
+  // The depth-only entry returns its position alone.
+  const depthOnly = (vertex: number, instance: number) =>
+    ({ position: entries.shadow_depth_vs(vertex, instance) }) as ShadowOut;
   const split = rasterDepth(
     SIDE,
     vertexCount,
     [
       world.shadow.emitter.w > 0
         ? { entry: entries.shadow_vs, instances: plain, fragment: true }
-        : { entry: entries.shadow_depth_vs, instances: plain, fragment: false },
+        : { entry: depthOnly, instances: plain, fragment: false },
       { entry: entries.shadow_cutout_vs, instances: cutouts, fragment: true },
     ],
     keep,
@@ -139,7 +129,7 @@ function bothDepths(rng: () => number, o: Options) {
 }
 
 test('random casters: the split draws write develop’s depth, to the bit (audit t05, 40 trials)', () => {
-  const rng = random(11);
+  const rng = mulberry32(11);
   let written = 0,
     cutouts = 0;
   for (let trial = 0; trial < 40; trial++) {
@@ -154,19 +144,18 @@ test('random casters: the split draws write develop’s depth, to the bit (audit
   assert.ok(written > 1000 && cutouts > 50, `${written} texels, ${cutouts} cutouts`);
 });
 
-test('edge inputs: NaN, ±0, ±Inf in positions, matrices, uvs and dashes, as develop', () => {
-  const rng = random(7);
-  for (const special of [NaN, 0, -0, Infinity, -Infinity])
-    for (const spoil of [0.05, 0.5, 1]) {
-      const { develop, split } = bothDepths(rng, { rows: 24, special, spoil, envelope: 0 });
-      assert.deepEqual(split, develop, `${special} over ${spoil}`);
-      const lit = bothDepths(rng, { rows: 24, special, spoil, envelope: 0.5 });
-      assert.deepEqual(lit.split, lit.develop, `${special} over ${spoil}, envelope`);
-    }
+test('edge inputs: NaN, ±0, ±Inf, subnormal in positions, matrices, uvs and dashes, as develop', () => {
+  const rng = mulberry32(7);
+  for (const special of HOSTILE_FLOATS)
+    for (const spoil of [0.05, 0.5, 1])
+      for (const envelope of [0, 0.5]) {
+        const { develop, split } = bothDepths(rng, { rows: 24, special, spoil, envelope });
+        assert.deepEqual(split, develop, `${special} over ${spoil}, envelope ${envelope}`);
+      }
 });
 
 test('edge lists: empty, all opaque, all cutout, all blended, no corner, a full slot', () => {
-  const rng = random(3);
+  const rng = mulberry32(3);
   const cases: Array<[string, Options]> = [
     ['empty', { rows: 0 }],
     ['all opaque', { rows: 30, cutoutShare: 0 }],

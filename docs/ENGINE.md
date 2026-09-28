@@ -550,8 +550,8 @@ its casters take rows behind its own (#10, #26).
 **An opaque caster runs no fragment stage in the shadow pool.** The depth's fragment stage writes
 nothing; it only discards a cutout's hole or the emitter envelope. So the page cull files each
 region's casters in two lists of its slot (`KEPT_LISTS_WGSL`, `gpu/shadow/cullShader.ts`), by the
-cutout bit of the row's mobility word (`MOBILITY_CUTOUT`, set from the row's `FLAG_MASK`,
-`webgpu/shadow/mobility.ts`): the opaque ones from the start, counted by the region's first
+cutout bit of the row's mobility word (`MOBILITY_CUTOUT`, set from the row's `FLAG_MASK`
+in `webgpu/shadow/bounds.ts`): the opaque ones from the start, counted by the region's first
 command, the cutout ones from the end down, counted by its second. The opaque list is drawn by
 `shadow_depth_vs` with no fragment stage (early depth, no fragment invocation), or by `shadow_vs`
 with the fragment when the face carries an emitter envelope; the cutout list by `shadow_cutout_vs`
@@ -559,7 +559,7 @@ with the fragment, and only while some row is a cutout (`hasCutouts`). The three
 (`gpu/shadow/depthDraws.ts`) are compiled at the `shadow pipelines` step. All three place a
 corner through one `shadowVertex`, whose position is `@invariant`, and a texel keeps the nearest
 depth whatever the draw order: the page is develop's single draw to the bit, which
-`gpu/shadow/depthSplit.test.ts` checks against develop's shader on random casters and on NaN, ±0,
+`gpu/shadow/depthSplit.test.ts` checks against develop's corner on random casters and on NaN, ±0,
 ±Inf, empty and full-slot inputs (the audit's OMB-01 harness, #965). The transmittance layer draws
 the first list alone, which holds the blended casters.
 
