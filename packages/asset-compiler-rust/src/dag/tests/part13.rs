@@ -76,3 +76,37 @@ fn a_face_across_islands_or_a_crossed_mirror_is_charged_its_longest_edge() {
         0.0
     );
 }
+
+// Behaviour: a solve whose every survivor snapped back to its source placed nothing: its clusters
+// keep their numbers and no array is copied (`Grown::place`).
+#[test]
+fn a_solve_that_placed_nothing_copies_no_array() {
+    let (positions, indices) = grid(2);
+    let attributes = DagAttributes { carried: &[] };
+    let mut welds = welds::Welds::of(&positions, attributes, &indices);
+    let mut reduction = GroupReduction {
+        error: 0.0,
+        sphere: [0.0; 4],
+        clusters: vec![indices.clone()],
+        source_rank: 0,
+        relocked: false,
+        placed: Some(grown::Placed {
+            positions: Vec::new(),
+            carried: Vec::new(),
+            origins: Vec::new(),
+            columns: welds::Columns::default(),
+            charts: Vec::new(),
+        }),
+    };
+    let (mut grown, base) = (None, (positions.len() / 3) as u32);
+    grown::Grown::place(
+        &mut grown,
+        &positions,
+        attributes,
+        &mut welds,
+        &mut reduction,
+        base,
+    );
+    assert!(grown.is_none());
+    assert_eq!(reduction.clusters, [indices]);
+}
