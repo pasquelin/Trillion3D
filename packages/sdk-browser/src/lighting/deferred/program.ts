@@ -7,6 +7,8 @@ import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts';
 import type { ComposeInput } from './shaders.ts';
 import { makeFullscreenPipeline } from './fullscreen.ts';
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts';
+import { createCompositions, type CompositionSources } from './compositions.ts';
+import type { FusedBlend } from '../../effects/webgpuEffects.ts';
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. */
 export interface DirectLightResources {
@@ -27,16 +29,16 @@ export interface DirectLightResources {
 }
 export interface DeferredSources {
   lighting: string;
-  /** One composition per input it reads the as-is share from (`AS_IS_READ`). */
-  compose: Record<ComposeInput, string>;
+  compose: CompositionSources;
   label: string;
   direct: boolean;
   bounce?: boolean;
 }
-/** What composition reads: a colour and its accumulated share, else the lit image's flags. */
-export type ComposedImage = { color: GPUTextureView; share?: GPUTextureView };
+/** What composition reads: a colour and its accumulated share, else the lit image's flags, and
+ *  the chain's last blend when it left it to the composition (#963). */
+export type ComposedImage = { color: GPUTextureView; share?: GPUTextureView; bloom?: FusedBlend };
 /** What the temporal pass resolves: the colour, and each pixel's as-is share beside it. */
-export type AccumulatedImage = Required<ComposedImage>;
+export type AccumulatedImage = Required<Omit<ComposedImage, 'bloom'>>;
 export interface DeferredBindings {
   uniform: GPUBuffer;
   placeholders: {
@@ -68,28 +70,15 @@ export async function createDeferredProgram(
     `${sources.label}_LIGHTING`,
   );
   const layouts = createDeferredLayouts(device, sources.direct, sources.bounce);
-  const make = makeFullscreenPipeline,
-    hdr = { format: 'rgba16float' as const },
-    display = { format: 'rgba8unorm' as const };
-  const light = await make(device, lighting, layouts.lighting, 'lightSurface', [hdr]);
-  /** The composition of one input: into the capture target, or into it and the canvas at once. */
-  const compile = async (input: ComposeInput) => {
-    const label = `${sources.label}_COMPOSE_${input.toUpperCase()}`;
-    const module = await createCheckedShaderModule(device, sources.compose[input], label);
-    const layout = layouts.composition[input];
-    return {
-      layout,
-      draw: await make(device, module, layout, 'compose', [display]),
-      present: await make(device, module, layout, 'composePresent', [
-        display,
-        { format: 'bgra8unorm' },
-      ]),
-    };
-  };
-  const compositions = {
-    still: await compile('still'),
-    accumulated: await compile('accumulated'),
-  };
+  const light = await makeFullscreenPipeline(device, lighting, layouts.lighting, 'lightSurface', [
+    { format: 'rgba16float' },
+  ]);
+  const compositions = await createCompositions(
+    device,
+    sources.compose,
+    sources.label,
+    layouts.composition,
+  );
   /** What the light group names: rebuilt when one of them is replaced (`bindIdentity.ts`). */
   let identity = createWebgpuBindIdentity(),
     boundSurface: SurfaceBuffer | undefined,
@@ -98,15 +87,16 @@ export async function createDeferredProgram(
     boundFlags: GPUTextureView | undefined,
     lightGroup: GPUBindGroup | undefined;
   // One per colour and share read, weakly keyed by every view it reads: nothing to reset.
-  type Composition = { group: GPUBindGroup; draw: GPURenderPipeline; present: GPURenderPipeline };
+  type Composition = { group: GPUBindGroup; input: ComposeInput };
   let composed = new WeakMap<GPUTextureView, WeakMap<GPUTextureView, Composition>>();
   return {
     light,
     get lightGroup() {
       return lightGroup;
     },
-    /** The pipelines and group reading the lit image and its surface flags, or `image` and its
-     *  as-is share; `undefined` before `bind`. */
+    compositions,
+    /** The group reading the lit image and its surface flags, or `image` and its as-is share,
+     *  and the input its pipelines compose (`compositions`); `undefined` before `bind`. */
     composition(image?: ComposedImage) {
       const view = image?.color ?? boundHdr,
         share = image?.share ?? boundFlags;
@@ -116,16 +106,16 @@ export async function createDeferredProgram(
       const kept = byShare.get(share);
       if (kept) return kept;
       // A colour without its own share (the effect chain's, no TAA) reads the lit image's flags.
-      const { layout, draw, present } = compositions[image?.share ? 'accumulated' : 'still'];
+      const input = image?.share ? 'accumulated' : 'still';
       const group = device.createBindGroup({
-        layout,
+        layout: layouts.composition[input],
         entries: [
           { binding: 0, resource: view },
           { binding: 1, resource: { buffer: bindings.uniform } },
           { binding: 2, resource: share },
         ],
       });
-      const composition = { group, draw, present };
+      const composition = { group, input } as const;
       byShare.set(share, composition);
       return composition;
     },
