@@ -38,9 +38,9 @@ export function bodyNodes(model: Model, declared: readonly CookedBody[]): BodyNo
     if (at) of.moving.set(body, at);
     countNodes(of, body, 1);
   }
-  const subtrees = [...of.moving.values()];
+  const moved = new Set([...of.moving.values()].flatMap((s) => s.indices));
   for (const body of declared) {
-    if (!body.motion.isKinematic || !subtrees.some((s) => s.indices.includes(body.node))) continue;
+    if (!body.motion.isKinematic || !moved.has(body.node)) continue;
     const own = model._nodeAt?.(body.node);
     if (own) of.carried.set(body, own.node);
   }

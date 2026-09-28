@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import {
   CommandWriter,
   DEFAULT_PHYSICS_BUDGET,
@@ -10,7 +11,6 @@ import { Group, Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import { createPhysicsBodies } from './bodies.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { createTileStreamer } from './tiles.ts';
-import { readFile } from 'node:fs/promises';
 
 /** The bytes of `tests/fixtures/physics/<name>`. */
 export const fixture = (name: string) =>
