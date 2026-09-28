@@ -849,7 +849,7 @@
       "primitives": "Ses primitives.",
       "worstStalls": "La table des blocages du compilateur : au plus dix primitives avec un groupe bloqué qui a gardé des racines au niveau 0, la pire d’abord. Absente d’un cache compilé avant elle.",
       "texturePreviews": "Une entrée par couple (texture, atlas) décodé, rangée par texture puis par atlas ; vide sans image décodable.",
-      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe.",
+      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe. `version` est celle des niveaux (`TEXTURE_PREVIEW_VERSION`) : un lecteur ne lit aucun niveau d’une autre.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel."
     }
   },
@@ -5621,7 +5621,7 @@
       "totalNodes": "Nœuds au total.",
       "autonomousScene": "Sa scène intégrée.",
       "texturePreviews": "Une entrée par couple (texture, atlas) décodé, rangée par texture puis par atlas ; vide sans image décodable.",
-      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe.",
+      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe. `version` est celle des niveaux (`TEXTURE_PREVIEW_VERSION`) : un lecteur ne lit aucun niveau d’une autre.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel.",
       "binary": "Le fichier binaire.",
       "primitives": "Ses primitives.",
@@ -6090,7 +6090,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "Niveaux de texture progressifs, reflétés par `packages/asset-compiler-rust/src/texture_preview.rs` : la fin de la chaîne de mips d’une source dans le fichier annexe, en RGBA8 dans l’encodage propre à l’atlas, du niveau le plus fin dont aucun côté ne dépasse `PREVIEW_BASE` jusqu’à 1×1 — et, au-dessus, un PNG sans perte par niveau dans le cache, `bakedLevels` d’entre eux à partir du niveau 0.",
-    "description": "Chaque niveau suit la règle des mips qu’appliquait la carte graphique quand elle refaisait la chaîne elle-même (`packages/sdk-browser/src/texture/mips.ts`) : moyenne linéaire des couleurs, alpha médian, niveau `k` à partir du niveau quantifié `k - 1`. Leurs tailles ne sont pas écrites : elles découlent des dimensions de la source, que `previewLevels.ts` recalcule. La version 4 cuit chaque niveau au-dessus de la fin, et la fin elle-même, dans les familles de blocs demandées par la cuisson à côté des fichiers sans perte — la famille BC pour les cartes de bureau, ASTC 4×4 pour les mobiles, un octet par texel — pour les chaînes qu’un contrôle de qualité a gardées ; une chaîne sous la barre reste sans perte dans cette famille, et le mot de disposition de son entrée le dit."
+    "description": "Chaque niveau suit la règle des mips qu’appliquait la carte graphique quand elle refaisait la chaîne elle-même (`packages/sdk-browser/src/texture/mips.ts`) : moyenne linéaire des couleurs, alpha médian, niveau `k` à partir du niveau quantifié `k - 1`. Leurs tailles ne sont pas écrites : elles découlent des dimensions de la source, que `previewLevels.ts` recalcule. La version 4 cuit chaque niveau au-dessus de la fin, et la fin elle-même, dans les familles de blocs demandées par la cuisson à côté des fichiers sans perte — la famille BC pour les cartes de bureau, ASTC 4×4 pour les mobiles, un octet par texel — pour les chaînes qu’un contrôle de qualité a gardées ; une chaîne sous la barre reste sans perte dans cette famille, et le mot de disposition de son entrée le dit. La version 6 range un fichier de niveau en blocs par enregistrements de tuiles, une requête HTTP Range chacun (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TextureBlockFormat": {
     "summary": "Une famille de blocs dans laquelle une texture peut être cuite."
@@ -6153,7 +6153,8 @@
       "sha256": "Empreinte de l’image source.",
       "atlas": "Quel atlas.",
       "level": "Quel niveau.",
-      "format": "Quel format."
+      "format": "Quel format.",
+      "range": "Les octets d’un niveau en blocs à lire seuls — l’enregistrement d’une tuile (`tileRecords.ts`) —, par une requête HTTP Range ; un serveur qui l’ignore répond le fichier entier."
     }
   },
   "textureLevelUrl": {

@@ -519,7 +519,7 @@
       "primitives": "Primitifnya.",
       "worstStalls": "Tabel macet dari kompiler: paling banyak sepuluh primitif dengan grup macet yang menyisakan akar di level 0, yang terburuk lebih dulu. Tidak ada pada cache yang dikompilasi sebelumnya.",
       "texturePreviews": "Satu entri per (tekstur, atlas) yang terurai, diurutkan menurut tekstur lalu atlas; kosong tanpa gambar yang bisa diurai.",
-      "textures": "Templat untuk tingkat yang sudah dipanggang, relatif terhadap manifest: {sha} digest gambar sumber, {kind} nama atlas (PREVIEW_ATLAS_NAMES), {level} peringkat tingkat. Tidak ada pada cache yang dikompilasi sebelum tingkat panggang, yang ditolak pembaca ini lewat versi sidecar.",
+      "textures": "Templat untuk tingkat yang sudah dipanggang, relatif terhadap manifest: {sha} digest gambar sumber, {kind} nama atlas (PREVIEW_ATLAS_NAMES), {level} peringkat tingkat. Tidak ada pada cache yang dikompilasi sebelum tingkat panggang, yang ditolak pembaca ini lewat versi sidecar. `version` adalah versi level (`TEXTURE_PREVIEW_VERSION`): pembaca tidak membaca level dari versi lain.",
       "proxy": "Di mana membaca proxy scene yang tersimpan dan BVH-nya: geometri yang dikenai sinar. Tidak ada pada cache yang dikompilasi sebelum pantulan, yang tetap bisa dibaca apa adanya."
     }
   },
@@ -3333,7 +3333,7 @@
       "totalNodes": "Node secara keseluruhan.",
       "autonomousScene": "Scene bawaannya.",
       "texturePreviews": "Satu entri per (tekstur, atlas) yang terurai, diurutkan menurut tekstur lalu atlas; kosong tanpa gambar yang bisa diurai.",
-      "textures": "Templat untuk tingkat yang sudah dipanggang, relatif terhadap manifest: {sha} digest gambar sumber, {kind} nama atlas (PREVIEW_ATLAS_NAMES), {level} peringkat tingkat. Tidak ada pada cache yang dikompilasi sebelum tingkat panggang, yang ditolak pembaca ini lewat versi sidecar.",
+      "textures": "Templat untuk tingkat yang sudah dipanggang, relatif terhadap manifest: {sha} digest gambar sumber, {kind} nama atlas (PREVIEW_ATLAS_NAMES), {level} peringkat tingkat. Tidak ada pada cache yang dikompilasi sebelum tingkat panggang, yang ditolak pembaca ini lewat versi sidecar. `version` adalah versi level (`TEXTURE_PREVIEW_VERSION`): pembaca tidak membaca level dari versi lain.",
       "proxy": "Di mana membaca proxy scene yang tersimpan dan BVH-nya: geometri yang dikenai sinar. Tidak ada pada cache yang dikompilasi sebelum pantulan, yang tetap bisa dibaca apa adanya.",
       "binary": "Berkas binernya.",
       "primitives": "Primitifnya.",
@@ -3547,7 +3547,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "Tingkat tekstur progresif, dicerminkan `packages/asset-compiler-rust/src/texture_preview.rs`: ekor rantai mip sebuah sumber dalam sidecar, RGBA8 dalam pengkodean atlas sendiri, dari tingkat terhalus yang sisinya tidak melebihi `PREVIEW_BASE` turun sampai 1×1 — dan, di atasnya, satu PNG lossless per tingkat dalam cache, sebanyak `bakedLevels` dari tingkat 0 ke atas.",
-    "description": "Setiap tingkat mengikuti aturan mip yang diterapkan kartu saat meregenerasi rantainya sendiri (`packages/sdk-browser/src/texture/mips.ts`): rata-rata linear warna, alpha median, tingkat `k` dari tingkat terkuantisasi `k - 1`. Ukurannya tidak dituliskan: mengikuti dari dimensi sumber, yang dihitung ulang `previewLevels.ts`. Versi 4 memanggang setiap tingkat di atas ekor, dan ekornya sendiri, dalam keluarga blok yang diminta proses masak di samping berkas lossless — keluarga BC untuk kartu desktop, ASTC 4×4 untuk yang mobile, satu byte per texel — untuk rantai yang disimpan gerbang kualitas; sebuah rantai di bawah palang tetap lossless dalam keluarga itu, dan kata tata letak entrinya mengatakan begitu."
+    "description": "Setiap tingkat mengikuti aturan mip yang diterapkan kartu saat meregenerasi rantainya sendiri (`packages/sdk-browser/src/texture/mips.ts`): rata-rata linear warna, alpha median, tingkat `k` dari tingkat terkuantisasi `k - 1`. Ukurannya tidak dituliskan: mengikuti dari dimensi sumber, yang dihitung ulang `previewLevels.ts`. Versi 4 memanggang setiap tingkat di atas ekor, dan ekornya sendiri, dalam keluarga blok yang diminta proses masak di samping berkas lossless — keluarga BC untuk kartu desktop, ASTC 4×4 untuk yang mobile, satu byte per texel — untuk rantai yang disimpan gerbang kualitas; sebuah rantai di bawah palang tetap lossless dalam keluarga itu, dan kata tata letak entrinya mengatakan begitu. Versi 6 menata berkas level blok dalam rekaman ubin, satu permintaan HTTP Range per rekaman (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TONE_MAPPING_RANK": {
     "summary": "Kurva yang membawa radiansi scene ke rentang tampilan, menurut peringkat yang dibaca shader.",
@@ -3765,7 +3765,8 @@
       "sha256": "Sidik jari gambar sumbernya.",
       "atlas": "Atlas mana.",
       "level": "Tingkat mana.",
-      "format": "Format mana."
+      "format": "Format mana.",
+      "range": "Byte level blok yang dibaca sendiri — rekaman satu ubin (`tileRecords.ts`) —, lewat permintaan HTTP Range; server yang mengabaikannya menjawab dengan seluruh berkas."
     }
   },
   "TexturePool": {

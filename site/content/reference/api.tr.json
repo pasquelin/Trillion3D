@@ -512,7 +512,7 @@
       "primitives": "Primitifleri.",
       "worstStalls": "Derleyicinin takılma tablosu: düzey 0'da kök bırakan takılmış bir grubu olan en fazla on primitif, en kötüsü önce. Ondan önce derlenmiş bir önbellekte yoktur.",
       "texturePreviews": "Önce dokuya, sonra atlasa göre sıralanmış, çözülen her (doku, atlas) için bir giriş; çözülebilir bir görsel olmadan boş.",
-      "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz.",
+      "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz. `version` seviyelerin sürümüdür (`TEXTURE_PREVIEW_VERSION`): bir okuyucu başka bir sürümün seviyesini okumaz.",
       "proxy": "Yerleşik sahne proxy'sinin ve onun BVH'sinin nereden okunacağı: ışınların çarptığı geometri. Olduğu gibi okunabilir kalan, yansımadan önce derlenmiş bir önbellekte bulunmaz."
     }
   },
@@ -3249,7 +3249,7 @@
       "totalNodes": "Toplam düğüm.",
       "autonomousScene": "Kendi yerleşik sahnesi.",
       "texturePreviews": "Önce dokuya, sonra atlasa göre sıralanmış, çözülen her (doku, atlas) için bir giriş; çözülebilir bir görsel olmadan boş.",
-      "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz.",
+      "textures": "Manifestoya göreli, önceden pişirilmiş seviyeler için şablon: {sha} kaynak görselin özeti, {kind} atlas adı (PREVIEW_ATLAS_NAMES), {level} seviye sırası. Bu okuyucunun yardımcı sürüm üzerinden reddettiği, önceden pişirilmiş seviyelerden önce derlenmiş bir önbellekte bulunmaz. `version` seviyelerin sürümüdür (`TEXTURE_PREVIEW_VERSION`): bir okuyucu başka bir sürümün seviyesini okumaz.",
       "proxy": "Yerleşik sahne proxy'sinin ve onun BVH'sinin nereden okunacağı: ışınların çarptığı geometri. Olduğu gibi okunabilir kalan, yansımadan önce derlenmiş bir önbellekte bulunmaz.",
       "binary": "İkili dosya.",
       "primitives": "Primitifleri.",
@@ -3463,7 +3463,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "`packages/asset-compiler-rust/src/texture_preview.rs` tarafından yansıtılan ilerlemeli doku seviyeleri: yardımcı dosyada bir kaynağın mip zincirinin kuyruğu, atlasın kendi kodlamasında RGBA8, hiçbir kenarı `PREVIEW_BASE`'i aşmayan en ince seviyeden 1×1'e kadar — ve, onun üzerinde, önbellekte seviye başına bir kayıpsız PNG, seviye 0'dan itibaren `bakedLevels` tanesi.",
-    "description": "Her seviye, kartın zinciri kendisi yeniden oluşturduğunda uyguladığı mip kuralını izler (`packages/sdk-browser/src/texture/mips.ts`): renklerin doğrusal ortalaması, medyan alfa, `k - 1` kuantalanmış seviyesinden `k` seviyesi. Boyutları yazılmaz: `previewLevels.ts`'in yeniden hesapladığı kaynak boyutlarından çıkarlar. Sürüm 4, kuyruğun üzerindeki her seviyeyi, ve kuyruğun kendisini, pişirmenin kayıpsız dosyaların yanında istediği blok ailelerinde pişirir — masaüstü kartları için BC ailesi, mobil olanlar için ASTC 4×4, teksel başına bir bayt — bir kalite kapısının tuttuğu zincirler için; barın altındaki bir zincir o ailede kayıpsız kalır, ve girdisinin düzen kelimesi bunu söyler."
+    "description": "Her seviye, kartın zinciri kendisi yeniden oluşturduğunda uyguladığı mip kuralını izler (`packages/sdk-browser/src/texture/mips.ts`): renklerin doğrusal ortalaması, medyan alfa, `k - 1` kuantalanmış seviyesinden `k` seviyesi. Boyutları yazılmaz: `previewLevels.ts`'in yeniden hesapladığı kaynak boyutlarından çıkarlar. Sürüm 4, kuyruğun üzerindeki her seviyeyi, ve kuyruğun kendisini, pişirmenin kayıpsız dosyaların yanında istediği blok ailelerinde pişirir — masaüstü kartları için BC ailesi, mobil olanlar için ASTC 4×4, teksel başına bir bayt — bir kalite kapısının tuttuğu zincirler için; barın altındaki bir zincir o ailede kayıpsız kalır, ve girdisinin düzen kelimesi bunu söyler. Sürüm 6, blok seviye dosyasını karo kayıtlarına göre dizer; her biri tek bir HTTP Range isteğidir (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TONE_MAPPING_RANK": {
     "summary": "Sahne parlaklığını ekran aralığına getiren eğriler, shader'ların okuduğu sıraya göre.",
@@ -3681,7 +3681,8 @@
       "sha256": "Kaynak görselin parmak izi.",
       "atlas": "Hangi atlas.",
       "level": "Hangi seviye.",
-      "format": "Hangi format."
+      "format": "Hangi format.",
+      "range": "Bir blok seviyesinin tek başına okunacak baytları — bir karonun kaydı (`tileRecords.ts`) —, bir HTTP Range isteğiyle; bunu yok sayan bir sunucu dosyanın tamamını döndürür."
     }
   },
   "TexturePool": {
