@@ -21,6 +21,8 @@ test('plancherDuModele with exact bounds (min or max at zero) does not cross the
 });
 
 test('every reference-level point of the trajectory keeps to the middle of the model', () => {
+  // The listed points only: a descent into reference level (point 1 to 2) passes the target's
+  // height just outside the band, a transit no view captures.
   for (const [x, height, z] of POINTS) {
     if (height > 2) continue;
     assert.ok(Math.max(Math.abs(x), Math.abs(z)) <= STREET_HALF_WIDTH, `[${x}, ${height}, ${z}]`);
