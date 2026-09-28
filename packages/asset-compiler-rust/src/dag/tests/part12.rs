@@ -134,8 +134,8 @@ fn a_mirror_column_is_found() {
         .flat_map(|p| [4.0 - (p[0] - 4.0).abs(), p[1]])
         .collect();
     let weld = clusters::weld_positions(&positions, &indices);
-    let sides = charts::chart_sides(&weld, &[&uvs], &indices);
-    let mirrors: Vec<bool> = sides.into_iter().map(charts::on_mirror).collect();
+    let found = charts::vertex_charts(&weld, &weld, &[&uvs], &indices);
+    let mirrors: Vec<bool> = found.iter().map(|c| charts::on_mirror(c.sides)).collect();
     let column: Vec<bool> = (0..positions.len() / 3).map(|v| v % 9 == 4).collect();
     assert_eq!(mirrors, column);
 }

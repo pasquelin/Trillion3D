@@ -8,7 +8,7 @@ fn seam_vertices_marks_every_copy_of_a_seam_position() {
     // Vertices 0 and 3 share a position under two texture coordinates; 1 and 4 under one.
     let weld = [0u32, 1, 2, 0, 1];
     let weld_seam = [0u32, 1, 2, 3, 1];
-    let seams = charts::seam_vertices(&weld, &weld_seam, &[0, 1, 2, 3, 4, 2]);
+    let seams = welds::seam_vertices(&weld, &weld_seam, &[0, 1, 2, 3, 4, 2]);
     assert_eq!(seams, vec![true, false, false, true, false]);
 }
 

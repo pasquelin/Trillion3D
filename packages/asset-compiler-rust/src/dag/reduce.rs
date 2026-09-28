@@ -66,7 +66,8 @@ pub(super) fn reduce_group(
             let vanished =
                 vanished::vanished_error(&live, kept, input.positions, input.weld, input.extents);
             let error = vanished.max(chosen.simplified.error_object);
-            (error, chosen.clusters, chosen.relocked, None)
+            let folded = folded_after_solve(input, &live, kept);
+            (error.max(folded), chosen.clusters, chosen.relocked, None)
         }
         stalled => {
             let stop = stalled.err().unwrap_or(Stop::NoCollapse);
@@ -92,6 +93,17 @@ pub(super) fn reduce_group(
         relocked,
         placed,
     }))
+}
+
+/// Where `live` names a vertex a solve placed, the longest face of `kept` across two texture
+/// islands (`charts::folded_span`): a placed vertex is a seam of none of its copies but the ones
+/// its own solve wrote, and a later collapse may join islands its seams no longer hold. Zero
+/// elsewhere: a primitive no solve touched keeps its bytes.
+fn folded_after_solve(input: &GroupReductionInput, live: &[u32], kept: &[u32]) -> f64 {
+    let Some(charts) = input.placed_charts(live) else {
+        return 0.0;
+    };
+    charts::folded_span(kept, input.positions, |v| charts[v as usize], false)
 }
 
 /// Simplifies `source` to half triangles, restarting with extra locks as long as a shared vertex

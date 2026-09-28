@@ -1,11 +1,10 @@
 //! What the DAG builder guarantees on every case, asserted on the DAG it builds in memory.
 use super::*;
-use crate::dag::{build_dag_tallied, DagCluster, DagGroup, DagStall, DagStrategy, Grown};
+use crate::dag::{build_dag_tallied, DagCluster, DagStall, DagStrategy, Grown};
 use std::collections::HashSet;
 
 pub(super) struct Built {
     pub dag: Vec<DagCluster>,
-    pub groups: Vec<DagGroup>,
     pub stalls: Vec<DagStall>,
     /// The case's vertices grown with those a seam-locked group's solve placed.
     pub grown: Option<Grown>,
@@ -13,20 +12,6 @@ pub(super) struct Built {
 impl Built {
     pub fn roots(&self) -> usize {
         self.dag.iter().filter(|c| c.is_root()).count()
-    }
-    /// Per cluster, whether it descends from a group reduced with solved vertices: one whose
-    /// outputs draw a vertex placed after the case's `source` vertices.
-    pub fn solved(&self, source: usize) -> Vec<bool> {
-        let placed = |&c: &usize| self.dag[c].indices.iter().any(|&v| v as usize >= source);
-        let mut solved = vec![false; self.dag.len()];
-        // The builder pushes a group's children before its outputs.
-        for (id, cluster) in self.dag.iter().enumerate() {
-            solved[id] = cluster.source.is_some_and(|g| {
-                let group = &self.groups[g];
-                group.outputs.iter().any(placed) || group.children.iter().any(|&c| solved[c])
-            });
-        }
-        solved
     }
     /// The positions the pages read: the case's, then every placed vertex.
     pub fn positions<'a>(&'a self, case: &'a Case) -> &'a [f32] {
@@ -47,7 +32,7 @@ impl Built {
 pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
     let attributes = case.attributes();
     let carried: Vec<&geometry_page::Attribute> = attributes.iter().collect();
-    let (dag, groups, _, stalls, grown) = build_dag_tallied(
+    let (dag, _, _, stalls, grown) = build_dag_tallied(
         &case.positions,
         crate::dag::DagAttributes { carried: &carried },
         indices,
@@ -55,12 +40,7 @@ pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
         &|| Ok(()),
     )
     .expect("dag");
-    Built {
-        dag,
-        groups,
-        stalls,
-        grown,
-    }
+    Built { dag, stalls, grown }
 }
 
 /// Level 0 partitions the source triangles; every coarse index names a vertex the source uses or

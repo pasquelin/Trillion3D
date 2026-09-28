@@ -121,9 +121,9 @@ struct GroupReductionInput<'a> {
     /// Per source vertex, on a texture seam: protected from permissive collapses. Empty without
     /// a texture set.
     seams: &'a [bool],
-    /// Per vertex, the sides of its charts (`charts::chart_sides`): the solve keeps a mirror's
-    /// seam, or charges a face across it. Read through `sides()`.
-    sides: &'a welds::Sides<'a>,
+    /// Per vertex, its chart (`charts::Chart`): the solve keeps a mirror's seam, and charges a
+    /// face across a mirror or two islands. Read through `charts()`.
+    charts: &'a welds::Charts<'a>,
     /// Canonical vertex by position: locks, borders, adjacency.
     weld: &'a [u32],
     /// Canonical vertex by position and every carried attribute (`welds::weld_exact`).
