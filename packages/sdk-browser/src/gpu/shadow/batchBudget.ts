@@ -37,6 +37,11 @@ export const CULL_UNIFORM_WORDS = 8,
   OCCLUSION_SLOT_WORDS = 4,
   OCCLUSION_UNIFORM_WORDS = 4,
   PAGE_BOUNDS_WORDS = 12;
+/** Indirect commands of a region, and their bytes: its casters no fragment cuts, drawn with no
+ *  fragment stage, then its cutout casters, drawn with the fragment test (#965) — the cull's and the
+ *  occlusion test's lists alike (`cullShader.ts`, `KEPT_LISTS_WGSL`). */
+export const SHADOW_REGION_COMMANDS = 2,
+  SHADOW_REGION_INDIRECT_BYTES = SHADOW_REGION_COMMANDS * DRAW_INDIRECT_STRIDE;
 
 /** The WGSL struct `name` of `words` words: `fields`, one word each, then padding — the host's
  *  word count, never a literal twin of it. */
@@ -47,10 +52,10 @@ export const wordStruct = (name: string, fields: readonly string[], words: numbe
 export const SHADOW_BATCH_WRITE_BYTES =
   DAG_UNIFORM_BYTES +
   MAX_SHADOW_REGIONS * SHADOW_FACE_STRIDE +
-  MAX_SHADOW_REGIONS * (SHADOW_CULL_FLOATS * 4 + DRAW_INDIRECT_STRIDE) +
+  MAX_SHADOW_REGIONS * (SHADOW_CULL_FLOATS * 4 + SHADOW_REGION_INDIRECT_BYTES) +
   MAX_SHADOW_PAGES * CULL_UNIFORM_WORDS * 4 +
   (LIGHT_CULL_UNIFORM_WORDS + LIGHT_CULL_ARG_WORDS) * 4 +
-  MAX_SHADOW_REGIONS * (OCCLUSION_SLOT_WORDS * 4 + DRAW_INDIRECT_STRIDE) +
+  MAX_SHADOW_REGIONS * (OCCLUSION_SLOT_WORDS * 4 + SHADOW_REGION_INDIRECT_BYTES) +
   OCCLUSION_UNIFORM_WORDS * 4 +
   MAX_SHADOW_PAGES * PAGE_BOUNDS_WORDS * 4 +
   MAX_SHADOW_REGIONS * 4;
@@ -85,11 +90,11 @@ const FLAG_GPU_BYTES = MAX_SHADOW_BATCHES * 4,
 const CPU_RUN_HOST_BYTES = 4 + 4 + DRAW_INDIRECT_STRIDE,
   CPU_RUN_GPU_BYTES = DRAW_INDIRECT_STRIDE;
 
-/** A sampled frame's region commands, every batch's (`cullCounts.ts`), and the samplers that copy
- *  them: the cull's and the occlusion test's. */
+/** A sampled frame's commands, one a region, every batch's (`cullCounts.ts`), and the commands a
+ *  region's samplers copy: the cull's two lists, the occlusion test's hidden count. */
 export const SHADOW_COUNT_SAMPLE_BYTES =
     MAX_SHADOW_BATCHES * MAX_SHADOW_REGIONS * DRAW_INDIRECT_STRIDE,
-  SHADOW_COUNT_SAMPLERS = 2;
+  SHADOW_COUNT_SAMPLED_COMMANDS = SHADOW_REGION_COMMANDS + 1;
 
 /** GPU bytes the batches add, at their largest: staging, flag words, CPU cut commands, and the
  *  cull and occlusion count samples. */
@@ -97,7 +102,7 @@ export const SHADOW_BATCH_GPU_BYTES =
   SHADOW_STAGING_BYTES +
   SHADOW_FLAG_FRAMES * FLAG_GPU_BYTES +
   MAX_SHADOW_RUNS * CPU_RUN_GPU_BYTES +
-  SHADOW_COUNT_SAMPLERS * SHADOW_COUNT_SAMPLE_BYTES;
+  SHADOW_COUNT_SAMPLED_COMMANDS * SHADOW_COUNT_SAMPLE_BYTES;
 /** Host bytes the batches add, at their largest: the flag frames' pages, the CPU cut's faces, and
  *  the staging buffer's host mirror (`batchWrites.ts`). */
 export const SHADOW_BATCH_HOST_BYTES =

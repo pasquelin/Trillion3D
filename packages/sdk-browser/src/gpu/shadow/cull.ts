@@ -1,5 +1,5 @@
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
-import { DRAW_INDIRECT_STRIDE, PAGE_BIND_ALIGN } from '../draw/draw.ts';
+import { PAGE_BIND_ALIGN } from '../draw/draw.ts';
 import { DRAW_INDIRECT_WORDS } from '../draw/contract.ts';
 import { MAX_SHADOW_REGIONS } from './atlas.ts';
 import { SHADOW_CULL_SHADER } from './cullShader.ts';
@@ -7,7 +7,11 @@ import { createGpuShadowCullCounts } from './cullCounts.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { createShadowLightCull } from './lightCull.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
-import { CULL_UNIFORM_WORDS } from './batchBudget.ts';
+import {
+  CULL_UNIFORM_WORDS,
+  SHADOW_REGION_COMMANDS,
+  SHADOW_REGION_INDIRECT_BYTES,
+} from './batchBudget.ts';
 
 /** Words of a draw-slot uniform: the matrix, the frame, then the slot and its indirection. */
 const DRAW_UNIFORM_WORDS = PAGE_BIND_ALIGN / 4;
@@ -32,7 +36,7 @@ const BINDING_TYPES: readonly GPUBufferBindingType[] = [
 /** Where the CPU cut left one run's casters, and which regions read them. */
 export interface ShadowCullSource {
   spheres: GPUBuffer;
-  /** One word per row: 1 for a moving placement's. */
+  /** One word per row: its `MOBILITY_*` bits (`cullShader.ts`). */
   mobility: GPUBuffer;
   /** Instance list, page-table rows, from word `base`. */
   source: GPUBuffer;
@@ -41,6 +45,19 @@ export interface ShadowCullSource {
   indirect: GPUBuffer;
   indirectBase: number;
   commands: number;
+}
+
+/** The commands of `regions` regions, both lists each, at zero instances of `maxVertexCount`
+ *  vertices: the words written, from the first. */
+export function emptyRegionCommands(
+  commands: Uint32Array,
+  regions: number,
+  maxVertexCount: number,
+) {
+  const words = regions * SHADOW_REGION_COMMANDS * DRAW_INDIRECT_WORDS;
+  commands.fill(0, 0, words);
+  for (let at = 0; at < words; at += DRAW_INDIRECT_WORDS) commands[at] = maxVertexCount;
+  return words;
 }
 
 export type GpuShadowCull = Awaited<ReturnType<typeof createGpuShadowCull>>;
@@ -59,7 +76,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   });
   const indirect = device.createBuffer({
     label: 'Trillion3D shadow indirect v1',
-    size: MAX_SHADOW_REGIONS * DRAW_INDIRECT_STRIDE,
+    size: MAX_SHADOW_REGIONS * SHADOW_REGION_INDIRECT_BYTES,
     // `COPY_SRC` for the periodic sample of the kept counts, a diagnostic outside the pass.
     usage: GPUBufferUsage.INDIRECT | storage | GPUBufferUsage.COPY_SRC,
   });
@@ -74,13 +91,14 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     size: MAX_SHADOW_REGIONS * PAGE_BIND_ALIGN,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  const offsets = device.createBuffer({ size: MAX_SHADOW_REGIONS * 4, usage: storage });
+  // One offset more than regions, the end of the last slot: where its cutout list starts down.
+  const offsets = device.createBuffer({ size: (MAX_SHADOW_REGIONS + 1) * 4, usage: storage });
   const drawUniform = device.createBuffer({
     label: 'Trillion3D shadow draw slots v1',
     size: MAX_SHADOW_REGIONS * PAGE_BIND_ALIGN,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  const counts = createGpuShadowCullCounts(device);
+  const counts = createGpuShadowCullCounts(device, SHADOW_REGION_COMMANDS);
   const all = [kept, indirect, faceVolumes, uniforms, offsets, drawUniform];
   let light: Awaited<ReturnType<typeof createShadowLightCull>> | undefined;
   const release = () => {
@@ -90,10 +108,11 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   };
   try {
     // Each region's place in the shared list, and its draw slot: set once.
-    const offsetWords = new Uint32Array(MAX_SHADOW_REGIONS);
+    const offsetWords = new Uint32Array(MAX_SHADOW_REGIONS + 1);
     const drawWords = new Uint32Array(MAX_SHADOW_REGIONS * DRAW_UNIFORM_WORDS);
-    for (let region = 0; region < MAX_SHADOW_REGIONS; region++) {
+    for (let region = 0; region <= MAX_SHADOW_REGIONS; region++)
       offsetWords[region] = region * capacity;
+    for (let region = 0; region < MAX_SHADOW_REGIONS; region++) {
       drawWords[region * DRAW_UNIFORM_WORDS + WORD_DRAW_SLOT] = region;
       drawWords[region * DRAW_UNIFORM_WORDS + WORD_INDIRECT] = 1;
     }
@@ -115,7 +134,9 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     });
     const volumes = new Float32Array(MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS),
       volumeWords = new Uint32Array(volumes.buffer);
-    const commands = new Uint32Array(MAX_SHADOW_REGIONS * DRAW_INDIRECT_WORDS);
+    const commands = new Uint32Array(
+      MAX_SHADOW_REGIONS * SHADOW_REGION_COMMANDS * DRAW_INDIRECT_WORDS,
+    );
     const uniData = new Uint32Array(CULL_UNIFORM_WORDS);
     let bound: GPUBuffer[] = [],
       group: GPUBindGroup | undefined;
@@ -130,15 +151,13 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       volumeWords,
       /** Periodic sample of what the region culls kept, read after submission. */
       counts,
-      /** Opens a batch of `regions` regions: their volumes, and their commands at zero instances —
-       *  two writes, never one per region, landing before the batch's commands run. */
+      /** Opens a batch of `regions` regions: their volumes, and both commands of each at zero
+       *  instances — two writes, never one per region, landing before the batch's commands run. */
       begin(regions: number, maxVertexCount: number) {
         if (!regions) return;
         shadowBatchWrites(device).write(faceVolumes, 0, volumes, 0, regions * SHADOW_CULL_FLOATS);
-        commands.fill(0, 0, regions * DRAW_INDIRECT_WORDS);
-        for (let region = 0; region < regions; region++)
-          commands[region * DRAW_INDIRECT_WORDS] = maxVertexCount;
-        shadowBatchWrites(device).write(indirect, 0, commands, 0, regions * DRAW_INDIRECT_WORDS);
+        const words = emptyRegionCommands(commands, regions, maxVertexCount);
+        shadowBatchWrites(device).write(indirect, 0, commands, 0, words);
       },
       /**
        * Encodes the cull of regions `[first, first + faces)` against the list the CPU cut wrote for
