@@ -8,6 +8,13 @@ import { compare, litOf, pcf, type Stored } from './shadowBias.fixture.ts';
 
 export type Pair = [number, number];
 
+/** A deterministic value in [0, 1) per integer: a page's content in the tests of #831 and #26. */
+export const hash = (x: number) => {
+  let h = Math.imul(x ^ 0x9e3779b9, 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return ((h ^ (h >>> 16)) >>> 0) / 2 ** 32;
+};
+
 /** `shadowPcf`'s split of a tap along a page seam: what `pagedPcf` restates. */
 export const SPLIT = [
   ' let edge=(t-1.5<first)|(t+1.5>=first+SHADOW_PAGE);',
