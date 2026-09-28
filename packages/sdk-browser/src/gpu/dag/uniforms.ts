@@ -9,7 +9,6 @@ import {
   OUT_TRANSPARENT_TRIANGLES,
   SELECTION_HEADER_WORDS,
   evictionWord,
-  selectionListCap,
 } from './layout.ts';
 import type { SelectionResult } from '../core/selection.ts';
 import { VIEW_APPEND, VIEW_LIGHT, VIEW_PAGES } from './shader/pagesWgsl.ts';
@@ -71,7 +70,7 @@ export function writeDagUniforms(
   packed: PackedDag,
   uniforms: DagViewUniforms,
   residentCut: boolean,
-  listCap = selectionListCap(packed.pageCount),
+  listCap: number,
   views?: DagCutViews,
 ) {
   target.fill(0);
