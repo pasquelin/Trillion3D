@@ -1,3 +1,4 @@
+import { SCREEN_REFLECTION_WGSL } from '../../reflections/screenWgsl.ts';
 import {
   CONTRACT_BINDINGS_WGSL,
   FULLSCREEN_VERTEX,
@@ -152,7 +153,7 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
   // proxy traced at the roughness floor, the probe irradiance over π above it, exactly zero without
   // bounce — and the specular of the declared lights on a null albedo: the diffuse lobe cancels,
   // the dielectric specular lobe stays.
-  reflected=F*reflectedRadiance(P,Nv,reflect(-V,Nv),rough)+declaredLighting(vec3f(0.0),0.0,rough,Nv,V,P,ao,pixel.xy);
+  reflected=F*resolvedRadiance(P,Nv,reflect(-V,Nv),rough)+declaredLighting(vec3f(0.0),0.0,rough,Nv,V,P,ao,pixel.xy);
  }
  let through=transmittedBackdrop(vol,P,Nv,V,coord,fragZ);
  // The glTF composition, a = alpha + t(1-alpha) with a·C carrying the whole transmitted share,
@@ -165,4 +166,6 @@ fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f
  let color=premultiplied/max(a,1e-4);
  return vec4f(select(fogged(color,P,uni.eye.xyz),color,unlit),a);
 }
+
+${SCREEN_REFLECTION_WGSL}
 `;

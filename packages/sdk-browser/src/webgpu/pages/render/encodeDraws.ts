@@ -1,3 +1,5 @@
+import { wantsReflections } from '../../../reflections/gpu.ts';
+import { requestFrameTargets } from '../prepare/targetGrant.ts';
 import { selectCpuCasters, writeCpuCasters } from '../../shadow/cpuCasters.ts';
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import { projectedPageError } from '../../../page/selection/selection.ts';
@@ -113,6 +115,11 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
   } else if (run.rowsSyncedFrame !== run.frame) {
     rt.services.syncRows(!run.textureConverging);
     run.rowsSyncedFrame = run.frame;
+  }
+  if (gpu.reflection && gpu.reflection.active !== wantsReflections(rt)) {
+    abandonFrameEncoder(rt);
+    void requestFrameTargets(rt, device);
+    return 0;
   }
   if (run.diagnostic === 'screen-error' && rows.pageTableFloats) {
     const rowWords = PAGE_INFO_STRIDE / 4;
