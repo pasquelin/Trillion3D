@@ -778,6 +778,11 @@
       "file": "examples/doors-that-open.html"
     },
     {
+      "id": "a-carousel",
+      "theme": "animation",
+      "file": "examples/a-carousel.html"
+    },
+    {
       "id": "keyframes-by-hand",
       "theme": "animation",
       "file": "examples/keyframes-by-hand.html"
