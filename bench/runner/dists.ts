@@ -25,7 +25,7 @@ export interface SideBase {
   sourceUrl?: string | null;
 }
 
-/** Requested sides: "apres" always, "avant" only if named. */
+/** Requested sides: the candidate always, the reference only if named. */
 export function resolveSides({
   after,
   before,
