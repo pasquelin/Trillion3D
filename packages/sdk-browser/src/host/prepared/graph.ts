@@ -166,6 +166,8 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
       node.name = nodeNames.get(id)!;
     }
     pose(node, declared);
+    // Hidden, it is parked as any hidden node (`placement/hidden.ts`); its subtree with it.
+    node.visible = declared.visible;
     nodes[id] = node;
     for (const child of declared.children) node.add(assemble(child));
     return node;
