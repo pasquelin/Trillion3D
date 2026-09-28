@@ -500,6 +500,24 @@
       "balloon": "SEGUINDO O BALÃO"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Assista à rota gravada pelo parque. Reproduza, pare ou assuma a câmera.",
+    "controls": {
+      "replay": "Reproduzir",
+      "stop": "Parar"
+    },
+    "readouts": {
+      "currentPart": "Parte atual"
+    },
+    "words": {
+      "entrance": "Entrada",
+      "pond": "Lago",
+      "bridge": "Ponte",
+      "pavilion": "Pavilhão",
+      "overview": "Visão geral",
+      "complete": "Concluído"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Gire à volta do guindaste enquanto um clipe roda a lança, move o carro, eleva a carga e a deixa balançar.",
     "controls": {
@@ -1965,6 +1983,7 @@
       "manifest": "manifesto lido",
       "tables": "tabelas da cena lidas",
       "resources": "arquivos da cena",
+      "session": "abrindo a vista",
       "pages": "primeiras páginas",
       "ready": "pronto"
     }
@@ -2238,6 +2257,21 @@
     },
     "words": {
       "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Escolha uma elevação da casa. Afaste a câmera: o desenho ortográfico mantém exatamente a mesma escala.",
+    "controls": {
+      "elevation": "Elevação",
+      "distance": "Distância da câmera",
+      "zoom": "Escala do desenho"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Frente",
+        "right": "Lado direito",
+        "rear": "Fundos"
+      }
     }
   },
   "hover-to-highlight": {

@@ -3,7 +3,7 @@ import { prepareTemporalAntialiasing } from '../../../taa/prepare.ts';
 import { createSceneLightContractBuffer } from '../state/lightBuffer.ts';
 import { prepareWebgpuPresentation } from '../../frame/presentationSetup.ts';
 import { createWebgpuPagesPipelines } from './pipelines.ts';
-import { ensureWebgpuPositionBuffer } from '../../core/positions.ts';
+import { ensureWebgpuPositionBuffer, loadUnpaged } from '../../core/positions.ts';
 import { prepareWebgpuGeometry } from '../../core/geometryPrepare.ts';
 import { prepareWebgpuBlend } from '../../blend/prepare.ts';
 import { declaredBlendModes } from '../../blend/stagePipelines.ts';
@@ -96,9 +96,8 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   } = createWebgpuPagesPipelines(gpuDevice, UNIFORM_STRIDE));
   // Only a cluster no quantized page covers still needs its primitive's float positions: what the
   // fallback draw reads for the others is the page in their pool slot.
-  for (const rec of allPages)
-    if (!rec.geometryPage)
-      ensureWebgpuPositionBuffer(gpuDevice, rec.attributes, gpu.positionBuffers, gpu);
+  for (const rec of await loadUnpaged(allPages, blendCopies))
+    ensureWebgpuPositionBuffer(gpuDevice, rec.attributes, gpu.positionBuffers, gpu);
   for (let i = 0; i < packedPages.length; i++)
     rows.pagePositions[i] = gpu.positionBuffers.get(packedPages[i].attributes);
   // Fresh position buffers: rank sync starts over from the catalogue.

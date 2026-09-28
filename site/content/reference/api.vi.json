@@ -12,6 +12,7 @@
       "bindingOf": "Điều mà `tr` ghi, được giải quyết một lần; null khi đích của nó chưa nằm dưới gốc.",
       "play": "Bắt đầu phát.",
       "stop": "Dừng lại, và quay về điểm bắt đầu.",
+      "seek": "Đặt clip ngay tại `time` giây, theo chế độ lặp của nó, dù đang chạy hay không: hành động đang chạy tiếp tục từ đó, hành động đã dừng giữ tư thế cho đến khi một hành động đang chạy của bộ trộn ghi đè lên.",
       "clipTime": "Vị trí của hành động trong clip, theo chế độ lặp của nó."
     }
   },
@@ -377,7 +378,8 @@
       "p.left": "Cạnh trái của hộp nhìn của một camera trực giao.",
       "p.right": "Cạnh phải của hộp nhìn của một camera trực giao.",
       "p.top": "Cạnh trên của hộp nhìn của một camera trực giao.",
-      "p.bottom": "Cạnh dưới của hộp nhìn của một camera trực giao."
+      "p.bottom": "Cạnh dưới của hộp nhìn của một camera trực giao.",
+      "p.fitAspect": "Camera trực giao giữ chiều cao và tâm của hộp và lấy chiều rộng từ hình dạng của ảnh, nên canvas đổi kích thước không bao giờ kéo giãn hình vẽ. Tắt theo mặc định."
     },
     "members": {
       "isCamera": "Luôn là `true`: phân biệt một camera với bất kỳ vật thể nào khác.",
@@ -390,6 +392,7 @@
       "right": "Cạnh phải của hộp trực giao.",
       "top": "Cạnh trên của hộp trực giao.",
       "bottom": "Cạnh dưới của hộp trực giao.",
+      "fitAspect": "Một hộp trực giao cao như đã khai báo và rộng theo hình dạng của ảnh.",
       "projection": "`'perspective'` làm vật ở xa nhỏ lại; `'orthographic'` giữ nguyên mọi kích thước.",
       "copy": "Lấy các giá trị nút của `source` và, từ một camera, quang học của nó; `projection` riêng vẫn giữ.",
       "updateProjectionMatrix": "Tạo lại `projectionMatrix`; mỗi lần ghi quang học đã làm vậy, và vẽ lại.",
@@ -430,7 +433,8 @@
       "left": "Cạnh trái của hộp nhìn của một camera trực giao.",
       "right": "Cạnh phải của hộp nhìn của một camera trực giao.",
       "top": "Cạnh trên của hộp nhìn của một camera trực giao.",
-      "bottom": "Cạnh dưới của hộp nhìn của một camera trực giao."
+      "bottom": "Cạnh dưới của hộp nhìn của một camera trực giao.",
+      "fitAspect": "Camera trực giao giữ chiều cao và tâm của hộp và lấy chiều rộng từ hình dạng của ảnh, nên canvas đổi kích thước không bao giờ kéo giãn hình vẽ. Tắt theo mặc định."
     }
   },
   "CameraPose": {
@@ -968,6 +972,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Đường vẽ này không thể thực hiện thay đổi đó lên cảnh.",
       "BATCHED_WORLD_VIEW": "Đường vẽ này không thể thực hiện thay đổi đó lên cảnh.",
       "RAYCAST_NO_VIEW": "Một điểm ảnh được yêu cầu từ một canvas không có kích thước: không có hình ảnh nào để ngắm qua.",
+      "VERTICES_NOT_LOADED": "Các đỉnh của một mô hình đã nạp bị đọc trước `await geometry.loadVertices()`: phiên đọc chúng khi cần lần đầu, không bao giờ đọc trước.",
       "SESSION_OPEN_FAILED": "Phiên của thế giới không thể mở, vì một lý do không có mã riêng (`world.diagnostic.error`): lỗi được ném nằm trong `details.cause`.",
       "WEBGPU_LOST": "WebGPU đã mất thiết bị của nó, hoặc một lỗi trên thiết bị để lại trạng thái mà không gì có thể vẽ từ đó: được ném bởi `render`, `flush` và các lượt đọc cần thiết bị, được đặt tên bởi chẩn đoán `gpu-device-lost`, và xuất hiện trên `world.diagnostic.error` khi một phiên không thể mở vì lý do đó.",
       "UNSUPPORTED_SCENE_FORMAT": "Một cảnh đã lưu có định dạng hoặc phiên bản khác, hoặc chứa thứ mà một cảnh đã lưu không thể lưu giữ.",
@@ -1187,6 +1192,7 @@
       "rotateZ": "Xoay mọi đỉnh quanh trục z, theo góc `angle` radian.",
       "scale": "Kéo giãn mọi đỉnh theo `(x, y, z)`.",
       "center": "Di chuyển hình học sao cho hộp của nó nằm giữa gốc tọa độ.",
+      "loadVertices": "Đọc các đỉnh của một lưới đã nạp, mà không phiên nào tải trước; xong ngay với mọi hình khác. Trước đó, đọc chúng (`array`, `getX`) ném `VERTICES_NOT_LOADED`.",
       "clone": "Một hình học mới với bản sao của mọi danh sách, các nhóm, dải, dữ liệu và biên của nó, cùng công thức vẫn dựng nên nó.",
       "dispose": "Trả lại hình học: chạy mỗi móc giải phóng một lần, quên những người giữ nó và cây dò tia; không ai vẽ hay bắn tia vào một hình học đã giải phóng.",
       "kind": "Tài nguyên là gì, cách người đọc cảnh phân biệt các tài nguyên.",
@@ -2932,7 +2938,8 @@
       "projection": "Phối cảnh hoặc trực giao.",
       "position": "Mắt đứng ở đâu.",
       "quaternion": "Mắt được xoay thế nào.",
-      "optics": "Góc nhìn, near, far, zoom và hộp, theo tên."
+      "optics": "Góc nhìn, near, far, zoom và hộp, theo tên.",
+      "fitAspect": "Hộp trực giao được nới theo hình dạng của ảnh (`fitAspect`); vắng mặt khi tắt."
     }
   },
   "SavedGeometry": {
@@ -4606,7 +4613,8 @@
       "p.left": "Cạnh trái của hộp nhìn camera trực giao.",
       "p.right": "Cạnh phải của hộp nhìn camera trực giao.",
       "p.top": "Cạnh trên của hộp nhìn camera trực giao.",
-      "p.bottom": "Cạnh dưới của hộp nhìn camera trực giao."
+      "p.bottom": "Cạnh dưới của hộp nhìn camera trực giao.",
+      "p.fitAspect": "Camera trực giao giữ chiều cao và tâm của hộp và lấy chiều rộng từ hình dạng của ảnh, nên canvas đổi kích thước không bao giờ kéo giãn hình vẽ. Tắt theo mặc định."
     }
   },
   "camera.perspective": {
@@ -4621,7 +4629,8 @@
       "p.left": "Cạnh trái của hộp nhìn camera trực giao.",
       "p.right": "Cạnh phải của hộp nhìn camera trực giao.",
       "p.top": "Cạnh trên của hộp nhìn camera trực giao.",
-      "p.bottom": "Cạnh dưới của hộp nhìn camera trực giao."
+      "p.bottom": "Cạnh dưới của hộp nhìn camera trực giao.",
+      "p.fitAspect": "Camera trực giao giữ chiều cao và tâm của hộp và lấy chiều rộng từ hình dạng của ảnh, nên canvas đổi kích thước không bao giờ kéo giãn hình vẽ. Tắt theo mặc định."
     }
   },
   "camera.stereo": {

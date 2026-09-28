@@ -12,6 +12,7 @@
       "bindingOf": "O que `tr` escreve, resolvido uma vez; null enquanto seu alvo não está sob a raiz.",
       "play": "Começa a tocar.",
       "stop": "Para, e volta ao início.",
+      "seek": "Põe o clip em `time` segundos agora, segundo o seu modo de repetição, esteja a tocar ou não: uma ação que toca continua dali, uma parada mantém a pose até que uma ação a tocar no seu misturador a sobrescreva.",
       "clipTime": "Onde no clipe a ação está, conforme seu modo de repetição."
     }
   },
@@ -377,7 +378,8 @@
       "p.left": "Borda esquerda da caixa de visão de uma câmera ortográfica.",
       "p.right": "Borda direita da caixa de visão de uma câmera ortográfica.",
       "p.top": "Borda superior da caixa de visão de uma câmera ortográfica.",
-      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica."
+      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica.",
+      "p.fitAspect": "Uma câmera ortográfica mantém a altura e o centro da sua caixa e tira a largura da forma da imagem, assim um canvas redimensionado nunca estica o desenho. Desativado por padrão."
     },
     "members": {
       "isCamera": "Sempre `true`: distingue uma câmera de qualquer outro objeto.",
@@ -390,6 +392,7 @@
       "right": "Borda direita da caixa ortográfica.",
       "top": "Borda superior da caixa ortográfica.",
       "bottom": "Borda inferior da caixa ortográfica.",
+      "fitAspect": "Uma caixa ortográfica tão alta quanto declarada e tão larga quanto a forma da imagem a torna.",
       "projection": "`'perspective'` faz coisas distantes ficarem pequenas; `'orthographic'` mantém todo tamanho.",
       "copy": "Toma os valores de nó de `source` e, de uma câmera, sua óptica; sua própria `projection` permanece.",
       "updateProjectionMatrix": "Recompõe `projectionMatrix`; cada escrita da óptica já o faz, e redesenha.",
@@ -430,7 +433,8 @@
       "left": "Borda esquerda da caixa de visão de uma câmera ortográfica.",
       "right": "Borda direita da caixa de visão de uma câmera ortográfica.",
       "top": "Borda superior da caixa de visão de uma câmera ortográfica.",
-      "bottom": "Borda inferior da caixa de visão de uma câmera ortográfica."
+      "bottom": "Borda inferior da caixa de visão de uma câmera ortográfica.",
+      "fitAspect": "Uma câmera ortográfica mantém a altura e o centro da sua caixa e tira a largura da forma da imagem, assim um canvas redimensionado nunca estica o desenho. Desativado por padrão."
     }
   },
   "CameraPose-common": {
@@ -961,6 +965,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Este caminho de desenho não consegue fazer essa mudança na cena.",
       "BATCHED_WORLD_VIEW": "Este caminho de desenho não consegue fazer essa mudança na cena.",
       "RAYCAST_NO_VIEW": "Um ponto de imagem foi pedido a um canvas sem tamanho: não há imagem através da qual mirar.",
+      "VERTICES_NOT_LOADED": "Os vértices de um modelo carregado foram lidos antes de `await geometry.loadVertices()`: uma sessão os lê na primeira necessidade, nunca antecipadamente.",
       "SESSION_OPEN_FAILED": "A sessão do mundo não pôde abrir, por um motivo sem código próprio (`world.diagnostic.error`): o erro lançado está em `details.cause`.",
       "WEBGPU_LOST": "O WebGPU perdeu o seu dispositivo, ou um erro nele deixou um estado a partir do qual nada pode desenhar: lançado por `render`, `flush` e pelas leituras que precisam do dispositivo, nomeado pelo diagnóstico `gpu-device-lost`, e em `world.diagnostic.error` quando uma sessão não pôde abrir por isso.",
       "UNSUPPORTED_SCENE_FORMAT": "Uma cena salva é de outro formato ou versão, ou contém algo que uma cena salva não pode armazenar.",
@@ -1179,6 +1184,7 @@
       "rotateZ": "Gira cada vértice ao redor do eixo z, por `angle` radianos.",
       "scale": "Estica cada vértice por `(x, y, z)`.",
       "center": "Move a geometria para que sua caixa fique centrada na origem.",
+      "loadVertices": "Lê os vértices de uma malha carregada, que nenhuma sessão busca antecipadamente; de imediato para qualquer outra. Antes disso, lê-los (`array`, `getX`) lança `VERTICES_NOT_LOADED`.",
       "clone": "Uma nova geometria com cópias de cada lista, os seus grupos, intervalo, dados e limites, e a receita que ainda a constrói.",
       "dispose": "Devolve a geometria: executa cada gancho de libertação uma vez, esquece quem a segura e a árvore de raycast; ninguém desenha nem atinge uma geometria libertada.",
       "kind": "O que o recurso é, como um leitor da cena distingue os recursos.",
@@ -4617,7 +4623,8 @@
       "p.left": "Borda esquerda da caixa de visão de uma câmera ortográfica.",
       "p.right": "Borda direita da caixa de visão de uma câmera ortográfica.",
       "p.top": "Borda superior da caixa de visão de uma câmera ortográfica.",
-      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica."
+      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica.",
+      "p.fitAspect": "Uma câmera ortográfica mantém a altura e o centro da sua caixa e tira a largura da forma da imagem, assim um canvas redimensionado nunca estica o desenho. Desativado por padrão."
     }
   },
   "camera.orthographic": {
@@ -4632,7 +4639,8 @@
       "p.left": "Borda esquerda da caixa de visão de uma câmera ortográfica.",
       "p.right": "Borda direita da caixa de visão de uma câmera ortográfica.",
       "p.top": "Borda superior da caixa de visão de uma câmera ortográfica.",
-      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica."
+      "p.bottom": "Borda inferior da caixa de visão de uma câmera ortográfica.",
+      "p.fitAspect": "Uma câmera ortográfica mantém a altura e o centro da sua caixa e tira a largura da forma da imagem, assim um canvas redimensionado nunca estica o desenho. Desativado por padrão."
     }
   },
   "camera.cube": {
@@ -7013,7 +7021,8 @@
       "projection": "Perspectiva ou ortográfica.",
       "position": "Onde o olho está.",
       "quaternion": "Como o olho está girado.",
-      "optics": "Campo, near, far, zoom e caixa, por nome."
+      "optics": "Campo, near, far, zoom e caixa, por nome.",
+      "fitAspect": "Uma caixa ortográfica alargada à forma da imagem (`fitAspect`); ausente quando desligada."
     }
   },
   "SavedGeometry": {

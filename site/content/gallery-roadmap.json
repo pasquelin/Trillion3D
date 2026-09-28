@@ -711,6 +711,11 @@
       "file": "examples/several-views-one-page.html"
     },
     {
+      "id": "a-recorded-fly-through",
+      "theme": "camera",
+      "file": "examples/a-recorded-fly-through.html"
+    },
+    {
       "id": "before-and-after-slider",
       "theme": "camera",
       "file": "examples/before-and-after-slider.html"
@@ -719,6 +724,11 @@
       "id": "side-by-side-stereo",
       "theme": "camera",
       "file": "examples/side-by-side-stereo.html"
+    },
+    {
+      "id": "an-elevation-of-the-house",
+      "theme": "camera",
+      "file": "examples/an-elevation-of-the-house.html"
     },
     {
       "id": "the-near-plane-cuts-a-wall",
