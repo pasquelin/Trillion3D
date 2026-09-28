@@ -66,7 +66,7 @@ merges keep coming back `audit ko` is stopped by the CTO.
 2. **Tests that bite.** Each changed behaviour has a test that fails before the change and passes
    after. It runs on the fixture the issue names, never on a hand-built stand-in, and waits for
    events, never a fixed delay. An oracle ports the new code, not the old.
-3. **No image loss** (AGENTS.md rule 1). The coder's image proof: 0 px against `develop`, or the difference declared in the
+3. **No image loss** (AGENTS.md rule 1). The coder's image proof: 0 px against `develop` on a stable A/A (CONTRIBUTING.md §Image and fidelity), or the difference declared in the
    issue and accepted before the merge: by the CTO when it is proved closer to a reference image
    (a correction), by the maintainer otherwise. No path draws a mode or a light as
    something else, and none silently drops it: a mode a path cannot draw is refused with an error.
