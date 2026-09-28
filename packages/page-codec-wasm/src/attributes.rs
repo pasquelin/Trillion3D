@@ -1,6 +1,7 @@
 //! Streams of a page and their unpacking into one block of words: the mirror of `decodeGeometryPage`.
 
-use crate::bits::{bits_for, dequant, field, oct_decode, stream_words, Quant};
+use crate::bits::{dequant, field, oct_decode, stream_words, Quant};
+use crate::triangles::CornerCode;
 use crate::{Header, PageError, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1, HEADER_BYTES};
 
 /// Presence bit and float width of each optional attribute, in stream order: normal, uv, uv1,
@@ -73,8 +74,9 @@ impl core::fmt::Debug for DecodedPage {
 /// the widths, so the header stores no offset and a reader trusts none.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Layout {
-    pub index_bits: u32,
-    pub indices: usize,
+    pub corners: CornerCode,
+    /// The block table then the corner stream (`triangles.rs`).
+    pub triangles: [usize; 2],
     pub position: [usize; 3],
     pub normal: usize,
     pub uv: [usize; 2],
@@ -86,7 +88,7 @@ pub struct Layout {
 
 impl Layout {
     pub fn of(h: &Header) -> Self {
-        let index_bits = bits_for(h.vertex_count.saturating_sub(1) as u32);
+        let corners = CornerCode::of(h.vertex_count, h.index_count, h.corner_bits);
         let mut at = 0usize;
         let mut stream = |present: bool, count: usize, bits: u32| {
             let start = at;
@@ -95,7 +97,10 @@ impl Layout {
             }
             start
         };
-        let indices = stream(true, h.index_count, index_bits);
+        let triangles = [
+            stream(true, corners.blocks, corners.record_bits()),
+            stream(true, corners.bits, 1),
+        ];
         let position = h.position.bits.map(|b| stream(true, h.vertex_count, b));
         let normal = stream(h.flags & FLAG_NORMAL != 0, h.vertex_count, 16);
         let uv =
@@ -110,8 +115,8 @@ impl Layout {
             .bits
             .map(|b| stream(h.flags & FLAG_COLOR != 0, h.vertex_count, b));
         Self {
-            index_bits,
-            indices,
+            corners,
+            triangles,
             position,
             normal,
             uv,
@@ -149,16 +154,7 @@ pub fn split(words: &[u32], h: &Header) -> Result<DecodedPage, PageError> {
     let n = h.vertex_count;
     let mut out = vec![0u32; h.decoded_bytes() / 4];
     let (indices, mut rest) = out.split_at_mut(h.index_count);
-    for (i, index) in indices.iter_mut().enumerate() {
-        *index = field(
-            words,
-            layout.indices * 32 + i * layout.index_bits as usize,
-            layout.index_bits,
-        );
-        if *index as usize >= n {
-            return Err(PageError::Index);
-        }
-    }
+    layout.corners.read(words, layout.triangles, n, indices)?;
     let mut take = |width: usize| {
         let (head, tail) = core::mem::take(&mut rest).split_at_mut(n * width);
         rest = tail;

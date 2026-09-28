@@ -44,14 +44,16 @@ ${COMPUTE_TAKES_WGSL}
 fn hardwareIdle(page:PageInfo,vertexIndex:u32)->bool{
  return vertexIndex>=page.indexCount||uni.computeSpan>=${COMPUTE_ALL};
 }
-/** True when hardware leaves this vertex to the compute raster, which takes its triangle.
- *  Without a share, no extra vertex is read. */
-fn hardwareSkips(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->bool{
- if(uni.computeSpan<=0.0){return false;}
- let triangle=vertexIndex/3u;
- let ia=pageCorner(page,h,triangle*3u);let ib=pageCorner(page,h,triangle*3u+1u);let ic=pageCorner(page,h,triangle*3u+2u);
+/** The page corner this vertex draws, or \`HARDWARE_SKIP\` when hardware leaves its triangle to the
+ *  compute raster, which takes it: without a share, only the vertex's own corner is decoded, with
+ *  one, its triangle once, which the test and the corner both read. */
+const HARDWARE_SKIP=0xffffffffu;
+fn hardwareCorner(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->u32{
+ if(uni.computeSpan<=0.0){return pageCorner(page,h,vertexIndex);}
+ let corners=pageTriangle(page,h,vertexIndex/3u);let ia=corners.x;let ib=corners.y;let ic=corners.z;
  let vp=uni.viewProj*page.world;
- return computeTakes(pageClip(vp,page,h,ia),pageClip(vp,page,h,ib),pageClip(vp,page,h,ic));
+ if(computeTakes(pageClip(vp,page,h,ia),pageClip(vp,page,h,ib),pageClip(vp,page,h,ic))){return HARDWARE_SKIP;}
+ return corners[vertexIndex%3u];
 }
 @vertex fn vis_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->VSOut{
  var out:VSOut;
@@ -60,8 +62,8 @@ fn hardwareSkips(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->bool{
  out.instance=pageIndex;out.tc=vec3f(0.0);
  if(hardwareIdle(page,vertexIndex)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let h=pageHeader(page);
- if(hardwareSkips(page,h,vertexIndex)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
- let id=pageCorner(page,h,vertexIndex);
+ let id=hardwareCorner(page,h,vertexIndex);
+ if(id==HARDWARE_SKIP){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let p=pagePosition(page,h,id);
  let world=page.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;
@@ -80,8 +82,8 @@ fn hardwareSkips(page:PageInfo,h:ClusterHeader,vertexIndex:u32)->bool{
  if(hizRejected(page.hizSlot)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  if(hardwareIdle(page,vertexIndex)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let h=pageHeader(page);
- if(hardwareSkips(page,h,vertexIndex)){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
- let id=pageCorner(page,h,vertexIndex);
+ let id=hardwareCorner(page,h,vertexIndex);
+ if(id==HARDWARE_SKIP){out.position=vec4f(0.0,0.0,2.0,1.0);out.id=0u;return out;}
  let p=pagePosition(page,h,id);
  let world=page.world*vec4f(p,1.0);
  out.position=uni.viewProj*world;

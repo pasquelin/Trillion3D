@@ -7416,16 +7416,6 @@
       "handbrake": "El freninin çekili olup olmadığı."
     }
   },
-  "GraphNode": {
-    "summary": "Grafın bir düğümü: çekirdeğin düğümü, `kind` değeriyle ayırt edilir, çekirdeğin `clone` yöntemiyle kopyalanır.",
-    "members": {
-      "serial": "Düğümün oturumda benzersiz numarası.",
-      "kind": "Düğümün ne olduğu: grafın her okuyucusunun daralttığı şey."
-    }
-  },
-  "GraphNodeKind": {
-    "summary": "Grafın bir ışığının ne olduğu: bir sahnenin bildirdiği ışıklardan biri."
-  },
   "GraphSurface": {
     "summary": "Bir yüzey: bir ailenin parametreleri, sahne aksini söylemedikçe referansın değerlerinde.",
     "description": "Sürümü, her okuyucunun karşılaştırdığı `needsUpdate` ile artırılır.",

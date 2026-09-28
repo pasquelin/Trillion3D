@@ -14,6 +14,7 @@
  * curve brings it into the display range (P4). Neither is a light: a scene with neither lamp nor
  * environment irradiance stays black whatever its exposure.
  */
+import type { NumberSink } from '../../math/matrix/matrix4.ts';
 import { packFog, type SceneFog } from './fog.ts';
 
 /** The curves that bring scene radiance into the display range, by the rank shaders read. */
@@ -74,11 +75,15 @@ export const IRRADIANCE_BAND = {
   quadraticDifference: 0.429043,
 } as const;
 
+/** The 27 numbers an irradiance is summed into, read and written by index: a list, or the
+ *  floats a program uploads. */
+export type IrradianceSum = NumberSink;
+
 /** An irradiance with nothing in it, ready to receive sources. */
 export const emptyIrradiance = () => new Array<number>(ENVIRONMENT_COEFFICIENTS * 3).fill(0);
 
 /** Adds a uniform irradiance `rgb` — the same at every normal — to `sh`. */
-export function addUniformIrradiance(sh: number[], rgb: readonly number[]) {
+export function addUniformIrradiance<T extends IrradianceSum>(sh: T, rgb: readonly number[]) {
   for (let c = 0; c < 3; c++) sh[c] += rgb[c] / IRRADIANCE_BAND.constant;
   return sh;
 }
@@ -88,8 +93,8 @@ export function addUniformIrradiance(sh: number[], rgb: readonly number[]) {
  * one, and the linear blend in between — `mix(ground, sky, (1 + N·up) / 2)`. That blend is the
  * constant band plus the linear one, so it is represented exactly.
  */
-export function addHemisphereIrradiance(
-  sh: number[],
+export function addHemisphereIrradiance<T extends IrradianceSum>(
+  sh: T,
   sky: readonly number[],
   ground: readonly number[],
   up: readonly number[],
@@ -104,8 +109,8 @@ export function addHemisphereIrradiance(
 }
 
 /** Adds 27 coefficients a probe carries, scaled by `scale`. */
-export function addIrradianceCoefficients(
-  sh: number[],
+export function addIrradianceCoefficients<T extends IrradianceSum>(
+  sh: T,
   coefficients: ArrayLike<number>,
   scale: number,
 ) {
