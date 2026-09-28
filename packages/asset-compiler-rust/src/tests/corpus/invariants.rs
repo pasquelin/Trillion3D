@@ -1,29 +1,21 @@
 //! What the DAG builder guarantees on every case, asserted on the DAG it builds in memory.
 use super::*;
-use crate::dag::{build_dag_tallied, DagCluster, DagStall, DagStrategy, Grown};
+use crate::dag::{build_dag_tallied, DagAttributes, DagCluster, DagStall, DagStrategy};
 use std::collections::HashSet;
 
 pub(super) struct Built {
     pub dag: Vec<DagCluster>,
     pub stalls: Vec<DagStall>,
-    /// The case's vertices grown with those a seam-locked group's solve placed.
-    pub grown: Option<Grown>,
+    /// The vertex arrays the pages read: the case's, then every vertex a seam-locked group's solve
+    /// placed (`dag::Grown`).
+    pub positions: Vec<f32>,
+    pub attributes: Vec<geometry_page::Attribute>,
+    /// Per placed vertex, the case's vertex it was solved from.
+    pub origin: Vec<u32>,
 }
 impl Built {
     pub fn roots(&self) -> usize {
         self.dag.iter().filter(|c| c.is_root()).count()
-    }
-    /// The positions the pages read: the case's, then every placed vertex.
-    pub fn positions<'a>(&'a self, case: &'a Case) -> &'a [f32] {
-        self.grown
-            .as_ref()
-            .map_or(&case.positions, |g| &g.positions)
-    }
-    /// The attributes the pages carry, grown likewise.
-    pub fn attributes(&self, case: &Case) -> Vec<geometry_page::Attribute> {
-        self.grown
-            .as_ref()
-            .map_or_else(|| case.attributes(), |g| g.carried.clone())
     }
 }
 
@@ -32,15 +24,25 @@ impl Built {
 pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
     let attributes = case.attributes();
     let carried: Vec<&geometry_page::Attribute> = attributes.iter().collect();
-    let (dag, _, _, stalls, grown) = build_dag_tallied(
+    let build = build_dag_tallied(
         &case.positions,
-        crate::dag::DagAttributes { carried: &carried },
+        DagAttributes { carried: &carried },
         indices,
         DagStrategy::QemEndpoints,
         &|| Ok(()),
     )
     .expect("dag");
-    Built { dag, stalls, grown }
+    let (positions, attributes, origin) = match build.grown {
+        Some(grown) => (grown.positions, grown.carried, grown.origin),
+        None => (case.positions.clone(), attributes, Vec::new()),
+    };
+    Built {
+        dag: build.clusters,
+        stalls: build.stalls,
+        positions,
+        attributes,
+        origin,
+    }
 }
 
 /// Level 0 partitions the source triangles; every coarse index names a vertex the source uses or
@@ -63,18 +65,15 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
         source, partition,
         "{label}: level 0 is the source partition"
     );
-    let attributes = built.attributes(case);
-    let normals = attributes
-        .iter()
-        .find(|a| a.flag == geometry_page::FLAG_NORMAL);
-    let normals = normals.map(|a| &a.values[..]);
-    let quality = crate::dag::quality::check(&built.dag, built.positions(case), normals);
+    let carried: Vec<&geometry_page::Attribute> = built.attributes.iter().collect();
+    let normals = DagAttributes { carried: &carried }.normals();
+    let quality = crate::dag::quality::check(&built.dag, &built.positions, normals);
     if let Err(refusal) = quality {
         panic!("{label}: the cook refuses the DAG: {refusal}");
     }
     let used: HashSet<u32> = indices.iter().copied().collect();
     let vertices = case.vertex_count() as u32;
-    let grown = (built.positions(case).len() / 3) as u32;
+    let grown = (built.positions.len() / 3) as u32;
     for cluster in &built.dag {
         assert!(
             cluster.lod_error.is_finite() && cluster.lod_error >= 0.0,
@@ -125,10 +124,9 @@ pub(super) fn check_roots(built: &Built, label: &str) {
 
 /// Every cluster's page decodes back to its source positions and attributes, within the error
 /// the page declares.
-pub(super) fn check_pages(case: &Case, built: &Built, label: &str) {
-    let attributes = built.attributes(case);
+pub(super) fn check_pages(built: &Built, label: &str) {
+    let (positions, attributes) = (&built.positions, &built.attributes);
     let carried: Vec<&geometry_page::Attribute> = attributes.iter().collect();
-    let positions = built.positions(case);
     let exponent = crate::geometry_page_quant::primitive_exponent(
         positions,
         built
@@ -154,7 +152,7 @@ pub(super) fn check_pages(case: &Case, built: &Built, label: &str) {
             &page,
             &cluster.indices,
             positions,
-            &attributes,
+            attributes,
             page.quantization_error,
         );
     }

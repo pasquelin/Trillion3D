@@ -190,7 +190,7 @@ mod welds;
 
 pub use attributes::DagAttributes;
 use bounds::*;
-pub use build::build_dag_tallied;
+pub use build::{build_dag_tallied, DagBuild};
 use clusters::*;
 pub use culling::build_culling_bvh;
 use groups::*;

@@ -96,9 +96,8 @@ pub(super) fn reduce_group(
 }
 
 /// Where `live` names a vertex a solve placed, the longest face of `kept` across two texture
-/// islands (`charts::folded_span`): a placed vertex is a seam of none of its copies but the ones
-/// its own solve wrote, and a later collapse may join islands its seams no longer hold. Zero
-/// elsewhere: a primitive no solve touched keeps its bytes.
+/// islands (`charts::folded_span`): a later collapse may join islands a placed vertex's seams no
+/// longer hold. Zero elsewhere: a primitive no solve touched keeps its bytes.
 fn folded_after_solve(input: &GroupReductionInput, live: &[u32], kept: &[u32]) -> f64 {
     let Some(charts) = input.placed_charts(live) else {
         return 0.0;

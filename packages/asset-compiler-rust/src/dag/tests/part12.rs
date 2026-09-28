@@ -33,7 +33,13 @@ fn dag_of(positions: &[f32], carried: &[Attribute], indices: &[u32]) -> build::D
 #[test]
 fn a_seam_locked_sheet_climbs_on_placed_vertices() {
     let (positions, carried, indices) = sheet(32);
-    let (dag, _, tallies, stalls, grown) = dag_of(&positions, &carried, &indices);
+    let build::DagBuild {
+        clusters: dag,
+        tallies,
+        stalls,
+        grown,
+        ..
+    } = dag_of(&positions, &carried, &indices);
     let grown = grown.expect("placed vertices");
     assert_eq!(grown.positions[..positions.len()], positions[..]);
     assert_eq!(
@@ -64,7 +70,8 @@ fn an_unblocked_sheet_places_nothing() {
         width: 2,
         values: uvs,
     }];
-    let (_, _, tallies, _, grown) = dag_of(&positions, &carried, &indices);
+    let build = dag_of(&positions, &carried, &indices);
+    let (tallies, grown) = (build.tallies, build.grown);
     assert!(grown.is_none());
     assert_eq!(GroupTally::total(&tallies).solved, 0);
 }
