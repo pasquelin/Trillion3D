@@ -31,6 +31,8 @@ struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sp
 // \`view*\` words; \`queueCap\` is the capacity of each descent queue; \`ahead\`, non-zero, says block 1 is the view ahead (\`aheadWgsl.ts\`).
 struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,reserved:array<u32,2>,pages:array<u32>,}
+// The primitives the bound \`frames\` holds (\`../frameRanges.ts\`): a camera or light cut's range.
+struct FrameRange{first:u32,count:u32,}
 ${DAG_BINDINGS_WGSL}
 /** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
  *  every comparison below behaves exactly as the CPU cut's Infinity for any finite threshold. */
@@ -65,27 +67,28 @@ fn visible(r:u32,w:u32,cluster:Cluster)->bool{
  if((cluster.flags&2u)!=0u){return false;}
  return !outsideFrustum(slotOf(w)*FRAME,boxMin(r),boxMax(r))&&!pageMissed(w,boxMin(r),boxMax(r));
 }
-fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*views[vi].cameraStretch;}
+fn stretchOf(world:u32)->f32{return frames[rowOf(world)*FRAME+6u].x*views[vi].cameraStretch;}
 /** Reset and per-primitive planes in a single dispatch: the output counters and block counts
  *  \`dagMask\` accumulates, the frustum planes only the descent reads, and what a camera cut
  *  derives once per primitive (\`primitiveWgsl.ts\`).
- *  One thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot is its primitive. */
+ *  One thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot is its primitive. Each
+ *  range's dispatch takes its range's slots (\`rangeSlot\`); the first one resets the frame. */
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
- let t=id.x;
- if(t==0u){
+ let head=rangeFirst()==0u;let i=id.x;
+ if(head&&i==0u){
   // A later batch's cut appends its requests to the frame's list (\`VIEW_APPEND\`): the count and
   // the list-full bit carry on, the other flags are the batch's own.
   if((views[0u].viewFlags&VIEW_APPEND)==0u){atomicStore(&out.count,0u);atomicStore(&out.overflow,0u);}
   else{atomicAnd(&out.overflow,${LIST_FULL}u);}
   atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
  }
- if(t<blockCount()){atomicStore(&work[blockBase()+t],0u);atomicStore(&work[drawMaskBase()+2u*t],0u);atomicStore(&work[drawMaskBase()+2u*t+1u],0u);}
- if(t<views[0u].viewCount){atomicStore(&work[viewWord(0u,t)],0u);atomicStore(&work[viewWord(2u,t)],0u);}
- if(t==0u){atomicStore(&work[drawnGroupsMax()],0u);countFrame();}
+ if(head&&i<blockCount()){atomicStore(&work[blockBase()+i],0u);atomicStore(&work[drawMaskBase()+2u*i],0u);atomicStore(&work[drawMaskBase()+2u*i+1u],0u);}
+ if(head&&i<views[0u].viewCount){atomicStore(&work[viewWord(0u,i)],0u);atomicStore(&work[viewWord(2u,i)],0u);}
+ if(head&&i==0u){atomicStore(&work[drawnGroupsMax()],0u);countFrame();}
  let world=views[0u].worldCount;
- if(t>=world*views[0u].viewCount){return;}
- vi=t/world;let w=t-vi*world;let slot=slotOf(w);
+ if(i>=rangeCount()*views[0u].viewCount){return;}
+ let t=rangeSlot(i);vi=t/world;let w=t-vi*world;let slot=slotOf(w);
  // The primitive's root opens the descent: one thread, one root, no counter to contend for. A
  // light cut opens none on a primitive that casts no shadow (\`markOf\`, \`castsNoShadow\`).
  let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&${CASTS_NO_SHADOW}u)!=0u);
@@ -103,8 +106,10 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
  ouvreTotaux(lid);
  let s=id.x;
  if(s<liveCount()){
-  let entry=liveAt(s);let i=entryIndex(entry);vi=entryView(entry);
-  let w=pageWorld(i);let r=recordOf(i,w);
+  let entry=liveAt(s);let i=entryIndex(entry);let w=pageWorld(i);
+  // A page of another range's primitive is that range's dispatch's (\`inRange\`).
+  if(inRange(w)){
+  vi=entryView(entry);let r=recordOf(i,w);
   let clusterFlags=clusters[r].flags;
   var draw=false;
   // The cut rule (\`../../../page/cut/rule.ts\`), on the residency \`../readiness.ts\` derives: a
@@ -130,7 +135,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
    // Drawn count of this page's block, held here rather than reread later page by page.
    if(drawn!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(i);}
   }
- }
+ }}
  verseTotaux(lid);
 }
 ${DAG_CONE_WGSL}
