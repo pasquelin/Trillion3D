@@ -38,9 +38,10 @@ struct VSOut{@builtin(position) position:vec4f,@location(0) color:vec4f,@locatio
  var lineDistance=0.0;
  if((uni.mode&${FALLBACK_CLUSTER_PAGE}u)!=0u){
   let h=clusterHeader(uni.pageOffset);
-  local=clusterPosition(h,uni.pageOffset,clusterIndex(h,uni.pageOffset,vertexIndex));
-  if(uni.lineWidth>0.0){along=clusterNormal(h,uni.pageOffset,clusterIndex(h,uni.pageOffset,vertexIndex));}
-  if(uni.dash.x>0.0){lineDistance=clusterUv(h,uni.pageOffset,clusterIndex(h,uni.pageOffset,vertexIndex)).x;}
+  let id=clusterIndex(h,uni.pageOffset,vertexIndex);
+  local=clusterPosition(h,uni.pageOffset,id);
+  if(uni.lineWidth>0.0){along=clusterNormal(h,uni.pageOffset,id);}
+  if(uni.dash.x>0.0){lineDistance=clusterUv(h,uni.pageOffset,id).x;}
  }else{
   let id=indices[uni.pageOffset+vertexIndex];
   local=vec3f(positions[id*3u],positions[id*3u+1u],positions[id*3u+2u]);
