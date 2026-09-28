@@ -43,14 +43,21 @@ test('the presentation diagnostic identifies a pixel read from the visible WebGL
   );
 });
 
-test('WebGPU forwards its internal color diagnostics to the host report sink', async () => {
+test('WebGPU forwards its internal color diagnostics to the host report sink, never to the console', async (t) => {
   installGpuGlobals();
+  // In a page (#945): the colour received is the report's, not a line of every example's console.
+  const page = globalThis as { window?: unknown };
+  const had = 'window' in page;
+  page.window ??= globalThis;
+  t.after(() => void (had || delete page.window));
+  const info = t.mock.method(console, 'info', () => {});
   const events: Array<{ phase: string; message: string; context: Record<string, unknown> }> = [];
   const { device } = mockGpu();
   const { fixture, backend } = quadBackend(device, {
     clearColor: 0x2a303c,
     onDiagnostic: (event) => events.push(event),
   });
+  assert.ok(!info.mock.calls.some(({ arguments: [line] }) => /background colour/.test(`${line}`)));
   assert.deepEqual(events[0], {
     phase: 'clear-color-input',
     message: 'Background colour received by Trillion3D WebGPU',
