@@ -8,30 +8,20 @@ const MOST_WORDS_PER_TILE = LIGHT_SETTINGS.tileLights * 4;
 /** `TilePool` (`./compactWgsl.ts`): start, capacity, words reserved, overflow. */
 const STATE_BYTES = 16;
 
-/** What the last sampled frame asked of the pool: words reserved, and whether it overflowed. */
-export interface TilePoolSample {
-  frame: number;
-  reserved: number;
-  capacity: number;
-  overflowed: boolean;
-}
-
 /**
  * The view's light-index pool, after the tile records in the same buffer (#849): a tile slice
  * past its list takes its room there. Its state is sampled one frame in fifteen, never waited
- * for: a sample that overflowed names it (`overflowed`, published by the direct-lighting
- * state) and sizes the pool to what that frame reserved, within `MOST_WORDS_PER_TILE`. Until
+ * for: a sample that overflowed names it (`tileLightPoolOverflowed` of the frame metrics)
+ * and sizes the pool to what that frame reserved, within `MOST_WORDS_PER_TILE`. Until
  * then, and past that bound, a tile with no room walks every light of the scene, exactly.
  */
 export function createTileLightPool(device: GPUDevice) {
   const words = new Uint32Array(4);
-  const sample: TilePoolSample = { frame: -1, reserved: 0, capacity: 0, overflowed: false };
-  let asked = 0,
-    sampledFrame = -1;
-  // The fields move together, when the sample returns: never named by a frame they do not describe.
+  // What the last sampled frame asked of the pool, its fields moved together when it returns.
+  const sample = { reserved: 0, capacity: 0, overflowed: false };
+  let asked = 0;
   const reader = createGpuPeriodicReadback((mapped) => {
     const [, capacity, reserved, overflow] = new Uint32Array(mapped, 0, 4);
-    sample.frame = sampledFrame;
     sample.reserved = reserved;
     sample.capacity = capacity;
     sample.overflowed = overflow !== 0;
@@ -52,7 +42,7 @@ export function createTileLightPool(device: GPUDevice) {
   return {
     state,
     /** The last sample, or nothing until one has come back. */
-    sample(): TilePoolSample | undefined {
+    sample() {
       return reader.ready ? sample : undefined;
     },
     /** Pool words for `tiles` tiles of a scene that holds more lights than a list. */
@@ -68,7 +58,6 @@ export function createTileLightPool(device: GPUDevice) {
     /** Encodes the copy of the state, after the pass that fills it, on a sampled frame. */
     sampleState(encoder: GPUCommandEncoder, frame: number) {
       if (!reader.due(frame)) return;
-      sampledFrame = frame;
       reader.sampled(frame);
       reader.copy(encoder, state, 0, STATE_BYTES);
     },
