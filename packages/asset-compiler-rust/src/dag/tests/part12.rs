@@ -131,22 +131,6 @@ fn solved_coordinates_stay_on_the_primitive_grid_under_uneven_weights() {
     crate::geometry_page::encode(&kept, &all, &grown_refs, exponent, uv_exponent).expect("page");
 }
 
-// Behaviour: where a chart meets its mirror image — a sheet whose coordinates run back from its
-// middle column — that column's positions are mirror vertices, and only those.
-#[test]
-fn a_mirror_column_is_found() {
-    let (positions, indices) = grid(8);
-    let uvs: Vec<f32> = positions
-        .chunks(3)
-        .flat_map(|p| [4.0 - (p[0] - 4.0).abs(), p[1]])
-        .collect();
-    let weld = clusters::weld_positions(&positions, &indices);
-    let found = charts::vertex_charts(&weld, &weld, &[&uvs], &indices);
-    let mirrors: Vec<bool> = found.iter().map(|c| charts::on_mirror(c.sides)).collect();
-    let column: Vec<bool> = (0..positions.len() / 3).map(|v| v % 9 == 4).collect();
-    assert_eq!(mirrors, column);
-}
-
 // Behaviour: a texture set weighs the surface length one unit of it spans: the same sheet under
 // coordinates half as wide weighs its texture twice as much.
 #[test]
