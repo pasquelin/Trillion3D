@@ -13,6 +13,7 @@ import { refreshBlendBoxes } from '../../blend/hierarchy.ts';
 import { refreshBlendScene } from '../../blend/resources.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { followLiveTextures } from '../io/memory.ts';
+import { beginTaaFrame } from '../../../taa/frame.ts';
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut when it is available and to the CPU reference cut otherwise. */
@@ -57,7 +58,11 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   followLiveTextures(rt);
   // Neither the scene, nor the view, nor the resources have moved, and nothing is in flight: the
   // previous image is this one. No CPU step is run below.
-  if (holdWebgpuFrame(rt, gpuDevice)) return;
+  if (rt.feedbackAB?.force) {
+    // Replay the settled TAA sample and history while forcing the real GPU passes.
+    beginTaaFrame(rt, run.gate.cam, true);
+    run.frameHeld = false;
+  } else if (holdWebgpuFrame(rt, gpuDevice)) return;
   run.diagnosticPixelError = pixelError;
   // Nothing is held by default: only adoption of an already-read readback declares it, and every
   // path that does not go through it — CPU cut, surface capture, pending image — remakes everything.

@@ -30,7 +30,8 @@ export function frameTargetAllocation(
   if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
   checkSurfaceSize(gpuDevice, width, height, 1);
   return (
-    frameTargetBytes(width, height, reserveHiz) +
+    frameTargetBytes(width, height, reserveHiz) -
+    (rt.feedbackAB?.target === false ? width * height * 4 : 0) +
     additional +
     (wantsReflections(rt) ? width * height * 8 : 8) +
     80
@@ -45,6 +46,7 @@ export function targetsFit(rt: WebgpuPagesRuntime, width: number, height: number
     gpu.targetSize[0] === width &&
     gpu.targetSize[1] === height &&
     !!gpu.surfaces &&
+    !!gpu.feedbackTexture === (rt.feedbackAB?.target !== false) &&
     gpu.reflection?.active === wantsReflections(rt) &&
     (!vis.visEnabled || !!vis.visTexture)
   );
@@ -98,8 +100,10 @@ export function makeTargets(
     usage | GPUTextureUsage.COPY_DST,
   );
   gpu.hdrTexture = target('Trillion3D HDR lighting', 'rgba16float');
-  gpu.feedbackTexture = target('Trillion3D texture feedback target', FEEDBACK_FORMAT, sampled);
-  gpu.feedbackView = gpu.feedbackTexture.createView();
+  if (rt.feedbackAB?.target !== false) {
+    gpu.feedbackTexture = target('Trillion3D texture feedback target', FEEDBACK_FORMAT, sampled);
+    gpu.feedbackView = gpu.feedbackTexture.createView();
+  }
   gpu.surfaces = createSurfaceBuffer(device, width, height);
   gpu.colorView = gpu.colorTexture.createView();
   gpu.depthView = gpu.depthTexture.createView();

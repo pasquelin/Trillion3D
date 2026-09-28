@@ -25,12 +25,17 @@ export const createWaterSurfacePipelines = (
   device: GPUDevice,
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
+  feedback = true,
 ) =>
   blendStagePipelines(
     device,
     module,
     layout,
-    { module, entryPoint: 'fsWater', targets: SURFACE_TARGETS },
+    {
+      module,
+      entryPoint: feedback ? 'fsWater' : 'fsWaterWithoutFeedback',
+      targets: feedback ? SURFACE_TARGETS : SURFACE_TARGETS.slice(0, 4),
+    },
     true,
   );
 
