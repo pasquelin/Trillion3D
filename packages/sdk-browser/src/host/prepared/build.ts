@@ -9,7 +9,7 @@ import { EngineError, type ClusterManifest } from '../../../../sdk-core/src/inde
 import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import { readOnce } from '../../../../sdk-core/src/world/buffer/pending.ts';
-import { checked } from '../../cluster/pages.ts';
+import { checked } from '../../cluster/checked.ts';
 import { unmetered, type ByteMeter } from '../../cluster/byteMeter.ts';
 import { sceneDocument } from '../../scene/tables.ts';
 import { bakedImages } from '../../texture/skip.ts';

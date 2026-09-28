@@ -1,8 +1,10 @@
 // `lampShadowFactor`, restated for the tests of #456 over the kernel's own face matrices: the
 // lines it restates are pinned with the sun's in `shadowBias.fixture.ts`'s `RESTATED`.
 import { type SceneLight } from '../../../../sdk-core/src/index.ts';
-import { dot } from '../../../../sdk-core/src/math/projectionOracles.ts';
-import { transformHomogeneousPoint } from '../../../../sdk-core/src/math/primitives/vector.ts';
+import {
+  dotVector3,
+  transformHomogeneousPoint,
+} from '../../../../sdk-core/src/math/primitives/vector.ts';
 import { writeFace } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
 import { faceBasis } from '../../../../sdk-core/src/scene/light-shadow/math.ts';
 import { LAMP_SIDE, SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
@@ -55,14 +57,14 @@ export function lampOver(light: SceneLight, planes: { at: Vec; normal: Vec }[], 
       ray = [0, 1, 2].map((i) => f[6 + i] + a * tan * f[i] + b * tan * f[3 + i]);
     let first = Infinity;
     for (const plane of planes) {
-      const s = dot(plane.normal, sub(plane.at, at)) / dot(plane.normal, ray);
+      const s = dotVector3(plane.normal, sub(plane.at, at)) / dotVector3(plane.normal, ray);
       if (s > 0) first = Math.min(first, s);
     }
     return first;
   };
   return (P: Vec, N: Vec, mip: number) => {
     const radius = Math.hypot(...sub(P, at)),
-      cosine = clamp(-dot(N, sub(P, at)) / radius, 1e-3, 1);
+      cosine = clamp(-dotVector3(N, sub(P, at)) / radius, 1e-3, 1);
     const texel = ((2 * tan * radius) / (LAMP_SIDE * SHADOW_PAGE)) * 2 ** mip;
     const [offset, metres] = (develop ? DEVELOP_BIAS : BIAS)(texel, cosine);
     const Q = along(P, N, offset),
@@ -76,8 +78,8 @@ export function lampOver(light: SceneLight, planes: { at: Vec; normal: Vec }[], 
     // Off its face a spot is outside its cone; so was develop's point light, a rounding past it.
     if ((develop || !point) && Math.max(Math.abs(ndc[0]), Math.abs(ndc[1])) > 1)
       return { ndc, lit: 1 };
-    const facing = dot(N, [m[o + 3], m[o + 7], m[o + 11]]);
-    const slope = Math.sqrt(Math.max(1 - facing * facing, 0)) / (dot(d, d) * cosine);
+    const facing = dotVector3(N, [m[o + 3], m[o + 7], m[o + 11]]);
+    const slope = Math.sqrt(Math.max(1 - facing * facing, 0)) / (dotVector3(d, d) * cosine);
     // The shader adds `k·margin` to a depth of `k/w` plus a constant: in the axial metres the map
     // stores, the reference is `1/(1/w + margin)`, the margin `w²·margin` only to first order.
     const margin = develop

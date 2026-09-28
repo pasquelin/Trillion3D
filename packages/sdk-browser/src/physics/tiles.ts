@@ -24,7 +24,7 @@ import {
   type Model,
   type Placed,
 } from './tilePlace.ts';
-import { ONE_REQUEST, retriableError } from '../cluster/pages.ts';
+import { ONE_REQUEST, retriableError } from '../cluster/checked.ts';
 
 /** Tile fetches in flight at once. */
 const FETCHES = 8;
