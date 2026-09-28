@@ -12,7 +12,8 @@ import { MOBILITY_CUTOUT, MOBILITY_MOVING } from '../../gpu/shadow/cullShader.ts
  * It never turns static again: a moving placement that rests costs nothing — its pages are not
  * staled by it —, and a rule that demoted it after some stillness would redraw the static layer
  * each time an object that pauses moves again. What the GPU reads is one word per row, rewritten
- * whole when a placement turns moving, and on the rows the page table rewrites otherwise.
+ * whole when a placement turns moving, and on the rows the page table rewrites otherwise. The
+ * policy is weighed against rejoining the layer in `docs/ENGINE.md` (#993).
  */
 export function createShadowMobility() {
   let moving = new Uint8Array(0),
