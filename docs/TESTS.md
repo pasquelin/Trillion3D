@@ -54,6 +54,15 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 `pnpm run test:changed` and `pnpm run check:changed` only execute what modified files
 touch; neither replaces `validate`.
 
+The CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as parallel jobs, one
+per group of `scripts/validate-steps.ts`: `quick`, `typescript`, `native` (Clippy and the Rust
+tests) and `unit`, the last split into shards of the same file list
+(`TRILLION3D_TEST_SHARD=i/n`, passed to `node --test --test-shard`). No test is skipped by path.
+The single required check, `validate`, needs every job. It runs on every pull request, on
+`develop`, and on every push of an issue branch (`<issue>-<name>`). A push run and a pull request
+run never share a concurrency group, so a push never cancels the run that proves the merge with
+`develop`.
+
 ### Unit and Integration Tests
 
 They validate algorithms, package boundaries, and public contracts. They do not initialize
@@ -118,6 +127,13 @@ second. It reads the caches, never builds them: without
 `node bench/runner/assets.ts` and a facade (`node bench/runner/scenes/facade.ts --seed 7`,
 then `node bench/runner/assets.ts --only facade-7`) it fails by name on the cache it could not
 find.
+
+`page-tangents` compares a normal-mapped surface with authored and mirrored tangents drawn from its
+geometry pages and from its source buffers, on WebGPU: to the pixel when blended, recorded when
+opaque (the proof's header says why). Its four scenes are derived from `normal-tangent-mirror-test`:
+`node bench/runner/scenes/tangentScenes.ts` writes them and prints the `assets.ts --only` line that
+compiles them; then `node tests/browser/test-gpu.ts tests/browser/renders/page-tangents.browser.ts`
+runs it. The recette runs it after the merge.
 
 `tests/browser/test-gpu.test.ts` enforces symmetric guarding across both directories: **executed ∪ excluded ==
 on-disk**, and no exclusion outlives the file it names. Without this guard, forgotten proofs would
