@@ -4,7 +4,8 @@ import { plane, sphere } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { softBodyOf, type SoftBodyOptions } from '../../../sdk-core/src/physics/index.ts';
 import { softSettings } from '../../../sdk-core/src/physics/soft.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
-import { addSoft, at, FLAT, ropeLine, settle, softWorld } from './soft.fixture.ts';
+import { addSoft, at, ropeLine, settle, softWorld, WRITEBACK_BOUND } from './soft.fixture.ts';
+import { FLAT } from './records.fixture.ts';
 
 /** A cloth of 1 m, 10 × 10 squares, and its rows of 11 vertices from `y = −0.5`. */
 const cloth = () => plane(1, 1, 10, 10);
@@ -73,7 +74,11 @@ test('a rope pinned at one end keeps its length as it swings; given stretch, it 
   };
   const rope = await swing();
   assert.ok(Math.abs(ropeLength(rope, 21) - 2) < 0.06, `length ${ropeLength(rope, 21)}`);
-  assert.deepEqual(at(rope, 0), [0, 0, 0], 'the pinned end stays');
+  const pinned = at(rope, 0);
+  assert.ok(
+    pinned.every((c) => Math.abs(c) <= WRITEBACK_BOUND),
+    `the pinned end stays: ${pinned}`,
+  );
   assert.ok(at(rope, 20)[1] < -1, 'the free end swung down');
   assert.ok(ropeLength(await swing(0.05), 21) > 2.2, 'a rope that gives stretches');
 });

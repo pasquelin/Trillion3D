@@ -188,8 +188,10 @@
       "red-cyan-anaglyph": "Anaglifo rosso-ciano",
       "camera-layers": "Livelli di camera",
       "a-robot-that-walks-and-waves": "Movimenti di robot mescolati",
+      "a-recorded-fly-through": "Un sorvolo registrato e riprodotto",
       "a-crane-that-swings": "Una gru che fa oscillare il carico",
       "a-wave-across-a-grid": "Onda di cubi",
+      "doors-that-open": "Porte che si aprono al tuo arrivo",
       "keyframes-by-hand": "Fotogrammi chiave a mano",
       "one-clip-many-objects": "Una clip, tanti oggetti",
       "animation-from-the-file": "Animazione dal file",
@@ -336,6 +338,7 @@
       "shadows-through-see-through-panes": "Ombre attraverso vetri trasparenti",
       "a-walker-among-balls": "Un camminatore tra le palline",
       "an-elevation-of-the-house": "Un prospetto ortografico della casa",
+      "hover-to-highlight": "Passa sopra per evidenziare una parte",
       "a-dolly-along-the-canal": "Una carrellata lungo il canale",
       "a-folder-merged-into-one-scene": "Una cartella unita in una scena",
       "drag-a-crate": "Trascinare una cassa"

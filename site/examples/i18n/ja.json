@@ -500,6 +500,24 @@
       "balloon": "気球を追跡中"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "公園を通る記録済みルートを見ます。再生、停止、またはカメラ操作へ切り替えられます。",
+    "controls": {
+      "replay": "再生",
+      "stop": "停止"
+    },
+    "readouts": {
+      "currentPart": "現在の区間"
+    },
+    "words": {
+      "entrance": "入口",
+      "pond": "池",
+      "bridge": "橋",
+      "pavilion": "東屋",
+      "overview": "全景",
+      "complete": "完了"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "クレーンの周りを回りながら、1つのクリップがジブを旋回し、台車を動かし、荷を上げて揺らします。",
     "controls": {
@@ -516,6 +534,20 @@
       "ripples": "波紋",
       "inner": "内側",
       "outer": "外側"
+    }
+  },
+  "doors-that-open": {
+    "banner": "カメラを扉に近づけてください。近づくと扉が開きます。",
+    "controls": {
+      "mode": "モード",
+      "openingDistance": "開く距離",
+      "openness": "開き具合"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "近接",
+        "manual": "手動"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -1951,6 +1983,7 @@
       "manifest": "マニフェストを読んだ",
       "tables": "シーンのテーブルを読んだ",
       "resources": "シーンのファイル",
+      "session": "ビューを開いています",
       "pages": "最初のページ",
       "ready": "準備完了"
     }
@@ -2239,6 +2272,12 @@
         "right": "右側面",
         "rear": "背面"
       }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "カートの各部品にポインターを合わせて強調するか、パネルで強調表示をオフにします。",
+    "controls": {
+      "highlightEnabled": "強調表示を有効化"
     }
   },
   "a-dolly-along-the-canal": {

@@ -500,6 +500,24 @@
       "balloon": "TRACKING THE BALLOON"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Watch the recorded route through the park. Replay it, stop it, or take the camera.",
+    "controls": {
+      "replay": "Replay",
+      "stop": "Stop"
+    },
+    "readouts": {
+      "currentPart": "Current part"
+    },
+    "words": {
+      "entrance": "Entrance",
+      "pond": "Pond",
+      "bridge": "Bridge",
+      "pavilion": "Pavilion",
+      "overview": "Overview",
+      "complete": "Complete"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Orbit the crane while one clip slews the jib, moves the trolley, hoists the load and lets it swing.",
     "controls": {
@@ -516,6 +534,20 @@
       "ripples": "Ripples",
       "inner": "Inner",
       "outer": "Outer"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Move the camera toward the doors. They open as you approach.",
+    "controls": {
+      "mode": "Mode",
+      "openingDistance": "Opening distance",
+      "openness": "Openness"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "proximity",
+        "manual": "manual"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -1951,6 +1983,7 @@
       "manifest": "manifest read",
       "tables": "scene tables read",
       "resources": "scene files",
+      "session": "opening the view",
       "pages": "first pages",
       "ready": "ready"
     }
@@ -2239,6 +2272,12 @@
         "right": "Right side",
         "rear": "Rear"
       }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Move over the cart to highlight each part, or turn highlighting off in the panel.",
+    "controls": {
+      "highlightEnabled": "Enable highlighting"
     }
   },
   "a-dolly-along-the-canal": {
