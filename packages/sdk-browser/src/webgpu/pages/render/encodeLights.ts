@@ -6,6 +6,7 @@ import {
 import { noteShadowFrame } from '../state/lights.ts';
 import { uploadSceneLights } from '../state/lightBuffer.ts';
 import { planImageShadows } from './encodeShadows.ts';
+import { lightCutMetrics } from '../../shadow/casters.ts';
 import { encodeShadowBatches } from './encodeShadowBatches.ts';
 import { syncPageProxy, syncLightingProxies } from '../prepare/proxyMotion.ts';
 import { ensureBounce } from '../prepare/bounce.ts';
@@ -182,6 +183,7 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     shadowPagesOverflow: lights.plan.requests.counts.refused + lights.plan.requests.counts.unlisted,
     shadowWaitMs: lights.plan.counts.waitedMs,
     shadowWaitFrames: lights.plan.counts.waitedFrames,
+    ...lightCutMetrics(rt),
     /** Shadow casters past the slices: lit without a shadow (#818, #822). */
     shadowCastersUnsliced: lights.plan.counts.unslicedCasters,
     poolPages: lights.shadows

@@ -10,6 +10,7 @@ export function evictResident(
   const { resident, pins, changeKeys, changeSlots, state } = context;
   resident.delete(page.key);
   pins.delete(page.key);
+  context.held.delete(page.key);
   context.eviction.lower.delete(page.key);
   changeKeys.push(page.key);
   changeSlots.push(-1);
