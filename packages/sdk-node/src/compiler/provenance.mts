@@ -1,7 +1,8 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 
-const sha256 = (bytes: string) => createHash('sha256').update(bytes).digest('hex');
+/** The digest used by installed and build-time provenance, on text or raw bytes. */
+export const sha256 = (bytes: string | Buffer) => createHash('sha256').update(bytes).digest('hex');
 /** Public provenance boundary: consumers never read SDK implementation paths themselves. Hashes only — full source is not loaded into the snapshot. */
 export async function getSdkProvenance() {
   const root = new URL('../../../../', import.meta.url);
