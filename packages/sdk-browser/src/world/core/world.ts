@@ -18,7 +18,7 @@ import { worldTelemetry } from './worldTelemetry.ts';
 import { createWorldPhysics } from '../../physics/worldPhysics.ts';
 import { noVehicle } from './worldControlTargets.ts';
 import { worldSwitches } from './worldSwitches.ts';
-
+import { worldMaterialMethods } from './worldMaterialMethods.ts';
 /** Creates a world: the scene, camera, renderer and loop of one view, drawn once it knows how.
  * @param target - The canvas to draw into, an element to draw inside, or the ID of either.
  * @param options - How the world draws and listens; saying nothing is the normal case.
@@ -151,6 +151,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     budget: worldBudget(pools, runtime, frames, () => device.renderer, physics.budget),
     diagnostic: diagnostic.handle,
     /** Lines, points and helpers drawn over the image (`Guides`). */ guides: switches.guides,
+    ...worldMaterialMethods(live, invalidate),
     /** The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`:
      *  the node the page added, the world point and normal hit, the distance (`worldRaycast`). */
     raycast: createWorldRaycast(scene, () => camera, canvas, physics.session),

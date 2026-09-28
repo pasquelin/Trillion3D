@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Page materials</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #171d28;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, light } from '../runtime/engine.js';
+      import { controls, readout } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit', renderer: 'webgl2' });
+      const model = await world.scene.load(
+        '../assets/examples/hall/cache/native/full/manifest.json',
+      );
+      world.scene.add(
+        light.hemisphere({ intensity: 0.6, color: '#b8ccf0', groundColor: '#4a4038' }),
+      );
+      world.camera.position.set(0, 3.6, 8.5);
+      world.camera.lookAt(0, 1.2, -1);
+      world.controls.target.set(0, 1.2, -1);
+      await world.awaitPages();
+
+      const imported = world.materials().find((entry) => entry.alphaMode === 'opaque');
+      const primitive = model.metadata.primitives[0];
+      if (!imported || !primitive)
+        throw new Error('This example needs an opaque material and a primitive');
+      const primitiveId = `${primitive.mesh}/${primitive.primitive}`;
+      let created;
+      const show = () => {
+        current(
+          `${world.material(imported.id).name || imported.id}: ${world.material(imported.id).alphaMode}`,
+        );
+        listed(
+          world
+            .materials()
+            .map(({ id, name }) => `${id} ${name || '(unnamed)'}`)
+            .join(', '),
+        );
+        original(`${world.importedMaterials().length} imported`);
+      };
+      const report = (action) => {
+        try {
+          action();
+          show();
+          status('Applied');
+        } catch (error) {
+          status(error.code ?? error.message);
+        }
+      };
+      controls(
+        {
+          set: () =>
+            report(() =>
+              world.setMaterial(imported.id, { baseColor: [1, 0.15, 0.25], roughness: 0.2 }),
+            ),
+          switchToBlend: () =>
+            report(() => world.setMaterial(imported.id, { alphaMode: 'blend', opacity: 0.45 })),
+          createAndAssign: () =>
+            report(() => {
+              created ??= world.createMaterial({
+                name: 'Page cyan',
+                baseColor: [0.05, 0.8, 1],
+                roughness: 0.25,
+              });
+              world.assignMaterial(primitiveId, created.id);
+            }),
+        },
+        () => {},
+        world,
+      );
+      const current = readout('selected material');
+      const listed = readout('materials');
+      const original = readout('source materials');
+      const status = readout('last action');
+      show();
+      status('Ready');
+    </script>
+  </body>
+</html>
