@@ -119,7 +119,13 @@ async function drawnShare(page: Page): Promise<number> {
  * fails the proofs (#945): the engine's own failures (`worldHandles.ts`, `interactive.ts`,
  * `webgpu/pages/io/lost.ts`), a module whose import fails, a resource answered 404.
  */
-export const DECLARED_ERRORS: readonly { page: string; error: string; why: string }[] = [];
+export const DECLARED_ERRORS: readonly { page: string; error: string; why: string }[] = [
+  {
+    page: 'outline-the-selection',
+    error: 'effect.outline is not a function',
+    why: 'parked, written against the outline pass #757 delivers',
+  },
+];
 
 /** Whether `error`, raised or logged by the example `page`, is one declared for it. */
 export const declaredError = (page: string, error: string) =>
