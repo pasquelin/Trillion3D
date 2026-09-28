@@ -768,6 +768,11 @@
       "file": "examples/a-wave-across-a-grid.html"
     },
     {
+      "id": "doors-that-open",
+      "theme": "animation",
+      "file": "examples/doors-that-open.html"
+    },
+    {
       "id": "keyframes-by-hand",
       "theme": "animation",
       "file": "examples/keyframes-by-hand.html"
@@ -1227,6 +1232,16 @@
       "id": "click-to-pick",
       "theme": "interaction",
       "file": "examples/click-to-pick.html"
+    },
+    {
+      "id": "measure-a-distance",
+      "theme": "interaction",
+      "file": "examples/measure-a-distance.html"
+    },
+    {
+      "id": "hover-to-highlight",
+      "theme": "interaction",
+      "file": "examples/hover-to-highlight.html"
     },
     {
       "id": "drag-a-crate",

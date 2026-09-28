@@ -536,6 +536,20 @@
       "outer": "Exterior"
     }
   },
+  "doors-that-open": {
+    "banner": "Acerca la cámara a las puertas. Se abren cuando te aproximas.",
+    "controls": {
+      "mode": "Modo",
+      "openingDistance": "Distancia de apertura",
+      "openness": "Apertura"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "proximidad",
+        "manual": "manual"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Arrastra para volar alrededor de la isla. Sube el mar para inundar los valles.",
     "controls": {
@@ -587,6 +601,17 @@
       "lamp": "Lámpara",
       "colour": "Color",
       "bricks": "Ladrillos"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Haz clic en dos superficies para medir la distancia entre ellas. Un tercer clic inicia una nueva medición. Una unidad representa un metro.",
+    "controls": {
+      "clear": "Borrar"
+    },
+    "readouts": {
+      "pointA": "Punto A",
+      "pointB": "Punto B",
+      "distance": "Distancia"
     }
   },
   "click-to-pick": {
@@ -1958,6 +1983,7 @@
       "manifest": "manifiesto leído",
       "tables": "tablas de la escena leídas",
       "resources": "archivos de la escena",
+      "session": "abriendo la vista",
       "pages": "primeras páginas",
       "ready": "listo"
     }
@@ -2231,6 +2257,12 @@
     },
     "words": {
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Pasa el cursor sobre las piezas del carro para resaltar cada una, o desactiva el resaltado en el panel.",
+    "controls": {
+      "highlightEnabled": "Activar resaltado"
     }
   },
   "a-dolly-along-the-canal": {

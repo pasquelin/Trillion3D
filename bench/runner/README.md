@@ -97,7 +97,7 @@ are never added. Use `--profil off` for the beauty verdict; `--profil on` attrib
 same moving loop but keeps diagnostic instrumentation active.
 
 Outputs in `--out` (default `.mesure/out/<engine>-<timestamp>/`, gitignored and un-linted):
-`mesure.json`, `resume.md`, and per view, threshold, and side: `.png`, `.coupe.txt`, and metrics line — `rafIntervalMs`, `cpuFrameMs` and `cpuSelectMs` p50/p95, `gpuFrameMs` p50 (WebGPU), selected and unrendered triangles, Hi-Z counters, selection hash, page budget, system load —, plus A/A check (same side run twice) and before/after delta per channel. `null` = unmeasured, never inferred; all launched tasks exit cleanly.
+`mesure.json`, `resume.md`, and per view, threshold, and side: `.png`, `.coupe.txt`, and metrics line — `rafIntervalMs`, `cpuFrameMs` and `cpuSelectMs` p50/p95, `gpuFrameMs` p50 (WebGPU), selected and unrendered triangles, Hi-Z counters, selection hash, page budget, system load —, plus A/A check (same side run twice) and before/after delta per channel. A capture whose every pixel is RGB 0 is refused by its file name (`black-capture` in `errors`, exit code 1) and its deltas read "black capture", never 0 px: two black frames are equal and prove nothing (`imageDiff.ts`, #1016). `null` = unmeasured, never inferred; all launched tasks exit cleanly.
 
 ### Triangle and Fallback Counters
 

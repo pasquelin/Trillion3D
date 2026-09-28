@@ -536,6 +536,20 @@
       "outer": "外側"
     }
   },
+  "doors-that-open": {
+    "banner": "カメラを扉に近づけてください。近づくと扉が開きます。",
+    "controls": {
+      "mode": "モード",
+      "openingDistance": "開く距離",
+      "openness": "開き具合"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "近接",
+        "manual": "手動"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "ドラッグして島のまわりを飛ぼう。海を上げて谷を水びたしにしよう。",
     "controls": {
@@ -587,6 +601,17 @@
       "lamp": "ランプ",
       "colour": "色",
       "bricks": "レンガ"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "2つの面をクリックして間の距離を測ります。3回目のクリックで新しい測定を始めます。 1単位は1メートルです。",
+    "controls": {
+      "clear": "クリア"
+    },
+    "readouts": {
+      "pointA": "点A",
+      "pointB": "点B",
+      "distance": "距離"
     }
   },
   "click-to-pick": {
@@ -1958,6 +1983,7 @@
       "manifest": "マニフェストを読んだ",
       "tables": "シーンのテーブルを読んだ",
       "resources": "シーンのファイル",
+      "session": "ビューを開いています",
       "pages": "最初のページ",
       "ready": "準備完了"
     }
@@ -2231,6 +2257,12 @@
     },
     "words": {
       "credit": "この例のためにコードでモデリングしたポールの旗、CC0 — assets/examples/CREDITS.md を参照"
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "カートの各部品にポインターを合わせて強調するか、パネルで強調表示をオフにします。",
+    "controls": {
+      "highlightEnabled": "強調表示を有効化"
     }
   },
   "a-dolly-along-the-canal": {

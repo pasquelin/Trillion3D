@@ -4,7 +4,7 @@ import { claimGpuDevice } from './deviceOwners.ts';
 import { namesNoSession, sharedGpuDevice, tagsIn } from './sessionHandle.ts';
 import { installGpuDeviceLedger } from './deviceLedger.ts';
 import { validated } from './errorScope.ts';
-import { generateMaterialMips } from '../../texture/mips.ts';
+import { generateMaterialMips } from '../../texture/mipBatch.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../../tests/kit/gpu/mockGpu.ts';
 import { deviceOwner, untag } from '../../../../../tests/kit/gpu/webgpuDevice.ts';
@@ -85,7 +85,9 @@ test('the ledger, on the handle, counts by the label as the engine wrote it, the
   handle.createBuffer({ size: 8, usage: 0, label: 'page table' });
   const texture = handle.createTexture({ size: [4, 4], format: 'rgba8unorm', usage: 0 });
   // What the device keeps for every session is created on it, untagged, and counted by its ledger.
-  generateMaterialMips(handle, texture, 'rgba8unorm', 4, 4, false);
+  generateMaterialMips(handle, [
+    { texture, format: 'rgba8unorm', width: 4, height: 4, weighted: false },
+  ]);
   assert.ok(gpu.labels.includes('Trillion3D texture mips uniforms'));
   const { byLabel } = ledger.snapshot();
   assert.equal(byLabel['page table'], 8);
