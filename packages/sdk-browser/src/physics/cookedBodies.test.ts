@@ -107,8 +107,8 @@ test('a shapeless node restores its cooked hull and mass, and turns about the co
   const stiff = declared(2, [0, 0, 5], { inertiaDiagonal: [2e5, 2e5, 2e5] }, tipped.shape);
   const fetched = stubFetch(cooked([], []), bytes);
   const { model, writer, bodies } = modelStreamer({}, 1, [upright, tipped, stiff]);
-  const released = createCookedBodies(writer, bodies, () => {}, assert.fail);
-  released.open(model, [upright, tipped, stiff], new AbortController().signal);
+  const rigid = createCookedBodies(writer, bodies, () => {}, assert.fail);
+  rigid.open(model, [upright, tipped, stiff], new AbortController().signal);
   await landed();
   const words = writer.take();
   const [a, b, c] = adds(words);

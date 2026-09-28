@@ -146,8 +146,8 @@ export function createPhysicsBodies(
   };
   return {
     meshes,
-    /** The bodies' last step, by slot (`createPhysicsPoses`): what the tiles read velocities in. */
-    state,
+    /** By slot: the compiled nodes bodies move (`createBodySlots`), their last step (`state`). */
+    ...{ nested: slots.nested, state },
     generation: slots.generation,
     count,
     add,

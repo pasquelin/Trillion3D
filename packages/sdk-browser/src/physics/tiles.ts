@@ -141,7 +141,7 @@ export function createTileStreamer(
     update(eye: ArrayLike<number>, range: number) {
       if (!models.size) return;
       const wanted: [number, Placed][] = [],
-        movers = moversOf(bodies.meshes, bodies.slots.nested, bodies.state.velocity);
+        movers = moversOf(bodies.meshes, bodies.nested, bodies.state.velocity);
       let held = 0; // What the wanted resident tiles hold.
       for (const { placed } of models.values())
         for (const p of placed) {
