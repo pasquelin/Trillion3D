@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createPageCache } from './pageCache.ts';
 import { createPageStreamer } from './pageStreamer.ts';
 import { servedPages } from './servedPages.fixture.ts';
 
@@ -83,10 +84,30 @@ test('a page forgotten while its read waits leaves once that read is dropped', a
     waiting.abort();
     await assert.rejects(reading, /abort/i);
     assert.ok(!streamer.loading('mounted.bin'), 'its read left the queue');
-    await assert.rejects(streamer.readBytes('mounted.bin'), /Unknown page/);
     release();
     await first;
+    await assert.rejects(streamer.readBytes('mounted.bin'), /Unknown page/);
   } finally {
     streamer.dispose();
+  }
+});
+
+test('a page forgotten while it is read stays in the kept cache the next session holds', async () => {
+  const { pages, release } = await heldPages(['open.bin', 'mounted.bin']);
+  const cache = createPageCache();
+  const first = createPageStreamer(pages, 'http://site.test/', { cache });
+  const reading = first.readBytes('mounted.bin').catch(() => undefined);
+  first.forget(['mounted.bin']);
+  first.dispose();
+  await servedPages(['open.bin', 'mounted.bin']);
+  const next = createPageStreamer(pages, 'http://site.test/', { cache });
+  try {
+    await next.readBytes('mounted.bin');
+    release();
+    await reading;
+    await settled();
+    assert.ok(next.has('mounted.bin'), 'the late settle leaves the next session its bytes');
+  } finally {
+    next.dispose();
   }
 });

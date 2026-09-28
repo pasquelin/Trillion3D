@@ -33,10 +33,11 @@ export function createStreamingQueue(
     if (jobs.has(url)) forgotten.add(url);
     else drop(url);
   };
-  /** The single exit of a job: it releases its url, and a page forgotten meanwhile leaves. */
+  /** The single exit of a job: it releases its url, and a page forgotten meanwhile leaves. After
+   *  `dispose` a kept store is the next session's: a late settle no longer drops from it. */
   const end = (url: string, job: Job) => {
     if (jobs.get(url) === job) jobs.delete(url);
-    if (!jobs.has(url) && forgotten.delete(url)) drop(url);
+    if (!jobs.has(url) && forgotten.delete(url) && !state.disposed) drop(url);
   };
   const octetsDe = (url: string) => catalog.get(url)?.bytes;
   const pump = () => {
