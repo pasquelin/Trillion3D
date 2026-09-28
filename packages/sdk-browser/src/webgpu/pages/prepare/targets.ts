@@ -101,7 +101,11 @@ export function makeTargets(
   );
   gpu.hdrTexture = target('Trillion3D HDR lighting', 'rgba16float');
   if (rt.feedbackAB?.target !== false) {
-    gpu.feedbackTexture = target('Trillion3D texture feedback target', FEEDBACK_FORMAT, sampled);
+    gpu.feedbackTexture = target(
+      'Trillion3D texture feedback target',
+      FEEDBACK_FORMAT,
+      sampled | (rt.context.feedbackTargetAB ? GPUTextureUsage.COPY_SRC : 0),
+    );
     gpu.feedbackView = gpu.feedbackTexture.createView();
   }
   gpu.surfaces = createSurfaceBuffer(device, width, height);

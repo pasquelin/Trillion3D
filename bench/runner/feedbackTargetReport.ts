@@ -3,37 +3,12 @@ import type { GpuPassTimings } from '../../packages/sdk-core/src/index.ts';
 import { distribution } from './summary.ts';
 import { passesGpu } from './seriesPasses.ts';
 import { imageDiff } from './imageDiff.ts';
-import { gazeDifferentPixels } from './feedbackGaze.ts';
 import type { FeedbackTargetResult } from './feedbackTargetPage.ts';
 const MIN_GPU_SAMPLES = 12;
 const RESOLVE = 'Trillion3D material surfaces v1';
 const BLEND = 'Trillion3D transparents';
 const REDUCE = 'Trillion3D texture feedback reduce';
 const NAMES = [RESOLVE, BLEND, 'Trillion3D water surfaces', REDUCE];
-function feedbackGainGate(inputs: {
-  convergence: boolean;
-  sameImage: boolean;
-  residency: boolean;
-  bytes: boolean;
-  samples: number[];
-  passes: boolean;
-  delta: number | null;
-  spread: number | null;
-}): boolean | null {
-  if (
-    !inputs.convergence ||
-    !inputs.sameImage ||
-    !inputs.residency ||
-    !inputs.bytes ||
-    !inputs.passes ||
-    inputs.samples.length !== 3 ||
-    inputs.samples.some((count) => count < MIN_GPU_SAMPLES) ||
-    inputs.delta === null ||
-    inputs.spread === null
-  )
-    return null;
-  return inputs.delta > inputs.spread;
-}
 const present = (samples: GpuPassTimings[], name: string) =>
   samples.some(
     (sample) =>
@@ -47,18 +22,12 @@ export function summarizeFeedbackRun(
   captures: ReadonlyMap<string, Capture>,
   incidents: readonly string[],
 ) {
-  const reference = raw.convergence?.captures.find((entry) => entry.final);
   const convergence = raw.convergence && {
     ...raw.convergence,
+    mipScope: 'scene',
     captures: raw.convergence.captures.map((entry) => ({
       ...entry,
       file: entry.file.replace(/\.rgba$/, '.png'),
-      diffToFinal: reference
-        ? imageDiff(captures.get(entry.file), captures.get(reference.file))
-        : null,
-      gazeDifferentPixels: reference
-        ? gazeDifferentPixels(captures.get(entry.file), captures.get(reference.file))
-        : null,
     })),
   };
   if (!raw.supported)
@@ -143,25 +112,21 @@ export function summarizeFeedbackRun(
         : present(reading.gpuPassSamples, REDUCE)),
   );
   const samples = readings.map((reading) => reading.gpuSamples);
-  const visibleGazeGap =
-    convergence?.captures.some(
-      (entry) =>
-        !entry.final &&
-        entry.diffToFinal &&
-        'pixels' in entry.diffToFinal &&
-        entry.diffToFinal.pixels > 0 &&
-        (entry.gazeDifferentPixels ?? 0) > 0,
-    ) === true;
-  const gain = feedbackGainGate({
-    convergence: raw.convergence?.supported === true && visibleGazeGap,
-    sameImage: sameImage && incidents.length === 0,
-    residency: resident,
-    bytes,
-    samples,
-    passes: passValid,
-    delta,
-    spread,
-  });
+  const orderedMip =
+    convergence?.centerBeforePeriphery != null &&
+    convergence.peripheryAtLevel != null &&
+    convergence.centerBeforePeriphery < convergence.peripheryAtLevel;
+  const parityValid =
+    raw.convergence?.supported === true &&
+    orderedMip &&
+    sameImage &&
+    incidents.length === 0 &&
+    resident &&
+    bytes &&
+    passValid &&
+    samples.length === 3 &&
+    samples.every((count) => count >= MIN_GPU_SAMPLES);
+  const gain = parityValid && delta !== null && spread !== null ? delta > spread : null;
   return {
     scene,
     view,
@@ -183,7 +148,7 @@ export function summarizeFeedbackRun(
       passValid,
       enoughSamples: samples.every((count) => count >= MIN_GPU_SAMPLES),
       convergence: raw.convergence?.supported === true,
-      visibleGazeGap,
+      orderedMip,
       incidents: incidents.length === 0,
     },
     parityValid: gain !== null,
