@@ -318,8 +318,9 @@ batches' reserve, is the shadows' one grant (`SHADOW_GRANT_BYTES`, `webgpu/shado
 the pool is drawn within it, and a late allocation — the static layer, the transmittance layer — is
 asked of it with what is already held, then of the device under an out-of-memory check, never
 inside a frame (`webgpu/shadow/transmittanceGrant.ts`): a scene whose blended surfaces cast asks
-the transmittance layer with the pool, the frame held; one turned casting later holds the frames
-after it until the layer lands, then draws every mapped page again. Memory pressure never passes for performance: it lowers no
+the transmittance layer with the pool, the frame held; one turned casting later, by a rewrite of its
+values, asks it at that rewrite, before the next frame, held until the layer lands, which then draws
+every mapped page again with it: no frame is drawn without the layer. Memory pressure never passes for performance: it lowers no
 page to meet a frame time, and each pressure is a named event in `shadowMemoryEvents`. A pool the
 device refuses is drawn smaller (`pool-shrunk`, its halvings in `shadowResolutionBias`, 0 in the
 normal case) or not at all (`pool-refused`, the `shadows-off` error); a static layer past the grant
