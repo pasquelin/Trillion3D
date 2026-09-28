@@ -1,7 +1,7 @@
 // Options, harness views, and server mounts for `bench.ts`.
 import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { VIEWS } from './poses.ts';
+import { FRAMES_PER_SEGMENT, VIEWS } from './poses.ts';
 import { ASSETS } from './scene.ts';
 import { lightingSettings } from './lightingOptions.ts';
 import type { SideBase } from './dists.ts';
@@ -111,7 +111,8 @@ export function readOptions(argv: string[], root: string) {
   if (!(dpr > 0)) throw new Error('--dpr must be a strictly positive number');
   const settings: BenchSettings = {
     engine,
-    frames: number('images', 60),
+    // A moving run covers one trajectory segment by default.
+    frames: number('images', FRAMES_PER_SEGMENT),
     warmup: number('chauffe', 8),
     pixelErrors,
     // `--max-pages`: a limit in PAGES on the geometry pool, for test scenes; without it,
