@@ -57,7 +57,7 @@ export function growWebgpuPlacements(
   from: PlacementRows,
   to: PlacementRows,
 ) {
-  const { layout, setup, services, run, timing } = rt,
+  const { layout, setup, services, run } = rt,
     { selectionRoots, packedPages, rows } = layout;
   const first = packedPages.length;
   for (const { item: root } of growRowRoots(selectionRoots, from, to)) {
@@ -77,7 +77,6 @@ export function growWebgpuPlacements(
   const worlds = new Float32Array(selectionRoots.length * 16);
   worlds.set(layout.worldUpdates);
   layout.worldUpdates = worlds;
-  timing.worldCounts.racines = selectionRoots.length;
   rt.lights.mobility.ensure(
     selectionRoots.length,
     rows.casterSlots,
