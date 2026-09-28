@@ -75,11 +75,12 @@ test('every attribute, signed zeros included, decodes identically; a forged inde
   assert.ok(Object.is(enPlace.attributes.position[3], 0));
   assert.deepEqual(Object.keys(enPlace.attributes), ['position', 'normal', 'uv', 'uv2', 'color']);
   // A corner past the vertex count, forged in the corner stream after the one-word block table
-  // (base 0, two bits per corner), then a block width of 13 whose corners leave the stream, which
-  // the header gate refuses.
+  // (base 0, two bits per corner), then a block width of 13, wider than an index, and a block base
+  // at the vertex count, which the header gate refuses: the GPU reads a page in place on it.
   for (const [at, byte, cause] of [
     [100, 0b11_01_00, /GEOMETRY_PAGE_INDEX/],
     [96, 0b1101_00, /GEOMETRY_PAGE_BOUNDS/],
+    [96, 0b10_11, /GEOMETRY_PAGE_BOUNDS/],
   ] as const) {
     const forged = (data as Uint8Array).slice();
     forged[at] = byte;
