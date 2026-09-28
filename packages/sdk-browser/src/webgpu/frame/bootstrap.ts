@@ -92,7 +92,7 @@ export function createWebgpuBootstrap(options: BootstrapOptions) {
         signal?.throwIfAborted();
         if (isLost()) throw new Error('WEBGPU_LOST');
         await loads[i];
-        getCache()!.pin(pageAddress(pages[i]));
+        getCache()!.pin(pageAddress(pages[i]), 'held');
         tracking.markPinned(tracking.keyOf(pages[i]));
       }
       ready = true;

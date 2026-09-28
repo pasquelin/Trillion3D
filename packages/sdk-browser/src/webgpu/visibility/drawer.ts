@@ -1,5 +1,5 @@
 import { visPipelineFor, visSlotPipeline } from '../pages/prepare/pipelineFor.ts';
-import { visBindEntries } from '../core/bindEntries.ts';
+import { visibilityEntries } from './bindings.ts';
 import { BASE_SLOTS } from '../../gpu/draw/draw.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
@@ -35,19 +35,7 @@ export function visGroupFor(
   if (!group) {
     group = device.createBindGroup({
       layout: visBindGroupLayout,
-      entries: visBindEntries({
-        cache: cacheBuffer,
-        position: concatPos,
-        pageTable,
-        flags,
-        uniform: visUniform,
-        uniformOffset: (slot + 1) * 256,
-        uv: concatUv,
-        textures,
-        sampler: mapsSampler,
-        instances: gpuDraw.instanceBuffer,
-        slotOffsets: gpuDraw.slotOffsetsBuffer,
-      }),
+      entries: visibilityEntries(rt, rest, slot),
     });
     vis.visSlotGroups[key] = group;
   }
