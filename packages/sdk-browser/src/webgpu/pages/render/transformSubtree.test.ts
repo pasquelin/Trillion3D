@@ -69,7 +69,10 @@ async function world(seed: number, lot: boolean, whole: boolean) {
   const mobility = rt.lights.mobility;
   mobility.ensure(n, n, (rank) => roots[rank].world.elements);
   const move = mobility.move.bind(mobility);
-  mobility.move = (rank, pose, forced) => (log.push([rank, ...pose]), move(rank, pose, forced));
+  mobility.move = (rank, pose, forced) => (
+    log.push([rank, ...Array.from(pose)]),
+    move(rank, pose, forced)
+  );
   const image = () => {
     run.gate.readScene(source, () => roots.map((root) => root.pages[0]));
     run.gate.updateWorlds(worlds);
@@ -139,7 +142,12 @@ function assertSame(a: World, b: World, label: string, worlds: boolean) {
   a.log.length = b.log.length = 0;
   if (worlds)
     a.roots.forEach((root, i) =>
-      sameBits(root.world.elements, b.roots[i].world.elements, `${label} world`),
+      // The engine's poses are views on its world buffer (`placements.ts`).
+      sameBits(
+        root.world.elements as Float64Array,
+        b.roots[i].world.elements as Float64Array,
+        `${label} world`,
+      ),
     );
 }
 

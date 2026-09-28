@@ -2102,7 +2102,6 @@
     "members": {
       "isObject3D": "Sempre `true`: distingue um nó de cena.",
       "type": "O tipo do nó: `'Mesh'`, `'Group'`…",
-      "name": "Um nome para encontrar o nó.",
       "position": "Onde o nó está, a partir de seu pai.",
       "rotation": "Como o nó está girado, como três ângulos.",
       "quaternion": "Como o nó está girado, como um quatérnio.",
@@ -2188,6 +2187,7 @@
   "TransformNode": {
     "summary": "Um nó de cena lido pelas matrizes da referência, guardado na árvore de transformações do motor.",
     "members": {
+      "name": "Um nome para encontrar o nó.",
       "matrix": "Matriz local, uma view do slot desse nó na árvore de transformações.",
       "matrixWorld": "Matriz de mundo como composta pela última vez (`updateMatrixWorld`), uma view da árvore.",
       "matrixAutoUpdate": "Falso quando `matrix` É a pose e nada a recompõe.",
