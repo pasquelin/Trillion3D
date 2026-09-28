@@ -11,11 +11,12 @@ const nameIndexes = new WeakMap<Object3D, { edits: number; names: Map<string, Ob
 /** The named node of the prepared scene, or `undefined`, by the index, rebuilt by one walk when
  *  anything was renamed, added, removed or freed since (#915). */
 export function findNode(source: Object3D, nodeName: string) {
+  const edits = objectEdits();
   let index = nameIndexes.get(source);
-  if (index?.edits !== objectEdits()) {
+  if (index?.edits !== edits) {
     const names = new Map<string, Object3D>();
     source.traverse((node) => void (names.has(node.name) || names.set(node.name, node)));
-    nameIndexes.set(source, (index = { edits: objectEdits(), names }));
+    nameIndexes.set(source, (index = { edits, names }));
   }
   return index.names.get(nodeName);
 }
