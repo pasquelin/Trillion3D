@@ -18,7 +18,7 @@ mod median_alpha;
 mod weighted_colour;
 
 /// A fresh directory under the OS temp dir, unique per call so parallel tests never collide.
-pub(super) fn temp_dir(tag: &str) -> PathBuf {
+pub(crate) fn temp_dir(tag: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!(
         "trillion3d-texture-preview-{tag}-{}-{}",
         std::process::id(),
