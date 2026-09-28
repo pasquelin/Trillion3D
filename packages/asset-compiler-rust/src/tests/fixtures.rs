@@ -63,7 +63,7 @@ const HALF_PI: f32 = std::f32::consts::FRAC_PI_2;
 /// A sine built from additions, multiplications and divisions only (Bhaskara's approximation), so
 /// the fixture's vertices are bit-identical on every platform. `f32::sin` is not: each libm rounds
 /// differently at the last bit, and a greedy DAG build turns that bit into a different root count.
-pub(super) fn portable_sin(t: f32) -> f32 {
+pub(crate) fn portable_sin(t: f32) -> f32 {
     let tau = std::f32::consts::TAU;
     let x = t.rem_euclid(tau);
     let (x, sign) = if x > std::f32::consts::PI {
@@ -180,3 +180,19 @@ pub(crate) const ROOF_RIGHT: [f32; 3] = [
     0.0,
     std::f32::consts::FRAC_1_SQRT_2,
 ];
+
+/// The regular files left anywhere under `dir`.
+pub(crate) fn files(dir: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for path in entries.flatten().map(|entry| entry.path()) {
+        if path.is_dir() {
+            out.extend(files(&path));
+        } else {
+            out.push(path);
+        }
+    }
+    out
+}
