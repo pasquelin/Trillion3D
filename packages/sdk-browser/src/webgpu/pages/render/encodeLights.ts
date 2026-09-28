@@ -181,9 +181,6 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     shadowWaitFrames: lights.plan.counts.waitedFrames,
     /** Shadow casters past the slices: lit without a shadow (#818, #822). */
     shadowCastersUnsliced: lights.plan.counts.unslicedCasters,
-    /** The view's pool of the tiles past their list, as last sampled, while the scene holds more
-     *  lights than a list: `overflowed`, some tile found no room and walked every light (#849). */
-    tileLightPool: lights.tiles?.wide ? (lights.tiles.pool() ?? null) : null,
     poolPages: lights.shadows
       ? { used: lights.plan.counts.poolPages, total: lights.plan.pool.pages }
       : null,
