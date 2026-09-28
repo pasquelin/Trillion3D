@@ -132,8 +132,10 @@ export function banc(panne?: 'debordement' | 'envoi') {
           return desired.length;
         },
       },
-      queueGpuCutResidency: () => {
-        comptes.queue++;
+      residency: {
+        queueGpuCutResidency: () => {
+          comptes.queue++;
+        },
       },
       followEvictions: () => {},
       syncRows: () => {

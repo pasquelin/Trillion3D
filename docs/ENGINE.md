@@ -127,13 +127,11 @@ use; a key the latest cut read is never listed. The kernel sweeps the pool's lis
 page per held slot fed by the cache's arrivals and departures (`gpu/dag/poolList.ts`), never the
 catalogue. On the GPU-cut path the cache evicts only from that queue, skipping pinned pages and
 taking a page a lower tier touched since the last queue (a shadow caster) after every other; once
-spent (`eviction-queue-spent`) the burst waits for the next readback. Admission on that path
-follows the readback's sorted requests (`webgpu/residency/requestAdmission.ts`, #836): past the
-pool, requests are admitted in rank, each with the groups it closes over, until one does not fit;
-the rest is drawn by its nearest resident ancestor and never awaited. The pins are what the image
-holds (`requestPins.ts`): the cover, that queue, and what it draws with the groups the cut rule needs
-to keep drawing it, counted against the pool before admission. The CPU cut evicts the least recent page, ranks loads coarsest first
-(`budgetRanking`) and pins by last use (`pinUpdater`) until #974 removes them.
+spent (`eviction-queue-spent`) the burst waits for the next readback. The CPU cut evicts the least
+recent page. Loads on the GPU-cut path are read off the readback's requests, closed over their
+groups (`webgpu/residency/requestAdmission.ts`, #836): past the pool, the coarsest levels whole and
+the one the room straddles in part, what the queue already holds first, from the pool's room alone.
+The GPU cut feeds no `budgetRanking`; the CPU cut that takes the image back refills it.
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min
