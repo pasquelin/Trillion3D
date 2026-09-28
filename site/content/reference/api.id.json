@@ -7417,13 +7417,6 @@
       "handbrake": "Apakah rem tangan ditarik."
     }
   },
-  "GraphNode": {
-    "members": {
-      "serial": "Nomor node, unik dalam sesi.",
-      "kind": "Apa node ini: yang dipakai setiap pembaca graf untuk mempersempit jenisnya."
-    },
-    "summary": "Sebuah simpul graf: simpul inti, dibedakan oleh `kind`-nya, disalin oleh `clone` milik inti."
-  },
   "GraphSurface": {
     "members": {
       "version": "Dinaikkan host setiap perubahan: yang dibandingkan sebuah baris yang di-cache untuk membangun ulang bidangnya.",
@@ -7486,9 +7479,6 @@
       "rotation": "Rotasi, dalam radian."
     },
     "summary": "Sebuah gambar dan keadaan sampler yang dipakai untuk membacanya, serta transformasi koordinatnya."
-  },
-  "GraphNodeKind": {
-    "summary": "Apa itu cahaya dari graf: salah satu cahaya yang dideklarasikan sebuah adegan."
   },
   "Joint": {
     "summary": "Sambungan antara dua benda, atau antara benda dan dunia (`b` null), dibuat dengan `joint.*` dan ditambahkan ke simulasi dengan `world.physics.add`.",

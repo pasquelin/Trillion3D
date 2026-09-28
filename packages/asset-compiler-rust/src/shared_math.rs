@@ -96,6 +96,23 @@ pub(crate) fn normalized_or(vector: [f64; 3], fallback: [f64; 3]) -> [f64; 3] {
     }
 }
 
+/// `v` at unit length, if it has a finite, non-zero one.
+pub(crate) fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
+    let length = length(v);
+    (length > 0.0 && length.is_finite()).then(|| scale(v, 1.0 / length))
+}
+
+/// The golden-ratio step of SplitMix64 (Steele et al. 2014), between two draws.
+pub(crate) const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
+
+/// `x` mixed by SplitMix64's finaliser into [0, 1): its top 53 bits, exact in an f64 (all 64 would
+/// round up to 1 near `u64::MAX`).
+pub(crate) fn splitmix_unit(x: u64) -> f64 {
+    let x = (x ^ (x >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    let x = (x ^ (x >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    ((x ^ (x >> 31)) >> 11) as f64 / (1u64 << 53) as f64
+}
+
 /// Elapsed milliseconds from instant: compiler publishes durations in
 /// milliseconds only, converting in one place prevents seconds leak.
 pub fn elapsed_ms(since: std::time::Instant) -> f64 {

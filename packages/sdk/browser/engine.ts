@@ -71,8 +71,6 @@ export { gpuPassBlockOf, gpuPassStageOf } from '../../sdk-browser/src/stage/mapp
 export type { GpuPassBlock } from '../../sdk-browser/src/stage/mapping.ts';
 export { gpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
 export type { GpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
-export { GraphNode } from '../../sdk-browser/src/host/graph/node.ts';
-export type { GraphNodeKind } from '../../sdk-browser/src/host/graph/nodeKind.ts';
 export { GraphSurface } from '../../sdk-browser/src/host/graph/surface.ts';
 export { GraphTexture } from '../../sdk-browser/src/host/graph/texture.ts';
 export type {
