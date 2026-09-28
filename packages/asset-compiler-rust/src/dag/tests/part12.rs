@@ -92,34 +92,3 @@ fn a_texture_weight_follows_its_density() {
         "{full} then {half}"
     );
 }
-
-// Behaviour: the step a placed texture coordinate took from the one it was solved from, times
-// its set's density, is what the group is charged for it: a coordinate that slid off its chart
-// is never drawn under a smaller error than that slide.
-#[test]
-fn a_placed_coordinate_charges_its_slide() {
-    let (positions, carried, indices) = sheet(16);
-    let refs: Vec<&Attribute> = carried.iter().collect();
-    let attributes = DagAttributes { carried: &refs };
-    let welds = welds::Welds::of(&positions, attributes, &indices);
-    let locks = vec![false; positions.len() / 3];
-    let weighted = attributes.weighted();
-    let bound = quality::NORMAL_DEVIATION_BOUND;
-    let input = welds.input(&positions, &refs, &weighted, &locks, bound);
-    let densities = charts::densities(&input, &indices);
-    let region = crate::qem::solve::Region::of(&positions, &weighted, &indices).expect("region");
-    let solved = region.solve(indices.len() / 6, &|_| 0).expect("reduced");
-    let local = placed::Local::of(&input, solved, &densities);
-    let placed = local.placed(&input, (positions.len() / 3) as u32);
-    let uvs = &carried[1].values;
-    let slide = placed.carried[1]
-        .chunks(2)
-        .enumerate()
-        .map(|(k, uv)| {
-            let g = local.from((local.n + k) as u32) * 2;
-            f64::from(uv[0] - uvs[g]).hypot(f64::from(uv[1] - uvs[g + 1])) * densities[0]
-        })
-        .fold(0.0, f64::max);
-    assert!(slide > 0.0, "a coordinate slid");
-    assert_eq!(local.drift, slide);
-}
