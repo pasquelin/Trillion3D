@@ -87,3 +87,23 @@ test('WebGL2 refuses by name a move whose pages carry a second texture coordinat
     material.dispose();
   }
 });
+
+test('WebGL2 keeps the page the host replaced through a class change and back (#837)', async () => {
+  const triangle = await opened();
+  const { backend, geometry, material, encoded } = triangle;
+  try {
+    const host = decodeGeometryPage(encoded.data);
+    host.attributes.position[0] = -0.25;
+    backend.replaceGeometryPage!('triangle-geometry.bin', host);
+    move(triangle, 'opaque', 'blend');
+    await backend.flush!();
+    assert.deepEqual(drawnPositions(triangle), [...host.attributes.position], 'not the recut');
+    move(triangle, 'blend', 'opaque');
+    await backend.flush!();
+    assert.deepEqual(drawnPositions(triangle), [...host.attributes.position], 'not the cache');
+  } finally {
+    backend.dispose();
+    geometry.dispose();
+    material.dispose();
+  }
+});
