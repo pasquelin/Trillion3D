@@ -1,6 +1,7 @@
 // #991: a sun's depth range that changes — a walker whose box crosses a line of its power-of-two
 // grid — redraws only the pages the walker's box covers, each in the new range; every other page
-// stays read in the range it was drawn in. A turn of the sun still redraws them all.
+// stays read in the range it was drawn in, until nothing moves: then it is drawn again in the new
+// one, so a scene at rest shows the image one range draws. A turn of the sun still redraws them all.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSunDepthRanges } from './sunDepth.ts';
@@ -16,6 +17,7 @@ import {
   SUN_GRID,
   VIEW,
   cycle,
+  nudged,
   planFrame,
   readPages,
   staleEntries,
@@ -89,6 +91,24 @@ test('the pages the walker covers are drawn in the new range; every other page s
   assert.deepEqual([...plan.sun.depth.subarray(slice * 2, slice * 2 + 2)], [-32, 0]);
 });
 
+test('once nothing moves, the pages of an older range are drawn in the current one, read meanwhile', () => {
+  const { store, plan, slice, frame, read } = settled();
+  const box = walker(17);
+  plan.worldChanged(box.min, box.max);
+  cycle(plan, store, frame, () => read, VIEW, ...ground(17));
+  const now = plan.sun.ranges.current[slice],
+    older = () => readPages(plan, slice).filter((page) => plan.pool.range[page] !== now),
+    kept = older();
+  assert.ok(kept.length > 0, 'the motion leaves pages in the old range');
+  // The next frame nothing moves: those pages turn stale, and stay read until redrawn.
+  planFrame(plan, store, frame + 1, VIEW, ...ground(17));
+  assert.equal(plan.counts.invalidatedPages, kept.length);
+  for (const entry of read)
+    assert.ok(plan.table.words[entry] & PAGE_VALID, `page ${entry} is read`);
+  plan.commit();
+  assert.deepEqual(older(), [], 'every page drawn in the current range');
+});
+
 test('a turn of the sun still withdraws every page', () => {
   const { store, plan, slice, frame } = settled();
   assert.ok(readPages(plan, slice).length > 0);
@@ -101,19 +121,20 @@ test('a range met again takes its slot back; a new one past every slot withdraws
   const { store, plan, slice, frame, read } = settled();
   const held = readPages(plan, slice).length;
   let at = frame;
-  // The ground raised by 16 m, then back: a second slot, then the first again.
-  cycle(plan, store, at++, () => read, VIEW, ...ground(26, 16));
+  // The ground raised by 16 m, then back: a second slot, then the first again. The camera moves
+  // throughout: a scene at rest would redraw the pages of the other slots.
+  cycle(plan, store, at++, () => read, nudged(1), ...ground(26, 16));
   assert.equal(plan.sun.ranges.current[slice], 1);
-  cycle(plan, store, at++, () => read);
+  cycle(plan, store, at++, () => read, nudged(2));
   assert.equal(plan.sun.ranges.current[slice], 0, 'the ground again: its slot back');
   // Raised by 16 m a frame, `[−16(k + 1), −16k]`: a new range each frame until the slots are spent.
   for (let k = 1; k < SUN_DEPTH_RANGES; k++) {
-    cycle(plan, store, at++, () => read, VIEW, ...ground(16 * k + 10, 16 * k));
+    cycle(plan, store, at++, () => read, nudged(k + 2), ...ground(16 * k + 10, 16 * k));
     assert.equal(plan.counts.invalidatedPages, 0, `range ${k} stales nothing`);
     assert.equal(readPages(plan, slice).length, held);
   }
   const k = SUN_DEPTH_RANGES;
-  planFrame(plan, store, at, VIEW, ...ground(16 * k + 10, 16 * k));
+  planFrame(plan, store, at, nudged(k + 2), ...ground(16 * k + 10, 16 * k));
   assert.equal(plan.sun.ranges.recycled[slice], 0, 'the slot least recently current');
   assert.deepEqual(readPages(plan, slice), [], 'every page drawn in it is withdrawn');
 });
