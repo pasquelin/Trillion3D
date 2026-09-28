@@ -43,40 +43,25 @@ export async function startModule(
   return { ...jolt, visits, raw: opened };
 }
 
+/** One of the threaded module's threads run in a Node worker. */
+export function nodeThread(start: JoltThreadStart) {
+  const loader = new URL('./joltThreads.ts', import.meta.url).href;
+  return new NodeWorker(
+    `import(${JSON.stringify(loader)}).then((m) => m.runJoltThread(require('node:worker_threads').workerData))`,
+    { eval: true, workerData: start },
+  );
+}
+
 /** The threaded module stepped by `count` threads (Node workers); `close` stops them. */
 export async function startThreaded(count: number, budget: Partial<PhysicsBudget> = {}) {
   const threads: NodeWorker[] = [];
-  const loader = new URL('./joltThreads.ts', import.meta.url).href;
-  const spawn = (start: JoltThreadStart) =>
-    threads.push(
-      new NodeWorker(
-        `import(${JSON.stringify(loader)}).then((m) => m.runJoltThread(require('node:worker_threads').workerData))`,
-        { eval: true, workerData: start },
-      ),
-    );
+  const spawn = (start: JoltThreadStart) => threads.push(nodeThread(start));
   const jolt = await startModule(budget, { count, spawn });
   return { jolt, threads, close: () => Promise.all(threads.map((thread) => thread.terminate())) };
 }
 
 /** A started test module. */
 export type Module = Awaited<ReturnType<typeof startModule>>;
-
-/** A box body for the ADD command: engine id `id`, a motion, its height and half size. */
-export const body = (id: number, motion: number, y: number, half: number, flags = 0) => ({
-  id,
-  motion,
-  layer: motion === 0 ? 0 : 1,
-  shape: 0 as const,
-  flags,
-  position: [0, y, 0],
-  quaternion: [0, 0, 0, 1],
-  size: [half, half, half] as const,
-  mass: 0,
-  density: 600,
-  friction: 0.5,
-  restitution: 0,
-  gravityScale: 1,
-});
 
 /** The last step's events: `[type, a, b, impulse]` each. */
 export function events(jolt: Module) {

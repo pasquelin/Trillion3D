@@ -84,6 +84,15 @@ test('a saved scene is read back into the same scene, models by address', async 
   assert.equal(a.material, b.material, 'shared matter stays shared');
 });
 
+test('an orthographic camera fitted to the picture keeps its fit across a save', async () => {
+  const lens = new Camera('orthographic', { top: 6, bottom: -6, fitAspect: true });
+  const saved = JSON.parse(JSON.stringify(sceneWithLoads([]).toJSON(lens)));
+  const view = new Camera('orthographic');
+  await sceneWithLoads([]).fromJSON(saved, view);
+  assert.equal(view.fitAspect, true);
+  assert.equal(view.top, 6);
+});
+
 test('another format version is refused, and the scene is left as it was', async () => {
   const scene = sceneWithLoads([]);
   scene.add(object.group());

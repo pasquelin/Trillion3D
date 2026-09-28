@@ -13,10 +13,11 @@ import { box } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
-import { body, startModule } from './module.fixture.ts';
+import { startModule } from './module.fixture.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { poseRecord, startedWorker } from './worker.fixture.ts';
 import { resultWords } from './protocol.ts';
+import { body } from './records.fixture.ts';
 
 /** `count` seated crates in slots 0.., their rows in one batch, and the frames' `placed` calls. */
 function seated(count: number) {

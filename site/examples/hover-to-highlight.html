@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Hover to highlight a part</title>
+    <meta name="thumbnail" content="1.5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #18212c;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls, perFrame } from '../runtime/kit.js';
+
+      const world = createWorld('view', { controls: 'orbit' });
+      world.scene.background = math.color('#18212c');
+      const makePart = (shape, color, at) => {
+        const part = object.mesh(shape, material.meshStandard({ color, roughness: 0.55 }));
+        part.userData.color = color;
+        part.position.set(...at);
+        world.scene.add(part);
+        return part;
+      };
+
+      // A small service cart is assembled from individually pickable public primitives.
+      const parts = [
+        makePart(geometry.box(4.8, 0.65, 2.4), '#4f7ca8', [0, 1.2, 0]),
+        makePart(geometry.box(2.8, 1.65, 2.15), '#d6a24a', [-0.65, 2.35, 0]),
+        makePart(geometry.box(1.15, 1.35, 2.05), '#78a6b8', [1.35, 2.2, 0]),
+      ];
+      const wheelShape = geometry.cylinder(0.55, 0.55, 0.38, 20);
+      for (const x of [-1.55, 1.55])
+        for (const z of [-1.2, 1.2]) {
+          const wheel = makePart(wheelShape, '#29313b', [x, 0.7, z]);
+          wheel.rotation.x = Math.PI / 2;
+          parts.push(wheel);
+        }
+      // A part's own colour and a black glow, or the highlight's.
+      const paint = (part, lit) => {
+        part?.material.color.set(lit ? '#ffd166' : part.userData.color);
+        part?.material.emissive.set(lit ? '#5b3100' : '#000000');
+      };
+      let hovered = null;
+      const show = (part) => {
+        if (part === hovered) return;
+        paint(hovered, false);
+        paint((hovered = part), true);
+        world.invalidate();
+      };
+
+      const values = controls(
+        { highlightEnabled: true },
+        (next, key) => {
+          if (key === 'highlightEnabled' && !next.highlightEnabled) show(null);
+        },
+        world,
+      );
+      // One ray a frame at the last pointer position, none while a button orbits the camera.
+      const pointer = { x: 0, y: 0 };
+      let inside = false;
+      const ray = perFrame(() => {
+        if (inside && values.highlightEnabled)
+          show(world.raycast(pointer, { objects: parts })?.object ?? null);
+      }, requestAnimationFrame);
+      world.canvas.addEventListener('pointermove', (event) => {
+        if (!values.highlightEnabled || event.buttons) return;
+        inside = true;
+        pointer.x = event.offsetX;
+        pointer.y = event.offsetY;
+        ray();
+      });
+      world.canvas.addEventListener('pointerleave', () => {
+        inside = false;
+        show(null);
+      });
+
+      world.scene.add(
+        light.hemisphere({ color: '#dbeeff', groundColor: '#29323a', intensity: 1.2 }),
+        light.directional({
+          color: '#fff0cf',
+          intensity: 3,
+          position: [-5, 9, 7],
+          castShadow: true,
+        }),
+      );
+      // The floor the cart stands on: not a part, so the ray never picks it.
+      const floor = object.mesh(
+        geometry.box(16, 0.2, 12),
+        material.meshStandard({ color: '#34414e', roughness: 0.9 }),
+      );
+      floor.position.y = 0.05;
+      floor.receiveShadow = true;
+      floor.castShadow = false;
+      world.scene.add(floor);
+      world.camera.position.set(6, 4.2, 7);
+      world.camera.lookAt(0, 1.5, 0);
+      world.controls.target.set(0, 1.5, 0);
+      world.invalidate();
+      addEventListener('pagehide', () => world.dispose(), { once: true });
+    </script>
+  </body>
+</html>

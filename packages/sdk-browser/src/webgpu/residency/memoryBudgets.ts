@@ -10,7 +10,7 @@ import {
 } from '../../texture/blockFormats.ts';
 import { checkTexturePoolBudget, type PoolClamp } from '../../residency/pools.ts';
 
-/** 512 MiB, split equally between the colour atlas and the data atlas, in 63.5 MiB layers. */
+/** 512 MiB, split equally between the colour atlas and the data atlas, in 64 MiB layers. */
 export const DEFAULT_TEXTURE_POOL_BUDGET = 512 * 1024 * 1024;
 /** The two budgets of a frame's tile pass. Bytes: 16 MiB of tiles copied into the pools.
  *  Milliseconds: the same order as the shadow stage's budget, the reference's fixed number of tile
