@@ -15,6 +15,10 @@ import {
   UNLIT_COMPOSITIONS,
 } from './deferred/shaders.ts';
 import { TAA_SHADER } from '../taa/shaderWgsl.ts';
+import { taaShader } from '../taa/shaderWgsl.ts';
+import { BLEND_SHADER } from '../webgpu/blend/shader.ts';
+import { BLEND_EQUATIONS } from '../scene/materialBlending.ts';
+import { createAsIsShare } from './deferred/asIsShare.ts';
 
 /** The capture of `pattern` in `source`, asserted present. */
 function capture(source: string, pattern: RegExp) {
@@ -141,4 +145,21 @@ test('A jittered edge: the accumulated share follows the colour, no flip between
   // The current flag alone would flip the history's colour in and out of the curve every frame.
   assert.ok(swing(fromFlags) > 0.3, `flag swing ${swing(fromFlags)}`);
   assert.ok(swing(composed) < swing(fromFlags) / 4, `share swing ${swing(composed)}`);
+});
+
+test('a lit transparent over a debug view contributes zero as-is share at its opacity', () => {
+  assert.match(BLEND_SHADER, /@location\(2\) asIs:vec4f/);
+  assert.match(
+    BLEND_SHADER,
+    /BlendOut\(vec4f\(rgb,s\.alpha\),s\.request,vec4f\(0\.0,0\.0,0\.0,s\.alpha\)\)/,
+  );
+  assert.equal(BLEND_EQUATIONS.normal?.color.srcFactor, 'src-alpha');
+  assert.equal(BLEND_EQUATIONS.normal?.color.dstFactor, 'one-minus-src-alpha');
+  const litOpacity = 0.4;
+  const remainingDebugShare = 1 * (1 - litOpacity);
+  assert.equal(remainingDebugShare, 0.6);
+  assert.notEqual(accumulated(2, remainingDebugShare), 2, 'the lit overlap still takes the curve');
+  assert.match(taaShader(true, true), /let asIs=textureLoad\(flags,at,0\)\.r;/);
+  assert.doesNotMatch(taaShader(true, true), /textureLoad\(flags,at,0\)\.r==/);
+  assert.ok(createAsIsShare, 'the opaque share is seeded before blending');
 });

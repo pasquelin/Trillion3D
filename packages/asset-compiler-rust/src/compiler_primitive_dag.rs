@@ -81,10 +81,9 @@ pub(super) fn build_dag_primitive(
         crate::dag::build_culling_bvh(pos, &dag)
     };
     laps.lap("cullingMs");
-    let base_id = 0usize;
     let mut page_of = vec![0usize; dag.len()];
     for (rank, &slot) in order.iter().enumerate() {
-        page_of[slot] = base_id + rank;
+        page_of[slot] = rank;
     }
     let position_exponent = crate::geometry_page_quant::primitive_exponent(
         pos,
@@ -101,7 +100,7 @@ pub(super) fn build_dag_primitive(
         }),
         ("pagesMs", || {
             let store = |slice: &[u32]| store_packed(slice, position_exponent);
-            bundle_dag_pages(o, &dag, &groups, &order, base_id, pos, &store)
+            bundle_dag_pages(o, &dag, &groups, &order, pos, &store)
         }),
     );
     let collision = collision?;
@@ -176,4 +175,23 @@ pub(super) fn build_dag_primitive(
         position_exponent,
         collision,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    // Edge cases of `level_error_stats`, moved from the retired compute bench: the statistics
+    // follow `f64::total_cmp`, so signed zeros, infinities and NaN each keep one place.
+    #[test]
+    fn level_error_stats_orders_hostile_errors_by_total_cmp() {
+        let mut errors = [f64::NAN, 1.5, f64::NEG_INFINITY];
+        let (min, median, max) = super::level_error_stats(&mut errors);
+        assert_eq!(min, f64::NEG_INFINITY);
+        assert_eq!(median.to_bits(), 1.5f64.to_bits());
+        assert!(max.is_nan(), "a positive NaN sorts past +inf");
+        let (min, median, max) = super::level_error_stats(&mut [0.0, -0.0]);
+        assert_eq!(
+            [min, median, max].map(f64::to_bits),
+            [-0.0f64, 0.0, 0.0].map(f64::to_bits)
+        );
+    }
 }

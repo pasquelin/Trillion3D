@@ -8,8 +8,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { isCancelled } from '../../../backend/common.ts';
 import { createHizPipelines } from '../../../gpu/hiz/pipelines.ts';
 import { shadowOcclusionPipeline } from '../../../gpu/shadow/occlusion.ts';
-import { castsBlendShadow } from '../../../gpu/shadow/transmittance.ts';
-import { refreshSurface } from '../../../page/surface.ts';
+import { sceneCastsBlended } from '../../shadow/transmittanceGrant.ts';
 import { lightRowMapPipeline } from '../../../gpu/draw/lightRows.ts';
 
 /** What the capability declares when the direct-lighting contract is not fitted on this device. */
@@ -91,7 +90,7 @@ export async function prepareShadowPipelines(rt: WebgpuPagesRuntime, device: GPU
   await createHizPipelines(device).catch(() => undefined);
   const work: Array<() => unknown> = [shadows.prepareDepth, () => shadowOcclusionPipeline(device)];
   if (rt.vis.gpuDraw) work.push(() => lightRowMapPipeline(device));
-  if (rt.blendState.blendGpu.some((item) => castsBlendShadow(refreshSurface(item.surface))))
+  if (sceneCastsBlended(rt))
     work.push(shadows.prepareTransmittance, pageQuads.prepareTransmittance);
   // One that fails is compiled again, and said, where it is first used.
   await Promise.allSettled(work.map(async (make) => make()));
