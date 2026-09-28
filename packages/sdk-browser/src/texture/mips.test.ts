@@ -1,9 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMaterialMips } from './mips.ts';
+import { generateMaterialMips } from './mipBatch.ts';
 import { mipLevelCountFor } from './tiles.ts';
 import { installGpuGlobals } from '../../../../tests/kit/gpu/globals.ts';
 import { mockGpu } from '../../../../tests/kit/gpu/mockGpu.ts';
+
+/** One chain alone: a 4×4 texture under `format`, its rule and its cutoff. */
+const oneChain = (
+  device: GPUDevice,
+  texture: GPUTexture,
+  format: GPUTextureFormat,
+  weighted: boolean,
+  cutoff?: number,
+) => generateMaterialMips(device, [{ texture, format, width: 4, height: 4, weighted, cutoff }]);
 
 /** A four-texel-wide working texture, as tiles of a host texture cut them. */
 function scratch() {
@@ -21,8 +30,8 @@ function scratch() {
 test('reduction submits without waiting for the device and keeps a single uniform buffer', () => {
   const { device, texture, buffers, submits } = scratch();
   const before = buffers.length;
-  generateMaterialMips(device, texture, 'rgba8unorm', 4, 4, false);
-  generateMaterialMips(device, texture, 'rgba8unorm', 4, 4, false);
+  oneChain(device, texture, 'rgba8unorm', false);
+  oneChain(device, texture, 'rgba8unorm', false);
   assert.equal(submits.length, 2, 'both chains went out');
   assert.equal(buffers.length - before, 1, 'one uniform buffer for both, never destroyed');
 });
@@ -30,7 +39,7 @@ test('reduction submits without waiting for the device and keeps a single unifor
 test('uniforms describe one level each, at the device alignment', () => {
   const { device, texture, buffers } = scratch();
   const before = buffers.length;
-  generateMaterialMips(device, texture, 'rgba8unorm', 4, 4, false);
+  oneChain(device, texture, 'rgba8unorm', false);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256);
   assert.equal(buffers[before].size, mipLevelCountFor(4, 4) * stride);
 });
@@ -40,8 +49,7 @@ test('uniforms describe one level each, at the device alignment', () => {
 // which texture takes which rule is `scratch.test.ts` and `sources.test.ts`.
 test('one reduction pipeline per rule, the weighted one built with its constant and reused', () => {
   const { device, texture, renderPipelines } = scratch();
-  for (const rule of [true, false, true])
-    generateMaterialMips(device, texture, 'rgba8unorm-srgb', 4, 4, rule);
+  for (const rule of [true, false, true]) oneChain(device, texture, 'rgba8unorm-srgb', rule);
   assert.deepEqual(
     renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted),
     [1, 0],
@@ -53,7 +61,7 @@ test('one reduction pipeline per rule, the weighted one built with its constant 
 // is `coverageRule.test.ts`.
 test('a chain with a cutoff counts each level before reducing it, a plain one nothing', () => {
   const { device, texture, computes, writes } = scratch();
-  generateMaterialMips(device, texture, 'rgba8unorm-srgb', 4, 4, true, 128);
+  oneChain(device, texture, 'rgba8unorm-srgb', true, 128);
   assert.deepEqual(computes, ['count', 'count', 'choose', 'count', 'choose']);
   const stride = Math.max(256, device.limits.minUniformBufferOffsetAlignment ?? 256) / 4;
   const blocks = (at: number) => {
@@ -66,10 +74,39 @@ test('a chain with a cutoff counts each level before reducing it, a plain one no
     [2, 2, 128, 0, 4, 4, 2],
   ];
   assert.deepEqual(blocks(0), levels);
-  generateMaterialMips(device, texture, 'rgba8unorm-srgb', 4, 4, true);
+  oneChain(device, texture, 'rgba8unorm-srgb', true);
   assert.equal(computes.length, 5, 'a plain chain counts nothing');
   assert.deepEqual(
     blocks(1),
     levels.map((block) => [...block.slice(0, 2), 0, ...block.slice(3)]),
   );
+});
+
+// OMB-29, #961: a batch is one uniform write and one submit; each chain encodes the passes it had
+// alone, its uniform blocks after the previous chain's, a 1×1 chain nothing.
+test('a batch writes its chains’ blocks once, in order, and submits them together', () => {
+  const { device, texture, computes, writes, submits } = scratch();
+  const offsets: number[] = [];
+  const createBindGroup = device.createBindGroup.bind(device);
+  device.createBindGroup = (desc) => {
+    for (const { resource } of desc.entries)
+      if ('offset' in resource) offsets.push(resource.offset! / 256);
+    return createBindGroup(desc);
+  };
+  const eight = device.createTexture({ ...texture, size: [8, 8], format: 'rgba8unorm' });
+  generateMaterialMips(device, [
+    { texture, format: 'rgba8unorm-srgb', width: 4, height: 4, weighted: true, cutoff: 128 },
+    { texture, format: 'rgba8unorm', width: 1, height: 1, weighted: false },
+    { texture: eight, format: 'rgba8unorm', width: 8, height: 8, weighted: false },
+  ]);
+  assert.equal(submits.length, 1);
+  assert.equal(writes.length, 1);
+  assert.deepEqual(computes, ['count', 'count', 'choose', 'count', 'choose']);
+  // Counts bind blocks 0 and 1 then 2 of the first chain; reductions 1, 2; the second chain 4–6.
+  assert.deepEqual(offsets, [0, 1, 1, 2, 2, 4, 5, 6]);
+  const words = new Uint32Array(writes[0].bytes.buffer);
+  const block = (at: number) => [...words.subarray(at * 64, at * 64 + 7)];
+  assert.deepEqual(block(2), [2, 2, 128, 0, 4, 4, 2]);
+  assert.deepEqual(block(3), [8, 8, 0, 0, 8, 8, 0]);
+  assert.deepEqual(block(6), [2, 2, 0, 0, 8, 8, 3]);
 });

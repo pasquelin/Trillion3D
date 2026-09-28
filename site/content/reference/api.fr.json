@@ -12,6 +12,7 @@
       "bindingOf": "Ce qu’écrit `tr`, résolu une fois ; null tant que sa cible n’est pas sous la racine.",
       "play": "Commence à jouer.",
       "stop": "S’arrête, et revient au début.",
+      "seek": "Pose le clip à `time` secondes tout de suite, selon son mode de boucle, qu’elle joue ou non : une action qui joue repart de là, une action arrêtée garde la pose jusqu’à ce qu’une action qui joue sur son mélangeur l’écrase.",
       "clipTime": "Où en est l’action dans le clip, selon son mode de boucle."
     }
   },
@@ -613,7 +614,8 @@
       "p.left": "Bord gauche de la boîte de vue d’une caméra orthographique.",
       "p.right": "Bord droit de la boîte de vue d’une caméra orthographique.",
       "p.top": "Bord du haut de la boîte de vue d’une caméra orthographique.",
-      "p.bottom": "Bord du bas de la boîte de vue d’une caméra orthographique."
+      "p.bottom": "Bord du bas de la boîte de vue d’une caméra orthographique.",
+      "p.fitAspect": "Une caméra orthographique garde la hauteur et le centre de sa boîte et prend sa largeur de la forme de l’image : un canevas redimensionné n’étire jamais le dessin. Désactivé par défaut."
     }
   },
   "camera.orthographic": {
@@ -628,7 +630,8 @@
       "p.left": "Bord gauche de la boîte de vue d’une caméra orthographique.",
       "p.right": "Bord droit de la boîte de vue d’une caméra orthographique.",
       "p.top": "Bord du haut de la boîte de vue d’une caméra orthographique.",
-      "p.bottom": "Bord du bas de la boîte de vue d’une caméra orthographique."
+      "p.bottom": "Bord du bas de la boîte de vue d’une caméra orthographique.",
+      "p.fitAspect": "Une caméra orthographique garde la hauteur et le centre de sa boîte et prend sa largeur de la forme de l’image : un canevas redimensionné n’étire jamais le dessin. Désactivé par défaut."
     }
   },
   "camera.cube": {
@@ -659,7 +662,8 @@
       "p.left": "Bord gauche de la boîte de vue d’une caméra orthographique.",
       "p.right": "Bord droit de la boîte de vue d’une caméra orthographique.",
       "p.top": "Bord du haut de la boîte de vue d’une caméra orthographique.",
-      "p.bottom": "Bord du bas de la boîte de vue d’une caméra orthographique."
+      "p.bottom": "Bord du bas de la boîte de vue d’une caméra orthographique.",
+      "p.fitAspect": "Une caméra orthographique garde la hauteur et le centre de sa boîte et prend sa largeur de la forme de l’image : un canevas redimensionné n’étire jamais le dessin. Désactivé par défaut."
     },
     "members": {
       "isCamera": "Toujours `true` : distingue une caméra de tout autre objet.",
@@ -672,6 +676,7 @@
       "right": "Bord droit de la boîte orthographique.",
       "top": "Bord du haut de la boîte orthographique.",
       "bottom": "Bord du bas de la boîte orthographique.",
+      "fitAspect": "Une boîte orthographique aussi haute que déclarée et aussi large que la forme de l’image le veut.",
       "projection": "`'perspective'` rend petit ce qui est loin ; `'orthographic'` garde toutes les tailles.",
       "copy": "Prend les valeurs de nœud de `source` et, d’une caméra, son optique ; sa propre `projection` reste.",
       "updateProjectionMatrix": "Recompose `projectionMatrix` ; chaque écriture d’optique le fait déjà, et redessine.",
@@ -715,7 +720,8 @@
       "left": "Bord gauche de la boîte de vue d’une caméra orthographique.",
       "right": "Bord droit de la boîte de vue d’une caméra orthographique.",
       "top": "Bord du haut de la boîte de vue d’une caméra orthographique.",
-      "bottom": "Bord du bas de la boîte de vue d’une caméra orthographique."
+      "bottom": "Bord du bas de la boîte de vue d’une caméra orthographique.",
+      "fitAspect": "Une caméra orthographique garde la hauteur et le centre de sa boîte et prend sa largeur de la forme de l’image : un canevas redimensionné n’étire jamais le dessin. Désactivé par défaut."
     }
   },
   "CameraPose-common": {
@@ -1605,13 +1611,15 @@
       "UNSUPPORTED_SCENE_UPDATE": "Ce chemin de dessin ne sait pas faire ce changement dans la scène.",
       "BATCHED_WORLD_VIEW": "Ce chemin de dessin ne sait pas faire ce changement dans la scène.",
       "RAYCAST_NO_VIEW": "Un point d’image a été demandé à un canvas sans taille : il n’y a pas d’image à travers laquelle viser.",
+      "VERTICES_NOT_LOADED": "Les sommets d’un modèle chargé ont été lus avant `await geometry.loadVertices()` : une session les lit au premier besoin, jamais d’avance.",
       "SESSION_OPEN_FAILED": "La session du monde n’a pas pu s’ouvrir, pour une raison sans code propre (`world.diagnostic.error`) : l’erreur levée est dans `details.cause`.",
       "WEBGPU_LOST": "WebGPU a perdu son appareil, ou une erreur sur celui-ci a laissé un état dont rien ne peut dessiner : levée par `render`, `flush` et les lectures qui ont besoin de l’appareil, nommée par le diagnostic `gpu-device-lost`, et sur `world.diagnostic.error` quand une session n’a pas pu s’ouvrir pour cette raison.",
       "UNSUPPORTED_SCENE_FORMAT": "Une scène enregistrée est d’un autre format ou d’une autre version, ou contient ce qu’une scène enregistrée ne peut pas stocker.",
       "SCENE_NOT_SAVABLE": "Une scène enregistrée est d’un autre format ou d’une autre version, ou contient ce qu’une scène enregistrée ne peut pas stocker.",
-      "PHYSICS_BUDGET": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`) : sur `world.physics.error`.",
-      "PHYSICS_NESTED": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`) : sur `world.physics.error`.",
-      "PHYSICS_FAILED": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`) : sur `world.physics.error`.",
+      "PHYSICS_BUDGET": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`), ou la pose ou les sommets d’un corps sont devenus non finis et il a quitté la simulation (`PHYSICS_DIVERGED`) : sur `world.physics.error`.",
+      "PHYSICS_NESTED": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`), ou la pose ou les sommets d’un corps sont devenus non finis et il a quitté la simulation (`PHYSICS_DIVERGED`) : sur `world.physics.error`.",
+      "PHYSICS_FAILED": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`), ou la pose ou les sommets d’un corps sont devenus non finis et il a quitté la simulation (`PHYSICS_DIVERGED`) : sur `world.physics.error`.",
+      "PHYSICS_DIVERGED": "La physique a été sollicitée au-delà d’une de ses enveloppes (`world.budget.physics` : corps, corps décoratifs, mémoire), ou un corps dynamique n’était pas enfant direct de la scène (`PHYSICS_NESTED`), ou le module physique a échoué (`PHYSICS_FAILED`), ou la pose ou les sommets d’un corps sont devenus non finis et il a quitté la simulation (`PHYSICS_DIVERGED`) : sur `world.physics.error`.",
       "PHYSICS_FORMAT": "La physique préparée d’un modèle compilé (`physics.json`) est d’un autre format, ou a été préparée par un autre Jolt que celui du moteur (`PHYSICS_FORMAT`) : recompilez-le. Un lancer de rayon exact a été demandé physique éteinte (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "La physique préparée d’un modèle compilé (`physics.json`) est d’un autre format, ou a été préparée par un autre Jolt que celui du moteur (`PHYSICS_FORMAT`) : recompilez-le. Un lancer de rayon exact a été demandé physique éteinte (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` a reçu `'vehicle'` alors que `world.controls.vehicle` vaut `null` : il n’y a rien à conduire.",
@@ -2086,6 +2094,7 @@
       "rotateZ": "Tourne chaque sommet autour de l’axe z, de `angle` radians.",
       "scale": "Étire chaque sommet de `(x, y, z)`.",
       "center": "Déplace la géométrie pour que sa boîte soit centrée sur l’origine.",
+      "loadVertices": "Lit les sommets d’un maillage chargé, qu’aucune session ne récupère d’avance ; aussitôt pour tout autre. Avant, les lire (`array`, `getX`) lève `VERTICES_NOT_LOADED`.",
       "clone": "Une nouvelle géométrie avec des copies de chaque liste, ses groupes, sa plage, ses données et ses bornes, et la recette qui la construit encore.",
       "dispose": "Rend la géométrie : lance chaque crochet de libération une fois, oublie ceux qui la tiennent et l’arbre de lancer de rayons ; personne ne dessine ni ne vise une géométrie libérée.",
       "recipe": "Le membre de la famille et les arguments qui ont construit cette forme, tant qu’elle est encore ce qu’ils ont construit : ce qu’une scène enregistrée stocke au lieu des sommets. Tout changement ultérieur l’oublie.",
@@ -7012,7 +7021,8 @@
       "projection": "Perspective ou orthographique.",
       "position": "Où se tient l’œil.",
       "quaternion": "Comment l’œil est tourné.",
-      "optics": "Champ, near, far, zoom et boîte, par nom."
+      "optics": "Champ, near, far, zoom et boîte, par nom.",
+      "fitAspect": "Une boîte orthographique élargie à la forme de l’image (`fitAspect`) ; absent quand désactivé."
     }
   },
   "SavedGeometry": {
@@ -7153,6 +7163,7 @@
       "gravity": "Gravité en m/s², un vecteur vivant ; mets un préréglage (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou un vecteur.",
       "paused": "Si le temps est figé ; les écritures atteignent quand même les corps.",
       "timeScale": "Secondes simulées par seconde réelle : 0.25 est un ralenti.",
+      "simulationRange": "Mètres autour de la caméra dans lesquels les corps sont simulés (figés au-delà, tels qu’ils étaient, et aucune tuile de collision chargée) ; `null` suit `camera.far`.",
       "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
       "waterSurface": "La surface de l’eau à l’heure de la simulation, pour la dessiner : les vagues que lit la flottaison, les mêmes nombres (`height`, `point`, `normal`).",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
@@ -7359,6 +7370,7 @@
       "gravity": "Gravité en m/s², un vecteur vivant ; mets un préréglage (`'earth'`, `'moon'`, `'mars'`, `'none'`) ou un vecteur.",
       "paused": "Si le temps est figé ; les écritures atteignent quand même les corps.",
       "timeScale": "Secondes simulées par seconde réelle : 0.25 est un ralenti.",
+      "simulationRange": "Mètres autour de la caméra dans lesquels les corps sont simulés (figés au-delà, tels qu’ils étaient, et aucune tuile de collision chargée) ; `null` suit `camera.far`.",
       "water": "L’eau où flottent les corps : son niveau, ses vagues, sa densité et ses traînées. Un corps plus léger que l’eau flotte, poussé par le poids de l’eau qu’il déplace.",
       "waterSurface": "La surface de l’eau à l’heure de la simulation, pour la dessiner : les vagues que lit la flottaison, les mêmes nombres (`height`, `point`, `normal`).",
       "stats": "Comptes et les deux horloges : millisecondes du worker par pas, millisecondes de la page par image.",
@@ -7371,6 +7383,7 @@
     "summary": "Ce que `createWorld(canvas, { physics })` accepte en plus de `true`.",
     "members": {
       "budget": "Enveloppes fixes, lues une fois au démarrage de la physique.",
+      "simulationRange": "Mètres autour de la caméra dans lesquels les corps sont simulés (`world.physics.simulationRange`) ; `null` suit `camera.far`.",
       "gravity": "La gravité du monde : un préréglage ou un vecteur."
     }
   },

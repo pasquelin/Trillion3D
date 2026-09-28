@@ -4,6 +4,7 @@ import type { BlendHostScene } from '../../cluster/blendSceneRecord.ts';
 import { refreshBlendBounds } from './worlds.ts';
 import {
   FLAG_BACK,
+  FLAG_CLUSTER_PAGE,
   FLAG_DOUBLE,
   FLAG_HAS_COLOR,
   FLAG_HAS_NORMAL,
@@ -37,13 +38,15 @@ export function prepareWebgpuBlend(
     const attr = copy.geometry.attributes.position,
       idx = copy.geometry.getIndex();
     if (!attr || !idx) continue;
-    const position = ensureWebgpuPositionBuffer(
-      device,
-      copy.geometry.attributes,
-      gpu.positionBuffers,
-      gpu,
-    )!;
     const paged = !!copy.userData.pagedBlend;
+    // A paged primitive whose clusters carry quantized geometry pages reads every attribute from
+    // them, in place in the page cache (`../../visibility/shader/pageGeometryWgsl.ts`): it owns no
+    // buffer at all. One without reads the concatenated source geometry, and keeps its positions
+    // only for the fallback pass (`fallback.ts`).
+    const fromPages = !!copy.userData.pageGeometry;
+    const position = fromPages
+      ? undefined
+      : ensureWebgpuPositionBuffer(device, copy.geometry.attributes, gpu.positionBuffers, gpu)!;
     // A paged primitive reads its indices from the page cache, cluster by cluster: it owns none.
     // The other three buffers belong to the geometry, not the placement: nine instances of one
     // object write them once. The bytes are the same, the item order too.
@@ -58,10 +61,12 @@ export function prepareWebgpuBlend(
     if (mat.lit) flags |= FLAG_LIT;
     if (mat.doubleSided) flags |= FLAG_DOUBLE;
     if (hasNormal) flags |= FLAG_HAS_NORMAL;
-    if (tangentAttr) flags |= FLAG_HAS_TANGENT;
+    // A page stores no tangent: the fragment stage rebuilds the frame, as the opaque resolve does.
+    if (tangentAttr && !fromPages) flags |= FLAG_HAS_TANGENT;
     if (mat.vertexColors && copy.geometry.attributes.color) flags |= FLAG_HAS_COLOR;
     if (mat.backSide) flags |= FLAG_BACK;
     if (paged) flags |= FLAG_PAGED;
+    if (fromPages) flags |= FLAG_CLUSTER_PAGE;
     // Its water rank, one-based and compact over the transmissive items, rides above the flags:
     // the surface stage writes it and the composite reads the item's volume at that rank.
     if (transmits) flags |= FLAG_TRANSMISSIVE | (++transmissive << WATER_RANK_SHIFT);
@@ -96,7 +101,6 @@ export function prepareWebgpuBlend(
     };
     refreshBlendBounds(item);
     blendState.blendGpu.push(item);
-    if (paged) blendState.pagedBlendGpu.set(item.matrix, item);
     scene.remove(copy);
   }
   return transmissive;

@@ -12,6 +12,7 @@
       "bindingOf": "Yang ditulis `tr`, diselesaikan sekali; null selama targetnya belum berada di bawah root.",
       "play": "Mulai memainkannya.",
       "stop": "Berhenti, dan kembali ke awal.",
+      "seek": "Menempatkan klip pada `time` detik sekarang juga, menurut mode pengulangannya, sedang diputar atau tidak: aksi yang diputar berlanjut dari situ, aksi yang berhenti mempertahankan pose itu sampai aksi yang diputar pada mixer-nya menimpanya.",
       "clipTime": "Di mana posisi aksi dalam clip, menurut mode loop-nya."
     }
   },
@@ -377,7 +378,8 @@
       "p.left": "Tepi kiri kotak pandang kamera orthographic.",
       "p.right": "Tepi kanan kotak pandang kamera orthographic.",
       "p.top": "Tepi atas kotak pandang kamera orthographic.",
-      "p.bottom": "Tepi bawah kotak pandang kamera orthographic."
+      "p.bottom": "Tepi bawah kotak pandang kamera orthographic.",
+      "p.fitAspect": "Kamera ortografis mempertahankan tinggi dan pusat kotaknya dan mengambil lebarnya dari bentuk gambar, sehingga kanvas yang diubah ukurannya tidak pernah meregangkan gambar. Mati secara bawaan."
     },
     "members": {
       "isCamera": "Selalu `true`: membedakan sebuah kamera dari objek lain.",
@@ -390,6 +392,7 @@
       "right": "Tepi kanan kotak orthographic.",
       "top": "Tepi atas kotak orthographic.",
       "bottom": "Tepi bawah kotak orthographic.",
+      "fitAspect": "Kotak ortografis setinggi yang dinyatakan dan selebar yang dibuat oleh bentuk gambar.",
       "projection": "`'perspective'` membuat benda jauh kecil; `'orthographic'` menjaga setiap ukuran.",
       "copy": "Mengambil nilai simpul dari `source` dan, dari kamera, optiknya; `projection` miliknya sendiri tetap.",
       "updateProjectionMatrix": "Menyusun kembali `projectionMatrix`; setiap penulisan optik sudah melakukannya, dan menggambar ulang.",
@@ -430,7 +433,8 @@
       "left": "Tepi kiri kotak pandang kamera orthographic.",
       "right": "Tepi kanan kotak pandang kamera orthographic.",
       "top": "Tepi atas kotak pandang kamera orthographic.",
-      "bottom": "Tepi bawah kotak pandang kamera orthographic."
+      "bottom": "Tepi bawah kotak pandang kamera orthographic.",
+      "fitAspect": "Kamera ortografis mempertahankan tinggi dan pusat kotaknya dan mengambil lebarnya dari bentuk gambar, sehingga kanvas yang diubah ukurannya tidak pernah meregangkan gambar. Mati secara bawaan."
     }
   },
   "CameraPose": {
@@ -968,13 +972,15 @@
       "UNSUPPORTED_SCENE_UPDATE": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "BATCHED_WORLD_VIEW": "Jalur menggambar ini tidak bisa membuat perubahan itu pada scene-nya.",
       "RAYCAST_NO_VIEW": "Titik gambar diminta dari canvas yang tidak punya ukuran: tidak ada gambar untuk dibidik.",
+      "VERTICES_NOT_LOADED": "Verteks model yang dimuat dibaca sebelum `await geometry.loadVertices()`: sesi membacanya saat pertama dibutuhkan, tidak pernah lebih dulu.",
       "SESSION_OPEN_FAILED": "Sesi dunia tidak bisa dibuka, karena alasan yang tidak punya kode sendiri (`world.diagnostic.error`): galat yang dilempar ada di `details.cause`.",
       "WEBGPU_LOST": "WebGPU kehilangan perangkatnya, atau sebuah galat padanya meninggalkan keadaan yang tidak bisa dipakai untuk menggambar: dilempar oleh `render`, `flush`, dan pembacaan yang memerlukan perangkat, dinamai oleh diagnostik `gpu-device-lost`, dan muncul di `world.diagnostic.error` ketika sebuah sesi tidak bisa dibuka karenanya.",
       "UNSUPPORTED_SCENE_FORMAT": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
       "SCENE_NOT_SAVABLE": "Scene tersimpan memakai format atau versi lain, atau berisi sesuatu yang tidak bisa disimpan scene tersimpan.",
-      "PHYSICS_BUDGET": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
-      "PHYSICS_NESTED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
-      "PHYSICS_FAILED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`): di `world.physics.error`.",
+      "PHYSICS_BUDGET": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`), atau pose atau verteks sebuah benda menjadi tak hingga dan benda itu keluar dari simulasi (`PHYSICS_DIVERGED`): di `world.physics.error`.",
+      "PHYSICS_NESTED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`), atau pose atau verteks sebuah benda menjadi tak hingga dan benda itu keluar dari simulasi (`PHYSICS_DIVERGED`): di `world.physics.error`.",
+      "PHYSICS_FAILED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`), atau pose atau verteks sebuah benda menjadi tak hingga dan benda itu keluar dari simulasi (`PHYSICS_DIVERGED`): di `world.physics.error`.",
+      "PHYSICS_DIVERGED": "Fisika diminta melampaui salah satu batasnya (`world.budget.physics`: benda, benda dekoratif, memori), atau benda dinamis bukan anak langsung adegan (`PHYSICS_NESTED`), atau modul fisika gagal (`PHYSICS_FAILED`), atau pose atau verteks sebuah benda menjadi tak hingga dan benda itu keluar dari simulasi (`PHYSICS_DIVERGED`): di `world.physics.error`.",
       "PHYSICS_FORMAT": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` disetel ke `'vehicle'` saat `world.controls.vehicle` bernilai `null`: tidak ada yang dikemudikan.",
@@ -1186,6 +1192,7 @@
       "rotateZ": "Memutar setiap vertex mengelilingi sumbu z, sebesar `angle` radian.",
       "scale": "Meregangkan setiap vertex sebesar `(x, y, z)`.",
       "center": "Memindahkan geometri agar kotaknya berpusat di titik asal.",
+      "loadVertices": "Membaca verteks mesh yang dimuat, yang tidak diambil lebih dulu oleh sesi mana pun; langsung untuk yang lain. Sebelum itu, membacanya (`array`, `getX`) melempar `VERTICES_NOT_LOADED`.",
       "clone": "Geometri baru dengan salinan setiap daftar, grup, rentang, data, dan batasnya, serta resep yang masih membangunnya.",
       "dispose": "Mengembalikan geometri: menjalankan setiap kait pelepasan sekali, melupakan pemegangnya dan pohon raycast; geometri yang dilepas tidak digambar atau dikenai sinar oleh siapa pun.",
       "kind": "Apa sumber dayanya, cara pembaca adegan membedakan sumber daya.",
@@ -2931,7 +2938,8 @@
       "projection": "Perspektif atau ortografis.",
       "position": "Di mana mata berada.",
       "quaternion": "Bagaimana mata diputar.",
-      "optics": "Bidang pandang, near, far, zoom, dan kotak, menurut nama."
+      "optics": "Bidang pandang, near, far, zoom, dan kotak, menurut nama.",
+      "fitAspect": "Kotak ortografis yang dilebarkan ke bentuk gambar (`fitAspect`); tidak ada bila nonaktif."
     }
   },
   "SavedGeometry": {
@@ -4605,7 +4613,8 @@
       "p.left": "Tepi kiri kotak pandang kamera ortografik.",
       "p.right": "Tepi kanan kotak pandang kamera ortografik.",
       "p.top": "Tepi atas kotak pandang kamera ortografik.",
-      "p.bottom": "Tepi bawah kotak pandang kamera ortografik."
+      "p.bottom": "Tepi bawah kotak pandang kamera ortografik.",
+      "p.fitAspect": "Kamera ortografis mempertahankan tinggi dan pusat kotaknya dan mengambil lebarnya dari bentuk gambar, sehingga kanvas yang diubah ukurannya tidak pernah meregangkan gambar. Mati secara bawaan."
     }
   },
   "camera.perspective": {
@@ -4620,7 +4629,8 @@
       "p.left": "Tepi kiri kotak pandang kamera ortografik.",
       "p.right": "Tepi kanan kotak pandang kamera ortografik.",
       "p.top": "Tepi atas kotak pandang kamera ortografik.",
-      "p.bottom": "Tepi bawah kotak pandang kamera ortografik."
+      "p.bottom": "Tepi bawah kotak pandang kamera ortografik.",
+      "p.fitAspect": "Kamera ortografis mempertahankan tinggi dan pusat kotaknya dan mengambil lebarnya dari bentuk gambar, sehingga kanvas yang diubah ukurannya tidak pernah meregangkan gambar. Mati secara bawaan."
     }
   },
   "camera.stereo": {
@@ -7154,6 +7164,7 @@
       "gravity": "Gravitasi dalam m/s², vektor hidup; isi preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) atau vektor.",
       "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
       "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
+      "simulationRange": "Meter di sekitar kamera tempat benda disimulasikan (di luarnya dibekukan seperti semula, dan tidak ada ubin tabrakan yang dimuat); `null` mengikuti `camera.far`.",
       "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
       "waterSurface": "Permukaan air pada waktu simulasi, untuk digambar: gelombang yang dibaca daya apung, angka yang sama (`height`, `point`, `normal`).",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
@@ -7360,6 +7371,7 @@
       "gravity": "Gravitasi dalam m/s², vektor hidup; isi preset (`'earth'`, `'moon'`, `'mars'`, `'none'`) atau vektor.",
       "paused": "Apakah waktu berhenti; penulisan tetap sampai ke benda.",
       "timeScale": "Detik simulasi per detik nyata: 0.25 adalah gerak lambat.",
+      "simulationRange": "Meter di sekitar kamera tempat benda disimulasikan (di luarnya dibekukan seperti semula, dan tidak ada ubin tabrakan yang dimuat); `null` mengikuti `camera.far`.",
       "water": "Air tempat benda-benda mengapung: permukaannya, gelombangnya, massa jenisnya, dan hambatannya. Benda yang lebih ringan dari air mengapung, didorong oleh berat air yang dipindahkannya.",
       "waterSurface": "Permukaan air pada waktu simulasi, untuk digambar: gelombang yang dibaca daya apung, angka yang sama (`height`, `point`, `normal`).",
       "stats": "Hitungan dan kedua jam: milidetik worker per langkah, milidetik halaman per bingkai.",
@@ -7372,6 +7384,7 @@
     "summary": "Apa yang diterima `createWorld(canvas, { physics })` selain `true`.",
     "members": {
       "budget": "Batas tetap, dibaca sekali saat fisika mulai.",
+      "simulationRange": "Meter di sekitar kamera tempat benda disimulasikan (`world.physics.simulationRange`); `null` mengikuti `camera.far`.",
       "gravity": "Gravitasi dunia: preset atau vektor."
     }
   },

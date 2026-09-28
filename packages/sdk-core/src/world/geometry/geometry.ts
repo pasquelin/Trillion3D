@@ -1,4 +1,5 @@
-import { BufferAttribute, ownAttribute, type VertexAttribute } from '../buffer/attribute.ts';
+import { BufferAttribute, indexList, ownAttribute } from '../buffer/attribute.ts';
+import type { VertexAttribute } from '../buffer/attribute.ts';
 import { Box3 } from '../math/box3.ts';
 import { Sphere } from '../math/volumes.ts';
 import { Matrix4 } from '../math/matrix4.ts';
@@ -85,15 +86,7 @@ export class Geometry {
   }
   /** Sets which vertices make each triangle. */
   setIndex(index: BufferAttribute | ArrayLike<number> | null) {
-    if (index === null || index instanceof BufferAttribute) this.index = index;
-    else {
-      const values = Array.from(index);
-      const max = values.reduce((a, b) => Math.max(a, b), 0);
-      this.index = new BufferAttribute(
-        max > 65535 ? new Uint32Array(values) : new Uint16Array(values),
-        1,
-      );
-    }
+    this.index = index === null || index instanceof BufferAttribute ? index : indexList(index);
     if (this.index) this.index._onChange = () => this._changed(false);
     return this._changed(false);
   }
@@ -153,6 +146,14 @@ export class Geometry {
   center() {
     const c = this.computeBoundingBox().getCenter();
     return this.translate(-c.x, -c.y, -c.z);
+  }
+  /** Reads a loaded mesh's vertices, which no session fetches up front; at once for any other.
+   *  Before it, reading them (`array`, `getX`) throws `VERTICES_NOT_LOADED`. */
+  async loadVertices() {
+    const targets = Object.values(this.morphAttributes).flat();
+    const lists = [this.index, ...Object.values(this.attributes), ...targets];
+    await Promise.all(lists.map((list) => list?._load()));
+    return this;
   }
   /** A new geometry with copies of every list, its groups, range, data and bounds, and the
    *  recipe that still builds it. */

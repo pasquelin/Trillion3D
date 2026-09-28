@@ -6,6 +6,7 @@ import {
   type CharacterInput,
   type CharacterSettings,
 } from './characterSettings.ts';
+import { hypot2 } from '../math/primitives/hypot.ts';
 
 /**
  * WHAT A CHARACTER WISHES OVER ONE TICK, before it meets anything: the speed it gathers or loses,
@@ -116,7 +117,7 @@ export function driveTick(
       : 0;
   const push = drive.grounded ? gripOf(drive.floor) * settings.gravity : Infinity;
   approach(velocity, tx, tz, rate, push, h, step);
-  if (drive.grounded && !wishing && Math.hypot(velocity[0], velocity[2]) < REST * rate)
+  if (drive.grounded && !wishing && hypot2(velocity[0], velocity[2]) < REST * rate)
     velocity[0] = velocity[2] = 0;
   return true;
 }
@@ -138,7 +139,7 @@ function approach(
 ) {
   const gx = velocity[0] - tx,
     gz = velocity[2] - tz,
-    gap = Math.hypot(gx, gz);
+    gap = hypot2(gx, gz);
   const linear = gap > push / rate ? Math.min(h, (gap - push / rate) / push) : 0,
     middle = linear > 0 ? gap - push * linear : gap,
     decay = Math.exp(-rate * (h - linear)),

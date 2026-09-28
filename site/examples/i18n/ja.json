@@ -500,6 +500,24 @@
       "balloon": "気球を追跡中"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "公園を通る記録済みルートを見ます。再生、停止、またはカメラ操作へ切り替えられます。",
+    "controls": {
+      "replay": "再生",
+      "stop": "停止"
+    },
+    "readouts": {
+      "currentPart": "現在の区間"
+    },
+    "words": {
+      "entrance": "入口",
+      "pond": "池",
+      "bridge": "橋",
+      "pavilion": "東屋",
+      "overview": "全景",
+      "complete": "完了"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "クレーンの周りを回りながら、1つのクリップがジブを旋回し、台車を動かし、荷を上げて揺らします。",
     "controls": {
@@ -516,6 +534,34 @@
       "ripples": "波紋",
       "inner": "内側",
       "outer": "外側"
+    }
+  },
+  "doors-that-open": {
+    "banner": "カメラを扉に近づけてください。近づくと扉が開きます。",
+    "controls": {
+      "mode": "モード",
+      "openingDistance": "開く距離",
+      "openness": "開き具合"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "近接",
+        "manual": "手動"
+      }
+    }
+  },
+  "a-carousel": {
+    "banner": "メリーゴーラウンドを見回します。一時停止したり、木馬を反対方向に動かしたりできます。",
+    "controls": {
+      "running": "運転",
+      "speed": "速度",
+      "direction": "方向"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "時計回り",
+        "counterclockwise": "反時計回り"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -569,6 +615,17 @@
       "lamp": "ランプ",
       "colour": "色",
       "bricks": "レンガ"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "2つの面をクリックして間の距離を測ります。3回目のクリックで新しい測定を始めます。 1単位は1メートルです。",
+    "controls": {
+      "clear": "クリア"
+    },
+    "readouts": {
+      "pointA": "点A",
+      "pointB": "点B",
+      "distance": "距離"
     }
   },
   "click-to-pick": {
@@ -1940,6 +1997,7 @@
       "manifest": "マニフェストを読んだ",
       "tables": "シーンのテーブルを読んだ",
       "resources": "シーンのファイル",
+      "session": "ビューを開いています",
       "pages": "最初のページ",
       "ready": "準備完了"
     }
@@ -2213,6 +2271,27 @@
     },
     "words": {
       "credit": "この例のためにコードでモデリングしたポールの旗、CC0 — assets/examples/CREDITS.md を参照"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "家の立面を選びます。カメラを遠ざけても、正投影図はまったく同じ縮尺を保ちます。",
+    "controls": {
+      "elevation": "立面",
+      "distance": "カメラ距離",
+      "zoom": "図面の縮尺"
+    },
+    "choices": {
+      "elevation": {
+        "front": "正面",
+        "right": "右側面",
+        "rear": "背面"
+      }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "カートの各部品にポインターを合わせて強調するか、パネルで強調表示をオフにします。",
+    "controls": {
+      "highlightEnabled": "強調表示を有効化"
     }
   },
   "a-dolly-along-the-canal": {

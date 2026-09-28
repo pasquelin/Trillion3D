@@ -5,7 +5,7 @@ import {
   type GpuSelection,
   type SelectionUniforms,
 } from '../core/selection.ts';
-import { primitiveWordAt, refreshWorldStretch, worldsChanged } from './worlds.ts';
+import { refreshWorldStretch, worldsChanged } from './worlds.ts';
 import { createDagResidencyUpload } from './residencyUpload.ts';
 import { createDagPoolList } from './poolList.ts';
 import { createDagDispatch } from './dispatch.ts';
@@ -50,8 +50,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   };
   // A dead selection dispatches and drains nothing more.
   const fail = () => ((state.dead = true), voidCuts());
-  const previousWorlds = packed.worlds.slice(),
-    frameInts = new Uint32Array(frameData.buffer);
+  const previousWorlds = packed.worlds.slice();
   // The cut rule's residency, derived from the pool's and uploaded by difference.
   const uploadResidency = residentCut ? createDagResidencyUpload(resources) : undefined;
   const dispatch = createDagDispatch(resources, state, fail);
@@ -61,9 +60,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
   /** Writes word `slot` of primitive `w`'s frame words, one word up. The cut in hand holds pages
    *  the new word no longer lets through, or lacks some it does: another cut from here. */
   const writeFrameWord = (w: number, slot: number, value: number) => {
-    const at = primitiveWordAt(w) + slot;
-    frameInts[at] = value;
-    device.queue.writeBuffer(frames, at * 4, frameInts.buffer as ArrayBuffer, at * 4, 4);
+    frames.writeWord(w, slot, value);
     resources.frameWrites.count++;
     voidCuts();
   };
@@ -78,13 +75,16 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     get worldRevision() {
       return state.worldRevision;
     },
-    updateWorlds(next, posesMoved = true) {
+    updateWorlds(next, posesMoved = true, translationsOnly = false) {
       if (state.disposed || state.dead) return false;
       if (next.byteLength !== packed.worlds.byteLength)
         throw new Error('GPU_SCENE_WORLD_COUNT_CHANGED');
       if (!worldsChanged(previousWorlds, next)) return false;
       // Stretch reads the linear part alone, which a moving origin leaves: read before the copy.
-      const stretched = refreshWorldStretch(previousWorlds, next, packed, frameData);
+      // Only translations rewritten, the scan could find no linear part that moved: skipped.
+      const stretched = translationsOnly
+        ? 0
+        : refreshWorldStretch(previousWorlds, next, packed, frameData);
       previousWorlds.set(next);
       packed.worlds.set(next);
       device.queue.writeBuffer(
@@ -95,7 +95,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
         next.byteLength,
       );
       if (stretched) {
-        device.queue.writeBuffer(frames, 0, frameData as Float32Array<ArrayBuffer>);
+        frames.writeRows();
         resources.frameWrites.count++;
       }
       // Cuts in hand and in flight keep their revision and still name what to stream (#358).
