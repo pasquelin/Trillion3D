@@ -38,7 +38,7 @@ export type DagLightCut = ReturnType<typeof createDagLightCut>;
  */
 export function createDagLightCut(resources: DagResources) {
   const { device, packed, residentCut, pageCount, outputBytes, readbackBytes } = resources;
-  const { blockCount, own } = resources;
+  const { blockCount, own, listCap } = resources;
   const capacity = lightCutCapacity(device.limits, resources),
     queueCap = lightQueueCap(resources, capacity),
     layout = dagWorkLayout(blockCount, capacity);
@@ -130,7 +130,7 @@ export function createDagLightCut(resources: DagResources) {
       listed = true;
       for (let v = 0; v < count; v++) {
         const block = uniformData.subarray(v * DAG_VIEW_WORDS, (v + 1) * DAG_VIEW_WORDS);
-        writeDagUniforms(block, packed, views[v].uniforms, residentCut, cutViews);
+        writeDagUniforms(block, packed, views[v].uniforms, residentCut, listCap, cutViews);
       }
       shadowBatchWrites(device).write(uniforms, 0, uniformData, 0, count * DAG_VIEW_WORDS);
       // A placement's stretch or a parked root changed on the camera's side: the first row follows.
