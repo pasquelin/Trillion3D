@@ -59,12 +59,12 @@ fn cooked(name: &str, nodes: Value) -> (Vec<u8>, BTreeSet<String>) {
 // breakable body declaring its shape and a threshold of 0 are refused by name.
 #[test]
 fn a_breakable_body_is_cut_into_weighed_pieces_beside_its_node() {
-    let body = |extras: Value| {
-        json!({"mesh":0,"scale":[2, 1, 1],"extras":{"physics":extras},
-        "extensions":{"KHR_physics_rigid_bodies":{"motion":{}}}})
+    let body = |mesh: usize, collider: Value, extras: Value| {
+        json!({"mesh":mesh,"scale":[2, 1, 1],"extras":{"physics":extras},
+        "extensions":{"KHR_physics_rigid_bodies":{"motion":{},"collider":collider}}})
     };
-    let (plain, _) = cooked("plain", json!([body(json!({}))]));
-    let breakable = json!([body(json!({"breakable":5}))]);
+    let (plain, _) = cooked("plain", json!([body(0, json!({}), json!({}))]));
+    let breakable = json!([body(0, json!({}), json!({"breakable":5}))]);
     let (bytes, stored) = cooked("broken", breakable.clone());
     assert_eq!(bytes, cooked("again", breakable).0);
     let [plain, broken]: [Value; 2] = [plain, bytes].map(|b| serde_json::from_slice(&b).unwrap());
@@ -85,16 +85,10 @@ fn a_breakable_body_is_cut_into_weighed_pieces_beside_its_node() {
     map.remove("breakable");
     map.remove("pieces");
     assert_eq!(entry, plain["bodies"][0]);
-    let rigid = |mesh: usize, collider: Value, breakable: Value| {
-        json!({"mesh":mesh,
-        "extras":{"physics":{"breakable":breakable}},
-        "extensions":{"KHR_physics_rigid_bodies":{"motion":{},"collider":collider}}})
-    };
-    let shaped = rigid(0, json!({"geometry":{"shape":0}}), json!(5));
     let nodes = json!([
-        rigid(1, json!({}), json!(5)),
-        shaped,
-        rigid(0, json!({}), json!(0))
+        body(1, json!({}), json!({"breakable":5})),
+        body(0, json!({"geometry":{"shape":0}}), json!({"breakable":5})),
+        body(0, json!({}), json!({"breakable":0}))
     ]);
     let (refusals, _) = cooked("refused", nodes);
     let refusals: Value = serde_json::from_slice(&refusals).unwrap();
