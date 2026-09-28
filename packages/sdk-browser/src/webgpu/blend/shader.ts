@@ -116,8 +116,7 @@ ${FACING_WGSL}
  }
  // A padding lane past the cluster's corners reads nothing, not even the page header.
  var h:ClusterHeader;
- var corners=vec3u(0u);
- var facing=0u;
+ var corners=vec3u(0u);var facing=0u;
  if(local<count){
   h=pageHeader(page);
   corners=pageTriangle(page,h,local/3u);
