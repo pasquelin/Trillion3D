@@ -148,7 +148,9 @@ test('a seek on a playing action moves it, and playing goes on from there', () =
 
 test('a seek on a stopped action beside a playing one poses it once, never advancing it', () => {
   const { root, arm, action } = slide();
-  const lift = animation.clip('lift', 1, [animation.numberTrack('arm.position.y', [0, 1], [0, 10])]);
+  const lift = animation.clip('lift', 1, [
+    animation.numberTrack('arm.position.y', [0, 1], [0, 10]),
+  ]);
   const other = action.mixer.clipAction(lift).play();
   action.mixer.update(0.1);
   action.seek(0.25);
