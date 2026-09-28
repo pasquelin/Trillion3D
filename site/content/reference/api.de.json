@@ -1162,7 +1162,7 @@
   },
   "createGpuPageCache": {
     "summary": "Grenze für WebGPU-Zuweisung und Warteschlange.",
-    "description": "Die Bytes der Seiten und die Regel werden vom Host bereitgestellt. Warteschlangenschreibvorgänge sind geordnet; die Freigabe wartet auf laufende Sendungen, bevor sie zerstört."
+    "description": "Die Bytes der Seiten und die Regel werden vom Host bereitgestellt. Warteschlangenschreibvorgänge sind geordnet; die Freigabe wartet auf laufende Sendungen, bevor sie zerstört. `pin(key, 'held')` behält eine Seite bei `resize(slots)` vor gewöhnlich angehefteten Seiten; resize akzeptiert keine held-Menge mehr. Erneutes gewöhnliches Anheften erhält diese Stufe; `unpin(key)` entfernt sie."
   },
   "createJob": {
     "summary": "Kein Timer, kein DOM, keine Dateien, keine Oberfläche."

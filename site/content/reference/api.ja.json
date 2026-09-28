@@ -4812,7 +4812,7 @@
   },
   "createGpuPageCache": {
     "summary": "WebGPUの確保/キュー境界。",
-    "description": "ページのバイト数とポリシーはホストから供給される。キューへの書き込みは順序づけられる; disposeは、破棄の前に実行中の送信を待つ。"
+    "description": "ページのバイト数とポリシーはホストから供給される。キューへの書き込みは順序づけられる; disposeは、破棄の前に実行中の送信を待つ。 `pin(key, 'held')` は `resize(slots)` で通常の固定ページより先にページを保持する。resize は held 集合を受け取らない。通常の再固定でもこの優先度は維持され、`unpin(key)` で解除される。"
   },
   "createJob": {
     "summary": "タイマーもDOMもファイルシステムもUIもない。"
