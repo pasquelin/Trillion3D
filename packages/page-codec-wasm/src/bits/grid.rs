@@ -36,12 +36,19 @@ pub fn finest_exponent(span: f64) -> i32 {
     (span.log2().ceil() as i32 - (MAX_BITS as i32 - 1)).clamp(-MAX_EXPONENT, MAX_EXPONENT)
 }
 
-/// The grid of a primitive the world cuts at run time, of widest `extent`: a `blended` one takes
-/// the finest grid its pages hold, as the compiler's does (#875); any other the compiler's rule
-/// with no DAG — every run-time cluster is a root — at no known world scale, a metre per unit.
-pub fn drawn_exponent(extent: f64, blended: bool) -> i32 {
-    match blended && extent > 0.0 {
-        true => finest_exponent(extent),
-        false => grid_exponent(extent, None, TILE_EXTENT_LOG2),
+/// The grid of a primitive of widest `extent`: a `blended` one takes the finest grid its pages
+/// hold, a coarser one showing through a transparent surface (#875); any other `grid_exponent`.
+/// The compiler passes its DAG's finest error and its tile; the run-time cut, whose clusters are
+/// all roots, none and the tile of a metre per unit (`TILE_EXTENT_LOG2`).
+pub fn primitive_grid_exponent(
+    extent: f64,
+    finest_error: Option<f64>,
+    blended: bool,
+    tile_log2: i32,
+) -> i32 {
+    if blended && extent > 0.0 {
+        finest_exponent(extent)
+    } else {
+        grid_exponent(extent, finest_error, tile_log2)
     }
 }
