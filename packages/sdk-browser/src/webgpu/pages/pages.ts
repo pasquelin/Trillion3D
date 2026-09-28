@@ -33,7 +33,11 @@ import { setWebgpuClearColor } from './io/clearColor.ts';
 import * as materials from './io/refreshMaterials.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
 import { namesNoSession } from '../../gpu/core/sessionHandle.ts';
-import { setFeedbackTargetAb } from './diagnostic/feedbackAb.ts';
+import {
+  captureFeedbackAb,
+  feedbackAbResidency,
+  setFeedbackTargetAb,
+} from './diagnostic/feedbackAb.ts';
 import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts';
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
 export { outputColorDiagnostic } from './helpers.ts';
@@ -44,11 +48,8 @@ export { outputColorDiagnostic } from './helpers.ts';
 export const webgpuPagesBackend: BackendFactory = (context) => {
   const rt = createWebgpuPagesRuntime(context);
   const { run, setup, diag } = rt;
-  // Integer record of a request, set once per address: that is all off-thread integration
-  // receives from an arrival.
   const pageSpecs = createArrivalSpecs(setup.byUrl, rt.layout.rows.pageIndexOf);
   // The device this session holds until it is disposed; the preparation running is
-  // `setup.preparing`, settled or not.
   let claim: GpuDeviceClaim | undefined, closing: Promise<void> | undefined;
   const backend: WebgpuPagesBackend = {
     id: 'webgpu-page-raster',
@@ -111,6 +112,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     syncResident: () => syncResident(rt),
     setFeedbackTargetAb: (target) => setFeedbackTargetAb(rt, target),
+    feedbackAbResidency: () => feedbackAbResidency(rt),
+    captureFeedbackAb: () => captureFeedbackAb(rt),
     pendingFrame: () => pendingWebgpuFrame(rt),
     landings: () => rt.services.residency.landings,
     flush(options?: { image?: boolean }) {
