@@ -18,7 +18,9 @@ test('opaque, blend and water pipelines omit exactly the feedback output', () =>
 });
 
 test('opaque attachments follow the target-free pipeline and do not mark feedback written', () => {
-  const views = Array.from({ length: 4 }, (_, i) => ({ name: `surface-${i}` })) as GPUTextureView[];
+  const views = Array.from({ length: 4 }, (_, i) => ({
+    name: `surface-${i}`,
+  })) as unknown as GPUTextureView[];
   const surfaces = { views: () => views } as Parameters<typeof shadeColorAttachments>[1];
   const rt = {
     feedbackAB: { target: false },
