@@ -14,6 +14,12 @@ const result = await dansPageWebgpu(() => globalThis.mirrorProof.blendMirror(), 
   titre: 'Transparent mirror proof',
 });
 assert.deepEqual(result.compilation, []);
+for (const [current, previous] of result.families)
+  assert.deepEqual(
+    current,
+    previous,
+    'diffuse/toon must not gain reflections through a dark roughness map',
+  );
 assert.deepEqual(result.errors, []);
 assert.deepEqual(result.mirror, result.repeat, 'still reflection must be identical');
 assert.deepEqual(result.off, result.offPrevious, 'bounce off must remain identical');

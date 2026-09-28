@@ -61,7 +61,8 @@ export function writeBlendItemRecord(
   floats[base + 36] = mat.emissive[0];
   floats[base + 37] = mat.emissive[1];
   floats[base + 38] = mat.emissive[2];
-  floats[base + 39] = 0;
+  // Unused emissive lane carries the model without growing the record.
+  floats[base + 39] = mat.model ?? 0;
   // A dashed line's dash and gap (`lineDash`), zero on any other item.
   floats[base + 40] = mat.dashSize ?? 0;
   floats[base + 41] = mat.gapSize ?? 0;
