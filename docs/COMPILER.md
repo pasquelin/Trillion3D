@@ -468,6 +468,8 @@ The compiler knows no format. It routes each source to a driver (interpretation 
 
 ### Content Licenses — Independent of Format
 
+Audit local asset and license manifests with [the offline license audit](ASSET_LICENSE_AUDIT.md).
+
 - FAB Standard License: use with other tools and engines permitted, standalone asset redistribution prohibited; historical licenses apply for some items, keep purchase EULA.
 - Quixel Megascans under reference Engine plan: restricted to reference Engine, unusable in Trillion3D.
 - Unity Asset Store: use in other engines permitted, but not a product whose purpose is raw asset distribution; model library distributor is not a finished game.
