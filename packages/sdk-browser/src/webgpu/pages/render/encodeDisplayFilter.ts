@@ -2,16 +2,17 @@ import { createDisplayFilter, type DisplayFilter } from '../../blend/displayFilt
 import type { WebgpuGpuState } from '../state/gpu.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-/** Releases the display filter and the bytes it counted. */
+/** Releases the display filter, the bytes it counted and its temporal history. */
 function dropDisplayFilter(gpu: WebgpuGpuState) {
   if (!gpu.displayFilter) return undefined;
+  gpu.temporal?.filterHistory.drop();
   gpu.targetBytes -= gpu.displayFilter.bytes;
   gpu.displayFilter.dispose();
   gpu.displayFilter = undefined;
 }
 
 /**
- * Opens this image's display filter (`../../blend/displayFilter.ts`), cleared white, when its
+ * Opens this image's display filter (`../../blend/displayFilter.ts`), white, when its
  * blends hold a multiply or subtractive surface and a beauty image is composed: made at the image
  * size by the first such image, dropped once the plan holds none. A diagnostic view or variant
  * keeps the lit target's own equations, as it draws the surfaces for what they are.
@@ -19,7 +20,6 @@ function dropDisplayFilter(gpu: WebgpuGpuState) {
 export function beginDisplayFilter(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
-  encoder: GPUCommandEncoder,
 ): DisplayFilter | undefined {
   const { gpu, blendState, run } = rt;
   if (!blendState.filtersDisplay) return dropDisplayFilter(gpu);
@@ -31,10 +31,8 @@ export function beginDisplayFilter(
     gpu.displayFilter = createDisplayFilter(device, width, height);
     gpu.targetBytes += gpu.displayFilter.bytes;
   }
-  const filter = gpu.displayFilter;
-  filter.clear(encoder);
-  filter.active = true;
-  return filter;
+  gpu.displayFilter.open();
+  return gpu.displayFilter;
 }
 
 /** Multiplies the composed image, and the canvas it was presented to, by the filter the image
@@ -47,6 +45,8 @@ export function endDisplayFilter(
   presentation: GPUTextureView | undefined,
 ) {
   filter.active = false;
+  // No blend pass wrote it: the filter is white, the image already what it shows.
+  if (!filter.written) return;
   filter.apply(encoder, resolved ?? filter.view, rt.gpu.colorView!, presentation);
   rt.run.gpuDrawCalls++;
 }

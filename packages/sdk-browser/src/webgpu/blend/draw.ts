@@ -128,8 +128,9 @@ export function drawBlendPass(
         loadOp: 'load',
         storeOp: 'store',
       },
-      // The display filter of an image whose blends filter (`displayFilter.ts`).
-      ...(filter ? [{ view: filter.view, loadOp: 'load', storeOp: 'store' } as const] : []),
+      // The display filter of an image whose blends filter (`displayFilter.ts`), cleared white by
+      // the first pass that writes it.
+      ...(filter ? [filter.attachment()] : []),
     ],
     depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
   });
