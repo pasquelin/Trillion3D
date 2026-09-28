@@ -550,6 +550,20 @@
       }
     }
   },
+  "a-carousel": {
+    "banner": "Gira alrededor del carrusel. Páralo o mueve los caballos de madera en sentido contrario.",
+    "controls": {
+      "running": "En marcha",
+      "speed": "Velocidad",
+      "direction": "Dirección"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "sentido horario",
+        "counterclockwise": "sentido antihorario"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Arrastra para volar alrededor de la isla. Sube el mar para inundar los valles.",
     "controls": {
@@ -2257,6 +2271,21 @@
     },
     "words": {
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Elige un alzado de la casa. Aleja la cámara: el dibujo ortográfico conserva exactamente la misma escala.",
+    "controls": {
+      "elevation": "Alzado",
+      "distance": "Distancia de cámara",
+      "zoom": "Escala del dibujo"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Frente",
+        "right": "Lado derecho",
+        "rear": "Parte trasera"
+      }
     }
   },
   "hover-to-highlight": {

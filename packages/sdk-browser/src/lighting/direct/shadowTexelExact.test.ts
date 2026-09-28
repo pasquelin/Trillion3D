@@ -1,14 +1,14 @@
 // #831: a shadow page reads the same wherever the pool puts it. A CPU oracle of the WGSL reads
-// (the PCF away from a seam, `shadowThrough`) in single precision as the GPU runs them, over the
-// comparison filter as Direct3D and Metal build it: the normalised coordinate back to texels in
-// single precision, its bilinear weights rounded to `SHADOW_SUBTEXELS` steps. The oracle holds the
-// filter's rounding as an assumption; the browser proof at two pool sides is what proves it.
+// (the PCF away from a seam, `shadowThrough`) in single precision as the GPU runs them, each
+// tap's texel snapped to `SHADOW_SUBTEXELS` steps and filtered bilinearly at that exact place —
+// the gathered comparison of #26, whose texels no rounding of the normalised coordinate moves
+// (`shadowGather.test.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { directShadowWgsl } from './shadowWgsl.ts';
 import { SHADOW_SUBTEXELS as STEPS } from './shadowSampleWgsl.ts';
 import { pcf, type Sampler, type Stored } from './shadowBias.fixture.ts';
-import { throughAxis, type Pair } from './shadowPages.fixture.ts';
+import { hash, throughAxis, type Pair } from './shadowPages.fixture.ts';
 import {
   SHADOW_PAGE as S,
   pageOrigin,
@@ -17,11 +17,6 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
 const f = Math.fround;
-const hash = (x: number) => {
-  let h = Math.imul(x ^ 0x9e3779b9, 0x85ebca6b);
-  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-  return ((h ^ (h >>> 16)) >>> 0) / 2 ** 32;
-};
 /** The page's content: a depth per page-local texel. Anything outside it is another page's. */
 const content = (x: number, y: number) => hash(x * 131 + y * 7919 + 17);
 const elsewhere = (x: number, y: number) => hash(x * 977 + y * 131071 + 3);
@@ -42,11 +37,11 @@ function placed(k: number, side: number, p: Pair) {
 type Placed = ReturnType<typeof placed>;
 
 /** The interior PCF of `shadowPcf`: each tap `floor(t·256 + tap·256 + 0.5) / 256` plus the offset,
- *  divided by the layer's side, and back to texels by the filter. */
+ *  read at that atlas texel. */
 const shadowRead = (at: Placed): Sampler => ({
   at: (v, tap, a) => {
     const step = Math.floor(f(f(f(v * STEPS) + f(tap * STEPS)) + 0.5));
-    return f(f(f(at.offset[a] + step / STEPS) / at.texels) * at.texels);
+    return f(at.offset[a] + step / STEPS);
   },
   steps: STEPS,
 });
@@ -76,10 +71,10 @@ test('the shadow read snaps its texel to the filter step, then adds the page’s
   for (const line of [
     ' return shadowSample(offset.xy+floor(t*SHADOW_SUBTEXELS+0.5)*SHADOW_SUBTEXEL,i32(offset.z),shadowAtlasTexels(),reference);',
     '   lit+=shadowSample(offset.xy+floor(steps+POISSON_STEPS[tap]+0.5)*SHADOW_SUBTEXEL,layer,texels,reference);',
-    ' return textureSampleCompareLevel(shadowAtlas,shadowSampler,at/texels,layer,reference);',
+    ' let lit=textureGatherCompare(shadowAtlas,shadowSampler,corner/texels,layer,reference);',
   ])
     assert.ok(wgsl.includes(line), line);
-  assert.equal(wgsl.match(/textureSampleCompareLevel\(/g)?.length, 1, 'one comparison');
+  assert.equal(wgsl.match(/textureGather(Compare)?\(|textureSample\w*\(/g)?.length, 1, 'one read');
 });
 
 test('one page gives bit-identical PCF results at any place and pool side, either layer', () => {

@@ -550,6 +550,20 @@
       }
     }
   },
+  "a-carousel": {
+    "banner": "Tournez autour du carrousel. Mettez-le en pause ou envoyez les chevaux de bois dans l’autre sens.",
+    "controls": {
+      "running": "En marche",
+      "speed": "Vitesse",
+      "direction": "Direction"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "sens horaire",
+        "counterclockwise": "sens antihoraire"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Glisse pour voler autour de l'île. Monte la mer pour inonder les vallées.",
     "controls": {
@@ -2257,6 +2271,21 @@
     },
     "words": {
       "credit": "Drapeau sur un mât modélisé en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Choisissez une élévation de la maison. Éloignez la caméra : le dessin orthographique garde exactement la même échelle.",
+    "controls": {
+      "elevation": "Élévation",
+      "distance": "Distance de la caméra",
+      "zoom": "Échelle du dessin"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Façade",
+        "right": "Côté droit",
+        "rear": "Arrière"
+      }
     }
   },
   "hover-to-highlight": {
