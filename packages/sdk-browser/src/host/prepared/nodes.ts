@@ -8,9 +8,10 @@ import type {
   TableLight,
   TableNode,
 } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
-import { Color } from '../../../../sdk-core/src/world/math/color.ts';
-import { GraphCamera } from '../graph/camera.ts';
-import { GraphLight } from '../graph/light.ts';
+import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
+import { numbered } from '../graph/serial.ts';
+import { aimOf } from '../graph/kinds.ts';
+import { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import type { HostMesh } from '../resources.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
@@ -32,9 +33,8 @@ export function uniqueNames() {
 }
 
 export function light(declared: TableLight, name: string) {
-  const colour = new Color().setRGB(1, 1, 1);
-  if (declared.color) colour.setRGB(declared.color[0], declared.color[1], declared.color[2]);
-  const made = new GraphLight(declared.type, colour);
+  const made = numbered(new Light(declared.type));
+  if (declared.color) made.color.setRGB(declared.color[0], declared.color[1], declared.color[2]);
   if (declared.type === 'spot') {
     const inner = declared.innerConeAngle ?? 0,
       outer = declared.outerConeAngle ?? Math.PI / 4;
@@ -42,9 +42,11 @@ export function light(declared: TableLight, name: string) {
     made.penumbra = 1 - inner / outer;
   }
   if (declared.type !== 'directional') made.distance = declared.range ?? 0;
-  if (made.target) {
-    made.target.position.set(0, 0, -1);
-    made.add(made.target);
+  // A sun or a spot aims one unit down its own -z, a child of its own, as a scene declares it.
+  const aim = aimOf(made);
+  if (aim) {
+    aim.position.set(0, 0, -1);
+    made.add(aim);
   }
   made.position.set(0, 0, 0);
   if (declared.intensity !== null) made.intensity = declared.intensity;
@@ -53,17 +55,23 @@ export function light(declared: TableLight, name: string) {
 }
 
 export function camera(declared: TableCamera) {
-  if (declared.type === 'perspective')
-    return new GraphCamera({
-      fov: (declared.yfov ?? 0) * RAD_TO_DEG,
-      aspect: declared.aspectRatio || 1,
-      near: declared.znear || 1,
-      far: declared.zfar || 2e6,
-    });
   const [x, y] = [declared.xmag ?? 0, declared.ymag ?? 0];
-  return new GraphCamera(
-    { near: declared.znear ?? 0, far: declared.zfar ?? 0 },
-    { left: -x, right: x, top: y, bottom: -y },
+  return numbered(
+    declared.type === 'perspective'
+      ? new Camera('perspective', {
+          fov: (declared.yfov ?? 0) * RAD_TO_DEG,
+          aspect: declared.aspectRatio || 1,
+          near: declared.znear || 1,
+          far: declared.zfar || 2e6,
+        })
+      : new Camera('orthographic', {
+          near: declared.znear ?? 0,
+          far: declared.zfar ?? 0,
+          left: -x,
+          right: x,
+          top: y,
+          bottom: -y,
+        }),
   );
 }
 

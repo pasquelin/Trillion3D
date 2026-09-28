@@ -10,11 +10,18 @@ import type { TexturePool } from '../webgpu/residency/memoryBudgets.ts';
  */
 export const DEFAULT_GEOMETRY_POOL_BUDGET = 512 * 1024 * 1024;
 
-/** Bytes a page buffer may occupy on this device: the smaller of its limits. */
-export const pageBufferCap = (limits?: {
+/** Bytes one storage buffer may occupy and bind on this device: the smaller of its limits. Every
+ *  buffer sized from the device reads it — the page pool, and the DAG cut's per-primitive tables
+ *  (`../gpu/dag/lightCutCapacity.ts`, `../gpu/dag/frameRanges.ts`). */
+export const storageBufferCap = (limits?: {
   maxBufferSize?: number;
   maxStorageBufferBindingSize?: number;
 }) => Math.min(limits?.maxBufferSize ?? Infinity, limits?.maxStorageBufferBindingSize ?? Infinity);
+
+/** Bytes between two blocks of one uniform buffer bound at offsets: the device's alignment, never
+ *  under the 256 WebGPU guarantees. */
+export const uniformStride = (limits?: { minUniformBufferOffsetAlignment?: number }) =>
+  Math.max(256, limits?.minUniformBufferOffsetAlignment ?? 256);
 
 /** Why a pool does not make the requested size, or `null` when it does. */
 export type PoolClamp =
@@ -29,7 +36,8 @@ export type PoolClamp =
   /** Why the size was limited. */ clamp: PoolClamp;
 };
 
-const checkBudget = (bytes: number, name: string) => {
+/** A positive safe integer, refused with the caller's error identifier. */
+export const checkBudget = (bytes: number, name: string) => {
   if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error(name);
 };
 /** A texture budget refused by name before any pool is drawn from it. */
@@ -55,7 +63,7 @@ export function geometryPoolFor(options: {
   rootPages: number;
   maxResidentPages?: number;
   ceilingSlots?: number;
-  limits?: Parameters<typeof pageBufferCap>[0];
+  limits?: Parameters<typeof storageBufferCap>[0];
 }): GeometryPool {
   const { budgetBytes, pageBytes, uniquePages, maxResidentPages, ceilingSlots, limits } = options;
   checkGeometryPoolBudget(budgetBytes);
@@ -78,7 +86,7 @@ export function geometryPoolFor(options: {
     slots = floor;
     clamp = 'root-cover';
   }
-  const deviceBytes = pageBufferCap(limits);
+  const deviceBytes = storageBufferCap(limits);
   const deviceSlots = Math.floor(deviceBytes / pageBytes);
   if (deviceSlots < slots) {
     if (deviceSlots < floor)

@@ -114,6 +114,13 @@ export function describe(root: THREE.Object3D, ranks: Ranks) {
 
 const numbers = (v: { x: number; y: number; z: number; w?: number }) => [v.x, v.y, v.z, v.w];
 const LIGHT = ['intensity', 'distance', 'decay', 'angle', 'penumbra'] as const;
+/** What each kind of light a scene file declares carries: the core's light holds every number and
+ *  a target whatever its kind, the loader's only its kind's. */
+const DECLARED: Record<string, readonly string[]> = {
+  directional: ['intensity', 'target'],
+  point: ['intensity', 'distance', 'decay'],
+  spot: [...LIGHT, 'target'],
+};
 /** The fields of a surface the engine reads (`../shadedMaterial.ts`, the physical gate). */
 const SURFACE_FIELDS = (
   'name visible side forceSinglePass vertexColors toneMapped depthTest depthWrite ' +
@@ -181,7 +188,7 @@ export function describeShape(root: Object3D | THREE.Object3D, ranks: Ranks) {
         ),
       })),
       light: K.isLightKind(kind)
-        ? ['color', ...LIGHT, 'target'].map((key) => read(o[key], ranks))
+        ? ['color', ...(DECLARED[kind] ?? ['intensity'])].map((key) => read(o[key], ranks))
         : undefined,
       camera:
         kind === 'camera'

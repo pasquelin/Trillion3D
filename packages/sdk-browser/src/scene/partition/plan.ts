@@ -34,6 +34,7 @@ import {
 import type { CameraOptics } from '../../camera/engineCamera.ts';
 import { stretchOf } from './boxes.ts';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 /** A cell as the plan reads it: its boxes in the scene root's frame now, six values per parent
  *  (`boxes.ts`), and how many nodes of each mesh it places. */
@@ -63,7 +64,7 @@ export function cellReach(optics: PartitionOptics) {
     // Its depth range may reach behind the eye: a negative `near` draws there. A box given right
     // to left, or top to bottom, is as wide.
     const depth = Math.max(Math.abs(far), Math.abs(optics.near));
-    return Math.hypot(depth, Math.abs(x) + Math.abs(width), Math.abs(y) + Math.abs(height));
+    return hypot3(depth, Math.abs(x) + Math.abs(width), Math.abs(y) + Math.abs(height));
   }
   const slope = perspectiveSlope(optics.fov, zoom);
   return far * Math.sqrt(1 + slope * slope * (1 + optics.aspect * optics.aspect));

@@ -20,7 +20,7 @@ import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import type { ClusterRoot, PageRec } from '../../../page/selection/types.ts';
 
 function poses(n: number) {
-  const cams: G.GraphCamera[] = [];
+  const cams: G.Camera[] = [];
   for (let i = 0; i < n; i++) {
     const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 200);
     cam.position.set(Math.sin(i * 0.7) * 3, 0, 6 + i * 0.001);

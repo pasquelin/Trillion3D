@@ -7,6 +7,7 @@ import {
 } from './plan.ts';
 import { EXPAND_GROUP, expandUniformWgsl, INSTANCE_CULL_SHIFT, RUN_WORDS } from './runs.ts';
 import { EXPAND_BINDING as B } from './expandBindings.ts';
+import { LANE_SCAN_WGSL } from '../../gpu/core/laneScanWgsl.ts';
 
 /**
  * The kernel's four dispatches: one thread group per entry packet, ONE for the running sum over
@@ -60,7 +61,6 @@ export const BLEND_EXPAND_SHADER = `${expandUniformWgsl()}
 @group(0) @binding(${B.expanded}) var<storage,read_write> expanded:array<vec2u>;
 @group(0) @binding(${B.args}) var<storage,read_write> args:array<u32>;
 const GROUP=${EXPAND_GROUP}u;
-var<workgroup> tuile:array<u32,${EXPAND_GROUP}>;
 fn itemOf(i:u32)->u32{return plan[uni.orderBase+i]>>${PLAN_SHIFT}u;}
 fn kept(item:u32)->bool{return (keep[item>>5u]&(1u<<(item&31u)))!=0u;}
 /** What a plan entry expands: the clusters compaction kept for it, the chunks an unpaged
@@ -72,45 +72,28 @@ fn instancesOf(i:u32)->u32{
  if(d.x==${DRAW_UNPAGED}u){return d.y;}
  return counts[d.x*4u+1u];
 }
-/** Inclusive prefix sum of the packet's sixty-four values, in six doubling steps. */
-fn scanTuile(k:u32){
- for(var pas=1u;pas<GROUP;pas=pas<<1u){
-  var pris=0u;
-  if(k>=pas){pris=tuile[k-pas];}
-  workgroupBarrier();
-  tuile[k]=tuile[k]+pris;
-  workgroupBarrier();
- }
-}
-/** One thread group per entry packet: each counts ITS entry once, and the packet takes from that
- *  in one go each local place and its total. */
+${LANE_SCAN_WGSL}/** One thread group per entry packet: each counts ITS entry once, and the packet takes from that
+ *  in one go each local place and its total (the shared lane scan: EXPAND_GROUP is 64). */
 @compute @workgroup_size(${EXPAND_GROUP})
 fn countBlendGroups(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id) wid:vec3u){
  let i=id.x;
  let k=lid.x;
  var mien=0u;
  if(i<uni.entryCount){mien=instancesOf(i);}
- tuile[k]=mien;
- workgroupBarrier();
- scanTuile(k);
- if(i<uni.entryCount){scratch[i]=tuile[k]-mien;}
- if(k==GROUP-1u){scratch[uni.entryCount+wid.x]=tuile[k];}
+ let inclusive=laneScan(k,mien);
+ if(i<uni.entryCount){scratch[i]=inclusive-mien;}
+ if(k==GROUP-1u){scratch[uni.entryCount+wid.x]=inclusive;}
 }
 /** Running sum over packets, at two levels: each thread takes a slice, the packet scans the
  *  sixty-four subtotals, then each thread puts its own back. */
 @compute @workgroup_size(${EXPAND_GROUP})
 fn scanBlendGroups(@builtin(local_invocation_id) lid:vec3u){
  let k=lid.x;
- let par=(uni.groupCount+GROUP-1u)/GROUP;
- let debut=min(k*par,uni.groupCount);
- let fin=min(debut+par,uni.groupCount);
+ let span=laneRun(k,uni.groupCount);
  var somme=0u;
- for(var g=debut;g<fin;g++){somme=somme+scratch[uni.entryCount+g];}
- tuile[k]=somme;
- workgroupBarrier();
- scanTuile(k);
- var curseur=uni.instanceBase+tuile[k]-somme;
- for(var g=debut;g<fin;g++){
+ for(var g=span.x;g<span.y;g++){somme=somme+scratch[uni.entryCount+g];}
+ var curseur=uni.instanceBase+laneScan(k,somme)-somme;
+ for(var g=span.x;g<span.y;g++){
   let tenu=scratch[uni.entryCount+g];
   scratch[uni.entryCount+g]=curseur;
   curseur=curseur+tenu;

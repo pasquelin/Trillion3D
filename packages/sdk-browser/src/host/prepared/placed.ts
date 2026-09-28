@@ -26,6 +26,8 @@ export function placedMeshes(
   for (const rank of partition.meshes) {
     const links = parts(rank).map((part, primitives) => {
       const mesh = Object.assign(numbered(part.clone()) as HostMesh, { boundingBox: box });
+      // A cell places only shown nodes; the part may be a hidden core node's own mesh (#519).
+      mesh.visible = true;
       const link: RowLink = { meshes: rank, primitives };
       ranks.set(mesh, link);
       scene.add(mesh);

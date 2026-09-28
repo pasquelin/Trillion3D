@@ -1,12 +1,16 @@
-import { checked, corruptObject, ONE_REQUEST, retriableError } from '../cluster/pages.ts';
+import { corruptObject } from '../cluster/pages.ts';
+import { checked, ONE_REQUEST, retriableError } from '../cluster/checked.ts';
 import { verifyPageBytes } from '../page/decode/host.ts';
 import type { StreamContext } from './types.ts';
+import { createRoundTrip } from './roundTrip.ts';
 
 export function createStreamingFetcher(
   context: StreamContext,
   touch: (url: string, bytes: Uint8Array, sha256: string) => void,
 ) {
   const { catalog, cache, base, abort, onDiagnostic, emit, failures, state } = context;
+  /** The reads' round trip, what the view ahead adds to its horizon (`roundTrip.ts`). */
+  const roundTrip = createRoundTrip();
   const loadOne = async (url: string, jobSignal: AbortSignal) => {
     const page = catalog.get(url);
     if (!page) throw new Error('Unknown page ' + url);
@@ -30,10 +34,13 @@ export function createStreamingFetcher(
           attempt,
           expectedBytes: page.bytes,
         }));
-        // One request per attempt: this loop is the retry, and it says so page by page.
+        // One request per attempt: this loop is the retry, and it says so page by page. Its round
+        // trip runs until the page's bytes have landed: what a page asked for ahead has to cover.
+        const sent = performance.now();
         let buffer = await (
           await checked(new URL(url, base).href, combined, ONE_REQUEST)
         ).arrayBuffer();
+        roundTrip.note(performance.now() - sent);
         // Size is taken before any verification: the buffer leaves transferred to the decode
         // worker, so the original reference is detached for the round trip.
         const byteLength = buffer.byteLength;
@@ -128,5 +135,5 @@ export function createStreamingFetcher(
     }));
     throw error;
   };
-  return loadOne;
+  return { loadOne, roundTrip };
 }

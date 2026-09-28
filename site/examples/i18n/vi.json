@@ -58,7 +58,8 @@
       "missingCache": "Thiếu bộ nhớ đệm đã biên dịch: hãy chạy pnpm compile:caches"
     },
     "banner": {
-      "close": "Đóng"
+      "close": "Đóng",
+      "waiting": "Đang chờ engine (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -500,6 +501,32 @@
       "balloon": "ĐANG THEO KHINH KHÍ CẦU"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Xem lộ trình đã ghi qua công viên. Phát lại, dừng hoặc tự điều khiển camera.",
+    "controls": {
+      "replay": "Phát lại",
+      "stop": "Dừng"
+    },
+    "readouts": {
+      "currentPart": "Phần hiện tại"
+    },
+    "words": {
+      "entrance": "Lối vào",
+      "pond": "Ao",
+      "bridge": "Cầu",
+      "pavilion": "Nhà vọng cảnh",
+      "overview": "Toàn cảnh",
+      "complete": "Hoàn tất"
+    }
+  },
+  "a-crane-that-swings": {
+    "banner": "Xoay quanh cần cẩu khi một clip quay cần, di chuyển xe con, nâng tải và làm tải đung đưa.",
+    "controls": {
+      "speed": "Tốc độ",
+      "paused": "Tạm dừng",
+      "replay": "Phát lại"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Kéo để nhìn quanh. Làm con sóng khối lập phương cao hơn hoặc nhanh hơn.",
     "controls": {
@@ -508,6 +535,34 @@
       "ripples": "Gợn sóng",
       "inner": "Bên trong",
       "outer": "Bên ngoài"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Di chuyển camera về phía cửa. Cửa sẽ mở khi bạn đến gần.",
+    "controls": {
+      "mode": "Chế độ",
+      "openingDistance": "Khoảng cách mở",
+      "openness": "Độ mở"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "đến gần",
+        "manual": "thủ công"
+      }
+    }
+  },
+  "a-carousel": {
+    "banner": "Quan sát quanh vòng quay. Tạm dừng hoặc cho ngựa gỗ chạy theo chiều ngược lại.",
+    "controls": {
+      "running": "Đang chạy",
+      "speed": "Tốc độ",
+      "direction": "Hướng"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "theo chiều kim đồng hồ",
+        "counterclockwise": "ngược chiều kim đồng hồ"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -561,6 +616,17 @@
       "lamp": "Đèn",
       "colour": "Màu",
       "bricks": "Gạch nung"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Nhấp vào hai bề mặt để đo khoảng cách giữa chúng. Lần nhấp thứ ba bắt đầu phép đo mới. Một đơn vị tương ứng với một mét.",
+    "controls": {
+      "clear": "Xóa"
+    },
+    "readouts": {
+      "pointA": "Điểm A",
+      "pointB": "Điểm B",
+      "distance": "Khoảng cách"
     }
   },
   "click-to-pick": {
@@ -1259,6 +1325,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Nhấp vào khung nhìn, đi bằng W A S D và nhìn bằng chuột. Giảm bộ nhớ khi đang di chuyển.",
+    "controls": {
+      "walkSpeed": "Tốc độ đi",
+      "memory": "Bộ nhớ",
+      "view": "Chế độ xem",
+      "home": "Về điểm đầu"
+    },
+    "choices": {
+      "view": {
+        "beauty": "ảnh hoàn chỉnh",
+        "lod": "mức chi tiết",
+        "clusters": "cụm"
+      }
+    },
+    "words": {
+      "credit": "Đại lộ bình được làm bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 của Rico Cilliers, Poly Haven, CC0; thùng gỗ của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"
@@ -1661,7 +1746,8 @@
       "night": "Đêm",
       "bounce": "Ánh sáng dội",
       "sun": "Mặt Trời",
-      "lamp": "Đèn"
+      "lamp": "Đèn",
+      "spin": "Xoay"
     },
     "words": {
       "credit": "Mô hình đèn đường của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"
@@ -1719,7 +1805,9 @@
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Đẩy mặt phẳng gần về phía trước và xem nó cắt qua từng bức tường.",
-    "controls": { "nearPlane": "Mặt phẳng gần" }
+    "controls": {
+      "nearPlane": "Mặt phẳng gần"
+    }
   },
   "the-material-family": {
     "banner": "Kéo để đi quanh. Chuyển ánh sáng sang đêm và xem thứ gì vẫn sáng.",
@@ -1911,6 +1999,7 @@
       "manifest": "đã đọc manifest",
       "tables": "đã đọc bảng cảnh",
       "resources": "tệp của cảnh",
+      "session": "đang mở khung nhìn",
       "pages": "trang đầu tiên",
       "ready": "sẵn sàng"
     }
@@ -2186,6 +2275,27 @@
       "credit": "Lá cờ trên cột được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
     }
   },
+  "an-elevation-of-the-house": {
+    "banner": "Chọn một mặt đứng của ngôi nhà. Đưa máy quay ra xa: bản vẽ trực giao vẫn giữ nguyên tỷ lệ.",
+    "controls": {
+      "elevation": "Mặt đứng",
+      "distance": "Khoảng cách máy quay",
+      "zoom": "Tỷ lệ bản vẽ"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Mặt trước",
+        "right": "Mặt bên phải",
+        "rear": "Mặt sau"
+      }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Di chuột lên từng bộ phận của xe để làm nổi bật, hoặc tắt tính năng này trong bảng điều khiển.",
+    "controls": {
+      "highlightEnabled": "Bật làm nổi bật"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "Tạm dừng, phát lại hành trình hoặc đổi tốc độ khi máy quay trượt dọc theo kênh.",
     "controls": {
@@ -2195,6 +2305,55 @@
     },
     "readouts": {
       "progress": "Tiến độ"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Kéo để xem góc phố. Trình biên dịch đã gộp ba tệp OBJ trong một thư mục thành cảnh này.",
+    "controls": {
+      "visible": "Hiển thị",
+      "home": "Góc nhìn ban đầu"
+    },
+    "words": {
+      "credit": "Mô hình đèn đường của W. Sitters, CC BY 3.0 — xem assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Kéo thùng hàng trên sàn. Bật căn lưới để đặt theo bước nửa mét.",
+    "controls": {
+      "snap": "Căn lưới",
+      "home": "Ban đầu"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Nhấp vào một hình để chọn. Nhấp vào sàn để bỏ chọn.",
+    "controls": {
+      "color": "Màu",
+      "thickness": "Độ dày"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Kéo để xoay quanh trường. Thay đổi số lượng hoặc chế độ xem.",
+    "controls": {
+      "count": "Số lượng",
+      "view": "Chế độ xem"
+    },
+    "readouts": {
+      "objectsShown": "Đối tượng hiển thị",
+      "objectsBuilt": "Đối tượng đã tạo"
+    },
+    "choices": {
+      "view": {
+        "beauty": "ảnh hoàn chỉnh",
+        "clusters": "cụm"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Gắn hoặc tháo trình xem. Mỗi lần gắn sở hữu một thế giới và mỗi lần tháo sẽ giải phóng nó.",
+    "controls": {
+      "mount": "Gắn",
+      "unmount": "Tháo",
+      "remount": "Gắn lại"
     }
   }
 }

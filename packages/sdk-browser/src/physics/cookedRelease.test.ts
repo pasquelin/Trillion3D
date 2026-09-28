@@ -96,9 +96,9 @@ test('a cooked soft body and a tile the worker refuses give their slots and budg
     const [worker] = workers;
     worker.onmessage({ data: { type: 'ready' } });
     const camera = new Camera('perspective');
-    session.frame(camera);
+    session.frame(camera, null);
     await landed(); // opened: its cloth made in the first slot
-    session.frame(camera);
+    session.frame(camera, null);
     await landed(); // its tile loaded in the second
     const [soft, ground] = [0, 1].map((index) => index | (1 << GENERATION_SHIFT));
     assert.deepEqual([session.objectOf(soft), session.objectOf(ground)], [model, model]);
@@ -116,7 +116,7 @@ test('a cooked soft body and a tile the worker refuses give their slots and budg
     model.position.set(1, 0, 0);
     model.updateMatrixWorld(true);
     session.pose(model);
-    session.frame(camera);
+    session.frame(camera, null);
     await landed();
     worker.onmessage({ data: idleTick });
     assert.deepEqual(carried, [], 'neither carried');

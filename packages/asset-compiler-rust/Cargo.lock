@@ -205,6 +205,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "draco-core"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f9e8f56143603262e53bf96c8146a06c118af98e4ac9b1718d1ebc028ba54ca"
+dependencies = [
+ "bytemuck",
+]
+
+[[package]]
 name = "either"
 version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -897,6 +906,7 @@ name = "trillion3d-compiler"
 version = "0.8.0"
 dependencies = [
  "basisu",
+ "draco-core",
  "exr",
  "flate2",
  "image",

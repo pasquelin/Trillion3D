@@ -12,6 +12,7 @@
       "bindingOf": "Was `tr` schreibt, einmal aufgelöst; null, solange ihr Ziel nicht unter der Wurzel liegt.",
       "play": "Beginnt zu spielen.",
       "stop": "Hält an und kehrt zum Anfang zurück.",
+      "seek": "Setzt den Clip sofort auf `time` Sekunden, nach seinem Schleifenmodus, ob die Aktion spielt oder nicht: eine spielende Aktion läuft von dort weiter, eine angehaltene behält die Pose, bis eine spielende Aktion ihres Mischers sie überschreibt.",
       "clipTime": "Wo die Aktion im Clip steht, nach ihrem Schleifenmodus."
     }
   },
@@ -397,7 +398,10 @@
       "levels": "Jede Stufe.",
       "reach": "Reichweite der Strahlen: die Diagonale der Ausdehnung, jenseits derer nichts zu berühren ist.",
       "shareOf": "Sonden des Arbeitsstapels pro Bild, nach Stufe: veröffentlichte Anteile, angewendet auf einen Gesamtstapel.",
-      "follow": "Verschiebt die beweglichen Stufen um einen Blickpunkt. Gibt wahr zurück, wenn sich mindestens ein Basis-Zellindex geändert hat: das ist das einzige Signal, das die Konvergenz braucht, um neu zu starten, ganz ohne GPU-Rücklesung."
+      "follow": "Verschiebt die beweglichen Stufen um einen Blickpunkt. Gibt wahr zurück, wenn sich mindestens ein Basis-Zellindex geändert hat: das ist das einzige Signal, das die Konvergenz braucht, um neu zu starten, ganz ohne GPU-Rücklesung.",
+      "reserveCount": "Feste Kapazität, die reserviert wird, bevor Transformationen die Szene vergrößern können.",
+      "invalidLevels": "Ebenen, deren Abstand oder Vorhandensein sich bei der letzten Neuplanung geändert hat. Basisverschiebungen verwenden Zellmarkierungen.",
+      "replan": "Wendet die bestehende Regel für die räumliche Auflösung erneut auf die aktuellen Geometriegrenzen an."
     }
   },
   "BounceOccupancy": {
@@ -407,7 +411,8 @@
       "occupied": "Wahr, wenn eine Zelle einer Stufe in ihrem Gitter eine Sonde verdient.",
       "marked": "Markierte Zellen und Gesamtzellen der feinsten Stufe: der veröffentlichte Gewinn.",
       "cells": "Zellen der feinsten Stufe.",
-      "bytes": "Bytes, die sie belegt."
+      "bytes": "Bytes, die sie belegt.",
+      "allEligible": "Die Geometrie wurde bewegt: Plant vorsorglich alle Zellen der Kaskaden mit begrenzter Zellanzahl ein."
     }
   },
   "BoundedNode": {
@@ -613,7 +618,8 @@
       "p.left": "Linker Rand des Sichtfelds einer orthografischen Kamera.",
       "p.right": "Rechter Rand des Sichtfelds einer orthografischen Kamera.",
       "p.top": "Oberer Rand des Sichtfelds einer orthografischen Kamera.",
-      "p.bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera."
+      "p.bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera.",
+      "p.fitAspect": "Eine orthografische Kamera behält Höhe und Mitte ihrer Box und nimmt die Breite aus der Form des Bildes, sodass eine geänderte Canvas-Größe die Zeichnung nie verzerrt. Standardmäßig aus."
     }
   },
   "camera.orthographic": {
@@ -628,7 +634,8 @@
       "p.left": "Linker Rand des Sichtfelds einer orthografischen Kamera.",
       "p.right": "Rechter Rand des Sichtfelds einer orthografischen Kamera.",
       "p.top": "Oberer Rand des Sichtfelds einer orthografischen Kamera.",
-      "p.bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera."
+      "p.bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera.",
+      "p.fitAspect": "Eine orthografische Kamera behält Höhe und Mitte ihrer Box und nimmt die Breite aus der Form des Bildes, sodass eine geänderte Canvas-Größe die Zeichnung nie verzerrt. Standardmäßig aus."
     }
   },
   "camera.cube": {
@@ -659,7 +666,8 @@
       "p.left": "Linker Rand des Sichtfelds einer orthografischen Kamera.",
       "p.right": "Rechter Rand des Sichtfelds einer orthografischen Kamera.",
       "p.top": "Oberer Rand des Sichtfelds einer orthografischen Kamera.",
-      "p.bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera."
+      "p.bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera.",
+      "p.fitAspect": "Eine orthografische Kamera behält Höhe und Mitte ihrer Box und nimmt die Breite aus der Form des Bildes, sodass eine geänderte Canvas-Größe die Zeichnung nie verzerrt. Standardmäßig aus."
     },
     "members": {
       "isCamera": "Immer `true`: unterscheidet eine Kamera von jedem anderen Objekt.",
@@ -672,9 +680,12 @@
       "right": "Rechter Rand der orthografischen Box.",
       "top": "Oberer Rand der orthografischen Box.",
       "bottom": "Unterer Rand der orthografischen Box.",
+      "fitAspect": "Eine orthografische Box so hoch wie angegeben und so breit, wie die Form des Bildes es verlangt.",
       "projection": "`'perspective'` macht Fernes klein; `'orthographic'` behält alle Größen.",
       "copy": "Übernimmt die Knotenwerte von `source` und, von einer Kamera, ihre Optik; die eigene `projection` bleibt.",
-      "updateProjectionMatrix": "Für Seiten erhalten, die für ein Rendering-Backend geschrieben wurden, das sie braucht: jeder Optik-Schreibvorgang zeichnet bereits neu.",
+      "updateProjectionMatrix": "Setzt `projectionMatrix` neu zusammen; jede Schreibung einer Optik tut das bereits und zeichnet neu.",
+      "projectionMatrix": "Die Projektion, die die Optik zusammensetzt, in der Tiefenkonvention der Referenz mit endlicher ferner Ebene, für einen Renderer, der damit zeichnet; jede Schreibung einer Optik setzt sie neu zusammen. Die Welt zeichnet mit ihrer eigenen (`engineCamera.ts`).",
+      "matrixWorldInverse": "Die Inverse der Weltmatrix, wie zuletzt zusammengesetzt: die Ansicht, die ein Renderer liest.",
       "rayThrough": "Der Weltstrahl durch einen Punkt des Bildes, in der eigenen Projektion der Engine (`engineCamera.ts`): vom Auge entlang der Blickrichtung bei einer perspektivischen Kamera, gerade in Blickrichtung aus dem Quader bei einer orthografischen. Seine Richtung ist ein Einheitsvektor.",
       "set": "Platziert das Auge bei `pose.position`, das zu `pose.target` schaut, mit dem angegebenen Sichtfeld."
     }
@@ -713,7 +724,8 @@
       "left": "Linker Rand des Sichtfelds einer orthografischen Kamera.",
       "right": "Rechter Rand des Sichtfelds einer orthografischen Kamera.",
       "top": "Oberer Rand des Sichtfelds einer orthografischen Kamera.",
-      "bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera."
+      "bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera.",
+      "fitAspect": "Eine orthografische Kamera behält Höhe und Mitte ihrer Box und nimmt die Breite aus der Form des Bildes, sodass eine geänderte Canvas-Größe die Zeichnung nie verzerrt. Standardmäßig aus."
     }
   },
   "CameraPose-common": {
@@ -837,7 +849,7 @@
       "primitives": "Ihre Primitive.",
       "worstStalls": "Die Blockadetabelle des Compilers: höchstens zehn Primitive mit einer blockierten Gruppe, die Wurzeln auf Stufe 0 behielt, die schlimmste zuerst. Fehlt in einem Cache, der davor kompiliert wurde.",
       "texturePreviews": "Ein Eintrag pro dekodiertem Paar (Textur, Atlas), angeordnet nach Textur dann nach Atlas; leer ohne dekodierbares Bild.",
-      "textures": "Modell der gebackenen Stufen, relativ zum Manifest: {sha} der Fingerabdruck des Quellbildes, {kind} der Name des Atlas (PREVIEW_ATLAS_NAMES), {level} der Rang der Stufe. Fehlt bei einem vor den gebackenen Stufen kompilierten Cache, den dieser Leser über die Version der Begleitdatei ablehnt.",
+      "textures": "Modell der gebackenen Stufen, relativ zum Manifest: {sha} der Fingerabdruck des Quellbildes, {kind} der Name des Atlas (PREVIEW_ATLAS_NAMES), {level} der Rang der Stufe. Fehlt bei einem vor den gebackenen Stufen kompilierten Cache, den dieser Leser über die Version der Begleitdatei ablehnt. `version` ist die der Stufen (`TEXTURE_PREVIEW_VERSION`): ein Leser liest keine Stufe einer anderen.",
       "proxy": "Wo der residente Szenen-Proxy und sein BVH zu lesen sind: die Geometrie, die die Strahlen berühren. Fehlt bei einem vor der indirekten Beleuchtung kompilierten Cache, der so wie er ist lesbar bleibt."
     }
   },
@@ -1150,7 +1162,7 @@
   },
   "createGpuPageCache": {
     "summary": "Grenze für WebGPU-Zuweisung und Warteschlange.",
-    "description": "Die Bytes der Seiten und die Regel werden vom Host bereitgestellt. Warteschlangenschreibvorgänge sind geordnet; die Freigabe wartet auf laufende Sendungen, bevor sie zerstört."
+    "description": "Die Bytes der Seiten und die Regel werden vom Host bereitgestellt. Warteschlangenschreibvorgänge sind geordnet; die Freigabe wartet auf laufende Sendungen, bevor sie zerstört. `pin(key, 'held')` behält eine Seite bei `resize(slots)` vor gewöhnlich angehefteten Seiten; resize akzeptiert keine held-Menge mehr. Erneutes gewöhnliches Anheften erhält diese Stufe; `unpin(key)` entfernt sie."
   },
   "createJob": {
     "summary": "Kein Timer, kein DOM, keine Dateien, keine Oberfläche."
@@ -1360,7 +1372,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Der Proxy, neu gelesen und erneut geprüft, bevor auch nur ein Strahl ihn berührt.",
-    "description": "Anordnung, Little-Endian: `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, dann die Scheitelpunkte in der Welt, die Albedos, die exakten Grenzen der Knoten und ihre vier Kinder, aneinandergereiht. Jeder Abschnitt hat eine vom Header vorgegebene Länge; eine Datei anderer Größe wird pauschal abgelehnt, weil ein Knoten, der ein fehlendes Dreieck benennen würde, den Shader irgendetwas lesen ließe."
+    "description": "Aufbau: acht Little-Endian-Headerwörter, gefolgt von den kanonischen Geometrie- und Baumspalten sowie versionierten Eigentümerdaten. `docs/FORMAT.md` legt jede Anzahl und Spalte fest. Der Header bestimmt die Länge jedes Abschnitts; eine Datei anderer Größe wird vollständig zurückgewiesen, da ein Knoten mit Verweis auf ein fehlendes Dreieck den Shader beliebige Daten lesen ließe."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S`, zerlegt in `position`, `quaternion`, `scale`."
@@ -1497,9 +1509,6 @@
   "disabledStageProfile": {
     "summary": "Profil einer Engine, die keines behält: alles ist „nicht gemessen“, nichts ist gleich null."
   },
-  "dot": {
-    "summary": "Skalarprodukt zweier Vektoren gleicher Dimension."
-  },
   "dotVector3": {
     "summary": "`a · b` auf drei Komponenten, gelesen bei `aAt` und `bAt`: ein Puffer plus ein Versatz, nie eine Sicht."
   },
@@ -1603,13 +1612,16 @@
       "UNSUPPORTED_SCENE_UPDATE": "Dieser Zeichenpfad kann diese Änderung in der Szene nicht ausführen.",
       "BATCHED_WORLD_VIEW": "Dieser Zeichenpfad kann diese Änderung in der Szene nicht ausführen.",
       "RAYCAST_NO_VIEW": "Ein Bildpunkt wurde von einem Canvas ohne Größe verlangt: Es gibt kein Bild, durch das man zielen kann.",
+      "SURFACE_CAPTURE_UNSUPPORTED": "Eine Oberflächenaufnahme (`captureSurfaceView`) wurde von einem Zeichenweg verlangt, der die Materialoberflächen nicht in einer eigenen Ansicht zeichnen kann: Der WebGL2-Weg hat keine.",
+      "VERTICES_NOT_LOADED": "Die Eckpunkte eines geladenen Modells wurden vor `await geometry.loadVertices()` gelesen: Eine Sitzung liest sie beim ersten Bedarf, nie im Voraus.",
       "SESSION_OPEN_FAILED": "Die Sitzung der Welt konnte nicht geöffnet werden, aus einem Grund ohne eigenen Code (`world.diagnostic.error`): Der geworfene Fehler steht in `details.cause`.",
       "WEBGPU_LOST": "WebGPU hat sein Gerät verloren, oder ein Fehler darauf hat einen Zustand hinterlassen, aus dem nichts zeichnen kann: geworfen von `render`, `flush` und den Lesevorgängen, die das Gerät brauchen, benannt durch die Diagnose `gpu-device-lost`, und in `world.diagnostic.error`, wenn sich deshalb eine Sitzung nicht öffnen ließ.",
       "UNSUPPORTED_SCENE_FORMAT": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann.",
       "SCENE_NOT_SAVABLE": "Eine gespeicherte Szene hat ein anderes Format oder eine andere Version oder enthält etwas, das eine gespeicherte Szene nicht speichern kann.",
-      "PHYSICS_BUDGET": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`): auf `world.physics.error`.",
-      "PHYSICS_NESTED": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`): auf `world.physics.error`.",
-      "PHYSICS_FAILED": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`): auf `world.physics.error`.",
+      "PHYSICS_BUDGET": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`), oder Lage oder Eckpunkte eines Körpers wurden nicht endlich und er hat die Simulation verlassen (`PHYSICS_DIVERGED`): auf `world.physics.error`.",
+      "PHYSICS_NESTED": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`), oder Lage oder Eckpunkte eines Körpers wurden nicht endlich und er hat die Simulation verlassen (`PHYSICS_DIVERGED`): auf `world.physics.error`.",
+      "PHYSICS_FAILED": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`), oder Lage oder Eckpunkte eines Körpers wurden nicht endlich und er hat die Simulation verlassen (`PHYSICS_DIVERGED`): auf `world.physics.error`.",
+      "PHYSICS_DIVERGED": "Die Physik wurde über eine ihrer Grenzen hinaus beansprucht (`world.budget.physics`: Körper, dekorative Körper, Speicher), ein dynamischer Körper war kein direktes Kind der Szene (`PHYSICS_NESTED`), oder das Physikmodul ist gescheitert (`PHYSICS_FAILED`), oder Lage oder Eckpunkte eines Körpers wurden nicht endlich und er hat die Simulation verlassen (`PHYSICS_DIVERGED`): auf `world.physics.error`.",
       "PHYSICS_FORMAT": "Die vorbereitete Physik eines kompilierten Modells (`physics.json`) hat ein anderes Format oder wurde mit einem anderen Jolt als dem der Engine vorbereitet (`PHYSICS_FORMAT`): neu kompilieren. Ein exakter Raycast wurde bei ausgeschalteter Physik verlangt (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Die vorbereitete Physik eines kompilierten Modells (`physics.json`) hat ein anderes Format oder wurde mit einem anderen Jolt als dem der Engine vorbereitet (`PHYSICS_FORMAT`): neu kompilieren. Ein exakter Raycast wurde bei ausgeschalteter Physik verlangt (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` wurde auf `'vehicle'` gesetzt, während `world.controls.vehicle` `null` ist: Es gibt nichts zu fahren.",
@@ -2077,6 +2089,7 @@
       "rotateZ": "Dreht jeden Scheitelpunkt um die z-Achse, um `angle` Radiant.",
       "scale": "Streckt jeden Scheitelpunkt um `(x, y, z)`.",
       "center": "Verschiebt die Geometrie, sodass ihre Box am Ursprung zentriert ist.",
+      "loadVertices": "Liest die Eckpunkte eines geladenen Meshs, die keine Sitzung im Voraus abruft; sofort für jedes andere. Davor wirft ihr Lesen (`array`, `getX`) `VERTICES_NOT_LOADED`.",
       "clone": "Eine neue Geometrie mit Kopien jeder Liste, ihren Gruppen, ihrem Bereich, ihren Daten und Grenzen und dem Rezept, das sie noch baut.",
       "dispose": "Gibt die Geometrie zurück: führt jeden Freigabe-Hook einmal aus, vergisst ihre Halter und den Raycast-Baum; eine freigegebene Geometrie wird von niemandem gezeichnet oder getroffen.",
       "kind": "Was die Ressource ist, woran ein Leser der Szene Ressourcen unterscheidet.",
@@ -2869,7 +2882,7 @@
     "summary": "Veröffentlichte Einstellungen der direkten Beleuchtung.",
     "description": "Das sind benannte Produktentscheidungen, keine vergrabenen Konstanten: jede Laufzeitgrenze liest sie erneut, und die Diagnose veröffentlicht sie unverändert.",
     "members": {
-      "tileLights": "Lichter, die die Liste einer Bildschirmkachel hält, in jeder ihrer zwei Tiefenscheiben: ihr Speicher ist dieser, pro Kachel, was die Szene auch hält. Eine Kachel, die mehr Lichter erreichen, hält keine Liste und durchläuft jedes Licht der Szene — die sie verfehlen, addieren eine exakte Null —, sodass nie ein Licht verloren geht (X2).",
+      "tileLights": "Lichter, die die Liste einer Bildschirmkachel hält, in jeder ihrer zwei Tiefenscheiben: ihr Speicher ist dieser, pro Kachel, was die Szene auch hält. Eine Kachel, die mehr Lichter erreichen, nimmt deren Indizes aus einem Pool von der Größe der Ansicht und durchläuft genau diese; eine, für die der Pool keinen Platz hat, durchläuft jedes Licht der Szene — die sie verfehlen, addieren eine exakte Null —, sodass nie ein Licht verloren geht (X2).",
       "tileSize": "Seitenlänge in Pixeln einer Bildschirmkachel der Lichtliste.",
       "samplesPerPixel": "Vollständig beleuchtete Lichter — Schattenlesung eingeschlossen — pro Pixel eines BEWEGTEN Bildes (X2): die anderen werden ohne ihren Schatten gewichtet, und die beleuchteten werden proportional ausgelost, sodass die Schätzung unverzerrt ist und die zeitliche Kantenglättung sie mittelt. Ein unbewegtes Bild beleuchtet jedes Licht seiner Kachel und konvergiert zur exakten Summe; dort spielt diese Zahl keine Rolle.",
       "shadowPage": "Seitenlänge einer Schattenseite in Texeln: die Einheit des physischen Pools, der virtuellen Karten und der Invalidierung. Ein bewegtes Objekt macht nur die Seiten ungültig, die seine projizierte Box bedeckt.",
@@ -2962,7 +2975,7 @@
   },
   "loader": {
     "summary": "Die Familie `loader`: abgerufene Dateien, umgewandelt in das, was eine Szene nutzt.",
-    "description": "Eine Datei wird durch den geprüften Abruf der Engine gelesen (`cluster/pages.ts`), der eine fehlgeschlagene Antwort anhand ihres Status ablehnt; ein Bild (`texture`, `cubeTexture`) wird von einem Bildelement abgerufen, das es beim Fehlschlagen der Dekodierung ablehnt."
+    "description": "Eine Datei wird durch den geprüften Abruf der Engine gelesen (`cluster/checked.ts`), der eine fehlgeschlagene Antwort anhand ihres Status ablehnt; ein Bild (`texture`, `cubeTexture`) wird von einem Bildelement abgerufen, das es beim Fehlschlagen der Dekodierung ablehnt."
   },
   "loader.texture": {
     "summary": "Ruft ein Bild ab und macht daraus eine Farbtextur.",
@@ -4247,7 +4260,6 @@
     "members": {
       "isObject3D": "Immer `true`: unterscheidet einen Szenenknoten.",
       "type": "Die Art des Knotens: `'Mesh'`, `'Group'`…",
-      "name": "Ein Name, um den Knoten wiederzufinden.",
       "position": "Wo der Knoten steht, relativ zu seinem Elternteil.",
       "rotation": "Wie der Knoten gedreht ist, in drei Winkeln.",
       "quaternion": "Wie der Knoten gedreht ist, als Quaternion.",
@@ -4333,6 +4345,7 @@
   "TransformNode": {
     "summary": "Ein Szenenknoten, gelesen über die Matrizen der Referenz, gehalten im Transformationsbaum der Engine.",
     "members": {
+      "name": "Ein Name, um den Knoten wiederzufinden.",
       "matrix": "Die lokale Matrix, eine Sicht auf den Platz dieses Knotens im Transformationsbaum.",
       "matrixWorld": "Matrix in der Welt, so wie zuletzt zusammengesetzt (`updateMatrixWorld`), eine Sicht auf den Baum.",
       "matrixAutoUpdate": "Falsch, wenn `matrix` die Pose IST und nichts sie neu zusammensetzt.",
@@ -5186,6 +5199,8 @@
       "environment": "Ein Umgebungsbild, das glänzende Oberflächen spiegeln; `null` für keines.",
       "background": "Was das Bild hinter jedem Objekt füllt: eine Farbe oder `null` für den Standard. Eine Änderung erscheint im nächsten Bild, die Sitzung bleibt: eine hier gesetzte neue Farbe oder die gehaltene, über ihre Methoden geschrieben (`set`, `setRGB`, `setHex`, `setHSL`...). Ein direktes Schreiben von `.r`, `.g` oder `.b` wird nicht gehört: danach `background` erneut setzen. Ein Bild oder jeder Wert ohne `getHex` wird abgelehnt (`UNSUPPORTED_SCENE_UPDATE`): kein Pfad zeichnet es.",
       "fog": "Nebel auf jeder Fläche, deckend oder transparent, in beiden Renderern; `null`, der Standard, für keinen, ohne Kosten. `{ color, near, far }` lässt Objekte von `near` bis `far` in `color` übergehen, Entfernungen von der Kamera; `{ color, density }` wird um `density` pro Entfernungseinheit dichter; mit `heightFalloff` (und `baseHeight`, standardmäßig 0) liegt er am Boden und wird über `baseHeight` dünner — alle `1 / heightFalloff` Einheiten nach oben durch e geteilt. Eine Änderung zeigt sich im nächsten Bild: ein hier neu gesetzter Nebel oder seine über ihre Methoden geschriebene Farbe. Ein direktes Schreiben von `near`, `far`, `density`... wird nicht bemerkt: danach `fog` erneut setzen. Ein Nebel außerhalb des Bereichs — `far` nicht hinter `near`, eine negative Dichte — wird abgelehnt (`INVALID_SCENE_ENVIRONMENT`).",
+      "onBeforeRender": "Von einem Renderer aufgerufen, bevor er die Szene zeichnet; standardmäßig keiner.",
+      "onAfterRender": "Von einem Renderer aufgerufen, sobald er die Szene gezeichnet hat; standardmäßig keiner.",
       "load": "Lädt ein kompiliertes Modell — die URL seines Manifests — und fügt es dieser Szene hinzu.",
       "toJSON": "Die Szene als einfaches, versioniertes JSON: ihre Objekte, Formen über den Aufruf, der sie gebaut hat, Materialien, Lichter, der Körper jedes Meshs, wie er deklariert wurde, und geladene Modelle über ihre Adresse; dazu die Pose von `camera`, wenn eine übergeben wird.",
       "fromJSON": "Ersetzt den Inhalt der Szene durch eine mit `toJSON` gespeicherte Szene, wobei ihre `helper`-Markierungen erhalten bleiben; wird aufgelöst, sobald ihre Modelle geladen sind. Ein anderes Format oder eine andere Version wird abgelehnt (`UNSUPPORTED_SCENE_FORMAT`). Aufrufe während eines Lesevorgangs laufen nacheinander, der Reihe nach, jeder auf dem, was der vorherige hinterlassen hat: Zwei gespeicherte Szenen werden nie vermischt."
@@ -5207,7 +5222,7 @@
     "summary": "Version des Vertrags der vom Host gehaltenen Szenenhierarchie."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Header-Ganzzahlen: Signatur, Version, Dreiecke, Knoten."
+    "summary": "Ganzzahlen im Header: Signatur, Version, Anzahlen der Dreiecke/Knoten/Gruppen/Eigentümer/Quellen, reservierte Null."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X', gelesen als vorzeichenlose 32-Bit-Little-Endian-Ganzzahl."
@@ -5354,7 +5369,12 @@
       "triangles": "Drei Scheitelpunkte in der Welt pro Dreieck, je `PROXY_TRIANGLE_FLOATS` Zahlen.",
       "albedo": "Lineares diffuses Albedo des Dreiecks, als RGBA8 angeordnet.",
       "nodeBounds": "Exakte Grenzen jedes BVH-Knotens.",
-      "nodeChildren": "Die vier Kinder jedes Knotens: quantisierte Box, Dreieckszahl, Präsenz, Verbindung."
+      "nodeChildren": "Die vier Kinder jedes Knotens: quantisierte Box, Dreieckszahl, Präsenz, Verbindung.",
+      "triangleGroups": "Einmal gespeicherte, gemeinsam genutzte Gruppe der Quellbesitzer jedes kanonischen Dreiecks.",
+      "groupOffsets": "Offsets der Besitzerdatensätze jeder Gruppe, einschließlich des abschließenden Wächterwerts.",
+      "owners": "Besitzerdatensätze: Index des Quellknotens und als RGBA8 gepackte lineare Albedo.",
+      "bindWorlds": "Ursprüngliche Weltmatrizen der Quellknoten, sechzehn Werte doppelter Genauigkeit pro Knoten.",
+      "sourceParents": "Quellhierarchie, einschließlich der Partitionsknoten, die der Host derzeit nicht instanziiert hat."
     }
   },
   "SceneProxyDescriptor": {
@@ -5371,7 +5391,10 @@
       "triangleBudget": "Veröffentlichtes Dreiecksbudget, das über die wirklich erreichte Schwelle entschied.",
       "bounds": "Ausdehnung des Proxys in der Welt: drei untere Grenzen dann drei obere.",
       "triangles": "Dreiecke.",
-      "nodes": "Knoten des Baums."
+      "nodes": "Knoten des Baums.",
+      "groups": "Einmal gespeicherte, gemeinsam genutzte Besitzergruppen.",
+      "owners": "Besitzerdatensätze.",
+      "instances": "Matrizen der Quellknoten."
     }
   },
   "SceneRoot": {
@@ -5459,7 +5482,15 @@
       "shadowPagesTotal": "Seit der Öffnung des Explorers gezeichnete Seiten, Leerungen von `flush()` eingeschlossen: die Kosten einer Änderung sind der Abstand zwischen zwei Lesungen.",
       "shadowPagesPending": "Wartende Schattenseiten.",
       "shadowWaitMs": "Wie viele Millisekunden die älteste veraltete Seite, die das Bild liest, auf ihr Neuzeichnen gewartet hat. Nur die Zeit, in der das Bild sie liest, zählt; 0, sobald sie neu gezeichnet ist.",
+      "shadowCutDrops": "Light-Cut-Batches, die Arbeit verworfen haben — ihre Ansichten behielten mehr Cluster, als die Listen fassen —, seit dem Öffnen des Explorers: Jeder schickt seine Seiten zurück, entzogen bis zum Neuzeichnen (#525). Null auf einer Engine ohne GPU-Light-Cut, ebenso die drei folgenden.",
+      "shadowCutWithdrawnPages": "Seiten, die neu gezeichnet werden, weil ein Light-Cut sie falsch gezeichnet hat, seit dem Öffnen des Explorers: Sein Batch hat Arbeit verworfen, oder sein Flag wurde nie gelesen. Sie sind bis zum Neuzeichnen entzogen.",
+      "shadowCutCoarsePages": "Seiten, die neu gezeichnet werden, weil eine Ansicht einen gröberen Cluster als gewünscht gezeichnet hat, seit dem Öffnen des Explorers: freigegeben, sobald sich die Residenz geändert hat und die Kamera ruht.",
+      "shadowCutViewLimit": "Lichtansichten, in die ein Light-Cut-Batch jetzt zeichnet: die Obergrenze, bis ein Batch verwirft, dann was passt.",
       "gpuLightListsMs": "GPU-Zeit der Lichtlisten.",
+      "tileLightPoolReserved": "Wörter, die die Kacheln jenseits ihrer Liste im Lichtindex-Pool der Ansicht reserviert haben, im zuletzt vom Gerät abgetasteten Bild, solange die Szene mehr Lichter hält als eine Liste; sonst `null` (#849).",
+      "tileLightPoolCapacity": "Wörter, die der Lichtindex-Pool in diesem abgetasteten Bild hielt; ebenso `null`.",
+      "tileLightPoolOverflowed": "Ob eine Kachel in diesem abgetasteten Bild keinen Platz im Pool fand und jedes Licht durchlief.",
+      "tileLightPoolGrowths": "Wie oft der Pool auf das wuchs, was ein überlaufendes Bild verlangte, seit der Explorer geöffnet wurde.",
       "gpuShadowsMs": "GPU-Zeit der Schatten.",
       "gpuShadowCullMs": "GPU-Zeit für die Auswahl der Schattenwerfer der Schattenseiten, die ein Bild zeichnet: der Lichtschnitt, das Aussortieren pro Seite und der Verdeckungstest bewegter Werfer mit den Pyramiden, die er liest.",
       "gpuShadowRasterMs": "GPU-Zeit für das Zeichnen dieser Werfer in die Seiten: die statische Ebene, dann der Pool.",
@@ -5587,7 +5618,7 @@
       "totalNodes": "Knoten insgesamt.",
       "autonomousScene": "Ihre eingebettete Szene.",
       "texturePreviews": "Ein Eintrag pro dekodiertem Paar (Textur, Atlas), angeordnet nach Textur dann nach Atlas; leer ohne dekodierbares Bild.",
-      "textures": "Modell der gebackenen Stufen, relativ zum Manifest: {sha} der Fingerabdruck des Quellbildes, {kind} der Name des Atlas (PREVIEW_ATLAS_NAMES), {level} der Rang der Stufe. Fehlt bei einem vor den gebackenen Stufen kompilierten Cache, den dieser Leser über die Version der Begleitdatei ablehnt.",
+      "textures": "Modell der gebackenen Stufen, relativ zum Manifest: {sha} der Fingerabdruck des Quellbildes, {kind} der Name des Atlas (PREVIEW_ATLAS_NAMES), {level} der Rang der Stufe. Fehlt bei einem vor den gebackenen Stufen kompilierten Cache, den dieser Leser über die Version der Begleitdatei ablehnt. `version` ist die der Stufen (`TEXTURE_PREVIEW_VERSION`): ein Leser liest keine Stufe einer anderen.",
       "proxy": "Wo der residente Szenen-Proxy und sein BVH zu lesen sind: die Geometrie, die die Strahlen berühren. Fehlt bei einem vor der indirekten Beleuchtung kompilierten Cache, der so wie er ist lesbar bleibt.",
       "binary": "Die Binärdatei.",
       "primitives": "Ihre Primitive.",
@@ -6056,7 +6087,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "Progressive Texturstufen, gespiegelt von `packages/asset-compiler-rust/src/texture_preview.rs`: das Ende der Mip-Kette einer Quelle in der Begleitdatei, in RGBA8 in der atlaseigenen Kodierung, von der feinsten Stufe, deren keine Seite `PREVIEW_BASE` überschreitet, bis 1×1 — und darüber, ein verlustfreies PNG pro Stufe im Cache, `bakedLevels` davon ab Stufe 0.",
-    "description": "Jede Stufe folgt der Mip-Regel, die die Grafikkarte anwendete, als sie die Kette selbst neu erstellte (`packages/sdk-browser/src/texture/mips.ts`): lineare Farbmittelung, Median-Alpha, Stufe `k` aus der quantisierten Stufe `k - 1`. Ihre Größen werden nicht geschrieben: sie ergeben sich aus den Abmessungen der Quelle, die `previewLevels.ts` neu berechnet. Version 4 backt jede Stufe über dem Ende, und das Ende selbst, in den von der Kochung angeforderten Blockfamilien neben den verlustfreien Dateien — die BC-Familie für Desktop-Karten, ASTC 4×4 für Mobilgeräte, ein Byte pro Texel — für Ketten, die eine Qualitätsprüfung behalten hat; eine Kette unter der Schwelle bleibt in dieser Familie verlustfrei, und das Anordnungswort ihres Eintrags sagt es."
+    "description": "Jede Stufe folgt der Mip-Regel, die die Grafikkarte anwendete, als sie die Kette selbst neu erstellte (`packages/sdk-browser/src/texture/mips.ts`): lineare Farbmittelung, Median-Alpha, Stufe `k` aus der quantisierten Stufe `k - 1`. Ihre Größen werden nicht geschrieben: sie ergeben sich aus den Abmessungen der Quelle, die `previewLevels.ts` neu berechnet. Version 4 backt jede Stufe über dem Ende, und das Ende selbst, in den von der Kochung angeforderten Blockfamilien neben den verlustfreien Dateien — die BC-Familie für Desktop-Karten, ASTC 4×4 für Mobilgeräte, ein Byte pro Texel — für Ketten, die eine Qualitätsprüfung behalten hat; eine Kette unter der Schwelle bleibt in dieser Familie verlustfrei, und das Anordnungswort ihres Eintrags sagt es. Version 6 legt eine Block-Stufendatei in Kachel-Datensätzen ab, je einer pro HTTP-Range-Anfrage (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TextureBlockFormat": {
     "summary": "Eine Blockfamilie, in der eine Textur gebacken werden kann."
@@ -6119,7 +6150,8 @@
       "sha256": "Fingerabdruck des Quellbildes.",
       "atlas": "Welcher Atlas.",
       "level": "Welche Stufe.",
-      "format": "Welches Format."
+      "format": "Welches Format.",
+      "range": "Die Bytes einer Block-Stufe, allein zu lesen — der Datensatz einer Kachel (`tileRecords.ts`) —, per HTTP Range; ein Server, der sie ignoriert, antwortet mit der ganzen Datei."
     }
   },
   "textureLevelUrl": {
@@ -6742,7 +6774,15 @@
       "shadowPagesTotal": "Seit der Öffnung des Explorers gezeichnete Seiten, Leerungen von `flush()` eingeschlossen: die Kosten einer Änderung sind der Abstand zwischen zwei Lesungen.",
       "shadowPagesPending": "Wartende Schattenseiten.",
       "shadowWaitMs": "Wie viele Millisekunden die älteste veraltete Seite, die das Bild liest, auf ihr Neuzeichnen gewartet hat. Nur die Zeit, in der das Bild sie liest, zählt; 0, sobald sie neu gezeichnet ist.",
+      "shadowCutDrops": "Light-Cut-Batches, die Arbeit verworfen haben — ihre Ansichten behielten mehr Cluster, als die Listen fassen —, seit dem Öffnen des Explorers: Jeder schickt seine Seiten zurück, entzogen bis zum Neuzeichnen (#525). Null auf einer Engine ohne GPU-Light-Cut, ebenso die drei folgenden.",
+      "shadowCutWithdrawnPages": "Seiten, die neu gezeichnet werden, weil ein Light-Cut sie falsch gezeichnet hat, seit dem Öffnen des Explorers: Sein Batch hat Arbeit verworfen, oder sein Flag wurde nie gelesen. Sie sind bis zum Neuzeichnen entzogen.",
+      "shadowCutCoarsePages": "Seiten, die neu gezeichnet werden, weil eine Ansicht einen gröberen Cluster als gewünscht gezeichnet hat, seit dem Öffnen des Explorers: freigegeben, sobald sich die Residenz geändert hat und die Kamera ruht.",
+      "shadowCutViewLimit": "Lichtansichten, in die ein Light-Cut-Batch jetzt zeichnet: die Obergrenze, bis ein Batch verwirft, dann was passt.",
       "gpuLightListsMs": "GPU-Zeit der Lichtlisten.",
+      "tileLightPoolReserved": "Wörter, die die Kacheln jenseits ihrer Liste im Lichtindex-Pool der Ansicht reserviert haben, im zuletzt vom Gerät abgetasteten Bild, solange die Szene mehr Lichter hält als eine Liste; sonst `null` (#849).",
+      "tileLightPoolCapacity": "Wörter, die der Lichtindex-Pool in diesem abgetasteten Bild hielt; ebenso `null`.",
+      "tileLightPoolOverflowed": "Ob eine Kachel in diesem abgetasteten Bild keinen Platz im Pool fand und jedes Licht durchlief.",
+      "tileLightPoolGrowths": "Wie oft der Pool auf das wuchs, was ein überlaufendes Bild verlangte, seit der Explorer geöffnet wurde.",
       "gpuShadowsMs": "GPU-Zeit der Schatten.",
       "gpuShadowCullMs": "GPU-Zeit für die Auswahl der Schattenwerfer der Schattenseiten, die ein Bild zeichnet: der Lichtschnitt, das Aussortieren pro Seite und der Verdeckungstest bewegter Werfer mit den Pyramiden, die er liest.",
       "gpuShadowRasterMs": "GPU-Zeit für das Zeichnen dieser Werfer in die Seiten: die statische Ebene, dann der Pool.",
@@ -7008,7 +7048,8 @@
       "projection": "Perspektivisch oder orthografisch.",
       "position": "Wo das Auge steht.",
       "quaternion": "Wie das Auge gedreht ist.",
-      "optics": "Sichtfeld, near, far, Zoom und Quader, nach Namen."
+      "optics": "Sichtfeld, near, far, Zoom und Quader, nach Namen.",
+      "fitAspect": "Eine orthografische Box, auf die Form des Bildes verbreitert (`fitAspect`); fehlt, wenn aus."
     }
   },
   "SavedGeometry": {
@@ -7149,6 +7190,7 @@
       "gravity": "Schwerkraft in m/s², ein lebender Vektor; setze eine Vorgabe (`'earth'`, `'moon'`, `'mars'`, `'none'`) oder einen Vektor.",
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
+      "simulationRange": "Meter um die Kamera, innerhalb derer Körper simuliert werden (dahinter eingefroren, wie sie waren, und keine Kollisionskachel geladen); `null` folgt `camera.far`.",
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "waterSurface": "Die Wasseroberfläche zur Zeit der Simulation, zum Zeichnen: die Wellen, die der Auftrieb liest, dieselben Zahlen (`height`, `point`, `normal`).",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
@@ -7355,6 +7397,7 @@
       "gravity": "Schwerkraft in m/s², ein lebender Vektor; setze eine Vorgabe (`'earth'`, `'moon'`, `'mars'`, `'none'`) oder einen Vektor.",
       "paused": "Ob die Zeit stillsteht; Schreibvorgänge erreichen die Körper trotzdem.",
       "timeScale": "Simulierte Sekunden pro echter Sekunde: 0.25 ist Zeitlupe.",
+      "simulationRange": "Meter um die Kamera, innerhalb derer Körper simuliert werden (dahinter eingefroren, wie sie waren, und keine Kollisionskachel geladen); `null` folgt `camera.far`.",
       "water": "Das Wasser, in dem die Körper schwimmen: Pegel, Wellen, Dichte und Widerstände. Ein Körper, der leichter als das Wasser ist, schwimmt, getragen vom Gewicht des verdrängten Wassers.",
       "waterSurface": "Die Wasseroberfläche zur Zeit der Simulation, zum Zeichnen: die Wellen, die der Auftrieb liest, dieselben Zahlen (`height`, `point`, `normal`).",
       "stats": "Zählungen und beide Uhren: Worker-Millisekunden pro Schritt, Seiten-Millisekunden pro Bild.",
@@ -7367,11 +7410,12 @@
     "summary": "Was `createWorld(canvas, { physics })` über `true` hinaus annimmt.",
     "members": {
       "budget": "Feste Grenzen, einmal beim Start der Physik gelesen.",
+      "simulationRange": "Meter um die Kamera, innerhalb derer Körper simuliert werden (`world.physics.simulationRange`); `null` folgt `camera.far`.",
       "gravity": "Die Schwerkraft der Welt: eine Vorgabe oder ein Vektor."
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Gleitkommazahlen eines Schattendatensatzes, den die Schattierung eines Lichts liest: sechs Matrizen der Lampenflächen, dann das Bezugssystem der Sonnenebene — `right, zNear`, `up, zFar`, `axis, 0` —, dann der Ursprung des Ausschnitts jeder Clipmap-Stufe als zwei Ganzzahlen, dann ein Kopf `vec4f`: Flächen (Lampe) oder Stufen (Sonne), der Tangens des halben Felds der Lampe oder die feinste Stufe der Sonne, die nahe Ebene der Lampe und der erste Eintrag des Datensatzes in der Seitentabelle."
+    "summary": "Gleitkommazahlen eines Schattendatensatzes, den die Schattierung eines Lichts liest: sechs Matrizen der Lampenflächen — dort die Tiefenbereiche einer Sonne, je `zNear` und Kehrwert der Spanne (`recordPack.ts`) —, dann das Bezugssystem der Sonnenebene — `right`, `up`, `axis`, jeweils auf vier aufgefüllt —, dann der Ursprung des Ausschnitts jeder Clipmap-Stufe als zwei Ganzzahlen, dann ein Kopf `vec4f`: Flächen (Lampe) oder Stufen (Sonne), der Tangens des halben Felds der Lampe oder die feinste Stufe der Sonne, die nahe Ebene der Lampe und der erste Eintrag des Datensatzes in der Seitentabelle."
   },
   "ShadowRequestReport": {
     "summary": "Was die Schattierung in einem Bild gelesen hat: die angeforderten Tabelleneinträge, ohne Reihenfolge.",
@@ -7398,13 +7442,6 @@
       "steer": "Lenkrad, −1 ganz links bis 1 ganz rechts.",
       "handbrake": "Ob die Handbremse gezogen ist."
     }
-  },
-  "GraphNode": {
-    "members": {
-      "serial": "Die Nummer des Knotens, eindeutig in der Sitzung.",
-      "kind": "Was der Knoten ist: worauf jeder Leser des Graphen eingrenzt."
-    },
-    "summary": "Ein Knoten des Graphen: der Knoten des Kerns, unterschieden durch sein `kind`, kopiert durch das `clone` des Kerns."
   },
   "GraphSurface": {
     "members": {
@@ -7468,9 +7505,6 @@
       "rotation": "Die Rotation, in Radiant."
     },
     "summary": "Ein Bild, der Sampler-Zustand, mit dem es gelesen wird, und die Transformation seiner Koordinaten."
-  },
-  "GraphNodeKind": {
-    "summary": "Was ein Knoten des Graphen ist: die Wurzel, ein Auge oder eines der Lichter, die eine Szene deklariert."
   },
   "Joint": {
     "summary": "Ein Gelenk zwischen zwei Körpern oder einem Körper und der Welt (`b` null), erzeugt mit `joint.*` und der Simulation mit `world.physics.add` hinzugefügt.",

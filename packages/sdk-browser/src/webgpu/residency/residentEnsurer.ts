@@ -1,7 +1,9 @@
-import { STREAMING_FRAME_MS } from '../../backend/common.ts';
-import { createFrameBudget, yieldToEventLoop } from '../../page/integration/frameBudget.ts';
+import { STREAMING_FRAME_MS, STREAMING_SHARES_PER_FRAME } from '../../backend/common.ts';
+import { createFrameBudget, createSharePace } from '../../page/integration/frameBudget.ts';
 import { pageAddress } from '../row/pageSlots.ts';
-import { createPageAdmission } from './admission.ts';
+import { PRIORITY_PREFETCH } from '../../streaming/priority.ts';
+import { createAdmissionReads, createPageAdmission } from './admission.ts';
+import { mergeLowerTiers, type LowerList } from './lowerTier.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { createGpuPageCache } from '../../gpu/page/pages.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
@@ -9,7 +11,6 @@ import type { createWebgpuDiagnostics } from '../pages/io/diagnostics.ts';
 type Cache = ReturnType<typeof createGpuPageCache>;
 type Tracking = ReturnType<typeof createWebgpuPageTracking>;
 type Trace = ReturnType<typeof createWebgpuDiagnostics>['traceDiagnostic'];
-type LowerList = { pages: readonly PageRec[]; has: (key: number) => boolean };
 type EnsureOptions = {
   getCache: () => Cache | undefined;
   tracking: Tracking;
@@ -25,6 +26,9 @@ type EnsureOptions = {
    *  for, then the pages ahead of the camera, each highest priority first and without repeats,
    *  with the keys it names (`lowerTier.ts`). */
   lowerTiers: () => readonly LowerList[];
+  /** Starts the read of a page's bytes ahead of its admission, dropped with `signal` if nothing
+   *  joined it; the lower tiers' at PRIORITY_PREFETCH, behind the camera's. Absent, at admission. */
+  prefetch?: (page: PageRec, signal: AbortSignal, priority?: number) => void;
 };
 
 /** Loads newly wanted pages without acting on a stale camera cut. */
@@ -39,29 +43,15 @@ export function createWebgpuResidentEnsurer({
   traceEnabled,
   traceDiagnostic,
   lowerTiers,
+  prefetch,
 }: EnsureOptions) {
   /** The published share of the main thread (`STREAMING_FRAME_MS`), read synchronously: past it a
-   *  job yields a task and starts a new share — a due frame goes through, and the job resumes
-   *  without waiting for one, so a hidden tab loads too. Opened only after a yield, never by a job:
-   *  the next job may start in the task the last one ended in. */
+   *  job yields a task, past `STREAMING_SHARES_PER_FRAME` of a visible page a frame (a hidden tab
+   *  never waits), and opens a new share — only after a yield, never in the task a job ended in. */
   const budget = createFrameBudget(STREAMING_FRAME_MS);
-  const nextShare = () => yieldToEventLoop().then(budget.open);
-  /** One job's lower tiers in order, each page once: a page an earlier tier names — a caster also
-   *  ahead of the camera — is counted and loaded once. A copy: a tier's list is rewritten in place
-   *  by every report taken while this job loads, and a loop resumed on another list keeps neither
-   *  its order nor its count of free slots. */
-  const lowerList = () => {
-    const tiers = lowerTiers(),
-      list: PageRec[] = [];
-    for (let t = 0; t < tiers.length; t++)
-      for (const rec of tiers[t].pages) {
-        const key = tracking.keyOf(rec);
-        let named = false;
-        for (let earlier = 0; earlier < t && !named; earlier++) named = tiers[earlier].has(key);
-        if (!named) list.push(rec);
-      }
-    return list;
-  };
+  const nextShare = createSharePace(budget.open, STREAMING_SHARES_PER_FRAME);
+  /** The reads a pass starts before its admissions, under the job's `reads`; none without `prefetch`. */
+  const readAhead = prefetch && createAdmissionReads({ hasBytes, parentsOf, prefetch });
   /** Every load of both tiers goes through the install order; what the image holds is pinned. */
   const admit = createPageAdmission({
     getCache,
@@ -76,15 +66,15 @@ export function createWebgpuResidentEnsurer({
    * What the camera left: the casters the light cuts want, then the pages ahead of the camera,
    * loaded only into slots nobody holds — free, or taken by a page no tier wants. They are never
    * pinned: a camera page evicts them, they never evict a camera page, and an object on screen is
-   * never coarsened for a shadow or for a view to come. The ones already resident are moved to the
-   * far end of the eviction order first, so an arrival of these tiers never takes the slot of
-   * another page of them.
+   * never coarsened for a shadow or for a view to come. Those resident already move to the far end
+   * of the eviction order first: an arrival of these tiers never takes another one's slot.
    */
   const loadLowerTiers = async (
     lower: readonly PageRec[],
     cache: Cache,
     signal: AbortSignal | undefined,
     cameraWaiting: () => boolean,
+    reads: AbortSignal,
   ) => {
     const skip = (rec: PageRec) => {
       const key = tracking.keyOf(rec);
@@ -94,6 +84,7 @@ export function createWebgpuResidentEnsurer({
     for (let i = 0; i < lower.length; i++)
       if (!skip(lower[i]) && cache.touch(pageAddress(lower[i]), true)) held++;
     let spare = cache.unpinnedSlots() - held;
+    readAhead?.(lower, spare, (rec) => !skip(rec), cache, reads, PRIORITY_PREFETCH);
     // The share, as the camera's burst: past it the job yields — and leaves if a camera cut asked
     // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only
     // ends on a tier pass nobody interrupted, so every wait on it finds the tiers posted (#281).
@@ -126,6 +117,7 @@ export function createWebgpuResidentEnsurer({
     jobFrame: number,
     jobId: number,
     cameraWaiting: () => boolean = () => false,
+    landed: () => void = () => {},
   ) => {
     let cache = getCache();
     if (!cache) return;
@@ -153,39 +145,48 @@ export function createWebgpuResidentEnsurer({
         elapsedMs: null,
       }),
     );
-    let full = false;
-    for (let i = 0; i < wanted.length; i++) {
-      const rec = wanted[i],
-        key = tracking.keyOf(rec),
-        address = pageAddress(rec);
-      if (!tracking.wanted.has(key)) continue;
-      signal?.throwIfAborted();
-      if (isLost()) throw new Error('WEBGPU_LOST');
-      if (!hasBytes(rec) || cache.get(address)) continue;
-      // The share: past it the burst resumes after a task, nothing dropped — the page read again
-      // against `wanted` and the pool, which a camera that moved in between may have changed.
-      if (!budget.admits()) {
-        await nextShare();
+    // The reads the job starts and no load joins — pages it does not reach — leave the queue.
+    const reads = new AbortController(),
+      wants = (rec: PageRec) => tracking.wanted.has(tracking.keyOf(rec));
+    try {
+      readAhead?.(wanted, cache.unpinnedSlots(), wants, cache, reads.signal);
+      let full = false;
+      for (let i = 0; i < wanted.length; i++) {
+        const rec = wanted[i],
+          key = tracking.keyOf(rec),
+          address = pageAddress(rec);
+        if (!tracking.wanted.has(key)) continue;
+        signal?.throwIfAborted();
+        if (isLost()) throw new Error('WEBGPU_LOST');
+        if (!hasBytes(rec) || cache.get(address)) continue;
+        // The share: past it the burst resumes after a task, nothing dropped — the page read again
+        // against `wanted` and the pool, which a camera that moved in between may have changed.
+        if (!budget.admits()) {
+          await nextShare();
+          cache = getCache();
+          if (isLost() || !cache) throw new Error('WEBGPU_LOST');
+          if (!tracking.wanted.has(key) || cache.get(address)) continue;
+        }
+        try {
+          // A page whose parents lack their bytes is not loaded (-1): nothing to draw, no wake.
+          if ((await admit(rec)) > 0) landed();
+          budget.spend();
+        } catch (error) {
+          if (!String(error).includes('ALL_PAGES_PINNED')) throw error;
+          // Pool full of pages the image holds: like the reference streamer, the burst stops there,
+          // without dropping anything. What stays wanted displays through its resident ancestor; cut
+          // admission (`admitGpuCut`) only reports that the image asks for more than the slots hold.
+          full = true;
+          break;
+        }
         cache = getCache();
         if (isLost() || !cache) throw new Error('WEBGPU_LOST');
-        if (!tracking.wanted.has(key) || cache.get(address)) continue;
       }
-      try {
-        await admit(rec);
-        budget.spend();
-      } catch (error) {
-        if (!String(error).includes('ALL_PAGES_PINNED')) throw error;
-        // Pool full of pages the image holds: like the reference streamer, the burst stops there,
-        // without dropping anything. What stays wanted displays through its resident ancestor; cut
-        // admission (`admitGpuCut`) only reports that the image asks for more than the slots hold.
-        full = true;
-        break;
-      }
-      cache = getCache();
-      if (isLost() || !cache) throw new Error('WEBGPU_LOST');
+      const lower = full ? [] : mergeLowerTiers(lowerTiers(), tracking.keyOf);
+      if (lower.length) await loadLowerTiers(lower, cache, signal, cameraWaiting, reads.signal);
+    } finally {
+      reads.abort();
     }
-    const lower = full ? [] : lowerList();
-    if (lower.length) await loadLowerTiers(lower, cache, signal, cameraWaiting);
     traceDiagnostic('residency-ensure-end', 'GPU residency checked', () => ({
       ...payload({
         loaded: loaded(),

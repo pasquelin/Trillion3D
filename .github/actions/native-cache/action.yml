@@ -1,0 +1,41 @@
+name: Native binary cache
+description: >-
+  Restores the release compiler built from these exact Rust sources by an earlier green run, shared
+  by the `native` job, which alone saves it, and the unit shards.
+
+inputs:
+  rust:
+    description: The toolchain's cache key (`dtolnay/rust-toolchain`'s `cachekey` output).
+    required: true
+  lookup-only:
+    description: Only say whether the entry exists, without downloading it.
+    default: 'false'
+
+outputs:
+  hit:
+    description: '`true` when the binary of these sources is cached.'
+    value: ${{ steps.native.outputs.cache-hit }}
+  key:
+    description: The entry's key, for `actions/cache/save`.
+    value: ${{ steps.native.outputs.cache-primary-key }}
+  path:
+    description: The cached binary.
+    value: packages/asset-compiler-rust/target/release/trillion3d-compiler
+
+runs:
+  using: composite
+  steps:
+    # Keyed on the CONTENT of the Rust sources, the compiler and the golden fixtures its tests read
+    # (`scripts/validate-steps.ts` says why Cargo cannot decide this itself).
+    - uses: actions/cache/restore@v4
+      id: native
+      with:
+        path: packages/asset-compiler-rust/target/release/trillion3d-compiler
+        lookup-only: ${{ inputs.lookup-only }}
+        key: native-${{ runner.os }}-${{ inputs.rust }}-${{ hashFiles('packages/asset-compiler-rust/**', '!packages/asset-compiler-rust/target/**', 'packages/page-codec-wasm/**', '!packages/page-codec-wasm/target/**', 'packages/physics-jolt-wasm/cook/**', 'packages/physics-jolt-wasm/src/blob.h', 'packages/physics-jolt-wasm/CMakeLists.txt', 'packages/physics-jolt-wasm/JoltPhysics/Jolt/**', 'tests/fixtures/formats/**', 'tests/fixtures/physics/**') }}
+    # A restored binary keeps the time it was built at, older than this checkout's files, and a
+    # launch refuses a compiler older than its sources (`sdk-node/src/compiler/freshness.mts`).
+    # The key above already proves these sources built it: it takes the checkout's time.
+    - if: steps.native.outputs.cache-hit == 'true' && inputs.lookup-only != 'true'
+      run: touch packages/asset-compiler-rust/target/release/trillion3d-compiler
+      shell: bash

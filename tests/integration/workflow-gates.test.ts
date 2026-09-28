@@ -115,6 +115,12 @@ test('check-pr-body: the untouched template is refused, a filled one accepted', 
   const filled = review(verified);
   assert.equal(problem(filled), '');
   assert.match(problem(filled.replace(': one fix', ':')), /no "Correctness review:" line/);
+  const dropped = filled.replace(/(## Lead verification\n+)/, '$1- Item two: not delivered\n');
+  assert.match(problem(dropped), /not delivered" without the boss's yes/);
+  assert.equal(
+    problem(dropped.replace('not delivered', "not delivered, the boss's yes on #65")),
+    '',
+  );
   // The old tool-named lines no longer stand for the review.
   const tooled = verified.replace(
     '- Simplification pass:\n- Correctness review:',
@@ -128,8 +134,22 @@ test('check-pr-body: a step says "Part of", never beside "Closes"', () => {
   const filled = review(verify(linked));
   assert.equal(problem(filled.replace('Closes #65', 'Part of #65')), '');
   const both = filled.replace('## What changed', 'Part of #65\n\n## What changed');
-  assert.match(problem(both), /says both "Closes" and "Part of"/);
+  assert.match(problem(both), /says both a closing keyword .* and "Part of"/);
   assert.match(problem(filled.replace('Closes #65', 'Closes #65 (Part of #483)')), /says both/);
+  // The closer's grammar: any closing keyword, any case; code never counts.
+  const step = filled.replace('Closes #65', 'Part of #65');
+  assert.match(
+    problem(step.replace('## What changed', 'It fixes #66.\n\n## What changed')),
+    /says both/,
+  );
+  assert.match(
+    problem(filled.replace('## What changed', 'part of #483\n\n## What changed')),
+    /says both/,
+  );
+  assert.equal(
+    problem(step.replace('## What changed', 'Write `fixes #66`.\n\n## What changed')),
+    '',
+  );
 });
 
 test('check-pr-body: a draft passes without Lead verification, a ready pull request needs it', () => {
@@ -147,7 +167,7 @@ const checkSize = (cwd: string) =>
     encoding: 'utf8',
   });
 
-test("check-pr-size: more than 600 hand-written lines fail, with the base's attributes", () => {
+test("check-pr-size: more than 1,500 hand-written lines fail, with the base's attributes", () => {
   const work = makeRepo();
   ok(work, 'switch', '-q', '-c', '12-thing');
   const attributes = readFileSync(new URL('.gitattributes', repo), 'utf8');
@@ -159,8 +179,8 @@ test("check-pr-size: more than 600 hand-written lines fail, with the base's attr
   ok(work, 'tag', 'base');
   ok(work, 'rm', '-q', 'old.ts');
   const files = {
-    'pnpm-lock.yaml': 'x\n'.repeat(601),
-    'a.ts': 'x\n'.repeat(599),
+    'pnpm-lock.yaml': 'x\n'.repeat(1501),
+    'a.ts': 'x\n'.repeat(1499),
     'src/b.ts': 'x\n',
     'image.bin': 'x\0\n'.repeat(700),
   };
@@ -168,12 +188,12 @@ test("check-pr-size: more than 600 hand-written lines fail, with the base's attr
   // From a subfolder: the whole tree still counts.
   const accepted = checkSize(join(work, 'src'));
   assert.equal(accepted.status, 0, accepted.stderr);
-  assert.match(accepted.stdout, /added: 600 \(limit 600\)/);
+  assert.match(accepted.stdout, /added: 1500 \(limit 1500\)/);
   // The base's attributes decide: marking its own code generated does not exempt it.
   const selfExempt = { '.gitattributes': `${attributes}*.ts linguist-generated\n` };
   assert.equal(commit(work, 'self exemption', selfExempt).status, 0);
   const refused = checkSize(work);
   assert.equal(refused.status, 1);
-  assert.match(refused.stdout, /added: 601 \(limit 600\)/);
-  assert.match(refused.stderr, /AGENTS\.md rule 11: deliver the issue in steps/);
+  assert.match(refused.stdout, /added: 1501 \(limit 1500\)/);
+  assert.match(refused.stderr, /AGENTS\.md rule 5: narrow the issue/);
 });

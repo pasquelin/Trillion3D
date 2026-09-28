@@ -1,10 +1,5 @@
-import {
-  addScaledVector3,
-  copyScaledVector3,
-  crossVector3,
-  dotVector3,
-  subVector3,
-} from '../../math/primitives/vector.ts';
+import { addScaledVector3, copyScaledVector3, dotVector3 } from '../../math/primitives/vector.ts';
+import { subtract as sub, cross } from '../../math/primitives/vectorTuple.ts';
 import { GeometryBuilder, normalize, pieces, withRecipe } from './builder.ts';
 import type { Curve } from '../math/curves.ts';
 
@@ -194,6 +189,3 @@ function sweep(
   });
   return b.build();
 }
-
-const sub = (a: ArrayLike<number>, b: ArrayLike<number>): V3 => subVector3<V3>([0, 0, 0], a, b);
-const cross = (a: V3, b: V3): V3 => crossVector3<V3>([0, 0, 0], a, b);

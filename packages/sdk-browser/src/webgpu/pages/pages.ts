@@ -1,10 +1,6 @@
 import { pendingWebgpuFrame } from '../frame/interactiveFrame.ts';
-import { readShadowAtlasDigest } from '../../gpu/shadow/digest.ts';
-import { readPartitionAudit } from '../core/partitionAudit.ts';
-import { readTransparentOcclusionAudit } from '../transparent/occlusionAudit.ts';
 import { disabledStageProfile } from '../../../../sdk-core/src/index.ts';
 import type { BackendFactory } from '../../backend/types.ts';
-import { isCancelled } from '../../backend/common.ts';
 import { createWebgpuPagesRuntime, type WebgpuPagesBackend } from './runtime.ts';
 import { prepareWebgpuBackend } from './prepare/prepare.ts';
 import { setWebgpuBounce } from './prepare/bounce.ts';
@@ -26,15 +22,16 @@ import {
 import { acceptPage, dropPage } from './io/pageApi.ts';
 import { createArrivalSpecs } from '../../page/integration/arrivalSpecs.ts';
 import { endCpuFrame, hostCpuStep } from './render/cpuSteps.ts';
-import { setWebgpuTransform } from './render/transform.ts';
+import { setWebgpuTransform, setWebgpuTransforms } from './render/transform.ts';
 import { updateWebgpuPlacements } from '../../placement/webgpuPlacements.ts';
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
-import { setWebgpuMemoryBudgets } from './io/memory.ts';
+import { hostTableBytesOf, setWebgpuMemoryBudgets } from './io/memory.ts';
 import { setWebgpuClearColor } from './io/clearColor.ts';
-import { refreshWebgpuMaterials, webgpuMaterialClassRefusal } from './io/refreshMaterials.ts';
+import * as materials from './io/refreshMaterials.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
 import { namesNoSession } from '../../gpu/core/sessionHandle.ts';
 import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts';
+import { webgpuAudits } from './io/audits.ts';
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
 export { outputColorDiagnostic } from './helpers.ts';
 
@@ -73,16 +70,16 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     /** The only engine that carries the contract's shadow atlas: everything else is read in its methods. */
     lighting: { shadows: true },
-    setTransform(nodeName, matrix) {
-      setWebgpuTransform(rt, nodeName, matrix);
-    },
+    setTransform: (nodeName, matrix) => setWebgpuTransform(rt, nodeName, matrix),
+    setTransforms: (nodes, matrices) => setWebgpuTransforms(rt, nodes, matrices),
     setBounce: (on) => setWebgpuBounce(rt, on),
     setTemporalAntialiasing: (on) => setWebgpuTemporalAntialiasing(rt, on),
     updatePlacements(rows, from, to) {
       updateWebgpuPlacements(rt, rows, from, to);
     },
-    refreshMaterials: (values, alpha) => refreshWebgpuMaterials(rt, values, alpha),
-    materialClassRefusal: webgpuMaterialClassRefusal,
+    refreshMaterials: (values, alpha) => materials.refreshWebgpuMaterials(rt, values, alpha),
+    materialClassRefusal: (alpha) => materials.webgpuMaterialClassRefusal(alpha, rt.setup.allPages),
+    wearSurface: (assignment) => materials.wearWebgpuSurface(rt, assignment),
     setMemoryBudgets: (budgets) => setWebgpuMemoryBudgets(rt, budgets),
     setClearColor: (hex) => setWebgpuClearColor(rt, hex),
     async prepare() {
@@ -100,7 +97,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       try {
         await building;
       } catch (error) {
-        if (!isCancelled(rt.signal)) diag.diagnosticFailure('webgpu-prepare-failed', error);
+        diag.diagnosticFailure('webgpu-prepare-failed', error);
         throw error;
       } finally {
         setup.preparing = undefined;
@@ -113,6 +110,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
       syncResident(rt);
     },
     pendingFrame: () => pendingWebgpuFrame(rt),
+    landings: () => rt.services.residency.landings,
     flush(options?: { image?: boolean }) {
       return flushWebgpuPages(rt, options);
     },
@@ -147,7 +145,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     acceptPage(url, array, plan) {
       acceptPage(rt, url, array, plan, rt.services.affectsImage);
     },
-    hostTableBytes: () => rt.services.hostTableBytes(),
+    hostTableBytes: () => hostTableBytesOf(rt),
     dropPage(url) {
       dropPage(rt, url);
     },
@@ -173,17 +171,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
         disabledStageProfile('webgpu-page-raster', 'per-step profile not requested by the host')
       );
     },
-    partitionAudit() {
-      return readPartitionAudit(rt);
-    },
-    transparentOcclusionAudit() {
-      return readTransparentOcclusionAudit(rt);
-    },
-    shadowAtlasDigest() {
-      const atlas = rt.lights.shadows;
-      if (rt.run.lost || !rt.gpu.device || !atlas?.texture) return Promise.resolve(null);
-      return readShadowAtlasDigest(rt.gpu.device, atlas.texture, atlas.size);
-    },
+    ...webgpuAudits(rt),
     dispose() {
       // Inert and read as lost at once; torn down once, after the preparation stopped.
       rt.closer.abort();

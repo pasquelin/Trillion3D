@@ -76,11 +76,11 @@ pub fn collect(
         .cloned()
         .unwrap_or_default();
     let mut surfaces: Vec<Surface> = Vec::new();
-    for (order, node_id) in inputs.chosen.iter().enumerate() {
+    for (order, node_id) in inputs.shown.iter().enumerate() {
         (inputs.cancelled)()?;
         if order % PROGRESS_STEP == 0 {
             (inputs.progress)(
-                json!({"phase":"coplanar","step":"surfaces","completed":order,"total":inputs.chosen.len()}),
+                json!({"phase":"coplanar","step":"surfaces","completed":order,"total":inputs.shown.len()}),
             );
         }
         let node = item(nodes, *node_id, "node")?;

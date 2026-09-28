@@ -22,8 +22,8 @@ export async function prepareBlendResources(rt: WebgpuPagesRuntime, device: GPUD
   // previous prepare mounted is released here, expansion included. Bind groups that cited those
   // buffers fall with them.
   disposeBlendResources(blendState);
-  // A paged item reads the concatenated geometry, the very same as the opaque pass: its first
-  // vertex there is the block of its source geometry.
+  // A paged item without quantized pages reads the concatenated geometry, the very same as the
+  // opaque pass: its first vertex there is the block of its source geometry.
   for (const item of items)
     item.vertexBase = item.paged
       ? (vis.geometryBlocks.get(item.sourceGeometry.attributes)?.vertexBase ?? 0)
