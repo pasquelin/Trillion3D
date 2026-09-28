@@ -7,16 +7,14 @@ const START_WORDS_PER_TILE = LIGHT_SETTINGS.tileLights / 4;
 const MOST_WORDS_PER_TILE = LIGHT_SETTINGS.tileLights * 4;
 /** `TilePool` (`./compactWgsl.ts`): start, capacity, words reserved, overflow. */
 const STATE_BYTES = 16;
-/** A pool grows to this much more than what its overflowing frame reserved: a demand that rises
- *  by less between two samples finds room, and the view is not reallocated again. */
+/** Growth past what an overflowing frame reserved: a demand risen by less between samples fits. */
 const HEADROOM = 1.25;
 
 /**
  * The view's light-index pool, after the tile records in the same buffer (#849): a tile slice
  * past its list takes its room there. Its state is sampled one frame in fifteen, never waited
- * for: a sample that overflowed names it (`tileLightPoolOverflowed` of the frame metrics)
- * and sizes the pool to `HEADROOM` times what that frame reserved, within `MOST_WORDS_PER_TILE`. Until
- * then, and past that bound, a tile with no room walks every light of the scene, exactly.
+ * for: an overflow is named (`tileLightPoolOverflowed`) and grows the pool to `HEADROOM` times
+ * what that frame reserved, within `MOST_WORDS_PER_TILE`. Until then, and past that bound, a tile with no room walks every light of the scene, exactly.
  */
 export function createTileLightPool(device: GPUDevice) {
   const words = new Uint32Array(4);

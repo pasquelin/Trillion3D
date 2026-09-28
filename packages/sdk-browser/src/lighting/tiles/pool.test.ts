@@ -41,9 +41,7 @@ test('the frame metrics carry the sampled pool and count its growths', async () 
   await frame(200, 30, [13000, 6250, MOST * 3, 1]);
   // Then grown to its bound; a narrow frame samples no pool.
   assert.equal((await frame(200, 45)).tileLightPoolGrowths, 2);
-  assert.deepEqual(
-    pools().map((write) => write.data[1]),
-    [START, 6250, 6250, MOST],
-  );
+  const capacities = pools().map((write) => write.data[1]);
+  assert.deepEqual(capacities, [START, 6250, 6250, MOST]);
   assert.equal((await frame(64, 60)).tileLightPoolReserved, null);
 });
