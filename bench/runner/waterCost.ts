@@ -31,7 +31,7 @@ const positive = (value: string, name: string) => {
 const runs = positive(values.runs, 'runs'),
   frames = positive(values.frames, 'frames');
 const warmup = positive(values.warmup, 'warmup');
-if (runs < 3 || frames < 30) throw new Error('At least 3 runs and 30 frames required');
+if (runs < 3 || frames < 90) throw new Error('At least 3 runs and 90 frames required');
 const engineRoot = resolve(values['engine-root']),
   out = resolve(root, values.out);
 if (
@@ -44,14 +44,22 @@ const git = (cwd: string, ...args: string[]) =>
 // The fixture is fixed; only the backend entry changes when comparing two local issue worktrees.
 const pageModule = resolve(root, 'tests/browser/support/waterCostPage.ts');
 const backendModule = resolve(engineRoot, 'packages/sdk-browser/src/webgpu/pages/pages.ts');
+const codec = resolve(engineRoot, 'packages/sdk-browser/src/page/decode/geometryPageWasm.ts');
+const wasm = resolve(engineRoot, 'packages/sdk-browser/src/page/decode/pageCodec.wasm');
 const bundle = await build({
   stdin: {
     contents: `import { run as measure } from ${JSON.stringify(pageModule)};
 import { webgpuPagesBackend } from ${JSON.stringify(backendModule)};
-export const run = options => measure(webgpuPagesBackend, options);`,
+import { prepareSdkWasm } from ${JSON.stringify(codec)};
+import bytes from ${JSON.stringify(wasm)};
+export const run = async options => {
+  if (!await prepareSdkWasm(bytes)) throw new Error('SDK WASM preload failed');
+  return measure(webgpuPagesBackend, options);
+};`,
     resolveDir: root,
     loader: 'ts',
   },
+  loader: { '.wasm': 'binary' },
   bundle: true,
   write: false,
   format: 'iife',
@@ -112,6 +120,8 @@ try {
             errors.push(...reading.errors);
             if (reading.waterPassMismatches)
               errors.push('Water pass presence differs from requested control');
+            if (reading.invalidSamples) errors.push('Invalid or truncated GPU timestamp samples');
+            if (reading.samples.length < 30) errors.push('At least 30 valid GPU samples required');
             if (!reading.gpuEnvelopeMs) errors.push('No valid enclosing GPU frame samples');
             if (!reading.gpuFrameMs) errors.push('No valid GPU frame samples');
             if (reading.held) errors.push('Forced frames were held');

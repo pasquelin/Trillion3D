@@ -6,8 +6,14 @@ import { BACKGROUND, GROUND, WATER } from './waterPassCases.ts';
 export { BACKGROUND };
 export const SIZE: [number, number] = [1280, 720];
 const DISTANCE = 3;
+const MOTION_PIXELS = 8;
 const HALF_Y = DISTANCE * Math.tan((55 * Math.PI) / 360);
 const HALF_X = (HALF_Y * SIZE[0]) / SIZE[1];
+
+/** Full coverage includes only the horizontal padding the camera's translation requires. */
+export function tileHalfWidthPixels(fraction: number) {
+  return (SIZE[0] * Math.sqrt(fraction)) / 2 + (fraction === 1 ? MOTION_PIXELS : 0);
+}
 
 export function waterCostScene(fraction: number, enabled: boolean) {
   const builder = batisseur();
@@ -71,7 +77,7 @@ export function waterCostScene(fraction: number, enabled: boolean) {
     enabled ? 0 : 100,
     0,
     0,
-    HALF_X * Math.sqrt(fraction),
+    (2 * HALF_X * tileHalfWidthPixels(fraction)) / SIZE[0],
     HALF_Y * Math.sqrt(fraction),
     water,
     'clustered-blend',
@@ -85,7 +91,7 @@ export function waterCostCamera() {
 
 /** The motion translates eight screen pixels, without rotating or changing projected scale. */
 export function poseWaterCost(camera: G.Camera, frame: number, moving: boolean) {
-  const offsetPixels = moving ? 8 * Math.sin((frame * Math.PI) / 30) : 0;
+  const offsetPixels = moving ? MOTION_PIXELS * Math.sin((frame * Math.PI) / 30) : 0;
   const x = (offsetPixels / SIZE[0]) * 2 * HALF_X;
   camera.position.set(x, 0, DISTANCE);
   camera.lookAt(x, 0, 0);
@@ -93,9 +99,9 @@ export function poseWaterCost(camera: G.Camera, frame: number, moving: boolean) 
   return offsetPixels;
 }
 
-/** Analytic clipped projection, not a claim of measured raster coverage. No oversized full tile. */
+/** Analytic clipped projection, not a claim of measured raster coverage. The full tile includes motion-derived padding. */
 export function projectedFraction(fraction: number, offsetPixels: number) {
-  const halfWidth = (SIZE[0] * Math.sqrt(fraction)) / 2;
+  const halfWidth = tileHalfWidthPixels(fraction);
   const left = Math.max(0, SIZE[0] / 2 - halfWidth - offsetPixels);
   const right = Math.min(SIZE[0], SIZE[0] / 2 + halfWidth - offsetPixels);
   return (Math.max(0, right - left) * SIZE[1] * Math.sqrt(fraction)) / (SIZE[0] * SIZE[1]);
