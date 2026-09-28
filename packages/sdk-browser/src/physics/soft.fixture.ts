@@ -1,7 +1,6 @@
 import {
   CommandWriter,
   FLAG,
-  GENERATION_SHIFT,
   SOFT_STATE_WORDS,
   softBodyOf,
   writeSoft,
@@ -12,16 +11,13 @@ import { softSettings } from '../../../sdk-core/src/physics/soft.ts';
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { fromArrays } from '../../../sdk-core/src/world/geometry/builder.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
-import { body, startModule, type Module } from './module.fixture.ts';
+import { startModule, type Module } from './module.fixture.ts';
+import { FLAT, body, id } from './records.fixture.ts';
 
-/** Generation 1 of an engine id. */
-const GENERATION = 1 << GENERATION_SHIFT;
-/** Generation 1 of slot `slot`'s engine id. */
-export const id = (slot: number) => slot | GENERATION;
 /** The engine ids of the floor in slot 0, the soft body in slot 1, the box in slot 2. */
-export const FLOOR = 0 | GENERATION,
-  CLOTH = 1 | GENERATION,
-  BOX = 2 | GENERATION;
+export const FLOOR = id(0),
+  CLOTH = id(1),
+  BOX = id(2);
 
 /** A box of `mass` kg and 0.2 m in slot 2, its centre at `y`, with `flags`. */
 export function addBox(jolt: Module, mass: number, y: number, flags = 0) {
@@ -29,9 +25,6 @@ export function addBox(jolt: Module, mass: number, y: number, flags = 0) {
   writer.add({ ...body(BOX, 2, y, 0.1, flags), mass });
   jolt.step(writer.take(), 0);
 }
-
-/** Laid flat: the plane's `+y` turned to the world's `−z`, so its `−z` is the world's down. */
-export const FLAT: [number, number, number, number] = [-Math.SQRT1_2, 0, 0, Math.SQRT1_2];
 
 /** A committed module with Earth's gravity and a floor in slot 0, its top at y = 0, turned by
  *  `quaternion` about its centre. */

@@ -61,23 +61,6 @@ export async function startThreaded(count: number, budget: Partial<PhysicsBudget
 /** A started test module. */
 export type Module = Awaited<ReturnType<typeof startModule>>;
 
-/** A box body for the ADD command: engine id `id`, a motion, its height and half size. */
-export const body = (id: number, motion: number, y: number, half: number, flags = 0) => ({
-  id,
-  motion,
-  layer: motion === 0 ? 0 : 1,
-  shape: 0 as const,
-  flags,
-  position: [0, y, 0],
-  quaternion: [0, 0, 0, 1],
-  size: [half, half, half] as const,
-  mass: 0,
-  density: 600,
-  friction: 0.5,
-  restitution: 0,
-  gravityScale: 1,
-});
-
 /** The last step's events: `[type, a, b, impulse]` each. */
 export function events(jolt: Module) {
   const words = jolt.events(),
