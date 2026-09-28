@@ -7,58 +7,53 @@ import assert from 'node:assert/strict';
 import { SHADOW_PAGE, pageOrigin } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
 import { SHADOW_SAMPLE_WGSL, SHADOW_SUBTEXELS as STEPS } from './shadowSampleWgsl.ts';
+import { compare } from './shadowBias.fixture.ts';
+import { hash } from './shadowPages.fixture.ts';
 
 type Lit = { x: number; y: number; z: number; w: number };
 type Sample = { shadowSample: (at: number, layer: number, texels: number, ref: number) => number };
 type Blend = { shadowBilinear: (lit: Lit, w: { x: number; y: number }) => number };
 
 const mix = (a: number, b: number, t: number) => a + (b - a) * t;
-const hash = (x: number) => (Math.imul(x ^ 0x9e3779b9, 0x85ebca6b) >>> 0) / 2 ** 32;
 
-/** A sampler that reads the texel coordinate `uv · texels` off by `error`, over a layer `texels`
- *  a side whose page at `origin` holds `hash(texel)` and whose other texels hold noise. */
-function device(origin: number, error: number, texels: number) {
-  const lit = (texel: number, reference: number) => {
-    const local = texel - origin;
-    const depth = local >= 0 && local < SHADOW_PAGE ? hash(local) : hash(texel * 7 + 3);
-    return reference < depth ? 1 : 0;
+/** The shipped `shadowSample` over a sampler that reads the texel coordinate `uv · texels` off by
+ *  `error`, in a layer `texels` a side whose page at `origin` holds `hash(texel)`, the rest noise.
+ *  Develop's filtered comparison and the gather are both the device's: a test of either form. */
+function sampleAt(origin: number, error: number, texels: number) {
+  const depth = (x: number) => {
+    const local = Math.floor(x) - origin;
+    return local >= 0 && local < SHADOW_PAGE ? hash(local) : hash(Math.floor(x) * 7 + 3);
   };
-  const low = (uv: number) => Math.floor(uv * texels + error - 0.5);
-  return {
+  const at = (uv: number) => uv * texels + error;
+  const device = {
     floor: Math.floor,
-    mix,
     shadowAtlas: null,
     shadowSampler: null,
-    textureSampleCompareLevel(_t: null, _s: null, uv: number, _l: number, reference: number) {
-      const i = low(uv),
-        w = Math.round((uv * texels + error - 0.5 - i) * STEPS) / STEPS;
-      return mix(lit(i, reference), lit(i + 1, reference), w);
-    },
-    textureGatherCompare(_t: null, _s: null, uv: number, _l: number, reference: number): Lit {
-      const i = low(uv),
-        [a, b] = [lit(i, reference), lit(i + 1, reference)];
+    textureSampleCompareLevel: (_t: null, _s: null, uv: number, _l: number, ref: number) =>
+      compare(at(uv), 0.5, depth, ref, STEPS),
+    textureGatherCompare(_t: null, _s: null, uv: number, _l: number, ref: number): Lit {
+      const low = Math.floor(at(uv) - 0.5) + 0.5;
+      const [a, b] = [low, low + 1].map((x) => compare(x, 0.5, depth, ref));
       return { x: a, y: b, z: b, w: a };
     },
     shadowBilinear: (lit: Lit, w: number) => mix(lit.w, lit.z, w),
   };
+  return shaderFunctions<Sample>(SHADOW_SAMPLE_WGSL, ['shadowSample'], device).shadowSample;
 }
 
 test('a page reads the same comparison wherever it lies, however the sampler rounds (#26)', () => {
   for (const pages of [51, 53, 64]) {
     const texels = pages * SHADOW_PAGE;
-    const origins = [0, 17, pages - 1, pages * 30 + 7].map((k) => pageOrigin(k, pages).x);
+    const reads = [0, 17, pages - 1, pages * 30 + 7].flatMap((k) => {
+      const origin = pageOrigin(k, pages).x;
+      return [-1 / STEPS, 0, 1 / STEPS].map((error) => ({
+        origin,
+        sample: sampleAt(origin, error, texels),
+      }));
+    });
     for (let step = 0.5 * STEPS; step <= (SHADOW_PAGE - 0.5) * STEPS; step += 97) {
       const read = new Set(
-        origins.flatMap((origin) =>
-          [-1 / STEPS, 0, 1 / STEPS].map((error) => {
-            const { shadowSample } = shaderFunctions<Sample>(
-              SHADOW_SAMPLE_WGSL,
-              ['shadowSample'],
-              device(origin, error, texels),
-            );
-            return shadowSample(origin + step / STEPS, 0, texels, 0.5);
-          }),
-        ),
+        reads.map(({ origin, sample }) => sample(origin + step / STEPS, 0, texels, 0.5)),
       );
       assert.equal(read.size, 1, `side ${pages}, texel ${step / STEPS}`);
     }
