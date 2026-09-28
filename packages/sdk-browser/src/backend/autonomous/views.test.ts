@@ -3,16 +3,14 @@
 // its one budget (`poolUnion.ts`), the residency pinning that union (`residency.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as THREE from 'three';
 import { PAGE } from './pool.fixture.ts';
 import { mount } from './poolCut.fixture.ts';
-import { createWebglViews, type WebglView } from './views.ts';
+import { createWebglViews, VIEW_KEYS as KEYS, type WebglView } from './views.ts';
 import { createAutonomousResidency } from './residency.ts';
 import { createEngineCamera, type HostCamera } from '../../camera/world.ts';
-import { dag } from '../../../../../bench/perf/browser/support/dagCut.ts';
+import { dag, dagCamera } from '../../../../../bench/perf/browser/support/dagCut.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 
-const KEYS = ['shown', 'desired', 'requested', 'motion', 'viewport'] as const;
 const urls = (list: readonly PageRec[]) => list.map((page) => page.url);
 const cutOf = (view: WebglView) => ({
   shown: urls(view.shown),
@@ -21,13 +19,8 @@ const cutOf = (view: WebglView) => ({
 });
 
 /** A camera `height` units above `(x, y)` of the DAG's plane, looking straight down at it. */
-function above(x: number, y: number, height: number) {
-  const cam = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 200);
-  cam.position.set(x, y, height);
-  cam.lookAt(x, y, 0);
-  cam.updateMatrixWorld();
-  return cam as unknown as HostCamera;
-}
+const above = (x: number, y: number, height: number) =>
+  dagCamera(height, x, y) as unknown as HostCamera;
 
 test('a view drawn aside cuts into its own lists, and every reader reads the main view after', () => {
   const m = mount(1000 * PAGE);
@@ -39,7 +32,7 @@ test('a view drawn aside cuts into its own lists, and every reader reads the mai
   views.captureAside({ width: 64, height: 32 }, () => {
     const aside = views.active;
     assert.notEqual(aside, main);
-    m.place(above(2, 2, 1.5));
+    m.place(above(2, 2, 7));
     m.image(1);
     for (const key of KEYS) assert.equal(live[key], aside[key], `${key} is the drawn view's`);
     assert.deepEqual(live.viewport, [64, 32], "the cut reads the view's own size");
@@ -63,8 +56,8 @@ test('the views ask for their union under the one budget, a shared page charged 
     { views } = m,
     side = views.create(1280, 720);
   const cameras = new Map([
-    [views.main, above(-2, -2, 1.5)],
-    [side, above(2, 2, 1.5)],
+    [views.main, above(-2, -2, 7)],
+    [side, above(2, 2, 7)],
   ]);
   /** Each view draws `rounds` images in turn, from its own camera. */
   const alternate = (rounds: number, each?: () => void) => {
@@ -102,7 +95,8 @@ test('the views ask for their union under the one budget, a shared page charged 
     ...{ bootstrapUrls: rootUrls, modifiedPages: new Set<string>() },
     ...{ views: views.all, geometryStore: {} as never },
   });
-  const sideOnly = urls(side.requested).filter((url) => !urls(views.main.requested).includes(url));
+  const mainKeeps = new Set([...urls(views.main.shown), ...urls(views.main.requested)]),
+    sideOnly = urls(side.requested).filter((url) => !mainKeeps.has(url));
   assert.ok(sideOnly.length > 0 && sideOnly.every((url) => residency.pageUrls().includes(url)));
   views.release(side);
   residency.keptChanged();
