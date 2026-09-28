@@ -6,7 +6,7 @@ fn budget(cancelled: &AtomicBool) -> Budget<'_> {
         cancelled,
     }
 }
-fn box_source() -> (Value, Binary) {
+pub(super) fn box_source() -> (Value, Binary) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../tests/fixtures/formats/gltf/compressed-box");
     let g = serde_json::from_slice(&fs::read(root.join("Box.gltf")).unwrap()).unwrap();
