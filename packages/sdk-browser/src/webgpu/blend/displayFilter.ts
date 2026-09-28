@@ -134,3 +134,7 @@ export function createDisplayFilter(device: GPUDevice, width: number, height: nu
 }
 
 export type DisplayFilter = ReturnType<typeof createDisplayFilter>;
+
+/** The filter a blend pass of the open image wrote: a diagnostic image keeps the last `written`. */
+export const writtenFilter = (filter: DisplayFilter | undefined) =>
+  filter?.active && filter.written ? filter.view : undefined;
