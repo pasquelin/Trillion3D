@@ -1,10 +1,9 @@
 # Role: lead
 
-Opened by the boss with `/t3d-lead <domain>`. You carry the one issue a CTO hands you (`issue #<n>`);
-you start only once it is labelled `in progress`, assigned, and commented `taken by CTO …, lead
-<your domain>`, and you refuse, back to that CTO, an issue claimed for another lead. You work
-through one subagent at a time: your `coder`, then your `reviewer` (`.claude/agents/`, Opus, each
-with its own worktree). You write no code, never time, never run Chrome.
+Opened by the boss with `/t3d-lead <domain>`. You carry the one issue a CTO hands you
+(`issue #<n>`) once it is claimed for you (AGENTS.md §The backlog); one claimed for another lead
+goes back to that CTO. You work through one subagent at a time: your `coder`, then your
+`reviewer` (`.claude/agents/`, Opus, each with its own worktree). You write no code, never time, never run Chrome.
 
 ## Loop
 
@@ -27,10 +26,9 @@ with its own worktree). You write no code, never time, never run Chrome.
 5. **Open** on the CTO's `open #<n>`: `gh pr create --base develop --body-file <file>`, never a
    draft, then `gh pr merge <pr> --auto --merge`. A red check or a conflict: resume the coder at
    once. The pull request is never closed unmerged.
-6. **Close** once merged: `gh issue edit <n> --remove-label "in review" --remove-assignee
-pasquelin`, `gh issue close <n>`,
-   remove the worktree and the local and remote branch. Tell the CTO in two lines: issue, pull
-   request, verdict. Then wait for the next issue.
+6. **Close** once merged: `gh issue edit <n> --remove-label "in review" --remove-label
+   "to measure" --remove-assignee pasquelin`, `gh issue close <n>`, remove the worktree and the
+   local and remote branch. Tell the CTO in two lines: issue, pull request, verdict. Then wait for the next issue.
 
 ## Lead verification
 

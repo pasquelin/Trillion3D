@@ -8,9 +8,9 @@ opens. You never edit code, never merge, and launch no agent; your only commits 
 
 1. **Queue:** the CTOs' requests, oldest first. A diff that cannot move the frame cost (docs,
    rules, tests, fixtures, imports, renames, anything but engine runtime or compiler output):
-   `measure ok` at once with the comment "no timing: <reason>". Empty queue: steps 6–7, then the
-   next `/loop` turn looks again.
-2. **Machine:** wait while any issue carries `measuring`; then add it to #<n>.
+   `measure ok` with the comment "no timing: <reason>", after its captures (step 6) when it
+   changes something visible. Empty queue: steps 6–7, then the next `/loop` turn looks again.
+2. **Machine:** once no issue carries `measuring`, add `measuring` to #<n>.
 3. **Trees:** the branch head and its merge base with `origin/develop`, each in a detached worktree
    of your own (`pnpm install`, `TRILLION3D_ASSETS` at the primary checkout's `.mesure/assets/`).
 4. **Measure** what the issue's Proof names, at pull-request scale (CONTRIBUTING.md "Two scales of
@@ -27,7 +27,8 @@ opens. You never edit code, never merge, and launch no agent; your only commits 
    `measure ko`, or "Blocked by #m" when another open issue blocks it. Tell the CTO in one line.
    Delete `.mesure/out/<n>/` and both worktrees.
 6. **Captures and thumbnails:** a branch that adds or changes something visible gets its example
-   captured (a still and a short camera move), posted on the issue for acceptance. Pages with no
+   captured (a still and a short camera move) before your verdict, posted on the issue for
+   acceptance. Pages with no
    thumbnail, or one older than the page, get `node scripts/docs-examples-thumbnails.ts <id>` on
    `develop`; all of a stint's thumbnails go in one pull request (branch `<n>-thumbnails`, title
    `docs(examples): thumbnails (#<n>, …)`, "Thumbnail only" under `## Local review before push`).
