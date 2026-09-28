@@ -6,20 +6,15 @@ import { createDagPipeline } from './pipeline.ts';
 import { dagWorkLayout } from './shader/floorWgsl.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
-import {
-  DAG_READBACK_SLOTS,
-  SELECTION_HEADER_WORDS,
-  residentReadbackBytes,
-  selectionListCap,
-  stagedOutputBytes,
-} from './layout.ts';
 import { dagFlagsWords } from './shader/lastUseWgsl.ts';
+import { createDagList, initialListCap } from './listCap.ts';
 
 export async function createDagResources(
   device: GPUDevice,
   packed: PackedDag,
   residentCut: boolean,
   repeat: 'tout' | 'tete' | null = null,
+  listCap = initialListCap(device.limits, packed.pageCount),
 ) {
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const pageCount = packed.pageCount,
@@ -28,23 +23,17 @@ export async function createDagResources(
   // The compacted drawable-page list extends the snapshot: a header, then the ranks. One
   // contiguous copy reports both. Each is bounded by the CEILING and not by the catalogue: that
   // is what the frame copies and maps, and the worst case never happens (`layout.ts`,
-  // measured by `tests/browser/probes/cut-snapshot-gpu.ts`).
-  const listCap = selectionListCap(pageCount),
-    outputBytes = (SELECTION_HEADER_WORDS + listCap) * 4,
-    // The same block count as the kernel's `blockCount()`, word for word: two counters live
-    // behind them in `work` and the second is copied to the dispatch argument.
-    blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP),
+  // measured by `tests/browser/probes/cut-snapshot-gpu.ts`); a cut that keeps more grows it
+  // (`listCap.ts`).
+  // The same block count as the kernel's `blockCount()`, word for word: two counters live
+  // behind them in `work` and the second is copied to the dispatch argument.
+  const blockCount = Math.ceil(pageCount / SELECTION_WORKGROUP),
     // Layout of `work` comes from `dagWorkLayout`, which sets it for the kernel as for the
     // benches; here only the byte offsets a copy to the argument asks for are taken.
     travail = dagWorkLayout(blockCount),
     liveGroupsOffset = travail.liveGroups * 4,
     candGroupsOffset = travail.candGroups * 4,
-    drawnGroupsOffset = travail.drawnGroups * 4,
-    // A resident cut adds its drawn list and one burst of its eviction queue (`EVICTION_BURST`).
-    readbackBytes = residentCut ? residentReadbackBytes(listCap) : outputBytes,
-    // Behind the eviction queue, the requests wait for their sort, outside what the frame copies
-    // (`shader/snapshotWgsl.ts`).
-    stagedBytes = stagedOutputBytes(listCap);
+    drawnGroupsOffset = travail.drawnGroups * 4;
   // The camera's block, then the view ahead's (`shader/aheadWgsl.ts`).
   const uniformData = new Float32Array((AHEAD_VIEW + 1) * DAG_VIEW_WORDS);
   const frameData = primitiveFrameWords(packed);
@@ -87,11 +76,8 @@ export async function createDagResources(
       usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
     });
     device.queue.writeBuffer(dispatchArgs, 0, new Uint32Array([0, 1, 1, 0]));
-    const output = device.createBuffer({
-      label: 'Trillion3D DAG readback',
-      size: stagedBytes,
-      usage: STORAGE | GPUBufferUsage.COPY_SRC,
-    });
+    const list = createDagList(device, listCap, residentCut),
+      { output, readback } = list;
     // No extra storage buffer, a stage's ceiling is already reached; arming words go to the
     // dispatch argument, hence the copy source.
     const work = device.createBuffer({
@@ -109,12 +95,6 @@ export async function createDagResources(
       size: Math.max(48, packed.pageCones.byteLength),
       usage: STORAGE,
     });
-    const readback = Array.from({ length: DAG_READBACK_SLOTS }, () =>
-      device.createBuffer({
-        size: readbackBytes,
-        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
-      }),
-    );
     buffers.push(
       clusters,
       nodes,
@@ -162,8 +142,7 @@ export async function createDagResources(
       nodeCount,
       worldCount,
       blockCount,
-      outputBytes,
-      readbackBytes,
+      ...list,
       levelSizes: packed.levelSizes,
       liveGroupsOffset,
       candGroupsOffset,
@@ -180,12 +159,10 @@ export async function createDagResources(
       uniforms,
       flags,
       dispatchArgs,
-      output,
       work,
       worlds,
       frames,
       pageCones,
-      readback,
       ...pipeline,
     };
   } catch {
