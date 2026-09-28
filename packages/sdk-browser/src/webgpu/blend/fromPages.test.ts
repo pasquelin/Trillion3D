@@ -12,7 +12,6 @@ import { prepareWebgpuPages } from '../pages/prepare/prepare.ts';
 import { ensurePageTable } from '../pages/render/encodeDraws.ts';
 import { disposeWebgpuPages } from '../pages/io/metrics.ts';
 import { FLAG_CLUSTER_PAGE, FLAG_HAS_TANGENT } from '../../visibility/types.ts';
-import { BLEND_SURFACE_WGSL } from './shaderSurface.ts';
 
 /** The quad of two quantized clusters, drawn as `pass` says under `surface`, prepared on the mock
  *  device with its page reader. */
@@ -89,17 +88,4 @@ test('shared-blend and transmissive meshes keep their host buffers', async () =>
       await release(rt, fixture);
     }
   }
-});
-
-// The tangent source of a paged normal map, pinned until a capture says otherwise
-// (`tests/browser/renders/blend-page-tangents.browser.ts`): the surface reads the vertex tangent
-// only under `FLAG_HAS_TANGENT`, which a paged item never carries (above), and bends the normal in
-// the frame of its screen derivatives otherwise.
-test('a paged normal map is bent in the screen-derivative frame, an unpaged one in its tangents', () => {
-  const frame = BLEND_SURFACE_WGSL.indexOf('let frame=cotangentFrame(N,q0,q1,gradX,gradY);');
-  const tangents = BLEND_SURFACE_WGSL.indexOf(
-    `if((flags&${FLAG_HAS_TANGENT}u)!=0u){T=uniteOuZero(in.tangent);B=uniteOuZero(in.bitangent);}`,
-  );
-  assert.ok(frame > 0, 'the screen-derivative frame is the default');
-  assert.ok(tangents > frame, 'only a tangent-carrying item replaces it');
 });
