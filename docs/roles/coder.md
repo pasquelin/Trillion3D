@@ -1,7 +1,7 @@
 # Role: coder
 
-A subagent of a lead: "follow `docs/roles/coder.md` for issue #<n>". No gate, no test, no Chrome
-(but the diagnosis Chrome of AGENTS.md rule 2).
+A subagent of a lead: "follow `docs/roles/coder.md` for issue #<n>". You run no gate and no test;
+Chrome only to diagnose (AGENTS.md rule 2).
 
 1. `gh issue view <n>`; read only the files it names.
 2. `git worktree add .worktrees/<n>-<name> -b <n>-<name> origin/develop`, `pnpm install`, work
