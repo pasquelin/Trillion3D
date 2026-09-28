@@ -97,9 +97,7 @@ export function encodeBlend(
   // where it drops the draw.
   run.blendFrustumRejected = orderBlendPasses(blendState, eye);
   writeBlendView(rt, device);
-  // The lighting resources of the image, resolved once for the blends and the water pass: the
-  // shadow atlas and the probe grid do not exist from the first frame, and a group built on the
-  // placeholders is voided the day the real resources arrive.
+  // Resolve lighting resources once; a real resource voids a placeholder's bind group.
   voidStaleBlendGroups(rt, blendLightResources(rt));
   // The GPU then expands the sorted plan: an instance list, one indirect argument per slice, and
   // nothing more per item. With no compute stage, the CPU writes the same words.
@@ -144,7 +142,7 @@ export function encodeSurfaceLighting(
   cam: EngineCamera,
   uniformBase: number,
 ) {
-  const { gpu, run, capture } = rt,
+  const { gpu, run, capture, blendState } = rt,
     clear = clearValueOf(run.clearColor);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView || !gpu.depthView || !gpu.colorView)
     throw new Error('DEFERRED_UNAVAILABLE');
@@ -173,20 +171,23 @@ export function encodeSurfaceLighting(
   );
   gpu.reflection?.update(viewProj, gpu.deferred.usesContract && run.diagnostic === 'beauty');
   gpu.deferred.light(encoder, gpu.hdrView, gpu.reflection);
+  const blendShare =
+    blendState.blendGpu.length && rt.vis.blendPipelines ? gpu.asIsShare : undefined;
+  blendShare?.seed(encoder);
   if (gpu.reflection?.active && gpu.deferred.usesContract) run.gpuDrawCalls++;
   run.gpuDrawCalls++;
   encodeShadowReadback(rt, encoder);
   encodeBlend(rt, device, encoder, uniformBase, true);
   drawParticles(rt, encoder);
-  // Temporal accumulation reads the lit and blended image, and yields what composition reads — the
-  // lit image itself when this image does not accumulate. The effect chain follows: its passes
-  // read that image and hand composition the last.
+  // Composition reads the temporal result, or the lit image without accumulation.
   const asIs = readsAsIs(rt);
-  const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView, asIs);
-  const composed = encodeEffects(rt, device, encoder, accumulated);
-  // Diagnostic only: the off-screen variant does not ask for the swap-chain view. The composition
-  // pass stays the same, one colour target aside — that is what isolates presentation. Guides
-  // draw on the composed target after it, which the presentation copy then carries.
+  const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView, asIs, blendShare?.view);
+  const effects = encodeEffects(rt, device, encoder, accumulated);
+  const composed =
+    asIs && blendShare && !accumulated
+      ? { ...(effects ?? { color: gpu.hdrView }), share: blendShare.view }
+      : effects;
+  // A diagnostic variant or guide composes offscreen before presentation.
   const guided = guidesShown(rt);
   const presentation =
     capture.capturing || guided || composesOffscreen(rt.context.diagnosticGpuVariant)
