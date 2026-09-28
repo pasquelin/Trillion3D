@@ -6,7 +6,7 @@ import { createGpuShadowCullCounts } from './cullCounts.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { createShadowLightCull } from './lightCull.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
-import { CULL_UNIFORM_WORDS, SHADOW_REGION_COMMANDS, regionCommands } from './batchBudget.ts';
+import { CULL_UNIFORM_WORDS, SHADOW_REGION_COMMANDS, emptyRegionCommands } from './batchBudget.ts';
 
 /** Words of a draw-slot uniform: the matrix, the frame, then the slot and its indirection. */
 const DRAW_UNIFORM_WORDS = PAGE_BIND_ALIGN / 4;
@@ -116,7 +116,6 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     });
     const volumes = new Float32Array(MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS),
       volumeWords = new Uint32Array(volumes.buffer);
-    const commands = regionCommands();
     const uniData = new Uint32Array(CULL_UNIFORM_WORDS);
     let bound: GPUBuffer[] = [],
       group: GPUBindGroup | undefined;
@@ -133,10 +132,10 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
       counts,
       /** Opens a batch of `regions` regions: their volumes, and both commands of each at zero
        *  instances — two writes, never one per region, landing before the batch's commands run. */
-      begin(regions: number, maxVertexCount: number) {
+      begin(regions: number) {
         if (!regions) return;
         shadowBatchWrites(device).write(faceVolumes, 0, volumes, 0, regions * SHADOW_CULL_FLOATS);
-        shadowBatchWrites(device).write(indirect, 0, commands.empty(regions, maxVertexCount));
+        shadowBatchWrites(device).write(indirect, 0, emptyRegionCommands(regions));
       },
       /**
        * Encodes the cull of regions `[first, first + faces)` against the list the CPU cut wrote for

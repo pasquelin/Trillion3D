@@ -29,16 +29,21 @@ export const CASTERS_ALL = 0,
   CASTERS_STATIC = 1,
   CASTERS_MOVING = 2;
 /** Bits of a row's mobility word (`../../webgpu/shadow/mobility.ts`): its placement moves; its
- *  fragments can be cut — a cutout (`FLAG_MASK`) that is no blended caster (#965). */
+ *  fragments can be cut — a cutout (`FLAG_MASK`) that is no blended caster (#965); and, from
+ *  `MOBILITY_CORNER_SHIFT` up, the corners its page-table row draws (#966). */
 export const MOBILITY_MOVING = 1,
-  MOBILITY_CUTOUT = 2;
+  MOBILITY_CUTOUT = 2,
+  MOBILITY_CORNER_SHIFT = 2;
 /**
  * A region's two lists in its slot of `capacity` rows (#965): the casters no fragment can cut from
  * the slot's start up, counted by the region's first command and drawn with no fragment stage; the
  * cutout casters from its end down, counted by its second and drawn with the fragment test. A row is
- * kept once per region, so the two never meet. The cull and the occlusion test file alike.
+ * kept once per region, so the two never meet. The cull and the occlusion test file alike. A list's
+ * command draws as many corners as the largest caster it keeps (`keptCorners`, OMB-26, #966): every
+ * kept caster's triangles, and never more vertices than the scene's largest cluster asked before.
  */
 export const KEPT_LISTS_WGSL = `fn keptCount(region:u32,cutout:bool)->u32{return (region*${SHADOW_REGION_COMMANDS}u+select(0u,1u,cutout))*${DRAW_INDIRECT_WORDS}u+1u;}
+fn keptCorners(region:u32,cutout:bool)->u32{return keptCount(region,cutout)-1u;}
 fn keptAt(region:u32,rank:u32,capacity:u32,cutout:bool)->u32{return region*capacity+select(rank,capacity-1u-rank,cutout);}`;
 /** What both entries share: the spheres and mobility words they test, the kept lists they fill,
  *  and the test itself — one caster row against one region. Each declares the volumes itself. */
@@ -80,6 +85,7 @@ fn keepCaster(face:u32,row:u32,capacity:u32){
  }
  let cutout=(word&${MOBILITY_CUTOUT}u)!=0u;
  kept[keptAt(face,atomicAdd(&indirect[keptCount(face,cutout)],1u),capacity,cutout)]=row;
+ atomicMax(&indirect[keptCorners(face,cutout)],word>>${MOBILITY_CORNER_SHIFT}u);
 }
 `;
 
