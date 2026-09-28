@@ -39,11 +39,11 @@ test('shader bindings are those of the layout, and the uniform has the declared 
       new RegExp(`@binding\\(${binding}\\) var(<[a-z,]+>)? ${name}:`),
       `binding ${name}`,
     );
-  // Two matrices, viewport and params, then the nine weights in three quadruplets.
-  assert.equal(TAA_VIEW_BYTES, 2 * 64 + 2 * 16 + TAA_WEIGHTS * 4);
+  // Two matrices, viewport and params, the nine weights in three quadruplets, render grid, jitter.
+  assert.equal(TAA_VIEW_BYTES, 2 * 64 + 2 * 16 + TAA_WEIGHTS * 4 + 2 * 16);
   assert.match(
     TAA_SHADER,
-    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,\}/,
+    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,\}/,
   );
   // No cosine per pixel: weights come from the uniform, neighbour by neighbour.
   assert.doesNotMatch(TAA_SHADER, /cos\(/);

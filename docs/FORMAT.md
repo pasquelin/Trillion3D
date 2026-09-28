@@ -264,8 +264,9 @@ Parents moved together never run the rows short, so they never reopen the sessio
 placement undrawn (CONTRIBUTING.md §Streaming rule 10). A camera whose reach later outgrows the
 rows, or a parent scaled down or stretched more unevenly than at opening (moved, turned or scaled
 up, it holds), grows them in place, to twice what is asked, on an engine that follows the growth
-contract (`placement/growth.ts`); on one that does not, it asks the session's owner, once, to
-open it again sized for them (the world does). A session no owner
+contract (`placement/growth.ts`) and takes that growth (`growsInPlace`: WebGPU while its page
+table holds it); on one that does not, the rows stay as they are and it asks the session's owner,
+once, to open it again sized for them (the world does). A session no owner
 can open again (a bare explorer) sizes its rows for every placement, and rows that hold every
 placement never ask. A session drawing on demand draws again, camera still, until the cells it
 asked for within reach are read and placed. A partitioned scene is not

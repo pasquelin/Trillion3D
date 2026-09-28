@@ -54,8 +54,9 @@ export function submitColorCopy(
   // The off-screen variant does not touch the swap chain in any way: neither a composition target
   // nor a separate presentation pass. That is what isolates what Presentation actually contains.
   const offscreen = composesOffscreen(context.diagnosticGpuVariant);
-  if (!presented && !offscreen && gpu.presenter && gpu.colorTexture && !capture.capturing) {
-    gpu.presenter.present(encoder, gpu.colorTexture, width, height, rt.views.active.rect);
+  if (!presented && !offscreen && gpu.presenter && gpu.displayTexture && !capture.capturing) {
+    // The display colour at its size: a frame drawn below it is the resolve's input, never shown.
+    gpu.presenter.present(encoder, gpu.displayTexture, ...gpu.displaySize, rt.views.active.rect);
     run.gpuDrawCalls++;
   }
   const owned = encoder === timing.frameEncoder;

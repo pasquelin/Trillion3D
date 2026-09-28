@@ -27,10 +27,11 @@ export function createArrivalSpecs<T extends SpecRec>(
 ) {
   const cache = new Map<string, Int32Array>();
   return (url: string) => {
-    const known = cache.get(url);
-    if (known) return known;
-    const recs = byUrl.get(url);
+    const known = cache.get(url),
+      recs = byUrl.get(url);
     if (!recs) return undefined;
+    // A list placements grew since (`placement/growth.ts`) is specified anew.
+    if (known?.length === recs.length * PAGE_SPEC_STRIDE) return known;
     const specs = new Int32Array(recs.length * PAGE_SPEC_STRIDE);
     for (let i = 0; i < recs.length; i++) {
       const rec = recs[i],
