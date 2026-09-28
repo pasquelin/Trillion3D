@@ -60,7 +60,7 @@ test('a frame with no as-is pixel resolves flagless, and switching compiles no p
   const { device, renderPipelines } = fakeDevice();
   const temporal = await createTemporalAntialiasing(device, []);
   const modules = renderPipelines.map((pipeline) => pipeline.fragment!.module.label);
-  assert.deepEqual(modules, ['TAA_RESOLVE', 'TAA_RESOLVE_FLAGLESS']);
+  assert.deepEqual(modules, ['TAA_RESOLVE', 'TAA_RESOLVE_FLAGLESS', 'TAA_RESOLVE_BLENDED']);
   temporal.resize(8, 4);
   const drawn: Array<{ module?: string; bindings: number[]; layout: number[] }> = [];
   const pass = {
@@ -81,7 +81,8 @@ test('a frame with no as-is pixel resolves flagless, and switching compiles no p
   const inputs = { current: view(), depth: view(), ids: view(), pages: buffer, motion: buffer };
   temporal.encode(encoder, inputs);
   temporal.encode(encoder, { ...inputs, flags: view() });
-  assert.equal(renderPipelines.length, 2, 'no pipeline compiled in a frame');
+  temporal.encode(encoder, { ...inputs, share: view() });
+  assert.equal(renderPipelines.length, 3, 'no pipeline compiled in a frame');
   const share = [TAA_BINDINGS.flags, TAA_BINDINGS.shareHistory];
   assert.equal(drawn[0].module, 'TAA_RESOLVE_FLAGLESS');
   for (const binding of share) {
@@ -90,5 +91,7 @@ test('a frame with no as-is pixel resolves flagless, and switching compiles no p
   }
   assert.equal(drawn[1].module, 'TAA_RESOLVE');
   assert.ok(share.every((binding) => drawn[1].bindings.includes(binding)));
+  assert.equal(drawn[2].module, 'TAA_RESOLVE_BLENDED');
+  assert.ok(share.every((binding) => drawn[2].bindings.includes(binding)));
   temporal.dispose();
 });
