@@ -14,6 +14,8 @@ pub const PROXY_TRANSFORM_FLOATS: usize = 12;
 /// Prototypes one placement is tried against before it stays flat: a failed try stops at its
 /// first differing vertex, and the bound keeps a scene of unrelated same-size runs linear.
 const TRIES: usize = 8;
+/// The map that leaves a shape where it is.
+const IDENTITY: [f32; 12] = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0];
 /// Words a shared placement costs besides its positions: shape index and map.
 const INSTANCE_WORDS: usize = 1 + PROXY_TRANSFORM_FLOATS;
 /// Words a flat triangle costs: its vertices and its albedo.
@@ -146,16 +148,12 @@ pub fn share(
             .filter(|m| carries(flat, albedo, prototype, run, m));
             found.map(|m| group.members.push((index, m))).is_some()
         });
-        // A new prototype carries itself, unless a −0 its identity map would turn into +0.
-        if !joined {
-            if let Some(m) = map(placement, placement, &start, &start)
-                .filter(|m| carries(flat, albedo, run, run, m))
-            {
-                candidates.push(Group {
-                    prototype: index,
-                    members: vec![(index, m)],
-                });
-            }
+        // A new prototype carries itself, unless a −0 the identity map would turn into +0.
+        if !joined && carries(flat, albedo, run, run, &IDENTITY) {
+            candidates.push(Group {
+                prototype: index,
+                members: vec![(index, IDENTITY)],
+            });
         }
     }
     let mut sharing = Sharing::default();
