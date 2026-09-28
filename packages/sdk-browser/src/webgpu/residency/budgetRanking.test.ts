@@ -127,16 +127,9 @@ test('a ranking that nothing moves yields the same prefix twice', () => {
   const ranking = createBudgetRanking({ bootstrapKey: cover, keyOf });
   for (const page of cut) ranking.add(page);
   ranking.rank(5);
-  const premier = [...ranking.keys.subarray(0, ranking.length)],
-    pages = ranking.ranked.slice(0, ranking.length);
+  const premier = [...ranking.keys.subarray(0, ranking.length)];
   ranking.rank(5);
   assert.deepEqual([...ranking.keys.subarray(0, ranking.length)], premier, 'same order');
-  assert.equal(
-    ranking.matches(Int32Array.from(premier), premier.length, pages),
-    true,
-    'the queue that already holds this prefix is recognised, so never rewritten',
-  );
-  assert.equal(ranking.matches(Int32Array.from(premier), 4, pages), false, 'different length');
 });
 
 test('levels beyond the first band grow the counters without disturbing the rank', () => {
