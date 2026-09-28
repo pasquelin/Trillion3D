@@ -66,13 +66,6 @@ export function createTileSources(options: {
     options.onFailure,
   );
   const held = (id: number) => live.get(id) ?? scratches.get(id);
-  /** A queue's working texture, built now: a queue is copied at prepare, never inside a pass. */
-  const scratchOf = (atlas: WebgpuTileAtlas, slot: number) => {
-    const id = scratchId(atlas, slot);
-    let scratch = held(id);
-    if (!scratch) scratches.set(id, (scratch = build(atlas, slot)));
-    return scratch;
-  };
   const dropScratches = () => {
     for (const scratch of scratches.values()) scratch.destroy();
     scratches.clear();
@@ -133,7 +126,10 @@ export function createTileSources(options: {
     /** Queue of a host texture, copied from its working texture and submitted. */
     tail(atlas: WebgpuTileAtlas, slot: number, place: TilePlace) {
       const { layout } = atlas.textures[slot];
-      const scratch = scratchOf(atlas, slot);
+      // Built now if not held — a queue is copied at prepare, never inside a pass —, and only that
+      // one freed: the working textures built off the frame wait for the next pass.
+      const kept = held(scratchId(atlas, slot)),
+        scratch = kept ?? build(atlas, slot);
       if (scratch.stale) scratch.reduce();
       const encoder = device.createCommandEncoder({ label: 'Trillion3D texture tail' });
       copyTailFromTexture(
@@ -146,7 +142,7 @@ export function createTileSources(options: {
         layout.last,
       );
       device.queue.submit([encoder.finish()]);
-      dropScratches();
+      if (!kept) scratch.destroy();
     },
     /**
      * A host texture's new picture (#362): the texture turns live — it keeps one working texture
