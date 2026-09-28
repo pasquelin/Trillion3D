@@ -4,10 +4,11 @@
 import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
 
 const PATH_VERSION = 6;
-// Each point is `[x, height, z]`: `x` and `z` as shares of the box from its centre, `height` in
-// eye heights above the floor. At reference level (height ≤ 2) the camera keeps to the model's
-// middle, where a street or courtyard runs; `poses.test.ts` says how far.
-const POINTS = [
+/** At reference level (no higher than the target, two eye heights) a point keeps within this
+ *  share of the box from its centre, where a street or courtyard runs clear of the edges. */
+export const STREET_HALF_WIDTH = 0.06;
+/** `[x, height, z]`: `x` and `z` as shares of the box from its centre, `height` in eye heights. */
+export const POINTS = [
   [0.72, 28, 0.78],
   [0.2, 8, 0.26],
   [0.05, 1.2, 0.04],
