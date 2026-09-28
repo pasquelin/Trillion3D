@@ -1,7 +1,9 @@
 // The WebGPU prepare posts the cone the compiler cooked (`normal_cone.rs`, #272) where it used to
 // build one with `triangleCone` from the host vertices. On every compiled scene, this rebuilds that
 // cone from `source.gltf` as the prepared scene views it and each index page, and requires the
-// cooked cone to bound every face and to be at most twice the compiler's margin wider (#929).
+// cooked cone to bound every face and to be at most twice the compiler's margin wider (#929). A
+// page naming a vertex a solve placed (#877) is drawn from its geometry page alone: it must have
+// one, and is left out of the count.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -37,7 +39,8 @@ async function checkScene(pointer: string) {
   const bundle = (url: string) =>
     bundles.get(url) ?? bundles.set(url, bytesOf(join(dir, url))).get(url)!;
   const disagreements: string[] = [];
-  let pages = 0;
+  let pages = 0,
+    placed = 0;
   for (const primitive of manifest.primitives) {
     if (!primitive.pages.length) continue;
     const geometry = await geometryOf(primitive.mesh, primitive.primitive).loadVertices();
@@ -55,12 +58,20 @@ async function checkScene(pointer: string) {
       const indices = held
         ? new Uint32Array(bundle(held.url), page.streamOffset, page.count)
         : new Uint32Array(bundle(page.url), 0, page.count);
+      // A page a seam-locked group's solve reduced names vertices placed after the source's
+      // (`dag/solved.rs`): they live in its geometry page alone, which every engine path draws
+      // it from, and its cone was cooked on them. The source cannot rebuild it.
+      if (indices.some((v) => v >= position.count)) {
+        assert.ok(page.geometry, `${pointer} page ${page.id}: a placed vertex without its page`);
+        placed++;
+        continue;
+      }
       // A version-9 sidecar gives every page its cone.
       if (!coneHolds(page.cone!, xyz, indices))
         disagreements.push(`${pointer} page ${page.id}: cooked ${JSON.stringify(page.cone)}`);
     }
   }
-  return { pages, disagreements };
+  return { pages: pages - placed, disagreements };
 }
 
 test('every cooked cone bounds its triangles and is no wider than the runtime one', async () => {
