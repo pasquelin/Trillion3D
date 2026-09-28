@@ -25,16 +25,18 @@ export async function createCompositions(
     const code = sources[bloom ? 'bloom' : 'plain'][input];
     const module = await createCheckedShaderModule(device, code, name);
     const groups = bloom ? [layouts[input], bloomLevelLayout(device)] : layouts[input];
-    return {
-      draw: await makeFullscreenPipeline(device, module, groups, 'compose', [display]),
-      present: await makeFullscreenPipeline(device, module, groups, 'composePresent', [
+    const [draw, present] = await Promise.all([
+      makeFullscreenPipeline(device, module, groups, 'compose', [display]),
+      makeFullscreenPipeline(device, module, groups, 'composePresent', [
         display,
         { format: 'bgra8unorm' },
       ]),
-    };
+    ]);
+    return { draw, present };
   };
   type Pipelines = Awaited<ReturnType<typeof compile>>;
-  const plain = { still: await compile('still'), accumulated: await compile('accumulated') };
+  const [still, accumulated] = await Promise.all([compile('still'), compile('accumulated')]);
+  const plain = { still, accumulated };
   let blended: Record<ComposeInput, Pipelines> | undefined, blending: Promise<void> | undefined;
   return {
     /** True once the pipelines that blend a bloom in are compiled: the first call compiles them,
