@@ -17,13 +17,14 @@ import { serialOf } from './serial.ts';
 
 /** A WebGL2 context that answers every call and keeps the light records and probe uniforms. */
 function recordingGl() {
-  const seen = { block: new Float32Array(0), probe: new Float32Array(0) };
+  const seen = { records: new Float32Array(0), probe: new Float32Array(0) };
   const gl = new Proxy({} as Record<string | symbol, unknown>, {
     get: (_, name) => (name in seen ? seen[name as keyof typeof seen] : record(name)),
   });
   function record(name: string | symbol) {
     return (...args: unknown[]) => {
-      if (name === 'texSubImage2D' && args[8] instanceof Float32Array) seen.block = args[8];
+      if (name === 'texSubImage2D' && args[8] instanceof Float32Array)
+        seen.records = Float32Array.from(args[8]);
       if (name === 'uniform3fv') seen.probe = Float32Array.from(args[1] as Float32Array);
       if (name === 'getUniformLocation') return args[1];
       return {};
@@ -84,13 +85,21 @@ test('the WebGL2 cluster path uploads each kind in its slot, in the reference or
   const count = new WebglClusterLights(gl, {} as WebGLProgram).upload(scene, IDENTITY_ELEMENTS);
   assert.equal(count, 5, 'four direct lights and one ambient slot; the probe takes none');
   assert.deepEqual(
-    slotKinds(seen.block, count),
+    slotKinds(seen.records, count),
     [1, 2, 0, 4, 3],
     'points, spots, suns, rectangles',
   );
-  assert.deepEqual([seen.block[3], seen.block[16 + 3]], [7, 9], 'the ranges of the point and spot');
-  assert.deepEqual([seen.block[60], seen.block[63]], [2, 1], 'the rectangle: its half sides');
-  assert.deepEqual([...seen.block.slice(72, 76)], [1, 1, 1, 1], 'the ambient: colour × intensity');
+  assert.deepEqual(
+    [seen.records[3], seen.records[16 + 3]],
+    [7, 9],
+    'the ranges of the point and spot',
+  );
+  assert.deepEqual([seen.records[60], seen.records[63]], [2, 1], 'the rectangle: its half sides');
+  assert.deepEqual(
+    [...seen.records.slice(72, 76)],
+    [1, 1, 1, 1],
+    'the ambient: colour × intensity',
+  );
   assert.deepEqual(
     [...seen.probe],
     Array.from({ length: 27 }, (_, i) => i * 0.5),

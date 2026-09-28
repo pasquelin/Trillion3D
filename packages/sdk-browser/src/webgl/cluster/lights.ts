@@ -73,8 +73,7 @@ export class WebglClusterLights {
     view: ArrayLike<number>,
     draws: readonly (readonly ClusterDraw[])[] = [],
   ) {
-    let count = 0,
-      data: Float32Array;
+    let count = 0;
     const lists = this.lists;
     // Everything is written in place: nothing is allocated per light.
     const write = (at: number, x: number, y: number, z: number, w: number) => {
@@ -111,7 +110,7 @@ export class WebglClusterLights {
     // A slot a light, the ambient lights one more: the texture and the reach grow to hold them.
     this.records.reserve((lights.length + 1) * 4);
     lists.reserve(lights.length + 1);
-    data = this.records.data;
+    const data = this.records.data;
     // The reference's order: the points, the spots, the suns, the rectangles, the shadow casters
     // first within a kind; the ambient lights are one irradiance, summed here.
     inReferenceOrder(lights, writeLight);
