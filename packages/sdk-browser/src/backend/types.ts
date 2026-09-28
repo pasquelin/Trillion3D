@@ -182,6 +182,7 @@ export interface BackendContext {
   bounceBudgetMs?: number;
   /** Time every step of the frame. Off by default: only the bench and the harness turn it on. */
   stageProfile?: boolean;
+  feedbackTargetAB?: boolean;
   /** DIAGNOSTIC variant kept by the host, checked (`../diagnostic/gpuVariant.ts`); absent in production. */
   diagnosticGpuVariant?: import('../diagnostic/gpuVariant.ts').DiagnosticGpuVariant;
   shadowPageInvalidation?: boolean; // page-by-page shadow-map invalidation, on by default

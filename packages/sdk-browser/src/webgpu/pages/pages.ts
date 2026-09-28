@@ -33,6 +33,7 @@ import { setWebgpuClearColor } from './io/clearColor.ts';
 import * as materials from './io/refreshMaterials.ts';
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts';
 import { namesNoSession } from '../../gpu/core/sessionHandle.ts';
+import { setFeedbackTargetAb } from './diagnostic/feedbackAb.ts';
 import { claimWebgpuDevice, markWebgpuLost } from './io/lost.ts';
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts';
 export { outputColorDiagnostic } from './helpers.ts';
@@ -108,9 +109,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     render(camera) {
       renderWebgpuPages(rt, camera);
     },
-    syncResident() {
-      syncResident(rt);
-    },
+    syncResident: () => syncResident(rt),
+    setFeedbackTargetAb: (target) => setFeedbackTargetAb(rt, target),
     pendingFrame: () => pendingWebgpuFrame(rt),
     landings: () => rt.services.residency.landings,
     flush(options?: { image?: boolean }) {
@@ -134,12 +134,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     rasterRgba() {
       return rasterRgba(rt);
     },
-    pendingUrls() {
-      return pendingUrls(rt);
-    },
-    pageUrls() {
-      return pageUrls(rt);
-    },
+    pendingUrls: () => pendingUrls(rt),
+    pageUrls: () => pageUrls(rt),
     retainedRanks() {
       return retainedRanks(rt);
     },

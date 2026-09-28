@@ -1,0 +1,112 @@
+import { FEEDBACK_FORMAT } from '../../../scene/surfaceBuffer.ts';
+import { createWebgpuBlendPipelines } from '../../blend/pipelines.ts';
+import { createWebgpuShadePipelines } from '../../visibility/pipelines.ts';
+import type { WebgpuPagesRuntime } from '../runtime.ts';
+
+type Pipelines = {
+  shadePipelineFor: WebgpuPagesRuntime['vis']['shadePipelineFor'];
+  shadePipelines: WebgpuPagesRuntime['vis']['shadePipelines'];
+  singleShadePipelines: WebgpuPagesRuntime['vis']['singleShadePipelines'];
+  blendPipelines: WebgpuPagesRuntime['vis']['blendPipelines'];
+  water: WebgpuPagesRuntime['blendState']['water'];
+};
+
+export type FeedbackAbState = {
+  target: boolean;
+  force: boolean;
+  on: Pipelines;
+  off: Pipelines;
+};
+
+const pipelinesOf = (rt: WebgpuPagesRuntime): Pipelines => ({
+  shadePipelineFor: rt.vis.shadePipelineFor,
+  shadePipelines: rt.vis.shadePipelines,
+  singleShadePipelines: rt.vis.singleShadePipelines,
+  blendPipelines: rt.vis.blendPipelines,
+  water: rt.blendState.water,
+});
+
+/** Prepares both layouts before any diagnostic timing; the live scene and pools stay shared. */
+export async function prepareFeedbackAb(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  shadeModule: GPUShaderModule,
+  classes: readonly number[],
+) {
+  if (rt.context.diagnosticGpuVariant) throw new Error('FEEDBACK_AB_VARIANT_UNSUPPORTED');
+  const shade = await createWebgpuShadePipelines(
+    device,
+    shadeModule,
+    classes,
+    undefined,
+    false,
+    rt.vis.shadeBindGroupLayout,
+  );
+  const blend = await createWebgpuBlendPipelines(
+    device,
+    rt.blendState.blendGpu,
+    undefined,
+    false,
+    rt.vis.blendBindGroupLayout,
+  );
+  if (blend.waterRefused) throw blend.waterRefused;
+  if (rt.blendState.transmissive > 0 && !rt.blendState.water)
+    throw new Error('FEEDBACK_AB_WATER_PATH_UNAVAILABLE');
+  rt.feedbackAB = {
+    target: true,
+    force: false,
+    on: pipelinesOf(rt),
+    off: {
+      shadePipelineFor: shade.shadePipelineFor,
+      shadePipelines: shade.shadePipelines,
+      singleShadePipelines: shade.singleShadePipelines,
+      blendPipelines: blend.blendPipelines,
+      water: blend.water,
+    },
+  };
+}
+
+/** A frame-boundary diagnostic switch; callers must first converge the same frozen pose. */
+export async function setFeedbackTargetAb(rt: WebgpuPagesRuntime, target: boolean) {
+  const state = rt.feedbackAB;
+  const device = rt.gpu.device;
+  if (!state || !device) throw new Error('FEEDBACK_AB_UNAVAILABLE');
+  if (rt.views.active !== rt.views.main || rt.capture.capturing)
+    throw new Error('FEEDBACK_AB_VIEW_BUSY');
+  if (!state.force && !rt.run.frameHeld) throw new Error('FEEDBACK_AB_POSE_NOT_HELD');
+  const texture = rt.vis.textures?.metrics();
+  if (
+    !texture ||
+    texture.textureTilesPending ||
+    texture.textureMissingLevels ||
+    texture.textureTilesRequested !== texture.textureTilesAtLevel
+  )
+    throw new Error('FEEDBACK_AB_TEXTURES_NOT_RESIDENT');
+  await device.queue.onSubmittedWorkDone();
+  await rt.vis.textures?.settled();
+  if (state.target !== target) {
+    const [width, height] = rt.gpu.targetSize;
+    if (!width || !height) throw new Error('FEEDBACK_AB_TARGETS_MISSING');
+    if (target) {
+      rt.gpu.feedbackTexture = device.createTexture({
+        label: 'Trillion3D texture feedback target',
+        size: { width, height },
+        format: FEEDBACK_FORMAT,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+      });
+      rt.gpu.feedbackView = rt.gpu.feedbackTexture.createView();
+    } else {
+      rt.gpu.feedbackTexture?.destroy();
+      rt.gpu.feedbackTexture = rt.gpu.feedbackView = undefined;
+    }
+    rt.gpu.targetBytes += (target ? 1 : -1) * width * height * 4;
+    const selected = target ? state.on : state.off;
+    rt.vis.shadePipelineFor = selected.shadePipelineFor;
+    rt.vis.shadePipelines = selected.shadePipelines;
+    rt.vis.singleShadePipelines = selected.singleShadePipelines;
+    rt.vis.blendPipelines = selected.blendPipelines;
+    rt.blendState.water = selected.water;
+    state.target = target;
+  }
+  state.force = true;
+}
