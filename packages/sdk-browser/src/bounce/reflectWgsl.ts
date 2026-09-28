@@ -1,3 +1,4 @@
+import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts';
 import { MODEL_FLAG } from '../scene/surfaceModel.ts';
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 
@@ -5,18 +6,22 @@ import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
  *  bindings (14 to 17) and the shadow transmittance pair (18, 19), which share those numbers. */
 export const BOUNCE_SURFACE_BINDING = 20;
 
-/**
- * Radiance a ray brings back from the resident proxy: nothing if it hits nothing, the hit texel
- * otherwise. It is a read, not a compute: the surface cache already holds the outgoing radiance of
- * that face. The probes gather it and a reflection reads it, from this one text, against the
- * `surface` array each caller binds.
- */
+/** Static hits read the canonical cache. After motion, every owner evaluates the same lighting
+ *  at its transformed centroid: no stale coowner cell, no owner-sized radiance allocation. */
 export const SURFACE_RAY_WGSL = `
+${SURFACE_IRRADIANCE_WGSL}
 fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  let hit=traceProxy(origin,direction,reach);
  if(!hit.found){return vec4f(0.0,0.0,0.0,reach);}
  // The face that counts is the one looking at the ray: the proxy is two-sided by construction.
- let face=select(0u,1u,dot(proxyNormal(hit.triangle),direction)>0.0);
+ let geometric=proxyOwnerNormal(hit.triangle,hit.owner);
+ let face=select(0u,1u,dot(geometric,direction)>0.0);
+ if(proxy.dynamic!=0u){
+  let normal=select(geometric,-geometric,face==1u);
+  let point=proxyOwnerCentre(hit.triangle,hit.owner);
+  let lighting=directIrradiance(point,normal,reach)+sampleBounce(point,normal);
+  return vec4f(proxyOwnerAlbedo(hit.owner)*lighting*INVERSE_PI,hit.distance);
+ }
  let texel=hit.triangle*2u+face;
  if(texel>=arrayLength(&surface)){return vec4f(0.0,0.0,0.0,hit.distance);}
  return vec4f(surface[texel].rgb,hit.distance);
