@@ -6,7 +6,7 @@ import {
 } from '../../gpu/shadow/transmittance.ts';
 import { refreshSurface } from '../../page/surface.ts';
 import { SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
-import { admitShadowBytes, noteShadowPressure, shadowPoolHeld } from './memoryGrant.ts';
+import { grantsShadowLayer, noteShadowPressure } from './memoryGrant.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** Whether a blended surface of the scene casts (`castsBlendShadow`): its pipelines are compiled at
@@ -32,23 +32,19 @@ export async function grantShadowTransmittance(
   const { lights, run, diag } = rt,
     atlas = lights.shadows,
     device = rt.gpu.device;
-  if (!atlas?.texture || !device || atlas.transmittanceHeld || lights.transmittanceDenied) return;
+  if (!atlas?.texture || !device || transmittanceSettled(lights)) return;
   const { side, layers } = lights.plan.pool,
-    requestedBytes = shadowTransmittanceBytes(side, layers),
-    heldBytes = shadowPoolHeld(lights);
-  const deny = (pressure: 'transmittance-over-grant' | 'transmittance-refused') => {
+    requestedBytes = shadowTransmittanceBytes(side, layers);
+  const granted = grantsShadowLayer(
+    lights,
+    diag.engineDiagnostic,
+    'transmittance-over-grant',
+    'The shadow transmittance layer is past the grant',
+    requestedBytes,
+    grantBytes,
+  );
+  if (!granted) {
     lights.transmittanceDenied = true;
-    noteShadowPressure(lights.memory, pressure);
-  };
-  if (!admitShadowBytes(lights.memory, heldBytes, requestedBytes, grantBytes)) {
-    deny('transmittance-over-grant');
-    diag.engineDiagnostic('shadow-memory', 'The shadow transmittance layer is past the grant', {
-      kind: 'warning',
-      pressure: 'transmittance-over-grant',
-      requestedBytes,
-      heldBytes,
-      grantBytes,
-    });
     return;
   }
   let layer: ShadowTransmittance | undefined;
@@ -63,7 +59,8 @@ export async function grantShadowTransmittance(
   // A session closed, or a device lost, while the device answered keeps nothing.
   if (run.lost || rt.signal.aborted || lights.shadows !== atlas) return layer?.destroy();
   if (!layer) {
-    deny('transmittance-refused');
+    lights.transmittanceDenied = true;
+    noteShadowPressure(lights.memory, 'transmittance-refused');
     diag.engineDiagnostic(
       'gpu-out-of-memory',
       'The device refused the shadow transmittance layer',
@@ -84,12 +81,17 @@ export async function grantShadowTransmittance(
   run.gate.resourcesChanged();
 }
 
+/** The layer is held, or never to be: nothing left to ask. */
+export const transmittanceSettled = (lights: WebgpuPagesRuntime['lights']) =>
+  !!lights.shadows?.transmittanceHeld || lights.transmittanceDenied;
+
+/** The layer is neither settled nor asked yet. */
+const transmittanceToAsk = ({ lights }: WebgpuPagesRuntime) =>
+  !transmittanceSettled(lights) && !grantPending(lights.shadowGrant);
+
 /** Asks the grant for the layer once: never held, denied or already asked. */
 function askShadowTransmittance(rt: WebgpuPagesRuntime) {
-  const { lights } = rt;
-  if (lights.shadows?.transmittanceHeld || lights.transmittanceDenied) return;
-  if (!grantPending(lights.shadowGrant))
-    lights.shadowGrant = startGrant(grantShadowTransmittance(rt));
+  if (transmittanceToAsk(rt)) rt.lights.shadowGrant = startGrant(grantShadowTransmittance(rt));
 }
 
 /**
@@ -98,7 +100,8 @@ function askShadowTransmittance(rt: WebgpuPagesRuntime) {
  * which is held while the device answers (`deviceAnswering`). No frame is drawn without it.
  */
 export function followBlendedCasting(rt: WebgpuPagesRuntime) {
-  if (rt.lights.shadows?.texture && sceneCastsBlended(rt)) askShadowTransmittance(rt);
+  if (rt.lights.shadows?.texture && transmittanceToAsk(rt) && sceneCastsBlended(rt))
+    askShadowTransmittance(rt);
 }
 
 /**

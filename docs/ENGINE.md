@@ -320,16 +320,17 @@ asked of it with what is already held, then of the device under an out-of-memory
 inside a frame (`webgpu/shadow/transmittanceGrant.ts`): a scene whose blended surfaces cast asks
 the transmittance layer with the pool, the frame held; one turned casting later, by a rewrite of its
 values, asks it at that rewrite, before the next frame, held until the layer lands, which then draws
-every mapped page again with it: no frame is drawn without the layer. Memory pressure never passes for performance: it lowers no
-page to meet a frame time, and each pressure is a named event in `shadowMemoryEvents`. A pool the
-device refuses is drawn smaller (`pool-shrunk`, its halvings in `shadowResolutionBias`, 0 in the
-normal case) or not at all (`pool-refused`, the `shadows-off` error); a static layer past the grant
-(`static-layer-over-grant`) or refused by the device (`static-layer-refused`, `gpu-out-of-memory`)
-is never made, and every page stays drawn whole, every caster at once: no shadow is lost. A
-transmittance layer past the grant (`transmittance-over-grant`) or refused
-(`transmittance-refused`) is never made nor asked again: the opaque shadows stay whole and the
-blended casters cast nothing, by name. `shadowPeakBytes` publishes the most the grant held at once. The table's host mirror — the
-words, a change flag per word, the pool's page records and eviction bitset, and the frame's page
+every mapped page again with it: no frame is drawn without the layer. Memory pressure never passes
+for performance: it lowers no page to meet a frame time, and each pressure is a named event in
+`shadowMemoryEvents`. A pool the device refuses is drawn smaller (`pool-shrunk`, its halvings in
+`shadowResolutionBias`, 0 in the normal case) or not at all (`pool-refused`, the `shadows-off`
+error); a static layer past the grant (`static-layer-over-grant`) or refused by the device
+(`static-layer-refused`, `gpu-out-of-memory`) is never made, and every page stays drawn whole, every
+caster at once: no shadow is lost. A transmittance layer past the grant (`transmittance-over-grant`)
+or refused (`transmittance-refused`) is never made nor asked again: the opaque shadows stay whole
+and the blended casters cast nothing, by name. `shadowPeakBytes` publishes the most the grant held
+at once. The table's host mirror — the words, a change flag per word, the pool's page records and
+eviction bitset, and the frame's page
 list (`admit.ts`) at the largest pool, with the shadow batches' host lists
 (`SHADOW_BATCH_HOST_BYTES`), 21.0 MiB (`SHADOW_HOST_BYTES`, summed from `shadowTableHostBytes`,
 `shadowPoolHostBytes`, `shadowAdmissionHostBytes` and `batchBudget.ts`, which tests check against

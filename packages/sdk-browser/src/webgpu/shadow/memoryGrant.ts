@@ -1,5 +1,6 @@
 import { SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** A memory-pressure event of the shadows, by name (see `ShadowMemory`). */
 export type ShadowPressure =
@@ -53,6 +54,29 @@ export function admitShadowBytes(
   if (total > grantBytes) return false;
   memory.peakBytes = Math.max(memory.peakBytes, total);
   return true;
+}
+
+/** `admitShadowBytes` for a late layer: past the grant, its pressure is recorded and said under
+ *  `shadow-memory` with the bytes asked, held and granted. */
+export function grantsShadowLayer(
+  lights: WebgpuLightState,
+  diagnose: WebgpuPagesRuntime['diag']['engineDiagnostic'],
+  pressure: 'static-layer-over-grant' | 'transmittance-over-grant',
+  message: string,
+  requestedBytes: number,
+  grantBytes = SHADOW_GRANT_BYTES,
+) {
+  const heldBytes = shadowPoolHeld(lights);
+  if (admitShadowBytes(lights.memory, heldBytes, requestedBytes, grantBytes)) return true;
+  noteShadowPressure(lights.memory, pressure);
+  diagnose('shadow-memory', message, {
+    kind: 'warning',
+    pressure,
+    requestedBytes,
+    heldBytes,
+    grantBytes,
+  });
+  return false;
 }
 
 /** Records a pressure by name, once per allocation it concerns; `bias` the pool's halvings. */
