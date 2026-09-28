@@ -128,7 +128,10 @@ page per held slot fed by the cache's arrivals and departures (`gpu/dag/poolList
 catalogue. On the GPU-cut path the cache evicts only from that queue, skipping pinned pages and
 taking a page a lower tier touched since the last queue (a shadow caster) after every other; once
 spent (`eviction-queue-spent`) the burst waits for the next readback. The CPU cut evicts the least
-recent page; `budgetRanking` still chooses loads (#836).
+recent page. Loads on the GPU-cut path are read off the readback's requests, closed over their
+groups (`webgpu/residency/requestAdmission.ts`, #836): past the pool, the coarsest levels whole and
+the one the room straddles in part, what the queue already holds first, from the pool's room alone.
+The GPU cut feeds no `budgetRanking`; the CPU cut that takes the image back refills it.
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min
@@ -229,7 +232,12 @@ revision and asks for a frame.
 - **Kinds**: each renderer holds one table from pass kind to implementation (`WEBGPU_KINDS`,
   `WEBGL_KINDS`); a new built-in or the custom pass is one entry. The kinds of a chain share its two
   pass targets; each holds its own resources besides, sized for the passes of its kind — the
-  WebGPU bloom gives every bloom pass its own uniform range, read at a dynamic offset.
+  WebGPU bloom gives every bloom pass its own uniform range, read at a dynamic offset. On WebGPU a
+  chain that ends on a bloom leaves that bloom's last blend to the composition, once the
+  composition's bloom programs are compiled (`deferred/compositions.ts`, #963): the composition
+  reads the image the bloom read and blends the first level in itself, rounded to half precision as
+  the pass target held it, so the chain draws one pass and holds one target fewer for the same
+  image. WebGL2 still draws that blend into its pass target.
 
 Parity rules, each held by a unit test: an empty chain adds no pass, no copy and no target — the
 frame is composed call for call as without one; a held frame redisplays the image the chain drew and
