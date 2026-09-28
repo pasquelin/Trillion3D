@@ -58,9 +58,19 @@ export function noteMoved(rt: WebgpuPagesRuntime, node: Object3D) {
   movedEnds.push(movedList.length);
 }
 
-/** The pass over the roots the noted nodes moved, then each node's motion box; nothing if none. */
+/** The pass over the roots the noted nodes moved, then each node's motion box; nothing if none.
+ *  The lists are emptied even when the pass throws: a later call never inherits stale ranks. */
 export function finishMoves(rt: WebgpuPagesRuntime) {
   if (!movedEnds.length) return;
+  try {
+    passMoves(rt);
+  } finally {
+    for (const i of distinct) promotedRoots[i] = 0;
+    movedList.length = movedEnds.length = distinct.length = 0;
+  }
+}
+
+function passMoves(rt: WebgpuPagesRuntime) {
   const { lights, run, layout } = rt,
     roots = layout.selectionRoots;
   for (const i of movedList) distinct.push(i);
@@ -108,6 +118,4 @@ export function finishMoves(rt: WebgpuPagesRuntime) {
     // A root's first move changes the static layer: the pages it crossed are staled whole.
     if (!boxIsEmpty(moved, 0)) lights.plan.worldChanged(movedMin, movedMax, !promoted);
   }
-  for (const i of distinct) promotedRoots[i] = 0;
-  movedList.length = movedEnds.length = distinct.length = 0;
 }
