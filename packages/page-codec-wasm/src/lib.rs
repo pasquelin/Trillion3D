@@ -156,6 +156,7 @@ impl Header {
             quantization_error: f(w[20]),
             corner_bits: w[21] as usize,
         };
+        let layout = Layout::of(&header);
         let sane = w[22..].iter().all(|&word| word == 0)
             && (1..=MAX_VERTICES).contains(&header.vertex_count)
             && (3..=max_decoded_bytes / 4).contains(&header.index_count)
@@ -165,8 +166,10 @@ impl Header {
             && header.quantization_error.is_finite()
             && header.quantization_error >= 0.0
             && header.decoded_bytes() <= max_decoded_bytes
-            && Layout::of(&header).bytes() == data.len();
-        if !sane {
+            && layout.bytes() == data.len();
+        // The block table lies first, up to the corner stream's word.
+        let table = || &data[HEADER_BYTES..][..layout.triangles[1] * 4];
+        if !sane || !layout.corners.fits(table(), header.index_count) {
             return Err(PageError::Bounds);
         }
         Ok(header)

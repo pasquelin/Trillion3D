@@ -1,7 +1,7 @@
 use crate::geometry_page_cells::{grids, Cell, Grids};
 use crate::{CompilerError, Result};
 use std::collections::HashMap;
-use trillion3d_page_codec::triangles::{self, corner_bits};
+use trillion3d_page_codec::triangles::Spans;
 use trillion3d_page_codec::writer::BitWriter;
 use trillion3d_page_codec::{Header, Layout};
 pub use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
@@ -142,6 +142,7 @@ pub fn encode(
         })
         .collect();
     let corners: Vec<u32> = local.iter().map(|&i| remap[i as usize]).collect();
+    let spans = Spans::of(&corners);
     let header = Header {
         vertex_count: unique.len(),
         index_count: local.len(),
@@ -151,11 +152,11 @@ pub fn encode(
         uv1: uv_records[1],
         color: color_record,
         quantization_error,
-        corner_bits: corner_bits(&corners),
+        corner_bits: spans.bits,
     };
     let layout = Layout::of(&header);
     let mut out = BitWriter::default();
-    triangles::write(&mut out, &corners, &layout.corners);
+    spans.write(&mut out, &corners, &layout.corners);
     for c in 0..3 {
         out.stream(unique.iter().map(|cell| cell.position[c]), position.bits[c]);
     }

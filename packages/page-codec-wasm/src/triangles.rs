@@ -8,7 +8,7 @@
 //! block spans few of them. The code is lossless: every corner decodes to the index written, in
 //! its order, and the invariant `base + delta == index` is what the tests prove on every input.
 
-use crate::bits::{bits_for, field};
+use crate::bits::{bits_for, field, le_words};
 use crate::writer::BitWriter;
 use crate::PageError;
 
@@ -47,9 +47,33 @@ impl CornerCode {
         self.index_bits + WIDTH_BITS + self.prefix_bits
     }
 
+    /// Block `b`'s record, the table at word `table` of `words`: its base, its width, and the bit
+    /// of the corner stream its first corner lies at.
+    pub fn record(&self, words: &[u32], table: usize, b: usize) -> (u32, u32, usize) {
+        let (ib, at) = (
+            self.index_bits,
+            table * 32 + b * self.record_bits() as usize,
+        );
+        let width = field(words, at + ib as usize, WIDTH_BITS);
+        let prefix = field(words, at + (ib + WIDTH_BITS) as usize, self.prefix_bits);
+        (field(words, at, ib), width, prefix as usize * CORNERS)
+    }
+
+    /// True when every record of `table` — the block table's bytes — keeps a width of 16 at most
+    /// and its corners inside the corner stream: the header gate, which a reader that decodes in
+    /// place, the GPU, relies on to never read past the stream.
+    pub fn fits(&self, table: &[u8], index_count: usize) -> bool {
+        let words: Vec<u32> = le_words(table).collect();
+        (0..self.blocks).all(|b| {
+            let (_, width, start) = self.record(&words, 0, b);
+            let corners = (index_count - b * CORNERS).min(CORNERS);
+            width as usize <= MAX_WIDTH && start + corners * width as usize <= self.bits
+        })
+    }
+
     /// Every corner into `out`, the block table at word `table` of `words` and the corner stream at
-    /// word `stream`. A record whose corners would leave the stream, a width past 16 or a corner at
-    /// or past the vertex count refuses the page.
+    /// word `stream`, the records already fit (`fits`). A corner at or past the vertex count
+    /// refuses the page.
     pub fn read(
         &self,
         words: &[u32],
@@ -57,16 +81,8 @@ impl CornerCode {
         vertex_count: usize,
         out: &mut [u32],
     ) -> Result<(), PageError> {
-        let (ib, rb) = (self.index_bits, self.record_bits() as usize);
         for (b, block) in out.chunks_mut(CORNERS).enumerate() {
-            let at = table * 32 + b * rb;
-            let base = field(words, at, ib);
-            let width = field(words, at + ib as usize, WIDTH_BITS);
-            let start =
-                field(words, at + (ib + WIDTH_BITS) as usize, self.prefix_bits) as usize * CORNERS;
-            if width as usize > MAX_WIDTH || start + block.len() * width as usize > self.bits {
-                return Err(PageError::Index);
-            }
+            let (base, width, start) = self.record(words, table, b);
             for (k, corner) in block.iter_mut().enumerate() {
                 *corner = base + field(words, stream * 32 + start + k * width as usize, width);
                 if *corner as usize >= vertex_count {
@@ -78,38 +94,51 @@ impl CornerCode {
     }
 }
 
-/// Each block's smallest corner and the width its distances to it need.
-fn spans(indices: &[u32]) -> impl Iterator<Item = (&[u32], u32, u32)> {
-    indices.chunks(CORNERS).map(|block| {
-        let base = block.iter().copied().min().unwrap_or(0);
-        let top = block.iter().copied().max().unwrap_or(0);
-        (block, base, bits_for(top - base))
-    })
+/// The corner code of a page's indices: each block's smallest corner and width, computed once
+/// for the header's word 21 and for the streams.
+pub struct Spans {
+    spans: Vec<(u32, u32)>,
+    /// Bits of the corner stream: what the header's word 21 says.
+    pub bits: usize,
 }
 
-/// Bits of the corner stream that codes `indices`: what the header's word 21 says.
-pub fn corner_bits(indices: &[u32]) -> usize {
-    spans(indices)
-        .map(|(block, _, width)| block.len() * width as usize)
-        .sum()
-}
-
-/// The block table then the corner stream of `indices`, each closed on a word.
-pub fn write(out: &mut BitWriter, indices: &[u32], code: &CornerCode) {
-    let mut prefix = 0;
-    for (_, base, width) in spans(indices) {
-        out.push(base, code.index_bits);
-        out.push(width, WIDTH_BITS);
-        out.push(prefix, code.prefix_bits);
-        prefix += width;
+impl Spans {
+    pub fn of(indices: &[u32]) -> Self {
+        let spans: Vec<(u32, u32)> = indices
+            .chunks(CORNERS)
+            .map(|block| {
+                let base = block.iter().copied().min().unwrap_or(0);
+                (
+                    base,
+                    bits_for(block.iter().copied().max().unwrap_or(0) - base),
+                )
+            })
+            .collect();
+        let bits = indices
+            .chunks(CORNERS)
+            .zip(&spans)
+            .map(|(block, &(_, width))| block.len() * width as usize)
+            .sum();
+        Self { spans, bits }
     }
-    out.close();
-    for (block, base, width) in spans(indices) {
-        for &corner in block {
-            out.push(corner - base, width);
+
+    /// The block table then the corner stream of `indices`, each closed on a word.
+    pub fn write(&self, out: &mut BitWriter, indices: &[u32], code: &CornerCode) {
+        let mut prefix = 0;
+        for &(base, width) in &self.spans {
+            out.push(base, code.index_bits);
+            out.push(width, WIDTH_BITS);
+            out.push(prefix, code.prefix_bits);
+            prefix += width;
         }
+        out.close();
+        for (block, &(base, width)) in indices.chunks(CORNERS).zip(&self.spans) {
+            for &corner in block {
+                out.push(corner - base, width);
+            }
+        }
+        out.close();
     }
-    out.close();
 }
 
 #[cfg(test)]
