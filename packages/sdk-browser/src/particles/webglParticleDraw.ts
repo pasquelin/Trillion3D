@@ -9,8 +9,9 @@ import { boundToContext } from '../webgl/core/contextBound.ts';
 import { OUTPUT_TRANSFER_GLSL } from '../webgl/core/outputGlsl.ts';
 import { createWebglProgram } from '../webgl/core/program.ts';
 import { bindWebglTexture, type HostDrawOutput } from '../webgl/core/renderTarget.ts';
-import { DISC_CORNERS, DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
-import { refuseAll, usedSlots } from './poolStates.ts';
+import { glBlendEnums } from '../webgl/cluster/state.ts';
+import { BLENDS, DISC_CORNERS, DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
+import { usedSlots } from './poolStates.ts';
 
 /** The WGSL draw (`webgpuParticleDraw.ts`) texel by texel, `texels` a row. `m` holds the draw
  *  words' two matrices and `look` the rest: eye and size, colour, softness. */
@@ -72,25 +73,34 @@ export function createWebglParticleDraw(
   refused: (reason: string) => void,
 ) {
   const words = new Float32Array(DRAW_FLOATS),
-    [matrices, look] = [words.subarray(0, 32), words.subarray(32, 44)],
+    matrices = words.subarray(0, 32),
+    look = words.subarray(32, 44),
     screen = new Float64Array(16),
     eye = new Float64Array(3),
-    order: ParticlePool[] = [];
+    order: ParticlePool[] = [],
+    blendEnum = glBlendEnums(gl);
   const held = boundToContext(
     gl,
     () => {
       const program = createWebglProgram(gl, vertex(texels), FRAGMENT);
       const at = (name: string) => gl.getUniformLocation(program, name);
-      const names = ['m', 'look', 'linearOut', 'toneCurve', 'sceneDepth'],
-        [m, look, linear, curve, depth] = names.map(at),
-        uniforms = { m, look, linear, curve, depth },
-        vao = gl.createVertexArray()!;
+      const uniforms = {
+        m: at('m'),
+        look: at('look'),
+        linear: at('linearOut'),
+        curve: at('toneCurve'),
+      };
+      gl.useProgram(program);
+      gl.uniform1i(at('sceneDepth'), 1); // the state samples unit 0, where samplers start
+      gl.useProgram(null);
       const copy = { framebuffer: gl.createFramebuffer()!, texture: gl.createTexture()! };
       bindWebglTexture(gl, 1, copy.texture);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      const checked = undefined as WebGLFramebuffer | null | undefined;
-      return { program, vao, uniforms, copy, checked, at: 0, width: 0, height: 0, refused: false };
+      /** The depth format each framebuffer's blit took, found on its first copy. */
+      const formats = new Map<WebGLFramebuffer | null, number>();
+      const vao = gl.createVertexArray()!;
+      return { program, vao, uniforms, copy, formats, at: -1, width: 0, height: 0, refused: false };
     },
     ({ program, vao, copy }) => {
       gl.deleteProgram(program);
@@ -99,48 +109,53 @@ export function createWebglParticleDraw(
       gl.deleteFramebuffer(copy.framebuffer);
     },
   );
+  type Live = NonNullable<ReturnType<typeof held.current>>;
+  /** Copies the bound read framebuffer's depth into the copy made in format `at`, remade when
+   *  its format or size changed; true unless the blit was refused. */
+  const copyDepth = (live: Live, at: number, width: number, height: number, probing: boolean) => {
+    const { TEXTURE_2D: texture, DRAW_FRAMEBUFFER: draw } = gl;
+    if (live.at !== at || live.width !== width || live.height !== height) {
+      [live.at, live.width, live.height] = [at, width, height];
+      const [internal, format, type, point] = DEPTHS[at];
+      bindWebglTexture(gl, 1, live.copy.texture);
+      gl.texImage2D(texture, 0, gl[internal], width, height, 0, gl[format], gl[type], null);
+      gl.framebufferTexture2D(draw, gl.DEPTH_STENCIL_ATTACHMENT, texture, null, 0);
+      gl.framebufferTexture2D(draw, gl[point], texture, live.copy.texture, 0);
+    }
+    gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, gl.DEPTH_BUFFER_BIT, gl.NEAREST);
+    return !probing || gl.getError() !== gl.INVALID_OPERATION;
+  };
   return {
     /** Draws `pools` into `output` seen by `camera`; returns the draws made. */
     draw(pools: readonly ParticlePool[], camera: HostDrawCamera, output: HostDrawOutput) {
-      const live = held.current();
       // The eye in double precision, the world matrix's: the host's 32-bit eye rounds 10 km out.
       for (let i = 0; i < 3; i++) eye[i] = camera.world[12 + i];
-      if (!live || !drawOrder(pools, eye, order).length) return 0;
-      if (live.refused) return (refuseAll(order), 0);
+      if (!drawOrder(pools, eye, order).some((pool) => stateOf(pool))) return 0;
+      const live = held.current();
+      if (!live || live.refused) return 0; // a refused draw: the step keeps the pools refused
       const { framebuffer, width, height } = output,
-        first = live.checked !== framebuffer;
-      const { TEXTURE_2D: T, DRAW_FRAMEBUFFER: F, DEPTH_BUFFER_BIT: D, NEAREST: N } = gl;
+        found = live.formats.get(framebuffer);
       gl.disable(gl.SCISSOR_TEST);
-      // The depth copied for the soft edge, same rectangles, resolved as they are. A framebuffer's
-      // first copy, older errors cleared, takes the other format when its blit is refused.
-      for (let n = 0; first && n < 8 && gl.getError() !== gl.NO_ERROR; n++);
       gl.bindFramebuffer(gl.READ_FRAMEBUFFER, framebuffer);
-      gl.bindFramebuffer(F, live.copy.framebuffer);
-      let tries = 0;
-      for (; tries < (first ? 2 : 1); tries++) {
-        if (tries || live.width !== width || live.height !== height) {
-          [live.at, live.width, live.height] = [tries ? 1 - live.at : live.at, width, height];
-          const [internal, format, type, point] = DEPTHS[live.at];
-          bindWebglTexture(gl, 1, live.copy.texture);
-          gl.texImage2D(T, 0, gl[internal], width, height, 0, gl[format], gl[type], null);
-          gl.framebufferTexture2D(F, gl.DEPTH_STENCIL_ATTACHMENT, T, null, 0);
-          gl.framebufferTexture2D(F, gl[point], T, live.copy.texture, 0);
-        }
-        gl.blitFramebuffer(0, 0, width, height, 0, 0, width, height, D, N);
-        if (!first || gl.getError() !== gl.INVALID_OPERATION) break;
+      gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, live.copy.framebuffer);
+      // The depth copied for the soft edge, same rectangles, resolved as they are. A framebuffer's
+      // first copy, older errors cleared, probes each format in order until a blit is allowed.
+      if (found !== undefined) copyDepth(live, found, width, height, false);
+      else {
+        for (let n = 0; n < 8 && gl.getError() !== gl.NO_ERROR; n++);
+        const at = DEPTHS.findIndex((_, i) => copyDepth(live, i, width, height, true));
+        if (at >= 0) live.formats.set(framebuffer, at);
+        else live.refused = true;
       }
       gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-      if (tries === 2) {
-        live.refused = refuseAll(order);
+      if (live.refused) {
         refused('PARTICLES_UNSUPPORTED: WebGL2 particles fade on a depth it cannot copy');
         return 0;
       }
-      live.checked = framebuffer;
       multiplyMatrix4Typed(screen, camera.projection, camera.view);
       gl.useProgram(live.program);
       gl.bindVertexArray(live.vao);
       gl.viewport(0, 0, width, height);
-      gl.uniform1i(live.uniforms.depth, 1); // the state samples unit 0, where samplers start
       gl.uniform1i(live.uniforms.linear, output.linear ? 1 : 0);
       const curve = output.toneMapped ? (output.toneMapping ?? DEFAULT_TONE_MAPPING) : 'none';
       gl.uniform1i(live.uniforms.curve, TONE_MAPPING_RANK[curve]);
@@ -157,8 +172,13 @@ export function createWebglParticleDraw(
         writeDrawWords(words, pool, screen, eye);
         gl.uniformMatrix4fv(live.uniforms.m, false, matrices);
         gl.uniform4fv(live.uniforms.look, look);
-        if (pool.blend === 'premultiplied') gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-        else gl.blendFuncSeparate(gl.ONE, gl.ONE, gl.ZERO, gl.ONE);
+        const { color, alpha } = BLENDS[pool.blend];
+        gl.blendFuncSeparate(
+          blendEnum[color.srcFactor!],
+          blendEnum[color.dstFactor!],
+          blendEnum[alpha.srcFactor!],
+          blendEnum[alpha.dstFactor!],
+        );
         bindWebglTexture(gl, 0, state);
         gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, usedSlots(pool));
         draws++;
@@ -174,7 +194,10 @@ export function createWebglParticleDraw(
     },
     refused: () => held.alive() && !!held.current()?.refused,
     /** Bytes of the frame's depth copy, 4 a texel in either format, none before the first. */
-    bytes: () => (held.alive() ? held.current()!.width * held.current()!.height * 4 : 0),
+    bytes() {
+      const live = held.alive() ? held.current() : undefined;
+      return live ? live.width * live.height * 4 : 0;
+    },
     dispose: held.dispose,
   };
 }
