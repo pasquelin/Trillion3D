@@ -97,15 +97,13 @@ async function shadowPipelinesAfterPrepare(gpuCut: boolean, blended = false) {
   return { made, drawn };
 }
 
-for (const gpuCut of [false, true])
-  test(`no shadow pipeline is made after prepare as a caster moves then rests (${gpuCut ? 'GPU' : 'CPU'} cut)`, async () => {
-    const { made, drawn } = await shadowPipelinesAfterPrepare(gpuCut);
+for (const [gpuCut, blended, name] of [
+  [false, false, 'CPU cut'],
+  [true, false, 'GPU cut'],
+  [true, true, 'a blended caster the scene declares'],
+] as const)
+  test(`no shadow pipeline is made after prepare as a caster moves then rests (${name})`, async () => {
+    const { made, drawn } = await shadowPipelinesAfterPrepare(gpuCut, blended);
     assert.ok(drawn > 0, 'the shadow pages are drawn');
     assert.deepEqual(made, []);
   });
-
-test('no shadow pipeline is made after prepare for a blended caster the scene declares', async () => {
-  const { made, drawn } = await shadowPipelinesAfterPrepare(true, true);
-  assert.ok(drawn > 0, 'the shadow pages are drawn');
-  assert.deepEqual(made, []);
-});

@@ -22,6 +22,7 @@ export function preparedPipeline(device: GPUDevice, descriptor: GPURenderPipelin
   let made: GPURenderPipeline | undefined;
   return {
     async prepare() {
+      if (made) return;
       const built = await buildRenderPipeline(device, descriptor);
       made ??= built;
     },
