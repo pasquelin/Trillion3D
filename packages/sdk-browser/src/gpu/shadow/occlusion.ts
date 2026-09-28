@@ -1,12 +1,16 @@
 import { DRAW_INDIRECT_STRIDE } from '../draw/draw.ts';
 import { createCheckedShaderModule } from '../core/shaderModule.ts';
+import { oncePerDevice } from '../core/oncePerDevice.ts';
 import { MAX_SHADOW_REGIONS } from './recordPack.ts';
 import { createGpuShadowCullCounts } from './cullCounts.ts';
 import { HIZ_UNTESTED, SHADOW_OCCLUSION_SHADER } from './occlusionShader.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
-import { OCCLUSION_SLOT_WORDS, OCCLUSION_UNIFORM_WORDS } from './batchBudget.ts';
+import {
+  OCCLUSION_SLOT_WORDS,
+  OCCLUSION_UNIFORM_WORDS,
+  SHADOW_COMMAND_WORDS as COMMAND_WORDS,
+} from './batchBudget.ts';
 
-const COMMAND_WORDS = DRAW_INDIRECT_STRIDE / 4;
 const BINDINGS: readonly GPUBufferBindingType[] = [
   'read-only-storage',
   'read-only-storage',
@@ -28,6 +32,28 @@ export interface ShadowOcclusionInputs {
   pyramid: GPUBuffer;
 }
 
+/** The occlusion test's layout and pipeline, compiled once a device: at prepare
+ *  (`../../webgpu/pages/prepare/lights.ts`), never at the first move that makes the test. */
+export const shadowOcclusionPipeline = oncePerDevice(async (device) => {
+  const module = await createCheckedShaderModule(
+    device,
+    SHADOW_OCCLUSION_SHADER,
+    'SHADOW_OCCLUSION',
+  );
+  const layout = device.createBindGroupLayout({
+    entries: BINDINGS.map((type, binding) => ({
+      binding,
+      visibility: GPUShaderStage.COMPUTE,
+      buffer: { type },
+    })),
+  });
+  const pipeline = device.createComputePipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+    compute: { module, entryPoint: 'shadowHizTest' },
+  });
+  return { layout, pipeline };
+});
+
 /**
  * The moving casters of each tested region, less those the static layer hides from the light
  * (`occlusionShader.ts`): a visible list and its indirect command per region, the same shape as
@@ -35,6 +61,7 @@ export interface ShadowOcclusionInputs {
  * as the cull's are. Allocated once for a batch.
  */
 export async function createShadowOcclusion(device: GPUDevice, capacity: number) {
+  const { layout, pipeline } = await shadowOcclusionPipeline(device);
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const visible = device.createBuffer({
       label: 'Trillion3D shadow visible casters v1',
@@ -55,22 +82,6 @@ export async function createShadowOcclusion(device: GPUDevice, capacity: number)
       size: OCCLUSION_UNIFORM_WORDS * 4,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
-  const module = await createCheckedShaderModule(
-    device,
-    SHADOW_OCCLUSION_SHADER,
-    'SHADOW_OCCLUSION',
-  );
-  const layout = device.createBindGroupLayout({
-    entries: BINDINGS.map((type, binding) => ({
-      binding,
-      visibility: GPUShaderStage.COMPUTE,
-      buffer: { type },
-    })),
-  });
-  const pipeline = device.createComputePipeline({
-    layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    compute: { module, entryPoint: 'shadowHizTest' },
-  });
   const counts = createGpuShadowCullCounts(device);
   const slotWords = new Uint32Array(MAX_SHADOW_REGIONS * OCCLUSION_SLOT_WORDS),
     commands = new Uint32Array(MAX_SHADOW_REGIONS * COMMAND_WORDS),
