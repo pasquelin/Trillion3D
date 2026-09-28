@@ -68,8 +68,7 @@ fn tileSlice(base:u32,countSlot:u32,firstSlot:u32)->vec2u{
  let kept=tileLights[base+countSlot];
  if(kept<=TILE_LIGHTS){return vec2u(base+firstSlot,kept);}
  let first=tileLights[base+firstSlot];
- if(first==TILE_NO_SLICE){return vec2u(TILE_NO_SLICE,directLights.count);}
- return vec2u(first,kept);
+ return vec2u(first,select(kept,directLights.count,first==TILE_NO_SLICE));
 }
 /** The lights of a slice (\`tileSlice\`), or from \`TILE_NO_SLICE\` every light of the scene in rank
  *  order: the one loop that shades a pixel's lights in full. A light that misses the point adds

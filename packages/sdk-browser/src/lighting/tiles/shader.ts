@@ -2,10 +2,7 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { DEPTH_CLEAR, DEPTH_NEAR } from '../../camera/depthConvention.ts';
 import { directLightWgsl } from '../direct/lightWgsl.ts';
 import { TILE_BOUNDS_WGSL, tileDepthBoundsWgsl } from './boundsWgsl.ts';
-import { tileCompactWgsl, tileSpillWgsl } from './compactWgsl.ts';
-
-/** Mask words of a batch as wide as the workgroup: one bit per thread, a thread per light. */
-const WORDS = LIGHT_SETTINGS.tileSize ** 2 / 32;
+import { TILE_SPILL_WGSL, tileCompactWgsl } from './compactWgsl.ts';
 
 /**
  * Light lists per 16 × 16 pixel screen tile. One workgroup per tile: the 256 threads reduce the
@@ -36,7 +33,8 @@ const WORDS = LIGHT_SETTINGS.tileSize ** 2 / 32;
  * column's planes are read at a finite depth, which gives the same planes at any depth.
  */
 const lightTilesShader = (subgroups: boolean, narrow: boolean) => {
-  const words = narrow ? LIGHT_SETTINGS.tileLights / 32 : WORDS;
+  // Mask words of a batch: one bit per light, a thread per light, the workgroup wide at most.
+  const words = (narrow ? LIGHT_SETTINGS.tileLights : LIGHT_SETTINGS.tileSize ** 2) / 32;
   return `${subgroups ? 'enable subgroups;' : ''}
 struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,origin:vec4f,}
 @group(0) @binding(0) var depth:texture_depth_2d;
@@ -133,7 +131,7 @@ ${tileDepthBoundsWgsl(subgroups)}
  if(lane==0u){
   let total=kept+vec2u(maskTotal(OPAQUE_MASK,live),maskTotal(BLEND_MASK,live));
   tiles[base]=total.x;tiles[base+1u]=total.y;${narrow ? '' : 'counted=total;'}
- }${narrow ? '' : tileSpillWgsl(words)}
+ }${narrow ? '' : TILE_SPILL_WGSL}
 }`;
 };
 
