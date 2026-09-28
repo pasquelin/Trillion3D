@@ -1,24 +1,22 @@
 import assert from 'node:assert/strict';
-import { readdir } from 'node:fs/promises';
 import test from 'node:test';
 import type { Browser, Page } from 'playwright';
 import { launchChrome } from '../bench/runner/chrome.ts';
 import { startDocsServer } from './docs-serve.ts';
 import { leastDrawn, openExample, RENDER_ONLY } from './docs/examples/capture.ts';
+import { examplePages } from './docs/examples/pages.ts';
 import { physicsExamples } from './docs/examples/physics.ts';
-import { readyEntries as ready, roadmapEntries } from '../site/app/examples/list.ts';
+import {
+  readyEntries as ready,
+  readyExampleIds,
+  roadmapEntries,
+} from '../site/app/examples/list.ts';
 import { flagged, type HealthVerdict } from '../site/examples/kit/verdict.ts';
 
 /** The pages parked until the engine draws them: opened for their errors, never asked to draw. */
 const parked = new Set(
   roadmapEntries.filter(({ status }) => status === 'waiting-engine').map(({ id }) => id),
 );
-
-/** Every example page on disk, listed by the gallery or not. */
-const examplePages = async () =>
-  (await readdir(new URL('../site/examples/', import.meta.url)))
-    .filter((file) => file.endsWith('.html'))
-    .map((file) => ({ id: file.slice(0, -'.html'.length), file: `examples/${file}` }));
 
 /** The centre of the render, the kit's panels outside it. */
 const centre = (page: Page) =>
@@ -111,11 +109,11 @@ test('every example file loads with no error and renders an image on its own, fe
     // page is opened before the verdict, so the list names every example that stayed blank.
     // #945: every page of site/examples, a parked one or one the gallery does not list included,
     // loads with no error; a parked page is not asked to draw.
-    const physics = await physicsExamples(ready);
+    const [physics, pages] = await Promise.all([physicsExamples(ready), examplePages()]);
     const blank: string[] = [],
       jolt: string[] = [];
     for (const gpu of [true, false])
-      for (const example of await examplePages()) {
+      for (const example of pages) {
         const share = parked.has(example.id) ? 0 : leastDrawn(example.id, gpu);
         const opened = await openExample(
           browser,
@@ -134,7 +132,7 @@ test('every example file loads with no error and renders an image on its own, fe
         const fetched = opened.requests.some((url) =>
           /physicsWorker\.js|joltPhysics\w*\.wasm|\/session-\w+\.js/.test(url),
         );
-        if (ready.some(({ id }) => id === example.id) && fetched !== physics.has(example.id))
+        if (readyExampleIds.includes(example.id) && fetched !== physics.has(example.id))
           jolt.push(`${example.id} ${fetched ? 'fetched' : 'did not fetch'} the physics`);
         await opened.page.close();
       }

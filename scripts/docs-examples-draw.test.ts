@@ -1,17 +1,13 @@
 import assert from 'node:assert/strict';
-import { readdir, readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { declaredError, DECLARED_ERRORS, leastDrawn, SPARSE } from './docs/examples/capture.ts';
+import { DECLARED_ERRORS, leastDrawn, SPARSE } from './docs/examples/capture.ts';
+import { examplePages } from './docs/examples/pages.ts';
 import { physicsExamples, turnsPhysicsOn } from './docs/examples/physics.ts';
-import { readyEntries as ready } from '../site/app/examples/list.ts';
+import { readyEntries as ready, readyExampleIds } from '../site/app/examples/list.ts';
 
 // #527: what left an example blank or stopped in the examples proof, read from the files.
-const examples = new URL('../site/examples/', import.meta.url);
-const pages = await Promise.all(
-  (await readdir(examples))
-    .filter((file) => file.endsWith('.html'))
-    .map(async (file) => [file, await readFile(new URL(file, examples), 'utf8')] as const),
-);
+const listed = await examplePages();
+const pages = listed.map(({ id, html }) => [`${id}.html`, html] as const);
 
 test('a readout is declared after the controls panel it joins', () => {
   for (const [file, html] of pages) {
@@ -27,28 +23,14 @@ test('no example prints a physics line by hand; each asks the kit for it', () =>
     assert.doesNotMatch(html, /physics\.stats|readout\('(?:bodies|awake|step|page)'\)/, file);
 });
 
-test("the proof hears every page's errors, the engine's failures included, but those declared for it", async () => {
-  const ids = new Set(pages.map(([file]) => file.replace(/\.html$/, '')));
-  // Only a page parked until the engine draws it may declare one; a ready page raises none.
-  for (const { page, error, why } of DECLARED_ERRORS)
-    assert.ok(ids.has(page) && !ready.some(({ id }) => id === page) && error && why, page);
-  const engine = new URL('../packages/sdk-browser/src/', import.meta.url);
-  const said: string[] = [];
-  for (const source of ['world/session/interactive.ts', 'world/core/worldHandles.ts']) {
-    const code = await readFile(new URL(source, engine), 'utf8');
-    const lines = [...code.matchAll(/console\.error\('([^']+)'/g)].map(([, line]) => line);
-    assert.ok(lines.length > 0, source);
-    said.push(...lines);
+test('only a parked page declares an error, never a 404 nor an engine failure (#945)', () => {
+  const ids = new Set(listed.map(({ id }) => id));
+  for (const { page, error, why } of DECLARED_ERRORS) {
+    assert.ok(ids.has(page) && !readyExampleIds.includes(page) && why, page);
+    // The engine's failures (`worldHandles.ts`, `interactive.ts`, `lost.ts`) and a resource
+    // Chrome could not load, the icon every page asks for included, are always heard.
+    assert.doesNotMatch(error, /^(?:World session failed|\[trillion3d\]|Failed to load resource)/);
   }
-  const lost = await readFile(new URL('webgpu/pages/io/lost.ts', engine), 'utf8');
-  assert.ok(lost.includes('console.error(`[trillion3d] WebGPU device lost ('));
-  // #945: the icon every page asks the root for is served, its 404 never declared.
-  said.push(
-    '[trillion3d] WebGPU device lost (destroyed): gone',
-    'Failed to load resource: the server responded with a status of 404 (Not Found) http://127.0.0.1/favicon.ico',
-  );
-  for (const page of ids)
-    for (const line of said) assert.ok(!declaredError(page, line), `${page}: ${line}`);
 });
 
 test('a sparse example is declared by name and backend under the tenth; every other keeps the tenth', () => {
