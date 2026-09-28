@@ -19,15 +19,24 @@ export function createAutonomousResidency(env: ResidencyEnvironment) {
   const state = { cacheEvictions: 0 };
   const queued = new Set<string>();
   let ranksStale = true;
-  // A mounted page keeps its request rank for the session, including after it is unmounted.
+  // A retained page keeps its rank; ranks that left are reused after their delta was consumed.
   const rankUrls: string[] = [],
     rankByUrl = new Map<string, number>(),
-    ranks = createHostRankDelta(0, rankUrls);
+    ranks = createHostRankDelta(0, rankUrls),
+    freeRanks: number[] = [],
+    previousExits: number[] = [];
+  const retireExits = () => {
+    for (const rank of previousExits) {
+      rankUrls[rank] = '';
+      freeRanks.push(rank);
+    }
+    previousExits.length = 0;
+  };
   const rankOf = (url: string) => {
     let rank = rankByUrl.get(url);
     if (rank === undefined) {
-      rank = rankUrls.length;
-      rankUrls.push(url);
+      rank = freeRanks.pop() ?? rankUrls.length;
+      rankUrls[rank] = url;
       rankByUrl.set(url, rank);
       ranks.grow(rankUrls.length);
     }
@@ -66,6 +75,7 @@ export function createAutonomousResidency(env: ResidencyEnvironment) {
     retainedRanks() {
       if (!ranksStale) return ranks.hold();
       ranksStale = false;
+      retireExits();
       ranks.begin();
       for (const url of bootstrapUrls) ranks.markRank(rankOf(url));
       for (const url of modifiedPages) ranks.markRank(rankOf(url));
@@ -73,7 +83,13 @@ export function createAutonomousResidency(env: ResidencyEnvironment) {
         for (const rec of view.shown) markRecord(rec);
         for (const rec of view.requested) markRecord(rec);
       }
-      return ranks.finish();
+      const delta = ranks.finish();
+      for (let i = 0; i < delta.exitedCount; i++) {
+        const rank = delta.exited[i];
+        rankByUrl.delete(rankUrls[rank]);
+        previousExits.push(rank);
+      }
+      return delta;
     },
     /** Gives a page's geometry back: one eviction per page, as the WebGPU page cache counts them,
      *  and none for a page that held nothing. */
