@@ -5,7 +5,8 @@ import { orderBlendPasses } from '../blend/order.ts';
 import { createWaterPass, encodeWaterPass } from './pass.ts';
 import { WATER_COMPOSITE_PASS, WATER_SURFACE_PASS } from './frame.ts';
 import { WATER_BINDINGS } from './compositeWgsl.ts';
-import { createBackdrop } from '../transparent/transmission.ts';
+import { WATER_BYTES_PER_PIXEL, createBackdrop } from '../transparent/transmission.ts';
+import { DISPLAY_FORMAT } from '../../scene/surfaceBuffer.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { device, mountDevice, prepared, replay, targets } from './pass.fixture.ts';
 import { createWebgpuBlendState } from '../blend/state.ts';
@@ -43,16 +44,24 @@ test('water keeps the surface flags temporal antialiasing and the composition re
   const { rt, encoder, passes, groups, gpu, mount } = await mounted();
   assert.equal(encodeWaterPass(rt, encoder), true);
   const flags = gpu.surfaces!.views()[3],
-    word = gpu.backdrop!.waterWordView;
+    word = gpu.colorView;
   for (const pass of passes)
     assert.ok(!pass.writes.includes(flags), `${pass.label} writes over the surface flags`);
   const surface = passes.find((pass) => pass.label === WATER_SURFACE_PASS)!;
-  assert.equal(surface.writes[3], word, 'the rank and opacity go to the water word');
+  assert.equal(surface.writes[3], word, 'the rank and opacity go to the display colour');
   assert.equal(surface.writes.length, 5, 'three material surfaces, the word, the feedback');
-  assert.equal(groups.last.get(WATER_BINDINGS.flags), word, 'the composite reads the word back');
-  // The stage's fourth target is the format the backdrop allocates the word in.
-  const { waterWord } = createBackdrop(fakeDevice().device, 8, 8, true);
-  assert.equal(mount.formats('fsWater')[3], waterWord.format);
+  assert.equal(groups.last.get(WATER_BINDINGS.word), word, 'the composite reads the word back');
+  // The stage's fourth target is the display colour's format, and the backdrop holds no word.
+  assert.equal(mount.formats('fsWater')[3], DISPLAY_FORMAT);
+  const backdrop = createBackdrop(fakeDevice().device, 8, 8, true);
+  assert.deepEqual(Object.keys(backdrop).sort(), [
+    'active',
+    'color',
+    'colorView',
+    'waterDepth',
+    'waterDepthView',
+  ]);
+  assert.equal(WATER_BYTES_PER_PIXEL, 12, 'a half-float colour and a depth, no word of its own');
 });
 
 test('a still frame binds nothing new: the group and the descriptors survive the image', async () => {
@@ -84,6 +93,7 @@ test('without the pass, or without a backdrop, nothing of it is encoded', () => 
   targets(gpu);
   const encoder = { copyTextureToTexture: () => assert.fail('no copy without the pass') };
   const rt = {
+    vis: { visEnabled: true },
     gpu,
     blendState,
     run: { diagnostic: 'beauty' },
@@ -129,5 +139,9 @@ test('a diagnostic view, or a capture from a second camera, keeps the pass out o
   rt.run.diagnostic = 'beauty';
   rt.capture.capturing = true;
   assert.equal(encodeWaterPass(rt, encoder), false, 'the capture reads the surfaces as opaque');
+  rt.capture.capturing = false;
+  // Off the visibility path the blends draw into the display colour the word would borrow.
+  rt.vis.visEnabled = false;
+  assert.equal(encodeWaterPass(rt, encoder), false, 'no composition follows to overwrite it');
   assert.equal(counters.copies, 0, 'the backdrop is not even frozen');
 });

@@ -49,16 +49,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   /** Writes one page-table row: when a cluster claims a row, when its GPU slot moves, or when a
    *  shared input changes epoch — never once per frame: every field below belongs to the page, its
    *  material, its geometry block or its slot, none of them to the image. */
-  const writePageRow = createPageRowWriter({
-    geometryBlocks: rt.vis.geometryBlocks,
-    mapLayer: rt.vis.mapLayer,
-    dataLayer: rt.vis.dataLayer,
-    // Read at each row: the atlases exist from the textures' preparation on.
-    get textures() {
-      return rt.vis.textures;
-    },
-    markRowDirty: rows.markRowDirty,
-  });
+  // Off the visibility state, read at each row: the atlases exist from the textures' preparation
+  // on, and it hears there that an as-is surface took a row (`asIsShown`).
+  const writePageRow = createPageRowWriter(rt.vis, rows.markRowDirty);
   // The residency mirror is the only incremental state of this path: its journal is checked against
   // the cache on every flush, and rebuilt at the slightest disagreement rather than drifting.
   const commit = createWebgpuRowCommit(rows, writePageRow);
