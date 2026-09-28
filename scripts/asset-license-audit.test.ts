@@ -117,6 +117,7 @@ test('malformed, empty, duplicate and unknown usage manifests are unusable input
       { version: 2, assets: [asset] },
       { version: 1, assets: [] },
       { version: 1, assets: [asset, asset] },
+      { version: 1, assets: [asset, { ...asset, id: 'other', path: `./${asset.path}` }] },
       { version: 1, assets: [{ ...asset, usage: 'unspecified' }] },
       { version: 1, assets: [{ ...asset, usage: ['internal'] }] },
     ]) {
