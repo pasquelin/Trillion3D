@@ -387,7 +387,9 @@ with the canonical triangle. Group offsets are monotonic, groups nonempty, ranks
 source hierarchy acyclic. Unknown proxy versions are rejected. Compiler implementation hashes
 include these source modules, so version-three products cannot reuse version-two cache keys.
 
-The node table's optional `sourceNode` carries the original document rank through partition
-renumbering. A proxy owner whose leaf is not currently instantiated follows its nearest loaded
+The node table's optional `sourceNode` carries the original unsigned 32-bit document rank as
+exactly eight lowercase hexadecimal digits through partition renumbering. Its fixed width keeps
+the core table's byte size independent of the world's node count. The runtime decodes it to the
+original numeric rank, rejecting malformed values; when absent, the table rank applies. A proxy owner whose leaf is not currently instantiated follows its nearest loaded
 ancestor. Each session keeps its mutable refit and transforms separately from shared cache bytes.
 Cook-time geometry eliminated by simplification is not reconstructed when an object later grows.
