@@ -229,7 +229,12 @@ revision and asks for a frame.
 - **Kinds**: each renderer holds one table from pass kind to implementation (`WEBGPU_KINDS`,
   `WEBGL_KINDS`); a new built-in or the custom pass is one entry. The kinds of a chain share its two
   pass targets; each holds its own resources besides, sized for the passes of its kind — the
-  WebGPU bloom gives every bloom pass its own uniform range, read at a dynamic offset.
+  WebGPU bloom gives every bloom pass its own uniform range, read at a dynamic offset. On WebGPU a
+  chain that ends on a bloom leaves that bloom's last blend to the composition, once the
+  composition's bloom programs are compiled (`deferred/compositions.ts`, #963): the composition
+  reads the image the bloom read and blends the first level in itself, rounded to half precision as
+  the pass target held it, so the chain draws one pass and holds one target fewer for the same
+  image. WebGL2 still draws that blend into its pass target.
 
 Parity rules, each held by a unit test: an empty chain adds no pass, no copy and no target — the
 frame is composed call for call as without one; a held frame redisplays the image the chain drew and
