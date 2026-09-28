@@ -116,8 +116,9 @@ export function createWebglParticles(
         return 0;
       }
       let draws = 0;
+      const drawRefused = drawn.refused();
       for (const pool of pools) {
-        pool.refused = drawn.refused(); // stepped here unless its draw refused it, as on WebGPU
+        pool.refused = drawRefused; // stepped here unless its draw refused it, as on WebGPU
         const { first, count, dt } = pool.flush();
         if (!count && !dt) continue;
         const { targets, staged } = live.made.of(pool);
