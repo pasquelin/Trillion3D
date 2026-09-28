@@ -17,8 +17,9 @@ export const CONTRACT_LIGHTS_LIGHTING = {
   reason: "contract lights with no cast shadow; the 'bounce' view equals the lit view there",
 };
 
-/** Hears the ids of the lit contract lights that ask to cast, at each change of the store: a
- *  WebGL2 engine draws them unshadowed and says so (`noticeShadowRefusal`), never silently. */
+/** Hears the ids of the lit lights that ask to cast — the contract's, else the source graph's —
+ *  at each change of them: a WebGL2 engine draws them unshadowed and says so
+ *  (`noticeShadowRefusal`), never silently. */
 export type ContractShadows = (casting: readonly string[]) => void;
 
 /** Raw albedo by light: diffuse is `irradiance · albedo / π`, so an ambient irradiance of π
@@ -33,11 +34,7 @@ const UNLIT_IRRADIANCE = Math.PI;
  * the one from before this batch, pixel for pixel. As soon as it has, the source graph
  * disappears: two stacked light sets would be nobody's lighting.
  */
-function createContractLights(
-  scene: Scene,
-  store: SceneLightStore | undefined,
-  shadowsRefused?: ContractShadows,
-) {
+function createContractLights(scene: Scene, store: SceneLightStore | undefined) {
   const group = new Group();
   group.visible = false;
   scene.add(group);
@@ -54,6 +51,8 @@ function createContractLights(
   const lights = new Map<string, { light: Light; kind: SceneLight['kind'] }>();
   let epoch = -1,
     governs = false;
+  // The lit lights asking to cast, read from the store's own flag at each of its revisions.
+  let casting: readonly string[] = [];
   // The store's fog the scene holds, converted once: a revision that keeps it rewrites nothing.
   let heldFog: SceneFog | undefined;
   const setFog = (fog: SceneFog | undefined) => {
@@ -96,10 +95,7 @@ function createContractLights(
       const wanted = store.count > 0 || store.lightingView !== 'auto';
       if (!wanted) {
         albedo.setEnabled(false);
-        if (governs) {
-          dropAll();
-          shadowsRefused?.([]);
-        }
+        if (governs) dropAll();
         governs = false;
         setFog(undefined);
         group.visible = false;
@@ -116,11 +112,15 @@ function createContractLights(
       if (store.unlit) dropAll();
       else rebuild();
       // The unlit view draws no light, so no shadow is missing from it.
-      shadowsRefused?.(store.unlit ? [] : store.ids.filter((_, slot) => castsShadow(store, slot)));
+      casting = store.unlit ? [] : store.ids.filter((_, slot) => castsShadow(store, slot));
       const sh = store.unlit ? undefined : store.environment?.irradiance;
       setFog(store.unlit ? undefined : store.environment?.fog);
       if ((probe.visible = !!sh)) copyCoefficients(probe, sh);
       return true;
+    },
+    /** The ids of the lit contract lights asking to cast, as at the store's last revision. */
+    get casting() {
+      return casting;
     },
     /** True when the image comes out in real light: then goes through the display curve (P6). */
     get lit() {
@@ -137,25 +137,36 @@ function copyCoefficients(probe: Light, sh: ArrayLike<number>) {
 
 /**
  * Hooks the contract onto a WebGL2 engine and returns what it takes to hold it:
- * `apply` on every store revision, `lit` every frame; `shadowsRefused` hears the casting lights.
+ * `apply` on every store revision, `refused` after the source graph is copied again, `lit` every
+ * frame; `shadowsRefused` hears the casting lights of either set.
  * Imported lights are declared before the engine exists, so the first pass happens here, at
  * construction.
  */
 export function attachContractLights(
   scene: Scene,
   store: SceneLightStore | undefined,
-  source: { setEnabled(enabled: boolean): void; readonly lit: boolean },
+  source: {
+    setEnabled(enabled: boolean): void;
+    readonly lit: boolean;
+    readonly casting: readonly string[];
+  },
   sceneChanged: () => void,
   shadowsRefused?: ContractShadows,
 ) {
-  const contract = createContractLights(scene, store, shadowsRefused);
+  const contract = createContractLights(scene, store);
+  // The casting lights of the set that lights now: the contract's once it governs, else the
+  // source graph's. Heard at each change of either, never per frame.
+  let governs = false;
+  const refused = () => shadowsRefused?.(governs ? contract.casting : source.casting);
   const apply = () => {
-    source.setEnabled(!contract.refresh());
+    source.setEnabled(!(governs = contract.refresh()));
+    refused();
     sceneChanged();
   };
   apply();
   return {
     apply,
+    refused,
     get lit() {
       return contract.lit || source.lit;
     },
