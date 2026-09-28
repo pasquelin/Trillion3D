@@ -71,17 +71,6 @@ function dropGpuPartition(rt: WebgpuPagesRuntime) {
   rt.vis.gpuPartition = undefined;
 }
 
-/** The shared Hi-Z pyramid takes the size of the drawn view's targets; refused, it leaves. */
-export function fitGpuHiz(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  width: number,
-  height: number,
-) {
-  const hiz = rt.vis.gpuHiz;
-  if (hiz && !hiz.resize(device, width, height)) dropGpuHiz(rt);
-}
-
 export function dropGpuHiz(rt: WebgpuPagesRuntime) {
   const { vis } = rt;
   dropGpuPartition(rt);

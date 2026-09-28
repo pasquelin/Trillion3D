@@ -4,7 +4,7 @@ import {
   createSurfaceBuffer,
   frameTargetBytes,
 } from '../../../scene/surfaceBuffer.ts';
-import { fitGpuHiz } from '../io/drops.ts';
+import { dropGpuHiz } from '../io/drops.ts';
 import { createBackdrop, disposeBackdrop } from '../../transparent/transmission.ts';
 import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -30,7 +30,7 @@ export function frameTargetAllocation(
   return frameTargetBytes(width, height, reserveHiz) + additional;
 }
 
-/** True when the frame targets in place are those of `width × height`. */
+/** True when the drawn view's frame targets in place are those of `width × height`. */
 export function targetsFit(rt: WebgpuPagesRuntime, width: number, height: number) {
   const { gpu, vis } = rt;
   return (
@@ -38,10 +38,13 @@ export function targetsFit(rt: WebgpuPagesRuntime, width: number, height: number
     gpu.targetSize[0] === width &&
     gpu.targetSize[1] === height &&
     !!gpu.surfaces &&
-    (!vis.visEnabled || !!vis.visTexture) &&
-    (!vis.gpuHiz || (vis.gpuHiz.width === width && vis.gpuHiz.height === height))
+    (!vis.visEnabled || !!vis.visTexture)
   );
 }
+
+/** True when the Hi-Z pyramid, which the views share, is that of `width × height`, or absent. */
+export const hizFits = ({ vis: { gpuHiz } }: WebgpuPagesRuntime, width: number, height: number) =>
+  !gpuHiz || (gpuHiz.width === width && gpuHiz.height === height);
 
 /** Releases the frame targets in place: none is drawn into or presented until the next are made.
  *  The view's temporal history goes with them: a capture draws in a view of its own. */
@@ -110,7 +113,7 @@ export function makeTargets(
     GPUTextureUsage.RENDER_ATTACHMENT,
   );
   vis.materialDepthView = vis.materialDepthTexture.createView();
-  fitGpuHiz(rt, device, width, height);
+  if (vis.gpuHiz && !vis.gpuHiz.resize(device, width, height)) dropGpuHiz(rt);
   const allocation = {
     frame: run.frame,
     width,

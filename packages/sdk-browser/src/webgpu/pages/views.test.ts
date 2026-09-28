@@ -76,9 +76,48 @@ test('no reader keeps the main view once another is drawn, and switching back fi
   assert.deepEqual(rt.run.shown, shown);
   assert.deepEqual([...rt.run.gate.cam.eye], eye);
   assert.deepEqual(rt.setup.viewport, [32, 32]);
-  assert.equal(rt.vis.gpuHiz!.width, 32);
   assert.equal(temporal.frame.hasHistory, true);
   assert.equal(temporal.frame.sample, sample);
+  releaseWebgpuView(rt, side);
+  renderWebgpuPages(rt, camera());
+  await flushWebgpuPages(rt);
+  assert.equal(rt.vis.gpuHiz!.width, 32, 'the pyramid follows the main view back');
+  assert.equal(rt.gpu.temporal, temporal, 'its targets fit: history kept');
+});
+
+test('a Hi-Z pyramid the device refuses on the way back is dropped, the session kept', async () => {
+  const { rt, gpu } = await drawnQuad(true);
+  const side = createWebgpuView(16, 16);
+  useWebgpuView(rt, side);
+  renderWebgpuPages(rt, awayCamera());
+  await flushWebgpuPages(rt);
+  releaseWebgpuView(rt, side);
+  const pop = gpu.device.popErrorScope.bind(gpu.device);
+  let refused = false;
+  Object.assign(gpu.device, {
+    popErrorScope: async () =>
+      refused ? pop() : ((refused = true), await pop(), { message: 'Out of memory' }),
+  });
+  renderWebgpuPages(rt, camera());
+  await flushWebgpuPages(rt);
+  assert.ok(refused);
+  assert.equal(rt.vis.gpuHiz, undefined);
+  assert.equal(rt.run.lost, false);
+  renderWebgpuPages(rt, camera());
+  assert.equal(rt.gpu.targetGrant, undefined, 'frames draw again, without Hi-Z');
+});
+
+test('a host resize while another view is drawn lands on the main view', async () => {
+  const { rt } = await drawnQuad(false);
+  const host = rt.setup.viewport,
+    side = createWebgpuView(16, 16);
+  useWebgpuView(rt, side);
+  assert.notEqual(rt.setup.viewport, host, 'the side view draws at its own size');
+  host[0] = 48;
+  host[1] = 24;
+  useWebgpuView(rt, rt.views.main);
+  assert.equal(rt.setup.viewport, host);
+  assert.deepEqual(rt.setup.viewport, [48, 24]);
   releaseWebgpuView(rt, side);
 });
 
@@ -113,6 +152,6 @@ test('a capture leaves the main view’s targets, TAA and Hi-Z history intact', 
   assert.equal(rt.run.noOccluderHistory, noOccluderHistory);
   assert.deepEqual(rt.setup.viewport, [32, 32]);
   assert.equal(rt.capture.capturing, false);
-  const made = gpu.textures.slice(textures).filter((texture) => texture.width === 16);
+  const made = gpu.textures.slice(textures).filter((texture) => texture.label && texture.width === 16);
   assert.ok(made.length && made.every((texture) => texture.destroyed), 'the capture view is freed');
 });
