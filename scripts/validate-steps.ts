@@ -13,8 +13,9 @@
 //   unit       the unit suite, which needs both the compiled compiler
 //              (`tests/integration/shared-cache-format.test.ts` skips part of itself without it)
 //              and `dist/` (`tests/integration/extensions-dts.test.ts`). `build` is seven seconds and is
-//              repeated here rather than making the job wait on another one. The CI splits the
-//              suite by `TRILLION3D_TEST_SHARD` (`scripts/unit-tests.ts`).
+//              repeated here rather than making the job wait on another one; `test` cooks the
+//              scene caches itself (`scripts/test-unit.ts`). The CI splits the suite by
+//              `TRILLION3D_TEST_SHARD` (`scripts/unit-tests.ts`).
 //
 // The CI skips the `*:native` gates when it has restored the binaries built from these exact
 // sources by an earlier green run — a decision Cargo cannot make on a fresh clone, where every
@@ -47,7 +48,7 @@ export const VALIDATE_GROUPS = {
     'check:tools-types',
   ],
   native: ['lint:native', 'build:native', 'compile:caches', 'test:native'],
-  unit: ['build:native', 'compile:caches', 'build', 'test'],
+  unit: ['build:native', 'build', 'test'],
 } as const satisfies Record<string, readonly string[]>;
 
 type ValidateGroup = keyof typeof VALIDATE_GROUPS;
