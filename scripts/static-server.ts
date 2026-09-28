@@ -71,12 +71,30 @@ export function acceptsBrotli(header: string | undefined) {
  *  second; a published tree carries its files compressed at the top quality (`pages.yml`). */
 const ON_THE_FLY = { params: { [constants.BROTLI_PARAM_QUALITY]: 5 } };
 
-/** Serves the file `path` names under `dir`, a directory by its `index.html`. */
+/** The bytes a `Range` header asks of a file of `size` bytes, first and last included: `undefined`
+ *  when it asks nothing this server serves — none, several ranges, or not a byte range —, the whole
+ *  file then answering; `null` when no byte of it lies in the file (416). */
+export function byteRange(header: string | undefined, size: number) {
+  const [, first, last] = /^bytes=(\d*)-(\d*)$/.exec(header?.trim() ?? '') ?? [];
+  if (!first && !last) return undefined;
+  // `bytes=-n`: the last n bytes.
+  if (!first) {
+    const suffix = Number(last);
+    return suffix > 0 && size > 0 ? { start: Math.max(0, size - suffix), end: size - 1 } : null;
+  }
+  const start = Number(first),
+    end = Math.min(last ? Number(last) : Infinity, size - 1);
+  if (last && Number(last) < start) return undefined;
+  return start < size ? { start, end } : null;
+}
+
+/** Serves the file `path` names under `dir`, a directory by its `index.html`; one byte range
+ *  (`byteRange`) answers 206 with those bytes alone, never encoded. */
 async function serveFile(
   dir: string,
   path: string,
   response: ServerResponse,
-  acceptEncoding: string | undefined,
+  { 'accept-encoding': acceptEncoding, range: rangeHeader }: IncomingMessage['headers'],
   { refuse, transform, compress }: StaticOptions,
 ) {
   let file = fileUnder(dir, path);
@@ -86,17 +104,26 @@ async function serveFile(
   if (!found.isFile()) return reply(response, 404);
   const served = transform?.(file);
   if (served) return reply(response, 200, served.type, served.text);
+  const range = byteRange(rangeHeader, found.size);
+  if (range === null)
+    return response
+      .writeHead(416, { 'accept-ranges': 'bytes', 'content-range': `bytes */${found.size}` })
+      .end();
   // The file is opened before the headers leave, so a file it cannot read is still a 404.
-  const stream = createReadStream(file);
+  const stream = createReadStream(file, range);
   await once(stream, 'open');
   // A client gone meanwhile closed the response: nothing may pipe onto it, the file closes now.
   if (response.destroyed) return stream.destroy();
   const encoded = compress?.(file),
-    brotli = encoded && acceptsBrotli(acceptEncoding);
-  response.writeHead(200, {
+    brotli = encoded && !range && acceptsBrotli(acceptEncoding);
+  response.writeHead(range ? 206 : 200, {
     'content-type': contentType(extname(file)),
+    'accept-ranges': 'bytes',
     ...(encoded && { vary: 'accept-encoding' }),
-    ...(brotli ? { 'content-encoding': 'br' } : { 'content-length': found.size }),
+    ...(range && { 'content-range': `bytes ${range.start}-${range.end}/${found.size}` }),
+    ...(brotli
+      ? { 'content-encoding': 'br' }
+      : { 'content-length': range ? range.end - range.start + 1 : found.size }),
   });
   // A read error past the headers destroys the response, so the socket never waits on it.
   if (brotli) pipeline(stream, createBrotliCompress(ON_THE_FLY), response, () => {});
@@ -113,9 +140,8 @@ export function staticServer(options: StaticOptions = {}): Server {
     if (answer?.(request, response, url)) return;
     const mount = mounts.find(({ prefix }) => url.pathname.startsWith(prefix));
     if (!mount) return reply(response, 404);
-    const path = url.pathname.slice(mount.prefix.length),
-      acceptEncoding = request.headers['accept-encoding'];
-    serveFile(mount.dir, path, response, acceptEncoding, options).catch(
+    const path = url.pathname.slice(mount.prefix.length);
+    serveFile(mount.dir, path, response, request.headers, options).catch(
       (error: NodeJS.ErrnoException) => {
         // A missing file is an ordinary 404; anything else (a transform that throws, a file it
         // may not read) is still a 404, but said, so the page's failed import has its cause.
