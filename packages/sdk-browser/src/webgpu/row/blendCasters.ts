@@ -41,7 +41,7 @@ export function createBlendCasterRows(
   writePageRow: Writer,
   onCoverageChange: (rec: PageRec) => void = () => {},
 ) {
-  const { blendFirst, casterSlots, blendRowOf } = rows;
+  const { blendFirst, casterSlots } = rows;
   const free = new Int32Array(casterSlots - blendFirst);
   let freeCount = 0;
   // Popped from the end: the lowest row first.
@@ -69,7 +69,7 @@ export function createBlendCasterRows(
     if (held && ints[coverage] !== before) onCoverageChange(rec);
   };
   const release = (page: number, row: number) => {
-    blendRowOf[page] = -1;
+    rows.blendRowOf[page] = -1;
     rows.packedRecs[row] = undefined;
     // A list built before the release may still name the row: it then draws no corner.
     rows.pageTableInts![row * ROW_WORDS + ROW_INDEX_WORDS] = 0;
@@ -84,7 +84,7 @@ export function createBlendCasterRows(
   const follow = (page: number, restale = false) => {
     const rec = packedPages[page];
     if (!rec.transparent || !rows.pageTableInts) return;
-    const row = blendRowOf[page];
+    const row = rows.blendRowOf[page];
     // A cluster drawn from its geometry page holds no index page: its slot is all it needs.
     const casts =
       rows.residentOffsetWords[page] >= 0 &&
@@ -100,7 +100,7 @@ export function createBlendCasterRows(
     // Never empty: every resident placement holds a pool slot, and `blendSlots` counts them all.
     if (!freeCount) return;
     const taken = free[--freeCount];
-    blendRowOf[page] = taken;
+    rows.blendRowOf[page] = taken;
     note(page);
     write(page, taken, false);
     if (restale) onCoverageChange(rec);
@@ -119,6 +119,7 @@ export function createBlendCasterRows(
     },
     /** Tells the light cut's map the rows that changed since — all of them, to a new map. */
     pin(to: BlendRowMap) {
+      const { blendRowOf } = rows;
       if (to !== map) {
         map = to;
         for (let page = 0; page < packedPages.length; page++)

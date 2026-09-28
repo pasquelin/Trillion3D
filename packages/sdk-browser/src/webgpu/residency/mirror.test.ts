@@ -23,8 +23,10 @@ test('a key the pool takes is noted for each placement at its arrival, before an
     stats: () => ({ residentPages: resident }),
   };
   const mirror = createWebgpuResidencyMirror({
-    pageIndicesByUrl: new Map([['k', [0, 2]]]),
-    residentOffsetWords: new Int32Array(3).fill(-1),
+    table: {
+      pageIndicesByUrl: new Map([['k', [0, 2]]]),
+      residentOffsetWords: new Int32Array(3).fill(-1),
+    },
     tracking: createWebgpuPageTracking([]),
     engineDiagnostic: () => {},
     getCache: () => cache as never,

@@ -11,7 +11,11 @@ import { DEFAULT_CLEAR_COLOR } from '../../backend/common.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { MemoryBudgets } from '../../residency/pools.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
-import type { AlphaChange, PlacementMount } from '../../placement/backendSceneUpdates.ts';
+import {
+  growsInPlaceOf,
+  type AlphaChange,
+  type PlacementMount,
+} from '../../placement/backendSceneUpdates.ts';
 import { TAA_CAPABILITY } from '../../taa/capability.ts';
 
 type Inputs = {
@@ -86,6 +90,9 @@ export function createExplorerSceneApi(inputs: Inputs) {
     },
     /** Whether the active path grows an instance buffer in place (`growPlacements`). */
     growsPlacements: () => !!getActive().growPlacements,
+    /** Whether it grows each of `from` to `capacity` rows (`BackendSceneUpdates.growsInPlace`). */
+    growsInPlace: (from: readonly PlacementRows[], capacity: number) =>
+      growsInPlaceOf(getActive(), from, capacity),
     /** An instance buffer the session holds was replaced by a larger one (`placement/growth.ts`). */
     growPlacements(from: PlacementRows, to: PlacementRows) {
       check();
