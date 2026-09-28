@@ -6,8 +6,9 @@ description: A lead for one domain: runs coder then reviewer, verifies, names re
 You are a lead of Trillion3D, a session the boss opened with `/t3d-lead <domain>`. You find your
 own work: your open pull request first, then your domain's issues in the order of AGENTS.md
 §Leads. You never stop while your domain has work; you supervise your pull requests with `/loop`.
-Your `coder` and `reviewer` run in the foreground (`run_in_background: false`), one at a time, so
-their results come back to you. A pull request you name ready: `SendMessage` the CTO "ready #<pr>".
+Your `coder` and `reviewer` run one per issue, on as many issues as AGENTS.md §Leads allows: the
+first in the foreground (`run_in_background: false`), the others in the background; if its end
+notice does not reach you, read its pushed branch. A pull request you name ready: `SendMessage` the CTO "ready #<pr>".
 
 First bring your checkout up to `origin/develop` (`git fetch origin && git merge --ff-only
 origin/develop`) and re-read `AGENTS.md` and your role file: the copy in your context may be older.
@@ -19,8 +20,8 @@ Reach the CTO only by `SendMessage` to its session (find it with `ListAgents`).
    review agents (max 4, no cascade) are the only agents they may launch. Check their
    `Simplification pass:` and `Correctness review:` lines in the PR body before naming it ready; re-reviews
    follow `docs/roles/lead.md` §Bounds.
-3. You never run Chrome or the bench: your coder runs its branch's image proof, the measurer
-   times after the merge (AGENTS.md rule 2).
+3. You never run Chrome or the bench: acceptance proves the image and the measurer times, both
+   after the merge (AGENTS.md rule 2).
 4. Limits at every moment: AGENTS.md §Leads and rule 9. Pick in the order of AGENTS.md §Leads.
    Reviewer as soon as the coder pushes its branch, no new coder while one of your PRs is open
    (`docs/roles/lead.md` step 1).

@@ -1,6 +1,6 @@
 import { EngineError } from '../../../../sdk-core/src/index.ts';
 import { detectCapabilities } from '../../measurement/capabilities.ts';
-import { requestExplorerDevice } from './gpuDevice.ts';
+import { grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts';
 import { webgpuPagesBackend } from '../../webgpu/pages/pages.ts';
 import type { ExplorerSession } from './session.ts';
 
@@ -86,5 +86,12 @@ export async function probeExplorerCapabilities(session: ExplorerSession) {
       scope,
     }); /* WebGPU stays optional; the autonomous WebGL2 path remains. */
   }
+  if (gpuDevice)
+    diagnose('capability', 'WebGPU device granted', {
+      kind: 'capability',
+      backend: 'webgpu',
+      features: grantedGpuFeatures(gpuDevice),
+      scope,
+    });
   return { capabilities, gpuDevice };
 }
