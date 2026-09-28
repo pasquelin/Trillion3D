@@ -5,6 +5,7 @@ import { renderWebgpuPages } from '../render/render.ts';
 import { grantFrameTargets } from '../prepare/targetGrant.ts';
 import { sizeShadowPool } from '../../shadow/poolSize.ts';
 import { deviceAnswer } from '../../frame/deviceAnswer.ts';
+import { grantPending } from '../../../gpu/core/errorScope.ts';
 import { createWebgpuView } from '../state/view.ts';
 import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -27,17 +28,23 @@ export async function captureAside<T>(
   sizeShadowPool(rt);
   capture.capturing = true;
   const view = createWebgpuView(size.width, size.height);
+  let drawn = false;
   try {
     await deviceAnswer(rt);
     await rt.services.residency.pending;
     await rt.gpu.device?.queue.onSubmittedWorkDone();
+    // The main view's grant in flight settles on the main view: once switched, it would clear
+    // the capture's grant and stay settled on the main view, holding its frames.
+    await grantPending(rt.gpu.targetGrant);
     // A session closed meanwhile draws nothing.
     rt.context.signal?.throwIfAborted();
     useWebgpuView(rt, view);
+    drawn = true;
     return await work();
   } finally {
-    // A view never drawn made nothing: the main view is not switched out and back for it.
-    if (rt.views.active === view) releaseWebgpuView(rt, view);
+    // A view never drawn made nothing: the main view is not switched out and back for it. One
+    // drawn is released even when a dispose switched the main view back meanwhile.
+    if (drawn) releaseWebgpuView(rt, view);
     capture.capturing = false;
   }
 }
