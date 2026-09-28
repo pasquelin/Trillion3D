@@ -102,6 +102,8 @@ export function createExplorerHostRuntime(session: ExplorerSession, inputs: Inpu
         !!loading || !!streaming.promise || streaming.arrivals.pending > 0 || !!pending || !!cells
       );
     },
+    /** The engine's camera pages made resident so far, when it counts them. */
+    landings: () => state.active.landings?.(),
     capture,
     captureView,
     gpuDevice,

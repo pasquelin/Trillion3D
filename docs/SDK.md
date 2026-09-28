@@ -357,8 +357,9 @@ it cannot restore geometry already discarded during cooking. See [FORMAT.md](FOR
 ## Loop
 
 The world owns the loop, and it stops when the image is stable: after 120 frames with nothing
-changing it pauses (`interactive-settle-limit`), and resumes on invalidation. A still scene costs
-nothing. `onFrame` is the per-frame hook; `loop` is its alias.
+changing it pauses (`interactive-settle-limit`), and resumes on invalidation. A frame after which a
+page landed does not count: a streamed view is drawn as its pages arrive, to its last one. A still
+scene costs nothing. `onFrame` is the per-frame hook; `loop` is its alias.
 
 ```js
 // 1. The world leads; you give it work per frame.
