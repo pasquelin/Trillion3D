@@ -95,8 +95,7 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
     const held = before?.capacity ?? 0,
       needed = held - batch.free.length + waitingIn(batch);
     if (needed <= held) return null;
-    if (before && grow && !grow.growsInPlace([before], grownCapacity(held, needed)))
-      return false;
+    if (before && grow && !grow.growsInPlace([before], grownCapacity(held, needed))) return false;
     const rows = growPlacementRows(before, needed);
     const { capacity } = rows;
     for (let row = capacity - 1; row >= held; row--) batch.free.push(row);
