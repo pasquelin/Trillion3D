@@ -86,9 +86,6 @@ fn measure(primitive: &Primitive) -> Vec<Page> {
             uv,
         )?;
         let digest = value["sha256"].as_str().expect("digest").to_owned();
-        if reused && shifts.lock().expect("shifts").contains_key(&digest) {
-            return Ok((value, reused));
-        }
         let bytes = std::fs::read(crate::object_path(&o, &digest)).expect("stored page");
         let shift = displacement(&bytes, slice, primitive.positions);
         // The header's error is what the manifest's `maxPositionError` and the run-time cut read.
@@ -99,7 +96,10 @@ fn measure(primitive: &Primitive) -> Vec<Page> {
             shift <= published * (1.0 + 1e-6) + 1e-9,
             "{shift} > {published}"
         );
-        shifts.lock().expect("shifts").insert(digest, shift);
+        // Two slices may encode to one page: it keeps the larger displacement of the two.
+        let mut shifts = shifts.lock().expect("shifts");
+        let kept = shifts.entry(digest).or_insert(0.0_f64);
+        *kept = kept.max(shift);
         Ok((value, reused))
     };
     let DagResult { pages, .. } = build_dag_primitive(
