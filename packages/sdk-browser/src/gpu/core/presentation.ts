@@ -1,6 +1,7 @@
 import { sharedGpuDevice } from './sessionHandle.ts';
 import { FULLSCREEN_VERTEX } from '../../lighting/deferred/deferred.ts';
 import { createCanvasBlit } from '../../webgl/core/canvasBlit.ts';
+import { createPresentAt, type PresentRect } from './presentAt.ts';
 
 export const PRESENT_SHADER = `@group(0) @binding(0) var image:texture_2d<f32>;
 ${FULLSCREEN_VERTEX}
@@ -34,16 +35,36 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
       fragment: { module, entryPoint: 'present', targets: [{ format }] },
       primitive: { topology: 'triangle-list' },
     });
-    let texture: GPUTexture | undefined, group: GPUBindGroup | undefined;
+    let texture: GPUTexture | undefined,
+      group: GPUBindGroup | undefined,
+      // The canvas texture the whole image was last drawn into: a view is placed on it alone.
+      shown: GPUTexture | undefined;
+    const presentAt = createPresentAt(device, layout, format);
     const targetView = (width: number, height: number) => {
       if (canvas.width !== width) canvas.width = width;
       if (canvas.height !== height) canvas.height = height;
-      return context.getCurrentTexture().createView();
+      shown = context.getCurrentTexture();
+      return shown.createView();
     };
     return {
       canvas,
       targetView,
-      present(encoder: GPUCommandEncoder, image: GPUTexture, width: number, height: number) {
+      /** The image over the whole canvas, sized to it; at `at`, a persistent view's rectangle of
+       *  the canvas, which keeps its size and what else it shows this frame. */
+      present(
+        encoder: GPUCommandEncoder,
+        image: GPUTexture,
+        width: number,
+        height: number,
+        at?: PresentRect,
+      ) {
+        if (at) {
+          // Not this frame's whole image (its targets still asked, say): the canvas keeps the
+          // last frame it showed, never a blank one with this view alone on it.
+          const current = context.getCurrentTexture();
+          if (current === shown) presentAt(encoder, current.createView(), image, at, canvas);
+          return;
+        }
         const view = targetView(width, height);
         if (texture !== image) {
           texture = image;
@@ -70,7 +91,7 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
         const { width } = canvas;
         canvas.width = width;
         group = undefined;
-        texture = undefined;
+        texture = shown = undefined;
       },
     };
   } catch (error) {

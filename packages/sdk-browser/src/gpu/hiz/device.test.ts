@@ -67,3 +67,21 @@ test('GPU Hi-Z allocates only the current pyramid and releases it on resize', as
   hiz.dispose();
   assert.ok(buffers.every((buffer) => destroyed.includes(buffer)));
 });
+
+test('each view keeps its own pyramid: a switch allocates nothing and finds its size back', async () => {
+  const { device, textures, destroyed } = fakeDevice();
+  const hiz = await createGpuHiz(device, 32, 32, 4);
+  assert.ok(hiz);
+  const main = hiz.swap(undefined);
+  assert.deepEqual([hiz.width, hiz.height], [0, 0], 'a new view is sized by its first frame');
+  assert.equal(hiz.resize(device, 16, 8), true);
+  assert.equal(destroyed.length, 0, 'the main view’s pyramid is kept aside, whole');
+  const made = textures.length;
+  const side = hiz.swap(main);
+  assert.deepEqual([hiz.width, hiz.height, hiz.levels()[0].width], [32, 32, 32]);
+  assert.equal(hiz.swap(side), main);
+  assert.deepEqual([hiz.width, hiz.height, hiz.levels()[0].width], [16, 8, 16]);
+  assert.equal(textures.length, made, 'no pyramid is made again');
+  hiz.swap(main)?.destroy();
+  hiz.dispose();
+});
