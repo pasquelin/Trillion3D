@@ -27,7 +27,7 @@ fn weld_exact_joins_only_copies_a_page_cannot_tell_apart() {
         width: 4,
         values: vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 1.0],
     };
-    let exact = attributes::weld_exact(&positions, &[&normals, &colors], &[0, 1, 2]);
+    let exact = welds::weld_exact(&positions, &[&normals, &colors], &[0, 1, 2]);
     assert_eq!(exact, vec![0, 0, 2]);
 }
 

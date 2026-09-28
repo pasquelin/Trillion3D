@@ -49,7 +49,7 @@ fn reduced(
         .into_iter()
         .collect();
     let carried: Vec<&crate::geometry_page::Attribute> = carried.iter().collect();
-    let welds = attributes::Welds::of(positions, DagAttributes { carried: &carried }, indices);
+    let welds = welds::Welds::of(positions, DagAttributes { carried: &carried }, indices);
     let locks = vec![locked; positions.len() / 3];
     let attributes = DagAttributes { carried: &carried };
     let weighted = attributes.weighted();
