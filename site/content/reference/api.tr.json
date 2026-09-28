@@ -7415,7 +7415,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Bir ışığın gölgelendirmesinin okuduğu gölge kaydının float değerleri: altı lamba yüzü matrisi, sonra güneş düzleminin çerçevesi — `right, zNear`, `up, zFar`, `axis, 0` —, sonra her clipmap düzeyinin alan kökeni iki tamsayı olarak, sonra bir `vec4f` başlığı: yüzler (lamba) ya da düzeyler (güneş), lambanın yarım alan tanjantı ya da güneşin en ince düzeyi, lambanın yakın düzlemi ve kaydın sayfa tablosundaki ilk girdisi."
+    "summary": "Bir ışığın gölgelendirmesinin okuduğu gölge kaydının float değerleri: altı lamba yüzü matrisi — güneşte orada derinlik aralıkları, her biri `zNear` ve açıklığın tersi (`recordPack.ts`) —, sonra güneş düzleminin çerçevesi — `right`, `up`, `axis`, her biri dörde tamamlanmış —, sonra her clipmap düzeyinin alan kökeni iki tamsayı olarak, sonra bir `vec4f` başlığı: yüzler (lamba) ya da düzeyler (güneş), lambanın yarım alan tanjantı ya da güneşin en ince düzeyi, lambanın yakın düzlemi ve kaydın sayfa tablosundaki ilk girdisi."
   },
   "ShadowRequestReport": {
     "summary": "Gölgelendirmenin bir karede okuduğu: istediği tablo girdileri, sırasız.",

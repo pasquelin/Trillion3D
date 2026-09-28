@@ -125,7 +125,11 @@ export function writeShadowPages(
     const fresh = open < 0 || keys[i] !== keys[open];
     if (fresh && open >= 0) close(lights, slots, open, i, origin, pixelError);
     const { light, near } = composePage(lights, slots, page, region);
-    const mode = (pageModes[i - from] = pool.drawMode(page, !!lights.staticLayer));
+    const mode = (pageModes[i - from] = pool.drawMode(
+      page,
+      !!lights.staticLayer,
+      plan.records.rangeOf(page),
+    ));
     const taken = regions.push(page, mode, cull.volumes, cull.volumeWords);
     for (let k = 0; k < taken; k++) {
       if (k) faceMatrices.copyWithin((region + k) * 16, region * 16, region * 16 + 16);

@@ -165,8 +165,9 @@ export function createShadowPlan(poolSide: number, layers = 1) {
      *  draws land before anything reads them. The last batch closes the list. */
     commit(modes?: ArrayLike<number>, from = 0, to = admission.count) {
       for (let i = from; i < to; i++) {
-        pool.drew(table, admission.list[i], modes ? modes[i - from] : DRAW_ALL);
-        thresholds.drew(admission.list[i]);
+        const page = admission.list[i];
+        pool.drew(table, page, modes ? modes[i - from] : DRAW_ALL, records.rangeOf(page));
+        thresholds.drew(page);
       }
       if (to >= admission.count) admission.reset();
     },
