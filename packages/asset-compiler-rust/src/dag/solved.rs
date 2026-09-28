@@ -28,7 +28,7 @@
 //! stalled it again (Sponza: four groups of five).
 use super::border::required_locks;
 use super::charts::{
-    densities, longest_edge, mirror_span, on_mirror, open_border_welded, weighted,
+    densities, folded_span, longest_edge, on_mirror, open_border_welded, weighted,
 };
 use super::grown::Placed;
 use super::placed::Local;
@@ -59,10 +59,10 @@ pub(super) fn stalled(
     stop: Stop,
 ) -> Result<std::result::Result<Solved, GroupOutcome>> {
     let cause = diagnosis::cause(input, live, children, stop)?;
-    let sides = input.sides();
+    let charts = input.charts();
     let mirrored = || {
-        live.iter()
-            .any(|&v| sides.get(v as usize).is_some_and(|&s| on_mirror(s)))
+        let on = |v: &u32| charts.get(*v as usize).is_some_and(|c| on_mirror(c.sides));
+        live.iter().any(on)
     };
     let solved = match cause {
         StallCause::SeamLocked => match attempt(input, live, children, false)? {
@@ -85,8 +85,8 @@ fn attempt(
     let base = (input.positions.len() / 3) as u32;
     let required = required_locks(live, input.locks, input.weld);
     let densities = densities(input, live);
-    let sides = input.sides();
-    let mirror = |v: u32| !crossed && sides.get(v as usize).is_some_and(|&s| on_mirror(s));
+    let charts = input.charts();
+    let mirror = |v: u32| !crossed && charts.get(v as usize).is_some_and(|c| on_mirror(c.sides));
     let (live, weld_error) = &open_border_welded(input, live, &densities, mirror);
     let weighted = weighted(input, live, &densities);
     let region = Region::of(input.positions, &weighted, live)?;
@@ -101,10 +101,12 @@ fn attempt(
         };
         let error = solved.error_object.max(*weld_error);
         let local = Local::of(input, solved, &densities);
-        let span = if crossed {
-            mirror_span(&local, sides)
-        } else {
-            0.0
+        let span = match charts.is_empty() {
+            true => 0.0,
+            false => {
+                let chart = |v: u32| charts[local.from(v)];
+                folded_span(&local.indices, &local.positions, chart, crossed)
+            }
         };
         Ok(Ok(Solve {
             error: error.max(local.drift).max(span),
