@@ -9,17 +9,22 @@ export const TILE_STRIDE_WORDS = LIGHT_SETTINGS.tileLights * 2 + 2;
 /**
  * Structures shared by the light-list pass and deferred resolve: a single GPU-side
  * declaration of the `SceneLight` contract, and a single physical attenuation. Shader
- * bounds come from the published settings, never from hand-written constants.
+ * bounds come from the published settings, never from hand-written constants. `slots` sizes
+ * the light array for a pass that knows the scene holds no more (`../tiles/shader.ts`); by
+ * default it holds as many as the buffer bound.
  */
-export const DIRECT_LIGHT_WGSL = `
+export const directLightWgsl = (slots?: number) => `
 const TILE_SIZE:u32=${LIGHT_SETTINGS.tileSize}u;
 /** A tile carries two lists: two header words — the count of each —, the opaque list, then
- *  the blend one, which covers a deeper depth slice. Each list holds \`TILE_LIGHTS\` lights; a
- *  count past it says the tile keeps no list and walks every light of the scene (\`tileLighting\`). */
+ *  the blend one, which covers a deeper depth slice. Each list holds \`TILE_LIGHTS\` lights; past
+ *  them, the list's first word is where the tile's lights start in the view's pool, after the
+ *  records (#849), or \`TILE_NO_SLICE\` when the pool had no room left: that tile walks every
+ *  light of the scene (\`tileSlice\`). */
 const TILE_LIGHTS:u32=${LIGHT_SETTINGS.tileLights}u;
 const TILE_STRIDE:u32=${TILE_STRIDE_WORDS}u;
 const TILE_OPAQUE_BASE:u32=2u;
 const TILE_BLEND_BASE:u32=${LIGHT_SETTINGS.tileLights + 2}u;
+const TILE_NO_SLICE:u32=0xffffffffu;
 const POINT_FACES:u32=${POINT_FACES}u;
 const SPOT_EDGE:f32=${LIGHT_SETTINGS.spotEdgeSoftness};
 const KIND_SPOT:f32=${LIGHT_KIND.spot}.0;
@@ -30,7 +35,7 @@ struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,
  *  colour and mode then law (\`packages/sdk-core/src/scene/core/fog.ts\`); the fitted specular lobe
  *  a rectangle is integrated with, written once (\`ltcTable.ts\`); then every light, as many as
  *  the scene holds. */
-struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,fog:array<vec4f,2>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,items:array<DirectLight>,}
+struct DirectLights{count:u32,pad0:u32,pad1:u32,pad2:u32,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,fog:array<vec4f,2>,ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,items:array<DirectLight${slots ? `,${slots}` : ''}>,}
 /** The type rank is a float in the buffer: a single place knows how to reread it. */
 fn isSun(light:DirectLight)->bool{return abs(light.params.x-KIND_SUN)<0.5;}
 /** The range window at \`distance\` from a light's centre: one at the centre, zero at its range. */
@@ -68,3 +73,4 @@ fn pointFaceOf(direction:vec3f)->u32{
  if(a.y>=a.z){return select(3u,2u,direction.y>0.0);}
  return select(5u,4u,direction.z>0.0);
 }`;
+export const DIRECT_LIGHT_WGSL = directLightWgsl();
