@@ -88,7 +88,6 @@ test('the component owns exactly one world for each attachment', async () => {
         object,
       },
       kit: {
-        banner() {},
         controls(specs: typeof buttons) {
           buttons = specs;
         },
