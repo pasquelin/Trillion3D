@@ -2,6 +2,7 @@ import { followHostTexture } from '../../../host/textureImport.ts';
 import { pictureFits } from '../../tile/live.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { shadowsFollowSurfaces } from '../prepare/lightResources.ts';
+import { followBlendedCasting } from '../../shadow/transmittanceGrant.ts';
 import {
   blendMoves,
   isAssignment,
@@ -62,6 +63,8 @@ export function refreshWebgpuMaterials(rt: WebgpuPagesRuntime, values = true, al
     // The scene revision moved: the next image writes the transparent records again, once
     // (`../render/render.ts`, `refreshBlendScene`), each off its refreshed surface.
     rt.run.gate.sceneMoved();
+    // A blended surface turned casting asks its transmittance layer before the next frame.
+    followBlendedCasting(rt);
   }
   // The atlas is made at open whether or not a light is declared: a light in the store casts.
   const exact = !alpha || !rt.lights.store.count || !rt.lights.shadows;

@@ -64,7 +64,7 @@ ${DATA_SAMPLE_WGSL}
 ${TILE_REQUEST_WGSL}
 // The blended colour, and the tile rank this pixel asks of the virtual textures, set in its own
 // target: the fragment stage writes nothing to memory, it keeps its early reject.
-struct BlendOut{@location(0) color:vec4f,@location(1) request:u32,}
+struct BlendOut{@location(0) color:vec4f,@location(1) request:u32,@location(2) asIs:vec4f,}
 ${BLEND_REQUEST_WGSL}
 ${NORMAL_TRANSFORM_WGSL}
 ${LINE_CLIP_WGSL}
@@ -175,7 +175,7 @@ ${BLEND_SURFACE_WGSL}
   }else if((flags&0x10000000u)!=0u){color=select(vec3f(0.5,0.55,0.6),hashColor(in.diagId&0x00ffffffu),in.diagId!=0u);}
   else if((flags&0x08000000u)!=0u){color=select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),(in.diagId&0x80000000u)!=0u);}
   else if((flags&0x04000000u)!=0u){let ratio=f32((in.diagId>>24u)&127u)/127.0;color=vec3f(ratio,1.0-ratio,0.12);}
-  return BlendOut(vec4f(color,1.0),s.request);
+  return BlendOut(vec4f(color,1.0),s.request,vec4f(0.0,0.0,0.0,1.0));
  }
  var rgb=s.rgb;
  // No declared lamp, or an unlit view requested: the raw albedo, exactly like the opaque
@@ -195,6 +195,6 @@ ${BLEND_SURFACE_WGSL}
   // Lit or unlit, the surface is seen through the fog.
   if((flags&${surfaceModel.FOG_FREE_MODEL_BIT << surfaceModel.MODEL_SHIFT}u)==0u){rgb=fogged(rgb,in.view,uni.eye.xyz);}
  }
- return BlendOut(vec4f(rgb,s.alpha),s.request);
+ return BlendOut(vec4f(rgb,s.alpha),s.request,vec4f(0.0,0.0,0.0,s.alpha));
 }
 `;

@@ -174,8 +174,24 @@ fn a_refusal_in_the_second_primitive_of_a_cook_names_its_mesh_and_primitive() {
     fs::remove_dir_all(root).expect("cleanup");
 }
 
+// Behaviour: a primitive the buffer plan refuses is named, like one the cook refuses.
+#[test]
+fn a_primitive_the_buffer_plan_refuses_names_its_mesh_and_primitive() {
+    let (root, options) = fixture();
+    let mut gltf = read_gltf(&options);
+    gltf["meshes"][0]["primitives"]
+        .as_array_mut()
+        .expect("primitives")
+        .push(json!({"attributes":{"POSITION":0},"targets":[{"POSITION":"zero"}]}));
+    write_gltf(&options, &gltf, None);
+    let error = compile(&options, |_| {}).expect_err("refused");
+    let expected = "Mesh 0 primitive 1: primitive target attribute must be an unsigned integer";
+    assert_eq!(error.message, expected);
+    fs::remove_dir_all(root).expect("cleanup");
+}
+
 #[test]
 fn a_cancellation_met_inside_a_primitive_keeps_its_message() {
-    let cancelled = CompilerError::new("CANCELLED", "Compilation cancelled").within(0, 1);
+    let cancelled = CompilerError::new(crate::CANCELLED, "Compilation cancelled").within(0, 1);
     assert_eq!(cancelled.message, "Compilation cancelled");
 }

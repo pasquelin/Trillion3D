@@ -20,6 +20,7 @@ import type { ShadowStaticLayer } from '../../../gpu/shadow/staticLayer.ts';
 import type { ShadowPageHiz } from '../../../gpu/shadow/pageHiz.ts';
 import type { ShadowOcclusion } from '../../../gpu/shadow/occlusion.ts';
 import type { ShadowPageQuads } from '../../../gpu/shadow/pageQuads.ts';
+import { createShadowMemory, type ShadowMemory } from '../../shadow/memoryGrant.ts';
 
 /**
  * Direct-lighting state of the contract: the light store (shared with the host), per-tile lists, the
@@ -103,6 +104,11 @@ export interface WebgpuLightState {
   shadowRenderPasses: number;
   /** Why the shadow atlas does not exist, when it does not. */
   shadowReason: string | null;
+  /** The shadows' fixed memory grant, its peak and its pressure events (`../../shadow/memoryGrant.ts`). */
+  memory: ShadowMemory;
+  /** The transmittance layer is past the grant or refused by the device: never asked again
+   *  (`../../shadow/transmittanceGrant.ts`). */
+  transmittanceDenied: boolean;
   /** Configuration of the first image lit by the contract is logged only once. */
   firstFrameLogged: boolean;
 }
@@ -154,6 +160,8 @@ export function createWebgpuLightState(
     shadowDrawCalls: 0,
     shadowRenderPasses: 0,
     shadowReason: null,
+    memory: createShadowMemory(),
+    transmittanceDenied: false,
     firstFrameLogged: false,
   };
 }
