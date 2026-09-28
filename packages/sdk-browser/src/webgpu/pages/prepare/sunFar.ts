@@ -3,6 +3,7 @@ import {
   LIGHT_SETTINGS,
   type SceneProxy,
 } from '../../../../../sdk-core/src/index.ts';
+import { syncPageProxy } from './proxyMotion.ts';
 import { createGpuBounceProxy } from '../../../bounce/proxy.ts';
 import { createGpuSunFarShadow } from '../../../gpu/shadow/sunFarShadow.ts';
 import { grantCapability } from '../io/drops.ts';
@@ -53,12 +54,21 @@ export function ensureSunFarShadow(rt: WebgpuPagesRuntime, device: GPUDevice) {
   sunFar.pending = context
     .readSceneProxy()
     .then((proxy: SceneProxy) => {
-      sunFar.gpu?.adopt(createGpuBounceProxy(device, proxy), true);
+      if (rt.gpu.device !== device) return;
+      const resident = createGpuBounceProxy(device, proxy);
+      try {
+        syncPageProxy(rt, resident, true);
+      } catch (error) {
+        resident.dispose();
+        throw error;
+      }
+      sunFar.gpu?.adopt(resident, true);
       grantCapability(rt.capabilities, SUN_FAR_CAPABILITY);
       rt.run.gate.resourcesChanged();
       publish(rt);
     })
     .catch((error: unknown) => {
+      if (rt.gpu.device !== device) return;
       sunFar.reason = `far shadow unavailable: resident proxy unreadable (${String(error)})`;
       rt.diag.diagnosticFailure('sun-far-shadow-unavailable', error);
       publish(rt);
