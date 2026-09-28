@@ -111,7 +111,7 @@ test('a body whose collider is another node’s mesh leaves that node’s tile o
   const three = [place(0), place(1), place(2)];
   const body = declared(0, [0, 0, 0], { isKinematic: true }, hull, { colliderNode: 1 });
   const file = { ...cooked([collider, collider, collider], three), bodies: [body] };
-  const { tiles, writer, bodies, errors } = await streamedModel(file, await ramp());
+  const { tiles, bodies, errors } = await streamedModel(file, await ramp());
   tiles.update([0, 0, 0], 1000);
   await landed();
   assert.deepEqual(errors, []);
