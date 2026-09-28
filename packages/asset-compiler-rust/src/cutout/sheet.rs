@@ -13,7 +13,7 @@ use crate::texture_preview::TexturePreview;
 pub(crate) struct Entry {
     pub sha256: String,
     pub name: String,
-    pub shape: Value,
+    pub shape: AlphaShape,
     pub proposal: bool,
     pub answer: Option<bool>,
     /// Primitives still in blend clothed by this texture: what deciding yields.
@@ -54,7 +54,7 @@ pub(crate) fn entries(
             Entry {
                 sha256: preview.sha256.clone(),
                 name: image_name(images, preview.image as usize),
-                shape: shape.report(),
+                shape: shape.clone(),
                 proposal: shape.looks_like_cutout(),
                 answer: decisions.verdict(&preview.sha256),
                 weight,
@@ -110,22 +110,24 @@ fn image_name(images: Option<&Vec<Value>>, image: usize) -> String {
 ///  says what deciding yields, so user asking question shows
 /// highest return items first without recomputing.
 pub(crate) fn build_sheet(entries: &[Entry], decisions: &Decisions) -> Value {
-    let mut textures = serde_json::Map::new();
+    let mut textures = decisions.measurements.entries();
     for entry in entries {
         textures.insert(
             entry.sha256.clone(),
-            json!({"image":entry.name,"used":true,"measure":entry.shape,
+            json!({"image":entry.name,"used":true,"measure":entry.shape.report(),
+                "measurement":cache::record(&entry.sha256, &entry.shape),
                 "blendPrimitives":entry.weight,
                 "proposal":if entry.proposal { "cutout" } else { "blend" },
                 "cutout":entry.answer}),
         );
     }
     for (sha256, cutout) in decisions.answers() {
-        if !textures.contains_key(sha256) {
-            textures.insert(sha256.clone(), json!({"used":false,"cutout":cutout}));
-        }
+        let entry = textures
+            .entry(sha256.clone())
+            .or_insert_with(|| json!({"used":false}));
+        entry["cutout"] = json!(cutout);
     }
-    json!({"version":SHEET_VERSION,
+    json!({"version":SHEET_VERSION,"measurementAlgorithm":cache::algorithm(),
         "about":"Answer per texture: cutout = true for a cutout, false for real transparency, null until someone decides. Preparation asks the question and shows the images; this file can also be edited by hand.",
         "textures":Value::Object(textures)})
 }
