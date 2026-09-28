@@ -1,6 +1,6 @@
 import { BODY_INDEX, type ObjectPhysics } from '../../../sdk-core/src/physics/index.ts';
 import type { Bodied } from './bodies.ts';
-import type { CookedMadeBody } from './cookedBodies.ts';
+import type { CookedMadeBody, MovingBody } from './cookedBodies.ts';
 import type { CookedMade } from './cookedSoft.ts';
 import { createSimulatedIds } from './simulatedIds.ts';
 import type { Model, Placed } from './tilePlace.ts';
@@ -21,7 +21,7 @@ export type SlotOwner =
 export function createBodySlots(size: number) {
   const ids = createSimulatedIds<SlotOwner, Uint8Array>(new Uint8Array(size));
   const meshes: (Bodied | null)[] = [];
-  const nested: (CookedMadeBody | null)[] = [];
+  const nested = new Array<MovingBody | null>(size).fill(null);
   const { of } = ids;
   return {
     meshes,
@@ -31,7 +31,8 @@ export function createBodySlots(size: number) {
     take(owner: SlotOwner) {
       const id = ids.take(owner);
       meshes[id & BODY_INDEX] = 'mesh' in owner ? owner.mesh : null;
-      nested[id & BODY_INDEX] = 'body' in owner && owner.body.moves ? owner.body : null;
+      nested[id & BODY_INDEX] =
+        'body' in owner && owner.body.moves ? (owner.body as MovingBody) : null;
       return id;
     },
     /** Slot `index` given back: no id of it names anything until it is taken again. */
