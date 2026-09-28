@@ -13,7 +13,7 @@ import {
   type CookedBody,
 } from '../../../sdk-core/src/physics/index.ts';
 import { createCookedBodies } from './cookedBodies.ts';
-import { body, castDown, startModule, type Module } from './module.fixture.ts';
+import { castDown, startModule, type Module } from './module.fixture.ts';
 import {
   cooked,
   landed,
@@ -23,6 +23,7 @@ import {
   streamedModel,
   tile,
 } from './tiles.fixture.ts';
+import { body } from './records.fixture.ts';
 
 const fixture = (name: string) =>
   readFile(new URL(`../../../../tests/fixtures/physics/${name}`, import.meta.url));
