@@ -12,6 +12,7 @@
       "bindingOf": "Lo que escribe `tr`, resuelto una vez; null mientras su objetivo no esté bajo la raíz.",
       "play": "Empieza a reproducirse.",
       "stop": "Se detiene y vuelve al principio.",
+      "seek": "Coloca el clip en `time` segundos ahora mismo, según su modo de bucle, se esté reproduciendo o no: una acción que se reproduce sigue desde ahí, una detenida conserva la pose hasta que una acción en curso de su mezclador la sobrescriba.",
       "clipTime": "En qué punto del clip está la acción, según su modo de bucle."
     }
   },
@@ -613,7 +614,8 @@
       "p.left": "Borde izquierdo del cuadro de visión de una cámara ortográfica.",
       "p.right": "Borde derecho del cuadro de visión de una cámara ortográfica.",
       "p.top": "Borde superior del cuadro de visión de una cámara ortográfica.",
-      "p.bottom": "Borde inferior del cuadro de visión de una cámara ortográfica."
+      "p.bottom": "Borde inferior del cuadro de visión de una cámara ortográfica.",
+      "p.fitAspect": "Una cámara ortográfica conserva la altura y el centro de su caja y toma el ancho de la forma de la imagen, así un lienzo redimensionado nunca estira el dibujo. Desactivado por defecto."
     }
   },
   "camera.orthographic": {
@@ -628,7 +630,8 @@
       "p.left": "Borde izquierdo del cuadro de visión de una cámara ortográfica.",
       "p.right": "Borde derecho del cuadro de visión de una cámara ortográfica.",
       "p.top": "Borde superior del cuadro de visión de una cámara ortográfica.",
-      "p.bottom": "Borde inferior del cuadro de visión de una cámara ortográfica."
+      "p.bottom": "Borde inferior del cuadro de visión de una cámara ortográfica.",
+      "p.fitAspect": "Una cámara ortográfica conserva la altura y el centro de su caja y toma el ancho de la forma de la imagen, así un lienzo redimensionado nunca estira el dibujo. Desactivado por defecto."
     }
   },
   "camera.cube": {
@@ -659,7 +662,8 @@
       "p.left": "Borde izquierdo del cuadro de visión de una cámara ortográfica.",
       "p.right": "Borde derecho del cuadro de visión de una cámara ortográfica.",
       "p.top": "Borde superior del cuadro de visión de una cámara ortográfica.",
-      "p.bottom": "Borde inferior del cuadro de visión de una cámara ortográfica."
+      "p.bottom": "Borde inferior del cuadro de visión de una cámara ortográfica.",
+      "p.fitAspect": "Una cámara ortográfica conserva la altura y el centro de su caja y toma el ancho de la forma de la imagen, así un lienzo redimensionado nunca estira el dibujo. Desactivado por defecto."
     },
     "members": {
       "isCamera": "Siempre `true`: distingue una cámara de cualquier otro objeto.",
@@ -672,6 +676,7 @@
       "right": "Borde derecho del cuadro ortográfico.",
       "top": "Borde superior del cuadro ortográfico.",
       "bottom": "Borde inferior del cuadro ortográfico.",
+      "fitAspect": "Una caja ortográfica tan alta como se declaró y tan ancha como la forma de la imagen la hace.",
       "projection": "`'perspective'` hace pequeño lo lejano; `'orthographic'` conserva todos los tamaños.",
       "copy": "Toma los valores de nodo de `source` y, de una cámara, su óptica; su propia `projection` se mantiene.",
       "updateProjectionMatrix": "Vuelve a componer `projectionMatrix`; cada escritura de la óptica ya lo hace, y redibuja.",
@@ -715,7 +720,8 @@
       "left": "Borde izquierdo del cuadro de visión de una cámara ortográfica.",
       "right": "Borde derecho del cuadro de visión de una cámara ortográfica.",
       "top": "Borde superior del cuadro de visión de una cámara ortográfica.",
-      "bottom": "Borde inferior del cuadro de visión de una cámara ortográfica."
+      "bottom": "Borde inferior del cuadro de visión de una cámara ortográfica.",
+      "fitAspect": "Una cámara ortográfica conserva la altura y el centro de su caja y toma el ancho de la forma de la imagen, así un lienzo redimensionado nunca estira el dibujo. Desactivado por defecto."
     }
   },
   "CameraPose-common": {
@@ -1605,6 +1611,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Este camino de dibujo no sabe hacer este cambio en la escena.",
       "BATCHED_WORLD_VIEW": "Este camino de dibujo no sabe hacer este cambio en la escena.",
       "RAYCAST_NO_VIEW": "Se pidió un punto de imagen a un canvas sin tamaño: no hay imagen a través de la cual apuntar.",
+      "VERTICES_NOT_LOADED": "Los vértices de un modelo cargado se leyeron antes de `await geometry.loadVertices()`: una sesión los lee a la primera necesidad, nunca de antemano.",
       "SESSION_OPEN_FAILED": "La sesión del mundo no pudo abrirse, por un motivo sin código propio (`world.diagnostic.error`): el error lanzado está en `details.cause`.",
       "WEBGPU_LOST": "WebGPU perdió su dispositivo, o un error en él dejó un estado desde el que nada puede dibujar: lo lanzan `render`, `flush` y las lecturas que necesitan el dispositivo, lo nombra el diagnóstico `gpu-device-lost`, y aparece en `world.diagnostic.error` cuando una sesión no pudo abrirse por ello.",
       "UNSUPPORTED_SCENE_FORMAT": "Una escena guardada es de otro formato o versión, o contiene algo que una escena guardada no puede almacenar.",
@@ -2080,6 +2087,7 @@
       "rotateZ": "Gira cada vértice alrededor del eje z, `angle` radianes.",
       "scale": "Estira cada vértice en `(x, y, z)`.",
       "center": "Mueve la geometría para que su caja quede centrada en el origen.",
+      "loadVertices": "Lee los vértices de una malla cargada, que ninguna sesión descarga de antemano; al instante para cualquier otra. Antes, leerlos (`array`, `getX`) lanza `VERTICES_NOT_LOADED`.",
       "clone": "Una nueva geometría con copias de cada lista, sus grupos, rango, datos y límites, y la receta que aún la construye.",
       "dispose": "Devuelve la geometría: ejecuta cada gancho de liberación una vez, olvida a quienes la sostienen y el árbol de raycast; nadie dibuja ni apunta a una geometría liberada.",
       "kind": "Qué es el recurso, como un lector de la escena distingue los recursos.",
@@ -7013,7 +7021,8 @@
       "projection": "Perspectiva u ortográfica.",
       "position": "Dónde está el ojo.",
       "quaternion": "Cómo está girado el ojo.",
-      "optics": "Campo, near, far, zoom y caja, por nombre."
+      "optics": "Campo, near, far, zoom y caja, por nombre.",
+      "fitAspect": "Una caja ortográfica ensanchada a la forma de la imagen (`fitAspect`); ausente si está desactivada."
     }
   },
   "SavedGeometry": {

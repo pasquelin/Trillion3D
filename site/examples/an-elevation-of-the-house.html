@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>An orthographic elevation of the house</title>
+    <meta name="thumbnail" content="1.5" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #d8e5e7;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <script type="module">
+      import { createWorld } from '../runtime/engine.js';
+      import { camera, geometry, material, object, light, math } from '../runtime/engine.js';
+      import { controls } from '../runtime/kit.js';
+
+      const world = createWorld('view');
+      world.scene.background = math.color('#d8e5e7');
+      const paint = (color, roughness) => material.meshStandard({ color, roughness });
+      const plaster = paint('#f1eadc', 0.95);
+      const roof = paint('#9f493b', 0.85);
+      const wood = paint('#7a4b2d', 0.75);
+      const glass = paint('#79a9bd', 0.2);
+      const stone = paint('#887f73', 1);
+      const trim = paint('#f8f3e9', 0.9);
+      const put = (shape, matter, at) => {
+        const mesh = object.mesh(shape, matter);
+        mesh.position.set(...at);
+        world.scene.add(mesh);
+        return mesh;
+      };
+
+      // A complete small house: each elevation is distinct, so front, side and rear are useful
+      // drawing views rather than three names for the same silhouette.
+      // The walls and gables in one pentagon; the roof panels are derived from its slope so the
+      // wall top rises just into them (no wall corner pokes through, no sky shows under them).
+      const [half, eave, ridge, depth] = [5, 5.2, 8.8, 7];
+      const wall = math.shape([
+        [-half, 0.2],
+        [half, 0.2],
+        [half, eave],
+        [0, ridge],
+        [-half, eave],
+      ]);
+      put(geometry.extrude(wall, { depth, bevelEnabled: false }), plaster, [0, 0, -depth / 2]);
+      put(geometry.box(half * 2 + 0.4, 0.55, depth + 0.4), stone, [0, 0.3, 0]);
+      const [thick, embed, overhang] = [0.35, 0.08, 0.3];
+      const rise = ridge - eave,
+        slope = Math.hypot(half, rise),
+        [cos, sin] = [half / slope, rise / slope];
+      // Each panel runs past the ridge until its top face meets the other one at the peak.
+      const pastRidge = ((thick - embed) * rise) / half,
+        length = pastRidge + slope + overhang,
+        along = length / 2 - pastRidge,
+        out = thick / 2 - embed;
+      const roofShape = geometry.box(length, thick, depth + 0.8);
+      for (const side of [-1, 1]) {
+        const at = [side * (along * cos + out * sin), ridge - along * sin + out * cos, 0];
+        put(roofShape, roof, at).rotation.z = side * -Math.atan2(rise, half);
+      }
+      // The chimney rises from inside the attic so its base meets the slope on its low side too.
+      put(geometry.box(0.85, 3.2, 1.1), stone, [3.3, 7.7, -1.7]);
+      // One glass and one trim box; side windows turn a quarter and stand out along the wall normal.
+      const windowShape = geometry.box(1.55, 1.8, 0.12);
+      const windowTrim = geometry.box(1.9, 2.15, 0.1);
+      const frameWindow = (x, y, z, [nx, nz]) => {
+        const turn = nx ? Math.PI / 2 : 0;
+        put(windowTrim, trim, [x, y, z]).rotation.y = turn;
+        put(windowShape, glass, [x + nx * 0.08, y, z + nz * 0.08]).rotation.y = turn;
+      };
+      const [front, face] = [depth / 2 + 0.06, half + 0.06];
+      for (const x of [-3, 3]) frameWindow(x, 4.2, front, [0, 1]);
+      put(geometry.box(2.1, 3.25, 0.16), wood, [0, 1.95, front + 0.02]);
+      put(geometry.sphere(0.08, 12, 8), trim, [0.68, 1.95, front + 0.16]);
+      for (const x of [-2.8, 0, 2.8]) frameWindow(x, 3.7, -front, [0, -1]);
+      for (const side of [-1, 1])
+        for (const z of [-1.8, 1.8]) frameWindow(side * face, 3.8, z, [side, 0]);
+      // The lowest surface: nothing under it would show its shadow.
+      put(geometry.box(15, 0.18, 12), paint('#789164', 1), [0, 0, 0]).castShadow = false;
+      world.scene.add(
+        light.directional({
+          color: '#fff1d5',
+          intensity: 3,
+          position: [-8, 14, 12],
+          castShadow: true,
+        }),
+        light.hemisphere({ color: '#dcecff', groundColor: '#786b59', intensity: 1.1 }),
+      );
+
+      // The box is 12.4 high; the engine widens it to the canvas's shape (`fitAspect`).
+      const lens = camera.orthographic({
+        near: 0.1,
+        far: 200,
+        top: 6.2,
+        bottom: -6.2,
+        fitAspect: true,
+      });
+      world.camera = lens;
+      const eye = 4.3,
+        sides = { front: [0, 1], right: [1, 0], rear: [0, -1] };
+      controls(
+        {
+          elevation: ['front', 'right', 'rear'],
+          distance: [18, 60, 28, 1],
+          zoom: [0.7, 1.8, 1, 0.1],
+        },
+        (values) => {
+          const [x, z] = sides[values.elevation];
+          lens.zoom = values.zoom;
+          lens.position.set(x * values.distance, eye, z * values.distance);
+          lens.lookAt(0, eye, 0);
+          world.invalidate();
+        },
+        world,
+      );
+      addEventListener('pagehide', () => world.dispose(), { once: true });
+    </script>
+  </body>
+</html>

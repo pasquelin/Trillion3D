@@ -12,6 +12,7 @@
       "bindingOf": "`tr`'nin yazdığı, bir kez çözülen şey; hedefi kökün altında olmadığı sürece null.",
       "play": "Çalmaya başlar.",
       "stop": "Durur, ve başa döner.",
+      "seek": "Klibi, döngü kipine göre, oynasa da oynamasa da hemen `time` saniyedeki pozuna koyar: oynayan eylem oradan devam eder, durmuş olan, karıştırıcısında oynayan bir eylem üzerine yazana dek o pozu korur.",
       "clipTime": "Eylemin klip içinde, döngü moduna göre nerede olduğu."
     }
   },
@@ -377,7 +378,8 @@
       "p.left": "Ortografik bir kameranın görüş kutusunun sol kenarı.",
       "p.right": "Ortografik bir kameranın görüş kutusunun sağ kenarı.",
       "p.top": "Ortografik bir kameranın görüş kutusunun üst kenarı.",
-      "p.bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı."
+      "p.bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı.",
+      "p.fitAspect": "Ortografik kamera kutusunun yüksekliğini ve merkezini korur, genişliğini görüntünün biçiminden alır; böylece boyutu değişen bir tuval çizimi asla germez. Varsayılan olarak kapalı."
     },
     "members": {
       "isCamera": "Her zaman `true`: bir kamerayı başka herhangi bir nesneden ayırır.",
@@ -390,6 +392,7 @@
       "right": "Ortografik kutunun sağ kenarı.",
       "top": "Ortografik kutunun üst kenarı.",
       "bottom": "Ortografik kutunun alt kenarı.",
+      "fitAspect": "Bildirildiği kadar yüksek ve görüntünün biçiminin gerektirdiği kadar geniş bir ortografik kutu.",
       "projection": "`'perspective'` uzak şeyleri küçük yapar; `'orthographic'` her boyutu korur.",
       "copy": "`source` düğüm değerlerini ve, bir kameradan, optiğini alır; kendi `projection` değeri kalır.",
       "updateProjectionMatrix": "`projectionMatrix` değerini yeniden oluşturur; optiğe her yazma bunu zaten yapar ve yeniden çizer.",
@@ -430,7 +433,8 @@
       "left": "Ortografik bir kameranın görüş kutusunun sol kenarı.",
       "right": "Ortografik bir kameranın görüş kutusunun sağ kenarı.",
       "top": "Ortografik bir kameranın görüş kutusunun üst kenarı.",
-      "bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı."
+      "bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı.",
+      "fitAspect": "Ortografik kamera kutusunun yüksekliğini ve merkezini korur, genişliğini görüntünün biçiminden alır; böylece boyutu değişen bir tuval çizimi asla germez. Varsayılan olarak kapalı."
     }
   },
   "CameraPose-common": {
@@ -961,6 +965,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Bu çizim yolu sahnede bu değişikliği yapamaz.",
       "BATCHED_WORLD_VIEW": "Bu çizim yolu sahnede bu değişikliği yapamaz.",
       "RAYCAST_NO_VIEW": "Boyutu olmayan bir canvas'tan resim noktası istendi: içinden nişan alınacak bir resim yok.",
+      "VERTICES_NOT_LOADED": "Yüklenmiş bir modelin köşeleri `await geometry.loadVertices()` öncesinde okundu: oturum onları ilk ihtiyaçta okur, asla önceden okumaz.",
       "SESSION_OPEN_FAILED": "Dünyanın oturumu, kendi kodu olmayan bir nedenle açılamadı (`world.diagnostic.error`): fırlatılan hata `details.cause` içindedir.",
       "WEBGPU_LOST": "WebGPU cihazını kaybetti ya da cihazdaki bir hata hiçbir şeyin çizemeyeceği bir durum bıraktı: `render`, `flush` ve cihaza ihtiyaç duyan okumalar tarafından fırlatılır, `gpu-device-lost` tanılamasıyla adlandırılır ve bu yüzden bir oturum açılamadığında `world.diagnostic.error` üzerinde görünür.",
       "UNSUPPORTED_SCENE_FORMAT": "Kaydedilmiş bir sahne başka bir biçimde ya da sürümde, veya kaydedilmiş bir sahnenin saklayamayacağı bir şey içeriyor.",
@@ -1179,6 +1184,7 @@
       "rotateZ": "Her köşeyi z ekseni etrafında `angle` radyan döndürür.",
       "scale": "Her köşeyi `(x, y, z)` kadar gerer.",
       "center": "Geometriyi, kutusu başlangıç noktasında merkezlenecek şekilde hareket ettirir.",
+      "loadVertices": "Yüklenmiş bir mesh'in köşelerini okur; hiçbir oturum bunları önceden getirmez; başka her geometri için hemen biter. Öncesinde onları okumak (`array`, `getX`) `VERTICES_NOT_LOADED` fırlatır.",
       "clone": "Her listenin, gruplarının, aralığının, verilerinin ve sınırlarının kopyalarıyla ve onu hâlâ kuran tarifle yeni bir geometri.",
       "dispose": "Geometriyi geri verir: her serbest bırakma kancasını bir kez çalıştırır, tutanları ve ışın ağacını unutur; serbest bırakılmış bir geometriyi kimse çizmez ya da ona ışın atmaz.",
       "kind": "Kaynağın ne olduğu; sahneyi okuyan kaynakları buna göre ayırır.",
@@ -4617,7 +4623,8 @@
       "p.left": "Ortografik bir kameranın görüş kutusunun sol kenarı.",
       "p.right": "Ortografik bir kameranın görüş kutusunun sağ kenarı.",
       "p.top": "Ortografik bir kameranın görüş kutusunun üst kenarı.",
-      "p.bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı."
+      "p.bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı.",
+      "p.fitAspect": "Ortografik kamera kutusunun yüksekliğini ve merkezini korur, genişliğini görüntünün biçiminden alır; böylece boyutu değişen bir tuval çizimi asla germez. Varsayılan olarak kapalı."
     }
   },
   "camera.orthographic": {
@@ -4632,7 +4639,8 @@
       "p.left": "Ortografik bir kameranın görüş kutusunun sol kenarı.",
       "p.right": "Ortografik bir kameranın görüş kutusunun sağ kenarı.",
       "p.top": "Ortografik bir kameranın görüş kutusunun üst kenarı.",
-      "p.bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı."
+      "p.bottom": "Ortografik bir kameranın görüş kutusunun alt kenarı.",
+      "p.fitAspect": "Ortografik kamera kutusunun yüksekliğini ve merkezini korur, genişliğini görüntünün biçiminden alır; böylece boyutu değişen bir tuval çizimi asla germez. Varsayılan olarak kapalı."
     }
   },
   "camera.cube": {
@@ -7013,7 +7021,8 @@
       "projection": "Perspektif ya da ortografik.",
       "position": "Gözün durduğu yer.",
       "quaternion": "Gözün nasıl döndüğü.",
-      "optics": "Görüş alanı, near, far, zoom ve kutu, adlarıyla."
+      "optics": "Görüş alanı, near, far, zoom ve kutu, adlarıyla.",
+      "fitAspect": "Resmin biçimine genişletilen ortografik kutu (`fitAspect`); kapalıyken yok."
     }
   },
   "SavedGeometry": {
