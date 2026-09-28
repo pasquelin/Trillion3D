@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { animation } from './index.ts';
+import { advanceMixers, animation } from './index.ts';
 import { object } from '../object/index.ts';
 import { material } from '../material/index.ts';
 import { geometry } from '../geometry/index.ts';
@@ -116,4 +116,61 @@ test('a rotation and its opposite sign blend to that rotation, not to zero', () 
   close(Math.abs(arm.quaternion.y), Math.SQRT1_2);
   close(Math.abs(arm.quaternion.w), Math.SQRT1_2);
   close(arm.quaternion.y * arm.quaternion.w, 0.5);
+});
+
+/** A mixer on `rig()` with one action sliding `arm` from x 0 to x 10 over one second. */
+function slide() {
+  const { root, arm } = rig();
+  const clip = animation.clip('slide', 1, [
+    animation.numberTrack('arm.position.x', [0, 1], [0, 10]),
+  ]);
+  return { root, arm, action: animation.createMixer(root).clipAction(clip) };
+}
+
+test('a seek poses a stopped action at once, and the loop leaves it there', () => {
+  const { root, arm, action } = slide();
+  action.seek(0.25);
+  close(arm.position.x, 2.5);
+  assert.equal(action.playingNow, false);
+  assert.equal(advanceMixers(root, 0.5), false);
+  close(arm.position.x, 2.5);
+});
+
+test('a seek on a playing action moves it, and playing goes on from there', () => {
+  const { arm, action } = slide();
+  action.play();
+  action.mixer.update(0.1);
+  action.seek(0.5);
+  close(arm.position.x, 5);
+  action.mixer.update(0.25);
+  close(arm.position.x, 7.5);
+});
+
+test('a seek on a stopped action beside a playing one poses it once, never advancing it', () => {
+  const { root, arm, action } = slide();
+  const lift = animation.clip('lift', 1, [
+    animation.numberTrack('arm.position.y', [0, 1], [0, 10]),
+  ]);
+  const other = action.mixer.clipAction(lift).play();
+  action.mixer.update(0.1);
+  action.seek(0.25);
+  close(arm.position.x, 2.5);
+  close(arm.position.y, 1);
+  assert.equal(advanceMixers(root, 0.5), true);
+  close(action.time, 0.25);
+  close(other.time, 0.6);
+  close(arm.position.x, 2.5);
+  close(arm.position.y, 6);
+});
+
+test('a seek past the end follows the loop mode', () => {
+  const { arm, action } = slide();
+  const at = (loop: typeof action.loop, time: number) => {
+    action.loop = loop;
+    action.seek(time);
+    return arm.position.x;
+  };
+  close(at('repeat', 1.25), 2.5);
+  close(at('pingpong', 1.25), 7.5);
+  close(at('once', 3), 10);
 });
