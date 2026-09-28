@@ -1,6 +1,6 @@
 //! Group reduction: the simplifier, then what happens when it stalls.
 //!
-//! The group's corners first point at their exact copy (`attributes::weld_exact`): an unindexed
+//! The group's corners first point at their exact copy (`welds::weld_exact`): an unindexed
 //! mesh reduces as the indexed one it draws the same as. The simplifier weighs normals and texture
 //! sets and, in permissive mode, collapses across a hard edge rather than stall on it (`qem.rs`):
 //! meshoptimizer otherwise slides a copied position only along its seam and locks any position
