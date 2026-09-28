@@ -135,11 +135,8 @@ export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, mat
   // selection roots, transparent copies — carries the new place at that instant, with no snapshot
   // to retake. The host scene, itself, is not climbed: the engine no longer reads its world
   // matrices.
-  // With no hooked host pose unread, and a watch that hooks the current scene's nodes, only the
-  // moved subtree and its ancestors can have new inputs: the pass on them alone yields the bits
-  // of the whole pass there (`refreshFrom`, `../../../host/world/tree.ts`). A matrix the host set
-  // by hand elsewhere is no hooked write: the next image's scan announces it, and its walk
-  // completes the index before anything draws.
+  // With no host write owed, only the moved subtree and its ancestors have new inputs (`refreshFrom`).
+  // A matrix set by hand elsewhere is announced by the next image's scan, whose walk runs first.
   if (wholePass) setup.worlds.refresh();
   else setup.worlds.refreshFrom(node);
   // World boxes of the moved roots reproject IN BATCH, through the governor, in the buffer
