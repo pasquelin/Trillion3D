@@ -1,14 +1,12 @@
 import type { SceneFog, SceneLight, SceneLightStore } from '../../../sdk-core/src/index.ts';
-import { GraphAmbientLight, GraphLight, GraphLightProbe } from '../host/graph/light.ts';
+import { Light } from '../../../sdk-core/src/world/light/light.ts';
+import { aimOf } from '../host/graph/kinds.ts';
+import { numbered } from '../host/graph/serial.ts';
 import type { Scene } from '../world/core/scene.ts';
-import { Color } from '../../../sdk-core/src/world/math/color.ts';
 import { fogOf } from '../world/core/sceneFog.ts';
 import { createUnlitAlbedo } from './unlitAlbedo.ts';
-import { createLight, writeLight, type ContractLight } from './lightWrite.ts';
+import { createLight, writeLight } from './lightWrite.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
-
-/** The node a light aims at, carried in the graph beside it: a sun's or a spot's, none for a rectangle. */
-const aimOf = (light: ContractLight) => (light instanceof GraphLight ? light.target : undefined);
 
 /** A WebGL2 engine applies the contract lights; only their shadows are missing — one map per
  *  light, six faces for a point light, would be outside the frame budget. The engine's published
@@ -34,17 +32,17 @@ function createContractLights(scene: Scene, store: SceneLightStore | undefined) 
   const group = new Group();
   group.visible = false;
   scene.add(group);
-  const ambient = new GraphAmbientLight(new Color().setRGB(1, 1, 1), UNLIT_IRRADIANCE);
+  const ambient = numbered(new Light('ambient', { color: [1, 1, 1], intensity: UNLIT_IRRADIANCE }));
   // The environment's irradiance (`packages/sdk-core/src/scene/core/environment.ts`): the probe
   // carries the same nine coefficients, in the same band order, read with the same cosine-lobe
   // factors (`../../webgl/cluster/probe.ts`).
-  const probe = new GraphLightProbe();
+  const probe = numbered(new Light('probe'));
   ambient.visible = probe.visible = false;
   group.add(ambient, probe);
   const albedo = createUnlitAlbedo(scene);
   // The light type is kept beside it: setting a point light as a spotlight changes the light
   // object, and comparing type strings would cost an allocation per light and per pass.
-  const lights = new Map<string, { light: ContractLight; kind: SceneLight['kind'] }>();
+  const lights = new Map<string, { light: Light; kind: SceneLight['kind'] }>();
   let epoch = -1,
     governs = false;
   // The store's fog the scene holds, converted once: a revision that keeps it rewrites nothing.
@@ -107,7 +105,7 @@ function createContractLights(scene: Scene, store: SceneLightStore | undefined) 
       else rebuild();
       const sh = store.unlit ? undefined : store.environment?.irradiance;
       setFog(store.unlit ? undefined : store.environment?.fog);
-      if ((probe.visible = !!sh)) probe.sh.fromArray(sh);
+      if ((probe.visible = !!sh)) copyCoefficients(probe, sh);
       return true;
     },
     /** True when the image comes out in real light: then goes through the display curve (P6). */
@@ -115,6 +113,12 @@ function createContractLights(scene: Scene, store: SceneLightStore | undefined) 
       return governs && !!store && !store.unlit;
     },
   };
+}
+
+/** The environment's coefficients written into the probe's own list, in place. */
+function copyCoefficients(probe: Light, sh: ArrayLike<number>) {
+  const into = (probe.sh ??= []);
+  for (let k = 0; k < sh.length; k++) into[k] = sh[k];
 }
 
 /**
