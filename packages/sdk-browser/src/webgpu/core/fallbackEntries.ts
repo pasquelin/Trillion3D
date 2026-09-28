@@ -11,6 +11,11 @@ export function fallbackBindEntries(
   return [
     bufferEntry(0, () => item?.index ?? rt.gpu.cache?.buffer),
     bufferEntry(1, () => item?.position ?? rt.gpu.zeroUv),
-    bufferEntry(2, () => rt.gpu.uniformBuffer, undefined, () => UNIFORM_STRIDE),
+    bufferEntry(
+      2,
+      () => rt.gpu.uniformBuffer,
+      undefined,
+      () => UNIFORM_STRIDE,
+    ),
   ];
 }
