@@ -4,6 +4,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { encodeShadowCasters } from '../../shadow/casters.ts';
 import { drawRegionCasters, encodeOcclusion } from './encodeRegionDraws.ts';
 import { encodeTransmittance } from './encodeTransmittance.ts';
+import { frameTransmittance } from '../../shadow/transmittanceGrant.ts';
 
 /**
  * Shadow depth pass of one batch, pages `[from, to)` of the frame's list in `count` regions: first
@@ -19,7 +20,8 @@ import { encodeTransmittance } from './encodeTransmittance.ts';
  * page of the pool is touched; the scissor says the same square once more.
  *
  * Once a blended caster has held a row, the pass of the transmittance layer follows
- * (`encodeTransmittance`). Before, the shadow passes are the ones they were.
+ * (`encodeTransmittance`), the layer granted under the shadows' grant (`frameTransmittance`).
+ * Before, the shadow passes are the ones they were.
  */
 export function encodeShadowAtlas(
   rt: WebgpuPagesRuntime,
@@ -67,7 +69,7 @@ export function encodeShadowAtlas(
   const tested = encodeOcclusion(rt, encoder, count);
   draw(shadows.passes, false, tested);
   const casters = rt.services.blendCasters.used > 0;
-  const transmittance = casters ? shadows.ensureTransmittance(encoder) : shadows.transmittance;
+  const transmittance = casters ? frameTransmittance(rt, encoder) : shadows.transmittance;
   if (transmittance) encodeTransmittance(rt, device, encoder, quads, transmittance, tested);
   lights.shadowDrawCalls += run.gpuDrawCalls - drawsBefore;
   return true;
