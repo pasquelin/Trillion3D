@@ -74,7 +74,7 @@ export function createTextureLevelReader(
   const read = async ({ sha256, atlas, level, format, range }: TextureLevelRequest) => {
     const url = new URL(textureLevelUrl(textures.url, sha256, atlas, level, format), base).href;
     const headers = range && { Range: `bytes=${range.offset}-${range.offset + range.bytes - 1}` };
-    const response = await checked(url, signal, 2, headers);
+    const response = await checked(url, signal, undefined, headers);
     if (format === PREVIEW_LOSSLESS_FORMAT)
       return createImageBitmap(await response.blob(), {
         premultiplyAlpha: 'none',
