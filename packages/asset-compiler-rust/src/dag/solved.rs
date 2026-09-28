@@ -1,30 +1,19 @@
-//! Seam-locked groups coarsen with solved vertices (Hoppe 1999).
+//! Seam-locked groups coarsen with solved vertices (Hoppe 1999; docs/COMPILER.md).
 //!
-//! A group the diagnosis names `seam-locked` (`diagnosis.rs`) stalls because the positions it
-//! could move are seam corners the endpoint reduction protects; welded across its seams, it
-//! halves. It is retried with the solve (`qem_solve`): its locks kept, its seams unprotected,
-//! each surviving position moved to the minimum of its quadric and each of its copies given a
-//! texture coordinate and a normal of its own, solved at that point. The vertices it writes are
-//! placed after the primitive's (`placed.rs`, `grown.rs`). Every other group keeps the endpoint
-//! reduction: the DAG, the pages and the memory of an unblocked primitive do not move.
+//! A group the diagnosis names `seam-locked` (`diagnosis.rs`) is retried with the solve
+//! (`qem_solve`): its locks kept, its seams unprotected, each surviving position moved to the
+//! minimum of its quadric and each of its copies given a texture coordinate and a normal of its
+//! own. The vertices it writes are placed after the primitive's (`placed.rs`, `grown.rs`); every
+//! other group keeps the endpoint reduction. A texture set weighs the surface length one unit of
+//! it spans in the group (`charts::densities`), normals keep `attributes::NORMAL_WEIGHT`.
 //!
-//! **Derived weights.** A texture set weighs, against the group's extent, the surface length one
-//! unit of it spans in the group — the square root of the group's surface area over its texture
-//! area: a coordinate that slides by `d` draws the texture as far off as a position moved by `d`
-//! times that length. Normals keep the endpoint reduction's weight (`attributes::NORMAL_WEIGHT`).
-//!
-//! **Mirrors and islands.** Where a chart meets its mirror image (`charts::on_mirror`) the seam is
-//! first kept: a face folded across a mirror draws one side's texture on the other with every
-//! coordinate in place, a slide the solve's error does not see. A group those seams still hold is solved
-//! across them, each face whose corners' charts turn both ways charged its longest edge; so is
-//! every face whose corners lie in two texture islands: under a pixel wherever its level is drawn
-//! (`charts::folded_span`).
-//!
-//! **Retries.** The endpoint reduction's (`retries.rs`), and so is the check of its faces: a kept
-//! corner points at the copy of its own face's normal (`attributes::own_normals`), a face lit
-//! from behind locks its surroundings — but a face no longer than the group's error, under a
-//! pixel wherever its level is drawn: on a group the solve alone frees, locking every such face
-//! stalled it again (Sponza: four groups of five).
+//! A mirror's seam (`charts::on_mirror`) is kept first — a face folded across it draws one side's
+//! texture on the other, every coordinate in place — then, if it holds the group, crossed; a face
+//! turning both ways, or across two texture islands, is charged its longest edge
+//! (`charts::folded_span`). The retries are the endpoint reduction's (`retries.rs`), but a face no
+//! longer than the group's error, under a pixel wherever its level is drawn, is not locked for
+//! being lit from behind: on a group the solve alone frees, that stalled it again (Sponza: four
+//! groups of five).
 use super::border::required_locks;
 use super::charts::{
     densities, folded_span, longest_edge, on_mirror, open_border_welded, weighted, Chart,
