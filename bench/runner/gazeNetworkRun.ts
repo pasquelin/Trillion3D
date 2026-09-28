@@ -52,14 +52,16 @@ export function gazeNetworkLines(rows?: GazeNetworkReading[]) {
     '',
     'Ordinary camera frames only; no image-settling barrier. Chrome encoded transfer bytes include response overhead; cached responses count as zero.',
     '',
-    '| view | pixelError | side | frames | texture MB | other MB | texture requests | failed | unfinished |',
-    '|---|---|---|---|---|---|---|---|---|',
+    '| view | pixelError | side | frames | texture MB | other MB | texture requests | failed | unfinished | unknown redirects | reading |',
+    '|---|---|---|---|---|---|---|---|---|---|---|',
   ];
   for (const row of rows)
     lines.push(
       `| ${row.view} | ${row.pixelError} | ${row.side} | ${row.frames} | ` +
         `${(row.textureBytes / 1e6).toFixed(2)} | ${(row.otherBytes / 1e6).toFixed(2)} | ` +
-        `${row.textureRequests} | ${row.failedRequests} | ${row.unfinishedRequests} |`,
+        `${row.textureRequests} | ${row.failedRequests} | ${row.unfinishedRequests} | ` +
+        `${row.unmeasuredRedirects} | ` +
+        `${row.failedRequests || row.unfinishedRequests || row.unmeasuredRedirects ? 'incomplete' : 'complete'} |`,
     );
   return [...lines, ''];
 }
