@@ -9,44 +9,37 @@ import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
 import * as G from '../graph/graph.fixture.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 
-/** Every node of `root`'s subtree, prefix order. */
-function subtree(root: Object3D) {
-  const out: Object3D[] = [];
-  root.traverse((node) => out.push(node));
-  return out;
-}
-
 /** New poses on a random share of `root`'s subtree: what a move, or a host between two moves
  *  inside that subtree, writes. `root` itself always moves. */
-function moveSubtree(draw: Draw, root: Object3D, hostile: boolean) {
-  drawPose(draw, root, hostile);
-  for (const node of subtree(root))
-    if (node !== root && draw() < 0.3) drawPose(draw, node, hostile);
+function moveSubtree(draw: Draw, root: Object3D) {
+  drawPose(draw, root, true);
+  root.traverse((node) => void (node !== root && draw() < 0.3 && drawPose(draw, node, true)));
 }
 
-for (const hostile of [false, true])
-  test(`refreshFrom: the bits of the whole pass on every node, ${hostile ? 'hostile' : 'finite'} poses`, () => {
-    for (let seed = 1; seed <= 40; seed++) {
-      const draw = seeded(seed * 7919 + (hostile ? 1 : 0));
-      const { top, source, nodes } = randomTree(draw, 5 + Math.floor(draw() * 60), 6, hostile);
-      // The index a move now refreshes by subtree, and the one it refreshed whole.
-      const moved = hostWorldPlacements(source),
-        whole = hostWorldPlacements(source);
-      const all = [...subtree(top)];
-      for (let step = 0; step < 12; step++) {
-        const node = pick(draw, nodes);
-        moveSubtree(draw, node, hostile);
-        moved.refreshFrom(node);
-        whole.refresh();
-        for (const each of all)
-          assertBits(moved.of(each).elements, whole.of(each).elements, `seed ${seed} ${each.name}`);
-      }
-      // A fresh index, built from scratch on the same poses: the same bits again.
-      const fresh = hostWorldPlacements(source);
+// Finite poses are the twin worlds' (`transformSubtree.test.ts`): here the hostile ones.
+test('refreshFrom: the bits of the whole pass on every node, hostile poses', () => {
+  for (let seed = 1; seed <= 40; seed++) {
+    const draw = seeded(seed * 7919);
+    const { top, source, nodes } = randomTree(draw, 5 + Math.floor(draw() * 60), 6, true);
+    // The index a move now refreshes by subtree, and the one it refreshed whole.
+    const moved = hostWorldPlacements(source),
+      whole = hostWorldPlacements(source);
+    const all: Object3D[] = [];
+    top.traverse((node) => void all.push(node));
+    for (let step = 0; step < 12; step++) {
+      const node = pick(draw, nodes);
+      moveSubtree(draw, node);
+      moved.refreshFrom(node);
+      whole.refresh();
       for (const each of all)
-        assertBits(moved.of(each).elements, fresh.of(each).elements, `seed ${seed} fresh`);
+        assertBits(moved.of(each).elements, whole.of(each).elements, `seed ${seed} ${each.name}`);
     }
-  });
+    // A fresh index, built from scratch on the same poses: the same bits again.
+    const fresh = hostWorldPlacements(source);
+    for (const each of all)
+      assertBits(moved.of(each).elements, fresh.of(each).elements, `seed ${seed} fresh`);
+  }
+});
 
 test('refreshFrom: a node outside the index takes the whole pass', () => {
   const draw = seeded(3);

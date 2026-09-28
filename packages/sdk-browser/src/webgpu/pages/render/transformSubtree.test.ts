@@ -1,9 +1,5 @@
-// A move reads its node from the name index, visits only the roots under it and refreshes only its
-// subtree (#915). Two twin worlds of a few thousand nodes take the same random program — moves by
-// name, host pose writes, renames, additions, removals, reparentings, images — one as it stands,
-// the other with every move walking the whole index (`refresh`), as before. After every step the
-// rows, dirty marks, world boxes, shadow-mobility calls and motion boxes are the same bits, the
-// named node is the walk's, the moved roots are the climb's; after every image, every root's world.
+// #915: twin worlds take the same random moves and edits, one moving by index and subtree, the other
+// walking the whole index as before; rows, boxes and declared motion keep the same bits throughout.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -15,7 +11,6 @@ import { findNode, rootsUnder } from './movedNode.ts';
 import { racine, runtime } from '../../core/transformShear.fixture.ts';
 import { hostWorldPlacements } from '../../../host/world/placements.ts';
 import {
-  climbUnder,
   drawPose,
   pick,
   randomTree,
@@ -126,6 +121,10 @@ function moveBy(x: World, name: string, pose: Float32Array) {
   }
 }
 
+/** The roots whose mesh climbs to `node`, in rank order: how a move found them before #915. */
+const climbUnder = (roots: World['roots'], node: Object3D) =>
+  roots.flatMap((root, i) => (isAncestor(node, root.pages[0].sourceMesh as Object3D) ? [i] : []));
+
 /** Bit-identical typed arrays; the slow per-component message only once they differ. */
 function sameBits(a: Float32Array | Float64Array | Uint8Array, b: typeof a, label: string) {
   const bytes = (x: typeof a) => Buffer.from(x.buffer, x.byteOffset, x.byteLength);
@@ -164,7 +163,8 @@ for (const lot of [false, true])
         const node = G.byName(a.source, name);
         // Identity alone: a failing message would print the whole graph.
         assert.ok(findNode(a.source, name) === node, `${label}: ${name} is not the walk's`);
-        if (node) assert.deepEqual(rootsUnder(a.roots, node, out), climbUnder(a.roots, node), label);
+        if (node)
+          assert.deepEqual(rootsUnder(a.roots, node, out), climbUnder(a.roots, node), label);
         assert.equal(moveBy(a, name, pose), moveBy(b, name, pose), label);
         assertSame(a, b, label, false);
         if (draw() < 0.2) {
