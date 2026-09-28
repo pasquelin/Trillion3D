@@ -19,8 +19,7 @@ import { SHADOW_LIMITS, mixedBinScene } from '../pages/testScenes.fixture.ts';
  *  caster placed by the rows of `placements` when given; prepared. */
 export async function floorCasterBackend(
   light: SceneLight,
-  options: Partial<BackendContext> = {},
-  placements?: PlacementRows,
+  { placements, ...options }: Partial<BackendContext> & { placements?: PlacementRows } = {},
 ) {
   installGpuGlobals();
   const mixed = mixedBinScene();
@@ -30,8 +29,8 @@ export async function floorCasterBackend(
   };
   const [caster, floor] = scene.source.children;
   caster.name = 'caster';
-  // The caster's link is the first (`twoPrimitives`).
-  if (placements) Object.assign(scene.associations.values().next().value!, { placements });
+  const links: BackendContext['associations'] = scene.associations;
+  if (placements) links.get(caster)!.placements = placements;
   const { roots } = collectClusterPages(
     scene.source,
     scene.metadata,
