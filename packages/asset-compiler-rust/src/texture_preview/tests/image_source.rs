@@ -19,7 +19,7 @@ fn inputs<'a>(
         meshes,
         view_map,
         to_measure: &RIEN_A_MESURER,
-        measurements: crate::cutout::MeasureCache::empty(),
+        measurements: crate::cutout::MeasureCache::EMPTY,
     }
 }
 

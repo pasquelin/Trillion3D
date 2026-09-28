@@ -1,35 +1,29 @@
 //! Optional exact alpha measurements beside the human answers, never rounded display values.
 use super::*;
-use std::sync::OnceLock;
 
-/// Source and constants invalidate together, including the externally declared cutoff and
-/// decoder versions: the same encoded bytes may decode differently after a driver correction.
-pub(super) fn algorithm() -> &'static str {
-    static KEY: OnceLock<String> = OnceLock::new();
-    KEY.get_or_init(|| {
-        hash(
-            format!(
-                "{}:{}:{}",
-                include_str!("measure.rs"),
-                CUTOUT_ALPHA.to_bits(),
-                crate::plugins::fingerprint()
-            )
-            .as_bytes(),
-        )
-    })
+/// The whole compiler's source, as the compilation cache key names it, and the decoder
+/// plugins' versions: any helper the measurement calls, or a driver correction that decodes the
+/// same bytes differently, invalidates every stored measurement.
+pub(super) fn algorithm() -> String {
+    let (implementation, plugins) = (crate::implementation_hash(), crate::plugins::fingerprint());
+    hash(format!("{implementation}:{plugins}").as_bytes())
+}
+
+/// Binds a record to its image: moved to another image, it no longer matches.
+pub(super) fn checksum(sha: &str, values: &Value) -> String {
+    hash(format!("{sha}:{values}").as_bytes())
 }
 
 pub(super) fn record(sha: &str, shape: &AlphaShape) -> Value {
     let value = json!({"texels":shape.texels,"absent":shape.absent,"present":shape.present,
         "between":shape.between,"atContour":shape.at_contour});
-    json!({"values":value,"checksum":hash(format!("{sha}:{value}").as_bytes())})
+    json!({"values":value,"checksum":checksum(sha, &value)})
 }
 
 /// A malformed optional cache is a miss; malformed human answers remain errors in cutout.rs.
 fn shape(sha: &str, stored: &Value) -> Option<AlphaShape> {
     let value = stored.get("values")?;
-    let checksum = hash(format!("{sha}:{value}").as_bytes());
-    if stored.get("checksum").and_then(Value::as_str) != Some(checksum.as_str()) {
+    if stored.get("checksum").and_then(Value::as_str) != Some(checksum(sha, value).as_str()) {
         return None;
     }
     let fraction = |key| {
@@ -53,22 +47,16 @@ pub(crate) struct MeasureCache(BTreeMap<String, AlphaShape>);
 
 impl MeasureCache {
     #[cfg(test)]
-    pub(crate) fn empty() -> &'static Self {
-        static EMPTY: OnceLock<MeasureCache> = OnceLock::new();
-        EMPTY.get_or_init(Self::default)
-    }
+    pub(crate) const EMPTY: &'static Self = &Self(BTreeMap::new());
 
-    pub(crate) fn get_or_else(
-        &self,
-        sha: &str,
-        image: &image::RgbaImage,
-        calculate: impl FnOnce() -> AlphaShape,
-    ) -> AlphaShape {
-        self.get(sha, image).unwrap_or_else(calculate)
+    /// A cache already holding `shape` for the image `sha`.
+    #[cfg(test)]
+    pub(crate) fn holding(sha: &str, shape: AlphaShape) -> Self {
+        Self(BTreeMap::from([(sha.to_owned(), shape)]))
     }
 
     pub(super) fn read(sheet: &Value) -> Self {
-        if sheet.get("measurementAlgorithm").and_then(Value::as_str) != Some(algorithm()) {
+        if sheet.get("measurementAlgorithm").and_then(Value::as_str) != Some(algorithm().as_str()) {
             return Self::default();
         }
         Self(
@@ -91,16 +79,14 @@ impl MeasureCache {
             .cloned()
     }
 
-    /// Retain valid measurements even if a scene no longer references the image.
-    pub(super) fn entries(&self) -> serde_json::Map<String, Value> {
-        self.0
-            .iter()
-            .map(|(sha, shape)| {
-                (
-                    sha.clone(),
-                    json!({"used":false,"cutout":null,"measurement":record(sha, shape)}),
-                )
-            })
-            .collect()
+    /// Retain valid measurements even if a scene no longer references the image: rows the scene
+    /// already wrote stay as they are, so each record is built once.
+    pub(super) fn keep_unused(&self, textures: &mut serde_json::Map<String, Value>) {
+        for (sha, shape) in &self.0 {
+            if !textures.contains_key(sha) {
+                let row = json!({"used":false,"cutout":null,"measurement":record(sha, shape)});
+                textures.insert(sha.clone(), row);
+            }
+        }
     }
 }
