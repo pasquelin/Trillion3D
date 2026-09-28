@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { check, frame, keysOf, scene } from './sets.fixture.ts';
+import { check, frame, keysOf, queueOf, scene } from './sets.fixture.ts';
 
 test('the incremental sets answer what the whole-set version answered, image after image', () => {
   const world = scene();
@@ -56,7 +56,7 @@ test('an image that moves no page touches no set at all', () => {
   const { delta, sets, tracking } = world;
   const ids = [0, 1, 2, 3, 4, 5, 16, 17, 18, 19];
   frame(world, ids, 64);
-  const wantedBefore = [...tracking.wanted.list.subarray(0, tracking.wanted.count)];
+  const wantedBefore = queueOf(tracking.wanted);
   const listBefore = tracking.wanted.list;
   // The pin step drains these; nothing else may add to them once the cut stops moving.
   const entering = sets.entering.count,
@@ -70,7 +70,7 @@ test('an image that moves no page touches no set at all', () => {
   assert.equal(sets.leaving.count, leaving);
   // Same backing array, same members, in the same places: nothing was rebuilt or reallocated.
   assert.equal(tracking.wanted.list, listBefore);
-  assert.deepEqual([...tracking.wanted.list.subarray(0, tracking.wanted.count)], wantedBefore);
+  assert.deepEqual(queueOf(tracking.wanted), wantedBefore);
 });
 
 test('a queue rebuilt past the budget hands the pin step only the keys it took and let go', () => {
