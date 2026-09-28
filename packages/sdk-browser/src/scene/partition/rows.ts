@@ -8,9 +8,11 @@
  */
 import {
   createPlacementRows,
+  grownCapacity,
   growPlacementRows,
   type PlacementRows,
 } from '../../placement/rows.ts';
+import type { PlacementGrowth } from '../../placement/backendSceneUpdates.ts';
 import { EngineError, MATRIX_VALUES } from '../../../../sdk-core/src/index.ts';
 import type { CellNode } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
@@ -44,25 +46,32 @@ export function placedMesh(links: readonly RowLink[]): PlacedMesh {
 export const capacityOf = (mesh: PlacedMesh) => mesh.links[0]?.placements?.capacity ?? 0;
 
 /** Sizes every buffer of each mesh rank of `needed` to hold that many rows at least, its rows
- *  kept: before its session's engines read them, or — `grown` handed each buffer replaced — under
- *  one that grows them in place (`placement/growth.ts`). */
+ *  kept: before its session's engines read them, or under one that grows them in place (`grow`,
+ *  `placement/growth.ts`), mesh by mesh, all its buffers at once. False when that session left a
+ *  mesh as it was: it only grows in a session opened again. */
 export function sizeRows(
   meshes: ReadonlyMap<number, PlacedMesh>,
   needed: Map<number, number>,
-  grown?: (from: PlacementRows, to: PlacementRows) => void,
+  grow?: PlacementGrowth,
 ) {
+  let sized = true;
   for (const [rank, rows] of needed) {
     const mesh = meshes.get(rank);
     if (!mesh) continue; // placing its cell refuses it (`PREPARED_SCENE_MISMATCH`)
     const held = capacityOf(mesh);
     if (rows <= held) continue;
-    for (const link of mesh.links) {
-      const from = link.placements!;
-      link.placements = growPlacementRows(from, rows);
-      grown?.(from, link.placements);
+    const from = mesh.links.map((link) => link.placements!);
+    if (grow && !grow.growsInPlace(from, grownCapacity(held, rows))) {
+      sized = false;
+      continue;
     }
+    mesh.links.forEach((link, at) => {
+      link.placements = growPlacementRows(from[at], rows);
+      grow?.growPlacements(from[at], link.placements);
+    });
     for (let row = capacityOf(mesh) - 1; row >= held; row--) mesh.free.push(row);
   }
+  return sized;
 }
 
 /** Whether each mesh `nodes` place has a free row for every one of them; a mesh the partition

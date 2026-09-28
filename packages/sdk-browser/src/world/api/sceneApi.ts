@@ -86,6 +86,9 @@ export function createExplorerSceneApi(inputs: Inputs) {
     },
     /** Whether the active path grows an instance buffer in place (`growPlacements`). */
     growsPlacements: () => !!getActive().growPlacements,
+    /** Whether it grows each of `from` to `capacity` rows (`BackendSceneUpdates.growsInPlace`). */
+    growsInPlace: (from: readonly PlacementRows[], capacity: number) =>
+      getActive().growsInPlace?.(from, capacity) ?? true,
     /** An instance buffer the session holds was replaced by a larger one (`placement/growth.ts`). */
     growPlacements(from: PlacementRows, to: PlacementRows) {
       check();
