@@ -9,6 +9,7 @@ import { pendingWebgpuFrame } from './interactiveFrame.ts';
 import { createDeferredLighting } from '../../lighting/deferred/deferred.ts';
 import { wantsContractLighting } from '../pages/prepare/lightResources.ts';
 import { createExplorerFrameScheduler } from '../../world/render/frameScheduler.ts';
+import { frameQueue } from '../../world/render/frameQueue.fixture.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { deferredLightingHarness, settledRt, surface, view } from './hold.fixture.ts';
 
@@ -28,10 +29,10 @@ async function heldWhileCompiling() {
   // The wiring of `../pages/prepare/prepare.ts`: an arrived program breaks the hold.
   const lighting = await createDeferredLighting(h.device, () => rt.run.gate.resourcesChanged());
   rt.gpu.deferred = lighting;
-  const requested: FrameRequestCallback[] = [];
+  const requested = frameQueue();
   const scheduler = createExplorerFrameScheduler({
-    request: (callback) => requested.push(callback),
-    cancel() {},
+    request: requested.request,
+    cancel: requested.cancel,
     // `renderWebgpuPages` reduced to its two outcomes: the frame held, or encoded and kept.
     render() {
       if (holdWebgpuFrame(rt, h.device)) return;
@@ -50,7 +51,7 @@ async function heldWhileCompiling() {
     error: (error) => assert.fail(String(error)),
     limited: () => assert.fail('the loop hit its frame limit'),
   });
-  const draw = () => requested.shift()!(0);
+  const draw = () => assert.ok(requested.run());
 
   // An unlit frame whose drain passes the contract check, then waits on a texture tile.
   scheduler.invalidate();
@@ -72,7 +73,11 @@ async function heldWhileCompiling() {
   draw();
   assert.equal(rt.run.frameHeld, true);
   await turn();
-  assert.equal(requested.length, 0, 'the loop waits');
+  // The frame it asked right after comes while the program compiles: held by the loop (#983).
+  const frame = rt.run.frame;
+  draw();
+  assert.equal(rt.run.frame, frame, 'nothing drawn before the feedback');
+  assert.equal(requested.size, 0, 'the loop waits');
   return { h, lighting, requested, draw, scheduler };
 }
 
@@ -81,7 +86,7 @@ test('a loop held while the contract program compiles draws the lit frame when i
   h.finishCompilation();
   await lighting.settle();
   await turn();
-  assert.equal(requested.length, 1, 'the arrived program asks its frame');
+  assert.equal(requested.size, 1, 'the arrived program asks its frame');
   draw();
   assert.equal(lighting.usesContract, true, 'the lights now light the image');
   scheduler.dispose();
@@ -93,7 +98,7 @@ test('a contract program that fails to compile leaves the held loop idle', async
   await lighting.settle();
   await turn();
   // Nothing arrived, so nothing changed: no held frame is redrawn after the reported failure.
-  assert.equal(requested.length, 0, 'the failed program asks no frame');
+  assert.equal(requested.size, 0, 'the failed program asks no frame');
   assert.equal(lighting.usesContract, false);
   scheduler.dispose();
 });
