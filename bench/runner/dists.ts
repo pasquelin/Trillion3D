@@ -81,7 +81,8 @@ const BROWSER_ENTRIES = [
 ];
 
 /** Whether `dir` is a built dist: it holds one of the browser entries. */
-const isDist = (dir: string) => BROWSER_ENTRIES.some((entry) => existsSync(join(dir, entry)));
+export const isDist = (dir: string) =>
+  BROWSER_ENTRIES.some((entry) => existsSync(join(dir, entry)));
 
 /** The page-side address of a side's SDK: the first browser entry its dist carries. */
 export const sdkEntryUrl = (side: { name: string; dist: string }) =>

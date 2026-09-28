@@ -86,6 +86,7 @@ test('the default route captures every segment and the last frame; invalid bound
     [601, 60],
     [60, 0],
     [60, 61],
+    [600, 18],
   ])
     assert.throws(() => checkpointIndices(frames, interval));
 });
