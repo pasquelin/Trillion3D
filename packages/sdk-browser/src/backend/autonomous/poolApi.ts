@@ -130,7 +130,7 @@ export function createAutonomousPool(env: {
       replaceGeometryPage(url: string, data: DecodedGeometryPage) {
         if (!byUrl.has(url)) throw new Error('AUTONOMOUS_PAGE_MISSING');
         gate.resourcesChanged();
-        if (!geometryStore.storeGeometryPage(url, data)) return;
+        if (!geometryStore.storeGeometryPage(url, data, true)) return;
         env.modifiedPages.add(url);
         heldFloor.changed();
         budget.left(url);
