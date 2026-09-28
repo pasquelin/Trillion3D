@@ -1,20 +1,18 @@
 import { LIGHT_SETTINGS, type SceneLight } from '../../../sdk-core/src/index.ts';
-import { GraphLight, GraphRectLight } from '../host/graph/light.ts';
+import { Light } from '../../../sdk-core/src/world/light/light.ts';
+import { numbered } from '../host/graph/serial.ts';
 
 /**
  * ONE CONTRACT LIGHT AS A LIGHT OF THE ENGINE'S OWN GRAPH: the WebGL2 path's translation of the
- * store (`contractLights.ts`), light by light, read by the cluster program
- * (`../../webgl/cluster/lights.ts`).
+ * store (`contractLights.ts`), light by light, into the core's `Light`, read by the cluster
+ * program (`../../webgl/cluster/lights.ts`).
  */
-
-/** A light of the display graph the contract writes. */
-export type ContractLight = GraphLight | GraphRectLight;
 
 /** Eye distance of a directional: it has no position, only its direction counts. */
 const SUN_DISTANCE = 1;
 
 /** The contract's linear colour, without going through sRGB: that is the working space. */
-function applyColor(light: ContractLight, source: SceneLight) {
+function applyColor(light: Light, source: SceneLight) {
   light.color.setRGB(source.color[0], source.color[1], source.color[2]);
   light.intensity = source.intensity;
 }
@@ -32,13 +30,10 @@ function spotPenumbra(coneAngle: number, declared = 0) {
   return Math.min(1, Math.max(declared, 1 - inner / coneAngle));
 }
 
-/** A fresh light of the requested type, with its target when it has one. */
-export function createLight(source: SceneLight): ContractLight {
-  if (source.kind === 'point') return new GraphLight('point');
-  if (source.kind === 'spot') return new GraphLight('spot');
-  if (source.kind === 'rect') return new GraphRectLight();
-  return new GraphLight('directional');
-}
+/** A fresh light of the requested type, numbered by the engine; the store's `rect` is the core's
+ *  `rectArea`. */
+export const createLight = (source: SceneLight) =>
+  numbered(new Light(source.kind === 'rect' ? 'rectArea' : source.kind));
 
 /**
  * Writes a contract light into its light. Units are the contract's, with no adjustment factor:
@@ -49,9 +44,9 @@ export function createLight(source: SceneLight): ContractLight {
  *
  * No shadows — see `shadows: false` in the engine capabilities.
  */
-export function writeLight(light: ContractLight, source: SceneLight) {
+export function writeLight(light: Light, source: SceneLight) {
   applyColor(light, source);
-  if (light instanceof GraphRectLight) return writeRect(light, source);
+  if (light.kind === 'rectArea') return writeRect(light, source);
   if (source.kind === 'directional') {
     const direction = source.direction!;
     light.position.set(
@@ -59,7 +54,7 @@ export function writeLight(light: ContractLight, source: SceneLight) {
       -direction[1] * SUN_DISTANCE,
       -direction[2] * SUN_DISTANCE,
     );
-    light.target!.position.set(0, 0, 0);
+    light.target.position.set(0, 0, 0);
     return;
   }
   const position = source.position!;
@@ -70,7 +65,7 @@ export function writeLight(light: ContractLight, source: SceneLight) {
   light.angle = source.coneAngle!;
   light.penumbra = spotPenumbra(source.coneAngle!, source.penumbra);
   const direction = source.direction!;
-  light.target!.position.set(
+  light.target.position.set(
     position[0] + direction[0],
     position[1] + direction[1],
     position[2] + direction[2],
@@ -82,7 +77,7 @@ export function writeLight(light: ContractLight, source: SceneLight) {
  * down its own −z — with its width along the contract's `right`, its two sides, its radiance,
  * and its range, at which the cluster program windows the energy as the WebGPU path does.
  */
-function writeRect(light: GraphRectLight, source: SceneLight) {
+function writeRect(light: Light, source: SceneLight) {
   const [x, y, z] = source.position!,
     normal = source.direction!,
     [ax, ay, az] = source.right!;

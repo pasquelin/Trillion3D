@@ -1,7 +1,7 @@
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { LoadedModel } from './loadedModel.ts';
-import { isLight } from './worldLights.ts';
+import { isLightNode } from '../../host/graph/kinds.ts';
 import { rootedUnder } from './worldPoses.ts';
 
 /**
@@ -21,7 +21,7 @@ export function createWorldMembers(scene: Object3D) {
   const enter = (node: Object3D, added: Mesh[]) =>
     node.traverse((child) => {
       known.set(child, child.children);
-      lit ||= isLight(child);
+      lit ||= isLightNode(child);
       if ((child as Mesh).isMesh && !meshes.has(child as Mesh)) {
         meshes.add(child as Mesh);
         added.push(child as Mesh);
@@ -31,7 +31,7 @@ export function createWorldMembers(scene: Object3D) {
   const leave = (node: Object3D, removed: Mesh[]) =>
     node.traverse((child) => {
       known.delete(child);
-      lit ||= isLight(child);
+      lit ||= isLightNode(child);
       if (meshes.delete(child as Mesh)) removed.push(child as Mesh);
       models.delete(child as LoadedModel);
     });
