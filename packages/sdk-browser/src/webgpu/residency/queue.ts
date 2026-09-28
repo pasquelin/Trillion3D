@@ -40,10 +40,16 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
     running = false,
     job = 0;
   /** The running job's next camera page (`progress`), one wait shared by every frame until a
-   *  page lands and wakes it; none is made while nobody waits. */
+   *  page lands and wakes it; none is made while nobody waits. A page landed while nobody waited
+   *  (`landings` past `heard`) answers the next wait at once, so it is drawn without the next one. */
   let next: Promise<unknown> | undefined, wake: (() => void) | undefined;
+  let landings = 0,
+    heard = 0;
   const landed = () => {
-    wake?.();
+    landings++;
+    if (!wake) return;
+    heard = landings;
+    wake();
     next = wake = undefined;
   };
 
@@ -94,6 +100,7 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
       } finally {
         running = false;
         next = wake = undefined;
+        heard = landings;
         traceDiagnostic('residency-job-end', 'GPU residency job finished', () => ({
           frame: jobFrame,
           jobId,
@@ -139,10 +146,14 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
      * view refining page by page, where waiting on `pending` shows the coarse cut until the job's
      * last page (#836).
      */
-    progress: () =>
-      running
-        ? (next ??= Promise.race([pending, new Promise<void>((woken) => (wake = woken))]))
-        : pending,
+    progress: () => {
+      if (!running) return pending;
+      if (heard !== landings) {
+        heard = landings;
+        return Promise.resolve();
+      }
+      return (next ??= Promise.race([pending, new Promise<void>((woken) => (wake = woken))]));
+    },
     /** True while an upload is in flight or queued: residency can still change. */
     get busy() {
       return running || scheduled;
