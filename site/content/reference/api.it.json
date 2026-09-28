@@ -1372,7 +1372,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Il proxy riletto e riverificato prima che un solo raggio lo tocchi.",
-    "description": "Disposizione, in little-endian: `u32 'WGPX' · u32 versione · u32 triangoli · u32 nodi`, poi i vertici nel mondo, gli albedo, i limiti esatti dei nodi e i loro quattro figli, uno dopo l'altro. Ogni sezione ha una lunghezza imposta dall'intestazione; un file di dimensione diversa viene rifiutato in blocco, perché un nodo che nominasse un triangolo assente farebbe leggere qualsiasi cosa allo shader."
+    "description": "Disposizione: otto parole di intestazione little-endian, seguite dalle colonne della geometria e dell’albero canonici e dai dati di proprietà con versione. `docs/FORMAT.md` specifica ogni conteggio e colonna. L’intestazione impone la lunghezza di ogni sezione; un file di dimensione diversa viene rifiutato interamente, perché un nodo che indicasse un triangolo mancante farebbe leggere dati arbitrari allo shader."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` scomposta in `position`, `quaternion`, `scale`."
@@ -5221,7 +5221,7 @@
     "summary": "Versione del contratto della gerarchia di scena mantenuta dall'host."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Interi di intestazione: firma, versione, triangoli, nodi."
+    "summary": "Interi dell’intestazione: firma, versione, conteggi di triangoli/nodi/gruppi/proprietari/origini, zero riservato."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' letti come un intero senza segno a 32 bit little-endian."

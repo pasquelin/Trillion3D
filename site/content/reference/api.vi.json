@@ -2864,7 +2864,7 @@
     "summary": "Phiên bản của hợp đồng phân cấp cảnh do ứng dụng chủ sở hữu."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Các số nguyên tiêu đề: chữ ký, phiên bản, tam giác, node."
+    "summary": "Các số nguyên trong phần đầu: chữ ký, phiên bản, số lượng tam giác/nút/nhóm/chủ sở hữu/nguồn, số không dành riêng."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' đọc như một số nguyên 32-bit không dấu theo thứ tự little-endian."
@@ -4900,7 +4900,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Proxy được đọc lại và kiểm tra lại trước khi một tia duy nhất chạm vào nó.",
-    "description": "Bố cục, little-endian: `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, sau đó là các đỉnh thế giới, các albedo, các cận chính xác của node và bốn con của chúng, được nối lại. Mỗi phần có một độ dài mà tiêu đề áp đặt; một tệp có kích thước khác bị từ chối hàng loạt, vì một node nêu tên một tam giác bị thiếu sẽ khiến shader đọc bất cứ thứ gì."
+    "description": "Bố cục: tám từ ở phần đầu theo thứ tự little-endian, tiếp theo là các cột hình học và cây chuẩn cùng dữ liệu quyền sở hữu có phiên bản. `docs/FORMAT.md` quy định từng số lượng và cột. Phần đầu ấn định độ dài mỗi phần; tệp có kích thước khác bị từ chối toàn bộ, vì nút trỏ đến một tam giác không tồn tại sẽ khiến bộ đổ bóng đọc dữ liệu tùy ý."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` được phân tách thành `position`, `quaternion`, `scale`."
