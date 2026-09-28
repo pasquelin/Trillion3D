@@ -81,6 +81,8 @@ pub(super) fn partition(
     let boxes = mesh_boxes(g);
     let moved = animated(g);
     let (parent, reached) = hierarchy(table, roots);
+    // A cell's row says no visibility: a node a hidden node hides is read with the core.
+    let (_, hidden) = crate::compiler_nodes::scene_nodes(g)?;
     let placeable = |id: usize| -> Option<usize> {
         let node = &table[id];
         let mesh = node["mesh"].as_u64()? as usize;
@@ -88,11 +90,10 @@ pub(super) fn partition(
         let bare = ["light", "camera", "weights"]
             .iter()
             .all(|field| node[*field].is_null());
-        // Its box is written once, from the declared poses: nothing above it may move either; and
-        // a cell's row says no visibility: a node a hidden node hides is read with the core.
-        let posed = std::iter::successors(Some(id), |at| parent[*at])
-            .all(|at| !moved.contains(&at) && table[at]["visible"].as_bool() != Some(false));
-        let still = gltf_nodes[id].get("skin").is_none() && posed;
+        // Its box is written once, from the declared poses: nothing above it may move either.
+        let posed =
+            std::iter::successors(Some(id), |at| parent[*at]).all(|at| !moved.contains(&at));
+        let still = gltf_nodes[id].get("skin").is_none() && posed && !hidden.contains(&id);
         (reached[id] && leaf && bare && still && boxes.get(mesh)?.is_some()).then_some(mesh)
     };
     let placed_ids: Vec<(usize, usize)> = (0..table.len())

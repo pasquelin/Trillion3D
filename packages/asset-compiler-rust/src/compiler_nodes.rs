@@ -2,8 +2,6 @@ use super::*;
 
 pub(super) struct NodeSelection {
     pub chosen: BTreeSet<usize>,
-    /// The chosen nodes no hidden node hides (`scene_nodes`): what the drawn scene derives from.
-    pub shown: BTreeSet<usize>,
     pub selected_triangles: usize,
     pub skinned_meshes: BTreeSet<usize>,
     pub meshes: BTreeSet<usize>,
@@ -145,7 +143,7 @@ pub(crate) fn scene_nodes(g: &Value) -> Result<(BTreeSet<usize>, BTreeSet<usize>
 pub(super) fn select_nodes(
     o: &Options,
     g: &Value,
-    (scene_nodes, hidden): (&BTreeSet<usize>, &BTreeSet<usize>),
+    scene_nodes: &BTreeSet<usize>,
 ) -> Result<NodeSelection> {
     let nodes = values(g, "nodes")?;
     let mut chosen = BTreeSet::new();
@@ -154,8 +152,10 @@ pub(super) fn select_nodes(
     let mut skinned_meshes = BTreeSet::new();
     for (i, n) in nodes.iter().enumerate() {
         if scene_nodes.contains(&i) && n.get("mesh").is_some() {
-            if let (Some(_), Ok(m)) = (n.get("skin"), required_index(n.get("mesh"), "node.mesh")) {
-                skinned_meshes.insert(m);
+            if n.get("skin").is_some() {
+                if let Ok(m) = required_index(n.get("mesh"), "node.mesh") {
+                    skinned_meshes.insert(m);
+                }
             }
             let triangles = node_triangles(g, n)?;
             if o.scope == "full" || selected_triangles + triangles <= o.triangle_budget {
@@ -187,10 +187,8 @@ pub(super) fn select_nodes(
         .enumerate()
         .map(|(new, old)| (*old, new))
         .collect();
-    let shown = chosen.difference(hidden).copied().collect();
     Ok(NodeSelection {
         chosen,
-        shown,
         selected_triangles,
         skinned_meshes,
         meshes,
