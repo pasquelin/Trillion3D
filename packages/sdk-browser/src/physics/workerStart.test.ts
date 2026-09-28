@@ -57,7 +57,10 @@ test('a threaded worker steps only once every pool thread has loaded', async (t)
   now += 2 * PHYSICS_STEP * 1000 + 1;
   ticks.shift()![0]();
   const results = sent.filter((m) => m.type === 'results');
-  assert.ok(results.some((m) => m.steps > 0), 'the pool steps once loaded');
+  assert.ok(
+    results.some((m) => m.steps > 0),
+    'the pool steps once loaded',
+  );
   assert.ok(!sent.some((m) => m.type === 'error'), JSON.stringify(sent));
 });
 
