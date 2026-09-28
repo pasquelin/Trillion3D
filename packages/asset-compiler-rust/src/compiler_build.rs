@@ -34,11 +34,10 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let bin = loaded.binary.bytes();
     let manifest = &loaded.manifest;
     let shared_nodes = compiler_mesh_share::share_identical_meshes(&mut loaded.g, bin);
-    // A hierarchy that closes on itself is refused before any publication: world
-    // matrix walk starts from parentless nodes, and would never see a closed cycle.
+    // A cyclic hierarchy is refused before any publication: the world walk would never see it.
     compiler_nodes::check_acyclic(&loaded.g)?;
-    // Set of nodes of the rendered scene, shared by selection, the proxy and lights.
-    let scene_nodes = compiler_nodes::scene_nodes(&loaded.g)?;
+    // The rendered scene's nodes, and the hidden ones: compiled (`chosen`), not drawn (`shown`).
+    let (scene_nodes, hidden) = compiler_nodes::scene_nodes(&loaded.g)?;
     let NodeSelection {
         chosen,
         selected_triangles,
@@ -46,6 +45,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         meshes,
         mesh_map,
     } = select_nodes(o, &loaded.g, &scene_nodes)?;
+    let shown: BTreeSet<usize> = chosen.difference(&hidden).copied().collect();
     // Decided cutouts go to masked before any material is read (`cutout.rs`).
     let cutouts = cutout::apply_decisions(&mut loaded.g, bin, &image_root, &meshes, &decisions)?;
     let g = &loaded.g;
@@ -108,7 +108,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         o,
         g,
         bin,
-        chosen: &chosen,
+        shown: &shown,
         mesh_map: &mesh_map,
         cluster_planes: &cluster_planes,
     };
@@ -148,7 +148,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         let _t = perf::Timer::new(perf::Phase::Manifest);
         proxy::stage_proxy(&proxy::ProxyInputs {
             g,
-            chosen: &chosen,
+            shown: &shown,
             mesh_map: &mesh_map,
             primitives: &primitives,
             cuts: &proxy_cuts,
@@ -165,7 +165,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let proxy_descriptor =
         scene_proxy.descriptor(proxy::SCENE_PROXY_FILE, &proxy_sha, proxy_bytes.len());
     // Cache products, each under its own name: lights, node and material tables, physics.
-    let lights = stage_scene_lights(g, bin, &scene_nodes, &directory, &progress)?;
+    let lights = stage_scene_lights(g, bin, (&scene_nodes, &hidden), &directory, &progress)?;
     let (autonomous_scene, autonomous_refusal, autonomous, mut products) =
         write_autonomous_scene(&directory, &source, &primitives, &output_views)?;
     let paged = write_mesh_pages(&primitives, &directory)?;
