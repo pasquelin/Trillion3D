@@ -16,7 +16,7 @@ import { createImageRelevance } from '../residency/imageRelevance.ts';
 import { createWebgpuCutPublication } from '../cut/publication.ts';
 import { acceptPage, dropPage } from './io/pageApi.ts';
 import { readGeometryPageHeader } from '../../page/decode/geometryPageHeader.ts';
-import { awaitsPageBytes, pageAddress } from '../row/pageSlots.ts';
+import { awaitsPageBytes, pageAddress, readGeometryAhead } from '../row/pageSlots.ts';
 import { markWebgpuLost } from './io/lost.ts';
 import type { WebgpuPagesCore } from './runtime.ts';
 import { noteResidenceChange } from '../shadow/bounds.ts';
@@ -49,16 +49,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   /** Writes one page-table row: when a cluster claims a row, when its GPU slot moves, or when a
    *  shared input changes epoch — never once per frame: every field below belongs to the page, its
    *  material, its geometry block or its slot, none of them to the image. */
-  const writePageRow = createPageRowWriter({
-    geometryBlocks: rt.vis.geometryBlocks,
-    mapLayer: rt.vis.mapLayer,
-    dataLayer: rt.vis.dataLayer,
-    // Read at each row: the atlases exist from the textures' preparation on.
-    get textures() {
-      return rt.vis.textures;
-    },
-    markRowDirty: rows.markRowDirty,
-  });
+  // Off the visibility state, read at each row: the atlases exist from the textures' preparation
+  // on, and it hears there that an as-is surface took a row (`asIsShown`).
+  const writePageRow = createPageRowWriter(rt.vis, rows.markRowDirty);
   // The residency mirror is the only incremental state of this path: its journal is checked against
   // the cache on every flush, and rebuilt at the slightest disagreement rather than drifting.
   const commit = createWebgpuRowCommit(rows, writePageRow);
@@ -66,7 +59,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     rows,
     mirror,
     packedPages,
-    run.drawn,
+    run,
     drawSlots,
     () => !!gpu.cache,
     commit,
@@ -82,9 +75,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   );
   /**
    * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the
-   * host's page reader at the address the manifest gives it, or — for a transparent cluster and
-   * for a cache that carries no geometry page — the index page the arrival already left in
-   * memory. The slot is written from one of the two, never from both.
+   * host's page reader at the address the manifest gives it, or — for a cache that carries no
+   * geometry page — the index page the arrival already left in memory. The slot is written from
+   * one of the two, never from both.
    */
   const read = async (key: string) => {
     const geometryUrl = geometryUrls.get(key);
@@ -104,6 +97,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
   const hasBytes = (rec: PageRec) => !awaitsPageBytes(rec) || sourceBytes.has(pageAddress(rec));
   /** True while the pool holds the slot this cluster draws from, at its own address. */
   const poolHolds = (rec: PageRec) => !!gpu.cache?.get(pageAddress(rec));
+  /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
+  const closure = createGroupClosure(rt.layout.selectionRoots, packedPages);
   /** The residency sets and the page dependencies: an image that moves no page touches neither. */
   const residencySets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages }),
     parentsOf = createPageParents(rt.layout.selectionRoots);
@@ -117,7 +112,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
   });
-  const updatePins = () => pinUpdater(gpu.cache, run.shown, run.frame, (key) => dropPage(rt, key));
   const bootstrapState = createWebgpuBootstrap({
     pages: bootstrap,
     urls: bootstrapUrls,
@@ -136,8 +130,6 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     diagnosticFailure: diag.diagnosticFailure,
   });
   const room = () => Math.max(0, rt.setup.slots - bootstrapUrls.size);
-  /** The groups a cut's pages close over: what the cache must hold for the cut rule to draw them. */
-  const closure = createGroupClosure(rt.layout.selectionRoots, packedPages);
   // The two lower tiers: the casters the light cuts want, then the pages ahead of the camera.
   const tier = { keyOf: tracking.keyOf, room, closeOver: closure.closeOver };
   const shadowTier = createLowerTier(tier),
@@ -161,6 +153,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceEnabled: diag.traceEnabled,
     traceDiagnostic: diag.traceDiagnostic,
     lowerTiers: () => lowerTiers,
+    prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
   });
   const residency = createWebgpuResidencyQueue({
     tracking,
@@ -168,7 +161,8 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     room,
     getCache: () => gpu.cache,
     getFrame: () => run.frame,
-    updatePins,
+    updatePins: () => pinUpdater(gpu.cache, run.shown, run.frame, (key) => dropPage(rt, key)),
+    closure,
     ensureResident,
     markLost: (error) => markWebgpuLost(rt, { reason: 'residency', message: String(error) }),
     traceEnabled: diag.traceEnabled,
@@ -193,7 +187,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     residency,
     shadowTier,
     affectsImage,
-    queueCutResidency: residency.queueCutResidency,
     ...publication,
+    hostTableBytes: () => publication.hostTableBytes() + residency.hostBytes, // + GPU admission
   };
 }

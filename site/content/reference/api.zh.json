@@ -12,6 +12,7 @@
       "bindingOf": "`tr` 所写入的对象,只解析一次;在其目标不在根节点之下时为 null。",
       "play": "开始播放。",
       "stop": "停止,并回到起点。",
+      "seek": "无论是否在播放,都按循环方式立即把片段摆到 `time` 秒处的姿态:正在播放的动作从那里继续,已停止的动作保持该姿态,直到同一混合器中正在播放的动作将其覆盖。",
       "clipTime": "根据其循环模式,该动作在片段中所处的位置。"
     }
   },
@@ -209,7 +210,10 @@
       "levels": "每一层。",
       "reach": "光线可达范围:超过这个包围盒对角线距离就不会命中任何东西。",
       "shareOf": "按层划分、每帧工作批次的探针数:将公开的份额应用到总批次上得到的结果。",
-      "follow": "围绕某个视点重新定位可移动的层。当至少有一个基准单元索引发生变化时返回 true:这是收敛过程重新开始所需的唯一信号,且不需要任何 GPU 回读。"
+      "follow": "围绕某个视点重新定位可移动的层。当至少有一个基准单元索引发生变化时返回 true:这是收敛过程重新开始所需的唯一信号,且不需要任何 GPU 回读。",
+      "reserveCount": "在变换可能扩大场景之前预留的固定容量。",
+      "invalidLevels": "上次重新规划时，间距或是否存在发生变化的层级。基点移动使用单元标记处理。",
+      "replan": "将现有的空间分辨率策略重新应用于当前几何体边界。"
     }
   },
   "BounceOccupancy": {
@@ -219,7 +223,8 @@
       "occupied": "当某一层在其全局网格中的单元格值得放置一个探针时为 true。",
       "marked": "最精细一层中,被标记的单元格数与单元格总数:即公开的收益。",
       "cells": "最精细一层的单元格数。",
-      "bytes": "它所占用的字节数。"
+      "bytes": "它所占用的字节数。",
+      "allEligible": "几何体已移动：保守地将级联中的所有单元纳入调度，单元数量仍有上限。"
     }
   },
   "BoundedNode": {
@@ -377,7 +382,8 @@
       "p.left": "正交摄像机视野盒的左边界。",
       "p.right": "正交摄像机视野盒的右边界。",
       "p.top": "正交摄像机视野盒的上边界。",
-      "p.bottom": "正交摄像机视野盒的下边界。"
+      "p.bottom": "正交摄像机视野盒的下边界。",
+      "p.fitAspect": "正交相机保持其视框的高度和中心，宽度取自画面的形状，因此画布改变尺寸时绘图不会被拉伸。默认关闭。"
     },
     "members": {
       "isCamera": "始终为 `true`:用来把摄像机和其他任何对象区分开来。",
@@ -390,9 +396,12 @@
       "right": "正交视野盒的右边界。",
       "top": "正交视野盒的上边界。",
       "bottom": "正交视野盒的下边界。",
+      "fitAspect": "高度如声明、宽度随画面形状而定的正交视框。",
       "projection": "`'perspective'` 会让远处的物体变小;`'orthographic'` 则保持所有尺寸不变。",
       "copy": "取 `source` 的节点值，若为相机则取其光学参数；自身的 `projection` 保持不变。",
-      "updateProjectionMatrix": "为了兼容那些针对需要它的渲染器而写的页面而保留:任何光学参数的写入本身就已经会触发重绘。",
+      "updateProjectionMatrix": "重新组成 `projectionMatrix`；每次写入光学参数都已这样做，并会重绘。",
+      "projectionMatrix": "光学参数组成的投影，采用参考的深度约定和有限远平面，供用它绘制的渲染器使用；每次写入光学参数都会重新组成它。世界用自己的投影绘制（`engineCamera.ts`）。",
+      "matrixWorldInverse": "最近一次组成的世界矩阵的逆矩阵：渲染器读取的视图。",
       "rayThrough": "穿过画面上某一点的世界射线，按引擎自己的投影计算（`engineCamera.ts`）：透视相机从眼睛出发沿视线方向，正交相机从盒子出发笔直沿视线方向。它的方向是单位向量。",
       "set": "把眼睛放在 `pose.position`,朝向 `pose.target` 看,并使用指定的视场角。"
     }
@@ -428,7 +437,8 @@
       "left": "正交摄像机视野盒的左边界。",
       "right": "正交摄像机视野盒的右边界。",
       "top": "正交摄像机视野盒的上边界。",
-      "bottom": "正交摄像机视野盒的下边界。"
+      "bottom": "正交摄像机视野盒的下边界。",
+      "fitAspect": "正交相机保持其视框的高度和中心，宽度取自画面的形状，因此画布改变尺寸时绘图不会被拉伸。默认关闭。"
     }
   },
   "CameraPose-common": {
@@ -502,7 +512,7 @@
       "primitives": "它的图元。",
       "worstStalls": "编译器的停滞表：至多十个图元，其停滞组在第 0 级留下了根，最差的在前。在它之前编译的缓存中没有。",
       "texturePreviews": "每个已解码的(纹理, 图集)组合对应一条记录,先按纹理、再按图集排序;没有可解码图像时为空。",
-      "textures": "预烘焙层级的路径模板,相对于清单文件:{sha} 是源图像摘要,{kind} 是图集名称(PREVIEW_ATLAS_NAMES),{level} 是层级序号。在支持预烘焙层级之前编译的缓存中不存在,本读取器会通过旁挂文件的版本号拒绝这类缓存。",
+      "textures": "预烘焙层级的路径模板,相对于清单文件:{sha} 是源图像摘要,{kind} 是图集名称(PREVIEW_ATLAS_NAMES),{level} 是层级序号。在支持预烘焙层级之前编译的缓存中不存在,本读取器会通过旁挂文件的版本号拒绝这类缓存。`version` 是层级的版本(`TEXTURE_PREVIEW_VERSION`):读取器不会读取其他版本的层级。",
       "proxy": "从哪里读取常驻场景代理体及其 BVH(供光线命中的几何体)。在支持间接光照之前编译的缓存中不存在,但那类缓存依然可以照常读取。"
     }
   },
@@ -959,13 +969,16 @@
       "UNSUPPORTED_SCENE_UPDATE": "这条绘制路径无法对场景做出那种改动。",
       "BATCHED_WORLD_VIEW": "这条绘制路径无法对场景做出那种改动。",
       "RAYCAST_NO_VIEW": "向一个没有尺寸的 canvas 请求画面上的点：没有可以瞄准的画面。",
+      "SURFACE_CAPTURE_UNSUPPORTED": "向一条无法在独立视图中绘制材质表面的绘制路径请求了表面捕获（`captureSurfaceView`）：WebGL2 路径没有这一能力。",
+      "VERTICES_NOT_LOADED": "已加载模型的顶点在 `await geometry.loadVertices()` 之前被读取：会话在首次需要时读取它们，从不预先读取。",
       "SESSION_OPEN_FAILED": "世界的会话无法打开，原因没有自己的代码（`world.diagnostic.error`）：抛出的错误在 `details.cause` 中。",
       "WEBGPU_LOST": "WebGPU 丢失了它的设备，或设备上的错误留下了无法再绘制的状态：由 `render`、`flush` 以及需要设备的读取抛出，由诊断 `gpu-device-lost` 以此命名，并在会话因此无法打开时出现在 `world.diagnostic.error` 上。",
       "UNSUPPORTED_SCENE_FORMAT": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
       "SCENE_NOT_SAVABLE": "保存的场景是另一种格式或版本，或者包含保存的场景无法存储的内容。",
-      "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
-      "PHYSICS_NESTED": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
-      "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`）：见 `world.physics.error`。",
+      "PHYSICS_BUDGET": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
+      "PHYSICS_NESTED": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
+      "PHYSICS_FAILED": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
+      "PHYSICS_DIVERGED": "物理被要求超出其某个上限（`world.budget.physics`：物体、装饰物体、内存），或动态物体不是场景的直接子节点（`PHYSICS_NESTED`），或物理模块失败（`PHYSICS_FAILED`），或物体的位姿或顶点变为非有限值而离开了模拟（`PHYSICS_DIVERGED`）：见 `world.physics.error`。",
       "PHYSICS_FORMAT": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
       "PHYSICS_OFF": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
       "NO_VEHICLE": "在 `world.controls.vehicle` 为 `null` 时把 `world.controls.kind` 设为了 `'vehicle'`：没有可驾驶的东西。",
@@ -1176,6 +1189,7 @@
       "rotateZ": "把每个顶点绕 z 轴旋转 `angle` 弧度。",
       "scale": "把每个顶点按 `(x, y, z)` 缩放。",
       "center": "移动这个几何体,使其包围盒以原点为中心。",
+      "loadVertices": "读取已加载网格的顶点，任何会话都不会预先获取它们；其他几何体立即完成。在此之前，读取它们（`array`、`getX`）会抛出 `VERTICES_NOT_LOADED`。",
       "clone": "一个新的几何体，带有每个列表、其组、范围、数据和边界的副本，以及仍能构建它的配方。",
       "dispose": "归还几何体：每个释放钩子只运行一次，忘记持有者和射线树；已释放的几何体没有人绘制，也没有射线命中。",
       "kind": "资源是什么，场景的读者据此区分资源。",
@@ -1605,7 +1619,7 @@
     "summary": "直接光照的公开设置。",
     "description": "这些是命名清楚的产品级选择,而不是隐藏起来的常量:每一处运行时的边界都会重新读取它们,诊断信息也会原样公开它们。",
     "members": {
-      "tileLights": "屏幕图块的列表在其两个深度切片中各自保存的光源数:无论场景有多少,每个图块的内存就是这些。被更多光源触及的图块不保存列表,而是遍历场景的每一盏灯——未触及它的灯加上精确的零——,因此不会丢失任何光源(X2)。",
+      "tileLights": "屏幕图块的列表在其两个深度切片中各自保存的光源数:无论场景有多少,每个图块的内存就是这些。被更多光源触及的图块从一个与视图同大小的池中取得它们的索引,并恰好遍历这些光源;池中没有空间的图块遍历场景的每一盏灯——未触及它的灯加上精确的零——,因此不会丢失任何光源(X2)。",
       "tileSize": "光源列表所用屏幕图块一条边的长度,单位像素。",
       "samplesPerPixel": "一张**运动**图像中,每个像素完整着色(包含阴影读取)的光源数(乘以 2):其余的光源只按权重计算而不读取阴影,被完整着色的光源则按相应比例绘制,因此这个估计值是无偏的,时间性抗锯齿会对其求平均。静止图像会为其所在图块的每一个光源着色,并收敛到精确的总和;在那种情况下,这个数字不起任何作用。",
       "shadowPage": "阴影页的边长（纹素）：物理池、虚拟贴图与失效的单位。移动的物体只使其投影包围盒覆盖的页失效。",
@@ -2093,7 +2107,6 @@
     "members": {
       "isObject3D": "始终为 `true`:用来标识场景节点。",
       "type": "节点的种类:`'Mesh'`、`'Group'`……",
-      "name": "用来查找该节点的名字。",
       "position": "该节点相对其父节点所在的位置。",
       "rotation": "该节点的旋转状态,以三个角度表示。",
       "quaternion": "该节点的旋转状态,以四元数表示。",
@@ -2179,6 +2192,7 @@
   "TransformNode": {
     "summary": "通过参考实现的矩阵读取的场景节点，保存在引擎的变换树中。",
     "members": {
+      "name": "用来查找该节点的名字。",
       "matrix": "局部矩阵,是该节点在变换树中所占槽位的一个视图。",
       "matrixWorld": "最近一次合成得到的世界矩阵(`updateMatrixWorld`),是变换树的一个视图。",
       "matrixAutoUpdate": "当 `matrix` 本身就是位姿、没有任何东西重新合成它时为 false。",
@@ -2827,7 +2841,7 @@
     "summary": "由宿主拥有的场景层级契约的版本。"
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "头部整数:签名、版本、三角形数、节点数。"
+    "summary": "头部整数：签名、版本、三角形/节点/组/所有者/源的数量，以及保留的零值。"
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "以小端序无符号 32 位整数读取的 'W'、'G'、'P'、'X'。"
@@ -2914,6 +2928,8 @@
       "environment": "光滑表面所反射的周围环境图像;没有时为 `null`。",
       "background": "填充每个对象背后画面的内容：一种颜色，或表示默认值的 `null`。更改会在下一帧显示，会话保持不变：在这里设置的新颜色，或通过其方法（`set`、`setRGB`、`setHex`、`setHSL`...）写入的当前颜色。直接写入 `.r`、`.g` 或 `.b` 不会被察觉：之后请重新设置 `background`。图片或任何没有 `getHex` 的值都会被拒绝（`UNSUPPORTED_SCENE_UPDATE`）：没有路径会绘制它。",
       "fog": "覆盖每个表面的雾，不透明和透明表面都有，两种渲染器都支持；默认 `null` 表示无雾，没有任何开销。`{ color, near, far }` 让物体从 `near` 到 `far` 融入 `color`，距离从相机算起；`{ color, density }` 每单位距离变浓 `density`；加上 `heightFalloff`（以及默认为 0 的 `baseHeight`），雾就贴在地面上，在 `baseHeight` 之上变淡——每向上 `1 / heightFalloff` 个单位除以 e。修改在下一帧显示：在这里设置的新雾，或通过其方法写入的颜色。直接写 `near`、`far`、`density`... 不会被察觉：写完后请重新设置 `fog`。超出范围的雾——`far` 不在 `near` 之外、密度为负——会被拒绝（`INVALID_SCENE_ENVIRONMENT`）。",
+      "onBeforeRender": "渲染器绘制场景之前调用；默认没有。",
+      "onAfterRender": "渲染器绘制完场景之后调用；默认没有。",
       "load": "加载一个已编译模型——通过它的清单 URL——并把它添加到这个场景中。",
       "toJSON": "场景的纯 JSON 表示，带版本号：它的物体、按构建它们的调用记录的形状、材质、光源、按声明记录的每个网格的物理物体，以及按地址记录的已加载模型；给出 `camera` 时，也包括它的位姿。",
       "fromJSON": "用 `toJSON` 保存的场景替换场景当前的内容，保留其 `helper` 标记；模型加载完后完成。其他格式或版本会被拒绝（`UNSUPPORTED_SCENE_FORMAT`）。读取期间发起的调用会按顺序一个接一个执行，每个都基于前一个留下的结果：两个保存的场景绝不会混在一起。"
@@ -3057,7 +3073,12 @@
       "triangles": "每个三角形三个世界坐标顶点,各占 `PROXY_TRIANGLE_FLOATS` 个数字。",
       "albedo": "该三角形的线性漫反射反照率,打包为 RGBA8。",
       "nodeBounds": "每个 BVH 节点的精确边界。",
-      "nodeChildren": "每个节点的四个子节点:量化后的包围盒、三角形数、是否存在、链接。"
+      "nodeChildren": "每个节点的四个子节点:量化后的包围盒、三角形数、是否存在、链接。",
+      "triangleGroups": "每个规范三角形的源所有者共享组；相同的组只存储一次。",
+      "groupOffsets": "各组所有者记录的偏移量，包括末尾的哨兵值。",
+      "owners": "所有者记录：源节点索引，以及打包为 RGBA8 的线性反照率。",
+      "bindWorlds": "源节点的原始世界矩阵，每个节点包含十六个双精度数值。",
+      "sourceParents": "源层级结构，包括宿主当前尚未实例化的分区节点。"
     }
   },
   "SceneProxyDescriptor": {
@@ -3074,7 +3095,10 @@
       "triangleBudget": "公开的三角形预算,正是它决定了实际得到的阈值。",
       "bounds": "代理体的世界范围:三个下界,然后三个上界。",
       "triangles": "三角形数。",
-      "nodes": "树节点数。"
+      "nodes": "树节点数。",
+      "groups": "相同内容仅存储一次的共享所有者组。",
+      "owners": "所有者记录。",
+      "instances": "源节点矩阵。"
     }
   },
   "SceneRoot": {
@@ -3125,7 +3149,15 @@
       "shadowPagesTotal": "自探索器打开以来已绘制的页面数,包括 `flush()` 排空的部分:某次变化的开销就是两次读数之间的差值。",
       "shadowPagesPending": "等待中的阴影页面。",
       "shadowWaitMs": "图像读取的最老过期页面等待重绘的毫秒数。只计算图像读取它的时间;重绘后为 0。",
+      "shadowCutDrops": "自打开浏览器以来丢弃了工作的光源裁剪批次数——其视图保留的簇多于列表容量——：每个批次送回其页面，在重绘前撤下(#525)。在没有 GPU 光源裁剪的引擎上为 null，下面三项亦然。",
+      "shadowCutWithdrawnPages": "自打开浏览器以来，因光源裁剪画错而重绘的页面数：其批次丢弃了工作，或其标志从未被读取。这些页面在重绘前被撤下。",
+      "shadowCutCoarsePages": "自打开浏览器以来，因某个视图绘制了比所需更粗的簇而重绘的页面数：在驻留变化且相机静止后释放。",
+      "shadowCutViewLimit": "一个光源裁剪批次当前绘制的光源视图数：在某批次丢弃工作之前为上限，之后为能容纳的数量。",
       "gpuLightListsMs": "光源列表的 GPU 耗时。",
+      "tileLightPoolReserved": "超出其列表的图块在视图的光源索引池中预留的字数,取设备最后采样的帧,仅当场景的光源多于一个列表时;否则为 `null`(#849)。",
+      "tileLightPoolCapacity": "该采样帧上光源索引池持有的字数;同样为 `null`。",
+      "tileLightPoolOverflowed": "该采样帧上是否有图块在池中找不到空间而遍历了每一盏灯。",
+      "tileLightPoolGrowths": "自浏览器打开以来,池增长到溢出帧所需大小的次数。",
       "gpuShadowsMs": "阴影的 GPU 耗时。",
       "gpuShadowCullMs": "选择本帧所绘阴影页的投影体的 GPU 时间：光源剪切、逐页剔除，以及运动投影体的遮挡测试及其读取的金字塔。",
       "gpuShadowRasterMs": "把这些投影体绘入页面的 GPU 时间：先静态层，再池。",
@@ -3222,7 +3254,7 @@
       "totalNodes": "节点总数。",
       "autonomousScene": "它内置的场景。",
       "texturePreviews": "每个已解码的(纹理, 图集)组合对应一条记录,先按纹理、再按图集排序;没有可解码图像时为空。",
-      "textures": "预烘焙层级的路径模板,相对于清单文件:{sha} 是源图像摘要,{kind} 是图集名称(PREVIEW_ATLAS_NAMES),{level} 是层级序号。在支持预烘焙层级之前编译的缓存中不存在,本读取器会通过旁挂文件的版本号拒绝这类缓存。",
+      "textures": "预烘焙层级的路径模板,相对于清单文件:{sha} 是源图像摘要,{kind} 是图集名称(PREVIEW_ATLAS_NAMES),{level} 是层级序号。在支持预烘焙层级之前编译的缓存中不存在,本读取器会通过旁挂文件的版本号拒绝这类缓存。`version` 是层级的版本(`TEXTURE_PREVIEW_VERSION`):读取器不会读取其他版本的层级。",
       "proxy": "从哪里读取常驻场景代理体及其 BVH(供光线命中的几何体)。在支持间接光照之前编译的缓存中不存在,但那类缓存依然可以照常读取。",
       "binary": "该二进制文件。",
       "primitives": "它的图元。",
@@ -3436,7 +3468,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "渐进式纹理层级,与 `packages/asset-compiler-rust/src/texture_preview.rs` 相对应:旁挂文件中源纹理 mip 链的尾部,采用图集自身的 RGBA8 编码,从没有任何一边超过 `PREVIEW_BASE` 的最精细层级一直到 1×1——在其之上,缓存中每个层级各有一份无损 PNG,从第 0 级往上共 `bakedLevels` 张。",
-    "description": "每个层级都遵循显卡自己重新生成该链条时所用的 mip 规则(`packages/sdk-browser/src/texture/mips.ts`):颜色取线性平均值,alpha 取中位数,第 `k` 级由量化后的第 `k - 1` 级得到。它们的尺寸不会被写下来:而是由源图像的尺寸推导而来,由 `previewLevels.ts` 重新计算得出。第 4 版会把尾部之上的每个层级、以及尾部本身,都烘焙进制作时所要求的、与无损文件并列的数据块族中——桌面显卡用 BC 族,移动设备用 4×4 的 ASTC,每个纹素一个字节——针对通过质量门槛保留下来的那些链条;未达标的链条在该族中保持无损,其条目的布局字会说明这一点。"
+    "description": "每个层级都遵循显卡自己重新生成该链条时所用的 mip 规则(`packages/sdk-browser/src/texture/mips.ts`):颜色取线性平均值,alpha 取中位数,第 `k` 级由量化后的第 `k - 1` 级得到。它们的尺寸不会被写下来:而是由源图像的尺寸推导而来,由 `previewLevels.ts` 重新计算得出。第 4 版会把尾部之上的每个层级、以及尾部本身,都烘焙进制作时所要求的、与无损文件并列的数据块族中——桌面显卡用 BC 族,移动设备用 4×4 的 ASTC,每个纹素一个字节——针对通过质量门槛保留下来的那些链条;未达标的链条在该族中保持无损,其条目的布局字会说明这一点。第 6 版把块压缩层级文件按图块记录排列,每条记录一次 HTTP Range 请求(#962,`sdk-browser/src/texture/tileRecords.ts`)。"
   },
   "TONE_MAPPING_RANK": {
     "summary": "把场景辐亮度带入显示范围的各条曲线,按着色器读取的编号排列。",
@@ -3654,7 +3686,8 @@
       "sha256": "源图像的指纹。",
       "atlas": "对应哪个图集。",
       "level": "对应哪个层级。",
-      "format": "对应哪种格式。"
+      "format": "对应哪种格式。",
+      "range": "单独读取的块压缩层级字节——一个图块的记录(`tileRecords.ts`)——通过 HTTP Range 读取;忽略它的服务器会返回整个文件。"
     }
   },
   "TexturePool": {
@@ -4165,7 +4198,15 @@
       "shadowPagesTotal": "自探索器打开以来已绘制的页面数,包括 `flush()` 排空的部分:某次变化的开销就是两次读数之间的差值。",
       "shadowPagesPending": "等待中的阴影页面。",
       "shadowWaitMs": "图像读取的最老过期页面等待重绘的毫秒数。只计算图像读取它的时间;重绘后为 0。",
+      "shadowCutDrops": "自打开浏览器以来丢弃了工作的光源裁剪批次数——其视图保留的簇多于列表容量——：每个批次送回其页面，在重绘前撤下(#525)。在没有 GPU 光源裁剪的引擎上为 null，下面三项亦然。",
+      "shadowCutWithdrawnPages": "自打开浏览器以来，因光源裁剪画错而重绘的页面数：其批次丢弃了工作，或其标志从未被读取。这些页面在重绘前被撤下。",
+      "shadowCutCoarsePages": "自打开浏览器以来，因某个视图绘制了比所需更粗的簇而重绘的页面数：在驻留变化且相机静止后释放。",
+      "shadowCutViewLimit": "一个光源裁剪批次当前绘制的光源视图数：在某批次丢弃工作之前为上限，之后为能容纳的数量。",
       "gpuLightListsMs": "光源列表的 GPU 耗时。",
+      "tileLightPoolReserved": "超出其列表的图块在视图的光源索引池中预留的字数,取设备最后采样的帧,仅当场景的光源多于一个列表时;否则为 `null`(#849)。",
+      "tileLightPoolCapacity": "该采样帧上光源索引池持有的字数;同样为 `null`。",
+      "tileLightPoolOverflowed": "该采样帧上是否有图块在池中找不到空间而遍历了每一盏灯。",
+      "tileLightPoolGrowths": "自浏览器打开以来,池增长到溢出帧所需大小的次数。",
       "gpuShadowsMs": "阴影的 GPU 耗时。",
       "gpuShadowCullMs": "选择本帧所绘阴影页的投影体的 GPU 时间：光源剪切、逐页剔除，以及运动投影体的遮挡测试及其读取的金字塔。",
       "gpuShadowRasterMs": "把这些投影体绘入页面的 GPU 时间：先静态层，再池。",
@@ -4612,7 +4653,8 @@
       "p.left": "正交摄像机视野盒的左边界。",
       "p.right": "正交摄像机视野盒的右边界。",
       "p.top": "正交摄像机视野盒的上边界。",
-      "p.bottom": "正交摄像机视野盒的下边界。"
+      "p.bottom": "正交摄像机视野盒的下边界。",
+      "p.fitAspect": "正交相机保持其视框的高度和中心，宽度取自画面的形状，因此画布改变尺寸时绘图不会被拉伸。默认关闭。"
     }
   },
   "camera.orthographic": {
@@ -4627,7 +4669,8 @@
       "p.left": "正交摄像机视野盒的左边界。",
       "p.right": "正交摄像机视野盒的右边界。",
       "p.top": "正交摄像机视野盒的上边界。",
-      "p.bottom": "正交摄像机视野盒的下边界。"
+      "p.bottom": "正交摄像机视野盒的下边界。",
+      "p.fitAspect": "正交相机保持其视框的高度和中心，宽度取自画面的形状，因此画布改变尺寸时绘图不会被拉伸。默认关闭。"
     }
   },
   "camera.cube": {
@@ -4778,7 +4821,7 @@
   },
   "createGpuPageCache": {
     "summary": "WebGPU 分配/队列边界。",
-    "description": "页面字节数据和策略由宿主提供。队列写入是有序的;dispose 会等待正在进行中的提交完成后再执行销毁。"
+    "description": "页面字节数据和策略由宿主提供。队列写入是有序的;dispose 会等待正在进行中的提交完成后再执行销毁。 `pin(key, 'held')` 使页面在 `resize(slots)` 时优先于普通固定页面保留，resize 不再接受 held 集合。再次普通固定会保留此优先级；`unpin(key)` 会将其移除。"
   },
   "createJob": {
     "summary": "没有计时器、DOM、文件系统或 UI。"
@@ -4883,7 +4926,7 @@
   },
   "decodeSceneProxy": {
     "summary": "在任何一条光线接触它之前,会被重新读取并重新校验的代理体。",
-    "description": "布局采用小端序:`u32 'WGPX' · u32 version · u32 triangles · u32 nodes`,随后依次是世界坐标顶点、反照率、精确的节点边界及其四个子节点。每个部分的长度都由文件头强制规定;尺寸不符的文件会被整体拒绝,因为一个指向不存在三角形的节点会让着色器读到任意内容。"
+    "description": "布局：八个小端序头部字，后接规范几何与树的各列，以及带版本的所有权数据。`docs/FORMAT.md` 规定了每个数量和列。头部决定各段的长度；大小不符的文件会被整体拒绝，因为引用缺失三角形的节点会使着色器读取任意数据。"
   },
   "decomposeMatrix4": {
     "summary": "把 `m = T · R · S` 分解为 `position`、`quaternion`、`scale`。"
@@ -4941,9 +4984,6 @@
   },
   "disabledStageProfile": {
     "summary": "一个不保留任何数据的引擎性能剖析:一切都是“未测量”,没有任何值是零。"
-  },
-  "dot": {
-    "summary": "两个相同维度向量的点积。"
   },
   "dotVector3": {
     "summary": "对在 `aAt` 和 `bAt` 处读取的三个分量计算 `a · b`:只用一个缓冲区加一个偏移量,不使用视图。"
@@ -5386,7 +5426,7 @@
   },
   "loader": {
     "summary": "`loader` 系列:被获取并转换成场景可用形式的文件。",
-    "description": "普通文件通过引擎自带校验的 fetch(`cluster/pages.ts`)读取,它会根据状态码拒绝一次失败的响应;图片(`texture`、`cubeTexture`)则通过一个 image 元素获取,它会因解码失败而拒绝该图片。"
+    "description": "普通文件通过引擎自带校验的 fetch(`cluster/checked.ts`)读取,它会根据状态码拒绝一次失败的响应;图片(`texture`、`cubeTexture`)则通过一个 image 元素获取,它会因解码失败而拒绝该图片。"
   },
   "loader.texture": {
     "summary": "获取一张图片,并用它制作一个颜色纹理。",
@@ -7008,7 +7048,8 @@
       "projection": "透视或正交。",
       "position": "眼睛所在的位置。",
       "quaternion": "眼睛朝向哪里。",
-      "optics": "视场、near、far、zoom 和盒子，按名称。"
+      "optics": "视场、near、far、zoom 和盒子，按名称。",
+      "fitAspect": "按画面形状加宽的正交框（`fitAspect`）；关闭时省略。"
     }
   },
   "SavedGeometry": {
@@ -7149,6 +7190,7 @@
       "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "simulationRange": "相机周围模拟物体的范围（米）；超出范围的物体保持原状冻结，也不加载碰撞图块；`null` 跟随 `camera.far`。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
@@ -7355,6 +7397,7 @@
       "gravity": "重力，单位 m/s²，一个实时向量；可设预设（`'earth'`、`'moon'`、`'mars'`、`'none'`）或向量。",
       "paused": "时间是否静止；写入仍会到达物体。",
       "timeScale": "每真实秒的模拟秒数：0.25 为慢动作。",
+      "simulationRange": "相机周围模拟物体的范围（米）；超出范围的物体保持原状冻结，也不加载碰撞图块；`null` 跟随 `camera.far`。",
       "water": "物体漂浮其中的水：水位、波浪、密度和阻力。比水轻的物体会漂浮，被它排开的水的重量托起。",
       "waterSurface": "模拟时刻的水面,用于绘制:与浮力读取的相同波浪、相同数值(`height`、`point`、`normal`)。",
       "stats": "计数与两个时钟：worker 每步毫秒数，页面每帧毫秒数。",
@@ -7367,11 +7410,12 @@
     "summary": "`createWorld(canvas, { physics })` 除 `true` 外接受的内容。",
     "members": {
       "budget": "固定上限，物理启动时读取一次。",
+      "simulationRange": "相机周围模拟物体的范围（米，`world.physics.simulationRange`）；`null` 跟随 `camera.far`。",
       "gravity": "世界的重力：预设或向量。"
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "阴影记录的浮点数，即光的着色所读取的记录：六个灯光面矩阵，然后是太阳平面的坐标系 — `right, zNear`、`up, zFar`、`axis, 0` —，然后是每个 clipmap 级别范围的原点（两个整数），最后是头部 `vec4f`：面数（灯）或级别数（太阳）、灯的半视场正切或太阳的最细级别、灯的近平面，以及记录在页表中的第一个条目。"
+    "summary": "阴影记录的浮点数，即光的着色所读取的记录：六个灯光面矩阵 — 太阳在此存放其深度范围，每个为 `zNear` 与跨度倒数（`recordPack.ts`）—，然后是太阳平面的坐标系 — `right`、`up`、`axis`，各补齐为四个 —，然后是每个 clipmap 级别范围的原点（两个整数），最后是头部 `vec4f`：面数（灯）或级别数（太阳）、灯的半视场正切或太阳的最细级别、灯的近平面，以及记录在页表中的第一个条目。"
   },
   "ShadowRequestReport": {
     "summary": "着色在一帧中读取的内容：它请求的表条目，无顺序。",
@@ -7398,16 +7442,6 @@
       "steer": "方向盘，−1 左打到底到 1 右打到底。",
       "handbrake": "手刹是否拉起。"
     }
-  },
-  "GraphNode": {
-    "summary": "图的一个节点：核心的节点，以其 `kind` 区分，由核心的 `clone` 复制。",
-    "members": {
-      "serial": "节点的编号，在会话中唯一。",
-      "kind": "节点是什么：图的每个读取方据此收窄类型。"
-    }
-  },
-  "GraphNodeKind": {
-    "summary": "图的节点是什么：根、眼睛，或场景声明的某种光源。"
   },
   "GraphSurface": {
     "summary": "表面：一个族的参数，除非场景另有说明，取参考实现的值。",

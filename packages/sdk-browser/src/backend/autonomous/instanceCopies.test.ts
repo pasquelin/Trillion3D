@@ -1,4 +1,4 @@
-import type { GraphScene } from '../../host/graph/scene.ts';
+import type { Scene } from '../../world/core/scene.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
@@ -40,12 +40,10 @@ test('an instance changed or removed leaves the model and the other instances as
       [rowed, {} as HostMaterial],
     ]);
   const geometryStore = createAutonomousGeometry({
-    scene: { add: () => {}, remove: () => {} } as unknown as GraphScene,
+    scene: { add: () => {}, remove: () => {} } as unknown as Scene,
     allPages,
     bootstrap: [],
-    shown: [],
-    desired: [],
-    requested: [],
+    views: { live: { shown: [] }, lists: () => [] },
     byUrl,
     descriptors: new Map(),
     baseMaterials,

@@ -1,5 +1,10 @@
 import type { BackendContext, RenderBackend } from '../../backend/types.ts';
-import { chooseBackends, resolveTextureSource } from '../../backend/defaultBackends.ts';
+import {
+  chooseBackends,
+  loadsOwnVertices,
+  resolveTextureSource,
+} from '../../backend/defaultBackends.ts';
+import { loadHostVertices, meshes } from '../../scene/meshes.ts';
 import { configureExplorer } from './capabilities.ts';
 import { directWebgpu } from './interactiveOptions.ts';
 import { probeExplorerCapabilities } from './capabilityProbe.ts';
@@ -92,6 +97,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     ));
   const source = loadedScene.source;
   resources.source = source;
+  if (!loadsOwnVertices(choice.factories)) await loadHostVertices(meshes(source));
   const pageSources = await createExplorerPageSources(
     metadata,
     options,

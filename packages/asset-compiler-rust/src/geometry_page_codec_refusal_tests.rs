@@ -2,6 +2,7 @@
 //! attributes no page may carry.
 
 use crate::geometry_page::{encode, Attribute, FLAG_NORMAL, FLAG_UV};
+use crate::geometry_page_quant::UV_EXPONENT;
 use trillion3d_page_codec as codec;
 use trillion3d_page_codec::HEADER_BYTES;
 
@@ -9,22 +10,26 @@ const TRIANGLE: [f32; 9] = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0];
 
 #[test]
 fn the_decoder_refuses_what_the_encoder_never_writes() {
-    let good = encode(&[0, 1, 2], &TRIANGLE, &[], -8)
+    let good = encode(&[0, 1, 2], &TRIANGLE, &[], -8, UV_EXPONENT)
         .expect("encode")
         .bytes;
     assert!(codec::decode(&good, 1 << 20).is_ok());
-    // An index past the vertex count, forged in the index stream: two bits per index.
+    // An index past the vertex count, forged in the corner stream after the one-word block table:
+    // a base of zero, two bits per corner.
     let mut forged = good.clone();
-    forged[HEADER_BYTES] = 0b11_01_00;
+    forged[HEADER_BYTES + 4] = 0b11_01_00;
     assert_eq!(
         codec::decode(&forged, 1 << 20).unwrap_err(),
         codec::PageError::Index
     );
     // The widest field on the coarsest grid, from the largest minimum: still a finite float, so
     // no page needs a nonfinite refusal and the decoder has none. Three corners on one cell make
-    // a single vertex, so the page is its header and one word of `x`.
-    let mut extreme = encode(&[0, 1, 2], &[0.0; 9], &[], -8).expect("flat").bytes;
-    assert_eq!(extreme.len(), HEADER_BYTES);
+    // a single vertex, so the page is its header, the block table's one word (a zero width) and
+    // one word of `x`.
+    let mut extreme = encode(&[0, 1, 2], &[0.0; 9], &[], -8, UV_EXPONENT)
+        .expect("flat")
+        .bytes;
+    assert_eq!(extreme.len(), HEADER_BYTES + 4);
     extreme[24..28].copy_from_slice(&f32::MAX.to_le_bytes());
     extreme[20] = 24;
     extreme[23] = 64;
@@ -54,12 +59,14 @@ fn the_encoder_refuses_nonfinite_and_ill_shaped_attributes() {
     };
     let nan = normal(vec![0.0, 0.0, f32::NAN, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0]);
     assert_eq!(
-        encode(&[0, 1, 2], &TRIANGLE, &[&nan], -8).unwrap_err().code,
+        encode(&[0, 1, 2], &TRIANGLE, &[&nan], -8, UV_EXPONENT)
+            .unwrap_err()
+            .code,
         "INVALID_PAGE_ATTRIBUTE"
     );
     let short = normal(vec![0.0; 6]);
     assert_eq!(
-        encode(&[0, 1, 2], &TRIANGLE, &[&short], -8)
+        encode(&[0, 1, 2], &TRIANGLE, &[&short], -8, UV_EXPONENT)
             .unwrap_err()
             .code,
         "INVALID_PAGE_ATTRIBUTE"
@@ -70,13 +77,15 @@ fn the_encoder_refuses_nonfinite_and_ill_shaped_attributes() {
         values: vec![0.0; 9],
     };
     assert_eq!(
-        encode(&[0, 1, 2], &TRIANGLE, &[&wide], -8)
+        encode(&[0, 1, 2], &TRIANGLE, &[&wide], -8, UV_EXPONENT)
             .unwrap_err()
             .code,
         "INVALID_PAGE_ATTRIBUTE"
     );
     assert_eq!(
-        encode(&[0, 1], &TRIANGLE, &[], -8).unwrap_err().code,
+        encode(&[0, 1], &TRIANGLE, &[], -8, UV_EXPONENT)
+            .unwrap_err()
+            .code,
         "INVALID_PAGE"
     );
 }

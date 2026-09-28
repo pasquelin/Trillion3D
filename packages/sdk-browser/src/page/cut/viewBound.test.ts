@@ -68,8 +68,8 @@ function tables(copies: number) {
   pending.apply();
   assert.ok(pending.count > 0, 'the view awaits its pages');
   // WebGL2: the requests closed over their groups.
-  const requests = createAutonomousRequests(roots, () => 0, []);
-  requests.of(cut.wanted);
+  const requests = createAutonomousRequests(roots, () => 0);
+  requests.of(cut.wanted, []);
   return {
     'CPU cut readiness (page/cut/held.ts)': cpuReadiness,
     'GPU readiness and upload (gpu/dag/readiness.ts)': gpuReadiness,

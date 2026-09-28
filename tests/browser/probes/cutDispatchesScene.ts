@@ -21,17 +21,17 @@ export const DISPATCH_SCENE = { feuilles: 12000, niveaux: 8 } as const;
  *  the compiler's, one node per detail tier under the root. Residency goes through the engine's
  *  own upload, both bit sets of the cut rule and each node's open count (#486): ready bits alone
  *  make the cut drawn depend on the descent (`cut-dispatches-scene.test.ts`). */
-function scene(feuilles: number, niveaux: number) {
-  const roots = sceneRoots(scenePages(feuilles, niveaux), [new G.Matrix4()], true);
+function scene(feuilles: number, niveaux: number, poses: G.Matrix4[]) {
+  const roots = sceneRoots(scenePages(feuilles, niveaux), poses, true);
   const packed = packDagSelection(roots);
   const resident = ruleResidency(packed, new Uint8Array(packed.pageCount).fill(1));
   return { packed, roots, resident };
 }
 
-/** The benches' view of the scene: its camera, and the worlds brought back to that camera's
- *  render origin. */
-export function sceneView(feuilles: number, niveaux: number) {
-  const { packed, roots, resident } = scene(feuilles, niveaux);
+/** The benches' view of the scene, one placement per pose: its camera, and the worlds brought back
+ *  to that camera's render origin. */
+export function sceneView(feuilles: number, niveaux: number, poses = [new G.Matrix4()]) {
+  const { packed, roots, resident } = scene(feuilles, niveaux, poses);
   const uniforms = cameraSelectionUniforms(cameraMoteur(frontCamera(16, 200)), 1, [1280, 720]);
   packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld);
   return { packed, uniforms, resident };

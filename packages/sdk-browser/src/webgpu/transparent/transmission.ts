@@ -6,8 +6,9 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
  *  one record per transmissive item, read by water rank in a storage buffer. */
 export const VOLUME_WORDS = 8;
 /** The frozen backdrop costs a half-float colour (8 bytes) per pixel, and the depth the surface
- *  stage tests and writes 4 more; the surfaces themselves are the opaque resolve's, already paid. */
-const WATER_BYTES_PER_PIXEL = 8 + 4;
+ *  stage tests and writes 4 more; the other surfaces are the opaque resolve's, and the water word
+ *  borrows the display colour (`../water/surfaceWgsl.ts`), already paid. */
+export const WATER_BYTES_PER_PIXEL = 8 + 4;
 
 /** What the water pass adds to the image budget, zero with no transmissive surface. */
 export function backdropBytes(rt: WebgpuPagesRuntime, width: number, height: number) {
@@ -16,7 +17,7 @@ export function backdropBytes(rt: WebgpuPagesRuntime, width: number, height: num
 
 /**
  * Allocates what the water pass owns: the frozen colour its composite rereads, and the depth its
- * surface stage tests and writes. With no transmissive surface they are one texel: the bind
+ * surface stage writes. With no transmissive surface they are one texel: the bind
  * layouts are the same for the whole scene, and nothing is reserved for a class the scene does
  * not carry.
  */

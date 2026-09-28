@@ -57,6 +57,7 @@ const moved = new Float64Array(BOX_VALUES),
  * which its selection reads (`notDrawn`), and `seeThrough.flipped` hears it. Read once per scene
  * revision, never per frame. Returns the box of the roots that flipped, where the shadow pages must
  * be drawn again, or `null`; its corners are views of one scratch box, read before the next call.
+ * `movingOnly` says every root that flipped `moves` already: the static casters under it stay.
  */
 export function followHostVisibility<T extends { sourceMesh?: Object3D }, S extends SeeThrough>(
   roots: readonly ClusterRoot<T>[],
@@ -66,8 +67,14 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
     flipped?: (entry: S) => void;
   },
   flip?: (rank: number, root: ClusterRoot<T>) => void,
+  moves?: (rank: number) => boolean,
 ) {
   boxEmpty(moved, 0);
+  let movingOnly = true;
+  const flipped = (rank: number, root: ClusterRoot<T>) => {
+    movingOnly &&= !!moves?.(rank);
+    flip?.(rank, root);
+  };
   followHidden(
     roots,
     (root) => root.pages[0]?.sourceMesh,
@@ -75,7 +82,7 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
       const parked = !!root.hidden || rowParked(root.placement);
       if (parked === !!root.parked) return;
       root.parked = parked;
-      flip?.(rank, root);
+      flipped(rank, root);
       if (root.worldBox) boxUnionBatch(moved, root.worldBox, 1);
     },
   );
@@ -83,9 +90,9 @@ export function followHostVisibility<T extends { sourceMesh?: Object3D }, S exte
     const root = roots[rank],
       source = root.pages[0]?.sourceMesh;
     if (root.placement || !source || !markShadowless(root, !source.castShadow)) continue;
-    flip?.(rank, root);
+    flipped(rank, root);
     if (root.worldBox && !root.parked) boxUnionBatch(moved, root.worldBox, 1);
   }
   followHidden(seeThrough.entries, seeThrough.sourceOf, (entry) => seeThrough.flipped?.(entry));
-  return boxIsEmpty(moved, 0) ? null : { min: movedMin, max: movedMax };
+  return boxIsEmpty(moved, 0) ? null : { min: movedMin, max: movedMax, movingOnly };
 }

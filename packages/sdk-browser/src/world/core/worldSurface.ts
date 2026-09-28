@@ -1,8 +1,8 @@
 /**
  * THE SURFACE OF A WORLD'S MATERIAL: the family its kind names, as the engine's own surface.
  *
- * A physical kind is the engine's own record (`Material.surface`), on a physical surface when it
- * declares a physical field. Every other kind is the family of the same name — basic, Lambert,
+ * A physical kind is the engine's own record, on a standard or physical surface
+ * (`worldPhysicalSurface.ts`). Every other kind is the family of the same name — basic, Lambert,
  * Phong, toon, normal, matcap, depth —, which the engine maps onto its one lighting model on the
  * WebGPU path (`surfaceModel.ts`) and a renderer of the reference library draws as it is
  * (`bench/witnesses/three/fromGraph.ts`). Lines, points and sprites are unlit: they wear a basic surface.
@@ -13,8 +13,9 @@ import { Color } from '../../../../sdk-core/src/world/math/color.ts';
 import { LINE_DEPTH_LAYER, depthLayerUnits } from '../../../../sdk-core/src/lod/depthLayer.ts';
 import { hostSide } from '../../scene/materialSide.ts';
 import { composesWithBackground, hostBlending } from '../../scene/materialBlending.ts';
-import { hostPageSurface } from '../../host/pageObjects.ts';
 import { GraphSurface, type GraphSurfaceFamily } from '../../host/graph/surface.ts';
+import { physicalSurface, writePhysical } from './worldPhysicalSurface.ts';
+import { alphaModeOf } from '../../../../sdk-core/src/contracts/material.ts';
 import {
   COLOUR_MAPS,
   HOST_MAPS,
@@ -22,17 +23,6 @@ import {
   repaintHostMaps,
   type HostTextures,
 } from './worldTextures.ts';
-
-/** Physically based fields beyond the engine record, carried on a physical surface. */
-const PHYSICAL = [
-  'transmission',
-  'ior',
-  'thickness',
-  'clearcoat',
-  'clearcoatRoughness',
-  'sheen',
-  'iridescence',
-];
 
 /** The family of each kind that is not physical. */
 const FAMILY: Record<string, GraphSurfaceFamily> = {
@@ -52,23 +42,8 @@ const FAMILY: Record<string, GraphSurfaceFamily> = {
 /** Colours a family may carry, written in the linear working space both sides share. */
 const COLOURS = ['color', 'emissive', 'specular'];
 
-/** The physical surface: the engine's record, on a physical surface when it declares a physical
- *  field, which it then carries. */
-function physicalSurface(material: Material, vertexColors: boolean) {
-  const record = material.surface();
-  const upgrade = PHYSICAL.some(
-    (field) => typeof material[field] === 'number' && material[field] !== 0,
-  );
-  const surface = hostPageSurface(record, vertexColors, upgrade ? 'physical' : 'standard');
-  if (upgrade)
-    for (const field of PHYSICAL)
-      if (typeof material[field] === 'number') surface[field] = material[field];
-  return surface;
-}
-
-/** A non-physical family, its fields written from the material's where the family has them. */
-function familySurface(family: GraphSurfaceFamily, material: Material, vertexColors: boolean) {
-  const surface = new GraphSurface(family);
+/** Writes the colours a surface has, its glow scaled by its intensity, and its shininess. */
+function writeColours(surface: GraphSurface, material: Material) {
   for (const field of COLOURS) {
     const colour = material[field] as { r: number; g: number; b: number } | undefined;
     const into = surface[field] as Color | undefined;
@@ -78,6 +53,12 @@ function familySurface(family: GraphSurfaceFamily, material: Material, vertexCol
   if (emissive?.isColor) emissive.multiplyScalar(material.emissiveIntensity);
   if (typeof material.shininess === 'number' && 'shininess' in surface)
     surface.shininess = material.shininess;
+}
+
+/** A non-physical family, its fields written from the material's where the family has them. */
+function familySurface(family: GraphSurfaceFamily, material: Material, vertexColors: boolean) {
+  const surface = new GraphSurface(family);
+  writeColours(surface, material);
   surface.opacity = material.opacity;
   surface.transparent = material.transparent;
   surface.alphaTest = material.alphaTest;
@@ -97,6 +78,11 @@ function writeDash(surface: GraphSurface, material: Material) {
   surface.gapSize = solid ? 0 : ((material.gapSize as number | undefined) ?? 0) / scale;
 }
 
+/** A line's width in CSS pixels, 1 by default. A value, so a repaint writes it again. */
+function writeLineWidth(surface: GraphSurface, material: Material) {
+  surface.lineWidth = (material.linewidth as number | undefined) ?? 1;
+}
+
 /** Both sides in one pass, for a quad the rasters lay on screen (a line's, a sprite's): it has no
  *  face to cull, and a transparent one drawn back then front would take two entries of the
  *  transparent plan, whose per-frame ranking grows with the square of their count (#364). */
@@ -114,7 +100,7 @@ function drawBothSidesOnce(surface: GraphSurface) {
  * for its forward depth (nearer is smaller).
  */
 function drawLines(surface: GraphSurface, material: Material) {
-  surface.lineWidth = (material.linewidth as number | undefined) ?? 1;
+  writeLineWidth(surface, material);
   if (material.kind === 'lineDashed') writeDash(surface, material);
   drawBothSidesOnce(surface);
   surface.polygonOffset = true;
@@ -177,22 +163,26 @@ export function hostSurface(
 }
 
 /**
- * Writes a material's value fields — colour, glow, metalness, roughness, a dashed line's dash and
- * gap, a sprite's turn — and its maps' sampling
- * into the surface built for it, as `hostSurface` wrote them, and bumps the surface's version:
- * every reader of the surface (`page/surface.ts`) takes them at its next read, nothing built again
- * (#335). A map whose version moved sends its picture again; one whose placement alone moved is
- * placed again, nothing sent (`repaintHostMaps`).
+ * Writes a material's value fields — colours, glow, metalness, roughness, shininess, opacity,
+ * cutoff, physical extensions and the family they put a physical kind in, a line's width, a
+ * dashed line's dash and gap, a sprite's turn — and its maps' sampling into the surface built for
+ * it, as `hostSurface` wrote them, and bumps the surface's version: every reader of the surface
+ * (`page/surface.ts`) takes them at its next read, nothing built again (#335, #572). A map whose
+ * version moved sends its picture again; one whose placement alone moved is placed again,
+ * nothing sent (`repaintHostMaps`).
  */
 export function repaintHostSurface(surface: GraphSurface, material: Material) {
   repaintHostMaps(surface as unknown as Record<string, unknown>, material);
-  const { color, emissive } = material;
-  (surface.color as Color | undefined)?.setRGB(color.r, color.g, color.b);
-  (surface.emissive as Color | undefined)
-    ?.setRGB(emissive.r, emissive.g, emissive.b)
-    .multiplyScalar(material.emissiveIntensity);
+  writeColours(surface, material);
   if (typeof surface.metalness === 'number') surface.metalness = material.metalness;
   if (typeof surface.roughness === 'number') surface.roughness = material.roughness;
+  surface.opacity = material.opacity;
+  // A physical kind's record cuts only a masked surface (`hostPageSurface`), a family its own.
+  const family = FAMILY[material.kind];
+  const cut = family || alphaModeOf(material) === 'mask';
+  surface.alphaTest = cut ? material.alphaTest : 0;
+  if (!family) writePhysical(surface, material);
+  if (typeof surface.lineWidth === 'number') writeLineWidth(surface, material);
   if (typeof surface.dashSize === 'number') writeDash(surface, material);
   if (surface.sprite === true) writeSpriteTurn(surface, material);
   surface.needsUpdate = true;

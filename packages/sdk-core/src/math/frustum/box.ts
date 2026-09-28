@@ -8,37 +8,12 @@
  * Rust mirror (CPU cut walk): `frustum_clip_box` of `packages/page-codec-wasm/src/cut_error.rs`.
  */
 
-/** The six box coordinates, arranged so that the plane sign serves as an index. */
-const bounds = new Float64Array(6);
-
-function loadBounds(
-  minX: number,
-  minY: number,
-  minZ: number,
-  maxX: number,
-  maxY: number,
-  maxZ: number,
-) {
-  bounds[0] = minX;
-  bounds[1] = maxX;
-  bounds[2] = minY;
-  bounds[3] = maxY;
-  bounds[4] = minZ;
-  bounds[5] = maxZ;
-}
-
-/** True when a plane already has its most forward corner behind it. */
-function excludesLoaded(planes: Float64Array) {
-  for (let p = 0; p < 24; p += 4) {
-    const a = planes[p],
-      b = planes[p + 1],
-      c = planes[p + 2],
-      d = planes[p + 3];
-    if (a * bounds[a > 0 ? 1 : 0] + b * bounds[b > 0 ? 3 : 2] + c * bounds[c > 0 ? 5 : 4] + d < 0)
-      return true;
-  }
-  return false;
-}
+/*
+ * The corner is chosen by value, `a > 0 ? maxX : minX`, not by an index into a scratch array: the
+ * six bounds stay in registers. It picks what an index by the plane's sign would pick, NaN
+ * included (`NaN > 0` is false), with the same products in the same order: the same verdict
+ * (`box.test.ts`).
+ */
 
 /** True when the box is entirely outside the frustum: a plane leaves all its corners behind. */
 export function frustumExcludesBox(
@@ -50,8 +25,15 @@ export function frustumExcludesBox(
   maxY: number,
   maxZ: number,
 ) {
-  loadBounds(minX, minY, minZ, maxX, maxY, maxZ);
-  return excludesLoaded(planes);
+  for (let p = 0; p < 24; p += 4) {
+    const a = planes[p],
+      b = planes[p + 1],
+      c = planes[p + 2],
+      d = planes[p + 3];
+    if (a * (a > 0 ? maxX : minX) + b * (b > 0 ? maxY : minY) + c * (c > 0 ? maxZ : minZ) + d < 0)
+      return true;
+  }
+  return false;
 }
 
 /**
@@ -70,14 +52,13 @@ export function frustumClipBox(
   maxY: number,
   maxZ: number,
 ) {
-  loadBounds(minX, minY, minZ, maxX, maxY, maxZ);
-  if (excludesLoaded(planes)) return 0;
+  if (frustumExcludesBox(planes, minX, minY, minZ, maxX, maxY, maxZ)) return 0;
   for (let p = 0; p < 24; p += 4) {
     const a = planes[p],
       b = planes[p + 1],
       c = planes[p + 2],
       d = planes[p + 3];
-    if (a * bounds[a > 0 ? 0 : 1] + b * bounds[b > 0 ? 2 : 3] + c * bounds[c > 0 ? 4 : 5] + d < 0)
+    if (a * (a > 0 ? minX : maxX) + b * (b > 0 ? minY : maxY) + c * (c > 0 ? minZ : maxZ) + d < 0)
       return 1;
   }
   return 2;

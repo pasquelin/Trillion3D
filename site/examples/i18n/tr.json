@@ -58,7 +58,8 @@
       "missingCache": "Derlenmiş önbellek eksik: pnpm compile:caches komutunu çalıştırın"
     },
     "banner": {
-      "close": "Kapat"
+      "close": "Kapat",
+      "waiting": "Motoru bekliyor (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -500,6 +501,32 @@
       "balloon": "BALONU İZLİYOR"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Parktaki kayıtlı rotayı izleyin. Yeniden oynatın, durdurun veya kamerayı devralın.",
+    "controls": {
+      "replay": "Yeniden oynat",
+      "stop": "Durdur"
+    },
+    "readouts": {
+      "currentPart": "Geçerli bölüm"
+    },
+    "words": {
+      "entrance": "Giriş",
+      "pond": "Gölet",
+      "bridge": "Köprü",
+      "pavilion": "Köşk",
+      "overview": "Genel görünüm",
+      "complete": "Tamamlandı"
+    }
+  },
+  "a-crane-that-swings": {
+    "banner": "Tek bir klip bomu döndürürken, arabayı hareket ettirirken, yükü kaldırıp sallarken vincin etrafında dönün.",
+    "controls": {
+      "speed": "Hız",
+      "paused": "Duraklatıldı",
+      "replay": "Yeniden oynat"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Etrafa bakmak için sürükle. Küp dalgasını daha yüksek ya da hızlı yap.",
     "controls": {
@@ -508,6 +535,34 @@
       "ripples": "Halkalar",
       "inner": "İç",
       "outer": "Dış"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Kamerayı kapılara yaklaştırın. Yaklaştığınızda açılırlar.",
+    "controls": {
+      "mode": "Mod",
+      "openingDistance": "Açılma mesafesi",
+      "openness": "Açıklık"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "yakınlık",
+        "manual": "elle"
+      }
+    }
+  },
+  "a-carousel": {
+    "banner": "Atlıkarıncanın çevresinde dönün. Durdurun veya ahşap atları ters yöne gönderin.",
+    "controls": {
+      "running": "Çalışıyor",
+      "speed": "Hız",
+      "direction": "Yön"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "saat yönünde",
+        "counterclockwise": "saat yönünün tersine"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -561,6 +616,17 @@
       "lamp": "Lamba",
       "colour": "Renk",
       "bricks": "Tuğlalar"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Aralarındaki mesafeyi ölçmek için iki yüzeye tıklayın. Üçüncü tıklama yeni bir ölçüm başlatır. Bir birim bir metreyi temsil eder.",
+    "controls": {
+      "clear": "Temizle"
+    },
+    "readouts": {
+      "pointA": "A noktası",
+      "pointB": "B noktası",
+      "distance": "Mesafe"
     }
   },
   "click-to-pick": {
@@ -1259,6 +1325,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Görünüme tıklayın, W A S D ile yürüyün ve fareyle bakın. İlerlerken bellek bütçesini azaltın.",
+    "controls": {
+      "walkSpeed": "Yürüme hızı",
+      "memory": "Bellek",
+      "view": "Görünüm",
+      "home": "Başa dön"
+    },
+    "choices": {
+      "view": {
+        "beauty": "görüntü",
+        "lod": "ayrıntı düzeyleri",
+        "clusters": "kümeler"
+      }
+    },
+    "words": {
+      "credit": "Bu örnek için kodla modellenmiş vazolar caddesi, CC0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01: Rico Cilliers, Poly Haven, CC0; sandık: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
@@ -1661,7 +1746,8 @@
       "night": "Gece",
       "bounce": "Sekme",
       "sun": "Güneş",
-      "lamp": "Lamba"
+      "lamp": "Lamba",
+      "spin": "Döndür"
     },
     "words": {
       "credit": "Sokak lambası modeli: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
@@ -1710,11 +1796,18 @@
   },
   "the-home-pose": {
     "banner": "Bir görünüm seçin, kamerayı hareket ettirin, sonra dönmek için Başlangıç'ı seçin.",
-    "controls": { "home": "Başlangıç", "tower": "Kule", "square": "Meydan", "hillside": "Yamaç" }
+    "controls": {
+      "home": "Başlangıç",
+      "tower": "Kule",
+      "square": "Meydan",
+      "hillside": "Yamaç"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Yakın düzlemi ilerletin ve her duvarı kesmesini izleyin.",
-    "controls": { "nearPlane": "Yakın düzlem" }
+    "controls": {
+      "nearPlane": "Yakın düzlem"
+    }
   },
   "the-material-family": {
     "banner": "Etrafta dolaşmak için sürükle. Işığı geceye çevir ve hâlâ neyin parladığını gör.",
@@ -1906,6 +1999,7 @@
       "manifest": "manifest okundu",
       "tables": "sahne tabloları okundu",
       "resources": "sahne dosyaları",
+      "session": "görünüm açılıyor",
       "pages": "ilk sayfalar",
       "ready": "hazır"
     }
@@ -2181,6 +2275,27 @@
       "credit": "Direkteki bayrak bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
     }
   },
+  "an-elevation-of-the-house": {
+    "banner": "Bir ev görünüşü seçin. Kamerayı uzaklaştırın: ortografik çizim tam olarak aynı ölçeği korur.",
+    "controls": {
+      "elevation": "Görünüş",
+      "distance": "Kamera uzaklığı",
+      "zoom": "Çizim ölçeği"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Ön",
+        "right": "Sağ yan",
+        "rear": "Arka"
+      }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Arabanın parçalarını tek tek vurgulamak için üzerlerine gelin veya panelden vurgulamayı kapatın.",
+    "controls": {
+      "highlightEnabled": "Vurgulamayı etkinleştir"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "Kamera kanal boyunca ilerlerken hareketi duraklatın, baştan oynatın veya hızını değiştirin.",
     "controls": {
@@ -2190,6 +2305,55 @@
     },
     "readouts": {
       "progress": "İlerleme"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Sokak köşesini incelemek için sürükleyin. Derleyici bir klasördeki üç OBJ dosyasını bu sahnede birleştirdi.",
+    "controls": {
+      "visible": "Görünür",
+      "home": "Başlangıç"
+    },
+    "words": {
+      "credit": "Sokak lambası modeli: W. Sitters, CC BY 3.0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Sandığı zeminde sürükleyin. Yarım metrelik adımlarla yerleştirmek için ızgarayı açın.",
+    "controls": {
+      "snap": "Izgara",
+      "home": "Başlangıç"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Seçmek için bir şekle tıklayın. Seçimi temizlemek için zemine tıklayın.",
+    "controls": {
+      "color": "Renk",
+      "thickness": "Kalınlık"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Alanı çevrelemek için sürükleyin. Sayıyı veya görünümü değiştirin.",
+    "controls": {
+      "count": "Sayı",
+      "view": "Görünüm"
+    },
+    "readouts": {
+      "objectsShown": "Gösterilen nesneler",
+      "objectsBuilt": "Oluşturulan nesneler"
+    },
+    "choices": {
+      "view": {
+        "beauty": "görüntü",
+        "clusters": "kümeler"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Görüntüleyiciyi bağlayın veya ayırın. Her bağlantı bir dünyaya sahip olur ve her ayırma onu yok eder.",
+    "controls": {
+      "mount": "Bağla",
+      "unmount": "Ayır",
+      "remount": "Yeniden bağla"
     }
   }
 }

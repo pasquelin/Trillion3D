@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import * as G from '../host/graph/graph.fixture.ts';
 import { installSceneLighting } from './sceneLighting.ts';
-import { hostAimNode, lighting } from '../../../../bench/witnesses/three/displayObjects.ts';
+import { lighting } from '../../../../bench/witnesses/three/displayObjects.ts';
 
 test('Three reference adapter copies the authored directional target in world space', () => {
   const source = new G.Group(),
@@ -13,8 +13,8 @@ test('Three reference adapter copies the authored directional target in world sp
   const sun = G.directionalLight(0xffffff, 2);
   sun.position.set(1, 3, 2);
   parent.add(sun);
-  sun.target!.position.set(4, 0, 0);
-  source.add(sun.target!);
+  sun.target.position.set(4, 0, 0);
+  source.add(sun.target);
   const reference = new THREE.Scene();
   lighting(reference, 0, source);
   const copy = reference.children.find(
@@ -26,7 +26,7 @@ test('Three reference adapter copies the authored directional target in world sp
 
 test('a source without a declared light installs no light at all', () => {
   const scene = new THREE.Scene();
-  installSceneLighting(scene, new G.Group(), hostAimNode);
+  installSceneLighting(scene, new G.Group());
   assert.equal(
     scene.children.filter((object) => (object as THREE.Light).isLight).length,
     0,
@@ -36,7 +36,7 @@ test('a source without a declared light installs no light at all', () => {
 
 test('placing the lights leaves the display background to the boundary that owns the graph', () => {
   const scene = new THREE.Scene();
-  installSceneLighting(scene, new G.Group(), hostAimNode);
+  installSceneLighting(scene, new G.Group());
   assert.equal(scene.background, null, 'the light placement declares no clear colour');
   lighting(scene, 0x112233, new G.Group());
   const background: THREE.Color | null = scene.background as THREE.Color | null;
@@ -51,83 +51,68 @@ test('a light that aims carries its own target: the source graph keeps the one i
   const source = new G.Group();
   const sun = G.directionalLight(0xffffff, 1);
   source.add(sun);
-  source.add(sun.target!);
+  source.add(sun.target);
   const scene = new THREE.Scene();
   lighting(scene, 0, source);
   const copy = scene.children.find(
     (object) => object instanceof THREE.DirectionalLight,
   ) as THREE.DirectionalLight;
-  assert.notEqual(copy.target, sun.target!, 'the copy does not share the source aim');
-  assert.equal(sun.target!.parent, source, 'the source keeps its own target');
+  assert.notEqual(copy.target, sun.target, 'the copy does not share the source aim');
+  assert.equal(sun.target.parent, source, 'the source keeps its own target');
   assert.equal(copy.target.parent, scene, 'the copied aim is placed in the display graph');
 });
 
-/** A host of the contract's shape alone: no rendering library on either side. */
-function fakeLight(extra: Record<string, unknown>, clone: () => unknown) {
-  return {
-    name: 'light',
-    visible: true,
-    kind: 'point',
-    color: { r: 1, g: 1, b: 1 },
-    intensity: 1,
-    position: { x: 0, y: 0, z: 0 },
-    quaternion: { x: 0, y: 0, z: 0, w: 1 },
-    scale: { x: 1, y: 1, z: 1 },
-    matrixWorld: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 2, 3, 4, 1] },
-    parent: null,
-    updateWorldMatrix() {},
-    clone,
-    ...extra,
-  };
-}
-function fakeGraph(light: unknown) {
+/** A display graph that records what the placement adds to it. */
+function recordingScene() {
   const added: unknown[] = [];
-  return {
-    added,
-    source: {
-      name: 'source',
-      visible: true,
-      traverse: (visit: (n: never) => void) => visit(light as never),
-    },
-    scene: { add: (node: unknown) => added.push(node), remove: () => {} },
-  };
+  return { added, scene: { add: (node: unknown) => added.push(node), remove: () => {} } };
 }
-const fakeAim = () => ({
-  visible: true,
-  position: { x: 0, y: 0, z: 0 },
-  quaternion: { x: 0, y: 0, z: 0, w: 1 },
-  scale: { x: 1, y: 1, z: 1 },
-  matrixWorld: { elements: new Array(16).fill(0) },
-  parent: null,
-  updateWorldMatrix() {},
+
+test('a copy aims at its own target, posed where the source declared its own', () => {
+  const source = new G.Group();
+  const sun = G.directionalLight(0xffffff, 1);
+  sun.target.position.set(7, 8, 9);
+  source.add(sun, sun.target);
+  const { added, scene } = recordingScene();
+  installSceneLighting(scene, source);
+  const [aim, copy] = added as [G.Object3D, G.Light];
+  assert.equal(aim, copy.target, 'the aim node placed beside the copy is its own target');
+  assert.notEqual(aim, sun.target, 'the source keeps the target it declared');
+  assert.deepEqual(aim.position.toArray(), [7, 8, 9]);
 });
 
-test('the aim is read on the light the source declared, not on the copy the host returned', () => {
-  const target = {
-    ...fakeAim(),
-    matrixWorld: { elements: [...new Array(12).fill(0), 7, 8, 9, 1] },
-  };
-  // A host whose `clone()` drops the target: the old read of the copy lost the aim silently.
-  const light = fakeLight({ kind: 'directional', target }, () => fakeLight({}, () => null));
-  const graph = fakeGraph(light);
-  installSceneLighting(graph.scene as never, graph.source as never, fakeAim as never);
-  assert.equal(graph.added.length, 2, 'the aim node is placed beside the copy');
-  const aim = graph.added[0] as ReturnType<typeof fakeAim>;
-  assert.deepEqual(
-    [aim.position.x, aim.position.y, aim.position.z],
-    [7, 8, 9],
-    'and it is posed on the world position of the target the source declared',
-  );
-});
-
-test('a light that reaches every surface alike is placed with no aim node', () => {
-  const light = fakeLight({ kind: 'ambient' }, () => fakeLight({ kind: 'ambient' }, () => null));
-  const graph = fakeGraph(light);
-  const installed = installSceneLighting(
-    graph.scene as never,
-    graph.source as never,
-    fakeAim as never,
-  );
+test('a point, an ambient and a probe are placed with no aim node', () => {
+  const source = new G.Group();
+  source.add(G.pointLight(0xffffff, 1), G.ambientLight(0xffffff, 1), G.lightProbe());
+  const { added, scene } = recordingScene();
+  const installed = installSceneLighting(scene, source);
   assert.equal(installed.lit, true);
-  assert.equal(graph.added.length, 1, 'an ambient light aims at nothing: no aim node');
+  assert.equal(added.length, 3, 'each light aims at nothing: its copy alone');
+});
+
+// #558 (D): a casting lamp shown or hidden after the copy is heard at the placement that sees it,
+// so WebGL2 never draws it unshadowed silently.
+test('a source lamp shown, hidden or set to cast after the copy changes the casting list', () => {
+  const sun = G.directionalLight();
+  sun.name = 'sun';
+  sun.castShadow = true;
+  sun.visible = false;
+  const source = new G.Group();
+  source.add(sun, G.pointLight());
+  const lighting = installSceneLighting({ add() {}, remove() {} }, source);
+  let heard = 0;
+  lighting.castingChanged = () => void heard++;
+  assert.deepEqual(lighting.casting, []);
+  sun.visible = true;
+  lighting.update();
+  assert.deepEqual([lighting.casting, heard], [['sun'], 1]);
+  lighting.update();
+  assert.equal(heard, 1, 'a placement that shows no lamp anew says nothing');
+  sun.castShadow = false;
+  lighting.update();
+  assert.deepEqual([lighting.casting, heard], [[], 2], 'its cast cleared, it is no longer named');
+  sun.castShadow = true;
+  sun.visible = false;
+  lighting.update();
+  assert.equal(heard, 2, 'hidden, it asks for no shadow');
 });

@@ -47,7 +47,10 @@ fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f
  if(isRect(light)){return rectLight(light,rgb,metal,rough,N,V,P,ao);}
  let incidence=directIncidence(light,P);
  if(incidence.w<=0.0){return vec3f(0.0);}
- let shade=shadowFactor(i32(light.params.y),light,P,N,incidence.xyz);
+ // A surface facing away from the light gets its exact zero whatever the shadow: the filter's
+ // taps are skipped, never the page reads and requests (\`shadowPcf\`). Toon bands light it.
+ let facing=surfaceModel==${MODEL_FLAG.toon}u||select(dot(N,normalize(incidence.xyz)),dot(N,incidence.xyz),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;
+ let shade=shadowFactor(i32(light.params.y),light,P,N,incidence.xyz,facing);
  if(shade<=0.0){return vec3f(0.0);}
  let energy=light.colorIntensity.w*incidence.w*shade;
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return modelLight(rgb,metal,N,incidence.xyz,energy,ao)*light.colorIntensity.rgb;}
@@ -61,28 +64,29 @@ fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
  return rgb*(1.0-metal)*max(E,vec3f(0.0))*ao*${INVERSE_PI};
 }
 fn pixelTile(pixel:vec2f)->vec2u{return vec2u(u32(pixel.x)/TILE_SIZE,u32(pixel.y)/TILE_SIZE);}
-/** Every declared light of the scene, in rank order. */
-fn sceneLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
+/** Where the lights of a slice of a tile's list start, and how many: its count at countSlot, its
+ *  list from firstSlot — past \`TILE_LIGHTS\`, from the start the list's first word names in the
+ *  pool (#849). \`TILE_NO_SLICE\` when the pool had no room: every declared light of the scene. */
+fn tileSlice(base:u32,countSlot:u32,firstSlot:u32)->vec2u{
+ let kept=tileLights[base+countSlot];
+ if(kept<=TILE_LIGHTS){return vec2u(base+firstSlot,kept);}
+ let first=tileLights[base+firstSlot];
+ return vec2u(first,select(kept,directLights.count,first==TILE_NO_SLICE));
+}
+/** The lights of a slice (\`tileSlice\`), or from \`TILE_NO_SLICE\` every light of the scene in rank
+ *  order: the one loop that shades a pixel's lights in full. A light that misses the point adds
+ *  an exact zero. */
+fn sliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->vec3f{
  var result=vec3f(0.0);
- for(var index=0u;index<directLights.count;index++){
-  result+=declaredLight(directLights.items[index],rgb,metal,rough,N,V,P,ao);
+ for(var index=0u;index<slice.y;index++){
+  var light=index;
+  if(slice.x!=TILE_NO_SLICE){light=tileLights[slice.x+index];}
+  result+=declaredLight(directLights.items[light],rgb,metal,rough,N,V,P,ao);
  }
  return result;
 }
-/** Lights of a slice of a tile's list: its count at countSlot, its indices from firstSlot. A
- *  count past \`TILE_LIGHTS\` says the tile keeps no list: it walks every light of the scene, and
- *  one that misses it adds an exact zero. */
 fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,tile:vec2u,tilesX:u32,countSlot:u32,firstSlot:u32)->vec3f{
- var result=vec3f(0.0);
- let base=(tile.y*tilesX+tile.x)*TILE_STRIDE;
- let kept=tileLights[base+countSlot];
- if(kept<=TILE_LIGHTS){
-  for(var index=0u;index<kept;index++){
-   result+=declaredLight(directLights.items[tileLights[base+firstSlot+index]],rgb,metal,rough,N,V,P,ao);
-  }
-  return result;
- }
- return sceneLighting(rgb,metal,rough,N,V,P,ao);
+ return sliceLighting(rgb,metal,rough,N,V,P,ao,tileSlice((tile.y*tilesX+tile.x)*TILE_STRIDE,countSlot,firstSlot));
 }`;
 
 /**
@@ -142,7 +146,7 @@ fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  let tilesY=u32(uni.lightTiles.y);
  let tile=pixelTile(pixel);
  if(tilesX==0u||tilesY==0u||tile.x>=tilesX||tile.y>=tilesY){
-  return sceneLighting(rgb,metal,rough,N,V,P,ao);
+  return sliceLighting(rgb,metal,rough,N,V,P,ao,vec2u(TILE_NO_SLICE,directLights.count));
  }
  return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,1u,TILE_BLEND_BASE);
 }`;

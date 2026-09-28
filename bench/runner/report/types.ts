@@ -14,6 +14,7 @@ import type { Bounds } from '../poses.ts';
 import type { LightsPlan } from '../lamps.ts';
 import type { LimitsRecord } from '../limits.ts';
 import type { FluidsRow } from '../fluids.ts';
+import type { GazeNetworkReading } from '../gazeNetworkRun.ts';
 
 /** What `bench.ts` builds before playing series, and `series.ts` reads to run one. */
 export interface RunContext {
@@ -58,8 +59,14 @@ export interface PoolGeometrie {
   saturees: number | null;
 }
 
-/** In-session reservoir tuning report, plus the frames it took the pose to hold again. */
-export type ReglageVivant = MemoryBudgetsReport & { imagesReprise: number | null };
+/** In-session reservoir tuning report, plus the frames it took the pose to hold again, the texture
+ *  budget asked when one was, and, for a texture pool asked as a fraction of the working set, the
+ *  resident bytes it was taken of. */
+export type ReglageVivant = MemoryBudgetsReport & {
+  imagesReprise: number | null;
+  texturePoolAskedBytes?: number;
+  residentTextureBytes?: number;
+};
 
 /** Bytes transferred on the network since a reading, by file kind. */
 export type Reseau = Record<string, number>;
@@ -73,7 +80,8 @@ type ErreurPage =
   | { kind: 'pageerror'; message: string }
   | { kind: 'http'; status: number; url: string }
   | { kind: 'console'; message: string }
-  | { kind: 'cut-analysis'; message: string };
+  | { kind: 'cut-analysis'; message: string }
+  | { kind: 'black-capture'; message: string };
 
 /** A generic-rule light placement summary (`lamps.ts`), for `mesure.json` and `resume.md`. */
 export interface LightsSummary {
@@ -87,7 +95,7 @@ export interface LightsSummary {
   mobile: boolean;
 }
 
-/** Delta between two RGBA captures (`summary.ts::imageDiff`). */
+/** Delta between two RGBA captures (`imageDiff.ts::imageDiff`). */
 export type ImageDiff =
   null | { erreur: string } | { pixels: number; maxCanal: number; total: number };
 
@@ -177,6 +185,7 @@ export interface Report {
   ressources: string | null;
   sides: Record<string, SideIdentity>;
   series: Serie[];
+  gazeNetwork?: GazeNetworkReading[];
   errors: ErreurPage[];
   bounds?: Bounds;
   lampes?: LightsSummary | null;

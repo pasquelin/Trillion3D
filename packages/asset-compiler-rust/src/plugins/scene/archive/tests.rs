@@ -3,6 +3,7 @@
 //! Trap archives are built here, byte by byte: an archive that puts a reader to the test must
 //! not come from that reader. Nothing is written outside the case's throwaway directory.
 use super::*;
+use crate::tests::fixtures::files;
 use std::fs;
 
 mod package;
@@ -72,22 +73,6 @@ fn extracted(dir: &Path) -> Vec<PathBuf> {
         .map(|entry| entry.path().join("content"))
         .filter(|content| content.exists())
         .collect()
-}
-
-/// The regular files left anywhere under `dir`.
-fn files(dir: &Path) -> Vec<PathBuf> {
-    let Ok(entries) = fs::read_dir(dir) else {
-        return Vec::new();
-    };
-    let mut out = Vec::new();
-    for path in entries.flatten().map(|entry| entry.path()) {
-        if path.is_dir() {
-            out.extend(files(&path));
-        } else {
-            out.push(path);
-        }
-    }
-    out
 }
 
 /// The package or archive once the case is done.

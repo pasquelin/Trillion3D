@@ -19,6 +19,10 @@ export type DagViewUniforms = SelectionUniforms & { light?: LightPages };
 export const DAG_NODE_FLOATS = 24,
   FRAME_VEC4 = 7,
   CULL_STRIDE = 15;
+/** Vec4s per primitive a camera cut's `dagPrepare` derives behind the first row of `frames`
+ *  (`shader/primitiveWgsl.ts`): its `view · world`, its prepared normal matrix, and the view
+ *  ahead's planes and `view · world`. */
+export const PRIMITIVE_VEC4 = 17;
 type DagCluster = {
   url: string;
   /** Its quantized page: with `url`, the content key the pool holds it under (`evict.ts`). */

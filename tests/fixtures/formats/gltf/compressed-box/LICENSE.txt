@@ -1,0 +1,5 @@
+Box, copyright 2017 Cesium, licensed under Creative Commons Attribution 4.0 International.
+https://creativecommons.org/licenses/by/4.0/legalcode
+Unmodified Draco glTF and binary from the Khronos glTF Sample Assets repository:
+https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Box/glTF-Draco
+Used as an independent decoder interoperability fixture.

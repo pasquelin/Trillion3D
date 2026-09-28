@@ -108,43 +108,81 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     for (const backend of backends) await backend.flush?.();
     await diagnosticChannel.flush();
   };
+  /** Counts as landed, once, the pages `backend`'s view reads that the streamer holds, `missing`
+   *  aside: resident already, through the watch's `hold`. A page read again later — the WebGPU
+   *  residency uploading it — or shared with another backend is not counted twice. */
+  const holdPages = (
+    backend: RenderBackend,
+    missing: readonly string[],
+    hold: (url: string) => void,
+  ) => {
+    const lacking = new Set(missing);
+    const retain = (url: string) => {
+      if (!lacking.has(url) && streamer.has(url)) hold(url);
+    };
+    const ranks = backend.retainedRanks?.();
+    if (ranks) {
+      // Apply this delta before another read of the backend can turn it into an empty hold.
+      streamer.retainRanks(ranks);
+      for (let i = 0; i < ranks.heldCount; i++) {
+        const url = ranks.urls[ranks.held[i]];
+        if (url !== undefined) retain(url);
+      }
+    } else {
+      for (const url of backend.pageUrls?.() ?? []) retain(url);
+    }
+  };
   /** The pages the view reads, made resident; `image: false` takes no picture of them.
-   *  `onProgress` hears `pages`: how many of those it lacked are resident, the last event once
-   *  they all are (`completed === total`). */
+   *  `onProgress` hears `pages`: `total` the pages the view reads — those the streamer held already
+   *  and every page it reads for the view while the wait runs, a prefetch aside, whoever asks it
+   *  (`readWatch.ts`): the host for the cut, or the engine itself, as the WebGPU residency does
+   *  inside its flush —, `completed` those resident, rising as each lands; the last event says
+   *  `completed === total`. */
   const awaitPages = async (options: PageWait = {}) => {
     const { onProgress, ...wait } = options;
-    const pages = { completed: 0, total: 0 };
-    const report = (message: string) => onProgress?.({ phase: 'pages', ...pages, message });
-    check();
-    if (streaming.promise) await streaming.promise;
-    for (const backend of backends) {
-      await awaitBackendPages(
-        backend,
-        camera,
-        async (missing) => {
-          const before = { ...pages };
-          await streamer.request(missing, {
-            onPage: (resident, requested) => {
-              pages.completed = before.completed + resident;
-              pages.total = before.total + requested;
-              report(`${resident} of ${requested} pages the view reads`);
-            },
-          });
-          for (const url of missing) {
-            if (geometryUrls.has(url)) {
-              const bytes = streamer.getBytes(url);
-              if (bytes) backend.acceptGeometryPage?.(url, await decodePageOffThread(bytes));
-            } else {
-              const array = streamer.get(url);
-              if (array) backend.acceptPage?.(url, array);
+    let said = { completed: -1, total: -1 };
+    const report = (last = false) => {
+      const { landed: completed, asked } = read.reads();
+      const total = last ? completed : asked;
+      if (completed === said.completed && total === said.total) return;
+      said = { completed, total };
+      onProgress?.({
+        phase: 'pages',
+        completed,
+        total,
+        message: `${completed} of ${total} pages the view reads`,
+      });
+    };
+    const read = streamer.watch(() => report());
+    try {
+      check();
+      if (streaming.promise) await streaming.promise;
+      for (const backend of backends) {
+        await awaitBackendPages(
+          backend,
+          camera,
+          async (missing) => {
+            holdPages(backend, missing, read.hold);
+            // `load` hears the cut even when it lacks nothing; an empty batch is not asked.
+            if (missing.length) await streamer.request(missing);
+            for (const url of missing) {
+              if (geometryUrls.has(url)) {
+                const bytes = streamer.getBytes(url);
+                if (bytes) backend.acceptGeometryPage?.(url, await decodePageOffThread(bytes));
+              } else {
+                const array = streamer.get(url);
+                if (array) backend.acceptPage?.(url, array);
+              }
             }
-          }
-        },
-        wait,
-      );
-      retainVisiblePages(backend, streamer);
+          },
+          wait,
+        );
+        retainVisiblePages(backend, streamer);
+      }
+      report(true);
+    } finally {
+      read.stop();
     }
-    report('The pages the view reads are resident');
     state.loaded = streamer.stats().loaded;
     state.pageBytesRead = streamer.stats().bytesRead;
   };

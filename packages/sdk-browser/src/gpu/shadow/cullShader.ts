@@ -1,5 +1,11 @@
-import { DRAW_ITEM_WGSL } from '../draw/contract.ts';
+import { DRAW_INDIRECT_WORDS, DRAW_ITEM_WGSL } from '../draw/contract.ts';
 import { MAX_SHADOW_REGIONS } from './recordPack.ts';
+import {
+  CULL_UNIFORM_WORDS,
+  LIGHT_CULL_UNIFORM_WORDS,
+  SHADOW_REGION_COMMANDS,
+  wordStruct,
+} from './batchBudget.ts';
 
 /**
  * Per-shadow-region reject: from the instance list the LIGHT CUT of the region's face produced,
@@ -22,9 +28,22 @@ import { MAX_SHADOW_REGIONS } from './recordPack.ts';
 export const CASTERS_ALL = 0,
   CASTERS_STATIC = 1,
   CASTERS_MOVING = 2;
+/** Bits of a row's mobility word (`../../webgpu/shadow/mobility.ts`): its placement moves; its
+ *  fragments can be cut — a cutout (`FLAG_MASK`) that is no blended caster (#965). */
+export const MOBILITY_MOVING = 1,
+  MOBILITY_CUTOUT = 2;
+/**
+ * A region's two lists in its slot of `capacity` rows (#965): the casters no fragment can cut from
+ * the slot's start up, counted by the region's first command and drawn with no fragment stage; the
+ * cutout casters from its end down, counted by its second and drawn with the fragment test. A row is
+ * kept once per region, so the two never meet. The cull and the occlusion test file alike.
+ */
+export const KEPT_LISTS_WGSL = `fn keptCount(region:u32,cutout:bool)->u32{return (region*${SHADOW_REGION_COMMANDS}u+select(0u,1u,cutout))*${DRAW_INDIRECT_WORDS}u+1u;}
+fn keptAt(region:u32,rank:u32,capacity:u32,cutout:bool)->u32{return region*capacity+select(rank,capacity-1u-rank,cutout);}`;
 /** What both entries share: the spheres and mobility words they test, the kept lists they fill,
  *  and the test itself — one caster row against one region. Each declares the volumes itself. */
-const CULL_COMMON = `struct Sphere{center:vec3f,radius:f32,}
+const CULL_COMMON = `${KEPT_LISTS_WGSL}
+struct Sphere{center:vec3f,radius:f32,}
 struct Face{center:vec3f,far:f32,axis:vec3f,halfAngle:f32,right:vec3f,halfU:f32,up:vec3f,halfV:f32,casters:u32,view:u32,pad1:u32,pad2:u32,}
 @group(0) @binding(0) var<storage, read> spheres:array<Sphere>;
 @group(0) @binding(3) var<storage, read_write> kept:array<u32>;
@@ -35,8 +54,9 @@ struct Face{center:vec3f,far:f32,axis:vec3f,halfAngle:f32,right:vec3f,halfU:f32,
  *  minimum, and a minimum does not depend on write order. */
 fn keepCaster(face:u32,row:u32,capacity:u32){
  let volume=faces[face];
+ let word=mobility[row];
  // Which casters the region draws: every one, the static ones, or the moving ones.
- if(volume.casters!=${CASTERS_ALL}u&&(mobility[row]!=0u)!=(volume.casters==${CASTERS_MOVING}u)){return;}
+ if(volume.casters!=${CASTERS_ALL}u&&((word&${MOBILITY_MOVING}u)!=0u)!=(volume.casters==${CASTERS_MOVING}u)){return;}
  let sphere=spheres[row];
  let delta=sphere.center-volume.center;
  if(volume.halfAngle<0.0){
@@ -47,17 +67,24 @@ fn keepCaster(face:u32,row:u32,capacity:u32){
   let distance=length(delta);
   if(distance-sphere.radius>volume.far){return;}
   if(volume.halfAngle<3.14159&&distance>sphere.radius){
-   let axis=clamp(dot(delta,volume.axis)/distance,-1.0,1.0);
-   if(acos(axis)-asin(clamp(sphere.radius/distance,0.0,1.0))>volume.halfAngle){return;}
+   // Outside the cone when the angle to its axis exceeds halfAngle + the sphere's angular radius
+   // β, sin β = r / d (#OMB-07): compared by cosines, cos(h + β)·d = cos h·√(d² − r²) − sin h·r,
+   // with no inverse trigonometry. Only while h + β < π (sin(h + β) > 0); the margin keeps the test
+   // conservative — a sphere it drops, the angles dropped too.
+   let ch=cos(volume.halfAngle);let sh=sin(volume.halfAngle);
+   let tangent=sqrt(max(distance*distance-sphere.radius*sphere.radius,0.0));
+   let along=dot(delta,volume.axis);
+   let limit=ch*tangent-sh*sphere.radius;
+   if(sh*tangent+ch*sphere.radius>0.0&&along<limit-1e-4*distance){return;}
   }
  }
- let rank=atomicAdd(&indirect[face*4u+1u],1u);
- kept[face*capacity+rank]=row;
+ let cutout=(word&${MOBILITY_CUTOUT}u)!=0u;
+ kept[keptAt(face,atomicAdd(&indirect[keptCount(face,cutout)],1u),capacity,cutout)]=row;
 }
 `;
 
 export const SHADOW_CULL_SHADER = `${CULL_COMMON}
-struct Uni{firstFace:u32,faces:u32,sourceBase:u32,indirectBase:u32,commands:u32,capacity:u32,pad0:u32,pad1:u32,}
+${wordStruct('Uni', ['firstFace:u32', 'faces:u32', 'sourceBase:u32', 'indirectBase:u32', 'commands:u32', 'capacity:u32'], CULL_UNIFORM_WORDS)}
 @group(0) @binding(1) var<storage, read> source:array<u32>;
 @group(0) @binding(2) var<storage, read> sourceIndirect:array<u32>;
 @group(0) @binding(5) var<uniform> uni:Uni;
@@ -66,7 +93,7 @@ struct Uni{firstFace:u32,faces:u32,sourceBase:u32,indirectBase:u32,commands:u32,
 /** Instances of the face's list: the sum of its commands, contiguous from \`sourceBase\`. */
 fn listed()->u32{
  var sum=0u;
- for(var command=0u;command<uni.commands;command++){sum=sum+sourceIndirect[uni.indirectBase+command*4u+1u];}
+ for(var command=0u;command<uni.commands;command++){sum=sum+sourceIndirect[uni.indirectBase+command*${DRAW_INDIRECT_WORDS}u+1u];}
  return min(sum,uni.capacity);
 }
 
@@ -92,7 +119,7 @@ fn shadowCullScatter(@builtin(global_invocation_id) id:vec3u){
  */
 export const SHADOW_LIGHT_CULL_SHADER = `${CULL_COMMON}
 ${DRAW_ITEM_WGSL}
-struct Uni{logBase:u32,offsetWord:u32,countWord:u32,capacity:u32,rows:u32,blendFirst:u32,blendEnd:u32,pad0:u32,}
+${wordStruct('Uni', ['logBase:u32', 'offsetWord:u32', 'countWord:u32', 'capacity:u32', 'rows:u32', 'blendFirst:u32', 'blendEnd:u32'], LIGHT_CULL_UNIFORM_WORDS)}
 @group(0) @binding(1) var<storage, read> drawn:array<u32>;
 @group(0) @binding(2) var<storage, read> work:array<u32>;
 @group(0) @binding(5) var<uniform> uni:Uni;

@@ -6,14 +6,13 @@ import type { BlendGpuItem } from './state.ts';
 import { BLEND_BINDINGS, atlasLayoutEntries, readOnly } from '../core/bindLayout.ts';
 import { WATER_SURFACE_WGSL } from '../water/surfaceWgsl.ts';
 import {
-  blendStagePipelines,
-  blendStagePipelinesNow,
+  declaredBlendModes,
   pipelinesByMode,
+  stageDescriptors,
   type BlendModePipelines,
 } from './stagePipelines.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts';
-import { refreshSurface } from '../../page/surface.ts';
 import { createWaterPass, type WaterPass } from '../water/pass.ts';
 import {
   blendVariantPipeline,
@@ -81,9 +80,10 @@ export async function createWebgpuBlendPipelines(
       // depth rejection for the whole pass. A binding writable from the fragment stage forces the
       // GPU to shade every fragment before testing it, side effect and all — here 4232 fragment
       // draws fully hidden behind opaque. The shadow ray is the same; only the two census counters
-      // stay with deferred resolve, which can write. It is the eighth and last storage binding of
-      // this fragment stage, the one the spec still guarantees.
+      // stay with deferred resolve, which can write. The surface cache below takes the eighth
+      // and last storage binding the spec guarantees for this fragment stage.
       { binding: b.proxy, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
+      { binding: b.surfaceCache, visibility: GPUShaderStage.FRAGMENT, buffer: readOnly },
     ],
   });
   // The water pass exists for a scene that transmits, outside any diagnostic variant: under one,
@@ -96,14 +96,6 @@ export async function createWebgpuBlendPipelines(
       (wantsWater ? WATER_SURFACE_WGSL : '') +
       (variant ? DIAGNOSTIC_BLEND_WGSL : ''),
   });
-  // Normal always — the transmission slice draws on it under a diagnostic —, then every mode a
-  // blend item declares: a scene of plain glass compiles the three pipelines it always did. A mode
-  // written on a surface later is compiled by the first draw that asks for it (`at`).
-  const modes = BLEND_MODES.filter(
-    (mode, rank) =>
-      !rank ||
-      items.some((item) => !item.transmissive && refreshSurface(item.surface).blending === mode),
-  );
   const fragment = (mode: Blending): GPUFragmentState => ({
     module: blendModule,
     entryPoint,
@@ -114,15 +106,13 @@ export async function createWebgpuBlendPipelines(
       { format: FEEDBACK_FORMAT },
     ],
   });
-  const perMode = pipelinesByMode((mode) =>
-    blendStagePipelinesNow(device, blendModule, blendBindGroupLayout, fragment(mode), false),
+  const perMode = pipelinesByMode(device, (mode) =>
+    stageDescriptors(device, blendModule, blendBindGroupLayout, fragment(mode), false),
   );
-  const compiled = await Promise.all(
-    modes.map((mode) =>
-      blendStagePipelines(device, blendModule, blendBindGroupLayout, fragment(mode), false),
-    ),
-  );
-  modes.forEach((mode, at) => (perMode.byMode[BLEND_MODES.indexOf(mode)] = compiled[at]));
+  // Normal always — the transmission slice draws on it under a diagnostic —, then every mode a
+  // blend item declares. A mode written on a surface later is compiled by the first draw that
+  // asks for it (`at`).
+  await perMode.precompile(declaredBlendModes(items));
   const blendPipelines: BlendModePipelines = {
     byMode: perMode.byMode,
     at(rank) {
