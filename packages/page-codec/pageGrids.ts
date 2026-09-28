@@ -92,32 +92,31 @@ export class Packer {
     for (const value of values) this.push(value, bits);
     this.close();
   }
-}
-
-/**
- * The corners by blocks of eight triangles: a table of records — the block's smallest corner, the
- * width of its corners' distances to it (five bits), the sum of the widths before it — then those
- * distances. Returns the corner stream's bit count, the header's word 21.
- */
-export function packCorners(pack: Packer, corners: readonly number[], indexBits: number) {
-  const blocks: { corners: number[]; base: number; width: number }[] = [];
-  for (let i = 0; i < corners.length; i += BLOCK_CORNERS) {
-    const block = corners.slice(i, i + BLOCK_CORNERS),
-      base = Math.min(...block);
-    blocks.push({ corners: block, base, width: bitsFor(Math.max(...block) - base) });
+  /**
+   * The corners by blocks of eight triangles: a table of records — the block's smallest corner,
+   * the width of its corners' distances to it (five bits), the sum of the widths before it — then
+   * those distances, each stream closed. Returns the corner stream's bit count, word 21.
+   */
+  corners(corners: readonly number[], indexBits: number) {
+    const blocks: { corners: number[]; base: number; width: number }[] = [];
+    for (let i = 0; i < corners.length; i += BLOCK_CORNERS) {
+      const block = corners.slice(i, i + BLOCK_CORNERS),
+        base = Math.min(...block);
+      blocks.push({ corners: block, base, width: bitsFor(Math.max(...block) - base) });
+    }
+    const cornerBits = blocks.reduce((sum, b) => sum + b.corners.length * b.width, 0),
+      prefixBits = bitsFor(Math.floor(cornerBits / BLOCK_CORNERS));
+    let prefix = 0;
+    for (const { base, width } of blocks) {
+      this.push(base, indexBits);
+      this.push(width, WIDTH_BITS);
+      this.push(prefix, prefixBits);
+      prefix += width;
+    }
+    this.close();
+    for (const { corners: block, base, width } of blocks)
+      for (const corner of block) this.push(corner - base, width);
+    this.close();
+    return cornerBits;
   }
-  const cornerBits = blocks.reduce((sum, b) => sum + b.corners.length * b.width, 0),
-    prefixBits = bitsFor(Math.floor(cornerBits / BLOCK_CORNERS));
-  let prefix = 0;
-  for (const { base, width } of blocks) {
-    pack.push(base, indexBits);
-    pack.push(width, WIDTH_BITS);
-    pack.push(prefix, prefixBits);
-    prefix += width;
-  }
-  pack.close();
-  for (const { corners: block, base, width } of blocks)
-    for (const corner of block) pack.push(corner - base, width);
-  pack.close();
-  return cornerBits;
 }
