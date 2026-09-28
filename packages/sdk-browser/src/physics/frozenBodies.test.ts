@@ -7,7 +7,8 @@ import {
   POSE_WORDS,
 } from '../../../sdk-core/src/physics/index.ts';
 import { random } from '../page/cut/cutRuleChecks.fixture.ts';
-import { body, startModule, type Module } from './module.fixture.ts';
+import { startModule, type Module } from './module.fixture.ts';
+import { body } from './records.fixture.ts';
 
 /** Half size of the test boxes, and the radius of their bounds (`report.cpp` place). */
 const HALF = 0.5;

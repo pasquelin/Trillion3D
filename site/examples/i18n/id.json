@@ -500,6 +500,24 @@
       "balloon": "MELACAK BALON"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Saksikan rute rekaman melintasi taman. Putar ulang, hentikan, atau ambil alih kamera.",
+    "controls": {
+      "replay": "Putar ulang",
+      "stop": "Hentikan"
+    },
+    "readouts": {
+      "currentPart": "Bagian saat ini"
+    },
+    "words": {
+      "entrance": "Pintu masuk",
+      "pond": "Kolam",
+      "bridge": "Jembatan",
+      "pavilion": "Paviliun",
+      "overview": "Ikhtisar",
+      "complete": "Selesai"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Putari derek saat satu klip memutar lengan, menggerakkan troli, mengangkat muatan, dan mengayunkannya.",
     "controls": {
@@ -1965,6 +1983,7 @@
       "manifest": "manifes terbaca",
       "tables": "tabel adegan terbaca",
       "resources": "berkas adegan",
+      "session": "membuka tampilan",
       "pages": "halaman pertama",
       "ready": "siap"
     }
