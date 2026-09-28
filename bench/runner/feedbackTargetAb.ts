@@ -3,7 +3,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { launchChrome } from './chrome.ts';
-import { parseArgs, resolveMounts, sdkEntryUrl, VIEWS } from './options.ts';
+import { ENGINES, parseArgs, resolveMounts, sdkEntryUrl, VIEWS } from './options.ts';
 import { assetsManifest, sceneDerived } from './scene.ts';
 import { summarizeFeedbackRun } from './feedbackTargetReport.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
@@ -55,12 +55,7 @@ async function main() {
       const manifestUrl = assetsManifest(scene, true);
       const browser = await launchChrome({
         headless: flags.get('visible') !== 'true',
-        args: [
-          '--enable-unsafe-webgpu',
-          '--enable-gpu-benchmarking',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding',
-        ],
+        args: ENGINES.webgpu.flags,
       });
       try {
         const page = await browser.newPage({

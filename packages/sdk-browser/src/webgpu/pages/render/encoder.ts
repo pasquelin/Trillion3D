@@ -61,7 +61,7 @@ export function submitColorCopy(
   const owned = encoder === timing.frameEncoder;
   // Texture image feedback leaves with the image: the target where pixels posted their requests is
   // reduced to counts, copied to their readback then zeroed.
-  if (!capture.capturing && gpu.feedbackView && rt.feedbackAB?.target !== false)
+  if (!capture.capturing && gpu.feedbackView)
     rt.vis.textures?.publishRequests(
       encoder,
       run.feedbackWritten ? gpu.feedbackView : undefined,

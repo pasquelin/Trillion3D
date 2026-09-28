@@ -108,7 +108,6 @@ export async function captureConvergence(
     SCOPES.map((scope) => [scope, { centerFirst: null, peripheryAtLevel: null, present: false }]),
   ) as Record<Scope, Checkpoint>;
   const gpuPassSamples: GpuPassTimings[] = [];
-  let held = false;
   const capture = async (frame: number) => {
     const file = `${prefix}-convergence-${frame}-final.rgba`;
     const pixels = await backend.captureFeedbackAb();
@@ -133,7 +132,6 @@ export async function captureConvergence(
     }
     if (frame.held === true && ready && textureReady(frame)) {
       await capture(i);
-      held = true;
       break;
     }
   }
@@ -148,7 +146,7 @@ export async function captureConvergence(
       (scope === 'all' || order[scope].present) &&
       (order[scope].centerFirst === null || order[scope].peripheryAtLevel === null),
   );
-  const reason = !held
+  const reason = !captures.length
     ? 'FEEDBACK_AB_NO_HELD_REFERENCE'
     : !heldMipsReady
       ? 'FEEDBACK_AB_HELD_MIPS_UNVERIFIED'
