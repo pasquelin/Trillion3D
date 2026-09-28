@@ -12,6 +12,7 @@ import {
   waterCostCamera,
   poseWaterCost,
   projectedFraction,
+  tileHalfWidthPixels,
 } from './waterCostScene.ts';
 
 export interface WaterCostOptions {
@@ -50,7 +51,8 @@ export async function run(factory: BackendFactory, options: WaterCostOptions) {
   );
   const camera = waterCostCamera();
   const samples: { frame: number; submittedMs: number; hostGapMs: number | null }[] = [];
-  let waterPassMismatches = 0;
+  let waterPassMismatches = 0,
+    invalidSamples = 0;
   let lastSample = -1,
     held = 0,
     minCoverage = 1,
@@ -80,12 +82,25 @@ export async function run(factory: BackendFactory, options: WaterCostOptions) {
       minCoverage = Math.min(minCoverage, coverage);
       maxCoverage = Math.max(maxCoverage, coverage);
       if (fresh) {
+        if (
+          sample.truncated ||
+          sample.error ||
+          typeof metrics.gpuFrameMs !== 'number' ||
+          typeof metrics.gpuHostGapMs !== 'number'
+        )
+          invalidSamples++;
         const surfaces = sample.passes.some((p) => p.name === 'Trillion3D water surfaces');
         const composite = sample.passes.some((p) => p.name === 'Trillion3D water composite');
         if (options.enabled ? !surfaces || !composite : surfaces || composite)
           waterPassMismatches++;
       }
-      if (fresh && !sample.truncated && !sample.error && typeof metrics.gpuFrameMs === 'number')
+      if (
+        fresh &&
+        !sample.truncated &&
+        !sample.error &&
+        typeof metrics.gpuFrameMs === 'number' &&
+        typeof metrics.gpuHostGapMs === 'number'
+      )
         samples.push({
           frame: sample.frame,
           submittedMs: metrics.gpuFrameMs,
@@ -109,6 +124,7 @@ export async function run(factory: BackendFactory, options: WaterCostOptions) {
       held,
       samples,
       waterPassMismatches,
+      invalidSamples,
       gpuFrameMs: summarize(samples.map((s) => s.submittedMs)),
       gpuEnvelopeMs: summarize(
         samples.flatMap((s) => (s.hostGapMs === null ? [] : [s.submittedMs + s.hostGapMs])),
@@ -116,6 +132,10 @@ export async function run(factory: BackendFactory, options: WaterCostOptions) {
       gpuHostGapMs: summarize(samples.flatMap((s) => (s.hostGapMs === null ? [] : [s.hostGapMs]))),
       declaredFraction: options.enabled ? options.fraction : 0,
       projectedFraction: { min: minCoverage, max: maxCoverage },
+      tileProjectedSize: [
+        2 * tileHalfWidthPixels(options.fraction),
+        SIZE[1] * Math.sqrt(options.fraction),
+      ],
       rasterCoverage: null,
       errors,
       diagnostics,
