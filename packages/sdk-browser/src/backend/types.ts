@@ -173,8 +173,8 @@ export interface BackendContext {
   /** Hears once why the engine refused the `particles`; the session goes on without them. */
   particlesRefused?: (reason: string) => void;
   materialDegraded?: import('../webgl/cluster/validation.ts').MaterialDegraded; // `noticeMaterialDegraded`
-  /** Contract lights, owned by the host and shared by every engine of the session. */
-  sceneLights?: SceneLightStore;
+  sceneLights?: SceneLightStore; // the host's contract lights, shared by the session's engines
+  shadowsRefused?: import('../lighting/contractLights.ts').ContractShadows; // `noticeShadowRefusal`
   /** Imported light ids, in cache order: the host sets or removes them (`importedLights()`). */
   importedLightIds?: string[];
   /** Bounced light, off by default: its step stays above the measured one-millisecond bar.
