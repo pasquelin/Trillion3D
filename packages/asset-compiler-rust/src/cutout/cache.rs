@@ -5,11 +5,8 @@ use super::*;
 /// plugins' versions: any helper the measurement calls, or a driver correction that decodes the
 /// same bytes differently, invalidates every stored measurement.
 pub(super) fn algorithm() -> String {
-    key(crate::implementation_hash())
-}
-
-pub(super) fn key(implementation: &str) -> String {
-    hash(format!("{implementation}:{}", crate::plugins::fingerprint()).as_bytes())
+    let (implementation, plugins) = (crate::implementation_hash(), crate::plugins::fingerprint());
+    hash(format!("{implementation}:{plugins}").as_bytes())
 }
 
 /// Binds a record to its image: moved to another image, it no longer matches.
@@ -51,6 +48,12 @@ pub(crate) struct MeasureCache(BTreeMap<String, AlphaShape>);
 impl MeasureCache {
     #[cfg(test)]
     pub(crate) const EMPTY: &'static Self = &Self(BTreeMap::new());
+
+    /// A cache already holding `shape` for the image `sha`.
+    #[cfg(test)]
+    pub(crate) fn holding(sha: &str, shape: AlphaShape) -> Self {
+        Self(BTreeMap::from([(sha.to_owned(), shape)]))
+    }
 
     pub(super) fn read(sheet: &Value) -> Self {
         if sheet.get("measurementAlgorithm").and_then(Value::as_str) != Some(algorithm().as_str()) {
