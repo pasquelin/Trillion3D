@@ -4,11 +4,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { shadowPoolSize } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { SHADOW_ATLAS_BYTES, SHADOW_POOL_BYTES } from '../../residency/memoryBudget.ts';
+import { SHADOW_ATLAS_BYTES, SHADOW_GRANT_BYTES } from '../../residency/memoryBudget.ts';
 import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../../gpu/shadow/atlas.ts';
 import { shadowTransmittanceBytes } from '../../gpu/shadow/transmittance.ts';
 import { SHADOW_LAYER_PASS } from '../../gpu/shadow/staticLayer.ts';
-import { SHADOW_BATCH_GPU_BYTES } from '../../gpu/shadow/batchBudget.ts';
 import { shadowRequestBytes } from './pageRequests.ts';
 import { admitShadowBytes, createShadowMemory } from './memoryGrant.ts';
 import { shadowPoolFor, staticLayerGranted } from './poolSize.ts';
@@ -16,23 +15,17 @@ import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { along, camera } from '../pages/testScenes.fixture.ts';
 import { floorCasterBackend } from './floorCaster.fixture.ts';
 
-test('the grant sums the pool, its static and transmittance layers, and bounds them', () => {
-  const screens = [1, 1, 1280, 720, 3840, 2160, 16384, 16384];
-  for (let i = 0; i < screens.length; i += 2) {
-    const pool = shadowPoolFor(shadowPoolSize(screens[i], screens[i + 1]), 64)(SHADOW_ATLAS_BYTES);
-    const held =
-      SHADOW_BUFFER_BYTES + pool.allocatedBytes + shadowRequestBytes(pool.side ** 2 * pool.layers);
-    const late =
-      shadowAtlasBytes(pool.side, pool.layers) + shadowTransmittanceBytes(pool.side, pool.layers);
-    const memory = createShadowMemory();
-    const share = SHADOW_POOL_BYTES - SHADOW_BATCH_GPU_BYTES;
-    assert.equal(memory.grantBytes, share, "the budget's share, no second budget");
-    assert.ok(admitShadowBytes(memory, held, late), `${screens[i]}×${screens[i + 1]}`);
-    assert.equal(memory.peakBytes, held + late, 'the peak counts the late layers with the pool');
-    const short = createShadowMemory(held + late - 1);
-    assert.equal(admitShadowBytes(short, held, late), false, 'one byte past the grant is refused');
-    assert.equal(short.peakBytes, 0, 'a refused allocation holds nothing');
-  }
+test('the grant holds the largest pool with its static and transmittance layers, not a byte more', () => {
+  const pool = shadowPoolFor(shadowPoolSize(16384, 16384), 64)(SHADOW_ATLAS_BYTES),
+    { side, layers } = pool;
+  const held = SHADOW_BUFFER_BYTES + pool.allocatedBytes + shadowRequestBytes(side ** 2 * layers);
+  const late = shadowAtlasBytes(side, layers) + shadowTransmittanceBytes(side, layers);
+  const memory = createShadowMemory();
+  assert.ok(admitShadowBytes(memory, held, late), `${held + late} within ${SHADOW_GRANT_BYTES}`);
+  assert.equal(memory.peakBytes, held + late, 'the peak counts the late layers with the pool');
+  const short = createShadowMemory();
+  assert.equal(admitShadowBytes(short, held, late, held + late - 1), false, 'one byte past');
+  assert.equal(short.peakBytes, 0, 'a refused allocation holds nothing');
 });
 
 test('a static layer past the grant is never made, and said by name', () => {
@@ -40,11 +33,10 @@ test('a static layer past the grant is never made, and said by name', () => {
     said: string[] = [];
   const say = (phase: string, _: string, context: Record<string, unknown>) =>
     void said.push(`${phase}:${String(context.pressure)}`);
-  const bytes = shadowAtlasBytes(8);
-  assert.equal(staticLayerGranted(lights, bytes, say), true, 'the default grant holds it');
-  assert.equal(lights.memory.peakBytes, bytes + shadowTransmittanceBytes(8), 'transmittance kept');
-  lights.memory = createShadowMemory(bytes);
-  assert.equal(staticLayerGranted(lights, bytes, say), false);
+  assert.equal(staticLayerGranted(lights, say), true, 'the grant holds it');
+  const late = shadowAtlasBytes(8) + shadowTransmittanceBytes(8);
+  assert.equal(lights.memory.peakBytes, late, 'the transmittance layer to come is reserved');
+  assert.equal(staticLayerGranted(lights, say, late - 1), false);
   assert.deepEqual(lights.memory.events, ['static-layer-over-grant']);
   assert.deepEqual(said, ['shadow-memory:static-layer-over-grant']);
   assert.equal(lights.memory.bias, 0, 'a layer not made costs no resolution');
@@ -97,7 +89,7 @@ test('without pressure the bias stays 0 and no event is named', async () => {
   assert.deepEqual(metrics.shadowMemoryEvents, []);
   assert.ok(!said.includes('gpu-out-of-memory'));
   const peak = metrics.shadowPeakBytes ?? 0;
-  assert.ok(peak >= (metrics.shadowPoolBytes ?? Infinity) && peak <= SHADOW_POOL_BYTES, `${peak}`);
+  assert.ok(peak >= (metrics.shadowPoolBytes ?? Infinity) && peak <= SHADOW_GRANT_BYTES, `${peak}`);
 });
 
 test('a refused static layer is named and every shadow page is still drawn, whole', async () => {

@@ -301,10 +301,10 @@ pages are evicted least recently read first. A lamp face's finest mip is 32 × 3
 The table gives each of the 64 shadow slices (`MAX_SHADOW_SLICES`) a fixed window of the largest range a
 light needs, a whole sun's 16 × 64 × 64 words (`SHADOW_TABLE_STRIDE`): 2^22 words, 16 MiB
 (`SHADOW_TABLE_ENTRIES`), so every shadow-casting light that holds a slice holds its range.
-The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`), and that share is the
-shadows' one grant (`webgpu/shadow/memoryGrant.ts`): the pool is drawn within it, and a late
-allocation — the static layer, with the transmittance layer a blended caster may still add — is
-asked of it with what is already held. Memory pressure never passes for performance: it lowers no
+The GPU total's shadow share counts it with the pool (`SHADOW_POOL_BYTES`); that share, less the
+batches' reserve, is the shadows' one grant (`SHADOW_GRANT_BYTES`, `webgpu/shadow/memoryGrant.ts`):
+the pool is drawn within it, and a late allocation — the static layer, with the transmittance layer
+a blended caster may still add — is asked of it with what is already held. Memory pressure never passes for performance: it lowers no
 page to meet a frame time, and each pressure is a named event in `shadowMemoryEvents`. A pool the
 device refuses is drawn smaller (`pool-shrunk`, its halvings in `shadowResolutionBias`, 0 in the
 normal case) or not at all (`pool-refused`, the `shadows-off` error); a static layer past the grant
