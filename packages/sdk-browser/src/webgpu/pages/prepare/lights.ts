@@ -93,5 +93,12 @@ export async function prepareShadowPipelines(rt: WebgpuPagesRuntime, device: GPU
   if (rt.vis.gpuDraw) work.push(() => lightRowMapPipeline(device));
   if (rt.blendState.blendGpu.some((item) => castsBlendShadow(refreshSurface(item.surface))))
     work.push(shadows.prepareTransmittance, pageQuads.prepareTransmittance);
-  await Promise.allSettled(work.map(async (make) => make()));
+  // One after the other: the Hi-Z kernels' validation scope stays open across its await, and a
+  // pipeline made meanwhile would lay its error there, the kernels' failure kept for the device.
+  for (const make of work)
+    try {
+      await make();
+    } catch {
+      /* Compiled again, and said, where it is first used. */
+    }
 }
