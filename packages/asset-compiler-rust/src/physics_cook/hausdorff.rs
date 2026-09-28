@@ -192,9 +192,9 @@ pub(crate) fn one_sided_distance(pos: &[f32], from: &[u32], to: &[u32]) -> f64 {
     one_sided(pos, from, &Grid::new(pos, to))
 }
 
-/// The sampled Hausdorff distance between two triangle sets over the same positions; the compiler
-/// measures through `Level0`, the tests by this.
+/// The sampled Hausdorff distance between two triangle sets over the same positions: the tests'
+/// one-shot `Level0`.
 #[cfg(test)]
 pub(crate) fn distance(pos: &[f32], a: &[u32], b: &[u32]) -> f64 {
-    one_sided_distance(pos, a, b).max(one_sided_distance(pos, b, a))
+    Level0::new(pos, a).distance(b)
 }
