@@ -190,8 +190,11 @@ directory must be new and under `.mesure/out/`; publish the evidence, then remov
 
 The default is all 600 poses, with checkpoints every 60 poses and at the final pose. `--images`
 can shorten a diagnosis; `--checkpoint-every` can sample more closely (at most 32 checkpoints).
-Each pass keeps one world open throughout navigation and pauses at checkpoints for the shared
-64-frame held-image barrier. The baseline runs twice: only exact, non-black 0 px A/A images are
+Each pass keeps one world open throughout navigation and pauses at checkpoints for a
+64-frame held-image barrier. Every render, including convergence, is observed for coverage and
+streaming errors; no SDK flush is called because it can redraw and converge internally. Canvas
+pixels are copied immediately after render in the same browser frame, before its buffer expires,
+using the same surface path for arrival and settled images. The baseline runs twice: only exact, non-black 0 px A/A images are
 accepted as goldens. The candidate records both its arrival image and its held image. Missing
 captures, page/GPU errors, geometry holes, incomplete triangle coverage, no drawn geometry,
 unsettled images and unstable goldens fail the command. A single changed pixel after convergence
