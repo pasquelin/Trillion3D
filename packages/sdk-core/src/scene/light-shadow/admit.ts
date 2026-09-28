@@ -47,8 +47,8 @@ export const shadowAdmissionHostBytes = (pages: number) => pages * (4 + 4 + 8);
  * it, whatever its view. A frame draws at least one page per batch, so, while the floors that turn
  * stale again each frame are fewer than the pages a frame draws, the others ahead are fewer each
  * frame, never more, and a page that stays read is drawn within ⌈pool pages / batches a frame
- * draws⌉ + 1 frames of being listed: 25 for the largest pool (4 096 pages, `MAX_SHADOW_BATCHES`
- * 171), when every batch holds one page.
+ * draws⌉ + 1 frames of being listed; at worst the grant's largest pool (`SHADOW_ATLAS_BYTES`) in
+ * `MAX_SHADOW_BATCHES` batches of one page each.
  */
 export function createShadowAdmission(poolPages: number) {
   const list = new Int32Array(poolPages),
