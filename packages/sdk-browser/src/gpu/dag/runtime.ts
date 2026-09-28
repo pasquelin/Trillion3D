@@ -33,6 +33,8 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     mapped: new Array<boolean>(DAG_READBACK_SLOTS).fill(false),
     slot: 0,
     grow: 0,
+    growing: false,
+    listFull: false,
   };
   /** Cuts in hand and in flight name pages the kernel may no longer choose: they are void. */
   const voidCuts = () => {
@@ -121,6 +123,14 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
     },
     async flush() {
       await state.pending;
+      // A cut past its list grows it (`listCap.ts`): the drain grows it, then cuts again on it,
+      // rather than hand back the cut before.
+      for (const asked = state.lastSubmitted; asked && state.grow && !state.dead;) {
+        selection.dispatch(asked);
+        await state.pending;
+        selection.dispatch(asked);
+        await state.pending;
+      }
       if (
         residentCut &&
         !state.dead &&

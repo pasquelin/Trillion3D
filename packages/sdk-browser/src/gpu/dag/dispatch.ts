@@ -9,7 +9,7 @@ import { createDagOutputScratch, writeDagUniforms, parseDagOutput } from './unif
 import type { createDagResources } from './resources.ts';
 import { encodeDagKernels } from './encode.ts';
 import { DAG_READBACK_SLOTS as SLOTS } from './layout.ts';
-import { growDagList, grownListCap, listDemand } from './listCap.ts';
+import { grownListCap, listDemand, queueDagListGrowth } from './listCap.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 export type DagRuntimeState = {
@@ -29,6 +29,10 @@ export type DagRuntimeState = {
   slot: number;
   /** The list cap a truncated readout asked for, taken once no readback is in flight; 0: none. */
   grow: number;
+  /** A list being made: no frame cuts until it is in place or refused. */
+  growing: boolean;
+  /** The device refused a larger list: a truncated readout now goes to the host as it is. */
+  listFull: boolean;
 };
 
 export function createDagDispatch(
@@ -44,12 +48,11 @@ export function createDagDispatch(
   const dispatch: GpuSelection['dispatch'] = (next, shared) => {
     if (state.disposed || state.dead) return;
     // A list to grow waits for the readbacks in flight, and no frame cuts on the old one meanwhile.
+    if (state.growing) return;
     if (state.grow) {
       if (state.mapped.includes(true)) return;
-      growDagList(resources, state.grow);
-      state.grow = 0;
-      // New uniforms and a new readout: the cut runs again and is read again.
-      state.lastSubmitted = state.lastReadback = undefined;
+      queueDagListGrowth(resources, state);
+      return;
     }
     const { output, readback, outputBytes, readbackBytes: copied, listCap } = resources;
     const compute =
@@ -115,14 +118,15 @@ export function createDagDispatch(
             const parsed = parseDagOutput(bytes, 0, copied, drawnWordOffset, scratch[i]);
             // A cut past the list: the list grows and the next dispatch cuts again, rather than
             // hand the host a truncated readout it could only give up to the CPU cut.
-            const grown = parsed?.truncated
-              ? grownListCap(
-                  device.limits,
-                  packed.pageCount,
-                  listCap,
-                  listDemand(bytes, drawnWordOffset),
-                )
-              : undefined;
+            const grown =
+              parsed?.truncated && !state.listFull
+                ? grownListCap(
+                    device.limits,
+                    packed.pageCount,
+                    listCap,
+                    listDemand(bytes, drawnWordOffset),
+                  )
+                : undefined;
             readback[i].unmap();
             if (!parsed) {
               fail();
