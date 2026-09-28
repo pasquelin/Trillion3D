@@ -17,7 +17,6 @@ fn coded(indices: &[u32], vertex_count: usize) -> (CornerCode, Vec<u32>) {
 fn bytes(words: &[u32]) -> Vec<u8> {
     words.iter().flat_map(|w| w.to_le_bytes()).collect()
 }
-
 fn xorshift(state: &mut u32) -> u32 {
     *state ^= *state << 13;
     *state ^= *state >> 17;
@@ -36,21 +35,20 @@ fn round_trip(indices: &[u32], vertex_count: usize) -> Result<Vec<u32>, PageErro
     Ok(decoded)
 }
 
-/// A page numbered by first use, as the compiler writes one: each corner is a new vertex or
-/// one already met, near the frontier or anywhere before it.
-fn page(state: &mut u32, triangles: usize, vertices: usize) -> Vec<u32> {
-    let mut seen = 0u32;
-    (0..triangles * 3)
+/// A page numbered by first use, as the compiler writes one: each corner a new vertex, one of
+/// the last dozen met, or any met before.
+fn page(state: &mut u32, corners: usize) -> Vec<u32> {
+    let mut seen = 0;
+    (0..corners)
         .map(|_| {
             let r = xorshift(state);
-            if seen == 0 || (r.is_multiple_of(3) && (seen as usize) < vertices) {
-                seen += 1;
-                seen - 1
-            } else if r % 3 == 1 {
-                seen - 1 - (r >> 8) % seen.min(12)
-            } else {
-                (r >> 8) % seen
-            }
+            let corner = match (r % 3, seen) {
+                (_, 0) | (0, _) => seen,
+                (1, _) => seen - 1 - (r >> 8) % seen.min(12),
+                _ => (r >> 8) % seen,
+            };
+            seen = seen.max(corner + 1);
+            corner
         })
         .collect()
 }
@@ -59,9 +57,7 @@ fn page(state: &mut u32, triangles: usize, vertices: usize) -> Vec<u32> {
 fn ten_thousand_random_pages_decode_to_the_same_corners() {
     let mut state = 0x9E37_79B9;
     for _ in 0..10_000 {
-        let triangles = 1 + xorshift(&mut state) as usize % 300;
-        let vertices = 1 + xorshift(&mut state) as usize % 400;
-        let indices = page(&mut state, triangles, vertices);
+        let indices = page(&mut state, 3 + 3 * (xorshift(&mut state) as usize % 300));
         let count = 1 + *indices.iter().max().unwrap() as usize;
         assert_eq!(round_trip(&indices, count).unwrap(), indices);
     }
