@@ -105,8 +105,11 @@ export class WebglClusterTextures {
         this.setSampler(texture);
       }
       if (mips) {
-        const allocate = record.cutoff === undefined;
+        const allocate = record.cutoff === undefined,
+          chained = record;
         record.cutoff = cutoff;
+        // A chain sized now and refused: uploaded again once the refusal is read.
+        if (allocate) allocated(gl, () => (chained.version = -1));
         this.mips.reduce(unit, record, allocate);
       }
     }
@@ -156,9 +159,10 @@ export class WebglClusterTextures {
     };
     const mips = mipFiltered(texture.minFilter),
       allocate = !inPlace || held?.cutoff == null;
-    if (mips) this.mips.reduce(unit, Object.assign(record, { cutoff }), allocate);
     // A level or a chain sized again and refused: uploaded again once the refusal is read.
+    // Recorded before the chain: its first build reads the errors now (`coverageMips.ts`).
     if (!inPlace || (mips && allocate)) allocated(gl, () => (record.version = -1));
+    if (mips) this.mips.reduce(unit, Object.assign(record, { cutoff }), allocate);
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
   }
