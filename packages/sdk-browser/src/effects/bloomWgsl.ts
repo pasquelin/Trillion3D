@@ -1,8 +1,6 @@
 import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts';
 import { BLOOM_DOWN_TAPS, bloomTapText } from './bloomFilter.ts';
-import { bloomLevelWgsl } from './bloomLevel.ts';
-
-const read = (offset: string) => `fetchLevel(uv+${offset}*stride)`;
+import { bloomLevelWgsl, levelTap } from './bloomLevel.ts';
 
 /**
  * The bloom's three WebGPU programs (`bloomFilter.ts`), on premultiplied linear radiance, alpha
@@ -17,7 +15,7 @@ ${bloomLevelWgsl(0)}
 ${FULLSCREEN_VERTEX}
 @fragment fn down(@builtin(position) pixel:vec4f)->@location(0) vec4f{
 let uv=pixel.xy*bloom.outTexel;let stride=bloom.inTexel;var c=vec4f(0.0);
-${bloomTapText(BLOOM_DOWN_TAPS, read, 'vec2f')}
+${bloomTapText(BLOOM_DOWN_TAPS, levelTap, 'vec2f')}
 return c;}
 @fragment fn up(@builtin(position) pixel:vec4f)->@location(0) vec4f{return tent(pixel.xy*bloom.outTexel);}
 @fragment fn composite(@builtin(position) pixel:vec4f)->@location(0) vec4f{

@@ -27,8 +27,9 @@ export type WebgpuEffectKind<P> = {
     input: GPUTextureView,
     output: GPUTextureView | undefined,
   ): number;
-  /** The blend the last `encode` left to the composition, if it did. */
-  readonly blend: FusedBlend | undefined;
+  /** The blend the last `encode` left to the composition, if it did: a kind without it never
+   *  leaves one, and is always handed an output. */
+  readonly blend?: FusedBlend;
   dispose(): void;
 };
 type Kinds = { [K in EffectKind]: WebgpuEffectKind<EffectPassOf<K>> };
@@ -97,7 +98,7 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
     if (w !== width || h !== height) release();
     width = w;
     height = h;
-    for (const target of targets.splice(count)) target.destroy();
+    while (targets.length > count) targets.pop()!.destroy();
     views.length = targets.length;
     while (targets.length < count) {
       const target = device.createTexture({
@@ -163,7 +164,8 @@ export function createWebgpuEffects(device: GPUDevice, fail: (error: unknown) =>
         return input;
       }
       if (!readyFor(passes)) return input;
-      const last = passes.length - (fuse ? 1 : 0);
+      const fuses = fuse && 'blend' in made[passes[passes.length - 1].kind]!;
+      const last = passes.length - (fuses ? 1 : 0);
       ensure(effectPassTargets(last), w, h);
       let view = input,
         written = 0;
