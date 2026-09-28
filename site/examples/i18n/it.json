@@ -2259,6 +2259,21 @@
       "credit": "Bandiera su un'asta modellata in codice per questo esempio, CC0 — vedi assets/examples/CREDITS.md"
     }
   },
+  "an-elevation-of-the-house": {
+    "banner": "Scegli un prospetto della casa. Allontana la camera: il disegno ortografico mantiene esattamente la stessa scala.",
+    "controls": {
+      "elevation": "Prospetto",
+      "distance": "Distanza camera",
+      "zoom": "Scala del disegno"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Fronte",
+        "right": "Lato destro",
+        "rear": "Retro"
+      }
+    }
+  },
   "hover-to-highlight": {
     "banner": "Passa sopra le parti del carrello per evidenziarle una alla volta, oppure disattiva l’evidenziazione nel pannello.",
     "controls": {

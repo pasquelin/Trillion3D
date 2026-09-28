@@ -2259,6 +2259,21 @@
       "credit": "Bandera en un mástil modelada en código para este ejemplo, CC0 — ver assets/examples/CREDITS.md"
     }
   },
+  "an-elevation-of-the-house": {
+    "banner": "Elige un alzado de la casa. Aleja la cámara: el dibujo ortográfico conserva exactamente la misma escala.",
+    "controls": {
+      "elevation": "Alzado",
+      "distance": "Distancia de cámara",
+      "zoom": "Escala del dibujo"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Frente",
+        "right": "Lado derecho",
+        "rear": "Parte trasera"
+      }
+    }
+  },
   "hover-to-highlight": {
     "banner": "Pasa el cursor sobre las piezas del carro para resaltar cada una, o desactiva el resaltado en el panel.",
     "controls": {

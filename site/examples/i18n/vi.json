@@ -2259,6 +2259,21 @@
       "credit": "Lá cờ trên cột được dựng bằng mã cho ví dụ này, CC0 — xem assets/examples/CREDITS.md"
     }
   },
+  "an-elevation-of-the-house": {
+    "banner": "Chọn một mặt đứng của ngôi nhà. Đưa máy quay ra xa: bản vẽ trực giao vẫn giữ nguyên tỷ lệ.",
+    "controls": {
+      "elevation": "Mặt đứng",
+      "distance": "Khoảng cách máy quay",
+      "zoom": "Tỷ lệ bản vẽ"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Mặt trước",
+        "right": "Mặt bên phải",
+        "rear": "Mặt sau"
+      }
+    }
+  },
   "hover-to-highlight": {
     "banner": "Di chuột lên từng bộ phận của xe để làm nổi bật, hoặc tắt tính năng này trong bảng điều khiển.",
     "controls": {
