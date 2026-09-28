@@ -71,26 +71,24 @@ fn stretchOf(world:u32)->f32{return frames[rowOf(world)*FRAME+6u].x*views[vi].ca
 /** Reset and per-primitive planes in a single dispatch: the output counters and block counts
  *  \`dagMask\` accumulates, the frustum planes only the descent reads, and what a camera cut
  *  derives once per primitive (\`primitiveWgsl.ts\`).
- *  One thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot is its primitive, and
- *  each range's dispatch starts at its first (a light cut runs one range, from zero). */
+ *  One thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot is its primitive. Each
+ *  range's dispatch takes its range's slots (\`rangeSlot\`); the first one resets the frame. */
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
- let t=id.x+range.first;
- if(t==0u){
+ let head=rangeFirst()==0u;let i=id.x;
+ if(head&&i==0u){
   // A later batch's cut appends its requests to the frame's list (\`VIEW_APPEND\`): the count and
   // the list-full bit carry on, the other flags are the batch's own.
   if((views[0u].viewFlags&VIEW_APPEND)==0u){atomicStore(&out.count,0u);atomicStore(&out.overflow,0u);}
   else{atomicAnd(&out.overflow,${LIST_FULL}u);}
   atomicStore(&out.frustumRejected,0u);atomicStore(&out.lodLevel,0u);resetTotaux();resetCounters();
  }
- if(t<blockCount()){atomicStore(&work[blockBase()+t],0u);atomicStore(&work[drawMaskBase()+2u*t],0u);atomicStore(&work[drawMaskBase()+2u*t+1u],0u);}
- if(t<views[0u].viewCount){atomicStore(&work[viewWord(0u,t)],0u);atomicStore(&work[viewWord(2u,t)],0u);}
- if(t==0u){atomicStore(&work[drawnGroupsMax()],0u);countFrame();}
+ if(head&&i<blockCount()){atomicStore(&work[blockBase()+i],0u);atomicStore(&work[drawMaskBase()+2u*i],0u);atomicStore(&work[drawMaskBase()+2u*i+1u],0u);}
+ if(head&&i<views[0u].viewCount){atomicStore(&work[viewWord(0u,i)],0u);atomicStore(&work[viewWord(2u,i)],0u);}
+ if(head&&i==0u){atomicStore(&work[drawnGroupsMax()],0u);countFrame();}
  let world=views[0u].worldCount;
- if(t>=world*views[0u].viewCount){return;}
- vi=t/world;let w=t-vi*world;
- if(!inRange(w)){return;}
- let slot=slotOf(w);
+ if(i>=rangeCount()*views[0u].viewCount){return;}
+ let t=rangeSlot(i);vi=t/world;let w=t-vi*world;let slot=slotOf(w);
  // The primitive's root opens the descent: one thread, one root, no counter to contend for. A
  // light cut opens none on a primitive that casts no shadow (\`markOf\`, \`castsNoShadow\`).
  let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&${CASTS_NO_SHADOW}u)!=0u);

@@ -40,8 +40,8 @@ test("each primitive's values fill its share, behind the row the host writes", (
   assert.equal(c.PRIMITIVE, PRIMITIVE_VEC4);
   assert.equal(c.FRAME, FRAME_VEC4);
   for (const worldCount of [1, 3, 1000]) {
-    const range = { first: 0, count: worldCount };
-    const base = wgslScope(DAG_SELECTION_SHADER, { ...c, range }).fn('primitiveBase');
+    const scope = { ...c, rangeCount: () => worldCount, rangeFirst: () => 0 };
+    const base = wgslScope(DAG_SELECTION_SHADER, scope).fn('primitiveBase');
     const frames = primitiveFrameWords(packed(worldCount));
     assert.equal(frames.length, worldCount * FRAME_VEC4 * 4, 'the host writes its row alone');
     assert.equal(base(0), worldCount * FRAME_VEC4, 'behind the first row');

@@ -8,10 +8,8 @@ import { dagFlagsWords } from './shader/lastUseWgsl.ts';
 import { lightCutCapacity, lightQueueCap } from './lightCutCapacity.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import type { createDagResources } from './resources.ts';
-import { DAG_BINDING } from './shader/bindings.ts';
-import { namedBufferEntries } from '../core/computeBindings.ts';
+import { dagGroupEntries } from './shader/bindings.ts';
 import { shadowBatchWrites } from '../shadow/batchWrites.ts';
-import { wholeRange } from './frameRanges.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 export type DagLightCut = ReturnType<typeof createDagLightCut>;
@@ -41,17 +39,11 @@ export type DagLightCut = ReturnType<typeof createDagLightCut>;
  */
 export function createDagLightCut(resources: DagResources) {
   const { device, packed, residentCut, pageCount, outputBytes, readbackBytes } = resources;
-  const { worldCount, blockCount, buffers } = resources;
+  const { blockCount, own } = resources;
   const capacity = lightCutCapacity(device.limits, resources),
     queueCap = lightQueueCap(resources, capacity),
     layout = dagWorkLayout(blockCount, capacity);
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
-  const own = (descriptor: GPUBufferDescriptor) => {
-    const buffer = device.createBuffer(descriptor);
-    // Released with the camera cut: the runtime's dispose destroys every buffer of the list.
-    buffers.push(buffer);
-    return buffer;
-  };
   const flags = own({
     label: 'Trillion3D light cut flags',
     size: dagFlagsWords(queueCap, pageCount, false) * 4,
@@ -62,17 +54,16 @@ export function createDagLightCut(resources: DagResources) {
     size: layout.words * 4,
     usage: storage | GPUBufferUsage.COPY_SRC,
   });
-  // One row of per-primitive planes per view; the root and stretch words the kernel reads sit in
-  // the first row, as the camera's frames hold them.
-  const frames = own({
-    label: 'Trillion3D light cut frames',
-    size: capacity * worldCount * FRAME_VEC4 * 16,
-    usage: storage,
-  });
-  device.queue.writeBuffer(frames, 0, resources.frameData);
-  // Its frames hold every primitive: one range, from zero (`frameRanges.ts`).
-  const range = own({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-  device.queue.writeBuffer(range, 0, wholeRange(worldCount));
+  // One row of per-primitive planes per view, in the camera's ranges (`frameRanges.ts`); the root
+  // and stretch words the kernel reads sit in the first row, as the camera's frames hold them.
+  const frames = resources.frames.ranges.map(({ count }) =>
+    own({
+      label: 'Trillion3D light cut frames',
+      size: capacity * count * FRAME_VEC4 * 16,
+      usage: storage,
+    }),
+  );
+  resources.frames.writeRows(frames);
   let frameWrites = resources.frameWrites.count;
   const output = own({
     label: 'Trillion3D light cut output',
@@ -96,24 +87,26 @@ export function createDagLightCut(resources: DagResources) {
     liveGroupsOffset: layout.liveGroups * 4,
     candGroupsOffset: layout.candGroups * 4,
     drawnGroupsOffset: layout.drawnGroups * 4,
-    ranges: [{ first: 0, count: worldCount }],
-    bindGroups: [
-      device.createBindGroup({
+    ranges: resources.ranges.map(({ count }, r) => ({
+      count,
+      bindGroup: device.createBindGroup({
         layout: resources.layout,
-        entries: namedBufferEntries(DAG_BINDING, {
-          clusters: { buffer: resources.clusters },
-          nodes: { buffer: resources.nodes },
-          views: { buffer: uniforms },
-          flags: { buffer: flags },
-          out: { buffer: output },
-          work: { buffer: work },
-          worlds: { buffer: resources.worlds },
-          frames: { buffer: frames },
-          cold: { buffer: resources.pageCones },
-          range: { buffer: range },
-        }),
+        entries: dagGroupEntries(
+          {
+            clusters: resources.clusters,
+            nodes: resources.nodes,
+            views: uniforms,
+            flags,
+            out: output,
+            work,
+            worlds: resources.worlds,
+            frames: frames[r],
+            cold: resources.pageCones,
+          },
+          resources.frames.rangeBindings[r],
+        ),
       }),
-    ],
+    })),
     repeat: null,
     light,
   };

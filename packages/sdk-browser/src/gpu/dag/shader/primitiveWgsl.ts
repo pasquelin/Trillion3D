@@ -18,7 +18,7 @@ export const DAG_PRIMITIVE_WGSL = `const PRIMITIVE:u32=${PRIMITIVE_VEC4}u;
 /** Offsets inside a primitive's values: the two \`view · world\`, the normal matrix, the planes ahead. */
 const CAMERA_E:u32=0u;const AHEAD_E:u32=4u;const NORMAL:u32=8u;const AHEAD_PLANES:u32=11u;
 /** First vec4 of primitive \`w\`'s values, behind the range's row of slots. Camera cut only. */
-fn primitiveBase(w:u32)->u32{return range.count*FRAME+rowOf(w)*PRIMITIVE;}
+fn primitiveBase(w:u32)->u32{return rangeCount()*FRAME+rowOf(w)*PRIMITIVE;}
 fn putMatrix(at:u32,m:mat4x4f){frames[at]=m[0];frames[at+1u]=m[1];frames[at+2u]=m[2];frames[at+3u]=m[3];}
 /** \`view · world\` of primitive \`w\` under the current view \`vi\`. */
 fn viewWorld(w:u32)->mat4x4f{
