@@ -6,8 +6,9 @@ import { LTC_UNIT } from './rectGlsl.ts';
  * The model-view and normal matrices of the draws, sent only when the drawn node's world matrix
  * differs from the last one sent (#840): the pages of one placement share it, and a frame of
  * sponza drew 1 465 of them, twice, each with 100 bytes of matrices the context already held —
- * enough to fill its command buffer while the GPU process waited on the compositor. `forget` at
- * every draw: its camera's view may have moved.
+ * enough to fill its command buffer while the GPU process waited on the compositor. True when
+ * sent: the winding the matrix gives is read again then. `forget` at every draw — its camera's
+ * view may have moved — and wherever the raster state is forgotten.
  */
 export class ModelUniforms {
   private model = new Float64Array(16).fill(Number.NaN);
@@ -27,13 +28,14 @@ export class ModelUniforms {
   set(view: ArrayLike<number>, model: ArrayLike<number>) {
     let i = 0;
     while (i < 16 && this.model[i] === model[i]) i++;
-    if (i === 16) return;
+    if (i === 16) return false;
     this.model.set(model);
     multiplyMatrix4Typed(this.modelView, view, model);
     this.upload.set(this.modelView);
     this.gl.uniformMatrix4fv(this.at[0], false, this.upload);
     normalMatrix3(this.normal, this.modelView);
     this.gl.uniformMatrix3fv(this.at[1], false, this.normal);
+    return true;
   }
   forget() {
     this.model.fill(Number.NaN);
