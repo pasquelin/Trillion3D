@@ -8,12 +8,14 @@ import { createWebgpuVisState, type WebgpuVisState } from './vis.ts';
  * What one camera owns in the runtime groups: the cut it draws, its motion, its occlusion history,
  * its frame targets and their temporal history. Everything else is the scene's and every view
  * shares it: the gate's revisions (so an invalidation reaches every view), the GPU cut (the main
- * view's alone), the list the residency is asked for (`desired`, which A2 of #412 makes the union
- * of the views), the pools, the pipelines and the Hi-Z pyramid, which follows the drawn view's size.
+ * view's alone), the residency sets, which ask for the union of the views' cuts under the one page
+ * budget (`../../cut/viewCuts.ts`), the pools, the pipelines and the Hi-Z pyramid, which follows
+ * the drawn view's size.
  */
 export const VIEW_RUN_KEYS = [
   'lastCamera',
   'motion',
+  'desired',
   'shown',
   'drawn',
   'drawnMirrorsShown',
