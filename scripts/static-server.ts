@@ -83,9 +83,9 @@ export function byteRange(header: string | undefined, size: number) {
     return suffix > 0 && size > 0 ? { start: Math.max(0, size - suffix), end: size - 1 } : null;
   }
   const start = Number(first),
-    end = Math.min(last ? Number(last) : Infinity, size - 1);
-  if (last && Number(last) < start) return undefined;
-  return start < size ? { start, end } : null;
+    stop = last ? Number(last) : size - 1;
+  if (last && stop < start) return undefined;
+  return start < size ? { start, end: Math.min(stop, size - 1) } : null;
 }
 
 /** Serves the file `path` names under `dir`, a directory by its `index.html`; one byte range

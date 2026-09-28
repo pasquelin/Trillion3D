@@ -80,20 +80,20 @@ export async function reglerReservoirs(
   budgets: PoolVivant | null,
 ): Promise<ReglageVivant | null> {
   if (!budgets) return null;
-  const fraction = budgets.textureResidentFraction;
+  const requested: MemoryBudgets = {
+    geometryPoolBytes: budgets.geometryPoolBytes ?? undefined,
+    texturePoolBytes: budgets.texturePoolBytes ?? undefined,
+  };
   let residentTextureBytes: number | undefined;
-  if (fraction !== undefined) {
+  if (budgets.textureResidentFraction !== undefined) {
     await poseCalme(explorer, pose);
     residentTextureBytes = explorer.render(pose).textureResidentBytes ?? undefined;
     await explorer.flush();
+    requested.texturePoolBytes = residentFractionBudget(
+      budgets.textureResidentFraction,
+      residentTextureBytes,
+    );
   }
-  const requested: MemoryBudgets = {
-    geometryPoolBytes: budgets.geometryPoolBytes ?? undefined,
-    texturePoolBytes:
-      fraction === undefined
-        ? (budgets.texturePoolBytes ?? undefined)
-        : residentFractionBudget(fraction, residentTextureBytes),
-  };
   const rapport = await explorer.setMemoryBudgets(requested);
   return { ...rapport, imagesReprise: await poseCalme(explorer, pose), residentTextureBytes };
 }
