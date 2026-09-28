@@ -173,27 +173,23 @@ const composeSources = (courbe: string, chaine: string, bloom = false) => ({
   still: composeSource(courbe, chaine, 'still', bloom),
   accumulated: composeSource(courbe, chaine, 'accumulated', bloom),
 });
-const CONTRACT_CHAIN =
-  'toneMap(value.rgb*view.lightParams.w/max(value.a,1e-6),u32(view.display.x))';
-const UNLIT_CHAIN = 'value.rgb/max(value.a,1e-6)';
+/** A program's compositions: plain, and blending in the chain's last bloom (#963). */
+const compositionsOf = (courbe: string, chaine: string) => ({
+  plain: composeSources(courbe, chaine),
+  bloom: composeSources(courbe, chaine, true),
+});
 /**
  * Contract composition: exposure multiplies linear radiance before the display curve the scene
  * chose — ACES unless it chose another —, last link of the chain (P4). That is the one of
  * programs lit by declared lights.
  */
-const COMPOSE_SHADERS = composeSources(TONE_MAPPING_WGSL, CONTRACT_CHAIN);
+export const CONTRACT_COMPOSITIONS = compositionsOf(
+  TONE_MAPPING_WGSL,
+  'toneMap(value.rgb*view.lightParams.w/max(value.a,1e-6),u32(view.display.x))',
+);
 /**
  * Unlit-view composition: identity, from linear to sRGB and nothing else. With no declared
  * source there is no radiance to expose or bring into the display range (P6) — albedo is
  * read as-is, which is what benches that compare images pixel for pixel ask for.
  */
-const UNLIT_COMPOSE_SHADERS = composeSources('', UNLIT_CHAIN);
-/** Each program's compositions: as above, and blending in the chain's last bloom (#963). */
-export const CONTRACT_COMPOSITIONS = {
-  plain: COMPOSE_SHADERS,
-  bloom: composeSources(TONE_MAPPING_WGSL, CONTRACT_CHAIN, true),
-};
-export const UNLIT_COMPOSITIONS = {
-  plain: UNLIT_COMPOSE_SHADERS,
-  bloom: composeSources('', UNLIT_CHAIN, true),
-};
+export const UNLIT_COMPOSITIONS = compositionsOf('', 'value.rgb/max(value.a,1e-6)');
