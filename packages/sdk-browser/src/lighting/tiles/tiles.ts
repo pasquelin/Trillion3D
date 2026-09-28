@@ -7,6 +7,7 @@ import { LIGHT_TILES_SHADERS } from './shader.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { createWebgpuBindIdentity } from '../../webgpu/core/bindIdentity.ts';
 import { TILE_STRIDE_WORDS } from '../direct/lightWgsl.ts';
+import { createTileLightPool } from './pool.ts';
 /** Label of the measured pass; `gpuLightListsMs` is read under this name, not by its rank. */
 export const LIGHT_TILES_PASS = 'Trillion3D light tiles v1';
 /** Tiles on one axis: the list always covers the whole target, never one tile short. */
@@ -30,17 +31,23 @@ export function tileViewInverse(
 }
 
 /**
- * Per-tile light-list pass. The tile buffer is allocated for the current target and reallocated
- * only when it changes size; the group follows the light buffer, which grows with the scene;
- * encoding allocates nothing.
+ * Per-tile light-list pass. The tile buffer — the records, then the pool of the slices past their
+ * list (`./pool.ts`) — is allocated for the current target and reallocated only when it changes
+ * size; the group follows the light buffer, which grows with the scene; encoding allocates
+ * nothing. A scene of at most `tileLights` lights runs the narrow pass (`./shader.ts`).
  */
 export async function createGpuLightTiles(device: GPUDevice) {
   // Granted `subgroups`, the depth bounds reduce per subgroup: the same words, fewer atomics.
   const subgroups = device.features.has('subgroups');
-  const module = await createCheckedShaderModule(
-    device,
-    LIGHT_TILES_SHADERS[+subgroups][1],
-    LIGHT_TILES_SHADERS[+subgroups][0],
+  // The wide pass, then the narrow one (`LIGHT_TILES_SHADERS`).
+  const modules = await Promise.all(
+    [0, 2].map((narrow) =>
+      createCheckedShaderModule(
+        device,
+        LIGHT_TILES_SHADERS[+subgroups + narrow][1],
+        LIGHT_TILES_SHADERS[+subgroups + narrow][0],
+      ),
+    ),
   );
   const layout = device.createBindGroupLayout({
     entries: [
@@ -48,6 +55,7 @@ export async function createGpuLightTiles(device: GPUDevice) {
       { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
       { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
       { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+      { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
     ],
   });
   const uniform = device.createBuffer({
@@ -58,20 +66,27 @@ export async function createGpuLightTiles(device: GPUDevice) {
   const packed = new Float32Array(24),
     inverse = new Float64Array(16),
     origin = new Float64Array(3);
-  let pipeline: GPUComputePipeline | undefined;
+  const pool = createTileLightPool(device);
+  let pipelines: GPUComputePipeline[];
   try {
-    pipeline = device.createComputePipeline({
-      layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-      compute: { module, entryPoint: 'lightTiles' },
-    });
+    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
+    pipelines = modules.map((module) =>
+      device.createComputePipeline({
+        layout: pipelineLayout,
+        compute: { module, entryPoint: 'lightTiles' },
+      }),
+    );
   } catch (error) {
     uniform.destroy();
+    pool.dispose();
     throw error;
   }
   let tiles: GPUBuffer | undefined,
     group: GPUBindGroup | undefined,
     tilesX = 0,
-    tilesY = 0;
+    tilesY = 0,
+    poolWords = 0,
+    wide = false;
   const bound = createWebgpuBindIdentity();
   return {
     /** True when the device granted `subgroups`: the depth bounds reduce per subgroup. */
@@ -86,17 +101,33 @@ export async function createGpuLightTiles(device: GPUDevice) {
     get tilesY() {
       return tilesY;
     },
-    /** Ensures the target buffer and the bind group; returns `true` if the pass is ready. */
-    ensure(width: number, height: number, depth: GPUTextureView, lights: GPUBuffer) {
+    /** True when the scene holds more lights than a list: the wide pass and its pool run. */
+    get wide() {
+      return wide;
+    },
+    /** What the last sampled wide frame asked of the pool (#849). */
+    pool: pool.sample,
+    /** Ensures the target buffer and the bind group for `lightCount` lights; returns `true` if
+     *  the pass is ready. */
+    ensure(
+      width: number,
+      height: number,
+      depth: GPUTextureView,
+      lights: GPUBuffer,
+      lightCount: number,
+    ) {
       const wantedX = tilesOn(width),
         wantedY = tilesOn(height);
-      if (!tiles || wantedX !== tilesX || wantedY !== tilesY) {
+      wide = lightCount > LIGHT_SETTINGS.tileLights;
+      const wantedPool = pool.words(wantedX * wantedY, wide);
+      if (!tiles || wantedX !== tilesX || wantedY !== tilesY || wantedPool !== poolWords) {
         tiles?.destroy();
         tilesX = wantedX;
         tilesY = wantedY;
+        poolWords = wantedPool;
         tiles = device.createBuffer({
           label: 'Trillion3D light tiles v1',
-          size: tilesX * tilesY * TILE_STRIDE_WORDS * 4,
+          size: (tilesX * tilesY * TILE_STRIDE_WORDS + poolWords) * 4,
           usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         });
         group = undefined;
@@ -111,6 +142,7 @@ export async function createGpuLightTiles(device: GPUDevice) {
             { binding: 1, resource: { buffer: uniform } },
             { binding: 2, resource: { buffer: lights } },
             { binding: 3, resource: { buffer: tiles } },
+            { binding: 4, resource: { buffer: pool.state } },
           ],
         });
       }
@@ -130,17 +162,23 @@ export async function createGpuLightTiles(device: GPUDevice) {
       packed[19] = tilesY;
       packed.set(origin, 20);
       device.queue.writeBuffer(uniform, 0, packed);
+      if (wide) pool.open(tilesX * tilesY * TILE_STRIDE_WORDS, poolWords);
     },
-    encode(encoder: GPUCommandEncoder) {
-      if (!pipeline || !group) return false;
+    /** Encodes the pass of image `frame`; the wide pass's pool state is sampled after it. */
+    encode(encoder: GPUCommandEncoder, frame: number) {
+      if (!group) return false;
       const pass = encoder.beginComputePass({ label: LIGHT_TILES_PASS });
-      pass.setPipeline(pipeline);
+      pass.setPipeline(pipelines[+!wide]);
       pass.setBindGroup(0, group);
       pass.dispatchWorkgroups(tilesX, tilesY, 1);
       pass.end();
+      if (wide) pool.sampleState(encoder, frame);
       return true;
     },
+    /** Requests mapping of the pool sample, once the frame that copied it is submitted. */
+    submitted: pool.submitted,
     dispose() {
+      pool.dispose();
       uniform.destroy();
       tiles?.destroy();
       tiles = undefined;
