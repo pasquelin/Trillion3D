@@ -167,11 +167,11 @@ export function assertCacheIdentity(metadata: ClusterManifest) {
     );
   // Texture levels of another version — before 6, block files not laid out in tile records
   // (#962) — would be cut at the wrong bytes: the cache is refused whole, never drawn coarse.
-  const levels = metadata.textures && (metadata.textures.version ?? null);
-  if (levels !== undefined && levels !== TEXTURE_PREVIEW_VERSION)
+  const { textures } = metadata;
+  if (textures && textures.version !== TEXTURE_PREVIEW_VERSION)
     throw new EngineError(
       'STALE_CACHE',
-      `Cache texture levels are version ${levels ?? 'absent'}, this runtime reads ${TEXTURE_PREVIEW_VERSION}; recompile the cache (trillion3d-compile, or pnpm run compile:caches in the repository)`,
-      { textureVersion: levels, expected: TEXTURE_PREVIEW_VERSION },
+      `Cache texture levels are version ${textures.version ?? 'absent'}, this runtime reads ${TEXTURE_PREVIEW_VERSION}; recompile the cache (trillion3d-compile, or pnpm run compile:caches in the repository)`,
+      { textureVersion: textures.version ?? null, expected: TEXTURE_PREVIEW_VERSION },
     );
 }
