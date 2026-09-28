@@ -129,11 +129,7 @@ async function start(message: Extract<ToPhysics, { type: 'start' }>) {
   // The module's threads run in workers of this same script (`thread` messages below); until
   // each has loaded, `jolt` stays unset: nothing steps, the character's words wait in `queued`.
   const pool =
-    message.threads > 1
-      ? joltWorkerPool(scope.location.href, message.threads, (data) =>
-          scope.postMessage(data as FromPhysics),
-        )
-      : null;
+    message.threads > 1 ? joltWorkerPool(scope.location.href, message.threads, fail) : null;
   const opened = await openJolt(await response.arrayBuffer(), budget.memoryBytes, pool);
   const started = startJolt(opened, budget, message.threads);
   await pool?.ready();
