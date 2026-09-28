@@ -90,7 +90,8 @@ pub(super) fn meshopt_source(
     stride: usize,
     mode: &str,
 ) -> (Value, Binary) {
-    let g = json!({"buffers":[{"uri":"encoded.bin","byteLength":bytes.len()},{"byteLength":count*stride}],
+    let g = json!({"extensionsRequired":[MESHOPT],
+        "buffers":[{"uri":"encoded.bin","byteLength":bytes.len()},{"byteLength":count*stride}],
         "bufferViews":[{"buffer":1,"byteLength":count*stride,"extensions":{MESHOPT:{"buffer":0,"byteLength":bytes.len(),"byteStride":stride,"count":count,"mode":mode}}}]});
     (g, Binary::Owned(bytes))
 }

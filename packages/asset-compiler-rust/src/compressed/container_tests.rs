@@ -72,7 +72,8 @@ fn embedded_glb_and_triangle_strip_normalize_to_triangles() {
 #[test]
 fn absent_meshopt_fallback_is_not_allocated_or_usable_as_source() {
     let root = fixture();
-    let mut g = json!({"buffers":[{"byteLength":1024},{"uri":"Box.bin","byteLength":120}],
+    let mut g = json!({"extensionsRequired":[MESHOPT],
+        "buffers":[{"byteLength":1024},{"uri":"Box.bin","byteLength":120}],
         "bufferViews":[{"buffer":0,"byteLength":1024,"extensions":{MESHOPT:{"buffer":0,"byteLength":120,"byteStride":4,"count":256,"mode":"ATTRIBUTES"}}}]});
     let (binary, mut offsets, _) = concat_gltf_buffers(&root, &g, None, None).unwrap();
     assert_eq!(binary.bytes().len(), 120);
@@ -88,4 +89,13 @@ fn absent_meshopt_fallback_is_not_allocated_or_usable_as_source() {
         }
     )
     .is_err());
+}
+
+#[test]
+fn absent_meshopt_fallback_requires_the_extension() {
+    let root = fixture();
+    let g = json!({"buffers":[{"byteLength":1024},{"uri":"Box.bin","byteLength":120}],
+        "bufferViews":[{"buffer":0,"byteLength":1024,"extensions":{MESHOPT:{"buffer":1,"byteLength":120,"byteStride":4,"count":256,"mode":"ATTRIBUTES"}}}]});
+    assert!(!placeholder(&g, 0));
+    assert!(concat_gltf_buffers(&root, &g, None, None).is_err());
 }
