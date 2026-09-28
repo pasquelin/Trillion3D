@@ -14,7 +14,7 @@ use crate::perf::{Phase, Timer};
 use crate::qem::{compact_region, simplify_with_locked_vertices};
 use crate::{invalid, Result};
 use rayon::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Triangles per cluster. Matches the page budget used by the exact path.
 pub const DAG_CLUSTER_TRIANGLES: usize = 128;
@@ -92,6 +92,8 @@ struct GroupReduction {
     source_rank: u32,
     /// Reduction had to lock additional triangles to preserve border.
     relocked: bool,
+    /// The vertices a solved reduction placed (`solved.rs`); `None` for an endpoint reduction.
+    placed: Option<grown::Placed>,
 }
 /// One reduction of the DAG, kept so the runtime can swap a whole group at once.
 ///
@@ -107,16 +109,19 @@ pub struct DagGroup {
     pub outputs: Vec<usize>,
 }
 struct GroupReductionInput<'a> {
+    /// The level's vertex arrays: the source's, then every vertex a solved reduction placed.
     positions: &'a [f32],
-    /// Normals and texture sets, as the simplifier weighs them.
-    attributes: &'a [crate::qem::Attribute<'a>],
-    normals: Option<&'a [f32]>,
+    /// Every attribute the pages carry; normals and texture sets count in the error.
+    attributes: DagAttributes<'a>,
     /// Normal deviation this group's reduction may not exceed (`quality::deviation_bound`).
     normal_bound: f64,
     locks: &'a [bool],
     /// Per source vertex, on a texture seam: protected from permissive collapses. Empty without
     /// a texture set.
     seams: &'a [bool],
+    /// Per vertex, where a chart meets its mirror image (`charts::mirror_vertices`): the solve
+    /// keeps its seam. Empty without a texture set.
+    mirrors: &'a [bool],
     /// Canonical vertex by position: locks, borders, adjacency.
     weld: &'a [u32],
     /// Canonical vertex by position and every carried attribute (`attributes::weld_exact`).
@@ -163,12 +168,17 @@ pub(crate) mod attributes;
 pub(crate) mod border;
 pub(crate) mod bounds;
 mod build;
+mod charts;
 pub(crate) mod clusters;
 mod culling;
 mod diagnosis;
 pub(crate) mod groups;
+mod grown;
+mod level0;
+mod placed;
 pub(crate) mod quality;
 pub(crate) mod reduce;
+mod solved;
 mod tally;
 #[cfg(test)]
 mod tests;
@@ -180,5 +190,7 @@ pub use build::build_dag_tallied;
 use clusters::*;
 pub use culling::build_culling_bvh;
 use groups::*;
+pub use grown::Grown;
+use level0::level_zero;
 use reduce::*;
 pub use tally::{DagStall, GroupOutcome, GroupTally, StallCause};

@@ -1,15 +1,44 @@
 //! What the DAG builder guarantees on every case, asserted on the DAG it builds in memory.
 use super::*;
-use crate::dag::{build_dag_tallied, DagCluster, DagStall, DagStrategy};
+use crate::dag::{build_dag_tallied, DagCluster, DagGroup, DagStall, DagStrategy, Grown};
 use std::collections::HashSet;
 
 pub(super) struct Built {
     pub dag: Vec<DagCluster>,
+    pub groups: Vec<DagGroup>,
     pub stalls: Vec<DagStall>,
+    /// The case's vertices grown with those a seam-locked group's solve placed.
+    pub grown: Option<Grown>,
 }
 impl Built {
     pub fn roots(&self) -> usize {
         self.dag.iter().filter(|c| c.is_root()).count()
+    }
+    /// Per cluster, whether it descends from a group reduced with solved vertices: one whose
+    /// outputs draw a vertex placed after the case's `source` vertices.
+    pub fn solved(&self, source: usize) -> Vec<bool> {
+        let placed = |&c: &usize| self.dag[c].indices.iter().any(|&v| v as usize >= source);
+        let mut solved = vec![false; self.dag.len()];
+        // The builder pushes a group's children before its outputs.
+        for (id, cluster) in self.dag.iter().enumerate() {
+            solved[id] = cluster.source.is_some_and(|g| {
+                let group = &self.groups[g];
+                group.outputs.iter().any(placed) || group.children.iter().any(|&c| solved[c])
+            });
+        }
+        solved
+    }
+    /// The positions the pages read: the case's, then every placed vertex.
+    pub fn positions<'a>(&'a self, case: &'a Case) -> &'a [f32] {
+        self.grown
+            .as_ref()
+            .map_or(&case.positions, |g| &g.positions)
+    }
+    /// The attributes the pages carry, grown likewise.
+    pub fn attributes(&self, case: &Case) -> Vec<geometry_page::Attribute> {
+        self.grown
+            .as_ref()
+            .map_or_else(|| case.attributes(), |g| g.carried.clone())
     }
 }
 
@@ -18,7 +47,7 @@ impl Built {
 pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
     let attributes = case.attributes();
     let carried: Vec<&geometry_page::Attribute> = attributes.iter().collect();
-    let (dag, _, _, stalls) = build_dag_tallied(
+    let (dag, groups, _, stalls, grown) = build_dag_tallied(
         &case.positions,
         crate::dag::DagAttributes { carried: &carried },
         indices,
@@ -26,11 +55,17 @@ pub(super) fn build(case: &Case, indices: &[u32]) -> Built {
         &|| Ok(()),
     )
     .expect("dag");
-    Built { dag, stalls }
+    Built {
+        dag,
+        groups,
+        stalls,
+        grown,
+    }
 }
 
-/// Level 0 partitions the source triangles; every coarse index names a vertex the source uses;
-/// errors are finite and climb up the DAG; the cook's own check passes (`dag::quality`).
+/// Level 0 partitions the source triangles; every coarse index names a vertex the source uses or
+/// one a solve placed; errors are finite and climb up the DAG; the cook's own check passes
+/// (`dag::quality`).
 pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label: &str) {
     let level0: Vec<&DagCluster> = built.dag.iter().filter(|c| c.level == 0).collect();
     assert_eq!(
@@ -48,12 +83,18 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
         source, partition,
         "{label}: level 0 is the source partition"
     );
-    let quality = crate::dag::quality::check(&built.dag, &case.positions, case.normals.as_deref());
+    let attributes = built.attributes(case);
+    let normals = attributes
+        .iter()
+        .find(|a| a.flag == geometry_page::FLAG_NORMAL);
+    let normals = normals.map(|a| &a.values[..]);
+    let quality = crate::dag::quality::check(&built.dag, built.positions(case), normals);
     if let Err(refusal) = quality {
         panic!("{label}: the cook refuses the DAG: {refusal}");
     }
     let used: HashSet<u32> = indices.iter().copied().collect();
     let vertices = case.vertex_count() as u32;
+    let grown = (built.positions(case).len() / 3) as u32;
     for cluster in &built.dag {
         assert!(
             cluster.lod_error.is_finite() && cluster.lod_error >= 0.0,
@@ -80,51 +121,36 @@ pub(super) fn check_structure(case: &Case, indices: &[u32], built: &Built, label
         }
         if cluster.level > 0 {
             for &vertex in &cluster.indices {
+                let placed = (vertices..grown).contains(&vertex);
                 assert!(
-                    vertex < vertices && used.contains(&vertex),
-                    "{label}: a coarse vertex is a source vertex"
+                    placed || used.contains(&vertex),
+                    "{label}: a coarse vertex is a source vertex or a placed one"
                 );
             }
         }
     }
 }
 
-/// The roots the case expects, and never a silent stall: more than one root is always explained
-/// by stalled groups, and every stalled group of a case that expects a stall carries one of the
-/// causes that case accepts.
-pub(super) fn check_roots(expect: Roots, built: &Built, label: &str) {
-    let roots = built.roots();
+/// One root per primitive, and no stalled group: every layout of the corpus, seam-locked ones
+/// included (`dag/solved.rs`), climbs to the top.
+pub(super) fn check_roots(built: &Built, label: &str) {
     let causes: Vec<(usize, &str)> = built
         .stalls
         .iter()
         .map(|s| (s.level, s.outcome.cause.name()))
         .collect();
-    assert!(
-        roots == 1 || !causes.is_empty(),
-        "{label}: {roots} roots and no stall named"
-    );
-    match expect {
-        Roots::One => {
-            assert_eq!(roots, 1, "{label}: one root, stalls {causes:?}");
-            assert!(causes.is_empty(), "{label}: no stall, stalls {causes:?}");
-        }
-        Roots::Stalled(accepted) => {
-            assert!(roots > 1, "{label}: the stall leaves several roots");
-            assert!(
-                causes.iter().all(|(_, named)| accepted.contains(named)),
-                "{label}: every stall is one of {accepted:?}, stalls {causes:?}"
-            );
-        }
-    }
+    assert_eq!(built.roots(), 1, "{label}: one root, stalls {causes:?}");
+    assert!(causes.is_empty(), "{label}: no stall, stalls {causes:?}");
 }
 
 /// Every cluster's page decodes back to its source positions and attributes, within the error
 /// the page declares.
 pub(super) fn check_pages(case: &Case, built: &Built, label: &str) {
-    let attributes = case.attributes();
+    let attributes = built.attributes(case);
     let carried: Vec<&geometry_page::Attribute> = attributes.iter().collect();
+    let positions = built.positions(case);
     let exponent = crate::geometry_page_quant::primitive_exponent(
-        &case.positions,
+        positions,
         built
             .dag
             .iter()
@@ -136,7 +162,7 @@ pub(super) fn check_pages(case: &Case, built: &Built, label: &str) {
     for cluster in &built.dag {
         let encoded = geometry_page::encode(
             &cluster.indices,
-            &case.positions,
+            positions,
             &carried,
             exponent,
             crate::geometry_page_quant::UV_EXPONENT,
@@ -147,7 +173,7 @@ pub(super) fn check_pages(case: &Case, built: &Built, label: &str) {
         crate::geometry_page::tests_codec::verify(
             &page,
             &cluster.indices,
-            &case.positions,
+            positions,
             &attributes,
             page.quantization_error,
         );
