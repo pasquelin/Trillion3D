@@ -6,10 +6,11 @@ import { addBox, BOX, CLOTH, flatCloth, FLOOR, settle, softWorld } from './soft.
 import { stateDump } from './stateDump.fixture.ts';
 
 /** `stateDump`'s motion as develop's module simulated it, which simulated this scene as it did
- *  before PHY-09 and PHY-10; taken again apart from the vertices when PHY-06 rounded them (#975). */
-const DEVELOP_MOTION = '41af987973f53923437d7cb87e4824690cdfa39fbb50608a8cd5a5a633842e14';
+ *  before PHY-09 and PHY-10; taken again apart from the vertices when PHY-06 rounded them (#975),
+ *  and again with each step's events sorted, develop's module giving it too (#934). */
+const DEVELOP_MOTION = 'd54edc7d4da4d89a53292e152a575d5760cd6b3326128592eb1a87f280200692';
 /** `stateDump` whole, vertices bit for bit, as the write-back of one matrix per body gives it. */
-const FULL_DUMP = '35400505d6bdcfb401731ed390cb869f09cabfb2aae9de61d0930d44010bb865';
+const FULL_DUMP = '7f90142b87ab6134a91cfe14e6825cc2312ff6ce1a80591f029f58bf6d75fcc2';
 
 test('a finite scene steps exactly as before, but for pinned cloths that never stretch', async () => {
   assert.deepEqual(stateDump(await startModule()), { motion: DEVELOP_MOTION, full: FULL_DUMP });
