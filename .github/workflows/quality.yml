@@ -11,11 +11,13 @@ on:
     branches: [develop, '[0-9]+-*']
   workflow_dispatch:
 
-# One run per branch: a push and the `synchronize` of its open pull request share a group, and a
-# new run supersedes the one it replaces instead of queueing behind it. Every `develop` commit keeps
-# its own run, since that is the record that the branch is green.
+# One group per pull request (`pr-<number>`) and one per pushed branch (`push-<branch>`): a new run
+# supersedes the older one of its own group instead of queueing behind it, and a push run never
+# cancels a pull request's, which alone proves the merge with `develop`. A push to a branch with an
+# open pull request thus runs twice. Every `develop` commit keeps its own run, since that is the
+# record that the branch is green.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/develop' && github.ref || github.head_ref || github.ref_name }}
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/develop' && github.ref || github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || format('{0}-{1}', github.event_name, github.ref_name) }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/develop' }}
 
 permissions:
