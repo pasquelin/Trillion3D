@@ -16,6 +16,7 @@ import { COARSER_VIEWS, DAG_UNIFORM_BYTES, LIST_FULL } from './shader/viewsWgsl.
 import { VIEW_FLAGS_WORD } from './uniforms.ts';
 import { VIEW_APPEND } from './shader/pagesWgsl.ts';
 import { createCameraFrames } from './frameRanges.ts';
+import { DRAW_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 
 const CASTERS = 16;
 
@@ -87,7 +88,7 @@ function lightCutFrame() {
     for (const page of pages) {
       cut.encode(encoder, views, 1);
       flags.push(run(page, resident));
-      const settle = cut.redraws.encode(encoder, [page], [0], 1);
+      const settle = cut.redraws.encode(encoder, [page], [0], 1, [DRAW_FULL]);
       if (settle) settles.push(settle);
     }
     const report = cut.encodeReports(encoder);
