@@ -35,6 +35,10 @@ export function cameraFrameRanges(
   return ranges;
 }
 
+/** The `range` words of a `frames` that holds all `worldCount` primitives: a light cut's, a
+ *  probe's. */
+export const wholeRange = (worldCount: number) => new Uint32Array([0, worldCount, 0, 0]);
+
 /** Bytes between two ranges' words in the range uniform: a uniform binds at that alignment. */
 const rangeStride = (limits: { minUniformBufferOffsetAlignment?: number }) =>
   limits.minUniformBufferOffsetAlignment ?? 256;
@@ -85,10 +89,11 @@ export function createCameraFrames(
         device.queue.writeBuffer(buffers[r], 0, frameData, first * ROW_FLOATS, count * ROW_FLOATS),
       );
     },
-    /** Word `slot` of primitive `w`'s frame words, from the host's row to its range. */
-    writeWord(w: number, slot: number) {
+    /** Word `slot` of primitive `w`'s frame words, set in the host's row and in its range. */
+    writeWord(w: number, slot: number, value: number) {
       const r = Math.floor(w / per),
         at = primitiveWordAt(w) + slot;
+      frameInts[at] = value;
       device.queue.writeBuffer(
         buffers[r],
         (at - ranges[r].first * ROW_FLOATS) * 4,

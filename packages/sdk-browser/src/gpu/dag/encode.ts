@@ -51,7 +51,6 @@ function encodeOnce(
 ) {
   const {
     residentCut,
-    worldCount,
     blockCount,
     levelSizes,
     liveGroupsOffset,
@@ -85,20 +84,32 @@ function encodeOnce(
   // Every kernel that reads a primitive's words runs once per range of `frames`, under that
   // range's bind group, and takes only its range's primitives (`frameRanges.ts`). One range, the
   // group the pass opened with stays: the commands of before.
-  const eachRange = (pass: GPUComputePassEncoder, dispatch: (count: number, r: number) => void) =>
-    ranges.forEach(({ count }, r) => {
+  // \`perRange(pass, pipeline, threads)\` dispatches \`threads\` threads per range, or indirectly
+  // when \`threads\` is absent; \`threads\` of a range's primitives (\`first\`) when it is a function.
+  const perRange = (
+    pass: GPUComputePassEncoder,
+    pipeline: GPUComputePipeline,
+    threads?: number | ((count: number, r: number) => number),
+  ) => {
+    pass.setPipeline(pipeline);
+    for (let r = 0; r < ranges.length; r++) {
       if (ranges.length > 1) pass.setBindGroup(0, bindGroups[r]);
-      dispatch(count, r);
-    });
+      if (threads === undefined) pass.dispatchWorkgroupsIndirect(dispatchArgs, 0);
+      else
+        pass.dispatchWorkgroups(
+          groups(typeof threads === 'number' ? threads : threads(ranges[r].count, r)),
+        );
+    }
+  };
   const open = () => {
     const pass = encoder.beginComputePass({ label });
     pass.setBindGroup(0, bindGroups[0]);
     return pass;
   };
-  const alone = (pipeline: GPUComputePipeline) => {
+  /** A pass of its own for a kernel that reads a primitive's words: once per range. */
+  const alonePerRange = (pipeline: GPUComputePipeline) => {
     const pass = open();
-    pass.setPipeline(pipeline);
-    eachRange(pass, () => pass.dispatchWorkgroupsIndirect(dispatchArgs, 0));
+    perRange(pass, pipeline);
     pass.end();
   };
   // A light cut sets no draw flag, so it has none to clear.
@@ -112,9 +123,8 @@ function encodeOnce(
     pass.dispatchWorkgroupsIndirect(dispatchArgs, 0);
   }
   // The first range's dispatch also resets the block counts; each other starts at its first.
-  pass.setPipeline(preparePipeline);
-  eachRange(pass, (count, r) =>
-    pass.dispatchWorkgroups(groups(r ? count * views : Math.max(count * views, blockCount))),
+  perRange(pass, preparePipeline, (count, r) =>
+    r ? count * views : Math.max(count * views, blockCount),
   );
   // The whole descent in THIS pass: dispatches of the same pass run in order and see what the
   // previous ones wrote — prepare and pass 0 already depended on that. Nothing else cut the
@@ -123,23 +133,24 @@ function encodeOnce(
   // Pass 0 starts from one root per primitive. Its count is `worldCount` and NOT `levelSizes[0]`,
   // which would not always bound it: `dagPrepare` puts one entry per primitive, missing root
   // included — pass 0 reads it there and rejects it —, where stage zero only counts roots that
-  // exist. A primitive whose caller supplies an empty hierarchy would make the two diverge. Each
-  // range walks a level's whole queue, and keeps its own primitives' nodes.
-  pass.setPipeline(levelPipelines[0]);
-  eachRange(pass, () => pass.dispatchWorkgroups(groups(worldCount * views)));
+  // exist. A primitive whose caller supplies an empty hierarchy would make the two diverge. Its
+  // entries are its primitives': each range reads its own. A deeper level mixes them, so each
+  // range walks the level's whole queue and keeps its own primitives' nodes.
+  perRange(pass, levelPipelines[0], (count) => count * views);
   // Each following level reads only the nodes the previous one kept, and fills the next of the
   // three queues — the one a level earlier cleared. The dispatched count is that of its stage's
   // nodes, an upper bound the layout knows.
   for (let level = 1; level < levelSizes.length; level++) {
-    pass.setPipeline(levelPipelines[level % levelPipelines.length]);
-    eachRange(pass, () =>
-      pass.dispatchWorkgroups(groups(Math.min(levelSizes[level] * views, queueCap))),
+    perRange(
+      pass,
+      levelPipelines[level % levelPipelines.length],
+      Math.min(levelSizes[level] * views, queueCap),
     );
   }
   pass.end();
   // Pages of kept leaves, and they alone: a page under a rejected node is not read.
   arm(candGroupsOffset);
-  alone(wantedPipeline);
+  alonePerRange(wantedPipeline);
   if (headOnly) return;
   arm(liveGroupsOffset);
   const live = open();
@@ -154,8 +165,7 @@ function encodeOnce(
     live.setPipeline(viewOffsetsPipeline);
     live.dispatchWorkgroups(1);
   }
-  live.setPipeline(maskPipeline);
-  eachRange(live, () => live.dispatchWorkgroupsIndirect(dispatchArgs, 0));
+  perRange(live, maskPipeline);
   // The drawable-page list is compacted here, in increasing order: the snapshot no longer
   // reports one flag per page but the count alone and its ranks.
   // Then the camera's requests, staged by `dagWanted`, go into the snapshot sorted by rank: one
