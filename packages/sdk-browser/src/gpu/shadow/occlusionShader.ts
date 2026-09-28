@@ -60,6 +60,8 @@ fn hiddenInPage(s:Sphere,m:mat4x4f,slot:u32)->bool{
 fn shadowHizTest(@builtin(global_invocation_id) id:vec3u){
  let r=id.y;
  if(r>=uni.regions){return;}
+ // A visible list draws the corners of the list it comes from: all its casters' triangles (#966).
+ if(id.x==0u){for(var list=0u;list<2u;list++){atomicStore(&visibleIndirect[keptCorners(r,list==1u)],indirect[keptCorners(r,list==1u)]);}}
  let slot=atomicLoad(&slots[r*${SLOT}u]);
  let opaque=min(indirect[keptCount(r,false)],uni.capacity);
  let cutouts=min(indirect[keptCount(r,true)],uni.capacity-opaque);
@@ -68,7 +70,5 @@ fn shadowHizTest(@builtin(global_invocation_id) id:vec3u){
  let row=kept[keptAt(r,select(id.x,id.x-opaque,cutout),uni.capacity,cutout)];
  if(hiddenInPage(spheres[row],views[r].viewProjection,slot)){atomicAdd(&slots[r*${SLOT}u+1u],1u);return;}
  visible[keptAt(r,atomicAdd(&visibleIndirect[keptCount(r,cutout)],1u),uni.capacity,cutout)]=row;
- // A visible list draws the corners of the list it comes from: all its casters' triangles (#966).
- atomicMax(&visibleIndirect[keptCorners(r,cutout)],indirect[keptCorners(r,cutout)]);
 }
 `;

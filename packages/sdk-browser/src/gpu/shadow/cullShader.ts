@@ -85,7 +85,8 @@ fn keepCaster(face:u32,row:u32,capacity:u32){
  }
  let cutout=(word&${MOBILITY_CUTOUT}u)!=0u;
  kept[keptAt(face,atomicAdd(&indirect[keptCount(face,cutout)],1u),capacity,cutout)]=row;
- atomicMax(&indirect[keptCorners(face,cutout)],word>>${MOBILITY_CORNER_SHIFT}u);
+ let corners=word>>${MOBILITY_CORNER_SHIFT}u;
+ if(atomicLoad(&indirect[keptCorners(face,cutout)])<corners){atomicMax(&indirect[keptCorners(face,cutout)],corners);}
 }
 `;
 

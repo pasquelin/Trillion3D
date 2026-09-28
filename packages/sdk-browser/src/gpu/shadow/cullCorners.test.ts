@@ -17,12 +17,12 @@ import { createShadowMobility } from '../../webgpu/shadow/mobility.ts';
 import { seeded } from '../../../../../site/examples/kit/random.ts';
 
 test('both culls raise the command to the corners of each caster they keep', () => {
-  const line = `atomicMax(&indirect[keptCorners(face,cutout)],word>>${MOBILITY_CORNER_SHIFT}u);`;
+  const line = `let corners=word>>${MOBILITY_CORNER_SHIFT}u;\n if(atomicLoad(&indirect[keptCorners(face,cutout)])<corners){atomicMax(&indirect[keptCorners(face,cutout)],corners);}`;
   for (const shader of [SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER])
     assert.ok(shader.includes(line));
   assert.ok(
     SHADOW_OCCLUSION_SHADER.includes(
-      'atomicMax(&visibleIndirect[keptCorners(r,cutout)],indirect[keptCorners(r,cutout)]);',
+      'if(id.x==0u){for(var list=0u;list<2u;list++){atomicStore(&visibleIndirect[keptCorners(r,list==1u)],indirect[keptCorners(r,list==1u)]);}}',
     ),
     'a visible list draws the corners of the list it comes from',
   );
