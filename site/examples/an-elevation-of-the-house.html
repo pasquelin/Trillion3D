@@ -27,17 +27,17 @@
 
       const world = createWorld('view');
       world.scene.background = math.color('#d8e5e7');
-      const paint = (color, roughness = 0.8) => material.meshStandard({ color, roughness });
+      const paint = (color, roughness) => material.meshStandard({ color, roughness });
       const plaster = paint('#f1eadc', 0.95);
       const roof = paint('#9f493b', 0.85);
       const wood = paint('#7a4b2d', 0.75);
       const glass = paint('#79a9bd', 0.2);
       const stone = paint('#887f73', 1);
       const trim = paint('#f8f3e9', 0.9);
-      const put = (shape, matter, at, parent = world.scene) => {
+      const put = (shape, matter, at) => {
         const mesh = object.mesh(shape, matter);
         mesh.position.set(...at);
-        parent.add(mesh);
+        world.scene.add(mesh);
         return mesh;
       };
 
@@ -79,11 +79,11 @@
         put(windowTrim, trim, [x, y, z]).rotation.y = turn;
         put(windowShape, glass, [x + nx * 0.08, y, z + nz * 0.08]).rotation.y = turn;
       };
-      const [front, back, face] = [depth / 2 + 0.06, -depth / 2 - 0.06, half + 0.06];
+      const [front, face] = [depth / 2 + 0.06, half + 0.06];
       for (const x of [-3, 3]) frameWindow(x, 4.2, front, [0, 1]);
       put(geometry.box(2.1, 3.25, 0.16), wood, [0, 1.95, front + 0.02]);
       put(geometry.sphere(0.08, 12, 8), trim, [0.68, 1.95, front + 0.16]);
-      for (const x of [-2.8, 0, 2.8]) frameWindow(x, 3.7, back, [0, -1]);
+      for (const x of [-2.8, 0, 2.8]) frameWindow(x, 3.7, -front, [0, -1]);
       for (const side of [-1, 1])
         for (const z of [-1.8, 1.8]) frameWindow(side * face, 3.8, z, [side, 0]);
       // The lowest surface: nothing under it would show its shadow.
