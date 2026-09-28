@@ -1745,7 +1745,8 @@
       "night": "रात",
       "bounce": "उछाल",
       "sun": "सूरज",
-      "lamp": "लैंप"
+      "lamp": "लैंप",
+      "spin": "घुमाएँ"
     },
     "words": {
       "credit": "W. Sitters का सड़क-लैंप मॉडल, CC BY 3.0 — देखो assets/examples/CREDITS.md"
