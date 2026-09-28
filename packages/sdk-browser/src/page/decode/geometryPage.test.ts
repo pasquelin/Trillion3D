@@ -69,7 +69,7 @@ test('the reference encoder refuses a page too wide for its grid instead of re-g
   assert.throws(() => encodeGeometryPage([0, 1, 2], wide, -8), /PAGE_ATTRIBUTE_RANGE/);
 });
 
-test('a short header, a wrong version, a field beyond the format, a forged index and a truncation are refused in that order', () => {
+test('a short header, a wrong version, a field beyond the format, a truncation and a forged block record are refused in that order', () => {
   const { encoded } = anneau(4, -10);
   assert.throws(() => decodeGeometryPage(encoded.data.subarray(0, 16)), /GEOMETRY_PAGE_HEADER/);
   const version = Uint8Array.from(encoded.data);
@@ -84,8 +84,8 @@ test('a short header, a wrong version, a field beyond the format, a forged index
   );
   assert.throws(() => decodeGeometryPage(encoded.data, 16), /GEOMETRY_PAGE_BOUNDS/);
   const forged = Uint8Array.from(encoded.data);
-  forged[96] = 0xff; // The first block record's base 7 > 6 vertices and its width 31, past 16.
-  assert.throws(() => decodeGeometryPage(forged), /GEOMETRY_PAGE_INDEX/);
+  forged[96] = 0xff; // The first block record's width 31, past 16: the header gate refuses it.
+  assert.throws(() => decodeGeometryPage(forged), /GEOMETRY_PAGE_BOUNDS/);
 });
 
 test('a page view off the word boundary decodes bit for bit like the aligned one', () => {

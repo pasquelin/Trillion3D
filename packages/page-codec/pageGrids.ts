@@ -3,6 +3,9 @@
  * normal bytes, and the bit packer that writes fixed-width fields, least significant bit first.
  */
 const MAX_BITS = 24;
+/** Corners per block of eight triangles, and the bits of a block's width. */
+const BLOCK_CORNERS = 24,
+  WIDTH_BITS = 5;
 
 /** Bits that hold every value of `0..=range`, a range below 2^32; none for a constant field. */
 export const bitsFor = (range: number) => (range <= 0 ? 0 : 32 - Math.clz32(range));
@@ -96,17 +99,17 @@ export class Packer {
  */
 export function packCorners(pack: Packer, corners: readonly number[], indexBits: number) {
   const blocks: { corners: number[]; base: number; width: number }[] = [];
-  for (let i = 0; i < corners.length; i += 24) {
-    const block = corners.slice(i, i + 24),
+  for (let i = 0; i < corners.length; i += BLOCK_CORNERS) {
+    const block = corners.slice(i, i + BLOCK_CORNERS),
       base = Math.min(...block);
     blocks.push({ corners: block, base, width: bitsFor(Math.max(...block) - base) });
   }
   const cornerBits = blocks.reduce((sum, b) => sum + b.corners.length * b.width, 0),
-    prefixBits = bitsFor(Math.floor(cornerBits / 24));
+    prefixBits = bitsFor(Math.floor(cornerBits / BLOCK_CORNERS));
   let prefix = 0;
   for (const { base, width } of blocks) {
     pack.push(base, indexBits);
-    pack.push(width, 5);
+    pack.push(width, WIDTH_BITS);
     pack.push(prefix, prefixBits);
     prefix += width;
   }

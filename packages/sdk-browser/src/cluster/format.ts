@@ -25,6 +25,9 @@ export const OPTIONAL = [
 export const TRIANGLE_BLOCK = 8,
   WIDTH_BITS = 5,
   MAX_WIDTH = 16;
+/** Corners per full block: a block's bits are `BLOCK_CORNERS × width`, so a prefix of widths
+ *  locates it. */
+export const BLOCK_CORNERS = 3 * TRIANGLE_BLOCK;
 /** Widest field: read at any bit offset, it spans two words at most. */
 export const MAX_BITS = 24;
 /** Largest magnitude of a grid exponent: the step stays a normal 32-bit float. */

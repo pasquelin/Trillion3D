@@ -138,7 +138,7 @@ ${FACING_WGSL}
  out.diagId=0u;
  if((flags&0x1c000000u)!=0u){out.diagId=clusterId;}
  if((flags&0x20000000u)!=0u){
-  let a=triangleHash(pageCorner(page,h,triangle));let b=triangleHash(pageCorner(page,h,triangle+1u));let c=triangleHash(pageCorner(page,h,triangle+2u));
+  let corners=pageTriangle(page,h,triangle/3u);let a=triangleHash(corners.x);let b=triangleHash(corners.y);let c=triangleHash(corners.z);
   out.tri=a^((b<<1u)|(b>>31u))^((c<<2u)|(c>>30u));
  }
  let corner=local%3u;

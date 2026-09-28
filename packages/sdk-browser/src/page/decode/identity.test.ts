@@ -75,18 +75,16 @@ test('every attribute, signed zeros included, decodes identically; a forged inde
   assert.ok(Object.is(enPlace.attributes.position[3], 0));
   assert.deepEqual(Object.keys(enPlace.attributes), ['position', 'normal', 'uv', 'uv2', 'color']);
   // A corner past the vertex count, forged in the corner stream after the one-word block table
-  // (base 0, two bits per corner), then a block width of 13 whose corners leave the stream.
-  for (const [at, byte] of [
-    [100, 0b11_01_00],
-    [96, 0b1101_00],
-  ]) {
+  // (base 0, two bits per corner), then a block width of 13 whose corners leave the stream, which
+  // the header gate refuses.
+  for (const [at, byte, cause] of [
+    [100, 0b11_01_00, /GEOMETRY_PAGE_INDEX/],
+    [96, 0b1101_00, /GEOMETRY_PAGE_BOUNDS/],
+  ] as const) {
     const forged = (data as Uint8Array).slice();
     forged[at] = byte;
-    await assert.rejects(
-      async () => decodeGeometryPage(forged.slice(), MAX),
-      /GEOMETRY_PAGE_INDEX/,
-    );
-    await assert.rejects(() => decodeGeometryPageWasm(forged.slice(), MAX), /GEOMETRY_PAGE_INDEX/);
+    await assert.rejects(async () => decodeGeometryPage(forged.slice(), MAX), cause);
+    await assert.rejects(() => decodeGeometryPageWasm(forged.slice(), MAX), cause);
   }
 });
 
