@@ -39,7 +39,7 @@ test('a threaded worker steps only once every pool thread has loaded', async (t)
   // Turns enough for a start that does not wait to post its ready and schedule its first step.
   for (let turn = 0; turn < 20; turn++) await setImmediate();
   // The module is started and its threads spawned, not loaded: the first step waits for them.
-  assert.deepEqual(sent, [], 'no ready and no step before the threads loaded');
+  assert.equal(sent.length, 0, 'no ready and no step before the threads loaded');
   assert.equal(ticks.length, 0, 'no tick owed before the threads loaded');
   for (const thread of held) thread.onmessage({ data: JOLT_THREAD_LOADED });
   await ready;
