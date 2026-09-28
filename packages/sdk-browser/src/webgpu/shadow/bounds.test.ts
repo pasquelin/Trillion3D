@@ -66,5 +66,10 @@ test('a page of a placement already moving changes residency: its box stales the
     void declared.push(movingOnly);
   for (const placementIndex of [0, 1, undefined])
     noteResidenceChange(lights, { ...CAS[0], placementIndex } as PageRec);
-  assert.deepEqual(declared, [false, true, false], 'still, moving, then no placement known');
+  noteResidenceChange(lights, { ...CAS[0], placementIndex: 0 } as PageRec, true);
+  assert.deepEqual(
+    declared,
+    [false, true, false, true],
+    "still, moving, no placement known, then a still placement's blended caster",
+  );
 });
