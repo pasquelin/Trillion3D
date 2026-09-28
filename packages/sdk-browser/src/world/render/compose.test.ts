@@ -11,6 +11,8 @@ import { createFrameComposer } from './compose.ts';
 import { createWebglRenderTarget } from '../../webgl/core/renderTarget.ts';
 import { createTestContext } from '../../webgl/core/testContext.fixture.ts';
 import { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
+import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
+import { effect } from '../../../../sdk-core/src/world/effect/index.ts';
 
 const camera = G.perspectiveCamera();
 
@@ -120,22 +122,45 @@ test('an engine that draws nothing on the host surface is refused by name', () =
   assert.throws(() => compose(backend, null), /HOST_DRAW_UNSUPPORTED:mute/);
 });
 
-test('WebGL2 refuses the pools by name from the first frame, heard once, and draws on', () => {
-  // With 32-bit float targets or without, the same refusal: the draw is #844.
-  for (const granted of [{}, null]) {
-    const { gl, names } = createTestContext({ answers: { getExtension: () => granted } });
+test('WebGL2 steps the pools ahead of the engine, which draws an image they moved in', () => {
+  const { gl, calls, names } = createTestContext({ answers: { getExtension: () => ({}) } });
+  const pool = new ParticlePool({ capacity: 8 });
+  const compose = createFrameComposer(gl, camera, { particles: [pool] });
+  const { backend, outputs } = engine({ held: true });
+  compose(backend, null);
+  compose(backend, null);
+  assert.equal(outputs.length, 1, 'an idle pool: the kept frame is put back');
+  assert.equal(compose.effectBytes(), 0, 'no particle drawn: no depth copy counted');
+  pool.emit(0, 0, 0, 0, 1, 0, 2);
+  compose(backend, null);
+  assert.equal(outputs.length, 2, 'a moving one: the engine draws');
+  assert.equal(compose.effectBytes(), 8 * 4 * 4, "the 8 × 4 frame's depth copy, 4 bytes a texel");
+  const drawn = names().lastIndexOf('drawArrays');
+  assert.ok(drawn >= 0 && drawn < names().lastIndexOf('clear'), 'the step first');
+  const bound = calls.slice(drawn).find((call) => call.name === 'viewport')?.args;
+  assert.deepEqual(bound, [0, 0, 8, 4], 'then the page, bound again');
+  assert.ok(names().lastIndexOf('drawArraysInstanced') > drawn, 'then the pool over the image');
+});
+
+test('a WebGL2 refusal is heard once by name, and the session draws on without the pools', () => {
+  const cases = [
+    [{ getExtension: () => null }, 'render 32-bit floats'],
+    [{ getExtension: () => ({}), getError: () => 'INVALID_OPERATION' }, 'depth it cannot copy'],
+  ] as const;
+  for (const [answers, why] of cases) {
+    const { gl, names, of } = createTestContext({ answers });
     const [pool, heard] = [new ParticlePool({ capacity: 8 }), [] as string[]];
     const particlesRefused = (reason: string) => void heard.push(reason);
-    const compose = createFrameComposer(gl, camera, { particles: [pool], particlesRefused });
+    const effects = { chain: new EffectChain().add(effect.bloom()), shown: () => true },
+      layers = { effects, particles: [pool], particlesRefused };
+    const compose = createFrameComposer(gl, camera, layers);
     const { backend, outputs } = engine();
-    pool.emit(0, 0, 0, 0, 1, 0, 2);
-    [0, 1].forEach(() => compose(backend, null)); // the first frame throws nothing
-    assert.deepEqual(
-      [outputs.length, pool.refused, pool.emit(0, 0, 0, 0, 1, 0, 2)],
-      [2, true, false],
-    );
-    assert.equal(heard.length, 1, 'heard once');
-    assert.match(heard[0], /^PARTICLES_UNSUPPORTED: WebGL2 draws no particle yet/);
-    assert.ok(!names().includes('drawArraysInstanced'), 'never drawn as anything else');
+    pool.emit(0, 0, -2, 0, 1, 0, 2);
+    [0, 1].forEach(() => compose(backend, null)); // nothing thrown, the frame finished
+    pool.emit(0, 0, -2, 0, 1, 0, 2);
+    assert.deepEqual([outputs.length, pool.refused, heard.length], [2, true, 1], why);
+    assert.match(heard[0], new RegExp(`^PARTICLES_UNSUPPORTED: .*${why}`));
+    assert.ok(!names().includes('drawArraysInstanced'), 'never drawn hard-edged');
+    assert.equal(of('bindFramebuffer').at(-1)?.[1], null, 'on the page, nothing left open');
   }
 });
