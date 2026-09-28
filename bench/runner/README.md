@@ -15,8 +15,9 @@ periphery patches, whole and per surface kind (opaque, mask, blend). Gaze-first 
 is at level while periphery lags, then periphery reaches level, for the frame and each kind both
 regions request in the held frame. The A/B/A verdict needs 12 GPU samples per leg, 0px A/A and
 A/B, identical geometry and tile residency, and the expected target-byte delta. JSON and captures
-go to `.mesure/out/39-feedback-ab/`; missing values are `null`. Pass/frame shares are costs, not
-savings; the off-side delta bounds any request-packing gain.
+go to `.mesure/out/39-feedback-ab/`; missing values are `null`. The reduce pass is timed steady
+(A legs) and converging (frames before the held one). Pass/frame shares are costs, not savings;
+the off-side delta bounds any request-packing gain.
 
 A single harness for all test batches. One command, no server to start manually, only this repository on the machine: Playwright and esbuild are its dev dependencies, Chrome is the system browser, assets live under `.mesure/assets/`.
 
