@@ -43,7 +43,9 @@ export function createFrameGateCore(holdValues: number) {
   let worldsRevision = 0,
     watchRevision = -1,
     pixelError = 0,
-    hostPosesOwed = false;
+    hostPosesOwed = false,
+    // A host write the scan reported that no world pass has read yet: a frame held before its pass.
+    worldsBehind = false;
   const gate = {
     revisions,
     hold,
@@ -111,6 +113,7 @@ export function createFrameGateCore(holdValues: number) {
       const verdict = sceneWatch.take();
       if (verdict) {
         bumpScene(revisions);
+        worldsBehind = true;
         // The list is rebuilt in this very frame: a node the reshape brought in is hooked before
         // the host can write it again, so no write falls between the reshape and the rebuild.
         if (verdict === 'reshaped') observe(source, drawn);
@@ -125,7 +128,7 @@ export function createFrameGateCore(holdValues: number) {
     updateWorlds(worlds: HostWorldPlacements) {
       if (worldsRevision === revisions.scene) return false;
       worldsRevision = revisions.scene;
-      hostPosesOwed = false;
+      hostPosesOwed = worldsBehind = false;
       worlds.refresh();
       return true;
     },
@@ -136,13 +139,14 @@ export function createFrameGateCore(holdValues: number) {
      * Such a write is kept owed instead: `noteWorldsUpdated` no longer spares the next world pass,
      * which walks the index and reports it, exactly as after a host write alone. One comparison
      * of two integers when the host wrote nothing, which is every image a model moves.
-     * True when a pass on the moved subtree alone may not be exact: such a write is owed, or the
-     * watch does not hook the current scene yet (first image, reshape), so a write went unseen.
+     * True when a pass on the moved subtree alone may not be exact: such a write is owed, one the
+     * scan reported is unread by any world pass, or the watch does not hook the current scene yet
+     * (first image, reshape), so a write went unseen.
      */
     engineWriting() {
-      const pending = sceneWatch.pending();
-      if (pending) hostPosesOwed = true;
-      return pending || watchRevision !== revisions.scene;
+      const owed = sceneWatch.pending() || worldsBehind;
+      if (owed) hostPosesOwed = true;
+      return owed || watchRevision !== revisions.scene;
     },
     /** The hierarchy already carries the current revision's matrices: written by whoever just
      *  walked them itself, on the only subtree it moved — unless a host write is owed. */
