@@ -4,8 +4,8 @@ import type { PoolEncoding } from '../../texture/blockFormats.ts';
 import { writeTileFromBlocks } from './writeBlocks.ts';
 import type { WebgpuTileAtlas } from './atlas.ts';
 import { createWebgpuTileLevels, type LevelKey } from './levels.ts';
-import { createTileScratch, type TileScratch } from './scratch.ts';
-import { generateMaterialMips } from '../../texture/mipBatch.ts';
+import type { TileScratch } from './scratch.ts';
+import { buildHostScratch, createScratchBuilds } from './scratchBuilds.ts';
 import { copyLiveTexture, pictureFits } from './live.ts';
 import type { TileKey } from './pageTable.ts';
 import type { TileCounters } from './counters.ts';
@@ -18,9 +18,9 @@ import {
 
 /** Cooked-level reads in flight at most: beyond that, a tile waits for the next image. */
 const MAX_LEVEL_READS = 6;
-/** Working textures built at most per pass — the whole source each; tiles of a third texture wait
- *  for the next pass. They live until the pass is submitted: an encoded copy names its texture, which
- *  cannot be destroyed before. */
+/** Working textures held at most per pass — the whole source each, built off the frame
+ *  (`scratchBuilds.ts`); tiles of a third texture wait for a pass with room. They live until the
+ *  pass is submitted: an encoded copy names its texture, which cannot be destroyed before. */
 const MAX_SCRATCHES = 2;
 
 /**
@@ -57,28 +57,19 @@ export function createTileSources(options: {
   /** Working textures of the live host textures, kept from pass to pass, and their bytes (#362). */
   const live = new Map<number, TileScratch>();
   let liveBytes = 0;
-  const build = (atlas: WebgpuTileAtlas, slot: number) => {
-    const { layout, source } = atlas.textures[slot];
-    if (source.kind !== 'host') throw new Error('TEXTURE_SOURCE_NOT_HOST');
-    counters.scratches++;
-    return createTileScratch(device, {
-      map: source.map,
-      width: layout.width,
-      height: layout.height,
-      format: atlas.poolOf(slot).texture.format,
-      errorCode:
-        atlas.kind === 'color'
-          ? 'MATERIAL_COLOR_TEXTURE_UNAVAILABLE'
-          : 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
-      coverage: source.coverage,
-    });
-  };
+  const build = (atlas: WebgpuTileAtlas, slot: number) =>
+    buildHostScratch(device, counters, atlas, slot);
+  const builds = createScratchBuilds(
+    device,
+    build,
+    scratches.set.bind(scratches),
+    options.onFailure,
+  );
+  /** A queue's working texture, built now: a queue is copied at prepare, never inside a pass. */
   const scratchOf = (atlas: WebgpuTileAtlas, slot: number) => {
     const id = scratchId(atlas, slot);
     let scratch = live.get(id) ?? scratches.get(id);
-    if (scratch) return scratch;
-    if (scratches.size >= MAX_SCRATCHES) return undefined;
-    scratches.set(id, (scratch = build(atlas, slot)));
+    if (!scratch) scratches.set(id, (scratch = build(atlas, slot)));
     return scratch;
   };
   const dropScratches = () => {
@@ -124,8 +115,12 @@ export function createTileSources(options: {
         return 'served';
       }
       if (source.kind !== 'host') throw new Error('TEXTURE_TILE_WITHOUT_SOURCE');
-      const scratch = scratchOf(atlas, key.slot);
-      if (!scratch) return 'waiting';
+      const id = scratchId(atlas, key.slot),
+        scratch = live.get(id) ?? scratches.get(id);
+      if (!scratch) {
+        if (scratches.size + builds.size < MAX_SCRATCHES) builds.ask(id, atlas, key.slot);
+        return 'waiting';
+      }
       const place = atlas.place(key, frame);
       if (!place) return 'refused';
       copyTileFromTexture(encoder(), pool, place, scratch.texture, key.level, region);
@@ -134,7 +129,7 @@ export function createTileSources(options: {
     /** Queue of a host texture, copied from its working texture and submitted. */
     tail(atlas: WebgpuTileAtlas, slot: number, place: TilePlace) {
       const { layout } = atlas.textures[slot];
-      const scratch = scratchOf(atlas, slot)!;
+      const scratch = scratchOf(atlas, slot);
       if (scratch.stale) scratch.reduce();
       const encoder = device.createCommandEncoder({ label: 'Trillion3D texture tail' });
       copyTailFromTexture(
@@ -182,15 +177,18 @@ export function createTileSources(options: {
     get liveBytes() {
       return liveBytes;
     },
-    /** End of pass: its working textures reduced in one batch (#961), copies submitted, freed. */
+    /** End of pass: its copies submitted, its working textures freed. */
     endPass(encoder?: GPUCommandEncoder) {
-      const chains = [...scratches.values()].filter((s) => s.stale).map((s) => s.chain());
-      generateMaterialMips(device, chains);
       if (encoder) device.queue.submit([encoder.finish()]);
       dropScratches();
     },
-    settled: () => levels?.settled() ?? Promise.resolve(),
+    /** True while a level read or a working texture's build is on its way: a tile can still come. */
+    get reading() {
+      return (levels?.inFlight ?? 0) > 0 || builds.building !== undefined;
+    },
+    settled: () => Promise.all([levels?.settled(), builds.building]).then(() => undefined),
     destroy() {
+      builds.destroy();
       dropScratches();
       for (const scratch of live.values()) scratch.destroy();
       live.clear();
