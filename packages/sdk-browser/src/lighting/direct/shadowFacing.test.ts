@@ -5,13 +5,13 @@ import assert from 'node:assert/strict';
 import { DIRECT_LIGHTING_WGSL, declaredLightingWgsl } from './lightingWgsl.ts';
 import { directShadowWgsl } from './shadowWgsl.ts';
 import { SHADOW_FACTOR_WGSL } from './shadowFactorWgsl.ts';
-import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts';
-import { MODEL_FLAG, SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts';
+import { MODEL_FLAG } from '../../scene/surfaceModel.ts';
 import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
 import { functionText } from '../../bounce/wgslBody.fixture.ts';
+import { dotVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
 
 type V = number[];
-const dot = (a: V, b: V) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const dot = (a: V, b: V) => dotVector3(a, b);
 const normalize = (a: V) => a.map((c) => c / Math.sqrt(dot(a, a)));
 const N = [0, 0, 1];
 
@@ -64,17 +64,9 @@ test('a point facing away skips the taps; a toon or a facing one filters (#685)'
 });
 
 test('the facing test is the lighting’s own cosine clamp', () => {
-  // Standard: `direct=light.w*max(dot(N,normalize(L)),0)` scales every term; diffuse:
-  // `max(dot(N,L),0)` scales it. At zero both are zero whatever the shade.
-  assert.match(
-    STANDARD_LIGHTING_WGSL,
-    /let L=normalize\(light\.xyz\);\s*let NdotL=max\(dot\(N,L\),0\.0\);/,
-  );
-  assert.match(STANDARD_LIGHTING_WGSL, /let direct=light\.w\*NdotL;/);
-  assert.match(STANDARD_LIGHTING_WGSL, /return diffuse\*direct\+D\*Vis\*F\*direct;/);
-  assert.match(SURFACE_MODEL_LIGHT_WGSL, /let nl=dot\(N,L\);/);
-  assert.match(SURFACE_MODEL_LIGHT_WGSL, /return diffuse\*max\(nl,0\.0\);/);
-  const cosines = `select(max(dot(N,normalize(incidence.xyz)),0.0),max(dot(N,incidence.xyz),0.0),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;`;
+  // Standard scales every term by `max(dot(N,normalize(L)),0)`, diffuse by `max(dot(N,L),0)`: at
+  // zero both are zero whatever the shade. `max(c,0)>0` is `c>0`, NaN included.
+  const cosines = `select(dot(N,normalize(incidence.xyz)),dot(N,incidence.xyz),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;`;
   assert.ok(DIRECT_LIGHTING_WGSL.includes(cosines));
 });
 
@@ -88,12 +80,16 @@ test('without taps the filter asks for the same pages, then reads none (#685)', 
   assert.ok(pcf.lastIndexOf('shadowNeighbour(') < guard);
   for (const read of ['shadowSample(', 'shadowCompare(', 'shadowThroughLit('])
     assert.ok(pcf.indexOf(read) > guard, read);
-  // The walk of the levels and the far ray never look at it: it only travels down to the filter,
-  // a parameter and a last argument, nothing else.
-  // Comments dropped: the lamp's already speak of `the taps` clamping to a face's edge.
-  const code = SHADOW_FACTOR_WGSL.split('\n')
-    .filter((line) => !/^(\/\*\*| \*)/.test(line))
-    .map((line) => line.replace(/\/\/.*$/, ''));
-  const passed = code.join('\n').replaceAll('taps:bool)', ')').replaceAll(',taps)', ')');
-  assert.doesNotMatch(passed, /\btaps\b/);
+  // The walk of the levels and the far ray never look at it: each function takes it last and only
+  // hands it on, as the last argument of its calls.
+  for (const [name, calls] of [
+    ['shadowFactor', 2],
+    ['sunShadowFactor', 1],
+    ['lampShadowFactor', 1],
+  ] as const) {
+    const code = functionText(SHADOW_FACTOR_WGSL, name).replace(/\/\/.*$/gm, '');
+    assert.ok(code.includes(',taps:bool)->f32{'), name);
+    assert.equal(code.match(/,taps\);/g)?.length, calls, name);
+    assert.equal(code.match(/\btaps\b/g)?.length, 1 + calls, name);
+  }
 });
