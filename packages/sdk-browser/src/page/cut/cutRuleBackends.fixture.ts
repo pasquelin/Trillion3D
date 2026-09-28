@@ -85,7 +85,7 @@ export function wgslConstants(source: string) {
  * cold buffer, and the rule itself. Only the projection is the model's: its screen errors are
  * passed where the kernel projects.
  * - `camera`: the cut a camera runs — `dagWanted` keeps the rule's two comparisons in the page's
- *   cone word (`flags[coneCache(i)]=…;`), then `dagMask`'s `let all=…;` and
+ *   cone word (`setFlag(coneCache(i),…);`), then `dagMask`'s `let all=…;` and
  *   `draw=drawsCompared(…);` decide on that word.
  * - `light`: a light cut's `dagMask` call site, `let all=…;` then `draw=drawsCluster(…);`, on the
  *   model's two screen errors as `clusterPixels` returns them (`x` the parent's, `y` its own).
@@ -99,7 +99,7 @@ export function wgslBackend(
   const all = /\blet all=([^;]+);/.exec(source),
     light = /\bdraw=(drawsCluster\([^;]+\));/.exec(source),
     camera = /\bdraw=(drawsCompared\([^;]+\));/.exec(source),
-    word = /\bflags\[coneCache\(i\)\]=([^;]+);/.exec(source);
+    word = /\bsetFlag\(coneCache\(i\),([^;]+)\);/.exec(source);
   if (!all || !light || !camera || !word) throw new Error('WGSL_CALL_SITE_MISSING: dagMask');
   return kernelBackend(dag, threshold, (packed) => {
     const cold = new Uint32Array(

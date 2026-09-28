@@ -13,13 +13,13 @@ import { CLUSTER_LEVEL_SHIFT } from '../layout.ts';
  * Kept apart from `shader.ts`, which holds the other kernels and the bind declarations.
  */
 export const DAG_WANTED_WGSL = `@compute @workgroup_size(64)
-fn dagWanted(@builtin(global_invocation_id) id:vec3u){
- let s=id.x;if(s>=min(atomicLoad(&work[candCounter()]),views[0u].clusterCount)){return;}
+fn dagWanted(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let s=flatIndex(id.x,id.y,n.x);if(s>=min(atomicLoad(&work[candCounter()]),views[0u].clusterCount)){return;}
  // Only pages of the kept leaves: a page under a rejected node is never read, and its draw flag
  // is already zero — \`dagClearDrawn\` cleared the only ones that were one.
- let entry=flags[candBase()+s];let i=entryIndex(entry);vi=entryView(entry);
+ let entry=flagAt(candBase()+s);let i=entryIndex(entry);vi=entryView(entry);
  let w=pageWorld(i);if(!inRange(w)){return;}let r=recordOf(i,w);
- let cluster=clusters[r];
+ let cluster=clusterAt(r);
  // A page of the view ahead is only requested, never live; one the camera does not request is
  // tried there (\`aheadWgsl.ts\`).
  if(aheadOn()&&vi==AHEAD_VIEW){wantAhead(i,w,r,cluster);return;}
@@ -33,7 +33,7 @@ fn dagWanted(@builtin(global_invocation_id) id:vec3u){
  // cone bit, for \`dagMask\` — same operands, same frame, so the same bits.
  let pixels=clusterPixels(cluster,e,stretch,focal);let t=views[vi].pixelError;
  // A light cut's views share the page index: its word stays the lone cone bit, zero, as before.
- flags[coneCache(i)]=select(select(0u,CONE_REJECTED,rejected)|select(0u,PARENT_ABOVE,pixels.x>t)|select(0u,OWN_WITHIN,pixels.y<=t),0u,light);
+ setFlag(coneCache(i),select(select(0u,CONE_REJECTED,rejected)|select(0u,PARENT_ABOVE,pixels.x>t)|select(0u,OWN_WITHIN,pixels.y<=t),0u,light));
  if(!selects(pixels,t)||rejected){wantAhead(i,w,r,cluster);return;}
  atomicMax(&out.lodLevel,cluster.flags>>${CLUSTER_LEVEL_SHIFT}u);
  emitOne(i,replacementPixels(cluster,pixels));
