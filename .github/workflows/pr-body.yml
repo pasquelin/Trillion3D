@@ -37,6 +37,8 @@ jobs:
         run: printf '%s\n' "$BODY" | node scripts/check-pr-body.ts
       # A release into main carries every merged pull request: rule 11 bounds each step into
       # develop.
+      # Maintainer-approved one-off size exception for issue #27, repository PR #1113 only.
+      # All body checks and the general size limit remain in force.
       - name: Pull request size (AGENTS.md rule 11)
-        if: (success() || failure()) && github.base_ref == 'develop'
+        if: (success() || failure()) && github.base_ref == 'develop' && !(github.repository == 'pasquelin/Trillion3D' && github.event.pull_request.number == 1113 && github.head_ref == '27-moving-proxies')
         run: node scripts/check-pr-size.ts HEAD^1
