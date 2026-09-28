@@ -57,9 +57,8 @@ export function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncod
  * touched. A region draws its visible lists when `tested` and it has a pyramid, else the cull's.
  * The pool's `draws` draw both of a region's lists (#965): the opaque one with no fragment stage,
  * or with the fragment that strips the face's emitter envelope, then the cutout one while any row
- * is a cutout; the
- * transmittance layer's draw the first list, which holds the blended casters, once each. A pipeline
- * is set only when it changes. Returns the draws encoded.
+ * is a cutout; the transmittance layer's draw the first list, which holds the blended casters,
+ * once each. A pipeline is set only when it changes. Returns the draws encoded.
  */
 export function drawRegionCasters(
   rt: WebgpuPagesRuntime,
@@ -73,6 +72,8 @@ export function drawRegionCasters(
   const { shadows, cull, regions, occlusion } = rt.lights,
     { order, first, clears, restores } = pagePlan,
     side = SHADOW_PAGE / scale;
+  const pool = 'cutout' in draws ? draws : undefined,
+    cutouts = rt.lights.mobility.hasCutouts;
   let current: GPURenderPipeline | undefined,
     drawn = 0;
   const draw = (pipeline: GPURenderPipeline, commands: GPUBuffer, offset: number) => {
@@ -93,10 +94,11 @@ export function drawRegionCasters(
     pass.setBindGroup(1, shadows!.faceGroup, [region * shadows!.faceStride]);
     const commands = visible ? occlusion!.visibleIndirect : cull!.indirect,
       at = region * SHADOW_REGION_INDIRECT_BYTES;
-    if ('cutout' in draws) {
-      draw(shadows!.hasEnvelope(region) ? draws.envelope : draws.opaque, commands, at);
-      if (rt.lights.mobility.hasCutouts) draw(draws.cutout, commands, at + DRAW_INDIRECT_STRIDE);
-    } else for (const pipeline of draws) draw(pipeline, commands, at);
+    if (pool) {
+      draw(shadows!.hasEnvelope(region) ? pool.envelope : pool.opaque, commands, at);
+      if (cutouts) draw(pool.cutout, commands, at + DRAW_INDIRECT_STRIDE);
+    } else
+      for (const pipeline of draws as readonly GPURenderPipeline[]) draw(pipeline, commands, at);
   }
   return drawn;
 }
