@@ -47,4 +47,3 @@ export type HostBoundedNode = Object3D & {
   boundingBox?: HostBox | null;
   computeBoundingBox?(): void;
 };
-
