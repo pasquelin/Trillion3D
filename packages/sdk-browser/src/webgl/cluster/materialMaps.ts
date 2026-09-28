@@ -8,7 +8,7 @@ import type { ClusterDrawMesh } from '../../cluster/batchMesh.ts';
 export type Material = Exclude<ClusterDrawMesh['material'], unknown[]>;
 
 /** The program's map units, in order, and the UV matrix uniform each reads. */
-export const MAPS = [
+const MAPS = [
   'map',
   'roughnessMap',
   'metalnessMap',
