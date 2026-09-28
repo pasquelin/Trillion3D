@@ -12,29 +12,45 @@ export type MirrorPath = 'webgpu' | 'webgl2';
 export const MIRROR_SIZE = 192;
 
 export async function mirrorRenderer(
-  path: MirrorPath, rig: ReturnType<typeof mirrorScene>, device: GPUDevice, events: unknown[],
+  path: MirrorPath,
+  rig: ReturnType<typeof mirrorScene>,
+  device: GPUDevice,
+  events: unknown[],
+  bounce = false,
 ) {
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = MIRROR_SIZE;
   document.body.append(canvas);
   const lights = createSceneLightStore();
   lights.add({
-    id: 'sun', kind: 'directional', direction: [0, 0, -1],
-    color: [1, 1, 1], intensity: 0.1, castsShadow: false,
+    id: 'sun',
+    kind: 'directional',
+    direction: [0, 0, -1],
+    color: [1, 1, 1],
+    intensity: 0.1,
+    castsShadow: false,
   });
   const { scene, camera } = rig;
   const context: BackendContext = {
-    source: scene.source, metadata: scene.metadata, indices: scene.indices,
-    associations: scene.associations, viewport: [MIRROR_SIZE, MIRROR_SIZE],
-    clearColor: 0, temporalAntialiasing: false, bounce: false, sceneLights: lights,
+    source: scene.source,
+    metadata: scene.metadata,
+    indices: scene.indices,
+    associations: scene.associations,
+    viewport: [MIRROR_SIZE, MIRROR_SIZE],
+    clearColor: 0,
+    temporalAntialiasing: false,
+    bounce,
+    sceneLights: lights,
     onDiagnostic: (event) => events.push(event),
   };
   const gl = path === 'webgl2' ? canvas.getContext('webgl2') : null;
   if (path === 'webgl2' && !gl) throw new Error('WebGL2 unavailable');
   const backend = gl
     ? autonomousPagesBackend({
-        ...context, ...pagedManifest(scene.metadata, scene.geometries),
-        indices: new Map(), webglContext: gl,
+        ...context,
+        ...pagedManifest(scene.metadata, scene.geometries),
+        indices: new Map(),
+        webglContext: gl,
       })
     : webgpuPagesBackend({ ...context, gpuDevice: device, gpuCanvas: canvas });
   const compose = gl ? createFrameComposer(gl, camera) : null;
@@ -54,6 +70,10 @@ export async function mirrorRenderer(
   };
   return {
     backend,
+    resize(size: number) {
+      context.viewport![0] = context.viewport![1] = size;
+      if (gl) canvas.width = canvas.height = size;
+    },
     async held() {
       for (let i = 0; i < PLAFOND; i++) {
         const result = await frame();
