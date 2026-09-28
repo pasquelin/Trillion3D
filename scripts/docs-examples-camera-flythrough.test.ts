@@ -86,7 +86,11 @@ test('recorded fly-through replays, stops, yields to the viewer and disposes', a
 
   pagehide();
   assert.ok(disposed);
-  assert.equal(hooks.size, 1, 'the tour unhooks; only the readout hook, gone with the world, stays');
+  assert.equal(
+    hooks.size,
+    1,
+    'the tour unhooks; only the readout hook, gone with the world, stays',
+  );
   assert.equal(listeners.get('pointerdown')?.size, 0);
   assert.equal(listeners.get('wheel')?.size, 0);
 });
