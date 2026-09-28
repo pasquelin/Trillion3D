@@ -32,6 +32,7 @@ import {
   UNLIT_COMPOSITIONS,
   UNLIT_LIGHTING_SHADER,
 } from '../../lighting/deferred/shaders.ts';
+import { reflectionSource, withScreenReflections } from '../../reflections/screenWgsl.ts';
 import { LIGHT_TILES_SHADERS } from '../../lighting/tiles/shader.ts';
 import { TAA_SHADER, taaShader } from '../../taa/shaderWgsl.ts';
 import { MIP_SHADER } from '../../texture/mips.ts';
@@ -74,6 +75,10 @@ export const ENGINE_SHADERS: Record<string, string> = {
   UNLIT_LIGHTING_SHADER,
   DIRECT_LIGHTING_SHADER,
   BOUNCE_LIGHTING_SHADER,
+  REFLECTION_SOURCE_DIRECT: reflectionSource(DIRECT_LIGHTING_SHADER),
+  REFLECTION_SOURCE_BOUNCE: reflectionSource(BOUNCE_LIGHTING_SHADER),
+  REFLECTION_RESOLVE_DIRECT: withScreenReflections(DIRECT_LIGHTING_SHADER, true),
+  REFLECTION_RESOLVE_BOUNCE: withScreenReflections(BOUNCE_LIGHTING_SHADER),
   ...compositions('COMPOSE', CONTRACT_COMPOSITIONS.plain),
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),
   ...compositions('COMPOSE_BLOOM', CONTRACT_COMPOSITIONS.bloom),
