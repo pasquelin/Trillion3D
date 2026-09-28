@@ -12,7 +12,10 @@ pub(crate) struct Budget<'a> {
 impl Budget<'_> {
     pub fn admit(&self, bytes: usize) -> Result<()> {
         if self.cancelled.load(Ordering::Relaxed) {
-            return Err(CompilerError::new("CANCELLED", "Compilation cancelled"));
+            return Err(CompilerError::new(
+                crate::CANCELLED,
+                "Compilation cancelled",
+            ));
         }
         if bytes > self.limit {
             return Err(CompilerError::new(
