@@ -9,8 +9,9 @@ import { setWebgpuTransform } from './transform.ts';
 import { runtime } from '../../core/transformShear.fixture.ts';
 import { hostWorldPlacements } from '../../../host/world/placements.ts';
 
-/** Two drawn models, A and B, watched by the gate as the first image leaves them. */
-function twoModels() {
+/** Two drawn models, A and B, watched by the gate as the first image leaves them — or, not
+ *  `hooked`, before any image. */
+function twoModels(hooked = true) {
   const source = new G.Group(),
     a = G.mesh(),
     b = G.mesh();
@@ -19,8 +20,10 @@ function twoModels() {
   source.add(a, b);
   const worlds = hostWorldPlacements(source),
     { rt, run } = runtime(source, [], worlds);
-  run.gate.readScene(source, [{ sourceMesh: a }, { sourceMesh: b }]);
-  run.gate.updateWorlds(worlds);
+  if (hooked) {
+    run.gate.readScene(source, [{ sourceMesh: a }, { sourceMesh: b }]);
+    run.gate.updateWorlds(worlds);
+  }
   return { source, a, b, worlds, rt, run };
 }
 
@@ -42,14 +45,7 @@ test('B moved alone: the next image walks nothing, and only its rows travel', ()
 });
 
 test('before the first image, A written by the host then B moved: A stands where the host put it', () => {
-  const source = new G.Group(),
-    a = G.mesh(),
-    b = G.mesh();
-  a.name = 'A';
-  b.name = 'B';
-  source.add(a, b);
-  const worlds = hostWorldPlacements(source),
-    { rt } = runtime(source, [], worlds);
+  const { a, worlds, rt } = twoModels(false);
   // Nothing is hooked yet: no watch announces the write, the move walks the whole index (#915).
   a.position.x = 100;
   setWebgpuTransform(rt, 'B', moved);

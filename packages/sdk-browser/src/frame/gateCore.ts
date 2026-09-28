@@ -43,9 +43,8 @@ export function createFrameGateCore(holdValues: number) {
   let worldsRevision = 0,
     watchRevision = -1,
     pixelError = 0,
-    hostPosesOwed = false,
-    // A host write the scan reported that no world pass has read yet: a frame held before its pass.
-    worldsBehind = false;
+    // A host write no world pass has read yet: announced by the scan, or unread when the engine wrote.
+    hostPosesOwed = false;
   const gate = {
     revisions,
     hold,
@@ -113,7 +112,7 @@ export function createFrameGateCore(holdValues: number) {
       const verdict = sceneWatch.take();
       if (verdict) {
         bumpScene(revisions);
-        worldsBehind = true;
+        hostPosesOwed = true;
         // The list is rebuilt in this very frame: a node the reshape brought in is hooked before
         // the host can write it again, so no write falls between the reshape and the rebuild.
         if (verdict === 'reshaped') observe(source, drawn);
@@ -128,7 +127,7 @@ export function createFrameGateCore(holdValues: number) {
     updateWorlds(worlds: HostWorldPlacements) {
       if (worldsRevision === revisions.scene) return false;
       worldsRevision = revisions.scene;
-      hostPosesOwed = worldsBehind = false;
+      hostPosesOwed = false;
       worlds.refresh();
       return true;
     },
@@ -144,9 +143,8 @@ export function createFrameGateCore(holdValues: number) {
      * (first image, reshape), so a write went unseen.
      */
     engineWriting() {
-      const owed = sceneWatch.pending() || worldsBehind;
-      if (owed) hostPosesOwed = true;
-      return owed || watchRevision !== revisions.scene;
+      if (sceneWatch.pending()) hostPosesOwed = true;
+      return hostPosesOwed || watchRevision !== revisions.scene;
     },
     /** The hierarchy already carries the current revision's matrices: written by whoever just
      *  walked them itself, on the only subtree it moved — unless a host write is owed. */
