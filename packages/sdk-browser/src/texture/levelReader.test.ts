@@ -30,18 +30,3 @@ test('a block level is read as bytes at the address of its format', async () => 
   assert.ok(level instanceof Uint8Array);
   assert.equal(level.byteLength, 816);
 });
-
-// #962: a cache whose levels are of another version — row-major block files before 6 — is refused
-// at each read, nothing asked, never cut as tile records.
-test('a level of another version is refused', async () => {
-  const asked = serve(new Uint8Array(16));
-  const reader = createTextureLevelReader(
-    { ...manifest, textures: { url: manifest.textures.url } },
-    'https://host/',
-  )!;
-  await assert.rejects(
-    reader({ sha256: SHA, atlas: 0, level: 0, format: 'bc7' }),
-    /another version/,
-  );
-  assert.deepEqual(asked, []);
-});

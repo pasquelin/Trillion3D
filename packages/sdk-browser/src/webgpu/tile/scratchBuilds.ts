@@ -38,8 +38,7 @@ export function createScratchBuilds(
   onFailure: (phase: string, error: unknown) => void,
 ) {
   const asked = new Map<number, { atlas: WebgpuTileAtlas; slot: number }>();
-  let building: Promise<void> | undefined,
-    destroyed = false;
+  let building: Promise<void> | undefined;
   const buildAsked = () => {
     const chains = [];
     for (const [id, { atlas, slot }] of asked)
@@ -63,7 +62,7 @@ export function createScratchBuilds(
       building ??= new Promise<void>((done) =>
         setTimeout(() => {
           building = undefined;
-          if (!destroyed) buildAsked();
+          buildAsked();
           done();
         }),
       );
@@ -71,9 +70,7 @@ export function createScratchBuilds(
     get building() {
       return building;
     },
-    destroy() {
-      destroyed = true;
-      asked.clear();
-    },
+    /** Nothing asked is built: a pending task finds nothing to build. */
+    destroy: () => asked.clear(),
   };
 }

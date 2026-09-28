@@ -65,10 +65,11 @@ export function createTileSources(options: {
     scratches.set.bind(scratches),
     options.onFailure,
   );
+  const held = (id: number) => live.get(id) ?? scratches.get(id);
   /** A queue's working texture, built now: a queue is copied at prepare, never inside a pass. */
   const scratchOf = (atlas: WebgpuTileAtlas, slot: number) => {
     const id = scratchId(atlas, slot);
-    let scratch = live.get(id) ?? scratches.get(id);
+    let scratch = held(id);
     if (!scratch) scratches.set(id, (scratch = build(atlas, slot)));
     return scratch;
   };
@@ -91,7 +92,8 @@ export function createTileSources(options: {
     ): 'served' | 'waiting' | 'refused' {
       const { layout, source, lane } = atlas.textures[key.slot];
       const pool = atlas.poolOf(key.slot).texture;
-      const [width, height] = levelSize(layout.width, layout.height, key.level);
+      const size = levelSize(layout.width, layout.height, key.level),
+        [width, height] = size;
       const region = tileRegion(width, height, key.tx, key.ty);
       if (source.kind === 'baked') {
         const levelKey = {
@@ -100,13 +102,14 @@ export function createTileSources(options: {
           level: key.level,
           format: encoding.levelFormat(lane),
         };
-        const tile = [width, height, key.tx, key.ty] as const;
-        const held = levels?.get(levelKey, tile);
+        const held = levels?.get(levelKey, size, key.tx, key.ty);
         if (!held) {
           if (!atlas.roomFor(key.slot, frame)) return 'refused';
           const asked = levels && levels.inFlight < MAX_LEVEL_READS;
           // A level that cannot fit beside the pages kept will not come: refused, not waited for.
-          return asked && !levels.request(levelKey, frame, tile) ? 'refused' : 'waiting';
+          return asked && !levels.request(levelKey, frame, size, key.tx, key.ty)
+            ? 'refused'
+            : 'waiting';
         }
         const place = atlas.place(key, frame);
         if (!place) return 'refused';
@@ -117,7 +120,7 @@ export function createTileSources(options: {
       }
       if (source.kind !== 'host') throw new Error('TEXTURE_TILE_WITHOUT_SOURCE');
       const id = scratchId(atlas, key.slot),
-        scratch = live.get(id) ?? scratches.get(id);
+        scratch = held(id);
       if (!scratch) {
         if (scratches.size + builds.size < MAX_SCRATCHES) builds.ask(id, atlas, key.slot);
         return 'waiting';
@@ -167,7 +170,7 @@ export function createTileSources(options: {
     /** A host texture whose readers' coverage rule moved (#42): its mips reduced again, copied. */
     reduce(atlas: WebgpuTileAtlas, slot: number) {
       if (!pictureFits(atlas.textures[slot])) return false;
-      const kept = live.get(scratchId(atlas, slot)) ?? scratches.get(scratchId(atlas, slot)),
+      const kept = held(scratchId(atlas, slot)),
         scratch = kept ?? build(atlas, slot);
       scratch.reduce();
       copyLiveTexture(device, atlas, slot, scratch.texture);
