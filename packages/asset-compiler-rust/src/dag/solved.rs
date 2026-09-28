@@ -24,8 +24,7 @@
 //!
 //! **Retries.** The endpoint reduction's (`retries.rs`), and so is the check of its faces: a kept
 //! corner points at the copy of its own face's normal (`attributes::own_normals`), a face lit
-//! from behind or with no copy turned its way locks its surroundings — but a face no longer than
-//! the group's error, under a
+//! from behind locks its surroundings — but a face no longer than the group's error, under a
 //! pixel wherever its level is drawn: on a group the solve alone frees, locking every such face
 //! stalled it again (Sponza: four groups of five).
 use super::border::required_locks;
@@ -41,7 +40,6 @@ use super::*;
 use crate::qem::solve::Region;
 use crate::qem::{VERTEX_LOCK, VERTEX_PROTECT};
 use std::borrow::Cow;
-use std::collections::HashSet;
 
 /// A solved reduction: its error, its clusters in the primitive's numbering — placed vertices
 /// from the level's vertex count on — and the vertices it placed.
@@ -142,8 +140,7 @@ impl Pass for Solve<'_, '_, '_> {
         };
         let (weld_seam, positions) = (local.weld_seam(input), &local.positions);
         let indices = &mut local.indices;
-        let foreign =
-            attributes::own_normals(indices, local.source, &weld_seam, positions, normals);
+        attributes::own_normals(indices, local.source, &weld_seam, positions, normals);
         let error = self.error;
         let tris = indices.as_chunks::<3>().0.iter();
         let seen: Vec<u32> = tris
@@ -151,11 +148,8 @@ impl Pass for Solve<'_, '_, '_> {
             .flatten()
             .copied()
             .collect();
-        let mut retry = backlit_corners(&seen, positions, normals, &local.weld, input.normal_bound);
-        // A corner no copy turned its face's way exists for, on a face a pixel shows (#484).
-        let shown: HashSet<u32> = seen.iter().map(|&v| weld_seam[v as usize]).collect();
-        retry.extend(foreign.into_iter().filter(|c| shown.contains(c)));
-        retry
+        let backlit = backlit_corners(&seen, positions, normals, &local.weld, input.normal_bound);
+        backlit
             .into_iter()
             .map(|c| input.weld[local.from(c)])
             .collect()
