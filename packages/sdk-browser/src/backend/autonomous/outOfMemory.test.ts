@@ -1,6 +1,6 @@
-// #840: out of memory on WebGL2 is absorbed. An allocation the context refuses marks it
-// (`../../webgl/core/allocation.ts`); the next image halves the geometry pool (`pool.ts`), and the
-// residency pays it one DAG level per image, as a budget cut mid-session (#839): never a hole.
+// #840: out of memory on WebGL2 is absorbed. An allocation the context refuses marks it once the
+// frame after reads it (`../../webgl/core/allocation.ts`); the next image halves the geometry pool
+// (`pool.ts`), and the residency pays it one DAG level per image, as a budget cut mid-session (#839).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { upload } from '../../webgl/cluster/buffers.ts';
@@ -21,6 +21,12 @@ function refusingContext() {
     NO_ERROR: 0,
     OUT_OF_MEMORY,
     CONTEXT_LOST_WEBGL: 0x9242,
+    SYNC_GPU_COMMANDS_COMPLETE: 0x9117,
+    SYNC_STATUS: 0x9114,
+    SIGNALED: 0x9119,
+    fenceSync: () => ({}),
+    getSyncParameter: () => 0x9119,
+    deleteSync() {},
     createBuffer: () => ({}),
     bindBuffer() {},
     bufferData() {},
@@ -47,8 +53,8 @@ test('a refused allocation draws the next images one level coarser, never a hole
   let before = levels(dag, drawnIds()),
     drawn = drawnIds();
   refuseNext();
-  const attribute = geometry();
-  assert.equal(upload(gl, gl.ARRAY_BUFFER, attribute).bytes, 0, 'the refused buffer holds nothing');
+  const attribute = geometry(),
+    buffer = upload(gl, gl.ARRAY_BUFFER, attribute);
   let coarser = 0;
   for (let i = 0; i < 24; i++) {
     assert.ok(
@@ -65,6 +71,7 @@ test('a refused allocation draws the next images one level coarser, never a hole
     }
     before = now;
   }
+  assert.equal(buffer.bytes, 0, 'the refused buffer, once read, is sized again');
   assert.equal(pool.held.allocatedBytes, Math.floor(held / 2 / 100) * 100, 'half the pool');
   assert.ok(fine > pool.held.allocatedBytes, `the fine cut (${fine}) no longer fits`);
   assert.ok(coarser > 0, 'the image drew coarser');
@@ -73,7 +80,7 @@ test('a refused allocation draws the next images one level coarser, never a hole
   assert.equal(refused.length, 1, 'published once');
   assert.equal(refused[0].context?.grantedBytes, pool.held.allocatedBytes);
   assert.equal(
-    upload(gl, gl.ARRAY_BUFFER, attribute).bytes,
+    upload(gl, gl.ARRAY_BUFFER, attribute, buffer).bytes,
     attribute.array.byteLength,
     'the buffer is sized again once memory is granted',
   );
