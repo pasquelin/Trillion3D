@@ -614,7 +614,8 @@
       "p.left": "Linker Rand des Sichtfelds einer orthografischen Kamera.",
       "p.right": "Rechter Rand des Sichtfelds einer orthografischen Kamera.",
       "p.top": "Oberer Rand des Sichtfelds einer orthografischen Kamera.",
-      "p.bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera."
+      "p.bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera.",
+      "p.fitAspect": "Eine orthografische Kamera behält Höhe und Mitte ihrer Box und nimmt die Breite aus der Form des Bildes, sodass eine geänderte Canvas-Größe die Zeichnung nie verzerrt. Standardmäßig aus."
     }
   },
   "camera.orthographic": {
@@ -629,7 +630,8 @@
       "p.left": "Linker Rand des Sichtfelds einer orthografischen Kamera.",
       "p.right": "Rechter Rand des Sichtfelds einer orthografischen Kamera.",
       "p.top": "Oberer Rand des Sichtfelds einer orthografischen Kamera.",
-      "p.bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera."
+      "p.bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera.",
+      "p.fitAspect": "Eine orthografische Kamera behält Höhe und Mitte ihrer Box und nimmt die Breite aus der Form des Bildes, sodass eine geänderte Canvas-Größe die Zeichnung nie verzerrt. Standardmäßig aus."
     }
   },
   "camera.cube": {
@@ -660,7 +662,8 @@
       "p.left": "Linker Rand des Sichtfelds einer orthografischen Kamera.",
       "p.right": "Rechter Rand des Sichtfelds einer orthografischen Kamera.",
       "p.top": "Oberer Rand des Sichtfelds einer orthografischen Kamera.",
-      "p.bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera."
+      "p.bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera.",
+      "p.fitAspect": "Eine orthografische Kamera behält Höhe und Mitte ihrer Box und nimmt die Breite aus der Form des Bildes, sodass eine geänderte Canvas-Größe die Zeichnung nie verzerrt. Standardmäßig aus."
     },
     "members": {
       "isCamera": "Immer `true`: unterscheidet eine Kamera von jedem anderen Objekt.",
@@ -673,6 +676,7 @@
       "right": "Rechter Rand der orthografischen Box.",
       "top": "Oberer Rand der orthografischen Box.",
       "bottom": "Unterer Rand der orthografischen Box.",
+      "fitAspect": "Eine orthografische Box so hoch wie angegeben und so breit, wie die Form des Bildes es verlangt.",
       "projection": "`'perspective'` macht Fernes klein; `'orthographic'` behält alle Größen.",
       "copy": "Übernimmt die Knotenwerte von `source` und, von einer Kamera, ihre Optik; die eigene `projection` bleibt.",
       "updateProjectionMatrix": "Setzt `projectionMatrix` neu zusammen; jede Schreibung einer Optik tut das bereits und zeichnet neu.",
@@ -716,7 +720,8 @@
       "left": "Linker Rand des Sichtfelds einer orthografischen Kamera.",
       "right": "Rechter Rand des Sichtfelds einer orthografischen Kamera.",
       "top": "Oberer Rand des Sichtfelds einer orthografischen Kamera.",
-      "bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera."
+      "bottom": "Unterer Rand des Sichtfelds einer orthografischen Kamera.",
+      "fitAspect": "Eine orthografische Kamera behält Höhe und Mitte ihrer Box und nimmt die Breite aus der Form des Bildes, sodass eine geänderte Canvas-Größe die Zeichnung nie verzerrt. Standardmäßig aus."
     }
   },
   "CameraPose-common": {
@@ -7016,7 +7021,8 @@
       "projection": "Perspektivisch oder orthografisch.",
       "position": "Wo das Auge steht.",
       "quaternion": "Wie das Auge gedreht ist.",
-      "optics": "Sichtfeld, near, far, Zoom und Quader, nach Namen."
+      "optics": "Sichtfeld, near, far, Zoom und Quader, nach Namen.",
+      "fitAspect": "Eine orthografische Box, auf die Form des Bildes verbreitert (`fitAspect`); fehlt, wenn aus."
     }
   },
   "SavedGeometry": {

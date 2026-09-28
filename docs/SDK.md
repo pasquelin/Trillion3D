@@ -524,7 +524,10 @@ world units whatever its length. A canvas point is read on the CSS box and aimed
 frame is drawn at, the drawing buffer's. `{ objects }` limits the test to some
 subtrees; a canvas with no size refuses a point with `RAYCAST_NO_VIEW`. `raycast(roots, ray)` is
 the same test on any subtree, every hit nearest first, and `camera.rayThrough(x, y, aspect)` the
-ray through a point of the picture. A mesh's triangle tree is kept for the next ray, within
+ray through a point of the picture. An orthographic camera made with `fitAspect: true` keeps its
+box's height and centre and takes its width from the canvas's shape, in the frame drawn and in its
+rays alike, so a resized canvas never stretches the drawing; off by default, a declared or imported
+box is drawn as it is. A mesh's triangle tree is kept for the next ray, within
 `world.budget.raycastTrees` bytes (64 MiB by default, settable, shared by every world on the
 page): past it the tree cast at least
 recently is dropped, and `geometry.dispose()` drops its own at once. Live example:

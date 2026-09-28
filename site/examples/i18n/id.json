@@ -550,6 +550,20 @@
       }
     }
   },
+  "a-carousel": {
+    "banner": "Lihat sekeliling komidi putar. Jeda atau gerakkan kuda kayu ke arah sebaliknya.",
+    "controls": {
+      "running": "Berjalan",
+      "speed": "Kecepatan",
+      "direction": "Arah"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "searah jarum jam",
+        "counterclockwise": "berlawanan arah jarum jam"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Geser untuk terbang mengelilingi pulau. Naikkan laut untuk membanjiri lembah.",
     "controls": {
@@ -2257,6 +2271,21 @@
     },
     "words": {
       "credit": "Bendera pada tiang dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Pilih elevasi rumah. Jauhkan kamera: gambar ortografis mempertahankan skala yang persis sama.",
+    "controls": {
+      "elevation": "Elevasi",
+      "distance": "Jarak kamera",
+      "zoom": "Skala gambar"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Depan",
+        "right": "Sisi kanan",
+        "rear": "Belakang"
+      }
     }
   },
   "hover-to-highlight": {

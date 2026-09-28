@@ -550,6 +550,20 @@
       }
     }
   },
+  "a-carousel": {
+    "banner": "Atlıkarıncanın çevresinde dönün. Durdurun veya ahşap atları ters yöne gönderin.",
+    "controls": {
+      "running": "Çalışıyor",
+      "speed": "Hız",
+      "direction": "Yön"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "saat yönünde",
+        "counterclockwise": "saat yönünün tersine"
+      }
+    }
+  },
   "a-world-of-blocks": {
     "banner": "Adanın etrafında uçmak için sürükle. Vadileri su basması için denizi yükselt.",
     "controls": {
@@ -2257,6 +2271,21 @@
     },
     "words": {
       "credit": "Direkteki bayrak bu örnek için kodla modellendi, CC0 — bkz. assets/examples/CREDITS.md"
+    }
+  },
+  "an-elevation-of-the-house": {
+    "banner": "Bir ev görünüşü seçin. Kamerayı uzaklaştırın: ortografik çizim tam olarak aynı ölçeği korur.",
+    "controls": {
+      "elevation": "Görünüş",
+      "distance": "Kamera uzaklığı",
+      "zoom": "Çizim ölçeği"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Ön",
+        "right": "Sağ yan",
+        "rear": "Arka"
+      }
     }
   },
   "hover-to-highlight": {
