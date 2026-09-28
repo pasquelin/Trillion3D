@@ -1,7 +1,10 @@
 import type * as Sdk from '../witnesses/measurement.ts';
 import type { CameraPose, FrameMetrics } from '../../packages/sdk-core/src/index.ts';
 import { posterCapture } from './measurePage.ts';
-import type { SpatialFeedback } from '../../packages/sdk-browser/src/webgpu/pages/diagnostic/feedbackSpatial.ts';
+import type {
+  SpatialFeedback,
+  SurfaceKind,
+} from '../../packages/sdk-browser/src/webgpu/pages/diagnostic/feedbackSpatial.ts';
 
 type Probe = {
   captureFeedbackAb(): Promise<Uint8Array>;
@@ -14,9 +17,45 @@ export type ConvergenceProof = {
   trace: ConvergenceFrame[];
   captures: { frame: number; file: string; final: boolean }[];
   spatial: (SpatialFeedback & { frame: number })[];
-  centerBeforePeriphery: number | null;
-  peripheryAtLevel: number | null;
+  order: Record<Scope, Checkpoint>;
 };
+type Scope = 'all' | SurfaceKind;
+/** Center at its requested mip while periphery lags, then periphery at level; `present` when
+ *  both regions still request the scope in the held frame. */
+type Checkpoint = { centerFirst: number | null; peripheryAtLevel: number | null; present: boolean };
+const SCOPES: readonly Scope[] = ['all', 'opaque', 'mask', 'blend'];
+const pick = (region: SpatialFeedback['center'], scope: Scope) =>
+  scope === 'all' ? region : region.kinds[scope];
+const enough = (sample: SpatialFeedback, scope: Scope) =>
+  [sample.center, sample.periphery].every(
+    (region) => pick(region, scope).requested >= (scope === 'all' ? 64 : 8),
+  );
+
+/** Advances each scope's checkpoints on one spatial sample. */
+export function orderCheckpoints(
+  order: Record<Scope, Checkpoint>,
+  sample: SpatialFeedback,
+  i: number,
+) {
+  for (const scope of SCOPES) {
+    const at = order[scope];
+    if (!enough(sample, scope)) continue;
+    const center = pick(sample.center, scope),
+      outer = pick(sample.periphery, scope);
+    if (
+      at.centerFirst === null &&
+      center.atLevel === center.requested &&
+      outer.atLevel < outer.requested
+    )
+      at.centerFirst = i;
+    else if (
+      at.centerFirst !== null &&
+      at.peripheryAtLevel === null &&
+      outer.atLevel === outer.requested
+    )
+      at.peripheryAtLevel = i;
+  }
+}
 
 export const feedbackGeometryReady = (frame: ConvergenceFrame) =>
   frame.coverageReady === true &&
@@ -59,9 +98,10 @@ export async function captureConvergence(
   const trace: ConvergenceFrame[] = [];
   const captures: ConvergenceProof['captures'] = [];
   const spatial: ConvergenceProof['spatial'] = [];
-  let centerBeforePeriphery: number | null = null,
-    peripheryAtLevel: number | null = null,
-    held = false;
+  const order = Object.fromEntries(
+    SCOPES.map((scope) => [scope, { centerFirst: null, peripheryAtLevel: null, present: false }]),
+  ) as Record<Scope, Checkpoint>;
+  let held = false;
   const capture = async (frame: number) => {
     const file = `${prefix}-convergence-${frame}-final.rgba`;
     const pixels = await backend.captureFeedbackAb();
@@ -74,21 +114,11 @@ export async function captureConvergence(
     const frame = traceFrame(explorer.render(pose), i);
     trace.push(frame);
     const ready = feedbackGeometryReady(frame);
-    if (ready && (frame.held || (peripheryAtLevel === null && spatial.length < 48))) {
+    const open = SCOPES.some((scope) => order[scope].peripheryAtLevel === null);
+    if (ready && (frame.held || (open && spatial.length < 48))) {
       const sample = await backend.feedbackAbSpatial();
       spatial.push({ frame: i, ...sample });
-      const center = sample.center,
-        outer = sample.periphery;
-      if (center.requested >= 64 && outer.requested >= 64) {
-        if (
-          centerBeforePeriphery === null &&
-          center.atLevel === center.requested &&
-          outer.atLevel < outer.requested
-        )
-          centerBeforePeriphery = i;
-        else if (centerBeforePeriphery !== null && outer.atLevel === outer.requested)
-          peripheryAtLevel = i;
-      }
+      orderCheckpoints(order, sample, i);
     }
     if (frame.held === true && ready && textureReady(frame)) {
       await capture(i);
@@ -97,17 +127,22 @@ export async function captureConvergence(
     }
   }
   const final = spatial.find((entry) => entry.frame === captures[0]?.frame);
+  for (const scope of SCOPES) order[scope].present = !!final && enough(final, scope);
   const heldMipsReady =
-    !!final &&
-    [final.center, final.periphery].every(
-      (region) => region.requested >= 64 && region.atLevel === region.requested,
-    );
+    order.all.present &&
+    [final!.center, final!.periphery].every((region) => region.atLevel === region.requested);
+  // A surface kind both regions request must show the same center-first order as the frame.
+  const unordered = SCOPES.find(
+    (scope) =>
+      (scope === 'all' || order[scope].present) &&
+      (order[scope].centerFirst === null || order[scope].peripheryAtLevel === null),
+  );
   const reason = !held
     ? 'FEEDBACK_AB_NO_HELD_REFERENCE'
     : !heldMipsReady
       ? 'FEEDBACK_AB_HELD_MIPS_UNVERIFIED'
-      : centerBeforePeriphery === null || peripheryAtLevel === null
-        ? 'FEEDBACK_AB_NO_CENTER_FIRST_CHECKPOINT'
+      : unordered
+        ? `FEEDBACK_AB_NO_CENTER_FIRST_CHECKPOINT${unordered === 'all' ? '' : `_${unordered.toUpperCase()}`}`
         : null;
   return {
     supported: reason === null,
@@ -115,7 +150,6 @@ export async function captureConvergence(
     trace,
     captures,
     spatial,
-    centerBeforePeriphery,
-    peripheryAtLevel,
+    order,
   };
 }
