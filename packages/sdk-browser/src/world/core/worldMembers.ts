@@ -2,7 +2,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { LoadedModel } from './loadedModel.ts';
 import { isLightNode } from '../../host/graph/kinds.ts';
-import { rootedUnder } from './worldPoses.ts';
+import { rootedUnder } from '../../host/world/chain.ts';
 
 /**
  * Who a world's scene draws — its meshes and its loaded models —, kept up to date from the

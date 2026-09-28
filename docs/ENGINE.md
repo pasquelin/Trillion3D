@@ -128,7 +128,10 @@ page per held slot fed by the cache's arrivals and departures (`gpu/dag/poolList
 catalogue. On the GPU-cut path the cache evicts only from that queue, skipping pinned pages and
 taking a page a lower tier touched since the last queue (a shadow caster) after every other; once
 spent (`eviction-queue-spent`) the burst waits for the next readback. The CPU cut evicts the least
-recent page; `budgetRanking` still chooses loads (#836).
+recent page. Loads on the GPU-cut path are read off the readback's requests, closed over their
+groups (`webgpu/residency/requestAdmission.ts`, #836): past the pool, the coarsest levels whole and
+the one the room straddles in part, what the queue already holds first, from the pool's room alone.
+The GPU cut feeds no `budgetRanking`; the CPU cut that takes the image back refills it.
 
 **Occlusion** is two-phase Hi-Z. Pass 1 draws the rows the previous frame drew that the previous
 frame's pyramid does not hide; a pyramid is built from that depth (background at the far plane, min
