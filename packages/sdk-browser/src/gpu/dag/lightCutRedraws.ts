@@ -3,6 +3,11 @@ import { MAX_SHADOW_BATCHES as BATCHES, SHADOW_FLAG_FRAMES } from '../shadow/bat
 import { COARSER_VIEWS, LIST_FULL, WORK_DROPPED } from './shader/viewsWgsl.ts';
 import { OUT_FLAGS } from './layout.ts';
 import { createViewLimit } from './lightCutViewLimit.ts';
+import { DRAW_DYNAMIC } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
+
+/** A page's redraw bits: withdrawn until redrawn, and its static casters drawn again too. */
+const WRONG = 1,
+  STATIC = 2;
 
 /**
  * WHICH PAGES A LIGHT CUT DREW SHORT, TO BE DRAWN AGAIN. Every batch that runs a cut copies its
@@ -23,6 +28,10 @@ import { createViewLimit } from './lightCutViewLimit.ts';
  *   not read — the frame's report not copied, or its list full before the batch's flag — waits
  *   for nothing: what it lacked was never asked for, and its pages are drawn again at once.
  *
+ * A page is drawn again as it was drawn: one restored from the static layer (`DRAW_DYNAMIC`) drew
+ * its moving casters alone, so only they can have been short, and the static layer stays; one whose
+ * static casters were drawn draws them again (#990).
+ *
  * A frame's flag words ride in one slot: a buffer of a word per batch, and the batches' pages,
  * sized once for the most batches a frame draws (`../shadow/batchBudget.ts`). `SHADOW_FLAG_FRAMES`
  * slots, allocated at creation, hold that many frames in flight; a frame that finds every slot
@@ -41,6 +50,8 @@ export function createLightCutRedraws(
     pages: new Int32Array(BATCHES * PAGES),
     /** The view of each page, the rank its run has in its batch's cut. */
     views: new Uint8Array(BATCHES * PAGES),
+    /** 1 for a page restored from the static layer: its static casters were not drawn. */
+    restored: new Uint8Array(BATCHES * PAGES),
     /** Where each batch's pages end. */
     ends: new Uint16Array(BATCHES),
     batches: 0,
@@ -51,16 +62,18 @@ export function createLightCutRedraws(
   type Slot = (typeof slots)[number];
   /** The slot of the frame being encoded, until its settlement. */
   let open: Slot | undefined;
-  /** Each page to draw again, and whether its depth is wrong — dropped work — and is withdrawn
-   *  meanwhile, or only coarser — a missing cluster — and stays read. */
-  const redraw = new Map<number, boolean>(),
-    waiting = new Set<number>();
+  /** Each page to draw again, in bits: its depth is wrong — dropped work — and is withdrawn
+   *  meanwhile, not only coarser — a missing cluster — and stays read (`WRONG`); its static casters
+   *  were drawn short too (`STATIC`). The pages waiting for residency, with the same bits. */
+  const redraw = new Map<number, number>(),
+    waiting = new Map<number, number>();
   const limit = createViewLimit(viewCap);
   let epoch = 0,
     /** Residency changed since the waiting pages were last released. */
     moved = false;
-  const again = (page: number, withdraw: boolean) =>
-    redraw.set(page, withdraw || !!redraw.get(page));
+  const again = (page: number, bits: number) => redraw.set(page, bits | (redraw.get(page) ?? 0));
+  const bitsOf = (slot: Slot, i: number, wrong: boolean) =>
+    (wrong ? WRONG : 0) | (slot.restored[i] ? 0 : STATIC);
   const read = (slot: Slot, batch: number, flags: number) => {
     const from = batch ? slot.ends[batch - 1] : 0,
       to = slot.ends[batch];
@@ -69,7 +82,7 @@ export function createLightCutRedraws(
     for (let i = from; i < to; i++) views = Math.max(views, slot.views[i] + 1);
     limit.read(views, dropped);
     if (dropped) {
-      for (let i = from; i < to; i++) again(slot.pages[i], true);
+      for (let i = from; i < to; i++) again(slot.pages[i], bitsOf(slot, i, true));
       return;
     }
     // Residency moved since the frame was encoded: what it lacked may be there now.
@@ -77,8 +90,8 @@ export function createLightCutRedraws(
       coarser = flags >>> COARSER_VIEWS;
     for (let i = from; i < to; i++)
       if ((coarser >>> slot.views[i]) & 1)
-        if (now) again(slot.pages[i], false);
-        else waiting.add(slot.pages[i]);
+        if (now) again(slot.pages[i], bitsOf(slot, i, false));
+        else waiting.set(slot.pages[i], bitsOf(slot, i, false) | (waiting.get(slot.pages[i]) ?? 0));
   };
   const settle = (slot: Slot) => (submitted: boolean) => {
     if (open === slot) open = undefined;
@@ -99,14 +112,16 @@ export function createLightCutRedraws(
       });
   };
   return {
-    /** Copies a batch's flag word with its `count` drawn `pages`, drawn in the cut's `views`. The
-     *  frame's first batch returns the settlement to call once the command buffer is submitted,
-     *  or dropped; the others ride in its slot. */
+    /** Copies a batch's flag word with its `count` drawn `pages`, drawn in the cut's `views` and
+     *  in `modes` (`DRAW_*`, every caster when absent). The frame's first batch returns the
+     *  settlement to call once the command buffer is submitted, or dropped; the others ride in its
+     *  slot. */
     encode(
       encoder: GPUCommandEncoder,
       pages: ArrayLike<number>,
       views: ArrayLike<number>,
       count: number,
+      modes?: ArrayLike<number>,
     ) {
       if (!count) return undefined;
       let settlement: ((submitted: boolean) => void) | undefined;
@@ -123,13 +138,15 @@ export function createLightCutRedraws(
       }
       const slot = open;
       if (!slot || slot.batches >= BATCHES) {
-        for (let i = 0; i < count; i++) again(pages[i], true);
+        for (let i = 0; i < count; i++)
+          again(pages[i], WRONG | (modes?.[i] === DRAW_DYNAMIC ? 0 : STATIC));
         return settlement;
       }
       const at = slot.batches ? slot.ends[slot.batches - 1] : 0;
       for (let i = 0; i < count; i++) {
         slot.pages[at + i] = pages[i];
         slot.views[at + i] = views[i];
+        slot.restored[at + i] = modes?.[i] === DRAW_DYNAMIC ? 1 : 0;
       }
       slot.ends[slot.batches] = at + count;
       encoder.copyBufferToBuffer(output, OUT_FLAGS * 4, slot.buffer, slot.batches * 4, 4);
@@ -152,18 +169,18 @@ export function createLightCutRedraws(
       if (!moved) return;
       moved = false;
       epoch++;
-      for (const page of waiting) again(page, false);
+      for (const [page, bits] of waiting) again(page, bits);
       waiting.clear();
     },
     /** Light views one batch draws in: `viewCap` until a batch drops (`createViewLimit`). */
     get viewLimit() {
       return limit.value;
     },
-    /** Hands every page to draw again to `visit`, and whether it is withdrawn until then; forgets
-     *  them; returns how many. */
-    takeRedraw(visit: (page: number, withdraw: boolean) => void) {
+    /** Hands every page to draw again to `visit`, whether it is withdrawn until then, and whether
+     *  its static casters are drawn again too; forgets them; returns how many. */
+    takeRedraw(visit: (page: number, withdraw: boolean, staticCasters: boolean) => void) {
       const count = redraw.size;
-      for (const [page, withdraw] of redraw) visit(page, withdraw);
+      for (const [page, bits] of redraw) visit(page, (bits & WRONG) !== 0, (bits & STATIC) !== 0);
       redraw.clear();
       return count;
     },
