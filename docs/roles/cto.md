@@ -16,8 +16,8 @@ Chrome or close a pull request. The company's rules files are yours.
    to step 1.
 
 **Other AIs' pull requests** (no lead opened them): label one `in review`, run one `reviewer`
-subagent on it, then step 3, then `gh pr merge <pr> --auto --merge`. A ko goes on the pull request
-as a comment.
+subagent on it, then step 3, then `gh pr merge <pr> --auto --merge`; once merged, remove
+`in review` and `to measure`. A ko goes on the pull request as a comment.
 
 **Every 10 minutes** (`/loop 10m`): check your agents, check the usage (`get_usage`), and
 tell the boss only a blocker, a decision or his answer. Technique is yours; product choices and
