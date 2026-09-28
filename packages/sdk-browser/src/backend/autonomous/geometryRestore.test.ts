@@ -5,27 +5,15 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createAutonomousGeometry } from './geometry.ts';
 import type { PageRec } from '../../page/selection/types.ts';
-import { surfaceOf } from '../../page/surface.ts';
+import { makeRec } from './pageRec.fixture.ts';
 
-/** A resident record of page `u`, placed by a row. */
+/** A resident record of page `u`, placed by a row, drawing `geometry`. */
 const rowed = (id: number, geometry: G.Geometry): PageRec => ({
-  id,
+  ...makeRec(id, 1),
   url: 'u',
-  clusterId: `c${id}`,
-  array: Uint32Array.of(0, 1, 2),
-  triangles: 1,
-  indexBytes: 12,
-  min: [0, 0, 0],
-  max: [1, 1, 1],
-  depthLayer: 0,
-  attributes: {} as G.Geometry['attributes'],
-  material: surfaceOf({} as unknown as G.GraphSurface),
-  declaration: {} as G.GraphSurface,
-  matrix: new G.Matrix4(),
-  renderOrder: 0,
   geometry,
+  mesh: undefined,
   placement: {} as PageRec['placement'],
-  attached: false,
 });
 
 test('records restored alone leave the rowed geometry the others draw', () => {
