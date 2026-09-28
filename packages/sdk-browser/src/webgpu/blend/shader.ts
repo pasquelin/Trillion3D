@@ -1,6 +1,7 @@
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts';
+import { bounceReflectionWgsl, MIRROR_LIGHTING_WGSL } from '../../bounce/reflectWgsl.ts';
 import { STANDARD_LIGHTING_WGSL, NORMAL_TRANSFORM_WGSL } from '../../lighting/standardLighting.ts';
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts';
 import {
@@ -23,13 +24,7 @@ import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts';
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
 
-/**
- * Shader of transparent surfaces.
- *
- * Two inputs only: a view uniform, written once per image for the whole pass, and the item
- * record, read in a storage buffer at the rank the vertex index carries. Nothing is bound per
- * call, and the order of calls is that of the scene.
- */
+/** Shader of transparent surfaces, sharing the opaque lighting and reflection model. */
 /** The view uniform of the pass (`uniforms.ts`), declared once for every stage that
  *  reads it: the two forward stages here, and the water composite that reads the same buffer. */
 export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec4f,pixelRatio:f32,}`;
@@ -52,6 +47,8 @@ ${PAGE_NORMAL_WGSL}
 ${STANDARD_LIGHTING_WGSL}
 ${declaredLightingWgsl(BLEND_BINDINGS.proxy, BLEND_BINDINGS.shadowData, BLEND_BINDINGS.shadowTransmittance)}
 ${bounceApplyWgsl(BLEND_BINDINGS.bounceGrid, BLEND_BINDINGS.probes)}
+${bounceReflectionWgsl(BLEND_BINDINGS.surfaceCache)}
+${MIRROR_LIGHTING_WGSL}
 @group(0) @binding(${BLEND_BINDINGS.directLights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${BLEND_BINDINGS.shadowAtlas}) var shadowAtlas:texture_depth_2d_array;
 @group(0) @binding(${BLEND_BINDINGS.shadowSampler}) var shadowSampler:sampler_comparison;
@@ -190,7 +187,7 @@ ${BLEND_SURFACE_WGSL}
    // A pixel's footprint at the surface: its distance times the pixel's angle, or the pixel
    // itself under an orthographic camera.
    shadowFootprint=select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-in.view),uni.camPos.w!=0.0);
-   rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
+   rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+mirrorLighting(rgb,m,clamped,s.N,V,in.view)+s.emissive;
   }
   // Lit or unlit, the surface is seen through the fog.
   rgb=fogged(rgb,in.view,uni.eye.xyz);

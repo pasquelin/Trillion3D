@@ -552,7 +552,8 @@ and transparency are not bounced. `setLightingView('bounce')` outputs the indire
 the quantity `bench/runner/oracle.ts` compares.
 
 **Mirrors.** With the bounce on, a surface at the roughness floor (0.0525, the clamp every shading
-path applies) reflects the scene: the resolve fires one ray along the mirror direction against the
+path applies) reflects the scene on WebGPU, including transparent standard materials: both the
+opaque resolve and the blend pass fire one ray along the mirror direction against the
 resident proxy, from the origin the sun's far shadow uses, and reads the face it hits in the surface
 cache; a ray that leaves the proxy reads the probe irradiance in that direction over π. The radiance
 is weighed by the GGX lobe's directional albedo, the magnitude and Schlick share of the table the
@@ -561,9 +562,8 @@ Fresnel, so the engine has one reflection model (`packages/sdk-browser/src/bounc
 mirror-smooth water, at the floor, traces the proxy; rougher water keeps the blurred probe
 irradiance over π it read before, never a sharp image. What a mirror shows is the proxy: its
 certified error, one radiance per triangle face, and nothing nearer than one proxy cell along the
-ray. A rougher opaque surface, a diffuse or toon one, and every surface with the bounce off add
-exactly zero: the
-floor is a material threshold, so a roughness map that crosses it shows reflecting and
+ray. A rougher opaque or transparent standard surface, a diffuse or toon one, and every surface
+with the bounce off add exactly zero: the floor is a material threshold, so a roughness map that crosses it shows reflecting and
 non-reflecting texels side by side until rough reflections (#33) fill the lobes above it. Screen
 traces stay on #31, planar views are #353. WebGL2 has no bounce, hence no reflection.
 
