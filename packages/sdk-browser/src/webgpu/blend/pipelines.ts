@@ -12,7 +12,7 @@ import {
   type BlendModePipelines,
 } from './stagePipelines.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
-import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts';
+import { BLEND_EQUATIONS, BLEND_MODES, COVERAGE_EQUATIONS } from '../../scene/materialBlending.ts';
 import { createWaterPass, type WaterPass } from '../water/pass.ts';
 import {
   blendVariantPipeline,
@@ -25,7 +25,7 @@ export const blendTargets = (
   mask: GPUColorWriteFlags,
   feedback: boolean,
 ): GPUColorTargetState[] => [
-  { format: 'rgba16float', writeMask: mask, blend: BLEND_EQUATIONS[mode] },
+  { format: 'rgba16float', writeMask: mask, blend: COVERAGE_EQUATIONS[mode] },
   ...(feedback ? [{ format: FEEDBACK_FORMAT }] : []),
   // The share records how much of the debug background remains under a lit transparent
   // contribution. Additive and subtractive colours also contribute lit pixels, so neither may
