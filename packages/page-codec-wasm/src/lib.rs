@@ -21,6 +21,7 @@ pub mod cut;
 pub mod cut_error;
 pub mod math;
 pub mod math_hierarchy;
+pub mod min_ball;
 pub mod normal_cone;
 pub mod triangles;
 pub mod vec3;
