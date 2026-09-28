@@ -10,6 +10,9 @@ import { Light } from './light.ts';
 
 /** The kinds that are lamps — a position or a direction the engine's light store holds. */
 const LAMPS = new Set(['point', 'spot', 'directional', 'rectArea']);
+/** A lamp that asks to cast and whose kind the store lets cast: a rectangle casts none. */
+export const lampCastsShadow = (light: Light) =>
+  light.castShadow && LAMPS.has(light.kind) && light.kind !== 'rectArea';
 /** The store's spot cone is open on `(0, π/2)`: the widest half-angle it holds, the half-space
  *  less the one float the bound excludes. */
 const WIDEST_CONE = Math.PI / 2 - 1e-9;
@@ -46,7 +49,7 @@ export function lampRecord(light: Light, id: string, reach: number): SceneLight 
     kind,
     color: light.color.toArray(),
     intensity: light.intensity,
-    castsShadow: light.castShadow && !rectangle,
+    castsShadow: lampCastsShadow(light),
   };
   if (rectangle) {
     light.getWorldDirection(aim);
