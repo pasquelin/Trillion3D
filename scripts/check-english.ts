@@ -3,7 +3,7 @@
 // every tracked source file — each word of a camelCase or snake_case name counts — the strings a
 // program reads excepted. A count above `scripts/english-baseline.json` fails; one below is
 // written there, to be committed. `pnpm run check:english`; `--write` records today's counts.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { FRENCH_EXCEPTIONS, FRENCH_WORDS } from './french-words.ts';
@@ -82,6 +82,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const write = () => writeFileSync(path, `${JSON.stringify(counts, null, 2)}\n`);
   if (process.argv.includes('--write')) write();
   else {
+    if (!existsSync(path)) throw new Error(`No ${BASELINE}: record it with \`--write\`.`);
     const baseline = JSON.parse(readFileSync(path, 'utf8')) as Record<string, number>;
     const { risen, fallen } = ratchet(baseline, counts);
     for (const unit of risen) {
