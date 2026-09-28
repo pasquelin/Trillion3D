@@ -31,9 +31,9 @@ export function frameBatchCapacity(rt: WebgpuPagesRuntime) {
  * the frame's page count when every batch was visited.
  *
  * At most the frame's capacity (`frameBatchCapacity`): the current pool's pages in the fewest
- * pages a batch holds, within the memory grant. Only a view limit bisected past the grant's reach
- * after a light cut dropped work needs more; the pages past the last are then pending, drawn the
- * next frame. An empty list visits no batch.
+ * pages a batch holds, within the memory grant. More than the grant's 4 104 pages stale at once,
+ * or a view limit bisected after a light cut dropped work, needs more; the pages past the last are
+ * then pending, drawn the next frame. An empty list visits no batch.
  */
 export function forEachShadowBatch(
   rt: WebgpuPagesRuntime,
