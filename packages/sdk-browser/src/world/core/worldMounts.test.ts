@@ -9,6 +9,7 @@ import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { PlacementMount } from '../../placement/backendSceneUpdates.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
 import type { ExplorerSource } from '../session/prepare.ts';
+import { listenWorldNotices } from '../diagnostic/worldNotices.ts';
 import { Scene } from './scene.ts';
 import { runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts';
 
@@ -64,6 +65,8 @@ test('1 000 frames adding and removing a mesh and replacing a geometry never ope
   const scene = new Scene(() => Promise.reject(new Error('no loader')));
   const { open, drawn, frame: tick, live, opened, mounts } = mountingSession(2);
   const runtime = runtimeOf(scene, Promise.resolve(), (error) => assert.fail(String(error)), open);
+  const reopens: unknown[] = [];
+  const stop = listenWorldNotices((n) => void (n.phase === 'session-reopen' && reopens.push(n)));
   const stone = material.meshStandard({ color: 0x808080 });
   scene.add(object.mesh(geometry.box(4, 0.2, 4), stone));
   const sheet = geometry.plane(4, 4, 2, 2);
@@ -93,6 +96,9 @@ test('1 000 frames adding and removing a mesh and replacing a geometry never ope
     if (frame > 10) assert.ok(newest >= frame - 6, `frame ${frame}: newest mount ${newest}`);
   }
   runtime.dispose();
+  await new Promise(setImmediate);
+  stop();
+  assert.deepEqual(reopens, [], 'no session-reopen said (#837)');
   assert.equal(opened(), 1, 'one session for every mesh and every geometry');
   assert.ok(mounts() >= 300, `${mounts()} mounts: the water's geometries, the crates'`);
   assert.equal(imageless, 0, 'no frame without an image');

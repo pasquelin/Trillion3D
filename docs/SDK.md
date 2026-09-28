@@ -126,7 +126,9 @@ engine already holds, since the frames drawn before the wait may have read them 
 read for the view while the wait runs (a prefetch aside), whether the host reads it for the cut or the WebGPU engine for its own
 residency —, `completed` those resident, rising as each lands; the last event has
 `completed === total`. One callback given to both drives a progress bar from the first byte to
-the first pages (example `watch-a-world-load`).
+the first pages (example `watch-a-world-load`). A session that closes during the wait — a lost
+device, an option it cannot take in place — never rejects it: the wait carries on with the session
+opened again.
 
 A model's vertices stay on the server until something reads them: `scene.load` reads no vertex
 buffer (`source.bin`), the pages draw the model. The buffer is read once, on the first need: a
@@ -1564,7 +1566,10 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   session on it and rebuilds from its decoded-page cache, fetching no page, bundle or resident proxy
   it still holds (the proxy and the decoded texture levels are kept inside `world.budget.cpu`
   unless they yielded to the pages). `gpu-device-recovered` says the time from the loss to the
-  first frame drawn after it (`recoveryMs`). `lights.json` is read again, and cross-API fallback is
+  first frame drawn after it (`recoveryMs`). Until then the canvas keeps the last image drawn.
+  Every reopen of a world's session is said once as `session-reopen`: its `cause` (`device-lost`,
+  `option`, or a content change — `defect: true`, a change the session should have taken in
+  place), `durationMs`, and `framesWithoutImage`, the display frames it showed no new image through. `lights.json` is read again, and cross-API fallback is
   not implemented.
 - Frame targets the device refused are asked again only when the view's size changes, or by a
   capture; until then the frames stay held on the previous image.
