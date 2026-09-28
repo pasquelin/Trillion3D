@@ -15,7 +15,6 @@ import { HOSTILE_FLOATS } from '../../../../../tests/kit/assert/hostile.ts';
 
 const EDGES = [...HOSTILE_FLOATS, 1e308, -1e308, 1, -2.5, 0.75];
 
-
 /** A random graph and the edits a page or the engine makes to it, each told through the link. */
 function graph(seed: number, size: number) {
   const rnd = seeded(seed);
@@ -125,9 +124,8 @@ test('an empty graph walks its root, a maximal one keeps develop world matrices'
 test('an image walks only the subtrees that changed, never the whole graph', () => {
   const { scene, nodes } = graph(11, 2000);
   const pass = createChangedSubtrees(scene);
-  scene.traverse(
-    (node) => (node._link = { pose: pass.heard, posed() {}, structure: pass.heard, content() {} }),
-  );
+  const link = { pose: pass.heard, posed() {}, structure: pass.heard, content() {} };
+  scene.traverse((node) => (node._link = link));
   assert.equal(pass.run(), 2001);
   assert.equal(pass.run(), 0, 'nothing moved: nothing walked');
   const leaf = nodes.find((node) => !node.children.length)!;
@@ -143,4 +141,16 @@ test('an image walks only the subtrees that changed, never the whole graph', () 
     size + (rootedUnder(leaf, holder) ? 0 : 1),
     'a moved group walks its subtree',
   );
+});
+
+test('a node heard, then destroyed before the image, is not walked', () => {
+  const scene = new Scene(),
+    mesh = new Mesh();
+  scene.add(mesh);
+  const lists = createDrawLists(scene, []);
+  lists.refresh();
+  mesh.position.x = 3;
+  mesh.destroy();
+  assert.doesNotThrow(() => lists.refresh());
+  lists.dispose();
 });

@@ -31,6 +31,9 @@ export function createChangedSubtrees(scene: Object3D) {
     run() {
       let walked = 0;
       for (const node of pending) {
+        // A node taken off the graph since it was heard lost the graph's link, and one destroyed
+        // was taken off first: neither is drawn, and a destroyed one may not be read.
+        if (node._link !== scene._link) continue;
         // One climb to `scene`: cut short above a heard node (its pass walks `node`) or a root
         // (`node` is no longer drawn); on the way, whether the full pass would reach `node`.
         let at = node,
