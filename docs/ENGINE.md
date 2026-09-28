@@ -346,7 +346,10 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   power-of-two grid: every caster lies inside, and a small growth changes nothing. A page is read
   in the range it was drawn in — its table word names one of the `SUN_DEPTH_RANGES` a sun keeps
   (`sunDepth.ts`) —, so a new range, a walker crossing a grid line, redraws no page its box does
-  not cover.
+  not cover. Once nothing moves, the pages of an older range are drawn again in the current one,
+  read meanwhile: a scene at rest shows the image one range draws. A page in the current range is
+  read at the one reference a single range computes; a neighbour page of another range than the
+  home page's is not read by the filter, whose taps keep to the home page.
 - **A lamp face is a mip chain**: 32 × 32 pages at its finest mip, the pool's own side, down to one
   page. Six faces for a point, one for a spot.
 - **The level is chosen per pixel, from its footprint** — the world distance between two adjacent
