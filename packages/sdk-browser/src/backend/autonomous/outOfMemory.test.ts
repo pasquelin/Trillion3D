@@ -4,8 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { upload } from '../../webgl/cluster/buffers.ts';
-import { coverFault } from '../../page/cut/cutRule.fixture.ts';
-import { levels, strip, wholeStrip } from './poolStrip.fixture.ts';
+import { descend, strip, wholeStrip } from './poolStrip.fixture.ts';
 import type { GpuBuffer } from '../../cluster/batchMesh.ts';
 
 const OUT_OF_MEMORY = 0x0505;
@@ -46,31 +45,15 @@ const geometry = () =>
 
 test('a refused allocation draws the next images one level coarser, never a hole', () => {
   const { gl, refuseNext } = refusingContext();
-  const { image, dag, pages, drawnIds, pool, state, diagnostics } = strip(70, wholeStrip(), gl);
+  const run = strip(70, wholeStrip(), gl),
+    { image, pool, state, diagnostics } = run;
   for (let i = 0; i < 24; i++) image(0.25);
   const held = pool.held.allocatedBytes,
     fine = state.allocationBytes;
-  let before = levels(dag, drawnIds()),
-    drawn = drawnIds();
   refuseNext();
   const attribute = geometry(),
     buffer = upload(gl, gl.ARRAY_BUFFER, attribute);
-  let coarser = 0;
-  for (let i = 0; i < 24; i++) {
-    assert.ok(
-      drawn.every((id) => pages[id].array),
-      `image ${i}: a drawn page left`,
-    );
-    image(0.25, 3);
-    drawn = drawnIds();
-    assert.equal(coverFault(dag, drawn), -1, `image ${i}: a leaf not covered exactly once`);
-    const now = levels(dag, drawn);
-    for (let u = 0; u < dag.leaves; u++) {
-      assert.ok(now[u] <= before[u] + 1, `image ${i}, leaf ${u}: ${before[u]} → ${now[u]}`);
-      if (now[u] > before[u]) coarser++;
-    }
-    before = now;
-  }
+  const coarser = descend(run);
   assert.equal(buffer.bytes, 0, 'the refused buffer, once read, is sized again');
   assert.equal(pool.held.allocatedBytes, Math.floor(held / 2 / 100) * 100, 'half the pool');
   assert.ok(fine > pool.held.allocatedBytes, `the fine cut (${fine}) no longer fits`);
