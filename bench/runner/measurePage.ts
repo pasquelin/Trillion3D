@@ -95,7 +95,12 @@ export async function reglerReservoirs(
     );
   }
   const rapport = await explorer.setMemoryBudgets(requested);
-  return { ...rapport, imagesReprise: await poseCalme(explorer, pose), residentTextureBytes };
+  return {
+    ...rapport,
+    imagesReprise: await poseCalme(explorer, pose),
+    texturePoolAskedBytes: requested.texturePoolBytes,
+    residentTextureBytes,
+  };
 }
 
 /**
