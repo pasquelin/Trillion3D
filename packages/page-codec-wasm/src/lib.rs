@@ -23,6 +23,7 @@ pub mod math;
 pub mod math_hierarchy;
 pub mod normal_cone;
 pub mod triangles;
+mod unpack;
 pub mod vec3;
 #[cfg(target_arch = "wasm32")]
 mod wasm;
@@ -36,6 +37,7 @@ pub mod writer;
 
 pub use attributes::{DecodedPage, Layout, OPTIONAL};
 use bits::Quant;
+pub use unpack::{decode, decode_into};
 
 pub const MAGIC: u32 = 0x3350_4757;
 pub const VERSION: u32 = 4;
@@ -174,25 +176,6 @@ impl Header {
         }
         Ok(header)
     }
-}
-
-/// A complete page, its streams unpacked and dequantized: the same bytes as `decodeGeometryPage`.
-/// The streams are read in place when the page sits on a word boundary — a `page_alloc`
-/// reservation always does — and from a copy otherwise.
-pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, PageError> {
-    let header = Header::parse(data, max_decoded_bytes)?;
-    let body = &data[HEADER_BYTES..];
-    // SAFETY: every bit pattern is a valid `u32`; the byte count is a multiple of four, so an
-    // empty head leaves no tail. Only a little-endian host may read the words as they lie.
-    let (head, aligned, _) = unsafe { body.align_to::<u32>() };
-    let copied: Vec<u32>;
-    let words = if cfg!(target_endian = "little") && head.is_empty() {
-        aligned
-    } else {
-        copied = bits::le_words(body).collect();
-        &copied
-    };
-    attributes::split(words, &header)
 }
 
 #[cfg(test)]
