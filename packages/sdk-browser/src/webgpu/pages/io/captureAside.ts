@@ -1,10 +1,46 @@
 import { copyDrawnFromShown } from '../helpers.ts';
 import type { HostCamera } from '../../../camera/world.ts';
 import { encodeDraws } from '../render/encodeDraws.ts';
-import { resetHizHistory } from './drops.ts';
 import { renderWebgpuPages } from '../render/render.ts';
 import { grantFrameTargets } from '../prepare/targetGrant.ts';
+import { sizeShadowPool } from '../../shadow/poolSize.ts';
+import { deviceAnswer } from '../../frame/deviceAnswer.ts';
+import { createWebgpuView } from '../state/view.ts';
+import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
+
+/**
+ * Runs `work` in a view of its own at `width × height`, once the device has answered for what the
+ * scene asked and the residency and the queue are settled. The capture renders there, into
+ * targets of its own: the main view keeps its targets, its cut and its temporal and occlusion
+ * history, and the canvas keeps showing it. The view is released after, whatever `work` did.
+ */
+export async function captureAside<T>(
+  rt: WebgpuPagesRuntime,
+  size: { width: number; height: number },
+  work: () => Promise<T>,
+) {
+  const { capture } = rt;
+  // A light that casts asks its shadow pool of the device before anything is drawn: the capture
+  // waits for the answer, never drawn without its shadows (#483). The pool is sized from the
+  // canvas, before the capture's own view is drawn.
+  sizeShadowPool(rt);
+  capture.capturing = true;
+  const view = createWebgpuView(size.width, size.height);
+  try {
+    await deviceAnswer(rt);
+    await rt.services.residency.pending;
+    await rt.gpu.device?.queue.onSubmittedWorkDone();
+    // A session closed meanwhile draws nothing.
+    rt.context.signal?.throwIfAborted();
+    useWebgpuView(rt, view);
+    return await work();
+  } finally {
+    releaseWebgpuView(rt, view);
+    capture.capturing = false;
+    capture.surfaceRenderAllowed = false;
+  }
+}
 
 /** Renders through the backend while a capture holds it, which `render` otherwise refuses, into
  *  targets granted first (`grantFrameTargets`). `aspect` is the shape of the surface written
@@ -16,8 +52,6 @@ export async function renderForCapture(
 ) {
   await grantFrameTargets(rt, rt.gpu.device!);
   rt.capture.surfaceRenderAllowed = true;
-  // A capture renders from another camera and then restores the image: nothing is held there.
-  rt.run.gate.viewReplaced();
   try {
     renderWebgpuPages(rt, camera, aspect);
   } finally {
@@ -44,43 +78,4 @@ export async function drawResidentCut(
   copyDrawnFromShown(run);
   hooks.beforeEncode?.();
   run.submittedTriangles = encodeDraws(rt, gpuDevice, run.gate.cam);
-}
-
-export type SavedView = {
-  main: HostCamera;
-  size: [number, number];
-  diagnostic: WebgpuPagesRuntime['run']['diagnostic'];
-  motion: WebgpuPagesRuntime['run']['motion'];
-};
-
-/** Puts the main view back after a surface capture, presenting it again when the host shows one. */
-export async function restoreMainView(
-  rt: WebgpuPagesRuntime,
-  gpuDevice: GPUDevice,
-  saved: SavedView,
-) {
-  const { run, gpu, capture, context, diag } = rt,
-    { viewport } = rt.setup;
-  viewport[0] = saved.size[0];
-  viewport[1] = saved.size[1];
-  run.diagnostic = saved.diagnostic;
-  resetHizHistory(run);
-  Object.assign(run.motion, saved.motion);
-  try {
-    if (run.lost || context.signal?.aborted) return;
-    await renderForCapture(rt, saved.main);
-    await drawResidentCut(rt, gpuDevice);
-    if (gpu.presenter && gpu.colorTexture) {
-      const encoder = gpuDevice.createCommandEncoder();
-      gpu.presenter.present(encoder, gpu.colorTexture, ...gpu.targetSize);
-      gpuDevice.queue.submit([encoder.finish()]);
-    }
-    diag.engineDiagnostic('surface-main-restored', 'Main view restored', {
-      width: saved.size[0],
-      height: saved.size[1],
-    });
-  } finally {
-    capture.capturing = false;
-    capture.surfaceRenderAllowed = false;
-  }
 }

@@ -8,17 +8,8 @@ import {
 import { collectPendingUrls } from '../../../page/selection/selection.ts';
 import { awaitedPages } from '../../row/pageSlots.ts';
 import { viewProj } from '../helpers.ts';
-import { resetHizHistory } from './drops.ts';
-import { restartCameraMotion } from '../../../camera/motion.ts';
 import type { HostCamera } from '../../../camera/world.ts';
-import {
-  drawResidentCut,
-  renderForCapture,
-  restoreMainView,
-  type SavedView,
-} from './surfaceRestore.ts';
-import { sizeShadowPool } from '../../shadow/poolSize.ts';
-import { deviceAnswer } from '../../frame/deviceAnswer.ts';
+import { captureAside, drawResidentCut, renderForCapture } from './captureAside.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
 type CaptureOptions = { width: number; height: number; signal?: AbortSignal };
@@ -87,14 +78,13 @@ function copySurfaces(
   return result;
 }
 
-/** Renders a second camera into owned material surfaces, then restores the main view. */
+/** Renders a second camera into owned material surfaces, in a view of its own (`captureAside`). */
 export async function captureSurfaceView(
   rt: WebgpuPagesRuntime,
   camera: HostCamera,
   options: CaptureOptions,
 ) {
   const { run, capture, context, diag } = rt,
-    { viewport } = rt.setup,
     gpuDevice = rt.gpu.device;
   context.signal?.throwIfAborted();
   options.signal?.throwIfAborted();
@@ -107,12 +97,6 @@ export async function captureSurfaceView(
   const reserve =
     checkSurfaceSize(gpuDevice, options.width, options.height, SURFACE_BYTES_PER_PIXEL + 4) +
     (rt.gpu.temporal?.historyBytes ?? 0);
-  const saved: SavedView = {
-    main: run.lastCamera,
-    size: [viewport[0], viewport[1]],
-    diagnostic: run.diagnostic,
-    motion: { ...run.motion },
-  };
   // Capture entry: the camera comes from the host like an image's, and the engine reads it as
   // it reads any other — resolved pose, declared optics — at the aspect ratio of the surface
   // written into rather than the one the camera declares for the host's own canvas.
@@ -122,72 +106,49 @@ export async function captureSurfaceView(
     options.signal?.throwIfAborted();
     context.signal?.throwIfAborted();
   };
-  // A light that casts asks its shadow pool of the device before anything is drawn: the capture
-  // waits for the answer, never drawn without its shadows (#483). The pool is sized from the
-  // canvas, before the capture's own size takes the viewport.
-  sizeShadowPool(rt);
+  const diagnostic = run.diagnostic;
   let result: SurfaceCapture | undefined;
-  capture.capturing = true;
   capture.captureAllocationBytes = reserve;
   diag.engineDiagnostic('surface-capture-start', 'GPU capture from a second camera', {
     width: options.width,
     height: options.height,
     allocationBytes: reserve,
   });
-  let captureError: { error: unknown } | undefined;
   try {
-    await deviceAnswer(rt);
-    await rt.services.residency.pending;
-    await gpuDevice.queue.onSubmittedWorkDone();
-    throwIfAborted();
-    viewport[0] = options.width;
-    viewport[1] = options.height;
-    run.diagnostic = 'beauty';
-    resetHizHistory(run);
-    restartCameraMotion(run.motion);
-    await renderForCapture(rt, camera, aspect);
-    await drawResidentCut(rt, gpuDevice, {
-      admitted: () => {
-        const missing = collectPendingUrls(awaitedPages(run.desired, run.awaitedScratch), []);
-        if (missing.length) throw new Error(`SURFACE_PAGES_NOT_RESIDENT: ${missing.length}`);
-        if (run.coverageBudgetLimited) throw new Error('SURFACE_PAGE_BUDGET');
-      },
-      beforeEncode: throwIfAborted,
-    });
-    result = copySurfaces(rt, gpuDevice, options, reserve);
-    await gpuDevice.queue.onSubmittedWorkDone();
-    throwIfAborted();
-    if (run.lost) throw new Error('WEBGPU_LOST');
-    capture.surfaceCapture = result;
-    diag.engineDiagnostic('surface-capture-ready', 'Surface GPU disponible', {
-      surfaceVersion: 1,
-      width: options.width,
-      height: options.height,
-      selectedTriangles: run.selectedTriangles,
-      allocationBytes: reserve,
-      durationMs: performance.now() - started,
-      imageReadback: false,
+    await captureAside(rt, options, async () => {
+      throwIfAborted();
+      run.diagnostic = 'beauty';
+      await renderForCapture(rt, camera, aspect);
+      await drawResidentCut(rt, gpuDevice, {
+        admitted: () => {
+          const missing = collectPendingUrls(awaitedPages(run.desired, run.awaitedScratch), []);
+          if (missing.length) throw new Error(`SURFACE_PAGES_NOT_RESIDENT: ${missing.length}`);
+          if (run.coverageBudgetLimited) throw new Error('SURFACE_PAGE_BUDGET');
+        },
+        beforeEncode: throwIfAborted,
+      });
+      result = copySurfaces(rt, gpuDevice, options, reserve);
+      await gpuDevice.queue.onSubmittedWorkDone();
+      throwIfAborted();
+      if (run.lost) throw new Error('WEBGPU_LOST');
     });
   } catch (error) {
     result?.dispose();
     capture.captureAllocationBytes = 0;
     diag.diagnosticFailure('surface-capture-failed', error);
-    captureError = { error };
+    throw error;
+  } finally {
+    run.diagnostic = diagnostic;
   }
-  let restoreError: { error: unknown } | undefined;
-  try {
-    await restoreMainView(rt, gpuDevice, saved);
-  } catch (error) {
-    result?.dispose();
-    diag.diagnosticFailure('surface-restore-failed', error);
-    restoreError = { error };
-  }
-  if (restoreError && captureError)
-    throw new AggregateError(
-      [captureError.error, restoreError.error],
-      'Surface capture and main view restoration failed',
-    );
-  if (restoreError) throw restoreError.error;
-  if (captureError) throw captureError.error;
+  capture.surfaceCapture = result;
+  diag.engineDiagnostic('surface-capture-ready', 'Surface GPU disponible', {
+    surfaceVersion: 1,
+    width: options.width,
+    height: options.height,
+    selectedTriangles: run.selectedTriangles,
+    allocationBytes: reserve,
+    durationMs: performance.now() - started,
+    imageReadback: false,
+  });
   return result!;
 }

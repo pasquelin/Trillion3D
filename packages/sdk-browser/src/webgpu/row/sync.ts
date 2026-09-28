@@ -17,7 +17,8 @@ export function createWebgpuRowSync(
   rows: Rows,
   mirror: Mirror,
   packedPages: PageRec[],
-  drawn: PageRec[],
+  /** The drawn view's cut, read at each sync: a view switch replaces its `drawn`. */
+  cut: { readonly drawn: readonly PageRec[] },
   drawSlots: number,
   cacheReady: () => boolean,
   { commitRows, sourceRowOf, writePageRow }: Commit,
@@ -90,6 +91,7 @@ export function createWebgpuRowSync(
       rows.packedPositions[row] = position;
       rows.packedPageIndex[row] = pageIndex;
     };
+    const { drawn } = cut;
     for (let i = 0; i < drawn.length && count < drawSlots; i++) place(drawn[i]);
     const cameraRows = count;
     for (let i = 0; i < casters.length && count < drawSlots; i++) place(casters[i]);
