@@ -13,6 +13,7 @@ fn inputs<'a>(
 ) -> PreviewInputs<'a> {
     PreviewInputs {
         o,
+        reserved_bytes: 0,
         g,
         bin,
         image_root,

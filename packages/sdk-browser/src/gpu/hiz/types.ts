@@ -32,5 +32,14 @@ export type GpuHiz = {
     pages: GPUBuffer,
   ): number;
   resize(device: GPUDevice, width: number, height: number): boolean;
+  /**
+   * Installs `next` — a view's own pyramid, or none yet — and returns the one in place: the Hi-Z
+   * half of a view switch, with no allocation and no device round trip. Without one, `width` and
+   * `height` are 0 until `resize` makes the drawn view's own.
+   */
+  swap(next: HizPyramid | undefined): HizPyramid | undefined;
   dispose(): void;
 };
+
+/** One view's pyramid, at that view's size, held by the view while another is drawn. */
+export type HizPyramid = { readonly width: number; readonly height: number; destroy(): void };

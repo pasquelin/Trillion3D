@@ -99,8 +99,7 @@ export function encodeBlend(
   writeBlendView(rt, device);
   // Resolve lighting resources once; a real resource voids a placeholder's bind group.
   voidStaleBlendGroups(rt, blendLightResources(rt));
-  // The GPU then expands the sorted plan: an instance list, one indirect argument per slice, and
-  // nothing more per item. With no compute stage, the CPU writes the same words.
+  // The GPU expands the sorted plan (instances, one indirect argument per slice), else the CPU.
   encodeBlendExpansion(rt, device, encoder);
   const prepared = performance.now();
   timing.transparentPrepareMs += prepared - cpuStart;
@@ -187,10 +186,11 @@ export function encodeSurfaceLighting(
     asIs && blendShare && !accumulated
       ? { ...(effects ?? { color: gpu.hdrView }), share: blendShare.view }
       : effects;
-  // A diagnostic variant or guide composes offscreen before presentation.
-  const guided = guidesShown(rt);
+  // A diagnostic variant, a guide or a view placed at a canvas rectangle composes offscreen.
+  const guided = guidesShown(rt),
+    placed = !!rt.views.active.rect;
   const presentation =
-    capture.capturing || guided || composesOffscreen(rt.context.diagnosticGpuVariant)
+    capture.capturing || guided || placed || composesOffscreen(rt.context.diagnosticGpuVariant)
       ? undefined
       : gpu.presenter?.targetView(width, height);
   run.gpuDrawCalls++;

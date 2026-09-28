@@ -86,7 +86,7 @@ fn isLightCut()->bool{return (views[0u].viewFlags&VIEW_LIGHT)!=0u;}
  *  raises the widest view's group count. */
 fn viewDrawnAppend(i:u32){
  let r=atomicAdd(&work[viewWord(2u,vi)],1u);
- flags[candBase()+atomicLoad(&work[viewWord(1u,vi)])+r]=i;
+ setFlag(candBase()+atomicLoad(&work[viewWord(1u,vi)])+r,i);
  if((r&63u)==0u){atomicMax(&work[drawnGroupsMax()],(r>>6u)+1u);}
 }
 /** Each view's share of the drawn log starts at the live clusters of the views before it: a view

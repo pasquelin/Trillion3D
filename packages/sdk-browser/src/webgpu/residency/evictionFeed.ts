@@ -8,7 +8,7 @@ type Cache = Pick<ReturnType<typeof createGpuPageCache>, 'evictInOrder'>;
 /**
  * Hands the GPU cut's eviction queue (`../../gpu/dag/evict.ts`) to the cache once per readback.
  * Addresses are read on a page's record as each victim is taken, never
- * the catalogue. A CPU cut's image (`null`) evicts the least recent page (`budgetRanking` stays, #836).
+ * the catalogue. A CPU cut's image (`null`) evicts the least recent page (`requestAdmission.ts`).
  */
 export function createEvictionFeed(
   packedPages: readonly PageRec[],

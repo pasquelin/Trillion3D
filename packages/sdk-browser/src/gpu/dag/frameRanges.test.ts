@@ -97,7 +97,7 @@ test('each kernel that reads a primitive runs once per range, under its bind gro
     typeof encodeDagKernels
   >[1];
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, cut);
-  const of = (noyau: string) => lancements.filter((l) => l.noyau === noyau).map((l) => l.groupes);
+  const of = (kernel: string) => lancements.filter((l) => l.kernel === kernel).map((l) => l.groups);
   assert.deepEqual(of('dagPrepare'), [2, 1], 'the first range also resets 64 blocks');
   assert.deepEqual(of('dagRootLevel'), [2, 1], "each range's roots");
   assert.deepEqual(of('dagLevel1'), [1, 1, 1, 1], 'levels 1 and 4: each range walks the queue');

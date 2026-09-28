@@ -80,7 +80,7 @@ export function createWebgpuCutPublication(
    * Every view publishes its cut by differences of its own into the same sets, which count each
    * page per placement: what they ask for, keep and rank under the one page budget is the union of
    * the views' cuts, a page two views share ranked at its coarsest level
-   * (`../residency/budgetRanking.ts`). The main view's are the two above, which the GPU cut adopts
+   * (`../residency/requestAdmission.ts`). The main view's are the two above, which the GPU cut adopts
    * too: with one view, nothing else is made.
    */
   views.main.cut = { asked: cutDelta, drawn: drawnDelta };
