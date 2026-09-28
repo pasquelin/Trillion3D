@@ -13,24 +13,27 @@ import { flushWebgpuPages } from './render/flush.ts';
 import { captureColorView } from './io/colorCapture.ts';
 import { VIEW_GPU_KEYS, VIEW_RUN_KEYS, VIEW_VIS_KEYS, createWebgpuView } from './state/view.ts';
 import { releaseWebgpuView, useWebgpuView } from './state/viewSwitch.ts';
+import type { BackendDiagnostic } from '../../backend/types.ts';
 
 /** The red quad on a prepared runtime, its main view drawn twice from the front. */
 async function drawnQuad(compute: boolean) {
   installGpuGlobals();
   const gpu = mockGpu({ compute });
-  const fixture = quadScene();
+  const fixture = quadScene(),
+    events: BackendDiagnostic[] = [];
   const rt = createWebgpuPagesRuntime({
     ...fixture,
     gpuDevice: gpu.device,
     maxResidentPages: 2,
     viewport: [32, 32],
+    onDiagnostic: (event) => events.push(event),
   });
   await prepareWebgpuBackend(rt, gpu.device);
   for (let i = 0; i < 2; i++) {
     renderWebgpuPages(rt, camera());
     await flushWebgpuPages(rt);
   }
-  return { rt, gpu };
+  return { rt, gpu, events };
 }
 
 /** A camera beside the quad, looking away from it. */
@@ -86,7 +89,7 @@ test('no reader keeps the main view once another is drawn, and switching back fi
 });
 
 test('a Hi-Z pyramid the device refuses on the way back is dropped, the session kept', async () => {
-  const { rt, gpu } = await drawnQuad(true);
+  const { rt, gpu, events } = await drawnQuad(true);
   const side = createWebgpuView(16, 16);
   useWebgpuView(rt, side);
   renderWebgpuPages(rt, awayCamera());
@@ -102,6 +105,8 @@ test('a Hi-Z pyramid the device refuses on the way back is dropped, the session 
   await flushWebgpuPages(rt);
   assert.ok(refused);
   assert.equal(rt.vis.gpuHiz, undefined);
+  const said = events.filter((event) => event.phase === 'gpu-out-of-memory');
+  assert.equal(said.at(-1)?.context.dropped, 'hi-z', 'the drop is said, never silent');
   assert.equal(rt.run.lost, false);
   renderWebgpuPages(rt, camera());
   assert.equal(rt.gpu.targetGrant, undefined, 'frames draw again, without Hi-Z');

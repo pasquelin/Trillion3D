@@ -1,4 +1,4 @@
-import { deviceMade, grantPending, startGrant } from '../../../gpu/core/errorScope.ts';
+import { deviceMade, grantPending, startGrant, validated } from '../../../gpu/core/errorScope.ts';
 import { dropGpuHiz } from '../io/drops.ts';
 import { throwIfStopped } from '../io/lost.ts';
 import { backdropBytes } from '../../transparent/transmission.ts';
@@ -82,7 +82,7 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice) {
 }
 
 /**
- * The frame targets of the view's size, granted before a capture, its restore or prepare draws
+ * The frame targets of the view's size, granted before a capture or prepare draws
  * with them: a grant in flight is waited for first, and a size refused before is asked again.
  * What the device refuses even without Hi-Z is refused by name: `WEBGPU_FRAME_TARGETS_REFUSED`.
  */
@@ -109,13 +109,7 @@ async function grantTargets(rt: WebgpuPagesRuntime, device: GPUDevice, asked: As
   let made = await deviceMade(device, make);
   // A session stopped meanwhile asks nothing again, and keeps its Hi-Z.
   if (!made && !stopped(rt) && vis.gpuHiz) {
-    diag.engineDiagnostic('gpu-out-of-memory', 'The device refused the frame targets', {
-      kind: 'warning',
-      pool: 'frame-targets',
-      requestedBytes: asked.requestedBytes,
-      dropped: 'hi-z',
-    });
-    dropGpuHiz(rt);
+    hizRefused(rt, 'The device refused the frame targets', asked.requestedBytes);
     made = await deviceMade(device, make);
   }
   if (stopped(rt) || !made) {
@@ -141,15 +135,27 @@ async function grantTargets(rt: WebgpuPagesRuntime, device: GPUDevice, asked: As
 async function grantHiz(rt: WebgpuPagesRuntime, device: GPUDevice, width: number, height: number) {
   const { vis, run } = rt,
     hiz = vis.gpuHiz!;
-  const made = await deviceMade(device, () => ({
-    fits: hiz.resize(device, width, height),
-    destroy() {},
-  }));
-  if (!made?.fits && !stopped(rt) && vis.gpuHiz) {
-    dropGpuHiz(rt);
+  const fits = await validated(
+    device,
+    () => hiz.resize(device, width, height) || undefined,
+    'out-of-memory',
+  );
+  if (!fits && !stopped(rt) && vis.gpuHiz) {
+    hizRefused(rt, 'The device refused the Hi-Z pyramid');
     if (vis.visModule) await rasterWithoutHiz(rt, device, vis.visModule);
   }
   run.gate.resourcesChanged();
+}
+
+/** Hi-Z refused by the device leaves, said: its absence changes no image. */
+function hizRefused(rt: WebgpuPagesRuntime, message: string, requestedBytes?: number) {
+  rt.diag.engineDiagnostic('gpu-out-of-memory', message, {
+    kind: 'warning',
+    pool: 'frame-targets',
+    ...(requestedBytes === undefined ? {} : { requestedBytes }),
+    dropped: 'hi-z',
+  });
+  dropGpuHiz(rt);
 }
 
 /** The visibility raster pipelines, those of the coplanar layers included, made without Hi-Z. */
