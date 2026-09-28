@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
-import type { GraphLight } from '../../packages/sdk-browser/src/host/graph/light.ts';
+import type { Light } from '../../packages/sdk-core/src/world/light/light.ts';
 import { creerEclairageTemoin } from './witnessPage.ts';
 import type { MeasuredWorld } from '../witnesses/measurement.ts';
 
@@ -65,7 +65,7 @@ const PROJECTEUR: LightRecord = {
 test('a point light from contract becomes a graph light with same range and decay', () => {
   const eclairage = creerEclairageTemoin(G);
   eclairage.suivre(explorateur([PONCTUELLE]));
-  const [lampe] = eclairage.groupe.children as GraphLight[];
+  const [lampe] = eclairage.groupe.children as Light[];
   assert.ok(lampe.kind === 'point');
   assert.deepStrictEqual(G.xyz(lampe.position), [1, 2, 3]);
   assert.strictEqual(lampe.distance, 12);
@@ -77,33 +77,33 @@ test('a point light from contract becomes a graph light with same range and deca
 test('a directional light is placed opposite to its propagation, target at origin', () => {
   const eclairage = creerEclairageTemoin(G);
   eclairage.suivre(explorateur([SOLEIL]));
-  const [lampe] = eclairage.groupe.children as GraphLight[];
+  const [lampe] = eclairage.groupe.children as Light[];
   assert.ok(lampe.kind === 'directional');
   // `-0` and `0` are the same position: comparison concerns values, not sign.
   assert.deepStrictEqual(
     G.xyz(lampe.position).map((valeur: number) => valeur + 0),
     [0, 1, 0],
   );
-  assert.deepStrictEqual(G.xyz(lampe.target!.position), [0, 0, 0]);
+  assert.deepStrictEqual(G.xyz(lampe.target.position), [0, 0, 0]);
 });
 
 test('a spot light preserves half-angle and edge softness from engine', () => {
   const eclairage = creerEclairageTemoin(G);
   eclairage.suivre(explorateur([PROJECTEUR]));
-  const [lampe] = eclairage.groupe.children as GraphLight[];
+  const [lampe] = eclairage.groupe.children as Light[];
   assert.ok(lampe.kind === 'spot');
   assert.strictEqual(lampe.angle, 0.5);
   // Three softens from `cos(angle)` to `cos(angle(1 − penumbra))`; engine from `cos θ` to `cos θ + softness`.
   const bord = Math.cos(lampe.angle! * (1 - lampe.penumbra!));
   assert.ok(Math.abs(bord - (Math.cos(0.5) + DOUCEUR)) < 1e-9, `bord ${bord}`);
-  assert.deepStrictEqual(G.xyz(lampe.target!.position), [0, -5, 0]);
+  assert.deepStrictEqual(G.xyz(lampe.target.position), [0, -5, 0]);
 });
 
 test('no cast shadows on witness side: SDK Three renderer has no maps', () => {
   const eclairage = creerEclairageTemoin(G);
   const resume = eclairage.suivre(explorateur([PONCTUELLE, SOLEIL]));
   assert.strictEqual(resume?.ombres, false);
-  for (const lampe of eclairage.groupe.children as GraphLight[])
+  for (const lampe of eclairage.groupe.children as Light[])
     assert.strictEqual(lampe.castShadow, false);
 });
 

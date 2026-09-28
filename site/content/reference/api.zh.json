@@ -7416,16 +7416,6 @@
       "handbrake": "手刹是否拉起。"
     }
   },
-  "GraphNode": {
-    "summary": "图的一个节点：核心的节点，以其 `kind` 区分，由核心的 `clone` 复制。",
-    "members": {
-      "serial": "节点的编号，在会话中唯一。",
-      "kind": "节点是什么：图的每个读取方据此收窄类型。"
-    }
-  },
-  "GraphNodeKind": {
-    "summary": "图中的光源是什么：场景声明的光源之一。"
-  },
   "GraphSurface": {
     "summary": "表面：一个族的参数，除非场景另有说明，取参考实现的值。",
     "description": "其版本由 `needsUpdate` 递增，每个读取方都会比较。",
