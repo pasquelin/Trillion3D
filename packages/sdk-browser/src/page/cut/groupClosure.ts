@@ -125,6 +125,10 @@ export function createGroupClosure(
       for (const rec of recs) if (rec.packedIndex !== undefined) enterAs(rec.packedIndex, rec);
       endWalk();
     },
+    /** Visits every page the cut closes over now, in no particular order. */
+    forEachHeld(visit: (id: number) => void) {
+      heldPages.forEach(visit);
+    },
     /** Turns the cut's difference into the difference of the pages it closes over. */
     apply(cut: IdDelta) {
       // Entries first: a group one page leaves and another joins is never let go in between.
