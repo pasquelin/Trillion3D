@@ -17,6 +17,8 @@ import type { BounceCascades } from './cascades.ts';
  * Nothing here names a scene or inspects the camera: extent, triangles, cells.
  */
 export interface BounceOccupancy {
+  /** Geometry moved: conservatively schedule all bounded cascade cells. */
+  allEligible(): void;
   /** True when a level's cell in its global lattice warrants a probe. */
   occupied(level: number, x: number, y: number, z: number): boolean;
   /** Marked cells and total cells of the finest level: published gain. */
@@ -117,12 +119,17 @@ export function createBounceOccupancy(
     });
     bytes += dilated.length;
   }
+  let eligible = false;
   return {
+    allEligible() {
+      eligible = true;
+    },
     cells,
     bytes,
     marked: maps[0].map.reduce((sum, value) => sum + value, 0),
     // Called once per examined probe each frame: nothing allocated or traversed.
     occupied(level, x, y, z) {
+      if (eligible) return true;
       const entry = maps[Math.min(level, maps.length - 1)];
       const [width, height, depth] = entry.dims;
       const localX = x - entry.origin[0],

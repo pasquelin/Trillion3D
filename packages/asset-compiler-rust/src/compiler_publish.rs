@@ -32,7 +32,10 @@ pub(super) fn publish(inputs: &Publication<'_>, result: &Value) -> Result<()> {
     let mut slim = json!({});
     // Baked-level template: `{sha}` is the source-bytes fingerprint, `{kind}` the
     // atlas (`srgb` or `linear`), `{level}` the level rank. One truth, as for pages.
-    slim["textures"] = json!({"url":format!("../../{}", texture_preview::level_template())});
+    slim["textures"] = json!({
+        "url": format!("../../{}", texture_preview::level_template()),
+        "version": texture_preview::TEXTURE_PREVIEW_VERSION,
+    });
     let directory = inputs.directory;
     atomic(&directory.join(proxy::SCENE_PROXY_FILE), inputs.proxy_bytes)?;
     let proxy = Product {

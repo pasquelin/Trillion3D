@@ -12,8 +12,10 @@ import { fileURLToPath } from 'node:url';
 import {
   CLUSTERED_BLEND_FORMAT_VERSION,
   FORMAT_VERSION,
+  TEXTURE_PREVIEW_VERSION,
 } from '../../packages/sdk-core/src/index.ts';
 import { JOLT_COMMIT, readCookedPhysics } from '../../packages/sdk-core/src/physics/cooked.ts';
+import { TILE_BORDER, TILE_SIZE } from '../../packages/sdk-browser/src/texture/tiles.ts';
 
 const source = (file: string) =>
   fileURLToPath(new URL(`../../packages/asset-compiler-rust/src/${file}`, import.meta.url));
@@ -35,6 +37,17 @@ test('the compiler and the runtime number the cache format alike', () => {
   assert.equal(rustConstant('CLUSTERED_BLEND_FORMAT_VERSION'), CLUSTERED_BLEND_FORMAT_VERSION);
 });
 
+// #962: a block level file is laid out in the engine's tile records; the tile and its gutter are
+// the same numbers on both sides, or every tile is cut at the wrong bytes.
+test('the compiler lays texture levels out as the runtime reads them', () => {
+  assert.equal(
+    rustConstant('TEXTURE_PREVIEW_VERSION', 'texture_preview.rs'),
+    TEXTURE_PREVIEW_VERSION,
+  );
+  assert.equal(rustConstant('TILE_SIZE', 'texture_preview/levels.rs'), TILE_SIZE);
+  assert.equal(rustConstant('TILE_BORDER', 'texture_preview/levels.rs'), TILE_BORDER);
+});
+
 test('the physics.json the cook writes, with or without pieces, is a version its reader accepts', () => {
   for (const name of ['PHYSICS_FORMAT_VERSION', 'PIECES_FORMAT_VERSION']) {
     const formatVersion = rustConstant(name, 'physics_cook.rs');
@@ -43,7 +56,7 @@ test('the physics.json the cook writes, with or without pieces, is a version its
   }
 });
 
-// The binary is built by the `native` gate group before the unit suite runs; a checkout that has
+// The binary is built by the `unit` gate group before the unit suite runs; a checkout that has
 // not built it keeps the comparison above, which needs no compiler.
 test(
   'the compiler descriptor publishes the format the runtime reads',

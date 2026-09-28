@@ -398,7 +398,10 @@
       "levels": "Chaque niveau.",
       "reach": "Portée des rayons : la diagonale de l’étendue, au-delà de laquelle il n’y a rien à toucher.",
       "shareOf": "Sondes du lot de travail par image, par niveau : parts publiées appliquées à un lot total.",
-      "follow": "Replace les niveaux mobiles autour d’un point de vue. Renvoie vrai quand au moins un indice de case de base a changé : c’est le seul signal dont la convergence a besoin pour repartir, sans aucune relecture GPU."
+      "follow": "Replace les niveaux mobiles autour d’un point de vue. Renvoie vrai quand au moins un indice de case de base a changé : c’est le seul signal dont la convergence a besoin pour repartir, sans aucune relecture GPU.",
+      "reserveCount": "Capacité fixe réservée avant que les transformations puissent agrandir la scène.",
+      "invalidLevels": "Niveaux dont l’espacement ou la présence a changé lors du dernier recalcul. Les décalages de la base utilisent les marques des cellules.",
+      "replan": "Réapplique la politique existante de résolution spatiale aux limites actuelles de la géométrie."
     }
   },
   "BounceOccupancy": {
@@ -408,7 +411,8 @@
       "occupied": "Vrai quand une case d’un niveau dans sa grille mérite une sonde.",
       "marked": "Cases marquées et cases au total du niveau le plus fin : le gain publié.",
       "cells": "Cases du niveau le plus fin.",
-      "bytes": "Octets qu’il prend."
+      "bytes": "Octets qu’il prend.",
+      "allEligible": "La géométrie a bougé : programme par précaution toutes les cellules des cascades, dont le nombre est borné."
     }
   },
   "BoundedNode": {
@@ -845,7 +849,7 @@
       "primitives": "Ses primitives.",
       "worstStalls": "La table des blocages du compilateur : au plus dix primitives avec un groupe bloqué qui a gardé des racines au niveau 0, la pire d’abord. Absente d’un cache compilé avant elle.",
       "texturePreviews": "Une entrée par couple (texture, atlas) décodé, rangée par texture puis par atlas ; vide sans image décodable.",
-      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe.",
+      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe. `version` est celle des niveaux (`TEXTURE_PREVIEW_VERSION`) : un lecteur ne lit aucun niveau d’une autre.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel."
     }
   },
@@ -1158,7 +1162,7 @@
   },
   "createGpuPageCache": {
     "summary": "Frontière d’allocation et de file WebGPU.",
-    "description": "Les octets des pages et la règle sont fournis par l’hôte. Les écritures en file sont ordonnées ; la libération attend les envois en cours avant de détruire."
+    "description": "Les octets des pages et la règle sont fournis par l’hôte. Les écritures en file sont ordonnées ; la libération attend les envois en cours avant de détruire. `pin(key, 'held')` conserve une page avant les épingles ordinaires lors de `resize(slots)`, qui n’accepte plus d’ensemble held. Un réépinglage ordinaire conserve ce niveau ; `unpin(key)` le supprime."
   },
   "createJob": {
     "summary": "Pas de minuterie, de DOM, de fichiers ni d’interface."
@@ -1368,7 +1372,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Le proxy relu et revérifié avant qu’un seul rayon le touche.",
-    "description": "Disposition, en little-endian : `u32 'WGPX' · u32 version · u32 triangles · u32 nodes`, puis les sommets dans le monde, les albédos, les limites exactes des nœuds et leurs quatre enfants, bout à bout. Chaque section a une longueur que l’en-tête impose ; un fichier d’une autre taille est refusé en bloc, parce qu’un nœud qui nommerait un triangle absent ferait lire n’importe quoi au shader."
+    "description": "Disposition : huit mots d’en-tête en little-endian, suivis des colonnes de géométrie et d’arbre canoniques et des données de propriété versionnées. `docs/FORMAT.md` précise chaque nombre et chaque colonne. L’en-tête impose la longueur de chaque section ; un fichier d’une autre taille est refusé en bloc, car un nœud qui désignerait un triangle absent ferait lire des données arbitraires au shader."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` décomposée en `position`, `quaternion`, `scale`."
@@ -1608,6 +1612,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "Ce chemin de dessin ne sait pas faire ce changement dans la scène.",
       "BATCHED_WORLD_VIEW": "Ce chemin de dessin ne sait pas faire ce changement dans la scène.",
       "RAYCAST_NO_VIEW": "Un point d’image a été demandé à un canvas sans taille : il n’y a pas d’image à travers laquelle viser.",
+      "SURFACE_CAPTURE_UNSUPPORTED": "Une capture de surfaces (`captureSurfaceView`) a été demandée à un chemin de dessin qui ne sait pas dessiner les surfaces de matériau dans une vue à part : le chemin WebGL2 n’en a pas.",
       "VERTICES_NOT_LOADED": "Les sommets d’un modèle chargé ont été lus avant `await geometry.loadVertices()` : une session les lit au premier besoin, jamais d’avance.",
       "SESSION_OPEN_FAILED": "La session du monde n’a pas pu s’ouvrir, pour une raison sans code propre (`world.diagnostic.error`) : l’erreur levée est dans `details.cause`.",
       "WEBGPU_LOST": "WebGPU a perdu son appareil, ou une erreur sur celui-ci a laissé un état dont rien ne peut dessiner : levée par `render`, `flush` et les lectures qui ont besoin de l’appareil, nommée par le diagnostic `gpu-device-lost`, et sur `world.diagnostic.error` quand une session n’a pas pu s’ouvrir pour cette raison.",
@@ -2885,7 +2890,7 @@
     "summary": "Réglages publiés de l’éclairage direct.",
     "description": "Ce sont des choix produit nommés, pas des constantes enterrées : chaque limite à l’exécution les relit, et le diagnostic les publie tels quels.",
     "members": {
-      "tileLights": "Lumières que tient la liste d’une tuile d’écran, dans chacune de ses deux tranches de profondeur : sa mémoire est celle-ci, par tuile, quoi que tienne la scène. Une tuile qu’atteignent plus de lumières ne garde aucune liste et parcourt toutes les lumières de la scène — celles qui la manquent ajoutent un zéro exact —, si bien qu’aucune lumière n’est jamais perdue (X2).",
+      "tileLights": "Lumières que tient la liste d’une tuile d’écran, dans chacune de ses deux tranches de profondeur : sa mémoire est celle-ci, par tuile, quoi que tienne la scène. Une tuile qu’atteignent plus de lumières prend leurs indices dans une réserve à la taille de la vue et parcourt exactement celles-ci ; une tuile pour laquelle la réserve n’a plus de place parcourt toutes les lumières de la scène — celles qui la manquent ajoutent un zéro exact —, si bien qu’aucune lumière n’est jamais perdue (X2).",
       "tileSize": "Côté en pixels d’une tuile d’écran de la liste de lumières.",
       "samplesPerPixel": "Lumières éclairées en entier — lecture de l’ombre comprise — par pixel d’une image EN MOUVEMENT (X2) : les autres sont pesées sans leur ombre, et celles qu’on éclaire sont tirées au sort en proportion, donc l’estimation est sans biais et l’anticrénelage temporel en fait la moyenne. Une image immobile éclaire chaque lumière de sa tuile et converge vers la somme exacte ; là, ce nombre ne joue aucun rôle.",
       "shadowPage": "Côté d’une page de l’atlas d’ombres, en texels : la case d’invalidation d’une face. Un objet qui bouge ne rend périmées que les pages que couvre sa boîte projetée, jamais toute la face.",
@@ -5225,7 +5230,7 @@
     "summary": "Version du contrat de la hiérarchie de scène tenue par l’hôte."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Entiers d’en-tête : signature, version, triangles, nœuds."
+    "summary": "Entiers d’en-tête : signature, version, nombres de triangles/nœuds/groupes/propriétaires/sources, zéro réservé."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' lus comme un entier non signé sur 32 bits little-endian."
@@ -5372,7 +5377,12 @@
       "triangles": "Trois sommets dans le monde par triangle, `PROXY_TRIANGLE_FLOATS` nombres chacun.",
       "albedo": "Albédo diffus linéaire du triangle, rangé en RGBA8.",
       "nodeBounds": "Limites exactes de chaque nœud du BVH.",
-      "nodeChildren": "Les quatre enfants de chaque nœud : boîte quantifiée, nombre de triangles, présence, lien."
+      "nodeChildren": "Les quatre enfants de chaque nœud : boîte quantifiée, nombre de triangles, présence, lien.",
+      "triangleGroups": "Groupe partagé des propriétaires sources de chaque triangle canonique, stocké une seule fois.",
+      "groupOffsets": "Décalages des enregistrements de propriétaires de chaque groupe, y compris la sentinelle finale.",
+      "owners": "Enregistrements des propriétaires : indice du nœud source et albédo linéaire compacté en RGBA8.",
+      "bindWorlds": "Matrices monde originales des nœuds sources, seize nombres en double précision par nœud.",
+      "sourceParents": "Hiérarchie source, y compris les nœuds de partition que l’hôte n’a pas actuellement instanciés."
     }
   },
   "SceneProxyDescriptor": {
@@ -5389,7 +5399,10 @@
       "triangleBudget": "Budget de triangles publié, celui qui a décidé du seuil vraiment obtenu.",
       "bounds": "Étendue du proxy dans le monde : trois limites basses puis trois hautes.",
       "triangles": "Triangles.",
-      "nodes": "Nœuds de l’arbre."
+      "nodes": "Nœuds de l’arbre.",
+      "groups": "Groupes de propriétaires partagés et stockés une seule fois.",
+      "owners": "Enregistrements des propriétaires.",
+      "instances": "Matrices des nœuds sources."
     }
   },
   "SceneRoot": {
@@ -5477,7 +5490,15 @@
       "shadowPagesTotal": "Pages dessinées depuis l’ouverture de l’explorateur, vidages de `flush()` compris : le coût d’un changement est l’écart entre deux lectures.",
       "shadowPagesPending": "Pages d’ombre en attente.",
       "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
+      "shadowCutDrops": "Lots de la coupe depuis la lumière qui ont abandonné du travail — leurs vues ont gardé plus de clusters que les listes n’en tiennent —, depuis l’ouverture de l’explorateur : chacun renvoie ses pages, retirées jusqu’à être redessinées (#525). Null sur un moteur sans coupe GPU depuis la lumière, comme les trois suivants.",
+      "shadowCutWithdrawnPages": "Pages redessinées parce qu’une coupe depuis la lumière les a mal dessinées, depuis l’ouverture de l’explorateur : son lot a abandonné du travail, ou son drapeau n’a jamais été lu. Elles sont retirées jusqu’à être redessinées.",
+      "shadowCutCoarsePages": "Pages redessinées parce qu’une vue a dessiné un cluster plus grossier qu’elle ne le voulait, depuis l’ouverture de l’explorateur : relâchées une fois la résidence changée et la caméra au repos.",
+      "shadowCutViewLimit": "Vues de lumière dans lesquelles un lot de la coupe depuis la lumière dessine maintenant : le plafond jusqu’à ce qu’un lot abandonne, puis ce qui tient.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
+      "tileLightPoolReserved": "Mots que les tuiles au-delà de leur liste ont réservés dans la réserve d’indices de lumières de la vue, sur l’image que l’appareil a échantillonnée en dernier tant que la scène tient plus de lumières qu’une liste ; `null` sinon (#849).",
+      "tileLightPoolCapacity": "Mots que la réserve d’indices de lumières tenait sur cette image échantillonnée ; `null` de même.",
+      "tileLightPoolOverflowed": "Si une tuile n’a pas trouvé de place dans la réserve sur cette image échantillonnée et a parcouru toutes les lumières.",
+      "tileLightPoolGrowths": "Nombre de fois où la réserve a grandi jusqu’à ce qu’une image débordante demandait, depuis l’ouverture de l’explorateur.",
       "gpuShadowsMs": "Temps GPU des ombres.",
       "gpuShadowCullMs": "Temps GPU du choix des projeteurs des pages d’ombre qu’une image dessine : la coupe depuis la lumière, le tri par page, et le test d’occultation des projeteurs mobiles avec les pyramides qu’il lit.",
       "gpuShadowRasterMs": "Temps GPU du dessin de ces projeteurs dans les pages : la couche statique, puis le pool.",
@@ -5608,7 +5629,7 @@
       "totalNodes": "Nœuds au total.",
       "autonomousScene": "Sa scène intégrée.",
       "texturePreviews": "Une entrée par couple (texture, atlas) décodé, rangée par texture puis par atlas ; vide sans image décodable.",
-      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe.",
+      "textures": "Modèle des niveaux cuits, relatif au manifeste : {sha} l’empreinte de l’image source, {kind} le nom de l’atlas (PREVIEW_ATLAS_NAMES), {level} le rang du niveau. Absent d’un cache compilé avant les niveaux cuits, que ce lecteur refuse par la version du fichier annexe. `version` est celle des niveaux (`TEXTURE_PREVIEW_VERSION`) : un lecteur ne lit aucun niveau d’une autre.",
       "proxy": "Où lire le proxy de scène résident et son BVH : la géométrie que touchent les rayons. Absent d’un cache compilé avant le rebond, qui reste lisible tel quel.",
       "binary": "Le fichier binaire.",
       "primitives": "Ses primitives.",
@@ -6077,7 +6098,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "Niveaux de texture progressifs, reflétés par `packages/asset-compiler-rust/src/texture_preview.rs` : la fin de la chaîne de mips d’une source dans le fichier annexe, en RGBA8 dans l’encodage propre à l’atlas, du niveau le plus fin dont aucun côté ne dépasse `PREVIEW_BASE` jusqu’à 1×1 — et, au-dessus, un PNG sans perte par niveau dans le cache, `bakedLevels` d’entre eux à partir du niveau 0.",
-    "description": "Chaque niveau suit la règle des mips qu’appliquait la carte graphique quand elle refaisait la chaîne elle-même (`packages/sdk-browser/src/texture/mips.ts`) : moyenne linéaire des couleurs, alpha médian, niveau `k` à partir du niveau quantifié `k - 1`. Leurs tailles ne sont pas écrites : elles découlent des dimensions de la source, que `previewLevels.ts` recalcule. La version 4 cuit chaque niveau au-dessus de la fin, et la fin elle-même, dans les familles de blocs demandées par la cuisson à côté des fichiers sans perte — la famille BC pour les cartes de bureau, ASTC 4×4 pour les mobiles, un octet par texel — pour les chaînes qu’un contrôle de qualité a gardées ; une chaîne sous la barre reste sans perte dans cette famille, et le mot de disposition de son entrée le dit."
+    "description": "Chaque niveau suit la règle des mips qu’appliquait la carte graphique quand elle refaisait la chaîne elle-même (`packages/sdk-browser/src/texture/mips.ts`) : moyenne linéaire des couleurs, alpha médian, niveau `k` à partir du niveau quantifié `k - 1`. Leurs tailles ne sont pas écrites : elles découlent des dimensions de la source, que `previewLevels.ts` recalcule. La version 4 cuit chaque niveau au-dessus de la fin, et la fin elle-même, dans les familles de blocs demandées par la cuisson à côté des fichiers sans perte — la famille BC pour les cartes de bureau, ASTC 4×4 pour les mobiles, un octet par texel — pour les chaînes qu’un contrôle de qualité a gardées ; une chaîne sous la barre reste sans perte dans cette famille, et le mot de disposition de son entrée le dit. La version 6 range un fichier de niveau en blocs par enregistrements de tuiles, une requête HTTP Range chacun (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TextureBlockFormat": {
     "summary": "Une famille de blocs dans laquelle une texture peut être cuite."
@@ -6140,7 +6161,8 @@
       "sha256": "Empreinte de l’image source.",
       "atlas": "Quel atlas.",
       "level": "Quel niveau.",
-      "format": "Quel format."
+      "format": "Quel format.",
+      "range": "Les octets d’un niveau en blocs à lire seuls — l’enregistrement d’une tuile (`tileRecords.ts`) —, par une requête HTTP Range ; un serveur qui l’ignore répond le fichier entier."
     }
   },
   "textureLevelUrl": {
@@ -6763,7 +6785,15 @@
       "shadowPagesTotal": "Pages dessinées depuis l’ouverture de l’explorateur, vidages de `flush()` compris : le coût d’un changement est l’écart entre deux lectures.",
       "shadowPagesPending": "Pages d’ombre en attente.",
       "shadowWaitMs": "Depuis combien de millisecondes la plus ancienne page périmée que l’image lit attend d’être redessinée. Seul compte le temps où l’image la lit ; 0 une fois redessinée.",
+      "shadowCutDrops": "Lots de la coupe depuis la lumière qui ont abandonné du travail — leurs vues ont gardé plus de clusters que les listes n’en tiennent —, depuis l’ouverture de l’explorateur : chacun renvoie ses pages, retirées jusqu’à être redessinées (#525). Null sur un moteur sans coupe GPU depuis la lumière, comme les trois suivants.",
+      "shadowCutWithdrawnPages": "Pages redessinées parce qu’une coupe depuis la lumière les a mal dessinées, depuis l’ouverture de l’explorateur : son lot a abandonné du travail, ou son drapeau n’a jamais été lu. Elles sont retirées jusqu’à être redessinées.",
+      "shadowCutCoarsePages": "Pages redessinées parce qu’une vue a dessiné un cluster plus grossier qu’elle ne le voulait, depuis l’ouverture de l’explorateur : relâchées une fois la résidence changée et la caméra au repos.",
+      "shadowCutViewLimit": "Vues de lumière dans lesquelles un lot de la coupe depuis la lumière dessine maintenant : le plafond jusqu’à ce qu’un lot abandonne, puis ce qui tient.",
       "gpuLightListsMs": "Temps GPU des listes de lumières.",
+      "tileLightPoolReserved": "Mots que les tuiles au-delà de leur liste ont réservés dans la réserve d’indices de lumières de la vue, sur l’image que l’appareil a échantillonnée en dernier tant que la scène tient plus de lumières qu’une liste ; `null` sinon (#849).",
+      "tileLightPoolCapacity": "Mots que la réserve d’indices de lumières tenait sur cette image échantillonnée ; `null` de même.",
+      "tileLightPoolOverflowed": "Si une tuile n’a pas trouvé de place dans la réserve sur cette image échantillonnée et a parcouru toutes les lumières.",
+      "tileLightPoolGrowths": "Nombre de fois où la réserve a grandi jusqu’à ce qu’une image débordante demandait, depuis l’ouverture de l’explorateur.",
       "gpuShadowsMs": "Temps GPU des ombres.",
       "gpuShadowCullMs": "Temps GPU du choix des projeteurs des pages d’ombre qu’une image dessine : la coupe depuis la lumière, le tri par page, et le test d’occultation des projeteurs mobiles avec les pyramides qu’il lit.",
       "gpuShadowRasterMs": "Temps GPU du dessin de ces projeteurs dans les pages : la couche statique, puis le pool.",
@@ -7391,7 +7421,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Flottants d’un enregistrement d’ombre, celui que lit l’ombrage d’une lumière : six matrices de faces de lampe, puis le repère du plan du soleil — `right, zNear`, `up, zFar`, `axis, 0` —, puis l’origine de la fenêtre de chaque niveau en deux entiers, puis un en-tête `vec4f` : faces (lampe) ou niveaux (soleil), demi-champ tangent de la lampe ou niveau le plus fin du soleil, plan proche de la lampe, et première entrée de la table des pages."
+    "summary": "Flottants d’un enregistrement d’ombre, celui que lit l’ombrage d’une lumière : six matrices de faces de lampe — là, les plages de profondeur d’un soleil, `zNear` et inverse de l’étendue chacune (`recordPack.ts`) —, puis le repère du plan du soleil — `right`, `up`, `axis`, chacun complété à quatre —, puis l’origine de la fenêtre de chaque niveau en deux entiers, puis un en-tête `vec4f` : faces (lampe) ou niveaux (soleil), demi-champ tangent de la lampe ou niveau le plus fin du soleil, plan proche de la lampe, et première entrée de la table des pages."
   },
   "ShadowRequestReport": {
     "summary": "Ce que l’ombrage a lu en une image : les entrées de la table qu’il a demandées, sans ordre.",

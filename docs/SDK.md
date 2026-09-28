@@ -348,11 +348,18 @@ The world is not a family: it is the object `createWorld` returns, carrying `sce
 There is no level-of-detail object and no instanced or batched mesh type: one cut through a DAG
 per frame, instancing and draw grouping are what the engine does natively.
 
+For compiled scenes, changing a node or parent pose also updates its resident lighting proxy,
+including the proxy used by distant sun shadows while bounce is off. Bounce probes restart their
+convergence against the new geometry; no separate lighting invalidation call is needed. This
+requires a version-3 proxy cache (recompile older caches). Motion preserves existing proxy surfaces;
+it cannot restore geometry already discarded during cooking. See [FORMAT.md](FORMAT.md#resident-lighting-proxy).
+
 ## Loop
 
 The world owns the loop, and it stops when the image is stable: after 120 frames with nothing
-changing it pauses (`interactive-settle-limit`), and resumes on invalidation. A still scene costs
-nothing. `onFrame` is the per-frame hook; `loop` is its alias.
+changing it pauses (`interactive-settle-limit`), and resumes on invalidation. A frame after which a
+page landed does not count: a streamed view is drawn as its pages arrive, to its last one. A still
+scene costs nothing. `onFrame` is the per-frame hook; `loop` is its alias.
 
 ```js
 // 1. The world leads; you give it work per frame.
@@ -967,8 +974,8 @@ light is a `SceneLight` (version 2) of one of three kinds. `point` and `spot` ca
 overcast sky) carries only `direction` — the propagation direction — and is refused if given a
 `position`, a `range` or a `coneAngle`. All three carry linear `color`, a positive radiometric
 `intensity` and `castsShadow`. Bounds: none on the count — the light table grows with the scene;
-a 16×16 screen tile lists up to 64 lights reaching it and walks every light of the scene past
-that, a walk #849 bounds by the view —; 64 shadow slices,
+a 16×16 screen tile lists up to 64 lights reaching it, and past that takes exactly the lights
+reaching it from a pool sized from the view (#849) —; 64 shadow slices,
 past which a caster lights without a shadow (`shadowCastersUnsliced`), and at most 24 shadow
 regions redrawn per frame. WebGL2 draws 64 lights and refuses more (#835). The shadow pool is sized
 once, at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
@@ -995,7 +1002,13 @@ A blended material (`transparent: true`) lets the light pass by default, as glas
 of light do in the reference solution: it casts no shadow. `transparentShadow: true` asks for one,
 as dark as the surface is opaque: `material.meshStandard({ transparent: true, opacity: 0.5,
 transparentShadow: true })` casts half a shadow. An additive, transmissive or fully transparent
-surface casts none either way, and WebGL2 draws no shadow at all.
+surface casts none either way, and WebGL2 draws no shadow at all: its published capability says
+`shadows: false`, and a light set `castShadow: true` there — the sun, a point lamp or a spot, a
+world's or the loaded scene's own — is drawn unshadowed and named `shadows-refused` on the world's
+diagnostic channel, or on the session's `onDiagnostic` when no world opened it. `context.light`
+holds its store id, or its name in the loaded scene. It is said once per light, again only after
+it stopped casting (its `castShadow` off, the light removed or hidden, or the unlit view shown) and casts
+anew. WebGPU draws that shadow.
 
 ### A luminaire does not block its own light
 
@@ -1122,6 +1135,14 @@ what no page covers, one placeholder vertex at least): `geometryAllocationBytes`
 never passes `geometryPool` above that floor. Two writes before the next frame
 settle in one rebalance. The engine keeps what fits: pages and tiles are copied on the GPU into the
 new pool and only what no longer fits is evicted, so the image stays complete throughout.
+
+The public low-level `createGpuPageCache` owns its pin priorities. Use `cache.pin(key, 'held')`
+for the root cover and `cache.pin(key)` (or `'pinned'`) for ordinary pins. `cache.resize(slots)`
+keeps held pages first, then ordinary pins, then unpinned pages, with the newest pages first
+within each tier. Replace the former `resize(slots, held)` call by pinning those pages as
+`'held'`; `cache.load(key, signal, 'held')` pins a page in the cache's own queue as it arrives, so a
+resize queued behind the load never ranks it as unpinned. Ordinary repinning does not lower a held page's priority;
+`cache.unpin(key)` releases both its pin and its held tier.
 
 What a view asks beyond a pool is shown **coarser**, never refused: on WebGPU and WebGL2 alike the
 pages that do not fit stay out and their surface is drawn by its nearest resident ancestor, the
@@ -1441,10 +1462,15 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn, but one declaring a
   `motion`: its body is restored as cooked (its implicit shape, or its hull fetched), counted
   against `budget.physics`, with the mass, centre of mass and inertia its motion declares, else the
-  cooked ones; its tiles then leave. A kinematic one follows its model, pushing what it meets; a
-  dynamic one is held kinematic and asleep where its node is drawn until compiled nodes can move
-  (#432, `COMPILED_NODES_MOVE`). A shape Jolt cannot make at the body's scale is `PHYSICS_FAILED`
-  naming its node, and the node stays static ground.
+  cooked ones (a cooked inertia moved to a declared centre); its tiles then leave, and so do those
+  of another node its collider is made from. A kinematic one follows its model, pushing what it
+  meets, or, under a dynamic one, its node as that body carries it; a dynamic one simulates: its node, with what hangs under it, is drawn where the simulation puts
+  it, the tiles of that subtree leave, and ground streams in around it as around any moving body;
+  its model or its node moved by the page, it is put where its node is then drawn. In a
+  partitioned model, whose cache numbers its nodes otherwise, it is held kinematic and asleep
+  where its node is drawn. A shape Jolt cannot make at the body's scale is `PHYSICS_FAILED` naming
+  its node, and the node stays static ground; a body refused at a rescale is made again once its
+  model is at another scale.
 - **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
   is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
   any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,
