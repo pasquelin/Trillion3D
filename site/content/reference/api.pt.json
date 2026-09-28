@@ -7757,7 +7757,7 @@
     }
   },
   "CreatedMaterial": {
-    "summary": "Cria um material pertencente a esta página.",
+    "summary": "Valores aceitos por `createMaterial` para um novo material da página.",
     "members": {
       "metalness": "Quanto a superfície é metal, de 0 a 1.",
       "roughness": "Quão áspera é a superfície, de 0 (espelho) a 1 (fosca).",
@@ -7771,7 +7771,7 @@
     }
   },
   "SceneMaterial": {
-    "summary": "Um material pelo seu ID na lista.",
+    "summary": "Retrato de um material da cena com ID, nome, parâmetros e repetição dos mapas.",
     "members": {
       "id": "Um nome único para essa textura.",
       "name": "Um nome para o uso próprio da página.",
@@ -7779,7 +7779,7 @@
     }
   },
   "SceneMaterialPatch": {
-    "summary": "Altera um material importado ou criado no fotograma seguinte.",
+    "summary": "Valores do material que `setMaterial` altera ao vivo sem reconstruir uma passagem de renderização.",
     "members": {
       "metalness": "Quanto a superfície é metal, de 0 a 1.",
       "roughness": "Quão áspera é a superfície, de 0 (espelho) a 1 (fosca).",

@@ -7757,7 +7757,7 @@
     }
   },
   "CreatedMaterial": {
-    "summary": "이 페이지의 재질을 만듭니다.",
+    "summary": "페이지의 새 재질을 만들 때 `createMaterial`이 받는 값입니다.",
     "members": {
       "metalness": "표면이 얼마나 금속인가, 0에서 1.",
       "roughness": "표면이 얼마나 거친가, 0(거울)에서 1(무광).",
@@ -7771,7 +7771,7 @@
     }
   },
   "SceneMaterial": {
-    "summary": "목록의 ID로 찾은 재질 하나입니다.",
+    "summary": "ID, 이름, 매개변수, 맵 반복 횟수를 담은 장면 재질의 스냅샷입니다.",
     "members": {
       "id": "이 텍스처에 고유한 이름.",
       "name": "페이지 자신이 쓰기 위한 이름.",
@@ -7779,7 +7779,7 @@
     }
   },
   "SceneMaterialPatch": {
-    "summary": "다음 프레임에서 가져온 재질이나 만든 재질을 변경합니다.",
+    "summary": "렌더 패스를 다시 만들지 않고 `setMaterial`이 즉시 바꾸는 재질 값입니다.",
     "members": {
       "metalness": "표면이 얼마나 금속인가, 0에서 1.",
       "roughness": "표면이 얼마나 거친가, 0(거울)에서 1(무광).",
