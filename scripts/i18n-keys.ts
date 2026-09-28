@@ -9,7 +9,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { FLAG_SOURCE } from './docs/build-flags.ts';
 import { readJsonFolder } from '../site/content/i18n/jsonFolder.ts';
-import { referenceKeys } from '../site/content/reference/translate.ts';
+import { referenceTexts } from '../site/content/reference/translate.ts';
 import type { Dictionary } from '../site/content/i18n/dictionary.ts';
 import type { PortalEntry } from '../site/content/model.ts';
 import type { ReferenceText } from '../site/content/reference/translate.ts';
@@ -59,12 +59,17 @@ export function compareKeys(file: string, expected: string[], actual: string[]):
   return missing.length || extra.length ? [{ file, missing, extra }] : [];
 }
 
-/** Every text English shows of the generated reference, `<id>.<key>`, that a written note of
+const written: Record<string, object | undefined> = DICTIONARIES[DEFAULT_LANGUAGE].written;
+
+/** The texts English shows of a generated reference entry, `[key, text]`, that a written note of
  *  the English dictionary does not replace. */
+export const englishReferenceTexts = (entry: PortalEntry) =>
+  referenceTexts(entry, written[entry.id]);
+
+/** Every text English shows of the generated reference, `<id>.<key>`. */
 function englishReferenceKeys(): string[] {
-  const written: Record<string, object | undefined> = DICTIONARIES[DEFAULT_LANGUAGE].written;
   return (generated as PortalEntry[]).flatMap((entry) =>
-    referenceKeys(entry, written[entry.id]).map((key) => `${entry.id}.${key}`),
+    englishReferenceTexts(entry).map(([key]) => `${entry.id}.${key}`),
   );
 }
 

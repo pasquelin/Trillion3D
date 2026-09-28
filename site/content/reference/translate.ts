@@ -44,10 +44,6 @@ export function referenceTexts(
   return [...lines, ...(returns ? [['returns', returns] as [string, string]] : []), ...rows];
 }
 
-/** The keys a translation of `entry` gives, in `referenceTexts`'s order. */
-export const referenceKeys = (entry: PortalEntry, written?: WrittenFields) =>
-  referenceTexts(entry, written).map(([key]) => key);
-
 const translateRows = <Row extends { name: string; desc: string }>(
   rows: Row[],
   table: Record<string, string> | undefined,
