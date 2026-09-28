@@ -27,7 +27,7 @@ test('the server answers one byte range 206, an unsatisfiable one 416, none the 
   writeFileSync(join(root, 'level.ktx2'), bytes);
   // Compressed files too: a range addresses the file's own bytes, so it is never encoded.
   const server = staticServer({ mounts: [{ prefix: '/', dir: root }], compress: () => true });
-  t.after(() => (server.closeAllConnections(), server.close()));
+  t.after(() => new Promise((done) => (server.close(done), server.closeAllConnections())));
   const port = await listen(server);
   const get = async (range?: string) => {
     const headers: Record<string, string> = { 'accept-encoding': 'identity' };
