@@ -9,6 +9,7 @@ import { renderWebgpuPages } from './render/render.ts';
 import { flushWebgpuPages } from './render/flush.ts';
 import { captureSurfaceView } from './io/surfaceCapture.ts';
 import { captureColorView } from './io/colorCapture.ts';
+import { addWebgpuView, removeWebgpuView, renderWebgpuView } from './state/persistentView.ts';
 import {
   captureImage,
   pageUrls,
@@ -119,6 +120,13 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     },
     captureColorView(camera, size) {
       return captureColorView(rt, camera, size);
+    },
+    async addView(rect) {
+      const view = await addWebgpuView(rt, rect);
+      return {
+        render: (camera) => renderWebgpuView(rt, view, camera),
+        release: () => removeWebgpuView(rt, view),
+      };
     },
     capture() {
       return captureImage(rt);

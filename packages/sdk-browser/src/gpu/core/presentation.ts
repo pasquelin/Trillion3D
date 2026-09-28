@@ -1,6 +1,7 @@
 import { sharedGpuDevice } from './sessionHandle.ts';
 import { FULLSCREEN_VERTEX } from '../../lighting/deferred/deferred.ts';
 import { createCanvasBlit } from '../../webgl/core/canvasBlit.ts';
+import { createPresentAt, type PresentRect } from './presentAt.ts';
 
 export const PRESENT_SHADER = `@group(0) @binding(0) var image:texture_2d<f32>;
 ${FULLSCREEN_VERTEX}
@@ -35,6 +36,7 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
       primitive: { topology: 'triangle-list' },
     });
     let texture: GPUTexture | undefined, group: GPUBindGroup | undefined;
+    const presentAt = createPresentAt(device, layout, format);
     const targetView = (width: number, height: number) => {
       if (canvas.width !== width) canvas.width = width;
       if (canvas.height !== height) canvas.height = height;
@@ -43,7 +45,19 @@ export function createGpuPresenter(device: GPUDevice, canvas: HTMLCanvasElement)
     return {
       canvas,
       targetView,
-      present(encoder: GPUCommandEncoder, image: GPUTexture, width: number, height: number) {
+      /** The image over the whole canvas, sized to it; at `at`, a persistent view's rectangle of
+       *  the canvas, which keeps its size and what else it shows this frame. */
+      present(
+        encoder: GPUCommandEncoder,
+        image: GPUTexture,
+        width: number,
+        height: number,
+        at?: PresentRect,
+      ) {
+        if (at) {
+          presentAt(encoder, context.getCurrentTexture().createView(), image, at, canvas);
+          return;
+        }
         const view = targetView(width, height);
         if (texture !== image) {
           texture = image;

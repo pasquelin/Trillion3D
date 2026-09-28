@@ -58,6 +58,7 @@ function tenue() {
   };
   const rt = {
     run,
+    views: { active: {} },
     timing,
     context: {},
     gpu: {
