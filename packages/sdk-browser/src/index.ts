@@ -61,6 +61,11 @@ export * from './world/capability/index.ts';
 export * from './world/capture/index.ts';
 export * from './world/pose/index.ts';
 export * from './world/batch/index.ts';
+export type {
+  CreatedMaterial,
+  SceneMaterial,
+  SceneMaterialPatch,
+} from './world/api/materialApi.ts';
 
 export { EngineProfiler, type TelemetryReport } from './diagnostic/telemetry.ts';
 

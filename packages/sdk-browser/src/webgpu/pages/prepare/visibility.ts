@@ -20,6 +20,7 @@ import { SURFACE_BYTES_PER_PIXEL, SURFACE_FORMATS } from '../../../scene/surface
 import { dropGpuHiz, dropVis, grantCapability } from '../io/drops.ts';
 import { VIS_FEATURES, type WebgpuPagesRuntime } from '../runtime.ts';
 import { isCancelled } from '../../../backend/common.ts';
+import { prepareFeedbackAb } from '../diagnostic/feedbackAb.ts';
 
 /** Builds the forward material pipelines, the visibility raster and shade pipelines, the Hi-Z
  *  pyramid and the indirect draw; leaves `visEnabled` telling whether the image can use them. */
@@ -38,8 +39,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       blendPipelines: vis.blendPipelines,
       water: blendState.water,
     } = built);
-    // No water pass — the device refused it: the blends stay, the transmission slice draws as one
-    // of them, and the host reads why.
+    // A refused water pass leaves blends in place and reports the reason.
     if (built.waterRefused) diag.diagnosticFailure('water-pass-refused', built.waterRefused);
   } catch (error) {
     diag.diagnosticFailure('forward-material-pipeline-failed', error);
@@ -47,8 +47,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     vis.blendPipelines = undefined;
     blendState.water = undefined;
   }
-  // Coplanar-stack depth sets the draw-slot count, therefore the visibility uniform size and that of
-  // indirect compaction: it is read before creating them.
+  // Coplanar depth sets draw slots before visibility uniforms and indirect compaction.
   let maxDepthLayer = 0;
   for (const rec of rt.setup.allPages)
     if (rec.depthLayer > maxDepthLayer) maxDepthLayer = rec.depthLayer;
@@ -59,6 +58,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
     drawSlots,
     visUniformSlots(vis),
     variant,
+    rt.context.feedbackTargetAB === true,
   );
   vis.shadeUniform = shaders.shadeUniform;
   vis.visBindGroupLayout = shaders.visBindGroupLayout;
@@ -129,8 +129,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       vis.visLayerPipelines = [];
       vis.drawLayerSlots = 1;
     }
-  // The resolve classes are known here: each gets its depth-tested pipeline; one production class
-  // also gets a direct pipeline prepared here, never compiled in an image.
+  // Each resolve class gets a depth-tested pipeline, plus a direct single-class path.
   const classes = sceneMaterialClasses(rt.setup.allPages, vis.geometryBlocks, vis);
   ({
     shadeBindGroupLayout: vis.shadeBindGroupLayout,
@@ -149,6 +148,8 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
   ensureWebgpuShadeBindings(rt, gpuDevice);
+  if (shaders.shadeWithoutFeedback)
+    await prepareFeedbackAb(rt, gpuDevice, shaders.shadeWithoutFeedback, classes);
   vis.visEnabled =
     !!vis.visTexture &&
     !!vis.shadeBindGroup &&
