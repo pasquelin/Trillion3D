@@ -47,18 +47,16 @@ fn voronoi_cells_tile_a_convex_solid_without_gap_or_overlap() {
         [0.5, 0.7, 0.3],
         [1.6, 0.3, 0.15],
     ];
+    let slab = cube([0.0; 3], [2.0, 1.0, 0.5]);
     let turned = vec![turn([0.3, 0.3, 0.3]), turn([0.7, 0.6, 0.5])];
     for (pos, triangles, seeds) in [
-        (
-            cube([0.0; 3], [2.0, 1.0, 0.5]),
-            FACES.to_vec(),
-            seeds.to_vec(),
-        ),
+        (slab, FACES.to_vec(), seeds.to_vec()),
         (pyramid.to_vec(), pyramid_faces.to_vec(), seeds.to_vec()),
         (sliver, sliver_faces, turned),
     ] {
         let whole = solid(&pos, &triangles);
-        let planes = face_planes(&pos, &triangles, 1e-6);
+        let corners = pos.as_chunks::<3>().0.iter().map(|p| p.map(f64::from));
+        let planes = face_planes((&pos, &triangles), &corners.collect::<Vec<_>>(), 1e-6);
         let pieces = cells(&seeds, ([-2.0; 3], [3.0; 3]), &planes, 1e-6);
         let total: f64 = pieces.iter().map(|faces| volume(faces)).sum();
         assert!((total - whole).abs() <= whole * TILED, "{total} of {whole}");
@@ -66,7 +64,8 @@ fn voronoi_cells_tile_a_convex_solid_without_gap_or_overlap() {
             assert!(volume(a) > 0.0, "cell {i} is empty");
             for b in &pieces[i + 1..] {
                 let (pos, triangles) = welded(b);
-                let shared = face_planes(&pos, &triangles, 1e-6)
+                // A cell is convex: none of its planes needs leaving out.
+                let shared = face_planes((&pos, &triangles), &[], 1e-6)
                     .into_iter()
                     .fold(a.clone(), |faces, plane| clip(faces, plane, 1e-12));
                 assert!(volume(&shared) <= whole * TILED, "{}", volume(&shared));
@@ -113,7 +112,7 @@ fn a_dense_convex_mesh_is_cut_into_closed_pieces() {
     std::fs::create_dir_all(o.cache.join("native/objects")).unwrap();
     // Positions of another mesh sharing the accessor, used by no triangle: never a seed's corner.
     pos.extend(vec![10.0f32; 300_000]);
-    let cut = pieces(&o, (&pos, &triangles, 0), 7, [1.0; 3]).unwrap();
+    let cut = pieces(&o, (&pos, &triangles, 0), (7, [1.0; 3])).unwrap();
     assert_eq!(cut.len(), PIECES);
     std::fs::remove_dir_all(root).unwrap();
 }

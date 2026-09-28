@@ -81,10 +81,10 @@ impl Hull {
         Ok(shape)
     }
 
-    /// The breakable body's pieces of this mesh, seeded by `seed` and weighed at `scale`
+    /// The breakable body's pieces of this mesh, seeded and weighed at a scale as `cut` says
     /// (`pieces.rs`).
-    pub(super) fn pieces(&self, o: &Options, seed: u64, scale: [f64; 3]) -> Result<Vec<Value>> {
-        super::pieces::pieces(o, (&self.pos, &self.welded, self.mesh), seed, scale)
+    pub(super) fn pieces(&self, o: &Options, cut: (u64, [f64; 3])) -> Result<Vec<Value>> {
+        super::pieces::pieces(o, (&self.pos, &self.welded, self.mesh), cut)
     }
 }
 

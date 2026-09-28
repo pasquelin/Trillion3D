@@ -96,6 +96,12 @@ pub(crate) fn normalized_or(vector: [f64; 3], fallback: [f64; 3]) -> [f64; 3] {
     }
 }
 
+/// `v` at unit length, if it has a finite, non-zero one.
+pub(crate) fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
+    let length = length(v);
+    (length > 0.0 && length.is_finite()).then(|| scale(v, 1.0 / length))
+}
+
 /// The golden-ratio step of SplitMix64 (Steele et al. 2014), between two draws.
 pub(crate) const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
 

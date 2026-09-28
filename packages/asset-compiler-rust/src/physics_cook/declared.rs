@@ -60,11 +60,11 @@ fn body(
             "A breakable body is cut from its mesh: it declares no shape.".into(),
         ));
     }
-    let mut cut = None;
-    let shape = match field("shape").and_then(Value::as_u64) {
+    let (shape, cut) = match field("shape").and_then(Value::as_u64) {
         Some(id) => (source.0)
             .pointer(&format!("/extensions/KHR_implicit_shapes/shapes/{id}"))
             .cloned()
+            .map(|shape| (shape, None))
             .ok_or_else(|| {
                 refused(format!(
                     "A body's collider names shape {id}, which is missing."
@@ -104,11 +104,10 @@ fn body(
                     Entry::Vacant(slot) => slot.insert(cooked_hull(o, source, (mesh, None))?),
                 }
             };
-            if let Some(threshold) = breakable {
-                // A piece falls once broken, a kinematic body's too: every piece is weighed.
-                cut = Some((threshold, hull.pieces(o, index as u64, s)?));
-            }
-            hull.weighed(weigh)?
+            let shape = hull.weighed(weigh)?;
+            // A piece falls once broken, a kinematic body's too: every piece is weighed.
+            let cut = breakable.map(|t| hull.pieces(o, (index as u64, s)).map(|p| (t, p)));
+            (shape, cut.transpose()?)
         }
     };
     let mut entry = declared_matter(source.0, &nodes[index]);
