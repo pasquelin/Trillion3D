@@ -20,8 +20,8 @@ Reach the CTO only by `SendMessage` to its session (find it with `ListAgents`).
    review agents (max 4, no cascade) are the only agents they may launch. Check their
    `Simplification pass:` and `Correctness review:` lines in the PR body before naming it ready; re-reviews
    follow `docs/roles/lead.md` §Bounds.
-3. You never run Chrome or the bench: your coder runs its branch's image proof, the measurer
-   times after the merge (AGENTS.md rule 2).
+3. You never run Chrome or the bench: acceptance proves the image and the measurer times, both
+   after the merge (AGENTS.md rule 2).
 4. Limits at every moment: AGENTS.md §Leads and rule 9. Pick in the order of AGENTS.md §Leads.
    Reviewer as soon as the coder pushes its branch, no new coder while one of your PRs is open
    (`docs/roles/lead.md` step 1).
