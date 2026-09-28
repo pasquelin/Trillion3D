@@ -94,11 +94,11 @@ function mergeSortPlan(order: Uint32Array, n: number) {
 
 /**
  * Sorts `order` in place by `keys`, one per item by source rank; a NaN key keeps pure insertion.
- * Returns the first position the sort rewrote, `order.length` when nothing moved: the runs before
+ * Sorts only the first `n` entries when a fallback buffer has spare capacity.
+ * Returns the first position the sort rewrote, `n` when nothing moved: the runs before
  * it still describe the list (`runs.ts`).
  */
-export function sortPlanFarToNear(order: Uint32Array, keys: Float64Array) {
-  const n = order.length;
+export function sortPlanFarToNear(order: Uint32Array, keys: Float64Array, n = order.length) {
   if (n < 2) return n;
   growSortScratch(n);
   const sorted = sortKeys,
