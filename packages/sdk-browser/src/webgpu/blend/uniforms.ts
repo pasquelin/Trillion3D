@@ -76,8 +76,8 @@ export function writeFallbackUniform(
 }
 
 /** `viewProj`, the view point, lamp tiles, view flags, the item offset, the texture-feedback
- *  phase, the pixel scale, the target size, the eye and the host's pixel ratio: 132 bytes, 144
- *  with the struct's alignment. */
+ *  phase, the pixel scale, the target size, the eye, the host's pixel ratio, the exposure and the
+ *  display curve: 140 bytes, 144 with the struct's alignment. */
 export const BLEND_VIEW_SIZE = 144;
 
 /** Diagnostic bits that the WHOLE pass carries: they do not depend on the item. */
@@ -157,6 +157,9 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   packed[30] = tiles[7];
   // Image pixels per CSS pixel: a line's width counts CSS pixels (`lineClip`).
   packed[32] = rt.setup.pixelRatio();
+  // The composition's exposure and display curve: the display filter's colour (`displayFilter.ts`).
+  packed[33] = tiles[3];
+  ints[34] = tiles[4];
   device.queue.writeBuffer(
     buffer,
     0,
