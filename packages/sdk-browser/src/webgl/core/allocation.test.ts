@@ -3,7 +3,13 @@
 // streamed pages in for the whole upload (a 100–140 ms hitch on sponza `rue`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { allocated, fenceAllocations, settleAllocations, takeOutOfMemory } from './allocation.ts';
+import {
+  allocated,
+  fenceAllocations,
+  refusedNow,
+  settleAllocations,
+  takeOutOfMemory,
+} from './allocation.ts';
 
 const OUT_OF_MEMORY = 0x0505,
   SIGNALED = 0x9119,
@@ -63,4 +69,19 @@ test('allocations the GPU accepted are confirmed and never redone', () => {
   settleAllocations(gl);
   assert.equal(redone, 0);
   assert.equal(takeOutOfMemory(gl), false);
+});
+
+test('a refusal read at once (a one-time build) redoes the allocations it read for, once', () => {
+  const { gl, seen } = context();
+  let redone = 0;
+  allocated(gl, () => redone++);
+  fenceAllocations(gl);
+  allocated(gl, () => redone++);
+  seen.refuse = true;
+  assert.equal(refusedNow(gl), true);
+  assert.equal(redone, 2, 'the flag it consumed was theirs: both are redone now');
+  seen.passed = true;
+  settleAllocations(gl);
+  assert.equal(redone, 2, 'never twice');
+  assert.equal(takeOutOfMemory(gl), true);
 });
