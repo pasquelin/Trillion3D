@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
-import { dansPageWebgpu, empaquetePage } from '../probes/pageWebgpu.ts';
+import { dansPageWebgpu, empaquetePage as bundlePage } from '../probes/pageWebgpu.ts';
 import type { blendMirror } from '../support/blendMirrorPage.ts';
 
 declare global {
   var mirrorProof: { blendMirror: typeof blendMirror };
 }
-const script = await empaquetePage(
+const script = await bundlePage(
   new URL('../support/blendMirrorPage.ts', import.meta.url).pathname,
   'mirrorProof',
 );
