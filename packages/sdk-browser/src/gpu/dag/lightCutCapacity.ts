@@ -18,6 +18,8 @@ export type LightCutShape = {
   pageCount: number;
   blockCount: number;
   levelSizes: ArrayLike<number>;
+  /** The camera's `frames` ranges: the light cut's per-view rows split in them (`frameRanges.ts`). */
+  frames: { per: number };
 };
 
 /** Each descent queue: every node, or one root per slot when the slots outnumber the nodes. */
@@ -30,9 +32,8 @@ export const lightQueueCap = (shape: LightCutShape, views: number) =>
  * many primitives times `DAG_MAX_VIEWS` views can pass the workgroups a dispatch may count or the
  * bytes a storage binding may span, and one invalid dispatch invalidates the frame's whole command
  * buffer — the camera's image with it. The capacity is the most views whose buffers and dispatches
- * all fit, down to one. One view is not bounded here: its frames are one binding, where the
- * camera's are split in ranges (`frameRanges.ts`), so past `storageBufferCap` / 112 bytes of
- * primitives a single view's own frames no longer fit.
+ * all fit, down to one: one view never spans more than the camera cut, which the device already
+ * holds — its rows split in the camera's ranges, a share of the camera's own (`frameRanges.ts`).
  * The frame's pages are bounded by it, and so are its views (`lightCutRedraws.ts`).
  */
 export function lightCutCapacity(limits: LightCutLimits, shape: LightCutShape) {
@@ -43,7 +44,7 @@ export function lightCutCapacity(limits: LightCutLimits, shape: LightCutShape) {
     if (Math.max(shape.worldCount * views, shape.blockCount) > threads) return false;
     for (let level = 1; level < shape.levelSizes.length; level++)
       if (Math.min(shape.levelSizes[level] * views, queueCap) > threads) return false;
-    const frames = views * shape.worldCount * FRAME_VEC4 * 16,
+    const frames = views * shape.frames.per * FRAME_VEC4 * 16,
       flags = dagFlagsWords(queueCap, shape.pageCount, false) * 4,
       work = dagWorkLayout(shape.blockCount, views).words * 4;
     return Math.max(frames, flags, work) <= bytes;

@@ -12,53 +12,31 @@ import {
   parseDagOutput,
 } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { framesBytes } from '../../../packages/sdk-browser/src/gpu/dag/frameRanges.ts';
-import {
-  packDagSelection,
-  packedWorldsToRenderOrigin,
-} from '../../../packages/sdk-browser/src/gpu/dag/pack.ts';
-import { cameraSelectionUniforms } from '../../../packages/sdk-browser/src/gpu/core/selection.ts';
-import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
-import { frontCamera } from '../../../packages/sdk-browser/src/page/selection/dag.fixture.ts';
-import {
-  scenePages,
-  sceneRoots,
-} from '../../../packages/sdk-browser/src/gpu/dag/cutFrontierScene.fixture.ts';
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
+import { sceneView } from './cutDispatchesScene.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
 
-/** Sixty placements of a pyramid eight levels deep, spread across and beyond the view. */
-function scene() {
-  const poses = Array.from({ length: 60 }, (_, k) =>
-    new G.Matrix4().makeTranslation(((k % 10) - 4.5) * 4, 0, -Math.floor(k / 10) * 6),
-  );
-  const roots = sceneRoots(scenePages(400, 8), poses, true);
-  const packed = packDagSelection(roots);
-  const uniforms = cameraSelectionUniforms(cameraMoteur(frontCamera(16, 200)), 1, [1280, 720]);
-  packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld);
-  return { packed, uniforms };
-}
+/** Sixty placements of a pyramid eight levels deep, spread across and beyond the view; the first
+ *  range's twenty behind the camera, so the later ranges' nodes open each queue a level reuses. */
+const poses = Array.from({ length: 60 }, (_, k) =>
+  new G.Matrix4().makeTranslation(((k % 10) - 4.5) * 4, 0, k < 20 ? 60 : -Math.floor(k / 10) * 6),
+);
 
-/** A device whose limits say `binding` bytes per storage binding; everything else is the device's. */
-function reporting(device: GPUDevice, binding: number): GPUDevice {
-  const limits = {
-    maxBufferSize: binding,
-    maxStorageBufferBindingSize: binding,
-    minUniformBufferOffsetAlignment: device.limits.minUniformBufferOffsetAlignment,
-  };
-  return new Proxy(device, {
+/** The device, its limits saying `binding` bytes per storage binding: what the cut sizes from. */
+const reporting = (device: GPUDevice, binding: number) =>
+  new Proxy(device, {
     get: (target, key) => {
-      if (key === 'limits') return limits;
+      if (key === 'limits') return { maxBufferSize: binding, maxStorageBufferBindingSize: binding };
       const value = Reflect.get(target, key, target);
       return typeof value === 'function' ? value.bind(target) : value;
     },
   });
-}
 
 export async function executer(pixelErrors: number[]) {
   const appareil = await ouvrirAppareil();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
-  const { packed, uniforms } = scene();
+  const { packed, uniforms } = sceneView(400, 8, poses);
   const third = framesBytes(Math.ceil(packed.worldCount / 3));
   const cut = async (target: GPUDevice) => {
     const resources = await createDagResources(target, packed, false);

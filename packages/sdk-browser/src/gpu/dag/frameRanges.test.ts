@@ -1,70 +1,123 @@
-// A camera cut's `frames` past what one storage buffer binds (#979): the table splits into ranges,
-// each its own buffer and bind group, and the cut is the one of the unsplit table.
+// A camera cut's `frames` past what one storage buffer binds (#979): the host side of the split —
+// ranges, buffers, bind groups, stages, writes, copies and dispatches. That the split cuts as the
+// whole table is the GPU's to prove (`tests/browser/probes/frame-ranges-gpu.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cameraFrameRanges, framesBytes } from './frameRanges.ts';
 import { storageBufferCap } from '../../residency/pools.ts';
-import { createGpuDagSelection, packDagSelection } from './selection.ts';
-import { dagFixture, wideCamera } from '../../page/selection/dag.fixture.ts';
-import { kernelUniforms, packed } from './selectionHelpers.fixture.ts';
-import { mockDagDevice } from './selection.fixture.ts';
-import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
+import { createDagResources } from './resources.ts';
+import { packDagSelection } from './selection.ts';
+import { primitiveWordAt } from './worlds.ts';
+import { encodeDagKernels } from './encode.ts';
+import { encodeurTemoin, ressources } from './encode.fixture.ts';
+import { dagFixture } from '../../page/selection/dag.fixture.ts';
+import { packed } from './selectionHelpers.fixture.ts';
+import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import { DAG_BINDING } from './shader/bindings.ts';
 
 test('the ranges cover every primitive once, each within one binding', () => {
-  for (const limits of [
-    { maxBufferSize: 256 << 20, maxStorageBufferBindingSize: 128 << 20 },
-    { maxBufferSize: 64 << 20, maxStorageBufferBindingSize: 128 << 20 },
-  ]) {
-    const ranges = cameraFrameRanges(limits, 1_000_000);
-    assert.ok(ranges.length > 1, 'a million primitives pass one binding');
-    let next = 0;
-    for (const { first, count } of ranges) {
-      assert.equal(first, next, 'no gap, no overlap');
-      assert.ok(framesBytes(count) <= storageBufferCap(limits));
-      next += count;
-    }
-    assert.equal(next, 1_000_000);
+  const limits = { maxBufferSize: 64 << 20, maxStorageBufferBindingSize: 128 << 20 };
+  const ranges = cameraFrameRanges(limits, 1_000_000);
+  assert.equal(ranges.length, Math.ceil(1_000_000 / Math.floor((64 << 20) / 384)));
+  let next = 0;
+  for (const { first, count } of ranges) {
+    assert.equal(first, next, 'no gap, no overlap');
+    assert.ok(framesBytes(count) <= storageBufferCap(limits));
+    next += count;
   }
-  const limits = { maxBufferSize: 256 << 20, maxStorageBufferBindingSize: 128 << 20 };
-  assert.deepEqual(cameraFrameRanges(limits, 300_000), [{ first: 0, count: 300_000 }]);
+  assert.equal(next, 1_000_000);
+  assert.deepEqual(cameraFrameRanges(limits, 100_000), [{ first: 0, count: 100_000 }]);
 });
 
-/** Forty-eight placements of the fixture's primitive, spread in and out of the camera's view. */
-function spread() {
-  const fixture = dagFixture();
-  const [root] = packed(fixture).roots;
-  const roots = Array.from({ length: 48 }, (_, k) => {
-    const elements = Array.from(root.world.elements);
-    elements[12] += (k - 24) * 0.75;
-    elements[14] -= (k % 3) * 4;
-    return { ...root, world: { elements } };
+/** Forty-eight placements of the fixture's primitive, on a device whose binding holds `per`. */
+async function split(per: number) {
+  const [root] = packed(dagFixture()).roots;
+  const dag = packDagSelection(Array.from({ length: 48 }, () => root));
+  const limits = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: framesBytes(per) };
+  const fake = fakeDevice({ limits: { ...limits, minUniformBufferOffsetAlignment: 256 } });
+  const resources = await createDagResources(fake.device, dag, false);
+  assert.ok(resources);
+  return { fake, resources };
+}
+
+test('each range is its own buffer and bind group, and the stages know the split', async () => {
+  const { fake, resources } = await split(20);
+  const { frames, ranges } = resources;
+  assert.deepEqual(frames.ranges, [
+    { first: 0, count: 20 },
+    { first: 20, count: 20 },
+    { first: 40, count: 8 },
+  ]);
+  assert.deepEqual(
+    frames.buffers.map((b) => b.size),
+    [20, 20, 8].map(framesBytes),
+  );
+  assert.deepEqual(
+    ranges.map((r) => r.count),
+    [20, 20, 8],
+  );
+  for (const [r, { bindGroup }] of ranges.entries()) {
+    const entries = Array.from((bindGroup as unknown as GPUBindGroupDescriptor).entries);
+    const at = (binding: number) => entries.find((e) => e.binding === binding)!.resource;
+    assert.equal((at(DAG_BINDING.frames) as GPUBufferBinding).buffer, frames.buffers[r]);
+    assert.equal((at(DAG_BINDING.range) as GPUBufferBinding).offset, r * 256);
+  }
+  const bounds = fake.writes.find((w) => w.buffer === frames.rangeBindings[0].buffer)!;
+  assert.deepEqual(
+    Array.from(written(bounds)).filter((_, k) => k % 64 < 2),
+    [0, 20, 20, 20, 40, 8],
+  );
+  assert.deepEqual((resources.preparePipeline as unknown as GPUProgrammableStage).constants, {
+    SPLIT: 1,
   });
-  return { fixture, roots };
-}
+  const whole = await createDagResources(fakeDevice().device, resources.packed, false);
+  assert.equal(whole?.ranges.length, 1);
+  assert.equal((whole?.preparePipeline as unknown as GPUProgrammableStage).constants, undefined);
+});
 
-async function cutOf(limits: { maxBufferSize: number; maxStorageBufferBindingSize: number }) {
-  const { fixture, roots } = spread();
-  const dag = packDagSelection(roots);
-  const uniforms = kernelUniforms(dag, roots, wideCamera(), 0.5);
-  const selection = await createGpuDagSelection(mockDagDevice(dag, { limits }).device, dag);
-  assert.ok(selection, 'the device holds the cut');
-  selection.dispatch(uniforms);
-  const cut = await selection.flush();
-  selection.dispose();
-  fixture.geometry.dispose();
-  assert.ok(cut);
-  return { cut, worldCount: dag.worldCount };
-}
+test("the host's rows and words land in their range, at their row there", async () => {
+  const { fake, resources } = await split(20);
+  const { frames, frameData } = resources;
+  const rows = fake.writes.filter((w) => frames.buffers.includes(w.buffer as GPUBuffer));
+  assert.deepEqual(
+    rows.map((w) => [frames.buffers.indexOf(w.buffer as GPUBuffer), w.dataOffset, w.size]),
+    [
+      [0, 0, 20 * 28],
+      [1, 20 * 28, 20 * 28],
+      [2, 40 * 28, 8 * 28],
+    ],
+  );
+  frames.writeWord(25, 1, 7);
+  const word = fake.writes.at(-1)!;
+  assert.equal(word.buffer, frames.buffers[1]);
+  assert.equal(word.offset, (primitiveWordAt(5) + 1) * 4);
+  assert.equal(new Uint32Array(frameData.buffer)[primitiveWordAt(25) + 1], 7);
+  const targets = [{}, {}, {}] as GPUBuffer[];
+  frames.copyRows(fake.device.createCommandEncoder(), targets);
+  assert.deepEqual(
+    fake.copies.map((c) => [frames.buffers.indexOf(c.from), targets.indexOf(c.to), c.size]),
+    [
+      [0, 0, 20 * 112],
+      [1, 1, 20 * 112],
+      [2, 2, 8 * 112],
+    ],
+  );
+});
 
-test('a table past one binding splits in ranges, and cuts as the unsplit one', async () => {
-  installGpuGlobals();
-  const whole = await cutOf({ maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 });
-  // Enough for every other buffer of the scene, a third of the table.
-  const small = { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: framesBytes(22) };
-  assert.equal(cameraFrameRanges(small, whole.worldCount).length, 3);
-  const split = await cutOf(small);
-  const sorted = (ids: readonly number[]) => [...ids].sort((a, b) => a - b);
-  assert.ok(whole.cut.pageIds.length > 0, 'the scene draws');
-  assert.deepEqual(sorted(split.cut.pageIds), sorted(whole.cut.pageIds));
-  assert.equal(split.cut.selectedTriangles, whole.cut.selectedTriangles);
+test('each kernel that reads a primitive runs once per range, under its bind group', () => {
+  const ranges = [
+    { count: 100, bindGroup: 'r0' },
+    { count: 30, bindGroup: 'r1' },
+  ];
+  const { encoder, lancements, groupesLies } = encodeurTemoin();
+  const cut = { ...ressources(false, 5), ranges } as Parameters<typeof encodeDagKernels>[1];
+  encodeDagKernels(encoder as unknown as GPUCommandEncoder, cut);
+  const of = (noyau: string) => lancements.filter((l) => l.noyau === noyau).map((l) => l.groupes);
+  assert.deepEqual(of('dagPrepare'), [2, 1], 'the first range also resets 64 blocks');
+  assert.deepEqual(of('dagRootLevel'), [2, 1], "each range's roots");
+  assert.deepEqual(of('dagLevel1'), [1, 1, 1, 1], 'levels 1 and 4: each range walks the queue');
+  assert.deepEqual(of('dagWanted'), ['indirect', 'indirect']);
+  assert.deepEqual(of('dagMask'), ['indirect', 'indirect']);
+  assert.deepEqual(of('dagSortRequests'), [1], 'a kernel that reads no primitive runs once');
+  assert.ok(groupesLies.includes('r1'));
 });

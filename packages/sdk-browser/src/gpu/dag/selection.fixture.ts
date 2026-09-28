@@ -4,60 +4,44 @@ import { readDagUniforms } from '../../../../../tests/kit/gpu/mockCompute.ts';
 import { SELECTION_HEADER_WORDS, childBase, residentFlags, writeTriangleTotals } from './layout.ts';
 import { DAG_UNIFORM_BYTES } from './shader/viewsWgsl.ts';
 import { DAG_BINDING } from './shader/bindings.ts';
-import { primitiveWordAt } from './worlds.ts';
-import { storageBufferCap } from '../../residency/pools.ts';
-import { SELECTION_NONE } from '../core/selection.ts';
 
 export function mockDagDevice(
   packed: PackedDag,
-  options: {
-    failMap?: boolean;
-    mapGate?: Promise<void>;
-    limits?: { maxBufferSize: number; maxStorageBufferBindingSize: number };
-  } = {},
+  options: { failMap?: boolean; mapGate?: Promise<void> } = {},
 ) {
   type Buf = { size: number; usage: number; data: Uint8Array; destroyed: boolean };
-  let bind:
-    { entries: Array<{ binding: number; resource: { buffer: Buf; offset?: number } }> } | undefined;
-  /** The cut the ranges' mask dispatches have summed so far: the first range's opens it. */
-  let cut: ReturnType<typeof evaluateDagSelectionKernel> | undefined;
+  let bind: { entries: Array<{ binding: number; resource: { buffer: Buf } }> } | undefined;
   let pipeline: { entryPoint: string } | undefined,
     uniformWriteCount = 0,
     copyCount = 0,
     destroyedMaps = 0;
   const words: [number, number][] = [];
-  const limits = options.limits ?? { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 };
   const device = {
-    limits,
-    // As on a real device, no storage buffer holds more than one binding may span.
-    createBuffer: ({ size, usage }: { size: number; usage: number }) => {
-      if (usage & GPUBufferUsage.STORAGE && size > storageBufferCap(limits))
-        throw new Error(`${size} bytes, over the device's storage limit`);
-      return {
-        size,
-        usage,
-        data: new Uint8Array(size),
-        destroyed: false,
-        destroy(this: Buf) {
-          this.destroyed = true;
-        },
-        // As on a real device: mapping a destroyed buffer is a validation error on the device; a
-        // mapping the destruction cuts short rejects with `AbortError`. Unmapping one does nothing.
-        mapAsync: async function (this: Buf) {
-          if (this.destroyed) {
-            destroyedMaps++;
-            throw new DOMException('destroyed', 'OperationError');
-          }
-          if (options.failMap) throw new Error('MAP_FAILED');
-          await options.mapGate;
-          if (this.destroyed) throw new DOMException('destroyed while mapping', 'AbortError');
-        },
-        getMappedRange: function (this: Buf) {
-          return this.data.buffer;
-        },
-        unmap() {},
-      };
-    },
+    limits: { maxBufferSize: 1 << 20, maxStorageBufferBindingSize: 1 << 20 },
+    createBuffer: ({ size, usage }: { size: number; usage: number }) => ({
+      size,
+      usage,
+      data: new Uint8Array(size),
+      destroyed: false,
+      destroy(this: Buf) {
+        this.destroyed = true;
+      },
+      // As on a real device: mapping a destroyed buffer is a validation error on the device; a
+      // mapping the destruction cuts short rejects with `AbortError`. Unmapping one does nothing.
+      mapAsync: async function (this: Buf) {
+        if (this.destroyed) {
+          destroyedMaps++;
+          throw new DOMException('destroyed', 'OperationError');
+        }
+        if (options.failMap) throw new Error('MAP_FAILED');
+        await options.mapGate;
+        if (this.destroyed) throw new DOMException('destroyed while mapping', 'AbortError');
+      },
+      getMappedRange: function (this: Buf) {
+        return this.data.buffer;
+      },
+      unmap() {},
+    }),
     createShaderModule: () => ({ getCompilationInfo: async () => ({ messages: [] }) }),
     createBindGroupLayout: () => ({}),
     createPipelineLayout: () => ({}),
@@ -112,20 +96,7 @@ export function mockDagDevice(
                 childReady: residentFlags(bits, packed.pageCount, childBase(packed.pageCount)),
               }
             : undefined;
-          // Each range's dispatch cuts its own primitives, from the roots ITS `frames` holds at
-          // their rows there (`frameRanges.ts`); the first range's opens the cut, the others add.
-          const range = bind.entries.find((entry) => entry.binding === DAG_BINDING.range)!;
-          const [first, count] = new Uint32Array(
-            range.resource.buffer.data.buffer,
-            range.resource.offset ?? 0,
-            2,
-          );
-          const frames = new Uint32Array(byBinding.get(DAG_BINDING.frames)!.data.buffer);
-          const rootNodes = packed.rootNodes.map((_, w) =>
-            w - first < count ? frames[primitiveWordAt(w - first) + 1] : SELECTION_NONE,
-          );
-          const part = evaluateDagSelectionKernel({ ...packed, rootNodes }, uniforms, resident);
-          const result = (cut = first === 0 || !cut ? part : addCut(cut, part));
+          const result = evaluateDagSelectionKernel(packed, uniforms, resident);
           const out = byBinding.get(DAG_BINDING.out)!.data;
           const ints = new Uint32Array(out.buffer, out.byteOffset, out.byteLength / 4);
           ints.fill(0);
@@ -178,21 +149,5 @@ export function mockDagDevice(
     destroyedMaps: () => destroyedMaps,
     /** One-word writes, each as its word index in its buffer and the value written. */
     words,
-  };
-}
-
-/** Two ranges' cuts, as the shared counters and lists sum them. */
-function addCut(
-  a: ReturnType<typeof evaluateDagSelectionKernel>,
-  b: ReturnType<typeof evaluateDagSelectionKernel>,
-): ReturnType<typeof evaluateDagSelectionKernel> {
-  return {
-    ...a,
-    pageIds: [...a.pageIds, ...b.pageIds],
-    drawablePageIds: [...(a.drawablePageIds ?? []), ...(b.drawablePageIds ?? [])],
-    frustumRejected: a.frustumRejected + b.frustumRejected,
-    lodLevel: Math.max(a.lodLevel, b.lodLevel),
-    selectedTriangles: (a.selectedTriangles ?? 0) + (b.selectedTriangles ?? 0),
-    transparentTriangles: (a.transparentTriangles ?? 0) + (b.transparentTriangles ?? 0),
   };
 }

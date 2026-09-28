@@ -1,6 +1,7 @@
 import type { PackedDag } from '../../../packages/sdk-browser/src/gpu/dag/selection.ts';
 import { createMockCommandEncoderFactory, type MockDraw, type MockPass } from './mockEncoder.ts';
 import { bytesOf } from './globals.ts';
+import { storageBufferCap } from '../../../packages/sdk-browser/src/residency/pools.ts';
 import { asWebgpuDevice, untag } from './webgpuDevice.ts';
 
 /** What a test asks of `mockGpu`: the device limits, the DAG its compute selection runs on, and
@@ -69,6 +70,9 @@ export function mockGpu({
     createBuffer: (descriptor: { size: number; usage: number; label?: string }) => {
       const { size, usage } = descriptor,
         label = untag(descriptor.label);
+      // As a device refuses it: no storage buffer (0x80) past what one binding spans.
+      if (usage & 0x80 && size > storageBufferCap(limits))
+        throw new Error(`${label}: ${size} bytes, past the device's storage limit`);
       const data = new Uint8Array(size);
       const buffer = {
         size,

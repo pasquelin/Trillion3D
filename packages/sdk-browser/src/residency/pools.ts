@@ -18,6 +18,11 @@ export const storageBufferCap = (limits?: {
   maxStorageBufferBindingSize?: number;
 }) => Math.min(limits?.maxBufferSize ?? Infinity, limits?.maxStorageBufferBindingSize ?? Infinity);
 
+/** Bytes between two blocks of one uniform buffer bound at offsets: the device's alignment, never
+ *  under the 256 WebGPU guarantees. */
+export const uniformStride = (limits?: { minUniformBufferOffsetAlignment?: number }) =>
+  Math.max(256, limits?.minUniformBufferOffsetAlignment ?? 256);
+
 /** Why a pool does not make the requested size, or `null` when it does. */
 export type PoolClamp =
   'root-cover' | 'scene' | 'page-cap' | 'device-limit' | 'minimum' | 'ceiling' | null;
