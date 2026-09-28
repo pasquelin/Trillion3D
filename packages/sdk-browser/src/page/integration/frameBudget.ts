@@ -9,7 +9,8 @@
  * engine does its other work, then the WebGPU row records spend what is left
  * (`../../webgpu/row/claims.ts`). Texture tiles keep their own upload ceiling
  * (`../../webgpu/tile/streamer.ts`); the WebGPU residency queue opens one per turn of the event
- * loop and yields past it (`../../webgpu/residency/residentEnsurer.ts`).
+ * loop and yields past it, a bounded number per frame (`createSharePace`,
+ * `../../webgpu/residency/residentEnsurer.ts`).
  */
 export type FrameBudget = { admits(): boolean; spend(): void };
 /** A budget with its clock: the frame that owns it opens it. */
@@ -52,3 +53,55 @@ export const yieldToEventLoop = () =>
     };
     channel.port2.postMessage(0);
   });
+
+/** The longest a share waits for a frame: a visible page whose frames stop (an iframe scrolled
+ *  out of view) still loads, a share pair per wait. */
+const FRAME_WAIT_MS = 100;
+
+/** The page's frames: whether they come, and the next one. A hidden page has none. */
+const pageFrames = {
+  visible: () =>
+    typeof document !== 'undefined' &&
+    document.visibilityState === 'visible' &&
+    typeof requestAnimationFrame === 'function',
+  /** The next frame, or the page hidden meanwhile, where none would come, or `FRAME_WAIT_MS`. */
+  next: () =>
+    new Promise<void>((done) => {
+      const hidden = () => {
+        if (document.visibilityState === 'hidden') finish();
+      };
+      const finish = () => {
+        cancelAnimationFrame(id);
+        clearTimeout(late);
+        document.removeEventListener('visibilitychange', hidden);
+        done();
+      };
+      const id = requestAnimationFrame(finish),
+        late = setTimeout(finish, FRAME_WAIT_MS);
+      document.addEventListener('visibilitychange', hidden);
+    }),
+};
+
+/**
+ * Opens a budget's next share (#983): after a task yield, as long as fewer than `shares` opened
+ * since the last frame of a visible page; past them, at its next frame, so the shares cumulated
+ * between two frames stay bounded. A hidden page never waits for a frame: one share per task, as
+ * before, and it loads no slower.
+ */
+export function createSharePace(open: () => void, shares: number, frames = pageFrames) {
+  let opened = 0,
+    tick: Promise<void> | undefined;
+  const arm = () =>
+    (tick ??= frames.next().then(() => {
+      tick = undefined;
+      opened = 0;
+    }));
+  return async () => {
+    await (frames.visible() && opened >= shares ? arm() : yieldToEventLoop());
+    if (frames.visible()) {
+      void arm();
+      opened++;
+    }
+    open();
+  };
+}
