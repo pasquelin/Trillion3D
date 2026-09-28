@@ -64,16 +64,14 @@ fn walkLights(lane:u32,count:u32,hasOpaque:bool,seesSky:bool){
  }
 }${pool ? POOL_WGSL : ''}`;
 
-/** The view's pool: where it starts after the tile records, its room, the words reserved this
- *  frame and the overflow word, all four sampled by `./pool.ts`. */
+/** The view's pool after the tile records: start, room, words reserved, overflow (`./pool.ts`). */
 const POOL_WGSL = `
 struct TilePool{start:u32,capacity:u32,head:atomic<u32>,overflow:atomic<u32>,}
 @group(0) @binding(4) var<storage,read_write> pool:TilePool;
 /** The two true counts, which thread zero hands to every thread after the first walk. */
 var<workgroup> counted:vec2u;
-/** Thread zero, for a slice that counted \`total\` lights: past its list, room for all of them in
- *  the pool, its start named in the list's first word \`slot\` — or \`TILE_NO_SLICE\`, the pool's
- *  overflow raised, when the pool has no room left. A slice within its list writes nothing more. */
+/** Thread zero: a slice past its list takes room for its \`total\` lights and names its start in
+ *  its first word \`slot\` — \`TILE_NO_SLICE\` and the overflow raised when the pool is full. */
 fn spill(slice:u32,total:u32,slot:u32){
  room[slice]=0u;
  if(total<=TILE_LIGHTS){return;}
@@ -89,8 +87,7 @@ fn spill(slice:u32,total:u32,slot:u32){
 
 /** The second walk of a tile a slice of which passed its list; nothing for any other tile. */
 export const TILE_SPILL_WGSL = `
- // A slice past its list: room in the pool for every light it counted, then the same walk
- // writes them there, in the same order (#849).
+ // A slice past its list: room in the pool, then the same walk writes there (#849).
  let total=workgroupUniformLoad(&counted);
  if(max(total.x,total.y)>TILE_LIGHTS){
   // The first walk's list writes land before thread zero names the slices over them.
