@@ -43,9 +43,9 @@ fn liveCount()->u32{return min(atomicLoad(&work[liveCounter()]),views[0u].cluste
 fn liveAppend(entry:u32){
  let s=atomicAdd(&work[liveCounter()],1u);
  if(s>=views[0u].clusterCount){dropWork();return;}
- flags[liveBase()+s]=entry;
+ setFlag(liveBase()+s,entry);
  if((s&63u)==0u){openSlice(liveGroups(),s>>6u);}
  if(isLightCut()){atomicAdd(&work[viewWord(0u,vi)],1u);}
 }
-fn liveAt(s:u32)->u32{return flags[liveBase()+s];}
+fn liveAt(s:u32)->u32{return flagAt(liveBase()+s);}
 `;
