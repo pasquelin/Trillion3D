@@ -1,6 +1,7 @@
 //! Fields of a glTF light, read one by one and mapped into what the engine contract accepts.
 //! A missing, non-finite, or out-of-bounds field takes the default published in : the light
 //! remains on, it does not disappear because an exporter wrote an impossible number.
+use super::reach::{quantum_reach, MIN_RANGE};
 use super::*;
 use crate::shared_math::{divide, length};
 
@@ -29,20 +30,22 @@ pub(super) fn axis(m: &Mat4) -> Option<[f64; 3]> {
     }
     Some(divide(raw, norm))
 }
-/// Declared range, otherwise the one imposed by intensity: the distance where irradiance of the strongest
-/// channel drops below . Never infinite, never zero.
-pub(super) fn range_of(light: &Value, radiant: f64, colour: [f64; 3]) -> f64 {
-    if let Some(range) = light
+/// Declared range, otherwise the one imposed by intensity: the distance where irradiance of the
+/// strongest channel drops below `RANGE_CUTOFF_IRRADIANCE`. Either is then shortened as far as the
+/// display floor allows (`reach.rs`). Never infinite, never zero.
+pub(crate) fn range_of(light: &Value, radiant: f64, colour: [f64; 3]) -> f64 {
+    let peak = radiant * colour[0].max(colour[1]).max(colour[2]);
+    let range = match light
         .get("range")
         .and_then(Value::as_f64)
         .filter(|r| r.is_finite() && *r > 0.0)
     {
-        return range.min(MAX_RANGE);
-    }
-    let peak = radiant * colour[0].max(colour[1]).max(colour[2]);
-    (peak / RANGE_CUTOFF_IRRADIANCE)
-        .sqrt()
-        .clamp(1e-3, MAX_RANGE)
+        Some(range) => range.min(MAX_RANGE),
+        None => (peak / RANGE_CUTOFF_IRRADIANCE)
+            .sqrt()
+            .clamp(MIN_RANGE, MAX_RANGE),
+    };
+    quantum_reach(range, peak)
 }
 /// Spot cone half-angle, mapped into the open interval accepted by the contract.
 ///  has no equivalent: the engine softens the edge using its own published setting.

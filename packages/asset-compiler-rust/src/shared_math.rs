@@ -102,6 +102,14 @@ pub(crate) fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
     (length > 0.0 && length.is_finite()).then(|| scale(v, 1.0 / length))
 }
 
+/// The range window of a punctual light at `distance` from its centre: one there, zero at `range`
+/// and beyond. The engine's law (`rangeWindow` of `lightWgsl.ts` and `webgl/cluster/shaders.ts`),
+/// which the oracle traces and a light's reach is bounded against (`compiler_lights/reach.rs`).
+pub(crate) fn range_window(distance: f64, range: f64) -> f64 {
+    let ratio = distance / range;
+    (1.0 - ratio.powi(4)).clamp(0.0, 1.0).powi(2)
+}
+
 /// The golden-ratio step of SplitMix64 (Steele et al. 2014), between two draws.
 pub(crate) const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
 
