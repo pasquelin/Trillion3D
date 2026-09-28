@@ -15,6 +15,7 @@ import { drawnInstanced } from '../../placement/autonomousPlacements.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
+import { assertWithinBox, itemSize } from './pageData.ts';
 
 type GeometryEnvironment = {
   scene: Scene;
@@ -30,21 +31,6 @@ type GeometryEnvironment = {
 };
 
 const released = new WeakSet<object>();
-
-/** A decoded position may leave the page's box by the page's own quantization error, no more. */
-function assertWithinBox(data: DecodedGeometryPage, rec: PageRec) {
-  const positions = data.attributes.position,
-    slack = 1e-5 + data.quantizationError;
-  for (let i = 0; i < positions.length; i++) {
-    const axis = i % 3;
-    if (positions[i] < rec.min[axis] - slack || positions[i] > rec.max[axis] + slack)
-      throw new Error('AUTONOMOUS_PAGE_BOUNDS');
-  }
-}
-
-/** Components of a decoded attribute, by name; anything else is a UV pair. */
-const ITEM_SIZE: Record<string, number> = { position: 3, normal: 3, color: 4 };
-const itemSize = (name: string) => ITEM_SIZE[name] ?? 2;
 
 export function createAutonomousGeometry(env: GeometryEnvironment) {
   const { scene, allPages, byUrl, baseMaterials, colorMaterials } = env;
@@ -132,9 +118,15 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     for (const list of [allPages, env.bootstrap, ...env.views.lists()])
       for (let i = list.length - 1; i >= 0; i--) if (removed.has(list[i])) list.splice(i, 1);
   };
-  const storeGeometryPage = (url: string, data: DecodedGeometryPage) => {
+  /** The pages the host replaced, as it wrote them: a record that joins one later — a mount —
+   *  draws the host's page, never the cache's, and neither do the others then (#837). */
+  const replaced = new Map<string, DecodedGeometryPage>();
+  /** Stores `given`, or the host's page where it replaced this one; `host` replaces it. */
+  const storeGeometryPage = (url: string, given: DecodedGeometryPage, host = false) => {
     const recs = byUrl.get(url);
     if (!recs) return false;
+    if (host) replaced.set(url, given);
+    const data = replaced.get(url) ?? given;
     const descriptor = env.descriptors.get(url);
     if (
       !descriptor ||
@@ -194,6 +186,13 @@ export function createAutonomousGeometry(env: GeometryEnvironment) {
     },
     removeRecords,
     storeGeometryPage,
+    /** Records that joined pages the host replaced — a mount's — draw the host's pages. */
+    storeReplaced(urls: readonly string[]) {
+      for (const url of urls) {
+        const data = replaced.get(url);
+        if (data) storeGeometryPage(url, data);
+      }
+    },
     acceptGeometryPage,
   };
 }
