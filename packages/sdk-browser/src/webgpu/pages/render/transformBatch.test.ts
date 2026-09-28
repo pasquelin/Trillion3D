@@ -85,7 +85,7 @@ function assertBatch(a: World, b: World, c: World, disjoint: boolean, label: str
   sameState(a, b, label, true);
   const [x, y] = [split(a.log), split(b.log)];
   const last = (moves: string[]) =>
-    new Map(moves.map((m) => [JSON.parse(m)[0], m]).filter(([rank]) => !taken.has(rank)));
+    Object.fromEntries(moves.map((m) => [JSON.parse(m)[0], m]).filter(([r]) => !taken.has(r)));
   if (disjoint && !taken.size) {
     assert.deepEqual(x.boxes, y.boxes, `${label} motion`);
     assert.deepEqual(x.moves.sort(), y.moves.sort(), `${label} mobility`);
@@ -115,7 +115,7 @@ function drawBatch(draw: Draw, x: World, edited: number, maximal: boolean) {
   return Array.from({ length: 1 + Math.floor(draw() * 6) }, () =>
     draw() < 0.5 && below.length > 1
       ? pick(draw, below.slice(1))
-      : pick(draw, nodes.keys().toArray()),
+      : Math.floor(draw() * nodes.length),
   ).filter((at) => at >= 0);
 }
 
