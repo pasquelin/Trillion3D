@@ -28,6 +28,7 @@ const HANDED_IN = new Set([
   'gpu/core/shaderModule.ts',
   'gpu/raster/resolve.ts',
   'lighting/deferred/program.ts',
+  'lighting/deferred/compositions.ts',
 ]);
 
 test('the list holds the text of every call that compiles a module', () => {
