@@ -5,7 +5,9 @@
 
 use crate::{CompilerError, Result};
 /// The grid rules, shared with the run-time cut (`trillion3d_page_codec::bits::grid`).
-pub use trillion3d_page_codec::bits::grid::{finest_exponent, grid_exponent};
+pub use trillion3d_page_codec::bits::grid::{
+    finest_exponent, grid_exponent, primitive_grid_exponent,
+};
 use trillion3d_page_codec::bits::{bits_for, dequant, oct_decode, pow2, Quant, MAX_BITS};
 pub mod tile;
 
@@ -22,11 +24,8 @@ pub fn primitive_exponent(
     let extent = (0..3)
         .map(|axis| bounds[axis + 3] - bounds[axis])
         .fold(0.0, f64::max);
-    if blended && extent > 0.0 {
-        return finest_exponent(extent);
-    }
     let finest = errors.filter(|e| *e > 0.0).min_by(f64::total_cmp);
-    grid_exponent(extent, finest, tile_log2)
+    primitive_grid_exponent(extent, finest, blended, tile_log2)
 }
 
 /// Texture coordinates sit on a fixed grid of 2^-14: a quarter of a texel on a 4096 map.
