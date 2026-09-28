@@ -193,8 +193,7 @@ export function refreshBlendPlan(blendState: BlendState) {
   blendState.orders = [Uint32Array.from(blend), Uint32Array.from(transmission)];
   // The old runs describe the old orders: the next ranking slices the new ones whole.
   blendState.runCount.fill(0);
-  blendState.orderMoved[0] = true;
-  blendState.orderMoved[1] = true;
+  blendState.orderMoved[0] = blendState.orderMoved[1] = true;
   blendState.blendTriangles = blendTriangles;
   blendState.transmissionTriangles = transmissionTriangles;
   blendState.filtersDisplay = filters;
