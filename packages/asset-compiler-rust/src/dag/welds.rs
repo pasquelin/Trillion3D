@@ -3,7 +3,6 @@
 //! the extents of the parts — computed once, grown with every vertex a solved reduction places.
 use super::attributes::{seam_vertices, weld_exact};
 use super::charts::{vertex_charts, Chart};
-use super::clusters::{normalized_bits, position_key};
 use super::clusters::{weld_positions, weld_positions_and_uv};
 use super::grown::Placed;
 use super::{DagAttributes, GroupReductionInput};
@@ -28,18 +27,6 @@ pub(super) struct Columns {
     /// Its chart (`charts::vertex_charts`), a placed vertex its origin's; empty without a texture
     /// set.
     pub charts: Vec<Chart>,
-}
-impl Columns {
-    /// Appends `other`'s entries, `shift` renumbering the vertices they name.
-    pub fn extend(&mut self, other: Columns, shift: impl Fn(u32) -> u32) {
-        self.weld.extend(other.weld.into_iter().map(&shift));
-        self.weld_seam
-            .extend(other.weld_seam.into_iter().map(&shift));
-        self.exact.extend(other.exact.into_iter().map(&shift));
-        self.seams.extend(other.seams);
-        self.extents.extend(other.extents);
-        self.charts.extend(other.charts);
-    }
 }
 
 /// What every reduction of a primitive reads beside its level's locks, computed once.
@@ -112,23 +99,14 @@ impl<'a> Welds<'a> {
     /// Appends what the level's welds say of the vertices a solved reduction placed, `shift`
     /// renumbering them after those already placed at the level.
     pub fn extend(&mut self, placed: Placed, shift: impl Fn(u32) -> u32) {
-        self.columns.extend(placed.columns, shift);
+        let (to, from) = (&mut self.columns, placed.columns);
+        to.weld.extend(from.weld.into_iter().map(&shift));
+        to.weld_seam.extend(from.weld_seam.into_iter().map(&shift));
+        to.exact.extend(from.exact.into_iter().map(&shift));
+        to.seams.extend(from.seams);
+        to.extents.extend(from.extents);
+        to.charts.extend(from.charts);
     }
-}
-
-/// The bits of vertex `v`'s position and of its `width` floats of each of `attributes`: equal
-/// keys, one vertex to a page.
-pub(super) fn key<'v>(
-    positions: &[f32],
-    v: usize,
-    attributes: impl Iterator<Item = (&'v [f32], usize)>,
-) -> Vec<u32> {
-    let mut key = position_key(positions, v as u32).to_vec();
-    for (values, width) in attributes {
-        let copy = values.get(v * width..v * width + width).unwrap_or(&[]);
-        key.extend(copy.iter().map(|&x| normalized_bits(x)));
-    }
-    key
 }
 
 impl<'a> GroupReductionInput<'a> {

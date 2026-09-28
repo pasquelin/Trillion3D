@@ -1,7 +1,8 @@
 //! The primitive's vertex arrays as its DAG grows them: the source's, then, level by level,
 //! every vertex a solved reduction placed (`solved.rs`, `placed.rs`).
+use super::attributes::key;
 use super::placed::Local;
-use super::welds::{key, Columns, Welds};
+use super::welds::{Columns, Welds};
 use super::{DagAttributes, GroupReduction, GroupReductionInput};
 use crate::geometry_page::{Attribute as Carried, FLAG_UV, FLAG_UV1};
 use std::collections::HashMap;
@@ -49,14 +50,14 @@ impl Grown {
             *v = shift(*v);
         }
         let grown = grown.get_or_insert_with(|| Grown {
-            positions: with_room(positions),
+            positions: positions.to_vec(),
             carried: attributes
                 .carried
                 .iter()
                 .map(|&a| Carried {
                     flag: a.flag,
                     width: a.width,
-                    values: with_room(&a.values),
+                    values: a.values.clone(),
                 })
                 .collect(),
             origin: Vec::new(),
@@ -73,13 +74,6 @@ impl Grown {
         }
         welds.extend(placed, shift);
     }
-}
-
-/// A copy of `values` with room for the vertices the solve will place, copied once.
-fn with_room(values: &[f32]) -> Vec<f32> {
-    let mut copy = Vec::with_capacity(values.len() + values.len() / 8);
-    copy.extend_from_slice(values);
-    copy
 }
 
 /// The vertices one solved reduction placed, numbered from its level's vertex count, with every
@@ -132,17 +126,11 @@ impl Local<'_> {
         // Per placed vertex, the canonical vertex of what `by` keys: the source vertex it was
         // solved from where their keys agree, else the first placed vertex with its key.
         let canonical = |by: fn(u32) -> bool, of: &[u32]| -> Vec<u32> {
-            let own: Vec<(&[f32], usize)> = carried
-                .iter()
+            let (own, source): (Vec<(&[f32], usize)>, Vec<(&[f32], usize)>) = (carried.iter())
                 .zip(&values)
                 .filter(|(a, _)| by(a.flag))
-                .map(|(a, v)| (&v[..], a.width))
-                .collect();
-            let source: Vec<(&[f32], usize)> = carried
-                .iter()
-                .filter(|a| by(a.flag))
-                .map(|a| (&a.values[..], a.width))
-                .collect();
+                .map(|(a, v)| ((&v[..], a.width), (&a.values[..], a.width)))
+                .unzip();
             let mut seen: HashMap<Vec<u32>, u32> = HashMap::new();
             let mut out = Vec::with_capacity(origins.len());
             for (k, &g) in origins.iter().enumerate() {
