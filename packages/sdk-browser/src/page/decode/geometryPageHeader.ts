@@ -124,8 +124,7 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     (CLUSTER_HEADER_WORDS + at) * 4 !== data.byteLength
   )
     throw new Error('GEOMETRY_PAGE_BOUNDS');
-  // Every block keeps its corners inside the corner stream, its base below the vertex count and its
-  // width within an index's: the GPU reads them in place on this word.
+  // Each block's base, width and corners stay in bounds: the GPU reads the page in place on this.
   const table = Uint32Array.from({ length: cornerStream }, (_, i) =>
     head.getUint32((CLUSTER_HEADER_WORDS + i) * 4, true),
   );
