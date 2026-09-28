@@ -7,6 +7,7 @@ probe list.
 ## 1. Directory Tree
 
 <!-- tests-inventory:begin -->
+
 ```
 packages/sdk-core/src/       unit tests (*.test.ts), next to their source
 packages/sdk-browser/src/    unit tests (*.test.ts), next to their source
@@ -24,6 +25,7 @@ bench/oracles/               reference implementations, copied verbatim
 bench/runner/                the measurement harness (README)
 bench/witnesses/             the host-library witnesses, never published
 ```
+
 <!-- tests-inventory:end -->
 
 The tree is rendered by `node scripts/tests-inventory.ts --write`, and
@@ -55,7 +57,7 @@ The compiler's own tests stay in its crate (`packages/asset-compiler-rust/src/te
 touch; neither replaces `validate`. `check:changed` also type-checks (`tsc --noEmit`) every
 tracked `tsconfig*.json` project that owns a changed TypeScript file, by listing it or reaching it
 through an import (`scripts/ts-projects.ts`); a changed file no project reaches fails the gate,
-unless a project's `include` covers it and its `exclude` takes it back. A project that reads `trillion3d`
+unless a type-check-only (`noEmit`) project's `include` covers it and its `exclude` takes it back. A project that reads `trillion3d`
 from `dist/` (the site, the tools) is checked after `pnpm run build`, against current declarations.
 
 The CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as parallel jobs, one
