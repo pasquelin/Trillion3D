@@ -59,13 +59,11 @@ fn draco_reference_box_reaches_existing_accessors() {
         assert!(ids[0] != ids[1] && ids[1] != ids[2] && ids[2] != ids[0]);
     }
     assert_eq!(g["materials"], materials);
-    assert!(
-        !g["extensionsRequired"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|v| v == DRACO)
-    );
+    assert!(!g["extensionsRequired"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|v| v == DRACO));
 }
 #[test]
 fn draco_rejects_corruption_budget_and_cancellation() {
@@ -73,17 +71,15 @@ fn draco_rejects_corruption_budget_and_cancellation() {
     let (mut g, _) = box_source();
     assert!(draco_primitives(&mut g, Binary::Owned(vec![0; 120]), &budget(&cancelled)).is_err());
     let (mut g, bytes) = box_source();
-    assert!(
-        draco_primitives(
-            &mut g,
-            bytes,
-            &Budget {
-                limit: 1,
-                cancelled: &cancelled
-            }
-        )
-        .is_err()
-    );
+    assert!(draco_primitives(
+        &mut g,
+        bytes,
+        &Budget {
+            limit: 1,
+            cancelled: &cancelled
+        }
+    )
+    .is_err());
     cancelled.store(true, Ordering::Relaxed);
     let (mut g, bytes) = box_source();
     assert!(draco_primitives(&mut g, bytes, &budget(&cancelled)).is_err());
