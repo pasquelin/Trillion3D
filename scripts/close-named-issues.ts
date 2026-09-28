@@ -12,7 +12,7 @@ const CLOSING = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):?\s+#(\d+)\b/gi;
 export function prose(body: string): string {
   return body
     .replace(/<!--[\s\S]*?-->/g, '')
-    .replace(/^(```|~~~)[\s\S]*?^\1/gm, '')
+    .replace(/^[^\S\n]*(`{3,}|~{3,})[\s\S]*?^[^\S\n]*\1/gm, '')
     .replace(/`[^`\n]*`/g, '');
 }
 
@@ -49,8 +49,9 @@ async function main(): Promise<void> {
         );
         continue;
       }
-      await api(`${issue}/comments`, 'POST', { body: `Closed by ${url} (merged into develop).` });
+      // Closed first: a failed comment never leaves it open, a re-run never comments twice.
       await api(`${issue}`, 'PATCH', { state: 'closed', state_reason: 'completed' });
+      await api(`${issue}/comments`, 'POST', { body: `Closed by ${url} (merged into develop).` });
       console.log(`#${issue}: closed.`);
     } catch (error) {
       console.error(`#${issue}: ${error instanceof Error ? error.message : String(error)}`);
