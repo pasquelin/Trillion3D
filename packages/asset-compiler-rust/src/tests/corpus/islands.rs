@@ -15,10 +15,10 @@ use std::collections::HashMap;
 pub(super) fn check_islands(case: &Case, indices: &[u32], built: &Built, label: &str) {
     let source = case.vertex_count();
     let origin = |v: u32| match (v as usize).checked_sub(source) {
-        Some(placed) => built.grown.as_ref().expect("grown").origin[placed],
+        Some(placed) => built.origin[placed],
         None => v,
     };
-    let positions = built.positions(case);
+    let positions = &built.positions;
     for (name, uvs) in case.uv_sets() {
         let island = islands(&case.positions, uvs, indices);
         for cluster in built.dag.iter().filter(|c| c.level > 0) {

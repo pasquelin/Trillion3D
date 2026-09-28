@@ -1,15 +1,19 @@
 use super::*;
 
-/// Clusters, kept groups, one tally per level, the stalled groups with their level, and the
-/// vertex arrays grown with every vertex a solved reduction placed (`None` when none did: the
-/// source's then serve).
-pub type DagBuild = (
-    Vec<DagCluster>,
-    Vec<DagGroup>,
-    Vec<GroupTally>,
-    Vec<DagStall>,
-    Option<Grown>,
-);
+/// What building a primitive's DAG yields.
+#[derive(Debug)]
+pub struct DagBuild {
+    pub clusters: Vec<DagCluster>,
+    /// The groups kept.
+    pub groups: Vec<DagGroup>,
+    /// One per level.
+    pub tallies: Vec<GroupTally>,
+    /// The stalled groups with their level, in level order.
+    pub stalls: Vec<DagStall>,
+    /// The vertex arrays grown with every vertex a solved reduction placed; `None` when none did:
+    /// the source's then serve.
+    pub grown: Option<Grown>,
+}
 
 /// Builds cluster DAG. `strategy` decides whether coarse levels exist: in
 /// `ExactClusters` build yields level zero alone, without group or reduction, so
@@ -18,9 +22,8 @@ pub type DagBuild = (
 /// `attributes` — the normals and every texture set the pages carry — count in the reduction
 /// error; a position written under several texture coordinates is a seam no collapse crosses.
 ///
-/// Returns the clusters, the groups kept, one tally per level and every stalled group with its
-/// level, in level order. Cluster indices from the source's vertex count on name the vertices a
-/// seam-locked group's solve placed (`solved.rs`), in the grown arrays returned last.
+/// Cluster indices from the source's vertex count on name the vertices a seam-locked group's
+/// solve placed (`solved.rs`), in the grown arrays (`DagBuild::grown`).
 pub fn build_dag_tallied(
     positions: &[f32],
     attributes: DagAttributes,
@@ -33,13 +36,18 @@ pub fn build_dag_tallied(
     if attributes.uv_sets().len() > 2 {
         return Err(invalid("a page carries at most two texture sets"));
     }
-    let mut dag = level_zero(positions, indices)?;
-    let mut tallies: Vec<GroupTally> = Vec::new();
-    let mut stalls: Vec<DagStall> = Vec::new();
-    let mut reductions_kept: Vec<DagGroup> = Vec::new();
+    let mut build = DagBuild {
+        clusters: level_zero(positions, indices)?,
+        groups: Vec::new(),
+        tallies: Vec::new(),
+        stalls: Vec::new(),
+        grown: None,
+    };
+    let (dag, stalls) = (&mut build.clusters, &mut build.stalls);
+    let (tallies, reductions_kept) = (&mut build.tallies, &mut build.groups);
     // Welding is only used for reduction: nothing to weld for exact clusters or for a primitive fitting in a single cluster.
     if strategy == DagStrategy::ExactClusters || dag.len() < 2 {
-        return Ok((dag, reductions_kept, tallies, stalls, None));
+        return Ok(build);
     }
     let mut welds = {
         let _t = Timer::new(Phase::Weld);
@@ -47,9 +55,9 @@ pub fn build_dag_tallied(
     };
     // Per cluster, the worst normal deviation of the source triangles it descends from: a group's
     // reduction is held to the bound of its own descendants (`quality::deviation_bound`).
-    let mut descent = quality::cluster_deviations(&dag, positions, attributes.normals());
+    let mut descent = quality::cluster_deviations(dag, positions, attributes.normals());
     let mut current: Vec<usize> = (0..dag.len()).collect();
-    let mut grown: Option<Grown> = None;
+    let grown = &mut build.grown;
     for level in 1..=DAG_MAX_LEVELS {
         checkpoint()?;
         if current.len() < 2 {
@@ -85,30 +93,27 @@ pub fn build_dag_tallied(
             .iter()
             .map(|g| g.iter().map(|&s| descent[current[s]]).fold(0.0, f64::max))
             .collect();
-        // The level reads the vertices placed so far; placing its own waits for every reduction.
-        let (level_positions, carried) = Grown::arrays(&grown, positions, attributes);
-        let base = (level_positions.len() / 3) as u32;
-        let level_attributes = DagAttributes { carried: &carried };
-        let weighted = level_attributes.weighted();
-        let reductions: Vec<std::result::Result<GroupReduction, GroupOutcome>> = groups
-            .par_iter()
-            .zip(&worst)
-            .map(
-                |(group, &worst)| -> Result<std::result::Result<GroupReduction, GroupOutcome>> {
-                    checkpoint()?;
-                    let children: Vec<&DagCluster> =
-                        group.iter().map(|&slot| &dag[current[slot]]).collect();
-                    let bound = quality::deviation_bound(worst);
-                    let input =
-                        welds.input(level_positions, level_attributes, &weighted, &locks, bound);
-                    reduce_group(&input, &children)
-                },
-            )
-            .collect::<Result<Vec<_>>>()?;
+        // The level reads the vertices placed so far, borrowed from `grown` for its reductions
+        // alone: placing its own waits for every one of them.
+        let (base, reductions) = {
+            let (level_positions, carried) = Grown::arrays(grown, positions, attributes);
+            let level_attributes = DagAttributes { carried: &carried };
+            let weighted = level_attributes.weighted();
+            let reduce = |(group, &worst): (&Vec<usize>, &f64)| {
+                checkpoint()?;
+                let children: Vec<&DagCluster> =
+                    group.iter().map(|&slot| &dag[current[slot]]).collect();
+                let bound = quality::deviation_bound(worst);
+                let input =
+                    welds.input(level_positions, level_attributes, &weighted, &locks, bound);
+                reduce_group(&input, &children)
+            };
+            let reductions = groups.par_iter().zip(&worst).map(reduce);
+            let reductions = reductions.collect::<Result<Vec<_>>>()?;
+            ((level_positions.len() / 3) as u32, reductions)
+        };
         let mut next = Vec::new();
         let mut tally = GroupTally::default();
-        drop(weighted);
-        drop(carried);
         for ((group, reduction), &worst) in groups.iter().zip(reductions).zip(&worst) {
             let mut reduction = match reduction {
                 Ok(reduction) => {
@@ -124,7 +129,7 @@ pub fn build_dag_tallied(
                 }
             };
             Grown::place(
-                &mut grown,
+                grown,
                 positions,
                 attributes,
                 &mut welds,
@@ -178,5 +183,5 @@ pub fn build_dag_tallied(
             break;
         }
     }
-    Ok((dag, reductions_kept, tallies, stalls, grown))
+    Ok(build)
 }
