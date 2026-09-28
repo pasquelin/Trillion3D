@@ -8,7 +8,8 @@ import assert from 'node:assert/strict';
 import { invertMatrix4, multiplyMatrix4 } from '../../../../../sdk-core/src/index.ts';
 import { setWebgpuTransform, setWebgpuTransforms } from './transform.ts';
 import * as G from '../../../host/graph/graph.fixture.ts';
-import { findNode, rootsUnder } from './movedNode.ts';
+import { appendRootsUnder, findNode } from './movedNode.ts';
+import { HOSTILE_FLOATS } from '../../../../../../tests/kit/assert/hostile.ts';
 import { hostWorldChainInto } from '../../../host/world/chain.ts';
 import { pick, seeded, type Draw } from '../../../host/world/randomTree.fixture.ts';
 import {
@@ -16,6 +17,7 @@ import {
   edit,
   isAncestor,
   sameBits,
+  takeFinalRows,
   world,
   worldPose,
   type World,
@@ -75,8 +77,10 @@ function split(log: unknown[]) {
 }
 
 /** Batch against one by one. Disjoint nodes declare the same motion; overlapping ones, where a
- *  root moves twice one by one, leave the same last pose per root. */
-function assertBatch(a: World, b: World, disjoint: boolean, label: string) {
+ *  root moves twice one by one, leave the same last pose per root. Roots moved through a link the
+ *  host has since cut are taken at their final row first (`takeFinalRows`). */
+function assertBatch(a: World, b: World, c: World, disjoint: boolean, label: string) {
+  const taken = takeFinalRows(a, b, [c]);
   sameBits(a.rows.pageTableFloats, b.rows.pageTableFloats, `${label} rows`);
   sameBits(a.rows.dirty, b.rows.dirty, `${label} dirty`);
   a.roots.forEach((root, i) => sameBits(root.worldBox!, b.roots[i].worldBox!, `${label} box`));
@@ -88,14 +92,19 @@ function assertBatch(a: World, b: World, disjoint: boolean, label: string) {
     ),
   );
   const [x, y] = [split(a.log), split(b.log)];
-  if (disjoint) {
+  const last = (moves: string[]) =>
+    new Map(moves.map((m) => [JSON.parse(m)[0], m]).filter(([rank]) => !taken.has(rank)));
+  if (disjoint && !taken.size) {
     assert.deepEqual(x.boxes, y.boxes, `${label} motion`);
     assert.deepEqual(x.moves.sort(), y.moves.sort(), `${label} mobility`);
   } else {
-    const last = (moves: string[]) => new Map(moves.map((m) => [JSON.parse(m)[0], m]));
     assert.deepEqual(last(x.moves), last(y.moves), `${label} mobility`);
     // A root under two moved nodes moves once, and its first move still stales the static layer.
-    assert.equal(x.moves.length, last(x.moves).size, `${label} one move per root`);
+    assert.equal(
+      x.moves.length,
+      new Set(x.moves.map((m) => JSON.parse(m)[0])).size,
+      `${label} one move per root`,
+    );
     const whole = (boxes: unknown[]) =>
       boxes.some((box) => !(box as { movingOnly: boolean }).movingOnly);
     if (whole(y.boxes)) assert.ok(whole(x.boxes), `${label} static layer`);
@@ -103,56 +112,86 @@ function assertBatch(a: World, b: World, disjoint: boolean, label: string) {
   a.log.length = 0;
 }
 
-/** Up to six node ranks, half of them below the node last edited: a pose the host set above them. */
-function drawBatch(draw: Draw, nodes: readonly Object3D[], edited: number) {
+/** Up to six node ranks, half of them below the node last edited: a pose the host set above them;
+ *  now and then none, or — `maximal` — every node the prepared scene holds. */
+function drawBatch(draw: Draw, x: World, edited: number, maximal: boolean) {
+  const { nodes, source } = x,
+    roll = draw();
+  if (roll < 0.02) return [];
+  if (maximal && roll > 0.998)
+    return nodes.flatMap((node, i) => (isAncestor(source, node) ? [i] : []));
   const rank = new Map(nodes.map((node, i) => [node, i])),
     below: number[] = [];
   nodes[edited].traverse((node) => void below.push(rank.get(node) ?? -1));
-  const count = 1 + Math.floor(draw() * 6);
-  return Array.from({ length: count }, () =>
+  return Array.from({ length: 1 + Math.floor(draw() * 6) }, () =>
     draw() < 0.5 && below.length > 1
       ? pick(draw, below.slice(1))
-      : Math.floor(draw() * nodes.length),
+      : pick(draw, nodes.keys().toArray()),
   ).filter((at) => at >= 0);
+}
+
+/** A world pose; one in twenty carries a hostile number (NaN, ±0, ±Inf, a subnormal). */
+function drawPose(draw: Draw) {
+  const pose = worldPose(draw);
+  if (draw() < 0.05) pose[Math.floor(draw() * 16)] = pick(draw, HOSTILE_FLOATS);
+  return pose;
+}
+
+/** `steps` random edits and batches on three twins; returns the poses requested. */
+async function twinRun(seed: number, lot: boolean, steps: number, maximal = false) {
+  const twins = [
+    await world(seed, lot, false),
+    await world(seed, lot, false),
+    await world(seed, lot, true),
+  ];
+  const [a, b, c] = twins,
+    draw = seeded(seed * 104729 + (lot ? 1 : 0));
+  let edited = 0,
+    requested = 0;
+  for (let step = 0; step < steps; step++) {
+    const label = `seed ${seed} step ${step}`;
+    if (draw() < 0.4) edited = edit(draw, Math.floor(draw() * 8) % 6, twins);
+    const at = drawBatch(draw, a, edited, maximal),
+      poses = at.map(() => drawPose(draw)),
+      matrices = new Float32Array(at.length * 16);
+    requested += at.length;
+    poses.forEach((pose, k) => matrices.set(pose, k * 16));
+    const disjoint = at.every((p, i) =>
+      at.every((q, j) => i === j || !isAncestor(a.nodes[p], a.nodes[q])),
+    );
+    const handles = at.map((rank) => a.nodes[rank]);
+    // Identity alone: a failing message would print the whole graph.
+    const name = handles[0]?.name ?? '',
+      named = G.byName(a.source, name);
+    assert.ok(findNode(a.source, name) === named, `${label}: ${name} is not the walk's`);
+    if (named) {
+      const out: number[] = [];
+      out.length = appendRootsUnder(a.roots, named, out, 0);
+      assert.deepEqual(
+        out.sort((p, q) => p - q),
+        climbUnder(a.roots, named),
+        label,
+      );
+    }
+    const code = refused(() => setWebgpuTransforms(a.rt, handles, matrices));
+    assert.equal(code, oneByOne(b, at, poses, label), label);
+    assert.equal(code, oneByOne(c, at, poses, label), label);
+    assertBatch(a, b, c, disjoint, label);
+    assertSame(b, c, label, false);
+    if (draw() < 0.2) {
+      for (const x of twins) x.image();
+      assertBatch(a, b, c, true, `${label} image`);
+      assertSame(b, c, `${label} image`, true);
+    }
+  }
+  return requested;
 }
 
 for (const lot of [false, true])
   test(`moves by handle in a batch: the bits of the same moves one by one — ${lot ? 'box lot' : 'box by box'}`, async () => {
-    for (let seed = 1; seed <= 3; seed++) {
-      const twins = [
-        await world(seed, lot, false),
-        await world(seed, lot, false),
-        await world(seed, lot, true),
-      ];
-      const [a, b, c] = twins,
-        draw = seeded(seed * 104729 + (lot ? 1 : 0));
-      let edited = 0;
-      for (let step = 0; step < 200; step++) {
-        const label = `seed ${seed} step ${step}`;
-        if (draw() < 0.4) edited = edit(draw, Math.floor(draw() * 8) % 6, twins);
-        const at = drawBatch(draw, a.nodes, edited),
-          poses = at.map(() => worldPose(draw)),
-          matrices = new Float32Array(at.length * 16);
-        poses.forEach((pose, k) => matrices.set(pose, k * 16));
-        const disjoint = at.every((p, i) =>
-          at.every((q, j) => i === j || !isAncestor(a.nodes[p], a.nodes[q])),
-        );
-        const handles = at.map((rank) => a.nodes[rank]);
-        // Identity alone: a failing message would print the whole graph.
-        const name = handles[0]?.name ?? '',
-          named = G.byName(a.source, name);
-        assert.ok(findNode(a.source, name) === named, `${label}: ${name} is not the walk's`);
-        if (named) assert.deepEqual(rootsUnder(a.roots, named, []), climbUnder(a.roots, named));
-        const code = refused(() => setWebgpuTransforms(a.rt, handles, matrices));
-        assert.equal(code, oneByOne(b, at, poses, label), label);
-        assert.equal(code, oneByOne(c, at, poses, label), label);
-        assertBatch(a, b, disjoint, label);
-        assertSame(b, c, label, false);
-        if (draw() < 0.2) {
-          for (const x of twins) x.image();
-          assertBatch(a, b, true, `${label} image`);
-          assertSame(b, c, `${label} image`, true);
-        }
-      }
-    }
+    for (let seed = 1; seed <= 3; seed++) await twinRun(seed, lot, 200);
   });
+
+test('one long seeded run: over ten thousand poses, hostile, empty and maximal batches', async () => {
+  assert.ok((await twinRun(7, false, 2500, true)) >= 10_000);
+});
