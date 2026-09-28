@@ -1,7 +1,11 @@
 use super::*;
+mod visibility;
+pub(crate) use visibility::{declared_hidden, hidden_nodes};
 
 pub(super) struct NodeSelection {
     pub chosen: BTreeSet<usize>,
+    /// The chosen nodes no hidden node hides (`visibility.rs`): what the drawn scene derives from.
+    pub shown: BTreeSet<usize>,
     pub selected_triangles: usize,
     pub skinned_meshes: BTreeSet<usize>,
     pub meshes: BTreeSet<usize>,
@@ -178,8 +182,10 @@ pub(super) fn select_nodes(
         .enumerate()
         .map(|(new, old)| (*old, new))
         .collect();
+    let shown = chosen.difference(&hidden_nodes(g)?).copied().collect();
     Ok(NodeSelection {
         chosen,
+        shown,
         selected_triangles,
         skinned_meshes,
         meshes,

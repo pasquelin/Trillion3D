@@ -7,7 +7,7 @@ use super::hull::{cooked_hull, Hull};
 use super::pieces::declared_breakable;
 use super::stage::{place, trs};
 use super::{refused, PHYSICS_COOK_FAILED};
-use crate::compiler_nodes::scene_nodes;
+use crate::compiler_nodes::{hidden_nodes, scene_nodes};
 use crate::compiler_validate::values;
 use crate::compiler_world::{multiply, rotation_matrix, scaling, translation, Mat4};
 use crate::{Options, Result};
@@ -124,7 +124,7 @@ fn body(
 /// The rigid bodies the rendered scene's nodes but `soft` declare, placed by their `world`
 /// matrices: their `physics.json` entries, and the report's refusals (`node`, `reason`). A node
 /// declaring no motion is no body; one that draws nothing is a body all the same, one whose mesh
-/// the slice left out (`chosen`) none.
+/// the slice left out or a hidden node hides (`chosen`) none.
 pub(super) fn declared_bodies(
     o: &Options,
     source: (&Value, &[u8]),
@@ -135,8 +135,11 @@ pub(super) fn declared_bodies(
     let (mut bodies, mut refusals, mut cooked) = (Vec::new(), Vec::new(), BTreeMap::new());
     let moving = |i: &&usize| nodes[**i].pointer("/extensions/KHR_physics_rigid_bodies/motion");
     let drawn = |i: &&usize| nodes[**i].get("mesh").is_none() || chosen.contains(*i);
+    // A hidden node is none, drawn or not (`chosen` holds none).
+    let hidden = hidden_nodes(source.0)?;
     for &index in scene_nodes(source.0)?
         .difference(soft)
+        .filter(|i| !hidden.contains(i))
         .filter(|i| moving(i).is_some() && drawn(i))
     {
         match body(o, source, nodes, (index, world), &mut cooked) {
