@@ -1129,6 +1129,14 @@ never passes `geometryPool` above that floor. Two writes before the next frame
 settle in one rebalance. The engine keeps what fits: pages and tiles are copied on the GPU into the
 new pool and only what no longer fits is evicted, so the image stays complete throughout.
 
+The public low-level `createGpuPageCache` owns its pin priorities. Use `cache.pin(key, 'held')`
+for the root cover and `cache.pin(key)` (or `'pinned'`) for ordinary pins. `cache.resize(slots)`
+keeps held pages first, then ordinary pins, then unpinned pages, with the newest pages first
+within each tier. Replace the former `resize(slots, held)` call by pinning those pages as
+`'held'`; `cache.load(key, signal, 'held')` pins a page in the cache's own queue as it arrives, so a
+resize queued behind the load never ranks it as unpinned. Ordinary repinning does not lower a held page's priority;
+`cache.unpin(key)` releases both its pin and its held tier.
+
 What a view asks beyond a pool is shown **coarser**, never refused: on WebGPU and WebGL2 alike the
 pages that do not fit stay out and their surface is drawn by its nearest resident ancestor, the
 finest detail given up first, and a texture tile shows its coarser level. The frame metrics say so
