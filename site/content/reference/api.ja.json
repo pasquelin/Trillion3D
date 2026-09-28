@@ -965,6 +965,7 @@
       "UNSUPPORTED_SCENE_UPDATE": "この描画経路は、シーンに対するその変更を行えない。",
       "BATCHED_WORLD_VIEW": "この描画経路は、シーンに対するその変更を行えない。",
       "RAYCAST_NO_VIEW": "サイズのない canvas に画像の点を求めました: 狙いをつける画像がありません。",
+      "SURFACE_CAPTURE_UNSUPPORTED": "マテリアルの表面を専用のビューに描けない描画経路に、表面キャプチャ（`captureSurfaceView`）が求められました。WebGL2 経路にはそれがありません。",
       "VERTICES_NOT_LOADED": "読み込んだモデルの頂点が `await geometry.loadVertices()` より前に読まれました。セッションは頂点を最初に必要になったときに読み、事前には読みません。",
       "SESSION_OPEN_FAILED": "ワールドのセッションを開けませんでした。専用のコードを持たない理由によるものです（`world.diagnostic.error`）。スローされたエラーは `details.cause` にあります。",
       "WEBGPU_LOST": "WebGPU がデバイスを失ったか、デバイス上のエラーによって何も描画できない状態になりました。`render`、`flush`、およびデバイスを必要とする読み取りがスローし、診断 `gpu-device-lost` がこの名前で報告し、そのためにセッションを開けなかったときは `world.diagnostic.error` に現れます。",
