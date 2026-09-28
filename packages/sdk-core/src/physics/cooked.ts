@@ -5,9 +5,8 @@ import type { PhysicsOption } from './options.ts';
  * `physics.json`, the physics a compiled model carries (stage `physics-cook` of the native
  * compiler, `packages/asset-compiler-rust/src/physics_cook/`). Its version is its own; the shapes it
  * names are Jolt binary state, readable only by the Jolt that wrote them: the file names that
- * commit, and a reader refuses another.
+ * commit, and a reader refuses another. Formats 2 and 3 are read; 3's pieces wait unused.
  */
-/** The formats read: 2, and 3, whose breakable bodies carry pieces, unused until they break. */
 const PHYSICS_FORMAT_VERSIONS: readonly unknown[] = [2, 3];
 /** The Jolt commit the engine's physics module is built from: the pin of the submodule
  *  `packages/physics-jolt-wasm/JoltPhysics`, which the compiler's cook reads (`build.rs`). A test

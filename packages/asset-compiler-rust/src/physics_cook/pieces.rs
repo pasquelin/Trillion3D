@@ -76,7 +76,7 @@ pub(super) fn pieces(
             break;
         }
     }
-    // Weighed before Jolt cooks and stores any: a refused body leaves no object behind.
+    // Weighed before Jolt cooks and stores any: a mesh refused as concave stores no object.
     let weighed: Vec<(Vec<f32>, Value)> = cells(&seeds, (low, high), &planes, eps / 10.0)
         .par_iter()
         .map(|faces| {
