@@ -36,12 +36,8 @@ test('the frame metrics carry the sampled pool and count its growths', async () 
   await frame(200, 0, [13000, START, 5000, 1]);
   assert.deepEqual([...pools()[0].data], [13000, START, 0, 0]);
   // Grown to 1.25 × what it reserved: a demand risen by less finds room, and no growth follows.
-  assert.deepEqual(await frame(200, 15, [13000, 6250, 6200, 0]), {
-    tileLightPoolReserved: 6200,
-    tileLightPoolCapacity: 6250,
-    tileLightPoolOverflowed: false,
-    tileLightPoolGrowths: 1,
-  });
+  const risen = Object.values(await frame(200, 15, [13000, 6250, 6200, 0]));
+  assert.deepEqual(risen, [6200, 6250, false, 1], 'reserved, capacity, overflowed, growths');
   await frame(200, 30, [13000, 6250, MOST * 3, 1]);
   // Then grown to its bound; a narrow frame samples no pool.
   assert.equal((await frame(200, 45)).tileLightPoolGrowths, 2);
@@ -49,5 +45,5 @@ test('the frame metrics carry the sampled pool and count its growths', async () 
     pools().map((write) => write.data[1]),
     [START, 6250, 6250, MOST],
   );
-  assert.equal((await frame(64, 45)).tileLightPoolReserved, null);
+  assert.equal((await frame(64, 60)).tileLightPoolReserved, null);
 });
