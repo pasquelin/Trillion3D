@@ -1,6 +1,7 @@
 //! The vertex attributes a reduction answers for: normals and texture sets count in the
 //! simplification error, texture seams are protected, and a coarse corner keeps the normal of
 //! its own face.
+use super::clusters::{normalized_bits, position_key, weld_by};
 use super::quality::{face_normal, unit_normal};
 use crate::geometry_page::{Attribute as Carried, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 use crate::qem::Attribute;
@@ -44,20 +45,50 @@ impl<'a> DagAttributes<'a> {
     }
     /// The attributes the simplifier weighs, normals first.
     pub(super) fn weighted(&self) -> Vec<Attribute<'a>> {
-        let weigh = |a: &'a Carried| match a.flag {
-            FLAG_NORMAL => Attribute {
-                values: &a.values,
-                width: 3,
-                weight: NORMAL_WEIGHT,
-            },
-            _ => Attribute {
-                values: &a.values,
-                width: 2,
-                weight: UV_WEIGHT,
-            },
-        };
-        self.weighed().into_iter().map(weigh).collect()
+        let normals = self.normals().map(|values| Attribute {
+            values,
+            width: 3,
+            weight: NORMAL_WEIGHT,
+        });
+        let uvs = self.uv_sets().into_iter().map(|values| Attribute {
+            values,
+            width: 2,
+            weight: UV_WEIGHT,
+        });
+        normals.into_iter().chain(uvs).collect()
     }
+}
+
+/// Canonical vertex per position and every carried attribute: copies a page cannot tell apart are
+/// one vertex, so an unindexed mesh reduces as the indexed one it draws the same as. Nothing is
+/// lost: coarse levels point at a copy identical in everything the page stores.
+pub fn weld_exact(positions: &[f32], carried: &[&Carried], indices: &[u32]) -> Vec<u32> {
+    weld_by(positions.len() / 3, indices, |id| {
+        let mut key = position_key(positions, id).to_vec();
+        for attribute in carried {
+            let i = id as usize * attribute.width;
+            let copy = attribute.values.get(i..i + attribute.width).unwrap_or(&[]);
+            key.extend(copy.iter().map(|&v| normalized_bits(v)));
+        }
+        key
+    })
+}
+
+/// Per source vertex, whether its position is written under several texture coordinates: a seam
+/// vertex, which permissive simplification must not merge across. `weld` is by position,
+/// `weld_seam` by position and every texture set.
+pub fn seam_vertices(weld: &[u32], weld_seam: &[u32], indices: &[u32]) -> Vec<bool> {
+    let mut first = vec![u32::MAX; weld.len()];
+    let mut seam = vec![false; weld.len()];
+    for &v in indices {
+        let (position, copy) = (weld[v as usize] as usize, weld_seam[v as usize]);
+        if first[position] == u32::MAX {
+            first[position] = copy;
+        } else if first[position] != copy {
+            seam[position] = true;
+        }
+    }
+    (0..weld.len()).map(|v| seam[weld[v] as usize]).collect()
 }
 
 /// Points every corner of `simplified` at the copy of its position and texture coordinates, among

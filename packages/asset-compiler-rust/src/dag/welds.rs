@@ -1,12 +1,12 @@
 //! What every reduction of a primitive reads beside its level's locks: the welds by position, by
 //! position and texture coordinates and by everything a page stores, the seams, the charts and
 //! the extents of the parts — computed once, grown with every vertex a solved reduction places.
+use super::attributes::{seam_vertices, weld_exact};
 use super::charts::{vertex_charts, Chart};
-use super::clusters::{normalized_bits, position_key, weld_by};
+use super::clusters::{normalized_bits, position_key};
 use super::clusters::{weld_positions, weld_positions_and_uv};
 use super::grown::Placed;
 use super::{DagAttributes, GroupReductionInput};
-use crate::geometry_page::Attribute as Carried;
 use crate::qem::Attribute;
 use std::sync::OnceLock;
 
@@ -133,36 +133,6 @@ impl Charts<'_> {
         let find = || vertex_charts(&weld[..n], &weld_seam[..n], uv_sets, indices);
         self.found.get_or_init(find)
     }
-}
-
-/// Per source vertex, whether its position is written under several texture coordinates: a seam
-/// vertex, which permissive simplification must not merge across. `weld` is by position,
-/// `weld_seam` by position and every texture set.
-pub fn seam_vertices(weld: &[u32], weld_seam: &[u32], indices: &[u32]) -> Vec<bool> {
-    let mut first = vec![u32::MAX; weld.len()];
-    let mut seam = vec![false; weld.len()];
-    for &v in indices {
-        let (position, copy) = (weld[v as usize] as usize, weld_seam[v as usize]);
-        if first[position] == u32::MAX {
-            first[position] = copy;
-        } else if first[position] != copy {
-            seam[position] = true;
-        }
-    }
-    (0..weld.len()).map(|v| seam[weld[v] as usize]).collect()
-}
-
-/// Canonical vertex per position and every carried attribute: copies a page cannot tell apart are
-/// one vertex, so an unindexed mesh reduces as the indexed one it draws the same as. Nothing is
-/// lost: coarse levels point at a copy identical in everything the page stores.
-pub fn weld_exact(positions: &[f32], carried: &[&Carried], indices: &[u32]) -> Vec<u32> {
-    weld_by(positions.len() / 3, indices, |id| {
-        key(
-            positions,
-            id as usize,
-            carried.iter().map(|a| (&a.values[..], a.width)),
-        )
-    })
 }
 
 /// The bits of vertex `v`'s position and of its `width` floats of each of `attributes`: equal

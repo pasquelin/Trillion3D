@@ -8,7 +8,7 @@ fn seam_vertices_marks_every_copy_of_a_seam_position() {
     // Vertices 0 and 3 share a position under two texture coordinates; 1 and 4 under one.
     let weld = [0u32, 1, 2, 0, 1];
     let weld_seam = [0u32, 1, 2, 3, 1];
-    let seams = welds::seam_vertices(&weld, &weld_seam, &[0, 1, 2, 3, 4, 2]);
+    let seams = attributes::seam_vertices(&weld, &weld_seam, &[0, 1, 2, 3, 4, 2]);
     assert_eq!(seams, vec![true, false, false, true, false]);
 }
 
@@ -27,7 +27,7 @@ fn weld_exact_joins_only_copies_a_page_cannot_tell_apart() {
         width: 4,
         values: vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.5, 0.5, 0.5, 1.0],
     };
-    let exact = welds::weld_exact(&positions, &[&normals, &colors], &[0, 1, 2]);
+    let exact = attributes::weld_exact(&positions, &[&normals, &colors], &[0, 1, 2]);
     assert_eq!(exact, vec![0, 0, 2]);
 }
 
