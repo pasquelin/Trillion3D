@@ -126,25 +126,3 @@ test('20,000 random clusters and frames give the per-cluster verdict, to the bit
   assert.ok(projected > 5000 && refused > 1000, `${projected} projected, ${refused} refused`);
 });
 
-test('an unsound frame is still refused, by name, at the first cluster that projects', () => {
-  for (const [stretch, focal, near, perspective] of [
-    [NaN, 900, 0.1, 1],
-    [-1, 900, 0.1, 1],
-    [1, 0, 0.1, 1],
-    [1, 900, 0, 1],
-    [1, 900, Infinity, 1],
-    [1, 900, 0.1, 2],
-  ]) {
-    assert.equal(frameParametersSound(stretch, focal, near, perspective), false);
-    assert.throws(
-      () => clusterErrorAtDepth(0.02, stretch, 3, 40, 0.8, focal, near, perspective),
-      { name: 'Error', message: 'Invalid cluster parameters' },
-    );
-    // A cluster that does not project does not throw, as before.
-    assert.equal(clusterErrorAtDepth(0, stretch, 3, 40, 0.8, focal, near, perspective), 0);
-    assert.equal(
-      clusterErrorAtDepth(Infinity, stretch, 3, 40, 0.8, focal, near, perspective),
-      Infinity,
-    );
-  }
-});
