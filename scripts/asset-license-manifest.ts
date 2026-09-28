@@ -1,4 +1,6 @@
 /** Versioned declarations and evidence references; these are assertions, not legal verdicts. */
+const USAGES = ['internal', 'embedded-product', 'public-demo', 'raw-distribution'] as const;
+const EVIDENCE = ['terms', 'acquisition', 'redistribution', 'attribution', 'changes'] as const;
 export type Evidence = { path: string; sha256: string };
 export type Asset = {
   id: string;
@@ -7,18 +9,16 @@ export type Asset = {
   source: string;
   license: string;
   licenseVersion: string;
-  usage: 'internal' | 'embedded-product' | 'public-demo' | 'raw-distribution';
-  evidence: Partial<
-    Record<'terms' | 'acquisition' | 'redistribution' | 'attribution' | 'changes', Evidence>
-  >;
+  usage: (typeof USAGES)[number];
+  evidence: Partial<Record<(typeof EVIDENCE)[number], Evidence>>;
 };
 
 const HASH = /^[a-f0-9]{64}$/;
-const USAGES = ['internal', 'embedded-product', 'public-demo', 'raw-distribution'];
-const EVIDENCE = ['terms', 'acquisition', 'redistribution', 'attribution', 'changes'];
 const object = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 const text = (value: unknown): value is string => typeof value === 'string' && value.trim() !== '';
+const hash = (value: unknown) => typeof value === 'string' && HASH.test(value);
+const member = (list: readonly string[], value: unknown) => list.includes(value as string);
 
 /** Strict shape checks distinguish an unusable manifest from an unresolved license. */
 export function parseAssetManifest(value: unknown): Asset[] {
@@ -33,24 +33,11 @@ export function parseAssetManifest(value: unknown): Asset[] {
     if (!object(entry)) return fail();
     for (const key of ['id', 'path', 'source', 'license', 'licenseVersion'])
       if (!text(entry[key])) return fail();
-    if (
-      !text(entry.sha256) ||
-      !HASH.test(entry.sha256) ||
-      !text(entry.usage) ||
-      !USAGES.includes(entry.usage)
-    )
+    if (!hash(entry.sha256) || !member(USAGES, entry.usage) || !object(entry.evidence))
       return fail();
-    if (!object(entry.evidence)) return fail();
-    for (const [key, ref] of Object.entries(entry.evidence)) {
-      if (
-        !EVIDENCE.includes(key) ||
-        !object(ref) ||
-        !text(ref.path) ||
-        !text(ref.sha256) ||
-        !HASH.test(ref.sha256)
-      )
+    for (const [key, ref] of Object.entries(entry.evidence))
+      if (!member(EVIDENCE, key) || !object(ref) || !text(ref.path) || !hash(ref.sha256))
         return fail();
-    }
     const asset = entry as Asset;
     if (ids.has(asset.id) || paths.has(asset.path)) return fail();
     ids.add(asset.id);
