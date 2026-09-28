@@ -28,6 +28,8 @@ export const SHADOW_FLAG_FRAMES = 4;
 
 /** Bytes of a drawn face's uniform entry, one per region (`atlas.ts`): a dynamic-offset stride. */
 export const SHADOW_FACE_STRIDE = PAGE_BIND_ALIGN;
+/** Words of one region's indirect command, its instance count the second: the shaders' stride. */
+export const SHADOW_COMMAND_WORDS = DRAW_INDIRECT_STRIDE / 4;
 /** Words of one face's cull uniform (`cull.ts`), of the light cut's cull uniform and its
  *  dispatch argument (`lightCull.ts`), of a region's occlusion slot and the occlusion uniform
  *  (`occlusion.ts`), and of one page's bounds in the page pyramids (`pageHiz.ts`). */
@@ -37,6 +39,11 @@ export const CULL_UNIFORM_WORDS = 8,
   OCCLUSION_SLOT_WORDS = 4,
   OCCLUSION_UNIFORM_WORDS = 4,
   PAGE_BOUNDS_WORDS = 12;
+
+/** The WGSL struct `name` of `words` words: `fields`, one word each, then padding — the host's
+ *  word count, never a literal twin of it. */
+export const wordStruct = (name: string, fields: readonly string[], words: number) =>
+  `struct ${name}{${fields.concat(Array.from({ length: words - fields.length }, (_, i) => `pad${i}:u32`)).join(',')},}`;
 
 /** The most one batch writes through `batchWrites.ts`, writer by writer. */
 export const SHADOW_BATCH_WRITE_BYTES =
