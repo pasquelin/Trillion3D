@@ -56,12 +56,11 @@
   campaign — every view, every scene, the run-to-run spread, the frame envelope — runs once, on the
   release pull request from `develop` to `main`, and its numbers are the ones published. The site
   keeps one report, the latest, each image stored once.
-- **Image proofs on the branch, timing after the merge** (AGENTS.md rules 2 and 11). Timing
-  runs alone, in one queue, on merged batches, and never blocks a pull request but a performance
-  issue's: a merged engine batch is labelled `to measure`, the queue times it against the merge's
-  first parent and comments the numbers (`measure ok`); a regression reopens the measured issue,
-  labelled `measure ko`, with the numbers in a comment. A pull request carries the fast gates and
-  its image proof.
+- **Image proof and timing after the merge** (AGENTS.md rules 2 and 11). Both run on merged
+  batches, against the merge's first parent, and never block a pull request but a performance
+  issue's timing: acceptance runs the image proof; a merged batch in the measurer's scope is
+  labelled `to measure`, timed and commented (`measure ok`). A failure reopens the issue, labelled
+  `audit ko` or `measure ko`, with the numbers in a comment. A pull request carries the gates.
 - **A campaign's outputs are deleted once published.** A cook, a bench or a proof writes under
   `.mesure/out/<batch>/` and nowhere else; the numbers, and any capture a claim rests on, go into
   the pull request body, and the folder is removed before the pull request is opened.
@@ -80,7 +79,7 @@
 - **A proof needs a stable A/A.** A branch-against-develop difference proves something only on a
   capture whose A/A is 0 px (or the masked exception below); a broad A/A spread proves nothing. A
   scene that is not A/A-stable is first made stable (frozen clock, pinned frame) or replaced by a
-  stable scene on the same path. `health-check` is exempt until #26 makes it stable: its proof is
+  stable scene on the same path. `health-check` is exempt until #964 makes it stable: its proof is
   no error, pages drawn, and its verdict.
 - **At most 4 px of A/A on a still capture is accepted** when it is isolated to a masked cut-out at
   the alpha cutoff, below human discrimination at the capture resolution, and declared in the batch.
@@ -123,8 +122,8 @@ The rules of #483, binding on every change to geometry, streaming, memory, shado
   duplicates and import-related unit tests; `pnpm run test:changed` runs only those tests. Also
   inspect dependants after deletions, public-export or configuration changes.
 - Before merge: `pnpm run validate` (format, JS/TS lint + Clippy, unused code/files/dependencies,
-  TS/native builds, structure, declarations, links, JS/TS/Rust tests) and the branch's image
-  proof; timing follows the merge, in the measuring queue.
+  TS/native builds, structure, declarations, links, JS/TS/Rust tests); the image proof and the
+  timing follow the merge.
 - **All wording in the repository must be in English.** Comments, docstrings, documentation,
   commit messages and test descriptions are strictly written in English.
 - Every maintained JS/TS/Rust source file, including variants, must fit 200 physical lines; no legacy
@@ -207,17 +206,17 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
 3. Review the diff twice: first simplify duplicated or unnecessary work — in Claude Code
    `/simplify`, elsewhere a read of the whole diff for what is duplicated, needless or at the wrong
    depth —, then check correctness against the requirements above. Fix findings and run
-   `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate`. Run the branch's image proof; the
-   measuring queue times it after the merge.
+   `pnpm run check:changed`, `pnpm run test:changed` and `pnpm run validate` once, on the final
+   head; the image proof and the timing follow the merge.
 4. Commit with a descriptive English message and push the branch; write the pull request body in a file, using
-   `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>`, or `Part of #<issue>` for a step of an issue delivered in several (AGENTS.md rule 5). Describe what both local review passes found under "Local review before push". Replace `in progress` with `in review`. No pull request yet (AGENTS.md rule 11).
+   `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>` (AGENTS.md rule 5). Describe what both local review passes found under "Local review before push". Replace `in progress` with `in review`. No pull request yet (AGENTS.md rule 11).
 5. Obtain an independent review and resolve its findings before integration. The maintainer, or
    whoever the maintainer entrusts with it, merges into `develop` once the review holds on the branch, the lead has opened the pull request with its "Lead verification" section, one line per To-do and Proof item, and `validate` is green on a head
    that merged `develop` and merges cleanly into it, oldest pull request first (AGENTS.md rule
    11); `main` moves only on the maintainer's word. Never push directly to `develop` or `main`, or
    rewrite published history.
-6. After merge, remove the worktree and merged branch, remove `in review` and close the issue once its last step is merged;
-   an engine batch is labelled `to measure` first. Every merge into `develop` is then re-read
+6. After merge, remove the worktree and merged branch, remove `in review` and close the issue;
+   a batch in the measurer's scope is labelled `to measure` first. Every merge into `develop` is then re-read
    against this file; a finding reopens the issue, labelled `audit ko`, with the findings in a
    comment.
    If a pull request is closed without merging, remove both lifecycle labels; add `in progress`

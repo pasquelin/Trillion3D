@@ -182,26 +182,24 @@
         { name: 'pan', position: wide, target: swept, seconds: 0.8, hold: 0.4 },
         { name: 'still', position: wide, target: swept, seconds: 0.1, hold: 3 },
       ]);
+      // What the session drawing the world documents it refuses of the scene's lights, with why,
+      // is asked with the verdict: of a session that drew the tour, never of one still opening,
+      // whose first frame may run the hooks before the world holds it (#945).
       const judged = world.onFrame(() => {
         if (flown.gliding) return;
         judged();
+        const { reason } = capability.lighting(world);
+        if (reason) refuse(reason, true);
         showVerdict(check.verdict(), say);
       });
+      // The path drawing the world, known once its first frame is drawn.
+      const shown = world.onFrame(() => (shown(), drawn(world.renderer)));
 
       let heading = 0;
       world.beforeFrame(({ delta }) => {
         heading = (heading + delta * 0.35) % (Math.PI * 2);
         walkRound(heading, 2.4);
         if (ui.drive) chase(driven, delta);
-      });
-
-      // The path drawing the world, and what it documents it refuses of the scene's lights, with why:
-      // asked once its first frame is drawn, so of a session that is open.
-      const asked = world.onFrame(() => {
-        asked();
-        drawn(world.renderer);
-        const { reason } = capability.lighting(world);
-        if (reason) refuse(reason, true);
       });
     </script>
   </body>
