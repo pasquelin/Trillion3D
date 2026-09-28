@@ -11,8 +11,10 @@ import {
 } from '../../diagnostic/gpuGeometry.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../visibility/shader/materialClass.ts';
 import type { DiagnosticGpuVariant } from '../../diagnostic/gpuVariant.ts';
-
-/** Face modes of a layer set, in order: back, none, front, reversed back, reversed front. */
+export const shadeTargetFormats = (feedback: boolean) => [
+  ...SURFACE_FORMATS,
+  ...(feedback ? [FEEDBACK_FORMAT] : []),
+];
 const LAYER_CULLS: Array<[GPUCullMode, GPUFrontFace]> = [
   ['back', 'ccw'],
   ['none', 'ccw'],
@@ -21,20 +23,14 @@ const LAYER_CULLS: Array<[GPUCullMode, GPUFrontFace]> = [
   ['front', 'cw'],
 ];
 const VIS_LAYER_CULLS = LAYER_CULLS.length;
-/** Pipelines of a layer: the five face modes as occluder, then the same as tested. */
 const VIS_LAYER_PIPELINES = VIS_LAYER_CULLS * 2;
-/** Rank of a layer pipeline in `visLayerPipelines`. Layer 0 is not in it. */
 export const visLayerPipelineIndex = (layer: number, rest: boolean, cull: number) =>
   (layer - 1) * VIS_LAYER_PIPELINES + (rest ? VIS_LAYER_CULLS : 0) + cull;
-
-/** Creates under a validation scope, and lets through what the device refused. */
 async function scoped<T>(device: GPUDevice, run: () => T): Promise<T> {
   const { value, error } = await validationScope(device, run);
   if (error) throw error;
   return value;
 }
-
-/** Builds the visibility variants used by the selected Hi-Z or fallback path. */
 export function createWebgpuVisibilityRasterPipelines(
   device: GPUDevice,
   visModule: GPUShaderModule,
@@ -78,7 +74,6 @@ export function createWebgpuVisibilityRasterPipelines(
     };
   });
 }
-
 /**
  * Pipelines of the coplanar layers above 0. A layer is only an integer depth bias on the same
  * pipeline: same module, same state, same draw order. Targets and inputs follow those layer 0 kept,
@@ -120,17 +115,11 @@ export function createWebgpuCoplanarLayerPipelines(
     return pipelines;
   });
 }
-
-/** Builds the depth export and class-specialized material pipelines during preparation. */
-export function createWebgpuShadePipelines(
-  device: GPUDevice,
-  shadeModule: GPUShaderModule,
-  classes: readonly number[],
-  variant?: DiagnosticGpuVariant,
-) {
+/** The material pass's bind layout, which the feedback-free diagnostic pipelines share. */
+function shadeLayout(device: GPUDevice) {
   const b = SHADE_BINDINGS;
   const fragment = GPUShaderStage.FRAGMENT;
-  const shadeBindGroupLayout = device.createBindGroupLayout({
+  return device.createBindGroupLayout({
     entries: [
       { binding: b.visView, visibility: fragment, texture: { sampleType: 'uint' } },
       { binding: b.cache, visibility: fragment, buffer: readOnly },
@@ -148,6 +137,17 @@ export function createWebgpuShadePipelines(
       ...atlasLayoutEntries(b.data),
     ],
   });
+}
+/** Builds the depth export and class-specialized material pipelines during preparation. */
+export function createWebgpuShadePipelines(
+  device: GPUDevice,
+  shadeModule: GPUShaderModule,
+  classes: readonly number[],
+  variant?: DiagnosticGpuVariant,
+  feedback = true,
+  sharedLayout?: GPUBindGroupLayout,
+) {
+  const shadeBindGroupLayout = sharedLayout ?? shadeLayout(device);
   const layout = device.createPipelineLayout({ bindGroupLayouts: [shadeBindGroupLayout] });
   const primitive: GPUPrimitiveState = { topology: 'triangle-list', cullMode: 'none' };
   const classDepth: GPUDepthStencilState = {
@@ -155,7 +155,7 @@ export function createWebgpuShadePipelines(
     depthWriteEnabled: false,
     depthCompare: 'equal',
   };
-  const entryPoint = shadeVariantFragment(variant);
+  const entryPoint = feedback ? shadeVariantFragment(variant) : 'shade_fsWithoutFeedback';
   /** Class features and depth derive from the key; a single class rejects background itself. */
   const makeShadePipeline = (key: number, single: boolean) => {
     const constants: Record<string, number> = single
@@ -169,7 +169,7 @@ export function createWebgpuShadePipelines(
         entryPoint,
         constants,
         // The surfaces, then the tile request the image's feedback target receives.
-        targets: [...SURFACE_FORMATS, FEEDBACK_FORMAT].map((format) => ({ format })),
+        targets: shadeTargetFormats(feedback).map((format) => ({ format })),
       },
       primitive,
       depthStencil: single ? undefined : classDepth,
