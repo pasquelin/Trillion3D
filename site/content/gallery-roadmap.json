@@ -711,6 +711,11 @@
       "file": "examples/several-views-one-page.html"
     },
     {
+      "id": "a-recorded-fly-through",
+      "theme": "camera",
+      "file": "examples/a-recorded-fly-through.html"
+    },
+    {
       "id": "before-and-after-slider",
       "theme": "camera",
       "file": "examples/before-and-after-slider.html"
@@ -766,6 +771,11 @@
       "id": "a-wave-across-a-grid",
       "theme": "animation",
       "file": "examples/a-wave-across-a-grid.html"
+    },
+    {
+      "id": "doors-that-open",
+      "theme": "animation",
+      "file": "examples/doors-that-open.html"
     },
     {
       "id": "keyframes-by-hand",
@@ -1232,6 +1242,11 @@
       "id": "measure-a-distance",
       "theme": "interaction",
       "file": "examples/measure-a-distance.html"
+    },
+    {
+      "id": "hover-to-highlight",
+      "theme": "interaction",
+      "file": "examples/hover-to-highlight.html"
     },
     {
       "id": "drag-a-crate",

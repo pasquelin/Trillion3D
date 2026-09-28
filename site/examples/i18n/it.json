@@ -500,6 +500,24 @@
       "balloon": "SEGUE IL PALLONE"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Guarda il percorso registrato nel parco. Riproducilo, fermalo o prendi il controllo della telecamera.",
+    "controls": {
+      "replay": "Riproduci",
+      "stop": "Ferma"
+    },
+    "readouts": {
+      "currentPart": "Parte attuale"
+    },
+    "words": {
+      "entrance": "Ingresso",
+      "pond": "Laghetto",
+      "bridge": "Ponte",
+      "pavilion": "Padiglione",
+      "overview": "Panoramica",
+      "complete": "Completato"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Gira attorno alla gru mentre una clip ruota il braccio, muove il carrello, solleva il carico e lo fa oscillare.",
     "controls": {
@@ -516,6 +534,20 @@
       "ripples": "Increspature",
       "inner": "Interno",
       "outer": "Esterno"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Avvicina la camera alle porte. Si aprono quando ti avvicini.",
+    "controls": {
+      "mode": "Modalità",
+      "openingDistance": "Distanza di apertura",
+      "openness": "Apertura"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "prossimità",
+        "manual": "manuale"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -1951,6 +1983,7 @@
       "manifest": "manifesto letto",
       "tables": "tabelle della scena lette",
       "resources": "file della scena",
+      "session": "apertura della vista",
       "pages": "prime pagine",
       "ready": "pronto"
     }
@@ -2239,6 +2272,12 @@
         "right": "Lato destro",
         "rear": "Retro"
       }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Passa sopra le parti del carrello per evidenziarle una alla volta, oppure disattiva l’evidenziazione nel pannello.",
+    "controls": {
+      "highlightEnabled": "Attiva evidenziazione"
     }
   },
   "a-dolly-along-the-canal": {

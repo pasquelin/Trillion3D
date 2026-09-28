@@ -188,8 +188,10 @@
       "red-cyan-anaglyph": "Kırmızı-camgöbeği anaglif",
       "camera-layers": "Kamera katmanları",
       "a-robot-that-walks-and-waves": "Karıştırılmış robot hareketleri",
+      "a-recorded-fly-through": "Kaydedilmiş bir uçuşun tekrarı",
       "a-crane-that-swings": "Yükünü sallayan vinç",
       "a-wave-across-a-grid": "Küplerden bir dalga",
+      "doors-that-open": "Yaklaşınca açılan kapılar",
       "keyframes-by-hand": "Elle anahtar kareler",
       "one-clip-many-objects": "Bir klip, birçok nesne",
       "animation-from-the-file": "Dosyadan gelen animasyon",
@@ -336,6 +338,7 @@
       "shadows-through-see-through-panes": "Saydam camlardan düşen gölgeler",
       "a-walker-among-balls": "Toplar arasında bir yürüyüşçü",
       "an-elevation-of-the-house": "Evin ortografik görünüşü",
+      "hover-to-highlight": "Bir parçayı vurgulamak için üzerine gelin",
       "a-dolly-along-the-canal": "Kanal boyunca kamera kaydırma",
       "a-folder-merged-into-one-scene": "Tek sahnede birleştirilen klasör",
       "drag-a-crate": "Bir sandığı sürükleme"

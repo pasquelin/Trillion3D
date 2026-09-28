@@ -500,6 +500,24 @@
       "balloon": "VERFOLGT DEN BALLON"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Sieh dir die aufgezeichnete Route durch den Park an. Starte sie neu, stoppe sie oder übernimm die Kamera.",
+    "controls": {
+      "replay": "Wiederholen",
+      "stop": "Stopp"
+    },
+    "readouts": {
+      "currentPart": "Aktueller Abschnitt"
+    },
+    "words": {
+      "entrance": "Eingang",
+      "pond": "Teich",
+      "bridge": "Brücke",
+      "pavilion": "Pavillon",
+      "overview": "Überblick",
+      "complete": "Abgeschlossen"
+    }
+  },
   "a-crane-that-swings": {
     "banner": "Kreise um den Kran, während ein Clip den Ausleger dreht, die Laufkatze bewegt, die Last hebt und schwingen lässt.",
     "controls": {
@@ -516,6 +534,20 @@
       "ripples": "Wellenringe",
       "inner": "Innen",
       "outer": "Außen"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Bewege die Kamera auf die Türen zu. Sie öffnen sich beim Nähern.",
+    "controls": {
+      "mode": "Modus",
+      "openingDistance": "Öffnungsabstand",
+      "openness": "Öffnung"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "Nähe",
+        "manual": "manuell"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -1951,6 +1983,7 @@
       "manifest": "Manifest gelesen",
       "tables": "Szenentabellen gelesen",
       "resources": "Dateien der Szene",
+      "session": "Ansicht wird geöffnet",
       "pages": "erste Seiten",
       "ready": "bereit"
     }
@@ -2239,6 +2272,12 @@
         "right": "Rechte Seite",
         "rear": "Hinten"
       }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Fahre über die Teile des Wagens, um sie einzeln hervorzuheben, oder schalte die Hervorhebung im Bedienfeld aus.",
+    "controls": {
+      "highlightEnabled": "Hervorhebung aktivieren"
     }
   },
   "a-dolly-along-the-canal": {

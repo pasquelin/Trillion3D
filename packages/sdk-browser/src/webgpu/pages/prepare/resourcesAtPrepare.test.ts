@@ -68,7 +68,7 @@ test('texture queues are pinned at prepare, and a texture that fits in its queue
     assert.equal(prepared.textureTilesResident, 6);
     assert.equal(prepared.textureTilesServed, 0);
     assert.equal(prepared.textureTilesPending, 0);
-    // 512 MiB would give each atlas four 63.5 MiB layers; three queues need one, and the pool
+    // 512 MiB would give each atlas four 64 MiB layers; three queues need one, and the pool
     // stops at what the scene can fill, by name.
     assert.equal(prepared.texturePoolLayers, 2, 'one lossless layer per atlas');
     assert.equal(prepared.texturePoolClamp, 'scene');
@@ -137,7 +137,7 @@ test('texture pools are copy destinations, allocated once at the size the scene 
   const { device, textures } = mockGpu();
   const { fixture, backend } = quadBackend(device);
   await backend.prepare();
-  const pools = textures.filter((texture) => texture.width === 4080 && texture.height === 4080);
+  const pools = textures.filter((texture) => texture.width === 4096 && texture.height === 4096);
   assert.equal(pools.length, 2, 'one colour pool, one data pool');
   const need =
     GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT;

@@ -1372,8 +1372,10 @@
       "red-cyan-anaglyph": "Anaglyph merah-cyan",
       "camera-layers": "Layer kamera",
       "a-robot-that-walks-and-waves": "Mencampur gerakan robot",
+      "a-recorded-fly-through": "Lintasan rekaman yang diputar ulang",
       "a-crane-that-swings": "Derek yang mengayunkan muatan",
       "a-wave-across-a-grid": "Gelombang kubus",
+      "doors-that-open": "Pintu yang terbuka saat didekati",
       "keyframes-by-hand": "Keyframe manual",
       "one-clip-many-objects": "Satu klip, banyak objek",
       "animation-from-the-file": "Animasi dari berkas",
@@ -1520,6 +1522,7 @@
       "shadows-through-see-through-panes": "Bayangan menembus kaca bening",
       "a-walker-among-balls": "Pejalan di antara bola",
       "an-elevation-of-the-house": "Elevasi ortografis rumah",
+      "hover-to-highlight": "Arahkan penunjuk untuk menyorot bagian",
       "a-dolly-along-the-canal": "Dolly kamera di sepanjang kanal",
       "a-folder-merged-into-one-scene": "Folder digabung menjadi satu adegan",
       "drag-a-crate": "Seret peti"

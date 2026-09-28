@@ -33,6 +33,13 @@ async function decodeAddress(url: string, signal: AbortSignal | undefined, meter
   return createImageBitmap(await meter.read(response, url).blob(), BITMAP);
 }
 
+/** A failed read of the document's binary, told apart from an image that cannot be decoded. */
+class UnreadBinary extends Error {
+  constructor(cause: unknown) {
+    super('the scene binary could not be read', { cause });
+  }
+}
+
 async function decodeBytes(bytes: Uint8Array<ArrayBuffer>, type: string) {
   const blob = new Blob([bytes], { type });
   if (typeof createImageBitmap === 'function') return createImageBitmap(blob, BITMAP);
@@ -48,8 +55,8 @@ type Inputs = {
   document: TableDocument;
   /** Address of the published document: relative image addresses resolve against it. */
   documentUrl: string;
-  /** The document's binary, which embedded images are views of. */
-  binary: ArrayBuffer | null;
+  /** Reads the document's binary, which embedded images are views of, once. */
+  binary: () => Promise<ArrayBuffer>;
   /** Ranks of the images whose chain the cache baked. */
   skipped: ReadonlySet<number>;
   signal: AbortSignal | undefined;
@@ -73,16 +80,24 @@ export function preparedImages(inputs: Inputs) {
       const url = new URL(image.uri, documentUrl).href;
       return track(url, decodeAddress(url, signal, meter));
     }
-    if (image.view === null || !binary) throw new Error(`image ${rank} names no source`);
+    if (image.view === null) throw new Error(`image ${rank} names no source`);
     const view = document.views[image.view];
-    const bytes = new Uint8Array(binary, view.offset, view.length);
-    return decodeBytes(bytes, image.mimeType ?? '');
+    // A binary that cannot be read fails its reader, as the loader failed the scene: it is no
+    // missing image, and it is read again at the next need (`readOnce`).
+    const buffer = await binary().catch((error: unknown) => {
+      throw new UnreadBinary(error);
+    });
+    return decodeBytes(new Uint8Array(buffer, view.offset, view.length), image.mimeType ?? '');
   };
   const held = new Map<number, Promise<unknown>>();
   return (rank: number): Promise<unknown> => {
     let image = held.get(rank);
     if (!image) {
       image = read(rank).catch((error: unknown) => {
+        if (error instanceof UnreadBinary) {
+          held.delete(rank);
+          throw error.cause;
+        }
         signal?.throwIfAborted();
         console.error('Trillion3D: could not read image', rank, error);
         return null;
