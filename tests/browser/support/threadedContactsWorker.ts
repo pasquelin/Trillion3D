@@ -42,8 +42,8 @@ async function bytesOf(file: string) {
 /** A module stepped by `threads` threads, the threaded module's when more than one, once its
  *  pool is ready. */
 async function started(threads: number, bytes: ArrayBuffer) {
-  const relay = (data: unknown) => scope.postMessage({ error: (data as Error).message });
-  const pool = threads > 1 ? joltWorkerPool(import.meta.url, threads, relay) : null;
+  const failed = (error: Error) => scope.postMessage({ error: error.message });
+  const pool = threads > 1 ? joltWorkerPool(import.meta.url, threads, failed) : null;
   const opened = await openJolt(bytes, BUDGET.memoryBytes, pool);
   const jolt = startJolt(opened, BUDGET, threads);
   await pool?.ready();
