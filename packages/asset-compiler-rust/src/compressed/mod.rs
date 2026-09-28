@@ -79,14 +79,7 @@ fn source_range(
     }
     Ok(range)
 }
-pub(crate) fn meshopt_views(
-    g: &mut Value,
-    binary: Binary,
-    offsets: &mut Vec<usize>,
-    budget: &Budget<'_>,
-) -> Result<Binary> {
-    meshopt::expand(g, binary, offsets, budget)
-}
+pub(crate) use meshopt::expand as meshopt_views;
 
 pub(crate) fn draco_primitives(
     g: &mut Value,
