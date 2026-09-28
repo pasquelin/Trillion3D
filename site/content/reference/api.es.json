@@ -1162,7 +1162,7 @@
   },
   "createGpuPageCache": {
     "summary": "Frontera de asignación y cola WebGPU.",
-    "description": "Los bytes de las páginas y la regla los proporciona el host. Las escrituras en cola están ordenadas; la liberación espera los envíos en curso antes de destruir."
+    "description": "Los bytes de las páginas y la regla los proporciona el host. Las escrituras en cola están ordenadas; la liberación espera los envíos en curso antes de destruir. `pin(key, 'held')` conserva una página antes que las fijadas ordinarias en `resize(slots)`, que ya no acepta un conjunto held. Volver a fijarla de forma ordinaria mantiene ese nivel; `unpin(key)` lo elimina."
   },
   "createJob": {
     "summary": "Sin temporizador, sin DOM, sin archivos ni interfaz."

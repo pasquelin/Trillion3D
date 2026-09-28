@@ -84,15 +84,15 @@ export function createWebgpuBootstrap(options: BootstrapOptions) {
       // must still read starts that read immediately instead of waiting for the previous page's
       // round trip, and the cache's own queue keeps the uploads in order and bounded.
       const loads = pages.map((page) => {
-        const job = getCache()!.load(pageAddress(page), signal);
+        const job = getCache()!.load(pageAddress(page), signal, 'held');
         job.catch(() => {});
         return job;
       });
       for (let i = 0; i < pages.length; i++) {
         signal?.throwIfAborted();
         if (isLost()) throw new Error('WEBGPU_LOST');
+        // Held on arrival, inside the cache's queue: a resize queued meanwhile cannot evict it.
         await loads[i];
-        getCache()!.pin(pageAddress(pages[i]));
         tracking.markPinned(tracking.keyOf(pages[i]));
       }
       ready = true;

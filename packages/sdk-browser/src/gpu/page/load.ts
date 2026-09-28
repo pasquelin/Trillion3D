@@ -2,10 +2,19 @@ import type { GpuPageContext, ResidentPage } from './types.ts';
 import { commitGpuPage } from './commit.ts';
 import { refusedStatus, retriableError } from '../../cluster/checked.ts';
 
-export function createGpuPageLoader(context: GpuPageContext) {
+/** `tier` pins the page inside the queued operation: no resize queued behind the load runs between
+ *  its arrival and its pin, so a held page is never ranked as an unpinned one. */
+export function createGpuPageLoader(
+  context: GpuPageContext,
+  pin: (key: string, tier: 'held' | 'pinned') => void,
+) {
   const { abort, resident, fetches, state, reader, check, pageBytes, pins } = context;
   const { report, emit, now, readBytes, fetchBytes } = reader;
-  return function load(key: string, signal?: AbortSignal): Promise<ResidentPage> {
+  return function load(
+    key: string,
+    signal?: AbortSignal,
+    tier?: 'held' | 'pinned',
+  ): Promise<ResidentPage> {
     const combined = signal ? AbortSignal.any([signal, abort.signal]) : abort.signal;
     const abortListener =
       report && signal
@@ -45,6 +54,7 @@ export function createGpuPageLoader(context: GpuPageContext) {
             generation: existing.generation,
             source: 'resident-cache',
           }));
+          if (tier) pin(key, tier);
           return existing;
         }
         emit('gpu-page-cache-miss', 'Page absent from GPU residency', () => ({
@@ -86,7 +96,9 @@ export function createGpuPageLoader(context: GpuPageContext) {
           }));
           throw new Error('PAGE_SIZE_MISMATCH');
         }
-        return commitGpuPage(context, key, bytes, requestStarted);
+        const page = commitGpuPage(context, key, bytes, requestStarted);
+        if (tier) pin(key, tier);
+        return page;
       } catch (error) {
         emit('gpu-page-error', 'GPU load failed', () => ({
           version: 1,
