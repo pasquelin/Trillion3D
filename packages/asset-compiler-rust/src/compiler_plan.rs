@@ -187,7 +187,7 @@ pub(super) fn plan_buffers(
         .ram_budget_bytes()
         .checked_sub(committed)
         .ok_or_else(refused)?;
-    let waves = compiler_budget::waves::waves(&working, room, o.threads).ok_or_else(refused)?;
+    let waves = compiler_budget::waves::waves(&working, room).ok_or_else(refused)?;
     Ok(BufferPlan {
         accessors,
         jobs,
