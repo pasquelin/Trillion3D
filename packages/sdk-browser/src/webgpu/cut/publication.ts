@@ -1,5 +1,5 @@
 import type { PageRec } from '../../page/selection/selection.ts';
-import { createCutDelta } from './delta.ts';
+import { createCutDelta, type CutDelta } from './delta.ts';
 import { createCutPending, type CutPending } from './pending.ts';
 import { createWebgpuCutAdopter } from './adoption.ts';
 import type { GroupClosure } from '../../page/cut/groupClosure.ts';
@@ -8,6 +8,8 @@ import { markDrawnMirrored } from '../pages/helpers.ts';
 import type { WebgpuResidencySets } from '../residency/sets.ts';
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
 import { createEvictionFeed } from '../residency/evictionFeed.ts';
+import type { WebgpuView } from '../pages/state/view.ts';
+import { createViewCuts, type ViewCut } from './viewCuts.ts';
 
 /**
  * What the rank journal notifies when a page changes coverage: the pending set, and the CPU cut's
@@ -22,6 +24,8 @@ const coverageWatcher =
   };
 /** The list ahead of a cut that has no view ahead. */
 const NO_IDS: readonly number[] = [];
+/** The cut of a view let go. */
+const NO_PAGES: readonly PageRec[] = [];
 
 /**
  * Publication of a cut, whoever decides it.
@@ -45,7 +49,7 @@ export function createWebgpuCutPublication(
   /** Whether the pool holds a cluster's slot: the CPU cut's residency rule. */
   poolHolds: (rec: PageRec) => boolean,
 ) {
-  const { run, gpu } = rt,
+  const { run, gpu, views } = rt,
     { rows, packedPages } = rt.layout,
     { ahead } = tiers;
   const cutDelta = createCutDelta(packedPages, run.desired);
@@ -68,12 +72,21 @@ export function createWebgpuCutPublication(
   // The three ways a cluster's coverage flips — bytes received, bytes released, a cache slot taken
   // or given back — all go through the rank journal, which names them one by one.
   rows.watchTouched(coverageWatcher(cutPending, held, packedPages));
-  const publishCut = () => {
-    closure.apply(cutDelta);
+  const publishCut = (cut: CutDelta = cutDelta) => {
+    closure.apply(cut);
     residencySets.applyCut(closure.delta);
     cutPending.apply();
   };
-  const publishDrawn = () => residencySets.applyDrawn(drawnDelta);
+  const publishDrawn = (drawn: CutDelta = drawnDelta) => residencySets.applyDrawn(drawn);
+  const mainCut: ViewCut = { cut: cutDelta, drawn: drawnDelta },
+    viewCuts = createViewCuts(packedPages, run, views, mainCut);
+  /** `own`'s view publishes the cut it asks for, `wanted`, and the one it draws, `shown`. */
+  const adopt = (own: ViewCut, wanted: readonly PageRec[], shown: readonly PageRec[]) => {
+    own.cut.adoptRecords(wanted);
+    publishCut(own.cut);
+    own.drawn.adoptRecords(shown);
+    publishDrawn(own.drawn);
+  };
   // Readback describes submitted work and future streaming requests. It never
   // decides the cut drawn for a moving camera; the current GPU mask does that.
   const cutAdopter = createWebgpuCutAdopter({
@@ -138,7 +151,8 @@ export function createWebgpuCutPublication(
       cutDelta.hostBytes +
       drawnDelta.hostBytes +
       cutPending.hostBytes +
-      tiers.all.reduce((bytes, tier) => bytes + tier.hostBytes, 0),
+      tiers.all.reduce((bytes, tier) => bytes + tier.hostBytes, 0) +
+      viewCuts.hostBytes,
     adoptGpuCut,
     /**
      * The CPU cut publishes its own through the same differences: `wanted` writes `run.desired`
@@ -149,12 +163,16 @@ export function createWebgpuCutPublication(
      * Republishing it as-is changes nothing: the difference is empty.
      */
     adoptCpuCut(wanted: readonly PageRec[], shown: readonly PageRec[]) {
-      // The CPU cut evaluates no view ahead: what the last readback asked for ahead is let go.
-      ahead.offerIds(NO_IDS);
-      cutDelta.adoptRecords(wanted);
-      publishCut();
-      drawnDelta.adoptRecords(shown);
-      publishDrawn();
+      const own = viewCuts.active();
+      // The CPU cut evaluates no view ahead: what the main view's last readback asked for ahead is
+      // let go. The view ahead is the main view's own, so another view's cut leaves it.
+      if (own === mainCut) ahead.offerIds(NO_IDS);
+      adopt(own, wanted, shown);
+    },
+    /** `view`, not the main one, is released: its cut leaves the union, whatever it held. */
+    releaseView(view: WebgpuView) {
+      const own = viewCuts.release(view);
+      if (own) adopt(own, NO_PAGES, NO_PAGES);
     },
     /** The held readback no longer describes the image's lists: the next one will re-read it whole. */
     forgetReadback: () => (run.cutEpoch++, cutAdopter.forgetReadback()),
