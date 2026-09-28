@@ -171,7 +171,7 @@ export function encodeSurfaceLighting(
   const blendShare =
     blendState.blendGpu.length && rt.vis.blendPipelines ? gpu.asIsShare : undefined;
   blendShare?.seed(encoder);
-  const filter = beginDisplayFilter(rt, device, encoder);
+  const filter = beginDisplayFilter(rt, device);
   if (gpu.reflection?.active && gpu.deferred.usesContract) run.gpuDrawCalls++;
   run.gpuDrawCalls++;
   encodeShadowReadback(rt, encoder);

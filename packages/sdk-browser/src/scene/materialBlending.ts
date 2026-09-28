@@ -7,10 +7,8 @@
  * In linear light, with `s` the source colour, `a` its opacity, `d` what the target holds and `t`
  * its alpha: normal is `s·a + d·(1 − a)` (alpha `a + t·(1 − a)`), additive `d + s·a` (alpha
  * `t + a·a`), subtractive `d·(1 − s)` (alpha `t`), multiply `d·s` (alpha `t·a`), and none writes
- * `s` as it is — what the witness, three@0.174, computes for the same material; WebGPU's lit
- * target keeps its coverage under multiply (`COVERAGE_EQUATIONS`), and its multiply and
- * subtractive filter the display value, after the tone curve, as the witness's canvas does
- * (`FILTER_EQUATIONS`). A custom equation is not a mode the engine draws. The WebGPU fallback pass (`webgpu/pages/prepare/shaders.ts`)
+ * `s` as it is — what the witness, three@0.174, computes for the same material. A custom equation
+ * is not a mode the engine draws. The WebGPU fallback pass (`webgpu/pages/prepare/shaders.ts`)
  * applies the same equations after its tone map and sRGB encoding: it blends display values, not
  * linear light.
  */
@@ -73,15 +71,10 @@ export function drawnBlending(blending: Blending | undefined, transmissive: bool
 export const composesWithBackground = (blending: Blending) =>
   blending === 'additive' || blending === 'subtractive' || blending === 'multiply';
 
-/** The target keeps what it holds: subtractive's alpha, and multiply's on WebGPU. */
-const KEEP: GPUBlendComponent = { srcFactor: 'zero', dstFactor: 'one', operation: 'add' };
+/** The target keeps its own alpha: subtractive composes the colour alone. */
+const KEEP_ALPHA: GPUBlendComponent = { srcFactor: 'zero', dstFactor: 'one', operation: 'add' };
 const ADD: GPUBlendComponent = { srcFactor: 'src-alpha', dstFactor: 'one', operation: 'add' };
 const MULTIPLY: GPUBlendComponent = { srcFactor: 'zero', dstFactor: 'src', operation: 'add' };
-const SUBTRACT: GPUBlendComponent = {
-  srcFactor: 'zero',
-  dstFactor: 'one-minus-src',
-  operation: 'add',
-};
 
 /** The equation of each mode, colour and alpha as the witness (three@0.174, straight alpha)
  *  writes them; `undefined` is no blending at all — the source replaces the target. */
@@ -91,44 +84,15 @@ export const BLEND_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
     alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' },
   },
   additive: { color: ADD, alpha: ADD },
-  subtractive: { color: SUBTRACT, alpha: KEEP },
+  subtractive: {
+    color: { srcFactor: 'zero', dstFactor: 'one-minus-src', operation: 'add' },
+    alpha: KEEP_ALPHA,
+  },
   multiply: { color: MULTIPLY, alpha: MULTIPLY },
   none: undefined,
-};
-
-/** The same equations on WebGPU's lit target, whose alpha is the coverage the composition lays
- *  the background under (`../lighting/deferred/shaders.ts`): the witness draws over a canvas that
- *  already holds the background, opaque, so its `t·a` of multiply hides nothing there. Multiply
- *  keeps the target's coverage, as subtractive does: the background never shows through it. */
-export const COVERAGE_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
-  ...BLEND_EQUATIONS,
-  multiply: { color: MULTIPLY, alpha: KEEP },
 };
 
 /** A mode whose colour weighs the source by its alpha (`normal`, `additive`): its alpha is
  *  coverage. The others draw the colour under alpha 0 as it is. */
 export const weighsByAlpha = (blending: Blending | undefined) =>
   !!blending && BLEND_EQUATIONS[blending]?.color.srcFactor === 'src-alpha';
-
-/** A mode that filters what is behind it. The witness filters the display value, after the tone
- *  curve: WebGPU does it through its display filter (`../webgpu/blend/displayFilter.ts`). */
-export const filtersDisplay = (blending: Blending) =>
-  blending === 'subtractive' || blending === 'multiply';
-
-/** WebGPU's lit target in an image with a display filter: a filtering mode leaves it untouched. */
-export const FILTERED_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
-  ...COVERAGE_EQUATIONS,
-  subtractive: { color: KEEP, alpha: KEEP },
-  multiply: { color: KEEP, alpha: KEEP },
-};
-
-/** The display filter's equation per mode, white where nothing filters. A filtering mode writes
- *  its display colour `s`: multiply keeps `f·s`, subtractive `f·(1 − s)`. The others write white
- *  at their alpha: normal lifts the filter where it covers it, additive keeps it, none resets it. */
-export const FILTER_EQUATIONS: Record<Blending, GPUBlendState | undefined> = {
-  normal: BLEND_EQUATIONS.normal,
-  additive: { color: KEEP, alpha: KEEP },
-  subtractive: { color: SUBTRACT, alpha: KEEP },
-  multiply: { color: MULTIPLY, alpha: KEEP },
-  none: undefined,
-};

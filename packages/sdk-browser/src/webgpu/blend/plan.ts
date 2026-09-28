@@ -1,6 +1,7 @@
 import { matrixWindingCw } from '../../../../sdk-core/src/index.ts';
 import { refreshSurface, surfaceSide, type PageSurface } from '../../page/surface.ts';
-import { BLEND_MODES, drawnBlending, filtersDisplay } from '../../scene/materialBlending.ts';
+import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts';
+import { filtersDisplay } from './equations.ts';
 import { buildBlendHierarchy } from './hierarchy.ts';
 import { blendChunkWords, blendVertexShift, planRegions, RUN_WORDS } from './runs.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';

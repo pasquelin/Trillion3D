@@ -83,6 +83,6 @@ export function clusterValidation(degraded: ReadDegraded) {
       validateMeshes(copies.transmissive, seen, left, true, degraded);
     },
     /** Whether this frame leaves `mesh` out. */
-    leaves: (mesh: Drawn) => left.size > 0 && left.has(mesh),
+    leaves: (mesh: Drawn) => left.has(mesh),
   };
 }
