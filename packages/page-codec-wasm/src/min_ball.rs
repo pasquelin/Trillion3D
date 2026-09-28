@@ -3,9 +3,6 @@
 //! time, the same result on every host). The normal cone (`normal_cone.rs`) takes the ball of the
 //! unit face normals; it is the one smallest-ball solver, beside the box-centred sphere of
 //! `asset-compiler-rust/src/dag/bounds.rs`.
-//!
-//! The circumscribed balls round, so the returned radius is re-measured from the final centre:
-//! every point is inside by construction, not by the solver.
 use crate::vec3::{add, cross, dot, length, scale, sub};
 
 /// A ball as its centre and radius.
@@ -34,11 +31,10 @@ fn widest(balls: &[Ball]) -> Ball {
         .expect("candidates")
 }
 
-/// The smallest ball through the 2, 3 or 4 points `p` (circumscribed), or, when they are
+/// The smallest ball through the 3 or 4 points `p` (circumscribed), or, when they are
 /// degenerate (coincident, colinear or coplanar), the widest ball of a subset.
 fn circumscribed(p: &[[f64; 3]]) -> Ball {
     match p.len() {
-        2 => diameter(p[0], p[1]),
         3 => {
             let (ab, ac) = (sub(p[1], p[0]), sub(p[2], p[0]));
             let n = cross(ab, ac);
@@ -82,7 +78,7 @@ fn shuffle(points: &mut [[f64; 3]]) {
     }
 }
 
-/// One step of the crate's xorshift (13, 7, 17): the shuffle's and the tests' draws.
+/// One step of a xorshift (13, 7, 17): the shuffle's draws, and the crate's tests'.
 pub(crate) fn xorshift(state: &mut u64) -> u64 {
     *state ^= *state << 13;
     *state ^= *state >> 7;
@@ -90,8 +86,8 @@ pub(crate) fn xorshift(state: &mut u64) -> u64 {
     *state
 }
 
-/// The smallest ball enclosing `points`, which it shuffles, its radius re-measured; `None` when
-/// there is none.
+/// The smallest ball enclosing `points`, which it shuffles, up to the rounding of its support
+/// points' circumscribed ball; `None` when there is none.
 pub fn min_ball(points: &mut [[f64; 3]]) -> Option<Ball> {
     shuffle(points);
     let p = &*points;
@@ -105,7 +101,7 @@ pub fn min_ball(points: &mut [[f64; 3]]) -> Option<Ball> {
             if contains(&ball, p[j]) {
                 continue;
             }
-            ball = circumscribed(&[p[i], p[j]]);
+            ball = diameter(p[i], p[j]);
             for k in 0..j {
                 if contains(&ball, p[k]) {
                     continue;
@@ -119,11 +115,7 @@ pub fn min_ball(points: &mut [[f64; 3]]) -> Option<Ball> {
             }
         }
     }
-    let radius = p
-        .iter()
-        .map(|&q| length(sub(q, ball.0)))
-        .fold(0.0, f64::max);
-    Some((ball.0, radius))
+    Some(ball)
 }
 
 #[cfg(test)]
