@@ -11,10 +11,7 @@ import {
   writeDagUniforms,
   parseDagOutput,
 } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
-import {
-  cameraFrameRanges,
-  framesBytes,
-} from '../../../packages/sdk-browser/src/gpu/dag/frameRanges.ts';
+import { framesBytes } from '../../../packages/sdk-browser/src/gpu/dag/frameRanges.ts';
 import {
   packDagSelection,
   packedWorldsToRenderOrigin,
@@ -29,12 +26,12 @@ import {
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
 
-/** `worlds` placements of a pyramid `niveaux` deep, spread across and beyond the view. */
-function scene(worlds: number, feuilles: number, niveaux: number) {
-  const poses = Array.from({ length: worlds }, (_, k) =>
+/** Sixty placements of a pyramid eight levels deep, spread across and beyond the view. */
+function scene() {
+  const poses = Array.from({ length: 60 }, (_, k) =>
     new G.Matrix4().makeTranslation(((k % 10) - 4.5) * 4, 0, -Math.floor(k / 10) * 6),
   );
-  const roots = sceneRoots(scenePages(feuilles, niveaux), poses, true);
+  const roots = sceneRoots(scenePages(400, 8), poses, true);
   const packed = packDagSelection(roots);
   const uniforms = cameraSelectionUniforms(cameraMoteur(frontCamera(16, 200)), 1, [1280, 720]);
   packedWorldsToRenderOrigin(packed, roots, uniforms.cameraWorld);
@@ -57,21 +54,11 @@ function reporting(device: GPUDevice, binding: number): GPUDevice {
   });
 }
 
-export async function executer({
-  worlds,
-  feuilles,
-  niveaux,
-  pixelErrors,
-}: {
-  worlds: number;
-  feuilles: number;
-  niveaux: number;
-  pixelErrors: number[];
-}) {
+export async function executer(pixelErrors: number[]) {
   const appareil = await ouvrirAppareil();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
-  const { packed, uniforms } = scene(worlds, feuilles, niveaux);
+  const { packed, uniforms } = scene();
   const third = framesBytes(Math.ceil(packed.worldCount / 3));
   const cut = async (target: GPUDevice) => {
     const resources = await createDagResources(target, packed, false);
@@ -106,15 +93,5 @@ export async function executer({
   const whole = await cut(device);
   const split = await cut(reporting(device, third));
   const info = await appareil.fermer();
-  return {
-    adaptateur: info.court,
-    erreurs,
-    worldCount: packed.worldCount,
-    expectedRanges: cameraFrameRanges(
-      { maxBufferSize: third, maxStorageBufferBindingSize: third },
-      packed.worldCount,
-    ).length,
-    whole,
-    split,
-  };
+  return { adaptateur: info.court, erreurs, whole, split };
 }

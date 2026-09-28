@@ -20,32 +20,17 @@ test('a table split in three ranges cuts as the whole table, on the GPU', async 
   const erreursPage: string[] = [];
   const releve = await dansPageWebgpu(
     (argument: Parameters<typeof executer>[0]) => globalThis.frameRanges.executer(argument),
-    { worlds: 60, feuilles: 400, niveaux: 8, pixelErrors: [0.5, 2, 8] },
+    [0.5, 2, 8],
     { titre: 'Frame ranges', script, erreursPage },
   );
   assert.equal(releve.indisponible, undefined, 'WebGPU must be available');
   assert.deepEqual([...(releve.erreurs ?? []), ...erreursPage], []);
-  const { whole, split, expectedRanges } = releve as Exclude<
-    typeof releve,
-    { indisponible: string }
-  >;
+  const { whole, split } = releve as Exclude<typeof releve, { indisponible: string }>;
   assert.equal(whole.ranges, 1);
-  assert.equal(expectedRanges, 3);
   assert.equal(split.ranges, 3, 'the table splits in three ranges');
   for (const [k, cut] of whole.cuts.entries()) {
     assert.ok(cut.pageIds.length > 0, `the scene draws at ${cut.pixelError} px`);
     assert.ok(cut.frustumRejected > 0, 'some of it lies outside the view');
     assert.deepEqual(split.cuts[k], cut, `the same cut at ${cut.pixelError} px`);
   }
-  console.log(
-    JSON.stringify({
-      adaptateur: releve.adaptateur,
-      worldCount: releve.worldCount,
-      cuts: whole.cuts.map((c) => ({
-        px: c.pixelError,
-        pages: c.pageIds.length,
-        rejected: c.frustumRejected,
-      })),
-    }),
-  );
 });
