@@ -1,6 +1,6 @@
 //! Exact measurements survive the sheet; invalid cache data never changes human answers.
 use super::*;
-use crate::cutout::cache::{algorithm, checksum, key, record};
+use crate::cutout::cache::{algorithm, checksum, record};
 
 fn image() -> image::RgbaImage {
     image::RgbaImage::from_fn(7, 3, |x, y| {
@@ -66,8 +66,7 @@ fn changed_source_dimensions_or_algorithm_and_old_sheets_are_cache_misses() {
     let cache = MeasureCache::read(&sheet);
     assert!(cache.get("different-image", &image).is_none());
     assert!(cache.get("image-a", &image::RgbaImage::new(2, 2)).is_none());
-    let earlier = json!(key("an earlier implementation"));
-    for fingerprint in [Value::Null, json!("previous-algorithm"), earlier] {
+    for fingerprint in [Value::Null, json!("previous-algorithm")] {
         let mut changed = sheet.clone();
         changed["measurementAlgorithm"] = fingerprint;
         assert!(MeasureCache::read(&changed)
@@ -121,13 +120,31 @@ fn integrity_check_rejects_changed_values_or_a_record_moved_to_another_image() {
     assert!(MeasureCache::read(&sheet).get("image-a", &image).is_none());
 }
 
-// Behaviour: the key follows the whole compiler's source hash, the one the compilation cache
-// key uses, so a change in any helper the measurement calls — not only in measure.rs — moves it
-// and drops every stored measurement (the loop above) instead of reusing a stale one.
+/// The key a compiler whose whole source hashes to `implementation` stamps on its sheet.
+fn stamped_by(implementation: &str, shape: &AlphaShape) -> Value {
+    let key = hash(format!("{implementation}:{}", crate::plugins::fingerprint()).as_bytes());
+    let mut sheet = cached(shape);
+    sheet["measurementAlgorithm"] = json!(key);
+    sheet
+}
+
+// The key follows the whole compiler's source hash, the one the compilation cache key uses: a
+// change in any helper the measurement calls — not only in measure.rs — is another
+// implementation hash, so the stored measurement is dropped instead of reused stale.
 #[test]
-fn the_measurement_key_follows_the_implementation_hash() {
-    assert_eq!(algorithm(), key(crate::implementation_hash()));
-    assert_ne!(key("an earlier implementation"), algorithm());
+fn a_measurement_is_reused_by_the_same_implementation_only() {
+    let image = image();
+    let measured = measure(&image);
+    let same = MeasureCache::read(&stamped_by(crate::implementation_hash(), &measured));
+    let reused = same
+        .get("image-a", &image)
+        .expect("same implementation: a hit");
+    assert_eq!(bits(&reused), bits(&measured));
+    let helper_changed = stamped_by("a compiler whose helper changed", &measured);
+    assert!(MeasureCache::read(&helper_changed)
+        .get("image-a", &image)
+        .is_none());
+    assert!(read_answers(Path::new("decoupes.json"), &helper_changed).unwrap()["image-a"]);
 }
 
 #[test]
