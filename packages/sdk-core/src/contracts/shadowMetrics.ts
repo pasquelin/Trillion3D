@@ -65,6 +65,18 @@ export interface ShadowFrameMetrics {
   /** How many milliseconds the oldest out-of-date page the image reads has waited to be redrawn.
    *  Only the time the image reads it counts; 0 once it is redrawn. */
   shadowWaitMs?: number | null;
+  /** Light-cut batches that dropped work — their views kept more clusters than the lists hold —,
+   *  since the explorer opened: each sends its pages back, withdrawn until redrawn (#525). Null on
+   *  an engine without the GPU light cut, as are the three below. */
+  shadowCutDrops?: number | null;
+  /** Pages drawn again because a light cut drew them wrong, since the explorer opened: its batch
+   *  dropped work, or its flag was never read. They are withdrawn until redrawn. */
+  shadowCutWithdrawnPages?: number | null;
+  /** Pages drawn again because a view drew a cluster coarser than it wanted, since the explorer
+   *  opened: released once residency changed and the camera rested. */
+  shadowCutCoarsePages?: number | null;
+  /** Light views one light-cut batch draws in now: the cap until a batch drops, then what fits. */
+  shadowCutViewLimit?: number | null;
   /** GPU time of light lists. */
   gpuLightListsMs?: number | null;
   /** Words the tiles past their list reserved in the light-index pool, on the last sampled frame
