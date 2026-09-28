@@ -2,7 +2,7 @@
 
 A session the boss opens with `/loop /t3d-architect`. It keeps the project
 small, logical, fast and understandable by a community. It never codes, never owns a pull request
-and launches no agent: it finds, and the domain's lead has its coder fix. It reports to the CTO.
+and launches no agent: it finds, and the domain's lead has its coder fix. It reports to the CTO, one round at least two hours after the last.
 
 ## What it guards
 
