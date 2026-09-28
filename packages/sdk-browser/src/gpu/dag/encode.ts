@@ -59,7 +59,8 @@ function encodeOnce(
     drawnGroupsOffset,
     work,
     dispatchArgs,
-    bindGroup,
+    ranges,
+    bindGroups,
     preparePipeline,
     clearDrawnPipeline,
     levelPipelines,
@@ -81,26 +82,40 @@ function encodeOnce(
   // Head word of the dispatch argument, copied outside a pass: the other two have been one since
   // the buffer was created. That is the only reason for cuts between passes.
   const arm = (offset: number) => encoder.copyBufferToBuffer(work, offset, dispatchArgs, 0, 4);
-  const alone = (pipeline: GPUComputePipeline) => {
+  // Every kernel that reads a primitive's words runs once per range of `frames`, under that
+  // range's bind group, and takes only its range's primitives (`frameRanges.ts`). One range, the
+  // group the pass opened with stays: the commands of before.
+  const eachRange = (pass: GPUComputePassEncoder, dispatch: (count: number, r: number) => void) =>
+    ranges.forEach(({ count }, r) => {
+      if (ranges.length > 1) pass.setBindGroup(0, bindGroups[r]);
+      dispatch(count, r);
+    });
+  const open = () => {
     const pass = encoder.beginComputePass({ label });
-    pass.setBindGroup(0, bindGroup);
+    pass.setBindGroup(0, bindGroups[0]);
+    return pass;
+  };
+  const alone = (pipeline: GPUComputePipeline) => {
+    const pass = open();
     pass.setPipeline(pipeline);
-    pass.dispatchWorkgroupsIndirect(dispatchArgs, 0);
+    eachRange(pass, () => pass.dispatchWorkgroupsIndirect(dispatchArgs, 0));
     pass.end();
   };
   // A light cut sets no draw flag, so it has none to clear.
   const clearDrawn = clear && !light;
   if (clearDrawn) arm(drawnGroupsOffset);
-  const pass = encoder.beginComputePass({ label });
-  pass.setBindGroup(0, bindGroup);
+  const pass = open();
   // Previous frame's drawn pages, and they alone, take their flag back to zero: no more walk of
   // every flag, and the prepare that follows clears the journal.
   if (clearDrawn) {
     pass.setPipeline(clearDrawnPipeline);
     pass.dispatchWorkgroupsIndirect(dispatchArgs, 0);
   }
+  // The first range's dispatch also resets the block counts; each other starts at its first.
   pass.setPipeline(preparePipeline);
-  pass.dispatchWorkgroups(groups(Math.max(worldCount * views, blockCount)));
+  eachRange(pass, (count, r) =>
+    pass.dispatchWorkgroups(groups(r ? count * views : Math.max(count * views, blockCount))),
+  );
   // The whole descent in THIS pass: dispatches of the same pass run in order and see what the
   // previous ones wrote — prepare and pass 0 already depended on that. Nothing else cut the
   // descent but the dispatch argument, and there is no more of it.
@@ -108,15 +123,18 @@ function encodeOnce(
   // Pass 0 starts from one root per primitive. Its count is `worldCount` and NOT `levelSizes[0]`,
   // which would not always bound it: `dagPrepare` puts one entry per primitive, missing root
   // included — pass 0 reads it there and rejects it —, where stage zero only counts roots that
-  // exist. A primitive whose caller supplies an empty hierarchy would make the two diverge.
+  // exist. A primitive whose caller supplies an empty hierarchy would make the two diverge. Each
+  // range walks a level's whole queue, and keeps its own primitives' nodes.
   pass.setPipeline(levelPipelines[0]);
-  pass.dispatchWorkgroups(groups(worldCount * views));
+  eachRange(pass, () => pass.dispatchWorkgroups(groups(worldCount * views)));
   // Each following level reads only the nodes the previous one kept, and fills the next of the
   // three queues — the one a level earlier cleared. The dispatched count is that of its stage's
   // nodes, an upper bound the layout knows.
   for (let level = 1; level < levelSizes.length; level++) {
     pass.setPipeline(levelPipelines[level % levelPipelines.length]);
-    pass.dispatchWorkgroups(groups(Math.min(levelSizes[level] * views, queueCap)));
+    eachRange(pass, () =>
+      pass.dispatchWorkgroups(groups(Math.min(levelSizes[level] * views, queueCap))),
+    );
   }
   pass.end();
   // Pages of kept leaves, and they alone: a page under a rejected node is not read.
@@ -124,8 +142,7 @@ function encodeOnce(
   alone(wantedPipeline);
   if (headOnly) return;
   arm(liveGroupsOffset);
-  const live = encoder.beginComputePass({ label });
-  live.setBindGroup(0, bindGroup);
+  const live = open();
   // These kernels visit only live clusters, those `dagWanted` has just listed: their verdict is
   // the previous one, it is no longer spoken on those it said nothing about.
   const runLive = (pipeline: GPUComputePipeline) => {
@@ -137,7 +154,8 @@ function encodeOnce(
     live.setPipeline(viewOffsetsPipeline);
     live.dispatchWorkgroups(1);
   }
-  runLive(maskPipeline);
+  live.setPipeline(maskPipeline);
+  eachRange(live, () => live.dispatchWorkgroupsIndirect(dispatchArgs, 0));
   // The drawable-page list is compacted here, in increasing order: the snapshot no longer
   // reports one flag per page but the count alone and its ranks.
   // Then the camera's requests, staged by `dagWanted`, go into the snapshot sorted by rank: one

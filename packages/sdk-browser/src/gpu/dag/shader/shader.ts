@@ -31,6 +31,8 @@ struct CullNode{minimum:vec3f,firstChild:u32,maximum:vec3f,maxParentError:f32,sp
 // \`view*\` words; \`queueCap\` is the capacity of each descent queue; \`ahead\`, non-zero, says block 1 is the view ahead (\`aheadWgsl.ts\`).
 struct Uniforms{planes:array<vec4f,6>,view:mat4x4f,pixelScale:vec2f,pixelError:f32,near:f32,clusterCount:u32,nodeCount:u32,worldCount:u32,residentCut:u32,cameraWorld:vec3f,cameraStretch:f32,listCap:u32,perspective:f32,viewFlags:u32,pageRows:u32,pageMask:vec2<u32>,clipScale:f32,clipPad:f32,viewCount:u32,viewCapacity:u32,queueCap:u32,ahead:u32,}
 struct Output{count:atomic<u32>,frustumRejected:atomic<u32>,lodLevel:atomic<u32>,overflow:atomic<u32>,selectedTriangles:atomic<u32>,transparentTriangles:atomic<u32>,reserved:array<u32,2>,pages:array<u32>,}
+// The primitives the bound \`frames\` holds (\`../frameRanges.ts\`): a light cut binds them all.
+struct FrameRange{first:u32,count:u32,}
 ${DAG_BINDINGS_WGSL}
 /** A WGSL const-expression may not be infinite, so the unreachable band uses the largest f32:
  *  every comparison below behaves exactly as the CPU cut's Infinity for any finite threshold. */
@@ -65,14 +67,15 @@ fn visible(r:u32,w:u32,cluster:Cluster)->bool{
  if((cluster.flags&2u)!=0u){return false;}
  return !outsideFrustum(slotOf(w)*FRAME,boxMin(r),boxMax(r))&&!pageMissed(w,boxMin(r),boxMax(r));
 }
-fn stretchOf(world:u32)->f32{return frames[world*FRAME+6u].x*views[vi].cameraStretch;}
+fn stretchOf(world:u32)->f32{return frames[rowOf(world)*FRAME+6u].x*views[vi].cameraStretch;}
 /** Reset and per-primitive planes in a single dispatch: the output counters and block counts
  *  \`dagMask\` accumulates, the frustum planes only the descent reads, and what a camera cut
  *  derives once per primitive (\`primitiveWgsl.ts\`).
- *  One thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot is its primitive. */
+ *  One thread per SLOT, view after view (\`viewsWgsl.ts\`): a camera's slot is its primitive, and
+ *  each range's dispatch starts at its first (a light cut runs one range, from zero). */
 @compute @workgroup_size(64)
 fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
- let t=id.x;
+ let t=id.x+range.first;
  if(t==0u){
   // A later batch's cut appends its requests to the frame's list (\`VIEW_APPEND\`): the count and
   // the list-full bit carry on, the other flags are the batch's own.
@@ -85,7 +88,9 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  if(t==0u){atomicStore(&work[drawnGroupsMax()],0u);countFrame();}
  let world=views[0u].worldCount;
  if(t>=world*views[0u].viewCount){return;}
- vi=t/world;let w=t-vi*world;let slot=slotOf(w);
+ vi=t/world;let w=t-vi*world;
+ if(!inRange(w)){return;}
+ let slot=slotOf(w);
  // The primitive's root opens the descent: one thread, one root, no counter to contend for. A
  // light cut opens none on a primitive that casts no shadow (\`markOf\`, \`castsNoShadow\`).
  let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&${CASTS_NO_SHADOW}u)!=0u);
@@ -102,7 +107,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
  // group crosses both barriers: a thread with no cluster does not return early, it does nothing.
  ouvreTotaux(lid);
  let s=id.x;
- if(s<liveCount()){
+ if(liveInRange(s)){
   let entry=liveAt(s);let i=entryIndex(entry);vi=entryView(entry);
   let w=pageWorld(i);let r=recordOf(i,w);
   let clusterFlags=clusters[r].flags;

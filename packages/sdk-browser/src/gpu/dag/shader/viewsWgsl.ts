@@ -61,8 +61,12 @@ var<private> vi:u32;
 fn packEntry(view:u32,index:u32)->u32{return (view<<VIEW_SHIFT)|index;}
 fn entryIndex(entry:u32)->u32{return entry&ENTRY_INDEX;}
 fn entryView(entry:u32)->u32{return entry>>VIEW_SHIFT;}
-/** Per-primitive frustum planes: one row of \`worldCount\` per view. */
-fn slotOf(w:u32)->u32{return vi*views[0u].worldCount+w;}
+/** Per-primitive frustum planes: one row of the range's primitives per view. */
+fn slotOf(w:u32)->u32{return vi*range.count+rowOf(w);}
+/** Primitive \`w\`'s row in the bound \`frames\`, and whether that range holds it (\`../frameRanges.ts\`):
+ *  a kernel that reads a primitive's words leaves another range's to that range's dispatch. */
+fn rowOf(w:u32)->u32{return w-range.first;}
+fn inRange(w:u32)->bool{return rowOf(w)<range.count;}
 /** Row \`row\` of the per-view words, for view \`v\` (\`VIEW_WORD_ROWS\`). */
 fn viewWord(row:u32,v:u32)->u32{return extraBase()+row*views[0u].viewCapacity+v;}
 /** The word behind the per-view rows: the most sixty-four-wide groups any view drew. */

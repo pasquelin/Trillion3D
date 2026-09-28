@@ -22,10 +22,8 @@ import { DAG_BINDING } from '../../../packages/sdk-browser/src/gpu/dag/shader/bi
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import { dagFlagsWords } from '../../../packages/sdk-browser/src/gpu/dag/shader/lastUseWgsl.ts';
 import { dagWorkLayout } from '../../../packages/sdk-browser/src/gpu/dag/shader/floorWgsl.ts';
-import {
-  cameraFramesBytes,
-  primitiveFrameWords,
-} from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
+import { primitiveFrameWords } from '../../../packages/sdk-browser/src/gpu/dag/worlds.ts';
+import { framesBytes } from '../../../packages/sdk-browser/src/gpu/dag/frameRanges.ts';
 import {
   selectionListCap,
   stagedOutputBytes,
@@ -97,8 +95,16 @@ export function ressourcesAvant(
     work: { buffer: tampon(words * 4) },
     worlds: { buffer: tampon(64, packed.worlds) },
     // The host's row, then what the shipped `dagPrepare` derives per primitive behind it.
-    frames: { buffer: tampon(cameraFramesBytes(frameData), frameData) },
+    frames: { buffer: tampon(framesBytes(worldCount), frameData) },
     cold: { buffer: tampon(48, packed.pageCones) },
+    // One range holds every primitive (`frameRanges.ts`).
+    range: {
+      buffer: tampon(
+        16,
+        new Uint32Array([0, worldCount, 0, 0]),
+        GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      ),
+    },
   };
   const dispatchArgs = device.createBuffer({
     size: 16,
