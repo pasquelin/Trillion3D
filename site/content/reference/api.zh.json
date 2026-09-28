@@ -5396,7 +5396,7 @@
   },
   "loader": {
     "summary": "`loader` 系列:被获取并转换成场景可用形式的文件。",
-    "description": "普通文件通过引擎自带校验的 fetch(`cluster/pages.ts`)读取,它会根据状态码拒绝一次失败的响应;图片(`texture`、`cubeTexture`)则通过一个 image 元素获取,它会因解码失败而拒绝该图片。"
+    "description": "普通文件通过引擎自带校验的 fetch(`cluster/checked.ts`)读取,它会根据状态码拒绝一次失败的响应;图片(`texture`、`cubeTexture`)则通过一个 image 元素获取,它会因解码失败而拒绝该图片。"
   },
   "loader.texture": {
     "summary": "获取一张图片,并用它制作一个颜色纹理。",

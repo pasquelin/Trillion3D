@@ -5528,7 +5528,7 @@
   },
   "loader": {
     "summary": "Họ `loader`: các tệp được lấy về và biến thành thứ mà một cảnh sử dụng.",
-    "description": "Một tệp được đọc thông qua fetch đã được kiểm tra của bộ máy (`cluster/pages.ts`), thứ từ chối một phản hồi thất bại theo trạng thái của nó; một bức ảnh (`texture`, `cubeTexture`) được lấy về bởi một phần tử hình ảnh, thứ từ chối một cái bằng cách giải mã thất bại."
+    "description": "Một tệp được đọc thông qua fetch đã được kiểm tra của bộ máy (`cluster/checked.ts`), thứ từ chối một phản hồi thất bại theo trạng thái của nó; một bức ảnh (`texture`, `cubeTexture`) được lấy về bởi một phần tử hình ảnh, thứ từ chối một cái bằng cách giải mã thất bại."
   },
   "loader.cubeTexture": {
     "summary": "Lấy về sáu bức ảnh và tạo một kết cấu hình lập phương: các mặt `+x, -x, +y, -y, +z, -z`.",
