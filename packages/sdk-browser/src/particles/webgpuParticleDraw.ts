@@ -1,7 +1,7 @@
 import { PARTICLE_BLENDS, type ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 import { buildRenderPipeline } from '../lighting/deferred/fullscreen.ts';
-import { DISC_CORNERS, DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
+import { BLENDS, DISC_CORNERS, DRAW_FLOATS, drawOrder, writeDrawWords } from './drawWords.ts';
 import { usedSlots } from './poolStates.ts';
 
 /** The pass label the GPU timings name the particle draw by (`passesGpu`). */
@@ -45,16 +45,6 @@ export type DrawState = {
   draw: GPUBuffer;
   drawn?: GPUBindGroup;
   depth?: GPUTextureView;
-};
-
-// Smoke covers colour and coverage alike; fire adds light and leaves the coverage.
-const OVER = { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' } as const;
-const BLENDS: Record<ParticlePool['blend'], GPUBlendState> = {
-  additive: {
-    color: { srcFactor: 'one', dstFactor: 'one' },
-    alpha: { srcFactor: 'zero', dstFactor: 'one' },
-  },
-  premultiplied: { color: OVER, alpha: OVER },
 };
 
 /** The WebGPU particle draw: one pass over the lit image, one instanced draw per live pool, the
