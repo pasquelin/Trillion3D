@@ -14,13 +14,13 @@
 //! in `wasm_math.rs`), the CPU cut's node walk (`cut.rs`, ABI in `wasm_cut.rs`), the normal cone
 //! and position grid of the pages the world cuts at run time (`normal_cone.rs`, `bits/grid.rs`,
 //! ABI in `wasm_cone.rs`) and the buffer they share with JavaScript.
-
 mod attributes;
 pub mod bits;
 pub mod cut;
 pub mod cut_error;
 pub mod math;
 pub mod math_hierarchy;
+mod min_ball;
 pub mod normal_cone;
 pub mod triangles;
 mod unpack;
