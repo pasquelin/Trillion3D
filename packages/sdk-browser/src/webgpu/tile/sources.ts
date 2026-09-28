@@ -56,6 +56,17 @@ export function createTileSources(options: {
     buildHostScratch(device, counters, atlas, slot);
   const builds = createScratchBuilds(device, build, options.onFailure);
   const held = (id: number) => live.get(id) ?? builds.get(id);
+  /** `use` on the working texture held, or on one built for it and freed after: never inside a
+   *  pass — the textures built off the frame wait for the next pass. */
+  const withScratch = (atlas: WebgpuTileAtlas, slot: number, use: (s: TileScratch) => void) => {
+    const kept = held(scratchId(atlas, slot)),
+      scratch = kept ?? build(atlas, slot);
+    try {
+      use(scratch);
+    } finally {
+      if (!kept) scratch.destroy();
+    }
+  };
   return {
     levels,
     /**
@@ -113,23 +124,21 @@ export function createTileSources(options: {
     /** Queue of a host texture, copied from its working texture and submitted. */
     tail(atlas: WebgpuTileAtlas, slot: number, place: TilePlace) {
       const { layout } = atlas.textures[slot];
-      // Built now if not held — a queue is copied at prepare, never inside a pass —, and only that
-      // one freed: the working textures built off the frame wait for the next pass.
-      const kept = held(scratchId(atlas, slot)),
-        scratch = kept ?? build(atlas, slot);
-      if (scratch.stale) scratch.reduce();
-      const encoder = device.createCommandEncoder({ label: 'Trillion3D texture tail' });
-      copyTailFromTexture(
-        encoder,
-        atlas.poolOf(slot).texture,
-        place,
-        scratch.texture,
-        [layout.width, layout.height],
-        layout.tail,
-        layout.last,
-      );
-      device.queue.submit([encoder.finish()]);
-      if (!kept) scratch.destroy();
+      // A queue is copied at prepare, never inside a pass.
+      withScratch(atlas, slot, (scratch) => {
+        if (scratch.stale) scratch.reduce();
+        const encoder = device.createCommandEncoder({ label: 'Trillion3D texture tail' });
+        copyTailFromTexture(
+          encoder,
+          atlas.poolOf(slot).texture,
+          place,
+          scratch.texture,
+          [layout.width, layout.height],
+          layout.tail,
+          layout.last,
+        );
+        device.queue.submit([encoder.finish()]);
+      });
     },
     /**
      * A host texture's new picture (#362): the texture turns live — it keeps one working texture
@@ -153,11 +162,10 @@ export function createTileSources(options: {
     /** A host texture whose readers' coverage rule moved (#42): its mips reduced again, copied. */
     reduce(atlas: WebgpuTileAtlas, slot: number) {
       if (!pictureFits(atlas.textures[slot])) return false;
-      const kept = held(scratchId(atlas, slot)),
-        scratch = kept ?? build(atlas, slot);
-      scratch.reduce();
-      copyLiveTexture(device, atlas, slot, scratch.texture);
-      if (!kept) scratch.destroy();
+      withScratch(atlas, slot, (scratch) => {
+        scratch.reduce();
+        copyLiveTexture(device, atlas, slot, scratch.texture);
+      });
       return true;
     },
     /** Bytes the live textures' working textures hold, mips included, beside the pool. */

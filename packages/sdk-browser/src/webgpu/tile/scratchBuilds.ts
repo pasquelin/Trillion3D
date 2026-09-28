@@ -43,18 +43,18 @@ export function createScratchBuilds(
   build: (atlas: WebgpuTileAtlas, slot: number) => TileScratch,
   onFailure: (phase: string, error: unknown) => void,
 ) {
-  const asked = new Map<number, { atlas: WebgpuTileAtlas; slot: number }>(),
-    built = new Map<number, TileScratch>(),
-    /** Feedback frame each working texture was asked at, and those a copy read this pass. */
-    askedAt = new Map<number, number>(),
+  /** Working textures asked or built, each with the feedback frame it was asked at; and those a
+   *  copy read this pass. */
+  const asked = new Map<number, { atlas: WebgpuTileAtlas; slot: number; frame: number }>(),
+    built = new Map<number, { scratch: TileScratch; frame: number }>(),
     copied = new Set<number>();
   let building: Promise<void> | undefined;
   const buildAsked = () => {
     const chains = [];
-    for (const [id, { atlas, slot }] of asked)
+    for (const [id, { atlas, slot, frame }] of asked)
       try {
         const scratch = build(atlas, slot);
-        built.set(id, scratch);
+        built.set(id, { scratch, frame });
         chains.push(scratch.chain());
       } catch (error) {
         onFailure('texture-tile-failed', error);
@@ -64,14 +64,13 @@ export function createScratchBuilds(
   };
   return {
     /** The working texture built for `id`, if it is. */
-    get: (id: number) => built.get(id),
+    get: (id: number) => built.get(id)?.scratch,
     /** A copy of this pass reads `id`'s working texture: it is freed at the pass's end. */
     read: (id: number) => void copied.add(id),
     /** Asks `id`'s working texture for the tiles of feedback `frame`, if a pass has room. */
     ask(id: number, frame: number, atlas: WebgpuTileAtlas, slot: number) {
       if (built.size + asked.size >= MAX_SCRATCHES) return;
-      askedAt.set(id, frame);
-      asked.set(id, { atlas, slot });
+      asked.set(id, { atlas, slot, frame });
       building ??= new Promise<void>((done) =>
         setTimeout(() => {
           building = undefined;
@@ -88,11 +87,10 @@ export function createScratchBuilds(
     /** End of pass `frame`: frees the working textures a copy read, or that feedback newer than
      *  their ask passed over; every one without a frame. */
     drop(frame = Infinity) {
-      for (const [id, scratch] of built)
-        if (copied.has(id) || (askedAt.get(id) ?? -1) < frame) {
+      for (const [id, { scratch, frame: askedAt }] of built)
+        if (copied.has(id) || askedAt < frame) {
           scratch.destroy();
           built.delete(id);
-          askedAt.delete(id);
         }
       copied.clear();
     },
@@ -103,7 +101,6 @@ export function createScratchBuilds(
     destroy() {
       asked.clear();
       this.drop();
-      askedAt.clear();
     },
   };
 }
