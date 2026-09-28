@@ -19,7 +19,10 @@ function ensurerOver(
   const cache = lruCache(slots),
     loads: string[] = [];
   const load = cache.load;
-  cache.load = async (url: string) => (loads.push(url), load(url));
+  cache.load = async (url: string, signal?: AbortSignal, tier?: 'held' | 'pinned') => (
+    loads.push(url),
+    load(url, signal, tier)
+  );
   const ensure = createWebgpuResidentEnsurer({ ...ensurerOptions(tracking, cache), ...options });
   const want = (...wanted: PageRec[]) => {
     for (const page of wanted) tracking.wanted.add(tracking.keyOf(page), page);
