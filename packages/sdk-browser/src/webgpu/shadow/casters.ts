@@ -6,9 +6,9 @@ import {
   SHADOW_CULL_FLOATS,
   SHADOW_CULL_VIEW,
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
-import { pageViews } from './pages.ts';
+import { pageModes, pageViews } from './pages.ts';
 import { DRAW_INDIRECT_WORDS } from '../../gpu/draw/contract.ts';
-import { STALE_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
+import { STALE_DYNAMIC, STALE_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 
 /** Where the current face's list lies, rewritten face by face: a frame allocates no record. */
 const source = {} as ShadowCullSource;
@@ -78,7 +78,7 @@ export function encodeShadowCasters(
     // tells the flag slot whether they were.
     const list = lights.plan.admission.list.subarray(from, to);
     const redraw = runs.count
-      ? light.redraws.encode(encoder, list, pageViews, to - from)
+      ? light.redraws.encode(encoder, list, pageViews, to - from, pageModes)
       : undefined;
     if (redraw) timing.shadowRedraws = both(timing.shadowRedraws, redraw);
     return true;
@@ -118,10 +118,11 @@ const both =
   };
 
 /**
- * Before a plan: the pages a light cut drew short go stale again, whole — residency having moved
+ * Before a plan: the pages a light cut drew short go stale again — residency having moved
  * (`residencyMoved`) and the camera rested when that is what they waited for, withdrawn meanwhile
  * only when they miss casters (`../../gpu/dag/lightCutRedraws.ts`) —, and the plan draws them in
- * the frame, with every other stale page the image reads (`admit.ts`).
+ * the frame, with every other stale page the image reads (`admit.ts`). A page the static layer
+ * restored drew its moving casters alone: only they go stale again, and the layer stays (#990).
  */
 export function redrawShortPages(
   rt: WebgpuPagesRuntime,
@@ -135,9 +136,9 @@ export function redrawShortPages(
   if (residencyMoved) redraws.residencyChanged();
   if (plan.resting) redraws.rest();
   const { pool } = plan;
-  const pages = redraws.takeRedraw((page, withdraw) => {
+  const pages = redraws.takeRedraw((page, withdraw, staticCasters) => {
     if (pool.owner[page] < 0) return;
-    pool.stale(page, nowMs, frame, STALE_FULL);
+    pool.stale(page, nowMs, frame, staticCasters ? STALE_FULL : STALE_DYNAMIC);
     if (withdraw) pool.withdraw(plan.table, page);
   });
   if (pages)
