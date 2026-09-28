@@ -77,8 +77,8 @@ export function createGpuPageCache(
     reader,
     check,
   };
-  const load = createGpuPageLoader(context);
   const pinning = createGpuPagePins(context);
+  const load = createGpuPageLoader(context, pinning.pin);
   return {
     /** The pool buffer: a new identity after `resize`, to be rebound. */
     get buffer() {
