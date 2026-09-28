@@ -24,6 +24,8 @@ export const hashOf = (value: unknown) =>
     ? '-'
     : createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0, 8);
 
+const written = DICTIONARIES[DEFAULT_LANGUAGE].written as Record<string, object | undefined>;
+
 /** The entries of one language: `(entry, text)` for each. */
 function entriesOf(code: string): [string, unknown][] {
   const portal = Object.entries(DICTIONARIES[code] as Record<string, unknown>)
@@ -36,7 +38,6 @@ function entriesOf(code: string): [string, unknown][] {
   const examples = Object.entries(EXAMPLE_WORDS[code] ?? {}).map(
     ([id, words]): [string, unknown] => [`examples:${id}`, words],
   );
-  const written = DICTIONARIES[DEFAULT_LANGUAGE].written as Record<string, object | undefined>;
   const reference = (generated as PortalEntry[]).map((entry): [string, unknown] => [
     `reference:${entry.id}`,
     code === DEFAULT_LANGUAGE
@@ -98,8 +99,8 @@ export function parse(text: string): Hashes {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const current = currentHashes();
   // No record yet: every entry is new, and `--write` records the first one.
-  const text = existsSync(RECORD) ? readFileSync(RECORD, 'utf8') : serialise({});
-  const stale = staleTranslations(parse(text), current);
+  const text = existsSync(RECORD) ? readFileSync(RECORD, 'utf8') : '';
+  const stale = staleTranslations(text ? parse(text) : {}, current);
   if (stale.length) {
     console.error(`English changed, these translations did not:\n  ${stale.join('\n  ')}`);
     process.exitCode = 1;
