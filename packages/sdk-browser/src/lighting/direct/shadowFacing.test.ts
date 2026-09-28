@@ -84,7 +84,8 @@ test('without taps the filter asks for the same pages, then reads none (#685)', 
   // hands it on, as the last argument of its calls.
   for (const [name, calls] of [
     ['shadowFactor', 2],
-    ['sunShadowFactor', 1],
+    // A page of the sun's current depth range, and one of an older range (#991).
+    ['sunShadowFactor', 2],
     ['lampShadowFactor', 1],
   ] as const) {
     const code = functionText(SHADOW_FACTOR_WGSL, name).replace(/\/\/.*$/gm, '');
