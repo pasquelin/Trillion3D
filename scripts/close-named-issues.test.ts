@@ -26,6 +26,10 @@ test('code, HTML comments and other repositories never close an issue', () => {
     '```',
     'Write `Closes #13` first.',
     '<!-- Closes #14 -->',
+    '- A step:',
+    '  ````ts',
+    '  fixes #18',
+    '  ````',
     'Closes owner/other#15, closes#16, encloses #17',
   ].join('\n');
   assert.deepEqual(namedIssues(body), [11]);
