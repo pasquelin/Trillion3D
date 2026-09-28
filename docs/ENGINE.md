@@ -436,7 +436,14 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   pool is touched. `shadowPagesRequested`, `shadowPagesCached`, `shadowPoolPages`,
   `shadowPagesDrawn`, `shadowPagesPending` and `shadowWaitMs` publish the work — the wait, in ms
   and in frames (`shadowWaitFrames`, the direct-lighting diagnostic only), of the oldest stale page
-  the image reads, counted only while a report names it (#489);
+  the image reads, counted only while a report names it (#489). The work splits apart (#991),
+  counted on the host, never in a shader: `shadowPagesRestored` — pages copied from the static
+  layer, their moving casters alone rasterised — against `shadowPagesRasterized`, whose static
+  casters were drawn again; `shadowRestoreCopies`; `shadowStaticDrawCalls` against
+  `shadowMovingDrawCalls`, and of the sampled clusters `shadowMovingCastersKept`; `shadowBatches`
+  and `shadowLayersDrawn`; and `shadowPagesStaledBy`, the pages staled by reason — light, still
+  caster, moving casters, detail, cut threshold, depth range. Allocated and peak bytes are
+  `shadowPoolBytes` and `shadowPeakBytes`;
   `diagnostic.shadowAtlas(world)` returns the pool's raw depth hash. A still scene runs no resolve
   and asks for nothing; the image holds once a report proves it reads only pages drawn.
 - **The floor is always current.** Every page a report names asks for its light's floor under it
