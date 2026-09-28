@@ -88,3 +88,21 @@ test('a probe that both fits and drops backs off like one that drops', () => {
     assert.ok(drops <= Math.log2(64), `${drops} mixed probes in 64 residency changes`);
   }
 });
+
+// A catalogue that alternates between too small and roomy: each too-small stretch doubles
+// `patience`, but a limit that climbs past the count whose drop doubled it proves the catalogue grew,
+// so the next roomy stretch recovers as fast as the first — never slower cycle after cycle.
+test('patience does not pile up across cycles of a catalogue that shrinks and grows back', () => {
+  const limit = settledAt15();
+  const recoveries: number[] = [];
+  for (let cycle = 0; cycle < 20; cycle++) {
+    run(limit, 15, 16, true);
+    let batches = 0;
+    while (limit.value < 20 && batches < 1e4) {
+      run(limit, 20, 1, true);
+      batches++;
+    }
+    recoveries.push(batches);
+  }
+  assert.ok(Math.max(...recoveries.slice(1)) <= recoveries[1], `recoveries: ${recoveries.join(' ')}`);
+});
