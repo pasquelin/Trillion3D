@@ -93,7 +93,7 @@ fn dagPrepare(@builtin(global_invocation_id) id:vec3u){
  // light cut opens none on a primitive that casts no shadow (\`markOf\`, \`castsNoShadow\`).
  let root=select(rootOf(w),0xffffffffu,isLightCut()&&(markOf(w)&${CASTS_NO_SHADOW}u)!=0u);
  flags[queueBase(0u)+t]=select(packEntry(vi,root),root,root==0xffffffffu);
- let pose=worlds[w];let m=transpose(pose);let base=slot*FRAME;
+ let pose=worlds[rowOf(w)];let m=transpose(pose);let base=slot*FRAME;
  // A primitive a camera never culls (\`unculledOf\`) takes six planes no box leaves.
  let open=!isLightCut()&&unculledOf(w);
  putPlanes(base,m,vi,open);

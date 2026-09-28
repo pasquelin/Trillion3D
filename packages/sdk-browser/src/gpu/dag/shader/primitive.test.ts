@@ -54,11 +54,11 @@ test('one primitive holds its row and its prepared values', () => {
 });
 
 test('every site reads the prepared values; only a light view still multiplies', () => {
-  const products = DAG_SELECTION_SHADER.match(/views\[vi\]\.view\*worlds\[w\]/g) ?? [];
+  const products = DAG_SELECTION_SHADER.match(/views\[vi\]\.view\*worlds\[rowOf\(w\)\]/g) ?? [];
   assert.equal(products.length, 1, 'one product left, in `viewWorld`');
   assert.match(
     DAG_PRIMITIVE_WGSL,
-    /if\(isLightCut\(\)\)\{return views\[vi\]\.view\*worlds\[w\];\}/,
+    /if\(isLightCut\(\)\)\{return views\[vi\]\.view\*worlds\[rowOf\(w\)\];\}/,
   );
   const box = DAG_CONE_WGSL.slice(DAG_CONE_WGSL.indexOf('fn coneRejectsBox'));
   assert.ok(!box.includes('isConformal(') && !box.includes('inverseTranspose3('));

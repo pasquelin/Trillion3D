@@ -12,6 +12,7 @@ import {
   parseDagOutput,
 } from '../../../packages/sdk-browser/src/gpu/dag/uniforms.ts';
 import { framesBytes } from '../../../packages/sdk-browser/src/gpu/dag/frameRanges.ts';
+import { selectionListCap } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import { sceneView } from './cutDispatchesScene.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
@@ -39,7 +40,15 @@ export async function executer(pixelErrors: number[]) {
   const { packed, uniforms } = sceneView(400, 8, poses);
   const third = framesBytes(Math.ceil(packed.worldCount / 3));
   const cut = async (target: GPUDevice) => {
-    const resources = await createDagResources(target, packed, false);
+    // The readout keeps the catalogue's cap on both devices: only `frames` is to split, and a list
+    // sized from the lying binding would truncate the split cut alone (`listCap.ts`).
+    const resources = await createDagResources(
+      target,
+      packed,
+      false,
+      null,
+      selectionListCap(packed.pageCount),
+    );
     if (!resources) throw new Error('the cut does not mount');
     const readback = device.createBuffer({
       size: resources.readbackBytes,
@@ -48,7 +57,7 @@ export async function executer(pixelErrors: number[]) {
     const cuts = [];
     for (const pixelError of pixelErrors) {
       const block = new Float32Array(DAG_UNIFORM_BYTES / 4);
-      writeDagUniforms(block, packed, { ...uniforms, pixelError }, false);
+      writeDagUniforms(block, packed, { ...uniforms, pixelError }, false, resources.listCap);
       device.queue.writeBuffer(resources.uniforms, 0, block);
       const encoder = device.createCommandEncoder();
       encodeDagKernels(encoder, resources);
