@@ -32,6 +32,14 @@ export function geometryBudgetBeside(rt: WebgpuPagesRuntime, budgetBytes: number
   };
 }
 
+/** Host bytes the session holds for the streamer's reservation: the cut's tables and residency,
+ *  plus the bounce and far-sun proxies (the far sun's, when borrowed from bounce, once). */
+export function hostTableBytesOf(rt: WebgpuPagesRuntime) {
+  const { services, bounce, sunFar } = rt;
+  const sunBytes = sunFar.borrowed ? 0 : (sunFar.gpu?.proxy?.hostBytes ?? 0);
+  return services.hostTableBytes() + (bounce.probes?.proxy.hostBytes ?? 0) + sunBytes;
+}
+
 /**
  * Changes memory pools mid-session, like the reference's variables — but without emptying what they
  * hold: pages and tiles that fit in the new pool are copied there on the GPU, only those that no
