@@ -138,7 +138,7 @@ An image whose decode fails has no entry: its textures load from the source as b
 
 `scene-tables.json`, beside `clusters.json`, says what the prepared scene is made of, and it is the
 only thing the runtime builds that scene from: no glTF is parsed in the browser. Its own version
-governs it — `version` 4, `nodeTableVersion` 3, `materialTableVersion` 4, `geometryTableVersion` 1 —
+governs it — `version` 4, `nodeTableVersion` 4, `materialTableVersion` 4, `geometryTableVersion` 1 —
 and an unknown one is refused rather than half-read (`assertSceneTables`, `UNSUPPORTED_SCENE_TABLES`).
 Every value is read from the `source.gltf` the same compilation publishes (and, for its layout, from
 `scene.gltf` when one is written): the slice's nodes, the cutout answers already applied, the mesh
@@ -147,7 +147,7 @@ ranks already remapped.
 - `scene` — `{ name, nodes }`: the scene the document opens (`scene`, else the first) and its roots.
 - `nodes[]` — every node the partition's cells do not place, in glTF order, renumbered without
   them (every node, at its glTF rank, when `partition` is `null`): `{ name, children, mesh, light, camera, weights,
-matrix, translation, rotation, scale }` (`weights` overrides its mesh's morph weights). The pose is the LOCAL one exactly as declared, each part `null` when silent:
+matrix, translation, rotation, scale, visible }` (`weights` overrides its mesh's morph weights; `visible` is `false` when the node declares `KHR_node_visibility` `visible: false`, which hides it and the nodes under it until a page shows it, and such a node stays in this table rather than a cell; node table version 4 added it). The pose is the LOCAL one exactly as declared, each part `null` when silent:
   the runtime composes world matrices from it the way it always has, so they are the same bits.
   Several nodes naming one mesh is what instancing is here.
 - `partition` — `null`, or the world partition (below): the cells that place the other nodes.
