@@ -1,10 +1,12 @@
 import { BLOOM_UP_TAPS, bloomTapText } from './bloomFilter.ts';
+import { oncePerDevice } from '../gpu/core/oncePerDevice.ts';
 
 /** Bytes of one bloom uniform slot, and the stride between slots: dynamic offsets align on 256. */
 export const BLOOM_UNIFORM_BYTES = 32;
 export const BLOOM_UNIFORM_STRIDE = 256;
 
-const read = (offset: string) => `fetchLevel(uv+${offset}*stride)`;
+/** A bilinear read of the level at `uv` plus `offset` texels of `stride`: every filter's tap. */
+export const levelTap = (offset: string) => `fetchLevel(uv+${offset}*stride)`;
 
 /**
  * One bloom level as a program reads it, at the bindings of group `group`: the level, its bilinear
@@ -20,7 +22,7 @@ struct Bloom{outTexel:vec2f,inTexel:vec2f,radius:f32,keep:f32,glow:f32,unused:f3
 @group(${group}) @binding(2) var<uniform> bloom:Bloom;
 fn fetchLevel(uv:vec2f)->vec4f{return textureSampleLevel(level,linearClamp,uv,0.0);}
 fn tent(uv:vec2f)->vec4f{let stride=bloom.inTexel*bloom.radius;var c=vec4f(0.0);
-${bloomTapText(BLOOM_UP_TAPS, read, 'vec2f')}
+${bloomTapText(BLOOM_UP_TAPS, levelTap, 'vec2f')}
 return c;}
 fn blendLevel(image:vec4f,pixel:vec2f)->vec4f{return image*bloom.keep+tent(pixel*bloom.outTexel)*bloom.glow;}`;
 
@@ -35,15 +37,11 @@ fn blendLevel(image:vec4f,pixel:vec2f)->vec4f{return image*bloom.keep+tent(pixel
 export const BLOOM_COMPOSE_WGSL = `${bloomLevelWgsl(1)}
 fn bloomed(image:vec4f,pixel:vec2f)->vec4f{return quantizeToF16(min(blendLevel(image,pixel),vec4f(65504.0)));}`;
 
-const layouts = new WeakMap<GPUDevice, GPUBindGroupLayout>();
-
 /** The layout of a level's group, one per device: the bloom's passes and the composition that
  *  blends its last level in bind the same groups. */
-export function bloomLevelLayout(device: GPUDevice) {
-  let layout = layouts.get(device);
-  if (layout) return layout;
+export const bloomLevelLayout = oncePerDevice((device) => {
   const visibility = GPUShaderStage.FRAGMENT;
-  layout = device.createBindGroupLayout({
+  return device.createBindGroupLayout({
     label: 'Trillion3D bloom level',
     entries: [
       { binding: 0, visibility, texture: { sampleType: 'float' } },
@@ -55,6 +53,4 @@ export function bloomLevelLayout(device: GPUDevice) {
       },
     ],
   });
-  layouts.set(device, layout);
-  return layout;
-}
+});
