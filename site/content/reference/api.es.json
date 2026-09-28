@@ -845,7 +845,7 @@
       "primitives": "Sus primitivas.",
       "worstStalls": "La tabla de bloqueos del compilador: como mucho diez primitivas con un grupo bloqueado que conservó raíces en el nivel 0, la peor primero. Ausente de una caché compilada antes de ella.",
       "texturePreviews": "Una entrada por par (textura, atlas) decodificado, dispuesta por textura y luego por atlas; vacía sin imagen decodificable.",
-      "textures": "Modelo de los niveles horneados, relativo al manifiesto: {sha} la huella de la imagen fuente, {kind} el nombre del atlas (PREVIEW_ATLAS_NAMES), {level} el rango del nivel. Ausente en una caché compilada antes de los niveles horneados, que este lector rechaza por la versión del archivo aparte.",
+      "textures": "Modelo de los niveles horneados, relativo al manifiesto: {sha} la huella de la imagen fuente, {kind} el nombre del atlas (PREVIEW_ATLAS_NAMES), {level} el rango del nivel. Ausente en una caché compilada antes de los niveles horneados, que este lector rechaza por la versión del archivo aparte. `version` es la de los niveles (`TEXTURE_PREVIEW_VERSION`): un lector no lee ningún nivel de otra.",
       "proxy": "Dónde leer el proxy de escena residente y su BVH: la geometría que tocan los rayos. Ausente en una caché compilada antes del rebote, que sigue siendo legible tal cual."
     }
   },
@@ -5601,7 +5601,7 @@
       "totalNodes": "Nodos en total.",
       "autonomousScene": "Su escena integrada.",
       "texturePreviews": "Una entrada por par (textura, atlas) decodificado, dispuesta por textura y luego por atlas; vacía sin imagen decodificable.",
-      "textures": "Modelo de los niveles horneados, relativo al manifiesto: {sha} la huella de la imagen fuente, {kind} el nombre del atlas (PREVIEW_ATLAS_NAMES), {level} el rango del nivel. Ausente en una caché compilada antes de los niveles horneados, que este lector rechaza por la versión del archivo aparte.",
+      "textures": "Modelo de los niveles horneados, relativo al manifiesto: {sha} la huella de la imagen fuente, {kind} el nombre del atlas (PREVIEW_ATLAS_NAMES), {level} el rango del nivel. Ausente en una caché compilada antes de los niveles horneados, que este lector rechaza por la versión del archivo aparte. `version` es la de los niveles (`TEXTURE_PREVIEW_VERSION`): un lector no lee ningún nivel de otra.",
       "proxy": "Dónde leer el proxy de escena residente y su BVH: la geometría que tocan los rayos. Ausente en una caché compilada antes del rebote, que sigue siendo legible tal cual.",
       "binary": "El archivo binario.",
       "primitives": "Sus primitivas.",
@@ -6070,7 +6070,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "Niveles de textura progresivos, reflejados por `packages/asset-compiler-rust/src/texture_preview.rs`: el final de la cadena de mips de una fuente en el archivo aparte, en RGBA8 en la codificación propia del atlas, desde el nivel más fino cuyo ningún lado supera `PREVIEW_BASE` hasta 1×1 — y, por encima, un PNG sin pérdida por nivel en la caché, `bakedLevels` de ellos a partir del nivel 0.",
-    "description": "Cada nivel sigue la regla de los mips que aplicaba la tarjeta gráfica cuando rehacía la cadena ella misma (`packages/sdk-browser/src/texture/mips.ts`): promedio lineal de los colores, alfa mediano, nivel `k` a partir del nivel cuantizado `k - 1`. Sus tamaños no se escriben: se deducen de las dimensiones de la fuente, que `previewLevels.ts` recalcula. La versión 4 hornea cada nivel por encima del final, y el final mismo, en las familias de bloques pedidas por el horneado junto a los archivos sin pérdida — la familia BC para las tarjetas de escritorio, ASTC 4×4 para móviles, un byte por texel — para las cadenas que un control de calidad ha conservado; una cadena bajo el umbral permanece sin pérdida en esa familia, y la palabra de disposición de su entrada lo dice."
+    "description": "Cada nivel sigue la regla de los mips que aplicaba la tarjeta gráfica cuando rehacía la cadena ella misma (`packages/sdk-browser/src/texture/mips.ts`): promedio lineal de los colores, alfa mediano, nivel `k` a partir del nivel cuantizado `k - 1`. Sus tamaños no se escriben: se deducen de las dimensiones de la fuente, que `previewLevels.ts` recalcula. La versión 4 hornea cada nivel por encima del final, y el final mismo, en las familias de bloques pedidas por el horneado junto a los archivos sin pérdida — la familia BC para las tarjetas de escritorio, ASTC 4×4 para móviles, un byte por texel — para las cadenas que un control de calidad ha conservado; una cadena bajo el umbral permanece sin pérdida en esa familia, y la palabra de disposición de su entrada lo dice. La versión 6 dispone un archivo de nivel por bloques en registros de teselas, una petición HTTP Range cada uno (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TextureBlockFormat": {
     "summary": "Una familia de bloques en la que se puede hornear una textura."
@@ -6133,7 +6133,8 @@
       "sha256": "Huella de la imagen fuente.",
       "atlas": "Qué atlas.",
       "level": "Qué nivel.",
-      "format": "Qué formato."
+      "format": "Qué formato.",
+      "range": "Los bytes de un nivel por bloques que se leen solos — el registro de una tesela (`tileRecords.ts`) —, por una petición HTTP Range; un servidor que la ignora responde el archivo entero."
     }
   },
   "textureLevelUrl": {

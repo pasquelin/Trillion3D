@@ -508,7 +508,7 @@
       "primitives": "Suas primitivas.",
       "worstStalls": "A tabela de bloqueios do compilador: no máximo dez primitivas com um grupo bloqueado que manteve raízes no nível 0, a pior primeiro. Ausente de um cache compilado antes dela.",
       "texturePreviews": "Uma entrada por (textura, atlas) decodificado, ordenada por textura e depois por atlas; vazia sem uma imagem decodificável.",
-      "textures": "Modelo para os níveis pré-processados, relativo ao manifesto: {sha} o digest da imagem de origem, {kind} o nome do atlas (PREVIEW_ATLAS_NAMES), {level} o posto do nível. Ausente de um cache compilado antes dos níveis pré-processados, que este leitor recusa pela versão auxiliar.",
+      "textures": "Modelo para os níveis pré-processados, relativo ao manifesto: {sha} o digest da imagem de origem, {kind} o nome do atlas (PREVIEW_ATLAS_NAMES), {level} o posto do nível. Ausente de um cache compilado antes dos níveis pré-processados, que este leitor recusa pela versão auxiliar. `version` é a dos níveis (`TEXTURE_PREVIEW_VERSION`): um leitor não lê nenhum nível de outra.",
       "proxy": "Onde ler o proxy de cena residente e sua BVH: a geometria atingida por raios. Ausente de um cache compilado antes do rebote, que continua legível como está."
     }
   },
@@ -3237,7 +3237,7 @@
       "totalNodes": "Nós ao todo.",
       "autonomousScene": "Sua cena embutida.",
       "texturePreviews": "Uma entrada por (textura, atlas) decodificado, ordenada por textura e depois por atlas; vazia sem uma imagem decodificável.",
-      "textures": "Modelo para os níveis pré-processados, relativo ao manifesto: {sha} o digest da imagem de origem, {kind} o nome do atlas (PREVIEW_ATLAS_NAMES), {level} o posto do nível. Ausente de um cache compilado antes dos níveis pré-processados, que este leitor recusa pela versão auxiliar.",
+      "textures": "Modelo para os níveis pré-processados, relativo ao manifesto: {sha} o digest da imagem de origem, {kind} o nome do atlas (PREVIEW_ATLAS_NAMES), {level} o posto do nível. Ausente de um cache compilado antes dos níveis pré-processados, que este leitor recusa pela versão auxiliar. `version` é a dos níveis (`TEXTURE_PREVIEW_VERSION`): um leitor não lê nenhum nível de outra.",
       "proxy": "Onde ler o proxy de cena residente e sua BVH: a geometria atingida por raios. Ausente de um cache compilado antes do rebote, que continua legível como está.",
       "binary": "O arquivo binário.",
       "primitives": "Suas primitivas.",
@@ -3451,7 +3451,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "Níveis progressivos de textura, espelhados por `packages/asset-compiler-rust/src/texture_preview.rs`: a cauda da cadeia de mip de uma origem no arquivo auxiliar, RGBA8 na codificação própria do atlas, do nível mais fino cujo lado nenhum excede `PREVIEW_BASE` até 1×1 — e, acima disso, um PNG sem perdas por nível no cache, `bakedLevels` deles a partir do nível 0.",
-    "description": "Todo nível segue a regra de mip que a placa aplicou quando regenerou a cadeia ela mesma (`packages/sdk-browser/src/texture/mips.ts`): média linear das cores, alfa mediano, nível `k` a partir do nível quantizado `k - 1`. Seus tamanhos não são escritos: eles decorrem das dimensões de origem, que `previewLevels.ts` recalcula. A versão 4 pré-processa cada nível acima da cauda, e a própria cauda, nas famílias de blocos que a cozinha pediu ao lado dos arquivos sem perdas — a família BC para placas de desktop, ASTC 4×4 para as móveis, um byte por texel — para as cadeias que um portão de qualidade manteve; uma cadeia abaixo da barra permanece sem perdas nessa família, e a palavra de layout de sua entrada diz isso."
+    "description": "Todo nível segue a regra de mip que a placa aplicou quando regenerou a cadeia ela mesma (`packages/sdk-browser/src/texture/mips.ts`): média linear das cores, alfa mediano, nível `k` a partir do nível quantizado `k - 1`. Seus tamanhos não são escritos: eles decorrem das dimensões de origem, que `previewLevels.ts` recalcula. A versão 4 pré-processa cada nível acima da cauda, e a própria cauda, nas famílias de blocos que a cozinha pediu ao lado dos arquivos sem perdas — a família BC para placas de desktop, ASTC 4×4 para as móveis, um byte por texel — para as cadeias que um portão de qualidade manteve; uma cadeia abaixo da barra permanece sem perdas nessa família, e a palavra de layout de sua entrada diz isso. A versão 6 dispõe um arquivo de nível em blocos em registros de ladrilhos, uma requisição HTTP Range cada (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TONE_MAPPING_RANK": {
     "summary": "As curvas que trazem a radiância da cena para a faixa de exibição, pelo posto que os shaders leem.",
@@ -3669,7 +3669,8 @@
       "sha256": "Impressão digital da imagem de origem.",
       "atlas": "Qual atlas.",
       "level": "Qual nível.",
-      "format": "Qual formato."
+      "format": "Qual formato.",
+      "range": "Os bytes de um nível em blocos a ler sozinhos — o registro de um ladrilho (`tileRecords.ts`) —, por uma requisição HTTP Range; um servidor que a ignora responde o arquivo inteiro."
     }
   },
   "TexturePool": {

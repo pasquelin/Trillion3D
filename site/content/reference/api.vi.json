@@ -515,7 +515,7 @@
       "primitives": "Các nguyên thủy của nó.",
       "worstStalls": "Bảng tắc nghẽn của trình biên dịch: tối đa mười primitive có một nhóm bị tắc giữ lại gốc ở cấp 0, tệ nhất trước. Không có trong bộ nhớ đệm biên dịch trước nó.",
       "texturePreviews": "Một mục cho mỗi cặp (kết cấu, atlas) đã giải mã, sắp theo kết cấu rồi theo atlas; rỗng nếu không có ảnh nào giải mã được.",
-      "textures": "Mẫu cho các mức đã nướng sẵn, tương đối so với tệp kê khai: {sha} là mã băm ảnh nguồn, {kind} là tên atlas (PREVIEW_ATLAS_NAMES), {level} là thứ hạng mức. Không có trong bộ nhớ đệm được biên dịch trước khi có tính năng nướng mức, mà trình đọc này từ chối qua phiên bản tệp phụ.",
+      "textures": "Mẫu cho các mức đã nướng sẵn, tương đối so với tệp kê khai: {sha} là mã băm ảnh nguồn, {kind} là tên atlas (PREVIEW_ATLAS_NAMES), {level} là thứ hạng mức. Không có trong bộ nhớ đệm được biên dịch trước khi có tính năng nướng mức, mà trình đọc này từ chối qua phiên bản tệp phụ. `version` là phiên bản của các mức (`TEXTURE_PREVIEW_VERSION`): bộ đọc không đọc mức nào của phiên bản khác.",
       "proxy": "Nơi để đọc proxy cảnh đang lưu trú và BVH của nó: hình học bị các tia va vào. Không có trong bộ nhớ đệm được biên dịch trước khi có tính năng dội lại, vẫn đọc được nguyên trạng."
     }
   },
@@ -3321,7 +3321,7 @@
       "totalNodes": "Tổng số node.",
       "autonomousScene": "Cảnh tích hợp sẵn của nó.",
       "texturePreviews": "Một mục cho mỗi cặp (kết cấu, atlas) đã giải mã, sắp theo kết cấu rồi theo atlas; rỗng nếu không có ảnh nào giải mã được.",
-      "textures": "Mẫu cho các mức đã nướng sẵn, tương đối so với tệp kê khai: {sha} là mã băm ảnh nguồn, {kind} là tên atlas (PREVIEW_ATLAS_NAMES), {level} là thứ hạng mức. Vắng mặt khỏi bộ nhớ đệm được biên dịch trước khi có tính năng nướng mức, mà trình đọc này từ chối qua phiên bản tệp phụ.",
+      "textures": "Mẫu cho các mức đã nướng sẵn, tương đối so với tệp kê khai: {sha} là mã băm ảnh nguồn, {kind} là tên atlas (PREVIEW_ATLAS_NAMES), {level} là thứ hạng mức. Vắng mặt khỏi bộ nhớ đệm được biên dịch trước khi có tính năng nướng mức, mà trình đọc này từ chối qua phiên bản tệp phụ. `version` là phiên bản của các mức (`TEXTURE_PREVIEW_VERSION`): bộ đọc không đọc mức nào của phiên bản khác.",
       "proxy": "Nơi để đọc proxy cảnh đang lưu trú và BVH của nó: hình học bị các tia va vào. Vắng mặt khỏi bộ nhớ đệm được biên dịch trước khi có tính năng dội lại, vẫn đọc được nguyên trạng.",
       "binary": "Tệp nhị phân.",
       "primitives": "Các nguyên thủy của nó.",
@@ -3535,7 +3535,7 @@
   },
   "TEXTURE_PREVIEW_VERSION": {
     "summary": "Các mức kết cấu lũy tiến, phản chiếu bởi `packages/asset-compiler-rust/src/texture_preview.rs`: đuôi chuỗi mip của một nguồn trong tệp phụ, RGBA8 theo mã hóa riêng của atlas, từ mức mịn nhất mà không cạnh nào vượt quá `PREVIEW_BASE` xuống tới 1×1 — và, phía trên nó, một tệp PNG không mất dữ liệu cho mỗi mức trong bộ nhớ đệm, tức `bakedLevels` tệp từ mức 0 trở lên.",
-    "description": "Mỗi mức tuân theo quy tắc mip mà card đã áp dụng khi tự tái tạo chuỗi đó (`packages/sdk-browser/src/texture/mips.ts`): trung bình tuyến tính của các màu, alpha trung vị, mức `k` từ mức đã lượng tử hóa `k - 1`. Kích thước của chúng không được ghi ra: chúng suy ra từ kích thước nguồn, thứ mà `previewLevels.ts` tính lại. Phiên bản 4 nướng mọi mức trên đuôi, và cả đuôi đó, vào các họ khối mà quá trình chế biến yêu cầu bên cạnh các tệp không mất dữ liệu — họ BC cho card để bàn, ASTC 4×4 cho card di động, một byte mỗi texel — cho các chuỗi mà một cổng chất lượng đã giữ lại; một chuỗi dưới ngưỡng vẫn không mất dữ liệu trong họ đó, và từ bố cục của mục đó nói lên điều này."
+    "description": "Mỗi mức tuân theo quy tắc mip mà card đã áp dụng khi tự tái tạo chuỗi đó (`packages/sdk-browser/src/texture/mips.ts`): trung bình tuyến tính của các màu, alpha trung vị, mức `k` từ mức đã lượng tử hóa `k - 1`. Kích thước của chúng không được ghi ra: chúng suy ra từ kích thước nguồn, thứ mà `previewLevels.ts` tính lại. Phiên bản 4 nướng mọi mức trên đuôi, và cả đuôi đó, vào các họ khối mà quá trình chế biến yêu cầu bên cạnh các tệp không mất dữ liệu — họ BC cho card để bàn, ASTC 4×4 cho card di động, một byte mỗi texel — cho các chuỗi mà một cổng chất lượng đã giữ lại; một chuỗi dưới ngưỡng vẫn không mất dữ liệu trong họ đó, và từ bố cục của mục đó nói lên điều này. Phiên bản 6 sắp xếp tệp mức dạng khối theo bản ghi ô, mỗi bản ghi một yêu cầu HTTP Range (#962, `sdk-browser/src/texture/tileRecords.ts`)."
   },
   "TONE_MAPPING_RANK": {
     "summary": "Các đường cong đưa độ chói của cảnh vào phạm vi hiển thị, theo thứ hạng mà các shader đọc.",
@@ -3753,7 +3753,8 @@
       "sha256": "Dấu vân tay của hình ảnh nguồn.",
       "atlas": "Atlas nào.",
       "level": "Mức nào.",
-      "format": "Định dạng nào."
+      "format": "Định dạng nào.",
+      "range": "Các byte của một mức dạng khối được đọc riêng — bản ghi của một ô (`tileRecords.ts`) —, bằng một yêu cầu HTTP Range; máy chủ bỏ qua nó sẽ trả về toàn bộ tệp."
     }
   },
   "TexturePool": {
