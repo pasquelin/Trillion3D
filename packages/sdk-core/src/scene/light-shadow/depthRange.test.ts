@@ -4,6 +4,7 @@
 // one, so a scene at rest shows the image one range draws. A turn of the sun still redraws them all.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { STALE_BY } from './counts.ts';
 import { createSunDepthRanges } from './sunDepth.ts';
 import {
   PAGE_INDEX_MASK,
@@ -103,6 +104,7 @@ test('once nothing moves, the pages of an older range are drawn in the current o
   // The next frame nothing moves: those pages turn stale, and stay read until redrawn.
   planFrame(plan, store, frame + 1, VIEW, ...ground(17));
   assert.equal(plan.counts.invalidatedPages, kept.length);
+  assert.equal(plan.counts.staledBy[STALE_BY.range], kept.length, 'counted as a depth range');
   for (const entry of read)
     assert.ok(plan.table.words[entry] & PAGE_VALID, `page ${entry} is read`);
   plan.commit();

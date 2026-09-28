@@ -3,7 +3,7 @@ import { LIGHT_FIELD, type SceneLightStore } from '../light/store.ts';
 import { baseOf } from '../light/fields.ts';
 import { createShadowChanges } from './changes.ts';
 import { createPageInvalidation } from './invalidate.ts';
-import { createShadowCounts } from './counts.ts';
+import { STALE_BY, createShadowCounts } from './counts.ts';
 import { createShadowAdmission } from './admit.ts';
 import { castsShadow } from './casters.ts';
 import { createShadowTable } from './table.ts';
@@ -144,9 +144,9 @@ export function createShadowPlan(poolSide: number, layers = 1) {
         if (whole) posed[slice] = frame;
       }
       changes.settled();
-      if (still) counts.invalidatedPages += thresholds.restale(nowMs, frame);
+      if (still) counts.staled(STALE_BY.threshold, thresholds.restale(nowMs, frame));
       // Nothing moves: the pages of an older depth range are drawn in the current one.
-      if (quiet) counts.invalidatedPages += sun.ranges.restale(pool, nowMs, frame);
+      if (quiet) counts.staled(STALE_BY.range, sun.ranges.restale(pool, nowMs, frame));
       if (report) {
         const before = stampOf(store),
           read = report;
