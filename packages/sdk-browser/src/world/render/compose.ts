@@ -19,7 +19,8 @@ import {
 import { createWebglEffects, type WebglEffectOutput } from '../../effects/webglEffects.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
-import { refuseAll } from '../../particles/poolStates.ts';
+import { createWebglParticles } from '../../particles/webglParticles.ts';
+import { anyMoving } from '../../particles/poolStates.ts';
 
 const NONE: readonly EffectPass[] = [];
 
@@ -32,9 +33,6 @@ export type ComposedChain = {
   refused?: (blending: Blending) => void;
 };
 
-/** Why WebGL2 refuses particle pools, whatever the context grants: it draws none yet (#844). */
-const PARTICLE_REFUSAL = 'PARTICLES_UNSUPPORTED: WebGL2 draws no particle yet';
-
 /**
  * Composes one engine's frame on the host surface or on a render target — the one place that
  * knows how an engine's image reaches either. It binds the destination, then copies the surface
@@ -45,8 +43,10 @@ const PARTICLE_REFUSAL = 'PARTICLES_UNSUPPORTED: WebGL2 draws no particle yet';
  * (`../../effects/webglEffects.ts`); the copy kept is the chain's image, and a chain changed
  * since it was kept is drawn again. The page's `guides` are drawn over the image the destination
  * got, the chain's included, before that copy is kept, at the host's `pixelRatio`; a change to
- * them spares no redraw. WebGL2 draws no particle yet (#844): the world's `particles` are refused
- * by name, `particlesRefused` hearing why once, and the frame goes on without them.
+ * them spares no redraw. The world's `particles` step before, and draw over the engine's image
+ * before the chain, on every image drawn here: when they move, the image is drawn, never kept
+ * (`../../particles/webglParticles.ts`). A refusal never fails the session: the pools are
+ * refused by name, `particlesRefused` hearing why once, and the frame goes on without them.
  * Nothing here belongs to a rendering library.
  */
 export function createFrameComposer(
@@ -60,6 +60,7 @@ export function createFrameComposer(
 ) {
   const { effects: composed, particles = [] } = layers;
   const heldFrame = createHeldFrame(gl);
+  let stepped: ReturnType<typeof createWebglParticles> | undefined;
   const guideDraw = createWebglGuideDraw(gl);
   let guidesDrawn = layers.guides?.revision ?? 0;
   const present = createBackendPresenter(gl);
@@ -79,6 +80,8 @@ export function createFrameComposer(
     background: [0, 0, 0],
   };
   let keptRevision = 0;
+  /** True when the kept frame shows particles: never put back, pools let go since included. */
+  let keptParticles = false;
   /** The engine's background, sRGB-encoded like everything the destinations store. */
   const encode = (background: SceneColour) => {
     const { r, g, b } = background?.isColor ? background : { r: 0, g: 0, b: 0 };
@@ -126,13 +129,17 @@ export function createFrameComposer(
   ) => {
     const { width, height } = bindWebglTarget(gl, target);
     if (present(backend)) return;
-    // A refusal never fails the session: the pools are refused, heard once, the frame drawn.
-    if (refuseAll(particles)) layers.particlesRefused?.(PARTICLE_REFUSAL);
+    const moved = anyMoving(particles);
+    // Made by the first pool, then run with none left too: it frees a released pool's targets.
+    if (particles.length) stepped ??= createWebglParticles(gl, layers.particlesRefused);
+    if (stepped?.run(particles)) bindWebglTarget(gl, target);
     const revision = composed?.chain.revision ?? 0;
     const guidesHeld = !layers.guides || layers.guides.revision === guidesDrawn;
     if (
       reuse &&
       guidesHeld &&
+      !moved &&
+      !keptParticles &&
       backend.frameHeld === true &&
       !target &&
       heldFrame.holds(width, height) &&
@@ -157,6 +164,7 @@ export function createFrameComposer(
     encode(backend.scene.background as SceneColour);
     if (!linear) clear();
     backend.drawHostGeometry(readHostDrawCamera(drawCamera, camera), output);
+    stepped?.draw(particles, drawCamera, output);
     if (linear) {
       display.toneMapped = output.toneMapped;
       display.toneCurve = TONE_MAPPING_RANK[output.toneMapping];
@@ -171,14 +179,16 @@ export function createFrameComposer(
     if (target) return;
     heldFrame.keep(width, height);
     keptRevision = revision;
+    keptParticles = moved;
   };
-  /** Bytes of the chain's targets on this context. */
-  compose.effectBytes = () => effects?.bytes ?? 0;
+  /** Bytes of the chain's targets and the particles' depth copy on this context. */
+  compose.effectBytes = () => (effects?.bytes ?? 0) + (stepped?.bytes() ?? 0);
   compose.dispose = () => {
     present.dispose();
     heldFrame.dispose();
     effects?.dispose();
     guideDraw.dispose();
+    stepped?.dispose();
   };
   return compose;
 }

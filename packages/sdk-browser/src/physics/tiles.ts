@@ -11,7 +11,7 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { createPhysicsBodies } from './bodies.ts';
-import { createModelBodies } from './cookedBodies.ts';
+import { createModelBodies } from './modelBodies.ts';
 import {
   cookedBytes,
   cookedPhysics,
@@ -141,7 +141,7 @@ export function createTileStreamer(
     update(eye: ArrayLike<number>, range: number) {
       if (!models.size) return;
       const wanted: [number, Placed][] = [],
-        movers = moversOf(bodies.meshes);
+        movers = moversOf(bodies.meshes, bodies.nested, bodies.state.velocity);
       let held = 0; // What the wanted resident tiles hold.
       for (const { placed } of models.values())
         for (const p of placed) {
