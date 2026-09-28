@@ -43,19 +43,18 @@ impl<'a> DagAttributes<'a> {
         let normals = with(FLAG_NORMAL).take(1);
         normals.chain(with(FLAG_UV)).chain(with(FLAG_UV1)).collect()
     }
-    /// The attributes the simplifier weighs, normals first.
+    /// The attributes the simplifier weighs, in `weighed`'s order.
     pub(super) fn weighted(&self) -> Vec<Attribute<'a>> {
-        let normals = self.normals().map(|values| Attribute {
-            values,
-            width: 3,
-            weight: NORMAL_WEIGHT,
-        });
-        let uvs = self.uv_sets().into_iter().map(|values| Attribute {
-            values,
-            width: 2,
-            weight: UV_WEIGHT,
-        });
-        normals.into_iter().chain(uvs).collect()
+        let attribute = |a: &'a Carried| Attribute {
+            values: &a.values,
+            width: a.width,
+            weight: if a.flag == FLAG_NORMAL {
+                NORMAL_WEIGHT
+            } else {
+                UV_WEIGHT
+            },
+        };
+        self.weighed().into_iter().map(attribute).collect()
     }
 }
 
@@ -63,15 +62,25 @@ impl<'a> DagAttributes<'a> {
 /// one vertex, so an unindexed mesh reduces as the indexed one it draws the same as. Nothing is
 /// lost: coarse levels point at a copy identical in everything the page stores.
 pub fn weld_exact(positions: &[f32], carried: &[&Carried], indices: &[u32]) -> Vec<u32> {
+    let values = || carried.iter().map(|a| (&a.values[..], a.width));
     weld_by(positions.len() / 3, indices, |id| {
-        let mut key = position_key(positions, id).to_vec();
-        for attribute in carried {
-            let i = id as usize * attribute.width;
-            let copy = attribute.values.get(i..i + attribute.width).unwrap_or(&[]);
-            key.extend(copy.iter().map(|&v| normalized_bits(v)));
-        }
-        key
+        key(positions, id as usize, values())
     })
+}
+
+/// The bits of vertex `v`'s position and of its `width` floats of each of `attributes`: equal
+/// keys, one vertex to a page.
+pub(super) fn key<'v>(
+    positions: &[f32],
+    v: usize,
+    attributes: impl Iterator<Item = (&'v [f32], usize)>,
+) -> Vec<u32> {
+    let mut key = position_key(positions, v as u32).to_vec();
+    for (values, width) in attributes {
+        let copy = values.get(v * width..v * width + width).unwrap_or(&[]);
+        key.extend(copy.iter().map(|&x| normalized_bits(x)));
+    }
+    key
 }
 
 /// Per source vertex, whether its position is written under several texture coordinates: a seam
