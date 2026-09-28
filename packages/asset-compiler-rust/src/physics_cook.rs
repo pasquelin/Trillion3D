@@ -51,7 +51,7 @@ pub const PHYSICS_COOK_VERSION: u32 = 8;
 /// Version of `physics.json`, its own: a reader refuses any other.
 pub const PHYSICS_FORMAT_VERSION: u32 = 2;
 /// Version of a `physics.json` whose bodies carry pieces (`pieces.rs`): a reader of format 2 alone
-/// refuses it rather than lose them; one without pieces stays format 2, byte for byte.
+/// refuses it rather than lose them; one without pieces stays format 2, its bodies unchanged.
 pub const PIECES_FORMAT_VERSION: u32 = 3;
 /// The Jolt commit the cook links: shapes are Jolt's binary state, readable by this Jolt alone.
 pub const JOLT_COMMIT: &str = env!("JOLT_COMMIT");
