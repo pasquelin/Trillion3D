@@ -1,33 +1,8 @@
-import { storageBufferCap } from '../../residency/pools.ts';
 import { SELECTION_WORKGROUP } from '../core/selection.ts';
+import { cameraCutBuffers, pastBinding, readoutRow } from './bufferTable.ts';
 import { cameraFrameRanges } from './frameRanges.ts';
-import { stagedOutputBytes } from './layout.ts';
-import { deviceListCap, type Limits } from './listCap.ts';
-import { dagWorkLayout } from './shader/floorWgsl.ts';
-import { dagFlagsWords } from './shader/lastUseWgsl.ts';
+import type { Limits } from './listCap.ts';
 import type { PackedDag } from './types.ts';
-
-/**
- * THE BYTES OF A CAMERA CUT'S OWN BUFFERS, as `createDagResources` makes them: one table read by
- * both the resources and the device check, so the check can never judge a size the cut does not
- * ask for. `blockCount` is the kernel's `blockCount()`, word for word, and `travail` the layout of
- * `work` (`dagWorkLayout`).
- */
-export function dagBufferBytes(packed: PackedDag) {
-  const blockCount = Math.ceil(packed.pageCount / SELECTION_WORKGROUP),
-    travail = dagWorkLayout(blockCount);
-  return {
-    blockCount,
-    travail,
-    bytes: {
-      clusters: Math.max(64, packed.clusters.byteLength),
-      nodes: Math.max(64, packed.nodes.byteLength),
-      pageCones: Math.max(48, packed.pageCones.byteLength),
-      flags: Math.max(16, dagFlagsWords(packed.nodeCount, packed.pageCount) * 4),
-      work: Math.max(8, travail.words * 4),
-    },
-  };
-}
 
 /**
  * WHAT OF A CAMERA CUT THIS DEVICE CANNOT HOLD, by name, or `undefined` when it holds it all. A
@@ -41,12 +16,10 @@ export function dagDeviceRefusal(
   limits: Limits & { maxComputeWorkgroupsPerDimension?: number },
   packed: PackedDag,
 ) {
-  const { pageCount, nodeCount, worldCount } = packed,
-    limit = storageBufferCap(limits);
-  for (const [buffer, size] of Object.entries(dagBufferBytes(packed).bytes))
-    if (size > limit) return { buffer, bytes: size, limit };
+  const { pageCount, nodeCount, worldCount } = packed;
   // The readout starts within one binding (`initialListCap`): refused only if not one rank fits.
-  if (deviceListCap(limits) < 1) return { buffer: 'out', bytes: stagedOutputBytes(1), limit };
+  const past = pastBinding(limits, { ...cameraCutBuffers(packed).rows, out: readoutRow(1) });
+  if (past) return past;
   // One thread per page, node or primitive of a range, flat along x: the widest pass (`encode.ts`).
   const perRange = cameraFrameRanges(limits, worldCount)[0]?.count ?? 0,
     workgroups = Math.ceil(Math.max(pageCount, nodeCount, perRange) / SELECTION_WORKGROUP),
