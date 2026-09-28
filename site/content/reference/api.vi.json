@@ -7416,7 +7416,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Các số float của một bản ghi bóng, bản mà phép tô bóng của một đèn đọc: sáu ma trận mặt đèn, rồi hệ khung của mặt phẳng mặt trời — `right, zNear`, `up, zFar`, `axis, 0` —, rồi gốc vùng của mỗi mức clipmap dưới dạng hai số nguyên, rồi một phần đầu `vec4f`: số mặt (đèn) hoặc số mức (mặt trời), tang nửa trường của đèn hoặc mức mịn nhất của mặt trời, mặt phẳng gần của đèn, và mục đầu tiên của bản ghi trong bảng trang."
+    "summary": "Các số float của một bản ghi bóng, bản mà phép tô bóng của một đèn đọc: sáu ma trận mặt đèn — ở đó, các dải độ sâu của mặt trời, mỗi dải là `zNear` và nghịch đảo độ rộng (`recordPack.ts`) —, rồi hệ khung của mặt phẳng mặt trời — `right`, `up`, `axis`, mỗi cái đệm thành bốn —, rồi gốc vùng của mỗi mức clipmap dưới dạng hai số nguyên, rồi một phần đầu `vec4f`: số mặt (đèn) hoặc số mức (mặt trời), tang nửa trường của đèn hoặc mức mịn nhất của mặt trời, mặt phẳng gần của đèn, và mục đầu tiên của bản ghi trong bảng trang."
   },
   "ShadowRequestReport": {
     "summary": "Những gì phép tô bóng đã đọc trong một khung: các mục bảng nó yêu cầu, không theo thứ tự.",

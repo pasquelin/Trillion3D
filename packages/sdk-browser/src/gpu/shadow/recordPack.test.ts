@@ -37,18 +37,23 @@ test("a lamp's record is its face matrices and header, and the same numbers push
   assert.equal(pack.records[at + SHADOW_RECORD_INFO], 0);
 });
 
-test("a sun's record is its frame, depth range, window origins as integers, and levels", () => {
+test("a sun's record is its depth ranges, frame, window origins as integers, and levels", () => {
   const pack = createShadowRecordPack(256, 32),
     sun = createSunLevels();
   sun.update(0, [0, -1, 0], VIEW, [-8, 0, -8], [8, 4, 8], 1);
+  sun.update(0, [0, -1, 0], VIEW, [-8, 0, -8], [8, 40, 8], 2);
   pack.writeSun(0, sun, 16, 0);
   const words = new Int32Array(pack.records.buffer);
-  assert.deepEqual(
-    Array.from(pack.records.subarray(SHADOW_RECORD_FRAME, SHADOW_RECORD_FRAME + 12)),
-    [...sun.frame.subarray(0, 3), sun.depth[0], ...sun.frame.subarray(3, 6), sun.depth[1]]
-      .concat([...sun.frame.subarray(6, 9), 0])
-      .map(Math.fround),
-  );
+  // Each range a pair where a lamp's matrices lie, near side and inverse span: the first
+  // frame's, `[−4, 0]`, then the second's, `[−64, 0]`.
+  assert.deepEqual(Array.from(pack.records.subarray(0, 4)), [-4, 1 / 4, -64, 1 / 64]);
+  for (let row = 0; row < 3; row++)
+    assert.deepEqual(
+      Array.from(
+        pack.records.subarray(SHADOW_RECORD_FRAME + row * 4, SHADOW_RECORD_FRAME + row * 4 + 3),
+      ),
+      Array.from(sun.frame.subarray(row * 3, row * 3 + 3), Math.fround),
+    );
   assert.deepEqual(
     Array.from(words.subarray(SHADOW_RECORD_ORIGINS, SHADOW_RECORD_ORIGINS + 32)),
     Array.from(sun.origins.subarray(0, 32)),
