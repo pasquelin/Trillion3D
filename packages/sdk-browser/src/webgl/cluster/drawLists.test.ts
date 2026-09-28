@@ -26,15 +26,12 @@ function developLists(scene: Scene, copies: readonly object[]) {
   const copied = new Set(copies);
   const opaque: HostMesh[] = [],
     seeThrough: HostMesh[] = [];
-  const collect = (node: Object3D) => {
-    if (!node.visible) return;
-    if (isDrawnNode(node)) {
+  for (const child of scene.children)
+    child.traverseVisible((node) => {
+      if (!isDrawnNode(node)) return;
       if (copied.has(node) || firstMaterial(node.material)?.transparent) seeThrough.push(node);
       else opaque.push(node);
-    }
-    for (const child of node.children) collect(child);
-  };
-  for (const child of scene.children) collect(child);
+    });
   return { opaque, seeThrough };
 }
 
