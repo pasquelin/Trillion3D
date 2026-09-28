@@ -52,11 +52,17 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
   let start = 0,
     span = 0,
     arrived = -1,
-    /** Simulated seconds per page millisecond, for the extrapolation. */
-    rate = 0,
+    /** Simulated seconds of the last tick, extrapolated over one span at most. */
+    seconds = 0,
+    /** The latest page time read: the poses' clock never runs back (`now`). */
+    latest = 0,
     /** How far toward the targets the last frame drew, from the pose drawn when they came. */
     drawn = 0,
     awake = false;
+  /** The page's clock, never earlier than a reading before it: a page clock that steps back (a
+   *  test's or a capture's) would draw a fraction behind the last frame, and a step from a pose
+   *  already on its target (`drawn` 1) toward it is a division by zero. */
+  const now = () => (latest = Math.max(latest, performance.now()));
   /** Whether the record at `at` holds the pose slot `index` is drawn at (the turn up to sign). */
   const unchanged = (index: number, floats: Float32Array, at: number) => {
     const p = index * 3,
@@ -87,12 +93,12 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
     receive(words: Uint32Array, records: number, bodies: PosedBodies, ms: number) {
       const { generation, meshes } = bodies;
       const floats = new Float32Array(words.buffer, words.byteOffset, words.length);
-      const now = performance.now();
-      const interval = arrived < 0 ? ms : now - arrived;
-      arrived = now;
+      const time = now();
+      const interval = arrived < 0 ? ms : time - arrived;
+      arrived = time;
       // A first tick, or one after a rest, is drawn over the time it simulates.
       span = ms <= 0 ? 0 : interval > LONGEST_MS ? ms : span > 0 ? span * 0.7 + interval * 0.3 : ms;
-      rate = span > 0 ? ms / span / 1000 : 0;
+      seconds = ms / 1000;
       let moved = 0;
       awake = false;
       tick++;
@@ -145,7 +151,7 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
         listed[index] = 1;
       }
       placer.end();
-      start = now;
+      start = time;
       drawn = 0;
       return moved;
     },
@@ -153,10 +159,13 @@ export function createPhysicsPoses(maxBodies: number, root: Object3D) {
      *  for the next frame). */
     apply({ generation }: PosedBodies) {
       if (!count) return false;
-      const elapsed = performance.now() - start;
+      const elapsed = now() - start;
       const alpha = span > 0 ? Math.min(1, elapsed / span) : 1;
-      // Past the target, a late tick is extrapolated, for one interval at most.
-      const ahead = awake ? Math.min(Math.max(0, elapsed - span), span) * rate : 0;
+      // Past the target, a late tick is extrapolated, for one interval at most: the share of the
+      // span past it, never a rate, which a span shrunk to nothing by a clock standing still
+      // while ticks arrive would make infinite.
+      const ahead =
+        awake && span > 0 ? (Math.min(Math.max(0, elapsed - span), span) / span) * seconds : 0;
       // Short of the target, each frame goes the rest of the way in proportion from where the
       // last one drew: the same line from the pose drawn when the tick came, read from the node.
       const step = alpha < 1 ? (alpha - drawn) / (1 - drawn) : 1;
