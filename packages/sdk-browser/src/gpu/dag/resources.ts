@@ -4,7 +4,7 @@ import { createCameraFrames } from './frameRanges.ts';
 import { createDagPipeline } from './pipeline.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import { AHEAD_VIEW } from './shader/aheadWgsl.ts';
-import { dagBufferBytes } from './deviceRefusal.ts';
+import { cameraCutBuffers, makeDagBuffer } from './bufferTable.ts';
 import { createDagList, initialListCap } from './listCap.ts';
 
 export async function createDagResources(
@@ -14,7 +14,6 @@ export async function createDagResources(
   repeat: 'tout' | 'tete' | null = null,
   listCap = initialListCap(device.limits, packed.pageCount),
 ) {
-  const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
   const pageCount = packed.pageCount,
     nodeCount = packed.nodeCount,
     worldCount = Math.max(1, packed.worldCount);
@@ -23,10 +22,10 @@ export async function createDagResources(
   // is what the frame copies and maps, and the worst case never happens (`layout.ts`,
   // measured by `tests/browser/probes/cut-snapshot-gpu.ts`); a cut that keeps more grows it
   // (`listCap.ts`).
-  // The buffers' bytes, the kernel's block count and the layout of `work`, one table with the
-  // device check (`deviceRefusal.ts`): two counters live behind the blocks in `work`, and only the
-  // byte offsets a copy to the dispatch argument asks for are taken here.
-  const { blockCount, travail, bytes } = dagBufferBytes(packed),
+  // The buffers, the kernel's block count and the layout of `work`, one table with the device
+  // check (`bufferTable.ts`): two counters live behind the blocks in `work`, and only the byte
+  // offsets a copy to the dispatch argument asks for are taken here.
+  const { blockCount, travail, rows } = cameraCutBuffers(packed),
     liveGroupsOffset = travail.liveGroups * 4,
     candGroupsOffset = travail.candGroups * 4,
     drawnGroupsOffset = travail.drawnGroups * 4;
@@ -41,17 +40,9 @@ export async function createDagResources(
     return buffer;
   };
   try {
-    const clusters = device.createBuffer({
-      label: 'Trillion3D DAG clusters',
-      size: bytes.clusters,
-      usage: STORAGE,
-    });
-    const nodes = device.createBuffer({
-      label: 'Trillion3D DAG nodes',
-      size: bytes.nodes,
-      usage: STORAGE,
-    });
-    const uniforms = device.createBuffer({
+    const clusters = makeDagBuffer(own, rows.clusters);
+    const nodes = makeDagBuffer(own, rows.nodes);
+    const uniforms = own({
       size: DAG_UNIFORM_BYTES,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
@@ -60,14 +51,10 @@ export async function createDagResources(
     // candidate list — which also serves as the previous frame's drawn journal —, then the
     // remaining queues, then each page's last use (`shader/lastUseWgsl.ts`): never read by the
     // CPU, which still only copies draw flags.
-    const flags = device.createBuffer({
-      label: 'Trillion3D DAG flags',
-      size: bytes.flags,
-      usage: STORAGE | GPUBufferUsage.COPY_SRC,
-    });
+    const flags = makeDagBuffer(own, rows.flags);
     // Three argument words, of which the last two are one once and for all: only the first is
     // copied, once per indirect dispatch. Passes following each other, one buffer is enough.
-    const dispatchArgs = device.createBuffer({
+    const dispatchArgs = own({
       size: 16,
       usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
     });
@@ -75,17 +62,8 @@ export async function createDagResources(
     const list = createDagList(own, listCap, residentCut);
     // No extra storage buffer, a stage's ceiling is already reached; arming words go to the
     // dispatch argument, hence the copy source.
-    const work = device.createBuffer({
-      label: 'Trillion3D DAG work',
-      size: bytes.work,
-      usage: STORAGE | GPUBufferUsage.COPY_SRC,
-    });
-    const pageCones = device.createBuffer({
-      label: 'Trillion3D DAG page cones',
-      size: bytes.pageCones,
-      usage: STORAGE,
-    });
-    buffers.push(clusters, nodes, uniforms, flags, dispatchArgs, work, pageCones);
+    const work = makeDagBuffer(own, rows.work);
+    const pageCones = makeDagBuffer(own, rows.pageCones);
     const frames = createCameraFrames(device, frameData, worldCount, own, packed.worlds);
     const group = {
       clusters,
@@ -107,9 +85,9 @@ export async function createDagResources(
         copy.set(new Uint8Array(source.buffer, source.byteOffset, source.byteLength));
       device.queue.writeBuffer(target, 0, copy);
     };
-    upload(clusters, bytes.clusters, packed.clusters);
-    upload(nodes, bytes.nodes, packed.nodes);
-    upload(pageCones, bytes.pageCones, packed.pageCones);
+    upload(clusters, rows.clusters.size, packed.clusters);
+    upload(nodes, rows.nodes.size, packed.nodes);
+    upload(pageCones, rows.pageCones.size, packed.pageCones);
     return {
       device,
       packed,
