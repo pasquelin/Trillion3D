@@ -4,6 +4,7 @@ import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
 import { frameTargetAllocation } from './targets.ts';
 import { requestFrameTargets } from './targetGrant.ts';
 import { standardSurface } from '../../../host/graph/graph.fixture.ts';
+import { surfaceOf } from '../../../page/surface.ts';
 import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import { frameTargetBytes } from '../../../scene/surfaceBuffer.ts';
 import { TAA_HISTORY_BYTES_PER_PIXEL } from '../../../taa/temporalAntialiasing.ts';
@@ -31,7 +32,7 @@ function runtime(reflective = false) {
     layout: {
       rows: {
         packedCount: reflective ? 1 : 0,
-        packedRecs: reflective ? [{ material: standardSurface({ roughness: 0 }) }] : [],
+        packedRecs: reflective ? [{ material: surfaceOf(standardSurface({ roughness: 0 })) }] : [],
       },
     },
     blendState: { blendGpu: [] },
