@@ -1,30 +1,35 @@
-//! The texture islands of a case, and the invariant they carry: a coarse triangle never spans two
-//! of them, so no texture slides between two islands of a set.
+//! The texture islands of a case, and the invariant they carry: a coarse triangle a pixel shows
+//! never spans two of them, so no texture slides between two islands of a set.
 use super::invariants::Built;
 use super::*;
 use crate::join::Join;
+use crate::shared_math::{length, point, sub};
 use std::collections::HashMap;
 
-/// No coarse triangle spans two islands of a texture set, but one that descends from a
-/// seam-locked group reduced with solved vertices, which may draw across the seams it held. The
-/// limit: an island is a connected
-/// component of the surface once the seams are cut, so a seam whose two sides stay connected
-/// elsewhere — a sphere's or a cylinder's wrap column — is one island and a triangle across it
-/// passes. What is caught is a coarse triangle whose corners lie in different islands.
+/// No coarse triangle a pixel shows spans two islands of a texture set: one whose corners lie in
+/// two islands is no longer than its cluster's error, so wherever the cut draws it, it covers
+/// under a pixel. A vertex a solve placed lies in the island of the source vertex it was solved
+/// from. The limit: an island is a connected component of the surface once the seams are cut, so
+/// a seam whose two sides stay connected elsewhere — a sphere's or a cylinder's wrap column — is
+/// one island and a triangle across it passes.
 pub(super) fn check_islands(case: &Case, indices: &[u32], built: &Built, label: &str) {
+    let source = case.vertex_count();
+    let origin = |v: u32| match (v as usize).checked_sub(source) {
+        Some(placed) => built.grown.as_ref().expect("grown").origin[placed],
+        None => v,
+    };
+    let positions = built.positions(case);
     for (name, uvs) in case.uv_sets() {
         let island = islands(&case.positions, uvs, indices);
-        let solved = built.solved(case.vertex_count());
-        let clusters = built.dag.iter().zip(&solved);
-        for (cluster, _) in clusters.filter(|&(c, &solved)| c.level > 0 && !solved) {
-            for tri in cluster.indices.chunks(3) {
-                let (a, b, c) = (
-                    island[tri[0] as usize],
-                    island[tri[1] as usize],
-                    island[tri[2] as usize],
-                );
+        for cluster in built.dag.iter().filter(|c| c.level > 0) {
+            for tri in cluster.indices.as_chunks::<3>().0 {
+                let [a, b, c] = tri.map(|v| island[origin(v) as usize]);
+                let [p, q, r] = tri.map(|v| point(positions, v));
+                let longest = length(sub(q, p))
+                    .max(length(sub(r, q)))
+                    .max(length(sub(p, r)));
                 assert!(
-                    a == b && b == c,
+                    (a == b && b == c) || longest <= cluster.lod_error,
                     "{label}: a coarse triangle at level {} spans two {name} islands",
                     cluster.level
                 );
