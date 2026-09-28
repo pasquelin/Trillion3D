@@ -60,7 +60,7 @@ test('a block level of the wrong length fails once, is never held, and takes no 
 // with the weighted pipeline only when every surface reading it takes its alpha for coverage —
 // masked or blended by its alpha —; one read by an opaque surface, also as an emissive map, or by
 // a surface whose blending draws the colour under alpha 0 (`none`) or that transmits, stays plain.
-test('a hosted texture is reduced weighted only when every reader takes it for coverage', () => {
+test('a hosted texture is reduced weighted only when every reader takes it for coverage', async () => {
   installGpuGlobals();
   const map = () =>
     importHostTexture(new GraphTexture({ data: new Uint8Array(16), width: 2, height: 2 }));
@@ -89,30 +89,56 @@ test('a hosted texture is reduced weighted only when every reader takes it for c
     poolOf: () => ({ texture: { format: 'rgba8unorm-srgb' } }),
   } as unknown as WebgpuTileAtlas;
   // One device per pass: the reduction pipelines it builds say the rules its textures took.
-  const rulesOf = (...slots: number[]) => {
-    const { device, renderPipelines, submits } = mockGpu({ compute: true });
+  const rulesOf = async (...slots: number[]) => {
+    const { device, renderPipelines, submits, textures: made } = mockGpu({ compute: true });
     const sources = createTileSources({
       device,
       encoding,
       counters: createTileCounters(),
       onFailure: (_, error) => assert.fail(error as Error),
     });
-    for (const slot of slots) {
-      const served = sources.serve(atlas, { slot, level: 0, tx: 0, ty: 0 }, 1, () =>
-        device.createCommandEncoder(),
+    const pass = () =>
+      slots.map((slot) =>
+        sources.serve(atlas, { slot, level: 0, tx: 0, ty: 0 }, 1, () =>
+          device.createCommandEncoder(),
+        ),
       );
-      assert.equal(served, 'served');
-    }
-    // OMB-29, #961: the pass's working textures are reduced together at its end, in one submit.
-    assert.equal(renderPipelines.length, 0, 'nothing reduced before the end of the pass');
+    // STR-13, #962: the pass that asks builds nothing — no texture, no upload, no submit —; a task
+    // after it builds the working textures asked, their mips in one submit (OMB-29, #961).
+    const before = made.length;
+    assert.ok(pass().every((verdict) => verdict === 'waiting'));
     sources.endPass();
-    assert.equal(submits.length, 1);
+    assert.equal(made.length, before, 'nothing built inside the pass');
+    assert.equal(sources.reading, true, 'a tile is still coming: the barrier waits for it');
+    await sources.settled();
+    assert.equal(sources.reading, false);
+    assert.equal(submits.length, 1, 'the working textures reduced in one submit');
+    assert.ok(pass().every((verdict) => verdict === 'served'));
     return renderPipelines.map((pipeline) => pipeline.fragment?.constants?.weighted);
   };
+  const rules: unknown[] = [];
+  for (let slot = 1; slot <= census.maps.length; slot++) rules.push(await rulesOf(slot));
   assert.deepEqual(
-    census.maps.map((_, index) => rulesOf(index + 1)),
+    rules,
     [[1], [0], [0], [1], [0], [0]],
     'masked and blended weighted; opaque, mixed, unblended and transmissive plain',
   );
-  assert.deepEqual(rulesOf(1, 2), [1, 0], 'a masked and an opaque texture, one batch');
+  assert.deepEqual(await rulesOf(1, 2), [1, 0], 'a masked and an opaque texture, one batch');
+  // Two working textures at most a pass: a third texture's tiles wait for a pass with room.
+  const { device } = mockGpu({ compute: true });
+  const sources = createTileSources({
+    device,
+    encoding,
+    counters: createTileCounters(),
+    onFailure: () => {},
+  });
+  const pass = () =>
+    [1, 2, 3].map((slot) =>
+      sources.serve(atlas, { slot, level: 0, tx: 0, ty: 0 }, 1, () =>
+        device.createCommandEncoder(),
+      ),
+    );
+  pass();
+  await sources.settled();
+  assert.deepEqual(pass(), ['served', 'served', 'waiting']);
 });
