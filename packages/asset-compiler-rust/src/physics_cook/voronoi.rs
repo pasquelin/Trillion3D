@@ -3,9 +3,9 @@
 //! is a box clipped by its bisectors then the solid's planes; an edge's crossing is computed from
 //! its two ends in one order, so neighbouring faces meet to the bit, and each cut is capped along
 //! the edges no touched face walks back: every cell comes out a closed mesh.
-use crate::shared_math::{cross, divide, dot, length, point, scale, sub};
+use crate::shared_math::{cross, dot, point, scale, sub, unit};
 use rayon::prelude::*;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 type Point = [f64; 3];
 /// A convex polytope: its faces, each a polygon wound as the solid's faces are.
@@ -129,11 +129,6 @@ pub(super) fn welded(faces: &[Vec<Point>]) -> (Vec<f32>, Vec<u32>) {
     (pos, triangles)
 }
 
-/// `v` at unit length, if it has a direction.
-fn unit(v: Point) -> Option<Point> {
-    (length(v) > 0.0).then(|| divide(v, length(v)))
-}
-
 /// The half-space of seed `own` against `other`: the points nearer `own`, bounded at their
 /// midpoint, so the two seeds' planes are each other's negation to the bit.
 fn bisector(own: Point, other: Point) -> Option<Plane> {
@@ -166,20 +161,21 @@ pub(super) fn cells(
 }
 
 /// The outward face planes of the closed mesh `triangles` over `pos`, wound either way, but those
-/// a corner lies more than `eps` beyond: a sliver's corners, rounded to 32 bits, tilt its plane
-/// into the solid, which the faces around it bound already.
-pub(super) fn face_planes(pos: &[f32], triangles: &[u32], eps: f64) -> Vec<Plane> {
+/// one of its `corners` lies more than `eps` beyond: a sliver's corners, rounded to 32 bits, tilt
+/// its plane into the solid, which the faces around it bound already. A plane repeating the one
+/// before within `eps` (a quad's two triangles) is kept once.
+pub(super) fn face_planes(mesh: (&[f32], &[u32]), corners: &[Point], eps: f64) -> Vec<Plane> {
+    let (pos, triangles) = mesh;
     let at = |t: &[u32; 3]| t.map(|i| point(pos, i));
     let faces = triangles.as_chunks::<3>().0;
     let volume = |[a, b, c]: [Point; 3]| dot(a, cross(b, c));
     let signed: f64 = faces.iter().map(at).map(volume).sum();
-    let used: BTreeSet<u32> = triangles.iter().copied().collect();
-    let corners: Vec<Point> = used.into_iter().map(|i| point(pos, i)).collect();
     let planes = faces.par_iter().map(at).filter_map(|[a, b, c]| {
-        let n = scale(cross(sub(b, a), sub(c, a)), signed.signum());
-        let normal = unit(n)?;
+        let normal = unit(scale(cross(sub(b, a), sub(c, a)), signed.signum()))?;
         Some((normal, dot(normal, a)))
     });
     let supporting = |&(n, c): &Plane| corners.iter().all(|&p| dot(n, p) - c <= eps);
-    planes.filter(supporting).collect()
+    let mut planes: Vec<Plane> = planes.filter(supporting).collect();
+    planes.dedup_by(|(n, c), (m, d)| dot(*n, *m) >= 1.0 - 1e-12 && (*c - *d).abs() <= eps);
+    planes
 }
