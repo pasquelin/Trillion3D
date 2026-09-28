@@ -14,6 +14,7 @@
  * curve brings it into the display range (P4). Neither is a light: a scene with neither lamp nor
  * environment irradiance stays black whatever its exposure.
  */
+import type { NumberSink } from '../../math/matrix/matrix4.ts';
 import { packFog, type SceneFog } from './fog.ts';
 
 /** The curves that bring scene radiance into the display range, by the rank shaders read. */
@@ -76,9 +77,7 @@ export const IRRADIANCE_BAND = {
 
 /** The 27 numbers an irradiance is summed into, read and written by index: a list, or the
  *  floats a program uploads. */
-export interface IrradianceSum {
-  [index: number]: number;
-}
+export type IrradianceSum = NumberSink;
 
 /** An irradiance with nothing in it, ready to receive sources. */
 export const emptyIrradiance = () => new Array<number>(ENVIRONMENT_COEFFICIENTS * 3).fill(0);
