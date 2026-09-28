@@ -112,3 +112,14 @@ test('the one required check needs every job of the workflow', () => {
   assert.deepEqual(needs.split(', ').sort(), jobs.sort());
   assert.ok(jobs.length >= 4, jobs.join());
 });
+
+test('a push run never cancels the pull request run that proves the merge with develop', () => {
+  const [, group] = /^ {2}group: (.+)$/m.exec(workflow) ?? [];
+  assert.ok(group, 'a concurrency group');
+  assert.match(
+    group,
+    /github\.event_name == 'pull_request' && format\('pr-\{0\}', github\.event\.number\)/,
+  );
+  assert.match(group, /format\('\{0\}-\{1\}', github\.event_name, github\.ref_name\)/);
+  assert.doesNotMatch(group, /head_ref/, 'a branch name shared by its push and its pull request');
+});
