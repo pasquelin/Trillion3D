@@ -62,9 +62,6 @@ function record(word: number, min: number[]): Quant | null {
   return sane ? { min, exponent, bits } : null;
 }
 
-/** A page header as `readGeometryPageHeader` returns it. */
-export type GeometryPageHeader = ReturnType<typeof readGeometryPageHeader>;
-
 /**
  * The 24-word header of a `WGP3` page, read and checked: magic, format version, the four
  * quantization grids, the corner stream's bit count, and counts that agree with the page's own byte length — the stream layout is
