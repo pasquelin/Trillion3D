@@ -81,9 +81,11 @@ export interface SceneProxyDescriptor {
   triangles: number;
   /** Tree nodes. */
   nodes: number;
-  /** Interned owner groups, owner records, and source-node matrices. */
+  /** Interned owner groups. */
   groups: number;
+  /** Owner records. */
   owners: number;
+  /** Source-node matrices. */
   instances: number;
 }
 
