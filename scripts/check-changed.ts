@@ -106,6 +106,9 @@ async function main(): Promise<void> {
         'js-ts',
         '--no-tips',
       ]);
+    // The gates that read the whole tree, each in a second or two.
+    for (const gate of ['check-english', 'check-translations', 'check-thumbnails'])
+      run('node', [`scripts/${gate}.ts`]);
     if (existing.some((file) => file.endsWith('.rs'))) {
       run('cargo', [
         'fmt',
