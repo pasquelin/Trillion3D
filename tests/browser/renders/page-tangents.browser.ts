@@ -76,7 +76,11 @@ try {
     assert.ok(drawn.drawn > drawn.totalPixels / 20, `${key}: ${JSON.stringify(drawn)}`);
     return result.metrics;
   };
-  const compare = (a: string, b: string) => page.evaluate(compareDefaultBackendCaptures, [a, b]);
+  // A tuple, as `compareDefaultBackendCaptures` takes it: a bare `[a, b]` widens to `string[]`.
+  const compare = (a: string, b: string) => {
+    const pair: [string, string] = [a, b];
+    return page.evaluate(compareDefaultBackendCaptures, pair);
+  };
   // Interleaved, twice each: the A/A of a scene says what the harness itself moves.
   const captures: Record<string, unknown> = {};
   for (const run of [1, 2])
