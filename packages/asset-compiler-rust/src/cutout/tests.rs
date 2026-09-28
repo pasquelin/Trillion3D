@@ -2,6 +2,7 @@
 //! then answer reading and what they change in a scene.
 use super::*;
 
+mod cache;
 mod responses;
 mod shape;
 mod sheet;

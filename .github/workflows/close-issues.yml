@@ -1,0 +1,38 @@
+name: Close named issues
+
+# GitHub closes the issues a body names with `Closes #n` only on a merge into the default branch
+# (`main`); our pull requests merge into `develop`. This closes them there, as completed, with a
+# comment linking the pull request. The body reaches the script through the environment, never
+# through the shell command line.
+on:
+  pull_request:
+    branches: [develop]
+    types: [closed]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  close-issues:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'develop'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      # The script and the Node version only: the job reads nothing else.
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            scripts/close-named-issues.ts
+            package.json
+          sparse-checkout-cone-mode: false
+      # Node alone, no dependencies: the script imports only Node's own modules.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+      - name: Close the issues the body names
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/close-named-issues.ts
