@@ -29,7 +29,7 @@ fn round_trip(indices: &[u32], vertex_count: usize) -> Result<Vec<u32>, PageErro
     let (code, words) = coded(indices, vertex_count);
     let table = stream_words(code.blocks, code.record_bits());
     assert_eq!(words.len(), table + stream_words(code.bits, 1));
-    assert!(code.fits(&bytes(&words[..table]), indices.len()));
+    assert!(code.fits(&bytes(&words[..table]), vertex_count, indices.len()));
     let mut decoded = vec![u32::MAX; indices.len()];
     code.read(&words, [0, table], vertex_count, &mut decoded)?;
     Ok(decoded)
@@ -89,12 +89,14 @@ fn a_forged_record_fails_the_gate_and_a_forged_corner_the_read() {
     let (code, mut words) = coded(&indices, 4);
     let mut decoded = [0u32; 6];
     let width_at = code.index_bits;
-    // A width past 16, then one whose corners leave the stream.
+    // A width past 16, then one wider than an index, then a base at the vertex count.
     for forged in [17u32, 3] {
         let mut table = words[..1].to_vec();
         table[0] = (table[0] & !(31 << width_at)) | forged << width_at;
-        assert!(!code.fits(&bytes(&table), 6));
+        assert!(!code.fits(&bytes(&table), 4, 6));
     }
+    assert!(code.fits(&bytes(&words[..1]), 4, 6));
+    assert!(!code.fits(&bytes(&words[..1]), 0, 6));
     let result = code.read(&words, [0, 1], 3, &mut decoded);
     assert_eq!(result, Err(PageError::Index));
     words[1] = 0;
