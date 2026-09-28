@@ -8,17 +8,7 @@ import { ENVIRONMENT_COEFFICIENTS } from '../../../packages/sdk-core/src/scene/c
 import type { SceneProxy } from '../../../packages/sdk-core/src/index.ts';
 import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
 
-// The shipped fragment is untouched. This vertex supplies an untextured standard metal plane
-// at z=0, viewed orthographically from +z. A triangle at z=1 is visible only through reflection.
-const VERTEX = `
-@vertex fn mirrorVertex(@builtin(vertex_index) i:u32)->VSOut{
- var out:VSOut;
- let p=vec2f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1));
- out.position=vec4f(p,0.5,1.0);out.view=vec3f(p,0.0);
- out.normal=vec3f(0.0,0.0,1.0);out.color=vec4f(1.0);
- out.ids=vec3u(0u,17u,0u);out.pbr=vec4f(0.0,1.0,1.0,1.0);
- return out;
-}`;
+import { mirrorVertex } from './blendMirrorVertex.ts';
 
 /** Render the actual blend fragment with a known one-triangle resident proxy and face radiance. */
 export async function blendMirror() {
@@ -60,7 +50,7 @@ export async function blendMirror() {
       nodeChildren: new Uint32Array([0xff000000, 0x0101ffff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
     },
   } as SceneProxy);
-  const sampled = (format: GPUTextureFormat) => {
+  const sampled = (format: GPUTextureFormat, green = 255) => {
     const texture = device.createTexture({
       size: [1, 1, 1],
       format,
@@ -72,20 +62,22 @@ export async function blendMirror() {
     if (format === 'rgba8unorm')
       device.queue.writeTexture(
         { texture },
-        new Uint8Array([255, 255, 255, 255]),
+        new Uint8Array([255, green, 255, 255]),
         { bytesPerRow: 4 },
         [1, 1, 1],
       );
     return texture.createView({ dimension: '2d-array' });
   };
   const colourView = sampled('rgba8unorm');
+  const dataView = sampled('rgba8unorm', 0);
   const depthView = sampled('depth32float');
   const transmittance = sampled('rgba32float');
   const sampler = device.createSampler();
   const comparison = device.createSampler({ compare: 'less-equal' });
   const resources = new Map<number, GPUBindingResource>();
   for (let i = 0; i <= B.surfaceCache; i++) resources.set(i, { buffer: zero });
-  for (const slot of [...B.color.lanes, ...B.data.lanes]) resources.set(slot, colourView);
+  for (const slot of B.color.lanes) resources.set(slot, colourView);
+  for (const slot of B.data.lanes) resources.set(slot, dataView);
   const pages = new Uint32Array(256);
   pages[4] = 0x00010001;
   resources.set(B.color.pages, { buffer: buffer(1024, pages) });
@@ -123,10 +115,8 @@ export async function blendMirror() {
     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
   });
   const compilation: string[] = [];
-  async function render(code: string, rough = false) {
-    const compiled = await opened!.compile(
-      code + (rough ? VERTEX.replace('out.pbr=vec4f(0.0,', 'out.pbr=vec4f(0.3,') : VERTEX),
-    );
+  async function render(code: string, rough = false, model = 0) {
+    const compiled = await opened!.compile(code + mirrorVertex(rough ? 0.3 : 0, model));
     compilation.push(...compiled.compilation);
     if (compiled.compilation.length) return [];
     const pipeline = await device.createRenderPipelineAsync({
@@ -161,8 +151,14 @@ export async function blendMirror() {
     read.unmap();
     return pixels;
   }
-  const term = '+mirrorLighting(rgb,m,clamped,s.N,V,in.view)';
+  const term = 'rgb+=mirrorLighting(s.rgb,m,clamped,s.N,V,in.view);';
   if (!BLEND_SHADER.includes(term)) throw new Error('missing transparent mirror contribution');
+  const families = [];
+  for (const model of [1, 2])
+    families.push([
+      await render(BLEND_SHADER, false, model),
+      await render(BLEND_SHADER.replace(term, ''), false, model),
+    ]);
   const mirror = await render(BLEND_SHADER);
   const repeat = await render(BLEND_SHADER);
   const previous = await render(BLEND_SHADER.replace(term, ''));
@@ -182,6 +178,7 @@ export async function blendMirror() {
   const info = await opened.fermer();
   return {
     mirror,
+    families,
     second,
     rough,
     roughPrevious,
