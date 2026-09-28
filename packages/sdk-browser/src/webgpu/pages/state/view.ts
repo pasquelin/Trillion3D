@@ -81,13 +81,11 @@ function pick<T, K extends keyof T>(from: T, keys: readonly K[]) {
  *  pass — a view added before step C of #412 draws unaccumulated, as a capture does. */
 export function createWebgpuView(width: number, height: number): WebgpuView {
   const viewport: [number, number] = [width, height];
-  const gpu = pick(createWebgpuGpuState(viewport), VIEW_GPU_KEYS);
-  gpu.temporal = undefined;
   return {
     viewport,
     cam: createEngineCamera(),
     run: pick(createWebgpuRunState(), VIEW_RUN_KEYS),
-    gpu,
+    gpu: pick(createWebgpuGpuState(viewport), VIEW_GPU_KEYS),
     vis: pick(createWebgpuVisState(), VIEW_VIS_KEYS),
   };
 }

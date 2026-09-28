@@ -141,7 +141,7 @@ export async function captureSurfaceView(
     run.diagnostic = diagnostic;
   }
   capture.surfaceCapture = result;
-  diag.engineDiagnostic('surface-capture-ready', 'Surface GPU disponible', {
+  diag.engineDiagnostic('surface-capture-ready', 'Surface GPU ready', {
     surfaceVersion: 1,
     width: options.width,
     height: options.height,
