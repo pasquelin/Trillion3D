@@ -4,8 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dagBindEntries } from './bindings.ts';
 import { DAG_SELECTION_SHADER } from './shader.ts';
-import { dagPartCounts, dagSelectionShader } from './splitWgsl.ts';
-import { dagSplit } from '../split.ts';
+import { dagSelectionShader } from './splitWgsl.ts';
+import { dagPartCounts, dagSplit } from '../split.ts';
 import { entryBufferBindings, wgslBufferBindings } from '../../core/wgslBindings.fixture.ts';
 import { unresolvedNames } from '../../core/wgslNames.fixture.ts';
 

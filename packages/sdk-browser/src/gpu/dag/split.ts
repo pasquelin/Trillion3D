@@ -2,6 +2,7 @@ import { storageBufferCap } from '../../residency/pools.ts';
 import { CLUSTER_WORDS } from './layout.ts';
 import { LEVEL_QUEUES } from './shader/levelWgsl.ts';
 import { DAG_NODE_FLOATS } from './types.ts';
+import type { DagPartTable } from './shader/bindings.ts';
 
 /**
  * A CUT'S TABLES IN PARTS, past one storage binding of the device. `frames` and `worlds` split in
@@ -121,9 +122,14 @@ export function dagSplit(
   };
 }
 
-/** The storage bindings a split adds to the kernel's eight. */
-export const extraBindings = (split: DagSplit) =>
-  split.clusters.parts - 1 + split.nodes.parts - 1 + split.cold.parts - 1 + split.flagCuts.length;
+/** The parts of each table `split` lays out: what the layout and the text bind
+ *  (`shader/bindings.ts`, `dagPartBindings`). */
+export const dagPartCounts = (split: DagSplit): Record<DagPartTable, number> => ({
+  clusters: split.clusters.parts,
+  nodes: split.nodes.parts,
+  cold: split.cold.parts,
+  flags: split.flagCuts.length + 1,
+});
 
 /** A table as buffers: the parts, `bytes` in each but the last. */
 export type DagParts = { buffers: GPUBuffer[]; bytes: number };

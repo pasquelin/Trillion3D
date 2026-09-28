@@ -1,14 +1,6 @@
-import { DAG_ACCESS_WGSL, dagPartBindings, type DagPartTable } from './bindings.ts';
+import { DAG_ACCESS_WGSL, dagPartBindings } from './bindings.ts';
 import { DAG_SELECTION_SHADER } from './shader.ts';
-import { PAGE_SECTIONS, type DagSplit, type TableSplit } from '../split.ts';
-
-/** The parts of each table `split` lays out: what the layout and the text bind (`bindings.ts`). */
-export const dagPartCounts = (split: DagSplit): Record<DagPartTable, number> => ({
-  clusters: split.clusters.parts,
-  nodes: split.nodes.parts,
-  cold: split.cold.parts,
-  flags: split.flagCuts.length + 1,
-});
+import { PAGE_SECTIONS, dagPartCounts, type DagSplit, type TableSplit } from '../split.ts';
 
 /** Part `part` of `table`: the table itself for the first, the part's own binding after. */
 const partName = (table: string, part: number) => (part ? `${table}${part}` : table);
@@ -23,11 +15,11 @@ function equalParts(fn: string, table: string, type: string, { per, parts }: Tab
 }
 
 /** The reads and writes of a `flags` cut at section starts: `flagSection`, the kernel's own section
- *  bases (`../split.ts`, `flagSectionStart`), so a camera cut and a light cut of other queue
+ *  bases (`queueBase`, `../split.ts` `flagSectionStart`), so a camera cut and a light cut of other queue
  *  capacities share one text. */
 function flagParts(cuts: readonly number[]) {
   const P = PAGE_SECTIONS;
-  const section = `fn flagSection(s:u32)->u32{if(s==0u){return 0u;}if(s<=${P}u){return views[0u].queueCap+(s-1u)*views[0u].clusterCount;}return (s-${P}u)*views[0u].queueCap+${P}u*views[0u].clusterCount;}`;
+  const section = `fn flagSection(s:u32)->u32{if(s==0u){return 0u;}if(s<=${P}u){return views[0u].queueCap+(s-1u)*views[0u].clusterCount;}return queueBase(s-${P}u);}`;
   const at = (part: number) => (part ? `i-flagSection(${cuts[part - 1]}u)` : 'i');
   let read = '',
     write = '';
