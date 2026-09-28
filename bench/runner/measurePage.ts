@@ -8,7 +8,7 @@ import type { MemoryBudgets } from '../witnesses/measurement.ts';
 import type { ReglageVivant, Reseau } from './report/types.ts';
 import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
 import type { PoolVivant } from './benchSettings.ts';
-import { residentFractionBudget } from './poolFill.ts';
+import { residentBudget } from './poolFill.ts';
 
 interface MovingLight {
   origin: readonly number[];
@@ -80,26 +80,19 @@ export async function reglerReservoirs(
   budgets: PoolVivant | null,
 ): Promise<ReglageVivant | null> {
   if (!budgets) return null;
+  const resident = await residentBudget(explorer, pose, budgets.textureResidentFraction, poseCalme);
   const requested: MemoryBudgets = {
     geometryPoolBytes: budgets.geometryPoolBytes ?? undefined,
-    texturePoolBytes: budgets.texturePoolBytes ?? undefined,
+    texturePoolBytes: resident ? resident.budget : (budgets.texturePoolBytes ?? undefined),
   };
-  let residentTextureBytes: number | undefined;
-  if (budgets.textureResidentFraction !== undefined) {
-    await poseCalme(explorer, pose);
-    residentTextureBytes = explorer.render(pose).textureResidentBytes ?? undefined;
-    await explorer.flush();
-    requested.texturePoolBytes = residentFractionBudget(
-      budgets.textureResidentFraction,
-      residentTextureBytes,
-    );
-  }
   const rapport = await explorer.setMemoryBudgets(requested);
+  const imagesReprise = await poseCalme(explorer, pose);
+  const texturePoolAskedBytes = requested.texturePoolBytes;
   return {
     ...rapport,
-    imagesReprise: await poseCalme(explorer, pose),
-    texturePoolAskedBytes: requested.texturePoolBytes,
-    residentTextureBytes,
+    imagesReprise,
+    texturePoolAskedBytes,
+    residentTextureBytes: resident?.bytes,
   };
 }
 
