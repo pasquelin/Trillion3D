@@ -408,7 +408,8 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   in `shadowPagesPending`, which is otherwise 0 unless a batch could not be encoded. While pages are
   pending, the list puts the pages stale longest first, so views re-marked every frame cannot keep
   the pages behind them waiting: a page that stays read is drawn within ⌈pool pages / batches⌉ + 1
-  frames — 34 at worst, the grant's 5 618-page pool one page a batch (the bound, in `admit.ts`). One flag says whether a page is read, the table word's valid bit: a page
+  frames, 34 at worst (the bound, in `admit.ts`). One flag says whether a page is read, the table
+  word's valid bit: a page
   whose depth is wrong is withdrawn (`pool.withdraw`) until its redraw lands, and the pixel reads the
   next coarser level. A light that moves or changes, or a sun whose clipmap moves its projection,
   stales every page it maps, and withdraws them: their depth belongs to the old projection. An
@@ -489,8 +490,8 @@ rest touches neither, and a camera move only draws the pages it brings in
 
 The trade-off, as measured at 1728×1117 CSS, DPR 2 (#831, `9ec162c5e`, before #990 and #993,
 headless, load 7–12): the layer buys a redraw of the moving casters alone, where the static set
-would be drawn again under every mover, and costs as many bytes as the pool — 325 MiB at that case
-on an 8 192 device — and one restore draw per page it redraws.
+would be drawn again under every mover, and costs as many bytes as the pool (above) and one restore
+draw per page it redraws.
 
 | Example              | GPU p50 / p95 ms | shadow pages p50 | shadow draws p95 | fps  |
 | -------------------- | ---------------- | ---------------- | ---------------- | ---- |
@@ -503,8 +504,8 @@ The astrolabe is the counterexample: every caster of its pages moves, so the lay
 nothing it can restore and the cost is its moving casters, whatever the cache; a cache percentage is
 no measure of it. Physical pages are memory, not frame time: the pool past one layer (#818) left
 the falling boxes' GPU envelope where it was and raised their peak memory by 118 MB (1 410 against
-1 292 MB, #850's baseline; the walker 1 465, the car 1 417), and its layer doubles with it. The
-runtime resize that would repay it waits for texel-exact page reads (#831). These numbers are the
+1 292 MB, #850's baseline; the walker 1 465, the car 1 417), and its layer doubles with it, until
+the runtime resize above repays it. These numbers are the
 latest measured on `develop`; the measure session publishes the next ones by batch after the
 merges.
 
