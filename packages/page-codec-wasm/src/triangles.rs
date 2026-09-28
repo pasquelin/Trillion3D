@@ -7,7 +7,7 @@
 //! away, in O(1), as a shader reads it in place. The code is lossless — `base + delta == index`,
 //! in order, which the tests prove on every input —, and pages number vertices by first use.
 
-use crate::bits::{bits_for, field, le_words};
+use crate::bits::{bits_for, le_words, BitReader};
 use crate::writer::BitWriter;
 use crate::PageError;
 
@@ -49,11 +49,14 @@ impl CornerCode {
     /// Block `b`'s record, the table at word `table` of `words`: its base, its width, and the bit
     /// of the corner stream its first corner lies at.
     pub fn record(&self, words: &[u32], table: usize, b: usize) -> (u32, u32, usize) {
-        let ib = self.index_bits;
-        let at = table * 32 + b * self.record_bits() as usize;
-        let width = field(words, at + ib as usize, WIDTH_BITS);
-        let prefix = field(words, at + (ib + WIDTH_BITS) as usize, self.prefix_bits);
-        (field(words, at, ib), width, prefix as usize * CORNERS)
+        let mut record = BitReader::at(words, table * 32 + b * self.record_bits() as usize);
+        let base = record.read(self.index_bits);
+        let width = record.read(WIDTH_BITS);
+        (
+            base,
+            width,
+            record.read(self.prefix_bits) as usize * CORNERS,
+        )
     }
 
     /// True when every record of `table` — the block table's bytes — keeps its base below the
@@ -71,8 +74,10 @@ impl CornerCode {
     }
 
     /// Every corner into `out`, the block table at word `table` of `words` and the corner stream at
-    /// word `stream`, the records already fit (`fits`). A corner at or past the vertex count
-    /// refuses the page.
+    /// word `stream`, the records already fit (`fits`). Each block is read in sequence from where
+    /// its record says it starts. A corner at or past the vertex count — at least one, as the
+    /// header's bounds hold — refuses the page, checked once on the largest (#238): a refused page
+    /// returns no corner, whichever one trips it.
     pub fn read(
         &self,
         words: &[u32],
@@ -80,14 +85,17 @@ impl CornerCode {
         vertex_count: usize,
         out: &mut [u32],
     ) -> Result<(), PageError> {
+        let mut largest = 0;
         for (b, block) in out.chunks_mut(CORNERS).enumerate() {
             let (base, width, start) = self.record(words, table, b);
-            for (k, corner) in block.iter_mut().enumerate() {
-                *corner = base + field(words, stream * 32 + start + k * width as usize, width);
-                if *corner as usize >= vertex_count {
-                    return Err(PageError::Index);
-                }
+            let mut corners = BitReader::at(words, stream * 32 + start);
+            for corner in block {
+                *corner = base + corners.read(width);
+                largest = largest.max(*corner);
             }
+        }
+        if largest as usize >= vertex_count {
+            return Err(PageError::Index);
         }
         Ok(())
     }
