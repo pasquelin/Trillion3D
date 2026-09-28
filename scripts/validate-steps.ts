@@ -21,6 +21,10 @@
 // sources by an earlier green run — a decision Cargo cannot make on a fresh clone, where every
 // source file is newer than any cached artefact. `build` and `test` stay: the binary is there,
 // restored, and the suite that drives it must run.
+/** The fast gates that read the whole tree, which `check:changed` runs too: each `check:x` is
+ *  `node scripts/check-x.ts`. */
+export const TREE_GATES = ['check:translations', 'check:english', 'check:thumbnails'] as const;
+
 export const VALIDATE_GROUPS = {
   quick: [
     'generate:api',
@@ -36,9 +40,7 @@ export const VALIDATE_GROUPS = {
     'check:docs-three',
     'check:sdk-facade',
     'check:i18n',
-    'check:translations',
-    'check:english',
-    'check:thumbnails',
+    ...TREE_GATES,
   ],
   typescript: [
     'generate:api',
