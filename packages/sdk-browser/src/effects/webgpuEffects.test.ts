@@ -126,3 +126,37 @@ test('two blooms draw with their own settings, each from its own uniform range',
     );
   });
 });
+
+test('a fused chain leaves its last blend to the composition: one pass and one target fewer (#963)', async () => {
+  const { gpu, effects } = await loaded();
+  const { encoder, passes } = recorder();
+  const bloom = effect.bloom({ intensity: 0.5 });
+  effects.encode(encoder, [bloom], input, 64, 32);
+  await effects.settled();
+  const levels = bloomLevelSizes(64, 32).length;
+  effects.encode(encoder, [bloom], input, 64, 32);
+  assert.equal(gpu.textures.length, 2, 'unfused: a pass target and the level chain');
+  assert.equal(effects.blend, undefined);
+  passes.length = 0;
+  assert.equal(
+    effects.encode(encoder, [bloom], input, 64, 32, true),
+    input,
+    'composition reads the input',
+  );
+  assert.equal(passes.length, 2 * levels - 1, 'no blend pass');
+  assert.equal(effects.draws, 2 * levels - 1);
+  assert.ok(passes.every((pass) => pass.view !== input && pass.label === 'Trillion3D bloom'));
+  assert.equal(effects.blend!.offset, (2 * levels - 1) * 256, 'the blend reads its own slot');
+  assert.equal(gpu.destroyed.length, 1, 'the pass target is given back');
+  assert.equal(effects.bytes, bloomLevelBytes(64, 32));
+  // Two blooms: the first writes the one target left, the second blends it in the composition.
+  const chain = [effect.bloom(), bloom];
+  passes.length = 0;
+  const output = effects.encode(encoder, chain, input, 64, 32, true);
+  assert.equal(passes.length, 4 * levels - 1);
+  assert.equal(passes[2 * levels - 1].view, output, 'the first bloom wrote what the second read');
+  assert.equal(effects.bytes, 64 * 32 * 8 + bloomLevelBytes(64, 32));
+  assert.equal(effects.blend!.offset, (4 * levels - 1) * 256, 'the second bloom’s last slot');
+  effects.encode(encoder, [bloom], input, 64, 32);
+  assert.equal(effects.blend, undefined, 'unfused again, the bloom blends itself');
+});

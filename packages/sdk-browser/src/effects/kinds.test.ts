@@ -25,7 +25,11 @@ function spy() {
     drawn,
     sized,
     webgl: { ...kind, draw },
-    webgpu: { ...kind, encode: (...args: unknown[]) => draw(args[1] as Bloom, args[2] as number) },
+    webgpu: {
+      ...kind,
+      blend: undefined,
+      encode: (...args: unknown[]) => draw(args[1] as Bloom, args[2] as number),
+    },
   };
 }
 
