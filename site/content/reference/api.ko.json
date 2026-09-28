@@ -2242,7 +2242,8 @@
       "left": "왼쪽 경계.",
       "right": "오른쪽 경계.",
       "top": "위쪽 경계.",
-      "bottom": "아래쪽 경계."
+      "bottom": "아래쪽 경계.",
+      "fitAspect": "선언한 만큼 높고 그림의 모양만큼 넓은 직교 상자."
     }
   },
   "PAGE_DECODE_FAILURES": {

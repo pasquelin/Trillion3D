@@ -2242,7 +2242,8 @@
       "left": "Borda esquerda.",
       "right": "Borda direita.",
       "top": "Borda superior.",
-      "bottom": "Borda inferior."
+      "bottom": "Borda inferior.",
+      "fitAspect": "Uma caixa ortográfica tão alta quanto declarada e tão larga quanto a forma da imagem a torna."
     }
   },
   "PAGE_DECODE_FAILURES": {

@@ -2242,7 +2242,8 @@
       "left": "左端。",
       "right": "右端。",
       "top": "上端。",
-      "bottom": "下端。"
+      "bottom": "下端。",
+      "fitAspect": "宣言どおりの高さで、画像の形に合わせた幅の正射投影ボックス。"
     }
   },
   "PAGE_DECODE_FAILURES": {

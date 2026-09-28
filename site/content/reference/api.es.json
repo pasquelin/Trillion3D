@@ -4395,7 +4395,8 @@
       "left": "Borde izquierdo.",
       "right": "Borde derecho.",
       "top": "Borde superior.",
-      "bottom": "Borde inferior."
+      "bottom": "Borde inferior.",
+      "fitAspect": "Una caja ortográfica tan alta como se declaró y tan ancha como la forma de la imagen la hace."
     }
   },
   "orthographicProjection": {
