@@ -11,6 +11,7 @@ import type { createDagResources } from './resources.ts';
 import { DAG_BINDING } from './shader/bindings.ts';
 import { namedBufferEntries } from '../core/computeBindings.ts';
 import { shadowBatchWrites } from '../shadow/batchWrites.ts';
+import { wholeRange } from './frameRanges.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 export type DagLightCut = ReturnType<typeof createDagLightCut>;
@@ -71,7 +72,7 @@ export function createDagLightCut(resources: DagResources) {
   device.queue.writeBuffer(frames, 0, resources.frameData);
   // Its frames hold every primitive: one range, from zero (`frameRanges.ts`).
   const range = own({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-  device.queue.writeBuffer(range, 0, new Uint32Array([0, worldCount, 0, 0]));
+  device.queue.writeBuffer(range, 0, wholeRange(worldCount));
   let frameWrites = resources.frameWrites.count;
   const output = own({
     label: 'Trillion3D light cut output',

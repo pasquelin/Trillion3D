@@ -134,7 +134,7 @@ fn descend(src:u32,node:CullNode){
  spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
 }
 @compute @workgroup_size(64)
-fn dagLevel0(@builtin(global_invocation_id) id:vec3u){levelStep(0u,id.x);}
+fn dagLevel0(@builtin(global_invocation_id) id:vec3u){levelStep(0u,id.x+range.first);}
 @compute @workgroup_size(64)
 fn dagLevel1(@builtin(global_invocation_id) id:vec3u){levelStep(1u,id.x);}
 @compute @workgroup_size(64)

@@ -107,9 +107,11 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
  // group crosses both barriers: a thread with no cluster does not return early, it does nothing.
  ouvreTotaux(lid);
  let s=id.x;
- if(liveInRange(s)){
-  let entry=liveAt(s);let i=entryIndex(entry);vi=entryView(entry);
-  let w=pageWorld(i);let r=recordOf(i,w);
+ if(s<liveCount()){
+  let entry=liveAt(s);let i=entryIndex(entry);let w=pageWorld(i);
+  // A page of another range's primitive is that range's dispatch's (\`inRange\`).
+  if(inRange(w)){
+  vi=entryView(entry);let r=recordOf(i,w);
   let clusterFlags=clusters[r].flags;
   var draw=false;
   // The cut rule (\`../../../page/cut/rule.ts\`), on the residency \`../readiness.ts\` derives: a
@@ -135,7 +137,7 @@ fn dagMask(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_ind
    // Drawn count of this page's block, held here rather than reread later page by page.
    if(drawn!=0u){atomicAdd(&work[blockBase()+i/BLOCK],1u);atomicOr(&work[drawMaskWord(i)],drawBit(i));drawnAppend(i);stampUse(i);}
   }
- }
+ }}
  verseTotaux(lid);
 }
 ${DAG_CONE_WGSL}
