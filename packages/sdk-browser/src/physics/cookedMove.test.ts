@@ -15,7 +15,12 @@ const crate = {
   ...{ node: 0, motion: { mass: 5 }, shape: { type: 'box', box: { size: [1, 1, 1] } } },
   ...{ position: [0, 2, 0], rotation: [0, 0, 0, 1], scale: [1, 1, 1] },
 } as CookedBody;
-const lift = { ...crate, node: 1, motion: { isKinematic: true }, position: [10, 0, 0] };
+const lift = {
+  ...crate,
+  node: 1,
+  motion: { isKinematic: true },
+  position: [10, 0, 0],
+} as CookedBody;
 const collider = { tiles: [tile()], material: null };
 const file = { ...cooked([collider, collider], [place(0), place(1)]), bodies: [crate, lift] };
 const close = (a: ArrayLike<number>, b: number[]) => b.every((v, i) => Math.abs(a[i] - v) < 1e-6);
