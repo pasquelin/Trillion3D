@@ -1,5 +1,24 @@
 # Shared Benchmark Harness
 
+## Feedback target A/B/A (#39)
+
+Build the branch first, then run the diagnostic on the quiet measurement machine:
+
+    pnpm run build && pnpm run build:native
+    node bench/runner/feedbackTargetAb.ts --scene sponza,alpha-blend-mode-test \
+      --rebuild-cache alpha-blend-mode-test --images 120
+
+`--rebuild-cache` refreshes named derived caches through the owned compiler. Each scene and view
+is one session at a fixed pose, 2496×1404 DPR 1, TAA on. Up to 240 budgeted frames, with no
+convergence barrier, sample requested/served mips from the r32uint feedback in center and
+periphery patches, whole and per surface kind (opaque, mask, blend). Gaze-first holds when center
+is at level while periphery lags, then periphery reaches level, for the frame and each kind both
+regions request in the held frame. The A/B/A verdict needs 12 GPU samples per leg, 0px A/A and
+A/B, identical geometry and tile residency, and the expected target-byte delta. JSON and captures
+go to `.mesure/out/39-feedback-ab/`; missing values are `null`. The reduce pass is timed steady
+(A legs) and converging (frames before the held one). Pass/frame shares are costs, not savings;
+the off-side delta bounds any request-packing gain.
+
 A single harness for all test batches. One command, no server to start manually, only this repository on the machine: Playwright and esbuild are its dev dependencies, Chrome is the system browser, assets live under `.mesure/assets/`.
 
     node bench/runner/bench.ts --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
@@ -57,7 +76,7 @@ through the witness entry point (`bench/witnesses/measurement.ts`, bundled by `p
   engine-owned WebGL2 program — glTF 2.0 metallic-roughness maps, Lambert diffuse with a
   Cook-Torrance GGX specular, correlated Smith visibility and Schlick Fresnel (Karis, SIGGRAPH 2013
   Physically Based Shading course notes), with the geometric specular antialiasing of
-  Tokuyoshi and Kaplanyan, *Improved Geometric Specular Antialiasing* (2019). Transmissive meshes are
+  Tokuyoshi and Kaplanyan, _Improved Geometric Specular Antialiasing_ (2019). Transmissive meshes are
   composed after the clusters over a frozen backdrop of the frame. A material the program cannot
   preserve fails preparation with `CLUSTER_MATERIAL_UNSUPPORTED`, whose `details.reason` names the
   input; a physical extension beyond the transmission volume (clearcoat, sheen…) is no refusal: the
@@ -89,7 +108,6 @@ by substituting materials: one white ambient light of irradiance π returns the 
 `metalness`, `aoMapIntensity`, `lightMapIntensity` and `transmission` are zeroed for the length of
 each frame; a material's own emission is still added. The WebGL witnesses read back their rendered
 default framebuffer so captures match the displayed image.
-
 
 The measured camera path also advances once per `requestAnimationFrame` on both sides. Its
 `rafIntervalMs` distribution is the real moving-frame envelope, including browser backpressure and
@@ -255,7 +273,7 @@ separate operations; rebuilding the interface never launches Chrome or benchmark
    manifest, browser version and machine, and a completed measurement without errors. A mismatch refuses to
    overwrite evidence: select another output directory. Browser-version changes invalidate resume and comparisons.
 2. Export with `node bench/runner/summaryGlobal.ts --dossier .mesure/out/<campaign>
-   --vers .mesure/out/<campaign>-report --id <campaign>` (on one line).
+--vers .mesure/out/<campaign>-report --id <campaign>` (on one line).
 3. Stage with `node bench/runner/publishReport.ts --dossier .mesure/out/<campaign>-report`.
    The site keeps one report: the script writes `site/reports/<id>/`, then removes the campaign
    staged before and writes a catalogue naming the new one, which the portal's Measurements area
