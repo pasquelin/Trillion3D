@@ -7,7 +7,8 @@ import { uploadWorlds } from './worldUpload.ts';
 import { setWindingEpoch } from './winding.ts';
 import { holdWebgpuFrame } from '../../frame/hold.ts';
 import { sizeShadowPool } from '../../shadow/poolSize.ts';
-import { requestFrameTargets } from '../prepare/targetGrant.ts';
+import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant.ts';
+import { deviceAnswering } from '../../frame/deviceAnswer.ts';
 import { pumpResidentTiles } from '../prepare/lightResources.ts';
 import { refreshBlendBoxes } from '../../blend/hierarchy.ts';
 import { refreshBlendScene } from '../../blend/resources.ts';
@@ -58,7 +59,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   followLiveTextures(rt);
   // Neither the scene, nor the view, nor the resources have moved, and nothing is in flight: the
   // previous image is this one. No CPU step is run below.
-  if (rt.feedbackAB?.force) {
+  // A frame the device still answers for (targets, shadow pool) is held even when forced.
+  if (rt.feedbackAB?.force && !frameTargetsAwaited(rt) && !deviceAnswering(rt)) {
     // Replay the settled TAA sample and history while forcing the real GPU passes.
     beginTaaFrame(rt, run.gate.cam, true);
     run.frameHeld = false;
