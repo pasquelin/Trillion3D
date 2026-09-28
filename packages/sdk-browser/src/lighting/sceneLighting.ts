@@ -43,6 +43,9 @@ export type HostLightScene = { add(node: unknown): void; remove(node: unknown): 
  *  `to` is the node of the display graph the copy points at in its place. */
 type Aim = { from: Object3D; to: AimNode };
 
+/** The kinds whose light a shadow map would stop: a sun, a point lamp, a spot. */
+const CASTING = new Set(['directional', 'point', 'spot']);
+
 function sceneLights(source: Object3D): Light[] {
   const lights: Light[] = [];
   source.traverse((object) => {
@@ -78,6 +81,9 @@ export function installSceneLighting(
   // Source-graph lights are cleared when another lighting contract takes over: two
   // stacked light sets would be nobody's lighting.
   let enabled = true;
+  // The shown lights asking to cast, named at each copy (`ContractShadows`): a WebGL2 engine
+  // draws them unshadowed. A rectangle, an ambient or a probe casts nothing.
+  let casting: string[] = [];
   const update = () => {
     for (const { original, copy, aim } of pairs) {
       original.updateWorldMatrix(true, false);
@@ -114,6 +120,7 @@ export function installSceneLighting(
       if (aim) scene.remove(aim.to);
     }
     pairs = [];
+    casting = [];
     for (const original of sceneLights(source)) {
       const copy = copyOf(original);
       let aim: Aim | undefined;
@@ -125,6 +132,8 @@ export function installSceneLighting(
         scene.add(aim.to);
       }
       scene.add(copy);
+      if (original.castShadow && CASTING.has(original.kind) && shownChain(original))
+        casting.push(original.name || `source-light-${pairs.length}`);
       pairs.push({ original, copy, aim });
     }
     update();
@@ -138,6 +147,10 @@ export function installSceneLighting(
       if (enabled === next) return;
       enabled = next;
       update();
+    },
+    /** The names of the shown source lights asking to cast, as at the last copy. */
+    get casting(): readonly string[] {
+      return casting;
     },
     /** True as soon as a source-graph light is installed: the only signal of a lit view. */
     get lit() {

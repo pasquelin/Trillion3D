@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { autonomousPagesBackend } from './pages.ts';
+import { DAG } from '../pagesBackend.fixture.ts';
 import { createSceneLightStore, type ClusterManifest } from '../../../../sdk-core/src/index.ts';
 import { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { lampRecord } from '../../../../sdk-core/src/world/light/lightRecord.ts';
@@ -19,8 +20,7 @@ const RADIOMETRIC = 3.514;
 const PHOTOMETRIC = 2400;
 
 const metadata = {
-  errorModel: 'dag-group-qem-v2',
-  clusterStrategy: 'dag-groups',
+  ...DAG,
   geometryPages: { formatVersion: 4 as const, codec: 'quantized' as const },
   primitives: [],
 } as unknown as ClusterManifest;
@@ -62,11 +62,39 @@ test('the autonomous path lights from the contract table, not from the source gr
   }
 });
 
-// #558 (D): the WebGL2 path draws no shadow map. A light that asks to cast — the sun as a point
+// #558 (D): the WebGL2 path draws no shadow map. A light that asks to cast — the sun, a point
 // lamp or a spot — is drawn unshadowed and named on the world's channel as `shadows-refused`,
-// once until it changes; a light that casts none is never named. The lights are the page's, made
-// store records as the world makes them (`lampRecord`).
-test('every casting light on the WebGL2 path is named once, never silently unshadowed', async () => {
+// once until it changes; a light that casts none is never named.
+
+/** A WebGL2 engine on `source` and `sceneLights`, and what its world said since the last call. */
+function webgl2(source: G.Object3D, sceneLights = createSceneLightStore()) {
+  const notices = createWorldNotices();
+  const said: string[] = [];
+  const stop = listenWorldNotices((n) => void said.push(`${n.phase} ${n.context.light}`));
+  const backend = autonomousPagesBackend({
+    source,
+    metadata,
+    indices: new Map(),
+    associations: new Map(),
+    sceneLights,
+    shadowsRefused: noticeShadowRefusal(notices),
+    readGeometryPage: async () => new Uint8Array(),
+  });
+  const heard = async (refresh: () => void = () => {}) => {
+    refresh();
+    await new Promise(setImmediate);
+    return said.splice(0).sort();
+  };
+  const close = () => {
+    stop();
+    notices.close();
+    backend.dispose();
+  };
+  return { backend, heard, close };
+}
+
+// The lights are the page's, made store records as the world makes them (`lampRecord`).
+test('every casting contract light on the WebGL2 path is named once, never silently', async () => {
   const sceneLights = createSceneLightStore();
   const page = {
     sun: new Light('directional', { castShadow: true, intensity: 3, target: [0, -1, 0] }),
@@ -76,43 +104,48 @@ test('every casting light on the WebGL2 path is named once, never silently unsha
   };
   const record = (id: keyof typeof page) => lampRecord(page[id], id, 10)!;
   for (const id of Object.keys(page) as (keyof typeof page)[]) sceneLights.add(record(id));
-  const notices = createWorldNotices();
-  const said: string[] = [];
-  const stop = listenWorldNotices((n) => void said.push(`${n.phase} ${n.context.light}`));
-  const backend = autonomousPagesBackend({
-    source: new G.Group(),
-    metadata,
-    indices: new Map(),
-    associations: new Map(),
-    sceneLights,
-    shadowsRefused: noticeShadowRefusal(notices),
-    readGeometryPage: async () => new Uint8Array(),
-  });
-  const heard = async () => {
-    backend.refreshSceneLights!();
-    await new Promise(setImmediate);
-    return said.splice(0).sort();
-  };
+  const { backend, heard, close } = webgl2(new G.Group(), sceneLights);
+  const apply = () => backend.refreshSceneLights!();
   try {
-    assert.deepEqual(await heard(), [
-      'shadows-refused lamp',
-      'shadows-refused spot',
-      'shadows-refused sun',
-    ]);
+    const casting = ['shadows-refused lamp', 'shadows-refused spot', 'shadows-refused sun'];
+    assert.deepEqual(await heard(), casting);
     sceneLights.set('sun', { intensity: 6 });
-    assert.deepEqual(await heard(), [], 'a change that keeps the cast says nothing again');
+    assert.deepEqual(await heard(apply), [], 'a change that keeps the cast says nothing again');
     page.sun.castShadow = false;
     sceneLights.set('sun', record('sun'));
     sceneLights.remove('spot');
-    assert.deepEqual(await heard(), []);
+    assert.deepEqual(await heard(apply), []);
     page.sun.castShadow = true;
     sceneLights.set('sun', record('sun'));
     sceneLights.add(record('spot'));
-    assert.deepEqual(await heard(), ['shadows-refused spot', 'shadows-refused sun']);
+    assert.deepEqual(await heard(apply), ['shadows-refused spot', 'shadows-refused sun']);
     assert.equal(backend.lighting?.shadows, false, 'the capability still says no shadow');
   } finally {
-    stop();
-    notices.close();
-    backend.dispose();
+    close();
+  }
+});
+
+// With no contract light, the source graph lights, and its casting lights are named the same.
+test('a casting source-graph light on the WebGL2 path is named, until the contract lights', async () => {
+  const sun = G.directionalLight();
+  sun.name = 'sun';
+  sun.castShadow = true;
+  const source = new G.Group();
+  source.add(sun, G.pointLight());
+  const sceneLights = createSceneLightStore();
+  const { backend, heard, close } = webgl2(source, sceneLights);
+  const copy = () => backend.refreshSceneLighting!();
+  try {
+    assert.deepEqual(await heard(), ['shadows-refused sun']);
+    sun.castShadow = false;
+    assert.deepEqual(await heard(copy), []);
+    sun.castShadow = true;
+    assert.deepEqual(await heard(copy), ['shadows-refused sun'], 'casting anew, named anew');
+    const lamp = new Light('point', { castShadow: true, distance: 8 });
+    sceneLights.add(lampRecord(lamp, 'lamp', 10)!);
+    const governed = await heard(() => backend.refreshSceneLights!());
+    assert.deepEqual(governed, ['shadows-refused lamp'], 'the source graph no longer lights');
+  } finally {
+    close();
   }
 });

@@ -49,8 +49,14 @@ export function contractLightingApi(
   shadowsRefused?: ContractShadows,
 ) {
   const contract = attachContractLights(scene, store, source, sceneChanged, shadowsRefused);
+  const graph = sceneLightingApi(source, sceneChanged);
   return {
-    ...sceneLightingApi(source, sceneChanged),
+    ...graph,
+    /** The source graph copied again: its casting lights are named if they light now. */
+    refreshSceneLighting: () => {
+      graph.refreshSceneLighting();
+      contract.refused();
+    },
     /** The image comes out in real light as soon as either light set carries one. */
     sceneLit: () => contract.lit,
     /** The display curve the scene chose through its environment; ACES when it chose none. */

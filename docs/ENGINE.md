@@ -502,8 +502,9 @@ nothing; opacity 1 lets no light through. Additive and transmissive surfaces cas
 shadow of transmission is #33's, which colours the same RGB layer. An unpaged blended mesh casts
 nothing. WebGL2 has no shadow path, so none of this exists there: `CONTRACT_LIGHTS_LIGHTING`
 publishes `shadows: false`, and the contract lights (`lighting/contractLights.ts`) hand the ids of
-the lit lights that ask to cast (sun, point, spot), at each change of the store, to
-`ContractShadows`; the world — or the session itself, opened without one — says each once as
+the lit lights that ask to cast (sun, point, spot), at each change of the store — or, while the
+contract does not govern, the source graph's (`installSceneLighting`'s `casting`, held at each
+copy) — to `ContractShadows`; the world — or the session itself, opened without one — says each once as
 `shadows-refused` (`noticeShadowRefusal`), again after it stopped casting (cast off, light gone,
 unlit view) and casts anew.
 
