@@ -1,4 +1,4 @@
-import { BODY_INDEX, type CommandWriter } from '../../../sdk-core/src/physics/index.ts';
+import type { CommandWriter } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { worldPoseOf } from './bodyFrame.ts';
 
@@ -7,36 +7,27 @@ import { worldPoseOf } from './bodyFrame.ts';
 export type Carried = { node: Object3D; last: Float64Array };
 
 /** `node`, followed from `position` and `quaternion`, where its body is made. */
-export function carriedFrom(
+export const carriedFrom = (
   node: Object3D,
   position: ArrayLike<number>,
   quaternion: ArrayLike<number>,
-): Carried {
-  const carried = { node, last: new Float64Array(7) };
-  record(carried, position, quaternion);
-  return carried;
-}
-
-/** `position` then `quaternion` kept as the pose `carried` was last driven to. */
-function record({ last }: Carried, position: ArrayLike<number>, quaternion: ArrayLike<number>) {
-  last.set(position);
-  last.set(quaternion, 3);
-}
+): Carried => ({ node, last: Float64Array.of(...Array.from(position), ...Array.from(quaternion)) });
 
 /**
- * The body `id`, when it is `carried`, driven where its node is drawn now — its dynamic ancestor
+ * The body in slot `slot`, `carried`, driven where its node is drawn now — its dynamic ancestor
  * moved it —, pushing what it meets; a node that stands still sends nothing, so a resting body
- * wakes nobody. Whether it is carried: one that is not is its caller's to move.
+ * wakes nobody.
  */
 export function driveCarried(
   writer: Pick<CommandWriter, 'moveKinematic'>,
-  { id, carried }: { id: number; carried?: Carried },
+  { node, last }: Carried,
+  slot: number,
 ) {
-  if (!carried) return false;
-  const { position, quaternion } = worldPoseOf(carried.node);
-  const same = carried.last.every((v, i) => v === (i < 3 ? position[i] : quaternion[i - 3]));
-  if (same) return true;
-  record(carried, position, quaternion);
-  writer.moveKinematic(id & BODY_INDEX, position, quaternion);
-  return true;
+  const { position, quaternion } = worldPoseOf(node);
+  let same = true;
+  for (let i = 0; i < 7 && same; i++) same = last[i] === (i < 3 ? position[i] : quaternion[i - 3]);
+  if (same) return;
+  last.set(position);
+  last.set(quaternion, 3);
+  writer.moveKinematic(slot, position, quaternion);
 }
