@@ -78,6 +78,8 @@ const PREVIEW_MAX_ALLOC: u64 = 512 * 1024 * 1024;
 /// `source.gltf`, so origin names index engine sees.
 pub(super) struct PreviewInputs<'a> {
     pub o: &'a Options,
+    /// Source and geometry reservation already admitted by the compiler plan.
+    pub reserved_bytes: usize,
     pub g: &'a Value,
     pub bin: &'a [u8],
     /// Resolution root of intermediate scene images, named by `plugins::scene`:
