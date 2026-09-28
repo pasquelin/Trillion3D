@@ -7,7 +7,7 @@ import {
 import { createTextureLevelStore, textureLevelShare } from '../../texture/levelStore.ts';
 import { DEFAULT_CACHED_BYTES } from '../../streaming/pageCache.ts';
 import { LevelBytesError } from './writeBlocks.ts';
-import { tileRecord, tiledLevelBytes } from '../../texture/tileRecords.ts';
+import { tileRecord } from '../../texture/tileRecords.ts';
 import { PREVIEW_LOSSLESS_FORMAT } from '../../../../sdk-core/src/index.ts';
 
 /**
@@ -16,7 +16,8 @@ import { PREVIEW_LOSSLESS_FORMAT } from '../../../../sdk-core/src/index.ts';
  * A lossless tile is read in its whole level, decoded by the browser: a PNG is not cut by bytes. A
  * block tile is read alone, its record by one HTTP Range (STR-12, #962, `texture/tileRecords.ts`);
  * a server that ignores Range sends the whole file, held under the level's key, every tile of the
- * level cut from it, whole files asked since. Levels and records stay, the least recently read
+ * level cut from it, whole files asked since. Until a first record says which, one ranged read goes
+ * alone. Levels and records stay, the least recently read
  * leaving first, in the store the reader names — that of the page cache the session reads through,
  * within its CPU total, a world's kept across a device loss (`texture/levelStore.ts`) — or, for a
  * reader that names none, in one of its own, at the share of the default total. That is the chain's
@@ -51,6 +52,8 @@ export type WebgpuTileLevels = {
 // The format is in the key: a session that changes family mid-life reads the other file.
 const keyOf = ({ sha256, atlas, level, format }: LevelKey) =>
   `${sha256}/${atlas}/${level}/${format}`;
+/** A block tile's record, under its level's key. */
+const recordKey = (whole: string, tx: number, ty: number) => `${whole}/${tx},${ty}`;
 
 export function createWebgpuTileLevels(options: {
   read: TextureLevelReader;
@@ -69,38 +72,47 @@ export function createWebgpuTileLevels(options: {
     /** Bytes the reads in flight will hold once landed. */
     reading = 0,
     fetched = 0,
-    /** False once a server answered a Range with the whole file: whole files are asked since. */
-    ranged = true;
+    /** Whether the server honours Range: unknown until a first block read lands, false once it
+     *  answered one with the whole file — whole files are asked since. */
+    ranged: boolean | undefined,
+    /** A ranged read is in flight while `ranged` is unknown: the others wait for its answer. */
+    probing = false;
   return {
     get(level, size, tx, ty) {
       const whole = keyOf(level),
         held = store.get(whole);
       if (level.format === PREVIEW_LOSSLESS_FORMAT) return held;
-      if (!held) return store.get(`${whole}/${tx},${ty}`);
+      if (!held) return store.get(recordKey(whole, tx, ty));
       const { offset, bytes } = tileRecord(size[0], size[1], tx, ty);
       return (held as Uint8Array).subarray(offset, offset + bytes);
     },
     request(level, frame, size, tx, ty) {
       const whole = keyOf(level),
-        ranges = ranged && level.format !== PREVIEW_LOSSLESS_FORMAT,
-        id = ranges ? `${whole}/${tx},${ty}` : whole;
+        ranges = ranged !== false && level.format !== PREVIEW_LOSSLESS_FORMAT,
+        id = ranges ? recordKey(whole, tx, ty) : whole;
       if (store.has(id) || store.has(whole) || pending.has(id) || refused.has(whole)) return true;
+      // Until a first record lands, one ranged read probes the server alone: one that ignores
+      // Range answers each read with the whole file, and six of them would all download it.
+      if (ranges && probing) return true;
       if (frame !== roomFrame) [roomFrame, room] = [frame, store.room()];
-      const record = ranges ? tileRecord(size[0], size[1], tx, ty) : undefined;
-      const bytes = record?.bytes ?? requestedLevelBytes(level, size);
+      const levelBytes = requestedLevelBytes(level, size),
+        record = ranges ? tileRecord(size[0], size[1], tx, ty) : undefined,
+        bytes = record?.bytes ?? levelBytes;
       if (bytes > room) return false;
       // The reads in flight hold their room: one that fits only once they have landed waits for
       // them, rather than landing to shed a level read for a tile not cut yet.
       if (reading + bytes > room) return true;
       reading += bytes;
+      const probe = ranges && ranged === undefined;
+      if (probe) probing = true;
       const landing = read(record ? { ...level, range: record } : level)
         .then((texels) => {
           let held = id;
           if (texels instanceof Uint8Array && texels.byteLength !== record?.bytes) {
-            if (texels.byteLength !== tiledLevelBytes(size[0], size[1]))
+            if (texels.byteLength !== levelBytes)
               throw new LevelBytesError(size, texels.byteLength);
             [held, ranged] = [whole, false];
-          }
+          } else if (record && record.bytes !== levelBytes) ranged ??= true; // a 206: Range honoured
           fetched++;
           store.take(held, texels, key);
         })
@@ -109,6 +121,7 @@ export function createWebgpuTileLevels(options: {
           options.onFailure(level, error);
         })
         .finally(() => {
+          if (probe) probing = false;
           pending.delete(id);
           reading -= bytes;
         });
