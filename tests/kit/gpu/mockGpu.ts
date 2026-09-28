@@ -85,21 +85,11 @@ export function mockGpu({
       buffers.push(buffer);
       return buffer;
     },
-    createTexture: ({
-      label: tagged,
-      size,
-      format,
-      usage,
-    }: {
-      label?: string;
-      size: { width: number; height?: number; depthOrArrayLayers?: number } | readonly number[];
-      format?: string;
-      usage?: number;
-    }) => {
+    createTexture: ({ label: tagged, size, format, usage }: GPUTextureDescriptor) => {
       const views: Array<{ dimension?: string } | undefined> = [];
       // A GPUExtent3D, as a dictionary or a sequence.
       const [width, height = 1, depthOrArrayLayers = 1] =
-        'width' in size ? [size.width, size.height, size.depthOrArrayLayers] : size;
+        'width' in size ? [size.width, size.height, size.depthOrArrayLayers] : [...size];
       const tex = {
         label: untag(tagged),
         width,
