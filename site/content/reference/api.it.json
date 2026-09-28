@@ -7415,7 +7415,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Float di un record d’ombra, quello che legge l’ombreggiatura di una luce: sei matrici di facce di lampada, poi il riferimento del piano del sole — `right, zNear`, `up, zFar`, `axis, 0` —, poi l’origine dell’estensione di ogni livello di clipmap in due interi, poi un’intestazione `vec4f`: facce (lampada) o livelli (sole), la tangente del semicampo della lampada o il livello più fine del sole, il piano vicino della lampada e la prima voce del record nella tabella delle pagine."
+    "summary": "Float di un record d’ombra, quello che legge l’ombreggiatura di una luce: sei matrici di facce di lampada — lì, gli intervalli di profondità di un sole, `zNear` e inverso dell’ampiezza ciascuno (`recordPack.ts`) —, poi il riferimento del piano del sole — `right`, `up`, `axis`, ciascuno completato a quattro —, poi l’origine dell’estensione di ogni livello di clipmap in due interi, poi un’intestazione `vec4f`: facce (lampada) o livelli (sole), la tangente del semicampo della lampada o il livello più fine del sole, il piano vicino della lampada e la prima voce del record nella tabella delle pagine."
   },
   "ShadowRequestReport": {
     "summary": "Ciò che l’ombreggiatura ha letto in un fotogramma: le voci della tabella richieste, senza ordine.",

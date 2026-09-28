@@ -9,7 +9,16 @@ import { writeFace } from './faces.ts';
 import { createShadowPlan, type ShadowPlan } from './plan.ts';
 import { STALE_DYNAMIC } from './pool.ts';
 import { LAMP_MIPS, lampPagesAt, tableEntriesOf } from './virtual.ts';
-import { LAMP, SUN, cycle, lampPages, planFrame, sunPages } from './lightShadow.fixture.ts';
+import {
+  LAMP,
+  SUN,
+  SUN_GRID,
+  cycle,
+  lampPages,
+  planFrame,
+  staleEntries,
+  sunPages,
+} from './lightShadow.fixture.ts';
 /** Twenty-six balls of half a metre on a ring of eight metres round the lamp. */
 const BALLS = Array.from({ length: 26 }, (_, i) => {
   const x = 8 * Math.cos((2 * Math.PI * i) / 26),
@@ -29,20 +38,10 @@ function settled(side: number) {
     read: number[] = [];
   for (let face = 0; face < 6; face++)
     for (const mip of [2, 4]) read.push(...lampPages(plan, store.sliceOf(0), face, mip));
-  const grid = Array.from({ length: 144 }, (_, i) => [(i % 12) - 6, Math.floor(i / 12) - 6]);
-  read.push(...sunPages(plan, sun, plan.sun.finest[sun] + 7, grid));
+  read.push(...sunPages(plan, sun, plan.sun.finest[sun] + 7, SUN_GRID));
   let frame = 1;
   for (; frame < 4; frame++) cycle(plan, store, frame, () => read);
   return { store, plan, frame };
-}
-
-/** Table entries of the stale pages. */
-function staleEntries(plan: ShadowPlan) {
-  const { pool } = plan,
-    entries: number[] = [];
-  for (let page = 0; page < pool.pages; page++)
-    if (pool.owner[page] >= 0 && pool.dirty[page]) entries.push(pool.owner[page]);
-  return entries.sort((a, b) => a - b);
 }
 
 test('26 small movers far apart stale only the pages their own boxes cover, per light view', () => {
