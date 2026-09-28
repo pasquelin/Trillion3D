@@ -5,7 +5,7 @@ import { PROXY_HEADER_WORDS, PROXY_LAYOUT_WORD } from './nodeWgsl.ts';
 
 /** Words of an array, whatever its type: a column is a sequence of words, nothing more. */
 const words = (data: Float32Array | Uint32Array) =>
-  new Uint32Array(data.buffer, data.byteOffset, data.length);
+  new Uint32Array(data.buffer as ArrayBuffer, data.byteOffset, data.length);
 
 /** Resident albedo buffer: written once, at prepare, never touched by a frame. */
 function albedoBuffer(device: GPUDevice, data: Uint32Array) {
