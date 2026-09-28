@@ -21,8 +21,6 @@ export function findNode(source: Object3D, nodeName: string) {
   return index.names.get(nodeName);
 }
 
-const ascending = (a: number, b: number) => a - b;
-
 type Roots = readonly ClusterRoot<PageRec>[];
 
 /** Selection-root ranks by source mesh, built once per root list: the layout never edits it. */
@@ -44,25 +42,29 @@ function rootsByMesh(roots: Roots) {
 }
 
 /**
- * Ranks of the roots whose source mesh is `node` or lies below it, increasing — the order a loop
- * over every root visits them — written into `out`, which is returned. The node's LIVE subtree is
- * walked once: the same relation as climbing each root's parent chain up to the node.
+ * Ranks of the roots whose source mesh is `node` or lies below it, each once, in the walk's order,
+ * written into `out` from `at` on; returns where they end. The node's LIVE subtree is walked once:
+ * the same relation as climbing each root's parent chain up to the node. `out` is never
+ * truncated: it keeps its storage and grows only past its length.
  */
-export function rootsUnder(roots: Roots, node: Object3D, out: number[]) {
+export function appendRootsUnder(roots: Roots, node: Object3D, out: number[], at: number) {
   walking = rootsByMesh(roots);
   found = out;
-  out.length = 0;
+  count = at;
   node.traverse(collect);
-  // Let go of the layout's meshes: a released scene is not kept alive by the last move.
+  // Let go of the layout's meshes and the list: a released scene is not kept alive by the last move.
   walking = NONE;
-  return out.sort(ascending);
+  found = EMPTY;
+  return count;
 }
 
 // The walk's state and its one callback, declared once: a move allocates no closure.
-const NONE = new Map<Object3D, number[]>();
+const NONE = new Map<Object3D, number[]>(),
+  EMPTY: number[] = [];
 let walking = NONE,
-  found: number[] = [];
+  found = EMPTY,
+  count = 0;
 const collect = (walk: Object3D) => {
   const list = walking.get(walk);
-  if (list) for (const i of list) found.push(i);
+  if (list) for (const i of list) found[count++] = i;
 };
