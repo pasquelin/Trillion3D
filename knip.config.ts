@@ -50,6 +50,7 @@ const config: KnipConfig = {
     'bench/runner/oracle.ts',
     'bench/runner/lampFixture.ts',
     'bench/runner/anisotropyCost.ts',
+    'bench/runner/waterCost.ts',
     'bench/perf/*/*.perf.ts',
     'bench/runner/perf/*.ts',
     // Tests by rule: unit and integration tests, the browser proof runners (render proofs and
