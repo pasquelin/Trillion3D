@@ -5546,6 +5546,9 @@
       "commit": "Las páginas `[from, to)` de la lista del fotograma se codificaron, la página `from + i` en `modes[i]`: sus dibujos llegan antes de que nadie las lea. El último lote cierra la lista."
     }
   },
+  "ShadowStaleReason": {
+    "summary": "Por qué una página de sombra quedó obsoleta (`ShadowFrameMetrics.shadowPagesStaledBy`)."
+  },
   "ShadowViewpoint": {
     "summary": "Lo que sabe el planificador de la vista: una cámara, no una matriz, para permanecer sin dependencia.",
     "members": {

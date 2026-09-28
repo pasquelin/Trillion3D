@@ -3213,6 +3213,9 @@
       "commit": "フレームのリストのページ `[from, to)` がエンコードされました。ページ `from + i` は `modes[i]` で描かれ、誰かが読む前に描画が完了します。最後のバッチがリストを閉じます。"
     }
   },
+  "ShadowStaleReason": {
+    "summary": "影ページが古くなった理由 (`ShadowFrameMetrics.shadowPagesStaledBy`)。"
+  },
   "ShadowViewpoint": {
     "summary": "スケジューラーがビューについて知っていること: 行列ではなくカメラ。依存を持たずに済ませるため。",
     "members": {

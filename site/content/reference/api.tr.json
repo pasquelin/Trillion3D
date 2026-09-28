@@ -3213,6 +3213,9 @@
       "commit": "Karenin listesindeki `[from, to)` sayfaları kodlandı, `from + i` sayfası `modes[i]` içinde: çizimleri kimse okumadan önce tamamlanır. Son parti listeyi kapatır."
     }
   },
+  "ShadowStaleReason": {
+    "summary": "Bir gölge sayfasının neden eskidiği (`ShadowFrameMetrics.shadowPagesStaledBy`)."
+  },
   "ShadowViewpoint": {
     "summary": "Zamanlayıcının görünüm hakkında bildiği şey: bir bağımlılık olmadan kalmak için bir matris değil, bir kamera.",
     "members": {

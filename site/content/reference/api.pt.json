@@ -3213,6 +3213,9 @@
       "commit": "As páginas `[from, to)` da lista do quadro foram codificadas, a página `from + i` em `modes[i]`: seus desenhos chegam antes que alguém as leia. O último lote fecha a lista."
     }
   },
+  "ShadowStaleReason": {
+    "summary": "Por que uma página de sombra ficou desatualizada (`ShadowFrameMetrics.shadowPagesStaledBy`)."
+  },
   "ShadowViewpoint": {
     "summary": "O que o escalonador sabe da visão: uma câmera, não uma matriz, para ficar sem uma dependência.",
     "members": {

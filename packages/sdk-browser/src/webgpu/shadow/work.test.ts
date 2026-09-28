@@ -3,19 +3,21 @@
 // batches and layers a frame drew and why its pages turned stale.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { LAMP } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
+import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { along, camera, disposeQuadRun } from '../pages/testScenes.fixture.ts';
 import { floorCasterBackend } from './floorCaster.fixture.ts';
 
 test('the shadow work metrics tell restored pages from rasterised ones, and say why', async () => {
-  const { backend, lights, scene } = await floorCasterBackend(LAMP);
+  const { backend, lights, scene } = await floorCasterBackend(SUN);
   const view = camera();
+  // The metrics of the frame `render` drew: `flush` may draw the pose again, a frame of its own.
   const frame = async (act?: () => void) => {
     act?.();
     backend.render(view);
+    const drawn = backend.metrics();
     await backend.flush?.();
     await new Promise((settled) => setTimeout(settled, 0));
-    return backend.metrics();
+    return drawn;
   };
   const move = (x: number) => () => backend.setTransform!('caster', along(x));
   // The caster's first moves make the static layer.
@@ -30,11 +32,16 @@ test('the shadow work metrics tell restored pages from rasterised ones, and say 
   assert.ok(moved.shadowBatches! > 0 && moved.shadowLayersDrawn! > 0);
   assert.ok(moved.shadowPagesStaledBy!.moving > 0, 'staled by moving casters alone');
   assert.equal(moved.shadowPagesStaledBy!.light, 0);
-  // The lamp moves: every page's static casters are rasterised again.
-  const lamp = await frame(() => lights.set(LAMP.id, { position: [0.5, 3, 0] }));
-  assert.ok(lamp.shadowPagesRasterized! > 0 && lamp.shadowStaticDrawCalls! > 0);
-  assert.equal(lamp.shadowPagesRestored! + lamp.shadowPagesRasterized!, lamp.shadowPagesDrawn);
-  assert.ok(lamp.shadowPagesStaledBy!.light > 0, 'staled by the light');
+  // The sun turns: every page's static casters are rasterised again.
+  const turned = await frame(() =>
+    lights.set(SUN.id, { direction: [Math.sin(0.1), -Math.cos(0.1), 0] }),
+  );
+  assert.ok(turned.shadowPagesRasterized! > 0 && turned.shadowStaticDrawCalls! > 0);
+  assert.equal(
+    turned.shadowPagesRestored! + turned.shadowPagesRasterized!,
+    turned.shadowPagesDrawn,
+  );
+  assert.ok(turned.shadowPagesStaledBy!.light > 0, 'staled by the light');
   // At rest: nothing drawn, no batch run.
   await frame();
   const still = await frame();

@@ -17,7 +17,7 @@ export const STALE_BY: Readonly<Record<ShadowStaleReason, number>> = {
   threshold: 4,
   range: 5,
 };
-export const STALE_REASONS = Object.keys(STALE_BY) as ShadowStaleReason[];
+export const STALE_REASONS = /* @__PURE__ */ Object.keys(STALE_BY) as ShadowStaleReason[];
 
 /**
  * What the shadow scheduler did in a frame, in pages: pages staled, drawn, left pending — 0 unless
