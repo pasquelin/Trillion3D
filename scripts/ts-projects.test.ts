@@ -48,6 +48,7 @@ test('a changed TypeScript file no project type-checks is an error, not a skip',
   );
   const tools = project('tsconfig.tools.json');
   assert.ok(excludes(tools, resolve(ROOT, 'tests/fixtures/publicTypesOnly.ts')));
+  assert.ok(excludes(tools, resolve(ROOT, 'tests/fixtures/publicNode.mts')));
   assert.ok(!excludes(tools, resolve(ROOT, 'tests/browser/renders/pair.browser.ts')));
   const build = project('tsconfig.json');
   assert.ok(!excludes(build, resolve(ROOT, 'site/app/x.test.ts')), 'outside its include');
