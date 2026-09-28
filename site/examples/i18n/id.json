@@ -2259,6 +2259,21 @@
       "credit": "Bendera pada tiang dimodelkan dalam kode untuk contoh ini, CC0 — lihat assets/examples/CREDITS.md"
     }
   },
+  "an-elevation-of-the-house": {
+    "banner": "Pilih elevasi rumah. Jauhkan kamera: gambar ortografis mempertahankan skala yang persis sama.",
+    "controls": {
+      "elevation": "Elevasi",
+      "distance": "Jarak kamera",
+      "zoom": "Skala gambar"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Depan",
+        "right": "Sisi kanan",
+        "rear": "Belakang"
+      }
+    }
+  },
   "hover-to-highlight": {
     "banner": "Arahkan penunjuk ke bagian troli untuk menyorotnya satu per satu, atau matikan sorotan di panel.",
     "controls": {

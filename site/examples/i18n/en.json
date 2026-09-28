@@ -2259,6 +2259,21 @@
       "credit": "Flag on a pole modelled in code for this example, CC0 — see assets/examples/CREDITS.md"
     }
   },
+  "an-elevation-of-the-house": {
+    "banner": "Choose a house elevation. Move the camera farther away: the orthographic drawing keeps exactly the same scale.",
+    "controls": {
+      "elevation": "Elevation",
+      "distance": "Camera distance",
+      "zoom": "Drawing scale"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Front",
+        "right": "Right side",
+        "rear": "Rear"
+      }
+    }
+  },
   "hover-to-highlight": {
     "banner": "Move over the cart to highlight each part, or turn highlighting off in the panel.",
     "controls": {

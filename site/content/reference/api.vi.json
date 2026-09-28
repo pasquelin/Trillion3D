@@ -378,7 +378,8 @@
       "p.left": "Cạnh trái của hộp nhìn của một camera trực giao.",
       "p.right": "Cạnh phải của hộp nhìn của một camera trực giao.",
       "p.top": "Cạnh trên của hộp nhìn của một camera trực giao.",
-      "p.bottom": "Cạnh dưới của hộp nhìn của một camera trực giao."
+      "p.bottom": "Cạnh dưới của hộp nhìn của một camera trực giao.",
+      "p.fitAspect": "Camera trực giao giữ chiều cao và tâm của hộp và lấy chiều rộng từ hình dạng của ảnh, nên canvas đổi kích thước không bao giờ kéo giãn hình vẽ. Tắt theo mặc định."
     },
     "members": {
       "isCamera": "Luôn là `true`: phân biệt một camera với bất kỳ vật thể nào khác.",
@@ -391,6 +392,7 @@
       "right": "Cạnh phải của hộp trực giao.",
       "top": "Cạnh trên của hộp trực giao.",
       "bottom": "Cạnh dưới của hộp trực giao.",
+      "fitAspect": "Một hộp trực giao cao như đã khai báo và rộng theo hình dạng của ảnh.",
       "projection": "`'perspective'` làm vật ở xa nhỏ lại; `'orthographic'` giữ nguyên mọi kích thước.",
       "copy": "Lấy các giá trị nút của `source` và, từ một camera, quang học của nó; `projection` riêng vẫn giữ.",
       "updateProjectionMatrix": "Tạo lại `projectionMatrix`; mỗi lần ghi quang học đã làm vậy, và vẽ lại.",
@@ -431,7 +433,8 @@
       "left": "Cạnh trái của hộp nhìn của một camera trực giao.",
       "right": "Cạnh phải của hộp nhìn của một camera trực giao.",
       "top": "Cạnh trên của hộp nhìn của một camera trực giao.",
-      "bottom": "Cạnh dưới của hộp nhìn của một camera trực giao."
+      "bottom": "Cạnh dưới của hộp nhìn của một camera trực giao.",
+      "fitAspect": "Camera trực giao giữ chiều cao và tâm của hộp và lấy chiều rộng từ hình dạng của ảnh, nên canvas đổi kích thước không bao giờ kéo giãn hình vẽ. Tắt theo mặc định."
     }
   },
   "CameraPose": {
@@ -2935,7 +2938,8 @@
       "projection": "Phối cảnh hoặc trực giao.",
       "position": "Mắt đứng ở đâu.",
       "quaternion": "Mắt được xoay thế nào.",
-      "optics": "Góc nhìn, near, far, zoom và hộp, theo tên."
+      "optics": "Góc nhìn, near, far, zoom và hộp, theo tên.",
+      "fitAspect": "Hộp trực giao được nới theo hình dạng của ảnh (`fitAspect`); vắng mặt khi tắt."
     }
   },
   "SavedGeometry": {
@@ -4609,7 +4613,8 @@
       "p.left": "Cạnh trái của hộp nhìn camera trực giao.",
       "p.right": "Cạnh phải của hộp nhìn camera trực giao.",
       "p.top": "Cạnh trên của hộp nhìn camera trực giao.",
-      "p.bottom": "Cạnh dưới của hộp nhìn camera trực giao."
+      "p.bottom": "Cạnh dưới của hộp nhìn camera trực giao.",
+      "p.fitAspect": "Camera trực giao giữ chiều cao và tâm của hộp và lấy chiều rộng từ hình dạng của ảnh, nên canvas đổi kích thước không bao giờ kéo giãn hình vẽ. Tắt theo mặc định."
     }
   },
   "camera.perspective": {
@@ -4624,7 +4629,8 @@
       "p.left": "Cạnh trái của hộp nhìn camera trực giao.",
       "p.right": "Cạnh phải của hộp nhìn camera trực giao.",
       "p.top": "Cạnh trên của hộp nhìn camera trực giao.",
-      "p.bottom": "Cạnh dưới của hộp nhìn camera trực giao."
+      "p.bottom": "Cạnh dưới của hộp nhìn camera trực giao.",
+      "p.fitAspect": "Camera trực giao giữ chiều cao và tâm của hộp và lấy chiều rộng từ hình dạng của ảnh, nên canvas đổi kích thước không bao giờ kéo giãn hình vẽ. Tắt theo mặc định."
     }
   },
   "camera.stereo": {
