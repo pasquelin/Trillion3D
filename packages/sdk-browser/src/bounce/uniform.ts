@@ -54,6 +54,9 @@ export function createBounceUniform(device: GPUDevice, cascades: BounceCascades)
     },
     /** Encoded-frame state: light revision, dispatched groups, frame counter, levels. */
     write(generation: number, groups: number, frame: number) {
+      floats[0] = cascades.reach;
+      integers[5] = cascades.levels.length;
+      integers[7] = cascades.probes;
       integers[8] = generation;
       integers[9] = groups;
       integers[10] = frame;

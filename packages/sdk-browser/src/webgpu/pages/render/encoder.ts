@@ -80,6 +80,7 @@ export function submitColorCopy(
   rt.sunFar.gpu?.submitted();
   rt.lights.cull?.counts.submitted();
   rt.lights.occlusion?.counts.submitted();
+  rt.lights.tiles?.submitted();
   settleShadowRequests(rt, true);
   // Every encode path has sent what its rows need before it submits: the image that leaves consumed
   // the row change, whether it drew rows or had none to draw (#198).
