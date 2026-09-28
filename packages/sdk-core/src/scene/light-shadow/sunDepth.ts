@@ -55,5 +55,3 @@ export function createSunDepthRanges() {
     },
   };
 }
-
-export type SunDepthRanges = ReturnType<typeof createSunDepthRanges>;
