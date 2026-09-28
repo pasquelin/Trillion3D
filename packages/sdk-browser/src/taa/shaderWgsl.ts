@@ -23,7 +23,7 @@ export const TAA_BINDINGS = {
 
 /** The pass's bind group layout: one entry per binding above, in its order. The share's two come
  *  last: a flagless resolve (OMB-11) neither binds nor reads them. */
-export function createTaaLayout(device: GPUDevice, asIs = true) {
+export function createTaaLayout(device: GPUDevice, asIs = true, blended = false) {
   const fragment = GPUShaderStage.FRAGMENT;
   const entries: GPUBindGroupLayoutEntry[] = [
     {
@@ -42,7 +42,11 @@ export function createTaaLayout(device: GPUDevice, asIs = true) {
     { binding: TAA_BINDINGS.pages, visibility: fragment, buffer: readOnly },
     { binding: TAA_BINDINGS.motion, visibility: fragment, buffer: readOnly },
     { binding: TAA_BINDINGS.view, visibility: fragment, buffer: { type: 'uniform' } },
-    { binding: TAA_BINDINGS.flags, visibility: fragment, texture: { sampleType: 'uint' } },
+    {
+      binding: TAA_BINDINGS.flags,
+      visibility: fragment,
+      texture: { sampleType: blended ? 'float' : 'uint' },
+    },
     {
       binding: TAA_BINDINGS.shareHistory,
       visibility: fragment,
@@ -77,8 +81,8 @@ const BINDINGS_WGSL = `
 @group(0) @binding(${TAA_BINDINGS.pages}) var<storage,read> pages:array<PageInfo>;
 @group(0) @binding(${TAA_BINDINGS.motion}) var<storage,read> motion:array<mat4x4f>;
 @group(0) @binding(${TAA_BINDINGS.view}) var<uniform> view:TaaView;`;
-const SHARE_BINDINGS_WGSL = `
-@group(0) @binding(${TAA_BINDINGS.flags}) var flags:texture_2d<u32>;
+const shareBindingsWgsl = (blended: boolean) => `
+@group(0) @binding(${TAA_BINDINGS.flags}) var flags:texture_2d<${blended ? 'f32' : 'u32'}>;
 @group(0) @binding(${TAA_BINDINGS.shareHistory}) var shareHistory:texture_2d<f32>;`;
 
 /** YCoCg, the space where the neighbour box tightens best around the colour. */
@@ -124,12 +128,12 @@ fn previousUv(coord:vec2i,depthValue:f32)->vec3f{
  * finite — each neighbour 0, and history clamped to [0, 0] —: the flagless resolve writes 0 and
  * reads neither the flags nor the share history, its colour the same text.
  */
-export const taaShader = (asIs: boolean) => {
+export const taaShader = (asIs: boolean, blended = false) => {
   const share = (text: string, none = '') => (asIs ? text : none);
   return `
 ${PAGE_INFO_STRUCT_WGSL}
 ${VIEW_WGSL}
-${BINDINGS_WGSL}${share(SHARE_BINDINGS_WGSL)}
+${BINDINGS_WGSL}${share(shareBindingsWgsl(blended))}
 ${FULLSCREEN_VERTEX}
 ${YCOCG_WGSL}
 ${TAA_REPROJECT_WGSL}
@@ -147,7 +151,7 @@ ${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')} var k=0u;
   filtered+=sample*weight;
   let y=vec4f(toYcocg(sample.rgb),sample.a);
   lo=min(lo,y);hi=max(hi,y);
-${share(`  let asIs=f32(textureLoad(flags,at,0).r==${AS_IS_FLAG}u);
+${share(`  let asIs=${blended ? 'textureLoad(flags,at,0).r' : `f32(textureLoad(flags,at,0).r==${AS_IS_FLAG}u)`};
   share+=asIs*weight;shareLo=min(shareLo,asIs);shareHi=max(shareHi,asIs);\n`)} }}
  if(view.params.y==0.0){return TaaOut(filtered,${share('share', '0.0')});}
  let previous=previousUv(coord,textureLoad(depth,coord,0));
