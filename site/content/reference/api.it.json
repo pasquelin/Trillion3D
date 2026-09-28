@@ -7021,7 +7021,8 @@
       "projection": "Prospettica o ortografica.",
       "position": "Dove si trova l'occhio.",
       "quaternion": "Come è ruotato l'occhio.",
-      "optics": "Campo, near, far, zoom e scatola, per nome."
+      "optics": "Campo, near, far, zoom e scatola, per nome.",
+      "fitAspect": "Una scatola ortografica allargata alla forma dell’immagine (`fitAspect`); assente se disattivata."
     }
   },
   "SavedGeometry": {
