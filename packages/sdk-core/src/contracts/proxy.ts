@@ -14,11 +14,11 @@
  */
 
 /** Version of the "proxy" cache product. A proxy of another version is rejected, never guessed. */
-export const SCENE_PROXY_VERSION = 2;
+export const SCENE_PROXY_VERSION = 3;
 /** 'W','G','P','X' read as an unsigned 32-bit integer little-endian. */
 export const SCENE_PROXY_MAGIC = 0x58504757;
 /** Header integers: signature, version, triangles, nodes. */
-export const SCENE_PROXY_HEADER_WORDS = 4;
+export const SCENE_PROXY_HEADER_WORDS = 8;
 /** Numbers per proxy triangle: three world vertices, no normal — it is deduced from the triangle. */
 export const PROXY_TRIANGLE_FLOATS = 9;
 /** Numbers per BVH node: its exact bounds, frame of its children's quantized boxes. */
@@ -40,6 +40,16 @@ export interface SceneProxyColumns {
   nodeBounds: Float32Array;
   /** The four children of each node: quantized box, triangle count, presence, link. */
   nodeChildren: Uint32Array;
+  /** Interned source-owner group of each canonical triangle. */
+  triangleGroups: Uint32Array;
+  /** Owner-record offsets of each group, including the final sentinel. */
+  groupOffsets: Uint32Array;
+  /** Owner records: source node rank, packed linear RGBA8 albedo. */
+  owners: Uint32Array;
+  /** Original source-node world matrices, sixteen doubles per node. */
+  bindWorlds: Float64Array;
+  /** Source hierarchy, including partition nodes not currently instantiated by the host. */
+  sourceParents: Int32Array;
 }
 
 /**
@@ -71,6 +81,10 @@ export interface SceneProxyDescriptor {
   triangles: number;
   /** Tree nodes. */
   nodes: number;
+  /** Interned owner groups, owner records, and source-node matrices. */
+  groups: number;
+  owners: number;
+  instances: number;
 }
 
 /** The read proxy: its descriptor and its columns, views on the bytes of its cache object. */
