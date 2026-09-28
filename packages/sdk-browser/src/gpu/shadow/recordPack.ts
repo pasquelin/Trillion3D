@@ -27,11 +27,6 @@ export const SHADOW_FACE_READ_WORDS = 24,
 /** First word of a face entry's emitter envelope, `emitter`: its centre, then its radius. */
 const FACE_EMITTER = 20;
 
-/** The inverse span of depth range `[zNear, zFar]` the shading once divided for, in float32 as
- *  it did: a span of whole powers of two (`sunLevels.ts`), whose inverse is exact either way. */
-const depthInverse = (zNear: number, zFar: number) =>
-  1 / Math.max(Math.fround(Math.fround(zFar) - Math.fround(zNear)), Math.fround(1e-6));
-
 /**
  * Host mirrors of the two shadow buffers the frame writes — the drawn pages' matrices, read by
  * dynamic offset, and the records the shading rereads — and the only writes into them. A record
@@ -112,18 +107,22 @@ export function createShadowRecordPack(faceStride: number, poolSide: number) {
       set(slice, SHADOW_RECORD_INFO + 2, near);
       set(slice, SHADOW_RECORD_INFO + 3, tableBase);
     },
-    /** A sun's record: its depth ranges where a lamp's matrices lie, `zNear` and inverse span
-     *  each (`sunDepth.ts`), its light-plane frame, its windows, its levels. */
+    /** A sun's record: its depth ranges where a lamp's matrices lie, `zNear, zFar` each
+     *  (`sunDepth.ts`), its light-plane frame and current range, its windows, its levels. */
     writeSun(slice: number, sun: SunLevels, levels: number, tableBase: number) {
       const pairs = sun.ranges.pairs,
         first = slice * SUN_DEPTH_RANGES * 2;
       for (let i = 0; i < SUN_DEPTH_RANGES * 2; i += 2) {
         set(slice, i, pairs[first + i]);
-        set(slice, i + 1, depthInverse(pairs[first + i], pairs[first + i + 1]));
+        set(slice, i + 1, pairs[first + i + 1]);
       }
       for (let row = 0; row < 3; row++)
         for (let a = 0; a < 3; a++)
           set(slice, SHADOW_RECORD_FRAME + row * 4 + a, sun.frame[slice * 9 + row * 3 + a]);
+      // Each row's fourth float: the current range's `zNear`, `zFar`, then its slot.
+      set(slice, SHADOW_RECORD_FRAME + 3, sun.depth[slice * 2]);
+      set(slice, SHADOW_RECORD_FRAME + 7, sun.depth[slice * 2 + 1]);
+      set(slice, SHADOW_RECORD_FRAME + 11, sun.ranges.current[slice]);
       for (let i = 0; i < levels * 2; i++)
         setInt(slice, SHADOW_RECORD_ORIGINS + i, sun.origins[slice * levels * 2 + i]);
       set(slice, SHADOW_RECORD_INFO, levels);
