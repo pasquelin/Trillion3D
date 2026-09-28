@@ -1,4 +1,4 @@
-// The audit's OMB-01 harness (`preuves/OMB/tests/t05_shadow_split_raster.py`), ported: a depth
+// The audit's OMB-01 harness (its `t05_shadow_split_raster.py`, OMB proof folder), ported: a depth
 // raster (`greater`, reversed depth, 32-bit float) of one shadow page, fed by the shipped WGSL of
 // the depth draws run on the CPU in 32-bit float, against develop's single draw before #965.
 import { DEPTH_CLEAR, depthNearer } from '../../camera/depthConvention.ts';
