@@ -1,6 +1,7 @@
 import { dotVector3 } from '../../math/primitives/vector.ts';
 import { MAX_SHADOW_SLICES, type ShadowViewpoint } from '../light/contracts.ts';
 import { faceFrame, sunBoxRect } from './math.ts';
+import { createSunDepthRanges } from './sunDepth.ts';
 import {
   SUN_LEVELS,
   SUN_LEVEL_ENTRIES,
@@ -24,7 +25,8 @@ const UNBOUNDED = [-Infinity, Infinity, -Infinity, Infinity];
  * The frame is `faceFrame` of the propagation direction — the one a face is composed with — so a
  * page's world square is `[ax, ax+1) · S` along `right` and `[ay, ay+1) · S` down `up`. The depth
  * range is the scene's box along the axis, snapped outward to a grid of its own power-of-two
- * size: every caster lies inside, and a small growth of the scene changes nothing. The finest
+ * size: every caster lies inside, and a small growth of the scene changes nothing. A new range
+ * is taken by the pages drawn from then on, and the others keep theirs (`sunDepth.ts`). The finest
  * level is the near-plane footprint's (`finestSunLevel`); each level's extent is centred on the
  * camera, by whole pages.
  *
@@ -44,7 +46,8 @@ export function createSunLevels() {
     pastFinest = new Int32Array(MAX_SHADOW_SLICES * HISTORY),
     pastOrigins = new Int32Array(MAX_SHADOW_SLICES * HISTORY * LEVEL_WORDS);
   const right = new Float64Array(3),
-    up = new Float64Array(3);
+    up = new Float64Array(3),
+    ranges = createSunDepthRanges();
   /** Level held in slot `slot` while the finest level is `low`. */
   const levelIn = (low: number, slot: number) => low + ringOf(slot - low, SUN_LEVELS);
   return {
@@ -52,6 +55,8 @@ export function createSunLevels() {
     depth,
     finest,
     origins,
+    /** The depth ranges each sun's pages were drawn in (`sunDepth.ts`). */
+    ranges,
     /** Whether the extent of `level` moved at the last update: only its pages may have left. */
     movedLevel: (slice: number, level: number) =>
       ((moved[slice] >> ringOf(level, SUN_LEVELS)) & 1) !== 0,
@@ -59,8 +64,8 @@ export function createSunLevels() {
     originOf: (slice: number, level: number, axis: number) =>
       origins[slice * LEVEL_WORDS + ringOf(level, SUN_LEVELS) * 2 + axis],
     /**
-     * This frame's clipmap of the sun in `slice`. Returns true when its frame or depth range
-     * changed — every map it drew describes another projection.
+     * This frame's clipmap of the sun in `slice`. Returns true when its frame changed — every
+     * map it drew describes another projection. A new depth range is `ranges.current`'s.
      */
     update(
       slice: number,
@@ -80,6 +85,7 @@ export function createSunLevels() {
         frame[f + 3 + a] = up[a];
         frame[f + 6 + a] = axis[a];
       }
+      if (changed) ranges.forget(slice);
       let low = Infinity,
         high = -Infinity;
       for (let corner = 0; corner < 8; corner++) {
@@ -97,10 +103,10 @@ export function createSunLevels() {
         const grid = 2 ** Math.ceil(Math.log2(Math.max(high - low, 1e-6)));
         const zNear = Math.floor(low / grid) * grid,
           zFar = Math.max(zNear + grid, Math.ceil(high / grid) * grid);
-        if (depth[slice * 2] !== zNear || depth[slice * 2 + 1] !== zFar) changed = true;
         depth[slice * 2] = zNear;
         depth[slice * 2 + 1] = zFar;
       }
+      ranges.take(slice, depth[slice * 2], depth[slice * 2 + 1], frameIndex);
       const lowest = finestSunLevel(view.pixelNear);
       let slots = changed || lowest !== finest[slice] ? (1 << SUN_LEVELS) - 1 : 0;
       finest[slice] = lowest;

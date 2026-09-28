@@ -7,6 +7,8 @@ import type { BackendDiagnostic } from '../../packages/sdk-browser/src/backend/t
 import type { MemoryBudgets } from '../witnesses/measurement.ts';
 import type { ReglageVivant, Reseau } from './report/types.ts';
 import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
+import type { LivePools } from './benchSettings.ts';
+import { residentBudget } from './poolFill.ts';
 
 interface MovingLight {
   origin: readonly number[];
@@ -69,20 +71,28 @@ export async function poseCalme(
 /**
  * In-session reservoir tuning — what an application slider does — and what it costs: the
  * engine report (held reservoirs, evicted pages and tiles, milliseconds of the tuning) and
- * the number of frames until the pose holds again. `null` with no tuning requested.
+ * the number of frames until the pose holds again. `null` with no tuning requested. A texture
+ * pool asked as a fraction of the working set is taken of what the pose holds once settled.
  */
 export async function reglerReservoirs(
   explorer: MeasuredWorld,
   pose: CameraPose,
-  budgets: { geometryPoolBytes?: number | null; texturePoolBytes?: number | null } | null,
+  budgets: LivePools | null,
 ): Promise<ReglageVivant | null> {
   if (!budgets) return null;
+  const resident = await residentBudget(explorer, pose, budgets.textureResidentFraction, poseCalme);
   const requested: MemoryBudgets = {
     geometryPoolBytes: budgets.geometryPoolBytes ?? undefined,
-    texturePoolBytes: budgets.texturePoolBytes ?? undefined,
+    texturePoolBytes: resident?.budget ?? budgets.texturePoolBytes ?? undefined,
   };
   const rapport = await explorer.setMemoryBudgets(requested);
-  return { ...rapport, imagesReprise: await poseCalme(explorer, pose) };
+  const imagesReprise = await poseCalme(explorer, pose);
+  return {
+    ...rapport,
+    imagesReprise,
+    texturePoolAskedBytes: requested.texturePoolBytes,
+    residentTextureBytes: resident?.bytes,
+  };
 }
 
 /**
