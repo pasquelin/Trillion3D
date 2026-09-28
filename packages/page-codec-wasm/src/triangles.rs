@@ -7,7 +7,7 @@
 //! away, in O(1), as a shader reads it in place. The code is lossless — `base + delta == index`,
 //! in order, which the tests prove on every input —, and pages number vertices by first use.
 
-use crate::bits::{bits_for, field, le_words, BitReader};
+use crate::bits::{bits_for, le_words, BitReader};
 use crate::writer::BitWriter;
 use crate::PageError;
 
@@ -49,11 +49,14 @@ impl CornerCode {
     /// Block `b`'s record, the table at word `table` of `words`: its base, its width, and the bit
     /// of the corner stream its first corner lies at.
     pub fn record(&self, words: &[u32], table: usize, b: usize) -> (u32, u32, usize) {
-        let ib = self.index_bits;
-        let at = table * 32 + b * self.record_bits() as usize;
-        let width = field(words, at + ib as usize, WIDTH_BITS);
-        let prefix = field(words, at + (ib + WIDTH_BITS) as usize, self.prefix_bits);
-        (field(words, at, ib), width, prefix as usize * CORNERS)
+        let mut record = BitReader::at(words, table * 32 + b * self.record_bits() as usize);
+        let base = record.read(self.index_bits);
+        let width = record.read(WIDTH_BITS);
+        (
+            base,
+            width,
+            record.read(self.prefix_bits) as usize * CORNERS,
+        )
     }
 
     /// True when every record of `table` — the block table's bytes — keeps its base below the
