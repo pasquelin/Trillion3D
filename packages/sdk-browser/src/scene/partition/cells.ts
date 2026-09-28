@@ -100,9 +100,7 @@ export function createPartitionCells(inputs: Inputs) {
         for (const placement of placements) if (placement.parent === node) write(placement);
     }
   };
-  /** Sizes the rows for any place of the parents within a reach `bound` and a `stretch`, in place
-   *  under the engine that reads them (`grow`); false when it grows one no longer in place, the
-   *  size held unchanged so that the session opened again sizes them (`prime`). */
+  /** Sizes the rows for `bound` and `stretch`, in place under `grow`; false, unsized, if refused. */
   const resize = (bound: number, grow?: PlacementGrowth, stretch = sizedStretch(boxes.stretch)) => {
     const rows = residentRows(partition.cells, bound, stretch);
     if (!sizeRows(meshes, rows, grow)) return false;
