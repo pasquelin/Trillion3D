@@ -159,7 +159,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     ...lightingApi,
     setClearColor: graphBackground(scene, gate.resourcesChanged),
     pendingUrls: residency.pendingUrls,
-    pageUrls: residency.pageUrls,
+    retainedRanks: residency.retainedRanks,
     ...pool.api,
     syncResident() {
       gate.resourcesChanged();
