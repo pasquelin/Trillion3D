@@ -80,7 +80,8 @@ export function staleTranslations(recorded: Hashes, current: Hashes): string[] {
 export function accept(recorded: Hashes, current: Hashes, entries: string[]): Hashes {
   const accepted = { ...recorded };
   for (const entry of entries) {
-    const [then, now] = [recorded[entry], current[entry]];
+    const then = recorded[entry];
+    const now = current[entry];
     if (!then || !now || then[DEFAULT_LANGUAGE] === now[DEFAULT_LANGUAGE])
       throw new Error(`${entry}: its English did not change, there is nothing to accept.`);
     accepted[entry] = { ...then, [DEFAULT_LANGUAGE]: now[DEFAULT_LANGUAGE] };
@@ -117,12 +118,17 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const current = currentHashes();
   // No record yet: every entry is new, and `--write` records the first one.
   let text = existsSync(RECORD) ? readFileSync(RECORD, 'utf8') : '';
+  let recorded = text ? parse(text) : {};
+  // `--accept` records each named entry at once, whatever else is still behind.
   const flag = process.argv.indexOf('--accept');
   if (flag !== -1) {
-    text = serialise(accept(text ? parse(text) : {}, current, process.argv.slice(flag + 1)));
+    const named = process.argv.slice(flag + 1);
+    const end = named.findIndex((arg) => arg.startsWith('--'));
+    recorded = accept(recorded, current, end === -1 ? named : named.slice(0, end));
+    text = serialise(recorded);
     writeFileSync(RECORD, text);
   }
-  const stale = staleTranslations(text ? parse(text) : {}, current);
+  const stale = staleTranslations(recorded, current);
   if (stale.length) {
     console.error(
       `English changed, these translations did not:\n  ${stale.join('\n  ')}\n` +
