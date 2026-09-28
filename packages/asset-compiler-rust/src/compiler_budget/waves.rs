@@ -4,30 +4,28 @@
 //! scene could then commit several times the job's budget at once. Jobs are instead cut, in
 //! their order, into consecutive waves whose working sets fit the room together, however many
 //! of them run at once; a wave starts once the previous one has returned its memory. A scene
-//! that fits whole is one wave, with no barrier. Nothing blocks inside
+//! that fits whole is one wave, with no barrier; the tighter the room, the smaller the waves,
+//! down to one job at a time, which is never refused here. Nothing blocks inside
 //! the pool, so a worker waiting for room can never hold the work it waits for.
 use rayon::prelude::*;
 use std::ops::Range;
 
-/// Consecutive ranges covering `working`, each summing within `room`. `None` when one job
-/// alone exceeds `room`: no serialisation will make it fit.
-pub fn waves(working: &[usize], room: usize) -> Option<Vec<Range<usize>>> {
+/// Consecutive ranges covering `working`, each summing within `room`, except a job wider than
+/// `room`, which runs alone: the least memory it can compile in.
+pub fn waves(working: &[usize], room: usize) -> Vec<Range<usize>> {
     let mut ranges = Vec::new();
     let (mut start, mut used) = (0, 0usize);
     for (index, &bytes) in working.iter().enumerate() {
-        if bytes > room {
-            return None;
-        }
-        if bytes > room - used {
+        if index > start && bytes > room.saturating_sub(used) {
             ranges.push(start..index);
             (start, used) = (index, 0);
         }
-        used += bytes;
+        used = used.saturating_add(bytes);
     }
     if start < working.len() {
         ranges.push(start..working.len());
     }
-    Some(ranges)
+    ranges
 }
 
 /// Runs `work` over every index of `ranges`, one wave after the other on the current pool,
@@ -56,23 +54,23 @@ mod tests {
     // Behaviour: a wave closes only on the room; a scene that fits is a single wave.
     #[test]
     fn waves_close_on_the_room() {
-        assert_eq!(waves(&[1, 1, 1, 1], 10).map(|r| r.len()), Some(1));
-        assert_eq!(waves(&[1, 1, 1, 1], 10).unwrap()[0], 0..4);
-        assert_eq!(waves(&[6, 5, 4, 1], 10), Some(vec![0..1, 1..4]));
-        assert_eq!(waves(&[], 10), Some(vec![]));
+        assert_eq!(waves(&[1, 1, 1, 1], 10), vec![0..4]);
+        assert_eq!(waves(&[6, 5, 4, 1], 10), vec![0..1, 1..4]);
+        assert!(waves(&[], 10).is_empty());
     }
 
-    // Behaviour: a job wider than the whole room is refused, not run alone over the budget.
+    // Behaviour: a job wider than the room runs alone, and no room at all runs one job at a time.
     #[test]
-    fn a_job_wider_than_the_room_is_refused() {
-        assert_eq!(waves(&[3, 11, 2], 10), None);
+    fn a_job_wider_than_the_room_runs_alone() {
+        assert_eq!(waves(&[3, 11, 2], 10), vec![0..1, 1..2, 2..3]);
+        assert_eq!(waves(&[3, 4, 2], 0), vec![0..1, 1..2, 2..3]);
     }
 
     // Behaviour: the jobs in flight never commit more than the room, and results keep their order.
     #[test]
     fn running_waves_never_exceeds_the_room() {
         let working = [4, 4, 4, 3, 3, 3, 9, 1];
-        let ranges = waves(&working, 10).expect("fits");
+        let ranges = waves(&working, 10);
         let (held, peak) = (AtomicUsize::new(0), AtomicUsize::new(0));
         let pool = rayon::ThreadPoolBuilder::new()
             .num_threads(8)
