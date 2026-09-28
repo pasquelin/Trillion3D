@@ -86,7 +86,6 @@ export async function probeExplorerCapabilities(session: ExplorerSession) {
       scope,
     }); /* WebGPU stays optional; the autonomous WebGL2 path remains. */
   }
-  // The one place the granted optional features are said: a kernel that has one branches on it.
   if (gpuDevice)
     diagnose('capability', 'WebGPU device granted', {
       kind: 'capability',

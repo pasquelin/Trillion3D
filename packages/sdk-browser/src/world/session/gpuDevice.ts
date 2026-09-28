@@ -5,18 +5,16 @@ import { BLOCK_FEATURES } from '../../texture/blockFormats.ts';
  * Every optional feature the engine can use, in request order: instanced indirect draws, GPU
  * timestamps, subgroups (the light tiles' depth bounds), 16-bit shader floats, and the
  * block-compressed texture formats the cache bakes. A kernel that uses one branches on the
- * device's own `features` and keeps its plain path as the fallback when it is absent.
+ * device's own `features` and keeps its plain path as the fallback when it is absent; the session
+ * publishes what the device got (`grantedGpuFeatures`), never guesses it.
  */
-export const OPTIONAL_GPU_FEATURES: readonly GPUFeatureName[] = [
+const OPTIONAL_GPU_FEATURES: readonly GPUFeatureName[] = [
   'indirect-first-instance',
   'timestamp-query',
   'subgroups',
   'shader-f16',
   ...Object.values(BLOCK_FEATURES),
 ];
-
-/** URL parameter naming, comma-separated, the optional features a device is not to ask for. */
-const GPU_FEATURES_OFF_PARAM = 'trillion3dGpuFeaturesOff';
 
 /**
  * Test switch: the features `trillion3dGpuFeaturesOff=subgroups,shader-f16` names on the host
@@ -26,15 +24,12 @@ const GPU_FEATURES_OFF_PARAM = 'trillion3dGpuFeaturesOff';
 export function gpuFeaturesForcedOff(
   search = typeof location === 'undefined' ? '' : location.search,
 ): ReadonlySet<string> {
-  const named = new URLSearchParams(search).get(GPU_FEATURES_OFF_PARAM);
+  const named = new URLSearchParams(search).get('trillion3dGpuFeaturesOff');
   return new Set(named ? named.split(',').map((name) => name.trim()) : []);
 }
 
-/**
- * The WebGPU device of a session: every optional feature the adapter offers and the switch did
- * not force off, and the adapter's own limits. A feature the adapter lacks is not requested, and
- * the engine publishes what the device got (`grantedGpuFeatures`), never guesses it.
- */
+/** The WebGPU device of a session: the optional features offered and not forced off, and the
+ *  adapter's own limits. */
 export async function requestExplorerDevice(adapter: GPUAdapter, off = gpuFeaturesForcedOff()) {
   const features = OPTIONAL_GPU_FEATURES.filter(
     (feature) => adapter.features.has(feature) && !off.has(feature),
