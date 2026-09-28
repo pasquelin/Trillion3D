@@ -110,7 +110,8 @@ const anchored = new Float64Array(16),
 /**
  * Encodes this image's temporal pass and returns the accumulated image composition must read —
  * `undefined` when the image does not accumulate, and composition reads the lit one. Writes the uniform, updates placement motion, advances
- * the jitter rank and keeps the view-projection without jitter for the next image.
+ * the jitter rank and keeps the view-projection without jitter for the next image. With `asIs`
+ * false no as-is pixel is in the image, and the flagless resolve reads no flags (OMB-11).
  */
 export function encodeTaaPass(
   rt: WebgpuPagesRuntime,
@@ -118,6 +119,7 @@ export function encodeTaaPass(
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
   current: GPUTextureView,
+  asIs = true,
 ): AccumulatedImage | undefined {
   const temporal = rt.gpu.temporal,
     { gpu, vis, run } = rt;
@@ -152,7 +154,7 @@ export function encodeTaaPass(
   inputs.ids = vis.visView;
   inputs.pages = vis.pageTable;
   inputs.motion = temporal.motion.buffer;
-  inputs.flags = gpu.surfaces.views()[3];
+  inputs.flags = asIs ? gpu.surfaces.views()[3] : undefined;
   const output = temporal.encode(encoder, inputs);
   run.gpuDrawCalls++;
   state.sceneSeen = scene;
