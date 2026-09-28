@@ -115,6 +115,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     shadowPagesPending: lights.plan.counts.pendingPages,
     shadowWaitMs: lights.plan.counts.waitedMs,
     ...directLightTimings(timing.lastGpuPassMs),
+    ...lights.tiles?.poolMetrics(),
   };
 }
 

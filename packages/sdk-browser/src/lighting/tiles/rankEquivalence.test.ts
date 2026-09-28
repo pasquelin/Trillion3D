@@ -1,17 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { LIGHT_TILES_SHADER } from './shader.ts';
+import { LIGHT_TILES_NARROW_SHADER, LIGHT_TILES_SHADER } from './shader.ts';
 import {
   compactTile,
   tileLayout,
   tileLists,
 } from '../../../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 
-// D4, #28 and #822: shader.ts compacts each kept light at its rank (countOneBits, one thread per
-// light, 256 lights a batch) into lists of `tileLights`; a tile more lights reach walks them all.
-// The oracle ports that compaction on the layout the shader declares, so a record too small for
-// its lights fails here.
+// D4, #28, #822 and #849: shader.ts compacts each kept light at its rank (countOneBits, one thread
+// per light, 256 lights a batch) into lists of `tileLights`, and a slice past its list into the
+// view's pool. The oracle ports that compaction on the layout the shader declares, so a record
+// too small for its lights fails here.
 
 const layout = tileLayout(LIGHT_TILES_SHADER);
 const MAX = LIGHT_SETTINGS.tileLights;
@@ -67,11 +67,39 @@ test('a light at or beyond the count is never written', () => {
   assert.ok(!tiles.includes(5), 'light 5 written');
 });
 
-test('300 lights reaching one tile: its count stays true and it walks every light (#822)', () => {
-  const blend = range(300, (i) => i % 7 === 0);
-  const tiles = compactTile(layout, mask(range(300), blend), 300);
-  assert.deepEqual([tiles[0], tiles[1]], [300, blend.length]);
-  assert.deepEqual(tileLists(layout, tiles, 300), { opaque: range(300), blend });
+/** A pool with room for `capacity` indices, nothing reserved yet. */
+const roomFor = (capacity: number) => ({ capacity, head: 0, overflow: 0 });
+
+test('a tile more than tileLights lights reach reads exactly those, in order (#849)', () => {
+  // 600 scene lights, 150 of them reach the opaque slice across three batches, 64 the blend one.
+  const opaque = range(600, (i) => i % 4 === 1);
+  const blend = range(600, (i) => i % 9 === 0).slice(0, MAX);
+  const pool = roomFor(1000);
+  const tiles = compactTile(layout, mask(opaque, blend), 600, undefined, pool);
+  assert.deepEqual([tiles[0], tiles[1]], [opaque.length, MAX]);
+  assert.deepEqual(tileLists(layout, tiles, 600), { opaque, blend });
+  assert.deepEqual(pool, { capacity: 1000, head: opaque.length, overflow: 0 });
+});
+
+test('a pool with no room left raises its overflow, and that tile walks every light (#849)', () => {
+  const opaque = range(300, (i) => i % 2 === 0);
+  const blend = range(100);
+  // Room for the opaque slice alone: the blend one, reserved after it, overflows.
+  const pool = roomFor(opaque.length);
+  const tiles = compactTile(layout, mask(opaque, blend), 300, undefined, pool);
+  assert.equal(pool.overflow, 1, 'the overflow is raised');
+  assert.equal(tiles[layout.blendBase], layout.noSlice);
+  assert.deepEqual(tileLists(layout, tiles, 300), { opaque, blend: range(300) });
+  // No pool at all: both slices walk every light, never a truncated list.
+  const none = roomFor(0);
+  const bare = compactTile(layout, mask(opaque, blend), 300, undefined, none);
+  assert.equal(none.overflow, 1);
+  assert.deepEqual(tileLists(layout, bare, 300), { opaque: range(300), blend: range(300) });
+  // A count of what was asked near the word's end never wraps back into room.
+  const worn = { capacity: 1000, head: 0x80000000, overflow: 0 };
+  const late = compactTile(layout, mask(opaque, blend), 300, undefined, worn);
+  assert.deepEqual([worn.overflow, worn.head], [1, 0x80000000]);
+  assert.deepEqual(tileLists(layout, late, 300), { opaque: range(300), blend: range(300) });
 });
 
 test('fuzz: random masks and counts, any thread order gives the ascending list', () => {
@@ -86,14 +114,10 @@ test('fuzz: random masks and counts, any thread order gives the ascending list',
       const j = Math.floor(rand() * (i + 1));
       [lanes[i], lanes[j]] = [lanes[j], lanes[i]];
     }
-    const inOrder = compactTile(layout, mask(opaque, blend), count);
-    const shuffled = compactTile(layout, mask(opaque, blend), count, lanes);
+    const inOrder = compactTile(layout, mask(opaque, blend), count, undefined, roomFor(2 * count));
+    const shuffled = compactTile(layout, mask(opaque, blend), count, lanes, roomFor(2 * count));
     assert.deepEqual(shuffled, inOrder, `thread order changed the record at trial ${trial}`);
-    const walked = (kept: number[]) => (kept.length <= MAX ? kept : range(count));
-    assert.deepEqual(tileLists(layout, inOrder, count), {
-      opaque: walked(opaque),
-      blend: walked(blend),
-    });
+    assert.deepEqual(tileLists(layout, inOrder, count), { opaque, blend });
   }
 });
 
@@ -109,22 +133,51 @@ test('the tile shader writes each kept light at its rank, after the batches befo
     assert.ok(
       LIGHT_TILES_SHADER.includes(
         `if(index<count&&maskHolds(${slice}_MASK,lane)){let at=kept.${kept}+rankBefore(${slice}_MASK,lane);` +
-          `if(at<TILE_LIGHTS){tiles[base+TILE_${slice}_BASE+at]=index;}}`,
+          `if(at<room.${kept}){tiles[start.${kept}+at]=index;}}`,
       ),
-      `${slice} list written at its rank after the batches before, within TILE_LIGHTS`,
+      `${slice} list written at its rank after the batches before, within its room`,
     );
-  assert.ok(
-    LIGHT_TILES_SHADER.includes(
-      'if(lane==0u){tiles[base]=kept.x+maskTotal(OPAQUE_MASK,live);tiles[base+1u]=kept.y+maskTotal(BLEND_MASK,live);}',
-    ),
+  // A slice past its list reserves its room in the pool, or raises the overflow.
+  assert.match(
+    LIGHT_TILES_SHADER,
+    /if\(atomicLoad\(&pool\.head\)<0x80000000u\)\{at=atomicAdd\(&pool\.head,total\);\}/,
+  );
+  assert.match(LIGHT_TILES_SHADER, /else\{atomicStore\(&pool\.overflow,1u\);\}/);
+});
+
+test('the narrow pass: masks and light array of one list, no pool (#849)', () => {
+  const narrow = tileLayout(LIGHT_TILES_NARROW_SHADER);
+  assert.equal(narrow.words * 32, MAX, 'one mask bit per light of a list');
+  assert.match(LIGHT_TILES_NARROW_SHADER, new RegExp(`items:array<DirectLight,${MAX}>`));
+  assert.match(LIGHT_TILES_NARROW_SHADER, /lightCount=min\(lights\.count,TILE_LIGHTS\);/);
+  assert.doesNotMatch(
+    LIGHT_TILES_NARROW_SHADER,
+    /var<storage,read_write> pool|counted|storageBarrier/,
+  );
+  // Its record is the wide pass's: the resolve reads either.
+  assert.deepEqual({ ...narrow, words: 0, blendMask: 0 }, { ...layout, words: 0, blendMask: 0 });
+  // Up to tileLights lights, one batch: the lists of the wide pass, bit for bit.
+  const opaque = range(MAX, (i) => i % 3 === 0),
+    blend = range(MAX, (i) => i % 5 !== 0);
+  assert.deepEqual(
+    compactTile(narrow, mask(opaque, blend), MAX),
+    compactTile(layout, mask(opaque, blend), MAX),
   );
 });
 
-test('up to 256 lights, the tile pass waits at five barriers, one per stage (#822, #924)', () => {
-  // The count and clear between batches run only when a batch follows: one batch runs init,
-  // depth, corners (#924), bounds and tests, each behind one barrier, as before the batches.
-  const body = LIGHT_TILES_SHADER.slice(LIGHT_TILES_SHADER.indexOf('fn lightTiles('));
-  const unguarded = body.split('\n').filter((line) => !/if\(first\+256u<count\)/.test(line));
-  const waits = unguarded.join('\n').match(/workgroupBarrier\(\)|workgroupUniformLoad\(/g);
-  assert.equal(waits?.length, 5);
+/** Waits of the pass up to its second walk, a batch after the first not counted. */
+const firstWalkWaits = (shader: string) =>
+  shader
+    .slice(shader.indexOf('fn walkLights('))
+    .split('if(max(total.x,total.y)>TILE_LIGHTS)')[0]
+    .split('\n')
+    .filter((line) => !/if\(first\+\d+u<count\)/.test(line))
+    .join('\n')
+    .match(/workgroupBarrier\(\)|workgroupUniformLoad\(|storageBarrier\(\)/g)?.length;
+
+test('one batch, one walk: the narrow pass waits at five barriers, the wide one at six (#849)', () => {
+  // Init, depth, corners (#924), bounds and tests, each behind one barrier, as before the
+  // batches; the wide pass hands the true counts to every thread once more.
+  assert.equal(firstWalkWaits(LIGHT_TILES_NARROW_SHADER), 5);
+  assert.equal(firstWalkWaits(LIGHT_TILES_SHADER), 6);
 });
