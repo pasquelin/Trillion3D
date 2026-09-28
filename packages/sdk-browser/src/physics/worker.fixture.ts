@@ -73,16 +73,20 @@ export async function fakePhysicsWorld() {
 
 /**
  * The physics worker's own code run in this thread on `clock`, sent its start on an 8-body budget
- * for `threads` threads; `ready` resolves when it says so. From then its ticks wait in `ticks`
+ * for `threads` threads, its module fetched as `answer` has it; `ready` resolves when it says so. From then its ticks wait in `ticks`
  * (with the delay asked) until the test runs them; its messages are kept in `sent`, each buffer
  * copied as it was sent. The globals it replaces stay replaced.
  */
-export async function launchedWorker(clock: () => number, threads = 1) {
+export async function launchedWorker(
+  clock: () => number,
+  threads = 1,
+  answer = (bytes: Buffer<ArrayBuffer>) => new Response(bytes),
+) {
   Object.defineProperty(performance, 'now', { value: clock, configurable: true });
   const scope = globalThis as unknown as Record<string, unknown>;
   const file = threads > 1 ? './joltPhysicsThreads.wasm' : './joltPhysics.wasm';
   const bytes = await readFile(new URL(file, import.meta.url));
-  scope.fetch = async () => new Response(bytes);
+  scope.fetch = async () => answer(bytes);
   scope.location = { href: import.meta.url };
   const ticks: [() => void, number][] = [];
   const sent: FromPhysics[] = [];

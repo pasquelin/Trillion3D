@@ -78,7 +78,9 @@ function missingNamedContracts(file: string): string[] {
       ...((type as TypeWithId).typeArguments ?? []),
     ])
       visit(argument);
-    if (type.isUnionOrIntersection()) for (const member of type.types) visit(member);
+    // A union's or an intersection's own members (`map`, `filter`… of `number[] | Float32Array`)
+    // are synthesized from its constituents, anew at each read: walking them never ends.
+    if (type.isUnionOrIntersection()) return type.types.forEach(visit);
     const declarations = symbols.flatMap((symbol) => symbol.declarations ?? []);
     if (
       declarations.length > 0 &&
@@ -114,4 +116,9 @@ function missingNamedContracts(file: string): string[] {
 
 test('SDK-owned named signature contracts are reachable from every matching facade', () => {
   for (const facade of FACADES) assert.deepEqual(missingNamedContracts(facade), []);
+});
+
+test('the audit walks a union through its members, not the members it synthesizes', () => {
+  const missing = missingNamedContracts('tests/integration/public-types-union.fixture.ts');
+  assert.ok(missing.includes('Box3'), missing.join());
 });

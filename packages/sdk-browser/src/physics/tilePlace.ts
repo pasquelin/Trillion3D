@@ -12,7 +12,7 @@ import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { Bodied } from './bodies.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
-import { checked, optionalFile } from '../cluster/pages.ts';
+import { checked, optionalFile } from '../cluster/checked.ts';
 import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 
 /** A compiled model as the streamer reads it (`LoadedModel`): where its files are. */

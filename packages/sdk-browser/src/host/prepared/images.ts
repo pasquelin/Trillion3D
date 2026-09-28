@@ -12,7 +12,7 @@
 import type { TableDocument } from '../../../../sdk-core/src/scene/core/tableDocuments.ts';
 import { PLACEHOLDER_IMAGE } from '../../texture/skip.ts';
 import type { ByteMeter } from '../../cluster/byteMeter.ts';
-import { checked } from '../../cluster/pages.ts';
+import { checked } from '../../cluster/checked.ts';
 
 /** Decode options of the host loader: pixels as the file stores them. */
 const BITMAP: ImageBitmapOptions = { premultiplyAlpha: 'none', colorSpaceConversion: 'none' };

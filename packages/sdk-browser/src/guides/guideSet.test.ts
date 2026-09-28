@@ -10,6 +10,10 @@ import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { Light } from '../../../sdk-core/src/world/light/light.ts';
 import { GUIDE_VERTEX_CEILING, createGuideSet } from './guideSet.ts';
 import { GUIDE_INSTANCE_FLOATS } from './guidePack.ts';
+import { objectPieces } from './guideObject.ts';
+import { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
+import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
+import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 
 test('a guide above the vertex ceiling is refused by name, and nothing of it is held', () => {
   const guides = createGuideSet();
@@ -148,4 +152,13 @@ test('a light helper drawn as a guide follows its light with no update from the 
   guides.follow();
   assert.equal(guides.revision, revision + 1, 'a destroyed light is let go, the frame goes on');
   assert.deepEqual([...guides.pack().anchor], [0, 0, 7], 'its guide stays where it last stood');
+});
+
+test('a line of two-wide positions is guided in the plane z = 0, as it is drawn', () => {
+  const flat = new Float32Array([0, 0, 1, 2, 3, 4]);
+  const geometry = new Geometry().setAttribute('position', new BufferAttribute(flat, 2));
+  const line = new Mesh(geometry, undefined, 'lineSegments');
+  line.updateMatrixWorld();
+  const [piece] = objectPieces(line, 1, 1);
+  assert.deepEqual(Array.from(piece.ends), [0, 0, 0, 1, 2, 0]);
 });

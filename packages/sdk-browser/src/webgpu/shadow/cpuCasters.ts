@@ -1,3 +1,4 @@
+import { DRAW_INDIRECT_WORDS } from '../../gpu/draw/contract.ts';
 import { invertMatrix4, updateCameraFrame } from '../../../../sdk-core/src/index.ts';
 import { createEngineCamera, type EngineCamera } from '../../camera/world.ts';
 import { selectVisiblePages, type PageRec } from '../../page/selection/selection.ts';
@@ -19,9 +20,6 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
  */
 export type CpuCasterLists = ReturnType<typeof createCpuCasterLists>;
 
-/** Words of one face's indirect command. */
-const COMMAND_WORDS = DRAW_INDIRECT_STRIDE / 4;
-
 /** Usage of the lists' buffers, read when one is made: the GPU globals exist only then. */
 const storage = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
 
@@ -41,7 +39,7 @@ export function createCpuCasterLists(device: GPUDevice, pageCount: number) {
     }),
     bases: new Uint32Array(MAX_SHADOW_RUNS),
     lengths: new Uint32Array(MAX_SHADOW_RUNS),
-    commands: new Uint32Array(MAX_SHADOW_RUNS * COMMAND_WORDS),
+    commands: new Uint32Array(MAX_SHADOW_RUNS * DRAW_INDIRECT_WORDS),
     words: new Uint32Array(1),
     shown: [] as PageRec[][],
     wanted: [] as PageRec[][],
@@ -189,9 +187,9 @@ export function writeCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice) {
       else if (rows.blendRowOf[page] >= 0) words[at++] = rows.blendRowOf[page];
     }
     lists.lengths[r] = at - lists.bases[r];
-    commands[r * COMMAND_WORDS + 1] = lists.lengths[r];
+    commands[r * DRAW_INDIRECT_WORDS + 1] = lists.lengths[r];
   }
   if (at) device.queue.writeBuffer(lists.source, 0, words, 0, at);
-  device.queue.writeBuffer(lists.indirect, 0, commands, 0, lists.runs * COMMAND_WORDS);
+  device.queue.writeBuffer(lists.indirect, 0, commands, 0, lists.runs * DRAW_INDIRECT_WORDS);
   lists.frame = run.frame;
 }
