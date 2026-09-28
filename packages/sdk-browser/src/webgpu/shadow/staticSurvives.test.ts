@@ -3,6 +3,8 @@
 // also when the light cut draws one short, and when a moving caster is hidden —, while what
 // changes the static casters themselves (a still caster hidden, a lamp moved, a still surface's
 // alpha changed) draws them again; a moving surface's alpha redraws its moving casters alone.
+// #989: a caster removed — its placement row parked — clears its old silhouette the same way, and a
+// frame at rest runs no shadow cull at all.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
@@ -10,19 +12,33 @@ import { LAMP, SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShad
 import { OUT_FLAGS } from '../../gpu/dag/layout.ts';
 import { WORK_DROPPED } from '../../gpu/dag/shader/viewsWgsl.ts';
 import { SHADOW_LAYER_PASS } from '../../gpu/shadow/staticLayer.ts';
+import { createPlacementRows, type PlacementRows } from '../../placement/rows.ts';
 import { along, camera, disposeQuadRun } from '../pages/testScenes.fixture.ts';
 import { floorCasterBackend } from './floorCaster.fixture.ts';
 
 /** What a frame's shadow pass drew. */
-type Drawn = { pages: number; layerPasses: number; cleared: number; restored: number };
+type Drawn = {
+  pages: number;
+  layerPasses: number;
+  cleared: number;
+  restored: number;
+  culls: number;
+};
+/** The shadow culls' kernels: the CPU lists', the light cut's, and the occlusion test's. */
+const CULLS = new Set(['shadowCullScatter', 'shadowCullLight', 'shadowHizTest']);
 
 /**
  * A floor that never moves and a caster over it, lit by `light` under the GPU cut. `frame` runs one
  * image after `act`, the light cut dropping work when `dropped`, and says what its shadow pass drew:
- * the static layer's passes, the pool pages cleared and those restored from the static layer.
+ * the static layer's passes, the pool pages cleared and those restored from the static layer, and
+ * the shadow cull dispatches. The caster is placed by `placements` when given.
  */
-async function floorAndCaster(light: SceneLight = SUN) {
-  const { backend, gpu, lights, scene, caster, floor } = await floorCasterBackend(light);
+async function floorAndCaster(light: SceneLight = SUN, placements?: PlacementRows) {
+  const { backend, gpu, lights, scene, caster, floor } = await floorCasterBackend(
+    light,
+    {},
+    placements,
+  );
   const view = camera();
   const flags = () => {
     const out = gpu.buffers.find(({ label }) => label === 'Trillion3D light cut output')!;
@@ -31,6 +47,7 @@ async function floorAndCaster(light: SceneLight = SUN) {
   const frame = async (act?: () => void, dropped = false): Promise<Drawn> => {
     const passes = gpu.passes.length,
       draws = gpu.draws.length,
+      computes = gpu.computes.length,
       pages = backend.metrics().shadowPagesTotal ?? 0;
     act?.();
     if (dropped) flags()[OUT_FLAGS] = WORK_DROPPED;
@@ -46,6 +63,7 @@ async function floorAndCaster(light: SceneLight = SUN) {
         .length,
       cleared: quads.filter(({ fragment }) => !fragment).length,
       restored: quads.filter(({ fragment }) => fragment === 'restore_fs').length,
+      culls: gpu.computes.slice(computes).filter((entry) => CULLS.has(entry)).length,
     };
   };
   const move = (x: number) => () => backend.setTransform!('caster', along(x));
@@ -79,8 +97,10 @@ test('a caster that stops draws nothing, and moving again redraws its moving cas
   const run = await floorAndCaster();
   const { frame, move, warmUp } = run;
   await warmUp();
-  for (let still = 0; still < 3; still++)
-    assert.equal((await frame(move(0.2))).pages, 0, 'at rest: nothing drawn');
+  for (let still = 0; still < 3; still++) {
+    const rest = await frame(move(0.2));
+    assert.deepEqual([rest.pages, rest.culls], [0, 0], 'at rest: nothing drawn, no batch run');
+  }
   // Its old place and its new one are drawn again, from the static layer: the old silhouette goes.
   restoredOnly(await frame(move(0.6)), 'moving again');
   run.dispose();
@@ -94,6 +114,27 @@ test('hiding a moving caster redraws its pages from the static layer; hiding the
   restoredOnly(await frame(() => void (caster.visible = true)), 'shown again');
   const hidden = await frame(() => void (floor.visible = false));
   assert.ok(hidden.layerPasses > 0, 'the still floor hidden: the static layer drawn again');
+  run.dispose();
+});
+
+test('a caster removed and put back redraws its pages from the static layer alone', async () => {
+  const rows = createPlacementRows(1);
+  rows.matrices.set(along(0));
+  rows.live[0] = 1;
+  const run = await floorAndCaster(SUN, rows);
+  const { backend, frame } = run;
+  /** Writes the caster's row as `act` says, and hands it to the engine. */
+  const write = (act: () => void) => () => {
+    act();
+    backend.updatePlacements!(rows, 0, 0);
+  };
+  const place = (x: number) => write(() => rows.matrices.set(along(x)));
+  for (let step = 1; step <= 4; step++) await frame(place(step * 0.05));
+  restoredOnly(await frame(place(0.25)), 'its row moved');
+  // Parked, as the world parks a removed mesh's row: the pages it covered are restored, the floor
+  // kept, and its silhouette is gone from them.
+  restoredOnly(await frame(write(() => void (rows.live[0] = 0))), 'removed');
+  restoredOnly(await frame(write(() => void (rows.live[0] = 1))), 'put back');
   run.dispose();
 });
 
