@@ -1,4 +1,3 @@
-import { storageBufferCap } from '../../../packages/sdk-browser/src/residency/pools.ts';
 import assert from 'node:assert/strict';
 import { SELECTION_HEADER_WORDS } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { BASE_SLOTS, PAGE_BIND_ALIGN } from '../../../packages/sdk-browser/src/gpu/draw/draw.ts';
@@ -98,13 +97,4 @@ export function drawnPageIds(
   const ids: number[] = [];
   for (let id = 0; id < pageCount; id++) if (marks[nodeCount + id]) ids.push(id);
   return ids;
-}
-
-/** As a device refuses it: no storage buffer (usage 0x80) past what one binding spans. */
-export function refuseUnbindable(
-  limits: Parameters<typeof storageBufferCap>[0],
-  { size, usage, label }: { size: number; usage: number; label?: string },
-) {
-  if (usage & 0x80 && size > storageBufferCap(limits))
-    throw new Error(`${label}: ${size} bytes, past the device's storage limit`);
 }
