@@ -10,6 +10,7 @@ import {
   sphereTouchesColumn,
   tileColumn,
   tileCorner,
+  tileCorners,
   type TileView,
 } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
 import { camera } from './tileCamera.fixture.ts';
@@ -38,7 +39,7 @@ for (const eye of [
 ] as [number, number, number][]) {
   test(`sky column at eye ${eye}: keeps a light at any distance in the tile, rejects the others`, () => {
     const v = view(eye);
-    const column = tileColumn(v, tile);
+    const column = tileColumn(tileCorners(v, tile, 1, 1));
     // A small light a kilometre away, in front of the sky: a far glass pane is lit by it.
     const far = onAxis(v, 0.1 / 1000);
     assert.ok(sphereTouchesColumn(column, far, 0.5));
@@ -55,13 +56,13 @@ for (const eye of [
 test('a tile with a sky pixel lights its blend list from the column, whatever opaque it holds', () => {
   const code = LIGHT_TILES_SHADER.replace(/\s+/g, '');
   assert.ok(code.includes('atomicStore(&skyward,1u);'));
-  assert.ok(code.includes('if(atomicLoad(&skyward)==0u){blendBox=boxOf(near,back);}'));
+  assert.ok(code.includes('if(atomicLoad(&skyward)==0u){blendBox=tileBox(NEAR_ROW,BACK_ROW);}'));
   assert.ok(!code.includes('1.0e30'), 'never the whole world');
 });
 
 test('300 lamps before a sky tile: its blend list is their CPU culling, none dropped (#822)', () => {
   const v = view([0, 0, 0]),
-    column = tileColumn(v, tile);
+    column = tileColumn(tileCorners(v, tile, 1, 1));
   // A lamp every metre down the tile's axis, five in six pushed sideways out of its column.
   const lamps = [...Array(300).keys()].map((i) => {
     const centre = onAxis(v, 0.1 / (1 + i));
