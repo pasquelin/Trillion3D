@@ -37,17 +37,17 @@ for (const [kernel, bindings] of KERNELS) {
 }
 
 // The two probes, the cut oracle whose frozen descent still binds the shipped group 0, and the
-// light cut, which binds the selection kernel's group 0 for its own views.
+// frame ranges, which bind the selection kernel's group 0 per range for the camera and light cuts.
 const BUILDERS = [
   '../../../../../tests/browser/probes/selectionKernelGpu.ts',
   '../../../../../tests/browser/probes/scatterKernelGpu.ts',
   '../../../../../bench/oracles/browser/cut-dispatches.ts',
-  './lightCut.ts',
+  './frameRanges.ts',
 ];
 for (const probe of BUILDERS) {
   test(`${probe} builds its bind group through namedBufferEntries, not by position`, () => {
     const source = readFileSync(new URL(probe, import.meta.url), 'utf8');
-    assert.match(source, /entries: (globalThis\.)?namedBufferEntries\(/);
+    assert.match(source, /entries: (globalThis\.)?(namedBufferEntries|dagGroupEntries)\(/);
     assert.doesNotMatch(source, /binding: \w+ \+ \d/, 'a binding computed from an index');
     assert.doesNotMatch(source, /\.map\(\(\w+, binding\)/, 'a binding taken from a list index');
     assert.doesNotMatch(source, /binding: \d/, 'a binding written as a number');
