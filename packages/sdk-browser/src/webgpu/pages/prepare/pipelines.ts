@@ -2,7 +2,6 @@ import { SHADER } from './shaders.ts';
 import { DEPTH_COMPARE } from '../../../camera/depthConvention.ts';
 import { BLEND_EQUATIONS } from '../../../scene/materialBlending.ts';
 import { pipelinesByMode } from '../../blend/stagePipelines.ts';
-import { buildRenderPipeline } from '../../../lighting/deferred/fullscreen.ts';
 import type { Blending } from '../../../../../sdk-core/src/world/constants/index.ts';
 
 export function createWebgpuPagesPipelines(device: GPUDevice, uniformStride: number) {
@@ -64,10 +63,7 @@ export function createWebgpuPagesPipelines(device: GPUDevice, uniformStride: num
     primitive: { topology: 'triangle-list', cullMode: 'none', frontFace: 'ccw' },
     depthStencil: { ...depthStencil, depthWriteEnabled: false },
   });
-  const pipelineBlend = pipelinesByMode(
-    (mode) => device.createRenderPipeline(blendDescriptor(mode)),
-    (mode) => buildRenderPipeline(device, blendDescriptor(mode)),
-  );
+  const pipelineBlend = pipelinesByMode(device, (mode) => [blendDescriptor(mode)]);
   pipelineBlend.at('normal');
   return { bindGroupLayout, pipelineBack, pipelineBackCw, pipelineNone, pipelineBlend };
 }
