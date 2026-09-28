@@ -45,7 +45,8 @@ test('every light view of a frame shares one traversal: the same commands as one
   const { encoder, copies, passes, lancements } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, light);
   assert.equal(passes.length + copies.length, 5, 'no clear of draw flags a light never sets');
-  const flat = (noyau: string) => lancements.filter((l) => l.noyau === noyau).map((l) => l.groupes);
+  const flat = (kernel: string) =>
+    lancements.filter((l) => l.kernel === kernel).map((l) => l.groups);
   assert.deepEqual(flat('dagPrepare'), [1], 'one thread per slot: two primitives × three views');
   assert.deepEqual(
     [
@@ -57,7 +58,7 @@ test('every light view of a frame shares one traversal: the same commands as one
     [1, 1, 2, 8, 16].sort(),
     'stages [2, 9, 40, 150, 600] per view, three views, capped at 1000 queued nodes',
   );
-  const noyaux = lancements.map((l) => l.noyau);
+  const noyaux = lancements.map((l) => l.kernel);
   assert.ok(!noyaux.includes('dagClearDrawn') && !noyaux.includes('dagDrawPrefix'));
   assert.ok(!noyaux.includes('dagSortRequests'), 'a light cut sorts its requests on the host');
   assert.ok(noyaux.indexOf('dagViewOffsets') < noyaux.indexOf('dagMask'));
@@ -72,8 +73,8 @@ test('a flat dispatch past the device width runs in rows of it', () => {
   const { encoder, lancements } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, light);
   const levels = lancements
-    .filter((l) => /^dag(Root)?Level/.test(l.noyau))
-    .map((l) => `${l.groupes}x${l.rangees ?? 1}`);
+    .filter((l) => /^dag(Root)?Level/.test(l.kernel))
+    .map((l) => `${l.groups}x${l.rows ?? 1}`);
   assert.deepEqual(levels.sort(), ['1x1', '1x1', '2x1', '4x2', '4x4']);
 });
 
@@ -84,8 +85,8 @@ test('the camera cut sorts its requests once, then lists its evictions, one work
     const last = residentCut ? ['dagSortRequests', 'dagListEvictions'] : ['dagSortRequests'];
     assert.deepEqual(
       lancements.slice(-last.length),
-      last.map((noyau) => ({ noyau, groupes: 1 })),
+      last.map((kernel) => ({ kernel, groups: 1 })),
     );
-    assert.equal(lancements.filter((l) => l.noyau === 'dagSortRequests').length, 1);
+    assert.equal(lancements.filter((l) => l.kernel === 'dagSortRequests').length, 1);
   }
 });

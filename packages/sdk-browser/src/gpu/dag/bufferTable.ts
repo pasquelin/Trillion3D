@@ -38,7 +38,7 @@ const namedParts = (name: string, parts: DagBufferRow[]) =>
 /**
  * THE BUFFERS OF A CAMERA CUT, as `createDagResources` makes them: one table read by the resources
  * and by the device check (`deviceRefusal.ts`), so the check can never judge a size the cut does
- * not ask for. `blockCount` is the kernel's `blockCount()`, word for word, and `travail` the layout
+ * not ask for. `blockCount` is the kernel's `blockCount()`, word for word, and `workLayout` the layout
  * of `work` (`dagWorkLayout`). On `limits`, a table past one binding is in parts (`split.ts`):
  * `parts` the rows of each, `rows` all of them, each part one row.
  */
@@ -50,7 +50,7 @@ export function cameraCutBuffers(
   limits?: Parameters<typeof storageBufferCap>[0],
 ) {
   const blockCount = Math.ceil(packed.pageCount / SELECTION_WORKGROUP),
-    travail = dagWorkLayout(blockCount);
+    workLayout = dagWorkLayout(blockCount);
   const flagWords = dagFlagsWords(packed.nodeCount, packed.pageCount);
   const split = dagSplit(limits, packed, {
     clusters: packed.clusters.byteLength,
@@ -92,7 +92,7 @@ export function cameraCutBuffers(
   };
   return {
     blockCount,
-    travail,
+    workLayout,
     split,
     parts,
     rows: {
@@ -102,7 +102,7 @@ export function cameraCutBuffers(
       ...namedParts('flags', parts.flags),
       work: {
         label: 'Trillion3D DAG work',
-        size: Math.max(8, travail.words * 4),
+        size: Math.max(8, workLayout.words * 4),
         copySource: true,
       },
     } satisfies Record<string, DagBufferRow>,
@@ -159,7 +159,7 @@ const lightQueueCap = (shape: LightCutShape, views: number) =>
  */
 export function lightCutBuffers(shape: LightCutShape, views: number) {
   const queueCap = lightQueueCap(shape, views),
-    travail = dagWorkLayout(shape.blockCount, views);
+    workLayout = dagWorkLayout(shape.blockCount, views);
   const flags = flagRows(
     'Trillion3D light cut flags',
     shape.split?.flagCuts ?? [],
@@ -169,11 +169,11 @@ export function lightCutBuffers(shape: LightCutShape, views: number) {
   );
   return {
     queueCap,
-    travail,
+    workLayout,
     flags,
     rows: {
       ...namedParts('flags', flags),
-      work: { label: 'Trillion3D light cut work', size: travail.words * 4, copySource: true },
+      work: { label: 'Trillion3D light cut work', size: workLayout.words * 4, copySource: true },
     } satisfies Record<string, DagBufferRow>,
     frames: (count: number): DagBufferRow => ({
       label: 'Trillion3D light cut frames',

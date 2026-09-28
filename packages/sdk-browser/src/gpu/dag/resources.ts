@@ -26,10 +26,10 @@ export async function createDagResources(
   // The buffers, the kernel's block count and the layout of `work`, one table with the device
   // check (`bufferTable.ts`): two counters live behind the blocks in `work`, and only the byte
   // offsets a copy to the dispatch argument asks for are taken here.
-  const { blockCount, travail, rows, parts, split } = cameraCutBuffers(packed, device.limits),
-    liveGroupsOffset = travail.liveGroups * 4,
-    candGroupsOffset = travail.candGroups * 4,
-    drawnGroupsOffset = travail.drawnGroups * 4;
+  const { blockCount, workLayout, rows, parts, split } = cameraCutBuffers(packed, device.limits),
+    liveGroupsOffset = workLayout.liveGroups * 4,
+    candGroupsOffset = workLayout.candGroups * 4,
+    drawnGroupsOffset = workLayout.drawnGroups * 4;
   // The camera's block, then the view ahead's (`shader/aheadWgsl.ts`).
   const uniformData = new Float32Array((AHEAD_VIEW + 1) * DAG_VIEW_WORDS);
   const frameData = primitiveFrameWords(packed);
