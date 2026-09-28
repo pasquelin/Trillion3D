@@ -157,6 +157,7 @@ impl Header {
             corner_bits: w[21] as usize,
         };
         let layout = Layout::of(&header);
+        let (table, v, n) = (layout.triangles[1] * 4, w[2] as usize, w[3] as usize);
         let sane = w[22..].iter().all(|&word| word == 0)
             && (1..=MAX_VERTICES).contains(&header.vertex_count)
             && (3..=max_decoded_bytes / 4).contains(&header.index_count)
@@ -166,11 +167,9 @@ impl Header {
             && header.quantization_error.is_finite()
             && header.quantization_error >= 0.0
             && header.decoded_bytes() <= max_decoded_bytes
-            && layout.bytes() == data.len();
-        // The block table lies first, up to the corner stream's word; `sane` guards the slice.
-        let table = HEADER_BYTES..HEADER_BYTES + layout.triangles[1] * 4;
-        let counts = (header.vertex_count, header.index_count);
-        if !sane || !layout.corners.fits(&data[table], counts.0, counts.1) {
+            && layout.bytes() == data.len()
+            && layout.corners.fits(&data[HEADER_BYTES..][..table], v, n);
+        if !sane {
             return Err(PageError::Bounds);
         }
         Ok(header)
