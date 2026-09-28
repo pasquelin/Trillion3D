@@ -92,6 +92,8 @@ export function traceGpuCutFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     residentCandidates: rows.candidateCount,
     readbackPurpose: 'streaming-and-metrics',
     metricsReady: run.gpuMetricsReady,
+    /** How far ahead the view ahead looked, the pages' round trip included (`prefetchHorizonMs`). */
+    aheadHorizonMs: run.motion.horizonMs,
   }));
   diag.traceDiagnostic('frame', 'Complete WebGPU frame snapshot', () =>
     frameTraceSnapshot(
