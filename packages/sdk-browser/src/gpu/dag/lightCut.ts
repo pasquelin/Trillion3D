@@ -92,17 +92,7 @@ export function createDagLightCut(resources: DagResources) {
       bindGroup: device.createBindGroup({
         layout: resources.layout,
         entries: dagGroupEntries(
-          {
-            clusters: resources.clusters,
-            nodes: resources.nodes,
-            views: uniforms,
-            flags,
-            out: output,
-            work,
-            worlds: resources.worlds,
-            frames: frames[r],
-            cold: resources.pageCones,
-          },
+          { ...resources.group, views: uniforms, flags, out: output, work, frames: frames[r] },
           resources.frames.rangeBindings[r],
         ),
       }),

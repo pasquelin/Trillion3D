@@ -43,19 +43,10 @@ async function split(per: number) {
 test('each range is its own buffer and bind group, and the stages know the split', async () => {
   const { fake, resources } = await split(20);
   const { frames, ranges } = resources;
-  assert.deepEqual(frames.ranges, [
-    { first: 0, count: 20 },
-    { first: 20, count: 20 },
-    { first: 40, count: 8 },
-  ]);
-  assert.deepEqual(
-    frames.buffers.map((b) => b.size),
-    [20, 20, 8].map(framesBytes),
-  );
-  assert.deepEqual(
-    ranges.map((r) => r.count),
-    [20, 20, 8],
-  );
+  const line = (values: ArrayLike<unknown>) => Array.from(values).join(' ');
+  assert.equal(line(frames.ranges.map((r) => `${r.first}+${r.count}`)), '0+20 20+20 40+8');
+  assert.equal(line(frames.buffers.map((b) => b.size)), line([20, 20, 8].map(framesBytes)));
+  assert.equal(line(ranges.map((r) => r.count)), '20 20 8');
   for (const [r, { bindGroup }] of ranges.entries()) {
     const entries = Array.from((bindGroup as unknown as GPUBindGroupDescriptor).entries);
     const at = (binding: number) => entries.find((e) => e.binding === binding)!.resource;
@@ -63,30 +54,23 @@ test('each range is its own buffer and bind group, and the stages know the split
     assert.equal((at(DAG_BINDING.range) as GPUBufferBinding).offset, r * 256);
   }
   const bounds = fake.writes.find((w) => w.buffer === frames.rangeBindings[0].buffer)!;
-  assert.deepEqual(
-    Array.from(written(bounds)).filter((_, k) => k % 64 < 2),
-    [0, 20, 20, 20, 40, 8],
-  );
-  assert.deepEqual((resources.preparePipeline as unknown as GPUProgrammableStage).constants, {
-    SPLIT: 1,
-  });
+  assert.equal(line(Array.from(written(bounds)).filter((_, k) => k % 64 < 2)), '0 20 20 20 40 8');
+  const constants = (cut: typeof resources | undefined) =>
+    (cut?.preparePipeline as unknown as GPUProgrammableStage).constants;
+  assert.deepEqual(constants(resources), { SPLIT: 1 });
   const whole = await createDagResources(fakeDevice().device, resources.packed, false);
   assert.equal(whole?.ranges.length, 1);
-  assert.equal((whole?.preparePipeline as unknown as GPUProgrammableStage).constants, undefined);
+  assert.equal(constants(whole), undefined, 'one range: the stages of before');
 });
 
 test("the host's rows and words land in their range, at their row there", async () => {
   const { fake, resources } = await split(20);
   const { frames, frameData } = resources;
-  const rows = fake.writes.filter((w) => frames.buffers.includes(w.buffer as GPUBuffer));
-  assert.deepEqual(
-    rows.map((w) => [frames.buffers.indexOf(w.buffer as GPUBuffer), w.dataOffset, w.size]),
-    [
-      [0, 0, 20 * 28],
-      [1, 20 * 28, 20 * 28],
-      [2, 40 * 28, 8 * 28],
-    ],
-  );
+  // range:first row+rows, a host row being 28 floats.
+  const at = (b: unknown) => frames.buffers.indexOf(b as GPUBuffer);
+  const rows = fake.writes.filter((w) => at(w.buffer) >= 0);
+  const row = (w: (typeof rows)[number]) => `${at(w.buffer)}:${w.dataOffset / 28}+${w.size! / 28}`;
+  assert.equal(rows.map(row).join(' '), '0:0+20 1:20+20 2:40+8');
   frames.writeWord(25, 1, 7);
   const word = fake.writes.at(-1)!;
   assert.equal(word.buffer, frames.buffers[1]);
@@ -94,21 +78,12 @@ test("the host's rows and words land in their range, at their row there", async 
   assert.equal(new Uint32Array(frameData.buffer)[primitiveWordAt(25) + 1], 7);
   const targets = [{}, {}, {}] as GPUBuffer[];
   frames.copyRows(fake.device.createCommandEncoder(), targets);
-  assert.deepEqual(
-    fake.copies.map((c) => [frames.buffers.indexOf(c.from), targets.indexOf(c.to), c.size]),
-    [
-      [0, 0, 20 * 112],
-      [1, 1, 20 * 112],
-      [2, 2, 8 * 112],
-    ],
-  );
+  const copies = fake.copies.map((c) => `${at(c.from)}>${targets.indexOf(c.to)}+${c.size / 112}`);
+  assert.equal(copies.join(' '), '0>0+20 1>1+20 2>2+8');
 });
 
 test('each kernel that reads a primitive runs once per range, under its bind group', () => {
-  const ranges = [
-    { count: 100, bindGroup: 'r0' },
-    { count: 30, bindGroup: 'r1' },
-  ];
+  const ranges = [100, 30].map((count, r) => ({ count, bindGroup: `r${r}` }));
   const { encoder, lancements, groupesLies } = encodeurTemoin();
   const cut = { ...ressources(false, 5), ranges } as Parameters<typeof encodeDagKernels>[1];
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, cut);
