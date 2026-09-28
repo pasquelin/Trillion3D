@@ -1,16 +1,10 @@
 /**
- * The compaction of a tile's lights into its two lists (`./shader.ts`): `words` mask words per
- * slice, one bit per light of a batch of `words * 32`, then, with `pool`, the slices past their
- * list written into the view's pool (#849).
- *
- * A walk tests the scene's lights batch by batch, one per thread, and each kept thread writes its
- * light at what the batches before kept plus the bit count before it: the order is increasing and
- * determined, so the frame is too. The first walk fills the lists, `TILE_LIGHTS` each, and counts
- * true. A slice that counted more reserves room for all of them in the pool — one atomic
- * addition, by thread zero —, names its start in its list's first word, and a second walk writes
- * them there, in the same order: the tile reads exactly the lights that reach it, however many.
- * A pool with no room left raises its overflow word and gives the slice `TILE_NO_SLICE`: that
- * tile walks every light, exactly, and the engine names the overflow (`./pool.ts`).
+ * A tile's compaction (`./shader.ts`), `words` mask words a slice. A walk tests the lights a batch
+ * at a time, one per thread; each kept one is written at what the batches before kept plus the
+ * bit count before it: increasing, determined order. The first walk fills the lists and counts
+ * true; with `pool`, a slice that counted more reserves room for all of them (one atomic add),
+ * names its start in its list's first word, and a second walk writes them there in the same
+ * order (#849). No room left: the overflow word is raised, the slice gets `TILE_NO_SLICE`.
  */
 export const tileCompactWgsl = (words: number, pool: boolean) => `
 /** One mask, two slices: the first ${words} words are the opaque list's, the next those of

@@ -263,14 +263,12 @@ doubled when full, the GPU light buffer with it, and every pass that binds it bi
 per thread of a 16 × 16 tile, and keeps in each of its two lists those whose range reaches the
 tile's depth slice, in increasing rank, up to `tileLights` (64): the lists' memory follows the view
 alone, 4.2 MB at 1920 × 1080 and 15.7 MB at 3456 × 2234, whatever the scene holds. A tile reached
-by more than `tileLights` (64) lights keeps its true count and walks exactly those lights: a second
-walk of the pass writes them, in the same order, into a light-index pool after the tile records,
-where the tile reserves its room with one atomic addition (#849). A pixel costs what the lamps
-reaching its tile cost, however many. The pool is sized from the view — a quarter list per tile
-once the scene holds more than 64 lights, grown to what a sampled frame asked, at most four lists
-per tile —; a tile it has no room for walks every light of the scene, exactly, and the overflow is
-named (`tileLightPool.overflowed` of the direct-lighting state). A scene of 64 lights or fewer runs
-a narrow tile pass — masks of 64 bits, a light array of 64 — and holds no pool. A shadow caster past the 64 shadow slices lights without a shadow and is counted
+by more than `tileLights` (64) lights walks exactly those, written in order into a view-sized pool
+after the tile records (#849): a quarter list per tile, grown to what a sampled frame asked, four
+lists at most. A tile the pool has no room for walks every light, exactly, and the overflow is named
+(`tileLightPool.overflowed` of the direct-lighting state). A scene of 64 lights or fewer runs a
+narrow tile pass (64-bit masks, a 64-light array) and holds no pool. A shadow caster past the 64
+shadow slices lights without a shadow and is counted
 (`shadowCastersUnsliced`, #818). WebGL2 keeps its 64 slots until #835 and refuses more out loud.
 
 **A moving image shades a drawn subset of each pixel's lights.** A moving image weighs every light
