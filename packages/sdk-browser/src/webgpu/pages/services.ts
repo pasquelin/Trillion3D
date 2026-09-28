@@ -66,7 +66,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     rows,
     mirror,
     packedPages,
-    run.drawn,
+    run,
     drawSlots,
     () => !!gpu.cache,
     commit,

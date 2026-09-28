@@ -5,6 +5,7 @@ import { SAMPLED_RANKS } from '../lighting/direct/lightSamplingWgsl.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { AccumulatedImage } from '../lighting/deferred/program.ts';
+import type { TemporalAntialiasing } from './temporalAntialiasing.ts';
 
 /** What the temporal pass keeps from one image to the next on the CPU side. */
 export interface TaaFrameState {
@@ -163,7 +164,11 @@ export function encodeTaaPass(
 
 /** History is to be remade: targets reallocated, or size changed. */
 export function dropTaaHistory(rt: WebgpuPagesRuntime) {
-  const temporal = rt.gpu.temporal;
+  forgetTaaHistory(rt.gpu.temporal);
+}
+
+/** `temporal`'s history is to be remade, whichever view holds it. */
+export function forgetTaaHistory(temporal: TemporalAntialiasing | undefined) {
   if (!temporal) return;
   temporal.frame.hasHistory = false;
   temporal.frame.stillFrames = 0;
