@@ -182,13 +182,18 @@
         { name: 'pan', position: wide, target: swept, seconds: 0.8, hold: 0.4 },
         { name: 'still', position: wide, target: swept, seconds: 0.1, hold: 3 },
       ]);
-      // The verdict waits for the lighting capability below too: a slow session settles after the tour.
-      let asked = false;
+      // What the session drawing the world documents it refuses of the scene's lights, with why,
+      // is asked with the verdict: of a session that drew the tour, never of one still opening,
+      // whose first frame may run the hooks before the world holds it (#945).
       const judged = world.onFrame(() => {
-        if (flown.gliding || !asked) return;
+        if (flown.gliding) return;
         judged();
+        const { reason } = capability.lighting(world);
+        if (reason) refuse(reason, true);
         showVerdict(check.verdict(), say);
       });
+      // The path drawing the world, known once its first frame is drawn.
+      const shown = world.onFrame(() => (shown(), drawn(world.renderer)));
 
       let heading = 0;
       world.beforeFrame(({ delta }) => {
@@ -196,15 +201,6 @@
         walkRound(heading, 2.4);
         if (ui.drive) chase(driven, delta);
       });
-
-      // The path drawing the world, and what it documents it refuses of the scene's lights, with why:
-      // asked once the view's pages are resident, so of the session that settled on the whole
-      // scene — a frame hook may run while that session is still opening.
-      await world.awaitPages();
-      drawn(world.renderer);
-      const { reason } = capability.lighting(world);
-      if (reason) refuse(reason, true);
-      asked = true;
     </script>
   </body>
 </html>
