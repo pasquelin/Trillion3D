@@ -21,7 +21,7 @@ function twoModels() {
     { rt, run } = runtime(source, [], worlds);
   run.gate.readScene(source, [{ sourceMesh: a }, { sourceMesh: b }]);
   run.gate.updateWorlds(worlds);
-  return { a, worlds, rt, run };
+  return { source, a, b, worlds, rt, run };
 }
 
 const moved = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 5, 0, 0, 1]);
@@ -54,4 +54,14 @@ test('before the first image, A written by the host then B moved: A stands where
   a.position.x = 100;
   setWebgpuTransform(rt, 'B', moved);
   assert.equal(worlds.of(a).elements[12], 100);
+});
+
+test('A written by the host, an image held before its world pass, then B moved: A is walked', () => {
+  const { source, a, b, worlds, rt, run } = twoModels();
+  a.position.x = 100;
+  // The scan reports the write, then the image returns early (readback in flight): no pass ran.
+  run.gate.readScene(source, [{ sourceMesh: a }, { sourceMesh: b }]);
+  setWebgpuTransform(rt, 'B', moved);
+  assert.equal(worlds.of(a).elements[12], 100, 'the move walks the whole index');
+  assert.equal(run.gate.updateWorlds(worlds), true, 'and the next image rewrites every row');
 });
