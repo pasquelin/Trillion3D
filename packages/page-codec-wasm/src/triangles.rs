@@ -3,10 +3,9 @@
 //! Triangles go by blocks of `BLOCK`, in page order. A block's record holds its smallest corner
 //! (`base`, at the index width), the `width` each of its corners takes as its distance to that
 //! base, and `prefix`, the sum of the widths of the blocks before it: the block's first corner
-//! lies at bit `3 * BLOCK * prefix` of the corner stream, so any corner is one record and one field
-//! away, in O(1), as a shader reads it in place. A page numbers its vertices by first use, so a
-//! block spans few of them. The code is lossless: every corner decodes to the index written, in
-//! its order, and the invariant `base + delta == index` is what the tests prove on every input.
+//! lies at bit `3 * BLOCK * prefix` of the corner stream: any corner is one record and one field
+//! away, in O(1), as a shader reads it in place. The code is lossless — `base + delta == index`,
+//! in order, which the tests prove on every input —, and pages number vertices by first use.
 
 use crate::bits::{bits_for, field, le_words};
 use crate::writer::BitWriter;
@@ -50,10 +49,8 @@ impl CornerCode {
     /// Block `b`'s record, the table at word `table` of `words`: its base, its width, and the bit
     /// of the corner stream its first corner lies at.
     pub fn record(&self, words: &[u32], table: usize, b: usize) -> (u32, u32, usize) {
-        let (ib, at) = (
-            self.index_bits,
-            table * 32 + b * self.record_bits() as usize,
-        );
+        let ib = self.index_bits;
+        let at = table * 32 + b * self.record_bits() as usize;
         let width = field(words, at + ib as usize, WIDTH_BITS);
         let prefix = field(words, at + (ib + WIDTH_BITS) as usize, self.prefix_bits);
         (field(words, at, ib), width, prefix as usize * CORNERS)
