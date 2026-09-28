@@ -42,8 +42,8 @@ async function bytesOf(file: string) {
 /** A module stepped by `threads` threads, the threaded module's when more than one, once its
  *  pool is ready. */
 async function started(threads: number, bytes: ArrayBuffer) {
-  const pool = threads > 1 ? joltWorkerPool(import.meta.url) : null;
-  const opened = await openJolt(bytes, BUDGET.memoryBytes, pool && { count: threads, ...pool });
+  const pool = threads > 1 ? joltWorkerPool(import.meta.url, threads) : null;
+  const opened = await openJolt(bytes, BUDGET.memoryBytes, pool);
   const jolt = startJolt(opened, BUDGET, threads);
   await pool?.ready();
   return jolt;

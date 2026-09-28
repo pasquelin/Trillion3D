@@ -105,13 +105,18 @@ export function joltImports(
 export const JOLT_THREAD_LOADED = { type: 'loaded' } as const;
 
 /**
- * The module's pool threads as workers of the script at `url`, each handed its start message (the
- * script runs `runJoltThread` on it and posts `JOLT_THREAD_LOADED`). A worker a worker starts
- * loads only while its parent's event loop turns, and a step blocks on its jobs: nothing steps
- * before `ready()`, which resolves once every thread spawned so far has loaded and rejects naming
- * the first that did not. Once loaded, a thread's messages go to `relay`.
+ * `openJolt`'s `threads`: `count` threads step the module, this one and its pool's, each a worker
+ * of the script at `url` handed its start message (the script runs `runJoltThread` on it and posts
+ * `JOLT_THREAD_LOADED`). A worker a worker starts loads only while its parent's event loop turns,
+ * and a step blocks on its jobs: nothing steps before `ready()`, which resolves once every thread
+ * spawned so far has loaded and rejects naming the first that did not. Once loaded, a thread's
+ * messages go to `relay`.
  */
-export function joltWorkerPool(url: string | URL, relay: (data: unknown) => void = () => {}) {
+export function joltWorkerPool(
+  url: string | URL,
+  count: number,
+  relay: (data: unknown) => void = () => {},
+) {
   const loads: Promise<void>[] = [];
   const spawn: SpawnJoltThread = (start) => {
     const n = loads.length + 1;
@@ -135,7 +140,7 @@ export function joltWorkerPool(url: string | URL, relay: (data: unknown) => void
     );
     thread.postMessage(start);
   };
-  return { spawn, ready: () => Promise.all(loads).then(() => {}) };
+  return { count, spawn, ready: () => Promise.all(loads).then(() => {}) };
 }
 
 /**
