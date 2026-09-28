@@ -1,4 +1,5 @@
 import { declaredLightingWgsl } from '../../lighting/direct/lightingWgsl.ts';
+import { MODEL_SHIFT, MODEL_FLAG, SURFACE_MODEL } from '../../scene/surfaceModel.ts';
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { bounceApplyWgsl } from '../../bounce/applyWgsl.ts';
 import { bounceReflectionWgsl, MIRROR_LIGHTING_WGSL } from '../../bounce/reflectWgsl.ts';
@@ -24,7 +25,6 @@ import { WATER_MAX_ITEMS, WATER_RANK_SHIFT } from '../water/surfaceWgsl.ts';
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts';
 import { FACING_DROP, FACING_SHIFT, FACING_WGSL } from './facing.ts';
 
-/** Shader of transparent surfaces, sharing the opaque lighting and reflection model. */
 /** The view uniform of the pass (`uniforms.ts`), declared once for every stage that
  *  reads it: the two forward stages here, and the water composite that reads the same buffer. */
 export const BLEND_VIEW_WGSL = `struct BlendView{viewProj:mat4x4f,camPos:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,pixelScale:f32,viewport:vec2f,eye:vec4f,pixelRatio:f32,}`;
@@ -96,7 +96,7 @@ ${FACING_WGSL}
  let local=vertexIndex&((1u<<uni.vertexShift)-1u);
  let flags=(it.flags&${WATER_MAX_ITEMS}u)|uni.viewFlags;
  out.color=it.color;
- out.ids=vec3u(it.mapIndex,flags,it.emissiveIndex);
+ out.ids=vec3u(it.mapIndex,flags|(u32(it.emissive.w)<<${MODEL_SHIFT}u),it.emissiveIndex);
  out.maps=vec4u(it.roughIndex,it.metalIndex,it.normalIndex,it.aoIndex);
  out.alphaAo=vec4f(it.alphaTest,it.aoIntensity,it.dash);
  out.pbr=vec4f(it.roughness,it.metalness,it.normalScale);
@@ -187,7 +187,10 @@ ${BLEND_SURFACE_WGSL}
    // A pixel's footprint at the surface: its distance times the pixel's angle, or the pixel
    // itself under an orthographic camera.
    shadowFootprint=select(uni.pixelScale,uni.pixelScale*length(uni.camPos.xyz-in.view),uni.camPos.w!=0.0);
-   rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+mirrorLighting(rgb,m,clamped,s.N,V,in.view)+s.emissive;
+   rgb=declaredLighting(rgb,m,clamped,s.N,V,in.view,s.ao,in.position.xy)+bounceLighting(rgb,m,s.N,in.view,s.ao)+environmentLighting(rgb,m,s.N,s.ao)+s.emissive;
+   let model=(flags>>${MODEL_SHIFT}u)&7u;
+   surfaceModel=select(select(0u,${MODEL_FLAG.diffuse}u,model==${SURFACE_MODEL.diffuse}u),${MODEL_FLAG.toon}u,model==${SURFACE_MODEL.toon}u);
+   rgb+=mirrorLighting(s.rgb,m,clamped,s.N,V,in.view);
   }
   // Lit or unlit, the surface is seen through the fog.
   rgb=fogged(rgb,in.view,uni.eye.xyz);

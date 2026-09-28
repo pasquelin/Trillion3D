@@ -1,4 +1,8 @@
 import test from 'node:test';
+import * as G from '../../host/graph/graph.fixture.ts';
+import { surfaceOf } from '../../page/surface.ts';
+import { BLEND_ITEM_WORDS, writeBlendItemRecord } from './items.ts';
+import { SURFACE_MODEL } from '../../scene/surfaceModel.ts';
 import assert from 'node:assert/strict';
 import { voidStaleBlendGroups } from './identity.ts';
 import { createWebgpuBlendState } from './state.ts';
@@ -16,7 +20,7 @@ import { BOUNCE_LIGHTING_SHADER } from '../../lighting/deferred/shaders.ts';
 test('transparent mirrors use the opaque reflection model and bind its surface radiance', () => {
   for (const name of ['mirrorLighting', 'reflectedRadiance', 'rayRadiance'])
     assert.equal(functionText(BLEND_SHADER, name), functionText(BOUNCE_LIGHTING_SHADER, name));
-  assert.match(BLEND_SHADER, /\+mirrorLighting\(rgb,m,clamped,s.N,V,in.view\)/);
+  assert.match(BLEND_SHADER, /rgb\+=mirrorLighting\(s.rgb,m,clamped,s.N,V,in.view\)/);
   const surfaceCache = {} as GPUBuffer;
   const atlas = { views: [], pages: { buffer: {} } };
   const entries = blendBindEntries({
@@ -46,4 +50,36 @@ test('a replaced surface cache invalidates both blend groups, unchanged radiance
   voidStaleBlendGroups(rt, lighting);
   assert.equal(blendState.pagedGroup, undefined);
   assert.equal(item.group, undefined);
+});
+
+test('accepted diffuse/toon roughness maps retain their model in the transparent record', () => {
+  const roughnessMap = new G.GraphTexture();
+  for (const [family, model] of [
+    ['standard', SURFACE_MODEL.standard],
+    ['lambert', SURFACE_MODEL.diffuse],
+    ['toon', SURFACE_MODEL.toon],
+  ] as const) {
+    const material = new G.GraphSurface(family, { transparent: true, roughnessMap });
+    const surface = surfaceOf(material);
+    const floats = new Float32Array(BLEND_ITEM_WORDS);
+    const ints = new Uint32Array(floats.buffer);
+    writeBlendItemRecord(
+      floats,
+      ints,
+      0,
+      {
+        surface,
+        matrix: new G.Matrix4(),
+        flags: 1,
+        count: 3,
+        sourceGeometry: new G.Geometry(),
+        orderKey: 0,
+        orderRank: 0,
+      },
+      { mapLayer: new Map(), dataLayer: new Map([[surface.roughnessMap!, 1]]) },
+    );
+    assert.equal(floats[39], model);
+    assert.equal(ints[32], 1, 'accepted roughness map reaches the shader');
+    assert.equal(floats[28], family === 'standard' ? surface.roughness : 1);
+  }
 });
