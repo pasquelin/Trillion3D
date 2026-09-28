@@ -143,7 +143,10 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
     encode(encoder: GPUCommandEncoder, inputs: TaaInputs) {
       if (images.length !== 2) throw new Error('TAA_TARGETS_MISSING');
       const kind = inputs.share ? 'blended' : inputs.flags ? 'asIs' : 'flagless';
-      const resolve = inputs.filter ? resolves.filtered(kind) : resolves[kind];
+      const twin = inputs.filter && resolves.filtered(kind);
+      // Until its twin is compiled, the image resolves no filter: composition reads the raw one.
+      if (!twin) inputs.filter = undefined;
+      const resolve = twin || resolves[kind];
       filterHistory.follow(inputs.filter, width, height);
       if (!bound || inputsMoved(bound, inputs)) {
         bound = { ...inputs };
@@ -170,7 +173,7 @@ export async function createTemporalAntialiasing(device: GPUDevice, roots: reado
       }
       const write = 1 - read,
         { color, share } = images[write],
-        filter = filterHistory.target(write);
+        filter = inputs.filter && filterHistory.target(write);
       const pass = encoder.beginRenderPass({
         label: TAA_PASS,
         colorAttachments: (filter ? [color, share, filter] : [color, share]).map(cleared),

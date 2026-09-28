@@ -12,14 +12,13 @@ import {
   type BlendModePipelines,
 } from './stagePipelines.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
+import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts';
 import {
-  BLEND_EQUATIONS,
-  BLEND_MODES,
   COVERAGE_EQUATIONS,
   FILTERED_EQUATIONS,
   FILTER_EQUATIONS,
   filtersDisplay,
-} from '../../scene/materialBlending.ts';
+} from './equations.ts';
 import { FILTER_FORMAT } from './displayFilter.ts';
 import { createWaterPass, type WaterPass } from '../water/pass.ts';
 import {

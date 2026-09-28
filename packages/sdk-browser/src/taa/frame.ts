@@ -147,7 +147,7 @@ export function encodeTaaPass(
   packed[37] = state.hasHistory ? 1 : 0;
   packed[38] = temporal.motion.moved ? 1 : 0;
   // The display filter of an image whose blends filter (`../webgpu/blend/displayFilter.ts`).
-  const filter = gpu.displayFilter?.active ? gpu.displayFilter.view : undefined;
+  const filter = gpu.displayFilter?.written ? gpu.displayFilter.view : undefined;
   packed[39] = filter && temporal.filterHistory.written ? 1 : 0;
   packed.set(weights[state.sample], 40);
   device.queue.writeBuffer(temporal.uniform, 0, packed);

@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { blendTargets } from './pipelines.ts';
 import { DISPLAY_FILTER_WGSL } from './displayFilter.ts';
 import { CONTRACT_COMPOSITIONS } from '../../lighting/deferred/shaders.ts';
-import { FILTER_EQUATIONS } from '../../scene/materialBlending.ts';
+import { FILTER_EQUATIONS } from './equations.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 
 type Rgba = readonly [number, number, number, number];
