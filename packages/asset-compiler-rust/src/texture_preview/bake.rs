@@ -57,7 +57,7 @@ pub(super) fn one_image(
     let shapes = if candidates.is_empty() {
         Vec::new()
     } else {
-        let shape = inputs.measurements.get_or_else(&sha256, &decoded, || {
+        let shape = inputs.measurements.get(&sha256, &decoded).unwrap_or_else(|| {
             let _t = perf::Timer::new(perf::Phase::TextureAlpha);
             crate::cutout::measure(&decoded)
         });
