@@ -1,6 +1,5 @@
-import { BLEND_VIEW_SIZE } from './uniforms.ts';
 import { feedbackAttachment } from '../pages/prepare/attachments.ts';
-import { blendBindEntries, type BlendLighting } from '../core/bindEntries.ts';
+import { blendEntries } from './identity.ts';
 import { createBlendOverdraw } from './overdraw.ts';
 import { countsBlendOverdraw } from '../../diagnostic/gpuVariant.ts';
 import type { BlendGpuItem } from './state.ts';
@@ -16,32 +15,12 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
  * them, so ALL paged items share this group; an unpaged item carries its own buffers and keeps
  * its own.
  */
-function blendBindGroup(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  item: BlendGpuItem | undefined,
-  lighting: BlendLighting,
-) {
-  const { gpu, vis, blendState } = rt,
-    compaction = blendState.compaction,
-    zero = gpu.zeroUv!;
+function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice, item: BlendGpuItem | undefined) {
   return device.createBindGroup({
-    layout: vis.blendBindGroupLayout!,
-    entries: blendBindEntries({
-      indices: item?.index ?? gpu.cache!.buffer,
-      positions: item?.position ?? vis.concatPos!,
-      uvs: item ? (item.uv ?? zero) : vis.concatUv!,
-      uniform: blendState.viewBuffer!,
-      uniformSize: BLEND_VIEW_SIZE,
-      items: blendState.itemBuffer!,
-      textures: vis.textures!,
-      sampler: vis.mapsSampler!,
-      normals: item ? (item.normal ?? zero) : vis.concatNrm!,
-      ...lighting,
-      clusterDiagnostic: compaction?.diagnosticBuffer ?? zero,
-      planInstances: blendState.expandedBuffer ?? zero,
-      clusterSpans: compaction?.spanBuffer ?? zero,
-    }),
+    layout: rt.vis.blendBindGroupLayout!,
+    entries: item
+      ? blendEntries(rt, item)
+      : (rt.blendState.identity.entries[0] ??= blendEntries(rt)),
   });
 }
 
@@ -74,11 +53,9 @@ export function drawBlendRuns(
     order = blendState.orders[slice],
     runs = blendState.runs[slice],
     count = blendState.runCount[slice],
-    args = blendState.argsBuffer!,
-    // Resolved once per image by `encodeBlend`, with the groups it voided: the same for every pass.
-    lighting = blendState.lighting!;
+    args = blendState.argsBuffer!;
   if (rt.gpu.reflection) pass.setBindGroup(1, rt.gpu.reflection.group);
-  blendState.pagedGroup ??= blendBindGroup(rt, device, undefined, lighting);
+  blendState.pagedGroup ??= blendBindGroup(rt, device, undefined);
   let boundPipeline = -1,
     boundGroup: GPUBindGroup | undefined,
     encoded = 0;
@@ -102,7 +79,7 @@ export function drawBlendRuns(
     const item = owner === RUN_SHARED ? undefined : items[owner];
     const group =
       item && !item.paged
-        ? (item.group ??= blendBindGroup(rt, device, item, lighting))
+        ? (item.group ??= blendBindGroup(rt, device, item))
         : blendState.pagedGroup!;
     // Nothing is offset per item: the record is read at the rank the vertex index carries, so the
     // group is set once for the whole list, and again only for an unpaged item's own buffers.

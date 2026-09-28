@@ -159,8 +159,9 @@ export function createLightCutRedraws(
     reported(copied: boolean) {
       if (open) open.reported = copied;
     },
-    /** Residency the light cuts see changed: the drop is forgotten, and the pages that waited on
-     *  it are drawn again once the camera rests (`rest`). */
+    /** Residency the light cuts see changed: the drop goes stale, not forgotten (the limit may
+     *  probe upward, `createViewLimit`), and the pages that waited on it are drawn again once the
+     *  camera rests (`rest`). */
     residencyChanged() {
       moved = true;
       limit.residencyChanged();
@@ -173,10 +174,9 @@ export function createLightCutRedraws(
       waiting.forEach(again);
       waiting.clear();
     },
-    /** Light views one batch draws in: `viewCap` until a batch drops (`createViewLimit`). */
-    get viewLimit() {
-      return limit.value;
-    },
+    /** Light views one batch draws in (`value`): `viewCap` until a batch drops, then what fits;
+     *  and the batches read as dropped (`dropsRead`) — `createViewLimit`. */
+    limit: limit as Pick<typeof limit, 'value' | 'dropsRead'>,
     /** Hands every page to draw again to `visit`, whether it is withdrawn until then, and whether
      *  its static casters are drawn again too; forgets them; returns how many. */
     takeRedraw(visit: (page: number, withdraw: boolean, staticCasters: boolean) => void) {

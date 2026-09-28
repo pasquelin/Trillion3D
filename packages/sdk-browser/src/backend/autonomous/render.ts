@@ -2,7 +2,7 @@ import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 import type { BackendContext } from '../types.ts';
 import type { installSceneLighting } from '../../lighting/sceneLighting.ts';
 import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
-import type { CameraMotion, HostCamera } from '../../camera/world.ts';
+import type { HostCamera } from '../../camera/world.ts';
 import type { HostWorldPlacements } from '../../host/world/placements.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
 import { showBlendCopy } from '../../cluster/blendCopyMesh.ts';
@@ -12,6 +12,7 @@ import type { createGeometryBudget } from './pool.ts';
 import { createImageCut } from './imageCut.ts';
 import type { createAutonomousResidency } from './residency.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
+import type { WebglViewState } from './views.ts';
 
 /** What the autonomous frame decided, and whether it was held. */
 export type AutonomousRenderState = {
@@ -48,10 +49,9 @@ export function createAutonomousRender(options: {
   blendCopies: readonly BlendCopy[];
   /** The engine's world-matrix index, rebuilt once per scene revision. */
   worlds: HostWorldPlacements;
-  /** The cut drawn, the cut wanted and what the image asks the pool for (`imageCut.ts`). */
-  shown: PageRec[];
-  desired: PageRec[];
-  requested: PageRec[];
+  /** The drawn view: the cut drawn, the cut wanted, what the image asks the pool for
+   *  (`imageCut.ts`), its motion and its size, read at each frame (`views.ts`). */
+  view: WebglViewState;
   /** Moves when the placements change. */
   revision: () => number;
   /** The display graph's page ceiling, which the cover it pins may raise (`pages.ts`). */
@@ -73,20 +73,18 @@ export function createAutonomousRender(options: {
     roots,
     blendCopies,
     worlds,
-    shown,
-    requested,
+    view,
     ceiling,
     geometry,
     residency,
     pool,
   } = options;
-  const motion: CameraMotion = {};
-  const cut = createImageCut({ ...options, viewport: context.viewport, held: geometry.held });
+  const cut = createImageCut({ ...options, held: geometry.held });
   const sourcesDessinees = roots.map((root) => root.pages[0]);
   /** What the image asks for and draws moved: the streamer's pins and the pool follow it. */
   const follow = () => {
     residency.keptChanged();
-    pool.follow(requested, shown);
+    pool.follow(view.requested, view.shown);
   };
   const frame = (camera: HostCamera) => {
     // Frame entry: the order and its guarantees live in `../../frame/gateCore.ts`, which also copies
@@ -94,8 +92,8 @@ export function createAutonomousRender(options: {
     state.frameHeld = gate.enterFrame(
       context,
       camera,
-      motion,
-      context.viewport,
+      view.motion,
+      view.viewport,
       context.source,
       sourcesDessinees,
     );
@@ -125,10 +123,16 @@ export function createAutonomousRender(options: {
     state.frustumRejected = selected.frustumRejected;
     state.lodLevel = selected.lodLevel;
     // Drawn pages past the display graph's page ceiling are reported, never replaced.
-    state.overBudget = attachedPages(shown) > ceiling();
+    state.overBudget = attachedPages(view.shown) > ceiling();
     geometry.sync();
     follow();
-    gate.keep(state.visible, triangles.selectedTriangles, shown, state.lodLevel, state.overBudget);
+    gate.keep(
+      state.visible,
+      triangles.selectedTriangles,
+      view.shown,
+      state.lodLevel,
+      state.overBudget,
+    );
   };
   return Object.assign(frame, { hostBytes: cut.hostBytes });
 }

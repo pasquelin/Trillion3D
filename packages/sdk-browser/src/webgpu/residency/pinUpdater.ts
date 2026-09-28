@@ -111,7 +111,8 @@ export function createWebgpuPinUpdater(options: {
           if (tracking.keep.has(key)) missing++;
           continue;
         }
-        cache.pin(url);
+        // A root-cover page evicted by a resize comes back in the held tier it had.
+        cache.pin(url, bootstrapUrls.has(url) ? 'held' : 'pinned');
         tracking.markPinned(key);
         if (traceEnabled) added.push(url);
       }
