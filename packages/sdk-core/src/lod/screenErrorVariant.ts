@@ -34,8 +34,9 @@
  */
 
 import { clipWeight } from '../math/primitives/camera.ts';
-/** How a cluster's screen error is measured: the proven bound, or the reference formula. */
+/** Every screen-error variant, in the order the real-GPU compile probe builds them. */
 export const SCREEN_ERROR_VARIANTS = ['certifiee', 'reference'] as const;
+/** How a cluster's screen error is measured: the proven bound, or the reference formula. */
 export type ScreenErrorVariant = (typeof SCREEN_ERROR_VARIANTS)[number];
 
 let current: ScreenErrorVariant = 'certifiee';
