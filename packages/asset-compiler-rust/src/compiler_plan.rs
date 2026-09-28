@@ -34,7 +34,7 @@ pub(super) fn plan_buffers(
     o: &Options,
     g: &Value,
     bin: &[u8],
-    g_bytes: &[u8],
+    source_len: usize,
     meshes: &BTreeSet<usize>,
 ) -> Result<BufferPlan> {
     let mesh_values = values(g, "meshes")?;
@@ -140,8 +140,7 @@ pub(super) fn plan_buffers(
         .enumerate()
         .map(|(new, old)| (*old, new))
         .collect();
-    let mut estimated_working_bytes = g_bytes
-        .len()
+    let mut estimated_working_bytes = source_len
         .saturating_mul(2)
         .saturating_add(o.threads.saturating_mul(1024 * 1024));
     for id in &views {
