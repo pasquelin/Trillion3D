@@ -36,16 +36,20 @@ export async function runExampleModule(html: string, modules: { engine: object; 
 
 /**
  * The `pagehide` listener an example page registers while `t` runs, the global
- * `addEventListener` restored after it: calling the result runs the page's cleanup.
+ * `addEventListener` restored after it: calling the result runs the page's cleanup, and fails
+ * when the page registered none.
  */
 export function catchPagehide(t: TestContext): () => void {
-  let pagehide = () => {};
+  let pagehide: (() => void) | undefined;
   const previous = globalThis.addEventListener;
   globalThis.addEventListener = ((type: string, listener: () => void) => {
     if (type === 'pagehide') pagehide = listener;
   }) as typeof addEventListener;
   t.after(() => void (globalThis.addEventListener = previous));
-  return () => pagehide();
+  return () => {
+    if (!pagehide) throw new Error('the page registers no pagehide cleanup');
+    pagehide();
+  };
 }
 
 /** One example roadmap entry, as read from `site/content/gallery-roadmap.json`. */
