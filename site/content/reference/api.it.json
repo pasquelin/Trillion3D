@@ -7416,13 +7416,6 @@
       "handbrake": "Se il freno a mano è tirato."
     }
   },
-  "GraphNode": {
-    "members": {
-      "serial": "Il numero del nodo, unico nella sessione.",
-      "kind": "Che cosa è il nodo: ciò su cui ogni lettore del grafo si restringe."
-    },
-    "summary": "Un nodo del grafo: il nodo del nucleo, distinto dal suo `kind`, copiato dal `clone` del nucleo."
-  },
   "GraphSurface": {
     "members": {
       "version": "Incrementato dall'host a ogni cambiamento: ciò che una riga in cache confronta per rifare i propri campi.",
@@ -7485,9 +7478,6 @@
       "rotation": "La rotazione, in radianti."
     },
     "summary": "Un’immagine e lo stato di campionamento con cui è letta, e la trasformazione delle sue coordinate."
-  },
-  "GraphNodeKind": {
-    "summary": "Che cos’è una luce del grafo: una delle luci che una scena dichiara."
   },
   "Joint": {
     "summary": "Un giunto tra due corpi, o tra un corpo e il mondo (`b` null), creato con `joint.*` e aggiunto alla simulazione con `world.physics.add`.",

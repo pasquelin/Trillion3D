@@ -80,7 +80,7 @@ export async function execute() {
   // A declared light reflects on the glass; its diffuse lobe cancels, its specular stays.
   const sun = G.directionalLight(0xffffff, 1);
   sun.position.set(0, 0, 1);
-  scene.add(sun, sun.target!);
+  scene.add(sun, sun.target);
   scene.updateMatrixWorld(true);
   const shiny = glassMesh({ roughness: 0.5 });
   clear(gl);
