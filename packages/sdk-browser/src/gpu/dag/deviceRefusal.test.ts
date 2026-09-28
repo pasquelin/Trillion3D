@@ -26,7 +26,8 @@ const dag = (big?: 'clusters' | 'nodes' | 'worlds' | 'pageCones') =>
 test('each camera cut buffer past one binding is refused by its name', () => {
   const limits = { maxStorageBufferBindingSize: LIMIT, maxComputeWorkgroupsPerDimension: 65535 };
   assert.equal(dagDeviceRefusal(limits, dag()), undefined, 'under every limit: the cut of before');
-  for (const name of ['clusters', 'nodes', 'worlds', 'pageCones'] as const)
+  assert.equal(dagDeviceRefusal(limits, dag('worlds')), undefined, 'worlds split in ranges');
+  for (const name of ['clusters', 'nodes', 'pageCones'] as const)
     assert.deepEqual(dagDeviceRefusal(limits, dag(name)), {
       buffer: name,
       bytes: 4 * LIMIT,

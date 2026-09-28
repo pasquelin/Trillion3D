@@ -14,8 +14,8 @@ type Limits = Parameters<typeof storageBufferCap>[0] & {
  * WHAT OF A CAMERA CUT THIS DEVICE CANNOT HOLD, by name, or `undefined` when it holds it all. A
  * buffer past one binding, or a flat dispatch past the workgroups of one dimension, would fail on
  * the device — a bind group refused, a dispatch skipped — and the GPU cut would be gone without a
- * word. Refused here, before any buffer, the host names it and the CPU cut draws. `frames` is not
- * checked: it splits in ranges (`frameRanges.ts`). The readout starts within one binding and grows
+ * word. Refused here, before any buffer, the host names it and the CPU cut draws. `frames` and
+ * `worlds` are not checked: they split in ranges (`frameRanges.ts`). The readout starts within one binding and grows
  * no further (`listCap.ts`).
  */
 export function dagDeviceRefusal(limits: Limits, packed: PackedDag) {
@@ -25,7 +25,6 @@ export function dagDeviceRefusal(limits: Limits, packed: PackedDag) {
   const bytes = {
     clusters: packed.clusters.byteLength,
     nodes: packed.nodes.byteLength,
-    worlds: packed.worlds.byteLength,
     pageCones: packed.pageCones.byteLength,
     flags: dagFlagsWords(nodeCount, pageCount) * 4,
     work: dagWorkLayout(blocks).words * 4,

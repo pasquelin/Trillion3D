@@ -15,18 +15,8 @@ import type { createDagResources } from './resources.ts';
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 
 export function createDagRuntime(resources: DagResources): GpuSelection {
-  const {
-    device,
-    packed,
-    residentCut,
-    pageCount,
-    nodeCount,
-    frameData,
-    buffers,
-    flags,
-    worlds,
-    frames,
-  } = resources;
+  const { device, packed, residentCut, pageCount, nodeCount, frameData, buffers, flags, frames } =
+    resources;
   const state = {
     last: null as GpuCut | null,
     lastSubmitted: undefined as SelectionUniforms | undefined,
@@ -88,13 +78,7 @@ export function createDagRuntime(resources: DagResources): GpuSelection {
         : refreshWorldStretch(previousWorlds, next, packed, frameData);
       previousWorlds.set(next);
       packed.worlds.set(next);
-      device.queue.writeBuffer(
-        worlds,
-        0,
-        next.buffer as ArrayBuffer,
-        next.byteOffset,
-        next.byteLength,
-      );
+      frames.writeWorlds(next);
       if (stretched) {
         frames.writeRows();
         resources.frameWrites.count++;
