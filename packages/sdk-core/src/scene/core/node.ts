@@ -6,8 +6,7 @@ import {
   setNodeQuaternion,
   setNodeScale,
 } from '../../math/transform-tree/transformTree.ts';
-import { removeTransformNode, reparentTransformNode } from '../../math/transform-tree/structure.ts';
-import { noteObjectEdit } from './nodeEdits.ts';
+import { removeTransformNode, reparentTransformNode } from './nodeEdits.ts';
 import { updateNodeWorldMatrix } from '../../math/transform-tree/update.ts';
 import { attachSceneNode } from './nodeAttach.ts';
 import { copySceneNodeState } from './nodeCopy.ts';
@@ -78,7 +77,6 @@ export class SceneNode {
     this.childNodes.push(child);
     this.childView = null;
     child.parentNode = this;
-    noteObjectEdit();
     return this;
   }
 
@@ -187,7 +185,6 @@ export class SceneNode {
   private detachChild(child: SceneNode) {
     this.childNodes.splice(this.childNodes.lastIndexOf(child) >>> 0, 1);
     this.childView = child.parentNode = null;
-    noteObjectEdit();
   }
 
   private invalidate() {
