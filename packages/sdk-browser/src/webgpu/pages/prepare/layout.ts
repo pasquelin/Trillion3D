@@ -12,9 +12,43 @@ import type { BoxTransformLot } from '../../../math/batchRuntime.ts';
 
 export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>;
 
-/** The fixed geometry of the drawing path: the packed opaque pages, the row table sized to the slot
+/** How many packed pages share each pool address, and the most at one: the rows a slot feeds. */
+export type PoolCopies = { byAddress: Map<string, number>; max: number };
+
+/** Counts `pages` into `copies`, `by` more placements each. */
+export function countCopies(copies: PoolCopies, pages: readonly PageRec[], by = 1) {
+  for (const page of pages) {
+    const address = pageAddress(page),
+      n = (copies.byAddress.get(address) ?? 0) + by;
+    copies.byAddress.set(address, n);
+    copies.max = Math.max(copies.max, n);
+  }
+  return copies;
+}
+
+/**
+ * The page table a scene of `opaque` and `blended` packed pages asks, on a pool of `slots` whose
+ * address feeds `maxCopies` rows at most, bounded by one binding of the device (`limits`).
+ * Visibility IDs reserve 24 bits for row+1 (zero means background) and 8 for the triangle: rows
+ * are the visibility buffer's, and only opaque clusters ever claim one. Blended clusters cast from
+ * rows behind them, which only the shadow pass reads: as many as the pool can hold resident at
+ * once, and none in a scene that blends nothing.
+ */
+export function askedTableRows(
+  opaque: number,
+  blended: number,
+  slots: number,
+  maxCopies: number,
+  limits?: GPUSupportedLimits,
+) {
+  const draw = Math.max(1, Math.min(VIS_MAX_PAGES, opaque || 1, slots * maxCopies));
+  return boundTableRows(limits, draw, Math.min(blended, slots * maxCopies));
+}
+
+/** The geometry of the drawing path: the packed opaque pages, the row table sized to the slot
  *  budget and to one binding of the device (`limits`), and every per-row scratch array the image
- *  reuses instead of reallocating. */
+ *  reuses instead of reallocating. The table is fixed; placements grown in place join the roots
+ *  and pages after the others (`../../../placement/webgpuGrowth.ts`). */
 export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSupportedLimits) {
   const { roots, bootstrap, cap: slots, pageBytes } = setup;
   const opaqueRoots = roots.filter((root) => !root.pages[0]?.transparent),
@@ -22,7 +56,8 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
   // One cluster catalogue for one cut: the opaque primitives first, then the transparent ones. The
   // GPU selection, the residency and the page budget read all of it; only the drawing path splits,
   // because a transparent cluster is blended in source order instead of entering the visibility
-  // buffer. Keeping the opaque prefix first leaves every opaque page index exactly where it was.
+  // buffer. Placements grown in place append their opaque pages after the transparent ones: a
+  // page's kind is read from the page, never from its rank.
   const selectionRoots = [...opaqueRoots, ...transparentRoots];
   const packedPages: PageRec[] = selectionRoots.flatMap((root) => root.pages);
   // A page's placement is its root's rank: what the row carries to find the placement motion
@@ -33,23 +68,14 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
   const opaquePageCount = opaqueRoots.reduce((total, root) => total + root.pages.length, 0);
   const worldUpdates = new Float32Array(Math.max(1, selectionRoots.length) * 16);
   const gpuWanted: PageRec[] = bootstrap;
-  // Rows one pool slot can feed: how many placements share a pool address, at the widest.
-  const copiesByAddress = new Map<string, number>();
-  let maxCopies = 1;
-  for (const page of packedPages) {
-    const address = pageAddress(page),
-      n = (copiesByAddress.get(address) ?? 0) + 1;
-    copiesByAddress.set(address, n);
-    maxCopies = Math.max(maxCopies, n);
-  }
-  // Visibility IDs reserve 24 bits for row+1 (zero means background) and 8 for the triangle.
-  // Rows are the visibility buffer's, and only opaque clusters ever claim one.
-  const askedDraw = Math.max(1, Math.min(VIS_MAX_PAGES, opaquePageCount || 1, slots * maxCopies));
-  // Blended clusters cast from rows behind them, which only the shadow pass reads: as many as the
-  // pool can hold resident at once, and none in a scene that blends nothing.
-  const askedBlend = Math.min(packedPages.length - opaquePageCount, slots * maxCopies);
-  // Both within what one binding of the page table holds (`../../row/tableRows.ts`).
-  const { drawSlots, blendSlots, bounded } = boundTableRows(limits, askedDraw, askedBlend);
+  const copies = countCopies({ byAddress: new Map(), max: 1 }, packedPages);
+  const { drawSlots, blendSlots, bounded } = askedTableRows(
+    opaquePageCount,
+    packedPages.length - opaquePageCount,
+    slots,
+    copies.max,
+    limits,
+  );
   const rows = createWebgpuRowState(packedPages, drawSlots, blendSlots);
   /** Every triangle of every drawable row: the bound a raster list cannot exceed. */
   const rasterCapacity = drawSlots * Math.ceil(Math.max(1, pageBytes / 4) / 3);
@@ -64,11 +90,12 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     /** Root-box batch, reserved at prepare and replayed on every node move; `null` until prepare has
      *  happened or when the batch cannot be fitted. */
     rootBoxes: null as BoxTransformLot | null,
-    opaqueRoots,
     transparentRoots,
     selectionRoots,
     packedPages,
     opaquePageCount,
+    /** The pool addresses' placements, which rows grown in place add to. */
+    copies,
     worldUpdates,
     gpuWanted,
     drawSlots,

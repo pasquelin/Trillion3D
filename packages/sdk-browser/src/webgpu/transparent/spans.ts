@@ -5,7 +5,8 @@ import { rowIndexCount } from '../row/pageRow.ts';
 export function updateTransparentSpan(rt: WebgpuPagesCore, page: number, offset: number) {
   const { table, dirtySpans } = rt.blendState;
   if (!table) return;
-  const entry = table.entryOfPage[page];
+  // A page past the table joined in place (`../../placement/webgpuGrowth.ts`): never a blended one.
+  const entry = table.entryOfPage[page] ?? -1;
   if (entry < 0) return;
   // The corners its geometry page declares, or those of the index page it still draws from.
   const count = offset >= 0 ? rowIndexCount(rt.layout.packedPages[page]) : 0,
