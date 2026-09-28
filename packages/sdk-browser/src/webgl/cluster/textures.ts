@@ -157,8 +157,8 @@ export class WebglClusterTextures {
     const mips = mipFiltered(texture.minFilter),
       allocate = !inPlace || held?.cutoff == null;
     if (mips) this.mips.reduce(unit, Object.assign(record, { cutoff }), allocate);
-    // A level or a chain sized again and refused: uploaded again at the next bind, a level coarser.
-    if ((!inPlace || (mips && allocate)) && !allocated(gl)) record.version = -1;
+    // A level or a chain sized again and refused: uploaded again once the refusal is read.
+    if (!inPlace || (mips && allocate)) allocated(gl, () => (record.version = -1));
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
   }

@@ -68,7 +68,7 @@ export function createWebglRenderTarget(
       gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT24, nextWidth, nextHeight);
     }
     // Refused: sized again at the next resize, the geometry a level coarser (`allocation.ts`).
-    if (!allocated(gl)) currentWidth = currentHeight = 0;
+    allocated(gl, () => (currentWidth = currentHeight = 0));
   };
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, texture);
