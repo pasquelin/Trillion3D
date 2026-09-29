@@ -12,9 +12,8 @@ import { ensureTaaTargets } from '../../../taa/prepare.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../../visibility/shader/materialClass.ts';
 import { MATERIAL_DEPTH_PASS } from '../../core/materialPasses.ts';
-import { createAsIsShare } from '../../../lighting/deferred/asIsShare.ts';
 import { displayApart, type FrameSize } from '../state/renderScale.ts';
-import { wantsAsIsShare } from './asIsShareTarget.ts';
+import { makeAsIsShare, wantsAsIsShare } from './asIsShareTarget.ts';
 
 /** Bytes per pixel of the display colour (`DISPLAY_FORMAT`). */
 const DISPLAY_BYTES = 4;
@@ -142,8 +141,7 @@ export function makeTargets(
   gpu.hdrTexture = target('Trillion3D HDR lighting', 'rgba16float');
   if (rt.feedbackAB?.target !== false) makeFeedbackTarget(rt, device, width, height);
   gpu.surfaces = createSurfaceBuffer(device, width, height);
-  if (wantsAsIsShare(rt))
-    gpu.asIsShare = createAsIsShare(device, gpu.surfaces.views()[3], width, height);
+  if (wantsAsIsShare(rt)) makeAsIsShare(rt, device, width, height);
   gpu.colorView = gpu.colorTexture.createView();
   gpu.displayTexture = size.apart
     ? target('Trillion3D display', DISPLAY_FORMAT, usage, {
