@@ -2,8 +2,13 @@
 // WGSL through `shaderRun`, over the bytes of the buffers they bind: phase by phase, every lane of
 // a phase before the next, as the barriers of `allocateShadowPages` order them. What the mock GPU
 // dispatches (`tests/kit/gpu/mockCompute.ts`) and the scheduling tests run.
-import { MAX_SHADOW_SLICES, SHADOW_RECORD_FLOATS } from '../../../../sdk-core/src/index.ts';
 import {
+  MAX_SHADOW_SLICES,
+  POINT_FACES,
+  SHADOW_RECORD_FLOATS,
+} from '../../../../sdk-core/src/index.ts';
+import {
+  SHADOW_RECORD_FRAME,
   SHADOW_RECORD_INFO,
   SHADOW_RECORD_ORIGINS,
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
@@ -11,7 +16,7 @@ import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shado
 import { SUN_LEVELS } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_REQUEST_BITS } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
-import { shaderRun } from '../../texture/shaderRun.fixture.ts';
+import { Mat, shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { ALLOCATION_WGSL, ALLOC_LANES, ALLOC_PARAM_WORDS, ALLOC_PHASES } from './allocWgsl.ts';
 import { POOL_COUNTS } from './poolWgsl.ts';
@@ -23,13 +28,19 @@ const i32 = (b: Uint8Array, at = 0) =>
   new Int32Array(b.buffer, b.byteOffset + at * 4, (b.byteLength >> 2) - at);
 
 /** The records and the page table of the shadow buffer `data`, as the kernels read them. */
-function shadowsOf(data: Uint8Array) {
+export function shadowsOf(data: Uint8Array) {
   const floats = new Float32Array(data.buffer, data.byteOffset, data.byteLength >> 2),
     ints = i32(data);
   const records = Array.from({ length: MAX_SHADOW_SLICES }, (_, slice) => {
     const at = slice * SHADOW_RECORD_FLOATS,
-      origins = at + SHADOW_RECORD_ORIGINS;
+      origins = at + SHADOW_RECORD_ORIGINS,
+      frame = at + SHADOW_RECORD_FRAME;
     return {
+      faces: Array.from(
+        { length: POINT_FACES },
+        (_, f) => new Mat([...floats.subarray(at + 16 * f, at + 16 * f + 16)]),
+      ),
+      frame: [0, 4, 8].map((row) => [...floats.subarray(frame + row, frame + row + 4)]),
       info: [...floats.subarray(at + SHADOW_RECORD_INFO, at + SHADOW_RECORD_INFO + 4)],
       origins: Array.from({ length: SUN_LEVELS / 2 }, (_, k) => [
         ...ints.subarray(origins + 4 * k, origins + 4 * k + 4),
@@ -69,6 +80,7 @@ function atomicsOf(state: Uint8Array, requests: Uint8Array) {
 
 const FUNCTIONS = [
   ...ALLOC_PHASES,
+  'listDraw',
   'padKeys',
   'sortStep',
   'assignPages',
@@ -81,7 +93,7 @@ const vec4i = (...parts: number[]) => (parts.length === 1 ? new Array(4).fill(pa
 
 /**
  * Runs `allocateShadowPages` over the bytes its bindings hold, in binding order: the shadow
- * buffer, the request buffer, the GPU pool, the keys and the parameters.
+ * buffer, the request buffer, the GPU pool, the keys, the parameters and the draw list.
  */
 export function runShadowAllocation(
   data: Uint8Array,
@@ -89,6 +101,7 @@ export function runShadowAllocation(
   state: Uint8Array,
   keys: Uint8Array,
   params: Uint8Array,
+  drawList: Uint8Array,
 ) {
   const words = u32(params);
   const lanes = shaderRun<Lanes>(ALLOCATION_WGSL, FUNCTIONS, {
@@ -98,6 +111,7 @@ export function runShadowAllocation(
     shadows: shadowsOf(data),
     shadowPool: { pages: i32(state, POOL_COUNTS.length) },
     keys: u32(keys),
+    drawList: u32(drawList),
     params: {
       frame: i32(params)[0],
       pages: words[1],
