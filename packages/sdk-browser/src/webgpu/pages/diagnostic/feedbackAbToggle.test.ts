@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { beginTaaFrame } from '../../../taa/frame.ts';
 import { createTaaFrameState } from '../../../taa/frameState.ts';
-import { createScaleControl } from '../state/scaleControl.ts';
+import { createScaleControl } from '../../../frame/scaleControl.ts';
 import { keepWebgpuFrame } from '../../frame/hold.ts';
 import { setFeedbackTargetAb } from './feedbackAb.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';

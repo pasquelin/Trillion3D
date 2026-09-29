@@ -1454,6 +1454,7 @@
       "framebuffer": "どこに描くか; 画面には`null`。",
       "width": "幅、ピクセル単位。",
       "height": "高さ、ピクセル単位。",
+      "displayWidth": "画像をそれより小さく描くとき（`world.renderScale`）に表示される幅。テクスチャのレベルと線の幅はその比に従います。ないときは `width`。",
       "linear": "トーンカーブもエンコードもかけない、透明な黒の上の線形放射輝度。アルファがカバレッジであるエフェクトチェーンの入力。"
     }
   },
@@ -4091,7 +4092,7 @@
   },
   "world.renderScale": {
     "summary": "画像を描く表示の軸ごとの割合（`WorldOptions.renderScale`）。次のフレームから反映されます。",
-    "description": "読み取ると、最後に描いた画像のスケール：WebGL2 では 1。"
+    "description": "読み取ると、最後に描いた画像のスケール。"
   },
   "world.effects": {
     "summary": "エフェクトチェーン：画像の上に描かれるパス（`effect`）。"
@@ -4329,7 +4330,7 @@
       "signal": "そのシグナルが中止されると世界の読み込みを止める。",
       "physics": "物理をオンにする（`world.physics`）：`true`、または重力と予算。Jolt はそのときだけ読み込まれる。",
       "temporalAntialiasing": "時間方向のアンチエイリアス（WebGPU のみ）：フレームをまたいで蓄積するサブピクセルのずらし。`false` は各ピクセルを中心で履歴なしに描き、ピクセル単位で正確なキャプチャが求めるもの。後から `world.temporalAntialiasing` で切り替える。",
-      "renderScale": "画像を描く表示の軸ごとの割合。WebGPU のみで、時間的アンチエイリアシングが表示サイズへ再構成する前の値です。`'auto'` はフレーム予算に `min` と `max` の間で選ばせ（`{ min, max }`、既定は 0.5 と 1）、数値は固定します。静止した画像は最大値で描かれます。あとから `world.renderScale` で変更できます。"
+      "renderScale": "画像を描く表示の軸ごとの割合。時間的アンチエイリアシングが表示サイズへ再構成する前の値です。`'auto'` はフレーム予算に `min` と `max` の間で選ばせ（`{ min, max }`、既定は 0.5 と 1。再サンプリングしかしない WebGL2 では `min` の既定は 1）、数値は固定します。静止した画像は最大値で描かれます。あとから `world.renderScale` で変更できます。"
     }
   },
   "RenderScale": {
@@ -4973,7 +4974,7 @@
       "options.signal": "そのシグナルが中止されると世界の読み込みを止める。",
       "options.physics": "物理をオンにする（`world.physics`）：`true`、または重力と予算。Jolt はそのときだけ読み込まれる。",
       "options.temporalAntialiasing": "時間方向のアンチエイリアス（WebGPU のみ）：フレームをまたいで蓄積するサブピクセルのずらし。`false` は各ピクセルを中心で履歴なしに描き、ピクセル単位で正確なキャプチャが求めるもの。後から `world.temporalAntialiasing` で切り替える。",
-      "options.renderScale": "画像を描く表示の軸ごとの割合。WebGPU のみで、時間的アンチエイリアシングが表示サイズへ再構成する前の値です。`'auto'` はフレーム予算に `min` と `max` の間で選ばせ（`{ min, max }`、既定は 0.5 と 1）、数値は固定します。静止した画像は最大値で描かれます。あとから `world.renderScale` で変更できます。"
+      "options.renderScale": "画像を描く表示の軸ごとの割合。時間的アンチエイリアシングが表示サイズへ再構成する前の値です。`'auto'` はフレーム予算に `min` と `max` の間で選ばせ（`{ min, max }`、既定は 0.5 と 1。再サンプリングしかしない WebGL2 では `min` の既定は 1）、数値は固定します。静止した画像は最大値で描かれます。あとから `world.renderScale` で変更できます。"
     }
   },
   "crossVector3": {

@@ -35,7 +35,7 @@ export function shaderFunctions<T>(source: string, names: string[], scope: objec
   const js = functionsOf(source, names)
     .replace(/fn (\w+)\(([^)]*)\)->\w+\{/g, header)
     .replace(/^(?:uint|float|uvec2|bool) (\w+)\(([^)]*)\)\{/gm, header)
-    .replace(/\b(?:let|var|uint|float|uvec2|uvec4|bool) (\w+)=/g, 'let $1=')
+    .replace(/\b(?:let|var|uint|float|uvec2|uvec4|bool) (\w+)(?::\w+)?=/g, 'let $1=')
     .replace(/\b(?:vec2u|vec4u|uvec2|uvec4)\(/g, 'vec(')
     .replace(/\b(?:u32|uint)\(/g, 'Math.trunc(')
     .replace(/\b(?:f32|float)\(/g, '(')

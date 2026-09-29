@@ -11,7 +11,7 @@ import {
 } from './frame.ts';
 import { TAA_STILL_FRAMES } from './jitter.ts';
 import { createTaaFrameState } from './frameState.ts';
-import { createScaleControl } from '../webgpu/pages/state/scaleControl.ts';
+import { createScaleControl } from '../frame/scaleControl.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { TaaInputs } from './inputs.ts';
