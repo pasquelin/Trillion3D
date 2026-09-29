@@ -171,7 +171,6 @@ export {
 export { createShadowPlan } from './scene/light-shadow/plan.ts';
 export type { ShadowPlan } from './scene/light-shadow/plan.ts';
 export type { ShadowRequestReport } from './scene/light-shadow/requests.ts';
-export type { ShadowReceivers } from './scene/light-shadow/receiverCells.ts';
 export { SHADOW_PAGE } from './scene/light-shadow/virtual.ts';
 export { regionRect } from './scene/light-shadow/volume.ts';
 export type { NumberSink } from './math/matrix/matrix4.ts';
