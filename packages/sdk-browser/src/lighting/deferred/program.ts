@@ -72,11 +72,13 @@ export async function createDeferredProgram(
   sources: DeferredSources,
   bindings: DeferredBindings,
 ) {
-  // Granted `subgroups`, a contract program asks for its shadow pages per subgroup (#966).
+  // Granted `subgroups`, a contract program, its reflection passes too, asks for its shadow pages
+  // per subgroup (#966).
   const perSubgroup = sources.direct && device.features.has('subgroups');
+  const text = perSubgroup ? withSubgroupShadowRequests(sources.lighting) : sources.lighting;
   const lighting = await createCheckedShaderModule(
     device,
-    perSubgroup ? withSubgroupShadowRequests(sources.lighting) : sources.lighting,
+    text,
     `${sources.label}${perSubgroup ? '_SUBGROUP' : ''}_LIGHTING`,
   );
   const lightingLayout = createDeferredLightingLayout(device, sources.direct, sources.bounce);
@@ -84,7 +86,7 @@ export async function createDeferredProgram(
     { format: 'rgba16float' },
   ]);
   const reflection = sources.direct
-    ? await reflectionPipelines(device, sources.lighting, lightingLayout, !!sources.bounce)
+    ? await reflectionPipelines(device, text, lightingLayout, !!sources.bounce)
     : undefined;
   const compositions = await createCompositions(device, sources.compose, sources.label);
   /** What the light group names: rebuilt when one of them is replaced (`bindIdentity.ts`). */
