@@ -35,35 +35,52 @@ type Backend = SdkBrowser.RenderBackend & {
   scene?: { children: DrawnMesh[] };
 };
 
-/** The world-space corners of every visible mesh of a WebGL2 backend, three per triangle. */
+/** `m` (column-major, from `at`) applied to the point `(x, y, z)`, written to `out[o..o+3]`. */
+function place(
+  m: ArrayLike<number>,
+  at: number,
+  x: number,
+  y: number,
+  z: number,
+  out: Float64Array,
+  o: number,
+) {
+  out[o] = m[at] * x + m[at + 4] * y + m[at + 8] * z + m[at + 12];
+  out[o + 1] = m[at + 1] * x + m[at + 5] * y + m[at + 9] * z + m[at + 13];
+  out[o + 2] = m[at + 2] * x + m[at + 6] * y + m[at + 10] * z + m[at + 14];
+}
+
+/** The world-space corners of every visible mesh of a WebGL2 backend, three per triangle: each
+ *  corner through its instance matrix, if any, then through its mesh's own. */
 function drawnCorners(meshes: DrawnMesh[]) {
-  const out: number[] = [];
+  const drawnOf = (mesh: DrawnMesh) => {
+    const geometry = mesh.geometry,
+      position = geometry?.attributes.position;
+    if (!geometry || !position || !mesh.visible) return 0;
+    const corners = geometry.index ? geometry.index.count : position.count;
+    return Math.min(corners, geometry.drawRange?.count ?? corners);
+  };
+  const instancesOf = (mesh: DrawnMesh) => (mesh.isInstancedMesh ? (mesh.count ?? 0) : 1);
+  let total = 0;
+  for (const mesh of meshes) total += drawnOf(mesh) * instancesOf(mesh);
+  const out = new Float64Array(3 * total),
+    local = new Float64Array(3);
+  let o = 0;
   for (const mesh of meshes) {
-    const position = mesh.geometry?.attributes.position,
-      index = mesh.geometry?.index;
-    if (!position || !mesh.visible) continue;
-    const matrices: ArrayLike<number>[] = [];
-    if (mesh.isInstancedMesh && mesh.instanceMatrix)
-      for (let k = 0; k < (mesh.count ?? 0); k++)
-        matrices.push(Array.from(mesh.instanceMatrix.array).slice(16 * k, 16 * k + 16));
-    else matrices.push(mesh.matrix.elements);
-    const corners = index ? index.count : position.count;
-    const drawn = Math.min(corners, mesh.geometry?.drawRange?.count ?? corners);
-    const { array: a, itemSize: s } = position;
-    for (const m of matrices)
-      for (let c = 0; c < drawn; c++) {
-        const v = index ? index.array[c] : c,
-          x = a[v * s],
-          y = a[v * s + 1],
-          z = a[v * s + 2];
-        out.push(
-          m[0] * x + m[4] * y + m[8] * z + m[12],
-          m[1] * x + m[5] * y + m[9] * z + m[13],
-          m[2] * x + m[6] * y + m[10] * z + m[14],
-        );
+    const drawn = drawnOf(mesh);
+    if (drawn === 0) continue;
+    const { array: a, itemSize: s } = mesh.geometry!.attributes.position!,
+      index = mesh.geometry!.index;
+    for (let k = 0; k < instancesOf(mesh); k++)
+      for (let c = 0; c < drawn; c++, o += 3) {
+        const v = index ? index.array[c] : c;
+        if (mesh.isInstancedMesh && mesh.instanceMatrix) {
+          place(mesh.instanceMatrix.array, 16 * k, a[v * s], a[v * s + 1], a[v * s + 2], local, 0);
+          place(mesh.matrix.elements, 0, local[0], local[1], local[2], out, o);
+        } else place(mesh.matrix.elements, 0, a[v * s], a[v * s + 1], a[v * s + 2], out, o);
       }
   }
-  return new Float64Array(out);
+  return out;
 }
 
 const capture = (file: string, bytes: Uint8Array) =>
