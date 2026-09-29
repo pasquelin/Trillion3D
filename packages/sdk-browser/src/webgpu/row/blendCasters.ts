@@ -60,16 +60,18 @@ export function createBlendCasterRows(
   /** The rows `[blendFirst, casterSlots)` of the table as it stands, all free; a caster that held
    *  one of a smaller table gives it back. */
   const seat = () => {
+    const held = first >= 0;
     first = rows.blendFirst;
     free = new Int32Array(rows.casterSlots - first);
     freeCount = 0;
     // Popped from the end: the lowest row first.
     for (let row = rows.casterSlots - 1; row >= first; row--) free[freeCount++] = row;
-    for (let page = 0; page < rows.blendRowOf.length; page++)
-      if (rows.blendRowOf[page] >= 0) {
-        rows.blendRowOf[page] = -1;
-        note(page);
-      }
+    if (held)
+      for (let page = 0; page < rows.blendRowOf.length; page++)
+        if (rows.blendRowOf[page] >= 0) {
+          rows.blendRowOf[page] = -1;
+          note(page);
+        }
   };
   seat();
   /** Seats the rows again when the table grew since: before any row is taken or written. */
