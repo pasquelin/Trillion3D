@@ -19,7 +19,7 @@
  *   architecture) and `complet` (the four filled fields). `adapter.info` is not cloneable, only
  *   these strings cross the page bridge.
  */
-export async function ouvrirAppareil(
+export async function openGpuDevice(
   features: GPUFeatureName[] = [],
   requiredLimits?: Record<string, number>,
 ) {
@@ -32,6 +32,7 @@ export async function ouvrirAppareil(
   device.addEventListener('uncapturederror', (event) => errors.push(event.error.message));
   return {
     device,
+    errors,
     erreurs: errors,
     async compile(code: string) {
       const module = device.createShaderModule({ code });
@@ -54,3 +55,6 @@ export async function ouvrirAppareil(
     },
   };
 }
+
+/** Legacy probe entry point; new probes use the English device opener. */
+export const ouvrirAppareil = openGpuDevice;
