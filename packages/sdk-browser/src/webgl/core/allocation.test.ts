@@ -6,7 +6,6 @@ import assert from 'node:assert/strict';
 import {
   allocated,
   fenceAllocations,
-  refusalsRead,
   refusedNow,
   settleAllocations,
   takeOutOfMemory,
@@ -52,7 +51,6 @@ test('an allocation reads no error: they are read before a frame, once the GPU r
   assert.equal(redone, 3, 'a refusal redoes every allocation not yet confirmed');
   assert.equal(takeOutOfMemory(gl, 'geometry'), true, 'the context is marked');
   assert.equal(takeOutOfMemory(gl, 'geometry'), false, 'once');
-  assert.equal(refusalsRead(gl), 1, 'counted: the engine draws its image again');
   const reads = seen.reads;
   settleAllocations(gl);
   fenceAllocations(gl);

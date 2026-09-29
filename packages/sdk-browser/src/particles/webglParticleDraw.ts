@@ -1,4 +1,4 @@
-import { allocated } from '../webgl/core/allocation.ts';
+import { allocated, refusedNow } from '../webgl/core/allocation.ts';
 import type { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';
 import { multiplyMatrix4Typed } from '../../../sdk-core/src/math/matrix/matrix4Typed.ts';
 import {
@@ -118,7 +118,7 @@ export function createWebglParticleDraw(
       let at = found ?? -1;
       if (found !== undefined) copyDepth(live, found, width, height, false);
       else {
-        for (let n = 0; n < 8 && gl.getError() !== gl.NO_ERROR; n++);
+        refusedNow(gl); // an out of memory held is answered, never dropped
         at = DEPTHS.findIndex((_, i) => copyDepth(live, i, width, height, true));
         if (at < 0) live.refused = true;
         else if (framebuffer) live.formats.set(framebuffer, at);
