@@ -281,7 +281,12 @@ triangle flagged by its material's side (the source glTF for WebGPU's clusters, 
 `sideOf` for WebGL2's meshes). Each distance becomes pixels through
 the cut's own projection (`screenErrorBound`), under the engine's camera, frustum and focal length,
 at 1728×1117, DPR 2; the nearest-surface and visibility queries run on the engine's triangle tree.
-A row passes when both maxima stay within `pixelError + 0.1 px`. WebGPU hands back the clusters
+A row passes when the cut held, the browser reported no errors, both directions sampled points,
+and both finite maxima stay within `pixelError + 0.1 px`. A failed or empty run exits nonzero.
+These are sampled surface distances, not a continuous maximum or a raster image comparison.
+Run this image acceptance harness only in the recette session, on `develop` after merge.
+Recook the scenes with that checkout before measuring, so the grid and published DAG errors
+come from the same compiler revision as the runtime. WebGPU hands back the clusters
 its cut selected (`selectedClusterIds`, decoded by the engine's page decoder, which the WGSL decode
 matches bit for bit),
 WebGL2 the triangles it drew. `--poses orbit` and `--poses terrain` are the audit's cameras placed

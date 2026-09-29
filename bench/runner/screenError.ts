@@ -26,14 +26,13 @@ import {
 } from './screenErrorPoses.ts';
 import { cacheSurfaces } from './screenErrorSurface.ts';
 import { measureView } from './screenErrorMeasure.ts';
+import { screenErrorPass } from './screenErrorVerdict.ts';
 import type { HoldOptions } from './screenErrorPage.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
 import { buildTriangleTree } from '../../packages/sdk-core/src/collision/triangleTree.ts';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 const [WIDTH, HEIGHT, DPR] = [1728, 1117, 2];
-/** The audit's acceptance (E1): the drawn surface within a tenth of a pixel of the threshold. */
-const MARGIN_PX = 0.1;
 const PAGE = '/runner/screenErrorPage.ts';
 
 const flags = parseArgs(process.argv.slice(2));
@@ -137,7 +136,6 @@ try {
           width: canvas[0],
           height: canvas[1],
         });
-        const worst = Math.max(measured.forward.max, measured.reverse.max);
         const row = {
           scene,
           backend,
@@ -147,7 +145,7 @@ try {
           canvas,
           ...measured,
           // A cut never held is a cut still moving: its error proves nothing.
-          pass: held >= 0 && worst <= pixelError + MARGIN_PX,
+          pass: screenErrorPass(measured, held, errors, pixelError),
           errors,
         };
         rows.push(row);
@@ -175,3 +173,4 @@ const commit = execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding
 const cache = JSON.parse(readFileSync(join(full, 'manifest.json'), 'utf8')).key;
 const report = { scene, poses: set, width: WIDTH, height: HEIGHT, dpr: DPR, commit, cache, rows };
 writeFileSync(join(out, `${scene}.json`), JSON.stringify(report, null, 1));
+if (rows.length === 0 || rows.some((row) => !row.pass)) process.exitCode = 1;
