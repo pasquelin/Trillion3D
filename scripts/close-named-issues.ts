@@ -8,10 +8,12 @@ import { pathToFileURL } from 'node:url';
 // GitHub's closing keywords, then `#n` of this repository (an `owner/repo#n` does not match).
 const CLOSING = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):?\s+#(\d+)\b/gi;
 
+/** The text without its HTML comments. */
+export const withoutComments = (text: string) => text.replace(/<!--[\s\S]*?-->/g, '');
+
 /** The body without HTML comments, fenced code or inline code: what GitHub reads as keywords. */
 export function prose(body: string): string {
-  return body
-    .replace(/<!--[\s\S]*?-->/g, '')
+  return withoutComments(body)
     .replace(/^[^\S\n]*(`{3,}|~{3,})[\s\S]*?^[^\S\n]*\1/gm, '')
     .replace(/`[^`\n]*`/g, '');
 }
@@ -21,11 +23,9 @@ export function namedIssues(body: string): number[] {
   return [...new Set([...prose(body).matchAll(CLOSING)].map((match) => Number(match[1])))];
 }
 
-async function main(): Promise<void> {
-  const { GITHUB_TOKEN: token, GITHUB_REPOSITORY: repo, PR_URL: url, PR_BODY: body } = process.env;
-  if (!token || !repo || !url)
-    throw new Error('GITHUB_TOKEN, GITHUB_REPOSITORY and PR_URL are required.');
-  const api = async (path: string, method = 'GET', payload?: object) => {
+/** A call to the repository's issues REST API, `path` below `/issues/`; throws unless 2xx. */
+export function issuesApi(repo: string, token: string) {
+  return async (path: string, method = 'GET', payload?: object) => {
     const response = await fetch(`https://api.github.com/repos/${repo}/issues/${path}`, {
       method,
       headers: {
@@ -37,8 +37,19 @@ async function main(): Promise<void> {
     });
     if (!response.ok)
       throw new Error(`${method} ${path}: ${response.status} ${await response.text()}`);
-    return response.json() as Promise<{ state: string; pull_request?: object }>;
+    return response.json() as Promise<{
+      state: string;
+      body?: string | null;
+      pull_request?: object;
+    }>;
   };
+}
+
+async function main(): Promise<void> {
+  const { GITHUB_TOKEN: token, GITHUB_REPOSITORY: repo, PR_URL: url, PR_BODY: body } = process.env;
+  if (!token || !repo || !url)
+    throw new Error('GITHUB_TOKEN, GITHUB_REPOSITORY and PR_URL are required.');
+  const api = issuesApi(repo, token);
   // One issue that fails (a typo'd number, a deleted issue) never keeps the others open.
   for (const issue of namedIssues(body ?? '')) {
     try {
