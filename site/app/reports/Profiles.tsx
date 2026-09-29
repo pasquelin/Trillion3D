@@ -15,7 +15,7 @@ interface ProfilesProps {
 
 function SceneProfiles({ records, report, locale }: ProfilesProps & { records: ReportRecord[] }) {
   const t = useWords(locale);
-  const [view, setView] = useState('sol'),
+  const [view, setView] = useState('ground'),
     [quality, setQuality] = useState('1');
   const views = [...new Set(records.map((r) => r.view))];
   const selectedView = views.includes(view) ? view : views[0];

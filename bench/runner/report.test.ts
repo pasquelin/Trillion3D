@@ -34,7 +34,11 @@ const reading = (): ReportRecord => ({
   differencePair: null,
   identicalCut: null,
   image: null,
-  data: { erreur: 'certifiee', cpuFrameMs: { p50: 4, p95: 4 }, gpuFrameMs: { p50: 8, p95: 8 } },
+  data: {
+    errorMetric: 'certifiee',
+    cpuFrameMs: { p50: 4, p95: 4 },
+    gpuFrameMs: { p50: 8, p95: 8 },
+  },
 });
 
 test('export preserves source numbers and original pixels without inventing provenance', () => {
@@ -54,13 +58,13 @@ test('export preserves source numbers and original pixels without inventing prov
           view: 'street',
           pixelError: 1,
           sides: {
-            apres: { cpuFrameMs: { p50: 0, p95: 2 }, imageSyncMs: { p50: 9 }, png: 'a.png' },
-            'apres-aa': { cpuFrameMs: { p50: 99 } },
+            after: { cpuFrameMs: { p50: 0, p95: 2 }, imageSyncMs: { p50: 9 }, png: 'a.png' },
+            'after-aa': { cpuFrameMs: { p50: 99 } },
           },
         },
       ],
     };
-    writeFileSync(join(source, 'mobile/mesure.json'), JSON.stringify(raw));
+    writeFileSync(join(source, 'mobile/measure.json'), JSON.stringify(raw));
     writeFileSync(join(source, 'mobile/a.png'), 'original-pixels');
     const report = exportReport(source, out, 'campaign');
     assert.equal(report.records.length, 1);
@@ -87,7 +91,11 @@ const ms = (p50: number, p95 = p50) => ({ p50, p95 });
 
 test('comparison admits only its declared variable and separates GPU and synchronized clocks', () => {
   const a = reading(),
-    b: ReportRecord = { ...reading(), id: 'b', data: { erreur: 'certifiee', cpuFrameMs: ms(3) } };
+    b: ReportRecord = {
+      ...reading(),
+      id: 'b',
+      data: { errorMetric: 'certifiee', cpuFrameMs: ms(3) },
+    };
   assert.deepEqual(comparison(a, b, 'cpu'), {
     status: 'descriptive',
     reasons: [],
@@ -129,9 +137,9 @@ test('resume requires identical campaign identity and completed error-free measu
 
 test('comparison rejects different or missing geometric error definitions', () => {
   const a = reading();
-  const erreurs: ('reference' | null | undefined)[] = ['reference', null, undefined];
-  for (const erreur of erreurs) {
-    const b: ReportRecord = { ...reading(), id: 'b', data: { ...a.data, erreur } };
+  const metrics: ('reference' | null | undefined)[] = ['reference', null, undefined];
+  for (const errorMetric of metrics) {
+    const b: ReportRecord = { ...reading(), id: 'b', data: { ...a.data, errorMetric } };
     const result = comparison(a, b, 'cpu');
     assert.equal(result.delta, null);
     assert.ok(result.reasons?.includes('errorMetric'));

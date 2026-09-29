@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { DAG_SELECTION_SHADER } from './shader.ts';
 import { dagWorkLayout } from './floorWgsl.ts';
 import { wgslScope } from '../../../page/cut/wgslPredicate.fixture.ts';
-import { wgslConstants } from '../../../page/cut/cutRuleBackends.fixture.ts';
+import { wgslConstants } from '../../../texture/shaderRule.fixture.ts';
 import { random } from '../../../page/cut/cutRuleChecks.fixture.ts';
 
 const countOneBits = (word: number) => {

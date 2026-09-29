@@ -242,9 +242,12 @@
           post.visible = true;
         }
         supports.forEach((post, k) => (post.visible = k < used));
-        rails.geometry = built(railList);
-        spine.geometry = built(spineList);
-        ties.geometry = built(tieList);
+        // The former track is given back once replaced: nothing else wears it.
+        for (const [mesh, list] of [[rails, railList], [spine, spineList], [ties, tieList]]) {
+          const worn = mesh.geometry;
+          mesh.geometry = built(list);
+          worn.dispose();
+        }
         if (rail) world.physics.remove(rail);
         plan = ride(track);
         const { p, t } = poseAt(track, s);

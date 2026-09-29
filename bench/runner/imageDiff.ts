@@ -45,13 +45,12 @@ function channelErrors(a: Uint8Array, b: Uint8Array) {
  *  on a channel. */
 export function imageDiff(a: Capture | undefined, b: Capture | undefined): ImageDiff {
   if (!a || !b) return null;
-  if (a.w !== b.w || a.h !== b.h)
-    return { erreur: `different sizes ${a.w}×${a.h} / ${b.w}×${b.h}` };
-  if (black(a) || black(b)) return { erreur: 'black capture, RGB 0 everywhere' };
+  if (a.w !== b.w || a.h !== b.h) return { error: `different sizes ${a.w}×${a.h} / ${b.w}×${b.h}` };
+  if (black(a) || black(b)) return { error: 'black capture, RGB 0 everywhere' };
   const diff = compareImages(a.body, b.body);
   return {
     pixels: diff.differentPixels,
-    maxCanal: diff.maxChannelError,
+    maxChannel: diff.maxChannelError,
     ...channelErrors(a.body, b.body),
     total: a.w * a.h,
   };
