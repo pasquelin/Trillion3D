@@ -23,7 +23,10 @@ export function sample(tr: Track, t: number, bound: TrackBinding) {
   } else if (cubic) {
     const w2 = w * w,
       w3 = w2 * w;
-    const [a, b, c1, d] = [2 * w3 - 3 * w2 + 1, w3 - 2 * w2 + w, -2 * w3 + 3 * w2, w3 - w2];
+    const a = 2 * w3 - 3 * w2 + 1,
+      b = w3 - 2 * w2 + w,
+      c1 = -2 * w3 + 3 * w2,
+      d = w3 - w2;
     for (let c = 0; c < size; c++)
       out[c] =
         a * values[i * stride + size + c] +

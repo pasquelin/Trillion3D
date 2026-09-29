@@ -3,6 +3,10 @@ import {
   multiplyQuaternion,
   normalizeQuaternion,
 } from '../../math/matrix/quaternion.ts';
+import { hypot3 } from '../../math/primitives/hypot.ts';
+import { crossVector3, dotVector3, subVector3 } from '../../math/primitives/vector.ts';
+import { Quaternion } from '../math/quaternion.ts';
+import { Vector3 } from '../math/vector3.ts';
 import type { Object3D } from '../object/object3d.ts';
 
 import type { XYZLike } from '../math/likes.ts';
@@ -17,29 +21,29 @@ const scratch = {
   ac: new Float64Array(3),
   at: new Float64Array(3),
   ba: new Float64Array(3),
+  toPole: new Float64Array(3),
+  plane: new Float64Array(3),
+  axis: new Float64Array(3),
   q: new Float64Array(4),
   turn: new Float64Array(4),
   global: new Float64Array(4),
   inverse: new Float64Array(4),
+  local: new Float64Array(4),
+  point: new Vector3(),
+  world: new Quaternion(),
+  keptRoot: new Quaternion(),
+  keptMid: new Quaternion(),
 };
-const sub = (out: Float64Array, a: ArrayLike<number>, b: ArrayLike<number>) => {
-  for (let c = 0; c < 3; c++) out[c] = a[c] - b[c];
-  return out;
-};
-const length = (v: ArrayLike<number>) => Math.hypot(v[0], v[1], v[2]);
-const dot = (a: ArrayLike<number>, b: ArrayLike<number>) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const cross = (a: ArrayLike<number>, b: ArrayLike<number>) => [
-  a[1] * b[2] - a[2] * b[1],
-  a[2] * b[0] - a[0] * b[2],
-  a[0] * b[1] - a[1] * b[0],
-];
+const X = [1, 0, 0],
+  Y = [0, 1, 0];
+const length = (v: ArrayLike<number>) => hypot3(v[0], v[1], v[2]);
 const clampedAcos = (x: number) => Math.acos(Math.min(1, Math.max(-1, x)));
 const angle = (a: ArrayLike<number>, b: ArrayLike<number>) =>
-  clampedAcos(dot(a, b) / (length(a) * length(b) || 1));
+  clampedAcos(dotVector3(a, b) / (length(a) * length(b) || 1));
 
 /** Writes a node's world position into `out`. */
 function worldPoint(node: Object3D, out: Float64Array) {
-  const p = node.getWorldPosition();
+  const p = node.getWorldPosition(scratch.point);
   out[0] = p.x;
   out[1] = p.y;
   out[2] = p.z;
@@ -47,22 +51,37 @@ function worldPoint(node: Object3D, out: Float64Array) {
 }
 
 /** Turns `node` by the world rotation `turn` (axis, angle), its local pose rewritten: the turn is
- *  brought into its frame, `local · global⁻¹ · turn · global`. */
-function turnInWorld(node: Object3D, axis: ArrayLike<number>, radians: number) {
-  const { q, turn, global, inverse } = scratch,
+ *  brought into its frame, `local · global⁻¹ · turn · global`. `settle`, its subtree's world
+ *  matrices brought up to date after. */
+function turnInWorld(node: Object3D, axis: ArrayLike<number>, radians: number, settle = true) {
+  const { q, turn, global, inverse, local } = scratch,
     n = length(axis);
   if (!(n > 0) || !radians) return;
-  axisAngleQuaternion(turn, [axis[0] / n, axis[1] / n, axis[2] / n], radians);
-  const g = node.getWorldQuaternion();
-  global.set([g.x, g.y, g.z, g.w]);
-  inverse.set([-g.x, -g.y, -g.z, g.w]);
+  const unit = scratch.axis;
+  unit[0] = axis[0] / n;
+  unit[1] = axis[1] / n;
+  unit[2] = axis[2] / n;
+  axisAngleQuaternion(turn, unit, radians);
+  const g = node.getWorldQuaternion(scratch.world);
+  global[0] = g.x;
+  global[1] = g.y;
+  global[2] = g.z;
+  global[3] = g.w;
+  inverse[0] = -g.x;
+  inverse[1] = -g.y;
+  inverse[2] = -g.z;
+  inverse[3] = g.w;
   multiplyQuaternion(q, inverse, turn);
   multiplyQuaternion(q, q, global);
   const l = node.quaternion;
-  multiplyQuaternion(q, [l.x, l.y, l.z, l.w], q);
+  local[0] = l.x;
+  local[1] = l.y;
+  local[2] = l.z;
+  local[3] = l.w;
+  multiplyQuaternion(q, local, q);
   normalizeQuaternion(q);
   node.quaternion.set(q[0], q[1], q[2], q[3]);
-  node.updateMatrixWorld(true);
+  if (settle) node.updateMatrixWorld(true);
 }
 
 /**
@@ -80,37 +99,48 @@ export function solveTwoBoneIK(
   pole?: XYZLike,
   weight = 1,
 ) {
-  const { a, b, c, t, ab: toMid, cb: toEnd, ac: reach, at: aim, ba: back } = scratch;
+  const { a, b, c, t, ab, cb, ac, at, ba, toPole, plane } = scratch;
   root.updateMatrixWorld(true);
   // Only a partial solve blends back to the pose it had.
-  const kept = !(weight >= 1) ? [root.quaternion.clone(), mid.quaternion.clone()] : null;
+  const partial = !(weight >= 1);
+  if (partial) {
+    scratch.keptRoot.copy(root.quaternion);
+    scratch.keptMid.copy(mid.quaternion);
+  }
   worldPoint(root, a);
   worldPoint(mid, b);
   worldPoint(end, c);
-  t.set([target.x, target.y, target.z]);
-  const ab = sub(toMid, b, a),
-    cb = sub(toEnd, c, b),
-    ac = sub(reach, c, a),
-    at = sub(aim, t, a);
+  t[0] = target.x;
+  t[1] = target.y;
+  t[2] = target.z;
+  subVector3(ab, b, a);
+  subVector3(cb, c, b);
+  subVector3(ac, c, a);
+  subVector3(at, t, a);
   const lab = length(ab),
     lcb = length(cb),
     lat = Math.min(Math.max(length(at), 1e-6), (lab + lcb) * (1 - 1e-6));
   const bend0 = angle(ac, ab),
-    knee0 = angle(sub(back, a, b), cb),
+    knee0 = angle(subVector3(ba, a, b), cb),
     bend1 = clampedAcos((lcb * lcb - lab * lab - lat * lat) / (-2 * lab * lat)),
     knee1 = clampedAcos((lat * lat - lab * lab - lcb * lcb) / (-2 * lab * lcb));
   // A straight chain has no bend of its own: it bends toward the target, or across it.
-  let plane = pole ? cross(ac, [pole.x - a[0], pole.y - a[1], pole.z - a[2]]) : cross(ac, ab);
-  if (!(length(plane) > 1e-9 * lab * lcb)) plane = cross(ac, at);
-  if (!(length(plane) > 1e-9 * lab * lcb))
-    plane = cross(ac, Math.abs(ac[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]);
+  if (pole) {
+    toPole[0] = pole.x - a[0];
+    toPole[1] = pole.y - a[1];
+    toPole[2] = pole.z - a[2];
+    crossVector3(plane, ac, toPole);
+  } else crossVector3(plane, ac, ab);
+  if (!(length(plane) > 1e-9 * lab * lcb)) crossVector3(plane, ac, at);
+  if (!(length(plane) > 1e-9 * lab * lcb)) crossVector3(plane, ac, Math.abs(ac[0]) < 0.9 ? X : Y);
   turnInWorld(root, plane, bend1 - bend0);
   turnInWorld(mid, plane, knee1 - knee0);
   worldPoint(end, c);
-  sub(ac, c, a);
-  turnInWorld(root, cross(ac, at), angle(ac, at));
-  if (!kept) return;
-  root.quaternion.slerp(kept[0], 1 - Math.max(0, weight));
-  mid.quaternion.slerp(kept[1], 1 - Math.max(0, weight));
+  subVector3(ac, c, a);
+  // A partial solve settles the subtree once, after the blend back.
+  turnInWorld(root, crossVector3(plane, ac, at), angle(ac, at), !partial);
+  if (!partial) return;
+  root.quaternion.slerp(scratch.keptRoot, 1 - Math.max(0, weight));
+  mid.quaternion.slerp(scratch.keptMid, 1 - Math.max(0, weight));
   root.updateMatrixWorld(true);
 }

@@ -99,10 +99,15 @@ function threeSurroundingLight(light: Light) {
 function threeNode(node: Object3D, bones: ReadonlySet<Object3D>): THREE.Object3D {
   if (bones.has(node)) return place(new THREE.Bone(), node);
   if (isDrawnNode(node)) {
-    const mesh = node.skeleton
-      ? new THREE.SkinnedMesh(threeGeometry(node.geometry).clone(), threeMaterials(node.material))
-      : threeMeshCopy(node);
-    if (mesh instanceof THREE.SkinnedMesh) mesh.normalizeSkinWeights();
+    let mesh: THREE.Mesh;
+    if (node.skeleton) {
+      const skinned = new THREE.SkinnedMesh(
+        threeGeometry(node.geometry).clone(),
+        threeMaterials(node.material),
+      );
+      skinned.normalizeSkinWeights();
+      mesh = skinned;
+    } else mesh = threeMeshCopy(node);
     if (node.morphTargetInfluences) mesh.morphTargetInfluences = node.morphTargetInfluences.slice();
     if (node.morphTargetDictionary) mesh.morphTargetDictionary = { ...node.morphTargetDictionary };
     return place(mesh, node);

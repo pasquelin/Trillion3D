@@ -76,7 +76,7 @@ async function executer({
   nombre,
   groupe,
 }: ExecutionEntree): Promise<ExecutionResultat> {
-  const appareil = await globalThis.ouvrirAppareil();
+  const appareil = await globalThis.openGpuDevice();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const { module, compilation } = await appareil.compile(shader);
