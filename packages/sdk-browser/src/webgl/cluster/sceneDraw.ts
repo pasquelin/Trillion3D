@@ -30,12 +30,22 @@ type DrawnNode = Partial<SceneCopy> & {
   readonly renderOrder: number;
 };
 
-/** What the session gives the draw: its pixel ratio, its degraded-surface notice and the texture
- *  bytes its census may upload ahead (`texturePrime.ts`). */
-type DrawHosts = Pick<BackendContext, 'pixelRatio' | 'materialDegraded' | 'texturePoolBytes'>;
+/** What the session gives the draw: its pixel ratio, its degraded-surface notice, the texture
+ *  bytes its census may upload ahead and a frame's upload budget (`textureQueue.ts`), and the
+ *  hearer of a refused map. */
+type DrawHosts = Pick<
+  BackendContext,
+  | 'pixelRatio'
+  | 'materialDegraded'
+  | 'texturePoolBytes'
+  | 'maxTextureTransferBytesPerFrame'
+  | 'maxTextureUploadMsPerFrame'
+  | 'onDiagnostic'
+>;
 
 /** A scene draw hands the program no page batch: shared, so a frame allocates no empty list. */
 const NO_BATCHES: readonly never[] = [];
+const defaultRatio = () => DEFAULT_PIXEL_RATIO;
 
 /**
  * THE ENGINE'S DRAW OF A DISPLAY GRAPH: every visible mesh the graph holds, drawn whole by the
@@ -61,13 +71,10 @@ export function createSceneDraw(
   gl: WebGL2RenderingContext | undefined,
   display: Scene,
   copies: readonly object[] = [],
-  {
-    pixelRatio = () => DEFAULT_PIXEL_RATIO,
-    materialDegraded,
-    texturePoolBytes = DEFAULT_TEXTURE_POOL_BUDGET,
-  }: DrawHosts = {},
+  hosts: DrawHosts = {},
   declared: () => Iterable<HostMaterials> = () => meshes(display).map((mesh) => mesh.material),
 ) {
+  const texturePoolBytes = hosts.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET;
   // The graph's lists, walked again only when it changed shape (`drawLists.ts`); the draw sorts
   // copies of them, reused from frame to frame: a draw allocates no list.
   const lists = createDrawLists(display, copies);
@@ -102,10 +109,10 @@ export function createSceneDraw(
     drawHostGeometry(drawCamera: HostDrawCamera, output: HostDrawOutput) {
       if (!gl) throw new Error('HOST_SURFACE_MISSING');
       if (!opened) throw new Error('Draw before render');
-      owner ??= new WebglClusterOwner(gl, materialDegraded);
-      if (!owner.censused) owner.census(declared(), texturePoolBytes);
+      owner ??= new WebglClusterOwner(gl, hosts.materialDegraded, hosts.onDiagnostic);
+      if (!owner.censused) owner.census(declared(), { ...hosts, texturePoolBytes });
       owner.toneCurve = TONE_MAPPING_RANK[output.toneMapping ?? DEFAULT_TONE_MAPPING];
-      owner.pixelRatio = pixelRatio();
+      owner.pixelRatio = (hosts.pixelRatio ?? defaultRatio)();
       display.onBeforeRender?.();
       try {
         walk();

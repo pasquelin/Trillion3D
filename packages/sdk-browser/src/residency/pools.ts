@@ -10,8 +10,8 @@ import type { TexturePool } from '../webgpu/residency/memoryBudgets.ts';
  */
 export const DEFAULT_GEOMETRY_POOL_BUDGET = 512 * 1024 * 1024;
 /** 512 MiB of textures: WebGPU splits it between its colour and data atlases
- *  (`../webgpu/residency/memoryBudgets.ts`), WebGL2's census uploads maps ahead within it
- *  (`../webgl/cluster/texturePrime.ts`). */
+ *  (`../webgpu/residency/memoryBudgets.ts`), WebGL2 uploads maps ahead of its draws within it
+ *  (`../webgl/cluster/textureQueue.ts`). */
 export const DEFAULT_TEXTURE_POOL_BUDGET = 512 * 1024 * 1024;
 
 /** Bytes one storage buffer may occupy and bind on this device: the smaller of its limits. Every
