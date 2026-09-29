@@ -1609,6 +1609,7 @@
       "MATERIAL_CLASS_CHANGE": "Una modifica del materiale è sconosciuta, fuori intervallo, lo sposterebbe in una classe di disegno che un motore fissa all’apertura della scena, o ripeterebbe una mappa che condivide.",
       "MATERIAL_TEXTURE_SHARED": "Una modifica del materiale è sconosciuta, fuori intervallo, lo sposterebbe in una classe di disegno che un motore fissa all’apertura della scena, o ripeterebbe una mappa che condivide.",
       "MATERIAL_CEILING": "Una pagina creerebbe più materiali di `RUNTIME_MATERIAL_CEILING` in una sessione; non è stato creato nulla.",
+      "TEXTURE_BUDGET": "Una texture aggiunta dopo l’apertura della scena porterebbe il pool delle texture oltre `texturePoolBytes` o oltre i livelli che il dispositivo contiene; non è stato aggiunto nulla.",
       "INVALID_TRANSFORM": "Il posizionamento di un nodo non è una matrice utilizzabile, oppure un nodo sarebbe un proprio antenato.",
       "NON_FINITE_TRANSFORM": "Il posizionamento di un nodo non è una matrice utilizzabile, oppure un nodo sarebbe un proprio antenato.",
       "SINGULAR_PARENT_TRANSFORM": "Il posizionamento di un nodo non è una matrice utilizzabile, oppure un nodo sarebbe un proprio antenato.",
@@ -6742,7 +6743,7 @@
     "summary": "Modifica un materiale importato o creato nel fotogramma successivo."
   },
   "world.createMaterial": {
-    "summary": "Crea un materiale di questa pagina."
+    "summary": "Crea un materiale della pagina; con una bitmap, attendere l’ammissione prima di assegnarlo."
   },
   "world.assignMaterial": {
     "summary": "Assegna il materiale creato a un `mesh/primitive` compilato."
@@ -7866,7 +7867,7 @@
       "alphaMode": "Come viene letto il canale alpha di una superficie: opaco lo ignora, `mask` taglia a `alphaCutoff`, `blend` compone.",
       "alphaCutoff": "I pixel meno opachi di questo scompaiono.",
       "name": "Un nome a uso della pagina.",
-      "map": "Un'immagine e il modo di campionarla, nelle parole di una pagina (`wrap`, `filter`, `colorSpace`)."
+      "map": "ImageBitmap del chiamante, senza premoltiplicazione né conversione colore; tenerlo aperto fino al rilascio."
     }
   },
   "SceneMaterial": {
@@ -7928,5 +7929,11 @@
       "positions": "I suoi vertici, tre numeri ciascuno, nello spazio del mondo.",
       "indices": "I suoi triangoli, tre indici locali ciascuno."
     }
+  },
+  "world.dropMaterial": {
+    "summary": "Libera un materiale creato inutilizzato; riassegnare prima i suoi oggetti."
+  },
+  "world.materialMapBytes": {
+    "summary": "Byte delle immagini conservate o in attesa, con un limite di 64 MiB."
   }
 }

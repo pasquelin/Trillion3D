@@ -1609,6 +1609,7 @@
       "MATERIAL_CLASS_CHANGE": "Eine Materialänderung ist unbekannt, außerhalb ihres Bereichs, würde es in eine Zeichenklasse verschieben, die ein Renderer beim Öffnen der Szene festlegt, oder eine Textur kacheln, die es teilt.",
       "MATERIAL_TEXTURE_SHARED": "Eine Materialänderung ist unbekannt, außerhalb ihres Bereichs, würde es in eine Zeichenklasse verschieben, die ein Renderer beim Öffnen der Szene festlegt, oder eine Textur kacheln, die es teilt.",
       "MATERIAL_CEILING": "Eine Seite würde in einer Sitzung mehr Materialien erzeugen als `RUNTIME_MATERIAL_CEILING`; nichts wurde erzeugt.",
+      "TEXTURE_BUDGET": "Eine nach dem Öffnen der Szene hinzugefügte Textur würde den Texturpool über `texturePoolBytes` oder über die Ebenen bringen, die das Gerät hält; nichts wurde hinzugefügt.",
       "INVALID_TRANSFORM": "Die Platzierung eines Knotens ist keine nutzbare Matrix, oder ein Knoten wäre sein eigener Vorfahr.",
       "NON_FINITE_TRANSFORM": "Die Platzierung eines Knotens ist keine nutzbare Matrix, oder ein Knoten wäre sein eigener Vorfahr.",
       "SINGULAR_PARENT_TRANSFORM": "Die Platzierung eines Knotens ist keine nutzbare Matrix, oder ein Knoten wäre sein eigener Vorfahr.",
@@ -6742,7 +6743,7 @@
     "summary": "Ändert ein importiertes oder erstelltes Material im nächsten Bild."
   },
   "world.createMaterial": {
-    "summary": "Erstellt ein Material für diese Seite."
+    "summary": "Erstellt ein Material der Seite; bei einer Bitmap vor der Zuweisung die Aufnahme abwarten."
   },
   "world.assignMaterial": {
     "summary": "Weist einem kompilierten `mesh/primitive` das erstellte Material zu."
@@ -7866,7 +7867,7 @@
       "alphaMode": "Wie der Alphakanal einer Oberfläche gelesen wird: opak ignoriert ihn, `mask` schneidet bei `alphaCutoff`, `blend` überblendet.",
       "alphaCutoff": "Pixel, die weniger deckend sind als dieser Wert, verschwinden.",
       "name": "Ein Name zur Verwendung durch die Seite.",
-      "map": "Ein Bild und die Art, es abzutasten, in den Worten einer Seite (`wrap`, `filter`, `colorSpace`)."
+      "map": "ImageBitmap des Aufrufers, ohne Vormultiplikation oder Farbumwandlung; bis zur Freigabe offen halten."
     }
   },
   "SceneMaterial": {
@@ -7928,5 +7929,11 @@
       "positions": "Ihre Eckpunkte, je drei Zahlen, im Weltraum.",
       "indices": "Ihre Dreiecke, je drei lokale Indizes."
     }
+  },
+  "world.dropMaterial": {
+    "summary": "Gibt ein unbenutztes erstelltes Material frei; seine Objekte vorher neu zuweisen."
+  },
+  "world.materialMapBytes": {
+    "summary": "Bytes gehaltener oder ausstehender Laufzeitbilder, auf 64 MiB begrenzt."
   }
 }

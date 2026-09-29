@@ -976,6 +976,7 @@
       "MATERIAL_CLASS_CHANGE": "Perubahan material tidak dikenal, di luar rentang, akan memindahkannya ke kelas gambar yang ditetapkan sebuah mesin saat adegan dibuka, atau akan mengulang peta yang dibagikannya.",
       "MATERIAL_TEXTURE_SHARED": "Perubahan material tidak dikenal, di luar rentang, akan memindahkannya ke kelas gambar yang ditetapkan sebuah mesin saat adegan dibuka, atau akan mengulang peta yang dibagikannya.",
       "MATERIAL_CEILING": "Sebuah halaman akan membuat lebih banyak material daripada `RUNTIME_MATERIAL_CEILING` dalam satu sesi; tidak ada yang dibuat.",
+      "TEXTURE_BUDGET": "Tekstur yang ditambahkan setelah adegan dibuka akan membawa pool tekstur melewati `texturePoolBytes` atau lapisan yang ditampung perangkat; tidak ada yang ditambahkan.",
       "INVALID_TRANSFORM": "Penempatan sebuah node bukan matriks yang bisa dipakai, atau sebuah node akan jadi leluhurnya sendiri.",
       "NON_FINITE_TRANSFORM": "Penempatan sebuah node bukan matriks yang bisa dipakai, atau sebuah node akan jadi leluhurnya sendiri.",
       "SINGULAR_PARENT_TRANSFORM": "Penempatan sebuah node bukan matriks yang bisa dipakai, atau sebuah node akan jadi leluhurnya sendiri.",
@@ -7113,7 +7114,7 @@
     "summary": "Mengubah material impor atau buatan pada bingkai berikutnya."
   },
   "world.createMaterial": {
-    "summary": "Membuat material milik halaman ini."
+    "summary": "Membuat material halaman; jika memakai bitmap, tunggu penerimaan selesai sebelum menetapkannya."
   },
   "world.assignMaterial": {
     "summary": "Menerapkan material buatan halaman ke `mesh/primitive` terkompilasi."
@@ -7867,7 +7868,7 @@
       "alphaMode": "Bagaimana kanal alpha sebuah permukaan dibaca: opaque mengabaikannya, `mask` memotong pada `alphaCutoff`, `blend` menggabungkan.",
       "alphaCutoff": "Piksel yang kurang opaque dari ini dijatuhkan.",
       "name": "Sebuah nama untuk pemakaian sendiri halaman itu.",
-      "map": "Sebuah gambar dan bagaimana ia disampel, dalam kata-kata sebuah halaman (`wrap`, `filter`, `colorSpace`)."
+      "map": "ImageBitmap milik pemanggil, tanpa praperkalian atau konversi warna; jangan tutup sampai material dilepas."
     }
   },
   "SceneMaterial": {
@@ -7929,5 +7930,11 @@
       "positions": "Verteksnya, masing-masing tiga angka, di ruang dunia.",
       "indices": "Segitiganya, masing-masing tiga indeks lokal."
     }
+  },
+  "world.dropMaterial": {
+    "summary": "Melepas material buatan yang tidak dipakai; tetapkan material lain pada objeknya terlebih dahulu."
+  },
+  "world.materialMapBytes": {
+    "summary": "Byte gambar yang disimpan atau menunggu, dibatasi 64 MiB."
   }
 }

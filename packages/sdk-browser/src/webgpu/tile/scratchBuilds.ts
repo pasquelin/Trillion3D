@@ -12,8 +12,7 @@ export function buildHostScratch(
 ) {
   const { layout, source } = atlas.textures[slot];
   if (source.kind !== 'host') throw new Error('TEXTURE_SOURCE_NOT_HOST');
-  counters.scratches++;
-  return createTileScratch(device, {
+  const scratch = createTileScratch(device, {
     map: source.map,
     width: layout.width,
     height: layout.height,
@@ -24,6 +23,9 @@ export function buildHostScratch(
         : 'MATERIAL_DATA_TEXTURE_UNAVAILABLE',
     coverage: source.coverage,
   });
+  counters.scratches++;
+  counters.uploadedBytes += layout.width * layout.height * 4;
+  return scratch;
 }
 
 /** Working textures held at most per pass — the whole source each; tiles of a third texture wait
@@ -63,6 +65,12 @@ export function createScratchBuilds(
     generateMaterialMips(device, chains);
   };
   return {
+    release(id: number) {
+      asked.delete(id);
+      built.get(id)?.scratch.destroy();
+      built.delete(id);
+      copied.delete(id);
+    },
     /** The working texture built for `id`, if it is. */
     get: (id: number) => built.get(id)?.scratch,
     /** A copy of this pass reads `id`'s working texture: it is freed at the pass's end. */
