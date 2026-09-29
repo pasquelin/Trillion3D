@@ -72,6 +72,17 @@ export async function createGpuBounceProbes(
   let group: GPUBindGroup;
   let boundLights: GPUBuffer;
   let layout: GPUBindGroupLayout;
+  /** The probe group, on the light buffer of the moment. */
+  const bind = () =>
+    bounceGroup(device, layout, [
+      uniform.buffer,
+      resident.buffer,
+      (boundLights = lights()),
+      queue,
+      snapshot,
+      probes,
+      surface.buffer,
+    ]);
   try {
     surface = await createGpuBounceSurface(device, resident, lights, {
       uniform: uniform.buffer,
@@ -83,15 +94,7 @@ export async function createGpuBounceProbes(
       layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       compute: { module, entryPoint: 'updateProbes' },
     });
-    group = bounceGroup(device, layout, [
-      uniform.buffer,
-      resident.buffer,
-      (boundLights = lights()),
-      queue,
-      snapshot,
-      probes,
-      surface.buffer,
-    ]);
+    group = bind();
   } catch (error) {
     surface?.dispose();
     release();
@@ -110,8 +113,8 @@ export async function createGpuBounceProbes(
   return {
     sync(worldOf: (source: number) => ArrayLike<number> | undefined) {
       if (!resident.sync(worldOf)) return false;
-      occupancy.allEligible();
       if (cascades.replan(resident.bounds)) clearOwed |= cascades.invalidLevels;
+      occupancy.moved(resident.triangleBoxes, resident.changedTriangles);
       generation++;
       schedule.restart();
       surface.restart();
@@ -129,7 +132,9 @@ export async function createGpuBounceProbes(
       return Math.max(schedule.sweepFrames, resident.dynamic ? 1 : surface.sweepFrames, 1);
     },
     /** Probes the occupancy map keeps at the finest level, on its cells. */
-    activeProbes: occupancy.marked,
+    get activeProbes() {
+      return occupancy.marked;
+    },
     /** Probes updated by the last encoded frame, and rays they launched. */
     get lastProbes() {
       return updates;
@@ -162,18 +167,8 @@ export async function createGpuBounceProbes(
       for (let level = 0; level < BOUNCE_SETTINGS.cascadeLevels; level++)
         if (clearOwed & (1 << level)) encoder.clearBuffer(probes, level * levelBytes, levelBytes);
       clearOwed = 0;
-      if (lights() !== boundLights) {
-        boundLights = lights();
-        group = bounceGroup(device, layout, [
-          uniform.buffer,
-          resident.buffer,
-          boundLights,
-          queue,
-          snapshot,
-          probes,
-          surface.buffer,
-        ]);
-      }
+      if (lights() !== boundLights) group = bind();
+      occupancy.settle(resident.triangleBoxes, resident.bounds);
       if (cascades.follow(viewpoint)) schedule.restart();
       if (!cascades.probes || !lightsActive || !working()) return false;
       frame++;

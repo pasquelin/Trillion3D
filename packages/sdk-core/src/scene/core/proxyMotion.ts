@@ -41,6 +41,8 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
     data,
     transforms,
     bounds,
+    triangleBoxes: refit.boxes,
+    changedTriangles: refit.changed,
     /** Typed storage not already accounted by the immutable raw cache object. */
     hostBytes:
       transforms.byteLength +

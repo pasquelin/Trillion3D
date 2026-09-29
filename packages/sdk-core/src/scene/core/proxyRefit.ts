@@ -12,6 +12,20 @@ function outward(value: number, upper: boolean) {
   return rounded[0];
 }
 
+/** Canonical bounds of each proxy triangle, six per triangle: what a still pose covers. */
+export function proxyTriangleBoxes(triangles: Float32Array) {
+  const boxes = new Float64Array((triangles.length / 9) * 6);
+  for (let t = 0; t < boxes.length / 6; t++)
+    for (let a = 0; a < 3; a++) {
+      const x = triangles[t * 9 + a],
+        y = triangles[t * 9 + 3 + a],
+        z = triangles[t * 9 + 6 + a];
+      boxes[t * 6 + a] = Math.min(x, y, z);
+      boxes[t * 6 + a + 3] = Math.max(x, y, z);
+    }
+  return boxes;
+}
+
 /** Refit the existing wide topology; triangles and their order never change. */
 export function createProxyRefit(data: SceneProxyColumns) {
   const { triangles, triangleGroups, groupOffsets, owners, nodeBounds, nodeChildren } = data;
@@ -20,24 +34,12 @@ export function createProxyRefit(data: SceneProxyColumns) {
   for (let group = 1; group < starts.length; group++) starts[group] += starts[group - 1];
   const slots = new Uint32Array(triangleGroups.length),
     cursors = starts.slice();
-  const bounds = new Float64Array(triangleGroups.length * 6);
+  const bounds = proxyTriangleBoxes(triangles);
   const errors = new Float64Array(triangleGroups.length * 3);
   const changed = new Uint8Array(triangleGroups.length);
   const nodeChanged = new Uint8Array(nodeBounds.length / 6);
   for (let t = 0; t < triangleGroups.length; t++) {
     slots[cursors[triangleGroups[t]]++] = t;
-    for (let a = 0; a < 3; a++) {
-      bounds[t * 6 + a] = Math.min(
-        triangles[t * 9 + a],
-        triangles[t * 9 + 3 + a],
-        triangles[t * 9 + 6 + a],
-      );
-      bounds[t * 6 + a + 3] = Math.max(
-        triangles[t * 9 + a],
-        triangles[t * 9 + 3 + a],
-        triangles[t * 9 + 6 + a],
-      );
-    }
   }
   const boxes = new Float64Array(24);
   const refit = (groups: ReadonlySet<number>, transforms: Float32Array, extent: number[]) => {
@@ -139,6 +141,9 @@ export function createProxyRefit(data: SceneProxyColumns) {
       }
   };
   return Object.assign(refit, {
+    /** World bounds of each triangle over all its owners, six per triangle, and the moved ones. */
+    boxes: bounds,
+    changed,
     bytes:
       errors.byteLength +
       bounds.byteLength +
