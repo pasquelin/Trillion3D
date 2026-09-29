@@ -147,8 +147,7 @@ test('1 000 frames adding and removing a mesh and replacing a geometry never ope
     position.needsUpdate = true;
     await runtime.settled();
     if (!runtime.render()) imageless++;
-    // The ground and the water always drawn, a crate beside them once mounted; the water, rewritten
-    // every frame, turns dynamic and is rewritten in place from then on (#573).
+    // Ground and water always drawn, a crate once mounted; the water turns dynamic (#573).
     const rows = live();
     assert.ok(rows >= 2 && rows <= 3, `frame ${frame}: ${rows} rows drawn`);
     mostLive = Math.max(mostLive, blobs.live.size);
