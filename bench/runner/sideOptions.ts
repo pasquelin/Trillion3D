@@ -121,18 +121,18 @@ export function equipSide(
   return equipped;
 }
 
-/** A side's render scale: `--echelle-<side>`, otherwise `--echelle`, in the engine's
+/** A side's render scale: `--scale-<side>`, otherwise `--scale`, in the engine's
  *  [MIN_RENDER_SCALE, 1]; `null` without. Below one only where the WebGPU temporal resolve
  *  reconstructs the frame: elsewhere the engine draws the display and the report would name a
  *  scale no image was drawn at. */
 function scaleOf(flags: Map<string, string>, name: string, engine: EngineDescriptor) {
-  const value = sideFlag(flags, name, 'echelle');
+  const value = sideFlag(flags, name, 'scale');
   if (value === null) return null;
   const scale = Number(value);
   if (!(scale >= MIN_RENDER_SCALE && scale <= 1))
-    throw new Error(`--echelle-${name} must be in [${MIN_RENDER_SCALE}, 1]`);
+    throw new Error(`--scale-${name} must be in [${MIN_RENDER_SCALE}, 1]`);
   if (scale < 1 && (engine.renderer !== 'webgpu' || flags.get('antialiasing') === 'off'))
-    throw new Error(`--echelle-${name} below 1 needs --moteur webgpu and --antialiasing on`);
+    throw new Error(`--scale-${name} below 1 needs --moteur webgpu and --antialiasing on`);
   return scale;
 }
 
@@ -160,7 +160,7 @@ export const sideReport = (side: Side) =>
       variante: side.variant,
       compression: side.compression,
       erreur: side.errorMetric ?? 'certifiee',
-      echelle: side.renderScale,
+      scale: side.renderScale,
     },
   ] as const;
 
