@@ -10,14 +10,16 @@ import {
   displayTargets,
   type DisplayFilter,
 } from '../webgpu/blend/displayFilter.ts';
+import { REACTIVE_TARGET } from '../lighting/deferred/asIsShare.ts';
 
 /** The pass label the GPU timings name the particle draw by (`passesGpu`). */
 export const PARTICLE_DRAW_PASS = 'Trillion3D particle draw';
 
-/** Per slot, a disc facing the eye, fading with age, at its edge and near the scene's depth. */
+/** Per slot, a disc facing the eye, fading with age, at its edge and near the scene's depth; its
+ *  coverage is the reactive value (#833), so the temporal pass keeps no trail of it. */
 export const PARTICLE_DRAW_WGSL = /* wgsl */ `
 struct Particle { position: vec4f, velocity: vec4f }
-struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4f, softness: f32, exposure: f32, curve: f32, unlit: f32 }
+struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4f, softness: f32, exposure: f32, curve: f32, unlit: f32, drawn: vec2f }
 @group(0) @binding(0) var<uniform> draw: Draw;
 @group(0) @binding(1) var<storage, read> particles: array<Particle>;
 @group(0) @binding(2) var depth: texture_depth_2d;
@@ -37,7 +39,7 @@ struct Out { @builtin(position) at: vec4f, @location(0) corner: vec2f, @location
   return o;
 }
 fn particle(in: Out) -> vec4f {
-  let size = vec2f(textureDimensions(depth));
+  let size = draw.drawn;
   let ndc = vec2f(in.at.x / size.x * 2 - 1, 1 - in.at.y / size.y * 2);
   let scene = draw.unclip * vec4f(ndc, textureLoad(depth, vec2i(in.at.xy), 0), 1);
   let behind = distance(scene.xyz / scene.w, draw.eye) - distance(in.local, draw.eye);
@@ -45,22 +47,27 @@ fn particle(in: Out) -> vec4f {
   let k = saturate(1 - dot(in.corner, in.corner)) * soft * in.life * draw.color.a;
   return vec4f(draw.color.rgb, 1) * k;
 }
-@fragment fn fs(in: Out) -> @location(0) vec4f { return particle(in); }`;
+struct Lit { @location(0) color: vec4f, @location(1) reactive: vec4f }
+@fragment fn fs(in: Out) -> Lit { let c = particle(in); return Lit(c, vec4f(0, 1, 0, c.a)); }`;
 
 /** The draw of an image with display layers (\`../webgpu/blend/displayFilter.ts\`): where the mask
  *  is set, the disc maps the tint and the added value by its display colour, not the lit image. */
 export const PARTICLE_ROUTED_WGSL = /* wgsl */ `${PARTICLE_DRAW_WGSL}${DISPLAY_ROUTE_WGSL}${displayMaskWgsl(1)}
-struct Routed { @location(0) color: vec4f, @location(1) tint: vec4f, @location(2) add: vec4f }
+struct Routed { @location(0) color: vec4f, @location(1) tint: vec4f, @location(2) add: vec4f, @location(3) reactive: vec4f }
 @fragment fn fsRouted(in: Out) -> Routed {
   let c = particle(in);
   let r = displayRoute(draw.color.rgb, draw.exposure, u32(draw.curve), draw.unlit != 0, c.a, maskAt(in.at));
-  return Routed(c * r.keep, r.tint, r.add);
+  return Routed(c * r.keep, r.tint, r.add, vec4f(0, 1, 0, c.a));
 }`;
 
-/** A routed disc's targets: the lit image as before, then the display layers of its blend. */
-export const routedParticleTargets = (blend: ParticlePool['blend']): GPUColorTargetState[] => [
+/** A disc's targets: the lit image, its blend's display layers if `routed`, the reactive value. */
+export const particleTargets = (
+  blend: ParticlePool['blend'],
+  routed = false,
+): GPUColorTargetState[] => [
   { format: 'rgba16float', blend: BLENDS[blend] },
-  ...displayTargets(blend === 'additive' ? 'additive' : 'normal'),
+  ...(routed ? displayTargets(blend === 'additive' ? 'additive' : 'normal') : []),
+  REACTIVE_TARGET,
 ];
 
 /** What the draw keeps in a pool's step state: its words, its group and the depth it was made on. */
@@ -105,7 +112,7 @@ export function createWebgpuParticleDraw(
           module,
           entryPoint: 'fsRouted',
           constants: { DISPLAY_ROUTE: 1 },
-          targets: routedParticleTargets(blend),
+          targets: particleTargets(blend, true),
         },
       });
     return { additive: made('additive'), premultiplied: made('premultiplied') };
@@ -115,12 +122,11 @@ export function createWebgpuParticleDraw(
       const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] });
       return Promise.all(
         PARTICLE_BLENDS.map(async (blend) => {
-          const targets: GPUColorTargetState[] = [{ format: 'rgba16float', blend: BLENDS[blend] }];
           pipelines[blend] = await buildRenderPipeline(device, {
             label: `${PARTICLE_DRAW_PASS} ${blend}`,
             layout: pipelineLayout,
             vertex: { module, entryPoint: 'vs' },
-            fragment: { module, entryPoint: 'fs', targets },
+            fragment: { module, entryPoint: 'fs', targets: particleTargets(blend) },
           });
         }),
       );
@@ -139,14 +145,16 @@ export function createWebgpuParticleDraw(
     return kept.drawn!;
   };
   return {
-    /** Draws `pools` over `target` in `encoder`, seen through `viewProj` from `eye`, softened
-     *  by `depth`, routed through `filter` where its mask is set, shown through `tone` (exposure,
+    /** Draws `pools` over the `width × height` the image draws in `target` (`renderScale.ts`), their coverage in `reactive`'s green (`asIsShare.ts`),
+     *  in `encoder`, seen through `viewProj` from `eye`, softened by `depth`, routed through `filter` where its mask is set, shown through `tone` (exposure,
      *  curve) or raw when `unlit`; returns the draws encoded, none without a live particle. */
     draw(
       pools: readonly ParticlePool[],
       encoder: GPUCommandEncoder,
       target: GPUTextureView,
+      reactive: GPUTextureView,
       depth: GPUTextureView,
+      [width, height]: readonly number[],
       viewProj: ArrayLike<number>,
       eye: ArrayLike<number>,
       filter?: DisplayFilter,
@@ -166,14 +174,18 @@ export function createWebgpuParticleDraw(
         words[41] = tone?.[3] ?? 1;
         words[42] = tone?.[4] ?? 0;
         words[43] = unlit ? 1 : 0;
+        words[44] = width;
+        words[45] = height;
         device.queue.writeBuffer(kept.draw, 0, words);
         pass ??= encoder.beginRenderPass({
           label: PARTICLE_DRAW_PASS,
           colorAttachments: [
             { view: target, loadOp: 'load', storeOp: 'store' },
             ...(filter ? filter.attachments() : []),
+            { view: reactive, loadOp: 'load', storeOp: 'store' },
           ],
         });
+        pass.setViewport(0, 0, width, height, 0, 1);
         if (filter) pass.setBindGroup(1, filter.maskGroup);
         pass.setPipeline(pipeline);
         pass.setBindGroup(0, groupOf(kept, depth));

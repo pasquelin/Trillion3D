@@ -95,6 +95,7 @@ test('the pass draws with the camera, not the jittered matrix of temporal accumu
       depthView: depth,
       hdrView: hdr,
       displaySize: [8, 4],
+      targetSize: [8, 4],
       guides: undefined,
       guideRevision: 0,
       temporal: { frame: { active: true, viewProjection: jittered, jitter: [0.25, -0.125] } },

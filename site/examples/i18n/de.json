@@ -1411,6 +1411,7 @@
     "banner": "Ziehe, um herumzugehen. Wechsle die Ansicht, um zu sehen, was der Renderer speichert.",
     "controls": {
       "see": "Sehen",
+      "glass": "Glasscheibe",
       "spin": "Drehen"
     },
     "choices": {

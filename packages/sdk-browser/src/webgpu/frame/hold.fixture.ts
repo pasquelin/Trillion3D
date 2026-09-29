@@ -1,4 +1,5 @@
 import type { GuideSet } from '../../guides/guideSet.ts';
+import { createScaleControl } from '../../frame/scaleControl.ts';
 import { createFrameGateCore } from '../../frame/gateCore.ts';
 import { HOLD_SIGNATURE_VALUES } from './signature.ts';
 import { createCpuStepProfile } from '../../stage/cpuProfile.ts';
@@ -81,7 +82,7 @@ export function settledRt() {
     },
     timing: {
       frameEncoder: undefined as unknown,
-      partitionCounts: { occulteurs: 0, testees: 0, historiqueOcculteurs: 0 },
+      partitionCounts: { occluders: 0, tested: 0, previousOccluders: 0 },
       // `recordHeldFrameWork` writes the row of a held frame in the real profile, as in production: a
       // hand-built object would not have the exact width of `CPU_STEP`.
       cpuProfile: createCpuStepProfile(CPU_STEP_NAMES),
@@ -93,10 +94,13 @@ export function settledRt() {
       lastSubmitMs: null as number | null,
     },
     texturePump: { inFlight: false },
+    scale: createScaleControl(undefined),
     gpu: {
       presenter: undefined as unknown,
       displayTexture: undefined as unknown,
       displaySize: [4, 4] as [number, number],
+      targetSize: [4, 4] as [number, number],
+      allocatedSize: [4, 4] as [number, number],
       deferred: undefined as Awaited<ReturnType<typeof createDeferredLighting>> | undefined,
       effects: undefined as WebgpuEffects | undefined,
       effectsRevision: 0,

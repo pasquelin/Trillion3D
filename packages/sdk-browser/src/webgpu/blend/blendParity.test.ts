@@ -8,7 +8,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { blendTargets } from './pipelines.ts';
 import { blend, close, shown, written, type Rgba } from './blendModel.fixture.ts';
-import { DISPLAY_FILTER_SHADER, DISPLAY_ROUTE_WGSL } from './displayFilter.ts';
+import { DISPLAY_ROUTE_WGSL } from './displayFilter.ts';
+import { DISPLAY_FILTER_SHADER } from './displayFilterProgram.ts';
 import { BLEND_SHADER } from './shader.ts';
 import { CONTRACT_COMPOSITIONS } from '../../lighting/deferred/shaders.ts';
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts';
@@ -16,7 +17,7 @@ import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts
 
 /** What the pass writes for `src` over `dst` in `mode`: its target's own blend state. */
 const blended = (mode: Blending, src: Rgba, dst: Rgba) =>
-  blend(blendTargets(mode, 0xf, true)[0].blend!, src, dst);
+  blend(blendTargets(mode, 0xf, true)[0]!.blend!, src, dst);
 
 /** The composition's weighting, the tone curve left out: the colour at its coverage, the
  *  background under the rest (`composeColor`). */
@@ -79,7 +80,7 @@ test('subtractive and multiply over paper show the witness in display space', ()
   for (const mode of ['subtractive', 'multiply'] as const) {
     const targets = blendTargets(mode, 0xf, true, true);
     // The lit target keeps the paper; both layers take the ink's display colour (route 2).
-    close([...written(targets[0], ink, paper)], [...paper], `${mode} lit target`);
+    close([...written(targets[0]!, ink, paper)], [...paper], `${mode} lit target`);
     const tint = blend(targets.at(-2)!.blend!, shown(ink), [1, 1, 1, 1]);
     const add = blend(targets.at(-1)!.blend!, shown(ink), [0, 0, 0, 0]);
     // The composed paper times the tint, plus the added value (`DISPLAY_FILTER_SHADER`).
@@ -90,10 +91,11 @@ test('subtractive and multiply over paper show the witness in display space', ()
 });
 
 test('the layers drawn below the display are sampled to it, not read at its pixel', () => {
-  // The full-screen triangle's place: (0, 0) at the top left, (1, 1) at the bottom right.
+  // The full-screen triangle's place: (0, 0) at the top left, (1, 1) at the bottom right of the
+  // share the image covers (#832).
   assert.match(
     DISPLAY_FILTER_SHADER,
-    /return Screen\(vec4f\(c,0\.0,1\.0\),vec2f\(0\.5,-0\.5\)\*c\+0\.5\);/,
+    /return Screen\(vec4f\(c,0\.0,1\.0\),\(vec2f\(0\.5,-0\.5\)\*c\+0\.5\)\*drawn\.xy\);/,
   );
   assert.match(DISPLAY_FILTER_SHADER, /textureSampleLevel\(map,layerSampler,uv,0\.0\)/);
   assert.doesNotMatch(DISPLAY_FILTER_SHADER, /textureLoad/);

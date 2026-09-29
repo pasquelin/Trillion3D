@@ -18,6 +18,7 @@ import type { BackendContext } from '../../backend/types.ts';
 import { linearRefusalOf } from './linearRefusal.ts';
 import { createDrawLists } from './drawLists.ts';
 import { degradedHearer } from '../../world/diagnostic/materialNotices.ts';
+import { upscaleMipBias } from '../../taa/jitter.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 
 /** What a WebGL2 frame reads of a display graph: its lights as `lights` gives them (the draw
@@ -125,7 +126,11 @@ export function createSceneDraw(
       owner ??= new WebglClusterOwner(gl, degradedHearer({ materialDegraded, onDiagnostic }));
       if (!owner.censused) owner.census(meshes(display));
       owner.toneCurve = TONE_MAPPING_RANK[output.toneMapping ?? DEFAULT_TONE_MAPPING];
-      owner.pixelRatio = pixelRatio();
+      // Drawn below the display (`world.renderScale`), a line keeps its display width and a
+      // texture its display density.
+      const shown = output.displayWidth ?? output.width;
+      owner.pixelRatio = pixelRatio() * (output.width / shown);
+      owner.mipBias = upscaleMipBias(output.width, shown);
       display.onBeforeRender?.();
       try {
         walk();

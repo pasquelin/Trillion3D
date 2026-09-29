@@ -13,6 +13,7 @@ import { createAutonomousResidency } from './residency.ts';
 import { createAutonomousPool } from './poolApi.ts';
 import { createHeldFloor } from './heldFloor.ts';
 import { createWebglViews } from './views.ts';
+import { autonomousRenderScale } from './renderScale.ts';
 import { createContractLighting, graphBackground } from '../../lighting/contractLightingApi.ts';
 import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts';
 import type { BackendFactory } from '../types.ts';
@@ -27,6 +28,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     collectClusterPages(context.source, metadata, new Map(), context.associations, {
       allowMissing: true,
       blendCopy: createBlendCopy,
+      pendingPlaced: true, // mounted in place once the view reads them (#751)
     });
   const [baseRoots, basePages] = [roots.slice(), allPages.slice()];
   const bootstrap = autonomousBootstrap(roots),
@@ -150,6 +152,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       coverChanged: heldFloor.placed,
     }),
     ...lightingApi,
+    ...autonomousRenderScale(context),
     setClearColor: graphBackground(scene, gate.resourcesChanged),
     pendingUrls: residency.pendingUrls,
     retainedRanks: residency.retainedRanks,

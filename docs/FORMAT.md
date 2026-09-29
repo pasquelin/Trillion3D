@@ -43,9 +43,10 @@ Required fields of the merged manifest, consumed by the browser adapter:
   - `errorModel` is `dag-group-qem-v3`, the one model this runtime reads: absolute group error weighing positions, normals and texture coordinates, clamped to the group's extent, and never below the sampled Hausdorff distance between the group's children and its outputs. A `dag-group-qem-v1` (positions only) or `dag-group-qem-v2` (quadric error alone, below the geometry on curved surfaces) cache is refused with `STALE_CACHE`. Every cluster carries its own screen-error band, so nothing walks a tree. A cache whose clusters carry no band — the page tree earlier compilers emitted — is rejected by `assertCacheIdentity` with `STALE_CACHE`, naming the primitive that lacks one, so a host recompiles instead of half-reading a cache.
   - `simplification` is `true` when the compiler ran with `qem-endpoints`.
 - `worstStalls[]` — the stall table, ranked once by the compiler: at most ten primitives with a stalled group that kept level-0 triangles as roots, most `rootTriangles` first, ties in manifest order, each `{ index, mesh, primitive, rootTriangles, cause, seamVertices, lockedVertices, uvIslands }` (its manifest rank and its `dag` summary). A primitive whose only stall is its coarsest group, above levels that climbed, keeps no level-0 root and is not listed; its `dag.stalls[]` still names it. The CLI's `stall` events and the bench's `resume.md` print it as is
+- `worldRoots` — the report of the [world super-roots](#world-super-roots), their pinned top's bytes among it; not read by the browser.
 - `binary` — `{ version, url, sha256, bytes, pageUrl, geometryUrl, bundleUrl, texturePreviews, texturePreviewBytes, texturePreviewBc7Bytes, texturePreviewAstcBytes }`, the descriptor of a page's [column file](#column-files).
 
-Written for the compiler alone, ignored by the browser: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of the key folder (`source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json`, `scene.gltf`, `scene.bin`; the pages and cells of the [world partition](#world-partition) are proven through its root instead, and so are the manifest's pages, so the record does not grow with the world), which a later job of the same key checks before keeping the folder instead of rewriting it ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
+Written for the compiler alone, ignored by the browser: `files` — `{ "<name>": { sha256, bytes } }`, one entry per other product of the key folder (`source.gltf`, `source.bin`, `proxy.bin`, `lights.json`, `scene-tables.json`, `scene.gltf`, `scene.bin`, `world-roots.json`, `world-roots.bin`; the pages and cells of the [world partition](#world-partition) are proven through its root instead, and so are the manifest's pages, so the record does not grow with the world), which a later job of the same key checks before keeping the folder instead of rewriting it ([COMPILER.md](COMPILER.md#reusing-a-compiled-folder)).
 
 ### Column files
 
@@ -138,7 +139,7 @@ An image whose decode fails has no entry: its textures load from the source as b
 
 `scene-tables.json`, beside `clusters.json`, says what the prepared scene is made of, and it is the
 only thing the runtime builds that scene from: no glTF is parsed in the browser. Its own version
-governs it — `version` 4, `nodeTableVersion` 4, `materialTableVersion` 4, `geometryTableVersion` 1 —
+governs it — `version` 5, `nodeTableVersion` 4, `materialTableVersion` 4, `geometryTableVersion` 1 —
 and an unknown one is refused rather than half-read (`assertSceneTables`, `UNSUPPORTED_SCENE_TABLES`).
 Every value is read from the `source.gltf` the same compilation publishes (and, for its layout, from
 `scene.gltf` when one is written): the slice's nodes, the cutout answers already applied, the mesh
@@ -151,6 +152,9 @@ matrix, translation, rotation, scale, visible }` (`weights` overrides its mesh's
   the runtime composes world matrices from it the way it always has, so they are the same bits.
   Several nodes naming one mesh is what instancing is here.
 - `partition` — `null`, or the world partition (below): the cells that place the other nodes.
+- `meshPages` — the slots of the manifest's mesh pages the meshes of `nodes[]` lie in, sorted and
+  each once (version 5, #751): what a runtime that holds the manifest by the view reads before its
+  first frame, the region pages of the cells naming the rest.
 - `lights[]` — the `KHR_lights_punctual` lights the nodes hang: `{ name, type, color, intensity,
 range, innerConeAngle, outerConeAngle }`, each silent field `null` (the specification's default
   applies). `lights.json` stays the radiometric product the engine lights with.
@@ -229,6 +233,15 @@ slot (`fetchVerified`), into the records in cell order, `bounds` the union of th
 `meshes` the ranks placed, and refuses a region page without its list of mesh pages. Pages and cells are outside
 the manifest's `files`: a reused folder proves them through the root.
 
+**The manifest held by the view** (#751). A WebGL2 world reads of the manifest its root, its head
+page and the mesh pages `meshPages` names (`openPagedManifest`, `loadModel`'s `lazy`); each cell it
+places holds the mesh pages of its region page, counted once per cell, and releases them as it
+leaves: a page no placed cell holds leaves the manifest with its primitives
+(`scene/partition/cellPages.ts`). The session opens on the primitives listed then, the meshes the
+cells place without one left out, and mounts each in place once its page is read
+(`mountPlacements`), unmounting it once its page left (`world/scene/partitionMounts.ts`). A WebGPU
+world reads the whole manifest until its session grows in place (#216).
+
 **Reading the cells.** Each mesh the cells place is drawn by one host mesh per primitive whose
 instance buffer the cells fill (`packages/sdk-browser/src/scene/partition/`): a placement takes a
 row at the world matrix the engine composes for a child of its parent — the same bits a host node
@@ -272,7 +285,7 @@ placement never ask. A session drawing on demand draws again, camera still, unti
 asked for within reach are read and placed. A partitioned scene is not
 replicated (`UNSUPPORTED_SCENE_UPDATE`).
 
-The merged, simplified proxy of a far cell (HLOD) is not part of this format: #23 carries it.
+The merged, simplified proxy of a far cell (HLOD) is its [world super-roots](#world-super-roots).
 
 The runtime builds its host scene from these alone (`packages/sdk-browser/src/host/prepared/`):
 attributes viewed on the binary, the local box the positions declare, textures folded on image
@@ -282,6 +295,51 @@ loader's graph, field by field and byte by byte, on every cache `site/assets` pu
 (`packages/sdk-browser/src/host/prepared/build.test.ts`). A layout that names a document the tables
 do not carry, a view outside its binary, or a cell placing a mesh the scene built no rows for,
 is `PREPARED_SCENE_MISMATCH`.
+
+### World super-roots
+
+Every primitive ends at its own roots, and `streams.pinned` keeps them resident: pinned alone, an
+open world's root cover grows with the world, not with the view. The compiler therefore continues
+the DAG above the objects (`packages/asset-compiler-rust/src/compiler_world_roots.rs`, #23). The
+root clusters of every primitive of every placement, placed in world space, their error and the
+radius of their published sphere scaled by the placement's largest axis scale, enter the DAG
+builder as level 0 (`build_dag_from_roots`),
+grouped per cell of the [world partition](#world-partition) and per material: the levels above
+them — the cell's **super-roots** — are built with the same grouping, simplification and monotone
+error as inside a primitive (a part leaves only at the error its extent costs). The roots of every
+cell of a material then enter the builder again, and its levels climb to the **world top**: a
+cell root it groups is the very cluster its group names. A scene whose placements fit one unit is
+one cell; a node the core keeps (moved, lit, skinned, hidden) and a primitive without a DAG keep
+only their own roots, and a cook with `simplification: none` builds no super-root.
+
+The world DAG is packed and linked as a primitive's (`streams`, above): the top first, pinned,
+then every level from the coarsest, a bundle holding one level, its closed `dependencies` reaching
+a pinned bundle. The object roots are packed last, only for their lists: their pages are the
+objects' own and are not written again, save an object root no world group takes, which stays a
+root of the top and is written with it. The check that refuses a primitive's lists refuses the
+world's (`INVALID_PAGE_DEPENDENCIES`): every page, object roots included, reaches the world top.
+
+Two products lie beside the tables. `world-roots.bin` holds the written bundles end to end; a page
+is `u32` vertex count, `u32` triangle count, its own vertices as three `f32` in world space and its
+triangles as `u16` local indices, padded to four bytes. `world-roots.json` is `{ version: 1,
+budgetBytes, pinned, pinnedTopBytes, payload, bundles, pages, cells }`: `payload` the bin's `{ url,
+sha256, bytes }`; a bundle `{ offset, bytes, sha256, count, dependencies }`, its range in the bin;
+a page `{ bundle, offset, level, material, lodError, parentError, sphere, parentSphere }`, its
+offset inside its bundle, `parentError` `null` on a root; `cells[n]`, the cell of
+`scene-cell-<n>.json` (a scene not partitioned has one cell, with no file), `{ objects }`, one `{ node, primitive, roots, dependencies }` per primitive
+of a placement: its published node, its manifest primitive, the `streams` bundles of that
+primitive holding its roots, and every world bundle those roots need, ascending, up to the top —
+the **cross-primitive dependencies** of its root bundles. Both files are in the manifest's `files`.
+
+The first `pinned` bundles are the **pinned top**: `pinnedTopBytes`, their bytes, is published in
+the cook report (`clusters.json`, `worldRoots`: `{ version, file, cells, superRoots, topPages,
+pinnedBundles, pinnedTopBytes, budgetBytes, dependencyBound }`, `null` when nothing is placed).
+It is bounded by the materials, not the world: one tile or 64 tiles of the same objects publish
+the same top, to one page per material. A top over `budgetBytes` (`WORLD_TOP_BUDGET_BYTES`, 4 MiB)
+is refused at cook, `WORLD_TOP_OVER_BUDGET`, naming the cell that pins the most of it.
+
+The runtime does not read the super-roots yet: it keeps pinning every primitive's roots, and the
+image is the one it was. Unpinning the object roots for the world top is #751.
 
 ## `physics.json` — cooked colliders
 

@@ -28,6 +28,7 @@ export function world(far: number | null = 0, near: number | null = null) {
         bytes: 1,
         parents: [near === null ? [null, [0, 0, 0, 5, 5, 5]] : [0, [0, -10, 0, 5, -5, 5]]],
         meshes: [[7, 2]],
+        meshPages: [],
       },
       {
         url: 'far.json',
@@ -38,6 +39,7 @@ export function world(far: number | null = 0, near: number | null = null) {
           far === null ? [null, [5000, 0, 0, 5010, 5, 5]] : [0, [5000, -10, 0, 5010, -5, 5]],
         ],
         meshes: [[7, 1]],
+        meshPages: [],
       },
     ],
   };
