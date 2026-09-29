@@ -15,21 +15,23 @@ import { FRESH_CLEAR } from './freshLayout.ts';
  *   sun's snap (`freshPlace`), and the fragment keeps the page's texels alone (`freshInPage`).
  */
 export const SHADOW_FRESH_DRAWS_WGSL = `
-/** Clip position \`p\` of \`view\`'s clip square, carried onto its page's square of the layer's. */
-fn freshPlace(view:ShadowView,p:vec4f)->vec4f{return vec4f(p.xy*view.rect.zw+view.rect.xy*p.w,p.z,p.w);}
-/** Whether layer texel \`at\` lies in \`view\`'s page. */
-fn freshInPage(view:ShadowView,at:vec2f)->bool{
- let first=round(view.params.xy*view.params.w/view.params.z);let q=at-first;
- return all(q>=vec2f(0.0))&&all(q<vec2f(view.params.w));
+/** A GPU page's view as the depth pass reads a face, then its page's clip square in the layer's. */
+struct FreshView{view:ShadowView,rect:vec4f,}
+/** Clip position \`p\` of \`page\`'s clip square, carried onto its square of the layer's. */
+fn freshPlace(page:FreshView,p:vec4f)->vec4f{return vec4f(p.xy*page.rect.zw+page.rect.xy*p.w,p.z,p.w);}
+/** Whether layer texel \`at\` lies in \`page\`. */
+fn freshInPage(page:FreshView,at:vec2f)->bool{
+ let params=page.view.params;let first=round(params.xy*params.w/params.z);let q=at-first;
+ return all(q>=vec2f(0.0))&&all(q<vec2f(params.w));
 }
 /** The \`instance\`-th pair's caster at corner \`vertexIndex\`, if its region lies in the draw's layer. */
 fn freshCaster(vertexIndex:u32,instance:u32,blended:bool)->ShadowOut{
  let layer=vertexIndex>>FRESH_LAYER_SHIFT;let k=freshPairs[2u*instance];
  let first=freshArgs[FRESH_LAYER_STARTS+layer];
  if(k<first||k>=first+freshArgs[freshDraw(layer,${FRESH_CLEAR}u)+1u]){return ShadowOut(vec4f(0.0,0.0,2.0,1.0),0u,vec2f(0.0),vec3f(0.0),0u);}
- let view=freshFaces[k];
- var out=shadowVertexIn(view,vertexIndex&FRESH_CORNER_MASK,freshPairs[2u*instance+1u],blended);
- out.position=freshPlace(view,out.position);out.region=k;
+ let page=freshFaces[k];
+ var out=shadowVertexIn(page.view,vertexIndex&FRESH_CORNER_MASK,freshPairs[2u*instance+1u],blended);
+ out.position=freshPlace(page,out.position);out.region=k;
  return out;
 }
 @vertex fn shadow_fresh_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
@@ -46,13 +48,13 @@ fn freshCaster(vertexIndex:u32,instance:u32,blended:bool)->ShadowOut{
 }
 /** A texel of the region's page, as \`shadow_fs\` keeps it. */
 @fragment fn shadow_fresh_fs(in:ShadowOut){
- let gx=dpdx(in.uv);let gy=dpdy(in.uv);let view=freshFaces[in.region];
- if(!freshInPage(view,in.position.xy)||!shadowKeepAt(view.emitter,in,gx,gy)){discard;}
+ let gx=dpdx(in.uv);let gy=dpdy(in.uv);let page=freshFaces[in.region];
+ if(!freshInPage(page,in.position.xy)||!shadowKeepAt(page.view.emitter,in,gx,gy)){discard;}
 }
 /** A blended caster's texel of the page, at the transmittance layer's half resolution. */
 @fragment fn shadow_fresh_blend_fs(in:ShadowOut)->@location(0) vec4f{
- let gx=dpdx(in.uv);let gy=dpdy(in.uv);let view=freshFaces[in.region];
- if(!freshInPage(view,in.position.xy*2.0)||!shadowKeepAt(view.emitter,in,gx,gy)||shadowHiddenByOpaque(in.position)){discard;}
+ let gx=dpdx(in.uv);let gy=dpdy(in.uv);let page=freshFaces[in.region];
+ if(!freshInPage(page,in.position.xy*2.0)||!shadowKeepAt(page.view.emitter,in,gx,gy)||shadowHiddenByOpaque(in.position)){discard;}
  return blendTransmittance(pages[in.instance],in.uv,gx,gy);
 }
 /** A page of the transmittance layer cleared: all the light, and far. */

@@ -97,7 +97,7 @@ test("a GPU-drawn page's casters land on its square of the layer, its fragments 
     const words = pack.facePacked,
       params = [...words.subarray(16, 20)],
       rect = [...words.subarray(SHADOW_FACE_READ_WORDS, SHADOW_FACE_READ_WORDS + 4)],
-      view = { params, rect };
+      view = { view: { params }, rect };
     const { x, y } = pageOrigin(page, SIDE);
     // The page's clip square, at a perspective w: its corners land on its first and last texels.
     for (const [cx, cy] of [
@@ -119,11 +119,7 @@ test("each layer's draw places the pairs of its own regions, by their own view",
   const args = new Uint32Array(freshArgWords(4));
   args.set([0, 1], FRESH_LAYER_STARTS);
   args[freshDrawWord(0, FRESH_CLEAR) + 1] = args[freshDrawWord(1, FRESH_CLEAR) + 1] = 1;
-  const views = [0, 1].map((k) => ({
-    params: [0, 0, 1, 1],
-    rect: [k, 0, 1, 1],
-    emitter: [0, 0, 0, 0],
-  }));
+  const views = [0, 1].map((k) => ({ view: { params: [0, 0, 1, 1] }, rect: [k, 0, 1, 1] }));
   const { freshCaster } = shaderRun<{
     freshCaster: (vertex: number, instance: number, blended: boolean) => Record<string, unknown>;
   }>(SHADOW_DEPTH_SHADER, ['freshCaster', 'freshPlace', 'freshDraw'], {
