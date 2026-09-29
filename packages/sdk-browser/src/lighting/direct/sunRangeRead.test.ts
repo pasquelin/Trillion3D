@@ -8,6 +8,7 @@ import {
   SUN_DEPTH_RANGES,
   SUN_LEVELS,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { cross, unit } from '../../../../sdk-core/src/math/primitives/vectorTuple.ts';
 import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import {
@@ -31,12 +32,6 @@ const olderSlot = (slot: number, h: number) =>
   (slot + 1 + Math.floor(h * (SUN_DEPTH_RANGES - 1))) % SUN_DEPTH_RANGES;
 const SLOTS = [0, 1, 7, 8, 9, SUN_DEPTH_RANGES - 2, SUN_DEPTH_RANGES - 1];
 
-const unit = (v: Vec3): Vec3 => v.map((x) => x / Math.hypot(...v)) as Vec3;
-const cross = ([a, b, c]: Vec3, [x, y, z]: Vec3): Vec3 => [
-  b * z - c * y,
-  c * x - a * z,
-  a * y - b * x,
-];
 /** `Σ kᵢ·vᵢ`. */
 const sum = (...terms: Array<[number, Vec3]>) =>
   [0, 1, 2].map((i) => terms.reduce((s, [k, v]) => s + k * v[i], 0)) as Vec3;
