@@ -58,7 +58,10 @@ test('a dynamic sheet behind an opaque wall is occluded by the Hi-Z test the pag
   const { world, records } = await wallAndSheet(-2);
   const { dynamic, kept } = keptOf(records);
   world.end();
-  assert.ok(dynamic.length > 0, 'the sheet is paged by its index alone, its vertices read as floats');
+  assert.ok(
+    dynamic.length > 0,
+    'the sheet is paged by its index alone, its vertices read as floats',
+  );
   assert.equal(kept.length, 0, 'every cluster of it hidden');
 });
 

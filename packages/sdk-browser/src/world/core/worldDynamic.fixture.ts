@@ -14,7 +14,8 @@ export function dynamicWorld() {
     updateVertices: (_: unknown, ranges: VertexRange[]) => rewrites.push(ranges) > 0,
   });
   const open = (async (_canvas: unknown, _options: unknown, source: ExplorerSource) => (
-    sources.push(source), session
+    sources.push(source),
+    session
   )) as unknown as Open;
   const scene = new Scene(() => Promise.reject(new Error('no loader')));
   const runtime = runtimeOf(scene, Promise.resolve(), (error) => assert.fail(String(error)), open);
@@ -25,4 +26,3 @@ export function dynamicWorld() {
   const end = () => ((URL.createObjectURL = serve), runtime.dispose());
   return { scene, runtime, rewrites, sources, served, frame, end };
 }
-

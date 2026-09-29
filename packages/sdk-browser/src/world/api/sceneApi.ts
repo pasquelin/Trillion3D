@@ -109,7 +109,8 @@ export function createExplorerSceneApi(inputs: Inputs) {
     /** A dynamic geometry's lists were rewritten in place (#573); false when the active path
      *  cannot take it, and only a new session will draw them. */
     updateVertices: (...change: Parameters<NonNullable<RenderBackend['updateVertices']>>) => (
-      check(), !!getActive().updateVertices?.(...change)
+      check(),
+      !!getActive().updateVertices?.(...change)
     ),
     unmountPlacements: (rows: PlacementRows) => (check(), getActive().unmountPlacements!(rows)),
     /** Bounced light on or off in the session; false when the active path cannot toggle it in

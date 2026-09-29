@@ -36,7 +36,9 @@ test('a geometry rewritten 300 frames is never cut again nor reopened, and uploa
 test('a geometry changed on consecutive frames turns dynamic by itself, and says so naming its mesh', async () => {
   const world = dynamicWorld();
   const heard: unknown[] = [];
-  const stop = listenWorldNotices((n) => void (n.phase === 'geometry-dynamic' && heard.push(n.context)));
+  const stop = listenWorldNotices(
+    (n) => void (n.phase === 'geometry-dynamic' && heard.push(n.context)),
+  );
   const sheet = geometry.plane(1, 1, 4, 4),
     mesh = object.mesh(sheet, material.meshStandard({}));
   mesh.name = 'sea';

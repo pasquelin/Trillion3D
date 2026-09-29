@@ -19,8 +19,13 @@ function recordingDevice() {
   const device = {
     createBuffer: (descriptor: GPUBufferDescriptor) => ({ size: descriptor.size }),
     queue: {
-      writeBuffer: (buffer: object, offset: number, data: Float32Array, at = 0, size = data.length) =>
-        void writes.push([buffer, offset, [...data.subarray(at, at + size)]]),
+      writeBuffer: (
+        buffer: object,
+        offset: number,
+        data: Float32Array,
+        at = 0,
+        size = data.length,
+      ) => void writes.push([buffer, offset, [...data.subarray(at, at + size)]]),
     },
   } as unknown as GPUDevice;
   return { device, writes };
@@ -57,13 +62,19 @@ test('a rewrite lands in its pool block alone and stales only its own shadow pag
   const box = Float64Array.of(0.5, -0.5, 0, 0.5, -0.5, 0.25);
   writes.length = 0;
   for (let frame = 0; frame < 2; frame++)
-    assert.ok(updateWebgpuVertices(rt, attributes[0], [{ name: 'position', from: 1, count: 1 }], box));
+    assert.ok(
+      updateWebgpuVertices(rt, attributes[0], [{ name: 'position', from: 1, count: 1 }], box),
+    );
   assert.equal(block.vertexBase, 4, 'placed after the rock');
   assert.deepEqual(writes[0].slice(1), [(4 + 1) * 12, [0.5, -0.5, 0.25]], 'one vertex written');
-  assert.deepEqual(staled, [
-    [[0.5, -0.5, 0, 0.5, -0.5, 0.25], false],
-    [[0.5, -0.5, 0, 0.5, -0.5, 0.25], true],
-  ], 'its moved box alone: whole on the first rewrite, its moving casters after');
+  assert.deepEqual(
+    staled,
+    [
+      [[0.5, -0.5, 0, 0.5, -0.5, 0.25], false],
+      [[0.5, -0.5, 0, 0.5, -0.5, 0.25], true],
+    ],
+    'its moved box alone: whole on the first rewrite, its moving casters after',
+  );
   assert.deepEqual([mobility.moves(0), mobility.moves(1)], [true, false], 'the rock stays static');
 });
 
