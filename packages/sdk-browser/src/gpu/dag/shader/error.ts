@@ -16,7 +16,8 @@ export const REFERENCE_ERROR_DECL = 'const REFERENCE_ERROR:bool=false;';
 
 export const DAG_ERROR_WGSL = `
 ${REFERENCE_ERROR_DECL}
-/** Upper bound of the screen displacement of any point of the sphere moved by at most \`error\`:
+/** Upper bound of the screen displacement of any point of the sphere, grown by the primitive's
+ *  deformation reach (\`deformReach\`, #357), moved by at most \`error\`:
  *  minimum depth m, distance to the axis l, radius and error stretched rho and delta, written on
  *  the clip weight w = p*depth+(1-p) of the projection (\`views[vi].perspective\`, p):
  *  E = (delta*f/w(m))*(sqrt(w(m)^2+(p*(l+rho))^2)/w(m-delta)) ; near plane reached: INF.
@@ -32,7 +33,7 @@ fn projected(error:f32,sphere:vec4f,e:mat4x4f,stretch:f32,focal:f32)->f32{
   let delta=error*stretch;
   return (delta*focal)/depth;
  }
- let reach=sphere.w*stretch;let shift=error*stretch;
+ let reach=(sphere.w+deformReach)*stretch;let shift=error*stretch;
  let nearest=p*(-v.z-reach)+flat;let closest=nearest-p*shift;let side=p*(sqrt(v.x*v.x+v.y*v.y)+reach);
  if(!(closest>p*views[vi].near)){return INF;}
  let slant=sqrt(nearest*nearest+side*side);
