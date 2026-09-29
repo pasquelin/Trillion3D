@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mustRestartTaaAfterSettle, texturesConverged } from './converge.ts';
-import { PICK_CYCLE } from './feedback.ts';
+import { MAP_CHOICES, PICK_CYCLE } from './feedback.ts';
 
 test('a quiet barrier leaves TAA history in place', () => {
   assert.equal(mustRestartTaaAfterSettle(0, 0), false);
@@ -21,7 +21,8 @@ test('a convergence stops only after a whole pick cycle in which every pixel nam
     Math.floor(px / choices) & 1,
     Math.floor(px / choices / 2) % 3,
   ];
-  for (const choices of [PICK_CYCLE / 6 - 1, PICK_CYCLE / 6])
+  // The shade pass picks among the maps and the masked sun level, the blend pass among the maps.
+  for (const choices of [MAP_CHOICES, MAP_CHOICES + 1])
     for (const px of [0, 7, 1280 + 719]) {
       const named = new Set<string>();
       for (let turn = 0; turn < PICK_CYCLE; turn++) named.add(pick(px + turn, choices).join());

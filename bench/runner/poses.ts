@@ -17,7 +17,6 @@ interface PathPoint {
   height: number;
   at: 'street' | 'over' | 'overStreet';
 }
-export const STREET_REACH = 0.6;
 const street = (x: number, height: number, z: number): PathPoint => ({
   x,
   z,
@@ -38,6 +37,11 @@ const POINTS: PathPoint[] = [
   over(-0.48, 0.46),
   over(0.72, 0.78),
 ];
+/** The farthest a street point stands from its column, as a share of the clearance: the square the
+ *  probe keeps open over the street (`street.ts`) and the disc every street segment stays in. */
+export const STREET_REACH = Math.max(
+  ...POINTS.filter((p) => p.at === 'street').map((p) => Math.hypot(p.x, p.z)),
+);
 const FRAMES_PER_SEGMENT = 60;
 /** One pose per frame, `FRAMES_PER_SEGMENT` frames between two consecutive points. */
 export const PATH_POSES = POINTS.length * FRAMES_PER_SEGMENT;
