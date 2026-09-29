@@ -35,23 +35,15 @@ export interface ShadowRequestReport {
 
 /**
  * Reads a request report back: every page the shading asked for is either touched — mapped, it
- * becomes the most recently requested — or allocated. Allocation goes coarse first, then by table
- * entry, so which pages a full pool refuses is the same from one run to the next: a sun's higher
- * levels and a lamp's higher mips cover the most pixels per page, and a finer page falls back to
- * them, so the pool never serves a fine page before the coarse one under it. Coarseness is
- * measured within each light (`sunCoarseness`, `lampCoarseness`).
+ * becomes the most recently requested — or allocated. Allocation goes coarse first, then by
+ * table entry: which pages a full pool refuses is the same every run, and a finer page falls
+ * back to the coarser one under it (`sunCoarseness`, `lampCoarseness`).
  *
- * Every page named asks for its light's floor under it too (`sunFloorLevel`, `LAMP_FLOOR_MIP`):
- * what a reader falls back to last when that page is withdrawn. So the floor is mapped first, and
- * never evicted while anything above it is read; like every page named, it is drawn in the frame it
- * goes stale (`admit.ts`). The floor covers all the light reaches, so it needs no report to know
- * what the view will read: a sun asks every frame for the floor pages its view reaches over the
- * scene's box (`floors`) — past it no caster lies, and a receiver there asks through the report —,
- * and a new, moved or reshaped lamp for each face's until a report written at its pose is read — a
- * report from a past pose names only the pages that pose's receivers read.
- * A report read against another table layout is dropped: its words name ranges that moved. A sun
- * entry is read with the extents of the frame that wrote it, and dropped when its page has left
- * the clipmap since. Allocates nothing past construction.
+ * Every page named asks for its light's floor under it too (`sunFloorLevel`, `LAMP_FLOOR_MIP`),
+ * mapped first and never evicted while anything above it is read. A sun asks every frame for the
+ * floor pages its view reaches over the scene's box (`floors`); a new, moved or reshaped lamp,
+ * for each face's until a report at its pose is read. A report against another layout, and a
+ * sun entry whose page left the clipmap, are dropped. Allocates nothing past construction.
  */
 export function createShadowRequests(
   table: ShadowTable,
@@ -68,9 +60,7 @@ export function createShadowRequests(
     /** What the entry being read names: its view, then its page. */
     at = new Int32Array(3);
   let reportFrame = -1,
-    /** The still cycle the request being read belongs to (`plan.ts`): pages it names are kept
-     *  until the view and the world move again (#26). */
-    heldCycle = -1;
+    heldCycle = -1; // The still cycle the request belongs to (`plan.ts`, #26)
   const isSun = (slice: number) => records.kind[slice] === LIGHT_KIND.directional;
   /** Touches `entry` when it is mapped; else notes it to allocate, as `at` names it. */
   const ask = (entry: number, slice: number) => {
@@ -78,7 +68,7 @@ export function createShadowRequests(
     if (word & PAGE_MAPPED) {
       const page = word & PAGE_INDEX_MASK;
       pool.requested[page] = Math.max(pool.requested[page], reportFrame);
-      pool.name(page, heldCycle);
+      pool.named[page] = heldCycle;
       return;
     }
     const rank = isSun(slice)
@@ -136,12 +126,7 @@ export function createShadowRequests(
     get complete() {
       return !counts.allocated && (!counts.unlisted || pool.heldBy(counts.latest));
     },
-    consume(
-      report: ShadowRequestReport,
-      nowMs: number,
-      frame: number,
-      cycle = report.frame,
-    ) {
+    consume(report: ShadowRequestReport, nowMs: number, frame: number, cycle = report.frame) {
       // A report read back before a resize lists at most the old pool's cap.
       counts.requested = Math.min(report.count, cap, report.entries.length);
       counts.unlisted = report.count - counts.requested;
