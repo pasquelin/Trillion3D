@@ -72,6 +72,7 @@ export type {
   MemoryBudgets,
   MemoryBudgetsReport,
   PoolClamp,
+  TableGrowthReport,
 } from '../../sdk-browser/src/residency/pools.ts';
 export { gpuPassBlockOf, gpuPassStageOf } from '../../sdk-browser/src/stage/mapping.ts';
 export type { GpuPassBlock } from '../../sdk-browser/src/stage/mapping.ts';
