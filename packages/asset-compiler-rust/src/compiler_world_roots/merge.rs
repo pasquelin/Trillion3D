@@ -3,6 +3,7 @@
 //! way up to the world top. The two builds are spliced into one DAG per material: a cell root the
 //! world build groups is the very cluster its group names, never a copy.
 use super::*;
+use crate::compiler_world::transform_point;
 use crate::dag::{build_dag_from_roots, DagCluster, DagGroup};
 use crate::proxy::{place, world_scale};
 use crate::qem::compact_region;
@@ -20,11 +21,12 @@ pub(super) struct WorldDag {
     pub origins: Vec<Option<usize>>,
 }
 
-/// Root clusters as the builder takes them: triangles, and the error each was published at.
-type Roots = Vec<(Vec<u32>, f64)>;
+/// Root clusters as the builder takes them: triangles, and the error and sphere each was
+/// published at.
+type Roots = Vec<(Vec<u32>, f64, [f64; 4])>;
 
-/// The object roots of `members` placed in world space: positions, clusters with their error in
-/// world units, and the instance each comes from.
+/// The object roots of `members` placed in world space: positions, clusters with their error and
+/// sphere in world units, and the instance each comes from.
 fn gather(instances: &[Instance], members: &[usize]) -> (Vec<f32>, Roots, Vec<usize>) {
     let (mut positions, mut roots, mut origins) = (Vec::new(), Vec::new(), Vec::new());
     for &instance in members {
@@ -33,9 +35,12 @@ fn gather(instances: &[Instance], members: &[usize]) -> (Vec<f32>, Roots, Vec<us
         place(&placed.cover.positions, &placed.matrix, &mut positions);
         let scale = world_scale(&placed.matrix);
         for root in &placed.cover.clusters {
+            let [x, y, z, radius] = root.sphere;
+            let [x, y, z] = transform_point(&placed.matrix, [x, y, z]);
             roots.push((
                 root.indices.iter().map(|&v| v + base).collect(),
                 root.error * scale,
+                [x, y, z, radius * scale],
             ));
             origins.push(instance);
         }
@@ -55,7 +60,8 @@ impl WorldDag {
         let mut roots = Vec::with_capacity(clusters.len());
         for &id in clusters.iter().rev() {
             let at = local.len() - self.clusters[id].indices.len();
-            roots.push((local.split_off(at), self.clusters[id].lod_error));
+            let cluster = &self.clusters[id];
+            roots.push((local.split_off(at), cluster.lod_error, cluster.sphere));
         }
         roots.reverse();
         (positions, roots)

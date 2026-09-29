@@ -129,6 +129,13 @@ fn errors_stay_monotone_across_the_super_roots() {
     }
     for cluster in &world.clusters {
         assert!(cluster.lod_error <= cluster.parent_error);
+        // A parent's sphere holds its child's, or the child's projected error can pass its own.
+        let (s, p) = (cluster.sphere, cluster.parent_sphere);
+        let apart = ((0..3).map(|a| (s[a] - p[a]).powi(2)).sum::<f64>()).sqrt();
+        assert!(
+            apart + s[3] <= p[3] * (1.0 + 1e-6) + 1e-6,
+            "{s:?} outside {p:?}"
+        );
     }
     // Past its cell, the grouping continues across cells, one material at a time.
     let spanning = |output: &usize| world.cells[*output].len() == 4;

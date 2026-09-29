@@ -63,9 +63,10 @@ pub(crate) fn cook(
 
 /// Compilation stage: the super-roots of the objects the partition placed, `cells` naming the
 /// published nodes of each cell. Written as `world-roots.bin` and `world-roots.json`; the report
-/// goes to the manifest. Exact clusters carry no simplification, so no super-root either.
+/// goes to the manifest. Exact clusters carry no simplification, so no super-root either. The
+/// builds run on the job's `pool`: its threads, its phase counters.
 pub(super) fn stage_world_roots(
-    o: &Options,
+    (o, pool): (&Options, &rayon::ThreadPool),
     (published, directory): (&Value, &Path),
     (primitives, covers): (&[Value], &[RootCover]),
     cells: &[Vec<usize>],
@@ -95,8 +96,10 @@ pub(super) fn stage_world_roots(
     if instances.iter().all(|i| i.cover.clusters.is_empty()) {
         return Ok((Vec::new(), Value::Null));
     }
-    let cooked = cook(&instances, cells.len(), WORLD_TOP_BUDGET_BYTES, &|| {
-        check(o)
+    let cooked = pool.install(|| {
+        cook(&instances, cells.len(), WORLD_TOP_BUDGET_BYTES, &|| {
+            check(o)
+        })
     })?;
     let bin = product(directory, WORLD_ROOTS_BIN, &cooked.payload)?;
     let mut table = cooked.table;

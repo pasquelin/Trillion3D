@@ -4,12 +4,14 @@ use crate::dag::{DagCluster, DagStrategy};
 use crate::qem::compact_region;
 use serde_json::Value;
 
-/// One root cluster of a primitive: its triangles in the cover's own vertices, the error it was
-/// published at, in object units, and the streaming bundle of the primitive that holds it.
+/// One root cluster of a primitive: its triangles in the cover's own vertices, the error and the
+/// sphere it was published at, in object units, and the streaming bundle of the primitive that
+/// holds it.
 #[derive(Clone, Debug)]
 pub(crate) struct RootCluster {
     pub indices: Vec<u32>,
     pub error: f64,
+    pub sphere: [f64; 4],
     pub bundle: usize,
 }
 
@@ -51,6 +53,7 @@ impl RootCover {
             clusters.push(RootCluster {
                 indices: local.split_off(at),
                 error: cluster.lod_error,
+                sphere: cluster.sphere,
                 bundle,
             });
         }

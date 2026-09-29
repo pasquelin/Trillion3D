@@ -168,8 +168,12 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let paged = write_mesh_pages(&primitives, &directory)?;
     let (tables, cells) =
         stage_scene_tables(&source, autonomous.as_ref(), &paged, &directory, &progress)?;
-    let (world_products, world_report) =
-        stage_world_roots(o, (&source, &directory), (&primitives, &covers), &cells)?;
+    let (world_products, world_report) = stage_world_roots(
+        (o, &pool),
+        (&source, &directory),
+        (&primitives, &covers),
+        &cells,
+    )?;
     drop(covers);
     let (physics_file, physics) = stage_physics(&scene, &primitives, &collisions, &directory)?;
     products.extend([tables, source_bin, source_gltf, lights, physics_file]);

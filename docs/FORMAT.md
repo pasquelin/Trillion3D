@@ -289,8 +289,8 @@ is `PREPARED_SCENE_MISMATCH`.
 Every primitive ends at its own roots, and `streams.pinned` keeps them resident: pinned alone, an
 open world's root cover grows with the world, not with the view. The compiler therefore continues
 the DAG above the objects (`packages/asset-compiler-rust/src/compiler_world_roots.rs`, #23). The
-root clusters of every primitive of every placement, placed in world space, their error scaled by
-the placement's largest axis scale, enter the DAG builder as level 0 (`build_dag_from_roots`),
+root clusters of every primitive of every placement, placed in world space, their error and the
+radius of their published sphere scaled by the placement's largest axis scale, enter the DAG builder as level 0 (`build_dag_from_roots`),
 grouped per cell of the [world partition](#world-partition) and per material: the levels above
 them — the cell's **super-roots** — are built with the same grouping, simplification and monotone
 error as inside a primitive (a part leaves only at the error its extent costs). The roots of every
