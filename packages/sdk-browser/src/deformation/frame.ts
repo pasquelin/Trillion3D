@@ -177,13 +177,15 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
     /**
      * This frame's records, the last frame's kept beside them. `skipped(i, reach)` says whether
      * placement `i`, moving a vertex by at most `reach` of its units, projects that below the
-     * error the image allows: it is then drawn at rest. Returns whether any record moved.
+     * error the image allows: it is then drawn at rest. Returns whether records need uploading,
+     * including the first pose and the previous pose settling after movement stops.
      */
     update(skipped: (i: number, reach: number) => boolean) {
-      let changed = false;
+      let changed = first;
       for (let i = 0; i < placed.length; i++) {
         const entry = placed[i];
         if (!entry) continue;
+        changed ||= moving[i] === 1;
         reach[i] = write(i, entry, skipped);
         changed ||= moving[i] === 1;
       }
