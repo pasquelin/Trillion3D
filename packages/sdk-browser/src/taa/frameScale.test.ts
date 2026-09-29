@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
-import { beginTaaFrame } from './frame.ts';
+import { beginTaaFrame, convergeAtStillScale } from './frame.ts';
 import { createTaaFrameState } from './frameState.ts';
 import { createScaleControl } from '../webgpu/pages/state/scaleControl.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
@@ -53,4 +53,18 @@ test('a moving image draws at the controller, a quiet one at 1, a convergence at
   rt.capture.capturing = true;
   beginTaaFrame(rt, cam, false);
   assert.deepEqual([rt.scale.drawn, rt.gpu.targetSize], [1, DISPLAY], 'no accumulation, no scale');
+});
+
+// #1016: a capture after a moving camera converged at the moving image's scale, so it made
+// resident what that scale reads; the held image, drawn at the display, read slivers nothing had
+// asked for, and the A/A kept what each run's path had left (1-3 px on sponza's `generale`).
+test("a capture's barrier converges at the scale its still image is drawn at", () => {
+  const { rt, moving } = runtime();
+  beginTaaFrame(rt, cam, false);
+  assert.equal(rt.scale.drawn, moving);
+  convergeAtStillScale(rt);
+  rt.run.textureConverging = true;
+  beginTaaFrame(rt, cam, true);
+  assert.equal(rt.scale.drawn, 1);
+  assert.deepEqual(rt.gpu.targetSize, DISPLAY, 'the barrier reads what the held image will read');
 });
