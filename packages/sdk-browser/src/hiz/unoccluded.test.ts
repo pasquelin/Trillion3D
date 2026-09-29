@@ -14,20 +14,20 @@ import { cameraAt } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { DEPTH_CLEAR } from '../camera/depthConvention.ts';
 import { asHostLibrary } from '../host/resources.ts';
+import { identityRoots } from '../page/selection/placements.fixture.ts';
+
+type Tagged = HizPage & { tag: number; matrix: G.Matrix4 };
 
 function box(min: number[], max: number[], tag: number) {
-  return { min, max, matrix: new G.Matrix4(), tag } as HizPage & { tag: number };
+  // The oracles read the world on the page, as pages carried it; the engine reads it on root 0.
+  return { min, max, placementIndex: 0, matrix: new G.Matrix4(), tag } as Tagged;
 }
 
 /** Splits `pages` with both implementations and asserts the same occluders and rest, by tag. */
-function assertSplitAgrees(
-  pages: (HizPage & { tag: number })[],
-  cam: G.Camera,
-  viewport: [number, number],
-) {
-  const occluders: (HizPage & { tag: number })[] = [],
-    rest: (HizPage & { tag: number })[] = [];
-  splitOccludersInto(pages, cameraMoteur(cam), viewport, occluders, rest);
+function assertSplitAgrees(pages: Tagged[], cam: G.Camera, viewport: [number, number]) {
+  const occluders: Tagged[] = [],
+    rest: Tagged[] = [];
+  splitOccludersInto(pages, identityRoots(), cameraMoteur(cam), viewport, occluders, rest);
   const reference = referenceSplitOccluders(
     pages,
     asHostLibrary<Parameters<typeof referenceSplitOccluders>[1]>(cam),
@@ -76,7 +76,14 @@ test('countUnoccluded on an empty pyramid-worthy cut matches the reference, epoc
     box([-10, -10, -3], [10, 10, -3], 2), // Oversized: too wide for the level-0 kernel.
   ];
   const countsOptimisee = createHizCounts();
-  const kept = countUnoccluded(pages, pyramid, cameraMoteur(cam), viewport, countsOptimisee);
+  const kept = countUnoccluded(
+    pages,
+    identityRoots(),
+    pyramid,
+    cameraMoteur(cam),
+    viewport,
+    countsOptimisee,
+  );
   const countsReference = {
     tested: 0,
     testedTriangles: 0,
@@ -93,7 +100,7 @@ test('countUnoccluded on an empty pyramid-worthy cut matches the reference, epoc
     countsReference,
   );
   assert.deepEqual(
-    kept.map((p: HizPage & { tag: number }) => p.tag),
+    kept.map((p: Tagged) => p.tag),
     referenceKept.map((p: { tag: number }) => p.tag),
   );
   assert.deepEqual(countsOptimisee, countsReference);

@@ -27,7 +27,7 @@ test("a row's coplanar layer goes into its record word, capped, and its triangle
       array: Uint32Array.from([0, 1, 2]),
       depthLayer,
       material,
-      matrix: new G.Matrix4(),
+      placementIndex: 0,
     }) as unknown as PageRec;
   // The two page-table rows carry the three indices each page draws.
   const rowWords = PAGE_INFO_STRIDE / 4;
@@ -47,6 +47,7 @@ test("a row's coplanar layer goes into its record word, capped, and its triangle
     },
     itemWordsHold: createDrawItemWordsHold(2),
     drawItemWords: new Uint32Array(2 * DRAW_ITEM_U32),
+    selectionRoots: [{ world: new G.Matrix4() }],
   };
   const rt = { layout, vis: { drawLayerSlots: 3 } } as unknown as WebgpuPagesRuntime;
   const hold = refreshDrawItemWords(rt, rt.vis.drawLayerSlots - 1, undefined);
