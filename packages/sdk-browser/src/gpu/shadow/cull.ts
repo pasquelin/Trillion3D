@@ -7,6 +7,7 @@ import { createCheckedShaderModule } from '../core/shaderModule.ts';
 import { createShadowLightCull } from './lightCull.ts';
 import { shadowBatchWrites } from './batchWrites.ts';
 import { CULL_UNIFORM_WORDS, SHADOW_REGION_COMMANDS, emptyRegionCommands } from './batchBudget.ts';
+import { growKeptList, keptList, writeRegionOffsets } from './keptList.ts';
 
 /** Words of a draw-slot uniform: the matrix, the frame, then the slot and its indirection. */
 const DRAW_UNIFORM_WORDS = PAGE_BIND_ALIGN / 4;
@@ -51,11 +52,6 @@ export type GpuShadowCull = Awaited<ReturnType<typeof createGpuShadowCull>>;
  */
 export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
-  const kept = device.createBuffer({
-    label: 'Trillion3D shadow kept clusters v1',
-    size: Math.max(4, MAX_SHADOW_REGIONS * capacity * 4),
-    usage: GPUBufferUsage.STORAGE,
-  });
   const indirect = device.createBuffer({
     label: 'Trillion3D shadow indirect v1',
     size: MAX_SHADOW_REGIONS * SHADOW_REGION_COMMANDS * DRAW_INDIRECT_STRIDE,
@@ -74,13 +70,16 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const offsets = device.createBuffer({ size: (MAX_SHADOW_REGIONS + 1) * 4, usage: storage });
+  writeRegionOffsets(device, offsets, capacity);
   const drawUniform = device.createBuffer({
     label: 'Trillion3D shadow draw slots v1',
     size: MAX_SHADOW_REGIONS * PAGE_BIND_ALIGN,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const counts = createGpuShadowCullCounts(device, SHADOW_REGION_COMMANDS);
-  const all = [kept, indirect, faceVolumes, uniforms, offsets, drawUniform];
+  // Shared with the light cull, which reads them at each encode: a growth replaces them here.
+  const targets = { kept: keptList(device, capacity), indirect, faces: faceVolumes, capacity };
+  const all = [targets.kept, indirect, faceVolumes, uniforms, offsets, drawUniform];
   let light: Awaited<ReturnType<typeof createShadowLightCull>> | undefined;
   const release = () => {
     for (const buffer of all) buffer.destroy();
@@ -88,20 +87,15 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     light?.dispose();
   };
   try {
-    // Each region's place in the shared list — and the end of the last, where its cutout list
-    // starts down (#965) —, and its draw slot: set once.
-    const offsetWords = new Uint32Array(MAX_SHADOW_REGIONS + 1);
+    // Each region's draw slot: set once, as its place in the list (`keptList.ts`).
     const drawWords = new Uint32Array(MAX_SHADOW_REGIONS * DRAW_UNIFORM_WORDS);
-    for (let region = 0; region <= MAX_SHADOW_REGIONS; region++)
-      offsetWords[region] = region * capacity;
     for (let region = 0; region < MAX_SHADOW_REGIONS; region++) {
       drawWords[region * DRAW_UNIFORM_WORDS + WORD_DRAW_SLOT] = region;
       drawWords[region * DRAW_UNIFORM_WORDS + WORD_INDIRECT] = 1;
     }
-    device.queue.writeBuffer(offsets, 0, offsetWords);
     device.queue.writeBuffer(drawUniform, 0, drawWords);
     const module = await createCheckedShaderModule(device, SHADOW_CULL_SHADER, 'SHADOW_CULL');
-    light = await createShadowLightCull(device, { kept, indirect, faces: faceVolumes, capacity });
+    light = await createShadowLightCull(device, targets);
     const layout = device.createBindGroupLayout({
       entries: BINDING_TYPES.map((type, binding) => ({
         binding,
@@ -120,8 +114,15 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
     let bound: GPUBuffer[] = [],
       group: GPUBindGroup | undefined;
     return {
-      capacity,
-      kept,
+      get kept() {
+        return targets.kept;
+      },
+      /** Lists of `rows` rows a region, made now and put in place by `commit` (`keptList.ts`). */
+      grow: (rows: number) =>
+        growKeptList(device, targets, offsets, rows, () => {
+          all[0] = targets.kept;
+          group = undefined;
+        }),
       indirect,
       offsets,
       drawUniform,
@@ -162,7 +163,7 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
           bound[7] !== from.mobility
         ) {
           const buffers = [from.spheres, from.source, from.indirect];
-          buffers.push(kept, indirect, uniforms, faceVolumes, from.mobility);
+          buffers.push(targets.kept, indirect, uniforms, faceVolumes, from.mobility);
           bound = buffers;
           group = device.createBindGroup({
             layout,
@@ -177,12 +178,13 @@ export async function createGpuShadowCull(device: GPUDevice, capacity: number) {
         uniData[2] = from.base;
         uniData[3] = from.indirectBase;
         uniData[4] = from.commands;
-        uniData[5] = capacity;
+        uniData[5] = targets.capacity;
         shadowBatchWrites(device).write(uniforms, run * PAGE_BIND_ALIGN, uniData);
         const pass = encoder.beginComputePass({ label: 'Trillion3D shadow cull' });
         pass.setBindGroup(0, group, [run * PAGE_BIND_ALIGN]);
         pass.setPipeline(scatter);
-        pass.dispatchWorkgroups(Math.max(1, Math.ceil(Math.min(rows, capacity) / 64)), faces);
+        const groups = Math.ceil(Math.min(rows, targets.capacity) / 64);
+        pass.dispatchWorkgroups(Math.max(1, groups), faces);
         pass.end();
       },
       /** The GPU light cut's cull: every region of the frame in one pass (`lightCull.ts`). */

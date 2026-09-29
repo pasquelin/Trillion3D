@@ -153,3 +153,33 @@ test("a cutout row's word carries the cutout bit, beside its moving bit", () => 
   );
   assert.ok(!mobility.hasCutouts);
 });
+
+// #216: a table grown in place resizes the row words, never the placements' state: a placement
+// that moved stays out of the static layer, and every row's word is written again.
+test('a moving placement stays moving across a grow of the rows', () => {
+  const mobility = createShadowMobility();
+  mobility.ensure(2, 2, () => new Float64Array(16));
+  mobility.move(1, new Float64Array(16).fill(1));
+  mobility.writeRows(
+    (row) => row,
+    2,
+    0,
+    1,
+    () => {},
+    none,
+  );
+  mobility.ensure(2, 4, () => new Float64Array(16));
+  assert.equal(mobility.moves(1), true);
+  assert.equal(mobility.layered, true);
+  const pushed: Array<[number, number]> = [];
+  mobility.writeRows(
+    (row) => [0, 1, 1, -1][row],
+    4,
+    3,
+    3,
+    (first, count) => pushed.push([first, count]),
+    none,
+  );
+  assert.deepEqual(pushed, [[0, 4]], 'the whole grown table');
+  assert.deepEqual([...mobility.rowWords], [0, MOBILITY_MOVING, MOBILITY_MOVING, 0]);
+});

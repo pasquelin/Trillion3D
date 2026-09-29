@@ -42,7 +42,8 @@ export function shadowRegionGroup(
     key[3] !== pageTable ||
     key[4] !== pool ||
     key[5] !== cull.kept ||
-    key[6] !== occlusion?.visible
+    key[6] !== occlusion?.visible ||
+    key[7] !== vis.zeroFlags
   ) {
     key[0] = cacheBuffer;
     key[1] = concatPos;
@@ -51,6 +52,7 @@ export function shadowRegionGroup(
     key[4] = pool;
     key[5] = cull.kept;
     key[6] = occlusion?.visible;
+    key[7] = vis.zeroFlags;
     lights.shadowGroups.fill(undefined);
   }
   const instances = visible && occlusion ? occlusion.visible : cull.kept,

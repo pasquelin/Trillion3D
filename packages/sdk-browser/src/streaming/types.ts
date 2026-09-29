@@ -25,6 +25,14 @@ export interface HostRetentionDelta {
   readonly heldCount: number;
 }
 
+/** How `request` reads a batch: its cancel, its priority, and what runs as each page lands. */
+export interface BatchRead {
+  /** Cancels the batch's reads. */ signal?: AbortSignal;
+  /** Queue priority, 1 by default. */ priority?: number;
+  /** Runs as each page's read lands, not after the whole batch. */
+  onPage?: (url: string) => unknown;
+}
+
 /** One page a streamer fetches: where, how big, and its fingerprint. */
 export interface StreamPage {
   /** Where it is read. */
