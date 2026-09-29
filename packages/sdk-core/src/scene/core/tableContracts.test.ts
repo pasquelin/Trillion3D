@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { assertSceneTables } from './tableContracts.ts';
-import { assertCellNodes, readTablePartition, type TablePage } from './tablePartition.ts';
+import { assertCellNodes } from './tableCell.ts';
+import { readTablePartition, type TablePage } from './tablePartition.ts';
 
 const hasCode =
   (code: string, text = '') =>
@@ -98,6 +99,9 @@ test('the pages under the root give back every cell in order, their box and thei
   assert.deepEqual(urls, ['0', '1', '2', '3']);
   assert.deepEqual(paged.bounds, [-3, 0, 0, 2, 5, 1]);
   assert.deepEqual(paged.meshes, [0, 1, 2, 3]);
+  // The pages are the cell index: `a` over the cells of `c` and `d`, then `b` (#575).
+  const region = (from: number, to: number, pages: unknown[] = []) => ({ from, to, pages });
+  assert.deepEqual(paged.regions, [region(0, 3, [region(0, 2), region(2, 3)]), region(3, 4)]);
   // A slot that is not fixed-width hexadecimal, or a page of another version, is refused.
   const bad = { version: 3, pages: ['z'.repeat(168), ...root.slice(1)] };
   await assert.rejects(readTablePartition(bad, read), hasCode('INVALID_SCENE_TABLES'));

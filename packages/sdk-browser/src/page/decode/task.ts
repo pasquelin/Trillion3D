@@ -4,6 +4,7 @@ import { pageViews } from './geometryPageBlock.ts';
 import { sha256Hex } from '../../measurement/sha256Hex.ts';
 import type {
   PageDecodeAnswer,
+  PageDecodeDone,
   PageDecodeGeometryPayload,
   PageDecodeRequest,
 } from '../../../../sdk-core/src/index.ts';
@@ -44,6 +45,27 @@ function indisponible(id: number, cause: unknown) {
   };
 }
 
+/** A task's success: `fields` over an answer that carries nothing else, `transfer` beside it. */
+function done(
+  request: PageDecodeRequest,
+  started: number,
+  fields: Partial<PageDecodeDone>,
+  transfer: ArrayBuffer[],
+) {
+  const answer: PageDecodeDone = {
+    protocol: PAGE_DECODE_PROTOCOL,
+    id: request.id,
+    ok: true,
+    sha256: null,
+    source: null,
+    decoded: null,
+    wasm: false,
+    taskMs: performance.now() - started,
+    ...fields,
+  };
+  return { answer, transfer };
+}
+
 /**
  * The work itself, written once. The worker runs it, and the synchronous fallback runs exactly
  * the same function on the main thread: that sharing — and not a re-read of both codes — is what
@@ -59,36 +81,17 @@ export async function runPageDecodeTask(
       const cutter = await import('../../world/page/runtimeCut.ts');
       const { drawn, cones, blended, recut } = cutter.unpackDrawn(request.source);
       const cut = await cutter.cutDrawnTriangles(drawn, cones, blended, recut);
-      return {
-        answer: {
-          protocol: PAGE_DECODE_PROTOCOL,
-          id: request.id,
-          ok: true,
-          sha256: null,
-          source: null,
-          decoded: null,
-          cut,
-          wasm: false,
-          taskMs: performance.now() - started,
-        },
-        transfer: cut.pages.flatMap((page) => [page.index, page.geometry]),
-      };
+      const transfer = cut.pages.flatMap((page) => [page.index, page.geometry]);
+      return done(request, started, { cut }, transfer);
+    }
+    if (request.op === 'cells') {
+      const { decodeCellFile } = await import('../../scene/partition/cellDecode.ts');
+      const cells = decodeCellFile(request.source);
+      return done(request, started, { cells }, [cells.ranks, cells.locals]);
     }
     if (request.op === 'verify') {
       const sha256 = await sha256Hex(request.source);
-      return {
-        answer: {
-          protocol: PAGE_DECODE_PROTOCOL,
-          id: request.id,
-          ok: true,
-          sha256,
-          source: request.source,
-          decoded: null,
-          wasm: false,
-          taskMs: performance.now() - started,
-        },
-        transfer: [request.source],
-      };
+      return done(request, started, { sha256, source: request.source }, [request.source]);
     }
     let choisi: Decodeur;
     try {
@@ -99,19 +102,7 @@ export async function runPageDecodeTask(
     }
     const decoded = await choisi.decode(new Uint8Array(request.source), request.maxDecodedBytes);
     const payload = geometryPayload(decoded);
-    return {
-      answer: {
-        protocol: PAGE_DECODE_PROTOCOL,
-        id: request.id,
-        ok: true,
-        sha256: null,
-        source: null,
-        decoded: payload,
-        wasm: choisi.wasm,
-        taskMs: performance.now() - started,
-      },
-      transfer: [payload.block],
-    };
+    return done(request, started, { decoded: payload, wasm: choisi.wasm }, [payload.block]);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return {

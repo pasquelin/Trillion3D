@@ -1,6 +1,7 @@
 import type { TablePartition } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
-import { createPartitionCells } from './cells.ts';
+import { cellRows, decodeCellFile } from './cellDecode.ts';
+import { createPartitionCells, type PartitionCells } from './cells.ts';
 import { placedMesh, type RowLink } from './rows.ts';
 
 /** Two cells of one mesh, one near the origin and one 5 km away; each hangs under a moved core
@@ -42,6 +43,7 @@ export function world(far: number | null = 0, near: number | null = null) {
         meshPages: [],
       },
     ],
+    regions: [{ from: 0, to: 2, pages: [] }],
   };
   const root = new Group();
   const core = new Object3D();
@@ -61,4 +63,16 @@ export function world(far: number | null = 0, near: number | null = null) {
   const bytes = (url: string) =>
     new TextEncoder().encode(JSON.stringify(bodies[url.split('/').at(-1)!]));
   return { cells, links, root, core, bytes, node };
+}
+
+/** Reads a cell file into its rows on this thread, by the decode pool's own task. */
+export const decodeHere = async (bytes: Uint8Array) =>
+  cellRows(decodeCellFile(bytes.slice().buffer as ArrayBuffer), bytes.byteLength);
+
+/** A frame of `cells`, then, once the decodes it asked landed, the next, which places them; what
+ *  that one returns. */
+export async function placed(cells: PartitionCells, ...frame: Parameters<PartitionCells['frame']>) {
+  cells.frame(...frame);
+  await Promise.all(cells.decodes());
+  return cells.frame(...frame);
 }

@@ -5,7 +5,7 @@ import { pose } from '../../host/prepared/nodes.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
 import type { PartitionCells } from './cells.ts';
-import { world } from './cells.fixture.ts';
+import { decodeHere, placed, world } from './cells.fixture.ts';
 
 type PartitionIo = Parameters<PartitionCells['frame']>[2];
 
@@ -18,6 +18,7 @@ function io(bytes: (url: string) => Uint8Array) {
   const outgrown = { count: 0 };
   const port: PartitionIo = {
     bytes: (url) => (held.has(url) ? bytes(url) : undefined),
+    decode: decodeHere,
     loading: () => false,
     request: (urls) => void asked.push(...urls),
     update: (rows, from, to) => updates.push([rows, from, to]),
@@ -44,7 +45,7 @@ test('the cells a camera needs are asked nearest first, then placed on rows once
   assert.deepEqual(asked, ['https://cache.test/key/far.json', 'https://cache.test/key/near.json']);
   assert.deepEqual(cells.stats(), { cells: 2, held: 0, waiting: 0, rows: 3 });
   asked.forEach((url) => held.add(url));
-  cells.frame([6000, 0, 0], everywhere, port, noBudget);
+  await placed(cells, [6000, 0, 0], everywhere, port, noBudget);
   assert.equal(cells.stats().held, 2);
   for (const link of links) assert.deepEqual([...link.placements!.live.subarray(0, 3)], [1, 1, 1]);
   assert.ok(updates.length >= 2, 'the session is told which rows were written');
@@ -55,7 +56,7 @@ test('a row holds the world matrix the engine composes for the same node under i
   const { port, held } = io(bytes);
   await opened(cells, everywhere);
   ['near.json', 'far.json'].forEach((name) => held.add(`https://cache.test/key/${name}`));
-  cells.frame([0, 0, 0], everywhere, port, noBudget);
+  await placed(cells, [0, 0, 0], everywhere, port, noBudget);
   const child = new Object3D();
   pose(child, node(5000, 0));
   core.add(child);
@@ -74,7 +75,7 @@ test('a cell past its reach gives its rows back, parked, for the next cell to ta
   const { port, held, updates } = io(bytes);
   await opened(cells, everywhere);
   ['near.json', 'far.json'].forEach((name) => held.add(`https://cache.test/key/${name}`));
-  cells.frame([0, 0, 0], everywhere, port, noBudget);
+  await placed(cells, [0, 0, 0], everywhere, port, noBudget);
   updates.length = 0;
   cells.frame([0, 0, 0], 100, port, noBudget);
   assert.equal(cells.stats().held, 1, 'the far cell left');
@@ -93,7 +94,7 @@ test('the rows are sized at open for the reach, and a reach past them tells the 
   await opened(cells, 100);
   // Only the near cell's two nodes can be held within 100 m: the far one is 5 km off.
   assert.equal(links[0].placements!.capacity, 2);
-  cells.frame([0, 0, 0], 100, port, noBudget);
+  await placed(cells, [0, 0, 0], 100, port, noBudget);
   assert.deepEqual(cells.stats(), { cells: 2, held: 1, waiting: 0, rows: 2 });
   cells.frame([0, 0, 0], everywhere, port, noBudget);
   cells.frame([0, 0, 0], everywhere, port, noBudget);
@@ -101,7 +102,7 @@ test('the rows are sized at open for the reach, and a reach past them tells the 
   // Opened again, the rows are sized for the reach the frames asked, the held rows kept.
   await opened(cells, 100);
   held.add('https://cache.test/key/far.json');
-  cells.frame([0, 0, 0], everywhere, port, noBudget);
+  await placed(cells, [0, 0, 0], everywhere, port, noBudget);
   assert.deepEqual(cells.stats(), { cells: 2, held: 2, waiting: 0, rows: 4 });
 });
 
@@ -123,8 +124,7 @@ test('a parent scaled down grows the rows in place, on an engine that takes it, 
     await opened(cells, 100);
     const before = links.map((link) => link.placements!);
     core.scale.set(1e-3, 1e-3, 1e-3);
-    cells.frame([0, 0, 0], 100, port, noBudget);
-    cells.frame([0, 0, 0], 100, port, noBudget);
+    await placed(cells, [0, 0, 0], 100, port, noBudget);
     const { held: placed, waiting } = cells.stats();
     assert.deepEqual([placed, waiting, outgrown.count], grows ? [2, 0, 0] : [1, 1, 1]);
     if (grows !== undefined) assert.deepEqual(asked, [[2, 4]], 'both buffers asked at once');
@@ -132,7 +132,7 @@ test('a parent scaled down grows the rows in place, on an engine that takes it, 
       assert.deepEqual(grown, [], 'no buffer replaced: the session reads the ones it holds');
       assert.ok(links.every((link, at) => link.placements === before[at]));
       // The session opened again sizes the rows for the reach and places the far cell.
-      await cells.prime([0, 0, 0], 100, async (url) => bytes(url)!, true);
+      await cells.prime([0, 0, 0], 100, (url) => decodeHere(bytes(url)!), true);
       const { held: placedAgain, rows } = cells.stats();
       assert.deepEqual([placedAgain, rows], [2, 4]);
       continue;
@@ -166,16 +166,54 @@ test('rows that hold every cell never ask for a reopen: sized so, or with no own
     const { port, held, outgrown } = io(bytes);
     await opened(cells, owned ? 1e4 : 100, owned);
     ['near.json', 'far.json'].forEach((name) => held.add(`https://cache.test/key/${name}`));
-    cells.frame([0, 0, 0], 1e7, port, noBudget);
+    await placed(cells, [0, 0, 0], 1e7, port, noBudget);
     assert.deepEqual([cells.stats().held, cells.stats().waiting, outgrown.count], [2, 0, 0]);
   }
 });
 
-test('a frame says when a cell within reach is left for a later one', async () => {
+test('a frame says when a cell within reach is left for a later one, read or decoded', async () => {
   const { cells, bytes } = world();
   const { port, held } = io(bytes);
   await opened(cells, everywhere);
   const unread = cells.frame([0, 0, 0], 100, port, noBudget);
   held.add('https://cache.test/key/near.json');
-  assert.deepEqual([unread, cells.frame([0, 0, 0], 100, port, noBudget)], [true, false]);
+  const decoding = cells.frame([0, 0, 0], 100, port, noBudget);
+  assert.equal(cells.stats().held, 0, 'nothing is placed before its decode lands');
+  await Promise.all(cells.decodes());
+  assert.deepEqual(
+    [unread, decoding, cells.frame([0, 0, 0], 100, port, noBudget)],
+    [true, true, false],
+  );
+});
+
+test('a cell file is never parsed by the frame: its bytes go to the decode, its rows are placed', async () => {
+  const { cells, bytes } = world();
+  const { port, held } = io(bytes);
+  const decoded: Uint8Array[] = [];
+  // The decode runs later, as the pool answers: whatever it parses is not the frame's.
+  port.decode = (read) => (decoded.push(read), Promise.resolve().then(() => decodeHere(read)));
+  await opened(cells, everywhere);
+  held.add('https://cache.test/key/near.json');
+  const parse = JSON.parse;
+  let parsed = 0;
+  const frame = () => {
+    JSON.parse = (...args: Parameters<typeof parse>) => (parsed++, parse(...args));
+    try {
+      cells.frame([0, 0, 0], 100, port, noBudget);
+    } finally {
+      JSON.parse = parse;
+    }
+  };
+  frame();
+  await Promise.all(cells.decodes());
+  frame();
+  assert.deepEqual([parsed, decoded.length, cells.stats().held], [0, 1, 1]);
+  // A file the decode refused is thrown by the frame that reads it, as before.
+  const { cells: refused } = world();
+  held.add('https://cache.test/key/far.json');
+  port.decode = () => Promise.reject(new Error('INVALID_SCENE_TABLES'));
+  await opened(refused, everywhere);
+  refused.frame([5000, 0, 0], 100, port, noBudget);
+  await Promise.all(refused.decodes());
+  assert.throws(() => refused.frame([5000, 0, 0], 100, port, noBudget), /INVALID_SCENE_TABLES/);
 });

@@ -142,26 +142,27 @@ export async function decodePageOffThread(
 }
 
 /**
- * Drawn triangles, packed by `packDrawn`, cut into pages in a worker when the pool lives and by
- * the same task on the main thread otherwise. **The caller yields its buffer.** A cut is not a
- * decode: it is not counted among the decoded pages.
+ * A task that is never urgent — a `cut`, a partition's `cells` (#575) — in a worker when the pool
+ * lives, else by the same task on the main thread: it waits for the pool's startup check rather
+ * than take the main thread. The worker receives a copy of `source`, so a vanished worker leaves
+ * it whole for the main thread. Not a decode: it is not counted among the decoded pages.
  */
-export async function cutPagesOffThread(packed: ArrayBuffer): Promise<PageCutPayload> {
-  // A cut is never urgent: it waits for the pool's startup check rather than take the main thread.
+export async function patientTask(op: 'cut' | 'cells', source: Uint8Array) {
   if (!openPool() && started === undefined) await starting;
   const open = openPool();
-  // The worker receives a copy: a vanished worker leaves the original for the main thread.
-  let answer = open ? await open.submit('cut', packed.slice(0), 0).answer : undefined;
-  if (!answer || (!answer.ok && answer.code === 'PAGE_DECODE_WORKER'))
-    answer = (
-      await runPageDecodeTask({
-        protocol: PAGE_DECODE_PROTOCOL,
-        id: 0,
-        op: 'cut',
-        source: packed,
-        maxDecodedBytes: 0,
-      })
-    ).answer;
+  const copy = () => source.slice().buffer as ArrayBuffer;
+  let answer = open ? await open.submit(op, copy(), 0).answer : undefined;
+  if (!answer || (!answer.ok && answer.code === 'PAGE_DECODE_WORKER')) {
+    const request = { protocol: PAGE_DECODE_PROTOCOL, id: 0, op, maxDecodedBytes: 0 };
+    answer = (await runPageDecodeTask({ ...request, source: ownBuffer(source) })).answer;
+  }
+  return answer;
+}
+
+/** Drawn triangles, packed by `packDrawn`, cut into pages (`patientTask`). **The caller yields
+ *  its buffer.** */
+export async function cutPagesOffThread(packed: ArrayBuffer): Promise<PageCutPayload> {
+  const answer = await patientTask('cut', new Uint8Array(packed));
   if (!answer.ok || !answer.cut) refuse(answer);
   return answer.cut;
 }
