@@ -5,6 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { followSite, RELOAD_EVENTS, stepsReading } from './docs-dev.ts';
+import { STYLE_SOURCES } from './docs/build-styles.ts';
 import { copyStatics, STATIC_ENTRIES } from './docs/site.ts';
 
 const LOGS = resolve(import.meta.dirname, '../.worktrees/logs');
@@ -47,9 +48,17 @@ test(
     const out = resolve(root, 'out');
     // Its own repository: the folder of logs it lies in is ignored by this one.
     execFileSync('git', ['init', '-q'], { cwd: root });
-    for (const name of ['packages', ...STATIC_ENTRIES.map((name) => `site/${name}`)])
+    // Only the edited note is a live source in this minimal repository; ignore late setup events.
+    await writeFile(resolve(root, '.gitignore'), '*\n!site/\n!site/data/\n!site/data/note.json\n');
+    for (const name of [
+      'packages',
+      'site/styles',
+      ...STYLE_SOURCES.filter((name) => !name.endsWith('.html')),
+      ...STATIC_ENTRIES.map((name) => `site/${name}`),
+    ])
       if (name.endsWith('.ico')) await writeFile(resolve(root, name), '');
       else await mkdir(resolve(root, name), { recursive: true });
+    await writeFile(resolve(site, 'styles/tailwind.css'), 'body { color: black; }');
     await writeFile(resolve(site, 'index.html'), '<!doctype html>\n<head>\n</head>\n');
     await writeFile(resolve(site, 'data/note.json'), '"before"');
     await copyStatics(site, out);
@@ -57,13 +66,20 @@ test(
     const base = `http://127.0.0.1:${port}`;
     const served = async (path: string) => (await fetch(`${base}${path}`)).text();
     // Closed before its folder is removed, which the hooks of `t.after` would do first.
+    let saving: ReturnType<typeof setInterval> | undefined;
+    let cancelEvents = async () => {};
     try {
       assert.ok((await served('/')).includes(RELOAD_EVENTS), 'the served page listens');
       const events = (await fetch(`${base}${RELOAD_EVENTS}`)).body!.getReader();
+      cancelEvents = () => events.cancel().catch(() => {});
+      t.signal.addEventListener('abort', () => void cancelEvents(), { once: true });
       const decoder = new TextDecoder();
       // The stream's first comment: the server counts the page among the open ones.
       await events.read();
-      await writeFile(resolve(site, 'data/note.json'), '"after"');
+      // Recursive watchers may attach to fresh directories after the first save on macOS.
+      const save = () => writeFile(resolve(site, 'data/note.json'), '"after"');
+      saving = setInterval(() => void save(), 100);
+      await save();
       // Each reload is a rebuild done; one of them serves the edit.
       do {
         let told = '';
@@ -75,6 +91,8 @@ test(
       } while ((await served('/data/note.json')) !== '"after"');
       assert.deepEqual(reloadIn(out), [], 'the built tree never names the reload stream');
     } finally {
+      clearInterval(saving);
+      await cancelEvents();
       await close();
     }
   },

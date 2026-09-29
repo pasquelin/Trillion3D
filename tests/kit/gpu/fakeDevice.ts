@@ -10,18 +10,24 @@ import {
   type LostInfo,
 } from './fakeRecords.ts';
 
-export { written, type FakeBuffer, type FakeWrite } from './fakeRecords.ts';
+export { replayWrites, written, type FakeBuffer, type FakeWrite } from './fakeRecords.ts';
 
 /**
  * The recording `GPUDevice` of unit tests that observe what one module asks of a device without a
  * GPU. Every creation, write, encoded copy and destroy succeeds and is recorded in call order; a
  * test reads the list it observes and ignores the others. The usage and stage constants are
- * installed on each call. Options inject what a test needs of the device: `limits`, allocations
- * that fail (`refuse`), no compute pipelines (`compute: false`), and readback mappings that settle
- * when the test says (`mapping`). A test that runs a whole pages backend, or reads back what a
+ * installed on each call. Options inject what a test needs of the device: `limits`, `features`,
+ * allocations that fail (`refuse`), no compute pipelines (`compute: false`), and readback mappings
+ * that settle when the test says (`mapping`). A test that runs a whole pages backend, or reads back what a
  * compute pass wrote, uses `mockGpu()`, which executes its encoders.
  */
-export function fakeDevice({ limits, refuse, compute = true, mapping }: FakeDeviceOptions = {}) {
+export function fakeDevice({
+  limits,
+  refuse,
+  compute = true,
+  mapping,
+  features = [],
+}: FakeDeviceOptions = {}) {
   installGpuGlobals();
   const buffers: FakeBuffer[] = [],
     textures: FakeTexture[] = [],
@@ -57,6 +63,7 @@ export function fakeDevice({ limits, refuse, compute = true, mapping }: FakeDevi
   const device = {
     label: '',
     lost,
+    features: new Set(features),
     ...(limits && { limits }),
     destroy: () => void destroyed.push(device),
     createBuffer(descriptor: GPUBufferDescriptor) {

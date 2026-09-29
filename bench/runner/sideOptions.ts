@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path';
 import type { SideBase } from './dists.ts';
 import type { ScreenErrorVariant } from '../../packages/sdk-core/src/index.ts';
 import type { TextureCompression } from '../../packages/sdk-browser/src/texture/blockFormats.ts';
+import { MIN_RENDER_SCALE } from '../../packages/sdk-browser/src/frame/renderScaleOption.ts';
 
 // Benchmark Chromium flags: unbridled background rendering, enabled GPU benchmarking, WebGPU enabled.
 const BASE_FLAGS = [
@@ -37,6 +38,9 @@ export interface Side extends SideBase {
   variant: string | null;
   compression: TextureCompression | null;
   errorMetric: ScreenErrorVariant | null;
+  /** The fraction of the display per axis the WebGPU frame is drawn at before the temporal resolve
+   *  reconstructs it (`renderScale`, #816); `null` leaves the engine's, the display. */
+  renderScale: number | null;
 }
 
 // Standalone WebGL2 engine is the only one of the three decoding geometry pages itself.
@@ -88,7 +92,8 @@ export const ENGINES: Record<string, EngineDescriptor> = {
   },
 };
 
-/** Cache, engine, diagnostic variant, texture compression and error metric for one side. */
+/** Cache, engine, diagnostic variant, texture compression, error metric and render scale for one
+ *  side. */
 export function equipSide(
   side: SideBase,
   flags: Map<string, string>,
@@ -108,16 +113,36 @@ export function equipSide(
   ]) as TextureCompression | null;
   // Screen error metric (EXPERIMENT): `certifiee` is our bound, `reference` the standard
   // external projection; `null` leaves ours.
-  equipped.errorMetric = sideChoice(flags, side.name, 'erreur', [
+  equipped.errorMetric = sideChoice(flags, side.name, 'error-metric', [
     'certifiee',
     'reference',
   ]) as ScreenErrorVariant | null;
+  equipped.renderScale = scaleOf(flags, side.name, equipped.engine);
   return equipped;
 }
 
+/** A side's render scale: `--scale-<side>`, otherwise `--scale`, in the engine's
+ *  [MIN_RENDER_SCALE, 1]; `null` without. Below one only where the WebGPU temporal resolve
+ *  reconstructs the frame: elsewhere the engine draws the display and the report would name a
+ *  scale no image was drawn at. */
+function scaleOf(flags: Map<string, string>, name: string, engine: EngineDescriptor) {
+  const value = sideFlag(flags, name, 'scale');
+  if (value === null) return null;
+  const scale = Number(value);
+  if (!(scale >= MIN_RENDER_SCALE && scale <= 1))
+    throw new Error(`--scale-${name} must be in [${MIN_RENDER_SCALE}, 1]`);
+  if (scale < 1 && (engine.renderer !== 'webgpu' || flags.get('antialiasing') === 'off'))
+    throw new Error(`--scale-${name} below 1 needs the WebGPU engine and --antialiasing on`);
+  return scale;
+}
+
+/** A side's flag: `--<key>-<side>`, otherwise `--<key>`, otherwise `null`. */
+const sideFlag = (flags: Map<string, string>, name: string, key: string) =>
+  flags.get(`${key}-${name}`) ?? flags.get(key) ?? null;
+
 /** A side's choice among `allowed`: `--<key>-<side>`, otherwise `--<key>`, otherwise `null`. */
 function sideChoice(flags: Map<string, string>, name: string, key: string, allowed: string[]) {
-  const value = flags.get(`${key}-${name}`) ?? flags.get(key) ?? null;
+  const value = sideFlag(flags, name, key);
   if (value !== null && !allowed.includes(value))
     throw new Error(`--${key}-${name} must be ${allowed.join(', ')}`);
   return value;
@@ -131,23 +156,24 @@ export const sideReport = (side: Side) =>
       dist: side.dist,
       from: side.from,
       cache: side.cache ?? null,
-      moteur: side.engine.id,
-      variante: side.variant,
+      engine: side.engine.id,
+      variant: side.variant,
       compression: side.compression,
-      erreur: side.errorMetric ?? 'certifiee',
+      errorMetric: side.errorMetric ?? 'certifiee',
+      scale: side.renderScale,
     },
   ] as const;
 
-/** Diagnostic variant of a side: `--variante-<side>`, otherwise campaign variant. */
+/** Diagnostic variant of a side: `--variant-<side>`, otherwise campaign variant. */
 function variantOf(flags: Map<string, string>, name: string) {
-  return flags.get(`variante-${name}`) ?? flags.get('variante') ?? null;
+  return flags.get(`variant-${name}`) ?? flags.get('variant') ?? null;
 }
 
-/** Engine of a side: `--moteur-<side>` if provided, otherwise campaign engine. */
+/** Engine of a side: `--engine-<side>` if provided, otherwise campaign engine. */
 export function engineOf(flags: Map<string, string>, name: string, fallback: string) {
-  const engine = flags.get(`moteur-${name}`) ?? fallback;
+  const engine = flags.get(`engine-${name}`) ?? fallback;
   const found = ENGINES[engine];
-  if (!found) throw new Error(`--moteur-${name} must be ${Object.keys(ENGINES).join(', ')}`);
+  if (!found) throw new Error(`--engine-${name} must be ${Object.keys(ENGINES).join(', ')}`);
   return found;
 }
 

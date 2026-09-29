@@ -1,11 +1,11 @@
 {
-  "bench": 3796,
-  "packages/asset-compiler-rust": 714,
+  "bench": 2969,
+  "packages/asset-compiler-rust": 351,
   "packages/page-codec-wasm": 16,
-  "packages/sdk-browser": 2625,
-  "packages/sdk-core": 781,
+  "packages/sdk-browser": 2492,
+  "packages/sdk-core": 769,
   "packages/sdk-node": 8,
-  "scripts": 75,
-  "site": 53,
-  "tests": 4407
+  "scripts": 69,
+  "site": 3,
+  "tests": 4363
 }

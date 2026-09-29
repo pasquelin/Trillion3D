@@ -58,7 +58,8 @@
       "missingCache": "Der kompilierte Cache fehlt: führen Sie pnpm compile:caches aus"
     },
     "banner": {
-      "close": "Schließen"
+      "close": "Schließen",
+      "waiting": "Wartet auf die Engine (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -1262,6 +1263,25 @@
       "off": "aus"
     }
   },
+  "page-materials": {
+    "banner": "Ziehen, um die Halle zu erkunden. Materialien auflisten, ändern, mischen oder erstellen.",
+    "controls": {
+      "set": "Farbe ändern",
+      "switchToBlend": "Auf Blenden umstellen",
+      "createAndAssign": "Erstellen und zuweisen"
+    },
+    "readouts": {
+      "selected material": "Ausgewähltes Material",
+      "materials": "Materialien",
+      "sourceMaterials": "Quellmaterialien",
+      "last action": "Letzte Aktion"
+    },
+    "words": {
+      "imported": "{count} importiert",
+      "applied": "Angewendet",
+      "ready": "Bereit"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "Ziehe, um dich umzusehen. Diese Lampen kamen in der Modelldatei mit.",
     "controls": {
@@ -1391,6 +1411,7 @@
     "banner": "Ziehe, um herumzugehen. Wechsle die Ansicht, um zu sehen, was der Renderer speichert.",
     "controls": {
       "see": "Sehen",
+      "glass": "Glasscheibe",
       "spin": "Drehen"
     },
     "choices": {
@@ -1745,7 +1766,8 @@
       "night": "Nacht",
       "bounce": "Abprallen",
       "sun": "Sonne",
-      "lamp": "Lampe"
+      "lamp": "Lampe",
+      "spin": "Drehen"
     },
     "words": {
       "credit": "Straßenlaternenmodell von W. Sitters, CC BY 3.0 — siehe assets/examples/CREDITS.md"

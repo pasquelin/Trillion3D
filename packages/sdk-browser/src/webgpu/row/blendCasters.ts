@@ -30,6 +30,8 @@ export interface BlendRowMap {
  * again when it moves, given back when it leaves. The whole set is written again when the table's
  * age moves — a pose or a material rewritten by the host — or the table itself is new (a lost
  * device). The pool bounds the rows: `blendSlots` covers every placement it can hold at once.
+ * A table grown in place (`grow.ts`) moves the casters' rows behind its new visibility rows: every
+ * caster gives its row back and takes one of the new range, and the light cut's map hears of each.
  *
  * A row the host's rewrite of a surface takes, gives back or writes with another coverage calls
  * `onCoverageChange`: the shadow pages under the cluster no longer describe it. A row that follows
@@ -41,11 +43,9 @@ export function createBlendCasterRows(
   writePageRow: Writer,
   onCoverageChange: (rec: PageRec) => void = () => {},
 ) {
-  const { blendFirst, casterSlots, blendRowOf } = rows;
-  const free = new Int32Array(casterSlots - blendFirst);
-  let freeCount = 0;
-  // Popped from the end: the lowest row first.
-  for (let row = casterSlots - 1; row >= blendFirst; row--) free[freeCount++] = row;
+  let first = -1,
+    free = new Int32Array(0),
+    freeCount = 0;
   /** Pages whose row changed since the light cut's map last heard of them, each once. */
   const changed: number[] = [],
     marked = new Uint8Array(packedPages.length);
@@ -56,6 +56,27 @@ export function createBlendCasterRows(
     if (marked[page]) return;
     marked[page] = 1;
     changed.push(page);
+  };
+  /** The rows `[blendFirst, casterSlots)` of the table as it stands, all free; a caster that held
+   *  one of a smaller table gives it back. */
+  const seat = () => {
+    const held = first >= 0;
+    first = rows.blendFirst;
+    free = new Int32Array(rows.casterSlots - first);
+    freeCount = 0;
+    // Popped from the end: the lowest row first.
+    for (let row = rows.casterSlots - 1; row >= first; row--) free[freeCount++] = row;
+    if (held)
+      for (let page = 0; page < rows.blendRowOf.length; page++)
+        if (rows.blendRowOf[page] >= 0) {
+          rows.blendRowOf[page] = -1;
+          note(page);
+        }
+  };
+  seat();
+  /** Seats the rows again when the table grew since: before any row is taken or written. */
+  const followTable = () => {
+    if (first !== rows.blendFirst || free.length !== rows.casterSlots - first) seat();
   };
   const write = (page: number, row: number, held: boolean) => {
     const rec = packedPages[page],
@@ -69,7 +90,7 @@ export function createBlendCasterRows(
     if (held && ints[coverage] !== before) onCoverageChange(rec);
   };
   const release = (page: number, row: number) => {
-    blendRowOf[page] = -1;
+    rows.blendRowOf[page] = -1;
     rows.packedRecs[row] = undefined;
     // A list built before the release may still name the row: it then draws no corner.
     rows.pageTableInts![row * ROW_WORDS + ROW_INDEX_WORDS] = 0;
@@ -84,7 +105,8 @@ export function createBlendCasterRows(
   const follow = (page: number, restale = false) => {
     const rec = packedPages[page];
     if (!rec.transparent || !rows.pageTableInts) return;
-    const row = blendRowOf[page];
+    followTable();
+    const row = rows.blendRowOf[page];
     // A cluster drawn from its geometry page holds no index page: its slot is all it needs.
     const casts =
       rows.residentOffsetWords[page] >= 0 &&
@@ -100,7 +122,7 @@ export function createBlendCasterRows(
     // Never empty: every resident placement holds a pool slot, and `blendSlots` counts them all.
     if (!freeCount) return;
     const taken = free[--freeCount];
-    blendRowOf[page] = taken;
+    rows.blendRowOf[page] = taken;
     note(page);
     write(page, taken, false);
     if (restale) onCoverageChange(rec);
@@ -110,6 +132,7 @@ export function createBlendCasterRows(
     /** Writes every row again when the table is new or its age moved; nothing otherwise. */
     refresh() {
       if (table === rows.pageTableFloats && epoch === rows.tableEpoch) return;
+      followTable();
       // The same table at another age: the host rewrote a pose or a surface.
       const restale = table === rows.pageTableFloats;
       table = rows.pageTableFloats;
@@ -119,6 +142,7 @@ export function createBlendCasterRows(
     },
     /** Tells the light cut's map the rows that changed since — all of them, to a new map. */
     pin(to: BlendRowMap) {
+      const { blendRowOf } = rows;
       if (to !== map) {
         map = to;
         for (let page = 0; page < packedPages.length; page++)

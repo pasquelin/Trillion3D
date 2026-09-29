@@ -1,6 +1,11 @@
 import type { EngineCamera } from '../../camera/world.ts';
 import type { DiagnosticMode } from '../../../../sdk-core/src/index.ts';
-import { projectedPageError, type PageRec } from '../../page/selection/selection.ts';
+import {
+  projectedPageError,
+  rootOf,
+  type ClusterRoot,
+  type PageRec,
+} from '../../page/selection/selection.ts';
 import { screenErrorRatio } from '../../diagnostic/colors.ts';
 import { clusterHash } from '../../visibility/buffer.ts';
 import type { createWebgpuBlendState } from './state.ts';
@@ -17,6 +22,7 @@ type BlendState = ReturnType<typeof createWebgpuBlendState>;
 export function writeBlendDiagnostic(
   blendState: BlendState,
   packedPages: readonly PageRec[],
+  roots: readonly ClusterRoot<PageRec>[],
   diagnostic: DiagnosticMode,
   cam: EngineCamera | undefined,
   viewport: readonly [number, number],
@@ -41,7 +47,10 @@ export function writeBlendDiagnostic(
     const ratio =
       diagnostic === 'screen-error' && cam
         ? Math.round(
-            screenErrorRatio(projectedPageError(rec, cam, viewport), diagnosticPixelError) * 127,
+            screenErrorRatio(
+              projectedPageError(rec, rootOf(roots, rec).world, cam, viewport),
+              diagnosticPixelError,
+            ) * 127,
           )
         : 0;
     identity[entry] = (hash | (ratio << 24) | (rec.role === 'coarse' ? 0x80000000 : 0)) >>> 0;

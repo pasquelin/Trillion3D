@@ -1,4 +1,4 @@
-//! Instances that share one stored proxy run, without changing a single placed triangle.
+//! Lossless instance proxy sharing (#957): no placed triangle or albedo bit changes.
 //!
 //! World simplification runs first, exactly as before. Afterwards a placement whose simplified
 //! triangles are another's carried by one affine map, bit for bit in the reader's own arithmetic,
@@ -20,26 +20,6 @@ const IDENTITY: [f32; 12] = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1
 const INSTANCE_WORDS: usize = 1 + PROXY_TRANSFORM_FLOATS;
 /// Words a flat triangle costs: its vertices and its albedo.
 const TRIANGLE_WORDS: usize = PROXY_TRIANGLE_FLOATS + 1;
-
-/// One placed node: the compiled mesh it draws and its world matrix.
-pub struct Placement {
-    pub mesh: usize,
-    pub matrix: Mat4,
-}
-
-/// Every placed node, and the placement each placed triangle belongs to.
-#[derive(Default)]
-pub struct Placed {
-    pub owners: Vec<u32>,
-    pub placements: Vec<Placement>,
-}
-impl Placed {
-    /// A node placed its mesh: the triangles up to `placed` are its own.
-    pub fn add(&mut self, mesh: usize, matrix: Mat4, placed: usize) {
-        self.owners.resize(placed, self.placements.len() as u32);
-        self.placements.push(Placement { mesh, matrix });
-    }
-}
 
 /// What the file stores besides its flat triangles.
 #[derive(Default)]
@@ -65,16 +45,16 @@ pub fn apply(m: &[f32; PROXY_TRANSFORM_FLOATS], p: &[f32]) -> [f32; 3] {
 
 /// Map from `a`'s run to `b`'s: linear part `B·A⁻¹` rounded to whole numbers, since snapping to
 /// the world grid commutes with signed axis permutations only; translation from the first vertices.
-fn map(a: &Placement, b: &Placement, a0: &[f32], b0: &[f32]) -> Option<[f32; 12]> {
-    let [c0, c1, c2] = linear_columns(&a.matrix);
+fn map(a: &Mat4, b: &Mat4, a0: &[f32], b0: &[f32]) -> Option<[f32; 12]> {
+    let [c0, c1, c2] = linear_columns(a);
     let det = dot(c0, cross(c1, c2));
     if !(det.is_finite() && det != 0.0) {
         return None;
     }
-    let columns = linear_columns(&b.matrix);
+    let columns = linear_columns(b);
     let mut m = [0f32; PROXY_TRANSFORM_FLOATS];
     for r in 0..3 {
-        let row = cofactor_direction(&a.matrix, columns.map(|column| column[r]));
+        let row = cofactor_direction(a, columns.map(|column| column[r]));
         let mut moved = 0.0;
         for c in 0..3 {
             // `+ 0.0` turns a rounded −0 into +0.
@@ -84,7 +64,7 @@ fn map(a: &Placement, b: &Placement, a0: &[f32], b0: &[f32]) -> Option<[f32; 12]
         }
         m[r * 4 + 3] = (b0[r] as f64 - moved) as f32;
     }
-    Some(m)
+    m.iter().all(|v| v.is_finite()).then_some(m)
 }
 
 /// Whether `m` carries every triangle of `from` onto `to`, albedo equal, vertices bit for bit.
@@ -100,7 +80,7 @@ fn carries(flat: &[f32], albedo: &[u32], from: &[u32], to: &[u32], m: &[f32; 12]
                 placed
                     .iter()
                     .zip(vertex(b, v))
-                    .all(|(x, y)| x.to_bits() == y.to_bits())
+                    .all(|(x, y)| x.is_finite() && x.to_bits() == y.to_bits())
             })
     })
 }
@@ -118,14 +98,15 @@ pub fn share(
     flat: &[f32],
     albedo: &[u32],
     owner: &[u32],
-    rank: &[u32],
-    placements: &[Placement],
+    rank: &[usize],
+    bind_worlds: &[f64],
 ) -> Sharing {
+    let worlds = bind_worlds.as_chunks::<16>().0;
     let mut by_rank = vec![0u32; rank.len()];
     for (position, &r) in rank.iter().enumerate() {
-        by_rank[r as usize] = position as u32;
+        by_rank[r] = position as u32;
     }
-    let mut runs: Vec<Vec<u32>> = vec![Vec::new(); placements.len()];
+    let mut runs: Vec<Vec<u32>> = vec![Vec::new(); worlds.len()];
     for &position in &by_rank {
         runs[owner[position as usize] as usize].push(position);
     }
@@ -133,14 +114,14 @@ pub fn share(
         let at = run[0] as usize * PROXY_TRIANGLE_FLOATS;
         [flat[at], flat[at + 1], flat[at + 2]]
     };
-    let mut groups: BTreeMap<(usize, usize), Vec<Group>> = BTreeMap::new();
+    let mut groups: BTreeMap<usize, Vec<Group>> = BTreeMap::new();
     for (index, run) in runs.iter().enumerate().filter(|(_, run)| !run.is_empty()) {
-        let (placement, start) = (&placements[index], first(run));
-        let candidates = groups.entry((placement.mesh, run.len())).or_default();
+        let (placement, start) = (&worlds[index], first(run));
+        let candidates = groups.entry(run.len()).or_default();
         let joined = candidates.iter_mut().take(TRIES).any(|group| {
             let prototype = &runs[group.prototype];
             let found = map(
-                &placements[group.prototype],
+                &worlds[group.prototype],
                 placement,
                 &first(prototype),
                 &start,
@@ -157,7 +138,7 @@ pub fn share(
         }
     }
     let mut sharing = Sharing::default();
-    for ((_, count), group) in groups
+    for (count, group) in groups
         .into_iter()
         .flat_map(|(key, list)| list.into_iter().map(move |g| (key, g)))
     {
@@ -180,3 +161,7 @@ pub fn share(
 #[cfg(test)]
 #[path = "share_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "share_equivalence_tests.rs"]
+mod equivalence_tests;

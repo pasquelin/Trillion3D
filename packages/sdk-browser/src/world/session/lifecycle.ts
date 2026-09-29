@@ -91,7 +91,10 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     state.pairTargetB?.dispose();
     state.measurementTarget = state.pairTargetA = state.pairTargetB = undefined;
     disposeComposition();
-    streaming.backgroundFetchController?.abort();
+    // A read cut short says why (#837), never "aborted without reason".
+    streaming.backgroundFetchController?.abort(
+      new DOMException('The session closed', 'AbortError'),
+    );
     streamer.dispose();
     releasePageDecoders();
     releasePageIntegration();
@@ -117,8 +120,20 @@ export function createExplorerLifecycle(session: ExplorerSession, inputs: Inputs
     hold: (url: string) => void,
   ) => {
     const lacking = new Set(missing);
-    for (const url of backend.pageUrls?.() ?? [])
+    const retain = (url: string) => {
       if (!lacking.has(url) && streamer.has(url)) hold(url);
+    };
+    const ranks = backend.retainedRanks?.();
+    if (ranks) {
+      // Apply this delta before another read of the backend can turn it into an empty hold.
+      streamer.retainRanks(ranks);
+      for (let i = 0; i < ranks.heldCount; i++) {
+        const url = ranks.urls[ranks.held[i]];
+        if (url !== undefined) retain(url);
+      }
+    } else {
+      for (const url of backend.pageUrls?.() ?? []) retain(url);
+    }
   };
   /** The pages the view reads, made resident; `image: false` takes no picture of them.
    *  `onProgress` hears `pages`: `total` the pages the view reads — those the streamer held already

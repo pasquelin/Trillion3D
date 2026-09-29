@@ -41,12 +41,12 @@ export function referenceShadingNormal(
   let Nx = ny * cz - nz * cy,
     Ny = nz * cx - nx * cz,
     Nz = nx * cy - ny * cx;
-  const face = screenFace * (matrixWindingCw(page.matrix.elements) ? -1 : 1),
+  const face = screenFace * (matrixWindingCw(tri.world.elements) ? -1 : 1),
     side = mat.backSide ? -1 : 1;
-  const world = asHostLibrary<THREE.Matrix4>(page.matrix);
+  const world = asHostLibrary<THREE.Matrix4>(tri.world);
   const normalAttr = asHostLibrary<THREE.BufferAttribute | undefined>(page.attributes.normal),
     tangentAttr = asHostLibrary<THREE.BufferAttribute | undefined>(page.attributes.tangent);
-  normalMatrix3(normalScratch.elements, page.matrix.elements);
+  normalMatrix3(normalScratch.elements, tri.world.elements);
   const vertexNormals = normalAttr ? frameNormals : null;
   if (normalAttr)
     for (let j = 0; j < 3; j++)

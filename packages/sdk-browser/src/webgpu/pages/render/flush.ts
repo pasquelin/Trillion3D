@@ -56,8 +56,8 @@ async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
     { clearColor } = run;
   if (!capture.capturePending) {
     const revision = run.imageRevision,
-      [width, height] = gpu.targetSize,
-      texture = gpu.colorTexture!;
+      [width, height] = gpu.displaySize,
+      texture = gpu.displayTexture!;
     capture.capturePending = readGpuImage(gpuDevice, texture, width, height, context.signal)
       .then((pixels) => {
         if (run.lost || revision !== run.imageRevision) return;
@@ -138,7 +138,7 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime, options: { image?
   // image; the barrier converges the rest here, outside the measured loop, then drains the shadow
   // maps, and starts again as long as a drain redrew something (`settlePose`): a drained pose is
   // a pose served as well as the pool can give, whose shadow describes the image.
-  await settlePose(rt, gpuDevice);
+  await settlePose(rt, gpuDevice, options.image !== false);
   await services.bootstrapState.ensure();
   await services.residency.pending;
   if (run.coverageBudgetEvent) {
@@ -161,7 +161,7 @@ export async function flushWebgpuPages(rt: WebgpuPagesRuntime, options: { image?
   if (
     options.image !== false &&
     gpuDevice &&
-    gpu.colorTexture &&
+    gpu.displayTexture &&
     !capture.capturing &&
     run.imageRevision > 0 &&
     capture.capturedRevision !== run.imageRevision

@@ -58,7 +58,8 @@
       "missingCache": "缺少已编译的缓存：请运行 pnpm compile:caches"
     },
     "banner": {
-      "close": "关闭"
+      "close": "关闭",
+      "waiting": "等待引擎（#{issue}）"
     }
   },
   "a-city-from-rules": {
@@ -1262,6 +1263,25 @@
       "off": "关"
     }
   },
+  "page-materials": {
+    "banner": "拖动以查看大厅。列出、更改、混合或创建材质。",
+    "controls": {
+      "set": "更改颜色",
+      "switchToBlend": "切换为混合",
+      "createAndAssign": "创建并指定"
+    },
+    "readouts": {
+      "selected material": "选中的材质",
+      "materials": "材质",
+      "sourceMaterials": "原始材质",
+      "last action": "上次操作"
+    },
+    "words": {
+      "imported": "已导入 {count} 个",
+      "applied": "已应用",
+      "ready": "就绪"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "拖动四处看看。这些灯是跟着模型文件一起来的。",
     "controls": {
@@ -1391,6 +1411,7 @@
     "banner": "拖动四处走走。切换视图，看渲染器存了什么。",
     "controls": {
       "see": "查看",
+      "glass": "玻璃板",
       "spin": "旋转"
     },
     "choices": {
@@ -1745,7 +1766,8 @@
       "night": "夜晚",
       "bounce": "反弹光",
       "sun": "太阳",
-      "lamp": "灯"
+      "lamp": "灯",
+      "spin": "旋转"
     },
     "words": {
       "credit": "路灯模型作者 W. Sitters，CC BY 3.0 — 见 assets/examples/CREDITS.md"

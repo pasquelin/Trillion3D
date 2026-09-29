@@ -8,6 +8,7 @@ import { packPageCorners } from '../../visibility/corners.ts';
 import { renderWebgpuPages } from './render.ts';
 import { flushWebgpuPages } from './flush.ts';
 import { cameraAt, twoPlacesRuntime } from '../twoPlaces.fixture.ts';
+import { rootOf } from '../../../page/selection/placements.ts';
 
 test('#198: rows changed while the partition is absent reach the partition that appears', async () => {
   const { rt, dispose } = await twoPlacesRuntime();
@@ -48,7 +49,8 @@ test('#198: rows changed while the partition is absent reach the partition that 
     await flushWebgpuPages(rt);
     assert.equal(rows.tableEpoch, epoch, 'the table age did not change');
     const expected = new Float32Array(CORNER_VALUES);
-    packPageCorners(expected, 0, rows.packedRecs[0]!);
+    const rec = rows.packedRecs[0]!;
+    packPageCorners(expected, 0, rec, rootOf(rt.layout.selectionRoots, rec).world);
     assert.deepEqual(
       held.subarray(0, CORNER_VALUES),
       expected,

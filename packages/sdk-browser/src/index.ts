@@ -61,19 +61,23 @@ export * from './world/capability/index.ts';
 export * from './world/capture/index.ts';
 export * from './world/pose/index.ts';
 export * from './world/batch/index.ts';
-
+export type {
+  CreatedMaterial,
+  SceneMaterial,
+  SceneMaterialPatch,
+} from './world/api/materialApi.ts';
 export { EngineProfiler, type TelemetryReport } from './diagnostic/telemetry.ts';
-
 export type {
   AssetScope,
   StablePreview,
   FrameMetrics,
   ClusterManifest,
 } from '../../sdk-core/src/index.ts';
-export type { BackendDiagnostic, PointOfInterest } from './backend/types.ts';
-export type { DiagnosticDetail } from './backend/types.ts';
-/** The rows a mirrored mesh is placed through, reachable from the scene a loader records. */
+export type { BackendDiagnostic, PointOfInterest, DiagnosticDetail } from './backend/types.ts';
+/** Placement rows, a cell's decoded rows and how a frame grows them in place, from the scene. */
 export type { PlacementRows } from './placement/rows.ts';
+export type { CellRows } from './scene/partition/cellDecode.ts';
+export type { PlacementGrowth } from './placement/backendSceneUpdates.ts';
 /** Host resources the engine reads and never builds (`host/resources.ts`): a host declares them
  *  with whatever library it draws with, the contract names only their shape. */
 export type {
@@ -92,8 +96,7 @@ export type {
   HostScene,
   HostTexture,
 } from './host/resources.ts';
-/** The host scene graph as the engine walks it (`host/scene/graphNodes.ts`): the shapes a source node,
- *  its pose and its rotation are read through. */
+/** The shapes a host node's pose and rotation are read through (`host/scene/graphNodes.ts`). */
 export type { HostRotation, HostVector } from './host/scene/graphNodes.ts';
 /** The engine's own scene graph (`host/graph/`): the surfaces and textures a loaded scene hands
  *  back; its nodes are the core's. */
@@ -116,6 +119,7 @@ export type {
   MemoryBudgets,
   MemoryBudgetsReport,
   PoolClamp,
+  TableGrowthReport,
 } from './residency/pools.ts';
 export type { TexturePool } from './webgpu/residency/memoryBudgets.ts';
 export type { BudgetCanvas } from './residency/memoryBudget.ts';
@@ -132,15 +136,14 @@ export type {
 } from './texture/levelReader.ts';
 export type { AtlasLanes, LaneCounts, TextureCompression } from './texture/blockFormats.ts';
 export type { HostRetentionDelta, PageStreamerOptions, StreamPage } from './streaming/types.ts';
+export type { BatchRead } from './streaming/types.ts';
 export type { BoxTransformLot, MultiplyLot } from './math/batchRuntime.ts';
-export type { LightingCapabilities } from '../../sdk-core/src/index.ts';
 export { framingFromBounds } from './camera/framing.ts';
 export { presentationColorDiagnostic } from './diagnostic/presentationDiagnostic.ts';
-export { createGpuPageCache, httpPageSource } from './gpu/page/pages.ts';
-export type { ResidentPage } from './gpu/page/pages.ts';
+export { createGpuPageCache, httpPageSource, type ResidentPage } from './gpu/page/pages.ts';
 export { createPageStreamer } from './streaming/pageStreamer.ts';
 export type { ComparisonLayout } from './measurement/comparison.ts';
-export { LOD_QUALITY } from '../../sdk-core/src/index.ts';
+export { LOD_QUALITY, type LightingCapabilities } from '../../sdk-core/src/index.ts';
 // A job around a load — cancellation, a status to observe — for pages built on the runtime.
 export { createJob } from '../../sdk-core/src/index.ts';
 export type { JobProgress, JobSnapshot, JobStatus } from '../../sdk-core/src/index.ts';
@@ -169,7 +172,6 @@ export {
   transformPointsBatch,
   transformPointsByMatricesBatch,
 } from '../../sdk-core/src/index.ts';
-
 // The camera controllers a session hands out: their contract is public because
 // `explorer.controls()` and its four siblings return it (`docs/SDK.md`, "Camera controllers").
 export type {

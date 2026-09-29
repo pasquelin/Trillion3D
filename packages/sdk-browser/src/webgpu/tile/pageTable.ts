@@ -157,12 +157,16 @@ export function createWebgpuTilePageTable(
         leaving = words[own];
       const layout = layouts[key.slot];
       // The finest resident ancestor, or nothing: it is the one that takes back this entry and
-      // all the finer ones the leaving tile used to serve.
+      // all the finer ones the leaving tile used to serve. An orphan edge tile — 769 texels make
+      // 7 tiles, their half 3 — has no parent on a level where its coordinate falls outside: that
+      // level is skipped, as the descent from its tiles never reaches it (`pageDescent.ts`, #962).
       let replacement = 0;
       for (let level = key.level + 1; level < layout.tail; level++) {
-        const shift = level - key.level;
-        const word =
-          words[wordIndex({ slot: key.slot, level, tx: key.tx >> shift, ty: key.ty >> shift })];
+        const shift = level - key.level,
+          [tw, th] = tilesAt(layout.width, layout.height, level);
+        const [tx, ty] = [key.tx >> shift, key.ty >> shift];
+        if (tx >= tw || ty >= th) continue;
+        const word = words[wordIndex({ slot: key.slot, level, tx, ty })];
         if (word !== 0 && entryLevel(word) === level) {
           replacement = word;
           break;

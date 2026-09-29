@@ -8,8 +8,7 @@ import type { Report, Row } from './report/types.ts';
 import { rapport as rapportDe } from './summaryTestFixtures.ts';
 
 /** A report reduced to what `cheminsCalcul` reads: one series, one side, its metrics. */
-const rapport = (cheminCalcul: MathBatch | null): Report =>
-  rapportDe({ cheminCalcul } as Partial<Row>);
+const rapport = (mathBatch: MathBatch | null): Report => rapportDe({ mathBatch } as Partial<Row>);
 
 /** Governor metrics, completed by what the case wants to show. */
 const releve = (fields: Partial<MathBatch>): MathBatch =>
@@ -80,11 +79,11 @@ test('an unmeasured median is stated as "unmeasured", never zero, and the fallba
   );
 });
 
-test('a clock too coarse to arbitrate is published with the module, not killed', () => {
+test('a coarse clock is published with the module, its timing pooled', () => {
   const lignes = cheminsCalcul(rapport(releve({ clockCoarse: true }))).join('\n');
   assert.match(
     lignes,
-    /\| auto \| loaded, simd128, clock too coarse to arbitrate \| no batch run \|/,
+    /\| auto \| loaded, simd128, coarse clock, pooled timing \| no batch run \|/,
   );
 });
 

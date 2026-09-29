@@ -14,7 +14,6 @@ pub(crate) struct Entry {
     pub sha256: String,
     pub name: String,
     pub shape: AlphaShape,
-    pub proposal: bool,
     pub answer: Option<bool>,
     /// Primitives still in blend clothed by this texture: what deciding yields.
     pub weight: u64,
@@ -55,7 +54,6 @@ pub(crate) fn entries(
                 sha256: preview.sha256.clone(),
                 name: image_name(images, preview.image as usize),
                 shape: shape.clone(),
-                proposal: shape.looks_like_cutout(),
                 answer: decisions.verdict(&preview.sha256),
                 weight,
             },
@@ -110,17 +108,18 @@ fn image_name(images: Option<&Vec<Value>>, image: usize) -> String {
 ///  says what deciding yields, so user asking question shows
 /// highest return items first without recomputing.
 pub(crate) fn build_sheet(entries: &[Entry], decisions: &Decisions) -> Value {
-    let mut textures = decisions.measurements.entries();
+    let mut textures = serde_json::Map::new();
     for entry in entries {
         textures.insert(
             entry.sha256.clone(),
             json!({"image":entry.name,"used":true,"measure":entry.shape.report(),
                 "measurement":cache::record(&entry.sha256, &entry.shape),
                 "blendPrimitives":entry.weight,
-                "proposal":if entry.proposal { "cutout" } else { "blend" },
+                "proposal":if entry.shape.looks_like_cutout() { "cutout" } else { "blend" },
                 "cutout":entry.answer}),
         );
     }
+    decisions.measurements.keep_unused(&mut textures);
     for (sha256, cutout) in decisions.answers() {
         let entry = textures
             .entry(sha256.clone())

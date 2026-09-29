@@ -69,7 +69,7 @@ function writeRun(rt: WebgpuPagesRuntime, from: number, to: number) {
     const rec = rows.packedRecs[row]!,
       word = row * DRAW_ITEM_U32;
     drawItemWords[word] = row;
-    drawItemWords[word + 1] = visBin(rec);
+    drawItemWords[word + 1] = visBin(rec, rt.layout.selectionRoots);
     drawItemWords[word + 2] = rows.packedPageIndex[row];
     // The coplanar layer belongs to the table row, not to the image: it travels with the item.
     drawItemWords[word + 3] = Math.min(rec.depthLayer, layerSlots);
@@ -93,5 +93,5 @@ export function sendDrawItemWords(rt: WebgpuPagesRuntime) {
 
 function sendRun(rt: WebgpuPagesRuntime, from: number, to: number) {
   rt.vis.gpuDraw!.uploadItems(rt.layout.drawItemWords, from, to);
-  rt.timing.encodeCounts.fichesTeleversees += to - from + 1;
+  rt.timing.encodeCounts.itemsUploaded += to - from + 1;
 }

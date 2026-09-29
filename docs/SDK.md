@@ -126,7 +126,9 @@ engine already holds, since the frames drawn before the wait may have read them 
 read for the view while the wait runs (a prefetch aside), whether the host reads it for the cut or the WebGPU engine for its own
 residency —, `completed` those resident, rising as each lands; the last event has
 `completed === total`. One callback given to both drives a progress bar from the first byte to
-the first pages (example `watch-a-world-load`).
+the first pages (example `watch-a-world-load`). A session that closes during the wait — a lost
+device, an option it cannot take in place — never rejects it: the wait carries on with the session
+opened again.
 
 A model's vertices stay on the server until something reads them: `scene.load` reads no vertex
 buffer (`source.bin`), the pages draw the model. The buffer is read once, on the first need: a
@@ -348,11 +350,18 @@ The world is not a family: it is the object `createWorld` returns, carrying `sce
 There is no level-of-detail object and no instanced or batched mesh type: one cut through a DAG
 per frame, instancing and draw grouping are what the engine does natively.
 
+For compiled scenes, changing a node or parent pose also updates its resident lighting proxy,
+including the proxy used by distant sun shadows while bounce is off. Bounce probes restart their
+convergence against the new geometry; no separate lighting invalidation call is needed. This
+requires a version-3 proxy cache (recompile older caches). Motion preserves existing proxy surfaces;
+it cannot restore geometry already discarded during cooking. See [FORMAT.md](FORMAT.md#resident-lighting-proxy).
+
 ## Loop
 
 The world owns the loop, and it stops when the image is stable: after 120 frames with nothing
-changing it pauses (`interactive-settle-limit`), and resumes on invalidation. A still scene costs
-nothing. `onFrame` is the per-frame hook; `loop` is its alias.
+changing it pauses (`interactive-settle-limit`), and resumes on invalidation. A frame after which a
+page landed does not count: a streamed view is drawn as its pages arrive, to its last one. A still
+scene costs nothing. `onFrame` is the per-frame hook; `loop` is its alias.
 
 ```js
 // 1. The world leads; you give it work per frame.
@@ -415,6 +424,15 @@ jitters each image by a fraction of a pixel and accumulates it over the previous
 each pixel at its centre with no history, what a pixel-exact capture asks. Written, it takes effect
 at the next frame, history dropped, no session reopened. Read, it is what the image carries: `false`
 on WebGL2, which has none (its capabilities list `temporal antialiasing` as unsupported).
+
+`world.renderScale` (`createWorld(target, { renderScale })`, `'auto'` by default) is the fraction
+of the display per axis the image is drawn at before temporal antialiasing rebuilds it: `'auto'` lets the frame budget, the display's refresh interval, choose it between 0.5 and 1,
+`{ min, max }` bounds that choice, a number fixes it; a still image is drawn at the maximum, the
+native image. Written, it takes effect at the next frame, no target remade by the controller's
+steps. Read, it is the scale of the last image drawn. WebGL2, which keeps no history, resamples the
+image to the display instead (Lanczos-2) and so never lowers it unless asked: its `'auto'` holds 1,
+and only a `{ min }` below 1 or a fixed scale draws below the display (its capabilities list
+`temporal upscaling` as unsupported).
 
 `world.effects` is the ordered chain of passes drawn over the image after temporal antialiasing and
 before it reaches the canvas, on WebGPU and WebGL2. `effect.bloom({ intensity, radius })` makes a
@@ -585,6 +603,36 @@ session cannot hold in place — a texture, a kind, a side, transparency, a mate
 values another material shares — is copied on write and opens the session again, once per burst.
 `world.diagnostic.sessions` counts the sessions a world has opened, so a page and a test see a
 reopen.
+
+### Geometry rewritten every frame
+
+A shape a page rewrites every frame — a sea, a cloth, a flag, a procedural mesh, an editor handle —
+declares it: `geometry.usage = 'dynamic'`. Its triangles are cut into pages once, their index
+alone, and a written list (`attributes.position.needsUpdate = true`) uploads in place the vertices
+from the first changed to the last, the frame after, with no cut and no session opened again
+(#573). It is drawn by the same visibility, Hi-Z, resolve, shadows and lighting as every paged mesh,
+and a rewrite stales only the shadow pages its moved vertices cover. A geometry changed on two
+consecutive frames turns dynamic by itself, said under `geometry-dynamic`, naming the mesh. A soft
+body's geometry is dynamic, drawn where its last step left it; two soft bodies in one geometry are
+refused with `PHYSICS_FAILED` — give each its own (`geometry.clone()`).
+
+Culling reads a box the vertices never leave: `geometry.maxBounds` when declared, else the first
+vertices' box widened by half its size; vertices that leave it serve the same pages in a larger
+box, and corners that change are cut anew. A frame sends at most `DYNAMIC_UPLOAD_BUDGET_BYTES`
+(4 MiB) — every buffer written counted, as `metrics.dynamicUploadBytes` reports it —; a rewrite
+past it waits for the next frame, in order, never dropped. Live example:
+[floating crates](../site/examples/floating-crates.html).
+
+```js
+const sheet = geometry.plane(28, 20, 112, 80);
+sheet.usage = 'dynamic';
+world.onFrame(({ metrics }) => {
+  for (let v = 0; v < sheet.attributes.position.count; v++)
+    sheet.attributes.position.setY(v, wave(v));
+  sheet.attributes.position.needsUpdate = true; // 9 000 vertices, uploaded in place
+  console.log(metrics.dynamicUploadBytes);
+});
+```
 
 ### Guides: lines, points and helpers over the image
 
@@ -782,7 +830,9 @@ numbers wide lies in the plane z = 0. The sphere is
 centred on the box and reaches the farthest vertex. Setting an attribute other than `position`, the
 index or a group keeps the bounds. `clone()` copies every list, morph target, group, range, data,
 bound and recipe. `toNonIndexed()` gives every corner a vertex of its own. `dispose()` runs each
-hook of `released` once. The former engine class `GraphGeometry` is removed: write `Geometry`.
+hook of `released` once. A geometry no mesh wears any more has its pages and GPU memory given back
+by the world on both backends, with no call; a page that replaces a mesh's geometry, as a slider
+does, disposes the former one too, so its raycast tree and host copies go at once. The former engine class `GraphGeometry` is removed: write `Geometry`.
 
 ## Batch math for hosts
 
@@ -856,9 +906,12 @@ measured faster, operation by operation. `metric.frame(world).mathBatch` publish
 `MathPathMetrics` (`MATH_PATH_CONTRACT` 1): `operations[name].path` is the path the next call
 plays, `jsNsPerElement` and `wasmNsPerElement` the sliding medians in nanoseconds per element
 (`null` while unmeasured — never zero), `switches` how many times the decision changed, `elements`
-the total processed; `clockCoarse` says the thread clock is too coarse to arbitrate, and everything
-then stays on JavaScript. The other batches have no kernel: a kernel is written only where a loop's
-share of the engine's own frame is measured above 0.1 ms, and none of their loops reaches it (#80).
+the total processed; `clockCoarse` says the thread clock is too coarse to time one call (no
+cross-origin isolation), so the governor times pooled runs of ten clock steps instead (#919). A host
+that serves its page with the `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`
+headers gets the fine clock back, one sample per call. The other batches have no kernel: a kernel
+is written only where a loop's share of the engine's own frame is measured above 0.1 ms, and none of
+their loops reaches it (#80).
 
 ## Maths reference
 
@@ -942,6 +995,52 @@ on their line.
 No engine loop runs above 0.1 ms of the engine's own frame, so no batch replaces one yet (#80): the
 batches are for hosts until a measured share says otherwise.
 
+## Page materials
+
+A page can inspect and edit the materials of a loaded model through its `world`, after
+`await world.awaitPages()` has opened the drawing session. `world.materials()` lists the
+current materials in cache table order, followed by materials the page created. Each has
+an `id`, `name`, `baseColor`, `opacity`, `metalness`, `roughness`, `emissive`, `side`,
+`alphaMode`, `alphaCutoff` and `tiling` (`null` without a map). `world.material(id)` reads
+one by that listed ID. These reads return detached copies. `world.importedMaterials()`
+returns the source file's values even after the page changes them; created materials are
+not included. An unknown ID raises `UNKNOWN_MATERIAL`.
+
+`world.setMaterial(id, patch)` updates every surface built from that table material for
+the next frame. A patch may name `baseColor` (three linear channels from 0 to 1),
+`opacity`, `metalness`, `roughness` and `alphaCutoff` (each 0 to 1), nonnegative linear
+`emissive` channels, `alphaMode` (`'opaque'`, `'mask'`, `'blend'`), or nonzero finite
+`tiling` coordinates. Tiling needs a map used by that material alone; a shared map is
+refused with `MATERIAL_TEXTURE_SHARED`. An invalid field or value raises
+`INVALID_MATERIAL` before any write. The return value is `true` if every renderer in
+the session took the edit in place, or `false` if another renderer needs a new session.
+
+Changing between opaque, masked and blended also moves the material's drawables into
+the matching draw class. If a renderer cannot move that class in place, the call raises
+`MATERIAL_CLASS_CHANGE` before changing anything. The page can keep the old material
+and show that refusal; it should not assume every renderer accepts a class change.
+
+`world.createMaterial({ name?, baseColor?, opacity?, metalness?, roughness?, emissive?,
+alphaMode?, alphaCutoff?, map? })` makes a material owned by the page and returns its listed
+record synchronously without a map. With an `ImageBitmap` `map`, it returns a promise:
+`const created = await world.createMaterial({ map: bitmap })`. Await it before assignment;
+failed uploads publish no material and return their reserved bytes. The bitmap is borrowed:
+decode with `premultiplyAlpha: 'none'` and `colorSpaceConversion: 'none'`, keep it open until
+the material is dropped or the session is disposed and pending creations have settled, then
+close it yourself. Each material owns its texture even when two borrow the same bitmap.
+Runtime maps have a fixed 64 MiB decoded RGBA ceiling, checked before allocation and refused
+with `TEXTURE_BUDGET`; `world.materialMapBytes()` reports held and pending bytes. Backend
+`material-texture-appended` diagnostics report actual upload bytes and CPU time, not GPU time.
+`world.dropMaterial(id)` releases an unused created material, its variants, map and accounted
+bytes. A still-assigned material refuses with `UNSUPPORTED_SCENE_UPDATE`: assign a replacement
+first. Dropped IDs are never reused. GPU pools retain reusable capacity within their budget.
+It can be read and edited by ID like an imported material; `tiling` remains a set-only field. The
+session holds at most 256 created materials; the next creation raises
+`MATERIAL_CEILING` without creating one. To draw it on a compiled primitive, call
+`world.assignMaterial('mesh/primitive', created.id)`, using the two numbers in that
+model's `metadata.primitives`. Unknown primitives raise `UNKNOWN_SCENE_NODE`. See the
+[live page-material example](../site/examples/page-materials.html).
+
 ## Lights
 
 Nothing lights an opaque surface except a light the host declared. There is no fixed ambient term,
@@ -960,6 +1059,34 @@ write of `.r`, `.g` or `.b` is not heard: set `scene.background` again after one
 background, or any value without `getHex`, is refused (`UNSUPPORTED_SCENE_UPDATE`): no path draws
 one yet.
 
+### Scene fog
+
+Set `world.scene.fog` to place distance or height fog over opaque and transparent surfaces on
+WebGPU and WebGL2. Its `color` is a `Color` in linear RGB; `null` (the default) removes fog.
+The distance is measured from the camera, and height uses the scene's positive Y direction:
+
+```js
+import { Color } from 'trillion3d';
+
+const color = new Color().setRGB(0.35, 0.45, 0.6);
+world.scene.fog = { color, near: 10, far: 100 }; // Linear: clear before 10, all fog after 100.
+world.scene.fog = { color, density: 0.02 }; // Exponential: uniform medium.
+world.scene.fog = { color, density: 0.02, heightFalloff: 0.15, baseHeight: 0 }; // Height fog.
+world.scene.fog = null; // No fog.
+```
+
+`near` and `far` must be finite with `0 ≤ near < far`. `density` and `heightFalloff` must be
+finite and nonnegative; `baseHeight` must be finite. The three colour components must be finite
+and nonnegative. Invalid settings throw `INVALID_SCENE_ENVIRONMENT`. Assigning a new fog or
+changing its colour with a `Color` method takes effect on the next frame. After changing `near`,
+`far`, `density`, `heightFalloff` or `baseHeight` directly, assign `scene.fog` again to notify the
+world. A material with `fog: false` keeps its unfogged colour on both renderers.
+
+The lower-level scene contract uses `SceneEnvironment.fog` with a three-number linear colour and
+the same linear or exponential fields; omitting it means no fog. `SavedScene.fog` stores the same
+`SceneFog` value, or `null` when absent, so a saved scene restores the effect. See the
+[fog lighting law](ENGINE.md#fog) for how the renderers apply it.
+
 A world declares lights like any other object: `scene.add(light.point({ intensity: 2, position:
 [0, 3, 0] }))`, `light.intensity = 2` afterwards, `scene.remove(light)` to drop it. Underneath, every
 light is a `SceneLight` (version 2) of one of three kinds. `point` and `spot` carry `position` and
@@ -967,13 +1094,15 @@ light is a `SceneLight` (version 2) of one of three kinds. `point` and `spot` ca
 overcast sky) carries only `direction` — the propagation direction — and is refused if given a
 `position`, a `range` or a `coneAngle`. All three carry linear `color`, a positive radiometric
 `intensity` and `castsShadow`. Bounds: none on the count — the light table grows with the scene;
-a 16×16 screen tile lists up to 64 lights reaching it and walks every light of the scene past
-that, a walk #849 bounds by the view —; 64 shadow slices,
+a 16×16 screen tile lists up to 64 lights reaching it, and past that takes exactly the lights
+reaching it from a pool sized from the view (#849) —; 64 shadow slices,
 past which a caster lights without a shadow (`shadowCastersUnsliced`), and at most 24 shadow
-regions redrawn per frame. WebGL2 draws 64 lights and refuses more (#835). The shadow pool is sized
-once, at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
-128² pages as wide as the device draws, within the budget's shadow share; `metric.frame(world)`
-publishes its `shadowPoolBytes` and `shadowPoolLayers`.
+regions redrawn per frame. WebGL2 draws every light, each fragment only those whose range reaches its cell of a light grid (#835). The shadow pool is sized
+at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
+128² pages as wide as the device draws, within the budget's shadow share; a canvas resized later
+resizes it by the same rule, every page it still holds kept as drawn (#1208); `metric.frame(world)`
+publishes its `shadowPoolBytes` and `shadowPoolLayers`, and its memory pressure by name
+(`shadowPeakBytes`, `shadowResolutionBias`, `shadowMemoryEvents`).
 
 `capability.lighting(world)` reports what the **active** renderer applies — `{ sceneLights,
 lightingView, shadows, transforms, reason? }` — not what the contract accepts: a call the light
@@ -994,7 +1123,13 @@ A blended material (`transparent: true`) lets the light pass by default, as glas
 of light do in the reference solution: it casts no shadow. `transparentShadow: true` asks for one,
 as dark as the surface is opaque: `material.meshStandard({ transparent: true, opacity: 0.5,
 transparentShadow: true })` casts half a shadow. An additive, transmissive or fully transparent
-surface casts none either way, and WebGL2 draws no shadow at all.
+surface casts none either way, and WebGL2 draws no shadow at all: its published capability says
+`shadows: false`, and a light set `castShadow: true` there — the sun, a point lamp or a spot, a
+world's or the loaded scene's own — is drawn unshadowed and named `shadows-refused` on the world's
+diagnostic channel, or on the session's `onDiagnostic` when no world opened it. `context.light`
+holds its store id, or its name in the loaded scene. It is said once per light, again only after
+it stopped casting (its `castShadow` off, the light removed or hidden, or the unlit view shown) and casts
+anew. WebGPU draws that shadow.
 
 ### A luminaire does not block its own light
 
@@ -1078,7 +1213,7 @@ as `world.budget.split`:
   a total under them is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`), so no total below 913 MiB is
   taken on the default canvas. The pool a screen takes, its static layer and its fixed buffers always fit that
   share, whatever the screen.
-- CPU: the shadow page table's host mirror first (21.2 MiB, fixed whatever the screen), then the
+- CPU: the shadow page table's host mirror first (25.9 MiB, `SHADOW_HOST_BYTES`, fixed whatever the screen), then the
   decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
   reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
   and its transfer queue, and the engine's cut tables (group closure, residency readiness, the
@@ -1122,6 +1257,14 @@ never passes `geometryPool` above that floor. Two writes before the next frame
 settle in one rebalance. The engine keeps what fits: pages and tiles are copied on the GPU into the
 new pool and only what no longer fits is evicted, so the image stays complete throughout.
 
+The public low-level `createGpuPageCache` owns its pin priorities. Use `cache.pin(key, 'held')`
+for the root cover and `cache.pin(key)` (or `'pinned'`) for ordinary pins. `cache.resize(slots)`
+keeps held pages first, then ordinary pins, then unpinned pages, with the newest pages first
+within each tier. Replace the former `resize(slots, held)` call by pinning those pages as
+`'held'`; `cache.load(key, signal, 'held')` pins a page in the cache's own queue as it arrives, so a
+resize queued behind the load never ranks it as unpinned. Ordinary repinning does not lower a held page's priority;
+`cache.unpin(key)` releases both its pin and its held tier.
+
 What a view asks beyond a pool is shown **coarser**, never refused: on WebGPU and WebGL2 alike the
 pages that do not fit stay out and their surface is drawn by its nearest resident ancestor, the
 finest detail given up first, and a texture tile shows its coarser level. The frame metrics say so
@@ -1152,11 +1295,12 @@ allocated under an out-of-memory check at prepare, and probed before every rebal
 device refuses it, the pool
 is drawn again at half its bytes, down to its floor (the root cover, the texture pool's `minimum`, the
 smallest screen's shadow pool). The shadow pool is granted the same way at the first frame that
-casts a shadow, and that frame is held until the device answers: the previous image stays, or
+casts a shadow, and at each canvas resize, and that frame is held until the device answers: the previous image stays, or
 nothing yet, never an image without its shadows; a capture waits for the answer too. Its static layer is refused whole: shadow pages
 are then drawn with every caster. The pool in place is only ever replaced by one the device grants. The frame goes on,
-coarser where the smaller pool no longer holds the view, and no exception reaches the page. When
-the device refuses even the smallest shadow pool, the shadowed mode cannot be drawn: it is refused
+coarser where the smaller pool no longer holds the view, and no exception reaches the page. A resize the
+device refuses keeps the shadow pool in place, with every page it holds. When
+the device refuses even the smallest shadow pool at the first frame, the shadowed mode cannot be drawn: it is refused
 by a `shadows-off` error (`kind: 'error'`, `reason: 'gpu-out-of-memory'`), and the session goes on
 without shadows. Shadows are never lost silently.
 The `gpu-out-of-memory` diagnostic names the pool, the bytes asked (`requestedBytes`) and the bytes
@@ -1180,12 +1324,28 @@ never allocated at the full request outside the check:
   `FALLBACK_TRANSPARENT_LINES_UNSUPPORTED`, a transparent line it cannot widen, and
   `FALLBACK_BLEND_WITHOUT_CPU_CUT`, a frame the GPU cut selected, which leaves it no cluster list.
 
-WebGL2 has no out-of-memory check to allocate under: nothing there is absorbed. It reserves no
-pool — each page's buffers are made as the page arrives — and it does not read `gl.getError()` after
-an allocation, so a refused one is not seen by the engine. A browser that answers it by losing the
-context takes the WebGL2 context-loss path (`webglcontextlost`, then `webglcontextrestored`): nothing
-is drawn while the context is lost. That out of memory on WebGL2 costs one level and never a hole
-is not proven yet.
+WebGL2 has no out-of-memory scope to allocate under, so the engine reads `gl.getError()` for its
+allocations instead — a buffer, a texture level or a target sized again, never an upload in place.
+The read never holds a frame: `getError` waits for the GPU process, so each allocation is only
+recorded with its pool, each frame's end fences what that frame allocated, and the errors are read
+before a later frame's first command, once the oldest fence is passed — a fence is kept until the
+GPU passes it, however many frames behind it runs. An `OUT_OF_MEMORY` marks the pools of every
+allocation not yet confirmed, each made again at its next use, and the next frame answers each
+pool as WebGPU's refusal does, published as `gpu-out-of-memory` with the pool named: `geometry`
+halves the geometry pool, and the residency lets the finest pages go one DAG level per image;
+`texture`, a map, is sent again at its next bind — a surface is never drawn without its picture,
+there is no coarser one to show instead —; `target`, a frame target or the frame's light data, is
+sized again at its next draw, nothing to halve. The pages' vertices and indices share one set of
+buffers per vertex layout, made again larger when full with every page laid out again; a growth
+the context refuses gives that set up, and its pages are placed again in a new one. A browser that
+answers by losing the context takes the WebGL2 context-loss path (`webglcontextlost`, then
+`webglcontextrestored`): nothing is drawn while the context is lost.
+
+WebGL2 uploads the maps of every declared surface ahead of the draws, within `texturePoolBytes`:
+the session's preparation sends them, then each frame what is left, only once the GPU ran the step
+before, and only the maps that fit what is left of `maxTextureTransferBytesPerFrame` (16 MiB) and
+`maxTextureUploadMsPerFrame` (1 ms) — one larger than the whole budget alone. A map not sent yet
+is uploaded by the first draw that binds it: a surface is never drawn without its picture.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
@@ -1440,13 +1600,15 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   the default matter (`DEFAULT_MATTER`); every drawn node is static, as drawn, but one declaring a
   `motion`: its body is restored as cooked (its implicit shape, or its hull fetched), counted
   against `budget.physics`, with the mass, centre of mass and inertia its motion declares, else the
-  cooked ones; its tiles then leave. A kinematic one follows its model, pushing what it meets; a
-  dynamic one simulates: its node, with what hangs under it, is drawn where the simulation puts
+  cooked ones (a cooked inertia moved to a declared centre); its tiles then leave, and so do those
+  of another node its collider is made from. A kinematic one follows its model, pushing what it
+  meets, or, under a dynamic one, its node as that body carries it; a dynamic one simulates: its node, with what hangs under it, is drawn where the simulation puts
   it, the tiles of that subtree leave, and ground streams in around it as around any moving body;
   its model or its node moved by the page, it is put where its node is then drawn. In a
   partitioned model, whose cache numbers its nodes otherwise, it is held kinematic and asleep
   where its node is drawn. A shape Jolt cannot make at the body's scale is `PHYSICS_FAILED` naming
-  its node, and the node stays static ground.
+  its node, and the node stays static ground; a body refused at a rescale is made again once its
+  model is at another scale.
 - **Exact raycast.** `await world.raycast(at, { exact: true })` asks the physics: a compiled model
   is hit on its cooked triangles (the hit names the model and the glTF `material` of the triangle),
   any body on its shape. `{ shape: { type: 'sphere', radius } }` (or `box` with `halfExtents`,
@@ -1470,14 +1632,21 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   is drawn without it — the loop never stops — and the world's diagnostic channel says
   `material-degraded` once per surface and feature (`context.material`, `context.feature`). The
   WebGPU page raster lists material extensions among its unsupported capabilities and says nothing
-  per surface.
+  per surface. A surface the WebGL2 program cannot draw at all (an environment, light, bump,
+  displacement or alpha map, wireframe, stencil writes, alpha hash, premultiplied alpha, alpha to
+  coverage, clipping planes, object-space normals) is left out of the frame while every other
+  object draws and the loop goes on; the channel says `material-refused` once per surface and
+  reason (`context.material`, `context.reason`).
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
 - A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
   session on it and rebuilds from its decoded-page cache, fetching no page, bundle or resident proxy
   it still holds (the proxy and the decoded texture levels are kept inside `world.budget.cpu`
   unless they yielded to the pages). `gpu-device-recovered` says the time from the loss to the
-  first frame drawn after it (`recoveryMs`). `lights.json` is read again, and cross-API fallback is
+  first frame drawn after it (`recoveryMs`). Until then the canvas keeps the last image drawn.
+  Every reopen of a world's session is said once as `session-reopen`: its `cause` (`device-lost`,
+  `option`, or a content change — `defect: true`, a change the session should have taken in
+  place), `durationMs`, and `framesWithoutImage`, the display frames it showed no new image through. `lights.json` is read again, and cross-API fallback is
   not implemented.
 - Frame targets the device refused are asked again only when the view's size changes, or by a
   capture; until then the frames stay held on the previous image.

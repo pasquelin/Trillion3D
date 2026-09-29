@@ -7,7 +7,10 @@ import { LIGHT_TILES_PASS } from '../lighting/tiles/tiles.ts';
 import { REST_COMPACT_PASS } from '../gpu/raster/restCompact.ts';
 import { SHADOW_PASS } from '../gpu/shadow/atlas.ts';
 import { SHADOW_LAYER_PASS } from '../gpu/shadow/staticLayer.ts';
-import { SHADOW_TRANSMITTANCE_PASS } from '../gpu/shadow/transmittance.ts';
+import {
+  SHADOW_TRANSMITTANCE_CLEAR_PASS,
+  SHADOW_TRANSMITTANCE_PASS,
+} from '../gpu/shadow/transmittance.ts';
 import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
 import { MATERIAL_DEPTH_PASS, MATERIAL_SURFACES_PASS } from '../webgpu/core/materialPasses.ts';
 import { PARTICLES_PASS } from '../particles/webgpuParticles.ts';
@@ -71,6 +74,7 @@ const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   [SHADOW_PASS]: ['shadows', 'other', 'raster'],
   [SHADOW_LAYER_PASS]: ['shadows', 'other', 'raster'],
   [SHADOW_TRANSMITTANCE_PASS]: ['shadows', 'other', 'raster'],
+  [SHADOW_TRANSMITTANCE_CLEAR_PASS]: ['shadows', 'other', 'raster'],
   [LIGHT_CUT_PASS]: ['shadowCasters', 'other', 'cull'],
   'Trillion3D shadow cull': ['shadows', 'other', 'cull'],
   'Trillion3D shadow page pyramids': ['shadows', 'other', 'cull'],
@@ -86,6 +90,12 @@ const PASSES: Readonly<Record<string, PassRow>> = Object.freeze({
   'Trillion3D direct present': ['present', 'other'],
   'Trillion3D explicit capture': ['present', 'other'],
 });
+
+/** The passes the broad Shadows stage spans, and no other: its `gpuShadowsMs` sums exactly these.
+ *  The light cut, which chooses casters for the shadows, is its own stage (`shadowCasters`). */
+export const SHADOW_STAGE_PASSES: readonly string[] = Object.freeze(
+  Object.keys(PASSES).filter((name) => PASSES[name][0] === 'shadows'),
+);
 
 /** Stage of a pass, by its label. Unknown is `geometry`. */
 export const gpuPassStageOf = (name: string) => PASSES[name]?.[0] ?? 'geometry';

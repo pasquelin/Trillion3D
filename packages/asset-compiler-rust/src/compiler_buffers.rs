@@ -5,7 +5,7 @@ type GltfBuffers = (Binary, Vec<usize>, Vec<(String, String)>);
 pub(super) fn concat_gltf_buffers(
     dir: &Path,
     g: &Value,
-    embedded: Option<&[u8]>,
+    embedded: Option<Binary>,
     declared: Option<&Value>,
 ) -> Result<GltfBuffers> {
     let buffers = values(g, "buffers")?;
@@ -34,10 +34,12 @@ pub(super) fn concat_gltf_buffers(
             ));
         }
         if let Some(bin) = embedded {
-            if required_index(buffers[0].get("byteLength"), "buffer.byteLength")? > bin.len() {
+            if required_index(buffers[0].get("byteLength"), "buffer.byteLength")?
+                > bin.bytes().len()
+            {
                 return Err(invalid("glTF buffer byteLength exceeds source bytes"));
             }
-            return Ok((Binary::Owned(bin.to_vec()), vec![0], Vec::new()));
+            return Ok((bin, vec![0], Vec::new()));
         }
     }
     let mut out = Vec::new();
@@ -63,8 +65,15 @@ pub(super) fn concat_gltf_buffers(
             verify_sidecar(declared, uri, &digest)?;
             sidecars.push((uri.to_string(), digest));
             out.extend_from_slice(&bytes);
+        } else if compressed::placeholder(g, i) && (i != 0 || embedded.is_none()) {
+            // EXT_meshopt_compression permits an absent uncompressed fallback.
+            offsets[i] = usize::MAX;
+            continue;
         } else if i == 0 {
-            let bin = embedded.ok_or_else(|| invalid("glTF buffer uri is required"))?;
+            let bin = embedded
+                .as_ref()
+                .ok_or_else(|| invalid("glTF buffer uri is required"))?
+                .bytes();
             if required_index(buffer.get("byteLength"), "buffer.byteLength")? > bin.len() {
                 return Err(invalid("glTF buffer byteLength exceeds source bytes"));
             }

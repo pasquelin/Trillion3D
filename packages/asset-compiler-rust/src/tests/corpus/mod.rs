@@ -18,9 +18,9 @@ mod topology;
 mod uv;
 mod uv_degenerate;
 
-pub(super) use crate::compute_bench::inputs::Xorshift;
+pub(super) use crate::tests::random::Xorshift;
 
-/// The generator of a case: the benches' xorshift, its seed spread over the whole state so that
+/// The generator of a case: the corpus xorshift, its seed spread over the whole state so that
 /// neighbouring seeds draw unrelated cases. The same case on every platform, no libm in the way.
 pub(super) fn seeded(seed: u64) -> Xorshift {
     Xorshift::new(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15))
@@ -158,35 +158,16 @@ impl Case {
     }
 }
 
-/// What the DAG builder guarantees on a case: one root per primitive, or a stall whose every
-/// group carries one of the causes the case accepts.
-#[derive(Clone, Copy)]
-pub(super) enum Roots {
-    One,
-    Stalled(&'static [&'static str]),
-}
-
-/// What the corpus asserts on a case: its roots, and the code the compiler refuses it with when
-/// the document is one it does not accept.
+/// What the corpus asserts on a case: one root per primitive, and the code the compiler refuses
+/// it with when the document is one it does not accept.
 #[derive(Clone, Copy)]
 pub(super) struct Expect {
-    pub roots: Roots,
     pub refused: Option<&'static str>,
 }
 impl Expect {
-    pub const ONE_ROOT: Expect = Expect {
-        roots: Roots::One,
-        refused: None,
-    };
-    pub const fn stalled(causes: &'static [&'static str]) -> Expect {
-        Expect {
-            roots: Roots::Stalled(causes),
-            refused: None,
-        }
-    }
+    pub const ONE_ROOT: Expect = Expect { refused: None };
     pub const fn refused(code: &'static str) -> Expect {
         Expect {
-            roots: Roots::One,
             refused: Some(code),
         }
     }
