@@ -96,25 +96,33 @@ const pixels = (view: View, distance: number) =>
   screenErrorBound(distance, 1, Math.hypot(q[0], q[1]), -q[2], 0, view.focal, view.near);
 
 const segment = new Float64Array(6),
-  closest = new Float64Array(6);
-/** Distance from `p` to the nearest triangle of `tree`: boxes grown from `start` until the
- *  nearest triangle found lies inside the box, which makes it the nearest of all. */
+  closest = new Float64Array(6),
+  boxMin = [0, 0, 0],
+  boxMax = [0, 0, 0];
+/** Distance from `p` to the nearest triangle of `tree`: a box grown from `start` until it holds a
+ *  triangle, then shrunk to the nearest distance found, whose box holds the nearest of all. */
 function nearestDistance(tree: TriangleTree, p: Float64Array, start: number) {
   segment.set(p, 0);
   segment.set(p, 3);
   let best = Infinity;
-  const min = [0, 0, 0],
-    max = [0, 0, 0];
+  const visit = (at: number) => {
+    best = Math.min(best, closestSegmentTriangle(closest, segment, tree.triangles, at));
+  };
   for (let half = start; ; half *= 4) {
-    for (let k = 0; k < 3; k++) [min[k], max[k]] = [p[k] - half, p[k] + half];
-    forEachTriangleInBox(tree, min, max, (at) => {
-      best = Math.min(best, closestSegmentTriangle(closest, segment, tree.triangles, at));
-    });
-    if (Math.sqrt(best) <= half || half > 1e9) return Math.sqrt(best);
+    for (let k = 0; k < 3; k++) [boxMin[k], boxMax[k]] = [p[k] - half, p[k] + half];
+    forEachTriangleInBox(tree, boxMin, boxMax, visit);
+    const found = Math.sqrt(best);
+    if (found <= half || half > 1e9) return found;
+    if (found < Infinity) {
+      for (let k = 0; k < 3; k++) [boxMin[k], boxMax[k]] = [p[k] - found, p[k] + found];
+      forEachTriangleInBox(tree, boxMin, boxMax, visit);
+      return Math.sqrt(best);
+    }
   }
 }
 
-/** Largest value and 99th percentile of a list of pixel errors. */
+/** Largest value and 99th percentile of a list of pixel errors. Not the bench's `summarize`,
+ *  which refuses a list holding an infinite error, and a surface at or behind the eye is one. */
 function summary(values: number[]) {
   const sorted = Float64Array.from(values).sort();
   const at = (share: number) =>
@@ -176,12 +184,18 @@ export function measureView(o: {
   const visible = (p: Float64Array) => !blocked(p, 0) && !blocked(p, 0.01);
   // A single-sided source triangle seen from behind is culled by every backend and shows nothing:
   // at a silhouette its points lie on the ray of a surface drawn behind them, on the same pixel.
+  // Read once per triangle: its ten sample points ask in a row.
   const normal = new Float64Array(3);
+  let facingOf = -1,
+    faces = false;
   const facing = (t: number) => {
+    if (t === facingOf) return faces;
     triangleNormal(normal, o.source, 9 * t);
     let side = 0;
     for (let k = 0; k < 3; k++) side += normal[k] * (view.eye[k] - o.source[9 * t + k]);
-    return side > 0 || o.twoSided?.[t] === 1;
+    facingOf = t;
+    faces = side > 0 || o.twoSided?.[t] === 1;
+    return faces;
   };
   const forward = errors(view, o.drawn, sourceTree, visible),
     reverse = errors(view, o.source, drawnTree, (p, t) => facing(t) && visible(p));

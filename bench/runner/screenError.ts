@@ -17,8 +17,14 @@ import { launchChrome } from './chrome.ts';
 import { readBounds } from './page.ts';
 import { ENGINES, parseArgs, resolveMounts, resolveSides, sdkEntryUrl } from './options.ts';
 import { sceneDerived } from './scene.ts';
-import { auditPoses, benchPoses, type NamedPose, type PoseSet } from './screenErrorPoses.ts';
-import { clusterTriangles, sourceTriangles } from './screenErrorSurface.ts';
+import {
+  auditPoses,
+  benchPoses,
+  POSE_SETS,
+  type NamedPose,
+  type PoseSet,
+} from './screenErrorPoses.ts';
+import { cacheSurfaces } from './screenErrorSurface.ts';
 import { measureView } from './screenErrorMeasure.ts';
 import type { HoldOptions } from './screenErrorPage.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
@@ -33,7 +39,7 @@ const PAGE = '/runner/screenErrorPage.ts';
 const flags = parseArgs(process.argv.slice(2));
 const scene = flags.get('scene'),
   set = flags.get('poses') as PoseSet | undefined;
-if (!scene || !set || !['bench', 'orbit', 'terrain'].includes(set))
+if (!scene || !set || !POSE_SETS.includes(set))
   throw new Error('usage: screenError.ts --scene <name> --poses bench|orbit|terrain');
 const backends = (flags.get('backends') ?? 'webgpu,webgl2').split(',');
 const thresholds = (flags.get('pixel-errors') ?? '0,1').split(',').map(Number);
@@ -44,7 +50,7 @@ const sides = resolveSides({ root: ROOT });
 const sdkUrl = sdkEntryUrl(sides[0]);
 const full = join(sceneDerived(scene), 'native/full');
 const manifestUrl = `/benchmark-assets/${scene}-derived/native/full/manifest.json`;
-const { triangles: source, twoSided } = await sourceTriangles(full),
+const { triangles: source, twoSided, drawn: clusterTriangles } = await cacheSurfaces(full),
   sourceTree = buildTriangleTree(source);
 const captures = new Map<string, Capture>();
 const { server, port } = await startServer({ captures, mounts: resolveMounts(ROOT, sides) });
@@ -85,7 +91,7 @@ try {
             )
           ).result,
         )
-      : auditPoses(set, source);
+      : auditPoses(set, source, sourceTree);
   for (const backend of backends)
     for (const pixelError of thresholds) {
       const tag = `${scene}-${backend}-e${pixelError}`;
@@ -110,7 +116,7 @@ try {
         const ids = captures.get(`${tag}-${view}.ids`),
           tri = captures.get(`${tag}-${view}.tri`);
         const drawn = ids
-          ? await clusterTriangles(full, ids.body.toString('utf8').split('\n').filter(Boolean))
+          ? clusterTriangles(ids.body.toString('utf8').split('\n').filter(Boolean))
           : Float32Array.from(new Float64Array(new Uint8Array(tri!.body).buffer));
         const measured = measureView({
           source,
