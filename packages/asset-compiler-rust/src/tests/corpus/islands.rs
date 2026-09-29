@@ -23,9 +23,12 @@ pub(super) fn check_islands(case: &Case, indices: &[u32], built: &Built, label: 
         for cluster in built.dag.iter().filter(|c| c.level > 0) {
             for tri in cluster.indices.as_chunks::<3>().0 {
                 let [a, b, c] = tri.map(|v| island[origin(v) as usize]);
-                let longest = crate::dag::charts::longest_edge(positions, tri);
+                // Only a primitive a solve touched may draw a triangle across islands under a pixel.
+                let solved = !built.origin.is_empty();
+                let under_pixel =
+                    crate::dag::charts::longest_edge(positions, tri) <= cluster.lod_error;
                 assert!(
-                    (a == b && b == c) || longest <= cluster.lod_error,
+                    (a == b && b == c) || (solved && under_pixel),
                     "{label}: a coarse triangle at level {} spans two {name} islands",
                     cluster.level
                 );
