@@ -29,9 +29,9 @@ const HELD = {};
  * requests by the race of its threads and the held pages come in hash order, and a queue re-ranked
  * to either would trade slots at every readback.
  *
- * With views beside the drawn one, the CPU cut ranks the drawn view's own pages first, each lifted
- * above every level of the union (`sets.drawnFirst`): the drawn view keeps what its cut alone kept
- * under the one budget, and the other views' pages take what room is left (#268).
+ * While a capture is drawn, the CPU cut ranks its own pages first, each lifted above every level
+ * of the union (`sets.drawnFirst`): the capture keeps what its cut alone kept under the one budget,
+ * and the other views' pages take what room is left (#268).
  *
  * Only a new readback (or a moved CPU cut), a new room or a queue changed elsewhere is ranked
  * again: one walk of the closed requests or the held pages, bounded by the view, never the
@@ -56,7 +56,7 @@ export function createRequestAdmission(
     queued: PageRec[] = [];
   let visits = 0,
     top = 0,
-    /** Added to a page's level: the drawn view's own are filed above the union's (`rankFrom`). */
+    /** Added to a page's level: a capture's own are filed above the union's (`rankFrom`). */
     lift = 0,
     last: object | null = null,
     lastRoom = -1,
@@ -147,7 +147,7 @@ export function createRequestAdmission(
       filedBy.clear();
       if (ids) closure.closeOver(ids, visit);
       else closure.forEachHeld(visit);
-      // The drawn view's pages again, above the union's coarsest: a coarser filing supersedes.
+      // A capture's pages again, above the union's coarsest: a coarser filing supersedes.
       if (first) {
         lift = top + 1;
         closure.closeOverRecords(first, visit);
@@ -165,7 +165,8 @@ export function createRequestAdmission(
   };
   /** The GPU cut's: its readback's requests. */
   const admit = (room: number, cut: Requests | null) => {
-    if (sets.desiredCount <= room) return sets.followDesired();
+    // The queue follows the cut whole: no capture's cut is held for a ranking that may not come.
+    if (sets.desiredCount <= room) return ((lastFirst = null), sets.followDesired());
     // A readback the adopter refused, or none yet: the queue the image holds stands.
     if (!cut || cut.result.truncated || !cut.result.drawablePageIds) return;
     rankFrom(room, cut, cut.result.pageIds);
@@ -173,6 +174,7 @@ export function createRequestAdmission(
   /** The CPU cut's, whose difference is already applied: true when it overruns `room`. */
   const held = (room: number) => {
     if (sets.desiredCount <= room) {
+      lastFirst = null;
       sets.followDesired();
       return false;
     }
