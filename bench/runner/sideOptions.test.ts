@@ -24,16 +24,16 @@ test('a side takes its own compression, then the campaign one, otherwise the eng
 // #816: one run pits the native frame against one drawn below the display and reconstructed.
 test('a side takes its own render scale, then the campaign one, otherwise the display', () => {
   assert.equal(equip('avant', {}).renderScale, null);
-  assert.equal(equip('avant', { echelle: '0.5' }).renderScale, 0.5);
-  const own = equip('apres', { echelle: '1', 'echelle-apres': '0.67' });
+  assert.equal(equip('avant', { scale: '0.5' }).renderScale, 0.5);
+  const own = equip('apres', { scale: '1', 'scale-apres': '0.67' });
   assert.equal(own.renderScale, 0.67);
-  assert.equal(sideReport(own)[1].echelle, 0.67);
+  assert.equal(sideReport(own)[1].scale, 0.67);
   for (const wrong of ['0.4', '1.5', 'half'])
-    assert.throws(() => equip('apres', { 'echelle-apres': wrong }), /must be in \[0.5, 1\]/);
+    assert.throws(() => equip('apres', { 'scale-apres': wrong }), /must be in \[0.5, 1\]/);
   // A scale no engine would draw at is refused, never reported.
   for (const flags of [{ 'moteur-apres': 'webgl2' }, { antialiasing: 'off' }] as Record<
     string,
     string
   >[])
-    assert.throws(() => equip('apres', { ...flags, echelle: '0.67' }), /needs --moteur webgpu/);
+    assert.throws(() => equip('apres', { ...flags, scale: '0.67' }), /needs --moteur webgpu/);
 });
