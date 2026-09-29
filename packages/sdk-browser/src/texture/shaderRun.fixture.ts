@@ -37,7 +37,7 @@ function tokens(text: string) {
   for (let match; TOKEN.lastIndex < text.length;) {
     if (!(match = TOKEN.exec(text)))
       throw new Error(`WGSL token at ${text.slice(TOKEN.lastIndex)}`);
-    if (match[1]) out.push(match[1]);
+    if (match[1]) out.push(match[1] === 'in' ? '$in' : match[1]); // `in` is a JavaScript word
   }
   return out;
 }

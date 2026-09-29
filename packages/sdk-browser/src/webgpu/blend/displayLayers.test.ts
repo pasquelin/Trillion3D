@@ -2,14 +2,14 @@
 // ends as the witness (three@0.174) shows it — at least as close as develop, which blended every
 // layer in linear light. One pixel follows each system: the witness's canvas of display values,
 // develop's lit target through the tone curve, and this branch's lit target, tint and added value
-// through the pipelines' own blend states (`displayFilter.ts`), composed as the display filter
-// pass composes them.
+// through the shipped route (`displayRun.fixture.ts`) and the pipelines' own blend states, composed
+// as the display filter pass composes them.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { blend, close, display, written, type Rgba } from './blendModel.fixture.ts';
 import { blendTargets } from './pipelines.ts';
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts';
-import { DISPLAY_ROUTE_WGSL } from './displayFilter.ts';
+import { ACES, displayRoute } from './displayRun.fixture.ts';
 import { ALPHA_BLEND } from './stagePipelines.ts';
 import { BLENDS } from '../../particles/drawWords.ts';
 import { particleTargets } from '../../particles/webgpuParticleDraw.ts';
@@ -30,16 +30,8 @@ const rgba = ([r, g, b]: number[], a: number): Rgba => [r, g, b, a];
 const clamp = (values: number[]) => values.map((v) => Math.min(1, Math.max(0, v)));
 const scale = (values: number[], k: number) => values.map((v) => v * k);
 
-/** `DISPLAY_ROUTE_WGSL`'s `displayRoute`, mirrored: route 1 a normal or additive layer, 2 a filter. */
-function route(kind: 1 | 2, shown: number[], alpha: number, masked: number) {
-  if (kind === 2) return { keep: 1, tint: rgba(shown, 1), add: rgba(shown, 1) };
-  const a = alpha * masked;
-  return {
-    keep: 1 - masked,
-    tint: rgba([0, 0, 0], a),
-    add: rgba(scale(shown, a), a),
-  };
-}
+/** The shipped `displayRoute`: pipeline route 1 a normal or additive layer, 2 a filter. */
+const routes = { 1: displayRoute(1), 2: displayRoute(2) };
 
 /** A layer of straight colour `colour` through `targets` (lit, tint, added value); `premultiplied`
  *  as a particle writes it; `develop`, the lit target's state on develop. */
@@ -63,7 +55,7 @@ function layer(
       ),
     develop: (value) => blend(develop, out, value),
     routed: (pixel, masked) => {
-      const r = route(kind, shown, colour[3], masked);
+      const r = routes[kind](rgb(colour), 1, ACES, false, colour[3], masked);
       const kept = rgba(premultiplied ? scale(rgb(out), r.keep) : rgb(out), out[3] * r.keep);
       return {
         lit: written(targets[0], kept, pixel.lit),
@@ -107,7 +99,7 @@ function onePixel(base: Rgba, layers: Layer[], masked = 1) {
 /** The routed pixel is the witness's, and never farther from it than develop's, which is off. */
 function assertWitness(name: string, base: Rgba, layers: Layer[]) {
   const { witness, develop, routed } = onePixel(base, layers);
-  close(routed, witness, name);
+  close(routed, witness, name, 1e-5);
   for (let c = 0; c < 3; c++)
     assert.ok(
       Math.abs(routed[c] - witness[c]) <= Math.abs(develop[c] - witness[c]) + 1e-9,
@@ -118,17 +110,6 @@ function assertWitness(name: string, base: Rgba, layers: Layer[]) {
     `${name}: develop is off`,
   );
 }
-
-test('the route mirrored here is the shader one', () => {
-  assert.match(
-    DISPLAY_ROUTE_WGSL,
-    /if\(DISPLAY_ROUTE==1u\)\{let a=alpha\*masked;return Route\(1\.0-masked,vec4f\(0\.0,0\.0,0\.0,a\),vec4f\(shown\*a,a\)\);\}/,
-  );
-  assert.match(
-    DISPLAY_ROUTE_WGSL,
-    /\n return Route\(1\.0,vec4f\(shown,1\.0\),vec4f\(shown,1\.0\)\);\n\}/,
-  );
-});
 
 test('a normal surface over or under a multiply one shows the witness', () => {
   // A dark glass in front of the filter over bright paper: a lift of the filter by its coverage
