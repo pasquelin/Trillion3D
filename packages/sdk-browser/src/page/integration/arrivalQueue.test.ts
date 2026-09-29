@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { createPartitionCells } from '../../scene/partition/cells.ts';
 import { placedMesh } from '../../scene/partition/rows.ts';
-import { decodeHere, whole } from '../../scene/partition/cells.fixture.ts';
+import { decodeHere, io, settled } from '../../scene/partition/cells.fixture.ts';
+import { paged } from '../../scene/partition/paged.fixture.ts';
 import { createArrivalQueue, type ArrivalTarget } from './arrivalQueue.ts';
 import { createFrameBudget } from './frameBudget.ts';
 import { referenceArrivalQueue } from '../../../../../bench/oracles/browser/arrival-admission.ts';
@@ -135,55 +136,50 @@ test('the cells a frame places and the pages it drains spend one budget, on one 
   const node = { parent: null, mesh: 0, matrix: null, rotation: null, scale: null };
   const body = (x: number) =>
     JSON.stringify({ version: 2, nodes: [{ ...node, translation: [x, 0, 0] }] });
+  const records = [0, 1, 2].map((x) => ({
+    url: `${x}.json`,
+    sha256: '',
+    bytes: 1,
+    parents: [[null, [x, 0, 0, x + 1, 1, 1]] as const],
+    meshes: [[0, 1] as const],
+    meshPages: [],
+  }));
+  const { partition, files } = paged(records, 3);
   const cells = createPartitionCells({
-    partition: {
-      bounds: [0, 0, 0, 3, 1, 1],
-      meshes: [0],
-      cells: [0, 1, 2].map((x) => ({
-        url: `${x}.json`,
-        sha256: '',
-        bytes: 1,
-        parents: [[null, [x, 0, 0, x + 1, 1, 1]] as const],
-        meshes: [[0, 1] as const],
-        meshPages: [],
-      })),
-      regions: whole([0, 1, 2]),
-    },
+    partition,
     base: 'https://cache.test/key/',
     root: new Group(),
     parents: [],
     meshes: new Map([[0, placedMesh([{ meshes: 0 }])]]),
   });
-  // Opened with no owner: rows for every cell, none read.
-  await cells.prime([1e9, 0, 0], 100, () => Promise.reject(new Error('unread')), false);
-  const io = {
-    bytes: (url: string) =>
-      new TextEncoder().encode(body(Number(url.split('/').at(-1)!.split('.')[0]))),
-    async decode(bytes: Uint8Array) {
-      const rows = await decodeHere(bytes);
-      return {
-        ...rows,
-        get nodes() {
-          now += 1.5;
-          return rows.nodes;
-        },
-      };
-    },
-    loading: () => false,
-    request() {},
-    update() {},
+  const { port, held } = io((url) => {
+    const name = url.split('/').at(-1)!;
+    return files.get(name) ?? new TextEncoder().encode(body(Number(name.split('.')[0])));
+  });
+  port.decode = async (bytes: Uint8Array) => {
+    const rows = await decodeHere(bytes);
+    return {
+      ...rows,
+      get nodes() {
+        now += 1.5;
+        return rows.nodes;
+      },
+    };
   };
+  // The page of the index is opened, then every cell handed to the decode, none placed.
+  const free = { admits: () => true, spend() {} };
+  await settled(cells, [0, 0.5, 0.5], 100, port, free);
+  records.forEach(({ url }) => held.add(`https://cache.test/key/${url}`));
+  cells.frame([0, 0.5, 0.5], 100, port, free);
+  await Promise.all(cells.decodes());
   const accepted: string[] = [];
   const receiver = { acceptPage: (url: string) => void (accepted.push(url), (now += 1)) };
   const budget = createFrameBudget(2);
   const queue = createArrivalQueue(1 << 20, 64, budget);
   for (const url of ['p0', 'p1']) queue.queue(receiver, url, new Uint32Array(1));
-  // A first frame hands every cell to the decode, placing none.
-  cells.frame([0, 0.5, 0.5], 100, io, { admits: () => true, spend() {} });
-  await Promise.all(cells.decodes());
   const frame = () => {
     budget.open();
-    cells.frame([0, 0.5, 0.5], 100, io, budget);
+    cells.frame([0, 0.5, 0.5], 100, port, budget);
     queue.drain();
     return [cells.stats().held, accepted.length];
   };
