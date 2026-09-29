@@ -163,6 +163,10 @@ export interface BackendContext {
    *  the pixel centre, no jitter, no history. `renderScale`: 1 when absent (`renderScaleOption.ts`). */
   temporalAntialiasing?: boolean;
   renderScale?: import('../frame/renderScaleOption.ts').RenderScale;
+  /** Reference mode (`world/session/options.ts`, `frame/referenceMode.ts`): the shadow shader and
+   *  the shadow table are compiled and sized for the raised sun window, so every pixel reads the
+   *  finest clipmap level. Off by default. */
+  reference?: boolean;
   /** The world's effect chain, drawn after temporal antialiasing; absent or empty, nothing is. */
   effects?: import('../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   sceneLighting?: Object3D;

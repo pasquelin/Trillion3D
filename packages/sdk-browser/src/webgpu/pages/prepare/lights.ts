@@ -46,7 +46,11 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
   // produces, from pages the quads clear. One without the others would light nothing, so the
   // failure of one yields all.
   try {
-    lights.shadows = await createGpuShadowAtlas(device, vis.visBindGroupLayout);
+    lights.shadows = await createGpuShadowAtlas(
+      device,
+      vis.visBindGroupLayout,
+      lights.plan.sunWindow,
+    );
     lights.cull = await createGpuShadowCull(device, casterSlots);
     lights.pageQuads = await createShadowPageQuads(device, lights.shadows.faceUniform);
   } catch (error) {
