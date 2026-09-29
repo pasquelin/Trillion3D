@@ -6,8 +6,8 @@ export { MIRROR_TRANSITION_END } from '../reflections/modelShader.ts';
  *  bindings (14 to 17) and the shadow transmittance pair (18, 19), which share those numbers. */
 export const BOUNCE_SURFACE_BINDING = 20;
 
-/** Static hits read the canonical cache. After motion, every owner evaluates the same lighting
- *  at its transformed centroid: no stale coowner cell, no owner-sized radiance allocation. */
+/** Posed hits read the surface cache. An owned leaf's hit evaluates the lighting at its owner's
+ *  transformed centroid: no stale coowner cell, no owner-sized radiance allocation. */
 export const SURFACE_RAY_WGSL = `
 ${SURFACE_IRRADIANCE_WGSL}
 fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
@@ -16,7 +16,7 @@ fn rayRadiance(origin:vec3f,direction:vec3f,reach:f32)->vec4f{
  // The face that counts is the one looking at the ray: the proxy is two-sided by construction.
  let geometric=proxyOwnerNormal(hit.triangle,hit.owner);
  let face=select(0u,1u,dot(geometric,direction)>0.0);
- if(proxy.dynamic!=0u){
+ if(hit.owner!=PROXY_POSED){
   let normal=select(geometric,-geometric,face==1u);
   let point=proxyOwnerCentre(hit.triangle,hit.owner);
   let lighting=directIrradiance(point,normal,reach)+sampleBounce(point,normal);

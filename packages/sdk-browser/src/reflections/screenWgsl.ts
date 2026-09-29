@@ -4,12 +4,13 @@ import { mirrorWeightShader } from './modelShader.ts';
 import { FOG_FREE_SURFACE_FLAG } from '../scene/surfaceModel.ts';
 
 export const SCREEN_REFLECTION_WGSL = `
+// \`enabled\`: x the switch, yz the size the image draws in the source, which may be smaller.
 struct ReflectionView{matrix:mat4x4f,enabled:vec4f,}
 @group(1) @binding(0) var reflectionColor:texture_2d<f32>;
 @group(1) @binding(1) var reflectionDepth:texture_depth_2d;
 @group(1) @binding(2) var<uniform> reflectionView:ReflectionView;
 fn reflectionProject(p:vec4f)->vec4f{let c=reflectionView.matrix*p;return vec4f(c.x,-c.y,c.z,c.w);}
-fn reflectionSize()->vec2f{return vec2f(textureDimensions(reflectionColor));}
+fn reflectionSize()->vec2f{return reflectionView.enabled.yz;}
 fn reflectionDepthAt(p:vec2i)->f32{return textureLoad(reflectionDepth,p,0);}
 fn reflectionClearDepth()->f32{return 0.0;}
 fn reflectionColorAt(p:vec2i)->vec3f{return textureLoad(reflectionColor,p,0).rgb;}

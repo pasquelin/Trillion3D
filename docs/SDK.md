@@ -425,6 +425,14 @@ each pixel at its centre with no history, what a pixel-exact capture asks. Writt
 at the next frame, history dropped, no session reopened. Read, it is what the image carries: `false`
 on WebGL2, which has none (its capabilities list `temporal antialiasing` as unsupported).
 
+`world.renderScale` (`createWorld(target, { renderScale })`, `'auto'` by default) is the fraction
+of the display per axis the image is drawn at before temporal antialiasing rebuilds it, WebGPU
+only: `'auto'` lets the frame budget, the display's refresh interval, choose it between 0.5 and 1,
+`{ min, max }` bounds that choice, a number fixes it; a still image is drawn at the maximum, the
+native image. Written, it takes effect at the next frame, no target remade by the controller's
+steps. Read, it is the scale of the last image drawn: `1` on WebGL2 (its capabilities list
+`temporal upscaling` as unsupported).
+
 `world.effects` is the ordered chain of passes drawn over the image after temporal antialiasing and
 before it reaches the canvas, on WebGPU and WebGL2. `effect.bloom({ intensity, radius })` makes a
 physically based glow on the linear image, before tone mapping, energy-conserving; `intensity` (0 to
