@@ -5,12 +5,12 @@ use crate::physics_cook::hausdorff::{distance, distance_above};
 
 #[test]
 fn a_bounded_distance_is_the_full_one_raised_to_its_floor_bit_for_bit() {
-    let mut rng = crate::compute_bench::inputs::Xorshift::new(0x929);
+    let mut rng = crate::tests::random::Xorshift::new(0x929);
     let (positions, indices) = cylinder(24);
     let triangles = indices.len() / 3;
     for case in 0..60 {
         // Two random subsets of the same surface, one of them a single triangle or empty.
-        let pick = |rng: &mut crate::compute_bench::inputs::Xorshift, keep: usize| -> Vec<u32> {
+        let pick = |rng: &mut crate::tests::random::Xorshift, keep: usize| -> Vec<u32> {
             (0..triangles)
                 .filter(|_| rng.below(keep.max(1)) == 0)
                 .flat_map(|t| indices[t * 3..t * 3 + 3].to_vec())
