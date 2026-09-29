@@ -13,12 +13,13 @@ const column = (x: number, z: number, open: boolean, clearance: number): ColumnP
   clearance,
 });
 
-test('the courtyard: the roomiest column under open sky, the nearer the centre between equals', () => {
+test('the courtyard: the roomiest floor column under open sky, never a roof, the nearer the centre between equals', () => {
   const probes = [
     column(0, 0, true, 6),
     column(2, 0, true, 6),
     column(8, 8, true, 1),
     column(5, 0, false, 9),
+    { ...column(-6, 6, true, 8), ground: 7.5 },
   ];
   assert.deepEqual(pickStreet(probes, bounds), { x: 0, z: 0, ground: 0, clearance: 6 });
 });
