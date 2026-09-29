@@ -53,11 +53,6 @@ export type CompactResult = {
   indirect: Uint32Array; // one drawIndirect per slot, four u32 each
   overflow: boolean;
 };
-export type SlotLayout = {
-  offsets: number[];
-  rows: number[];
-  tableRows: number;
-};
 export type GpuDraw = {
   /**
    * `items` holds packed rows of {pageIndex,bin,selectionIndex,layer,triangles}. Those five are

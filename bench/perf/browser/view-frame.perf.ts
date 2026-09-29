@@ -1,4 +1,3 @@
-// what a frame used to rebuild for no reason.
 import { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts';
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { surfaceOf } from '../../../packages/sdk-browser/src/page/surface.ts';
@@ -18,7 +17,6 @@ import {
   referenceUpdateInstance,
 } from '../../oracles/browser/view-frame.ts';
 import { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
-
 const DUMMY_TEXTURE = {} as GPUTexture;
 const buildSurfaces = (): SurfaceBuffer => {
   const liste: GPUTextureView[] = [0, 1, 2, 3].map(() => ({}) as GPUTextureView);
@@ -31,6 +29,10 @@ const buildSurfaces = (): SurfaceBuffer => {
     normalRough: DUMMY_TEXTURE,
     emissiveAo: DUMMY_TEXTURE,
     flags: DUMMY_TEXTURE,
+    shadingOffset: {} as GPUBuffer,
+    subsurface: DUMMY_TEXTURE,
+    subsurfaceView: {} as GPUTextureView,
+    hasSubsurface: false,
     views: () => liste,
     dispose: () => {},
   };
@@ -43,7 +45,6 @@ const liberee: SurfaceBuffer = {
     throw new Error('SURFACE_DISPOSED');
   },
 };
-
 const passeAttachments =
   (fn: (surfaces: SurfaceBuffer) => GPURenderPassColorAttachment[]) => (input: SurfaceBuffer[]) => {
     const output: unknown[] = [];

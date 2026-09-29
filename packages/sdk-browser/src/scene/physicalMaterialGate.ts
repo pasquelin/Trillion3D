@@ -1,7 +1,7 @@
 /**
  * What the autonomous WebGL2 program draws of a physical material: the glTF transmission
  * volume — `KHR_materials_transmission`, `KHR_materials_ior`, `KHR_materials_volume` as
- * factors — and nothing else. Every other physical extension is named here before a draw: the
+ * factors — plus anisotropy and clearcoat with their maps. Other physical extensions are named before a draw: the
  * surface is drawn without it and the world says so by name (`noticeMaterialDegraded`), so a
  * surface never loses a declared feature silently and never stops the loop.
  */
@@ -32,24 +32,14 @@ type PhysicalLike = HostShadedMaterial & {
   readonly specularColor?: { readonly r: number; readonly g: number; readonly b: number };
 };
 
-const EXTENSION_FACTORS = [
-  'clearcoat',
-  'sheen',
-  'iridescence',
-  'anisotropy',
-  'dispersion',
-] as const;
+const EXTENSION_FACTORS = ['sheen', 'iridescence', 'dispersion'] as const;
 const EXTENSION_MAPS = [
   'transmissionMap',
   'thicknessMap',
-  'clearcoatMap',
-  'clearcoatRoughnessMap',
-  'clearcoatNormalMap',
   'sheenColorMap',
   'sheenRoughnessMap',
   'iridescenceMap',
   'iridescenceThicknessMap',
-  'anisotropyMap',
   'specularIntensityMap',
   'specularColorMap',
 ] as const;

@@ -1,3 +1,7 @@
+import { SUBSURFACE_BYTES } from './subsurface.ts';
+import { SHADING_OFFSET_BYTES } from '../visibility/shader/shadingPoint.ts';
+import { storageBufferCap } from '../residency/pools.ts';
+
 /** Version 1: opaque/masked material properties in linear space, before lighting.
  * No velocity or GI representation is claimed by this contract. The flags hold a value of 0 to 5
  * (`SurfaceBuffer.flags`), written by the opaque resolve alone: eight bits keep every one. */
@@ -8,7 +12,7 @@ export const SURFACE_FORMATS: GPUTextureFormat[] = [
   'r8uint',
 ];
 /** Bytes of the four surface targets per pixel. */
-export const SURFACE_BYTES_PER_PIXEL = 25;
+export const SURFACE_BYTES_PER_PIXEL = 25 + SHADING_OFFSET_BYTES;
 /** Display colour target, what the composition writes; before it, the water pass borrows it. */
 export const DISPLAY_FORMAT: GPUTextureFormat = 'rgba8unorm';
 /** Virtual-texture feedback target: the tile rank a pixel asks for, written by hardware
@@ -32,7 +36,7 @@ export function frameTargetBytes(width: number, height: number, withHiz: boolean
       h = Math.max(1, Math.ceil(h / 2));
     }
   }
-  return bytes;
+  return bytes + SUBSURFACE_BYTES;
 }
 /** Per-pixel surface data of a frame, kept on the GPU: depth, normals, material. */
 export interface SurfaceBuffer {
@@ -53,6 +57,14 @@ export interface SurfaceBuffer {
   /** 0 background, 1 unlit (fogged), 2 reads, 3 shown as-is: a diagnostic, a normal or depth view;
    *  4 and 5 the diffuse and toon models (`./surfaceModel.ts`). */
   readonly flags: GPUTexture;
+  /** Full precision shadow receiver offset, written beside the G-buffer. */
+  readonly shadingOffset: GPUBuffer;
+  /** Independent thin-surface transmission color; a 1×1 zero texture when disabled. */
+  readonly subsurface: GPUTexture;
+  /** View of the thin-surface transmission texture. */
+  readonly subsurfaceView: GPUTextureView;
+  /** Whether thin-surface transmission has a full-size target. */
+  readonly hasSubsurface: boolean;
   /** Its GPU texture views. */
   views(): GPUTextureView[];
   /** Frees it. */
@@ -84,9 +96,16 @@ export function createSurfaceBuffer(
   device: GPUDevice,
   width: number,
   height: number,
+  hasSubsurface = false,
 ): SurfaceBuffer {
-  const allocationBytes = checkSurfaceSize(device, width, height);
+  const allocationBytes =
+    checkSurfaceSize(device, width, height) +
+    (hasSubsurface ? width * height : 1) * SUBSURFACE_BYTES;
+  const offsetBytes = width * height * SHADING_OFFSET_BYTES;
+  if (offsetBytes > storageBufferCap(device.limits)) throw new Error('SHADING_POINT_DEVICE_LIMIT');
   const textures: GPUTexture[] = [];
+  let shadingOffset: GPUBuffer | undefined;
+  let subsurface: GPUTexture | undefined;
   let views: GPUTextureView[];
   try {
     for (const format of SURFACE_FORMATS)
@@ -103,8 +122,25 @@ export function createSurfaceBuffer(
         }),
       );
     views = textures.map((texture) => texture.createView());
+    subsurface = device.createTexture({
+      label: 'Trillion3D thin transmission',
+      size: hasSubsurface ? [width, height] : [1, 1],
+      format: 'rgba16float',
+      usage:
+        GPUTextureUsage.STORAGE_BINDING |
+        GPUTextureUsage.TEXTURE_BINDING |
+        GPUTextureUsage.COPY_SRC |
+        GPUTextureUsage.COPY_DST,
+    });
+    shadingOffset = device.createBuffer({
+      label: 'Trillion3D shadow receiver offset',
+      size: offsetBytes,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    });
   } catch (error) {
     textures.forEach((texture) => texture.destroy());
+    shadingOffset?.destroy();
+    subsurface?.destroy();
     throw error;
   }
   let disposed = false;
@@ -117,6 +153,10 @@ export function createSurfaceBuffer(
     normalRough: textures[1],
     emissiveAo: textures[2],
     flags: textures[3],
+    shadingOffset,
+    subsurface,
+    subsurfaceView: subsurface.createView(),
+    hasSubsurface,
     views: () => {
       if (disposed) throw new Error('SURFACE_DISPOSED');
       return views;
@@ -125,6 +165,8 @@ export function createSurfaceBuffer(
       if (disposed) return;
       disposed = true;
       textures.forEach((texture) => texture.destroy());
+      shadingOffset.destroy();
+      subsurface.destroy();
     },
   };
 }
