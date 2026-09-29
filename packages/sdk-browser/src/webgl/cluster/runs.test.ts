@@ -90,6 +90,23 @@ test('the pages of one surface at one placement are one submission, in their ord
     ],
     'one multi-draw of the run; the late page, behind the one at x = 5, in the range given back',
   );
+  const empty = page(0, stone); // an empty page: a range of nothing, no offset to submit
+  scene.add(empty);
+  const ranges = image().flat();
+  for (const drawn of [
+    [3, 0],
+    [9, 36],
+    [6, 12],
+  ])
+    assert.ok(
+      ranges.some((range) => `${range}` === `${drawn}`),
+      `the page at ${drawn} still drawn`,
+    );
+  assert.ok(
+    ranges.every(([, offset]) => offset >= 0),
+    'an empty page keeps its own buffers',
+  );
+  scene.remove(empty);
   late.geometry.index!.needsUpdate = true;
   const own = image();
   assert.equal(own.length, 4, 'a page rewritten once placed leaves the run for buffers of its own');
