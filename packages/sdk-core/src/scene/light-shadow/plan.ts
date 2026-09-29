@@ -13,6 +13,7 @@ import { createSunLevels } from './sunLevels.ts';
 import { createShadowRecords } from './records.ts';
 import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
 import { createShadowThresholds } from './thresholds.ts';
+import { SUN_WINDOW, shadowTableEntries } from './virtual.ts';
 
 /** The frame's shadow work: which virtual pages are drawn. */
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
@@ -27,10 +28,10 @@ export type ShadowPlan = ReturnType<typeof createShadowPlan>;
  *
  * All arrays are allocated once; `plan()` allocates nothing.
  */
-export function createShadowPlan(poolSide: number, layers = 1) {
-  const pool = createShadowPool(poolSide, layers),
-    table = createShadowTable(pool.pages),
-    sun = createSunLevels(),
+export function createShadowPlan(poolSide: number, layers = 1, sunWindow = SUN_WINDOW) {
+  const pool = createShadowPool(poolSide, layers, shadowTableEntries(sunWindow)),
+    table = createShadowTable(pool.pages, sunWindow),
+    sun = createSunLevels(sunWindow),
     records = createShadowRecords(table, pool, sun),
     changes = createShadowChanges(pool.pages),
     counts = createShadowCounts(),
@@ -52,6 +53,9 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     settledStamp = -1;
   const stampOf = (store: SceneLightStore) => table.version + views + store.epoch;
   const shadowPlan = {
+    /** Pages a side of a sun's clipmap a session runs with: the ordinary constant, else the
+     *  reference window (`referenceMode.ts`); sizes the table and compiles the shadow shader. */
+    sunWindow,
     /** The page table: one word per virtual page, and the range each light holds in it. */
     table,
     /** The physical pages of the pool and the virtual page each one holds. */

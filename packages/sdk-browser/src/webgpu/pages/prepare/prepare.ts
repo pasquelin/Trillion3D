@@ -70,7 +70,7 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
   // Both are awaited, and each kept as it is built, before a failure of either goes up.
   const programs = await step('lighting and antialiasing programs', () =>
     Promise.allSettled([
-      createDeferredLighting(gpuDevice, () => run.gate.resourcesChanged()),
+      createDeferredLighting(gpuDevice, () => run.gate.resourcesChanged(), rt.lights.plan.sunWindow),
       prepareTemporalAntialiasing(rt, gpuDevice),
     ]),
   );

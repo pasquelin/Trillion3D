@@ -1,6 +1,7 @@
 import { residentProxyWgsl } from '../../bounce/nodeWgsl.ts';
 import { directLightWgsl } from './lightWgsl.ts';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
+import { SUN_WINDOW } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { RECT_SHADING_WGSL } from './rectLightWgsl.ts';
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts';
 import { MODEL_FLAG, SURFACE_MODEL_LIGHT_WGSL } from '../../scene/surfaceModel.ts';
@@ -75,12 +76,13 @@ const lightingBase = (
   shadowBinding: number,
   requestBinding: number | null,
   transmittanceBinding: number,
+  pages: number,
   narrow = false,
 ) => `
 ${directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined)}
 ${residentProxyWgsl(proxyBinding, requestBinding !== null)}
 ${sunFarShadowWgsl(requestBinding !== null)}
-${directShadowWgsl(shadowBinding, requestBinding, transmittanceBinding)}
+${directShadowWgsl(shadowBinding, requestBinding, transmittanceBinding, pages)}
 ${SURFACE_MODEL_LIGHT_WGSL}
 ${RECT_SHADING_WGSL}
 ${FOG_WGSL}
@@ -130,8 +132,8 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
  * that long and its slice loop has no branch (`NARROW_SLICE_WGSL`), as the narrow tile pass
  * writes (`../tiles/shader.ts`).
  */
-export const directLightingWgsl = (narrow = false) => `
-${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance, narrow)}
+export const directLightingWgsl = (narrow = false, pages = SUN_WINDOW) => `
+${lightingBase(SUN_FAR_PROXY_BINDING, CONTRACT_SHADOW_BINDINGS.data, CONTRACT_SHADOW_BINDINGS.requests, CONTRACT_SHADOW_BINDINGS.transmittance, pages, narrow)}
 ${DIRECT_LIGHT_SAMPLING_WGSL}
 /** Contribution of the contract lights to the pixel, tile by tile and light by light. */
 fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
@@ -166,8 +168,9 @@ export const declaredLightingWgsl = (
   proxyBinding: number,
   shadowBinding: number,
   transmittanceBinding: number,
+  pages = SUN_WINDOW,
 ) => `
-${lightingBase(proxyBinding, shadowBinding, null, transmittanceBinding)}
+${lightingBase(proxyBinding, shadowBinding, null, transmittanceBinding, pages)}
 fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f)->vec3f{
  let tilesX=u32(uni.lightTiles.x);
  let tilesY=u32(uni.lightTiles.y);

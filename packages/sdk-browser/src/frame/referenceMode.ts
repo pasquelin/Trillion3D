@@ -1,4 +1,4 @@
-import { EngineError } from '../../../sdk-core/src/index.ts';
+import { EngineError, LIGHT_SETTINGS } from '../../../sdk-core/src/index.ts';
 import { DEFAULT_HEIGHT, DEFAULT_PIXEL_RATIO, DEFAULT_WIDTH } from '../backend/common.ts';
 import { referenceTilePlan, type ReferenceTilePlan } from './referenceTiles.ts';
 import type { MeasuredWorldOptions } from '../world/session/options.ts';
@@ -30,6 +30,32 @@ export const REFERENCE_APPROXIMATIONS = [
 /** The bounce target of the reference, in milliseconds: far past any frame, so the budget never
  *  lowers the probes traced below their per-frame ceiling (`createBounceBudget`). */
 export const REFERENCE_BOUNCE_BUDGET_MS = 1000;
+
+/** The boss's case (#1281): 1728 × 1117 CSS at DPR 2, a 55° vertical field. */
+export const REFERENCE_VIEW_HEIGHT_PX = 1117 * 2;
+export const REFERENCE_VIEW_FOV_DEG = 55;
+
+/**
+ * Pages a side of a clipmap level a view of `height` device pixels at vertical field `fov` needs
+ * so every pixel reads the finest level: a pixel at the top edge sits `height / tan(fov/2)` device
+ * pixels from the camera axis, and a window of `pages` reaches `pages · shadowPage / 2` each way
+ * (`contracts.ts`, `sunLevels.ts`). Rounded up to an even window — `sunLevels` centres it on the
+ * camera by whole pages — and never below the ordinary constant. At the boss's case:
+ * 2234 / tan(27.5°) = 4291, so `pages · 64 ≥ 4291` gives 68.
+ */
+export function referenceSunWindow(
+  height = REFERENCE_VIEW_HEIGHT_PX,
+  fov = REFERENCE_VIEW_FOV_DEG,
+) {
+  const extent = height / Math.tan((fov * Math.PI) / 360);
+  const pages = Math.ceil((2 * extent) / LIGHT_SETTINGS.shadowPage);
+  return Math.max(LIGHT_SETTINGS.sunLevelPages, pages + (pages % 2));
+}
+
+/** The sun clipmap window a reference session runs with (`referenceSunWindow`): 68 at the boss's
+ *  case, so every shadow texel is full resolution everywhere — no outer pixel reads a coarser
+ *  level. Threaded into the plan, the page table, the atlas and the shadow shader. */
+export const REFERENCE_SUN_WINDOW = referenceSunWindow();
 
 /** What the reference mode of an open session draws: the tiles it is drawn in, at which factor,
  *  and every approximation it names. */

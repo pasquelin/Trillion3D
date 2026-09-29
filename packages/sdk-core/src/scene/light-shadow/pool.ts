@@ -17,8 +17,8 @@ export const DRAW_ALL = 0,
   DRAW_DYNAMIC = 2;
 
 /** Host bytes a pool of `pages` allocates, per page 11·4 + 5 + 2·8, one bit per table entry. */
-export const shadowPoolHostBytes = (pages: number) =>
-  pages * (11 * 4 + 5 + 2 * 8) + SHADOW_TABLE_ENTRIES / 8;
+export const shadowPoolHostBytes = (pages: number, tableEntries = SHADOW_TABLE_ENTRIES) =>
+  pages * (11 * 4 + 5 + 2 * 8) + tableEntries / 8;
 
 /**
  * THE PHYSICAL PAGES of the shadow pool and what each one holds: the table entry that maps it,
@@ -28,7 +28,7 @@ export const shadowPoolHostBytes = (pages: number) =>
  * A page is taken from the free list, else from the least recently requested page the latest
  * report did not name. Only mapped pages go stale: the scheduler walks this table alone.
  */
-export function createShadowPool(side: number, layers = 1) {
+export function createShadowPool(side: number, layers = 1, tableEntries = SHADOW_TABLE_ENTRIES) {
   let free = new Int32Array(0),
     /** Eviction keys: last request, then rank, then page, packed into one exact number. */
     order = new Float64Array(0),
@@ -39,7 +39,7 @@ export function createShadowPool(side: number, layers = 1) {
      *  scene's jittering reports stop evicting each other and the pool refuses (#26). */
     evictBefore = -1;
   /** One bit per table entry: its page was evicted to make room, and it has not been drawn since. */
-  const evicted = new Uint32Array(SHADOW_TABLE_ENTRIES / 32);
+  const evicted = new Uint32Array(tableEntries / 32);
   /** The evictable pages of cycle `evictBefore`, in eviction order: one sort, at need. */
   const buildOrder = () => {
     const { owner, requested, named, rank, pages } = pool;
