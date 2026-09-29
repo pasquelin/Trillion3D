@@ -3,6 +3,7 @@
 // profile, so a triangle count is asked of it and reached. Every mesh is indexed, with smooth
 // normals; the ground's tiles read one height function, so two neighbours meet without a seam.
 import type { Random } from '../../../site/examples/kit/random.ts';
+import { computeNormals } from '../../../packages/sdk-core/src/world/geometry/normals.ts';
 
 export interface ShapeMesh {
   positions: Float32Array;
@@ -15,23 +16,6 @@ export function groundHeight(x: number, z: number, relief: number) {
   const wave = (scale: number, phase: number) =>
     Math.sin(x / scale + phase) * Math.cos(z / (scale * 1.3) - phase);
   return relief * (0.5 + 0.28 * wave(610, 0.4) + 0.15 * wave(230, 1.7) + 0.07 * wave(83, 2.9));
-}
-
-/** Smooth normals of an indexed triangle list: area-weighted face normals, summed, normalised. */
-export function smoothNormals(positions: Float32Array, indices: Uint32Array) {
-  const normals = new Float32Array(positions.length);
-  for (let t = 0; t < indices.length; t += 3) {
-    const [a, b, c] = [indices[t] * 3, indices[t + 1] * 3, indices[t + 2] * 3];
-    const e = [0, 1, 2].map((k) => positions[b + k] - positions[a + k]);
-    const f = [0, 1, 2].map((k) => positions[c + k] - positions[a + k]);
-    const n = [e[1] * f[2] - e[2] * f[1], e[2] * f[0] - e[0] * f[2], e[0] * f[1] - e[1] * f[0]];
-    for (const v of [a, b, c]) for (let k = 0; k < 3; k++) normals[v + k] += n[k];
-  }
-  for (let v = 0; v < normals.length; v += 3) {
-    const length = Math.hypot(normals[v], normals[v + 1], normals[v + 2]) || 1;
-    for (let k = 0; k < 3; k++) normals[v + k] /= length;
-  }
-  return normals;
 }
 
 /** A square grid of `cells`² quads, two triangles each, counter-clockwise seen from +y. */
@@ -108,7 +92,7 @@ export function lathe(
       indices.set([v, v + 1, v + row, v + 1, v + row + 1, v + row], at);
       at += 6;
     }
-  return { positions, normals: smoothNormals(positions, indices), indices };
+  return { positions, normals: computeNormals(positions, indices), indices };
 }
 
 /** The props a node may carry: a name, a lathe profile, and its sides and bands. */

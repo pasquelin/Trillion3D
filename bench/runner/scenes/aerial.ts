@@ -24,7 +24,7 @@ const TILES = 8,
   TILE = 500,
   CELLS = 64,
   RELIEF = 120;
-export const EXTENT = TILES * TILE;
+const EXTENT = TILES * TILE;
 /** A lamp's light: its range and intensity (candela), a warm white. */
 const LAMP = { type: 'point', color: [1, 0.85, 0.6], intensity: 400, range: 18 };
 const MATERIALS = [
@@ -165,6 +165,7 @@ function main() {
   const flags = parseArgs(process.argv.slice(2)),
     number = (name: string, fallback: number) => Number(flags.get(name) ?? fallback);
   const [seed, props, lamps] = [number('seed', 410), number('props', 3600), number('lamps', 600)];
+  flags.refuseUnread();
   if (![seed, props, lamps].every((value) => Number.isSafeInteger(value) && value >= 0))
     throw new Error('--seed, --props and --lamps take whole numbers');
   const scene = `aerial-${seed}`,
