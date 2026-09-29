@@ -116,7 +116,7 @@ test('A jittered edge: the accumulated share follows the colour, no flip between
   assert.match(TAA_SHADER, /share\+=asIs\*weight;/);
   const [wcOf, whOf, colorOf, shareOf] = capture(
     TAA_SHADER,
-    /let wc=(.*?);\n let wh=(.*?);\n return TaaOut\((.*?),(\(share\*wc.*?\))\);/,
+    /let wc=(.*?);\n let wh=(.*?);\n return TaaOut\((.*?),vec2f\((\(share\*wc.*?\)),tag\)\);/,
   ).map(js);
   const blend = new Function(
     'alpha',
@@ -150,7 +150,7 @@ test('A jittered edge: the accumulated share follows the colour, no flip between
 
 test('a lit transparent at opacity 0.4 over a debug surface leaves it a 0.6 share', () => {
   // The seed pass: the opaque flags give a share of 1 under a debug view, 0 under a lit surface.
-  const [seedWgsl] = capture(AS_IS_SHARE_SHADER, /return (f32\(.*?\));/);
+  const [seedWgsl] = capture(AS_IS_SHARE_SHADER, /return vec2f\((f32\(.*?\)),0\.0\);/);
   const seedOf = new Function(
     'f32',
     'textureLoad',
@@ -174,7 +174,7 @@ test('a lit transparent at opacity 0.4 over a debug surface leaves it a 0.6 shar
   let left = 1;
   for (const mode of BLEND_MODES) {
     const target = blendTargets(mode, 0xf, true)[2];
-    assert.equal(target?.format, 'r8unorm', mode);
+    assert.equal(target?.format, 'rg8unorm', mode);
     left = written(target!, src, [seed(AS_IS_FLAG), 0, 0, 0])[0];
     assert.ok(Math.abs(left - 0.6) < 1e-9, `${mode} over a debug view leaves ${left}`);
     assert.equal(written(target!, src, [seed(2), 0, 0, 0])[0], 0, `${mode} over a lit surface`);

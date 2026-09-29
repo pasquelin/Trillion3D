@@ -21,7 +21,7 @@ import { dropGpuHiz, dropVis, grantCapability } from '../io/drops.ts';
 import { VIS_FEATURES, type WebgpuPagesRuntime } from '../runtime.ts';
 import { isCancelled } from '../../../backend/common.ts';
 import { prepareFeedbackAb } from '../diagnostic/feedbackAb.ts';
-import { wantsAsIsShare } from './asIsShareTarget.ts';
+import { blendWritesShare } from './asIsShareTarget.ts';
 
 /** Builds the forward material pipelines, the visibility raster and shade pipelines, the Hi-Z
  *  pyramid and the indirect draw; leaves `visEnabled` telling whether the image can use them. */
@@ -36,7 +36,7 @@ export async function prepareWebgpuVisibility(rt: WebgpuPagesRuntime, gpuDevice:
       rt.context.diagnosticGpuVariant,
       true,
       undefined,
-      wantsAsIsShare(rt),
+      blendWritesShare(rt),
     );
     ({
       blendBindGroupLayout: vis.blendBindGroupLayout,
