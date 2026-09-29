@@ -175,3 +175,25 @@ test('past the pool, the tier holds its first casters whatever was resident befo
   assert.deepEqual(await resident([]), ['a', 'b']);
   assert.deepEqual(await resident(['c']), ['a', 'b'], 'the last caster left by a move leaves');
 });
+
+// #1016 measure ko: while the camera moves the light cuts remake the tier's list with every
+// report. A caster the list still names keeps its slot then, so no wanted caster is evicted and
+// reloaded every frame; only a still pose settles on the list's first pages.
+test("a moving camera's tier keeps a caster its list still names", async () => {
+  const pages = ['a', 'b', 'c'].map(pageOf);
+  const tracking = createWebgpuPageTracking(pages);
+  const cache = lruCache(2);
+  await cache.load('c');
+  await tierEnsurer(
+    tracking,
+    cache,
+    () => pages,
+    () => [],
+    () => false,
+  )([], 1, 1);
+  assert.deepEqual(
+    [...cache.resident.keys()].sort(),
+    ['a', 'c'],
+    'the named caster stays, the front fills the free slot',
+  );
+});
