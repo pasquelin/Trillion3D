@@ -7872,5 +7872,44 @@
       "alphaCutoff": "Bundan daha az opak pikseller atılır.",
       "tiling": "Görselin yatayda ve dikeyde kaç kez sığdığı."
     }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json`: derleyicinin her nesnenin köklerinin üstünde sürdürdüğü dünya DAG’i — paketleri, sayfaları ve hücreleri, sabitlenmiş tepe önce.",
+    "members": {
+      "version": "Biçim sürümü.",
+      "budgetBytes": "Pişirmenin sabitlenmiş tepeye izin verdiği en fazla bayt.",
+      "pinned": "İlk paketler, dünyanın tepesi: sabitlenmiş.",
+      "pinnedTopBytes": "Sabitlenmiş tepenin baytları.",
+      "payload": "Paketlerin art arda durduğu ikili dosya: adresi, özeti ve uzunluğu.",
+      "bundles": "Paketler, ikili dosyadaki sırayla.",
+      "pages": "Her sayfa: paketi, içindeki konumu, düzeyi ve hatası.",
+      "cells": "Her dünya hücresi: tuttuğu yerleştirilmiş ilkel öğeler."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "`world-roots.bin` içindeki bir paket: ikili dosyadaki aralığı, özeti, sayfa sayısı ve gereken paketler.",
+    "members": {
+      "offset": "İkili dosyada nerede başladığı, bayt olarak.",
+      "bytes": "İkili dosyadaki uzunluğu.",
+      "sha256": "Baytlarının SHA-256 özeti, okunurken denetlenir.",
+      "count": "Kaç sayfa tuttuğu.",
+      "dependencies": "Sayfalarının gerektirdiği paketler, artan sırayla, dünyanın tepesine kadar."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Bir dünya hücresinin yerleştirilmiş ilkel öğesi: köklerinin gerektirdiği dünya paketleri, tepeye kadar.",
+    "members": {
+      "node": "Yayımlanmış düğümü.",
+      "primitive": "Manifestodaki ilkel öğesi.",
+      "roots": "Bu ilkel öğenin köklerini tutan akış paketleri.",
+      "dependencies": "Bu köklerin gerektirdiği her dünya paketi, artan sırayla, tepeye kadar."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Paketinin baytları üzerinde okunan bir süper kök sayfası: dünya uzayındaki kendi köşeleri ve yerel indisler olarak üçgenleri.",
+    "members": {
+      "positions": "Köşeleri, her biri üç sayı, dünya uzayında.",
+      "indices": "Üçgenleri, her biri üç yerel indis."
+    }
   }
 }

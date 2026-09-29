@@ -31,16 +31,18 @@ test('page copies follow the records that own a geometry, and the classic instan
     ['twice', [rec('twice'), rec('twice')]],
     ['rows', [rec('rows', placed), rec('rows', placed), rec('rows', placed)]],
   ]);
-  const copies = pageCopies(byUrl, roots, new Set(['root']), () => instances);
+  // `twice` is replaced by the root's group: the floor holds it with the root (#1237).
+  const copies = pageCopies(byUrl, roots, new Set(['root']), () => instances, new Set(['twice']));
   assert.deepEqual(
     [copies.of('root'), copies.of('twice'), copies.of('rows'), copies.root(), copies.scene()],
     [1, 2, 1, 1, 4],
     'rows share one geometry',
   );
+  assert.equal(copies.floor(), 3, 'the floor: the root and the pages its group replaces');
   instances = 2;
   assert.deepEqual(
-    [copies.of('twice'), copies.of('rows'), copies.root(), copies.scene()],
-    [6, 1, 3, 10],
+    [copies.of('twice'), copies.of('rows'), copies.root(), copies.floor(), copies.scene()],
+    [6, 1, 3, 9, 10],
     'each instance clones every owned geometry, the rows still share theirs',
   );
 });

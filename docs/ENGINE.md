@@ -870,18 +870,39 @@ started; a larger one culls later, a smaller one serves the pages again sooner.
 
 ## Memory
 
-The geometry pool holds `floor(bytes / pageBytes)` slots, the root cover pinned for the backend's
+The geometry pool holds `floor(bytes / pageBytes)` slots, the root cover held for the backend's
 lifetime; the texture pool is split between the colour and data atlases in layers. When a view asks
 beyond the geometry pool, the WebGPU cut keeps the host's screen error: the pool loads what fits,
 coarsest first, and the surface of what it leaves out is drawn by its nearest resident ancestor
 (the cut rule, below). Residency does the coarsening; `coverage-budget` only says that the image
 asks for more than the slots hold.
 
+**Minimum capacity** (#1237, `residency/minimumCapacity.ts`). Memory never forces a cut the view
+refuses: the cook drops a part only at a level whose error covers it, so a root drops every part
+smaller than its error, and a root drawn where the view refuses that error loses them (a column,
+a lintel). The pool's floor is therefore the root cover and the pages of the group each root
+replaces, one level finer: a budget under it is raised to it by name (`root-cover`), and its cost
+is published at open (`minimum-capacity`: `rootPages`, `floorPages`). Both engines admit those
+pages before any other the view asks for, whatever their level (`floorFirst`, `admissionLevel`),
+and the WebGPU CPU cut ranks through the same admission at the pool's room: at the smallest budget
+a root the view refuses is replaced by its group, and a root the view accepts is drawn as before.
+
+**Pinned bytes** (#1237, `scene/worldRoots.ts`). The runtime pins one thing: the world top the cook
+publishes (`world-roots.json`, [FORMAT.md](FORMAT.md#world-super-roots)), read as the model loads —
+its bundles, the first of `world-roots.bin`, in one ranged read, each checked against its digest —
+and held for the scene's life, its bytes bounded by the materials, never the world (the session's
+`world-top` diagnostic: `pinnedBundles`, `pinnedBytes`, `heldBytes`). The object roots are pages
+held by the view: a model not partitioned holds its placements for its life, a partition's placed
+cells hold theirs and let them go when they leave, and each placed cell holds the world bundles past
+the top its objects' roots depend on (`scene/partition/cellPages.ts`), each once, released with the
+last cell that needs it. The session counts those bytes in the CPU budget beside the engines' host
+tables. The super-roots are not drawn yet: a cell's super-roots standing in for a far cell is #1238.
+
 The geometry pool's slots are drawn from what its budget leaves the vertex buffers held beside
 them (`geometryBudgetBeside` in `webgpu/pages/io/memory.ts`, the rule the texture pool follows for
 its live textures), at prepare once those buffers are allocated and at every resize: the slots and
-those buffers never sum past the budget, save a budget under the root cover beside them, which is
-raised to that cover by name (`root-cover`). A pool resize (`explorer.setMemoryBudgets`) copies
+those buffers never sum past the budget, save a budget under the floor beside them, which is
+raised to that floor by name (`root-cover`). A pool resize (`explorer.setMemoryBudgets`) copies
 pages and tiles on the GPU into the new pool — root cover first, then pinned pages, then the most
 recent — evicts only what no longer fits, and rebuilds every bind group that named the old pool on
 the next image. At prepare a pool is allocated once, under an out-of-memory error scope; at a resize, where the old pool lives until
@@ -905,7 +926,7 @@ while the records rows place share one. Its cut is drawn on the CPU at the host'
 the one cut rule below; the pool bounds what the image asks for, never the cut. The image asks for
 the wanted cut closed over its groups (`page/cut/groupClosure.ts`), coarsest level first, so a page
 never comes before the pages it depends on (`backend/autonomous/requests.ts`). The pool admits that
-list in its order while the copies it charges fit its slots, the root cover held beforehand
+list in its order — the minimum capacity's pages first — while the copies it charges fit its slots, the root cover held beforehand
 (`backend/autonomous/pool.ts`); the rest is not asked for, and the cut draws its nearest resident
 ancestor instead. A smaller budget is therefore paid in detail, one DAG level at a time, from the
 finest down: the image that sees it asks for less. What stays resident is decided by the engine's one
