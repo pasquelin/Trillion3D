@@ -1,5 +1,6 @@
 import type { SceneToneMapping } from '../../../../sdk-core/src/scene/core/environment.ts';
 import { allocated } from './allocation.ts';
+import type { FramePass } from './frameTimer.ts';
 /**
  * An engine-owned render target: one colour texture and, unless declined, one 24-bit depth
  * renderbuffer on a framebuffer of the host context, sized in drawing-buffer pixels. It holds a
@@ -31,6 +32,9 @@ export type HostDrawOutput = {
   /** Linear radiance, neither tone-mapped nor encoded, over transparent black: the effect chain's
    *  input, whose alpha is coverage. */
   linear?: boolean;
+  /** Names the GPU passes of this draw for the frame timer, in order, when one is reading
+   *  (`../core/frameTimer.ts`); absent on a draw nothing times. */
+  pass?: FramePass;
 };
 
 /** Whether the context renders into half floats, the extension enabled on the way. */
