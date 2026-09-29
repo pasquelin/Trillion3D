@@ -10,6 +10,7 @@ import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/ta
 import type { BackendContext } from '../../backend/types.ts';
 import { readOnce } from '../../../../sdk-core/src/world/buffer/pending.ts';
 import { checked } from '../../cluster/checked.ts';
+import { rangedReader } from '../../cluster/ranged.ts';
 import { unmetered, type ByteMeter } from '../../cluster/byteMeter.ts';
 import { sceneDocument } from '../../scene/tables.ts';
 import { bakedImages } from '../../texture/skip.ts';
@@ -93,24 +94,9 @@ export async function buildPreparedScene(inputs: Inputs) {
 function pagedSource(tables: PreparedSceneTables, base: string) {
   if (!tables.documents[SOURCE_FILE]) return {};
   const { document, bufferUrl } = sceneDocument(tables, SOURCE_FILE, base);
-  // A server that ignores the Range answers the whole file: kept, then read no more. Until the
-  // first answer says which, the views asked at once wait on it rather than each fetching.
-  let whole: Promise<ArrayBuffer> | undefined, first: Promise<unknown> | undefined;
-  const range = async (offset: number, length: number): Promise<ArrayBuffer> => {
-    if (!bufferUrl) throw new EngineError('PREPARED_SCENE_MISMATCH', 'the source names no binary');
-    if (first) await first.catch(() => {});
-    if (!whole) {
-      const asked = checked(bufferUrl, undefined, undefined, {
-        Range: `bytes=${offset}-${offset + length - 1}`,
-      });
-      first ??= asked;
-      const response = await asked;
-      if (response.status === 206) return response.arrayBuffer();
-      whole ??= response.arrayBuffer();
-      // A failed read is not kept: the next need reads again.
-      whole.catch(() => (whole = undefined));
-    }
-    return (await whole).slice(offset, offset + length);
-  };
+  const range = bufferUrl
+    ? rangedReader(bufferUrl)
+    : () =>
+        Promise.reject(new EngineError('PREPARED_SCENE_MISMATCH', 'the source names no binary'));
   return { pagedFrom: document.meshes, pagedGeometryOf: preparedGeometries(document, { range }) };
 }
