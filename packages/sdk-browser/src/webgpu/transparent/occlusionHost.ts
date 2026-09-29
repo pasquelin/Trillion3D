@@ -3,6 +3,7 @@ import { createTransparentOcclusion } from '../../gpu/core/transparentOcclusion.
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { packPageCorners } from '../visibility/corners.ts';
 import { neverCulled } from '../../visibility/shader/spriteWgsl.ts';
+import { rootOf } from '../../page/selection/types.ts';
 
 /**
  * Mounts the occlusion test of transparent clusters, once everything it borrows exists.
@@ -46,7 +47,7 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
   if (blendState.occlusionEpoch === epoch) return;
   blendState.occlusionEpoch = epoch;
   const packed = blendState.occlusionCorners,
-    { packedPages } = layout,
+    { packedPages, selectionRoots } = layout,
     bits = occlusion.unculledBits;
   bits.fill(0);
   for (let entry = 0; entry < table.capacity; entry++) {
@@ -58,8 +59,9 @@ export function refreshTransparentCorners(rt: WebgpuPagesRuntime) {
       packed.fill(0, base, base + CORNER_VALUES);
       continue;
     }
-    packPageCorners(packed, base, packedPages[page]);
-    if (neverCulled(packedPages[page].material)) bits[entry >> 5] |= 1 << (entry & 31);
+    const rec = packedPages[page];
+    packPageCorners(packed, base, rec, rootOf(selectionRoots, rec).world);
+    if (neverCulled(rec.material)) bits[entry >> 5] |= 1 << (entry & 31);
   }
   occlusion.uploadCorners(packed, 0, table.capacity - 1);
   occlusion.uploadUnculled();

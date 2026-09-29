@@ -4,7 +4,8 @@ import {
   type ShadowReceivers,
 } from '../../../../sdk-core/src/scene/light-shadow/receiverCells.ts';
 import type { EngineCamera } from '../../camera/engineCamera.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
+import { rootOf, type PageRec } from '../../page/selection/selection.ts';
+import type { Placements } from '../../page/selection/types.ts';
 import { pixelNearOf } from '../../streaming/priority.ts';
 
 /** The frame's receivers, rewritten in place: their boxes grow with the largest cut, never shrink. */
@@ -29,6 +30,7 @@ const local = new Float64Array(RECEIVER_FLOATS);
  */
 export function shadowReceivers(
   drawn: readonly PageRec[],
+  roots: Placements,
   cam: EngineCamera,
   targetHeight: number,
   displayHeight: number,
@@ -42,7 +44,7 @@ export function shadowReceivers(
       local[k] = rec.min[k];
       local[k + 3] = rec.max[k];
     }
-    boxTransform(b, count++ * RECEIVER_FLOATS, local, 0, rec.matrix.elements);
+    boxTransform(b, count++ * RECEIVER_FLOATS, local, 0, rootOf(roots, rec).world.elements);
   }
   receivers.count = count;
   receivers.planes = cam.planes;

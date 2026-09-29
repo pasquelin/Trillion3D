@@ -1,6 +1,7 @@
 import { FLAG_BLEND_CASTER, FLAG_MASK, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import type { DirectLightResources } from '../../../lighting/deferred/program.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
+import type { Placements } from '../../../page/selection/types.ts';
 import type { PageSurface } from '../../../page/surface.ts';
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -39,6 +40,7 @@ interface ShadowRowTable {
 export function shadowsFollowTextures(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
+  roots: Placements,
   slots: ReadonlySet<number> | -1,
 ) {
   if (!lights.store.count) return;
@@ -48,7 +50,7 @@ export function shadowsFollowTextures(
   }
   const ints = rows.pageTableInts;
   if (!ints || !slots.size) return;
-  shadowsFollowRows(lights, rows, (row) => {
+  shadowsFollowRows(lights, rows, roots, (row) => {
     const base = row * ROW_WORDS;
     return (
       !!(ints[base + ROW_FLAGS_WORD] & ALPHA_READERS) && slots.has(ints[base + ROW_MAP_LAYER_WORD])
@@ -64,12 +66,14 @@ export function shadowsFollowTextures(
 export function shadowsFollowSurfaces(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
+  roots: Placements,
   surfaces: ReadonlySet<PageSurface>,
 ) {
   if (lights.store.count)
     shadowsFollowRows(
       lights,
       rows,
+      roots,
       (row) => surfaces.has(rows.packedRecs[row]?.material as PageSurface),
       'worldChanged',
     );
@@ -84,6 +88,7 @@ export function shadowsFollowSurfaces(
 function shadowsFollowRows(
   lights: WebgpuLightState,
   rows: ShadowRowTable,
+  roots: Placements,
   stale: (row: number) => boolean,
   change: 'representationChanged' | 'worldChanged' = 'representationChanged',
 ) {
@@ -96,7 +101,7 @@ function shadowsFollowRows(
       const rec = stale(row) && rows.packedRecs[row];
       if (!rec) continue;
       const moving = row >= rows.blendFirst || recordMoves(lights, rec);
-      growClusterBox(rec, changeBoxes[+moving].box);
+      growClusterBox(rec, roots, changeBoxes[+moving].box);
     }
   for (const moving of [false, true]) {
     const { box, min, max } = changeBoxes[+moving];

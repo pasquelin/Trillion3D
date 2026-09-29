@@ -57,25 +57,25 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   // forward copies. Counted here, while the list is still only theirs.
   const sharedBlendMeshes = blendCopies.length;
   // Transparent pages share selection/residency with opaque pages, but retain one forward draw
-  // per placement (all back faces, then all front faces), keyed by the world its pages read: the
-  // source mesh's own, or one row of its instance buffer.
+  // per placement (all back faces, then all front faces), keyed by the world of the root that
+  // places its pages: the source mesh's own, or one row of its instance buffer.
   const pagedBlendCopies = new Map<MatrixElements, BlendCopy>();
-  for (const rec of allPages)
-    if (rec.transparent && rec.sourceMesh) {
-      if (pagedBlendCopies.has(rec.matrix)) continue;
-      const copy = createBlendCopyRecord(
-        rec.sourceMesh,
-        rec.renderOrder,
-        rec.matrix,
-        rec.material,
-        rec.placement,
-      );
-      copy.userData.pagedBlend = true;
-      // The compiler writes a geometry page for every cluster of a primitive, or for none.
-      copy.userData.pageGeometry = !!rec.geometryPage;
-      pagedBlendCopies.set(rec.matrix, copy);
-      blendCopies.push(copy);
-    }
+  for (const { world, placement, pages } of roots) {
+    const rec = pages[0];
+    if (!rec?.transparent || !rec.sourceMesh || pagedBlendCopies.has(world)) continue;
+    const copy = createBlendCopyRecord(
+      rec.sourceMesh,
+      rec.renderOrder,
+      world,
+      rec.material,
+      placement,
+    );
+    copy.userData.pagedBlend = true;
+    // The compiler writes a geometry page for every cluster of a primitive, or for none.
+    copy.userData.pageGeometry = !!rec.geometryPage;
+    pagedBlendCopies.set(world, copy);
+    blendCopies.push(copy);
+  }
   blendCopies.sort((a, b) => a.renderOrder - b.renderOrder);
   // Request rank → address, posted once for the scene's life: the delta the host receives after the
   // render carries only integers, and it is this table that translates them.

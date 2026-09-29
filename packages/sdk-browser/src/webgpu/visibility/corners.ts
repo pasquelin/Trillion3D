@@ -2,6 +2,8 @@ import { CORNER_VALUES, writeSplitDouble } from '../../gpu/partition/contract.ts
 import { forEachRewrittenRun } from '../row/dirty.ts';
 import { BOX_CORNER_VALUES, pageCornersInto, type HizPage } from '../../hiz/hiz.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { rootOf } from '../../page/selection/types.ts';
+import type { MatrixElements } from '../../math/matrixElements.ts';
 
 /** What describes the corners already sent to the GPU: the age of the table they came from. */
 export function createCornerUploadHold() {
@@ -63,7 +65,7 @@ function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
       cornerPacked.fill(0, base, base + CORNER_VALUES);
       continue;
     }
-    packPageCorners(cornerPacked, base, rec);
+    packPageCorners(cornerPacked, base, rec, rootOf(rt.layout.selectionRoots, rec).world);
   }
   rt.vis.gpuPartition!.uploadCorners(cornerPacked, from, to);
 }
@@ -71,12 +73,17 @@ function uploadRun(rt: WebgpuPagesRuntime, from: number, to: number) {
 const pageCorners = new Float64Array(BOX_CORNER_VALUES);
 
 /**
- * The eight world corners of `page`, derived by `pageCornersInto`, written in `packed` from `base`.
+ * The eight world corners of `page` placed by `world`, derived by `pageCornersInto`, written in `packed` from `base`.
  * Each coordinate leaves in two words: the single-precision rounding, then what it left. The sum of
  * the two represents the original double to within a squared ulp.
  */
-export function packPageCorners(packed: Float32Array, base: number, page: HizPage) {
-  pageCornersInto(pageCorners, 0, page);
+export function packPageCorners(
+  packed: Float32Array,
+  base: number,
+  page: HizPage,
+  world: MatrixElements,
+) {
+  pageCornersInto(pageCorners, 0, page, world);
   for (let k = 0; k < 8; k++)
     for (let axis = 0; axis < 3; axis++)
       writeSplitDouble(

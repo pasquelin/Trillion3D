@@ -47,6 +47,7 @@ function cullWithTemporalHiz(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   try {
     const cut = applyTemporalHiz(
       partitionByPass(ready, false, run.opaqueScratch) as Array<PageRec & { array: Uint32Array }>,
+      rt.layout.selectionRoots,
       cam,
       rt.setup.viewport ?? rt.gpu.targetSize,
       run.temporalHizState,
