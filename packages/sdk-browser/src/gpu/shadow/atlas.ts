@@ -74,7 +74,6 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
     const layout = device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faces.layout] });
     const depthDraws = shadowDepthDraws(device, module, layout);
     const transmittanceDraws = shadowTransmittanceDraws(device, module, [pageLayout, faces.layout]);
-    const freshDraws = shadowFreshDraws(device, module, [pageLayout, faces.layout]);
     const makePool = (poolSide: number, layers: number) =>
       shadowPoolTexture(device, poolSide, layers);
     const atlas = {
@@ -102,7 +101,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       /** The pool's draws, compiled by `prepareDepth` or, failing it, now. */
       depthDraws: depthDraws.made,
       /** The draws of the pages the GPU draws itself (`../../webgpu/shadow/freshDraws.ts`). */
-      freshDraws,
+      freshDraws: shadowFreshDraws(device, module, faces.layout),
       /** True when region `index`'s face carries an emitter envelope, which only a fragment
        *  discards. */
       hasEnvelope: pack.hasEnvelope,
@@ -180,19 +179,12 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       },
       /** Pushes the records that changed, and the page-table words that did, and them alone —
        *  into the table, or to `words` when the GPU allocates (`webgpu/shadow/allocPass.ts`). */
-      flushData(
-        table: ShadowTable,
-        words: (first: number, count: number) => void = (first, count) =>
-          device.queue.writeBuffer(
-            dataBuffer,
-            SHADOW_TABLE_OFFSET + first * 4,
-            table.words,
-            first,
-            count,
-          ),
-      ) {
+      flushData(table: ShadowTable, words?: (first: number, count: number) => void) {
+        const at = SHADOW_TABLE_OFFSET;
         atlas.flushRecords();
-        table.flush(words);
+        table.flush(
+          words ?? ((i, n) => device.queue.writeBuffer(dataBuffer, at + i * 4, table.words, i, n)),
+        );
       },
       dispose: release,
     };

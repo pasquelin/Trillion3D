@@ -51,7 +51,8 @@ test('a caster the camera does not select keeps its shadow in the pages the GPU 
   // Twenty metres aside, out of the camera's field.
   backend.setTransform!('caster', along(20));
   await frame();
-  assert.deepEqual(backend.selectedPageIds(), ['1'], 'the camera selects the floor alone');
+  const selected = (backend as unknown as { selectedPageIds(): string[] }).selectedPageIds();
+  assert.deepEqual(selected, ['1'], 'the camera selects the floor alone');
   // A second lamp over both: its pages are the GPU's to map, and to draw in that frame.
   const seals = afterSeal(gpu.computes, () => ({
     args: words('Trillion3D shadow GPU page draws v1'),

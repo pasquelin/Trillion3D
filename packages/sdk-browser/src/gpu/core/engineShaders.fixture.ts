@@ -24,6 +24,7 @@ import { PAGE_MOVE_SHADER } from '../shadow/pageMoves.ts';
 import { ALLOCATION_WGSL } from '../../webgpu/shadow/allocWgsl.ts';
 import { SHADOW_WORDS_WGSL } from '../../webgpu/shadow/wordsWgsl.ts';
 import { SHADOW_FRESH_WGSL } from '../../webgpu/shadow/freshWgsl.ts';
+import { SHADOW_FRESH_CULL_WGSL } from '../../webgpu/shadow/freshCullWgsl.ts';
 import { SHADOW_DEMAND_WGSL } from '../../webgpu/shadow/demandWgsl.ts';
 import { BOUNCE_PROBE_SHADER } from '../../bounce/probeWgsl.ts';
 import { BOUNCE_SURFACE_SHADER } from '../../bounce/surfaceWgsl.ts';
@@ -129,6 +130,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ALLOCATION_WGSL,
   SHADOW_WORDS_WGSL,
   SHADOW_FRESH_WGSL,
+  SHADOW_FRESH_CULL_WGSL,
   SHADOW_DEMAND_WGSL,
   TAA_FLAGLESS_SHADER: taaShader(false),
   TAA_UPSCALE_SHADER: taaUpscaleShader(true),
