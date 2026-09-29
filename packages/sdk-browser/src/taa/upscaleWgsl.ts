@@ -12,6 +12,13 @@ fn lanczos2(x:f32)->f32{
  return 2.0*sin(p)*sin(0.5*p)/(p*p);
 }`;
 
+/** The same kernel in GLSL, for WebGL2's spatial resample (`../webgl/core/resampleGlsl.ts`):
+ *  `LANCZOS2_WGSL`'s own text, its declarations retyped. */
+export const LANCZOS2_GLSL = LANCZOS2_WGSL.replace(
+  'fn lanczos2(x:f32)->f32{',
+  'float lanczos2(float x){',
+).replace('let p=', 'float p=');
+
 /**
  * Temporal resolve of a frame drawn below the display (FSR 2's reconstruction, folded into the one
  * pass): it runs per DISPLAY pixel, history at display size, the current image, depth, identifiers
