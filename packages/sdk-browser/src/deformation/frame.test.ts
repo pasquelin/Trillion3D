@@ -71,21 +71,40 @@ test('each deformed placement gets its record, moves when a source moves, and sa
   assert.deepEqual([...frame.moving], [1, 0, 1]);
 });
 
-
 test('an unchanged pose uploads its previous state once after movement stops', () => {
   const weights = [0];
-  const placed = deformedOf({ morphTargetInfluences: weights },
-    { deformation: { joints: [], targets: [2] } }, IDENTITY)!;
+  const placed = deformedOf(
+    { morphTargetInfluences: weights },
+    { deformation: { joints: [], targets: [2] } },
+    IDENTITY,
+  )!;
   const frame = createDeformationFrame([placed]);
-  assert.equal(frame.update(() => false), true);
+  assert.equal(
+    frame.update(() => false),
+    true,
+  );
   assert.equal(frame.moving[0], 0, 'initial pose has no artificial motion');
-  assert.equal(frame.update(() => false), false);
+  assert.equal(
+    frame.update(() => false),
+    false,
+  );
   weights[0] = 1;
-  assert.equal(frame.update(() => false), true);
+  assert.equal(
+    frame.update(() => false),
+    true,
+  );
   const at = recordLayout(placed.shape).weights;
   assert.deepEqual([...frame.block.slice(at, at + 2)], [1, 0]);
-  assert.equal(frame.update(() => false), true, 'previous positions settle on the GPU');
+  assert.equal(
+    frame.update(() => false),
+    true,
+    'previous positions settle on the GPU',
+  );
   assert.deepEqual([...frame.block.slice(at, at + 2)], [1, 1]);
   assert.equal(frame.moving[0], 0);
-  assert.equal(frame.update(() => false), false, 'a settled pose sends nothing');
+  assert.equal(
+    frame.update(() => false),
+    false,
+    'a settled pose sends nothing',
+  );
 });
