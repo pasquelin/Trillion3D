@@ -48,8 +48,11 @@ async function growTables(
   const started = performance.now(),
     asked = tableRowsFor(rt, slots),
     blendHeld = rows.casterSlots - rows.blendFirst;
+  // No row shrinks, and a table the device bounds stays within one binding: the casters' rows
+  // held give way to the visibility rows the bound shares out anew (`../../row/tableRows.ts`).
   const drawSlots = Math.max(asked.drawSlots, rows.blendFirst),
-    casterSlots = drawSlots + Math.max(asked.blendSlots, blendHeld);
+    blendKept = asked.bounded ? Math.min(blendHeld, asked.bounded.rows - drawSlots) : blendHeld,
+    casterSlots = drawSlots + Math.max(asked.blendSlots, blendKept);
   if (drawSlots === rows.blendFirst && casterSlots === rows.casterSlots) {
     setup.cap = Math.max(setup.cap, slots);
     return null;
@@ -111,6 +114,7 @@ function gpuGrowth(
   slots: number,
 ) {
   const { vis, lights, gpu } = rt,
+    { gpuDraw: draw, gpuHiz: hiz } = vis,
     pageTable = rt.layout.rows.pageTableFloats;
   const uniformBytes = Math.max(1, slots) * UNIFORM_STRIDE;
   const uniform =
@@ -134,14 +138,17 @@ function gpuGrowth(
       gpu.uniformPacked = new Float32Array(uniformBytes / 4);
       return old;
     }),
-    vis.gpuDraw?.grow(drawSlots),
-    vis.gpuHiz?.growFlags(drawSlots),
-    vis.gpuPartition?.grow(drawSlots, () => ({
-      items: vis.gpuDraw!.itemsBuffer,
-      flags: vis.gpuHiz!.flags,
-      restBits: vis.gpuDraw!.restBitsBuffer,
-      slotUsed: vis.gpuDraw!.slotUsedBuffer,
-    })),
+    draw?.grow(drawSlots),
+    hiz?.growFlags(drawSlots),
+    // The draw compact and the Hi-Z test it reads, as they stood: a drop meanwhile throws nothing.
+    draw &&
+      hiz &&
+      vis.gpuPartition?.grow(drawSlots, () => ({
+        items: draw.itemsBuffer,
+        flags: hiz.flags,
+        restBits: draw.restBitsBuffer,
+        slotUsed: draw.slotUsedBuffer,
+      })),
     lights.cull?.grow(casterSlots),
     lights.occlusion?.grow(casterSlots),
   ]);
@@ -161,13 +168,17 @@ function replaced(
  *  diagnostic compute raster is made again at its next image, at the new capacity; no occluder
  *  history describes the new rows. */
 function follow(rt: WebgpuPagesRuntime) {
-  const { vis, run } = rt,
+  const { vis, run, lights } = rt,
     { gpuDraw, gpuHiz, gpuPartition } = vis,
     floats = rt.layout.rows.pageTableFloats;
   if (floats && vis.pageTable && vis.pageTable.size < floats.byteLength && rt.gpu.device) {
     vis.pageTable.destroy();
     vis.pageTable = pageTableBuffer(rt.gpu.device, floats.byteLength);
   }
+  // An occlusion test made while the growth was granted holds the cull's old lists: it follows.
+  const { cull, occlusion } = lights;
+  if (cull && occlusion && occlusion.visible.size !== cull.kept.size)
+    occlusion.grow(rt.layout.rows.casterSlots).commit();
   if (gpuHiz && gpuPartition) gpuHiz.attach(gpuPartition.tested, gpuPartition.state);
   if (gpuDraw && gpuHiz)
     vis.gpuRestCompact?.rebind({

@@ -53,8 +53,8 @@ export const checkGeometryPoolBudget = (bytes: number) =>
  * resident root pages outside the pool: a budget smaller than that cover is raised to it, by name.
  * A scene smaller than the budget takes only what it has, and a page cap (`maxResidentPages`, the
  * one benches and tests use) also bounds it, as does the session ceiling (`ceilingSlots`, what the
- * drawable-page tables have sized) on an engine whose tables do not grow. Only the DEVICE limit can refuse, when even root coverage does
- * not fit.
+ * drawable-page tables have sized) on an engine whose tables do not grow. Only the DEVICE limit
+ * can refuse, when even root coverage does not fit.
  */
 export function geometryPoolFor(options: {
   budgetBytes: number;
