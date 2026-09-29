@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Object3D } from '../../packages/sdk-core/src/world/object/object3d.ts';
 import { absolutePrimitive } from '../../packages/sdk-browser/src/scene/absolutePrimitive.ts';
+import { cellHoldings } from '../../packages/sdk-browser/src/scene/partition/cellPages.ts';
 import { loadModel } from '../../packages/sdk-browser/src/world/core/loadedModel.ts';
 import { createWorldPoses } from '../../packages/sdk-browser/src/world/core/worldPoses.ts';
 import { compiled, compiler, machine, SPACING, world } from './world-partition.fixture.ts';
@@ -51,8 +52,9 @@ test(
       const opened = new Set(held.record.metadata.primitives.map(({ mesh }) => mesh));
       assert.equal(opened.has(0), gltf === district, 'the core mesh is read at open');
       // Every cell held: the manifest lists what the whole read lists, byte for byte.
-      cells.pages.forEach((_, cell) => heldCells.manifest.hold(cell));
-      await Promise.all(heldCells.manifest.reads());
+      const { manifest } = cellHoldings(heldCells);
+      cells.pages.forEach((_, cell) => manifest.hold(cell));
+      await Promise.all(manifest.reads());
       const order = (a: { mesh: number }, b: { mesh: number }) => a.mesh - b.mesh;
       assert.deepEqual(asRead(held).sort(order), asRead(whole).sort(order));
     }
@@ -113,7 +115,7 @@ test(
     view.camera.updateMatrixWorld();
     const away = await view.settle();
     assert.deepEqual(
-      [away.held, view.cells.manifest.held(), metadata.primitives.length],
+      [away.held, cellHoldings(view.cells).manifest.held(), metadata.primitives.length],
       [0, 0, 0],
     );
     assert.equal(view.engine.drawn.size, 0, 'the session unmounted every mesh they brought');
