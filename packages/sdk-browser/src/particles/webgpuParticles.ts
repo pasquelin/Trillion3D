@@ -165,7 +165,7 @@ export function encodeParticles(
 
 /** What this image draws the world's pools with — in beauty, once a camera and the targets are —;
  *  `undefined` when it draws none. */
-export function particleDrawOf({ run, gpu, context }: WebgpuPagesRuntime) {
+function particleDrawOf({ run, gpu, context }: WebgpuPagesRuntime) {
   const { hdrView, depthView, asIsShare, particles } = gpu,
     pools = context.particles;
   if (!pools || !particles || !hdrView || !depthView || !asIsShare || !run.lastCamera) return;
