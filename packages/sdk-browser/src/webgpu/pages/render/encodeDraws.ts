@@ -132,7 +132,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
         projectedPageError(rec, cam, viewport),
         run.diagnosticPixelError,
       );
-      rows.markRowDirty(row);
+      rows.markRowWords(row);
     }
   }
   if (visReady(rt)) {
