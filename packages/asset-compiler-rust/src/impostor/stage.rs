@@ -143,6 +143,22 @@ fn masked(g: &Value, mesh: usize) -> bool {
         material.is_some_and(|m| coverage_cut(m).is_some())
     })
 }
+
+/// Whether a primitive of source mesh `mesh` deforms by its own attributes: morph targets or
+/// joint weights, which the primitive stage routes to the deforming pass as a skin
+/// (`compiler_primitive.rs`, `is_skinned_or_morph`).
+pub(super) fn deforms(g: &Value, mesh: usize) -> bool {
+    let primitives = g["meshes"][mesh]["primitives"]
+        .as_array()
+        .into_iter()
+        .flatten();
+    primitives.into_iter().any(|p| {
+        let attributes = &p["attributes"];
+        p.get("targets").is_some()
+            || attributes.get("JOINTS_0").is_some()
+            || attributes.get("WEIGHTS_0").is_some()
+    })
+}
 /// Judges every drawn mesh; returns the compile report's `impostors` section.
 fn stage_impostors(
     o: &Options,
@@ -181,7 +197,7 @@ fn stage_impostors(
             radius: 0.0,
             placements: placements.len(),
             masked: masked(inputs.g, mesh),
-            skinned: skinned.contains(&mesh),
+            skinned: skinned.contains(&mesh) || deforms(inputs.g, mesh),
             reach,
         };
         let mut entry = entry(o, candidate, || {

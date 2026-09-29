@@ -24,6 +24,9 @@ pub(crate) struct Corners {
     pub uv: [[f32; 6]; SETS],
     /// The three corners' normals, end to end; `None` when the primitive declares none.
     pub normals: Option<[f32; 9]>,
+    /// The three corners' `COLOR_0`, linear RGBA end to end (alpha 1 for a three-wide one);
+    /// `None` when the primitive declares none.
+    pub colours: Option<[f32; 12]>,
 }
 
 pub(crate) struct Traceable {
@@ -102,6 +105,11 @@ impl Traceable {
             let positions = attribute("POSITION")?.unwrap_or_default();
             let normals = attribute("NORMAL")?;
             let sets = [attribute("TEXCOORD_0")?, attribute("TEXCOORD_1")?];
+            let colours = attribute("COLOR_0")?;
+            // A colour is three or four wide, as its accessor declares.
+            let width = colours
+                .as_ref()
+                .map_or(4, |c| c.len() / (positions.len() / 3).max(1));
             let indices: Vec<u32> = match primitive.get("indices") {
                 Some(id) => {
                     accessor(g, bin, required_index(Some(id), "indices")?, None)?.collect_u32()?
@@ -119,6 +127,7 @@ impl Traceable {
             for triangle in indices.as_chunks::<3>().0.iter().filter(inside) {
                 let mut corner = Corners::default();
                 let mut normal = [0.0f32; 9];
+                let mut colour = [1.0f32; 12];
                 for (k, &index) in triangle.iter().enumerate() {
                     let i = index as usize;
                     triangles.extend_from_slice(&positions[i * 3..i * 3 + 3]);
@@ -129,8 +138,13 @@ impl Traceable {
                     if let Some(n) = normals.as_ref().and_then(|n| n.get(i * 3..i * 3 + 3)) {
                         normal[k * 3..k * 3 + 3].copy_from_slice(n);
                     }
+                    let read = colours.as_ref().filter(|_| matches!(width, 3 | 4));
+                    if let Some(c) = read.and_then(|c| c.get(i * width..i * width + width)) {
+                        colour[k * 4..k * 4 + width].copy_from_slice(c);
+                    }
                 }
                 corner.normals = normals.is_some().then_some(normal);
+                corner.colours = colours.is_some().then_some(colour);
                 corners.push(corner);
                 tags.push(material);
             }
@@ -152,11 +166,23 @@ impl Traceable {
         [a * u + b * v + c, d * u + e * v + f]
     }
 
+    /// The vertex colour `COLOR_0` at barycentric `at` of `triangle`, linear RGBA; white when the
+    /// primitive declares none. The engine multiplies it into the base colour and its alpha.
+    fn vertex_colour(&self, triangle: usize, at: [f64; 2]) -> [f64; 4] {
+        self.corners[triangle]
+            .colours
+            .map_or([1.0; 4], |c| mix::<4>(&c[..], at))
+    }
+
     /// First hit whose material covers its texel, within `limit`.
     pub fn trace(&self, origin: [f64; 3], ray: [f64; 3], limit: f64) -> Option<Sample> {
         let keep = |triangle: usize, at| {
             let surface = self.surface(triangle);
-            surface.cut.is_none() || surface.keeps(self.uv(triangle, at, 0))
+            surface.cut.is_none()
+                || surface.keeps(
+                    self.uv(triangle, at, 0),
+                    self.vertex_colour(triangle, at)[3],
+                )
         };
         let hit = trace_where(&self.world, (origin, ray), limit, false, &keep);
         if !hit.found {
@@ -175,9 +201,11 @@ impl Traceable {
             normal
         };
         let uv = [0, 1, 2].map(|k| self.uv(hit.triangle, hit.barycentric, k));
+        let tint = self.vertex_colour(hit.triangle, hit.barycentric);
+        let colour = surface.colour(uv[0]);
         Some(Sample {
             distance: hit.distance,
-            colour: surface.colour(uv[0]),
+            colour: [0, 1, 2].map(|c| colour[c] * tint[c]),
             normal,
             orm: surface.orm(uv),
         })
