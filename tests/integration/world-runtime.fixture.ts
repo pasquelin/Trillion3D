@@ -14,8 +14,9 @@ import { machine } from './world-partition.fixture.ts';
 type Opening = {
   camera?: Camera;
   options?: Partial<MeasuredWorldOptions>;
-  /** Runs once the session opened, before any frame the test draws, with the bytes read so far. */
-  opened?: (read: { bytes: number }) => void;
+  /** Runs once the session opened, before any frame the test draws, with the bytes and files read
+   *  so far. */
+  opened?: (read: { bytes: number; urls: readonly string[] }) => void;
 };
 
 /** The world runtime holding `pointer`'s model, its session open. */

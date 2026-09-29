@@ -23,10 +23,10 @@ test('a WebGPU session grows the rows of a scaled-down partition in place, withi
       ...cache.stats(),
     };
     const held = links.map((link) => link.placements!);
-    scaleDown(session);
+    await scaleDown(session);
     await draw();
     assert.equal(reopened.count, 0, 'no session opened again');
-    assert.deepEqual(cells.stats(), { cells: 2, held: 2, waiting: 0, rows: 4 });
+    assert.deepEqual(cells.stats(), { pages: 3, cells: 2, held: 2, waiting: 0, rows: 4 });
     assert.ok(
       links.every((link, at) => link.placements!.capacity === 4 && link.placements !== held[at]),
     );
@@ -75,7 +75,7 @@ test('a growth past the page table grows it in place: ranks, pins and pool kept'
     };
     assert.ok(before.pinned.length && before.ranks.some((rank) => rank >= 0));
     const held = links.map((link) => link.placements!);
-    scaleDown(session);
+    await scaleDown(session);
     await layout.growing;
     assert.equal(reopened.count, 0, 'no session opened again');
     assert.ok(links.every((link, at) => link.placements !== held[at]));
@@ -112,7 +112,7 @@ test('a growth past the page table during a prepare is taken in place, the table
       drawSlots = layout.drawSlots;
     let prepared = () => {};
     setup.preparing = new Promise<void>((resolve) => (prepared = resolve));
-    scaleDown(session);
+    await scaleDown(session);
     assert.equal(reopened.count, 0, 'no session opened again');
     const growing = layout.growing;
     await Promise.resolve();

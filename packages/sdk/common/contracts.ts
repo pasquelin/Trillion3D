@@ -79,3 +79,4 @@ export type {
   TableTexture,
   TableTextureSlot,
 } from '../../sdk-core/src/scene/core/tableSurfaces.ts';
+export type { TablePage, TableSlot } from '../../sdk-core/src/scene/core/tablePages.ts';
