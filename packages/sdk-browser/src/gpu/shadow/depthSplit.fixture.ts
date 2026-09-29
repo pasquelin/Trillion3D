@@ -17,7 +17,7 @@ const DEVELOP_VERTEX = `fn developVertex(vertexIndex:u32,instanceIndex:u32,blend
  let h=pageHeader(page);
  let id=pageCorner(page,h,vertexIndex);
  let vertex=pagePosition(page,h,id);
- out.position=sunSnap(shadow.viewProjection*page.world*vec4f(vertex,1.0));
+ out.position=sunSnap(shadow,shadow.viewProjection*page.world*vec4f(vertex,1.0));
  out.fromEmitter=(page.world*vec4f(vertex,1.0)).xyz-shadow.emitter.xyz;
  if((page.flags&4u)!=0u){out.uv=pageUv(page,h,id);}
  return out;
@@ -105,18 +105,10 @@ export function shadowEntries(scene: ShadowScene): ShadowEntries {
     source = source.replace(shape, spelled);
   }
   const names = [
-    ...['drawPage', 'cutoutPage', 'shadowVertex', 'developVertex', 'shadow_vs', 'shadow_depth_vs'],
-    ...['shadow_cutout_vs', 'shadowKeep', 'maskKeep', 'lineDash', 'pageHeader', 'pageCorner'],
-    ...[
-      'pageRestPosition',
-      'pagePosition',
-      'pageUv',
-      'vertPos',
-      'vertUv',
-      'keptAt',
-      'snapGrid',
-      'sunSnap',
-    ],
+    ...['drawPage', 'cutoutPage', 'shadowVertex', 'shadowVertexIn', 'developVertex', 'shadow_vs'],
+    ...['shadow_depth_vs', 'shadowKeepAt', 'shadow_cutout_vs', 'shadowKeep', 'maskKeep'],
+    ...['lineDash', 'pageHeader', 'pageCorner', 'pageRestPosition', 'pagePosition', 'pageUv'],
+    ...['vertPos', 'vertUv', 'keptAt', 'snapGrid', 'sunSnap'],
   ];
   const scope = {
     ...scene,
