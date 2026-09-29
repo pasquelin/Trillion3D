@@ -42,13 +42,13 @@ export function createShadowPool(side: number, layers = 1) {
   const evicted = new Uint32Array(SHADOW_TABLE_ENTRIES / 32);
   /** The evictable pages of cycle `evictBefore`, in eviction order: one sort, at need. */
   const buildOrder = () => {
-    const { owner, named, rank, pages } = pool;
+    const { owner, requested, named, rank, pages } = pool;
     orderCount = 0;
     orderAt = 0;
     for (let page = 0; page < pages; page++)
       if (owner[page] >= 0 && named[page] < evictBefore)
         order[orderCount++] =
-          ((pool.requested[page] + 1) * RANKS + rank[page] + RANKS / 2) * pages + page;
+          ((requested[page] + 1) * RANKS + rank[page] + RANKS / 2) * pages + page;
     order.subarray(0, orderCount).sort();
   };
   const init = () => {
