@@ -9,6 +9,7 @@ import {
   type SceneProxy,
 } from '../../../sdk-core/src/index.ts';
 import {
+  PROXY_CASTLESS_WORD,
   PROXY_HEADER_WORDS,
   PROXY_LAYOUT_WORD,
   PROXY_REVISION_WORD,
@@ -20,7 +21,8 @@ const TRIANGLES = 0,
   BOUNDS = 1,
   CHILDREN = 2,
   GROUPS = 3,
-  TRANSFORMS = 6;
+  TRANSFORMS = 6,
+  CASTLESS = 7;
 /** Columns motion rewrites whole: node bounds, node children and owner transforms. */
 const MOVING_COLUMNS = [BOUNDS, CHILDREN, TRANSFORMS];
 
@@ -59,6 +61,8 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
     words(data?.groupOffsets ?? new Uint32Array(0)),
     words(data?.owners ?? new Uint32Array(0)),
     words(motion.transforms),
+    // One bit per group, set when every owner of the group casts no shadow (`castless`).
+    new Uint32Array(Math.ceil(proxy.groups / 32)),
   ];
   // Start rank of each column, counted from the first word after the header: that is what the
   // shader adds to a triangle or node index.
@@ -79,7 +83,8 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
   // fit in one buffer: the same value, from the same source.
   mapped[PROXY_LAYOUT_WORD] = columns[BOUNDS].length / PROXY_NODE_FLOATS;
   for (let index = 0; index < columns.length; index++) {
-    mapped[index < 3 ? PROXY_LAYOUT_WORD + 1 + index : 9 + index] = starts[index];
+    const word = index < 3 ? PROXY_LAYOUT_WORD + 1 + index : 9 + index;
+    mapped[index === CASTLESS ? PROXY_CASTLESS_WORD : word] = starts[index];
     mapped.set(columns[index], PROXY_HEADER_WORDS + starts[index]);
   }
   /** Visited nodes per ray: the built tree's bound, plus each node motion let into a ray. */
@@ -140,6 +145,28 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
       tail[1] = steps();
       device.queue.writeBuffer(buffer, PROXY_REVISION_WORD * 4, tail);
       return change;
+    },
+    /**
+     * Marks the groups whose every owner casts no shadow (`castsNone` of each owner's source node,
+     * #966), which the far sun's shadow ray passes; true when a mark changed, then uploaded.
+     */
+    castless(castsNone: (source: number) => boolean) {
+      const bits = columns[CASTLESS],
+        { groupOffsets, owners } = data;
+      let changed = false;
+      for (let word = 0; word < bits.length; word++) {
+        let marks = 0;
+        for (let group = word * 32; group < Math.min(proxy.groups, word * 32 + 32); group++) {
+          let none = true;
+          for (let owner = groupOffsets[group]; none && owner < groupOffsets[group + 1]; owner++)
+            none = castsNone(owners[owner * 2]);
+          if (none) marks |= 1 << (group & 31);
+        }
+        changed ||= bits[word] !== marks >>> 0;
+        bits[word] = marks >>> 0;
+      }
+      if (changed) write(CASTLESS);
+      return changed;
     },
     get errorMetres() {
       return motion.errorMetres;
