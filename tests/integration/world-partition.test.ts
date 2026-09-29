@@ -126,10 +126,7 @@ test(
     // lands before the first frame or after it as the disk answers. Past the impostor
     // descriptors, the core differs by a few digits of the numbers the cook writes.
     const heads = { small: await headOf(small.urls), large: await headOf(large.urls) };
-    const files = async (
-      urls: readonly string[],
-      { meshPage }: { meshPage: (u: string) => boolean },
-    ) => {
+    const files = async (urls: readonly string[], meshPage: (u: string) => boolean) => {
       const sizes: Record<string, number> = {};
       const core = (u: string) => !u.endsWith('.wasm') && !partitioned(u) && !meshPage(u);
       for (const url of new Set(urls.filter(core))) {
@@ -141,18 +138,26 @@ test(
       }
       return sizes;
     };
-    const before = await files(small.urls, heads.small);
-    const after = await files(large.urls, heads.large);
+    const before = await files(small.urls, heads.small.meshPage);
+    const after = await files(large.urls, heads.large.meshPage);
     assert.deepEqual(Object.keys(after).sort(), Object.keys(before).sort(), 'the same files');
     // The impostor descriptors are one per mesh, baked or refused (a mesh seen from farther in a
     // wider world is baked): bounded by the meshes, never by the cells. Their bytes, read from the
     // head itself, set aside, the rest is the same core.
-    for (const [side, head] of Object.entries(heads))
-      assert.equal(head.impostors.meshes.length, worlds[side as 'small'].gltf.meshes.length, side);
-    const core = (sizes: Record<string, number>, head: { impostors: object }) =>
+    assert.equal(
+      heads.small.impostors.meshes.length,
+      worlds.small.gltf.meshes.length,
+      'one descriptor a mesh',
+    );
+    assert.equal(
+      heads.large.impostors.meshes.length,
+      worlds.large.gltf.meshes.length,
+      'one descriptor a mesh',
+    );
+    const coreBytes = (sizes: Record<string, number>, head: { impostors: object }) =>
       Object.values(sizes).reduce((a, b) => a + b, 0) -
       Buffer.byteLength(JSON.stringify(head.impostors));
-    const cores = [core(before, heads.small), core(after, heads.large)];
+    const cores = [coreBytes(before, heads.small), coreBytes(after, heads.large)];
     t.diagnostic(JSON.stringify({ before, after, cores }));
     assert.ok(Math.abs(cores[1] - cores[0]) < 0.01 * cores[0], `the same core: ${cores}`);
     // The rows are sized at open for what the view can hold (`sizing.ts`): under the scene root, a
