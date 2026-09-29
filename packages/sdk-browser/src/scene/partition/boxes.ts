@@ -121,10 +121,11 @@ export function createCellBoxes(
       }
     }
   };
-  const moved = ([rank]: Parts[number], since: number) =>
-    rank !== null && frames.get(rank)!.moved > since;
+  /** Whether the core parent `rank` (none: the scene root) moved since the refresh `since`. */
+  const moved = (rank: number | null, since: number) =>
+    rank !== null && (frames.get(rank)?.moved ?? 0) > since;
   const bounds = (item: Boxed) => {
-    if (item.written >= 0 && !item.parents.some((part) => moved(part, item.written)))
+    if (item.written >= 0 && !item.parents.some(([rank]) => moved(rank, item.written)))
       return item.bounds;
     item.parents.forEach(([rank, box], part) => {
       if (rank === null) item.bounds.set(box, 6 * part);
@@ -135,8 +136,7 @@ export function createCellBoxes(
   };
   const around = (page: Declared) => {
     const since = page.written;
-    if (since >= 0 && !page.parents.some((rank) => (frames.get(rank)?.moved ?? 0) > since))
-      return page.box;
+    if (since >= 0 && !page.parents.some((rank) => moved(rank, since))) return page.box;
     page.box.set(page.declared);
     for (const rank of page.parents) {
       if (!displaced.has(rank)) continue;
