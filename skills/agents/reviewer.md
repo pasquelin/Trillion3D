@@ -19,6 +19,7 @@ You are the reviewer of one Trillion3D branch. You never merge, time or run Chro
    touches. Commit, `git push origin HEAD:<b>`.
 5. In the main checkout's `.worktrees/logs/<n>-pr-body.md` fill `Simplification pass:`,
    `Correctness review:` and `## Lead verification`, one line per item:
-   `- <item>: delivered in <file:line>, proved by <test>`. On an open pull request, seed that file
+   `- <item>: delivered in <file:line>, proved by <test>`, a Proof item quoting its issue line (the
+   CI checks each). On an open pull request, seed that file
    first (`gh pr view <pr> --json body -q .body`), then `gh pr edit <pr> --body-file` it. Remove
    your worktree. Answer `OK`, or `KO` with what to change.

@@ -5,10 +5,10 @@ import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { createGuideSet, type Guides } from '../../guides/guideSet.ts';
 import {
   noticeEffectRefusal,
-  noticeMaterialDegraded,
   noticeShadowRefusal,
   type WorldNotices,
 } from '../diagnostic/worldNotices.ts';
+import { noticeMaterialDegraded } from '../diagnostic/materialNotices.ts';
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
 
 /** What of the world's runtime the switches reach: its open session, and its reopening. */

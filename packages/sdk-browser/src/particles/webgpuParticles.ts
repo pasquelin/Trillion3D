@@ -10,6 +10,7 @@ import { anyMoving, createPoolStates, refuseAll, usedSlots } from './poolStates.
 import { createWebgpuParticleDraw, type DrawState } from './webgpuParticleDraw.ts';
 import { DRAW_FLOATS } from './drawWords.ts';
 import { viewProj } from '../webgpu/pages/helpers.ts';
+import { routedFilter } from '../webgpu/blend/displayFilter.ts';
 
 /** The pass label the GPU timings name the particle step by (`passesGpu`). */
 export const PARTICLES_PASS = 'Trillion3D particles';
@@ -162,13 +163,29 @@ export function encodeParticles(
   rt.run.gpuComputeDispatches += rt.gpu.particles.run(pools, encoder);
 }
 
-/** The world's stepped pools drawn over the lit image and its transparents, in beauty only. */
-export function drawParticles(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+/** The world's stepped pools drawn over the lit image and its transparents, in beauty only;
+ *  `tone`, the image's exposure and curve (`directTiles`), shows a routed disc. */
+export function drawParticles(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  tone: ArrayLike<number>,
+) {
   const { run } = rt,
     { hdrView, depthView, particles } = rt.gpu,
     pools = rt.context.particles;
   if (!pools || !particles || !hdrView || !depthView) return;
   if (run.diagnostic !== 'beauty' || !run.lastCamera) return;
   const { eye } = run.gate.cam;
-  run.gpuDrawCalls += particles.draw(pools, encoder, hdrView, depthView, viewProj, eye);
+  const filter = routedFilter(rt.gpu.displayFilter);
+  run.gpuDrawCalls += particles.draw(
+    pools,
+    encoder,
+    hdrView,
+    depthView,
+    viewProj,
+    eye,
+    filter,
+    tone,
+    rt.lights.store.unlit,
+  );
 }

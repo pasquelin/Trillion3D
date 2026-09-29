@@ -34,4 +34,8 @@ test('the upscaling resolve dilates depth, derings its sample and keeps the nati
   assert.ok(TAA_SHADER.includes(taaHistoryBlend(true)));
   // The flagless one reads neither flags nor share history.
   assert.doesNotMatch(taaUpscaleShader(false), /var flags|textureLoad\(flags|shareHistory/);
+  // #558: the display layers follow the colour's weights to the display, then its history blend.
+  const filtered = taaUpscaleShader(true, false, true);
+  assert.match(filtered, /tint=clamp\(tint\/max\(total,1e-4\),tintLo,tintHi\);/);
+  assert.ok(filtered.includes(taaHistoryBlend(true, true)));
 });
