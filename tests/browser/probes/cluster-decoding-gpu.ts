@@ -1,6 +1,7 @@
 // The WGSL decode of a quantized cluster page, run in Chromium WebGPU through the very accessors
 // the engine's raster, shadow and resolve stages call — a page-table row over a pool slot —,
-// against the JavaScript decoder of the same bytes: positions, texture coordinates and colours
+// against the JavaScript decoder of the same bytes — a flat-shaded page among them, its positions
+// stored once and read through each vertex's link —: positions, texture coordinates and colours
 // bit for bit — the
 // format's arithmetic is one multiply and one add, both correctly rounded in WGSL —, normals to
 // the tolerance WGSL grants `normalize`, indices exact, and the cotangent frame every lighting
@@ -8,11 +9,13 @@
 //   node --experimental-strip-types tests/browser/probes/cluster-decoding-gpu.ts
 import assert from 'node:assert/strict';
 import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts';
+import { encodeGeometryPage } from '../../../packages/page-codec/geometryPage.ts';
 import { anneau } from '../../../bench/perf/browser/support/pagesWasm.ts';
 import { decodageClusterGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './clusterDecodingGpu.ts';
 
-function page(triangles: number, exponent: number) {
-  const { encoded, indices } = anneau(triangles, exponent);
+function page(triangles: number, exponent: number, flat = false) {
+  const ring = anneau(triangles, exponent);
+  const { encoded, indices } = flat ? flatShaded(ring, exponent) : ring;
   const decoded = decodeGeometryPage(encoded.data);
   return {
     octets: encoded.data,
@@ -20,6 +23,25 @@ function page(triangles: number, exponent: number) {
     indexCount: indices.length,
     decoded,
   };
+}
+
+/** The ring flat-shaded: every triangle on three vertices of its own under its first corner's
+ *  normal, so the page stores each position once and links its vertices to them (#960). */
+function flatShaded({ indices, attributes }: ReturnType<typeof anneau>, exponent: number) {
+  const corners = indices.map((_, k) => k),
+    flat = Object.fromEntries(
+      Object.entries(attributes).map(([name, { itemSize, array }]) => {
+        const source = (k: number) => (name === 'NORMAL' ? indices[k - (k % 3)] : indices[k]);
+        const values = corners.flatMap((k) =>
+          Array.from(array).slice(source(k) * itemSize, (source(k) + 1) * itemSize),
+        );
+        return [name, { itemSize, array: new Float32Array(values) }];
+      }),
+    );
+  const encoded = encodeGeometryPage(corners, flat, exponent),
+    words = new DataView(encoded.data.buffer, encoded.data.byteOffset);
+  assert.ok(words.getUint32(88, true) < words.getUint32(8, true), 'positions stored once');
+  return { encoded, indices: corners };
 }
 
 const cross = (a: readonly number[], b: readonly number[]): number[] => [
@@ -44,7 +66,7 @@ function cotangentFrame(
   return [...T.map((v) => v * scale), ...B.map((v) => v * scale)];
 }
 
-const pages = [page(126, -12), page(5, -3), page(40, -20)];
+const pages = [page(126, -12), page(5, -3), page(40, -20), page(40, -12, true)];
 const gpu = await decodageClusterGpu(pages);
 assert.equal(gpu.indisponible ?? null, null, gpu.indisponible);
 assert.deepEqual([...(gpu.compilation ?? []), ...(gpu.erreurs ?? [])], []);
