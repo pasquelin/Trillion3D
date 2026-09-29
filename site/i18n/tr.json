@@ -342,7 +342,8 @@
       "hover-to-highlight": "Bir parçayı vurgulamak için üzerine gelin",
       "a-dolly-along-the-canal": "Kanal boyunca kamera kaydırma",
       "a-folder-merged-into-one-scene": "Tek sahnede birleştirilen klasör",
-      "drag-a-crate": "Bir sandığı sürükleme"
+      "drag-a-crate": "Bir sandığı sürükleme",
+      "move-a-hierarchy-by-name": "Bir hiyerarşiyi adıyla taşı"
     },
     "missing": {
       "thick-lines": "geniş çizgiler",

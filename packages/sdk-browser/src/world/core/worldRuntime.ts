@@ -12,7 +12,7 @@ import { watchFirstFrame } from '../session/openWatch.ts';
 import { worldReopens } from './worldReopen.ts';
 import { createCanvasFit, followPageCamera } from './worldCamera.ts';
 import type { PosedTwin } from './worldPoses.ts';
-import { poseNamed } from '../../host/world/moveByName.ts';
+import { namedMove } from './worldSceneMethods.ts';
 import type { WorldRuntimeInputs as Inputs } from './worldRuntimeInputs.ts';
 import { DYNAMIC_UPLOAD_BUDGET_BYTES } from './worldDynamic.ts';
 import { vertexUploads } from './worldDynamicRanges.ts';
@@ -40,13 +40,8 @@ export function createWorldRuntime(inputs: Inputs) {
     /** Why no session is open: the first-frame watch says it on the console. */
     closed = 'the scene has not been read yet';
   const invalidate = () => explorer?.invalidate();
-  /** A move by name through the session (#972): the page's node the name index finds, posed as
-   *  the engines pose theirs, is written as a page write is — its rows, before the next frame. */
-  const moveNamed = (nodeName: string, matrix: Float32Array) => {
-    const node = poseNamed(scene, nodeName, matrix);
-    if (node) poses.moved(node);
-    invalidate();
-  };
+  // A move by name through the session (#972), and the one the world offers its page.
+  const moveNamed = namedMove(scene, poses, invalidate);
   const relight = () => ((lightsChanged = true), invalidate());
   /** One opening: the session in place closed, the next one opened on what the scene holds. */
   const reopen = async () => {
@@ -165,6 +160,8 @@ export function createWorldRuntime(inputs: Inputs) {
   return {
     beforeFrame,
     invalidate,
+    /** A move by name the world offers its page (`world.setTransform`, #972). */
+    moveNamed,
     /** A session option changed, or the device was lost: the next opening takes it. */
     renew: track.request,
     /** Settles once `session` has closed: what waited on it carries on with the next one. */

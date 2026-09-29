@@ -1526,7 +1526,8 @@
       "hover-to-highlight": "किसी भाग को उभारने के लिए उस पर होवर करें",
       "a-dolly-along-the-canal": "नहर के किनारे कैमरा डॉली",
       "a-folder-merged-into-one-scene": "एक दृश्य में मिला फ़ोल्डर",
-      "drag-a-crate": "एक पेटी खींचें"
+      "drag-a-crate": "एक पेटी खींचें",
+      "move-a-hierarchy-by-name": "नाम से पदानुक्रम घुमाएँ"
     },
     "missing": {
       "thick-lines": "चौड़ी रेखाएँ",

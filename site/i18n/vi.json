@@ -1526,7 +1526,8 @@
       "hover-to-highlight": "Di chuột để làm nổi bật một bộ phận",
       "a-dolly-along-the-canal": "Máy quay trượt dọc kênh",
       "a-folder-merged-into-one-scene": "Thư mục được gộp thành một cảnh",
-      "drag-a-crate": "Kéo thùng hàng"
+      "drag-a-crate": "Kéo thùng hàng",
+      "move-a-hierarchy-by-name": "Di chuyển hệ thống phân cấp theo tên"
     },
     "missing": {
       "thick-lines": "đường rộng",

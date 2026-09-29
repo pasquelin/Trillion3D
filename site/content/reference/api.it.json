@@ -8023,5 +8023,13 @@
     "members.direction": "Direzione sul terreno `[x, z]`; valore predefinito: `[1, 0]`.",
     "members.angle": "Flessione massima in radianti; valore predefinito: 0,1.",
     "members.frequency": "Oscillazioni al secondo; valore predefinito: 0,5."
+  },
+  "world.setTransform": {
+    "summary": "Muove il nodo `nodeName` perché la sua posa mondo sia `matrix`: un nodo di cui la pagina non conserva un riferimento si raggiunge per nome (`object.name`), cercato nella scena.",
+    "description": "La posa è una posa mondo — il motore la riporta nello spazio del genitore del nodo —, così un nome sotto un genitore spostato arriva comunque dove richiesto. La stessa via che WebGPU e WebGL2 seguono per uno spostamento per nome di una pagina, non una seconda. Il frame successivo lo disegna; una richiesta che non cambia nulla non ne chiede alcuno.",
+    "parameters": {
+      "nodeName": "Il `name` del nodo da muovere.",
+      "matrix": "La sua posa mondo, sedici float in ordine per colonne."
+    }
   }
 }

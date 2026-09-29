@@ -2399,5 +2399,23 @@
       "playing": "Oynat"
     },
     "banner": "Sahnenin etrafında dönmek için sürükleyin. Oynat ile animasyonu duraklatın veya sürdürün."
+  },
+  "move-a-hierarchy-by-name": {
+    "banner": "Beş adlandırılmış grubun yinelenebilir bir diziyi izlemesini seyredin. Aynı duruşları elle yazmak için sürücüyü değiştirin.",
+    "controls": {
+      "driver": "Sürücü",
+      "speed": "Hız",
+      "paused": "Duraklatıldı",
+      "replay": "Yeniden oynat"
+    },
+    "choices": {
+      "driver": {
+        "name": "adıyla",
+        "host": "ana makine yazar"
+      }
+    },
+    "readouts": {
+      "pose": "Duruş"
+    }
   }
 }
