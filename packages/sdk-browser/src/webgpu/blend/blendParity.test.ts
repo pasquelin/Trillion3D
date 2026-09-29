@@ -7,10 +7,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { blendTargets } from './pipelines.ts';
-import { blend, close, shown, written, type Rgba } from './blendModel.fixture.ts';
-import { DISPLAY_ROUTE_WGSL } from './displayFilter.ts';
-import { DISPLAY_FILTER_SHADER } from './displayFilterProgram.ts';
-import { BLEND_SHADER } from './shader.ts';
+import { blend, close, display, shown, srgb, written, type Rgba } from './blendModel.fixture.ts';
+import { ACES, displayFilterRun, displayRoute } from './displayRun.fixture.ts';
 import { CONTRACT_COMPOSITIONS } from '../../lighting/deferred/shaders.ts';
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
@@ -57,19 +55,38 @@ test('three multiplied discs over the night half stay black', () => {
 });
 
 test('the display layers take the colour the composition shows, through its curve', () => {
-  // The same exposure, curve and sRGB transfer as the composition's chain.
-  assert.match(
-    DISPLAY_ROUTE_WGSL,
-    /linearToSrgb\(select\(toneMap\(rgb\*exposure,curve\),rgb,unlit\)\)/,
-  );
-  assert.match(
-    BLEND_SHADER,
-    /displayRoute\(rgb,uni\.exposure,uni\.toneCurve,unlit,s\.alpha,masked\)/,
-  );
+  // The shipped route: exposure, the curve unless unlit, then sRGB, as the composition's chain;
+  // its sRGB exponent, 0.41666, is 1/2.4 within 1e-4 over [0, 4].
+  const colour = [4, 0.02, 0.3];
+  for (const [exposure, unlit] of [
+    [1, false],
+    [0.5, false],
+    [2, true],
+  ] as const) {
+    const owed = unlit ? srgb(colour) : display(colour.map((v) => v * exposure));
+    const { keep, tint, add } = displayRoute(2)(colour, exposure, ACES, unlit, 0.8, 1);
+    assert.equal(keep, 1);
+    close(tint, [...owed, 1], `tint ${exposure}`, 1e-4);
+    close(add, [...owed, 1], `add ${exposure}`, 1e-4);
+  }
   assert.match(
     CONTRACT_COMPOSITIONS.plain.still,
     /toneMap\(value\.rgb\*view\.lightParams\.w\/max\(value\.a,1e-6\),u32\(view\.display\.x\)\)/,
   );
+});
+
+test('a layer routes by its pipeline: nothing, where masked, or always', () => {
+  const colour = [0.5, 0.25, 0.1],
+    owed = display(colour);
+  const none = displayRoute(0)(colour, 1, ACES, false, 0.6, 1);
+  assert.deepEqual(none, { keep: 1, tint: [1, 1, 1, 1], add: [0, 0, 0, 0] });
+  for (const masked of [0, 1]) {
+    const { keep, tint, add } = displayRoute(1)(colour, 1, ACES, false, 0.6, masked);
+    const a = 0.6 * masked;
+    assert.equal(keep, 1 - masked);
+    close(tint, [0, 0, 0, a], `tint ${masked}`);
+    close(add, [...owed.map((v) => v * a), a], `add ${masked}`, 1e-5);
+  }
 });
 
 test('subtractive and multiply over paper show the witness in display space', () => {
@@ -81,22 +98,52 @@ test('subtractive and multiply over paper show the witness in display space', ()
     const targets = blendTargets(mode, 0xf, true, true);
     // The lit target keeps the paper; both layers take the ink's display colour (route 2).
     close([...written(targets[0]!, ink, paper)], [...paper], `${mode} lit target`);
-    const tint = blend(targets.at(-2)!.blend!, shown(ink), [1, 1, 1, 1]);
-    const add = blend(targets.at(-1)!.blend!, shown(ink), [0, 0, 0, 0]);
-    // The composed paper times the tint, plus the added value (`DISPLAY_FILTER_SHADER`).
-    const tinted = blend(TINT_EQUATIONS.multiply!, tint, shown(paper));
-    const onScreen = blend(ADD_EQUATIONS.additive!, add, tinted);
-    close(onScreen.slice(0, 3), WITNESS[mode](shown(ink), shown(paper)), `${mode} display`);
+    const route = displayRoute(2)(ink.slice(0, 3), 1, ACES, false, ink[3], 1);
+    const tint = blend(targets.at(-2)!.blend!, route.tint as unknown as Rgba, [1, 1, 1, 1]);
+    const add = blend(targets.at(-1)!.blend!, route.add as unknown as Rgba, [0, 0, 0, 0]);
+    // The display filter pass: the composed paper times the tint, plus the added value.
+    const filter = displayFilterRun(
+      [1, 1],
+      () => [...tint],
+      () => [...add],
+    );
+    const at = filter.screen(0);
+    const tinted = blend(TINT_EQUATIONS.multiply!, filter.tint(at).canvas as never, shown(paper));
+    const onScreen = blend(ADD_EQUATIONS.additive!, filter.add(at).canvas as never, tinted);
+    const owed = WITNESS[mode](shown(ink), shown(paper));
+    close(onScreen.slice(0, 3), owed, `${mode} display`, 1e-5);
   }
 });
 
 test('the layers drawn below the display are sampled to it, not read at its pixel', () => {
   // The full-screen triangle's place: (0, 0) at the top left, (1, 1) at the bottom right of the
-  // share the image covers (#832).
-  assert.match(
-    DISPLAY_FILTER_SHADER,
-    /return Screen\(vec4f\(c,0\.0,1\.0\),\(vec2f\(0\.5,-0\.5\)\*c\+0\.5\)\*drawn\.xy\);/,
+  // share the image covers (#832), sampled there, level 0, on both outputs.
+  const drawn: [number, number] = [0.5, 0.75],
+    layer = (uv: number[]) => [uv[0], uv[1], 0.25, 0.5];
+  const filter = displayFilterRun(drawn, layer, (uv) => layer(uv).map((v) => 1 - v));
+  const corners = [0, 1, 2].map(filter.screen);
+  assert.deepEqual(
+    corners.map(({ position }) => position),
+    [
+      [-1, -1, 0, 1],
+      [3, -1, 0, 1],
+      [-1, 3, 0, 1],
+    ],
   );
-  assert.match(DISPLAY_FILTER_SHADER, /textureSampleLevel\(map,layerSampler,uv,0\.0\)/);
-  assert.doesNotMatch(DISPLAY_FILTER_SHADER, /textureLoad/);
+  // The place the rasteriser interpolates at clip `(x, y)`, from the triangle's three corners.
+  const placeAt = (x: number, y: number) => {
+    const weights = [1 - (x + 1) / 4 - (y + 1) / 4, (x + 1) / 4, (y + 1) / 4];
+    return [0, 1].map((i) => corners.reduce((sum, { uv }, k) => sum + uv[i] * weights[k], 0));
+  };
+  close(placeAt(-1, 1), [0, 0], 'top left');
+  close(placeAt(1, -1), drawn, 'bottom right');
+  const at = { position: [0, 0, 0, 1], uv: [0.2, 0.3] };
+  for (const [name, owed] of [
+    ['tint', [0.2, 0.3, 0.25, 1]],
+    ['add', [0.8, 0.7, 0.75, 1]],
+  ] as const) {
+    const { capture, canvas } = filter[name](at);
+    close(capture, owed, `${name} capture`);
+    close(canvas, owed, `${name} canvas`);
+  }
 });
