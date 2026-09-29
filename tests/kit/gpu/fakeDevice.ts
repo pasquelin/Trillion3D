@@ -89,6 +89,15 @@ export function fakeDevice({
         createView: () => ({ format: descriptor.format }),
         destroy: () => void destroyed.push(texture),
       };
+      const size = descriptor.size;
+      const [width, height = 1, depthOrArrayLayers = 1] =
+        'width' in size ? [size.width, size.height, size.depthOrArrayLayers] : [...size];
+      Object.assign(texture, {
+        width,
+        height,
+        depthOrArrayLayers,
+        mipLevelCount: descriptor.mipLevelCount ?? 1,
+      });
       textures.push(texture);
       return texture;
     },

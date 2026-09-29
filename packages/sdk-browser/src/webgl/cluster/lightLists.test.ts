@@ -50,7 +50,11 @@ test('300 lamps draw on WebGL2, each fragment walks the lamps the oracle says re
   const meshes = Array.from({ length: 12 }, (_, m) => triangle(meshX(m)));
   const lights = scene().children.filter(isLightNode);
   const { context, renderer } = drawLights(lights, meshes);
-  assert.equal(context.of('drawElements').length, meshes.length, 'every mesh drawn, none refused');
+  assert.equal(
+    context.of('drawElements').length,
+    meshes.length * 3,
+    'every mesh in source, resolve and final passes',
+  );
   const records = sent(context, 'RGBA').at(-1)![8] as Float32Array;
   for (let i = 0; i < LAMPS; i++)
     assert.equal(records[i * 16 + 3], Math.fround(lamp(i).range), `lamp ${i} has its slot`);

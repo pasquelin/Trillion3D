@@ -1,3 +1,4 @@
+import { WebglReflectionPyramid, REFLECTION_BOUNDS_UNIT } from './pyramidGl.ts';
 import { LTC_UNIT } from '../webgl/cluster/rectGlsl.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { reflects } from './eligible.ts';
@@ -25,7 +26,11 @@ export function capture(
 }
 
 export const target = (gl: WebGL2RenderingContext) =>
-  new WebglClusterBackdrop(gl, [LTC_UNIT + 1, LTC_UNIT + 2]);
+  new WebglClusterBackdrop(
+    gl,
+    [LTC_UNIT + 1, LTC_UNIT + 2],
+    new WebglReflectionPyramid(gl, REFLECTION_BOUNDS_UNIT),
+  );
 /** A mesh that reflects: the ocean, any mirror receiver of `eligible.ts`. */
 const mirrorReceiver = (mesh: { material: HostMaterials }) => reflects(surfaceOf(mesh.material));
 export const receivers = (lists: readonly (readonly { material: HostMaterials }[])[]) =>

@@ -4,6 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts';
 import { placedSession, scaleDown } from './webgpuGrowth.fixture.ts';
 
 type Session = Awaited<ReturnType<typeof placedSession>>;
@@ -12,7 +13,19 @@ type Session = Awaited<ReturnType<typeof placedSession>>;
 function digest({ rt }: Session) {
   const { rows, drawItemWords, cornerPacked } = rt.layout;
   const hash = createHash('sha256');
-  for (const words of [rows.pageTableFloats!, rows.packedPageIndex, drawItemWords, cornerPacked])
+  // #33 fills former padding with physical-surface fields; the placement oracle compares
+  // the original row contract, leaving those independently tested material words out.
+  const originalWords = 64,
+    stride = PAGE_INFO_STRIDE / 4;
+  const table = new Float32Array((rows.pageTableFloats!.length / stride) * originalWords);
+  for (let row = 0; row < table.length / originalWords; row++)
+    table.set(
+      rows.pageTableFloats!.subarray(row * stride, row * stride + originalWords),
+      row * originalWords,
+    );
+  for (let row = 0; row < table.length; row += originalWords)
+    for (const word of [38, 39, 40, 41, 44, 45, 52, 53, 58, 59]) table[row + word] = 0;
+  for (const words of [table, rows.packedPageIndex, drawItemWords, cornerPacked])
     hash.update(new Uint8Array(words.buffer, words.byteOffset, words.byteLength));
   const ranks = (list: readonly { packedIndex?: number }[]) => list.map((rec) => rec.packedIndex);
   hash.update(JSON.stringify([rows.packedCount, ranks(rt.run.shown), ranks(rt.run.desired)]));

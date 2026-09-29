@@ -1618,7 +1618,7 @@
   },
   "LIGHT_FIELD": {
     "summary": "缓冲区中一个光源的字段,以从其起始位置算起的浮点数偏移表示。",
-    "description": "每个光源占四个 `vec4f`。",
+    "description": "每个光源占五个 `vec4f`。",
     "members": {
       "position": "它所在的位置。",
       "range": "它能照到多远。",
@@ -1631,7 +1631,8 @@
       "castsShadow": "是否投射阴影。",
       "cosInner": "聚光灯的内锥角,即半影开始的位置:如果没有内锥,则取光锥自身的边缘。",
       "halfWidth": "矩形光源的半宽轴——即 `right` 乘以其宽度的一半——随后是半高。",
-      "halfHeight": "矩形光源高度的一半。"
+      "halfHeight": "矩形光源高度的一半。",
+      "emitterRadius": "点光源或聚光灯的光源半径；与矩形专用的形状分量共用存储位置。"
     }
   },
   "LIGHT_KIND": {
@@ -1865,6 +1866,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -1884,7 +1887,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     },
     "members": {
       "isMaterial": "始终为 `true`:用来把材质和其他对象区分开来。",
@@ -1911,7 +1916,8 @@
       "physics": "穿戴它的物体的物理材质预设。",
       "density": "kg/m³，用于物体的质量。",
       "friction": "物理摩擦。",
-      "restitution": "物理回弹。"
+      "restitution": "物理回弹。",
+      "subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。"
     }
   },
   "MaterialParameters": {
@@ -1932,6 +1938,8 @@
       "ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "thickness": "透明表面的厚度。",
       "clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "clearcoatRoughness": "该清漆的粗糙程度。",
       "sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -1951,7 +1959,9 @@
       "physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "density": "kg/m³，乘以体积得到质量。",
       "friction": "物体的抓地程度，0 及以上。",
-      "restitution": "物体的弹跳程度，0 到 1。"
+      "restitution": "物体的弹跳程度，0 到 1。",
+      "subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "MathPath": {
@@ -3018,7 +3028,7 @@
       "range": "点光源、聚光灯和矩形光源:能量恰好归零的范围,单位米。",
       "coneAngle": "聚光灯的开口角度。",
       "penumbra": "仅限聚光灯:光锥中从边缘向内、光照逐渐减弱所占的比例,取值 `[0, 1]`;不设置时,边缘会在 `spotEdgeSoftness` 范围内自然柔化。",
-      "emitterRadius": "仅限点光源和聚光灯:容纳光源本体的外壳半径,单位米。真实的光源总是被包裹在某种东西里——灯罩玻璃、反光罩、灯伞——这层外壳和其他几何体一样都是真实的几何形状:如果没有这个字段,它会落入自己那盏灯的阴影贴图中,把灯光效果自我抵消掉。一旦声明,它就成为该阴影贴图的近平面,这样任何比这个半径更靠近光源的东西都不会在那里投下阴影。这是光源本身的属性,绝不是某个物体的名字或材质类型:引擎只认识表面本身。它必须严格为正,并严格小于 range;缺省时不改变任何行为。",
+      "emitterRadius": "仅限点光源和聚光灯:容纳光源本体的外壳半径,单位米。真实的光源总是被包裹在某种东西里——灯罩玻璃、反光罩、灯伞——这层外壳和其他几何体一样都是真实的几何形状:如果没有这个字段,它会落入自己那盏灯的阴影贴图中,把灯光效果自我抵消掉。此球体内的片元不投射阴影；阴影贴图的近平面仍由光照范围决定。对于点光源，此半径还决定接触处阴影硬化滤波器所使用的光源尺寸。 这是光源本身的属性,绝不是某个物体的名字或材质类型:引擎只认识表面本身。它必须严格为正,并严格小于 range;缺省时不改变任何行为。",
       "right": "仅限矩形光源:其宽度方向所沿的单位轴,垂直于 `direction`。",
       "size": "仅限矩形光源:它的宽度和高度,单位米。",
       "castsShadow": "是否投射阴影。"
@@ -3515,9 +3525,13 @@
       "baseMetal": "RGB 为基础颜色,A 为金属度。",
       "normalRough": "XYZ 为世界空间法线,A 为粗糙度。",
       "emissiveAo": "RGB 为自发光,A 为环境光遮蔽。",
-      "flags": "0 背景，1 无光照（受雾影响），2 读取，3 原样显示：诊断、法线或深度视图。",
+      "flags": "0 背景，1 无光照（受雾影响），2 读取，3 原样显示：诊断、法线或深度视图。 4 和 5 分别为漫反射和卡通模型（`./surfaceModel.ts`）。",
       "views": "它的 GPU 纹理视图。",
-      "dispose": "释放它。"
+      "dispose": "释放它。",
+      "shadingOffset": "全精度的阴影接收面偏移，与 G-buffer 一同写入。",
+      "subsurface": "薄表面的独立透射颜色；禁用时使用数值为零的 1×1 纹理。",
+      "subsurfaceView": "薄表面透射纹理的视图。",
+      "hasSubsurface": "薄表面透射是否具有全尺寸目标。"
     }
   },
   "SurfaceCapture": {
@@ -5947,6 +5961,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -5966,7 +5982,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshPhysical": {
@@ -5988,6 +6006,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6007,7 +6027,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshBasic": {
@@ -6029,6 +6051,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6048,7 +6072,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshPhong": {
@@ -6070,6 +6096,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6089,7 +6117,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshLambert": {
@@ -6111,6 +6141,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6130,7 +6162,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshToon": {
@@ -6152,6 +6186,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6171,7 +6207,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshNormal": {
@@ -6193,6 +6231,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6212,7 +6252,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshMatcap": {
@@ -6234,6 +6276,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6253,7 +6297,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.meshDepth": {
@@ -6275,6 +6321,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6294,7 +6342,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.points": {
@@ -6316,6 +6366,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6335,7 +6387,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.line": {
@@ -6357,6 +6411,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6376,7 +6432,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.lineDashed": {
@@ -6398,6 +6456,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6417,7 +6477,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.sprite": {
@@ -6439,6 +6501,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6458,7 +6522,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "material.shadow": {
@@ -6480,6 +6546,8 @@
       "parameters.ior": "光线进入时弯曲的程度:玻璃约为 1.5,水约为 1.33。",
       "parameters.thickness": "透明表面的厚度。",
       "parameters.clearcoat": "表面上的一层透明清漆:0 到 1。",
+      "parameters.anisotropy": "声明的各向异性强度，范围为 0 到 1；尚未渲染。",
+      "parameters.anisotropyRotation": "声明的各向异性方向，以弧度为单位；尚未渲染。",
       "parameters.clearcoatRoughness": "该清漆的粗糙程度。",
       "parameters.sheen": "掠射角下的一层柔和光泽,类似天鹅绒。",
       "parameters.iridescence": "随角度变化的彩虹色,类似肥皂泡。",
@@ -6499,7 +6567,9 @@
       "parameters.physics": "穿戴它的物体的材质：密度、摩擦、回弹。",
       "parameters.density": "kg/m³，乘以体积得到质量。",
       "parameters.friction": "物体的抓地程度，0 及以上。",
-      "parameters.restitution": "物体的弹跳程度，0 到 1。"
+      "parameters.restitution": "物体的弹跳程度，0 到 1。",
+      "parameters.subsurfaceColor": "光线穿过薄双面表面的漫透射；黑色会禁用此效果。",
+      "parameters.subsurfaceMap": "可选的线性透射色，与 subsurfaceColor 相乘。"
     }
   },
   "metric": {

@@ -42,6 +42,7 @@ export function createPageStore(env: PageStoreEnvironment) {
     // A rowed geometry held outside this restore stays; index each URL once, not once per row.
     const retained = new Map<string, Set<PageRec['geometry']>>();
     const drawnByOthers = (rec: PageRec) => {
+      if (!rec.geometry) return false;
       let geometries = retained.get(rec.url);
       if (!geometries) {
         geometries = new Set();
