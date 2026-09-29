@@ -29,7 +29,7 @@ globalThis.namedBufferEntries = ${namedBufferEntries};`;
  * Bundle options — target, platform — are those of every reproduction: writing them here is what
  * stops two of them compiling for two different targets with nothing saying so.
  */
-export async function empaquetePage(
+export async function bundlePage(
   input: string,
   // Only read below for `format: 'iife'`; every ESM caller may omit it.
   nomGlobal?: string,

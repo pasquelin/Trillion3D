@@ -20,7 +20,7 @@ pub mod cut;
 pub mod cut_error;
 pub mod math;
 pub mod math_hierarchy;
-mod min_ball;
+pub mod min_ball;
 pub mod normal_cone;
 pub mod triangles;
 mod unpack;
