@@ -83,12 +83,11 @@ export function createShadowRequests(
       : lampCoarseness(at[0] & 15);
     needs.note(entry, slice, at[0], at[1], at[2], rank);
   };
-  /** Writes into `at` what unmapped `entry` of `slice` names in frame `written`'s layout; false
-   *  when the clipmap left it. */
-  const decode = (entry: number, slice: number, written: number) => {
+  /** Writes into `at` what unmapped `entry` of `slice` names; false when the clipmap left it. */
+  const decode = (entry: number, slice: number) => {
     const relative = entry - table.baseOf(slice);
     if (isSun(slice)) {
-      if (!sun.decode(slice, relative, written, scratch)) return false;
+      if (!sun.decode(slice, relative, reportFrame, scratch)) return false;
       if (!sun.holds(slice, scratch[0], scratch[1], scratch[2])) return false;
       for (let k = 0; k < 3; k++) at[k] = scratch[k];
       return true;
@@ -134,15 +133,14 @@ export function createShadowRequests(
     get complete() {
       return !counts.allocated && (!counts.unlisted || pool.heldBy(counts.latest));
     },
-    /** Reads `report` as of frame `asOf`, its own by default; one read before a resize lists
-     *  at most the old pool's cap. */
-    consume(report: ShadowRequestReport, nowMs: number, frame: number, asOf = report.frame) {
+    consume(report: ShadowRequestReport, nowMs: number, frame: number) {
+      // A report read back before a resize lists at most the old pool's cap.
       counts.requested = Math.min(report.count, cap, report.entries.length);
       counts.unlisted = report.count - counts.requested;
       counts.allocated = 0;
       counts.refused = 0;
       if (report.layoutEpoch !== table.layoutEpoch) return;
-      counts.latest = reportFrame = asOf;
+      counts.latest = reportFrame = report.frame;
       needs.clear();
       for (let i = 0; i < counts.requested; i++) {
         const entry = report.entries[i],
@@ -156,7 +154,7 @@ export function createShadowRequests(
           at[2] = pool.y[page];
         } else {
           slice = table.sliceAt(entry);
-          if (slice < 0 || !decode(entry, slice, report.frame)) continue;
+          if (slice < 0 || !decode(entry, slice)) continue;
         }
         ask(entry, slice);
         askFloor(slice);
