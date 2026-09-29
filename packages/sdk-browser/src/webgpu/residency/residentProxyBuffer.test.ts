@@ -1,16 +1,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { PROXY_NODE_FLOATS, type SceneProxy } from '../../../../sdk-core/src/index.ts';
+import {
+  BOUNCE_SETTINGS,
+  PROXY_NODE_FLOATS,
+  type SceneProxy,
+} from '../../../../sdk-core/src/index.ts';
 import {
   PROXY_COUNT_OFFSET,
   PROXY_HEADER_WORDS,
   PROXY_LAYOUT_WORD,
   PROXY_PARAM_FLOATS,
+  PROXY_STEPS_WORD,
 } from '../../bounce/nodeWgsl.ts';
 import { ownedProxy, proxyIdentity } from '../../../../sdk-core/src/scene/core/proxy.fixture.ts';
 import { createGpuBounceProxy } from '../../bounce/proxy.ts';
 import { createGpuSunFarShadow } from '../../gpu/shadow/sunFarShadow.ts';
-import { fakeDevice, type FakeBuffer } from '../../../../../tests/kit/gpu/fakeDevice.ts';
+import {
+  fakeDevice,
+  replayWrites,
+  type FakeBuffer,
+} from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
 /** The mapped range of the resident proxy's buffer, as its creation filled it. */
 const proxyBytes = (buffers: FakeBuffer[]) =>
@@ -122,6 +131,7 @@ test('motion uploads owner poses and conservative bounds once without rewriting 
   const resident = createGpuBounceProxy(device, ownedProxy());
   const initial = new Uint32Array(proxyBytes(buffers));
   const canonical = initial.slice(PROXY_HEADER_WORDS, PROXY_HEADER_WORDS + 9);
+  assert.equal(initial[PROXY_STEPS_WORD], BOUNCE_SETTINGS.traversalSteps, 'the built bound');
   const identity = proxyIdentity(),
     moved = proxyIdentity();
   assert.equal(
@@ -134,18 +144,22 @@ test('motion uploads owner poses and conservative bounds once without rewriting 
     resident.sync((node) => (node === 0 ? moved : identity)),
     true,
   );
-  for (const write of writes) {
-    assert.equal(write.buffer, resident.buffer, 'albedo stays immutable');
-    new Uint8Array(initial.buffer, write.offset, write.data.byteLength).set(
-      new Uint8Array(write.data.buffer, write.data.byteOffset, write.data.byteLength),
-    );
-  }
+  assert.ok(
+    writes.every((write) => write.buffer === resident.buffer),
+    'albedo stays immutable',
+  );
+  replayWrites(initial.buffer, writes);
   assert.deepEqual(initial.slice(PROXY_HEADER_WORDS, PROXY_HEADER_WORDS + 9), canonical);
   const floats = new Float32Array(initial.buffer);
   assert.equal(initial[11], 1, 'rays use owner geometry after motion');
   assert.equal(floats[PROXY_HEADER_WORDS + initial[15] + 12], 10);
   assert.equal(floats[PROXY_HEADER_WORDS + initial[15] + 28], 0);
   assert.ok(floats[PROXY_HEADER_WORDS + initial[9] + 3] >= 11);
+  assert.equal(
+    initial[PROXY_STEPS_WORD],
+    BOUNCE_SETTINGS.traversalSteps + 1,
+    'plus the refit root',
+  );
   const count = writes.length;
   assert.equal(
     resident.sync((node) => (node === 0 ? moved : identity)),

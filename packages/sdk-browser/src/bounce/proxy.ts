@@ -1,7 +1,11 @@
 import { createSceneProxyMotion } from '../../../sdk-core/src/scene/core/proxyMotion.ts';
 import { ensureProxyFits } from './limits.ts';
-import { PROXY_NODE_FLOATS, type SceneProxy } from '../../../sdk-core/src/index.ts';
-import { PROXY_HEADER_WORDS, PROXY_LAYOUT_WORD } from './nodeWgsl.ts';
+import {
+  BOUNCE_SETTINGS,
+  PROXY_NODE_FLOATS,
+  type SceneProxy,
+} from '../../../sdk-core/src/index.ts';
+import { PROXY_HEADER_WORDS, PROXY_LAYOUT_WORD, PROXY_STEPS_WORD } from './nodeWgsl.ts';
 
 /** Words of an array, whatever its type: a column is a sequence of words, nothing more. */
 const words = (data: Float32Array | Uint32Array) =>
@@ -61,11 +65,16 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
     mapped[index < 3 ? PROXY_LAYOUT_WORD + 1 + index : 9 + index] = starts[index];
     mapped.set(columns[index], PROXY_HEADER_WORDS + starts[index]);
   }
+  /** Visited nodes per ray: the built tree's bound, plus each node motion let into a ray. */
+  const steps = () => BOUNCE_SETTINGS.traversalSteps + motion.grownNodes;
+  mapped[PROXY_STEPS_WORD] = steps();
   buffer.unmap();
   const albedo = albedoBuffer(device, data?.albedo ?? new Uint32Array(0));
-  const motionFlag = new Uint32Array([1]);
-  const revisionWord = new Uint32Array(1);
-  const mutableColumns = [1, 2, 6];
+  // Motion flag, then revision and steps (words 11, 16 and 17), written after each change.
+  const motionFlag = new Uint32Array(1);
+  const tail = new Uint32Array(2);
+  const write = (index: number) =>
+    device.queue.writeBuffer(buffer, (PROXY_HEADER_WORDS + starts[index]) * 4, columns[index]);
   return {
     buffer,
     albedo,
@@ -85,13 +94,21 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
     get revision() {
       return motion.revision;
     },
+    /** Visited nodes a ray may take, as the shader reads it. */
+    get steps() {
+      return steps();
+    },
     sync(worldOf: (source: number) => ArrayLike<number> | undefined) {
+      const wasDynamic = motion.dynamic;
       if (!motion.sync(worldOf)) return false;
-      for (const index of mutableColumns)
-        device.queue.writeBuffer(buffer, (PROXY_HEADER_WORDS + starts[index]) * 4, columns[index]);
+      // Settling or resuming rewrites the triangles; only motion moves the tree and the poses.
+      if (motion.dynamic !== wasDynamic) write(0);
+      if (motion.dynamic) for (const index of [1, 2, 6]) write(index);
+      motionFlag[0] = motion.dynamic ? 1 : 0;
       device.queue.writeBuffer(buffer, 11 * 4, motionFlag);
-      revisionWord[0] = motion.revision;
-      device.queue.writeBuffer(buffer, 16 * 4, revisionWord);
+      tail[0] = motion.revision;
+      tail[1] = steps();
+      device.queue.writeBuffer(buffer, 16 * 4, tail);
       return true;
     },
     get errorMetres() {
