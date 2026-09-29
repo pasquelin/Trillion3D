@@ -87,6 +87,7 @@ const FUNCTIONS = [
   'assignPages',
   'shadowEntryPage',
   'poolAt',
+  'shadowPoolPages',
   'sunOrigin',
   ...PAGE_MODEL_FUNCTIONS,
 ];
@@ -170,7 +171,7 @@ export function runShadowWords(
     };
   const { applyShadowWord } = shaderRun<Lanes>(
     SHADOW_WORDS_WGSL,
-    ['applyShadowWord', 'loseDepth', 'listDraw'],
+    ['applyShadowWord', 'loseDepth', 'listDraw', 'poolAt', 'shadowPoolPages'],
     {
       ...wgslConstants(SHADOW_WORDS_WGSL),
       ...atomicsOf(state, new Uint8Array(4)),

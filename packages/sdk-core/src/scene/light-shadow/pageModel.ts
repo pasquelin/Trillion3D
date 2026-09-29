@@ -1,4 +1,5 @@
 import { NUMBERS, type PageOps } from './pageOps.ts';
+import { pageKeyModel } from './pageKeys.ts';
 import { pageViewModel } from './pageViewModel.ts';
 import {
   LAMP_FACE_ENTRIES,
@@ -141,6 +142,7 @@ export function pageModel<V>(o: PageOps<V>) {
     shadowPcfStep: (t: V, first: V) =>
       o.pick(o.ge(o.sub(t, first), o.float(SHADOW_PAGE / 2)), o.int(1), o.int(-1)),
     ...pageViewModel(o),
+    ...pageKeyModel(o),
   };
 }
 

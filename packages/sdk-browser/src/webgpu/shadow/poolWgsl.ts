@@ -30,11 +30,13 @@ export const POOL_COUNTS = ['needs', 'candidates', 'allocated', 'refused', 'draw
 const fieldConsts = POOL_FIELDS.map((f, i) => `const POOL_${f.toUpperCase()}:u32=${i}u;`).join('');
 const countConsts = POOL_COUNTS.map((c, i) => `const COUNT_${c.toUpperCase()}:u32=${i}u;`).join('');
 
-/** The GPU pool as every pass reads it — its counts, then one array per field —, what reads its
- *  fields and entries, and its counts' atomics (each pass binds \`shadowPool\`). */
+/** The GPU pool as every pass reads it — its counts, then one array per field —, where a page's
+ *  field lies (\`poolAt\`: each pass binds \`shadowPool\` and says its pages, \`shadowPoolPages\`),
+ *  and its counts' atomics. */
 export const SHADOW_POOL_WGSL = `
 ${fieldConsts}${countConsts}
 struct ShadowPool{counts:array<atomic<u32>,${POOL_COUNTS.length}>,pages:array<i32>,}
+fn poolAt(field:u32,p:u32)->u32{return field*shadowPoolPages()+p;}
 fn countOne(i:u32){atomicAdd(&shadowPool.counts[i],1u);}
 fn countNext(i:u32)->u32{return atomicAdd(&shadowPool.counts[i],1u);}
 fn countRead(i:u32)->u32{return atomicLoad(&shadowPool.counts[i]);}
