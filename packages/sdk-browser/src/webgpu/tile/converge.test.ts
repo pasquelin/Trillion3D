@@ -108,5 +108,9 @@ test('a page made resident after the last drain image draws one more image', () 
   assert.equal(drainsAgain(false, 7, 7, settled), false, 'nothing moved: the drain ends');
   assert.equal(drainsAgain(false, 7, 8, settled), true, 'a landing no plan saw: one more');
   assert.equal(drainsAgain(true, 7, 7, settled), true, 'a report taken: one more');
-  assert.equal(drainsAgain(false, 7, 7, () => true), true, 'pages unsettled: one more');
+  assert.equal(
+    drainsAgain(false, 7, 7, () => true),
+    true,
+    'pages unsettled: one more',
+  );
 });
