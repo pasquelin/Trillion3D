@@ -7,7 +7,6 @@
  * held, and every mesh the cells place has its primitive from the open.
  */
 import type { ManifestPages } from '../../../../sdk-core/src/manifest/paged.ts';
-import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import type { PlacedMesh } from './rows.ts';
 
 /** What a partition's cells hold: each rank's placed mesh, and the manifest pages the cells hold.
@@ -25,19 +24,23 @@ export function withHoldings<T extends object>(holding: CellHoldings, cells: T):
 /** What the cells `withHoldings` returned hold. */
 export const cellHoldings = (cells: object) => holdings.get(cells)!;
 
-export function createCellPages(pages: ManifestPages | undefined, cells: readonly TableCell[]) {
+/** The holds of the cells placed on `pages`, each cell's mesh pages read through `meshPagesOf`. */
+export function createCellPages(
+  pages: ManifestPages | undefined,
+  meshPagesOf: (cell: number) => readonly string[],
+) {
   /** The hold of each cell whose pages are held, and the cells whose hold failed while placed. A
    *  cell that leaves while its hold reads releases once it lands: a hold that fails counts
    *  nothing, and releasing it too would drop a page another cell holds. */
-  type Hold = { landed: boolean; left: boolean };
+  type Hold = { slots: readonly string[]; landed: boolean; left: boolean };
   const holding = new Map<number, Hold>(),
     failed = new Set<number>();
   let reads: Promise<void>[] = [];
   const hold = (cell: number) => {
     if (!pages || holding.has(cell)) return;
-    const own: Hold = { landed: false, left: false };
+    const slots = meshPagesOf(cell);
+    const own: Hold = { slots, landed: false, left: false };
     holding.set(cell, own);
-    const slots = cells[cell].meshPages;
     const read = pages.hold(slots).then(
       () => {
         own.landed = true;
@@ -63,7 +66,7 @@ export function createCellPages(pages: ManifestPages | undefined, cells: readonl
       const own = holding.get(cell);
       if (!own) return;
       holding.delete(cell);
-      if (own.landed) pages!.release(cells[cell].meshPages);
+      if (own.landed) pages!.release(own.slots);
       else own.left = true;
     },
     /** The reads asked since the last call, the holds that failed asked again first. */

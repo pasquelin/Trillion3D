@@ -128,8 +128,8 @@ export interface PreparedSceneTables {
   documents: Readonly<Record<string, TableDocument>>;
 }
 
-/** The tables as `scene-tables.json` carries them: of the partition, only its root, whose pages
- *  `readTablePartition` reads. */
+/** The tables as `scene-tables.json` carries them: of the partition, only its root
+ *  (`tablePartition`), whose pages the runtime reads as its view reaches them. */
 export type SceneTablesFile = Omit<PreparedSceneTables, 'partition'> & {
   partition: TablePartitionRoot | null;
 };
