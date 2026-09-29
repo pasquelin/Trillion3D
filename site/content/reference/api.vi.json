@@ -7867,5 +7867,44 @@
       "alphaCutoff": "Các điểm ảnh mờ đục kém hơn mức này bị loại bỏ.",
       "tiling": "Hình ảnh vừa khít bao nhiêu lần theo chiều ngang và chiều dọc."
     }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json`: DAG thế giới mà trình biên dịch tiếp nối phía trên gốc của mọi đối tượng — các gói, trang và ô của nó, đỉnh được ghim trước.",
+    "members": {
+      "version": "Phiên bản định dạng.",
+      "budgetBytes": "Số byte tối đa mà bước nấu cho phép đỉnh được ghim.",
+      "pinned": "Các gói đầu tiên, đỉnh của thế giới: được ghim.",
+      "pinnedTopBytes": "Số byte của đỉnh được ghim.",
+      "payload": "Tệp nhị phân nơi các gói nối tiếp nhau: địa chỉ, dấu băm và độ dài của nó.",
+      "bundles": "Các gói, theo thứ tự của tệp nhị phân.",
+      "pages": "Mỗi trang: gói của nó, độ lệch trong gói, cấp và sai số của nó.",
+      "cells": "Mỗi ô thế giới: các primitive đã đặt mà nó chứa."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "Một gói của `world-roots.bin`: khoảng của nó trong tệp nhị phân, dấu băm, số trang và các gói nó cần.",
+    "members": {
+      "offset": "Nơi nó bắt đầu trong tệp nhị phân, tính bằng byte.",
+      "bytes": "Độ dài của nó trong tệp nhị phân.",
+      "sha256": "SHA-256 của các byte của nó, được kiểm khi đọc.",
+      "count": "Nó chứa bao nhiêu trang.",
+      "dependencies": "Các gói mà trang của nó cần, tăng dần, lên tới đỉnh thế giới."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Một primitive đã đặt của một ô thế giới: các gói thế giới mà gốc của nó cần, lên tới đỉnh.",
+    "members": {
+      "node": "Nút đã công bố của nó.",
+      "primitive": "Primitive của nó trong manifest.",
+      "roots": "Các gói luồng của primitive đó chứa gốc của nó.",
+      "dependencies": "Mọi gói thế giới mà các gốc đó cần, tăng dần, lên tới đỉnh."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Một trang siêu gốc đọc trên byte của gói nó: các đỉnh riêng trong không gian thế giới, và các tam giác dưới dạng chỉ số cục bộ.",
+    "members": {
+      "positions": "Các đỉnh của nó, mỗi đỉnh ba số, trong không gian thế giới.",
+      "indices": "Các tam giác của nó, mỗi tam giác ba chỉ số cục bộ."
+    }
   }
 }
