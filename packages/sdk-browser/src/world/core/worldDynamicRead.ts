@@ -10,23 +10,16 @@ import { LISTS } from './worldDynamicRanges.ts';
 /** The drawn box of `drawn`, joined to `declared` and `before`; widened by half its size when
  *  nothing was declared, so that a sheet that waves stays within the box it was cut in. */
 export function heldBox(drawn: DrawnTriangles, declared: Geometry['maxBounds'], before?: HeldBox) {
-  const box = new Float64Array(6);
+  const box = new Float64Array(6),
+    p = drawn.positions;
   boxEmpty(box, 0);
-  const p = drawn.positions;
   for (let i = 0; i + 2 < p.length; i += 3) boxExpandByPoint(box, 0, p[i], p[i + 1], p[i + 2]);
-  if (declared) {
-    boxExpandByPoint(box, 0, declared.min.x, declared.min.y, declared.min.z);
-    boxExpandByPoint(box, 0, declared.max.x, declared.max.y, declared.max.z);
-  }
-  if (before) {
-    boxExpandByPoint(box, 0, before[0], before[1], before[2]);
-    boxExpandByPoint(box, 0, before[3], before[4], before[5]);
-  }
+  for (const c of declared ? [declared.min, declared.max] : [])
+    boxExpandByPoint(box, 0, c.x, c.y, c.z);
+  for (let k = 0; before && k < 6; k += 3)
+    boxExpandByPoint(box, 0, before[k], before[k + 1], before[k + 2]);
   const pad = declared ? 0 : Math.max(box[3] - box[0], box[4] - box[1], box[5] - box[2], 1e-3) / 2;
-  for (let a = 0; a < 3; a++) {
-    box[a] -= pad;
-    box[a + 3] += pad;
-  }
+  for (let a = 0; a < 6; a++) box[a] += a < 3 ? -pad : pad;
   return box;
 }
 

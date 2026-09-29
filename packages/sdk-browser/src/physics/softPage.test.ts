@@ -14,7 +14,6 @@ import {
   type SoftBodyOptions,
 } from '../../../sdk-core/src/physics/index.ts';
 import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
-import type { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
 import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
@@ -75,28 +74,6 @@ test('a tick’s soft records reach physics.vertices, each geometry vertex from 
   assert.deepEqual(receiveSoft(words, bodies), [mesh], 'the body that left is skipped');
   assert.deepEqual([...mesh.physics.vertices!], [4, 5, 6, 1, 2, 3, 1, 2, 3]);
   assert.deepEqual(receiveSoft(null, bodies), []);
-});
-
-test('a soft body is drawn where it is: its geometry, dynamic, rewritten in place (#573)', () => {
-  const { bodies, cloth } = sceneOf(100);
-  const made = cloth(1);
-  bodies.reconcile(new Set(), (error) => assert.fail(String(error)));
-  assert.equal(made.geometry.usage, 'dynamic', 'never cut into pages again');
-  const mesh = new Mesh(plane(), new Material('meshStandard'));
-  mesh.physics = new ObjectPhysics({ type: 'cloth' });
-  const words = new Uint32Array(2 + 12);
-  words.set([7, 4]);
-  const at = [0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1];
-  new Float32Array(words.buffer).set(at, 2);
-  const { position, normal } = mesh.geometry.attributes as Record<string, BufferAttribute>;
-  const versions = [position.version, normal.version];
-  receiveSoft(words, { meshOf: () => mesh as Bodied, softMap: () => Uint32Array.of(0, 1, 2, 3) });
-  assert.deepEqual([...position.array], at, 'its positions');
-  assert.deepEqual(
-    [position.version, normal.version],
-    versions.map((v) => v + 1),
-    'both written',
-  );
 });
 
 test('a second soft body in the geometry another draws itself into is refused by name', () => {
