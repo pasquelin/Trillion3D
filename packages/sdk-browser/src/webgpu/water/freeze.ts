@@ -41,8 +41,10 @@ export async function createWaterFreeze(device: GPUDevice) {
     },
     /** Encodes the freeze; returns the surface rectangle the surface and composite passes scissor. */
     encode(encoder: GPUCommandEncoder, bounds: WaterBounds) {
-      const rect = bounds.active ? bounds.surface : full;
-      const copied = bounds.active ? bounds.backdrop : full;
+      // Bounds a cull left empty (no kept item folded in) cover the full target, never a negative one.
+      const bounded = bounds.active && bounds.surface[2] > bounds.surface[0];
+      const rect = bounded ? bounds.surface : full;
+      const copied = bounded ? bounds.backdrop : full;
       origin.x = copied[0];
       origin.y = copied[1];
       size.width = copied[2] - copied[0];

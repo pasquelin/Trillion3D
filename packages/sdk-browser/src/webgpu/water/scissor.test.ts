@@ -82,4 +82,14 @@ test('cropped color origins, depth restore and scissors survive the next full fr
     b: { texture: {}, origin: { x: 0, y: 0 } },
     size: { width: 8, height: 8 },
   });
+  // Bounds opened but left empty by the cull fall back to the full target, never a negative rect.
+  copies.length = passes.length = scissors.length = 0;
+  bounds.surface.set([8, 8, 0, 0]);
+  bounds.backdrop.set([8, 8, 0, 0]);
+  encodeWaterPass(rt, encoder);
+  assert.deepEqual(scissors, [
+    [0, 0, 8, 8],
+    [0, 0, 8, 8],
+  ]);
+  assert.equal(copies.length, 2, 'an empty rect takes the whole-target copies');
 });
