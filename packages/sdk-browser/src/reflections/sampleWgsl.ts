@@ -1,6 +1,6 @@
 import { SURFACE_MODEL_MASK } from '../scene/surfaceModel.ts';
 import { HASH_UNIT_WGSL } from '../math/hashUnitWgsl.ts';
-import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
+import { PI, ROUGHNESS_FLOOR, TWO_PI } from '../lighting/shaderConstants.ts';
 import { withScreenReflections } from './screenWgsl.ts';
 
 /** GGX importance sampling of the split-sum radiance prefilter (N = V = R).
@@ -14,13 +14,13 @@ fn stochasticReflection(R:vec3f,rough:f32,xi:vec2f)->vec4f{
  let alpha=rough*rough;let a2=alpha*alpha;
  let cosine=sqrt((1.0-xi.y)/(1.0+(a2-1.0)*xi.y));
  let sine=sqrt(max(0.0,1.0-cosine*cosine));
- let phi=6.283185307179586*xi.x;
+ let phi=${TWO_PI}*xi.x;
  var axis=vec3f(0.0,0.0,1.0);if(abs(R.z)>0.999){axis=vec3f(0.0,1.0,0.0);}
  let T=normalize(cross(axis,R));let B=cross(R,T);
  let H=T*(cos(phi)*sine)+B*(sin(phi)*sine)+R*cosine;
  let L=reflect(-R,H);
  let denominator=cosine*cosine*(a2-1.0)+1.0;
- let distribution=a2/(3.141592653589793*denominator*denominator);
+ let distribution=a2/(${PI}*denominator*denominator);
  let pdf=distribution*cosine/(4.0*max(dot(R,H),1e-20));
  let kernel=distribution*max(dot(R,L),0.0)*0.25;
  return vec4f(L,kernel/max(pdf,1e-20));

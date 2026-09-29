@@ -1,5 +1,5 @@
 import { createDepthBoundsMipChain, createRadianceMipChain } from '../texture/mipBatch.ts';
-import { textureBytesOf } from '../gpu/core/textureBytes.ts';
+import { mipTailBytes, textureBytesOf } from '../gpu/core/textureBytes.ts';
 import { uniformStride } from '../residency/pools.ts';
 import { levelSize, mipLevelCountFor } from '../texture/tiles.ts';
 
@@ -54,15 +54,10 @@ export function reflectionConeAllocation(
     mipLevelCount: boundsLevels,
     usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
   };
-  const source = textureBytesOf({
-    ...descriptor,
-    size: [width, height],
-    format: 'rgba16float',
-    mipLevelCount: levels,
-  })!;
   const uniforms = (Math.max(1, levels - 1) + boundsLevels) * uniformStride(limits);
   return {
     descriptor,
-    bytes: source - width * height * 8 + textureBytesOf(descriptor)! + uniforms,
+    bytes:
+      mipTailBytes(width, height, 'rgba16float', levels) + textureBytesOf(descriptor)! + uniforms,
   };
 }

@@ -1,7 +1,9 @@
 import { PhysicalMapCache } from './physicalMapCache.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 import type { VisMaterial } from '../../visibility/types.ts';
+import { PHYSICAL_MAP_FIELDS } from '../../visibility/materialType.ts';
 import { mipLevelCountFor, levelSize } from '../../texture/tiles.ts';
+import { textureBytesOf } from '../../gpu/core/textureBytes.ts';
 import { mipFiltered } from '../../../../sdk-core/src/texture/contract.ts';
 import { samplingWords } from '../../texture/sampling.ts';
 import { allocated } from '../core/allocation.ts';
@@ -9,12 +11,6 @@ import type { MipChain } from './mips.ts';
 import type { Matrix3UniformCache } from './uniforms.ts';
 
 export const PHYSICAL_MAP_UNIT = 15;
-export const PHYSICAL_MAP_FIELDS = [
-  'anisotropyMap',
-  'clearcoatMap',
-  'clearcoatRoughnessMap',
-  'clearcoatNormalMap',
-] as const;
 /** Allocation of native mip rectangles padded in the distinct images’ array layers; no source is resized. */
 export function physicalMapLayout(sizes: readonly (readonly [number, number])[], limit: number) {
   const width = Math.max(1, ...sizes.map((size) => size[0]));
@@ -22,11 +18,11 @@ export function physicalMapLayout(sizes: readonly (readonly [number, number])[],
   if (width > limit || height > limit) throw new Error('PHYSICAL_MAP_DEVICE_LIMIT');
   const layers = Math.max(1, sizes.length);
   const levels = mipLevelCountFor(width, height);
-  let bytes = 0;
-  for (let level = 0; level < levels; level++) {
-    const [w, h] = levelSize(width, height, level);
-    bytes += w * h * 4 * layers;
-  }
+  const bytes = textureBytesOf({
+    size: [width, height, layers],
+    format: 'rgba8unorm',
+    mipLevelCount: levels,
+  })!;
   return { width, height, levels, layers, bytes };
 }
 /** Uses the existing texture cache's uploaded mip chains; arrays share identical image tuples across materials.
