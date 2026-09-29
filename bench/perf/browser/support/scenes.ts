@@ -18,13 +18,13 @@ const MAUVAIS = [NaN, Infinity, -Infinity, -0];
 /** The one root every page and box below ranks: the identity, their `matrix` too, which the
  *  oracles read on them as pages carried it before #1226. */
 export const racines = [{ world: new G.Matrix4() }];
+type Placed = { matrix: G.Matrix4; placementIndex: number };
+const placed = (): Placed => ({ matrix: new G.Matrix4(), placementIndex: 0 });
 
 /** A page of triangles as `coupe` produces it: geometry, material and its world-space box. */
-export interface ScenePage {
+export interface ScenePage extends Placed {
   array: Uint32Array;
   attributes: { position: G.BufferAttribute };
-  matrix: G.Matrix4;
-  placementIndex: number;
   material: PageSurface;
   clusterId: string;
   url: string;
@@ -34,11 +34,9 @@ export interface ScenePage {
 }
 
 /** A box only, without geometry: what Hi-Z projects and sorts. */
-export interface SceneBox {
+export interface SceneBox extends Placed {
   min: number[];
   max: number[];
-  matrix: G.Matrix4;
-  placementIndex: number;
   url: string;
   array: Uint32Array;
 }
@@ -103,8 +101,7 @@ function page(
   return {
     array: indices,
     attributes,
-    matrix: new G.Matrix4(),
-    placementIndex: 0,
+    ...placed(),
     material: surfaceOf(material),
     clusterId: `0/0/${index}`,
     url: `page-${index}.bin`,
@@ -172,8 +169,7 @@ export function boites({
     liste.push({
       min,
       max,
-      matrix: new G.Matrix4(),
-      placementIndex: 0,
+      ...placed(),
       url: `boite-${i}.bin`,
       array: new Uint32Array(3 * (1 + (i % 40))),
     });
