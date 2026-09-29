@@ -13,6 +13,7 @@ import { rasterSource } from '../gpu/raster/shader.ts';
 import { SHADOW_DEPTH_SHADER } from '../gpu/shadow/shader.ts';
 import { FLAG_HAS_COLOR, FLAG_SAMPLED } from './types.ts';
 import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts';
+import { identityRoots } from '../page/selection/placements.fixture.ts';
 
 /** Whether the centre of a quad of vertex alpha `alpha` survives the CPU raster. */
 function covered(options: {
@@ -29,7 +30,7 @@ function covered(options: {
     'color',
     G.floatAttribute(Array(4).fill([1, 1, 1, options.alpha]).flat(), 4),
   );
-  const ids = rasterVisibilityIds(pages, cameraMoteur(camera()), [16, 16]);
+  const ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(camera()), [16, 16]);
   geometry.dispose();
   surface.dispose();
   map?.dispose();
