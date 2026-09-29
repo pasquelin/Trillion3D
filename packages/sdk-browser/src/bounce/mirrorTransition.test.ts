@@ -27,6 +27,9 @@ const evaluate = new Function(`
   const bounce={counts:{w:enabled?1:0},reach:{x:10}};
   const rayRadiance=()=>{rays++;return {rgb:1,w:hit?1:10};};
   const sampleBounce=()=>enabled?Math.PI/4:0;
+  // Constant probe radiance isolates the transition from the separately tested SH filter.
+  const filteredProbeReflection=()=>enabled?0.25:0;
+  function proxyReflectionRay(P,N,R){${scalarBody('proxyReflectionRay')}}
   function reflectedRadiance(P,N,R,rough){${scalarBody('reflectedRadiance')}}
   function mirrorLighting(rgb,metal,rough,N,V,P){${scalarBody('mirrorLighting')}}
   const mirror=mirrorLighting(1,1,rough,1,1,0), mirrorRays=rays;
@@ -47,22 +50,29 @@ test('mirror and water retain floor energy and cross the threshold continuously'
   assert.deepEqual(evaluate(floor - 1e-4), evaluate(floor));
   assert.equal(evaluate(fromHalf(toHalf(floor))).mirror, 1);
   assert.ok(evaluate(fromHalf(toHalf(floor) + 1)).mirror > 0.999);
-  assert.ok(Math.abs(evaluate((floor + end) / 2).mirror - 0.5) < 1e-12);
+  assert.ok(Math.abs(evaluate((floor + end) / 2).mirror - 0.625) < 1e-12);
   assert.ok(Math.abs(evaluate((floor + end) / 2).water - 0.625) < 1e-12);
   for (const epsilon of [1e-4, 1e-6, 1e-8]) {
     assert.ok(evaluate(floor + epsilon).mirror > 0.999);
     assert.ok(evaluate(floor + epsilon).water > 0.999);
-    assert.ok(evaluate(end - epsilon).mirror < 0.001);
+    assert.ok(Math.abs(evaluate(end - epsilon).mirror - 0.25) < 0.001);
     assert.ok(Math.abs(evaluate(end - epsilon).water - 0.25) < 0.001);
   }
   let previous = evaluate(floor);
   for (let i = 1; i <= 64; i++) {
     const current = evaluate(floor + ((end - floor) * i) / 64);
-    assert.ok(current.mirror <= previous.mirror && current.mirror >= 0);
+    assert.ok(current.mirror <= previous.mirror && current.mirror >= 0.25);
     assert.ok(current.water <= previous.water && current.water >= 0.25);
+    assert.equal(
+      current.mirror,
+      current.water,
+      'opaque and water share the same radiance transition',
+    );
+    assert.equal(current.mirrorRays, i < 64 ? 1 : 0);
+    assert.equal(current.waterRays, current.mirrorRays);
     previous = current;
   }
-  assert.deepEqual(evaluate(end), { mirror: 0, water: 0.25, mirrorRays: 0, waterRays: 0 });
+  assert.deepEqual(evaluate(end), { mirror: 0.25, water: 0.25, mirrorRays: 0, waterRays: 0 });
   assert.deepEqual(evaluate(1), evaluate(end));
 });
 
@@ -80,6 +90,8 @@ test('diffuse/toon, disabled bounce and proxy misses retain their reflection con
       mirrorRays: 0,
       waterRays: 0,
     });
-    assert.equal(evaluate(rough, 0, true, false).water, 0.25);
+    const missed = evaluate(rough, 0, true, false);
+    assert.equal(missed.water, 0.25);
+    assert.equal(missed.mirror, 0.25, 'the mirror miss keeps its original irradiance/PI fallback');
   }
 });

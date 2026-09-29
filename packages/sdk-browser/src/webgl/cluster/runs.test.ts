@@ -39,19 +39,21 @@ function frame(scene: Scene) {
       fenceSync: () => ({}),
       getSyncParameter: () => (gpu.behind ? 'UNSIGNALED' : 'SIGNALED'),
       getExtension: (name: string) =>
-        name === 'WEBGL_multi_draw' && {
-          multiDrawElementsWEBGL: (
-            ...[, counts, , , starts, , n]: [
-              number,
-              Int32Array,
-              number,
-              number,
-              Int32Array,
-              number,
-              number,
-            ]
-          ) => sent.push([...counts.subarray(0, n)].map((count, i) => [count, starts[i]])),
-        },
+        name === 'EXT_color_buffer_float'
+          ? {}
+          : name === 'WEBGL_multi_draw' && {
+              multiDrawElementsWEBGL: (
+                ...[, counts, , , starts, , n]: [
+                  number,
+                  Int32Array,
+                  number,
+                  number,
+                  Int32Array,
+                  number,
+                  number,
+                ]
+              ) => sent.push([...counts.subarray(0, n)].map((count, i) => [count, starts[i]])),
+            },
       drawElements: (_mode: number, count: number, _type: number, offset: number) =>
         sent.push([[count, offset]]),
     },
@@ -61,7 +63,19 @@ function frame(scene: Scene) {
     sent.length = 0;
     draw.render({} as HostCamera);
     draw.host.drawHostGeometry(createHostDrawCamera(), OUTPUT);
-    return [...sent];
+    const third = sent.length / 3;
+    assert.ok(Number.isInteger(third) && third > 0);
+    assert.deepEqual(
+      sent.slice(0, third),
+      sent.slice(third, 2 * third),
+      'source and reduced resolve preserve the same runs',
+    );
+    assert.deepEqual(
+      sent.slice(third, 2 * third),
+      sent.slice(2 * third),
+      'the reduced resolve and the final pass preserve the same runs',
+    );
+    return sent.slice(2 * third);
   };
   return { draw, image, gpu };
 }
@@ -75,7 +89,11 @@ test('the pages of one surface at one placement are one submission, in their ord
   // Placed as first drawn: the stone pages at the origin in one range, then the one at x = 5, which
   // breaks the run, then the wood.
   assert.deepEqual(image(), [[[18, 0]], [[3, 72]], [[3, 84]]]);
-  assert.deepEqual(draw.counters(), { triangles: 8 }, 'every triangle, as one by one');
+  assert.deepEqual(
+    draw.counters(),
+    { triangles: 24 },
+    'every triangle in source, resolve and final passes',
+  );
   pages[1].geometry.dispose();
   scene.remove(pages[1]);
   const late = page(2, stone);

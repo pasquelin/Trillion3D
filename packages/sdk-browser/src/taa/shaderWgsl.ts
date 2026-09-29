@@ -30,13 +30,13 @@ fn fromYcocg(c:vec3f)->vec3f{return vec3f(c.x+c.y-c.z,c.x+c.z,c.x-c.y-c.z);}`;
  * for those that have not moved; otherwise nothing is read, neither identifier, nor record, nor matrix.
  * `coord` is the display pixel, `at` the render texel its depth and identifier were read at.
  */
-export const TAA_REPROJECT_WGSL = `
+export const taaReprojectWgsl = (deformation = true) => `
 fn placementOf(id:u32)->u32{return pages[(id>>8u)-1u].placement;}
 fn previousUv(coord:vec2i,depthValue:f32,at:vec2i)->vec3f{
  let ndc=vec2f((f32(coord.x)+0.5)*view.viewport.z*2.0-1.0,1.0-(f32(coord.y)+0.5)*view.viewport.w*2.0);
  var position=view.invViewProj*vec4f(ndc,depthValue,1.0);
  // A deformed surface was elsewhere in the last frame: its point moves back first (#357).
- if(view.eye.w!=0.0){position=deformedPrevious(textureLoad(ids,at,0).r,position);}
+${deformation ? ' if(view.eye.w!=0.0){position=deformedPrevious(textureLoad(ids,at,0).r,position);}' : ''}
  if(view.params.z!=0.0){
   let id=textureLoad(ids,at,0).r;
   if(id!=0u){position=motion[placementOf(id)]*position;}
@@ -47,6 +47,8 @@ fn previousUv(coord:vec2i,depthValue:f32,at:vec2i)->vec3f{
  let inside=all(uv>=vec2f(0.0))&&all(uv<=vec2f(1.0));
  return vec3f(uv,select(0.0,1.0,inside));
 }`;
+
+export const TAA_REPROJECT_WGSL = taaReprojectWgsl();
 
 /**
  * Temporal resolve. The current image is refiltered on its 3×3 neighbours with the uniform

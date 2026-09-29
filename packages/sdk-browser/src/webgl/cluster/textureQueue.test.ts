@@ -22,6 +22,7 @@ function draw(hosts: {
   const gpu = { behind: false };
   const gl = createTestContext({
     answers: {
+      getExtension: (name: string) => (name === 'EXT_color_buffer_half_float' ? {} : null),
       getParameter: (name: string) =>
         name === 'COLOR_WRITEMASK' ? [true, true, true, true] : new Int32Array([0, 0, 8, 4]),
       fenceSync: () => ({}),

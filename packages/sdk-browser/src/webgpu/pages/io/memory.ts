@@ -56,6 +56,7 @@ export function hostTableBytesOf(rt: WebgpuPagesRuntime) {
 export async function setWebgpuMemoryBudgets(
   rt: WebgpuPagesRuntime,
   budgets: MemoryBudgets,
+  origin: 'host' | 'prepare-targets' = 'host',
 ): Promise<MemoryBudgetsReport> {
   const { setup, gpu, vis, run, diag } = rt;
   const started = performance.now();
@@ -104,7 +105,10 @@ export async function setWebgpuMemoryBudgets(
   if (budgets.geometryPoolBytes !== undefined) {
     const { bytes, declared } = geometryBudgetBeside(rt, budgets.geometryPoolBytes);
     // A pool above the tables waits for a running prepare: the tables it builds are those that grow.
-    if (setup.preparing && setup.geometryPoolFor(bytes).slots > setup.cap) await setup.preparing;
+    if (setup.preparing && setup.geometryPoolFor(bytes).slots > setup.cap) {
+      if (origin === 'prepare-targets') throw new Error('TARGET_ADMISSION_REQUIRES_TABLE_GROWTH');
+      await setup.preparing;
+    }
     let pool: GeometryPool | undefined = setup.geometryPoolFor(bytes);
     // The tables first: a pool whose pages would find no row is never put in place, and the probe
     // then asks the device for the pool beside the tables it already holds.
@@ -135,7 +139,7 @@ export async function setWebgpuMemoryBudgets(
   run.gate.resourcesChanged();
   // Set while prepare runs, a budget is only recorded: the report waits for prepare, and names the
   // pools the device grants. A prepare that fails reports its own failure.
-  await setup.preparing;
+  if (origin === 'host') await setup.preparing;
   const report = {
     geometryPool: setup.geometryPool,
     texturePool: setup.texturePools?.pool ?? null,

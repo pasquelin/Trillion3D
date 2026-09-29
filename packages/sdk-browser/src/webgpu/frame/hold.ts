@@ -30,6 +30,7 @@ const REASONS = [
   'cutPending',
   'bounceProbes',
   'deforming',
+  'reflections',
 ] as const;
 const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << index])) as Record<
   (typeof REASONS)[number],
@@ -39,11 +40,7 @@ export const TEXTURES_PENDING = BIT.texturesPending,
   SHADOWS_PENDING = BIT.shadowsPending;
 
 /**
- * What still keeps the frame from depending only on a host write, in bits: a load in progress, a
- * shown list still to adopt, an occlusion history to establish, a texture in flight, a pending
- * shadow, a probe to converge. Zero when nothing moves any more. Every doubt is settled on the
- * “redo the work” side: each missing condition sets its bit. No allocation: hold reads it every
- * frame, the barrier uses it as a stop predicate.
+ * Pending work that can change the frame. Read without allocation by hold and the barrier.
  */
 export function unsettledMask(rt: WebgpuPagesRuntime) {
   const { run, vis, lights, bounce, capture, services, timing } = rt,
@@ -59,10 +56,7 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   // A cut past the page budget is a steady state: its surface is drawn by the nearest resident
   // ancestor, and the pages the pool accepted are counted by `cutPending` below.
   if (run.overBudget) mask |= BIT.overBudget;
-  // Only the partition establishes that history, and it runs only on opaque rows: a view without
-  // any — blend clusters alone, the sky — has no occluder to remember. The bit stays set, so the
-  // first frame that packs a row still frees the rows the partition kept. Without a partition —
-  // Hi-Z dropped — there is no history to establish.
+  // Only opaque rows with a partition need occluder history; sky and blend alone do not.
   if (run.noOccluderHistory && rows.packedCount && vis.gpuPartition) mask |= BIT.noOccluderHistory;
   if (run.deferredDrops.size) mask |= BIT.deferredDrops;
   if (!services.bootstrapState.ready) mask |= BIT.bootstrap;
@@ -74,24 +68,29 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
     rows.candidateOverflow
   )
     mask |= BIT.rowsDirty;
-  // A requested tile not yet served will change the frame when it arrives; and a settle must
-  // render to read what the pose asks for, never hold.
+  // Pending tiles must render on arrival, and settle must read what the pose requests.
   if (vis.textures?.counters.pending || run.textureConverging) mask |= BIT.texturesPending;
   // A shadow page stale and read, a request report on its way, a representation change held
   // until the camera rests: each must find a frame (`shadowsUnsettled`).
   if (shadowsUnsettled(lights)) mask |= BIT.shadowsPending;
-  // Every page of the requested cut carries its bytes. A still-pending page can still change the
-  // cut, hence the frame: holding it would open a hole. This count is held by the cut difference,
-  // never reread on the list.
+  // Pending cut pages must land before holding; the cut difference keeps this count.
   if (services.cutPending.count) mask |= BIT.cutPending;
-  // Probes being built or converging still change the frame; a closed series can hold (#1281).
+  // Closed probe series hold; a pending unrefused series still needs a frame.
   if (bounce.probes ? bounce.probes.working : bounce.pending && !bounce.reason)
     mask |= BIT.bounceProbes;
-  // Deformation motion needs a frame to advance its temporal history (#357).
+  // Only an active contract pass can advance reflection history; unlit never consumes it.
+  const reflection = rt.gpu.reflection;
+  if (
+    rt.gpu.deferred?.usesContract &&
+    reflection?.active &&
+    reflection.history &&
+    !reflection.history.settled
+  )
+    mask |= BIT.reflections;
+  // Deformation advances its own temporal history.
   if (vis.deformation?.frame.pending()) mask |= BIT.deforming;
   return mask;
 }
-
 /** Names of the bits that are set: what the barrier publishes when the pose does not settle. */
 export const unsettledReasons = (mask: number) =>
   REASONS.filter((reason) => (mask & BIT[reason]) !== 0);
@@ -144,9 +143,7 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
  * target IS this frame, to the bit, since nothing it depends on has moved. It is simply
  * redisplayed.
  *
- * A `GPUCommandBuffer` already submitted is not resubmitted, and a `GPURenderBundle` can carry
- * neither the frame's compute passes — selection, Hi-Z pyramid, small triangles, light lists,
- * deferred resolve — nor its copies: replaying the render bundles alone would not yield the frame.
+ * Replaying render bundles alone omits the frame's compute passes and copies.
  * Redisplaying the intact target yields it exactly, and that is the only command encoded.
  */
 export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
@@ -154,13 +151,18 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     awaited = frameTargetsAwaited(rt),
     answered = !deviceAnswering(rt);
   if ((answered && !awaited) || rt.capture.capturing) {
-    // Still frame: nothing it depends on has moved and nothing is in flight. That is the frame
-    // input of temporal accumulation, which restarts there in a fixed phase and converges over a
-    // full cycle of those frames before one of them can be held (`taaStillFrames`).
-    const quiet = run.gate.held() && unsettledMask(rt) === 0;
-    // Guides or an effect chain the page changed, or a chain the last image lacked while its
-    // programs compiled, are drawn by a full image; the accumulation stays still for it.
-    if (!quiet || !taaSettled(rt) || guidesMoved(rt) || effectsMoved(rt) || particlesMoved(rt)) {
+    // Reflection refinement delays holding, but a still source keeps the full TAA scale/lights.
+    const unsettled = unsettledMask(rt);
+    const quiet = run.gate.held() && (unsettled & ~BIT.reflections) === 0;
+    // Guides and effects may still require drawing this quiet source.
+    if (
+      !quiet ||
+      unsettled & BIT.reflections ||
+      !taaSettled(rt) ||
+      guidesMoved(rt) ||
+      effectsMoved(rt) ||
+      particlesMoved(rt)
+    ) {
       // Only an image that is drawn enters the accumulation: a held one leaves it as is (#26).
       beginTaaFrame(rt, run.gate.cam, quiet);
       run.frameHeld = false;
@@ -192,7 +194,6 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
 export function keepWebgpuFrame(rt: WebgpuPagesRuntime) {
   const { gate, textureConverging } = rt.run;
   if (textureConverging || rt.feedbackAB?.force) return;
-  // A shadow page this still image drew changed what it reads mid-average (#1016).
   restartTaaOnLanding(rt, rt.lights.shadowPages);
   sampleWebgpuFrame(rt, gate.hold.sample);
   gate.hold.keep(gate.revisions);

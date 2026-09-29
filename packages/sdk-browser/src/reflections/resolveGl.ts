@@ -1,11 +1,10 @@
 import { LTC_UNIT } from '../webgl/cluster/rectGlsl.ts';
 
-/** Texture units of the reduced-resolution mirror resolve: its colour, then the depth it tests. */
-export const REFLECTION_RESOLVE_UNIT = LTC_UNIT + 7;
-export const REFLECTION_RESOLVE_UNITS: [number, number] = [
-  REFLECTION_RESOLVE_UNIT,
-  REFLECTION_RESOLVE_UNIT + 1,
-];
+/** Texture units of the reduced-resolution mirror resolve: its colour, then the depth it tests.
+ *  They alias the frozen source's (`captureGl.target`), which the display pass no longer reads
+ *  once the reduced image is bound there — no extra fragment texture unit, the program's budget
+ *  full (#1292). */
+export const REFLECTION_RESOLVE_UNITS: [number, number] = [LTC_UNIT + 1, LTC_UNIT + 2];
 
 /**
  * A mirror receiver's screen-space trace is resolved at most at this many pixels, whatever the
