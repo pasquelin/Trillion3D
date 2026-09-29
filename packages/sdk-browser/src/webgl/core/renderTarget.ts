@@ -24,6 +24,9 @@ export type HostDrawOutput = {
   width: number;
   /** Height in pixels. */
   height: number;
+  /** The width the image is shown at when drawn below it (`world.renderScale`): texture levels
+   *  and line widths follow the ratio. `width` when absent. */
+  displayWidth?: number;
   /** Linear radiance, neither tone-mapped nor encoded, over transparent black: the effect chain's
    *  input, whose alpha is coverage. */
   linear?: boolean;
@@ -113,8 +116,24 @@ export function bindWebglTarget(gl: WebGL2RenderingContext, target: WebglRenderT
   return { width, height };
 }
 
+/** Clears the bound target whole — colour, far depth, stencil — to the opaque `colour`, or to
+ *  transparent black without one. */
+export function clearWebglTarget(gl: WebGL2RenderingContext, colour?: readonly number[]) {
+  gl.disable(gl.SCISSOR_TEST);
+  gl.colorMask(true, true, true, true);
+  gl.depthMask(true);
+  gl.clearColor(colour?.[0] ?? 0, colour?.[1] ?? 0, colour?.[2] ?? 0, colour ? 1 : 0);
+  gl.clearDepth(1);
+  gl.clearStencil(0);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+}
+
 /** Binds `texture` on texture unit `unit` for the next draw to sample. */
-export function bindWebglTexture(gl: WebGL2RenderingContext, unit: number, texture: WebGLTexture) {
+export function bindWebglTexture(
+  gl: WebGL2RenderingContext,
+  unit: number,
+  texture: WebGLTexture | null,
+) {
   gl.activeTexture(gl.TEXTURE0 + unit);
   gl.bindTexture(gl.TEXTURE_2D, texture);
 }

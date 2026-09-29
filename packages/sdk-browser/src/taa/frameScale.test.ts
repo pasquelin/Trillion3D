@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 import { beginTaaFrame } from './frame.ts';
 import { createTaaFrameState } from './frameState.ts';
-import { createScaleControl } from '../webgpu/pages/state/scaleControl.ts';
+import { createScaleControl } from '../frame/scaleControl.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { EngineCamera } from '../camera/world.ts';
 
