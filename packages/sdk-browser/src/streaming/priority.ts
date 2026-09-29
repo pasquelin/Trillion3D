@@ -7,6 +7,7 @@ import {
 import { clipWeight } from '../../../sdk-core/src/math/primitives/camera.ts';
 import { copyElements, type MatrixElements } from '../math/matrixElements.ts';
 import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
+import { rootOf, type Placements } from '../page/selection/types.ts';
 
 /** Everything the order needs from a cluster record; a superset of `PageRec`. */
 export interface PriorityRecord {
@@ -19,7 +20,8 @@ export interface PriorityRecord {
   parentSphere?: number[] | null;
   min: number[];
   max: number[];
-  matrix: MatrixElements;
+  /** Rank of the root whose world places it (`rootOf`). */
+  placementIndex?: number;
 }
 /** What the order reads of the engine camera: its view, its near plane and its projection's
  *  clip-w weight (`EngineCamera.perspective`, 1 when absent), nothing else. */
@@ -83,6 +85,7 @@ interface Slot {
  */
 export function orderPendingUrls(
   records: readonly PriorityRecord[],
+  roots: Placements,
   cam: PriorityCamera,
   pixelScale: readonly number[],
   into: string[],
@@ -97,13 +100,14 @@ export function orderPendingUrls(
     const record = records[index];
     if (record.array) continue;
     const key = record.streamUrl ?? record.url;
-    let frame = views.get(record.matrix);
+    const world = rootOf(roots, record).world;
+    let frame = views.get(world);
     if (!frame) {
       const view = new Float64Array(16);
-      copyElements(worldMirror, record.matrix.elements);
+      copyElements(worldMirror, world.elements);
       multiplyMatrix4(view, cam.view, worldMirror);
       frame = { view, stretch: maxStretch(view as unknown as readonly number[]) };
-      views.set(record.matrix, frame);
+      views.set(world, frame);
     }
     const sphere = record.parentSphere ?? record.sphere;
     const error = record.parentError ?? record.lodError;
