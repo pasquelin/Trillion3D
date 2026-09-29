@@ -34,7 +34,6 @@ export async function createWaterFrame(device: GPUDevice) {
   const identity = createWebgpuBindIdentity();
   let group: GPUBindGroup | undefined, surfaces: SurfaceBuffer | undefined;
   let routed: GPURenderPipeline | undefined;
-  const { drawn } = freeze;
   const surfaceDepth: GPURenderPassDepthStencilAttachment = {
     view: undefined as unknown as GPUTextureView,
     depthLoadOp: 'load',
@@ -157,7 +156,7 @@ export async function createWaterFrame(device: GPUDevice) {
       if (rt.feedbackAB?.target !== false) attachments[4] = feedbackAttachment(rt);
       else attachments.length = 4;
       const pass = encoder.beginRenderPass(surfacePass);
-      pass.setViewport(0, 0, drawn.width, drawn.height, 0, 1);
+      pass.setViewport(0, 0, rt.gpu.targetSize[0], rt.gpu.targetSize[1], 0, 1);
       scissorTo(pass, rect);
       const encoded = drawBlendRuns(rt, device, pass, 1, pipelines);
       pass.end();

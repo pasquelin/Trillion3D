@@ -13,7 +13,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../../visibility/shader/materialClass.ts';
 import { MATERIAL_DEPTH_PASS } from '../../core/materialPasses.ts';
 import { createAsIsShare } from '../../../lighting/deferred/asIsShare.ts';
-import type { FrameSize } from '../state/renderScale.ts';
+import { displayApart, type FrameSize } from '../state/renderScale.ts';
 
 /** Bytes per pixel of the display colour (`DISPLAY_FORMAT`). */
 const DISPLAY_BYTES = 4;
@@ -52,7 +52,7 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
     gpu.allocatedSize[1] === size.renderHeight &&
     gpu.displaySize[0] === size.width &&
     gpu.displaySize[1] === size.height &&
-    (gpu.displayTexture !== gpu.colorTexture) === size.apart &&
+    displayApart(gpu) === size.apart &&
     !!gpu.surfaces &&
     !!gpu.feedbackTexture === (rt.feedbackAB?.target !== false) &&
     gpu.reflection?.active === wantsReflections(rt) &&
