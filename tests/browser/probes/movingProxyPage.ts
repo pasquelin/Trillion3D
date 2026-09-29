@@ -45,7 +45,7 @@ export async function run() {
   // exist, it still reports owner 0. The real ranges come back before anything moves.
   device.queue.writeBuffer(resident.buffer, rangesByte, new Uint32Array([7, 9]));
   const still = await rig.trace();
-  device.queue.writeBuffer(resident.buffer, rangesByte, groupOffsets);
+  device.queue.writeBuffer(resident.buffer, rangesByte, groupOffsets.slice());
   const moved = resident.sync(worldOf);
   const after = await rig.trace();
   const dynamic = resident.dynamic;

@@ -11,6 +11,9 @@ const readers = new WeakMap<
   (source: number) => ArrayLike<number> | undefined
 >();
 const seen = new WeakMap<MovingProxy, number>();
+/** Frame of each proxy's last sync: a proxy synced twice in one frame (bounce, then lighting)
+ *  does not settle in the frame it moved. */
+const syncedFrame = new WeakMap<MovingProxy, number>();
 
 /** Source identity is indexed once; matrices are the engine's live views, including parents. */
 function reader(rt: WebgpuPagesRuntime) {
@@ -34,11 +37,18 @@ function reader(rt: WebgpuPagesRuntime) {
  *  settles (`epoch + 0.5` records that try, so a proxy that cannot settle costs nothing more). */
 export function syncPageProxy(rt: WebgpuPagesRuntime, proxy: MovingProxy, arrived = false) {
   const epoch = rt.run.gate.revisions.scene,
+    frame = rt.run.frame,
     last = seen.get(proxy);
-  if (!arrived && (last === epoch + 0.5 || (last === epoch && !proxy.dynamic))) return false;
+  if (
+    !arrived &&
+    (last === epoch + 0.5 ||
+      (last === epoch && (!proxy.dynamic || syncedFrame.get(proxy) === frame)))
+  )
+    return false;
   if (arrived) rt.setup.worlds.refresh();
   const moved = proxy.sync(reader(rt));
   seen.set(proxy, last === epoch ? epoch + 0.5 : epoch);
+  syncedFrame.set(proxy, frame);
   return moved;
 }
 

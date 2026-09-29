@@ -17,8 +17,12 @@ export const PROXY_COUNT_OFFSET = PROXY_COUNTING_OFFSET + 4;
 export const PROXY_COUNTS = 2;
 /** Rank of the first layout word: node count, then the three start ranks. */
 export const PROXY_LAYOUT_WORD = 7;
+/** Motion flag: rays read owner poses while it is set. */
+export const PROXY_DYNAMIC_WORD = 11;
+/** Revision of the owner poses. */
+export const PROXY_REVISION_WORD = 16;
 /** Visited nodes a ray may take, derived from the tree (`proxy.ts`), after the revision word. */
-export const PROXY_STEPS_WORD = 17;
+export const PROXY_STEPS_WORD = PROXY_REVISION_WORD + 1;
 
 /**
  * Declaration of the resident proxy at the binding slot the calling pass gives it. The three
