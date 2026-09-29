@@ -10,6 +10,8 @@ import { EngineError } from '../contracts/cache.ts';
 const WORLD_ROOTS_VERSION = 1;
 /** The table beside the manifest; its binary is the one its `payload` names. */
 export const WORLD_ROOTS_FILE = 'world-roots.json';
+/** The binary the cook writes beside it, the one its `payload` names; a reader follows `payload`. */
+export const WORLD_ROOTS_BIN = 'world-roots.bin';
 
 /** One bundle of `world-roots.bin`: its range in the binary, its digest, its page count and the
  *  bundles it needs. */

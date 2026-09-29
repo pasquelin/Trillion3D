@@ -19,6 +19,7 @@ import {
   assertWorldRoots,
   cellDependencies,
   worldBundlePages,
+  WORLD_ROOTS_BIN,
   WORLD_ROOTS_FILE,
   type WorldRoots,
   type WorldRootsPage,
@@ -32,6 +33,11 @@ import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
 type Announced = { bytes: number; sha256: string };
 /** Where a cache keeps its world roots' table: the one address its reader and a load's plan use. */
 export const worldRootsUrl = (base: string) => new URL(WORLD_ROOTS_FILE, base).href;
+/** The table's address and the binary's the cook writes beside it: what a load reads of them. */
+export const worldRootsUrls = (base: string) => [
+  worldRootsUrl(base),
+  new URL(WORLD_ROOTS_BIN, base).href,
+];
 
 /** Bundles `[first, end)` of the binary `read` reads (`rangedReader`), in one ranged request that
  *  `meter` counts, each checked against its digest, then its pages. */

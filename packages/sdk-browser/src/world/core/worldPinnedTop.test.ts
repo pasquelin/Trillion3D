@@ -23,5 +23,7 @@ test('a loaded model pins the world top its cook published, and its cell holds t
   const held = cellDependencies(roots.table, 0);
   assert.deepEqual(roots.held(), held, 'the one cell holds its bundles past the top');
   const heldBytes = held.reduce((sum, bundle) => sum + roots.table.bundles[bundle].bytes, 0);
-  assert.equal(roots.bytes(), cooked.pinnedTopBytes + heldBytes, 'every byte is counted');
+  // The site fixture ignores the Range: the whole binary is read once and kept (`rangedReader`).
+  const whole = roots.table.payload.bytes;
+  assert.equal(roots.bytes(), cooked.pinnedTopBytes + heldBytes + whole, 'every byte is counted');
 });
