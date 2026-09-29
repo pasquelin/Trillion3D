@@ -7,7 +7,7 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { timing, diag } = rt;
   // Trace samples every image; the per-stage profile needs enough samples for an honest p95;
   // without either, the original cadence is kept as-is. The render-scale controller reads every
-  // image it can (`../state/scaleControl.ts`), its bounds read at each frame: a page may ask
+  // image it can (`../../../frame/scaleControl.ts`), its bounds read at each frame: a page may ask
   // `'auto'` after the session opened.
   const sampleEveryFrames = () =>
     diag.traceEnabled || rt.scale.bounds.auto ? 1 : timing.stages ? 3 : 12;

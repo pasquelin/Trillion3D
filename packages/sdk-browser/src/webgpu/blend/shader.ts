@@ -170,7 +170,7 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
   }else if((flags&0x10000000u)!=0u){color=select(vec3f(0.5,0.55,0.6),hashColor(in.diagId&0x00ffffffu),in.diagId!=0u);}
   else if((flags&0x08000000u)!=0u){color=select(vec3f(0.04,0.51,0.94),vec3f(0.95,0.42,0.05),(in.diagId&0x80000000u)!=0u);}
   else if((flags&0x04000000u)!=0u){let ratio=f32((in.diagId>>24u)&127u)/127.0;color=vec3f(ratio,1.0-ratio,0.12);}
-  return BlendOut(vec4f(color,1.0),s.request,vec4f(0.0,0.0,0.0,1.0),vec4f(1.0),vec4f(0.0));
+  return BlendOut(vec4f(color,1.0),s.request,vec4f(0.0,1.0,0.0,1.0),vec4f(1.0),vec4f(0.0));
  }
  var rgb=s.rgb;
  // No declared lamp, or an unlit view requested: the raw albedo, exactly like the opaque
@@ -191,7 +191,7 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
   if((flags&${surfaceModel.FOG_FREE_MODEL_BIT << surfaceModel.MODEL_SHIFT}u)==0u){rgb=fogged(rgb,in.view,uni.eye.xyz);}
  }
  let r=displayRoute(rgb,uni.exposure,uni.toneCurve,unlit,s.alpha,masked);
- return BlendOut(vec4f(rgb,s.alpha*r.keep),s.request,vec4f(0.0,0.0,0.0,s.alpha*r.keep),r.tint,r.add);
+ return BlendOut(vec4f(rgb,s.alpha*r.keep),s.request,vec4f(0.0,1.0,0.0,s.alpha*r.keep),r.tint,r.add);
 }
 // A filtered image's pipelines read the display mask (group 2); every other one reads none.
 @fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{return blendFragment(in,front,0.0);}

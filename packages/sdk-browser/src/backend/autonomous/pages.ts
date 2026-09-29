@@ -13,6 +13,7 @@ import { createAutonomousResidency } from './residency.ts';
 import { createAutonomousPool } from './poolApi.ts';
 import { createHeldFloor } from './heldFloor.ts';
 import { createWebglViews } from './views.ts';
+import { autonomousRenderScale } from './renderScale.ts';
 import { createContractLighting, graphBackground } from '../../lighting/contractLightingApi.ts';
 import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts';
 import type { BackendFactory } from '../types.ts';
@@ -150,6 +151,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       coverChanged: heldFloor.placed,
     }),
     ...lightingApi,
+    ...autonomousRenderScale(context),
     setClearColor: graphBackground(scene, gate.resourcesChanged),
     pendingUrls: residency.pendingUrls,
     retainedRanks: residency.retainedRanks,
