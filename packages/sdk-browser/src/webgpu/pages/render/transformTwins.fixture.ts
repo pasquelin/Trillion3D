@@ -4,9 +4,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as G from '../../../host/graph/graph.fixture.ts';
-import { BOX_VALUES, boxTransform } from '../../../../../sdk-core/src/index.ts';
 import { PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
-import { racine, runtime } from '../../core/transformShear.fixture.ts';
+import { selectionRoot, runtime } from '../../core/transformShear.fixture.ts';
 import { hostWorldPlacements } from '../../../host/world/placements.ts';
 import {
   drawPose,
@@ -44,13 +43,17 @@ export async function world(seed: number, lot: boolean, whole: boolean) {
   const meshes = nodes.filter((node) => node instanceof G.Mesh);
   const roots = meshes.map((mesh, i) => {
     const low = [draw() - 1, draw() - 1, draw() - 1];
-    const root = racine(mesh, [...low, low[0] + 2 * draw(), low[1] + draw(), low[2] + 3], worlds);
+    const root = selectionRoot(
+      mesh,
+      [...low, low[0] + 2 * draw(), low[1] + draw(), low[2] + 3],
+      worlds,
+    );
     // The page ranks its root, as a collected page does: its row is that root's world.
     Object.assign(root.pages[0], { packedIndex: i, placementIndex: i });
     return root;
   });
-  const { rt, layout, run, mouvements } = runtime(source, roots, worlds);
-  const log: unknown[] = mouvements,
+  const { rt, layout, run, motions } = runtime(source, roots, worlds);
+  const log: unknown[] = motions,
     n = roots.length,
     ranks = Int32Array.from(roots, (_, i) => i),
     dirty = new Uint8Array(n);
@@ -76,9 +79,7 @@ export async function world(seed: number, lot: boolean, whole: boolean) {
     run.gate.updateWorlds(worlds);
   };
   image();
-  /** Nodes the host removed or reparented: their link in the engine index may be stale. */
-  const cut = new Set<Object3D>();
-  return { rt, source, nodes, roots, rows, log, image, cut };
+  return { rt, source, nodes, roots, rows, log, image };
 }
 export type World = Awaited<ReturnType<typeof world>>;
 
@@ -97,7 +98,7 @@ export function edit(draw: Draw, kind: number, twins: World[]) {
     to = Math.floor(draw() * a.nodes.length),
     seed = Math.floor(draw() * 1e9),
     name = draw() < 0.5 ? pick(draw, a.nodes).name : `fresh${seed}`;
-  for (const { nodes, image, cut } of twins) {
+  for (const { nodes, image } of twins) {
     const node = nodes[at],
       parent = nodes[to];
     if (kind === 0) drawPose(seeded(seed), node);
@@ -107,8 +108,8 @@ export function edit(draw: Draw, kind: number, twins: World[]) {
       added.name = name;
       parent.add(added);
       nodes.push(added);
-    } else if (kind === 3 && node !== nodes[0]) cut.add(node.removeFromParent());
-    else if (kind === 4 && !isAncestor(node, parent)) cut.add(parent.add(node) && node);
+    } else if (kind === 3 && node !== nodes[0]) node.removeFromParent();
+    else if (kind === 4 && !isAncestor(node, parent)) parent.add(node);
     else if (kind === 5) image();
   }
   return at;
@@ -140,40 +141,4 @@ export function assertSame(a: World, b: World, label: string, worlds: boolean) {
   sameState(a, b, label, worlds);
   assert.deepEqual(a.log, b.log, `${label} motion and mobility`);
   a.log.length = b.log.length = 0;
-}
-
-/**
- * Roots whose row differs between the batch twin `a` and the one-by-one twin `b`, taken by `b` and
- * the `others`. The engine index keeps the links it was built on (`tree.ts`): one by one, a root
- * under a node the host cut keeps the row and box of the call that listed it while a later call
- * moves it through the old link; the batch writes both final. Proved that case (`a` is its world,
- * `b` is not, a cut node on its chain, the one-by-one twins agree), then copied. Returns the ranks.
- */
-export function takeFinalRows(a: World, b: World, others: World[]) {
-  const taken = new Set<number>(),
-    box = new Float64Array(BOX_VALUES),
-    bytes = (x: World) => Buffer.from(x.rows.pageTableFloats.buffer);
-  if (bytes(a).equals(bytes(b))) return taken;
-  a.roots.forEach((root, i) => {
-    const row = (x: World) => x.rows.pageTableFloats.subarray(i * ROW_WORDS, i * ROW_WORDS + 16);
-    const [p, q] = [row(a), row(b)];
-    if (p.every((v, k) => Object.is(v, q[k]))) return;
-    const world = (x: World) => Float32Array.from(x.roots[i].world.elements);
-    sameBits(p, world(a), `root ${i}: the batch row is its final world`);
-    assert.ok(!q.every((v, k) => Object.is(v, world(b)[k])), `root ${i}: one by one is final`);
-    if (root.localBox) boxTransform(box, 0, root.localBox, 0, root.world.elements);
-    if (root.localBox) sameBits(root.worldBox!, box, `root ${i}: the batch box is its final one`);
-    const mesh = root.pages[0].sourceMesh as Object3D;
-    assert.ok(
-      [...a.cut].some((n) => isAncestor(n, mesh)),
-      `root ${i}: no link cut above`,
-    );
-    for (const x of others) sameBits(row(x), q, `root ${i}: one by one, the twins' rows`);
-    for (const x of [b, ...others]) {
-      row(x).set(p);
-      x.roots[i].worldBox?.set(root.worldBox!);
-    }
-    taken.add(i);
-  });
-  return taken;
 }
