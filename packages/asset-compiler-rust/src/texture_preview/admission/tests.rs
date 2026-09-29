@@ -106,7 +106,11 @@ fn varying_weights_and_thin_images_keep_every_wave_within_its_allowance() {
         3 * (preview_pixel_bytes(1, 16384) + 2 * preview_block_bytes(1, 16384))
     );
     assert!(cost.working >= 128 + 16384 * 20);
-    assert!(admit(&[cost::estimate(u32::MAX, u32::MAX, usize::MAX, 3, 2)], 1024).is_err());
+    assert!(admit(
+        &[cost::estimate(u32::MAX, u32::MAX, usize::MAX, 3, 2)],
+        1024
+    )
+    .is_err());
 }
 
 #[test]
