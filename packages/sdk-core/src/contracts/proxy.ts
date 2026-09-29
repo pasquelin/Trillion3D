@@ -14,11 +14,11 @@
  */
 
 /** Version of the "proxy" cache product. A proxy of another version is rejected, never guessed. */
-export const SCENE_PROXY_VERSION = 3;
+export const SCENE_PROXY_VERSION = 4;
 /** 'W','G','P','X' read as an unsigned 32-bit integer little-endian. */
 export const SCENE_PROXY_MAGIC = 0x58504757;
-/** Header integers: signature, version, triangle/node/group/owner/source counts, reserved zero. */
-export const SCENE_PROXY_HEADER_WORDS = 8;
+/** Header integers: v3 ownership header, then shape, stored-triangle and placement counts. */
+export const SCENE_PROXY_HEADER_WORDS = 11;
 /** Numbers per proxy triangle: three world vertices, no normal — it is deduced from the triangle. */
 export const PROXY_TRIANGLE_FLOATS = 9;
 /** Numbers per BVH node: its exact bounds, frame of its children's quantized boxes. */
@@ -89,7 +89,7 @@ export interface SceneProxyDescriptor {
   instances: number;
 }
 
-/** The read proxy: its descriptor and its columns, views on the bytes of its cache object. */
+/** The read proxy: its descriptor and its immutable columns, with shared triangles expanded at load. */
 export interface SceneProxy extends SceneProxyDescriptor {
   /** Its columns. */
   data: SceneProxyColumns;
