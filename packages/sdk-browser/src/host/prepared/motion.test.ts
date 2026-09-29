@@ -62,6 +62,6 @@ test('a skinned node bends by its skin, and a clip moves a joint the file left u
   assert.equal(clips[0].name, 'bend');
   const mixer = animation.createMixer(scene);
   mixer.clipAction(clips[0]).play();
-  mixer.update(0.5);
-  assert.ok(Math.abs(nodes[2].quaternion.z - Math.SQRT1_2) < 1e-6);
+  mixer.update(0.25);
+  assert.ok(Math.abs(nodes[2].quaternion.z - Math.sin(Math.PI / 8)) < 1e-6);
 });
