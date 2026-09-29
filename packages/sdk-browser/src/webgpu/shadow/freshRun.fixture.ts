@@ -6,7 +6,12 @@ import { MAX_SHADOW_SLICES } from '../../../../sdk-core/src/index.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
-import { runShadowAllocation, runShadowWords, shadowsOf } from './allocRun.fixture.ts';
+import {
+  runShadowAllocation,
+  runShadowFloors,
+  runShadowWords,
+  shadowsOf,
+} from './allocRun.fixture.ts';
 import { SHADOW_FRESH_CULL_WGSL } from './freshCullWgsl.ts';
 import { FRESH_ARG, FRESH_PARAM_WORDS, FRESH_SLICE_FLOATS } from './freshLayout.ts';
 import { FRESH_LANES, SHADOW_FRESH_WGSL } from './freshWgsl.ts';
@@ -134,8 +139,8 @@ export function runShadowPass(
 ) {
   const bound = () => group.entries.map((entry) => entry.resource.buffer!.data);
   const run = {
-    allocateShadowPages: () =>
-      runShadowAllocation(...(bound() as Parameters<typeof runShadowAllocation>)),
+    claimShadowFloors: () => runShadowFloors(...bound()),
+    allocateShadowPages: () => runShadowAllocation(...bound()),
     applyShadowWords: () => runShadowWords(...(bound() as Parameters<typeof runShadowWords>)),
     composeShadowPages: () => runShadowFresh('composeShadowPages', ...bound()),
     sealShadowPages: () => runShadowFresh('sealShadowPages', ...bound()),
