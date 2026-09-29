@@ -1208,7 +1208,7 @@
   },
   "createShadowPlan": {
     "summary": "Lo scheduler delle ombre delle mappe virtuali.",
-    "description": "L’ombreggiatura annota le pagine che legge; il loro rapporto, riletto qualche fotogramma dopo, alloca ciò che manca dal pool fisso. Ciò che si è mosso invalida le pagine allocate che copre. Un fotogramma disegna poi ogni pagina scaduta che l’immagine legge, tutte in quel fotogramma: a contenere il costo è la cache — una pagina viene ridisegnata solo quando cambia ciò che contiene —, e il pool è l’unico limite. Una scena ferma, la cui ombreggiatura non gira più, non chiede nulla e non disegna nulla. Tutti gli array sono allocati una volta; `plan()` non alloca nulla."
+    "description": "I ricevitori del fotogramma nominano le pagine che leggono prima della sua rasterizzazione (`demand.ts`) — senza di loro, il rapporto dell’ombreggiatura, riletto qualche fotogramma dopo — e ciò che manca è allocato dal pool fisso. Ciò che si è mosso invalida le pagine allocate che copre. Un fotogramma disegna poi ogni pagina scaduta che l’immagine legge, tutte in quel fotogramma (`admit.ts`): a contenere il costo è la cache — una pagina viene ridisegnata solo quando cambia ciò che contiene —, e il pool è l’unico limite. Una scena ferma, la cui ombreggiatura non gira più, non disegna nulla. Tutti gli array sono allocati una volta — le celle dei ricevitori crescono solo per un fotogramma con più ricevitori —; `plan()` non alloca altro."
   },
   "createTerminalProgress": {
     "summary": "Una barra di avanzamento nel terminale che segue gli eventi del compilatore.",
@@ -5512,7 +5512,7 @@
       "gpuShadowRasterMs": "Tempo GPU per disegnare quei proiettori nelle pagine: lo strato statico, poi il pool.",
       "gpuLightingMs": "Tempo GPU dell'illuminazione.",
       "shadowLightCuts": "Tagli di cluster eseguiti dalle luci: uno per vista di luce disegnata, zero in un fotogramma fermo.",
-      "shadowPagesRequested": "Pagine d’ombra virtuali lette dall’immagine, come le ha nominate il suo ultimo rapporto di richieste: ciò che marcano i ricevitori della camera.",
+      "shadowPagesRequested": "Pagine d’ombra virtuali che l’immagine legge, come le ha nominate la domanda anticipata del fotogramma — o, senza di essa, il suo ultimo rapporto di richieste: ciò che marcano i ricevitori della camera.",
       "shadowPagesCached": "Di queste, pagine lette direttamente dal pool: aggiornate, senza disegno.",
       "shadowPoolPages": "Pagine fisiche del pool fisso che contengono una pagina virtuale.",
       "shadowPoolBytes": "Byte GPU del pool delle ombre: le sue pagine di profondità, i loro strati statico e di trasmittanza una volta creati, e i buffer accanto. Null finché il primo fotogramma non dimensiona il pool.",
@@ -5536,7 +5536,7 @@
       "releaseDeferred": "Il fotogramma non pianifica alcuna ombra: l’unione trattenuta entra subito nella lista.",
       "setPageInvalidation": "Disattiva l’invalidazione per pagina: un oggetto in movimento invalida ogni pagina delle luci che tocca. Attiva per impostazione predefinita.",
       "pageInvalidation": "Se un oggetto in movimento invalida solo le pagine coperte dal suo box.",
-      "plan": "Pianifica un fotogramma: invalida ciò che si è mosso, legge l’ultimo rapporto, ammette ogni pagina da disegnare.",
+      "plan": "Pianifica un fotogramma: invalida ciò che si è mosso, legge la domanda dei ricevitori — o altrimenti l’ultimo rapporto —, ammette ogni pagina da disegnare.",
       "reissue": "Le pagine del fotogramma da `from` in poi non hanno potuto essere codificate: restano scadute, in attesa, e il fotogramma successivo le disegna.",
       "reset": "Ricomincia.",
       "setThreshold": "La soglia a cui i tagli di luce scelgono i proiettori d’ombra (`thresholds.ts`).",
@@ -6881,7 +6881,7 @@
       "texturePoolClamp": "Motivo del limite del pool di texture: `minimum`, `device-limit`.",
       "hizCulled": "Cluster che il test di occlusione ha trovato nascosti in questo fotogramma; `null` dove il percorso non li conta.",
       "shadowLightCuts": "Tagli di cluster eseguiti dalle luci: uno per vista di luce disegnata, zero in un fotogramma fermo.",
-      "shadowPagesRequested": "Pagine d’ombra virtuali lette dall’immagine, come le ha nominate il suo ultimo rapporto di richieste: ciò che marcano i ricevitori della camera.",
+      "shadowPagesRequested": "Pagine d’ombra virtuali che l’immagine legge, come le ha nominate la domanda anticipata del fotogramma — o, senza di essa, il suo ultimo rapporto di richieste: ciò che marcano i ricevitori della camera.",
       "shadowPagesCached": "Di queste, pagine lette direttamente dal pool: aggiornate, senza disegno.",
       "shadowPoolPages": "Pagine fisiche del pool fisso che contengono una pagina virtuale.",
       "shadowPoolBytes": "Byte GPU del pool delle ombre: le sue pagine di profondità, i loro strati statico e di trasmittanza una volta creati, e i buffer accanto. Null finché il primo fotogramma non dimensiona il pool.",
@@ -7478,6 +7478,17 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "Float di un record d’ombra, quello che legge l’ombreggiatura di una luce: sei matrici di facce di lampada — lì, gli intervalli di profondità di un sole, `zNear, zFar` ciascuno (`recordPack.ts`) —, poi il riferimento del piano di luce del sole — `right, zNear`, `up, zFar`, `axis`, poi lo slot dell’intervallo corrente —, poi l’origine della finestra di ogni slot della clipmap in due interi, poi un’intestazione `vec4f`: facce (lampada) o livelli (sole), il semicampo tangente della lampada o il livello più fine del sole, il piano vicino della lampada e la prima voce del record nella tabella delle pagine."
+  },
+  "ShadowReceivers": {
+    "summary": "Le superfici che l’ombreggiatura di un fotogramma illumina, come l’host le consegna prima della rasterizzazione delle ombre.",
+    "members": {
+      "boxes": "Box nel mondo, `RECEIVER_FLOATS` ciascuno: ogni superficie illuminata del fotogramma sta in uno di essi.",
+      "count": "Box elencati.",
+      "planes": "I sei piani del frustum della camera (`frustumPlanesFromMatrix`): ciò che sta fuori non è illuminato.",
+      "pixelNear": "Dimensione nel mondo di un pixel al piano vicino, da cui parte l’impronta di un punto illuminato: la minore dei passaggi che leggono le ombre — quello del bersaglio disegnato, quello dello schermo.",
+      "pixelNearMost": "La stessa, la maggiore di quei passaggi.",
+      "orthographic": "Una camera ortografica: l’impronta di ogni pixel è `pixelNear`."
+    }
   },
   "ShadowRequestReport": {
     "summary": "Ciò che l’ombreggiatura ha letto in un fotogramma: le voci della tabella richieste, senza ordine.",
