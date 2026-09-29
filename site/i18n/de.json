@@ -342,7 +342,8 @@
       "hover-to-highlight": "Mit dem Mauszeiger ein Teil hervorheben",
       "a-dolly-along-the-canal": "Eine Kamerafahrt am Kanal",
       "a-folder-merged-into-one-scene": "Ein Ordner als eine Szene",
-      "drag-a-crate": "Eine Kiste ziehen"
+      "drag-a-crate": "Eine Kiste ziehen",
+      "move-a-hierarchy-by-name": "Eine Hierarchie nach Namen bewegen"
     },
     "missing": {
       "thick-lines": "breite Linien",

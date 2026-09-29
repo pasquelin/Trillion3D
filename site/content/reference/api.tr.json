@@ -8023,5 +8023,13 @@
     "members.direction": "Zemin düzlemindeki yön `[x, z]`; varsayılan `[1, 0]`.",
     "members.angle": "Radyan cinsinden en büyük bükülme; varsayılan 0,1.",
     "members.frequency": "Saniyedeki salınım sayısı; varsayılan 0,5."
+  },
+  "world.setTransform": {
+    "summary": "`nodeName` düğümünü dünya duruşu `matrix` olacak şekilde taşır: sayfanın tutamağını saklamadığı bir düğüme adıyla (`object.name`) ulaşılır, sahnede aranır.",
+    "description": "Duruş bir dünya duruşudur — motor onu düğümün ana uzayına geri getirir — böylece taşınmış bir ana altındaki ad yine istendiği yere iner. WebGPU ile WebGL2'nin sayfanın adla taşıması için izlediği aynı yol, ikinci bir yol değil. Sonraki kare onu çizer; hiçbir şeyi değiştirmeyen istek kare istemez.",
+    "parameters": {
+      "nodeName": "Taşınacak düğümün `name` değeri.",
+      "matrix": "Dünya duruşu, sütun-büyük sırada on altı kayan noktalı sayı."
+    }
   }
 }
