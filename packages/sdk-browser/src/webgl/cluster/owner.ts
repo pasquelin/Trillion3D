@@ -5,7 +5,14 @@ import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
 import type { HostDrawCamera } from '../../camera/world.ts';
 import type { HostMaterials } from '../../host/resources.ts';
+import type { BackendContext } from '../../backend/types.ts';
 import { readDegraded, type MaterialDegraded, type ReadDegraded } from './validation.ts';
+
+/** What the session grants the maps: the texture pool and a frame's upload budget. */
+type TextureHosts = { texturePoolBytes: number } & Pick<
+  BackendContext,
+  'maxTextureTransferBytesPerFrame' | 'maxTextureUploadMsPerFrame'
+>;
 
 /**
  * The one draw owner of a session's paged clusters, diagnostic pages and scene copies. A draw
@@ -25,9 +32,18 @@ export class WebglClusterOwner {
     this.censused = false;
   };
   censused = false;
-  /** Files every mesh, hidden ones too — WebGPU's census at prepare (#42) —; a later one at bind. */
-  census(meshes: readonly { material: HostMaterials }[]) {
-    for (const { material } of meshes) this.display.textures.file(material);
+  /** Files every declared surface, hidden or not yet attached ones too — WebGPU's census at
+   *  prepare (#42) —; a later one at bind. Then orders their maps within the texture pool, which
+   *  the frames upload ahead of their draws under the session's budget (`textureQueue.ts`). */
+  census(materials: Iterable<HostMaterials>, hosts: TextureHosts) {
+    const declared = new Set(materials),
+      { textures } = this.display;
+    for (const material of declared) textures.file(material);
+    textures.ahead.order(declared, hosts.texturePoolBytes);
+    textures.budget.declare(
+      hosts.maxTextureTransferBytesPerFrame,
+      hosts.maxTextureUploadMsPerFrame,
+    );
     this.censused = true;
   }
   /** Reads the surfaces drawn without a physical feature, or left out, for `hear`, across
@@ -38,6 +54,11 @@ export class WebglClusterOwner {
     this.degraded = readDegraded(hear);
     this.renderer = this.display = new WebglClusterRenderer(context, this.degraded);
     context.canvas.addEventListener('webglcontextrestored', this.restored);
+  }
+  /** Uploads the maps the census queued before any frame, a budget per task (`textureQueue.ts`). */
+  prepareMaps() {
+    const { textures } = this.display;
+    return textures.ahead.prepare(this.context, textures, textures.budget);
   }
   /** The display curve of the frames to come, a rank of `TONE_MAPPING_RANK`. */
   toneCurve: number = TONE_MAPPING_RANK.aces;
@@ -72,11 +93,15 @@ export class WebglClusterOwner {
     linear = false,
   ) {
     if (linear) this.linear ??= new WebglClusterRenderer(this.context, this.degraded, this.display);
-    const renderer = (this.renderer = linear ? this.linear! : this.display);
+    const renderer = (this.renderer = linear ? this.linear! : this.display),
+      { textures } = this.display;
     renderer.toneCurve = this.toneCurve;
     renderer.pass.pixelRatio = this.pixelRatio;
     renderer.pass.mipBias = this.mipBias;
-    return renderer.draw(
+    // The maps uploaded ahead, first: the frame's commands not sent yet (`textureQueue.ts`).
+    textures.budget.beginFrame();
+    textures.ahead.drain(this.context, textures, textures.budget);
+    const submitted = renderer.draw(
       meshes,
       scene,
       camera,
@@ -85,6 +110,8 @@ export class WebglClusterOwner {
       diagnosticMeshes,
       copies,
     );
+    textures.ahead.frameEnd(this.context);
+    return submitted;
   }
   private release() {
     this.linear?.dispose();
