@@ -22,13 +22,13 @@ type EnsureOptions = {
   isLost: () => boolean;
   traceEnabled: boolean;
   traceDiagnostic: Trace;
-  /** The lower tiers, served in this order after the camera's: the casters the light cuts asked
-   *  for, then the pages ahead of the camera, each highest priority first and without repeats,
-   *  with the keys it names (`lowerTier.ts`). */
+  /** The lower tiers, served after the camera's: the casters the light cuts asked for, then the
+   *  pages ahead of the camera, each highest priority first, without repeats (`lowerTier.ts`). */
   lowerTiers: () => readonly LowerList[];
-  /** Starts the read of a page's bytes ahead of its admission, dropped with `signal` if nothing
-   *  joined it; the lower tiers' at PRIORITY_PREFETCH, behind the camera's. Absent, at admission. */
+  /** Starts a page's bytes read ahead of its admission, at PRIORITY_PREFETCH for the lower tiers. */
   prefetch?: (page: PageRec, signal: AbortSignal, priority?: number) => void;
+  /** True when the camera rests at the last plan's view; absent, still. */
+  still?: () => boolean;
 };
 
 /** Loads newly wanted pages without acting on a stale camera cut. */
@@ -44,10 +44,10 @@ export function createWebgpuResidentEnsurer({
   traceDiagnostic,
   lowerTiers,
   prefetch,
+  still = () => true,
 }: EnsureOptions) {
-  /** The published share of the main thread (`STREAMING_FRAME_MS`), read synchronously: past it a
-   *  job yields a task, past `STREAMING_SHARES_PER_FRAME` of a visible page a frame (a hidden tab
-   *  never waits), and opens a new share — only after a yield, never in the task a job ended in. */
+  /** The published share of the main thread (`STREAMING_FRAME_MS`): past it a job yields a task,
+   *  past `STREAMING_SHARES_PER_FRAME` of a visible page a frame, and opens a new share. */
   const budget = createFrameBudget(STREAMING_FRAME_MS);
   const nextShare = createSharePace(budget.open, STREAMING_SHARES_PER_FRAME);
   /** The reads a pass starts before its admissions, under the job's `reads`; none without `prefetch`. */
@@ -67,8 +67,9 @@ export function createWebgpuResidentEnsurer({
    * What the camera left: the casters the light cuts want, then the pages ahead of the camera,
    * loaded only into slots nobody holds — free, or taken by a page no tier wants. They are never
    * pinned: a camera page evicts them, they never evict a camera page, and an object on screen is
-   * never coarsened for a shadow or for a view to come. Only the list's first pages the unpinned
-   * slots hold keep theirs: past the pool, what stays follows the list, never arrivals (#1016).
+   * never coarsened for a shadow or for a view to come. At rest the tier settles on the list's
+   * first pages the unpinned slots hold, never on arrivals (#1016); moving, it keeps every page
+   * the list still names, so a wanted caster is never evicted and reloaded each frame.
    */
   const loadLowerTiers = async (
     lower: readonly PageRec[],
@@ -81,11 +82,11 @@ export function createWebgpuResidentEnsurer({
       const key = tracking.keyOf(rec);
       return tracking.wanted.has(key) || bootstrapKey[key] || !hasBytes(rec);
     };
-    const slots = cache.unpinnedSlots();
-    let held = 0;
-    for (let i = 0, kept = 0; i < lower.length && kept < slots; i++)
-      if (!skip(lower[i]) && ++kept && cache.touch(pageAddress(lower[i]), true)) held++;
-    let spare = slots - held;
+    const slots = cache.unpinnedSlots(),
+      live = still();
+    let spare = slots;
+    for (let i = 0, kept = 0; i < lower.length && (!live || kept < slots); i++)
+      if (!skip(lower[i]) && (!live || ++kept) && cache.touch(pageAddress(lower[i]), true)) spare--;
     readAhead?.(lower, spare, (rec) => !skip(rec), cache, reads, PRIORITY_PREFETCH);
     // The share, as the camera's burst: past it the job yields — and leaves if a camera cut asked
     // for pages meanwhile: the queue serves the camera first and runs the tiers again. A job only
@@ -110,8 +111,7 @@ export function createWebgpuResidentEnsurer({
       }
     }
   };
-  /** `cameraWaiting` says a camera cut is queued behind this job: the queue passes it, so the
-   *  caster tier gives way to the camera. A barrier passes none and loads the whole tier. */
+  /** `cameraWaiting` says a camera cut queued behind this job: the caster tier gives way to it. */
   return async (
     wanted: readonly PageRec[],
     jobFrame: number,

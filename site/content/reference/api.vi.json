@@ -7942,5 +7942,13 @@
   },
   "world.materialMapBytes": {
     "summary": "Số byte ảnh đang giữ hoặc chờ, giới hạn 64 MiB."
+  },
+  "world.setTransform": {
+    "summary": "Di chuyển nút `nodeName` để tư thế thế giới của nó là `matrix`: một nút mà trang không giữ tham chiếu được tiếp cận bằng tên (`object.name`), tra trong cảnh.",
+    "description": "Tư thế là tư thế thế giới — engine đưa nó trở lại không gian của nút cha — nên một tên dưới cha đã di chuyển vẫn đáp đúng nơi được yêu cầu. Cùng tuyến mà WebGPU và WebGL2 đi cho việc di chuyển theo tên của một trang, không phải tuyến thứ hai. Khung hình kế tiếp sẽ vẽ nó; một yêu cầu không đổi gì thì không đòi khung hình nào.",
+    "parameters": {
+      "nodeName": "`name` của nút cần di chuyển.",
+      "matrix": "Tư thế thế giới của nó, mười sáu số thực theo thứ tự cột."
+    }
   }
 }

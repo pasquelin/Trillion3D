@@ -2375,5 +2375,23 @@
       "unmount": "Démonter",
       "remount": "Remonter"
     }
+  },
+  "move-a-hierarchy-by-name": {
+    "banner": "Regardez cinq groupes nommés suivre une séquence reproductible. Changez le pilote pour écrire les mêmes poses à la main.",
+    "controls": {
+      "driver": "Pilote",
+      "speed": "Vitesse",
+      "paused": "En pause",
+      "replay": "Rejouer"
+    },
+    "choices": {
+      "driver": {
+        "name": "par nom",
+        "host": "écrit par l’hôte"
+      }
+    },
+    "readouts": {
+      "pose": "Pose"
+    }
   }
 }
