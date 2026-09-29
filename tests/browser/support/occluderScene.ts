@@ -3,7 +3,7 @@
 // its clusters flips with the camera.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
-import { ouvrirAppareil } from '../probes/webgpuDevice.ts';
+import { openGpuDevice } from '../probes/webgpuDevice.ts';
 import type {
   BackendContext,
   BackendDiagnostic,
@@ -60,7 +60,7 @@ export async function surSceneOccultante(
     etapes: unknown[],
   ) => Promise<void>,
 ): Promise<ResultatOccultante> {
-  const appareil = await ouvrirAppareil();
+  const appareil = await openGpuDevice();
   if (!appareil) return { indisponible: 'aucun adaptateur WebGPU' };
   const { device, erreurs } = appareil;
   const evenements: BackendDiagnostic[] = [],
