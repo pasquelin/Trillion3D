@@ -56,11 +56,11 @@ export async function feedbackAbResidency(rt: WebgpuPagesRuntime): Promise<Resid
 
 /** Captures the last submitted color target directly, without the convergence barrier. */
 export async function captureFeedbackAb(rt: WebgpuPagesRuntime) {
-  if (!rt.feedbackAB || !rt.gpu.device || !rt.gpu.colorTexture || rt.capture.capturing)
+  if (!rt.feedbackAB || !rt.gpu.device || !rt.gpu.displayTexture || rt.capture.capturing)
     throw new Error('FEEDBACK_AB_CAPTURE_UNAVAILABLE');
-  const [width, height] = rt.gpu.targetSize;
+  const [width, height] = rt.gpu.displaySize;
   if (!width || !height || !rt.run.imageRevision) throw new Error('FEEDBACK_AB_IMAGE_MISSING');
-  return readGpuImage(rt.gpu.device, rt.gpu.colorTexture, width, height, rt.signal);
+  return readGpuImage(rt.gpu.device, rt.gpu.displayTexture, width, height, rt.signal);
 }
 
 /** Prepares both layouts before any diagnostic timing; the live scene and pools stay shared. */

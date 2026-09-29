@@ -3945,7 +3945,7 @@
       "wasmAvailable": "Das WebAssembly-Modul ist geladen, in der richtigen Vertragsversion.",
       "wasmSimd": "Das Modul wurde mit `simd128` kompiliert; `null`, solange kein Modul geladen ist.",
       "clockResolutionMs": "Genauigkeit der Uhr des Strangs, in Millisekunden; `null`, solange sie nicht geschätzt wurde.",
-      "clockCoarse": "Wahr, wenn die Uhr zu grob ist, um zu entscheiden: alles bleibt auf dem JavaScript-Pfad.",
+      "clockCoarse": "Wahr, wenn die Uhr zu grob ist, um eine einzelne Ausführung zu messen: Ausführungen werden in gebündelten Stapeln gemessen.",
       "unavailableReason": "Warum der WebAssembly-Pfad nicht spielbar ist, oder `null`, wenn er es ist.",
       "operations": "Jede Operation."
     }
@@ -4765,6 +4765,13 @@
       "depth": "Schichten, für einen Bildstapel."
     }
   },
+  "PlacementGrowth": {
+    "summary": "Was ein Besitzer einer Sitzung übergibt, die ihre Instanzpuffer an Ort und Stelle vergrößert (`growth.ts`).",
+    "members": {
+      "growPlacements": "Ein Instanzpuffer der Sitzung wurde durch einen größeren ersetzt, zuerst die Zeilen von `from`, der Rest geparkt: Die Sitzung liest ab jetzt `to` und hält ihre neuen Zeilen, ohne eine Tabelle neu aufzubauen (`growth.ts`). Fehlt es einer Engine, öffnet der Besitzer die Sitzung erneut auf `to`.",
+      "growsInPlace": "Ob `growPlacements` jeden von `from`, auf `capacity` Zeilen vergrößert, annimmt – gefragt, bevor der Besitzer einen ersetzt: false lässt sie, wie sie sind, und der Besitzer öffnet die Sitzung erneut auf größeren."
+    }
+  },
   "PlacementRows": {
     "summary": "Die Platzierungszeilen der Spiegelmeshes, eine Zeile pro platzierter Kopie.",
     "members": {
@@ -5482,6 +5489,15 @@
       "shadowPagesDrawn": "Was die Seiteninvalidierung erzeugt hat: von dem Bild neu gezeichnete Seiten, aus Budgetmangel in der Warteschlange belassene Seiten, und wie lange die älteste veraltete Seite, die das Bild liest, gewartet hat. Null überall ist der normale Wert einer unbewegten Szene; `null` für eine Engine ohne Schattenatlas.",
       "shadowPagesTotal": "Seit der Öffnung des Explorers gezeichnete Seiten, Leerungen von `flush()` eingeschlossen: die Kosten einer Änderung sind der Abstand zwischen zwei Lesungen.",
       "shadowPagesPending": "Wartende Schattenseiten.",
+      "shadowBatches": "Schattenbatches, die das Bild gezeichnet hat: Zählungen des Hosts über das, was er kodiert hat, nie in einem Shader gelesen, wie die folgenden Zählungen. Null bei einer Engine ohne Schattenatlas.",
+      "shadowLayersDrawn": "Pool-Ebenen, in die die Schattenpässe des Bildes gezeichnet haben.",
+      "shadowPagesRestored": "Seiten, die aus einer Kopie ihrer statischen Ebene gezeichnet wurden, nur ihre bewegten Schattenwerfer gerastert.",
+      "shadowPagesRasterized": "Seiten, deren statische Schattenwerfer erneut gerastert wurden; mit den wiederhergestellten jede gezeichnete Seite.",
+      "shadowRestoreCopies": "Seitenkopien aus der statischen Ebene: eine wiederhergestellte Seite oder eine vollständig über ihrer Ebene gezeichnete Seite.",
+      "shadowStaticDrawCalls": "Draw-Calls statischer Schattenwerfer: in die statische Ebene oder für eine ohne sie ganz gezeichnete Seite.",
+      "shadowMovingDrawCalls": "Draw-Calls nur der bewegten Schattenwerfer, über Seiten, die aus der statischen Ebene wiederhergestellt wurden.",
+      "shadowMovingCastersKept": "Von `shadowCastersKept` die Cluster, die behalten wurden, um nur bewegte Schattenwerfer zu zeichnen.",
+      "shadowPagesStaledBy": "Seiten, die das Bild veralten ließ, nach Grund: Licht, ruhender Schattenwerfer, bewegte Schattenwerfer, Detail, Schnittschwelle oder Tiefenbereich einer Sonne.",
       "shadowWaitMs": "Wie viele Millisekunden die älteste veraltete Seite, die das Bild liest, auf ihr Neuzeichnen gewartet hat. Nur die Zeit, in der das Bild sie liest, zählt; 0, sobald sie neu gezeichnet ist.",
       "shadowCutDrops": "Light-Cut-Batches, die Arbeit verworfen haben — ihre Ansichten behielten mehr Cluster, als die Listen fassen —, seit dem Öffnen des Explorers: Jeder schickt seine Seiten zurück, entzogen bis zum Neuzeichnen (#525). Null auf einer Engine ohne GPU-Light-Cut, ebenso die drei folgenden.",
       "shadowCutWithdrawnPages": "Seiten, die neu gezeichnet werden, weil ein Light-Cut sie falsch gezeichnet hat, seit dem Öffnen des Explorers: Sein Batch hat Arbeit verworfen, oder sein Flag wurde nie gelesen. Sie sind bis zum Neuzeichnen entzogen.",
@@ -5536,6 +5552,9 @@
       "receive": "Ein Anforderungsbericht kam zurück; der nächste Plan liest ihn. Ein neuerer ersetzt einen ungelesenen.",
       "commit": "Die Seiten `[from, to)` der Liste des Bildes wurden kodiert, Seite `from + i` in `modes[i]`: ihre Zeichnungen landen, bevor sie jemand liest. Der letzte Stapel schließt die Liste."
     }
+  },
+  "ShadowStaleReason": {
+    "summary": "Warum eine Schattenseite veraltet ist (`ShadowFrameMetrics.shadowPagesStaledBy`)."
   },
   "ShadowViewpoint": {
     "summary": "Was der Planer über die Ansicht weiß: eine Kamera, keine Matrix, um abhängigkeitsfrei zu bleiben.",
@@ -6795,6 +6814,15 @@
       "shadowPagesDrawn": "Was die Seiteninvalidierung erzeugt hat: von dem Bild neu gezeichnete Seiten, aus Budgetmangel in der Warteschlange belassene Seiten, und wie lange die älteste veraltete Seite, die das Bild liest, gewartet hat. Null überall ist der normale Wert einer unbewegten Szene; `null` für eine Engine ohne Schattenatlas.",
       "shadowPagesTotal": "Seit der Öffnung des Explorers gezeichnete Seiten, Leerungen von `flush()` eingeschlossen: die Kosten einer Änderung sind der Abstand zwischen zwei Lesungen.",
       "shadowPagesPending": "Wartende Schattenseiten.",
+      "shadowBatches": "Schattenbatches, die das Bild gezeichnet hat: Zählungen des Hosts über das, was er kodiert hat, nie in einem Shader gelesen, wie die folgenden Zählungen. Null bei einer Engine ohne Schattenatlas.",
+      "shadowLayersDrawn": "Pool-Ebenen, in die die Schattenpässe des Bildes gezeichnet haben.",
+      "shadowPagesRestored": "Seiten, die aus einer Kopie ihrer statischen Ebene gezeichnet wurden, nur ihre bewegten Schattenwerfer gerastert.",
+      "shadowPagesRasterized": "Seiten, deren statische Schattenwerfer erneut gerastert wurden; mit den wiederhergestellten jede gezeichnete Seite.",
+      "shadowRestoreCopies": "Seitenkopien aus der statischen Ebene: eine wiederhergestellte Seite oder eine vollständig über ihrer Ebene gezeichnete Seite.",
+      "shadowStaticDrawCalls": "Draw-Calls statischer Schattenwerfer: in die statische Ebene oder für eine ohne sie ganz gezeichnete Seite.",
+      "shadowMovingDrawCalls": "Draw-Calls nur der bewegten Schattenwerfer, über Seiten, die aus der statischen Ebene wiederhergestellt wurden.",
+      "shadowMovingCastersKept": "Von `shadowCastersKept` die Cluster, die behalten wurden, um nur bewegte Schattenwerfer zu zeichnen.",
+      "shadowPagesStaledBy": "Seiten, die das Bild veralten ließ, nach Grund: Licht, ruhender Schattenwerfer, bewegte Schattenwerfer, Detail, Schnittschwelle oder Tiefenbereich einer Sonne.",
       "shadowWaitMs": "Wie viele Millisekunden die älteste veraltete Seite, die das Bild liest, auf ihr Neuzeichnen gewartet hat. Nur die Zeit, in der das Bild sie liest, zählt; 0, sobald sie neu gezeichnet ist.",
       "shadowCutDrops": "Light-Cut-Batches, die Arbeit verworfen haben — ihre Ansichten behielten mehr Cluster, als die Listen fassen —, seit dem Öffnen des Explorers: Jeder schickt seine Seiten zurück, entzogen bis zum Neuzeichnen (#525). Null auf einer Engine ohne GPU-Light-Cut, ebenso die drei folgenden.",
       "shadowCutWithdrawnPages": "Seiten, die neu gezeichnet werden, weil ein Light-Cut sie falsch gezeichnet hat, seit dem Öffnen des Explorers: Sein Batch hat Arbeit verworfen, oder sein Flag wurde nie gelesen. Sie sind bis zum Neuzeichnen entzogen.",
@@ -7440,7 +7468,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Gleitkommazahlen eines Schattendatensatzes, den die Schattierung eines Lichts liest: sechs Matrizen der Lampenflächen — dort die Tiefenbereiche einer Sonne, je `zNear` und Kehrwert der Spanne (`recordPack.ts`) —, dann das Bezugssystem der Sonnenebene — `right`, `up`, `axis`, jeweils auf vier aufgefüllt —, dann der Ursprung des Ausschnitts jeder Clipmap-Stufe als zwei Ganzzahlen, dann ein Kopf `vec4f`: Flächen (Lampe) oder Stufen (Sonne), der Tangens des halben Felds der Lampe oder die feinste Stufe der Sonne, die nahe Ebene der Lampe und der erste Eintrag des Datensatzes in der Seitentabelle."
+    "summary": "Floats eines Schattendatensatzes, den das Shading eines Lichts liest: sechs Lampenflächen-Matrizen — dort die Tiefenbereiche einer Sonne, je `zNear, zFar` (`recordPack.ts`) —, dann der Lichtebenen-Rahmen der Sonne — `right, zNear`, `up, zFar`, `axis`, dann der Platz des aktuellen Bereichs —, dann der Ursprung des Fensters jedes Clipmap-Platzes als zwei Ganzzahlen, dann ein Kopf `vec4f`: Flächen (Lampe) oder Stufen (Sonne), der tangentiale Halbwinkel der Lampe oder die feinste Stufe der Sonne, die Nahebene der Lampe und der erste Eintrag des Datensatzes in der Seitentabelle."
   },
   "ShadowRequestReport": {
     "summary": "Was die Schattierung in einem Bild gelesen hat: die angeforderten Tabelleneinträge, ohne Reihenfolge.",

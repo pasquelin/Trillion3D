@@ -13,7 +13,7 @@ function module(releve: MathBatch) {
   if (!releve.wasmAvailable) return releve.unavailableReason ?? 'unavailable';
   return (
     `loaded${releve.wasmSimd ? ', simd128' : ''}` +
-    (releve.clockCoarse ? ', clock too coarse to arbitrate' : '')
+    (releve.clockCoarse ? ', coarse clock, pooled timing' : '')
   );
 }
 

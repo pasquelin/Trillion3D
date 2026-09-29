@@ -9,6 +9,7 @@ import { markWebgpuLost } from './lost.ts';
 import { disposeStaticLayer } from '../state/lights.ts';
 import { shadowPoolHeld } from '../../shadow/memoryGrant.ts';
 import { lightCutMetrics } from '../../shadow/casters.ts';
+import { shadowWorkMetrics } from '../../shadow/work.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { releaseWebgpuView, useWebgpuView } from '../state/viewSwitch.ts';
 
@@ -119,6 +120,7 @@ export function metricsOf(rt: WebgpuPagesRuntime) {
     shadowPagesTotal: lights.shadowPagesTotal,
     shadowPagesPending: lights.plan.counts.pendingPages,
     shadowWaitMs: lights.plan.counts.waitedMs,
+    ...shadowWorkMetrics(lights),
     ...lightCutMetrics(rt),
     ...directLightTimings(timing.lastGpuPassMs),
     ...lights.tiles?.poolMetrics(),

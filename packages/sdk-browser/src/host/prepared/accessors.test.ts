@@ -41,3 +41,25 @@ test('a sparse accessor over an interleaved base substitutes into its own elemen
   await position._load();
   assert.deepEqual(Array.from(position.array), [1, 2, 3, 7, 8, 9]);
 });
+
+// #846: the source document a class change cuts pages from is read view by view, never whole.
+test('a ranged binary reads each view alone, and refuses one it answers short', async () => {
+  const bytes = new Uint8Array(new Float32Array([9, 9, 9, 1, 2, 3]).buffer);
+  const document = {
+    views: [{ offset: 12, length: 12, stride: null }],
+    accessors: [
+      { view: 0, offset: 0, componentType: 5126, normalized: false, count: 1, type: 'VEC3' },
+    ],
+  } as unknown as TableDocument;
+  const asked: [number, number][] = [];
+  const range = async (offset: number, length: number) => {
+    asked.push([offset, length]);
+    return bytes.slice(offset, offset + length).buffer;
+  };
+  const position = preparedAccessors(document, { range })(0);
+  await position._load();
+  assert.deepEqual(Array.from(position.array), [1, 2, 3]);
+  assert.deepEqual(asked, [[12, 12]]);
+  const short = preparedAccessors(document, { range: async () => new ArrayBuffer(4) })(0);
+  await assert.rejects(short._load(), /view 0 lies outside the binary/);
+});

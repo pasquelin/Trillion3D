@@ -7,6 +7,7 @@ import type { RankedPipelines } from './stagePipelines.ts';
 import { planPipeline } from './plan.ts';
 import { RUN_SHARED, RUN_WORDS, runOwner } from './runs.ts';
 import { itemKept } from './expandCpu.ts';
+import { routedFilter, type DisplayFilter } from './displayFilter.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /**
@@ -39,7 +40,8 @@ function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice, item: BlendGp
  * the draw of an item wholly out of view.
  *
  * `slice` says which pass is encoded — blends, or the water surfaces — and `pipelines` what
- * draws it; the bind groups are the same, and they are the blend pass's. Returns the draws encoded.
+ * draws it, with the display layers `filter` attached and its mask bound; the bind groups are the
+ * same, and they are the blend pass's. Returns the draws encoded.
  */
 export function drawBlendRuns(
   rt: WebgpuPagesRuntime,
@@ -47,6 +49,7 @@ export function drawBlendRuns(
   pass: GPURenderPassEncoder,
   slice: number,
   pipelines: RankedPipelines,
+  filter?: DisplayFilter,
 ) {
   const { blendState } = rt,
     items = blendState.blendGpu,
@@ -55,6 +58,7 @@ export function drawBlendRuns(
     count = blendState.runCount[slice],
     args = blendState.argsBuffer!;
   if (rt.gpu.reflection) pass.setBindGroup(1, rt.gpu.reflection.group);
+  if (filter) pass.setBindGroup(2, filter.maskGroup);
   blendState.pagedGroup ??= blendBindGroup(rt, device, undefined);
   let boundPipeline = -1,
     boundGroup: GPUBindGroup | undefined,
@@ -64,6 +68,7 @@ export function drawBlendRuns(
     const at = index * RUN_WORDS,
       entry = order[runs[at]],
       owner = runOwner(order, runs[at], runs[at + 1]);
+    if (pipelines.skips?.(planPipeline(entry))) continue;
     // A run that names its item decides on the frustum bit: a draw that would set no pixel is not
     // encoded at all, as it was not per item. A run that merges several carries too many entries
     // to query one by one — the GPU zeros their instances, and a draw with no instance sets nothing.
@@ -72,7 +77,7 @@ export function drawBlendRuns(
     if (boundPipeline !== planPipeline(entry)) {
       boundPipeline = planPipeline(entry);
       // The blend pass compiles a mode first written after it was built (`pipelines.ts`).
-      const pipeline = pipelines.at(boundPipeline);
+      const pipeline = pipelines.at(boundPipeline, !!filter);
       if (!pipeline) throw new Error(`blend pipeline ${boundPipeline} was not built for the scene`);
       pass.setPipeline(pipeline);
     }
@@ -102,9 +107,16 @@ export function drawBlendPass(
   transmissive = false,
 ): boolean {
   const { gpu, vis, blendState } = rt,
-    slice = transmissive ? 1 : 0;
+    slice = transmissive ? 1 : 0,
+    // The transmission slice routes through the mask the blends drew, if they drew one.
+    filter = transmissive
+      ? routedFilter(gpu.displayFilter)
+      : gpu.displayFilter?.active
+        ? gpu.displayFilter
+        : undefined;
   // Nothing to encode without runs, or without the arguments the GPU wrote for them.
   if (!blendState.runCount[slice] || !blendState.argsBuffer) return false;
+  if (filter && !transmissive) drawDisplayMask(rt, device, encoder, filter);
   // Diagnostic only: the counting variant opens an occlusion query around the pass.
   const overdraw = countsBlendOverdraw(rt.context?.diagnosticGpuVariant)
     ? (blendState.overdraw ??= createBlendOverdraw(device))
@@ -125,17 +137,38 @@ export function drawBlendPass(
         loadOp: 'load',
         storeOp: 'store',
       },
+      // The display layers of an image whose blends filter (`displayFilter.ts`).
+      ...(filter ? filter.attachments() : []),
     ],
     depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
   });
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
   overdraw?.begin(pass, transmissive);
-  const encoded = drawBlendRuns(rt, device, pass, slice, vis.blendPipelines!);
+  const encoded = drawBlendRuns(rt, device, pass, slice, vis.blendPipelines!, filter);
   overdraw?.end(pass);
   pass.end();
   overdraw?.after(encoder);
   countBlendDraws(rt, encoded, transmissive);
   return true;
+}
+
+/** The display mask: the blends' filtering surfaces alone, depth-tested, before the blend pass. */
+function drawDisplayMask(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  filter: DisplayFilter,
+) {
+  const { gpu, run } = rt,
+    { mask } = rt.vis.blendPipelines!;
+  const pass = encoder.beginRenderPass({
+    label: 'Trillion3D display mask',
+    colorAttachments: [...Array<null>(mask.slot).fill(null), filter.maskAttachment()],
+    depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
+  });
+  pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
+  run.gpuDrawCalls += drawBlendRuns(rt, device, pass, 0, mask);
+  pass.end();
 }
 
 /** Frame counters of a transparent pass: draws, and the unpaged triangles it submits. */

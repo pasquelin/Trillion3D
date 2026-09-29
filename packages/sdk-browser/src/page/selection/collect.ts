@@ -19,6 +19,9 @@ import { blendMoves, isAssignment, type AlphaChange } from '../../placement/back
  *  moves between draw classes later (`reassignBlend`). */
 const pagesBlend = (primitive: { pass?: string }, surface: { transparent: boolean }) =>
   primitive.pass === 'clustered-blend' || surface.transparent;
+/** The primitive each collected mesh draws, whichever collection read it: a resource mounted in
+ *  place (#572) is its own collection, and moves class with the open's records (#837). */
+const collected = new WeakMap<object, { pass?: string }>();
 
 export function collectClusterPages(
   source: Object3D,
@@ -61,6 +64,7 @@ export function collectClusterPages(
       continue;
     }
     const template = templates.pagesOf(primitive);
+    collected.set(mesh, primitive);
     const transparent = pagesBlend(primitive, surface);
     // The grid moved every position of this primitive by at most this much: its clusters' boxes
     // grow by it, so culling still encloses the surface an engine draws from the pages.
@@ -153,16 +157,16 @@ export function collectClusterPages(
     }
     order++;
   }
+  /** Whether `alpha` moves the surface a record wears, or gives it another. */
+  const wears = ({ sourceMesh: mesh }: PageRec, alpha: AlphaChange) =>
+    !!mesh &&
+    (isAssignment(alpha)
+      ? alpha.meshes.has(mesh)
+      : alpha.surfaces.includes(mesh.material as object));
   /** Whether a record is drawn blended once `alpha` moved its surfaces, before or after they are
    *  written: the family this collection gives the class `alpha.to`, or the one it has. */
   const blendOf = (rec: PageRec, alpha: AlphaChange) => {
-    const mesh = rec.sourceMesh,
-      worn =
-        mesh &&
-        (isAssignment(alpha)
-          ? alpha.meshes.has(mesh)
-          : alpha.surfaces.includes(mesh.material as object)),
-      primitive = worn && primitiveOf(associations.get(mesh));
+    const primitive = wears(rec, alpha) && collected.get(rec.sourceMesh!);
     return primitive
       ? pagesBlend(primitive, { transparent: alpha.to === 'blend' })
       : rec.transparent;
@@ -173,6 +177,7 @@ export function collectClusterPages(
     worlds,
     blendCopies,
     blendOf,
+    wears,
     /**
      * The open's assignment, run again once a material moved into or out of blended inside the
      * session (#846): each record takes `blendOf`; true when one moved. An engine that sorts its

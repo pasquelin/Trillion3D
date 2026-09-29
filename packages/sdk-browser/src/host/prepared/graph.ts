@@ -26,6 +26,7 @@ import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { placedMeshes } from './placed.ts';
+import { registerPagedSource } from './pagedSource.ts';
 import type { RowLink } from '../../scene/partition/rows.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
@@ -36,12 +37,18 @@ type MeshRanks = RowLink;
 type Inputs = {
   tables: PreparedSceneTables;
   meshes: TableDocument['meshes'];
+  /** The meshes the drawn pages were cut from, when not `meshes`: the source document's, at the
+   *  same ranks, for the autonomous one, whose primitives are one degenerate triangle each. */
+  pagedFrom?: TableDocument['meshes'];
+  /** The geometry of each of those, read when a class change cuts its pages again (#846). */
+  pagedGeometryOf?: (mesh: number, primitive: number) => Geometry;
   geometryOf: (mesh: number, primitive: number) => Geometry;
   materialOf: (rank: number, variant: SurfaceVariant) => Promise<GraphSurface>;
 };
 
 /** The prepared scene as a host graph, and the ranks each drawn host mesh answers to. */
-export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: Inputs) {
+export async function preparedGraph(inputs: Inputs) {
+  const { tables, meshes, pagedFrom, geometryOf, materialOf } = inputs;
   const unique = uniqueNames();
   const ranks = new Map<Object3D, MeshRanks>();
   const scene = new Group();
@@ -110,6 +117,9 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
     meshes[rank].primitives.map((primitive, p) => {
       const geometry = geometryOf(rank, p);
       const variant = surfaceVariantOf(geometry.attributes);
+      // The pages carry the normals of the primitive they were cut from: flat only without them.
+      const cut = pagedFrom?.[rank]?.primitives[p];
+      if (cut) variant.flatShading = cut.attributes.NORMAL === undefined;
       return { geometry, material: materialOf(primitive.material, variant) };
     }),
   );
@@ -177,5 +187,10 @@ export async function preparedGraph({ tables, meshes, geometryOf, materialOf }: 
   for (const root of tables.scene.nodes) scene.add(assemble(root));
   const at = new Map(order.map((rank, index) => [rank, index]));
   const placed = placedMeshes(tables.partition, scene, ranks, (rank) => made[at.get(rank)!]);
+  const { pagedGeometryOf } = inputs;
+  if (pagedGeometryOf)
+    for (const [mesh, { meshes: rank, primitives: p }] of ranks)
+      if (rank !== undefined && p !== undefined)
+        registerPagedSource(mesh, () => pagedGeometryOf(rank, p));
   return { scene, ranks, nodes, placed };
 }
