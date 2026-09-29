@@ -84,11 +84,10 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   // cut, hence the frame: holding it would open a hole. This count is held by the cut difference,
   // never reread on the list.
   if (services.cutPending.count) mask |= BIT.cutPending;
-  // Bounce-light probes converge from frame to frame: their state is written by no revision, and
-  // a held frame would freeze it before convergence.
-  if (bounce.probes) mask |= BIT.bounceProbes;
-  // A GPU deformation moved in the last frame, or a morph weight or a wave clock since: nothing
-  // else announces it, and the temporal pass reprojects it from where it was (#357).
+  // Probes being built or converging still change the frame; a closed series can hold (#1281).
+  if (bounce.probes ? bounce.probes.working : bounce.pending && !bounce.reason)
+    mask |= BIT.bounceProbes;
+  // Deformation motion needs a frame to advance its temporal history (#357).
   if (vis.deformation?.frame.pending()) mask |= BIT.deforming;
   return mask;
 }

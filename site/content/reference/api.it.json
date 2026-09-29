@@ -1643,7 +1643,9 @@
       "PHYSICS_FORMAT": "La fisica preparata di un modello compilato (`physics.json`) è di un altro formato, o è stata preparata da un Jolt diverso da quello del motore (`PHYSICS_FORMAT`): ricompilalo. È stato chiesto un raycast esatto a fisica spenta (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "La fisica preparata di un modello compilato (`physics.json`) è di un altro formato, o è stata preparata da un Jolt diverso da quello del motore (`PHYSICS_FORMAT`): ricompilalo. È stato chiesto un raycast esatto a fisica spenta (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` è stato impostato a `'vehicle'` mentre `world.controls.vehicle` è `null`: non c’è niente da guidare.",
-      "GUIDE_CEILING": "Una chiamata a `world.guides` terrebbe più vertici di `GUIDE_VERTEX_CEILING`; non ne è stato aggiunto nulla."
+      "GUIDE_CEILING": "Una chiamata a `world.guides` terrebbe più vertici di `GUIDE_VERTEX_CEILING`; non ne è stato aggiunto nulla.",
+      "REFERENCE_SHADOWS_REDUCED": "L’immagine di riferimento è stata rifiutata: il pool delle ombre gira sotto la sua dimensione piena (`REFERENCE_SHADOWS_REDUCED`). La modalità di riferimento è stata chiesta su una sessione interattiva, il cui ridimensionamento farebbe perdere il supersampling (`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "L’immagine di riferimento è stata rifiutata: il pool delle ombre gira sotto la sua dimensione piena (`REFERENCE_SHADOWS_REDUCED`). La modalità di riferimento è stata chiesta su una sessione interattiva, il cui ridimensionamento farebbe perdere il supersampling (`REFERENCE_INTERACTIVE`)."
     }
   },
   "enginePose": {
@@ -7987,5 +7989,27 @@
       "bones": "Ossa dal tronco alle estremità.",
       "options": "Direzione, angolo massimo di flessione e frequenza."
     }
+  },
+  "Skeleton": {
+    "summary": "Le ossa che deformano una mesh e le matrici di legame inverse, dallo spazio della mesh a quello di ciascun osso.",
+    "description": "L’indice di articolazione di un vertice indica `bones`. Senza matrici inverse, la posa delle ossa alla creazione definisce la posa di legame.",
+    "members.isSkeleton": "Sempre `true`: identifica uno scheletro.",
+    "members.bones": "I nodi articolati, nell’ordine delle articolazioni.",
+    "members.boneInverses": "Sedici numeri per osso, per colonne: l’inversa della matrice globale nella posa di legame.",
+    "members.palette": "Scrive in `out`, da `at`, le righe di `meshWorld⁻¹ · boneWorld · boneInverse` per ogni articolazione. La palette trasforma i vertici legati nello spazio locale della mesh; segue la trasformazione globale della mesh. `boneWorlds` fornisce le matrici globali del lettore, altrimenti si usano quelle delle ossa."
+  },
+  "Waves": {
+    "summary": "Onde di Gerstner il cui tempo è impostato da `setTime`.",
+    "description": "Ogni onda `i` ha direzione `(dx, dz)`, numero d’onda `k`, ampiezza `A` e ampiezza laterale `Q·A`. Le pendenze sono normalizzate affinché `Σ Qᵢ·Aᵢ·kᵢ ≤ 1`, senza ribaltare le creste.",
+    "members.phase": "Fase di ogni onda al tempo impostato, in [0, 2π): unico stato dipendente dal tempo.",
+    "members.crest": "Altezza massima sopra il riposo: `Σ Aᵢ`.",
+    "members.steepness": "`Σ Qᵢ·Aᵢ·kᵢ` dopo la normalizzazione, al massimo 1.",
+    "members.phasesAt": "Fase di ogni onda a `t` secondi, ridotta a [0, 2π) in doppia precisione.",
+    "members.setTime": "Imposta il tempo a `t` secondi; la superficie precedente corrisponde a `setTime(t - dt)`.",
+    "members.offset": "Scrive in `out` lo spostamento `[x, y, z]` del punto a riposo `(x, 0, z)`.",
+    "members.normal": "Scrive in `out` la normale unitaria `[x, y, z]` al punto a riposo `(x, z)`."
+  },
+  "WindOptions": {
+    "summary": "Direzione del vento (`x`, `z` sul terreno), flessione massima di un osso in radianti e oscillazioni al secondo."
   }
 }

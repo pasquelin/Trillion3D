@@ -4,8 +4,7 @@
 // frame and the last one.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shaderRun } from '../texture/shaderRun.fixture.ts';
-import { DEFORM_WGSL } from './deformWgsl.ts';
+import { waveShader } from './waves.fixture.ts';
 import { createDeformationFrame } from './frame.ts';
 import { deformedOf } from './source.ts';
 import { recordLayout } from './layout.ts';
@@ -29,15 +28,7 @@ test('the drawn surface stands within a centimetre of the physics surface, now a
   surface.setTime(3.2 + 1 / 60);
   frame.update(() => false);
   const at = frame.bases[0] - 1 + recordLayout(placed.shape).wave;
-  const { deformWaves } = shaderRun<{
-    deformWaves: (
-      at: number,
-      count: number,
-      p: number[],
-      previous: boolean,
-      normal: boolean,
-    ) => number[];
-  }>(DEFORM_WGSL, ['deformWaves'], { positions: frame.block, cos: Math.cos });
+  const deformWaves = waveShader(frame.block);
   const expected = new Float64Array(3);
   let worst = 0;
   for (const [time, previous] of [

@@ -30,7 +30,7 @@ export const OPEN_PLANES = Float64Array.from({ length: 24 }, (_, i) => (i % 4 ==
 
 /** Moves each of the six planes out by `reach` along every axis: a box then clears a plane only
  *  if the box grown by `reach` on each side would — the GPU cut does the same (`putPlanes`). */
-export function growPlanes(planes: Float64Array, reach: number) {
+function growPlanes(planes: Float64Array, reach: number) {
   for (let i = 0; i < 24; i += 4)
     planes[i + 3] +=
       reach * (Math.abs(planes[i]) + Math.abs(planes[i + 1]) + Math.abs(planes[i + 2]));

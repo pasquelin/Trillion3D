@@ -9,3 +9,6 @@ site/assets/**/cache/
 tests/fixtures/scenes/*/cache/
 tests/fixtures/scenes/mountain-terrain/source/
 site/assets/gallery/signature-architecture/source/
+
+# The reference images and their records, written by bench/runner/reference.ts.
+bench/references/

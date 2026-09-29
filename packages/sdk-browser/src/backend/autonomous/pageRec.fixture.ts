@@ -31,3 +31,13 @@ export function makeRec(id: number, triangles: number): Required<Pick<PageRec, '
 export const recRoots = (row?: ClusterRoot<PageRec>['placement']): ClusterRoot<PageRec>[] => [
   { world: new G.Matrix4(), pages: [], placement: row },
 ];
+
+/** The decoded triangle restored by the page ownership tests. */
+export const trianglePage = () => ({
+  indices: Uint32Array.of(0, 1, 2),
+  attributes: { position: Float32Array.of(0, 0, 0, 1, 0, 0, 0, 1, 0) },
+  vertexCount: 3,
+  flags: 0,
+  decodedBytes: 48,
+  quantizationError: 0,
+});

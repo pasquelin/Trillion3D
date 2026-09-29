@@ -55,6 +55,3 @@ export async function openGpuDevice(
     },
   };
 }
-
-/** Legacy probe entry point; new probes use the English device opener. */
-export const ouvrirAppareil = openGpuDevice;

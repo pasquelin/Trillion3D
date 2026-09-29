@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createPageStore } from './pageStore.ts';
-import { makeRec, recRoots } from './pageRec.fixture.ts';
+import { makeRec, recRoots, trianglePage } from './pageRec.fixture.ts';
 
 test('storing one page indexes geometry ownership once regardless of placement count', () => {
   let reads = 0;
@@ -33,14 +33,7 @@ test('storing one page indexes geometry ownership once regardless of placement c
       rec.array = array;
     },
   });
-  store.restoreRecords(records, {
-    indices: Uint32Array.of(0, 1, 2),
-    attributes: { position: Float32Array.of(0, 0, 0, 1, 0, 0, 0, 1, 0) },
-    vertexCount: 3,
-    flags: 0,
-    decodedBytes: 48,
-    quantizationError: 0,
-  });
+  store.restoreRecords(records, trianglePage());
   assert.ok(reads <= records.length * 2, `geometry reads: ${reads}`);
   assert.equal(new Set(records.map((rec) => rec.geometry)).size, 1);
   records[0].geometry?.dispose();

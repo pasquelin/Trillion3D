@@ -8,7 +8,7 @@
 import { residentProxyWgsl } from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from '../../../packages/sdk-browser/src/bounce/traceWgsl.ts';
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts';
-import type { ouvrirAppareil as openDevice } from './webgpuDevice.ts';
+import type { openGpuDevice as openDevice } from './webgpuDevice.ts';
 
 /** Farther than any ray of the probes travels. */
 const REACH = 200;
