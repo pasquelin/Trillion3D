@@ -22,8 +22,20 @@ export function movedNodes(tables: Pick<PreparedSceneTables, 'skins' | 'animatio
   return moved;
 }
 
+/** Visits only primitives owned by this source node, including multipart wrappers. */
+function ownedMeshes(
+  node: Object3D,
+  sourceNodes: ReadonlySet<Object3D>,
+  visit: (mesh: Mesh) => void,
+) {
+  if (isDrawnNode(node)) visit(node as Mesh);
+  for (const child of node.children)
+    if (!sourceNodes.has(child)) ownedMeshes(child, sourceNodes, visit);
+}
+
 /** Sets each skinned node's skeleton on the meshes it draws; its joints are `nodes` by rank. */
 export function bindSkins(tables: PreparedSceneTables, nodes: readonly Object3D[]) {
+  const sourceNodes = new Set(nodes);
   const skeletons = tables.skins.map(
     (skin) =>
       new Skeleton(
@@ -33,8 +45,8 @@ export function bindSkins(tables: PreparedSceneTables, nodes: readonly Object3D[
   );
   tables.nodes.forEach((declared, id) => {
     if (declared.skin === null || !nodes[id]) return;
-    nodes[id].traverse((part) => {
-      if (isDrawnNode(part)) (part as unknown as Mesh).skeleton = skeletons[declared.skin!];
+    ownedMeshes(nodes[id], sourceNodes, (part) => {
+      part.skeleton = skeletons[declared.skin!];
     });
   });
 }
@@ -50,6 +62,7 @@ const INTERPOLATION = { LINEAR: 'linear', STEP: 'step', CUBICSPLINE: 'cubic' } a
 /** The file's clips, each channel a track on the node it moves — a morph channel one track on
  *  each mesh the node draws, since each holds its own weights. */
 export function clipsOf(tables: PreparedSceneTables, nodes: readonly Object3D[]): Clip[] {
+  const sourceNodes = new Set(nodes);
   return tables.animations.map((declared, rank) => {
     const tracks: Track[] = [];
     let duration = 0;
@@ -58,8 +71,7 @@ export function clipsOf(tables: PreparedSceneTables, nodes: readonly Object3D[])
       if (!node) continue;
       const [field, kind] = KINDS[channel.path];
       const drawn: Object3D[] = [];
-      if (channel.path === 'weights')
-        node.traverse((part) => isDrawnNode(part) && drawn.push(part));
+      if (channel.path === 'weights') ownedMeshes(node, sourceNodes, (part) => drawn.push(part));
       const targets = channel.path === 'weights' ? drawn : [node];
       for (const target of targets)
         tracks.push({

@@ -1622,7 +1622,13 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
 ## GPU deformation
 
 Imported glTF and FBX animation clips are exposed as `model.animations`. A mixer binds tracks
-under that loaded model, including its morph weights:
+under that loaded model, including its morph weights. FBX currently accepts a single linear skin,
+positive single-target blend channels (including non-unit full weights), and linear translation
+or blend-weight curves with constant extrapolation. It preserves source keys and the entire
+playback span. Unsupported nonlinear, stepped, layered, constrained, animated rotation/scale,
+or intermediate-shape animation is refused with `IMPORT_UNSUPPORTED_ANIMATION`; it is never
+silently converted to 30 Hz samples. More than 36,000 distinct keys or times that collapse at
+float32 precision are also refused. glTF retains its original interpolation contracts:
 
 ```ts
 const model = await world.scene.load('/character/cache/native/full/manifest.json');

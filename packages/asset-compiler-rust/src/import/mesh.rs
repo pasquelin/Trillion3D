@@ -10,7 +10,7 @@ pub(super) fn mesh_json(
     materials: &[Option<usize>],
     bin: &mut Bin,
     accessors: &mut Vec<Value>,
-    report: &mut Report,
+    _report: &mut Report,
 ) -> Option<MeshOut> {
     let mut primitives = Vec::new();
     let mut triangles = 0usize;
@@ -29,10 +29,6 @@ pub(super) fn mesh_json(
     let has_uv = mesh.vertex_uv.exists;
     let has_color = mesh.vertex_color.exists;
     let deform = MeshDeform::of(mesh);
-    report.add_count(
-        "mesh-skinning-dual-quaternion",
-        usize::from(deform.dual_quaternion()),
-    );
     for (material_slot, faces) in parts {
         let mut out = Vertices::default();
         out.targets = (0..deform.targets()).map(|_| Default::default()).collect();
@@ -103,7 +99,7 @@ pub(super) fn mesh_json(
         return None;
     }
     Some(MeshOut {
-        mesh: json!({"name":&*mesh.element.name,"primitives":primitives}),
+        mesh: json!({"name":&*mesh.element.name,"primitives":primitives,"weights":deform.weights()}),
         triangles,
     })
 }

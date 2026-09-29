@@ -1,14 +1,11 @@
-//! FBX skin (all bones), inverse binds, full-weight morphs and sampled clips (#357).
+//! FBX skin (all bones), inverse binds, blend-shape keys and source-key clips (#357).
 //! The intermediate graph is flat; nodes and animation keys therefore use world poses.
 use super::*;
-/// Keys a second a stack is sampled at, and the most keys a clip holds (twenty minutes).
-const RATE: f64 = 30.0;
-const MAX_KEYS: usize = 36_000;
 /// First skin and full-weight blend shapes, indexed by source vertex.
 pub(super) struct MeshDeform<'a> {
     skin: Option<&'a ufbx::SkinDeformer>,
     width: usize,
-    pub(super) channels: Vec<&'a ufbx::BlendChannel>,
+    pub(super) channels: Vec<(&'a ufbx::BlendChannel, usize)>,
     shapes: Vec<(&'a ufbx::BlendShape, HashMap<u32, usize>)>,
 }
 
@@ -17,12 +14,12 @@ impl<'a> MeshDeform<'a> {
         let (mut channels, mut shapes) = (Vec::new(), Vec::new());
         for deformer in mesh.blend_deformers.iter() {
             for channel in deformer.channels.iter() {
-                let Some(shape) = channel.target_shape.as_ref() else {
-                    continue;
-                };
-                let ranks = shape.offset_vertices.iter().enumerate();
-                shapes.push((&**shape, ranks.map(|(i, &v)| (v, i)).collect()));
-                channels.push(&**channel);
+                for (key, frame) in channel.keyframes.iter().enumerate() {
+                    let shape = &*frame.shape;
+                    let ranks = shape.offset_vertices.iter().enumerate();
+                    shapes.push((shape, ranks.map(|(i, &v)| (v, i)).collect()));
+                    channels.push((&**channel, key));
+                }
             }
         }
         let skin = mesh.skin_deformers.first().map(|skin| &**skin);
@@ -43,13 +40,11 @@ impl<'a> MeshDeform<'a> {
             shapes,
         }
     }
-    /// True when the skin asks for more than a linear blend, which the engine draws linear.
-    pub(super) fn dual_quaternion(&self) -> bool {
-        let dual = [
-            ufbx::SkinningMethod::DualQuaternion,
-            ufbx::SkinningMethod::BlendedDqLinear,
-        ];
-        self.skin.is_some_and(|s| dual.contains(&s.skinning_method))
+    pub(super) fn weights(&self) -> Vec<f64> {
+        self.channels
+            .iter()
+            .map(|(channel, key)| channel.keyframes[*key].effective_weight)
+            .collect()
     }
 
     pub(super) fn deformed(&self) -> bool {
@@ -98,7 +93,8 @@ pub(super) struct Written<'a> {
     pub(super) typed: usize,
     pub(super) node: usize,
     pub(super) geometry: bool,
-    pub(super) channels: Vec<&'a ufbx::BlendChannel>,
+    pub(super) pose: bool,
+    pub(super) channels: Vec<(&'a ufbx::BlendChannel, usize)>,
 }
 
 /// A world matrix as the TRS a glTF node an animation drives must carry.
@@ -183,6 +179,7 @@ impl Importer<'_> {
                 typed,
                 node: placed,
                 geometry,
+                pose: skinned.is_none(),
                 channels,
             });
         }
@@ -197,3 +194,6 @@ impl Importer<'_> {
 
 #[path = "motion_clips.rs"]
 mod clips;
+
+#[path = "motion_contract.rs"]
+pub(super) mod contract;
