@@ -12,8 +12,9 @@ function dropDisplayFilter(gpu: WebgpuGpuState) {
 }
 
 /** Opens the display layers (`../../blend/displayFilter.ts`) of a beauty image whose blends hold a
- *  multiply or subtractive surface: made at the frame size by the first, dropped once the plan holds
- *  none. A diagnostic view or variant keeps the lit target's equations, drawing surfaces as they are. */
+ *  multiply or subtractive surface: made at the targets' size by the first, dropped once the plan
+ *  holds none. A diagnostic view or variant keeps the lit target's equations, drawing surfaces as
+ *  they are. */
 export function beginDisplayFilter(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -22,7 +23,7 @@ export function beginDisplayFilter(
   if (!blendState.filtersDisplay) return dropDisplayFilter(gpu);
   if (run.diagnostic !== 'beauty' || rt.context.diagnosticGpuVariant || !rt.vis.blendPipelines)
     return undefined;
-  const [width, height] = gpu.targetSize;
+  const [width, height] = gpu.allocatedSize;
   if (gpu.displayFilter?.width !== width || gpu.displayFilter.height !== height) {
     dropDisplayFilter(gpu);
     gpu.displayFilter = createDisplayFilter(device, width, height);
@@ -44,6 +45,11 @@ export function endDisplayFilter(
   filter.active = false;
   // No blend pass wrote them: they are `(1, 0)`, the image already what it shows.
   if (!filter.written) return;
-  filter.apply(encoder, resolved ?? filter.views, rt.gpu.displayView!, presentation);
+  const { targetSize, allocatedSize, displayView } = rt.gpu;
+  // The raw layers, where the image drew them: the top-left of targets it may not fill.
+  const share = resolved
+    ? undefined
+    : [targetSize[0] / allocatedSize[0], targetSize[1] / allocatedSize[1]];
+  filter.apply(encoder, resolved ?? filter.views, displayView!, presentation, share);
   rt.run.gpuDrawCalls += 2;
 }
