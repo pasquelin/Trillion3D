@@ -58,6 +58,7 @@ export const VIEW_GPU_KEYS = [
   'reflection',
   'surfaces',
   'targetSize',
+  'allocatedSize',
   'displaySize',
   'targetBytes',
   'targetGrant',

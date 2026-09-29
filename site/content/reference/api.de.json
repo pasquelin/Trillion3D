@@ -1250,7 +1250,8 @@
       "options.controls": "Der Controller, der die Kamera vom Canvas aus bewegt; `world.controls.kind` ändert ihn danach.",
       "options.signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
       "options.physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen.",
-      "options.temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet."
+      "options.temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet.",
+      "options.renderScale": "Der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird, nur WebGPU, bevor die zeitliche Kantenglättung es auf die Anzeige zurückrechnet: `'auto'` lässt das Bildbudget ihn zwischen `min` und `max` wählen (`{ min, max }`, standardmäßig 0,5 und 1), eine Zahl legt ihn fest; ein ruhendes Bild wird mit dem Maximum gezeichnet. Später über `world.renderScale` geändert."
     }
   },
   "crossVector3": {
@@ -6646,6 +6647,10 @@
     "summary": "Zeitliche Kantenglättung: Subpixel-Versatz, über Bilder hinweg akkumuliert; standardmäßig an.",
     "description": "Geschrieben, wirkt sie ab dem nächsten Bild, der Verlauf wird verworfen, keine Sitzung neu geöffnet. Gelesen, ist sie das, was das Bild trägt: false unter WebGL2 und solange das Programm nach dem Einschalten kompiliert."
   },
+  "world.renderScale": {
+    "summary": "Der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird (`WorldOptions.renderScale`), ab dem nächsten Bild.",
+    "description": "Gelesen: der Faktor des zuletzt gezeichneten Bildes, 1 unter WebGL2."
+  },
   "world.effects": {
     "summary": "Die Effektkette: Durchgänge, die über das Bild gezeichnet werden (`effect`)."
   },
@@ -6895,8 +6900,13 @@
       "controls": "Der Controller, der die Kamera vom Canvas aus bewegt; `world.controls.kind` ändert ihn danach.",
       "signal": "Stoppt die Ladevorgänge der Welt, wenn das Signal abgebrochen wird.",
       "physics": "Schaltet die Physik ein (`world.physics`): `true` oder Schwerkraft und Budgets. Erst dann wird Jolt geladen.",
-      "temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet."
+      "temporalAntialiasing": "Zeitliche Kantenglättung, nur WebGPU: Subpixel-Versatz, über Bilder hinweg akkumuliert. `false` zeichnet jedes Pixel in seiner Mitte, ohne Verlauf, was eine pixelgenaue Aufnahme verlangt; später über `world.temporalAntialiasing` umgeschaltet.",
+      "renderScale": "Der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird, nur WebGPU, bevor die zeitliche Kantenglättung es auf die Anzeige zurückrechnet: `'auto'` lässt das Bildbudget ihn zwischen `min` und `max` wählen (`{ min, max }`, standardmäßig 0,5 und 1), eine Zahl legt ihn fest; ein ruhendes Bild wird mit dem Maximum gezeichnet. Später über `world.renderScale` geändert."
     }
+  },
+  "RenderScale": {
+    "summary": "Der Renderskalierungsfaktor, den eine Seite verlangt: der Anteil der Anzeige je Achse, mit dem das Bild gezeichnet wird, bevor die zeitliche Kantenglättung es auf die Anzeige zurückrechnet.",
+    "description": "`'auto'` lässt das Bildbudget ihn zwischen 0,5 und 1 wählen, `{ min, max }` begrenzt diese Wahl, eine Zahl legt ihn fest; jeder Wert bleibt zwischen 0,5 und 1."
   },
   "WorldPageSource": {
     "summary": "Woher die Seiten gelesen werden, und die Adresse, relativ zu der sie gelesen werden.",
