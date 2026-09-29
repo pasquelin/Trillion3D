@@ -72,6 +72,7 @@ export async function createDeformationCompute(device: GPUDevice) {
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const imageWords = new Uint32Array(4);
+  const wholeBuffers: GPUBuffer[] = [];
   const held: { buffers: readonly GPUBuffer[]; group: GPUBindGroup }[] = [];
   const bind = (buffers: readonly GPUBuffer[], slot: number) => {
     if (!held[slot] || buffers.some((buffer, i) => buffer !== held[slot].buffers[i]))
@@ -104,7 +105,8 @@ export async function createDeformationCompute(device: GPUDevice) {
       pass.dispatchWorkgroups(Math.min(rows, 65535), Math.ceil(rows / 65535));
     }
     if (whole?.count) {
-      pass.setBindGroup(0, bind([buffers[0], buffers[1], buffers[2], whole.table, buffers[4]], 1));
+      for (let i = 0; i < 5; i++) wholeBuffers[i] = i === 3 ? whole.table : buffers[i];
+      pass.setBindGroup(0, bind(wholeBuffers, 1));
       pass.dispatchWorkgroups(Math.min(whole.count, 65535), Math.ceil(whole.count / 65535));
     }
     pass.end();
