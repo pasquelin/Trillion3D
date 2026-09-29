@@ -5,8 +5,7 @@ import { createSceneLightContractBuffer } from '../state/lightBuffer.ts';
 import { prepareWebgpuPresentation } from '../../frame/presentationSetup.ts';
 import { createWebgpuPagesPipelines } from './pipelines.ts';
 import { ensureWebgpuPositionBuffer, loadUnpaged } from '../../core/positions.ts';
-import { prepareWebgpuGeometry } from '../../core/geometryPrepare.ts';
-import { createSessionDeformation } from '../../../deformation/session.ts';
+import { prepareDeformationGeometry } from '../../../deformation/prepare.ts';
 import { prepareWebgpuBlend } from '../../blend/prepare.ts';
 import { declaredBlendModes } from '../../blend/stagePipelines.ts';
 import { createTransparentTable } from '../../transparent/table.ts';
@@ -130,23 +129,20 @@ export async function prepareWebgpuPages(rt: WebgpuPagesRuntime, gpuDevice: GPUD
     transmissiveMeshes: blendState.transmissive,
   });
   throwIfStopped(rt);
-  vis.geometryBlocks.clear();
   let geometryFailure: { error: unknown } | undefined;
   try {
-    vis.deformation = createSessionDeformation(selectionRoots, rt.setup.worlds);
-    Object.assign(
-      vis,
-      prepareWebgpuGeometry(gpuDevice, allPages, vis.geometryBlocks, vis.deformation),
-    );
+    prepareDeformationGeometry(rt, gpuDevice);
   } catch (error) {
     geometryFailure = { error };
   }
+  if (geometryFailure && vis.deformation?.any) throw geometryFailure.error;
   await grantWebgpuPagesCache(rt, gpuDevice);
   await grantFrameTargets(rt, gpuDevice);
   ensureUniform(rt, gpuDevice, cap);
-  vis.deformationCompute = allPages.some((page) => page.deformationOutput)
-    ? await createDeformationCompute(gpuDevice)
-    : undefined;
+  vis.deformationCompute =
+    allPages.some((page) => page.deformationOutput) || !!vis.wholeDeformation
+      ? await createDeformationCompute(gpuDevice)
+      : undefined;
   try {
     if (geometryFailure) throw geometryFailure.error;
     await step('textures', () => prepareWebgpuTextures(rt, gpuDevice));

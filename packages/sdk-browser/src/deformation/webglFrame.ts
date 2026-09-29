@@ -1,3 +1,6 @@
+import { wholeDeformationInputs } from './wholeInputs.ts';
+import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
+import type { BlendCopy } from '../cluster/blendCopyContract.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { ClusterRoot } from '../page/selection/types.ts';
 import type { PageRec } from '../page/selection/selection.ts';
@@ -16,13 +19,30 @@ import { createDeformationSkip } from './screen.ts';
 export function createWebglDeformation(
   roots: readonly ClusterRoot<PageRec>[],
   worlds: Pick<HostWorldPlacements, 'of'>,
+  copies: readonly BlendCopy[] = [],
 ) {
-  const session = createSessionDeformation(roots, worlds),
+  const session = createSessionDeformation(roots, worlds, copies),
     frame = session.frame,
     skip = createDeformationSkip(),
     source = { block: frame.block, bases: frame.bases, version: 0 };
   for (const root of roots)
     for (const page of root.pages) page.deformRecord = session.wordOfWorld(root.world);
+  for (const copy of copies) {
+    const ids = copy.deformation?.softSourceIds;
+    if (ids && !copy.geometry.attributes.skinIndex) {
+      wholeDeformationInputs(copy.geometry, ids, copy.deformation?.softVertices);
+      const joints = new Float32Array(ids.length * 4),
+        weights = new Float32Array(ids.length * 4);
+      ids.forEach((id, v) => {
+        joints.fill(id, v * 4, v * 4 + 4);
+        weights[v * 4] = 1;
+      });
+      copy.geometry.setAttribute('skinIndex', new BufferAttribute(joints, 4));
+      copy.geometry.setAttribute('skinWeight', new BufferAttribute(weights, 4));
+    }
+    const record = session.wordOfWorld(copy.matrix);
+    if (record) Object.assign(copy, { deformRecord: record, frustumCulled: false });
+  }
   return {
     /** The records the program reads, none when no root deforms. */
     source: () => (session.any ? source : undefined),
@@ -32,8 +52,7 @@ export function createWebglDeformation(
     update(cam: EngineCamera, viewport: readonly number[] | undefined, pixelError: number) {
       if (!session.any) return;
       const moved = frame.update(skip(roots, cam, viewport, pixelError));
-      for (let i = 0; i < frame.bases.length; i++)
-        if (frame.bases[i]) roots[i].reach = frame.reach[i];
+      for (let i = 0; i < roots.length; i++) if (frame.bases[i]) roots[i].reach = frame.reach[i];
       if (moved) source.version++;
     },
   };

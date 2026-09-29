@@ -1,3 +1,5 @@
+import { wholeMorphDeltas } from '../../deformation/wholeInputs.ts';
+import type { Geometry as SourceGeometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { ClusterDraw, WholeMesh } from '../../cluster/batchMesh.ts';
 import { allocated } from '../core/allocation.ts';
 import {
@@ -30,7 +32,9 @@ type Geometry = WholeMesh['geometry'];
 function targetsOf(geometry: Geometry) {
   const morph = geometry.attributes.morph,
     vertices = geometry.attributes.position?.count ?? 0;
-  return morph && vertices ? morph.array.length / (6 * vertices) : 0;
+  return morph && vertices
+    ? morph.array.length / (6 * vertices)
+    : ((geometry as SourceGeometry).morphAttributes?.position?.length ?? 0);
 }
 
 /**
@@ -87,7 +91,9 @@ export class WebglClusterDeformation {
     gl.activeTexture(gl.TEXTURE0 + MORPH_DELTAS_UNIT);
     let texture = this.morphs.get(geometry);
     if (texture) return void gl.bindTexture(gl.TEXTURE_2D, texture);
-    const deltas = geometry.attributes.morph!.array as Float32Array,
+    const deltas =
+        (geometry.attributes.morph?.array as Float32Array | undefined) ??
+        wholeMorphDeltas(geometry as SourceGeometry),
       texels = deltas.length / 3,
       rows = Math.ceil(texels / LIGHT_ROW_TEXELS),
       data = new Float32Array(rows * LIGHT_ROW_TEXELS * 3);

@@ -46,7 +46,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     modifiedPages = new Set<string>();
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
-    deformation = createWebglDeformation(roots, worlds), // the roots' records (#357)
+    deformation = createWebglDeformation(roots, worlds, blendCopies), // the roots' records (#357)
     hosts = { ...context, deformation: deformation.source },
     views = createWebglViews(context.viewport, gate, () => residency.keptChanged()),
     hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, hosts, declared);
