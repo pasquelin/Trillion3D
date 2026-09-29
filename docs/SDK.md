@@ -608,25 +608,19 @@ reopen.
 
 A shape a page rewrites every frame — a sea, a cloth, a flag, a procedural mesh, an editor handle —
 declares it: `geometry.usage = 'dynamic'`. Its triangles are cut into pages once, their index
-alone; its vertices stay floats the session rewrites in place, and a written list
-(`attributes.position.needsUpdate = true`) uploads only the vertices from the first changed to the
-last, in the frame after, with no cut, no hash and no session opened again (#573). It is drawn by
-the same visibility, depth, Hi-Z, resolve, shadows and lighting as every paged mesh: it hides and is
-hidden, casts and receives, and each rewrite stales only the shadow pages its moved vertices
-cover. A geometry changed on two consecutive frames without declaring it turns dynamic by itself,
-once cut again, and the world says so under `geometry-dynamic`, naming the mesh. A soft body's
-geometry is dynamic: the cloth, rope or volume is drawn where its last step left it, its simulation
-kept; two soft bodies in one geometry would draw over each other, so the second is refused with
-`PHYSICS_FAILED` — give each its own (`geometry.clone()`).
+alone, and a written list (`attributes.position.needsUpdate = true`) uploads in place the vertices
+from the first changed to the last, the frame after, with no cut and no session opened again
+(#573). It is drawn by the same visibility, Hi-Z, resolve, shadows and lighting as every paged mesh,
+and a rewrite stales only the shadow pages its moved vertices cover. A geometry changed on two
+consecutive frames turns dynamic by itself, said under `geometry-dynamic`, naming the mesh. A soft
+body's geometry is dynamic, drawn where its last step left it; two soft bodies in one geometry are
+refused with `PHYSICS_FAILED` — give each its own (`geometry.clone()`).
 
-Culling reads a box the vertices never leave: `geometry.maxBounds` when declared, else the box of
-its first vertices widened by half its size on every side. Vertices that leave it serve the same
-pages again in a larger box — nothing is cut; triangles whose corners change are cut anew. A frame
-uploads at most `DYNAMIC_UPLOAD_BUDGET_BYTES` (4 MiB): a rewrite past it waits for the next frame,
-in the order the geometries changed, never dropped, the previous vertices drawn meanwhile.
-`metrics.dynamicUploadBytes` says what the frame sent the GPU, every buffer written counted (on
-WebGPU a normal carries its tangent, and positions are also written for the fallback draw), and the
-budget counts the same bytes. Live example:
+Culling reads a box the vertices never leave: `geometry.maxBounds` when declared, else the first
+vertices' box widened by half its size; vertices that leave it serve the same pages in a larger
+box, and corners that change are cut anew. A frame sends at most `DYNAMIC_UPLOAD_BUDGET_BYTES`
+(4 MiB) — every buffer written counted, as `metrics.dynamicUploadBytes` reports it —; a rewrite
+past it waits for the next frame, in order, never dropped. Live example:
 [floating crates](../site/examples/floating-crates.html).
 
 ```js

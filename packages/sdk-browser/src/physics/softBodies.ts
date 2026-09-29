@@ -60,11 +60,10 @@ export function writeSoftBody(
   if (flags) writer.flags(id & BODY_INDEX, flags);
 }
 
-/** The soft body that last drew itself into each geometry; the one drawing now, if any. */
+/** The soft body drawn into each geometry; the one drawing now (`drawSoft`), if any. */
 const drawers = new WeakMap<Geometry, Mesh>();
 let drawing: Mesh | null = null;
-/** Whether `node`'s change is its soft body drawing itself (`drawSoft`): a picture of where the
- *  body is, not a new shape — the simulation keeps it, velocity and all. */
+/** Whether `node`'s change is its soft body drawn where it is: no new shape to simulate (#573). */
 export const drawnBySoft = (node: object) => node === drawing;
 
 /**
@@ -83,7 +82,6 @@ export function addSoftBody(
 ) {
   const p = mesh.physics,
     other = drawers.get(mesh.geometry);
-  // It draws itself into its geometry (`drawSoft`): two bodies in one would overwrite each other.
   if (other && other !== mesh && other.geometry === mesh.geometry && other.physics?._host)
     throw new EngineError(
       'PHYSICS_FAILED',
@@ -101,8 +99,8 @@ export function addSoftBody(
   return id & BODY_INDEX;
 }
 
-/** Draws `mesh` where its soft body is (#573): its geometry's positions, and its normals when it
- *  carries some, rewritten in place from `vertices`, which hold one simulated place per vertex. */
+/** Draws `mesh` where its soft body is (#573): its geometry's positions, and its float normals
+ *  when it carries some, rewritten in place from `vertices`, one simulated place per vertex. */
 function drawSoft(mesh: Mesh, vertices: Float32Array) {
   const { position, normal } = mesh.geometry.attributes;
   if (position?.kind !== 'attribute' || position.array.length !== vertices.length) return;
@@ -110,12 +108,10 @@ function drawSoft(mesh: Mesh, vertices: Float32Array) {
   try {
     position.array.set(vertices);
     position.needsUpdate = true;
-    if (normal?.kind !== 'attribute') return;
-    const index = mesh.geometry.index?.array ?? null;
-    if (normal.array instanceof Float32Array && normal.array.length === vertices.length)
-      computeNormals(vertices, index, normal.array);
-    else normal.array.set(computeNormals(vertices, index));
-    normal.needsUpdate = true;
+    const normals = normal?.kind === 'attribute' ? normal.array : null;
+    if (!(normals instanceof Float32Array) || normals.length !== vertices.length) return;
+    computeNormals(vertices, mesh.geometry.index?.array ?? null, normals);
+    normal!.needsUpdate = true;
   } finally {
     drawing = null;
   }

@@ -60,11 +60,8 @@ export function readingOf({ index }: Geometry, drawn: DrawnTriangles): Reading {
   };
 }
 
-/**
- * Reads `geometry`'s plain triangles into `into.next`, in place, when they keep the corners and
- * lists `into` was cut from and lie within its `box`: no list allocated. False otherwise — another
- * reading, corners or lists, a vertex out of the box —: the caller reads it anew.
- */
+/** Reads `geometry`'s plain triangles into `into.next`, in place, when they keep the corners and
+ *  lists `into` was cut from, within its `box`; false otherwise: the caller reads them anew. */
 export function readInPlace(
   geometry: Geometry,
   reading: Primitive,
@@ -81,7 +78,6 @@ export function readInPlace(
     const list = geometry.attributes[name],
       out = next[field],
       missing = field === 'positions' ? 0 : 1;
-    // Normals always drawn, read or computed; a UV or colour list kept or none.
     if (!list || list.count < position.count) {
       if (out && field !== 'normals') return false;
       continue;

@@ -100,22 +100,14 @@ test('a soft body is drawn where it is: its geometry, dynamic, rewritten in plac
 });
 
 test('a second soft body in the geometry another draws itself into is refused by name', () => {
-  const { scene, bodies } = sceneOf(100);
-  const shared = plane(1, 1, 2, 2);
-  const [, right] = ['left', 'right'].map((name) => {
-    const mesh = new Mesh(shared, new Material('meshStandard'));
-    mesh.name = name;
-    mesh.physics = { type: 'cloth' } as SoftBodyOptions;
-    scene.add(mesh);
-    return mesh;
-  });
+  const { bodies, cloth } = sceneOf(100);
+  const [left, right] = [cloth(2), cloth(2)];
+  [left.name, right.name, right.geometry] = ['left', 'right', left.geometry];
   const refused: { code: string; details: object }[] = [];
   bodies.reconcile(new Set(), (error) => refused.push(error as (typeof refused)[number]));
-  assert.deepEqual(
-    refused.map(({ code, details }) => [code, details]),
-    [['PHYSICS_FAILED', { name: 'right', shares: 'left' }]],
-  );
-  right.geometry = shared.clone();
+  const named = refused.map(({ code, details }) => [code, details]);
+  assert.deepEqual(named, [['PHYSICS_FAILED', { name: 'right', shares: 'left' }]]);
+  right.geometry = left.geometry.clone();
   bodies.reconcile(new Set(), (error) => assert.fail(String(error)));
   assert.equal(bodies.count.bodies, 2, 'its own geometry, it is made');
 });
