@@ -17,6 +17,10 @@ export const tileCompactWgsl = (words: number, pool: boolean) => `
 const OPAQUE_MASK:u32=0u;
 const BLEND_MASK:u32=${words}u;
 var<workgroup> hits:array<atomic<u32>,${2 * words}u>;
+/** One when any light kept in the OPAQUE slice reads a shadow slot (\`light.params.y>-1.0\`): the
+ *  per-tile fact the moving resolve reads once, rather than walking the list a pixel at a time
+ *  (#1249). A light of the blend slice alone never sets it. */
+var<workgroup> shadowed:atomic<u32>;
 /** Rank of a kept light: the number of kept bits before it in the same slice. */
 fn rankBefore(mask:u32,lane:u32)->u32{
  let word=mask+lane/32u;
@@ -41,7 +45,7 @@ fn markLight(index:u32,lane:u32,hasOpaque:bool,seesSky:bool){
  var keep=vec2<bool>(hasOpaque,true);
  if(!isSun(light)){keep=sliceHits(light.positionRange.xyz-view.origin.xyz,light.positionRange.w,hasOpaque,seesSky);}
  let bit=1u<<(lane%32u);
- if(keep.x){atomicOr(&hits[OPAQUE_MASK+lane/32u],bit);}
+ if(keep.x){atomicOr(&hits[OPAQUE_MASK+lane/32u],bit);if(light.params.y>-1.0){atomicOr(&shadowed,1u);}}
  if(keep.y){atomicOr(&hits[BLEND_MASK+lane/32u],bit);}
 }${pool ? batchedWalkWgsl(words) : NARROW_WALK_WGSL}`;
 
@@ -109,7 +113,8 @@ fn spill(slice:u32,total:u32,slot:u32){
  * masks: the statements the pass runs before its first barrier, `base` its tile record.
  */
 export const tileCompactResetWgsl = (words: number, pool: boolean) =>
-  `${pool ? WALK_RESET_WGSL : ''} if(lane<${2 * words}u){atomicStore(&hits[lane],0u);}`;
+  `${pool ? WALK_RESET_WGSL : ''} if(lane<${2 * words}u){atomicStore(&hits[lane],0u);}
+ if(lane==0u){atomicStore(&shadowed,0u);}`;
 
 /** The wide pass's walk state: nothing kept, each slice writing its list, a list's room. */
 const WALK_RESET_WGSL = ` if(lane==0u){
@@ -127,10 +132,10 @@ export const tileCompactStatementsWgsl = (words: number, pool: boolean) =>
  let live=(count-(max(count,1u)-1u)/${words * 32}u*${words * 32}u+31u)/32u; // the last batch's words
  if(lane==0u){
   let total=kept+vec2u(maskTotal(OPAQUE_MASK,live),maskTotal(BLEND_MASK,live));
-  tiles[base]=total.x;tiles[base+1u]=total.y;counted=total;
+  tiles[base]=total.x;tiles[base+1u]=total.y;tiles[base+TILE_SHADOW_BASE]=select(0u,1u,atomicLoad(&shadowed)!=0u);counted=total;
  }${spillWgsl(words)}`
     : ` walkLights(lane,count,hasOpaque,seesSky,base);
- if(lane==0u){tiles[base]=maskTotal(OPAQUE_MASK,${words}u);tiles[base+1u]=maskTotal(BLEND_MASK,${words}u);}`;
+ if(lane==0u){tiles[base]=maskTotal(OPAQUE_MASK,${words}u);tiles[base+1u]=maskTotal(BLEND_MASK,${words}u);tiles[base+TILE_SHADOW_BASE]=select(0u,1u,atomicLoad(&shadowed)!=0u);}`;
 
 /** The pool's walk of a tile a slice of which passed its list; nothing for any other tile. A
  *  scene of one batch keeps its masks whole: its kept lights are written again from them, never

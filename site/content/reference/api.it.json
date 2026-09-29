@@ -1640,7 +1640,9 @@
       "PHYSICS_FORMAT": "La fisica preparata di un modello compilato (`physics.json`) è di un altro formato, o è stata preparata da un Jolt diverso da quello del motore (`PHYSICS_FORMAT`): ricompilalo. È stato chiesto un raycast esatto a fisica spenta (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "La fisica preparata di un modello compilato (`physics.json`) è di un altro formato, o è stata preparata da un Jolt diverso da quello del motore (`PHYSICS_FORMAT`): ricompilalo. È stato chiesto un raycast esatto a fisica spenta (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` è stato impostato a `'vehicle'` mentre `world.controls.vehicle` è `null`: non c’è niente da guidare.",
-      "GUIDE_CEILING": "Una chiamata a `world.guides` terrebbe più vertici di `GUIDE_VERTEX_CEILING`; non ne è stato aggiunto nulla."
+      "GUIDE_CEILING": "Una chiamata a `world.guides` terrebbe più vertici di `GUIDE_VERTEX_CEILING`; non ne è stato aggiunto nulla.",
+      "REFERENCE_SHADOWS_REDUCED": "L’immagine di riferimento è stata rifiutata: il pool delle ombre gira sotto la sua dimensione piena (`REFERENCE_SHADOWS_REDUCED`). La modalità di riferimento è stata chiesta su una sessione interattiva, il cui ridimensionamento farebbe perdere il supersampling (`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "L’immagine di riferimento è stata rifiutata: il pool delle ombre gira sotto la sua dimensione piena (`REFERENCE_SHADOWS_REDUCED`). La modalità di riferimento è stata chiesta su una sessione interattiva, il cui ridimensionamento farebbe perdere il supersampling (`REFERENCE_INTERACTIVE`)."
     }
   },
   "enginePose": {
