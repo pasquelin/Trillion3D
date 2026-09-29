@@ -6,6 +6,7 @@ import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/
 import { clear, clusterRecord, mountClusterRenderer, pixel, quad } from './webglClusterPixels.ts';
 import { readDegraded } from '../../../packages/sdk-browser/src/webgl/cluster/validation.ts';
 import { listenMaterialDegraded } from './materialDegradedNotices.ts';
+import { keptClusterScene } from '../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
 
 const glassMesh = (options: Partial<G.SurfaceParameters> = {}) => {
   const mesh = G.mesh(
@@ -25,7 +26,7 @@ export async function execute() {
     glass = glassMesh();
   scene.background = new G.Color(0x0000ff);
   const draw = (clusters: ClusterDrawMesh[], copies: G.HostMesh[], srgb = false) =>
-    renderer.draw(clusters, scene, drawCamera, false, srgb, [], copies);
+    renderer.draw(clusters, keptClusterScene(scene), drawCamera, false, srgb, [], copies);
   const passes = () => ({
     backdrop: renderer.backdropSubmissions,
     copies: renderer.copySubmissions,
