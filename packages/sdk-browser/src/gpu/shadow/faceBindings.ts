@@ -52,9 +52,12 @@ export function createShadowFaceBindings(device: GPUDevice, faceUniform: GPUBuff
     /** What this image's cutouts ask: `word` (`phaseWord`) into `target`, the texture feedback's
      *  counters; none without them. The group follows the counters' identity. */
     requests(word: number, target: GPUBuffer | undefined) {
-      words[0] = word;
-      words[1] = target ? 1 : 0;
-      device.queue.writeBuffer(request, 0, words);
+      // Every shadow batch of an image carries the same word: written once, when it changes.
+      if (words[0] !== word || words[1] !== (target ? 1 : 0)) {
+        words[0] = word;
+        words[1] = target ? 1 : 0;
+        device.queue.writeBuffer(request, 0, words);
+      }
       if (target && target !== counters) {
         counters = target;
         group = undefined;

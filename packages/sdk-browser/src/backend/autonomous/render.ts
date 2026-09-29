@@ -106,7 +106,8 @@ export function createAutonomousRender(options: {
       context.source,
       sourcesDessinees,
     );
-    state.frameHeld = stillFrame(held, view.requested);
+    // Once still, a held frame stays still: no cut ran, the pages asked are the same.
+    state.frameHeld = held && (state.frameHeld || stillFrame(held, view.requested));
     if (held) return;
     // Copied world matrices and lights are a function of the scene only.
     // A node the host hid or showed parks its roots and hides its copies, or takes them back
