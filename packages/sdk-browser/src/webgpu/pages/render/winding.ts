@@ -1,5 +1,6 @@
 import { matrixWindingCw } from '../../../../../sdk-core/src/index.ts';
-import { rootOf, type ClusterRoot } from '../../../page/selection/types.ts';
+import type { ClusterRoot } from '../../../page/selection/types.ts';
+import { rootOf } from '../../../page/selection/placements.ts';
 
 /**
  * Winding of a placement: true when its root's world matrix reverses orientation, which swaps the

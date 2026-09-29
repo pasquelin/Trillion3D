@@ -1,6 +1,6 @@
 import { frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
 import { rootOf, type PageRec } from '../../page/selection/selection.ts';
-import type { Placements } from '../../page/selection/types.ts';
+import type { Placements } from '../../page/selection/placements.ts';
 import { notDrawn } from '../../placement/hidden.ts';
 import type { createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -22,7 +22,8 @@ export function selectWebgpuBlend(
     drawn = cut?.drawn;
   selected.clear();
   blendState.visibleBlend.length = 0;
-  if (cut) for (const rec of cut.drawn) if (rec.transparent) selected.add(rootOf(cut.roots, rec).world);
+  if (cut)
+    for (const rec of cut.drawn) if (rec.transparent) selected.add(rootOf(cut.roots, rec).world);
   let rejected = 0;
   for (const item of blendState.blendGpu) {
     if (notDrawn(item)) continue;
