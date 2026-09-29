@@ -26,6 +26,7 @@ import { selectWebgpuBlend } from '../../webgpu/blend/selection.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { createHostDrawCamera, readHostDrawCamera } from '../../camera/world.ts';
 import { WebglClusterCopies } from '../../webgl/cluster/copyCulling.ts';
+import { identityRoots } from '../../page/selection/placements.fixture.ts';
 
 const sprite = (sizeAttenuation: boolean) => ({ rotation: 0, sizeAttenuation });
 const spriteSurface = (sizeAttenuation: boolean, parameters = {}) =>
@@ -37,12 +38,13 @@ test('the CPU Hi-Z test keeps a constant-size sprite whose box a nearer surface 
   const page = (sizeAttenuation: boolean): HizPage => ({
     min: [-0.05, -0.05, -3],
     max: [0.05, 0.05, -3],
-    matrix: new G.Matrix4(),
+    placementIndex: 0,
     material: { sprite: sprite(sizeAttenuation) },
   });
   const [constant, attenuated] = [page(false), page(true)];
   const kept = countUnoccluded(
     [constant, attenuated],
+    identityRoots(),
     pyramid,
     cameraMoteur(cameraAt()),
     [48, 48],
@@ -108,7 +110,7 @@ test('the transparent occlusion test rejects no entry a constant-size sprite hol
   const page = (sizeAttenuation: boolean) => ({
     min: [0, 0, 0],
     max: [1, 1, 1],
-    matrix: new G.Matrix4(),
+    placementIndex: 0,
     material: { sprite: sprite(sizeAttenuation) },
   });
   let sent = false;
