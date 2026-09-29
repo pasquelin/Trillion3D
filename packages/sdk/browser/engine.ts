@@ -123,6 +123,7 @@ export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts';
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts';
 export type { PhysicsStats } from '../../sdk-browser/src/physics/protocol.ts';
+export type { PlacementGrowth } from '../../sdk-browser/src/placement/backendSceneUpdates.ts';
 export type { PlacementRows } from '../../sdk-browser/src/placement/rows.ts';
 export { presentationColorDiagnostic } from '../../sdk-browser/src/diagnostic/presentationDiagnostic.ts';
 export type { ResidentPage } from '../../sdk-browser/src/gpu/page/types.ts';

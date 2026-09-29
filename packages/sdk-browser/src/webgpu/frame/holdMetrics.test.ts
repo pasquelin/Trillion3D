@@ -8,12 +8,15 @@ import { HOLD_SIGNATURE_VALUES } from './signature.ts';
 import { CPU_STEP, CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts';
 import { holdWebgpuFrame } from './hold.ts';
 import { metricsOf } from '../pages/io/metrics.ts';
+import { createShadowWork } from '../shadow/work.ts';
+import { STALE_REASONS } from '../../../../sdk-core/src/scene/light-shadow/counts.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** An engine whose every `frameSettled` condition is true and whose last complete frame drew a
  *  lot: that is what hold must not republish. */
 function tenue() {
+  const staledBy = new Int32Array(STALE_REASONS.length);
   const gate = createFrameGateCore(HOLD_SIGNATURE_VALUES);
   gate.hold.keep(gate.revisions);
   gate.hold.keep(gate.revisions);
@@ -63,8 +66,9 @@ function tenue() {
     context: {},
     gpu: {
       presenter: { present: () => {} },
-      colorTexture: {},
+      displayTexture: {},
       targetSize: [4, 4],
+      displaySize: [4, 4],
       cache: undefined,
       vertexBytes: 0,
       positionBuffers: new Map(),
@@ -91,10 +95,11 @@ function tenue() {
     },
     lights: {
       plan: {
-        counts: { pendingPages: 0, waitedMs: 0, cachedPages: 0, poolPages: 0 },
+        counts: { pendingPages: 0, waitedMs: 0, cachedPages: 0, poolPages: 0, staledBy },
         pool: { refetched: 0 },
         requests: { counts: { requested: 0 } },
       },
+      shadowWork: createShadowWork(),
       memory: { peakBytes: 0, bias: 0, events: [] },
     },
     bounce: { probes: undefined },
@@ -173,7 +178,7 @@ test('the shadow counters of a frame are published under their public names', ()
   lights.plan.counts.pendingPages = 6;
   lights.shadowPages = 6;
   lights.lightRuns = 2;
-  lights.cull = { counts: { counts: () => ({ frame: 40, regions: 6, kept: 77 }) } };
+  lights.cull = { counts: { counts: () => ({ frame: 40, regions: 6, kept: 77, moving: 0 }) } };
   assert.deepEqual([metricsOf(rt).shadowPoolBytes, metricsOf(rt).shadowPoolLayers], [null, null]);
   (lights.plan as unknown as { pool: object }).pool = { refetched: 0, layers: 2 };
   lights.shadows = { texture: {}, allocationBytes: 700 };

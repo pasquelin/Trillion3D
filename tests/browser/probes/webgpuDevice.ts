@@ -3,13 +3,14 @@
 // copies of the same prologue had already drifted — one of them did not filter compilation
 // messages and did not wait for the queue.
 //
-// This module knows only the browser: `pageWebgpu.ts` injects the text of `ouvrirAppareil` into
+// This module knows only the browser: `pageWebgpu.ts` injects the text of the device opener into
 // the page (`toString`), and the page bundled by esbuild (`parentedCameraGpuPage.ts`) imports
 // it. One writing for both paths, hence one contract.
 
 /**
- * Opens the device, hooks collection of uncaptured errors, and returns what is needed to compile
- * and close cleanly. Returns `null` when the page has no WebGPU adapter.
+ * Opens the device, with those of `features` the adapter offers, hooks collection of uncaptured
+ * errors, and returns what is needed to compile and close cleanly. Returns `null` when the page
+ * has no WebGPU adapter.
  *
  * - `compile(code)` returns `{ module, compilation }`; `compilation` keeps only messages of type
  *   `error`, WGSL compiler warnings not being correctness discrepancies.
@@ -18,15 +19,17 @@
  *   architecture) and `complet` (the four filled fields). `adapter.info` is not cloneable, only
  *   these strings cross the page bridge.
  */
-export async function ouvrirAppareil() {
+export async function ouvrirAppareil(features: GPUFeatureName[] = []) {
   const adapter = await navigator.gpu?.requestAdapter();
   if (!adapter) return null;
-  const device = await adapter.requestDevice();
-  const erreurs: string[] = [];
-  device.addEventListener('uncapturederror', (event) => erreurs.push(event.error.message));
+  // The optional features asked, those the adapter has: the probe reads what was granted.
+  const requiredFeatures = features.filter((feature) => adapter.features.has(feature));
+  const device = await adapter.requestDevice({ requiredFeatures });
+  const errors: string[] = [];
+  device.addEventListener('uncapturederror', (event) => errors.push(event.error.message));
   return {
     device,
-    erreurs,
+    erreurs: errors,
     async compile(code: string) {
       const module = device.createShaderModule({ code });
       const compilation = (await module.getCompilationInfo()).messages

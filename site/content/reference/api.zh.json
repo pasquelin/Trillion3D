@@ -1937,7 +1937,7 @@
       "wasmAvailable": "WebAssembly 模块已加载,且契约版本正确。",
       "wasmSimd": "该模块是否以 `simd128` 编译;在模块加载之前为 `null`。",
       "clockResolutionMs": "线程时钟分辨率,单位毫秒;在估算出之前为 `null`。",
-      "clockCoarse": "当时钟精度粗糙到无法用于裁定时为 true:此时所有内容都停留在 JavaScript 路径上。",
+      "clockCoarse": "当时钟过于粗糙、无法测量单次执行时为 true:执行会按合并的批次计时。",
       "unavailableReason": "WebAssembly 路径不可用的原因;若可用则为 `null`。",
       "operations": "各项运算。"
     }
@@ -2624,6 +2624,13 @@
       "depth": "对于一叠图像而言,层数。"
     }
   },
+  "PlacementGrowth": {
+    "summary": "所有者交给一个就地扩大其实例缓冲区的会话的内容（`growth.ts`）。",
+    "members": {
+      "growPlacements": "会话持有的一个实例缓冲区被更大的替换，先是 `from` 的行，其余搁置：会话从此读取 `to` 并持有其新行，不重建任何表（`growth.ts`）。引擎没有它时，所有者在 `to` 上重新打开会话。",
+      "growsInPlace": "`growPlacements` 是否接受 `from` 中每一个扩大到 `capacity` 行，在所有者替换任何一个之前询问：false 保持原样，所有者在更大的缓冲区上重新打开会话。"
+    }
+  },
   "PlacementRows": {
     "summary": "镜像网格的放置记录行,每个被放置的副本占一行。",
     "members": {
@@ -3149,6 +3156,15 @@
       "shadowPagesDrawn": "页面失效机制产生的结果:本帧重绘的页面数、因预算不足而留在队列中的页面数,以及图像读取的最老过期页面已等待的时间。全部为零是静止场景的正常值;在没有阴影图集的引擎上为 `null`。",
       "shadowPagesTotal": "自探索器打开以来已绘制的页面数,包括 `flush()` 排空的部分:某次变化的开销就是两次读数之间的差值。",
       "shadowPagesPending": "等待中的阴影页面。",
+      "shadowBatches": "本帧绘制的阴影批次数：主机对其编码内容的计数，从不在着色器中读取，下面的计数亦然。没有阴影图集的引擎为 null。",
+      "shadowLayersDrawn": "本帧阴影通道绘制所用的池图层数。",
+      "shadowPagesRestored": "从其静态层副本绘制的页面，只光栅化其运动投射体。",
+      "shadowPagesRasterized": "静态投射体被重新光栅化的页面；与恢复的页面合计即为所有绘制的页面。",
+      "shadowRestoreCopies": "来自静态层的页面副本：一个恢复的页面，或在其图层上完整绘制的页面。",
+      "shadowStaticDrawCalls": "静态投射体的绘制调用：绘制到静态层，或在没有静态层时整页绘制的页面。",
+      "shadowMovingDrawCalls": "仅运动投射体的绘制调用，绘制在从静态层恢复的页面上。",
+      "shadowMovingCastersKept": "在 `shadowCastersKept` 中，为只绘制运动投射体而保留的簇。",
+      "shadowPagesStaledBy": "本帧使其过期的页面，按原因划分：光源、静止投射体、运动投射体、细节、剪切阈值，或太阳的深度范围。",
       "shadowWaitMs": "图像读取的最老过期页面等待重绘的毫秒数。只计算图像读取它的时间;重绘后为 0。",
       "shadowCutDrops": "自打开浏览器以来丢弃了工作的光源裁剪批次数——其视图保留的簇多于列表容量——：每个批次送回其页面，在重绘前撤下(#525)。在没有 GPU 光源裁剪的引擎上为 null，下面三项亦然。",
       "shadowCutWithdrawnPages": "自打开浏览器以来，因光源裁剪画错而重绘的页面数：其批次丢弃了工作，或其标志从未被读取。这些页面在重绘前被撤下。",
@@ -3203,6 +3219,9 @@
       "receive": "请求报告已返回；下一个计划读取它。较新的报告替换未读的报告。",
       "commit": "本帧列表中的 `[from, to)` 页已编码，第 `from + i` 页使用 `modes[i]`：它们的绘制在任何读取之前完成。最后一批关闭列表。"
     }
+  },
+  "ShadowStaleReason": {
+    "summary": "阴影页面失效的原因 (`ShadowFrameMetrics.shadowPagesStaledBy`)。"
   },
   "ShadowViewpoint": {
     "summary": "调度器对视角所了解的信息:是一台摄像机,而不是一个矩阵,以此保持无依赖。",
@@ -4219,6 +4238,15 @@
       "shadowPagesDrawn": "页面失效机制产生的结果:本帧重绘的页面数、因预算不足而留在队列中的页面数,以及图像读取的最老过期页面已等待的时间。全部为零是静止场景的正常值;在没有阴影图集的引擎上为 `null`。",
       "shadowPagesTotal": "自探索器打开以来已绘制的页面数,包括 `flush()` 排空的部分:某次变化的开销就是两次读数之间的差值。",
       "shadowPagesPending": "等待中的阴影页面。",
+      "shadowBatches": "本帧绘制的阴影批次数：主机对其编码内容的计数，从不在着色器中读取，下面的计数亦然。没有阴影图集的引擎为 null。",
+      "shadowLayersDrawn": "本帧阴影通道绘制所用的池图层数。",
+      "shadowPagesRestored": "从其静态层副本绘制的页面，只光栅化其运动投射体。",
+      "shadowPagesRasterized": "静态投射体被重新光栅化的页面；与恢复的页面合计即为所有绘制的页面。",
+      "shadowRestoreCopies": "来自静态层的页面副本：一个恢复的页面，或在其图层上完整绘制的页面。",
+      "shadowStaticDrawCalls": "静态投射体的绘制调用：绘制到静态层，或在没有静态层时整页绘制的页面。",
+      "shadowMovingDrawCalls": "仅运动投射体的绘制调用，绘制在从静态层恢复的页面上。",
+      "shadowMovingCastersKept": "在 `shadowCastersKept` 中，为只绘制运动投射体而保留的簇。",
+      "shadowPagesStaledBy": "本帧使其过期的页面，按原因划分：光源、静止投射体、运动投射体、细节、剪切阈值，或太阳的深度范围。",
       "shadowWaitMs": "图像读取的最老过期页面等待重绘的毫秒数。只计算图像读取它的时间;重绘后为 0。",
       "shadowCutDrops": "自打开浏览器以来丢弃了工作的光源裁剪批次数——其视图保留的簇多于列表容量——：每个批次送回其页面，在重绘前撤下(#525)。在没有 GPU 光源裁剪的引擎上为 null，下面三项亦然。",
       "shadowCutWithdrawnPages": "自打开浏览器以来，因光源裁剪画错而重绘的页面数：其批次丢弃了工作，或其标志从未被读取。这些页面在重绘前被撤下。",
@@ -7440,7 +7468,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "阴影记录的浮点数，即光的着色所读取的记录：六个灯光面矩阵 — 太阳在此存放其深度范围，每个为 `zNear` 与跨度倒数（`recordPack.ts`）—，然后是太阳平面的坐标系 — `right`、`up`、`axis`，各补齐为四个 —，然后是每个 clipmap 级别范围的原点（两个整数），最后是头部 `vec4f`：面数（灯）或级别数（太阳）、灯的半视场正切或太阳的最细级别、灯的近平面，以及记录在页表中的第一个条目。"
+    "summary": "阴影记录的浮点数，即光源着色所读取的内容：六个灯面矩阵 — 太阳在此存放深度范围，每个为 `zNear, zFar`（`recordPack.ts`）—，然后是太阳光平面的坐标系 — `right, zNear`、`up, zFar`、`axis`，然后是当前范围的槽位 —，然后是每个 clipmap 槽位窗口原点的两个整数，最后是一个 `vec4f` 头：面（灯）或级别（太阳）、灯的切向半视场或太阳的最细级别、灯的近平面，以及记录在页表中的第一个条目。"
   },
   "ShadowRequestReport": {
     "summary": "着色在一帧中读取的内容：它请求的表条目，无顺序。",

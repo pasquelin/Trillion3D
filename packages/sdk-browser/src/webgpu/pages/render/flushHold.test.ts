@@ -41,7 +41,12 @@ function vidange(adopte?: () => boolean, arme = true) {
   };
   const rt = {
     run,
-    gpu: { surfaces: undefined, deferred: undefined, colorTexture: undefined, targetSize: [8, 8] },
+    gpu: {
+      surfaces: undefined,
+      deferred: undefined,
+      displayTexture: undefined,
+      displaySize: [8, 8],
+    },
     vis: { textureJobs: [] },
     capture: { capturing: false, capturePending: undefined },
     timing: { gpuTiming: undefined },
@@ -101,7 +106,7 @@ test('a flush under image: false settles the pages and reads no image back (#408
   const { rt } = vidange(undefined, false);
   let touched = 0;
   const device = new Proxy({}, { get: () => (touched++, () => assert.fail('image read back')) });
-  Object.assign(rt.gpu, { device, colorTexture: {} });
+  Object.assign(rt.gpu, { device, displayTexture: {} });
   rt.run.imageRevision = 1;
   await flushWebgpuPages(rt, { image: false });
   assert.equal(touched, 0, 'a wait for pages must take no picture');
