@@ -2375,5 +2375,23 @@
       "unmount": "분리",
       "remount": "다시 장착"
     }
+  },
+  "move-a-hierarchy-by-name": {
+    "banner": "다섯 개의 이름 있는 그룹이 재현 가능한 시퀀스를 지나는 모습을 보세요. 드라이버를 바꾸면 같은 자세를 직접 씁니다.",
+    "controls": {
+      "driver": "드라이버",
+      "speed": "속도",
+      "paused": "일시정지",
+      "replay": "다시 재생"
+    },
+    "choices": {
+      "driver": {
+        "name": "이름으로",
+        "host": "호스트가 작성"
+      }
+    },
+    "readouts": {
+      "pose": "포즈"
+    }
   }
 }
