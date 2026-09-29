@@ -160,3 +160,18 @@ test('the tier loads the list it began with, whatever a report rewrites meanwhil
   await tierEnsurer(tracking, cache, () => live)([], 1, 1);
   assert.deepEqual([...cache.resident.keys()].sort(), ['a', 'b', 'c']);
 });
+
+// Past the pool, the casters left resident are the list's first, whatever an earlier pose left
+// behind: two sessions at one pose draw every shadow from the same clusters (#1016).
+test('past the pool, the tier holds its first casters whatever was resident before', async () => {
+  const pages = ['a', 'b', 'c'].map(pageOf);
+  const tracking = createWebgpuPageTracking(pages);
+  const resident = async (history: string[]) => {
+    const cache = lruCache(2);
+    for (const url of history) await cache.load(url);
+    await tierEnsurer(tracking, cache, () => pages)([], 1, 1);
+    return [...cache.resident.keys()].sort();
+  };
+  assert.deepEqual(await resident([]), ['a', 'b']);
+  assert.deepEqual(await resident(['c']), ['a', 'b'], 'the last caster left by a move leaves');
+});
