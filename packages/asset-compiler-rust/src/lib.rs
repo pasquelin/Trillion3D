@@ -8,6 +8,7 @@ mod geometry_page;
 mod geometry_page_cells;
 mod geometry_page_quant;
 pub mod import;
+mod impostor;
 mod join;
 mod manifest_binary;
 #[cfg(any(test, feature = "oracle"))]
@@ -20,6 +21,7 @@ mod qem;
 pub mod shared_math;
 pub mod texture_preview;
 mod topology;
+mod tracer;
 mod uri;
 use rayon::prelude::*;
 use serde_json::{json, Value};
