@@ -12,7 +12,7 @@ export type ReopenCause =
   | 'repaint-refused'
   | 'background'
   | 'mount-refused'
-  | 'rows-outgrown';
+  | 'partition-outgrown';
 const NEEDED: ReadonlySet<ReopenCause> = new Set(['device-lost', 'option']);
 
 /** The measure of a reopen in flight: its causes, its start, the display frames it lasted. */
@@ -71,11 +71,12 @@ export function worldReopens(
     request,
     /** `request` for `cause`, as a hook to hand on. */
     asks: (cause: ReopenCause) => () => request(cause),
-    /** A session's options: its frames end the reopen, rows it cannot grow ask the next. */
+    /** A session's options: its frames end the reopen, a partition's view it cannot take in place
+     *  asks the next. */
     options: (given: MeasuredWorldOptions): MeasuredWorldOptions => ({
       ...given,
       onFrame: (metrics) => (drew(), given.onFrame?.(metrics)),
-      onRowsOutgrown: () => request('rows-outgrown'),
+      onPartitionOutgrown: () => request('partition-outgrown'),
     }),
     /** A pass begins, `previous` the session it closes, if any: that one is a reopen. */
     closing(previous: object | null) {

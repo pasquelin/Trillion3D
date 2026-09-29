@@ -5,7 +5,9 @@
  * in the scene root's frame, one per parent, rewritten once a parent moved relative to the root,
  * so a cell is read where its objects stand, not where the file declared them. A page of the cell
  * index is boxed at the declared poses, in the root's frame (#575): what it holds now lies within
- * that box and the box carried by each parent moved since the declaration (`around`).
+ * that box and the box carried by each parent its cells hang under moved since the declaration
+ * (`around`). How far each parent stretches the root's frame (`stretch`) is what the rows are sized
+ * by (`sizing.ts`).
  */
 import {
   boxTransform,
@@ -28,9 +30,12 @@ const rootWorld = new Float64Array(MATRIX_VALUES),
 /** A box holding all space: a page under a parent moved off a flat declared frame. */
 const UNBOUNDED = [-Infinity, -Infinity, -Infinity, Infinity, Infinity, Infinity];
 
+/** How far a frame stretches a distance of the root's: at least, at most. */
+export type Stretch = readonly [least: number, most: number];
+
 /** The least and the most `matrix` stretches a distance — its smallest and largest singular
  *  values —; a flattened frame, or one so nearly flat its inverse overflows, stretches it by 0. */
-export function stretchOf(matrix: ArrayLike<number>): readonly [least: number, most: number] {
+export function stretchOf(matrix: ArrayLike<number>): Stretch {
   const most = maxStretch(matrix);
   if (determinantMatrix4(matrix) === 0) return [0, most];
   const back = invertMatrix4(inverse, matrix).every(Number.isFinite)
@@ -50,8 +55,14 @@ export const boxed = (parents: Parts): Boxed => ({
   bounds: new Float64Array(6 * parents.length),
   written: -1,
 });
-/** A page of the cell index as it is boxed: at the declared poses, and now, written at a `refresh`. */
-export type Declared = { declared: ArrayLike<number>; box: Float64Array; written: number };
+/** A page of the cell index as it is boxed: at the declared poses, the core ranks its cells hang
+ *  under, and now, written at a `refresh`. */
+export type Declared = {
+  declared: ArrayLike<number>;
+  parents: readonly number[];
+  box: Float64Array;
+  written: number;
+};
 
 const same = (a: ArrayLike<number>, b: ArrayLike<number>) => {
   for (let at = 0; at < MATRIX_VALUES; at++) if (!Object.is(a[at], b[at])) return false;
@@ -66,7 +77,8 @@ const relativeInto = (out: Float64Array, parent: Object3D) =>
  * this is called. `refresh` reads the frames again. `bounds` gives the boxes of a `Boxed` in the
  * root's frame, six values per parent, in the order of its `parents`, written again only when one
  * of those parents moved since, so a frame pays for the boxes it reads, never for every cell a
- * moved parent carries (#575); `around`, the box of a page of the index where the parents stand.
+ * moved parent carries (#575); `around`, the box of a page of the index where its parents stand;
+ * `stretch`, per core rank, how far that parent's frame stretches the root's at the last `refresh`.
  */
 export function createCellBoxes(
   ranks: Iterable<number>,
@@ -82,6 +94,7 @@ export function createCellBoxes(
     moved: number;
   };
   const frames = new Map<number, Frame>();
+  const stretch = new Map<number, Stretch>();
   /** Each parent moved since the declaration: what carries its declared frame to where it is,
    *  `null` when its declared frame is flat and its cells may stand anywhere. */
   const displaced = new Map<number, Float64Array | null>();
@@ -91,9 +104,9 @@ export function createCellBoxes(
     const back = invertMatrix4(new Float64Array(MATRIX_VALUES), declared);
     const flat = determinantMatrix4(declared) === 0 || !back.every(Number.isFinite);
     frames.set(rank, { matrix: declared.slice(), declared, back: flat ? null : back, moved: 0 });
+    stretch.set(rank, stretchOf(declared));
   }
-  let now = 0,
-    shifted = 0;
+  let now = 0;
   const refresh = () => {
     now++;
     if (frames.size) invertMatrix4(rootInverse, hostWorldChainInto(rootWorld, root));
@@ -101,7 +114,8 @@ export function createCellBoxes(
       relativeInto(relative, parents[rank]);
       if (same(relative, frame.matrix)) continue;
       frame.matrix.set(relative);
-      frame.moved = shifted = now;
+      frame.moved = now;
+      stretch.set(rank, stretchOf(relative));
       if (same(relative, frame.declared)) displaced.delete(rank);
       else if (!frame.back) displaced.set(rank, null);
       else
@@ -121,9 +135,13 @@ export function createCellBoxes(
     return item.bounds;
   };
   const around = (page: Declared) => {
-    if (page.written >= 0 && page.written >= shifted) return page.box;
+    const since = page.written;
+    if (since >= 0 && !page.parents.some((rank) => (frames.get(rank)?.moved ?? 0) > since))
+      return page.box;
     page.box.set(page.declared);
-    for (const carry of displaced.values()) {
+    for (const rank of page.parents) {
+      if (!displaced.has(rank)) continue;
+      const carry = displaced.get(rank);
       if (!carry) {
         page.box.set(UNBOUNDED);
         break;
@@ -134,7 +152,7 @@ export function createCellBoxes(
     page.written = now;
     return page.box;
   };
-  return { refresh, bounds, around };
+  return { refresh, bounds, around, stretch: stretch as ReadonlyMap<number, Stretch> };
 }
 
 export type CellBoxes = ReturnType<typeof createCellBoxes>;

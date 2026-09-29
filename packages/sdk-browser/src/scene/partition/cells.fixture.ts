@@ -12,6 +12,14 @@ import type { StreamPage } from '../../streaming/types.ts';
 
 const BASE = 'https://cache.test/key/';
 
+/** The rows the cook lists for the two cells below (`partition/pages/rows.rs`): the first rung
+ *  16 m wide, and a window of a rung — one and a half times its side — holds both cells once it
+ *  spans the 4 990 m between them, else the near cell's two nodes. */
+const LADDER = {
+  cube: 16,
+  rows: (_: number, total: number, rung: number) => (24 * 2 ** (rung / 2) >= 4990 ? total : 2),
+};
+
 /** Two cells of one mesh, one near the origin and one 5 km away, each in a region page of its
  *  own; each hangs under a core node standing 10 m up, or under the scene root when its `far` or
  *  `near` is null. */
@@ -41,7 +49,7 @@ export function world(far: number | null = 0, near: number | null = null) {
   // Declared where the core node stands at open: 10 m up.
   const up = ({ parents: [[rank, box]] }: TableCell) =>
     rank === null ? box : [box[0], box[1] + 10, box[2], box[3], box[4] + 10, box[5]];
-  const { partition, files } = paged(table, 1, up);
+  const { partition, files } = paged(table, 1, up, LADDER);
   const root = new Group();
   const core = new Object3D();
   core.position.set(0, 10, 0);
@@ -65,8 +73,29 @@ export function world(far: number | null = 0, near: number | null = null) {
 }
 
 /** Reads a cell file into its rows on this thread, by the decode pool's own task. */
-export const decodeHere = async (bytes: Uint8Array) =>
-  cellRows(decodeCellFile(bytes.slice().buffer as ArrayBuffer));
+export const decodeHere = async (bytes: Uint8Array, url?: string) =>
+  cellRows(decodeCellFile(bytes.slice().buffer as ArrayBuffer, url));
+
+/** Opens `cells` as a session does before its first frame, for a camera at `eye` of `reach`,
+ *  reading every file through `bytes` on this thread; the bytes read. */
+export const opened = (
+  cells: PartitionCells,
+  bytes: (url: string) => Uint8Array,
+  reach: number,
+  owned = true,
+  eye: ArrayLike<number> = [0, 0, 0],
+) =>
+  cells.prime(
+    eye,
+    reach,
+    {
+      read: async (url) => bytes(url),
+      decode: decodeHere,
+      decodePage: async (read, url) => readCellPage(read, url),
+      admit() {},
+    },
+    owned,
+  );
 
 /** Frames of `cells` until one asks no decode and opens no page: each decode asked lands before the
  *  next frame, so the pages the view reaches are opened and the cells read placed; what the last
@@ -88,26 +117,34 @@ export async function settled(
 
 type PartitionIo = Parameters<PartitionCells['frame']>[2];
 
-/** An io that holds every page of the index, and every cell of `held`; records what it is asked
- *  and what the catalogue takes and lets go. */
+/** `partition` opened with rows for every node, its first camera reaching nothing. */
+export async function sizedWhole(partition: ReturnType<typeof world>) {
+  await opened(partition.cells, partition.bytes, 100, false, [1e9, 0, 0]);
+  return partition;
+}
+
+/** An io that holds every page of the index, and every cell of `held`; records what it is asked,
+ *  what the catalogue takes and lets go, and how often the owner is asked to open anew. */
 export function io(bytes: (url: string) => Uint8Array) {
   const asked: string[] = [],
     updates: [PlacementRows, number, number][] = [],
     admitted: StreamPage[] = [],
     forgotten: string[] = [];
-  const held = new Set<string>();
+  const held = new Set<string>(),
+    outgrown = { count: 0 };
   const page = (url: string) => url.includes('/scene-page-');
   const port: PartitionIo = {
     bytes: (url) => (page(url) || held.has(url) ? bytes(url) : undefined),
     decode: decodeHere,
-    decodePage: async (read) => readCellPage(read, 'a scene page'),
+    decodePage: async (read, url) => readCellPage(read, url),
     loading: () => false,
     request: (urls) => void asked.push(...urls),
     admit: (pages) => void admitted.push(...pages),
     forget: (urls) => void forgotten.push(...urls),
     update: (rows, from, to) => updates.push([rows, from, to]),
+    outgrown: () => void outgrown.count++,
   };
-  return { port, asked, updates, held, admitted, forgotten };
+  return { port, asked, updates, held, admitted, forgotten, outgrown };
 }
 
 /** A reach past both cells. */

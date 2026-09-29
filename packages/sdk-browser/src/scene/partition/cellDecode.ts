@@ -26,10 +26,10 @@ function rowLocal(node: CellNode, out: Float64Array) {
 /** A cell file as the pool answers it (`PageDecodeDone.cells`). */
 type CellPayload = NonNullable<PageDecodeDone['cells']>;
 
-/** The nodes of the cell file `source`, each its parent's and mesh's ranks and its local matrix,
- *  or the named refusal of a file of another version. */
-export function decodeCellFile(source: ArrayBuffer): CellPayload {
-  const nodes = assertCellNodes(JSON.parse(new TextDecoder().decode(source)));
+/** The nodes of the cell file `source`, read from `url`, each its parent's and mesh's ranks and its
+ *  local matrix, or the named refusal of a file of another version. */
+export function decodeCellFile(source: ArrayBuffer, url = 'a scene cell'): CellPayload {
+  const nodes = assertCellNodes(JSON.parse(new TextDecoder().decode(source)), url);
   const ranks = new Int32Array(2 * nodes.length),
     locals = new Float64Array(MATRIX_VALUES * nodes.length);
   nodes.forEach((node, at) => {

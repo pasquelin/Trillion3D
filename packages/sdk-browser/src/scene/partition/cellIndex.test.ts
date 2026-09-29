@@ -5,7 +5,7 @@ import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.
 import { createCellBoxes } from './boxes.ts';
 import { createCellIndex } from './cellIndex.ts';
 import { createPartitionCells } from './cells.ts';
-import { io, noBudget, settled } from './cells.fixture.ts';
+import { io, noBudget, opened, settled } from './cells.fixture.ts';
 import { openAll, paged } from './paged.fixture.ts';
 import { placedMesh, type RowLink } from './rows.ts';
 
@@ -71,10 +71,20 @@ test("a frame's cell work is the same on a world sixteen times as large", () => 
   assert.ok(large.opened.cells < (32 * 32) / 8, `${large.opened.cells} of ${32 * 32} cells held`);
 });
 
-test('before its first frame a partition reads its root only, the same bytes at 8 × 8 and 32 × 32', async () => {
-  const opened = (side: number) => {
+/** The rows the cook lists for `grid`'s cells, one node each on a lattice of 10 m (`rows.rs`): a
+ *  window of one and a half times a rung's side, at half its side, meets that many cells a side,
+ *  and one more. */
+const LATTICE = {
+  cube: Math.hypot(10, 10, 1),
+  rows: (_: number, total: number, rung: number) =>
+    Math.min(total, (Math.ceil((1.5 * Math.hypot(10, 10, 1) * 2 ** (rung / 2)) / 10) + 1) ** 2),
+};
+
+test('before its first frame a partition reads what its camera reaches, alike at 1× and 16× the world', async () => {
+  const eye = [45, 45, 0.5];
+  const open = async (side: number) => {
     const { cells, files: bodies } = grid(side);
-    const { partition, files, root } = paged(cells, 4);
+    const { partition, files, root } = paged(cells, 4, undefined, LATTICE);
     const link: RowLink = { meshes: 0, primitives: 0 };
     const partitioned = createPartitionCells({
       partition,
@@ -83,29 +93,32 @@ test('before its first frame a partition reads its root only, the same bytes at 
       parents: [],
       meshes: new Map([[0, placedMesh([link])]]),
     });
-    let read = 0;
+    const read: string[] = [];
     const bytes = (url: string) => {
       const name = url.split('/').at(-1)!;
-      const found = files.get(name) ?? bodies.get(name)!;
-      read += found.byteLength;
-      return found;
+      read.push(name);
+      return files.get(name) ?? bodies.get(name)!;
     };
-    const port = io(bytes);
-    cells.forEach(({ url }) => port.held.add(`https://cache.test/key/${url}`));
-    return { partitioned, port, rootBytes: JSON.stringify(root).length, read: () => read, link };
+    const primed = await opened(partitioned, bytes, 25, true, eye);
+    const cellsRead = read.filter((name) => !name.startsWith('scene-page-'));
+    const stats = partitioned.stats();
+    return { stats, primed, cellsRead, rootBytes: JSON.stringify(root).length, link, read };
   };
-  const small = opened(8),
-    large = opened(32);
+  const [small, large] = [await open(16), await open(64)];
   assert.equal(small.rootBytes, large.rootBytes, 'one root, whatever the world');
-  assert.deepEqual([small.read(), large.read()], [0, 0], 'no page, no cell');
-  assert.deepEqual(large.partitioned.stats().pages, 0);
-  assert.equal(large.link.placements!.capacity, 32 * 32, 'the rows the root counts, at open');
-  // A camera over a corner reads the same region pages and cells in both worlds.
-  for (const world of [small, large])
-    await settled(world.partitioned, [45, 45, 0.5], 25, world.port.port, noBudget);
-  const [one, other] = [small, large].map(({ partitioned }) => partitioned.stats());
-  assert.deepEqual([other.cells, other.held], [one.cells, one.held]);
-  assert.ok(other.held > 0 && other.cells < (32 * 32) / 8, JSON.stringify(other));
+  assert.deepEqual(
+    large.cellsRead.sort(),
+    small.cellsRead.sort(),
+    'the same cells, read and placed',
+  );
+  assert.ok(large.stats.held > 0 && large.stats.held === small.stats.held, JSON.stringify(large));
+  // The pages on the way grow by the levels the larger world adds, never by its cells.
+  const pages = (world: typeof small) => world.read.length - world.cellsRead.length;
+  assert.ok(pages(large) <= pages(small) + 2 * 4, JSON.stringify([pages(small), pages(large)]));
+  // The rows the view holds, bound by it: the same in both worlds, a part of either.
+  const rows = [small, large].map((world) => world.link.placements!.capacity);
+  assert.equal(rows[0], rows[1], 'the same rows at 1× and 16× the world');
+  assert.ok(rows[1] < 16 * 16, `${rows[1]} rows`);
 });
 
 test('pages the view left are closed, their files let go; those holding a placed cell stay', async () => {
@@ -122,6 +135,7 @@ test('pages the view left are closed, their files let go; those holding a placed
     (url) => files.get(url.split('/').at(-1)!) ?? bodies.get(url.split('/').at(-1)!)!,
   );
   cells.forEach(({ url }) => port.held.add(`https://cache.test/key/${url}`));
+  await opened(partitioned, () => new Uint8Array(), 12, false, [1e9, 0, 0]);
   await settled(partitioned, [5, 5, 0.5], 12, port.port, noBudget);
   const near = partitioned.stats();
   await settled(partitioned, [155, 155, 0.5], 12, port.port, noBudget);
