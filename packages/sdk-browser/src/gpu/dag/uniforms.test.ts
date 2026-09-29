@@ -113,10 +113,10 @@ test('requests ahead never make a crowded sample truncated, nor take the cameraâ
   const header = [4, 0, 0, 0, 0, 0, 0, 0];
   header[OUT_AHEAD] = 9;
   header[OUT_AHEAD_PLACED] = 0;
-  const releve = lire(buffer(header, camera))!;
-  assert.equal(releve.truncated, false);
-  assert.deepEqual(releve.pageIds, [1, 2, 3, 4]);
-  assert.deepEqual(releve.aheadPageIds, []);
+  const read = lire(buffer(header, camera))!;
+  assert.equal(read.truncated, false);
+  assert.deepEqual(read.pageIds, [1, 2, 3, 4]);
+  assert.deepEqual(read.aheadPageIds, []);
   // A placed count past what the sample holds is bounded by it.
   header[OUT_AHEAD_PLACED] = 3;
   assert.deepEqual(lire(buffer(header, camera))!.aheadPageIds, []);
