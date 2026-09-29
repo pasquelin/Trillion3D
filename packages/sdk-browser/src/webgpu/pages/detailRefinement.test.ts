@@ -13,6 +13,7 @@ import {
 } from './testScenes.fixture.ts';
 import { coarseQuadScene } from './testOccluder.fixture.ts';
 import { deepQuadScene } from './deepQuad.fixture.ts';
+import type { BackendDiagnostic } from '../../backend/types.ts';
 
 test('detail replaces the complete GPU fallback only after every replacement is uploaded', async () => {
   installGpuGlobals();
@@ -51,15 +52,19 @@ test('detail replaces the complete GPU fallback only after every replacement is 
 test('a refinement exceeding the GPU budget keeps the floor, not the refused root, and reports the limit', async () => {
   installGpuGlobals();
   const fixture = deepQuadScene(),
-    { device } = mockGpu();
+    { device } = mockGpu(),
+    events: BackendDiagnostic[] = [];
   const backend = webgpuPagesBackend({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 2,
     viewport: [32, 32],
+    onDiagnostic: (event) => events.push(event),
   }) as ReturnType<typeof webgpuPagesBackend> & { selectedPageIds(): string[] };
   try {
     await backend.prepare();
+    const floor = events.find(({ phase }) => phase === 'minimum-capacity')?.context;
+    assert.deepEqual([floor?.rootPages, floor?.floorPages], [1, 2], 'what the floor costs, said');
     // The first image draws the root, and asks for the floor's page before any leaf.
     backend.render(camera());
     await backend.flush?.();
