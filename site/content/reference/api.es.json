@@ -3945,7 +3945,7 @@
       "wasmAvailable": "El módulo WebAssembly está cargado, en la versión correcta del contrato.",
       "wasmSimd": "El módulo se compiló con `simd128`; `null` mientras no se haya cargado ningún módulo.",
       "clockResolutionMs": "Precisión del reloj del hilo, en milisegundos; `null` mientras no se haya estimado.",
-      "clockCoarse": "Verdadero cuando el reloj es demasiado grueso para decidir: todo permanece en el camino JavaScript.",
+      "clockCoarse": "Verdadero cuando el reloj es demasiado grueso para medir una sola ejecución: las ejecuciones se miden en lotes agrupados.",
       "unavailableReason": "Por qué el camino WebAssembly no es jugable, o `null` cuando lo es.",
       "operations": "Cada operación."
     }
