@@ -2,23 +2,37 @@ import type { SceneProxy } from '../../contracts/proxy.ts';
 import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts';
 import { transformAffinePoint } from '../../math/primitives/vector.ts';
 import { proxyAffineDelta } from './proxyDelta.ts';
+import { createProxyLeaves } from './proxyLeaves.ts';
 import { createProxyRefit } from './proxyRefit.ts';
+
+/** What a sync changed: owners moved (the tree was refitted), leaves settled, or nothing. */
+export type ProxySync = 'moved' | 'settled' | null;
 
 /**
  * A session owns its mutable tree and triangles; cached geometry and provenance remain immutable.
- * Moving owners are traced as canonical triangles under their poses (`dynamic`). The first sync
- * with no motion settles: each triangle is written at its owners' common pose and rays go back to
- * the still path, which reads no owner word. A group whose owners stand apart cannot be one
- * triangle, so it keeps the proxy dynamic.
+ * A leaf holding a moved triangle turns owned (`proxyLeaves.ts`): canonical, traced under its
+ * owners' poses. Once still, each owned leaf whose groups' owners agree is written at that pose
+ * and rays read no owner word for it again; a leaf holding a group whose owners stand apart (a
+ * door merged with its frame) stays owned, alone. Settling waits until the still streak exceeds
+ * the last gap between two motions: motion slower than the frame rate never rewrites triangles
+ * each cycle, and motion that simply stops settles on its first still frame.
  */
 export function createSceneProxyMotion(proxy: SceneProxy) {
-  const canonical = proxy.data.triangles;
+  const canonical = proxy.data.triangles,
+    groupOf = proxy.data.triangleGroups;
   const data = {
     ...proxy.data,
     triangles: canonical.slice(),
+    triangleGroups: groupOf.slice(),
     nodeBounds: proxy.data.nodeBounds.slice(),
     nodeChildren: proxy.data.nodeChildren.slice(),
   };
+  const leaves = createProxyLeaves(
+    data.nodeChildren,
+    data.triangleGroups,
+    data.triangles,
+    canonical,
+  );
   const transforms = new Float32Array(proxy.instances * 16);
   const groupsOf = new Map<number, Set<number>>();
   const binds: Float64Array[] = [],
@@ -41,32 +55,45 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
       groups.add(group);
     }
   const bounds = [...proxy.bounds] as SceneProxy['bounds'];
-  const refit = createProxyRefit(data),
+  // The refit reads canonical triangles and plain groups, whatever the leaves hold.
+  const refit = createProxyRefit({ ...data, triangles: canonical, triangleGroups: groupOf }),
     dirty = new Set<number>();
   const delta = new Float64Array(16);
   let revision = 0,
     stretch = 1,
-    moving = false;
-  /** Every owner of each group under one pose: the only case one triangle still describes. */
-  const coincident = () => {
-    for (let group = 0; group < proxy.groups; group++) {
-      const first = deltas[data.owners[data.groupOffsets[group] * 2]];
-      for (let owner = data.groupOffsets[group] + 1; owner < data.groupOffsets[group + 1]; owner++)
-        for (let i = 0; i < 16; i++)
-          if (deltas[data.owners[owner * 2]][i] !== first[i]) return false;
-    }
+    // Owned leaves wait to settle; still syncs since the last motion; the streak before it.
+    pending = false,
+    still = 0,
+    gap = 0;
+  const { groupOffsets, owners } = data;
+  /** Every owner of the group under one pose: the only case one triangle still describes. */
+  const coincident = (group: number) => {
+    const first = deltas[owners[groupOffsets[group] * 2]];
+    for (let owner = groupOffsets[group] + 1; owner < groupOffsets[group + 1]; owner++)
+      for (let i = 0; i < 16; i++) if (deltas[owners[owner * 2]][i] !== first[i]) return false;
     return true;
   };
-  /** Writes each triangle at its owners' pose. The pose's f32 evaluation, rounded once, stays
-   *  inside the padded boxes the last refit gave it: the tree already covers the settled pose. */
+  /** A triangle at its owners' pose. The pose's f32 evaluation, rounded once, stays inside the
+   *  padded boxes the last refit gave it: the tree already covers the settled pose. */
+  const write = (t: number) => {
+    const m = deltas[owners[groupOffsets[groupOf[t]] * 2]];
+    for (let v = t * 9; v < t * 9 + 9; v += 3)
+      transformAffinePoint(data.triangles, m, canonical[v], canonical[v + 1], canonical[v + 2], v);
+  };
+  /** Poses every owned leaf whose groups all agree; the others stay owned until motion. */
   const settle = () => {
-    const { triangles, triangleGroups, groupOffsets, owners } = data;
-    for (let t = 0; t < triangleGroups.length; t++) {
-      const m = deltas[owners[groupOffsets[triangleGroups[t]] * 2]];
-      for (let v = t * 9; v < t * 9 + 9; v += 3)
-        transformAffinePoint(triangles, m, canonical[v], canonical[v + 1], canonical[v + 2], v);
+    pending = false;
+    let settled = false;
+    for (let leaf = 0; leaf < leaves.count; leaf++) {
+      if (!leaves.owned[leaf]) continue;
+      let agree = true;
+      for (let t = leaves.firsts[leaf]; agree && t < leaves.ends[leaf]; t++)
+        agree = coincident(groupOf[t]);
+      if (!agree) continue;
+      leaves.pose(leaf, write);
+      settled = true;
     }
-    moving = false;
+    return settled;
   };
   return {
     data,
@@ -78,6 +105,8 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
     hostBytes:
       transforms.byteLength +
       data.triangles.byteLength +
+      data.triangleGroups.byteLength +
+      leaves.bytes +
       proxy.instances * 16 * 8 +
       data.bindWorlds.byteLength +
       data.nodeBounds.byteLength +
@@ -85,10 +114,16 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
       refit.bytes +
       identity.byteLength +
       delta.byteLength,
-    /** Rays read owner poses: something moved since the proxy last settled. */
+    /** Some leaf is traced under its owners' poses. */
     get dynamic() {
-      return moving;
+      return leaves.ownedCount > 0;
     },
+    /** Owned leaves wait for a still streak to settle: the host keeps syncing each frame. */
+    get settling() {
+      return pending;
+    },
+    /** Column ranges the last syncs rewrote (`proxyLeaves.ts`), taken by the upload. */
+    take: leaves.take,
     /** Nodes a ray may visit beyond the built tree's (`proxyRefit.ts`). */
     get grownNodes() {
       return refit.grownNodes();
@@ -100,7 +135,7 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
       return proxy.errorMetres * stretch;
     },
     /** Missing partition leaves follow their nearest loaded ancestor, then the scene wrapper. */
-    sync(worldOf: (sourceNode: number) => ArrayLike<number> | undefined) {
+    sync(worldOf: (sourceNode: number) => ArrayLike<number> | undefined): ProxySync {
       dirty.clear();
       for (const [node, groups] of groupsOf) {
         let source = node,
@@ -130,14 +165,18 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
         for (const group of groups) dirty.add(group);
       }
       if (!dirty.size) {
-        if (!moving || !coincident()) return false;
-        settle();
+        if (!pending || ++still <= gap || !settle()) return null;
         revision++;
-        return true;
+        return 'settled';
       }
-      // Motion resumes from the canonical triangles, under the owners' poses.
-      if (!moving && revision) data.triangles.set(canonical);
-      moving = true;
+      gap = still;
+      still = 0;
+      pending = true;
+      // Motion resumes from the canonical triangles of each leaf it touches.
+      for (let t = 0; t < groupOf.length; t++) {
+        const leaf = leaves.leafOf[t];
+        if (dirty.has(groupOf[t]) && leaf !== 0xffffffff && !leaves.owned[leaf]) leaves.own(leaf);
+      }
       stretch = 1;
       for (const node of groupsOf.keys()) {
         const m = deltas[node];
@@ -154,7 +193,7 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
       }
       refit(dirty, transforms, bounds);
       revision++;
-      return true;
+      return 'moved';
     },
   };
 }

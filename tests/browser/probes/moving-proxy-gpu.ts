@@ -1,17 +1,18 @@
 // A moving proxy owner is traced where it is, on a real GPU (#27): the shipped traversal over the
 // engine's resident proxy (`movingProxyPage.ts`). A still proxy hits its canonical plane; once
 // moved, the ray over the new pose hits the moved owner — its identity, centre and albedo — and
-// the shadow query agrees. On a large moved tree, the step bound the tree derives traces exactly
+// the shadow query agrees. A settled leaf reads no owner word while a door merged with its frame
+// is still traced under both owners. On a large moved tree, the step bound the tree derives traces exactly
 // what no bound traces, and the settled proxy traces the same on the still path.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dansPageWebgpu, empaquetePage as bundlePage } from './pageWebgpu.ts';
-import type { run, runLarge } from './movingProxyPage.ts';
+import type { run, runLarge, runMixed } from './movingProxyPage.ts';
 
 declare global {
-  var movingProxy: { run: typeof run; runLarge: typeof runLarge };
+  var movingProxy: { run: typeof run; runLarge: typeof runLarge; runMixed: typeof runMixed };
 }
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -38,7 +39,7 @@ test('a moved owner is hit at its new pose by the shipped traversal, on the GPU'
   assert.deepEqual(compilation, []);
   // Still: the canonical plane is hit, nothing stands five metres away.
   assert.ok(still[0].found && still[0].blocked && near(still[0].distance, 1));
-  assert.equal(still[0].owner, 0, 'a still proxy never reads its owner ranges');
+  assert.equal(still[0].owner, -1, 'a still proxy is posed and never reads its owner ranges');
   assert.ok(!still[1].found && !still[1].blocked, 'no owner stands at the future pose yet');
   assert.ok(moved && dynamic, 'the owner pose reached the resident proxy');
   // Moved: the owner left in place keeps its plane; the moved owner is hit at its new pose.
@@ -53,6 +54,27 @@ test('a moved owner is hit at its new pose by the shipped traversal, on the GPU'
     after[1].centre.every((value, axis) => near(value, centre[axis])),
     `centre ${after[1].centre} follows the moved owner`,
   );
+});
+
+test('a mixed proxy settles the agreeing leaf and traces the disagreeing one under its owners', async () => {
+  const { compilation, moved, settled, dynamic, rays } = await inPage(() =>
+    globalThis.movingProxy.runMixed(),
+  );
+  assert.deepEqual(compilation, []);
+  assert.ok(moved === 'moved' && settled === 'settled' && dynamic, 'one leaf settled, one owned');
+  const [posed, left, frame, door] = rays;
+  assert.ok(posed.found && posed.blocked && near(posed.distance, 1), 'the settled plane is hit');
+  assert.equal(posed.owner, -1, 'through a poisoned owner range: no owner word is read');
+  const centre = [1 / 3, 5 + 1 / 3, 0];
+  assert.ok(
+    posed.centre.every((value, axis) => near(value, centre[axis])),
+    `${posed.centre}`,
+  );
+  assert.ok(!left.found && !left.blocked, 'nothing stays where the settled plane was');
+  assert.ok(frame.found && frame.blocked && near(frame.distance, 1));
+  assert.deepEqual([frame.owner, frame.red], [2, 0], 'the frame at rest, with its green albedo');
+  assert.ok(door.found && door.blocked && near(door.distance, 1));
+  assert.deepEqual([door.owner, door.red], [1, 1], 'the moved door, with its white albedo');
 });
 
 test('a large moved tree traces the same with its derived bound as with none, then settled', async () => {
