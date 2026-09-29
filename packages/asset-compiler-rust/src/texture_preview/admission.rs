@@ -24,32 +24,21 @@ fn remaining_budget(budget: usize, reserved: usize) -> Result<usize> {
     budget.checked_sub(reserved).ok_or_else(refused)
 }
 
-/// Reserve every output tail before admitting temporary buffers. No later wave
-/// can borrow memory already committed to the final sidecar, even if a codec
-/// eventually rejects its lossy tail and returns fewer bytes.
-fn waves(costs: &[Cost], budget: usize, workers: usize) -> Result<Vec<Range<usize>>> {
+/// Reserve every output tail before admitting temporary buffers, then cut the images into the
+/// compiler's shared waves (`compiler_budget::waves`) within what is left. No later wave can
+/// borrow memory already committed to the final sidecar, even if a codec eventually rejects its
+/// lossy tail and returns fewer bytes; an image wider than that room is refused, never baked alone.
+fn admit(costs: &[Cost], budget: usize) -> Result<Vec<Range<usize>>> {
     let retained = costs
         .iter()
         .try_fold(0usize, |sum, c| sum.checked_add(c.retained))
         .ok_or_else(refused)?;
-    let available = budget.checked_sub(retained).ok_or_else(refused)?;
-    let mut ranges = Vec::new();
-    let (mut start, mut used) = (0, 0usize);
-    for (index, cost) in costs.iter().enumerate() {
-        if cost.working > available {
-            return Err(refused());
-        }
-        if index > start && (index - start >= workers.max(1) || cost.working > available - used) {
-            ranges.push(start..index);
-            start = index;
-            used = 0;
-        }
-        used += cost.working;
+    let room = remaining_budget(budget, retained)?;
+    let working: Vec<usize> = costs.iter().map(|c| c.working).collect();
+    if working.iter().any(|&bytes| bytes > room) {
+        return Err(refused());
     }
-    if start < costs.len() {
-        ranges.push(start..costs.len());
-    }
-    Ok(ranges)
+    Ok(compiler_budget::waves::waves(&working, room))
 }
 
 fn execute<T: Send>(
@@ -57,15 +46,7 @@ fn execute<T: Send>(
     budget: usize,
     work: impl Fn(usize) -> Result<T> + Sync,
 ) -> Result<Vec<T>> {
-    let mut results = Vec::with_capacity(costs.len());
-    for range in waves(costs, budget, rayon::current_num_threads())? {
-        let wave = range
-            .into_par_iter()
-            .map(&work)
-            .collect::<Result<Vec<_>>>()?;
-        results.extend(wave);
-    }
-    Ok(results)
+    compiler_budget::waves::run_waves(&admit(costs, budget)?, work)
 }
 
 pub(super) fn bake(
