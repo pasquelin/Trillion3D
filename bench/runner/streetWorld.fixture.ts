@@ -11,7 +11,10 @@ export function createWorld(_canvas: unknown, options: { physics?: boolean } = {
     scene: {
       async load() {
         opened.loads++;
-        return { bounds: { min: { x: -10, y: 0, z: -10 }, max: { x: 10, y: 8, z: 10 } } };
+        return {
+          bounds: { min: { x: -10, y: 0, z: -10 }, max: { x: 10, y: 8, z: 10 } },
+          record: { base: 'http://bench.test/model/' },
+        };
       },
     },
     camera: { position: { set() {} } },
@@ -27,14 +30,13 @@ export const math = {
   ray: (origin: unknown, direction: unknown) => ({ origin, direction }),
 };
 
-/** The page globals the two functions read, on Node's: a document, a location, `fetch` that
- *  finds the manifest and its `physics.json`, and a frame clock. */
+/** The page globals the two functions read, on Node's: a document, `fetch` that finds the
+ *  model's `physics.json`, and a frame clock. */
 export function pageGlobals() {
   const canvas = { style: { cssText: '' }, remove() {} };
   Object.assign(globalThis, {
     document: { createElement: () => canvas, body: { append() {} } },
-    location: { href: 'http://bench.test/' },
     requestAnimationFrame: (done: () => void) => setImmediate(done),
-    fetch: async () => ({ ok: true, json: async () => ({ url: 'model/' }) }),
+    fetch: async () => ({ ok: true }),
   });
 }
