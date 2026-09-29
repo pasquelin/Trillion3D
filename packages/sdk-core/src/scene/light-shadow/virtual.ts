@@ -87,7 +87,6 @@ export const shadowTableStride = (pages: number) =>
   Math.max(sunEntries(pages), POINT_FACES * LAMP_FACE_ENTRIES);
 /** Words of the whole page table: one span per shadow slice, one slice per light. */
 export const shadowTableEntries = (pages: number) => MAX_SHADOW_SLICES * shadowTableStride(pages);
-export const SUN_LEVEL_ENTRIES = sunLevelEntries(SUN_WINDOW);
 export const SUN_ENTRIES = sunEntries(SUN_WINDOW);
 export const SHADOW_TABLE_STRIDE = shadowTableStride(SUN_WINDOW);
 export const SHADOW_TABLE_ENTRIES = shadowTableEntries(SUN_WINDOW);
@@ -153,7 +152,9 @@ export function tableEntriesOf(rank: number, pages = SUN_WINDOW) {
 
 /** Entry of sun page `(ax, ay)` of level `level`, relative to the light's table base. */
 export const sunEntry = (level: number, ax: number, ay: number, pages = SUN_WINDOW) =>
-  ringOf(level, SUN_LEVELS) * sunLevelEntries(pages) + ringOf(ay, pages) * pages + ringOf(ax, pages);
+  ringOf(level, SUN_LEVELS) * sunLevelEntries(pages) +
+  ringOf(ay, pages) * pages +
+  ringOf(ax, pages);
 
 /** Entry of lamp page `(x, y)` of `face` at `mip`, relative to the light's table base. */
 export const lampEntry = (face: number, mip: number, x: number, y: number) =>

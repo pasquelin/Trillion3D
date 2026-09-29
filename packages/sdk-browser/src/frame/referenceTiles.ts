@@ -14,7 +14,7 @@ import type { ViewTile } from '../camera/engineCamera.ts';
 /** WebGPU's portable `maxTextureDimension2D`: the side every device grants a target. */
 export const PORTABLE_TEXTURE_SIDE = 8192;
 /** Samples per output pixel and axis the reference draws: heavy, never the canvas's few. */
-export const REFERENCE_TILE_FACTOR = 8;
+const REFERENCE_TILE_FACTOR = 8;
 /** Most tiles one reference image is drawn in: a cap on the work, not on the factor. */
 export const REFERENCE_MAX_TILES = 64;
 
@@ -52,8 +52,8 @@ export function referenceTilePlan(
   const outW = Math.max(1, Math.floor(width * pixelRatio)),
     outH = Math.max(1, Math.floor(height * pixelRatio));
   let samples = Math.max(1, Math.floor(factor)),
-    cols = 1,
-    rows = 1;
+    cols: number,
+    rows: number;
   for (;;) {
     // A tile no wider or taller than `side` output pixels has a supersampled target no larger
     // than `side · samples`, which the choice of `side` keeps within the portable side.
@@ -177,12 +177,7 @@ export function referenceTilesCapture(
       } finally {
         setTile(null);
       }
-      const filtered = resolveSupersampled(
-        rgba,
-        target,
-        tile.height * plan.factor,
-        plan.factor,
-      );
+      const filtered = resolveSupersampled(rgba, target, tile.height * plan.factor, plan.factor);
       placeTile(out, plan.width, tile, filtered);
     }
     return out;
