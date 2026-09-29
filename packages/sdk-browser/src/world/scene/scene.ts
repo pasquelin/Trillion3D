@@ -15,6 +15,8 @@ import { createMultiplyLot } from '../../math/batchRuntime.ts';
 import { prepareMathBatch } from '../../math/batchState.ts';
 import type { MeasuredWorldOptions } from '../../backend/types.ts';
 import type { ExplorerEmitters } from '../session/session.ts';
+import { resourceProgress } from './resourceProgress.ts';
+import { openWorldRoots } from '../../scene/worldRoots.ts';
 import { loadPreparedSceneTables } from '../../scene/tables.ts';
 import { buildPreparedScene } from '../../host/prepared/build.ts';
 import { createPartitionCells } from '../../scene/partition/cells.ts';
@@ -32,34 +34,6 @@ function manquante(): never {
     'AUTONOMOUS_ASSOCIATION_MISSING',
     'Prepared scene primitive has no geometry pages',
   );
-}
-
-/** Counts the resources a preparation reads, and tells the host of each as it lands. */
-function resourceProgress(
-  options: MeasuredWorldOptions,
-  diagnose: ExplorerEmitters['diagnose'],
-  scope: string,
-  signal: AbortSignal | undefined,
-) {
-  let total = 0,
-    completed = 0;
-  return <T>(resource: string, read: Promise<T>) => {
-    total++;
-    return read.finally(() => {
-      completed++;
-      if (signal?.aborted) return;
-      const message = `Loaded resource: ${decodeURIComponent(resource.split('/').at(-1) ?? resource)}`;
-      options.onPreparation?.({ phase: 'resources', completed, total, message });
-      diagnose('preparation', message, {
-        kind: 'preparation',
-        phase: 'resources',
-        completed,
-        total,
-        resource,
-        scope,
-      });
-    });
-  };
 }
 
 /** What a load that counts bytes adds: the meter of each read, who hears the tables read, and the
@@ -107,7 +81,7 @@ export async function loadPreparedScene(
   });
   const skipBaked = options.textureSource !== 'host';
   // The manifest pages the node table needs are read while the scene builds, which reads none.
-  const [built] = await Promise.all([
+  const [built, worldRoots] = await Promise.all([
     buildPreparedScene({
       tables,
       metadata,
@@ -118,8 +92,11 @@ export async function loadPreparedScene(
       track: resourceProgress(options, diagnose, scope, signal),
       meter: options.meter,
     }),
+    openWorldRoots(metadata, base, signal, options.meter),
     options.pages?.hold(tables.meshPages),
   ]);
+  // The world top is pinned; a scene not partitioned is one cell, placed for its whole life.
+  if (!tables.partition) await worldRoots?.hold(0);
   if (skipBaked && metadata.textures)
     diagnose('preparation', `Images read from the cache: ${built.bakedImages}`, {
       kind: 'preparation',
@@ -144,6 +121,7 @@ export async function loadPreparedScene(
           parents: built.nodes,
           meshes: built.placed,
           pages: options.pages,
+          world: worldRoots,
         }),
       ]
     : [];
@@ -192,6 +170,8 @@ export async function loadPreparedScene(
   const framingLot = await sceneBoundsLot(source, associations, metadata, autonomous);
   return {
     ...{ source, sceneLightingSource, associations, textureIndices, framingLot, partitions },
+    // The world roots each model holds, which the session counts in its CPU budget (#1237).
+    worldRoots: worldRoots ? [worldRoots] : [],
     // Each glTF node's host node, by its index: a partition renumbers the table, replicas copy it.
     nodes: tables.partition || replicas > 1 ? null : built.nodes,
   };

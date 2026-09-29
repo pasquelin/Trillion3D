@@ -7873,5 +7873,44 @@
       "alphaCutoff": "Piksel yang kurang opaque dari ini dijatuhkan.",
       "tiling": "Berapa kali gambar itu muat melintang dan menaik."
     }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json`: DAG dunia yang dilanjutkan kompiler di atas akar setiap objek — bundel, halaman, dan selnya, puncak yang disematkan lebih dulu.",
+    "members": {
+      "version": "Versi format.",
+      "budgetBytes": "Byte terbanyak yang diizinkan proses masak untuk puncak yang disematkan.",
+      "pinned": "Bundel pertama, puncak dunia: disematkan.",
+      "pinnedTopBytes": "Byte puncak yang disematkan.",
+      "payload": "Biner tempat bundel berjajar: alamat, sidik, dan panjangnya.",
+      "bundles": "Bundel, menurut urutan biner.",
+      "pages": "Setiap halaman: bundelnya, offset di dalamnya, levelnya, dan galatnya.",
+      "cells": "Setiap sel dunia: primitif tertempatkan yang dipegangnya."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "Satu bundel `world-roots.bin`: rentangnya di biner, sidiknya, jumlah halamannya, dan bundel yang dibutuhkannya.",
+    "members": {
+      "offset": "Tempat ia mulai di biner, dalam byte.",
+      "bytes": "Panjangnya di biner.",
+      "sha256": "SHA-256 dari byte-nya, diperiksa saat dibaca.",
+      "count": "Berapa halaman yang dipegangnya.",
+      "dependencies": "Bundel yang dibutuhkan halamannya, menaik, sampai puncak dunia."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Satu primitif tertempatkan dari sel dunia: bundel dunia yang dibutuhkan akarnya, sampai puncak.",
+    "members": {
+      "node": "Node terbitannya.",
+      "primitive": "Primitifnya di manifest.",
+      "roots": "Bundel aliran primitif itu yang memegang akarnya.",
+      "dependencies": "Setiap bundel dunia yang dibutuhkan akar itu, menaik, sampai puncak."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Satu halaman super-akar yang dibaca di atas byte bundelnya: verteksnya sendiri di ruang dunia, dan segitiganya sebagai indeks lokal.",
+    "members": {
+      "positions": "Verteksnya, masing-masing tiga angka, di ruang dunia.",
+      "indices": "Segitiganya, masing-masing tiga indeks lokal."
+    }
   }
 }

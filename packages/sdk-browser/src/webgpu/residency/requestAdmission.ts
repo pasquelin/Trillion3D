@@ -4,6 +4,7 @@ import { createSparseInts, grown } from '../../page/cut/sparseInts.ts';
 import type { WebgpuResidencySets } from './sets.ts';
 import type { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import type { GpuCut } from '../../gpu/core/selection.ts';
+import { admissionLevel } from '../../residency/minimumCapacity.ts';
 
 type Tracking = ReturnType<typeof createWebgpuPageTracking>;
 /** What admission reads of a GPU cut: its requests (`../../gpu/dag/request.ts`). */
@@ -21,7 +22,9 @@ const HELD = {};
  * A cut the pool holds whole is the queue itself, followed by difference. One it does not hold
  * keeps its coarsest levels whole and the finest it straddles in part, as the documented budget
  * says (docs/ENGINE.md, Memory): a complete cover plus as much detail as the slots carry, paid one
- * level at a time. A page is filed at the coarsest level a placement brings it at.
+ * level at a time. A page is filed at the coarsest level a placement brings it at, a page of the
+ * group a root replaces above every level: the minimum capacity holds it first
+ * (`../../residency/minimumCapacity.ts`).
  *
  * The room is the pool's, fixed: never what the image draws, which moves with every arrival — a
  * room that followed it admitted another set at each arrival and never settled. And at the level
@@ -39,7 +42,7 @@ const HELD = {};
  */
 export function createRequestAdmission(
   sets: WebgpuResidencySets,
-  { keyOf, wanted }: Pick<Tracking, 'keyOf' | 'wanted'>,
+  { keyOf, wanted, topLevel }: Pick<Tracking, 'keyOf' | 'wanted' | 'topLevel'>,
   closure: Pick<GroupClosure, 'closeOver' | 'closeOverRecords' | 'forEachHeld'>,
 ) {
   /** Per key the walk reached, one plus the visit that filed it: the first at its coarsest level.
@@ -66,7 +69,7 @@ export function createRequestAdmission(
   const visit = (_id: number, rec: PageRec) => {
     const key = keyOf(rec);
     if (sets.covers(key)) return;
-    const level = (rec.level ?? 0) + lift,
+    const level = admissionLevel(rec, topLevel) + lift,
       filed = filedBy.get(key);
     if (filed && levels[filed - 1] >= level) return;
     if (filed) {
