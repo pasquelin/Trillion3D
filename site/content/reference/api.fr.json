@@ -2533,7 +2533,8 @@
       "width": "Largeur en pixels.",
       "height": "Hauteur en pixels.",
       "displayWidth": "La largeur à laquelle l’image est montrée quand elle est dessinée en dessous (`world.renderScale`) : les niveaux de texture et les largeurs de ligne suivent le rapport. `width` en son absence.",
-      "linear": "Radiance linéaire, ni passée par la courbe ni encodée, sur un noir transparent : l’entrée de la chaîne d’effets, dont l’alpha est la couverture."
+      "linear": "Radiance linéaire, ni passée par la courbe ni encodée, sur un noir transparent : l’entrée de la chaîne d’effets, dont l’alpha est la couverture.",
+      "pass": "Nomme les passes GPU de ce dessin pour le chronomètre d’image, dans l’ordre, quand l’un lit (`../core/frameTimer.ts`) ; absent sur un dessin que rien ne mesure."
     }
   },
   "HostMaterial": {

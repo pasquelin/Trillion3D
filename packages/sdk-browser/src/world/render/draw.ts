@@ -179,14 +179,15 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       const read = gpuTimer.poll();
       if (profiled) steps.gpuImageMs?.(read.ms, gpuTimer.supported, read.reason ?? gpuTimer.reason);
       scale?.observe(read.ms, read.tag?.scale, read.tag?.steered ?? false);
-      // A held image's read clears the sample: `gpuFrameMs` is null from it to the next drawing.
-      if (read.ms !== null) {
+      // A ready read publishes its pass list, even truncated (its total then stays null); a not
+      // ready, disjoint or unreadable one is dropped, leaving the previous sample in place.
+      if (read.reason === null) {
         gpu.frameMs = read.frame === null ? null : read.ms;
         gpu.passes = read.frame === null ? null : webglPassSample(read.frame, read);
       }
     }
     steps.cpuFrameEnd?.();
   };
-  /** The last image the timer read, as the frame metrics carry it (`webglImageSample`). */
+  /** The last image the timer read, as the frame metrics carry it (`webglPassSample`). */
   return Object.assign(drawBackend, { gpu: gpu as Readonly<typeof gpu> });
 }

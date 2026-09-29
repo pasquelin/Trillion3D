@@ -9,7 +9,7 @@
  * “disjoint” is dropped instead of being published. `end(tag)` carries what the frame was drawn
  * with — its render scale — to the durations that come back with it.
  */
-import type { GpuPassTimings } from '../../../../sdk-core/src/index.ts';
+import type { GpuPassTiming, GpuPassTimings } from '../../../../sdk-core/src/index.ts';
 import { nanosecondsToMs } from '../../gpu/timing/types.ts';
 
 /** Samples reread later: beyond this, the device cannot keep up and no more are opened. */
@@ -26,14 +26,12 @@ type TimerExtension = {
 export type FrameTag = { scale: number; steered: boolean };
 /** Names the passes of the frame being drawn; a call closes the previous one and opens the next. */
 export type FramePass = (name: string) => void;
-/** One pass of a timed image, ready or with why not. */
-export type FramePassTiming = { name: string; ms: number | null; reason?: string };
 /** A frame read back: its pass list, the sum of them and the image it timed; or why none. */
 export type TimedFrame = {
   ms: number | null;
   reason: string | null;
   frame: number | null;
-  passes: FramePassTiming[];
+  passes: GpuPassTiming[];
   truncated: boolean;
   tag?: FrameTag;
 };
@@ -46,16 +44,7 @@ const none = (reason: string): TimedFrame => ({
 });
 /** The timed image as the frame metrics carry it (`GpuPassTimings`). */
 export function webglPassSample(frame: number, read: TimedFrame): GpuPassTimings {
-  return {
-    frame,
-    totalMs: read.ms,
-    passes: read.passes.map((pass) =>
-      pass.reason === undefined
-        ? { name: pass.name, gpuMs: pass.ms }
-        : { name: pass.name, gpuMs: pass.ms, reason: pass.reason },
-    ),
-    truncated: read.truncated,
-  };
+  return { frame, totalMs: read.ms, passes: read.passes, truncated: read.truncated };
 }
 
 export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefined) {
@@ -82,21 +71,33 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
     sample.queries.push(open);
     open = null;
   };
+  /** Opens `name`'s interval, or marks the sample truncated when the device refuses a query. */
+  const openQuery = (name: string) => {
+    const query = gl.createQuery();
+    if (!query) {
+      if (active) active.truncated = true;
+      return;
+    }
+    open = { name, query };
+    gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
+  };
   return {
     supported: true,
     reason: null as string | null,
     /** Opens the frame's one interval, unless the device is `MAX_PENDING` frames behind. */
     begin(frame: number | null) {
-      if (pending.length >= MAX_PENDING) {
-        active = null;
-        return;
+      // A frame whose `end` never came (its draw threw) leaves its interval open: close and
+      // delete it here, or the next `beginQuery` runs on an active target and the query leaks.
+      if (open) {
+        gl.endQuery(ext.TIME_ELAPSED_EXT);
+        gl.deleteQuery(open.query);
+        open = null;
       }
-      const query = gl.createQuery();
-      active = { frame, queries: [], truncated: !query };
-      if (query) {
-        open = { name: WHOLE_FRAME_PASS, query };
-        gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
-      }
+      for (const { query } of active?.queries ?? []) gl.deleteQuery(query);
+      active = null;
+      if (pending.length >= MAX_PENDING) return;
+      active = { frame, queries: [], truncated: false };
+      openQuery(WHOLE_FRAME_PASS);
     },
     /** Closes the pass in progress and opens `name`'s; one query open at a time, always. */
     pass(name: string) {
@@ -109,13 +110,7 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
         }
         close(active);
       }
-      const query = gl.createQuery();
-      if (!query) {
-        active.truncated = true;
-        return;
-      }
-      open = { name, query };
-      gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
+      openQuery(name);
     },
     end(tag?: FrameTag) {
       if (!active) return;
@@ -138,16 +133,18 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
           return none('result not ready yet');
       pending.shift();
       const disjoint = gl.getParameter(ext.GPU_DISJOINT_EXT);
-      const passes = sample.queries.map(({ name, query }): FramePassTiming => {
+      const passes = sample.queries.map(({ name, query }): GpuPassTiming => {
         const nanoseconds = gl.getQueryParameter(query, gl.QUERY_RESULT) as number;
         gl.deleteQuery(query);
-        if (disjoint) return { name, ms: null, reason: 'GPU_DISJOINT_EXT' };
-        if (!Number.isFinite(nanoseconds)) return { name, ms: null, reason: 'unreadable duration' };
-        return { name, ms: nanosecondsToMs(nanoseconds) };
+        if (disjoint) return { name, gpuMs: null, reason: 'GPU_DISJOINT_EXT' };
+        if (!Number.isFinite(nanoseconds))
+          return { name, gpuMs: null, reason: 'unreadable duration' };
+        return { name, gpuMs: nanosecondsToMs(nanoseconds) };
       });
       if (disjoint) return none('the driver interrupted the measurement (GPU_DISJOINT_EXT)');
-      const measured = passes.every((pass) => pass.ms !== null);
-      const ms = measured ? passes.reduce((sum, pass) => sum + (pass.ms ?? 0), 0) : null;
+      // A truncated list has gaps, so neither its sum nor the envelope names a real duration.
+      const measured = !sample.truncated && passes.every((pass) => pass.gpuMs !== null);
+      const ms = measured ? passes.reduce((sum, pass) => sum + (pass.gpuMs ?? 0), 0) : null;
       return {
         ms,
         reason: null,
