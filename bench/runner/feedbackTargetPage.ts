@@ -4,7 +4,8 @@ import type {
   FrameMetrics,
   GpuPassTimings,
 } from '../../packages/sdk-core/src/index.ts';
-import { poseAt, type Bounds } from './poses.ts';
+import { poseAt } from './poses.ts';
+import { streetBounds } from './street.ts';
 import { posterCapture } from './measurePage.ts';
 import { captureConvergence, type ConvergenceProof } from './feedbackConvergencePage.ts';
 import type { SpatialFeedback } from '../../packages/sdk-browser/src/webgpu/pages/diagnostic/feedbackSpatial.ts';
@@ -87,10 +88,14 @@ export async function runFeedbackTarget(options: {
     )
       return unsupported('FEEDBACK_AB_UNAVAILABLE');
     const box = explorer.bounds;
-    const bounds: Bounds = {
-      min: { x: box.min.x, y: box.min.y, z: box.min.z },
-      max: { x: box.max.x, y: box.max.y, z: box.max.z },
-    };
+    // The street the bench's eye-level views walk (`street.ts`), read in this page.
+    const bounds = await streetBounds(
+      {
+        min: { x: box.min.x, y: box.min.y, z: box.min.z },
+        max: { x: box.max.x, y: box.max.y, z: box.max.z },
+      },
+      options,
+    );
     const pose = poseAt(bounds, options.view);
     explorer.setPose(pose);
     convergence = await captureConvergence(
