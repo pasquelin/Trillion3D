@@ -51,3 +51,19 @@ test('a cell file is parsed in a worker of the decode pool, never on the main th
     const here = decodeCellFile(new TextEncoder().encode(text).buffer);
     assert.deepEqual(new Float64Array(answer.cells.locals), new Float64Array(here.locals));
   }));
+
+test('a cell file the worker refuses answers with its code and names its file', () =>
+  withNodeWorkerShim(NodeDomWorker, async () => {
+    releasePageDecoders();
+    configurePageDecoders(1);
+    const stale = new TextEncoder().encode(JSON.stringify({ version: 1, nodes }));
+    let answer;
+    try {
+      answer = await patientTask('cells', stale, 'https://cache.test/key/scene-cell-3.json');
+    } finally {
+      releasePageDecoders();
+    }
+    assert.ok(!answer.ok, 'refused');
+    assert.equal(answer.refusal, 'INVALID_SCENE_TABLES');
+    assert.match(answer.message, /scene-cell-3\.json/);
+  }));

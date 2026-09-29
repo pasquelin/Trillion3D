@@ -4550,7 +4550,8 @@
       "id": "Die Anfrage, die die Antwort erhält.",
       "ok": "Immer `false`.",
       "code": "Warum sie fehlgeschlagen ist.",
-      "message": "Die ursprüngliche Nachricht, unverändert: der Aufrufer wirft denselben `Error` wie der synchrone Pfad."
+      "message": "Die ursprüngliche Nachricht, unverändert: der Aufrufer wirft denselben `Error` wie der synchrone Pfad.",
+      "refusal": "Der Code der benannten Ablehnung der Engine, auf die die Aufgabe stieß (`EngineError`), die der Aufrufer unter diesem Code erneut auslöst; fehlt bei jedem anderen Fehlschlag."
     }
   },
   "pageDecodeFailureCode": {
@@ -4581,7 +4582,8 @@
       "id": "Nummer der Anfrage.",
       "op": "Was zu tun ist.",
       "source": "Mit der Nachricht übertragen: der Absender ist nicht mehr ihr Besitzer.",
-      "maxDecodedBytes": "Obergrenze der dekodierten Bytes einer Geometrieseite; von `verify` ignoriert."
+      "maxDecodedBytes": "Obergrenze der dekodierten Bytes einer Geometrieseite; von `verify` ignoriert.",
+      "name": "`cells`, `cellPage`: die Datei, aus der die Quelle gelesen wurde und die eine Ablehnung nennt."
     }
   },
   "PageDecodeShare": {

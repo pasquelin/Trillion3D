@@ -2431,7 +2431,8 @@
       "id": "Yanıtlanan istek.",
       "ok": "Her zaman `false`.",
       "code": "Neden başarısız olduğu.",
-      "message": "Orijinal mesaj, olduğu gibi: çağıran, senkron yolla aynı `Error`'ı fırlatır."
+      "message": "Orijinal mesaj, olduğu gibi: çağıran, senkron yolla aynı `Error`'ı fırlatır.",
+      "refusal": "Görevin karşılaştığı motorun adlandırılmış reddinin kodu (`EngineError`); çağıran onu bu kodla yeniden fırlatır; başka her hatada yoktur."
     }
   },
   "PageDecodeFailureCode": {
@@ -2459,7 +2460,8 @@
       "id": "İstek numarası.",
       "op": "Ne yapılacağı.",
       "source": "Mesajla birlikte aktarılır: gönderen artık sahibi değildir.",
-      "maxDecodedBytes": "Bir geometri sayfasının çözülmüş bayt tavanı; `verify` tarafından yok sayılır."
+      "maxDecodedBytes": "Bir geometri sayfasının çözülmüş bayt tavanı; `verify` tarafından yok sayılır.",
+      "name": "`cells`, `cellPage`: kaynağın okunduğu dosya; bir ret onu adlandırır."
     }
   },
   "PageDecodeShare": {
