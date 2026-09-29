@@ -1,53 +1,37 @@
-// #965: opaque shadow casters are drawn with no fragment stage, cutout ones with the fragment test.
-// The cull files the two kinds in two lists of one slot; the three pipelines are compiled at
-// prepare, and a frame compiles none. That the depth is develop's is `depthSplit.test.ts`'s.
+// #26 (shadow-pool write side): the hardware clips a sun caster against the near and far planes
+// and mints corners between the snapped ones, whose f32 sum with the pool's origin rounds
+// differently at every origin the pool places the page at. Depth clipping off clamps z instead:
+// no near/far corner is minted, so a page rasterizes alike in every slot and the sun's A/A is 0 px.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
-import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
-import type { WebgpuPagesRuntime } from '../../webgpu/pages/runtime.ts';
-import { prepareShadowPipelines } from '../../webgpu/pages/prepare/lights.ts';
-import { createGpuShadowAtlas } from './atlas.ts';
-import { KEPT_LISTS_WGSL } from './cullShader.ts';
+import { shadowDepthDraws } from './depthDraws.ts';
 
-type Lists = {
-  keptCount: (region: number, cutout: boolean) => number;
-  keptAt: (region: number, rank: number, capacity: number, cutout: boolean) => number;
-};
+/** A device offering `features`, recording every render pipeline it is asked to build. */
+function deviceOffering(features: string[]) {
+  const descriptors: GPURenderPipelineDescriptor[] = [];
+  const device = {
+    features: new Set(features),
+    createRenderPipeline: (descriptor: GPURenderPipelineDescriptor) => {
+      descriptors.push(descriptor);
+      return {} as GPURenderPipeline;
+    },
+  } as unknown as GPUDevice;
+  return { device, descriptors };
+}
 
-test("a region's opaque and cutout casters fill its slot from both ends, counted apart", () => {
-  const { keptCount, keptAt } = shaderFunctions<Lists>(KEPT_LISTS_WGSL, ['keptCount', 'keptAt']);
-  // Instance counts: the second word of each region's two commands, one after the other.
-  assert.deepEqual([keptCount(0, false), keptCount(0, true), keptCount(3, false)], [1, 5, 25]);
-  const capacity = 6,
-    slot = new Array<string>(3 * capacity).fill('');
-  for (let rank = 0; rank < 4; rank++) slot[keptAt(1, rank, capacity, false)] = `o${rank}`;
-  for (let rank = 0; rank < 2; rank++) slot[keptAt(1, rank, capacity, true)] = `c${rank}`;
-  assert.deepEqual(slot.slice(capacity, 2 * capacity), ['o0', 'o1', 'o2', 'o3', 'c1', 'c0']);
-  assert.ok(
-    slot.slice(0, capacity).every((row) => !row) && slot.slice(2 * capacity).every((row) => !row),
-  );
+const MODULE = {} as GPUShaderModule,
+  LAYOUT = {} as GPUPipelineLayout;
+
+test('the pool depth draws clamp depth, never clip, on a device with depth-clip-control', () => {
+  const { device, descriptors } = deviceOffering(['depth-clip-control']);
+  shadowDepthDraws(device, MODULE, LAYOUT).made();
+  assert.equal(descriptors.length, 3, 'the opaque, envelope and cutout draws');
+  for (const descriptor of descriptors) assert.equal(descriptor.primitive?.unclippedDepth, true);
 });
 
-test('the three caster draws are compiled at prepare, and a frame compiles none', async () => {
-  const { device, renderPipelines } = fakeDevice();
-  const atlas = await createGpuShadowAtlas(device, {} as GPUBindGroupLayout);
-  assert.equal(renderPipelines.length, 0, 'nothing compiled before the step');
-  const rt = {
-    lights: { shadows: atlas, pageQuads: { prepareTransmittance: async () => {} } },
-    vis: { gpuDraw: false },
-    blendState: { blendGpu: [] },
-  } as unknown as WebgpuPagesRuntime;
-  await prepareShadowPipelines(rt, device);
-  const made = renderPipelines.length;
-  const draws = atlas.depthDraws();
-  assert.equal(atlas.depthDraws(), draws, 'made once');
-  assert.equal(renderPipelines.length, made, 'no pipeline after prepare');
-  const shape = (pipeline: GPURenderPipeline) => {
-    const { vertex, fragment } = pipeline as unknown as GPURenderPipelineDescriptor;
-    return [vertex.entryPoint, fragment?.entryPoint];
-  };
-  assert.deepEqual(shape(draws.opaque), ['shadow_depth_vs', undefined], 'no fragment stage');
-  assert.deepEqual(shape(draws.envelope), ['shadow_vs', 'shadow_fs']);
-  assert.deepEqual(shape(draws.cutout), ['shadow_cutout_vs', 'shadow_fs']);
+test('without the feature the draws keep the default, clipping', () => {
+  const { device, descriptors } = deviceOffering([]);
+  shadowDepthDraws(device, MODULE, LAYOUT).made();
+  for (const descriptor of descriptors)
+    assert.equal(descriptor.primitive?.unclippedDepth, undefined);
 });
