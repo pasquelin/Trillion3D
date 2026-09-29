@@ -1390,7 +1390,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Le proxy relu et revérifié avant qu’un seul rayon le touche.",
-    "description": "Disposition : huit mots d’en-tête en little-endian, suivis des colonnes de géométrie et d’arbre canoniques et des données de propriété versionnées. `docs/FORMAT.md` précise chaque nombre et chaque colonne. L’en-tête impose la longueur de chaque section ; un fichier d’une autre taille est refusé en bloc, car un nœud qui désignerait un triangle absent ferait lire des données arbitraires au shader."
+    "description": "Onze mots d’en-tête little-endian précèdent la géométrie partagée ou indépendante, les colonnes de l’arbre et la propriété versionnée. `docs/FORMAT.md` définit les comptes et colonnes. Toute longueur incorrecte est refusée avant lecture par un rayon."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` décomposée en `position`, `quaternion`, `scale`."
@@ -5262,7 +5262,7 @@
     "summary": "Version du contrat de la hiérarchie de scène tenue par l’hôte."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Entiers d’en-tête : signature, version, nombres de triangles/nœuds/groupes/propriétaires/sources, zéro réservé."
+    "summary": "Entiers d’en-tête : en-tête de propriété v3, puis nombres de formes, de triangles stockés et de placements."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' lus comme un entier non signé sur 32 bits little-endian."
@@ -5398,7 +5398,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "Le proxy lu : son descripteur et ses colonnes, des vues sur les octets de son objet de cache.",
+    "summary": "Le proxy lu : son descripteur et ses colonnes immuables, avec les triangles partagés développés au chargement.",
     "members": {
       "data": "Ses colonnes."
     }

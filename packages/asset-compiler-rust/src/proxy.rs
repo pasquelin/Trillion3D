@@ -11,16 +11,17 @@ pub mod bvh;
 pub mod cut;
 pub mod encode;
 pub mod provenance;
+pub mod share;
 pub mod simplify;
 pub(crate) mod tracer;
 pub mod wide;
 
 /// Product contract. Moving cut, sections or node order requires incrementing.
-pub const SCENE_PROXY_VERSION: u32 = 3;
+pub const SCENE_PROXY_VERSION: u32 = 4;
 /// 'W','G','P','X' read as 32-bit little-endian unsigned int.
 pub const SCENE_PROXY_MAGIC: u32 = 0x5850_4757;
-/// Header: signature, version, triangle/node/group/owner/source counts, reserved zero.
-pub const SCENE_PROXY_HEADER_WORDS: usize = 8;
+/// Header: v3 ownership header, then shape, stored-triangle and placement counts.
+pub const SCENE_PROXY_HEADER_WORDS: usize = 11;
 /// Product name in cache key folder, next to `clusters.json`.
 pub const SCENE_PROXY_FILE: &str = "proxy.bin";
 /// Max certified geometric error of retained cluster, in meters. Published setting.
@@ -61,6 +62,7 @@ pub struct SceneProxy {
     pub node_bounds: Vec<f32>,
     pub node_children: Vec<u32>,
     pub provenance: provenance::Provenance,
+    pub sharing: share::Sharing,
 }
 impl SceneProxy {
     pub fn triangle_count(&self) -> usize {

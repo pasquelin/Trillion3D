@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { decodeSceneProxy } from './proxy.ts';
 import { ownedProxy } from './proxy.fixture.ts';
-import { SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION } from '../../contracts/proxy.ts';
+import {
+  SCENE_PROXY_HEADER_WORDS,
+  SCENE_PROXY_MAGIC,
+  SCENE_PROXY_VERSION,
+} from '../../contracts/proxy.ts';
 
 function encoded() {
   const proxy = ownedProxy();
-  proxy.instances = 2;
-  proxy.data.sourceParents = new Int32Array([-1, -1]);
-  proxy.data.bindWorlds = proxy.data.bindWorlds.slice(0, 32);
   const data = proxy.data;
   const columns = [
     data.triangles,
@@ -20,10 +21,20 @@ function encoded() {
     data.owners,
     data.sourceParents,
   ];
-  const prefix = 32 + columns.reduce((sum, c) => sum + c.byteLength, 0);
+  const header = SCENE_PROXY_HEADER_WORDS * 4;
+  const prefix = header + columns.reduce((sum, c) => sum + c.byteLength, 0);
   const buffer = new ArrayBuffer(prefix + data.bindWorlds.byteLength);
-  new Uint32Array(buffer, 0, 8).set([SCENE_PROXY_MAGIC, SCENE_PROXY_VERSION, 1, 1, 1, 2, 2, 0]);
-  let offset = 32;
+  new Uint32Array(buffer, 0, SCENE_PROXY_HEADER_WORDS).set([
+    SCENE_PROXY_MAGIC,
+    SCENE_PROXY_VERSION,
+    1,
+    1,
+    1,
+    2,
+    3,
+    0,
+  ]);
+  let offset = header;
   for (const column of columns) {
     new Uint8Array(buffer, offset, column.byteLength).set(
       new Uint8Array(column.buffer, column.byteOffset, column.byteLength),
@@ -53,10 +64,10 @@ test('invalid provenance groups, source ranks, cycles and nonfinite bind matrice
     modify(new DataView(buffer), prefix);
     assert.throws(() => decodeSceneProxy(proxy, buffer), /Invalid proxy ownership/);
   };
-  check((view) => view.setUint32(144, 1, true)); // triangle group: only group zero exists
-  check((view) => view.setUint32(152, 0, true)); // empty group instead of two owners
-  check((view) => view.setUint32(156, 2, true)); // only source nodes zero and one exist
-  check((view) => view.setInt32(172, 0, true)); // node zero parents itself
+  check((view) => view.setUint32(156, 1, true)); // triangle group: only group zero exists
+  check((view) => view.setUint32(164, 0, true)); // empty group instead of two owners
+  check((view) => view.setUint32(168, 3, true)); // only source nodes zero to two exist
+  check((view) => view.setInt32(184, 0, true)); // node zero parents itself
   check((view, prefix) => view.setFloat64(prefix, NaN, true));
 });
 
