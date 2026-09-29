@@ -4,6 +4,7 @@ import type { ShadowPool } from './pool.ts';
 import type { ShadowRecords } from './records.ts';
 import type { ShadowTable } from './table.ts';
 import type { SunLevels } from './sunLevels.ts';
+import { SHADOW_REQUEST_MISS } from './footprint.ts';
 import {
   LAMP_FLOOR_MIP,
   PAGE_INDEX_MASK,
@@ -43,16 +44,14 @@ export interface ShadowRequestReport {
  * Every page named asks for its light's floor under it too (`sunFloorLevel`, `LAMP_FLOOR_MIP`):
  * what a reader falls back to last when that page is withdrawn. So the floor is mapped first, and
  * never evicted while anything above it is read; like every page named, it is drawn in the frame it
- * goes stale (`admit.ts`). The
- * floor covers all the light reaches, so it needs no report to know what the view will read: a
- * sun asks every frame for the floor pages its view reaches over the scene's box (`floors`) — past
- * it no caster lies, and a receiver there asks through the report —, and a new, moved or
- * reshaped lamp for each face's until a report written at its pose is read — a report from a past
- * pose names only the pages that pose's receivers read.
- *
+ * goes stale (`admit.ts`). The floor covers all the light reaches, so it needs no report to know
+ * what the view will read: a sun asks every frame for the floor pages its view reaches over the
+ * scene's box (`floors`) — past it no caster lies, and a receiver there asks through the report —,
+ * and a new, moved or reshaped lamp for each face's until a report written at its pose is read — a
+ * report from a past pose names only the pages that pose's receivers read.
  * A report read against another table layout is dropped: its words name ranges that moved. A sun
- * entry is read with the extents of the frame that wrote it, and dropped when its page has since
- * left the clipmap. Allocates nothing past construction.
+ * entry is read with the extents of the frame that wrote it, and dropped when its page has left
+ * the clipmap since. Allocates nothing past construction.
  */
 export function createShadowRequests(
   table: ShadowTable,
@@ -143,8 +142,9 @@ export function createShadowRequests(
       counts.latest = reportFrame = report.frame;
       needs.clear();
       for (let i = 0; i < counts.requested; i++) {
-        const entry = report.entries[i],
-          word = table.words[entry];
+        const entry = report.entries[i];
+        if (entry >= SHADOW_REQUEST_MISS) continue; // a miss grows its page: `demandFootprint.ts`
+        const word = table.words[entry];
         let slice: number;
         if (word & PAGE_MAPPED) {
           const page = word & PAGE_INDEX_MASK;
