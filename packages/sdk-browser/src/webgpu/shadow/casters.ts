@@ -41,7 +41,7 @@ export function encodeShadowCasters(
   to: number,
   runBase: number,
 ) {
-  const { lights, vis, run, layout, setup, timing } = rt,
+  const { lights, vis, run, layout, timing } = rt,
     { cull, spheres, runs, mobilityRows } = lights,
     { gpuDraw } = vis;
   if (!cull || !spheres || !gpuDraw || !mobilityRows) return false;
@@ -66,7 +66,7 @@ export function encodeShadowCasters(
       for (let region = first; region < first + count; region++)
         cull.volumeWords[region * SHADOW_CULL_FLOATS + SHADOW_CULL_VIEW] = r;
     }
-    cull.begin(regions, setup.maxCorners);
+    cull.begin(regions);
     if (runs.count) light.encode(encoder, runs.list, runs.count);
     lightSource.spheres = spheres.buffer;
     lightSource.mobility = mobilityRows;
@@ -87,7 +87,7 @@ export function encodeShadowCasters(
     if (redraw) timing.shadowRedraws = both(timing.shadowRedraws, redraw);
     return true;
   }
-  cull.begin(regions, setup.maxCorners);
+  cull.begin(regions);
   const lists = lights.cpuCasters;
   if (run.gpuFrameActive || !lists || lists.frame !== run.frame) return false;
   source.mobility = mobilityRows;
