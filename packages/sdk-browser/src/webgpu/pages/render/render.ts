@@ -16,7 +16,7 @@ import { refreshBlendBoxes } from '../../blend/hierarchy.ts';
 import { refreshBlendScene } from '../../blend/resources.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { followLiveTextures } from '../io/memory.ts';
-import { beginTaaFrame } from '../../../taa/frame.ts';
+import { beginTaaFrame, restartTaaOnLanding } from '../../../taa/frame.ts';
 
 /** Renders one image: refreshes the scene inputs a row depends on, then hands the frame to the GPU
  *  cut when it is available and to the CPU reference cut otherwise. */
@@ -79,7 +79,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   // times itself on its budget clock — the one bound the textures stage reads —; the marks only
   // keep `worldMs` below to the world step alone.
   marks.gateEnd = performance.now();
-  pumpResidentTiles(vis.textures, run.frame, run.textureConverging);
+  restartTaaOnLanding(rt, pumpResidentTiles(vis.textures, run.frame, run.textureConverging));
   marks.tilesEnd = performance.now();
   const worldsMoved = uploadWorlds(rt, cam);
   // A camera that moves invalidates the temporal pyramid, not the occluder half: the latter
