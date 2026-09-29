@@ -11,11 +11,15 @@ import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual
 type Vec = { x: number; y: number; z: number; w: number };
 const f = Math.fround;
 const vec4f = (x: number, y: number, z: number, w: number): Vec => ({ x, y, z, w });
-/** The shipped `sunSnap`, over a face whose matrix is `viewProjection` and viewport `side` texels. */
+/** A pool layer's side, in texels: every origin below lies in it. */
+const POOL = 8192;
+/** The shipped `sunSnap`, over a face whose matrix is `viewProjection` and viewport `side` texels,
+ *  in a pool `POOL` texels wide. */
 const sunSnap = (viewProjection: Vec[], side: number) =>
-  shaderFunctions<{ sunSnap: (p: Vec) => Vec }>(SHADOW_DEPTH_SHADER, ['sunSnap'], {
+  shaderFunctions<{ sunSnap: (p: Vec) => Vec }>(SHADOW_DEPTH_SHADER, ['snapGrid', 'sunSnap'], {
     vec4f,
-    shadow: { viewProjection, params: vec4f(0, 0, 0, side) },
+    abs: Math.abs,
+    shadow: { viewProjection, params: vec4f(0, 0, f(side / POOL), side) },
   }).sunSnap;
 /** Where the rasterizer puts clip `x` of a page at `origin`, relative to that origin. */
 const placed = (x: number, origin: number) => {
@@ -24,7 +28,7 @@ const placed = (x: number, origin: number) => {
   return Math.round((window - origin) * 256) / 256;
 };
 const ORTHO = [vec4f(1, 0, 0, 0), vec4f(0, 1, 0, 0), vec4f(0, 0, 1, 0), vec4f(0, 0, 0, 1)];
-const ORIGINS = [0, 128, 2944, 6272];
+const ORIGINS = [0, 128, 2944, 6272, POOL - SHADOW_PAGE];
 
 test('an orthographic corner snapped by its viewport rasterizes alike at every page origin', () => {
   const snap = sunSnap(ORTHO, SHADOW_PAGE);
@@ -48,4 +52,18 @@ test('the snap follows the face: a perspective face is left as is, the step is i
   const half = sunSnap(ORTHO, SHADOW_PAGE / 2)(corner);
   assert.equal((half.x * (SHADOW_PAGE / 2) * 128) % 1, 0, 'snapped to its own viewport');
   assert.notEqual(half.x, sunSnap(ORTHO, SHADOW_PAGE)(corner).x);
+});
+
+// #1016: a caster whose sphere touches a page is drawn whole (`cullShader.ts`), and a flat floor's
+// corner can lie tens of thousands of texels past the page. There the viewport's f32 sum steps by
+// more than the 1/256 snap, and rounded that corner by the page's origin: the snap takes the f32
+// step at the farthest origin of the pool, the same wherever the page lies.
+test('a corner far past its page rasterizes alike at every page origin of the pool', () => {
+  const snap = sunSnap(ORTHO, SHADOW_PAGE);
+  for (let i = 0; i < 20000; i++) {
+    const x = f(Math.sin(i * 78.233) * 1200);
+    const snapped = f(snap(vec4f(x, 0, 0.5, 1)).x);
+    assert.equal(new Set(ORIGINS.map((o) => placed(snapped, o))).size, 1, `corner ${x}`);
+    assert.ok(Math.abs(snapped - x) * (SHADOW_PAGE / 2) <= 1 / 64, 'moved less than the f32 step');
+  }
 });
