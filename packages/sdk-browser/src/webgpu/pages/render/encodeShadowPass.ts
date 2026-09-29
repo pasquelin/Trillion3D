@@ -39,8 +39,10 @@ export function encodeShadowAtlas(
   if (!shadowRegionGroup(rt, device, 0)) return false;
   shadows.flushPages(count);
   // The cutouts ask for the tiles they read, under the image's word (`faceBindings.ts`); an image
-  // whose feedback is not published — a capture — asks nothing.
-  const feedback = capture.capturing ? undefined : vis.textures?.feedback;
+  // whose feedback is not published — a capture, or the feedback A/B's arm without it
+  // (`encoder.ts`) — asks nothing.
+  const published = !capture.capturing && rt.feedbackAB?.target !== false;
+  const feedback = published ? vis.textures?.feedback : undefined;
   shadows.cutoutRequests(feedback?.phaseWord(run.textureConverging) ?? 0, feedback?.buffer);
   if (!encodeShadowCasters(rt, encoder, count, from, to, runBase)) return false;
   cull.counts.sample(encoder, cull.indirect, count, run.frame, regions.moving);
