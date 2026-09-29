@@ -21,10 +21,10 @@ const INDEX_BYTES = Uint32Array.BYTES_PER_ELEMENT;
  * — so that the pages of a run, one surface at one placement, draw in one submission of their
  * index ranges (`runs.ts`). Ranges come from the engine's range allocator (`IndexRangeAllocator`),
  * a released page's merged back with its neighbours. When no free range fits, the buffers are made
- * again at twice their size at least and every page is sent again from its own arrays, which the
- * arena holds, never copies: a copy on the GPU (`copyBufferSubData`) left pages empty on ANGLE's
- * Metal backend once a later write reached a buffer still in use (sponza `rue`, one capture in
- * three). A growth is an allocation of the geometry pool: a refusal, once read
+ * again at twice their size at least, every page laid out again from its own arrays, which the
+ * arena holds, in one upload a buffer: a copy on the GPU (`copyBufferSubData`) left pages empty on
+ * ANGLE's Metal backend once a later write reached a buffer still in use (sponza `rue`, one
+ * capture in three). A growth is an allocation of the geometry pool: a refusal, once read
  * (`../core/allocation.ts`), gives the arena up (`lost`) and its pages are placed again in a new
  * one, the pool a level coarser.
  */
@@ -104,32 +104,36 @@ export class WebglPageArena {
     grown();
     return ranges.allocate(length);
   }
-  /** Vertex buffers of the allocator's capacity, every page sent again. */
+  /** Vertex buffers of the allocator's capacity, every page laid out again in one upload each. */
   private growVertices() {
     const gl = this.gl;
     gl.bindVertexArray(this.vao);
     this.layout.forEach((attribute, i) => {
+      const { size } = attribute,
+        data = new Float32Array(this.vertices.capacity * size);
+      for (const { attributes, vertex, vertices } of this.placed.values())
+        data.set((attributes[i] as Float32Array).subarray(0, vertices * size), vertex * size);
       gl.deleteBuffer(this.buffers[i]);
-      this.buffers[i] = this.made(gl.ARRAY_BUFFER, this.vertices.capacity * attribute.size);
+      this.buffers[i] = this.made(gl.ARRAY_BUFFER, data);
       this.point(attribute, this.buffers[i]);
     });
-    for (const page of this.placed.values()) this.sendVertices(page);
   }
-  /** An index buffer of the allocator's capacity, every page sent again. */
+  /** An index buffer of the allocator's capacity, every page laid out again in one upload. */
   private growIndices() {
-    const gl = this.gl;
+    const gl = this.gl,
+      data = new Uint32Array(this.indices.capacity);
+    for (const [first, { indices, vertex }] of this.placed)
+      for (let i = 0; i < indices.length; i++) data[first + i] = indices[i] + vertex;
     gl.bindVertexArray(this.vao);
     gl.deleteBuffer(this.index);
-    this.index = this.made(gl.ELEMENT_ARRAY_BUFFER, this.indices.capacity);
-    for (const [first, page] of this.placed) this.sendIndices(page, first);
+    this.index = this.made(gl.ELEMENT_ARRAY_BUFFER, data);
   }
-  /** A buffer of `words` four-byte elements, bound on `target` — for indices, in the arena's
-   *  array. */
-  private made(target: number, words: number) {
+  /** A buffer holding `data`, bound on `target` — for indices, in the arena's array. */
+  private made(target: number, data: ArrayBufferView) {
     const gl = this.gl,
       buffer = gl.createBuffer()!;
     gl.bindBuffer(target, buffer);
-    gl.bufferData(target, words * FLOAT_BYTES, gl.STATIC_DRAW);
+    gl.bufferData(target, data, gl.STATIC_DRAW);
     allocated(gl, 'geometry', this.lost);
     return buffer;
   }
