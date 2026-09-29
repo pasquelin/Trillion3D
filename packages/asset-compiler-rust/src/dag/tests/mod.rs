@@ -15,6 +15,23 @@ pub(crate) fn grid(n: usize) -> (Vec<f32>, Vec<u32>) {
     (positions, indices)
 }
 
+/// A grid rolled onto a cylinder of radius 8: a smooth curved surface.
+pub(super) fn cylinder(n: usize) -> (Vec<f32>, Vec<u32>) {
+    let (mut positions, indices) = grid(n);
+    for p in positions.as_chunks_mut::<3>().0 {
+        let angle = p[0] / n as f32 * 3.0;
+        (p[0], p[2]) = (8.0 * angle.cos(), 8.0 * angle.sin() + p[2] * 0.1);
+    }
+    (positions, indices)
+}
+
+/// The indices of the clusters `ids`, one list.
+pub(super) fn indices_of(dag: &[DagCluster], ids: &[usize]) -> Vec<u32> {
+    ids.iter()
+        .flat_map(|&id| dag[id].indices.iter().copied())
+        .collect()
+}
+
 /// Full mesh DAG, no UVs, no cancel point.
 pub(super) fn build_of(
     positions: &[f32],
@@ -84,6 +101,9 @@ fn cuts(dag: &[DagCluster]) -> Vec<(f64, Vec<&DagCluster>)> {
 mod part1;
 mod part10;
 mod part11;
+mod part12;
+mod part13;
+mod part14;
 mod part2;
 mod part3;
 mod part4;

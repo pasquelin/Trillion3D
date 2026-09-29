@@ -9,7 +9,7 @@ import { STALE_FULL, type ShadowPool } from './pool.ts';
  * A page staled so is coarser, not wrong: it stays read until redrawn.
  */
 export function createShadowThresholds(pool: ShadowPool) {
-  const drawnAt = new Float64Array(pool.pages).fill(NaN);
+  let drawnAt = new Float64Array(pool.pages).fill(NaN);
   let current = NaN;
   const thresholds = {
     /** The threshold this frame's light cuts select at. */
@@ -36,6 +36,13 @@ export function createShadowThresholds(pool: ShadowPool) {
         if (pool.stale(page, nowMs, frame, STALE_FULL)) staled++;
       }
       return staled;
+    },
+    /** The pool was resized: each page's threshold goes where the page went (`moved`,
+     *  `resizeShadowPool`). */
+    follow(moved: Int32Array) {
+      const next = new Float64Array(pool.pages).fill(NaN);
+      for (const [page, to] of moved.entries()) if (to >= 0) next[to] = drawnAt[page];
+      drawnAt = next;
     },
     reset() {
       drawnAt.fill(NaN);

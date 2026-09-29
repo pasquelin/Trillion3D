@@ -1208,7 +1208,7 @@
   },
   "createShadowPlan": {
     "summary": "El planificador de sombras de los mapas virtuales.",
-    "description": "El sombreado anota las páginas que lee; su informe, releído unos fotogramas después, asigna lo que falta del pool fijo. Lo que se movió invalida las páginas asignadas que cubre. Un fotograma dibuja entonces cada página caducada que lee la imagen, todas en ese fotograma: lo que contiene el coste es la caché —una página solo se redibuja cuando cambia lo que contiene—, y el pool es el único límite. Una escena quieta, cuyo sombreado ya no se ejecuta, no pide nada y no dibuja nada. Todos los arrays se reservan una vez; `plan()` no reserva nada."
+    "description": "Los receptores del fotograma nombran las páginas que leen antes de su rasterizado (`demand.ts`) —sin ellos, el informe del sombreado, releído unos fotogramas después— y lo que falta se asigna del pool fijo. Lo que se movió invalida las páginas asignadas que cubre. Un fotograma dibuja entonces cada página caducada que lee la imagen, todas en ese fotograma (`admit.ts`): lo que contiene el coste es la caché —una página solo se redibuja cuando cambia lo que contiene—, y el pool es el único límite. Una escena quieta, cuyo sombreado ya no se ejecuta, no dibuja nada. Todos los arrays se reservan una vez —las celdas de los receptores solo crecen para un fotograma con más receptores—; `plan()` no reserva nada más."
   },
   "createTerminalProgress": {
     "summary": "Una barra de progreso en la terminal que sigue los eventos del compilador.",
@@ -1312,7 +1312,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identidad de caché para los errores del DAG por clúster: error QEM absoluto del grupo sobre posiciones, normales y coordenadas de textura, limitado a la extensión del grupo; una caché v1 se rechaza."
+    "summary": "Identidad de caché para los errores de DAG por clúster: error QEM absoluto del grupo sobre posiciones, normales y coordenadas de textura, limitado a la extensión del grupo, nunca inferior a la distancia de Hausdorff muestreada entre los hijos de un grupo y sus salidas (#929); se rechazan las cachés v1 y v2."
   },
   "DagReport": {
     "summary": "Informe del DAG de una primitiva; solo sus advertencias las usa el motor.",
@@ -5512,7 +5512,7 @@
       "gpuShadowRasterMs": "Tiempo de GPU para dibujar esos proyectores en las páginas: la capa estática y luego el pool.",
       "gpuLightingMs": "Tiempo de GPU de la iluminación.",
       "shadowLightCuts": "Cortes de clústeres lanzados desde las luces: uno por vista de luz dibujada, cero en una imagen quieta.",
-      "shadowPagesRequested": "Páginas de sombra virtuales que leyó la imagen, tal como las nombró su último informe de peticiones: lo que marcan los receptores de la cámara.",
+      "shadowPagesRequested": "Páginas de sombra virtuales que lee la imagen, tal como las nombró la demanda anticipada del fotograma —o, sin ella, su último informe de peticiones—: lo que marcan los receptores de la cámara.",
       "shadowPagesCached": "De ellas, páginas leídas directamente del pool: al día, sin dibujo.",
       "shadowPoolPages": "Páginas físicas del pool fijo que contienen una página virtual.",
       "shadowPoolBytes": "Bytes de GPU del pool de sombras: sus páginas de profundidad, sus capas estática y de transmitancia una vez creadas, y los búferes a su lado. Null hasta que el primer fotograma dimensiona el pool.",
@@ -5536,7 +5536,7 @@
       "releaseDeferred": "La imagen no planifica ninguna sombra: la unión retenida entra en la lista de inmediato.",
       "setPageInvalidation": "Desactiva la invalidación por página: un objeto en movimiento invalida todas las páginas de las luces que toca. Activa por defecto.",
       "pageInvalidation": "Si un objeto en movimiento invalida solo las páginas que cubre su caja.",
-      "plan": "Planifica un fotograma: invalida lo que se movió, lee el último informe y admite cada página que dibujar.",
+      "plan": "Planifica un fotograma: invalida lo que se movió, lee la demanda de los receptores —o, si no, el último informe— y admite cada página que dibujar.",
       "reissue": "Las páginas del fotograma a partir de `from` no pudieron codificarse: siguen caducadas, pendientes, y el fotograma siguiente las dibuja.",
       "reset": "Vuelve a empezar.",
       "setThreshold": "El umbral al que los cortes de luz eligen sus proyectores de sombra (`thresholds.ts`).",
@@ -5549,7 +5549,8 @@
       "stamp": "Lo que el sombreado, las luces y la vista entregan a la siguiente imagen: un informe sellado con él que no nombra nada nuevo prueba que la imagen solo lee lo dibujado.",
       "settled": "Verdadero cuando un informe prueba que el estado actual no pide nada: la imagen puede mantenerse.",
       "receive": "Volvió un informe de peticiones; el siguiente plan lo lee. Uno más reciente sustituye a uno no leído.",
-      "commit": "Las páginas `[from, to)` de la lista del fotograma se codificaron, la página `from + i` en `modes[i]`: sus dibujos llegan antes de que nadie las lea. El último lote cierra la lista."
+      "commit": "Las páginas `[from, to)` de la lista del fotograma se codificaron, la página `from + i` en `modes[i]`: sus dibujos llegan antes de que nadie las lea. El último lote cierra la lista.",
+      "resize": "El pool con otro tamaño, sus páginas conservadas y sus arreglos nuevos: devuelve adónde fue cada página."
     }
   },
   "ShadowStaleReason": {
@@ -6880,7 +6881,7 @@
       "texturePoolClamp": "Razón del límite de la reserva de texturas: `minimum`, `device-limit`.",
       "hizCulled": "Clústeres que la prueba de oclusión encontró ocultos en este fotograma; `null` donde el camino no los cuenta.",
       "shadowLightCuts": "Cortes de clústeres lanzados desde las luces: uno por vista de luz dibujada, cero en una imagen quieta.",
-      "shadowPagesRequested": "Páginas de sombra virtuales que leyó la imagen, tal como las nombró su último informe de peticiones: lo que marcan los receptores de la cámara.",
+      "shadowPagesRequested": "Páginas de sombra virtuales que lee la imagen, tal como las nombró la demanda anticipada del fotograma —o, sin ella, su último informe de peticiones—: lo que marcan los receptores de la cámara.",
       "shadowPagesCached": "De ellas, páginas leídas directamente del pool: al día, sin dibujo.",
       "shadowPoolPages": "Páginas físicas del pool fijo que contienen una página virtual.",
       "shadowPoolBytes": "Bytes de GPU del pool de sombras: sus páginas de profundidad, sus capas estática y de transmitancia una vez creadas, y los búferes a su lado. Null hasta que el primer fotograma dimensiona el pool.",
@@ -7477,6 +7478,17 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "Flotantes de un registro de sombra, el que lee el sombreado de una luz: seis matrices de caras de lámpara — ahí, los rangos de profundidad de un sol, `zNear, zFar` cada uno (`recordPack.ts`) —, luego el marco del plano de luz del sol — `right, zNear`, `up, zFar`, `axis`, luego la ranura del rango actual —, luego el origen de la ventana de cada ranura del clipmap en dos enteros, luego una cabecera `vec4f`: caras (lámpara) o niveles (sol), el semicampo tangente de la lámpara o el nivel más fino del sol, el plano cercano de la lámpara y la primera entrada del registro en la tabla de páginas."
+  },
+  "ShadowReceivers": {
+    "summary": "Las superficies que ilumina el sombreado de un fotograma, tal como el anfitrión las entrega antes de su rasterizado de sombras.",
+    "members": {
+      "boxes": "Cajas en el mundo, `RECEIVER_FLOATS` cada una: cada superficie iluminada del fotograma está en una de ellas.",
+      "count": "Cajas listadas.",
+      "planes": "Los seis planos del frustum de la cámara (`frustumPlanesFromMatrix`): lo que queda fuera no se ilumina.",
+      "pixelNear": "Tamaño en el mundo de un píxel en el plano cercano, donde empieza la huella de un punto iluminado: el menor de las pasadas que leen sombras —el del objetivo dibujado, el de la pantalla—.",
+      "pixelNearMost": "El mismo, el mayor de esas pasadas.",
+      "orthographic": "Una cámara ortográfica: la huella de cada píxel es `pixelNear`."
+    }
   },
   "ShadowRequestReport": {
     "summary": "Lo que el sombreado leyó en una imagen: las entradas de la tabla que pidió, sin orden.",
