@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts';
-import { createTaaFrameState } from '../../taa/frame.ts';
+import { createTaaFrameState } from '../../taa/frameState.ts';
 import { TAA_STILL_FRAMES } from '../../taa/jitter.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
@@ -20,6 +20,7 @@ function heldRuntime(stillFrames: number) {
   Object.assign(rt.gpu, {
     temporalWanted: true,
     targetSize: [64, 32],
+    allocatedSize: [64, 32],
     displaySize: [64, 32],
     temporal: { frame, checkpoint: () => checkpoints++, replay: () => true },
   });

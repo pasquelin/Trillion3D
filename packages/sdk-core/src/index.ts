@@ -20,7 +20,6 @@ export {
   assertManifestBinary,
   decodeManifestBinary,
   decodeManifestPreviews,
-  encodeManifestBinary,
   isBinaryManifest,
   manifestBinaryRanges,
   previewFirstLevel,

@@ -45,6 +45,7 @@ mod voronoi;
 #[cfg(test)]
 mod voronoi_tests;
 
+pub(crate) use cut::TILE_TRIANGLES;
 pub(crate) use stage::stage_physics;
 
 /// The stage contract: its name and version, which enter `physics.json` and the cache key.

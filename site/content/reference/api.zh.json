@@ -4088,6 +4088,10 @@
     "summary": "时间性抗锯齿：跨帧累积的亚像素抖动；默认开启。",
     "description": "写入后从下一帧生效，丢弃历史，不重新打开会话。读取时是图像实际带有的：在 WebGL2 上为 false，开启后程序编译期间也为 false。"
   },
+  "world.renderScale": {
+    "summary": "图像按每个轴绘制的显示比例（`WorldOptions.renderScale`），从下一帧起生效。",
+    "description": "读取时为最后绘制图像的比例：WebGL2 上为 1。"
+  },
   "world.effects": {
     "summary": "效果链：绘制在图像上的通道（`effect`）。"
   },
@@ -4323,8 +4327,13 @@
       "controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
       "signal": "当该信号被中止时停止世界的加载操作。",
       "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
-      "temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。"
+      "temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
+      "renderScale": "图像按每个轴绘制的显示比例，仅限 WebGPU，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1），数字则将其固定；静止的图像按最大值绘制。之后通过 `world.renderScale` 修改。"
     }
+  },
+  "RenderScale": {
+    "summary": "页面请求的渲染比例：在时间抗锯齿把图像重建到显示尺寸之前，图像按每个轴所绘制的显示比例。",
+    "description": "`'auto'` 让帧预算在 0.5 到 1 之间选择它，`{ min, max }` 限定这一选择，数字则将其固定；所有取值都保持在 0.5 到 1 之间。"
   },
   "WorldPageSource": {
     "summary": "页面从何处读取,以及所有页面据以读取的地址。",
@@ -4962,7 +4971,8 @@
       "options.controls": "从画布上移动摄像机的控制器;之后可通过 `world.controls.kind` 更改。",
       "options.signal": "当该信号被中止时停止世界的加载操作。",
       "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
-      "options.temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。"
+      "options.temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
+      "options.renderScale": "图像按每个轴绘制的显示比例，仅限 WebGPU，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1），数字则将其固定；静止的图像按最大值绘制。之后通过 `world.renderScale` 修改。"
     }
   },
   "crossVector3": {
@@ -5057,10 +5067,6 @@
   },
   "emptyIrradiance": {
     "summary": "一个空的辐照度值,内容为空,准备好接收光源。"
-  },
-  "encodeManifestBinary": {
-    "summary": "把一份清单拆分成读取器解析的小型 JSON,以及它所映射的各个列。",
-    "description": "返回的描述符携带一个空的 `sha256`:只有持有最终字节数据的调用者,才能对其进行哈希计算。"
   },
   "enginePose": {
     "summary": "追踪和诊断所公开的世界姿态,从引擎摄像机中读取:眼睛的位置就是 `world` 的平移分量,而核心的分解运算给出的正是 `Matrix4.decompose` 的各个比特,`getWorldQuaternion` 只是对它的一次调用。"

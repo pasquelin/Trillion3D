@@ -4088,6 +4088,10 @@
     "summary": "시간적 안티앨리어싱: 프레임에 걸쳐 누적되는 서브픽셀 흔들림; 기본값은 켜짐.",
     "description": "쓰면 다음 프레임부터 적용되고, 기록은 버려지며, 세션을 다시 열지 않는다. 읽으면 이미지가 실제로 지닌 값: WebGL2에서는 false, 켠 뒤 프로그램이 컴파일되는 동안에도 false."
   },
+  "world.renderScale": {
+    "summary": "이미지를 그리는 축마다의 화면 비율(`WorldOptions.renderScale`), 다음 프레임부터 적용됩니다.",
+    "description": "읽으면 마지막으로 그린 이미지의 스케일: WebGL2에서는 1."
+  },
   "world.effects": {
     "summary": "이펙트 체인: 이미지 위에 그려지는 패스(`effect`)."
   },
@@ -4323,8 +4327,13 @@
       "controls": "캔버스에서 카메라를 움직이는 컨트롤러; 나중에 `world.controls.kind`로 바꿀 수 있다.",
       "signal": "그 신호가 중단되면 월드의 로드를 멈춘다.",
       "physics": "물리를 켭니다(`world.physics`): `true`, 또는 중력과 예산. 그때만 Jolt를 불러옵니다.",
-      "temporalAntialiasing": "시간적 안티앨리어싱, WebGPU 전용: 프레임에 걸쳐 누적되는 서브픽셀 흔들림. `false`는 각 픽셀을 기록 없이 중심에서 그리며, 픽셀 단위로 정확한 캡처가 요구하는 것; 나중에 `world.temporalAntialiasing`으로 바꾼다."
+      "temporalAntialiasing": "시간적 안티앨리어싱, WebGPU 전용: 프레임에 걸쳐 누적되는 서브픽셀 흔들림. `false`는 각 픽셀을 기록 없이 중심에서 그리며, 픽셀 단위로 정확한 캡처가 요구하는 것; 나중에 `world.temporalAntialiasing`으로 바꾼다.",
+      "renderScale": "이미지를 그리는 축마다의 화면 비율로, WebGPU 전용이며 시간적 안티에일리어싱이 화면 크기로 다시 구성하기 전의 값입니다. `'auto'`는 프레임 예산이 `min`과 `max` 사이에서 고르게 하고(`{ min, max }`, 기본값 0.5와 1), 숫자는 고정합니다. 멈춘 이미지는 최댓값으로 그려집니다. 나중에 `world.renderScale`로 바꿉니다."
     }
+  },
+  "RenderScale": {
+    "summary": "페이지가 요청하는 렌더 스케일: 시간적 안티에일리어싱이 화면 크기로 다시 구성하기 전에 이미지를 그리는, 축마다의 화면 비율.",
+    "description": "`'auto'`는 프레임 예산이 0.5와 1 사이에서 고르게 하고, `{ min, max }`는 그 선택을 제한하며, 숫자는 고정합니다. 모든 값은 0.5와 1 사이로 유지됩니다."
   },
   "WorldPageSource": {
     "summary": "페이지가 어디서 읽히는가, 그리고 그것들이 읽히는 기준이 되는 주소.",
@@ -4962,7 +4971,8 @@
       "options.controls": "캔버스에서 카메라를 움직이는 컨트롤러; 나중에 `world.controls.kind`로 바꿀 수 있다.",
       "options.signal": "그 신호가 중단되면 월드의 로드를 멈춘다.",
       "options.physics": "물리를 켭니다(`world.physics`): `true`, 또는 중력과 예산. 그때만 Jolt를 불러옵니다.",
-      "options.temporalAntialiasing": "시간적 안티앨리어싱, WebGPU 전용: 프레임에 걸쳐 누적되는 서브픽셀 흔들림. `false`는 각 픽셀을 기록 없이 중심에서 그리며, 픽셀 단위로 정확한 캡처가 요구하는 것; 나중에 `world.temporalAntialiasing`으로 바꾼다."
+      "options.temporalAntialiasing": "시간적 안티앨리어싱, WebGPU 전용: 프레임에 걸쳐 누적되는 서브픽셀 흔들림. `false`는 각 픽셀을 기록 없이 중심에서 그리며, 픽셀 단위로 정확한 캡처가 요구하는 것; 나중에 `world.temporalAntialiasing`으로 바꾼다.",
+      "options.renderScale": "이미지를 그리는 축마다의 화면 비율로, WebGPU 전용이며 시간적 안티에일리어싱이 화면 크기로 다시 구성하기 전의 값입니다. `'auto'`는 프레임 예산이 `min`과 `max` 사이에서 고르게 하고(`{ min, max }`, 기본값 0.5와 1), 숫자는 고정합니다. 멈춘 이미지는 최댓값으로 그려집니다. 나중에 `world.renderScale`로 바꿉니다."
     }
   },
   "crossVector3": {
@@ -5057,10 +5067,6 @@
   },
   "emptyIrradiance": {
     "summary": "아무것도 담고 있지 않은, 광원을 받아들일 준비가 된 조도."
-  },
-  "encodeManifestBinary": {
-    "summary": "매니페스트를, 리더가 파싱하는 작은 JSON과 그것이 매핑하는 열들로 나눈다.",
-    "description": "반환되는 기술자는 빈 `sha256`을 담고 있다: 완성된 바이트를 가진 호출자만이 그것을 해시할 수 있다."
   },
   "enginePose": {
     "summary": "추적과 진단이 공개하는, 엔진 카메라로부터 읽은 월드 자세: 눈은 `world`의 평행이동 성분이며, 코어의 분해는 `Matrix4.decompose`의 비트를 만들어내고, `getWorldQuaternion`은 그 호출일 뿐이다."
