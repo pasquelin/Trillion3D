@@ -148,9 +148,8 @@ JPH::RefConst<JPH::Shape> shapeOf(const uint32_t *w);
 const uint32_t *massFrame(const uint32_t *w, uint32_t &words);
 /// Writes the leaves a full event buffer held back at the last step, before anything else.
 void sendOwedLeaves();
-/// After `Update`, the contact records of every thread in the order the callbacks ran
-/// (`contacts.cpp`): the pairs counted, the enters and leaves written as the callbacks wrote them
-/// while they held a lock.
+/// After `Update`, the contact records of every thread in one order no thread decides
+/// (`contacts.cpp`): the pairs counted, the enters and leaves written.
 void replayContacts();
 /// Runs the BUOYANCY command at `w` (`buoyancy.cpp`); returns its word count.
 uint32_t runBuoyancy(const uint32_t *w);
