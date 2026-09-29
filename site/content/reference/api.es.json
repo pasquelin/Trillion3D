@@ -1609,6 +1609,7 @@
       "MATERIAL_CLASS_CHANGE": "Un cambio de material es desconocido, está fuera de rango, lo movería a una clase de dibujo que un motor fija al abrir la escena, o repetiría un mapa que comparte.",
       "MATERIAL_TEXTURE_SHARED": "Un cambio de material es desconocido, está fuera de rango, lo movería a una clase de dibujo que un motor fija al abrir la escena, o repetiría un mapa que comparte.",
       "MATERIAL_CEILING": "Una página crearía más materiales que `RUNTIME_MATERIAL_CEILING` en una sesión; no se creó nada.",
+      "TEXTURE_BUDGET": "Una textura añadida tras abrir la escena llevaría el pool de texturas más allá de `texturePoolBytes` o de las capas que admite el dispositivo; no se añadió nada.",
       "INVALID_TRANSFORM": "La colocación de un nodo no es una matriz utilizable, o un nodo sería su propio ancestro.",
       "NON_FINITE_TRANSFORM": "La colocación de un nodo no es una matriz utilizable, o un nodo sería su propio ancestro.",
       "SINGULAR_PARENT_TRANSFORM": "La colocación de un nodo no es una matriz utilizable, o un nodo sería su propio ancestro.",
@@ -5520,7 +5521,7 @@
       "shadowStaticDrawCalls": "Llamadas de dibujo de proyectores estáticos: en la capa estática, o de una página dibujada entera sin ella.",
       "shadowMovingDrawCalls": "Llamadas de dibujo solo de proyectores móviles, sobre páginas restauradas desde la capa estática.",
       "shadowMovingCastersKept": "De `shadowCastersKept`, los clústeres conservados para dibujar solo proyectores móviles.",
-      "shadowPagesStaledBy": "Páginas que la imagen dejó obsoletas, por motivo: luz, proyector inmóvil, proyectores móviles, detalle, umbral de corte o rango de profundidad de un sol.",
+      "shadowPagesStaledBy": "Páginas que la imagen dejó obsoletas, por motivo: luz, proyector inmóvil, proyectores móviles, detalle, umbral de corte, rango de profundidad de un sol o una huella que sus receptores ampliaron.",
       "shadowWaitMs": "Cuántos milisegundos ha esperado a ser redibujada la página desactualizada más antigua que lee la imagen. Solo cuenta el tiempo en que la imagen la lee; 0 una vez redibujada.",
       "shadowCutDrops": "Lotes del corte desde la luz que descartaron trabajo — sus vistas guardaron más clústeres de los que caben en las listas —, desde que se abrió el explorador: cada uno devuelve sus páginas, retiradas hasta redibujarse (#525). Null en un motor sin corte de luz en GPU, igual que los tres siguientes.",
       "shadowCutWithdrawnPages": "Páginas redibujadas porque un corte desde la luz las dibujó mal, desde que se abrió el explorador: su lote descartó trabajo, o su indicador nunca se leyó. Quedan retiradas hasta redibujarse.",
@@ -5552,6 +5553,7 @@
       "shadowMemoryEvents": "Los eventos de presión de memoria de las sombras desde que se abrió el mundo, por nombre, en orden; vacío normalmente.",
       "shadowPagesRefetched": "Páginas virtuales asignadas de nuevo después de que el pool las desalojara para hacer sitio, desde que se abrió el explorador: los redibujados que cuesta un pool demasiado pequeño para lo que leen las imágenes.",
       "shadowCastersKept": "Proyectores que conservó el descarte por página, todas las páginas dibujadas juntas, en la imagen que el dispositivo muestreó por última vez — una de cada quince; `null` hasta que vuelva una muestra.",
+      "shadowCastersRejected": "Proyectores que el descarte por página probó y no conservó — fuera de la parte de la página que leen sus receptores —, en la misma imagen muestreada; `null` hasta que vuelva una muestra.",
       "shadowCastersHidden": "Proyectores en movimiento que la prueba de oclusión encontró ocultos tras la capa estática de su página, en la imagen muestreada por última vez; `null` hasta que vuelva una muestra."
     }
   },
@@ -6742,7 +6744,7 @@
     "summary": "Cambia un material importado o creado en el siguiente fotograma."
   },
   "world.createMaterial": {
-    "summary": "Crea un material propio de esta página."
+    "summary": "Crea un material de la página; con una imagen, espera su admisión antes de asignarlo."
   },
   "world.assignMaterial": {
     "summary": "Asigna el material creado a un `mesh/primitive` compilado."
@@ -6874,7 +6876,7 @@
       "shadowStaticDrawCalls": "Llamadas de dibujo de proyectores estáticos: en la capa estática, o de una página dibujada entera sin ella.",
       "shadowMovingDrawCalls": "Llamadas de dibujo solo de proyectores móviles, sobre páginas restauradas desde la capa estática.",
       "shadowMovingCastersKept": "De `shadowCastersKept`, los clústeres conservados para dibujar solo proyectores móviles.",
-      "shadowPagesStaledBy": "Páginas que la imagen dejó obsoletas, por motivo: luz, proyector inmóvil, proyectores móviles, detalle, umbral de corte o rango de profundidad de un sol.",
+      "shadowPagesStaledBy": "Páginas que la imagen dejó obsoletas, por motivo: luz, proyector inmóvil, proyectores móviles, detalle, umbral de corte, rango de profundidad de un sol o una huella que sus receptores ampliaron.",
       "shadowWaitMs": "Cuántos milisegundos ha esperado a ser redibujada la página desactualizada más antigua que lee la imagen. Solo cuenta el tiempo en que la imagen la lee; 0 una vez redibujada.",
       "shadowCutDrops": "Lotes del corte desde la luz que descartaron trabajo — sus vistas guardaron más clústeres de los que caben en las listas —, desde que se abrió el explorador: cada uno devuelve sus páginas, retiradas hasta redibujarse (#525). Null en un motor sin corte de luz en GPU, igual que los tres siguientes.",
       "shadowCutWithdrawnPages": "Páginas redibujadas porque un corte desde la luz las dibujó mal, desde que se abrió el explorador: su lote descartó trabajo, o su indicador nunca se leyó. Quedan retiradas hasta redibujarse.",
@@ -6945,6 +6947,7 @@
       "shadowMemoryEvents": "Los eventos de presión de memoria de las sombras desde que se abrió el mundo, por nombre, en orden; vacío normalmente.",
       "shadowPagesRefetched": "Páginas virtuales asignadas de nuevo después de que el pool las desalojara para hacer sitio, desde que se abrió el explorador: los redibujados que cuesta un pool demasiado pequeño para lo que leen las imágenes.",
       "shadowCastersKept": "Proyectores que conservó el descarte por página, todas las páginas dibujadas juntas, en la imagen que el dispositivo muestreó por última vez — una de cada quince; `null` hasta que vuelva una muestra.",
+      "shadowCastersRejected": "Proyectores que el descarte por página probó y no conservó — fuera de la parte de la página que leen sus receptores —, en la misma imagen muestreada; `null` hasta que vuelva una muestra.",
       "shadowCastersHidden": "Proyectores en movimiento que la prueba de oclusión encontró ocultos tras la capa estática de su página, en la imagen muestreada por última vez; `null` hasta que vuelva una muestra.",
       "dynamicUploadBytes": "Bytes de vértices de geometría dinámica subidos en su sitio en este fotograma (#573), dentro del presupuesto por fotograma del mundo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Ausente donde ningún mundo dibuja."
     }
@@ -7866,7 +7869,7 @@
       "alphaMode": "Cómo se lee el canal alfa de una superficie: opaco lo ignora, `mask` corta en `alphaCutoff`, `blend` compone.",
       "alphaCutoff": "Los píxeles menos opacos que esto desaparecen.",
       "name": "Un nombre para uso de la página.",
-      "map": "Una imagen y la forma de muestrearla, en las palabras de una página (`wrap`, `filter`, `colorSpace`)."
+      "map": "ImageBitmap del llamador, sin premultiplicación ni conversión de color; mantener abierto hasta liberar el material."
     }
   },
   "SceneMaterial": {
@@ -7928,5 +7931,11 @@
       "positions": "Sus vértices, tres números cada uno, en el espacio del mundo.",
       "indices": "Sus triángulos, tres índices locales cada uno."
     }
+  },
+  "world.dropMaterial": {
+    "summary": "Libera un material creado sin uso; reasigna antes sus objetos."
+  },
+  "world.materialMapBytes": {
+    "summary": "Bytes de imágenes retenidas o pendientes, con un límite de 64 MiB."
   }
 }

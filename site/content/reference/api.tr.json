@@ -969,6 +969,7 @@
       "MATERIAL_CLASS_CHANGE": "Bir malzeme değişikliği bilinmiyor, aralık dışında, onu bir motorun sahne açılırken sabitlediği bir çizim sınıfına taşıyacak ya da paylaştığı bir haritayı döşeyecek.",
       "MATERIAL_TEXTURE_SHARED": "Bir malzeme değişikliği bilinmiyor, aralık dışında, onu bir motorun sahne açılırken sabitlediği bir çizim sınıfına taşıyacak ya da paylaştığı bir haritayı döşeyecek.",
       "MATERIAL_CEILING": "Bir sayfa tek oturumda `RUNTIME_MATERIAL_CEILING` sayısından fazla malzeme oluşturacaktı; hiçbir şey oluşturulmadı.",
+      "TEXTURE_BUDGET": "Sahne açıldıktan sonra eklenen bir doku, doku havuzunu `texturePoolBytes` değerinin veya aygıtın tuttuğu katmanların ötesine taşıyacaktı; hiçbir şey eklenmedi.",
       "INVALID_TRANSFORM": "Bir düğümün yerleşimi kullanılabilir bir matris değil, ya da bir düğüm kendi atası olurdu.",
       "NON_FINITE_TRANSFORM": "Bir düğümün yerleşimi kullanılabilir bir matris değil, ya da bir düğüm kendi atası olurdu.",
       "SINGULAR_PARENT_TRANSFORM": "Bir düğümün yerleşimi kullanılabilir bir matris değil, ya da bir düğüm kendi atası olurdu.",
@@ -3190,7 +3191,7 @@
       "shadowStaticDrawCalls": "Statik gölge düşürenlerin çizim çağrıları: statik katmana ya da katmansız tamamen çizilen bir sayfanın.",
       "shadowMovingDrawCalls": "Yalnızca hareketli gölge düşürenlerin, statik katmandan geri yüklenen sayfalar üzerindeki çizim çağrıları.",
       "shadowMovingCastersKept": "`shadowCastersKept` içinden, yalnızca hareketli gölge düşürenleri çizmek için tutulan kümeler.",
-      "shadowPagesStaledBy": "Karenin eskittiği sayfalar, nedene göre: ışık, duran gölge düşüren, hareketli gölge düşürenler, ayrıntı, kesim eşiği ya da bir güneşin derinlik aralığı.",
+      "shadowPagesStaledBy": "Karenin eskittiği sayfalar, nedene göre: ışık, duran gölge düşüren, hareketli gölge düşürenler, ayrıntı, kesim eşiği, bir güneşin derinlik aralığı ya da alıcılarının genişlettiği bir iz.",
       "shadowWaitMs": "Görüntünün okuduğu en eski eskimiş sayfanın yeniden çizilmek için kaç milisaniye beklediği. Yalnızca görüntünün onu okuduğu süre sayılır; yeniden çizilince 0.",
       "shadowCutDrops": "Gezgin açıldığından beri iş bırakan ışık kesimi grupları — görünümleri listelerin tutabileceğinden fazla küme tuttu —: her biri sayfalarını geri gönderir, yeniden çizilene dek geri çekilir (#525). GPU ışık kesimi olmayan bir motorda null, aşağıdaki üçü gibi.",
       "shadowCutWithdrawnPages": "Bir ışık kesimi onları yanlış çizdiği için yeniden çizilen sayfalar, gezgin açıldığından beri: grubu iş bıraktı ya da bayrağı hiç okunmadı. Yeniden çizilene dek geri çekilirler.",
@@ -3222,6 +3223,7 @@
       "shadowMemoryEvents": "Dünya açıldığından beri gölgelerin bellek baskısı olayları, adıyla, sırayla; normalde boş.",
       "shadowPagesRefetched": "Havuzun yer açmak için çıkardıktan sonra yeniden eşlenen sanal sayfalar, explorer açıldığından beri: karelerin okuduğuna göre fazla küçük bir havuzun maliyeti olan yeniden çizimler.",
       "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
+      "shadowCastersRejected": "Sayfa başına ayıklamanın sınayıp tutmadığı gölge düşürücüler — sayfanın alıcılarının okuduğu kısmının dışında —, aynı örneklenen karede; bir örnek dönene dek `null`.",
       "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`."
     }
   },
@@ -4183,7 +4185,7 @@
     "summary": "İçe aktarılmış veya oluşturulmuş malzemeyi sonraki karede değiştirir."
   },
   "world.createMaterial": {
-    "summary": "Bu sayfaya ait bir malzeme oluşturur."
+    "summary": "Sayfaya ait malzeme oluşturur; bitmap varsa atamadan önce kabulünün tamamlanmasını bekleyin."
   },
   "world.assignMaterial": {
     "summary": "Oluşturulan malzemeyi derlenmiş `mesh/primitive` üzerine atar."
@@ -4301,7 +4303,7 @@
       "shadowStaticDrawCalls": "Statik gölge düşürenlerin çizim çağrıları: statik katmana ya da katmansız tamamen çizilen bir sayfanın.",
       "shadowMovingDrawCalls": "Yalnızca hareketli gölge düşürenlerin, statik katmandan geri yüklenen sayfalar üzerindeki çizim çağrıları.",
       "shadowMovingCastersKept": "`shadowCastersKept` içinden, yalnızca hareketli gölge düşürenleri çizmek için tutulan kümeler.",
-      "shadowPagesStaledBy": "Karenin eskittiği sayfalar, nedene göre: ışık, duran gölge düşüren, hareketli gölge düşürenler, ayrıntı, kesim eşiği ya da bir güneşin derinlik aralığı.",
+      "shadowPagesStaledBy": "Karenin eskittiği sayfalar, nedene göre: ışık, duran gölge düşüren, hareketli gölge düşürenler, ayrıntı, kesim eşiği, bir güneşin derinlik aralığı ya da alıcılarının genişlettiği bir iz.",
       "shadowWaitMs": "Görüntünün okuduğu en eski eskimiş sayfanın yeniden çizilmek için kaç milisaniye beklediği. Yalnızca görüntünün onu okuduğu süre sayılır; yeniden çizilince 0.",
       "shadowCutDrops": "Gezgin açıldığından beri iş bırakan ışık kesimi grupları — görünümleri listelerin tutabileceğinden fazla küme tuttu —: her biri sayfalarını geri gönderir, yeniden çizilene dek geri çekilir (#525). GPU ışık kesimi olmayan bir motorda null, aşağıdaki üçü gibi.",
       "shadowCutWithdrawnPages": "Bir ışık kesimi onları yanlış çizdiği için yeniden çizilen sayfalar, gezgin açıldığından beri: grubu iş bıraktı ya da bayrağı hiç okunmadı. Yeniden çizilene dek geri çekilirler.",
@@ -4372,6 +4374,7 @@
       "shadowMemoryEvents": "Dünya açıldığından beri gölgelerin bellek baskısı olayları, adıyla, sırayla; normalde boş.",
       "shadowPagesRefetched": "Havuzun yer açmak için çıkardıktan sonra yeniden eşlenen sanal sayfalar, explorer açıldığından beri: karelerin okuduğuna göre fazla küçük bir havuzun maliyeti olan yeniden çizimler.",
       "shadowCastersKept": "Sayfa başına ayıklamanın tuttuğu gölge düşürücüler, tüm çizilen sayfalar birlikte, aygıtın en son örneklediği karede — on beşte bir; bir örnek dönene dek `null`.",
+      "shadowCastersRejected": "Sayfa başına ayıklamanın sınayıp tutmadığı gölge düşürücüler — sayfanın alıcılarının okuduğu kısmının dışında —, aynı örneklenen karede; bir örnek dönene dek `null`.",
       "shadowCastersHidden": "Örtme testinin, sayfalarının durağan katmanının arkasında gizli bulduğu hareketli gölge düşürücüler, en son örneklenen karede; bir örnek dönene dek `null`.",
       "dynamicUploadBytes": "Bu karede yerinde yüklenen dinamik geometri köşe baytları (#573), dünyanın kare başına bütçesi içinde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Hiçbir dünyanın çizmediği yerde yoktur."
     }
@@ -7866,7 +7869,7 @@
       "alphaMode": "Bir yüzeyin alfa kanalının nasıl okunduğu: opak onu yok sayar, `mask` `alphaCutoff`'ta keser, `blend` karıştırır.",
       "alphaCutoff": "Bundan daha az opak pikseller atılır.",
       "name": "Sayfanın kendi kullanımı için bir ad.",
-      "map": "Bir görsel ve nasıl örneklendiği, bir sayfanın kelimeleriyle (`wrap`, `filter`, `colorSpace`)."
+      "map": "Çağırana ait ImageBitmap; ön çarpım veya renk dönüşümü olmadan çözülür, malzeme bırakılana kadar açık tutulur."
     }
   },
   "SceneMaterial": {
@@ -7928,5 +7931,11 @@
       "positions": "Köşeleri, her biri üç sayı, dünya uzayında.",
       "indices": "Üçgenleri, her biri üç yerel indis."
     }
+  },
+  "world.dropMaterial": {
+    "summary": "Kullanılmayan oluşturulmuş malzemeyi serbest bırakır; önce nesnelerine başka malzeme atayın."
+  },
+  "world.materialMapBytes": {
+    "summary": "Tutulan veya bekleyen görüntülerin bayt sayısı; sınır 64 MiB."
   }
 }
