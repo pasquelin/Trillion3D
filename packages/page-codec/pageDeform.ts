@@ -1,10 +1,10 @@
 /**
- * The reference encoder's deformation streams (#357): each vertex's four joints on the page's
- * own base and width, three of its weights on 255 steps summing with the fourth to 255, and each
- * morph target's position displacement on the page grid and normal displacement on 2^-10 — the
+ * The reference encoder's deformation streams (#357): each vertex's joints on the page's
+ * own base and width, every weight as float32 bits, and each
+ * morph target's position and normal displacement as exact float32 bits — the
  * format of `page-codec-wasm/src/deform.rs`, written again here without sharing a line.
  */
-import { bitsFor, quantize, type Packer, type QuantizedGrid } from './pageGrids.ts';
+import { bitsFor, type Packer, type QuantizedGrid } from './pageGrids.ts';
 import type { PageAttribute, PageAttributes } from './pageAttributes.ts';
 
 /** A morph target handed to the encoder: its displacements per source vertex. */
@@ -13,47 +13,55 @@ export interface PageTarget {
   NORMAL?: PageAttribute;
 }
 
-const NORMAL_EXPONENT = -10;
-
-/** Four weights on 255 steps summing to 255: floors, then the steps left to the largest
- *  remainders, the earlier first on a tie; nothing to share leans on the first joint. */
-export function weightSteps(weights: readonly number[]) {
-  const positive = weights.map((w) => Math.max(0, Math.fround(w))),
-    sum = Math.fround(positive.reduce((a, b) => Math.fround(a + b), 0));
-  if (!(sum > 0)) return [255, 0, 0, 0];
-  const scaled = positive.map((w) => Math.fround(Math.fround(w / sum) * 255)),
-    steps = scaled.map(Math.floor),
-    order = [0, 1, 2, 3].sort((a, b) => scaled[b] - steps[b] - (scaled[a] - steps[a]) || a - b);
-  let left =
-    255 -
-    Math.min(
-      255,
-      steps.reduce((a, b) => a + b, 0),
-    );
-  for (const j of order) if (left-- > 0) steps[j]++;
-  return steps;
-}
-
 /** Each vertex's deformation fields in `original` order, and the page's records. */
 export function deformCells(
-  { JOINTS_0: joints, WEIGHTS_0: weights }: PageAttributes,
+  attributes: PageAttributes,
   targets: readonly PageTarget[],
   original: readonly number[],
-  positionExponent: number,
+  _positionExponent: number,
 ) {
   const fields = original.map(() => [] as number[]);
-  let skin: { base: number; bits: number } | null = null;
-  if (joints && weights) {
-    const all = original.flatMap((v) =>
-      Array.from({ length: 4 }, (_, j) => joints.array[v * 4 + j]),
+  const ranks = [
+    ...new Set(
+      Object.keys(attributes)
+        .filter((key) => /^(JOINTS|WEIGHTS)_/.test(key))
+        .map((key) => Number(key.split('_')[1])),
+    ),
+  ].sort((a, b) => a - b);
+  const sets = ranks.map((rank) => {
+    const joints = attributes[`JOINTS_${rank}`],
+      weights = attributes[`WEIGHTS_${rank}`];
+    if (!joints || !weights || joints.itemSize !== weights.itemSize)
+      throw new Error('PAGE_SKIN_ATTRIBUTES');
+    return { joints, weights };
+  });
+  const width = sets.reduce((sum, { joints }) => sum + joints.itemSize, 0);
+  if (width > 65536) throw new Error('PAGE_SKIN_ATTRIBUTES');
+  let skin: { base: number; bits: number; influences: number } | null = null;
+  if (width) {
+    const all = original.map((v) =>
+      sets.flatMap(({ joints }) =>
+        Array.from({ length: joints.itemSize }, (_, j) => joints.array[v * joints.itemSize + j]),
+      ),
     );
-    const base = Math.min(...all);
-    skin = { base, bits: bitsFor(Math.max(...all) - base) };
+    let base = 65535,
+      top = 0;
+    for (const row of all)
+      for (const joint of row) {
+        if (!Number.isInteger(joint) || joint < 0 || joint > 65535)
+          throw new Error('PAGE_SKIN_ATTRIBUTES');
+        base = Math.min(base, joint);
+        top = Math.max(top, joint);
+      }
+    skin = { base, bits: bitsFor(top - base), influences: width };
     original.forEach((v, i) => {
-      const own = Array.from({ length: 4 }, (_, j) => weights.array[v * 4 + j]);
+      const own = sets.flatMap(({ weights }) =>
+        Array.from({ length: weights.itemSize }, (_, j) => weights.array[v * weights.itemSize + j]),
+      );
+      if (own.some((w) => !Number.isFinite(w) || w < 0)) throw new Error('PAGE_SKIN_ATTRIBUTES');
       fields[i].push(
-        ...all.slice(i * 4, i * 4 + 4).map((j) => j - base),
-        ...weightSteps(own).slice(0, 3),
+        ...all[i].map((j) => j - base),
+        ...new Uint32Array(new Float32Array(own).buffer),
       );
     });
   }
@@ -61,8 +69,18 @@ export function deformCells(
   for (const target of targets) {
     const gather = (attribute: PageAttribute | undefined) =>
       original.flatMap((v) => [0, 1, 2].map((c) => (attribute ? attribute.array[v * 3 + c] : 0)));
-    const position = quantize(gather(target.POSITION), 3, positionExponent),
-      normal = quantize(gather(target.NORMAL), 3, NORMAL_EXPONENT);
+    const raw = (values: number[]): QuantizedGrid => {
+      if (values.some((v) => !Number.isFinite(Math.fround(v))))
+        throw new Error('PAGE_ATTRIBUTE_NONFINITE');
+      return {
+        min: [0, 0, 0],
+        exponent: 0,
+        bits: [32, 32, 32],
+        cells: Array.from(new Uint32Array(new Float32Array(values).buffer)),
+      };
+    };
+    const position = raw(gather(target.POSITION)),
+      normal = raw(gather(target.NORMAL));
     original.forEach((_, i) =>
       fields[i].push(
         ...position.cells.slice(i * 3, i * 3 + 3),
@@ -89,8 +107,8 @@ export function packDeformation(
     );
   };
   if (deform.skin) {
-    for (let j = 0; j < 4; j++) stream(deform.skin.bits);
-    for (let j = 0; j < 3; j++) stream(8);
+    for (let j = 0; j < deform.skin.influences; j++) stream(deform.skin.bits);
+    for (let j = 0; j < deform.skin.influences; j++) stream(32);
   }
   for (const morph of deform.morphs) {
     morph.start = pack.words.length;
@@ -105,10 +123,11 @@ export function deformHeader(
   deform: ReturnType<typeof deformCells>,
   record: (word: number, grid: QuantizedGrid) => void,
 ) {
-  const skin = deform.skin ?? { bits: 0, base: 0 };
+  const skin = deform.skin ?? { bits: 0, base: 0, influences: 0 };
   head.setUint32(92, (skin.bits | (deform.morphs.length << 6) | (skin.base << 14)) >>> 0, true);
+  head.setUint32(96, skin.influences, true);
   deform.morphs.forEach(({ start, position, normal }, t) => {
-    const at = 24 + t * 9;
+    const at = 25 + t * 9;
     head.setUint32(at * 4, start, true);
     record(at + 1, position);
     record(at + 5, normal);

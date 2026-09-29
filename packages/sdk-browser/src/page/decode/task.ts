@@ -141,6 +141,7 @@ function geometryPayload(page: DecodedGeometryPage): PageDecodeGeometryPayload {
     names: Object.keys(page.attributes),
     vertexCount: page.vertexCount,
     morphTargets: page.morphTargets,
+    skinInfluences: page.skinInfluences,
     flags: page.flags,
     decodedBytes: page.decodedBytes,
     quantizationError: page.quantizationError,
@@ -151,9 +152,16 @@ function geometryPayload(page: DecodedGeometryPage): PageDecodeGeometryPayload {
  *  attribute `Record` finds its fields in the same order as an in-place decode. */
 export function restorePageDecode(payload: PageDecodeGeometryPayload): DecodedGeometryPage {
   return {
-    ...pageViews(payload.block, payload.names, payload.vertexCount, payload.morphTargets),
+    ...pageViews(
+      payload.block,
+      payload.names,
+      payload.vertexCount,
+      payload.morphTargets,
+      payload.skinInfluences,
+    ),
     vertexCount: payload.vertexCount,
     morphTargets: payload.morphTargets,
+    skinInfluences: payload.skinInfluences,
     flags: payload.flags,
     decodedBytes: payload.decodedBytes,
     quantizationError: payload.quantizationError,

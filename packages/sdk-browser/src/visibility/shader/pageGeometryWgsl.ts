@@ -39,7 +39,7 @@ ${clusterDecodeWgsl('indices')}
 fn pageHeader(page:PageInfo)->ClusterHeader{
  var h:ClusterHeader;
  if(${QUANTIZED}){h=clusterHeader(page.pageOffset);}
- else if((page.deformOutput&0x80000000u)!=0u){let at=page.packedBase-1u;h.flags=u32(positions[at]);h.morphCount=u32(positions[at+1u]);}
+ else if((page.deformOutput&0x80000000u)!=0u){let at=page.packedBase-1u;h.flags=u32(positions[at]);h.morphCount=u32(positions[at+1u]);h.influences=(u32(positions[at+3u])-h.morphCount*6u)/2u;}
  return h;
 }
 /** Local vertex index of a corner of the page, three per triangle. */

@@ -10,7 +10,7 @@ import { KIND_MORPH, KIND_SKIN, KIND_WAVE, KIND_SOFT, RECORD_HEAD, WAVE_FLOATS }
  * last frame's record: where the vertex was, which the temporal pass reprojects a pixel by.
  *
  * In the reference's order: the morph targets move the rest vertex, the joints carry the result
- * (linear blend of the palette, four weights), then the waves carry the world point to where
+ * (linear blend of every palette influence), then the waves carry the world point to where
  * the Gerstner sum puts it — the formula of `sdk-core/src/fluids/waves.ts`, on the same numbers.
  * The record lives in the float pool the passes already bind (`positions`), after its vertices:
  * no binding is added to any pass.
@@ -19,17 +19,17 @@ export const DEFORM_WGSL = `
 fn wholeVertex(page:PageInfo,vertex:u32)->u32{
  let start=page.packedBase-1u;return start+4u+vertex*u32(positions[start+3u]);
 }
-fn deformJoints(h:ClusterHeader,page:PageInfo,vertex:u32)->vec4u{
- if((page.deformOutput&0x80000000u)==0u){return clusterJoints(h,page.pageOffset,vertex);}
- let at=wholeVertex(page,vertex);return vec4u(vec4f(positions[at],positions[at+1u],positions[at+2u],positions[at+3u]));
+fn deformJointId(h:ClusterHeader,page:PageInfo,vertex:u32,k:u32)->u32{
+ if((page.deformOutput&0x80000000u)==0u){return clusterJoint(h,page.pageOffset,vertex,k);}
+ return u32(positions[wholeVertex(page,vertex)+k]);
 }
-fn deformWeights(h:ClusterHeader,page:PageInfo,vertex:u32)->vec4f{
- if((page.deformOutput&0x80000000u)==0u){return clusterWeights(h,page.pageOffset,vertex);}
- let at=wholeVertex(page,vertex)+4u;return vec4f(positions[at],positions[at+1u],positions[at+2u],positions[at+3u]);
+fn deformWeight(h:ClusterHeader,page:PageInfo,vertex:u32,k:u32)->f32{
+ if((page.deformOutput&0x80000000u)==0u){return clusterWeight(h,page.pageOffset,vertex,k);}
+ return positions[wholeVertex(page,vertex)+h.influences+k];
 }
 fn deformMorphValue(h:ClusterHeader,page:PageInfo,t:u32,vertex:u32,normal:bool)->vec3f{
  if((page.deformOutput&0x80000000u)==0u){return clusterMorph(h,page.pageOffset,t,vertex,normal);}
- let at=wholeVertex(page,vertex)+select(0u,8u,(h.flags&16u)!=0u)+t*6u+select(0u,3u,normal);
+ let at=wholeVertex(page,vertex)+h.influences*2u+t*6u+select(0u,3u,normal);
  return vec3f(positions[at],positions[at+1u],positions[at+2u]);
 }
 fn deformWord(at:u32)->u32{return bitcast<u32>(positions[at]);}
@@ -41,11 +41,14 @@ fn deformJoint(at:u32,j:u32,count:u32)->mat3x4f{
   positions[b+4u],positions[b+5u],positions[b+6u],positions[b+7u],
   positions[b+8u],positions[b+9u],positions[b+10u],positions[b+11u]);
 }
-/** A point (\`w\` 1) or a direction (\`w\` 0) carried by the palette's blend of four joints. */
+/** A point (\`w\` 1) or a direction (\`w\` 0) carried by the palette's blend of all joints. */
 fn deformSkin(h:ClusterHeader,page:PageInfo,vertex:u32,at:u32,count:u32,v:vec4f)->vec3f{
- let j=deformJoints(h,page,vertex);let w=deformWeights(h,page,vertex);
- return w.x*(v*deformJoint(at,j.x,count))+w.y*(v*deformJoint(at,j.y,count))
-  +w.z*(v*deformJoint(at,j.z,count))+w.w*(v*deformJoint(at,j.w,count));
+ var result=vec3f(0.0);
+ for(var k=0u;k<h.influences;k++){
+  let weight=deformWeight(h,page,vertex,k);
+  if(weight!=0.0){result+=weight*(v*deformJoint(at,deformJointId(h,page,vertex,k),count));}
+ }
+ return result;
 }
 fn deformMatrix(at:u32)->mat4x4f{
  return mat4x4f(positions[at],positions[at+1u],positions[at+2u],positions[at+3u],
@@ -79,15 +82,14 @@ fn deformAt(r:u32,previous:bool)->DeformAt{
  return a;
 }
 fn deformSoft(a:DeformAt,h:ClusterHeader,page:PageInfo,vertex:u32,previous:bool,normal:bool)->vec3f{
- let ids=deformJoints(h,page,vertex);let weights=deformWeights(h,page,vertex);
  var delta=vec3f(0.0);let count=a.soft*3u;
- for(var k=0u;k<4u;k++){
-  let v=min(ids[k],a.soft-1u)*3u;let start=a.simulation+v;
+ for(var k=0u;k<h.influences;k++){
+  let v=min(deformJointId(h,page,vertex,k),a.soft-1u)*3u;let start=a.simulation+v;
   let current=start+select(select(0u,count,previous),count*3u,normal);
   let value=vec3f(positions[current],positions[current+1u],positions[current+2u]);
   let rest=start+count*2u;
   let origin=vec3f(positions[rest],positions[rest+1u],positions[rest+2u]);
-  delta+=weights[k]*select(value-origin,value,normal);
+  delta+=deformWeight(h,page,vertex,k)*select(value-origin,value,normal);
  }
  return delta;
 }

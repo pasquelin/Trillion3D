@@ -17,8 +17,8 @@ import {
 } from './pageAttributes.ts';
 
 const MAGIC = 0x33504757,
-  VERSION = 5,
-  HEADER_WORDS = 24,
+  VERSION = 7,
+  HEADER_WORDS = 25,
   COLOR_EXPONENT = -8;
 /** The format's texture grid, 2^-14: a quarter of a texel on a 4096-wide map. */
 export const UV_EXPONENT = -14;
@@ -180,7 +180,7 @@ export function encodeGeometryPage(
   head.setUint32(88, stored.length, true);
   deformHeader(head, deform, (at, grid) => record(at, grid, 3, grid.exponent));
   pack.words.forEach((word, i) => head.setUint32((headerWords + i) * 4, word, true));
-  let floats = 3 + (deform.skin ? 8 : 0) + 6 * targets.length;
+  let floats = 3 + (deform.skin ? 2 * deform.skin.influences : 0) + 6 * targets.length;
   for (const [, size, bit] of ATTRIBUTES) if (flags & bit) floats += size;
   return {
     data,

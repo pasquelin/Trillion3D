@@ -14,6 +14,7 @@ fn deformation() -> Deformation {
     ];
     let lift = [0.0, 0.5, 0.0];
     Deformation {
+        influences: 4,
         skin: Some((joints, weights)),
         soft_source: false,
         targets: vec![MorphTarget {
@@ -41,21 +42,13 @@ fn joints_weights_and_targets_read_back_and_keep_vertices_apart() {
     assert_eq!(joints[4..8], [5.0, 3.0, 0.0, 0.0]);
     assert_eq!(joints[12..16], [7.0, 0.0, 0.0, 0.0]);
     let weights = decoded.attribute(6).expect("weights");
-    let expected = [179.0 / 255.0, 76.0 / 255.0, 0.0, 0.0];
+    let expected = [0.7, 0.3, 0.0, 0.0];
     assert_eq!(weights[4..8], expected);
     for vertex in weights.chunks(4) {
         assert!((vertex.iter().sum::<f32>() - 1.0).abs() < 1e-6);
     }
     let targets = decoded.attribute(7).expect("targets");
     assert_eq!(targets[6..12], [0.0, 0.5, 0.0, 0.0, 0.0, 0.0]);
-}
-
-#[test]
-fn weights_sum_to_the_scale_whatever_their_rounding() {
-    assert_eq!(quantize_weights([0.25; 4]), [64, 64, 64, 63]);
-    assert_eq!(quantize_weights([0.0; 4]), [255, 0, 0, 0]);
-    let odd = quantize_weights([0.1, 0.2, 0.3, 0.4]);
-    assert_eq!(odd.iter().sum::<u32>(), 255);
 }
 
 #[test]
@@ -96,4 +89,55 @@ fn soft_ids_survive_welding_permutation_and_reduction_origins() {
         &decoded.attribute(0).expect("positions")[..3],
         &[0.25, 1.0, 0.0]
     );
+}
+
+#[test]
+fn all_influences_and_float_weights_survive_large_joint_separation() {
+    let deform = Deformation {
+        influences: 8,
+        skin: Some(((0..8).cycle().take(24).collect(), vec![0.125; 24])),
+        targets: vec![MorphTarget {
+            position: vec![0.12345679; 9],
+            normal: None,
+        }],
+        soft_source: false,
+    };
+    let page = encode_deformed(
+        &[0, 1, 2],
+        &POSITIONS[..9],
+        &[],
+        (&deform, &[]),
+        (-8, UV_EXPONENT),
+    )
+    .unwrap();
+    let decoded = trillion3d_page_codec::decode(&page.bytes, 1 << 24).unwrap();
+    let weights = decoded.attribute(6).unwrap();
+    assert_eq!(weights, &[0.125; 24]);
+    let x: f32 = weights[..8]
+        .iter()
+        .enumerate()
+        .map(|(j, w)| if j >= 4 { w * 8.0 } else { 0.0 })
+        .sum();
+    assert_eq!(x, 4.0);
+    assert_eq!(decoded.attribute(7).unwrap()[0], 0.12345679);
+    let mut half = deform;
+    half.skin.as_mut().unwrap().1 = [0.5, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0].repeat(3);
+    let page = encode_deformed(
+        &[0, 1, 2],
+        &POSITIONS[..9],
+        &[],
+        (&half, &[]),
+        (-8, UV_EXPONENT),
+    )
+    .unwrap();
+    let decoded = trillion3d_page_codec::decode(&page.bytes, 1 << 24).unwrap();
+    assert_eq!(decoded.attribute(6).unwrap()[1] * 1000.0, 500.0);
+    let reach = half.reach(&POSITIONS[..9]);
+    let delta = decoded.attribute(7).unwrap();
+    let radius = delta[..3]
+        .iter()
+        .map(|v| f64::from(*v).powi(2))
+        .sum::<f64>()
+        .sqrt();
+    assert!(reach["targets"][0].as_f64().unwrap() >= radius);
 }

@@ -56,7 +56,15 @@ export function createPageStore(env: PageStoreEnvironment) {
         shared ??
         (source
           ? sourcedPageGeometry(data.indices, source, rec.min, rec.max)
-          : hostPageGeometry(data, itemSize, rec.min, rec.max));
+          : hostPageGeometry(
+              data,
+              (name) =>
+                name.startsWith('skin')
+                  ? data.attributes[name].length / data.vertexCount
+                  : itemSize(name),
+              rec.min,
+              rec.max,
+            ));
       if (placed) rowed.set(data, geometry);
       const base = baseMaterials.get(rec)!;
       // Lazily: a page without a colour attribute must not make a vertex-coloured twin.

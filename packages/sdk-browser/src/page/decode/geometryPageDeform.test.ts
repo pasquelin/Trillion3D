@@ -40,10 +40,7 @@ test('joints, weights and target displacements decode from the page', () => {
   assert.deepEqual(Object.keys(page.attributes), ['position', 'skinIndex', 'skinWeight', 'morph']);
   assert.deepEqual(Array.from(page.attributes.skinIndex.subarray(4, 8)), [5, 3, 0, 0]);
   const weights = page.attributes.skinWeight;
-  assert.deepEqual(
-    Array.from(weights.subarray(4, 8)),
-    [179, 76, 0, 0].map((w) => Math.fround(w / 255)),
-  );
+  assert.deepEqual(Array.from(weights.subarray(4, 8)), [0.7, 0.3, 0, 0].map(Math.fround));
   for (let v = 0; v < 3; v++)
     assert.ok(
       Math.abs(weights[v * 4] + weights[v * 4 + 1] + weights[v * 4 + 2] + weights[v * 4 + 3] - 1) <
@@ -55,7 +52,7 @@ test('joints, weights and target displacements decode from the page', () => {
 
 test('a target record naming another word than its streams refuses the page', () => {
   const { data } = bentPage();
-  new DataView(data.buffer).setUint32(24 * 4, 999, true);
+  new DataView(data.buffer).setUint32(25 * 4, 999, true);
   assert.throws(() => decodeGeometryPage(data), /GEOMETRY_PAGE_BOUNDS/);
 });
 

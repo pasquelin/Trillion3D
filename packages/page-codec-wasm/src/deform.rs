@@ -1,11 +1,11 @@
 //! What a `WGP3` page carries for the GPU deformation stage (#357): the joints and weights of a
 //! skinned vertex, and the position and normal displacement of each morph target. Both are
 //! optional streams after the colour, flagged in word 4; word 23 of the header packs the skin
-//! record and the target count (`word`), and each target's record follows the twenty-four header
+//! record and the target count (`word`), and each target's record follows the twenty-five header
 //! words — nine words each, the first the word its streams start at, which a reader recomputes
 //! and trusts only when it matches, so every offset still follows from the counts and the widths.
 
-use crate::bits::{dequant, le_words, stream_words, BitReader, Quant};
+use crate::bits::{le_words, stream_words, BitReader, Quant};
 use crate::HEADER_BYTES;
 
 /// Presence bits of the skin and of the morph targets, beside those of `lib.rs`.
@@ -17,17 +17,15 @@ pub const MAX_JOINT_BITS: u32 = 16;
 pub const MAX_MORPH_TARGETS: usize = 255;
 /// Header words of one morph target: its first stream, then its position and normal records.
 pub const MORPH_WORDS: usize = 9;
-/// Joints and weights per skinned vertex.
-pub const INFLUENCES: usize = 4;
-/// Bits of a stored weight: three are stored, the fourth is what their sum leaves of 255.
-pub const WEIGHT_BITS: u32 = 8;
-pub const WEIGHT_SCALE: u32 = 255;
+/// Bits of every source weight, stored without quantization.
+pub const WEIGHT_BITS: u32 = 32;
 
 /// The skin record: the page's smallest joint and the width of each joint's distance to it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Skin {
     pub base: u32,
     pub bits: u32,
+    pub influences: usize,
 }
 
 /// Word 23: the joint width in bits 0 to 5, the target count in bits 6 to 13, the smallest joint
@@ -54,11 +52,21 @@ impl Morph {
     }
 
     pub fn unpack(w: &[u32]) -> Option<Self> {
-        let f = f32::from_bits;
+        let raw = Quant {
+            min: [0.0; 3],
+            exponent: 0,
+            bits: [32; 3],
+        };
+        if w[1] != raw.packed()
+            || w[5] != raw.packed()
+            || [w[2], w[3], w[4], w[6], w[7], w[8]] != [0; 6]
+        {
+            return None;
+        }
         Some(Self {
             start: w[0] as usize,
-            position: Quant::unpack(w[1], [f(w[2]), f(w[3]), f(w[4])])?,
-            normal: Quant::unpack(w[5], [f(w[6]), f(w[7]), f(w[8])])?,
+            position: raw,
+            normal: raw,
         })
     }
 
@@ -75,12 +83,14 @@ impl Morph {
 pub fn parse(flags: u32, packed: u32, data: &[u8]) -> Option<(Skin, Vec<Morph>)> {
     let (skinned, morphed) = (flags & FLAG_SKIN != 0, flags & FLAG_MORPH != 0);
     let skin = Skin {
+        influences: u32::from_le_bytes(data.get(96..100)?.try_into().ok()?) as usize,
         bits: packed & 63,
         base: (packed >> 14) & 0xffff,
     };
     let count = ((packed >> 6) & 255) as usize;
     let sane = word(&skin, count) == packed
         && (skinned || skin == Skin::default())
+        && (!skinned || (skin.influences > 0 && skin.influences <= 65536))
         && skin.bits <= MAX_JOINT_BITS
         && u64::from(skin.base) + (1u64 << skin.bits) - 1 <= 0xffff
         && morphed == (count > 0);
@@ -93,9 +103,10 @@ pub fn parse(flags: u32, packed: u32, data: &[u8]) -> Option<(Skin, Vec<Morph>)>
     Some((skin, morphs.collect::<Option<Vec<_>>>()?))
 }
 
-/// Words the skin's seven streams take: four joints, three weights.
+/// Words occupied by all joint and float32 weight streams.
 pub fn skin_words(skin: &Skin, vertices: usize) -> usize {
-    INFLUENCES * stream_words(vertices, skin.bits) + 3 * stream_words(vertices, WEIGHT_BITS)
+    skin.influences
+        .saturating_mul(stream_words(vertices, skin.bits).saturating_add(vertices))
 }
 
 /// Words one target's six streams take.
@@ -107,29 +118,19 @@ pub fn morph_words(morph: &Morph, vertices: usize) -> usize {
         .sum()
 }
 
-/// The fourth weight: what the three stored leave of 255, never below zero.
-pub fn last_weight(stored: [u32; 3]) -> u32 {
-    WEIGHT_SCALE.saturating_sub(stored.iter().sum::<u32>().min(WEIGHT_SCALE))
-}
-
-/// Decodes the skin into `out`: the four joints of every vertex, then its four weights, from its
+/// Decodes the skin into `out`: all joints of every vertex, then all weights, from its
 /// streams at word `start` of `words`.
 pub fn decode_skin(words: &[u32], start: usize, skin: &Skin, out: &mut [u32]) {
-    let n = out.len() / (2 * INFLUENCES);
-    let (joints, weights) = out.split_at_mut(n * INFLUENCES);
-    let (joint_words, weight_words) = (stream_words(n, skin.bits), stream_words(n, WEIGHT_BITS));
-    let at = |word: usize| BitReader::at(words, word * 32);
-    let mut joint: [BitReader; INFLUENCES] = core::array::from_fn(|j| at(start + j * joint_words));
-    let first_weight = start + INFLUENCES * joint_words;
-    let mut weight: [BitReader; 3] = core::array::from_fn(|j| at(first_weight + j * weight_words));
-    let rows = joints.as_chunks_mut::<INFLUENCES>().0.iter_mut();
-    for (vertex, share) in rows.zip(weights.as_chunks_mut::<INFLUENCES>().0) {
-        for (j, reader) in joint.iter_mut().enumerate() {
-            vertex[j] = ((skin.base + reader.read(skin.bits)) as f32).to_bits();
-        }
-        let stored: [u32; 3] = core::array::from_fn(|j| weight[j].read(WEIGHT_BITS));
-        for (j, &w) in stored.iter().chain(&[last_weight(stored)]).enumerate() {
-            share[j] = (w as f32 / WEIGHT_SCALE as f32).to_bits();
+    let width = skin.influences;
+    let n = out.len() / (2 * width);
+    let (joints, weights) = out.split_at_mut(n * width);
+    let joint_words = stream_words(n, skin.bits);
+    let first_weight = start + width * joint_words;
+    for j in 0..width {
+        let mut reader = BitReader::at(words, (start + j * joint_words) * 32);
+        for v in 0..n {
+            joints[v * width + j] = ((skin.base + reader.read(skin.bits)) as f32).to_bits();
+            weights[v * width + j] = words[first_weight + j * n + v];
         }
     }
 }
@@ -140,19 +141,10 @@ pub fn decode_morphs(words: &[u32], morphs: &[Morph], out: &mut [u32]) {
     let width = 6 * morphs.len();
     let n = out.len() / width.max(1);
     for (t, morph) in morphs.iter().enumerate() {
-        let mut at = morph.start;
-        for (c, bits) in morph.bits().into_iter().enumerate() {
-            let record = if c < 3 {
-                &morph.position
-            } else {
-                &morph.normal
-            };
-            let (min, step) = (record.min[c % 3], record.step());
-            let mut stream = BitReader::at(words, at * 32);
-            for vertex in 0..n {
-                out[vertex * width + t * 6 + c] = dequant(min, stream.read(bits), step).to_bits();
+        for c in 0..6 {
+            for v in 0..n {
+                out[v * width + t * 6 + c] = words[morph.start + c * n + v];
             }
-            at += stream_words(n, bits);
         }
     }
 }
@@ -160,3 +152,20 @@ pub fn decode_morphs(words: &[u32], morphs: &[Morph], out: &mut [u32]) {
 #[cfg(test)]
 #[path = "deform_tests.rs"]
 mod tests;
+
+/// The raw deformation streams must remain finite before any GPU reads the admitted page.
+pub fn finite(data: &[u8], h: &crate::Header, layout: &crate::Layout) -> bool {
+    let n = h.vertex_count;
+    if h.flags & FLAG_SKIN != 0 {
+        let start = layout.skin + h.skin.influences * stream_words(n, h.skin.bits);
+        if !le_words(&data[start * 4..(start + h.skin.influences * n) * 4]).all(|w| {
+            let f = f32::from_bits(w);
+            f.is_finite() && f >= 0.0
+        }) {
+            return false;
+        }
+    }
+    h.morphs.iter().all(|m| {
+        le_words(&data[m.start * 4..(m.start + 6 * n) * 4]).all(|w| f32::from_bits(w).is_finite())
+    })
+}
