@@ -83,6 +83,14 @@ ${WORLD_AT_WGSL}
  var rgb=lit+ambient+emissive.rgb${bounce};if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}
  return vec4f(rgb,1.0);
 }`;
+/** The bounce program's surface: bounced light and what a mirror reflects, added to the direct. */
+const BOUNCE_SURFACE_WGSL = `${BOUNCE_APPLY_WGSL}
+${bounceReflectionWgsl(BOUNCE_SURFACE_BINDING)}
+${MIRROR_LIGHTING_WGSL}
+${contractSurface(
+  '+bounceLighting(base.rgb,base.a,N,P,emissive.a)+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)',
+  'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
+)}`;
 /** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
  * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
  * added (P6). An unlit material shows its colour with no response to light, still seen through
@@ -98,17 +106,7 @@ ${surfaceBindingsWgsl()}
 ${CONTRACT_BINDINGS_WGSL}
 ${STANDARD_LIGHTING_WGSL}
 ${directLightingWgsl(narrow)}
-${
-  bounce
-    ? `${BOUNCE_APPLY_WGSL}
-${bounceReflectionWgsl(BOUNCE_SURFACE_BINDING)}
-${MIRROR_LIGHTING_WGSL}
-${contractSurface(
-  '+bounceLighting(base.rgb,base.a,N,P,emissive.a)+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)',
-  'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
-)}`
-    : contractSurface('')
-}`;
+${bounce ? BOUNCE_SURFACE_WGSL : contractSurface('')}`;
 export const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
 export const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
 /**
