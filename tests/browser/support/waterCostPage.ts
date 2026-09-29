@@ -25,7 +25,7 @@ export interface WaterCostOptions {
 
 // WebGPU attachment costs for water/pipelines.ts: three rgba16float (8 each),
 // rgba8unorm (8 attachment bytes, not its 4 storage bytes), then r32uint (4).
-const WATER_ATTACHMENT_BYTES = 3 * 8 + 8 + 4;
+export const WATER_ATTACHMENT_BYTES = 3 * 8 + 8 + 4;
 
 export async function run(factory: BackendFactory, options: WaterCostOptions) {
   const adapter = await navigator.gpu?.requestAdapter();
