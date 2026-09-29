@@ -13,8 +13,8 @@ import { FRESH_LAYOUT_WGSL, FRESH_PARAMS_WGSL } from './freshLayout.ts';
  * space by the regions' one test (`sphereTouches`): a caster the camera does not see keeps its
  * shadow on a receiver it sees. Each row a region keeps is one pair, `(region, row)`, in one list
  * every layer's draw reads (`shader.ts`, `shadow_fresh_vs`); the draws' corners are the most any
- * kept row draws. A pair past the list's capacity is lost, and says so: its region is not sealed
- * readable (`sealShadowPages`), never a page short of a caster.
+ * kept row draws. The compose picks no more regions than the list holds a pair of every row for
+ * (`pickPages`): no pair is ever past its capacity, and no page is sealed short of a caster.
  */
 export const SHADOW_FRESH_CULL_WGSL = `
 ${SHADOW_VOLUME_WGSL}
@@ -35,7 +35,7 @@ fn freshRow(i:u32)->i32{
 fn keepPair(k:u32,row:u32){
  if(!sphereTouches(volumes[k],spheres[row])){return;}
  let at=atomicAdd(&args[FRESH_PAIRS],1u);
- if(at>=atomicLoad(&args[FRESH_CAPACITY])){atomicStore(&args[FRESH_REGION_PAGES+params.pages+k],1u);return;}
+ if(at>=atomicLoad(&args[FRESH_CAPACITY])){return;}
  pairs[2u*at]=k;pairs[2u*at+1u]=row;
  atomicMax(&args[FRESH_CORNERS],mobility[row]>>${MOBILITY_CORNER_SHIFT}u);
 }

@@ -1,7 +1,7 @@
 // #1275: the cull of the pages the GPU draws itself (`freshCullWgsl.ts`) and their seal
 // (`sealShadowPages`), run from their shipped WGSL: a region keeps every caster row its volume
-// touches — the page table's and the blended casters' —, one pair each; a pair past the list's
-// capacity is lost, and its region is not made readable but waits for its next draw.
+// touches — the page table's and the blended casters' —, one pair each; no more pages are picked
+// than the pair list holds every row of, and the others wait, unread, for the next frame.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -12,7 +12,13 @@ import {
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { MOBILITY_CORNER_SHIFT } from '../../gpu/shadow/cullShader.ts';
 import { runShadowFresh, runShadowPairs } from './freshRun.fixture.ts';
-import { FRESH_ARG, FRESH_PARAMS, FRESH_REGION_PAGES, freshArgWords } from './freshLayout.ts';
+import {
+  FRESH_ARG,
+  FRESH_FACE_WORDS,
+  FRESH_PARAMS,
+  FRESH_REGION_PAGES,
+  freshArgWords,
+} from './freshLayout.ts';
 import { DRAWN_GPU, DRAWN_NONE, POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
 
 const PAGES = 4;
@@ -70,38 +76,50 @@ test('a region keeps every caster row its volume touches, the blended ones too',
   assert.equal(args[FRESH_ARG.corners], 5, 'the most corners a kept row draws');
 });
 
-test('a region that lost a caster past the list is not made readable, the others are', () => {
-  const { args, params } = cull(
-    [
-      [0.9, 0.9, 0, 0.1],
-      [0, 2, 0, 0.1],
-      [0, 0.5, 0, 0.1],
-    ],
-    3,
-    2,
-  );
-  const lost = [0, 1].map((k) => args[FRESH_REGION_PAGES + PAGES + k]);
-  assert.equal(lost.filter(Boolean).length, 1, 'one region lost a pair');
-  // The two regions are pages 2 and 3, of entries 40 and 41, drawn by the GPU this frame.
-  args.set([2, 3], FRESH_REGION_PAGES);
+test('no more pages are picked than the pair list holds every row of; the rest wait, unread', () => {
+  // Six listed pages of a pool of sixteen, three caster rows, room for seven pairs: two regions.
+  const pages = 16,
+    listed = 6,
+    rows = 3,
+    capacity = 7;
   const data = new Uint8Array(SHADOW_TABLE_OFFSET + SHADOW_TABLE_ENTRIES * 4),
-    state = new Uint8Array((POOL_COUNTS.length + POOL_FIELDS.length * PAGES) * 4),
+    state = new Uint32Array(POOL_COUNTS.length + POOL_FIELDS.length * pages),
     table = new Uint32Array(data.buffer, SHADOW_TABLE_OFFSET),
     fields = new Int32Array(state.buffer, POOL_COUNTS.length * 4),
-    drawnBy = fields.subarray(POOL_FIELDS.indexOf('drawnBy') * PAGES);
-  fields.set([-1, -1, 40, 41]);
-  drawnBy.set([0, 0, DRAWN_GPU, DRAWN_GPU]);
-  table[40] = 2 | PAGE_MAPPED;
-  table[41] = 3 | PAGE_MAPPED;
-  const bytes = (a: Uint32Array) => new Uint8Array(a.buffer);
-  runShadowFresh(
-    'sealShadowPages',
-    ...[data, state, new Uint8Array(16), new Uint8Array(16), new Uint8Array(16)],
-    ...[bytes(args), bytes(params)],
-  );
-  lost.forEach((was, k) => {
-    const [entry, page] = [40 + k, 2 + k];
-    assert.equal(table[entry] & PAGE_VALID, was ? 0 : PAGE_VALID, `page ${page}`);
-    assert.equal(drawnBy[page], was ? DRAWN_NONE : DRAWN_GPU, `page ${page}`);
-  });
+    drawnBy = fields.subarray(POOL_FIELDS.indexOf('drawnBy') * pages),
+    drawList = Uint32Array.from({ length: pages }, (_, i) => i),
+    params = new Uint32Array(FRESH_PARAMS),
+    args = new Uint32Array(freshArgWords(pages)),
+    volumeFloats = new Float32Array(pages * 20);
+  fields.fill(-1, 0, pages);
+  drawnBy.fill(DRAWN_NONE);
+  for (let p = 0; p < listed; p++) {
+    fields[p] = 40 + p;
+    table[40 + p] = p | PAGE_MAPPED;
+  }
+  state[POOL_COUNTS.indexOf('drawn')] = listed;
+  params.set([pages, 4, 1, rows, rows, rows, capacity]);
+  const bytes = (a: Uint32Array | Float32Array) => new Uint8Array(a.buffer);
+  const fresh = (entry: string) =>
+    runShadowFresh(
+      entry,
+      ...[data, bytes(state), bytes(drawList), new Uint8Array(pages * 4 * FRESH_FACE_WORDS)],
+      ...[bytes(volumeFloats), bytes(args), bytes(params), new Uint8Array(12)],
+    );
+  fresh('composeShadowPages');
+  const regions = args[FRESH_ARG.regions];
+  assert.equal(regions, Math.floor(capacity / rows), 'as many regions as hold every row');
+  // Every region's volume holds every caster: the cull keeps a pair of each row for each.
+  for (let k = 0; k < regions; k++)
+    volumeFloats.set([0, 0, 0, 1e6, 0, 0, 1, -1, 1, 0, 0, 1e6, 0, 1, 0, 1e6], k * 20);
+  const spheres = new Float32Array(Array.from({ length: rows }, () => [0, 0, 0, 1]).flat()),
+    pairs = new Uint32Array(2 * capacity);
+  runShadowPairs(...[spheres, params, volumeFloats, pairs, args, new Uint32Array(rows)].map(bytes));
+  assert.equal(args[FRESH_ARG.pairs], regions * rows, 'every pair kept, none past the list');
+  fresh('sealShadowPages');
+  for (let p = 0; p < listed; p++) {
+    const picked = [...args.subarray(FRESH_REGION_PAGES, FRESH_REGION_PAGES + regions)].includes(p);
+    assert.equal(table[40 + p] & PAGE_VALID, picked ? PAGE_VALID : 0, `page ${p}`);
+    assert.equal(drawnBy[p], picked ? DRAWN_GPU : DRAWN_NONE, `page ${p}`);
+  }
 });

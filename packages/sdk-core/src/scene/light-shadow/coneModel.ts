@@ -50,7 +50,7 @@ const VECTORS_WGSL: ConeOps<string, string> = {
  * Exact, never a quality approximation: the projected image of a planar rectangle is spherically
  * convex, so the cap that holds its four corners holds all of it.
  */
-export function coneModel<S, V>(o: PageOps<S>, v: ConeOps<S, V>) {
+function coneModel<S, V>(o: PageOps<S>, v: ConeOps<S, V>) {
   const view = pageViewModel(o),
     two = o.float(2),
     wide = (halfFov: S) => o.ge(halfFov, o.float(Math.PI / 2));

@@ -8,7 +8,7 @@ export const SHADOW_DEMAND_PASS = 'Trillion3D shadow demand v1';
 /** What the demand pass reads and writes, in binding order: the visibility buffer's depth, normals
  *  and surface flags, the deferred view uniform, the lights and their tile lists, the shadow
  *  records and page table, and the request buffer it marks. */
-export type ShadowDemandInputs = readonly [
+type ShadowDemandInputs = readonly [
   depth: GPUTextureView,
   normalRough: GPUTextureView,
   flags: GPUTextureView,
