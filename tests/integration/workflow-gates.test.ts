@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -83,7 +83,8 @@ test('the tool-installed hook of the same name still runs behind core.hooksPath'
 test('a failing tool-installed hook still stops git, and pre-push hands it the refs on stdin', () => {
   const work = makeRepo();
   ok(work, 'switch', '-q', '-c', '12-thing');
-  localHook(work, 'pre-commit', 'exit 3');
+  // No shebang: sh runs it, as it ran it behind the former shell hooks.
+  writeFileSync(join(work, '.git/hooks/pre-commit'), 'exit 3\n', { mode: 0o755 });
   assert.equal(commit(work, 'refused locally').status, 1);
   localHook(work, 'pre-commit', 'exit 0');
   commit(work, 'one');
@@ -101,6 +102,6 @@ test('the tracked hooks hold no shell logic: each is a one-line shim onto script
     assert.equal(lines.length, 2, `${name} is more than a shim`);
     const script = /^exec node (scripts\/hooks\/[a-z-]+\.ts) .*"\$@"$/.exec(lines[1] ?? '');
     assert.ok(script?.[1], `${name} does not run a scripts/hooks script`);
-    readFileSync(new URL(script[1], repo));
+    assert.ok(existsSync(new URL(script[1], repo)), `${script[1]} is missing`);
   }
 });
