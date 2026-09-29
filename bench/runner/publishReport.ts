@@ -40,10 +40,8 @@ export function publierRapport(source: string, dest: string): string {
 }
 if (import.meta.filename === process.argv[1]) {
   const flags = parseArgs(process.argv.slice(2));
-  console.log(
-    publierRapport(
-      resolve(flags.get('from') ?? measureOutput('global', 'report-data')),
-      resolve(flags.get('to') ?? 'site'),
-    ),
-  );
+  const from = resolve(flags.get('from') ?? measureOutput('global', 'report-data'));
+  const to = resolve(flags.get('to') ?? 'site');
+  flags.refuseUnread();
+  console.log(publierRapport(from, to));
 }
