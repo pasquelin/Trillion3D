@@ -14,6 +14,7 @@ import {
   SURFACE_MODEL,
   SURFACE_MODEL_GLSL,
 } from '../../scene/surfaceModel.ts';
+import { DEFORM_GLSL } from '../../deformation/deformGlsl.ts';
 
 // An instanced mesh places each copy by its own matrix before the mesh's: the position first,
 // then the normal, scaled back by the matrix's axes before it is turned — the reference's order.
@@ -25,6 +26,7 @@ import {
 // (`lineClip`, `../../visibility/shader/lineWgsl.ts`), along the direction its normal carries.
 // A sprite surface (`sprite.y` not zero) turns its quad to face the camera in view space
 // (`spriteAt`, `../../visibility/shader/spriteWgsl.ts`), about the origin of its placement.
+// A deformed page's vertex is first moved by its placement's record (`deform`, #357).
 export const CLUSTER_VERTEX = `#version 300 es
 precision highp float;
 in vec3 position;in vec3 normal;in vec2 uv;in vec2 uv1;in vec4 color;in mat4 instanceMatrix;
@@ -33,10 +35,11 @@ uniform float lineWidth,pixelRatio;uniform vec2 viewport,sprite;
 out vec3 toEye;out vec3 viewNormal;out vec2 texcoord0;out vec2 texcoord1;out vec4 vertexColor;
 ${LINE_CLIP_GLSL}
 ${SPRITE_GLSL}
-void main(){vec4 view;vec3 objectNormal=normal;
-if(instanced){view=modelViewMatrix*(instanceMatrix*vec4(position,1.0));mat3 im=mat3(instanceMatrix);
+${DEFORM_GLSL}
+void main(){vec4 view;vec3 objectPosition=position,objectNormal=normal;deform(objectPosition,objectNormal);
+if(instanced){view=modelViewMatrix*(instanceMatrix*vec4(objectPosition,1.0));mat3 im=mat3(instanceMatrix);
 objectNormal/=vec3(dot(im[0],im[0]),dot(im[1],im[1]),dot(im[2],im[2]));objectNormal=im*objectNormal;}
-else view=modelViewMatrix*vec4(position,1.0);toEye=-view.xyz;
+else view=modelViewMatrix*vec4(objectPosition,1.0);toEye=-view.xyz;
 viewNormal=normalize(normalMatrix*objectNormal);
 texcoord0=uv;texcoord1=uv1;vertexColor=color;gl_Position=projectionMatrix*view;
 if(lineWidth>0.0){vec4 along=instanced?instanceMatrix*vec4(normal,0.0):vec4(normal,0.0);
