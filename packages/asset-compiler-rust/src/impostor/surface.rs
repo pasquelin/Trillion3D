@@ -1,11 +1,11 @@
 //! What a traced hit reads of its material: base colour and coverage, packed ORM, from the
 //! factors and the texels `texture_preview` already reduced (the finest level of each chain's
 //! tail, `PREVIEW_BASE` texels at most: an impostor frame sees a whole mesh, never one texel of
-//! its leaves). A material cuts where `cutout` made it `MASK`, at its own cutoff; one still
-//! declared `BLEND` cuts at `CUTOUT_ALPHA`, the threshold `cutout` gives a reclassified one.
+//! its leaves). A material cuts where the texture chains take its coverage (`coverage_cut`).
 use crate::albedo::srgb_to_linear;
+use crate::compiler_tables::materials::slot;
 use crate::cutout::CUTOUT_ALPHA;
-use crate::texture_preview::coverage::{keeps, material_cut, Cut};
+use crate::texture_preview::coverage::{coverage_cutoff, keeps, material_cut, Cut};
 use crate::texture_preview::{preview_level_size, AtlasKind, TexturePreview};
 use serde_json::Value;
 
@@ -38,6 +38,14 @@ impl Texels {
     }
 }
 
+/// Where a material cuts its coverage, as the texture chains judge it (`coverage_cutoff`): a
+/// cutting `MASK` at its cutoff, a `BLEND` that does not transmit at `CUTOUT_ALPHA`, the
+/// threshold `cutout` gives a reclassified one; `None` when the engine draws it opaque.
+pub(crate) fn coverage_cut(material: &Value) -> Option<Cut> {
+    coverage_cutoff(material)
+        .map(|cutoff| material_cut(material, cutoff.unwrap_or(CUTOUT_ALPHA as f32)))
+}
+
 /// A material as the bake reads it.
 pub(crate) struct Surface {
     /// `baseColorFactor`, linear RGBA.
@@ -52,13 +60,32 @@ pub(crate) struct Surface {
     pub cut: Option<Cut>,
     /// The texture coordinate set each texture reads: base colour, metal-roughness, occlusion.
     pub sets: [u64; 3],
+    /// Each texture's `KHR_texture_transform`, as the affine rows `[a, b, c, d, e, f]` of
+    /// `u' = a·u + b·v + c`, `v' = d·u + e·v + f`.
+    pub transforms: [[f64; 6]; 3],
 }
 
-fn texture(material: &Value, pointer: &str) -> (Option<u64>, u64) {
-    let slot = material.pointer(pointer);
-    let index = slot.and_then(|s| s.get("index")).and_then(Value::as_u64);
-    let set = slot.and_then(|s| s.get("texCoord")).and_then(Value::as_u64);
-    (index, set.unwrap_or(0))
+/// A texture slot as the material table reads it (`slot`): its texture, the set it samples and
+/// its `KHR_texture_transform`, composed as the engine's texture does (`host/prepared/textures.ts`:
+/// `offset`, `rotation`, `repeat`): turned, then scaled, then offset.
+fn texture(material: &Value, pointer: &str) -> (Option<u64>, u64, [f64; 6]) {
+    let slot = slot(material.pointer(pointer));
+    let number = |p: &str, default: f64| slot.pointer(p).and_then(Value::as_f64).unwrap_or(default);
+    let (ox, oy) = (
+        number("/transform/offset/0", 0.0),
+        number("/transform/offset/1", 0.0),
+    );
+    let (sx, sy) = (
+        number("/transform/scale/0", 1.0),
+        number("/transform/scale/1", 1.0),
+    );
+    let (sin, cos) = number("/transform/rotation", 0.0).sin_cos();
+    let rows = [sx * cos, sx * sin, ox, -sy * sin, sy * cos, oy];
+    (
+        slot["texture"].as_u64(),
+        slot["texCoord"].as_u64().unwrap_or(0),
+        rows,
+    )
 }
 
 impl Surface {
@@ -76,15 +103,12 @@ impl Surface {
         };
         let factor = [0, 1, 2, 3]
             .map(|c| number(&format!("/pbrMetallicRoughness/baseColorFactor/{c}"), 1.0));
-        let (colour, colour_set) = texture(material, "/pbrMetallicRoughness/baseColorTexture");
-        let (metal, metal_set) =
+        let (colour, colour_set, colour_uv) =
+            texture(material, "/pbrMetallicRoughness/baseColorTexture");
+        let (metal, metal_set, metal_uv) =
             texture(material, "/pbrMetallicRoughness/metallicRoughnessTexture");
-        let (occlusion, occlusion_set) = texture(material, "/occlusionTexture");
-        let cut = match material.get("alphaMode").and_then(Value::as_str) {
-            Some("MASK") => Some(material_cut(material, number("/alphaCutoff", 0.5) as f32)),
-            Some("BLEND") => Some(material_cut(material, CUTOUT_ALPHA as f32)),
-            _ => None,
-        };
+        let (occlusion, occlusion_set, occlusion_uv) = texture(material, "/occlusionTexture");
+        let cut = coverage_cut(material);
         Self {
             factor,
             colour: Texels::of(previews, colour, AtlasKind::Color),
@@ -96,6 +120,7 @@ impl Surface {
             ],
             cut,
             sets: [colour_set, metal_set, occlusion_set],
+            transforms: [colour_uv, metal_uv, occlusion_uv],
         }
     }
 

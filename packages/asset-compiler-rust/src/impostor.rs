@@ -4,7 +4,7 @@
 //! each. For each eligible mesh the compiler captures `FRAMES`×`FRAMES` orthographic views of
 //! its level-0 triangles, one per vertex of an octahedral lattice, into one atlas of three
 //! maps: base colour and coverage, object normal and depth, packed ORM. The rays run through
-//! the oracle's tracer (`oracle::trace::trace_where`) over the one BVH constructor
+//! the compiler's one CPU tracer (`tracer::trace_where`) over the one BVH constructor
 //! (`proxy::bvh`), with a hit filter that lets them through a cut texel; the texels come from
 //! the chains `texture_preview` reduced, the cut from the material `cutout` settled. Each map's
 //! mips follow the texture rule, the colour map's keeping level 0's coverage (#44).
