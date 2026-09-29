@@ -32,6 +32,17 @@ async function witness(folder: URL, document: string, text?: string) {
   });
   const associations = gltf.parser.associations as Map<object, ReturnType<Ranks>>;
   const ranks: Ranks = (object) => associations.get(object);
+  // The autonomous document's primitives are one degenerate triangle each: the engine shades the
+  // pages they were cut from, which carry the source primitive's normals (#846).
+  if (document !== 'source.gltf') {
+    const source = JSON.parse(await readFile(new URL('source.gltf', folder), 'utf8'));
+    gltf.scene.traverse((node) => {
+      const { meshes, primitives } = ranks(node) ?? {};
+      const cut = source.meshes[meshes!]?.primitives[primitives!];
+      if ((node as { isMesh?: boolean }).isMesh && cut?.attributes.NORMAL !== undefined)
+        (node as unknown as { material: { flatShading: boolean } }).material.flatShading = false;
+    });
+  }
   return { shape: describeShape(gltf.scene, ranks), whole: describe(gltf.scene, () => undefined) };
 }
 
