@@ -1,6 +1,6 @@
 // A gallery example with no capture of its own shows the shared placeholder card. Every written
 // example the engine draws — not parked (`parkedExampleIds`) — must have its
-// `site/assets/examples/thumbnails/<id>.png`, which the measurer captures with
+// `site/assets/examples/thumbnails/<id>.png`, which the recette captures with
 // `node scripts/docs-examples-thumbnails.ts <id>`. `pnpm run check:thumbnails`.
 import { pathToFileURL } from 'node:url';
 import { writtenEntries } from '../site/app/examples/list.ts';
