@@ -40,7 +40,7 @@ async function controlsDriveTheRender(browser: Browser, port: number) {
 /**
  * #798: the health check flies its tour on each backend and publishes its verdict: four parts with
  * their lines, every line green but those a backend documents (neutral) and those waiting on an
- * open issue (`until #n`, printed for the measurer), and no uncaught error. A slowed build (40 ms
+ * open issue (`until #n`, printed for the recette), and no uncaught error. A slowed build (40 ms
  * spent in every animation frame) turns the rate line of every part red, the verdict with it.
  */
 async function healthCheckJudges(browser: Browser, port: number) {

@@ -1,4 +1,4 @@
-// #232 prerequisite, run by the measurer only. Output is raw evidence, never an optimization verdict.
+// #232 prerequisite, run by the recette only. Output is raw evidence, never an optimization verdict.
 import { waterCostBundle } from './waterCostBundle.ts';
 import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
