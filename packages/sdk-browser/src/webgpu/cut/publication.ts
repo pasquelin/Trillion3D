@@ -185,7 +185,7 @@ export function createWebgpuCutPublication(
       // budget, as when it replaced the main view's, so it keeps the detail pages it kept then
       // (#268). A persistent view and the main one rank the union, the same queue whichever is
       // drawn, so views drawn every frame never trade slots.
-      residencySets.drawnFirst = captureDrawn(views, capture.capturing) ? run.desired : null;
+      residencySets.drawnFirst = captureDrawn(views, capture) ? run.desired : null;
     },
     /** `view`, not the main one, is released: its cut leaves the union, whatever it held. */
     releaseView(view: WebgpuView) {
