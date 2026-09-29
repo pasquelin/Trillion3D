@@ -345,7 +345,6 @@
       "drag-a-crate": "Arrastar uma caixa"
     },
     "missing": {
-      "inside-a-component": "remoção do canvas criado pelo motor ao descartar o mundo",
       "floating-crates": "geometria reescrita a cada quadro",
       "thick-lines": "linhas largas",
       "a-line-that-draws-itself": "intervalo de desenho de uma geometria",
