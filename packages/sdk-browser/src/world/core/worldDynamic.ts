@@ -21,6 +21,7 @@ export const DYNAMIC_UPLOAD_BUDGET_BYTES = 4 * 1024 * 1024;
  *  again in a larger one, and the geometry version read into its lists (`Reading`). */
 export type DynamicHeld = Reading & { box: HeldBox; cut: PageCutPayload; version: number };
 type Options = Parameters<typeof drawnTriangles>[2];
+type Made = (cut: Cut) => void;
 
 /**
  * THE DYNAMIC GEOMETRY OF A WORLD (#573). A geometry that declares `usage: 'dynamic'`, or whose
@@ -91,13 +92,7 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
     /** A frame was drawn: two changes a frame apart are consecutive. */
     tick: () => void frame++,
     /** The dynamic resource `mesh` draws read `way`; `made` hears each new one. */
-    async of(
-      mesh: Mesh,
-      way: string,
-      options: Options,
-      blended: boolean,
-      made: (cut: Cut) => void,
-    ) {
+    async of(mesh: Mesh, way: string, options: Options, blended: boolean, made: Made) {
       const geometry = mesh.geometry;
       const byWay = ways.get(geometry) ?? new Map<string, Promise<Cut | null>>();
       ways.set(geometry, byWay);
