@@ -20,7 +20,6 @@ use super::reduce::Stop;
 use super::retries::{with_lock_retries, Pass};
 use super::*;
 use crate::qem::solve::Region;
-use crate::qem::VERTEX_LOCK;
 use std::borrow::Cow;
 
 /// A solved reduction: its error, its clusters in the primitive's numbering — placed vertices
@@ -41,15 +40,18 @@ pub(super) fn stalled(
     stop: Stop,
 ) -> Result<std::result::Result<Solved, GroupOutcome>> {
     let cause = diagnosis::cause(input, live, children, stop)?;
-    let solved = match cause {
-        StallCause::SeamLocked => attempt(input, live, children)?,
-        _ => None,
+    let seam_locked = matches!(cause, StallCause::SeamLocked);
+    let solved = if seam_locked {
+        attempt(input, live, children)?
+    } else {
+        None
     };
     Ok(solved.ok_or_else(|| diagnosis::outcome(cause, input, live)))
 }
 
 /// Reduces the seam-locked group `live` with the solve; `None` when it yields no fewer clusters
-/// than its `children`, or loses a lock on every retry.
+/// than its `children`, or loses a lock on every retry. Its error is the pass's — the solve's, the
+/// copies its open border welded, its faces across two islands — and the parts it removed.
 fn attempt(input: &GroupReductionInput, live: &[u32], children: usize) -> Result<Option<Solved>> {
     let base = (input.positions.len() / 3) as u32;
     let required = required_locks(live, input.locks, input.weld);
@@ -58,12 +60,10 @@ fn attempt(input: &GroupReductionInput, live: &[u32], children: usize) -> Result
     let weighted = weighted(input, live, &densities);
     let region = Region::of(input.positions, &weighted, live)?;
     let pass = |extra: &[u32]| -> Result<std::result::Result<Solve, Stop>> {
-        let flags = |v: u32| {
-            let lock =
-                input.locks[v as usize] || extra.binary_search(&input.weld[v as usize]).is_ok();
-            u8::from(lock) * VERTEX_LOCK
+        let locked = |v: u32| {
+            input.locks[v as usize] || extra.binary_search(&input.weld[v as usize]).is_ok()
         };
-        let Some(solved) = region.solve(live.len() / 6, &flags) else {
+        let Some(solved) = region.solve(live.len() / 6, &locked) else {
             return Ok(Err(Stop::NoCollapse));
         };
         let error = solved.error_object.max(*weld_error);
@@ -76,10 +76,25 @@ fn attempt(input: &GroupReductionInput, live: &[u32], children: usize) -> Result
             input,
         }))
     };
-    match with_lock_retries(live, &required, input.weld, pass)? {
-        Ok((solve, relocked)) => finish(input, solve.local, solve.error, relocked, children, base),
-        Err(_) => Ok(None),
+    let Ok((Solve { local, error, .. }, relocked)) =
+        with_lock_retries(live, &required, input.weld, pass)?
+    else {
+        return Ok(None);
+    };
+    let clusters = cluster_triangles(&local.positions, &local.indices, DAG_CLUSTER_TRIANGLES)?;
+    if clusters.len() >= children {
+        return Ok(None);
     }
+    let (source, kept) = (local.source, &local.indices);
+    let vanished =
+        vanished::vanished_error(source, kept, &local.positions, &local.weld, &local.extents);
+    let global = |cluster: Vec<u32>| cluster.into_iter().map(|v| local.global(v, base)).collect();
+    Ok(Some(Solved {
+        error: error.max(vanished),
+        clusters: clusters.into_iter().map(global).collect(),
+        placed: local.placed(input, base),
+        relocked,
+    }))
 }
 
 /// One solved pass, its error so far, and what its faces are checked against.
@@ -113,31 +128,4 @@ impl Pass for Solve<'_, '_, '_> {
             .map(|c| input.weld[local.from(c)])
             .collect()
     }
-}
-
-/// The solved group re-clustered, `None` when it yields no fewer clusters than its `children`;
-/// its error is the pass's — the solve's, the copies its open border welded, its faces across two
-/// islands — and the parts it removed.
-fn finish(
-    input: &GroupReductionInput,
-    local: Local,
-    error: f64,
-    relocked: bool,
-    children: usize,
-    base: u32,
-) -> Result<Option<Solved>> {
-    let clusters = cluster_triangles(&local.positions, &local.indices, DAG_CLUSTER_TRIANGLES)?;
-    if clusters.len() >= children {
-        return Ok(None);
-    }
-    let (source, kept) = (local.source, &local.indices);
-    let vanished =
-        vanished::vanished_error(source, kept, &local.positions, &local.weld, &local.extents);
-    let global = |cluster: Vec<u32>| cluster.into_iter().map(|v| local.global(v, base)).collect();
-    Ok(Some(Solved {
-        error: error.max(vanished),
-        clusters: clusters.into_iter().map(global).collect(),
-        placed: local.placed(input, base),
-        relocked,
-    }))
 }
