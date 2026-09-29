@@ -1,9 +1,11 @@
+import { skinStreams } from './skin.ts';
 import type { Geometry } from './geometry.ts';
 import type { DrawnTriangles } from './drawn.ts';
 import { readComponent } from './bounds.ts';
 
 /** Source attributes follow the same vertex permutation as the raster's drawn triangles. */
 export type DrawnDeformation = {
+  influences?: number;
   joints?: Float32Array;
   weights?: Float32Array;
   targets: { positions: Float32Array; normals: Float32Array }[];
@@ -14,12 +16,13 @@ export function drawnDeformation(g: Geometry, drawn: DrawnTriangles | null) {
   if (!drawn) return null;
   const count = drawn.positions.length / 3;
   const source = (v: number) => drawn.sourceVertices?.[v] ?? v;
-  const list = (name: string) => {
-    const attribute = g.attributes[name];
-    if (!attribute) return undefined;
-    const result = new Float32Array(count * 4);
+  const skin = skinStreams(g);
+  const list = (weight: boolean) => {
+    if (!skin.width) return undefined;
+    const result = new Float32Array(count * skin.width);
     for (let v = 0; v < count; v++)
-      for (let c = 0; c < 4; c++) result[v * 4 + c] = readComponent(g, attribute, source(v), c);
+      for (let c = 0; c < skin.width; c++)
+        result[v * skin.width + c] = skin.read(source(v), c, weight);
     return result;
   };
   const targets = (g.morphAttributes.position ?? []).map((position, target) => {
@@ -41,8 +44,9 @@ export function drawnDeformation(g: Geometry, drawn: DrawnTriangles | null) {
       }
     return { positions, normals };
   });
-  const joints = list('skinIndex'),
-    weights = list('skinWeight');
-  if ((joints && weights) || targets.length) drawn.deformation = { joints, weights, targets };
+  const joints = list(false),
+    weights = list(true);
+  if ((joints && weights) || targets.length)
+    drawn.deformation = { joints, weights, targets, influences: skin.width };
   return drawn;
 }

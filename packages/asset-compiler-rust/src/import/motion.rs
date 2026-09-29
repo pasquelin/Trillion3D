@@ -1,4 +1,4 @@
-//! FBX skin (four strongest bones), inverse binds, full-weight morphs and sampled clips (#357).
+//! FBX skin (all bones), inverse binds, full-weight morphs and sampled clips (#357).
 //! The intermediate graph is flat; nodes and animation keys therefore use world poses.
 use super::*;
 /// Keys a second a stack is sampled at, and the most keys a clip holds (twenty minutes).
@@ -7,6 +7,7 @@ const MAX_KEYS: usize = 36_000;
 /// First skin and full-weight blend shapes, indexed by source vertex.
 pub(super) struct MeshDeform<'a> {
     skin: Option<&'a ufbx::SkinDeformer>,
+    width: usize,
     pub(super) channels: Vec<&'a ufbx::BlendChannel>,
     shapes: Vec<(&'a ufbx::BlendShape, HashMap<u32, usize>)>,
 }
@@ -25,13 +26,23 @@ impl<'a> MeshDeform<'a> {
             }
         }
         let skin = mesh.skin_deformers.first().map(|skin| &**skin);
+        let width = skin.map_or(0, |skin| {
+            skin.vertices
+                .iter()
+                .map(|v| v.num_weights as usize)
+                .max()
+                .unwrap_or(0)
+                .max(1)
+                .div_ceil(4)
+                * 4
+        });
         Self {
             skin,
+            width,
             channels,
             shapes,
         }
     }
-
     /// True when the skin asks for more than a linear blend, which the engine draws linear.
     pub(super) fn dual_quaternion(&self) -> bool {
         let dual = [
@@ -44,33 +55,22 @@ impl<'a> MeshDeform<'a> {
     pub(super) fn deformed(&self) -> bool {
         self.skin.is_some() || !self.shapes.is_empty()
     }
-
-    /// The four strongest bones of `vertex` — cluster ranks — and their weights, summing to one.
-    pub(super) fn influences(&self, vertex: usize) -> Option<([u16; 4], [f32; 4])> {
+    /// All source bones and weights, padded to the mesh width; never ranked or pruned.
+    pub(super) fn influences(&self, vertex: usize) -> Option<(Vec<u16>, Vec<f32>)> {
         let skin = self.skin?;
         let at = skin.vertices.get(vertex)?;
-        let range = at.weight_begin as usize..(at.weight_begin + at.num_weights) as usize;
-        let mut pairs: Vec<(f64, u32)> = range
-            .map(|k| (skin.weights[k].weight, skin.weights[k].cluster_index))
-            .collect();
-        pairs.sort_by(|a, b| b.0.total_cmp(&a.0));
-        pairs.truncate(4);
-        let sum: f64 = pairs.iter().map(|p| p.0.max(0.0)).sum();
-        let (mut joints, mut weights) = ([0u16; 4], [0f32; 4]);
-        for (j, (weight, cluster)) in pairs.into_iter().enumerate() {
-            joints[j] = cluster as u16;
-            weights[j] = if sum > 0.0 {
-                (weight.max(0.0) / sum) as f32
-            } else {
-                0.0
-            };
+        let width = self.width;
+        let (mut joints, mut weights) = (vec![0u16; width], vec![0f32; width]);
+        for j in 0..at.num_weights as usize {
+            let value = &skin.weights[at.weight_begin as usize + j];
+            joints[j] = u16::try_from(value.cluster_index).expect("FBX joint exceeds format range");
+            weights[j] = value.weight as f32;
         }
-        if !(sum > 0.0) {
+        if at.num_weights == 0 {
             weights[0] = 1.0;
         }
         Some((joints, weights))
     }
-
     /// Position and normal offsets shape `target` gives `vertex`, zero where it gives none.
     pub(super) fn offset(&self, target: usize, vertex: u32) -> [f32; 6] {
         let (shape, ranks) = &self.shapes[target];
@@ -85,7 +85,6 @@ impl<'a> MeshDeform<'a> {
     pub(super) fn targets(&self) -> usize {
         self.shapes.len()
     }
-
     /// Whether a target carries normal offsets at all.
     pub(super) fn bends(&self, target: usize) -> bool {
         !self.shapes[target].0.normal_offsets.is_empty()

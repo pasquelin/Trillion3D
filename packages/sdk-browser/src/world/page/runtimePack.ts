@@ -20,7 +20,7 @@ export function packDrawn(drawn: DrawnTriangles, blended: boolean, recut?: Recut
   const packed = new Uint32Array(HEADER_WORDS + lengths.reduce((a, b) => a + b, 0));
   packed.set([...lengths.slice(0, 5), Number(!recut && drawnCones(drawn)), Number(blended)]);
   packed[7] = lengths[5];
-  packed[12] = Number(!!(deformation?.joints && deformation.weights));
+  packed[12] = deformation?.joints && deformation.weights ? (deformation.influences ?? 4) : 0;
   packed[13] = deformation?.targets.length ?? 0;
   new Float64Array(packed.buffer, 32, 2).set([recut?.finestError ?? 0, recut?.scale ?? 0]);
   let at = HEADER_WORDS;
@@ -70,7 +70,13 @@ export function unpackDrawn(buffer: ArrayBuffer): {
   };
   if (header[12] || header[13])
     drawn.deformation = {
-      ...(header[12] ? { joints: list(vertices * 4), weights: list(vertices * 4) } : {}),
+      ...(header[12]
+        ? {
+            joints: list(vertices * header[12]),
+            weights: list(vertices * header[12]),
+            influences: header[12],
+          }
+        : {}),
       targets: Array.from({ length: header[13] }, () => ({
         positions: list(vertices * 3),
         normals: list(vertices * 3),

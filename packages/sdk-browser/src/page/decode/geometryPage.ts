@@ -30,6 +30,7 @@ export type DecodedGeometryPage = {
   vertexCount: number;
   /** Morph targets: `attributes.morph` holds six floats of each per vertex; absent, none. */
   morphTargets?: number;
+  skinInfluences?: number;
   /** Which attributes it carries. */
   flags: number;
   /** Its size once unpacked. */
@@ -101,6 +102,7 @@ export function decodeGeometryPage(
     pageAttributeNames(flags),
     vertexCount,
     morphs.length,
+    skin.influences,
   );
   // Corners block by block (`CornerCode::read`), every record inside the stream (the header gate).
   for (let b = 0, i = 0; i < indexCount; b++) {
@@ -136,6 +138,7 @@ export function decodeGeometryPage(
     attributes,
     vertexCount,
     morphTargets: morphs.length,
+    skinInfluences: skin.influences,
     flags,
     decodedBytes,
     quantizationError,

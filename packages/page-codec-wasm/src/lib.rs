@@ -43,12 +43,12 @@ pub use deform::{Morph, Skin, FLAG_MORPH, FLAG_SKIN};
 pub use unpack::decode;
 
 pub const MAGIC: u32 = 0x3350_4757;
-pub const VERSION: u32 = 6;
-/// Twenty-four little-endian words open a page: counts, flags, the quantization records of the
+pub const VERSION: u32 = 7;
+/// Twenty-five little-endian words open a page: counts, flags, the quantization records of the
 /// four vector attributes, the error, the bits of the corner stream, the count of distinct
 /// positions, and the deformation word: the skin record and the morph target count
 /// (`deform.rs`), zero on a page that carries neither.
-pub const HEADER_WORDS: usize = 24;
+pub const HEADER_WORDS: usize = 25;
 pub const HEADER_BYTES: usize = HEADER_WORDS * 4;
 pub const MAX_VERTICES: usize = 65_535;
 /// Attribute presence bits: normal, first and second texture coordinate, colour; then the skin
@@ -72,7 +72,7 @@ pub enum PageError {
     Index = 4,
 }
 
-/// A page header, once its twenty-four words, and the records of its morph targets, have been
+/// A page header, once its twenty-five words, and the records of its morph targets, have been
 /// read and every bound accepted.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Header {
@@ -120,6 +120,7 @@ impl Header {
         w[21] = self.corner_bits as u32;
         w[22] = self.position_count as u32;
         w[23] = deform::word(&self.skin, self.morphs.len());
+        w[24] = self.skin.influences as u32;
         w.extend(self.morphs.iter().flat_map(Morph::words));
         w
     }
@@ -178,6 +179,7 @@ impl Header {
             && header.decoded_bytes() <= max_decoded_bytes
             && layout.bytes() == data.len()
             && layout.morphs_at(&header)
+            && deform::finite(&data[header.bytes()..], &header, &layout)
             && layout.corners.fits(&data[header.bytes()..][..table], v, n)
             && positions::links_fit(&data[header.bytes()..], &layout, &header);
         if !sane {
