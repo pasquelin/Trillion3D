@@ -8023,5 +8023,13 @@
     "members.direction": "地面方向 `[x, z]`，默认为 `[1, 0]`。",
     "members.angle": "最大弯曲角，单位为弧度，默认为 0.1。",
     "members.frequency": "每秒摆动次数，默认为 0.5。"
+  },
+  "world.setTransform": {
+    "summary": "移动节点 `nodeName`，使其世界位姿为 `matrix`：页面未持有引用的节点通过其名称（`object.name`）在场景中查找而抵达。",
+    "description": "位姿是世界位姿——引擎把它带回节点的父空间——因此已移动父节点下的名称仍落在要求之处。与 WebGPU 和 WebGL2 为页面按名称移动所走的同一条路径，而非第二条。下一帧绘制它；不改变任何东西的请求不会请求帧。",
+    "parameters": {
+      "nodeName": "要移动节点的 `name`。",
+      "matrix": "其世界位姿，列主序的十六个浮点数。"
+    }
   }
 }

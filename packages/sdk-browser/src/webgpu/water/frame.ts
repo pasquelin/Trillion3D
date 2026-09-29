@@ -12,9 +12,10 @@ import { WATER_BINDINGS } from './compositeWgsl.ts';
 import {
   createWaterCompositeLayout,
   createWaterCompositePipeline,
-  createWaterRoutedPipeline,
+  createWaterComposites,
 } from './pipelines.ts';
 import { routedFilter } from '../blend/displayFilter.ts';
+import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts';
 
 /** Labels of the two measured passes; their GPU durations are read under these names. */
 export const WATER_SURFACE_PASS = 'Trillion3D water surfaces';
@@ -30,10 +31,10 @@ export const WATER_COMPOSITE_PASS = 'Trillion3D water composite';
 export async function createWaterFrame(device: GPUDevice) {
   const layout = createWaterCompositeLayout(device);
   const pipeline = await createWaterCompositePipeline(device, layout);
+  const composites = createWaterComposites(device, layout, pipeline);
   const freeze = await createWaterFreeze(device);
   const identity = createWebgpuBindIdentity();
   let group: GPUBindGroup | undefined, surfaces: SurfaceBuffer | undefined;
-  let routed: GPURenderPipeline | undefined;
   const surfaceDepth: GPURenderPassDepthStencilAttachment = {
     view: undefined as unknown as GPUTextureView,
     depthLoadOp: 'load',
@@ -146,8 +147,10 @@ export async function createWaterFrame(device: GPUDevice) {
      * composition after this pass —, with hardware depth written so the nearest surface of a pixel
      * is the one kept; then one fullscreen triangle lights and composes every water pixel into the
      * HDR target, which keeps what it held wherever no water is (the display layers where their
-     * mask is set). Both passes are scissored to the kept surfaces (`bounds.ts`); the word clear
-     * stays full-target, a scissor does not bound a load clear. Returns the surface draws encoded.
+     * mask is set), and, when the frame has a share, its coverage as the reactive value the blends
+     * and particles also write (`asIsShare.ts`). Both passes are scissored to the kept surfaces
+     * (`bounds.ts`); the word clear stays full-target, a scissor does not bound a load clear.
+     * Returns the surface draws encoded.
      */
     encode(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, pipelines: BlendPipelines) {
       if (!group || !surfaces) throw new Error('WATER_NOT_BOUND');
@@ -160,13 +163,17 @@ export async function createWaterFrame(device: GPUDevice) {
       scissorTo(pass, rect);
       const encoded = drawBlendRuns(rt, device, pass, 1, pipelines);
       pass.end();
-      const filter = routedFilter(rt.gpu.displayFilter);
-      compositePass.colorAttachments = filter ? [target, ...filter.attachments()] : plain;
+      const share = activeAsIsShare(rt),
+        filter = routedFilter(rt.gpu.displayFilter),
+        layers = filter ? filter.attachments() : [];
+      compositePass.colorAttachments = share
+        ? [target, ...layers, { view: share.view, loadOp: 'load', storeOp: 'store' }]
+        : filter
+          ? [target, ...layers]
+          : plain;
       const composite = encoder.beginRenderPass(compositePass);
       scissorTo(composite, rect);
-      composite.setPipeline(
-        filter ? (routed ??= createWaterRoutedPipeline(device, layout)) : pipeline,
-      );
+      composite.setPipeline(composites.at(!!filter, !!share));
       composite.setBindGroup(0, group);
       if (rt.gpu.reflection) composite.setBindGroup(1, rt.gpu.reflection.group);
       if (filter) composite.setBindGroup(2, filter.maskGroup);
