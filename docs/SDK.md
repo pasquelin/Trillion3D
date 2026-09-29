@@ -800,7 +800,9 @@ numbers wide lies in the plane z = 0. The sphere is
 centred on the box and reaches the farthest vertex. Setting an attribute other than `position`, the
 index or a group keeps the bounds. `clone()` copies every list, morph target, group, range, data,
 bound and recipe. `toNonIndexed()` gives every corner a vertex of its own. `dispose()` runs each
-hook of `released` once. The former engine class `GraphGeometry` is removed: write `Geometry`.
+hook of `released` once. A geometry no mesh wears any more has its pages and GPU memory given back
+by the world on both backends, with no call; a page that replaces a mesh's geometry, as a slider
+does, disposes the former one too, so its raycast tree and host copies go at once. The former engine class `GraphGeometry` is removed: write `Geometry`.
 
 ## Batch math for hosts
 
@@ -1279,12 +1281,20 @@ never allocated at the full request outside the check:
   `FALLBACK_TRANSPARENT_LINES_UNSUPPORTED`, a transparent line it cannot widen, and
   `FALLBACK_BLEND_WITHOUT_CPU_CUT`, a frame the GPU cut selected, which leaves it no cluster list.
 
-WebGL2 has no out-of-memory check to allocate under: nothing there is absorbed. It reserves no
-pool — each page's buffers are made as the page arrives — and it does not read `gl.getError()` after
-an allocation, so a refused one is not seen by the engine. A browser that answers it by losing the
-context takes the WebGL2 context-loss path (`webglcontextlost`, then `webglcontextrestored`): nothing
-is drawn while the context is lost. That out of memory on WebGL2 costs one level and never a hole
-is not proven yet.
+WebGL2 has no out-of-memory scope to allocate under, so the engine reads `gl.getError()` for its
+allocations instead — a buffer, a texture level or a target sized again, never an upload in place.
+The read never holds a frame: `getError` waits for the GPU process, so each allocation is only
+recorded with its pool, each frame's end fences what that frame allocated, and the errors are read
+before a later frame's first command, once the oldest fence is passed — a fence is kept until the
+GPU passes it, however many frames behind it runs. An `OUT_OF_MEMORY` marks the pools of every
+allocation not yet confirmed, each made again at its next use, and the next frame answers each
+pool as WebGPU's refusal does, published as `gpu-out-of-memory` with the pool named: `geometry`
+halves the geometry pool, and the residency lets the finest pages go one DAG level per image;
+`texture`, a map, is sent again at its next bind — a surface is never drawn without its picture,
+there is no coarser one to show instead —; `target`, a frame target or the frame's light data, is
+sized again at its next draw, nothing to halve. A browser that answers by losing the context takes the
+WebGL2 context-loss path (`webglcontextlost`, then `webglcontextrestored`): nothing is drawn while
+the context is lost.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
