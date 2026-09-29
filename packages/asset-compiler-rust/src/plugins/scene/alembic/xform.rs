@@ -14,7 +14,7 @@
 //! where a translation, rotation, scale stack scales before rotating then translating.
 use super::VALUES_INVALID;
 pub(super) use crate::compiler_world::IDENTITY;
-use crate::compiler_world::{axis_angle, multiply, scaling, translation, Mat4};
+use crate::compiler_world::{axis_angle, product, scaling, translation, Mat4};
 use crate::{CompilerError, Result};
 
 /// How many values each operation consumes, by operation code.
@@ -65,7 +65,7 @@ pub(super) fn matrix(ops: &[u8], values: &[f64]) -> Result<Mat4> {
         let step = operation(*code, taken).ok_or_else(|| {
             CompilerError::new(VALUES_INVALID, "alembic: an xform operation is malformed")
         })?;
-        out = multiply(&out, &step);
+        out = product(&out, &step);
         at += count;
     }
     Ok(out)

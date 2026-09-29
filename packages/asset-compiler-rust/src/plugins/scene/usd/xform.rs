@@ -71,7 +71,7 @@ fn operation(
             } else {
                 [w, x, y, z]
             };
-            Some(matrix::quaternion_wxyz(q))
+            Some(matrix::orientation(q))
         }
         _ => euler(kind, &value, inverted),
     }
@@ -107,7 +107,7 @@ fn euler(kind: &str, value: &sdf::Value, inverted: bool) -> Option<[f64; 16]> {
     }
     let mut out = matrix::IDENTITY;
     for (axis, angle) in steps {
-        out = matrix::mul(&out, &matrix::axis_rotation(axis, angle.to_radians()));
+        out = matrix::mul(&out, &matrix::turn(axis, angle.to_radians()));
     }
     Some(out)
 }
