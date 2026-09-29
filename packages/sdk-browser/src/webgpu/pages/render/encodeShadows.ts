@@ -1,4 +1,4 @@
-import { followLightThreshold } from '../prepare/lightResources.ts';
+import { followLightThreshold, followOcclusion } from '../prepare/lightResources.ts';
 import { normalizeVector3, type ShadowViewpoint } from '../../../../../sdk-core/src/index.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { EngineCamera } from '../../../camera/world.ts';
@@ -15,6 +15,7 @@ import { disposeStaticLayer } from '../state/lights.ts';
 import { releaseStaticLayer } from '../../shadow/poolResize.ts';
 import { staticLayerGranted } from '../../shadow/poolSize.ts';
 import { noteShadowPressure } from '../../shadow/memoryGrant.ts';
+import { recordShadowPlan } from '../../shadow/cpuSteps.ts';
 import { shadowReceivers } from '../../shadow/receivers.ts';
 
 const viewpoint: ShadowViewpoint & {
@@ -128,7 +129,10 @@ export function planImageShadows(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   }
   if (lights.plannedFrame === run.frame) return lights.plan.admission.count;
   lights.plannedFrame = run.frame;
-  return planShadowRegions(rt, cam, run.frame, performance.now());
+  const started = performance.now(),
+    count = planShadowRegions(rt, cam, run.frame, started);
+  recordShadowPlan(rt, performance.now() - started);
+  return count;
 }
 
 /**
@@ -181,11 +185,11 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
     })
     .then(async (layer) => {
       if (!layer) return;
-      // The pyramids and the occlusion test read the layer: a device that refuses them keeps the
-      // layer, and draws the moving casters untested.
+      // A device that refuses the pyramids or the occlusion test keeps the layer, casters untested.
       try {
         lights.pageHiz = await createShadowPageHiz(device, layer.targets[0]);
         lights.occlusion = await createShadowOcclusion(device, capacity);
+        followOcclusion(rt);
       } catch (error) {
         lights.pageHiz?.dispose();
         lights.pageHiz = undefined;
