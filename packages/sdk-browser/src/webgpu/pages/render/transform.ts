@@ -8,7 +8,8 @@ import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d
 const request = new Float32Array(16);
 
 /** Moves a named node of the prepared scene (R8): the move of `setWebgpuTransforms` on the node the
- *  name index finds (`host/world/nameIndex.ts`). A host moving nodes frame after frame resolves them once. */
+ *  name index finds (`host/world/nameIndex.ts`). A host moving nodes frame after frame resolves
+ *  them once. */
 export function setWebgpuTransform(rt: WebgpuPagesRuntime, nodeName: string, matrix: Float32Array) {
   const node = namedNode(rt.setup.source, nodeName, matrix);
   try {
