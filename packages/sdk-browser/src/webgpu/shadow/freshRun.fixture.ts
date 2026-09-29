@@ -76,6 +76,7 @@ export function runShadowFresh(entry: string, ...bound: Uint8Array[]) {
     layerCount: new Uint32Array(16),
     regionCount: 0,
     workgroupUniformLoad: (p: Ref) => p.get(),
+    storageBarrier: () => {},
   });
   for (let lane = 0; lane < FRESH_LANES; lane++) lanes[entry](lane);
 }
