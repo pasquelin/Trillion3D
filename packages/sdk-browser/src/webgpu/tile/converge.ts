@@ -11,6 +11,10 @@ import { shadowsUnsettled } from '../pages/state/lights.ts';
 
 /** Convergence turns at most: beyond that, what is missing is published, never waited for forever. */
 const CONVERGE_LIMIT = 64;
+/** Images a convergence draws at most over the still image's `phases`: the turns, then room for
+ *  a whole quiet round closing on the replayed phase (`texturesConverged`) after the last tile
+ *  served — at a low render scale a round outnumbers the turns. */
+export const convergeBound = (phases: number) => CONVERGE_LIMIT + 2 * phases;
 /** Images a barrier grants at most to the shadow pages' round trips: a report read, casters
  *  loaded, pages staled by their arrival. A still camera takes a few; a moving camera voids pages
  *  every image and never converges: the bound is there for it. */
@@ -65,7 +69,8 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, pi
   let total = 0,
     quiet = 0;
   try {
-    for (let image = 0; image < CONVERGE_LIMIT; image++) {
+    const phasesOf = () => (pictured ? taaPhaseCount(rt) : 1);
+    for (let image = 0; image < convergeBound(phasesOf()); image++) {
       // Image 0 draws the phase after the replayed one; the round closes on the replayed phase.
       if (pictured) convergeStillPhase(rt, image + 1);
       renderWebgpuPages(rt, run.lastCamera!);
@@ -77,8 +82,7 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, pi
       // nothing more, or on a wait that nothing will fill. Nothing is deferred under a lifted
       // budget: what is pending waits for its bytes.
       quiet = served ? 0 : quiet + 1;
-      const phases = pictured ? taaPhaseCount(rt) : 1;
-      if (texturesConverged(quiet, phases, image, pending, textures.reading)) break;
+      if (texturesConverged(quiet, phasesOf(), image, pending, textures.reading)) break;
       if (pending) await textures.settled();
     }
   } finally {
