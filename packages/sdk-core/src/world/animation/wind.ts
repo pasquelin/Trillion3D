@@ -13,8 +13,11 @@ const KEYS = 24;
 /** How the wind blows: where to (`x`, `z` on the ground), the most a bone bends, in radians, and
  *  how many sways a second. */
 export interface WindOptions {
+  /** Ground-plane direction `[x, z]`; defaults to `[1, 0]`. */
   direction?: readonly [number, number];
+  /** Maximum bend in radians; defaults to 0.1. */
   angle?: number;
+  /** Sways per second; defaults to 0.5. */
   frequency?: number;
 }
 

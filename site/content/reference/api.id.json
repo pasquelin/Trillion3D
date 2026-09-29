@@ -7989,7 +7989,10 @@
     "parameters": {
       "bones": "Tulang dari batang hingga ujung.",
       "options": "Arah, sudut tekukan maksimum, dan frekuensi."
-    }
+    },
+    "parameters.options.direction": "Arah di bidang tanah `[x, z]`; bawaan `[1, 0]`.",
+    "parameters.options.angle": "Tekukan maksimum dalam radian; bawaan 0,1.",
+    "parameters.options.frequency": "Ayunan per detik; bawaan 0,5."
   },
   "Skeleton": {
     "summary": "Tulang yang membengkokkan mesh dan matriks bind inversnya, dari koordinat mesh ke koordinat setiap tulang.",
@@ -8008,9 +8011,18 @@
     "members.phasesAt": "Fase setiap gelombang pada `t` detik, direduksi ke [0, 2π) dengan presisi ganda.",
     "members.setTime": "Mengatur waktu ke `t` detik; permukaan frame sebelumnya adalah `setTime(t - dt)`.",
     "members.offset": "Menulis perpindahan `[x, y, z]` titik diam `(x, 0, z)` ke `out`.",
-    "members.normal": "Menulis normal satuan `[x, y, z]` pada titik diam `(x, z)` ke `out`."
+    "members.normal": "Menulis normal satuan `[x, y, z]` pada titik diam `(x, z)` ke `out`.",
+    "members.count": "Jumlah gelombang yang dijumlahkan.",
+    "members.dirX": "Komponen x ternormalisasi dari arah setiap gelombang.",
+    "members.dirZ": "Komponen z ternormalisasi dari arah setiap gelombang.",
+    "members.k": "Bilangan gelombang setiap gelombang, dalam radian per meter.",
+    "members.amplitude": "Amplitudo vertikal setiap gelombang, dalam meter.",
+    "members.lateral": "Amplitudo lateral ternormalisasi setiap gelombang, dalam meter."
   },
   "WindOptions": {
-    "summary": "Arah angin (`x`, `z` di tanah), tekukan maksimum tulang dalam radian, dan ayunan per detik."
+    "summary": "Arah angin (`x`, `z` di tanah), tekukan maksimum tulang dalam radian, dan ayunan per detik.",
+    "members.direction": "Arah di bidang tanah `[x, z]`; bawaan `[1, 0]`.",
+    "members.angle": "Tekukan maksimum dalam radian; bawaan 0,1.",
+    "members.frequency": "Ayunan per detik; bawaan 0,5."
   }
 }

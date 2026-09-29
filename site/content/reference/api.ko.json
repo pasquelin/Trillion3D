@@ -7988,7 +7988,10 @@
     "parameters": {
       "bones": "줄기부터 끝까지 순서대로 나열한 본.",
       "options": "방향, 최대 굽힘 각도, 주파수."
-    }
+    },
+    "parameters.options.direction": "지면 방향 `[x, z]`이며 기본값은 `[1, 0]`입니다.",
+    "parameters.options.angle": "최대 굽힘 각도(라디안)이며 기본값은 0.1입니다.",
+    "parameters.options.frequency": "초당 흔들림 횟수이며 기본값은 0.5입니다."
   },
   "Skeleton": {
     "summary": "스킨 메시를 변형하는 뼈와 메시 좌표를 각 뼈의 좌표로 옮기는 역 바인드 행렬입니다.",
@@ -8007,9 +8010,18 @@
     "members.phasesAt": "`t`초에서 각 파동의 위상을 배정밀도로 [0, 2π)에 맞춥니다.",
     "members.setTime": "시간을 `t`초로 설정합니다. 이전 프레임 표면은 `setTime(t - dt)`에 해당합니다.",
     "members.offset": "정지점 `(x, 0, z)`의 변위 `[x, y, z]`를 `out`에 기록합니다.",
-    "members.normal": "정지점 `(x, z)`의 단위 법선 `[x, y, z]`를 `out`에 기록합니다."
+    "members.normal": "정지점 `(x, z)`의 단위 법선 `[x, y, z]`를 `out`에 기록합니다.",
+    "members.count": "합성하는 파동의 수입니다.",
+    "members.dirX": "각 파동 방향의 정규화된 x 성분입니다.",
+    "members.dirZ": "각 파동 방향의 정규화된 z 성분입니다.",
+    "members.k": "각 파동의 파수이며 단위는 라디안/미터입니다.",
+    "members.amplitude": "각 파동의 수직 진폭이며 단위는 미터입니다.",
+    "members.lateral": "각 파동의 정규화된 측면 진폭이며 단위는 미터입니다."
   },
   "WindOptions": {
-    "summary": "바람 방향(지면의 `x`, `z`), 뼈의 최대 굽힘 각도(라디안), 초당 흔들림 횟수입니다."
+    "summary": "바람 방향(지면의 `x`, `z`), 뼈의 최대 굽힘 각도(라디안), 초당 흔들림 횟수입니다.",
+    "members.direction": "지면 방향 `[x, z]`이며 기본값은 `[1, 0]`입니다.",
+    "members.angle": "최대 굽힘 각도(라디안)이며 기본값은 0.1입니다.",
+    "members.frequency": "초당 흔들림 횟수이며 기본값은 0.5입니다."
   }
 }

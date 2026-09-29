@@ -7988,7 +7988,10 @@
     "parameters": {
       "bones": "Ossos do tronco até as pontas.",
       "options": "Direção, ângulo máximo de flexão e frequência."
-    }
+    },
+    "parameters.options.direction": "Direção no solo `[x, z]`; padrão: `[1, 0]`.",
+    "parameters.options.angle": "Flexão máxima em radianos; padrão: 0,1.",
+    "parameters.options.frequency": "Oscilações por segundo; padrão: 0,5."
   },
   "Skeleton": {
     "summary": "Os ossos que deformam uma malha e suas matrizes de ligação inversas, do espaço da malha ao de cada osso.",
@@ -8007,9 +8010,18 @@
     "members.phasesAt": "Fase de cada onda em `t` segundos, reduzida a [0, 2π) com precisão dupla.",
     "members.setTime": "Define o tempo em `t` segundos; a superfície anterior corresponde a `setTime(t - dt)`.",
     "members.offset": "Escreve em `out` o deslocamento `[x, y, z]` do ponto em repouso `(x, 0, z)`.",
-    "members.normal": "Escreve em `out` a normal unitária `[x, y, z]` no ponto em repouso `(x, z)`."
+    "members.normal": "Escreve em `out` a normal unitária `[x, y, z]` no ponto em repouso `(x, z)`.",
+    "members.count": "Número de ondas somadas.",
+    "members.dirX": "Componente x normalizada da direção de cada onda.",
+    "members.dirZ": "Componente z normalizada da direção de cada onda.",
+    "members.k": "Número de onda de cada onda, em radianos por metro.",
+    "members.amplitude": "Amplitude vertical de cada onda, em metros.",
+    "members.lateral": "Amplitude lateral normalizada de cada onda, em metros."
   },
   "WindOptions": {
-    "summary": "Direção do vento (`x`, `z` no solo), flexão máxima de um osso em radianos e oscilações por segundo."
+    "summary": "Direção do vento (`x`, `z` no solo), flexão máxima de um osso em radianos e oscilações por segundo.",
+    "members.direction": "Direção no solo `[x, z]`; padrão: `[1, 0]`.",
+    "members.angle": "Flexão máxima em radianos; padrão: 0,1.",
+    "members.frequency": "Oscilações por segundo; padrão: 0,5."
   }
 }

@@ -7988,7 +7988,10 @@
     "parameters": {
       "bones": "Os du tronc vers les extrémités.",
       "options": "Direction, angle de flexion maximal et fréquence."
-    }
+    },
+    "parameters.options.direction": "Direction au sol `[x, z]` ; valeur par défaut : `[1, 0]`.",
+    "parameters.options.angle": "Flexion maximale en radians ; valeur par défaut : 0,1.",
+    "parameters.options.frequency": "Oscillations par seconde ; valeur par défaut : 0,5."
   },
   "Skeleton": {
     "summary": "Les os qui déforment un maillage et leurs matrices de liaison inverses, du repère du maillage au repère de chaque os.",
@@ -8007,9 +8010,18 @@
     "members.phasesAt": "Phase de chaque onde à `t` secondes, ramenée à [0, 2π) en double précision.",
     "members.setTime": "Fixe le temps à `t` secondes ; la surface précédente correspond à `setTime(t - dt)`.",
     "members.offset": "Écrit dans `out` le déplacement `[x, y, z]` du point au repos `(x, 0, z)`.",
-    "members.normal": "Écrit dans `out` la normale unitaire `[x, y, z]` au point au repos `(x, z)`."
+    "members.normal": "Écrit dans `out` la normale unitaire `[x, y, z]` au point au repos `(x, z)`.",
+    "members.count": "Nombre d’ondes additionnées.",
+    "members.dirX": "Composante x normalisée de la direction de chaque onde.",
+    "members.dirZ": "Composante z normalisée de la direction de chaque onde.",
+    "members.k": "Nombre d’onde de chaque onde, en radians par mètre.",
+    "members.amplitude": "Amplitude verticale de chaque onde, en mètres.",
+    "members.lateral": "Amplitude latérale normalisée de chaque onde, en mètres."
   },
   "WindOptions": {
-    "summary": "Direction du vent (`x`, `z` au sol), flexion maximale d’un os en radians et oscillations par seconde."
+    "summary": "Direction du vent (`x`, `z` au sol), flexion maximale d’un os en radians et oscillations par seconde.",
+    "members.direction": "Direction au sol `[x, z]` ; valeur par défaut : `[1, 0]`.",
+    "members.angle": "Flexion maximale en radians ; valeur par défaut : 0,1.",
+    "members.frequency": "Oscillations par seconde ; valeur par défaut : 0,5."
   }
 }

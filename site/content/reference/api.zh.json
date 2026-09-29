@@ -7988,7 +7988,10 @@
     "parameters": {
       "bones": "从树干到枝梢依次排列的骨骼。",
       "options": "方向、最大弯曲角度及频率。"
-    }
+    },
+    "parameters.options.direction": "地面方向 `[x, z]`，默认为 `[1, 0]`。",
+    "parameters.options.angle": "最大弯曲角，单位为弧度，默认为 0.1。",
+    "parameters.options.frequency": "每秒摆动次数，默认为 0.5。"
   },
   "Skeleton": {
     "summary": "使蒙皮网格变形的骨骼及其逆绑定矩阵，将网格坐标转换到各骨骼坐标系。",
@@ -8007,9 +8010,18 @@
     "members.phasesAt": "各波在 `t` 秒的相位，以双精度归约到 [0, 2π)。",
     "members.setTime": "将时间设为 `t` 秒；上一帧表面对应 `setTime(t - dt)`。",
     "members.offset": "将静止点 `(x, 0, z)` 的位移 `[x, y, z]` 写入 `out`。",
-    "members.normal": "将静止点 `(x, z)` 处的表面单位法线 `[x, y, z]` 写入 `out`。"
+    "members.normal": "将静止点 `(x, z)` 处的表面单位法线 `[x, y, z]` 写入 `out`。",
+    "members.count": "参与求和的波的数量。",
+    "members.dirX": "各波方向的归一化 x 分量。",
+    "members.dirZ": "各波方向的归一化 z 分量。",
+    "members.k": "各波的波数，单位为弧度每米。",
+    "members.amplitude": "各波的竖直振幅，单位为米。",
+    "members.lateral": "各波归一化后的横向振幅，单位为米。"
   },
   "WindOptions": {
-    "summary": "风向（地面上的 `x`、`z`）、骨骼最大弯曲角度（弧度）以及每秒摆动次数。"
+    "summary": "风向（地面上的 `x`、`z`）、骨骼最大弯曲角度（弧度）以及每秒摆动次数。",
+    "members.direction": "地面方向 `[x, z]`，默认为 `[1, 0]`。",
+    "members.angle": "最大弯曲角，单位为弧度，默认为 0.1。",
+    "members.frequency": "每秒摆动次数，默认为 0.5。"
   }
 }

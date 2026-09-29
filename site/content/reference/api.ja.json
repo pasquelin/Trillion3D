@@ -7988,7 +7988,10 @@
     "parameters": {
       "bones": "幹から枝先の順のボーン。",
       "options": "方向、最大曲げ角度、周波数。"
-    }
+    },
+    "parameters.options.direction": "地面上の方向 `[x, z]`。既定値は `[1, 0]` です。",
+    "parameters.options.angle": "最大曲げ角（ラジアン）。既定値は 0.1 です。",
+    "parameters.options.frequency": "毎秒の揺れ回数。既定値は 0.5 です。"
   },
   "Skeleton": {
     "summary": "スキンメッシュを変形するボーンと、メッシュ座標を各ボーン座標へ移す逆バインド行列。",
@@ -8007,9 +8010,18 @@
     "members.phasesAt": "`t` 秒での各波の位相を、倍精度で [0, 2π) に収めます。",
     "members.setTime": "時刻を `t` 秒に設定します。前フレームの面は `setTime(t - dt)` に対応します。",
     "members.offset": "静止点 `(x, 0, z)` の変位 `[x, y, z]` を `out` に書き込みます。",
-    "members.normal": "静止点 `(x, z)` での単位法線 `[x, y, z]` を `out` に書き込みます。"
+    "members.normal": "静止点 `(x, z)` での単位法線 `[x, y, z]` を `out` に書き込みます。",
+    "members.count": "合成する波の数。",
+    "members.dirX": "各波の方向の正規化された x 成分。",
+    "members.dirZ": "各波の方向の正規化された z 成分。",
+    "members.k": "各波の波数。単位はラジアン毎メートルです。",
+    "members.amplitude": "各波の鉛直振幅。単位はメートルです。",
+    "members.lateral": "各波の正規化された横方向の振幅。単位はメートルです。"
   },
   "WindOptions": {
-    "summary": "風向（地面上の `x`、`z`）、ボーンの最大曲げ角（ラジアン）、毎秒の揺れ回数。"
+    "summary": "風向（地面上の `x`、`z`）、ボーンの最大曲げ角（ラジアン）、毎秒の揺れ回数。",
+    "members.direction": "地面上の方向 `[x, z]`。既定値は `[1, 0]` です。",
+    "members.angle": "最大曲げ角（ラジアン）。既定値は 0.1 です。",
+    "members.frequency": "毎秒の揺れ回数。既定値は 0.5 です。"
   }
 }
