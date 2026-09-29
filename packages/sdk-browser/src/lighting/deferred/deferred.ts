@@ -14,6 +14,8 @@ export { DIRECT_LIGHTING_SHADER, FULLSCREEN_VERTEX } from './shaders.ts';
 
 /** Label of the measured pass; `gpuLightingMs` is read under this name. */
 export const DEFERRED_LIGHTING_PASS = 'Trillion3D deferred lighting';
+/** Label of the unfogged lit image the screen reflections read, drawn before the lighting. */
+export const REFLECTION_SOURCE_PASS = 'Trillion3D reflection source';
 
 /** Deferred and frozen-source lighting programs, compiled lazily for the active lighting mode. */
 export async function createDeferredLighting(device: GPUDevice, onReady?: () => void) {
@@ -101,6 +103,7 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
         const reflected = reflection?.active && active.reflection;
         if (reflected) {
           const source = encoder.beginRenderPass({
+            label: REFLECTION_SOURCE_PASS,
             colorAttachments: [
               {
                 view: reflection.view,

@@ -26,13 +26,13 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
         ).creerEclairageTemoin(sdk)
       : null;
   const factory = options.backend ? sdk[options.backend] : undefined;
-  if (!factory) return { erreur: `engine missing from dist: ${options.backend}` };
+  if (!factory) return { error: `engine missing from dist: ${options.backend}` };
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
   // What the GPU reported — lost WebGL context, uncaptured error, lost device — published on
   // the page as it happens: a failing frame carries its call stack, never the cause, and the
   // bench comes looking for it there.
-  const lost: string[] = (globalThis.incidentsGpu = []);
+  const lost: string[] = (globalThis.gpuIncidents = []);
   canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'), false);
   const reglages = (await import(`${options.modulesUrl}explorerPage.ts`)) as typeof PageExplorateur;
   const mesure = (await import(`${options.modulesUrl}measurePage.ts`)) as typeof PageMesure;
@@ -53,7 +53,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   // batch has no such function: the measurement returns `null`, never an invented count.
   const declared = typeof explorer.importedLights === 'function' ? explorer.importedLights() : null;
   const importedLights = declared
-    ? { nombre: declared.length, ids: declared.map((light) => light.id) }
+    ? { count: declared.length, ids: declared.map((light) => light.id) }
     : null;
   // Contract lights, placed by the harness's generic rule and passed here as data: the
   // page computes no position and invents no scene.
@@ -74,7 +74,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   const node = options.movingNode;
   let movingNode: MovingNode = null;
   const moveNode = (frame: number) => {
-    if (!node || (movingNode && 'erreur' in movingNode)) return;
+    if (!node || (movingNode && 'error' in movingNode)) return;
     const angle = (frame / 30) * Math.PI * 2,
       r = options.movingNodeRadius ?? 1;
     const matrix = new Float32Array(16);
@@ -84,9 +84,9 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     try {
       explorer.setTransform(node, matrix);
       const previousImages = movingNode && 'images' in movingNode ? movingNode.images : 0;
-      movingNode = { noeud: node, rayon: r, images: previousImages + 1 };
+      movingNode = { node, radius: r, images: previousImages + 1 };
     } catch (error) {
-      movingNode = { noeud: node, erreur: String(error) };
+      movingNode = { node, error: String(error) };
     }
   };
   const poses = options.poses;
@@ -105,7 +105,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     await explorer.flush();
   }
   // In-session reservoir tuning, if requested, is measured on the already-resident cut.
-  const reglageVivant = await mesure.reglerReservoirs(explorer, pose, options.poolVivant);
+  const liveTuning = await mesure.reglerReservoirs(explorer, pose, options.livePools);
   const cpuFrameMs: number[] = [],
     cpuSelectMs: number[] = [],
     gpuFrameMs: number[] = [],
@@ -148,15 +148,15 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
   const stageProfile = options.stageProfile ? explorer.stageProfile() : null;
   // The engine's CPU bounds over the same window as the stage profile, read once, before the
   // drain and the calm below file images of their own. A dist older than #80 has no such function.
-  const bornesCpu =
+  const cpuBounds =
     options.stageProfile && typeof explorer.cpuSteps === 'function' ? explorer.cpuSteps() : null;
   // The shadow-page queue is drained before any atlas read: see `drainShadowAtlas`.
   const shadowAtlas = options.shadowDigest
     ? await mesure.drainShadowAtlas(explorer, capturePose)
     : null;
-  // The capture is that of a HELD pose (`measurePage.ts`): `imagesCalme` says how many frames
+  // The capture is that of a HELD pose (`measurePage.ts`): `settleFrames` says how many frames
   // it took for the engine to hold it, `null` if it holds no image.
-  const imagesCalme = await mesure.poseCalme(explorer, capturePose);
+  const settleFrames = await mesure.poseCalme(explorer, capturePose);
   const response = await mesure.posterCapture(
     options.captureFile,
     explorer.capture(),
@@ -177,7 +177,7 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     gpuFrameMs,
     rafIntervalMs,
     importedLights,
-    lampesTemoin: witnessLights,
+    witnessLights,
     shadowAtlas,
     movingNode,
     stageProfile,
@@ -186,15 +186,15 @@ export async function measureView(options: MeasureViewOptions): Promise<MeasureV
     metrics,
     preparationMs,
     network,
-    imagesCalme,
-    reglageVivant,
+    settleFrames,
+    liveTuning,
     shadowCounters: shadowCounters.summary(),
     mathBatch: last?.mathBatch ?? null,
     size,
     lost,
     // Compiler warnings the engine reported at open; `null` with none.
-    avertissementsDag: diagnostics.avertissements,
-    bornesCpu,
+    dagWarnings: diagnostics.avertissements,
+    cpuBounds,
     captureStatus: response.status,
   };
 }

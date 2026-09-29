@@ -14,7 +14,7 @@ import { STALE_FULL, type ShadowPool } from './pool.ts';
  * read until redrawn.
  */
 export function createShadowThresholds(pool: ShadowPool) {
-  const drawnAt = new Float64Array(pool.pages).fill(NaN),
+  let drawnAt = new Float64Array(pool.pages).fill(NaN),
     drawnFrom = new Float64Array(pool.pages * 3);
   const origin = new Float64Array(3).fill(NaN);
   let current = NaN;
@@ -55,6 +55,19 @@ export function createShadowThresholds(pool: ShadowPool) {
         if (pool.stale(page, nowMs, frame, STALE_FULL)) staled++;
       }
       return staled;
+    },
+    /** The pool was resized: each page's threshold goes where the page went (`moved`,
+     *  `resizeShadowPool`). */
+    follow(moved: Int32Array) {
+      const next = new Float64Array(pool.pages).fill(NaN),
+        nextFrom = new Float64Array(pool.pages * 3);
+      for (const [page, to] of moved.entries()) {
+        if (to < 0) continue;
+        next[to] = drawnAt[page];
+        nextFrom.set(drawnFrom.subarray(page * 3, page * 3 + 3), to * 3);
+      }
+      drawnAt = next;
+      drawnFrom = nextFrom;
     },
     reset() {
       drawnAt.fill(NaN);

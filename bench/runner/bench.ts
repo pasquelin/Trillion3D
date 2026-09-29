@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Measurement benchmark common to all batches. One command, no server to start manually:
-//   node bench/runner/bench.ts --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
-//        --vues generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
-// All options in `README.md`. Writes `mesure.json`, `resume.md` and one PNG per view, threshold and
+//   node bench/runner/bench.ts --engine webgl --before <ref-git|dist> --after <ref-git|dist> \
+//        --views overview,ground,street --images 60 --pixelError 0,1 --max-pages 100000
+// All options in `README.md`. Writes `measure.json`, `resume.md` and one PNG per view, threshold and
 // side, plus A/A capture. `null` = not measured, never inferred; a black capture is an error.
 // Everything it launches it stops, including on error. NO SERIOUS TIMING IS PROMISED HERE: it
 // records machine load at each series boundary. Caller judges if the machine was quiet.
@@ -37,20 +37,17 @@ const {
 const CTX: RunContext = { MANIFEST: null, OUT, settings, lights: null, poses: null };
 
 async function main() {
+  const { sides, scene, after, before } = options.equipSides(flags, settings);
+  // Every option is read by now: a misspelt or retired flag stops the run before any build.
+  flags.refuseUnread();
   await mkdir(OUT, { recursive: true });
-  const rawSides = options.resolveSides({
-    after: flags.get('apres'),
-    before: flags.get('avant'),
-    root: ROOT,
-  });
-  // Each side has its compiled cache (`--cache-<side>`, otherwise benchmark asset cache), engine
-  // (`--moteur-<side>`, Chromium flags being union) and variant (`--variante-<side>`).
-  // `--scene name` sets asset cache before equipping sides: campaign thus runs each reference scene without repeating `--cache-*` paths.
-  options.applySceneFlag(flags);
-  const sides = rawSides.map((side) => options.equipSide(side, flags, settings));
+  const dists = options.resolveSides({ after, before, root: ROOT });
+  for (const side of sides)
+    Object.assign(
+      side,
+      dists.find((dist) => dist.name === side.name),
+    );
   const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))];
-  // Measured scene is from named caches; without any, benchmark reference scene.
-  const scene = options.sceneOf(sides.find((side) => side.cache)?.cache, flags.get('scene'));
   if (settings.gazeNetwork && !readsCache(scene))
     throw new Error('--gaze-network requires a compiled cache scene');
   if (settings.gazeNetwork && sides.some((side) => side.engine.id !== 'webgpu-page-raster'))
@@ -71,14 +68,14 @@ async function main() {
     startedAt: new Date().toISOString(),
     provenance: measurementProvenance(),
     campaignIdentity: process.env.TRILLION3D_CAMPAIGN_IDENTITY ?? null,
-    commande: `node bench/runner/bench.ts ${process.argv.slice(2).join(' ')}`,
+    command: `node bench/runner/bench.ts ${process.argv.slice(2).join(' ')}`,
     head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     scene,
     engine: settings.engine,
     pathVersion: options.PATH_VERSION,
     settings,
     flags: FLAGS,
-    ressources: resources,
+    resources,
     sides: Object.fromEntries(sides.map(options.sideReport)),
     series: [],
     errors: [],
@@ -135,7 +132,7 @@ async function main() {
     const bounds = (report.bounds = await onFreshPage(async (page) => readStreet(page, urls)));
     // Lights once bounds are known: geometric rule, no named scene.
     CTX.lights = benchLights(bounds, settings);
-    report.lampes = CTX.lights ? CTX.lights.resume : null;
+    report.lights = CTX.lights ? CTX.lights.resume : null;
     if (settings.gazeNetwork) {
       report.gazeNetwork = await runGazeSeries(CTX, sides, views, bounds, onFreshPage);
       return await publish(report, sides, captures, OUT);
@@ -170,16 +167,15 @@ async function main() {
           runSerie(CTX, page, sides[0], view, pixelError, pose, captures, '-aa'),
         );
         serie.sides[`${sides[0].name}-aa`] = temoin.row;
-        serie.temoinAA = imageDiff(
+        serie.witnessAA = imageDiff(
           captures.get(files[sides[0].name]),
           captures.get(temoin.captureFile),
         );
-        serie.ecartAvantApres = files.avant
-          ? imageDiff(captures.get(files.avant), captures.get(files.apres))
+        serie.beforeAfterDiff = files.before
+          ? imageDiff(captures.get(files.before), captures.get(files.after))
           : null;
-        const { avant, apres } = serie.sides;
-        serie.coupeIdentique =
-          avant && apres ? avant.selection.sha256 === apres.selection.sha256 : null;
+        const { before, after } = serie.sides;
+        serie.sameCut = before && after ? before.selection.sha256 === after.selection.sha256 : null;
       }
   } finally {
     await new Promise((done) => server.close(done));

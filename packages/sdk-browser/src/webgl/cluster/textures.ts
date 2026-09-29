@@ -6,7 +6,7 @@ import { pictureSize } from '../../texture/pictureSize.ts';
 import type { HostMaterials } from '../../host/resources.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { CoverageReaders } from '../../texture/coverage.ts';
-import { WebglMipReducer, type MipChain } from './mips.ts';
+import { WebglMipReducer, chainAllocated, type MipChain } from './mips.ts';
 
 /**
  * A texture as uploaded, at its counters (#360, #361) and its size: a new version uploads the
@@ -15,7 +15,7 @@ import { WebglMipReducer, type MipChain } from './mips.ts';
  * placement is not uploaded here — the material binding uploads the UV matrix at every draw
  * (`materialBinding.ts`).
  */
-type TextureRecord = MipChain & { version: number; sampling: number };
+type TextureRecord = MipChain & { sampling: number };
 type Anisotropy = { TEXTURE_MAX_ANISOTROPY_EXT: number; MAX_TEXTURE_MAX_ANISOTROPY_EXT: number };
 
 const wrap = (gl: WebGL2RenderingContext, value: WrapMode) =>
@@ -158,7 +158,7 @@ export class WebglClusterTextures {
     if (mipFiltered(texture.minFilter)) {
       record.cutoff = cutoff;
       this.mips.reduce(unit, record, allocate);
-    }
+    } else if (!inPlace) chainAllocated(gl, record);
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
   }

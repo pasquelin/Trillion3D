@@ -32,7 +32,7 @@ function explorerMock(metrics: Record<string, unknown> | null): Mock & Opened {
     seen,
     profileResets,
     waits,
-    backends: [{ id: 'moteur-test', scene: { children: [] } }],
+    backends: [{ id: 'engine-test', scene: { children: [] } }],
     setDiagnostic: () => {},
     setPose: () => {},
     awaitPages: async () => waits.push(seen.at(-1)),
@@ -55,7 +55,7 @@ interface TestGlobals {
   document: unknown;
   fetch: unknown;
   requestAnimationFrame: unknown;
-  incidentsGpu?: string[];
+  gpuIncidents?: string[];
   __wgTestExplorer?: unknown;
 }
 
@@ -83,7 +83,7 @@ async function mesurer(
     manifestUrl: 'manifest.json',
     modulesUrl: './',
     backend: 'creerMoteur',
-    engineId: 'moteur-test',
+    engineId: 'engine-test',
     autonomous: false,
     witness: false,
     page: 'lightingPage.ts',
@@ -100,7 +100,7 @@ async function mesurer(
     geometryPoolBytes: null,
     texturePoolBytes: null,
     geometryPoolCeilingBytes: null,
-    poolVivant: null,
+    livePools: null,
     instances: 1,
     stageProfile: false,
     variant: null,
@@ -124,7 +124,7 @@ async function mesurer(
   };
   try {
     const result = await measureView({ ...base, ...options });
-    if ('erreur' in result) throw new Error(result.erreur);
+    if ('error' in result) throw new Error(result.error);
     return result;
   } finally {
     test.document = originalDocument;
@@ -150,9 +150,9 @@ test('measureView keeps an explicit `null` in metrics instead of erasing it', as
 });
 
 test('measureView keeps an explicit `false`, distinct from an absent counter', async () => {
-  const { metrics } = await mesurer({ frameHeld: false, imageTenue: true });
+  const { metrics } = await mesurer({ frameHeld: false, gpuSelectionFallback: true });
   assert.equal(metrics.frameHeld, false);
-  assert.equal(metrics.imageTenue, true);
+  assert.equal(metrics.gpuSelectionFallback, true);
 });
 
 test('measureView keeps a table of numbers — bytes per label — and filters the rest', async () => {
@@ -196,5 +196,5 @@ test('the CPU bounds cover the profiled images only: none of the warm-up, none o
     { drawCalls: 1 },
     { frames: 3, stageProfile: true, profileFrames: 2 },
   );
-  assert.deepEqual(result.bornesCpu, { frames: 2 });
+  assert.deepEqual(result.cpuBounds, { frames: 2 });
 });

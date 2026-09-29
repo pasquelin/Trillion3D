@@ -9,6 +9,7 @@ import { sceneFogOf, type Fog } from '../../world/core/sceneFog.ts';
 import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import { allocated } from '../core/allocation.ts';
 
 /** The ambient irradiance a frame sums (r, g, b, and whether any ambient light counted), reused. */
 const AMBIENT = new Float64Array(4);
@@ -66,6 +67,7 @@ export class WebglClusterLights {
     this.ltc = createLtcTexture(gl);
     this.probe = new WebglClusterProbe(gl, program);
     this.fog = new WebglClusterFog(gl, program);
+    allocated(gl, 'target'); // its one-time maps (LTC, probe, fog): a refusal is marked once read
   }
   /** Writes the frame's lights, then the grid of the lights each fragment reaches. */
   upload(scene: WebglClusterScene, view: ArrayLike<number>) {

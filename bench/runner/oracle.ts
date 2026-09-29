@@ -4,7 +4,7 @@
 // the compiler path tracer. Single command, no manual server launch required:
 //
 //   node bench/runner/oracle.ts --cache .mesure/cache-piece --source piece/piece.gltf \
-//        --ressources piece --largeur 160 --hauteur 120 --lampes 1 --samples 256 --visible
+//        --resources piece --width 160 --height 120 --lights 1 --samples 256 --visible
 //
 // Engine and oracle receive identical pose, lights, and size. Engine renders `bounce` view —
 // raw indirect irradiance multiplied by exposure. Oracle computes same value on source triangles.
@@ -23,7 +23,7 @@ import { benchLights } from './lamps.ts';
 import { oracleBuilt } from './oracleCompare.ts';
 import { machineLoad } from './summary.ts';
 import { runView } from './oracleView.ts';
-import type { OracleSettings, VueOracle } from './oracleView.ts';
+import type { OracleSettings, OracleView } from './oracleView.ts';
 import { sdkEntryUrl } from './dists.ts';
 import { measureOutput } from '../core/paths.ts';
 
@@ -55,60 +55,68 @@ async function main() {
   if (!existsSync(source)) throw new Error(`--source not found: ${source}`);
   if (!oracleBuilt(ROOT)) throw new Error('oracle missing: run `pnpm run build:native`');
   const out = resolve(flag('out', measureOutput(`oracle-${Date.now()}`)));
-  await mkdir(out, { recursive: true });
   const settings: OracleSettings = {
-    width: number('largeur', 160),
-    height: number('hauteur', 120),
+    width: number('width', 160),
+    height: number('height', 120),
     samples: number('samples', 256),
     bounces: number('bounces', 2),
-    exposure: number('exposition', 0.2),
+    exposure: number('exposure', 0.2),
     converge: number('converge', 24),
-    delayFrames: number('images-retard', 40),
-    delayMargin: number('marge-retard', 1.2),
-    floor: number('plancher', 0.01),
+    delayFrames: number('delay-frames', 40),
+    delayMargin: number('delay-margin', 1.2),
+    floor: number('floor', 0.01),
     cadenceHz: number('cadence', 60),
-    lamps: number('lampes', 1),
+    lamps: number('lights', 1),
     // Same generic rule as benchmark: point light intensity is a measurement option.
-    intensity: number('intensite', 40),
-    rangeFactor: number('portee', 0.75),
-    shadows: flag('ombres', 'on') === 'on',
+    intensity: number('intensity', 40),
+    rangeFactor: number('range', 0.75),
+    shadows: flag('shadows', 'on') === 'on',
     pixelError: number('pixelError', 0),
     maxPages: number('max-pages', 100000),
     source,
   };
-  const sides = options.resolveSides({ after: flag('apres'), root: ROOT });
+  const after = flag('after');
+  const resources = flag('resources');
+  const visible = flag('visible', 'false') === 'true';
+  // Read before the refusal: the step's default needs the scene bounds, known only in the page.
+  const stepFlag = flag('step');
+  const camera = triple('pose'),
+    target = triple('target');
+  const views = flag('views', 'overview').split(',');
+  flags.refuseUnread();
+  await mkdir(out, { recursive: true });
+  const sides = options.resolveSides({ after, root: ROOT });
   const side = sides[0];
   side.cache = cache;
   const manifestUrl = `/cache/${side.name}/native/full/manifest.json`;
   side.manifestUrl = manifestUrl;
-  const resources = flag('ressources');
   const mounts = options.resolveMounts(ROOT, sides, resources ? resolve(resources) : null);
   const captures = new Map<string, Capture>();
   const { server, port } = await startServer({ mounts, captures });
   const browser = await launchChrome({
-    headless: flag('visible', 'false') !== 'true',
+    headless: !visible,
     args: options.ENGINES.webgpu.flags,
   });
   const report: {
     startedAt: string;
-    commande: string;
+    command: string;
     head: string;
     settings: typeof settings;
-    charge: { avant: number[]; apres?: number[] };
-    vues: VueOracle[];
+    load: { before: number[]; after?: number[] };
+    views: OracleView[];
   } = {
     startedAt: new Date().toISOString(),
-    commande: `node bench/runner/oracle.ts ${args.join(' ')}`,
+    command: `node bench/runner/oracle.ts ${args.join(' ')}`,
     head: execFileSync('git', ['-C', ROOT, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
     settings,
-    charge: { avant: machineLoad() },
-    vues: [],
+    load: { before: machineLoad() },
+    views: [],
   };
   try {
     const page = await browser.newPage({
       viewport: { width: settings.width, height: settings.height },
     });
-    page.on('pageerror', (error) => report.vues.push({ erreur: String(error) }));
+    page.on('pageerror', (error) => report.views.push({ error: String(error) }));
     // A rejected shader does not come through `pageerror`: it logs as console warning/error.
     page.on('console', (m) => {
       if (m.type() === 'error' || m.type() === 'warning')
@@ -128,20 +136,18 @@ async function main() {
     });
     const movingCandidate = lights && lights.lights.find((light) => light.kind === 'point');
     if (!lights || !movingCandidate || !movingCandidate.position)
-      throw new Error('--lampes must declare at least one point light');
+      throw new Error('--lights must declare at least one point light');
     const moving = { id: movingCandidate.id, position: movingCandidate.position };
     // Light step: clear enough that rebound must reconverge.
-    const step = number('pas', Math.max(1, (bounds.max.x - bounds.min.x) * 0.25));
-    const camera = triple('pose'),
-      target = triple('cible');
-    for (const view of flag('vues', 'generale').split(',')) {
+    const step = Number(stepFlag ?? Math.max(1, (bounds.max.x - bounds.min.x) * 0.25));
+    for (const view of views) {
       // Manual pose overrides benchmark trajectory.
       const known = options.VIEWS[view as keyof typeof options.VIEWS];
-      if (!known && !camera) throw new Error(`vue inconnue : ${view}`);
+      if (!known && !camera) throw new Error(`unknown view: ${view}`);
       const pose: CameraPose = camera
         ? { ...options.poseAt(bounds, 0), position: camera, target: target ?? [0, 0, 0] }
         : options.poseAt(bounds, known.index);
-      report.vues.push(
+      report.views.push(
         await runView(page, {
           side,
           manifestUrl,
@@ -161,10 +167,10 @@ async function main() {
     await browser.close();
     server.close();
   }
-  report.charge.apres = machineLoad();
+  report.load.after = machineLoad();
   await writeFile(join(out, 'oracle.json'), JSON.stringify(report, null, 1));
   console.log(JSON.stringify(report, null, 1));
-  if (report.vues.some((view) => view.erreur)) process.exitCode = 1;
+  if (report.views.some((view) => view.error)) process.exitCode = 1;
 }
 
 await main();
