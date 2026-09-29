@@ -52,6 +52,8 @@ function $b(op: string, a: Value, b: Value): Value {
     const v = b as number[];
     return [0, 1, 2, 3].map((row) => v.reduce((sum, x, col) => sum + a.m[col * 4 + row] * x, 0));
   }
+  // Two scalars, the most of what a kernel's integer work runs: no vector to broadcast.
+  if (!Array.isArray(a) && !Array.isArray(b)) return SCALAR[op](n(a as Scalar), n(b as Scalar));
   return each((x, y) => SCALAR[op](n(x), n(y)))(a, b);
 }
 
