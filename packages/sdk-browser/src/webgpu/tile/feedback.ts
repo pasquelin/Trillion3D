@@ -15,7 +15,7 @@ import { WRAP_MAP } from '../../visibility/wrapModes.ts';
 /** Phase word: the `FEEDBACK_EVERY` bit asks for every pixel; otherwise the two low bits give the
  *  column and the next two the row of the speaking pixel in each `FEEDBACK_STRIDE` square, therefore
  *  `FEEDBACK_EVERY` phases before the whole square has been heard. Above them, from `PICK_SHIFT`,
- *  a convergence carries its pick turn (`PICK_CYCLE`). */
+ *  every image carries its pick turn (`PICK_CYCLE`). */
 export const FEEDBACK_STRIDE = 4;
 export const FEEDBACK_EVERY = FEEDBACK_STRIDE * FEEDBACK_STRIDE;
 /** First bit above the phase and the `FEEDBACK_EVERY` bit. */
@@ -28,24 +28,26 @@ const PICK_BLENDS = 2,
 /**
  * Names a pixel's position picks among (`requestPick`): one of the maps (`WRAP_MAP`) or the sun
  * level a masked pixel asks, one of the two blend levels, one of the three anisotropic taps. A
- * tile read by a sliver of pixels — the edge of a surface — can be named by none of them. A
- * convergence therefore turns the pick by one per image: `PICK_CYCLE` images in a row, and every
- * pixel has named every tile it reads, so what a settled pose reads is what it asked, never what
- * the pool kept of an earlier pose (#1016).
+ * tile read by a sliver of pixels — the edge of a surface — can be named by none of them. The pick
+ * therefore turns: by one per convergence image, where `PICK_CYCLE` images in a row have every
+ * pixel name every tile it reads, so what a settled pose reads is what it asked, never what the
+ * pool kept of an earlier pose (#1016); and by one per whole phase round on ordinary images, so a
+ * live view names the sliver's tile too, each pixel stepping through the picks as it speaks.
  */
 export const PICK_CYCLE = (MAP_CHOICES + 1) * PICK_BLENDS * PICK_TAPS;
 
 export type WebgpuTileFeedback = {
   readonly buffer: GPUBuffer;
   readonly entries: number;
-  /** Word the uniform carries: the phase, or "every pixel" and the pick turn during a convergence. */
+  /** Word the uniform carries: the phase, or "every pixel" during a convergence, and the pick turn. */
   phaseWord(every: boolean): number;
-  /** A convergence image was drawn: the next one names the next pick (`PICK_CYCLE`). */
-  turnPick(): void;
+  /** A whole pick cycle converged at the drawn pose (`converge.ts`); a view that moves clears it. */
+  poseCycled: boolean;
   /** Copies the counters to a free readback buffer and zeroes them, in the image. */
   encode(encoder: GPUCommandEncoder): void;
-  /** The image is submitted: the copy it carried maps; the phase advances. */
-  submitted(): void;
+  /** The image is submitted: the copy it carried maps; the phase advances, and the pick with a
+   *  convergence image (`every`) or a whole phase round. */
+  submitted(every?: boolean): void;
   /** The last counters that came back, once; `undefined` until one has come back. */
   take(): Uint32Array | undefined;
   /** Held when every in-flight read has come back. */
@@ -82,18 +84,17 @@ export function createWebgpuTileFeedback(device: Device, entries: number): Webgp
   return {
     buffer,
     entries,
-    phaseWord: (every) => (every ? FEEDBACK_EVERY | (pick << PICK_SHIFT) : 0) | phase,
-    turnPick() {
-      pick = (pick + 1) % PICK_CYCLE;
-    },
+    phaseWord: (every) => (every ? FEEDBACK_EVERY : 0) | phase | (pick << PICK_SHIFT),
+    poseCycled: false,
     encode(encoder) {
       if (busy[next] || copied[next]) return;
       encoder.copyBufferToBuffer(buffer, 0, staging[next], 0, bytes);
       encoder.clearBuffer(buffer);
       copied[next] = true;
     },
-    submitted() {
+    submitted(every = false) {
       phase = (phase + 1) % FEEDBACK_EVERY;
+      if (every || phase === 0) pick = (pick + 1) % PICK_CYCLE;
       if (!copied[next]) return;
       const rank = next;
       copied[rank] = false;

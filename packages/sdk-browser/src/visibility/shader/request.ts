@@ -11,9 +11,9 @@ import type { WebgpuLightState } from '../../webgpu/pages/state/lights.ts';
  * (phase, map chosen by position, fallback on the base). The pixel increments nothing: why,
  * and what that cost, is said in `../../webgpu/tile/reduce.ts`.
  *
- * The sun shadow asks for its tiles from the screen: the depth pass reads the cutout at its
- * shadow texel but cannot ask for anything (`../../webgpu/blend/earlyRejection.test.ts`). To the
- * six maps is therefore added, for a masked-material pixel, one choice: the sun's clipmap level
+ * The sun shadow asks for its tiles from the screen too: the depth pass's cutout asks for what
+ * it reads (`../../gpu/shadow/faceBindings.ts`), but only on the pages it draws, which a cached
+ * page does not redraw. To the six maps is therefore added, for a masked-material pixel, one choice: the sun's clipmap level
  * this pixel's own footprint reads — the finest a receiver beside the caster reads its shadow at.
  * The triangle is projected on the light plane in texels of that level, the coordinate
  * derivative per shadow texel comes out — the affine `dpdx` of the shadow pass — and the
