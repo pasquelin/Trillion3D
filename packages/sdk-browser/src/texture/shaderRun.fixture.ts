@@ -7,8 +7,10 @@ import { builtins } from './shaderRunBuiltins.fixture.ts';
 export { Mat, type Vec } from './shaderRunBuiltins.fixture.ts';
 
 const SWIZZLE = /^(?:[xyzw]{1,4}|[rgba]{1,4})$/;
+/** A token, or what it skips: blanks and `//` comments. */
 const TOKEN =
-  /\s+|((?:0x[\da-f]+|\d+\.?\d*(?:e[+-]?\d+)?|\.\d+(?:e[+-]?\d+)?)[uif]?|[A-Za-z_]\w*|&&|\|\||<=|>=|==|!=|>>|<<|\+\+|--|[-+*/%]=|->|[-+*/%<>=!&|^(){}[\];,.:@])/giy;
+  /\s+|\/\/[^\n]*|((?:0x[\da-f]+|\d+\.?\d*(?:e[+-]?\d+)?|\.\d+(?:e[+-]?\d+)?)[uif]?|[A-Za-z_]\w*|&&|\|\||<=|>=|==|!=|>>|<<|\+\+|--|[-+*/%]=|->|[-+*/%<>=!&|^(){}[\];,.:@])/giy;
+const JS_RESERVED = new Set(['in', 'new', 'this', 'class', 'delete', 'typeof', 'void', 'with']);
 const BINARY: Record<string, number> = {
   '||': 1,
   '&&': 2,
@@ -36,7 +38,7 @@ function tokens(text: string) {
   for (let match; TOKEN.lastIndex < text.length;) {
     if (!(match = TOKEN.exec(text)))
       throw new Error(`WGSL token at ${text.slice(TOKEN.lastIndex)}`);
-    if (match[1]) out.push(match[1]);
+    if (match[1]) out.push(JS_RESERVED.has(match[1]) ? `$${match[1]}` : match[1]);
   }
   return out;
 }
@@ -173,7 +175,8 @@ class Translator {
         value = SWIZZLE.test(member) ? `$sw(${value},"${member}")` : `${value}.${member}`;
       } else if (this.peek() === '[') {
         this.next();
-        value = `${value}[${this.expression()}]`;
+        // An index is an integer: a WGSL integer division, run in doubles, is truncated there.
+        value = `${value}[Math.trunc(${this.expression()})]`;
         this.eat(']');
       } else return value;
     }

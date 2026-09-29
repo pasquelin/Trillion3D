@@ -5,7 +5,7 @@ import type { MeasuredWorld } from '../witnesses/measurement.ts';
 import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
 import type { BackendDiagnostic } from '../../packages/sdk-browser/src/backend/types.ts';
 import type { MemoryBudgets } from '../witnesses/measurement.ts';
-import type { ReglageVivant, Reseau } from './report/types.ts';
+import type { LiveTuning, NetworkBytes } from './report/types.ts';
 import type { FrameMetrics } from '../../packages/sdk-core/src/index.ts';
 import type { LivePools } from './benchSettings.ts';
 import { residentBudget } from './poolFill.ts';
@@ -33,8 +33,8 @@ export function posterCapture(file: string, rgba: Uint8Array, w: number, h: numb
 }
 
 /** Bytes transferred on the network since entry `depuis`, by file kind. */
-export function reseauDepuis(depuis: number): Reseau {
-  const network: Reseau = {};
+export function reseauDepuis(depuis: number): NetworkBytes {
+  const network: NetworkBytes = {};
   const entries = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
   for (const entry of entries.slice(depuis)) {
     const extension = entry.name.split('?')[0].match(/\.([a-z0-9]+)$/i);
@@ -78,7 +78,7 @@ export async function reglerReservoirs(
   explorer: MeasuredWorld,
   pose: CameraPose,
   budgets: LivePools | null,
-): Promise<ReglageVivant | null> {
+): Promise<LiveTuning | null> {
   if (!budgets) return null;
   const resident = await residentBudget(explorer, pose, budgets.textureResidentFraction, poseCalme);
   const requested: MemoryBudgets = {
@@ -86,10 +86,10 @@ export async function reglerReservoirs(
     texturePoolBytes: resident?.budget ?? budgets.texturePoolBytes ?? undefined,
   };
   const rapport = await explorer.setMemoryBudgets(requested);
-  const imagesReprise = await poseCalme(explorer, pose);
+  const recoveryFrames = await poseCalme(explorer, pose);
   return {
     ...rapport,
-    imagesReprise,
+    recoveryFrames,
     texturePoolAskedBytes: requested.texturePoolBytes,
     residentTextureBytes: resident?.bytes,
   };
@@ -153,7 +153,7 @@ export async function drainShadowAtlas(explorer: MeasuredWorld, capturePose: Cam
     if (pending === null || pending === 0) break;
   }
   const digest = await explorer.shadowAtlasDigest();
-  return digest ? { ...digest, pagesEnAttente: pending, images: drains } : null;
+  return digest ? { ...digest, pagesPending: pending, images: drains } : null;
 }
 
 /** The per-frame shadow counters the series reads: what the shadow pass did on each frame. */

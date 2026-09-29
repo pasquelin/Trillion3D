@@ -59,7 +59,7 @@ export function encodeWebgpuPartition(
   const twoPass =
     useIndirect && !!partition && !!vis.gpuHiz && !!vis.visHizRestBack && rows.packedCount >= 2;
   const counts = timing.partitionCounts;
-  counts.lignes = rows.packedCount;
+  counts.rows = rows.packedCount;
   if (!partition) return { twoPass: false };
   const start = performance.now();
   frame.view = cam.view;
@@ -89,10 +89,10 @@ export function encodeWebgpuPartition(
   // The image's counts are those the GPU wrote, reread one image in fifteen. They therefore describe
   // a previous image, never this one, and stay at zero before the first sample.
   const sample = partition.counts();
-  counts.occulteurs = sample ? sample.occluders : 0;
-  counts.testees = sample ? sample.tested : 0;
-  counts.historiqueOcculteurs = sample ? sample.historyOccluders : 0;
-  counts.retiresParLaPyramide = sample ? sample.withdrawn : 0;
-  counts.imageRelevee = sample ? sample.frame : -1;
+  counts.occluders = sample ? sample.occluders : 0;
+  counts.tested = sample ? sample.tested : 0;
+  counts.previousOccluders = sample ? sample.historyOccluders : 0;
+  counts.pyramidWithdrawn = sample ? sample.withdrawn : 0;
+  counts.sampledFrame = sample ? sample.frame : -1;
   return { twoPass };
 }

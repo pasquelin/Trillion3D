@@ -55,8 +55,9 @@ function $b(op: string, a: Value, b: Value): Value {
   return each((x, y) => SCALAR[op](n(x), n(y)))(a, b);
 }
 
-/** A swizzle: one component, or a vector of several. */
-function $sw(value: Vec, name: string) {
+/** A swizzle: one component, or a vector of several; on a structure, its member of that name. */
+function $sw(value: Vec | Record<string, unknown>, name: string) {
+  if (!Array.isArray(value)) return value[name];
   const parts = [...name].map((letter) => value[LETTERS[letter]]);
   return parts.length === 1 ? parts[0] : parts;
 }
@@ -82,6 +83,8 @@ export const builtins = {
   vec4f: vector(4, float),
   vec2i: vector(2, int),
   f32: each(float),
+  i32: each(int),
+  u32: each((x) => int(x) >>> 0),
   min: numeric(Math.min),
   max: numeric(Math.max),
   clamp: numeric((x, lo, hi) => Math.min(Math.max(x, lo), hi)),
@@ -89,8 +92,15 @@ export const builtins = {
   abs: numeric(Math.abs),
   floor: numeric(Math.floor),
   sin: numeric(Math.sin),
+  sqrt: numeric(Math.sqrt),
+  log2: numeric(Math.log2),
+  exp2: numeric((x) => 2 ** x),
+  pow: numeric((x, y) => x ** y),
   select: each((no, yes, when) => (when ? yes : no)),
   all: (v: Value) => (Array.isArray(v) ? v.every(Boolean) : !!v),
   any: (v: Value) => (Array.isArray(v) ? v.some(Boolean) : !!v),
+  dot: (a: Value, b: Value) => vec(a).reduce((sum, x, i) => sum + x * vec(b)[i], 0),
   length: (v: Value) => (Array.isArray(v) ? Math.hypot(...vec(v)) : Math.abs(n(v as Scalar))),
+  distance: (a: Value, b: Value) => Math.hypot(...vec(a).map((x, i) => x - vec(b)[i])),
+  normalize: (v: Value) => vec(v).map((x) => x / Math.hypot(...vec(v))),
 };

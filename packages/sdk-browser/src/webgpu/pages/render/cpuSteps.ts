@@ -19,53 +19,53 @@ function recordStages(rt: WebgpuPagesRuntime) {
   const tiles = rt.vis.textures?.counters;
   if (tiles)
     stages.setCounts('textures', {
-      tuilesDemandees: tiles.requested,
-      tuilesAuNiveau: tiles.atLevel,
-      niveauxManquants: Math.round(tiles.missingAverage * 100),
-      tuilesServies: tiles.served,
-      tuilesEnAttente: tiles.pending,
-      tuilesReportees: tiles.deferred,
+      tilesRequested: tiles.requested,
+      tilesAtLevel: tiles.atLevel,
+      missingLevels: Math.round(tiles.missingAverage * 100),
+      tilesServed: tiles.served,
+      tilesPending: tiles.pending,
+      tilesDeferred: tiles.deferred,
     });
   if (!tiles?.worked)
     stages.setReason('textures', {
       cpu: 'no image feedback: no tile to serve',
       gpu: 'transfers go through the GPU queue, with no timestamped pass',
     });
-  // What the shadow pass actually did: counts, never durations. `pagesDemandees` is what the image
-  // read, `pagesEnCache` what it read straight from the pool, `pagesInvalidees` what staled this
-  // image, `pagesVisitees` what the invalidation examined to find them, `pagesRedessinees` what
-  // it drew, `pagesEnAttente` what the budget left for later, and `retardMaxMs` the wait of the
+  // What the shadow pass actually did: counts, never durations. `pagesRequested` is what the image
+  // read, `pagesCached` what it read straight from the pool, `pagesInvalidated` what staled this
+  // image, `pagesVisited` what the invalidation examined to find them, `pagesRedrawn` what
+  // it drew, `pagesPending` what the budget left for later, and `maxWaitMs` the wait of the
   // oldest page in that queue.
   const { counts } = lights.plan;
   // What the region culls kept, sampled on the device one frame in fifteen: the frame it
   // describes is named, and until a sample has returned there is no count at all.
   const culled = lights.cull?.counts.counts();
   stages.setCounts('shadows', {
-    lampesRedessinees: lights.shadowsUpdated,
-    facesRedessinees: lights.shadowFaces,
-    appelsDeDessin: lights.shadowDrawCalls,
-    passesDeRendu: lights.shadowRenderPasses,
-    soleilsRedessines: counts.sunLights,
-    pagesDemandees: lights.plan.requests.counts.requested,
-    pagesEnCache: counts.cachedPages,
-    pagesDuPool: counts.poolPages,
-    octetsDuPool: shadowPoolHeld(lights),
-    couchesDuPool: lights.plan.pool.layers,
-    pagesInvalidees: counts.invalidatedPages,
-    pagesVisitees: counts.visitedPages,
-    pagesRedessinees: lights.shadowPages,
-    pagesEnAttente: counts.pendingPages,
-    retardMaxMs: counts.waitedMs,
-    retardMaxImages: counts.waitedFrames,
+    lightsRedrawn: lights.shadowsUpdated,
+    facesRedrawn: lights.shadowFaces,
+    drawCalls: lights.shadowDrawCalls,
+    renderPasses: lights.shadowRenderPasses,
+    sunsRedrawn: counts.sunLights,
+    pagesRequested: lights.plan.requests.counts.requested,
+    pagesCached: counts.cachedPages,
+    poolPages: counts.poolPages,
+    poolBytes: shadowPoolHeld(lights),
+    poolLayers: lights.plan.pool.layers,
+    pagesInvalidated: counts.invalidatedPages,
+    pagesVisited: counts.visitedPages,
+    pagesRedrawn: lights.shadowPages,
+    pagesPending: counts.pendingPages,
+    maxWaitMs: counts.waitedMs,
+    maxWaitFrames: counts.waitedFrames,
     ...(culled
       ? {
-          occludeursGardes: culled.kept,
-          regionsRelevees: culled.regions,
-          imageRelevee: culled.frame,
+          occludersKept: culled.kept,
+          regionsSampled: culled.regions,
+          sampledFrame: culled.frame,
         }
       : {}),
   });
-  stages.setCounts('lightLists', { lampesActives: lights.lightsActive });
+  stages.setCounts('lightLists', { activeLights: lights.lightsActive });
   // The sun's far shadow: counts sampled one image in fifteen, never a duration. Its ray is traced
   // in deferred resolve, so its milliseconds are those of the Lighting (resolve) stage — stating a
   // duration here would count it a second time.
@@ -77,14 +77,14 @@ function recordStages(rt: WebgpuPagesRuntime) {
   // What bounce actually did: probes and rays, never a duration. A still, converged scene encodes
   // no pass, so the stage stays "unmeasured" and not zero.
   stages.setCounts('bounce', {
-    sondesMisesAJour: bounce.probesUpdated,
-    rayonsParImage: bounce.raysLaunched,
-    sondesDesCascades: bounce.probes?.cascades.probes ?? 0,
-    maillesMisesAJour: bounce.encoded ? (bounce.probes?.surface.lastTexels ?? 0) : 0,
-    maillesDuCache: bounce.probes?.surface.texels ?? 0,
+    probesUpdated: bounce.probesUpdated,
+    raysPerFrame: bounce.raysLaunched,
+    cascadeProbes: bounce.probes?.cascades.probes ?? 0,
+    texelsUpdated: bounce.encoded ? (bounce.probes?.surface.lastTexels ?? 0) : 0,
+    cachedTexels: bounce.probes?.surface.texels ?? 0,
     // Fraction of the ceiling the millisecond budget holds, in thousandths: a count is an integer,
     // and it is the duration that decides this count, never the reverse.
-    fractionDuBudget: Math.round((bounce.probes?.budget.load ?? 0) * 1000),
+    budgetFraction: Math.round((bounce.probes?.budget.load ?? 0) * 1000),
   });
   if (!bounce.probes)
     stages.setReason('bounce', {
@@ -100,15 +100,15 @@ function recordStages(rt: WebgpuPagesRuntime) {
   // how many the cut keeps. That ratio says what a kernel that visits every cluster costs versus
   // only the live ones.
   stages.setCounts('selection', {
-    grappesRejetees: rt.run.frustumRejected,
-    pagesVoulues: rt.run.visible,
-    grappesDuDag: rt.run.gpuSelection?.pageCount ?? 0,
+    clustersRejected: rt.run.frustumRejected,
+    pagesWanted: rt.run.visible,
+    dagClusters: rt.run.gpuSelection?.pageCount ?? 0,
   });
   stages.setCounts('animations', timing.worldCounts);
   stages.setCounts('partition', timing.partitionCounts);
-  timing.encodeCounts.appelsDeDessin = rt.run.gpuDrawCalls;
-  timing.encodeCounts.appelsDeMelange = rt.run.blendDrawCalls;
-  timing.encodeCounts.lancementsDeCalcul = rt.run.gpuComputeDispatches;
+  timing.encodeCounts.drawCalls = rt.run.gpuDrawCalls;
+  timing.encodeCounts.blendDrawCalls = rt.run.blendDrawCalls;
+  timing.encodeCounts.computeDispatches = rt.run.gpuComputeDispatches;
   stages.setCounts('encode', timing.encodeCounts);
 }
 

@@ -40,7 +40,7 @@ Required fields of the merged manifest, consumed by the browser adapter:
 - `primitives[]` — `{ mesh, primitive, pass, clusterStrategy, pages, culling, structure, streams, dag, topology }`
   - `pass` is `exact-clusters` for opaque/MASK geometry, `clustered-blend` for static BLEND geometry, or `shared-blend` for unsplit source geometry (`KHR_materials_transmission` with `transmissionFactor > 0`, skins / `JOINTS_0` / `WEIGHTS_0`, and morph targets).
   - `clusterStrategy` is `dag-groups` on every primitive the DAG covers, and `null` on a `shared-blend` primitive, which carries no pages.
-  - `errorModel` is `dag-group-qem-v2`, the one model this runtime reads: absolute group error weighing positions, normals and texture coordinates, clamped to the group's extent. A `dag-group-qem-v1` cache (positions only) is refused with `STALE_CACHE`. Every cluster carries its own screen-error band, so nothing walks a tree. A cache whose clusters carry no band — the page tree earlier compilers emitted — is rejected by `assertCacheIdentity` with `STALE_CACHE`, naming the primitive that lacks one, so a host recompiles instead of half-reading a cache.
+  - `errorModel` is `dag-group-qem-v3`, the one model this runtime reads: absolute group error weighing positions, normals and texture coordinates, clamped to the group's extent, and never below the sampled Hausdorff distance between the group's children and its outputs. A `dag-group-qem-v1` (positions only) or `dag-group-qem-v2` (quadric error alone, below the geometry on curved surfaces) cache is refused with `STALE_CACHE`. Every cluster carries its own screen-error band, so nothing walks a tree. A cache whose clusters carry no band — the page tree earlier compilers emitted — is rejected by `assertCacheIdentity` with `STALE_CACHE`, naming the primitive that lacks one, so a host recompiles instead of half-reading a cache.
   - `simplification` is `true` when the compiler ran with `qem-endpoints`.
 - `worstStalls[]` — the stall table, ranked once by the compiler: at most ten primitives with a stalled group that kept level-0 triangles as roots, most `rootTriangles` first, ties in manifest order, each `{ index, mesh, primitive, rootTriangles, cause, seamVertices, lockedVertices, uvIslands }` (its manifest rank and its `dag` summary). A primitive whose only stall is its coarsest group, above levels that climbed, keeps no level-0 root and is not listed; its `dag.stalls[]` still names it. The CLI's `stall` events and the bench's `resume.md` print it as is
 - `worldRoots` — the report of the [world super-roots](#world-super-roots), their pinned top's bytes among it; not read by the browser.
@@ -64,7 +64,7 @@ Level 0 partitions the source triangles into clusters of at most 128 triangles, 
 
 - `role` — `exact` at level 0, `coarse` above it
 - `level` — DAG level, 0 for the source triangles
-- `lodError` / `sphere` — object-space error of the group that produced this cluster, and the `[x, y, z, radius]` sphere it is projected through
+- `lodError` / `sphere` — object-space error of the group that produced this cluster, and the `[x, y, z, radius]` sphere it is projected through: at level 0 the smallest ball of the cluster's vertices, above it a ball holding every child's sphere, each never larger than the box-centre sphere or sequential merge it replaces
 - `parentError` / `parentSphere` — the same pair for the group that replaces this cluster; both `null` on a root, which is never replaced
 - `group` — index in `structure.groups` of the group that replaces this cluster, `null` on a root
 - `source` — index of the group that produced it, `null` at level 0
@@ -139,7 +139,7 @@ An image whose decode fails has no entry: its textures load from the source as b
 
 `scene-tables.json`, beside `clusters.json`, says what the prepared scene is made of, and it is the
 only thing the runtime builds that scene from: no glTF is parsed in the browser. Its own version
-governs it — `version` 4, `nodeTableVersion` 4, `materialTableVersion` 4, `geometryTableVersion` 1 —
+governs it — `version` 5, `nodeTableVersion` 4, `materialTableVersion` 4, `geometryTableVersion` 1 —
 and an unknown one is refused rather than half-read (`assertSceneTables`, `UNSUPPORTED_SCENE_TABLES`).
 Every value is read from the `source.gltf` the same compilation publishes (and, for its layout, from
 `scene.gltf` when one is written): the slice's nodes, the cutout answers already applied, the mesh
@@ -152,6 +152,9 @@ matrix, translation, rotation, scale, visible }` (`weights` overrides its mesh's
   the runtime composes world matrices from it the way it always has, so they are the same bits.
   Several nodes naming one mesh is what instancing is here.
 - `partition` — `null`, or the world partition (below): the cells that place the other nodes.
+- `meshPages` — the slots of the manifest's mesh pages the meshes of `nodes[]` lie in, sorted and
+  each once (version 5, #751): what a runtime that holds the manifest by the view reads before its
+  first frame, the region pages of the cells naming the rest.
 - `lights[]` — the `KHR_lights_punctual` lights the nodes hang: `{ name, type, color, intensity,
 range, innerConeAngle, outerConeAngle }`, each silent field `null` (the specification's default
   applies). `lights.json` stays the radiometric product the engine lights with.
@@ -229,6 +232,15 @@ big-endian `f64` bit patterns (16 each), naming `scene-page-<sha256>.json`; zero
 slot (`fetchVerified`), into the records in cell order, `bounds` the union of the root's boxes and
 `meshes` the ranks placed, and refuses a region page without its list of mesh pages. Pages and cells are outside
 the manifest's `files`: a reused folder proves them through the root.
+
+**The manifest held by the view** (#751). A WebGL2 world reads of the manifest its root, its head
+page and the mesh pages `meshPages` names (`openPagedManifest`, `loadModel`'s `lazy`); each cell it
+places holds the mesh pages of its region page, counted once per cell, and releases them as it
+leaves: a page no placed cell holds leaves the manifest with its primitives
+(`scene/partition/cellPages.ts`). The session opens on the primitives listed then, the meshes the
+cells place without one left out, and mounts each in place once its page is read
+(`mountPlacements`), unmounting it once its page left (`world/scene/partitionMounts.ts`). A WebGPU
+world reads the whole manifest until its session grows in place (#216).
 
 **Reading the cells.** Each mesh the cells place is drawn by one host mesh per primitive whose
 instance buffer the cells fill (`packages/sdk-browser/src/scene/partition/`): a placement takes a

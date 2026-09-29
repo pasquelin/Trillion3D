@@ -27,7 +27,9 @@ function bench() {
     hostBytes: 0,
     offerIds: (ids: ArrayLike<number>) => aheadOffers.push(Array.from(ids)),
   };
+  const capture = { capturing: false };
   const rt = {
+    capture,
     run,
     gpu,
     vis,
@@ -56,7 +58,7 @@ function bench() {
     publication.adoptCpuCut(pages, pages);
   };
   const keys = (ids: number[]) => new Set(ids.map((id) => scene.tracking.keyOf(scene.packed[id])));
-  return { ...scene, publication, main, side, draw, keys, aheadOffers };
+  return { ...scene, publication, capture, main, side, draw, keys, aheadOffers };
 }
 
 test('a second view keeps its pages while the main view draws, all under the one budget', () => {
@@ -73,6 +75,48 @@ test('a second view keeps its pages while the main view draws, all under the one
   budget(3);
   assert.deepEqual(keysOf(tracking.keep), keys([0, 1]), 'a view released lets its pages go');
   assert.deepEqual(keysOf(tracking.wanted), keys([0, 1]));
+});
+
+test('under budget pressure a capture keeps the detail pages it kept alone', () => {
+  const { tracking, publication, capture, main, side, draw, keys, budget } = bench();
+  /** The pages `ids` keep at `room` when their view is the only one, as before views existed. */
+  const alone = (ids: number[], room: number) => {
+    const only = eightPages();
+    only.delta.apply(ids);
+    only.cut();
+    only.budget(room);
+    return keysOf(only.tracking.wanted);
+  };
+  const kept = (ids: number[]) => [...keys(ids)].filter((key) => tracking.wanted.has(key));
+  draw(main, [0, 1, 2, 3]);
+  capture.capturing = true;
+  draw(side, [4, 5, 6, 7]);
+  budget(3);
+  assert.equal(kept([4, 5, 6, 7]).length, 3, 'the capture keeps as many pages as alone');
+  assert.deepEqual(keysOf(tracking.wanted), alone([4, 5, 6, 7], 3), 'the same pages');
+  capture.capturing = false;
+  publication.releaseView(side);
+  draw(main, [0, 1, 2, 3]);
+  budget(3);
+  assert.deepEqual(keysOf(tracking.wanted), alone([0, 1, 2, 3], 3), 'the main view, as alone');
+});
+
+test('a persistent view and the main one rank the one union, whichever is drawn', () => {
+  const { tracking, sets, main, side, draw, keys, budget } = bench();
+  draw(main, [0, 1, 2, 3]);
+  draw(side, [4, 5, 6, 7]);
+  budget(3);
+  const queue = keysOf(tracking.wanted),
+    revision = sets.acceptedRevision;
+  for (let frame = 0; frame < 3; frame++) {
+    draw(main, [0, 1, 2, 3]);
+    budget(3);
+    draw(side, [4, 5, 6, 7]);
+    budget(3);
+  }
+  assert.deepEqual(keysOf(tracking.wanted), queue, 'views drawn every frame never trade slots');
+  assert.equal(sets.acceptedRevision, revision, 'the queue is never ranked to other pages');
+  assert.deepEqual(queue, keys([7, 3, 2]), 'the coarsest pages of the union, as on develop');
 });
 
 test("another view's cut leaves the main view's pages ahead alone", () => {

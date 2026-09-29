@@ -7,6 +7,7 @@
  * The cost is the second opaque pass, paid only by a frame that carries a transmissive copy.
  */
 import { refuseCluster } from './refusal.ts';
+import { allocated } from '../core/allocation.ts';
 import { halfFloatTargets } from '../core/renderTarget.ts';
 import type { SceneColour, WebglClusterScene } from './lights.ts';
 
@@ -69,6 +70,8 @@ export class WebglClusterBackdrop {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, this.depth, 0);
     this.width = width;
     this.height = height;
+    // Refused: sized again once the refusal is read (`../core/allocation.ts`).
+    allocated(gl, 'target', () => (this.width = this.height = 0));
   }
   /**
    * Binds the backdrop, sized to the current viewport and cleared to the linear background
