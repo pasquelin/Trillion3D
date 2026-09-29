@@ -7,6 +7,7 @@ import { uploadWorlds } from './worldUpload.ts';
 import { setWindingEpoch } from './winding.ts';
 import { holdWebgpuFrame } from '../../frame/hold.ts';
 import { sizeShadowPool } from '../../shadow/poolSize.ts';
+import { forgetShadowCpuSteps } from '../../shadow/cpuSteps.ts';
 import { followShadowView } from '../../shadow/poolResize.ts';
 import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant.ts';
 import { deviceAnswering } from '../../frame/deviceAnswer.ts';
@@ -113,6 +114,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   run.blendSubmittedTriangles = 0;
   run.blendDrawCalls = 0;
   run.frame++;
+  forgetShadowCpuSteps(rt.timing.cpuProfile.row);
   run.feedbackWritten = false;
   run.gpuFrameActive = false;
   run.hizPyramidFresh = false;
