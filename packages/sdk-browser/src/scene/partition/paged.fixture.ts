@@ -4,7 +4,9 @@ import {
   tablePartition,
   type TableCell,
 } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
-import type { CellIndex, IndexPage } from './cellIndex.ts';
+import { Group } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { createCellBoxes } from './boxes.ts';
+import { createCellIndex, type CellIndex, type IndexPage } from './cellIndex.ts';
 
 type Box = readonly number[];
 const bits = new DataView(new ArrayBuffer(8));
@@ -108,4 +110,24 @@ export function openAll(
       index.open(page, readCellPage(files.get(name)!, name));
     }
   }
+}
+
+/** The index of `cells` in region pages of four, every page on the way from `eye` within
+ *  `radius` opened, then walked once more: the cells it finds and what it tested. */
+export function walked(cells: TableCell[], eye: ArrayLike<number>, radius: number) {
+  const { partition, files } = paged(cells, 4);
+  const boxes = createCellBoxes([], new Group(), []);
+  boxes.refresh();
+  const index = createCellIndex(partition.pages, 'https://cache.test/', boxes);
+  openAll(index, files, eye, radius);
+  const found: number[] = [];
+  const tested = index.near(
+    eye,
+    radius,
+    Infinity,
+    { has: () => false },
+    (cell) => found.push(cell),
+    () => {},
+  );
+  return { index, found, tested };
 }
