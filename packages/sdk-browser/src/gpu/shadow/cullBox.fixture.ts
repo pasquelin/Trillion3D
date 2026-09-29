@@ -9,7 +9,7 @@ export const SHADER_BOX = [
   'struct Face{center:vec3f,far:f32,axis:vec3f,halfAngle:f32,right:vec3f,halfU:f32,up:vec3f,halfV:f32,',
   'let local=abs(vec3f(dot(delta,volume.right),dot(delta,volume.up),dot(delta,volume.axis)));',
   'let gap=max(local-vec3f(volume.halfU,volume.halfV,volume.far),vec3f(0.0));',
-  'if(dot(gap,gap)>sphere.radius*sphere.radius){return;}',
+  'if(dot(gap,gap)>sphere.radius*sphere.radius){return false;}',
 ];
 
 /** `keepCaster`'s test of a caster's sphere against a sun page's box, restated: the floats of

@@ -5671,7 +5671,8 @@
       "settled": "Vrai dès qu’un rapport prouve que l’état courant ne demande plus rien : l’image peut être tenue.",
       "receive": "Un rapport de demandes est revenu ; le prochain plan le lit. Un plus récent remplace un rapport non lu.",
       "commit": "Les pages `[from, to)` de la liste de l’image ont été encodées, la page `from + i` dans `modes[i]` : leurs dessins arrivent avant que quiconque les lise. Le dernier lot ferme la liste.",
-      "resize": "Le pool à une autre taille, ses pages gardées, ses tableaux refaits : renvoie où chaque page est allée."
+      "resize": "Le pool à une autre taille, ses pages gardées, ses tableaux refaits : renvoie où chaque page est allée.",
+      "gpu": "L’allocation du GPU (`mirror.ts`) : s’il place les pages, ce que l’hôte lui demande."
     }
   },
   "ShadowStaleReason": {
@@ -7633,7 +7634,8 @@
       "layoutEpoch": "Disposition de la table avec laquelle cette image a lu (`ShadowTable.layoutEpoch`).",
       "stamp": "Le tampon du plan quand cette image a été encodée (`ShadowPlan.stamp`).",
       "count": "Entrées demandées, parfois plus que `entries` n’en tient : les autres redemandent à l’image suivante.",
-      "entries": "Les entrées demandées, au plus les `count` premières."
+      "entries": "Les entrées demandées, au plus les `count` premières.",
+      "pool": "Le pool de l’allocateur GPU après l’allocation de cette image, quand le GPU alloue."
     }
   },
   "VehicleDriver": {

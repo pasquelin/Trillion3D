@@ -2,6 +2,7 @@
 // home page and its neighbours, each page read where the pool placed it. `SPLIT` holds the WGSL
 // lines restated here; `shadowBias.test.ts` pins them.
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { PAGES } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { POISSON_16 } from './shadowWgsl.ts';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { compare, litOf, pcf, type Stored } from './shadowBias.fixture.ts';
@@ -17,8 +18,9 @@ export const hash = (x: number) => {
 
 /** `shadowPcf`'s split of a tap along a page seam: what `pagedPcf` restates. */
 export const SPLIT = [
-  ' let edge=(t-1.5<first)|(t+1.5>=first+SHADOW_PAGE);',
-  ' let up=t-first>=vec2f(0.5*SHADOW_PAGE);',
+  ' let edge=vec2i(shadowPcfEdge(t.x,first.x),shadowPcfEdge(t.y,first.y))>vec2i(0);',
+  ' let step=vec2i(shadowPcfStep(t.x,first.x),shadowPcfStep(t.y,first.y));',
+  ' let up=step>vec2i(0);',
   '  let h=clamp(at,first+0.5,first+SHADOW_PAGE-0.5);',
   '  let n=select(min(at,seam-0.5),max(at,seam+0.5),up);',
   '  let w=saturate(0.5+(seam-at)*toward);',
@@ -50,10 +52,10 @@ export function pagedPcf(
   };
   const offset = offsetOf(home)!;
   const cmp = (o: Pair, x: number, y: number) => compare(o[0] + x, o[1] + y, atlas, reference);
-  const edge = [0, 1].map((a) => t[a] - 1.5 < first[a] || t[a] + 1.5 >= first[a] + S);
+  const edge = [0, 1].map((a) => PAGES.shadowPcfEdge(t[a], first[a]));
   if (!edge[0] && !edge[1]) return pcf([offset[0] + t[0], offset[1] + t[1]], atlas, reference);
-  const up = [0, 1].map((a) => t[a] - first[a] >= 0.5 * S),
-    step = up.map((u) => (u ? 1 : -1)),
+  const step = [0, 1].map((a) => PAGES.shadowPcfStep(t[a], first[a])),
+    up = step.map((s) => s > 0),
     seam = [0, 1].map((a) => first[a] + (up[a] ? S : 0));
   // `shadowNeighbour`: a neighbour's offset, undefined when it is not readable.
   const nx = edge[0] ? offsetOf([home[0] + step[0], home[1]]) : undefined,
