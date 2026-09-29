@@ -44,7 +44,7 @@ export interface MathPathMetrics {
   wasmSimd: boolean | null;
   /** Thread clock resolution, in milliseconds; `null` until it has been estimated. */
   clockResolutionMs: number | null;
-  /** True when the clock is too coarse to arbitrate: everything stays on the JavaScript path. */
+  /** True when the clock is too coarse to time one execution: executions are timed in pooled batches. */
   clockCoarse: boolean;
   /** Why the WebAssembly path is not playable, or `null` when it is. */
   unavailableReason: string | null;

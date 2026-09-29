@@ -119,33 +119,6 @@ export function noticeEffectRefusal(notices: Pick<WorldNotices, 'once'>) {
 }
 
 /**
- * The WebGL2 program's word (`MaterialDegraded`) that it draws a surface without physical
- * `features` it cannot draw (`physicalFeaturesLost`): said once per surface and feature, as
- * `material-degraded`, and the frame goes on. Heard once per version of a drawn surface
- * (`readDegraded`): a known feature is never said again.
- */
-export function noticeMaterialDegraded(notices: Pick<WorldNotices, 'say'>) {
-  const said = new WeakMap<object, Set<string>>();
-  return (
-    material: { readonly name: string; readonly family: string },
-    features: readonly string[],
-  ) => {
-    let known = said.get(material);
-    if (!known) said.set(material, (known = new Set()));
-    for (const feature of features) {
-      if (known.has(feature)) continue;
-      known.add(feature);
-      notices.say(
-        'material-degraded',
-        `${material.family} material "${material.name}" drawn on WebGL2 without ${feature}, ` +
-          `which WebGL2 cannot draw`,
-        { material: material.name, feature },
-      );
-    }
-  };
-}
-
-/**
  * The WebGL2 engine's word that a light asks to cast a shadow it draws none of: that path has no
  * shadow map (`CONTRACT_LIGHTS_LIGHTING`), so the light — sun, point or spot — is drawn
  * unshadowed, never silently: `shadows-refused` is said once per light, and again only once its

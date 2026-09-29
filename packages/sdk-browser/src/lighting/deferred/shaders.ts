@@ -12,7 +12,7 @@ import { BLOOM_COMPOSE_WGSL } from '../../effects/bloomLevel.ts';
 
 export const FULLSCREEN_VERTEX = `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}`;
 /** Last link of every composition: linear radiance carried into display space. */
-const SRGB_WGSL = `
+export const SRGB_WGSL = `
 fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(max(c,vec3f(0.0)),vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}`;
 /** View uniform, shared by both programs and by the water composite: `viewport` carries the
  *  size, the raw-output flag of diagnostic views and the rank of a sampled image
