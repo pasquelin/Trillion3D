@@ -3659,10 +3659,20 @@
     }
   },
   "TablePage": {
-    "summary": "Halaman yang dinamai sebuah slot: berkasnya, relatif terhadap tabel, ukurannya, dan sidik jarinya."
+    "summary": "Halaman yang dinamai sebuah slot: berkasnya, relatif terhadap tabel, ukurannya, dan sidik jarinya.",
+    "members": {
+      "url": "Berkasnya, relatif terhadap tabel.",
+      "bytes": "Ukurannya dalam byte.",
+      "sha256": "Sidik jari SHA-256-nya, dalam heksadesimal."
+    }
   },
   "TableSlot": {
-    "summary": "Halaman indeks yang dinamai sebuah slot, kotaknya pada pose yang dideklarasikan, dan peringkat inti yang tercantum di sampingnya: untuk indeks sel, induk tempat sel-selnya menggantungkan node (#575)."
+    "summary": "Halaman indeks yang dinamai sebuah slot, kotaknya pada pose yang dideklarasikan, dan peringkat inti yang tercantum di sampingnya: untuk indeks sel, induk tempat sel-selnya menggantungkan node (#575).",
+    "members": {
+      "page": "Halaman yang dinamai slot.",
+      "bounds": "Kotaknya pada pose yang dideklarasikan: sudut minimum, lalu maksimum.",
+      "parents": "Peringkat inti yang tercantum di sampingnya."
+    }
   },
   "TableTexture": {
     "summary": "Status sampler satu tekstur glTF, dalam kata-kata mesin.",
