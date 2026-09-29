@@ -2073,9 +2073,11 @@
   "TableGrowthReport": {
     "summary": "Pertumbuhan tabel yang ukurannya ditentukan per baris yang dapat digambar, sebagaimana diminta pool di atasnya.",
     "members": {
-      "drawSlots": "Baris visibilitas, lalu setiap baris yang dibaca pass bayangan, sesuai kondisi tabel sekarang.",
+      "drawSlots": "Baris visibilitas yang kini dimuat tabel.",
+      "casterSlots": "Baris yang dibaca pass bayangan, setelah baris visibilitas.",
       "bytes": "Byte yang dimuat tabel GPU yang membesar — yang diminta, bila ditolak.",
-      "refused": "`true` bila perangkat menolaknya: tabel dan pool yang ada dipertahankan."
+      "refused": "`true` bila perangkat menolaknya: tabel dan pool yang ada dipertahankan.",
+      "durationMs": "Milidetik yang dibutuhkan pertumbuhan, dari probe sampai penukaran."
     }
   },
   "Mesh": {

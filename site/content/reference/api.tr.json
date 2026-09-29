@@ -2055,9 +2055,11 @@
   "TableGrowthReport": {
     "summary": "Çizilebilir satıra göre boyutlanan tabloların büyümesi, üstlerindeki bir havuzun istediği biçimde.",
     "members": {
-      "drawSlots": "Görünürlük satırları, ardından gölge geçişinin okuduğu her satır; tabloların şimdiki durumu.",
+      "drawSlots": "Tabloların şimdi tuttuğu görünürlük satırları.",
+      "casterSlots": "Gölge geçişinin okuduğu satırlar; görünürlük satırlarından sonra gelir.",
       "bytes": "Büyütülen GPU tablolarının tuttuğu bayt sayısı; reddedildiyse istenen bayt sayısı.",
-      "refused": "Aygıt reddettiğinde `true`: mevcut tablolar ve havuz korunur."
+      "refused": "Aygıt reddettiğinde `true`: mevcut tablolar ve havuz korunur.",
+      "durationMs": "Büyümenin sürdüğü milisaniye; yoklamadan takasa kadar."
     }
   },
   "Mesh": {
