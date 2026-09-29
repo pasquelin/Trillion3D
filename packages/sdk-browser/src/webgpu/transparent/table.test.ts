@@ -9,20 +9,20 @@ import { evaluateTransparentCompaction } from './compactCpu.fixture.ts';
 import { CULL_STRIDE } from '../../gpu/dag/types.ts';
 
 const mesh = (name: string) => ({ name }) as unknown as G.HostMesh;
-// A placement is named by the world its pages and its item read: here, one per mesh.
+// A placement is named by the world its root and its item read: here, one per mesh.
 const rec = (sourceMesh: G.HostMesh, id: number, sourceOrder: number, transparent = true) =>
   ({
     id,
     sourceOrder,
     transparent,
     sourceMesh,
-    matrix: sourceMesh,
     triangles: 1,
   }) as unknown as PageRec;
 
 /** One primitive: its pages, and optionally the culling tree the cut walks them with. */
 function root(pages: PageRec[], leaves?: number[][]): ClusterRoot<PageRec> {
-  if (!leaves) return { pages } as unknown as ClusterRoot<PageRec>;
+  const world = pages[0]?.sourceMesh;
+  if (!leaves) return { pages, world } as unknown as ClusterRoot<PageRec>;
   // A root node over `leaves.length` leaves, each holding a contiguous run of pages.
   const nodes = new Float64Array((leaves.length + 1) * CULL_STRIDE);
   nodes[12] = leaves.length;
@@ -35,7 +35,11 @@ function root(pages: PageRec[], leaves?: number[][]): ClusterRoot<PageRec> {
     nodes[base + 14] = leaves[leaf].length;
     first += leaves[leaf].length;
   }
-  return { pages, culling: { nodes, stride: CULL_STRIDE } } as unknown as ClusterRoot<PageRec>;
+  return {
+    pages,
+    world,
+    culling: { nodes, stride: CULL_STRIDE },
+  } as unknown as ClusterRoot<PageRec>;
 }
 const item = (sourceMesh: G.HostMesh | undefined, paged: boolean) =>
   ({ sourceMesh, matrix: sourceMesh, paged }) as unknown as BlendGpuItem;

@@ -45,8 +45,8 @@ export async function world(seed: number, lot: boolean, whole: boolean) {
   const roots = meshes.map((mesh, i) => {
     const low = [draw() - 1, draw() - 1, draw() - 1];
     const root = racine(mesh, [...low, low[0] + 2 * draw(), low[1] + draw(), low[2] + 3], worlds);
-    // The page carries its root's world, as a collected page does: its row is that matrix.
-    Object.assign(root.pages[0], { packedIndex: i, matrix: root.world });
+    // The page ranks its root, as a collected page does: its row is that root's world.
+    Object.assign(root.pages[0], { packedIndex: i, placementIndex: i });
     return root;
   });
   const { rt, layout, run, mouvements } = runtime(source, roots, worlds);
