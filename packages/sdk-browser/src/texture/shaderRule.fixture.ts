@@ -27,7 +27,8 @@ export function functionsOf(source: string, names: string[]) {
 export function wgslConstants(source: string) {
   const found: Record<string, number> = {};
   for (const [, name, literal] of source.matchAll(/\bconst (\w+):(?:f32|u32|i32)=([^;]+);/g)) {
-    const value = Number(literal.replace(/[uif]$/, ''));
+    // A hex digit `f` is no suffix: `0xff` is 255, not `0xf`.
+    const value = Number(literal.replace(/^0x/i.test(literal) ? /[ui]$/ : /[uif]$/, ''));
     if (Number.isFinite(value)) found[name] = value;
   }
   return found;
