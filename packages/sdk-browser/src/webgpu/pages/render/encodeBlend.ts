@@ -23,10 +23,10 @@ import { encodeShadowReadback } from './encodeShadows.ts';
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts';
 import { encodeTaaPass, taaSampledRank } from '../../../taa/frame.ts';
 import { encodeEffects } from './encodeEffects.ts';
+import { seedAsIsShare } from '../prepare/asIsShareTarget.ts';
 import {
   directLightResources,
   readsAsIs,
-  seedShare,
   wantsContractLighting,
 } from '../prepare/lightResources.ts';
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts';
@@ -170,7 +170,7 @@ export function encodeSurfaceLighting(
   );
   gpu.reflection?.update(viewProj, gpu.deferred.usesContract && !raw, gpu.targetSize);
   gpu.deferred.light(encoder, gpu.hdrView, gpu.reflection);
-  const blendShare = seedShare(rt, encoder);
+  const blendShare = seedAsIsShare(rt, device, encoder);
   const filter = beginDisplayFilter(rt, device);
   if (gpu.reflection?.active && gpu.deferred.usesContract) run.gpuDrawCalls++;
   run.gpuDrawCalls++;

@@ -345,7 +345,6 @@
       "drag-a-crate": "Arrastrar una caja"
     },
     "missing": {
-      "inside-a-component": "retirada del lienzo creado por el motor al liberar el mundo",
       "thick-lines": "líneas anchas",
       "a-line-that-draws-itself": "rango de dibujo de una geometría",
       "shapes-from-an-svg": "importación de trazados SVG",

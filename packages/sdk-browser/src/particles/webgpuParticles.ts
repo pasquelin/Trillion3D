@@ -17,9 +17,8 @@ export const PARTICLES_PASS = 'Trillion3D particles';
 /** Slots one workgroup steps. */
 export const PARTICLE_WORKGROUP = 64;
 
-/** One invocation per slot: the record the ring gives it this image replaces it, then a live
- *  particle moves, its position counted from the pool's origin; a dead one nobody emitted into
- *  is left as it is. */
+/** One invocation per slot: the ring's record this image replaces it, then a live particle moves
+ *  (position from the pool's origin); a dead one nobody emitted into is left as it is. */
 export const PARTICLES_WGSL = /* wgsl */ `
 struct Particle { position: vec4f, velocity: vec4f }
 struct Step { acceleration: vec3f, dt: f32, first: u32, count: u32, capacity: u32, pad: u32 }
@@ -163,19 +162,20 @@ export function encodeParticles(
   rt.run.gpuComputeDispatches += rt.gpu.particles.run(pools, encoder);
 }
 
-/** What this image draws the world's pools with — in beauty, once a camera and the targets are —;
- *  `undefined` when it draws none. */
-export function particleDrawOf({ run, gpu, context }: WebgpuPagesRuntime) {
-  const { hdrView, depthView, asIsShare, particles } = gpu,
-    pools = context.particles;
-  if (!pools || !particles || !hdrView || !depthView || !asIsShare || !run.lastCamera) return;
-  if (run.diagnostic !== 'beauty') return;
-  return { pools, particles, hdrView, depthView, reactive: asIsShare.view };
+/** Whether this image draws the world's pools: it has some, and shows beauty. */
+export const drawsParticles = (rt: Pick<WebgpuPagesRuntime, 'context' | 'run'>) =>
+  !!rt.context.particles && rt.run.diagnostic === 'beauty';
+
+/** What this image draws the pools with, once a camera and the targets are; else `undefined`. */
+function particleDrawOf(rt: WebgpuPagesRuntime) {
+  const { hdrView, depthView, asIsShare, particles } = rt.gpu;
+  const pools = rt.context.particles;
+  if (!pools || !particles || !hdrView || !depthView || !asIsShare || !rt.run.lastCamera) return;
+  if (drawsParticles(rt)) return { pools, particles, hdrView, depthView, reactive: asIsShare.view };
 }
 
-/** The world's stepped pools drawn over the lit image and its transparents, in beauty only, their
- *  coverage as the reactive value (`asIsShare.ts`); `tone`, the image's exposure and curve
- *  (`directTiles`), shows a routed disc. */
+/** The stepped pools over the lit image and its transparents, in beauty, their coverage the reactive
+ *  value (`asIsShare.ts`); `tone`, the exposure and curve (`directTiles`), shows a routed disc. */
 export function drawParticles(
   rt: WebgpuPagesRuntime,
   encoder: GPUCommandEncoder,

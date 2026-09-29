@@ -345,7 +345,6 @@
       "drag-a-crate": "Eine Kiste ziehen"
     },
     "missing": {
-      "inside-a-component": "Entfernen der vom Engine erstellten Zeichenfläche beim Freigeben der Welt",
       "thick-lines": "breite Linien",
       "a-line-that-draws-itself": "Zeichenbereich einer Geometrie",
       "shapes-from-an-svg": "Import von SVG-Pfaden",

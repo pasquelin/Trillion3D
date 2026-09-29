@@ -9,6 +9,7 @@ import { RUN_SHARED, RUN_WORDS, runOwner } from './runs.ts';
 import { itemKept } from './expandCpu.ts';
 import { routedFilter, type DisplayFilter } from './displayFilter.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts';
 
 /**
  * Bind group of a blend pass: vertex buffers, item records, atlases and lighting. A paged item
@@ -50,6 +51,7 @@ export function drawBlendRuns(
   slice: number,
   pipelines: RankedPipelines,
   filter?: DisplayFilter,
+  share = false,
 ) {
   const { blendState } = rt,
     items = blendState.blendGpu,
@@ -77,7 +79,7 @@ export function drawBlendRuns(
     if (boundPipeline !== planPipeline(entry)) {
       boundPipeline = planPipeline(entry);
       // The blend pass compiles a mode first written after it was built (`pipelines.ts`).
-      const pipeline = pipelines.at(boundPipeline, !!filter);
+      const pipeline = pipelines.at(boundPipeline, !!filter, share);
       if (!pipeline) throw new Error(`blend pipeline ${boundPipeline} was not built for the scene`);
       pass.setPipeline(pipeline);
     }
@@ -117,6 +119,7 @@ export function drawBlendPass(
   // Nothing to encode without runs, or without the arguments the GPU wrote for them.
   if (!blendState.runCount[slice] || !blendState.argsBuffer) return false;
   if (filter && !transmissive) drawDisplayMask(rt, device, encoder, filter);
+  const share = activeAsIsShare(rt);
   // Diagnostic only: the counting variant opens an occlusion query around the pass.
   const overdraw = countsBlendOverdraw(rt.context?.diagnosticGpuVariant)
     ? (blendState.overdraw ??= createBlendOverdraw(device))
@@ -132,11 +135,8 @@ export function drawBlendPass(
       },
       // Virtual-texture feedback, opened by the first pass that writes it.
       ...(rt.feedbackAB?.target === false ? [] : [feedbackAttachment(rt)]),
-      {
-        view: gpu.asIsShare!.view,
-        loadOp: 'load',
-        storeOp: 'store',
-      },
+      // The share a debug view or the temporal pass reads; an empty slot otherwise (#365).
+      share ? { view: share.view, loadOp: 'load', storeOp: 'store' } : null,
       // The display layers of an image whose blends filter (`displayFilter.ts`).
       ...(filter ? filter.attachments() : []),
     ],
@@ -144,7 +144,7 @@ export function drawBlendPass(
   });
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
   overdraw?.begin(pass, transmissive);
-  const encoded = drawBlendRuns(rt, device, pass, slice, vis.blendPipelines!, filter);
+  const encoded = drawBlendRuns(rt, device, pass, slice, vis.blendPipelines!, filter, !!share);
   overdraw?.end(pass);
   pass.end();
   overdraw?.after(encoder);
