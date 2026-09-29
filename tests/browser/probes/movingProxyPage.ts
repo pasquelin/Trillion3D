@@ -72,16 +72,18 @@ function carried(triangles: Float32Array) {
   return (source: number) => worlds.get(source) ?? IDENTITY_MATRIX4;
 }
 
-/** Level rays through the lifted owners, then slanted rays down onto the floor. */
+/** Level rays through the lifted owners, then slanted rays down onto floor triangles. */
 function largeRays() {
   const rays: number[] = [];
   const level = Math.hypot(1, 0.05),
     slant = Math.hypot(0.3, 0.2, 1);
   for (let row = 0; row < 256; row++)
     rays.push(-1, row * 0.5 + 0.05, 3, 0, 1 / level, 0.05 / level, 0, 0);
+  // Each aimed at a point of a floor triangle, (0.2, 0.1) into its cell where its face rises to
+  // 0.1 m: a ray that misses the moved owners lands on the floor, never in a gap between tiles.
   for (let cell = 0; cell < 256; cell++) {
-    const x = (cell % 16) * 8 + 0.3,
-      y = (cell >> 4) * 8 + 0.7;
+    const x = (cell % 16) * 8 + 0.2 - 0.3 * 4.9,
+      y = (cell >> 4) * 8 + 0.1 - 0.2 * 4.9;
     rays.push(x, y, 5, 0, 0.3 / slant, 0.2 / slant, -1 / slant, 0);
   }
   return new Float32Array(rays);
