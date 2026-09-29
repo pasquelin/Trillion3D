@@ -1,9 +1,9 @@
 // The engine's reference images (#1281): where `reference.ts` writes them, what each carries, and
 // how the class-2 proof (`referenceProof.ts`) reads them back.
-import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { decodePng } from '../../packages/sdk-node/src/cutout/png.mts';
+import { sha256 } from '../../packages/sdk-node/src/compiler/provenance.mts';
 import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
 import type { Capture } from '../../tests/kit/server/staticServer.ts';
 import type { BenchSettings } from './benchSettings.ts';
@@ -95,8 +95,8 @@ export function readReference(scene: string, dir = REFERENCES_DIR): ReferenceRec
  *  not the ones `reference.json` names. */
 const decoded = new WeakMap<ReferenceRecord, Map<string, NonNullable<Capture>>>();
 export function referenceImage(record: ReferenceRecord, view: string, dir = REFERENCE_IMAGES_DIR) {
-  const images = decoded.get(record) ?? new Map<string, NonNullable<Capture>>();
-  decoded.set(record, images);
+  let images = decoded.get(record);
+  if (!images) decoded.set(record, (images = new Map()));
   let image = images.get(view);
   if (image) return image;
   const { scene, commit, views } = record;
@@ -104,8 +104,8 @@ export function referenceImage(record: ReferenceRecord, view: string, dir = REFE
   const redraw = `draw it at ${commit.slice(0, 12)}: node bench/runner/reference.ts --scene ${scene}`;
   if (!existsSync(file)) throw new Error(`no reference image ${file}; ${redraw}`);
   const { width, height, rgba } = decodePng(readFileSync(file), true);
-  image = { body: Buffer.from(rgba), w: width, h: height };
-  if (createHash('sha256').update(image.body).digest('hex') !== views[view].sha256)
+  image = { body: Buffer.from(rgba.buffer, rgba.byteOffset, rgba.byteLength), w: width, h: height };
+  if (sha256(image.body) !== views[view].sha256)
     throw new Error(`${file} is not the image reference.json names (SHA-256); ${redraw}`);
   images.set(view, image);
   return image;

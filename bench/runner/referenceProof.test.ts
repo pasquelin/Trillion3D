@@ -1,12 +1,12 @@
 // #1281: `bench.ts --reference` holds each capture to the engine's reference image of its scene and
 // view, and refuses by name a run that cannot be compared with it.
-import { createHash } from 'node:crypto';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
+import { sha256 } from '../../packages/sdk-node/src/compiler/provenance.mts';
 import { againstReference, referenceLines, sceneReference } from './referenceProof.ts';
 import { imageSettings, referenceImage, type ReferenceRecord } from './referenceStore.ts';
 import { rapport } from './summaryTestFixtures.ts';
@@ -18,8 +18,7 @@ function stored(settings: BenchSettings, pose: unknown) {
   const body = Buffer.from([255, 0, 0, 255, 255, 0, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255]);
   mkdirSync(join(dir, 'scene-test'));
   writeFileSync(join(dir, 'scene-test', 'salon.png'), encodePng(2, 2, body, true));
-  const sha256 = createHash('sha256').update(body).digest('hex');
-  const view = { pose, file: 'salon.png', sha256, width: 2, height: 2, settleFrames: 1 };
+  const view = { pose, file: 'salon.png', sha256: sha256(body), width: 2, height: 2, settleFrames: 1 };
   const record = {
     scene: 'scene-test',
     commit: 'abcdef0123456789',
