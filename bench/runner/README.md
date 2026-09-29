@@ -140,7 +140,7 @@ All are read on **a single frame**: the last frame of the measured loop, indexed
 
 `resume.md` also features "Per-stage Cost": one line per frame stage, CPU and GPU p50/p95 columns (never summed), plus shadow metrics (lights, re-rendered faces, draw calls), device timing method, and profiling overhead. Stored as-is in `measure.json` under `series[].sides[].stageProfile`. "Unmeasured" is not zero.
 
-Finer than the stages, `series[].sides[].cpuBounds` holds the engine's CPU bounds over the same window as the per-stage profile (`explorer.cpuSteps()`, read once after the measured loop): `frames` is how many images filed a row, `steps` the p50/p95/max of each named bound (`gateMs`, `worldMs`, `selectionDispatchMs`, …) over the images that filed it — a bound no image filed reads `null` — and `worst` the rows of the slowest images. `null` where the path keeps no row (the CPU reference cut), with `--profile off`, or on a dist older than #80.
+Finer than the stages, `series[].sides[].cpuBounds` holds the engine's CPU bounds over the same window as the per-stage profile (`explorer.cpuSteps()`, read once after the measured loop): `frames` is how many images filed a row, `steps` the p50/p95/max of each named bound (`gateMs`, `worldMs`, `selectionDispatchMs`, …) over the images that filed it — a bound no image filed reads `null` — and `worst` the rows of the slowest images. The shadow split (#1207) is read there by name: `cpuBounds.steps.shadowPlanMs`, `shadowRequestsMs`, `shadowAdmissionMs` (planning), `shadowBatchesMs`, `shadowRegionsMs`, `shadowPassesMs` (encoding), each inside the encode bounds and never added to them; the same steps come per frame in the metrics as `cpuShadow*Ms` and in the `cpu-timing` diagnostic's `steps`. `null` where the path keeps no row (the CPU reference cut), with `--profile off`, or on a dist older than #80.
 
 "GPU Memory" section reports allocated and un-freed VRAM per side and view — textures and buffers tracked via device wrapper register, WebGPU having no native VRAM query —, split into three named categories (computed texture atlas, allocated geometry pool, resolution-dependent render targets), remaining by difference, with top labeled allocations; full breakdown in `series[].sides[].metrics.gpuAllocatedByLabel`. The nineteen virtual texture counters appear under each stage ("Textures", "Image Feedback", "Broadcaster"): pool is fixed, "resident" is active view usage.
 
@@ -197,6 +197,14 @@ and the subdivision is whatever reaches the requested triangle count (a few hund
 default, also drawn from the seed). `tests/browser/probes/public-scenes.ts` reads what these caches
 guarantee — a DAG that climbs above level 0 wherever there is more than one cluster to coarsen, and
 a mirrored mapping that costs the simplification nothing — in a tenth of a second, without a GPU.
+
+An **aerial** scene is generated too (#410): an open world's pattern, cooked in seconds — 4 × 4 km
+of rolling ground in 64 tiles, a few props (trees, bushes, houses, rocks) written once and placed by
+thousands of nodes, about 39 M instanced triangles on a source of 0.6 M, and street lamps as
+`KHR_lights_punctual` point lights. The `overview` view flies over it:
+
+    node bench/runner/scenes/aerial.ts --seed 410 [--props 3600] [--lamps 600]
+    node bench/runner/assets.ts --only aerial-410
 
 Resource base URL is where harness serves sources for compiled glTF texture fetch. Cache fingerprint is `key` in `manifest.json`, recorded in `measure.json`: comparisons require identical keys.
 

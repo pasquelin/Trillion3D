@@ -13,14 +13,15 @@ test('a clearcoat surface is drawn on WebGL2, said once, the loop never stopped'
   const coat = new GraphSurface('physical', { clearcoat: 1, clearcoatRoughness: 0.1 });
   const scene = new Scene().add(G.triangleMesh(coat), G.triangleMesh(coat));
   const view = session(scene, new EffectChain());
+  // The two meshes of one surface at one placement are one submission (#840).
   const said = await heard(view, () => {
     for (let frame = 0; frame < 3; frame++)
-      assert.deepEqual(view.frame(), { chained: false, submitted: 2 });
+      assert.deepEqual(view.frame(), { chained: false, submitted: 1 });
     // A second feature of the same surface is its own notice; a known one is never said again.
     coat.sheen = 1;
     coat.needsUpdate = true;
-    assert.deepEqual(view.frame(), { chained: false, submitted: 2 });
-    assert.deepEqual(view.frame(), { chained: false, submitted: 2 });
+    assert.deepEqual(view.frame(), { chained: false, submitted: 1 });
+    assert.deepEqual(view.frame(), { chained: false, submitted: 1 });
   });
   assert.deepEqual(said, ['material-degraded', 'material-degraded']);
 });
