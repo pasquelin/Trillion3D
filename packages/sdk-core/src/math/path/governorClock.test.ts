@@ -6,17 +6,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PATH_EXPLORE_EVERY, PATH_MIN_SAMPLES, createPathGovernor } from './governor.ts';
 import type { MathPath, MathPathMode, MathPathOperation } from './contracts.ts';
-
-/** Seeded generator in [0, 1), the audit's `rng` (mulberry32). */
-function rng(seed: number) {
-  let s = seed >>> 0;
-  return () => {
-    s = (s + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(s ^ (s >>> 15), s | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+import { HOSTILE_FLOATS } from '../../../../../tests/kit/assert/hostile.ts';
+import { mulberry32 } from '../../../../../site/examples/kit/random.ts';
 
 /** The governor before pooling, on a fine clock: every timed execution is one sample, the median
  *  a typed sort of the last 30 samples, switching after 5 runs at a 20% lead. */
@@ -75,11 +66,11 @@ function reference() {
   };
 }
 
-const EDGE_MS = [NaN, 0, -0, Infinity, -Infinity, Number.MIN_VALUE, Number.MAX_VALUE, -1, null];
+const EDGE_MS = [...HOSTILE_FLOATS, Number.MAX_VALUE, -1, null];
 const EDGE_ELEMENTS = [0, -1, 1, Number.MAX_SAFE_INTEGER];
 
 test('on a fine clock, 10,000 random observations and every edge case match the unpooled governor', () => {
-  const random = rng(919);
+  const random = mulberry32(919);
   let t = 0;
   const governor = createPathGovernor(() => (t += 0.001));
   const expected = reference();
@@ -140,7 +131,7 @@ test('a coarse pool: a NaN closes it at once, a missing timer drops it', () => {
 
 test('a coarse clock now arbitrates: a path three times faster wins, read through 1 ms steps', () => {
   const g = coarseGovernor();
-  const random = rng(20);
+  const random = mulberry32(20);
   const cost = { js: 0.1, wasm: 0.3 };
   let t = 0;
   for (let i = 0; i < 60_000; i++) {

@@ -7,9 +7,9 @@
 /** Executions retained per path: the median then follows a minute of play, not a frame. */
 const PATH_WINDOW = 30;
 /**
- * Clock resolution beyond which no arbitration is attempted. An engine batch lasts
- * tenths of a millisecond: a coarser clock than that yields only zeros and jumps,
- * from which no median comes. This is not a machine constant, it is the order of magnitude of
+ * Clock resolution beyond which one execution is not timed alone but pooled (`PooledTiming`). An
+ * engine batch lasts tenths of a millisecond: a coarser clock than that yields only zeros and
+ * jumps, from which no median comes. This is not a machine constant, it is the order of magnitude of
  * what is measured.
  */
 export const CLOCK_RESOLUTION_MS = 0.1;
