@@ -3,7 +3,7 @@
 use crate::geometry_page::Attribute;
 use crate::geometry_page_quant::{max_error, oct_encode, quantize, COLOR_EXPONENT};
 use crate::{CompilerError, Result};
-use trillion3d_page_codec::bits::Quant;
+use trillion3d_page_codec::bits::{bits_for, stream_words, Quant};
 use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
 /// The page's vertices, `width` floats each, gathered from the primitive's `source_width`-wide
@@ -102,4 +102,30 @@ pub fn grids(
         color: color_record,
         quantization_error,
     })
+}
+
+/// The positions the page stores and, when it stores each once, every vertex's link to its own
+/// (CMP-10, #960): a flat-shaded page repeats a corner's position under every face normal meeting
+/// there. The distinct positions, in first-use order, are kept when they and the links take fewer
+/// words than one position per vertex; otherwise every vertex keeps its own, with no link. The
+/// decoded vertices are the same either way.
+pub fn stored_positions(unique: &[Cell], bits: [u32; 3]) -> (Vec<[u32; 3]>, Option<Vec<u32>>) {
+    let mut table = Vec::<[u32; 3]>::new();
+    let mut rank = std::collections::HashMap::<[u32; 3], u32>::new();
+    let links: Vec<u32> = unique
+        .iter()
+        .map(|cell| {
+            *rank.entry(cell.position).or_insert_with(|| {
+                table.push(cell.position);
+                (table.len() - 1) as u32
+            })
+        })
+        .collect();
+    let words = |count: usize| bits.iter().map(|&b| stream_words(count, b)).sum::<usize>();
+    let link_bits = bits_for(table.len() as u32 - 1);
+    if words(table.len()) + stream_words(unique.len(), link_bits) < words(unique.len()) {
+        (table, Some(links))
+    } else {
+        (unique.iter().map(|cell| cell.position).collect(), None)
+    }
 }
