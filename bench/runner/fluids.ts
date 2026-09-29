@@ -1,4 +1,4 @@
-// The fluids bench scene (#418), `--scene fluids` on `--moteur webgpu|webgl2`: one ocean, 100
+// The fluids bench scene (#418), `--scene fluids` on `--engine webgpu|webgl2`: one ocean, 100
 // floating bodies, 20 fires and 5 smoke volumes, declared here and built in the page through the
 // public API (`fluidsPage.ts`). The waves and bodies are the physics fixtures (`OCEAN`,
 // `floatingBodies`); what the engine does not draw yet is a THROWAWAY STAND-IN: a flat
@@ -66,7 +66,7 @@ export type FluidsScene = ReturnType<typeof fluidsScene>;
 /** What one side sends into the page: the bench settings are plain data, sent whole. */
 function fluidsPayload(side: Side, settings: BenchSettings, scene: FluidsScene) {
   const renderer = side.engine.renderer;
-  if (!renderer) throw new Error('--scene fluids draws on --moteur webgpu or webgl2 only');
+  if (!renderer) throw new Error('--scene fluids draws on --engine webgpu or webgl2 only');
   return {
     side: side.name,
     sdkUrl: sdkEntryUrl(side),
@@ -107,8 +107,8 @@ async function fluidsRow(
     physicsMainMs: distribution(result.physicsMainMs),
     canvas: result.size,
     png: capture ? payload.captureFile : null,
-    incidentsGpu: result.lost.length ? result.lost : null,
-    charge: { debut: loadAtStart, fin: machineLoad() },
+    gpuIncidents: result.lost.length ? result.lost : null,
+    load: { start: loadAtStart, end: machineLoad() },
   };
 }
 export type FluidsRow = Awaited<ReturnType<typeof fluidsRow>>;
@@ -149,8 +149,8 @@ export function fluidsLines(rows: FluidsRow[] | undefined) {
       `### ${r.side}: GPU passes`,
       '',
       ...passes(r.passesGpu),
-      ...(r.incidentsGpu ? [`- GPU incidents: ${r.incidentsGpu.join(', ')}`] : []),
-      `- Machine load at start ${r.charge.debut.join(' ')}, at end ${r.charge.fin.join(' ')}`,
+      ...(r.gpuIncidents ? [`- GPU incidents: ${r.gpuIncidents.join(', ')}`] : []),
+      `- Machine load at start ${r.load.start.join(' ')}, at end ${r.load.end.join(' ')}`,
       '',
     ]),
   ];

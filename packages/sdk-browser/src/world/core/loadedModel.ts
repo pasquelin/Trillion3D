@@ -105,10 +105,7 @@ export class LoadedModel extends Object3D {
    *  clusters its pages hold, every level of its DAGs counted. */
   get metadata() {
     const manifest = this.record.metadata;
-    const clusters = manifest.primitives.reduce(
-      (sum, primitive) => sum + primitive.pages.length,
-      0,
-    );
+    const clusters = manifest.primitives.reduce((sum, { pages }) => sum + pages.length, 0);
     return { ...manifest, clusters };
   }
   override localBounds() {
@@ -133,7 +130,8 @@ function plannedFiles(declared: ReadonlyMap<string, number>, base: string) {
 /**
  * Reads a compiled model — its manifest, then its source graph (`loadPreparedScene`) — for a
  * world. `textureSource: 'cache'` leaves the images whose levels the cache baked unread: what a
- * WebGPU world's first model does; any other path samples the images themselves. `onProgress`
+ * WebGPU world's first model does; any other path samples the images themselves. `lazy` holds the
+ * manifest by the view (#751), as a WebGL2 world does, whose session mounts it in place. `onProgress`
  * hears `bytes` against the files it reads (`plannedFiles`) as each chunk lands (`byteMeter`), the
  * manifest read, the scene tables read, then each resource the scene reads (`loadPreparedScene`).
  */
@@ -143,6 +141,7 @@ export async function loadModel(
     scope?: AssetScope;
     signal?: AbortSignal;
     textureSource: 'host' | 'cache';
+    lazy?: boolean;
     onProgress?: (event: JobProgress) => void;
   },
 ): Promise<LoadedModel> {
@@ -154,8 +153,8 @@ export async function loadModel(
     : unmetered;
   // A scope the page named is enforced; none named, the model is read at the one its pointer
   // declares (`loadClusterManifest`).
-  const loaded = await loadClusterManifest(manifestUrl, options.scope, signal, meter);
-  const { metadata, metadataUrl, base, declared } = loaded,
+  const loaded = await loadClusterManifest(manifestUrl, options.scope, signal, meter, options.lazy);
+  const { metadata, metadataUrl, base, declared, pages } = loaded,
     scope = metadata.scope;
   onProgress?.({ phase: 'manifest', completed: 1, total: 1, message: `Read ${metadataUrl}` });
   const [scene, imported] = await Promise.all([
@@ -164,6 +163,7 @@ export async function loadModel(
         manifestUrl,
         textureSource,
         meter,
+        pages,
         onTables: () => meter.plan(plannedFiles(declared, base)),
         onPreparation: (event) => onProgress?.({ ...event }),
       },
@@ -183,6 +183,7 @@ export async function loadModel(
     loadImportedLights(base, signal, meter),
   ]);
   meter.settle();
+  loaded.settle();
   const model = new LoadedModel({
     manifestUrl,
     metadataUrl,

@@ -9,15 +9,15 @@ import {
 import { drawnPageIds, installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
 import { quadScene, camera, disposeQuadRun, flushedGpuScene } from '../testScenes.fixture.ts';
 
-// The compute raster is created only under `raster-calcul` or `raster-hybride`: the cut then goes
+// The compute raster is created only under `raster-compute` or `raster-hybrid`: the cut then goes
 // to compute — binning, occluder depth, the rest, identifiers — between the hardware passes that
 // open the image. That is the compute side of the bit-exact bench (Geometry 26, point 3).
-test('the raster-calcul variant hands the whole cut to the compute raster', async () => {
+test('the raster-compute variant hands the whole cut to the compute raster', async () => {
   installGpuGlobals();
   const fixture = quadScene();
   const { draws, computes, buffers, packed, backend } = await flushedGpuScene(fixture, {
     diagnosticDetail: 'trace',
-    diagnosticGpuVariant: 'raster-calcul',
+    diagnosticGpuVariant: 'raster-compute',
   });
   draws.length = 0;
   computes.length = 0;

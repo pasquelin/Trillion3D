@@ -64,7 +64,7 @@ export function Details({ record, report, locale, label }: DetailsProps) {
   return (
     <div className="grid min-w-0 grid-cols-1 gap-4 [&_dd]:break-all">
       <h3 className="text-lg font-semibold">{readingName(record, locale)}</h3>
-      {record.data.imageTenue && <Alert>{t('report.idle')}</Alert>}
+      {record.data.frameHeld && <Alert>{t('report.idle')}</Alert>}
       <dl>
         {fields.map(([title, value]) => (
           <div key={title}>
@@ -76,7 +76,7 @@ export function Details({ record, report, locale, label }: DetailsProps) {
       <Timings
         title={t('report.cpuSteps')}
         locale={locale}
-        rows={record.data.profilParEtape?.stages?.map((s) => [s.stage, s.cpuMs])}
+        rows={record.data.stageProfile?.stages?.map((s) => [s.stage, s.cpuMs])}
       />
       <Timings
         title={t('report.gpuPasses')}

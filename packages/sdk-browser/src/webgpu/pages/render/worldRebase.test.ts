@@ -27,7 +27,7 @@ function image(count: number, next: () => number) {
   const rt = {
     setup: { worlds: {} },
     layout: { selectionRoots, worldUpdates: new Float32Array(count * 16), rows: { tableEpoch: 1 } },
-    timing: { worldCounts: { racinesRebasees: 0 } },
+    timing: { worldCounts: { rootsRebased: 0 } },
     run: {
       gate: { updateWorlds: () => false, revisions: { scene: 3 } },
       worldUploadRevision: 3,

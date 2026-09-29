@@ -5,7 +5,7 @@ import { createCellBoxes } from './boxes.ts';
 
 /** A cell at the origin of the root, and one 5 km off under a core node. */
 function world() {
-  const cell = { sha256: '', bytes: 1, meshes: [[0, 1] as const] };
+  const cell = { sha256: '', bytes: 1, meshes: [[0, 1] as const], meshPages: [] };
   const cells = [
     { ...cell, url: 'near.json', parents: [[null, [0, 0, 0, 1, 1, 1]] as const] },
     { ...cell, url: 'far.json', parents: [[0, [5000, 0, 0, 5001, 1, 1]] as const] },
