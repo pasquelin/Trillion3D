@@ -152,6 +152,8 @@ test('a mesh a hidden core node names is placed visible by the cells', async () 
     bounds: [0, 0, 0, 1, 1, 1],
     meshes: [0],
     totals: new Map(),
+    rows: new Map(),
+    cube: 1,
     parents: [],
     pages: [],
   };

@@ -26,16 +26,14 @@ export interface CellNode {
   scale: readonly number[] | null;
 }
 
-/** The nodes of a cell file, or a named refusal. */
-export function assertCellNodes(value: unknown): readonly CellNode[] {
+/** The nodes of a cell file, read from `url`, or a named refusal. */
+export function assertCellNodes(value: unknown, url = 'scene cell'): readonly CellNode[] {
   const cell = value as { version?: number; nodes?: CellNode[] } | null;
   if (!cell || cell.version !== CELL_VERSION || !Array.isArray(cell.nodes))
     throw new EngineError(
       'INVALID_SCENE_TABLES',
-      `scene cell is not a version ${CELL_VERSION} node list`,
-      {
-        version: cell?.version ?? null,
-      },
+      `${url} is not a version ${CELL_VERSION} node list`,
+      { version: cell?.version ?? null },
     );
   return cell.nodes;
 }
