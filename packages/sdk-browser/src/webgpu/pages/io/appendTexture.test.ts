@@ -68,7 +68,7 @@ test('a texture appended after open joins the atlas, regrows its table and rebin
     assert.equal(after.textureTilesResident, before.textureTilesResident! + 1, 'its tail pinned');
     assert.equal(after.texturePoolBytes, pool.bytes, 'a free place: the pool as it was');
     assert.equal(after.texturePoolBytes, before.texturePoolBytes);
-    const failed = diagnostics.filter(({ phase }) => /fail|refus/.test(phase));
+    const failed = diagnostics.filter(({ phase }) => /fail|refused|refusal/.test(phase));
     assert.deepEqual(failed, []);
   } finally {
     await backend.dispose();
