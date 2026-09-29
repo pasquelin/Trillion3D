@@ -5,13 +5,15 @@ import type { WaterBounds } from './bounds.ts';
  * The backdrop freeze of the water pass: the lit image copied within the refraction reach, the
  * opaque depth copied into the depth the surface stage tests. WebGPU copies a depth texture only
  * whole: under a partial surface rectangle the depth is restored texel by texel within it
- * (`depthRestore.ts`). Without active bounds (`bounds.ts`), both cover the full target.
+ * (`depthRestore.ts`). Without active bounds (`bounds.ts`), both cover what the image draws: the
+ * full target, or its top-left below it (`../pages/state/renderScale.ts`), restored then too.
  * The descriptors are the frame's, rewritten in place: a frame allocates nothing.
  */
 export async function createWaterFreeze(device: GPUDevice) {
   const restore = await createWaterDepthRestore(device);
   const origin = { x: 0, y: 0 },
     size = { width: 1, height: 1 },
+    // The targets' size: a whole-texture depth copy covers it.
     extent = { width: 1, height: 1 },
     full = new Float64Array(4);
   const from = { texture: undefined as unknown as GPUTexture, origin },
@@ -19,8 +21,6 @@ export async function createWaterFreeze(device: GPUDevice) {
     depth = { texture: undefined as unknown as GPUTexture },
     waterDepth = { texture: undefined as unknown as GPUTexture };
   const freeze = {
-    /** The target's size, the whole-target rectangle of an image without bounds. */
-    extent,
     /** Whether the last freeze drew the depth restore pass. */
     restored: false,
     bind(
@@ -35,12 +35,13 @@ export async function createWaterFreeze(device: GPUDevice) {
       depth.texture = opaque;
       waterDepth.texture = backdrop.waterDepth;
       [extent.width, extent.height] = target;
-      full[2] = extent.width;
-      full[3] = extent.height;
       restore.bind(opaqueView, backdrop.waterDepthView);
     },
     /** Encodes the freeze; returns the surface rectangle the surface and composite passes scissor. */
-    encode(encoder: GPUCommandEncoder, bounds: WaterBounds) {
+    encode(encoder: GPUCommandEncoder, bounds: WaterBounds, [width, height]: readonly number[]) {
+      // What the image draws, the targets' top-left: the rectangle without bounds.
+      full[2] = width;
+      full[3] = height;
       // Bounds a cull left empty (no kept item folded in) cover the full target, never a negative one.
       const bounded = bounds.active && bounds.surface[2] > bounds.surface[0];
       const rect = bounded ? bounds.surface : full;

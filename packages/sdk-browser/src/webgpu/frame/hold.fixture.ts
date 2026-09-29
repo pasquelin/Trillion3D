@@ -1,4 +1,5 @@
 import type { GuideSet } from '../../guides/guideSet.ts';
+import { createScaleControl } from '../pages/state/scaleControl.ts';
 import { createFrameGateCore } from '../../frame/gateCore.ts';
 import { HOLD_SIGNATURE_VALUES } from './signature.ts';
 import { createCpuStepProfile } from '../../stage/cpuProfile.ts';
@@ -93,10 +94,13 @@ export function settledRt() {
       lastSubmitMs: null as number | null,
     },
     texturePump: { inFlight: false },
+    scale: createScaleControl(undefined),
     gpu: {
       presenter: undefined as unknown,
       displayTexture: undefined as unknown,
       displaySize: [4, 4] as [number, number],
+      targetSize: [4, 4] as [number, number],
+      allocatedSize: [4, 4] as [number, number],
       deferred: undefined as Awaited<ReturnType<typeof createDeferredLighting>> | undefined,
       effects: undefined as WebgpuEffects | undefined,
       effectsRevision: 0,
