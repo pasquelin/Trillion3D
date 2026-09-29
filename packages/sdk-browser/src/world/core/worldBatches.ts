@@ -1,5 +1,6 @@
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
-import { growPlacementRows, type PlacementRows } from '../../placement/rows.ts';
+import { grownCapacity, growPlacementRows, type PlacementRows } from '../../placement/rows.ts';
+import type { PlacementGrowth } from '../../placement/backendSceneUpdates.ts';
 import type { Cut } from './worldCuts.ts';
 import type { MaterialEntry } from './worldMaterials.ts';
 
@@ -32,6 +33,9 @@ export type Seat = { batch: Batch; row: number };
  * or waits for the next opening, which sizes every batch by the same rule; one no mesh wears or
  * leaves any more is taken out (`vacant`). `touched` hears every row taken or parked.
  */
+/** A session that grows no buffer in place: a held batch seats on its free rows alone. */
+const GROWS_NONE: PlacementGrowth = { growsInPlace: () => false, growPlacements() {} };
+
 export function createWorldBatches(touched: (batch: Batch, row: number) => void) {
   const batches = new Map<string, Batch>();
   const seats = new Map<Mesh, Seat>();
@@ -83,24 +87,28 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
     return waiting;
   };
   /** Sizes `batch`'s rows for the rows taken and its waiting wearers — kept when they suffice,
-   *  doubled at least when they do not, the rows held copied first and the new ones parked.
-   *  Returns the rows it replaced, or null when it kept them. */
-  const size = (batch: Batch) => {
+   *  doubled at least when they do not, the rows held copied first and the new ones parked —, and
+   *  hands a session holding them the growth (`grow`). Returns the rows it replaced, null when it
+   *  kept them, false when that session does not take it. */
+  const size = (batch: Batch, grow?: PlacementGrowth) => {
     const before = batch.rows;
     const held = before?.capacity ?? 0,
       needed = held - batch.free.length + waitingIn(batch);
     if (needed <= held) return null;
+    if (before && grow && !grow.growsInPlace([before], grownCapacity(held, needed))) return false;
     const rows = growPlacementRows(before, needed);
     const { capacity } = rows;
     for (let row = capacity - 1; row >= held; row--) batch.free.push(row);
     batch.owners.length = capacity;
     batch.owners.fill(null, held);
     batch.rows = rows;
+    if (before && grow) grow.growPlacements(before, rows);
     return before;
   };
   /** Sizes `batch` (`size`) and seats every waiting wearer, handing it to `seated`. */
-  const fit = (batch: Batch, seated?: (mesh: Mesh) => void) => {
-    const before = size(batch);
+  const fit = (batch: Batch, seated?: (mesh: Mesh) => void, grow?: PlacementGrowth) => {
+    const before = size(batch, grow);
+    if (before === false) return false;
     for (const mesh of batch.wearers) {
       const seat = seats.get(mesh)!;
       if (seat.row >= 0) continue;
@@ -140,18 +148,12 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
     },
     /** True while some mesh waits for a row no mounting will give it. */
     waiting: () => [...short].some((batch) => !mounting.has(batch) && waitingIn(batch) > 0),
-    /** Seats the waiting meshes of the batches the session holds, growing full rows on a session
-     *  that `grows`. Returns each buffer replaced, with its batch, for the session to grow. */
-    growHeld(seated: (mesh: Mesh) => void, grows: boolean) {
-      const grown: { batch: Batch; from: PlacementRows }[] = [];
-      for (const batch of short) {
-        if (!batch.rows || mounting.has(batch)) continue;
-        if (!grows && waitingIn(batch) > batch.free.length) continue;
-        const from = fit(batch, seated);
-        if (from) grown.push({ batch, from });
-      }
-      return grown;
-    },
+    /** Seats the waiting meshes of the batches the session holds, growing full rows where the
+     *  session takes it (`grow`). Returns the batches grown. */
+    growHeld: (seated: (mesh: Mesh) => void, grow?: PlacementGrowth) =>
+      [...short].filter(
+        (batch) => batch.rows && !mounting.has(batch) && !!fit(batch, seated, grow ?? GROWS_NONE),
+      ),
     /** The batches worn but in no session, sized with every row parked and marked mounting: the
      *  caller mounts each, then says it is `mounted`. */
     mountable() {

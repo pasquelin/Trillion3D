@@ -131,7 +131,7 @@ export function encodeBlend(
 }
 
 /** Lights the surfaces into the HDR target, draws the forward transparents over it, and composes the
- *  display image; returns whether the composition landed on the presented swap-chain view. */
+ *  display image at its size; returns whether it landed on the presented swap-chain view. */
 export function encodeSurfaceLighting(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -141,7 +141,7 @@ export function encodeSurfaceLighting(
 ) {
   const { gpu, run, capture, blendState } = rt,
     clear = clearValueOf(run.clearColor);
-  if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView || !gpu.depthView || !gpu.colorView)
+  if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView || !gpu.depthView || !gpu.displayView)
     throw new Error('DEFERRED_UNAVAILABLE');
   const [width, height] = gpu.targetSize;
   invertMatrix4(inverseViewProj, viewProj);
@@ -191,9 +191,9 @@ export function encodeSurfaceLighting(
   const presentation =
     capture.capturing || guided || placed || composesOffscreen(rt.context.diagnosticGpuVariant)
       ? undefined
-      : gpu.presenter?.targetView(width, height);
+      : gpu.presenter?.targetView(...gpu.displaySize);
   run.gpuDrawCalls++;
-  gpu.deferred.compose(encoder, gpu.colorView, clear, presentation, composed, asIs);
+  gpu.deferred.compose(encoder, gpu.displayView, clear, presentation, composed, asIs);
   if (filter) endDisplayFilter(rt, filter, encoder, accumulated?.filter, presentation);
   if (guided) encodeWebgpuGuides(rt, device, encoder, cam);
   return !!presentation;
