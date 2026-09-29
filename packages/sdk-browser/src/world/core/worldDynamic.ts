@@ -34,7 +34,8 @@ type Made = (cut: Cut) => void;
  */
 export function createWorldDynamic(notices: WorldNotices | undefined, counts: { cuts: number }) {
   let frame = 0,
-    serial = 0;
+    serial = 0,
+    sent = 0; // bytes uploaded since the last frame drawn
   const changes = new WeakMap<Geometry, { version: number; frame: number }>(),
     dynamic = new WeakSet<Geometry>(),
     ways = new WeakMap<Geometry, Map<string, Promise<Cut | null>>>(),
@@ -89,8 +90,13 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
   };
   return {
     wants,
-    /** A frame was drawn: two changes a frame apart are consecutive. */
-    tick: () => void frame++,
+    /** A frame was drawn, by the host's `render()` or the session's own loop: its metrics carry
+     *  the bytes uploaded since the last one, and two changes a frame apart are consecutive. */
+    drew(metrics: { dynamicUploadBytes?: number }) {
+      metrics.dynamicUploadBytes = sent;
+      sent = 0;
+      frame++;
+    },
     /** The dynamic resource `mesh` draws read `way`; `made` hears each new one. */
     async of(mesh: Mesh, way: string, options: Options, blended: boolean, made: Made) {
       const geometry = mesh.geometry;
@@ -142,6 +148,7 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
         spent += bytes;
         dirty.delete(cut);
       }
+      sent += spent;
       return spent;
     },
   };
