@@ -171,7 +171,8 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       });
       return;
     }
-    gpuTimer?.begin(state.hostFrame);
+    // A held image put back times the copy, not a drawing: no metric names it (`gpuFrameMs`).
+    gpuTimer?.begin(backend.frameHeld === true ? null : state.hostFrame);
     compose(backend, target);
     // A held image put back, or one drawn into a target at the display's size, measures no
     // drawing at the scale (and leaves `steered` as the last surface image set it): it never
@@ -185,9 +186,10 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       const read = gpuTimer.poll();
       if (profiled) steps.gpuImageMs?.(read.ms, gpuTimer.supported, read.reason ?? gpuTimer.reason);
       scale?.observe(read.ms, read.tag?.scale, read.tag?.steered ?? false);
-      if (read.ms !== null && read.frame !== null) {
-        gpu.frameMs = read.ms;
-        gpu.passes = webglImageSample(read.frame);
+      // A held image's read clears the sample: `gpuFrameMs` is null from it to the next drawing.
+      if (read.ms !== null) {
+        gpu.frameMs = read.frame === null ? null : read.ms;
+        gpu.passes = read.frame === null ? null : webglImageSample(read.frame);
       }
     }
     steps.cpuFrameEnd?.();

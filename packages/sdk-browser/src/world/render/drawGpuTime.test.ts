@@ -75,8 +75,9 @@ function world(extension: boolean) {
     0,
     () => ({ loaded: 0, pageBytesRead: 0, streamingError: null, effectBytes: 0, gpu: draw.gpu }),
   );
-  /** One host frame: the draw, then the metrics it publishes. */
-  return () => {
+  /** One host frame, `held` or drawn: the draw, then the metrics it publishes. */
+  return (held = false) => {
+    (backend as { frameHeld?: boolean }).frameHeld = held;
     state.hostFrame++;
     draw(backend, null);
     fillMetrics(backend);
@@ -101,4 +102,12 @@ test('without the extension, the GPU time stays unmeasured', () => {
   const metrics = world(false)();
   assert.equal(metrics.gpuFrameMs, null);
   assert.equal(metrics.gpuPassMs, null);
+});
+
+test('a held image put back publishes no GPU time until the next drawing', () => {
+  const frame = world(true);
+  assert.equal(frame().gpuFrameMs, 1.5);
+  const held = frame(true);
+  assert.deepEqual([held.gpuFrameMs, held.gpuPassMs], [null, null], 'the copy times no drawing');
+  assert.equal(frame().gpuPassMs?.frame, 3, 'the next drawing is timed again');
 });
