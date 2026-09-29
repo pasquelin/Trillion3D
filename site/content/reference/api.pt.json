@@ -1157,6 +1157,9 @@
       "dynamicUploadBytes": "Bytes de vértices de geometria dinâmica enviados no local neste quadro (#573), dentro do orçamento por quadro do mundo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Ausente onde nenhum mundo desenha."
     }
   },
+  "FramePass": {
+    "summary": "Nomeia as passagens do quadro em desenho; cada chamada fecha a anterior e abre a seguinte."
+  },
   "Frustum": {
     "summary": "Seis planos, lidos a partir de uma view-projection pelo núcleo (`math/frustum/frustum.ts`).",
     "members": {

@@ -1858,6 +1858,9 @@
       "dynamicUploadBytes": "Bytes de vértices de geometría dinámica subidos en su sitio en este fotograma (#573), dentro del presupuesto por fotograma del mundo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Ausente donde ningún mundo dibuja."
     }
   },
+  "FramePass": {
+    "summary": "Nombra las pasadas del fotograma que se dibuja; cada llamada cierra la anterior y abre la siguiente."
+  },
   "frameStatistics": {
     "summary": "Frecuencia y regularidad de los fotogramas a partir de los tiempos entre ellos."
   },

@@ -154,7 +154,8 @@ export function createFrameComposer(
     const passes = passesOf(backend, chained);
     const linear = passes.length ? effects!.begin(passes, width, height) : null;
     output.linear = !!linear;
-    output.pass = pass;
+    if (pass) output.pass = pass;
+    else delete output.pass;
     output.framebuffer = (linear ?? target)?.framebuffer ?? null;
     output.width = width;
     output.height = height;
