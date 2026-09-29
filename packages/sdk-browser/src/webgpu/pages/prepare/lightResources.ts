@@ -118,14 +118,14 @@ export function followLightThreshold(lights: WebgpuLightState, pixelError: numbe
 /**
  * Serves tiles requested by the previous image, except during a pose barrier: the shadow
  * drain replays the image without admitting new ones. An arriving tile invalidates every
- * map (`shadowsFollowTextures`) and the queue would never empty (#25).
+ * map (`shadowsFollowTextures`) and the queue would never empty (#25). Returns the tiles served.
  */
 export function pumpResidentTiles(
-  textures: { pump: (frame: number) => void } | undefined,
+  textures: { pump: (frame: number) => { served: number } } | undefined,
   frame: number,
   converging: boolean,
 ) {
-  if (!converging) textures?.pump(frame);
+  return (!converging && textures?.pump(frame).served) || 0;
 }
 
 /**

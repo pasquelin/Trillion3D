@@ -4,28 +4,48 @@
 // placed it, and the moving A/A kept 1-13 px on sponza. Snapped first, the sum is exact.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SHADOW_DEPTH_SHADER, SHADOW_SNAP } from './shader.ts';
+import { SHADOW_DEPTH_SHADER } from './shader.ts';
+import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
+type Vec = { x: number; y: number; z: number; w: number };
 const f = Math.fround;
+const vec4f = (x: number, y: number, z: number, w: number): Vec => ({ x, y, z, w });
+/** The shipped `sunSnap`, over a face whose matrix is `viewProjection` and viewport `side` texels. */
+const sunSnap = (viewProjection: Vec[], side: number) =>
+  shaderFunctions<{ sunSnap: (p: Vec) => Vec }>(SHADOW_DEPTH_SHADER, ['sunSnap'], {
+    vec4f,
+    shadow: { viewProjection, params: vec4f(0, 0, 0, side) },
+  }).sunSnap;
 /** Where the rasterizer puts clip `x` of a page at `origin`, relative to that origin. */
 const placed = (x: number, origin: number) => {
   const half = SHADOW_PAGE / 2;
   const window = f(f(origin + half) + f(x * half));
   return Math.round((window - origin) * 256) / 256;
 };
-const snap = (x: number) => f(Math.round(f(x * SHADOW_SNAP)) / SHADOW_SNAP);
+const ORTHO = [vec4f(1, 0, 0, 0), vec4f(0, 1, 0, 0), vec4f(0, 0, 1, 0), vec4f(0, 0, 0, 1)];
+const ORIGINS = [0, 128, 2944, 6272];
 
-test('a snapped sun corner rasterizes at the same place whatever the page origin', () => {
+test('an orthographic corner snapped by its viewport rasterizes alike at every page origin', () => {
+  const snap = sunSnap(ORTHO, SHADOW_PAGE);
   let moved = 0;
   for (let i = 0; i < 20000; i++) {
     const x = f(Math.sin(i * 12.9898) * 1.3);
-    const origins = [0, 128, 2944, 6272].map((o) => placed(x, o));
-    if (new Set(origins).size > 1) moved++;
-    const snapped = [0, 128, 2944, 6272].map((o) => placed(snap(x), o));
-    assert.equal(new Set(snapped).size, 1, `corner ${x}`);
+    if (new Set(ORIGINS.map((o) => placed(x, o))).size > 1) moved++;
+    const snapped = f(snap(vec4f(x, 0, 0.5, 1)).x);
+    assert.equal(new Set(ORIGINS.map((o) => placed(snapped, o))).size, 1, `corner ${x}`);
   }
   assert.ok(moved > 0, 'unsnapped, some corners land elsewhere at another origin');
-  assert.match(SHADOW_DEPTH_SHADER, /round\(p\.x\*SHADOW_SNAP\)\/SHADOW_SNAP,round\(p\.y\*/);
   assert.match(SHADOW_DEPTH_SHADER, /out\.position=sunSnap\(shadow\.viewProjection\*/);
+});
+
+// #1016 review: the snap keyed on `w == 1` per corner; it follows the face's projection kind, and
+// its step the viewport the face declares, not a constant beside it.
+test('the snap follows the face: a perspective face is left as is, the step is its viewport', () => {
+  const perspective = [...ORTHO.slice(0, 2), vec4f(0, 0, 1, -1), vec4f(0, 0, 0, 0)];
+  const corner = vec4f(0.123456, -0.654321, 0.5, 1);
+  assert.deepEqual(sunSnap(perspective, SHADOW_PAGE)(corner), corner, 'a lamp face, w 1 or not');
+  const half = sunSnap(ORTHO, SHADOW_PAGE / 2)(corner);
+  assert.equal((half.x * (SHADOW_PAGE / 2) * 128) % 1, 0, 'snapped to its own viewport');
+  assert.notEqual(half.x, sunSnap(ORTHO, SHADOW_PAGE)(corner).x);
 });
