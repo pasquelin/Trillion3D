@@ -105,7 +105,7 @@ export type ImageDiff =
 export interface Row {
   cpuFrameMs: Distribution;
   cpuSelectMs: Distribution;
-  moteur: string;
+  engine: string;
   gpuFrameMs: Distribution;
   imageSyncMs: Distribution;
   rafIntervalMs: Distribution;
@@ -115,8 +115,8 @@ export interface Row {
   imagesCalme: number | null;
   reglageVivant: ReglageVivant | null;
   reseau: Reseau | null;
-  variante: string | null;
-  erreur: string;
+  variant: string | null;
+  errorMetric: string;
   selectedTriangles: number | null;
   uncoveredTriangles: number | null;
   drawnTriangles: number | null;
@@ -155,8 +155,8 @@ export interface Serie {
   index: number;
   pose: CameraPose;
   sides: Record<string, Row>;
-  temoinAA?: ImageDiff;
-  ecartAvantApres?: ImageDiff;
+  witnessAA?: ImageDiff;
+  beforeAfterDiff?: ImageDiff;
   coupeIdentique?: boolean | null;
 }
 
@@ -165,9 +165,9 @@ interface SideIdentity {
   dist: string;
   from: string;
   cache: string | null;
-  moteur: string;
-  variante: string | null;
-  erreur: string;
+  engine: string;
+  variant: string | null;
+  errorMetric: string;
   assetKey?: string;
   buildHash?: string;
 }

@@ -59,7 +59,7 @@ function rows(report: Report) {
     for (const [side, r] of Object.entries(serie.sides)) {
       const hiz = r.hiZ;
       lines.push(
-        `| ${serie.view} | ${serie.pixelError} | ${side}${r.moteur ? ` · ${r.moteur}` : ''} ` +
+        `| ${serie.view} | ${serie.pixelError} | ${side}${r.engine ? ` · ${r.engine}` : ''} ` +
           `| ${ms(r.cpuFrameMs, 'p50')} / ${ms(r.cpuFrameMs, 'p95')} ` +
           `| ${ms(r.cpuSelectMs, 'p50')} / ${ms(r.cpuSelectMs, 'p95')} | ${ms(r.gpuFrameMs, 'p50')} ` +
           `| ${num(r.selectedTriangles)} | ${num(r.drawnTriangles)} | ${couverture(r)} ` +
@@ -163,7 +163,7 @@ export function resume(report: Report) {
     '|---|---|---|---|',
     ...report.series.map(
       (s) =>
-        `| ${s.view} | ${s.pixelError} | ${diffText(s.temoinAA)} | ${diffText(s.ecartAvantApres)} |`,
+        `| ${s.view} | ${s.pixelError} | ${diffText(s.witnessAA)} | ${diffText(s.beforeAfterDiff)} |`,
     ),
     '',
     '## Machine load',

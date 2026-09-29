@@ -18,7 +18,7 @@ test('a side takes its own compression, then the campaign one, otherwise the eng
     () => equip('after', { 'compression-after': 'dxt1' }),
     /must be auto, bc7, astc, none/,
   );
-  assert.throws(() => equip('before', { erreur: 'other' }), /must be certifiee, reference/);
+  assert.throws(() => equip('before', { 'error-metric': 'other' }), /must be certifiee, reference/);
 });
 
 // #816: one run pits the native frame against one drawn below the display and reconstructed.

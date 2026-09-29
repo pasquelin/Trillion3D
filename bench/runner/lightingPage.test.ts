@@ -32,7 +32,7 @@ function explorerMock(metrics: Record<string, unknown> | null): MeasuredWorld & 
   return {
     seen,
     profileResets,
-    backends: [{ id: 'moteur-test', scene: { children: [] } }],
+    backends: [{ id: 'engine-test', scene: { children: [] } }],
     setDiagnostic: () => {},
     setPose: () => {},
     resetStageProfile: () => profileResets.push(seen.length),
@@ -82,7 +82,7 @@ async function mesurer(
     manifestUrl: 'manifest.json',
     modulesUrl: './',
     backend: 'creerMoteur',
-    engineId: 'moteur-test',
+    engineId: 'engine-test',
     autonomous: false,
     witness: false,
     page: 'lightingPage.ts',

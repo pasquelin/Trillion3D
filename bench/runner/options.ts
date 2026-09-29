@@ -50,12 +50,12 @@ export function resolveMounts(root: string, sides: SideBase[], resources: string
 /** In-session memory budgets, or `null` when none requested. The live texture pool takes MiB, or
  *  `<n>%` of the texture bytes the settled pose holds resident: a pool the scene fills. */
 function live(flags: Map<string, string>, mio: (name: string) => number | null): LivePools | null {
-  const TEXTURE = 'pool-textures-vivant';
+  const TEXTURE = 'texture-pool-live';
   const texture = flags.get(TEXTURE),
     fraction = texture === undefined ? undefined : residentFraction(texture);
   const budgets = {
-    geometryPoolBytes: flags.has('pool-geometrie-vivant')
-      ? mio('pool-geometrie-vivant')
+    geometryPoolBytes: flags.has('geometry-pool-live')
+      ? mio('geometry-pool-live')
       : undefined,
     texturePoolBytes: texture !== undefined && fraction === undefined ? mio(TEXTURE) : undefined,
     textureResidentFraction: fraction,
@@ -65,9 +65,9 @@ function live(flags: Map<string, string>, mio: (name: string) => number | null):
 
 /** Math calculation path forced for the campaign, or `auto`: governor arbitrates then. */
 function mathPathOf(flags: Map<string, string>) {
-  const value = flags.get('chemin-math') ?? 'auto';
+  const value = flags.get('math-path') ?? 'auto';
   if (value !== 'auto' && value !== 'js' && value !== 'wasm')
-    throw new Error('--chemin-math must be auto, js or wasm');
+    throw new Error('--math-path must be auto, js or wasm');
   return value;
 }
 
@@ -102,7 +102,7 @@ export function readOptions(argv: string[], root: string) {
   };
   const engine = flags.get('engine') ?? 'webgl';
   if (!ENGINES[engine]) throw new Error(`--engine must be ${Object.keys(ENGINES).join(', ')}`);
-  const views = (flags.get('vues') ?? 'generale,sol,rue')
+  const views = (flags.get('views') ?? 'generale,sol,rue')
     .split(',')
     .filter(Boolean) as (keyof typeof VIEWS)[];
   for (const view of views) if (!VIEWS[view]) throw new Error(`unknown view: ${view}`);
@@ -120,60 +120,60 @@ export function readOptions(argv: string[], root: string) {
     engine,
     // A moving run covers one trajectory segment by default.
     frames: number('images', FRAMES_PER_SEGMENT),
-    warmup: number('chauffe', 8),
+    warmup: number('warmup', 8),
     pixelErrors,
     // `--max-pages`: a limit in PAGES on the geometry pool, for test scenes; without it,
-    // pool is the engine byte pool. `--pool-geometrie` and `--pool-textures` specify pools in MiB;
+    // pool is the engine byte pool. `--geometry-pool` and `--texture-pool` specify pools in MiB;
     // when absent, the engine retains its 512 MiB default.
     maxPages: flags.has('max-pages') ? number('max-pages', 0) : null,
-    geometryPoolBytes: mioSi('pool-geometrie'),
-    texturePoolBytes: mioSi('pool-textures'),
-    // `--pool-geometrie-plafond`: maximum pool that an in-session setting may request.
-    geometryPoolCeilingBytes: mioSi('pool-geometrie-plafond'),
-    // `--pool-geometrie-vivant` / `--pool-textures-vivant`: same pools, but adjusted IN
+    geometryPoolBytes: mioSi('geometry-pool'),
+    texturePoolBytes: mioSi('texture-pool'),
+    // `--geometry-pool-ceiling`: maximum pool that an in-session setting may request.
+    geometryPoolCeilingBytes: mioSi('geometry-pool-ceiling'),
+    // `--geometry-pool-live` / `--texture-pool-live`: same pools, but adjusted IN
     // SESSION after warmup via `explorer.setMemoryBudgets` — like an application slider.
     poolVivant: live(flags, mioSi),
-    width: number('largeur', 1280),
-    height: number('hauteur', 720),
+    width: number('width', 1280),
+    height: number('height', 720),
     dpr,
     port: number('port', 0),
-    // `--profil off` replays the same series without per-stage timing: fidelity gate.
-    stageProfile: (flags.get('profil') ?? 'on') !== 'off',
+    // `--profile off` replays the same series without per-stage timing: fidelity gate.
+    stageProfile: (flags.get('profile') ?? 'on') !== 'off',
     // A breakdown campaign puts "trace" details on BOTH sides, including the one without variants.
     trace: [...flags.keys()].some((name) => name === 'variant' || name.startsWith('variant-')),
-    profileFrames: number('images-profil', 120),
+    profileFrames: number('profile-frames', 120),
     // `--textures cache`: the engine reads baked texture levels from cache; loader does not open source images.
     textureSource: flags.get('textures') === 'cache' ? 'cache' : 'host',
-    // `--budget-textures <ms>`: CPU milliseconds a frame may spend copying texture tiles; without
+    // `--texture-budget <ms>`: CPU milliseconds a frame may spend copying texture tiles; without
     // the option, the engine keeps its default (1.0 ms).
-    textureUploadMs: flags.has('budget-textures') ? number('budget-textures', 1) : null,
+    textureUploadMs: flags.has('texture-budget') ? number('texture-budget', 1) : null,
     // `--antialiasing off`: WebGPU engine renders without jitter or history.
     temporalAntialiasing: flags.get('antialiasing') !== 'off',
     // Headless mode caps display to 60 Hz on this machine: `--visible` opens a real window when frame rate matters.
     visible: flags.get('visible') === 'true',
     ...lightingSettings(flags, number),
-    // `--camera-mobile` advances position along benchmark trajectory for each measured frame.
-    movingCamera: flags.get('camera-mobile') === 'true',
+    // `--moving-camera` advances position along benchmark trajectory for each measured frame.
+    movingCamera: flags.get('moving-camera') === 'true',
     // `--gaze-network`: plays each trajectory once without settle barrier and reads network bytes.
     gazeNetwork: flags.get('gaze-network') === 'true',
     // `--instances`: number of object copies placed in a grid by the SDK.
     instances: number('instances', 1),
     // `--isolation on` sets COOP/COEP on the harness server: page becomes cross-origin isolated.
     isolation: (flags.get('isolation') ?? 'off') === 'on',
-    // `--chemin-math js|wasm` forces batch calculation path for entire campaign.
+    // `--math-path js|wasm` forces batch calculation path for entire campaign.
     mathPath: mathPathOf(flags),
   };
   const isolation = flags.get('isolation') ?? 'off';
   if (isolation !== 'on' && isolation !== 'off') throw new Error('--isolation must be on or off');
   if (![1, 4, 9, 12].includes(settings.instances))
     throw new Error('--instances must be 1, 4, 9 or 12');
-  if (settings.lights < 0) throw new Error('--lampes must be a non-negative integer');
+  if (settings.lights < 0) throw new Error('--lights must be a non-negative integer');
   if (settings.frames < 1) throw new Error('--images must be a positive integer');
   if (settings.gazeNetwork && settings.textureSource !== 'cache')
     throw new Error('--gaze-network requires --textures cache');
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const out = resolve(flags.get('out') ?? join(root, '.mesure/out', `${engine}-${stamp}`));
-  // `--ressources`: base path referenced by compiled cache glTF via relative path, mounted under `/assets/`.
-  const resourcesDir = flags.get('ressources');
+  // `--resources`: base path referenced by compiled cache glTF via relative path, mounted under `/assets/`.
+  const resourcesDir = flags.get('resources');
   return { flags, settings, views, out, resources: resourcesDir ? resolve(resourcesDir) : null };
 }
