@@ -40,9 +40,12 @@ pull request.
    batch ko, timing or image, is narrowed to its issue by timing or proving that merge alone.
    Each pull request is proved in the class its `Image proof class:` line declares (AGENTS.md
    rule 1, CONTRIBUTING.md "Image and fidelity"); none declared is class 1. Class 1, refactor or
-   pure optimisation: 0 px against before. Class 2, rendering technique: `referenceDiff` against
-   the named reference image within the bound the pull request states (mean and p99.9 channel
-   error, mean FLIP), and no flicker, trail, hole or lost detail on still and moving captures.
+   pure optimisation: 0 px against before. Class 2, rendering technique: `bench.ts --reference`,
+   `referenceDiff` against the engine's reference image that `bench/references/<scene>/reference.json`
+   names (the PNG in `.mesure/references/`, off git, checked by its SHA-256; redrawn by
+   `bench/runner/reference.ts` when absent or when the engine's exact image changes) within the bound the pull
+   request states (mean and p99.9 channel error, mean FLIP), and no flicker, trail, hole or lost
+   detail on still and moving captures.
 4. **Promise**: re-read each diff against its issue, line by line: every To-do and Proof item
    delivered, no image loss, no scene tuning, reuse, a test per changed behaviour.
 5. **Verdict**, one comment per issue: the before/after table for a timing, a capture when the
