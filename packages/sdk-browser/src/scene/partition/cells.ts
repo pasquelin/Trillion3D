@@ -45,27 +45,6 @@ type Inputs = {
 };
 /** What a file is decoded by off the main thread: its bytes and its address, which a refusal names. */
 type Decode<T> = (bytes: Uint8Array, url: string) => Promise<T>;
-/** What a frame reads through: the streamer's verified bytes and their decode off the main thread,
- *  whether it reads an address, a request (`ahead`: read before needed), the catalogue's files
- *  taken and let go, the rows written, a buffer grown in place where the engine takes it, else the
- *  owner told. */
-type Io = {
-  bytes(url: string): Uint8Array | undefined;
-  decode: Decode<CellRows>;
-  decodePage: Decode<PageBody>;
-  loading(url: string): boolean;
-  request(urls: readonly string[], ahead: boolean): void;
-  admit(pages: readonly StreamPage[]): void;
-  forget(urls: readonly string[]): void;
-  update(rows: PlacementRows, from: number, to: number): void;
-  grow?: PlacementGrowth;
-  outgrown?: () => void;
-};
-/** What the reads before the first frame go through: the streamer's verified read, the decodes,
- *  the catalogue. */
-type PrimeIo = Pick<Io, 'decode' | 'decodePage' | 'admit'> & {
-  read(url: string): Promise<Uint8Array>;
-};
 
 const rootWorld = new Float64Array(MATRIX_VALUES);
 
@@ -129,7 +108,22 @@ export function createPartitionCells(inputs: Inputs) {
     frame(
       eye: ArrayLike<number>,
       reach: number,
-      io: Io,
+      /** What the frame reads through, spelled out as `budget` is, kept internal: the streamer's
+       *  verified bytes and their decode off the main thread, whether it reads an address, a
+       *  request (`ahead`: read before needed), the catalogue's files taken and let go, the rows
+       *  written, a buffer grown in place where the engine takes it, else the owner told. */
+      io: {
+        bytes(url: string): Uint8Array | undefined;
+        decode: (bytes: Uint8Array, url: string) => Promise<CellRows>;
+        decodePage: (bytes: Uint8Array, url: string) => Promise<PageBody>;
+        loading(url: string): boolean;
+        request(urls: readonly string[], ahead: boolean): void;
+        admit(pages: readonly StreamPage[]): void;
+        forget(urls: readonly string[]): void;
+        update(rows: PlacementRows, from: number, to: number): void;
+        grow?: PlacementGrowth;
+        outgrown?: () => void;
+      },
       budget: { admits(): boolean; spend(): void }, // structurally a `FrameBudget`, kept internal
     ) {
       rows.follow();
@@ -169,7 +163,19 @@ export function createPartitionCells(inputs: Inputs) {
     /** Before the engines read the rows: sizes them for the camera at `eye` or the widest view a
      *  frame asked (every node unless `owned`), then reads the pages of the index on its way and
      *  places the cells within its reach; the bytes read. */
-    async prime(eye: ArrayLike<number>, reach: number, io: PrimeIo, owned: boolean) {
+    async prime(
+      eye: ArrayLike<number>,
+      reach: number,
+      /** What the reads before the first frame go through, kept internal as `frame`'s: the
+       *  streamer's verified read, the decodes, the catalogue. */
+      io: {
+        read(url: string): Promise<Uint8Array>;
+        decode: (bytes: Uint8Array, url: string) => Promise<CellRows>;
+        decodePage: (bytes: Uint8Array, url: string) => Promise<PageBody>;
+        admit(pages: readonly StreamPage[]): void;
+      },
+      owned: boolean,
+    ) {
       const local = view(eye, reach);
       if (sized < RUNGS) resize(owned ? Math.max(local.rung, wanted) : RUNGS);
       let bytes = 0;

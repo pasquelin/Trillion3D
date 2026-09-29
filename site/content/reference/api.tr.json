@@ -478,6 +478,14 @@
       "height": "Görselin piksel cinsinden yüksekliği."
     }
   },
+  "CellRows": {
+    "summary": "Satırları kendisinden yazılan, çözülmüş bir hücre.",
+    "members": {
+      "nodes": "Hücrenin taşıdığı düğüm sayısı.",
+      "ranks": "Her düğüm için ebeveyninin sırası (`-1`: sahne kökü), ardından ağının sırası.",
+      "locals": "Her düğüm için yerel matrisi."
+    }
+  },
   "ChangeListener": {
     "summary": "Bir kontrolcü kamerayı hareket ettirdiğinde çağrılan bir fonksiyon."
   },
