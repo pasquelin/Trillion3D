@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -21,6 +21,9 @@ const ok = (cwd: string, ...args: string[]) => {
   return r;
 };
 
+const localHook = (work: string, name: string, body: string) =>
+  writeFileSync(join(work, '.git/hooks', name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
+
 // A throwaway repository with the tracked hooks active, a bare remote, and a local
 // (tool-installed) hook that logs its calls — the situation of every developer checkout.
 function makeRepo() {
@@ -33,13 +36,10 @@ function makeRepo() {
     recursive: true,
     verbatimSymlinks: true,
   });
+  cpSync(new URL('scripts/hooks/', repo), join(work, 'scripts/hooks'), { recursive: true });
   ok(work, 'config', 'core.hooksPath', '.githooks');
   ok(work, 'remote', 'add', 'origin', remote);
-  writeFileSync(
-    join(work, '.git/hooks/post-commit'),
-    '#!/bin/sh\necho ran >> "$(git rev-parse --show-toplevel)/local.log"\n',
-    { mode: 0o755 },
-  );
+  localHook(work, 'post-commit', 'echo ran >> "$(git rev-parse --show-toplevel)/local.log"');
   return work;
 }
 
@@ -78,4 +78,29 @@ test('the tool-installed hook of the same name still runs behind core.hooksPath'
   ok(work, 'switch', '-q', '-c', '12-thing');
   commit(work, 'one');
   assert.equal(execFileSync('cat', [join(work, 'local.log')], { encoding: 'utf8' }), 'ran\n');
+});
+
+test('a failing tool-installed hook still stops git, and pre-push hands it the refs on stdin', () => {
+  const work = makeRepo();
+  ok(work, 'switch', '-q', '-c', '12-thing');
+  localHook(work, 'pre-commit', 'exit 3');
+  assert.equal(commit(work, 'refused locally').status, 1);
+  localHook(work, 'pre-commit', 'exit 0');
+  commit(work, 'one');
+  localHook(work, 'pre-push', 'cat > "$(git rev-parse --show-toplevel)/refs.log"; exit 4');
+  assert.notEqual(git(work, 'push', '-q', 'origin', '12-thing').status, 0);
+  const refs = readFileSync(join(work, 'refs.log'), 'utf8');
+  assert.match(refs, /^refs\/heads\/12-thing [0-9a-f]{40} refs\/heads\/12-thing 0{40}\n$/);
+});
+
+test('the tracked hooks hold no shell logic: each is a one-line shim onto scripts/hooks', () => {
+  const hooks = new URL('.githooks/', repo);
+  for (const name of readdirSync(hooks)) {
+    const lines = readFileSync(new URL(name, hooks), 'utf8').trimEnd().split('\n');
+    assert.equal(lines[0], '#!/bin/sh', name);
+    assert.equal(lines.length, 2, `${name} is more than a shim`);
+    const script = /^exec node (scripts\/hooks\/[a-z-]+\.ts) .*"\$@"$/.exec(lines[1] ?? '');
+    assert.ok(script?.[1], `${name} does not run a scripts/hooks script`);
+    readFileSync(new URL(script[1], repo));
+  }
 });
