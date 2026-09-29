@@ -30,6 +30,8 @@ import type { ShadowTransmittanceDraws } from './transmittanceDraws.ts';
  */
 /** Label of the layer's pass: timed with the Shadows stage. */
 export const SHADOW_TRANSMITTANCE_PASS = 'Trillion3D shadow transmittance pass v1';
+/** Label of the pass that clears the layer: shadow work, timed with the Shadows stage too. */
+export const SHADOW_TRANSMITTANCE_CLEAR_PASS = 'Trillion3D shadow transmittance clear v1';
 export const SHADOW_TRANSMITTANCE_FORMAT: GPUTextureFormat = 'rgba8unorm';
 export const SHADOW_TRANSLUCENT_DEPTH_FORMAT: GPUTextureFormat = 'depth32float';
 /** Bytes for a pool of `layers` of `poolSide` pages a side: a quarter of the pool's texels, 4
@@ -145,7 +147,7 @@ export function createShadowTransmittance(
       for (const [layer, view] of targets.entries())
         encoder
           .beginRenderPass({
-            label: 'Trillion3D shadow transmittance clear v1',
+            label: SHADOW_TRANSMITTANCE_CLEAR_PASS,
             colorAttachments: [
               { view, loadOp: 'clear', storeOp: 'store', clearValue: TRANSMITTANCE_CLEAR },
             ],
