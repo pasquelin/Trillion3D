@@ -2375,5 +2375,23 @@
       "unmount": "Lepas",
       "remount": "Pasang ulang"
     }
+  },
+  "move-a-hierarchy-by-name": {
+    "banner": "Saksikan lima grup bernama menempuh urutan yang dapat diulang. Ganti pengendali untuk menulis pose yang sama secara manual.",
+    "controls": {
+      "driver": "Pengendali",
+      "speed": "Kecepatan",
+      "paused": "Jeda",
+      "replay": "Putar ulang"
+    },
+    "choices": {
+      "driver": {
+        "name": "berdasarkan nama",
+        "host": "ditulis oleh host"
+      }
+    },
+    "readouts": {
+      "pose": "Pose"
+    }
   }
 }
