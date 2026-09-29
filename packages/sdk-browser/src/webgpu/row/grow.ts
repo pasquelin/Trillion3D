@@ -38,7 +38,11 @@ export function growRowState(
   rows.packedPositions.length = drawSlots;
   rows.packedPositions.fill(undefined, held);
   // The caster arrays keep their visibility rows alone: the casters' rows behind are taken again.
-  rows.packedPageIndex = widened(rows.packedPageIndex.subarray(0, held), new Int32Array(casterSlots), 0);
+  rows.packedPageIndex = widened(
+    rows.packedPageIndex.subarray(0, held),
+    new Int32Array(casterSlots),
+    0,
+  );
   rows.packedRecs.length = casterSlots;
   rows.packedRecs.fill(undefined, held);
   const floats = rows.pageTableFloats;

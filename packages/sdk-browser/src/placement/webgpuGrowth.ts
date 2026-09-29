@@ -5,12 +5,14 @@
  * temporal pass's previous poses, the shadow mobility, the root boxes —, each page with the pool
  * slot its address already holds: no slot is uploaded, no texture tile moved, no residency lost.
  *
- * The page table itself does not move: a growth is taken when a session opened on the grown scene
- * would hold the same table (`askedTableRows`), so the image is the one that session draws. The GPU
- * cut, the transparent table and the forward copies lay their own tables out at open (#483): a
- * growth they read is refused, as is one past the table, and the owner opens the session again.
+ * A growth whose pages ask more rows than the page table holds grows the table in place after them
+ * (`growTables.ts`): until it is granted, a page that finds no row is drawn by its nearest resident
+ * ancestor, as on a table the device bounds. The GPU cut, the transparent table and the forward
+ * copies lay their own tables out at open (#483): a growth they read is refused, and the owner
+ * opens the session again.
  */
-import { askedTableRows, countCopies } from '../webgpu/pages/prepare/layout.ts';
+import { countCopies } from '../webgpu/pages/prepare/layout.ts';
+import { growWebgpuTables, tableRowsFor } from '../webgpu/pages/prepare/growTables.ts';
 import { reserveRootBoxes } from '../math/batchBoxes.ts';
 import { mainViewGpu, viewGpu } from '../webgpu/pages/state/view.ts';
 import { forgetRootsByMesh } from '../webgpu/pages/render/movedNode.ts';
@@ -19,32 +21,17 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { growRowRoots } from './growth.ts';
 import { placedBy, type PlacementRows } from './rows.ts';
 
-/** Whether the session grows each of `from` to `capacity` rows in place, asked before any is. */
-export function webgpuGrowsInPlace(
-  rt: WebgpuPagesRuntime,
-  from: readonly PlacementRows[],
-  capacity: number,
-) {
+/** Whether the session grows each of `from` in place, asked before any is: whatever the rows, as
+ *  its tables grow after them. */
+export function webgpuGrowsInPlace(rt: WebgpuPagesRuntime, from: readonly PlacementRows[]) {
   const { layout, run, gpu, setup, blendState } = rt;
-  if (!gpu.device || run.lost || run.gpuSelection) return false;
-  // The placements each pool address would feed: the grown buffers' addresses alone move.
-  const copies = { byAddress: new Map(layout.copies.byAddress), max: layout.copies.max };
-  let opaque = layout.opaquePageCount;
+  if (!gpu.device || run.lost || run.gpuSelection || setup.preparing) return false;
   for (const buffer of from) {
     if (placedBy(setup.blendCopies, buffer) || placedBy(blendState.blendGpu, buffer)) return false;
     const template = layout.selectionRoots.find((root) => root.placement?.rows === buffer);
-    if (!template) continue;
-    if (template.pages[0]?.transparent) return false;
-    const more = capacity - buffer.capacity;
-    opaque += more * template.pages.length;
-    countCopies(copies, template.pages, more);
+    if (template?.pages[0]?.transparent) return false;
   }
-  const { rows } = layout,
-    blended = layout.packedPages.length - layout.opaquePageCount,
-    asked = askedTableRows(opaque, blended, setup.cap, copies.max, rt.context.gpuDevice?.limits);
-  return (
-    asked.drawSlots <= layout.drawSlots && asked.blendSlots === rows.casterSlots - rows.blendFirst
-  );
+  return true;
 }
 
 /**
@@ -87,6 +74,12 @@ export function growWebgpuPlacements(
   services.heldResidency.track(selectionRoots);
   forgetRootsByMesh(selectionRoots);
   reserveBoxes(rt);
+  // More rows than the table holds: it grows after them, the image going on meanwhile.
+  const asked = tableRowsFor(rt, setup.cap);
+  if (asked.drawSlots > layout.drawSlots || asked.blendSlots > rows.casterSlots - rows.blendFirst)
+    growWebgpuTables(rt, setup.cap).catch((error) =>
+      rt.diag.diagnosticFailure('page-tables-growth-failed', error),
+    );
   // New sources to watch, and every world walked again at the next image.
   run.gate.sceneChanged();
 }
