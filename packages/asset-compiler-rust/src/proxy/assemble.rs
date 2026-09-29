@@ -37,6 +37,18 @@ pub(crate) fn assemble_owned(
     }
     provenance.source_parents = vec![-1; worlds.len()];
     provenance.bind_worlds = worlds.iter().flatten().copied().collect();
+    let sharing = if nodes.is_empty() {
+        super::share::Sharing::default()
+    } else {
+        let owners: Vec<u32> = order.iter().map(|rank| nodes[retained[*rank]]).collect();
+        super::share::share(
+            &triangles,
+            &colours,
+            &owners,
+            &order,
+            &provenance.bind_worlds,
+        )
+    };
     let cut_error = thresholds
         .iter()
         .copied()
@@ -50,5 +62,6 @@ pub(crate) fn assemble_owned(
         node_bounds,
         node_children,
         provenance,
+        sharing,
     }
 }

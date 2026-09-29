@@ -85,6 +85,7 @@ export const BACKEND_METRIC_KEYS = [
   'shadowMemoryEvents',
   'shadowPagesRefetched',
   'shadowCastersKept',
+  'shadowCastersRejected',
   'shadowCastersHidden',
   'shadowPagesDrawn',
   'shadowPagesTotal',

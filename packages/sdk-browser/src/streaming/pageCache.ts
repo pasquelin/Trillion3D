@@ -141,6 +141,12 @@ export function createPageCache(cpuBytes = DEFAULT_CACHED_BYTES) {
       evict();
       return kept.read;
     },
+    /** Charge decoded allocations only while this file is still kept. */
+    resizeKept(key: string, bytes: number) {
+      if (slot?.key !== key || slot.bytes === bytes) return;
+      slot.bytes = bytes;
+      evict();
+    },
     /** The decoded texture levels, kept across sessions as the pages are (`levelStore.ts`); they
      *  yield first to the pages a frame keeps (`streaming/cache.ts`). */
     levels,

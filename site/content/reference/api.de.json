@@ -1390,7 +1390,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Der Proxy, neu gelesen und erneut geprüft, bevor auch nur ein Strahl ihn berührt.",
-    "description": "Aufbau: acht Little-Endian-Headerwörter, gefolgt von den kanonischen Geometrie- und Baumspalten sowie versionierten Eigentümerdaten. `docs/FORMAT.md` legt jede Anzahl und Spalte fest. Der Header bestimmt die Länge jedes Abschnitts; eine Datei anderer Größe wird vollständig zurückgewiesen, da ein Knoten mit Verweis auf ein fehlendes Dreieck den Shader beliebige Daten lesen ließe."
+    "description": "Elf Little-Endian-Headerwörter stehen vor gemeinsamer oder einzelner Geometrie, Baumspalten und versionierten Eigentümerdaten. `docs/FORMAT.md` definiert alle Anzahlen und Spalten. Falsche Längen werden vor jedem Strahlzugriff abgewiesen."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S`, zerlegt in `position`, `quaternion`, `scale`."
@@ -5255,7 +5255,7 @@
     "summary": "Version des Vertrags der vom Host gehaltenen Szenenhierarchie."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Ganzzahlen im Header: Signatur, Version, Anzahlen der Dreiecke/Knoten/Gruppen/Eigentümer/Quellen, reservierte Null."
+    "summary": "Header-Ganzzahlen: Eigentümer-Header v3, dann Anzahlen der Formen, gespeicherten Dreiecke und Platzierungen."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X', gelesen als vorzeichenlose 32-Bit-Little-Endian-Ganzzahl."
@@ -5391,7 +5391,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "Der gelesene Proxy: sein Deskriptor und seine Spalten, Sichten auf die Bytes seines Cache-Objekts.",
+    "summary": "Der gelesene Proxy: sein Deskriptor und unveränderliche Spalten; gemeinsam gespeicherte Dreiecke werden beim Laden expandiert.",
     "members": {
       "data": "Seine Spalten."
     }
@@ -5522,7 +5522,7 @@
       "shadowStaticDrawCalls": "Draw-Calls statischer Schattenwerfer: in die statische Ebene oder für eine ohne sie ganz gezeichnete Seite.",
       "shadowMovingDrawCalls": "Draw-Calls nur der bewegten Schattenwerfer, über Seiten, die aus der statischen Ebene wiederhergestellt wurden.",
       "shadowMovingCastersKept": "Von `shadowCastersKept` die Cluster, die behalten wurden, um nur bewegte Schattenwerfer zu zeichnen.",
-      "shadowPagesStaledBy": "Seiten, die das Bild veralten ließ, nach Grund: Licht, ruhender Schattenwerfer, bewegte Schattenwerfer, Detail, Schnittschwelle oder Tiefenbereich einer Sonne.",
+      "shadowPagesStaledBy": "Seiten, die das Bild veralten ließ, nach Grund: Licht, ruhender Schattenwerfer, bewegte Schattenwerfer, Detail, Schnittschwelle, Tiefenbereich einer Sonne oder ein Fußabdruck, den ihre Empfänger vergrößert haben.",
       "shadowWaitMs": "Wie viele Millisekunden die älteste veraltete Seite, die das Bild liest, auf ihr Neuzeichnen gewartet hat. Nur die Zeit, in der das Bild sie liest, zählt; 0, sobald sie neu gezeichnet ist.",
       "shadowCutDrops": "Light-Cut-Batches, die Arbeit verworfen haben — ihre Ansichten behielten mehr Cluster, als die Listen fassen —, seit dem Öffnen des Explorers: Jeder schickt seine Seiten zurück, entzogen bis zum Neuzeichnen (#525). Null auf einer Engine ohne GPU-Light-Cut, ebenso die drei folgenden.",
       "shadowCutWithdrawnPages": "Seiten, die neu gezeichnet werden, weil ein Light-Cut sie falsch gezeichnet hat, seit dem Öffnen des Explorers: Sein Batch hat Arbeit verworfen, oder sein Flag wurde nie gelesen. Sie sind bis zum Neuzeichnen entzogen.",
@@ -5554,6 +5554,7 @@
       "shadowMemoryEvents": "Die Speicherdruck-Ereignisse der Schatten seit dem Öffnen der Welt, nach Namen, der Reihe nach; normalerweise leer.",
       "shadowPagesRefetched": "Virtuelle Seiten, die erneut abgebildet wurden, nachdem der Pool sie für Platz verdrängt hatte, seit dem Öffnen des Explorers: die Neuzeichnungen, die ein für die gelesenen Bilder zu kleiner Pool kostet.",
       "shadowCastersKept": "Schattenwerfer, die das Culling pro Seite behalten hat, alle gezeichneten Seiten zusammen, im zuletzt vom Gerät abgetasteten Bild — eines von fünfzehn; `null`, bis eine Probe zurückkam.",
+      "shadowCastersRejected": "Schattenwerfer, die das Culling pro Seite getestet und nicht behalten hat — außerhalb des Teils der Seite, den ihre Empfänger lesen —, im selben abgetasteten Bild; `null`, bis eine Probe zurückkam.",
       "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam."
     }
   },
@@ -6876,7 +6877,7 @@
       "shadowStaticDrawCalls": "Draw-Calls statischer Schattenwerfer: in die statische Ebene oder für eine ohne sie ganz gezeichnete Seite.",
       "shadowMovingDrawCalls": "Draw-Calls nur der bewegten Schattenwerfer, über Seiten, die aus der statischen Ebene wiederhergestellt wurden.",
       "shadowMovingCastersKept": "Von `shadowCastersKept` die Cluster, die behalten wurden, um nur bewegte Schattenwerfer zu zeichnen.",
-      "shadowPagesStaledBy": "Seiten, die das Bild veralten ließ, nach Grund: Licht, ruhender Schattenwerfer, bewegte Schattenwerfer, Detail, Schnittschwelle oder Tiefenbereich einer Sonne.",
+      "shadowPagesStaledBy": "Seiten, die das Bild veralten ließ, nach Grund: Licht, ruhender Schattenwerfer, bewegte Schattenwerfer, Detail, Schnittschwelle, Tiefenbereich einer Sonne oder ein Fußabdruck, den ihre Empfänger vergrößert haben.",
       "shadowWaitMs": "Wie viele Millisekunden die älteste veraltete Seite, die das Bild liest, auf ihr Neuzeichnen gewartet hat. Nur die Zeit, in der das Bild sie liest, zählt; 0, sobald sie neu gezeichnet ist.",
       "shadowCutDrops": "Light-Cut-Batches, die Arbeit verworfen haben — ihre Ansichten behielten mehr Cluster, als die Listen fassen —, seit dem Öffnen des Explorers: Jeder schickt seine Seiten zurück, entzogen bis zum Neuzeichnen (#525). Null auf einer Engine ohne GPU-Light-Cut, ebenso die drei folgenden.",
       "shadowCutWithdrawnPages": "Seiten, die neu gezeichnet werden, weil ein Light-Cut sie falsch gezeichnet hat, seit dem Öffnen des Explorers: Sein Batch hat Arbeit verworfen, oder sein Flag wurde nie gelesen. Sie sind bis zum Neuzeichnen entzogen.",
@@ -6947,6 +6948,7 @@
       "shadowMemoryEvents": "Die Speicherdruck-Ereignisse der Schatten seit dem Öffnen der Welt, nach Namen, der Reihe nach; normalerweise leer.",
       "shadowPagesRefetched": "Virtuelle Seiten, die erneut abgebildet wurden, nachdem der Pool sie für Platz verdrängt hatte, seit dem Öffnen des Explorers: die Neuzeichnungen, die ein für die gelesenen Bilder zu kleiner Pool kostet.",
       "shadowCastersKept": "Schattenwerfer, die das Culling pro Seite behalten hat, alle gezeichneten Seiten zusammen, im zuletzt vom Gerät abgetasteten Bild — eines von fünfzehn; `null`, bis eine Probe zurückkam.",
+      "shadowCastersRejected": "Schattenwerfer, die das Culling pro Seite getestet und nicht behalten hat — außerhalb des Teils der Seite, den ihre Empfänger lesen —, im selben abgetasteten Bild; `null`, bis eine Probe zurückkam.",
       "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam.",
       "dynamicUploadBytes": "Vertex-Bytes dynamischer Geometrie, die in diesem Bild an Ort und Stelle hochgeladen wurden (#573), innerhalb des Budgets der Welt pro Bild (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Fehlt, wo keine Welt zeichnet."
     }

@@ -1390,7 +1390,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Il proxy riletto e riverificato prima che un solo raggio lo tocchi.",
-    "description": "Disposizione: otto parole di intestazione little-endian, seguite dalle colonne della geometria e dell’albero canonici e dai dati di proprietà con versione. `docs/FORMAT.md` specifica ogni conteggio e colonna. L’intestazione impone la lunghezza di ogni sezione; un file di dimensione diversa viene rifiutato interamente, perché un nodo che indicasse un triangolo mancante farebbe leggere dati arbitrari allo shader."
+    "description": "Undici parole little-endian di intestazione precedono geometria condivisa o indipendente, colonne dell’albero e proprietà versionata. `docs/FORMAT.md` definisce conteggi e colonne. Lunghezze errate vengono rifiutate prima di qualsiasi raggio."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` scomposta in `position`, `quaternion`, `scale`."
@@ -5255,7 +5255,7 @@
     "summary": "Versione del contratto della gerarchia di scena mantenuta dall'host."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Interi dell’intestazione: firma, versione, conteggi di triangoli/nodi/gruppi/proprietari/origini, zero riservato."
+    "summary": "Interi di intestazione: intestazione dei proprietari v3, poi conteggi di forme, triangoli memorizzati e posizionamenti."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' letti come un intero senza segno a 32 bit little-endian."
@@ -5391,7 +5391,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "Il proxy letto: il suo descrittore e le sue colonne, viste sui byte del suo oggetto di cache.",
+    "summary": "Il proxy letto: descrittore e colonne immutabili, con triangoli condivisi espansi al caricamento.",
     "members": {
       "data": "Le sue colonne."
     }
@@ -5522,7 +5522,7 @@
       "shadowStaticDrawCalls": "Chiamate di disegno di proiettori statici: nel livello statico, o di una pagina disegnata intera senza di esso.",
       "shadowMovingDrawCalls": "Chiamate di disegno dei soli proiettori in movimento, su pagine ripristinate dal livello statico.",
       "shadowMovingCastersKept": "Di `shadowCastersKept`, i cluster tenuti per disegnare i soli proiettori in movimento.",
-      "shadowPagesStaledBy": "Pagine che l’immagine ha reso obsolete, per motivo: luce, proiettore fermo, proiettori in movimento, dettaglio, soglia del taglio o intervallo di profondità di un sole.",
+      "shadowPagesStaledBy": "Pagine che l’immagine ha reso obsolete, per motivo: luce, proiettore fermo, proiettori in movimento, dettaglio, soglia del taglio, intervallo di profondità di un sole o un’impronta che i suoi ricevitori hanno allargato.",
       "shadowWaitMs": "Quanti millisecondi la pagina obsoleta più vecchia che l'immagine legge ha atteso di essere ridisegnata. Conta solo il tempo in cui l'immagine la legge; 0 una volta ridisegnata.",
       "shadowCutDrops": "Lotti del taglio dalla luce che hanno scartato lavoro — le loro viste hanno tenuto più cluster di quanti ne contengano le liste —, dall’apertura dell’esploratore: ognuno rimanda le sue pagine, ritirate fino al ridisegno (#525). Null su un motore senza taglio della luce su GPU, come i tre seguenti.",
       "shadowCutWithdrawnPages": "Pagine ridisegnate perché un taglio dalla luce le ha disegnate male, dall’apertura dell’esploratore: il suo lotto ha scartato lavoro, o il suo flag non è mai stato letto. Restano ritirate fino al ridisegno.",
@@ -5554,6 +5554,7 @@
       "shadowMemoryEvents": "Gli eventi di pressione di memoria delle ombre dall'apertura del mondo, per nome, in ordine; vuoto normalmente.",
       "shadowPagesRefetched": "Pagine virtuali mappate di nuovo dopo che il pool le aveva espulse per fare spazio, dall’apertura dell’explorer: i ridisegni che costa un pool troppo piccolo per ciò che leggono i fotogrammi.",
       "shadowCastersKept": "Proiettori d’ombra mantenuti dal culling per pagina, tutte le pagine disegnate insieme, nel fotogramma campionato per ultimo dal dispositivo — uno su quindici; `null` finché non torna un campione.",
+      "shadowCastersRejected": "Proiettori d’ombra che il culling per pagina ha testato senza mantenerli — fuori dalla parte della pagina che i suoi ricevitori leggono —, nello stesso fotogramma campionato; `null` finché non torna un campione.",
       "shadowCastersHidden": "Proiettori in movimento che il test di occlusione ha trovato nascosti dietro lo strato statico della loro pagina, nel fotogramma campionato per ultimo; `null` finché non torna un campione."
     }
   },
@@ -6876,7 +6877,7 @@
       "shadowStaticDrawCalls": "Chiamate di disegno di proiettori statici: nel livello statico, o di una pagina disegnata intera senza di esso.",
       "shadowMovingDrawCalls": "Chiamate di disegno dei soli proiettori in movimento, su pagine ripristinate dal livello statico.",
       "shadowMovingCastersKept": "Di `shadowCastersKept`, i cluster tenuti per disegnare i soli proiettori in movimento.",
-      "shadowPagesStaledBy": "Pagine che l’immagine ha reso obsolete, per motivo: luce, proiettore fermo, proiettori in movimento, dettaglio, soglia del taglio o intervallo di profondità di un sole.",
+      "shadowPagesStaledBy": "Pagine che l’immagine ha reso obsolete, per motivo: luce, proiettore fermo, proiettori in movimento, dettaglio, soglia del taglio, intervallo di profondità di un sole o un’impronta che i suoi ricevitori hanno allargato.",
       "shadowWaitMs": "Quanti millisecondi la pagina obsoleta più vecchia che l'immagine legge ha atteso di essere ridisegnata. Conta solo il tempo in cui l'immagine la legge; 0 una volta ridisegnata.",
       "shadowCutDrops": "Lotti del taglio dalla luce che hanno scartato lavoro — le loro viste hanno tenuto più cluster di quanti ne contengano le liste —, dall’apertura dell’esploratore: ognuno rimanda le sue pagine, ritirate fino al ridisegno (#525). Null su un motore senza taglio della luce su GPU, come i tre seguenti.",
       "shadowCutWithdrawnPages": "Pagine ridisegnate perché un taglio dalla luce le ha disegnate male, dall’apertura dell’esploratore: il suo lotto ha scartato lavoro, o il suo flag non è mai stato letto. Restano ritirate fino al ridisegno.",
@@ -6947,6 +6948,7 @@
       "shadowMemoryEvents": "Gli eventi di pressione di memoria delle ombre dall'apertura del mondo, per nome, in ordine; vuoto normalmente.",
       "shadowPagesRefetched": "Pagine virtuali mappate di nuovo dopo che il pool le aveva espulse per fare spazio, dall’apertura dell’explorer: i ridisegni che costa un pool troppo piccolo per ciò che leggono i fotogrammi.",
       "shadowCastersKept": "Proiettori d’ombra mantenuti dal culling per pagina, tutte le pagine disegnate insieme, nel fotogramma campionato per ultimo dal dispositivo — uno su quindici; `null` finché non torna un campione.",
+      "shadowCastersRejected": "Proiettori d’ombra che il culling per pagina ha testato senza mantenerli — fuori dalla parte della pagina che i suoi ricevitori leggono —, nello stesso fotogramma campionato; `null` finché non torna un campione.",
       "shadowCastersHidden": "Proiettori in movimento che il test di occlusione ha trovato nascosti dietro lo strato statico della loro pagina, nel fotogramma campionato per ultimo; `null` finché non torna un campione.",
       "dynamicUploadBytes": "Byte di vertici di geometria dinamica caricati sul posto in questo fotogramma (#573), entro il budget per fotogramma del mondo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Assente dove nessun mondo disegna."
     }
