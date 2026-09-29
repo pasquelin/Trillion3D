@@ -21,9 +21,8 @@ export { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS } from './recordPack.ts';
 export const SHADOW_PASS = 'Trillion3D shadow atlas v1';
 /** Bytes of the records, before the page table in the same buffer: where the table starts. */
 export const SHADOW_TABLE_OFFSET = MAX_SHADOW_SLICES * SHADOW_RECORD_FLOATS * 4;
-const RECORD_BYTES = SHADOW_TABLE_OFFSET;
 /** Bytes of the records then the page table, one buffer. */
-const DATA_BYTES = RECORD_BYTES + SHADOW_TABLE_ENTRIES * 4;
+const DATA_BYTES = SHADOW_TABLE_OFFSET + SHADOW_TABLE_ENTRIES * 4;
 /** Bytes of the buffers beside the pool — the faces, the records and page table: fixed by the
  *  light contract, the same on every screen, so the memory budget counts them. */
 export const SHADOW_BUFFER_BYTES = MAX_SHADOW_REGIONS * (FACE_STRIDE + 4) + DATA_BYTES;
@@ -180,7 +179,7 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       flushData(
         table: ShadowTable,
         words: (first: number, count: number) => void = (first, count) =>
-          device.queue.writeBuffer(dataBuffer, RECORD_BYTES + first * 4, table.words, first, count),
+          device.queue.writeBuffer(dataBuffer, SHADOW_TABLE_OFFSET + first * 4, table.words, first, count),
       ) {
         atlas.flushRecords();
         table.flush(words);
