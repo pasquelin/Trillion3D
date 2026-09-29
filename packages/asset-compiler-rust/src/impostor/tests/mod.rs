@@ -2,6 +2,7 @@
 use super::mesh::{Corners, Traceable};
 use super::surface::{Surface, Texels};
 
+mod capture;
 mod mapping;
 mod materials;
 mod mips;
@@ -25,7 +26,7 @@ fn leaf_texels() -> Texels {
     }
 }
 
-fn surface(colour: Option<Texels>, cut: Option<(f32, f32)>) -> Surface {
+pub(super) fn surface(colour: Option<Texels>, cut: Option<(f32, f32)>) -> Surface {
     Surface {
         factor: [1.0; 4],
         colour,
@@ -39,7 +40,7 @@ fn surface(colour: Option<Texels>, cut: Option<(f32, f32)>) -> Surface {
 }
 
 /// One quad, `centre` ± `a` ± `b`, texture coordinates over `[0, 1]²`, as two triangles.
-fn quad(
+pub(super) fn quad(
     out: &mut (Vec<f32>, Vec<u32>, Vec<Corners>),
     centre: [f64; 3],
     a: [f64; 3],

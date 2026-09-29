@@ -39,7 +39,7 @@ fn a_tree_s_frames_match_a_direct_orthographic_trace_within_one_texel() {
             for t in 0..32 * 32 {
                 let (px, py) = (t % 32, t / 32);
                 let u = ((px as f64 + 0.5) / 32.0 - 0.5) * 2.0 * r;
-                let v = ((py as f64 + 0.5) / 32.0 - 0.5) * 2.0 * r;
+                let v = (0.5 - (py as f64 + 0.5) / 32.0) * 2.0 * r;
                 let origin = add(
                     add(tree.centre, scale(dir, 2.0 * r)),
                     add(scale(x, u), scale(y, v)),
