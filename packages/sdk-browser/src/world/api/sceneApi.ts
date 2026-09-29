@@ -112,7 +112,6 @@ export function createExplorerSceneApi(inputs: Inputs) {
       check(),
       !!getActive().updateVertices?.(...change)
     ),
-    /** The bytes a rewrite of `ranges` sends the GPU on the active path, if it says (#573). */
     vertexBytes: (...change: Parameters<NonNullable<RenderBackend['vertexBytes']>>) =>
       getActive().vertexBytes?.(...change),
     unmountPlacements: (rows: PlacementRows) => (check(), getActive().unmountPlacements!(rows)),
