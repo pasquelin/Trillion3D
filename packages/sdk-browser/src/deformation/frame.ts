@@ -5,7 +5,7 @@ import {
 } from '../../../sdk-core/src/world/animation/skeleton.ts';
 import type { Skeleton } from '../../../sdk-core/src/world/animation/skeleton.ts';
 import type { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts';
-import { writeWaves } from './waveFrame.ts';
+import { wavesChanged, writeWaves } from './waveFrame.ts';
 import { writeSoftSource, type SoftSource } from './softSource.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
 import {
@@ -13,7 +13,6 @@ import {
   KIND_SKIN,
   KIND_WAVE,
   KIND_SOFT,
-  WAVE_FLOATS,
   recordLayout,
   type RecordShape,
 } from './layout.ts';
@@ -136,11 +135,7 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
     const weights = entry.mesh.morphTargetInfluences;
     for (let t = 0; weights && t < entry.shape.targets; t++)
       if (Math.fround(weights[t] ?? 0) !== block[at + layout.weights + t]) return true;
-    const model = entry.mesh.waves?.waveModel;
-    for (let w = 0; model && w < Math.min(model.count, entry.shape.waves); w++)
-      if (Math.fround(model.phase[w]) !== block[at + layout.wave + w * WAVE_FLOATS + 5])
-        return true;
-    return false;
+    return wavesChanged(block, entry, at + layout.world, at + layout.wave);
   };
   return {
     block,

@@ -54,7 +54,6 @@ export async function preparedGraph(inputs: Inputs) {
   const ranks = new Map<Object3D, MeshRanks>();
   const scene = new Group();
   if (tables.scene.name) scene.name = unique(tables.scene.name);
-  // References are counted over every node, reached or not, as the loader counted them.
   const refs = (field: 'mesh' | 'light' | 'camera') => {
     const counts = new Map<number, number>();
     for (const node of tables.nodes)
@@ -68,6 +67,7 @@ export async function preparedGraph(inputs: Inputs) {
     if ((counts[kind].get(rank) ?? 0) <= 1) return made;
     const copy = numbered(made.clone());
     const walk = (from: Object3D, to: Object3D) => {
+      if (from !== made && from.name) to.name = unique(from.name);
       const held = ranks.get(from);
       if (held) ranks.set(to, held);
       from.children.forEach((child, i) => walk(child, to.children[i]));
