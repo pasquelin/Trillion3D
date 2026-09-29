@@ -1,5 +1,6 @@
 import type { ClusterDrawMesh, HostAttributes, WholeMesh } from '../../cluster/batchMesh.ts';
 import { clusterMaterialReason } from './compatibility.ts';
+import { gatedAttributes } from '../../host/surfaceGate.ts';
 import type { Material } from './materialBinding.ts';
 import { featuresOf, physicalLostMask } from '../../scene/physicalMaterialGate.ts';
 
@@ -31,10 +32,27 @@ export function readDegraded(hear: MaterialDegraded): ReadDegraded {
 
 type Drawn = ClusterDrawMesh | WholeMesh;
 
+/** Each surface's reasons of the frame, by the mask of its meshes' attributes
+ *  (`gatedAttributes`): a frame drawing many pages of one surface reads the gate once for them
+ *  (#840: sponza read it for 1 465 pages a frame). */
+type SurfaceReads = Map<Material, (string | undefined)[]>;
+
+/** The gate's reason for one mesh (`clusterMaterialReason`), read once per surface and mask. */
+const reasonOf = (reads: SurfaceReads, mesh: Drawn, transmissive: boolean) => {
+  const material = mesh.material as Material,
+    attributes = mesh.geometry.attributes,
+    mask = gatedAttributes(attributes);
+  let known = reads.get(material);
+  if (!known) reads.set(material, (known = []));
+  if (!(mask in known)) known[mask] = clusterMaterialReason(material, attributes, transmissive);
+  return known[mask];
+};
+
 const validateMeshes = (
   meshes: readonly Drawn[],
   seen: Map<Material, HostAttributes>,
   left: Set<Drawn>,
+  reads: SurfaceReads,
   transmissive: boolean,
   degraded: ReadDegraded,
 ) => {
@@ -43,7 +61,7 @@ const validateMeshes = (
       attributes = mesh.geometry.attributes;
     const previous = seen.get(material);
     if (previous === attributes) continue;
-    const reason = clusterMaterialReason(material, attributes, transmissive);
+    const reason = reasonOf(reads, mesh, transmissive);
     if (reason) {
       left.add(mesh);
       degraded(material, reason);
@@ -71,16 +89,19 @@ type Copies = {
  */
 export function clusterValidation(degraded: ReadDegraded) {
   const seen = new Map<Material, HostAttributes>(),
-    left = new Set<Drawn>();
+    left = new Set<Drawn>(),
+    [pages, backdrop]: SurfaceReads[] = [new Map(), new Map()];
   return {
     validate(meshes: readonly ClusterDrawMesh[], whole: readonly WholeMesh[], copies: Copies) {
       seen.clear();
       left.clear();
-      validateMeshes(meshes, seen, left, false, degraded);
-      validateMeshes(whole, seen, left, false, degraded);
-      validateMeshes(copies.plain, seen, left, false, degraded);
-      validateMeshes(copies.blended, seen, left, false, degraded);
-      validateMeshes(copies.transmissive, seen, left, true, degraded);
+      pages.clear();
+      backdrop.clear();
+      validateMeshes(meshes, seen, left, pages, false, degraded);
+      validateMeshes(whole, seen, left, pages, false, degraded);
+      validateMeshes(copies.plain, seen, left, pages, false, degraded);
+      validateMeshes(copies.blended, seen, left, pages, false, degraded);
+      validateMeshes(copies.transmissive, seen, left, backdrop, true, degraded);
     },
     /** Whether this frame leaves `mesh` out. */
     leaves: (mesh: Drawn) => left.has(mesh),
