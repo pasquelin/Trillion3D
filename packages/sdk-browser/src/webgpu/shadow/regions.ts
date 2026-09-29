@@ -45,8 +45,8 @@ export function createShadowRegionList(poolSide: number) {
     /** The region's light view has no caster on the CPU cut (#1210): its cull keeps nothing, its
      *  commands stay at zero instances, so it encodes no draw. The GPU cut marks none. */
     casterless: (region: number) => casterless[region] === 1,
-    markCasterless(region: number) {
-      casterless[region] = 1;
+    setCasterless(region: number, empty: boolean) {
+      casterless[region] = empty ? 1 : 0;
     },
     /** Viewport of a region: its physical page, one square and layer in pool and static layer. */
     x: (region: number) => origin(region).x,

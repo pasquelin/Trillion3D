@@ -116,6 +116,10 @@ test('a light view with an empty caster list on the CPU cut encodes no draw for 
     calls.filter((c) => c.startsWith('setBindGroup') || c.startsWith('draw')),
     ['setBindGroup g2', 'setBindGroup faces', `drawIndirect ${2 * SHADOW_REGION_INDIRECT_BYTES}`],
   );
+  // The same regions encoded again once their list holds casters draw again.
+  lights.cpuCasters!.lengths[0] = 3;
+  assert.ok(encodeShadowCasters(rt, {} as GPUCommandEncoder, 3, 0, 3, 0));
+  assert.deepEqual([0, 1, 2].map(lights.regions.casterless), [false, false, false]);
   // The next batch's regions start drawable again.
   lights.regions.reset();
   lights.regions.push(0, DRAW_ALL, volumes, new Uint32Array(volumes.buffer));
