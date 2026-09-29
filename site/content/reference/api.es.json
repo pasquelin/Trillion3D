@@ -1252,7 +1252,7 @@
       "options.signal": "Detiene las cargas del mundo cuando se cancela la señal.",
       "options.physics": "Activa la física (`world.physics`): `true`, o gravedad y presupuestos. Solo entonces se carga Jolt.",
       "options.temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`.",
-      "options.renderScale": "La fracción de la pantalla por eje a la que se dibuja la imagen, solo WebGPU, antes de que el antialiasing temporal la reconstruya a la pantalla: `'auto'` deja que el presupuesto de imagen la elija entre `min` y `max` (`{ min, max }`, 0,5 y 1 por defecto), un número la fija; una imagen quieta se dibuja al máximo. Se cambia después con `world.renderScale`."
+      "options.renderScale": "La fracción de la pantalla por eje a la que se dibuja la imagen, antes de que el antialiasing temporal la reconstruya a la pantalla: `'auto'` deja que el presupuesto de imagen la elija entre `min` y `max` (`{ min, max }`, 0,5 y 1 por defecto; en WebGL2, que solo remuestrea, `min` es 1 por defecto), un número la fija; una imagen quieta se dibuja al máximo. Se cambia después con `world.renderScale`."
     }
   },
   "crossVector3": {
@@ -2502,6 +2502,7 @@
       "framebuffer": "Dónde dibujar; `null` para la pantalla.",
       "width": "Ancho en píxeles.",
       "height": "Alto en píxeles.",
+      "displayWidth": "El ancho al que se muestra la imagen cuando se dibuja por debajo de él (`world.renderScale`): los niveles de textura y los anchos de línea siguen la proporción. `width` si falta.",
       "linear": "Radiancia lineal, sin curva ni codificación, sobre negro transparente: la entrada de la cadena de efectos, cuyo alfa es la cobertura."
     }
   },
@@ -4650,7 +4651,7 @@
   "PageSource": {
     "summary": "De dónde se leen las páginas de un modelo, por clave.",
     "members": {
-      "read": "Lee los bytes de una página."
+      "read": "Lee los bytes de una página; `priority`, si se da, es la del streamer (la más pequeña primero). Una lectura más urgente de una página ya en curso se vuelve a pedir para subirla: una fuente que acepta `priority` la une a la lectura en curso en lugar de transferir la página dos veces."
     }
   },
   "PageStreamer": {
@@ -6650,7 +6651,7 @@
   },
   "world.renderScale": {
     "summary": "La fracción de la pantalla por eje a la que se dibuja la imagen (`WorldOptions.renderScale`), desde la imagen siguiente.",
-    "description": "Leída, la escala de la última imagen dibujada: 1 en WebGL2."
+    "description": "Leída, la escala de la última imagen dibujada."
   },
   "world.effects": {
     "summary": "La cadena de efectos: pasadas dibujadas sobre la imagen (`effect`)."
@@ -6902,7 +6903,7 @@
       "signal": "Detiene las cargas del mundo cuando se cancela la señal.",
       "physics": "Activa la física (`world.physics`): `true`, o gravedad y presupuestos. Solo entonces se carga Jolt.",
       "temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`.",
-      "renderScale": "La fracción de la pantalla por eje a la que se dibuja la imagen, solo WebGPU, antes de que el antialiasing temporal la reconstruya a la pantalla: `'auto'` deja que el presupuesto de imagen la elija entre `min` y `max` (`{ min, max }`, 0,5 y 1 por defecto), un número la fija; una imagen quieta se dibuja al máximo. Se cambia después con `world.renderScale`."
+      "renderScale": "La fracción de la pantalla por eje a la que se dibuja la imagen, antes de que el antialiasing temporal la reconstruya a la pantalla: `'auto'` deja que el presupuesto de imagen la elija entre `min` y `max` (`{ min, max }`, 0,5 y 1 por defecto; en WebGL2, que solo remuestrea, `min` es 1 por defecto), un número la fija; una imagen quieta se dibuja al máximo. Se cambia después con `world.renderScale`."
     }
   },
   "RenderScale": {
@@ -6912,7 +6913,7 @@
   "WorldPageSource": {
     "summary": "De dónde se leen las páginas, y la dirección respecto a la cual se leen.",
     "members": {
-      "read": "Lee los bytes de una página.",
+      "read": "Lee los bytes de una página; `priority`, si se da, es la del streamer (la más pequeña primero). Una lectura más urgente de una página ya en curso se vuelve a pedir para subirla: una fuente que acepta `priority` la une a la lectura en curso en lugar de transferir la página dos veces.",
       "baseUrl": "La dirección respecto a la cual se lee cada página."
     }
   },
