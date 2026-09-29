@@ -47,3 +47,16 @@ test("a sun point past its level's window reads the next level, drawn in the fra
   assert.ok(reads.length > 0);
   for (const entry of reads) assert.ok(readable(plan, entry), `entry ${entry}`);
 });
+
+test('a resized pool keeps the demand listing as many entries as it holds pages', () => {
+  const { store, plan } = demandScene([LAMP_AHEAD, SUN]);
+  const { boxes, lits } = floorTiles(tileGrid(-4, 4, -16, -8));
+  plan.plan(store, VIEW, MIN, MAX, 1, 16, receiversOf(boxes));
+  plan.commit();
+  plan.resize(96, 1);
+  plan.plan(store, VIEW, MIN, MAX, 2, 32, receiversOf(boxes));
+  plan.commit();
+  assert.equal(plan.requests.counts.unlisted, 0);
+  for (const entry of shadingReads(plan, store, VIEW, VIEW.pixelNear, lits))
+    assert.ok(readable(plan, entry), `entry ${entry} after the resize`);
+});

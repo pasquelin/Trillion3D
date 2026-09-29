@@ -59,16 +59,16 @@ export function createShadowRequests(
   pool: ShadowPool,
   records: ShadowRecords,
   sun: SunLevels,
+  /** Entries read, allocated, refused for want of a page, and asked past the list (`unlisted`);
+   *  a resized pool's requests go on counting where the old ones stopped. */
+  counts = { requested: 0, allocated: 0, refused: 0, unlisted: 0, latest: -1 },
 ) {
   const cap = shadowRequestCap(pool.pages),
     needs = createShadowNeeds(table, pool, 2 * cap), // each entry named, and its floor
     scratch = new Int32Array(4),
     /** What the entry being read names: its view, then its page. */
     at = new Int32Array(3);
-  let reportFrame = -1,
-    decodeFrame = -1;
-  /** Entries read, allocated, refused for want of a page, and asked past the list (`unlisted`). */
-  const counts = { requested: 0, allocated: 0, refused: 0, unlisted: 0, latest: -1 };
+  let reportFrame = -1;
   const isSun = (slice: number) => records.kind[slice] === LIGHT_KIND.directional;
   /** Touches `entry` when it is mapped; else notes it to allocate, as `at` names it. */
   const ask = (entry: number, slice: number) => {
@@ -83,11 +83,12 @@ export function createShadowRequests(
       : lampCoarseness(at[0] & 15);
     needs.note(entry, slice, at[0], at[1], at[2], rank);
   };
-  /** Writes into `at` what unmapped `entry` of `slice` names; false when the clipmap left it. */
-  const decode = (entry: number, slice: number) => {
+  /** Writes into `at` what unmapped `entry` of `slice` names in frame `written`'s layout; false
+   *  when the clipmap left it. */
+  const decode = (entry: number, slice: number, written: number) => {
     const relative = entry - table.baseOf(slice);
     if (isSun(slice)) {
-      if (!sun.decode(slice, relative, decodeFrame, scratch)) return false;
+      if (!sun.decode(slice, relative, written, scratch)) return false;
       if (!sun.holds(slice, scratch[0], scratch[1], scratch[2])) return false;
       for (let k = 0; k < 3; k++) at[k] = scratch[k];
       return true;
@@ -133,14 +134,14 @@ export function createShadowRequests(
     get complete() {
       return !counts.allocated && (!counts.unlisted || pool.heldBy(counts.latest));
     },
-    /** Reads `report`, what it names asked for as of frame `asOf`: its own by default. */
+    /** Reads `report` as of frame `asOf`, its own by default; one read before a resize lists
+     *  at most the old pool's cap. */
     consume(report: ShadowRequestReport, nowMs: number, frame: number, asOf = report.frame) {
-      counts.requested = Math.min(report.count, cap);
+      counts.requested = Math.min(report.count, cap, report.entries.length);
       counts.unlisted = report.count - counts.requested;
       counts.allocated = 0;
       counts.refused = 0;
       if (report.layoutEpoch !== table.layoutEpoch) return;
-      decodeFrame = report.frame;
       counts.latest = reportFrame = asOf;
       needs.clear();
       for (let i = 0; i < counts.requested; i++) {
@@ -155,7 +156,7 @@ export function createShadowRequests(
           at[2] = pool.y[page];
         } else {
           slice = table.sliceAt(entry);
-          if (slice < 0 || !decode(entry, slice)) continue;
+          if (slice < 0 || !decode(entry, slice, report.frame)) continue;
         }
         ask(entry, slice);
         askFloor(slice);

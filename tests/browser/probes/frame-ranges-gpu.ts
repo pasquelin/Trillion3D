@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
+import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
 import type { executer } from './frameRangesPage.ts';
 
 declare global {
@@ -16,7 +16,7 @@ declare global {
 const ici = dirname(fileURLToPath(import.meta.url));
 
 test('a table split in three ranges cuts as the whole table, on the GPU', async () => {
-  const script = await empaquetePage(resolve(ici, 'frameRangesPage.ts'), 'frameRanges');
+  const script = await bundlePage(resolve(ici, 'frameRangesPage.ts'), 'frameRanges');
   const erreursPage: string[] = [];
   const releve = await dansPageWebgpu(
     (argument: Parameters<typeof executer>[0]) => globalThis.frameRanges.executer(argument),
