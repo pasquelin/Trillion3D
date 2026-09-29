@@ -159,7 +159,6 @@ test('the opaque visibility tables are the same with or without blended casters'
       { sync: () => {}, dirty: true },
       pages,
       { drawn: [] },
-      1,
       () => true,
       createWebgpuRowCommit(rows, writer),
     );
