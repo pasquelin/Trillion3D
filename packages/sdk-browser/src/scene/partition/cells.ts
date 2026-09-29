@@ -43,9 +43,6 @@ type Inputs = {
   /** The manifest's pages the view holds (#751). */ pages?: Parameters<typeof createCellPages>[0];
   /** The world bundles its roots need (#1237). */ world?: Parameters<typeof createCellPages>[2];
 };
-/** What a file is decoded by off the main thread: its bytes and its address, which a refusal names. */
-type Decode<T> = (bytes: Uint8Array, url: string) => Promise<T>;
-
 const rootWorld = new Float64Array(MATRIX_VALUES);
 
 export function createPartitionCells(inputs: Inputs) {
@@ -108,10 +105,8 @@ export function createPartitionCells(inputs: Inputs) {
     frame(
       eye: ArrayLike<number>,
       reach: number,
-      /** What the frame reads through, spelled out as `budget` is, kept internal: the streamer's
-       *  verified bytes and their decode off the main thread, whether it reads an address, a
-       *  request (`ahead`: read before needed), the catalogue's files taken and let go, the rows
-       *  written, a buffer grown in place where the engine takes it, else the owner told. */
+      /** Kept internal as `budget` is: the streamer's verified bytes and their decode off the main
+       *  thread, reads, requests (`ahead`: before needed), catalogue, rows, else the owner told. */
       io: {
         bytes(url: string): Uint8Array | undefined;
         decode: (bytes: Uint8Array, url: string) => Promise<CellRows>;
@@ -166,8 +161,7 @@ export function createPartitionCells(inputs: Inputs) {
     async prime(
       eye: ArrayLike<number>,
       reach: number,
-      /** What the reads before the first frame go through, kept internal as `frame`'s: the
-       *  streamer's verified read, the decodes, the catalogue. */
+      /** Kept internal as `frame`'s: the streamer's verified read, the decodes, the catalogue. */
       io: {
         read(url: string): Promise<Uint8Array>;
         decode: (bytes: Uint8Array, url: string) => Promise<CellRows>;
@@ -179,7 +173,7 @@ export function createPartitionCells(inputs: Inputs) {
       const local = view(eye, reach);
       if (sized < RUNGS) resize(owned ? Math.max(local.rung, wanted) : RUNGS);
       let bytes = 0;
-      const read = async <T>(url: string, decode: Decode<T>) => {
+      const read = async <T>(url: string, decode: (got: Uint8Array, url: string) => Promise<T>) => {
         const got = await io.read(url);
         bytes += got.byteLength;
         return decode(got, url);
