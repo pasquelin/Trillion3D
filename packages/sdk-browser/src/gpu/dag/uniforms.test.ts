@@ -9,7 +9,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseDagOutput } from './uniforms.ts';
-import { SELECTION_HEADER_WORDS } from './layout.ts';
+import { OUT_AHEAD, OUT_AHEAD_PLACED, SELECTION_HEADER_WORDS } from './layout.ts';
 import { REQUEST_AHEAD, packRequest } from './request.ts';
 import { referenceParseDagOutput } from '../../../../../bench/oracles/browser/residency.ts';
 import type { SelectionResult } from '../core/selection.ts';
@@ -98,11 +98,28 @@ test('the host reads the requests in the order the GPU wrote them, and ranks not
     packRequest(8, REQUEST_AHEAD | 3),
     packRequest(7, REQUEST_AHEAD | 500),
   ];
-  const { neuf } = paire([demandes.length, 0, 0, 0], demandes);
+  // The camera's three are counted on their own; the two ahead the sort placed behind them.
+  const { neuf } = paire([3, 0, 0, 0, 0, 0, 2, 2], demandes);
   const releve = lire(neuf)!;
   assert.deepEqual(releve.pageIds, [70, 11, 42]);
   // The view ahead's requests, after every visible one, leave for their own list (`request.ts`).
   assert.deepEqual(releve.aheadPageIds, [8, 7]);
+});
+
+test('requests ahead never make a crowded sample truncated, nor take the camera’s place', () => {
+  // A sample of four ranks the camera fills whole, while the view ahead asked for nine more: the
+  // camera's requests are all read, none ahead, and nothing says truncated (`shader/snapshotWgsl.ts`).
+  const camera = [1, 2, 3, 4].map((page) => packRequest(page, 100));
+  const header = [4, 0, 0, 0, 0, 0, 0, 0];
+  header[OUT_AHEAD] = 9;
+  header[OUT_AHEAD_PLACED] = 0;
+  const read = lire(buffer(header, camera))!;
+  assert.equal(read.truncated, false);
+  assert.deepEqual(read.pageIds, [1, 2, 3, 4]);
+  assert.deepEqual(read.aheadPageIds, []);
+  // A placed count past what the sample holds is bounded by it.
+  header[OUT_AHEAD_PLACED] = 3;
+  assert.deepEqual(lire(buffer(header, camera))!.aheadPageIds, []);
 });
 
 test('triangle totals are reread as the GPU posted them, the one drawn counter under both names', () => {

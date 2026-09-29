@@ -731,7 +731,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "按簇 DAG 误差的缓存标识：组在位置、法线和纹理坐标上的绝对 QEM 误差，限制在组的范围内；v1 缓存会被拒绝。"
+    "summary": "逐簇 DAG 误差的缓存标识：组在位置、法线和纹理坐标上的绝对 QEM 误差，限制在组的范围内，且从不低于组的子簇与其输出之间的采样 Hausdorff 距离（#929）；v1 和 v2 缓存会被拒绝。"
   },
   "DEFAULT_SCOPE": {
     "summary": "未指定时模型被编译所采用的范围:按页流式加载。"
@@ -1122,7 +1122,7 @@
       "frameHeld": "当该帧被保留时为 true:场景、视图、资源均未变化,没有待处理的异步工作,也没有任何 CPU 阶段运行过。所显示的像素与原始帧逐位相同。被保留的帧实际所做的事会如实公布,绝不会从上一次完整渲染中复制而来:`drawCalls`、`triangles`、`submittedTriangles` 和 `totalSubmittedTriangles` 只统计当前值,各阶段的 CPU 和 GPU 耗时在该阶段未运行时为 0,在完全没有计时时为 `null`。如果引擎的画面是由对照适配器绘制的场景,则统计该适配器在本帧提交的内容——在被保留的帧上则什么都没有。被保留的帧实际**显示**的内容仍由它重新展示的那次裁切来描述:`clusters`、`selectedTriangles`、`frustumRejected`、`lodLevel` 和 `residentPages` 都是原始帧的值,因为用的是同一次裁切。在不保留帧的引擎上不存在该字段。",
       "streamingError": "持续存在的加载错误;失败的 URL 在尝试三次后需要探索器重新加载。",
       "gpuPassMs": "该后端最近一次的 GPU 通道采样;当设备不支持时间戳查询时为 null。",
-      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在 WebGL2 上为 null。",
+      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在没有 `EXT_disjoint_timer_query_webgl2` 的 WebGL2 上为 null。",
       "gpuHostGapMs": "同一张图像在自己两次提交之间所耗费的 CPU 时间;只提交一次时为零。这是宿主时间而非 GPU 时间,这正是 `gpuFrameMs` 不包含它的原因。未测量时为 null。",
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
       "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。",
@@ -3182,7 +3182,7 @@
       "gpuShadowRasterMs": "把这些投影体绘入页面的 GPU 时间：先静态层，再池。",
       "gpuLightingMs": "光照的 GPU 耗时。",
       "shadowLightCuts": "从光源运行的簇切割：每个绘制的光视图一个，静止帧为零。",
-      "shadowPagesRequested": "图像读取的虚拟阴影页，即其最新请求报告所列：相机接收面标记的内容。",
+      "shadowPagesRequested": "图像读取的虚拟阴影页，即该帧的提前需求所列（没有时为其最新请求报告所列）：相机接收面标记的内容。",
       "shadowPagesCached": "其中直接从池中读取的页：最新，无需绘制。",
       "shadowPoolPages": "固定池中保存虚拟页的物理页。",
       "shadowPoolBytes": "阴影池的 GPU 字节数：其深度页、创建后的静态层和透射层，以及旁边的缓冲区。在第一帧确定池大小之前为 null。",
@@ -3206,7 +3206,7 @@
       "releaseDeferred": "本帧不规划任何阴影：保留的并集立即进入列表。",
       "setPageInvalidation": "关闭逐页失效：移动的物体使其触及的光源的每一页失效。默认开启。",
       "pageInvalidation": "移动的物体是否只使其包围盒覆盖的页失效。",
-      "plan": "规划一帧：使移动过的内容失效，读取最新报告，接纳每一个要绘制的页。",
+      "plan": "规划一帧：使移动过的内容失效，读取接收面的需求（没有时读取最新报告），接纳每一个要绘制的页。",
       "reissue": "本帧从 `from` 开始的页未能编码：它们保持失效、待处理，由下一帧绘制。",
       "reset": "重新开始。",
       "setThreshold": "光照裁切选择投影体所用的阈值（`thresholds.ts`）。",
@@ -3219,7 +3219,8 @@
       "stamp": "着色、光源和视图交给下一帧图像的内容：以它盖章且未列出任何新内容的报告，证明图像只读取已绘制的内容。",
       "settled": "当报告证明当前状态不再请求任何内容时为真：图像可以保持。",
       "receive": "请求报告已返回；下一个计划读取它。较新的报告替换未读的报告。",
-      "commit": "本帧列表中的 `[from, to)` 页已编码，第 `from + i` 页使用 `modes[i]`：它们的绘制在任何读取之前完成。最后一批关闭列表。"
+      "commit": "本帧列表中的 `[from, to)` 页已编码，第 `from + i` 页使用 `modes[i]`：它们的绘制在任何读取之前完成。最后一批关闭列表。",
+      "resize": "换一种大小的池：保留其页面，重新分配其数组；返回每一页的去向。"
     }
   },
   "ShadowStaleReason": {
@@ -4222,7 +4223,7 @@
       "frameHeld": "当该帧被保留时为 true:场景、视图、资源均未变化,没有待处理的异步工作,也没有任何 CPU 阶段运行过。所显示的像素与原始帧逐位相同。被保留的帧实际所做的事会如实公布,绝不会从上一次完整渲染中复制而来:`drawCalls`、`triangles`、`submittedTriangles` 和 `totalSubmittedTriangles` 只统计当前值,各阶段的 CPU 和 GPU 耗时在该阶段未运行时为 0,在完全没有计时时为 `null`。如果引擎的画面是由对照适配器绘制的场景,则统计该适配器在本帧提交的内容——在被保留的帧上则什么都没有。被保留的帧实际**显示**的内容仍由它重新展示的那次裁切来描述:`clusters`、`selectedTriangles`、`frustumRejected`、`lodLevel` 和 `residentPages` 都是原始帧的值,因为用的是同一次裁切。在不保留帧的引擎上不存在该字段。",
       "streamingError": "持续存在的加载错误;失败的 URL 在尝试三次后需要探索器重新加载。",
       "gpuPassMs": "该后端最近一次的 GPU 通道采样;当设备不支持时间戳查询时为 null。",
-      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在 WebGL2 上为 null。",
+      "gpuFrameMs": "`gpuPassMs.frame` 所描述图像的 GPU 时长。绝不会被加到任何 `cpu*` 字段中。设备每隔几帧采样一次,因此数值可能来自几帧之前。在首次采样之前、从保持的图像到设备的下一次采样、在没有 `timestamp-query` 的设备上以及在没有 `EXT_disjoint_timer_query_webgl2` 的 WebGL2 上为 null。",
       "gpuHostGapMs": "同一张图像在自己两次提交之间所耗费的 CPU 时间;只提交一次时为零。这是宿主时间而非 GPU 时间,这正是 `gpuFrameMs` 不包含它的原因。未测量时为 null。",
       "uncoveredTriangles": "已发布的裁切集合中提到、但本帧无法绘制的簇所对应的三角形——既没有常驻页面,也没有可覆盖的祖先。这是画面中真实存在的空洞:唯一健康的值是零。当某个后端无法判断时为 null(它只绘制自己选中的裁切,因此永远不会出现这种情况)。",
       "drawnTriangles": "**当前帧**交给绘制的三角形数:即层级结构中不透明与透明部分合并后的簇裁切集合。层级结构之外的透明网格不包含在内(见 `transparentSubmittedTriangles`),遮挡剔除的部分也不会从中扣除(见 `hizRejectedTriangles`)。它在裁切确定时计算得出:不需要等待任何异步的 GPU 回读,因此不会像 `submittedTriangles` 那样因为时间不够而变成 `null`。",
@@ -4307,7 +4308,7 @@
       "texturePoolClamp": "纹理池被限制的原因:`minimum`、`device-limit`。",
       "hizCulled": "本帧遮挡测试判定为隐藏的簇数;该路径不统计时为 `null`。",
       "shadowLightCuts": "从光源运行的簇切割：每个绘制的光视图一个，静止帧为零。",
-      "shadowPagesRequested": "图像读取的虚拟阴影页，即其最新请求报告所列：相机接收面标记的内容。",
+      "shadowPagesRequested": "图像读取的虚拟阴影页，即该帧的提前需求所列（没有时为其最新请求报告所列）：相机接收面标记的内容。",
       "shadowPagesCached": "其中直接从池中读取的页：最新，无需绘制。",
       "shadowPoolPages": "固定池中保存虚拟页的物理页。",
       "shadowPoolBytes": "阴影池的 GPU 字节数：其深度页、创建后的静态层和透射层，以及旁边的缓冲区。在第一帧确定池大小之前为 null。",
@@ -4930,7 +4931,7 @@
   },
   "createShadowPlan": {
     "summary": "虚拟贴图的阴影调度器。",
-    "description": "着色记录它读取的页；其报告在几帧后读回，从固定池中分配缺少的部分。移动的物体使其覆盖的已映射页失效。随后一帧会绘制图像读取的每一个失效页，全部在这一帧内：控制成本的是缓存——页只有在内容改变时才重绘——而池是唯一的限制。着色不再运行的静止场景什么也不请求，什么也不绘制。所有数组只分配一次；`plan()` 不分配任何内存。"
+    "description": "帧的接收面在光栅化之前列出它们读取的页（`demand.ts`）——没有接收面时，由几帧后读回的着色报告代替——缺少的部分从固定池中分配。移动的物体使其覆盖的已映射页失效。随后一帧会绘制图像读取的每一个失效页，全部在这一帧内（`admit.ts`）：控制成本的是缓存——页只有在内容改变时才重绘——而池是唯一的限制。着色不再运行的静止场景什么也不绘制。所有数组只分配一次——接收面的单元只在接收面更多的帧中增长——；`plan()` 不再分配其他内存。"
   },
   "createTerminalProgress": {
     "summary": "一个跟随编译器事件更新的终端进度条。",
@@ -7477,6 +7478,17 @@
   },
   "SHADOW_RECORD_FLOATS": {
     "summary": "阴影记录的浮点数，即光源着色所读取的内容：六个灯面矩阵 — 太阳在此存放深度范围，每个为 `zNear, zFar`（`recordPack.ts`）—，然后是太阳光平面的坐标系 — `right, zNear`、`up, zFar`、`axis`，然后是当前范围的槽位 —，然后是每个 clipmap 槽位窗口原点的两个整数，最后是一个 `vec4f` 头：面（灯）或级别（太阳）、灯的切向半视场或太阳的最细级别、灯的近平面，以及记录在页表中的第一个条目。"
+  },
+  "ShadowReceivers": {
+    "summary": "一帧着色所照亮的表面，即宿主在阴影光栅化之前交给它的内容。",
+    "members": {
+      "boxes": "世界空间包围盒，每个 `RECEIVER_FLOATS` 个数：该帧每个被照亮的表面都位于其中之一。",
+      "count": "列出的包围盒数。",
+      "planes": "相机视锥的六个平面（`frustumPlanesFromMatrix`）：位于其外的不被照亮。",
+      "pixelNear": "近平面处一个像素的世界尺寸，被照亮点的足迹从这里开始：读取阴影的各通道中最小的——绘制目标的、显示屏的。",
+      "pixelNearMost": "同上，这些通道中最大的。",
+      "orthographic": "正交相机：每个像素的足迹都是 `pixelNear`。"
+    }
   },
   "ShadowRequestReport": {
     "summary": "着色在一帧中读取的内容：它请求的表条目，无顺序。",

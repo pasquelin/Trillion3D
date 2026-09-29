@@ -34,8 +34,8 @@ export interface ShadowFrameMetrics {
   shadowRenderPasses?: number | null;
   /** Cluster cuts run from the lights: one per light view drawn in, zero on a still frame. */
   shadowLightCuts?: number | null;
-  /** Virtual shadow pages the image read, as its latest request report named them: what the
-   *  camera's receivers mark. */
+  /** Virtual shadow pages the image reads, as the frame's early demand named them — or, without
+   *  it, the latest request report: what the camera's receivers mark. */
   shadowPagesRequested?: number | null;
   /** Of those, pages read straight from the pool: current, no draw. */
   shadowPagesCached?: number | null;

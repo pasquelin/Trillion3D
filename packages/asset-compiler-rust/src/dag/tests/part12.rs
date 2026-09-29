@@ -80,3 +80,48 @@ fn a_texture_density_follows_its_coordinates() {
         "{full} then {half}"
     );
 }
+
+// Behaviour: a solved group publishes at least what `measured::step_error` measures from its
+// children to its outputs on the grown arrays, its placed vertices included: the removed parts,
+// the Hausdorff distance and the texture deviation, each placed vertex in its origin's island.
+#[test]
+fn a_solved_group_publishes_at_least_its_measured_step_error() {
+    let (positions, carried, indices) = sheet(32);
+    let (dag, groups, _, _, grown) = dag_of(&positions, &carried, &indices);
+    let grown = grown.expect("placed vertices");
+    let every: Vec<u32> = dag.iter().flat_map(|c| c.indices.iter().copied()).collect();
+    let (grown_positions, uvs) = (&grown.positions[..], &grown.carried[1].values[..]);
+    let weld = clusters::weld_positions(grown_positions, &every);
+    let mut weld_seam = clusters::weld_positions_and_uv(grown_positions, &[uvs], &every);
+    let source = positions.len() / 3;
+    for (p, &origin) in grown.origin.iter().enumerate() {
+        weld_seam[source + p] = weld_seam[origin as usize];
+    }
+    let extents = vanished::part_extents(grown_positions, &every, &weld);
+    let surface = measured::Surface {
+        positions: grown_positions,
+        weld: &weld,
+        weld_seam: &weld_seam,
+        extents: &extents,
+        uv_sets: vec![uvs],
+    };
+    let on_placed = |ids: &[usize]| {
+        let indices = indices_of(&dag, ids);
+        indices.iter().any(|&v| v as usize >= source)
+    };
+    let solved_groups = groups.iter().filter(|g| on_placed(&g.outputs));
+    let mut checked = 0;
+    for group in solved_groups {
+        let children = indices_of(&dag, &group.children);
+        let outputs = indices_of(&dag, &group.outputs);
+        let measured = measured::step_error(&surface, &children, &outputs, 0.0, 0.0);
+        assert!(
+            group.error >= measured,
+            "level {}: {} published below {measured}",
+            group.level,
+            group.error
+        );
+        checked += 1;
+    }
+    assert!(checked > 0, "no solved group");
+}
