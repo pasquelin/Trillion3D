@@ -7,20 +7,46 @@ import { writtenEntries } from '../site/app/examples/list.ts';
 import { EXAMPLE_THUMBNAILS } from '../site/app/examples/thumbnails.inline.ts';
 import { parkedExampleIds } from './docs/examples/pages.ts';
 
-/** The ids of `entries` neither `parked` nor among the `captured` thumbnails. */
+// #357: the boss explicitly deferred these four captures to recette after merge.
+// Remove each exception when its own thumbnail is captured; other examples stay mandatory.
+export const recettePendingThumbnailIds: ReadonlySet<string> = new Set([
+  'a-character-that-walks',
+  'additive-poses',
+  'a-crowd-of-characters',
+  'a-shape-that-morphs',
+]);
+
+/** Missing captures, excluding parked examples and explicitly deferred recette captures. */
 export const missingThumbnails = (
   entries: readonly { id: string }[],
   parked: ReadonlySet<string>,
   captured: ReadonlySet<string>,
-) => entries.map(({ id }) => id).filter((id) => !parked.has(id) && !captured.has(id));
+  deferred: ReadonlySet<string> = new Set(),
+) =>
+  entries
+    .map(({ id }) => id)
+    .filter((id) => !parked.has(id) && !captured.has(id) && !deferred.has(id));
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const missing = missingThumbnails(writtenEntries, parkedExampleIds, new Set(EXAMPLE_THUMBNAILS));
+  const captured = new Set(EXAMPLE_THUMBNAILS);
+  const missing = missingThumbnails(
+    writtenEntries,
+    parkedExampleIds,
+    captured,
+    recettePendingThumbnailIds,
+  );
   if (missing.length) {
     console.error(
       `Gallery examples with no thumbnail, and not parked: ${missing.join(', ')}.\n` +
         'Capture each with `node scripts/docs-examples-thumbnails.ts <id>`, or park it.',
     );
     process.exitCode = 1;
-  } else console.log('Every gallery example that is not parked has its thumbnail.');
+  } else {
+    const pending = missingThumbnails(writtenEntries, parkedExampleIds, captured);
+    console.log(
+      pending.length
+        ? `Gallery thumbnails pass; #357 captures explicitly deferred to recette: ${pending.join(', ')}.`
+        : 'Every gallery example that is not parked has its thumbnail.',
+    );
+  }
 }
