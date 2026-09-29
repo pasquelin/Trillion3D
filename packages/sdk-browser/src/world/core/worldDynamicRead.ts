@@ -33,7 +33,7 @@ export function fits(held: DrawnTriangles, next: DrawnTriangles, box: HeldBox) {
 }
 
 /** Whether every point of `p`, three numbers each, lies within `box`. */
-export function inBox(p: ArrayLike<number>, box: ArrayLike<number>) {
+function inBox(p: ArrayLike<number>, box: ArrayLike<number>) {
   for (let i = 0; i < p.length; i++) if (p[i] < box[i % 3] || p[i] > box[(i % 3) + 3]) return false;
   return true;
 }
