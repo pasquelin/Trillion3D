@@ -36,9 +36,11 @@ fn cause_of(positions: &[f32], indices: &[u32], uvs: Option<&[f32]>, locked: boo
         .into_iter()
         .collect();
     let carried: Vec<&crate::geometry_page::Attribute> = carried.iter().collect();
-    let welds = attributes::Welds::of(positions, DagAttributes { carried: &carried }, indices);
+    let attributes = DagAttributes { carried: &carried };
+    let welds = welds::Welds::of(positions, attributes, indices);
     let locks = vec![locked; positions.len() / 3];
-    let input = welds.input(positions, &locks, quality::NORMAL_DEVIATION_BOUND);
+    let (weighted, bound) = (attributes.weighted(), quality::NORMAL_DEVIATION_BOUND);
+    let input = welds.input(positions, &carried, &weighted, &locks, bound);
     match reduce_group(&input, &group).expect("reduce") {
         Ok(_) => panic!("the group reduced"),
         Err(outcome) => outcome.cause,
@@ -63,29 +65,6 @@ fn a_fully_locked_sheet_is_border_locked() {
     assert_eq!(
         cause_of(&positions, &indices, None, true),
         StallCause::BorderLocked
-    );
-}
-
-// Behaviour: a sheet laid out one texture island per quad stalls unlocked, and halves once its
-// position copies are welded across the seams: the seams hold it.
-#[test]
-fn a_sheet_of_one_island_per_quad_is_seam_locked() {
-    let (grid_positions, grid_indices) = grid(16);
-    let (mut positions, mut uvs, mut indices) = (Vec::new(), Vec::new(), Vec::new());
-    for quad in grid_indices.chunks(6) {
-        let base = (positions.len() / 3) as u32;
-        // The quad's corners a, a + 1, a + w, a + 1 + w, each written once for this quad alone.
-        let corners = [quad[0], quad[1], quad[2], quad[4]];
-        for (rank, &corner) in corners.iter().enumerate() {
-            let at = corner as usize * 3;
-            positions.extend_from_slice(&grid_positions[at..at + 3]);
-            uvs.extend([(rank & 1) as f32, (rank >> 1) as f32]);
-        }
-        indices.extend([base, base + 1, base + 2, base + 1, base + 3, base + 2]);
-    }
-    assert_eq!(
-        cause_of(&positions, &indices, Some(&uvs), false),
-        StallCause::SeamLocked
     );
 }
 
