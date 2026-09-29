@@ -58,15 +58,12 @@ export const FLAG_LIT = 1,
   /** The material reads its vertex colours and the geometry carries some: the base colour is
    *  multiplied by the interpolated vertex colour, as the forward path does. */
   FLAG_HAS_COLOR = 32768,
-  /** A shadow-only row of a blended cluster (`../webgpu/row/blendCasters.ts`): it writes no
-   *  depth, only the transmittance of its coverage (`PageInfo.blendCoverage`,
-   *  `../gpu/shadow/transmittance.ts`). */
+  /** A blended cluster's shadow-only row (`../webgpu/row/blendCasters.ts`): no depth, only the
+   *  transmittance of its coverage (`PageInfo.blendCoverage`, `../gpu/shadow/transmittance.ts`). */
   FLAG_BLEND_CASTER = 65536;
-/** Material fog opt-out above the three model bits in the page row. */
-export const FLAG_FOG_FREE = 1 << 20;
-/** The row reads a world's dynamic geometry, its vertices rewritten in place (#573): the temporal
- *  pass takes its pixels as reactive, a history of other vertices never showing through. */
-export const FLAG_DYNAMIC = 1 << 21;
+/** Fog opt-out above the model bits; a dynamic geometry's row, reactive to the temporal pass (#573). */
+export const FLAG_FOG_FREE = 1 << 20,
+  FLAG_DYNAMIC = 1 << 21;
 export type VisPage = {
   array: Uint32Array;
   attributes: HostAttributes;
