@@ -41,7 +41,8 @@ function meshScales(nodes: GltfNode[]) {
 /** The cache's source glTF, the reference: every paged primitive placed in the world and, per
  *  triangle, whether its material is double-sided (a single-sided one seen from behind shows
  *  nothing); and `drawn`, which turns the clusters a WebGPU cut named (`selectedClusterIds`,
- *  `mesh/primitive/page`) into their geometry pages, decoded once each and placed. */
+ *  `mesh/primitive/page`) into their geometry pages, decoded once each and placed, each triangle
+ *  flagged by its material's side as the source is. */
 export async function cacheSurfaces(full: string) {
   const { dir, manifest } = await readCacheManifest(full);
   const { gltf, read, readIndices } = accessorReader(dir);
@@ -49,32 +50,40 @@ export async function cacheSurfaces(full: string) {
   const out: number[] = [],
     twoSided: number[] = [],
     seen = new Set<string>();
-  const pageOf = new Map<string, { url: string; scale: number }>();
+  const pageOf = new Map<string, { url: string; scale: number; doubleSided: number }>();
   for (const { mesh, primitive, pages } of manifest.primitives) {
-    const scale = scales.get(mesh) ?? 1;
+    const scale = scales.get(mesh) ?? 1,
+      source = gltf.meshes[mesh].primitives[primitive];
+    const doubleSided = gltf.materials?.[source.material]?.doubleSided === true ? 1 : 0;
     for (const page of pages)
       if (page.geometry)
-        pageOf.set(`${mesh}/${primitive}/${page.id}`, { url: page.geometry.url, scale });
+        pageOf.set(`${mesh}/${primitive}/${page.id}`, {
+          url: page.geometry.url,
+          scale,
+          doubleSided,
+        });
     const key = `${mesh}/${primitive}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const source = gltf.meshes[mesh].primitives[primitive];
     if ((source.mode ?? 4) !== 4) continue;
     const position = read(source.attributes.POSITION),
       indices =
         source.indices === undefined
           ? Uint32Array.from({ length: position.length / 3 }, (_, i) => i)
           : readIndices(source.indices);
-    const doubleSided = gltf.materials?.[source.material]?.doubleSided === true ? 1 : 0;
     for (const v of indices) for (let k = 0; k < 3; k++) out.push(position[3 * v + k] * scale);
     for (let t = 0; t < indices.length; t += 3) twoSided.push(doubleSided);
   }
   const decoded = new Map<string, Float32Array>();
+  const pageFor = (id: string) => {
+    const hit = pageOf.get(id);
+    if (!hit) throw new Error(`screen error: drawn cluster ${id} has no geometry page`);
+    return hit;
+  };
   const cluster = (id: string) => {
     let triangles = decoded.get(id);
     if (triangles) return triangles;
-    const hit = pageOf.get(id);
-    if (!hit) throw new Error(`screen error: drawn cluster ${id} has no geometry page`);
+    const hit = pageFor(id);
     const page = decodeGeometryPage(new Uint8Array(readFileSync(join(dir, hit.url))));
     const position = page.attributes.position;
     triangles = new Float32Array(3 * page.indices.length);
@@ -84,12 +93,17 @@ export async function cacheSurfaces(full: string) {
     decoded.set(id, triangles);
     return triangles;
   };
+  /** The drawn triangles and, per triangle, whether their material is double-sided. */
   const drawn = (ids: string[]) => {
     const parts = ids.map(cluster);
-    const all = new Float32Array(parts.reduce((n, part) => n + part.length, 0));
+    const all = new Float32Array(parts.reduce((n, part) => n + part.length, 0)),
+      twoSided = new Uint8Array(all.length / 9);
     let at = 0;
-    for (const part of parts) all.set(part, (at += part.length) - part.length);
-    return all;
+    parts.forEach((part, i) => {
+      all.set(part, at);
+      twoSided.fill(pageFor(ids[i]).doubleSided, at / 9, (at += part.length) / 9);
+    });
+    return { triangles: all, twoSided };
   };
   return {
     triangles: Float32Array.from(out),
