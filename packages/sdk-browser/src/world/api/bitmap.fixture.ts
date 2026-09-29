@@ -4,10 +4,12 @@ import type { TestContext } from 'node:test';
 export function bitmapFixture(t: TestContext) {
   class Bitmap {
     closed = false;
-    constructor(
-      readonly width: number,
-      readonly height: number,
-    ) {}
+    readonly width: number;
+    readonly height: number;
+    constructor(width: number, height: number) {
+      this.width = width;
+      this.height = height;
+    }
     close() {
       this.closed = true;
     }

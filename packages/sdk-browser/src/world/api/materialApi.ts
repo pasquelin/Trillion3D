@@ -24,7 +24,6 @@ import { assignment, PLAIN } from './createdMaterials.ts';
 
 export type { SceneMaterial, SceneMaterialPatch } from './materialValues.ts';
 export { RUNTIME_MATERIAL_CEILING, type CreatedMaterial } from './createdMaterials.ts';
-export { RUNTIME_MAP_BYTES_CEILING } from './runtimeMaps.ts';
 
 type Inputs = {
   check: () => void;
