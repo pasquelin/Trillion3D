@@ -1,23 +1,5 @@
 import { WEBGPU_REQUIRED_LIMITS } from '../../backend/common.ts';
 import { BLOCK_FEATURES } from '../../texture/blockFormats.ts';
-import { colorBytesPerSample } from '../../gpu/core/colorBytes.ts';
-import { waterSurfaceTargets, WATER_ROUTED_TARGETS } from '../../webgpu/water/pipelines.ts';
-import { shadeTargetFormats } from '../../webgpu/visibility/pipelines.ts';
-import { blendTargets } from '../../webgpu/blend/pipelines.ts';
-
-const formatsOf = (targets: readonly (GPUColorTargetState | null)[]) =>
-  targets.map((target) => target?.format);
-
-/** The colour bytes per sample of the engine's widest pass, from each pass's own targets: the
- *  water surface stage, the opaque shade, a filtered blend with its share, the routed water
- *  composite. WebGPU's default (32) is below the water surface stage's. */
-const engineColorBytesPerSample = () =>
-  Math.max(
-    colorBytesPerSample(formatsOf(waterSurfaceTargets(true))),
-    colorBytesPerSample(shadeTargetFormats(true)),
-    colorBytesPerSample(formatsOf(blendTargets('normal', 0xf, true, true, true))),
-    colorBytesPerSample(formatsOf(WATER_ROUTED_TARGETS)),
-  );
 
 /**
  * Every optional feature the engine can use, in request order: instanced indirect draws, GPU
@@ -53,13 +35,6 @@ export async function requestExplorerDevice(
     const value = (adapterLimits as unknown as Record<string, number | undefined>)[name];
     if (typeof value === 'number' && Number.isFinite(value)) requiredLimits[name] = value;
   }
-  // Up to what the adapter offers: one that offers less still refuses the water pass by name.
-  const colorBytes = adapterLimits.maxColorAttachmentBytesPerSample;
-  if (typeof colorBytes === 'number' && Number.isFinite(colorBytes))
-    requiredLimits.maxColorAttachmentBytesPerSample = Math.min(
-      engineColorBytesPerSample(),
-      colorBytes,
-    );
   return adapter.requestDevice({ requiredFeatures: features, requiredLimits });
 }
 
