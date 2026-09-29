@@ -1,8 +1,8 @@
 /**
  * Page side of the spill probe (#849): each case runs the shipped compaction
  * (`lightTilesSpillHarness.ts`) on one workgroup of a real device, with the engine's light buffer
- * and its pool state, and returns the tile record with its pool words and the pool's state, read
- * back word for word.
+ * and its pool state, and returns the tile record with its pool words, the pool's state and the count of slice
+ * tests, read back word for word.
  */
 import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts';
 import {
@@ -10,7 +10,12 @@ import {
   uploadSceneLights,
 } from '../../../packages/sdk-browser/src/webgpu/pages/state/lightBuffer.ts';
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts';
-import { KEEPS_BINDING, spillHarness, type SpillCase } from './lightTilesSpillHarness.ts';
+import {
+  KEEPS_BINDING,
+  TESTED_BINDING,
+  spillHarness,
+  type SpillCase,
+} from './lightTilesSpillHarness.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
 import { tileLayout } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 
@@ -86,11 +91,13 @@ export async function run(cases: SpillCase[]) {
     const tiles = storage(device, new Uint32Array(stride + c.capacity));
     const keeps = storage(device, c.keeps);
     const pool = storage(device, [stride, c.capacity, c.head, 0]);
+    const tested = storage(device, [0]);
     const entries: GPUBindGroupEntry[] = [
       { binding: 1, resource: { buffer: uniform } },
       { binding: 2, resource: { buffer: lights.buffer } },
       { binding: 3, resource: { buffer: tiles } },
       { binding: KEEPS_BINDING, resource: { buffer: keeps } },
+      { binding: TESTED_BINDING, resource: { buffer: tested } },
     ];
     if (c.pool) entries.push({ binding: 4, resource: { buffer: pool } });
     const encoder = device.createCommandEncoder();
@@ -105,8 +112,9 @@ export async function run(cases: SpillCase[]) {
     device.queue.submit([encoder.finish()]);
     const words = await readGpuBuffer(device, tiles, tiles.size);
     const state = await readGpuBuffer(device, pool, pool.size);
-    runs.push({ name: c.name, tiles: [...words!], pool: [...state!] });
-    for (const buffer of [uniform, tiles, keeps, pool]) buffer.destroy();
+    const tests = await readGpuBuffer(device, tested, tested.size);
+    runs.push({ name: c.name, tiles: [...words!], pool: [...state!], tested: tests![0] });
+    for (const buffer of [uniform, tiles, keeps, pool, tested]) buffer.destroy();
   }
   lights.buffer.destroy();
   const adapter = (await opened.fermer()).court;
