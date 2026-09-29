@@ -9,6 +9,7 @@
 //! renormalised; a value the solve left non-finite is its source's.
 use super::clusters::position_key;
 use super::*;
+use crate::geometry_page::{Attribute as Carried, FLAG_UV, FLAG_UV1};
 use crate::qem::solve::SolvedRegion;
 
 /// The region after the solve, over its `n` source vertices then its placed ones.
@@ -127,22 +128,30 @@ impl<'r> Local<'r> {
 
 impl Local<'_> {
     /// The copies and texture sets the solve's error is measured on (`measured::Surface`): the
-    /// region's, then its placed vertices', each placed vertex in the texture island of the one it
-    /// was solved from, as `grown::Placed` files it.
-    pub fn measured(&self, input: &GroupReductionInput) -> (Vec<u32>, Vec<Vec<f32>>) {
-        let region = first_copies(self.remap, input.weld_seam);
-        let placed = self.origin.iter().map(|&o| region[o as usize]);
-        let weld_seam = region.iter().copied().chain(placed).collect();
-        // A solved row holds the normal first when the pages carry one, then every texture set.
-        let first = if self.normals.is_some() { 3 } else { 0 };
-        let uv_set = |(k, uvs): (usize, &[f32])| {
-            let region = self.remap.iter().flat_map(|&v| &uvs[v as usize * 2..][..2]);
-            let at = |p: usize| p * self.stride + first + 2 * k;
-            let placed = (0..self.origin.len()).flat_map(|p| &self.values[at(p)..][..2]);
-            region.chain(placed).copied().collect()
+    /// region's, then its placed vertices' (`placed`, as `Local::placed` wrote them). A placed
+    /// vertex is measured in the texture copy of the one it was solved from, so the texture
+    /// lookup finds it an island among the live triangles (`texture::copy_islands`).
+    pub fn measured(
+        &self,
+        input: &GroupReductionInput,
+        placed: &super::grown::Placed,
+    ) -> (Vec<u32>, Vec<Vec<f32>>) {
+        let mut weld_seam = self.weld_seam(input);
+        for (k, &o) in self.origin.iter().enumerate() {
+            weld_seam[self.n + k] = weld_seam[o as usize];
+        }
+        let carried = input.attributes.carried.iter().zip(&placed.carried);
+        let set = |flag| carried.clone().filter(move |(a, _)| a.flag == flag);
+        let uv_set = |(a, values): (&&Carried, &Vec<f32>)| {
+            let mut uvs = Vec::with_capacity((self.n + self.origin.len()) * 2);
+            for &v in self.remap {
+                uvs.extend_from_slice(&a.values[v as usize * 2..][..2]);
+            }
+            uvs.extend_from_slice(values);
+            uvs
         };
-        let uv_sets = input.attributes.uv_sets().into_iter().enumerate();
-        (weld_seam, uv_sets.map(uv_set).collect())
+        let uv_sets = set(FLAG_UV).chain(set(FLAG_UV1)).map(uv_set).collect();
+        (weld_seam, uv_sets)
     }
 }
 

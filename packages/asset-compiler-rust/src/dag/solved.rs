@@ -94,7 +94,8 @@ fn attempt(
     if clusters.len() >= children {
         return Ok(None);
     }
-    let (weld_seam, uv_sets) = local.measured(input);
+    let placed = local.placed(input, base);
+    let (weld_seam, uv_sets) = local.measured(input, &placed);
     let surface = measured::Surface {
         positions: &local.positions,
         weld: &local.weld,
@@ -107,7 +108,7 @@ fn attempt(
     Ok(Some(Solved {
         error,
         clusters: clusters.into_iter().map(global).collect(),
-        placed: local.placed(input, base),
+        placed,
         relocked,
     }))
 }
