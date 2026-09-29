@@ -9,6 +9,7 @@ import {
   assertImpostorSection,
   impostorMeshBaked,
   validateImpostorSection,
+  type ImpostorMesh,
   type ImpostorSection,
 } from './impostor.ts';
 
@@ -58,13 +59,13 @@ test('a version this build does not read is refused whole', () => {
 });
 
 test('a baked entry without its maps, frame count or frame side is refused', () => {
-  const without = (key: 'maps' | 'frames' | 'frameSide') => {
-    const meshes = section().meshes.map((mesh) => ({ ...mesh, [key]: undefined }));
-    return validateImpostorSection(section({ meshes }));
-  };
-  assert.match(without('maps') ?? '', /three maps/);
-  assert.match(without('frames') ?? '', /frame count/);
-  assert.match(without('frameSide') ?? '', /frame side/);
+  const meshesWith = (over: Partial<ImpostorMesh>) =>
+    section().meshes.map((mesh) => ({ ...mesh, ...over }));
+  const problem = (over: Partial<ImpostorMesh>) =>
+    validateImpostorSection(section({ meshes: meshesWith(over) })) ?? '';
+  assert.match(problem({ maps: undefined }), /three maps/);
+  assert.match(problem({ frames: undefined }), /frame count/);
+  assert.match(problem({ frameSide: undefined }), /frame side/);
 });
 
 test('impostorMeshBaked is true only for a baked entry with its drawable atlas', () => {
