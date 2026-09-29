@@ -9,7 +9,8 @@ import {
 import type { ClusterBatchStats, ClusterDrawOwner } from './batches.ts';
 import { firstMaterial } from '../../../../packages/sdk-browser/src/scene/materialSide.ts';
 import type { SceneCopy } from '../../../../packages/sdk-browser/src/webgl/cluster/copyCulling.ts';
-import type { ClusterDrawScene } from '../../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
+import { keptClusterScene } from '../../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
+import type { Scene } from '../../../../packages/sdk-browser/src/world/core/scene.ts';
 import type { Object3D } from '../../../../packages/sdk-core/src/world/object/object3d.ts';
 
 /** A scene copy of the witness: a mesh of no graph, its world resolved by the draw itself. */
@@ -24,7 +25,7 @@ export function drawClusterBatches(
   active: readonly { mesh?: ClusterDrawMesh }[],
   diagnosticMeshes: readonly WholeMesh[],
   copies: readonly BatchCopy[],
-  scene: ClusterDrawScene,
+  scene: Scene,
   camera: HostDrawCamera,
   toneMapped: boolean,
   srgbDestination: boolean,
@@ -40,7 +41,7 @@ export function drawClusterBatches(
   const start = performance.now();
   const submitted = owner.draw(
     meshes,
-    scene,
+    keptClusterScene(scene),
     camera,
     toneMapped,
     srgbDestination,

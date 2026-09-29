@@ -1,3 +1,5 @@
+import { scissorTo } from './bounds.ts';
+import { createWaterFreeze } from './freeze.ts';
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts';
 import { drawBlendRuns } from '../blend/draw.ts';
 import { feedbackAttachment, surfaceColorAttachments } from '../pages/prepare/attachments.ts';
@@ -28,14 +30,11 @@ export const WATER_COMPOSITE_PASS = 'Trillion3D water composite';
 export async function createWaterFrame(device: GPUDevice) {
   const layout = createWaterCompositeLayout(device);
   const pipeline = await createWaterCompositePipeline(device, layout);
+  const freeze = await createWaterFreeze(device);
   const identity = createWebgpuBindIdentity();
   let group: GPUBindGroup | undefined, surfaces: SurfaceBuffer | undefined;
   let routed: GPURenderPipeline | undefined;
-  const from = { texture: undefined as unknown as GPUTexture },
-    color = { texture: undefined as unknown as GPUTexture },
-    depth = { texture: undefined as unknown as GPUTexture },
-    waterDepth = { texture: undefined as unknown as GPUTexture },
-    extent = { width: 1, height: 1 };
+  const extent = freeze.extent;
   const surfaceDepth: GPURenderPassDepthStencilAttachment = {
     view: undefined as unknown as GPUTextureView,
     depthLoadOp: 'load',
@@ -103,11 +102,7 @@ export async function createWaterFrame(device: GPUDevice) {
       next[17] = gpu.colorView;
       if (!identity.moved()) return true;
       surfaces = gpu.surfaces;
-      from.texture = gpu.hdrTexture;
-      color.texture = backdrop.color;
-      depth.texture = gpu.depthTexture;
-      waterDepth.texture = backdrop.waterDepth;
-      [extent.width, extent.height] = gpu.targetSize;
+      freeze.bind(gpu.hdrTexture, backdrop, gpu.depthTexture, gpu.depthView, gpu.targetSize);
       surfaceDepth.view = backdrop.waterDepthView;
       target.view = gpu.hdrView;
       word.view = gpu.colorView;
@@ -144,30 +139,32 @@ export async function createWaterFrame(device: GPUDevice) {
       return true;
     },
     /**
-     * Encodes the water pass on the image the blends left. The backdrop is frozen — the lit image
-     * copied, the opaque depth copied into the depth the surface stage tests —, the transmissive
-     * surfaces draw into the opaque resolve's material surfaces, free since that resolve consumed
-     * them, and the water word into the display colour the composition writes later — the surface
-     * flags stay the opaque resolve's, read by temporal antialiasing and the composition after this
-     * pass —, with hardware depth written
-     * so the nearest surface of a pixel is the one kept; then one
-     * fullscreen triangle lights and composes every water pixel into the HDR target, which keeps
-     * what it held wherever no water is (the display layers where their mask is set). Returns the
-     * surface draws encoded.
+     * Encodes the water pass on the image the blends left. The backdrop is frozen (`freeze.ts`) —
+     * the lit image copied, the opaque depth copied into the depth the surface stage tests —, the
+     * transmissive surfaces draw into the opaque resolve's material surfaces, free since that
+     * resolve consumed them, and the water word into the display colour the composition writes
+     * later — the surface flags stay the opaque resolve's, read by temporal antialiasing and the
+     * composition after this pass —, with hardware depth written so the nearest surface of a pixel
+     * is the one kept; then one fullscreen triangle lights and composes every water pixel into the
+     * HDR target, which keeps what it held wherever no water is (the display layers where their
+     * mask is set). Both passes are scissored to the kept surfaces (`bounds.ts`); the word clear
+     * stays full-target, a scissor does not bound a load clear. Returns the surface draws encoded.
      */
     encode(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, pipelines: BlendPipelines) {
       if (!group || !surfaces) throw new Error('WATER_NOT_BOUND');
-      encoder.copyTextureToTexture(from, color, extent);
-      encoder.copyTextureToTexture(depth, waterDepth, extent);
+      const rect = freeze.encode(encoder, rt.blendState.waterBounds);
+      if (freeze.restored) rt.run.gpuDrawCalls++;
       if (rt.feedbackAB?.target !== false) attachments[4] = feedbackAttachment(rt);
       else attachments.length = 4;
       const pass = encoder.beginRenderPass(surfacePass);
       pass.setViewport(0, 0, extent.width, extent.height, 0, 1);
+      scissorTo(pass, rect);
       const encoded = drawBlendRuns(rt, device, pass, 1, pipelines);
       pass.end();
       const filter = routedFilter(rt.gpu.displayFilter);
       compositePass.colorAttachments = filter ? [target, ...filter.attachments()] : plain;
       const composite = encoder.beginRenderPass(compositePass);
+      scissorTo(composite, rect);
       composite.setPipeline(
         filter ? (routed ??= createWaterRoutedPipeline(device, layout)) : pipeline,
       );
@@ -179,6 +176,7 @@ export async function createWaterFrame(device: GPUDevice) {
       return encoded;
     },
     dispose() {
+      freeze.dispose();
       group = undefined;
       surfaces = undefined;
     },
