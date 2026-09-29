@@ -40,10 +40,14 @@ export const INT_TEXELS: Layout = {
 /**
  * One long array of texels read by `texelFetch`, `LIGHT_ROW_TEXELS` a row, and its CPU copy
  * `data`: as many rows as the frame writes, doubled when a frame passes them and never shrunk, so
- * N texels cost log N reallocations and nothing is sized for a fixed count of lights.
+ * N texels cost log N reallocations and nothing is sized for a fixed count of lights. `sent`
+ * mirrors what the texture holds: an upload sends only the rows that differ from it.
  */
 export class WebglLightTexture<T extends Float32Array | Int32Array> {
   data: T;
+  private sent: T;
+  /** Rows of the texture `sent` mirrors: none after a reallocation, which leaves them undefined. */
+  private held = 0;
   private rows = 0;
   /** The device's tallest texture (`MAX_TEXTURE_SIZE`), read at the first growth. */
   private maxRows = 0;
@@ -63,6 +67,7 @@ export class WebglLightTexture<T extends Float32Array | Int32Array> {
     this.layout = layout;
     this.make = make;
     this.data = new make(0);
+    this.sent = new make(0);
     this.texture = gl.createTexture()!;
     this.bind();
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -81,6 +86,8 @@ export class WebglLightTexture<T extends Float32Array | Int32Array> {
       refuseCluster(`${texels} light texels exceed the ${most}-row light texture of this device`);
     this.rows = Math.min(Math.max(rows, this.rows * 2), most);
     this.data = grown(this.data, this.make, this.rows * LIGHT_ROW_TEXELS * layout.channels);
+    this.sent = new this.make(this.data.length);
+    this.held = 0;
     this.bind();
     gl.texImage2D(
       gl.TEXTURE_2D,
@@ -94,24 +101,36 @@ export class WebglLightTexture<T extends Float32Array | Int32Array> {
       null,
     );
   }
-  /** Sends the rows holding the first `texels` and binds the texture on its unit: the host's
-   *  units are unknown at frame start, so it is bound again every frame. */
-  upload(texels: number) {
-    const { gl, layout } = this;
+  /** Sends the rows among those holding the first `texels` whose content the texture does not
+   *  hold yet — none when the frame wrote what it already holds —, and binds the texture on its
+   *  unit: the host's units are unknown at frame start, so it is bound again every frame. The
+   *  texels before `from` are known unchanged by the caller and not compared. */
+  upload(texels: number, from = 0) {
+    const { gl, layout, data, sent } = this;
     this.bind();
-    const rows = Math.ceil(texels / LIGHT_ROW_TEXELS);
-    if (rows === 0) return;
+    const width = LIGHT_ROW_TEXELS * layout.channels,
+      end = texels * layout.channels;
+    let first = Math.min(from * layout.channels, this.held * width),
+      last = end - 1;
+    while (first < end && first < this.held * width && data[first] === sent[first]) first++;
+    while (last >= first && last < this.held * width && data[last] === sent[last]) last--;
+    if (first > last) return;
+    const top = Math.floor(first / width),
+      bottom = Math.floor(last / width) + 1;
     gl.texSubImage2D(
       gl.TEXTURE_2D,
       0,
       0,
-      0,
+      top,
       LIGHT_ROW_TEXELS,
-      rows,
+      bottom - top,
       gl[layout.format],
       gl[layout.type],
-      this.data,
+      data,
+      top * width,
     );
+    sent.set(data.subarray(top * width, bottom * width), top * width);
+    this.held = Math.max(this.held, bottom);
   }
   private bind() {
     this.gl.activeTexture(this.gl.TEXTURE0 + this.unit);
