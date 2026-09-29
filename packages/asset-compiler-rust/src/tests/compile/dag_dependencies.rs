@@ -77,7 +77,8 @@ fn siblings_are_packed_together_so_a_bundle_depends_on_one_bundle_per_level() {
     let mut order: Vec<usize> = (0..17).collect();
     order.extend((0..64).map(|rank| 17 + (rank % 16) * 4 + rank / 16));
     let bound = dependency_bound(&dag, &groups);
-    let (bundles, pinned, bundle_of) = pack_bundles(&dag, &groups, &order, bound).expect("packed");
+    let (bundles, pinned, bundle_of) =
+        pack_bundles(&dag, &groups, &order, bound, &index_bytes).expect("packed");
     assert_eq!((bundles.len(), pinned), (17, 1));
     let direct = direct_dependencies(&dag, &groups, &bundle_of, bundles.len());
     let closed = close_dependencies(&direct).expect("acyclic");
@@ -118,7 +119,8 @@ fn a_bundle_that_would_exceed_the_bound_is_split_before_packing_ends() {
     let bound = dependency_bound(&dag, &groups);
     assert_eq!(bound, 1, "every cluster has one parent");
     let fine = |bound: usize| {
-        let (bundles, _, bundle_of) = pack_bundles(&dag, &groups, &order, bound).expect("packed");
+        let (bundles, _, bundle_of) =
+            pack_bundles(&dag, &groups, &order, bound, &index_bytes).expect("packed");
         let direct = direct_dependencies(&dag, &groups, &bundle_of, bundles.len());
         direct[bundle_of[5]..]
             .iter()
@@ -148,8 +150,8 @@ fn a_cluster_whose_parents_exceed_a_forced_bound_is_refused_with_the_page_named(
     ];
     let groups = vec![group(2, vec![1, 2], vec![0]), group(1, vec![3], vec![1, 2])];
     assert_eq!(dependency_bound(&dag, &groups), 2);
-    assert!(pack_bundles(&dag, &groups, &[0, 1, 2, 3], 2).is_ok());
-    let error = pack_bundles(&dag, &groups, &[0, 1, 2, 3], 1).expect_err("refused");
+    assert!(pack_bundles(&dag, &groups, &[0, 1, 2, 3], 2, &index_bytes).is_ok());
+    let error = pack_bundles(&dag, &groups, &[0, 1, 2, 3], 1, &index_bytes).expect_err("refused");
     assert_eq!(error.code, "PAGE_DEPENDENCY_BOUND");
     assert!(error.message.contains("Page 3"), "{error}");
 }
