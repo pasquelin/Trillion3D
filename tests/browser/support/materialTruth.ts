@@ -1,6 +1,6 @@
 // Page side of the ground truth (#443): a fixture that declares `truth` is cast again on the CPU
 // (`groundTruth.ts`) from its own map, square and camera, and both renderers' images are measured
-// against it. The truth image joins theirs, for the measurer to look at.
+// against it. The truth image joins theirs, for the recette to look at.
 //
 // This module is SERVED to the harness page and imported by its URL, like the fixtures.
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';

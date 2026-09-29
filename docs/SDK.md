@@ -604,6 +604,36 @@ values another material shares — is copied on write and opens the session agai
 `world.diagnostic.sessions` counts the sessions a world has opened, so a page and a test see a
 reopen.
 
+### Geometry rewritten every frame
+
+A shape a page rewrites every frame — a sea, a cloth, a flag, a procedural mesh, an editor handle —
+declares it: `geometry.usage = 'dynamic'`. Its triangles are cut into pages once, their index
+alone, and a written list (`attributes.position.needsUpdate = true`) uploads in place the vertices
+from the first changed to the last, the frame after, with no cut and no session opened again
+(#573). It is drawn by the same visibility, Hi-Z, resolve, shadows and lighting as every paged mesh,
+and a rewrite stales only the shadow pages its moved vertices cover. A geometry changed on two
+consecutive frames turns dynamic by itself, said under `geometry-dynamic`, naming the mesh. A soft
+body's geometry is dynamic, drawn where its last step left it; two soft bodies in one geometry are
+refused with `PHYSICS_FAILED` — give each its own (`geometry.clone()`).
+
+Culling reads a box the vertices never leave: `geometry.maxBounds` when declared, else the first
+vertices' box widened by half its size; vertices that leave it serve the same pages in a larger
+box, and corners that change are cut anew. A frame sends at most `DYNAMIC_UPLOAD_BUDGET_BYTES`
+(4 MiB) — every buffer written counted, as `metrics.dynamicUploadBytes` reports it —; a rewrite
+past it waits for the next frame, in order, never dropped. Live example:
+[floating crates](../site/examples/floating-crates.html).
+
+```js
+const sheet = geometry.plane(28, 20, 112, 80);
+sheet.usage = 'dynamic';
+world.onFrame(({ metrics }) => {
+  for (let v = 0; v < sheet.attributes.position.count; v++)
+    sheet.attributes.position.setY(v, wave(v));
+  sheet.attributes.position.needsUpdate = true; // 9 000 vertices, uploaded in place
+  console.log(metrics.dynamicUploadBytes);
+});
+```
+
 ### Guides: lines, points and helpers over the image
 
 `world.guides` draws what a page shows _about_ its scene — an axis, a grid, a box, a measured
