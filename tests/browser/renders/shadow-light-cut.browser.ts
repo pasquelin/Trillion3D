@@ -25,12 +25,15 @@ try {
       const [width, height] = size;
       const { openBenchWorld, settleWorld, png } = await import(worldUrl);
       const { poseAt, VIEWS, PATH_POSES } = await import(posesUrl);
+      const { streetBounds } = await import(posesUrl.replace('poses.ts', 'street.ts'));
       const scene: MeasuredWorld = await openBenchWorld('behind', sdkUrl, manifestUrl, size);
+      // The street the bench's eye-level views walk (`street.ts`), as the bench reads it.
+      const bounds = await streetBounds({ sdkUrl, manifestUrl });
       scene.addLight({ ...sun, castsShadow: true });
       await scene.awaitPages();
       const settle = (pose: unknown) => settleWorld(scene, pose);
       // The street pose of the bench, turned to look along the sun: the sun is behind the eye.
-      const street = poseAt(scene.bounds, VIEWS.street.index);
+      const street = poseAt(bounds, VIEWS.street.index);
       const d = sun.direction as number[];
       const behind = {
         ...street,
@@ -62,11 +65,11 @@ try {
       const cuts: number[] = [];
       for (let index = 0; index < PATH_POSES; index += 2) {
         await frame();
-        cuts.push(scene.render(poseAt(scene.bounds, index)).shadowLightCuts ?? 0);
+        cuts.push(scene.render(poseAt(bounds, index)).shadowLightCuts ?? 0);
       }
       // Back at rest: once the pending pages are drawn the frame is held, and a held frame
       // encodes nothing — no light cut, no shadow page.
-      const rest = poseAt(scene.bounds, 0);
+      const rest = poseAt(bounds, 0);
       const still = (await settle(rest)) && scene.render(rest);
       scene.dispose();
       return {

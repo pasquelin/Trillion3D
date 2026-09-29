@@ -18,7 +18,7 @@ import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
 import { launchChrome } from './chrome.ts';
 import * as options from './options.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
-import { readBounds } from './page.ts';
+import { readStreet } from './street.ts';
 import { benchLights } from './lamps.ts';
 import { oracleBuilt } from './oracleCompare.ts';
 import { machineLoad } from './summary.ts';
@@ -123,10 +123,9 @@ async function main() {
         console.error('[page]', m.type(), m.text().slice(0, 600));
     });
     await page.goto(`http://127.0.0.1:${port}/`);
-    const bounds = await page.evaluate(readBounds, {
-      sdkUrl: sdkEntryUrl(side),
-      manifestUrl,
-    });
+    // The box, then the street the eye-level views walk (`street.ts`), as the bench reads it.
+    const urls = { sdkUrl: sdkEntryUrl(side), manifestUrl };
+    const bounds = await readStreet(page, urls);
     const lights = benchLights(bounds, {
       lights: settings.lamps,
       lightShadows: settings.shadows,
