@@ -9,7 +9,8 @@ import assert from 'node:assert/strict';
 import { createPageDecodePool } from './pool.ts';
 import { restorePageDecode } from './task.ts';
 import { decodeGeometryPage } from './geometryPage.ts';
-import { edgePages, nonFinite, pageGap, randomPage, seeded } from './randomPages.fixture.ts';
+import { assertSamePage, edgePages, nonFinite, randomPage } from './randomPages.fixture.ts';
+import { seeded } from '../../../../../site/examples/kit/random.ts';
 import {
   NodeDomWorker,
   withNodeWorkerShim,
@@ -43,7 +44,7 @@ test('a page decoded in a worker arrives by transfer, identical to develop (E0)'
       // The page's views sit on the very block the worker transferred: nothing was copied.
       assert.equal(page.indices.buffer, decoded!.block);
       assert.equal(decoded!.block.byteLength, decoded!.decodedBytes);
-      assert.equal(pageGap(page, decodeGeometryPage(pages[rank].slice(), MAX)), null, `${rank}`);
+      assertSamePage(page, decodeGeometryPage(pages[rank].slice(), MAX), `page ${rank}`);
     }
   }));
 
