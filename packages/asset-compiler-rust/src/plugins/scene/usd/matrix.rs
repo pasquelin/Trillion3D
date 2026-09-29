@@ -3,16 +3,16 @@
 //! same matrix transposed twice: the sixteen numbers of a USD `matrix4d` are therefore copied
 //! as-is, and composing a list of operations is left to right.
 
-/// Identity, composition, translation, scale and the rotations are those the compiler already
-/// applies to glTF nodes: repeating them here would only let them diverge.
+/// Identity, composition, translation, scale and the rotations come from `compiler_world`, which
+/// owns them for every driver: repeating them here would only let them diverge.
 pub(super) use crate::compiler_world::{
-    multiply as mul, scaling, translation, turn, Mat4, IDENTITY,
+    multiply as mul, quaternion_wxyz, scaling, translation, turn, Mat4, IDENTITY,
 };
 
 /// Rotation of a quaternion `(w, x, y, z)`, as USD writes it. A length at or under `f64::EPSILON`
 /// rotates nothing; a NaN one still divides, as this driver always has.
 pub(super) fn orientation(q: [f64; 4]) -> Mat4 {
-    crate::compiler_world::quaternion_wxyz(q, |length| length > f64::EPSILON || length.is_nan())
+    quaternion_wxyz(q, |length| length > f64::EPSILON || length.is_nan())
 }
 
 /// Uniform scale equivalent of a matrix, the one that carries a local length into world space.
