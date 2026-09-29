@@ -70,8 +70,7 @@ test('WebGL2 draws a primitive turned blended on the blended grid, and its own p
   }
 });
 
-// A seam-locked solve (#877) writes coarse vertices its geometry pages alone hold, numbered past
-// the source's: the re-cut reads them there and cuts them with the source's own vertices.
+// A seam-locked solve (#877) writes coarse vertices past the source's, held by its pages alone.
 test('WebGL2 re-cuts a solved primitive with the vertices only its pages hold', async () => {
   const triangle = triangleBackend({ corners: [0, 1, 3] });
   const { backend, geometry, material, paged } = triangle;

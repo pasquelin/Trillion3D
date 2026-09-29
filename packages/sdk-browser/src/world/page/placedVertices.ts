@@ -1,8 +1,5 @@
-/**
- * The vertices a seam-locked solve placed (#877): numbered past the source's, only the coarse
- * geometry pages naming them hold them (`source.bin` keeps the source). What reads a compiled
- * primitive's clusters over its source — the class re-cut (`classPages.ts`) — reads them here.
- */
+/** The vertices a seam-locked solve placed (#877): numbered past the source's, held by the coarse
+ *  geometry pages naming them alone, read there by the class re-cut (`classPages.ts`). */
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 
@@ -27,12 +24,9 @@ export function joinedCorners(pages: readonly Uint32Array[]) {
   return { indices, ends };
 }
 
-/**
- * `source` grown with every placed vertex `indices` names, renumbered in place after the source's
- * in first-use order. `ends[k]` ends the corners of `pages[k]`, in its geometry page's order, and
- * `read` decodes the geometry pages of the page numbers it is given. A level-0 page naming a vertex
- * past the source was cut from another (a stand-in reads its own): refused.
- */
+/** `source` grown with each placed vertex `indices` names, renumbered in place after it in first
+ *  use. `ends[k]` ends the corners of `pages[k]`, in its geometry page's order; `read` decodes the
+ *  pages it names. A level-0 page past the source was cut from another (a stand-in's): refused. */
 export async function withPlaced<T extends Columns>(
   source: T,
   { indices, ends }: { indices: Uint32Array; ends: Uint32Array },
