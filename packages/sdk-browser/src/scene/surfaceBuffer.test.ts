@@ -14,13 +14,37 @@ test('a surface rejects an invalid or off-device size, and nothing else: no byte
   const { device } = fakeDevice({ limits: { maxTextureDimension2D: 1024 } });
   assert.throws(() => checkSurfaceSize(device, 0, 10), /INVALID_SURFACE_SIZE/);
   assert.throws(() => checkSurfaceSize(device, 1025, 1), /SURFACE_DEVICE_LIMIT/);
-  assert.equal(checkSurfaceSize(device, 100, 100), 250000);
-  assert.equal(checkSurfaceSize(device, 1024, 1024), 1024 * 1024 * 25, '4K follows resolution');
+  assert.equal(checkSurfaceSize(device, 100, 100), 370000);
+  assert.equal(checkSurfaceSize(device, 1024, 1024), 1024 * 1024 * 37, 'targets follow resolution');
   assert.equal(
     frameTargetBytes(3, 3, true),
-    9 * 53 + 9 * 4 + (9 + 4 + 1) * 8,
+    9 * 65 + 9 * 4 + (9 + 4 + 1) * 8 + 8,
     'material depth counts with the targets; odd Hi-Z levels must reserve ceil dimensions',
   );
+});
+
+test('receiver offsets use three full precision words per pixel and release with their surface', () => {
+  const gpu = fakeDevice({ limits: { maxTextureDimension2D: 4096 } });
+  const surface = createSurfaceBuffer(gpu.device, 3840, 2160);
+  assert.equal(surface.shadingOffset.size, 3840 * 2160 * 12);
+  assert.equal(surface.allocationBytes, 3840 * 2160 * 37 + 8);
+  assert.equal(
+    gpu.textures.length,
+    5,
+    'disabled transmission has one 1×1 texture, no extra attachment',
+  );
+  surface.dispose();
+  surface.dispose();
+  assert.equal(gpu.destroyed.length, 6, 'five textures and one buffer, each exactly once');
+});
+
+test('receiver device limits are checked before allocating any surface resource', () => {
+  const gpu = fakeDevice({
+    limits: { maxTextureDimension2D: 4096, maxStorageBufferBindingSize: 1000 },
+  });
+  assert.throws(() => createSurfaceBuffer(gpu.device, 16, 16), /SHADING_POINT_DEVICE_LIMIT/);
+  assert.equal(gpu.textures.length, 0);
+  assert.equal(gpu.buffers.length, 0);
 });
 
 test('a partial surface allocation failure destroys all textures already allocated', () => {

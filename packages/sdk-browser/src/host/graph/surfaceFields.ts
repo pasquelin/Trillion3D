@@ -61,6 +61,8 @@ export const relief = () => ({
 });
 /** The light a surface gives off by itself. */
 export const glow = () => ({
+  subsurfaceColor: new Color().setRGB(0, 0, 0),
+  subsurfaceMap: null,
   emissive: new Color().setRGB(0, 0, 0),
   emissiveIntensity: 1,
   emissiveMap: null,

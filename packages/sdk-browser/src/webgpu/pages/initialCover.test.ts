@@ -11,7 +11,9 @@ import { coarseQuadScene } from './testOccluder.fixture.ts';
 
 test('the initial cover also protects regions first discovered after a camera jump', async () => {
   installGpuGlobals();
-  const { device } = mockGpu();
+  const { device } = mockGpu({
+    limits: { maxBufferSize: 1 << 24, maxStorageBufferBindingSize: 1 << 24 },
+  });
   const geometry = new G.Geometry();
   geometry.setAttribute(
     'position',
@@ -112,7 +114,9 @@ test('the initial cover also protects regions first discovered after a camera ju
 
 test('webgpu pages select the same coarse LOD cut as the WebGL2 exact backend', async () => {
   installGpuGlobals();
-  const { device } = mockGpu();
+  const { device } = mockGpu({
+    limits: { maxBufferSize: 1 << 24, maxStorageBufferBindingSize: 1 << 24 },
+  });
   // Screen error 0.001 on the coarse cluster: at pixelError 10 the coarse cover wins everywhere.
   const {
     source,

@@ -173,8 +173,13 @@ fn shadowHiddenByOpaque(p:vec4f)->bool{
 }
 /** A blended caster's texel of the transmittance layer, blended multiplicatively; the depth-only
  *  draw masks its colour and keeps its depth. */
-@fragment fn shadow_blend_fs(in:ShadowOut)->@location(0) vec4f{
+@fragment fn shadow_blend_fs(in:ShadowOut,@builtin(front_facing) front:bool)->@location(0) vec4f{
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
  if(!shadowKeep(in,gx,gy)||shadowHiddenByOpaque(in.position)){discard;}
- return blendTransmittance(pages[in.instance],in.uv,gx,gy);
+ let page=pages[in.instance];
+ if(!volumeBoundary(page,front)){discard;}
+ let m=shadow.viewProjection;
+ var ray=in.fromEmitter;
+ if(m[0].w==0.0&&m[1].w==0.0&&m[2].w==0.0){ray=vec3f(m[0].z,m[1].z,m[2].z);}
+ return blendTransmittance(page,in.uv,gx,gy,ray);
 }`;

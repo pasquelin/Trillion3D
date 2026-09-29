@@ -93,13 +93,95 @@ function encodeChain(
         { binding: 1, resource: { buffer: uniforms, offset: (first + level) * stride, size: 16 } },
       ],
     });
-    const pass = encoder.beginRenderPass({
-      label: TEXTURE_MIPS_PASS,
-      colorAttachments: [{ view: views[level], loadOp: 'clear', storeOp: 'store' }],
-    });
-    pass.setPipeline(pipeline);
-    pass.setBindGroup(0, group);
-    pass.draw(3);
-    pass.end();
+    encodeMipPass(encoder, pipeline, group, views[level]);
   }
+}
+
+/** A frame source keeps its views and groups; encoding never allocates or submits.
+ * Its owner admits the texture chain and this uniform buffer before construction. */
+export function createRadianceMipChain(device: GPUDevice, texture: GPUTexture) {
+  return createImageMipChain(device, texture);
+}
+
+/** A nearest/farthest pyramid starts at half size and reads the existing depth target. */
+export function createDepthBoundsMipChain(
+  device: GPUDevice,
+  texture: GPUTexture,
+  source: { view: GPUTextureView; width: number; height: number },
+) {
+  return createImageMipChain(device, texture, source);
+}
+
+function createImageMipChain(
+  device: GPUDevice,
+  texture: GPUTexture,
+  depth?: { view: GPUTextureView; width: number; height: number },
+) {
+  const { mipLevelCount: levels, format } = texture;
+  const { width, height } = depth ?? texture;
+  const reductions = levels - Number(!depth);
+  const stride = uniformStride(device.limits);
+  const uniforms = device.createBuffer({
+    label: 'Trillion3D radiance mip extents',
+    size: Math.max(1, reductions) * stride,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  try {
+    const packed = new Uint32Array(uniforms.size / 4);
+    const shared = sharedGpuDevice(device);
+    const program = mipPipeline(shared, format, false, depth ? 'bounds' : 'radiance');
+    const first = depth ? mipPipeline(shared, format, false, 'depth') : program;
+    const views = Array.from({ length: levels }, (_, level) =>
+      texture.createView({ baseMipLevel: level, mipLevelCount: 1 }),
+    );
+    const outputs = depth ? views : views.slice(1);
+    const groups = outputs.map((_, index) => {
+      packed.set([...levelSize(width, height, index), width, height], (index * stride) / 4);
+      return device.createBindGroup({
+        layout: index === 0 ? first.layout : program.layout,
+        entries: [
+          {
+            binding: 0,
+            resource: depth && index === 0 ? depth.view : views[index - Number(!!depth)],
+          },
+          { binding: 1, resource: { buffer: uniforms, offset: index * stride, size: 16 } },
+        ],
+      });
+    });
+    device.queue.writeBuffer(uniforms, 0, packed);
+    return {
+      bytes: uniforms.size,
+      encode(encoder: GPUCommandEncoder) {
+        for (let index = 0; index < groups.length; index++)
+          encodeMipPass(
+            encoder,
+            index === 0 ? first.pipeline : program.pipeline,
+            groups[index],
+            outputs[index],
+          );
+      },
+      dispose() {
+        uniforms.destroy();
+      },
+    };
+  } catch (error) {
+    uniforms.destroy();
+    throw error;
+  }
+}
+
+function encodeMipPass(
+  encoder: GPUCommandEncoder,
+  pipeline: GPURenderPipeline,
+  group: GPUBindGroup,
+  view: GPUTextureView,
+) {
+  const pass = encoder.beginRenderPass({
+    label: TEXTURE_MIPS_PASS,
+    colorAttachments: [{ view, loadOp: 'clear', storeOp: 'store' }],
+  });
+  pass.setPipeline(pipeline);
+  pass.setBindGroup(0, group);
+  pass.draw(3);
+  pass.end();
 }
