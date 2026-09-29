@@ -110,10 +110,11 @@ export class WebglLightTexture<T extends Float32Array | Int32Array> {
     this.bind();
     const width = LIGHT_ROW_TEXELS * layout.channels,
       end = texels * layout.channels;
-    let first = Math.min(from * layout.channels, this.held * width),
+    const known = Math.min(end, this.held * width);
+    let first = Math.min(from * layout.channels, known),
       last = end - 1;
-    while (first < end && first < this.held * width && data[first] === sent[first]) first++;
-    while (last >= first && last < this.held * width && data[last] === sent[last]) last--;
+    while (first < known && data[first] === sent[first]) first++;
+    if (end <= known) while (last >= first && data[last] === sent[last]) last--;
     if (first > last) return;
     const top = Math.floor(first / width),
       bottom = Math.floor(last / width) + 1;
