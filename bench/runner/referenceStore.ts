@@ -50,7 +50,7 @@ const IMAGE_SETTINGS = [
 export type ImageSettings = Pick<BenchSettings, (typeof IMAGE_SETTINGS)[number]>;
 
 /** One reference view: its pose, its file, the resolved size and what holding it took. */
-export interface ReferenceView {
+interface ReferenceView {
   pose: CameraPose;
   file: string;
   sha256: string;
