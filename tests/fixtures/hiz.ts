@@ -3,7 +3,11 @@ import * as G from '../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import type { VisPage } from '../../packages/sdk-browser/src/visibility/buffer.ts';
 import { cameraMoteur } from '../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { EngineCamera } from '../../packages/sdk-browser/src/camera/world.ts';
+import { rasterVisibilityIds } from '../../packages/sdk-browser/src/visibility/buffer.ts';
+import { identityRoots } from '../../packages/sdk-browser/src/page/selection/placements.fixture.ts';
 import {
+  buildHizPyramid,
+  visibilityDepth,
   HIZ_BOUNDS_VALUES,
   projectBoxesFlat,
   type HizBounds,
@@ -78,4 +82,16 @@ export function projectBoxToScreen(
     nearestDepth: boxScratch[4],
     clipsNear: boxScratch[5] !== 0,
   };
+}
+
+/** The Hi-Z pyramid of the depth `occluders`, placed at the identity, leave as `cam` sees them. */
+export function occluderPyramid(
+  occluders: VisPage[],
+  cam: ReturnType<typeof cameraAt>,
+  size: [number, number],
+) {
+  const roots = identityRoots(),
+    engine = cameraMoteur(cam);
+  const ids = rasterVisibilityIds(occluders, roots, engine, size);
+  return buildHizPyramid(visibilityDepth(ids, occluders, roots, engine, size), ...size);
 }
