@@ -7,6 +7,7 @@ import { readOnly } from '../core/bindLayout.ts';
 import { ALPHA_BLEND, blendStagePipelines } from '../blend/stagePipelines.ts';
 import { WATER_BINDINGS, WATER_COMPOSITE_SHADER, WATER_ROUTED_SHADER } from './compositeWgsl.ts';
 import { displayMaskLayout, displayTargets } from '../blend/displayFilter.ts';
+import { REACTIVE_TARGET } from '../../lighting/deferred/asIsShare.ts';
 
 /** The five targets of the surface stage: the three material surfaces, the water word in the
  *  display colour it borrows, then the virtual-texture feedback. */
@@ -74,19 +75,54 @@ export async function createWaterCompositePipeline(device: GPUDevice, layout: GP
     module,
     [layout, reflectionLayout(device)],
     'composeWater',
-    [{ format: 'rgba16float', blend: ALPHA_BLEND }],
+    waterCompositeTargets(false),
   );
 }
 
-/** The routed composite's targets: the HDR target as above, then a normal layer's display layers. */
-export const WATER_ROUTED_TARGETS: GPUColorTargetState[] = [
+/** The composite's targets: the HDR target, then, when the frame has a share (`asIsShare.ts`), the
+ *  reactive value's — green alone, as a particle's. */
+export const waterCompositeTargets = (share: boolean): GPUColorTargetState[] => [
   { format: 'rgba16float', blend: ALPHA_BLEND },
-  ...displayTargets('normal'),
+  ...(share ? [REACTIVE_TARGET] : []),
 ];
 
+/** The routed composite's targets: the HDR target as above, then a normal layer's display layers,
+ *  then the share. */
+export const waterRoutedTargets = (share: boolean): GPUColorTargetState[] => [
+  { format: 'rgba16float', blend: ALPHA_BLEND },
+  ...displayTargets('normal'),
+  ...(share ? [REACTIVE_TARGET] : []),
+];
+
+/** An image with no share keeps the composite it had before #833: no reactive target. */
+export const WATER_ROUTED_TARGETS: GPUColorTargetState[] = waterRoutedTargets(false);
+
+/**
+ * The composite of an image with a share (`asIsShare.ts`), made by the first frame that has one:
+ * today's composite plus, as an extra output, the coverage the blend pass and the particles also
+ * write — green 1 over what the pixel holds.
+ */
+export function createWaterSharePipeline(device: GPUDevice, layout: GPUBindGroupLayout) {
+  const module = device.createShaderModule({
+    label: 'WATER_COMPOSITE',
+    code: WATER_COMPOSITE_SHADER,
+  });
+  return device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts: [layout, reflectionLayout(device)] }),
+    vertex: { module, entryPoint: 'fullscreen' },
+    fragment: { module, entryPoint: 'composeWaterReactive', targets: waterCompositeTargets(true) },
+    primitive: { topology: 'triangle-list' },
+  });
+}
+
 /** The composite of an image with display layers (`WATER_ROUTED_SHADER`), made by the first one:
- *  the HDR target blended as above, then the tint and the added value of a normal layer. */
-export function createWaterRoutedPipeline(device: GPUDevice, layout: GPUBindGroupLayout) {
+ *  the HDR target blended as above, then the tint and the added value of a normal layer; with a
+ *  share, the reactive value last. */
+export function createWaterRoutedPipeline(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  share = false,
+) {
   const module = device.createShaderModule({ label: 'WATER_ROUTED', code: WATER_ROUTED_SHADER });
   const bindGroupLayouts = [layout, reflectionLayout(device), displayMaskLayout(device)];
   return device.createRenderPipeline({
@@ -94,10 +130,30 @@ export function createWaterRoutedPipeline(device: GPUDevice, layout: GPUBindGrou
     vertex: { module, entryPoint: 'fullscreen' },
     fragment: {
       module,
-      entryPoint: 'composeWaterRouted',
+      entryPoint: share ? 'composeWaterRoutedReactive' : 'composeWaterRouted',
       constants: { DISPLAY_ROUTE: 1 },
-      targets: WATER_ROUTED_TARGETS,
+      targets: waterRoutedTargets(share),
     },
     primitive: { topology: 'triangle-list' },
   });
+}
+
+/**
+ * The composite pipelines of one pass, `base` the one made for an image with no share: the plain
+ * composite, and, compiled on the first image that asks, the one carrying the reactive value
+ * (`asIsShare.ts`), routed through the display layers or not. A scene with no share keeps `base`
+ * alone — no extra target, no extra pipeline.
+ */
+export function createWaterComposites(
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  base: GPURenderPipeline,
+) {
+  const made = [base, undefined, undefined, undefined] as (GPURenderPipeline | undefined)[];
+  // The display route is the low bit, the share the one above: 0 base, 1 routed, 2 share, 3 both.
+  const at = (filtered: boolean, share: boolean) =>
+    (made[+filtered + 2 * +share] ??= filtered
+      ? createWaterRoutedPipeline(device, layout, share)
+      : createWaterSharePipeline(device, layout));
+  return { at };
 }
