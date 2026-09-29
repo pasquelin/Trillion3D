@@ -6,7 +6,7 @@ import { mirrorLightingShader, mirrorWeightShader } from './modelShader.ts';
 export const SCREEN_REFLECTION_GLSL = `
 uniform sampler2D reflectionColor,reflectionDepth;
 uniform highp usampler2D reflectionBounds;
-uniform bool reflectionEnabled,reflectionCapture;
+uniform bool reflectionEnabled,reflectionCapture,reflectionResolve,reflectionOutput;
 vec4 reflectionProject(vec4 p){vec4 c=projectionMatrix*p;c.z=(c.z+c.w)*0.5;return c;}
 vec2 reflectionSize(){return vec2(textureSize(reflectionColor,0));}
 float reflectionDepthAt(ivec2 p){return texelFetch(reflectionDepth,p,0).r;}
@@ -28,8 +28,12 @@ ${reflectionConeFilterShader('glsl')}
 ${reflectionConeShader('glsl')}
 vec3 screenReflectionRay(vec3 P,vec3 N,vec3 R){return screenReflection(P,R).rgb;}
 vec3 filteredScreenReflection(vec3 P,vec3 N,vec3 R,float rough){return screenReflectionCone(P,R,rough).rgb;}
+// The display pass reads the receiver's reflection once, resolved at the mirror pass's own size:
+// the reduced image is written into the reflectionColor unit after the resolve pass, so no trace
+// runs over the receiver again. The resolve pass itself reads the full-detail source above.
 vec3 reflectedRadiance(vec3 P,vec3 N,vec3 R,float rough){
  if(!reflectionEnabled)return vec3(0.0);
+ if(reflectionResolve&&mirrorWeight(rough)>0.0)return texture(reflectionColor,gl_FragCoord.xy/vec2(textureSize(reflectionColor,0))).rgb;
  float weight=mirrorWeight(rough);
  if(weight==1.0)return screenReflectionRay(P,N,R);
  vec3 filtered=filteredScreenReflection(P,N,R,rough);

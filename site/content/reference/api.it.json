@@ -5663,7 +5663,8 @@
       "settled": "Vero quando un rapporto prova che lo stato attuale non chiede nulla: l’immagine può essere mantenuta.",
       "receive": "È tornato un rapporto di richieste; il piano successivo lo legge. Uno più recente sostituisce uno non letto.",
       "commit": "Le pagine `[from, to)` della lista del fotogramma sono state codificate, la pagina `from + i` in `modes[i]`: i loro disegni arrivano prima che qualcuno le legga. L’ultimo lotto chiude la lista.",
-      "resize": "Il pool a un'altra dimensione, le sue pagine conservate, i suoi array rifatti: restituisce dove è andata ogni pagina."
+      "resize": "Il pool a un'altra dimensione, le sue pagine conservate, i suoi array rifatti: restituisce dove è andata ogni pagina.",
+      "gpu": "L’allocazione della GPU (`mirror.ts`): se colloca le pagine e cosa le chiede l’host."
     }
   },
   "ShadowStaleReason": {
@@ -7633,7 +7634,8 @@
       "layoutEpoch": "Disposizione della tabella con cui quel fotogramma ha letto (`ShadowTable.layoutEpoch`).",
       "stamp": "Il timbro del piano quando quel fotogramma è stato codificato (`ShadowPlan.stamp`).",
       "count": "Voci richieste, forse più di quante ne contenga `entries`: le altre richiedono al fotogramma successivo.",
-      "entries": "Le voci richieste, al massimo le prime `count`."
+      "entries": "Le voci richieste, al massimo le prime `count`.",
+      "pool": "Il pool dell’allocatore GPU dopo l’allocazione di quel fotogramma, quando alloca la GPU."
     }
   },
   "VehicleDriver": {

@@ -6,7 +6,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { writeSunSquare } from '../../../../sdk-core/src/scene/light-shadow/sunFaces.ts';
-import { SHADOW_PAGE, sunPageMetres } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { sunPageMetres } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { sunScene } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import {
   PAGE_FOOTPRINT_FULL,
@@ -15,9 +16,10 @@ import {
 import { FOOTPRINT_REACH } from '../../webgpu/shadow/pageCompose.ts';
 import { SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER } from './cullShader.ts';
 import { SHADER_BOX, keeps } from './cullBox.fixture.ts';
+import { SHADOW_FRESH_CULL_WGSL } from '../../webgpu/shadow/freshCullWgsl.ts';
 
-test('both cull entries run the box test this file restates', () => {
-  for (const shader of [SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER])
+test("every cull runs the box test this file restates, the GPU pages' too", () => {
+  for (const shader of [SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER, SHADOW_FRESH_CULL_WGSL])
     for (const line of SHADER_BOX) assert.ok(shader.includes(line), line);
 });
 
