@@ -2,7 +2,7 @@ use super::*;
 use crate::dag::{DagCluster, DagGroup};
 
 mod pack;
-pub(crate) use pack::pack_bundles;
+pub(crate) use pack::{index_bytes, pack_bundles};
 
 pub(super) fn bundle_dag_pages(
     o: &Options,
@@ -15,7 +15,8 @@ pub(super) fn bundle_dag_pages(
     let mut pages = Vec::new();
     let mut reused = 0i32;
     let bound = dependency_bound(dag, groups);
-    let (bundles, pinned_bundles, bundle_of) = pack_bundles(dag, groups, order, bound)?;
+    let (bundles, pinned_bundles, bundle_of) =
+        pack_bundles(dag, groups, order, bound, &index_bytes)?;
     let direct = direct_dependencies(dag, groups, &bundle_of, bundles.len());
     let dependencies = close_dependencies(&direct)?;
     verify_dependencies(
