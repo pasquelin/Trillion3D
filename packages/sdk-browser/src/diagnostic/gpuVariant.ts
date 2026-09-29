@@ -86,8 +86,7 @@ export function blendVariantPipeline(variant: DiagnosticGpuVariant | undefined) 
 }
 
 /** True when the variant counts blend fragments by occlusion query. */
-export const countsBlendOverdraw = (variant?: DiagnosticGpuVariant) =>
-  variant === 'blend-overdraw';
+export const countsBlendOverdraw = (variant?: DiagnosticGpuVariant) => variant === 'blend-overdraw';
 
 /** True when the variant composes off-screen: the swap chain is not touched this frame. */
 export const composesOffscreen = (variant?: DiagnosticGpuVariant) =>

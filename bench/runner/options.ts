@@ -54,9 +54,7 @@ function live(flags: Map<string, string>, mio: (name: string) => number | null):
   const texture = flags.get(TEXTURE),
     fraction = texture === undefined ? undefined : residentFraction(texture);
   const budgets = {
-    geometryPoolBytes: flags.has('geometry-pool-live')
-      ? mio('geometry-pool-live')
-      : undefined,
+    geometryPoolBytes: flags.has('geometry-pool-live') ? mio('geometry-pool-live') : undefined,
     texturePoolBytes: texture !== undefined && fraction === undefined ? mio(TEXTURE) : undefined,
     textureResidentFraction: fraction,
   };
