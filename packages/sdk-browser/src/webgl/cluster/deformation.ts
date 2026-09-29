@@ -15,10 +15,12 @@ import { FLOAT_TEXELS, LIGHT_LIST_UNIT, WebglLightTexture } from './lightTexture
 export const DEFORM_BLOCK_UNIT = LIGHT_LIST_UNIT + 1;
 export const MORPH_DELTAS_UNIT = LIGHT_LIST_UNIT + 2;
 
-/** A session's deformation records (`../../deformation/frame.ts`): the block, each placement's
- *  record (its first float plus one), and a count moved whenever the block was rewritten. */
+/** A session's deformation records (`../../deformation/frame.ts`): the block and its words, each
+ *  placement's record (its first float plus one), and a count moved whenever the block was
+ *  rewritten. */
 export type DeformationSource = {
   readonly block: Float32Array;
+  readonly words: Uint32Array;
   readonly bases: Uint32Array;
   readonly version: number;
 };
@@ -39,10 +41,10 @@ type Geometry = WholeMesh['geometry'];
 export class WebglClusterDeformation {
   private block: WebglLightTexture<Float32Array> | undefined;
   private morphs = new Map<Geometry, WebGLTexture>();
+  /** Each drawn geometry's skin width and target count, fixed with it: read once, not per draw. */
+  private counts = new WeakMap<Geometry, { skin: number; targets: number }>();
   private sent = -1;
   private source: DeformationSource | undefined;
-  /** The block's words, read to write its heads' counts as values. */
-  private words: Uint32Array | undefined;
   private gl: WebGL2RenderingContext;
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
@@ -64,14 +66,8 @@ export class WebglClusterDeformation {
     if (source.version === this.sent) return this.block.bind();
     const texels = Math.ceil(source.block.length / 4);
     this.block.reserve(texels);
-    if (this.words?.buffer !== source.block.buffer)
-      this.words = new Uint32Array(
-        source.block.buffer,
-        source.block.byteOffset,
-        source.block.length,
-      );
     const data = this.block.data,
-      words = this.words;
+      words = source.words;
     data.set(source.block);
     for (const base of source.bases)
       for (let k = base - 1; base && k < base + 6; k++) data[k] = words[k];
@@ -82,9 +78,17 @@ export class WebglClusterDeformation {
    *  `out` as `deformDraw` reads it, the targets' texture bound. */
   of(draw: ClusterDraw, geometry: Geometry, out: Int32Array) {
     const record = this.source ? deformRecordOf(draw) : 0;
+    let counts = record ? this.counts.get(geometry) : undefined;
+    if (record && !counts) {
+      counts = {
+        skin: skinStreams(geometry as SourceGeometry).width,
+        targets: morphTargets(geometry as SourceGeometry),
+      };
+      this.counts.set(geometry, counts);
+    }
     out[0] = record;
-    out[1] = record ? skinStreams(geometry as SourceGeometry).width : 0;
-    out[2] = record ? morphTargets(geometry as SourceGeometry) : 0;
+    out[1] = counts?.skin ?? 0;
+    out[2] = counts?.targets ?? 0;
     if (out[1] || out[2]) this.bindMorph(geometry);
   }
   /** The geometry's displacements as texels, two a target per vertex — position, then normal. */

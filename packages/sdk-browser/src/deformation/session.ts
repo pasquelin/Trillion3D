@@ -6,6 +6,8 @@ import { placementDeformation } from './placementSource.ts';
 import { deformedOf } from './source.ts';
 import type { HostWorldPlacements } from '../host/world/placements.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
+import type { EngineCamera } from '../camera/world.ts';
+import { createDeformationSkip } from './screen.ts';
 
 /**
  * A session's GPU deformation (#357): one record per deformed root of its cut (`frame.ts`), the
@@ -43,8 +45,14 @@ export function createSessionDeformation(
   const byWorld = new Map<object, number>(roots.map((root, placement) => [root.world, placement]));
   copies.forEach((copy, i) => byWorld.set(copy.matrix, roots.length + i));
   const rankOf = (world: object) => byWorld.get(world) ?? -1;
+  const skip = createDeformationSkip();
   return {
     frame,
+    /** This image's records (`frame.update`), a root whose reach spans less than `pixelError`
+     *  drawn at rest (`screen.ts`). Returns whether a record moved. */
+    update(cam: EngineCamera, viewport: readonly number[] | undefined, pixelError: number) {
+      return frame.update(skip(roots, cam, viewport, pixelError));
+    },
     changedOfWorld(world: object) {
       return frame.dirty[rankOf(world)] === 1;
     },

@@ -1,4 +1,5 @@
 import { boxTransform, boxUnionBatch } from '../../../sdk-core/src/index.ts';
+import { boxGrow } from '../../../sdk-core/src/math/primitives/box.ts';
 import { readHostBox } from '../host/boxBounds.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import type { SessionDeformation } from './session.ts';
@@ -26,11 +27,7 @@ export function updateWholeDeformationBounds(
     rewritten = true;
     before.set(box);
     readHostBox(local, source);
-    const reach = deformation.reachOfWorld(item.matrix);
-    for (let c = 0; c < 3; c++) {
-      local[c] -= reach;
-      local[c + 3] += reach;
-    }
+    boxGrow(local, 0, local, 0, deformation.reachOfWorld(item.matrix));
     boxTransform(box, 0, local, 0, item.matrix.elements);
     item.bounds = box;
     boxUnionBatch(before, box, 1);
