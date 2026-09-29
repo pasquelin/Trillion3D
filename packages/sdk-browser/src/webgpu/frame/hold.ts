@@ -29,6 +29,7 @@ const REASONS = [
   'shadowsPending',
   'cutPending',
   'bounceProbes',
+  'deforming',
 ] as const;
 const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << index])) as Record<
   (typeof REASONS)[number],
@@ -86,6 +87,9 @@ export function unsettledMask(rt: WebgpuPagesRuntime) {
   // Bounce-light probes converge from frame to frame: their state is written by no revision, and
   // a held frame would freeze it before convergence.
   if (bounce.probes) mask |= BIT.bounceProbes;
+  // A GPU deformation moved in the last frame, or a morph weight or a wave clock since: nothing
+  // else announces it, and the temporal pass reprojects it from where it was (#357).
+  if (vis.deformation?.frame.pending()) mask |= BIT.deforming;
   return mask;
 }
 

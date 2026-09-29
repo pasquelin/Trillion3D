@@ -77,6 +77,8 @@ fn floorPrunes(open:u32,sphere:vec4f,error:f32,e:mat4x4f,stretch:f32,focal:f32)-
  // Depth only: the full product would throw three quarters away. Same form as
  // \`viewDepthOf\` (../../../page/selection/projection.ts), four multiplications instead of sixteen.
  let depth=-(e[0].z*sphere.x+e[1].z*sphere.y+e[2].z*sphere.z+e[3].z);
- return errorFloor(error,depth,sphere.w,stretch,focal)>views[vi].pixelError;
+ // A deformation's reach grows a sphere that is there (#357); an absent one (negative) stays so.
+ let radius=select(sphere.w,sphere.w+deformReach,sphere.w>=0.0);
+ return errorFloor(error,depth,radius,stretch,focal)>views[vi].pixelError;
 }
 `;

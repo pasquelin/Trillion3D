@@ -21,7 +21,8 @@ fn rowBits(row:u32)->u32{return (views[vi].pageMask[row>>2u]>>((row&3u)*8u))&0xf
 fn pageMissed(w:u32,bmin:vec3f,bmax:vec3f)->bool{
  if((views[0u].viewFlags&VIEW_PAGES)==0u){return false;}
  let e=viewWorld(w);
- let c=0.5*(bmin+bmax);let h=0.5*(bmax-bmin);
+ // A deformation's reach grows the box (#357).
+ let c=0.5*(bmin+bmax);let h=0.5*(bmax-bmin)+vec3f(deformReach);
  let v=(e*vec4f(c,1.0)).xyz;
  let ext=abs(e[0].xyz)*h.x+abs(e[1].xyz)*h.y+abs(e[2].xyz)*h.z;
  let p=views[vi].perspective;let flat=1.0-p;

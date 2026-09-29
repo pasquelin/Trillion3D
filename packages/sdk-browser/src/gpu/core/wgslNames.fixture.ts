@@ -12,7 +12,7 @@
 const WGSL_OWN = new Set(
   (
     'alias array atomic bitcast bool break case const continue continuing default diagnostic ' +
-    'discard else enable f16 f32 false fn for function i32 if let loop mat2x2f mat3x3f mat4x4f ' +
+    'discard else enable f16 f32 false fn for function i32 if let loop mat2x2f mat3x3f mat3x4f mat4x4f ' +
     'override private ptr read read_write return sampler sampler_comparison storage struct ' +
     'switch true u32 uniform var vec2 vec3 vec4 vec2f vec3f vec4f vec2i vec3i vec4i vec2u vec3u ' +
     'vec4u while workgroup write ' +
