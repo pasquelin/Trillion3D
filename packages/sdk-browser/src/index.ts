@@ -74,8 +74,7 @@ export type {
   ClusterManifest,
 } from '../../sdk-core/src/index.ts';
 export type { BackendDiagnostic, PointOfInterest, DiagnosticDetail } from './backend/types.ts';
-/** Placement rows, a partition cell's decoded rows and how a partition's frame grows them in place,
- *  reachable from the scene. */
+/** Placement rows, a cell's decoded rows and how a frame grows them in place, from the scene. */
 export type { PlacementRows } from './placement/rows.ts';
 export type { CellRows } from './scene/partition/cellDecode.ts';
 export type { PlacementGrowth } from './placement/backendSceneUpdates.ts';
@@ -97,8 +96,7 @@ export type {
   HostScene,
   HostTexture,
 } from './host/resources.ts';
-/** The host scene graph as the engine walks it (`host/scene/graphNodes.ts`): the shapes a source node,
- *  its pose and its rotation are read through. */
+/** The shapes a host node's pose and rotation are read through (`host/scene/graphNodes.ts`). */
 export type { HostRotation, HostVector } from './host/scene/graphNodes.ts';
 /** The engine's own scene graph (`host/graph/`): the surfaces and textures a loaded scene hands
  *  back; its nodes are the core's. */
