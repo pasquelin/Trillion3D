@@ -108,14 +108,14 @@ export function createScreenReflection(
       update(
         matrix: ArrayLike<number>,
         enabled: boolean,
-        [drawnWidth, drawnHeight]: readonly number[],
+        drawn: readonly number[],
         frame?: ReflectionHistoryFrame,
       ) {
-        if (history && frame) history.prepare(frame, matrix, [drawnWidth, drawnHeight]);
+        if (history && frame) history.prepare(frame, matrix, drawn);
         packed.set(matrix);
         packed[16] = active && enabled ? 1 : 0;
-        packed[17] = drawnWidth;
-        packed[18] = drawnHeight;
+        packed[17] = drawn[0];
+        packed[18] = drawn[1];
         packedBits[19] = ((history?.rank ?? 0) ^ (frame?.seed ?? 0)) >>> 0;
         device.queue.writeBuffer(heldUniform, 0, packed);
       },

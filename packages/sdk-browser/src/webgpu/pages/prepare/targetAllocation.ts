@@ -1,4 +1,4 @@
-import { wantsSubsurface, SUBSURFACE_BYTES } from '../../../scene/subsurface.ts';
+import { wantsSubsurface, subsurfaceBytes, SUBSURFACE_BYTES } from '../../../scene/subsurface.ts';
 import {
   wantsReflections,
   wantsRoughReflectionHistory,
@@ -31,7 +31,9 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
     (rt.feedbackAB?.target === false ? width * height * 4 : 0) +
     (wantsAsIsShare(rt) ? width * height * AS_IS_SHARE_BYTES : 0) +
     additional +
-    (wantsSubsurface(rt) ? (width * height - 1) * SUBSURFACE_BYTES : 0) +
+    // frameTargetBytes already counts the 1×1 placeholder.
+    subsurfaceBytes(width, height, wantsSubsurface(rt)) -
+    SUBSURFACE_BYTES +
     (wantsReflectionCone(rt)
       ? reflectionConeAllocation(width, height, gpuDevice.limits).bytes
       : 0) +

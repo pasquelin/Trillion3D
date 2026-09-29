@@ -1,4 +1,5 @@
-import { PHYSICAL_MAP_FIELDS, PHYSICAL_MAP_UNIT } from './physicalMaps.ts';
+import { PHYSICAL_MAP_UNIT } from './physicalMaps.ts';
+import { PHYSICAL_MAP_FIELDS } from '../../visibility/materialType.ts';
 import { visMaterial } from '../../visibility/shader/material.ts';
 import { readsOcclusion } from '../../scene/surfaceModel.ts';
 import { importHostTexture } from '../../host/textureImport.ts';

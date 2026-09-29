@@ -1,4 +1,4 @@
-import { WebglReflectionPyramid, REFLECTION_BOUNDS_UNIT } from './pyramidGl.ts';
+import { WebglReflectionPyramid } from './pyramidGl.ts';
 import { LTC_UNIT } from '../webgl/cluster/rectGlsl.ts';
 import { surfaceOf } from '../page/surface.ts';
 import { reflects } from './eligible.ts';
@@ -25,10 +25,6 @@ export function capture(
 }
 
 export const target = (gl: WebGL2RenderingContext) =>
-  new WebglClusterBackdrop(
-    gl,
-    [LTC_UNIT + 1, LTC_UNIT + 2],
-    new WebglReflectionPyramid(gl, REFLECTION_BOUNDS_UNIT),
-  );
+  new WebglClusterBackdrop(gl, [LTC_UNIT + 1, LTC_UNIT + 2], new WebglReflectionPyramid(gl));
 export const receivers = (lists: readonly (readonly { material: HostMaterials }[])[]) =>
   lists.some((list) => list.some((mesh) => reflects(surfaceOf(mesh.material))));
