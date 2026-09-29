@@ -8,7 +8,10 @@
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/math/matrix/matrix4.ts';
 import { ownedProxy } from '../../../packages/sdk-core/src/scene/core/proxy.fixture.ts';
 import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/proxy.ts';
-import { residentProxyWgsl } from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts';
+import {
+  PROXY_HEADER_WORDS,
+  residentProxyWgsl,
+} from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from '../../../packages/sdk-browser/src/bounce/traceWgsl.ts';
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts';
 import { ouvrirAppareil as openDevice } from './webgpuDevice.ts';
@@ -51,7 +54,17 @@ export async function run() {
   const gpu = await openDevice();
   if (!gpu) return { unavailable: 'no WebGPU adapter' };
   const { device, erreurs: errors } = gpu;
-  const resident = createGpuBounceProxy(device, ownedProxy());
+  const proxy = ownedProxy();
+  const resident = createGpuBounceProxy(device, proxy);
+  // The owner ranges follow triangles, node bounds, node children and triangle groups.
+  const { triangles, nodeBounds, nodeChildren, triangleGroups, groupOffsets } = proxy.data;
+  const rangesByte =
+    (PROXY_HEADER_WORDS +
+      triangles.length +
+      nodeBounds.length +
+      nodeChildren.length +
+      triangleGroups.length) *
+    4;
   const { module, compilation } = await gpu.compile(SHADER);
   const pipeline = device.createComputePipeline({
     layout: 'auto',
@@ -94,7 +107,11 @@ export async function run() {
       };
     });
   };
+  // A still proxy reads no owner word: with its owner ranges overwritten by an owner that does not
+  // exist, it still reports owner 0. The real ranges come back before anything moves.
+  device.queue.writeBuffer(resident.buffer, rangesByte, new Uint32Array([7, 9]));
   const still = await trace();
+  device.queue.writeBuffer(resident.buffer, rangesByte, groupOffsets);
   const moved = resident.sync(worldOf);
   const after = await trace();
   const dynamic = resident.dynamic;
