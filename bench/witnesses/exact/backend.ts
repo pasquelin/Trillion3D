@@ -45,15 +45,12 @@ export const exactPagesBackend: BackendFactory = (context) => {
   const { requestCount, prepared, worlds } = collected,
     roots = posedRoots(collected.roots),
     [allPages, bootstrap] = [collected.allPages, collected.bootstrap] as PageRec[][];
-  // The witness draws the transparent copies with the host library it is written in: this is where
-  // the engine's contract copies go back to being its meshes.
+  // The witness draws the contract's transparent copies with its host library, as its own meshes.
   const blendCopies = collected.blendCopies.flatMap((copy) => (isDrawnNode(copy) ? [copy] : []));
   const cap = maxResidentPages ?? context.residentPagesDefault ?? Math.max(1024, prepared),
     scene = numbered(new Scene());
   const sceneLights = installLighting(scene, clearColor, context.sceneLighting ?? source);
-  const shown: PageRec[] = [],
-    desired: PageRec[] = [],
-    attached: PageRec[] = [];
+  const [shown, desired, attached]: PageRec[][] = [[], [], []];
   const requestData = createExactPagesRequestData(allPages, requestCount);
   // One resident index buffer per primitive: the visible cut is now only a list of ranges.
   const { batches, refusal, drawHostGeometry } = createExactPagesClusterBatches(
