@@ -1,5 +1,5 @@
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts';
-import { DIRECT_LIGHTING_WGSL } from '../direct/lightingWgsl.ts';
+import { directLightingWgsl } from '../direct/lightingWgsl.ts';
 import { BOUNCE_APPLY_WGSL } from '../../bounce/applyWgsl.ts';
 import {
   BOUNCE_SURFACE_BINDING,
@@ -83,36 +83,32 @@ ${WORLD_AT_WGSL}
  var rgb=lit+ambient+emissive.rgb${bounce};if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}
  return vec4f(rgb,1.0);
 }`;
-/** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
- * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
- * added (P6). An unlit material shows its colour with no response to light, still seen through
- * the fog; a diagnostic, normal or depth surface comes out as-is.
- */
-export const DIRECT_LIGHTING_SHADER = `
-${VIEW_WGSL}
-${surfaceBindingsWgsl()}
-${CONTRACT_BINDINGS_WGSL}
-${STANDARD_LIGHTING_WGSL}
-${DIRECT_LIGHTING_WGSL}
-${contractSurface('')}`;
-/**
- * The same program, plus bounced light: probe irradiance multiplied by the pixel's diffuse
- * albedo, and what a mirror reflects (#31), added to the direct. It is a separate program, not a
- * branch, so a session without bounce runs exactly the previous shader, bit for bit.
- */
-export const BOUNCE_LIGHTING_SHADER = `
-${VIEW_WGSL}
-${surfaceBindingsWgsl()}
-${CONTRACT_BINDINGS_WGSL}
-${STANDARD_LIGHTING_WGSL}
-${DIRECT_LIGHTING_WGSL}
-${BOUNCE_APPLY_WGSL}
+/** The bounce program's surface: bounced light and what a mirror reflects, added to the direct. */
+const BOUNCE_SURFACE_WGSL = `${BOUNCE_APPLY_WGSL}
 ${bounceReflectionWgsl(BOUNCE_SURFACE_BINDING)}
 ${MIRROR_LIGHTING_WGSL}
 ${contractSurface(
   '+bounceLighting(base.rgb,base.a,N,P,emissive.a)+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)',
   'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
 )}`;
+/** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
+ * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
+ * added (P6). An unlit material shows its colour with no response to light, still seen through
+ * the fog; a diagnostic, normal or depth surface comes out as-is. With `bounce`, bounced light:
+ * probe irradiance multiplied by the pixel's diffuse albedo, and what a mirror reflects (#31),
+ * added to the direct. It is a separate program, not a branch, so a session without bounce runs
+ * exactly the previous shader, bit for bit — and so is the `narrow` one, the resolve of a scene
+ * of at most `TILE_LIGHTS` lights (`directLightingWgsl`, #849).
+ */
+export const contractLightingShader = (bounce: boolean, narrow: boolean) => `
+${VIEW_WGSL}
+${surfaceBindingsWgsl()}
+${CONTRACT_BINDINGS_WGSL}
+${STANDARD_LIGHTING_WGSL}
+${directLightingWgsl(narrow)}
+${bounce ? BOUNCE_SURFACE_WGSL : contractSurface('')}`;
+export const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
+export const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
 /**
  * How the composition reads a pixel's as-is share — 1 on a debug view (a normal or depth surface,
  * `AS_IS_FLAG`), 0 elsewhere —, binding 2, one read per pixel. A still image reads its surface
