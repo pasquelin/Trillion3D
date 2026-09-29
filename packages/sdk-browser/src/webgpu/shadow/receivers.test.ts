@@ -4,6 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { demandMarginTexels } from '../../../../sdk-core/src/scene/light-shadow/demand.ts';
+import { createReceiverCells } from '../../../../sdk-core/src/scene/light-shadow/receiverCells.ts';
 import { VIEW } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import type { EngineCamera } from '../../camera/engineCamera.ts';
 import { PCF_REACH } from '../../lighting/direct/shadowWgsl.ts';
@@ -15,7 +16,7 @@ test("the demand's margin covers the normal offset, the taps and the neighbour p
   assert.ok(demandMarginTexels() >= LIGHT_SETTINGS.shadowNormalOffsetTexels + PCF_REACH + 1.5);
 });
 
-test('the receivers are the drawn clusters the camera sees, in world space', () => {
+test('the receivers are the drawn clusters in world space, the frustum keeping what it lights', () => {
   const at = (x: number, y: number, z: number) =>
     ({
       min: [-1, -1, -1],
@@ -33,11 +34,13 @@ test('the receivers are the drawn clusters the camera sees, in world space', () 
   // Ahead of the eye, behind it, then ahead again.
   const drawn = [at(0, 5, -10), at(0, 5, 10), at(2, 3, -20)];
   const receivers = shadowReceivers(drawn, cam, 720);
-  assert.equal(receivers.count, 2);
+  assert.equal(receivers.count, 3);
   assert.deepEqual(
-    [...receivers.boxes.subarray(0, 12)],
-    [-1, 4, -11, 1, 6, -9, 1, 2, -21, 3, 4, -19],
+    [...receivers.boxes.subarray(0, 18)],
+    [-1, 4, -11, 1, 6, -9, -1, 4, 9, 1, 6, 11, 1, 2, -21, 3, 4, -19],
   );
+  // The demand keeps what the frustum keeps: the box behind the eye joins no cell.
+  assert.equal(createReceiverCells().gather(receivers, VIEW).count, 2);
   assert.ok(
     Math.abs(receivers.pixelNear - (2 * VIEW.near * Math.tan(VIEW.halfFovY)) / 720) < 1e-12,
   );

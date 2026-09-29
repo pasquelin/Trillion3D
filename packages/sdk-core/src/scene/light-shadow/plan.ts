@@ -11,7 +11,8 @@ import { DRAW_ALL, createShadowPool } from './pool.ts';
 import { createSunLevels } from './sunLevels.ts';
 import { createShadowRecords } from './records.ts';
 import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
-import { createShadowDemand, type ShadowReceivers } from './demand.ts';
+import { createShadowDemand } from './demand.ts';
+import type { ShadowReceivers } from './receiverCells.ts';
 import { createShadowThresholds } from './thresholds.ts';
 import { sunCoarseness } from './virtual.ts';
 
