@@ -11,7 +11,7 @@ import { LINE_CLIP_GLSL, LINE_CLIP_WGSL } from '../visibility/shader/lineWgsl.ts
  */
 
 /** Floats of the view uniform: the matrix, the viewport and the image's jitter in pixels, the
- *  pixel ratio (padded to the uniform's sixteen-byte size). */
+ *  pixel ratio, the size the scene depth was drawn at (padded to the uniform's sixteen bytes). */
 export const GUIDE_UNIFORM_FLOATS = 24;
 
 /**
@@ -56,6 +56,7 @@ export function writeGuideView(
   height: number,
   pixelRatio: number,
   jitter: ArrayLike<number> = [0, 0],
+  scene: ArrayLike<number> = [width, height],
 ) {
   for (let i = 0; i < 12; i++) into[i] = viewProjection[i];
   for (let r = 0; r < 4; r++)
@@ -66,6 +67,8 @@ export function writeGuideView(
       viewProjection[12 + r];
   into.set([width, height, jitter[0], jitter[1]], 16);
   into[20] = pixelRatio;
+  into[22] = scene[0];
+  into[23] = scene[1];
   return into;
 }
 
@@ -93,7 +96,7 @@ export function jitterDepthSlack(
 }
 
 export const GUIDE_WGSL = /* wgsl */ `
-struct View { matrix: mat4x4f, viewport: vec4f, pixelRatio: f32 };
+struct View { matrix: mat4x4f, viewport: vec4f, pixelRatio: f32, scene: vec2f };
 @group(0) @binding(0) var<uniform> view: View;
 struct Out { @builtin(position) position: vec4f, @location(0) color: vec4f };
 ${LINE_CLIP_WGSL}
@@ -110,7 +113,7 @@ ${GUIDE_CORNER_WGSL}
 }
 @group(0) @binding(1) var sceneDepth: texture_depth_2d;
 fn sceneAt(p: vec2i) -> f32 {
-  return textureLoad(sceneDepth, clamp(p, vec2i(0), vec2i(textureDimensions(sceneDepth)) - 1), 0);
+  return textureLoad(sceneDepth, clamp(p, vec2i(0), vec2i(view.scene) - 1), 0);
 }
 fn slopeAlong(p: vec2i, axis: vec2i, centre: f32) -> f32 {
   return min(abs(sceneAt(p + axis) - centre), abs(centre - sceneAt(p - axis)));
@@ -121,9 +124,10 @@ fn jitterSlack(p: vec2i, centre: f32) -> f32 {
     + abs(view.viewport.w) * slopeAlong(p, vec2i(0, 1), centre);
 }
 // Reversed depth: the greater is nearer; the scene in front, beyond the slack, hides the guide.
-// The guide draws at the display; the scene depth may be drawn below it: its texel under the pixel.
+// The guide draws at the display; the scene depth may be drawn below it, in the top-left
+// \`view.scene\` of its target: its texel under the pixel.
 @fragment fn fragmentMain(in: Out) -> @location(0) vec4f {
-  let p = vec2i(floor(in.position.xy * (vec2f(textureDimensions(sceneDepth)) / view.viewport.xy)));
+  let p = vec2i(floor(in.position.xy * (view.scene / view.viewport.xy)));
   let scene = sceneAt(p);
   if (in.position.z < scene - jitterSlack(p, scene)) { discard; }
   return in.color;

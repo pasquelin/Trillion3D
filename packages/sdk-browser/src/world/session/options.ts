@@ -113,10 +113,10 @@ export interface MeasuredWorldOptions {
    *  ones, reprojected. `false` renders the image sampled at the pixel centre, with no
    *  history — that is the "before" of a comparison, and what pixel-for-pixel benches ask. */
   temporalAntialiasing?: boolean;
-  /** Internal, for proofs: the WebGPU frame drawn at this fraction of the display per axis, in
-   *  [0.5, 1], and reconstructed to it by temporal antialiasing. 1 by default: the frame is drawn
-   *  at the display. Its controller and public setting are #832. */
-  renderScale?: number;
+  /** The WebGPU frame's render scale (`../../frame/renderScaleOption.ts`): the fraction of the
+   *  display per axis it is drawn at, reconstructed to it by temporal antialiasing, fixed or
+   *  `'auto'`, chosen by the frame budget. 1 by default: the frame is drawn at the display. */
+  renderScale?: import('../../frame/renderScaleOption.ts').RenderScale;
   /** The world's effect chain, drawn after temporal antialiasing (`world.effects`). */
   effects?: import('../../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   /** Hears the mode of a surface that keeps WebGL2 from drawing `effects` on a frame, drawn

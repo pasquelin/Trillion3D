@@ -41,6 +41,7 @@ function renderRecorder() {
     return {
       setPipeline: (set: GPURenderPipeline) => void (pipeline = set),
       setBindGroup() {},
+      setViewport() {},
       draw: (...counts: number[]) => void log.push([pipeline.label, ...counts].join(' ')),
       end() {},
     };
@@ -50,7 +51,8 @@ function renderRecorder() {
 
 const view = {} as GPUTextureView,
   kept = () => ({}) as never;
-const frame = (encoder: GPUCommandEncoder) => [encoder, view, view, IDENTITY, [0, 0, 0]] as const;
+const frame = (encoder: GPUCommandEncoder) =>
+  [encoder, view, view, [8, 8], IDENTITY, [0, 0, 0]] as const;
 
 test('WebGPU: one pass, fire then the nearer smoke, each with its blend; none without particles', async () => {
   const gpu = fakeDevice(),
