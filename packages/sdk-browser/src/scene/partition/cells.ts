@@ -90,11 +90,17 @@ export function createPartitionCells(inputs: Inputs) {
   /** Sizes the rows for `rung`, in place under `grow`; false, unsized, if refused. */
   const resize = (rung: number, grow?: PlacementGrowth) => {
     if (!sizeRows(meshes, rowsAt(partition, rung), grow)) return false;
-    sized = Math.max(sized, rung);
+    // Rows that hold every node hold any view: no wider rung asks for more.
+    const every = [...partition.totals].every(([mesh, total]) => {
+      const placed = meshes.get(mesh);
+      return !placed || capacityOf(placed) >= total;
+    });
+    sized = every ? RUNGS : Math.max(sized, rung);
     return true;
   };
+  const cellUrl = (cell: number) => index.cell(cell).url;
   const place = (cell: number, decoded: CellRows) => {
-    if (!rows.place(cell, decoded, index.cell(cell).url)) return false;
+    if (!rows.place(cell, decoded, cellUrl(cell))) return false;
     manifest.hold(cell);
     return true;
   };
@@ -102,7 +108,6 @@ export function createPartitionCells(inputs: Inputs) {
     rows.leave(cell);
     manifest.release(cell);
   };
-  const cellUrl = (cell: number) => index.cell(cell).url;
   const partitionCells = {
     /** The root's pages, the files the streamer's catalogue holds at open. */
     pages: index.slots,
@@ -170,13 +175,12 @@ export function createPartitionCells(inputs: Inputs) {
         bytes += got.byteLength;
         return decode(got, url);
       };
-      for (;;) {
-        const unread = planCells(index, local.eye, local.reach, held).pages.visible;
-        if (!unread.length) break;
+      let plan = planCells(index, local.eye, local.reach, held);
+      for (let unread = plan.pages.visible; unread.length; unread = plan.pages.visible) {
         const bodies = await Promise.all(unread.map((p) => read(p.slot.url, io.decodePage)));
         unread.forEach((page, at) => io.admit(index.open(page, bodies[at])));
+        plan = planCells(index, local.eye, local.reach, held);
       }
-      const plan = planCells(index, local.eye, local.reach, held);
       plan.leave.forEach(leave);
       const decoded = await Promise.all(plan.visible.map((c) => read(cellUrl(c), io.decode)));
       plan.visible.forEach((cell, at) => place(cell, decoded[at]));

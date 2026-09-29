@@ -20,6 +20,7 @@ import {
 import { boxUnion } from '../../../../sdk-core/src/math/primitives/box.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
+import { sameMatrixBits } from '../../host/world/pose.ts';
 
 const rootWorld = new Float64Array(MATRIX_VALUES),
   rootInverse = new Float64Array(MATRIX_VALUES),
@@ -64,10 +65,6 @@ export type Declared = {
   written: number;
 };
 
-const same = (a: ArrayLike<number>, b: ArrayLike<number>) => {
-  for (let at = 0; at < MATRIX_VALUES; at++) if (!Object.is(a[at], b[at])) return false;
-  return true;
-};
 const relativeInto = (out: Float64Array, parent: Object3D) =>
   multiplyMatrix4(out, rootInverse, hostWorldChainInto(parentWorld, parent));
 
@@ -112,14 +109,16 @@ export function createCellBoxes(
     if (frames.size) invertMatrix4(rootInverse, hostWorldChainInto(rootWorld, root));
     for (const [rank, frame] of frames) {
       relativeInto(relative, parents[rank]);
-      if (same(relative, frame.matrix)) continue;
+      if (sameMatrixBits(frame.matrix, relative)) continue;
       frame.matrix.set(relative);
       frame.moved = now;
       stretch.set(rank, stretchOf(relative));
-      if (same(relative, frame.declared)) displaced.delete(rank);
+      if (sameMatrixBits(frame.declared, relative)) displaced.delete(rank);
       else if (!frame.back) displaced.set(rank, null);
-      else
-        displaced.set(rank, multiplyMatrix4(new Float64Array(MATRIX_VALUES), relative, frame.back));
+      else {
+        const carry = displaced.get(rank) ?? new Float64Array(MATRIX_VALUES);
+        displaced.set(rank, multiplyMatrix4(carry, relative, frame.back));
+      }
     }
   };
   const moved = ([rank]: Parts[number], since: number) =>

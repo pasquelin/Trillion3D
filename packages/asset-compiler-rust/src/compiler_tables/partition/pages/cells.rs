@@ -34,8 +34,8 @@ pub(crate) fn write_pages(
         let records = &records[cells];
         let meshes = records
             .iter()
-            .flat_map(|r| r["meshes"].as_array().into_iter().flatten());
-        let pages = slots_of(meshes.filter_map(|m| m[0].as_u64()), mesh_pages);
+            .flat_map(|r| meshes_of(r).map(|(mesh, _)| mesh));
+        let pages = slots_of(meshes, mesh_pages);
         Ok(json!({kind.records: records, "meshPages": pages}))
     };
     let parents = |cells: Range<usize>| parents_of(&records[cells]);
