@@ -1252,7 +1252,7 @@
       "options.signal": "Arrête les chargements du monde quand le signal est annulé.",
       "options.physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
       "options.temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
-      "options.renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, WebGPU seulement, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut), un nombre la fixe ; une image immobile est dessinée au maximum. Changée ensuite par `world.renderScale`."
+      "options.renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe ; une image immobile est dessinée au maximum. Changée ensuite par `world.renderScale`."
     }
   },
   "crossVector3": {
@@ -2510,6 +2510,7 @@
       "framebuffer": "Où dessiner ; `null` pour l’écran.",
       "width": "Largeur en pixels.",
       "height": "Hauteur en pixels.",
+      "displayWidth": "La largeur à laquelle l’image est montrée quand elle est dessinée en dessous (`world.renderScale`) : les niveaux de texture et les largeurs de ligne suivent le rapport. `width` en son absence.",
       "linear": "Radiance linéaire, ni passée par la courbe ni encodée, sur un noir transparent : l’entrée de la chaîne d’effets, dont l’alpha est la couverture."
     }
   },
@@ -4658,7 +4659,7 @@
   "PageSource": {
     "summary": "D’où les pages d’un modèle sont lues, par clé.",
     "members": {
-      "read": "Lit les octets d’une page."
+      "read": "Lit les octets d’une page ; `priority`, si elle est donnée, est celle du streamer (la plus petite d’abord). Une lecture plus urgente d’une page déjà en cours est redemandée pour la faire monter : une source qui prend `priority` la joint à la lecture en cours au lieu de transférer la page deux fois."
     }
   },
   "PageStreamer": {
@@ -6658,7 +6659,7 @@
   },
   "world.renderScale": {
     "summary": "La fraction de l’affichage par axe à laquelle l’image est dessinée (`WorldOptions.renderScale`), dès l’image suivante.",
-    "description": "Lue, l’échelle de la dernière image dessinée : 1 en WebGL2."
+    "description": "Lue, l’échelle de la dernière image dessinée."
   },
   "world.effects": {
     "summary": "La chaîne d’effets : les passes dessinées sur l’image (`effect`)."
@@ -6910,7 +6911,7 @@
       "signal": "Arrête les chargements du monde quand le signal est annulé.",
       "physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
       "temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
-      "renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, WebGPU seulement, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut), un nombre la fixe ; une image immobile est dessinée au maximum. Changée ensuite par `world.renderScale`."
+      "renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut ; sur WebGL2, qui ne fait que rééchantillonner, `min` vaut 1 par défaut), un nombre la fixe ; une image immobile est dessinée au maximum. Changée ensuite par `world.renderScale`."
     }
   },
   "RenderScale": {
@@ -6920,7 +6921,7 @@
   "WorldPageSource": {
     "summary": "D’où les pages sont lues, et l’adresse par rapport à laquelle on les lit.",
     "members": {
-      "read": "Lit les octets d’une page.",
+      "read": "Lit les octets d’une page ; `priority`, si elle est donnée, est celle du streamer (la plus petite d’abord). Une lecture plus urgente d’une page déjà en cours est redemandée pour la faire monter : une source qui prend `priority` la joint à la lecture en cours au lieu de transférer la page deux fois.",
       "baseUrl": "L’adresse par rapport à laquelle chaque page est lue."
     }
   },
