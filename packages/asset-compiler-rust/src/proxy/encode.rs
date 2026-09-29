@@ -26,18 +26,22 @@ impl SceneProxy {
         })
     }
 
-    /// Cache object bytes in little-endian: header, world vertices,
-    /// albedos, node bounds and links end to end. No repeated lengths —
-    /// header imposes all, reader refuses file of other size.
+    /// Little-endian v4: ownership header, sharing tables, loose triangles, unchanged BVH
+    /// and provenance. The reader expands shared placements before exposing any columns.
     pub fn encode(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(
-            SCENE_PROXY_HEADER_WORDS * 4
-                + self.triangles.len() * 4
-                + self.albedo.len() * 4
-                + self.node_bounds.len() * 4
-                + self.node_children.len() * 4,
-        );
-        for word in [
+        let sharing = &self.sharing;
+        let shape_triangles: Vec<usize> = sharing
+            .shapes
+            .iter()
+            .flatten()
+            .map(|p| *p as usize)
+            .collect();
+        let mut shared = vec![false; self.triangle_count()];
+        for &position in &sharing.positions {
+            shared[position as usize] = true;
+        }
+        let loose: Vec<usize> = (0..shared.len()).filter(|p| !shared[*p]).collect();
+        let mut words = vec![
             SCENE_PROXY_MAGIC,
             SCENE_PROXY_VERSION,
             self.triangle_count() as u32,
@@ -46,36 +50,48 @@ impl SceneProxy {
             (self.provenance.owners.len() / 2) as u32,
             (self.provenance.bind_worlds.len() / 16) as u32,
             0,
-        ] {
-            bytes.extend_from_slice(&word.to_le_bytes());
+            sharing.shapes.len() as u32,
+            shape_triangles.len() as u32,
+            sharing.instances.len() as u32,
+        ];
+        debug_assert_eq!(words.len(), SCENE_PROXY_HEADER_WORDS);
+        words.extend(sharing.shapes.iter().map(|shape| shape.len() as u32));
+        let triangles_of = |positions: &[usize], words: &mut Vec<u32>| {
+            for p in positions {
+                let at = p * super::PROXY_TRIANGLE_FLOATS;
+                words.extend(
+                    self.triangles[at..at + super::PROXY_TRIANGLE_FLOATS]
+                        .iter()
+                        .map(|v| v.to_bits()),
+                );
+            }
+            words.extend(positions.iter().map(|p| self.albedo[*p]));
+        };
+        triangles_of(&shape_triangles, &mut words);
+        words.extend(sharing.instances.iter().map(|(shape, _)| *shape));
+        for (_, map) in &sharing.instances {
+            words.extend(map.iter().map(|v| v.to_bits()));
         }
-        for value in &self.triangles {
-            bytes.extend_from_slice(&value.to_le_bytes());
-        }
-        for value in &self.albedo {
-            bytes.extend_from_slice(&value.to_le_bytes());
-        }
-        for value in &self.node_bounds {
-            bytes.extend_from_slice(&value.to_le_bytes());
-        }
-        for value in &self.node_children {
-            bytes.extend_from_slice(&value.to_le_bytes());
-        }
+        words.extend_from_slice(&sharing.positions);
+        triangles_of(&loose, &mut words);
+        words.extend(self.node_bounds.iter().map(|v| v.to_bits()));
+        words.extend_from_slice(&self.node_children);
         for column in [
             &self.provenance.triangle_groups,
             &self.provenance.group_offsets,
             &self.provenance.owners,
         ] {
-            for value in column {
-                bytes.extend_from_slice(&value.to_le_bytes());
-            }
+            words.extend_from_slice(column);
         }
-        for value in &self.provenance.source_parents {
-            bytes.extend_from_slice(&value.to_le_bytes());
-        }
+        words.extend(self.provenance.source_parents.iter().map(|v| *v as u32));
+        let mut bytes: Vec<u8> = words.iter().flat_map(|word| word.to_le_bytes()).collect();
         for value in &self.provenance.bind_worlds {
             bytes.extend_from_slice(&value.to_le_bytes());
         }
         bytes
     }
 }
+
+#[cfg(test)]
+#[path = "encode_tests.rs"]
+pub(crate) mod tests;
