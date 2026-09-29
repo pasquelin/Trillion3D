@@ -1,5 +1,6 @@
 import type { SceneProxy } from '../../contracts/proxy.ts';
 import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts';
+import { transformAffinePoint } from '../../math/primitives/vector.ts';
 import { proxyAffineDelta } from './proxyDelta.ts';
 import { createProxyRefit } from './proxyRefit.ts';
 
@@ -45,8 +46,7 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
   const delta = new Float64Array(16);
   let revision = 0,
     stretch = 1,
-    moving = false,
-    settled = false;
+    moving = false;
   /** Every owner of each group under one pose: the only case one triangle still describes. */
   const coincident = () => {
     for (let group = 0; group < proxy.groups; group++) {
@@ -63,16 +63,10 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
     const { triangles, triangleGroups, groupOffsets, owners } = data;
     for (let t = 0; t < triangleGroups.length; t++) {
       const m = deltas[owners[groupOffsets[triangleGroups[t]] * 2]];
-      for (let v = 0; v < 9; v += 3)
-        for (let a = 0; a < 3; a++)
-          triangles[t * 9 + v + a] =
-            m[a] * canonical[t * 9 + v] +
-            m[a + 4] * canonical[t * 9 + v + 1] +
-            m[a + 8] * canonical[t * 9 + v + 2] +
-            m[a + 12];
+      for (let v = t * 9; v < t * 9 + 9; v += 3)
+        transformAffinePoint(triangles, m, canonical[v], canonical[v + 1], canonical[v + 2], v);
     }
     moving = false;
-    settled = true;
   };
   return {
     data,
@@ -142,8 +136,7 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
         return true;
       }
       // Motion resumes from the canonical triangles, under the owners' poses.
-      if (settled) data.triangles.set(canonical);
-      settled = false;
+      if (!moving && revision) data.triangles.set(canonical);
       moving = true;
       stretch = 1;
       for (const node of groupsOf.keys()) {
