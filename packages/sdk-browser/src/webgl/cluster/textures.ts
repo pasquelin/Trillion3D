@@ -32,7 +32,12 @@ const filter = (gl: WebGL2RenderingContext, value: TextureFilter) =>
   })[value];
 
 const WHITE: readonly number[] = [255, 255, 255, 255];
-const uploadAgain = (r: TextureRecord) => () => void (r.version = -1); // refused: sent again
+/** Refused: the level and its chain hold nothing, so the next bind allocates both again — never
+ *  a copy in place into storage the context never made. */
+const uploadAgain = (r: TextureRecord) => () => {
+  r.version = r.width = -1;
+  r.cutoff = undefined;
+};
 
 export class WebglClusterTextures {
   private records = new Map<string, TextureRecord>();
@@ -108,7 +113,8 @@ export class WebglClusterTextures {
       if (mips) {
         const allocate = record.cutoff === undefined;
         if (allocate) allocated(gl, 'texture', uploadAgain(record));
-        this.mips.reduce(unit, Object.assign(record, { cutoff }), allocate);
+        record.cutoff = cutoff;
+        this.mips.reduce(unit, record, allocate);
       }
     }
     this.bound[unit] = record.texture;
@@ -158,7 +164,10 @@ export class WebglClusterTextures {
     const mips = mipFiltered(texture.minFilter),
       allocate = !inPlace || held?.cutoff == null;
     if (!inPlace || (mips && allocate)) allocated(gl, 'texture', uploadAgain(record));
-    if (mips) this.mips.reduce(unit, Object.assign(record, { cutoff }), allocate);
+    if (mips) {
+      record.cutoff = cutoff;
+      this.mips.reduce(unit, record, allocate);
+    }
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
   }

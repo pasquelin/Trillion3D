@@ -67,7 +67,7 @@ export class WebglClusterLights {
     this.ltc = createLtcTexture(gl);
     this.probe = new WebglClusterProbe(gl, program);
     this.fog = new WebglClusterFog(gl, program);
-    allocated(gl, 'target'); // the frame's light data: a refusal is marked once read
+    allocated(gl, 'target'); // its one-time maps (LTC, probe, fog): a refusal is marked once read
   }
   /** Writes the frame's lights, then the grid of the lights each fragment reaches. */
   upload(scene: WebglClusterScene, view: ArrayLike<number>) {

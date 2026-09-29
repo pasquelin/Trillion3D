@@ -169,11 +169,12 @@ export function createGeometryBudget(env: PoolEnvironment) {
     outOfMemory() {
       const before = current(),
         smaller = halvedPool(before, drawn.drawFor);
-      if (smaller) drawn.adopt(smaller);
       const refused = outOfMemoryContext('geometry', before.allocatedBytes, smaller);
       sendEngineDiagnostic(onDiagnostic, 'gpu-out-of-memory', 'WebGL2 refused geometry', refused);
-      if (smaller) resident.shed();
-      return !!smaller;
+      if (!smaller) return false;
+      drawn.adopt(smaller);
+      resident.shed();
+      return true;
     },
   };
 }
