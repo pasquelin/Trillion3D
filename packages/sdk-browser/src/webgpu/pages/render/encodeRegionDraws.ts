@@ -21,7 +21,7 @@ const slotOf = new Uint32Array(MAX_SHADOW_REGIONS),
  * exist, tests nothing. Returns whether the restored regions draw from the visible lists.
  */
 export function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder, count: number) {
-  const { lights, run, layout, setup } = rt,
+  const { lights, run, layout } = rt,
     { regions, pageHiz, occlusion, cull, spheres, shadows } = lights;
   if (!pageHiz || !occlusion || !cull || !spheres || !shadows) return false;
   let pages = 0;
@@ -46,7 +46,7 @@ export function encodeOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncod
   };
   // A list holds the visibility rows and the blended casters' rows in use, at most.
   const rows = layout.rows.packedCount + rt.services.blendCasters.used;
-  occlusion.encode(encoder, inputs, count, (r) => slotOf[r], rows, setup.maxCorners, run.frame);
+  occlusion.encode(encoder, inputs, count, (r) => slotOf[r], rows, run.frame);
   return true;
 }
 
