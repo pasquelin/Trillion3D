@@ -126,10 +126,13 @@ pub(super) fn compile_primitive(
     let mesh = *mesh_map
         .get(old)
         .ok_or_else(|| invalid("Missing mesh mapping"))?;
-    let attributes = if unsplit { Vec::new() } else {
+    let attributes = if unsplit {
+        Vec::new()
+    } else {
         compiler_page_object::page_attributes(g, bin, p, positions.count, validated)?
     };
-    let mut deformation = compiler_page_object::page_deformation(g, bin, p, positions.count, validated)?;
+    let mut deformation =
+        compiler_page_object::page_deformation(g, bin, p, positions.count, validated)?;
     deformation.soft_source(g, *old, &pos)?;
     let carried = carried_attributes(&attributes, material);
     let uv_exponent = geometry_page_quant::primitive_uv_exponent(&carried, clustered_blend);
@@ -186,10 +189,7 @@ pub(super) fn compile_primitive(
     progress(event);
     let quantization =
         compiler_page_object::quantization_report(&pages, position_exponent, uv_exponent);
-    let mut reach = deformation.reach(&pos);
-    if unsplit && deformation.soft_source {
-        reach["softSourceIds"] = json!(deformation.skin.as_ref().unwrap().0.iter().step_by(4).collect::<Vec<_>>());
-    }
+    let reach = deformation.reach_for_pass(&pos, unsplit);
     Ok(CompiledPrimitive {
         cluster_planes,
         proxy_cut,
