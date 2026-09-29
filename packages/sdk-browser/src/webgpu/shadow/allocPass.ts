@@ -3,11 +3,13 @@ import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts';
 import { ALLOCATION_WGSL } from './allocWgsl.ts';
 import { SHADOW_WORDS_WGSL, WORDS_GROUP } from './wordsWgsl.ts';
+import { SHADOW_FRESH_WGSL } from './freshWgsl.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** Labels of the allocation and of the host's table words, as a frame's passes are timed. */
 const SHADOW_ALLOC_PASS = 'Trillion3D shadow allocation v1';
 const SHADOW_WORDS_PASS = 'Trillion3D shadow table words v1';
+const SHADOW_FRESH_PASS = 'Trillion3D shadow GPU pages v1';
 
 /** A compute pass of storage buffers only, its bind group made again only when they moved. */
 async function computePass(
@@ -50,27 +52,41 @@ async function computePass(
   };
 }
 
+const READ: GPUBufferBindingType = 'read-only-storage';
+
 /**
- * The GPU allocation of shadow pages (`allocWgsl.ts`) and the pass that writes the host's table
- * words under it (`wordsWgsl.ts`): their pipelines, compiled at prepare. They own no buffer: the
- * pool's are made with its request buffer (`allocBuffers.ts`).
+ * The GPU allocation of shadow pages (`allocWgsl.ts`), the pass that writes the host's table words
+ * under it (`wordsWgsl.ts`) and the one that composes the pages the GPU draws itself
+ * (`freshWgsl.ts`): their pipelines, compiled at prepare. They own no buffer: the pool's are made
+ * with its request buffer (`allocBuffers.ts`).
  */
 export async function createShadowAllocation(device: GPUDevice) {
-  const [allocate, words] = await Promise.all([
+  const [allocate, words, fresh] = await Promise.all([
     computePass(device, ALLOCATION_WGSL, SHADOW_ALLOC_PASS, 'allocateShadowPages', [
       'storage',
       'storage',
       'storage',
       'storage',
-      'read-only-storage',
+      READ,
+      'storage',
     ]),
     computePass(device, SHADOW_WORDS_WGSL, SHADOW_WORDS_PASS, 'applyShadowWords', [
       'storage',
-      'read-only-storage',
-      'read-only-storage',
+      'storage',
+      READ,
+    ]),
+    computePass(device, SHADOW_FRESH_WGSL, SHADOW_FRESH_PASS, 'composeShadowPages', [
+      'storage',
+      'storage',
+      READ,
+      'storage',
+      'storage',
+      'storage',
+      READ,
+      'storage',
     ]),
   ]);
-  return { allocate, words };
+  return { allocate, words, fresh };
 }
 
 export type ShadowAllocation = Awaited<ReturnType<typeof createShadowAllocation>>;
@@ -81,9 +97,8 @@ export type ShadowAllocation = Awaited<ReturnType<typeof createShadowAllocation>
  * pool is written from the host's, and the plan follows the GPU from then on (`mirror.ts`).
  * Nothing without the pipelines, the pool or its buffers: the reports then allocate on the host.
  *
- * PLUG POINT (part C of #1275): the pages `assignPages` maps this frame are mapped and not
- * readable; a raster that draws them from a GPU-built list, between this pass and the table words
- * (`flushShadowTable`), is what removes the one-frame hole.
+ * The pages it maps, and those it mapped before and saw no draw of since, it lists: the GPU draws
+ * them in this frame once the host's pages and words are in (`freshPass.ts`).
  */
 export function encodeShadowAllocation(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { lights, run } = rt,
@@ -103,6 +118,7 @@ export function encodeShadowAllocation(rt: WebgpuPagesRuntime, encoder: GPUComma
     buffers.state,
     buffers.keys,
     buffers.params,
+    buffers.drawList,
   ];
   allocation.allocate(encoder, bound, 1);
 }

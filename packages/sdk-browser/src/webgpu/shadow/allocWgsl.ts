@@ -39,14 +39,14 @@ if (!Number.isInteger(ENTRY_BITS) || ENTRY_BITS + RANK_BITS > 32)
  * 2. `followPages` — a page of a slice that dropped its pages since (`records.generation`), or of a
  *    sun level whose window no longer holds it, is freed, its word zeroed; a sun page is ranked
  *    again at this frame's finest level (`records.followSun`).
- * 3. `touchRequests` — an entry mapped becomes asked this frame; one unmapped is a need, keyed
- *    coarsest first, then by entry.
+ * 3. `touchRequests` — an entry mapped becomes asked this frame, listed to draw while no draw
+ *    for it landed (`listDraw`); one unmapped is a need, keyed coarsest first, then by entry.
  * 4. `listCandidates` — the pages a need may take: the free ones, by page, then every page not
  *    asked this frame, least recently asked first, the finest first, then by page (`poolOrder.ts`).
  * 5. Both lists sorted (`sortStep`, bitonic), then `assignPages`: need `i` takes candidate `i` —
  *    evicting what it mapped, whose word is zeroed —, its word written mapped and not readable,
- *    what it names decoded by the page model (`shadowEntryPage`). A need past the candidates is
- *    refused: every page is one this frame asks for.
+ *    the page listed to draw, what it names decoded by the page model (`shadowEntryPage`). A need
+ *    past the candidates is refused: every page is one this frame asks for.
  *
  * Sorted, the order is the atomics' no more: the same frame maps the same pages. A page asked
  * more than `AGE_CAP` frames ago is as old as any older.
@@ -60,6 +60,7 @@ struct ShadowPoolState{counts:array<atomic<u32>,${POOL_COUNTS.length}>,pages:arr
 @group(0) @binding(3) var<storage,read_write> keys:array<u32>;
 struct ShadowAllocParams{frame:i32,pages:u32,listCap:u32,asks:u32,candidateBase:u32,pad0:u32,pad1:u32,pad2:u32,generation:array<u32,${MAX_SHADOW_SLICES}>,entries:array<u32>,}
 @group(0) @binding(4) var<storage,read> params:ShadowAllocParams;
+@group(0) @binding(5) var<storage,read_write> drawList:array<u32>;
 ${PAGE_MODEL_WGSL}
 ${SUN_ORIGIN_WGSL}
 ${SHADOW_POOL_WGSL}
@@ -78,6 +79,8 @@ fn countRead(i:u32)->u32{return atomicLoad(&shadowPool.counts[i]);}
 fn countClear(i:u32){atomicStore(&shadowPool.counts[i],0u);}
 fn requestCount()->u32{return atomicLoad(&shadowRequests[0]);}
 fn requestAt(i:u32)->u32{return atomicLoad(&shadowRequests[1u+i]);}
+/** Page \`p\` joins the frame's draw list (\`freshWgsl.ts\`): mapped by the GPU, not drawn since. */
+fn listDraw(p:u32){drawList[countNext(COUNT_DRAWN)]=p;}
 /** What entry \`e\` names in this frame's records — view, page, coarseness —, or a coarseness of -1
  *  when no light holds it: a sun level and its absolute page, or a lamp face · 16 + mip and its page. */
 fn shadowEntryPage(e:u32)->vec4i{
@@ -122,7 +125,12 @@ fn touchRequests(lane:u32){
  let listed=min(requestCount(),params.listCap);
  for(var i=lane;i<listed;i+=ALLOC_LANES){
   let e=requestAt(i)&ENTRY_MASK;let word=shadows.table[e];
-  if((word&PAGE_MAPPED)!=0u){shadowPool.pages[poolAt(POOL_REQUESTED,word&PAGE_INDEX_MASK)]=params.frame;continue;}
+  let p=word&PAGE_INDEX_MASK;
+  if((word&PAGE_MAPPED)!=0u){
+   shadowPool.pages[poolAt(POOL_REQUESTED,p)]=params.frame;
+   if((word&PAGE_VALID)==0u&&shadowPool.pages[poolAt(POOL_DRAWNBY,p)]==DRAWN_NONE){listDraw(p);}
+   continue;
+  }
   let named=shadowEntryPage(e);
   if(named.w<0){continue;}
   keys[countNext(COUNT_NEEDS)]=((RANK_TOP-u32(named.w))<<ENTRY_BITS)|e;
@@ -163,8 +171,10 @@ fn assignPages(lane:u32,needs:u32,candidates:u32){
   shadowPool.pages[poolAt(POOL_X,p)]=named.y;
   shadowPool.pages[poolAt(POOL_Y,p)]=named.z;
   shadowPool.pages[poolAt(POOL_GENERATION,p)]=i32(params.generation[u32(e/SHADOW_TABLE_STRIDE)]);
+  shadowPool.pages[poolAt(POOL_DRAWNBY,p)]=DRAWN_NONE;
   shadows.table[e]=p|PAGE_MAPPED;
   countOne(COUNT_ALLOCATED);
+  listDraw(p);
  }
 }
 /** The smallest power of two a bitonic sort of \`n\` keys spans. */
