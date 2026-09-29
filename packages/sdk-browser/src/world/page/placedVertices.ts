@@ -64,7 +64,8 @@ export async function withPlaced<T extends Columns>(
     if (!values?.length) return;
     const out = new Float32Array(values.length + placed[c].length);
     out.set(values);
-    grown[column] = (out.set(placed[c], values.length), out);
+    out.set(placed[c], values.length);
+    grown[column] = out;
   });
   return grown as T;
 }
