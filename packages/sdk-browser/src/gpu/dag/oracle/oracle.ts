@@ -1,6 +1,7 @@
 import type { PackedDag } from '../types.ts';
 import { CLUSTER_TRANSPARENT, clusterLevel } from '../layout.ts';
-import { bandError, dagRecords, flagsOf, trianglesOf, worldOf } from '../records.ts';
+import { bandError, boxInto, dagRecords, flagsOf, trianglesOf, worldOf } from '../records.ts';
+import { aheadDue } from '../aheadDue.ts';
 import type { SelectionResult } from '../../core/selection.ts';
 import type { DagViewUniforms } from '../types.ts';
 import { dagViewFrames } from './math.ts';
@@ -8,6 +9,7 @@ import { AHEAD_LEAF, dagOracleDescent } from './descent.ts';
 import {
   firstAheadRequest,
   packRequest,
+  quantizeAheadPriority,
   quantizeRequestPriority,
   requestPage,
   requestPriority,
@@ -86,11 +88,16 @@ export function evaluateDagSelectionKernel(
     view.bandPixels(i, bandError(records, i, 1) < 0 ? 0 : 1);
   /** The request words in the order `dagWanted` stages them, both tiers mixed. */
   const requestWords: number[] = [];
-  /** `wantAhead`: a page the camera does not request, requested ahead when that view selects it. */
+  /** `wantAhead`: a page the camera does not request, requested ahead when that view selects it,
+   *  ranked by when the camera needs it (`../aheadDue.ts`), then by its error. */
+  const box = { min: [0, 0, 0], max: [0, 0, 0] };
   const wantAhead = (i: number) => {
-    if (!aheadView || !aheadView.visible(i)) return;
+    if (!aheadView || !aheadFrames || !aheadView.visible(i)) return;
     if (!aheadView.draws(i, pixelError, true, true)) return;
-    requestWords.push(packRequest(i, quantizeRequestPriority(replaced(aheadView, i), true)));
+    const w = worldOf(records, i);
+    boxInto(records, i, box.min, box.max);
+    const due = aheadDue(frames.planes[w], aheadFrames.planes[w], box.min, box.max);
+    requestWords.push(packRequest(i, quantizeAheadPriority(replaced(aheadView, i), due)));
   };
   const coneCache = cacheCone ? new Map<number, boolean>() : undefined;
   const cone = (i: number, w: number): boolean => {

@@ -17,7 +17,7 @@ import { dirname, join, resolve } from 'node:path';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
-import { empaquetePage } from '../probes/pageWebgpu.ts';
+import { bundlePage } from '../probes/pageWebgpu.ts';
 import { startServer } from '../../kit/server/staticServer.ts';
 import {
   ASSETS,
@@ -49,7 +49,7 @@ assert.ok(
 );
 // The page module is bundled from the repository SOURCES, so it reads the production reference
 // itself rather than a copy. The bundle is served as an ordinary file, same as dist.
-const audit = await empaquetePage(
+const audit = await bundlePage(
   join(ROOT, 'tests/browser/support/conservativePartitionPage.ts'),
   undefined,
   {

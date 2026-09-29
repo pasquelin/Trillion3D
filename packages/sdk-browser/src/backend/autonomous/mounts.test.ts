@@ -101,3 +101,27 @@ test('a page the host replaced keeps its geometry when a mount comes to share it
     backend.dispose();
   }
 });
+
+test('a geometry replaced forty times keeps the GPU memory of one (#411)', async () => {
+  const fixture = triangleBackend({ placements: liveRows(1) });
+  const { backend, camera } = fixture;
+  try {
+    await backend.prepare();
+    // A slider: each value a geometry of its own content, mounted, and the one it replaces gone.
+    let worn: ReturnType<typeof mountBeside> | undefined,
+      first: { residentPages: unknown; geometryAllocationBytes: unknown } | undefined;
+    for (let value = 0; value < 40; value++) {
+      const next = mountBeside(fixture, `slider-${value}.bin`);
+      await backend.mountPlacements!(next);
+      if (worn) backend.unmountPlacements!(worn.association.placements);
+      worn = next;
+      backend.render(camera);
+      const { residentPages, geometryAllocationBytes, submittedTriangles } = backend.metrics();
+      assert.equal(submittedTriangles, 4, `value ${value}: the opened triangle and three rows`);
+      first ??= { residentPages, geometryAllocationBytes };
+      assert.deepEqual({ residentPages, geometryAllocationBytes }, first, `value ${value}`);
+    }
+  } finally {
+    backend.dispose();
+  }
+});
