@@ -13,7 +13,7 @@ export interface TaaInputs {
   motion: GPUBuffer;
   flags?: GPUTextureView;
   share?: GPUTextureView;
-  /** The reactive value the blends and particles wrote, in its green channel
+  /** The reactive value the blends, particles and water wrote, in its green channel
    *  (`../lighting/deferred/asIsShare.ts`); absent, none is (a 1×1 zero is bound). */
   reactive?: GPUTextureView;
   /** The frame was drawn below the display: the resolve reconstructs it (`upscaleWgsl.ts`). */
