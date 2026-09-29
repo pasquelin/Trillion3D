@@ -62,7 +62,7 @@ export function createWebglViews(
     /** A capture is drawn (`captureAside`): the pool ranks its requests first (`poolUnion.ts`). */
     capturing: false,
     /** Whether the drawn view is a capture, whose cut is ranked first under the one budget. */
-    captureDrawn: () => captureDrawn(views, views.capturing),
+    captureDrawn: () => captureDrawn(views, views),
     /** A view of `width × height` that has drawn nothing yet: no cut, no motion. */
     create(width: number, height: number) {
       const view: WebglView = { ...blankView([width, height]), cam: createEngineCamera() };
