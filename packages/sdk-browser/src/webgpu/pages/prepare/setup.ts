@@ -15,12 +15,9 @@ import {
 import { createBlendScene } from '../../../cluster/blendSceneRecord.ts';
 import { createHostRankDelta } from '../../../page/hostRanks.ts';
 import { RASTER_BACKGROUND } from '../../../page/raster.ts';
-import {
-  DEFAULT_TEXTURE_POOL_BUDGET,
-  textureTransferBytesFor,
-  textureUploadMsFor,
-  type TexturePools,
-} from '../../residency/memoryBudgets.ts';
+import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../../residency/pools.ts';
+import type { TexturePools } from '../../residency/memoryBudgets.ts';
+import { textureTransferBytesFor, textureUploadMsFor } from '../../../residency/transferBudgets.ts';
 import { sessionGeometryPool } from '../../../residency/sessionPool.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../../backend/common.ts';
 
@@ -122,8 +119,8 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   });
   const sourceBytes = indexSourceBytes(allPages);
   // The engine's two fixed pools, in bytes, as in the reference: what does not fit renders coarser.
-  // Image targets, themselves, follow resolution with no ceiling. Tables sized by drawable page are
-  // sized once, to the ceiling the geometry pool can reach mid-session (`setMemoryBudgets`).
+  // Image targets, themselves, follow resolution with no ceiling. Tables sized by drawable page start
+  // at the ceiling the host names for the pool, and grow in place past it (`growTables.ts`).
   const geometry = sessionGeometryPool(
     {
       pageBytes,
@@ -134,6 +131,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     },
     context.geometryPoolBytes,
     context.geometryPoolCeilingBytes,
+    true,
   );
   // The texture pools are prepare's to draw, once the catalogue says which family the session
   // samples and which lane each texture takes; until then only the budget is held.
@@ -166,7 +164,8 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     requestUrls,
     // What the host pins, held from one image to the next and published as a rank delta.
     hostRanks: createHostRankDelta(requestCount, requestUrls),
-    // Ceiling of tables sized by drawable page: the slots the pool can reach mid-session.
+    // The slots the tables sized by drawable page are sized for: the ceiling the host named, then
+    // each larger pool they grew for (`growTables.ts`).
     cap: geometry.ceilingSlots,
     scene,
     pageBytes,
@@ -183,7 +182,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     // The two pools as they are held; `setMemoryBudgets` replaces them with another drawn from the
     // same rule, `slots` follows.
     geometryPool: geometry.pool,
-    // The same pool for another budget, under the session ceiling.
+    // The same pool for another budget: above `cap`, the tables grow first (`io/memory.ts`).
     geometryPoolFor: geometry.poolFor,
     texturePoolBudget,
     /** The family, the encoding and the lane pools, set by prepare; `setMemoryBudgets` redraws. */
