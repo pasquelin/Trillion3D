@@ -30,6 +30,7 @@ import { GUIDE_WGSL } from '../../guides/guideShaders.ts';
 import {
   BOUNCE_LIGHTING_SHADER,
   CONTRACT_COMPOSITIONS,
+  contractLightingShader,
   DIRECT_LIGHTING_SHADER,
   UNLIT_COMPOSITIONS,
   UNLIT_LIGHTING_SHADER,
@@ -43,13 +44,14 @@ import { COVERAGE_WGSL } from '../../texture/coverageMips.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts';
 import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
+import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilter.ts';
 import { SHADER as PREPARE_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
 import { REDUCE_WGSL } from '../../webgpu/tile/reduce.ts';
 import { TRANSPARENT_COMPACT_SHADER } from '../../webgpu/transparent/shader.ts';
-import { WATER_COMPOSITE_SHADER } from '../../webgpu/water/compositeWgsl.ts';
+import { WATER_COMPOSITE_SHADER, WATER_ROUTED_SHADER } from '../../webgpu/water/compositeWgsl.ts';
 import { WATER_SURFACE_WGSL } from '../../webgpu/water/surfaceWgsl.ts';
 import { PARTICLES_WGSL } from '../../particles/webgpuParticles.ts';
-import { PARTICLE_DRAW_WGSL } from '../../particles/webgpuParticleDraw.ts';
+import { PARTICLE_DRAW_WGSL, PARTICLE_ROUTED_WGSL } from '../../particles/webgpuParticleDraw.ts';
 
 const compositions = (label: string, sources: Record<string, string>) =>
   Object.fromEntries(Object.entries(sources).map(([input, code]) => [`${label}_${input}`, code]));
@@ -84,6 +86,15 @@ export const ENGINE_SHADERS: Record<string, string> = {
   REFLECTION_SOURCE_BOUNCE: reflectionSource(BOUNCE_LIGHTING_SHADER),
   REFLECTION_RESOLVE_DIRECT: withScreenReflections(DIRECT_LIGHTING_SHADER, true),
   REFLECTION_RESOLVE_BOUNCE: withScreenReflections(BOUNCE_LIGHTING_SHADER),
+  DIRECT_NARROW_LIGHTING: contractLightingShader(false, true),
+  BOUNCE_NARROW_LIGHTING: contractLightingShader(true, true),
+  REFLECTION_SOURCE_DIRECT_NARROW: reflectionSource(contractLightingShader(false, true)),
+  REFLECTION_SOURCE_BOUNCE_NARROW: reflectionSource(contractLightingShader(true, true)),
+  REFLECTION_RESOLVE_DIRECT_NARROW: withScreenReflections(
+    contractLightingShader(false, true),
+    true,
+  ),
+  REFLECTION_RESOLVE_BOUNCE_NARROW: withScreenReflections(contractLightingShader(true, true)),
   ...compositions('COMPOSE', CONTRACT_COMPOSITIONS.plain),
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),
   ...compositions('COMPOSE_BLOOM', CONTRACT_COMPOSITIONS.bloom),
@@ -94,6 +105,12 @@ export const ENGINE_SHADERS: Record<string, string> = {
   TAA_UPSCALE_SHADER: taaUpscaleShader(true),
   TAA_UPSCALE_FLAGLESS_SHADER: taaUpscaleShader(false),
   TAA_UPSCALE_BLENDED_SHADER: taaUpscaleShader(true, true),
+  TAA_RESOLVE_FILTERED: taaShader(true, false, true),
+  TAA_RESOLVE_FILTERED_FLAGLESS: taaShader(false, false, true),
+  TAA_RESOLVE_FILTERED_BLENDED: taaShader(true, true, true),
+  TAA_UPSCALE_FILTERED: taaUpscaleShader(true, false, true),
+  TAA_UPSCALE_FILTERED_FLAGLESS: taaUpscaleShader(false, false, true),
+  TAA_UPSCALE_FILTERED_BLENDED: taaUpscaleShader(true, true, true),
   MIP_SHADER,
   COVERAGE_WGSL,
   VIS_SHADER,
@@ -101,6 +118,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   SHADE_SHADER,
   SHADE_DIAGNOSTIC: SHADE_SHADER + DIAGNOSTIC_SHADE_WGSL,
   BLEND_SHADER,
+  DISPLAY_FILTER_SHADER,
   BLEND_WATER: BLEND_SHADER + WATER_SURFACE_WGSL,
   BLEND_DIAGNOSTIC: BLEND_SHADER + DIAGNOSTIC_BLEND_WGSL,
   BLEND_EXPAND_SHADER,
@@ -108,6 +126,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   REDUCE_WGSL,
   TRANSPARENT_COMPACT_SHADER,
   WATER_COMPOSITE_SHADER,
+  WATER_ROUTED: WATER_ROUTED_SHADER,
   PARTICLES_WGSL,
   PARTICLE_DRAW_WGSL,
+  PARTICLE_ROUTED_WGSL,
 };

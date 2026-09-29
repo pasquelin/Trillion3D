@@ -9,6 +9,7 @@ import type {
 import type { createDeferredLighting } from '../../../lighting/deferred/deferred.ts';
 import type { SurfaceBuffer } from '../../../scene/surfaceBuffer.ts';
 import type { AsIsShare } from '../../../lighting/deferred/asIsShare.ts';
+import type { DisplayFilter } from '../../blend/displayFilter.ts';
 import type { TemporalAntialiasing } from '../../../taa/temporalAntialiasing.ts';
 import type { WebgpuEffects } from '../../../effects/webgpuEffects.ts';
 import { UNIFORM_STRIDE } from '../../blend/uniforms.ts';
@@ -51,6 +52,9 @@ export interface WebgpuGpuState {
   reflection?: ScreenReflection;
   surfaces: SurfaceBuffer | undefined;
   asIsShare: AsIsShare | undefined;
+  /** The display filter, made by the first image whose blends filter and kept while the plan
+   *  holds such a blend (`../../blend/displayFilter.ts`). */
+  displayFilter: DisplayFilter | undefined;
   /** The last adopted sample exceeded the ceiling: the image cannot use it. */
   cutTruncated: boolean;
   /** GPU selection has been dropped for the session: what is measured since is the fallback CPU cut.
@@ -141,6 +145,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     backdrop: undefined,
     surfaces: undefined,
     asIsShare: undefined,
+    displayFilter: undefined,
     cutTruncated: false,
     selectionFallback: false,
     targetSize: [viewport[0] ?? 1, viewport[1] ?? 1],

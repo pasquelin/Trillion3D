@@ -18,6 +18,7 @@ Closes # <!-- one pull request closes one issue (AGENTS.md rule 5) -->
 
 <!-- Written by the reviewer, whose OK lets the lead open the pull request; checked by the CI:
      one line per To do and Proof item, "- <item>: delivered in <file:line>, proved by <test>".
+     Each Proof line of the issue is quoted as its <item> (its first 20 characters at least).
      An item not delivered holds the pull request unless the boss said yes (AGENTS.md rule 6). -->
 
 ## Not proven / left out

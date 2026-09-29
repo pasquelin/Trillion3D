@@ -2,7 +2,7 @@ import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
 import { DEPTH_CLEAR, DEPTH_NEAR } from '../../camera/depthConvention.ts';
 import { directLightWgsl } from '../direct/lightWgsl.ts';
 import { TILE_BOUNDS_WGSL, tileDepthBoundsWgsl } from './boundsWgsl.ts';
-import { TILE_SPILL_WGSL, tileCompactWgsl } from './compactWgsl.ts';
+import { tileCompactResetWgsl, tileCompactStatementsWgsl, tileCompactWgsl } from './compactWgsl.ts';
 
 /**
  * Light lists per 16 × 16 pixel screen tile. One workgroup per tile: the 256 threads reduce the
@@ -12,7 +12,8 @@ import { TILE_SPILL_WGSL, tileCompactWgsl } from './compactWgsl.ts';
  *
  * **The masks and the light array follow the light count.** A scene of at most `TILE_LIGHTS`
  * lights runs the narrow pass: masks of one batch of that many lights, a light array that long,
- * and no pool — no tile can pass its list. A larger scene runs the wide one (`./tiles.ts`).
+ * no batch loop and no pool — no tile can pass its list. A larger scene runs the wide one
+ * (`./tiles.ts`).
  *
  * **Two lists per tile, two depth slices.** The opaque list covers the slice between the tile's
  * two depths — its box and the six planes of the tile's frustum —, and deferred resolve loses
@@ -101,9 +102,8 @@ fn lightTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_index)
   atomicStore(&covered,0u);
   atomicStore(&skyward,0u);
   lightCount=${narrow ? `min(lights.count,TILE_LIGHTS)` : 'lights.count'};
-  kept=vec2u(0u);start=vec2u(base+TILE_OPAQUE_BASE,base+TILE_BLEND_BASE);room=vec2u(TILE_LIGHTS);
  }
- if(lane<${2 * words}u){atomicStore(&hits[lane],0u);}
+${tileCompactResetWgsl(words, !narrow)}
  workgroupBarrier();
  let pixel=vec2u(tile.x*TILE_SIZE+lane%TILE_SIZE,tile.y*TILE_SIZE+lane/TILE_SIZE);
  var z=${DEPTH_CLEAR}.0;
@@ -126,12 +126,7 @@ ${tileDepthBoundsWgsl(subgroups)}
  // What the tile's pixels saw, read once: the barrier above made it final.
  let hasOpaque=atomicLoad(&covered)==1u;
  let seesSky=atomicLoad(&skyward)==1u;
- walkLights(lane,count,hasOpaque,seesSky);
- let live=(count-(max(count,1u)-1u)/${words * 32}u*${words * 32}u+31u)/32u; // the last batch's words
- if(lane==0u){
-  let total=kept+vec2u(maskTotal(OPAQUE_MASK,live),maskTotal(BLEND_MASK,live));
-  tiles[base]=total.x;tiles[base+1u]=total.y;${narrow ? '' : 'counted=total;'}
- }${narrow ? '' : TILE_SPILL_WGSL}
+${tileCompactStatementsWgsl(words, !narrow)}
 }`;
 };
 

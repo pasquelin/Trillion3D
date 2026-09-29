@@ -33,7 +33,7 @@ const ownBuffer = (attribute: HostAttribute | undefined) => attribute?.kind === 
 
 /**
  * Names material input the autonomous WebGL2 program cannot preserve before it submits a draw.
- * A physical extension is not one: it is drawn without, by name (`physicalFeaturesLost`).
+ * A physical extension is not one: it is drawn without, by name (`physicalLostMask`).
  * A transmissive physical material is accepted only where `transmissive` says the draw reads
  * the frozen backdrop: a scene copy of the transmission pass does, a paged cluster never does.
  */

@@ -80,11 +80,11 @@ test('an unmeasured median is stated as "unmeasured", never zero, and the fallba
   );
 });
 
-test('a clock too coarse to arbitrate is published with the module, not killed', () => {
+test('a coarse clock is published with the module, its timing pooled', () => {
   const lignes = cheminsCalcul(rapport(releve({ clockCoarse: true }))).join('\n');
   assert.match(
     lignes,
-    /\| auto \| loaded, simd128, clock too coarse to arbitrate \| no batch run \|/,
+    /\| auto \| loaded, simd128, coarse clock, pooled timing \| no batch run \|/,
   );
 });
 
