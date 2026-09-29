@@ -22,14 +22,8 @@ export type HeldBox = Float64Array;
 
 /** The box and ball of a page: its own, or for a sprite's quad, which the rasters turn to face
  *  the camera about its origin (`drawnSprite`), the cube and ball of its radius there — what
- *  holds the quad whichever way it turns, as the reference culls a sprite by that ball. A dynamic
- *  page's are its primitive's held box: its vertices move within it, never past it. */
-function bounds(page: PageCutPayload['pages'][number], radius: number | undefined, held?: HeldBox) {
-  if (held) {
-    const sphere = new Float64Array(4);
-    sphereFromBounds(sphere, 0, held[0], held[1], held[2], held[3], held[4], held[5]);
-    return { min: [...held.subarray(0, 3)], max: [...held.subarray(3)], sphere: [...sphere] };
-  }
+ *  holds the quad whichever way it turns, as the reference culls a sprite by that ball. */
+function bounds(page: PageCutPayload['pages'][number], radius: number | undefined) {
   if (radius === undefined) return { min: page.min, max: page.max, sphere: page.sphere };
   return {
     min: [-radius, -radius, -radius],
@@ -44,11 +38,19 @@ function bounds(page: PageCutPayload['pages'][number], radius: number | undefine
  *  normal cone — its vertices, read as floats from the host geometry, are rewritten in place. */
 export function servePrimitive(cut: PageCutPayload, kind: DrawnKind, held?: HeldBox) {
   const urls: string[] = [];
+  // A dynamic page's bounds are its primitive's held box: its vertices move within it, never past.
+  const sphere = new Float64Array(4);
+  if (held) sphereFromBounds(sphere, 0, held[0], held[1], held[2], held[3], held[4], held[5]);
+  const box = held && {
+    min: [...held.subarray(0, 3)],
+    max: [...held.subarray(3)],
+    sphere: [...sphere],
+  };
   const pages: Page[] = cut.pages.map((page, id) => ({
     id,
     ...served(page.index, page.indexSha256, urls),
     count: page.count,
-    ...bounds(page, kind.spriteRadius, held),
+    ...(box ?? bounds(page, kind.spriteRadius)),
     role: 'exact',
     start: page.start,
     level: 0,
@@ -57,19 +59,17 @@ export function servePrimitive(cut: PageCutPayload, kind: DrawnKind, held?: Held
     parentSphere: null,
     group: null,
     source: null,
-    ...(kind.lines ? { depthLayer: LINE_DEPTH_LAYER } : {}),
-    ...(page.cone && !held ? { cone: page.cone } : {}),
-    ...(held
-      ? {}
-      : {
-          geometry: {
-            ...served(page.geometry, page.geometrySha256, urls),
-            vertexCount: page.vertexCount,
-            indexCount: page.indexCount,
-            flags: page.flags,
-            uncompressedBytes: page.uncompressedBytes,
-          },
-        }),
+    ...(kind.lines && { depthLayer: LINE_DEPTH_LAYER }),
+    ...(page.cone && !held && { cone: page.cone }),
+    ...(!held && {
+      geometry: {
+        ...served(page.geometry, page.geometrySha256, urls),
+        vertexCount: page.vertexCount,
+        indexCount: page.indexCount,
+        flags: page.flags,
+        uncompressedBytes: page.uncompressedBytes,
+      },
+    }),
   }));
   const primitive: Primitive = {
     mesh: 0,
@@ -83,7 +83,7 @@ export function servePrimitive(cut: PageCutPayload, kind: DrawnKind, held?: Held
       uvExponent: cut.uvExponent,
       maxPositionError: held ? 0 : cut.maxPositionError,
     },
-    ...(held ? { dynamic: true } : {}),
+    ...(held && { dynamic: true }),
   };
   return { primitive, urls } satisfies RuntimePrimitive;
 }
@@ -99,11 +99,4 @@ export async function cutRuntimePrimitive(
   kind: DrawnKind,
 ): Promise<RuntimePrimitive> {
   return servePrimitive(await cutPagesOffThread(packed), kind);
-}
-
-/** The pages of a dynamic primitive (#573), cut once: served in `held` (`servePrimitive`), and
- *  the cut itself, which a larger box serves again without cutting anything. */
-export async function cutDynamicPrimitive(packed: ArrayBuffer, kind: DrawnKind, held: HeldBox) {
-  const cut = await cutPagesOffThread(packed);
-  return { cut, runtime: servePrimitive(cut, kind, held) };
 }
