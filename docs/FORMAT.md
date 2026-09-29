@@ -141,7 +141,7 @@ An image whose decode fails has no entry: its textures load from the source as b
 
 `scene-tables.json`, beside `clusters.json`, says what the prepared scene is made of, and it is the
 only thing the runtime builds that scene from: no glTF is parsed in the browser. Its own version
-governs it — `version` 4, `nodeTableVersion` 4, `materialTableVersion` 4, `geometryTableVersion` 1 —
+governs it — `version` 5, `nodeTableVersion` 4, `materialTableVersion` 4, `geometryTableVersion` 1 —
 and an unknown one is refused rather than half-read (`assertSceneTables`, `UNSUPPORTED_SCENE_TABLES`).
 Every value is read from the `source.gltf` the same compilation publishes (and, for its layout, from
 `scene.gltf` when one is written): the slice's nodes, the cutout answers already applied, the mesh
@@ -154,6 +154,9 @@ matrix, translation, rotation, scale, visible }` (`weights` overrides its mesh's
   the runtime composes world matrices from it the way it always has, so they are the same bits.
   Several nodes naming one mesh is what instancing is here.
 - `partition` — `null`, or the world partition (below): the cells that place the other nodes.
+- `meshPages` — the slots of the manifest's mesh pages the meshes of `nodes[]` lie in, sorted and
+  each once (version 5, #751): what a runtime that holds the manifest by the view reads before its
+  first frame, the region pages of the cells naming the rest.
 - `lights[]` — the `KHR_lights_punctual` lights the nodes hang: `{ name, type, color, intensity,
 range, innerConeAngle, outerConeAngle }`, each silent field `null` (the specification's default
   applies). `lights.json` stays the radiometric product the engine lights with.
@@ -231,6 +234,15 @@ big-endian `f64` bit patterns (16 each), naming `scene-page-<sha256>.json`; zero
 slot (`fetchVerified`), into the records in cell order, `bounds` the union of the root's boxes and
 `meshes` the ranks placed, and refuses a region page without its list of mesh pages. Pages and cells are outside
 the manifest's `files`: a reused folder proves them through the root.
+
+**The manifest held by the view** (#751). A WebGL2 world reads of the manifest its root, its head
+page and the mesh pages `meshPages` names (`openPagedManifest`, `loadModel`'s `lazy`); each cell it
+places holds the mesh pages of its region page, counted once per cell, and releases them as it
+leaves: a page no placed cell holds leaves the manifest with its primitives
+(`scene/partition/cellPages.ts`). The session opens on the primitives listed then, the meshes the
+cells place without one left out, and mounts each in place once its page is read
+(`mountPlacements`), unmounting it once its page left (`world/scene/partitionMounts.ts`). A WebGPU
+world reads the whole manifest until its session grows in place (#216).
 
 **Reading the cells.** Each mesh the cells place is drawn by one host mesh per primitive whose
 instance buffer the cells fill (`packages/sdk-browser/src/scene/partition/`): a placement takes a

@@ -13,6 +13,7 @@ import { DAG_SELECTION_SHADER } from '../../gpu/dag/shader/shader.ts';
 import type { CutRuleAt } from '../../gpu/dag/oracle/predicates.ts';
 import type { PackedDag } from '../../gpu/dag/types.ts';
 import { wgslScope } from './wgslPredicate.fixture.ts';
+import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import type { ClusterRoot, PageRec } from '../selection/types.ts';
 
 export type CutBackend = (resident: Uint8Array) => { drawn: number[]; wanted: number[] };
@@ -70,14 +71,6 @@ function kernelBackend(
 
 /** The kernel's CPU model with the TypeScript rule. */
 export const oracleBackend = (dag: RuleDag, threshold: number) => kernelBackend(dag, threshold);
-
-/** The `u32` constants of `source`, by name, for a call site that reads them. */
-export function wgslConstants(source: string) {
-  const found: Record<string, number> = {};
-  for (const [, name, value] of source.matchAll(/\bconst (\w+):u32=(\d+)u;/g))
-    found[name] = Number(value);
-  return found;
-}
 
 /**
  * The same model where the kernel's own text decides (`DAG_SELECTION_SHADER`), run in Node. Its
