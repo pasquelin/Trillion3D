@@ -151,22 +151,18 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
      * #966), which the far sun's shadow ray passes; true when a mark changed, then uploaded.
      */
     castless(castsNone: (source: number) => boolean) {
-      const bits = columns[CASTLESS],
-        { groupOffsets, owners } = data;
-      let changed = false;
-      for (let word = 0; word < bits.length; word++) {
-        let marks = 0;
-        for (let group = word * 32; group < Math.min(proxy.groups, word * 32 + 32); group++) {
-          let none = true;
-          for (let owner = groupOffsets[group]; none && owner < groupOffsets[group + 1]; owner++)
-            none = castsNone(owners[owner * 2]);
-          if (none) marks |= 1 << (group & 31);
-        }
-        changed ||= bits[word] !== marks >>> 0;
-        bits[word] = marks >>> 0;
+      const { groupOffsets, owners } = data,
+        marks = new Uint32Array(columns[CASTLESS].length);
+      for (let group = 0; group < proxy.groups; group++) {
+        let none = true;
+        for (let owner = groupOffsets[group]; none && owner < groupOffsets[group + 1]; owner++)
+          none = castsNone(owners[owner * 2]);
+        if (none) marks[group >> 5] |= 1 << (group & 31);
       }
-      if (changed) write(CASTLESS);
-      return changed;
+      if (marks.every((word, at) => word === columns[CASTLESS][at])) return false;
+      columns[CASTLESS].set(marks);
+      write(CASTLESS);
+      return true;
     },
     get errorMetres() {
       return motion.errorMetres;
