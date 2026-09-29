@@ -2,7 +2,7 @@
 //! (`texture.rs`, #977).
 use super::*;
 use crate::geometry_page::{Attribute as Carried, FLAG_UV};
-use texture::texture_deviation;
+use texture::texture_deviation_above;
 
 /// A flat 2 m brick of 3 x 3 vertices at `(x, 0, z)`, its texture the unit square, the centre's
 /// coordinate moved by `warp`; its 8 triangles and the 2 coarse ones spanning its corners.
@@ -20,7 +20,12 @@ fn brick(mesh: &mut (Vec<f32>, Vec<f32>), x: f32, z: f32, warp: f32) -> (Vec<u32
     (live, [0, 2, 8, 0, 8, 6].map(|v| base + v).to_vec())
 }
 
+/// The texture deviation of `kept` from `live`, measured in full: a NaN floor stops no sample.
 fn deviation(mesh: &(Vec<f32>, Vec<f32>), live: &[u32], kept: &[u32]) -> f64 {
+    deviation_above(mesh, live, kept, f64::NAN)
+}
+
+fn deviation_above(mesh: &(Vec<f32>, Vec<f32>), live: &[u32], kept: &[u32], floor: f64) -> f64 {
     let uvs = Carried {
         flag: FLAG_UV,
         width: 2,
@@ -30,7 +35,7 @@ fn deviation(mesh: &(Vec<f32>, Vec<f32>), live: &[u32], kept: &[u32]) -> f64 {
     let welds = attributes::Welds::of(&mesh.0, DagAttributes { carried: &carried }, live);
     let locks = vec![false; mesh.0.len() / 3];
     let input = welds.input(&mesh.0, &locks, quality::NORMAL_DEVIATION_BOUND);
-    texture_deviation(&input, live, kept)
+    texture_deviation_above(&input, live, kept, floor)
 }
 
 #[test]
@@ -53,6 +58,27 @@ fn bricks_repeating_one_texture_are_each_measured_on_their_own_triangles() {
     let (twin, _) = brick(&mut mesh, 0.0, 0.001, 0.0);
     let both: Vec<u32> = live.iter().chain(&twin).copied().collect();
     assert_eq!(deviation(&mesh, &both, &kept).to_bits(), alone.to_bits());
+}
+
+#[test]
+fn a_floored_deviation_is_the_full_one_raised_to_its_floor_bit_for_bit() {
+    let mut mesh = (Vec::new(), Vec::new());
+    let (mut live, mut kept) = (Vec::new(), Vec::new());
+    for (b, warp) in [0.0, 0.25, -0.1, 0.4].into_iter().enumerate() {
+        let (l, k) = brick(&mut mesh, b as f32 * 3.0, 0.0, warp);
+        live.extend(l);
+        kept.extend(k);
+    }
+    let full = deviation(&mesh, &live, &kept);
+    assert!(full > 0.2, "{full}");
+    for floor in [0.0, -0.0, -1.0, full * 0.5, full, full * 2.0, f64::INFINITY] {
+        let floored = deviation_above(&mesh, &live, &kept, floor);
+        assert_eq!(
+            floored.to_bits(),
+            floor.max(full).to_bits(),
+            "floor {floor}"
+        );
+    }
 }
 
 #[test]

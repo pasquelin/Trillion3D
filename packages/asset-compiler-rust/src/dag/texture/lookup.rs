@@ -17,6 +17,8 @@ const SAMPLES: [[f64; 3]; 7] = [
 const INSIDE: f64 = -1e-9;
 /// Grid cells a triangle may cover before every query of its island reads it instead.
 const WIDE: i64 = 64;
+/// The texture island of a vertex, `None` for a vertex outside the live triangles.
+type Island<'f> = dyn Fn(u32) -> Option<u32> + 'f;
 
 /// The live triangles of one texture set, binned by island and texture cell.
 pub(super) struct Lookup<'a> {
@@ -36,7 +38,7 @@ impl<'a> Lookup<'a> {
         positions: &'a [f32],
         uvs: &'a [f32],
         live: &'a [u32],
-        island: &dyn Fn(u32) -> Option<u32>,
+        island: &Island<'_>,
     ) -> Self {
         let triangles = live.len() / 3;
         let area: f64 = (0..triangles)
@@ -61,15 +63,13 @@ impl<'a> Lookup<'a> {
             };
             lookup.all.entry(home).or_default().push(t);
             let corners = uvs_of(uvs, &live[t * 3..t * 3 + 3]);
-            let low = lookup
-                .key([0, 1].map(|a| corners.iter().map(|c| c[a]).fold(f64::INFINITY, f64::min)));
-            let high = lookup.key([0, 1].map(|a| {
-                corners
-                    .iter()
-                    .map(|c| c[a])
-                    .fold(f64::NEG_INFINITY, f64::max)
-            }));
-            match (low, high) {
+            let side = |start: f64, pick: fn(f64, f64) -> f64| {
+                lookup.key([0, 1].map(|a| corners.iter().map(|c| c[a]).fold(start, pick)))
+            };
+            match (
+                side(f64::INFINITY, f64::min),
+                side(f64::NEG_INFINITY, f64::max),
+            ) {
                 // Keys reach 1e15: each side is capped before the product, which would overflow.
                 (Some(l), Some(h))
                     if h[0] - l[0] < WIDE
@@ -95,8 +95,8 @@ impl<'a> Lookup<'a> {
             .then(|| key.map(|k| k as i64))
     }
 
-    /// The largest deviation over the samples of one coarse triangle.
-    pub(super) fn triangle(&self, tri: &[u32], island: &dyn Fn(u32) -> Option<u32>) -> f64 {
+    /// The largest deviation over the samples of one coarse triangle, exact above `floor`.
+    pub(super) fn triangle(&self, tri: &[u32], island: &Island<'_>, floor: f64) -> f64 {
         let mut homes: Vec<u32> = tri.iter().filter_map(|&v| island(v)).collect();
         homes.sort_unstable();
         homes.dedup();
@@ -107,15 +107,16 @@ impl<'a> Lookup<'a> {
                 let at = [0, 1].map(|a| uvs[0][a] * w[0] + uvs[1][a] * w[1] + uvs[2][a] * w[2]);
                 let spot =
                     [0, 1, 2].map(|a| spots[0][a] * w[0] + spots[1][a] * w[1] + spots[2][a] * w[2]);
-                self.sample(&homes, at, spot)
+                self.sample(&homes, at, spot, floor)
             })
             .fold(0.0, f64::max)
     }
 
     /// Distance from `spot` to the live point of `homes` carrying the coordinate `at`: among the
     /// triangles holding `at`, the nearest; when none holds it, the point of the triangle nearest to
-    /// `at` in texture space. Zero for a coordinate that is not a number or no triangle maps.
-    fn sample(&self, homes: &[u32], at: [f64; 2], spot: [f64; 3]) -> f64 {
+    /// `at` in texture space. Zero for a coordinate that is not a number or no triangle maps. A
+    /// triangle holding `at` within `floor` of `spot` ends the search: no later one can raise it.
+    fn sample(&self, homes: &[u32], at: [f64; 2], spot: [f64; 3], floor: f64) -> f64 {
         if !at.iter().all(|v| v.is_finite()) {
             return 0.0;
         }
@@ -129,12 +130,13 @@ impl<'a> Lookup<'a> {
             .into_iter()
             .flatten()
             .chain(homes.iter().filter_map(|h| self.wide.get(h)));
-        listed
-            .flatten()
-            .for_each(|&t| self.read(t, at, spot, &mut best));
-        if best.0 > 0.0 {
-            let every = homes.iter().filter_map(|h| self.all.get(h)).flatten();
-            every.for_each(|&t| self.read(t, at, spot, &mut best));
+        let read = |&t: &usize, best: &mut (f64, f64)| {
+            self.read(t, at, spot, best);
+            best.0 == 0.0 && best.1 <= floor
+        };
+        if !listed.flatten().any(|t| read(t, &mut best)) && best.0 > 0.0 {
+            let mut every = homes.iter().filter_map(|h| self.all.get(h)).flatten();
+            every.any(|t| read(t, &mut best));
         }
         if best.1.is_finite() {
             best.1
@@ -185,13 +187,8 @@ impl<'a> Lookup<'a> {
 
 /// A triangle's texture coordinates and positions.
 fn uvs_of(uvs: &[f32], tri: &[u32]) -> [[f64; 2]; 3] {
-    std::array::from_fn(|k| uv(uvs, tri[k]))
+    std::array::from_fn(|k| [0, 1].map(|a| uvs[tri[k] as usize * 2 + a] as f64))
 }
 fn points_of(positions: &[f32], tri: &[u32]) -> [[f64; 3]; 3] {
     std::array::from_fn(|k| point(positions, tri[k]))
-}
-
-fn uv(uvs: &[f32], vertex: u32) -> [f64; 2] {
-    let at = vertex as usize * 2;
-    [uvs[at] as f64, uvs[at + 1] as f64]
 }

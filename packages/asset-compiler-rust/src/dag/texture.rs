@@ -27,20 +27,28 @@ pub(super) fn copy_islands(weld_seam: &[u32], live: &[u32]) -> HashMap<u32, u32>
         .collect()
 }
 
-/// The largest texture deviation of `kept` from `live` over every texture set; zero without one.
-pub(super) fn texture_deviation(input: &GroupReductionInput, live: &[u32], kept: &[u32]) -> f64 {
+/// `floor.max(d)`, bit for bit, for `d` the largest texture deviation of `kept` from `live` over
+/// every texture set (zero without one): a sample stops at the first source point within `floor`.
+pub(super) fn texture_deviation_above(
+    input: &GroupReductionInput,
+    live: &[u32],
+    kept: &[u32],
+    floor: f64,
+) -> f64 {
     let sets = input.attributes.iter().filter(|a| a.width == 2);
     let sets: Vec<&[f32]> = sets.map(|a| a.values).collect();
     if sets.is_empty() || live.is_empty() || kept.is_empty() {
-        return 0.0;
+        return floor.max(0.0);
     }
     let islands = copy_islands(input.weld_seam, live);
     let island = |v: u32| islands.get(&input.weld_seam[v as usize]).copied();
     let deviation = |uvs: &[f32]| {
         let lookup = Lookup::new(input.positions, uvs, live, &island);
         kept.par_chunks_exact(3)
-            .map(|tri| lookup.triangle(tri, &island))
+            .map(|tri| lookup.triangle(tri, &island, floor))
             .reduce(|| 0.0, f64::max)
     };
-    sets.into_iter().map(deviation).fold(0.0, f64::max)
+    sets.into_iter()
+        .map(deviation)
+        .fold(floor.max(0.0), f64::max)
 }
