@@ -15,12 +15,14 @@ import {
   PROXY_STEPS_WORD,
 } from './nodeWgsl.ts';
 
-/** Columns motion rewrites: node bounds, node children and owner transforms. */
-const MOVING_COLUMNS = [1, 2, 6];
-/** Ranks of the triangle, node children and triangle group columns. */
+/** Ranks of the columns a sync rewrites. */
 const TRIANGLES = 0,
+  BOUNDS = 1,
   CHILDREN = 2,
-  GROUPS = 3;
+  GROUPS = 3,
+  TRANSFORMS = 6;
+/** Columns motion rewrites whole: node bounds, node children and owner transforms. */
+const MOVING_COLUMNS = [BOUNDS, CHILDREN, TRANSFORMS];
 
 /** Words of an array, whatever its type: a column is a sequence of words, nothing more. */
 const words = (data: Float32Array | Uint32Array) =>
@@ -75,7 +77,7 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
   const mapped = new Uint32Array(buffer.getMappedRange());
   // Node count is read from the bounds column, as `arrayLength` did before the three columns
   // fit in one buffer: the same value, from the same source.
-  mapped[PROXY_LAYOUT_WORD] = columns[1].length / PROXY_NODE_FLOATS;
+  mapped[PROXY_LAYOUT_WORD] = columns[BOUNDS].length / PROXY_NODE_FLOATS;
   for (let index = 0; index < columns.length; index++) {
     mapped[index < 3 ? PROXY_LAYOUT_WORD + 1 + index : 9 + index] = starts[index];
     mapped.set(columns[index], PROXY_HEADER_WORDS + starts[index]);

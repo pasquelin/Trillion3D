@@ -142,6 +142,9 @@ export function createProxyRefit(data: SceneProxyColumns) {
     /** World bounds of each triangle over all its owners, six per triangle, and the moved ones. */
     boxes: bounds,
     changed,
+    /** Triangles of each group: `slots[starts[g]]` to `slots[starts[g + 1] - 1]`. */
+    starts,
+    slots,
     /** Nodes a ray may visit beyond the built tree's, since the first motion. */
     grownNodes: () => grownNodes,
     bytes:
