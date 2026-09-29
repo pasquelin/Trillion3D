@@ -4,6 +4,7 @@
 // with Node's own `fetch`, so the workflow needs no dependency and no CLI.
 // Usage (CI): GITHUB_TOKEN=… GITHUB_REPOSITORY=owner/repo PR_URL=… PR_BODY=… node scripts/close-named-issues.ts
 import { pathToFileURL } from 'node:url';
+import { githubApi } from './github-api.ts';
 
 // GitHub's closing keywords, then `#n` of this repository (an `owner/repo#n` does not match).
 const CLOSING = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?):?\s+#(\d+)\b/gi;
@@ -25,24 +26,13 @@ export function namedIssues(body: string): number[] {
 
 /** A call to the repository's issues REST API, `path` below `/issues/`; throws unless 2xx. */
 export function issuesApi(repo: string, token: string) {
-  return async (path: string, method = 'GET', payload?: object) => {
-    const response = await fetch(`https://api.github.com/repos/${repo}/issues/${path}`, {
+  const api = githubApi(repo, token);
+  return (path: string, method = 'GET', payload?: object) =>
+    api<{ state: string; body?: string | null; pull_request?: object }>(
+      `issues/${path}`,
       method,
-      headers: {
-        accept: 'application/vnd.github+json',
-        authorization: `Bearer ${token}`,
-        'x-github-api-version': '2022-11-28',
-      },
-      body: payload && JSON.stringify(payload),
-    });
-    if (!response.ok)
-      throw new Error(`${method} ${path}: ${response.status} ${await response.text()}`);
-    return response.json() as Promise<{
-      state: string;
-      body?: string | null;
-      pull_request?: object;
-    }>;
-  };
+      payload,
+    );
 }
 
 async function main(): Promise<void> {
