@@ -4,7 +4,8 @@ import { shaderFunctions } from '../texture/shaderRule.fixture.ts';
 import { Mat } from '../texture/shaderRun.fixture.ts';
 import { mulberry32 } from '../../../../site/examples/kit/random.ts';
 import { LANCZOS2_WGSL, taaUpscaleShader } from './upscaleWgsl.ts';
-import { TAA_SHADER, taaHistoryBlend } from './shaderWgsl.ts';
+import { TAA_SHADER } from './shaderWgsl.ts';
+import { taaHistoryBlend } from './historyWgsl.ts';
 import { kernel, owed, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
 
 type Kernel = { lanczos2: (x: number) => number };
