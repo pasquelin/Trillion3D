@@ -9,6 +9,8 @@ import { createSceneDraw } from './sceneDraw.ts';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { createHostDrawCamera, type HostCamera } from '../../camera/world.ts';
 import { heldBytes, WebglTextureQueue } from './textureQueue.ts';
+import { fenceAllocations, settleAllocations, takeOutOfMemory } from '../core/allocation.ts';
+import type { BackendDiagnostic } from '../../backend/types.ts';
 
 const output = { toneMapped: false, framebuffer: null, width: 8, height: 4 };
 
@@ -16,15 +18,17 @@ function draw(hosts: {
   texturePoolBytes?: number;
   maxTextureTransferBytesPerFrame?: number;
   maxTextureUploadMsPerFrame?: number;
+  onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
 }) {
-  // The GPU runs the frames at once, unless the test holds it behind.
-  const gpu = { behind: false };
+  // The GPU runs the frames at once, unless the test holds it behind or refuses an allocation.
+  const gpu = { behind: false, refuse: false };
   const gl = createTestContext({
     answers: {
       getParameter: (name: string) =>
         name === 'COLOR_WRITEMASK' ? [true, true, true, true] : new Int32Array([0, 0, 8, 4]),
       fenceSync: () => ({}),
       getSyncParameter: () => (gpu.behind ? 'UNSIGNALED' : 'SIGNALED'),
+      getError: () => (gpu.refuse ? ((gpu.refuse = false), 'OUT_OF_MEMORY') : 0),
     },
   });
   const pictures = [4, 8, 16].map((side) => ({ width: side, height: side }) as TexImageSource);
@@ -38,7 +42,7 @@ function draw(hosts: {
     sceneDraw.host.drawHostGeometry(createHostDrawCamera(), output);
     return gl.of('texImage2D').flatMap((args) => pictures.filter((p) => args.includes(p)));
   };
-  return { image, pictures, gpu };
+  return { image, pictures, gpu, gl: gl.gl };
 }
 
 test('a frame uploads ahead of its draws what its budget allows, once the GPU passed the last', () => {
@@ -76,4 +80,25 @@ test('a refused map halves the pool the queue uploads ahead into', () => {
     open: true,
   } as never);
   assert.deepEqual(bound, [0], 'the queue keeps the one map the half holds');
+});
+
+test('a refused map is published under the texture pool, and leaves the geometry pool whole', () => {
+  const heard: BackendDiagnostic[] = [];
+  const { image, gpu, gl } = draw({
+    maxTextureTransferBytesPerFrame: heldBytes(8, 8) + 1,
+    maxTextureUploadMsPerFrame: 1e9,
+    onDiagnostic: (diagnostic) => heard.push(diagnostic),
+  });
+  // The host frame's order around each image: its errors read before, its allocations fenced after.
+  const frame = () => (settleAllocations(gl), image(), fenceAllocations(gl));
+  frame(); // the geometry and two maps, confirmed at the next read
+  frame(); // the third map alone
+  gpu.refuse = true;
+  frame();
+  const refused = heard.filter(({ phase }) => phase === 'gpu-out-of-memory');
+  assert.deepEqual(
+    refused.map(({ context }) => context?.pool),
+    ['texture'],
+  );
+  assert.equal(takeOutOfMemory(gl, 'geometry'), false, 'no geometry allocation was refused');
 });
