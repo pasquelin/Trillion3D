@@ -1,3 +1,4 @@
+import { scissorTo } from './bounds.ts';
 import { createWaterFreeze } from './freeze.ts';
 import { createWebgpuBindIdentity } from '../core/bindIdentity.ts';
 import { drawBlendRuns } from '../blend/draw.ts';
@@ -157,13 +158,13 @@ export async function createWaterFrame(device: GPUDevice) {
       else attachments.length = 4;
       const pass = encoder.beginRenderPass(surfacePass);
       pass.setViewport(0, 0, extent.width, extent.height, 0, 1);
-      pass.setScissorRect(rect[0], rect[1], rect[2] - rect[0], rect[3] - rect[1]);
+      scissorTo(pass, rect);
       const encoded = drawBlendRuns(rt, device, pass, 1, pipelines);
       pass.end();
       const filter = routedFilter(rt.gpu.displayFilter);
       compositePass.colorAttachments = filter ? [target, ...filter.attachments()] : plain;
       const composite = encoder.beginRenderPass(compositePass);
-      composite.setScissorRect(rect[0], rect[1], rect[2] - rect[0], rect[3] - rect[1]);
+      scissorTo(composite, rect);
       composite.setPipeline(
         filter ? (routed ??= createWaterRoutedPipeline(device, layout)) : pipeline,
       );

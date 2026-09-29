@@ -1,3 +1,4 @@
+import { scissorTo } from './bounds.ts';
 import { depthRestoreWgsl } from '../../gpu/core/depthRestoreWgsl.ts';
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts';
 import { staticLayerEntries } from '../../gpu/shadow/staticLayer.ts';
@@ -39,7 +40,7 @@ export async function createWaterDepthRestore(device: GPUDevice) {
     },
     encode(encoder: GPUCommandEncoder, rect: Float64Array) {
       const pass = encoder.beginRenderPass(descriptor);
-      pass.setScissorRect(rect[0], rect[1], rect[2] - rect[0], rect[3] - rect[1]);
+      scissorTo(pass, rect);
       pass.setPipeline(pipeline);
       pass.setBindGroup(0, group!);
       pass.draw(3);
