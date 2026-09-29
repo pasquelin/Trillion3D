@@ -19,6 +19,7 @@ import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../../residency/pools.ts';
 import type { TexturePools } from '../../residency/memoryBudgets.ts';
 import { textureTransferBytesFor, textureUploadMsFor } from '../../../residency/transferBudgets.ts';
 import { sessionGeometryPool } from '../../../residency/sessionPool.ts';
+import { floorDiagnostic, rootChildren } from '../../../residency/minimumCapacity.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../../backend/common.ts';
 
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
@@ -54,25 +55,25 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   // forward copies. Counted here, while the list is still only theirs.
   const sharedBlendMeshes = blendCopies.length;
   // Transparent pages share selection/residency with opaque pages, but retain one forward draw
-  // per placement (all back faces, then all front faces), keyed by the world its pages read: the
-  // source mesh's own, or one row of its instance buffer.
+  // per placement (all back faces, then all front faces), keyed by the world of the root that
+  // places its pages: the source mesh's own, or one row of its instance buffer.
   const pagedBlendCopies = new Map<MatrixElements, BlendCopy>();
-  for (const rec of allPages)
-    if (rec.transparent && rec.sourceMesh) {
-      if (pagedBlendCopies.has(rec.matrix)) continue;
-      const copy = createBlendCopyRecord(
-        rec.sourceMesh,
-        rec.renderOrder,
-        rec.matrix,
-        rec.material,
-        rec.placement,
-      );
-      copy.userData.pagedBlend = true;
-      // The compiler writes a geometry page for every cluster of a primitive, or for none.
-      copy.userData.pageGeometry = !!rec.geometryPage;
-      pagedBlendCopies.set(rec.matrix, copy);
-      blendCopies.push(copy);
-    }
+  for (const { world, placement, pages } of roots) {
+    const rec = pages[0];
+    if (!rec?.transparent || !rec.sourceMesh || pagedBlendCopies.has(world)) continue;
+    const copy = createBlendCopyRecord(
+      rec.sourceMesh,
+      rec.renderOrder,
+      world,
+      rec.material,
+      placement,
+    );
+    copy.userData.pagedBlend = true;
+    // The compiler writes a geometry page for every cluster of a primitive, or for none.
+    copy.userData.pageGeometry = !!rec.geometryPage;
+    pagedBlendCopies.set(world, copy);
+    blendCopies.push(copy);
+  }
   blendCopies.sort((a, b) => a.renderOrder - b.renderOrder);
   // Request rank → address, posted once for the scene's life: the delta the host receives after the
   // render carries only integers, and it is this table that translates them.
@@ -91,6 +92,8 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
   });
   const bootstrap = rootCoverage(roots, pageAddress),
     bootstrapUrls = new Set(bootstrap.map(pageAddress));
+  // The pool's floor: the root cover and the pages its groups replace (`minimumCapacity.ts`).
+  const floorPages = new Set([...bootstrapUrls, ...rootChildren(roots).map(pageAddress)]).size;
   const bootstrapKeys = new Int32Array(bootstrap.length),
     bootstrapKey = new Uint8Array(tracking.keyCount);
   for (let i = 0; i < bootstrap.length; i++) {
@@ -117,6 +120,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     // slot's byte width no longer says anything about.
     drawCorners: maxCorners,
   });
+  diag.engineDiagnostic(...floorDiagnostic(bootstrapUrls.size, floorPages));
   const sourceBytes = indexSourceBytes(allPages);
   // The engine's two fixed pools, in bytes, as in the reference: what does not fit renders coarser.
   // Image targets, themselves, follow resolution with no ceiling. Tables sized by drawable page start
@@ -125,7 +129,7 @@ export function createWebgpuPagesSetup(context: BackendContext, diag: WebgpuDiag
     {
       pageBytes,
       uniquePages,
-      rootPages: bootstrapUrls.size,
+      rootPages: floorPages,
       maxResidentPages,
       limits: gpuDevice?.limits,
     },

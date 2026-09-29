@@ -25,8 +25,8 @@ in progress at all times**, one lead each, never zero.
    with `merged`; it labels `to audit` / `to measure`, cleans and ends. Fast-forward `develop`; back
    to 1.
 
-Recette and measure are sessions of their own: they never block a merge and reopen what they find;
-their reopened issues come first in step 1.
+The recette is a session of its own, which times and proves each batch: it never blocks a merge and
+reopens what it finds; its reopened issues come first in step 1.
 
 **Other AIs' pull requests** no team carries: claim it first (comment `taken by CTO <direction>`,
 label `in review`; skip one another CTO took within the hour), then one `reviewer` on it, then
@@ -47,15 +47,16 @@ its issue as a lead would (`to audit`, `to measure`).
 
 An issue is opened only with `/t3d-writer`. A release (`develop` → `main`) only on the boss's word,
 when no issue carries `to audit`, `to measure`, `audit ko` or `measure ko`: its issue and pull
-request as CONTRIBUTING.md says; label its issue `to measure`: the measure session runs its full campaign; it may stay open past the
-hour.
+request as CONTRIBUTING.md says; label its issue `to measure`: the recette runs its full campaign;
+it may stay open past the hour.
 
 | Label                       | Means                                         |
 | --------------------------- | --------------------------------------------- |
 | `🔴 critical` … `🟢 low`    | priority                                      |
 | `in progress`               | claimed, with an assignee                     |
 | `in review`                 | branch pushed, reviewer at work               |
-| `to audit` / `to measure`   | merged, waiting for recette / measure         |
+| `to audit` / `to measure`   | merged, waiting for the recette               |
+| `measuring`                 | the recette is timing it                      |
 | `audited` / `audit ko`      | image proved / not (findings in a comment)    |
 | `measure ok` / `measure ko` | timing passed / failed (numbers in a comment) |
 

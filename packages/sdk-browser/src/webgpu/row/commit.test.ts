@@ -53,7 +53,13 @@ function images(): Plan[] {
   ];
 }
 
-test('F4: the row table stays identical image after image, including empty, reversed and replayed', () => {
+test('F4: the row table stays identical image after image, including empty, reversed and replayed', (t) => {
+  // No clock decides what a sync writes: a pass handed no frame budget writes every owed row
+  // (`claims.ts`). The claims were once served under a wall-clock budget read in place, and a
+  // loaded machine left one side a row short (`candidateCount`, #573). Here time leaps back and
+  // forth a thousand seconds at every read: a pass that read it would not write what the other does.
+  let reads = 0;
+  t.mock.method(performance, 'now', () => (reads++ % 2) * 1e6);
   const neuf = mount(createWebgpuRowState, createWebgpuRowCommit);
   // The frozen oracle keeps one dirty interval and no per-row marks, which no commit reads.
   const ref = mount(

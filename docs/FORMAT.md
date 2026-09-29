@@ -91,7 +91,7 @@ The compiler validates selected accessors against their own `bufferView` length,
 
 Each page is a tightly packed little-endian `u32` index buffer covering at most 128 triangles (384 indices) of one DAG cluster. The runtime verifies SHA-256 and byte length before attaching a page. A streaming bundle is the concatenation of those index buffers for the clusters it holds, in the order their `streamOffset` values give.
 
-Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable quantized cluster page with URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate (`uncompressedBytes`: the page once unpacked to float attributes and 32-bit indices, what a reader that expands the page holds; `bytes` is what a reader that decodes in place keeps resident). The manifest declares the page format once, at its top: `geometryPages: { formatVersion: 4, codec: "quantized" }`. This geometry-page version is independent of the outer cache version: the optional fields and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 10. A reader of a cache whose `geometryPages` is missing or of another format refuses it whole, as it refuses a sidecar of another version than 10 — the sidecar names only this page — and every page header opens with the same version. The index pages remain available for existing backends.
+Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable quantized cluster page with URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate (`uncompressedBytes`: the page once unpacked to float attributes and 32-bit indices, what a reader that expands the page holds; `bytes` is what a reader that decodes in place keeps resident). The manifest declares the page format once, at its top: `geometryPages: { formatVersion: 5, codec: "quantized" }`. This geometry-page version is independent of the outer cache version: the optional fields and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 10. A reader of a cache whose `geometryPages` is missing or of another format refuses it whole, as it refuses a sidecar of another version than 10 — the sidecar names only this page — and every page header opens with the same version. The index pages remain available for existing backends.
 
 #### Quantized cluster page (`WGP3`)
 
@@ -99,7 +99,7 @@ The page is the published cluster format — positions on an object grid, octahe
 
 | Word  | Content                                                                                                         |
 | ----- | --------------------------------------------------------------------------------------------------------------- |
-| 0, 1  | magic `WGP3` (`0x33504757`), version `4`                                                                        |
+| 0, 1  | magic `WGP3` (`0x33504757`), version `5`                                                                        |
 | 2, 3  | vertex count (1 to 65,535), index count (a positive multiple of 3)                                              |
 | 4     | attribute flags: `1` NORMAL, `2` TEXCOORD_0, `4` TEXCOORD_1, `8` COLOR_0                                        |
 | 5–8   | position record and minimum: one `f32` per axis                                                                 |
@@ -108,13 +108,16 @@ The page is the published cluster format — positions on an object grid, octahe
 | 15–19 | COLOR_0 record and minimum, four channels                                                                       |
 | 20    | `f32` quantization error: the largest distance between a source position and its decoded value, in object units |
 | 21    | bits of the corner stream                                                                                       |
-| 22–23 | reserved, zero                                                                                                  |
+| 22    | stored positions: 1 to the vertex count                                                                         |
+| 23    | reserved, zero                                                                                                  |
 
-A record word holds the width of each component in six-bit fields from bit 0 (each 0 to 24) and the grid exponent as a signed byte in the top byte; a component of zero width is constant and has no stream. Streams follow in this order — block table, corners, position `x`, `y`, `z`, normal (if flagged), `u`, `v` of TEXCOORD_0 (if flagged), `u`, `v` of TEXCOORD_1 (if flagged), `r`, `g`, `b`, `a` (if flagged) —, each `ceil(count × bits / 32)` words, each field `i` at bit `i × bits`, least significant bit first. A normal is 16 bits. The triangles are coded by blocks of eight, in page order (version 4, #959): the block table holds one record per block — its smallest corner (`base`, `ceil(log2(vertexCount))` bits), the width `w` its corners take as their distance to that base (5 bits, 0 to 16) and `prefix`, the sum of the widths of the blocks before it (`bits_for(word 21 / 24)` bits) —, each record `ceil(log2(vertexCount)) + 5 + prefix bits` wide at bit `block × that`; the corner stream holds, for corner `k` of a block, `corner − base` at bit `24 × prefix + k × w`. A corner is therefore one record and one field away, still O(1) in a shader, and the code is lossless: every corner decodes to the index written, in its order. A page numbers its vertices by first use, so a block spans few of them: compiled from the same sources, Sponza's pages weigh 5.5 % less than in version 3, the CMP audit's meshes 3.4 % (building) to 6.7 % (sphere) less, and every page decodes to the same triangles. Every offset follows from the counts, the widths and word 21, so the header stores no other and a reader trusts none: the byte length must equal what the streams need, a header field outside the format (a width above 24, an exponent beyond ±64, a non-finite minimum, an unknown flag, a negative error, a reserved word set) refuses the page before any stream is read, so does a block record whose base reaches the vertex count, whose width passes an index's or whose corners leave the corner stream — the gate a reader that decodes in place, the GPU, relies on —, and a corner at or past the vertex count refuses it before any float is produced.
+A record word holds the width of each component in six-bit fields from bit 0 (each 0 to 24) and the grid exponent as a signed byte in the top byte; a component of zero width is constant and has no stream. Streams follow in this order — block table, corners, position `x`, `y`, `z`, links (if fewer positions than vertices), normal (if flagged), `u`, `v` of TEXCOORD_0 (if flagged), `u`, `v` of TEXCOORD_1 (if flagged), `r`, `g`, `b`, `a` (if flagged) —, each `ceil(count × bits / 32)` words, each field `i` at bit `i × bits`, least significant bit first. A normal is 16 bits. The position streams hold word 22's count of fields, not the vertex count: a page whose vertices repeat a position — a flat-shaded mesh repeats each corner under every face normal meeting there — stores each position once, in first-use order, and a link per vertex, the rank of its position on `bits_for(word 22 − 1)` bits (version 5, CMP-10, #960); a vertex decodes to the same floats as when it carried its own, one field further in O(1). The compiler and the reference encoder store the positions once only when the distinct positions and the links take fewer words than one position per vertex; otherwise word 22 equals the vertex count and there is no link stream. Compiled from the same sources, the repository's scenes' pages weigh 2.0 % less than in version 4 — the flat-shaded chalet 17.5 %, the crates 19.2 %, the street corner 24.7 % —, smooth ones such as the terrains not a byte more, and every page decodes to the same vertices. The triangles are coded by blocks of eight, in page order (version 4, #959): the block table holds one record per block — its smallest corner (`base`, `ceil(log2(vertexCount))` bits), the width `w` its corners take as their distance to that base (5 bits, 0 to 16) and `prefix`, the sum of the widths of the blocks before it (`bits_for(word 21 / 24)` bits) —, each record `ceil(log2(vertexCount)) + 5 + prefix bits` wide at bit `block × that`; the corner stream holds, for corner `k` of a block, `corner − base` at bit `24 × prefix + k × w`. A corner is therefore one record and one field away, still O(1) in a shader, and the code is lossless: every corner decodes to the index written, in its order. A page numbers its vertices by first use, so a block spans few of them: compiled from the same sources, Sponza's pages weigh 5.5 % less than in version 3, the CMP audit's meshes 3.4 % (building) to 6.7 % (sphere) less, and every page decodes to the same triangles. Every offset follows from the counts, the widths and words 21 and 22, so the header stores no other and a reader trusts none: the byte length must equal what the streams need, a header field outside the format (a width above 24, an exponent beyond ±64, a non-finite minimum, an unknown flag, a negative error, a stored-position count of zero or above the vertex count, a reserved word set) refuses the page before any stream is read, so does a block record whose base reaches the vertex count, whose width passes an index's or whose corners leave the corner stream, so does a link at or past word 22 — the gate a reader that decodes in place, the GPU, relies on —, and a corner at or past the vertex count refuses it before any float is produced.
 
 Decoding is one multiply and one add per component, on 32-bit floats: `value = min + q × 2^exponent`, the product exact because the step is a power of two, the sum rounded once — so the three decoders (`geometryPage.ts` through `Math.fround`, the Rust codec, the WGSL routines) produce the same 32-bit float, which `tests/browser/probes/cluster-decoding-gpu.ts` proves on the graphics card bit for bit. A normal is two bytes, `x` low and `y` high, `(q × 2/255 − 1)` per byte, the lower hemisphere folded (`z < 0`) then normalized; the constant is `2/255` rounded to the nearest `f32` by each language. The sign of zero is not kept: `-0` lands on the cell of `0`.
 
 The compiler chooses the position grid per primitive, the finer of two rules: `exponent = min(floor(log2(widest extent)), tile) − 16`, so a primitive spans about 2^16 steps and a primitive wider than a tile of 32 metres of the world about 2^16 steps per tile — `tile = floor(log2(32 / scale))` in object units, `scale` the largest world scale that places the primitive (a metre per unit when none is known), so a kilometre terrain sits on `2^-11` m (0.49 mm) and stays under a quarter of a pixel seen from 2 m, while a primitive under 32 metres keeps the grid it had whatever its units; a tile splits nothing, since a cell is the rounding of the absolute coordinate and every page stores its own minimum, so tiles cost only the bits each page's box needs on the finer grid —, and `floor(log2(finest group error / 8))`, so a cluster's displacement projects below an eighth of the threshold wherever the cut selects it (the finest group error is the smallest non-zero `lodError` the DAG published). Both rules are bounded below by `floor(log2(widest extent)) − 22`, so the primitive never spans more than 2^23 steps and every page fits the 24-bit field on the primitive's own exponent (the engine's runtime cutter runs this very rule, `bits/grid.rs` in the SDK module, with no error rule and a metre per unit, or the 2^23-step grid when the module is absent; a compiled primitive whose material moves into or out of blended in the session is cut again by it on its own clusters, with its DAG's finest error, the scale that places it and the compiler's texture grid, so each page is the one the compiler writes for the new class, #846): every page of a primitive shares that exponent, which is what makes a vertex shared by two clusters land on the same cell in both. Each cluster then spends only the bits its own box needs; a page that would still need more than 24 bits on its primitive grid — a texture coordinate range past 1024, a colour range past 65,536 — is refused whole (`PAGE_ATTRIBUTE_RANGE`), never re-gridded on its own. Texture coordinates sit on a grid of `2^-14` — a quarter of a texel on a 4096-wide map; the compiler never leaves it, and the engine's runtime cutter takes the finest coarser grid only for a primitive whose widest cluster spans past 1024, such as a long dashed line's distance along it, the record word carrying the exponent every decoder reads — and colours, clamped to `[0, 1]`, on `2^-8`, with the same per-page minima and widths: a constant channel costs no bits. The cost is declared, never hidden: word 20 carries the page's worst position displacement, rounded up to the `f32` so that no position exceeds it — every decoder returns it, and the autonomous backend widens a page's box by exactly that —, and `primitives[].quantization` — `{ positionExponent, uvExponent, maxPositionError }`, the step being `2^positionExponent` — carries the primitive's for reporting, `null` on a primitive without pages, which was quantized on no grid. The cut adds it to a cluster's error: a cluster **a group produced** is certified at `lodError + maxPositionError`, a group at `error + maxPositionError`, and every cluster box and culling-node box grows by the same length, so the pixel threshold bounds the quantized surface an engine actually draws rather than the source one it was measured on (spec C4; the colour and texture-coordinate terms of that line remain open). **A cluster no group produced keeps its band**: it is the floor of the ladder, the cache holds nothing finer, and raising it would leave the cut with nothing to draw at zero pixels — its boxes grow all the same, since they bound the surface drawn. Both sides of a replacement therefore swap at the same threshold and the cut stays a partition. A normal is within 1° of its source, a colour within half a level of 256.
+
+A coarse page may also carry vertices no source vertex matches: a seam-locked group reduced with solved vertices ([COMPILER.md](COMPILER.md)) writes each surviving position where its quadric is least and each copy's normal and texture coordinates solved there. They are encoded like any other — a solved normal is a unit, a solved position already on the primitive's grid, so the page's cone and the collider bound the faces it draws — and exist nowhere else.
 
 Two source vertices that land on the same cells decode alike, so the page keeps one and remaps its corners: a source that repeats a vertex per corner — Whisperwind's FBX import carries 2.6 vertices per triangle — comes down to its distinct vertices without changing a triangle. Tangents are never written: every lighting pass rebuilds one cotangent frame from a triangle's normal, two edges and the texture deltas along them (`cotangentFrame`, in WGSL beside the decode routines and in GLSL for the WebGL2 renderer; a raster passes the triangle's edges, a fragment stage its screen derivatives), as the reference does. A texture coordinate set that no texture of the primitive's material names in `texCoord` is not written either — residency follows what the frame reads —, while the DAG still welds along it, so clusters do not depend on what a material samples.
 
@@ -338,8 +341,12 @@ It is bounded by the materials, not the world: one tile or 64 tiles of the same 
 the same top, to one page per material. A top over `budgetBytes` (`WORLD_TOP_BUDGET_BYTES`, 4 MiB)
 is refused at cook, `WORLD_TOP_OVER_BUDGET`, naming the cell that pins the most of it.
 
-The runtime does not read the super-roots yet: it keeps pinning every primitive's roots, and the
-image is the one it was. Unpinning the object roots for the world top is #751.
+The runtime reads the table as a model loads and pins the top alone (#1237,
+`packages/sdk-browser/src/scene/worldRoots.ts`): its bundles, the binary's first, in one ranged
+read, each checked against its own `sha256`. The object roots are no longer pinned: they are held
+with the placements the view holds, and a placed cell holds the bundles past the top its objects'
+`dependencies` name, each once, until the last cell needing it leaves ([ENGINE.md](ENGINE.md#memory),
+Pinned bytes). The super-roots are not drawn yet (#1238): the image is the one it was.
 
 ## `physics.json` — cooked colliders
 
@@ -458,3 +465,67 @@ the core table's byte size independent of the world's node count. The runtime de
 original numeric rank, rejecting malformed values; when absent, the table rank applies. A proxy owner whose leaf is not currently instantiated follows its nearest loaded
 ancestor. Each session keeps its mutable refit and transforms separately from shared cache bytes.
 Cook-time geometry eliminated by simplification is not reconstructed when an object later grows.
+
+## Impostor atlases
+
+`clusters.json` carries `impostors` (version 1, #817): the compiler's verdict on every drawn mesh,
+and for each eligible one an octahedral atlas that stands in for it far away. The runtime card
+that draws it, its switch and its crossfade are #483; this section fixes what the cache holds.
+
+**Capture.** A mesh is captured in its own object space, pivot at its bounding-sphere centre
+(`centre`, `objectRadius` R, the DAG's `bounding_sphere`), +Y up, from `frames`×`frames` = 12×12
+directions: frame `(i, j)` looks back along `d = decode((i, j) / (frames − 1))`. The full
+octahedron decodes `f` through `p = (u, 1 − |u| − |v|, v)` with `(u, v) = 2f − 1`, the lower
+half folded as `p.xz ← side(p.xz) · (1 − |p.zx|)` — `side` is ±1, never 0, so a direction on an
+axis keeps its face —; the hemi-octahedron (`hemi`) decodes `p = (f.x − f.y, 0, f.x + f.y − 1)`,
+`p.y = 1 − |p.x| − |p.z|`. `hemi` is chosen from the placements: every one keeps the mesh's +Y
+up and stands on the scene's floor within one probe texel; any other mesh takes the full
+octahedron. A frame is an orthographic view of side 2R onto the plane through the pivot, with
+axes `x = normalize(cross(up, d))`, `y = cross(d, x)` (`up` = +Y, or +Z when `|d.y| > 0.999`);
+texel `(px, py)` of a `frameSide`-texel frame sits at `((px + ½) / frameSide − ½) · 2R` along
+`x` and `(½ − (py + ½) / frameSide) · 2R` along `y`: rows top to bottom, row 0 at `+y`. Frame `(i, j)` fills texels
+`[i · frameSide, (i + 1) · frameSide) × [j · frameSide, (j + 1) · frameSide)` of an
+`atlasSide = frames · frameSide` square.
+
+**Texels.** Four rotated-grid rays a texel go from `2R` along `d` towards the pivot, through the
+compiler's one CPU tracer over the proxy's BVH constructor (`proxy/tracer.rs`), which takes a hit only
+where its material covers. It cuts where the texture chains take coverage: a `MASK` material
+whose `alphaCutoff` is above 0 at that cutoff times its `baseColorFactor` alpha, a `BLEND` one
+that does not transmit at 0.5 (the cutout threshold); a `MASK` at 0 and a transmissive `BLEND`,
+drawn opaque, keep every texel. The test reads the base colour texel at the hit — the finest
+level of the texture's baked tail, its coverage chain when the material cuts —, times the vertex
+colour's alpha (`COLOR_0`), at the set and under the `KHR_texture_transform` the
+engine's texture applies. Three RGBA8 maps, one byte a
+channel: `colourCoverage` is the base colour (sRGB, `baseColorFactor` times texel times `COLOR_0`) averaged over
+the rays that hit, alpha the share of rays that hit; `normalDepth` is the object-space normal
+(vertex normals interpolated when declared, turned to face the ray) as `n · ½ + ½`, alpha the
+depth `D = ½ + height / 2R`, `height` the signed distance above the frame plane towards the
+capture; `orm` packs occlusion, roughness and metallic (factors times their textures), alpha
+255. An empty texel takes the three maps of the nearest covered texel of its own frame, its
+coverage staying 0, so filtering at the silhouette blends no black fringe.
+
+**Levels.** Each map carries its mip chain under the texture rule of [Textures](#textures),
+down to the level where a frame keeps four texels a side (`frameSide / 4`, three levels at the
+least): below it a bilinear tap reads the neighbouring frames, views of other directions, and
+the coverage rule no longer holds; a smaller card samples the last level. `colourCoverage` is the
+coverage chain at `C = 128` (the cut at 0.5), each level keeping level 0's filtered coverage;
+`normalDepth` and `orm` are data chains. Every level is a lossless PNG stored as a content-addressed
+object (`../../objects/<sha256>.bin`, the physics objects' spelling), listed in
+`maps.<name>.levels[k]` with its `url`, `sha256`, `bytes`, `width` and `height`; `bytes` sums
+them.
+
+**Eligibility.** With `f = focalPixels` (1117 lines at DPR 2 under the engine's 55° field), R the
+bounding radius times the largest world scale of the placements, T the DAG's `rootTriangles`
+summed over the mesh's primitives and `c` the mean coverage of the frames against their
+bounding disc, measured by a first bake at 16 texels a frame, the atlas is sharp from
+`z_tex = 2R·f / frameSide` and the root outnumbers its pixels from `z_tri = R·f·√(cπ/T)`
+(`switchDepth.texel`, `switchDepth.triangles`, in metres at `f`). `frameSide` is the smallest
+power of two, at least 16, with `frameSide ≥ 2√(T/(cπ))`, so `z_tex ≤ z_tri`. Each entry of
+`meshes` names its compiled `mesh`, `sourceMesh`, `name`, `placements`, `masked`,
+`rootTriangles`, `radius` and `status`: `baked`, with `coverage`, `hemi`, `frames`, `frameSide`,
+`atlasSide`, `maps` and `bytes`, or `refused`, with `reason`, a sentence in `detail` giving the
+numbers that decided, and the probe's `coverage` when one ran. The reasons, in the order they
+are tried: `skinned` (a skin, joint weights or morph targets: the mesh deforms); `single-opaque-placement` (one placement and no masked material);
+`no-coverage`; `root-cheaper-than-impostor` (`z_tri` beyond the diagonal of the drawn scene's
+bounds, the farthest a placement is seen from); `atlas-over-texture-limit` (`atlasSide` above
+`textureLimit`, 8192, the side any WebGPU card holds). `baked` and `refused` count them.

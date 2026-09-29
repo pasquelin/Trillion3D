@@ -1843,7 +1843,8 @@
       "pageDecodeMs": "Tempo trascorso a decodificare le pagine.",
       "mathBatch": "Stato del regolatore delle vie di calcolo (`../math/path/governor.ts`): via attuale di ogni operazione a lotti, mediane di entrambe le vie, cambi. `null` su un host che non ha aperto alcun lotto — non misurato, non «via JavaScript».",
       "pagesPlannedOffThread": "Integrazione delle pagine fuori dal thread principale. `pagesPlannedOffThread` conta gli arrivi il cui piano — il posto di ogni cluster nel pacchetto e i ranghi di pagine che sposta — è stato calcolato da un worker, mai quelli che il ripiego ha pianificato sul thread principale. `pagePlanMs` è il tempo cumulato di questi piani, misurato dall'esecutore stesso, qualunque sia il thread: non viene mai sommato a un `cpu*` o `gpu*` per fotogramma. Entrambi valgono `null` finché nessun arrivo è stato pianificato — non misurato, non zero.",
-      "pagePlanMs": "Tempo trascorso a pianificare gli arrivi."
+      "pagePlanMs": "Tempo trascorso a pianificare gli arrivi.",
+      "dynamicUploadBytes": "Byte di vertici di geometria dinamica caricati sul posto in questo fotogramma (#573), entro il budget per fotogramma del mondo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Assente dove nessun mondo disegna."
     }
   },
   "frameStatistics": {
@@ -2106,7 +2107,9 @@
       "userData": "Spazio libero per i dati di chi ha costruito la geometria.",
       "released": "Chiamati quando la geometria viene restituita: ciò che ascolta la copia propria di un renderer.",
       "getIndex": "La lista di triangoli, o `null`.",
-      "toNonIndexed": "Una geometria che disegna gli stessi triangoli senza indice: ogni angolo è un vertice a sé."
+      "toNonIndexed": "Una geometria che disegna gli stessi triangoli senza indice: ogni angolo è un vertice a sé.",
+      "usage": "`'dynamic'`: caricata sul posto, mai più ritagliata (#573); così anche una geometria cambiata a ogni fotogramma.",
+      "maxBounds": "Il riquadro che una geometria dinamica non lascia mai, se dichiarato: quello con cui viene scartata (#573)."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -4982,7 +4985,8 @@
       "structure": "I suoi collegamenti di gruppi.",
       "streams": "I suoi pacchetti di flusso.",
       "quantization": "Null su una primitiva senza pagine, che non è stata quantizzata su alcuna griglia.",
-      "topology": "L'aspetto degli spigoli e degli angoli della mesh."
+      "topology": "L'aspetto degli spigoli e degli angoli della mesh.",
+      "dynamic": "La geometria dinamica di un mondo (#573): solo pagine di indici, i suoi vertici letti come float dalla geometria ospite che il motore riscrive sul posto."
     }
   },
   "Primitive": {
@@ -5680,7 +5684,8 @@
       "dag": "Il report del DAG.",
       "quantization": "Null su una primitiva senza pagine, che non è stata quantizzata su alcuna griglia.",
       "topology": "L'aspetto degli spigoli e degli angoli della mesh.",
-      "binary": "Dove trovare le sue liste."
+      "binary": "Dove trovare le sue liste.",
+      "dynamic": "La geometria dinamica di un mondo (#573): solo pagine di indici, i suoi vertici letti come float dalla geometria ospite che il motore riscrive sul posto."
     }
   },
   "SlimPrimitiveBinary": {
@@ -6912,7 +6917,8 @@
       "shadowMemoryEvents": "Gli eventi di pressione di memoria delle ombre dall'apertura del mondo, per nome, in ordine; vuoto normalmente.",
       "shadowPagesRefetched": "Pagine virtuali mappate di nuovo dopo che il pool le aveva espulse per fare spazio, dall’apertura dell’explorer: i ridisegni che costa un pool troppo piccolo per ciò che leggono i fotogrammi.",
       "shadowCastersKept": "Proiettori d’ombra mantenuti dal culling per pagina, tutte le pagine disegnate insieme, nel fotogramma campionato per ultimo dal dispositivo — uno su quindici; `null` finché non torna un campione.",
-      "shadowCastersHidden": "Proiettori in movimento che il test di occlusione ha trovato nascosti dietro lo strato statico della loro pagina, nel fotogramma campionato per ultimo; `null` finché non torna un campione."
+      "shadowCastersHidden": "Proiettori in movimento che il test di occlusione ha trovato nascosti dietro lo strato statico della loro pagina, nel fotogramma campionato per ultimo; `null` finché non torna un campione.",
+      "dynamicUploadBytes": "Byte di vertici di geometria dinamica caricati sul posto in questo fotogramma (#573), entro il budget per fotogramma del mondo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Assente dove nessun mondo disegna."
     }
   },
   "WorldOptions": {
@@ -7865,6 +7871,45 @@
       "alphaMode": "Come viene letto il canale alpha di una superficie: opaco lo ignora, `mask` taglia a `alphaCutoff`, `blend` compone.",
       "alphaCutoff": "I pixel meno opachi di questo scompaiono.",
       "tiling": "Quante volte l'immagine entra in larghezza e in altezza."
+    }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json`: il DAG del mondo che il compilatore prosegue sopra le radici di ogni oggetto — i suoi pacchetti, pagine e celle, la cima fissata per prima.",
+    "members": {
+      "version": "Versione del formato.",
+      "budgetBytes": "Il massimo di byte che la cottura lascia pesare alla cima fissata.",
+      "pinned": "I primi pacchetti, la cima del mondo: fissati.",
+      "pinnedTopBytes": "I byte della cima fissata.",
+      "payload": "Il binario dove i pacchetti stanno uno dopo l’altro: indirizzo, impronta e lunghezza.",
+      "bundles": "I pacchetti, nell’ordine del binario.",
+      "pages": "Ogni pagina: il suo pacchetto, il suo scostamento in esso, il suo livello e il suo errore.",
+      "cells": "Ogni cella del mondo: le primitive posizionate che contiene."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "Un pacchetto di `world-roots.bin`: il suo intervallo nel binario, la sua impronta, il numero di pagine e i pacchetti di cui ha bisogno.",
+    "members": {
+      "offset": "Dove inizia nel binario, in byte.",
+      "bytes": "La sua lunghezza nel binario.",
+      "sha256": "Lo SHA-256 dei suoi byte, verificato alla lettura.",
+      "count": "Quante pagine contiene.",
+      "dependencies": "I pacchetti di cui hanno bisogno le sue pagine, in ordine crescente, fino alla cima del mondo."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Una primitiva posizionata di una cella del mondo: i pacchetti del mondo di cui hanno bisogno le sue radici, fino alla cima.",
+    "members": {
+      "node": "Il suo nodo pubblicato.",
+      "primitive": "La sua primitiva nel manifesto.",
+      "roots": "I pacchetti dei flussi di quella primitiva che tengono le sue radici.",
+      "dependencies": "Ogni pacchetto del mondo di cui hanno bisogno quelle radici, in ordine crescente, fino alla cima."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Una pagina super-radice letta sui byte del suo pacchetto: i suoi vertici nello spazio del mondo e i suoi triangoli come indici locali.",
+    "members": {
+      "positions": "I suoi vertici, tre numeri ciascuno, nello spazio del mondo.",
+      "indices": "I suoi triangoli, tre indici locali ciascuno."
     }
   }
 }

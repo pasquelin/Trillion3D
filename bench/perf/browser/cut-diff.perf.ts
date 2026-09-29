@@ -18,7 +18,6 @@ const PAGES = 160000,
 const niveaux = new Int32Array(PAGES);
 for (let k = 0; k < PAGES; k++) niveaux[k] = Math.floor(alea() * NIVEAUX);
 /** Fields the cut readers never touch: shared across every record, never mutated. */
-const DUMMY_MATRIX = new G.Matrix4();
 const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
 const pages: PageRec[] = [];
@@ -39,7 +38,7 @@ for (let i = 0; i < PAGES; i++)
     attributes: DUMMY_ATTRIBUTES,
     material: surfaceOf([]),
     declaration: [],
-    matrix: DUMMY_MATRIX,
+    placementIndex: 0,
     renderOrder: 0,
     attached: true,
     transparent: alea() < 0.1,

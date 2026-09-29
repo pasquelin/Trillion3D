@@ -1142,7 +1142,8 @@
       "pageDecodeMs": "Tempo gasto decodificando páginas.",
       "mathBatch": "Estado do regulador de caminho de compute (`../math/path/governor.ts`): caminho atual de cada operação em lote, medianas de ambos os caminhos, trocas. `null` em um host que não abriu um lote — não medido, não \"caminho JavaScript\".",
       "pagesPlannedOffThread": "Integração de página fora da thread principal. `pagesPlannedOffThread` conta chegadas cujo plano — o lugar de cada cluster no pacote e as posições de página que move — foi calculado por um worker, nunca as que o fallback planejou na thread principal. `pagePlanMs` é o tempo cumulativo desses planos, medido pelo próprio executor, seja qual for a thread: nunca é somado a um `cpu*` ou `gpu*` por quadro. Ambos são `null` enquanto nenhuma chegada foi planejada — não medido, não zero.",
-      "pagePlanMs": "Tempo gasto planejando chegadas."
+      "pagePlanMs": "Tempo gasto planejando chegadas.",
+      "dynamicUploadBytes": "Bytes de vértices de geometria dinâmica enviados no local neste quadro (#573), dentro do orçamento por quadro do mundo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Ausente onde nenhum mundo desenha."
     }
   },
   "Frustum": {
@@ -1209,7 +1210,9 @@
       "userData": "Espaço livre para os dados de quem construiu a geometria.",
       "released": "Chamados quando a geometria é devolvida: o que a cópia própria de um renderizador escuta.",
       "getIndex": "A lista de triângulos, ou `null`.",
-      "toNonIndexed": "Uma geometria que desenha os mesmos triângulos sem índice: cada canto é um vértice próprio."
+      "toNonIndexed": "Uma geometria que desenha os mesmos triângulos sem índice: cada canto é um vértice próprio.",
+      "usage": "`'dynamic'`: enviada no local, nunca mais recortada (#573); assim como uma geometria alterada a cada quadro.",
+      "maxBounds": "A caixa que uma geometria dinâmica nunca deixa, quando declarada: a que serve para descartá-la (#573)."
     }
   },
   "GeometryPageDescriptor": {
@@ -2714,7 +2717,8 @@
       "structure": "Suas ligações de grupo.",
       "streams": "Seus pacotes de transmissão.",
       "quantization": "Nulo em uma primitiva sem páginas, que foi quantizada em nenhuma grade.",
-      "topology": "Como são as arestas e cantos do mesh."
+      "topology": "Como são as arestas e cantos do mesh.",
+      "dynamic": "A geometria dinâmica de um mundo (#573): apenas páginas de índices, seus vértices lidos como floats da geometria hospedeira que o motor reescreve no local."
     }
   },
   "Primitive": {
@@ -3319,7 +3323,8 @@
       "dag": "O relatório do DAG.",
       "quantization": "Nulo em uma primitiva sem páginas, que foi quantizada em nenhuma grade.",
       "topology": "Como são as arestas e cantos do mesh.",
-      "binary": "Onde encontrar suas listas."
+      "binary": "Onde encontrar suas listas.",
+      "dynamic": "A geometria dinâmica de um mundo (#573): apenas páginas de índices, seus vértices lidos como floats da geometria hospedeira que o motor reescreve no local."
     }
   },
   "SlimPrimitiveBinary": {
@@ -4339,7 +4344,8 @@
       "shadowMemoryEvents": "Os eventos de pressão de memória das sombras desde que o mundo abriu, por nome, em ordem; vazio normalmente.",
       "shadowPagesRefetched": "Páginas virtuais mapeadas de novo depois de o pool as ter despejado para abrir espaço, desde que o explorador abriu: os redesenhos que custa um pool pequeno demais para o que os quadros leem.",
       "shadowCastersKept": "Projetores que o descarte por página manteve, todas as páginas desenhadas juntas, no quadro que o dispositivo amostrou por último — um em quinze; `null` até voltar uma amostra.",
-      "shadowCastersHidden": "Projetores em movimento que o teste de oclusão achou escondidos atrás da camada estática da sua página, no quadro amostrado por último; `null` até voltar uma amostra."
+      "shadowCastersHidden": "Projetores em movimento que o teste de oclusão achou escondidos atrás da camada estática da sua página, no quadro amostrado por último; `null` até voltar uma amostra.",
+      "dynamicUploadBytes": "Bytes de vértices de geometria dinâmica enviados no local neste quadro (#573), dentro do orçamento por quadro do mundo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Ausente onde nenhum mundo desenha."
     }
   },
   "WorldOptions": {
@@ -7865,6 +7871,45 @@
       "alphaMode": "Como o canal alfa de uma superfície é lido: opaco o ignora, `mask` corta em `alphaCutoff`, `blend` compõe.",
       "alphaCutoff": "Pixels menos opacos que isso são descartados.",
       "tiling": "Quantas vezes a imagem cabe na horizontal e na vertical."
+    }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json`: o DAG do mundo que o compilador continua acima das raízes de cada objeto — os seus pacotes, páginas e células, o topo fixado primeiro.",
+    "members": {
+      "version": "Versão do formato.",
+      "budgetBytes": "O máximo de bytes que a cozedura deixa o topo fixado pesar.",
+      "pinned": "Os primeiros pacotes, o topo do mundo: fixados.",
+      "pinnedTopBytes": "Os bytes do topo fixado.",
+      "payload": "O binário onde os pacotes seguem uns após os outros: o seu endereço, impressão e comprimento.",
+      "bundles": "Os pacotes, na ordem do binário.",
+      "pages": "Cada página: o seu pacote, o seu deslocamento nele, o seu nível e o seu erro.",
+      "cells": "Cada célula do mundo: as primitivas colocadas que contém."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "Um pacote de `world-roots.bin`: o seu intervalo no binário, a sua impressão, o seu número de páginas e os pacotes de que precisa.",
+    "members": {
+      "offset": "Onde começa no binário, em bytes.",
+      "bytes": "O seu comprimento no binário.",
+      "sha256": "O SHA-256 dos seus bytes, verificado ao ler.",
+      "count": "Quantas páginas contém.",
+      "dependencies": "Os pacotes de que as suas páginas precisam, crescentes, até ao topo do mundo."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Uma primitiva colocada de uma célula do mundo: os pacotes do mundo de que as suas raízes precisam, até ao topo.",
+    "members": {
+      "node": "O seu nó publicado.",
+      "primitive": "A sua primitiva no manifesto.",
+      "roots": "Os pacotes dos fluxos dessa primitiva que guardam as suas raízes.",
+      "dependencies": "Cada pacote do mundo de que essas raízes precisam, crescentes, até ao topo."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Uma página super-raiz lida sobre os bytes do seu pacote: os seus próprios vértices no espaço do mundo e os seus triângulos como índices locais.",
+    "members": {
+      "positions": "Os seus vértices, três números cada, no espaço do mundo.",
+      "indices": "Os seus triângulos, três índices locais cada."
     }
   }
 }
