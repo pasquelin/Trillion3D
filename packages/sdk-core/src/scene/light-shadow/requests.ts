@@ -52,14 +52,11 @@ export type ShadowAsks = { entries: Uint32Array; count: number };
  * scene's box (`floors`) — past it no caster lies, and a receiver there asks through the report —,
  * and a new, moved or reshaped lamp for each face's until a report written at its pose is read — a
  * report from a past pose names only the pages that pose's receivers read.
- *
- * When the GPU allocates (#1275), the report maps nothing: the GPU mapped what it names in the frame
- * that named it, and the pool follows its snapshot (`mirror.ts`); the floors are asked of the GPU
- * every frame, every lamp face's among them — no report names a floor for it any more.
- *
+ * When the GPU allocates (#1275), the report maps nothing: the GPU mapped what it names in that
+ * frame, the pool follows its snapshot (`mirror.ts`), and every floor is asked of the GPU each frame.
  * A report read against another table layout is dropped: its words name ranges that moved. A sun
- * entry is read with the extents of the frame that wrote it (`entryPages.ts`), and dropped when its
- * page has left the clipmap since. Allocates nothing past construction.
+ * entry is read with the extents of the frame that wrote it (`entryPages.ts`), dropped if its page
+ * left the clipmap since.
  */
 export function createShadowRequests(
   table: ShadowTable,

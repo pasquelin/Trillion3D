@@ -20,13 +20,9 @@ const WORD_DRAW_SLOT = 20,
   WORD_INDIRECT = 21,
   NO_CASTER = new Uint32Array(1);
 
-/**
- * The cull's single bind table: its order names both the layout and the group — spheres, source
- * list, source indirect, kept, produced indirect, per-face uniform, volumes, row mobility.
- */
-const READ = 'read-only-storage',
-  WRITE = 'storage',
-  UNIFORM = 'uniform';
+/** The cull's single bind table: its order names both the layout and the group — spheres, source
+ *  list, source indirect, kept, produced indirect, per-face uniform, volumes, row mobility. */
+const [READ, WRITE, UNIFORM] = ['read-only-storage', 'storage', 'uniform'] as const;
 const BINDING_TYPES = [READ, READ, READ, WRITE, WRITE, UNIFORM, READ, READ] as const;
 
 /** Where the CPU cut left one run's casters, and which regions read them. */

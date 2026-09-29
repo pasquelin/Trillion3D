@@ -179,7 +179,13 @@ export async function createGpuShadowAtlas(device: GPUDevice, pageLayout: GPUBin
       flushData(
         table: ShadowTable,
         words: (first: number, count: number) => void = (first, count) =>
-          device.queue.writeBuffer(dataBuffer, SHADOW_TABLE_OFFSET + first * 4, table.words, first, count),
+          device.queue.writeBuffer(
+            dataBuffer,
+            SHADOW_TABLE_OFFSET + first * 4,
+            table.words,
+            first,
+            count,
+          ),
       ) {
         atlas.flushRecords();
         table.flush(words);

@@ -116,7 +116,7 @@ export function keptRows(volumes: Uint8Array, region: number, rows: CasterRow[])
   const capacity = rows.length,
     kept = new Uint32Array(capacity),
     indirect = new Uint32Array(8);
-  const { shadowCullScatter } = shaderRun<Record<string, (id: number[]) => void>>(
+  const { shadowCullScatter } = shaderRun<Record<string, (id: number[], lane: number) => void>>(
     SHADOW_CULL_SHADER,
     [
       'shadowCullScatter',
