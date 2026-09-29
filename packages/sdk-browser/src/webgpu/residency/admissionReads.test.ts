@@ -115,7 +115,7 @@ test('the lower tiers read ahead at prefetch priority, the camera at its own', a
   const asked: [string, number | undefined][] = [];
   await createWebgpuResidentEnsurer({
     ...ensurerOptions(tracking, lruCache(2)),
-    lowerTiers: () => [{ pages: [tier], has: (key) => key === tracking.keyOf(tier) }],
+    lowerTiers: () => [{ pages: [tier], has: (key) => key === tracking.keyOf(tier), revision: 0 }],
     prefetch: (page, _signal, priority) => asked.push([page.url, priority]),
   })([seen], 1, 1);
   assert.deepEqual(asked, [

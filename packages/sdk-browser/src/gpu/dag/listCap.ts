@@ -24,8 +24,9 @@ export const initialListCap = (limits: Limits, pageCount: number) =>
 
 /**
  * THE CAP A TRUNCATED READOUT GROWS TO. The list was sized for a wide cut, not for every cut: a
- * view that keeps more asks `needed` ranks, and the list doubles past it — the view ahead may take
- * half of it (`shader/snapshotWgsl.ts`) — within the catalogue and what one binding holds.
+ * view that keeps more asks `needed` ranks — the camera's own: the view ahead has its own counter
+ * and never grows the list (`shader/snapshotWgsl.ts`) —, and the list doubles past it, within the
+ * catalogue and what one binding holds.
  * `undefined` when even that cannot hold the cut: the readout stays truncated and the host falls
  * back to the CPU cut, saying so.
  */
@@ -34,8 +35,8 @@ export function grownListCap(limits: Limits, pageCount: number, cap: number, nee
   return next > cap && next >= Math.min(needed, pageCount) ? next : undefined;
 }
 
-/** Ranks the cut asked of its readout, kept or not: the requests' counter, and the drawn list's
- *  behind them, both counted past the cap (`shader/snapshotWgsl.ts`, `shader/compactWgsl.ts`). */
+/** Ranks the cut asked of its readout, kept or not: the camera requests' counter, and the drawn
+ *  list's behind them, both counted past the cap (`shader/snapshotWgsl.ts`, `shader/compactWgsl.ts`). */
 export function listDemand(bytes: ArrayBuffer, drawnWordOffset: number) {
   const ints = new Uint32Array(bytes, 0, drawnWordOffset + 1);
   return Math.max(ints[OUT_COUNT], drawnWordOffset ? ints[drawnWordOffset] : 0);
