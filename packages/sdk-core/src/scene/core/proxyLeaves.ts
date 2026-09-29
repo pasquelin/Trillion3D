@@ -1,3 +1,5 @@
+import { PROXY_CHILD_WORDS } from '../../contracts/proxy.ts';
+
 /** Leaf child word bit: the leaf's triangles are canonical and traced under their owners' poses. */
 export const PROXY_LEAF_OWNED = 1 << 25;
 /** Triangle group word bit: the same state, for a pass that walks triangles, not the tree. */
@@ -39,7 +41,7 @@ export function createProxyLeaves(
     firsts: number[] = [],
     ends: number[] = [];
   const leafOf = new Uint32Array(groups.length).fill(0xffffffff);
-  for (let at = 1; at < children.length; at += 3) {
+  for (let at = 1; at < children.length; at += PROXY_CHILD_WORDS) {
     if (children[at] >>> 24 === 0) continue;
     children[at] = ((children[at] & 0xffffff) | PRESENT) >>> 0;
     const count = (children[at] >>> 16) & 255,

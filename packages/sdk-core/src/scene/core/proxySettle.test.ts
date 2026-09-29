@@ -30,9 +30,8 @@ test('a still proxy settles each leaf whose owners agree and keeps only the othe
   assert.equal(motion.dynamic, true);
   assert.equal(motion.settling, false, 'nothing left that can settle: the host stops asking');
   assert.equal(motion.sync(lifted(5, 1)), null);
-  // The frame joins the door: one pose again, the last leaf settles past the last still gap.
+  // The frame joins the door later: one pose again, the last leaf settles on the first still frame.
   assert.equal(motion.sync(lifted(5, 2)), 'moved');
-  assert.equal(motion.sync(lifted(5, 2)), null);
   assert.equal(motion.sync(lifted(5, 2)), 'settled');
   assert.equal(motion.dynamic, false);
   assert.deepEqual([...triangles.subarray(9)], [2, 5, 0, 3, 5, 0, 2, 6, 0]);
@@ -59,4 +58,11 @@ test('motion slower than the frame rate does not rewrite triangles each cycle', 
     'past the gap, the motion has stopped',
   );
   assert.equal(motion.dynamic, false);
+  // A nudge that comes after a settle had its use clears the gap: it settles at once again.
+  for (let nudge = 0; nudge < 3; nudge++) {
+    for (let frame = 0; frame < 3; frame++) motion.sync(() => world);
+    world[12] += 1;
+    assert.equal(motion.sync(() => world), 'moved');
+    assert.equal(motion.sync(() => world), 'settled', 'isolated nudges never lengthen the wait');
+  }
 });

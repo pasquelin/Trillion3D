@@ -171,7 +171,8 @@ export async function createGpuBounceProbes(
         if (clearOwed & (1 << level)) encoder.clearBuffer(probes, level * levelBytes, levelBytes);
       clearOwed = 0;
       if (lights() !== boundLights) group = bind();
-      occupancy.settle(resident.triangleBoxes, resident.bounds);
+      // Stopped as the proxy counts it: motion slower than the frame rate rebuilds no map per cycle.
+      if (!resident.settling) occupancy.settle(resident.triangleBoxes, resident.bounds);
       if (cascades.follow(viewpoint)) schedule.restart();
       if (!cascades.probes || !lightsActive || !working()) return false;
       frame++;
