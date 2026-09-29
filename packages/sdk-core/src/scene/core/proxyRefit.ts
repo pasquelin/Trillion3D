@@ -38,6 +38,15 @@ export function createProxyRefit(data: SceneProxyColumns) {
   const errors = new Float64Array(triangleGroups.length * 3);
   const changed = new Uint8Array(triangleGroups.length);
   const nodeChanged = new Uint8Array(nodeBounds.length / 6);
+  // Nodes whose effective box left the built tree: a refitted node, and each inner child it
+  // requantizes. Only those can enter a ray the built tree kept out, so they bound the extra
+  // steps a moved tree may take. Kept once marked: a settled pose keeps the refitted topology.
+  const grown = new Uint8Array(nodeChanged.length);
+  let grownNodes = 0;
+  const grow = (node: number) => {
+    if (!grown[node]) grownNodes++;
+    grown[node] = 1;
+  };
   for (let t = 0; t < triangleGroups.length; t++) {
     slots[cursors[triangleGroups[t]]++] = t;
   }
@@ -86,6 +95,7 @@ export function createProxyRefit(data: SceneProxyColumns) {
       }
       if (!dirty) continue;
       nodeChanged[node] = 1;
+      grow(node);
       const base = node * 6;
       nodeBounds.fill(Infinity, base, base + 3);
       nodeBounds.fill(-Infinity, base + 3, base + 6);
@@ -128,6 +138,7 @@ export function createProxyRefit(data: SceneProxyColumns) {
         }
         nodeChildren[at] = low;
         nodeChildren[at + 1] = high;
+        if (((high >>> 16) & 255) === 0) grow(nodeChildren[at + 2]);
       }
     }
     // Tight geometry extent drives the existing cascade planner, not padded traversal boxes.
@@ -144,11 +155,14 @@ export function createProxyRefit(data: SceneProxyColumns) {
     /** World bounds of each triangle over all its owners, six per triangle, and the moved ones. */
     boxes: bounds,
     changed,
+    /** Nodes a ray may visit beyond the built tree's, since the first motion. */
+    grownNodes: () => grownNodes,
     bytes:
       errors.byteLength +
       bounds.byteLength +
       changed.byteLength +
       nodeChanged.byteLength +
+      grown.byteLength +
       boxes.byteLength +
       starts.byteLength +
       slots.byteLength,

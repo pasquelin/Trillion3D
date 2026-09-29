@@ -2,7 +2,10 @@ import { preparedNodeRank } from '../../../host/prepared/sourceRanks.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts';
 
-type MovingProxy = { sync(worldOf: (source: number) => ArrayLike<number> | undefined): boolean };
+type MovingProxy = {
+  sync(worldOf: (source: number) => ArrayLike<number> | undefined): boolean;
+  readonly dynamic?: boolean;
+};
 const readers = new WeakMap<
   WebgpuPagesRuntime,
   (source: number) => ArrayLike<number> | undefined
@@ -26,13 +29,16 @@ function reader(rt: WebgpuPagesRuntime) {
   return read;
 }
 
-/** Late arrivals read today's poses, including host writes that preceded their asynchronous load. */
+/** Late arrivals read today's poses, including host writes that preceded their asynchronous load.
+ *  A moving proxy syncs once more on the first frame without a scene write: that is where it
+ *  settles (`epoch + 0.5` records that try, so a proxy that cannot settle costs nothing more). */
 export function syncPageProxy(rt: WebgpuPagesRuntime, proxy: MovingProxy, arrived = false) {
-  const epoch = rt.run.gate.revisions.scene;
-  if (!arrived && seen.get(proxy) === epoch) return false;
+  const epoch = rt.run.gate.revisions.scene,
+    last = seen.get(proxy);
+  if (!arrived && (last === epoch + 0.5 || (last === epoch && !proxy.dynamic))) return false;
   if (arrived) rt.setup.worlds.refresh();
   const moved = proxy.sync(reader(rt));
-  seen.set(proxy, epoch);
+  seen.set(proxy, last === epoch ? epoch + 0.5 : epoch);
   return moved;
 }
 
