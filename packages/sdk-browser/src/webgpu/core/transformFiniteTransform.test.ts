@@ -21,11 +21,11 @@ test('setWebgpuTransform refuses a NaN or infinite matrix (NON_FINITE_TRANSFORM)
     const demandee = versGpu(cisaillee(3, 6));
     demandee[index] = valeur;
     assert.throws(
-      () => setWebgpuTransform(rt, 'cible', demandee),
+      () => setWebgpuTransform(rt, 'target', demandee),
       (erreur: unknown) =>
         erreur instanceof EngineError &&
         erreur.code === 'NON_FINITE_TRANSFORM' &&
-        erreur.details.nodeName === 'cible' &&
+        erreur.details.nodeName === 'target' &&
         erreur.details.index === index,
       `index ${index}=${valeur} not refused`,
     );
