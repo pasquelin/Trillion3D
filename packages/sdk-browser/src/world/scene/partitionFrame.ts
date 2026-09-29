@@ -76,6 +76,7 @@ export function createPartitionFrame(inputs: Inputs) {
   const { partitions, streamer, camera, active, renew, budget } = inputs;
   if (!partitions.length) return null;
   const mounts = createPartitionMounts({ partitions, opened: inputs.opened, active, renew });
+  const manifests = partitions.map((cells) => cellHoldings(cells).manifest);
   let reads: Promise<void>[] = [],
     later = false;
   const request = (urls: readonly string[], ahead: boolean) => {
@@ -89,10 +90,7 @@ export function createPartitionFrame(inputs: Inputs) {
   };
   const pending = async () => {
     const asked = reads,
-      turned = [
-        ...mounts.asked(),
-        ...partitions.flatMap((cells) => cellHoldings(cells).manifest.reads()),
-      ];
+      turned = [...mounts.asked(), ...manifests.flatMap((manifest) => manifest.reads())];
     reads = [];
     await Promise.all([...asked, ...turned]);
     return later || turned.length > 0 || mounts.stale();
