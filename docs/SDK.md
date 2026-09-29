@@ -126,7 +126,9 @@ engine already holds, since the frames drawn before the wait may have read them 
 read for the view while the wait runs (a prefetch aside), whether the host reads it for the cut or the WebGPU engine for its own
 residency —, `completed` those resident, rising as each lands; the last event has
 `completed === total`. One callback given to both drives a progress bar from the first byte to
-the first pages (example `watch-a-world-load`).
+the first pages (example `watch-a-world-load`). A session that closes during the wait — a lost
+device, an option it cannot take in place — never rejects it: the wait carries on with the session
+opened again.
 
 A model's vertices stay on the server until something reads them: `scene.load` reads no vertex
 buffer (`source.bin`), the pages draw the model. The buffer is read once, on the first need: a
@@ -863,9 +865,12 @@ measured faster, operation by operation. `metric.frame(world).mathBatch` publish
 `MathPathMetrics` (`MATH_PATH_CONTRACT` 1): `operations[name].path` is the path the next call
 plays, `jsNsPerElement` and `wasmNsPerElement` the sliding medians in nanoseconds per element
 (`null` while unmeasured — never zero), `switches` how many times the decision changed, `elements`
-the total processed; `clockCoarse` says the thread clock is too coarse to arbitrate, and everything
-then stays on JavaScript. The other batches have no kernel: a kernel is written only where a loop's
-share of the engine's own frame is measured above 0.1 ms, and none of their loops reaches it (#80).
+the total processed; `clockCoarse` says the thread clock is too coarse to time one call (no
+cross-origin isolation), so the governor times pooled runs of ten clock steps instead (#919). A host
+that serves its page with the `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy`
+headers gets the fine clock back, one sample per call. The other batches have no kernel: a kernel
+is written only where a loop's share of the engine's own frame is measured above 0.1 ms, and none of
+their loops reaches it (#80).
 
 ## Maths reference
 
@@ -1040,7 +1045,7 @@ overcast sky) carries only `direction` — the propagation direction — and is 
 a 16×16 screen tile lists up to 64 lights reaching it, and past that takes exactly the lights
 reaching it from a pool sized from the view (#849) —; 64 shadow slices,
 past which a caster lights without a shadow (`shadowCastersUnsliced`), and at most 24 shadow
-regions redrawn per frame. WebGL2 draws 64 lights and refuses more (#835). The shadow pool is sized
+regions redrawn per frame. WebGL2 draws every light, each draw only those whose range reaches it (#835). The shadow pool is sized
 once, at the first frame that casts a shadow, from its screen and its shadowed lights: layers of
 128² pages as wide as the device draws, within the budget's shadow share; `metric.frame(world)`
 publishes its `shadowPoolBytes` and `shadowPoolLayers`, and its memory pressure by name
@@ -1155,7 +1160,7 @@ as `world.budget.split`:
   a total under them is refused (`GPU_BUDGET_UNDER_SHADOW_POOL`), so no total below 913 MiB is
   taken on the default canvas. The pool a screen takes, its static layer and its fixed buffers always fit that
   share, whatever the screen.
-- CPU: the shadow page table's host mirror first (21.2 MiB, fixed whatever the screen), then the
+- CPU: the shadow page table's host mirror first (25.9 MiB, `SHADOW_HOST_BYTES`, fixed whatever the screen), then the
   decoded-page cache takes the whole rest (`split.pageCache`); within it the session in place
   reserves its manifest tables (a fixed reckoning per catalogue entry, not a measured heap size)
   and its transfer queue, and the engine's cut tables (group closure, residency readiness, the
@@ -1557,14 +1562,21 @@ bend }` simulates the mesh's vertices one by one on Jolt's soft bodies. A cloth 
   is drawn without it — the loop never stops — and the world's diagnostic channel says
   `material-degraded` once per surface and feature (`context.material`, `context.feature`). The
   WebGPU page raster lists material extensions among its unsupported capabilities and says nothing
-  per surface.
+  per surface. A surface the WebGL2 program cannot draw at all (an environment, light, bump,
+  displacement or alpha map, wireframe, stencil writes, alpha hash, premultiplied alpha, alpha to
+  coverage, clipping planes, object-space normals) is left out of the frame while every other
+  object draws and the loop goes on; the channel says `material-refused` once per surface and
+  reason (`context.material`, `context.reason`).
 - Transparent surfaces are lit from the source file's own light graph with a fixed ambient, not yet
   by the declared-light rule above.
 - A lost device is recovered, the page never reloaded: the world asks for a device again, reopens its
   session on it and rebuilds from its decoded-page cache, fetching no page, bundle or resident proxy
   it still holds (the proxy and the decoded texture levels are kept inside `world.budget.cpu`
   unless they yielded to the pages). `gpu-device-recovered` says the time from the loss to the
-  first frame drawn after it (`recoveryMs`). `lights.json` is read again, and cross-API fallback is
+  first frame drawn after it (`recoveryMs`). Until then the canvas keeps the last image drawn.
+  Every reopen of a world's session is said once as `session-reopen`: its `cause` (`device-lost`,
+  `option`, or a content change — `defect: true`, a change the session should have taken in
+  place), `durationMs`, and `framesWithoutImage`, the display frames it showed no new image through. `lights.json` is read again, and cross-API fallback is
   not implemented.
 - Frame targets the device refused are asked again only when the view's size changes, or by a
   capture; until then the frames stay held on the previous image.

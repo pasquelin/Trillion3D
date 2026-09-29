@@ -5,12 +5,14 @@ import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { isCancelled } from '../backend/common.ts';
 import { mainViewGpu, viewGpu, type WebgpuView } from '../webgpu/pages/state/view.ts';
 import { MOTION_CAPABILITY, TAA_CAPABILITY } from './capability.ts';
+import { sessionRenderScale } from '../webgpu/pages/state/renderScale.ts';
 
 /**
  * Rig temporal antialiasing after deferred lighting. The host can refuse it
  * (`temporalAntialiasing: false`): nothing is then created, and the image stays sampled at
  * the pixel centre. A device that rejects the program leaves the capability unsupported and
- * the image as before — never a false image.
+ * the image as before — never a false image. A session drawn below the display (`renderScale`) also compiles
+ * the resolves that reconstruct it (`../webgpu/pages/state/renderScale.ts`).
  */
 export async function prepareTemporalAntialiasing(rt: WebgpuPagesRuntime, device: GPUDevice) {
   rt.gpu.temporalWanted = rt.context.temporalAntialiasing !== false;
@@ -20,7 +22,7 @@ export async function prepareTemporalAntialiasing(rt: WebgpuPagesRuntime, device
 async function rigTemporalAntialiasing(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { gpu, capabilities } = rt;
   try {
-    const temporal = await createTemporalAntialiasing(device, rt.layout.selectionRoots);
+    const temporal = await createTaa(rt, device);
     // The main view's, even when a capture is drawn aside once the program has compiled.
     const main = mainViewGpu(rt);
     // Switched off, rigged by an earlier call or closed while the program compiled: not kept.
@@ -86,7 +88,7 @@ export function setWebgpuTemporalAntialiasing(rt: WebgpuPagesRuntime, on: boolea
  *  unallocated, `makeTargets` counts it. */
 function joinTargets(gpu: WebgpuView['gpu']) {
   const { temporal } = gpu;
-  if (temporal && gpu.colorTexture && temporal.resize(...gpu.targetSize))
+  if (temporal && gpu.colorTexture && temporal.resize(...gpu.displaySize))
     gpu.targetBytes += temporal.historyBytes;
 }
 
@@ -95,7 +97,7 @@ function joinTargets(gpu: WebgpuView['gpu']) {
 export async function rigViewTemporal(rt: WebgpuPagesRuntime, view: WebgpuView) {
   const device = rt.gpu.device;
   if (!device || !mainViewGpu(rt).temporal || viewGpu(rt, view).temporal) return;
-  const temporal = await createTemporalAntialiasing(device, rt.layout.selectionRoots);
+  const temporal = await createTaa(rt, device);
   const gpu = viewGpu(rt, view);
   // Removed, closed or rigged meanwhile: not kept.
   if (!rt.views.persistent.includes(view) || isCancelled(rt.signal) || gpu.temporal)
@@ -104,6 +106,14 @@ export async function rigViewTemporal(rt: WebgpuPagesRuntime, view: WebgpuView) 
   joinTargets(gpu);
   rt.run.gate.resourcesChanged();
 }
+
+/** A pass for this session: with the resolves that reconstruct the display when it draws below. */
+const createTaa = (rt: WebgpuPagesRuntime, device: GPUDevice) =>
+  createTemporalAntialiasing(
+    device,
+    rt.layout.selectionRoots,
+    sessionRenderScale(rt.context.renderScale) < 1,
+  );
 
 /** The pass leaves the session: capabilities dropped, cause named, image as before the batch. */
 function dropTemporalAntialiasing(rt: WebgpuPagesRuntime, error: unknown) {
@@ -115,7 +125,7 @@ function dropTemporalAntialiasing(rt: WebgpuPagesRuntime, error: unknown) {
 }
 
 /**
- * History targets for the current image size, and their bytes. They follow resolution
+ * History targets for the display size, and their bytes. They follow resolution
  * like the other targets: no budget makes them leave. A surface capture renders from
  * another camera and does not accumulate: its targets do not touch the view's history,
  * which stays whole for the frame that follows restore.

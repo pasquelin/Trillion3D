@@ -1955,7 +1955,7 @@
       "wasmAvailable": "Mô-đun WebAssembly được nạp, ở đúng phiên bản hợp đồng.",
       "wasmSimd": "Mô-đun được biên dịch với `simd128`; `null` cho tới khi một mô-đun được nạp.",
       "clockResolutionMs": "Độ phân giải đồng hồ của luồng, tính bằng mili giây; `null` cho tới khi được ước lượng.",
-      "clockCoarse": "Đúng khi đồng hồ quá thô để phân xử: mọi thứ vẫn ở trên đường JavaScript.",
+      "clockCoarse": "Đúng khi đồng hồ quá thô để đo một lần thực thi: các lần thực thi được đo theo lô gộp.",
       "unavailableReason": "Vì sao đường WebAssembly không thể chạy được, hoặc `null` khi nó chạy được.",
       "operations": "Từng phép toán."
     }
@@ -2642,6 +2642,13 @@
       "depth": "Số lớp, cho một chồng hình ảnh."
     }
   },
+  "PlacementGrowth": {
+    "summary": "Thứ mà chủ sở hữu giao cho một phiên mở rộng bộ đệm thực thể của nó tại chỗ (`growth.ts`).",
+    "members": {
+      "growPlacements": "Một bộ đệm thực thể mà phiên giữ đã được thay bằng một bộ lớn hơn, các hàng của `from` trước và phần còn lại được cất đi: từ nay phiên đọc `to` và giữ các hàng mới, không dựng lại bảng nào (`growth.ts`). Nếu động cơ không có, chủ sở hữu mở lại phiên trên `to`.",
+      "growsInPlace": "Liệu `growPlacements` có nhận từng `from` được mở rộng đến `capacity` hàng hay không, được hỏi trước khi chủ sở hữu thay bất kỳ cái nào: false giữ nguyên chúng, và chủ sở hữu mở lại phiên trên các bộ lớn hơn."
+    }
+  },
   "PlacementRows": {
     "summary": "Các hàng đặt vị trí của các mesh được nhân bản, một hàng cho mỗi bản sao được đặt.",
     "members": {
@@ -3233,6 +3240,15 @@
       "shadowPagesDrawn": "Những gì việc làm mất hiệu lực trang đã tạo ra: các trang được vẽ lại bởi khung hình, các trang bị bỏ lại trong hàng đợi do thiếu ngân sách, và trang lỗi thời cũ nhất mà hình ảnh đọc đã chờ bao lâu. Số không ở mọi nơi là giá trị bình thường của một cảnh đứng yên; `null` trên một bộ máy không có atlas bóng đổ.",
       "shadowPagesTotal": "Các trang đã vẽ kể từ khi trình khám phá mở, bao gồm cả các lần xả của `flush()`: chi phí của một thay đổi là hiệu số giữa hai lần đọc.",
       "shadowPagesPending": "Các trang bóng đổ đang chờ.",
+      "shadowBatches": "Các lô bóng mà khung hình đã vẽ: số đếm của host về những gì nó đã mã hóa, không bao giờ được đọc trong shader, như các số đếm bên dưới. Null với engine không có atlas bóng.",
+      "shadowLayersDrawn": "Các lớp của pool mà các lượt vẽ bóng của khung hình đã vẽ vào.",
+      "shadowPagesRestored": "Các trang được vẽ từ bản sao lớp tĩnh của chúng, chỉ raster hóa các vật đổ bóng đang chuyển động.",
+      "shadowPagesRasterized": "Các trang có vật đổ bóng tĩnh được raster hóa lại; cùng với các trang được khôi phục, là mọi trang đã vẽ.",
+      "shadowRestoreCopies": "Các bản sao trang từ lớp tĩnh: một trang được khôi phục, hoặc một trang được vẽ đầy đủ trên lớp của nó.",
+      "shadowStaticDrawCalls": "Lệnh vẽ của vật đổ bóng tĩnh: vào lớp tĩnh, hoặc của một trang được vẽ trọn vẹn khi không có lớp đó.",
+      "shadowMovingDrawCalls": "Lệnh vẽ chỉ của vật đổ bóng chuyển động, trên các trang được khôi phục từ lớp tĩnh.",
+      "shadowMovingCastersKept": "Trong `shadowCastersKept`, các cụm được giữ để chỉ vẽ vật đổ bóng chuyển động.",
+      "shadowPagesStaledBy": "Các trang mà khung hình làm cũ, theo lý do: ánh sáng, vật đổ bóng đứng yên, vật đổ bóng chuyển động, chi tiết, ngưỡng cắt, hoặc dải độ sâu của mặt trời.",
       "shadowWaitMs": "Số mili giây trang lỗi thời cũ nhất mà hình ảnh đọc đã chờ để được vẽ lại. Chỉ tính thời gian hình ảnh đọc nó; 0 khi đã được vẽ lại.",
       "shadowCutDrops": "Các lô của phép cắt từ ánh sáng đã bỏ công việc — các góc nhìn của chúng giữ nhiều cụm hơn sức chứa của danh sách —, kể từ khi mở trình khám phá: mỗi lô gửi lại các trang của nó, bị rút ra cho đến khi được vẽ lại (#525). Null trên engine không có phép cắt ánh sáng trên GPU, như ba mục dưới.",
       "shadowCutWithdrawnPages": "Các trang được vẽ lại vì một phép cắt từ ánh sáng đã vẽ sai chúng, kể từ khi mở trình khám phá: lô của nó đã bỏ công việc, hoặc cờ của nó chưa bao giờ được đọc. Chúng bị rút ra cho đến khi được vẽ lại.",
@@ -3287,6 +3303,9 @@
       "receive": "Một báo cáo yêu cầu đã trả về; kế hoạch tiếp theo đọc nó. Báo cáo mới hơn thay báo cáo chưa đọc.",
       "commit": "Các trang `[from, to)` trong danh sách của khung hình đã được mã hóa, trang `from + i` trong `modes[i]`: bản vẽ của chúng xong trước khi có ai đọc. Lô cuối đóng danh sách."
     }
+  },
+  "ShadowStaleReason": {
+    "summary": "Lý do một trang bóng trở nên lỗi thời (`ShadowFrameMetrics.shadowPagesStaledBy`)."
   },
   "ShadowViewpoint": {
     "summary": "Những gì bộ lập lịch biết về góc nhìn: một camera, không phải một ma trận, để giữ không phụ thuộc.",
@@ -4179,6 +4198,15 @@
       "shadowPagesDrawn": "Những gì việc làm mất hiệu lực trang đã tạo ra: các trang được vẽ lại bởi khung hình, các trang bị bỏ lại trong hàng đợi do thiếu ngân sách, và trang lỗi thời cũ nhất mà hình ảnh đọc đã chờ bao lâu. Số không ở mọi nơi là giá trị bình thường của một cảnh đứng yên; `null` trên một bộ máy không có atlas bóng đổ.",
       "shadowPagesTotal": "Các trang đã vẽ kể từ khi trình khám phá mở, bao gồm cả các lần xả của `flush()`: chi phí của một thay đổi là hiệu số giữa hai lần đọc.",
       "shadowPagesPending": "Các trang bóng đổ đang chờ.",
+      "shadowBatches": "Các lô bóng mà khung hình đã vẽ: số đếm của host về những gì nó đã mã hóa, không bao giờ được đọc trong shader, như các số đếm bên dưới. Null với engine không có atlas bóng.",
+      "shadowLayersDrawn": "Các lớp của pool mà các lượt vẽ bóng của khung hình đã vẽ vào.",
+      "shadowPagesRestored": "Các trang được vẽ từ bản sao lớp tĩnh của chúng, chỉ raster hóa các vật đổ bóng đang chuyển động.",
+      "shadowPagesRasterized": "Các trang có vật đổ bóng tĩnh được raster hóa lại; cùng với các trang được khôi phục, là mọi trang đã vẽ.",
+      "shadowRestoreCopies": "Các bản sao trang từ lớp tĩnh: một trang được khôi phục, hoặc một trang được vẽ đầy đủ trên lớp của nó.",
+      "shadowStaticDrawCalls": "Lệnh vẽ của vật đổ bóng tĩnh: vào lớp tĩnh, hoặc của một trang được vẽ trọn vẹn khi không có lớp đó.",
+      "shadowMovingDrawCalls": "Lệnh vẽ chỉ của vật đổ bóng chuyển động, trên các trang được khôi phục từ lớp tĩnh.",
+      "shadowMovingCastersKept": "Trong `shadowCastersKept`, các cụm được giữ để chỉ vẽ vật đổ bóng chuyển động.",
+      "shadowPagesStaledBy": "Các trang mà khung hình làm cũ, theo lý do: ánh sáng, vật đổ bóng đứng yên, vật đổ bóng chuyển động, chi tiết, ngưỡng cắt, hoặc dải độ sâu của mặt trời.",
       "shadowWaitMs": "Số mili giây trang lỗi thời cũ nhất mà hình ảnh đọc đã chờ để được vẽ lại. Chỉ tính thời gian hình ảnh đọc nó; 0 khi đã được vẽ lại.",
       "shadowCutDrops": "Các lô của phép cắt từ ánh sáng đã bỏ công việc — các góc nhìn của chúng giữ nhiều cụm hơn sức chứa của danh sách —, kể từ khi mở trình khám phá: mỗi lô gửi lại các trang của nó, bị rút ra cho đến khi được vẽ lại (#525). Null trên engine không có phép cắt ánh sáng trên GPU, như ba mục dưới.",
       "shadowCutWithdrawnPages": "Các trang được vẽ lại vì một phép cắt từ ánh sáng đã vẽ sai chúng, kể từ khi mở trình khám phá: lô của nó đã bỏ công việc, hoặc cờ của nó chưa bao giờ được đọc. Chúng bị rút ra cho đến khi được vẽ lại.",
@@ -7441,7 +7469,7 @@
     }
   },
   "SHADOW_RECORD_FLOATS": {
-    "summary": "Các số float của một bản ghi bóng, bản mà phép tô bóng của một đèn đọc: sáu ma trận mặt đèn — ở đó, các dải độ sâu của mặt trời, mỗi dải là `zNear` và nghịch đảo độ rộng (`recordPack.ts`) —, rồi hệ khung của mặt phẳng mặt trời — `right`, `up`, `axis`, mỗi cái đệm thành bốn —, rồi gốc vùng của mỗi mức clipmap dưới dạng hai số nguyên, rồi một phần đầu `vec4f`: số mặt (đèn) hoặc số mức (mặt trời), tang nửa trường của đèn hoặc mức mịn nhất của mặt trời, mặt phẳng gần của đèn, và mục đầu tiên của bản ghi trong bảng trang."
+    "summary": "Các số float của một bản ghi bóng, bản mà phần đổ bóng của một nguồn sáng đọc: sáu ma trận mặt đèn — ở đó là các dải độ sâu của mặt trời, mỗi dải `zNear, zFar` (`recordPack.ts`) —, rồi khung mặt phẳng ánh sáng của mặt trời — `right, zNear`, `up, zFar`, `axis`, rồi ô của dải hiện tại —, rồi gốc cửa sổ của mỗi ô clipmap dưới dạng hai số nguyên, rồi một phần đầu `vec4f`: các mặt (đèn) hoặc các mức (mặt trời), nửa trường tiếp tuyến của đèn hoặc mức mịn nhất của mặt trời, mặt phẳng gần của đèn, và mục đầu tiên của bản ghi trong bảng trang."
   },
   "ShadowRequestReport": {
     "summary": "Những gì phép tô bóng đã đọc trong một khung: các mục bảng nó yêu cầu, không theo thứ tự.",

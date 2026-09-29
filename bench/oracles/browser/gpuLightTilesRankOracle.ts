@@ -163,13 +163,17 @@ export function compactTile(
 
 /** The lights a pixel of the tile walks in each slice, as `tileSlice` of the resolve reads
  *  them: its list, past `TILE_LIGHTS` its slice of the pool, and every light of the scene when
- *  the pool had no room. */
-export function tileLists(layout: TileLayout, tiles: Uint32Array, lightCount: number) {
+ *  the pool had no room. `record` is the tile's first word in `tiles`, whose pool indices are
+ *  absolute: 0 for the oracle's one record, `tile × stride` in the pass's whole buffer. */
+export function tileLists(layout: TileLayout, tiles: Uint32Array, lightCount: number, record = 0) {
   const walk = (count: number, base: number) => {
-    const first = count <= layout.tileLights ? base : tiles[base];
+    const first = count <= layout.tileLights ? record + base : tiles[record + base];
     return first === layout.noSlice
       ? Array.from({ length: lightCount }, (_, index) => index)
       : [...tiles.subarray(first, first + count)];
   };
-  return { opaque: walk(tiles[0], layout.opaqueBase), blend: walk(tiles[1], layout.blendBase) };
+  return {
+    opaque: walk(tiles[record], layout.opaqueBase),
+    blend: walk(tiles[record + 1], layout.blendBase),
+  };
 }

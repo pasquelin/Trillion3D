@@ -12,7 +12,8 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
  * - the presented surface: its context is unconfigured, which replaces the drawing buffer with
  *   a transparent black image, and the presenter is dropped so `presentedSurface` no longer
  *   publishes the canvas — a host composing from it draws as for an engine without one, and a
- *   host canvas the engine presented into goes blank rather than keeping a stale frame;
+ *   host canvas the engine presented into goes blank rather than keeping a stale frame — save a
+ *   world's, which keeps its image until the session reopened on it draws (`canvasHandover.ts`);
  * - the held frame: `frameHeld` is cleared, so nothing redisplays the target as this frame.
  *
  * Then, given a cause, the loss is announced once under `gpu-device-lost` with

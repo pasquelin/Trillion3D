@@ -5,16 +5,16 @@ import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts';
 import { createGuideSet, type Guides } from '../../guides/guideSet.ts';
 import {
   noticeEffectRefusal,
-  noticeMaterialDegraded,
   noticeShadowRefusal,
   type WorldNotices,
 } from '../diagnostic/worldNotices.ts';
+import { noticeMaterialDegraded } from '../diagnostic/materialNotices.ts';
 import type { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts';
 
 /** What of the world's runtime the switches reach: its open session, and its reopening. */
 interface SwitchedRuntime {
   readonly explorer: MeasuredWorld | null;
-  renew(): void;
+  renew(cause: 'option'): void;
 }
 
 /**
@@ -57,7 +57,7 @@ export function worldSwitches(
       if (on === held.bounce) return;
       held.bounce = on;
       const session = runtime().explorer;
-      if (session && !session.setBounce(on)) runtime().renew();
+      if (session && !session.setBounce(on)) runtime().renew('option');
       invalidate();
     },
     get temporalAntialiasing() {

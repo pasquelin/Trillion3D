@@ -53,7 +53,7 @@ function frames(limit = Infinity) {
   Object.assign(rt.gpu, {
     device: gpu.device,
     presenter: { present: () => shown.push(lastImage) },
-    colorTexture: {},
+    displayTexture: {},
   });
   const hold = {
     createCommandEncoder: () => ({ finish: () => ({}) }),

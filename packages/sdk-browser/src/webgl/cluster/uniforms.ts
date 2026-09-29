@@ -1,4 +1,5 @@
 import { LTC_UNIT } from './rectGlsl.ts';
+import { LIGHT_DATA_UNIT, LIGHT_LIST_UNIT } from './lightTexture.ts';
 
 export class Matrix3UniformCache {
   private values = new Map<string, Float32Array>();
@@ -43,6 +44,8 @@ export const setClusterSamplers = (
   gl.uniform1i(location('ltcTable'), LTC_UNIT);
   gl.uniform1i(location('reflectionColor'), LTC_UNIT + 1);
   gl.uniform1i(location('reflectionDepth'), LTC_UNIT + 2);
+  gl.uniform1i(location('lightData'), LIGHT_DATA_UNIT);
+  gl.uniform1i(location('lightList'), LIGHT_LIST_UNIT);
 };
 
 export const setMatrix3 = (
