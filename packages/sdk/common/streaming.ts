@@ -85,7 +85,6 @@ export type {
   PageDecodeGeometryPayload,
   PageDecodeOp,
   PageDecodeRequest,
-  PageDecodeShare,
 } from '../../sdk-core/src/page/decodeContracts.ts';
 export {
   PAGE_INTEGRATION_FAILURES,

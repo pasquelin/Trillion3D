@@ -1,5 +1,6 @@
 import type { BackendDiagnostic } from '../backend/types.ts';
 import type { PageCache } from './pageCache.ts';
+import type { LazyDiagnostic } from '../diagnostic/engineDiagnostic.ts';
 
 /**
  * What a frame tells the page cache it keeps: a REQUEST RANK delta, not an address list.
@@ -23,6 +24,14 @@ export interface HostRetentionDelta {
   readonly held: Int32Array;
   /** How many held. */
   readonly heldCount: number;
+}
+
+/** How `request` reads a batch: its cancel, its priority, and what runs as each page lands. */
+export interface BatchRead {
+  /** Cancels the batch's reads. */ signal?: AbortSignal;
+  /** Queue priority, 1 by default. */ priority?: number;
+  /** Runs as each page's read lands, not after the whole batch. */
+  onPage?: (url: string) => unknown;
 }
 
 /** One page a streamer fetches: where, how big, and its fingerprint. */
@@ -106,6 +115,7 @@ export type StreamContext = {
      *  the cache weighs itself: those tables follow the view. */
     reservedBytes: () => number;
   };
-  emit: (phase: string, message: string, context: () => Record<string, unknown>) => void;
+  /** `undefined` when nobody listens: `emit?.(…)` then builds nothing (`lazyDiagnostic`). */
+  emit: LazyDiagnostic | undefined;
   abortError: () => DOMException;
 };
