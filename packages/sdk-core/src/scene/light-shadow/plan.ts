@@ -47,7 +47,6 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     byPage = true,
     report: ShadowRequestReport | null = null,
     resting = false,
-    quiet = false,
     views = 0,
     settledStamp = -1;
   const stampOf = (store: SceneLightStore) => table.version + views + store.epoch;
@@ -79,11 +78,6 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     /** The camera rested at the last plan: its view was the one of the plan before. */
     get resting() {
       return resting;
-    },
-    /** The camera rested and nothing in the world moved at the last plan: no surface, receiver or
-     *  caster, can have asked for a page the plan before did not. */
-    get quiet() {
-      return quiet;
     },
     /** True while a representation change waits for the camera to rest. */
     get deferredChanges() {
@@ -120,12 +114,12 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     ) {
       counts.beginFrame();
       records.release(store);
-      const still = changes.observeView(view);
-      quiet = still && !changes.worldMoved();
+      const still = changes.observeView(view),
+        quiet = still && !changes.worldMoved();
       resting = still;
       if (!still) views++;
       planLights(lightsState, store, view, sceneMin, sceneMax, frame, nowMs, byPage);
-      gpu.noteDrops(frame);
+      gpu.noteFrame(frame, !quiet);
       changes.settled();
       if (still) counts.staled(STALE_BY.threshold, thresholds.restale(nowMs, frame));
       // Nothing moves: the pages of an older depth range are drawn in the current one.
@@ -187,7 +181,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       admission.reset();
       gpu.set(false, 0);
       report = null;
-      resting = quiet = false;
+      resting = false;
       settledStamp = -1;
     },
     /** The pool at another size, its pages kept, its arrays anew: returns where each page went. */

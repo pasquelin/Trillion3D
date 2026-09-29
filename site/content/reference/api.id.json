@@ -3321,7 +3321,6 @@
       "worldChanged": "Sebuah node bergerak: kotaknya membuat usang halaman yang ditutupinya pada rencana berikutnya.",
       "representationChanged": "Dunia yang sama dengan presisi lain: kotaknya menunggu kamera diam.",
       "resting": "Kamera diam pada rencana terakhir: tampilannya sama dengan rencana sebelumnya.",
-      "quiet": "Kamera diam dan tidak ada yang bergerak di dunia pada rencana terakhir: tidak ada permukaan, penerima maupun pemancar bayangan, yang dapat meminta halaman yang tidak diminta rencana sebelumnya.",
       "deferredChanges": "Benar selama perubahan representasi menunggu kamera diam.",
       "releaseDeferred": "Bingkai tidak merencanakan bayangan: gabungan yang ditahan langsung masuk ke daftar.",
       "setPageInvalidation": "Mematikan invalidasi per halaman: objek bergerak membuat usang setiap halaman cahaya yang disentuhnya. Aktif secara default.",

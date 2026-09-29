@@ -5567,7 +5567,6 @@
       "worldChanged": "Un nodo se movió: su caja invalida las páginas que cubre en el siguiente plan.",
       "representationChanged": "El mismo mundo con otra precisión: su caja espera a que la cámara se detenga.",
       "resting": "La cámara estaba en reposo en el último plan: su vista era la del plan anterior.",
-      "quiet": "La cámara estaba en reposo y nada se movió en el mundo en el último plan: ninguna superficie, receptora o proyectora, pudo pedir una página que el plan anterior no pidiera.",
       "deferredChanges": "Verdadero mientras un cambio de representación espera a que la cámara se detenga.",
       "releaseDeferred": "La imagen no planifica ninguna sombra: la unión retenida entra en la lista de inmediato.",
       "setPageInvalidation": "Desactiva la invalidación por página: un objeto en movimiento invalida todas las páginas de las luces que toca. Activa por defecto.",

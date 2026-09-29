@@ -5567,7 +5567,6 @@
       "worldChanged": "Un nodo si è mosso: il suo box invalida le pagine che copre al piano successivo.",
       "representationChanged": "Lo stesso mondo a un’altra precisione: il suo box attende che la camera si fermi.",
       "resting": "La camera era ferma all'ultimo piano: la sua vista era quella del piano precedente.",
-      "quiet": "La camera era ferma e nulla si è mosso nel mondo all’ultimo piano: nessuna superficie, ricevente o proiettante, può aver chiesto una pagina che il piano precedente non chiedeva.",
       "deferredChanges": "Vero finché un cambio di rappresentazione attende che la camera si fermi.",
       "releaseDeferred": "Il fotogramma non pianifica alcuna ombra: l’unione trattenuta entra subito nella lista.",
       "setPageInvalidation": "Disattiva l’invalidazione per pagina: un oggetto in movimento invalida ogni pagina delle luci che tocca. Attiva per impostazione predefinita.",

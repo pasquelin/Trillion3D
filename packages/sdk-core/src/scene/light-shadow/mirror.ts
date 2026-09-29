@@ -83,14 +83,19 @@ export function createShadowMirror(
     /** Pages the latest snapshot's frame listed for the GPU to draw: while some are, the GPU's
      *  page draws run (`freshPass.ts`). */
     listed: 0,
+    /** The view or the world moved at the last plan: a surface, a caster's own too, may ask pages
+     *  no frame before did, and the GPU's page draws run (`freshPass.ts`). */
+    moved: false,
     /** The GPU allocates, its pool written from the host's, or no longer does, from frame `frame`
      *  on: snapshots before are left. */
     set(allocate: boolean, frame: number) {
       mirror.on = allocate;
       from = Math.max(from, frame);
     },
-    /** Frame `frame`'s plan dropped pages or not (`records.drops`): snapshots before are left. */
-    noteDrops(frame: number) {
+    /** Frame `frame`'s plan, the view or world `moved` or not, dropped pages or not
+     *  (`records.drops`): snapshots before a drop are left. */
+    noteFrame(frame: number, moved: boolean) {
+      mirror.moved = moved;
       if (records.drops === drops) return;
       drops = records.drops;
       from = Math.max(from, frame);
