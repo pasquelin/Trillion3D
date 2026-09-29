@@ -24,12 +24,21 @@ export interface UpscaleFrame {
   /** The as-is flag (a blended resolve's float) and the display layers, per texel. */
   flag?: (x: number, y: number) => number;
   layer?: (x: number, y: number) => number[];
+  /** The image moves (`view.jitter.z`): the history is read and blended as in motion. */
+  moving?: boolean;
+  /** The reactive value the blends and particles wrote, per texel. */
+  reactive?: (x: number, y: number) => number;
+  /** The placement tags of the four history texels read at a point (`historyWgsl.ts`); absent,
+   *  those of the 3×3 are there. */
+  tags?: (uv: number[]) => number[];
 }
 
 /** What the resolve wrote at a display pixel, and where it read the history. */
 interface Resolved {
   color: number[];
   share: number;
+  /** The placement tag written beside the share, 0 to 255. */
+  tag: number;
   layers: number[][];
   reads: number[][];
 }
@@ -55,12 +64,17 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false) 
       viewport: [W, H, 1 / W, 1 / H],
       params: [0.25, frame.history ? 1 : 0, frame.motion ? 1 : 0, 1],
       render: [w, h, 1 / w, 1 / h],
-      jitter: [...(frame.jitter ?? [0, 0]), 0, 0],
+      jitter: [...(frame.jitter ?? [0, 0]), frame.moving ? 1 : 0, 0],
     },
     current: texel(frame.color),
     depth: texel(frame.depth ?? (() => 0)),
     ids: texel((x, y) => [frame.id?.(x, y) ?? 0, 0, 0, 0]),
     flags: texel((x, y) => [frame.flag?.(x, y) ?? 0, 0, 0, 0]),
+    reactive: texel((x, y) => [0, frame.reactive?.(x, y) ?? 0, 0, 0]),
+    textureDimensions: () => [w, h],
+    tagHistory: (uv: number[]) => frame.tags?.(uv) ?? [0, 1, 0, 1].map((tag) => tag / 255),
+    textureGather: (_: number, texture: (uv: number[]) => number[], __: null, uv: number[]) =>
+      texture(uv),
     filterNow: texel(frame.layer ?? frame.color),
     addNow: texel(frame.layer ?? frame.color),
     pages: [{ placement: 0 }],
@@ -72,11 +86,26 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false) 
     historySampler: null,
     textureLoad: (texture: (at: Vec) => unknown, at: Vec) => texture(at),
     textureSampleLevel: (texture: (uv: number[]) => number[], _: null, uv: number[]) => texture(uv),
-    TaaOut: (color: number[], share: number, ...layers: number[][]) => ({ color, share, layers }),
+    TaaOut: (color: number[], [share, tag]: number[], ...layers: number[][]) => ({
+      color,
+      share,
+      tag: Math.round(tag * 255),
+      layers,
+    }),
   };
   const { resolve } = shaderRun<{ resolve: (pixel: number[]) => Omit<Resolved, 'reads'> }>(
     taaUpscaleShader(asIs, asIs, filtered),
-    ['resolve', 'previousUv', 'toYcocg', 'fromYcocg', 'lanczos2'],
+    [
+      'resolve',
+      'previousUv',
+      'toYcocg',
+      'fromYcocg',
+      'lanczos2',
+      'historyCatmullRom',
+      'placementTag',
+      'uncovered',
+      'currentShare',
+    ],
     scope,
   );
   return (x: number, y: number): Resolved => {

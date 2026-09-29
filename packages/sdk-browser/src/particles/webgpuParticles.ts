@@ -163,25 +163,32 @@ export function encodeParticles(
   rt.run.gpuComputeDispatches += rt.gpu.particles.run(pools, encoder);
 }
 
-/** The world's stepped pools drawn over the lit image and its transparents, in beauty only;
- *  `tone`, the image's exposure and curve (`directTiles`), shows a routed disc. */
+/** Whether this image draws the world's pools: in beauty, once a camera and the targets are. */
+export function drawsParticles({ run, gpu, context }: WebgpuPagesRuntime) {
+  const { hdrView, depthView, asIsShare, particles } = gpu;
+  const targets = !!(context.particles && particles && hdrView && depthView && asIsShare);
+  return targets && run.diagnostic === 'beauty' && !!run.lastCamera;
+}
+
+/** The world's stepped pools drawn over the lit image and its transparents, in beauty only, their
+ *  coverage as the reactive value (`asIsShare.ts`); `tone`, the image's exposure and curve
+ *  (`directTiles`), shows a routed disc. */
 export function drawParticles(
   rt: WebgpuPagesRuntime,
   encoder: GPUCommandEncoder,
   tone: ArrayLike<number>,
 ) {
+  if (!drawsParticles(rt)) return;
   const { run } = rt,
-    { hdrView, depthView, particles } = rt.gpu,
-    pools = rt.context.particles;
-  if (!pools || !particles || !hdrView || !depthView) return;
-  if (run.diagnostic !== 'beauty' || !run.lastCamera) return;
+    { hdrView, depthView, asIsShare, particles } = rt.gpu;
   const { eye } = run.gate.cam;
   const filter = routedFilter(rt.gpu.displayFilter);
-  run.gpuDrawCalls += particles.draw(
-    pools,
+  run.gpuDrawCalls += particles!.draw(
+    rt.context.particles!,
     encoder,
-    hdrView,
-    depthView,
+    hdrView!,
+    asIsShare!.view,
+    depthView!,
     rt.gpu.targetSize,
     viewProj,
     eye,

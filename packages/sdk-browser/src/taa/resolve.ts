@@ -4,8 +4,9 @@ import { FILTER_FORMAT } from '../webgpu/blend/displayFilter.ts';
 import { createTaaLayout, taaShader } from './shaderWgsl.ts';
 import { taaUpscaleShader } from './upscaleWgsl.ts';
 
-/** Format of the as-is share accumulated beside the colour: one channel, filtered like it. */
-export const SHARE_FORMAT: GPUTextureFormat = 'r8unorm';
+/** Format of the as-is share accumulated beside the colour, filtered like it, and of the
+ *  placement tag each pixel keeps beside it (`historyWgsl.ts`). */
+export const SHARE_FORMAT: GPUTextureFormat = 'rg8unorm';
 
 type TaaResolveKind = 'asIs' | 'flagless' | 'blended';
 
