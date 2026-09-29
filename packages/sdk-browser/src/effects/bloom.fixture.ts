@@ -43,10 +43,10 @@ export function publishedUpTaps(): BloomTap[] {
 export const tapWords = (taps: readonly BloomTap[]) =>
   taps.map(([x, y, w]) => `${x},${y}:${w}`).sort();
 
-type Image = { data: Float64Array; w: number; h: number };
+export type Image = { data: Float64Array; w: number; h: number };
 
 /** A bilinear read at texel coordinates `(x, y)`, clamped to the edge, as the samplers read. */
-function bilinear({ data, w, h }: Image, x: number, y: number) {
+export function bilinear({ data, w, h }: Image, x: number, y: number) {
   const fx = x - 0.5,
     fy = y - 0.5;
   const x0 = Math.floor(fx),
@@ -101,4 +101,27 @@ export function cpuBloom(
   const blurred = filter(levels[0], image.w, image.h, up, radius);
   const data = image.data.map((value, i) => value * keep + blurred.data[i] * glow);
   return { data, w: image.w, h: image.h };
+}
+
+/** Every `c+=<read>(uv+vec2(x,y)*stride)*w;` of a text, as taps. */
+export function tapsOf(text: string): BloomTap[] {
+  const taps: BloomTap[] = [];
+  const pattern = /c\+=\w+\((?:level,)?uv\+vec2f?\(([-\d.]+),([-\d.]+)\)\*stride\)\*([\d.e-]+);/g;
+  for (const [, x, y, w] of text.matchAll(pattern)) taps.push([Number(x), Number(y), Number(w)]);
+  return taps;
+}
+
+/** An `rgba16float` target's store of `x`: the nearest half, ties to even, ±Inf from 65520 on,
+ *  NaN and the zeros' sign kept (`Math.f16round`, missing from Node 22). */
+export function f16(x: number) {
+  const a = Math.abs(x);
+  if (!Number.isFinite(x)) return x;
+  if (a >= 65520) return Math.sign(x) * Infinity;
+  let e = Math.max(-14, Math.floor(Math.log2(a || 1)));
+  if (2 ** e > a && e > -14) e--;
+  const step = 2 ** (e - 10),
+    n = a / step,
+    floor = Math.floor(n);
+  const up = n - floor > 0.5 || (n - floor === 0.5 && floor % 2 === 1);
+  return (x < 0 || Object.is(x, -0) ? -1 : 1) * (up ? floor + 1 : floor) * step;
 }
