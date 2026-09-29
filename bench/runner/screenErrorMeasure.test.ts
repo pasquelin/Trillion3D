@@ -16,11 +16,17 @@ const square = (half: number, depth: number) =>
   // prettier-ignore
   [-half, -half, -depth, half, -half, -depth, half, half, -depth,
    -half, -half, -depth, half, half, -depth, -half, half, -depth];
-const measure = (source: number[], drawn: number[], twoSided?: Uint8Array) =>
+const measure = (
+  source: number[],
+  drawn: number[],
+  twoSided?: Uint8Array,
+  drawnTwoSided?: Uint8Array,
+) =>
   measureView({
     source: Float32Array.from(source),
     twoSided,
     drawn: Float32Array.from(drawn),
+    drawnTwoSided,
     pose,
     width: 1000,
     height: 1000,
@@ -49,4 +55,16 @@ test('a single-sided source triangle seen from behind is not counted, a double-s
   assert.ok(measure(source, square(1, 10)).reverse.max < 1e-9);
   const doubleSided = Uint8Array.of(0, 0, 1);
   assert.ok(measure(source, square(1, 10), doubleSided).reverse.max > 100);
+});
+
+test('a single-sided drawn triangle seen from behind neither hides nor counts, a double-sided one does', () => {
+  // Each triangle of a square with two corners swapped: its back faces the camera.
+  const back = (half: number, depth: number) =>
+    square(half, depth).map((_, i, all) => all[i % 9 < 3 ? i + 3 : i % 9 < 6 ? i - 3 : i]);
+  const holed = [...square(1, 10).slice(0, 9), ...back(2, 5)];
+  const single = measure(square(1, 10), holed);
+  assert.ok(single.forward.max < 1e-9, `${single.forward.max}`);
+  assert.ok(single.reverse.max > 100, 'the hole shows through a back face');
+  const double = measure(square(1, 10), holed, undefined, Uint8Array.of(0, 1, 1));
+  assert.ok(double.forward.max > 100, 'a double-sided face in front of the source counts');
 });

@@ -55,6 +55,14 @@ const { triangles: source, twoSided, drawn: clusterTriangles } = await cacheSurf
 const captures = new Map<string, Capture>();
 const { server, port } = await startServer({ captures, mounts: resolveMounts(ROOT, sides) });
 
+/** WebGL2's drawn corners in the world and their per-triangle sides, as `screenErrorPage.ts`
+ *  captured them: the sides padded to whole words, a capture without them refused. */
+function webgl2Triangles(tri: NonNullable<Capture>, two: Capture | undefined) {
+  const triangles = Float32Array.from(new Float64Array(new Uint8Array(tri.body).buffer));
+  if (!two) throw new Error('screen error: a WebGL2 capture without its sides');
+  return { triangles, twoSided: new Uint8Array(two.body).subarray(0, triangles.length / 9) };
+}
+
 /** Runs `work` on a fresh page of a fresh Chrome, killed by its own PID afterwards. */
 async function onFreshPage<T>(
   engine: string,
@@ -118,12 +126,13 @@ try {
         if (!ids && !tri) throw new Error(`screen error: no capture of ${tag}-${view}`);
         const drawn = ids
           ? clusterTriangles(ids.body.toString('utf8').split('\n').filter(Boolean))
-          : Float32Array.from(new Float64Array(new Uint8Array(tri!.body).buffer));
+          : webgl2Triangles(tri!, captures.get(`${tag}-${view}.two`));
         const measured = measureView({
           source,
           twoSided,
           sourceTree,
-          drawn,
+          drawn: drawn.triangles,
+          drawnTwoSided: drawn.twoSided,
           pose: poses[i].pose,
           width: canvas[0],
           height: canvas[1],
