@@ -3,10 +3,18 @@ import { invertMatrix4 } from '../../math/matrix/matrix4Inverse.ts';
 import { proxyAffineDelta } from './proxyDelta.ts';
 import { createProxyRefit } from './proxyRefit.ts';
 
-/** A session owns its mutable tree; cached geometry and provenance remain immutable. */
+/**
+ * A session owns its mutable tree and triangles; cached geometry and provenance remain immutable.
+ * Moving owners are traced as canonical triangles under their poses (`dynamic`). The first sync
+ * with no motion settles: each triangle is written at its owners' common pose and rays go back to
+ * the still path, which reads no owner word. A group whose owners stand apart cannot be one
+ * triangle, so it keeps the proxy dynamic.
+ */
 export function createSceneProxyMotion(proxy: SceneProxy) {
+  const canonical = proxy.data.triangles;
   const data = {
     ...proxy.data,
+    triangles: canonical.slice(),
     nodeBounds: proxy.data.nodeBounds.slice(),
     nodeChildren: proxy.data.nodeChildren.slice(),
   };
@@ -36,7 +44,36 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
     dirty = new Set<number>();
   const delta = new Float64Array(16);
   let revision = 0,
-    stretch = 1;
+    stretch = 1,
+    moving = false,
+    settled = false;
+  /** Every owner of each group under one pose: the only case one triangle still describes. */
+  const coincident = () => {
+    for (let group = 0; group < proxy.groups; group++) {
+      const first = deltas[data.owners[data.groupOffsets[group] * 2]];
+      for (let owner = data.groupOffsets[group] + 1; owner < data.groupOffsets[group + 1]; owner++)
+        for (let i = 0; i < 16; i++)
+          if (deltas[data.owners[owner * 2]][i] !== first[i]) return false;
+    }
+    return true;
+  };
+  /** Writes each triangle at its owners' pose. The pose's f32 evaluation, rounded once, stays
+   *  inside the padded boxes the last refit gave it: the tree already covers the settled pose. */
+  const settle = () => {
+    const { triangles, triangleGroups, groupOffsets, owners } = data;
+    for (let t = 0; t < triangleGroups.length; t++) {
+      const m = deltas[owners[groupOffsets[triangleGroups[t]] * 2]];
+      for (let v = 0; v < 9; v += 3)
+        for (let a = 0; a < 3; a++)
+          triangles[t * 9 + v + a] =
+            m[a] * canonical[t * 9 + v] +
+            m[a + 4] * canonical[t * 9 + v + 1] +
+            m[a + 8] * canonical[t * 9 + v + 2] +
+            m[a + 12];
+    }
+    moving = false;
+    settled = true;
+  };
   return {
     data,
     transforms,
@@ -46,6 +83,7 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
     /** Typed storage not already accounted by the immutable raw cache object. */
     hostBytes:
       transforms.byteLength +
+      data.triangles.byteLength +
       proxy.instances * 16 * 8 +
       data.bindWorlds.byteLength +
       data.nodeBounds.byteLength +
@@ -53,8 +91,13 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
       refit.bytes +
       identity.byteLength +
       delta.byteLength,
+    /** Rays read owner poses: something moved since the proxy last settled. */
     get dynamic() {
-      return revision > 0;
+      return moving;
+    },
+    /** Nodes a ray may visit beyond the built tree's (`proxyRefit.ts`). */
+    get grownNodes() {
+      return refit.grownNodes();
     },
     get revision() {
       return revision;
@@ -92,7 +135,16 @@ export function createSceneProxyMotion(proxy: SceneProxy) {
         deltas[node].set(delta);
         for (const group of groups) dirty.add(group);
       }
-      if (!dirty.size) return false;
+      if (!dirty.size) {
+        if (!moving || !coincident()) return false;
+        settle();
+        revision++;
+        return true;
+      }
+      // Motion resumes from the canonical triangles, under the owners' poses.
+      if (settled) data.triangles.set(canonical);
+      settled = false;
+      moving = true;
       stretch = 1;
       for (const node of groupsOf.keys()) {
         const m = deltas[node];

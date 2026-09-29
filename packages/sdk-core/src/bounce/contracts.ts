@@ -25,15 +25,11 @@ export const BOUNCE_SETTINGS = {
   /** Triangles per BVH leaf: leaf traversal loops are bounded by this constant. */
   proxyLeafTriangles: 8,
   /**
-   * Visited BVH nodes per ray: bounded before frame execution, never dynamic.
+   * Visited BVH nodes per ray on the tree as built, bounded before frame execution. A refit
+   * adds the nodes it let into a ray, never the node count (`bounce/proxy.ts`).
    * A 4-wide node covers 4× more tree per step than a binary BVH.
    */
   traversalSteps: 128,
-  /**
-   * Visited BVH nodes per ray once an owner has moved: a refitted box may overlap its
-   * neighbours, so the fixed bound doubles. Still a constant, never the node count.
-   */
-  motionTraversalSteps: 256,
   /**
    * Traversal stack depth. A 4-wide node pushes up to 3 children; 32 covers millions of triangles.
    */

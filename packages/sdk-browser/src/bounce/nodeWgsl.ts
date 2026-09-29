@@ -17,6 +17,8 @@ export const PROXY_COUNT_OFFSET = PROXY_COUNTING_OFFSET + 4;
 export const PROXY_COUNTS = 2;
 /** Rank of the first layout word: node count, then the three start ranks. */
 export const PROXY_LAYOUT_WORD = 7;
+/** Visited nodes a ray may take, derived from the tree (`proxy.ts`), after the revision word. */
+export const PROXY_STEPS_WORD = 17;
 
 /**
  * Declaration of the resident proxy at the binding slot the calling pass gives it. The three
@@ -38,7 +40,7 @@ struct ResidentProxy{
  counting:u32,${writable ? 'tested:atomic<u32>,blocked:atomic<u32>' : 'tested:u32,blocked:u32'},nodeCount:u32,
  trianglesWord:u32,boundsWord:u32,childrenWord:u32,dynamic:u32,
  groupsWord:u32,rangesWord:u32,ownersWord:u32,transformsWord:u32,
- revision:u32,pad0:u32,pad1:u32,pad2:u32,
+ revision:u32,steps:u32,pad1:u32,pad2:u32,
  words:array<u32>,
 }
 @group(0) @binding(${binding}) var<storage,${writable ? 'read_write' : 'read'}> proxy:ResidentProxy;`;
