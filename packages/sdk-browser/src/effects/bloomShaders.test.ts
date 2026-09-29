@@ -2,10 +2,9 @@
 // each program, not the table it was generated from, is compared with the published filters.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import type { BloomTap } from './bloomFilter.ts';
 import { BLOOM_GLSL } from './bloomGlsl.ts';
 import { BLOOM_WGSL } from './bloomWgsl.ts';
-import { publishedDownTaps, publishedUpTaps, tapWords } from './bloom.fixture.ts';
+import { f16, publishedDownTaps, publishedUpTaps, tapsOf, tapWords } from './bloom.fixture.ts';
 import { bloomBlend } from './bloomFilter.ts';
 import { mulberry32 } from '../../../../site/examples/kit/random.ts';
 import { BLOOM_COMPOSE_WGSL } from './bloomLevel.ts';
@@ -14,13 +13,6 @@ import { CONTRACT_COMPOSITIONS, UNLIT_COMPOSITIONS } from '../lighting/deferred/
 
 type Blend = Record<string, (image: number, pixel: number) => number>;
 
-/** Every `c+=<read>(uv+vec2(x,y)*stride)*w;` of a text, as taps. */
-function tapsOf(text: string): BloomTap[] {
-  const taps: BloomTap[] = [];
-  const pattern = /c\+=\w+\((?:level,)?uv\+vec2f?\(([-\d.]+),([-\d.]+)\)\*stride\)\*([\d.e-]+);/g;
-  for (const [, x, y, w] of text.matchAll(pattern)) taps.push([Number(x), Number(y), Number(w)]);
-  return taps;
-}
 test('the WGSL downsample and tent are the published taps', () => {
   const down = BLOOM_WGSL.slice(BLOOM_WGSL.indexOf('fn down('), BLOOM_WGSL.indexOf('fn up('));
   const tent = BLOOM_WGSL.slice(BLOOM_WGSL.indexOf('fn tent('), BLOOM_WGSL.indexOf('fn down('));
@@ -85,20 +77,6 @@ const EDGES = [
 function randomValues(count: number) {
   const r = mulberry32(963);
   return Array.from({ length: count }, () => (r() < 0.2 ? -1 : 1) * 2 ** (r() * 60 - 36));
-}
-/** An `rgba16float` target's store of `x`: the nearest half, ties to even, ±Inf from 65520 on,
- *  NaN and the zeros' sign kept (`Math.f16round`, missing from Node 22). */
-function f16(x: number) {
-  const a = Math.abs(x);
-  if (!Number.isFinite(x)) return x;
-  if (a >= 65520) return Math.sign(x) * Infinity;
-  let e = Math.max(-14, Math.floor(Math.log2(a || 1)));
-  if (2 ** e > a && e > -14) e--;
-  const step = 2 ** (e - 10),
-    n = a / step,
-    floor = Math.floor(n);
-  const up = n - floor > 0.5 || (n - floor === 0.5 && floor % 2 === 1);
-  return (x < 0 || Object.is(x, -0) ? -1 : 1) * (up ? floor + 1 : floor) * step;
 }
 const quantizeToF16 = (x: number) => {
   assert.ok(Math.abs(x) <= 65504, `quantizeToF16(${x}) is indeterminate`);

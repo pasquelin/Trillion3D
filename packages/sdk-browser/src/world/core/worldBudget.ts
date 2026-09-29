@@ -2,8 +2,10 @@ import type { PhysicsBudget } from '../../../../sdk-core/src/physics/index.ts';
 import type { FrameMetrics } from '../../../../sdk-core/src/index.ts';
 import type { MeasuredWorld } from '../session/explorer.ts';
 import type { WorldRenderer } from '../capability/worldReady.ts';
-import { DEFAULT_GEOMETRY_POOL_BUDGET } from '../../residency/pools.ts';
-import { DEFAULT_TEXTURE_POOL_BUDGET } from '../../webgpu/residency/memoryBudgets.ts';
+import {
+  DEFAULT_GEOMETRY_POOL_BUDGET,
+  DEFAULT_TEXTURE_POOL_BUDGET,
+} from '../../residency/pools.ts';
 import {
   DEFAULT_BUDGET_CANVAS,
   DEFAULT_CPU_BUDGET,

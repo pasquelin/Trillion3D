@@ -126,11 +126,14 @@
           lists.forEach(({ position, normal, index }, k) => {
             chunk.meshes[k].visible = position.length > 0;
             if (!position.length) return;
+            // The chunk's former geometry is given back: nothing else wears it.
+            const worn = chunk.meshes[k].geometry;
             chunk.meshes[k].geometry = geometry.createBuffer({
               position: buffer.float32(new Float32Array(position), 3),
               normal: buffer.float32(new Float32Array(normal), 3),
               index: buffer.uint32(index),
             });
+            worn.dispose();
           });
         }
       }
@@ -159,8 +162,11 @@
             if (z === W - 1) quad([[a, h, edge], [a + 1, h, edge], [a + 1, top, edge], [a, top, edge]], [0, 0, 1]);
           }
         sea.visible = position.length > 0;
-        if (position.length)
+        if (position.length) {
+          const worn = sea.geometry;
           sea.geometry = geometry.createBuffer({ position: buffer.float32(new Float32Array(position), 3), normal: buffer.float32(new Float32Array(normal), 3), index: buffer.uint32(index) });
+          worn.dispose();
+        }
       }
 
       // Clouds: flat slabs of blocks drifting across the sky, back on the far side once past.

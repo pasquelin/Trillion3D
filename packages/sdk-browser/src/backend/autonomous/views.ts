@@ -1,5 +1,5 @@
 import { createEngineCamera, type CameraMotion, type EngineCamera } from '../../camera/world.ts';
-import { tradeCamera, tradeView } from '../../frame/viewTrade.ts';
+import { captureDrawn, tradeCamera, tradeView } from '../../frame/viewTrade.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
 
@@ -59,6 +59,10 @@ export function createWebglViews(
     active: main,
     all,
     others,
+    /** A capture is drawn (`captureAside`): the pool ranks its requests first (`poolUnion.ts`). */
+    capturing: false,
+    /** Whether the drawn view is a capture, whose cut is ranked first under the one budget. */
+    captureDrawn: () => captureDrawn(views, views),
     /** A view of `width × height` that has drawn nothing yet: no cut, no motion. */
     create(width: number, height: number) {
       const view: WebglView = { ...blankView([width, height]), cam: createEngineCamera() };
@@ -95,9 +99,11 @@ export function createWebglViews(
     captureAside<T>(size: { width: number; height: number }, work: () => T) {
       const view = views.create(size.width, size.height);
       views.use(view);
+      views.capturing = true;
       try {
         return work();
       } finally {
+        views.capturing = false;
         views.release(view);
       }
     },

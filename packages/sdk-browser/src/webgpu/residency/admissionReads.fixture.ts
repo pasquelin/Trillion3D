@@ -60,6 +60,7 @@ export async function run(
       scene.tiers.map((pages) => ({
         pages,
         has: (key: number) => pages.some((page) => tracking.keyOf(page) === key),
+        revision: 0,
       })),
     prefetch: readAhead
       ? (page, signal) => {

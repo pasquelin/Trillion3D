@@ -84,7 +84,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     renderScale: () => rt.scale.drawn,
     updatePlacements: (rows, from, to) => updateWebgpuPlacements(rt, rows, from, to),
     ...webgpuVertexApi(rt),
-    growsInPlace: (from, capacity) => webgpuGrowsInPlace(rt, from, capacity),
+    growsInPlace: (from) => webgpuGrowsInPlace(rt, from),
     growPlacements: (from, to) => growWebgpuPlacements(rt, from, to),
     refreshMaterials: (values, alpha) => materials.refreshWebgpuMaterials(rt, values, alpha),
     materialClassRefusal: (alpha) => materials.webgpuMaterialClassRefusal(alpha, rt.setup.allPages),
