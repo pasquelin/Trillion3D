@@ -46,7 +46,11 @@ test('a reflection capture and the frame after it do no per-draw light work', ()
   const { context, renderer, frame } = mirrorFrame();
   frame(0);
   assert.equal(renderer.backdropPasses, 1, 'the mirror captures the scene');
-  assert.equal(context.of('drawElements').length, 6, 'three draws in the capture, three after');
+  assert.equal(
+    context.of('drawElements').length,
+    7,
+    'three draws in the capture, the mirror in the reduced resolve, three after',
+  );
   const lightUniforms = ['uniform1i', 'uniform2i', 'uniform3i', 'uniformMatrix4fv']
     .flatMap((call) => context.of(call))
     .filter((args) => {
