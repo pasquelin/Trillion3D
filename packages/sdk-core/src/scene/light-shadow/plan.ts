@@ -11,6 +11,7 @@ import { DRAW_ALL, createShadowPool } from './pool.ts';
 import { createSunLevels } from './sunLevels.ts';
 import { createShadowRecords } from './records.ts';
 import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
+import { createShadowDemand, type ShadowReceivers } from './demand.ts';
 import { createShadowThresholds } from './thresholds.ts';
 import { sunCoarseness } from './virtual.ts';
 
@@ -18,12 +19,12 @@ import { sunCoarseness } from './virtual.ts';
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 
 /**
- * The shadow scheduler of the virtual maps. The shading records the pages it reads; their
- * report, read back frames later, allocates what is missing from the fixed pool. What moved stales
- * the mapped pages it covers. A frame then draws every stale page the image reads, all of them in
- * that frame (`admit.ts`): what holds the cost is the cache — a page is drawn again only when what
- * it holds changed —, and the pool is the only limit. A still scene, whose shading runs no more,
- * asks for nothing and draws nothing.
+ * The shadow scheduler of the virtual maps. The frame's receivers name the pages they read before
+ * its raster (`demand.ts`) — without them, the shading's report, read back frames later — and
+ * what is missing is allocated from the fixed pool. What moved stales the mapped pages it covers.
+ * A frame then draws every stale page the image reads, all of them in that frame (`admit.ts`):
+ * what holds the cost is the cache — a page is drawn again only when what it holds changed —, and
+ * the pool is the only limit. A still scene, whose shading runs no more, draws nothing.
  *
  * All arrays are allocated once; `plan()` allocates nothing.
  */
@@ -38,6 +39,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     invalidate = createPageInvalidation(pool, table, sun, changes, counts),
     admission = createShadowAdmission(pool.pages),
     thresholds = createShadowThresholds(pool),
+    demand = createShadowDemand(table, pool, sun),
     posed = new Int32Array(records.taken.length);
   let byPage = true,
     report: ShadowRequestReport | null = null,
@@ -94,7 +96,8 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     receive(next: ShadowRequestReport) {
       if (!report || next.frame > report.frame) report = next;
     },
-    /** Plans a frame: stales what moved, reads the last report, admits every page to draw. */
+    /** Plans a frame: stales what moved, reads the receivers' demand — or else the last report —,
+     *  admits every page to draw. */
     plan(
       store: SceneLightStore,
       view: ShadowViewpoint,
@@ -102,6 +105,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       sceneMax: ArrayLike<number>,
       frame: number,
       nowMs: number,
+      receivers?: ShadowReceivers,
     ) {
       counts.beginFrame();
       records.release(store);
@@ -147,13 +151,10 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       if (still) counts.staled(STALE_BY.threshold, thresholds.restale(nowMs, frame));
       // Nothing moves: the pages of an older depth range are drawn in the current one.
       if (quiet) counts.staled(STALE_BY.range, sun.ranges.restale(pool, nowMs, frame));
-      if (report) {
-        const before = stampOf(store),
-          read = report;
-        report = null;
-        requests.consume(read, nowMs, frame);
-        if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
-      }
+      const read = report;
+      report = null;
+      if (demand.read(requests, read, receivers, store, view, stampOf(store), nowMs, frame))
+        settledStamp = stampOf(store);
       requests.floors(posed, view, nowMs, frame);
       const count = admission.run(pool, table, requests.latest, frame, records.isFloor);
       for (let i = 0; i < count; i++) {
