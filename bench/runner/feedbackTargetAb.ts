@@ -11,7 +11,7 @@ import { encodePng } from '../../packages/sdk-node/src/cutout/png.mts';
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
 const flags = parseArgs(process.argv.slice(2));
 const scenes = (flags.get('scene') ?? 'sponza,alpha-blend-mode-test').split(',').filter(Boolean);
-const views = (flags.get('views') ?? 'generale,sol,rue').split(',').filter(Boolean);
+const views = (flags.get('views') ?? 'overview,ground,street').split(',').filter(Boolean);
 const frames = Number(flags.get('images') ?? 120);
 const pixelError = Number(flags.get('pixelError') ?? 0);
 const output = resolve(flags.get('out') ?? join(ROOT, '.mesure/out/39-feedback-ab'));

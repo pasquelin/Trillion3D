@@ -18,7 +18,7 @@ export function page(metrics: Record<string, unknown>): Page {
       gpuFrameMs: [],
       stageProfile: null,
       importedLights: null,
-      lampesTemoin: null,
+      witnessLights: null,
       shadowAtlas: null,
       movingNode: null,
       selection: { source: null, ids: [] },

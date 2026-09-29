@@ -12,12 +12,12 @@ test('the range factor scales every grid light by its cell and is published in t
     wide = benchLights(bounds, { ...settings, lightRangeFactor: 3 });
   assert.ok(plain);
   assert.ok(wide);
-  assert.equal(plain.resume.portee, 0.75);
-  assert.equal(wide.resume.portee, 3);
-  assert.equal(plain.resume.maille, wide.resume.maille, 'the grid itself does not move');
+  assert.equal(plain.resume.range, 0.75);
+  assert.equal(wide.resume.range, 3);
+  assert.equal(plain.resume.grid, wide.resume.grid, 'the grid itself does not move');
   for (let i = 0; i < 4; i++) {
-    assert.equal(plain.lights[i].range, plain.resume.maille * 0.75);
-    assert.equal(wide.lights[i].range, wide.resume.maille * 3);
+    assert.equal(plain.lights[i].range, plain.resume.grid * 0.75);
+    assert.equal(wide.lights[i].range, wide.resume.grid * 3);
     assert.deepEqual(wide.lights[i].position, plain.lights[i].position);
   }
 });
