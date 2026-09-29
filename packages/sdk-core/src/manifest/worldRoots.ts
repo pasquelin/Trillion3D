@@ -12,7 +12,7 @@ const WORLD_ROOTS_VERSION = 1;
 export const WORLD_ROOTS_FILE = 'world-roots.json';
 
 /** One bundle: its range in the binary, its digest, its page count and the bundles it needs. */
-type WorldRootsBundle = {
+export type WorldRootsBundle = {
   offset: number;
   bytes: number;
   sha256: string;
@@ -20,7 +20,7 @@ type WorldRootsBundle = {
   dependencies: number[];
 };
 /** One placed primitive of a cell: the world bundles its roots need, up to the top. */
-type WorldRootsObject = {
+export type WorldRootsObject = {
   node: number;
   primitive: number;
   roots: number[];
