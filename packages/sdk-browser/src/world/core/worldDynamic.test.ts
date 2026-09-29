@@ -85,3 +85,24 @@ test('past the frame budget an upload waits for the next frame, in order, and is
   assert.deepEqual(written, made);
   assert.equal(frame(), 0, 'nothing left');
 });
+
+test('vertices that leave the held box serve the same pages in a larger one, nothing cut', async () => {
+  const counts = { cuts: 0 },
+    dynamic = createWorldDynamic(undefined, counts);
+  const made: Cut[] = [];
+  const plane = geometry.plane(1, 1, 2, 2);
+  plane.usage = 'dynamic';
+  const mesh = object.mesh(plane, material.meshStandard({}));
+  const read = () => (
+    dynamic.wants(mesh),
+    dynamic.of(mesh, 'faces', {}, false, (c) => made.push(c))
+  );
+  await read();
+  plane.attributes.position.setZ(0, 40);
+  plane.attributes.position.needsUpdate = true;
+  const grown = (await read())!;
+  assert.equal(counts.cuts, 1, 'cut once, at first sight');
+  assert.equal(made.length, 2, 'served again');
+  assert.ok(grown.dynamic!.box[5] >= 40, 'in a box that holds the vertex');
+  assert.equal(grown.dynamic!.cut, made[0].dynamic!.cut, 'the same pages');
+});
