@@ -1843,7 +1843,8 @@
       "pageDecodeMs": "Zeit, die zum Dekodieren der Seiten aufgewendet wurde.",
       "mathBatch": "Zustand des Reglers der Rechenpfade (`../math/path/governor.ts`): aktueller Pfad jeder Batch-Operation, Mediane beider Pfade, Wechsel. `null` bei einem Host, der keinen Batch geöffnet hat — nicht gemessen, nicht „JavaScript-Pfad“.",
       "pagesPlannedOffThread": "Integration der Seiten außerhalb des Hauptstrangs. `pagesPlannedOffThread` zählt Ankünfte, deren Plan — der Platz jedes Clusters im Paket und die Seitenränge, die er bewegt — von einem Worker berechnet wurde, nie die, die der Rückfall auf dem Hauptstrang geplant hat. `pagePlanMs` ist die kumulierte Zeit dieser Pläne, gemessen vom Ausführenden selbst, unabhängig vom Strang: sie wird nie zu einem `cpu*` oder `gpu*` pro Bild addiert. Beide sind `null`, solange keine Ankunft geplant wurde — nicht gemessen, nicht null.",
-      "pagePlanMs": "Zeit, die für die Planung der Ankünfte aufgewendet wurde."
+      "pagePlanMs": "Zeit, die für die Planung der Ankünfte aufgewendet wurde.",
+      "dynamicUploadBytes": "Vertex-Bytes dynamischer Geometrie, die in diesem Bild an Ort und Stelle hochgeladen wurden (#573), innerhalb des Budgets der Welt pro Bild (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Fehlt, wo keine Welt zeichnet."
     }
   },
   "frameStatistics": {
@@ -2106,7 +2107,9 @@
       "userData": "Freier Platz für die Daten dessen, der die Geometrie gebaut hat.",
       "released": "Aufgerufen, wenn die Geometrie zurückgegeben wird: worauf die eigene Kopie eines Renderers hört.",
       "getIndex": "Die Dreiecksliste oder `null`.",
-      "toNonIndexed": "Eine Geometrie, die dieselben Dreiecke ohne Index zeichnet: jede Ecke ein eigener Eckpunkt."
+      "toNonIndexed": "Eine Geometrie, die dieselben Dreiecke ohne Index zeichnet: jede Ecke ein eigener Eckpunkt.",
+      "usage": "`'dynamic'`: an Ort und Stelle hochgeladen, nie erneut zerschnitten (#573); ebenso eine Geometrie, die sich in jedem Bild ändert.",
+      "maxBounds": "Die Box, die eine dynamische Geometrie nie verlässt, wenn angegeben: woran ihr Culling gemessen wird (#573)."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -4982,7 +4985,8 @@
       "structure": "Seine Gruppenverbindungen.",
       "streams": "Seine Streampakete.",
       "quantization": "Null bei einer Primitive ohne Seiten, die auf keinem Raster quantisiert wurde.",
-      "topology": "Das Erscheinungsbild der Kanten und Ecken des Meshes."
+      "topology": "Das Erscheinungsbild der Kanten und Ecken des Meshes.",
+      "dynamic": "Die dynamische Geometrie einer Welt (#573): nur Indexseiten, ihre Vertices als Gleitkommazahlen aus der Host-Geometrie gelesen, die die Engine an Ort und Stelle neu schreibt."
     }
   },
   "Primitive": {
@@ -5680,7 +5684,8 @@
       "dag": "Der DAG-Bericht.",
       "quantization": "Null bei einer Primitive ohne Seiten, die auf keinem Raster quantisiert wurde.",
       "topology": "Das Erscheinungsbild der Kanten und Ecken des Meshes.",
-      "binary": "Wo ihre Listen zu finden sind."
+      "binary": "Wo ihre Listen zu finden sind.",
+      "dynamic": "Die dynamische Geometrie einer Welt (#573): nur Indexseiten, ihre Vertices als Gleitkommazahlen aus der Host-Geometrie gelesen, die die Engine an Ort und Stelle neu schreibt."
     }
   },
   "SlimPrimitiveBinary": {
@@ -6912,7 +6917,8 @@
       "shadowMemoryEvents": "Die Speicherdruck-Ereignisse der Schatten seit dem Öffnen der Welt, nach Namen, der Reihe nach; normalerweise leer.",
       "shadowPagesRefetched": "Virtuelle Seiten, die erneut abgebildet wurden, nachdem der Pool sie für Platz verdrängt hatte, seit dem Öffnen des Explorers: die Neuzeichnungen, die ein für die gelesenen Bilder zu kleiner Pool kostet.",
       "shadowCastersKept": "Schattenwerfer, die das Culling pro Seite behalten hat, alle gezeichneten Seiten zusammen, im zuletzt vom Gerät abgetasteten Bild — eines von fünfzehn; `null`, bis eine Probe zurückkam.",
-      "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam."
+      "shadowCastersHidden": "Bewegte Schattenwerfer, die der Verdeckungstest hinter der statischen Ebene ihrer Seite verborgen fand, im zuletzt abgetasteten Bild; `null`, bis eine Probe zurückkam.",
+      "dynamicUploadBytes": "Vertex-Bytes dynamischer Geometrie, die in diesem Bild an Ort und Stelle hochgeladen wurden (#573), innerhalb des Budgets der Welt pro Bild (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Fehlt, wo keine Welt zeichnet."
     }
   },
   "WorldOptions": {
