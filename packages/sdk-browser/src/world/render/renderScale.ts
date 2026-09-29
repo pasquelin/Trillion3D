@@ -1,5 +1,6 @@
 import type { RenderBackend } from '../../backend/types.ts';
 import { createWebglSceneTarget, type WebglSceneTarget } from '../../effects/webglOutput.ts';
+import { sceneTargetBytes } from '../../effects/targets.ts';
 import { boundToContext } from '../../webgl/core/contextBound.ts';
 import { FULLSCREEN_VERTEX, setFullscreenPassState } from '../../webgl/core/fullscreenPass.ts';
 import { createWebglProgram } from '../../webgl/core/program.ts';
@@ -10,7 +11,7 @@ import {
   type HostDrawOutput,
 } from '../../webgl/core/renderTarget.ts';
 import { resampleFragment } from '../../webgl/core/resampleGlsl.ts';
-import { renderExtent } from '../../webgpu/pages/state/renderScale.ts';
+import { renderExtent } from '../../frame/renderScaleOption.ts';
 
 /** One resample program: plain, or with the effect chain's second attachment. */
 function resampleProgram(gl: WebGL2RenderingContext, untoned: boolean) {
@@ -22,17 +23,23 @@ function resampleProgram(gl: WebGL2RenderingContext, untoned: boolean) {
   if (untoned) gl.uniform1i(at('untoned'), 2);
   return { program, render: at('render'), display: at('display') };
 }
+type ResampleProgram = ReturnType<typeof resampleProgram>;
 
-/** Where the image is drawn below the display, and the resample programs that bring it back. */
+/** Where the image is drawn below the display, and the resample programs that bring it back, each
+ *  built on its first use. */
 function createResources(gl: WebGL2RenderingContext) {
-  const programs = [resampleProgram(gl, false), resampleProgram(gl, true)],
+  const programs: (ResampleProgram | undefined)[] = [undefined, undefined],
     vao = gl.createVertexArray()!;
   let target: WebglSceneTarget | undefined,
     width = 0,
     height = 0;
   return {
-    programs,
     vao,
+    program: (untoned: boolean) => (programs[+untoned] ??= resampleProgram(gl, untoned)),
+    /** Bytes of the target, at its size (`sceneTargetBytes`). */
+    get bytes() {
+      return target ? sceneTargetBytes(width, height) : 0;
+    },
     /** The target, made `w` × `h`: the size at the bounds' maximum, which a scale step never remakes. */
     target(w: number, h: number) {
       if (target && w === width && h === height) return target;
@@ -46,7 +53,7 @@ function createResources(gl: WebGL2RenderingContext) {
     },
     dispose() {
       this.release();
-      for (const { program } of programs) gl.deleteProgram(program);
+      for (const made of programs) if (made) gl.deleteProgram(made.program);
       gl.deleteVertexArray(vao);
     },
   };
@@ -55,12 +62,12 @@ function createResources(gl: WebGL2RenderingContext) {
 /**
  * WebGL2's render scale (#834): the scale the engine's `renderScaleControl` picks — its bounds'
  * maximum on a still image (`frameHeld`), which the kept image then is, the controller's while it
- * moves —, the image drawn at it in the top-left of a target made at that maximum, and resampled
- * to the display with Lanczos-2 (`../../webgl/core/resampleGlsl.ts`). WebGL2 keeps no history: no
- * jitter, no reconstruction, which is why its default minimum is 1 (`autonomousRenderScale`). A
- * comparison side or a capture (`target`), a context without half-float targets or a lost one draw
- * at the display's size. `drawn` and `steered` are written back for the controller and
- * `world.renderScale`.
+ * moves (`imageScale`) —, the image drawn at it in the top-left of a target made at that maximum,
+ * and resampled to the display with Lanczos-2 (`../../webgl/core/resampleGlsl.ts`). WebGL2 keeps no
+ * history: no jitter, no reconstruction, which is why its default minimum is 1
+ * (`autonomousRenderScale`). A comparison side or a capture (`target`), a context without
+ * half-float targets or a lost one draw at the display's size. `drawn` and `steered` are written
+ * back for the controller and `world.renderScale`.
  */
 export function createComposeScale(gl: WebGL2RenderingContext) {
   const held = boundToContext(
@@ -69,79 +76,101 @@ export function createComposeScale(gl: WebGL2RenderingContext) {
     (made) => made.dispose(),
   );
   let destination: WebGLFramebuffer | null = null,
-    untoned = false,
     drawing: WebglSceneTarget | undefined,
-    render = [0, 0];
+    displayHeight = 0,
+    /** The scale of the image last drawn on the surface, and of the one kept: what a held frame shows. */
+    drawn = 1,
+    kept = 1;
   return {
-    /** The scale of the image last drawn on the surface: what a held frame shows. */
-    kept: 1,
     /** The scale `backend` draws this image at; `undefined` without a control, into a `target`
      *  or without the chain (a capture), all at the display's size. */
     scaleOf(backend: RenderBackend, target: unknown, chained: boolean) {
       const control = backend.renderScaleControl;
       if (!control || target || !chained) return undefined;
-      if (!halfFloatTargets(gl)) return 1;
-      return backend.frameHeld === true ? control.bounds.max : control.wanted();
+      const scale = control.imageScale(backend.frameHeld === true);
+      return scale < 1 && !halfFloatTargets(gl) ? 1 : scale;
+    },
+    /** Whether the kept image was drawn at `scale`, what a held frame put back must show. */
+    holds: (scale: number | undefined) => kept === (scale ?? 1),
+    /** The image just drawn on the surface is the one kept. */
+    keep() {
+      kept = drawn;
     },
     /** Redirects `output` to the target the image is drawn at `scale` in, bound and cleared to
-     *  `clear` — a linear output's transparent black when absent —, far depth; returns the scale
-     *  drawn, written back to the control: 1 where the image stays at the display's size. */
+     *  `clear` — a linear output's transparent black when absent —, far depth; writes the scale
+     *  drawn back to the control. False where the image stays at the display's size, `output`
+     *  untouched. */
     begin(
       backend: RenderBackend,
       output: HostDrawOutput,
       scale?: number,
       clear?: readonly number[],
     ) {
+      // A draw that threw after the last `begin` left its redirect behind: never resampled now.
+      drawn = 1;
+      if (drawing) drawing = output.displayWidth = undefined;
       const control = backend.renderScaleControl;
-      if (!control || scale === undefined) return 1;
+      if (!control || scale === undefined) return false;
       if (control.bounds.min >= 1 && held.alive()) held.current()!.release();
-      const made = scale < 1 ? held.current() : null,
-        drawn = made ? scale : 1;
+      const made = scale < 1 ? held.current() : null;
+      if (made) drawn = scale;
       control.drawn = drawn;
       control.steered = control.bounds.auto && backend.frameHeld !== true && scale === drawn;
-      if (!made) return 1;
+      if (!made) return false;
       const { width, height } = output,
         max = control.bounds.max;
       drawing = made.target(renderExtent(width, max), renderExtent(height, max));
-      render = [renderExtent(width, scale), renderExtent(height, scale)];
       destination = output.framebuffer;
-      untoned = !!output.linear;
+      displayHeight = height;
       output.framebuffer = drawing.target.framebuffer;
       output.displayWidth = width;
-      [output.width, output.height] = render;
+      output.width = renderExtent(width, scale);
+      output.height = renderExtent(height, scale);
       gl.bindFramebuffer(gl.FRAMEBUFFER, output.framebuffer);
-      gl.viewport(0, 0, render[0], render[1]);
+      gl.viewport(0, 0, output.width, output.height);
       clearWebglTarget(gl, clear);
-      return drawn;
+      return true;
     },
-    /** Resamples the image `begin` redirected into the display, `width` × `height`, and gives
-     *  `output` its display back; nothing when the image was drawn at the display's size. */
-    end(output: HostDrawOutput, width: number, height: number) {
-      const made = drawing && held.current();
-      if (!made || !drawing) return;
-      const pass = made.programs[untoned ? 1 : 0];
-      output.framebuffer = destination;
-      [output.width, output.height, output.displayWidth] = [width, height, undefined];
+    /** Resamples the image `begin` redirected into the display and gives `output` its display
+     *  back; nothing when the image was drawn at the display's size. */
+    end(output: HostDrawOutput) {
+      if (!drawing) return;
+      const made = held.current(),
+        from = drawing;
+      drawing = undefined;
+      if (!made) return;
+      const pass = made.program(!!output.linear),
+        width = output.displayWidth!,
+        height = displayHeight;
       gl.bindFramebuffer(gl.FRAMEBUFFER, destination);
       gl.viewport(0, 0, width, height);
       setFullscreenPassState(gl);
       gl.useProgram(pass.program);
       gl.bindVertexArray(made.vao);
-      gl.uniform2i(pass.render, render[0], render[1]);
+      gl.uniform2i(pass.render, output.width, output.height);
       gl.uniform2f(pass.display, width, height);
-      bindWebglTexture(gl, 2, drawing.untoned);
-      bindWebglTexture(gl, 1, drawing.depth);
-      bindWebglTexture(gl, 0, drawing.target.texture);
-      // Every pixel takes the resampled depth, whatever the destination held.
+      output.framebuffer = destination;
+      output.width = width;
+      output.height = height;
+      output.displayWidth = undefined;
+      bindWebglTexture(gl, 2, from.untoned);
+      bindWebglTexture(gl, 1, from.depth);
+      bindWebglTexture(gl, 0, from.target.texture);
+      // Every pixel takes the resampled depth, whatever the destination held and whatever depth
+      // write the engine's last draw left off.
       gl.enable(gl.DEPTH_TEST);
       gl.depthFunc(gl.ALWAYS);
+      gl.depthMask(true);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       // Left on a unit, the target's textures would make the next draw into it a feedback loop.
-      for (const unit of [2, 1, 0]) bindWebglTexture(gl, unit, null);
+      bindWebglTexture(gl, 2, null);
+      bindWebglTexture(gl, 1, null);
+      bindWebglTexture(gl, 0, null);
       gl.bindVertexArray(null);
       gl.enable(gl.DITHER);
-      drawing = undefined;
     },
+    /** Bytes of the target the image is drawn below the display in. */
+    bytes: () => (held.alive() ? held.current()!.bytes : 0),
     dispose: () => held.dispose(),
   };
 }

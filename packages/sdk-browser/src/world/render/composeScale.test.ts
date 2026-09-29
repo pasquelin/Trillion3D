@@ -39,8 +39,11 @@ function engine(scale: RenderScale | undefined | false, held = false) {
 }
 
 test('a fixed scale draws the image at it and resamples it to the display', () => {
-  const { compose, of, calls } = composer(),
+  const { compose, of, calls, gl } = composer(),
     { backend, outputs } = engine(0.5);
+  // The engine's last draw, a transparent one, leaves depth writes off.
+  const draw = backend.drawHostGeometry!.bind(backend);
+  backend.drawHostGeometry = (camera, output) => (draw(camera, output), gl.depthMask(false));
   compose(backend, null);
   const [drawn] = outputs;
   assert.deepEqual([drawn.width, drawn.height, drawn.displayWidth], [32, 16, 64]);
@@ -51,6 +54,15 @@ test('a fixed scale draws the image at it and resamples it to the display', () =
   assert.deepEqual(of('uniform2i').at(-1)?.slice(1), [32, 16]);
   assert.deepEqual(of('viewport').at(-1), [0, 0, 64, 32]);
   assert.deepEqual(of('drawArrays'), [['TRIANGLES', 0, 3]], 'one full-screen resample');
+  const before = calls.slice(
+    0,
+    calls.findIndex(({ name }) => name === 'drawArrays'),
+  );
+  assert.deepEqual(
+    before.filter(({ name }) => name === 'depthMask').at(-1)?.args,
+    [true],
+    'the resample writes its depth whatever the engine left',
+  );
   const after = calls.slice(calls.findIndex(({ name }) => name === 'drawArrays'));
   const unbound = after.filter(({ name }) => name === 'bindTexture').slice(0, 3);
   assert.deepEqual(

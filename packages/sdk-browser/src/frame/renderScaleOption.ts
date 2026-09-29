@@ -38,3 +38,8 @@ export function renderScaleBounds(
   const fixed = clampScale(option, 1);
   return { auto: false, min: fixed, max: fixed };
 }
+
+/** One display axis drawn at `scale`: the axis itself at 1, otherwise a multiple of eight, so a
+ *  scale never lands on an odd size. */
+export const renderExtent = (display: number, scale: number) =>
+  scale >= 1 ? display : Math.min(display, Math.max(8, Math.round((scale * display) / 8) * 8));
