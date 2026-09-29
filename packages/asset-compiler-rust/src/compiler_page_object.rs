@@ -130,13 +130,12 @@ fn strongest(
 pub(super) fn store_page(
     o: &Options,
     slice: &[u32],
-    (pos, page_attributes, deformation): (&[f32], &[&geometry_page::Attribute], &Deformation),
-    position_exponent: i32,
-    uv_exponent: i32,
+    (pos, page_attributes): (&[f32], &[&geometry_page::Attribute]),
+    deformed: (&Deformation, &[u32]),
+    (position_exponent, uv_exponent): (i32, i32),
 ) -> Result<(Value, bool)> {
     let exponents = (position_exponent, uv_exponent);
-    let encoded =
-        geometry_page::encode_deformed(slice, pos, page_attributes, deformation, exponents)?;
+    let encoded = geometry_page::encode_deformed(slice, pos, page_attributes, deformed, exponents)?;
     let digest = hash(&encoded.bytes);
     let target = object_path(o, &digest);
     let reused = object_intact(&target, &digest)?.is_some();

@@ -12,9 +12,9 @@ import { field, record, type Quant } from './geometryPageHeader.ts';
 
 /**
  * What a `WGP3` page carries for the GPU deformation stage (#357), the mirror of the shared
- * codec's `deform.rs`: the skin record of word 22 — the page's smallest joint and the width of each
- * joint's distance to it —, the morph target count of word 23, and each target's nine words after
- * the header — the word its streams start at, then its position and normal records.
+ * codec's `deform.rs`: word 23, the skin record — the page's smallest joint and the width of each
+ * joint's distance to it — and the morph target count, then each target's nine words after the
+ * header — the word its streams start at, then its position and normal records.
  */
 export type PageSkin = { base: number; bits: number };
 export type PageMorph = { start: number; position: Quant; normal: Quant };
@@ -24,20 +24,19 @@ export type PageMorph = { start: number; position: Quant; normal: Quant };
 export function readDeformation(head: DataView, flags: number) {
   const w = (i: number) => head.getUint32(i * 4, true),
     f = (i: number) => head.getFloat32(i * 4, true);
-  const word = w(22),
-    count = w(23);
-  let skin: PageSkin = { base: 0, bits: 0 };
-  if (flags & FLAG_SKIN) {
-    skin = { bits: word & 63, base: (word >>> 8) & 0xffff };
-    const sane =
-      (skin.bits | (skin.base << 8)) === word &&
-      skin.bits <= MAX_JOINT_BITS &&
-      skin.base + 2 ** skin.bits - 1 <= 0xffff;
-    if (!sane) throw new Error('GEOMETRY_PAGE_BOUNDS');
-  } else if (word) throw new Error('GEOMETRY_PAGE_BOUNDS');
-  const morphed = !!(flags & FLAG_MORPH);
-  if (morphed !== (count >= 1 && count <= MAX_MORPH_TARGETS) || (!morphed && count))
-    throw new Error('GEOMETRY_PAGE_BOUNDS');
+  // Word 23: the joint width in bits 0 to 5, the target count in 6 to 13, the smallest joint in
+  // 14 to 29 (`deform.rs`, `word`).
+  const word = w(23),
+    skin: PageSkin = { bits: word & 63, base: (word >>> 14) & 0xffff },
+    count = (word >>> 6) & 255;
+  const sane =
+    (skin.bits | (count << 6) | (skin.base << 14)) >>> 0 === word &&
+    (!!(flags & FLAG_SKIN) || (!skin.bits && !skin.base)) &&
+    skin.bits <= MAX_JOINT_BITS &&
+    skin.base + 2 ** skin.bits - 1 <= 0xffff &&
+    !!(flags & FLAG_MORPH) === count > 0 &&
+    count <= MAX_MORPH_TARGETS;
+  if (!sane) throw new Error('GEOMETRY_PAGE_BOUNDS');
   if (head.byteLength < (CLUSTER_HEADER_WORDS + count * MORPH_WORDS) * 4)
     throw new Error('GEOMETRY_PAGE_BOUNDS');
   const morphs: PageMorph[] = [];

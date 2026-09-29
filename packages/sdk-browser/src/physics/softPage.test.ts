@@ -76,6 +76,19 @@ test('a tick’s soft records reach physics.vertices, each geometry vertex from 
   assert.deepEqual(receiveSoft(null, bodies), []);
 });
 
+test('a second soft body in the geometry another draws itself into is refused by name', () => {
+  const { bodies, cloth } = sceneOf(100);
+  const [left, right] = [cloth(2), cloth(2)];
+  [left.name, right.name, right.geometry] = ['left', 'right', left.geometry];
+  const refused: { code: string; details: object }[] = [];
+  bodies.reconcile(new Set(), (error) => refused.push(error as (typeof refused)[number]));
+  const named = refused.map(({ code, details }) => [code, details]);
+  assert.deepEqual(named, [['PHYSICS_FAILED', { name: 'right', shares: 'left' }]]);
+  right.geometry = left.geometry.clone();
+  bodies.reconcile(new Set(), (error) => assert.fail(String(error)));
+  assert.equal(bodies.count.bodies, 2, 'its own geometry, it is made');
+});
+
 test('a tick keeps each soft body once, where its last step left it', () => {
   const tick = createSoftTick();
   tick.gather(Uint32Array.of(5, 1, 1, 1, 1, 6, 1, 2, 2, 2));

@@ -260,6 +260,14 @@
       "onEvent": "Appelé à chaque évènement."
     }
   },
+  "BatchRead": {
+    "summary": "Comment `request` lit un lot : son annulation, sa priorité, et ce qui s’exécute à l’arrivée de chaque page.",
+    "members": {
+      "signal": "Annule les lectures du lot.",
+      "priority": "Priorité dans la file, 1 par défaut.",
+      "onPage": "S’exécute à l’arrivée de chaque page lue, pas après tout le lot."
+    }
+  },
   "BatchOutcome": {
     "summary": "Comment une tâche du lot s’est terminée.",
     "members": {
@@ -1843,7 +1851,8 @@
       "pageDecodeMs": "Temps passé à décoder les pages.",
       "mathBatch": "État du régulateur des voies de calcul (`../math/path/governor.ts`) : voie actuelle de chaque opération par lot, médianes des deux voies, changements. `null` sur un hôte qui n’a ouvert aucun lot — non mesuré, pas « voie JavaScript ».",
       "pagesPlannedOffThread": "Intégration des pages hors du fil principal. `pagesPlannedOffThread` compte les arrivées dont le plan — la place de chaque cluster dans le paquet et les rangs de pages qu’il déplace — a été calculé par un travailleur, jamais celles que le repli a planifiées sur le fil principal. `pagePlanMs` est le temps cumulé de ces plans, mesuré par l’exécutant lui-même, quel que soit le fil : il n’est jamais ajouté à un `cpu*` ou `gpu*` par image. Les deux valent `null` tant qu’aucune arrivée n’a été planifiée — non mesuré, pas zéro.",
-      "pagePlanMs": "Temps passé à planifier les arrivées."
+      "pagePlanMs": "Temps passé à planifier les arrivées.",
+      "dynamicUploadBytes": "Octets de sommets de géométrie dynamique envoyés sur place à cette image (#573), dans le budget par image du monde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent là où aucun monde ne dessine."
     }
   },
   "frameStatistics": {
@@ -2106,7 +2115,9 @@
       "userData": "Place libre pour les données de celui qui a construit la géométrie.",
       "released": "Appelés quand la géométrie est rendue : ce qu’écoute la copie qu’en garde un moteur de rendu.",
       "getIndex": "La liste de triangles, ou `null`.",
-      "toNonIndexed": "Une géométrie qui dessine les mêmes triangles sans index : chaque coin est un sommet à lui."
+      "toNonIndexed": "Une géométrie qui dessine les mêmes triangles sans index : chaque coin est un sommet à lui.",
+      "usage": "`'dynamic'` : envoyée sur place, jamais redécoupée (#573) ; comme l’est une géométrie changée à chaque image.",
+      "maxBounds": "La boîte qu’une géométrie dynamique ne quitte jamais, si elle est déclarée : celle qui sert à l’écarter du rendu (#573)."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -4081,7 +4092,19 @@
       "evictedTiles": "Tuiles de texture retirées.",
       "residentPages": "Ce qui était résident juste avant le réglage et juste après.",
       "residentTiles": "Tuiles de texture gardées, avant et après.",
-      "durationMs": "Le temps pris."
+      "durationMs": "Le temps pris.",
+      "tables": "Les tables par page dessinable agrandies pour un réservoir au-dessus d’elles (WebGPU), ou `null` quand aucune ne l’a été.",
+      "transientBytes": "Octets tenus à la fois pendant la copie du réservoir de géométrie : l’ancien réservoir et le nouveau à côté, accordés ensemble par l’appareil avant qu’aucune page ne bouge ; 0 quand aucun réservoir n’a bougé."
+    }
+  },
+  "TableGrowthReport": {
+    "summary": "La croissance des tables dimensionnées par ligne dessinable, telle qu’un pool au-dessus d’elles l’a demandée.",
+    "members": {
+      "drawSlots": "Lignes de visibilité que les tables tiennent maintenant.",
+      "casterSlots": "Lignes que lit la passe d’ombres, après les lignes de visibilité.",
+      "bytes": "Octets que tiennent les tables GPU agrandies — ceux demandés, en cas de refus.",
+      "refused": "`true` quand l’appareil les a refusées : les tables et le pool en place sont conservés.",
+      "durationMs": "Millisecondes qu’a prises la croissance, de la sonde à l’échange."
     }
   },
   "Mesh": {
@@ -4475,7 +4498,7 @@
     "description": "Les six premiers sont les refus du décodage de page, repris mot pour mot de `geometryPage.ts` : un appelant les distingue comme avant. `PAGE_DECODE_FAILED` porte tout autre refus de la bibliothèque de décompression. `PAGE_DECODE_CANCELLED` répond à une annulation, `PAGE_DECODE_WORKER` à un exécutant disparu — seul ce dernier permet le repli."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Contrat de décodage des pages hors du fil principal, version 6 : la géométrie décodée voyage en un seul bloc avec son erreur de quantification, et l’emplacement de l’arène enregistre cette erreur dans le mot 8 ; `cut` change des triangles dessinés en pages, qui reviennent en octets avec leurs descripteurs, et, depuis la version 6, avec leur cône de normales, les triangles rangés disant si leurs pages en gardent un.",
+    "summary": "Contrat de décodage des pages hors du fil principal, version 6 : la géométrie décodée voyage en un seul bloc avec son erreur de quantification ; `cut` change des triangles dessinés en pages, qui reviennent en octets avec leurs descripteurs, et, depuis la version 6, avec leur cône de normales, les triangles rangés disant si leurs pages en gardent un.",
     "description": "Le fil appelant envoie une `PageDecodeRequest`, l’exécutant renvoie une `PageDecodeAnswer` qui porte le même `id`. Rien ici ne touche la plateforme : pas de `Worker`, pas de récupération, pas d’horloge — l’adaptateur du navigateur porte tout cela, ce fichier ne porte que la forme du message, la liste fermée des échecs et la limite du réservoir. Propriété des tampons : `source` est **transférée** avec la demande, donc l’expéditeur ne la possède plus. Une réponse `verify` la rend, transférée à son tour ; une réponse `decode` rend à la place les tampons décodés, transférés aussi. Un exécutant qui ne transfère rien (le repli synchrone) renvoie exactement les mêmes valeurs : le contrat ne dit pas comment voyage le travail, seulement ce qu’il renvoie."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -4588,18 +4611,6 @@
       "op": "Ce qu’il faut faire.",
       "source": "Transféré avec le message : l’expéditeur n’en est plus le propriétaire.",
       "maxDecodedBytes": "Plafond d’octets décodés d’une page de géométrie ; ignoré par `verify`."
-    }
-  },
-  "PageDecodeShare": {
-    "summary": "Le bail de mémoire partagée d’un travailleur : le tampon de l’arène, l’emplacement et la région qu’il possède, et le nombre d’emplacements, qui donne la taille de la zone de contrôle.",
-    "description": "Envoyé une fois, à la naissance du travailleur, et seulement là où la plateforme permet la mémoire partagée. Sans bail, le travailleur répond en transférant des tampons : le contrat ne change pas de forme, seul le chemin des octets change.",
-    "members": {
-      "protocol": "Version du format du message.",
-      "id": "Toujours 0.",
-      "op": "Toujours `'share'`.",
-      "buffer": "La mémoire partagée.",
-      "slot": "L’emplacement de ce travailleur.",
-      "slots": "Emplacements au total."
     }
   },
   "pageDecodeWorkerCount": {
@@ -4982,7 +4993,8 @@
       "structure": "Ses liens de groupes.",
       "streams": "Ses paquets de flux.",
       "quantization": "Null sur une primitive sans pages, qui n’a été quantifiée sur aucune grille.",
-      "topology": "L’allure des arêtes et des coins du maillage."
+      "topology": "L’allure des arêtes et des coins du maillage.",
+      "dynamic": "La géométrie dynamique d’un monde (#573) : des pages d’index seules, ses sommets lus en flottants dans la géométrie hôte que le moteur réécrit sur place."
     }
   },
   "Primitive": {
@@ -5515,10 +5527,16 @@
       "tileLightPoolCapacity": "Mots que la réserve d’indices de lumières tenait sur cette image échantillonnée ; `null` de même.",
       "tileLightPoolOverflowed": "Si une tuile n’a pas trouvé de place dans la réserve sur cette image échantillonnée et a parcouru toutes les lumières.",
       "tileLightPoolGrowths": "Nombre de fois où la réserve a grandi jusqu’à ce qu’une image débordante demandait, depuis l’ouverture de l’explorateur.",
-      "gpuShadowsMs": "Temps GPU des ombres.",
+      "gpuShadowsMs": "Temps GPU de l’étape Ombres, exactement les passes d’ombre de la table des passes du moteur : l’atlas d’ombre, sa couche statique, l’effacement et la passe de la couche de transmittance, le tri par page, les pyramides de pages et le test d’occultation. La coupe depuis la lumière est une étape à part (`shadowCasters`) ; aucune passe hors du travail d’ombre n’y est comptée.",
       "gpuShadowCullMs": "Temps GPU du choix des projeteurs des pages d’ombre qu’une image dessine : la coupe depuis la lumière, le tri par page, et le test d’occultation des projeteurs mobiles avec les pyramides qu’il lit.",
       "gpuShadowRasterMs": "Temps GPU du dessin de ces projeteurs dans les pages : la couche statique, puis le pool.",
       "gpuLightingMs": "Temps GPU de l’éclairage.",
+      "cpuShadowPlanMs": "Temps CPU du plan d’ombre de l’image, autour du planificateur : une étape nommée du profil CPU (`cpuSteps()`, `cpu-timing`), comme les cinq suivantes. Chacune vaut `null` quand l’image ne l’a pas exécutée — aucune lumière, une image retenue — ou sur un moteur qui ne sait pas la chronométrer (WebGL2), jamais 0. Elles font partie du temps d’encodage, jamais ajoutées à lui.",
+      "cpuShadowRequestsMs": "Temps CPU de la lecture du rapport de requêtes d’ombre revenu.",
+      "cpuShadowAdmissionMs": "Temps CPU de l’admission des pages périmées que l’image lit.",
+      "cpuShadowBatchesMs": "Temps CPU des lots d’ombre autour de leurs régions et passes : préparation, validations, copie des requêtes.",
+      "cpuShadowRegionsMs": "Temps CPU de l’écriture des régions de chaque lot d’ombre : uniformes de faces et enregistrements de pages.",
+      "cpuShadowPassesMs": "Temps CPU de l’encodage des passes de chaque lot d’ombre : projeteurs, effacements et restaurations, dessins.",
       "shadowLightCuts": "Coupes de grappes lancées depuis les lumières : une par face d’ombre redessinée, zéro sur une image immobile.",
       "shadowPagesRequested": "Pages d’ombre virtuelles que l’image lit, telles que la demande anticipée de l’image les nomme — ou, sans elle, son dernier rapport de demandes : ce que marquent les récepteurs vus par la caméra.",
       "shadowPagesCached": "Parmi elles, les pages lues directement dans le pool : à jour, sans dessin.",
@@ -5537,6 +5555,7 @@
     "summary": "Le travail d’ombre de l’image : quelles pages virtuelles sont dessinées.",
     "members": {
       "counts": "Nombres pour le diagnostic.",
+      "spent": "Millisecondes CPU que le dernier plan a passées à lire le rapport de requêtes et à admettre les pages.",
       "worldChanged": "Un nœud a bougé : sa boîte entre dans la liste que le planificateur traitera à la prochaine image.",
       "representationChanged": "Le même monde à une autre précision — niveau de détail, résidence, tuile de couleur — : sa boîte attend que la caméra s’arrête, puis entre dans la liste (`changes.ts`).",
       "resting": "La caméra était au repos au dernier plan : sa vue était celle du plan précédent.",
@@ -5673,7 +5692,8 @@
       "dag": "Le rapport du DAG.",
       "quantization": "Null sur une primitive sans pages, qui n’a été quantifiée sur aucune grille.",
       "topology": "L’allure des arêtes et des coins du maillage.",
-      "binary": "Où trouver ses listes."
+      "binary": "Où trouver ses listes.",
+      "dynamic": "La géométrie dynamique d’un monde (#573) : des pages d’index seules, ses sommets lus en flottants dans la géométrie hôte que le moteur réécrit sur place."
     }
   },
   "SlimPrimitiveBinary": {
@@ -6845,10 +6865,16 @@
       "tileLightPoolCapacity": "Mots que la réserve d’indices de lumières tenait sur cette image échantillonnée ; `null` de même.",
       "tileLightPoolOverflowed": "Si une tuile n’a pas trouvé de place dans la réserve sur cette image échantillonnée et a parcouru toutes les lumières.",
       "tileLightPoolGrowths": "Nombre de fois où la réserve a grandi jusqu’à ce qu’une image débordante demandait, depuis l’ouverture de l’explorateur.",
-      "gpuShadowsMs": "Temps GPU des ombres.",
+      "gpuShadowsMs": "Temps GPU de l’étape Ombres, exactement les passes d’ombre de la table des passes du moteur : l’atlas d’ombre, sa couche statique, l’effacement et la passe de la couche de transmittance, le tri par page, les pyramides de pages et le test d’occultation. La coupe depuis la lumière est une étape à part (`shadowCasters`) ; aucune passe hors du travail d’ombre n’y est comptée.",
       "gpuShadowCullMs": "Temps GPU du choix des projeteurs des pages d’ombre qu’une image dessine : la coupe depuis la lumière, le tri par page, et le test d’occultation des projeteurs mobiles avec les pyramides qu’il lit.",
       "gpuShadowRasterMs": "Temps GPU du dessin de ces projeteurs dans les pages : la couche statique, puis le pool.",
       "gpuLightingMs": "Temps GPU de l’éclairage.",
+      "cpuShadowPlanMs": "Temps CPU du plan d’ombre de l’image, autour du planificateur : une étape nommée du profil CPU (`cpuSteps()`, `cpu-timing`), comme les cinq suivantes. Chacune vaut `null` quand l’image ne l’a pas exécutée — aucune lumière, une image retenue — ou sur un moteur qui ne sait pas la chronométrer (WebGL2), jamais 0. Elles font partie du temps d’encodage, jamais ajoutées à lui.",
+      "cpuShadowRequestsMs": "Temps CPU de la lecture du rapport de requêtes d’ombre revenu.",
+      "cpuShadowAdmissionMs": "Temps CPU de l’admission des pages périmées que l’image lit.",
+      "cpuShadowBatchesMs": "Temps CPU des lots d’ombre autour de leurs régions et passes : préparation, validations, copie des requêtes.",
+      "cpuShadowRegionsMs": "Temps CPU de l’écriture des régions de chaque lot d’ombre : uniformes de faces et enregistrements de pages.",
+      "cpuShadowPassesMs": "Temps CPU de l’encodage des passes de chaque lot d’ombre : projeteurs, effacements et restaurations, dessins.",
       "hizTestedClusters": "Ce qu’a fait le test d’occultation sur une image : les clusters qu’on lui a donnés, ceux qu’il a éliminés, et ceux dont l’empreinte à l’écran au niveau 0 dépasse le noyau de seize texels et répondent donc depuis un mip plus grossier. `hiz*Triangles` sont les triangles de ces mêmes clusters. Sur le chemin GPU, ils décrivent une image PLUS ANCIENNE que celle qui les rend — `hizCountedFrame` dit laquelle — comme `gpuPassMs`, et deux images voisines portent souvent la même mesure. Aucun n’est estimé : `null` pour un moteur qui ne teste pas l’occultation, sur un appareil dont les verdicts ne peuvent pas être relus, et tant qu’aucune image n’a été comptée.",
       "hizRejectedClusters": "Clusters cachés.",
       "hizOversizedClusters": "Clusters trop grands pour être testés.",
@@ -6899,7 +6925,8 @@
       "shadowMemoryEvents": "Les événements de pression mémoire des ombres depuis l’ouverture du monde, par nom, dans l’ordre ; vide normalement.",
       "shadowPagesRefetched": "Pages virtuelles placées de nouveau après que le pool les a évincées pour faire de la place, depuis l’ouverture de l’explorer : les redessins que coûte un pool trop petit pour ce que lisent les images.",
       "shadowCastersKept": "Projeteurs gardés par le tri par page, toutes pages dessinées réunies, sur l’image que l’appareil a échantillonnée en dernier — une sur quinze ; `null` tant qu’aucun échantillon n’est revenu.",
-      "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu."
+      "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu.",
+      "dynamicUploadBytes": "Octets de sommets de géométrie dynamique envoyés sur place à cette image (#573), dans le budget par image du monde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent là où aucun monde ne dessine."
     }
   },
   "WorldOptions": {

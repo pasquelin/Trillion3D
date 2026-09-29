@@ -18,6 +18,7 @@ fn page() -> Header {
         color: Quant::flat(-8),
         quantization_error: 0.0,
         corner_bits: 0,
+        position_count: 3,
         skin: Skin::default(),
         morphs: Vec::new(),
     }
@@ -43,6 +44,8 @@ fn short_header_then_magic_then_bounds_are_refused_in_that_order() {
         |h: &mut Header| h.quantization_error = -1.0,
         |h: &mut Header| h.uv1.min[0] = f32::INFINITY,
         |h: &mut Header| h.color.bits[3] = 25,
+        |h: &mut Header| h.position_count = 0,
+        |h: &mut Header| h.position_count = 4,
     ] {
         let mut header = page();
         alter(&mut header);
@@ -72,6 +75,7 @@ fn a_forged_index_count_is_refused_by_the_budget_before_any_allocation() {
     // times 2^30 indices, whose byte count wraps a 32-bit `usize` to zero without saturation.
     let mut header = page();
     header.vertex_count = 1;
+    header.position_count = 1;
     header.index_count = 3 << 30;
     assert_eq!(
         decode(&octets(&header.words()), 1 << 24).unwrap_err(),

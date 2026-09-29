@@ -1,4 +1,4 @@
-// A module with a name it declares nowhere compiles on no device: the measurer's browser would
+// A module with a name it declares nowhere compiles on no device: the recette's browser would
 // be the first to see it (#348, `unresolved value 'uni'` in the cluster decoding proof, which
 // decodes through the page geometry and declares no camera). This Node test reads every text the
 // engine compiles, and those of the proofs that compile their own, before any browser does: the

@@ -32,17 +32,17 @@ export function proche(
 }
 
 /** Host scene AND the engine's world-matrix index, the one a move recomputes. */
-export function scene(nom = 'cible') {
+export function scene(name = 'target') {
   const source = new G.Object3D(),
     mesh = G.mesh();
-  mesh.name = nom;
+  mesh.name = name;
   source.add(mesh);
   return { source, mesh, worlds: hostWorldPlacements(source) };
 }
 
 /** A minimal selection root: what the transform reprojects and what it sends. The matrix it carries
  *  is the engine's, like every collected root. */
-export function racine(mesh: G.Object3D, local: number[], worlds: HostWorldPlacements) {
+export function selectionRoot(mesh: G.Object3D, local: number[], worlds: HostWorldPlacements) {
   const localBox = Float64Array.from(local),
     worldBox = new Float64Array(BOX_VALUES),
     world = worlds.of(mesh);
@@ -60,7 +60,7 @@ export function runtime(
   roots: Array<ClusterRoot<PageRec>> = [],
   worlds: HostWorldPlacements = hostWorldPlacements(source),
 ) {
-  const mouvements: Array<{ min: number[]; max: number[]; movingOnly: boolean }> = [],
+  const motions: Array<{ min: number[]; max: number[]; movingOnly: boolean }> = [],
     // Rows no page holds yet: a moved root rewrites none.
     layout = {
       selectionRoots: roots,
@@ -79,10 +79,10 @@ export function runtime(
     lights: {
       plan: {
         worldChanged: (min: number[], max: number[], movingOnly: boolean) =>
-          mouvements.push({ min: [...min], max: [...max], movingOnly }),
+          motions.push({ min: [...min], max: [...max], movingOnly }),
       },
       mobility: createShadowMobility(),
     },
   } as unknown as WebgpuPagesRuntime;
-  return { rt, layout, run, mouvements, worlds };
+  return { rt, layout, run, motions, worlds };
 }

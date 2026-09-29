@@ -3,6 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mulberry32 } from '../../../../site/examples/kit/random.ts';
 import { owed, upscaleRun, type UpscaleFrame } from './upscaleRun.fixture.ts';
+import { FLAG_DYNAMIC } from '../visibility/types.ts';
 
 const near = (a: number[], b: number[], what: string) =>
   a.forEach((x, i) => assert.ok(Math.abs(x - b[i]) < 1e-9, `${what}: ${a} against ${b}`));
@@ -71,4 +72,12 @@ test('a reactive value shortens the history, up to 0.9 of the current image', ()
 test('the history is read with Catmull-Rom in five taps while moving, one tap at rest', () => {
   assert.equal(upscaleRun(frame())(2, 2).reads.length, 5);
   assert.equal(upscaleRun(frame({ moving: false }))(2, 2).reads.length, 1);
+});
+
+test('a dynamic geometry rejects its history as a reactive pixel does, no ghost of its old vertices', () => {
+  const on = { id: () => 1 << 8, pageFlags: FLAG_DYNAMIC },
+    wave = frame({ jitter: FAR, ...on });
+  near(upscaleRun(wave)(2, 2).color, blend(owed(wave, 2, 2), kept, 0.9), 'dynamic');
+  const still = frame({ jitter: FAR, id: on.id });
+  near(upscaleRun(still)(2, 2).color, kept, 'a paged geometry keeps its history');
 });

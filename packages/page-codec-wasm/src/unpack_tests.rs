@@ -51,8 +51,14 @@ fn record<const N: usize>(rng: &mut Rng, widest: bool) -> Quant<N> {
     }
 }
 
-/// A page of `n` vertices on `indices`: random records, every field a random value of its width.
+/// A page of `n` vertices on `indices`: random records, every field a random value of its width;
+/// one page in three stores fewer positions than vertices, each vertex linked to one (#960).
 fn page(rng: &mut Rng, n: usize, indices: &[u32], flags: u32, widest: bool) -> Vec<u8> {
+    let positions = if rng.below(3) == 0 {
+        1 + rng.below(n as u32) as usize
+    } else {
+        n
+    };
     let spans = Spans::of(indices);
     let code = CornerCode::of(n, indices.len(), spans.bits);
     let h = Header {
@@ -65,24 +71,32 @@ fn page(rng: &mut Rng, n: usize, indices: &[u32], flags: u32, widest: bool) -> V
         color: record(rng, widest),
         quantization_error: 0.5,
         corner_bits: spans.bits,
+        position_count: positions,
         skin: crate::Skin::default(),
         morphs: Vec::new(),
     };
     let mut out = BitWriter::default();
     spans.write(&mut out, indices, &code);
-    let mut streams = |bits: &[u32], present: bool| {
+    // Every field a random value of its width; a link, a random position.
+    let mut streams = |bits: &[u32], present: bool, count: usize, below: u32| {
         if present {
             for &b in bits {
                 let mask = ((1u64 << b) - 1) as u32;
-                out.stream((0..n).map(|_| rng.next() & mask), b);
+                let value = |rng: &mut Rng| match below {
+                    0 => rng.next() & mask,
+                    _ => rng.below(below),
+                };
+                out.stream((0..count).map(|_| value(rng)), b);
             }
         }
     };
-    streams(&h.position.bits, true);
-    streams(&[16], flags & FLAG_NORMAL != 0);
-    streams(&h.uv.bits, flags & FLAG_UV != 0);
-    streams(&h.uv1.bits, flags & FLAG_UV1 != 0);
-    streams(&h.color.bits, flags & FLAG_COLOR != 0);
+    streams(&h.position.bits, true, positions, 0);
+    let (links, link_bits) = (h.links_positions(), h.link_bits());
+    streams(&[link_bits], links, n, positions as u32);
+    streams(&[16], flags & FLAG_NORMAL != 0, n, 0);
+    streams(&h.uv.bits, flags & FLAG_UV != 0, n, 0);
+    streams(&h.uv1.bits, flags & FLAG_UV1 != 0, n, 0);
+    streams(&h.color.bits, flags & FLAG_COLOR != 0, n, 0);
     let words = h.words().into_iter().chain(out.words().iter().copied());
     words.flat_map(u32::to_le_bytes).collect()
 }
