@@ -29,20 +29,21 @@ export function freshSlices(store: SceneLightStore) {
 }
 
 /**
- * Whether this frame may hand the GPU a page to draw: a frame where nothing moves — neither the
- * view nor a node (`gpu.quiet`), nor a light (`plan.stamp`) —, whose host took no page's depth
- * (`allocation.lost`), after a snapshot whose frame listed nothing (`gpu.listed`), maps nothing
- * new and leaves nothing undrawn, and runs none of the GPU's page work. Any other runs it.
+ * Whether this frame may hand the GPU a page to draw: the view moved (`plan.resting`), a light was
+ * added, set or removed (`store.epoch`), the host took a page's depth away (`allocation.lost`), or
+ * the latest snapshot's frame listed pages (`gpu.listed`). Otherwise the frame asks for the pages
+ * the last one did, which are drawn, and runs none of the GPU's page work — at rest, or while only
+ * a caster moves: a page a moving caster's own surface asks first is drawn once a snapshot lists
+ * it, its receiver reading the coarser level, always drawn (`requests.floors`), meanwhile.
  */
 function freshWanted(rt: WebgpuPagesRuntime) {
   const { plan, store, pageRequests } = rt.lights,
-    stamp = plan.stamp(store),
-    held = freshStamps.get(plan);
-  freshStamps.set(plan, stamp);
-  if (!plan.gpu.quiet || held !== stamp || plan.gpu.listed > 0) return true;
+    held = epochs.get(plan);
+  epochs.set(plan, store.epoch);
+  if (!plan.resting || held !== store.epoch || plan.gpu.listed > 0) return true;
   return (pageRequests?.allocation.lost ?? 0) > 0;
 }
-const freshStamps = new WeakMap<object, number>();
+const epochs = new WeakMap<object, number>();
 
 /**
  * THE PAGES THE GPU MAPPED AND NO DRAW HAS FILLED, DRAWN IN THE FRAME THAT ASKS FOR THEM (#1275),

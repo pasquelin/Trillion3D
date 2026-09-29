@@ -117,7 +117,6 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       const still = changes.observeView(view),
         quiet = still && !changes.worldMoved();
       resting = still;
-      gpu.quiet = quiet;
       if (!still) views++;
       planLights(lightsState, store, view, sceneMin, sceneMax, frame, nowMs, byPage);
       gpu.noteDrops(frame);
@@ -172,8 +171,14 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     },
     /** Starts over. */
     reset() {
-      for (const part of [records, table, pool, thresholds, requests, changes, counts, admission])
-        part.reset();
+      records.reset();
+      table.reset();
+      pool.reset();
+      thresholds.reset();
+      requests.reset();
+      changes.reset();
+      counts.reset();
+      admission.reset();
       gpu.set(false, 0);
       report = null;
       resting = false;

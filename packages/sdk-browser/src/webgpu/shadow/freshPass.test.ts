@@ -6,6 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts';
+import { LAMP } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { encodeFreshPages } from './freshPass.ts';
 import { FRESH_CASTERS, FRESH_CLEAR, freshDrawWord } from './freshLayout.ts';
@@ -25,9 +26,9 @@ function frame(calls: unknown[][]) {
   const lights = {
     store: createSceneLightStore(),
     plan: {
-      gpu: { on: true, listed: 0, quiet: false },
+      gpu: { on: true, listed: 0 },
+      resting: false,
       pool: { side: 4, layers: LAYERS },
-      stamp: () => 7,
     },
     allocation: { compose: pass('compose'), cull: pass('cull'), seal: pass('seal') },
     pageRequests: {
@@ -147,37 +148,33 @@ test("while a tinted layer is read, each layer's GPU pages are drawn into it too
   assert.equal(lights.shadowRenderPasses, 2 * LAYERS);
 });
 
-test('a frame with nothing new to draw encodes none of it; a listed or a lost page does', () => {
+test('a frame with nothing new to draw encodes none of it; a move, a listed or a lost page does', () => {
   const calls: unknown[][] = [],
     { lights, encode } = frame(calls);
-  lights.plan.gpu.quiet = true;
+  lights.plan.resting = true;
   encode();
   assert.ok(calls.length > 0, 'the first frame the plan is seen runs');
+  const runs = (why: string) => {
+    calls.length = 0;
+    encode();
+    assert.ok(
+      calls.some((call) => call[0] === 'compose'),
+      why,
+    );
+  };
   calls.length = 0;
   encode();
   assert.deepEqual(calls, [], 'nothing moved, nothing listed, nothing lost: nothing');
   lights.plan.gpu.listed = 3;
-  encode();
-  assert.ok(
-    calls.some((call) => call[0] === 'compose'),
-    'a snapshot listed pages',
-  );
+  runs('a snapshot listed pages');
   lights.plan.gpu.listed = 0;
-  calls.length = 0;
   lights.pageRequests.allocation.lost = 1;
-  encode();
-  assert.ok(
-    calls.some((call) => call[0] === 'compose'),
-    'the host took a page',
-  );
+  runs('the host took a page');
   lights.pageRequests.allocation.lost = 0;
-  calls.length = 0;
-  lights.plan.stamp = () => 8;
-  encode();
-  assert.ok(
-    calls.some((call) => call[0] === 'compose'),
-    'a light, the table or the view changed',
-  );
+  lights.store.add({ ...LAMP, id: 'new' });
+  runs('a light was added');
+  lights.plan.resting = false;
+  runs('the view moved');
 });
 
 test('nothing is drawn by the GPU while it does not allocate', () => {
