@@ -1,5 +1,5 @@
 import type { SceneProxy } from '../contracts/proxy.ts';
-import { proxyTriangleBoxes } from '../scene/core/proxyRefit.ts';
+import { proxyTriangleBoxes } from '../scene/core/proxyBoxes.ts';
 import type { BounceCascades } from './cascades.ts';
 
 /**
