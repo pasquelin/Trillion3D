@@ -81,7 +81,7 @@ test('blends and particles write their coverage as the reactive value, seeded 0'
   assert.match(AS_IS_SHARE_SHADER, /return vec2f\(f32\(.*\),0\.0\);/);
   // A blend writes 1 in green at its coverage, over what the pixel holds.
   assert.match(BLEND_SHADER, /s\.request,vec4f\(0\.0,1\.0,0\.0,s\.alpha\*r\.keep\),/);
-  const share = blendTargets('normal', 0xf, false)[1];
+  const share = blendTargets('normal', 0xf, false)[1]!;
   assert.equal(share.format, 'rg8unorm');
   assert.equal(share.blend?.color.srcFactor, 'src-alpha');
   assert.equal(share.blend?.color.dstFactor, 'one-minus-src-alpha');

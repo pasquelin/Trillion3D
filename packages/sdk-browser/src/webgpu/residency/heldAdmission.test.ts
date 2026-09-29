@@ -78,6 +78,7 @@ test('the GPU cut walks nothing held; the CPU cut walks it only when its cut mov
   const admission = createRequestAdmission(w.sets, w.tracking, {
     forEachHeld: (visit) => (walks.held++, w.closure.forEachHeld(visit)),
     closeOver: (ids, visit) => (walks.requests++, w.closure.closeOver(ids, visit)),
+    closeOverRecords: w.closure.closeOverRecords,
   });
   const image = (ids: number[]) => {
     w.delta.apply(ids);

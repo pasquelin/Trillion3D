@@ -345,7 +345,6 @@
       "drag-a-crate": "Faire glisser une caisse"
     },
     "missing": {
-      "inside-a-component": "retrait du canvas créé par le moteur à la destruction du monde",
       "thick-lines": "lignes épaisses",
       "a-line-that-draws-itself": "plage de dessin d’une géométrie",
       "shapes-from-an-svg": "import de tracés SVG",

@@ -345,7 +345,6 @@
       "drag-a-crate": "木箱をドラッグ"
     },
     "missing": {
-      "inside-a-component": "ワールド破棄時にエンジンが作成したキャンバスを削除",
       "thick-lines": "太い線",
       "a-line-that-draws-itself": "ジオメトリの描画範囲",
       "shapes-from-an-svg": "SVGパスの読み込み",

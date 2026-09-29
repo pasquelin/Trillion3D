@@ -345,7 +345,6 @@
       "drag-a-crate": "拖动木箱"
     },
     "missing": {
-      "inside-a-component": "销毁世界时移除引擎创建的画布",
       "thick-lines": "宽线",
       "a-line-that-draws-itself": "几何体的绘制范围",
       "shapes-from-an-svg": "SVG路径导入",

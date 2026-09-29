@@ -9,7 +9,7 @@ import {
   renderPixelRatio,
   type FrameSize,
 } from './renderScale.ts';
-import { createScaleControl } from './scaleControl.ts';
+import { createScaleControl } from '../../../frame/scaleControl.ts';
 import type { RenderScale } from '../../../frame/renderScaleOption.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 

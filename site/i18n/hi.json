@@ -1529,7 +1529,6 @@
       "drag-a-crate": "एक पेटी खींचें"
     },
     "missing": {
-      "inside-a-component": "वर्ल्ड हटने पर इंजन द्वारा बनाए कैनवास की सफ़ाई",
       "thick-lines": "चौड़ी रेखाएँ",
       "a-line-that-draws-itself": "ज्यामिति ड्रॉ रेंज",
       "shapes-from-an-svg": "SVG पथ इंपोर्ट",
