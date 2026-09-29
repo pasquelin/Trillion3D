@@ -1851,7 +1851,8 @@
       "pageDecodeMs": "Temps passé à décoder les pages.",
       "mathBatch": "État du régulateur des voies de calcul (`../math/path/governor.ts`) : voie actuelle de chaque opération par lot, médianes des deux voies, changements. `null` sur un hôte qui n’a ouvert aucun lot — non mesuré, pas « voie JavaScript ».",
       "pagesPlannedOffThread": "Intégration des pages hors du fil principal. `pagesPlannedOffThread` compte les arrivées dont le plan — la place de chaque cluster dans le paquet et les rangs de pages qu’il déplace — a été calculé par un travailleur, jamais celles que le repli a planifiées sur le fil principal. `pagePlanMs` est le temps cumulé de ces plans, mesuré par l’exécutant lui-même, quel que soit le fil : il n’est jamais ajouté à un `cpu*` ou `gpu*` par image. Les deux valent `null` tant qu’aucune arrivée n’a été planifiée — non mesuré, pas zéro.",
-      "pagePlanMs": "Temps passé à planifier les arrivées."
+      "pagePlanMs": "Temps passé à planifier les arrivées.",
+      "dynamicUploadBytes": "Octets de sommets de géométrie dynamique envoyés sur place à cette image (#573), dans le budget par image du monde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent là où aucun monde ne dessine."
     }
   },
   "frameStatistics": {
@@ -2114,7 +2115,9 @@
       "userData": "Place libre pour les données de celui qui a construit la géométrie.",
       "released": "Appelés quand la géométrie est rendue : ce qu’écoute la copie qu’en garde un moteur de rendu.",
       "getIndex": "La liste de triangles, ou `null`.",
-      "toNonIndexed": "Une géométrie qui dessine les mêmes triangles sans index : chaque coin est un sommet à lui."
+      "toNonIndexed": "Une géométrie qui dessine les mêmes triangles sans index : chaque coin est un sommet à lui.",
+      "usage": "`'dynamic'` : envoyée sur place, jamais redécoupée (#573) ; comme l’est une géométrie changée à chaque image.",
+      "maxBounds": "La boîte qu’une géométrie dynamique ne quitte jamais, si elle est déclarée : celle qui sert à l’écarter du rendu (#573)."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -4990,7 +4993,8 @@
       "structure": "Ses liens de groupes.",
       "streams": "Ses paquets de flux.",
       "quantization": "Null sur une primitive sans pages, qui n’a été quantifiée sur aucune grille.",
-      "topology": "L’allure des arêtes et des coins du maillage."
+      "topology": "L’allure des arêtes et des coins du maillage.",
+      "dynamic": "La géométrie dynamique d’un monde (#573) : des pages d’index seules, ses sommets lus en flottants dans la géométrie hôte que le moteur réécrit sur place."
     }
   },
   "Primitive": {
@@ -5688,7 +5692,8 @@
       "dag": "Le rapport du DAG.",
       "quantization": "Null sur une primitive sans pages, qui n’a été quantifiée sur aucune grille.",
       "topology": "L’allure des arêtes et des coins du maillage.",
-      "binary": "Où trouver ses listes."
+      "binary": "Où trouver ses listes.",
+      "dynamic": "La géométrie dynamique d’un monde (#573) : des pages d’index seules, ses sommets lus en flottants dans la géométrie hôte que le moteur réécrit sur place."
     }
   },
   "SlimPrimitiveBinary": {
@@ -6920,7 +6925,8 @@
       "shadowMemoryEvents": "Les événements de pression mémoire des ombres depuis l’ouverture du monde, par nom, dans l’ordre ; vide normalement.",
       "shadowPagesRefetched": "Pages virtuelles placées de nouveau après que le pool les a évincées pour faire de la place, depuis l’ouverture de l’explorer : les redessins que coûte un pool trop petit pour ce que lisent les images.",
       "shadowCastersKept": "Projeteurs gardés par le tri par page, toutes pages dessinées réunies, sur l’image que l’appareil a échantillonnée en dernier — une sur quinze ; `null` tant qu’aucun échantillon n’est revenu.",
-      "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu."
+      "shadowCastersHidden": "Projeteurs mobiles que le test d’occultation a trouvés cachés derrière la couche statique de leur page, sur l’image que l’appareil a échantillonnée en dernier ; `null` tant qu’aucun échantillon n’est revenu.",
+      "dynamicUploadBytes": "Octets de sommets de géométrie dynamique envoyés sur place à cette image (#573), dans le budget par image du monde (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent là où aucun monde ne dessine."
     }
   },
   "WorldOptions": {

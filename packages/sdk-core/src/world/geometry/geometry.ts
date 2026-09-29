@@ -45,13 +45,14 @@ export class Geometry {
   recipe: { type: string; args: unknown[] } | null = null;
   /** Bumped by every change of shape: what the world compares to cut the pages again. */
   version = 0;
+  /** `'dynamic'`: uploaded in place, never cut again (#573); so is one changed every frame. */
+  usage: 'static' | 'dynamic' = 'static';
+  /** The box a dynamic geometry never leaves, when declared: what culls it (#573). */
+  maxBounds: Box3 | null = null;
   /** Who draws this geometry: every mesh holding it hears its changes. */
   readonly _listeners = new Set<() => void>();
-  /** Who built it, the world (a page, the default) or the host (a loaded scene): whether a
-   *  normalised list it owns is read as stored or at its value (`readsStored`). Set by its maker,
-   *  right after it is made. */
+  /** Who built it, world or host: whether its normalised lists read as stored (`readsStored`). */
   _owner: 'world' | 'host' = 'world';
-
   /** Tells every holder the geometry changed; the bounds are forgotten when its positions did. */
   _changed(moved = true) {
     this.version++;
