@@ -2376,6 +2376,30 @@
       "remount": "Pasang ulang"
     }
   },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "Putar"
+    },
+    "banner": "Seret untuk mengitari adegan. Jeda atau lanjutkan animasi dengan Putar."
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "Putar"
+    },
+    "banner": "Seret untuk mengitari adegan. Jeda atau lanjutkan animasi dengan Putar."
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "Putar"
+    },
+    "banner": "Seret untuk mengitari adegan. Jeda atau lanjutkan animasi dengan Putar."
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "Putar"
+    },
+    "banner": "Seret untuk mengitari adegan. Jeda atau lanjutkan animasi dengan Putar."
+  },
   "move-a-hierarchy-by-name": {
     "banner": "Saksikan lima grup bernama menempuh urutan yang dapat diulang. Ganti pengendali untuk menulis pose yang sama secara manual.",
     "controls": {

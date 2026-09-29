@@ -13,7 +13,8 @@
       "play": "재생을 시작한다.",
       "stop": "멈추고 처음으로 돌아간다.",
       "seek": "재생 중이든 아니든 반복 방식에 따라 클립을 지금 바로 `time` 초의 자세로 둔다. 재생 중인 액션은 거기서 이어지고, 멈춘 액션은 같은 믹서의 재생 중인 액션이 덮어쓸 때까지 그 자세를 유지한다.",
-      "clipTime": "루프 모드에 따라, 클립 안에서 액션이 위치한 지점."
+      "clipTime": "루프 모드에 따라, 클립 안에서 액션이 위치한 지점.",
+      "blendMode": "`additive`는 첫 키를 기준으로 한 움직임을 다른 동작과 혼합하지 않고 더합니다."
     }
   },
   "AlphaMode": {
@@ -817,7 +818,9 @@
       "vertexCount": "정점 수.",
       "flags": "어떤 속성을 담고 있는가.",
       "decodedBytes": "압축 해제 후 크기.",
-      "quantizationError": "헤더에 기록된 최대 위치 이동량, 오브젝트 단위: 디코딩된 위치는 원본으로부터, 그리고 그 페이지가 선언한 박스로부터 이만큼 떨어져 있을 수 있다."
+      "quantizationError": "헤더에 기록된 최대 위치 이동량, 오브젝트 단위: 디코딩된 위치는 원본으로부터, 그리고 그 페이지가 선언한 박스로부터 이만큼 떨어져 있을 수 있다.",
+      "morphTargets": "`attributes.morph`의 대상 수. 대상과 정점마다 부동소수점 수 6개이며 모핑이 없으면 생략됩니다.",
+      "skinInfluences": "정점당 원본 본 영향 수."
     }
   },
   "DiagnosticCapabilities": {
@@ -1154,7 +1157,8 @@
       "mathBatch": "연산 경로 조정기(`../math/path/governor.ts`)의 상태: 각 배치 연산의 현재 경로, 두 경로의 중앙값, 전환 횟수. 호스트가 아직 배치를 열지 않았을 때는 `null` — 측정되지 않은 것이지 「JavaScript 경로」가 아니다.",
       "pagesPlannedOffThread": "메인 스레드 밖에서의 페이지 통합. `pagesPlannedOffThread`는 그 도착 계획(각 클러스터가 팩 안에서 차지하는 위치, 그리고 그것이 이동시키는 페이지 순번)이 워커에 의해 계산된 도착 수를 세며, 대체 방식이 메인 스레드에서 계획한 것은 절대 세지 않는다. `pagePlanMs`는 그 계획들의 누적 시간으로, 어느 스레드든 실행자 자신이 측정한다: 프레임별 `cpu*`나 `gpu*`에 절대 더해지지 않는다. 아직 도착이 하나도 계획되지 않은 동안에는 둘 다 `null`이다 — 측정되지 않은 것이지, 0이 아니다.",
       "pagePlanMs": "도착 계획에 소요된 시간.",
-      "dynamicUploadBytes": "이 프레임에 제자리에서 업로드된 동적 지오메트리의 정점 바이트(#573), 월드의 프레임당 예산(`DYNAMIC_UPLOAD_BUDGET_BYTES`) 이내. 월드가 그리지 않으면 없음."
+      "dynamicUploadBytes": "이 프레임에 제자리에서 업로드된 동적 지오메트리의 정점 바이트(#573), 월드의 프레임당 예산(`DYNAMIC_UPLOAD_BUDGET_BYTES`) 이내. 월드가 그리지 않으면 없음.",
+      "gpuDeformationMs": "`gpuPassMs` 프레임의 GPU 변형 시간. 측정 전이나 지원되지 않으면 null."
     }
   },
   "Frustum": {
@@ -1784,7 +1788,8 @@
       "record": "세계가 이 모델에 대해 보관하는 모든 것: 그 주소, 매니페스트, 그래프.",
       "getObjectByName": "이 이름을 가진 아래의 첫 노드: 모델, 원본 파일의 노드, 그다음 다른 자식 — 파일이 담은 조명, 페이지가 놓은 노드.",
       "metadata": "모델의 컴파일된 매니페스트 — 그 프리미티브들, `sourceTriangles` — 그리고 `clusters`(그 페이지가 보관하는 클러스터, DAG의 모든 레벨을 센 것).",
-      "localBounds": "이 노드 자체 콘텐츠가 차지하는 박스, 로컬 프레임; 일반 노드는 아무것도 담지 않는다."
+      "localBounds": "이 노드 자체 콘텐츠가 차지하는 박스, 로컬 프레임; 일반 노드는 아무것도 담지 않는다.",
+      "animations": "모델 노드에 연결된 파일의 클립: `animation.createMixer(model).clipAction(model.animations[0]).play()`."
     }
   },
   "LodQualityId": {
@@ -2097,7 +2102,9 @@
       "morphTargetInfluences": "지오메트리가 선언할 때 각 모프 타깃의 가중치.",
       "morphTargetDictionary": "이름별 각 모프 타깃의 순위.",
       "updateMorphTargets": "첫 번째 모프 속성의 모프 타깃마다 0 가중치 하나. 순위로 이름을 붙입니다.",
-      "copy": "`source`의 값과, 달리 말하지 않으면 그 자식의 복사본을 가져옵니다."
+      "copy": "`source`의 값과, 달리 말하지 않으면 그 자식의 복사본을 가져옵니다.",
+      "skeleton": "`skinIndex`와 `skinWeight`가 지정하는 본. 매 프레임 GPU에서 계산됩니다.",
+      "waves": "GPU 및 부력 계산을 위해 `WaterSurface`와 공유하는 파도 매개변수."
     }
   },
   "Mixer": {
@@ -2480,7 +2487,9 @@
       "vertexCount": "정점 수.",
       "flags": "어떤 속성을 담고 있는가.",
       "decodedBytes": "`block`의 크기.",
-      "quantizationError": "페이지 헤더에 기록된 최대 위치 이동량, 오브젝트 단위."
+      "quantizationError": "페이지 헤더에 기록된 최대 위치 이동량, 오브젝트 단위.",
+      "skinInfluences": "정점당 원본 본 영향의 정확한 폭.",
+      "morphTargets": "`morph`의 대상 수. 대상과 정점마다 부동소수점 수 6개이며 모핑이 없으면 생략됩니다."
     }
   },
   "PageDecodeOp": {
@@ -2665,7 +2674,9 @@
       "matrices": "행당 16개의 열 우선 부동소수점, 소유자가 쓴다.",
       "live": "그 행이 리소스를 배치하고 있으면 1, 대기 중이면 0.",
       "shadowless": "그 행이 그림자를 드리우지 않으면 1(메시의 `castShadow`가 `false`), 드리우면 0.",
-      "capacity": "확장이 필요해지기 전까지 담을 수 있는 행 수."
+      "capacity": "확장이 필요해지기 전까지 담을 수 있는 행 수.",
+      "sources": "행을 재사용할 때도 유지되는 원본 소유자.",
+      "sourceModels": "대기 중인 행을 포함하여 리소스를 공유하는 메시."
     }
   },
   "Plane": {
@@ -2733,7 +2744,8 @@
       "streams": "그것의 스트림 번들들.",
       "quantization": "페이지가 없는 프리미티브에서는 null. 그것은 어떤 격자로도 양자화되지 않았다.",
       "topology": "메시의 모서리와 꼭짓점이 어떻게 생겼는가.",
-      "dynamic": "월드의 동적 지오메트리(#573): 인덱스 페이지만 있고, 정점은 엔진이 제자리에서 다시 쓰는 호스트 지오메트리에서 부동소수점으로 읽힘."
+      "dynamic": "월드의 동적 지오메트리(#573): 인덱스 페이지만 있고, 정점은 엔진이 제자리에서 다시 쓰는 호스트 지오메트리에서 부동소수점으로 읽힘.",
+      "deformation": "관절의 정지 구 `[x,y,z,radius]`와 최대 모핑 도달 범위. 정적 지오메트리는 생략하거나 null."
     }
   },
   "Primitive": {
@@ -3340,7 +3352,8 @@
       "quantization": "페이지가 없는 프리미티브에서는 null. 그것은 어떤 격자로도 양자화되지 않았다.",
       "topology": "메시의 모서리와 꼭짓점이 어떻게 생겼는가.",
       "binary": "그 목록들을 찾을 수 있는 위치.",
-      "dynamic": "월드의 동적 지오메트리(#573): 인덱스 페이지만 있고, 정점은 엔진이 제자리에서 다시 쓰는 호스트 지오메트리에서 부동소수점으로 읽힘."
+      "dynamic": "월드의 동적 지오메트리(#573): 인덱스 페이지만 있고, 정점은 엔진이 제자리에서 다시 쓰는 호스트 지오메트리에서 부동소수점으로 읽힘.",
+      "deformation": "관절의 정지 구 `[x,y,z,radius]`와 최대 모핑 도달 범위. 정적 지오메트리는 생략하거나 null."
     }
   },
   "SlimPrimitiveBinary": {
@@ -3804,7 +3817,8 @@
       "name": "그것이 애니메이션시키는 대상: `node.field`.",
       "kind": "어떤 종류의 값을 담고 있는가.",
       "times": "각 키가 발생하는 시각, 초 단위.",
-      "values": "각 키에서의 값, 차례로."
+      "values": "각 키에서의 값, 차례로.",
+      "interpolation": "기본값은 `linear`. `step`은 이전 키를 유지하며 `cubic`은 glTF의 입력 접선/값/출력 접선 묶음을 사용합니다."
     }
   },
   "TrackBinding": {
@@ -3813,11 +3827,12 @@
       "owner": "그 트랙이 쓰는 대상 오브젝트.",
       "field": "그것이 쓰는, `owner`의 필드.",
       "key": "마지막 샘플이 위치했던 키.",
-      "value": "한 샘플의 숫자들."
+      "value": "한 샘플의 숫자들.",
+      "reference": "가산 동작을 위한 첫 키의 기준 포즈."
     }
   },
   "TrackKind": {
-    "summary": "트랙이 애니메이션시키는 것: 숫자, 벡터, 회전, 또는 색상."
+    "summary": "숫자, 벡터, 회전, 색 또는 모핑 가중치 목록."
   },
   "TrackballCameraControls": {
     "summary": "트랙볼: 씬이 커서 아래의 공인 것처럼, 카메라가 그 피벗 주위를 굴러간다.",
@@ -3942,7 +3957,7 @@
   },
   "UNSPLIT_PASS": {
     "summary": "컴파일러가 클러스터 DAG 밖에 유지하는, 분할되지 않은 프리미티브의 레이아웃: 전체 메시, 원본 순서 유지.",
-    "description": "오늘날 그것으로 이어지는 세 가지 재질 속성이 있다 — 투과, 스키닝, 모프 타깃 — 결코 오브젝트 이름 때문이 아니다."
+    "description": "이 경로는 투과에 필요하며 객체 이름으로 결정되지 않습니다."
   },
   "UserNotice": {
     "summary": "페이지를 사용하는 사람에게 보내는 메시지, 그들이 할 수 있는 것과 함께.",
@@ -4378,7 +4393,8 @@
       "shadowCastersKept": "페이지별 컬링이 남긴 캐스터(그린 모든 페이지 합계), 장치가 마지막으로 샘플링한 프레임 기준 — 15프레임에 하나; 샘플이 돌아올 때까지 `null`.",
       "shadowCastersRejected": "페이지별 컬링이 검사했지만 남기지 않은 캐스터(리시버가 읽는 페이지 부분 밖), 같은 샘플링 프레임 기준; 샘플이 돌아올 때까지 `null`.",
       "shadowCastersHidden": "가림 테스트가 페이지의 정적 레이어 뒤에 숨었다고 판정한 움직이는 캐스터, 마지막 샘플링 프레임 기준; 샘플이 돌아올 때까지 `null`.",
-      "dynamicUploadBytes": "이 프레임에 제자리에서 업로드된 동적 지오메트리의 정점 바이트(#573), 월드의 프레임당 예산(`DYNAMIC_UPLOAD_BUDGET_BYTES`) 이내. 월드가 그리지 않으면 없음."
+      "dynamicUploadBytes": "이 프레임에 제자리에서 업로드된 동적 지오메트리의 정점 바이트(#573), 월드의 프레임당 예산(`DYNAMIC_UPLOAD_BUDGET_BYTES`) 이내. 월드가 그리지 않으면 없음.",
+      "gpuDeformationMs": "`gpuPassMs` 프레임의 GPU 변형 시간. 측정 전이나 지원되지 않으면 null."
     }
   },
   "WorldOptions": {
@@ -7483,7 +7499,8 @@
       "height": "월드 점 `(x, z)` 위 수면의 높이(미터).",
       "point": "정지 점 `(x, level, z)`가 옮겨지는 월드 점 `[x, y, z]`를 `out`에: 점마다 옮긴 격자가 곧 수면이며, 마루는 파도만큼 날카롭습니다.",
       "wavesNow": "선언한 파도, 각 위상을 지금 시각까지 옮긴 것: `world.physics.water`에 다시 설정해도(그 파도는 0초부터 다시 시작) 수면은 튀지 않고 지금 자리에서 이어집니다.",
-      "normal": "정지 점 `(x, z)`에서 수면의 단위 법선 `[x, y, z]`를 `out`에."
+      "normal": "정지 점 `(x, z)`에서 수면의 단위 법선 `[x, y, z]`를 `out`에.",
+      "waveModel": "GPU와 물리에 같은 파도 값과 시간을 사용합니다."
     }
   },
   "WaveSpec": {
@@ -7939,6 +7956,73 @@
   },
   "world.materialMapBytes": {
     "summary": "보관 중이거나 대기 중인 이미지 바이트 수. 한도는 64 MiB이다."
+  },
+  "animation.weightsTrack": {
+    "summary": "각 키의 모든 모핑 가중치를 담는 트랙.",
+    "parameters": {
+      "path": "경로 `node.morphTargetInfluences`.",
+      "times": "초 단위 키 시간.",
+      "values": "대상과 키마다 가중치 하나."
+    }
+  },
+  "animation.skeleton": {
+    "summary": "`mesh.skeleton`에 할당할 스켈레톤을 만듭니다.",
+    "parameters": {
+      "bones": "`skinIndex` 순서의 본.",
+      "inverseBindMatrices": "본마다 숫자 16개. 생략하면 현재 포즈가 바인드 포즈가 됩니다."
+    }
+  },
+  "animation.twoBoneIK": {
+    "summary": "클립 계산 후 두 본으로 된 체인이 목표 지점에 닿도록 합니다.",
+    "parameters": {
+      "root": "체인의 첫 번째 본.",
+      "mid": "체인의 두 번째 본.",
+      "end": "두 번째 본에 연결된 끝 노드.",
+      "target": "도달할 지점.",
+      "pole": "굽힘 방향. 기본값은 현재 방향.",
+      "weight": "0은 현재 포즈를 유지하고 1은 해를 완전히 적용합니다."
+    }
+  },
+  "animation.windClip": {
+    "summary": "나무의 본을 기울이고 흔드는 반복 클립.",
+    "parameters": {
+      "bones": "줄기부터 끝까지 순서대로 나열한 본.",
+      "options": "방향, 최대 굽힘 각도, 주파수."
+    },
+    "parameters.options.direction": "지면 방향 `[x, z]`이며 기본값은 `[1, 0]`입니다.",
+    "parameters.options.angle": "최대 굽힘 각도(라디안)이며 기본값은 0.1입니다.",
+    "parameters.options.frequency": "초당 흔들림 횟수이며 기본값은 0.5입니다."
+  },
+  "Skeleton": {
+    "summary": "스킨 메시를 변형하는 뼈와 메시 좌표를 각 뼈의 좌표로 옮기는 역 바인드 행렬입니다.",
+    "description": "정점의 관절 인덱스는 `bones`의 위치를 가리킵니다. 역 바인드 행렬이 없으면 스켈레톤 생성 시 뼈의 자세를 바인드 자세로 사용합니다.",
+    "members.isSkeleton": "항상 `true`이며 스켈레톤을 식별합니다.",
+    "members.bones": "관절 순서대로 나열된 관절 노드입니다.",
+    "members.boneInverses": "뼈마다 열 우선으로 저장한 16개 수치이며, 바인드 자세의 월드 행렬의 역행렬입니다.",
+    "members.palette": "각 관절의 `meshWorld⁻¹ · boneWorld · boneInverse` 행을 `out`의 `at`부터 기록합니다. 팔레트는 바인드 정점을 메시 로컬 좌표로 변환하고 이후 메시 월드 변환이 적용됩니다. `boneWorlds`는 읽기 측의 월드 행렬을 제공하며, 없으면 뼈 자체의 행렬을 사용합니다."
+  },
+  "Waves": {
+    "summary": "`setTime`으로 시간을 설정하는 Gerstner 파동 집합입니다.",
+    "description": "파동 `i`마다 방향 `(dx, dz)`, 파수 `k`, 진폭 `A`, 측면 진폭 `Q·A`가 있습니다. 파봉이 뒤집히지 않도록 경사를 `Σ Qᵢ·Aᵢ·kᵢ ≤ 1`로 정규화합니다.",
+    "members.phase": "설정된 시간에서 각 파동의 위상으로 범위는 [0, 2π)이며 유일한 시간 종속 상태입니다.",
+    "members.crest": "정지 수면 위 최대 높이: `Σ Aᵢ`.",
+    "members.steepness": "정규화한 `Σ Qᵢ·Aᵢ·kᵢ`이며 최대 1입니다.",
+    "members.phasesAt": "`t`초에서 각 파동의 위상을 배정밀도로 [0, 2π)에 맞춥니다.",
+    "members.setTime": "시간을 `t`초로 설정합니다. 이전 프레임 표면은 `setTime(t - dt)`에 해당합니다.",
+    "members.offset": "정지점 `(x, 0, z)`의 변위 `[x, y, z]`를 `out`에 기록합니다.",
+    "members.normal": "정지점 `(x, z)`의 단위 법선 `[x, y, z]`를 `out`에 기록합니다.",
+    "members.count": "합성하는 파동의 수입니다.",
+    "members.dirX": "각 파동 방향의 정규화된 x 성분입니다.",
+    "members.dirZ": "각 파동 방향의 정규화된 z 성분입니다.",
+    "members.k": "각 파동의 파수이며 단위는 라디안/미터입니다.",
+    "members.amplitude": "각 파동의 수직 진폭이며 단위는 미터입니다.",
+    "members.lateral": "각 파동의 정규화된 측면 진폭이며 단위는 미터입니다."
+  },
+  "WindOptions": {
+    "summary": "바람 방향(지면의 `x`, `z`), 뼈의 최대 굽힘 각도(라디안), 초당 흔들림 횟수입니다.",
+    "members.direction": "지면 방향 `[x, z]`이며 기본값은 `[1, 0]`입니다.",
+    "members.angle": "최대 굽힘 각도(라디안)이며 기본값은 0.1입니다.",
+    "members.frequency": "초당 흔들림 횟수이며 기본값은 0.5입니다."
   },
   "world.setTransform": {
     "summary": "`nodeName` 노드의 월드 자세가 `matrix`가 되도록 옮깁니다. 페이지가 참조를 붙들지 않은 노드도 이름(`object.name`)으로 장면에서 찾아 도달합니다.",

@@ -1,9 +1,4 @@
-/**
- * THE ENGINE'S GRAPH, HANDED TO THE REFERENCE RENDERER — its nodes: a whole graph copied node for
- * node, a light copied for the display graph that lights a frame, and the camera the renderer
- * draws from, brought each frame to the engine camera's pose and optics. The resources the nodes
- * hold cross through `fromGraph.ts`; nothing is computed here.
- */
+// Engine nodes copied into the reference renderer; resources cross through `fromGraph.ts`.
 import * as THREE from 'three';
 import { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts';
 import { Light } from '../../../packages/sdk-core/src/world/light/light.ts';
@@ -101,9 +96,13 @@ function threeSurroundingLight(light: Light) {
 
 /** A node of the library for one engine node, of the class its own class or `kind` names, its
  *  children not included: the one place an engine node is given a library's class. */
-function threeNode(node: Object3D): THREE.Object3D {
+function threeNode(node: Object3D, bones: ReadonlySet<Object3D>): THREE.Object3D {
+  if (bones.has(node)) return place(new THREE.Bone(), node);
   if (isDrawnNode(node)) {
-    const mesh = threeMeshCopy(node);
+    const mesh = node.skeleton
+      ? new THREE.SkinnedMesh(threeGeometry(node.geometry).clone(), threeMaterials(node.material))
+      : threeMeshCopy(node);
+    if (mesh instanceof THREE.SkinnedMesh) mesh.normalizeSkinWeights();
     if (node.morphTargetInfluences) mesh.morphTargetInfluences = node.morphTargetInfluences.slice();
     if (node.morphTargetDictionary) mesh.morphTargetDictionary = { ...node.morphTargetDictionary };
     return place(mesh, node);
@@ -118,21 +117,34 @@ function threeNode(node: Object3D): THREE.Object3D {
   return place(node instanceof Group ? new THREE.Group() : new THREE.Object3D(), node);
 }
 
-/**
- * The library's copy of a whole engine graph: every node of the same kind, pose and name, the
- * resources shared as the engine shares them, and each light aiming at the copy of its target.
- */
+/** Copies the graph, its joint bindings and light targets into reference-renderer nodes. */
 export function threeGraph(root: Object3D | THREE.Object3D): THREE.Object3D {
   if (root instanceof THREE.Object3D) return root;
+  const bones = new Set<Object3D>();
+  root.traverse((node) => {
+    if (isDrawnNode(node) && node.skeleton) for (const bone of node.skeleton.bones) bones.add(bone);
+  });
   const copies = new Map<Object3D, THREE.Object3D>();
   const copy = (node: Object3D): THREE.Object3D => {
-    const made = threeNode(node);
+    const made = threeNode(node, bones);
     copies.set(node, made);
     for (const child of node.children) made.add(copy(child));
     return made;
   };
   const made = copy(root);
   for (const [node, light] of copies) {
+    if (isDrawnNode(node) && node.skeleton && light instanceof THREE.SkinnedMesh) {
+      const skeleton = node.skeleton;
+      const joints = skeleton.bones.map((bone) => {
+        const copied = copies.get(bone);
+        if (!(copied instanceof THREE.Bone)) throw new Error('WITNESS_BONE_OUTSIDE_GRAPH');
+        return copied;
+      });
+      const inverses = joints.map((_, i) =>
+        new THREE.Matrix4().fromArray(skeleton.boneInverses, i * 16),
+      );
+      light.bind(new THREE.Skeleton(joints, inverses), new THREE.Matrix4());
+    }
     const target = node instanceof Light ? aimOf(node) : undefined;
     if (target)
       (light as THREE.DirectionalLight).target =
@@ -159,11 +171,7 @@ function threeCameraOf(camera: Camera) {
   return made;
 }
 
-/**
- * The library's camera for an engine camera, brought to the engine camera's world pose and
- * optics at each call: the renderer composes its view from the world matrix the engine resolved,
- * and its projection from the same optics. A library camera crosses as it is.
- */
+/** Copies engine camera pose and optics each frame; a library camera crosses unchanged. */
 export function threeCamera(camera: Camera | THREE.Camera): THREE.Camera {
   if (camera instanceof THREE.Camera) return camera;
   let made = cameras.get(camera);

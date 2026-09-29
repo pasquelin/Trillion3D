@@ -1,3 +1,5 @@
+import { receiveSoftSource } from '../deformation/softSource.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts';
 import {
   BODY_INDEX,
@@ -125,15 +127,23 @@ function drawSoft(mesh: Mesh, vertices: Float32Array) {
  */
 export function receiveSoft(
   words: Uint32Array | null,
-  bodies: Pick<ReturnType<typeof createPhysicsBodies>, 'meshOf' | 'softMap'>,
+  bodies: Pick<ReturnType<typeof createPhysicsBodies>, 'meshOf' | 'softMap' | 'slots'>,
 ) {
-  const moved: Mesh[] = [];
+  const moved: Object3D[] = [];
   if (!words) return moved;
   const floats = new Float32Array(words.buffer, words.byteOffset, words.length);
   for (let at = 0; at < words.length;) {
     const mesh = bodies.meshOf(words[at]),
       count = words[at + 1],
       from = at + SOFT_STATE_WORDS;
+    const owner = bodies.slots.of(words[at]);
+    if (
+      owner &&
+      'soft' in owner &&
+      owner.soft.source &&
+      receiveSoftSource(owner.soft.source, floats.subarray(from, from + count * 3))
+    )
+      moved.push(owner.model);
     const map = mesh && bodies.softMap(mesh.physics._index);
     if (mesh && map) {
       // Made again from another geometry, it takes the new one's vertex count.

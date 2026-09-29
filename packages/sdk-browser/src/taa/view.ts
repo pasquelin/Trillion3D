@@ -1,7 +1,7 @@
 import { invertMatrix4, matrixAtRenderOrigin } from '../../../sdk-core/src/index.ts';
 import { TAA_SAMPLES } from './jitter.ts';
 import { taaWeightTable } from './weights.ts';
-import { TAA_VIEW_BYTES } from './shaderWgsl.ts';
+import { TAA_VIEW_BYTES } from './bindingsWgsl.ts';
 import type { EngineCamera } from '../camera/world.ts';
 import type { TaaFrameState } from './frameState.ts';
 
@@ -22,7 +22,8 @@ function writeGrid(at: number, [width, height]: readonly number[]) {
  * The pass's uniform for this frame (`TaaView`, `shaderWgsl.ts`): both matrices at the eye, the
  * display grid the history has, the current share and history flags, the native filter weights
  * of this jitter rank, the `render` grid the frame was drawn in, its jitter and whether it moves
- * (`historyWgsl.ts`); `layers`, the display layers' history holds the last image's.
+ * (`historyWgsl.ts`), the eye; `layers`, the display layers' history holds the last image's;
+ * `deformed`, a GPU deformation moved (#357).
  */
 export function writeTaaView(
   device: GPUDevice,
@@ -33,6 +34,7 @@ export function writeTaaView(
   display: readonly number[],
   moved: boolean,
   layers = false,
+  deformed = false,
 ) {
   matrixAtRenderOrigin(packed, state.previousViewProjection, cam.eye, 0);
   // Inverse of the view-projection WITHOUT jitter: the reprojected pixel is its unshifted centre,
@@ -52,5 +54,7 @@ export function writeTaaView(
   packed[56] = state.jitter[0];
   packed[57] = state.jitter[1];
   packed[58] = state.stillFrames > 0 ? 0 : 1;
+  packed.set(cam.eye, 60);
+  packed[63] = deformed ? 1 : 0;
   device.queue.writeBuffer(uniform, 0, packed);
 }

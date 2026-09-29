@@ -37,11 +37,17 @@ export const WAVE_DOUBLES = 6;
  * so that `Σ Qᵢ·Aᵢ·kᵢ ≤ 1` (crests never loop over).
  */
 export class Waves {
+  /** Number of waves in the sum. */
   readonly count: number;
+  /** Normalised x component of each wave direction. */
   readonly dirX: Float64Array;
+  /** Normalised z component of each wave direction. */
   readonly dirZ: Float64Array;
+  /** Wave number of each wave, in radians per metre. */
   readonly k: Float64Array;
+  /** Vertical amplitude of each wave, in metres. */
   readonly amplitude: Float64Array;
+  /** Normalised lateral amplitude of each wave, in metres. */
   readonly lateral: Float64Array;
   /** Angular speed and phase at `t = 0` of each wave. */
   private readonly omega: Float64Array;

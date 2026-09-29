@@ -383,3 +383,26 @@ pixels. Missing captures remain unavailable. The report does not infer fidelity 
 ## Performance Benchmarks
 
 Located under `bench/perf/<package>/`, executed via `pnpm run perf:all`. Operation, oracles, and baselines documented in [`docs/TESTS.md`](../../docs/TESTS.md); this README covers the campaign harness measuring real scenes in-browser.
+
+## Deformation batch (#357)
+
+The public source fixtures are CesiumMan and AnimatedMorphCube under `site/assets/examples/`.
+Compile their registered caches first. Open `a-character-that-walks.html`,
+`a-shape-that-morphs.html`, `a-crowd-of-characters.html?count=1` (then 10 and 100), and
+`additive-poses.html`. Each exposes `deformationCase.world` and `setTime(seconds)`.
+Use fixed times 0, 0.25, 0.5 and 1 second for captures; freeze the example through that hook.
+`deformationWitness.ts` loads the same original public glTF and independently evaluates its
+first clip at those times in the witness. Supply the same camera, lights, viewport, tone mapping
+and shadow settings, then `captureDeformationWitness` posts pixels through the existing capture
+transport. Compare them with `imageDiff`; do not substitute a rest pose or a black capture.
+The helper places crowds at the example's same two-unit grid coordinates.
+
+For the animated crowd envelope, keep playback enabled and run
+`deformationEnvelope(deformationCase.world)` for each count. It retains 120 actual frames after
+30 warmup frames: CPU frame time, GPU deformation time, geometry allocation and VRAM bytes.
+Missing GPU timestamp support stays null. Record the browser, device, backend, budgets, viewport,
+frame distribution and image differences with the batch results; no performance or pixel parity
+is inferred from these helpers. Run both backends. The `deformation-gpu` browser probe compares
+skin/morph/current/previous/soft/wave outputs and whole-copy output against shared fixtures;
+its wave comparison uses the existing physics wave sampler with a one-centimetre tolerance.
+These browser runs belong to recette after the merge on `develop`.

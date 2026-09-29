@@ -10,7 +10,7 @@ pub(super) fn mesh_json(
     materials: &[Option<usize>],
     bin: &mut Bin,
     accessors: &mut Vec<Value>,
-    report: &mut Report,
+    _report: &mut Report,
 ) -> Option<MeshOut> {
     let mut primitives = Vec::new();
     let mut triangles = 0usize;
@@ -28,16 +28,12 @@ pub(super) fn mesh_json(
     let has_normal = mesh.vertex_normal.exists;
     let has_uv = mesh.vertex_uv.exists;
     let has_color = mesh.vertex_color.exists;
-    report.add_count(
-        "mesh-skinning",
-        usize::from(!mesh.skin_deformers.is_empty()),
-    );
-    report.add_count(
-        "mesh-blend-shapes",
-        usize::from(!mesh.blend_deformers.is_empty()),
-    );
+    let deform = MeshDeform::of(mesh);
     for (material_slot, faces) in parts {
-        let mut out = Vertices::default();
+        let mut out = Vertices {
+            targets: (0..deform.targets()).map(|_| Default::default()).collect(),
+            ..Default::default()
+        };
         let mut unique: CornerMap = CornerMap::default();
         for &face_index in faces {
             let face = mesh.faces[face_index as usize];
@@ -70,6 +66,10 @@ pub(super) fn mesh_json(
                     values[CORNER_COLOR]
                         .copy_from_slice(&[k.x as f32, k.y as f32, k.z as f32, k.w as f32]);
                 }
+                let vertex = mesh.vertex_indices[c];
+                if deform.deformed() {
+                    values[CORNER_VERTEX] = vertex as f32;
+                }
                 let next = unique.len() as u32;
                 let id = *unique
                     .entry(CornerKey(values.map(f32::to_bits)))
@@ -84,6 +84,7 @@ pub(super) fn mesh_json(
                         if has_color {
                             out.colors.extend_from_slice(&values[CORNER_COLOR]);
                         }
+                        deformed_vertex(&deform, vertex, &mut out);
                         next
                     });
                 out.indices.push(id);
@@ -100,9 +101,24 @@ pub(super) fn mesh_json(
         return None;
     }
     Some(MeshOut {
-        mesh: json!({"name":&*mesh.element.name,"primitives":primitives}),
+        mesh: json!({"name":&*mesh.element.name,"primitives":primitives,"weights":deform.weights()}),
         triangles,
     })
+}
+
+/// Appends `vertex`'s bones and shape offsets to `out`, on a mesh that deforms.
+fn deformed_vertex(deform: &MeshDeform<'_>, vertex: u32, out: &mut Vertices) {
+    if let Some((joints, weights)) = deform.influences(vertex as usize) {
+        out.joints.extend(joints);
+        out.weights.extend(weights);
+    }
+    for (target, (offsets, normals)) in out.targets.iter_mut().enumerate() {
+        let offset = deform.offset(target, vertex);
+        offsets.extend_from_slice(&offset[..3]);
+        if deform.bends(target) {
+            normals.extend_from_slice(&offset[3..]);
+        }
+    }
 }
 
 /// Indices of a part, in 16 or 32 bits depending on the vertex count. The buffer

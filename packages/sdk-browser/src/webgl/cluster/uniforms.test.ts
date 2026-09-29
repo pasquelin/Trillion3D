@@ -36,5 +36,7 @@ test('material constants cross the GL boundary only when their value changes', (
     ['reflectionDepth', 10],
     ['lightData', 11],
     ['lightList', 12],
+    ['deformBlock', 13],
+    ['morphDeltas', 14],
   ]);
 });

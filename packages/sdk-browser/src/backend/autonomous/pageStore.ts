@@ -39,11 +39,18 @@ export function createPageStore(env: PageStoreEnvironment) {
   const storeRecords = (recs: readonly PageRec[], read?: DecodedGeometryPage, host = false) => {
     const rowed = new Map<DecodedGeometryPage, ReturnType<typeof hostPageGeometry>>(),
       storing = new Set(recs);
-    // A rowed geometry another record of the page still draws stays: some records restored alone.
-    const drawnByOthers = (rec: PageRec) =>
-      (byUrl.get(rec.url) ?? []).some(
-        (other) => other.geometry === rec.geometry && !storing.has(other),
-      );
+    // A rowed geometry held outside this restore stays; index each URL once, not once per row.
+    const retained = new Map<string, Set<PageRec['geometry']>>();
+    const drawnByOthers = (rec: PageRec) => {
+      let geometries = retained.get(rec.url);
+      if (!geometries) {
+        geometries = new Set();
+        for (const other of byUrl.get(rec.url) ?? [])
+          if (!storing.has(other)) geometries.add(other.geometry);
+        retained.set(rec.url, geometries);
+      }
+      return geometries.has(rec.geometry);
+    };
     for (const rec of recs) {
       const placed = rowPlaced(env.roots, rec);
       release(rec, placed && drawnByOthers(rec));
@@ -56,7 +63,15 @@ export function createPageStore(env: PageStoreEnvironment) {
         shared ??
         (source
           ? sourcedPageGeometry(data.indices, source, rec.min, rec.max)
-          : hostPageGeometry(data, itemSize, rec.min, rec.max));
+          : hostPageGeometry(
+              data,
+              (name) =>
+                name.startsWith('skin')
+                  ? data.attributes[name].length / data.vertexCount
+                  : itemSize(name),
+              rec.min,
+              rec.max,
+            ));
       if (placed) rowed.set(data, geometry);
       const base = baseMaterials.get(rec)!;
       // Lazily: a page without a colour attribute must not make a vertex-coloured twin.

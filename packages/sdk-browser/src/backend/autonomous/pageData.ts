@@ -12,8 +12,16 @@ export function assertWithinBox(data: DecodedGeometryPage, rec: PageRec) {
   }
 }
 
-/** Components of a decoded attribute, by name; anything else is a UV pair. */
-const ITEM_SIZE: Record<string, number> = { position: 3, normal: 3, color: 4 };
+/** Components of a decoded attribute, by name; anything else is a UV pair. A skin's joints and
+ *  weights are four; the morph displacements six a target, the targets side by side (#357). */
+const ITEM_SIZE: Record<string, number> = {
+  position: 3,
+  normal: 3,
+  color: 4,
+  skinIndex: 4,
+  skinWeight: 4,
+  morph: 6,
+};
 export const itemSize = (name: string) => ITEM_SIZE[name] ?? 2;
 
 /** Each page cut again for its class, decoded once for as long as a record holds its bytes. */

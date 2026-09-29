@@ -38,6 +38,8 @@ pub(super) fn accessor<'a>(
         Some("VEC2") => 2,
         Some("VEC3") => 3,
         Some("VEC4") => 4,
+        // A skin's inverse bind matrices: sixteen floats, no column padding.
+        Some("MAT4") if component == 5126 => 16,
         _ => {
             return Err(CompilerError::new(
                 "UNSUPPORTED_ACCESSOR_TYPE",
