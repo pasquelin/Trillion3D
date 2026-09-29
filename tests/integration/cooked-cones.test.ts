@@ -55,28 +55,23 @@ async function checkScene(pointer: string) {
       xyz[i * 3 + 1] = position.getY(i);
       xyz[i * 3 + 2] = position.getZ(i);
     }
-    const joined = joinedCorners(
-      primitive.pages.map((page) => {
-        const held = page.stream === undefined ? undefined : primitive.streams?.pages[page.stream];
-        return held
-          ? new Uint32Array(bundle(held.url), page.streamOffset, page.count)
-          : new Uint32Array(bundle(page.url), 0, page.count);
-      }),
-    );
-    const { indices, ends } = joined;
-    // A vertex a seam-locked solve placed (#877) is read from the geometry page naming it.
-    const decode = (k: number) =>
-      decodeGeometryPage(new Uint8Array(bytesOf(join(dir, primitive.pages[k].geometry!.url))));
     const columns = { positions: xyz, normals: new Float32Array(0), uvs: null, colors: null };
-    const { positions } = await withPlaced(columns, joined, primitive.pages, async (naming) =>
-      naming.map(decode),
-    );
-    primitive.pages.forEach((page, k) => {
+    for (const page of primitive.pages) {
       pages++;
+      const held = page.stream === undefined ? undefined : primitive.streams?.pages[page.stream];
+      const joined = joinedCorners([
+        held
+          ? new Uint32Array(bundle(held.url), page.streamOffset, page.count)
+          : new Uint32Array(bundle(page.url), 0, page.count),
+      ]);
+      // A vertex a seam-locked solve placed (#877) is read from the geometry page naming it.
+      const url = join(dir, page.geometry!.url);
+      const decoded = async () => [decodeGeometryPage(new Uint8Array(bytesOf(url)))];
+      const { positions } = await withPlaced(columns, joined, [page], decoded);
       // A version-9 sidecar gives every page its cone.
-      if (!coneHolds(page.cone!, positions, indices.subarray(k ? ends[k - 1] : 0, ends[k])))
+      if (!coneHolds(page.cone!, positions, joined.indices))
         disagreements.push(`${pointer} page ${page.id}: cooked ${JSON.stringify(page.cone)}`);
-    });
+    }
   }
   return { pages, disagreements };
 }
