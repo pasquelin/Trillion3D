@@ -5,7 +5,7 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
 /** Words of one bit per table entry of a session's window. */
-export const shadowEntryBits = (pages = SUN_WINDOW) => shadowTableEntries(pages) / 32;
+const shadowEntryBits = (pages = SUN_WINDOW) => shadowTableEntries(pages) / 32;
 /** Words of the request buffer after the count and a list as long as the pool's (`shadowRequestCap`,
  *  read at run time): one bit per table entry — a page is listed once however many pixels read it
  *  —, then one per entry for its miss (#1211), listed once the same way. */
@@ -25,7 +25,7 @@ const claimWgsl = (name: string, entryBits: number, miss = false) => `fn ${name}
 
 /** The per-lane request, every device's: each lane claims its own page. The fallback of
  *  `SUBGROUP_REQUEST_WGSL`, and the text `withSubgroupShadowRequests` replaces. */
-export const laneRequestWgsl = (pages = SUN_WINDOW) =>
+const laneRequestWgsl = (pages = SUN_WINDOW) =>
   claimWgsl('requestShadowPage', shadowEntryBits(pages));
 export const LANE_REQUEST_WGSL = laneRequestWgsl();
 
@@ -45,7 +45,7 @@ const SUBGROUP_REQUEST_ROUNDS = 4;
  * whose atomics touch nothing, or a pass that never said — claims its own page, so no helper is
  * elected in place of a pixel that asks for its page, and a pass that forgets asks per lane.
  */
-export const subgroupRequestWgsl = (pages = SUN_WINDOW) =>
+const subgroupRequestWgsl = (pages = SUN_WINDOW) =>
   `${claimWgsl('shadowClaimPage', shadowEntryBits(pages))}
 fn requestShadowPage(e:u32){
  if(!shadowRequesting){shadowClaimPage(e);return;}

@@ -94,8 +94,10 @@ export async function openMeasuredWorld(
           explorer.render();
         };
     // Reference mode reads the resolved image; `renderViews` keeps the drawn one, at canvas size.
-    const capture = referenceCapture(explorer.capture, reference, () =>
-      runtime.state.active.metrics().shadowResolutionBias,
+    const capture = referenceCapture(
+      explorer.capture,
+      reference,
+      () => runtime.state.active.metrics().shadowResolutionBias,
     );
     // The reference image itself: the camera's own renderer, captured tile by tile at a heavy
     // supersampling (`referenceTiles.ts`), box-filtered and assembled in linear light.

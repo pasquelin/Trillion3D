@@ -728,7 +728,8 @@
       "near": "Distanza disegnata più vicina.",
       "far": "Distanza disegnata più lontana.",
       "zoom": "Ingrandimento.",
-      "orthographic": "Il riquadro di visione di una camera ortografica."
+      "orthographic": "Il riquadro di visione di una camera ortografica.",
+      "viewTile": "Una tessera di una vista più ampia disegnata da questa camera. Assente, la vista è disegnata intera."
     }
   },
   "CameraParameters": {
@@ -5597,7 +5598,8 @@
       "settled": "Vero quando un rapporto prova che lo stato attuale non chiede nulla: l’immagine può essere mantenuta.",
       "receive": "È tornato un rapporto di richieste; il piano successivo lo legge. Uno più recente sostituisce uno non letto.",
       "commit": "Le pagine `[from, to)` della lista del fotogramma sono state codificate, la pagina `from + i` in `modes[i]`: i loro disegni arrivano prima che qualcuno le legga. L’ultimo lotto chiude la lista.",
-      "resize": "Il pool a un'altra dimensione, le sue pagine conservate, i suoi array rifatti: restituisce dove è andata ogni pagina."
+      "resize": "Il pool a un'altra dimensione, le sue pagine conservate, i suoi array rifatti: restituisce dove è andata ogni pagina.",
+      "sunWindow": "Pagine per lato del clipmap di un sole con cui gira una sessione (`referenceMode.ts`)."
     }
   },
   "ShadowStaleReason": {

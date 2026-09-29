@@ -38,8 +38,7 @@ export interface DeferredSources {
   label: string;
   direct: boolean;
   bounce?: boolean;
-  /** Pages a side of a sun's clipmap the shadow shader was built with, so the per-subgroup
-   *  request text the program swaps in matches it (`shadowRequestWgsl.ts`). */
+  /** Pages per side of a sun's clipmap the shadow shader was built with (`shadowRequestWgsl.ts`). */
   pages?: number;
 }
 /** What composition reads: a colour and its accumulated share, else the lit image's flags, and

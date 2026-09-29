@@ -49,7 +49,7 @@ export async function prepareDirectLights(rt: WebgpuPagesRuntime, device: GPUDev
     lights.shadows = await createGpuShadowAtlas(
       device,
       vis.visBindGroupLayout,
-      lights.plan.sunWindow,
+      lights.plan.table.entries,
     );
     lights.cull = await createGpuShadowCull(device, casterSlots);
     lights.pageQuads = await createShadowPageQuads(device, lights.shadows.faceUniform);
