@@ -60,7 +60,6 @@
       "proxyCellMetres": "Piso de resolução da malha proxy em metros: tamanho dos triângulos simplificados / células do cache de superfície. Dobrado pelo compilador se o orçamento for excedido.",
       "proxyLeafTriangles": "Triângulos por folha da BVH: os laços de travessia de folha são limitados por essa constante.",
       "traversalSteps": "Nós de BVH visitados por raio: limitado antes da execução do quadro, nunca dinâmico. Um nó de largura 4 cobre 4× mais árvore por passo que uma BVH binária.",
-      "motionTraversalSteps": "Nós do BVH visitados por raio depois que um proprietário se moveu: uma caixa reajustada pode sobrepor as vizinhas, então o limite fixo dobra. Ainda uma constante, nunca o número de nós.",
       "traversalStack": "Profundidade da pilha de travessia. Um nó de largura 4 empilha até 3 filhos; 32 cobre milhões de triângulos.",
       "cascadeLevels": "Níveis da cascata de sondas. Os primeiros `cascadeLevels - 1` seguem a posição da câmera; o último nível é fixo no mundo e cobre toda a extensão da cena.",
       "cascadeSize": "Sondas por eixo por nível: um nível é um cubo de `cascadeSize³` sondas.",

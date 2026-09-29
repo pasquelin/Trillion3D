@@ -60,7 +60,6 @@
       "proxyCellMetres": "Batas bawah resolusi mesh proxy dalam meter: ukuran segitiga yang disederhanakan / sel cache permukaan. Dilipatgandakan kompiler jika anggaran terlampaui.",
       "proxyLeafTriangles": "Segitiga per daun BVH: loop penelusuran daun dibatasi oleh konstanta ini.",
       "traversalSteps": "Node BVH yang dikunjungi per sinar: dibatasi sebelum eksekusi bingkai, tidak pernah dinamis. Sebuah node lebar-4 mencakup 4× lebih banyak pohon per langkah dibanding BVH biner.",
-      "motionTraversalSteps": "Simpul BVH yang dikunjungi per sinar setelah sebuah pemilik bergerak: kotak yang disesuaikan ulang bisa tumpang tindih dengan tetangganya, jadi batas tetapnya berlipat dua. Tetap sebuah konstanta, tidak pernah jumlah simpul.",
       "traversalStack": "Kedalaman tumpukan penelusuran. Sebuah node lebar-4 mendorong hingga 3 anak; 32 mencakup jutaan segitiga.",
       "cascadeLevels": "Tingkat cascade probe. `cascadeLevels - 1` pertama mengikuti posisi kamera; tingkat terakhir statis terhadap dunia dan mencakup seluruh batas adegan.",
       "cascadeSize": "Probe per sumbu per tingkat: satu tingkat adalah kubus berisi `cascadeSize³` probe.",

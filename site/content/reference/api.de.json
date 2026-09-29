@@ -342,7 +342,6 @@
       "proxyCellMetres": "Mindestauflösung des Proxy-Meshes in Metern: Größe der vereinfachten Dreiecke und der Zellen des Oberflächen-Caches. Vom Compiler verdoppelt, falls das Budget überschritten wird.",
       "proxyLeafTriangles": "Dreiecke pro Blatt des BVH: die Schleifen über die Blätter sind durch diese Konstante begrenzt.",
       "traversalSteps": "Vom Strahl besuchte BVH-Knoten: vor der Bildausführung begrenzt, nie dynamisch. Ein Knoten mit 4 Kindern deckt pro Schritt 4× mehr Baum ab als ein binärer BVH.",
-      "motionTraversalSteps": "Vom Strahl besuchte BVH-Knoten, sobald ein Besitzer bewegt wurde: Eine neu angepasste Box kann ihre Nachbarn überlappen, daher verdoppelt sich die feste Grenze. Weiterhin eine Konstante, nie die Knotenanzahl.",
       "traversalStack": "Tiefe des Durchlaufstapels. Ein Knoten mit 4 Kindern legt bis zu 3 ab; 32 deckt Millionen von Dreiecken ab.",
       "cascadeLevels": "Stufen der Sondenkaskaden. Die ersten `cascadeLevels - 1` folgen der Kameraposition; die letzte ist fest in der Welt und deckt die ganze Szene ab.",
       "cascadeSize": "Sonden pro Achse und Stufe: eine Stufe ist ein Würfel aus `cascadeSize³` Sonden.",

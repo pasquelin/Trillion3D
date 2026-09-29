@@ -1,4 +1,4 @@
-import type { SceneProxyColumns } from '../../contracts/proxy.ts';
+import { PROXY_TRIANGLE_FLOATS, type SceneProxyColumns } from '../../contracts/proxy.ts';
 
 const rounded = new Float32Array(1);
 const bits = new Uint32Array(rounded.buffer);
@@ -14,12 +14,13 @@ function outward(value: number, upper: boolean) {
 
 /** Canonical bounds of each proxy triangle, six per triangle: what a still pose covers. */
 export function proxyTriangleBoxes(triangles: Float32Array) {
-  const boxes = new Float64Array((triangles.length / 9) * 6);
+  const boxes = new Float64Array((triangles.length / PROXY_TRIANGLE_FLOATS) * 6);
   for (let t = 0; t < boxes.length / 6; t++)
     for (let a = 0; a < 3; a++) {
-      const x = triangles[t * 9 + a],
-        y = triangles[t * 9 + 3 + a],
-        z = triangles[t * 9 + 6 + a];
+      const base = t * PROXY_TRIANGLE_FLOATS + a;
+      const x = triangles[base],
+        y = triangles[base + 3],
+        z = triangles[base + 6];
       boxes[t * 6 + a] = Math.min(x, y, z);
       boxes[t * 6 + a + 3] = Math.max(x, y, z);
     }
@@ -38,10 +39,14 @@ export function createProxyRefit(data: SceneProxyColumns) {
   const errors = new Float64Array(triangleGroups.length * 3);
   const changed = new Uint8Array(triangleGroups.length);
   const nodeChanged = new Uint8Array(nodeBounds.length / 6);
+  /** Nodes whose bounds a refit ever rewrote: the only nodes a ray can visit beyond a still tree. */
+  const widened = new Uint8Array(nodeChanged.length);
+  let widenedNodes = 0;
   for (let t = 0; t < triangleGroups.length; t++) {
     slots[cursors[triangleGroups[t]]++] = t;
   }
   const boxes = new Float64Array(24);
+  /** Refits the moved groups and returns how many nodes have ever been refitted. */
   const refit = (groups: ReadonlySet<number>, transforms: Float32Array, extent: number[]) => {
     changed.fill(0);
     nodeChanged.fill(0);
@@ -86,6 +91,10 @@ export function createProxyRefit(data: SceneProxyColumns) {
       }
       if (!dirty) continue;
       nodeChanged[node] = 1;
+      if (!widened[node]) {
+        widened[node] = 1;
+        widenedNodes++;
+      }
       const base = node * 6;
       nodeBounds.fill(Infinity, base, base + 3);
       nodeBounds.fill(-Infinity, base + 3, base + 6);
@@ -139,6 +148,7 @@ export function createProxyRefit(data: SceneProxyColumns) {
           value = a < 3 ? Math.min(value, bounds[t * 6 + a]) : Math.max(value, bounds[t * 6 + a]);
         extent[a] = value;
       }
+    return widenedNodes;
   };
   return Object.assign(refit, {
     /** World bounds of each triangle over all its owners, six per triangle, and the moved ones. */
@@ -149,6 +159,7 @@ export function createProxyRefit(data: SceneProxyColumns) {
       bounds.byteLength +
       changed.byteLength +
       nodeChanged.byteLength +
+      widened.byteLength +
       boxes.byteLength +
       starts.byteLength +
       slots.byteLength,
