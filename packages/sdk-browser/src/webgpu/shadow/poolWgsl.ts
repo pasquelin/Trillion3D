@@ -24,8 +24,19 @@ export const POOL_FIELDS = [
 export const DRAWN_HOST = 0,
   DRAWN_NONE = 1,
   DRAWN_GPU = 2;
-/** The counts the allocation keeps, before the fields: what a snapshot reads back with them. */
-export const POOL_COUNTS = ['needs', 'candidates', 'allocated', 'refused', 'drawn'] as const;
+/** The counts the allocation keeps, before the fields: what a snapshot reads back with them. Each
+ *  frame's allocation clears those before `listings`, the pages every frame since the pool's seed
+ *  listed (`listDraw`): a snapshot read after a lost one still shows that the GPU drew. */
+export const POOL_COUNTS = [
+  'needs',
+  'candidates',
+  'allocated',
+  'refused',
+  'drawn',
+  'listings',
+] as const;
+/** The counts each frame's allocation starts from zero (`allocWgsl.ts`): all but `listings`. */
+export const POOL_FRAME_COUNTS = POOL_COUNTS.indexOf('listings');
 /** The index of each field and count of the pool (`POOL_FIELDS`, `POOL_COUNTS`), in the WGSL. */
 const fieldConsts = POOL_FIELDS.map((f, i) => `const POOL_${f.toUpperCase()}:u32=${i}u;`).join('');
 const countConsts = POOL_COUNTS.map((c, i) => `const COUNT_${c.toUpperCase()}:u32=${i}u;`).join('');
@@ -52,4 +63,4 @@ const SHADOW_TABLE_STRIDE:u32=${SHADOW_TABLE_STRIDE}u;`;
 
 /** Page \`p\` joins the frame's draw list (\`freshWgsl.ts\`): mapped, not drawn since. The pass that
  *  lists binds \`drawList\`. */
-export const SHADOW_DRAW_LIST_WGSL = `fn listDraw(p:u32){drawList[countNext(COUNT_DRAWN)]=p;}`;
+export const SHADOW_DRAW_LIST_WGSL = `fn listDraw(p:u32){drawList[countNext(COUNT_DRAWN)]=p;countOne(COUNT_LISTINGS);}`;
