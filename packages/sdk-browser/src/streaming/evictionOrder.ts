@@ -134,6 +134,3 @@ export function createEvictionOrder(sizeOf: (key: string) => number) {
     },
   };
 }
-
-/** The page cache's eviction order (`createEvictionOrder`). */
-export type EvictionOrder = ReturnType<typeof createEvictionOrder>;
