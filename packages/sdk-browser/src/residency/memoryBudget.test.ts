@@ -9,7 +9,7 @@ import { createWebgpuEffects } from '../effects/webgpuEffects.ts';
 import { createTestContext } from '../webgl/core/testContext.fixture.ts';
 import { effectChainBytesAt } from '../effects/targets.ts';
 import { DEFAULT_GEOMETRY_POOL_BUDGET } from './pools.ts';
-import { DEFAULT_TEXTURE_POOL_BUDGET } from '../webgpu/residency/memoryBudgets.ts';
+import { DEFAULT_TEXTURE_POOL_BUDGET } from './pools.ts';
 import {
   BOUNCE_PROBE_BYTES,
   DEFAULT_BUDGET_CANVAS,
