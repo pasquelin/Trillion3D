@@ -37,8 +37,9 @@ pub(super) fn texture_deviation_above(
 ) -> f64 {
     let sets = input.attributes.iter().filter(|a| a.width == 2);
     let sets: Vec<&[f32]> = sets.map(|a| a.values).collect();
+    let zero = floor.max(0.0);
     if sets.is_empty() || live.is_empty() || kept.is_empty() {
-        return floor.max(0.0);
+        return zero;
     }
     let islands = copy_islands(input.weld_seam, live);
     let island = |v: u32| islands.get(&input.weld_seam[v as usize]).copied();
@@ -48,7 +49,5 @@ pub(super) fn texture_deviation_above(
             .map(|tri| lookup.triangle(tri, &island, floor))
             .reduce(|| 0.0, f64::max)
     };
-    sets.into_iter()
-        .map(deviation)
-        .fold(floor.max(0.0), f64::max)
+    sets.into_iter().map(deviation).fold(zero, f64::max)
 }
