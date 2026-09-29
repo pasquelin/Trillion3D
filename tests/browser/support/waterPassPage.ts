@@ -4,6 +4,11 @@
 import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.ts';
 import { webgpuPagesBackend } from '../../../packages/sdk-browser/src/webgpu/pages/pages.ts';
 import {
+  WATER_COMPOSITE_PASS,
+  WATER_SURFACE_PASS,
+} from '../../../packages/sdk-browser/src/webgpu/water/frame.ts';
+import { WATER_ATTACHMENT_BYTES } from './waterCostPage.ts';
+import {
   VIEWPORT,
   batisseur,
   carre,
@@ -121,7 +126,7 @@ async function cas(
     }
     if (
       kase.transmission > 0 &&
-      (!labels.has('Trillion3D water surfaces') || !labels.has('Trillion3D water composite'))
+      (!labels.has(WATER_SURFACE_PASS) || !labels.has(WATER_COMPOSITE_PASS))
     )
       throw new Error('Water proof did not encode the real water passes');
     if (evenements.some((e) => e.phase === 'water-pass-refused'))
@@ -149,7 +154,6 @@ export function executer() {
         for (const kase of CASES)
           cases.push(await cas(device, pagine, kase, evenements as BackendDiagnostic[]));
     },
-    // Three rgba16float attachments, the rgba8unorm word (8 attachment bytes), r32uint.
-    { maxColorAttachmentBytesPerSample: 3 * 8 + 8 + 4 },
+    { maxColorAttachmentBytesPerSample: WATER_ATTACHMENT_BYTES },
   );
 }

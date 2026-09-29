@@ -29,7 +29,13 @@ function scene(enabled = true) {
   );
   const state = createWebgpuBlendState(),
     { gpu } = prepared();
-  state.transmissive = prepareWebgpuBlend(device, collected.blendCopies, gpu, state, source.source);
+  state.transmissive = prepareWebgpuBlend(
+    device,
+    collected.blendCopies,
+    gpu,
+    state,
+    source.source as never,
+  );
   buildBlendStatics(state);
   refreshBlendPlan(state);
   state.volumePacked = new Float32Array(8);
@@ -70,12 +76,13 @@ test('real collect and prepare retain source water and crop only the kept surfac
 test('unknown, nonfinite, near-plane and unsupported geometry conservatively keep full coverage', () => {
   for (const kind of ['unknown', 'nonfinite', 'near', 'quantized', 'distant']) {
     const { bounds, item, state, camera } = scene();
+    const elements = item.matrix.elements as number[];
     if (kind === 'unknown') item.bounds = undefined;
     if (kind === 'nonfinite') item.bounds![0] = NaN;
-    if (kind === 'near') item.matrix.elements[14] = 2.95;
+    if (kind === 'near') elements[14] = 2.95;
     if (kind === 'quantized') item.flags |= FLAG_CLUSTER_PAGE;
     if (kind === 'distant') {
-      item.matrix.elements[12] = item.matrix.elements[13] = 1e15;
+      elements[12] = elements[13] = 1e15;
       camera.viewProjection[12] -= camera.viewProjection[0] * 1e15;
       camera.viewProjection[13] -= camera.viewProjection[5] * 1e15;
     }
@@ -110,7 +117,7 @@ test('unavailable water does no bounds work and empty clipped boxes keep legal e
   includeWaterItem(bounds, item, state.volumePacked);
   assert.equal(bounds.active, false);
   assert.deepEqual(Array.from(bounds.inverse), saved);
-  item.matrix.elements[12] = -100;
+  (item.matrix.elements as number[])[12] = -100;
   beginWaterBounds(bounds, camera, camera.viewProjection, SIZE);
   includeWaterItem(bounds, item, state.volumePacked);
   assert.equal(bounds.surface[0], 0);
@@ -124,7 +131,7 @@ test('the rectangle covers every kept water item and none of the rejected ones',
     const box = item.bounds!.slice();
     box[0] += dx;
     box[3] += dx;
-    const elements = item.matrix.elements.slice();
+    const elements = Array.from(item.matrix.elements);
     elements[12] += dx;
     return { ...item, bounds: box, matrix: { ...item.matrix, elements } } as typeof item;
   };
