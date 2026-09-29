@@ -27,11 +27,11 @@ import { pointFaceOf } from '../../lighting/direct/shadowLamp.fixture.ts';
 export const READ = [
   ' let texel0=shadowLampFinestTexel(info.y,radius);',
   ' let wanted=shadowLampReadMip(shadowFootprint,texel0);',
-  '  let t=vec2f(shadowLampMapTexel(ndc.x,side),shadowLampMapTexel(-ndc.y,side));',
-  '  let home=clamp(vec2i(shadowPageOfTexel(t.x),shadowPageOfTexel(t.y)),vec2i(0),vec2i(i32(pages)-1));',
+  ' let t=vec2f(shadowLampMapTexel(ndc.x,side),shadowLampMapTexel(-ndc.y,side));',
+  ' let home=clamp(vec2i(shadowPageOfTexel(t.x),shadowPageOfTexel(t.y)),vec2i(0),vec2i(i32(pages)-1));',
   ' for(var level=shadowSunReadLevel(shadowFootprint,finest);level<last;level++){',
-  '  let t=vec2f(shadowSunMapTexel(dot(Q,right),origin.x,level),shadowSunMapTexel(-dot(Q,up),origin.y,level));',
-  '  let home=vec2i(shadowPageOfTexel(t.x),shadowPageOfTexel(t.y));',
+  ' let t=vec2f(shadowSunMapTexel(dot(Q,right),origin.x,level),shadowSunMapTexel(-dot(Q,up),origin.y,level));',
+  ' return ShadowAt(map,t,vec2i(shadowPageOfTexel(t.x),shadowPageOfTexel(t.y)),Q,texel);',
   ' let edge=vec2i(shadowPcfEdge(t.x,first.x),shadowPcfEdge(t.y,first.y))>vec2i(0);',
   '  if(any(p<vec2i(0))||any(p>=vec2i(m.pages))){return -1;}',
 ];
