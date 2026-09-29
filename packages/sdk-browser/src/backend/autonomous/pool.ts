@@ -2,11 +2,16 @@ import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { BackendDiagnostic } from '../types.ts';
 import { drawGeometryPool } from './poolDraw.ts';
 import type { GeometryPool, PoolClamp } from '../../residency/pools.ts';
-import { coverageBudgetEvent, sendCoverageBudget } from '../../diagnostic/engineDiagnostic.ts';
+import {
+  coverageBudgetEvent,
+  sendCoverageBudget,
+  sendEngineDiagnostic,
+} from '../../diagnostic/engineDiagnostic.ts';
 import { createResidentOrder } from './poolOrder.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { WebglViewState } from './views.ts';
 import { createUnionFit, type Ranked } from './poolUnion.ts';
+import { halvedPool, outOfMemoryContext } from '../../residency/outOfMemory.ts';
 
 /**
  * The geometry copies a page holds once resident: one per record that owns its geometry — every
@@ -154,6 +159,21 @@ export function createGeometryBudget(env: PoolEnvironment) {
     resize(budgetBytes: number) {
       drawn.resize(budgetBytes);
       return resident.shed();
+    },
+    /**
+     * The context refused a geometry allocation (`../../webgl/core/allocation.ts`): the pool is
+     * drawn again at half the bytes it holds, by the rule WebGPU's refusal follows
+     * (`halvedPool`), and the residency lets the finest pages go one DAG level per image, never a
+     * hole. Published as `gpu-out-of-memory`; false at the floor, where half draws no smaller pool.
+     */
+    outOfMemory() {
+      const before = current(),
+        smaller = halvedPool(before, drawn.drawFor);
+      if (smaller) drawn.adopt(smaller);
+      const refused = outOfMemoryContext('geometry', before.allocatedBytes, smaller);
+      sendEngineDiagnostic(onDiagnostic, 'gpu-out-of-memory', 'WebGL2 refused geometry', refused);
+      if (smaller) resident.shed();
+      return !!smaller;
     },
   };
 }
