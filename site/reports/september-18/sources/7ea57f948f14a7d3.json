@@ -54,7 +54,12 @@
       "variant": null,
       "errorMetric": "certifiee"
     },
-    "avant": { "from": "dossier", "engine": "three-lod", "variant": null, "errorMetric": "certifiee" }
+    "avant": {
+      "from": "dossier",
+      "engine": "three-lod",
+      "variant": null,
+      "errorMetric": "certifiee"
+    }
   },
   "series": [
     {

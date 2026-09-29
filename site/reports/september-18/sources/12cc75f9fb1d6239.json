@@ -50,7 +50,12 @@
       "variant": null,
       "errorMetric": "certifiee"
     },
-    "avant": { "from": "dossier", "engine": "three-nu", "variant": null, "errorMetric": "certifiee" }
+    "avant": {
+      "from": "dossier",
+      "engine": "three-nu",
+      "variant": null,
+      "errorMetric": "certifiee"
+    }
   },
   "series": [
     {

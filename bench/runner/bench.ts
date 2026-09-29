@@ -42,7 +42,11 @@ async function main() {
   flags.refuseUnread();
   await mkdir(OUT, { recursive: true });
   const dists = options.resolveSides({ after, before, root: ROOT });
-  sides.forEach((side, i) => Object.assign(side, dists[i]));
+  for (const side of sides)
+    Object.assign(
+      side,
+      dists.find((dist) => dist.name === side.name),
+    );
   const FLAGS = [...new Set(sides.flatMap((side) => side.engine.flags))];
   if (settings.gazeNetwork && !readsCache(scene))
     throw new Error('--gaze-network requires a compiled cache scene');
