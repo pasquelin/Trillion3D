@@ -65,16 +65,10 @@ function scene(rng: () => number, o: Options) {
   // The slot, filed as the cull files it: the real mobility words, then `keptAt`.
   const mobility = createShadowMobility();
   mobility.ensure(1, o.rows, () => new Float64Array(16));
-  const isCutout = (row: number) => (pages[row].flags & FLAG_MASK) !== 0;
-  mobility.writeRows(
-    () => 0,
-    o.rows,
-    0,
-    o.rows - 1,
-    () => {},
-    blendedFrom,
-    isCutout,
-  );
+  const isCutout = (row: number) => (pages[row].flags & FLAG_MASK) !== 0,
+    corners = (row: number) => pages[row].indexCount;
+  const push = () => {};
+  mobility.writeRows(() => 0, o.rows, 0, o.rows - 1, push, corners, blendedFrom, isCutout);
   const capacity = o.rows + (o.spare ?? 0);
   const world: ShadowScene = {
     pages,
@@ -171,4 +165,31 @@ test('edge lists: empty, all opaque, all cutout, all blended, no corner, a full 
     assert.deepEqual(split, develop, name);
     assert.equal(plain + cutouts, o.rows, `${name}: every row filed once`);
   }
+});
+
+// #1210: on the CPU cut, a region whose light view has no caster encodes no draw where develop drew
+// its two lists at zero instances; every other region draws as develop did. Same page, to the bit.
+test('a casterless region drawn with no draw writes develop’s depth, to the bit', () => {
+  const rng = mulberry32(1210);
+  for (const [name, o] of [
+    ['cleared page', { rows: 0 }],
+    ['casters in the scene, none kept', { rows: 24, envelope: 0.5 }],
+  ] as Array<[string, Options]>) {
+    const { world, entries } = scene(rng, o);
+    const keep = (frag: ShadowOut) => entries.shadowKeep(frag, { x: 0, y: 0 }, { x: 0, y: 0 });
+    const vertexCount = Math.max(0, ...world.pages.map((page) => page.indexCount));
+    const developEmpty = rasterDepth(
+      SIDE,
+      vertexCount,
+      [
+        { entry: entries.shadow_vs, instances: 0, fragment: true },
+        { entry: entries.shadow_cutout_vs, instances: 0, fragment: true },
+      ],
+      keep,
+    );
+    assert.deepEqual(rasterDepth(SIDE, vertexCount, [], keep), developEmpty, name);
+  }
+  // The regions that keep casters encode develop's draws: the split's equivalence above holds.
+  const { develop, split } = bothDepths(rng, { rows: 24 });
+  assert.deepEqual(split, develop);
 });

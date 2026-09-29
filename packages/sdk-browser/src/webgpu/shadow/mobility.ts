@@ -1,6 +1,10 @@
 import { sameElements } from '../../math/matrixElements.ts';
 import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts';
-import { MOBILITY_CUTOUT, MOBILITY_MOVING } from '../../gpu/shadow/cullShader.ts';
+import {
+  MOBILITY_CORNER_SHIFT,
+  MOBILITY_CUTOUT,
+  MOBILITY_MOVING,
+} from '../../gpu/shadow/cullShader.ts';
 
 /**
  * WHICH PLACEMENTS MOVE, as the shadow pages see them. A placement — a root of the cut, the rank
@@ -38,26 +42,29 @@ export function createShadowMobility() {
       return cutouts > 0;
     },
     /** One word per row: `MOBILITY_MOVING` for a row of a moving placement, `MOBILITY_CUTOUT` for
-     *  one whose fragments can be cut (`../../gpu/shadow/cullShader.ts`). */
+     *  one whose fragments can be cut, and its corners above `MOBILITY_CORNER_SHIFT`
+     *  (`../../gpu/shadow/cullShader.ts`). */
     get rowWords() {
       return rows;
     },
     /** Sizes the state for `placements` roots and `drawSlots` rows; a new layout starts still, at
-     *  the poses `worldOf` gives. Placements that joined the same rows in place
-     *  (`../../placement/webgpuGrowth.ts`) start still beside the others, which keep their state. */
+     *  the poses `worldOf` gives. Placements that joined in place
+     *  (`../../placement/webgpuGrowth.ts`) start still beside the others, which keep their state,
+     *  and so do they all when the table grows (`../row/grow.ts`): its row words are written anew. */
     ensure(placements: number, drawSlots: number, worldOf: (rank: number) => ArrayLike<number>) {
       if (moving.length === placements && rows.length === drawSlots) return;
-      const kept = rows.length === drawSlots && moving.length < placements ? moving.length : 0;
+      const kept = Math.min(moving.length, placements);
       const held = { moving, poses };
-      moving = new Uint8Array(placements);
-      poses = new Float64Array(placements * 16);
-      moving.set(held.moving.subarray(0, kept));
-      poses.set(held.poses.subarray(0, kept * 16));
-      for (let rank = kept; rank < placements; rank++) poses.set(worldOf(rank), rank * 16);
-      if (kept) return;
+      if (moving.length !== placements) {
+        moving = new Uint8Array(placements);
+        poses = new Float64Array(placements * 16);
+        moving.set(held.moving.subarray(0, kept));
+        poses.set(held.poses.subarray(0, kept * 16));
+        for (let rank = kept; rank < placements; rank++) poses.set(worldOf(rank), rank * 16);
+      }
+      if (rows.length === Math.max(1, drawSlots)) return;
       rows = new Uint32Array(Math.max(1, drawSlots));
       cutouts = 0;
-      anyMoving = false;
       wholeRows = true;
     },
     /**
@@ -82,7 +89,8 @@ export function createShadowMobility() {
      * `alwaysMoving` on is a blended caster's, which the static layer never keeps: its shadow
      * lives in the transmittance layer, which a restored page starts again from. A row `cutout`
      * says is filed with the casters drawn with the fragment test (#965); a blended caster's never
-     * is: the transmittance pass reads the other list alone.
+     * is: the transmittance pass reads the other list alone. `corners` is the count a row draws,
+     * what its region's command is sized by (#966).
      */
     writeRows(
       placementOf: (row: number) => number,
@@ -90,6 +98,7 @@ export function createShadowMobility() {
       from: number,
       to: number,
       push: (first: number, count: number) => void,
+      corners: (row: number) => number,
       alwaysMoving = rowCount,
       cutout: (row: number) => boolean = () => false,
     ) {
@@ -104,8 +113,9 @@ export function createShadowMobility() {
         const placement = placementOf(row),
           blended = row >= alwaysMoving,
           moves = blended || (placement >= 0 && moving[placement] === 1),
-          word = (moves ? MOBILITY_MOVING : 0) | (!blended && cutout(row) ? MOBILITY_CUTOUT : 0);
-        cutouts += +((word & MOBILITY_CUTOUT) !== 0) - +((rows[row] & MOBILITY_CUTOUT) !== 0);
+          flags = (moves ? MOBILITY_MOVING : 0) | (!blended && cutout(row) ? MOBILITY_CUTOUT : 0),
+          word = (corners(row) << MOBILITY_CORNER_SHIFT) | flags;
+        cutouts += +((flags & MOBILITY_CUTOUT) !== 0) - +((rows[row] & MOBILITY_CUTOUT) !== 0);
         rows[row] = word;
       }
       push(from, last - from + 1);

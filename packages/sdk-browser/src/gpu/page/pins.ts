@@ -8,7 +8,7 @@ export function createGpuPagePins(context: GpuPageContext) {
       check();
       const page = resident.get(key);
       if (!page) {
-        emit('gpu-page-pin-refused', 'GPU pin refused', () => ({
+        emit?.('gpu-page-pin-refused', 'GPU pin refused', () => ({
           version: 1,
           key,
           reason: 'not-resident',
@@ -19,7 +19,7 @@ export function createGpuPagePins(context: GpuPageContext) {
       pins.add(key);
       if (tier === 'held') held.add(key);
       if (changed)
-        emit('gpu-page-pin', 'GPU page pinned', () => ({
+        emit?.('gpu-page-pin', 'GPU page pinned', () => ({
           version: 1,
           key,
           slot: page.slot,
@@ -48,7 +48,7 @@ export function createGpuPagePins(context: GpuPageContext) {
       const changed = pins.delete(key);
       held.delete(key);
       if (changed)
-        emit('gpu-page-unpin', 'GPU pin removed', () => ({
+        emit?.('gpu-page-unpin', 'GPU pin removed', () => ({
           version: 1,
           key,
           changed,

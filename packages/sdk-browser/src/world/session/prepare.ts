@@ -38,6 +38,9 @@ export type ExplorerSource = {
   /** Puts the session's camera where the page draws from, before anything is read for it: a
    *  partitioned scene reads and sizes its cells for that camera, not the framing one. */
   placeCamera?: (camera: HostCamera) => void;
+  /** Moves a node of the page's own scene by name, when the session draws a world built in code
+   *  (`../core/worldRuntime.ts`): its engines hold that scene as rows, not as named nodes. */
+  moveNamed?: (nodeName: string, matrix: Float32Array) => void;
 };
 
 type Inputs = {
