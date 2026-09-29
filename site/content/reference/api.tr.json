@@ -3566,6 +3566,12 @@
       "extensions": "Fiziksel uzantıların eklediği, ana makinenin parametre adlarıyla: bir çarpan, bir renk ya da bir aralık sayılar olarak, bir harita yuva olarak."
     }
   },
+  "TablePage": {
+    "summary": "Bir yuvanın adlandırdığı sayfa: tablolara göre dosyası, boyutu ve parmak izi."
+  },
+  "TableSlot": {
+    "summary": "Bir yuvanın adlandırdığı bir dizin sayfası, bildirilen pozlardaki kutusu ve yanında listelenen çekirdek sıraları: hücre dizini için, hücrelerinin düğüm astığı ebeveynler (#575)."
+  },
   "TableTexture": {
     "summary": "Bir glTF dokusunun örnekleyici durumu, motorun kelimeleriyle.",
     "members": {

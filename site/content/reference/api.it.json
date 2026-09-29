@@ -5956,6 +5956,12 @@
       "extensions": "Ciò che aggiungono le estensioni fisiche, con i nomi di parametro dell’host: un fattore, un colore o un intervallo come numeri, una mappa come slot."
     }
   },
+  "TablePage": {
+    "summary": "Una pagina che uno slot nomina: il suo file, relativo alle tabelle, la sua dimensione e la sua impronta."
+  },
+  "TableSlot": {
+    "summary": "Una pagina di un indice che uno slot nomina, il suo box nelle pose dichiarate e i ranghi del nucleo elencati accanto: per l’indice delle celle, i genitori sotto cui le sue celle appendono nodi (#575)."
+  },
   "TableTexture": {
     "summary": "Stato di campionamento di una texture glTF, nelle parole del motore.",
     "members": {
