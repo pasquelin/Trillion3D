@@ -7,7 +7,8 @@ export const PALETTE_FLOATS = 12;
 
 const meshInverse = new Float64Array(16),
   joint = new Float64Array(16),
-  bind = new Float64Array(16);
+  bind = new Float64Array(16),
+  boneWorld = new Float64Array(16);
 
 /**
  * The bones a skinned mesh bends by, and each bone's inverse bind matrix: what takes the mesh from
@@ -35,13 +36,20 @@ export class Skeleton {
    * Writes the palette of a mesh placed at `meshWorld` into `out` from `at`: for each joint, the
    * rows of `meshWorld⁻¹ · boneWorld · boneInverse`, which take a bind-pose vertex of the mesh to
    * where its bone carries it, in the mesh's own frame — so the mesh's placement, applied after,
-   * draws it where the bone stands whatever the mesh node's own pose.
+   * draws it where the bone stands whatever the mesh node's own pose. `boneWorlds`, the bones'
+   * world matrices as the reader of the mesh's world holds them; absent, each bone's own.
    */
-  palette(meshWorld: ArrayLike<number>, out: Float32Array, at = 0) {
+  palette(
+    meshWorld: ArrayLike<number>,
+    out: Float32Array,
+    at = 0,
+    boneWorlds?: readonly { elements: ArrayLike<number> }[],
+  ) {
     invertMatrix4(meshInverse, meshWorld);
     this.bones.forEach((bone, j) => {
       bind.set(this.boneInverses.subarray(j * 16, j * 16 + 16));
-      multiplyMatrix4(joint, bone.matrixWorld.elements, bind);
+      boneWorld.set((boneWorlds?.[j] ?? bone.matrixWorld).elements);
+      multiplyMatrix4(joint, boneWorld, bind);
       multiplyMatrix4(joint, meshInverse, joint);
       const base = at + j * PALETTE_FLOATS;
       for (let row = 0; row < 3; row++)
