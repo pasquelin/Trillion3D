@@ -30,7 +30,7 @@ export function freshSlices(store: SceneLightStore) {
 
 /**
  * Whether this frame may hand the GPU a page to draw: a frame where nothing moves — neither the
- * view nor a node (`plan.quiet`), nor a light (`plan.stamp`) —, whose host took no page's depth
+ * view nor a node (`gpu.quiet`), nor a light (`plan.stamp`) —, whose host took no page's depth
  * (`allocation.lost`), after a snapshot whose frame listed nothing (`gpu.listed`), maps nothing
  * new and leaves nothing undrawn, and runs none of the GPU's page work. Any other runs it.
  */
@@ -39,7 +39,7 @@ function freshWanted(rt: WebgpuPagesRuntime) {
     stamp = plan.stamp(store),
     held = freshStamps.get(plan);
   freshStamps.set(plan, stamp);
-  if (!plan.quiet || held !== stamp || plan.gpu.listed > 0) return true;
+  if (!plan.gpu.quiet || held !== stamp || plan.gpu.listed > 0) return true;
   return (pageRequests?.allocation.lost ?? 0) > 0;
 }
 const freshStamps = new WeakMap<object, number>();
