@@ -2542,7 +2542,7 @@
   "PageSource": {
     "summary": "Nơi các trang của một mô hình được đọc từ đó, theo khóa.",
     "members": {
-      "read": "Đọc các byte của một trang."
+      "read": "Đọc các byte của một trang; `priority`, khi được cho, là mức ưu tiên của bộ streamer (nhỏ nhất trước). Một lần đọc khẩn hơn cho trang đang được đọc sẽ được yêu cầu lại để nâng nó lên: nguồn nhận `priority` sẽ gộp nó vào lần đọc đang chạy thay vì truyền trang hai lần."
     }
   },
   "PageStreamer": {
@@ -4295,7 +4295,7 @@
   "WorldPageSource": {
     "summary": "Nơi các trang được đọc từ đó, và địa chỉ mà chúng được đọc dựa vào.",
     "members": {
-      "read": "Đọc các byte của một trang.",
+      "read": "Đọc các byte của một trang; `priority`, khi được cho, là mức ưu tiên của bộ streamer (nhỏ nhất trước). Một lần đọc khẩn hơn cho trang đang được đọc sẽ được yêu cầu lại để nâng nó lên: nguồn nhận `priority` sẽ gộp nó vào lần đọc đang chạy thay vì truyền trang hai lần.",
       "baseUrl": "Địa chỉ mà mọi trang được đọc dựa vào."
     }
   },
