@@ -21,6 +21,7 @@ export type TileLayout = {
   stride: number;
   opaqueBase: number;
   blendBase: number;
+  shadowBase: number;
   opaqueMask: number;
   blendMask: number;
   words: number;
@@ -48,6 +49,7 @@ export function tileLayout(shader: string): TileLayout {
     stride: wgslConstant(shader, 'TILE_STRIDE'),
     opaqueBase: wgslConstant(shader, 'TILE_OPAQUE_BASE'),
     blendBase: wgslConstant(shader, 'TILE_BLEND_BASE'),
+    shadowBase: wgslConstant(shader, 'TILE_SHADOW_BASE'),
     opaqueMask,
     blendMask,
     words: blendMask - opaqueMask,
@@ -81,8 +83,13 @@ function maskTotal(hits: Uint32Array, mask: number, words: number) {
   return total;
 }
 
-/** The lights each slice of the tile keeps, by rank in the scene. */
-export type TileKeeps = { opaque: Iterable<number>; blend: Iterable<number> };
+/** The lights each slice of the tile keeps, by rank in the scene: `shadowed` names those that
+ *  carry a shadow slot, so the record's flag word matches the pass's (#1249). */
+export type TileKeeps = {
+  opaque: Iterable<number>;
+  blend: Iterable<number>;
+  shadowed?: Iterable<number>;
+};
 
 /**
  * One tile's record after the compaction of `lightCount` lights, of which each slice keeps those
@@ -98,6 +105,7 @@ export function compactTile(
   const tiles = new Uint32Array(layout.stride + pool.capacity);
   const opaque = new Set(keeps.opaque),
     blend = new Set(keeps.blend),
+    shadow = new Set(keeps.shadowed ?? []),
     order = [...lanes],
     hits = new Uint32Array(2 * layout.words),
     batch = layout.words * 32,
@@ -143,6 +151,8 @@ export function compactTile(
   );
   const total = kept.map((sum, slice) => sum + maskTotal(hits, masks[slice], live));
   [tiles[0], tiles[1]] = total;
+  // The record's last word: one when the opaque slice keeps a light with a shadow slot (#1249).
+  tiles[layout.shadowBase] = [...opaque].some((rank) => shadow.has(rank)) ? 1 : 0;
   if (Math.max(...total) <= layout.tileLights) return tiles;
   // `spill`, thread zero, then the slices written again.
   for (const slice of [0, 1]) {

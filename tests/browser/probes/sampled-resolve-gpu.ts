@@ -61,15 +61,24 @@ if (import.meta.main) {
         : [],
     );
 
-  /** A record of `list` as the pass of a scene of `count` lamps writes it, its pool if it needs one. */
-  const record = (list: number[], count: number, drawn = false) => {
+  /** A record of `list` as the pass of a scene of `count` lamps writes it, its pool if it needs
+   *  one: `shadowed` the listed rank that carries a shadow slot, so the flag word is the pass's. */
+  const record = (list: number[], count: number, drawn = false, shadowed?: number) => {
     const narrow = count <= LIST;
     const layout = tileLayout(narrow ? LIGHT_TILES_NARROW_SHADER : LIGHT_TILES_SHADER);
     const pool = { capacity: narrow ? 0 : list.length + 8, head: 0, overflow: 0 };
     return {
       narrow,
       drawn,
-      words: [...compactTile(layout, { opaque: list, blend: [] }, count, undefined, pool)],
+      words: [
+        ...compactTile(
+          layout,
+          { opaque: list, blend: [], shadowed: shadowed === undefined ? [] : [shadowed] },
+          count,
+          undefined,
+          pool,
+        ),
+      ],
     };
   };
 
@@ -100,7 +109,10 @@ if (import.meta.main) {
         samples,
         rank: RANK,
         slots: [[shadowed, 0]],
-        records: [record(list, set.length), record(list, set.length, true)],
+        records: [
+          record(list, set.length, false, shadowed),
+          record(list, set.length, true, shadowed),
+        ],
       },
     ];
   });
