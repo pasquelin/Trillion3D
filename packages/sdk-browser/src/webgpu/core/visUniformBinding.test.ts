@@ -6,6 +6,7 @@ import { createWebgpuVisibilityShaders } from '../visibility/shaders.ts';
 import { smallBindEntries, visBindEntries } from './bindEntries.ts';
 import { SMALL_BINDINGS, VIS_BINDINGS, VIS_UNIFORM_BYTES } from './bindLayout.ts';
 import { VIS_UNIFORMS_WGSL } from '../../visibility/shader/pageWgsl.ts';
+import { VIS_SHADER } from '../../visibility/buffer.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import type { WebgpuTileStreamer } from '../tile/streamer.ts';
 
@@ -43,14 +44,17 @@ test('every group that binds the visibility uniform spans the whole struct', () 
   assert.equal(sizeAt(small, SMALL_BINDINGS.uniform), VIS_UNIFORM_BYTES);
 });
 
-test('only the vertex stage reads the visibility uniform, at the size of its struct', async () => {
+test('the fragment that reads the visibility uniform sees it, at the size of its struct', async () => {
   const { device } = fakeDevice();
   const { visBindGroupLayout } = await createWebgpuVisibilityShaders(device, 8);
   const entry = (
     visBindGroupLayout as unknown as { entries: GPUBindGroupLayoutEntry[] }
   ).entries.find((candidate) => candidate.binding === VIS_BINDINGS.uniform)!;
-  // No fragment of the pass reads it.
-  assert.equal(entry.visibility, GPUShaderStage.VERTEX);
+  // The alpha test of `vis_fs` picks its texture level with `uni.mipBias`: a vertex-only binding
+  // makes the device refuse the pipeline and the whole WebGPU path.
+  const fragment = VIS_SHADER.slice(VIS_SHADER.indexOf('fn atlasLod'));
+  assert.match(fragment, /uni\.mipBias/);
+  assert.equal(entry.visibility, GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT);
   assert.equal(entry.buffer?.minBindingSize, VIS_UNIFORM_BYTES);
 });
 
