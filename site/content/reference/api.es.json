@@ -1312,7 +1312,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Identidad de caché para los errores del DAG por clúster: error QEM absoluto del grupo sobre posiciones, normales y coordenadas de textura, limitado a la extensión del grupo; una caché v1 se rechaza."
+    "summary": "Identidad de caché para los errores de DAG por clúster: error QEM absoluto del grupo sobre posiciones, normales y coordenadas de textura, limitado a la extensión del grupo, nunca inferior a la distancia de Hausdorff muestreada entre los hijos de un grupo y sus salidas (#929); se rechazan las cachés v1 y v2."
   },
   "DagReport": {
     "summary": "Informe del DAG de una primitiva; solo sus advertencias las usa el motor.",
