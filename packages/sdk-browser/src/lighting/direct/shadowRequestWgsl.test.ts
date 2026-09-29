@@ -106,7 +106,7 @@ test('one claim per distinct page and subgroup: the atomics a whole subgroup on 
   }
 });
 
-test('the contract program asks per subgroup exactly when the device granted `subgroups`', async () => {
+test('the contract program and its reflections ask per subgroup exactly when granted `subgroups`', async () => {
   for (const features of [[], ['subgroups']] as GPUFeatureName[][]) {
     const { device } = fakeDevice({ features }),
       codes: string[] = [],
@@ -117,7 +117,11 @@ test('the contract program asks per subgroup exactly when the device granted `su
       surface = { views: () => [view, view, view, view] } as unknown as SurfaceBuffer;
     lighting.bind(surface, view, view, true);
     await lighting.settle();
-    const contract = codes.filter((code) => code.includes('fn requestShadowPage('));
-    assert.deepEqual(contract, [features.length ? SUBGROUP_SHADER : DIRECT_LIGHTING_SHADER]);
+    // The lighting pass, then the reflection source and resolve, each from the same text.
+    const [light, ...reflections] = codes.filter((code) => code.includes('fn requestShadowPage('));
+    assert.equal(light, features.length ? SUBGROUP_SHADER : DIRECT_LIGHTING_SHADER);
+    assert.equal(reflections.length, 2);
+    for (const code of reflections)
+      assert.equal(code.includes(SUBGROUP_REQUEST_WGSL), features.length > 0);
   }
 });
