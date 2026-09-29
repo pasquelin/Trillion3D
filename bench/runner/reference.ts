@@ -67,7 +67,18 @@ async function referenceScene(argv: string[], scene: string, dir: string, images
   const record: ReferenceRecord = {
     scene,
     commit,
-    dirty: side.from === 'folder' && git('status', '--porcelain', '--untracked-files=no') !== '',
+    // The records themselves are left out: a scene drawn before this one in the same run has just
+    // rewritten its own `reference.json`, which changes no image.
+    dirty:
+      side.from === 'folder' &&
+      git(
+        'status',
+        '--porcelain',
+        '--untracked-files=no',
+        '--',
+        '.',
+        ':(exclude)bench/references',
+      ) !== '',
     from: side.from,
     command: `node bench/runner/reference.ts ${[...argv, '--scene', scene].join(' ')}`,
     generatedAt: new Date().toISOString(),
