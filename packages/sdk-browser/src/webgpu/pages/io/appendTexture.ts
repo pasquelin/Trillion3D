@@ -35,6 +35,7 @@ async function appendNow(rt: WebgpuPagesRuntime, texture: Texture, kind: 'color'
   const slots = kind === 'color' ? vis.mapLayer : vis.dataLayer;
   const held = slots.get(texture);
   if (held !== undefined) return held;
+  rt.signal.throwIfAborted();
   const pools = setup.texturePools,
     streamer = vis.textures,
     device = gpu.device;
@@ -68,21 +69,45 @@ async function appendNow(rt: WebgpuPagesRuntime, texture: Texture, kind: 'color'
     const granted = await grants.probed(asked);
     if (!granted)
       throw new EngineError('TEXTURE_BUDGET', 'the device refused the pool', { kind, lane });
+    rt.signal.throwIfAborted();
     if (run.lost) throw new Error('WEBGPU_LOST');
     streamer.resize(pool.layers);
     pools.pool = pool;
   }
+  const started = performance.now(),
+    before = { ...streamer.counters };
+  const slot = streamer.append(kind, entry);
   pools.tails[kind] = tails;
   pools.demand[kind] = demand;
-  const slot = streamer.append(kind, entry);
   slots.set(texture, slot);
   run.gate.resourcesChanged();
   diag.engineDiagnostic('material-texture-appended', 'A texture joined the atlas', {
     kind,
     slot,
+    uploadedBytes: streamer.counters.uploadedBytes - before.uploadedBytes,
+    uploadMs: performance.now() - started,
+    scratchBuilds: streamer.counters.scratches - before.scratches,
     catalogue: catalogueReport(atlas.textures),
     pageTables: pageTablesReport(streamer),
     pool: { layers: pools.pool.layers, bytes: pools.pool.allocatedBytes },
   });
   return slot;
+}
+
+/** The texture is no longer worn: release its places and source, retaining reusable pool capacity. */
+export function releaseWebgpuTexture(
+  rt: WebgpuPagesRuntime,
+  texture: Texture,
+  kind: 'color' | 'data',
+) {
+  const slots = kind === 'color' ? rt.vis.mapLayer : rt.vis.dataLayer;
+  const slot = slots.get(texture),
+    streamer = rt.vis.textures,
+    pools = rt.setup.texturePools;
+  if (slot === undefined || !streamer || !pools) return;
+  streamer.release(kind, slot);
+  slots.delete(texture);
+  pools.tails[kind] = laneTails(streamer[kind].textures);
+  pools.demand[kind] = laneDemand(streamer[kind].textures);
+  rt.run.gate.resourcesChanged();
 }

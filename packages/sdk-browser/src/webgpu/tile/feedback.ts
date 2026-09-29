@@ -101,8 +101,9 @@ export function createWebgpuTileFeedback(device: Device, entries: number): Webgp
       return gen.count;
     },
     grow(ranks) {
+      const next = allocate(ranks);
       destroy();
-      gen = allocate(ranks);
+      gen = next;
       latest = undefined;
     },
     phaseWord: (every) => (every ? FEEDBACK_EVERY : 0) | phase | (pick << PICK_SHIFT),

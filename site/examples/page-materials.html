@@ -42,6 +42,16 @@
       if (!imported || !primitive)
         throw new Error('This example needs an opaque material and a primitive');
       const primitiveId = `${primitive.mesh}/${primitive.primitive}`;
+      const bitmap = await createImageBitmap(
+        new ImageData(
+          new Uint8ClampedArray([
+            255, 255, 255, 255, 0, 40, 80, 255, 0, 40, 80, 255, 255, 255, 255, 255,
+          ]),
+          2,
+          2,
+        ),
+        { premultiplyAlpha: 'none', colorSpaceConversion: 'none' },
+      );
       let created;
       const show = () => {
         current(
@@ -55,9 +65,9 @@
         );
         original(say('imported', { count: world.importedMaterials().length }));
       };
-      const report = (action) => {
+      const report = async (action) => {
         try {
-          action();
+          await action();
           show();
           status(say('applied'));
         } catch (error) {
@@ -73,13 +83,21 @@
           switchToBlend: () =>
             report(() => world.setMaterial(imported.id, { alphaMode: 'blend', opacity: 0.45 })),
           createAndAssign: () =>
-            report(() => {
-              created ??= world.createMaterial({
-                name: 'Page cyan',
+            report(async () => {
+              const next = await world.createMaterial({
+                name: 'Page cyan checker',
+                map: bitmap,
                 baseColor: [0.05, 0.8, 1],
                 roughness: 0.25,
               });
-              world.assignMaterial(primitiveId, created.id);
+              try {
+                world.assignMaterial(primitiveId, next.id);
+              } catch (error) {
+                world.dropMaterial(next.id);
+                throw error;
+              }
+              if (created) world.dropMaterial(created.id);
+              created = next;
             }),
         },
         () => {},
