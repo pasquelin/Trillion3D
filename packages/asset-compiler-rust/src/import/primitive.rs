@@ -14,6 +14,11 @@ pub(crate) struct Vertices {
     pub(crate) normals: Vec<f32>,
     pub(crate) uvs: Vec<f32>,
     pub(crate) colors: Vec<f32>,
+    /// Four bones and four weights a vertex, on a skinned mesh (`motion.rs`).
+    pub(crate) joints: Vec<u16>,
+    pub(crate) weights: Vec<f32>,
+    /// Per morph target, its position offsets and its normal offsets (empty when it has none).
+    pub(crate) targets: Vec<(Vec<f32>, Vec<f32>)>,
     pub(crate) indices: Vec<u32>,
 }
 
@@ -54,12 +59,42 @@ pub(crate) fn primitive(
         accessors.push(json!({"bufferView":view,"componentType":5126,"count":count,"type":kind}));
         attributes[name] = json!(accessors.len() - 1);
     }
+    if !vertices.joints.is_empty() {
+        let bytes: Vec<u8> = vertices
+            .joints
+            .iter()
+            .flat_map(|j| j.to_le_bytes())
+            .collect();
+        let view = bin.view(&bytes, Some(34962));
+        accessors.push(json!({"bufferView":view,"componentType":5123,"count":count,"type":"VEC4"}));
+        attributes["JOINTS_0"] = json!(accessors.len() - 1);
+        let view = bin.view(&f32_bytes(&vertices.weights), Some(34962));
+        accessors.push(json!({"bufferView":view,"componentType":5126,"count":count,"type":"VEC4"}));
+        attributes["WEIGHTS_0"] = json!(accessors.len() - 1);
+    }
+    let mut targets = Vec::new();
+    for (offsets, normals) in &vertices.targets {
+        let (min, max) = bounds(offsets);
+        let view = bin.view(&f32_bytes(offsets), Some(34962));
+        accessors.push(json!({"bufferView":view,"componentType":5126,"count":count,"type":"VEC3","min":min,"max":max}));
+        let mut target = json!({"POSITION": accessors.len() - 1});
+        if !normals.is_empty() {
+            let view = bin.view(&f32_bytes(normals), Some(34962));
+            accessors
+                .push(json!({"bufferView":view,"componentType":5126,"count":count,"type":"VEC3"}));
+            target["NORMAL"] = json!(accessors.len() - 1);
+        }
+        targets.push(target);
+    }
     let (bytes, component) = index_bytes(&vertices.indices, count);
     let view = bin.view(&bytes, Some(34963));
     accessors.push(
         json!({"bufferView":view,"componentType":component,"count":vertices.indices.len(),"type":"SCALAR"}),
     );
     let mut primitive = json!({"attributes":attributes,"indices":accessors.len()-1,"mode":4});
+    if !targets.is_empty() {
+        primitive["targets"] = json!(targets);
+    }
     if let Some(material) = material {
         primitive["material"] = json!(material);
     }

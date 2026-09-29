@@ -87,6 +87,8 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
         textures: Vec::new(),
         sampler_ids: HashMap::new(),
         lights: Vec::new(),
+        skins: Vec::new(),
+        animations: Vec::new(),
         bin: Bin::default(),
         report: Report::default(),
         triangles: 0,
@@ -121,6 +123,14 @@ pub fn import_source(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> Re
     let mut gltf = tables.document(plugin, &roots);
     let lights = &importer.lights;
     crate::import::attach_lights(&mut gltf, lights);
+    for (field, table) in [
+        ("skins", &importer.skins),
+        ("animations", &importer.animations),
+    ] {
+        if !table.is_empty() {
+            gltf[field] = json!(table);
+        }
+    }
     let gltf_bytes = serde_json::to_vec(&gltf)?;
     progress(
         json!({"phase":"import-source","step":"write","plugin":plugin.name(),"bytes":importer.bin.bytes.len()+gltf_bytes.len()}),

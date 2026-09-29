@@ -7,12 +7,22 @@
  */
 export const CLUSTER_PAGE_MAGIC = 0x33504757,
   CLUSTER_HEADER_WORDS = 24;
-/** Attribute presence bits: normal, first and second texture coordinate, colour. */
+/** Attribute presence bits: normal, first and second texture coordinate, colour; then the skin
+ *  and the morph targets the GPU deformation stage reads (#357, `page-codec-wasm/src/deform.rs`). */
 export const FLAG_NORMAL = 1,
   FLAG_UV = 2,
   FLAG_UV1 = 4,
   FLAG_COLOR = 8,
-  FLAGS_ALL = 15;
+  FLAG_SKIN = 16,
+  FLAG_MORPH = 32,
+  FLAGS_ALL = 63;
+/** Header words of one morph target, the widest joint field, the most targets a page carries,
+ *  and the bits of a stored weight: three are stored, the fourth is what they leave of 255. */
+export const MORPH_WORDS = 9,
+  MAX_JOINT_BITS = 16,
+  MAX_MORPH_TARGETS = 255,
+  WEIGHT_BITS = 8,
+  WEIGHT_SCALE = 255;
 /** Decoded name, float width and presence bit of each optional attribute, in stream order. */
 export const OPTIONAL = [
   ['normal', 3, FLAG_NORMAL],
