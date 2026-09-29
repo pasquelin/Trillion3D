@@ -2,7 +2,7 @@ import { CORNER_VALUES, writeSplitDouble } from '../../gpu/partition/contract.ts
 import { forEachRewrittenRun } from '../row/dirty.ts';
 import { BOX_CORNER_VALUES, pageCornersInto, type HizPage } from '../../hiz/hiz.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import { rootOf } from '../../page/selection/types.ts';
+import { rootOf } from '../../page/selection/placements.ts';
 import type { MatrixElements } from '../../math/matrixElements.ts';
 
 /** What describes the corners already sent to the GPU: the age of the table they came from. */

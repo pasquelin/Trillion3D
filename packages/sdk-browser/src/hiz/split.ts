@@ -2,7 +2,7 @@ import { HIZ_BOUNDS_VALUES } from './corners.ts';
 import { boundsFor, projectBoxesFlat } from './projection.ts';
 import type { HizPage } from './types.ts';
 import type { EngineCamera } from '../camera/world.ts';
-import type { Placements } from '../page/selection/types.ts';
+import type { Placements } from '../page/selection/placements.ts';
 
 let splitLow = new Uint32Array(0),
   splitHigh = new Uint32Array(0),

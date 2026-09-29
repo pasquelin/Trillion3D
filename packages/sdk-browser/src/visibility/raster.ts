@@ -14,7 +14,7 @@ import {
   type VisPage,
 } from './types.ts';
 import type { EngineCamera } from '../camera/world.ts';
-import { rootOf, type Placements } from '../page/selection/types.ts';
+import { rootOf, type Placements } from '../page/selection/placements.ts';
 import type { HostAttributes } from '../host/resources.ts';
 import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
 

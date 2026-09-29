@@ -1,6 +1,6 @@
 import type { HostAttributes } from '../../host/resources.ts';
 import { rootOf, type PageRec } from '../../page/selection/selection.ts';
-import type { Placements } from '../../page/selection/types.ts';
+import type { Placements } from '../../page/selection/placements.ts';
 import { depthLayerUnits } from '../../../../sdk-core/src/index.ts';
 import { createPageRowConstants } from './pageRowConstants.ts';
 import {

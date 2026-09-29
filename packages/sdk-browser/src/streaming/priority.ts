@@ -7,7 +7,7 @@ import {
 import { clipWeight } from '../../../sdk-core/src/math/primitives/camera.ts';
 import { copyElements, type MatrixElements } from '../math/matrixElements.ts';
 import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
-import { rootOf, type Placements } from '../page/selection/types.ts';
+import { rootOf, type Placements } from '../page/selection/placements.ts';
 
 /** Everything the order needs from a cluster record; a superset of `PageRec`. */
 export interface PriorityRecord {

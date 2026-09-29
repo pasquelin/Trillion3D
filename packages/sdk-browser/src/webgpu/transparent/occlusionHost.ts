@@ -3,7 +3,7 @@ import { createTransparentOcclusion } from '../../gpu/core/transparentOcclusion.
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { packPageCorners } from '../visibility/corners.ts';
 import { neverCulled } from '../../visibility/shader/spriteWgsl.ts';
-import { rootOf } from '../../page/selection/types.ts';
+import { rootOf } from '../../page/selection/placements.ts';
 
 /**
  * Mounts the occlusion test of transparent clusters, once everything it borrows exists.
