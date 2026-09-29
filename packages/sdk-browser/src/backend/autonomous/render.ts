@@ -10,6 +10,9 @@ import { attachedPages } from '../../placement/autonomousPlacements.ts';
 import { followHostVisibility } from '../../placement/hidden.ts';
 import type { createGeometryBudget } from './pool.ts';
 import { createImageCut } from './imageCut.ts';
+import { refusalsRead, takeOutOfMemory } from '../../webgl/core/allocation.ts';
+import { outOfMemoryContext } from '../../residency/outOfMemory.ts';
+import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
 import type { createAutonomousResidency } from './residency.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import type { WebglViewState } from './views.ts';
@@ -63,7 +66,10 @@ export function createAutonomousRender(options: {
   residency: Pick<ReturnType<typeof createAutonomousResidency>, 'keptChanged'>;
   /** The geometry pool: what it admits of the requests, what it holds of what the image asks for
    *  and draws, and the shedding of what it no longer holds (`pool.ts`). */
-  pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'fit' | 'held' | 'follow' | 'trim'>;
+  pool: Pick<
+    ReturnType<typeof createGeometryBudget>,
+    'admit' | 'fit' | 'held' | 'follow' | 'trim' | 'outOfMemory'
+  >;
 }) {
   const {
     state,
@@ -86,7 +92,26 @@ export function createAutonomousRender(options: {
     residency.keptChanged();
     pool.follow(view.requested, view.shown);
   };
+  let refusals = 0;
   const frame = (camera: HostCamera) => {
+    // A geometry allocation the context refused since the last frame draws this one a level
+    // coarser. A frame target is sized again at its next draw and a map sent again at its next
+    // bind — no coarser picture to show instead —: nothing to shrink, the refusal is published.
+    const gl = context.webglContext;
+    if (takeOutOfMemory(gl, 'geometry')) pool.outOfMemory();
+    for (const refused of ['target', 'texture'] as const)
+      if (takeOutOfMemory(gl, refused))
+        sendEngineDiagnostic(
+          context.onDiagnostic,
+          'gpu-out-of-memory',
+          `WebGL2 refused a ${refused === 'target' ? 'frame target' : 'map'}`,
+          outOfMemoryContext(refused, null),
+        );
+    // Whatever was refused, the images drawn since drew without it: this one is drawn again.
+    if (refusalsRead(gl) !== refusals) {
+      refusals = refusalsRead(gl);
+      gate.resourcesChanged();
+    }
     // Frame entry: the order and its guarantees live in `../../frame/gateCore.ts`, which also copies
     // the host camera into the engine camera — the cut now reads only the latter.
     state.frameHeld = gate.enterFrame(
