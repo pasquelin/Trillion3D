@@ -91,10 +91,11 @@ export function encodeFreshPages(
   allocation.cull(encoder, culled, [buffers.freshDispatch, 0]);
   allocation.seal(encoder, composed, 1);
   const draws = shadows.freshDraws.made();
-  for (let layer = 0; layer < layers; layer++) {
-    const passes = tint ? [shadows.passes[layer], tint.passes[layer]] : [shadows.passes[layer]];
-    passes.forEach((descriptor, tinted) => {
-      const pass = encoder.beginRenderPass(descriptor);
+  for (let layer = 0; layer < layers; layer++)
+    for (const tinted of tint ? [false, true] : [false]) {
+      // The layer's own descriptors (`layerPasses`): labelled for the GPU timing (#685).
+      const passes = tinted && tint ? tint.passes : shadows.passes;
+      const pass = encoder.beginRenderPass(passes[layer]);
       pass.setBindGroup(0, groups.page);
       pass.setBindGroup(1, shadows.faceGroup, [0]);
       pass.setBindGroup(2, tinted ? groups.tint[layer] : groups.pool);
@@ -112,6 +113,5 @@ export function encodeFreshPages(
       lights.shadowRenderPasses++;
       lights.shadowDrawCalls += kinds.length;
       run.gpuDrawCalls += kinds.length;
-    });
-  }
+    }
 }
