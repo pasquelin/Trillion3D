@@ -1,5 +1,48 @@
+import { normalMatrix3 } from '../../../../sdk-core/src/index.ts';
+import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matrix4Typed.ts';
+import { sameElements } from '../../math/matrixElements.ts';
 import { LTC_UNIT } from './rectGlsl.ts';
 import { LIGHT_DATA_UNIT, LIGHT_LIST_UNIT } from './lightTexture.ts';
+
+/**
+ * The model-view and normal matrices of the draws, sent only when the drawn node's world matrix
+ * differs from the last one sent (#840): the pages of one placement share it, and a frame of
+ * sponza drew 1 465 of them, twice, each with 100 bytes of matrices the context already held —
+ * enough to fill its command buffer while the GPU process waited on the compositor. True when
+ * sent: the winding the matrix gives is read again then. `forget` at every draw — its camera's
+ * view may have moved — and wherever the raster state is forgotten.
+ */
+export class ModelUniforms {
+  private model = new Float64Array(16).fill(Number.NaN);
+  private modelView = new Float64Array(16);
+  private upload = new Float32Array(16);
+  private normal = new Float32Array(9);
+  private gl: WebGL2RenderingContext;
+  private modelViewAt: WebGLUniformLocation | null;
+  private normalAt: WebGLUniformLocation | null;
+  constructor(
+    gl: WebGL2RenderingContext,
+    modelView: WebGLUniformLocation | null,
+    normal: WebGLUniformLocation | null,
+  ) {
+    this.gl = gl;
+    this.modelViewAt = modelView;
+    this.normalAt = normal;
+  }
+  set(view: ArrayLike<number>, model: ArrayLike<number>) {
+    if (sameElements(this.model, model)) return false;
+    this.model.set(model);
+    multiplyMatrix4Typed(this.modelView, view, model);
+    this.upload.set(this.modelView);
+    this.gl.uniformMatrix4fv(this.modelViewAt, false, this.upload);
+    normalMatrix3(this.normal, this.modelView);
+    this.gl.uniformMatrix3fv(this.normalAt, false, this.normal);
+    return true;
+  }
+  forget() {
+    this.model.fill(Number.NaN);
+  }
+}
 
 export class Matrix3UniformCache {
   private values = new Map<string, Float32Array>();
@@ -47,9 +90,3 @@ export const setClusterSamplers = (
   gl.uniform1i(location('lightData'), LIGHT_DATA_UNIT);
   gl.uniform1i(location('lightList'), LIGHT_LIST_UNIT);
 };
-
-export const setMatrix3 = (
-  gl: WebGL2RenderingContext,
-  location: WebGLUniformLocation | null,
-  value: Float32List,
-) => gl.uniformMatrix3fv(location, false, value);

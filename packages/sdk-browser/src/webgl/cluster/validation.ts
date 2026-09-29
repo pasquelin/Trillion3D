@@ -1,5 +1,5 @@
 import type { ClusterDrawMesh, HostAttributes, WholeMesh } from '../../cluster/batchMesh.ts';
-import { clusterMaterialReason } from './compatibility.ts';
+import { attributeNeeds, attributesLack, surfaceReasons } from '../../host/surfaceGate.ts';
 import type { Material } from './materialBinding.ts';
 import { featuresOf, physicalLostMask } from '../../scene/physicalMaterialGate.ts';
 
@@ -31,10 +31,39 @@ export function readDegraded(hear: MaterialDegraded): ReadDegraded {
 
 type Drawn = ClusterDrawMesh | WholeMesh;
 
+/** A surface's own part of the gate, read once a frame: its reasons, and what its pages'
+ *  attributes must hold. */
+type SurfaceRead = {
+  before: string | undefined;
+  after: string | undefined;
+  needs: ReturnType<typeof attributeNeeds>;
+};
+
+/** The gate's reason for one mesh (`clusterMaterialReason`), its surface's part read once a
+ *  frame into `read` (#840: sponza read the whole gate for 1 465 pages a frame). */
+const reasonOf = (
+  read: Map<Material, SurfaceRead>,
+  material: Material,
+  attributes: HostAttributes,
+  transmissive: boolean,
+) => {
+  let surface = read.get(material);
+  if (!surface) {
+    const [before, after] = surfaceReasons(material, transmissive);
+    read.set(material, (surface = { before, after, needs: attributeNeeds(material) }));
+  }
+  return surface.before ?? attributesLack(surface.needs, attributes) ?? surface.after;
+};
+
+type Tables = {
+  seen: Map<Material, HostAttributes>;
+  surfaces: readonly Map<Material, SurfaceRead>[];
+  left: Set<Drawn>;
+};
+
 const validateMeshes = (
   meshes: readonly Drawn[],
-  seen: Map<Material, HostAttributes>,
-  left: Set<Drawn>,
+  { seen, surfaces, left }: Tables,
   transmissive: boolean,
   degraded: ReadDegraded,
 ) => {
@@ -43,7 +72,7 @@ const validateMeshes = (
       attributes = mesh.geometry.attributes;
     const previous = seen.get(material);
     if (previous === attributes) continue;
-    const reason = clusterMaterialReason(material, attributes, transmissive);
+    const reason = reasonOf(surfaces[transmissive ? 1 : 0], material, attributes, transmissive);
     if (reason) {
       left.add(mesh);
       degraded(material, reason);
@@ -68,21 +97,30 @@ type Copies = {
  * `degraded` hears why by name: every other mesh draws and the loop goes on. Only the copies of
  * the transmission pass may transmit; a page or a plain copy that does is left out. A physical
  * extension is no refusal: the surface is drawn without it and `degraded` reads it.
+ *
+ * Its tables are the frame's, cleared at every frame so a mutation is read at the next draw:
+ * `seen`, the attributes each surface was last validated with, and `surfaces`, a surface's own
+ * reasons by pass and what its pages' attributes need — a frame drawing many pages of one surface
+ * reads it once, their attributes per page.
  */
 export function clusterValidation(degraded: ReadDegraded) {
-  const seen = new Map<Material, HostAttributes>(),
-    left = new Set<Drawn>();
+  const tables: Tables = {
+    seen: new Map(),
+    surfaces: [new Map(), new Map()],
+    left: new Set(),
+  };
   return {
     validate(meshes: readonly ClusterDrawMesh[], whole: readonly WholeMesh[], copies: Copies) {
-      seen.clear();
-      left.clear();
-      validateMeshes(meshes, seen, left, false, degraded);
-      validateMeshes(whole, seen, left, false, degraded);
-      validateMeshes(copies.plain, seen, left, false, degraded);
-      validateMeshes(copies.blended, seen, left, false, degraded);
-      validateMeshes(copies.transmissive, seen, left, true, degraded);
+      tables.seen.clear();
+      tables.left.clear();
+      for (const read of tables.surfaces) read.clear();
+      validateMeshes(meshes, tables, false, degraded);
+      validateMeshes(whole, tables, false, degraded);
+      validateMeshes(copies.plain, tables, false, degraded);
+      validateMeshes(copies.blended, tables, false, degraded);
+      validateMeshes(copies.transmissive, tables, true, degraded);
     },
     /** Whether this frame leaves `mesh` out. */
-    leaves: (mesh: Drawn) => left.has(mesh),
+    leaves: (mesh: Drawn) => tables.left.has(mesh),
   };
 }

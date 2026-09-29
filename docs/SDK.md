@@ -1292,9 +1292,20 @@ pool as WebGPU's refusal does, published as `gpu-out-of-memory` with the pool na
 halves the geometry pool, and the residency lets the finest pages go one DAG level per image;
 `texture`, a map, is sent again at its next bind — a surface is never drawn without its picture,
 there is no coarser one to show instead —; `target`, a frame target or the frame's light data, is
-sized again at its next draw, nothing to halve. A browser that answers by losing the context takes the
-WebGL2 context-loss path (`webglcontextlost`, then `webglcontextrestored`): nothing is drawn while
-the context is lost.
+sized again at its next draw, nothing to halve. The pages' vertices and indices share one set of
+buffers per vertex layout, made again larger when full with every page laid out again; a growth
+the context refuses gives that set up, and its pages are placed again in a new one. A browser that
+answers by losing the context takes the WebGL2 context-loss path (`webglcontextlost`, then
+`webglcontextrestored`): nothing is drawn while the context is lost.
+
+WebGL2 uploads a map at the first draw that binds it — a surface is never drawn without its
+picture, there is no coarser level to show instead — and uploads the others ahead: the census
+orders the maps of every declared surface within `texturePoolBytes`. The session's preparation
+sends them before its first frame, and after it each frame sends what is left before its draws;
+either way a step waits for the GPU to run the one before — an upload sent to a GPU behind waits
+for it — and sends only the maps whose bytes fit what is left of `maxTextureTransferBytesPerFrame`
+(16 MiB), while it has spent less than `maxTextureUploadMsPerFrame` (1 ms); a map larger than the
+whole budget is sent alone in a step of its own.
 
 Frame targets are **not** budgeted: colour, depth, visibility, HDR, material surfaces, Hi-Z, the
 temporal history and a capture follow the resolution, and `gpuFrameTargetBytes` says what they cost.
