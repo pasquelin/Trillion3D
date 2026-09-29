@@ -44,7 +44,7 @@ impl<'a> Importer<'a> {
         };
         let opts = ufbx::LoadOpts {
             filename: ufbx::StringOpt::Ref(file.to_str().unwrap_or("")),
-            ignore_animation: true,
+            ignore_animation: false,
             load_external_files: true,
             ignore_missing_external_files: true,
             generate_missing_normals: true,
@@ -106,6 +106,7 @@ impl<'a> Importer<'a> {
             }
         }
         let mut mesh_ids: HashMap<(u32, Vec<Option<usize>>), Option<usize>> = HashMap::new();
+        let (mut bones, mut skins, mut written) = (HashMap::new(), HashMap::new(), Vec::new());
         let mut file_nodes = 0usize;
         let mut file_triangles = 0usize;
         let mut hidden = 0usize;
@@ -173,10 +174,21 @@ impl<'a> Importer<'a> {
             }
             self.nodes
                 .push(json!({"name":&*node.element.name,"matrix":matrix,"mesh":mesh_id}));
+            let placed = self.nodes.len() - 1;
+            self.bend(node, mesh, placed, (&mut bones, &mut skins), &mut written);
             file_nodes += 1;
             file_triangles += self.mesh_triangles[mesh_id];
         }
         self.report.add_count("node-hidden", hidden);
+        for (&typed, &node) in &bones {
+            written.push(Written {
+                typed: typed as usize,
+                node,
+                geometry: false,
+                channels: Vec::new(),
+            });
+        }
+        self.animate(&scene, &written)?;
         self.mesh_nodes += file_nodes;
         self.triangles += file_triangles;
         self.files.push(json!({"file":file_name,"bytes":mapped.len(),"sha256":digest,"format":if scene.metadata.file_format==ufbx::FileFormat::Obj{"obj"}else{"fbx"},"fbxVersion":scene.metadata.version,"ascii":scene.metadata.ascii,"creator":&*scene.metadata.creator,"unitMeters":scene.settings.unit_meters,"originalUnitMeters":scene.settings.original_unit_meters,"meshes":scene.meshes.len(),"materials":scene.materials.len(),"textures":scene.textures.len(),"lodGroups":scene.lod_groups.len(),"lights":scene.lights.len(),"hiddenNodes":hidden,"meshNodes":file_nodes,"triangles":file_triangles,"parseMs":parse_ms,"ms":crate::shared_math::elapsed_ms(started)}));

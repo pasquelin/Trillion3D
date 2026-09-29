@@ -16,6 +16,9 @@ export interface PageAttributes {
   TEXCOORD_0?: PageAttribute;
   TEXCOORD_1?: PageAttribute;
   COLOR_0?: PageAttribute;
+  /** Four joints and four weights a vertex, read only with each other (#357). */
+  JOINTS_0?: PageAttribute;
+  WEIGHTS_0?: PageAttribute;
 }
 
 export type OptionalAttributeName = 'NORMAL' | 'TEXCOORD_0' | 'TEXCOORD_1' | 'COLOR_0';
@@ -34,4 +37,6 @@ export interface PageCell {
   n: number;
   uv: [number[], number[]];
   c: number[];
+  /** Its deformation fields (`pageDeform.ts`), empty when the page carries none. */
+  d?: number[];
 }
