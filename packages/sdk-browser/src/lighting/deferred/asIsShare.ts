@@ -4,14 +4,19 @@ import { BLEND_EQUATIONS } from '../../scene/materialBlending.ts';
 
 /** Red, the as-is share; green, the reactive value (#833). */
 export const AS_IS_SHARE_FORMAT: GPUTextureFormat = 'rg8unorm';
+/** Bytes per pixel of that format, as the frame's target cost counts them (`targets.ts`). */
+export const AS_IS_SHARE_BYTES = 2;
 
-/** The reactive value's target as a particle writes it (`../../particles/webgpuParticleDraw.ts`):
- *  its coverage over what the pixel holds, green alone (`GPUColorWrite.GREEN`). */
-export const REACTIVE_TARGET: GPUColorTargetState = {
+/** The target as a blend writes it (`../../webgpu/blend/pipelines.ts`): its coverage over what
+ *  the pixel holds, in both channels. */
+export const SHARE_TARGET: GPUColorTargetState = {
   format: AS_IS_SHARE_FORMAT,
-  writeMask: 0x2,
   blend: BLEND_EQUATIONS.normal,
 };
+
+/** The reactive value's target as a particle writes it (`../../particles/webgpuParticleDraw.ts`):
+ *  the same, green alone (`GPUColorWrite.GREEN`). */
+export const REACTIVE_TARGET: GPUColorTargetState = { ...SHARE_TARGET, writeMask: 0x2 };
 
 export const AS_IS_SHARE_SHADER = `${FULLSCREEN_VERTEX}
 @group(0) @binding(0) var flags:texture_2d<u32>;

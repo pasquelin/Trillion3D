@@ -43,17 +43,19 @@ fn historyCatmullRom(uv:vec2f)->vec4f{
  * as-is share, the tag of the placement its identifier belonged to — folded to 1‥255 for 8 bits, 0
  * the background. A pixel is uncovered when none of the four history texels its point reads holds
  * the tag of any render texel of its 3×3: what it showed is no longer around it (a ball gone from
- * the ground it hid). An edge, whose 3×3 holds both sides, is never uncovered; two placements
+ * the ground it hid). The pixel's `own` tag, the one it writes, is tried first: a pixel
+ * that still shows what it showed reads no identifier more. An edge, whose 3×3 holds both sides, is never uncovered; two placements
  * that share a tag only keep today's clamp.
  */
 export const PLACEMENT_TAG_WGSL = `
 fn placementTag(at:vec2i)->u32{
  let id=textureLoad(ids,at,0).r;
  if(id==0u){return 0u;}
- return pages[(id>>8u)-1u].placement%255u+1u;
+ return placementOf(id)%255u+1u;
 }
-fn uncovered(uv:vec2f,centre:vec2i,last:vec2i)->bool{
+fn uncovered(uv:vec2f,centre:vec2i,last:vec2i,own:f32)->bool{
  let kept=textureGather(1,tagHistory,historySampler,uv)*255.0;
+ if(any(abs(kept-own*255.0)<vec4f(0.5))){return false;}
  for(var dy=-1;dy<=1;dy++){for(var dx=-1;dx<=1;dx++){
   let tag=f32(placementTag(clamp(centre+vec2i(dx,dy),vec2i(0),last)));
   if(any(abs(kept-tag)<vec4f(0.5))){return false;}
@@ -89,7 +91,7 @@ export const taaHistoryBlend = (asIs: boolean, filtered = false) => {
  if(view.jitter.z!=0.0){
   read=historyCatmullRom(previous.xy);
   let rho=textureLoad(reactive,min(centre,vec2i(textureDimensions(reactive))-vec2i(1)),0).g;
-  alpha=currentShare(alpha,reach,rho,uncovered(previous.xy,centre,last));
+  alpha=currentShare(alpha,reach,rho,uncovered(previous.xy,centre,last,tag));
  }else{read=textureSampleLevel(history,historySampler,previous.xy,0.0);}
  let clamped=clamp(vec4f(toYcocg(read.rgb),read.a),lo,hi);
  let kept=vec4f(fromYcocg(clamped.xyz),clamped.w);
