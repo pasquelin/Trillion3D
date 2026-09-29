@@ -22,7 +22,7 @@ import type { HostMaterial } from '../../host/resources.ts';
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
-  const { metadata, descriptors } = prepareAutonomousManifest(context.metadata);
+  const { metadata, descriptors, sourced } = prepareAutonomousManifest(context.metadata);
   const { roots, allPages, worlds, blendCopies, reassignBlend, blendOf, wears } =
     collectClusterPages(context.source, metadata, new Map(), context.associations, {
       allowMissing: true,
@@ -51,14 +51,14 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
   let ready = false;
   const geometryStore = createAutonomousGeometry({
-    ...{ scene, allPages, bootstrap, views, byUrl, descriptors },
+    ...{ scene, roots, allPages, bootstrap, views, byUrl, descriptors },
     ...{ baseMaterials, colorMaterials, modifiedPages },
   });
   const { sync, acceptGeometryPage } = geometryStore;
-  const classes = createClassPages({ context, geometryStore, wears, gate });
+  const classes = createClassPages({ context, roots, geometryStore, wears, gate });
   // The tables a placement enters: instances and instance-buffer rows append to the same.
   const tables = { roots, allPages, bootstrap, byUrl, baseMaterials, blendOf };
-  const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl, hostCeiling });
+  const heldFloor = createHeldFloor({ roots, bootstrap, modifiedPages, byUrl, hostCeiling });
   const ceiling =
     hostCeiling < Infinity ? () => hostCeiling : () => Math.max(pageDefault, heldFloor.meshes());
   const { disposeOwnedMaterials, instanceCount, ...instances } = createAutonomousInstances({
@@ -125,7 +125,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       if (heldFloor.overCeiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       const urls = [...bootstrapUrls];
       // The draw's own preparation, before any frame (`sceneDraw.ts`).
-      const [pages] = await Promise.all([readPages(context, urls), hostDraw.prepare()]);
+      const [pages] = await Promise.all([readPages(context, urls, sourced), hostDraw.prepare()]);
       pages.forEach((data, i) => acceptGeometryPage(urls[i], data));
       heldFloor.changed();
       ready = true;
@@ -160,10 +160,9 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     materialClassRefusal: (alpha) =>
       instances.materialClassRefusal(alpha) ?? classes.refusal(alpha, allPages),
     flush: () => classes.settled().then(pool.api.flush),
-    syncResident() {
-      gate.resourcesChanged();
-      sync();
-    },
+    syncResident: () => (gate.resourcesChanged(), sync()),
+    // A dynamic geometry's pages read its lists, uploaded as the next frame binds them (#573).
+    updateVertices: () => (gate.sceneMoved(), true),
     refreshMaterials(values = true, alpha) {
       // Values reach the twins, clones; a picture alone (#362), shared, only lets the image go.
       if (values) colorMaterials.forEach((twin, original) => colouredHostSurface(original, twin));
@@ -181,7 +180,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
         lodLevel: state.lodLevel,
         submittedTriangles: geometryStore.state.submittedTriangles,
         totalSubmittedTriangles: hostDraw.counters()?.triangles ?? null,
-        drawCalls: attachedPages(views.live.shown),
+        drawCalls: attachedPages(views.live.shown, roots),
         coverageReady: ready,
         coverageBudgetLimited: state.overBudget || pool.budget.coverageBudgetLimited,
         frameHeld: state.frameHeld,

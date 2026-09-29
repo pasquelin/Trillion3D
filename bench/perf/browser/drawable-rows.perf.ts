@@ -15,7 +15,6 @@ const PAGES = 12000,
   SLOTS = 8192;
 
 /** Fields the row table never reads: shared across every fixture record. */
-const DUMMY_MATRIX = new G.Matrix4();
 const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
 
@@ -36,7 +35,7 @@ const catalogue = (): PageRec[] => {
       attributes: DUMMY_ATTRIBUTES,
       material: surfaceOf([]),
       declaration: [],
-      matrix: DUMMY_MATRIX,
+      placementIndex: 0,
       renderOrder: 0,
       attached: true,
     });

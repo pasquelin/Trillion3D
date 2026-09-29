@@ -9,6 +9,7 @@ import { compareImages } from '../../../sdk-core/src/index.ts';
 import { rasterVisibilityIds, shadeVisibility, type VisPage } from '../visibility/buffer.ts';
 import { applyTemporalHiz, type HizPage, type TemporalHizState } from './hiz.ts';
 import { staleTemporalBox } from './staleRegions.ts';
+import type { Placements } from '../page/selection/placements.ts';
 import { cameraAt, quad } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import { seeded } from '../host/world/randomTree.fixture.ts';
@@ -25,10 +26,17 @@ function scene(draw: () => number) {
       z = i === 0 ? 1 : -3 + draw() * 3.5;
     const made = quad(surface, [-half, -half, z], [half, half, z], `q${i}`);
     made.page.matrix = new G.Matrix4().makeTranslation(draw() * 4 - 2, draw() * 4 - 2, 0);
+    made.page.placementIndex = i;
     return made;
   });
   const pages = quads.map((q) => q.page as Page);
-  return { pages, dispose: () => (quads.forEach((q) => q.geometry.dispose()), surface.dispose()) };
+  // Each quad is its own root, placed by the world its page keeps: moving it moves the root.
+  const roots = pages.map((page) => ({ world: page.matrix }));
+  return {
+    pages,
+    roots,
+    dispose: () => (quads.forEach((q) => q.geometry.dispose()), surface.dispose()),
+  };
 }
 
 /** The page's world box: its local box moved by its translation. */
@@ -37,26 +45,26 @@ function worldBox(page: Page) {
   return [page.min.map((v, k) => v + t[k]), page.max.map((v, k) => v + t[k])];
 }
 
-const shade = (pages: Page[]) =>
-  shadeVisibility(rasterVisibilityIds(pages, cam, SIZE), pages, cam, SIZE);
+const shade = (pages: Page[], roots: Placements) =>
+  shadeVisibility(rasterVisibilityIds(pages, roots, cam, SIZE), pages, roots, cam, SIZE);
 
-function sameImage(pages: Page[], shown: Page[], label: string) {
-  assert.equal(compareImages(shade(pages), shade(shown)).maxChannelError, 0, label);
+function sameImage(pages: Page[], roots: Placements, shown: Page[], label: string) {
+  assert.equal(compareImages(shade(pages, roots), shade(shown, roots)).maxChannelError, 0, label);
 }
 
 test('a moved root stales its region alone, and the image is every page shaded', () => {
   const draw = seeded(1404);
   let heldFrames = 0;
   for (let round = 0; round < 12; round++) {
-    const { pages, dispose } = scene(draw);
+    const { pages, roots, dispose } = scene(draw);
     const develop: TemporalHizState = {},
       branch: TemporalHizState = {};
     for (let frame = 0; frame < 8; frame++) {
       if (branch.pyramid) heldFrames++;
-      const d = applyTemporalHiz(pages, cam, SIZE, develop).shown as Page[];
-      const b = applyTemporalHiz(pages, cam, SIZE, branch).shown as Page[];
-      sameImage(pages, d, `develop, round ${round} frame ${frame}`);
-      sameImage(pages, b, `branch, round ${round} frame ${frame}`);
+      const d = applyTemporalHiz(pages, roots, cam, SIZE, develop).shown as Page[];
+      const b = applyTemporalHiz(pages, roots, cam, SIZE, branch).shown as Page[];
+      sameImage(pages, roots, d, `develop, round ${round} frame ${frame}`);
+      sameImage(pages, roots, b, `branch, round ${round} frame ${frame}`);
       // One page moves: develop drops the pyramid, the branch stales where it was and is.
       const mover = pages[1 + Math.floor(draw() * (pages.length - 1))];
       const [oldMin, oldMax] = worldBox(mover);
@@ -72,7 +80,7 @@ test('a moved root stales its region alone, and the image is every page shaded',
 });
 
 test('edge boxes: none, ±0, ±Inf, NaN, one round the eye', () => {
-  const { pages, dispose } = scene(seeded(7));
+  const { pages, roots, dispose } = scene(seeded(7));
   const edges: [number[], number[]][] = [
     [
       [-0, -0, -0],
@@ -97,11 +105,16 @@ test('edge boxes: none, ±0, ±Inf, NaN, one round the eye', () => {
   ];
   for (const [k, [min, max]] of edges.entries()) {
     const history: TemporalHizState = {};
-    applyTemporalHiz(pages, cam, SIZE, history);
+    applyTemporalHiz(pages, roots, cam, SIZE, history);
     staleTemporalBox(history, min, max);
     assert.equal(!!history.pyramid, k < 2, 'a non-finite box drops the whole pyramid');
     if (history.pyramid) assert.equal(history.stale?.length, 1);
-    sameImage(pages, applyTemporalHiz(pages, cam, SIZE, history).shown as Page[], `edge ${k}`);
+    sameImage(
+      pages,
+      roots,
+      applyTemporalHiz(pages, roots, cam, SIZE, history).shown as Page[],
+      `edge ${k}`,
+    );
     assert.equal(history.stale?.length ?? 0, 0, 'the next pyramid starts clean');
   }
   const empty: TemporalHizState = {};

@@ -345,7 +345,6 @@
       "drag-a-crate": "상자 드래그"
     },
     "missing": {
-      "floating-crates": "매 프레임 다시 쓰는 지오메트리",
       "thick-lines": "굵은 선",
       "a-line-that-draws-itself": "지오메트리의 그리기 범위",
       "shapes-from-an-svg": "SVG 경로 불러오기",
@@ -492,8 +491,6 @@
       "a-software-rasteriser": "GPU 연산 API",
       "sound-from-the-gpu": "GPU 연산 API",
       "breaking-things": "물리 엔진 연동",
-      "cloth-and-rope": "매 프레임 다시 쓰는 지오메트리",
-      "soft-bodies": "매 프레임 다시 쓰는 지오메트리",
       "a-cooked-flag": "매 프레임 다시 쓰는 지오메트리",
       "a-room-in-vr": "WebXR 세션",
       "a-360-photo-in-vr": "WebXR 세션",

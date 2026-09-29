@@ -2,6 +2,7 @@ import { FLAG_CLIP, ROW_DATA_U32, ROW_FLAGS, ROW_NEAREST } from '../../gpu/parti
 import { visLayerTop } from '../visibility/uniforms.ts';
 import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { rootOf } from '../../page/selection/placements.ts';
 
 /**
  * What an image sent to the GPU partition, and what the partition wrote of it, row by row.
@@ -71,7 +72,12 @@ export async function readPartitionAudit(rt: WebgpuPagesRuntime): Promise<Partit
     if (!rec) continue;
     // The corners the GPU read are these, rounded to single precision for transport: the reference
     // therefore starts from the same doubles, and the rounding enters the kernel's error bound.
-    pageCornersInto(corners, row * BOX_CORNER_VALUES, rec);
+    pageCornersInto(
+      corners,
+      row * BOX_CORNER_VALUES,
+      rec,
+      rootOf(rt.layout.selectionRoots, rec).world,
+    );
   }
   return {
     rows,
