@@ -37,9 +37,9 @@ void deform(inout vec3 p,inout vec3 n){int r=deformDraw.x-1;if(r<0)return;vec4 h
 int kinds=int(head.x),joints=int(head.z),targets=int(head.w),waves=int(deformFloat(r+4));
 int palette=r+${RECORD_HEAD},weights=palette+2*joints*${PALETTE_FLOATS},world=weights+2*targets;vec3 rest=p;
 int soft=int(deformFloat(r+5));
-if((kinds&${KIND_SOFT})!=0&&deformDraw.y!=0){int simulation=world+(waves>0?32:0)+waves*${WAVE_FLOATS};p+=deformSoft(simulation,soft,false);n=deformSoft(simulation,soft,true);}
+if((kinds&${KIND_SOFT})!=0&&deformDraw.y!=0){int simulation=world+(waves>0?64:0)+2*waves*${WAVE_FLOATS};p+=deformSoft(simulation,soft,false);n=deformSoft(simulation,soft,true);}
 if((kinds&${KIND_MORPH})!=0)for(int t=0;t<min(targets,deformDraw.z);t++){float w=deformFloat(weights+t);if(w!=0.0){p+=w*deformMorph(t,false);n+=w*deformMorph(t,true);}}
 if((kinds&${KIND_SKIN})!=0&&deformDraw.y!=0){p=deformSkin(palette,joints,vec4(p,1.0));n=deformSkin(palette,joints,vec4(n,0.0));}
 if((kinds&${KIND_WAVE})!=0){mat4 m=deformMatrix(world);vec3 at=(m*vec4(p,1.0)).xyz;
-p=(deformMatrix(world+16)*vec4(at+deformWaves(world+32,waves,at,false),1.0)).xyz;
-n=transpose(mat3(m))*deformWaves(world+32,waves,(m*vec4(rest,1.0)).xyz,true);}}`;
+p=(deformMatrix(world+16)*vec4(at+deformWaves(world+64,waves,at,false),1.0)).xyz;
+n=transpose(mat3(m))*deformWaves(world+64,waves,(m*vec4(rest,1.0)).xyz,true);}}`;
