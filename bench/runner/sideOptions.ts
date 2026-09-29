@@ -164,16 +164,16 @@ export const sideReport = (side: Side) =>
     },
   ] as const;
 
-/** Diagnostic variant of a side: `--variante-<side>`, otherwise campaign variant. */
+/** Diagnostic variant of a side: `--variant-<side>`, otherwise campaign variant. */
 function variantOf(flags: Map<string, string>, name: string) {
-  return flags.get(`variante-${name}`) ?? flags.get('variante') ?? null;
+  return flags.get(`variant-${name}`) ?? flags.get('variant') ?? null;
 }
 
-/** Engine of a side: `--moteur-<side>` if provided, otherwise campaign engine. */
+/** Engine of a side: `--engine-<side>` if provided, otherwise campaign engine. */
 export function engineOf(flags: Map<string, string>, name: string, fallback: string) {
-  const engine = flags.get(`moteur-${name}`) ?? fallback;
+  const engine = flags.get(`engine-${name}`) ?? fallback;
   const found = ENGINES[engine];
-  if (!found) throw new Error(`--moteur-${name} must be ${Object.keys(ENGINES).join(', ')}`);
+  if (!found) throw new Error(`--engine-${name} must be ${Object.keys(ENGINES).join(', ')}`);
   return found;
 }
 

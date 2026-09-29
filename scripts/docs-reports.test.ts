@@ -113,8 +113,8 @@ test('complete source tables include primary and repeated readings plus failed-r
             view: 'sol',
             pixelError: 1,
             sides: {
-              apres: { moteur: 'webgpu', primaryCounter: 123 },
-              'apres-aa': { moteur: 'webgpu', repeatCounter: 456 },
+              after: { moteur: 'webgpu', primaryCounter: 123 },
+              'after-aa': { moteur: 'webgpu', repeatCounter: 456 },
             },
           },
         ],

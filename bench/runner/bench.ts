@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Measurement benchmark common to all batches. One command, no server to start manually:
-//   node bench/runner/bench.ts --moteur webgl --avant <ref-git|dist> --apres <ref-git|dist> \
+//   node bench/runner/bench.ts --engine webgl --before <ref-git|dist> --after <ref-git|dist> \
 //        --vues generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
 // All options in `README.md`. Writes `mesure.json`, `resume.md` and one PNG per view, threshold and
 // side, plus A/A capture. `null` = not measured, never inferred; a black capture is an error.
@@ -39,12 +39,12 @@ const CTX: RunContext = { MANIFEST: null, OUT, settings, lights: null, poses: nu
 async function main() {
   await mkdir(OUT, { recursive: true });
   const rawSides = options.resolveSides({
-    after: flags.get('apres'),
-    before: flags.get('avant'),
+    after: flags.get('after'),
+    before: flags.get('before'),
     root: ROOT,
   });
   // Each side has its compiled cache (`--cache-<side>`, otherwise benchmark asset cache), engine
-  // (`--moteur-<side>`, Chromium flags being union) and variant (`--variante-<side>`).
+  // (`--engine-<side>`, Chromium flags being union) and variant (`--variant-<side>`).
   // `--scene name` sets asset cache before equipping sides: campaign thus runs each reference scene without repeating `--cache-*` paths.
   options.applySceneFlag(flags);
   const sides = rawSides.map((side) => options.equipSide(side, flags, settings));
@@ -174,12 +174,12 @@ async function main() {
           captures.get(files[sides[0].name]),
           captures.get(temoin.captureFile),
         );
-        serie.ecartAvantApres = files.avant
-          ? imageDiff(captures.get(files.avant), captures.get(files.apres))
+        serie.ecartAvantApres = files.before
+          ? imageDiff(captures.get(files.before), captures.get(files.after))
           : null;
-        const { avant, apres } = serie.sides;
+        const { before, after } = serie.sides;
         serie.coupeIdentique =
-          avant && apres ? avant.selection.sha256 === apres.selection.sha256 : null;
+          before && after ? before.selection.sha256 === after.selection.sha256 : null;
       }
   } finally {
     await new Promise((done) => server.close(done));

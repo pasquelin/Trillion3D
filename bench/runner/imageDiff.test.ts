@@ -53,13 +53,13 @@ test('every black capture is an error of the report, by its file name', () => {
   refuseBlackCaptures(
     errors,
     new Map([
-      ['apres-sol-e1.png', capture([0, 0, 0, 255])],
-      ['apres-generale-e1.png', capture([0, 1, 0, 255])],
-      ['apres-rue-e1.png', null],
+      ['after-sol-e1.png', capture([0, 0, 0, 255])],
+      ['after-generale-e1.png', capture([0, 1, 0, 255])],
+      ['after-rue-e1.png', null],
     ]),
   );
   assert.deepEqual(errors, [
-    { kind: 'black-capture', message: 'apres-sol-e1.png: RGB 0 everywhere' },
+    { kind: 'black-capture', message: 'after-sol-e1.png: RGB 0 everywhere' },
     { kind: 'console', message: 'noise' },
   ]);
 });
