@@ -24,7 +24,7 @@ function rowLocal(node: CellNode, out: Float64Array) {
 }
 
 /** A cell file as the pool answers it (`PageDecodeDone.cells`). */
-export type CellPayload = NonNullable<PageDecodeDone['cells']>;
+type CellPayload = NonNullable<PageDecodeDone['cells']>;
 
 /** The nodes of the cell file `source`, each its parent's and mesh's ranks and its local matrix,
  *  or the named refusal of a file of another version. */
