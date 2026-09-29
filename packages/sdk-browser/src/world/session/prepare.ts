@@ -100,6 +100,15 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     ));
   const source = loadedScene.source;
   resources.source = source;
+  // The runtime's pinned bytes: each model's world top alone, beside what its placed cells hold.
+  for (const { pinned, bytes } of loadedScene.worldRoots)
+    diagnose('world-top', 'World top pinned', {
+      kind: 'preparation',
+      scope,
+      pinnedBundles: pinned.bundles,
+      pinnedBytes: pinned.bytes,
+      heldBytes: bytes() - pinned.bytes,
+    });
   if (!loadsOwnVertices(choice.factories)) await loadHostVertices(meshes(source));
   const pageSources = await createExplorerPageSources(
     metadata,
@@ -135,19 +144,19 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     loadedScene.framingLot,
   );
   loadedScene.framingLot?.release();
-  // The cells the first camera needs are placed before the engines read their rows: the first
-  // frame reads them and nothing further (`partitionFrame.ts`). That camera is the page's when it
-  // hands one in (a world), else the framing one, which sees the whole scene.
   inputs.placeCamera?.(cameraState.camera);
+  // The pages and cells the first camera reaches are placed before the engines read their rows:
+  // the first frame draws them (`partitionFrame.ts`, #575). That camera is the page's when it hands
+  // one in (a world), else the framing one, which sees the whole scene.
   if (loadedScene.partitions.length) {
     const bytes = await primePartitions(
       loadedScene.partitions,
       cameraState.camera,
       pageSources.streamer,
-      !!options.onRowsOutgrown,
+      !!options.onPartitionOutgrown,
       signal,
     );
-    diagnose('partition', 'Cells read before the first frame', {
+    diagnose('partition', 'Pages and cells read before the first frame', {
       kind: 'preparation',
       scope,
       bytes,
@@ -169,6 +178,7 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
     backends,
     base,
     frameBudget,
+    worldRoots: loadedScene.worldRoots,
   });
   return {
     source,

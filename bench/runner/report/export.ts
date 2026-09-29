@@ -12,7 +12,7 @@ import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { sceneNote } from '../scene.ts';
 import { assertReport, REPORT_VERSION } from '../../../site/reports/contract.ts';
 import type { Report as CampaignReport } from '../../../site/reports/types.ts';
-import type { Report as MeasureReport } from './types.ts';
+import type { Report as BenchReport } from './types.ts';
 
 type ReportRun = CampaignReport['runs'][number];
 type ReportRecord = CampaignReport['records'][number];
@@ -89,7 +89,7 @@ export function exportReport(source: string, output: string, id: string): Campai
       });
       continue;
     }
-    const raw = JSON.parse(readFileSync(file, 'utf8')) as Partial<MeasureReport>;
+    const raw = JSON.parse(readFileSync(file, 'utf8')) as Partial<BenchReport>;
     if (!Array.isArray(raw.series)) throw new Error(`Invalid measurement: ${file}`);
     const sourcePath = `sources/${runId}.json`;
     writeFileSync(join(output, sourcePath), JSON.stringify(publicData(raw)) + '\n');

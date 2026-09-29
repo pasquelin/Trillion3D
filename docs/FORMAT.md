@@ -115,7 +115,7 @@ A record word holds the width of each component in six-bit fields from bit 0 (ea
 
 Decoding is one multiply and one add per component, on 32-bit floats: `value = min + q × 2^exponent`, the product exact because the step is a power of two, the sum rounded once — so the three decoders (`geometryPage.ts` through `Math.fround`, the Rust codec, the WGSL routines) produce the same 32-bit float, which `tests/browser/probes/cluster-decoding-gpu.ts` proves on the graphics card bit for bit. A normal is two bytes, `x` low and `y` high, `(q × 2/255 − 1)` per byte, the lower hemisphere folded (`z < 0`) then normalized; the constant is `2/255` rounded to the nearest `f32` by each language. The sign of zero is not kept: `-0` lands on the cell of `0`.
 
-The compiler chooses the position grid per primitive, the finer of two rules: `exponent = min(floor(log2(widest extent)), tile) − 16`, so a primitive spans about 2^16 steps and a primitive wider than a tile of 32 metres of the world about 2^16 steps per tile — `tile = floor(log2(32 / scale))` in object units, `scale` the largest world scale that places the primitive (a metre per unit when none is known), so a kilometre terrain sits on `2^-11` m (0.49 mm) and stays under a quarter of a pixel seen from 2 m, while a primitive under 32 metres keeps the grid it had whatever its units; a tile splits nothing, since a cell is the rounding of the absolute coordinate and every page stores its own minimum, so tiles cost only the bits each page's box needs on the finer grid —, and `floor(log2(finest group error / 8))`, so a cluster's displacement projects below an eighth of the threshold wherever the cut selects it (the finest group error is the smallest non-zero `lodError` the DAG published). Both rules are bounded below by `floor(log2(widest extent)) − 22`, so the primitive never spans more than 2^23 steps and every page fits the 24-bit field on the primitive's own exponent (the engine's runtime cutter runs this very rule, `bits/grid.rs` in the SDK module, with no error rule and a metre per unit, or the 2^23-step grid when the module is absent; a compiled primitive whose material moves into or out of blended in the session is cut again by it on its own clusters, with its DAG's finest error, the scale that places it and the compiler's texture grid, so each page is the one the compiler writes for the new class, #846): every page of a primitive shares that exponent, which is what makes a vertex shared by two clusters land on the same cell in both. Each cluster then spends only the bits its own box needs; a page that would still need more than 24 bits on its primitive grid — a texture coordinate range past 1024, a colour range past 65,536 — is refused whole (`PAGE_ATTRIBUTE_RANGE`), never re-gridded on its own. Texture coordinates sit on a grid of `2^-14` — a quarter of a texel on a 4096-wide map; the compiler never leaves it, and the engine's runtime cutter takes the finest coarser grid only for a primitive whose widest cluster spans past 1024, such as a long dashed line's distance along it, the record word carrying the exponent every decoder reads — and colours, clamped to `[0, 1]`, on `2^-8`, with the same per-page minima and widths: a constant channel costs no bits. The cost is declared, never hidden: word 20 carries the page's worst position displacement, rounded up to the `f32` so that no position exceeds it — every decoder returns it, and the autonomous backend widens a page's box by exactly that —, and `primitives[].quantization` — `{ positionExponent, uvExponent, maxPositionError }`, the step being `2^positionExponent` — carries the primitive's for reporting, `null` on a primitive without pages, which was quantized on no grid. The cut adds it to a cluster's error: a cluster **a group produced** is certified at `lodError + maxPositionError`, a group at `error + maxPositionError`, and every cluster box and culling-node box grows by the same length, so the pixel threshold bounds the quantized surface an engine actually draws rather than the source one it was measured on (spec C4; the colour and texture-coordinate terms of that line remain open). **A cluster no group produced keeps its band**: it is the floor of the ladder, the cache holds nothing finer, and raising it would leave the cut with nothing to draw at zero pixels — its boxes grow all the same, since they bound the surface drawn. Both sides of a replacement therefore swap at the same threshold and the cut stays a partition. A normal is within 1° of its source, a colour within half a level of 256.
+The compiler chooses the position grid per primitive, the finer of two rules: `exponent = min(floor(log2(widest extent)), tile) − 16`, so a primitive spans about 2^16 steps and a primitive wider than a tile of 2 metres of the world about 2^16 steps per tile — `tile = floor(log2(2 / scale))` in object units, `scale` the largest world scale that places the primitive (a metre per unit when none is known), so a primitive wider than 2 m sits on `2^-15` m (30.5 µm), whose worst displacement, √3/2 of a step, is 0.057 px at a metre on the reference display (2234 lines under a 55° vertical field), under the 0.1 px display quantum: a cluster no group produced has nothing finer to refine to, so the grid is what bounds it (#959); a primitive under 2 metres keeps the grid it had whatever its units; a tile splits nothing, since a cell is the rounding of the absolute coordinate and every page stores its own minimum, so tiles cost only the bits each page's box needs on the finer grid —, and `floor(log2(finest group error / 8))`, so a cluster's displacement projects below an eighth of the threshold wherever the cut selects it (the finest group error is the smallest non-zero `lodError` the DAG published). Both rules are bounded below by `ceil(log2(widest extent)) − 23`, so the primitive never spans more than 2^23 steps and every page fits the 24-bit field on the primitive's own exponent — a kilometre terrain, whose DAG root spans it, stops there: `2^-13` m on 1,024 m (the engine's runtime cutter runs this very rule, `bits/grid.rs` in the SDK module, with no error rule and a metre per unit, or the 2^23-step grid when the module is absent; a compiled primitive whose material moves into or out of blended in the session is cut again by it on its own clusters, with its DAG's finest error, the scale that places it and the compiler's texture grid, so each page is the one the compiler writes for the new class, #846): every page of a primitive shares that exponent, which is what makes a vertex shared by two clusters land on the same cell in both. Each cluster then spends only the bits its own box needs; a page that would still need more than 24 bits on its primitive grid — a texture coordinate range past 1024, a colour range past 65,536 — is refused whole (`PAGE_ATTRIBUTE_RANGE`), never re-gridded on its own. Texture coordinates sit on a grid of `2^-14` — a quarter of a texel on a 4096-wide map; the compiler never leaves it, and the engine's runtime cutter takes the finest coarser grid only for a primitive whose widest cluster spans past 1024, such as a long dashed line's distance along it, the record word carrying the exponent every decoder reads — and colours, clamped to `[0, 1]`, on `2^-8`, with the same per-page minima and widths: a constant channel costs no bits. The cost is declared, never hidden: word 20 carries the page's worst position displacement, rounded up to the `f32` so that no position exceeds it — every decoder returns it, and the autonomous backend widens a page's box by exactly that —, and `primitives[].quantization` — `{ positionExponent, uvExponent, maxPositionError }`, the step being `2^positionExponent` — carries the primitive's for reporting, `null` on a primitive without pages, which was quantized on no grid. The cut adds it to a cluster's error: a cluster **a group produced** is certified at `lodError + maxPositionError`, a group at `error + maxPositionError`, and every cluster box and culling-node box grows by the same length, so the pixel threshold bounds the quantized surface an engine actually draws rather than the source one it was measured on (spec C4; the colour and texture-coordinate terms of that line remain open). **A cluster no group produced keeps its band**: it is the floor of the ladder, the cache holds nothing finer, and raising it would leave the cut with nothing to draw at zero pixels — its boxes grow all the same, since they bound the surface drawn. Both sides of a replacement therefore swap at the same threshold and the cut stays a partition. A normal is within 1° of its source, a colour within half a level of 256.
 
 A coarse page may also carry vertices no source vertex matches: a seam-locked group reduced with solved vertices ([COMPILER.md](COMPILER.md)) writes each surviving position where its quadric is least and each copy's normal and texture coordinates solved there. They are encoded like any other — a solved normal is a unit, a solved position already on the primitive's grid, so the page's cone and the collider bound the faces it draws — and exist nowhere else.
 
@@ -215,26 +215,58 @@ the unit. Each cell has a **record** `{ url, sha256, bytes, parents, meshes }` �
 tables (`scene-cell-<n>.json`), fingerprint and size (the reader verifies them as it verifies a
 page), `parents`, `[[rank, box], …]`: for each core node its placements hang under (`null`, the
 scene), the box around them **in that node's frame**, and `meshes`, `[[rank, count], …]` in rank
-order: how many placements of each mesh it holds, which the runtime sizes its rows by before
-reading any cell. A cell file is `{ version: 2, nodes }`, each node `{ parent, mesh, matrix, translation,
+order: how many placements of each mesh it holds. A cell file is `{ version: 2, nodes }`, each node `{ parent, mesh, matrix, translation,
 rotation, scale }`: `parent` the rank in `nodes[]` of the core node it hangs under (`null`, the
 scene), its mesh, and its local pose exactly as declared, each part `null` when silent. A
 placement's name is not kept: it is a row, not a host node.
 
 **The paged cell index** (`partition/pages.rs`, #750). The records lie in pages cut from the
-halving tree, each node a contiguous range of cells: a region page `{ version: 3, cells, meshPages }` holds the
-records of the highest node under 128 KiB (`PAGE_BYTES`; one cell whatever its size) and, sorted and
+halving tree, each node a contiguous range of cells: a region page `{ version: 4, first, cells, meshPages }` holds the
+records of the highest node under 128 KiB (`PAGE_BYTES`; one cell whatever its size), `first` the
+rank of its first — its `n`-th record is `scene-cell-<first + n>.json`, the cell `cells[first + n]`
+of the [world roots](#world-super-roots) —, and, sorted and
 each once, the slots of the manifest's mesh pages that hold a primitive of a mesh its cells place —
 what a region needs fetched (#792) —, an index page
-`{ version: 3, pages }` lists at most 8 pages (`FAN_OUT`), its node opened largest first, and
-`partition` is the root `{ version: 3, pages }`: the whole tree opened into exactly eight slots,
-empty ones last — 1 391 bytes for grids of 48² and 192² and the open-world cell laid 8 × 8. A slot
+`{ version: 4, pages, parents }` lists at most 8 pages (`FAN_OUT`), its node opened largest first,
+and beside each (#575) the core ranks its cells hang nodes under, eight hexadecimal digits each run
+together, `""` for none; `partition` is the root `{ version: 4, pages, parents, meshes, cube }`: the
+whole tree opened into exactly eight slots, empty ones last, the parents beside each slot as an
+index page lists them, then per mesh the cells place, in rank order, its rank, how many nodes the
+cells place and its **rows at each of 32 rungs**, eight hexadecimal digits each, and `cube`, the
+widest cell's diagonal as the sixteen hexadecimal digits of its `f64` (`partition/pages/rows.rs`).
+Rung `k` is a side `cube·√2^k`; its rows are, summed over the parents the cells hang under, the
+most nodes of that mesh the cells of one parent place that meet one window of side `1.5·side` at a
+multiple of `side/2` on every axis — each cell counted whole, and never past every node. Any cube
+of that side lies in one such window, so the rows of a rung hold every node of the cells that meet
+any cube of it: a bound set by the side and the cells' size, the same at 1× and 16× the world once
+the side is narrower than the world. The slots take 1 391 bytes for grids of 48² and 192² and the
+open-world cell laid 8 × 8, and the whole root 1 739 for the grids, one mesh under the scene: fixed
+width, it grows with the meshes and parents placed, never with the cells. A slot
 is 168 hexadecimal digits: the page's SHA-256, its size (8) and its box at the declared poses as six
 big-endian `f64` bit patterns (16 each), naming `scene-page-<sha256>.json`; zeros name no page.
-`readTablePartition` reads every page through its caller's `read`, which verifies it against its
-slot (`fetchVerified`), into the records in cell order, `bounds` the union of the root's boxes and
-`meshes` the ranks placed, and refuses a region page without its list of mesh pages. Pages and cells are outside
-the manifest's `files`: a reused folder proves them through the root.
+`tablePartition` reads the root alone: its slots and their parents, `bounds` the union of their
+boxes, `meshes` the ranks placed, `totals` their node counts, `rows` their rungs, `cube`, and
+`parents` the core ranks. A page is read by `readCellPage`, which refuses one of another version,
+an index page without the parents of its pages, one of neither pages nor cells, and a region page
+without the rank of its first cell or its list of mesh pages. The runtime numbers a cell by that
+rank, whatever page it opens first, and a placed cell holds the world bundles its roots need by it. Pages and cells are outside the manifest's `files`: a reused
+folder proves them through the root.
+
+**The cell index at runtime** (#575). Before its first frame a session sizes its rows for its first
+camera's view (below), then reads the pages of the index on that camera's way and the cells within
+its reach, and places them (`primePartitions`): the first frame draws what that camera reaches, and
+reads the bytes of the view, not of the world. Each frame walks the index from the root
+(`scene/partition/cellIndex.ts`): a page is boxed at the declared poses, and what it holds now lies
+within that box and the box carried by each parent its cells hang under moved since the
+declaration (`boxes.ts`), no other parent's; a page whose box meets the reach is read through the session's streamer — its files taken into its
+catalogue —, decoded in the decode pool (`cellPage`) and opened within the one integration budget,
+then its pages walked or its cells tested; a page past the keep sphere with no cell placed is
+closed, its files let go. The index holds the pages the view reached, and the frame's work follows
+what its reach holds, not the world's cell count. A cell file is parsed off the main thread too, by
+the pool's `cells` task (`scene/partition/cellDecode.ts`), into each node's ranks and local matrix;
+the frame places the rows within the same budget. A page or cell the pool refuses keeps its code
+across the thread — a page of another version stays `UNSUPPORTED_SCENE_TABLES` — and names its file
+(`PageDecodeFailed.refusal`, `PageDecodeRequest.name`).
 
 **The manifest held by the view** (#751). A WebGL2 world reads of the manifest its root, its head
 page and the mesh pages `meshPages` names (`openPagedManifest`, `loadModel`'s `lazy`); each cell it
@@ -256,10 +288,8 @@ placements stand, at the distance of its nearest box. A cell is read while the c
 diagonal, `far·√w`, with `w = 1 + (tan(fov/2)/zoom)²·(1 + aspect²)` the off-axis stretch of the frustum.
 The error target does not shorten it: nothing coarser stands for a cell that is not read (the
 proxy of #23), so an object dropped below the target would be missing from the image, not
-replaced. An orthographic camera reads up to the far corner of its zoomed box. Before its first frame a session reads the cells within
-the reach of the camera the page draws with (a world hands its camera to the session it opens; a
-bare explorer, which has none, reads for its framing camera, which sees the whole scene), and
-nothing else. Then, before every frame, cells within the reach are
+replaced. An orthographic camera reads up to the far corner of its zoomed box. Before every frame,
+the pages of the index and the cells within the reach are
 asked for nearest first, those within `1.25 × reach` at the prefetch priority, and a read cell
 leaves once its box is past `1.5 × reach` (`AHEAD` and `KEEP` in `plan.ts`): margins of the reach,
 never of the cell, so a cell cut wider than the view is kept only while its box meets that sphere. The cells are read through the session's page streamer
@@ -267,25 +297,22 @@ never of the cell, so a cell cut wider than the view is kept only while its box 
 (`ARRIVAL_BUDGET_MS`, `FrameBudget`): its clock starts once per frame, the cells spend from it
 first, the page arrivals drain from what is left, then the WebGPU row records; the first
 integration of a frame always goes through.
-The rows are sized once, when a session opens and before its engines read them, for every
-placement its camera's reach can hold at once **wherever the page moves the core parents**
-(`sizing.ts`). A held cell has a box within `1.5 × reach` of the eye; the boxes one parent carries
-move together, so those held at once are close in that parent's own frame — centres within
-`(2 × 1.5 × reach + √3 · most · (r₁ + r₂)) / least`, `r` the radius around a box and `least`,
-`most` how far the parent stretches the root's frame (the root's own boxes: a gap within
-`2 × 1.5 × reach`). The largest sum of `meshes` over the cells that close to any one box of a
-parent, summed over the parents and never past every placement, bounds each mesh's rows — set by
-the reach, the cells' size and the parents' count, not by the world or where its parents stand.
-Parents moved together never run the rows short, so they never reopen the session nor leave a
-placement undrawn (CONTRIBUTING.md §Streaming rule 10). A camera whose reach later outgrows the
-rows, or a parent scaled down or stretched more unevenly than at opening (moved, turned or scaled
-up, it holds), grows them in place, to twice what is asked, on an engine that follows the growth
-contract (`placement/growth.ts`) and takes that growth (`growsInPlace`: WebGPU while its page
-table holds it); on one that does not, the rows stay as they are and it asks the session's owner,
-once, to open it again sized for them (the world does). A session no owner
-can open again (a bare explorer) sizes its rows for every placement, and rows that hold every
-placement never ask. A session drawing on demand draws again, camera still, until the cells it
-asked for within reach are read and placed. A partitioned scene is not
+The rows are sized when a session opens, before its engines read them, for every placement its
+camera's view can hold at once **wherever the page moves the core parents** (`sizing.ts`). A held
+cell has a box within `keep = 1.5 × reach` of the eye; under the scene root that box meets the cube
+of side `2·keep` around it, and under a core parent that stretches the root's frame by `least` to
+`most`, the cube of side `2·(keep + √3·most·cube/2)/least` in the parent's frame. The rows take
+the first rung whose side holds the widest cube the parents ask, from the root's `rows`: set by the
+reach, the cells' size and the parents' stretch, not by the world. Parents moved, turned or
+scaled up never run them short, so they never reopen the session nor leave a placement undrawn
+(CONTRIBUTING.md §Streaming rule 10). A camera whose reach later outgrows the rung, or a parent
+scaled down or stretched more unevenly than at opening, asks a wider rung — twice the side at
+least — and grows the rows in place on an engine that follows the growth contract
+(`placement/growth.ts`) and takes that growth (`growsInPlace`: WebGPU while its page table holds
+it); on one that does not, the rows stay as they are and it asks the session's owner, once, to
+open it again sized for that view (`onPartitionOutgrown`; the world does). A session no owner can
+open again (a bare explorer) sizes its rows for every placement, which never ask. A session drawing on demand draws again, camera still, until the pages and cells it
+asked for within reach are read, decoded and opened or placed. A partitioned scene is not
 replicated (`UNSUPPORTED_SCENE_UPDATE`).
 
 The merged, simplified proxy of a far cell (HLOD) is its [world super-roots](#world-super-roots).
@@ -341,8 +368,12 @@ It is bounded by the materials, not the world: one tile or 64 tiles of the same 
 the same top, to one page per material. A top over `budgetBytes` (`WORLD_TOP_BUDGET_BYTES`, 4 MiB)
 is refused at cook, `WORLD_TOP_OVER_BUDGET`, naming the cell that pins the most of it.
 
-The runtime does not read the super-roots yet: it keeps pinning every primitive's roots, and the
-image is the one it was. Unpinning the object roots for the world top is #751.
+The runtime reads the table as a model loads and pins the top alone (#1237,
+`packages/sdk-browser/src/scene/worldRoots.ts`): its bundles, the binary's first, in one ranged
+read, each checked against its own `sha256`. The object roots are no longer pinned: they are held
+with the placements the view holds, and a placed cell holds the bundles past the top its objects'
+`dependencies` name, each once, until the last cell needing it leaves ([ENGINE.md](ENGINE.md#memory),
+Pinned bytes). The super-roots are not drawn yet (#1238): the image is the one it was.
 
 ## `physics.json` — cooked colliders
 

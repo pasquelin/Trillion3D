@@ -9,10 +9,8 @@ import { Color } from '../../../packages/sdk-core/src/world/math/color.ts';
 import { pageDiagnostics } from '../../../packages/sdk-browser/src/host/pageDiagnostics.ts';
 import { clusterColor } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
 import { hashId, screenErrorColor } from '../../../packages/sdk-browser/src/diagnostic/colors.ts';
-import {
-  projectedPageError,
-  type PageRec,
-} from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import { projectedPageError } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { WitnessPage as PageRec } from './pose.ts';
 import { triangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
 import { materialSide } from '../../../packages/sdk-browser/src/scene/materialSide.ts';
 import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
@@ -79,7 +77,7 @@ export function createExactPagesMaterials(options: MaterialsOptions) {
     }
     if (options.diagnostic === 'screen-error' && options.cam) {
       const color = screenErrorColor(
-        projectedPageError(rec, options.cam, options.viewport ?? [1, 1]),
+        projectedPageError(rec, rec.matrix, options.cam, options.viewport ?? [1, 1]),
         options.lastPixelError,
       );
       ((material as GraphSurface).color as Color).setRGB(...color);

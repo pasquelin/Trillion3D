@@ -148,6 +148,14 @@
   "assertCacheRoot": {
     "summary": "Ce qu’un hôte peut vérifier sur la racine d’un manifeste de cache (`clusters.json`) avant aucune de ses pages : le cache est prêt, de la portée demandée, dans un format que lit ce SDK."
   },
+  "CellRows": {
+    "summary": "Une cellule décodée, telle que ses rangées en sont écrites.",
+    "members": {
+      "nodes": "Combien de nœuds la cellule porte.",
+      "ranks": "Par nœud, le rang de son parent (`-1` : la racine de la scène), puis celui de son maillage.",
+      "locals": "Par nœud, sa matrice locale."
+    }
+  },
   "readPagedManifest": {
     "summary": "Le manifeste sous `root`, ses pages et leurs fichiers annexes lus côte à côte par `read` — dans un navigateur `fetchVerified`, qui prouve chacun par la taille et l’empreinte qui le nomment : les champs de la racine, ceux de la tête, et les primitives de chaque page de maillage dans l’ordre (`decodeManifestBinary`)."
   },
@@ -4498,7 +4506,7 @@
     "description": "Les six premiers sont les refus du décodage de page, repris mot pour mot de `geometryPage.ts` : un appelant les distingue comme avant. `PAGE_DECODE_FAILED` porte tout autre refus de la bibliothèque de décompression. `PAGE_DECODE_CANCELLED` répond à une annulation, `PAGE_DECODE_WORKER` à un exécutant disparu — seul ce dernier permet le repli."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Contrat de décodage des pages hors du fil principal, version 6 : la géométrie décodée voyage en un seul bloc avec son erreur de quantification ; `cut` change des triangles dessinés en pages, qui reviennent en octets avec leurs descripteurs, et, depuis la version 6, avec leur cône de normales, les triangles rangés disant si leurs pages en gardent un.",
+    "summary": "Contrat de décodage des pages hors du fil principal, version 7 : la géométrie décodée voyage en un seul bloc avec son erreur de quantification ; `cut` change des triangles dessinés en pages, qui reviennent en octets avec leurs descripteurs, et, depuis la version 6, avec leur cône de normales, les triangles rangés disant si leurs pages en gardent un ; depuis la version 7, `cells` lit le fichier de cellule d’une partition en les rangées qu’il place, et `cellPage` une page de son index de cellules (#575).",
     "description": "Le fil appelant envoie une `PageDecodeRequest`, l’exécutant renvoie une `PageDecodeAnswer` qui porte le même `id`. Rien ici ne touche la plateforme : pas de `Worker`, pas de récupération, pas d’horloge — l’adaptateur du navigateur porte tout cela, ce fichier ne porte que la forme du message, la liste fermée des échecs et la limite du réservoir. Propriété des tampons : `source` est **transférée** avec la demande, donc l’expéditeur ne la possède plus. Une réponse `verify` la rend, transférée à son tour ; une réponse `decode` rend à la place les tampons décodés, transférés aussi. Un exécutant qui ne transfère rien (le repli synchrone) renvoie exactement les mêmes valeurs : le contrat ne dit pas comment voyage le travail, seulement ce qu’il renvoie."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -4568,6 +4576,8 @@
       "source": "`verify` : le tampon source rendu. `decode` : `null`, la source est consommée.",
       "decoded": "`decode` : la page décompressée.",
       "cut": "`cut` : les pages, leurs octets transférés. Absent sinon.",
+      "cells": "`cells` : par nœud, le rang de son parent du cœur (`-1` : la racine de la scène) et celui de son maillage dans `ranks`, deux entiers de 32 bits, et la matrice locale que le moteur compose pour sa pose dans `locals`, seize doubles ; tous deux transférés. Absent sinon.",
+      "cellPage": "`cellPage` : les emplacements de la page, ou ses cellules (`readCellPage`). Absent sinon.",
       "wasm": "Vrai quand le décodeur compilé en WebAssembly a fait le travail, faux pour le décodeur JavaScript. Les deux donnent les mêmes octets ; seul le compteur les distingue.",
       "taskMs": "Temps de la tâche, mesuré par l’exécutant lui-même."
     }
@@ -4579,7 +4589,8 @@
       "id": "La demande qui reçoit la réponse.",
       "ok": "Toujours `false`.",
       "code": "Pourquoi il a échoué.",
-      "message": "Le message d’origine, tel quel : l’appelant lève la même `Error` que le chemin synchrone."
+      "message": "Le message d’origine, tel quel : l’appelant lève la même `Error` que le chemin synchrone.",
+      "refusal": "Le code du refus nommé du moteur que la tâche a rencontré (`EngineError`), que l’appelant relève sous ce code ; absent pour tout autre échec."
     }
   },
   "pageDecodeFailureCode": {
@@ -4601,7 +4612,7 @@
   },
   "PageDecodeOp": {
     "summary": "`verify` : l’empreinte SHA-256 d’une page.",
-    "description": "`decode` : ses indices et ses attributs par sommet. `cut` : les triangles dessinés, rangés en cinq longueurs, si leurs pages gardent un cône, puis cinq tableaux de quatre octets, coupés en pages."
+    "description": "`decode` : ses indices et ses attributs par sommet. `cut` : les triangles dessinés, rangés en cinq longueurs, si leurs pages gardent un cône, puis cinq tableaux de quatre octets, coupés en pages. `cells` : le fichier de cellule d’une partition, lu en le parent, le maillage et la matrice locale de chaque nœud. `cellPage` : une page de son index de cellules, lue en les pages qu’elle liste ou ses cellules."
   },
   "PageDecodeRequest": {
     "summary": "Un message qui demande à un travailleur de vérifier, décompresser ou découper une page.",
@@ -4610,7 +4621,8 @@
       "id": "Numéro de la demande.",
       "op": "Ce qu’il faut faire.",
       "source": "Transféré avec le message : l’expéditeur n’en est plus le propriétaire.",
-      "maxDecodedBytes": "Plafond d’octets décodés d’une page de géométrie ; ignoré par `verify`."
+      "maxDecodedBytes": "Plafond d’octets décodés d’une page de géométrie ; ignoré par `verify`.",
+      "name": "`cells`, `cellPage` : le fichier d’où la source a été lue, qu’un refus nomme."
     }
   },
   "pageDecodeWorkerCount": {
@@ -5566,7 +5578,7 @@
       "plan": "Planifie une image : rend périmé ce qui a bougé, lit la demande des récepteurs — ou à défaut le dernier rapport —, admet chaque page à dessiner.",
       "reissue": "Les pages de l’image à partir de `from` n’ont pas pu être encodées : elles restent périmées, en attente, et l’image suivante les dessine.",
       "reset": "Recommence.",
-      "setThreshold": "Le seuil auquel les coupes de lumière choisissent leurs projeteurs d’ombre (`thresholds.ts`).",
+      "setThreshold": "Le seuil auquel les coupes de lumière choisissent leurs projeteurs d’ombre, et leur origine de rendu (`thresholds.ts`).",
       "table": "La table des pages : un mot par page virtuelle, et la plage que chaque lumière y tient.",
       "pool": "Les pages physiques du pool, et la page virtuelle que chacune porte.",
       "sun": "Le clipmap de chaque soleil : son repère, sa plage de profondeur, son niveau le plus fin et ses fenêtres.",
@@ -5958,6 +5970,22 @@
       "alphaMode": "Comment l’alpha est lu : ignoré, coupé à `alphaTest`, ou mélangé.",
       "opacity": "L’alpha du facteur de couleur de base.",
       "extensions": "Ce que les extensions physiques ajoutent, sous les noms de paramètres de l’hôte : un facteur, une couleur ou un intervalle en nombres, une image en emplacement."
+    }
+  },
+  "TablePage": {
+    "summary": "Une page qu’un emplacement nomme : son fichier, relatif aux tables, sa taille et son empreinte.",
+    "members": {
+      "url": "Son fichier, relatif aux tables.",
+      "bytes": "Sa taille en octets.",
+      "sha256": "Son empreinte SHA-256, en hexadécimal."
+    }
+  },
+  "TableSlot": {
+    "summary": "Une page d’un index qu’un emplacement nomme, sa boîte aux poses déclarées et les rangs du cœur listés à côté : pour l’index des cellules, les parents sous lesquels ses cellules accrochent des nœuds (#575).",
+    "members": {
+      "page": "La page que l’emplacement nomme.",
+      "bounds": "Sa boîte aux poses déclarées : le coin minimal, puis le maximal.",
+      "parents": "Les rangs du cœur listés à côté."
     }
   },
   "TableTexture": {
@@ -7871,6 +7899,45 @@
       "alphaMode": "Comment le canal alpha d’une surface est lu : opaque l’ignore, `mask` coupe à `alphaCutoff`, `blend` compose.",
       "alphaCutoff": "Les pixels moins opaques que ceci disparaissent.",
       "tiling": "Combien de fois l’image tient en largeur et en hauteur."
+    }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json` : le DAG du monde que le compilateur prolonge au-dessus des racines de chaque objet — ses paquets, pages et cellules, le sommet épinglé en premier.",
+    "members": {
+      "version": "Version du format.",
+      "budgetBytes": "Le plus d’octets que la cuisson laisse peser au sommet épinglé.",
+      "pinned": "Les premiers paquets, le sommet du monde : épinglés.",
+      "pinnedTopBytes": "Les octets du sommet épinglé.",
+      "payload": "Le binaire où les paquets se suivent : son adresse, son empreinte et sa longueur.",
+      "bundles": "Les paquets, dans l’ordre du binaire.",
+      "pages": "Chaque page : son paquet, son décalage dedans, son niveau et son erreur.",
+      "cells": "Chaque cellule du monde : les primitives placées qu’elle contient."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "Un paquet de `world-roots.bin` : sa plage dans le binaire, son empreinte, son nombre de pages et les paquets dont il a besoin.",
+    "members": {
+      "offset": "Où il commence dans le binaire, en octets.",
+      "bytes": "Sa longueur dans le binaire.",
+      "sha256": "Le SHA-256 de ses octets, vérifié à la lecture.",
+      "count": "Combien de pages il contient.",
+      "dependencies": "Les paquets dont ses pages ont besoin, croissants, jusqu’au sommet du monde."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Une primitive placée d’une cellule du monde : les paquets du monde dont ses racines ont besoin, jusqu’au sommet.",
+    "members": {
+      "node": "Son nœud publié.",
+      "primitive": "Sa primitive dans le manifeste.",
+      "roots": "Les paquets des flux de cette primitive qui tiennent ses racines.",
+      "dependencies": "Chaque paquet du monde dont ces racines ont besoin, croissants, jusqu’au sommet."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Une page super-racine lue sur les octets de son paquet : ses propres sommets dans l’espace du monde, et ses triangles en indices locaux.",
+    "members": {
+      "positions": "Ses sommets, trois nombres chacun, dans l’espace du monde.",
+      "indices": "Ses triangles, trois indices locaux chacun."
     }
   }
 }

@@ -22,19 +22,20 @@ function canvasMock() {
 }
 
 /** MeasuredWorld mock: records render poses and the images since the last profile reset. */
-function explorerMock(metrics: Record<string, unknown> | null): MeasuredWorld & {
-  seen: unknown[];
-  profileResets: number[];
-  openedWith?: { pixelRatio?: number };
-} {
+type Mock = MeasuredWorld & Record<'seen' | 'waits', unknown[]> & { profileResets: number[] };
+type Opened = { openedWith?: { pixelRatio?: number } };
+function explorerMock(metrics: Record<string, unknown> | null): Mock & Opened {
   const seen: unknown[] = [],
-    profileResets: number[] = [];
+    profileResets: number[] = [],
+    waits: unknown[] = [];
   return {
     seen,
     profileResets,
+    waits,
     backends: [{ id: 'engine-test', scene: { children: [] } }],
     setDiagnostic: () => {},
     setPose: () => {},
+    awaitPages: async () => waits.push(seen.at(-1)),
     resetStageProfile: () => profileResets.push(seen.length),
     stageProfile: () => null,
     cpuSteps: () => ({ frames: seen.length - (profileResets.at(-1) ?? 0) }),
@@ -45,7 +46,7 @@ function explorerMock(metrics: Record<string, unknown> | null): MeasuredWorld & 
     flush: async () => {},
     capture: () => new Uint8Array(4),
     dispose: () => {},
-  } as unknown as MeasuredWorld & { seen: unknown[]; profileResets: number[] };
+  } as unknown as Mock;
 }
 
 /** What this test replaces on `globalThis` while `measureView` runs: only what the page module
@@ -187,6 +188,7 @@ test('stage profile covers the moving suffix and capture keeps its last pose', a
   for (const pose of afterMeasured) {
     assert.equal(pose, b, 'capture pose is the last measured pose, not poseAt(0)');
   }
+  assert.deepEqual(explorer.waits, [b], 'the capture pose waits for its pages (#1016, WebGL2)');
 });
 
 test('the CPU bounds cover the profiled images only: none of the warm-up, none of the capture', async () => {
