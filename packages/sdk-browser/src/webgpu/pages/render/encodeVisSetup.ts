@@ -46,8 +46,8 @@ export function encodeEmptySurfaces(
 const rasterInput = {} as GpuRasterInput;
 
 /**
- * Creates the compute raster once, and only under a variant that asks for it — `raster-calcul` or
- * `raster-hybride`: in production the hardware draws (Geometry 26). A variant is a request, not an
+ * Creates the compute raster once, and only under a variant that asks for it — `raster-compute` or
+ * `raster-hybrid`: in production the hardware draws (Geometry 26). A variant is a request, not an
  * opportunity — a device without compute or an exceeded surface budget refuses; they do not silently
  * render the hardware image under the compute label.
  */
@@ -55,7 +55,7 @@ export function ensureGpuRaster(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { vis } = rt;
   if (vis.gpuRaster || !requestsComputeRaster(rt.context?.diagnosticGpuVariant)) return;
   if (typeof device.createComputePipeline !== 'function')
-    throw new Error('COMPUTE_RASTER_UNAVAILABLE: raster-calcul requested without a compute stage');
+    throw new Error('COMPUTE_RASTER_UNAVAILABLE: raster-compute requested without a compute stage');
   const [width, height] = rt.gpu.targetSize;
   vis.gpuRaster = createGpuRaster(device, width, height, rt.layout.rasterCapacity);
 }

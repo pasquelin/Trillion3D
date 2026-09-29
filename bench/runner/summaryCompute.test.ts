@@ -8,8 +8,7 @@ import type { Report, Row } from './report/types.ts';
 import { rapport as rapportDe } from './summaryTestFixtures.ts';
 
 /** A report reduced to what `cheminsCalcul` reads: one series, one side, its metrics. */
-const rapport = (cheminCalcul: MathBatch | null): Report =>
-  rapportDe({ cheminCalcul } as Partial<Row>);
+const rapport = (mathBatch: MathBatch | null): Report => rapportDe({ mathBatch } as Partial<Row>);
 
 /** Governor metrics, completed by what the case wants to show. */
 const releve = (fields: Partial<MathBatch>): MathBatch =>

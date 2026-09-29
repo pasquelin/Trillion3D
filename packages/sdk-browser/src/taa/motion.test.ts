@@ -15,9 +15,9 @@ const translation = (x: number, y: number, z: number) => ({
 
 test('a still root keeps identity, a moved root carries previous·current⁻¹, in one write', () => {
   const { device, writes } = fakeDevice();
-  const fixe = translation(1, 2, 3),
+  const still = translation(1, 2, 3),
     mobile = translation(0, 0, 0);
-  const motion = createPlacementMotion(device, [fixe, mobile]);
+  const motion = createPlacementMotion(device, [still, mobile]);
   // One write at creation: the whole mirror, at identity.
   assert.equal(writes.length, 1);
   assert.deepEqual(floats(writes)[0], { offset: 0, data: [...IDENTITY, ...IDENTITY] });

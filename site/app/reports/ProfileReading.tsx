@@ -66,10 +66,8 @@ export function ProfileReading({ record: r, report, locale, filters }: ProfileRe
           render: () => (
             <>
               {id === 'cpu' && <p>{t('profile.cpuNote')}</p>}
-              {id === 'cpu' && r.data.imageTenue && <p>{t('profile.reused')}</p>}
-              {id === 'cpu' && r.data.cheminCalcul?.clockCoarse && (
-                <p>{t('profile.coarseClock')}</p>
-              )}
+              {id === 'cpu' && r.data.frameHeld && <p>{t('profile.reused')}</p>}
+              {id === 'cpu' && r.data.mathBatch?.clockCoarse && <p>{t('profile.coarseClock')}</p>}
               {id === 'gpu' && <p>{t('profile.gpuNote')}</p>}
               {rows.length ? (
                 <BarChart

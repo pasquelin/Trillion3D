@@ -16,7 +16,7 @@ interface FindingsProps {
 export function Findings({ report, locale }: FindingsProps) {
   const t = useWords(locale);
   const records = report.records.filter(
-    (r) => runOf(report, r) === 'mobile' && r.view === 'sol' && r.quality === 1,
+    (r) => runOf(report, r) === 'mobile' && r.view === 'ground' && r.quality === 1,
   );
   const missingMachine = report.records.some((r) => !r.provenance?.machine?.id);
   const missingDpr = report.records.some((r) => !r.canvas?.dpr);
