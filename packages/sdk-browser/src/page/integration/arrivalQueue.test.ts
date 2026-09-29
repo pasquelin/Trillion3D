@@ -132,20 +132,9 @@ test('the cells a frame places and the pages it drains spend one budget, on one 
   // Placing a decoded cell costs 1.5 ms and a page 1 ms, against the 2 ms ceiling.
   let now = 0;
   t.mock.method(performance, 'now', () => now);
+  const node = { parent: null, mesh: 0, matrix: null, rotation: null, scale: null };
   const body = (x: number) =>
-    JSON.stringify({
-      version: 2,
-      nodes: [
-        {
-          parent: null,
-          mesh: 0,
-          matrix: null,
-          translation: [x, 0, 0],
-          rotation: null,
-          scale: null,
-        },
-      ],
-    });
+    JSON.stringify({ version: 2, nodes: [{ ...node, translation: [x, 0, 0] }] });
   const cells = createPartitionCells({
     partition: {
       bounds: [0, 0, 0, 3, 1, 1],
