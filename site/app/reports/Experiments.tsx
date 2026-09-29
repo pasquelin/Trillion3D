@@ -84,7 +84,7 @@ export function Experiments({ report, scene, locale }: ExperimentsProps) {
                       {...{ report, locale, metrics }}
                       records={rows}
                       labelRecord={(r) =>
-                        `${runName(runOf(report, r), locale)} · ${r.variant === 'raster-calcul' ? t('report.computeDrawing') : engineName(r.engine)}`
+                        `${runName(runOf(report, r), locale)} · ${r.variant === 'raster-compute' ? t('report.computeDrawing') : engineName(r.engine)}`
                       }
                     />
                   </Section>

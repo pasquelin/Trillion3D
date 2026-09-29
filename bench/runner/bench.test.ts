@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_SCENE, FLUIDS_SCENE, sceneOf } from './scene.ts';
-import { CAMPAGNE, SOCLE } from './campaign.ts';
+import { CAMPAIGN, BASE } from './campaign.ts';
 import {
   ENGINES,
   engineOf,
@@ -26,11 +26,11 @@ test('readOptions parses command line arguments correctly', () => {
   assert.strictEqual(result2.settings.engine, 'webgpu');
 
   // Test views parsing
-  const result3 = readOptions(['--vues=generale,detail'], root);
+  const result3 = readOptions(['--views=generale,detail'], root);
   assert.deepStrictEqual(result3.views, ['generale', 'detail']);
 
   // Test numeric arguments
-  const result4 = readOptions(['--images=120', '--largeur=1920', '--hauteur=1080'], root);
+  const result4 = readOptions(['--images=120', '--width=1920', '--height=1080'], root);
   assert.strictEqual(result4.settings.frames, 120);
   assert.strictEqual(result4.settings.width, 1920);
   assert.strictEqual(result4.settings.height, 1080);
@@ -67,7 +67,7 @@ test('readOptions rejects negative pixelError', () => {
 
 test('readOptions rejects invalid views', () => {
   const root = '/tmp/test';
-  assert.throws(() => readOptions(['--vues=invalide'], root), /unknown view/);
+  assert.throws(() => readOptions(['--views=invalide'], root), /unknown view/);
 });
 
 test('sceneOf deduces the scene name from the cache derived directory', () => {
@@ -103,12 +103,12 @@ test('engineOf gives a side its own engine, otherwise that of the campaign', () 
 // #724: the flags a campaign types are English, their per-side forms named after the side.
 test('the engine, the two sides and their variants are read under English flags', () => {
   const argv = ['--engine', 'webgpu', '--before', 'dist', '--engine-before', 'webgl'];
-  const { settings, flags } = readOptions([...argv, '--variant-before', 'raster-calcul'], '/r');
+  const { settings, flags } = readOptions([...argv, '--variant-before', 'raster-compute'], '/r');
   assert.strictEqual(settings.engine, 'webgpu');
   assert.strictEqual(flags.get('before'), 'dist');
   assert.strictEqual(
     equipSide({ name: 'before' } as never, flags, settings).variant,
-    'raster-calcul',
+    'raster-compute',
   );
 });
 
@@ -128,8 +128,8 @@ test('the bench refuses a flag it never reads, the retired French ones included'
   );
   // A side flag for a side the run does not measure changes nothing either.
   assert.throws(() => benchFlags(['--engine-before', 'webgl']), /--engine-before/);
-  for (const [name, , args] of CAMPAGNE) {
-    const argv = [...SOCLE.split(' '), '--scene', FLUIDS_SCENE, ...args];
+  for (const [name, , args] of CAMPAIGN) {
+    const argv = [...BASE.split(' '), '--scene', FLUIDS_SCENE, ...args];
     assert.doesNotThrow(() => benchFlags(argv), name);
   }
 });

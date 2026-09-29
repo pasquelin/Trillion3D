@@ -74,7 +74,7 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   }
   // The hardware raster opens the opaque image and draws its share of the cut; the compute raster,
   // when it exists, blends its own between its passes — small triangles under the reference split,
-  // the whole cut under the `raster-calcul` variant.
+  // the whole cut under the `raster-compute` variant.
   run.gpuComputeDispatches = 0;
   const compute = vis.gpuRaster
     ? computeRasterStages(rt, twoPass, tableRows, maxVertexCount, idsView, depthTarget)

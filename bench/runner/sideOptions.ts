@@ -113,7 +113,7 @@ export function equipSide(
   ]) as TextureCompression | null;
   // Screen error metric (EXPERIMENT): `certifiee` is our bound, `reference` the standard
   // external projection; `null` leaves ours.
-  equipped.errorMetric = sideChoice(flags, side.name, 'erreur', [
+  equipped.errorMetric = sideChoice(flags, side.name, 'error-metric', [
     'certifiee',
     'reference',
   ]) as ScreenErrorVariant | null;
@@ -156,10 +156,10 @@ export const sideReport = (side: Side) =>
       dist: side.dist,
       from: side.from,
       cache: side.cache ?? null,
-      moteur: side.engine.id,
-      variante: side.variant,
+      engine: side.engine.id,
+      variant: side.variant,
       compression: side.compression,
-      erreur: side.errorMetric ?? 'certifiee',
+      errorMetric: side.errorMetric ?? 'certifiee',
       scale: side.renderScale,
     },
   ] as const;

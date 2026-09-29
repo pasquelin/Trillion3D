@@ -76,7 +76,7 @@ test('the frame is drawn below the display only when the temporal resolve recons
     ['the pass switched off', (view) => (view.gpu.temporalWanted = false)],
     ['no pass: a capture view', (view) => (view.gpu.temporal = undefined)],
     ['the fallback draw', (view) => (view.vis.visEnabled = false)],
-    ['a GPU variant', (view) => (view.context.diagnosticGpuVariant = 'raster-calcul' as never)],
+    ['a GPU variant', (view) => (view.context.diagnosticGpuVariant = 'raster-compute' as never)],
     ['resolves compiling', (view) => Object.assign(view.gpu.temporal!, { upscales: () => false })],
   ];
   for (const [what, change] of changes) {

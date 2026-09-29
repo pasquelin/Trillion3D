@@ -46,9 +46,9 @@
   "sides": {
     "apres": {
       "from": "dossier",
-      "moteur": "webgpu-page-raster",
-      "variante": null,
-      "erreur": "certifiee"
+      "engine": "webgpu-page-raster",
+      "variant": null,
+      "errorMetric": "certifiee"
     }
   },
   "series": [
@@ -74,7 +74,7 @@
             "max": 2
           },
           "cpuSelectMs": null,
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 6.512567999999992,
             "p50": 6.512568,
@@ -492,8 +492,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 2040372,
           "uncoveredTriangles": 0,
           "drawnTriangles": 2040372,
@@ -649,7 +649,7 @@
             "max": 2
           },
           "cpuSelectMs": null,
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 5.852994000000004,
             "p50": 5.852994,
@@ -1067,8 +1067,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 2040372,
           "uncoveredTriangles": 0,
           "drawnTriangles": 2040372,
@@ -1216,8 +1216,8 @@
           }
         }
       },
-      "temoinAA": { "pixels": 1313677, "maxCanal": 192, "total": 3504384 },
-      "ecartAvantApres": null,
+      "witnessAA": { "pixels": 1313677, "maxCanal": 192, "total": 3504384 },
+      "beforeAfterDiff": null,
       "coupeIdentique": null
     },
     {
@@ -1242,7 +1242,7 @@
             "max": 1.5
           },
           "cpuSelectMs": null,
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 13.356129000000008,
             "p50": 13.356129,
@@ -1660,8 +1660,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 1099276,
           "uncoveredTriangles": 0,
           "drawnTriangles": 1099276,
@@ -1817,7 +1817,7 @@
             "max": 1.7999999821186066
           },
           "cpuSelectMs": null,
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": {
             "mean": 16.927116999999978,
             "p50": 16.927117,
@@ -2235,8 +2235,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 1099276,
           "uncoveredTriangles": 0,
           "drawnTriangles": 1099276,
@@ -2384,8 +2384,8 @@
           }
         }
       },
-      "temoinAA": { "pixels": 729689, "maxCanal": 163, "total": 3504384 },
-      "ecartAvantApres": null,
+      "witnessAA": { "pixels": 729689, "maxCanal": 163, "total": 3504384 },
+      "beforeAfterDiff": null,
       "coupeIdentique": null
     }
   ],

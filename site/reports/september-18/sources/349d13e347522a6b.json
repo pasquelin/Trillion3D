@@ -46,11 +46,11 @@
   "sides": {
     "apres": {
       "from": "dossier",
-      "moteur": "webgpu-page-raster",
-      "variante": null,
-      "erreur": "certifiee"
+      "engine": "webgpu-page-raster",
+      "variant": null,
+      "errorMetric": "certifiee"
     },
-    "avant": { "from": "dossier", "moteur": "three-lod", "variante": null, "erreur": "certifiee" }
+    "avant": { "from": "dossier", "engine": "three-lod", "variant": null, "errorMetric": "certifiee" }
   },
   "series": [
     {
@@ -75,7 +75,7 @@
             "max": 1.800000011920929
           },
           "cpuSelectMs": null,
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
@@ -487,8 +487,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 1779990,
           "uncoveredTriangles": 0,
           "drawnTriangles": 1779990,
@@ -644,7 +644,7 @@
             "max": 24.099999994039536
           },
           "cpuSelectMs": null,
-          "moteur": "three-lod",
+          "engine": "three-lod",
           "gpuFrameMs": null,
           "imageSyncMs": {
             "mean": 28.64166666766008,
@@ -664,8 +664,8 @@
           "passesGpu": null,
           "preparationMs": 6894.299999982119,
           "reseau": { "gltf": 583920, "bin": 195404328 },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": null,
           "uncoveredTriangles": null,
           "drawnTriangles": 5548900,
@@ -739,7 +739,7 @@
             "max": 1.5
           },
           "cpuSelectMs": null,
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
@@ -1151,8 +1151,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 1779990,
           "uncoveredTriangles": 0,
           "drawnTriangles": 1779990,
@@ -1300,8 +1300,8 @@
           }
         }
       },
-      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 876096 },
-      "ecartAvantApres": { "pixels": 691636, "maxCanal": 205, "total": 876096 },
+      "witnessAA": { "pixels": 0, "maxCanal": 0, "total": 876096 },
+      "beforeAfterDiff": { "pixels": 691636, "maxCanal": 205, "total": 876096 },
       "coupeIdentique": false
     },
     {
@@ -1326,7 +1326,7 @@
             "max": 1.4000000059604645
           },
           "cpuSelectMs": null,
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
@@ -1738,8 +1738,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 1033809,
           "uncoveredTriangles": 0,
           "drawnTriangles": 1033809,
@@ -1895,7 +1895,7 @@
             "max": 112.80000001192093
           },
           "cpuSelectMs": null,
-          "moteur": "three-lod",
+          "engine": "three-lod",
           "gpuFrameMs": null,
           "imageSyncMs": {
             "mean": 18.793333333730697,
@@ -1915,8 +1915,8 @@
           "passesGpu": null,
           "preparationMs": 5454.300000011921,
           "reseau": { "gltf": 583920, "bin": 195404328 },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": null,
           "uncoveredTriangles": null,
           "drawnTriangles": 4624775,
@@ -1990,7 +1990,7 @@
             "max": 1.5
           },
           "cpuSelectMs": null,
-          "moteur": "webgpu-page-raster",
+          "engine": "webgpu-page-raster",
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
@@ -2402,8 +2402,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 1033809,
           "uncoveredTriangles": 0,
           "drawnTriangles": 1033809,
@@ -2551,8 +2551,8 @@
           }
         }
       },
-      "temoinAA": { "pixels": 191116, "maxCanal": 181, "total": 876096 },
-      "ecartAvantApres": { "pixels": 584469, "maxCanal": 228, "total": 876096 },
+      "witnessAA": { "pixels": 191116, "maxCanal": 181, "total": 876096 },
+      "beforeAfterDiff": { "pixels": 584469, "maxCanal": 228, "total": 876096 },
       "coupeIdentique": false
     }
   ],

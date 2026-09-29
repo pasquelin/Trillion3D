@@ -5,7 +5,7 @@ Run the benchmark's camera-session mode on an existing compiled test scene:
 ```sh
 TRILLION3D_ASSETS=/path/to/this-repository/.mesure/assets \
   node bench/runner/bench.ts --engine webgpu --textures cache --gaze-network \
-  --scene sponza --vues generale,sol --images 60 --pixelError 1 \
+  --scene sponza --views generale,sol --images 60 --pixelError 1 \
   --out .mesure/out/41-gaze-network
 ```
 

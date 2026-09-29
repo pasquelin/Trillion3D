@@ -11,7 +11,7 @@ export type BlendOverdraw = ReturnType<typeof createBlendOverdraw>;
  * gives the pass's MEAN coverage; the per-pixel maximum is not measured here — an occlusion
  * query yields only a sum — and stays `null`.
  *
- * Diagnostic only: mounted by the `transparents-surdessin` variant and by it alone. The read
+ * Diagnostic only: mounted by the `blend-overdraw` variant and by it alone. The read
  * never blocks a frame: only one is in flight, later frames keep the last count that came back.
  */
 export function createBlendOverdraw(device: GPUDevice) {

@@ -10,9 +10,9 @@ test('French words are found in identifiers, comments and strings, accents and c
   assert.deepEqual(frenchWords('const expected = matrices.copies(); // the result'), []);
 });
 
-test('a string a program reads is a named exception', () => {
-  assert.deepEqual(frenchWords("variant === 'geometrie-sommets' && dir === '.mesure/out'"), []);
-  assert.deepEqual(frenchWords("variant === 'geometrie-nouvelle'"), ['geometrie']);
+test('a string that must stay is a named exception, the same word elsewhere counted', () => {
+  assert.deepEqual(frenchWords("const dir = '.mesure/out';"), []);
+  assert.deepEqual(frenchWords('const mesure = 1;'), ['mesure']);
 });
 
 test('counts are kept per package, the word list itself left out', () => {

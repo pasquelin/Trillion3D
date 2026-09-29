@@ -1,4 +1,4 @@
-// `--portee`: the range of a grid light is a multiple of its cell, so the bench can make
+// `--range`: the range of a grid light is a multiple of its cell, so the bench can make
 // several lights reach one pixel — the case sampled lighting is measured on.
 import test from 'node:test';
 import assert from 'node:assert/strict';
