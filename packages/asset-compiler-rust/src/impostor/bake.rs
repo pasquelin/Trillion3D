@@ -72,7 +72,8 @@ fn frame(mesh: &Traceable, capture: Capture, at: (usize, usize)) -> Vec<[[u8; 4]
                 .iter()
                 .filter_map(|s| {
                     let u = ((px + s[0]) / side - 0.5) * 2.0 * r;
-                    let v = ((py + s[1]) / side - 0.5) * 2.0 * r;
+                    // Row 0 at the top: `+y` first, as an image reads.
+                    let v = (0.5 - (py + s[1]) / side) * 2.0 * r;
                     let origin = add(eye, add(scale(x, u), scale(y, v)));
                     mesh.trace(origin, scale(dir, -1.0), 4.0 * r)
                 })
