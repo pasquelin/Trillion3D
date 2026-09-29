@@ -22,11 +22,11 @@ test("each side prints the compiler's stall table as it comes, or says it has no
   const report = {
     sides: { before: {}, after: {} },
     series: [
-      { sides: { before: { avertissementsDag: null }, after: { avertissementsDag: null } } },
+      { sides: { before: { dagWarnings: null }, after: { dagWarnings: null } } },
       {
         sides: {
-          before: { avertissementsDag: null },
-          after: { avertissementsDag: { count: 0, primitives: [], stalled: table } },
+          before: { dagWarnings: null },
+          after: { dagWarnings: { count: 0, primitives: [], stalled: table } },
         },
       },
     ],

@@ -104,12 +104,12 @@ export function appliquer(objet: Lampe, light: SceneLight, douceur: number) {
 
 /** Summary published in the reading: what the witness received, never what one assumes it received. */
 const resume = (lights: SceneLight[]) => ({
-  nombre: lights.length,
-  ponctuelles: lights.filter((light) => light.kind === 'point').length,
-  projecteurs: lights.filter((light) => light.kind === 'spot').length,
-  directionnelles: lights.filter((light) => light.kind === 'directional').length,
+  count: lights.length,
+  points: lights.filter((light) => light.kind === 'point').length,
+  spots: lights.filter((light) => light.kind === 'spot').length,
+  directional: lights.filter((light) => light.kind === 'directional').length,
   ids: lights.map((light) => light.id),
-  ombres: false,
+  shadows: false,
 });
 
 /**

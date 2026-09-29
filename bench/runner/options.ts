@@ -100,7 +100,7 @@ export function readOptions(argv: string[], root: string) {
   };
   const engine = flags.get('engine') ?? 'webgl';
   if (!ENGINES[engine]) throw new Error(`--engine must be ${Object.keys(ENGINES).join(', ')}`);
-  const views = (flags.get('views') ?? 'generale,sol,rue')
+  const views = (flags.get('views') ?? 'overview,ground,street')
     .split(',')
     .filter(Boolean) as (keyof typeof VIEWS)[];
   for (const view of views) if (!VIEWS[view]) throw new Error(`unknown view: ${view}`);
@@ -130,7 +130,7 @@ export function readOptions(argv: string[], root: string) {
     geometryPoolCeilingBytes: mioSi('geometry-pool-ceiling'),
     // `--geometry-pool-live` / `--texture-pool-live`: same pools, but adjusted IN
     // SESSION after warmup via `explorer.setMemoryBudgets` — like an application slider.
-    poolVivant: live(flags, mioSi),
+    livePools: live(flags, mioSi),
     width: number('width', 1280),
     height: number('height', 720),
     dpr,

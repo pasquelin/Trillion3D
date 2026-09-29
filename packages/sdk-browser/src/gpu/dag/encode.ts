@@ -37,7 +37,7 @@ export function encodeDagKernels(encoder: GPUCommandEncoder, resources: DagView)
   // frame delta measures what the repeat actually cost — waits between dispatches included, which
   // no pass envelope reports.
   if (resources.repeat) {
-    encodeOnce(encoder, resources, resources.repeat === 'tete', true);
+    encodeOnce(encoder, resources, resources.repeat === 'head', true);
     encodeOnce(encoder, resources, false, false);
     return;
   }

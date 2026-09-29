@@ -66,6 +66,6 @@ test('counting, off-screen presentation and the compute raster are turned on onl
 test('only the two cut variants re-encode it, and each its share', () => {
   assert.equal(selectionRepeat(undefined), null);
   assert.equal(selectionRepeat('blend-flat'), null);
-  assert.equal(selectionRepeat('selection-doubled'), 'tout');
-  assert.equal(selectionRepeat('selection-head-doubled'), 'tete');
+  assert.equal(selectionRepeat('selection-doubled'), 'all');
+  assert.equal(selectionRepeat('selection-head-doubled'), 'head');
 });

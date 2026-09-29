@@ -8,7 +8,7 @@ import { textures } from './summaryTextures.ts';
 const ROOT = '/tmp/trillion3d-bench';
 /** The live pools the command line asks with a texture pool of `value`. */
 const livePools = (value?: string) =>
-  readOptions(value === undefined ? [] : ['--texture-pool-live', value], ROOT).settings.poolVivant;
+  readOptions(value === undefined ? [] : ['--texture-pool-live', value], ROOT).settings.livePools;
 
 test('a percentage is a fraction of the working set, a bare number stays MiB', () => {
   assert.equal(residentFraction('50%'), 0.5);
@@ -46,12 +46,12 @@ test('the summary says what the live texture pool asked, held, evicted and cost'
     },
     evictedTiles: 212,
     durationMs: 3.456,
-    imagesReprise: 9,
+    recoveryFrames: 9,
     texturePoolAskedBytes: 29_612_096,
     residentTextureBytes: 59_224_192,
-  } as unknown as NonNullable<Parameters<typeof textures>[1]>['reglageVivant'];
+  } as unknown as NonNullable<Parameters<typeof textures>[1]>['liveTuning'];
   const liveLine = (report?: typeof reglage) =>
-    textures({}, { reglageVivant: report }).find((l) => l.includes('set live'));
+    textures({}, { liveTuning: report }).find((l) => l.includes('set live'));
   const line = liveLine(reglage);
   assert.equal(
     line,

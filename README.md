@@ -153,7 +153,7 @@ Nothing is optimised before it is measured, and no claim outlives its measuremen
 
 ```sh
 node bench/runner/bench.ts --engine webgpu --before <git-ref|dist> --after <git-ref|dist> \
-     --views generale,sol,rue --images 60 --pixelError 0,1
+     --views overview,ground,street --images 60 --pixelError 0,1
 node bench/runner/campaign.ts        # the whole campaign
 node bench/runner/summaryGlobal.ts   # one HTML report
 ```
