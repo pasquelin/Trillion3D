@@ -221,10 +221,14 @@ its contents locally. Pulling a deletion can remove a previously tracked copy in
    `pnpm run check:changed`, `pnpm run test:changed` and the `validate` group the diff touches run
    once, on the final head (by the reviewer, `skills/agents/reviewer.md`), and the CI runs the
    whole `validate`; the image proof and the timing follow on `develop` after the merge.
-4. Commit with a descriptive English message and push the branch; write the pull request body in
-   a file, using `.github/PULL_REQUEST_TEMPLATE.md` and beginning with `Closes #<issue>` (AGENTS.md
-   rule 5). Describe what both local review passes found under "Local review before push". Add
-   `in review`; `in progress` stays until the merge. No pull request yet (AGENTS.md rule 11).
+4. Commit with a descriptive English message and push the branch; the required `pr-body` check
+   (`scripts/check-commit-identity.ts`) refuses a commit carrying a tool identity (author or
+   committer) or a `Co-authored-by:` / `Generated` trailer, naming each offending hash, and refuses
+   a body with a "Generated with …" footer or a tool session link (AGENTS.md rule 9). Write the
+   pull request body in a file, using `.github/PULL_REQUEST_TEMPLATE.md` and beginning with
+   `Closes #<issue>` (AGENTS.md rule 5). Describe what both local review passes found under "Local
+   review before push". Add `in review`; `in progress` stays until the merge. No pull request yet
+   (AGENTS.md rule 11).
 5. Obtain an independent review and resolve its findings. Then open the pull request, with its "Lead
    verification" section, one line per To-do and Proof item (each Proof line of the issue quoted,
    or under "Not proven" with the boss's yes: the CI checks it), and auto-merge on: it merges into
