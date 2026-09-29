@@ -1643,7 +1643,9 @@
       "PHYSICS_FORMAT": "La física preparada de un modelo compilado (`physics.json`) es de otro formato, o la preparó otro Jolt distinto del del motor (`PHYSICS_FORMAT`): vuelve a compilarlo. Se pidió un raycast exacto con la física apagada (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "La física preparada de un modelo compilado (`physics.json`) es de otro formato, o la preparó otro Jolt distinto del del motor (`PHYSICS_FORMAT`): vuelve a compilarlo. Se pidió un raycast exacto con la física apagada (`PHYSICS_OFF`).",
       "NO_VEHICLE": "Se asignó `'vehicle'` a `world.controls.kind` mientras `world.controls.vehicle` es `null`: no hay nada que conducir.",
-      "GUIDE_CEILING": "Una llamada a `world.guides` mantendría más vértices que `GUIDE_VERTEX_CEILING`; no se añadió nada de ella."
+      "GUIDE_CEILING": "Una llamada a `world.guides` mantendría más vértices que `GUIDE_VERTEX_CEILING`; no se añadió nada de ella.",
+      "REFERENCE_SHADOWS_REDUCED": "La imagen de referencia se rechazó: el pool de sombras funciona por debajo de su tamaño completo (`REFERENCE_SHADOWS_REDUCED`). Se pidió el modo de referencia en una sesión interactiva, cuyo redimensionado perdería el supermuestreo (`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "La imagen de referencia se rechazó: el pool de sombras funciona por debajo de su tamaño completo (`REFERENCE_SHADOWS_REDUCED`). Se pidió el modo de referencia en una sesión interactiva, cuyo redimensionado perdería el supermuestreo (`REFERENCE_INTERACTIVE`)."
     }
   },
   "enginePose": {
@@ -7987,5 +7989,27 @@
       "bones": "Huesos del tronco hacia las puntas.",
       "options": "Dirección, ángulo máximo de flexión y frecuencia."
     }
+  },
+  "Skeleton": {
+    "summary": "Los huesos que deforman una malla y sus matrices de enlace inversas, del espacio de la malla al de cada hueso.",
+    "description": "El índice de articulación de un vértice señala `bones`. Sin matrices inversas, la pose de los huesos al crear el esqueleto define la pose de enlace.",
+    "members.isSkeleton": "Siempre `true`: identifica un esqueleto.",
+    "members.bones": "Los nodos articulados, en orden de articulaciones.",
+    "members.boneInverses": "Dieciséis números por hueso, por columnas: la inversa de su matriz mundial en la pose de enlace.",
+    "members.palette": "Escribe en `out`, desde `at`, las filas de `meshWorld⁻¹ · boneWorld · boneInverse` de cada articulación. La paleta transforma los vértices enlazados al espacio local de la malla; después se aplica su transformación mundial. `boneWorlds` aporta las matrices mundiales del lector; si falta, se usan las de los huesos."
+  },
+  "Waves": {
+    "summary": "Ondas de Gerstner cuyo tiempo se fija con `setTime`.",
+    "description": "Cada onda `i` tiene dirección `(dx, dz)`, número de onda `k`, amplitud `A` y amplitud lateral `Q·A`. Las pendientes se normalizan para cumplir `Σ Qᵢ·Aᵢ·kᵢ ≤ 1`, sin invertir las crestas.",
+    "members.phase": "Fase de cada onda en el instante fijado, en [0, 2π): único estado temporal.",
+    "members.crest": "Altura máxima sobre el reposo: `Σ Aᵢ`.",
+    "members.steepness": "`Σ Qᵢ·Aᵢ·kᵢ` normalizada, como máximo 1.",
+    "members.phasesAt": "Fase de cada onda a los `t` segundos, reducida a [0, 2π) con doble precisión.",
+    "members.setTime": "Fija el tiempo en `t` segundos; la superficie anterior corresponde a `setTime(t - dt)`.",
+    "members.offset": "Escribe en `out` el desplazamiento `[x, y, z]` del punto en reposo `(x, 0, z)`.",
+    "members.normal": "Escribe en `out` la normal unitaria `[x, y, z]` en el punto en reposo `(x, z)`."
+  },
+  "WindOptions": {
+    "summary": "Dirección del viento (`x`, `z` sobre el suelo), flexión máxima de un hueso en radianes y oscilaciones por segundo."
   }
 }

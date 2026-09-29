@@ -1010,7 +1010,9 @@
       "PHYSICS_FORMAT": "Vật lý đã chuẩn bị của một mô hình đã biên dịch (`physics.json`) thuộc định dạng khác, hoặc được chuẩn bị bằng một Jolt khác với của engine (`PHYSICS_FORMAT`): hãy biên dịch lại. Một raycast chính xác được yêu cầu khi vật lý đang tắt (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Vật lý đã chuẩn bị của một mô hình đã biên dịch (`physics.json`) thuộc định dạng khác, hoặc được chuẩn bị bằng một Jolt khác với của engine (`PHYSICS_FORMAT`): hãy biên dịch lại. Một raycast chính xác được yêu cầu khi vật lý đang tắt (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` được đặt thành `'vehicle'` trong khi `world.controls.vehicle` là `null`: không có gì để lái.",
-      "GUIDE_CEILING": "Một lệnh gọi `world.guides` sẽ giữ nhiều đỉnh hơn `GUIDE_VERTEX_CEILING`; không phần nào của nó được thêm vào."
+      "GUIDE_CEILING": "Một lệnh gọi `world.guides` sẽ giữ nhiều đỉnh hơn `GUIDE_VERTEX_CEILING`; không phần nào của nó được thêm vào.",
+      "REFERENCE_SHADOWS_REDUCED": "Ảnh tham chiếu bị từ chối: vùng bóng đổ chạy dưới kích thước đầy đủ (`REFERENCE_SHADOWS_REDUCED`). Chế độ tham chiếu được yêu cầu trên một phiên tương tác, mà việc đổi kích thước sẽ làm mất siêu lấy mẫu (`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "Ảnh tham chiếu bị từ chối: vùng bóng đổ chạy dưới kích thước đầy đủ (`REFERENCE_SHADOWS_REDUCED`). Chế độ tham chiếu được yêu cầu trên một phiên tương tác, mà việc đổi kích thước sẽ làm mất siêu lấy mẫu (`REFERENCE_INTERACTIVE`)."
     }
   },
   "EngineProfiler": {
@@ -7988,5 +7990,27 @@
       "bones": "Xương từ thân cây tới đầu cành.",
       "options": "Hướng, góc uốn tối đa và tần số."
     }
+  },
+  "Skeleton": {
+    "summary": "Các xương làm biến dạng lưới và ma trận liên kết nghịch đảo, chuyển tọa độ lưới sang hệ tọa độ của từng xương.",
+    "description": "Chỉ số khớp của đỉnh là vị trí trong `bones`. Nếu không có ma trận nghịch đảo, tư thế xương khi tạo bộ xương là tư thế liên kết.",
+    "members.isSkeleton": "Luôn là `true`: nhận diện bộ xương.",
+    "members.bones": "Các nút khớp theo thứ tự khớp.",
+    "members.boneInverses": "Mười sáu số cho mỗi xương, theo cột: nghịch đảo ma trận thế giới ở tư thế liên kết.",
+    "members.palette": "Ghi các hàng của `meshWorld⁻¹ · boneWorld · boneInverse` cho mỗi khớp vào `out`, từ `at`. Bảng ma trận chuyển đỉnh liên kết sang hệ cục bộ của lưới; sau đó áp dụng biến đổi thế giới của lưới. `boneWorlds` cung cấp ma trận thế giới của bộ đọc; nếu thiếu thì dùng ma trận riêng của xương."
+  },
+  "Waves": {
+    "summary": "Tập sóng Gerstner có thời gian do `setTime` đặt.",
+    "description": "Mỗi sóng `i` có hướng `(dx, dz)`, số sóng `k`, biên độ `A` và biên độ ngang `Q·A`. Độ dốc được chuẩn hóa để `Σ Qᵢ·Aᵢ·kᵢ ≤ 1`, tránh đỉnh sóng lật ngược.",
+    "members.phase": "Pha của mỗi sóng tại thời điểm đã đặt, trong [0, 2π): trạng thái duy nhất phụ thuộc thời gian.",
+    "members.crest": "Độ cao cực đại trên mặt nghỉ: `Σ Aᵢ`.",
+    "members.steepness": "`Σ Qᵢ·Aᵢ·kᵢ` sau chuẩn hóa, tối đa 1.",
+    "members.phasesAt": "Pha của mỗi sóng tại `t` giây, đưa về [0, 2π) với độ chính xác kép.",
+    "members.setTime": "Đặt thời gian là `t` giây; mặt ở khung trước tương ứng với `setTime(t - dt)`.",
+    "members.offset": "Ghi độ dịch chuyển `[x, y, z]` của điểm nghỉ `(x, 0, z)` vào `out`.",
+    "members.normal": "Ghi pháp tuyến đơn vị `[x, y, z]` tại điểm nghỉ `(x, z)` vào `out`."
+  },
+  "WindOptions": {
+    "summary": "Hướng gió (`x`, `z` trên mặt đất), góc uốn xương tối đa tính bằng radian và số lần dao động mỗi giây."
   }
 }

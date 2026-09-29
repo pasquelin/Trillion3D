@@ -1003,7 +1003,9 @@
       "PHYSICS_FORMAT": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
       "PHYSICS_OFF": "已编译模型的预制物理（`physics.json`）格式不同，或由与引擎不同的 Jolt 预制（`PHYSICS_FORMAT`）：请重新编译。物理关闭时请求了精确射线检测（`PHYSICS_OFF`）。",
       "NO_VEHICLE": "在 `world.controls.vehicle` 为 `null` 时把 `world.controls.kind` 设为了 `'vehicle'`：没有可驾驶的东西。",
-      "GUIDE_CEILING": "一次 `world.guides` 调用将持有超过 `GUIDE_VERTEX_CEILING` 的顶点；其内容均未添加。"
+      "GUIDE_CEILING": "一次 `world.guides` 调用将持有超过 `GUIDE_VERTEX_CEILING` 的顶点；其内容均未添加。",
+      "REFERENCE_SHADOWS_REDUCED": "参考图像被拒绝：阴影池低于其完整尺寸运行（`REFERENCE_SHADOWS_REDUCED`）。在交互式会话上请求了参考模式，其尺寸调整会丢失超采样（`REFERENCE_INTERACTIVE`）。",
+      "REFERENCE_INTERACTIVE": "参考图像被拒绝：阴影池低于其完整尺寸运行（`REFERENCE_SHADOWS_REDUCED`）。在交互式会话上请求了参考模式，其尺寸调整会丢失超采样（`REFERENCE_INTERACTIVE`）。"
     }
   },
   "EngineProfiler": {
@@ -7987,5 +7989,27 @@
       "bones": "从树干到枝梢依次排列的骨骼。",
       "options": "方向、最大弯曲角度及频率。"
     }
+  },
+  "Skeleton": {
+    "summary": "使蒙皮网格变形的骨骼及其逆绑定矩阵，将网格坐标转换到各骨骼坐标系。",
+    "description": "顶点的关节索引对应 `bones` 中的位置。未提供逆绑定矩阵时，创建骨架时的骨骼姿态即为绑定姿态。",
+    "members.isSkeleton": "始终为 `true`，用于识别骨架。",
+    "members.bones": "按关节顺序排列的关节节点。",
+    "members.boneInverses": "每根骨骼十六个数，按列存储：绑定姿态下世界矩阵的逆矩阵。",
+    "members.palette": "从 `at` 开始向 `out` 写入各关节的 `meshWorld⁻¹ · boneWorld · boneInverse` 各行。调色板将绑定顶点转换到网格局部坐标系，随后应用网格世界变换。`boneWorlds` 提供读取器使用的骨骼世界矩阵；省略时使用骨骼自身的矩阵。"
+  },
+  "Waves": {
+    "summary": "由 `setTime` 设置时间的一组 Gerstner 波。",
+    "description": "每个波 `i` 有方向 `(dx, dz)`、波数 `k`、振幅 `A` 和横向振幅 `Q·A`。陡度经归一化满足 `Σ Qᵢ·Aᵢ·kᵢ ≤ 1`，避免波峰翻卷。",
+    "members.phase": "各波在设定时刻的相位，范围为 [0, 2π)，是唯一随时间变化的状态。",
+    "members.crest": "相对静止面的最大高度：`Σ Aᵢ`。",
+    "members.steepness": "归一化后的 `Σ Qᵢ·Aᵢ·kᵢ`，最大为 1。",
+    "members.phasesAt": "各波在 `t` 秒的相位，以双精度归约到 [0, 2π)。",
+    "members.setTime": "将时间设为 `t` 秒；上一帧表面对应 `setTime(t - dt)`。",
+    "members.offset": "将静止点 `(x, 0, z)` 的位移 `[x, y, z]` 写入 `out`。",
+    "members.normal": "将静止点 `(x, z)` 处的表面单位法线 `[x, y, z]` 写入 `out`。"
+  },
+  "WindOptions": {
+    "summary": "风向（地面上的 `x`、`z`）、骨骼最大弯曲角度（弧度）以及每秒摆动次数。"
   }
 }

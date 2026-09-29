@@ -45,7 +45,7 @@ export const ROW_DASH_WORD = 28;
 /** Row words of a sprite's turn and size rule (`PageInfo.sprite`, `spriteAt`); zero on any other row. */
 export const ROW_SPRITE_WORD = 36;
 /** Row word naming the placement's deformation record (`PageInfo.deform`, #357). */
-export const ROW_DEFORM_WORD = 58;
+const ROW_DEFORM_WORD = 58;
 /** Row word that carries the line's placement (`PageInfo.placement`). */
 export const ROW_PLACEMENT_WORD = 62;
 /** Row word that carries the resolve class key (`PageInfo.materialClass`, `../../visibility/shader/materialClass.ts`). */

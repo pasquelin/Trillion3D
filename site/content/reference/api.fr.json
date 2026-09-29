@@ -1643,7 +1643,9 @@
       "PHYSICS_FORMAT": "La physique préparée d’un modèle compilé (`physics.json`) est d’un autre format, ou a été préparée par un autre Jolt que celui du moteur (`PHYSICS_FORMAT`) : recompilez-le. Un lancer de rayon exact a été demandé physique éteinte (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "La physique préparée d’un modèle compilé (`physics.json`) est d’un autre format, ou a été préparée par un autre Jolt que celui du moteur (`PHYSICS_FORMAT`) : recompilez-le. Un lancer de rayon exact a été demandé physique éteinte (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` a reçu `'vehicle'` alors que `world.controls.vehicle` vaut `null` : il n’y a rien à conduire.",
-      "GUIDE_CEILING": "Un appel à `world.guides` tiendrait plus de sommets que `GUIDE_VERTEX_CEILING` ; rien n’en a été ajouté."
+      "GUIDE_CEILING": "Un appel à `world.guides` tiendrait plus de sommets que `GUIDE_VERTEX_CEILING` ; rien n’en a été ajouté.",
+      "REFERENCE_SHADOWS_REDUCED": "L’image de référence a été refusée : la réserve d’ombres tourne sous sa pleine taille (`REFERENCE_SHADOWS_REDUCED`). Le mode référence a été demandé sur une session interactive, dont un redimensionnement ferait perdre le suréchantillonnage (`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "L’image de référence a été refusée : la réserve d’ombres tourne sous sa pleine taille (`REFERENCE_SHADOWS_REDUCED`). Le mode référence a été demandé sur une session interactive, dont un redimensionnement ferait perdre le suréchantillonnage (`REFERENCE_INTERACTIVE`)."
     }
   },
   "enginePose": {
@@ -7987,5 +7989,27 @@
       "bones": "Os du tronc vers les extrémités.",
       "options": "Direction, angle de flexion maximal et fréquence."
     }
+  },
+  "Skeleton": {
+    "summary": "Les os qui déforment un maillage et leurs matrices de liaison inverses, du repère du maillage au repère de chaque os.",
+    "description": "L’indice d’articulation d’un sommet désigne `bones`. Sans matrices inverses fournies, la pose des os à la création définit la pose de liaison.",
+    "members.isSkeleton": "Toujours `true` : identifie un squelette.",
+    "members.bones": "Les nœuds articulés, dans l’ordre des articulations.",
+    "members.boneInverses": "Seize nombres par os, par colonnes : l’inverse de sa matrice mondiale à la pose de liaison.",
+    "members.palette": "Écrit dans `out`, à partir de `at`, les lignes de `meshWorld⁻¹ · boneWorld · boneInverse` de chaque articulation. La palette transforme les sommets liés dans le repère local du maillage ; sa transformation mondiale s’applique ensuite. `boneWorlds` fournit les matrices mondiales du lecteur, sinon celles des os sont utilisées."
+  },
+  "Waves": {
+    "summary": "Un ensemble d’ondes de Gerstner, animé par `setTime`.",
+    "description": "Chaque onde `i` a une direction `(dx, dz)`, un nombre d’onde `k`, une amplitude `A` et une amplitude latérale `Q·A`. Les pentes sont normalisées pour que `Σ Qᵢ·Aᵢ·kᵢ ≤ 1`, sans retournement des crêtes.",
+    "members.phase": "Phase de chaque onde à l’instant fixé, dans [0, 2π) : seul état dépendant du temps.",
+    "members.crest": "Hauteur maximale au-dessus du repos : `Σ Aᵢ`.",
+    "members.steepness": "`Σ Qᵢ·Aᵢ·kᵢ` après normalisation, au plus 1.",
+    "members.phasesAt": "Phase de chaque onde à `t` secondes, ramenée à [0, 2π) en double précision.",
+    "members.setTime": "Fixe le temps à `t` secondes ; la surface précédente correspond à `setTime(t - dt)`.",
+    "members.offset": "Écrit dans `out` le déplacement `[x, y, z]` du point au repos `(x, 0, z)`.",
+    "members.normal": "Écrit dans `out` la normale unitaire `[x, y, z]` au point au repos `(x, z)`."
+  },
+  "WindOptions": {
+    "summary": "Direction du vent (`x`, `z` au sol), flexion maximale d’un os en radians et oscillations par seconde."
   }
 }

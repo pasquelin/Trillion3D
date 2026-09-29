@@ -16,7 +16,7 @@ import {
   spillHarness,
   type SpillCase,
 } from './lightTilesSpillHarness.ts';
-import { ouvrirAppareil } from './webgpuDevice.ts';
+import { openGpuDevice } from './webgpuDevice.ts';
 import { tileLayout } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 
 /** A storage buffer holding `words`, one word at least: a case of no light binds one too. */
@@ -32,7 +32,7 @@ const storage = (device: GPUDevice, words: ArrayLike<number>) => {
 };
 
 export async function run(cases: SpillCase[]) {
-  const opened = await ouvrirAppareil();
+  const opened = await openGpuDevice();
   if (!opened) return { unavailable: 'no WebGPU adapter' } as const;
   const { device } = opened;
   // Light `k` at x = k: the harness's slice test reads its keeps by that coordinate.
@@ -48,6 +48,9 @@ export async function run(cases: SpillCase[]) {
       range: 1,
       castsShadow: false,
     });
+  // Light 0 carries a shadow slot, so the pass's flag word is tested both ways (#1249): a case
+  // that keeps it in the opaque slice writes one, a case that does not writes zero.
+  store.assignSlice(0, 0);
   const lights = {
     store,
     buffer: createSceneLightContractBuffer(device, store),

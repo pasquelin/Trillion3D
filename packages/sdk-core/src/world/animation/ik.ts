@@ -5,7 +5,7 @@ import {
 } from '../../math/matrix/quaternion.ts';
 import type { Object3D } from '../object/object3d.ts';
 
-type Point = { x: number; y: number; z: number };
+import type { XYZLike } from '../math/likes.ts';
 
 const scratch = {
   a: new Float64Array(3),
@@ -76,8 +76,8 @@ export function solveTwoBoneIK(
   root: Object3D,
   mid: Object3D,
   end: Object3D,
-  target: Point,
-  pole?: Point,
+  target: XYZLike,
+  pole?: XYZLike,
   weight = 1,
 ) {
   const { a, b, c, t, ab: toMid, cb: toEnd, ac: reach, at: aim, ba: back } = scratch;

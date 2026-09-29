@@ -59,9 +59,8 @@ export interface GeometryPool {
   saturated: number | null;
 }
 
-/** In-session reservoir tuning report, plus the frames it took the pose to hold again, the texture
- *  budget asked when one was, and, for a texture pool asked as a fraction of the working set, the
- *  resident bytes it was taken of. */
+/** In-session reservoir tuning report, plus the frames the pose took to hold again, the texture
+ *  budget asked, and the resident bytes a pool asked as a fraction of the working set came from. */
 export type LiveTuning = MemoryBudgetsReport & {
   recoveryFrames: number | null;
   texturePoolAskedBytes?: number;
@@ -157,6 +156,8 @@ export interface Serie {
   sides: Record<string, Row>;
   witnessAA?: ImageDiff;
   beforeAfterDiff?: ImageDiff;
+  /** Each side's capture against the engine's reference image (`--reference`, class 2). */
+  referenceDiff?: Record<string, import('../imageDiff.ts').ReferenceDiff>;
   sameCut?: boolean | null;
 }
 

@@ -15,7 +15,7 @@ import { framesBytes } from '../../../packages/sdk-browser/src/gpu/dag/frameRang
 import { selectionListCap } from '../../../packages/sdk-browser/src/gpu/dag/layout.ts';
 import { DAG_UNIFORM_BYTES } from '../../../packages/sdk-browser/src/gpu/dag/shader/viewsWgsl.ts';
 import { sceneView } from './cutDispatchesScene.ts';
-import { ouvrirAppareil } from './webgpuDevice.ts';
+import { openGpuDevice } from './webgpuDevice.ts';
 
 /** Sixty placements of a pyramid eight levels deep, spread across and beyond the view; the first
  *  range's twenty behind the camera, so the later ranges' nodes open each queue a level reuses. */
@@ -34,7 +34,7 @@ const reporting = (device: GPUDevice, binding: number) =>
   });
 
 export async function executer(pixelErrors: number[]) {
-  const appareil = await ouvrirAppareil();
+  const appareil = await openGpuDevice();
   if (!appareil) return { indisponible: 'no WebGPU adapter' };
   const { device, erreurs } = appareil;
   const { packed, uniforms } = sceneView(400, 8, poses);

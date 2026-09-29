@@ -1003,7 +1003,9 @@
       "PHYSICS_FORMAT": "コンパイル済みモデルの事前処理された物理（`physics.json`）が別の形式か、エンジンとは別の Jolt で処理されています（`PHYSICS_FORMAT`）：再コンパイルしてください。物理がオフのまま正確なレイキャストが求められました（`PHYSICS_OFF`）。",
       "PHYSICS_OFF": "コンパイル済みモデルの事前処理された物理（`physics.json`）が別の形式か、エンジンとは別の Jolt で処理されています（`PHYSICS_FORMAT`）：再コンパイルしてください。物理がオフのまま正確なレイキャストが求められました（`PHYSICS_OFF`）。",
       "NO_VEHICLE": "`world.controls.vehicle` が `null` のまま `world.controls.kind` に `'vehicle'` が設定された：運転するものがない。",
-      "GUIDE_CEILING": "`world.guides` の呼び出しは `GUIDE_VERTEX_CEILING` を超える頂点を保持することになるため、何も追加されませんでした。"
+      "GUIDE_CEILING": "`world.guides` の呼び出しは `GUIDE_VERTEX_CEILING` を超える頂点を保持することになるため、何も追加されませんでした。",
+      "REFERENCE_SHADOWS_REDUCED": "参照画像は拒否されました：シャドウプールが本来のサイズ未満で動作しています（`REFERENCE_SHADOWS_REDUCED`）。リサイズでスーパーサンプリングが失われるインタラクティブなセッションで参照モードが要求されました（`REFERENCE_INTERACTIVE`）。",
+      "REFERENCE_INTERACTIVE": "参照画像は拒否されました：シャドウプールが本来のサイズ未満で動作しています（`REFERENCE_SHADOWS_REDUCED`）。リサイズでスーパーサンプリングが失われるインタラクティブなセッションで参照モードが要求されました（`REFERENCE_INTERACTIVE`）。"
     }
   },
   "EngineProfiler": {
@@ -7987,5 +7989,27 @@
       "bones": "幹から枝先の順のボーン。",
       "options": "方向、最大曲げ角度、周波数。"
     }
+  },
+  "Skeleton": {
+    "summary": "スキンメッシュを変形するボーンと、メッシュ座標を各ボーン座標へ移す逆バインド行列。",
+    "description": "頂点の関節インデックスは `bones` の位置を指します。逆バインド行列を省略すると、スケルトン作成時のボーン姿勢がバインド姿勢になります。",
+    "members.isSkeleton": "常に `true`。スケルトンを識別します。",
+    "members.bones": "関節順に並んだ関節ノード。",
+    "members.boneInverses": "ボーンごとに列優先の16個の数値。バインド姿勢のワールド行列の逆行列です。",
+    "members.palette": "各関節の `meshWorld⁻¹ · boneWorld · boneInverse` の行を、`out` の `at` から書き込みます。パレットはバインド頂点をメッシュのローカル座標に変換し、その後メッシュのワールド変換が適用されます。`boneWorlds` は読み取り側のワールド行列を指定し、省略時は各ボーン自身の行列を使います。"
+  },
+  "Waves": {
+    "summary": "`setTime` で時刻を設定する Gerstner 波の集合。",
+    "description": "波 `i` ごとに方向 `(dx, dz)`、波数 `k`、振幅 `A`、横方向の振幅 `Q·A` を持ちます。波頭が折り返さないよう、急峻度を `Σ Qᵢ·Aᵢ·kᵢ ≤ 1` に正規化します。",
+    "members.phase": "設定時刻での各波の位相。範囲は [0, 2π) で、時刻に依存する唯一の状態です。",
+    "members.crest": "静止面からの最大高さ：`Σ Aᵢ`。",
+    "members.steepness": "正規化後の `Σ Qᵢ·Aᵢ·kᵢ`。最大1です。",
+    "members.phasesAt": "`t` 秒での各波の位相を、倍精度で [0, 2π) に収めます。",
+    "members.setTime": "時刻を `t` 秒に設定します。前フレームの面は `setTime(t - dt)` に対応します。",
+    "members.offset": "静止点 `(x, 0, z)` の変位 `[x, y, z]` を `out` に書き込みます。",
+    "members.normal": "静止点 `(x, z)` での単位法線 `[x, y, z]` を `out` に書き込みます。"
+  },
+  "WindOptions": {
+    "summary": "風向（地面上の `x`、`z`）、ボーンの最大曲げ角（ラジアン）、毎秒の揺れ回数。"
   }
 }

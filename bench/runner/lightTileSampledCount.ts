@@ -1,8 +1,9 @@
 // Light evaluations per covered pixel of a MOVING image (#1249): the shipped `contractLighting`
-// and `listShadowed`, run as JavaScript on each tile's opaque list as the tile pass's oracle
-// builds it. COUNTED, never timed. A full sum walks its `L` lights once; `sampledTileLighting`
-// walks a list of `LIGHT_SAMPLES` to `TILE_LIGHTS` lights three times — its three `lightWeight`
-// loops — then shades `LIGHT_SAMPLES` of them: `3·L + LIGHT_SAMPLES`.
+// and `tileShadowed`, run as JavaScript on each tile's opaque list as the tile pass's oracle
+// builds it — a record whose last word the pass sets once, never a per-pixel walk. COUNTED,
+// never timed. A full sum walks its `L` lights once; `sampledTileLighting` walks a list of
+// `LIGHT_SAMPLES` to `TILE_LIGHTS` lights three times — its three `lightWeight` loops — then
+// shades `LIGHT_SAMPLES` of them: `3·L + LIGHT_SAMPLES`.
 //
 //   node bench/runner/lightTileSampledCount.ts [--width 3456] [--height 2234]
 import { parseArgs } from 'node:util';
@@ -26,8 +27,9 @@ const SIZE = LIGHT_SETTINGS.tileSize;
 const K = wgslConstants(DIRECT_LIGHTING_WGSL);
 type Contract = (...args: unknown[]) => unknown;
 
-/** Each tile's record, the opaque list only: its count, then its lights in rank order. */
-function tileRecords(view: TileView, depths: Float32Array, lights: Light[]) {
+/** Each tile's record, the opaque list only: its count, its lights in rank order, and the run's
+ *  flag word — one when a kept light carries a shadow slot (`slots[rank] > -1`, #1249). */
+function tileRecords(view: TileView, depths: Float32Array, lights: Light[], slots: number[]) {
   const [tilesX, tilesY] = [Math.ceil(view.width / SIZE), Math.ceil(view.height / SIZE)];
   const records = new Uint32Array(tilesX * tilesY * K.TILE_STRIDE);
   for (let ty = 0; ty < tilesY; ty++)
@@ -43,6 +45,7 @@ function tileRecords(view: TileView, depths: Float32Array, lights: Light[]) {
       );
       const base = (ty * tilesX + tx) * K.TILE_STRIDE;
       records[base] = kept.length;
+      records[base + K.TILE_SHADOW_BASE] = kept.some((rank) => slots[rank] > -1) ? 1 : 0;
       // A list past `TILE_LIGHTS` lives in the pool: its count is all a full sum needs here.
       records.set(kept.slice(0, K.TILE_LIGHTS), base + K.TILE_OPAQUE_BASE);
     }
@@ -60,7 +63,7 @@ export function countSampled(
   lights: Light[],
   slots: number[],
 ) {
-  const { records, tilesX, tilesY } = tileRecords(view, depths, lights);
+  const { records, tilesX, tilesY } = tileRecords(view, depths, lights, slots);
   let evaluations = 0;
   const kept = (tile: { x: number; y: number }) =>
     records[(tile.y * tilesX + tile.x) * K.TILE_STRIDE];
@@ -71,7 +74,7 @@ export function countSampled(
   };
   const { contractLighting } = shaderFunctions<{ contractLighting: Contract }>(
     DIRECT_LIGHTING_WGSL,
-    ['contractLighting', 'listShadowed', 'pixelTile'],
+    ['contractLighting', 'tileShadowed', 'pixelTile'],
     {
       ...K,
       view: { lightParams: { x: lights.length, y: tilesX, z: tilesY }, viewport: { w: 1 } },
