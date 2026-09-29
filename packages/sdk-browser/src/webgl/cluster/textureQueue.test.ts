@@ -36,13 +36,20 @@ function draw(hosts: {
   const scene = new G.Scene();
   scene.add(G.mesh(G.boxGeometry(), surfaces[0])); // the pages not attached yet wear the others
   const sceneDraw = createSceneDraw(gl.gl, scene, [], hosts, () => surfaces);
+  const sent = () =>
+    gl.of('texImage2D').flatMap((args) => pictures.filter((p) => args.includes(p)));
   const image = () => {
     gl.calls.length = 0;
     sceneDraw.render({} as HostCamera);
     sceneDraw.host.drawHostGeometry(createHostDrawCamera(), output);
-    return gl.of('texImage2D').flatMap((args) => pictures.filter((p) => args.includes(p)));
+    return sent();
   };
-  return { image, pictures, gpu, gl: gl.gl };
+  const prepare = async () => {
+    gl.calls.length = 0;
+    await sceneDraw.prepare();
+    return sent();
+  };
+  return { image, prepare, pictures, gpu, gl: gl.gl };
 }
 
 test('a frame uploads ahead of its draws what its budget allows, once the GPU passed the last', () => {
@@ -56,6 +63,15 @@ test('a frame uploads ahead of its draws what its budget allows, once the GPU pa
   gpu.behind = false;
   assert.deepEqual(image(), [pictures[2]], 'the GPU caught up: the next map');
   assert.deepEqual(image(), [], 'each map once');
+});
+
+test('the preparation sends the declared maps, a budget per task, before any frame', async () => {
+  const { image, prepare, pictures } = draw({
+    maxTextureTransferBytesPerFrame: heldBytes(4, 4) + 1,
+    maxTextureUploadMsPerFrame: 1e9,
+  });
+  assert.deepEqual(await prepare(), pictures, 'every declared map, over several tasks');
+  assert.deepEqual(image(), [], 'the first frame sends none');
 });
 
 test('the queue stops at the texture pool: what it leaves uploads at its first draw', () => {

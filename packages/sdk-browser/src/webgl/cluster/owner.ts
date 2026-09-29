@@ -49,6 +49,11 @@ export class WebglClusterOwner {
     );
     this.censused = true;
   }
+  /** Uploads the maps the census queued before any frame, a budget per task (`textureQueue.ts`). */
+  prepareMaps() {
+    const { textures } = this.display;
+    return textures.ahead.prepare(this.context, textures, textures.budget);
+  }
   /** Reads the surfaces drawn without a physical feature for `hear`, across context restores. */
   private degraded: ReadDegraded | undefined;
   /** Hears the refusal of a map (`gpu-out-of-memory`). */
