@@ -18,7 +18,6 @@ import {
   isAncestor,
   sameBits,
   sameState,
-  takeFinalRows,
   world,
   worldPose,
   type World,
@@ -78,15 +77,13 @@ function split(log: unknown[]) {
 }
 
 /** Batch against one by one. Disjoint nodes declare the same motion; overlapping ones, where a
- *  root moves twice one by one, leave the same last pose per root. Roots moved through a link the
- *  host has since cut are taken at their final row first (`takeFinalRows`). */
-function assertBatch(a: World, b: World, c: World, disjoint: boolean, label: string) {
-  const taken = takeFinalRows(a, b, [c]);
+ *  root moves twice one by one, leave the same last pose per root. A node the host reparented
+ *  moves with its new parent, on both sides: the index follows the host's links (#972). */
+function assertBatch(a: World, b: World, disjoint: boolean, label: string) {
   sameState(a, b, label, true);
   const [x, y] = [split(a.log), split(b.log)];
-  const last = (moves: string[]) =>
-    Object.fromEntries(moves.map((m) => [JSON.parse(m)[0], m]).filter(([r]) => !taken.has(r)));
-  if (disjoint && !taken.size) {
+  const last = (moves: string[]) => Object.fromEntries(moves.map((m) => [JSON.parse(m)[0], m]));
+  if (disjoint) {
     assert.deepEqual(x.boxes, y.boxes, `${label} motion`);
     assert.deepEqual(x.moves.sort(), y.moves.sort(), `${label} mobility`);
   } else {
@@ -165,11 +162,11 @@ async function twinRun(seed: number, lot: boolean, steps: number, maximal = fals
     const code = refused(() => setWebgpuTransforms(a.rt, handles, matrices));
     assert.equal(code, oneByOne(b, at, poses, label), label);
     assert.equal(code, oneByOne(c, at, poses, label), label);
-    assertBatch(a, b, c, disjoint, label);
+    assertBatch(a, b, disjoint, label);
     assertSame(b, c, label, false);
     if (draw() < 0.2) {
       for (const x of twins) x.image();
-      assertBatch(a, b, c, true, `${label} image`);
+      assertBatch(a, b, true, `${label} image`);
       assertSame(b, c, `${label} image`, true);
     }
   }
