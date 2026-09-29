@@ -31,7 +31,7 @@ export function nodeDecision<T extends PageRecord>(
     stretch = s.flatStretch,
     focal = s.flatFocal,
     perspective = s.cam.perspective;
-  const ownRadius = values[at + OWN_SPHERE + 3],
+  const ownRadius = values[at + OWN_SPHERE + 3] + s.flatReach,
     ownDepth = viewDepth(values, at + OWN_SPHERE, e);
   // No cluster of the subtree is fine enough: the cut takes none of them.
   const floor = errorFloorAt(
@@ -60,7 +60,7 @@ export function nodeDecision<T extends PageRecord>(
   return errorFloorAt(
     values[at + PARENT_FLOOR],
     viewDepth(values, at + PARENT_SPHERE, e),
-    values[at + PARENT_SPHERE + 3],
+    values[at + PARENT_SPHERE + 3] + s.flatReach,
     stretch,
     focal,
     perspective,

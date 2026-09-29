@@ -1,3 +1,4 @@
+import type { SessionDeformation } from '../../../deformation/session.ts';
 import type { HostAttributes } from '../../../host/resources.ts';
 import type { Texture } from '../../../../../sdk-core/src/index.ts';
 import type { GpuPartition } from '../../../gpu/partition/types.ts';
@@ -89,6 +90,8 @@ export interface WebgpuVisState {
   shadeUniPacked: Float32Array<ArrayBuffer>;
   visUniPacked: Float32Array<ArrayBuffer>;
   geometryBlocks: Map<HostAttributes, GeometryBlock>;
+  /** The session's GPU deformation, its records in the float pool's tail (#357). */
+  deformation: SessionDeformation | undefined;
   mapLayer: Map<Texture, number>;
   dataLayer: Map<Texture, number>;
 }
@@ -146,6 +149,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     shadeUniPacked: new Float32Array(SHADE_UNIFORM_WORDS),
     visUniPacked: new Float32Array(7 * 64),
     geometryBlocks: new Map(),
+    deformation: undefined,
     mapLayer: new Map(),
     dataLayer: new Map(),
   };
