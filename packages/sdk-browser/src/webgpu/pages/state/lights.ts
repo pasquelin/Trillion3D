@@ -12,6 +12,7 @@ import { createShadowRegionList, type ShadowRegionList } from '../../shadow/regi
 import type { CpuCasterLists } from '../../shadow/cpuCasters.ts';
 import type { DagLightCut } from '../../../gpu/dag/lightCut.ts';
 import type { ShadowPageRequests } from '../../shadow/pageRequests.ts';
+import type { ShadowDemand } from '../../shadow/demandPass.ts';
 import type { DeviceGrant } from '../../../gpu/core/errorScope.ts';
 import { createShadowSceneBox } from '../../shadow/sceneBox.ts';
 import { createShadowResidence } from '../../shadow/residence.ts';
@@ -40,6 +41,8 @@ export interface WebgpuLightState {
   poolView: readonly [number, number] | undefined;
   /** The return path of the pages the resolve reads; absent while the pool does not exist. */
   pageRequests: ShadowPageRequests | undefined;
+  /** The pass that marks, per pixel, the pages the resolve reads (`../../shadow/demandPass.ts`). */
+  demand: ShadowDemand | undefined;
   /** Residency flips, compared plan to plan (`../../shadow/residence.ts`). */
   residence: ReturnType<typeof createShadowResidence>;
   /** Which placements move, and the static layer their first move opens. */
@@ -127,6 +130,7 @@ export function createWebgpuLightState(
     shadowGrant: undefined,
     poolView: undefined,
     pageRequests: undefined,
+    demand: undefined,
     sceneBox: createShadowSceneBox(),
     residence: createShadowResidence(),
     mobility: createShadowMobility(),
@@ -175,12 +179,6 @@ export function disposeStaticLayer(lights: WebgpuLightState) {
   lights.pageHiz?.dispose();
   lights.occlusion?.dispose();
   lights.staticLayer = lights.pageHiz = lights.occlusion = undefined;
-}
-
-/** Closes the frame's shadow work: what its batches drew joins the total a host reads across frames
- *  and drains; a batch that could not be encoded is not counted (`encodeShadowBatches.ts`). */
-export function noteShadowFrame(lights: WebgpuLightState) {
-  lights.shadowPagesTotal += lights.shadowPages;
 }
 
 /**
