@@ -99,14 +99,15 @@ export class WebglClusterGeometry {
       const attribute = drawnAttribute(geometry, name),
         location = this.locations[name];
       if (location < 0) continue;
+      const held = cached.attributes.get(name);
+      if (held && held.source !== attribute) this.drop(held);
       if (!attribute) {
         gl.disableVertexAttribArray(location);
-        const stale = cached.attributes.get(name);
-        if (stale) gl.deleteBuffer(stale.buffer);
         cached.attributes.delete(name);
         continue;
       }
-      const entry = upload(gl, gl.ARRAY_BUFFER, attribute, cached.attributes.get(name));
+      const entry = upload(gl, gl.ARRAY_BUFFER, attribute, this.shared(attribute));
+      if (held?.source !== attribute) this.lists.get(attribute)!.users++;
       cached.attributes.set(name, entry);
       gl.bindBuffer(gl.ARRAY_BUFFER, entry.buffer);
       gl.enableVertexAttribArray(location);
@@ -137,10 +138,30 @@ export class WebglClusterGeometry {
     }
     this.generics = true;
   }
+  /**
+   * One buffer per vertex list, whatever number of geometries read it — the pages of a dynamic
+   * geometry all read its lists (#573) —: uploaded once per version, by its written ranges alone
+   * (`upload`), and freed with its last reader.
+   */
+  private lists = new Map<GpuBuffer, CachedAttribute & { users: number }>();
+  private shared(attribute: GpuBuffer) {
+    let entry = this.lists.get(attribute);
+    if (!entry) {
+      const buffer = this.gl.createBuffer()!;
+      this.lists.set(attribute, (entry = { buffer, source: attribute, version: -1, bytes: 0, users: 0 }));
+    }
+    return entry;
+  }
+  private drop(entry: CachedAttribute) {
+    const shared = this.lists.get(entry.source);
+    if (shared !== entry || --shared.users > 0) return;
+    this.lists.delete(entry.source);
+    this.gl.deleteBuffer(entry.buffer);
+  }
   private free(entry: CachedGeometry) {
     this.gl.deleteVertexArray(entry.vao);
     if (entry.index) this.gl.deleteBuffer(entry.index.buffer);
-    for (const attribute of entry.attributes.values()) this.gl.deleteBuffer(attribute.buffer);
+    for (const attribute of entry.attributes.values()) this.drop(attribute);
   }
   dispose() {
     for (const [geometry, entry] of this.cache) {

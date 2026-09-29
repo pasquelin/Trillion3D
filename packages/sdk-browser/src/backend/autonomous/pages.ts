@@ -22,7 +22,7 @@ import { loadHostVertices } from '../../scene/meshes.ts';
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
-  const { metadata, descriptors } = prepareAutonomousManifest(context.metadata);
+  const { metadata, descriptors, sourced } = prepareAutonomousManifest(context.metadata);
   const { roots, allPages, worlds, blendCopies, reassignBlend, blendOf, wears } =
     collectClusterPages(context.source, metadata, new Map(), context.associations, {
       allowMissing: true,
@@ -123,7 +123,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       if (heldFloor.overCeiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       const urls = [...bootstrapUrls];
       // A copy drawn whole reads its host vertices, which no session fetches up front.
-      const [pages] = await Promise.all([readPages(context, urls), loadHostVertices(blendCopies)]);
+      const read = readPages(context, urls, sourced);
+      const [pages] = await Promise.all([read, loadHostVertices(blendCopies)]);
       pages.forEach((data, i) => acceptGeometryPage(urls[i], data));
       heldFloor.changed();
       ready = true;
@@ -161,6 +162,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       gate.resourcesChanged();
       sync();
     },
+    // A dynamic geometry's pages read its lists, uploaded as the next frame binds them (#573).
+    updateVertices: () => (gate.sceneMoved(), true),
     refreshMaterials(values = true, alpha) {
       // Values reach the twins, clones; a picture alone (#362), shared, only lets the image go.
       if (values) colorMaterials.forEach((twin, original) => colouredHostSurface(original, twin));
