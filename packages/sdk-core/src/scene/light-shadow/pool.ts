@@ -35,10 +35,8 @@ export function createShadowPool(side: number, layers = 1) {
     freeCount = 0,
     orderCount = -1,
     orderAt = 0,
-    /** The cycle evicts from: a page a request of this cycle or a later one named (`named`) is
-     *  kept. A still scene hands the frame it came to rest at (`plan.ts`), so a page named
-     *  anywhere in the still cycle survives the frames whose report names a slightly different
-     *  set (#26): the resident set stops churning and the pool refuses instead of refetching. */
+    /** The cycle evicts from: a page it or a later one named (`named`) is kept, so a still
+     *  scene's jittering reports stop evicting each other and the pool refuses (#26). */
     evictBefore = -1;
   /** One bit per table entry: its page was evicted to make room, and it has not been drawn since. */
   const evicted = new Uint32Array(SHADOW_TABLE_ENTRIES / 32);
@@ -143,21 +141,14 @@ export function createShadowPool(side: number, layers = 1) {
       pool.named[page] = -1;
       free[freeCount++] = page;
     },
-    /** Marks `page` named by the request of cycle `cycle`: kept until the cycle advances. */
-    name(page: number, cycle: number) {
-      pool.named[page] = cycle;
-    },
-    /** Pages that may be taken for a request of cycle `evict`: every mapped page the cycle no
-     *  longer names, least recently requested first and, among those, the finest first — a coarse
-     *  page is what the finer ones fall back to. Built once per request, by the first `take` the
-     *  free list cannot serve. */
+    /** Pages that may be taken for a request of cycle `evict`: every mapped page it no longer
+     *  names, least recently requested first and, among those, the finest first. Built once per
+     *  request, by the first `take` the free list cannot serve. */
     beginAllocation(evict: number) {
       orderCount = -1;
       evictBefore = evict;
     },
-    /** A page for `entry`, asked by the report of `reportFrame` in cycle `evictBefore`: a free one
-     *  — the lowest first —, else the oldest evictable one, else −1. It waits for its first draw
-     *  from `frame`. */
+    /** A free page for `entry`, else the oldest evictable one, else −1; waits for its first draw. */
     take(table: ShadowTable, entry: number, reportFrame: number, nowMs: number, frame: number) {
       const { owner, named } = pool;
       let page = -1;
