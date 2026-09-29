@@ -57,7 +57,7 @@ export function paged(
   const build = (from: number, to: number): Page => {
     const list = cells.slice(from, to);
     if (to - from <= per)
-      return write({ cells: list, meshPages: [] }, union(list.map(declared)), list);
+      return write({ first: from, cells: list, meshPages: [] }, union(list.map(declared)), list);
     const middle = (from + to) >> 1;
     const halves = [build(from, middle), build(middle, to)];
     const body = {
@@ -84,8 +84,8 @@ export function paged(
   return { partition: tablePartition(root), files, root };
 }
 
-/** Opens every page of `index` its walk from `eye` meets within `radius`, reading `files`: level
- *  by level, each in the order the cook wrote it, so the cells are numbered in record order. */
+/** Opens every page of `index` its walk from `eye` meets within `radius`, reading `files`, level
+ *  by level. */
 export function openAll(
   index: CellIndex,
   files: ReadonlyMap<string, Uint8Array>,
@@ -103,7 +103,6 @@ export function openAll(
       () => {},
       (page) => void unread.push(page),
     );
-    unread.sort((a, b) => a.slot.url.localeCompare(b.slot.url));
     for (const page of unread) {
       const name = page.slot.url.split('/').at(-1)!;
       index.open(page, readCellPage(files.get(name)!, name));

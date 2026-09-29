@@ -115,20 +115,31 @@ export function tablePartition(root: TablePartitionRoot): TablePartition {
 }
 
 /** A page of the cell index, from its verified bytes: the slots of the pages it lists, or its
- *  cells, each with the mesh pages its region page names (#792); or a named refusal. The decode
- *  pool reads it off the main thread (`cellPage`, #575). */
+ *  cells, each with the mesh pages its region page names (#792), and the rank of the first
+ *  (`first`: the `n`-th is the cook's cell `first + n`, as the world roots number it, #1237); or a
+ *  named refusal. The decode pool reads it off the main thread (`cellPage`, #575). */
 export function readCellPage(bytes: Uint8Array, url: string) {
   const body = versioned(CELL_PAGES, JSON.parse(text.decode(bytes)), url);
   if (Array.isArray(body.pages)) {
     if (!rankLists(body.parents, body.pages.length))
       throw new EngineError(CELL_PAGES.invalid, `${url} misses the parents of its pages`, {});
-    return { pages: named(CELL_PAGES, body.pages, body.parents), cells: null };
+    return { pages: named(CELL_PAGES, body.pages, body.parents), cells: null, first: 0 };
   }
-  const { meshPages, cells } = body as { meshPages?: unknown; cells?: TableCell[] };
+  const { meshPages, cells, first } = body as {
+    meshPages?: unknown;
+    cells?: TableCell[];
+    first?: unknown;
+  };
+  if (!Number.isSafeInteger(first) || (first as number) < 0)
+    throw new EngineError(CELL_PAGES.invalid, `${url} misses the rank of its first cell`, {});
   if (!Array.isArray(meshPages) || !meshPages.every(isSlot))
     throw new EngineError(CELL_PAGES.invalid, 'a region page misses its mesh pages', {});
   const valid = (cell: TableCell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents);
   if (!Array.isArray(cells) || !cells.every(valid))
     throw new EngineError(CELL_PAGES.invalid, `${url} lists neither pages nor cells`, {});
-  return { pages: null, cells: cells.map((cell) => ({ ...cell, meshPages })) };
+  return {
+    pages: null,
+    cells: cells.map((cell) => ({ ...cell, meshPages })),
+    first: first as number,
+  };
 }
