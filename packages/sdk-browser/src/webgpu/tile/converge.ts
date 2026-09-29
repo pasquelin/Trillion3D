@@ -25,15 +25,26 @@ const POSE_ROUNDS = 4;
 export const mustRestartTaaAfterSettle = (tilesServed: number, shadowFrames: number) =>
   tilesServed > 0 || shadowFrames > 0;
 
-/** True once a convergence may stop: a whole pick cycle (`PICK_CYCLE`) of images asked for nothing
- *  new, and nothing is waited for that will come. */
-export const texturesConverged = (quietImages: number, pending: number, reading: boolean) =>
-  quietImages >= PICK_CYCLE && (!pending || !reading);
+/** True once a convergence may stop: `quietWanted` images in a row asked for nothing new — a whole
+ *  pick cycle (`PICK_CYCLE`) the first time a capture settles a pose, one image otherwise —, and
+ *  nothing is waited for that will come. */
+export const texturesConverged = (
+  quietImages: number,
+  quietWanted: number,
+  pending: number,
+  reading: boolean,
+) => quietImages >= quietWanted && (!pending || !reading);
+
+/** Quiet images a convergence waits for: the whole pick cycle once per pose, at a capture's
+ *  barrier (`poseCycled` false), where the image is read back; one otherwise. */
+export const quietImagesWanted = (capture: boolean, poseCycled: boolean) =>
+  capture && !poseCycled ? PICK_CYCLE : 1;
 
 /**
  * Converges the textures of a pose: the image is rendered with all its pixels on feedback, each
  * image turning which map a pixel names (`PICK_CYCLE`), what they ask is served with no budget, and
- * we go on until a whole cycle of images finds no requested tile missing. A tile whose
+ * we go on until the quiet images wanted (`quietImagesWanted`: a whole cycle once per pose at a
+ * capture) find no requested tile missing. A tile whose
  * level is still being read is waited for; a refused tile is not — the pool is full for this view,
  * nothing will come, the coarse level holds (`textureTilesRefused`). The pool never yields what the
  * previous image was looking at, so a turn cannot undo the previous turn: the barrier converges or
@@ -46,17 +57,18 @@ export const texturesConverged = (quietImages: number, pending: number, reading:
  * settling. An extra tile changes no read: the camera reads the level it asked for, and it is
  * resident. Returns the number of tiles served.
  */
-async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
+async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, capture: boolean) {
   const { vis, run } = rt;
   const textures = vis.textures!;
   // Nothing streamed — no texture, or all in their queue —: no feedback can name anything, and the
   // image need not be redone.
   if (textures.feedback.entries === 0) return 0;
+  const { feedback } = textures,
+    wanted = quietImagesWanted(capture, feedback.poseCycled);
   let total = 0,
     quiet = 0;
   for (let image = 0; image < CONVERGE_LIMIT; image++) {
     renderWebgpuPages(rt, run.lastCamera!);
-    textures.feedback.turnPick();
     await gpuDevice.queue.onSubmittedWorkDone();
     await textures.settled();
     const { served, pending } = textures.pump(run.frame, true);
@@ -65,7 +77,10 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
     // nothing more, or on a wait that nothing will fill. Nothing is deferred under a lifted budget:
     // what is pending waits for its bytes.
     quiet = served ? 0 : quiet + 1;
-    if (texturesConverged(quiet, pending, textures.reading)) break;
+    if (texturesConverged(quiet, wanted, pending, textures.reading)) {
+      feedback.poseCycled ||= wanted === PICK_CYCLE;
+      break;
+    }
     if (pending) await textures.settled();
   }
   return total;
@@ -110,7 +125,11 @@ async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
  * accumulation does not advance, none is held. What the barrier did, and what still keeps the pose
  * from settling, goes in one diagnostic, `pose-settle`.
  */
-export async function settlePose(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice | undefined) {
+export async function settlePose(
+  rt: WebgpuPagesRuntime,
+  gpuDevice: GPUDevice | undefined,
+  pictured = true,
+) {
   const { run, vis, capture, diag } = rt;
   if (!gpuDevice || !run.lastCamera || run.lost || capture.capturing) return;
   let rounds = 0,
@@ -125,7 +144,7 @@ export async function settlePose(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice | 
       await gpuDevice.queue.onSubmittedWorkDone();
     }
     for (; rounds < POSE_ROUNDS; rounds++) {
-      if (vis.textures) served += await convergeTextures(rt, gpuDevice);
+      if (vis.textures) served += await convergeTextures(rt, gpuDevice, pictured);
       const drained = await drainShadows(rt, gpuDevice);
       drains += drained;
       if (!drained) break;

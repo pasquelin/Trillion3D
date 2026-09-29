@@ -87,6 +87,8 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: HostCamera, as
   run.hizViewMoved = !sameHizView(run.previousHizView, cam);
   if (run.hizViewMoved) {
     invalidateTemporalPyramid(run);
+    // A new pose: its first capture barrier turns the whole pick cycle again (`converge.ts`).
+    if (vis.textures) vis.textures.feedback.poseCycled = false;
     // The world pose is copied into the already-held camera: the same comparison, without a clone per image.
     run.previousHizView = holdCameraWorld(run.previousHizView ?? createEngineCamera(), cam);
   }

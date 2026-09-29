@@ -15,7 +15,7 @@ const STRIDE_MASK = FEEDBACK_STRIDE - 1;
  * cutout (`maskAlpha`) —, which is then the level asked. Requires `TILE_POOL_WGSL` and the atlas
  * reads (`COLOR_SAMPLE_WGSL`, `DATA_SAMPLE_WGSL`) before this block.
  */
-const request = (
+export const tileRequestIndexWgsl = (
   k: string,
 ) => `fn ${k}RequestIndex(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,next:bool,along:u32,aniso:bool,sampled:bool)->u32{
  let s=${k}Slot(slot);
@@ -30,6 +30,18 @@ const request = (
  return ${k}Entry(s,slotWrapped(s,at),level)-${k}Pages[2]+${k}Pages[0]+1u;
 }`;
 
+/** Whether a pixel speaks this image (`feedbackPhase`) and what it names (`requestPick`): the rule
+ *  every pass that asks for tiles shares — the shadow cutout's too (`../../gpu/shadow/shader.ts`). */
+export const FEEDBACK_RULE_WGSL = `fn feedbackPhase(p:vec2f,word:u32)->bool{
+ if((word&${FEEDBACK_EVERY}u)!=0u){return true;}
+ return ((u32(p.x)&${STRIDE_MASK}u)|((u32(p.y)&${STRIDE_MASK}u)<<2u))==(word&${FEEDBACK_EVERY - 1}u);
+}
+struct RequestPick{sel:u32,next:bool,along:u32,}
+fn requestPick(pos:vec2f,choices:u32,word:u32)->RequestPick{
+ let px=u32(pos.x)+u32(pos.y)+(word>>${PICK_SHIFT}u);
+ return RequestPick(px%choices,((px/choices)&1u)==1u,(px/choices/2u)%3u);
+}`;
+
 const m = WRAP_MAP;
 /**
  * Tile rank a pixel asks for, plus one, or zero: `colorRequestIndex(slot, uv, ddx, ddy, next,
@@ -39,23 +51,15 @@ const m = WRAP_MAP;
  * a pixel speaks only if it is its phase (`feedbackPhase`, all of them during a convergence), and it
  * asks for ONE map, chosen by its POSITION (`requestPick`): a tile covers dozens of pixels, so each
  * map, each of the two blend levels and each end of an anisotropic footprint is named by a share
- * of them. A convergence shifts that position by its pick turn (`PICK_CYCLE`): a sliver too thin
- * for its share names everything it reads within one cycle. The camera cutout reads the
+ * of them. The image's pick turn shifts that position (`PICK_CYCLE`): a sliver too thin for its
+ * share names everything it reads within one cycle. The camera cutout reads the
  * base map as the shading does (`maskAlphaWgsl`), so a masked base map asks one level too. The
  * pick rank is `WRAP_MAP`'s; a missing map lets the base colour speak (`mapRequest`). Hosts build their slots from the page row or the transparent item.
  */
 export const TILE_REQUEST_WGSL = `const MAP_CHOICES:u32=${MAP_CHOICES}u;
-${request('color')}
-${request('data')}
-fn feedbackPhase(p:vec2f,word:u32)->bool{
- if((word&${FEEDBACK_EVERY}u)!=0u){return true;}
- return ((u32(p.x)&${STRIDE_MASK}u)|((u32(p.y)&${STRIDE_MASK}u)<<2u))==(word&${FEEDBACK_EVERY - 1}u);
-}
-struct RequestPick{sel:u32,next:bool,along:u32,}
-fn requestPick(pos:vec2f,choices:u32,word:u32)->RequestPick{
- let px=u32(pos.x)+u32(pos.y)+(word>>${PICK_SHIFT}u);
- return RequestPick(px%choices,((px/choices)&1u)==1u,(px/choices/2u)%3u);
-}
+${tileRequestIndexWgsl('color')}
+${tileRequestIndexWgsl('data')}
+${FEEDBACK_RULE_WGSL}
 /** \`color\`: base, emissive; \`data\`: roughness, metal, normals, occlusion. */
 fn mapRequest(p:RequestPick,color:vec2u,data:vec4u,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->u32{
  let sel=p.sel;

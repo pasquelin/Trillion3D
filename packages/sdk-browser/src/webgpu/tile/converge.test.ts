@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mustRestartTaaAfterSettle, texturesConverged } from './converge.ts';
+import { mustRestartTaaAfterSettle, quietImagesWanted, texturesConverged } from './converge.ts';
 import { MAP_CHOICES, PICK_CYCLE } from './feedback.ts';
 
 test('a quiet barrier leaves TAA history in place', () => {
@@ -28,7 +28,16 @@ test('a convergence stops only after a whole pick cycle in which every pixel nam
       for (let turn = 0; turn < PICK_CYCLE; turn++) named.add(pick(px + turn, choices).join());
       assert.equal(named.size, choices * 2 * 3, `pixel ${px}, ${choices} maps`);
     }
-  assert.equal(texturesConverged(PICK_CYCLE - 1, 0, false), false);
-  assert.equal(texturesConverged(PICK_CYCLE, 0, false), true);
-  assert.equal(texturesConverged(PICK_CYCLE, 2, true), false);
+  assert.equal(texturesConverged(PICK_CYCLE - 1, PICK_CYCLE, 0, false), false);
+  assert.equal(texturesConverged(PICK_CYCLE, PICK_CYCLE, 0, false), true);
+  assert.equal(texturesConverged(PICK_CYCLE, PICK_CYCLE, 2, true), false);
+});
+
+// #1016 review: the cycle ran at every barrier round and every flush — `awaitPages` flushes three
+// times, 126 images and more per pose. It runs once per pose, at a capture's barrier.
+test('the whole pick cycle runs once per pose, at a capture barrier only', () => {
+  assert.equal(quietImagesWanted(true, false), PICK_CYCLE, 'first capture of the pose');
+  assert.equal(quietImagesWanted(true, true), 1, 'the pose already cycled');
+  assert.equal(quietImagesWanted(false, false), 1, 'a wait for pages takes no picture');
+  assert.equal(texturesConverged(1, 1, 0, false), true);
 });

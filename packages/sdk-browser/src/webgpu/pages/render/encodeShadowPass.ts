@@ -32,12 +32,16 @@ export function encodeShadowAtlas(
   to: number,
   runBase: number,
 ) {
-  const { lights, vis, run } = rt,
+  const { lights, vis, run, capture } = rt,
     { shadows, cull, regions, staticLayer, pageQuads: quads } = lights;
   if (!count || !shadows?.texture || !cull || !quads || !vis.visBindGroupLayout) return false;
   if (regions.layered && !staticLayer) return false;
   if (!shadowRegionGroup(rt, device, 0)) return false;
   shadows.flushPages(count);
+  // The cutouts ask for the tiles they read, under the image's word (`faceBindings.ts`); an image
+  // whose feedback is not published — a capture — asks nothing.
+  const feedback = capture.capturing ? undefined : vis.textures?.feedback;
+  shadows.cutoutRequests(feedback?.phaseWord(run.textureConverging) ?? 0, feedback?.buffer);
   if (!encodeShadowCasters(rt, encoder, count, from, to, runBase)) return false;
   cull.counts.sample(encoder, cull.indirect, count, run.frame, regions.moving);
   lights.shadowWork.regions += count;
