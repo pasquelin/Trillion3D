@@ -67,7 +67,6 @@ export class DeadNodeWorker {
 
 /** A startup-probe or decode request, the only two messages the pool ever posts. */
 interface PoolMessage {
-  op?: string;
   protocol: unknown;
   id: unknown;
   source?: unknown;
@@ -81,8 +80,6 @@ export class FlakyNodeWorker {
   onmessageerror: NodeWorkerHandler = null;
   #count = 0;
   postMessage(message: PoolMessage) {
-    // The shared-memory lease is not work: it does not consume the unique answer.
-    if (message.op === 'share') return;
     this.#count++;
     if (this.#count === 1) {
       queueMicrotask(() =>
