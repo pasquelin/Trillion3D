@@ -25,6 +25,24 @@ async function mounted() {
   return { blendState, gpu, mount, groups: mount.groups, ...replay(blendState, gpu) };
 }
 
+test('water writes the reactive value into the frame’s share, with the share composite', async () => {
+  const { rt, encoder, passes, gpu, mount } = await mounted();
+  gpu.temporalWanted = true;
+  assert.equal(encodeWaterPass(rt, encoder), true);
+  const composite = passes.find((pass) => pass.label === WATER_COMPOSITE_PASS)!;
+  assert.equal(
+    composite.writes.length,
+    2,
+    'the HDR target and the share, agreeing with its targets',
+  );
+  assert.equal(composite.writes[1], gpu.asIsShare!.view, 'the share the temporal pass reads');
+  assert.deepEqual(mount.formats('composeWaterReactive'), ['rgba16float', 'rg8unorm']);
+  // No share the next image: today's composite, one target, the plain pipeline.
+  gpu.temporalWanted = false;
+  encodeWaterPass(rt, encoder);
+  assert.equal(passes.at(-1)!.writes.length, 1);
+});
+
 test('the water pass follows the blends: frozen backdrop, surfaces, then one composite', async () => {
   const { rt, encoder, passes, counters } = await mounted();
   drawBlendPass(rt, device, encoder);
