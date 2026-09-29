@@ -50,6 +50,7 @@ rerun benchmarks.
 - `--texture-budget <ms>`: CPU milliseconds a frame may spend copying texture tiles into the pools (`maxTextureUploadMsPerFrame`). Without the option, the engine keeps its default (1.0 ms). Tiles beyond the budget wait for the next frame and show their coarser resident level meanwhile; the profile's "Textures" stage gives the pass's p50/p95 and the metrics its worst pass (`textureUploadPeakMs`) and what it deferred (`textureTilesDeferred`). A cold traversal (`--warmup 0 --moving-camera --textures cache`) is where it is read: on a still pose the barrier lifts it.
 - `--compression auto|bc7|astc|none` (default `auto`), or per side `--compression-before` / `--compression-after`: block family of the WebGPU texture pools, under `--textures cache`. `auto` takes the first family the device samples — the BC family before ASTC 4×4 — that the cache holds kept chains in, `none` keeps every pool RGBA8 (the lossless "before" of a texture comparison), `bc7` or `astc` insist on one and fall back to RGBA8, by name, when the device lacks it. A chain the cook's quality gate left lossless stays in the RGBA8 lane whatever the choice. Two sides on one `dist/` and one cache with `--compression-before none --compression-after bc7` measure the family alone; the summary's texture line names the family actually held (`texturePoolFormat`).
 - `--antialiasing on|off` (default `on`): toggles TAA jitter and accumulation.
+- `--reference`: the class-2 image proof. Each side's capture of each view is held to the engine's reference image of that scene and view ([Reference images](#reference-images)) through `imageDiff.ts::referenceDiff`: mean and 99.9th-percentile channel error, mean LDR-FLIP, under `series[].referenceDiff` and in `resume.md`. A run the reference cannot judge stops by name: no reference for the scene or view, another pose, another image setting (size, DPR, lights, sun, bounce, instances), a moving camera, or a reference drawn from uncommitted changes.
 - `--scale <s>` or `--scale-<side> <s>` (#816), `s` in [0.5, 1]: the WebGPU frame is drawn at `s` of the display per axis and the temporal resolve reconstructs it to the display; without it, the frame is drawn at the display. Both sides on one dist measure the scale alone: `--engine webgpu --before dist --after dist --scale-after 0.67` compares the converged still captures of the native and the reconstructed frame, and `resume.md`'s before/after delta gives, beside the pixel count and the maximum, the mean and the 99.9th percentile of the colour channels' error in 1/255 steps (the issue's bar: mean ≤ 1, p99.9 ≤ 8).
 - `--profile on|off` (default `on`): requests per-step timing breakdown.
 - `--lights N`: enables N point lights in the scene. `--shadows on|off` toggles shadow casting; `--moving-light` animates the first light in a circle. `--intensity N` sets light intensity. `--range F` sets each light's range to `F` grid cells (0.75 by default): above one, several lights reach the same pixel.
@@ -207,6 +208,26 @@ thousands of nodes, about 39 M instanced triangles on a source of 0.6 M, and str
     node bench/runner/assets.ts --only aerial-410
 
 Resource base URL is where harness serves sources for compiled glTF texture fetch. Cache fingerprint is `key` in `manifest.json`, recorded in `measure.json`: comparisons require identical keys.
+
+## Reference images
+
+The image a rendering technique is held to (CONTRIBUTING.md, "Image and fidelity", class 2) is
+drawn by the engine itself in its reference mode (`packages/sdk-browser/src/frame/referenceMode.ts`,
+`openMeasuredWorld(canvas, { reference: true })`), never by a second renderer: render scale 1, no
+temporal reuse (no TAA jitter nor history), bounced light traced at its per-frame ceiling and
+converged before the capture, shadows at the pool's full size (a shrunk pool refuses the capture),
+and the frame supersampled — the most samples per display pixel and axis the portable 8192-texel
+side holds, 2 at the boss's case — then box-filtered back in linear light. One command draws them:
+
+    pnpm run build && node bench/runner/reference.ts [--scene sponza,facade-7] [--references <dir>]
+
+Each scene's bench views (`overview`, `ground`, `street`, `poses.ts`) at 1728 × 1117 CSS, DPR 2,
+the sun and bounced light on the WebGPU engine (`referenceStore.ts::REFERENCE_ARGS`; any bench
+flag given after them wins) are written to `bench/references/<scene>/<view>.png`, with
+`reference.json`: the commit and command that drew them, whether the tree was dirty, the image
+settings, the supersampling, the approximations switched off, and per view its pose, SHA-256 and
+the frames it took to hold. Build first: the dist drawn is the tree's own. The open world's aerial
+view joins them once it loads (#1226).
 
 ## Navigation image regression proof
 
