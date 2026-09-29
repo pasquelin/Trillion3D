@@ -5,7 +5,7 @@ import { deformedOf } from './source.ts';
 import { recordLayout } from './layout.ts';
 import { DEFORM_WGSL } from './deformWgsl.ts';
 import { DEFORM_GLSL } from './deformGlsl.ts';
-import { shaderRun } from '../texture/shaderRun.fixture.ts';
+import { waveShader } from './waves.fixture.ts';
 import { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts';
 import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts';
 import { Quaternion } from '../../../sdk-core/src/world/math/quaternion.ts';
@@ -32,15 +32,7 @@ test('fixed-clock translation/rotation and moving-clock controls preserve comple
     frame.update(() => false),
     false,
   );
-  const { deformWaves } = shaderRun<{
-    deformWaves: (
-      at: number,
-      count: number,
-      p: number[],
-      previous: boolean,
-      normal: boolean,
-    ) => number[];
-  }>(DEFORM_WGSL, ['deformWaves'], { positions: frame.block, cos: Math.cos });
+  const deformWaves = waveShader(frame.block);
   const rest = [0.7, 0, 1.3];
   const drawnWorld = (previous: boolean, pose: Matrix4) => {
     const matrix = layout.world + (previous ? 32 : 0),

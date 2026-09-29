@@ -119,6 +119,10 @@ export interface MeasuredWorldOptions {
    *  per axis it is drawn at, reconstructed to it by temporal antialiasing — resampled on WebGL2 —,
    *  fixed or `'auto'`, chosen by the frame budget. 1 by default: the frame is drawn at the display. */
   renderScale?: import('../../frame/renderScaleOption.ts').RenderScale;
+  /** Reference mode (`../../frame/referenceMode.ts`): every approximation it names off, the frame
+   *  supersampled and `capture` resolved to the display; what a rendering technique is held to.
+   *  Off by default. */
+  reference?: boolean;
   /** The world's effect chain, drawn after temporal antialiasing (`world.effects`). */
   effects?: import('../../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   /** Hears the mode of a surface that keeps WebGL2 from drawing `effects` on a frame, drawn

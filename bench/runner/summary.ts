@@ -6,6 +6,7 @@ import { p50p95, passes, type Distribution } from './summaryPasses.ts';
 import { textures } from './summaryTextures.ts';
 import { memoire } from './summaryMemory.ts';
 import { stalls } from './summaryDag.ts';
+import { referenceLines } from './referenceProof.ts';
 import type { ImageDiff, Report, Row } from './report/types.ts';
 
 /** p50/p95/p99 of a series, or `null` if it is empty: nothing is inferred from an absent series. */
@@ -166,6 +167,7 @@ export function resume(report: Report) {
         `| ${s.view} | ${s.pixelError} | ${diffText(s.witnessAA)} | ${diffText(s.beforeAfterDiff)} |`,
     ),
     '',
+    ...referenceLines(report),
     '## Machine load',
     '',
     '| view | pixelError | side | load at start | load at end |',

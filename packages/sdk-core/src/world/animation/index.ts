@@ -164,3 +164,4 @@ export function advanceMixers(scene: Object3D, seconds: number) {
 
 export { animation } from './family.ts';
 export { Skeleton } from './skeleton.ts';
+export type { WindOptions } from './wind.ts';
