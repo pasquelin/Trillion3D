@@ -27,6 +27,10 @@ A single harness for all test batches. One command, no server to start manually,
     node bench/runner/campaign.ts
     node bench/runner/summaryGlobal.ts --id my-campaign
 
+A flag the harness never reads — misspelt, retired (`--moteur`, `--avant`, `--apres`, `--variante`)
+or naming a side the run does not measure — stops `bench.ts`, `trajectory.ts`, `oracle.ts` and
+`campaign.ts` with `unknown flag: --<name>` before any build or browser, instead of being ignored.
+
 The report is rendered by the bilingual React portal. See [Published reports](#published-reports)
 for export, one-report staging, provenance and comparison rules. Rebuilding the site does not
 rerun benchmarks.
