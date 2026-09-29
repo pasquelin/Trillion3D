@@ -29,25 +29,48 @@ impl RunningFloor {
     }
 }
 
-/// The samples of one triangle: its corners, its edge midpoints and its centroid.
-fn samples(pos: &[f32], tri: &[u32]) -> [P; 7] {
-    let [a, b, c] = [0, 1, 2].map(|k| at(pos, tri[k]));
-    let centroid = [0, 1, 2].map(|k| (a[k] + b[k] + c[k]) / 3.0);
-    let middles = [lerp(a, b, 0.5), lerp(b, c, 0.5), lerp(c, a, 0.5)];
-    [a, b, c, middles[0], middles[1], middles[2], centroid]
+/// Every sample of `from`'s triangles once: its vertices, its edge midpoints and its centroids.
+/// An edge's midpoint is its triangles' `lerp`, taken in each direction they list it, both kept
+/// only when the two round apart: the same points as seven per triangle, so the same maximum.
+fn distinct_samples(pos: &[f32], from: &[u32]) -> Vec<P> {
+    let mut vertices = from.to_vec();
+    vertices.par_sort_unstable();
+    vertices.dedup();
+    let triangles = from.as_chunks::<3>().0;
+    let mut edges: Vec<(u32, u32, bool)> = triangles
+        .iter()
+        .flat_map(|&[a, b, c]| [(a, b), (b, c), (c, a)])
+        .map(|(i, j)| (i.min(j), i.max(j), i > j))
+        .collect();
+    edges.par_sort_unstable();
+    edges.dedup();
+    let mut points: Vec<P> = vertices.iter().map(|&v| at(pos, v)).collect();
+    for (k, &(i, j, reversed)) in edges.iter().enumerate() {
+        let (a, b) = (at(pos, i), at(pos, j));
+        let forward = lerp(a, b, 0.5);
+        if !reversed {
+            points.push(forward);
+        } else if k == 0
+            || edges[k - 1] != (i, j, false)
+            || lerp(b, a, 0.5).map(f64::to_bits) != forward.map(f64::to_bits)
+        {
+            points.push(lerp(b, a, 0.5));
+        }
+    }
+    points.extend(triangles.iter().map(|tri| {
+        let [a, b, c] = tri.map(|v| at(pos, v));
+        [0, 1, 2].map(|k| (a[k] + b[k] + c[k]) / 3.0)
+    }));
+    points
 }
 
 /// Largest distance from the samples of `from` to the triangles of `to`, exact above `floor`, the
 /// floor raised to each distance found ([`RunningFloor`]).
 pub(super) fn one_sided(pos: &[f32], from: &[u32], to: &Grid, floor: f64) -> f64 {
     let running = RunningFloor::new(floor);
-    from.par_chunks_exact(3)
-        .map(|tri| {
-            samples(pos, tri)
-                .into_iter()
-                .map(|p| running.raise(to.nearest(p, running.get())))
-                .fold(0.0, f64::max)
-        })
+    distinct_samples(pos, from)
+        .into_par_iter()
+        .map(|p| running.raise(to.nearest(p, running.get())))
         .reduce(|| 0.0, f64::max)
 }
 
@@ -65,6 +88,14 @@ pub(crate) fn distance_above(pos: &[f32], a: &[u32], b: &[u32], floor: f64) -> f
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The samples of one triangle as #956 took them: corners, edge midpoints, centroid.
+    fn samples(pos: &[f32], tri: &[u32]) -> [P; 7] {
+        let [a, b, c] = [0, 1, 2].map(|k| at(pos, tri[k]));
+        let centroid = [0, 1, 2].map(|k| (a[k] + b[k] + c[k]) / 3.0);
+        let middles = [lerp(a, b, 0.5), lerp(b, c, 0.5), lerp(c, a, 0.5)];
+        [a, b, c, middles[0], middles[1], middles[2], centroid]
+    }
 
     #[test]
     fn a_running_floor_returns_every_sample_against_every_triangle_bit_for_bit() {
