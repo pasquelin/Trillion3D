@@ -5058,10 +5058,6 @@
   "emptyIrradiance": {
     "summary": "İçinde hiçbir şey olmayan, kaynak almaya hazır bir ışınım."
   },
-  "encodeManifestBinary": {
-    "summary": "Bir manifestoyu, bir okuyucunun ayrıştırdığı küçük JSON'a ve eşlediği sütunlara böler.",
-    "description": "Döndürülen açıklayıcı boş bir `sha256` taşır: yalnızca tamamlanmış baytlara sahip olan çağıran onları özetleyebilir."
-  },
   "enginePose": {
     "summary": "İzlerin ve tanının yayımladığı, motor kamerasından okunan dünya pozu: göz, `world`'ün ötelemesidir, ve çekirdek ayrıştırması, `getWorldQuaternion`'ın yalnızca çağrısı olduğu `Matrix4.decompose`'un bitlerini verir."
   },

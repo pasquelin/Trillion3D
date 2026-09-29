@@ -1,14 +1,22 @@
-import type { ClusterManifest } from '../contracts/index.ts';
-import * as format from './binaryFormat.ts';
-import { countManifest, expectTemplate, manifestBinaryRanges, writeSha } from './binaryLayout.ts';
-import { checkedDepthLayer, writeCone } from './binaryPageChecks.ts';
-import { encodePreviewColumns } from './binaryPreviewEncode.ts';
-import { slimBinaryOf } from './binaryTypes.ts';
+// The TypeScript twin of the compiler's manifest encoder (`asset-compiler-rust/src/manifest_binary`),
+// kept as a test fixture: only the tests build binary manifests in TypeScript.
+import type { ClusterManifest } from '../../packages/sdk-core/src/contracts/index.ts';
+import * as format from '../../packages/sdk-core/src/manifest/binaryFormat.ts';
+import { manifestBinaryRanges } from '../../packages/sdk-core/src/manifest/binaryLayout.ts';
+import {
+  checkedDepthLayer,
+  countManifest,
+  expectTemplate,
+  slimBinaryOf,
+  writeCone,
+  writeSha,
+} from './manifestBinaryEncodeChecks.ts';
+import { encodePreviewColumns } from './manifestBinaryPreviewEncode.ts';
 import type {
   ManifestBinaryDescriptor,
   SlimClusterManifest,
   SlimPrimitive,
-} from './binaryTypes.ts';
+} from '../../packages/sdk-core/src/manifest/binaryTypes.ts';
 
 /** Splits a manifest into the small JSON a reader parses and the columns it maps. The returned
  *  descriptor carries an empty `sha256`: only the caller, holding the finished bytes, can hash them. */

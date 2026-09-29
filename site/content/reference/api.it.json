@@ -1529,10 +1529,6 @@
   "emptyIrradiance": {
     "summary": "Un'irradianza vuota, pronta a ricevere sorgenti."
   },
-  "encodeManifestBinary": {
-    "summary": "Separa un manifesto in un piccolo JSON che un lettore analizza e in colonne che proietta.",
-    "description": "Il descrittore restituito porta uno `sha256` vuoto: solo il chiamante, che detiene i byte finiti, può calcolarne l'impronta."
-  },
   "EngineCamera": {
     "summary": "La camera del motore: i numeri di un fotogramma, in buffer propri riscritti sul posto.",
     "description": "Nessuna struttura di una libreria dell'host attraversa una firma dopo `readCameraWorld` (`world.ts`, l'unica traduzione da una camera dell'host).",
