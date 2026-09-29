@@ -28,6 +28,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     collectClusterPages(context.source, metadata, new Map(), context.associations, {
       allowMissing: true,
       blendCopy: createBlendCopy,
+      pendingPlaced: true, // mounted in place once the view reads them (#751)
     });
   const [baseRoots, basePages] = [roots.slice(), allPages.slice()];
   const bootstrap = autonomousBootstrap(roots),
