@@ -7,7 +7,7 @@ import { LAMP_MIPS, LAMP_SIDE, SHADOW_PAGE, lampEntry, lampFacesOf } from './vir
  *  pixels read there — a lamp's mips, a sun's clipmap levels — into `out`, a page's least world
  *  side at a level, and the pages a level reads, each handed to `mark`. */
 export interface DemandLight {
-  reaches(box: Float64Array, o: number): boolean;
+  reaches(box: ArrayLike<number>, o: number): boolean;
   levels(box: Float64Array, o: number, fine: number, coarse: number, out: Int32Array): void;
   pageSide(box: Float64Array, o: number, level: number): number;
   mark(box: Float64Array, o: number, level: number, margin: number): void;
@@ -52,11 +52,27 @@ function rowSpan(m: number, r: number, at: number) {
 
 /** Least `|c|` over the span at `spans[at]`. */
 const leastAbs = (at: number) => Math.max(spans[at], -spans[at + 1], 0);
+/**
+ * Whether the grown box reaches point face `face` — its axis `face >> 1`, positive for an even
+ * face (`POINT_FACE_AXES`) —: a point read there lies farther along that axis than along the
+ * other two. The test the clip rows make, on the box's own axes, before any is composed.
+ */
+function pointFaceReached(face: number) {
+  const k = face >> 1,
+    far = face & 1 ? position[k] - grown[k] : grown[k + 3] - position[k];
+  if (far <= 0) return false;
+  for (let a = 1; a < 3; a++) {
+    const j = (k + a) % 3;
+    if (far < Math.max(grown[j] - position[j], position[j] - grown[j + 3], 0)) return false;
+  }
+  return true;
+}
 const clampPage = (value: number, pages: number) =>
   Math.min(pages - 1, Math.max(0, Math.floor(value)));
 const mipOf = (ratio: number) =>
   Math.min(LAMP_MIPS - 1, Math.max(0, Math.floor(Math.log2(Math.max(ratio, 1)))));
 
+const position = new Float64Array(3);
 let px = 0,
   py = 0,
   pz = 0,
@@ -85,6 +101,7 @@ export const lampDemand: DemandLight & {
 } = {
   aim(light, first, mark) {
     [px, py, pz] = light.position!;
+    position.set(light.position!);
     range = light.range!;
     faces = lampFacesOf(LIGHT_KIND[light.kind]);
     base = first;
@@ -103,6 +120,7 @@ export const lampDemand: DemandLight & {
     growBox(box, o, margin * texelAt(boxFarthest(box, o, px, py, pz)) * 2 ** mip, grown);
     const pages = LAMP_SIDE >> mip;
     for (let face = 0, m = 0; face < faces; face++, m += 16) {
+      if (faces > 1 && !pointFaceReached(face)) continue;
       rowSpan(m, 0, 0);
       rowSpan(m, 1, 2);
       rowSpan(m, 3, 4);
@@ -127,8 +145,10 @@ export const lampDemand: DemandLight & {
         x1 = clampPage((u1 * 0.5 + 0.5) * pages, pages),
         y0 = clampPage((0.5 - v1 * 0.5) * pages, pages),
         y1 = clampPage((0.5 - v0 * 0.5) * pages, pages);
-      for (let y = y0; y <= y1; y++)
-        for (let x = x0; x <= x1; x++) marked(base + lampEntry(face, mip, x, y));
+      for (let y = y0; y <= y1; y++) {
+        const row = base + lampEntry(face, mip, 0, y);
+        for (let x = x0; x <= x1; x++) marked(row + x);
+      }
     }
   },
 };

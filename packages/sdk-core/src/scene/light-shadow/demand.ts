@@ -8,26 +8,16 @@ import type { ShadowPool } from './pool.ts';
 import type { ShadowRequestReport, createShadowRequests } from './requests.ts';
 import type { SunLevels } from './sunLevels.ts';
 import type { ShadowTable } from './table.ts';
+import {
+  RECEIVER_FLOATS,
+  boxDepth,
+  createReceiverCells,
+  type ShadowReceivers,
+} from './receiverCells.ts';
 import { PAGE_MAPPED, SHADOW_TABLE_ENTRIES, shadowRequestCap } from './virtual.ts';
 
 type ShadowRequests = ReturnType<typeof createShadowRequests>;
-
-/** Floats of a receiver: its world box, least corner then most. */
-export const RECEIVER_FLOATS = 6;
-
-/** The surfaces a frame's shading lights, as the host hands them before its shadow raster. */
-export interface ShadowReceivers {
-  /** World boxes, `RECEIVER_FLOATS` each: every lit surface of the frame lies in one. */
-  boxes: ArrayLike<number>;
-  count: number;
-  /** The camera's six frustum planes (`frustumPlanesFromMatrix`): what lies outside is not lit. */
-  planes: Float64Array;
-  /** World size of a pixel of the drawn target at the near plane, where a lit point's footprint
-   *  starts: the view's own `pixelNear` is the display's. */
-  pixelNear: number;
-  /** An orthographic camera: every pixel's footprint is `pixelNear`. */
-  orthographic: boolean;
-}
+export { RECEIVER_FLOATS, type ShadowReceivers };
 
 /**
  * How far from the lit point its reading reaches, in texels of the level it reads: the normal
@@ -59,6 +49,7 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
     seen = new Uint32Array(SHADOW_TABLE_ENTRIES / 32),
     stack = new Float64Array((MAX_SPLITS + 1) * RECEIVER_FLOATS),
     levels = new Int32Array(2),
+    gathered = createReceiverCells(),
     report: ShadowRequestReport = {
       frame: -1,
       layoutEpoch: -1,
@@ -79,14 +70,10 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
   const footprint = (o: number, most: boolean) => {
     const { pixelNear } = receivers;
     if (receivers.orthographic) return pixelNear;
-    const [ex, ey, ez] = view.position;
-    if (most) return (pixelNear * boxFarthest(stack, o, ex, ey, ez) * (1 + SLACK)) / view.near;
-    let depth = -ex * view.forward[0] - ey * view.forward[1] - ez * view.forward[2];
-    for (let k = 0; k < 3; k++) {
-      const f = view.forward[k];
-      depth += f * (f > 0 ? stack[o + k] : stack[o + 3 + k]);
-    }
-    return (pixelNear * Math.max(depth, view.near) * (1 - SLACK)) / view.near;
+    const eye = view.position;
+    if (most)
+      return (pixelNear * boxFarthest(stack, o, eye[0], eye[1], eye[2]) * (1 + SLACK)) / view.near;
+    return (pixelNear * Math.max(boxDepth(stack, o, view), view.near) * (1 - SLACK)) / view.near;
   };
   const visit = (light: DemandLight, depth: number) => {
     const o = depth * RECEIVER_FLOATS;
@@ -105,7 +92,8 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
       return;
     if (!light.reaches(stack, o)) return;
     light.levels(stack, o, footprint(o, false), footprint(o, true), levels);
-    const [fine, coarse] = levels;
+    const fine = levels[0],
+      coarse = levels[1];
     if (fine > coarse) return;
     let axis = 0;
     for (let k = 1; k < 3; k++)
@@ -148,6 +136,7 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
       report.layoutEpoch = table.layoutEpoch;
       report.stamp = stamp;
       report.count = 0;
+      const cells = gathered.gather(from, at);
       for (let slot = 0; slot < store.count; slot++) {
         const slice = store.sliceOf(slot),
           light = slice >= 0 && castsShadow(store, slot) ? store.light(store.ids[slot]) : undefined;
@@ -157,8 +146,9 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
           light.kind === 'directional'
             ? sunDemand.aim(sun, slice, base, mark)
             : lampDemand.aim(light, base, mark);
-        for (let r = 0; r < from.count; r++) {
-          for (let k = 0; k < RECEIVER_FLOATS; k++) stack[k] = from.boxes[r * RECEIVER_FLOATS + k];
+        for (let r = 0; r < cells.count; r++) {
+          if (!reader.reaches(cells.boxes, r * RECEIVER_FLOATS)) continue;
+          for (let k = 0; k < RECEIVER_FLOATS; k++) stack[k] = cells.boxes[r * RECEIVER_FLOATS + k];
           visit(reader, 0);
         }
       }
