@@ -4582,18 +4582,6 @@
       "maxDecodedBytes": "Obergrenze der dekodierten Bytes einer Geometrieseite; von `verify` ignoriert."
     }
   },
-  "PageDecodeShare": {
-    "summary": "Der gemeinsame Speicherpachtvertrag eines Workers: der Arena-Puffer, der Platz und die Region, die er besitzt, und die Anzahl der Plätze, die die Größe der Kontrollzone ergibt.",
-    "description": "Einmal gesendet, bei der Geburt des Workers, und nur dort, wo die Plattform gemeinsamen Speicher erlaubt. Ohne Pachtvertrag antwortet der Worker durch Übertragen von Puffern: der Vertrag ändert seine Form nicht, nur der Weg der Bytes ändert sich.",
-    "members": {
-      "protocol": "Version des Nachrichtenformats.",
-      "id": "Immer 0.",
-      "op": "Immer `'share'`.",
-      "buffer": "Der gemeinsame Speicher.",
-      "slot": "Der Platz dieses Workers.",
-      "slots": "Plätze insgesamt."
-    }
-  },
   "pageDecodeWorkerCount": {
     "summary": "Größe des Dekodierungsreservoirs: nie mehr als die von der Maschine angekündigten Kerne, nie mehr als die Obergrenze des Pakets, nie mehr als die bereits geltende Zulassungsgrenze für Übertragungen, und mindestens eins.",
     "description": "Ein fehlender oder nicht ganzzahliger Wert bedeutet einen einzigen Ausführenden: auf einer Plattform, die nichts sagt, wird keine Parallelität erfunden."

@@ -4590,18 +4590,6 @@
       "maxDecodedBytes": "Plafond d’octets décodés d’une page de géométrie ; ignoré par `verify`."
     }
   },
-  "PageDecodeShare": {
-    "summary": "Le bail de mémoire partagée d’un travailleur : le tampon de l’arène, l’emplacement et la région qu’il possède, et le nombre d’emplacements, qui donne la taille de la zone de contrôle.",
-    "description": "Envoyé une fois, à la naissance du travailleur, et seulement là où la plateforme permet la mémoire partagée. Sans bail, le travailleur répond en transférant des tampons : le contrat ne change pas de forme, seul le chemin des octets change.",
-    "members": {
-      "protocol": "Version du format du message.",
-      "id": "Toujours 0.",
-      "op": "Toujours `'share'`.",
-      "buffer": "La mémoire partagée.",
-      "slot": "L’emplacement de ce travailleur.",
-      "slots": "Emplacements au total."
-    }
-  },
   "pageDecodeWorkerCount": {
     "summary": "Taille du réservoir de décodage : jamais plus que les cœurs qu’annonce la machine, jamais plus que le plafond du paquet, jamais plus que la limite d’admission déjà en vigueur sur les transferts, et au moins un.",
     "description": "Une valeur absente ou non entière vaut un seul exécutant : sur une plateforme qui ne dit rien, on n’invente pas de parallélisme."

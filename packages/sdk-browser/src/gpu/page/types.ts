@@ -24,7 +24,8 @@ export type GpuPageContext = {
   pins: Set<string>;
   held: Set<string>;
   free: number[];
-  staging: Uint8Array<ArrayBuffer>;
+  /** A page's last 1-3 bytes, zero-padded to the word `writeBuffer` requires. */
+  tail: Uint8Array<ArrayBuffer>;
   abort: AbortController;
   fetches: Map<string, Promise<Uint8Array>>;
   state: {

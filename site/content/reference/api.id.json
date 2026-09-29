@@ -2478,18 +2478,6 @@
       "maxDecodedBytes": "Batas atas byte yang diurai sebuah halaman geometri; diabaikan `verify`."
     }
   },
-  "PageDecodeShare": {
-    "summary": "Sewa memori bersama seorang worker: buffer arena, slot dan wilayah yang dimilikinya, dan jumlah slot, yang memberi ukuran zona kontrol.",
-    "description": "Diposting sekali, saat worker lahir, dan hanya di mana platform mengizinkan memori bersama. Tanpa sewa, worker menjawab dengan mentransfer buffer: kontraknya tidak berubah bentuk, hanya jalur byte-nya.",
-    "members": {
-      "protocol": "Versi format pesan.",
-      "id": "Selalu 0.",
-      "op": "Selalu `'share'`.",
-      "buffer": "Memori bersama itu.",
-      "slot": "Slot worker ini.",
-      "slots": "Slot secara keseluruhan."
-    }
-  },
   "PageIntegrationAnswer": {
     "summary": "Jawaban seorang worker untuk sebuah kedatangan: direncanakan atau gagal."
   },
