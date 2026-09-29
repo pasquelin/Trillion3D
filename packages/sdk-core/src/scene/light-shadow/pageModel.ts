@@ -48,7 +48,7 @@ export function pageModel<V>(o: PageOps<V>) {
   return {
     /** Non-negative remainder of `v` by `n`. */
     shadowRing: ring,
-    /** Entry of absolute page `(x, y)` in a ring window of `pages²` entries. */
+    /** Entry of absolute page `(x, y)` in a ring of `pages²` entries. */
     shadowRingPageEntry: (pages: V, x: V, y: V) =>
       o.add(o.mul(ring(y, pages), pages), ring(x, pages)),
     /** Entry of page `(x, y)` of a map `pages` wide, row by row. */
@@ -73,7 +73,7 @@ export function pageModel<V>(o: PageOps<V>) {
     /** The sun level clipmap slot `slot` holds while the finest level is `finest`. */
     shadowSunSlotLevel: (slot: V, finest: V) =>
       o.add(finest, ring(o.sub(slot, finest), o.int(SUN_LEVELS))),
-    /** Absolute page, on one axis, at ring position `r` of a window `pages` wide from `origin`. */
+    /** Absolute page, on one axis, at ring position `r` of a ring `pages` wide from `origin`. */
     shadowRingPage: (r: V, origin: V, pages: V) => o.add(origin, ring(o.sub(r, origin), pages)),
     /** 1 when `v` lies in `[first, first + count)`, else 0: a level or a page a clipmap holds. */
     shadowWindowHolds: (v: V, first: V, count: V) =>
@@ -89,7 +89,7 @@ export function pageModel<V>(o: PageOps<V>) {
     shadowSunReadLevel: (footprint: V, finest: V) => o.max(levelOf(footprint), finest),
     /** Side of a texel of sun `level`, in metres. */
     shadowSunTexelMetres: texel,
-    /** Texel coordinate, on one axis, of light-plane coordinate `u` in the window of `level` whose
+    /** Texel coordinate, on one axis, of light-plane coordinate `u` in the clipmap of `level` whose
      *  first page is `origin`: relative to that page, whose world offset is exact in f32. */
     shadowSunMapTexel: (u: V, origin: V, level: V) =>
       o.div(o.sub(u, o.mul(o.toFloat(origin), o.mul(texel(level), page))), texel(level)),
