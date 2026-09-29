@@ -34,9 +34,11 @@ export function createDecodes<Key, Decoded extends object>() {
     has: (cell: Key) => decoded.has(cell),
     /** `cell` was taken: its decoded form is dropped. */
     drop: (cell: Key) => void decoded.delete(cell),
-    /** Drops every file but those `planned`. */
-    keep(planned: ReadonlySet<Key>) {
-      for (const cell of decoded.keys()) if (!planned.has(cell)) decoded.delete(cell);
+    /** Drops every file but those of the `planned` lists. */
+    keep(...planned: (readonly Key[])[]) {
+      if (!decoded.size) return;
+      const kept = new Set(planned.flat());
+      for (const cell of decoded.keys()) if (!kept.has(cell)) decoded.delete(cell);
     },
     /** The decodes asked since the last call. */
     asked() {

@@ -160,8 +160,8 @@ export function createPartitionCells(inputs: Inputs) {
         const list = ahead ? plan.ahead : plan.visible;
         later = takeDecoded(list, at, decodes, cellUrl, io.decode, placed) || later;
       }
-      pageDecodes.keep(new Set([...plan.pages.visible, ...plan.pages.ahead]));
-      decodes.keep(new Set([...plan.visible, ...plan.ahead]));
+      pageDecodes.keep(plan.pages.visible, plan.pages.ahead);
+      decodes.keep(plan.visible, plan.ahead);
       touched.flush(io.update);
       return later;
     },
