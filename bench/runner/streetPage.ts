@@ -21,8 +21,8 @@ export async function probeColumns(options: StreetProbeOptions): Promise<ColumnP
   try {
     await world.ready;
     await world.scene.load(options.manifestUrl);
-    const [cx, cy, cz] = options.centre;
-    world.camera.position.set(cx, cy, cz);
+    const [cx, cz] = options.centre;
+    world.camera.position.set(cx, options.top, cz);
     // The physics streams the cooked tiles on its own: the probe waits until the bodies it holds
     // stop changing, bounded so a model that never lands ends the run instead of hanging it.
     let bodies = -1;
@@ -44,24 +44,37 @@ export async function probeColumns(options: StreetProbeOptions): Promise<ColumnP
       );
       return hit ? hit.distance : null;
     };
-    const probes: ColumnProbe[] = [];
-    for (const [x, z] of options.columns) {
-      // Nothing under the column down to an eye below the model's floor: it stands on that floor.
-      const drop = await cast(
-        [x, options.top, z],
-        [0, -1, 0],
-        options.top - options.floor + options.eye,
-      );
-      const ground = drop === null ? options.floor : options.top - drop,
-        eye = ground + options.eye;
-      const walls = await Promise.all(
-        options.headings.map(([dx, dz]) => cast([x, eye, z], [dx, 0, dz], options.reach)),
-      );
-      const clearance = Math.min(...walls.map((wall) => wall ?? options.reach));
-      const room = Math.max(clearance * options.reachShare, options.eye / 64);
-      const up = await cast([x, eye, z], [0, 1, 0], options.height, room);
-      probes.push({ x, z, ground, open: up === null, clearance });
-    }
+    // Three waves over every column, each cast independent of the other columns: the grounds, then
+    // the walls one eye above them, then the sky over the square the camera may walk.
+    const drops = await Promise.all(
+      options.columns.map(([x, z]) =>
+        // Nothing under the column down to an eye below the model's floor: it stands on that floor.
+        cast([x, options.top, z], [0, -1, 0], options.top - options.floor + options.eye),
+      ),
+    );
+    const grounds = drops.map((drop) => (drop === null ? options.floor : options.top - drop));
+    const clearances = await Promise.all(
+      options.columns.map(async ([x, z], i) => {
+        const eye = grounds[i] + options.eye;
+        const walls = await Promise.all(
+          options.headings.map(([dx, dz]) => cast([x, eye, z], [dx, 0, dz], options.reach)),
+        );
+        return Math.min(...walls.map((wall) => wall ?? options.reach));
+      }),
+    );
+    const skies = await Promise.all(
+      options.columns.map(([x, z], i) => {
+        const room = Math.max(clearances[i] * options.reachShare, options.eye / 64);
+        return cast([x, grounds[i] + options.eye, z], [0, 1, 0], options.height, room);
+      }),
+    );
+    const probes: ColumnProbe[] = options.columns.map(([x, z], i) => ({
+      x,
+      z,
+      ground: grounds[i],
+      open: skies[i] === null,
+      clearance: clearances[i],
+    }));
     return probes;
   } finally {
     world.dispose();

@@ -10,8 +10,9 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 import { PICK_CYCLE } from './feedback.ts';
 
-/** Convergence images at most: beyond that, what is missing is published, never waited for forever. */
-const CONVERGE_LIMIT = 4 * PICK_CYCLE;
+/** Convergence images at most: room for the tiles to land, then one quiet pick cycle; beyond that,
+ *  what is missing is published, never waited for forever. */
+const CONVERGE_LIMIT = 64 + PICK_CYCLE;
 /** Images a barrier grants at most to the shadow pages' round trips: a report read, casters
  *  loaded, pages staled by their arrival. A still camera takes a few; a moving camera voids pages
  *  every image and never converges: the bound is there for it. */
