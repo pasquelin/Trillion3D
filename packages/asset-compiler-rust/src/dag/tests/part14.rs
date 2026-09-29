@@ -71,7 +71,9 @@ fn a_coordinate_that_is_not_a_number_or_an_empty_side_measures_nothing() {
 fn every_group_publishes_at_least_its_texture_deviation() {
     let (positions, indices) = grid(48);
     let uvs: Vec<f32> = positions
-        .chunks_exact(3)
+        .as_chunks::<3>()
+        .0
+        .iter()
         .flat_map(|p| [p[0] / 48.0 + (p[1] * 0.4).sin() * 0.02, p[1] / 48.0])
         .collect();
     let carried = Carried {
