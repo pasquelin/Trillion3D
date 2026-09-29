@@ -25,6 +25,9 @@ export interface TaaFrameState {
   /** Rank of a MOVING image, whose lighting is drawn per pixel (`../lighting/direct/lightSamplingWgsl.ts`):
    *  bounded, different from one to the next, replayed with the image. Zero when still. */
   sampledRank: number;
+  /** In a capture's barrier (`../webgpu/tile/converge.ts`), the jitter phase its convergence image
+   *  draws, counted from the replayed one, at the still image's scale; `null` in any other image. */
+  stillPhase: number | null;
 }
 
 /** What a convergence image replays of the last ordinary image: see `checkpoint`. */
@@ -54,5 +57,6 @@ export function createTaaFrameState(): TaaFrameState {
     active: false,
     scale: 1,
     sampledRank: 0,
+    stillPhase: null,
   };
 }

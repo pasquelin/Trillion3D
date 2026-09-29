@@ -5558,7 +5558,7 @@
       "plan": "Planifica un fotograma: invalida lo que se movió, lee la demanda de los receptores —o, si no, el último informe— y admite cada página que dibujar.",
       "reissue": "Las páginas del fotograma a partir de `from` no pudieron codificarse: siguen caducadas, pendientes, y el fotograma siguiente las dibuja.",
       "reset": "Vuelve a empezar.",
-      "setThreshold": "El umbral al que los cortes de luz eligen sus proyectores de sombra (`thresholds.ts`).",
+      "setThreshold": "El umbral al que los cortes de luz eligen sus proyectores de sombra, y su origen de render (`thresholds.ts`).",
       "table": "La tabla de páginas: una palabra por página virtual, y el rango que ocupa cada luz en ella.",
       "pool": "Las páginas físicas del pool y la página virtual que contiene cada una.",
       "sun": "El clipmap de cada sol: su marco, rango de profundidad, nivel más fino y extensiones.",
@@ -7871,6 +7871,45 @@
       "alphaMode": "Cómo se lee el canal alfa de una superficie: opaco lo ignora, `mask` corta en `alphaCutoff`, `blend` compone.",
       "alphaCutoff": "Los píxeles menos opacos que esto desaparecen.",
       "tiling": "Cuántas veces cabe la imagen en ancho y en alto."
+    }
+  },
+  "WorldRoots": {
+    "summary": "`world-roots.json`: el DAG del mundo que el compilador continúa por encima de las raíces de cada objeto — sus paquetes, páginas y celdas, la cima fijada primero.",
+    "members": {
+      "version": "Versión del formato.",
+      "budgetBytes": "Los bytes máximos que la cocción deja pesar a la cima fijada.",
+      "pinned": "Los primeros paquetes, la cima del mundo: fijados.",
+      "pinnedTopBytes": "Los bytes de la cima fijada.",
+      "payload": "El binario donde los paquetes van uno tras otro: su dirección, su huella y su longitud.",
+      "bundles": "Los paquetes, en el orden del binario.",
+      "pages": "Cada página: su paquete, su desplazamiento en él, su nivel y su error.",
+      "cells": "Cada celda del mundo: las primitivas colocadas que contiene."
+    }
+  },
+  "WorldRootsBundle": {
+    "summary": "Un paquete de `world-roots.bin`: su rango en el binario, su huella, su número de páginas y los paquetes que necesita.",
+    "members": {
+      "offset": "Dónde empieza en el binario, en bytes.",
+      "bytes": "Su longitud en el binario.",
+      "sha256": "El SHA-256 de sus bytes, comprobado al leerlo.",
+      "count": "Cuántas páginas contiene.",
+      "dependencies": "Los paquetes que necesitan sus páginas, ascendentes, hasta la cima del mundo."
+    }
+  },
+  "WorldRootsObject": {
+    "summary": "Una primitiva colocada de una celda del mundo: los paquetes del mundo que necesitan sus raíces, hasta la cima.",
+    "members": {
+      "node": "Su nodo publicado.",
+      "primitive": "Su primitiva en el manifiesto.",
+      "roots": "Los paquetes de los flujos de esa primitiva que guardan sus raíces.",
+      "dependencies": "Cada paquete del mundo que necesitan esas raíces, ascendentes, hasta la cima."
+    }
+  },
+  "WorldRootsPage": {
+    "summary": "Una página superraíz leída sobre los bytes de su paquete: sus propios vértices en el espacio del mundo y sus triángulos como índices locales.",
+    "members": {
+      "positions": "Sus vértices, tres números cada uno, en el espacio del mundo.",
+      "indices": "Sus triángulos, tres índices locales cada uno."
     }
   }
 }

@@ -59,9 +59,9 @@
   keeps one report, the latest, each image stored once.
 - **Image proof and timing on `develop`, by batch, after the merge** (AGENTS.md rule 2). Merged
   issues carry `to audit`, and `to measure` when their diff can move the frame cost. The acceptance
-  session times (`measure ok`) and proves the image (`audited`), by batch, on one pair of trees
-  against `develop` before the oldest of them: timings first, on a quiet machine, then the image.
-  A failure reopens the issue in 🔴, labelled `audit ko` or `measure ko`, with the numbers in a
+  session times (`measure ok`), then proves the image (`audited`), by batch, on one pair of trees
+  against `develop` before the oldest of them; nothing else of the batch runs beside a timing. A
+  failure reopens the issue in 🔴, labelled `audit ko` or `measure ko`, with the numbers in a
   comment; a defect no issue covers gets a new one. Neither holds a merge. `main` moves only when
   no issue carries `to audit`, `to measure`, `audit ko` or `measure ko`. A pull request carries the
   gates.

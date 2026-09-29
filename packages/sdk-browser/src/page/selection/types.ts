@@ -78,6 +78,9 @@ export type PageRec = {
    *  by each engine's layout. A record carries no placement value of its own: its world, its row
    *  and its winding are its root's, found by this rank (`rootOf`, #1226). */
   placementIndex?: number;
+  /** True on a page of the group a root replaces: the minimum capacity holds it and admits it
+   *  first (`../../residency/minimumCapacity.ts`). */
+  rootChild?: boolean;
 };
 /**
  * Group links of a primitive, flattened once and shared by every instance of it.
