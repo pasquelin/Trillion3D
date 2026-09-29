@@ -8,35 +8,27 @@ type List = HostAttributes[string];
 /** How each list a pool block carries is laid out: its buffer, its floats per vertex, and the
  *  host lists it is written from, each with its width and the value of a missing component — a
  *  normal and a tangent share seven floats a vertex, a colour rides at the tail of the UVs. */
+// prettier-ignore
 const LAYOUT = {
   position: { buffer: 'concatPos', stride: 3, parts: [['position', 3, 0]] },
   uv: { buffer: 'concatUv', stride: UV_FLOATS, parts: [['uv', UV_FLOATS, 0]] },
   color: { buffer: 'concatUv', stride: COLOR_FLOATS, parts: [['color', COLOR_FLOATS, 1]] },
-  normal: {
-    buffer: 'concatNrm',
-    stride: 7,
-    parts: [
-      ['normal', 3, 0],
-      ['tangent', 4, 0],
-    ],
-  },
+  normal: { buffer: 'concatNrm', stride: 7, parts: [['normal', 3, 0], ['tangent', 4, 0]] },
 } as const;
 export type PoolList = keyof typeof LAYOUT;
-
-/** Each list the pool carries, in `LAYOUT`'s order. */
-const LISTS = Object.keys(LAYOUT) as PoolList[];
+const LISTS = Object.keys(LAYOUT) as PoolList[],
+  BUFFERS = ['concatPos', 'concatUv', 'concatNrm'] as const;
+type Buffers<T> = Record<(typeof BUFFERS)[number], T>;
 /** Floats, grown to the largest write and kept: a steady frame allocates nothing. */
 let scratch = new Float32Array(0);
 
 /**
- * THE FLOAT VERTEX POOL of the WebGPU passes: the source geometry they read as floats — the
- * clusters no quantized page covers, a cache that carries none, and a world's dynamic geometry
- * (#573), whose index pages alone are paged. Its three buffers are sized once, at open, with room
- * for as many vertices again as its dynamic geometry holds — none when it holds none —: a block a
- * record takes later — a mount — is placed in that room (`place`), and a dynamic geometry's
- * rewritten ranges are written in place (`write`), neither buffer ever reallocated. Vertex colours
- * ride at the tail of the UV buffer (`vertexColors.ts`), which carries none when no packed
- * geometry has any.
+ * THE FLOAT VERTEX POOL of the WebGPU passes: the geometry they read as floats — the clusters no
+ * quantized page covers, a cache that carries none, a world's dynamic geometry (#573). Its buffers
+ * are sized once, at open, with room for as many vertices again as its dynamic geometry holds —
+ * none when it holds none —: a block a record takes later is placed there (`place`), a dynamic
+ * geometry's rewritten ranges are written in place (`write`), nothing is reallocated. Colours ride
+ * at the tail of the UV buffer (`vertexColors.ts`), which carries none when no geometry has any.
  */
 export function createVertexPool(
   device: GPUDevice,
@@ -45,39 +37,34 @@ export function createVertexPool(
   blocks: GeometryBlocks,
 ) {
   let used = 0;
-  const floats = {
-    concatPos: capacity * 3,
+  const floats: Buffers<number> = {
+    ...{ concatPos: capacity * 3, concatNrm: capacity * 7 },
     concatUv: uvBufferFloats(capacity, coloured),
-    concatNrm: capacity * 7,
   };
-  const buffer = (key: keyof typeof floats) =>
-    device.createBuffer({
-      label: `Trillion3D transparent geometry ${key}`,
-      size: Math.max(4, floats[key] * 4),
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
-  const buffers = {
-    concatPos: buffer('concatPos'),
-    concatUv: buffer('concatUv'),
-    concatNrm: buffer('concatNrm'),
-  };
+  const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
+  const buffers = Object.fromEntries(
+    BUFFERS.map((key) => {
+      const label = `Trillion3D transparent geometry ${key}`;
+      return [key, device.createBuffer({ label, size: Math.max(4, floats[key] * 4), usage })];
+    }),
+  ) as Buffers<GPUBuffer>;
   /** The float of `name`'s buffer vertex `vertex` starts at: in the UVs' tail for a colour. */
   const offsetOf = (name: PoolList, vertex: number) =>
     name === 'color' ? colorFloatAt(capacity, vertex) : vertex * LAYOUT[name].stride;
-  /** Fills `into` from float `at` with vertices `from` to `from + count - 1` of list `name`. */
+  /** Fills `into` from float `at` with vertices `from` to `from + n - 1` of list `name` of `a`. */
   const fill = (
     into: Float32Array,
     at: number,
-    attributes: HostAttributes,
+    a: HostAttributes,
     name: PoolList,
     from: number,
-    count: number,
+    n: number,
   ) => {
     const { stride, parts } = LAYOUT[name];
     let part = at;
     for (const [source, width, missing] of parts) {
-      const list: List | undefined = attributes[source];
-      for (let i = 0; i < count; i++)
+      const list: List | undefined = a[source];
+      for (let i = 0; i < n; i++)
         for (let c = 0; c < width; c++)
           into[part + i * stride + c] =
             list && c < list.itemSize ? list.getComponent(from + i, c) : missing;
@@ -104,14 +91,12 @@ export function createVertexPool(
   };
   return {
     ...buffers,
-    /** Places each geometry of `sourced`, dynamic or not, and uploads the three buffers whole:
-     *  the open's one packing. */
+    /** Places each geometry of `sourced`, dynamic or not, and uploads the buffers whole: the
+     *  open's one packing. */
     pack(sourced: ReadonlyMap<HostAttributes, boolean>) {
-      const arrays = {
-        concatPos: new Float32Array(floats.concatPos),
-        concatUv: new Float32Array(floats.concatUv),
-        concatNrm: new Float32Array(floats.concatNrm),
-      };
+      const arrays = Object.fromEntries(
+        BUFFERS.map((key) => [key, new Float32Array(floats[key])]),
+      ) as Buffers<Float32Array>;
       for (const [attributes, dynamic] of sourced) {
         const block = claim(attributes, dynamic);
         for (const name of LISTS) {
@@ -120,8 +105,7 @@ export function createVertexPool(
           fill(arrays[LAYOUT[name].buffer], at, attributes, name, 0, block.count);
         }
       }
-      for (const key of Object.keys(arrays) as (keyof typeof arrays)[])
-        device.queue.writeBuffer(buffers[key], 0, arrays[key]);
+      for (const key of BUFFERS) device.queue.writeBuffer(buffers[key], 0, arrays[key]);
     },
     /** The block of `attributes`, placed in the room the open left when it has none — a record
      *  mounted since —; undefined when that room is spent. `dynamic` marks its rows. */
