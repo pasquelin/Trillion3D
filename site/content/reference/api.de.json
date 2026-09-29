@@ -5583,7 +5583,8 @@
       "settled": "Wahr, sobald ein Bericht beweist, dass der aktuelle Zustand nichts anfordert: das Bild darf gehalten werden.",
       "receive": "Ein Anforderungsbericht kam zurück; der nächste Plan liest ihn. Ein neuerer ersetzt einen ungelesenen.",
       "commit": "Die Seiten `[from, to)` der Liste des Bildes wurden kodiert, Seite `from + i` in `modes[i]`: ihre Zeichnungen landen, bevor sie jemand liest. Der letzte Stapel schließt die Liste.",
-      "resize": "Der Pool in anderer Größe, seine Seiten behalten, seine Arrays neu: gibt zurück, wohin jede Seite ging."
+      "resize": "Der Pool in anderer Größe, seine Seiten behalten, seine Arrays neu: gibt zurück, wohin jede Seite ging.",
+      "gpu": "Die Zuteilung der GPU (`mirror.ts`): ob sie die Seiten zuordnet und was der Host von ihr verlangt."
     }
   },
   "ShadowStaleReason": {
@@ -7544,7 +7545,8 @@
       "layoutEpoch": "Tabellenlayout, mit dem dieses Bild gelesen hat (`ShadowTable.layoutEpoch`).",
       "stamp": "Der Stempel des Plans, als dieses Bild kodiert wurde (`ShadowPlan.stamp`).",
       "count": "Angeforderte Einträge, möglicherweise mehr als `entries` fasst: der Rest fragt im nächsten Bild erneut.",
-      "entries": "Die angeforderten Einträge, höchstens die ersten `count`."
+      "entries": "Die angeforderten Einträge, höchstens die ersten `count`.",
+      "pool": "Der Pool des GPU-Zuteilers nach der Zuteilung dieses Frames, wenn die GPU zuteilt."
     }
   },
   "VehicleDriver": {

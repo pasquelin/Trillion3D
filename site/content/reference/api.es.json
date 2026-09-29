@@ -5583,7 +5583,8 @@
       "settled": "Verdadero cuando un informe prueba que el estado actual no pide nada: la imagen puede mantenerse.",
       "receive": "Volvió un informe de peticiones; el siguiente plan lo lee. Uno más reciente sustituye a uno no leído.",
       "commit": "Las páginas `[from, to)` de la lista del fotograma se codificaron, la página `from + i` en `modes[i]`: sus dibujos llegan antes de que nadie las lea. El último lote cierra la lista.",
-      "resize": "El pool con otro tamaño, sus páginas conservadas y sus arreglos nuevos: devuelve adónde fue cada página."
+      "resize": "El pool con otro tamaño, sus páginas conservadas y sus arreglos nuevos: devuelve adónde fue cada página.",
+      "gpu": "La asignación de la GPU (`mirror.ts`): si coloca las páginas y lo que el anfitrión le pide."
     }
   },
   "ShadowStaleReason": {
@@ -7544,7 +7545,8 @@
       "layoutEpoch": "Disposición de la tabla con la que leyó esa imagen (`ShadowTable.layoutEpoch`).",
       "stamp": "El sello del plan cuando se codificó esa imagen (`ShadowPlan.stamp`).",
       "count": "Entradas pedidas, quizá más de las que caben en `entries`: el resto vuelve a pedirse en la siguiente imagen.",
-      "entries": "Las entradas pedidas, como mucho las primeras `count`."
+      "entries": "Las entradas pedidas, como mucho las primeras `count`.",
+      "pool": "El pool del asignador de la GPU tras la asignación de ese fotograma, cuando asigna la GPU."
     }
   },
   "VehicleDriver": {
