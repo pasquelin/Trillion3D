@@ -3303,7 +3303,8 @@
       "stamp": "Yang diserahkan shading, cahaya, dan tampilan ke gambar berikutnya: laporan yang dicap dengannya dan tidak menyebut hal baru membuktikan gambar hanya membaca yang sudah digambar.",
       "settled": "Benar setelah sebuah laporan membuktikan keadaan saat ini tidak meminta apa pun: gambar boleh ditahan.",
       "receive": "Sebuah laporan permintaan kembali; rencana berikutnya membacanya. Yang lebih baru menggantikan yang belum dibaca.",
-      "commit": "Halaman `[from, to)` dari daftar frame telah dikodekan, halaman `from + i` dalam `modes[i]`: gambarnya selesai sebelum ada yang membacanya. Batch terakhir menutup daftar."
+      "commit": "Halaman `[from, to)` dari daftar frame telah dikodekan, halaman `from + i` dalam `modes[i]`: gambarnya selesai sebelum ada yang membacanya. Batch terakhir menutup daftar.",
+      "resize": "Pool dengan ukuran lain, halamannya dipertahankan, lariknya dibuat baru: mengembalikan ke mana setiap halaman pindah."
     }
   },
   "ShadowStaleReason": {
