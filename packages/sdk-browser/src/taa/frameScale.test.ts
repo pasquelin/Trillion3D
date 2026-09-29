@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
-import { beginTaaFrame } from './frame.ts';
+import { beginTaaFrame, convergeStillPhase, restartTaaOnLanding } from './frame.ts';
+import { taaJitter } from './jitter.ts';
 import { createTaaFrameState } from './frameState.ts';
 import { createScaleControl } from '../frame/scaleControl.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
@@ -53,4 +54,50 @@ test('a moving image draws at the controller, a quiet one at 1, a convergence at
   rt.capture.capturing = true;
   beginTaaFrame(rt, cam, false);
   assert.deepEqual([rt.scale.drawn, rt.gpu.targetSize], [1, DISPLAY], 'no accumulation, no scale');
+});
+
+// #1016: a capture after a moving camera converged at the moving image's scale and jitter, so it
+// made resident what that image reads; the held image, drawn at the display over eight other
+// phases, read slivers nothing had asked for. The convergence branch itself draws a capture's
+// barrier at the still scale, one phase after another (`stillPhase`); another barrier replays.
+test("a capture's barrier converges at the still image's scale, phase after phase", () => {
+  const { rt, moving } = runtime();
+  beginTaaFrame(rt, cam, false);
+  const frame = rt.gpu.temporal!.frame;
+  rt.run.textureConverging = true;
+  beginTaaFrame(rt, cam, false);
+  assert.equal(rt.scale.drawn, moving, 'a barrier that takes no picture replays the image');
+  convergeStillPhase(rt, 0);
+  beginTaaFrame(rt, cam, false);
+  assert.equal(rt.scale.drawn, 1);
+  assert.deepEqual(rt.gpu.targetSize, DISPLAY, 'the barrier reads what the held image will read');
+  const replayed = [...frame.jitter];
+  for (let phase = 1; phase < frame.phases; phase++) {
+    convergeStillPhase(rt, phase);
+    beginTaaFrame(rt, cam, false);
+    const expected = taaJitter(frame.sample + phase, new Float64Array(2), frame.phases);
+    assert.deepEqual([...frame.jitter], [...expected], `phase ${phase}`);
+    assert.notDeepEqual([...frame.jitter], replayed);
+  }
+  convergeStillPhase(rt, null);
+  rt.run.textureConverging = false;
+});
+
+// #1016 review: a tile or a shadow page landing on a still frame mixed two residencies in one
+// average, at a time the readback decided. The average restarts on it, from phase zero.
+test('a landing on a still image restarts its average; nothing landed, or moving, keeps it', () => {
+  const { rt } = runtime();
+  const frame = rt.gpu.temporal!.frame;
+  for (let image = 0; image < 3; image++) beginTaaFrame(rt, cam, true);
+  assert.equal(frame.stillFrames, 3);
+  restartTaaOnLanding(rt, 0);
+  assert.equal(frame.stillFrames, 3, 'nothing landed');
+  restartTaaOnLanding(rt, 2);
+  assert.deepEqual([frame.stillFrames, frame.hasHistory], [0, false]);
+  frame.sample = 5;
+  beginTaaFrame(rt, cam, true);
+  assert.deepEqual([frame.stillFrames, frame.sample], [1, 0], 'the next image restarts at phase 0');
+  beginTaaFrame(rt, cam, false);
+  restartTaaOnLanding(rt, 4);
+  assert.equal(frame.stillFrames, 0, 'a moving image has no still average to restart');
 });

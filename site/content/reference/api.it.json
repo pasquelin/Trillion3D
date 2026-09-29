@@ -5562,7 +5562,7 @@
       "plan": "Pianifica un fotogramma: invalida ciò che si è mosso, legge la domanda dei ricevitori — o altrimenti l’ultimo rapporto —, ammette ogni pagina da disegnare.",
       "reissue": "Le pagine del fotogramma da `from` in poi non hanno potuto essere codificate: restano scadute, in attesa, e il fotogramma successivo le disegna.",
       "reset": "Ricomincia.",
-      "setThreshold": "La soglia a cui i tagli di luce scelgono i proiettori d’ombra (`thresholds.ts`).",
+      "setThreshold": "La soglia a cui i tagli di luce scelgono i proiettori d’ombra, e la loro origine di rendering (`thresholds.ts`).",
       "table": "La tabella delle pagine: una parola per pagina virtuale, e l’intervallo che ogni luce vi occupa.",
       "pool": "Le pagine fisiche del pool e la pagina virtuale che ognuna contiene.",
       "sun": "Il clipmap di ogni sole: il suo riferimento, intervallo di profondità, livello più fine ed estensioni.",
