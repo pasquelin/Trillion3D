@@ -23,7 +23,7 @@ export const FRESH_LAYER_SHIFT = 16;
  * THE WORDS OF THE GPU PAGES' ARGUMENTS (#1275), one buffer the passes share: the frame's region
  * count, the pairs the cull may keep and keeps, the most corners a kept caster draws; per pool
  * layer two indirect draws — its pages cleared, its casters — then the first region of each layer,
- * the page of each region, and whether a region lost a caster. The cull's dispatch is apart: a
+ * and the page of each region. The cull's dispatch is apart: a
  * buffer a dispatch reads its size from, it may not write (`dispatch`, `allocBuffers.ts`).
  */
 export const FRESH_ARG = { regions: 0, capacity: 1, pairs: 2, corners: 3 } as const;
@@ -37,8 +37,8 @@ export const freshDrawWord = (layer: number, kind: number) =>
   DRAWS + (layer * 2 + kind) * DRAW_WORDS;
 export const FRESH_LAYER_STARTS = DRAWS + MAX_POOL_LAYERS * 2 * DRAW_WORDS;
 export const FRESH_REGION_PAGES = FRESH_LAYER_STARTS + MAX_POOL_LAYERS;
-/** Words of the arguments of a pool of `pages`: its regions' pages, then their losses. */
-export const freshArgWords = (pages: number) => FRESH_REGION_PAGES + 2 * pages;
+/** Words of the arguments of a pool of `pages`: its regions' pages. */
+export const freshArgWords = (pages: number) => FRESH_REGION_PAGES + pages;
 
 /** The same layout as WGSL constants: every pass that reads the arguments. */
 export const FRESH_LAYOUT_WGSL = `

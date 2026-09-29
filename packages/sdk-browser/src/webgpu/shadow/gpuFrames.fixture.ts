@@ -82,8 +82,7 @@ export function gpuFrames(poolSide: number, lights: SceneLight[], gpuDraws = tru
     owner,
     field,
     /** Needs the GPU refused in the last frame: more than the pool could hold. */
-    refused: () =>
-      new Uint32Array(bytes(allocation.state).buffer)[POOL_COUNTS.indexOf('refused')],
+    refused: () => new Uint32Array(bytes(allocation.state).buffer)[POOL_COUNTS.indexOf('refused')],
     drawnFor,
     /** The frame each page was last drawn in. */
     drawnAt,
