@@ -97,11 +97,12 @@ function compare(seed: number, sizes: readonly number[], edges: boolean) {
 
 // #920 (audit CPU-10): the flat keys sort the draws exactly as the node comparators did.
 test('the flat keys give the same order as the node comparators on random frames', () => {
-  for (let seed = 1; seed <= 40; seed++) compare(seed, [0, 1, 2, 7, 33, 150, 40, 600], false);
+  for (let seed = 1; seed <= 40; seed++)
+    compare(seed, [0, 1, 2, 7, 33, 150, 150, 40, 600, 600], false);
 });
 
 test('the flat keys give the same order with NaN, ±0, ±Inf and extreme depths and orders', () => {
-  for (let seed = 100; seed <= 140; seed++) compare(seed, [3, 17, 64, 300, 64], true);
+  for (let seed = 100; seed <= 140; seed++) compare(seed, [3, 17, 64, 64, 300, 64], true);
 });
 
 test('the flat keys give the same order on a large list, then on a shorter one', () => {
@@ -119,4 +120,40 @@ test('a -0 depth sorts as the node comparators sort it', () => {
   createDrawOrder(serialOfNode)(lists, [], SCREEN);
   assert.deepEqual(lists, expected);
   assert.deepEqual(lists, [negativeZero, zero], 'equal depths: the creation number decides');
+});
+
+// #1198: sponza sorted its 1 465 pages from scratch every frame, 0.44 ms of its CPU frame.
+test('a list sorted again under a camera that moved a little is walked once, in the same order', () => {
+  const next = random(3),
+    surfaces = [{}, {}, {}, {}],
+    pages = Array.from({ length: 1465 }, (_, i) =>
+      node(next() * 100, 1, 0, surfaces[i % 4], i + 1),
+    );
+  const order = createDrawOrder(serialOfNode),
+    frozen = frozenOrder(),
+    native = Array.prototype.sort;
+  let compared = 0;
+  const sortCounted = function (this: unknown[], compare?: (a: unknown, b: unknown) => number) {
+    return native.call(this, (a, b) => (compared++, compare!(a, b)));
+  };
+  const sorted = (screen: ArrayLike<number>) => {
+    const expected = pages.slice(),
+      list = pages.slice();
+    frozen(expected, [], screen);
+    compared = 0;
+    Array.prototype.sort = sortCounted as typeof native;
+    try {
+      order(list, [], screen);
+    } finally {
+      Array.prototype.sort = native;
+    }
+    assert.equal(firstDifference(list, expected), -1);
+    return compared;
+  };
+  const first = sorted(SCREEN),
+    moved = Float64Array.from(SCREEN);
+  moved[14] = 0.01; // every depth moves alike: the order holds
+  const again = sorted(moved);
+  assert.ok(first > 10_000, `${first} comparisons from scratch`);
+  assert.ok(again < 1465 * 2, `${again} comparisons from the last order`);
 });

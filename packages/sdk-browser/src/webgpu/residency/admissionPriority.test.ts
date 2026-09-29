@@ -21,7 +21,9 @@ test('a lower tier admitted by the WebGPU pool stays out of the loading total (#
   tracking.wanted.add(tracking.keyOf(camera), camera);
   const ensure = createWebgpuResidentEnsurer({
     ...ensurerOptions(tracking, cache),
-    lowerTiers: () => [{ pages: [ahead], has: (key) => key === tracking.keyOf(ahead) }],
+    lowerTiers: () => [
+      { pages: [ahead], has: (key) => key === tracking.keyOf(ahead), revision: 0 },
+    ],
     prefetch: readGeometryAhead(
       new Map([
         ['camera', 'camera'],
