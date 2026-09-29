@@ -2,7 +2,7 @@ import type { Texture, WrapMode } from '../../../sdk-core/src/index.ts';
 
 /**
  * Addressing mode of a texture, a nibble of bits carried in its header of the page table
- * (`../webgpu/tile/sampling.ts`), and the rule that brings a coordinate back into the texture. The
+ * (`../texture/sampling.ts`), and the rule that brings a coordinate back into the texture. The
  * nibble and the rule it commands live together: nobody has to open two files to read an
  * addressing. Bits of a nibble: 1 = S repeats, 2 = S repeats mirrored, 4 and 8 the same on T. The
  * two bits of an axis exclude each other, so `wrapAxis` never has to arbitrate between them, and

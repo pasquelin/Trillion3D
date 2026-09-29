@@ -1,3 +1,6 @@
+import { PHYSICAL_MAP_UNIT } from './physicalMaps.ts';
+import { SUBSURFACE_UNIT } from './materialMaps.ts';
+import { REFLECTION_BOUNDS_UNIT } from '../../reflections/pyramidGl.ts';
 import { LTC_UNIT } from './rectGlsl.ts';
 import { LIGHT_DATA_UNIT, LIGHT_LIST_UNIT } from './lightTexture.ts';
 import { DEFORM_BLOCK_UNIT, MORPH_DELTAS_UNIT } from './deformation.ts';
@@ -42,9 +45,12 @@ export const setClusterSamplers = (
     'backdropDepth',
   ];
   for (let unit = 0; unit < names.length; unit++) gl.uniform1i(location(names[unit]), unit);
+  gl.uniform1i(location('physicalMaps'), PHYSICAL_MAP_UNIT);
+  gl.uniform1i(location('subsurfaceMap'), SUBSURFACE_UNIT);
   gl.uniform1i(location('ltcTable'), LTC_UNIT);
   gl.uniform1i(location('reflectionColor'), LTC_UNIT + 1);
   gl.uniform1i(location('reflectionDepth'), LTC_UNIT + 2);
+  gl.uniform1i(location('reflectionBounds'), REFLECTION_BOUNDS_UNIT);
   gl.uniform1i(location('lightData'), LIGHT_DATA_UNIT);
   gl.uniform1i(location('lightList'), LIGHT_LIST_UNIT);
   gl.uniform1i(location('deformBlock'), DEFORM_BLOCK_UNIT);

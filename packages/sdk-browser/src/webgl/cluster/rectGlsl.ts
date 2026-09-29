@@ -8,14 +8,17 @@ export const WEBGL_RECT_KIND = 4;
 export const LTC_UNIT = 8;
 
 /**
- * A RECTANGULAR LIGHT in the WebGL2 cluster program: the same evaluation as the WebGPU path's
- * (`../../lighting/direct/rectLightWgsl.ts`), operation for operation, on the same fitted table (`ltcTable.ts`),
+ * Isotropic rectangular lighting preserves the WebGPU path's evaluation
+ * (`../../lighting/direct/rectLightWgsl.ts`) on the same fitted table (`ltcTable.ts`),
  * read here as a `2·LTC_SIZE × LTC_SIZE` float texture — texel `(2x + k, y)` is the table's cell
  * `(x, y)`, vec4 `k`. The diffuse is the exact clipped form factor of the rectangle; the
  * specular, the rectangle moved by the fitted M⁻¹ and integrated the same way. No cast shadow,
  * as on the WebGPU path: the contract refuses one for a rectangle. A diffuse or toon surface takes
  * the rectangle's light through `modelLight` (`../../scene/surfaceModel.ts`), as that path does.
  *
+ * Clearcoat integrates a second LTC with its own normal and roughness. Anisotropy stretches
+ * the polygon and view in the material tangent frame: a fitted-lobe approximation, not an
+ * exact anisotropic GGX integral. Both reuse the existing table, without sampling noise.
  * A light's four vec4 hold its centre and range, its emitting normal and rank, its colour and
  * intensity, then its half-width axis and half height — all in view space.
  */
@@ -30,17 +33,30 @@ vec4 ltcLookup(float rough,float NdotV,int k){vec2 at=vec2(clamp(rough,0.0,1.0),
 ivec2 i=min(ivec2(at),ivec2(LTC_SIZE-2));vec2 f=at-vec2(i);vec4 low=mix(ltcTexel(i.x,i.y,k),ltcTexel(i.x+1,i.y,k),f.x);
 return mix(low,mix(ltcTexel(i.x,i.y+1,k),ltcTexel(i.x+1,i.y+1,k),f.x),f.y);}
 vec3 ltcCorner(vec3 q,vec3 T1,vec3 T2,vec3 N,vec4 m){float x=dot(q,T1),z=dot(q,N);return vec3(m.x*x+m.y*z,dot(q,T2),m.z*x+m.w*z);}
-vec3 rectLight(vec4 positionRange,vec3 n,vec4 axis,vec4 colorIntensity,vec3 N,vec3 V,vec3 P,vec3 base,float metal,float rough,float ao){
-vec3 C=positionRange.xyz,U=axis.xyz,W=normalize(cross(U,n))*axis.w;if(dot(P-C,n)<=0.0)return vec3(0.0);
-float window=rangeWindow(length(C-P),positionRange.w);
-vec3 a=C-U-W-P,b=C+U-W-P,c=C+U+W-P,d=C-U+W-P;vec4 F=polygonFormFactor(a,b,c,d,N);float E=colorIntensity.w*PI*F.w*window;if(E<=0.0)return vec3(0.0);
-if(surfaceModel==${SURFACE_MODEL.diffuse})return modelLight(base,metal,N,N,E,ao)*colorIntensity.rgb;
-if(surfaceModel==${SURFACE_MODEL.toon})return modelLight(base,metal,N,F.xyz,colorIntensity.w*PI*polygonFormFactor(a,b,c,d,F.xyz).w*window,ao)*colorIntensity.rgb;
+vec3 rectSpecular(vec3 a,vec3 b,vec3 c,vec3 d,vec3 N,vec3 V,vec3 f0,float rough,float strength){
+// Stretch the existing LTC polygon integration in the material's anisotropy frame.
+// At zero strength the original isotropic operations are unchanged.
+if(strength>0.0){
+ float alpha=rough*rough,stretch=mix(alpha,1.0,strength*strength)/alpha;
+ mat3 warp=mat3(1.0)+(1.0/stretch-1.0)*outerProduct(anisotropyT,anisotropyT);
+ a=warp*a;b=warp*b;c=warp*c;d=warp*d;V=normalize(warp*V);
+}
 float NdotV=clamp(dot(N,V),1e-4,1.0);vec3 side=V-N*dot(N,V),other=cross(N,abs(N.x)>0.9?vec3(0.0,1.0,0.0):vec3(1.0,0.0,0.0));
 vec3 T1=normalize(dot(side,side)<1e-10?other:side),T2=cross(N,T1);vec4 m=ltcLookup(rough,NdotV,0),t=ltcLookup(rough,NdotV,1);
 float lobe=polygonFormFactor(ltcCorner(a,T1,T2,N,m),ltcCorner(b,T1,T2,N,m),ltcCorner(c,T1,T2,N,m),ltcCorner(d,T1,T2,N,m),vec3(0.0,0.0,1.0)).w;
-vec3 f0=mix(vec3(0.04),base,metal);vec3 specular=(f0*t.x+(vec3(1.0)-f0)*t.y)*lobe*colorIntensity.w*window;
-return(base*(1.0-metal)/PI*E+specular)*colorIntensity.rgb;}`;
+return (f0*t.x+(vec3(1.0)-f0)*t.y)*lobe;
+}
+vec3 rectLight(vec4 positionRange,vec3 n,vec4 axis,vec4 colorIntensity,vec3 N,vec3 V,vec3 P,vec3 base,float metal,float rough,float ao,out vec3 coat){
+coat=vec3(0.0);vec3 C=positionRange.xyz,U=axis.xyz,W=normalize(cross(U,n))*axis.w;if(dot(P-C,n)<=0.0)return vec3(0.0);
+float window=rangeWindow(length(C-P),positionRange.w);
+vec3 a=C-U-W-P,b=C+U-W-P,c=C+U+W-P,d=C-U+W-P;vec4 F=polygonFormFactor(a,b,c,d,N);float E=colorIntensity.w*PI*F.w*window;
+if(physicalRead.z>0.0)coat=physicalRead.z*rectSpecular(a,b,c,d,coatNormal,V,vec3(0.04),physicalRead.w,0.0)*colorIntensity.w*window*colorIntensity.rgb;
+vec3 through=thinSubsurface*polygonFormFactor(a,b,c,d,-N).w*window*colorIntensity.w*colorIntensity.rgb;if(E<=0.0)return through;
+if(surfaceModel==${SURFACE_MODEL.diffuse})return through+modelLight(base,metal,N,N,E,ao)*colorIntensity.rgb;
+if(surfaceModel==${SURFACE_MODEL.toon})return through+modelLight(base,metal,N,F.xyz,colorIntensity.w*PI*polygonFormFactor(a,b,c,d,F.xyz).w*window,ao)*colorIntensity.rgb;
+vec3 f0=mix(vec3(0.04),base,metal);
+vec3 specular=rectSpecular(a,b,c,d,N,V,f0,rough,physicalRead.x)*colorIntensity.w*window;
+return through+(base*(1.0-metal)/PI*E+specular)*colorIntensity.rgb;}`;
 
 /** The fitted lobe of the rectangles (`ltcTable.ts`) as a float texture read by `texelFetch`:
  *  two texels a cell, no filtering asked of the device. */

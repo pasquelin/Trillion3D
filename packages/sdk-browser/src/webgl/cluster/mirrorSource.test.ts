@@ -8,7 +8,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
 import { clusterWebglCompatibility } from './compatibility.ts';
 
-test('WebGL reflection captures are counted and their allocations leave when the receiver turns rough', () => {
+test('WebGL reflection captures stay allocated for rough receivers and leave with the last specular lobe', () => {
   const context = createTestContext({ answers: { getExtension: () => ({}) } }),
     renderer = new WebglClusterRenderer(
       context.gl,
@@ -24,9 +24,19 @@ test('WebGL reflection captures are counted and their allocations leave when the
   assert.equal(renderer.backdropPasses, 1);
   assert.equal(renderer.backdropSubmissions, 1);
   assert.equal(renderer.triangles, 2);
-  assert.equal(renderer.backdropBytes, 8 * 4 * 12);
+  const sourceBytes = 8 * 4 * 12 + (4 * 2 + 2 * 1 + 1) * (8 + 8);
+  assert.equal(
+    renderer.backdropBytes,
+    sourceBytes,
+    'base color/depth and radiance/bounds mip levels',
+  );
   material.roughness = 1;
   material.needsUpdate = true;
+  draw();
+  assert.equal(renderer.backdropPasses, 1, 'rough physical receivers still reflect');
+  assert.equal(renderer.backdropBytes, sourceBytes);
+  assert.equal(renderer.triangles, 2);
+  mesh.material = new G.GraphSurface('lambert');
   draw();
   assert.equal(renderer.backdropPasses, 0);
   assert.equal(renderer.backdropBytes, 0);

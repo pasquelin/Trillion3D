@@ -1636,7 +1636,7 @@
   },
   "LIGHT_FIELD": {
     "summary": "Bidang sebuah cahaya di buffer, dalam float dari basisnya.",
-    "description": "Empat `vec4f` per cahaya.",
+    "description": "Lima `vec4f` per cahaya.",
     "members": {
       "position": "Tempat ia berdiri.",
       "range": "Seberapa jauh jangkauannya.",
@@ -1649,7 +1649,8 @@
       "castsShadow": "Apakah ia melempar bayangan.",
       "cosInner": "Kerucut dalam sebuah spot, tempat penumbranya mulai: tepi kerucut itu sendiri saat tidak punya penumbra.",
       "halfWidth": "Sumbu setengah-lebar sebuah persegi panjang — `right` dikali setengah lebarnya —, lalu setengah tingginya.",
-      "halfHeight": "Setengah tinggi sebuah persegi panjang."
+      "halfHeight": "Setengah tinggi sebuah persegi panjang.",
+      "emitterRadius": "Radius sumber cahaya point atau spot; memakai komponen bentuk yang sama dengan persegi panjang."
     }
   },
   "LIGHT_KIND": {
@@ -1870,6 +1871,8 @@
       "parameters.ior": "Seberapa besar cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Lapisan pernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar pernis itu.",
       "parameters.sheen": "Cahaya lembut pada sudut serong, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -1889,7 +1892,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     },
     "members": {
       "isMaterial": "Selalu `true`: membedakan sebuah material dari yang lain.",
@@ -1916,7 +1921,8 @@
       "physics": "Preset bahan fisika untuk benda yang memakainya.",
       "density": "kg/m³, untuk massa benda.",
       "friction": "Gesekan fisika.",
-      "restitution": "Pantulan fisika."
+      "restitution": "Pantulan fisika.",
+      "subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya."
     }
   },
   "Material-common": {
@@ -1950,6 +1956,8 @@
       "ior": "Seberapa besar cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "clearcoat": "Lapisan pernis bening di atas: 0 sampai 1.",
+      "anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "clearcoatRoughness": "Seberapa kasar pernis itu.",
       "sheen": "Cahaya lembut pada sudut serong, seperti beludru.",
       "iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -1969,7 +1977,9 @@
       "physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "density": "kg/m³, dikali volume menjadi massa.",
       "friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "MathPath": {
@@ -3102,7 +3112,7 @@
       "range": "Point, spot dan rect: jangkauan dalam meter, tempat energi lenyap persis.",
       "coneAngle": "Bukaan sebuah spot.",
       "penumbra": "Hanya spot: porsi kerucut, dari tepinya ke dalam, tempat cahaya memudar dalam `[0, 1]`; tanpanya tepinya melembut atas `spotEdgeSoftness`.",
-      "emitterRadius": "Hanya point dan spot: radius, dalam meter, amplop yang menampung sumbernya. Sebuah cahaya sungguhan selalu diwadahi sesuatu — kaca lentera, reflektor, kap — dan amplop itu adalah geometri seperti yang lain: tanpa bidang ini, ia masuk ke shadow map cahayanya sendiri dan mematikannya. Dideklarasikan, ia menjadi bidang dekat peta itu, jadi tidak ada yang duduk lebih dekat dari radius ini dari sumbernya yang melempar bayangan di sana. Ini properti cahaya itu, tidak pernah nama objek atau jenis material: mesin hanya tahu permukaan. Tegas positif dan tegas kurang dari jangkauan; kalau tidak ada, tidak ada yang berubah.",
+      "emitterRadius": "Hanya point dan spot: radius, dalam meter, amplop yang menampung sumbernya. Sebuah cahaya sungguhan selalu diwadahi sesuatu — kaca lentera, reflektor, kap — dan amplop itu adalah geometri seperti yang lain: tanpa bidang ini, ia masuk ke shadow map cahayanya sendiri dan mematikannya. Fragmen di dalam bola ini tidak menghasilkan bayangan; bidang dekat peta tetap bergantung pada jangkauan. Pada cahaya point, radius ini juga menentukan ukuran sumber untuk filter bayangan yang menajamkan tepi di dekat kontak. Ini properti cahaya itu, tidak pernah nama objek atau jenis material: mesin hanya tahu permukaan. Tegas positif dan tegas kurang dari jangkauan; kalau tidak ada, tidak ada yang berubah.",
       "right": "Hanya rect: sumbu satuan tempat lebarnya berjalan, tegak lurus `direction`.",
       "size": "Hanya rect: lebar dan tingginya, dalam meter.",
       "castsShadow": "Apakah ia melempar bayangan."
@@ -3600,9 +3610,13 @@
       "baseMetal": "Warna dasar RGB, metalness A.",
       "normalRough": "Normal dunia XYZ, roughness A.",
       "emissiveAo": "Emisi RGB, ambient occlusion A.",
-      "flags": "0 latar, 1 tanpa pencahayaan (berkabut), 2 dibaca, 3 ditampilkan apa adanya: diagnostik, tampilan normal atau kedalaman.",
+      "flags": "0 latar, 1 tanpa pencahayaan (berkabut), 2 dibaca, 3 ditampilkan apa adanya: diagnostik, tampilan normal atau kedalaman. 4 dan 5 adalah model difus dan toon (`./surfaceModel.ts`).",
       "views": "View tekstur GPU-nya.",
-      "dispose": "Membebaskannya."
+      "dispose": "Membebaskannya.",
+      "shadingOffset": "Offset penerima bayangan dengan presisi penuh, ditulis di samping G-buffer.",
+      "subsurface": "Warna transmisi permukaan tipis yang independen; tekstur nol 1×1 saat dinonaktifkan.",
+      "subsurfaceView": "Tampilan tekstur transmisi permukaan tipis.",
+      "hasSubsurface": "Apakah transmisi permukaan tipis memiliki target berukuran penuh."
     }
   },
   "SurfaceCapture": {
@@ -5753,6 +5767,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -5772,7 +5788,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.lineDashed": {
@@ -5794,6 +5812,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -5813,7 +5833,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshBasic": {
@@ -5835,6 +5857,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -5854,7 +5878,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshDepth": {
@@ -5876,6 +5902,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -5895,7 +5923,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshLambert": {
@@ -5917,6 +5947,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -5936,7 +5968,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshMatcap": {
@@ -5958,6 +5992,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -5977,7 +6013,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshNormal": {
@@ -5999,6 +6037,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6018,7 +6058,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshPhong": {
@@ -6040,6 +6082,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6059,7 +6103,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshPhysical": {
@@ -6081,6 +6127,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6100,7 +6148,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshStandard": {
@@ -6122,6 +6172,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6141,7 +6193,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.meshToon": {
@@ -6163,6 +6217,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6182,7 +6238,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.points": {
@@ -6204,6 +6262,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6223,7 +6283,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.shadow": {
@@ -6245,6 +6307,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6264,7 +6328,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "material.sprite": {
@@ -6286,6 +6352,8 @@
       "parameters.ior": "Berapa banyak cahaya membelok saat masuk: 1.5 untuk kaca, 1.33 untuk air.",
       "parameters.thickness": "Seberapa tebal sebuah permukaan tembus pandang.",
       "parameters.clearcoat": "Sebuah lapisan vernis bening di atas: 0 sampai 1.",
+      "parameters.anisotropy": "Kekuatan anisotropi yang dinyatakan, dari 0 hingga 1; belum dirender.",
+      "parameters.anisotropyRotation": "Arah anisotropi yang dinyatakan, dalam radian; belum dirender.",
       "parameters.clearcoatRoughness": "Seberapa kasar vernisnya.",
       "parameters.sheen": "Sebuah cahaya lembut pada sudut miring, seperti beludru.",
       "parameters.iridescence": "Warna pelangi yang berubah dengan sudut, seperti gelembung sabun.",
@@ -6305,7 +6373,9 @@
       "parameters.physics": "Bahan benda yang memakainya: massa jenis, gesekan, pantulan.",
       "parameters.density": "kg/m³, dikali volume menjadi massa.",
       "parameters.friction": "Seberapa kuat benda mencengkeram, 0 ke atas.",
-      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1."
+      "parameters.restitution": "Seberapa kuat benda memantul, 0 sampai 1.",
+      "parameters.subsurfaceColor": "Transmisi difus melalui permukaan tipis dua sisi; hitam menonaktifkannya.",
+      "parameters.subsurfaceMap": "Warna transmisi linear opsional, dikalikan dengan subsurfaceColor."
     }
   },
   "materialSide": {

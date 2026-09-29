@@ -43,6 +43,7 @@ export class WebglClusterOwner {
    *  the frames upload ahead of their draws under the session's budget (`textureQueue.ts`). */
   census(materials: Iterable<HostMaterials>, hosts: TextureHosts) {
     const declared = new Set(materials);
+    this.display.textures.physicalMaps?.cache.census(declared);
     for (const material of declared) this.display.textures.file(material);
     this.ahead.order(declared, hosts.texturePoolBytes ?? DEFAULT_TEXTURE_POOL_BUDGET);
     this.ahead.budget.declare(
@@ -78,6 +79,7 @@ export class WebglClusterOwner {
     );
   }
   releaseMaterial(material: HostMaterials) {
+    this.display.textures.physicalMaps?.cache.release(material);
     const map = surfaceOf(material).map;
     if (map) this.display.textures.release(map);
   }

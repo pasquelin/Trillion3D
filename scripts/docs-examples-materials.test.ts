@@ -24,14 +24,18 @@ async function materialExample(id: string) {
   return { scene, frame, change, values, invalidations: () => invalidations };
 }
 
-test('parked physical-material examples name the engine issue that owns their rendering', async () => {
+test('physical-material examples are published on the backend that renders their lobes', async () => {
   const roadmap = JSON.parse(
     await readFile(new URL('../site/content/gallery-roadmap.json', import.meta.url), 'utf8'),
-  ) as { entries: { id: string; issue?: number }[] };
+  ) as { entries: { id: string; issue?: number; status?: string; file?: string }[] };
   for (const id of ['brushed-metal', 'car-paint-under-clear-coat']) {
-    assert.equal(roadmap.entries.find((entry) => entry.id === id)?.issue, 33, id);
+    const entry = roadmap.entries.find((entry) => entry.id === id);
+    assert.ok(entry?.file, id);
+    assert.equal(entry.status, undefined, id);
+    assert.equal(entry.issue, undefined, id);
     const html = await readFile(new URL(`../site/examples/${id}.html`, import.meta.url), 'utf8');
-    assert.match(html, /\/\/ Waits for #33: /, id);
+    assert.doesNotMatch(html, /Waits for #33/, id);
+    assert.match(html, /renderer: 'webgl2'/, id);
   }
 });
 

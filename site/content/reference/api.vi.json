@@ -1636,7 +1636,7 @@
   },
   "LIGHT_FIELD": {
     "summary": "Trường của một nguồn sáng trong bộ đệm, tính bằng số thực từ vị trí gốc của nó.",
-    "description": "Bốn `vec4f` cho mỗi nguồn sáng.",
+    "description": "Năm `vec4f` cho mỗi nguồn sáng.",
     "members": {
       "position": "Nơi nó đứng.",
       "range": "Nó vươn xa bao nhiêu.",
@@ -1649,7 +1649,8 @@
       "castsShadow": "Nó có đổ bóng hay không.",
       "cosInner": "Hình nón trong của một spot, nơi vùng nửa tối của nó bắt đầu: chính là cạnh của hình nón khi nó không có vùng nửa tối.",
       "halfWidth": "Trục nửa chiều rộng của một hình chữ nhật — `right` nhân với nửa chiều rộng của nó —, rồi tới nửa chiều cao.",
-      "halfHeight": "Nửa chiều cao của một hình chữ nhật."
+      "halfHeight": "Nửa chiều cao của một hình chữ nhật.",
+      "emitterRadius": "Bán kính nguồn sáng point hoặc spot; dùng chung các thành phần hình dạng dành riêng cho hình chữ nhật."
     }
   },
   "LIGHT_KIND": {
@@ -1870,6 +1871,8 @@
       "parameters.ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1,5 cho kính, 1,33 cho nước.",
       "parameters.thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "parameters.clearcoat": "Một lớp vecni trong suốt phủ trên: từ 0 đến 1.",
+      "parameters.anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "parameters.anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "parameters.clearcoatRoughness": "Lớp vecni đó nhám đến mức nào.",
       "parameters.sheen": "Một ánh sáng mềm ở góc xiên, như nhung.",
       "parameters.iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -1889,7 +1892,9 @@
       "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
       "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
-      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "parameters.subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "parameters.subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     },
     "members": {
       "isMaterial": "Luôn là `true`: phân biệt một vật liệu với bất cứ thứ gì khác.",
@@ -1916,7 +1921,8 @@
       "physics": "Thiết lập sẵn chất liệu vật lý của các vật mang nó.",
       "density": "kg/m³, cho khối lượng của vật.",
       "friction": "Ma sát vật lý.",
-      "restitution": "Độ nảy vật lý."
+      "restitution": "Độ nảy vật lý.",
+      "subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này."
     }
   },
   "Material-common": {
@@ -1950,6 +1956,8 @@
       "ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1,5 cho kính, 1,33 cho nước.",
       "thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "clearcoat": "Một lớp vecni trong suốt phủ trên: từ 0 đến 1.",
+      "anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "clearcoatRoughness": "Lớp vecni đó nhám đến mức nào.",
       "sheen": "Một ánh sáng mềm ở góc xiên, như nhung.",
       "iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -1969,7 +1977,9 @@
       "physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "density": "kg/m³, nhân với thể tích ra khối lượng.",
       "friction": "Mức bám của vật, từ 0 trở lên.",
-      "restitution": "Mức nảy của vật, từ 0 đến 1."
+      "restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     }
   },
   "MathPath": {
@@ -3102,7 +3112,7 @@
       "range": "Point, spot và rect: tầm tính bằng mét, nơi năng lượng biến mất đúng chỗ.",
       "coneAngle": "Độ mở của một spot.",
       "penumbra": "Chỉ spot: tỉ lệ của hình nón, từ cạnh của nó hướng vào trong, nơi ánh sáng mờ dần trong `[0, 1]`; nếu không có nó thì cạnh mềm dần qua `spotEdgeSoftness`.",
-      "emitterRadius": "Chỉ point và spot: bán kính, tính bằng mét, của lớp vỏ chứa nguồn sáng. Một nguồn sáng thật luôn được đặt trong một cái gì đó — kính đèn lồng, gương phản chiếu, chao đèn — và lớp vỏ đó là hình học như bất kỳ hình học nào khác: không có trường này, nó đi vào bản đồ bóng đổ của chính ánh sáng của nó và tắt nó đi. Khi được khai báo, nó trở thành mặt phẳng gần của bản đồ đó, nên không gì nằm gần hơn bán kính này tính từ nguồn lại đổ bóng ở đó. Đây là một thuộc tính của nguồn sáng, không bao giờ là tên vật thể hay loại vật liệu: bộ máy chỉ biết các bề mặt. Dương nghiêm ngặt và nhỏ hơn nghiêm ngặt so với tầm; nếu vắng mặt, không có gì thay đổi.",
+      "emitterRadius": "Chỉ point và spot: bán kính, tính bằng mét, của lớp vỏ chứa nguồn sáng. Một nguồn sáng thật luôn được đặt trong một cái gì đó — kính đèn lồng, gương phản chiếu, chao đèn — và lớp vỏ đó là hình học như bất kỳ hình học nào khác: không có trường này, nó đi vào bản đồ bóng đổ của chính ánh sáng của nó và tắt nó đi. Các mảnh điểm ảnh bên trong khối cầu này không đổ bóng; mặt phẳng gần của bản đồ vẫn phụ thuộc vào tầm chiếu sáng. Với nguồn sáng point, bán kính này còn xác định kích thước nguồn cho bộ lọc làm sắc nét biên bóng ở gần nơi tiếp xúc. Đây là một thuộc tính của nguồn sáng, không bao giờ là tên vật thể hay loại vật liệu: bộ máy chỉ biết các bề mặt. Dương nghiêm ngặt và nhỏ hơn nghiêm ngặt so với tầm; nếu vắng mặt, không có gì thay đổi.",
       "right": "Chỉ rect: trục đơn vị mà chiều rộng của nó chạy dọc theo, vuông góc với `direction`.",
       "size": "Chỉ rect: chiều rộng và chiều cao của nó, tính bằng mét.",
       "castsShadow": "Nó có đổ bóng hay không."
@@ -3600,9 +3610,13 @@
       "baseMetal": "Màu nền RGB, tính kim loại A.",
       "normalRough": "Pháp tuyến thế giới XYZ, độ nhám A.",
       "emissiveAo": "Phát sáng RGB, occlusion môi trường xung quanh A.",
-      "flags": "0 nền, 1 không chiếu sáng (có sương mù), 2 được đọc, 3 hiển thị nguyên trạng: một chẩn đoán, một góc nhìn pháp tuyến hoặc độ sâu.",
+      "flags": "0 nền, 1 không chiếu sáng (có sương mù), 2 được đọc, 3 hiển thị nguyên trạng: một chẩn đoán, một góc nhìn pháp tuyến hoặc độ sâu. 4 và 5 là mô hình khuếch tán và toon (`./surfaceModel.ts`).",
       "views": "Các view kết cấu GPU của nó.",
-      "dispose": "Giải phóng nó."
+      "dispose": "Giải phóng nó.",
+      "shadingOffset": "Độ lệch của bề mặt nhận bóng với độ chính xác đầy đủ, được ghi cùng G-buffer.",
+      "subsurface": "Màu truyền sáng độc lập của bề mặt mỏng; dùng kết cấu 1×1 có giá trị bằng 0 khi tắt.",
+      "subsurfaceView": "Khung nhìn kết cấu truyền sáng của bề mặt mỏng.",
+      "hasSubsurface": "Cho biết truyền sáng qua bề mặt mỏng có đích đầy đủ kích thước hay không."
     }
   },
   "SurfaceCapture": {
@@ -5753,6 +5767,8 @@
       "parameters.ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1.5 cho kính, 1.33 cho nước.",
       "parameters.thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "parameters.clearcoat": "Một lớp vecni trong suốt phía trên: từ 0 đến 1.",
+      "parameters.anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "parameters.anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "parameters.clearcoatRoughness": "Lớp vecni nhám đến mức nào.",
       "parameters.sheen": "Một ánh sáng mềm mại ở các góc xiên, như nhung.",
       "parameters.iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -5772,7 +5788,9 @@
       "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
       "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
-      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "parameters.subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "parameters.subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     }
   },
   "material.lineDashed": {
@@ -5794,6 +5812,8 @@
       "parameters.ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1.5 cho kính, 1.33 cho nước.",
       "parameters.thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "parameters.clearcoat": "Một lớp vecni trong suốt phía trên: từ 0 đến 1.",
+      "parameters.anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "parameters.anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "parameters.clearcoatRoughness": "Lớp vecni nhám đến mức nào.",
       "parameters.sheen": "Một ánh sáng mềm mại ở các góc xiên, như nhung.",
       "parameters.iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -5813,7 +5833,9 @@
       "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
       "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
-      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "parameters.subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "parameters.subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     }
   },
   "material.meshBasic": {
@@ -5835,6 +5857,8 @@
       "parameters.ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1.5 cho kính, 1.33 cho nước.",
       "parameters.thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "parameters.clearcoat": "Một lớp vecni trong suốt phía trên: từ 0 đến 1.",
+      "parameters.anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "parameters.anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "parameters.clearcoatRoughness": "Lớp vecni nhám đến mức nào.",
       "parameters.sheen": "Một ánh sáng mềm mại ở các góc xiên, như nhung.",
       "parameters.iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -5854,7 +5878,9 @@
       "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
       "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
-      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "parameters.subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "parameters.subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     }
   },
   "material.meshDepth": {
@@ -5876,6 +5902,8 @@
       "parameters.ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1.5 cho kính, 1.33 cho nước.",
       "parameters.thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "parameters.clearcoat": "Một lớp vecni trong suốt phía trên: từ 0 đến 1.",
+      "parameters.anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "parameters.anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "parameters.clearcoatRoughness": "Lớp vecni nhám đến mức nào.",
       "parameters.sheen": "Một ánh sáng mềm mại ở các góc xiên, như nhung.",
       "parameters.iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -5895,7 +5923,9 @@
       "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
       "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
-      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "parameters.subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "parameters.subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     }
   },
   "material.meshLambert": {
@@ -5917,6 +5947,8 @@
       "parameters.ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1.5 cho kính, 1.33 cho nước.",
       "parameters.thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "parameters.clearcoat": "Một lớp vecni trong suốt phía trên: từ 0 đến 1.",
+      "parameters.anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "parameters.anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "parameters.clearcoatRoughness": "Lớp vecni nhám đến mức nào.",
       "parameters.sheen": "Một ánh sáng mềm mại ở các góc xiên, như nhung.",
       "parameters.iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -5936,7 +5968,9 @@
       "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
       "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
-      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "parameters.subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "parameters.subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     }
   },
   "material.meshMatcap": {
@@ -5958,6 +5992,8 @@
       "parameters.ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1.5 cho kính, 1.33 cho nước.",
       "parameters.thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "parameters.clearcoat": "Một lớp vecni trong suốt phía trên: từ 0 đến 1.",
+      "parameters.anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "parameters.anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "parameters.clearcoatRoughness": "Lớp vecni nhám đến mức nào.",
       "parameters.sheen": "Một ánh sáng mềm mại ở các góc xiên, như nhung.",
       "parameters.iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -5977,7 +6013,9 @@
       "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
       "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
-      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "parameters.subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "parameters.subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     }
   },
   "material.meshNormal": {
@@ -5999,6 +6037,8 @@
       "parameters.ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1.5 cho kính, 1.33 cho nước.",
       "parameters.thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "parameters.clearcoat": "Một lớp vecni trong suốt phía trên: từ 0 đến 1.",
+      "parameters.anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "parameters.anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "parameters.clearcoatRoughness": "Lớp vecni nhám đến mức nào.",
       "parameters.sheen": "Một ánh sáng mềm mại ở các góc xiên, như nhung.",
       "parameters.iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -6018,7 +6058,9 @@
       "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
       "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
-      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "parameters.subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "parameters.subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     }
   },
   "material.meshPhong": {
@@ -6040,6 +6082,8 @@
       "parameters.ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1.5 cho kính, 1.33 cho nước.",
       "parameters.thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "parameters.clearcoat": "Một lớp vecni trong suốt phía trên: từ 0 đến 1.",
+      "parameters.anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "parameters.anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "parameters.clearcoatRoughness": "Lớp vecni nhám đến mức nào.",
       "parameters.sheen": "Một ánh sáng mềm mại ở các góc xiên, như nhung.",
       "parameters.iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -6059,7 +6103,9 @@
       "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
       "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
-      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "parameters.subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "parameters.subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     }
   },
   "material.meshPhysical": {
@@ -6081,6 +6127,8 @@
       "parameters.ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1.5 cho kính, 1.33 cho nước.",
       "parameters.thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "parameters.clearcoat": "Một lớp vecni trong suốt phía trên: từ 0 đến 1.",
+      "parameters.anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "parameters.anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "parameters.clearcoatRoughness": "Lớp vecni nhám đến mức nào.",
       "parameters.sheen": "Một ánh sáng mềm mại ở các góc xiên, như nhung.",
       "parameters.iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -6100,7 +6148,9 @@
       "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
       "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
-      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "parameters.subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "parameters.subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     }
   },
   "material.meshStandard": {
@@ -6122,6 +6172,8 @@
       "parameters.ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1.5 cho kính, 1.33 cho nước.",
       "parameters.thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "parameters.clearcoat": "Một lớp vecni trong suốt phía trên: từ 0 đến 1.",
+      "parameters.anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "parameters.anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "parameters.clearcoatRoughness": "Lớp vecni nhám đến mức nào.",
       "parameters.sheen": "Một ánh sáng mềm mại ở các góc xiên, như nhung.",
       "parameters.iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -6141,7 +6193,9 @@
       "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
       "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
-      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "parameters.subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "parameters.subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     }
   },
   "material.meshToon": {
@@ -6163,6 +6217,8 @@
       "parameters.ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1.5 cho kính, 1.33 cho nước.",
       "parameters.thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "parameters.clearcoat": "Một lớp vecni trong suốt phía trên: từ 0 đến 1.",
+      "parameters.anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "parameters.anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "parameters.clearcoatRoughness": "Lớp vecni nhám đến mức nào.",
       "parameters.sheen": "Một ánh sáng mềm mại ở các góc xiên, như nhung.",
       "parameters.iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -6182,7 +6238,9 @@
       "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
       "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
-      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "parameters.subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "parameters.subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     }
   },
   "material.points": {
@@ -6204,6 +6262,8 @@
       "parameters.ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1.5 cho kính, 1.33 cho nước.",
       "parameters.thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "parameters.clearcoat": "Một lớp vecni trong suốt phía trên: từ 0 đến 1.",
+      "parameters.anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "parameters.anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "parameters.clearcoatRoughness": "Lớp vecni nhám đến mức nào.",
       "parameters.sheen": "Một ánh sáng mềm mại ở các góc xiên, như nhung.",
       "parameters.iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -6223,7 +6283,9 @@
       "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
       "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
-      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "parameters.subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "parameters.subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     }
   },
   "material.shadow": {
@@ -6245,6 +6307,8 @@
       "parameters.ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1.5 cho kính, 1.33 cho nước.",
       "parameters.thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "parameters.clearcoat": "Một lớp vecni trong suốt phía trên: từ 0 đến 1.",
+      "parameters.anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "parameters.anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "parameters.clearcoatRoughness": "Lớp vecni nhám đến mức nào.",
       "parameters.sheen": "Một ánh sáng mềm mại ở các góc xiên, như nhung.",
       "parameters.iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -6264,7 +6328,9 @@
       "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
       "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
-      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "parameters.subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "parameters.subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     }
   },
   "material.sprite": {
@@ -6286,6 +6352,8 @@
       "parameters.ior": "Ánh sáng bị bẻ cong bao nhiêu khi đi vào: 1.5 cho kính, 1.33 cho nước.",
       "parameters.thickness": "Một bề mặt trong suốt dày đến mức nào.",
       "parameters.clearcoat": "Một lớp vecni trong suốt phía trên: từ 0 đến 1.",
+      "parameters.anisotropy": "Cường độ dị hướng được khai báo, từ 0 đến 1; chưa được kết xuất.",
+      "parameters.anisotropyRotation": "Hướng dị hướng được khai báo, tính bằng radian; chưa được kết xuất.",
       "parameters.clearcoatRoughness": "Lớp vecni nhám đến mức nào.",
       "parameters.sheen": "Một ánh sáng mềm mại ở các góc xiên, như nhung.",
       "parameters.iridescence": "Các màu cầu vồng thay đổi theo góc nhìn, như bong bóng xà phòng.",
@@ -6305,7 +6373,9 @@
       "parameters.physics": "Chất liệu của vật mang nó: mật độ, ma sát, độ nảy.",
       "parameters.density": "kg/m³, nhân với thể tích ra khối lượng.",
       "parameters.friction": "Mức bám của vật, từ 0 trở lên.",
-      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1."
+      "parameters.restitution": "Mức nảy của vật, từ 0 đến 1.",
+      "parameters.subsurfaceColor": "Truyền sáng khuếch tán qua bề mặt mỏng hai mặt; màu đen sẽ tắt tính năng này.",
+      "parameters.subsurfaceMap": "Màu truyền sáng tuyến tính tùy chọn, được nhân với subsurfaceColor."
     }
   },
   "materialSide": {

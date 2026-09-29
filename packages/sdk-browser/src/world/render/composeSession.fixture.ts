@@ -31,20 +31,31 @@ export function session(scene: Scene, chain: EffectChain) {
   const draw = createSceneDraw(context.gl, scene, [], {
     materialDegraded: noticeMaterialDegraded(notices),
   });
-  const backend = { id: 'engine', scene, frameHeld: false, ...draw, ...draw.host };
+  let chained = false;
+  const backend = {
+    id: 'engine',
+    scene,
+    frameHeld: false,
+    ...draw,
+    ...draw.host,
+    drawHostGeometry(...args: Parameters<typeof draw.host.drawHostGeometry>) {
+      chained = !!args[1].linear;
+      return draw.host.drawHostGeometry(...args);
+    },
+  };
   const refused = noticeEffectRefusal(notices);
   const compose = createFrameComposer(context.gl, camera, {
     effects: { chain, shown: () => true, refused },
   });
   return {
     frame(between?: () => void) {
-      const passes = context.of('drawArrays').length,
-        submitted = context.of('drawElements').length;
+      chained = false;
+      const submitted = context.of('drawElements').length;
       draw.render(camera);
       between?.();
       compose(backend as unknown as RenderBackend, null);
       return {
-        chained: context.of('drawArrays').length > passes,
+        chained,
         submitted: context.of('drawElements').length - submitted,
       };
     },
