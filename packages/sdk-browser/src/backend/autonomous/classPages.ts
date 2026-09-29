@@ -95,22 +95,23 @@ export function createClassPages(env: ClassPagesEnvironment) {
     ]);
     const drawn = drawnTriangles(vertices, 'triangles');
     if (!drawn) throw new Error('MATERIAL_CLASS_SOURCE_MISSING');
-    const joined = joinedCorners(corners),
-      { indices, ends } = joined,
-      pages = primitive.pages;
+    const { indices, ends } = joinedCorners(corners);
     // The attributes the compiled pages carry, and those alone.
-    const flags = pages[0].geometry!.flags;
+    const flags = primitive.pages[0].geometry!.flags;
     const carried = {
       ...drawn,
+      indices,
       normals: flags & FLAG_NORMAL ? drawn.normals : new Float32Array(0),
       uvs: flags & FLAG_UV ? drawn.uvs : null,
       colors: flags & FLAG_COLOR ? drawn.colors : null,
     };
-    const url = (k: number) => pages[k].geometry!.url;
+    const pages = primitive.pages,
+      url = (k: number) => pages[k].geometry!.url;
     // A mesh with no registered source reads its one-triangle stand-in: refused, never cut.
-    const grown = await withPlaced(carried, joined, pages, (k) => readPages(context, k.map(url)));
+    const read = (k: number[]) => readPages(context, k.map(url));
+    const grown = await withPlaced(carried, { indices, ends }, pages, read);
     const recut = { ends, finestError: finestError(primitive), scale };
-    const cut = await cutPagesOffThread(packDrawn({ ...grown, indices }, blended, recut));
+    const cut = await cutPagesOffThread(packDrawn(grown, blended, recut));
     return new Map(
       primitive.pages.map((page, k) => [page.id, new Uint8Array(cut.pages[k].geometry)]),
     );
