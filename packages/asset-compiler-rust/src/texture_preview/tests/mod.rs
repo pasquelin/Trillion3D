@@ -9,7 +9,7 @@ mod cached_shape;
 mod cancellation;
 mod collect_textures;
 mod coverage_alpha;
-mod coverage_filtered;
+pub(crate) mod coverage_filtered;
 mod decode_failure;
 mod gate;
 mod gate_verdict;

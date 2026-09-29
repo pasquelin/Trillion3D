@@ -107,22 +107,15 @@ pub(super) fn atlas_textures(g: &Value, meshes: &BTreeSet<usize>) -> Result<Vec<
         };
         let mode = material.get("alphaMode").and_then(Value::as_str);
         let opaque = mode.is_none_or(|m| m == "OPAQUE");
-        let cutoff = (mode == Some("MASK")).then(|| {
-            material
-                .get("alphaCutoff")
-                .and_then(Value::as_f64)
-                .unwrap_or(crate::cutout::CUTOUT_ALPHA) as f32
+        // Only BLEND and a cutting MASK take coverage (`coverage_cutoff`); the others keep the
+        // plain chain, the RGB under alpha 0 included.
+        let cut = (mode == Some("MASK")).then(|| {
+            let cutoff = material.get("alphaCutoff").and_then(Value::as_f64);
+            let cutoff = cutoff.unwrap_or(crate::cutout::CUTOUT_ALPHA) as f32;
+            super::coverage::material_cut(material, cutoff)
         });
-        // A MASK cutoff at or under 0 cuts nothing: the engine draws it opaque
-        // (`alphaTest > 0`, `collectWebgpuMaterialTextures`), the RGB under alpha 0 included.
-        // So does a mode glTF does not name, which the material table writes `OPAQUE`
-        // (`compiler_tables/materials.rs`): only BLEND and a cutting MASK take coverage.
-        // A transmissive BLEND tints what crosses it by its base colour whatever its alpha
-        // (`webgpu/water/compositeWgsl.ts`): it draws the RGB under alpha 0 and keeps the plain chain.
-        let transmits = crate::compiler_materials::unsplit_material(Some(material));
-        let cut = cutoff.map(|c| super::coverage::material_cut(material, c));
-        let coverage = ((mode == Some("BLEND") && !transmits) || cutoff.is_some_and(|c| c > 0.0))
-            .then(|| cut.map_or(0, |(c, f)| super::coverage::cutoff_byte(c, f)));
+        let coverage = crate::compiler_materials::coverage_cutoff(material)
+            .map(|_| cut.map_or(0, |(c, f)| super::coverage::cutoff_byte(c, f)));
         for role in ROLES {
             let Some(texture) = texture_index(role.reference(material)) else {
                 continue;

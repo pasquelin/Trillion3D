@@ -18,6 +18,7 @@ import {
 } from '../pages/prepare/pipelineFor.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts';
+import { rootOf } from '../../page/selection/placements.ts';
 
 /** Uploads and draws opaque rows through the non-visibility fallback pipeline; the draws count on
  *  `rt.run.gpuDrawCalls` and the open encoder comes back with the vertices drawn. */
@@ -40,7 +41,7 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
       color = pageRgb(rt, rec);
     writeFallbackUniform(uniformPacked, packedInts, base, {
       projection: viewProj,
-      world: rec.matrix.elements,
+      world: rootOf(rt.layout.selectionRoots, rec).world.elements,
       color,
       opacity: 1,
       pageOffset: rows.pageTableInts![row * fallbackWords + 24],

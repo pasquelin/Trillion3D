@@ -7,7 +7,7 @@ import { hashId, screenErrorColor } from '../../../packages/sdk-browser/src/diag
 import { triangleGeometry } from '../../../packages/sdk-browser/src/diagnostic/triangleDiagnostic.ts';
 import { pageDiagnostics } from '../../../packages/sdk-browser/src/host/pageDiagnostics.ts';
 import type { EngineCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { WitnessPage as PageRec } from './pose.ts';
 import type { DiagnosticMode } from '../../../packages/sdk-core/src/index.ts';
 
 /** A cluster page as this file reads it: the host declaration, the identity, and the two

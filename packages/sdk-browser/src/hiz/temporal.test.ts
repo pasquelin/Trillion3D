@@ -19,6 +19,10 @@ import { splitOccludersFlat, splitOccludersInto } from './split.ts';
 import { projectCornersInto } from './corners.ts';
 import { cameraAt, projectBoxToScreen, quad } from '../../../../tests/fixtures/hiz.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { identityRoots } from '../page/selection/placements.fixture.ts';
+
+/** The unit root, the identity, that places every page of the first two tests. */
+const units = identityRoots();
 
 test('Hi-Z remaining pages are a subset of the selected cut and never punch a beauty hole', () => {
   const frontMat = G.basicSurface({ color: 0xff0000 });
@@ -30,7 +34,7 @@ test('Hi-Z remaining pages are a subset of the selected cut and never punch a be
   const selected = [front.page, back.page];
   const occluders: (VisPage & HizPage)[] = [],
     rest: (VisPage & HizPage)[] = [];
-  splitOccludersInto(selected, cameraMoteur(cam), size, occluders, rest);
+  splitOccludersInto(selected, units, cameraMoteur(cam), size, occluders, rest);
   assert.deepEqual(
     occluders.map((page) => page.url),
     ['front'],
@@ -39,23 +43,26 @@ test('Hi-Z remaining pages are a subset of the selected cut and never punch a be
     rest.map((page) => page.url),
     ['back'],
   );
-  const ids = rasterVisibilityIds(occluders, cameraMoteur(cam), size);
+  const ids = rasterVisibilityIds(occluders, units, cameraMoteur(cam), size);
   const remaining = filterUnoccluded(
     selected,
-    buildHizPyramid(visibilityDepth(ids, occluders, cameraMoteur(cam), size), 32, 32),
+    units,
+    buildHizPyramid(visibilityDepth(ids, occluders, units, cameraMoteur(cam), size), 32, 32),
     cameraMoteur(cam),
     size,
   );
   assert.ok(remaining.every((page) => selected.includes(page)));
   const full = shadeVisibility(
-    rasterVisibilityIds(selected, cameraMoteur(cam), size),
+    rasterVisibilityIds(selected, units, cameraMoteur(cam), size),
     selected,
+    units,
     cameraMoteur(cam),
     size,
   );
   const filtered = shadeVisibility(
-    rasterVisibilityIds(remaining, cameraMoteur(cam), size),
+    rasterVisibilityIds(remaining, units, cameraMoteur(cam), size),
     remaining,
+    units,
     cameraMoteur(cam),
     size,
   );
@@ -76,7 +83,7 @@ test('temporal Hi-Z reprojects previous depth pyramid and handles disocclusion s
 
   // Frame 0: Front directly occludes back. History is populated.
   const cam0 = cameraAt(5);
-  const res0 = applyTemporalHiz([front.page, back.page], cameraMoteur(cam0), size, history);
+  const res0 = applyTemporalHiz([front.page, back.page], units, cameraMoteur(cam0), size, history);
   assert.deepEqual(
     res0.shown.map((p) => p.url),
     ['front'],
@@ -86,7 +93,7 @@ test('temporal Hi-Z reprojects previous depth pyramid and handles disocclusion s
   assert.ok(history.camera);
 
   // Frame 1: Same camera pose. Front remains occluder, back remains rejected.
-  const res1 = applyTemporalHiz([front.page, back.page], cameraMoteur(cam0), size, history);
+  const res1 = applyTemporalHiz([front.page, back.page], units, cameraMoteur(cam0), size, history);
   assert.deepEqual(
     res1.shown.map((p) => p.url),
     ['front'],
@@ -98,7 +105,7 @@ test('temporal Hi-Z reprojects previous depth pyramid and handles disocclusion s
   cam2.position.set(5, 0, 2);
   cam2.lookAt(0, 0, -1);
   cam2.updateMatrixWorld();
-  const res2 = applyTemporalHiz([front.page, back.page], cameraMoteur(cam2), size, history);
+  const res2 = applyTemporalHiz([front.page, back.page], units, cameraMoteur(cam2), size, history);
   // Both front and back should be shown now (disoccluded!)
   assert.ok(res2.shown.some((p) => p.url === 'back'));
   assert.ok(res2.shown.some((p) => p.url === 'front'));
@@ -127,10 +134,12 @@ test('flat projection and split reproduce the object forms to the bit, including
       min: centre.map((value, axis) => value - half[axis]),
       max: centre.map((value, axis) => value + half[axis]),
       matrix,
+      placementIndex: i,
     });
   }
   // Copies of existing boxes give the sort exactly equal depths, where the index tie-break decides.
   for (let i = 0; i < 30; i++) pages.push({ ...pages[i] });
+  const roots = pages.map(({ matrix }) => ({ world: matrix }));
   const camera = G.perspectiveCamera(60, 16 / 9, 0.1, 200);
   camera.position.set(1, 2, 3);
   camera.lookAt(0, 0, -20);
@@ -138,7 +147,7 @@ test('flat projection and split reproduce the object forms to the bit, including
   camera.updateMatrixWorld();
   const viewport: [number, number] = [1280, 720];
   const flat = new Float64Array(pages.length * HIZ_BOUNDS_VALUES);
-  projectBoxesFlat(pages, pages.length, cameraMoteur(camera), viewport, flat);
+  projectBoxesFlat(pages, roots, pages.length, cameraMoteur(camera), viewport, flat);
   for (let i = 0; i < pages.length; i++) {
     const reference = projectBoxToScreen(
         pages[i].min,
@@ -161,7 +170,7 @@ test('flat projection and split reproduce the object forms to the bit, including
     derived = new Float64Array(flat.length),
     { view, viewProjection, near } = cameraMoteur(camera);
   for (let i = 0; i < pages.length; i++) {
-    pageCornersInto(corners, 0, pages[i]);
+    pageCornersInto(corners, 0, pages[i], pages[i].matrix);
     const base = i * HIZ_BOUNDS_VALUES;
     projectCornersInto(corners, 0, view, viewProjection, near, ...viewport, derived, base);
   }
@@ -171,7 +180,14 @@ test('flat projection and split reproduce the object forms to the bit, including
   const tagged = pages.map((page, index) => ({ ...page, tag: index }));
   const referenceOccluders: (HizPage & { tag: number })[] = [],
     referenceRest: (HizPage & { tag: number })[] = [];
-  splitOccludersInto(tagged, cameraMoteur(camera), viewport, referenceOccluders, referenceRest);
+  splitOccludersInto(
+    tagged,
+    roots,
+    cameraMoteur(camera),
+    viewport,
+    referenceOccluders,
+    referenceRest,
+  );
   assert.equal(occluders, referenceOccluders.length);
   assert.equal(referenceOccluders.length + referenceRest.length, tagged.length);
   const referenceOccluderTags = new Set(referenceOccluders.map((page) => page.tag));

@@ -1,9 +1,11 @@
 import { HIZ_BOUNDS_VALUES, projectBoxInto } from './corners.ts';
 import type { HizPage } from './types.ts';
 import type { EngineCamera } from '../camera/world.ts';
+import { rootOf, type Placements } from '../page/selection/placements.ts';
 
 export function projectBoxesFlat(
   pages: ArrayLike<HizPage | undefined>,
+  roots: Placements,
   count: number,
   cam: EngineCamera,
   viewport: [number, number],
@@ -23,7 +25,7 @@ export function projectBoxesFlat(
     projectBoxInto(
       page.min,
       page.max,
-      page.matrix,
+      rootOf(roots, page).world,
       view,
       elements,
       near,
