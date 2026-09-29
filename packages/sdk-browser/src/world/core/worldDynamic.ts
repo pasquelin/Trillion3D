@@ -95,7 +95,9 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
     if (dynamic.has(geometry)) return true;
     const seen = changes.get(geometry);
     const detected = !!seen && seen.version !== geometry.version && frame - seen.frame === 1;
-    if (!seen || seen.version !== geometry.version) changes.set(geometry, { version: geometry.version, frame });
+    // First seen, a geometry has changed on no frame yet.
+    if (!seen || seen.version !== geometry.version)
+      changes.set(geometry, { version: geometry.version, frame: seen ? frame : -Infinity });
     if (!declared && !detected) return false;
     dynamic.add(geometry);
     const name = mesh.name || `(unnamed ${mesh.type})`;
