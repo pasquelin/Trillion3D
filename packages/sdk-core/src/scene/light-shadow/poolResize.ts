@@ -3,11 +3,6 @@ import { shadowPageArrays, type ShadowPageArrays } from './poolPages.ts';
 import { PAGE_INDEX_MASK } from './virtual.ts';
 import type { ShadowTable } from './table.ts';
 
-/** What a page carries to its new place besides its entry: every other page array. */
-const CARRIED = (Object.keys(shadowPageArrays(0)) as (keyof ShadowPageArrays)[]).filter(
-  (key) => key !== 'owner',
-);
-
 /**
  * THE POOL FOLLOWS A RESIZE WITHOUT LOSING WHAT IT HOLDS: `pool` takes `side² × layers` pages,
  * and every mapped page it has room for keeps its entry, its depth — copied texel for texel to its
@@ -28,6 +23,11 @@ export function resizeShadowPool(
   side: number,
   layers: number,
 ) {
+  // What a page carries to its new place besides its entry: every other page array. Built here,
+  // never at import: a module-level call would stay in every bundle of sdk-core.
+  const carried = (Object.keys(shadowPageArrays(0)) as (keyof ShadowPageArrays)[]).filter(
+    (k) => k !== 'owner',
+  );
   const before: ShadowPageArrays = { ...pool },
     moved = new Int32Array(pool.pages).fill(-1),
     room = side * side * layers,
@@ -43,7 +43,7 @@ export function resizeShadowPool(
   for (const [i, page] of kept.entries()) {
     const entry = before.owner[page],
       to = pool.take(table, entry, before.requested[page], 0, 0);
-    for (const field of CARRIED) pool[field][to] = before[field][page];
+    for (const field of carried) pool[field][to] = before[field][page];
     table.write(entry, (words[i] & ~PAGE_INDEX_MASK) | to);
     moved[page] = to;
   }
