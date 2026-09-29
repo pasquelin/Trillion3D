@@ -82,7 +82,7 @@ const READ: GPUBufferBindingType = 'read-only-storage';
  */
 export async function createShadowAllocation(device: GPUDevice) {
   const fresh: GPUBufferBindingType[] = ['storage', 'storage', 'storage', 'storage', 'storage'];
-  fresh.push('storage', READ);
+  fresh.push('storage', READ, 'storage');
   const [allocate, words, compose, seal, cull] = await Promise.all([
     computePass(device, ALLOCATION_WGSL, SHADOW_ALLOC_PASS, 'allocateShadowPages', [
       'storage',

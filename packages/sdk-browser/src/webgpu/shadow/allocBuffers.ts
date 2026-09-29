@@ -35,6 +35,7 @@ export const shadowAllocationBytes = (pages: number) =>
     pages +
     FRESH_PARAMS +
     freshArgWords(pages) +
+    3 +
     pages * (FRESH_FACE_WORDS + SHADOW_CULL_FLOATS));
 
 /**
@@ -77,10 +78,11 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       freshArgWords(pages),
       GPUBufferUsage.INDIRECT,
     ),
+    freshDispatch = buffer('Trillion3D shadow GPU page cull v1', 3, GPUBufferUsage.INDIRECT),
     freshFaces = buffer('Trillion3D shadow GPU page views v1', pages * FRESH_FACE_WORDS, 0),
     freshVolumes = buffer('Trillion3D shadow GPU page volumes v1', pages * SHADOW_CULL_FLOATS, 0),
     made = [state, keys, paramBuffer, wordBuffer, drawList, freshParams, freshArgs];
-  made.push(freshFaces, freshVolumes);
+  made.push(freshDispatch, freshFaces, freshVolumes);
   const allocation = {
     state,
     keys,
@@ -89,6 +91,7 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
     drawList,
     freshParams,
     freshArgs,
+    freshDispatch,
     freshFaces,
     freshVolumes,
     bytes: made.reduce((sum, buffer) => sum + buffer.size, 0),
