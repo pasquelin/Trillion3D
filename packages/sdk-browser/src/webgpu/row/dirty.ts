@@ -4,25 +4,32 @@
  * rows are scattered across the table sends those rows and no row of the terrain between them.
  */
 export function createDirtyRows(drawSlots: number) {
-  const marks = new Uint8Array(drawSlots);
   const span = { from: drawSlots, to: -1 };
-  return {
-    marks,
+  const dirty = {
+    marks: new Uint8Array(drawSlots),
     span,
     /** Declares rows `[from, to]` dirty. */
     mark(from: number, to = from) {
-      if (to === from) marks[from] = 1;
-      else marks.fill(1, from, to + 1);
+      if (to === from) dirty.marks[from] = 1;
+      else dirty.marks.fill(1, from, to + 1);
       if (from < span.from) span.from = from;
       if (to > span.to) span.to = to;
     },
     /** Every row uploaded: the marks cleared on the span alone. */
     clear() {
-      if (span.to >= span.from) marks.fill(0, span.from, span.to + 1);
-      span.from = drawSlots;
+      if (span.to >= span.from) dirty.marks.fill(0, span.from, span.to + 1);
+      span.from = dirty.marks.length;
       span.to = -1;
     },
+    /** The table grew to `rows` (`grow.ts`): the marks held so far are kept. */
+    grow(rows: number) {
+      const marks = new Uint8Array(rows);
+      marks.set(dirty.marks);
+      dirty.marks = marks;
+      if (span.to < span.from) span.from = rows;
+    },
   };
+  return dirty;
 }
 
 /** A reader of row runs; `ctx` spares it a closure allocated per image. */
