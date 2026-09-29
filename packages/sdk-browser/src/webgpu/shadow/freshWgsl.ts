@@ -1,121 +1,124 @@
-import { MAX_SHADOW_SLICES, SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
-import {
-  SHADOW_CULL_CASTERS,
-  SHADOW_CULL_VIEW,
-} from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
+import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { PAGE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
 import {
-  LAYER_PAGES,
-  PAGE_INDEX_MASK,
   PAGE_RANGE_SHIFT,
   SHADOW_PAGE,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { DRAW_INDIRECT_WORDS } from '../../gpu/draw/contract.ts';
-import { SHADOW_FACE_STRIDE, SHADOW_REGION_COMMANDS } from '../../gpu/shadow/batchBudget.ts';
 import { CASTERS_ALL, SHADOW_CULL_GROUP } from '../../gpu/shadow/cullShader.ts';
-import { MAX_SHADOW_REGIONS, SHADOW_FACE_READ_WORDS } from '../../gpu/shadow/recordPack.ts';
 import { SHADOW_PLACE_WGSL } from '../../lighting/direct/shadowSampleWgsl.ts';
 import { SHADOW_DATA_WGSL } from '../../lighting/direct/shadowWgsl.ts';
-import { POOL_COUNTS, SHADOW_POOL_WGSL } from './poolWgsl.ts';
+import { SHADOW_POOL_WGSL } from './poolWgsl.ts';
+import {
+  FRESH_CASTERS,
+  FRESH_CLEAR,
+  FRESH_FACE_WORDS,
+  FRESH_LAYOUT_WGSL,
+  FRESH_PARAMS_WGSL,
+  MAX_POOL_LAYERS,
+} from './freshLayout.ts';
 
-/** Invocations of the one workgroup that composes a frame's GPU-drawn pages. */
+/** Invocations of the one workgroup that composes, then seals, a frame's GPU-drawn pages. */
 export const FRESH_LANES = 64;
-/** Layers a pool holds at most: a table word names 2¹⁶ pages (`shadowPoolShape`). */
-export const MAX_POOL_LAYERS = (PAGE_INDEX_MASK + 1) / LAYER_PAGES;
-/** Words of the parameters before the slices: pages, layer side, layers, regions a layer, rows. */
-export const FRESH_PARAM_WORDS = 8;
-/** Floats of a slice's parameters: its emitter — centre and envelope radius —, its far plane. */
-export const FRESH_SLICE_FLOATS = 8;
-/** Words of a layer's dispatch arguments for the cull. */
-export const FRESH_ARG_WORDS = 3;
+/** Regions a frame's pair cull dispatches at most: a dispatch's second dimension. */
+export const MAX_FRESH_REGIONS = 65535;
 
 /**
- * THE PAGES THE GPU DRAWS ITSELF (#1275), in the frame that maps them: the allocation lists every
- * page it mapped, or mapped before and saw no draw of since (`allocWgsl.ts`, `listDraw`), and once
- * the host's pages are drawn and its table words applied, one workgroup composes each of them into
- * a region of the batch buffers — its face (\`ShadowView\`: the page's projection, its place in the
- * pool, its emitter, its clip square in the layer's), its cull volume, its commands at zero —, the
- * region count of each layer as the cull's dispatch, and its word written readable: the cull and
- * the draws that follow land before anything reads it (`freshPass.ts`).
+ * THE PAGES THE GPU DRAWS ITSELF (#1275), in the frame that maps them. The allocation lists every
+ * page it maps, or mapped before and saw no draw of since, and the host's words every page they
+ * take the depth of while the frame reads it (`listDraw`); once those are in, one workgroup
+ * composes EVERY listed page into a region — its view (`ShadowView`: projection, place in the
+ * pool, emitter, clip square), its cull volume —, the regions of each pool layer together, and the
+ * arguments of what follows (`freshLayout.ts`): the pair cull over every caster row
+ * (`freshCullWgsl.ts`), then `sealShadowPages`, then each layer's clear and caster draws.
  *
- * A page is one region, all its casters at once; layer `l` holds regions `[l · perLayer, …)`, the
- * first listed first. A page whose word the host's draws made readable meanwhile is the host's; one
- * past its layer's regions waits for the next frame's list. The projection is composed from the
- * light's record by the page model (`pageModel.ts`), as the host composes it (`writeLampPage`,
- * `writeSunSquare`); the volume is the page's own in light space — a lamp page's cone, a sun page's
- * box —, whatever the camera sees.
+ * A page is claimed once (`DRAWN_GPU`) and composed by the page view model, as the host composes
+ * it (`pageViewModel.ts`): a lamp page is its face's clip cropped to it, its cone the lamp's; a sun
+ * page is its view cropped by the orthography, its box the square by the range's depth. The seal
+ * makes readable only a page none of whose casters the cull lost: one that lost one waits,
+ * listed again, for the next frame or the host.
  */
 export const SHADOW_FRESH_WGSL = `
 ${SHADOW_DATA_WGSL}
 @group(0) @binding(0) var<storage,read_write> shadows:ShadowData;
-struct ShadowFreshPool{counts:array<u32,${POOL_COUNTS.length}>,pages:array<i32>,}
-@group(0) @binding(1) var<storage,read_write> shadowPool:ShadowFreshPool;
-@group(0) @binding(2) var<storage,read> drawList:array<u32>;
+@group(0) @binding(1) var<storage,read_write> shadowPool:ShadowPool;
+@group(0) @binding(2) var<storage,read_write> drawList:array<u32>;
 @group(0) @binding(3) var<storage,read_write> faces:array<u32>;
 @group(0) @binding(4) var<storage,read_write> volumes:array<u32>;
-@group(0) @binding(5) var<storage,read_write> commands:array<u32>;
-struct ShadowFreshSlice{emitter:vec4f,far:vec4f,}
-struct ShadowFreshParams{pages:u32,side:u32,layers:u32,perLayer:u32,rows:u32,pad0:u32,pad1:u32,pad2:u32,slices:array<ShadowFreshSlice,${MAX_SHADOW_SLICES}>,}
+@group(0) @binding(5) var<storage,read_write> args:array<u32>;
+${FRESH_PARAMS_WGSL}
 @group(0) @binding(6) var<storage,read> params:ShadowFreshParams;
-@group(0) @binding(7) var<storage,read_write> args:array<u32>;
 ${PAGE_MODEL_WGSL}
 ${SHADOW_POOL_WGSL}
 ${SHADOW_PLACE_WGSL}
+${FRESH_LAYOUT_WGSL}
 const FRESH_LANES:u32=${FRESH_LANES}u;
-const FRESH_REGIONS:u32=${MAX_SHADOW_REGIONS}u;
-const FACE_WORDS:u32=${SHADOW_FACE_STRIDE / 4}u;
-const RECT_WORD:u32=${SHADOW_FACE_READ_WORDS}u;
-const ORDER_WORD:u32=${(MAX_SHADOW_REGIONS * SHADOW_FACE_STRIDE) / 4}u;
+const FACE_WORDS:u32=${FRESH_FACE_WORDS}u;
 const CULL_WORDS:u32=${SHADOW_CULL_FLOATS}u;
-const REGION_WORDS:u32=${SHADOW_REGION_COMMANDS * DRAW_INDIRECT_WORDS}u;
 const CULL_GROUP:u32=${SHADOW_CULL_GROUP}u;
 const PAGE_TEXELS:f32=${SHADOW_PAGE}.0;
 const RANGE_SHIFT:u32=${PAGE_RANGE_SHIFT}u;
-var<workgroup> regionPage:array<i32,${MAX_SHADOW_REGIONS}>;
+const MAX_REGIONS:u32=${MAX_FRESH_REGIONS}u;
 var<workgroup> layerCount:array<u32,${MAX_POOL_LAYERS}>;
+var<workgroup> regionCount:u32;
 fn poolField(field:u32,p:u32)->i32{return shadowPool.pages[field*params.pages+p];}
+fn poolLayer(p:u32)->u32{return u32(shadowPoolPlace(f32(p),f32(params.side)).z);}
 fn faceF(i:u32,v:f32){faces[i]=bitcast<u32>(v);}
 fn volumeF(i:u32,v:f32){volumes[i]=bitcast<u32>(v);}
 fn faceVec(i:u32,v:vec4f){faceF(i,v.x);faceF(i+1u,v.y);faceF(i+2u,v.z);faceF(i+3u,v.w);}
 fn volumeVec(i:u32,v:vec4f){volumeF(i,v.x);volumeF(i+1u,v.y);volumeF(i+2u,v.z);volumeF(i+3u,v.w);}
-/** Lane 0: the listed pages each layer draws, in list order, while the host has not drawn them. */
+/** Lane 0: the listed pages still waiting for a draw, each claimed once, then laid out as regions
+ *  layer after layer (\`FRESH_LAYER_STARTS\`, \`FRESH_REGION_PAGES\`). */
 fn pickPages(){
  for(var l=0u;l<params.layers;l++){layerCount[l]=0u;}
- for(var k=0u;k<FRESH_REGIONS;k++){regionPage[k]=-1;}
- let listed=min(shadowPool.counts[COUNT_DRAWN],params.pages);
- var open=params.layers;
- for(var i=0u;i<listed&&open>0u;i++){
+ let listed=min(countRead(COUNT_DRAWN),params.pages);
+ var picked=0u;
+ for(var i=0u;i<listed&&picked<MAX_REGIONS;i++){
   let p=drawList[i];let e=poolField(POOL_OWNER,p);
   if(e<0){continue;}
-  let word=shadows.table[u32(e)];
-  if((word&(PAGE_MAPPED|PAGE_VALID))!=PAGE_MAPPED||(word&PAGE_INDEX_MASK)!=p){continue;}
-  let l=u32(shadowPoolPlace(f32(p),f32(params.side)).z);let k=layerCount[l];
-  if(k>=params.perLayer){continue;}
-  regionPage[l*params.perLayer+k]=i32(p);layerCount[l]=k+1u;
-  if(k+1u==params.perLayer){open=open-1u;}
+  let word=shadows.table[u32(e)];let by=POOL_DRAWNBY*params.pages+p;
+  if((word&(PAGE_MAPPED|PAGE_VALID))!=PAGE_MAPPED||(word&PAGE_INDEX_MASK)!=p||shadowPool.pages[by]!=DRAWN_NONE){continue;}
+  shadowPool.pages[by]=DRAWN_GPU;drawList[picked]=p;picked++;
+  layerCount[poolLayer(p)]+=1u;
  }
+ var start=0u;
+ for(var l=0u;l<params.layers;l++){args[FRESH_LAYER_STARTS+l]=start;start+=layerCount[l];layerCount[l]=0u;}
+ for(var i=0u;i<picked;i++){
+  let p=drawList[i];let l=poolLayer(p);
+  args[FRESH_REGION_PAGES+args[FRESH_LAYER_STARTS+l]+layerCount[l]]=p;layerCount[l]+=1u;
+ }
+ regionCount=picked;
 }
-/** A sun page's orthography — its eye at the square's centre on the near side of the range —, and
- *  its box: the square by the range's depth. */
+/** Clip column \`c\` of a view cropped on x and y (\`shadowCropped\`), its depth by \`zs, zo\`. */
+fn cropped(c:vec4f,a:f32,b:f32,cy:f32,d:f32,zs:f32,zo:f32)->vec4f{
+ return vec4f(shadowCropped(c.x,c.w,a,b),shadowCropped(c.y,c.w,cy,d),shadowCropped(c.z,c.w,zs,zo),c.w);
+}
+/** \`p\` moved by \`s\` along \`d\` (\`shadowAlong\`). */
+fn along3(p:vec3f,d:vec3f,s:f32)->vec3f{return vec3f(shadowAlong(p.x,d.x,s),shadowAlong(p.y,d.y,s),shadowAlong(p.z,d.z,s));}
+/** A sun page: its view from the eye on the near side of the range at the square's centre, cropped
+ *  by the orthography; its box, the square by the range's depth. */
 fn composeSun(k:u32,slice:u32,level:i32,x:f32,y:f32){
  let frame=shadows.records[slice].frame;
- let metres=shadowSunTexelMetres(level)*PAGE_TEXELS;let half=metres*0.5;
- let right=frame[0].xyz;let up=frame[1].xyz;let axis=frame[2].xyz;
- let zNear=frame[0].w;let far=frame[1].w-zNear;
- let eye=right*shadowSunSquareCentre(x,1.0,metres)-up*shadowSunSquareCentre(y,1.0,metres)+axis*zNear;
+ let r=frame[0].xyz;let u=frame[1].xyz;let f=frame[2].xyz;let zNear=frame[0].w;let far=frame[1].w-zNear;
+ let metres=shadowSunTexelMetres(level)*PAGE_TEXELS;let h=metres*0.5;
+ let cx=shadowSunSquareCentre(x,1.0,metres);let cy=-shadowSunSquareCentre(y,1.0,metres);
+ let eye=vec3f(shadowSunEye(r.x,u.x,f.x,cx,cy,zNear),shadowSunEye(r.y,u.y,f.y,cx,cy,zNear),shadowSunEye(r.z,u.z,f.z,cx,cy,zNear));
+ let s=shadowOrthoScale(h);let zs=shadowOrthoDepthScale(far);let zo=shadowOrthoDepthOffset(far);
  let at=k*FACE_WORDS;
- faceVec(at,vec4f(right.x/half,up.x/half,-axis.x/far,0.0));
- faceVec(at+4u,vec4f(right.y/half,up.y/half,-axis.y/far,0.0));
- faceVec(at+8u,vec4f(right.z/half,up.z/half,-axis.z/far,0.0));
- faceVec(at+12u,vec4f(-dot(right,eye)/half,-dot(up,eye)/half,dot(axis,eye)/far+1.0,1.0));
+ faceVec(at,cropped(vec4f(r.x,u.x,-f.x,0.0),s,0.0,s,0.0,zs,zo));
+ faceVec(at+4u,cropped(vec4f(r.y,u.y,-f.y,0.0),s,0.0,s,0.0,zs,zo));
+ faceVec(at+8u,cropped(vec4f(r.z,u.z,-f.z,0.0),s,0.0,s,0.0,zs,zo));
+ faceVec(at+12u,cropped(vec4f(-dot(r,eye),-dot(u,eye),dot(f,eye),1.0),s,0.0,s,0.0,zs,zo));
+ let mid=shadowBoxMid(-1.0,1.0,h);let half=shadowBoxHalf(-1.0,1.0,h);
  let v=k*CULL_WORDS;
- volumeVec(v,vec4f(eye+axis*(far*0.5),far*0.5));volumeVec(v+4u,vec4f(axis,-1.0));
- volumeVec(v+8u,vec4f(right,half));volumeVec(v+12u,vec4f(up,half));
+ volumeVec(v,vec4f(along3(along3(along3(eye,f,far*0.5),r,mid),u,mid),far*0.5));volumeVec(v+4u,vec4f(f,-1.0));
+ volumeVec(v+8u,vec4f(r,half));volumeVec(v+12u,vec4f(u,half));
 }
-fn crop(c:vec4f,a:f32,b:f32,cy:f32,d:f32)->vec4f{return vec4f(a*c.x+b*c.w,cy*c.y+d*c.w,c.z,c.w);}
-fn coneDirection(forward:vec3f,right:vec3f,up:vec3f,t:f32,u:f32,v:f32)->vec3f{return normalize(forward+t*(u*right+v*up));}
-/** A lamp page's projection — its face's, cropped to the page — and its cone: the lamp as apex,
- *  the page's centre as axis, its farthest corner as half-angle (\`writeConeVolume\`). */
+/** The unit ray through \`(x, y)\` of a face of tangent half-field \`t\` (\`shadowConeRay\`). */
+fn coneRay(f:vec3f,r:vec3f,u:vec3f,t:f32,x:f32,y:f32)->vec3f{
+ return normalize(vec3f(shadowConeRay(f.x,r.x,u.x,t,x,y),shadowConeRay(f.y,r.y,u.y,t,x,y),shadowConeRay(f.z,r.z,u.z,t,x,y)));
+}
+/** A lamp page: its face's clip cropped to the page; its cone, the lamp as apex, the page's
+ *  centre as axis, its farthest corner as half-angle (\`writeConeVolume\`). */
 fn composeLamp(k:u32,slice:u32,view:i32,x:f32,y:f32){
  let m=shadows.records[slice].faces[view>>4u];
  let pages=f32(LAMP_PAGE_COUNT>>u32(view&15));
@@ -126,48 +129,64 @@ fn composeLamp(k:u32,slice:u32,view:i32,x:f32,y:f32){
  let c0=m*vec4f(1.0,0.0,0.0,0.0);let c1=m*vec4f(0.0,1.0,0.0,0.0);
  let c2=m*vec4f(0.0,0.0,1.0,0.0);let c3=m*vec4f(0.0,0.0,0.0,1.0);
  let at=k*FACE_WORDS;
- faceVec(at,crop(c0,a,b,c,d));faceVec(at+4u,crop(c1,a,b,c,d));
- faceVec(at+8u,crop(c2,a,b,c,d));faceVec(at+12u,crop(c3,a,b,c,d));
- let right=normalize(vec3f(c0.x,c1.x,c2.x));let up=normalize(vec3f(c0.y,c1.y,c2.y));
- let forward=normalize(vec3f(c0.w,c1.w,c2.w));let t=shadows.records[slice].info.y;
- let axis=coneDirection(forward,right,up,t,(u0+u1)*0.5,(v0+v1)*0.5);
- // The angle to the farthest corner from its chord, exact in f32 where an arccosine near 1 is not.
+ faceVec(at,cropped(c0,a,b,c,d,1.0,0.0));faceVec(at+4u,cropped(c1,a,b,c,d,1.0,0.0));
+ faceVec(at+8u,cropped(c2,a,b,c,d,1.0,0.0));faceVec(at+12u,cropped(c3,a,b,c,d,1.0,0.0));
+ let r=normalize(vec3f(c0.x,c1.x,c2.x));let u=normalize(vec3f(c0.y,c1.y,c2.y));
+ let f=normalize(vec3f(c0.w,c1.w,c2.w));let t=shadows.records[slice].info.y;
+ let halfFov=atan(t);let wide=shadowConeHalfAngle(0.0,halfFov)>1.0;
+ let axis=select(coneRay(f,r,u,t,(u0+u1)*0.5,(v0+v1)*0.5),f,wide);
  var chord=0.0;
  for(var corner=0u;corner<4u;corner++){
-  let u=select(u0,u1,(corner&1u)!=0u);let v=select(v0,v1,(corner&2u)!=0u);
-  chord=max(chord,length(coneDirection(forward,right,up,t,u,v)-axis));
+  let cu=select(u0,u1,(corner&1u)!=0u);let cv=select(v0,v1,(corner&2u)!=0u);
+  chord=max(chord,length(coneRay(f,r,u,t,cu,cv)-axis));
  }
  let s=params.slices[slice];let w=k*CULL_WORDS;
- volumeVec(w,vec4f(s.emitter.xyz,s.far.x));volumeVec(w+4u,vec4f(axis,2.0*asin(min(chord*0.5,1.0))));
+ volumeVec(w,vec4f(s.emitter.xyz,s.far.x));volumeVec(w+4u,vec4f(axis,shadowConeHalfAngle(chord,halfFov)));
+ volumeVec(w+8u,vec4f(0.0));volumeVec(w+12u,vec4f(0.0));
 }
-/** Region \`k\`: its commands at zero, its place in the pass order, and its page's face, volume and
- *  word — or, without a page, a clip square of no area, which the page quads clear nothing with. */
+/** Region \`k\`: its page's view and volume, every caster of it kept (\`CASTERS_ALL\`). */
 fn composeRegion(k:u32){
- for(var w=0u;w<REGION_WORDS;w++){commands[k*REGION_WORDS+w]=0u;}
- faces[ORDER_WORD+k]=k;
- let at=k*FACE_WORDS;let page=regionPage[k];
- if(page<0){faceVec(at+RECT_WORD,vec4f(0.0));return;}
- let p=u32(page);let e=u32(poolField(POOL_OWNER,p));let slice=e/SHADOW_TABLE_STRIDE;
+ let p=args[FRESH_REGION_PAGES+k];let e=u32(poolField(POOL_OWNER,p));let slice=e/SHADOW_TABLE_STRIDE;
  let place=shadowPoolPlace(f32(p),f32(params.side))*PAGE_TEXELS;let size=f32(params.side)*PAGE_TEXELS;
+ let at=k*FACE_WORDS;
  faceVec(at+16u,vec4f(place.xy/size,PAGE_TEXELS/size,PAGE_TEXELS));
  faceVec(at+20u,params.slices[slice].emitter);
- faceVec(at+RECT_WORD,vec4f(shadowAtlasClip(place.x,size),-shadowAtlasClip(place.y,size),vec2f(PAGE_TEXELS/size)));
- let info=shadows.records[slice].info;let x=f32(poolField(POOL_X,p));let y=f32(poolField(POOL_Y,p));
- var range=0u;
- if(u32(info.x)==u32(SUN_LEVEL_COUNT)){
-  range=u32(shadows.records[slice].frame[2].w);composeSun(k,slice,poolField(POOL_VIEW,p),x,y);
- }else{composeLamp(k,slice,poolField(POOL_VIEW,p),x,y);}
- volumes[k*CULL_WORDS+${SHADOW_CULL_CASTERS}u]=${CASTERS_ALL}u;volumes[k*CULL_WORDS+${SHADOW_CULL_VIEW}u]=0u;
- shadows.table[e]=p|PAGE_MAPPED|PAGE_VALID|(range<<RANGE_SHIFT);
- shadowPool.pages[POOL_DRAWNBY*params.pages+p]=DRAWN_GPU;
+ faceVec(at+24u,vec4f(shadowAtlasClip(place.x,size),-shadowAtlasClip(place.y,size),vec2f(PAGE_TEXELS/size)));
+ let x=f32(poolField(POOL_X,p));let y=f32(poolField(POOL_Y,p));
+ if(u32(shadows.records[slice].info.x)==u32(SUN_LEVEL_COUNT)){composeSun(k,slice,poolField(POOL_VIEW,p),x,y);}
+ else{composeLamp(k,slice,poolField(POOL_VIEW,p),x,y);}
+ volumes[k*CULL_WORDS+16u]=${CASTERS_ALL}u;volumes[k*CULL_WORDS+17u]=0u;
+ args[FRESH_REGION_PAGES+params.pages+k]=0u;
 }
 @compute @workgroup_size(${FRESH_LANES}) fn composeShadowPages(@builtin(local_invocation_index) lane:u32){
  if(lane==0u){pickPages();}
- workgroupBarrier();
- for(var k=lane;k<FRESH_REGIONS;k+=FRESH_LANES){composeRegion(k);}
+ let regions=workgroupUniformLoad(&regionCount);
+ for(var k=lane;k<regions;k+=FRESH_LANES){composeRegion(k);}
  if(lane<params.layers){
-  let groups=(params.rows+CULL_GROUP-1u)/CULL_GROUP;
-  args[lane*${FRESH_ARG_WORDS}u]=select(groups,0u,layerCount[lane]==0u);
-  args[lane*${FRESH_ARG_WORDS}u+1u]=layerCount[lane];args[lane*${FRESH_ARG_WORDS}u+2u]=1u;
+  let clear=freshDraw(lane,${FRESH_CLEAR}u);let casters=freshDraw(lane,${FRESH_CASTERS}u);
+  args[clear]=6u;args[clear+1u]=layerCount[lane];args[clear+2u]=lane<<FRESH_LAYER_SHIFT;args[clear+3u]=0u;
+  args[casters]=0u;args[casters+1u]=0u;args[casters+2u]=lane<<FRESH_LAYER_SHIFT;args[casters+3u]=0u;
+ }
+ if(lane==0u){
+  let rows=params.rows+params.blendEnd-params.blendFirst;
+  args[0]=select((rows+CULL_GROUP-1u)/CULL_GROUP,0u,regions==0u);args[1]=regions;args[2]=1u;
+  args[FRESH_REGIONS]=regions;args[FRESH_CAPACITY]=params.capacity;args[FRESH_PAIRS]=0u;args[FRESH_CORNERS]=0u;
+ }
+}
+/** After the pair cull: each region none of whose casters was lost is readable — full footprint,
+ *  the sun's current range —, one that lost one waits for its next draw; each layer draws the
+ *  pairs kept, never past the list. */
+@compute @workgroup_size(${FRESH_LANES}) fn sealShadowPages(@builtin(local_invocation_index) lane:u32){
+ let regions=args[FRESH_REGIONS];
+ for(var k=lane;k<regions;k+=FRESH_LANES){
+  let p=args[FRESH_REGION_PAGES+k];let e=u32(poolField(POOL_OWNER,p));let slice=e/SHADOW_TABLE_STRIDE;
+  if(args[FRESH_REGION_PAGES+params.pages+k]!=0u){shadowPool.pages[POOL_DRAWNBY*params.pages+p]=DRAWN_NONE;continue;}
+  var range=0u;
+  if(u32(shadows.records[slice].info.x)==u32(SUN_LEVEL_COUNT)){range=u32(shadows.records[slice].frame[2].w);}
+  shadows.table[e]=p|PAGE_MAPPED|PAGE_VALID|(range<<RANGE_SHIFT);
+ }
+ if(lane<params.layers){
+  let casters=freshDraw(lane,${FRESH_CASTERS}u);
+  args[casters]=args[FRESH_CORNERS];args[casters+1u]=min(args[FRESH_PAIRS],args[FRESH_CAPACITY]);
  }
 }`;

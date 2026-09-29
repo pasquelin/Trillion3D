@@ -111,6 +111,7 @@ export const builtins = {
   sin: numeric(Math.sin),
   cos: numeric(Math.cos),
   asin: numeric(Math.asin),
+  atan: numeric(Math.atan),
   sqrt: numeric(Math.sqrt),
   log2: numeric(Math.log2),
   exp2: numeric((x) => 2 ** x),

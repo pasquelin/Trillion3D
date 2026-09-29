@@ -1,4 +1,5 @@
 import { NUMBERS, type PageOps } from './pageOps.ts';
+import { pageViewModel } from './pageViewModel.ts';
 import {
   LAMP_FACE_ENTRIES,
   LAMP_MIPS,
@@ -129,6 +130,7 @@ export function pageModel<V>(o: PageOps<V>) {
     /** Toward which neighbour, on that axis, the PCF around `t` reads: 1 up, −1 down. */
     shadowPcfStep: (t: V, first: V) =>
       o.pick(o.ge(o.sub(t, first), o.float(SHADOW_PAGE / 2)), o.int(1), o.int(-1)),
+    ...pageViewModel(o),
   };
 }
 

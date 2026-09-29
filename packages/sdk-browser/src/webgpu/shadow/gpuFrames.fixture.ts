@@ -17,9 +17,7 @@ import { claimShadowRequest, runShadowAllocation, runShadowWords } from './alloc
 import { runShadowFresh } from './freshRun.fixture.ts';
 import { POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
 import { freshSlices } from './freshPass.ts';
-import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
-import { SHADOW_FACE_STRIDE, SHADOW_REGION_INDIRECT_BYTES } from '../../gpu/shadow/batchBudget.ts';
-import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
+import { FRESH_ARG, FRESH_REGION_PAGES } from './freshLayout.ts';
 import { createShadowPageRequests } from './pageRequests.ts';
 import { writeShadowRecords } from './pages.ts';
 import { shadingReads, type Lit } from './shadingReads.fixture.ts';
@@ -58,12 +56,6 @@ export function gpuFrames(poolSide: number, lights: SceneLight[], gpuDraws = tru
       usage: GPUBufferUsage.STORAGE,
     });
   const bytes = (buffer: GPUBuffer) => (buffer as unknown as { data: Uint8Array }).data;
-  // The batch buffers the GPU composes its pages into: faces then pass order, volumes, commands.
-  const batch = [
-    MAX_SHADOW_REGIONS * (SHADOW_FACE_STRIDE + 4),
-    MAX_SHADOW_REGIONS * SHADOW_CULL_FLOATS * 4,
-    MAX_SHADOW_REGIONS * SHADOW_REGION_INDIRECT_BYTES,
-  ].map((size) => new Uint8Array(size));
   const pages = plan.pool.pages,
     table = new Uint32Array(bytes(data).buffer, SHADOW_TABLE_OFFSET),
     field = (name: (typeof POOL_FIELDS)[number]) =>
@@ -75,7 +67,7 @@ export function gpuFrames(poolSide: number, lights: SceneLight[], gpuDraws = tru
     owner = field('owner'),
     drawnFor = new Int32Array(pages).fill(-1),
     drawnAt = new Int32Array(pages).fill(-1),
-    regions = new Int32Array(MAX_SHADOW_REGIONS).fill(-1);
+    regions: number[] = [];
   const shadows = { writeSun: pack.writeSun, writeLamp: pack.writeLamp, clearRecord: pack.clear };
   return {
     plan,
@@ -87,9 +79,10 @@ export function gpuFrames(poolSide: number, lights: SceneLight[], gpuDraws = tru
     drawnFor,
     /** The frame each page was last drawn in. */
     drawnAt,
-    /** The faces, volumes and commands the GPU composed its pages into, and the page of each of
-     *  their regions the last frame, −1 for none. */
-    batch,
+    /** The views and volumes the GPU composed its pages into, and the page of each region the
+     *  last frame. */
+    views: bytes(allocation.freshFaces),
+    volumes: bytes(allocation.freshVolumes),
     regions,
     /**
      * Frame `frame` seen from `view`, lit at `lits`: the plan reads the reports handed to it, the
@@ -124,16 +117,19 @@ export function gpuFrames(poolSide: number, lights: SceneLight[], gpuDraws = tru
       plan.commit();
       if (allocation.writeWords(plan, frame, (sink) => plan.table.flush(sink)))
         runShadowWords(bytes(data), bytes(state), bytes(allocation.words), drawList);
+      regions.length = 0;
       if (gpuDraws) {
-        allocation.writeFresh(poolSide, 1, MAX_SHADOW_REGIONS, 0, freshSlices(store));
-        const fresh = [allocation.drawList, allocation.freshParams, allocation.freshArgs].map(
-          bytes,
-        );
-        regions.set(
-          runShadowFresh(bytes(data), bytes(state), fresh[0], ...batch, ...fresh.slice(1)),
+        // No caster row: the cull keeps no pair, and every region is sealed readable.
+        allocation.writeFresh(poolSide, 1, 0, [0, 0], 0, freshSlices(store));
+        const fresh = [data, state, allocation.drawList, allocation.freshFaces];
+        fresh.push(allocation.freshVolumes, allocation.freshArgs, allocation.freshParams);
+        for (const entry of ['composeShadowPages', 'sealShadowPages'])
+          runShadowFresh(entry, ...fresh.map(bytes));
+        const args = new Uint32Array(bytes(allocation.freshArgs).buffer);
+        regions.push(
+          ...args.subarray(FRESH_REGION_PAGES, FRESH_REGION_PAGES + args[FRESH_ARG.regions]),
         );
         for (const page of regions) {
-          if (page < 0) continue;
           drawnFor[page] = owner[page];
           drawnAt[page] = frame;
         }

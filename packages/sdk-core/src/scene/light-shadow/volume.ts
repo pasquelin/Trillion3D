@@ -1,4 +1,4 @@
-import { dotVector3 } from '../../math/primitives/vector.ts';
+import { hypot3 } from '../../math/primitives/hypot.ts';
 import { faceBasis } from './math.ts';
 import { PAGES } from './pageModel.ts';
 
@@ -16,7 +16,7 @@ const axis = new Float64Array(3),
 function direction(out: Float64Array, u: number, v: number, t: number) {
   let length = 0;
   for (let a = 0; a < 3; a++) {
-    out[a] = faceBasis[6 + a] + t * (u * faceBasis[a] + v * faceBasis[3 + a]);
+    out[a] = PAGES.shadowConeRay(faceBasis[6 + a], faceBasis[a], faceBasis[3 + a], t, u, v);
     length += out[a] * out[a];
   }
   length = Math.sqrt(length) || 1;
@@ -50,21 +50,20 @@ export function writeConeVolume(
     cull[base + 4] = faceBasis[6];
     cull[base + 5] = faceBasis[7];
     cull[base + 6] = faceBasis[8];
-    cull[base + 7] = Math.PI;
+    cull[base + 7] = PAGES.shadowConeHalfAngle(0, halfFov);
     return;
   }
   const t = Math.tan(halfFov);
   direction(axis, (rect[0] + rect[1]) / 2, (rect[2] + rect[3]) / 2, t);
-  let cosine = 1;
+  let chord = 0;
   for (let index = 0; index < 4; index++) {
     direction(corner, index & 1 ? rect[1] : rect[0], index & 2 ? rect[3] : rect[2], t);
-    const dot = dotVector3(axis, corner);
-    if (dot < cosine) cosine = dot;
+    chord = Math.max(chord, hypot3(corner[0] - axis[0], corner[1] - axis[1], corner[2] - axis[2]));
   }
   cull[base + 4] = axis[0];
   cull[base + 5] = axis[1];
   cull[base + 6] = axis[2];
-  cull[base + 7] = Math.acos(Math.max(-1, Math.min(1, cosine)));
+  cull[base + 7] = PAGES.shadowConeHalfAngle(chord, halfFov);
 }
 
 /**
@@ -82,18 +81,22 @@ export function writeBoxVolume(
   halfDepth: number,
   rect: Float64Array,
 ) {
-  const u = ((rect[0] + rect[1]) / 2) * halfSide,
-    v = ((rect[2] + rect[3]) / 2) * halfSide;
+  const u = PAGES.shadowBoxMid(rect[0], rect[1], halfSide),
+    v = PAGES.shadowBoxMid(rect[2], rect[3], halfSide);
   for (let a = 0; a < 3; a++) {
-    cull[base + a] = boxCenter[a] + faceBasis[a] * u + faceBasis[3 + a] * v;
+    cull[base + a] = PAGES.shadowAlong(
+      PAGES.shadowAlong(boxCenter[a], faceBasis[a], u),
+      faceBasis[3 + a],
+      v,
+    );
     cull[base + 4 + a] = faceBasis[6 + a];
     cull[base + 8 + a] = faceBasis[a];
     cull[base + 12 + a] = faceBasis[3 + a];
   }
   cull[base + 3] = halfDepth;
   cull[base + 7] = -1;
-  cull[base + 11] = ((rect[1] - rect[0]) / 2) * halfSide;
-  cull[base + 15] = ((rect[3] - rect[2]) / 2) * halfSide;
+  cull[base + 11] = PAGES.shadowBoxHalf(rect[0], rect[1], halfSide);
+  cull[base + 15] = PAGES.shadowBoxHalf(rect[2], rect[3], halfSide);
 }
 
 /** Normalised rectangle of a page region in its face: `y` goes down in the draw frame. */
