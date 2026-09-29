@@ -9,7 +9,6 @@ import { servedPages } from '../streaming/servedPages.fixture.ts';
 
 test('with no listener there is no emitter: a call builds neither its detail nor its closure', () => {
   const emit = lazyDiagnostic(undefined);
-  assert.equal(emit, undefined);
   let made = 0;
   /** Stands for the closure a call site writes: counts each time one is made. */
   const closure = () => {
@@ -19,6 +18,7 @@ test('with no listener there is no emitter: a call builds neither its detail nor
   // The argument list is not evaluated: no closure is made.
   emit?.('phase', 'message', closure());
   assert.equal(made, 0);
+  assert.equal(emit, undefined);
 });
 
 test('with a listener each event builds its detail once, and a throwing listener is its own', () => {

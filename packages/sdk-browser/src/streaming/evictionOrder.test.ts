@@ -98,7 +98,12 @@ test('random touches, drops, holds and evictions: the victims of evictOldest, on
           into.push(k);
           out(k);
         };
-        evictOldest(walked.keys(), () => left > 0, (k) => held.has(k), take(expected, (k) => walked.delete(k)));
+        evictOldest(
+          walked.keys(),
+          () => left > 0,
+          (k) => held.has(k),
+          take(expected, (k) => walked.delete(k)),
+        );
         left = want;
         order.evict(() => left > 0, take(got, drop));
         assert.deepEqual(got, expected, `seed ${seed}, step ${step}`);
