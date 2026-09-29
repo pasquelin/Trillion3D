@@ -465,8 +465,10 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   read, each layer's pass of it clears the same pages and draws their blended casters, as the host's
   does. The host draws a page again with its light cut and static layer once a report tells it the
   page, and the GPU's draw stays readable meanwhile (`DRAWN_GPU`). A page read first in a frame is
-  so drawn before anything samples it: no one-frame hole. A frame where nothing moved, whose host
-  took no page's depth, after a snapshot that listed none, runs none of it.
+  so drawn before anything samples it: no one-frame hole, the view or a light moving. A frame
+  whose view and lights hold, whose host took no page's depth, after a snapshot that listed none,
+  runs none of it: at rest, or while a caster alone moves, a page its own surface asks first waits
+  for a snapshot to list it, its receiver reading the coarser level meanwhile (`freshWanted`).
 - **Every stale page the image reads is drawn, in the frame that marks it** (#489). There is no
   per-frame page cap and no millisecond budget; the list goes the coarsest first, each light's
   floor leading (#525), an order that matters only to a frame its memory guard stops. The cost is
