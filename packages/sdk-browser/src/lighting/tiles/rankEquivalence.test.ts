@@ -154,6 +154,15 @@ test('the narrow pass: masks and light array of one list, no pool (#849)', () =>
     LIGHT_TILES_NARROW_SHADER,
     /var<storage,read_write> pool|counted|storageBarrier/,
   );
+  // One batch, written straight at its rank: no batch loop, no room to track (#822's shape).
+  assert.doesNotMatch(
+    LIGHT_TILES_NARROW_SHADER,
+    /for\(var first=|var<workgroup> (kept|start|room)/,
+  );
+  assert.match(
+    LIGHT_TILES_NARROW_SHADER,
+    /tiles\[base\+TILE_OPAQUE_BASE\+rankBefore\(OPAQUE_MASK,lane\)\]=lane;/,
+  );
   // Its record is the wide pass's: the resolve reads either.
   assert.deepEqual({ ...narrow, words: 0, blendMask: 0 }, { ...layout, words: 0, blendMask: 0 });
   // Up to tileLights lights, one batch: the lists of the wide pass, bit for bit.
