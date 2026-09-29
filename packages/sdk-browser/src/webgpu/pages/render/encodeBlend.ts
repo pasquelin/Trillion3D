@@ -169,11 +169,10 @@ export function encodeSurfaceLighting(
     taaSampledRank(rt),
   );
   gpu.reflection?.update(viewProj, gpu.deferred.usesContract && !raw, gpu.targetSize);
-  gpu.deferred.light(encoder, gpu.hdrView, gpu.reflection);
+  const lightingPasses = gpu.deferred.light(encoder, gpu.hdrView, gpu.reflection);
   const blendShare = seedAsIsShare(rt, device, encoder);
   const filter = beginDisplayFilter(rt, device);
-  if (gpu.reflection?.active && gpu.deferred.usesContract) run.gpuDrawCalls++;
-  run.gpuDrawCalls++;
+  run.gpuDrawCalls += lightingPasses;
   encodeShadowReadback(rt, encoder);
   encodeBlend(rt, device, encoder, uniformBase, true);
   drawParticles(rt, encoder, directTiles());
