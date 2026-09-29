@@ -64,6 +64,9 @@ export const FLAG_LIT = 1,
   FLAG_BLEND_CASTER = 65536;
 /** Material fog opt-out above the three model bits in the page row. */
 export const FLAG_FOG_FREE = 1 << 20;
+/** The row reads a world's dynamic geometry, its vertices rewritten in place (#573): the temporal
+ *  pass takes its pixels as reactive, a history of other vertices never showing through. */
+export const FLAG_DYNAMIC = 1 << 21;
 export type VisPage = {
   array: Uint32Array;
   attributes: HostAttributes;
