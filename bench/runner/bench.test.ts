@@ -1,7 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_SCENE, sceneOf } from './scene.ts';
-import { ENGINES, engineOf, parseArgs, readOptions } from './options.ts';
+import { DEFAULT_SCENE, FLUIDS_SCENE, sceneOf } from './scene.ts';
+import { CAMPAIGN, BASE } from './campaign.ts';
+import {
+  ENGINES,
+  engineOf,
+  equipSide,
+  equipSides,
+  parseArgs,
+  poseAt,
+  readOptions,
+  trajectoryPoses,
+} from './options.ts';
 
 test('readOptions parses command line arguments correctly', () => {
   const root = '/tmp/test';
@@ -12,15 +22,15 @@ test('readOptions parses command line arguments correctly', () => {
   assert.strictEqual(result1.settings.dpr, 1);
 
   // Test setting engine to webgpu
-  const result2 = readOptions(['--moteur=webgpu'], root);
+  const result2 = readOptions(['--engine=webgpu'], root);
   assert.strictEqual(result2.settings.engine, 'webgpu');
 
   // Test views parsing
-  const result3 = readOptions(['--vues=generale,detail'], root);
-  assert.deepStrictEqual(result3.views, ['generale', 'detail']);
+  const result3 = readOptions(['--views=overview,detail'], root);
+  assert.deepStrictEqual(result3.views, ['overview', 'detail']);
 
   // Test numeric arguments
-  const result4 = readOptions(['--images=120', '--largeur=1920', '--hauteur=1080'], root);
+  const result4 = readOptions(['--images=120', '--width=1920', '--height=1080'], root);
   assert.strictEqual(result4.settings.frames, 120);
   assert.strictEqual(result4.settings.width, 1920);
   assert.strictEqual(result4.settings.height, 1080);
@@ -36,7 +46,7 @@ test('readOptions parses command line arguments correctly', () => {
 
 test('readOptions rejects unknown engine', () => {
   const root = '/tmp/test';
-  assert.throws(() => readOptions(['--moteur=unknown'], root), /--moteur must be/);
+  assert.throws(() => readOptions(['--engine=unknown'], root), /--engine must be/);
 });
 
 test('readOptions accepts an explicit port', () => {
@@ -57,7 +67,7 @@ test('readOptions rejects negative pixelError', () => {
 
 test('readOptions rejects invalid views', () => {
   const root = '/tmp/test';
-  assert.throws(() => readOptions(['--vues=invalide'], root), /unknown view/);
+  assert.throws(() => readOptions(['--views=invalide'], root), /unknown view/);
 });
 
 test('sceneOf deduces the scene name from the cache derived directory', () => {
@@ -85,15 +95,49 @@ test('readOptions reads --instances and rejects a grid that the SDK cannot place
 });
 
 test('engineOf gives a side its own engine, otherwise that of the campaign', () => {
-  const flags = parseArgs(['--moteur-avant', 'webgl']);
-  assert.strictEqual(engineOf(flags, 'avant', 'webgpu').id, 'exact-cluster-pages');
-  assert.strictEqual(engineOf(flags, 'apres', 'webgpu').id, 'webgpu-page-raster');
+  const flags = parseArgs(['--engine-before', 'webgl']);
+  assert.strictEqual(engineOf(flags, 'before', 'webgpu').id, 'exact-cluster-pages');
+  assert.strictEqual(engineOf(flags, 'after', 'webgpu').id, 'webgpu-page-raster');
+});
+
+// #724: the flags a campaign types are English, their per-side forms named after the side.
+test('the engine, the two sides and their variants are read under English flags', () => {
+  const argv = ['--engine', 'webgpu', '--before', 'dist', '--engine-before', 'webgl'];
+  const { settings, flags } = readOptions([...argv, '--variant-before', 'raster-compute'], '/r');
+  assert.strictEqual(settings.engine, 'webgpu');
+  assert.strictEqual(flags.get('before'), 'dist');
+  assert.strictEqual(
+    equipSide({ name: 'before' } as never, flags, settings).variant,
+    'raster-compute',
+  );
+});
+
+/** What `bench.ts` reads before it builds anything, then its refusal of the rest. */
+function benchFlags(argv: string[]) {
+  const { settings, flags } = readOptions(argv, '/r');
+  equipSides(flags, settings, '/nowhere');
+  flags.refuseUnread();
+}
+
+// #724: a retired or misspelt flag is refused by name, never measured as the default engine.
+test('the bench refuses a flag it never reads, the retired French ones included', () => {
+  const retired = '--moteur';
+  assert.throws(
+    () => benchFlags([retired, 'webgpu', '--before', 'dist', '--varaint', 'x']),
+    new RegExp(`^Error: unknown flag: ${retired}, --varaint$`),
+  );
+  // A side flag for a side the run does not measure changes nothing either.
+  assert.throws(() => benchFlags(['--engine-before', 'webgl']), /--engine-before/);
+  for (const [name, , args] of CAMPAIGN) {
+    const argv = [...BASE.split(' '), '--scene', FLUIDS_SCENE, ...args];
+    assert.doesNotThrow(() => benchFlags(argv), name);
+  }
 });
 
 test('engineOf rejects an unknown engine for a side', () => {
   assert.throws(
-    () => engineOf(parseArgs(['--moteur-apres', 'inconnu']), 'apres', 'webgl'),
-    /--moteur-apres must be/,
+    () => engineOf(parseArgs(['--engine-after', 'inconnu']), 'after', 'webgl'),
+    /--engine-after must be/,
   );
 });
 
@@ -101,4 +145,25 @@ test('only engines rendering through Three receive lights placed by the host', (
   assert.strictEqual(ENGINES.webgl.three, true);
   assert.strictEqual(ENGINES.webgl2.three, true);
   assert.strictEqual(ENGINES.webgpu.three, undefined);
+});
+
+test('--gaze-network is a recorded setting that requires baked cache textures', () => {
+  const root = '/tmp/test';
+  assert.strictEqual(readOptions([], root).settings.gazeNetwork, false);
+  assert.strictEqual(
+    readOptions(['--gaze-network', '--textures', 'cache'], root).settings.gazeNetwork,
+    true,
+  );
+  assert.throws(
+    () => readOptions(['--gaze-network'], root),
+    /--gaze-network requires --textures cache/,
+  );
+});
+
+test('trajectoryPoses plays one pose per frame from the view index', () => {
+  const bounds = { min: { x: -1, y: 0, z: -1 }, max: { x: 1, y: 1, z: 1 } };
+  const poses = trajectoryPoses(bounds, 3, 4);
+  assert.strictEqual(poses.length, 4);
+  assert.deepStrictEqual(poses[0], poseAt(bounds, 3));
+  assert.deepStrictEqual(poses[3], poseAt(bounds, 6));
 });

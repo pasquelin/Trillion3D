@@ -1,6 +1,8 @@
 import { matrixWindingCw } from '../../../../sdk-core/src/index.ts';
 import { refreshSurface, surfaceSide, type PageSurface } from '../../page/surface.ts';
 import { BLEND_MODES, drawnBlending } from '../../scene/materialBlending.ts';
+import { filtersDisplay } from './equations.ts';
+import { buildBlendHierarchy } from './hierarchy.ts';
 import { blendChunkWords, blendVertexShift, planRegions, RUN_WORDS } from './runs.ts';
 import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
@@ -128,11 +130,14 @@ export function buildBlendStatics(blendState: BlendState) {
   blendState.instanceCapacity = Math.max(1, room[0] + room[1]);
   blendState.drawsPacked = draws;
   blendState.keepPacked = new Uint32Array(Math.max(1, (items.length + 31) >> 5));
+  buildBlendHierarchy(blendState);
   // Same worst case for the plan tables and its runs, and for the same reason.
   const entries = Math.max(1, items.length) * MAX_SIDES;
   blendState.maxPlanEntries = entries;
   blendState.planRegions = planRegions(entries);
   blendState.runs = [new Uint32Array(entries * RUN_WORDS), new Uint32Array(entries * RUN_WORDS)];
+  // New runs buffers hold none of the old runs: the next ranking slices them whole.
+  blendState.runCount.fill(0);
 }
 
 /** First pipeline rank of an item's blend mode (`drawnBlending`, which refuses by name). */
@@ -165,15 +170,17 @@ export function refreshBlendPlan(blendState: BlendState) {
   const items = blendState.blendGpu;
   const blend: number[] = [],
     transmission: number[] = [];
-  // Triangles each pass SUBMITS: a double-sided item drawn in two passes submits its own twice,
-  // since it carries two plan entries. Counted here, with the plan, and never per frame.
+  // Triangles each pass SUBMITS (a double-sided item twice: two plan entries), and whether a mode
+  // filters the display: counted with the plan, never per frame.
   let blendTriangles = 0,
-    transmissionTriangles = 0;
+    transmissionTriangles = 0,
+    filters = false;
   for (let i = 0; i < items.length; i++) {
     const item = items[i],
       into = item.transmissive ? transmission : blend;
     const sides = sidesOf(item),
       vertexCull = !!item.paged && sides.length === MAX_SIDES;
+    filters ||= filtersDisplay(BLEND_MODES[Math.floor(sides[0] / 3)]);
     for (const side of sides) {
       into.push(planEntry(i, side, !!item.paged, vertexCull));
       if (item.paged) continue;
@@ -181,13 +188,13 @@ export function refreshBlendPlan(blendState: BlendState) {
       else blendTriangles += item.count / 3;
     }
   }
-  // Paint order starts again from source order: that is the only time it is seeded, and per-frame
-  // ranking then takes it back in place, never reallocating. There is nothing to keep of the
-  // unranked plan: nobody rereads it, and a second copy of the same list would have to be kept in
-  // agreement with the one that is painted.
+  // Paint order starts again from source order, the only time it is seeded; per-frame ranking
+  // takes it back in place. Nothing of the unranked plan is kept: nobody rereads it.
   blendState.orders = [Uint32Array.from(blend), Uint32Array.from(transmission)];
-  blendState.orderMoved[0] = true;
-  blendState.orderMoved[1] = true;
+  // The old runs describe the old orders: the next ranking slices the new ones whole.
+  blendState.runCount.fill(0);
+  blendState.orderMoved[0] = blendState.orderMoved[1] = true;
   blendState.blendTriangles = blendTriangles;
   blendState.transmissionTriangles = transmissionTriangles;
+  blendState.filtersDisplay = filters;
 }

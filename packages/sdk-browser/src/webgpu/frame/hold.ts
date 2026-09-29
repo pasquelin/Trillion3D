@@ -1,6 +1,7 @@
 import { sampleWebgpuFrame } from './signature.ts';
 import { CPU_STEP } from '../pages/render/cpuStepTable.ts';
-import { beginTaaFrame, taaSettled } from '../../taa/frame.ts';
+import { forgetShadowCpuSteps } from '../shadow/cpuSteps.ts';
+import { beginTaaFrame, restartTaaOnLanding, taaSettled } from '../../taa/frame.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { shadowsUnsettled } from '../pages/state/lights.ts';
 import { effectsMoved } from '../pages/render/encodeEffects.ts';
@@ -116,6 +117,8 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
   timing.lastSubmitMs = submitMs;
   const steps = timing.cpuProfile.row;
   steps.fill(0);
+  // Nor did it plan or encode a shadow: those steps did not run, they read `NaN`.
+  forgetShadowCpuSteps(steps);
   // No tile was pumped: the textures stage stays unmeasured, as on an image with nothing to serve.
   steps[CPU_STEP.tilesPumpMs] = NaN;
   steps[CPU_STEP.queueSubmitMs] = submitMs;
@@ -150,12 +153,13 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if ((answered && !awaited) || rt.capture.capturing) {
     // Still frame: nothing it depends on has moved and nothing is in flight. That is the frame
     // input of temporal accumulation, which restarts there in a fixed phase and converges over a
-    // full cycle of those frames before one of them can be held (`TAA_STILL_FRAMES`).
+    // full cycle of those frames before one of them can be held (`taaStillFrames`).
     const quiet = run.gate.held() && unsettledMask(rt) === 0;
-    beginTaaFrame(rt, run.gate.cam, quiet);
     // Guides or an effect chain the page changed, or a chain the last image lacked while its
     // programs compiled, are drawn by a full image; the accumulation stays still for it.
     if (!quiet || !taaSettled(rt) || guidesMoved(rt) || effectsMoved(rt) || particlesMoved(rt)) {
+      // Only an image that is drawn enters the accumulation: a held one leaves it as is (#26).
+      beginTaaFrame(rt, run.gate.cam, quiet);
       run.frameHeld = false;
       return false;
     }
@@ -167,9 +171,10 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const start = performance.now();
   let presented = false;
   // Nothing drawn yet, or targets not granted: nothing is shown.
-  if (gpu.presenter && gpu.colorTexture && run.imageRevision > 0 && !awaited) {
+  if (gpu.presenter && gpu.displayTexture && run.imageRevision > 0 && !awaited) {
     const encoder = device.createCommandEncoder({ label: 'Trillion3D held frame' });
-    gpu.presenter.present(encoder, gpu.colorTexture, gpu.targetSize[0], gpu.targetSize[1]);
+    const [width, height] = gpu.displaySize;
+    gpu.presenter.present(encoder, gpu.displayTexture, width, height, rt.views.active.rect);
     device.queue.submit([encoder.finish()]);
     run.imageRevision++;
     presented = true;
@@ -183,7 +188,9 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
  *  ordinary frames remain two consecutive frames in its eyes. */
 export function keepWebgpuFrame(rt: WebgpuPagesRuntime) {
   const { gate, textureConverging } = rt.run;
-  if (textureConverging) return;
+  if (textureConverging || rt.feedbackAB?.force) return;
+  // A shadow page this still image drew changed what it reads mid-average (#1016).
+  restartTaaOnLanding(rt, rt.lights.shadowPages);
   sampleWebgpuFrame(rt, gate.hold.sample);
   gate.hold.keep(gate.revisions);
 }

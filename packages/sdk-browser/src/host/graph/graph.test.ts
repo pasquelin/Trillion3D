@@ -10,8 +10,8 @@ import * as THREE from 'three';
 import { Group, Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { InstancedMesh } from '../../../../sdk-core/src/world/object/instancedMesh.ts';
-import { GraphCamera } from './camera.ts';
-import { GraphAmbientLight, GraphLight, GraphLightProbe, GraphRectLight } from './light.ts';
+import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
+import { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { GraphSurface } from './surface.ts';
 import { GraphTexture } from './texture.ts';
@@ -19,7 +19,11 @@ import { hookHostNode } from '../scene/hooks.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 test('a posed chain resolves to the reference world matrices, aim and decomposition included', () => {
-  const [a, b, c] = [new Group(), new Object3D(), new GraphCamera({ fov: 47, aspect: 1.6 })];
+  const [a, b, c] = [
+    new Group(),
+    new Object3D(),
+    new Camera('perspective', { fov: 47, aspect: 1.6 }),
+  ];
   const [ta, tb, tc] = [
     new THREE.Group(),
     new THREE.Object3D(),
@@ -86,11 +90,13 @@ test('a geometry bounds itself as the reference does, morph targets included', (
   const morph = new Float32Array([0.5, -1, 0, 0, 0, 2, 1, 1, 1]);
   const geometry = new Geometry().setAttribute('position', new BufferAttribute(positions, 3));
   geometry.morphAttributes.position = [new BufferAttribute(morph, 3)];
-  geometry.morphTargetsRelative = true;
+  // A relative target is bounded vertex by vertex, tighter than the reference's box on box
+  // (#1098, geometry.test.ts): the reference is compared on an absolute one.
+  geometry.morphTargetsRelative = false;
   const reference = new THREE.BufferGeometry();
   reference.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   reference.morphAttributes.position = [new THREE.BufferAttribute(morph, 3)];
-  reference.morphTargetsRelative = true;
+  reference.morphTargetsRelative = false;
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   reference.computeBoundingBox();
@@ -120,7 +126,7 @@ test('a texture transform, a surface family and a copied light hold the referenc
     physical = new THREE.MeshPhysicalMaterial() as unknown as Record<string, unknown>;
   for (const key of ['ior', 'blending', 'depthFunc', 'side', 'normalMapType', 'alphaTest'])
     assert.equal(surface[key], physical[key], key);
-  const light = new GraphLight('spot'),
+  const light = new Light('spot'),
     spot = new THREE.SpotLight();
   const copy = light.clone();
   assert.deepEqual(
@@ -159,16 +165,15 @@ test('a copied geometry owns its buffers, and a triangle list spells every corne
 });
 
 test('the ambient, rectangle and probe lights copy themselves whole', () => {
-  const ambient = new GraphAmbientLight(undefined, Math.PI).clone();
+  const ambient = new Light('ambient', { intensity: Math.PI }).clone();
   assert.equal(ambient.kind, 'ambient');
   assert.equal(ambient.intensity, Math.PI);
-  const rect = Object.assign(new GraphRectLight(), { width: 2, height: 3, distance: 9 }).clone();
-  assert.deepEqual([rect.kind, rect.width, rect.height, rect.distance], ['rect', 2, 3, 9]);
-  const probe = new GraphLightProbe();
-  probe.sh.fromArray(Array.from({ length: 27 }, (_, i) => i));
+  const rect = new Light('rectArea', { width: 2, height: 3, distance: 9 }).clone();
+  assert.deepEqual([rect.kind, rect.width, rect.height, rect.distance], ['rectArea', 2, 3, 9]);
+  const probe = new Light('probe', { sh: Array.from({ length: 27 }, (_, i) => i) });
   const copy = probe.clone();
-  assert.deepEqual([copy.sh.coefficients[8].x, copy.sh.coefficients[8].z], [24, 26]);
-  assert.notEqual(copy.sh.coefficients[8], probe.sh.coefficients[8]);
+  assert.deepEqual([copy.sh![24], copy.sh![26]], [24, 26]);
+  assert.notEqual(copy.sh, probe.sh);
 });
 
 test('an instanced mesh holds one matrix per placement and gives them back once', () => {

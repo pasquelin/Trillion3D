@@ -57,7 +57,7 @@ export function explorerOptions(
       : {}),
     // The EXPERIENCE screen-error metric: absent, the explorer keeps ours.
     ...(options.errorMetric ? { screenError: options.errorMetric } : {}),
-    // The batch compute path imposed on the campaign (`--chemin-math js|wasm`); without it,
+    // The batch compute path imposed on the campaign (`--math-path js|wasm`); without it,
     // the governor decides by measurement, and the reading says what it chose.
     ...(options.mathPath ? { mathPath: options.mathPath } : {}),
     // The per-stage breakdown exists only if asked for; it is off everywhere else.
@@ -78,6 +78,8 @@ export function explorerOptions(
       : {}),
     // Block format of the texture pools; the engine takes `auto` without it.
     ...(options.textureCompression ? { textureCompression: options.textureCompression } : {}),
+    // The frame drawn below the display and reconstructed to it (#816); the display without it.
+    ...(options.renderScale ? { renderScale: options.renderScale } : {}),
     // Temporal antialiasing cut: the pre-batch image, sampled at the pixel centre.
     ...(options.temporalAntialiasing === false ? { temporalAntialiasing: false } : {}),
   };

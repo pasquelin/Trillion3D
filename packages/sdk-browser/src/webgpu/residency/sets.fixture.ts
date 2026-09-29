@@ -1,12 +1,16 @@
 import assert from 'node:assert/strict';
 import type { PageRec } from '../../page/selection/selection.ts';
-import { createCutDelta } from '../cut/delta.ts';
+import { createCutDelta, type CutDelta } from '../cut/delta.ts';
+import { createGroupClosure } from '../../page/cut/groupClosure.ts';
+import { createRequestAdmission } from './requestAdmission.ts';
 import { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import { createWebgpuResidencySets } from './sets.ts';
 
 export const rec = (url: string, level: number) => ({ url, level }) as unknown as PageRec;
 
-/** The residency sets over `packed`, the catalogue in cut order, with `cover` pinned. */
+/** The residency sets over `packed`, the catalogue in cut order, with `cover` pinned. `cut` applies
+ *  a difference through the group closure, as the publication does; `budget` is the CPU cut's
+ *  admission at `room`, true past it. */
 export function world(packed: PageRec[], cover: readonly PageRec[] = []) {
   // The page's rank travels on the page, as the engine catalogue posts it.
   packed.forEach((page, index) => (page.packedIndex = index));
@@ -16,7 +20,14 @@ export function world(packed: PageRec[], cover: readonly PageRec[] = []) {
   const sets = createWebgpuResidencySets({ tracking, bootstrapKey, packedPages: packed });
   const pages: PageRec[] = [];
   const delta = createCutDelta(packed, pages);
-  return { packed, tracking, bootstrapKey, sets, pages, delta };
+  const closure = createGroupClosure([], packed),
+    admission = createRequestAdmission(sets, tracking, closure);
+  const cut = (difference: CutDelta = delta) => {
+    closure.apply(difference);
+    sets.applyCut(closure.delta);
+  };
+  const budget = (room: number) => admission.held(room);
+  return { packed, tracking, bootstrapKey, sets, pages, delta, closure, cut, budget };
 }
 
 type World = ReturnType<typeof world>;
@@ -54,18 +65,22 @@ function reference(world: World, cutIds: readonly number[], room: number) {
   return { requested: requested.size, wanted, keep };
 }
 
-/** One image of the GPU-cut path, in the order the engine runs it. */
+/** One image, in the order the engine runs it: the difference, then the admission at `room`. */
 export function frame(world: World, cutIds: readonly number[], room: number) {
   const { delta, sets } = world;
   delta.apply(cutIds);
-  sets.applyCut(delta);
+  world.cut();
   const requested = sets.requestedCount;
-  sets.applyBudget(room);
+  world.budget(room);
   return { requested, keep: sets.keepCount };
 }
 
-export const keysOf = (set: { list: Int32Array; count: number }) =>
-  new Set([...set.list.subarray(0, set.count)]);
+/** A residency list, in its order. */
+export const queueOf = (set: { list: Int32Array; count: number }) => [
+  ...set.list.subarray(0, set.count),
+];
+
+export const keysOf = (set: { list: Int32Array; count: number }) => new Set(queueOf(set));
 
 export function check(world: World, cutIds: readonly number[], room: number, label: string) {
   const got = frame(world, cutIds, room);

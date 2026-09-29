@@ -4,7 +4,7 @@ import { createTextureLevelReader } from './levelReader.ts';
 
 const SHA = 'b'.repeat(64);
 const manifest = {
-  textures: { url: '../../textures/v4/{sha}/{kind}-{level}.{format}' },
+  textures: { url: '../../textures/v6/{sha}/{kind}-{level}.{format}', version: 6 },
   key: 'k1',
 };
 
@@ -19,14 +19,14 @@ function serve(bytes: Uint8Array<ArrayBuffer>) {
 }
 
 // Behaviour: a block level is read as the bytes the file holds, at the address of its format —
-// the write that cuts tiles from it checks their length; a lossless level goes through the
+// the level store checks their length; a lossless level goes through the
 // browser's decoder.
 test('a block level is read as bytes at the address of its format', async () => {
   globalThis.createImageBitmap ??= (() => Promise.reject(new Error('unused'))) as never;
   const reader = createTextureLevelReader(manifest, 'https://host/cache/full/clusters.json')!;
   const asked = serve(new Uint8Array(17 * 3 * 16));
   const level = await reader({ sha256: SHA, atlas: 1, level: 1, format: 'bc7' });
-  assert.equal(asked[0], `https://host/textures/v4/${SHA}/linear-1.bc7`);
+  assert.equal(asked[0], `https://host/textures/v6/${SHA}/linear-1.bc7`);
   assert.ok(level instanceof Uint8Array);
   assert.equal(level.byteLength, 816);
 });

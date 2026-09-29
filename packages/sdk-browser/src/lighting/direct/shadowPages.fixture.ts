@@ -6,7 +6,14 @@ import { POISSON_16 } from './shadowWgsl.ts';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { compare, litOf, pcf, type Stored } from './shadowBias.fixture.ts';
 
-type Pair = [number, number];
+export type Pair = [number, number];
+
+/** A deterministic value in [0, 1) per integer: a page's content in the tests of #831 and #26. */
+export const hash = (x: number) => {
+  let h = Math.imul(x ^ 0x9e3779b9, 0x85ebca6b);
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+  return ((h ^ (h >>> 16)) >>> 0) / 2 ** 32;
+};
 
 /** `shadowPcf`'s split of a tap along a page seam: what `pagedPcf` restates. */
 export const SPLIT = [
@@ -16,6 +23,7 @@ export const SPLIT = [
   '  let n=select(min(at,seam-0.5),max(at,seam+0.5),up);',
   '  let w=saturate(0.5+(seam-at)*toward);',
   '  var sum=w.x*w.y*shadowCompare(offset,h,reference);',
+  ' if(word==0u||((word^homeWord)>>PAGE_RANGE_SHIFT)!=0u){return vec4f(home,0.0);}',
   '  if(edge.x){sum+=(1.0-w.x)*w.y*shadowCompare(nx.xyz,vec2f(select(h.x,n.x,nx.w>0.0),h.y),reference);}',
   '  if(edge.y){sum+=w.x*(1.0-w.y)*shadowCompare(ny.xyz,vec2f(h.x,select(h.y,n.y,ny.w>0.0)),reference);}',
   '  if(all(edge)){sum+=(1.0-w.x)*(1.0-w.y)*shadowCompare(nd.xyz,select(h,n,nd.w>0.0),reference);}',
@@ -23,7 +31,8 @@ export const SPLIT = [
 
 /**
  * The PCF at map texel `t`, the pool holding page `(px, py)` at the atlas texel `placed(px, py)`
- * — or nowhere, not readable —, the atlas storing `atlas(x, y)` at its texel centres.
+ * — or nowhere, not readable, as a page of another depth range than the home page's —, the atlas
+ * storing `atlas(x, y)` at its texel centres.
  */
 export function pagedPcf(
   t: Pair,
@@ -64,4 +73,13 @@ export function pagedPcf(
     lit += sum;
   }
   return litOf(lit);
+}
+
+/** `shadowThrough` on one axis at page-local texel `local`, in single precision as the GPU runs it:
+ *  the transmittance layer's texel from the page's half-resolution origin, and its weight. */
+export function throughAxis(local: number): Pair {
+  const h = Math.fround(
+    Math.min(Math.max(Math.fround(0.5 * local), 0.5), SHADOW_PAGE / 2 - 0.5) - 0.5,
+  );
+  return [Math.floor(h), Math.fround(h - Math.floor(h))];
 }

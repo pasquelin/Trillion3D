@@ -7,6 +7,7 @@ import { createAutonomousGeometry } from './geometry.ts';
 import { referenceAutonomousSync } from '../../../../../bench/oracles/browser/autonomous-backend.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
 import { surfaceOf } from '../../page/surface.ts';
+import { makeRec, recRoots } from './pageRec.fixture.ts';
 
 function fakeScene() {
   const meshes = new Set<object>();
@@ -19,36 +20,14 @@ function fakeScene() {
   };
 }
 
-function makeRec(id: number, triangles: number): Required<Pick<PageRec, 'mesh'>> & PageRec {
-  return {
-    id,
-    url: `u${id}`,
-    clusterId: `c${id}`,
-    array: new Uint32Array([0, 1, 2]),
-    triangles,
-    indexBytes: 12,
-    min: [0, 0, 0],
-    max: [1, 1, 1],
-    depthLayer: 0,
-    attributes: {} as G.Geometry['attributes'],
-    material: surfaceOf({} as unknown as G.GraphSurface),
-    declaration: {} as G.GraphSurface,
-    matrix: new G.Matrix4(),
-    renderOrder: 0,
-    geometry: {} as G.Geometry,
-    // The oracle copies a host matrix; the engine reads the sixteen floats of the contract.
-    mesh: { matrix: { fromArray: () => {} } } as unknown as Required<PageRec>['mesh'],
-    attached: false,
-  };
-}
-
 function environnement(
   scene: ReturnType<typeof fakeScene>['scene'],
   allPages: PageRec[],
   shown: PageRec[],
 ): Parameters<typeof createAutonomousGeometry>[0] {
   return {
-    ...{ scene, allPages, bootstrap: [], shown, desired: [], requested: [] },
+    ...{ scene, roots: recRoots(), allPages, bootstrap: [] },
+    ...{ views: { live: { shown }, lists: () => [shown] } },
     ...{ byUrl: new Map(), descriptors: new Map(), baseMaterials: new Map() },
     ...{ colorMaterials: new Map(), modifiedPages: new Set() },
   };
@@ -59,11 +38,16 @@ function environnement(
  *  displayed, then compare the attached set of the scene and the number of triangles submitted. */
 function scenario(count: number) {
   const recsA = Array.from({ length: count }, (_, i) => makeRec(i, (i % 7) + 1));
-  const recsB = Array.from({ length: count }, (_, i) => makeRec(i, (i % 7) + 1));
+  // The oracle reads the pose on the record, as records carried it before #1226: its root's.
+  const world = recRoots()[0].world;
+  const recsB = Array.from({ length: count }, (_, i) => ({
+    ...makeRec(i, (i % 7) + 1),
+    matrix: world,
+  }));
   const sceneA = fakeScene(),
     sceneB = fakeScene();
   const shownA: PageRec[] = [],
-    shownB: PageRec[] = [];
+    shownB: typeof recsB = [];
   const impl = createAutonomousGeometry(environnement(sceneA.scene, recsA, shownA));
   const oracle = referenceAutonomousSync({ scene: sceneB.scene, allPages: recsB, shown: shownB });
   return {

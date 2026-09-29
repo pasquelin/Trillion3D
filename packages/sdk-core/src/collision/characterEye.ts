@@ -1,4 +1,5 @@
 import { RUN_CADENCE, type CharacterSettings } from './characterSettings.ts';
+import { hypot2 } from '../math/primitives/hypot.ts';
 
 /**
  * WHERE THE EYE RIDES ON A CHARACTER'S BODY: a height to add to `eyeHeight`, drawn after the
@@ -38,7 +39,7 @@ export function createCharacterEye(
     offset(delta: number, velocity: ArrayLike<number>, grounded: boolean) {
       const pace =
         settings.walkSpeed > 0
-          ? Math.min(1, Math.hypot(velocity[0], velocity[2]) / settings.walkSpeed)
+          ? Math.min(1, hypot2(velocity[0], velocity[2]) / settings.walkSpeed)
           : 0;
       if (grounded) stride = (stride + Math.PI * RUN_CADENCE * pace * delta) % (2 * Math.PI);
       if (settings.landingDip <= 0) dip = sinking = 0;

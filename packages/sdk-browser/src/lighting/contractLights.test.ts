@@ -4,35 +4,31 @@ import { LIGHT_SETTINGS, createSceneLightStore } from '../../../sdk-core/src/ind
 import { attachContractLights } from './contractLights.ts';
 import { installLighting } from './contractLightingApi.ts';
 import { unsupportedClusterLight } from '../webgl/cluster/lights.ts';
-import { GraphScene } from '../host/graph/scene.ts';
-import { isLightNode, type GraphAnyLight } from '../host/graph/kinds.ts';
-import { GraphLight, GraphLightProbe, type GraphLightKind } from '../host/graph/light.ts';
+import { createDrawLists } from '../webgl/cluster/drawLists.ts';
+import { Scene } from '../world/core/scene.ts';
+import { Light } from '../../../sdk-core/src/world/light/light.ts';
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 /** Coordinates of a vector, negative zero brought back to zero: `−0` is not a position. */
 const coords = (v: { x: number; y: number; z: number }) => [v.x, v.y, v.z].map((n) => n + 0);
 /** A source light of the given kind and strength. */
-const light = (kind: GraphLightKind, intensity = 1) =>
-  Object.assign(new GraphLight(kind), { intensity });
+const light = (kind: string, intensity = 1) => new Light(kind, { intensity });
 
 /** A WebGL2 engine, reduced to what the contract asks of it: its scene and its source graph. */
 function harness(sourceLights: Object3D[] = []) {
-  const [scene, source, store] = [new GraphScene(), new Object3D(), createSceneLightStore()];
+  const [scene, source, store] = [new Scene(), new Object3D(), createSceneLightStore()];
   source.add(...sourceLights);
   const contract = attachContractLights(scene, store, installLighting(scene, 0, source), () => {});
   return {
     scene,
     store,
     contract,
-    /** Lights the render would see: those a scene walk collects, visible ones only. */
+    /** Lights the render would see: the list a WebGL2 frame reads (`drawLists.ts`). */
     visibleLights() {
-      const found: GraphAnyLight[] = [];
-      const walk = (node: Object3D) => {
-        if (!node.visible) return;
-        if (isLightNode(node)) found.push(node);
-        node.children.forEach(walk);
-      };
-      walk(scene);
+      const lists = createDrawLists(scene, []);
+      lists.refresh();
+      const found = [...lists.lights];
+      lists.dispose();
       return found;
     },
   };
@@ -50,7 +46,7 @@ test('source auto-lighting preserves and rejects a non-physical point-light deca
   const point = light('point');
   point.decay = 1;
   const bench = harness([point]);
-  assert.match(unsupportedClusterLight(bench.scene)!, /decay 1 is unsupported/);
+  assert.match(unsupportedClusterLight(bench.visibleLights())!, /decay 1 is unsupported/);
 });
 
 test('a contract point light lights, and removing it makes the lit view black', () => {
@@ -125,7 +121,7 @@ test('a spotlight takes back its cone, and its penumbra equals the contract soft
   const spot = bench.visibleLights()[0];
   assert.equal(spot.kind, 'spot');
   assert.equal(spot.angle, coneAngle);
-  assert.deepEqual(coords(spot.target!.position), [0, 3, 0]);
+  assert.deepEqual(coords(spot.target.position), [0, 3, 0]);
   const inner = coneAngle * (1 - spot.penumbra!);
   assert.ok(
     Math.abs(Math.cos(inner) - (Math.cos(coneAngle) + LIGHT_SETTINGS.spotEdgeSoftness)) < 1e-9,
@@ -135,7 +131,7 @@ test('a spotlight takes back its cone, and its penumbra equals the contract soft
 test('a directional takes its propagation direction, never an invented position', () => {
   const bench = harness();
   bench.store.add({
-    id: 'soleil',
+    id: 'sun',
     kind: 'directional',
     direction: [0, -1, 0],
     color: [1, 1, 1],
@@ -147,7 +143,7 @@ test('a directional takes its propagation direction, never an invented position'
   assert.equal(sun.kind, 'directional');
   // The program takes the incidence direction as `position − target`: the opposite of the contract.
   assert.deepEqual(coords(sun.position), [0, 1, 0]);
-  assert.deepEqual(coords(sun.target!.position), [0, 0, 0]);
+  assert.deepEqual(coords(sun.target.position), [0, 0, 0]);
   assert.equal(sun.intensity, 4);
 });
 
@@ -193,7 +189,6 @@ test('changing a light type replaces its light object, leaving no second one', (
 });
 
 test('a visible light probe is read by the cluster renderer, never refused', () => {
-  const probe = new GraphLightProbe();
-  probe.sh.coefficients[0].set(1, 1, 1);
-  assert.equal(unsupportedClusterLight(harness([probe]).scene), undefined);
+  const probe = new Light('probe', { sh: [1, 1, 1] });
+  assert.equal(unsupportedClusterLight(harness([probe]).visibleLights()), undefined);
 });

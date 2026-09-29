@@ -1,9 +1,12 @@
 import { createStreamingFetcher } from './fetch.ts';
 import { createStreamingQueue } from './queue.ts';
-import type { StreamContext, Job, StreamPage, PageStreamerOptions } from './types.ts';
+import type { StreamContext, Job, StreamPage, BatchRead, PageStreamerOptions } from './types.ts';
 import { createStreamingCache } from './cache.ts';
 import { createIndexViews } from './indexView.ts';
-import { createPageCache, manifestTableBytes, type PageCache } from './pageCache.ts';
+import { createPageCache, type PageCache } from './pageCache.ts';
+import { manifestTableBytes } from './manifestTables.ts';
+import { createReadWatch } from './readWatch.ts';
+import { lazyDiagnostic } from '../diagnostic/engineDiagnostic.ts';
 /** Bounded, prioritized and deduplicated reads. A request still waiting in the queue is dropped once
  *  its last consumer leaves; one already transferring is allowed to land in the cache.
  *  The cache is a least-recently-used set bounded by both entries and bytes; pinned entries survive
@@ -52,14 +55,7 @@ export function createPageStreamerWith(
     disposed: false,
     reservedBytes: () => 0,
   };
-  const emit = (phase: string, message: string, context: () => Record<string, unknown>) => {
-    if (onDiagnostic)
-      try {
-        onDiagnostic({ phase, message, context: context() });
-      } catch {
-        /* Observers cannot alter streaming. */
-      }
-  };
+  const emit = lazyDiagnostic(onDiagnostic);
   const abortError = () => new DOMException('Page request cancelled', 'AbortError');
   const context: StreamContext = {
     base,
@@ -80,14 +76,15 @@ export function createPageStreamerWith(
     emit,
     abortError,
   };
-  const { touch, evict, held, retain, retainRanks, reserve } = createStreamingCache(context);
+  const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes();
+  const streaming = createStreamingCache(context, reserved);
+  const { touch, evict, sync, retain, retainRanks, reserve } = streaming;
   // A kept page held under this name as another file leaves before the first read.
   store.dropForeign(catalog);
-  const reserved = () => tableBytes + maxTransferBytes + state.reservedBytes();
-  const release = store.hold({ reserved, held, evict });
+  const release = store.hold(streaming.holder);
   if (kept) evict();
   else store.resize(store.cpuBytes + store.reservedBytes);
-  emit('page-catalogue', 'Streamer catalogue and configuration ready', () => ({
+  emit?.('page-catalogue', 'Streamer catalogue and configuration ready', () => ({
     version: 1,
     pages: catalog.size,
     workerCount: limit,
@@ -97,10 +94,22 @@ export function createPageStreamerWith(
     cpuBudgetBytes: store.cpuBytes,
     totalBytes: pages.reduce((sum, page) => sum + page.bytes, 0),
   }));
-  const loadOne = createStreamingFetcher(context, touch);
-  const { subscribe } = createStreamingQueue(context, loadOne, touch, evict);
+  const { loadOne, roundTrip } = createStreamingFetcher(context, touch);
+  const { subscribe, forget, keep } = createStreamingQueue(context, loadOne, touch, evict, sync);
+  const { read, watch } = createReadWatch(subscribe);
   const asIndices = createIndexViews();
+  const readBytes = (url: string, signal?: AbortSignal, priority = 0) => {
+    state.requested++;
+    return read(url, signal, priority);
+  };
   return {
+    admit: (more: readonly StreamPage[]) =>
+      more.forEach((page) => {
+        keep(page.url);
+        catalog.set(page.url, page);
+      }),
+    // A page a read holds, queued or in transfer, stays catalogued until that read settles.
+    forget: (urls: readonly string[]) => urls.forEach(forget),
     get(url: string) {
       const array = cache.get(url);
       if (array) touch(url, array);
@@ -112,48 +121,35 @@ export function createPageStreamerWith(
       return array;
     },
     has: (url: string) => cache.has(url),
-    loading(url: string) {
-      return jobs.has(url);
-    },
-    failed(url: string) {
-      return failures.has(url);
-    },
-    read(url: string, requestSignal?: AbortSignal) {
-      state.requested++;
-      return subscribe(url, requestSignal, 0).then(asIndices);
-    },
-    readBytes(url: string, requestSignal?: AbortSignal) {
-      state.requested++;
-      return subscribe(url, requestSignal, 0);
-    },
+    loading: (url: string) => jobs.has(url),
+    failed: (url: string) => failures.has(url),
+    /** The reads' measured round trip in milliseconds, 0 before the first (`roundTrip.ts`). */
+    roundTripMs: roundTrip.ms,
+    read: (url: string, signal?: AbortSignal) => readBytes(url, signal).then(asIndices),
+    readBytes,
     /** Texture levels held beside the pages: its world's, kept across a device loss, or its own. */
     textureLevels: store.levels,
     retain,
     reserve,
     /** Pins by rank delta: neither an address list nor a set rebuilt each frame. */
     retainRanks,
-    /** Reads `urls` the catalog holds, once each; `onPage` hears 0 resident, then each landing. */
-    async request(
-      urls: readonly string[],
-      options: {
-        signal?: AbortSignal;
-        priority?: number;
-        onPage?: (resident: number, requested: number) => void;
-      } = {},
-    ) {
+    /** Hears every page read, whoever asks it, until the returned stop runs (`readWatch.ts`). */
+    watch,
+    /** Reads `urls` the catalog holds, once each, each landing handed to `onPage` at once; it
+     *  settles once every read and `onPage` has, rejecting with the first failure in `urls` order. */
+    async request(urls: readonly string[], options: BatchRead = {}) {
       const unique = [...new Set(urls.filter((url) => catalog.has(url)))];
       state.requested += unique.length;
-      emit('page-request-batch', 'Batched page request received', () => ({
+      emit?.('page-request-batch', 'Batched page request received', () => ({
         version: 1,
         requested: urls.length,
         unique: unique.length,
       }));
-      let resident = 0;
-      options.onPage?.(resident, unique.length);
-      const landed = () => options.onPage?.(++resident, unique.length);
-      await Promise.all(
-        unique.map((url) => subscribe(url, options.signal, options.priority ?? 1).then(landed)),
+      const { signal, priority = 1, onPage } = options;
+      const landed = await Promise.allSettled(
+        unique.map((url) => read(url, signal, priority).then(() => onPage?.(url))),
       );
+      for (const page of landed) if (page.status === 'rejected') throw page.reason;
     },
     stats() {
       return {
@@ -179,7 +175,7 @@ export function createPageStreamerWith(
     dispose() {
       if (state.disposed) return;
       state.disposed = true;
-      emit('page-stream-dispose', 'Page streamer released', () => ({
+      emit?.('page-stream-dispose', 'Page streamer released', () => ({
         version: 1,
         resident: cache.size,
         loading: state.active,

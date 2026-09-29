@@ -2,9 +2,13 @@
 // splits a page's casters by, and every row is rewritten when a placement turns moving.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { MOBILITY_CUTOUT, MOBILITY_MOVING } from '../../gpu/shadow/cullShader.ts';
 import { createShadowMobility } from './mobility.ts';
 import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts';
 import { createShadowResidence } from './residence.ts';
+
+/** Rows that draw no corner: the words hold their flags alone. */
+const none = () => 0;
 
 test('the first move promotes a placement and opens the static layer; its later moves do not', () => {
   const mobility = createShadowMobility();
@@ -20,10 +24,10 @@ test('the first move promotes a placement and opens the static layer; its later 
   );
   const pushed: number[][] = [];
   const placementOf = (row: number) => [0, 1, 1, 2, -1][row];
-  mobility.writeRows(placementOf, 5, 2, 2, (first, count) => pushed.push([first, count]));
+  mobility.writeRows(placementOf, 5, 2, 2, (first, count) => pushed.push([first, count]), none);
   assert.deepEqual(pushed, [[0, 5]], 'every row once after a promotion');
   assert.deepEqual([...mobility.rowWords], [0, 1, 1, 0, 0]);
-  mobility.writeRows(placementOf, 5, 3, 4, (first, count) => pushed.push([first, count]));
+  mobility.writeRows(placementOf, 5, 3, 4, (first, count) => pushed.push([first, count]), none);
   assert.deepEqual(pushed[1], [3, 2], 'then the rows the table rewrote');
 });
 
@@ -49,6 +53,7 @@ test('a placement posed where it already stands does not move', () => {
     0,
     1,
     () => pushed.push(0),
+    none,
   );
   assert.deepEqual([...mobility.rowWords], [1, 1], 'a new pose: moved');
 });
@@ -110,7 +115,71 @@ test("a blended caster's row always counts as moving", () => {
     0,
     3,
     () => {},
+    none,
     2,
   );
   assert.deepEqual([...mobility.rowWords], [0, 0, 1, 1]);
+});
+
+// #965: a cutout's row is filed with the casters drawn with the fragment test; a blended caster's
+// never is, cutout or not — the transmittance pass reads the other list alone.
+test("a cutout row's word carries the cutout bit, beside its moving bit", () => {
+  const mobility = createShadowMobility();
+  mobility.ensure(2, 5, () => new Float64Array(16));
+  mobility.move(1, new Float64Array(16).fill(1));
+  const cutouts = new Set([1, 2, 4]);
+  mobility.writeRows(
+    (row) => [0, 0, 1, 1][row] ?? -1,
+    5,
+    0,
+    4,
+    () => {},
+    none,
+    4,
+    (row) => cutouts.has(row),
+  );
+  const [MOVING, CUTOUT] = [MOBILITY_MOVING, MOBILITY_CUTOUT];
+  assert.deepEqual([...mobility.rowWords], [0, CUTOUT, MOVING | CUTOUT, MOVING, MOVING]);
+  assert.ok(mobility.hasCutouts);
+  // The cutouts rewritten opaque: none is left.
+  mobility.writeRows(
+    (row) => [0, 0, 1, 1][row] ?? -1,
+    5,
+    1,
+    2,
+    () => {},
+    none,
+    4,
+  );
+  assert.ok(!mobility.hasCutouts);
+});
+
+// #216: a table grown in place resizes the row words, never the placements' state: a placement
+// that moved stays out of the static layer, and every row's word is written again.
+test('a moving placement stays moving across a grow of the rows', () => {
+  const mobility = createShadowMobility();
+  mobility.ensure(2, 2, () => new Float64Array(16));
+  mobility.move(1, new Float64Array(16).fill(1));
+  mobility.writeRows(
+    (row) => row,
+    2,
+    0,
+    1,
+    () => {},
+    none,
+  );
+  mobility.ensure(2, 4, () => new Float64Array(16));
+  assert.equal(mobility.moves(1), true);
+  assert.equal(mobility.layered, true);
+  const pushed: Array<[number, number]> = [];
+  mobility.writeRows(
+    (row) => [0, 1, 1, -1][row],
+    4,
+    3,
+    3,
+    (first, count) => pushed.push([first, count]),
+    none,
+  );
+  assert.deepEqual(pushed, [[0, 4]], 'the whole grown table');
+  assert.deepEqual([...mobility.rowWords], [0, MOBILITY_MOVING, MOBILITY_MOVING, 0]);
 });

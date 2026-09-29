@@ -58,10 +58,9 @@ const WRITES: Array<{
     write: ({ sky }) => void (sky.color.g = 0.9),
   },
   {
-    name: 'a light target replaced',
+    name: 'a light ground colour',
     node: 'light',
-    write: ({ light }) => void (light.target = new G.Object3D()),
-    verdict: 'reshaped',
+    write: ({ light }) => void light.groundColor.setRGB(0.1, 0.2, 0.3),
   },
 ];
 

@@ -3,7 +3,9 @@ import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
 import type { Batch, Seat } from './worldBatches.ts';
 import { copyElements } from '../../math/matrixElements.ts';
+import { rootedUnder } from '../../host/world/chain.ts';
 import { writeModelNode } from './modelNodes.ts';
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 /** A loaded model, drawn whole through a host node posed by its world matrix alone
  *  (`worldMirror.ts`). */
@@ -25,8 +27,8 @@ const spriteScratch = new Float64Array(16);
  * the camera or the material's rotation turns it, a long side laid along any world axis included.
  */
 function spriteRow(world: ArrayLike<number>) {
-  const x = Math.hypot(world[0], world[1], world[2]),
-    y = Math.hypot(world[4], world[5], world[6]),
+  const x = hypot3(world[0], world[1], world[2]),
+    y = hypot3(world[4], world[5], world[6]),
     m = Math.max(x, y);
   spriteScratch.fill(0);
   spriteScratch[0] = x;
@@ -37,16 +39,6 @@ function spriteRow(world: ArrayLike<number>) {
   for (let i = 12; i < 15; i++) spriteScratch[i] = world[i];
   spriteScratch[15] = 1;
   return spriteScratch;
-}
-
-/** True when `node` is rooted under `scene` — and, when `visibleOnly`, it and every ancestor up
- *  to the scene visible. */
-export function rootedUnder(node: Object3D, scene: Object3D, visibleOnly = false) {
-  for (let walk: Object3D | null = node; walk; walk = walk.parent) {
-    if (visibleOnly && !walk.visible) return false;
-    if (walk === scene) return true;
-  }
-  return false;
 }
 
 /** True when `node` is drawn: rooted under `scene`, and it and every ancestor visible. */

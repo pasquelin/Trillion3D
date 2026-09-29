@@ -47,7 +47,7 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   draws.length = 0;
   computes.length = 0;
   backend.render(cam);
-  // Occluders clear the target, the tested half reloads it; depth copy, reduce, then test, in
+  // Occluders clear the target, the tested half reloads it; pyramid build then test, in
   // that order, between the two.
   const visPasses = passes.filter(
     (pass) =>
@@ -60,11 +60,10 @@ test('GPU Hi-Z builds the pyramid after the vis occluder pass and loads the diso
   assert.equal(visPasses[visPasses.length - 1]?.colorLoad, 'load');
   assert.equal(visPasses[visPasses.length - 1]?.depthLoad, 'load');
   const at = (entry: string) => computes.indexOf(entry);
-  assert.ok(at('copyDepth') >= 0);
-  assert.ok(at('reduceHiz') > at('copyDepth'));
-  assert.ok(at('testHiz') > at('reduceHiz'));
+  assert.ok(at('buildHiz') >= 0);
+  assert.ok(at('testHiz') > at('buildHiz'));
   assert.deepEqual(backend.selectedPageIds().sort(), cpu.shown.map((page) => page.url).sort());
-  assertOccluderImage(backend, cpu.shown, cam, viewport);
+  assertOccluderImage(backend, cpu.shown, collected.roots, cam, viewport);
   indirectDraws(draws);
   backend.dispose();
   geometry.dispose();

@@ -1,5 +1,6 @@
 import { SELECTION_WORKGROUP as WORKGROUP } from '../core/selection.ts';
 import type { createDagResources } from './resources.ts';
+import { dispatchGrid, groupWidth } from './shader/gridWgsl.ts';
 
 /** The cut's resources, as it encodes them. A light cut brings its own flags, work, frames, output
  *  and bind group, the views it runs this frame and its queue capacity (`lightCut.ts`); it keeps no
@@ -36,7 +37,7 @@ export function encodeDagKernels(encoder: GPUCommandEncoder, resources: DagView)
   // frame delta measures what the repeat actually cost — waits between dispatches included, which
   // no pass envelope reports.
   if (resources.repeat) {
-    encodeOnce(encoder, resources, resources.repeat === 'tete', true);
+    encodeOnce(encoder, resources, resources.repeat === 'head', true);
     encodeOnce(encoder, resources, false, false);
     return;
   }
@@ -51,7 +52,6 @@ function encodeOnce(
 ) {
   const {
     residentCut,
-    worldCount,
     blockCount,
     levelSizes,
     liveGroupsOffset,
@@ -59,9 +59,10 @@ function encodeOnce(
     drawnGroupsOffset,
     work,
     dispatchArgs,
-    bindGroup,
+    ranges,
     preparePipeline,
     clearDrawnPipeline,
+    rootLevelPipeline,
     levelPipelines,
     wantedPipeline,
     maskPipeline,
@@ -77,67 +78,63 @@ function encodeOnce(
   const views = light?.views ?? 1,
     queueCap = light?.queueCap ?? resources.nodeCount;
   const label = light ? LIGHT_CUT_PASS : 'Trillion3D DAG selection';
-  const groups = (count: number) => Math.max(1, Math.ceil(count / WORKGROUP));
-  // Head word of the dispatch argument, copied outside a pass: the other two have been one since
-  // the buffer was created. That is the only reason for cuts between passes.
-  const arm = (offset: number) => encoder.copyBufferToBuffer(work, offset, dispatchArgs, 0, 4);
-  const alone = (pipeline: GPUComputePipeline) => {
+  // The argument's x and y words, copied outside a pass: z has been one since the buffer was
+  // created. That is the only reason for cuts between passes. Flat dispatches run in rows of the
+  // device's width (`shader/gridWgsl.ts`).
+  const arm = (offset: number) => encoder.copyBufferToBuffer(work, offset, dispatchArgs, 0, 8);
+  const width = groupWidth(resources.device?.limits);
+  const open = () => {
     const pass = encoder.beginComputePass({ label });
-    pass.setBindGroup(0, bindGroup);
-    pass.setPipeline(pipeline);
-    pass.dispatchWorkgroupsIndirect(dispatchArgs, 0);
-    pass.end();
+    pass.setBindGroup(0, ranges[0].bindGroup);
+    return pass;
   };
   // A light cut sets no draw flag, so it has none to clear.
   const clearDrawn = clear && !light;
   if (clearDrawn) arm(drawnGroupsOffset);
-  const pass = encoder.beginComputePass({ label });
-  pass.setBindGroup(0, bindGroup);
+  const pass = open();
   // Previous frame's drawn pages, and they alone, take their flag back to zero: no more walk of
   // every flag, and the prepare that follows clears the journal.
   if (clearDrawn) {
     pass.setPipeline(clearDrawnPipeline);
     pass.dispatchWorkgroupsIndirect(dispatchArgs, 0);
   }
-  pass.setPipeline(preparePipeline);
-  pass.dispatchWorkgroups(groups(Math.max(worldCount * views, blockCount)));
+  // The first range's dispatch also resets the block counts.
+  perRange(pass, ranges, preparePipeline, width, 0, views, blockCount);
   // The whole descent in THIS pass: dispatches of the same pass run in order and see what the
   // previous ones wrote — prepare and pass 0 already depended on that. Nothing else cut the
   // descent but the dispatch argument, and there is no more of it.
   //
-  // Pass 0 starts from one root per primitive. Its count is `worldCount` and NOT `levelSizes[0]`,
-  // which would not always bound it: `dagPrepare` puts one entry per primitive, missing root
-  // included — pass 0 reads it there and rejects it —, where stage zero only counts roots that
-  // exist. A primitive whose caller supplies an empty hierarchy would make the two diverge.
-  pass.setPipeline(levelPipelines[0]);
-  pass.dispatchWorkgroups(groups(worldCount * views));
+  // Pass 0 starts from one root per primitive: each range's count of primitives and NOT
+  // `levelSizes[0]`, which would not always bound it: `dagPrepare` puts one entry per primitive,
+  // missing root included — pass 0 reads it there and rejects it —, where stage zero only counts
+  // roots that exist. A primitive whose caller supplies an empty hierarchy would make the two
+  // diverge. Each range reads its own roots; a deeper level mixes them, so each range walks the
+  // level's whole queue and keeps its own primitives' nodes.
+  perRange(pass, ranges, rootLevelPipeline, width, 0, views);
   // Each following level reads only the nodes the previous one kept, and fills the next of the
   // three queues — the one a level earlier cleared. The dispatched count is that of its stage's
   // nodes, an upper bound the layout knows.
   for (let level = 1; level < levelSizes.length; level++) {
-    pass.setPipeline(levelPipelines[level % levelPipelines.length]);
-    pass.dispatchWorkgroups(groups(Math.min(levelSizes[level] * views, queueCap)));
+    const pipeline = levelPipelines[level % levelPipelines.length];
+    perRange(pass, ranges, pipeline, width, Math.min(levelSizes[level] * views, queueCap));
   }
   pass.end();
   // Pages of kept leaves, and they alone: a page under a rejected node is not read.
   arm(candGroupsOffset);
-  alone(wantedPipeline);
+  const wanted = open();
+  perRange(wanted, ranges, wantedPipeline, width, dispatchArgs);
+  wanted.end();
   if (headOnly) return;
   arm(liveGroupsOffset);
-  const live = encoder.beginComputePass({ label });
-  live.setBindGroup(0, bindGroup);
+  const live = open();
   // These kernels visit only live clusters, those `dagWanted` has just listed: their verdict is
   // the previous one, it is no longer spoken on those it said nothing about.
-  const runLive = (pipeline: GPUComputePipeline) => {
-    live.setPipeline(pipeline);
-    live.dispatchWorkgroupsIndirect(dispatchArgs, 0);
-  };
   // Each view's share of the drawn log, once every view's live clusters are counted.
   if (light) {
     live.setPipeline(viewOffsetsPipeline);
     live.dispatchWorkgroups(1);
   }
-  runLive(maskPipeline);
+  perRange(live, ranges, maskPipeline, width, dispatchArgs);
   // The drawable-page list is compacted here, in increasing order: the snapshot no longer
   // reports one flag per page but the count alone and its ranks.
   // Then the camera's requests, staged by `dagWanted`, go into the snapshot sorted by rank: one
@@ -147,7 +144,8 @@ function encodeOnce(
     if (residentCut) {
       live.setPipeline(drawPrefixPipeline);
       live.dispatchWorkgroups(1);
-      runLive(drawScatterPipeline);
+      live.setPipeline(drawScatterPipeline);
+      live.dispatchWorkgroupsIndirect(dispatchArgs, 0);
     }
     live.setPipeline(requestSortPipeline);
     live.dispatchWorkgroups(1);
@@ -157,4 +155,30 @@ function encodeOnce(
     }
   }
   live.end();
+}
+
+/**
+ * The kernels that read a primitive's words run once per range of `frames`, each under its
+ * range's bind group, on its range's primitives (`frameRanges.ts`): `threads`, plus `perPrimitive`
+ * per primitive of the range, at least `firstFloor` on the first, in rows of `width` workgroups;
+ * or each indirect on `threads`, a dispatch-argument buffer. One range: the commands of before.
+ */
+function perRange(
+  pass: GPUComputePassEncoder,
+  ranges: DagView['ranges'],
+  pipeline: GPUComputePipeline,
+  width: number,
+  threads: number | GPUBuffer,
+  perPrimitive = 0,
+  firstFloor = 0,
+) {
+  pass.setPipeline(pipeline);
+  for (let r = 0; r < ranges.length; r++) {
+    if (ranges.length > 1) pass.setBindGroup(0, ranges[r].bindGroup);
+    if (typeof threads !== 'number') pass.dispatchWorkgroupsIndirect(threads, 0);
+    else {
+      const count = Math.max(threads + perPrimitive * ranges[r].count, r ? 0 : firstFloor);
+      pass.dispatchWorkgroups(...dispatchGrid(Math.max(1, Math.ceil(count / WORKGROUP)), width));
+    }
+  }
 }

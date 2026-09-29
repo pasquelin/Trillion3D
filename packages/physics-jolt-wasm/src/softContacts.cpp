@@ -62,17 +62,14 @@ void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &
   if (std::none_of(touches.begin(), touches.end(), [](const Touch &t) { return t.engine != ~0u; })) return;
   RMat44 com = soft.GetCenterOfMassTransform();
   const BodyLockInterfaceNoLock &locks = world().system->GetBodyLockInterfaceNoLock();
-  std::lock_guard guard(lock);
   for (const Touch &t : touches) {
     if (t.engine == ~0u) continue;
-    uint64_t key = pairKey(ia, t.engine);
-    auto [at, fresh] = world().softPairs.try_emplace(key, world().step);
-    if (!fresh) {
-      at->second = world().step;
+    // The pairs are only read during the step: a touch the soft pairs already hold is stamped
+    // again when the records are replayed (`replayContacts`), a new one sends its enter then.
+    if (world().softPairs.count(pairKey(ia, t.engine))) {
+      deferContact({ContactRecord::SOFT, ia, t.engine, 0.0f, Float3(0, 0, 0), 0});
       continue;
     }
-    uint32_t &pair = world().pairs[key];
-    pair = 1;
     Vec3 point = t.count > 0 ? Vec3(com * (t.point / t.count)) : Vec3(com.GetTranslation());
     // Estimated before the solver, as a rigid pair's: the soft body's mean velocity (its last
     // step's) against the other's at the point, which no soft body pushed yet, along the vertices'
@@ -85,8 +82,9 @@ void Listener::OnSoftBodyContactAdded(const Body &soft, const SoftBodyManifold &
       Vec3 relative = soft.GetLinearVelocity() - b.GetPointVelocity(RVec3(point));
       impulse = approachImpulse(relative.Dot(normal), 1.0f / t.mass + inverseMass(b));
     }
-    if (pushEvent(1, ia, t.engine, impulse, point)) pair |= ENTERED;
-    else ++world().dropped;
+    Float3 at;
+    point.StoreFloat3(&at);
+    deferContact({ContactRecord::SOFT, ia, t.engine, impulse, at, 0});
   }
 }
 
@@ -106,7 +104,7 @@ void leaveSoft() {
     }
     // Both maps hold a soft pair until it ends: here, or in `leaveAll` when a body of it leaves.
     if (auto pair = w.pairs.find(at->first); pair != w.pairs.end()) {
-      if (pair->second & ENTERED) pushLeave(pair->first);
+      if (pair->second.count & ENTERED) pushLeave(pair->first);
       w.pairs.erase(pair);
     }
     at = w.softPairs.erase(at);

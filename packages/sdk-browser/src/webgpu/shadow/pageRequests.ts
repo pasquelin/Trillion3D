@@ -1,5 +1,5 @@
 import type { ShadowRequestReport } from '../../../../sdk-core/src/scene/light-shadow/requests.ts';
-import { SHADOW_REQUEST_BITS } from '../../lighting/direct/shadowWgsl.ts';
+import { SHADOW_REQUEST_BITS } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { shadowRequestCap } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
 /** Readback slots in flight at most: a frame whose three predecessors are still mapping asks
@@ -22,7 +22,8 @@ type Slot = {
  * read back once the image is submitted, like the texture feedback. The request buffer is zeroed
  * before the resolve of every image that lights — a held image lights nothing and asks for
  * nothing. Each copy carries the frame, the table layout and the plan stamp it was read under, so
- * the scheduler reads it against the right windows and knows whether it proves a settled state.
+ * the scheduler knows whether it proves a settled state — and, for a frame no early demand
+ * schedules (`scene/light-shadow/demand.ts`), reads it against the right windows.
  * The request buffer is made with the pool, its list as long as `shadowRequestCap` of its `pages`.
  */
 export function createShadowPageRequests(device: GPUDevice, pages: number) {
@@ -53,7 +54,7 @@ export function createShadowPageRequests(device: GPUDevice, pages: number) {
     });
   let inFlight = 0;
   return {
-    /** What the shading records its requests in (`../../lighting/direct/shadowWgsl.ts`). */
+    /** What the shading records its requests in (`../../lighting/direct/shadowRequestWgsl.ts`). */
     buffer: requestBuffer,
     /** GPU bytes of the request buffer, counted in the pool (`shadowRequestBytes`). */
     bytes: requestBuffer.size,

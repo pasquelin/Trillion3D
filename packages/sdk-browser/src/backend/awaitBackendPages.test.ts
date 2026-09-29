@@ -50,8 +50,8 @@ test('awaiting already cached GPU bytes still settles GPU upload before the fina
       return [];
     },
   };
-  await awaitBackendPages(backend, G.perspectiveCamera(), async () => {
-    assert.fail('cached bytes must not be fetched again');
+  await awaitBackendPages(backend, G.perspectiveCamera(), async (missing) => {
+    assert.deepEqual(missing, [], 'cached bytes must not be fetched again');
   });
   assert.equal(drawn, true);
 });
@@ -68,7 +68,7 @@ test('synchronous backends keep one selection when their pages are already avail
       },
     },
     G.perspectiveCamera(),
-    async () => assert.fail('unexpected request'),
+    async (missing) => assert.deepEqual(missing, [], 'unexpected request'),
   );
   assert.equal(renders, 1);
 });
@@ -130,4 +130,12 @@ test('a wait for pages alone asks every flush for no image (#408)', async () => 
   };
   await awaitBackendPages(backend, G.perspectiveCamera(), async () => {}, { image: false });
   assert.deepEqual(asked, [{ image: false }, { image: false }, { image: false }]);
+});
+
+test('load hears the pages the cut lacks, and is heard with none once the frames read them (#408)', async () => {
+  const heard: string[][] = [];
+  const load = async (missing: string[]) => void heard.push(missing);
+  await awaitBackendPages({ render() {}, pendingUrls: () => ['b'] }, G.perspectiveCamera(), load);
+  await awaitBackendPages({ render() {}, pendingUrls: () => [] }, G.perspectiveCamera(), load);
+  assert.deepEqual(heard, [['b'], []]);
 });

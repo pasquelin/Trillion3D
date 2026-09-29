@@ -7,6 +7,7 @@ import {
   createShadowTransmittance,
   shadowTransmittanceBytes,
 } from './transmittance.ts';
+import { shadowTransmittanceDraws } from './transmittanceDraws.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 
@@ -34,14 +35,9 @@ function created(poolSide: number) {
     device.calls.push(['createTexture', [d]]),
     { createView: () => d, destroy() {}, depthOrArrayLayers: 1 }
   );
-  const layer = createShadowTransmittance(
-    device.target,
-    {} as never,
-    [{}, {}] as never,
-    [{}] as never,
-    poolSide,
-    encoder.target,
-  );
+  const made = shadowTransmittanceDraws(device.target, {} as never, [{}, {}] as never).made();
+  const layer = createShadowTransmittance(device.target, made, [{}] as never, poolSide);
+  layer.clear(encoder.target);
   const of = (name: string) => device.calls.filter(([n]) => n === name).map(([, [d]]) => d);
   return { layer, of, passes: encoder.calls.map(([, [d]]) => d as GPURenderPassDescriptor) };
 }

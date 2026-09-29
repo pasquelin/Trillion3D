@@ -1,4 +1,11 @@
-import { CLOCK_RESOLUTION_MS, Fenetre, estimateClockResolutionMs } from './slidingWindow.ts';
+import {
+  CLOCK_RESOLUTION_MS,
+  NS_PER_MS,
+  POOLED_CLOCK_STEPS,
+  PooledTiming,
+  SlidingMedian,
+  estimateClockResolutionMs,
+} from './slidingWindow.ts';
 import {
   MATH_PATH_CONTRACT,
   type MathPath,
@@ -16,8 +23,11 @@ import {
  * a late frame or a garbage collection is an outlier, not a trend.
  *
  * It switches only when the other path is clearly and lastingly better, and it keeps
- * the other median fresh by playing it from time to time. Without a fine enough clock, it does not
- * arbitrate at all: it stays on the JavaScript path, which is the reference.
+ * the other median fresh by playing it from time to time. A clock too coarse to time one execution
+ * (no cross-origin isolation) times pooled batches instead (CPU-20, #919): consecutive executions of
+ * a path are summed until they span `POOLED_CLOCK_STEPS` clock steps, and each pool is one sample.
+ * On a fine clock every execution is its own sample, exactly as before. Only a clock that never
+ * moves leaves it on the JavaScript path, the reference.
  */
 
 /** Minimum executions before any arbitration: under this number, a single value would make the median. */
@@ -29,17 +39,28 @@ export const PATH_SWITCH_RUNS = 5;
 /** One execution in that many plays the other path to refresh its median without costing a frame. */
 export const PATH_EXPLORE_EVERY = 50;
 
-const NS_PAR_MS = 1e6;
-
 class Operation {
-  readonly js = new Fenetre();
-  readonly wasm = new Fenetre();
+  readonly js = new SlidingMedian();
+  readonly wasm = new SlidingMedian();
+  /** Per path, the executions a coarse clock pools into one sample; `null` on a fine clock. */
+  readonly pools: Record<MathPath, PooledTiming> | null;
   path: MathPath | null = null;
   runs = 0;
   switches = 0;
   elements = 0;
   /** Consecutive executions where the other path held its lead. Reset to zero as soon as it yields. */
-  avance = 0;
+  lead = 0;
+  constructor(poolSpanMs: number | null) {
+    this.pools =
+      poolSpanMs === null
+        ? null
+        : { js: new PooledTiming(poolSpanMs), wasm: new PooledTiming(poolSpanMs) };
+  }
+  /** Drops both paths' pooled executions: a missing timer breaks the batch. */
+  dropPools() {
+    this.pools?.js.clear();
+    this.pools?.wasm.clear();
+  }
 }
 
 /** Picks, per batch operation, the faster of JavaScript and WebAssembly from measured times. */
@@ -63,33 +84,34 @@ export interface PathGovernor {
 export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto'): PathGovernor {
   const operations = new Map<string, Operation>();
   const resolution = estimateClockResolutionMs(now);
-  const grossiere = resolution === null || resolution > CLOCK_RESOLUTION_MS;
-  let choisi = mode;
-  let disponible = false;
+  const coarse = resolution === null || resolution > CLOCK_RESOLUTION_MS;
+  const poolSpanMs = coarse && resolution !== null ? resolution * POOLED_CLOCK_STEPS : null;
+  let chosen = mode;
+  let available = false;
   let simd: boolean | null = null;
   let cause: string | null = 'WebAssembly module not loaded';
 
-  const etat = (nom: string) => {
-    let operation = operations.get(nom);
-    if (!operation) operations.set(nom, (operation = new Operation()));
+  const stateOf = (name: string) => {
+    let operation = operations.get(name);
+    if (!operation) operations.set(name, (operation = new Operation(poolSpanMs)));
     return operation;
   };
-  /** Arbitration is possible only if both paths exist AND the clock can tell them apart. */
-  const arbitrable = () => choisi === 'auto' && disponible && !grossiere;
+  /** Arbitration is possible only if both paths exist AND the clock moves: a coarse one is pooled. */
+  const canArbitrate = () => chosen === 'auto' && available && resolution !== null;
 
-  function choose(nom: string) {
-    if (choisi !== 'auto') return disponible || choisi === 'js' ? choisi : 'js';
-    if (!arbitrable()) return 'js';
-    const operation = etat(nom);
-    const courant = operation.path ?? 'wasm';
+  function choose(name: string) {
+    if (chosen !== 'auto') return available || chosen === 'js' ? chosen : 'js';
+    if (!canArbitrate()) return 'js';
+    const operation = stateOf(name);
+    const current = operation.path ?? 'wasm';
     // Passive exploration: the other path runs once every `PATH_EXPLORE_EVERY`, otherwise its
     // median would age until it described a machine that no longer exists.
-    const autre = courant === 'js' ? 'wasm' : 'js';
-    return operation.runs % PATH_EXPLORE_EVERY === PATH_EXPLORE_EVERY - 1 ? autre : courant;
+    const other = current === 'js' ? 'wasm' : 'js';
+    return operation.runs % PATH_EXPLORE_EVERY === PATH_EXPLORE_EVERY - 1 ? other : current;
   }
 
-  function observe(nom: string, path: MathPath, ms: number | null, elements: number) {
-    const operation = etat(nom);
+  function observe(name: string, path: MathPath, ms: number | null, elements: number) {
+    const operation = stateOf(name);
     operation.runs++;
     if (elements <= 0) return;
     operation.elements += elements;
@@ -97,35 +119,41 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
       // A missing timer proves nothing: the operation falls back to the reference and stays there
       // as long as no timed execution has fed both medians.
       operation.path = 'js';
-      operation.avance = 0;
+      operation.lead = 0;
+      operation.dropPools();
       return;
     }
-    operation[path].ajoute((ms * NS_PAR_MS) / elements);
+    // A fine clock keeps one sample per execution, bit for bit (-0 included): no pool there.
+    const sample = operation.pools
+      ? operation.pools[path].add(ms, elements)
+      : (ms * NS_PER_MS) / elements;
+    if (sample === null) return;
+    operation[path].add(sample);
     operation.path ??= path;
-    if (!arbitrable()) return;
-    const courant = operation.path;
-    const autre = courant === 'js' ? 'wasm' : 'js';
-    const iciMediane = operation[courant].mediane();
-    const laMediane = operation[autre].mediane();
-    const assez =
-      operation[courant].count >= PATH_MIN_SAMPLES && operation[autre].count >= PATH_MIN_SAMPLES;
-    if (!assez || iciMediane === null || laMediane === null) return;
-    if (laMediane < iciMediane * (1 - PATH_SWITCH_MARGIN)) operation.avance++;
-    else operation.avance = 0;
-    if (operation.avance >= PATH_SWITCH_RUNS) {
-      operation.path = autre;
+    if (!canArbitrate()) return;
+    const current = operation.path;
+    const other = current === 'js' ? 'wasm' : 'js';
+    const currentMedian = operation[current].median();
+    const otherMedian = operation[other].median();
+    const enough =
+      operation[current].count >= PATH_MIN_SAMPLES && operation[other].count >= PATH_MIN_SAMPLES;
+    if (!enough || currentMedian === null || otherMedian === null) return;
+    if (otherMedian < currentMedian * (1 - PATH_SWITCH_MARGIN)) operation.lead++;
+    else operation.lead = 0;
+    if (operation.lead >= PATH_SWITCH_RUNS) {
+      operation.path = other;
       operation.switches++;
-      operation.avance = 0;
+      operation.lead = 0;
     }
   }
 
   function metrics(): MathPathMetrics {
-    const releve: Record<string, MathPathOperation> = {};
-    for (const [nom, operation] of operations)
-      releve[nom] = {
+    const readings: Record<string, MathPathOperation> = {};
+    for (const [name, operation] of operations)
+      readings[name] = {
         path: operation.path,
-        jsNsPerElement: operation.js.mediane(),
-        wasmNsPerElement: operation.wasm.mediane(),
+        jsNsPerElement: operation.js.median(),
+        wasmNsPerElement: operation.wasm.median(),
         jsSamples: operation.js.count,
         wasmSamples: operation.wasm.count,
         switches: operation.switches,
@@ -133,24 +161,24 @@ export function createPathGovernor(now: () => number, mode: MathPathMode = 'auto
       };
     return {
       contract: MATH_PATH_CONTRACT,
-      mode: choisi,
-      wasmAvailable: disponible,
+      mode: chosen,
+      wasmAvailable: available,
       wasmSimd: simd,
       clockResolutionMs: resolution,
-      clockCoarse: grossiere,
+      clockCoarse: coarse,
       unavailableReason: cause,
-      operations: releve,
+      operations: readings,
     };
   }
 
   return {
-    setMode: (valeur) => {
-      choisi = valeur;
+    setMode: (next) => {
+      chosen = next;
     },
-    setWasm: (available, simdActif, raison) => {
-      disponible = available;
-      simd = simdActif;
-      cause = raison;
+    setWasm: (loaded, simdActive, reason) => {
+      available = loaded;
+      simd = simdActive;
+      cause = reason;
     },
     choose,
     observe,

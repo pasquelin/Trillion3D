@@ -20,6 +20,7 @@ import { assertSceneTables } from '../../../../sdk-core/src/scene/core/tableCont
 import { buildPreparedScene } from './build.ts';
 import { threeGraph } from '../../../../../bench/witnesses/three/fromGraphNodes.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { loadHostVertices, meshes as drawnMeshes } from '../../scene/meshes.ts';
 import { caches, describe, describeShape, serveFiles, type Ranks } from './scenes.fixture.ts';
 
 async function witness(folder: URL, document: string, text?: string) {
@@ -31,6 +32,17 @@ async function witness(folder: URL, document: string, text?: string) {
   });
   const associations = gltf.parser.associations as Map<object, ReturnType<Ranks>>;
   const ranks: Ranks = (object) => associations.get(object);
+  // The autonomous document's primitives are one degenerate triangle each: the engine shades the
+  // pages they were cut from, which carry the source primitive's normals (#846).
+  if (document !== 'source.gltf') {
+    const source = JSON.parse(await readFile(new URL('source.gltf', folder), 'utf8'));
+    gltf.scene.traverse((node) => {
+      const { meshes, primitives } = ranks(node) ?? {};
+      const cut = source.meshes[meshes!]?.primitives[primitives!];
+      if ((node as { isMesh?: boolean }).isMesh && cut?.attributes.NORMAL !== undefined)
+        (node as unknown as { material: { flatShading: boolean } }).material.flatShading = false;
+    });
+  }
   return { shape: describeShape(gltf.scene, ranks), whole: describe(gltf.scene, () => undefined) };
 }
 
@@ -52,6 +64,7 @@ async function prepared(folder: URL, document: string, written?: unknown) {
   const ranks: Ranks = (object) =>
     textures.has(object) ? { textures: textures.get(object) } : meshes.get(object);
   const source = built.source as unknown as Object3D;
+  await loadHostVertices(drawnMeshes(source));
   return {
     shape: describeShape(source, ranks),
     whole: describe(threeGraph(source), () => undefined),

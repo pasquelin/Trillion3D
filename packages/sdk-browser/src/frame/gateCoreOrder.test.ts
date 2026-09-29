@@ -12,7 +12,7 @@ import type { CameraMotion } from '../camera/world.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
 import {
   POSES_PARENT,
-  cameraAplatie,
+  flattenedCamera,
   creeRig,
   poseRig,
 } from '../../../../tests/browser/probes/cameraRig.ts';
@@ -51,7 +51,7 @@ test('enterFrame resolves the pose before the adaptive threshold: the measured s
   const motion: CameraMotion = {};
   poseRig(rig, DEPLACE_ET_TOURNE, false); // never walked: only `enterFrame` can see it.
   gate.enterFrame({ pixelError: 1, lodAdaptive: true }, rig.camera, motion, VIEWPORT, source, []);
-  const eyeAplatie = [...cameraMoteur(cameraAplatie(DEPLACE_ET_TOURNE)).eye];
+  const eyeAplatie = [...cameraMoteur(flattenedCamera(DEPLACE_ET_TOURNE)).eye];
   assert.deepEqual(
     [...(motion.last ?? [])],
     eyeAplatie,

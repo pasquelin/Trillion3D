@@ -2,14 +2,14 @@ import { viewProj } from '../pages/helpers.ts';
 import { createRenderEncoder } from '../pages/render/encoder.ts';
 import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.ts';
 import { PAGE_INFO_STRIDE, clusterHash } from '../../visibility/buffer.ts';
-import { UNIFORM_STRIDE } from '../blend/uniforms.ts';
+import { UNIFORM_STRIDE, writeFallbackUniform } from '../blend/uniforms.ts';
 import {
   ROW_DASH_WORD,
   ROW_INDEX_WORDS,
   ROW_LINE_WIDTH_WORD,
   ROW_SPRITE_WORD,
 } from '../row/pageRow.ts';
-import { FALLBACK_CLUSTER_PAGE, FALLBACK_WIREFRAME } from '../pages/prepare/shaders.ts';
+import { fallbackMode } from '../pages/prepare/shaders.ts';
 import {
   bindGroupFor,
   pageRgb,
@@ -18,6 +18,7 @@ import {
 } from '../pages/prepare/pipelineFor.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts';
+import { rootOf } from '../../page/selection/placements.ts';
 
 /** Uploads and draws opaque rows through the non-visibility fallback pipeline; the draws count on
  *  `rt.run.gpuDrawCalls` and the open encoder comes back with the vertices drawn. */
@@ -38,29 +39,24 @@ export function drawWebgpuFallback(rt: WebgpuPagesRuntime, device: GPUDevice) {
       row = i,
       base = i * (UNIFORM_STRIDE / 4),
       color = pageRgb(rt, rec);
-    uniformPacked.set(viewProj, base);
-    uniformPacked.set(rec.matrix.elements, base + 16);
-    uniformPacked[base + 32] = color[0];
-    uniformPacked[base + 33] = color[1];
-    uniformPacked[base + 34] = color[2];
-    uniformPacked[base + 35] = 1;
-    packedInts[base + 36] = rows.pageTableInts![row * fallbackWords + 24];
-    packedInts[base + 37] = rows.pageTableInts![row * fallbackWords + ROW_INDEX_WORDS];
-    packedInts[base + 38] =
-      (run.diagnostic === 'wireframe' ? FALLBACK_WIREFRAME : 0) |
-      (rec.geometryPage ? FALLBACK_CLUSTER_PAGE : 0);
-    packedInts[base + 39] = clusterHash(rec.clusterId);
-    // A line page widens on screen like in every raster (`lineClip`); zero draws triangles.
-    uniformPacked[base + 40] = rows.pageTableFloats![row * fallbackWords + ROW_LINE_WIDTH_WORD];
-    uniformPacked[base + 41] = pixelRatio;
-    uniformPacked[base + 42] = width;
-    uniformPacked[base + 43] = height;
-    // A dashed line page cuts its gaps like in every raster (`lineDash`); zero keeps every pixel.
-    uniformPacked[base + 44] = rows.pageTableFloats![row * fallbackWords + ROW_DASH_WORD];
-    uniformPacked[base + 45] = rows.pageTableFloats![row * fallbackWords + ROW_DASH_WORD + 1];
-    // A sprite page turns to face the camera like in every raster (`spriteAt`); zero does not.
-    uniformPacked[base + 46] = rows.pageTableFloats![row * fallbackWords + ROW_SPRITE_WORD];
-    uniformPacked[base + 47] = rows.pageTableFloats![row * fallbackWords + ROW_SPRITE_WORD + 1];
+    writeFallbackUniform(uniformPacked, packedInts, base, {
+      projection: viewProj,
+      world: rootOf(rt.layout.selectionRoots, rec).world.elements,
+      color,
+      opacity: 1,
+      pageOffset: rows.pageTableInts![row * fallbackWords + 24],
+      indexCount: rows.pageTableInts![row * fallbackWords + ROW_INDEX_WORDS],
+      mode: fallbackMode(run.diagnostic, !!rec.geometryPage),
+      identity: clusterHash(rec.clusterId),
+      lineWidth: rows.pageTableFloats![row * fallbackWords + ROW_LINE_WIDTH_WORD],
+      pixelRatio,
+      width,
+      height,
+      dash: rows.pageTableFloats![row * fallbackWords + ROW_DASH_WORD],
+      gap: rows.pageTableFloats![row * fallbackWords + ROW_DASH_WORD + 1],
+      spriteRotation: rows.pageTableFloats![row * fallbackWords + ROW_SPRITE_WORD],
+      spriteMode: rows.pageTableFloats![row * fallbackWords + ROW_SPRITE_WORD + 1],
+    });
   }
   if (rows.packedCount && uniformBuffer)
     device.queue.writeBuffer(

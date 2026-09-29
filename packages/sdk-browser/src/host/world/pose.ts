@@ -28,7 +28,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 
 /** True when the sixteen numbers of a set matrix are those the tree already holds, sign of zero
  *  and `NaN` included — `sameElements` answers on `!==`, which merges `-0` with `0`. */
-function sameMatrixBits(held: Float64Array, now: ArrayLike<number>) {
+export function sameMatrixBits(held: ArrayLike<number>, now: ArrayLike<number>) {
   for (let i = 0; i < 16; i++) if (!Object.is(held[i], now[i])) return false;
   return true;
 }
@@ -87,4 +87,42 @@ export function pushHostPose(tree: TransformTree, rank: number, node: Object3D) 
     moved = true;
   }
   return moved;
+}
+
+/**
+ * World matrix of the index node of rank `rank` — a moved node's parent — READ from the engine
+ * tree instead of recomposed from the host chain (#971, CPU-23): the same composition and the
+ * same product in the same order, hence the same bits as `chain.ts`, for O(depth) comparisons
+ * rather than O(depth) compositions.
+ *
+ * The tree answers only for what it mirrors. Every link from that node up must be the one the
+ * index was built on — a chain the host reparented is not the tree's, and `null` sends the caller
+ * back to the chain. Every pose on it is compared with the host's (`chainPosed`, as `refreshFrom`
+ * does): a matrix the host set by hand, which no scan announced, is pushed and the index passed
+ * again whole, so the parent world returned is never stale.
+ */
+export function heldParentWorld(
+  tree: TransformTree,
+  nodes: readonly Object3D[],
+  parents: Int32Array,
+  rank: number | undefined,
+  refresh: () => void,
+): Float64Array | null {
+  if (rank === undefined) return null;
+  for (let up = rank; up >= 0; up = parents[up])
+    if (nodes[up].parent !== (parents[up] < 0 ? null : nodes[parents[up]])) return null;
+  if (chainPosed(tree, nodes, parents, rank)) refresh();
+  return tree.worldViews[rank];
+}
+
+/** True once a node from rank `from` up to the index root carries a host pose the tree did not
+ *  hold: it is pushed, and the caller passes the index again whole, which pushes the others. */
+export function chainPosed(
+  tree: TransformTree,
+  nodes: readonly Object3D[],
+  parents: Int32Array,
+  from: number,
+) {
+  for (let up = from; up >= 0; up = parents[up]) if (pushHostPose(tree, up, nodes[up])) return true;
+  return false;
 }

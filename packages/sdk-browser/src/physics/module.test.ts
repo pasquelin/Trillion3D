@@ -10,7 +10,8 @@ import {
   POSE_WORDS,
   SHAPE,
 } from '../../../sdk-core/src/physics/index.ts';
-import { body, events, startModule, type Module } from './module.fixture.ts';
+import { events, startModule, type Module } from './module.fixture.ts';
+import { body } from './records.fixture.ts';
 
 const id = (slot: number, generation: number) => slot | (generation << GENERATION_SHIFT);
 /** A floor in slot 0, then `boxes` boxes (events wanted when `listening`), stacked from y = 1. */

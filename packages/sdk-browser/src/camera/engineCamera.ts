@@ -6,13 +6,14 @@ import {
   updateCameraFrame,
   type CameraFrame,
 } from '../../../sdk-core/src/index.ts';
-import { orthographicView } from '../../../sdk-core/src/math/primitives/camera.ts';
+import { drawnView } from '../../../sdk-core/src/math/primitives/camera.ts';
 import {
   createRenderOriginFrame,
   holdRenderOriginFrame,
   updateRenderOriginFrame,
   type RenderOriginFrame,
 } from './renderOrigin.ts';
+import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
 
 /**
  * The engine camera: the numbers of a frame, in owned buffers rewritten in place.
@@ -53,6 +54,8 @@ export type OrthographicBox = {
   /** Right edge. */ right: number;
   /** Top edge. */ top: number;
   /** Bottom edge. */ bottom: number;
+  /** An orthographic box as high as declared and as wide as the picture's shape makes it. */
+  fitAspect?: boolean;
 };
 const seen = new Float64Array(4);
 /** The optics a camera declares: what the projection is composed from. An `orthographic` box
@@ -106,7 +109,7 @@ export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): Eng
   into.aspect = optics.aspect;
   const box = optics.orthographic;
   if (box) {
-    const [x, y, w, h] = orthographicView(box, optics.zoom || 1, seen);
+    const [x, y, w, h] = drawnView(box, optics.aspect, optics.zoom || 1, seen);
     orthographicProjection(into.projection, x - w, x + w, y - h, y + h, optics.near, optics.far);
   } else
     perspectiveProjection(into.projection, optics.fov, optics.aspect, optics.near, optics.zoom);
@@ -125,7 +128,7 @@ export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): Eng
  *  camera's own +z — the way back toward it —, weighted by the projection. */
 function writeViewPoint(into: EngineCamera, perspective: number) {
   const w = into.world,
-    length = Math.hypot(w[8], w[9], w[10]) || 1,
+    length = hypot3(w[8], w[9], w[10]) || 1,
     flat = (1 - perspective) / length;
   into.perspective = perspective;
   for (let axis = 0; axis < 3; axis++)

@@ -1,3 +1,5 @@
+import { DAG_AHEAD_DUE_WGSL } from '../aheadDue.ts';
+
 /**
  * The view AHEAD of the camera: what the camera cut also evaluates so the pages the camera is about
  * to need are asked for before they are on screen (#488).
@@ -15,26 +17,23 @@
  * never drawn, only REQUESTED, in the lower tier (`../request.ts`). A light cut never raises the
  * flag, and its views keep their meaning.
  *
- * What the view ahead asks for fills at most half of the sample: the other half stays for the
- * camera's own requests, whose overflow alone declares the sample truncated (`snapshotWgsl.ts`).
+ * What the view ahead asks for waits in a region of its own, half the sample's cap, on its own
+ * counter: the camera's requests keep the whole sample, and their overflow alone declares it
+ * truncated (`snapshotWgsl.ts`). Each is ranked by its deadline, then its error (`../aheadDue.ts`).
  */
 export const AHEAD_VIEW = 1;
 
 export const DAG_AHEAD_WGSL = `const AHEAD_VIEW:u32=${AHEAD_VIEW}u;
+${DAG_AHEAD_DUE_WGSL}
 fn aheadOn()->bool{return views[0u].ahead!=0u;}
-/** The view-ahead frustum brought into the primitive's space as \`dagPrepare\` brings the camera's,
- *  then the same box test (\`outsidePlane\`). A primitive no camera culls is never outside it. */
-fn outsideAhead(w:u32,bmin:vec3f,bmax:vec3f)->bool{
- if(unculledOf(w)){return false;}
- let m=transpose(worlds[w]);
- for(var i=0u;i<6u;i++){if(outsidePlane(m*views[AHEAD_VIEW].planes[i],bmin,bmax)){return true;}}
- return false;
-}
+/** The view-ahead frustum, brought into the primitive's space by \`dagPrepare\` as the camera's
+ *  (\`primitiveWgsl.ts\`), then the same box test. A primitive no camera culls is never outside it. */
+fn outsideAhead(w:u32,bmin:vec3f,bmax:vec3f)->bool{return outsideFrustum(aheadPlanes(w),bmin,bmax);}
 /** \`levelStep\`'s verdict under the view ahead: inside its frustum, not too fine, not too coarse. */
 fn keepsAhead(node:CullNode,w:u32)->bool{
  vi=AHEAD_VIEW;
  if(outsideAhead(w,node.minimum,node.maximum)){return false;}
- let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
+ let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
  return !tooCoarse(node,e,stretch,focal)&&!floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal);
 }
 /** A node the camera rejected, tried against the view ahead. */
@@ -43,12 +42,15 @@ fn descendAhead(src:u32,node:CullNode,w:u32){
 }
 /** A page the camera does not request, requested ahead when the view ahead selects it. */
 fn wantAhead(i:u32,w:u32,r:u32,cluster:Cluster){
- // Past half the sample nothing more is emitted: the tests below would be spent for nothing.
+ // Past the region ahead nothing more is emitted: the tests below would be spent for nothing.
  if(!aheadOn()||aheadFull()){return;}
  vi=AHEAD_VIEW;
- if((cluster.flags&2u)!=0u||outsideAhead(w,boxMin(r),boxMax(r))){return;}
- let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
- if(!selects(cluster,e,stretch,focal,views[vi].pixelError)){return;}
- emitAhead(i,replacementPixels(cluster,e,stretch,focal));
+ if((cluster.flags&2u)!=0u){return;}
+ let bmin=boxMin(r);let bmax=boxMax(r);
+ if(outsideAhead(w,bmin,bmax)){return;}
+ let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
+ let pixels=clusterPixels(cluster,e,stretch,focal);
+ if(!selects(pixels,views[vi].pixelError)){return;}
+ emitAhead(i,replacementPixels(cluster,pixels),aheadDue(w,bmin,bmax));
 }
 `;

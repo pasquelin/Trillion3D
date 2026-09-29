@@ -1,7 +1,7 @@
 // Pure A2 oracles, no side effects: `ombrage.bench.ts` measures them; unit tests import
 // them as reference.
 import * as THREE from 'three';
-import type { GraphCamera } from '../../../packages/sdk-browser/src/host/graph/camera.ts';
+import type { Camera } from '../../../packages/sdk-core/src/world/camera/camera.ts';
 import { threeCamera } from '../../witnesses/three/fromGraphNodes.ts';
 import { RASTER_BACKGROUND } from '../../../packages/sdk-browser/src/page/raster.ts';
 import {
@@ -25,6 +25,10 @@ import {
   type EngineCamera,
 } from '../../../packages/sdk-browser/src/camera/world.ts';
 import type { DepthCamera } from '../../../packages/sdk-browser/src/camera/depthConvention.ts';
+import type { MatrixElements } from '../../../packages/sdk-browser/src/math/matrixElements.ts';
+
+/** A page with the world of its root, which pages carried before #1226. */
+type Placed = VisPage & { matrix: MatrixElements };
 
 /** The oracle compares per-frame caching, not the camera read: it copies the host
  *  camera as the frame input does, and shading reads the same. */
@@ -33,7 +37,7 @@ const engineScratch = createEngineCamera();
 /** `packages/sdk-browser/src/visibility/shader/shadePixel.ts:15-63` before batch A: the surface record and the triangle per pixel. */
 function referenceShadePixel(
   id: number,
-  pages: readonly (VisPage | undefined)[],
+  pages: readonly (Placed | undefined)[],
   cam: EngineCamera,
   depthCam: DepthCamera,
   width: number,
@@ -46,7 +50,7 @@ function referenceShadePixel(
   if (!unpacked) return backgroundRgb(background);
   const page = pages[unpacked.pageIndex];
   if (!page) return backgroundRgb(background);
-  const tri = triangleAt(page, unpacked.triangleIndex, depthCam, width, height);
+  const tri = triangleAt(page, page.matrix, unpacked.triangleIndex, depthCam, width, height);
   if (!tri) return backgroundRgb(background);
   const affine = barycentric(tri.a, tri.b, tri.c, x, y);
   if (!affine) return backgroundRgb(background);
@@ -85,8 +89,8 @@ function referenceShadePixel(
 /** `packages/sdk-browser/src/visibility/shader/shade.ts:8-34` before batch A. */
 export function referenceShadeVisibility(
   ids: Uint32Array,
-  pages: readonly (VisPage | undefined)[],
-  cam: GraphCamera,
+  pages: readonly (Placed | undefined)[],
+  cam: Camera,
   viewport: [number, number],
   background = RASTER_BACKGROUND,
 ) {

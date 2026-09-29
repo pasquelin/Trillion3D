@@ -26,14 +26,15 @@ export function pictureFits({ layout, source }: TileTexture) {
  * already holds (#362): its tail and each resident tile, at the level it serves, where they are —
  * read from the pool at copy time, since a pool resize moves them. Nothing is requested, evicted
  * or re-registered: the page table does not move, and no image shows a coarser level while the
- * tiles are copied again.
+ * tiles are copied again. One submit.
  */
 export function copyLiveTexture(
-  encoder: GPUCommandEncoder,
+  device: GPUDevice,
   atlas: WebgpuTileAtlas,
   slot: number,
   source: GPUTexture,
 ) {
+  const encoder = device.createCommandEncoder({ label: 'Trillion3D live texture' });
   const { layout } = atlas.textures[slot];
   const pool = atlas.poolOf(slot);
   for (const index of pool.occupied()) {
@@ -62,4 +63,5 @@ export function copyLiveTexture(
         layout.last,
       );
   }
+  device.queue.submit([encoder.finish()]);
 }

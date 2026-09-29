@@ -48,6 +48,7 @@ pub(super) fn one_image(
     // Alpha measurement reads the FULL-RESOLUTION image: the width of a softened
     // edge is counted in source pixels, and a reduced level would divide it by
     // its scale. An image is measured once, for the first candidate texture that cites it.
+    let sha256 = hash(&bytes);
     let candidates: Vec<usize> = readers
         .iter()
         .filter(|r| inputs.to_measure.contains(&r.texture))
@@ -56,11 +57,15 @@ pub(super) fn one_image(
     let shapes = if candidates.is_empty() {
         Vec::new()
     } else {
-        let _t = perf::Timer::new(perf::Phase::TextureAlpha);
-        let shape = crate::cutout::measure(&decoded);
+        let shape = inputs
+            .measurements
+            .get(&sha256, &decoded)
+            .unwrap_or_else(|| {
+                let _t = perf::Timer::new(perf::Phase::TextureAlpha);
+                crate::cutout::measure(&decoded)
+            });
         candidates.into_iter().map(|t| (t, shape.clone())).collect()
     };
-    let sha256 = hash(&bytes);
     let size = (decoded.width(), decoded.height());
     let first_level = preview_first_level(size.0, size.1);
     let mut previews = Vec::with_capacity(count);

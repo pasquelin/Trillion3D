@@ -13,6 +13,7 @@ import { rasterSource } from '../gpu/raster/shader.ts';
 import { SHADOW_DEPTH_SHADER } from '../gpu/shadow/shader.ts';
 import { FLAG_HAS_COLOR, FLAG_SAMPLED } from './types.ts';
 import { CLUSTER_FRAGMENT } from '../webgl/cluster/shaders.ts';
+import { identityRoots } from '../page/selection/placements.fixture.ts';
 
 /** Whether the centre of a quad of vertex alpha `alpha` survives the CPU raster. */
 function covered(options: {
@@ -29,7 +30,7 @@ function covered(options: {
     'color',
     G.floatAttribute(Array(4).fill([1, 1, 1, options.alpha]).flat(), 4),
   );
-  const ids = rasterVisibilityIds(pages, cameraMoteur(camera()), [16, 16]);
+  const ids = rasterVisibilityIds(pages, identityRoots(), cameraMoteur(camera()), [16, 16]);
   geometry.dispose();
   surface.dispose();
   map?.dispose();
@@ -88,7 +89,9 @@ test('both WebGPU rasters hand the interpolated vertex alpha to the cutout; shad
   const small = rasterSource(4, 16);
   assert.ok(small.includes('ua=vec3f(pageUv(page,h,ia),pageMaskAlpha(page,h,ia));'));
   assert.ok(small.includes('u:array<vec3f,4>'), 'the near clip carries it');
-  assert.ok(small.includes('if(!maskKeep(page,tc.xy,tc.z,vec2f(0.0),vec2f(0.0))){return;}'));
+  assert.ok(small.includes('if(cov.w>0.5){sb=t.c;sc=t.d;qb=t.cc;qc=t.cd;nb=t.uc;nc=t.ud;}'));
+  assert.ok(small.includes('uvGradients(t.a,sb,sc,sample,t.ua.xy,nb.xy,nc.xy,'));
+  assert.ok(small.includes('maskKeep(page,tc.xy,tc.z,gradients[0],gradients[1])'));
   assert.ok(SHADOW_DEPTH_SHADER.includes('maskKeep(pages[in.instance],in.uv,1.0,gx,gy)'));
 });
 

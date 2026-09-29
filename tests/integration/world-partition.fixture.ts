@@ -24,13 +24,14 @@ export async function compiled(root: string, { gltf, bin }: { gltf: object; bin:
 }
 
 /** Serves files from disk to `fetch`, the page's location at `pointer`, and a WebGL2 context
- *  stand-in to any canvas; `read.bytes` counts every byte fetched. */
+ *  stand-in to any canvas; `read` counts every byte fetched, and names every file. */
 export function machine(t: TestContext, pointer: URL) {
-  const read = { bytes: 0 };
+  const read = { bytes: 0, urls: [] as string[] };
   t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
     const url = input instanceof Request ? input.url : String(input);
     const body = await readFile(fileURLToPath(url));
     read.bytes += body.byteLength;
+    read.urls.push(url);
     const type = /\.(json|gltf)$/.test(url) ? 'application/json' : 'application/octet-stream';
     return new Response(body, { headers: { 'content-type': type } });
   });

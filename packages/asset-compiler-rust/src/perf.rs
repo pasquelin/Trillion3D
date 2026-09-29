@@ -12,6 +12,7 @@
 //! phase without any computation. The manifest therefore publishes them under
 //! `phaseElapsedMs`, their sum is the total of nothing, and `cpuMs` stays zero
 //! until someone actually measures the CPU.
+pub mod rss;
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::sync::{
@@ -57,6 +58,7 @@ phases! {
  texture_bake=>TextureBake=>"textureBakeMs",
  texture_write=>TextureWrite=>"textureWriteMs",
  cutout_scan=>CutoutScan=>"cutoutScanMs",
+ impostors=>Impostors=>"impostorsMs",
 }
 
 thread_local! {
@@ -148,6 +150,24 @@ impl Laps {
         let ms = now.duration_since(self.last).as_secs_f64() * 1000.0;
         self.laps.insert(label.into(), json!(ms));
         self.last = now;
+    }
+    /// Runs `a` and `b` side by side on the current pool, each timed under its own label from the
+    /// end of the stage before, like a lap, and opens the next stage once both are done. The
+    /// results come back in argument order, whichever finished first.
+    pub fn join<A: Send, B: Send>(
+        &mut self,
+        (a_label, a): (&str, impl FnOnce() -> A + Send),
+        (b_label, b): (&str, impl FnOnce() -> B + Send),
+    ) -> (A, B) {
+        fn timed<T>(started: Instant, run: impl FnOnce() -> T) -> (T, f64) {
+            (run(), crate::shared_math::elapsed_ms(started))
+        }
+        let started = self.last;
+        let ((a, a_ms), (b, b_ms)) = rayon::join(|| timed(started, a), || timed(started, b));
+        self.laps.insert(a_label.into(), json!(a_ms));
+        self.laps.insert(b_label.into(), json!(b_ms));
+        self.last = Instant::now();
+        (a, b)
     }
     pub fn report(self) -> Value {
         Value::Object(self.laps)

@@ -10,11 +10,16 @@ import { AS_IS_FLAG, SURFACE_MODEL, shownAsIs } from '../scene/surfaceModel.ts';
 import { SHADE_SHADER } from '../visibility/shader/shadeWgsl.ts';
 import {
   BOUNCE_LIGHTING_SHADER,
-  COMPOSE_SHADERS,
+  CONTRACT_COMPOSITIONS,
   DIRECT_LIGHTING_SHADER,
-  UNLIT_COMPOSE_SHADERS,
+  UNLIT_COMPOSITIONS,
 } from './deferred/shaders.ts';
-import { TAA_SHADER } from '../taa/shaderWgsl.ts';
+import { TAA_SHADER, taaShader } from '../taa/shaderWgsl.ts';
+import { BLEND_SHADER } from '../webgpu/blend/shader.ts';
+import { BLEND_MODES } from '../scene/materialBlending.ts';
+import { blendTargets } from '../webgpu/blend/pipelines.ts';
+import { written, type Rgba } from '../webgpu/blend/blendModel.fixture.ts';
+import { AS_IS_SHARE_SHADER } from './deferred/asIsShare.ts';
 
 /** The capture of `pattern` in `source`, asserted present. */
 function capture(source: string, pattern: RegExp) {
@@ -64,17 +69,19 @@ function composition(shader: string) {
       },
     ) as number;
 }
-const still = composition(COMPOSE_SHADERS.still);
-const accumulated = composition(COMPOSE_SHADERS.accumulated);
+const still = composition(CONTRACT_COMPOSITIONS.plain.still);
+const accumulated = composition(CONTRACT_COMPOSITIONS.plain.accumulated);
 
 test('A normal or depth surface resolves to the as-is flag, passed through unlit', () => {
   const flagOf = new Function(
     'select',
     'model',
+    'page',
     `return ${js(capture(SHADE_SHADER, /vec4f\(0\.0,0\.0,0\.0,1\.0\),(select\(.*?\)),request\);\}/)[0])};`,
   ).bind(null, helpers.select);
   for (const model of Object.values(SURFACE_MODEL).filter((model) => model >= 3))
-    assert.equal(flagOf(model) === AS_IS_FLAG, shownAsIs(model), `model ${model}`);
+    for (const flags of [0, 1 << 20])
+      assert.equal(flagOf(model, { flags }) === AS_IS_FLAG, shownAsIs(model), `model ${model}`);
   assert.ok(shownAsIs(SURFACE_MODEL.normal) && shownAsIs(SURFACE_MODEL.depth));
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER])
     assert.match(
@@ -91,7 +98,7 @@ test('A still image: a debug view reaches sRGB untouched, a lit surface keeps ex
   assert.equal(accumulated(0.5, 1), 0.5);
   assert.equal(accumulated(2, 0), curve(2 * EXPOSURE));
   // The identity chain has nothing to keep off, and reads no share.
-  for (const shader of Object.values(UNLIT_COMPOSE_SHADERS))
+  for (const shader of Object.values(UNLIT_COMPOSITIONS.plain))
     assert.doesNotMatch(shader, /@binding\(2\)|share/);
 });
 
@@ -109,7 +116,7 @@ test('A jittered edge: the accumulated share follows the colour, no flip between
   assert.match(TAA_SHADER, /share\+=asIs\*weight;/);
   const [wcOf, whOf, colorOf, shareOf] = capture(
     TAA_SHADER,
-    /let wc=(.*?);\n let wh=(.*?);\n return TaaOut\((.*?),(\(share\*wc.*?\))\);/,
+    /let wc=(.*?);\n let wh=(.*?);\n return TaaOut\((.*?),vec2f\((\(share\*wc.*?\)),tag\)\);/,
   ).map(js);
   const blend = new Function(
     'alpha',
@@ -139,4 +146,44 @@ test('A jittered edge: the accumulated share follows the colour, no flip between
   // The current flag alone would flip the history's colour in and out of the curve every frame.
   assert.ok(swing(fromFlags) > 0.3, `flag swing ${swing(fromFlags)}`);
   assert.ok(swing(composed) < swing(fromFlags) / 4, `share swing ${swing(composed)}`);
+});
+
+test('a lit transparent at opacity 0.4 over a debug surface leaves it a 0.6 share', () => {
+  // The seed pass: the opaque flags give a share of 1 under a debug view, 0 under a lit surface.
+  const [seedWgsl] = capture(AS_IS_SHARE_SHADER, /return vec2f\((f32\(.*?\)),0\.0\);/);
+  const seedOf = new Function(
+    'f32',
+    'textureLoad',
+    'vec2i',
+    'flags',
+    'pixel',
+    `return ${js(seedWgsl)};`,
+  );
+  const seed = (flag: number) =>
+    seedOf(Number, helpers.textureLoad, () => 0, flag, { xy: 0 }) as number;
+  assert.equal(seed(AS_IS_FLAG), 1);
+  assert.equal(seed(2), 0);
+  // What the lit transparent's fragment writes to the share target, at its opacity.
+  const [shareWgsl] = capture(
+    BLEND_SHADER,
+    /return BlendOut\(vec4f\(rgb,s\.alpha\*r\.keep\),s\.request,(vec4f\(.*?\)),r\.tint/,
+  );
+  const shareOf = new Function('vec4f', 's', 'r', `return ${shareWgsl};`);
+  const src = shareOf((...c: number[]) => c, { alpha: 0.4 }, { keep: 1 }) as Rgba;
+  // The pass's own share target blends it over the seed, in every mode.
+  let left = 1;
+  for (const mode of BLEND_MODES) {
+    const target = blendTargets(mode, 0xf, true)[2];
+    assert.equal(target?.format, 'rg8unorm', mode);
+    left = written(target!, src, [seed(AS_IS_FLAG), 0, 0, 0])[0];
+    assert.ok(Math.abs(left - 0.6) < 1e-9, `${mode} over a debug view leaves ${left}`);
+    assert.equal(written(target!, src, [seed(2), 0, 0, 0])[0], 0, `${mode} over a lit surface`);
+  }
+  // The temporal resolve reads that share as it is, and composition curves the lit 0.4 alone.
+  const [readWgsl] = capture(taaShader(true, true), /let asIs=(textureLoad\(flags,at,0\)\.r);/);
+  const read = new Function('textureLoad', 'flags', 'at', `return ${readWgsl};`);
+  const share = read(helpers.textureLoad, left, 0) as number;
+  assert.equal(share, left);
+  const expected = curve(2 * EXPOSURE) * 0.4 + 2 * 0.6;
+  assert.ok(Math.abs(accumulated(2, share) - expected) < 1e-9, 'the lit overlap keeps its curve');
 });

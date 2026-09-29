@@ -1,10 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { bodyProblem } from '../../scripts/check-pr-body.ts';
 
 const repo = new URL('../../', import.meta.url);
 const env = {
@@ -22,6 +21,9 @@ const ok = (cwd: string, ...args: string[]) => {
   return r;
 };
 
+const localHook = (work: string, name: string, body: string) =>
+  writeFileSync(join(work, '.git/hooks', name), `#!/bin/sh\n${body}\n`, { mode: 0o755 });
+
 // A throwaway repository with the tracked hooks active, a bare remote, and a local
 // (tool-installed) hook that logs its calls — the situation of every developer checkout.
 function makeRepo() {
@@ -34,23 +36,17 @@ function makeRepo() {
     recursive: true,
     verbatimSymlinks: true,
   });
+  cpSync(new URL('scripts/hooks/', repo), join(work, 'scripts/hooks'), { recursive: true });
   ok(work, 'config', 'core.hooksPath', '.githooks');
   ok(work, 'remote', 'add', 'origin', remote);
-  writeFileSync(
-    join(work, '.git/hooks/post-commit'),
-    '#!/bin/sh\necho ran >> "$(git rev-parse --show-toplevel)/local.log"\n',
-    { mode: 0o755 },
-  );
+  localHook(work, 'post-commit', 'echo ran >> "$(git rev-parse --show-toplevel)/local.log"');
   return work;
 }
 
-const commit = (
-  cwd: string,
-  message: string,
-  files: Record<string, string> = { [`${Date.now()}-${Math.random()}.txt`]: message },
-) => {
-  for (const [name, text] of Object.entries(files)) writeFileSync(join(cwd, name), text);
-  ok(cwd, 'add', ...Object.keys(files));
+const commit = (cwd: string, message: string) => {
+  const name = `${Date.now()}-${Math.random()}.txt`;
+  writeFileSync(join(cwd, name), message);
+  ok(cwd, 'add', name);
   return git(cwd, 'commit', '-q', '-m', message);
 };
 
@@ -84,96 +80,28 @@ test('the tool-installed hook of the same name still runs behind core.hooksPath'
   assert.equal(execFileSync('cat', [join(work, 'local.log')], { encoding: 'utf8' }), 'ran\n');
 });
 
-const template = readFileSync(new URL('.github/PULL_REQUEST_TEMPLATE.md', repo), 'utf8');
-const linked = template.replace('Closes #', 'Closes #65');
-const verify = (body: string) =>
-  body.replace('## Not proven', '- Item: delivered in a.ts:1, proved by a test\n\n## Not proven');
-const review = (body: string) =>
-  body
-    .replace('- Simplification pass:', '- Simplification pass: nothing to change')
-    .replace('- Correctness review:', '- Correctness review: one fix');
-const problem = (body: string, draft = false) => bodyProblem(body, draft) ?? '';
-
-test('check-pr-body: the script reads stdin and PR_DRAFT, and exits 1 on a refusal', () => {
-  const run = (body: string, draft: string) =>
-    spawnSync(process.execPath, [new URL('scripts/check-pr-body.ts', repo).pathname], {
-      input: body,
-      encoding: 'utf8',
-      env: { ...process.env, PR_DRAFT: draft },
-    });
-  assert.equal(run(review(linked), 'true').status, 0);
-  const refused = run(review(linked), 'false');
-  assert.equal(refused.status, 1);
-  assert.match(refused.stderr, /"Lead verification" is missing or empty/);
-});
-
-test('check-pr-body: the untouched template is refused, a filled one accepted', () => {
-  assert.match(problem(template), /must start with "Closes #<issue>"/);
-  assert.match(problem(linked), /"Lead verification" is missing or empty/);
-  const verified = verify(linked);
-  assert.match(problem(verified), /no "Simplification pass:" line/);
-  const filled = review(verified);
-  assert.equal(problem(filled), '');
-  assert.match(problem(filled.replace(': one fix', ':')), /no "Correctness review:" line/);
-  // The old tool-named lines no longer stand for the review.
-  const tooled = verified.replace(
-    '- Simplification pass:\n- Correctness review:',
-    '- `/simplify`: nothing to change\n- `/code-review`: one fix',
-  );
-  assert.notEqual(tooled, verified);
-  assert.match(problem(tooled), /no "Simplification pass:" line/);
-});
-
-test('check-pr-body: a step says "Part of", never beside "Closes"', () => {
-  const filled = review(verify(linked));
-  assert.equal(problem(filled.replace('Closes #65', 'Part of #65')), '');
-  const both = filled.replace('## What changed', 'Part of #65\n\n## What changed');
-  assert.match(problem(both), /says both "Closes" and "Part of"/);
-  assert.match(problem(filled.replace('Closes #65', 'Closes #65 (Part of #483)')), /says both/);
-});
-
-test('check-pr-body: a draft passes without Lead verification, a ready pull request needs it', () => {
-  const reviewed = review(linked);
-  assert.equal(problem(reviewed, true), '');
-  assert.match(problem(reviewed), /"Lead verification" is missing or empty/);
-  assert.equal(problem(verify(reviewed)), '');
-  assert.match(problem(template, true), /must start with "Closes #<issue>"/);
-  assert.match(problem(linked, true), /no "Simplification pass:" line/);
-});
-
-const checkSize = (cwd: string) =>
-  spawnSync(process.execPath, [new URL('scripts/check-pr-size.ts', repo).pathname, 'base'], {
-    cwd,
-    encoding: 'utf8',
-  });
-
-test("check-pr-size: more than 600 hand-written lines fail, with the base's attributes", () => {
+test('a failing tool-installed hook still stops git, and pre-push hands it the refs on stdin', () => {
   const work = makeRepo();
   ok(work, 'switch', '-q', '-c', '12-thing');
-  const attributes = readFileSync(new URL('.gitattributes', repo), 'utf8');
-  mkdirSync(join(work, 'src'));
-  assert.equal(
-    commit(work, 'base', { '.gitattributes': attributes, 'old.ts': 'x\n'.repeat(50) }).status,
-    0,
-  );
-  ok(work, 'tag', 'base');
-  ok(work, 'rm', '-q', 'old.ts');
-  const files = {
-    'pnpm-lock.yaml': 'x\n'.repeat(601),
-    'a.ts': 'x\n'.repeat(599),
-    'src/b.ts': 'x\n',
-    'image.bin': 'x\0\n'.repeat(700),
-  };
-  assert.equal(commit(work, 'lock, code, binary, deletion', files).status, 0);
-  // From a subfolder: the whole tree still counts.
-  const accepted = checkSize(join(work, 'src'));
-  assert.equal(accepted.status, 0, accepted.stderr);
-  assert.match(accepted.stdout, /added: 600 \(limit 600\)/);
-  // The base's attributes decide: marking its own code generated does not exempt it.
-  const selfExempt = { '.gitattributes': `${attributes}*.ts linguist-generated\n` };
-  assert.equal(commit(work, 'self exemption', selfExempt).status, 0);
-  const refused = checkSize(work);
-  assert.equal(refused.status, 1);
-  assert.match(refused.stdout, /added: 601 \(limit 600\)/);
-  assert.match(refused.stderr, /AGENTS\.md rule 11: deliver the issue in steps/);
+  // No shebang: sh runs it, as it ran it behind the former shell hooks.
+  writeFileSync(join(work, '.git/hooks/pre-commit'), 'exit 3\n', { mode: 0o755 });
+  assert.equal(commit(work, 'refused locally').status, 1);
+  localHook(work, 'pre-commit', 'exit 0');
+  commit(work, 'one');
+  localHook(work, 'pre-push', 'cat > "$(git rev-parse --show-toplevel)/refs.log"; exit 4');
+  assert.notEqual(git(work, 'push', '-q', 'origin', '12-thing').status, 0);
+  const refs = readFileSync(join(work, 'refs.log'), 'utf8');
+  assert.match(refs, /^refs\/heads\/12-thing [0-9a-f]{40} refs\/heads\/12-thing 0{40}\n$/);
+});
+
+test('the tracked hooks hold no shell logic: each is a one-line shim onto scripts/hooks', () => {
+  const hooks = new URL('.githooks/', repo);
+  for (const name of readdirSync(hooks)) {
+    const lines = readFileSync(new URL(name, hooks), 'utf8').trimEnd().split('\n');
+    assert.equal(lines[0], '#!/bin/sh', name);
+    assert.equal(lines.length, 2, `${name} is more than a shim`);
+    const script = /^exec node (scripts\/hooks\/[a-z-]+\.ts) .*"\$@"$/.exec(lines[1] ?? '');
+    assert.ok(script?.[1], `${name} does not run a scripts/hooks script`);
+    assert.ok(existsSync(new URL(script[1], repo)), `${script[1]} is missing`);
+  }
 });

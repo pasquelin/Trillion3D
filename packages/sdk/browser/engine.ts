@@ -9,9 +9,16 @@ export type {
   BackendDiagnostic,
   DiagnosticDetail,
 } from '../../sdk-browser/src/diagnostic/types.ts';
+export type {
+  BatchRead,
+  HostRetentionDelta,
+  PageStreamerOptions,
+  StreamPage,
+} from '../../sdk-browser/src/streaming/types.ts';
 export type { BoxTransformLot, MultiplyLot } from '../../sdk-browser/src/math/batchRuntime.ts';
 export type { BudgetCanvas } from '../../sdk-browser/src/residency/memoryBudget.ts';
 export type { Capsule, CapsuleContact, CapsulePush } from '../../sdk-core/src/collision/capsule.ts';
+export type { CellRows } from '../../sdk-browser/src/scene/partition/cellDecode.ts';
 export type {
   ChangeListener,
   ControlVector,
@@ -66,20 +73,18 @@ export type {
   MemoryBudgets,
   MemoryBudgetsReport,
   PoolClamp,
+  TableGrowthReport,
 } from '../../sdk-browser/src/residency/pools.ts';
 export { gpuPassBlockOf, gpuPassStageOf } from '../../sdk-browser/src/stage/mapping.ts';
 export type { GpuPassBlock } from '../../sdk-browser/src/stage/mapping.ts';
 export { gpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
 export type { GpuPassBlockTotals } from '../../sdk-browser/src/gpu/core/passBlocks.ts';
-export { GraphNode } from '../../sdk-browser/src/host/graph/node.ts';
-export type { GraphNodeKind } from '../../sdk-browser/src/host/graph/nodeKind.ts';
 export { GraphSurface } from '../../sdk-browser/src/host/graph/surface.ts';
 export { GraphTexture } from '../../sdk-browser/src/host/graph/texture.ts';
 export type {
   GravityInput,
-  WorldPhysics,
   WorldPhysicsOptions,
-} from '../../sdk-browser/src/physics/worldPhysics.ts';
+} from '../../sdk-browser/src/physics/worldPhysicsOptions.ts';
 export { GUIDE_VERTEX_CEILING } from '../../sdk-browser/src/guides/guideSet.ts';
 export type {
   GuideHandle,
@@ -108,11 +113,6 @@ export { enginePose, readCameraWorld } from '../../sdk-browser/src/camera/world.
 export type { HostDrawCamera, HostCamera } from '../../sdk-browser/src/camera/world.ts';
 export type { HostDrawOutput } from '../../sdk-browser/src/webgl/core/renderTarget.ts';
 export type { HostNodeMatrix, MatrixElements } from '../../sdk-browser/src/math/matrixElements.ts';
-export type {
-  HostRetentionDelta,
-  PageStreamerOptions,
-  StreamPage,
-} from '../../sdk-browser/src/streaming/types.ts';
 export type { HostRotation, HostVector } from '../../sdk-browser/src/host/scene/graphNodes.ts';
 export { joint, Joint } from '../../sdk-core/src/physics/joint.ts';
 export type {
@@ -126,8 +126,10 @@ export type { OrbitCameraControls } from '../../sdk-browser/src/camera/controls/
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts';
 export type { PartitionAudit } from '../../sdk-browser/src/webgpu/core/partitionAudit.ts';
 export type { PhysicsStats } from '../../sdk-browser/src/physics/protocol.ts';
+export type { PlacementGrowth } from '../../sdk-browser/src/placement/backendSceneUpdates.ts';
 export type { PlacementRows } from '../../sdk-browser/src/placement/rows.ts';
 export { presentationColorDiagnostic } from '../../sdk-browser/src/diagnostic/presentationDiagnostic.ts';
+export type { RenderScale } from '../../sdk-browser/src/frame/renderScaleOption.ts';
 export type { ResidentPage } from '../../sdk-browser/src/gpu/page/types.ts';
 export type { ShadowAtlasDigest } from '../../sdk-browser/src/gpu/shadow/digest.ts';
 export {
@@ -165,6 +167,7 @@ export type { VehicleSpec, VehicleSpecs } from '../../sdk-core/src/physics/vehic
 export type { WaterSpec } from '../../sdk-core/src/fluids/buoyancy.ts';
 export { WaterSurface } from '../../sdk-core/src/fluids/waterSurface.ts';
 export type { WaveSpec } from '../../sdk-core/src/fluids/waves.ts';
+export type { WorldPhysics } from '../../sdk-browser/src/physics/worldPhysics.ts';
 export {
   createEngineCamera,
   defaultEngineCamera,

@@ -1,13 +1,16 @@
+import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { after } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
-import { createWorldNotices } from '../diagnostic/worldNotices.ts';
+import { createWorldNotices, listenWorldNotices } from '../diagnostic/worldNotices.ts';
 import type { Scene } from './scene.ts';
 import { createWorldRuntime } from './worldRuntime.ts';
+import { byteRange } from '../../../../../scripts/static-server.ts';
 
-/** The site's own caches, served from disk; the GPU is the one thing these tests have not. */
+/** The site's own caches, served from disk as the site's server serves them, one byte range
+ *  answered alone (`byteRange`); the GPU is the one thing these tests have not. */
 export const HOST = 'http://site.test/';
 const SITE = new URL('../../../../../site/', import.meta.url);
 const saved = { fetch: globalThis.fetch, location: Reflect.get(globalThis, 'location') };
@@ -16,7 +19,7 @@ const READ_DELAY_MS = Number(process.env.WORLD_FIXTURE_READ_DELAY_MS ?? 0);
 let reading = 0;
 /** Disk reads still in flight: a loop gone idle leaves none behind. */
 export const readsInFlight = () => reading;
-const serve = async (input: string | URL | Request) => {
+const serve = async (input: string | URL | Request, init?: RequestInit) => {
   const url = String(input instanceof Request ? input.url : input);
   const path = fileURLToPath(new URL(url.slice(HOST.length), SITE));
   const json = /\.(json|gltf)$/.test(path);
@@ -24,7 +27,17 @@ const serve = async (input: string | URL | Request) => {
   reading++;
   try {
     if (READ_DELAY_MS > 0) await new Promise((done) => setTimeout(done, READ_DELAY_MS));
-    return new Response(await readFile(path), { headers: { 'content-type': type } });
+    const file = await readFile(path);
+    const range = byteRange(new Headers(init?.headers).get('range') ?? undefined, file.byteLength);
+    if (!range) return new Response(file, { headers: { 'content-type': type } });
+    const { start, end } = range;
+    return new Response(file.subarray(start, end + 1), {
+      status: 206,
+      headers: {
+        'content-type': type,
+        'content-range': `bytes ${start}-${end}/${file.byteLength}`,
+      },
+    });
   } finally {
     reading--;
   }
@@ -32,7 +45,17 @@ const serve = async (input: string | URL | Request) => {
 globalThis.fetch = serve as typeof fetch;
 Reflect.set(globalThis, 'location', new URL(HOST));
 Reflect.set(globalThis, 'ProgressEvent', globalThis.ProgressEvent ?? Event);
+/** Every reopen a content change caused in these tests' runtimes: each one a defect (#837). */
+const contentReopens: unknown[] = [];
+const stopListening = listenWorldNotices(({ phase, context }) => {
+  if (phase === 'session-reopen' && context?.defect) contentReopens.push(context);
+});
+/** The content reopens heard since the last call, for a test that asks one on purpose: taken,
+ *  they are no longer counted a defect of these tests. */
+export const takeContentReopens = () => contentReopens.splice(0);
 after(() => {
+  stopListening();
+  assert.deepEqual(contentReopens, [], 'a content change reopened a session');
   globalThis.fetch = saved.fetch;
   Reflect.set(globalThis, 'location', saved.location);
 });
@@ -46,9 +69,10 @@ export const runtimeOf = (
   failed: (error: unknown) => void,
   open?: Open,
   opening: () => void = () => {},
+  canvas = { width: 1, height: 1 } as HTMLCanvasElement,
 ) =>
   createWorldRuntime({
-    canvas: { width: 1, height: 1 } as HTMLCanvasElement,
+    canvas,
     scene,
     ready: () => ready,
     open,
@@ -83,6 +107,7 @@ export function sessionStandIn() {
     setLightingView: (view: string) => void (written.view = view),
     invalidate() {},
     growsPlacements: () => false,
+    mountsPlacements: () => false,
     refreshMaterials: () => true,
     updatePlacements() {},
     setEnvironment: (environment: { irradiance?: number[] }) =>

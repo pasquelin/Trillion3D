@@ -32,5 +32,9 @@ test('material constants cross the GL boundary only when their value changes', (
     ['backdrop', 6],
     ['backdropDepth', 7],
     ['ltcTable', 8],
+    ['reflectionColor', 9],
+    ['reflectionDepth', 10],
+    ['lightData', 11],
+    ['lightList', 12],
   ]);
 });

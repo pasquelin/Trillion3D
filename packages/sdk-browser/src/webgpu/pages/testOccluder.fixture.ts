@@ -12,8 +12,9 @@ import { webgpuPagesBackend } from './pages.ts';
 import { selectVisiblePages, type ClusterRoot } from '../../page/selection/selection.ts';
 import { cameraMoteur } from '../../camera/camera.fixture.ts';
 import type { ClusterManifest } from '../../../../sdk-core/src/index.ts';
-import { dagLevel, dagRoots } from './testDag.fixture.ts';
+import { dagLevel, dagRoots } from '../../backend/pagesBackend.fixture.ts';
 import { camera, quadScene } from './testScenes.fixture.ts';
+import type { Placements } from '../../page/selection/placements.ts';
 
 export function occluderScene() {
   const geometry = new G.Geometry();
@@ -51,9 +52,9 @@ export function occluderScene() {
       bytes: 24,
       sha256: 'x',
     },
-  ]);
+  ]).pages;
   const metadata = {
-    errorModel: 'dag-group-qem-v2',
+    errorModel: 'dag-group-qem-v3',
     clusterStrategy: 'dag-groups',
     primitives: [
       {
@@ -77,7 +78,7 @@ export function occluderScene() {
 export function coarseQuadScene(error = 1) {
   const fixture = quadScene();
   const leaves = fixture.metadata.primitives[0].pages;
-  const level = dagLevel(leaves, { ...leaves[0], id: 2, url: '2', count: 6, bytes: 24 }, error);
+  const level = dagLevel(leaves, [{ ...leaves[0], id: 2, url: '2', count: 6, bytes: 24 }], error);
   return {
     ...fixture,
     metadata: {
@@ -99,7 +100,8 @@ export function assertOccluderImage(
     visibilityIds(): Uint32Array;
   },
   shown: PageRec[],
-  camera: G.GraphCamera,
+  roots: Placements,
+  camera: G.Camera,
   viewport: [number, number],
 ) {
   const cam = readCameraWorld(createEngineCamera(), camera);
@@ -109,7 +111,13 @@ export function assertOccluderImage(
   assert.equal(
     compareImages(
       backend.rasterRgba(),
-      shadeVisibility(rasterVisibilityIds(visPages, cam, viewport), visPages, cam, viewport),
+      shadeVisibility(
+        rasterVisibilityIds(visPages, roots, cam, viewport),
+        visPages,
+        roots,
+        cam,
+        viewport,
+      ),
     ).maxChannelError,
     0,
   );
@@ -122,11 +130,14 @@ export function assertOccluderImage(
   assert.deepEqual([...drawn].sort(), [0]);
 }
 
-/** Two coarse quads a hundred units apart, as two primitives of one source: six clusters that share
- *  the resident slots, so a camera jump between them evicts and recycles rows. */
-export function twoCoarseQuadsScene() {
-  const a = coarseQuadScene(),
-    b = coarseQuadScene();
+/** Two coarse quads a hundred units apart, as two primitives of one source, each drawn by `quad`:
+ *  their clusters share the resident slots, so a camera jump between them evicts and recycles rows
+ *  once the slots hold less than both. */
+export function twoCoarseQuadsScene(
+  quad: () => ReturnType<typeof coarseQuadScene> = coarseQuadScene,
+) {
+  const a = quad(),
+    b = quad();
   const mesh = b.source.children[0] as G.HostMesh;
   mesh.position.x = 100;
   a.source.add(mesh);

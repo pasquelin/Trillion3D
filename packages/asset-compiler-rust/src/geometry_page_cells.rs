@@ -1,10 +1,9 @@
-//! The cells of a page — every vertex on every grid, from the primitive's attributes — and the
-//! bit writer that packs them.
+//! The cells of a page — every vertex on every grid, from the primitive's attributes.
 
 use crate::geometry_page::Attribute;
-use crate::geometry_page_quant::{max_error, oct_encode, quantize, COLOR_EXPONENT, UV_EXPONENT};
+use crate::geometry_page_quant::{max_error, oct_encode, quantize, COLOR_EXPONENT};
 use crate::{CompilerError, Result};
-use trillion3d_page_codec::bits::Quant;
+use trillion3d_page_codec::bits::{bits_for, stream_words, Quant};
 use trillion3d_page_codec::{FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1};
 
 /// The page's vertices, `width` floats each, gathered from the primitive's `source_width`-wide
@@ -44,12 +43,13 @@ pub struct Grids {
 }
 
 /// Every vertex of `original` on its grids: positions on `position_exponent`, texture
-/// coordinates and colours on the format's own, normals octahedral.
+/// coordinates on `uv_exponent`, colours on the format's own, normals octahedral.
 pub fn grids(
     original: &[u32],
     positions: &[f32],
     attributes: &[&Attribute],
     position_exponent: i32,
+    uv_exponent: i32,
 ) -> Result<Grids> {
     let by_flag = |flag: u32| attributes.iter().find(|a| a.flag == flag);
     let page_positions = gather(positions, 3, 3, original)?;
@@ -71,11 +71,11 @@ pub fn grids(
             cell.normal = oct_encode([normals[i * 3], normals[i * 3 + 1], normals[i * 3 + 2]]);
         }
     }
-    let mut uv_records = [Quant::<2>::flat(UV_EXPONENT); 2];
+    let mut uv_records = [Quant::<2>::flat(uv_exponent); 2];
     for (set, flag) in [FLAG_UV, FLAG_UV1].into_iter().enumerate() {
         if let Some(a) = by_flag(flag) {
             let (quant, uv_cells) =
-                quantize::<2>(&gather(&a.values, 2, 2, original)?, UV_EXPONENT)?;
+                quantize::<2>(&gather(&a.values, 2, 2, original)?, uv_exponent)?;
             uv_records[set] = quant;
             for (cell, q) in cells.iter_mut().zip(uv_cells) {
                 cell.uv[set] = q;
@@ -104,40 +104,38 @@ pub fn grids(
     })
 }
 
-/// Packs fixed-width fields, least significant bit first, into little-endian words. Every
-/// stream starts on a word: `stream` closes the last one it wrote.
-#[derive(Default)]
-pub struct BitWriter {
-    words: Vec<u32>,
-    bit: usize,
+/// The positions the page stores and, when it stores each once, every vertex's link to its own
+/// (CMP-10, #960): a flat-shaded page repeats a corner's position under every face normal meeting
+/// there. The distinct positions, in first-use order, are kept when they and the links take fewer
+/// words than one position per vertex; otherwise every vertex keeps its own, with no link. The
+/// decoded vertices are the same either way.
+pub fn stored_positions(unique: &[Cell], bits: [u32; 3]) -> (Vec<[u32; 3]>, Option<Vec<u32>>) {
+    let (table, links) = first_use(unique.iter().map(|cell| cell.position));
+    let words = |count: usize| bits.iter().map(|&b| stream_words(count, b)).sum::<usize>();
+    let link_bits = bits_for(table.len() as u32 - 1);
+    if words(table.len()) + stream_words(unique.len(), link_bits) < words(unique.len()) {
+        (table, Some(links))
+    } else if table.len() == unique.len() {
+        // Every position distinct: the table is already one per vertex, in order.
+        (table, None)
+    } else {
+        (unique.iter().map(|cell| cell.position).collect(), None)
+    }
 }
 
-impl BitWriter {
-    pub fn push(&mut self, value: u32, bits: u32) {
-        if bits == 0 {
-            return;
-        }
-        let shift = (self.bit % 32) as u32;
-        if shift == 0 {
-            self.words.push(0);
-        }
-        let index = self.words.len() - 1;
-        self.words[index] |= value << shift;
-        if shift + bits > 32 {
-            self.words.push(value >> (32 - shift));
-        }
-        self.bit += bits as usize;
-    }
-
-    /// One whole stream: its fields, then the padding that closes the last word.
-    pub fn stream(&mut self, values: impl Iterator<Item = u32>, bits: u32) {
-        for value in values {
-            self.push(value, bits);
-        }
-        self.bit = self.words.len() * 32;
-    }
-
-    pub fn words(&self) -> &[u32] {
-        &self.words
-    }
+/// Each distinct item once, in first-use order, and every item's rank among them.
+pub fn first_use<T: Copy + Eq + std::hash::Hash>(
+    items: impl ExactSizeIterator<Item = T>,
+) -> (Vec<T>, Vec<u32>) {
+    let mut distinct = Vec::<T>::with_capacity(items.len());
+    let mut rank = std::collections::HashMap::<T, u32>::with_capacity(items.len());
+    let ranks = items
+        .map(|item| {
+            *rank.entry(item).or_insert_with(|| {
+                distinct.push(item);
+                (distinct.len() - 1) as u32
+            })
+        })
+        .collect();
+    (distinct, ranks)
 }

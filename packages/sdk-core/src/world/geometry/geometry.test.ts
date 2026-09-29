@@ -46,14 +46,18 @@ test('a copied geometry keeps every value it held: lists, morphs, groups, range,
   assert.equal(owned('host').clone()._owner, 'host', 'a copy keeps its owner');
 });
 
-test('a normalised position is bounded and drawn as its stored numbers, an interleaved one through its stride', () => {
-  const stored = new Int16Array([0, 0, 0, 32767, 0, 0, 0, 16384, 0]);
+// #945: a position is read at the value it stands for by every owner and on every path — drawn,
+// bounded, edged, moved, given normals: a normalised integer scaled back, a two-wide one at z = 0.
+test('a normalised position is bounded and drawn at its value, an interleaved one through its stride', () => {
+  const stored = new Int16Array([0, 0, 0, 32767, 0, 0, 0, 16384, 0]),
+    half = 16384 / 32767;
   const normalised = new Geometry().setAttribute('position', new BufferAttribute(stored, 3, true));
   normalised.computeBoundingBox();
   normalised.computeBoundingSphere();
-  assert.deepEqual(box(normalised), [0, 0, 0, 32767, 16384, 0]);
-  assert.equal(normalised.boundingSphere!.radius, Math.hypot(32767 / 2, 16384 / 2));
-  assert.deepEqual(Array.from(drawnTriangles(normalised, 'triangles')!.positions), [...stored]);
+  assert.deepEqual(box(normalised), [0, 0, 0, 1, half, 0]);
+  assert.equal(normalised.boundingSphere!.radius, Math.hypot(1 / 2, half / 2));
+  const drawn = drawnTriangles(normalised, 'triangles')!.positions;
+  assert.deepEqual(Array.from(drawn), [0, 0, 0, 1, 0, 0, 0, Math.fround(half), 0]);
   // Two vertices of six numbers: position then a colour the box must not read.
   const pack = new InterleavedBuffer(new Float32Array([1, 2, 3, 9, 9, 9, -1, -2, -3, 9, 9, 9]), 6);
   const interleaved = new Geometry().setAttribute(
@@ -64,23 +68,29 @@ test('a normalised position is bounded and drawn as its stored numbers, an inter
   assert.deepEqual(box(interleaved), [-1, -2, -3, 1, 2, 3]);
 });
 
-test('a two-wide position is drawn with z = 1, a moved one as its stored numbers', () => {
+test('a two-wide position lies at z = 0, a moved normalised one moves at its value', () => {
   const flat = new Geometry().setAttribute(
     'position',
     new BufferAttribute(new Float32Array([0, 0, 1, 0, 0, 1]), 2),
   );
   const drawn = drawnTriangles(flat, 'triangles')!;
-  assert.deepEqual(Array.from(drawn.positions), [0, 0, 1, 1, 0, 1, 0, 1, 1]);
+  assert.deepEqual(Array.from(drawn.positions), [0, 0, 0, 1, 0, 0, 0, 1, 0]);
+  flat.computeBoundingBox();
+  assert.deepEqual(box(flat), [0, 0, 0, 1, 1, 0]);
+  const normals = flat.computeVertexNormals().attributes.normal.array;
+  assert.deepEqual(Array.from(normals), [0, 0, 1, 0, 0, 1, 0, 0, 1]);
+  flat.translate(1, 0, 5);
+  assert.deepEqual(Array.from(flat.attributes.position.array), [1, 0, 2, 0, 1, 1]);
   const moved = new Geometry().setAttribute(
     'position',
-    new BufferAttribute(new Int16Array([1, 2, 3]), 3, true),
+    new BufferAttribute(new Int16Array([0, 2, 3]), 3, true),
   );
-  moved.translate(1, 0, 0);
-  assert.deepEqual(Array.from(moved.attributes.position.array), [2, 2, 3]);
+  moved.translate(0.5, 0, 0);
+  assert.deepEqual(Array.from(moved.attributes.position.array), [16384, 2, 3]);
 });
 
-// #457: a list a world geometry owns has always been drawn, edged and turned as its stored
-// numbers, a normalised integer unscaled; a host geometry's (a quantized glTF's) at its value.
+// #457: a normal, uv or colour list a world geometry owns has always been drawn and turned as its
+// stored numbers, a normalised integer unscaled; a host geometry's (a quantized glTF's) at its value.
 const triangle = () => new BufferAttribute(new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]), 3);
 const normalised = (array: Int8Array | Uint8Array | Int16Array | Uint16Array, itemSize: number) =>
   new BufferAttribute(array, itemSize, true);
@@ -108,7 +118,7 @@ test('a world geometry draws the normalised colour, normal and uv it owns as sto
   assert.deepEqual(Array.from(host.colors!), [1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 1]);
 });
 
-test('a normalised position gives its edges as stored in a world geometry, at its value in a host one', () => {
+test('a normalised position gives its edges at its value, whoever owns it', () => {
   const lines = (owner: Owner, of: typeof wireframe) =>
     Array.from(
       of(
@@ -118,12 +128,9 @@ test('a normalised position gives its edges as stored in a world geometry, at it
         ),
       ).attributes.position.array,
     );
-  const world = [0, 0, 0, 32767, 0, 0, 32767, 0, 0, 0, 32767, 0, 0, 32767, 0, 0, 0, 0];
-  const host = [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0];
-  assert.deepEqual(lines('world', wireframe), world);
-  assert.deepEqual(lines('world', edges), world);
-  assert.deepEqual(lines('host', wireframe), host);
-  assert.deepEqual(lines('host', edges), host);
+  const valued = [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0];
+  for (const owner of ['world', 'host'] as const)
+    for (const read of [wireframe, edges]) assert.deepEqual(lines(owner, read), valued);
 });
 
 test('a world geometry turns a normalised normal it owns as stored, a host one and a view at their value', () => {
@@ -172,4 +179,21 @@ test('a given-back geometry runs each release hook once', () => {
   g.dispose();
   g.dispose();
   assert.equal(runs, 1);
+});
+
+test('a relative morph target is bounded vertex by vertex, never box on box', () => {
+  const geometry = new Geometry().setAttribute(
+    'position',
+    new BufferAttribute(new Float32Array([0, 0, 0, 10, 0, 0]), 3),
+  );
+  // Vertex 0 moves right by 5, vertex 1 stays: no vertex lands past x = 10, where the base box
+  // plus the box of the deltas would reach 15.
+  geometry.morphAttributes.position = [
+    new BufferAttribute(new Float32Array([5, 0, 0, 0, 0, 0]), 3),
+  ];
+  geometry.morphTargetsRelative = true;
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  assert.deepEqual(box(geometry), [0, 0, 0, 10, 0, 0]);
+  assert.equal(geometry.boundingSphere!.radius, 5);
 });

@@ -1,7 +1,15 @@
 import { SHADE_DECL_WGSL } from './shadeDeclWgsl.ts';
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts';
 import { lecture, lectureDonnee, siCarte } from './maps.ts';
-import { AS_IS_FLAG, MODEL_FLAG, MODEL_SHIFT, SURFACE_MODEL } from '../../scene/surfaceModel.ts';
+import {
+  AS_IS_FLAG,
+  FOG_FREE_SURFACE_FLAG,
+  MODEL_FLAG,
+  MODEL_SHIFT,
+  NORMAL_VIEW_COLOR_WGSL,
+  SURFACE_MODEL,
+} from '../../scene/surfaceModel.ts';
+import { FLAG_FOG_FREE } from '../types.ts';
 
 /**
  * Surface resolve of one material class: the fragment stage every class pipeline compiles with its
@@ -10,6 +18,7 @@ import { AS_IS_FLAG, MODEL_FLAG, MODEL_SHIFT, SURFACE_MODEL } from '../../scene/
  * tested per pixel on `page.flags`; the arithmetic of a kept path is the same, operand for operand.
  */
 export const SHADE_SHADER = `${SHADE_DECL_WGSL}
+${NORMAL_VIEW_COLOR_WGSL}
 @fragment fn shade_fs(@builtin(position) pos:vec4f)->SurfaceOut{
  // Material depth admitted this pixel, unless the prepared one-class path guards it below.
  let id=textureLoad(vis,vec2<i32>(i32(pos.x),i32(pos.y)),0).r;
@@ -22,7 +31,7 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
  let page=pages[pageIndex];
  if(tri*3u+2u>=page.indexCount){return emptySurface();}
  let h=pageHeader(page);
- let i0=pageCorner(page,h,tri*3u);let i1=pageCorner(page,h,tri*3u+1u);let i2=pageCorner(page,h,tri*3u+2u);
+ let corners=pageTriangle(page,h,tri);let i0=corners.x;let i1=corners.y;let i2=corners.z;
  let p0=pagePosition(page,h,i0);let p1=pagePosition(page,h,i1);let p2=pagePosition(page,h,i2);
  var w0=page.world*vec4f(p0,1.0);var w1=page.world*vec4f(p1,1.0);var w2=page.world*vec4f(p2,1.0);
  // A sprite page's triangle is its quad turned to the camera (\`pageSprite\`), as the rasters drew it.
@@ -138,12 +147,13 @@ export const SHADE_SHADER = `${SHADE_DECL_WGSL}
  // The models that show something other than light leave unlit (\`../../scene/surfaceModel.ts\`):
  // a matcap as an unlit material, seen through the fog; a normal or depth view as-is, never fogged
  // nor tone mapped.
- if(model==${SURFACE_MODEL.normal}u){rgb=viewNormal(N)*0.5+0.5;}
+ if(model==${SURFACE_MODEL.normal}u){rgb=normalViewColor(viewNormal(N));}
  if(model==${SURFACE_MODEL.depth}u){let w=dot(bary,vec3f(c0.w,c1.w,c2.w));let r=uni.depthRamp;rgb=vec3f(clamp(r.x*w+r.y+r.z*dot(bary,vec3f(c0.z,c1.z,c2.z))/w,0.0,1.0));}
- if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),select(${AS_IS_FLAG}u,1u,model==${SURFACE_MODEL.matcap}u),request);}
+ if(model>=${SURFACE_MODEL.normal}u){return SurfaceOut(vec4f(rgb,0.0),vec4f(N,1.0),vec4f(0.0,0.0,0.0,1.0),select(${AS_IS_FLAG}u,1u|select(0u,${FOG_FREE_SURFACE_FLAG}u,(page.flags&${FLAG_FOG_FREE}u)!=0u),model==${SURFACE_MODEL.matcap}u),request);}
  var flag=select(1u,2u,(page.flags&1u)!=0u);
  if(flag==2u&&model==${SURFACE_MODEL.diffuse}u){flag=${MODEL_FLAG.diffuse}u;}
  if(flag==2u&&model==${SURFACE_MODEL.toon}u){flag=${MODEL_FLAG.toon}u;}
+ if((page.flags&${FLAG_FOG_FREE}u)!=0u){flag|=${FOG_FREE_SURFACE_FLAG}u;}
  return SurfaceOut(vec4f(rgb,metal),vec4f(N,rough),vec4f(emissive,ao),flag,request);
 }
 `;

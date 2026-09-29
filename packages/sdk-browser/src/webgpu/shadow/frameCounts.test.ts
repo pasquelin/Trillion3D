@@ -73,7 +73,7 @@ test('a representation change under an unlit frame stales its pages once the vie
   const rt = settledRt();
   const lights = createWebgpuLightState(32);
   (rt as unknown as { lights: unknown }).lights = lights;
-  rt.gpu.targetSize = [8, 8];
+  Object.assign(rt.gpu, { targetSize: [8, 8], displaySize: [8, 8] });
   const { store, plan } = lights;
   store.add(SUN);
   const view = shadowViewpointOf(CAM as never, 8);
@@ -149,16 +149,17 @@ test('a sampled cull count is named by the frame it describes, only once it has 
   assert.equal(counts.counts(), undefined, 'the copy of frame 40 is in flight: still nothing');
   mapped();
   await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.deepEqual(counts.counts(), { frame: 40, regions: 1, kept: 22 });
+  assert.deepEqual(counts.counts(), { frame: 40, regions: 1, kept: 22, moving: 0 });
   // Frame 55 is due: its copy is encoded, but until it returns the count stays frame 40's.
   counts.sample(encoder, indirect, 3, 55);
-  assert.deepEqual(counts.counts(), { frame: 40, regions: 1, kept: 22 });
+  assert.deepEqual(counts.counts(), { frame: 40, regions: 1, kept: 22, moving: 0 });
   counts.dispose();
 });
 
 // A frame draws its pages in batches (#489): the sampled frame copies every batch's commands after
-// the last, so the count covers all its pages, and the frames after it copy nothing.
-test('a sampled cull count covers every batch of its frame', async () => {
+// the last, so the count covers all its pages, and the frames after it copy nothing. The clusters
+// of regions that draw moving casters alone are counted apart too (#991).
+test('a sampled cull count covers every batch of its frame, its moving regions apart', async () => {
   const words = new Uint32Array(8);
   words[1] = 22;
   words[5] = 7;
@@ -171,7 +172,7 @@ test('a sampled cull count covers every batch of its frame', async () => {
   });
   const indirect = {} as GPUBuffer;
   counts.sample(encoder, indirect, 1, 40);
-  counts.sample(encoder, indirect, 1, 40);
+  counts.sample(encoder, indirect, 1, 40, () => true);
   counts.submitted();
   counts.sample(encoder, indirect, 1, 41);
   assert.deepEqual(copies, [
@@ -180,6 +181,6 @@ test('a sampled cull count covers every batch of its frame', async () => {
   ]);
   mapped();
   await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.deepEqual(counts.counts(), { frame: 40, regions: 2, kept: 29 });
+  assert.deepEqual(counts.counts(), { frame: 40, regions: 2, kept: 29, moving: 7 });
   counts.dispose();
 });

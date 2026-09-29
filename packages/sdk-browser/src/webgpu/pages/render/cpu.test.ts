@@ -65,6 +65,8 @@ function banc(options: { ready: boolean; resident: boolean }) {
   };
   const rt = {
     run,
+    // The main view alone.
+    views: {},
     setup: {
       roots,
       viewport: [64, 64] as [number, number],
@@ -103,10 +105,12 @@ function banc(options: { ready: boolean; resident: boolean }) {
         run.desired.length = 0;
         for (const page of wanted) run.desired.push(page);
       },
-      queueCutResidency: () => {
-        journal.push('file');
-        // The image stops here: everything that follows needs a device.
-        throw new Error('BANC_ARRET');
+      residency: {
+        queueCutResidency: () => {
+          journal.push('file');
+          // The image stops here: everything that follows needs a device.
+          throw new Error('BANC_ARRET');
+        },
       },
     },
   } as unknown as WebgpuPagesRuntime;
@@ -120,6 +124,14 @@ test('bootstrap in progress makes the CPU cut hold nothing', () => {
   image(b);
   assert.deepEqual(b.journal, ['ressources', 'oubli'], 'neither publish nor queue');
   assert.deepEqual(b.run.desired, b.tenue, 'the requested cut stays the one from before the image');
+});
+
+test('another view’s CPU cut breaks its own hold alone, the main view’s readback kept', () => {
+  const b = banc({ ready: false, resident: false });
+  Object.assign(b.rt, { views: { main: {}, active: {} } });
+  Object.assign(b.run.gate, { viewReplaced: () => b.journal.push('view') });
+  image(b);
+  assert.deepEqual(b.journal, ['view'], 'neither the shared resources nor the readback');
 });
 
 test('nothing resident yet: the image draws no hole, and still asks for its cut', () => {

@@ -3,9 +3,13 @@ import { DEFAULT_TONE_MAPPING } from '../../../sdk-core/src/scene/core/environme
 import { DEFAULT_CLEAR_COLOR } from '../backend/common.ts';
 import type { BackendContext } from '../backend/types.ts';
 import { installSceneLighting, sceneLightingApi } from './sceneLighting.ts';
-import { attachContractLights, CONTRACT_LIGHTS_LIGHTING } from './contractLights.ts';
+import {
+  attachContractLights,
+  CONTRACT_LIGHTS_LIGHTING,
+  type ContractShadows,
+} from './contractLights.ts';
 import { Color } from '../../../sdk-core/src/world/math/color.ts';
-import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
+import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
 /** The render scene the contract writes into. */
 type RenderScene = Parameters<typeof attachContractLights>[0];
@@ -25,10 +29,10 @@ export const graphBackground = (scene: RenderScene, changed: () => void) => (hex
 };
 
 /** The display graph a WebGL2 engine draws: its clear colour, then the source-graph lights
- *  copied onto it, each aiming at an empty node of the same graph. */
+ *  copied onto it, each aiming at its own target, placed in the same graph. */
 export function installLighting(scene: RenderScene, clearColor: number, source: Object3D) {
   paint(scene, clearColor);
-  return installSceneLighting(scene, source, () => new Object3D());
+  return installSceneLighting(scene, source);
 }
 
 /**
@@ -42,8 +46,9 @@ export function contractLightingApi(
   store: SceneLightStore | undefined,
   source: ReturnType<typeof installSceneLighting>,
   sceneChanged: () => void,
+  shadowsRefused?: ContractShadows,
 ) {
-  const contract = attachContractLights(scene, store, source, sceneChanged);
+  const contract = attachContractLights(scene, store, source, sceneChanged, shadowsRefused);
   return {
     ...sceneLightingApi(source, sceneChanged),
     /** The image comes out in real light as soon as either light set carries one. */
@@ -71,6 +76,12 @@ export function createContractLighting(
   );
   return {
     lighting: source,
-    api: contractLightingApi(scene, context.sceneLights, source, sceneChanged),
+    api: contractLightingApi(
+      scene,
+      context.sceneLights,
+      source,
+      sceneChanged,
+      context.shadowsRefused,
+    ),
   };
 }

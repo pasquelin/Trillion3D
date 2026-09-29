@@ -114,7 +114,7 @@ fn a_declared_cloth_is_a_soft_body_of_physics_json_not_static_ground() {
         o: &o,
         g: &g,
         bin: &bin,
-        chosen: &chosen,
+        shown: &chosen,
         mesh_map: &mesh_map,
         cluster_planes: &[],
     };
