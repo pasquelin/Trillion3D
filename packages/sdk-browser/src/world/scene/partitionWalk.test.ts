@@ -72,12 +72,12 @@ function grid(side: number) {
 test('on an engine that grows no buffer, a walk never leaves a cell waiting for rows', async () => {
   // It cannot grow rows in place, and the reach stays the one the rows were sized for at open:
   // rows for the view, a part of the world.
-  const { partitioned, port } = grid(24);
+  const { partitioned, port } = grid(48);
   const camera = hostFramingCamera(60, 16 / 9, 0.1, 30);
   camera.position.set(5, 2, 5);
   await primePartitions([partitioned], camera, port, true);
   assert.ok(partitioned.stats().held > 0, 'the first frame draws what the camera reaches');
-  assert.ok(partitioned.stats().rows < 24 * 24 * 4, `${partitioned.stats().rows} rows`);
+  assert.ok(partitioned.stats().rows < 48 * 48 * 4, `${partitioned.stats().rows} rows`);
   const frame = createPartitionFrame({
     partitions: [partitioned],
     streamer: port,
