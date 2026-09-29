@@ -1,6 +1,5 @@
-import { BLEND_VIEW_SIZE } from './uniforms.ts';
 import { feedbackAttachment } from '../pages/prepare/attachments.ts';
-import { blendBindEntries, type BlendLighting } from '../core/bindEntries.ts';
+import { blendEntries } from './identity.ts';
 import { createBlendOverdraw } from './overdraw.ts';
 import { countsBlendOverdraw } from '../../diagnostic/gpuVariant.ts';
 import type { BlendGpuItem } from './state.ts';
@@ -8,39 +7,22 @@ import type { RankedPipelines } from './stagePipelines.ts';
 import { planPipeline } from './plan.ts';
 import { RUN_SHARED, RUN_WORDS, runOwner } from './runs.ts';
 import { itemKept } from './expandCpu.ts';
+import { routedFilter, type DisplayFilter } from './displayFilter.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { activeAsIsShare } from '../pages/prepare/asIsShareTarget.ts';
 
 /**
  * Bind group of a blend pass: vertex buffers, item records, atlases and lighting. A paged item
- * reads the page cache and the concatenated geometry, so ALL paged items share this group; an
- * unpaged item carries its own buffers and keeps its own.
+ * reads its quantized pages in the page cache, or the concatenated geometry of a cache without
+ * them, so ALL paged items share this group; an unpaged item carries its own buffers and keeps
+ * its own.
  */
-function blendBindGroup(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  item: BlendGpuItem | undefined,
-  lighting: BlendLighting,
-) {
-  const { gpu, vis, blendState } = rt,
-    compaction = blendState.compaction,
-    zero = gpu.zeroUv!;
+function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice, item: BlendGpuItem | undefined) {
   return device.createBindGroup({
-    layout: vis.blendBindGroupLayout!,
-    entries: blendBindEntries({
-      indices: item?.index ?? gpu.cache!.buffer,
-      positions: item?.position ?? vis.concatPos!,
-      uvs: item ? (item.uv ?? zero) : vis.concatUv!,
-      uniform: blendState.viewBuffer!,
-      uniformSize: BLEND_VIEW_SIZE,
-      items: blendState.itemBuffer!,
-      textures: vis.textures!,
-      sampler: vis.mapsSampler!,
-      normals: item ? (item.normal ?? zero) : vis.concatNrm!,
-      ...lighting,
-      clusterDiagnostic: compaction?.diagnosticBuffer ?? zero,
-      planInstances: blendState.expandedBuffer ?? zero,
-      clusterSpans: compaction?.spanBuffer ?? zero,
-    }),
+    layout: rt.vis.blendBindGroupLayout!,
+    entries: item
+      ? blendEntries(rt, item)
+      : (rt.blendState.identity.entries[0] ??= blendEntries(rt)),
   });
 }
 
@@ -59,7 +41,8 @@ function blendBindGroup(
  * the draw of an item wholly out of view.
  *
  * `slice` says which pass is encoded — blends, or the water surfaces — and `pipelines` what
- * draws it; the bind groups are the same, and they are the blend pass's. Returns the draws encoded.
+ * draws it, with the display layers `filter` attached and its mask bound; the bind groups are the
+ * same, and they are the blend pass's. Returns the draws encoded.
  */
 export function drawBlendRuns(
   rt: WebgpuPagesRuntime,
@@ -67,16 +50,18 @@ export function drawBlendRuns(
   pass: GPURenderPassEncoder,
   slice: number,
   pipelines: RankedPipelines,
+  filter?: DisplayFilter,
+  share = false,
 ) {
   const { blendState } = rt,
     items = blendState.blendGpu,
     order = blendState.orders[slice],
     runs = blendState.runs[slice],
     count = blendState.runCount[slice],
-    args = blendState.argsBuffer!,
-    // Resolved once per image by `encodeBlend`, with the groups it voided: the same for every pass.
-    lighting = blendState.lighting!;
-  blendState.pagedGroup ??= blendBindGroup(rt, device, undefined, lighting);
+    args = blendState.argsBuffer!;
+  if (rt.gpu.reflection) pass.setBindGroup(1, rt.gpu.reflection.group);
+  if (filter) pass.setBindGroup(2, filter.maskGroup);
+  blendState.pagedGroup ??= blendBindGroup(rt, device, undefined);
   let boundPipeline = -1,
     boundGroup: GPUBindGroup | undefined,
     encoded = 0;
@@ -85,6 +70,7 @@ export function drawBlendRuns(
     const at = index * RUN_WORDS,
       entry = order[runs[at]],
       owner = runOwner(order, runs[at], runs[at + 1]);
+    if (pipelines.skips?.(planPipeline(entry))) continue;
     // A run that names its item decides on the frustum bit: a draw that would set no pixel is not
     // encoded at all, as it was not per item. A run that merges several carries too many entries
     // to query one by one — the GPU zeros their instances, and a draw with no instance sets nothing.
@@ -93,14 +79,14 @@ export function drawBlendRuns(
     if (boundPipeline !== planPipeline(entry)) {
       boundPipeline = planPipeline(entry);
       // The blend pass compiles a mode first written after it was built (`pipelines.ts`).
-      const pipeline = pipelines.at(boundPipeline);
+      const pipeline = pipelines.at(boundPipeline, !!filter, share);
       if (!pipeline) throw new Error(`blend pipeline ${boundPipeline} was not built for the scene`);
       pass.setPipeline(pipeline);
     }
     const item = owner === RUN_SHARED ? undefined : items[owner];
     const group =
       item && !item.paged
-        ? (item.group ??= blendBindGroup(rt, device, item, lighting))
+        ? (item.group ??= blendBindGroup(rt, device, item))
         : blendState.pagedGroup!;
     // Nothing is offset per item: the record is read at the rank the vertex index carries, so the
     // group is set once for the whole list, and again only for an unpaged item's own buffers.
@@ -123,9 +109,17 @@ export function drawBlendPass(
   transmissive = false,
 ): boolean {
   const { gpu, vis, blendState } = rt,
-    slice = transmissive ? 1 : 0;
+    slice = transmissive ? 1 : 0,
+    // The transmission slice routes through the mask the blends drew, if they drew one.
+    filter = transmissive
+      ? routedFilter(gpu.displayFilter)
+      : gpu.displayFilter?.active
+        ? gpu.displayFilter
+        : undefined;
   // Nothing to encode without runs, or without the arguments the GPU wrote for them.
   if (!blendState.runCount[slice] || !blendState.argsBuffer) return false;
+  if (filter && !transmissive) drawDisplayMask(rt, device, encoder, filter);
+  const share = activeAsIsShare(rt);
   // Diagnostic only: the counting variant opens an occlusion query around the pass.
   const overdraw = countsBlendOverdraw(rt.context?.diagnosticGpuVariant)
     ? (blendState.overdraw ??= createBlendOverdraw(device))
@@ -140,18 +134,41 @@ export function drawBlendPass(
         storeOp: 'store',
       },
       // Virtual-texture feedback, opened by the first pass that writes it.
-      feedbackAttachment(rt),
+      ...(rt.feedbackAB?.target === false ? [] : [feedbackAttachment(rt)]),
+      // The share a debug view or the temporal pass reads; an empty slot otherwise (#365).
+      share ? { view: share.view, loadOp: 'load', storeOp: 'store' } : null,
+      // The display layers of an image whose blends filter (`displayFilter.ts`).
+      ...(filter ? filter.attachments() : []),
     ],
-    depthStencilAttachment: { view: gpu.depthView!, depthLoadOp: 'load', depthStoreOp: 'store' },
+    depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
   });
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
   overdraw?.begin(pass, transmissive);
-  const encoded = drawBlendRuns(rt, device, pass, slice, vis.blendPipelines!);
+  const encoded = drawBlendRuns(rt, device, pass, slice, vis.blendPipelines!, filter, !!share);
   overdraw?.end(pass);
   pass.end();
   overdraw?.after(encoder);
   countBlendDraws(rt, encoded, transmissive);
   return true;
+}
+
+/** The display mask: the blends' filtering surfaces alone, depth-tested, before the blend pass. */
+function drawDisplayMask(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  filter: DisplayFilter,
+) {
+  const { gpu, run } = rt,
+    { mask } = rt.vis.blendPipelines!;
+  const pass = encoder.beginRenderPass({
+    label: 'Trillion3D display mask',
+    colorAttachments: [...Array<null>(mask.slot).fill(null), filter.maskAttachment()],
+    depthStencilAttachment: { view: gpu.depthView!, depthReadOnly: true },
+  });
+  pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1);
+  run.gpuDrawCalls += drawBlendRuns(rt, device, pass, 0, mask);
+  pass.end();
 }
 
 /** Frame counters of a transparent pass: draws, and the unpaged triangles it submits. */

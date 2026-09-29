@@ -1,13 +1,3 @@
-//! Resident proxy: geometry light rays hit.
-//!
-//! Light ray cannot trace visible cut: depends on camera, changes
-//! each frame, leaves too fine for ray budget. Compiler retains
-//! once for all coarse DAG level — clusters whose certified geometric error
-//! drops below meter threshold — places in world, assigns material albedo,
-//! builds BVH on top. Fits in cache and remains resident in
-//! GPU memory regardless of viewpoint.
-//!
-//! No light baked here: proxy carries geometry and materials, nothing else.
 use crate::compiler_validate::{item, required_index, values};
 use crate::compiler_world::{transform_point, world_matrices, Mat4};
 use crate::texture_preview::TexturePreview;
@@ -20,15 +10,17 @@ pub(crate) mod assemble;
 pub mod bvh;
 pub mod cut;
 pub mod encode;
+pub mod provenance;
 pub mod simplify;
+pub(crate) mod tracer;
 pub mod wide;
 
 /// Product contract. Moving cut, sections or node order requires incrementing.
-pub const SCENE_PROXY_VERSION: u32 = 2;
+pub const SCENE_PROXY_VERSION: u32 = 3;
 /// 'W','G','P','X' read as 32-bit little-endian unsigned int.
 pub const SCENE_PROXY_MAGIC: u32 = 0x5850_4757;
-/// Header integers: signature, version, triangles, nodes.
-pub const SCENE_PROXY_HEADER_WORDS: usize = 4;
+/// Header: signature, version, triangle/node/group/owner/source counts, reserved zero.
+pub const SCENE_PROXY_HEADER_WORDS: usize = 8;
 /// Product name in cache key folder, next to `clusters.json`.
 pub const SCENE_PROXY_FILE: &str = "proxy.bin";
 /// Max certified geometric error of retained cluster, in meters. Published setting.
@@ -68,6 +60,7 @@ pub struct SceneProxy {
     pub albedo: Vec<u32>,
     pub node_bounds: Vec<f32>,
     pub node_children: Vec<u32>,
+    pub provenance: provenance::Provenance,
 }
 impl SceneProxy {
     pub fn triangle_count(&self) -> usize {
@@ -81,7 +74,8 @@ impl SceneProxy {
 /// Step reads: scene, retained coarse cuts, texture previews.
 pub struct ProxyInputs<'a> {
     pub g: &'a Value,
-    pub chosen: &'a BTreeSet<usize>,
+    /// The chosen nodes no hidden node hides: the proxy stands in for what is drawn.
+    pub shown: &'a BTreeSet<usize>,
     pub mesh_map: &'a BTreeMap<usize, usize>,
     pub primitives: &'a [Value],
     /// Per compiled primitive: coarse cut vertices, in object space.
@@ -103,6 +97,9 @@ pub fn world_scale(matrix: &Mat4) -> f64 {
         })
         .fold(0.0f64, f64::max)
 }
+
+/// A length of `metres` in the object units of a primitive: the rule the tile grid shares.
+pub use trillion3d_page_codec::bits::grid::object_units;
 
 /// Max world scale under which each source mesh placed. Primitive placed
 /// twice at two scales takes largest: cut finer than needed for
@@ -144,8 +141,9 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
     let palette = albedo::material_albedo(inputs.g, inputs.previews);
     let mut triangles: Vec<f32> = Vec::new();
     let mut colours: Vec<u32> = Vec::new();
+    let mut owners = Vec::new();
     let by_mesh = primitives_by_mesh(inputs.primitives);
-    for node_id in inputs.chosen {
+    for node_id in inputs.shown {
         let node = item(nodes, *node_id, "node")?;
         let old_mesh = required_index(node.get("mesh"), "node.mesh")?;
         let Some(mesh_index) = inputs.mesh_map.get(&old_mesh).copied() else {
@@ -162,9 +160,18 @@ pub fn stage_proxy(inputs: &ProxyInputs<'_>) -> Result<SceneProxy> {
             let colour = palette.of(inputs.primitives[index].get("material"));
             place(cut, &matrix, &mut triangles);
             colours.resize(triangles.len() / PROXY_TRIANGLE_FLOATS, colour);
+            owners.resize(colours.len(), *node_id as u32);
         }
     }
-    Ok(assemble::assemble(inputs.thresholds, triangles, colours))
+    let mut proxy =
+        assemble::assemble_owned(inputs.thresholds, triangles, colours, &owners, &world);
+    proxy.provenance.source_parents = vec![-1; world.len()];
+    for id in 0..nodes.len() {
+        for child in crate::compiler_nodes::children_of(nodes, id)? {
+            proxy.provenance.source_parents[child] = id as i32;
+        }
+    }
+    Ok(proxy)
 }
 
 /// Cut vertices, transformed once by placing node.

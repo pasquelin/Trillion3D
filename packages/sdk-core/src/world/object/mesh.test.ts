@@ -10,14 +10,7 @@ import { Group } from './object3d.ts';
 import { Geometry } from '../geometry/geometry.ts';
 import { BufferAttribute } from '../buffer/attribute.ts';
 import { Material } from '../material/material.ts';
-import type { SceneLink } from './sceneLink.ts';
-
-/** A world's link that counts the content changes it hears. */
-function countingLink() {
-  const heard: object[] = [];
-  const link = { content: (node: object) => heard.push(node), pose() {}, structure() {} };
-  return { link: link as unknown as SceneLink, heard };
-}
+import { countingLink } from './sceneLink.fixture.ts';
 
 test('a mesh holds its shape, its matter and its primitive, nothing more of its own', () => {
   const mesh = new Mesh(new Geometry(), new Material('meshBasic'));
@@ -59,4 +52,39 @@ test('a mesh wearing matter that tells nothing enters and leaves a world', () =>
   scene.add(mesh);
   scene.remove(mesh);
   assert.equal(mesh.geometry._listeners.size, 0);
+});
+
+test('a mesh destroyed in a world leaves it, heard by nothing it wore', () => {
+  const geometry = new Geometry(),
+    material = new Material('meshBasic');
+  const scene = new Group(),
+    group = new Group(),
+    mesh = new Mesh(geometry, material),
+    told: object[] = [];
+  scene._link = { ...countingLink().link, structure: (node: object) => told.push(node) };
+  group.add(mesh);
+  scene.add(group);
+  told.length = 0;
+  group.destroy();
+  assert.equal(geometry._listeners.size + material._listeners.size, 0);
+  assert.deepEqual([group._link, mesh._link, scene.children.length], [null, null, 0]);
+  assert.deepEqual(told, [scene], 'the world is told its structure changed');
+});
+
+test('a mesh moved out of a world under a group none hears leaves it, and the world is told', () => {
+  const material = new Material('meshBasic');
+  const scene = new Group(),
+    aside = new Group(),
+    mesh = new Mesh(new Geometry(), material),
+    told: object[] = [];
+  scene._link = { ...countingLink().link, structure: (node: object) => told.push(node) };
+  scene.add(mesh);
+  told.length = 0;
+  aside.add(mesh);
+  assert.deepEqual([mesh._link, material._listeners.size], [null, 0]);
+  assert.deepEqual(told, [scene], 'the world it left hears it go');
+  scene.add(aside);
+  told.length = 0;
+  scene.attach(mesh);
+  assert.deepEqual(told, [scene], 'moved within one world: told once');
 });

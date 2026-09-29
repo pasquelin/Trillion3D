@@ -82,7 +82,7 @@ pub(crate) fn pad_to_4(length: usize) -> usize {
 
 /// Small vector algebra on `[f64; 3]`, written once in the page codec beside the normal cone that
 /// reads it (`trillion3d_page_codec::vec3`): the compiler carries one implementation of each.
-pub use trillion3d_page_codec::vec3::{cross, divide, dot, length, point, scale, sub};
+pub use trillion3d_page_codec::vec3::{add, cross, divide, dot, length, point, scale, sub};
 
 /// Unit vector, or fallback when length stays under 1e-12: shorter,
 /// vector carries no direction and division makes no sense. Fallback belongs to
@@ -94,6 +94,56 @@ pub(crate) fn normalized_or(vector: [f64; 3], fallback: [f64; 3]) -> [f64; 3] {
     } else {
         fallback
     }
+}
+
+/// `v` at unit length, if it has a finite, non-zero one.
+pub(crate) fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
+    unit_where(v, |length| length > 0.0 && length.is_finite())
+}
+
+/// `v` times the reciprocal of its length, when `usable` accepts that length. The guard is the
+/// caller's: `unit` refuses a non-finite length, the oracle only a non-positive one.
+/// `normalized_or` divides each part instead: the two round apart, and each keeps its callers' bits.
+pub(crate) fn unit_where(v: [f64; 3], usable: impl Fn(f64) -> bool) -> Option<[f64; 3]> {
+    let length = length(v);
+    usable(length).then(|| scale(v, 1.0 / length))
+}
+
+/// Multiplicative hash, word by word: SipHash dominated mesh conversion (the corner values) and the
+/// Hausdorff grid's cell lookups (#977). Neither iterates its map, so no output reads the hash.
+#[derive(Default, Clone, Copy)]
+pub(crate) struct WordHasher(u64);
+impl WordHasher {
+    fn mix(&mut self, word: u64) {
+        self.0 = (self.0.rotate_left(5) ^ word).wrapping_mul(0x517cc1b727220a95);
+    }
+}
+impl std::hash::Hasher for WordHasher {
+    fn finish(&self) -> u64 {
+        self.0
+    }
+    fn write(&mut self, bytes: &[u8]) {
+        let (words, tail) = bytes.as_chunks::<8>();
+        words.iter().for_each(|w| self.mix(u64::from_le_bytes(*w)));
+        tail.iter().for_each(|&b| self.mix(b as u64));
+    }
+    fn write_u32(&mut self, v: u32) {
+        self.mix(v as u64);
+    }
+}
+/// A map hashed by [`WordHasher`].
+pub(crate) type WordMap<K, V> =
+    std::collections::HashMap<K, V, std::hash::BuildHasherDefault<WordHasher>>;
+
+/// The golden-ratio step of SplitMix64 (Steele et al. 2014), between two draws.
+pub(crate) const GOLDEN: u64 = 0x9E37_79B9_7F4A_7C15;
+
+/// `x` mixed by SplitMix64's finaliser into [0, 1): its top 53 bits, exact in an f64 (all 64 would
+/// round up to 1 near `u64::MAX`).
+pub(crate) fn splitmix_unit(x: u64) -> f64 {
+    let x = (x ^ (x >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    let x = (x ^ (x >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    ((x ^ (x >> 31)) >> 11) as f64 / (1u64 << 53) as f64
 }
 
 /// Elapsed milliseconds from instant: compiler publishes durations in

@@ -3,6 +3,9 @@
  * normal bytes, and the bit packer that writes fixed-width fields, least significant bit first.
  */
 const MAX_BITS = 24;
+/** Corners per block of eight triangles, and the bits of a block's width. */
+const BLOCK_CORNERS = 24,
+  WIDTH_BITS = 5;
 
 /** Bits that hold every value of `0..=range`, a range below 2^32; none for a constant field. */
 export const bitsFor = (range: number) => (range <= 0 ? 0 : 32 - Math.clz32(range));
@@ -54,32 +57,117 @@ export function ceil32(value: number): number {
   return float[0];
 }
 
-/** Octahedral bytes of a normal, `x` low and `y` high; a zero normal takes `+z`. */
+const f = Math.fround,
+  OCT_STEP = f(2 / 255);
+
+/** A normal's octahedral bytes (`x` low, `y` high) back to a unit vector at `out[at..at + 3]`, in
+ *  32-bit steps: the one decoder the reader and the encoder below share. */
+export function octDecode(q: number, out: { [i: number]: number }, at = 0) {
+  let x = f(f((q & 255) * OCT_STEP) - 1),
+    y = f(f(((q >>> 8) & 255) * OCT_STEP) - 1);
+  const z = f(f(1 - Math.abs(x)) - Math.abs(y));
+  if (z < 0) {
+    const fx = f(f(1 - Math.abs(y)) * (x >= 0 ? 1 : -1));
+    y = f(f(1 - Math.abs(x)) * (y >= 0 ? 1 : -1));
+    x = fx;
+  }
+  const length = f(Math.sqrt(f(f(f(x * x) + f(y * y)) + f(z * z))));
+  out[at] = f(x / length);
+  out[at + 1] = f(y / length);
+  out[at + 2] = f(z / length);
+}
+
+const decoded = new Float32Array(3);
+/**
+ * Octahedral bytes of a normal, `x` low and `y` high; a zero normal takes `+z`. Of the four
+ * roundings of the projected point, the one that decodes closest to the normal is kept: the
+ * "precise" variant the compiler writes (`oct_encode`, `geometry_page_quant.rs`), in the same
+ * 32-bit steps, so a page cut at run time carries the normals the compiler's would.
+ */
 export function octEncode(x: number, y: number, z: number): number {
-  const sum = Math.abs(x) + Math.abs(y) + Math.abs(z);
-  if (!sum) return 128 | (128 << 8);
-  let px = x / sum,
-    py = y / sum;
-  if (z < 0)
-    [px, py] = [(1 - Math.abs(py)) * Math.sign(px || 1), (1 - Math.abs(px)) * Math.sign(py || 1)];
-  const byte = (v: number) => Math.max(0, Math.min(255, Math.round((v + 1) * 127.5)));
-  return byte(px) | (byte(py) << 8);
+  x = f(x);
+  y = f(y);
+  z = f(z);
+  const sum = f(f(Math.abs(x) + Math.abs(y)) + Math.abs(z));
+  if (!sum || !Number.isFinite(sum)) return 128 | (128 << 8);
+  let px = f(x / sum),
+    py = f(y / sum);
+  if (z < 0) {
+    const fx = f(f(1 - Math.abs(py)) * (px >= 0 ? 1 : -1));
+    py = f(f(1 - Math.abs(px)) * (py >= 0 ? 1 : -1));
+    px = fx;
+  }
+  const cell = (v: number) => Math.min(254, Math.max(0, Math.floor(f(f(v + 1) * 127.5))));
+  const bx = cell(px),
+    by = cell(py),
+    length = f(Math.sqrt(f(f(f(x * x) + f(y * y)) + f(z * z)))),
+    ux = f(x / length),
+    uy = f(y / length),
+    uz = f(z / length);
+  let best = Infinity,
+    chosen = 0;
+  // The compiler's order, `x` outer: a tie keeps the same code.
+  for (let dx = 0; dx < 2; dx++)
+    for (let dy = 0; dy < 2; dy++) {
+      const candidate = (bx + dx) | ((by + dy) << 8);
+      octDecode(candidate, decoded);
+      const error = f(1 - f(f(f(decoded[0] * ux) + f(decoded[1] * uy)) + f(decoded[2] * uz)));
+      if (error < best) {
+        best = error;
+        chosen = candidate;
+      }
+    }
+  return chosen;
 }
 
 /** Bit streams, least significant bit first, each starting on a fresh word. */
 export class Packer {
   words: number[] = [];
   bit = 0;
-  stream(values: readonly number[], bits: number) {
-    for (const value of values) {
-      if (!bits) continue;
-      const shift = this.bit % 32;
-      if (!shift) this.words.push(0);
-      this.words[this.words.length - 1] =
-        (this.words[this.words.length - 1] | (value << shift)) >>> 0;
-      if (shift + bits > 32) this.words.push(value >>> (32 - shift));
-      this.bit += bits;
-    }
+  /** One `bits`-bit field, continuing the open word. */
+  push(value: number, bits: number) {
+    if (!bits) return;
+    const shift = this.bit % 32;
+    if (!shift) this.words.push(0);
+    this.words[this.words.length - 1] =
+      (this.words[this.words.length - 1] | (value << shift)) >>> 0;
+    if (shift + bits > 32) this.words.push(value >>> (32 - shift));
+    this.bit += bits;
+  }
+  /** Pads the last word written: the next field starts a new stream. */
+  close() {
     this.bit = this.words.length * 32;
+  }
+  /** One whole stream: its fields, then the padding that closes the last word. */
+  stream(values: readonly number[], bits: number) {
+    for (const value of values) this.push(value, bits);
+    this.close();
+  }
+  /**
+   * The corners by blocks of eight triangles: a table of records — the block's smallest corner,
+   * the width of its corners' distances to it (five bits), the sum of the widths before it — then
+   * those distances, each stream closed. Returns the corner stream's bit count, word 21.
+   */
+  corners(corners: readonly number[], indexBits: number) {
+    const blocks: { corners: number[]; base: number; width: number }[] = [];
+    for (let i = 0; i < corners.length; i += BLOCK_CORNERS) {
+      const block = corners.slice(i, i + BLOCK_CORNERS),
+        base = Math.min(...block);
+      blocks.push({ corners: block, base, width: bitsFor(Math.max(...block) - base) });
+    }
+    const cornerBits = blocks.reduce((sum, b) => sum + b.corners.length * b.width, 0),
+      prefixBits = bitsFor(Math.floor(cornerBits / BLOCK_CORNERS));
+    let prefix = 0;
+    for (const { base, width } of blocks) {
+      this.push(base, indexBits);
+      this.push(width, WIDTH_BITS);
+      this.push(prefix, prefixBits);
+      prefix += width;
+    }
+    this.close();
+    for (const { corners: block, base, width } of blocks)
+      for (const corner of block) this.push(corner - base, width);
+    this.close();
+    return cornerBits;
   }
 }

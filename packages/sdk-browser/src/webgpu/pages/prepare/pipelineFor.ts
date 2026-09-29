@@ -1,5 +1,7 @@
+import { fallbackBindEntries } from '../../core/fallbackEntries.ts';
+import { entriesReady } from '../../core/bindIdentity.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
-import { projectedPageError } from '../../../page/selection/selection.ts';
+import { projectedPageError, rootOf } from '../../../page/selection/selection.ts';
 import { BASE_SLOTS, BIN_BACK, BIN_FRONT, BIN_NONE } from '../../../gpu/draw/draw.ts';
 import { visLayerPipelineIndex } from '../../visibility/pipelines.ts';
 import { screenErrorColor } from '../../../diagnostic/colors.ts';
@@ -8,6 +10,9 @@ import { PAGES_GREEN, clusterRgb, linearColor } from '../helpers.ts';
 import { surfaceSide } from '../../../page/surface.ts';
 import { windingCw } from '../render/winding.ts';
 import type { WebgpuPagesCore } from '../runtime.ts';
+
+/** The roots a record's `placementIndex` ranks: the layout's selection roots. */
+type Roots = Parameters<typeof windingCw>[0];
 
 /** Order of layer-0 indirect slots: the three untested pipelines, then their Hi-Z-tested twins. */
 const VIS_SLOTS = [
@@ -22,16 +27,17 @@ const VIS_SLOTS = [
 export function pipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
   const side = surfaceSide(rec.material);
   if (side === 'double') return rt.gpu.pipelineNone;
-  return windingCw(rec) ? rt.gpu.pipelineBackCw : rt.gpu.pipelineBack;
+  return windingCw(rt.layout.selectionRoots, rec) ? rt.gpu.pipelineBackCw : rt.gpu.pipelineBack;
 }
 
 /** Rank of a cluster's face mode in a layer set: back, none, front, inverted back, inverted front.
  *  The same order `LAYER_CULLS` builds. */
-const visCullSlot = (rec: PageRec) => {
+const visCullSlot = (rec: PageRec, roots: Roots) => {
   const side = surfaceSide(rec.material);
   if (side === 'double') return 1;
-  if (side === 'back') return windingCw(rec) ? 4 : 2;
-  return windingCw(rec) ? 3 : 0;
+  const cw = windingCw(roots, rec);
+  if (side === 'back') return cw ? 4 : 2;
+  return cw ? 3 : 0;
 };
 
 /** Pipeline of an indirect slot: layer 0 keeps its own, each later layer has the same states plus
@@ -47,38 +53,37 @@ export function visSlotPipeline(rt: WebgpuPagesCore, slot: number) {
 /** Pipeline of a cluster drawn WITHOUT indirect compaction. That path does not know the tested
  *  half: without compaction there is no partition, and the image fits in one pass. */
 export function visPipelineFor(rt: WebgpuPagesCore, rec: PageRec) {
-  const { vis } = rt;
+  const { vis } = rt,
+    roots = rt.layout.selectionRoots;
   const layer = Math.min(rec.depthLayer, vis.drawLayerSlots - 1);
   if (layer > 0)
-    return vis.visLayerPipelines[visLayerPipelineIndex(layer, false, visCullSlot(rec))];
+    return vis.visLayerPipelines[visLayerPipelineIndex(layer, false, visCullSlot(rec, roots))];
   const side = surfaceSide(rec.material),
-    cw = windingCw(rec);
+    cw = windingCw(roots, rec);
   if (side === 'double') return vis.visPipelineNone;
   if (side === 'back') return cw ? vis.visPipelineFrontCw : vis.visPipelineFront;
   return cw ? vis.visPipelineBackCw : vis.visPipelineBack;
 }
 
-export const visBin = (rec: PageRec): 0 | 1 | 2 => {
+export const visBin = (rec: PageRec, roots: Roots): 0 | 1 | 2 => {
   const side = surfaceSide(rec.material);
   if (side === 'double') return BIN_NONE;
   // Indirect pipelines share ccw front faces; a reflection swaps which side
   // must be culled instead of requiring three more draw slots.
-  return (side === 'back') !== windingCw(rec) ? BIN_FRONT : BIN_BACK;
+  return (side === 'back') !== windingCw(roots, rec) ? BIN_FRONT : BIN_BACK;
 };
 
-/** Voids every fallback group when the layout, the page pool or the uniform they name changed
+/** Voids every fallback group when the layout or a resource their shared entries name changed
  *  identity. Read once before the fallback pass serves a group. */
 export function voidStaleFallbackGroups(rt: WebgpuPagesCore) {
   const { gpu } = rt,
-    { next } = gpu.fallbackIdentity;
-  next[0] = gpu.bindGroupLayout;
-  next[1] = gpu.cache?.buffer;
-  next[2] = gpu.uniformBuffer;
-  if (gpu.fallbackIdentity.moved()) gpu.bindGroups.clear();
+    identity = gpu.fallbackIdentity;
+  identity.entries[0] ??= fallbackBindEntries(rt);
+  if (identity.entriesMoved(gpu.bindGroupLayout)) gpu.bindGroups.clear();
 }
 
-/** The fallback group of one position buffer, built once per position and kept until
- *  `voidStaleFallbackGroups` drops it. */
+/** Position identity is the cache key; the fallback entry list governs every shared resource.
+ *  A replaced position therefore gets its own group, independently of family invalidation. */
 export function bindGroupFor(rt: WebgpuPagesCore, device: GPUDevice, position: GPUBuffer) {
   const { gpu } = rt;
   let id = gpu.positionIds.get(position);
@@ -87,30 +92,36 @@ export function bindGroupFor(rt: WebgpuPagesCore, device: GPUDevice, position: G
     gpu.positionIds.set(position, id);
   }
   let group = gpu.bindGroups.get(id);
-  if (!group && gpu.bindGroupLayout && gpu.cache && gpu.uniformBuffer) {
+  // Readiness is read on the shared list, built once: a miss while a resource is absent allocates
+  // nothing, and the item list below differs from it only by the position it is given.
+  if (
+    !group &&
+    gpu.bindGroupLayout &&
+    entriesReady((gpu.fallbackIdentity.entries[0] ??= fallbackBindEntries(rt)))
+  ) {
     group = device.createBindGroup({
       layout: gpu.bindGroupLayout,
-      entries: [
-        { binding: 0, resource: { buffer: gpu.cache.buffer } },
-        { binding: 1, resource: { buffer: position } },
-        { binding: 2, resource: { buffer: gpu.uniformBuffer, size: UNIFORM_STRIDE } },
-      ],
+      entries: fallbackBindEntries(rt, { position }),
     });
     gpu.bindGroups.set(id, group);
   }
   return group;
 }
 
+/** The fallback draw's uniforms, one `UNIFORM_STRIDE` block per draw, `bytes` in all. */
+export const fallbackUniform = (device: GPUDevice, bytes: number) =>
+  device.createBuffer({
+    label: 'Trillion3D fallback uniforms',
+    size: bytes,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
 export function ensureUniform(rt: WebgpuPagesCore, device: GPUDevice, draws: number) {
   const { gpu } = rt;
   const bytes = Math.max(1, draws, rt.setup.cap) * UNIFORM_STRIDE;
   if (!gpu.uniformBuffer || gpu.uniformBuffer.size < bytes) {
     gpu.uniformBuffer?.destroy();
-    gpu.uniformBuffer = device.createBuffer({
-      label: 'Trillion3D fallback uniforms',
-      size: bytes,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    });
+    gpu.uniformBuffer = fallbackUniform(device, bytes);
   }
   if (gpu.uniformPacked.byteLength < bytes) gpu.uniformPacked = new Float32Array(bytes / 4);
 }
@@ -125,7 +136,12 @@ export function pageRgb(rt: WebgpuPagesCore, rec: PageRec): [number, number, num
   if (run.diagnostic === 'screen-error')
     return run.lastCamera
       ? screenErrorColor(
-          projectedPageError(rec, run.gate.cam, rt.setup.viewport),
+          projectedPageError(
+            rec,
+            rootOf(rt.layout.selectionRoots, rec).world,
+            run.gate.cam,
+            rt.setup.viewport,
+          ),
           run.diagnosticPixelError,
         )
       : [0, 1, 0.12];

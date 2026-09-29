@@ -12,6 +12,7 @@ import { holdWebgpuFrame } from '../frame/hold.ts';
 import { settledRt } from '../frame/hold.fixture.ts';
 import { sizeShadowPool } from './poolSize.ts';
 import { captureColorView } from '../pages/io/colorCapture.ts';
+import { createWebgpuViews } from '../pages/state/view.ts';
 import type { HostCamera } from '../../camera/world.ts';
 
 /** A session whose device refuses every texture past `limit` bytes, and a frame loop reduced to
@@ -42,6 +43,7 @@ function frames(limit = Infinity) {
   Object.assign(rt, {
     lights,
     setup: { viewport: [1280, 720] },
+    blendState: { blendGpu: [] },
     signal: new AbortController().signal,
     diag: {
       engineDiagnostic: (phase: string) => said.push(phase),
@@ -51,7 +53,7 @@ function frames(limit = Infinity) {
   Object.assign(rt.gpu, {
     device: gpu.device,
     presenter: { present: () => shown.push(lastImage) },
-    colorTexture: {},
+    displayTexture: {},
   });
   const hold = {
     createCommandEncoder: () => ({ finish: () => ({}) }),
@@ -118,9 +120,9 @@ for (const asked of ['by a frame', 'by the capture'])
       temporalHizState: {},
     });
     Object.assign(s.rt.services, { residency: { busy: false, pending: undefined } });
-    // The frame targets already fit the capture's size: nothing else is asked of the device.
     Object.assign(s.rt.gpu, { targetSize: [64, 64], surfaces: {} });
     Object.assign(s.rt.vis, { visTexture: {} });
+    Object.assign(s.rt, { views: createWebgpuViews(s.rt) });
     if (asked === 'by a frame') sizeShadowPool(s.rt);
     const capture = captureColorView(s.rt, {} as HostCamera, { width: 64, height: 64 });
     // The capture runs up to its first wait before the call returns: it is under way, and waits.

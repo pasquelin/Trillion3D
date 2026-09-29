@@ -1,4 +1,5 @@
 use super::*;
+use crate::compiler_world_roots::RootCover;
 
 #[derive(Default)]
 pub(super) struct DagResult {
@@ -24,6 +25,8 @@ pub(super) struct DagResult {
     pub position_exponent: i32,
     /// The primitive's cooked collision (`physics_cook::cook_primitive`).
     pub collision: Value,
+    /// Its roots, which the world super-roots continue (`compiler_world_roots`).
+    pub root_cover: RootCover,
 }
 
 /// Minimum, median and maximum of a DAG level's errors. Three order statistics
@@ -49,20 +52,28 @@ pub(super) fn level_error_stats(errors: &mut [f64]) -> (f64, f64, f64) {
     (min, median, max)
 }
 
+/// `tile_log2` is the primitive's tile of the world in object units: its pages' grid follows it
+/// (`geometry_page_quant::tile`).
+#[allow(clippy::too_many_arguments)]
 pub(super) fn build_dag_primitive(
     o: &Options,
     pos: &[f32],
     carried: &[&geometry_page::Attribute],
     index_values: &[u32],
     proxy_demand: crate::proxy::cut::CutDemand,
-    store_packed: &(impl Fn(&[u32], i32) -> Result<(Value, bool)> + Sync),
+    blended: bool,
+    tile_log2: i32,
+    store_packed: &(impl Fn(&[u32], &[f32], &[&geometry_page::Attribute], i32) -> Result<(Value, bool)>
+          + Sync),
 ) -> Result<DagResult> {
     let strategy = crate::dag::DagStrategy::named(&o.simplification);
     let attributes = crate::dag::DagAttributes { carried };
     let mut laps = perf::Laps::start();
-    let (dag, groups, tallies, stalls) =
+    let (dag, groups, tallies, stalls, grown) =
         crate::dag::build_dag_tallied(pos, attributes, index_values, strategy, &|| check(o))?;
     laps.lap("dagMs");
+    let (pos, carried) = crate::dag::Grown::arrays(&grown, pos, attributes);
+    let attributes = crate::dag::DagAttributes { carried: &carried };
     let quality =
         compiler_primitive_checks::check_dag(&dag, pos, attributes.normals(), index_values)?;
     // The proxy coarse cut is read here, where the DAG and the positions are both
@@ -76,28 +87,32 @@ pub(super) fn build_dag_primitive(
         crate::dag::build_culling_bvh(pos, &dag)
     };
     laps.lap("cullingMs");
-    let collision =
-        crate::physics_cook::cook_primitive(o, &dag, &order, &culling, pos, index_values)?;
-    laps.lap("physicsMs");
-    let base_id = 0usize;
     let mut page_of = vec![0usize; dag.len()];
     for (rank, &slot) in order.iter().enumerate() {
-        page_of[slot] = base_id + rank;
+        page_of[slot] = rank;
     }
     let position_exponent = crate::geometry_page_quant::primitive_exponent(
         pos,
         dag.iter().filter(|c| c.level > 0).map(|c| c.lod_error),
+        blended,
+        tile_log2,
     );
-    let (pages, reused, stream_report) = bundle_dag_pages(
-        o,
-        &dag,
-        &groups,
-        &order,
-        base_id,
-        pos,
-        &|slice: &[u32]| store_packed(slice, position_exponent),
-    )?;
-    laps.lap("pagesMs");
+    // The collider and the pages read the same DAG and neither reads what the other writes: they
+    // run side by side on the compiler's pool, each result kept in its own place, so every byte is
+    // the serial cook's, and the cook's error still comes first (#956).
+    let snapped = grown.as_ref().map(|grown| grown.snapped(position_exponent));
+    let (pos, carried) = (snapped.as_deref().unwrap_or(pos), attributes.carried);
+    let (collision, paged) = laps.join(
+        ("physicsMs", || {
+            crate::physics_cook::cook_primitive(o, &dag, &order, &culling, pos, index_values)
+        }),
+        ("pagesMs", || {
+            let store = |slice: &[u32]| store_packed(slice, pos, carried, position_exponent);
+            bundle_dag_pages(o, &dag, &groups, &order, pos, &store)
+        }),
+    );
+    let collision = collision?;
+    let (pages, reused, stream_report) = paged?;
     // One plane test per cluster, on the triangles it already holds: cheap next to the DAG itself,
     // and the only place the partition and the positions are both in hand.
     let cluster_planes: Vec<Option<crate::coplanar::ClusterPlane>> = order
@@ -110,6 +125,7 @@ pub(super) fn build_dag_primitive(
             )
         })
         .collect();
+    let root_cover = RootCover::of(strategy, &dag, pos, &pages, &page_of);
     let mut roots: Vec<usize> = dag
         .iter()
         .enumerate()
@@ -132,15 +148,8 @@ pub(super) fn build_dag_primitive(
     // Flat node array, CULLING_STRIDE numbers per node; -1 marks a subtree holding a root.
     let mut flat = Vec::with_capacity(culling.len() * CULLING_STRIDE);
     for node in &culling {
-        for a in 0..3 {
-            flat.push(json!(node.min[a]));
-        }
-        for a in 0..3 {
-            flat.push(json!(node.max[a]));
-        }
-        for a in 0..4 {
-            flat.push(json!(node.sphere[a]));
-        }
+        let bounds = node.min.iter().chain(&node.max).chain(&node.sphere);
+        flat.extend(bounds.map(|value| json!(value)));
         flat.push(if node.max_parent_error.is_finite() {
             json!(node.max_parent_error)
         } else {
@@ -167,5 +176,25 @@ pub(super) fn build_dag_primitive(
         stream_report,
         position_exponent,
         collision,
+        root_cover,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    // Edge cases of `level_error_stats`, moved from the retired compute bench: the statistics
+    // follow `f64::total_cmp`, so signed zeros, infinities and NaN each keep one place.
+    #[test]
+    fn level_error_stats_orders_hostile_errors_by_total_cmp() {
+        let mut errors = [f64::NAN, 1.5, f64::NEG_INFINITY];
+        let (min, median, max) = super::level_error_stats(&mut errors);
+        assert_eq!(min, f64::NEG_INFINITY);
+        assert_eq!(median.to_bits(), 1.5f64.to_bits());
+        assert!(max.is_nan(), "a positive NaN sorts past +inf");
+        let (min, median, max) = super::level_error_stats(&mut [0.0, -0.0]);
+        assert_eq!(
+            [min, median, max].map(f64::to_bits),
+            [-0.0f64, 0.0, 0.0].map(f64::to_bits)
+        );
+    }
 }

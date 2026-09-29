@@ -63,7 +63,7 @@ impl Scene<'_> {
         }
         let node = json!({
             "name": short(object, "Object"), "mesh": index,
-            "matrix": object::world(object, 0),
+            "matrix": object::world(object),
         });
         self.out.nodes.push(node);
         let rank = self.out.nodes.len() - 1;
@@ -78,7 +78,7 @@ impl Scene<'_> {
     /// The lamp of a lamp-type object: one more node under the root, at the object's matrix.
     /// Blender orients its lamps toward their `-Z`, like glTF: nothing to rotate.
     fn light(&mut self, object: &At<'_>) {
-        let matrix = object::world(object, 0);
+        let matrix = object::world(object);
         let scale = crate::shared_math::uniform_scale(&matrix.map(f64::from));
         let name = short(object, "Light");
         let Some(light) = light::build(object.follow("data"), name.clone(), scale, &mut self.out)
@@ -100,8 +100,11 @@ impl Scene<'_> {
             return Ok(*known);
         }
         let name = short(mesh, "Mesh");
-        let geometry = mesh::read(mesh, &name)?;
-        let normals = normals::corners(&geometry.surface()).normals;
+        let room = self.out.room.saturating_sub(self.out.bin.bytes.len());
+        let geometry = mesh::read(mesh, &name, room)?;
+        let normals = normals::corners(&geometry.surface(), self.cancelled)
+            .ok_or_else(cancel::refusal)?
+            .normals;
         self.out.count("normalsComputed", 1);
         let slots = self.slots(mesh)?;
         let before = self.out.bin.bytes.len();

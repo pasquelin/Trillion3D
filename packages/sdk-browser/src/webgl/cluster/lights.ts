@@ -1,81 +1,78 @@
 import { LTC_UNIT, createLtcTexture } from './rectGlsl.ts';
+import { FLOAT_TEXELS, LIGHT_DATA_UNIT, WebglLightTexture } from './lightTexture.ts';
+import { WebglClusterLightLists } from './lightLists.ts';
+import { REACH_FLOATS } from './lightGrid.ts';
 import { inReferenceOrder } from './lightOrder.ts';
 import { WebglClusterProbe } from './probe.ts';
 import { WebglClusterFog } from './fog.ts';
+import { sceneFogOf, type Fog } from '../../world/core/sceneFog.ts';
 import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts';
-import { isLightNode } from '../../host/graph/kinds.ts';
-import type { GraphLight, GraphRectLight } from '../../host/graph/light.ts';
-
-type MatrixNode = {
-  visible: boolean;
-  parent: MatrixNode | null;
-  matrixWorld: { elements: ArrayLike<number> };
-};
-/** A light that takes a slot of the program: one that aims or reaches, or a rectangle. */
-type DirectLight = GraphLight | GraphRectLight;
+import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
+import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
+import { allocated } from '../core/allocation.ts';
 
 /** The ambient irradiance a frame sums (r, g, b, and whether any ambient light counted), reused. */
 const AMBIENT = new Float64Array(4);
 
 /** A host scene background read by shape: a colour, in linear components, or anything else. */
 export type SceneColour = { isColor?: boolean; r: number; g: number; b: number } | null | undefined;
+/** What a WebGL2 frame reads of the host scene; `lights`, its shown lights in graph order, is the
+ *  list the draw lists keep (`./drawLists.ts`): no frame walks the scene for its lights. */
 export type WebglClusterScene = {
-  traverse(visitor: (entry: MatrixNode) => void): void;
+  lights: readonly Light[];
   /** Host background: a colour clears the transmission backdrop, anything else clears to black. */
   background?: SceneColour | object;
   /** The contract's fog, over every drawn surface; none when absent. */
-  fog?: SceneFog | null;
+  fog?: Fog | null;
 };
 
-const visibleThroughParents = (object: MatrixNode) => {
-  for (let current: MatrixNode | null = object; current; current = current.parent)
-    if (!current.visible) return false;
-  return true;
-};
+/** The kinds that take a slot of this path; a probe adds into the irradiance instead. */
+const DRAWN = new Set(['directional', 'point', 'spot', 'rectArea', 'ambient']);
 
-export const unsupportedClusterLight = (scene: WebglClusterScene) => {
+export const unsupportedClusterLight = (lights: readonly Light[]) => {
   let reason: string | undefined;
-  let count = 0,
-    ambient = 0;
-  scene.traverse((light) => {
+  for (const light of lights) {
     // A probe takes no light slot: its coefficients add into the program's irradiance.
-    if (!isLightNode(light) || light.kind === 'probe' || !visibleThroughParents(light)) return;
-    // The ambient lights share one slot: `upload` sums them into a single irradiance.
-    if (light.kind === 'ambient') ambient = 1;
-    else count++;
+    if (light.kind === 'probe') continue;
+    // A world's sky over a ground reaches this path as the environment's irradiance, a probe.
+    if (!DRAWN.has(light.kind))
+      reason ??= `${light.kind} light is not drawn by the WebGL2 cluster path`;
     if ((light.kind === 'point' || light.kind === 'spot') && light.decay !== 2)
       reason = `${light.kind} light decay ${light.decay} is unsupported; inverse-square decay 2 is required`;
-  });
-  return (
-    reason ??
-    (count + ambient > 64
-      ? `${count + ambient} light slots exceed the 64-light contract`
-      : undefined)
-  );
+  }
+  return reason;
 };
 
+/**
+ * The frame's lights, as many as the scene holds: four vec4 records a slot in a float texture
+ * grown with the count (`./lightTexture.ts`), and each slot's reach in the light grid (`./lightLists.ts`).
+ */
 export class WebglClusterLights {
-  private data = new Float32Array(4 * 4 * 64);
+  private records: WebglLightTexture<Float32Array>;
+  /** The lights each fragment reaches, a grid listed again when a lamp's reach changes. */
+  readonly lists: WebglClusterLightLists;
   /** The direct lights of the frame, in the graph's order; reused from frame to frame. */
-  private lights: DirectLight[] = [];
-  private buffer: WebGLBuffer;
+  private lights: Light[] = [];
   private ltc: WebGLTexture;
   private probe: WebglClusterProbe;
   private fog: WebglClusterFog;
+  /** The scene's fog last read, and the lighting's form of it: read again when it is replaced. */
+  private heldFog: Fog | null | undefined = null;
+  private readFog: SceneFog | undefined;
   private gl: WebGL2RenderingContext;
   constructor(gl: WebGL2RenderingContext, program: WebGLProgram) {
     this.gl = gl;
-    this.buffer = gl.createBuffer()!;
-    gl.bindBuffer(gl.UNIFORM_BUFFER, this.buffer);
-    gl.bufferData(gl.UNIFORM_BUFFER, this.data.byteLength, gl.DYNAMIC_DRAW);
-    gl.uniformBlockBinding(program, gl.getUniformBlockIndex(program, 'ClusterLights'), 0);
+    this.records = new WebglLightTexture(gl, LIGHT_DATA_UNIT, FLOAT_TEXELS, Float32Array);
+    this.lists = new WebglClusterLightLists(gl, program);
     this.ltc = createLtcTexture(gl);
     this.probe = new WebglClusterProbe(gl, program);
     this.fog = new WebglClusterFog(gl, program);
+    allocated(gl, 'target'); // its one-time maps (LTC, probe, fog): a refusal is marked once read
   }
+  /** Writes the frame's lights, then the grid of the lights each fragment reaches. */
   upload(scene: WebglClusterScene, view: ArrayLike<number>) {
     let count = 0;
-    const data = this.data;
+    const lists = this.lists;
     // Everything is written in place: nothing is allocated per light.
     const write = (at: number, x: number, y: number, z: number, w: number) => {
       data[at] = x;
@@ -94,29 +91,34 @@ export class WebglClusterLights {
       );
     /** Column `c` of a world matrix, unit, carried into view space and scaled by `s`. */
     const axis = (at: number, m: ArrayLike<number>, c: number, s: number, w: number) =>
-      toView(at, m[c], m[c + 1], m[c + 2], s / (Math.hypot(m[c], m[c + 1], m[c + 2]) || 1), w);
+      toView(at, m[c], m[c + 1], m[c + 2], s / (hypot3(m[c], m[c + 1], m[c + 2]) || 1), w);
     this.probe.reset();
     const lights = this.lights;
     lights.length = 0;
     const ambient = AMBIENT.fill(0);
-    scene.traverse((light) => {
-      if (!isLightNode(light) || !visibleThroughParents(light)) return;
-      if (light.kind === 'probe') return this.probe.add(light);
-      if (light.kind !== 'ambient') return void lights.push(light);
-      ambient[0] += light.color.r * light.intensity;
-      ambient[1] += light.color.g * light.intensity;
-      ambient[2] += light.color.b * light.intensity;
-      ambient[3] = 1;
-    });
+    for (const light of scene.lights) {
+      if (light.kind === 'probe') this.probe.add(light);
+      else if (light.kind !== 'ambient') lights.push(light);
+      else {
+        ambient[0] += light.color.r * light.intensity;
+        ambient[1] += light.color.g * light.intensity;
+        ambient[2] += light.color.b * light.intensity;
+        ambient[3] = 1;
+      }
+    }
+    // A slot a light, the ambient lights one more: the texture and the reach grow to hold them.
+    this.records.reserve((lights.length + 1) * 4);
+    lists.reserve(lights.length + 1);
+    const data = this.records.data;
     // The reference's order: the points, the spots, the suns, the rectangles, the shadow casters
     // first within a kind; the ambient lights are one irradiance, summed here.
     inReferenceOrder(lights, writeLight);
     if (ambient[3]) {
+      lists.reach.fill(0, count * REACH_FLOATS, (count + 1) * REACH_FLOATS);
       write(count * 16 + 4, 0, 0, -1, 3);
       write(count++ * 16 + 8, ambient[0], ambient[1], ambient[2], 1);
     }
-    function writeLight(light: DirectLight, kind: number) {
-      const lamp = light.kind === 'rect' ? undefined : light;
+    function writeLight(light: Light, kind: number) {
       let range = 0,
         inner = 1,
         outer = 1;
@@ -127,15 +129,15 @@ export class WebglClusterLights {
       let dx = 0,
         dy = 0,
         dz = 0;
-      if (kind !== 0) range = light.distance ?? 0;
+      if (kind !== 0) range = light.distance;
       if (kind === 2) {
-        outer = Math.cos(lamp!.angle ?? 0);
-        inner = Math.cos((lamp!.angle ?? 0) * (1 - (lamp!.penumbra ?? 0)));
+        outer = Math.cos(light.angle);
+        inner = Math.cos(light.angle * (1 - light.penumbra));
       }
       if (kind === 0 || kind === 2) {
         // Toward the light, in view space, unit: the reference's direction, normalised once here
         // and read as is by the program.
-        const target = lamp!.target!.matrixWorld.elements;
+        const target = light.target.matrixWorld.elements;
         const x = px - target[12],
           y = py - target[13],
           z = pz - target[14];
@@ -147,6 +149,15 @@ export class WebglClusterLights {
         dy /= length;
         dz /= length;
       }
+      // The world centre and range the light grid tests; a sun, or a lamp of no range, reaches all
+      // and has no centre there: moving it never lists the grid again.
+      const reach = lists.reach,
+        at = count * REACH_FLOATS,
+        placed = range > 0 && range < Infinity;
+      reach[at] = placed ? px : 0;
+      reach[at + 1] = placed ? py : 0;
+      reach[at + 2] = placed ? pz : 0;
+      reach[at + 3] = range > 0 ? range : 0;
       const base = count++ * 16;
       write(
         base,
@@ -155,7 +166,7 @@ export class WebglClusterLights {
         view[2] * px + view[6] * py + view[10] * pz + view[14],
         range,
       );
-      if (light.kind === 'rect') {
+      if (light.kind === 'rectArea') {
         write(base + 8, light.color.r, light.color.g, light.color.b, light.intensity);
         // It emits down its local -z; its width runs along its local x.
         axis(base + 4, matrix, 8, -1, kind);
@@ -166,21 +177,23 @@ export class WebglClusterLights {
       const i = light.intensity;
       write(base + 8, light.color.r * i, light.color.g * i, light.color.b * i, 1);
       write(base + 4, dx, dy, dz, kind);
-      write(base + 12, inner, outer, lamp!.decay ?? 2, 0);
+      write(base + 12, inner, outer, light.decay, 0);
     }
     this.probe.upload(view);
-    this.fog.upload(scene.fog, view);
+    if (scene.fog !== this.heldFog) this.readFog = sceneFogOf((this.heldFog = scene.fog) ?? null);
+    this.fog.upload(this.readFog, view);
     const gl = this.gl;
-    // The host's texture units are unknown at frame start: the lobe is bound again every frame.
+    this.records.upload(count * 4);
+    lists.build(count, view);
+    // The host's texture units are unknown at frame start: the lobe is bound again every frame,
+    // last, so the active unit stays the one it always was.
     gl.activeTexture(gl.TEXTURE0 + LTC_UNIT);
     gl.bindTexture(gl.TEXTURE_2D, this.ltc);
-    gl.bindBuffer(gl.UNIFORM_BUFFER, this.buffer);
-    if (count > 0) gl.bufferSubData(gl.UNIFORM_BUFFER, 0, data, 0, count * 16);
-    gl.bindBufferBase(gl.UNIFORM_BUFFER, 0, this.buffer);
     return count;
   }
   dispose() {
-    this.gl.deleteBuffer(this.buffer);
+    this.records.dispose();
+    this.lists.dispose();
     this.gl.deleteTexture(this.ltc);
   }
 }

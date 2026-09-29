@@ -28,9 +28,10 @@ export interface MeasuredWorldOptions {
   renderer?: 'webgpu' | 'webgl2';
   /** Called before every frame the interactive session draws: the host writes its scene then. */
   beforeFrame?: () => void;
-  /** Asked once the camera's reach outgrew the rows a partitioned scene sized when the session
-   *  opened: the owner opens the session again, sized for that reach. */
-  onRowsOutgrown?: () => void;
+  /** Asked once a partitioned scene's view outgrew what the open session can take in place — rows
+   *  its engine cannot grow, or a mesh the view read it cannot mount —: the owner opens the session
+   *  again, sized for that view, on the manifest the view holds by then. */
+  onPartitionOutgrown?: () => void;
   /** False: the interactive session installs no camera controller of its own. */
   ownControls?: boolean;
   /** Called after every frame the session draws, with that frame's metrics. */
@@ -91,11 +92,12 @@ export interface MeasuredWorldOptions {
    *  Set during the session by `explorer.setMemoryBudgets`. */
   geometryPoolBytes?: number;
   /** Largest geometry pool `explorer.setMemoryBudgets` may ask for during the session —
-   *  the maximum of a settings slider. The starting budget without it. */
+   *  the maximum of a settings slider. The starting budget without it. The WebGPU engine sizes
+   *  its drawable-page tables to it at the start and grows them in place past it. */
   geometryPoolCeilingBytes?: number;
   /** Virtual-texture pool bytes of the WebGPU engine — texture memory, regardless of the
    *  scene. 512 MiB by default, split equally between the colour atlas and the data atlas,
-   *  in 63.5 MiB layers; under one layer per atlas the pool is raised to one, by name. What
+   *  in 64 MiB layers; under one layer per atlas the pool is raised to one, by name. What
    *  a view asks beyond that waits for a less-looked-at tile to free, and a missing tile
    *  shows its coarse level: the `textureTiles*` metrics publish it. Set during the session
    *  by `explorer.setMemoryBudgets`. */
@@ -113,11 +115,18 @@ export interface MeasuredWorldOptions {
    *  ones, reprojected. `false` renders the image sampled at the pixel centre, with no
    *  history — that is the "before" of a comparison, and what pixel-for-pixel benches ask. */
   temporalAntialiasing?: boolean;
+  /** The frame's render scale (`../../frame/renderScaleOption.ts`): the fraction of the display
+   *  per axis it is drawn at, reconstructed to it by temporal antialiasing — resampled on WebGL2 —,
+   *  fixed or `'auto'`, chosen by the frame budget. 1 by default: the frame is drawn at the display. */
+  renderScale?: import('../../frame/renderScaleOption.ts').RenderScale;
   /** The world's effect chain, drawn after temporal antialiasing (`world.effects`). */
   effects?: import('../../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   /** Hears the mode of a surface that keeps WebGL2 from drawing `effects` on a frame, drawn
    *  whole without the chain (`ComposedChain.refused`). */
   effectsRefused?: import('../render/compose.ts').ComposedChain['refused'];
+  /** Hears the ids of the lights that ask for a shadow WebGL2 draws not, at each change of them
+   *  (`noticeShadowRefusal`). */
+  shadowsRefused?: import('../../lighting/contractLights.ts').ContractShadows;
   /** Whether the prepared scene reads the source images. `'cache'`, the default: an image whose
    *  mip chain the cache carries is neither fetched nor decoded — the engine reads the baked
    *  levels, which it does whatever this option says. `'host'`: the scene reads and decodes
@@ -143,6 +152,8 @@ export interface MeasuredWorldOptions {
   bounceBudgetMs?: number;
   /** Time every step of the frame and publish `explorer.stageProfile()`. Off by default. */
   stageProfile?: boolean;
+  /** Opt-in same-session GPU feedback-target A/B diagnostic; never enabled by production. */
+  feedbackTargetAB?: boolean;
   /** A GPU DIAGNOSTIC variant (`../../diagnostic/gpuVariant.ts`): it neutralises a factor of the
    *  frame to split its duration, and therefore renders an image different from production.
    *  Absent by default; refused outside `diagnosticDetail: 'trace'`. */

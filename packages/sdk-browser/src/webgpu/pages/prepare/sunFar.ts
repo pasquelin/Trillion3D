@@ -3,6 +3,7 @@ import {
   LIGHT_SETTINGS,
   type SceneProxy,
 } from '../../../../../sdk-core/src/index.ts';
+import { syncPageProxy } from './proxyMotion.ts';
 import { createGpuBounceProxy } from '../../../bounce/proxy.ts';
 import { createGpuSunFarShadow } from '../../../gpu/shadow/sunFarShadow.ts';
 import { grantCapability } from '../io/drops.ts';
@@ -53,12 +54,21 @@ export function ensureSunFarShadow(rt: WebgpuPagesRuntime, device: GPUDevice) {
   sunFar.pending = context
     .readSceneProxy()
     .then((proxy: SceneProxy) => {
-      sunFar.gpu?.adopt(createGpuBounceProxy(device, proxy), true);
+      if (rt.gpu.device !== device) return;
+      const resident = createGpuBounceProxy(device, proxy);
+      try {
+        syncPageProxy(rt, resident, true);
+      } catch (error) {
+        resident.dispose();
+        throw error;
+      }
+      sunFar.gpu?.adopt(resident, true);
       grantCapability(rt.capabilities, SUN_FAR_CAPABILITY);
       rt.run.gate.resourcesChanged();
       publish(rt);
     })
     .catch((error: unknown) => {
+      if (rt.gpu.device !== device) return;
       sunFar.reason = `far shadow unavailable: resident proxy unreadable (${String(error)})`;
       rt.diag.diagnosticFailure('sun-far-shadow-unavailable', error);
       publish(rt);
@@ -98,9 +108,9 @@ export function sunFarState(rt: WebgpuPagesRuntime) {
     counts = gpu?.counts();
   return {
     proxyTriangles: gpu?.proxy?.triangleCount ?? null,
-    pixelsTestes: counts?.tested ?? null,
-    pixelsAssombris: counts?.blocked ?? null,
-    imageRelevee: counts?.frame ?? null,
+    pixelsTested: counts?.tested ?? null,
+    pixelsShadowed: counts?.blocked ?? null,
+    sampledFrame: counts?.frame ?? null,
     unavailable: reason,
   };
 }
@@ -110,9 +120,9 @@ export function sunFarState(rt: WebgpuPagesRuntime) {
  * deposited at all, there is no deduced zero.
  */
 export function sunFarCounts(rt: WebgpuPagesRuntime) {
-  const { proxyTriangles, pixelsTestes, pixelsAssombris, imageRelevee } = sunFarState(rt);
-  const releves = { trianglesDuProxy: proxyTriangles, pixelsTestes, pixelsAssombris, imageRelevee };
+  const { proxyTriangles, pixelsTested, pixelsShadowed, sampledFrame } = sunFarState(rt);
+  const sampled = { proxyTriangles, pixelsTested, pixelsShadowed, sampledFrame };
   const counts: Record<string, number> = {};
-  for (const [name, value] of Object.entries(releves)) if (value !== null) counts[name] = value;
+  for (const [name, value] of Object.entries(sampled)) if (value !== null) counts[name] = value;
   return counts;
 }

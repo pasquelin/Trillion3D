@@ -1,134 +1,51 @@
 # Trillion3D — agent rules
 
-The engineering rules are [CONTRIBUTING.md](CONTRIBUTING.md): mission, measurement, image,
-quality, boundaries, compiler, workflow. Read the sections your task touches; they bind every
-agent. This file adds only what concerns agents: who does what, how sessions share the machine
-and the backlog, and the hard rules below. Where the two disagree, CONTRIBUTING.md wins and the
-disagreement is reported to the maintainer.
+Engineering rules: [CONTRIBUTING.md](CONTRIBUTING.md), which wins over this file; read only the
+sections your change touches. Your role is the skill or agent file you were started with.
+
+## Who starts whom
+
+```
+boss ─> CTO = one dev team (/t3d-cto, as many teams as the boss opens)
+         └─> lead (agent) ─┬─> coder (agent)
+                           └─> reviewer (agent) ─> review agents of simplify and code-review
+boss ─> recette (/loop 2h /t3d-recette, its own session): timing and image proof of develop
+```
+
+Teams, each its own session, meet only on GitHub: any number of **dev** teams (a CTO and its leads)
+and one **recette**, which times and proves each batch. Any assistant may run a dev team (Claude,
+ChatGPT, …): it claims the next free issue, codes it on a branch, reviews it and opens the pull
+request. With subagents it delegates as above; without, it does the lead, coder and reviewer steps
+itself, in that order.
+
+Only a CTO launches in the background; every other agent launches its children in the foreground and
+waits for them. Nothing goes deeper. Never the Fable model. Only the CTOs and the recette speak
+to the boss, in short, simple French; everything in the repository is English.
 
 ## Hard rules
 
-1. **No image loss.** An optimisation that degrades the image is refused, even declared. Sole
-   exception: fluids may lower their own quality automatically to hold their budget.
-2. **The coder proves the image, the measurer alone times.** A lead's coder runs its branch's
-   image and correctness browser proofs (0 px, no error, pages drawn) in its own headless Chrome
-   on its own port; several may run at once, none while an issue is labelled `measuring`. Timing (frame cost, p50/p95/p99, `test:gpu` timings,
-   `perf:*`, the bench) is the measurer's alone, on a quiet machine. Every other role runs the fast
-   gates only.
-3. **Never `pkill`, `killall` or a pattern kill.** Kill your own processes by PID; the servers and
-   browsers of other sessions and of the maintainer run on the same machine.
-4. **One branch, one worktree, one session.** Never commit on `develop` or `main` (`main` moves
-   only on the boss's word), never write in the shared checkout, never touch another session's
-   worktree. Every worktree lives in `.worktrees/<branch>/` of the checkout the session runs in,
-   every log or throwaway file in `.worktrees/logs/`; nothing is written beside the project or in
-   the system's temporary folders.
-5. **Only the CTO opens issues**, with the writer role, when the boss asks for one or in an
-   extreme case (a 🔴 critical defect no issue covers; a closed issue that covers it is reopened
-   instead), and tells the boss. Existing issues come first: a new need is a To-do item or a
-   comment on an open issue. Over any seven days the CTO opens and reopens fewer issues than are
-   closed as completed; a boss's request or an extreme case overrides that balance. No other agent
-   opens an issue, not even to split one. **One pull request, one issue**: the CTO orders a too-big issue's To-do as steps; each step's pull request delivers its step's items, says `Part of #n` and ticks it, the last says `Closes #n`. A regression
-   reopens the measured issue with `measure ko`, a finding the audited one with `audit ko`; a
-   defect found on the way is one line in your report to the CTO.
-6. **Search before writing.** Reuse what exists; a second BVH, a second distance or a control
-   rebuilt by hand next to the engine's API is a defect. Examples and previews use the public API.
-7. **The witness library stays a witness**: named only in bench, measurement and migration
-   sections, never beside the engine. Every maintained source, script, test and page is TypeScript.
-8. **Commits carry no trailer, no co-author, no tool name, no forced identity.** Branch
-   `<issue>-<short-name>`, never `claude/…`.
-9. **Bounded agents.** Every brief that allows subagents states their maximum and forbids them
-   to spawn their own. A brief bounds what the agent reads; a finished agent is stopped. A coder's run ends when its pull request is `OK`: on a `KO` the lead resumes the
-   same coder with `SendMessage`. The depth is fixed: a lead session → one coder or reviewer → the review agents of the real `simplify` and `code-review` skills (at most 4), which launch none; the CTO runs those two skills itself on its rules pull request. The architect, measurer,
-   acceptance and analyst agents launch none.
-10. **Measurement outputs are deleted once published** (`.mesure/out/<issue>/`): the numbers live
-    in the issue or the pull request, never on disk.
-11. **A pull request is opened finished.** The coder and the reviewer work on the pushed branch, with no pull request; the lead opens the pull request (never a draft) only after the reviewer's `OK`, a passing image proof and its Lead verification, so it waits only for CI and the CTO's merge: minutes, never hours. Only a performance issue (its goal is a timing) is also timed on its branch first. **Small, short-lived pull requests.** One issue per pull request, about 500 hand-written lines at most (generated files excluded); an issue that needs more is delivered in steps (rule 5). A lead brings its conflicting PR up to date at every pick, never lets two of its PRs wait
-    on the same files, and keeps it open one hour at most: that is the limit, not a trigger. The
-    CTO merges pull requests oldest first: a younger ready PR waits until every older ready one is merged; a red one holds nobody. No pull request is closed unmerged.
+1. **No image loss**, even declared. Sole exception: fluids lower their own quality to hold budget.
+2. **Chrome** proofs, timings and the bench are the recette session's alone, by batch on `develop`
+   after the merges; they never block a merge. A coder may open one headless Chrome to diagnose a
+   bug, never as a proof.
+3. **Never `pkill`, `killall` or a pattern kill.** Kill your own processes by PID.
+4. **One branch, one worktree.** Never commit on `develop` or `main`. Worktrees in
+   `.worktrees/<branch>/`, logs in `.worktrees/logs/`, nothing elsewhere; run git with
+   `git -C <worktree>`.
+5. **Issues:** only a CTO or the recette opens one (on `.github/ISSUE_TEMPLATE/task.md`,
+   `/t3d-writer` does it), when the boss asks or for a defect no issue covers. One issue, one pull
+   request (`Closes #n`). A claimed issue (`in progress`, an assignee) is never taken by another
+   team, until a CTO frees it as abandoned (one hour without a commit, comment or pull request).
+6. **The whole issue, always.** Every To-do and Proof item is delivered in its pull request; none
+   is left for later, moved to another issue or marked done in part without the boss's yes. One
+   item missing is a `KO`.
+7. **Reuse what exists.** A second BVH, distance or control beside the engine's API is a defect.
+8. **The witness library stays a witness** (bench and measurement only). Everything is TypeScript.
+9. **Commits:** no trailer, no co-author, no tool name, no forced identity. Branch
+   `<issue>-<short-name>`.
+10. **Measurement outputs** (`.mesure/out/<issue>/`) are deleted once their numbers are posted.
+11. **Pull requests:** opened reviewed, auto-merge on, assigned to `pasquelin`, open one hour at
+    most (a release pull request excepted), never closed unmerged. No issue closed as not planned without the boss's yes.
 
-## Roles
-
-A company. The **boss** (the maintainer) opens the CTO's session (`/t3d-cto`), talks only to it,
-tests the result and sets priorities. At its start the CTO gives the boss **one prompt per session
-to open** (a lead per domain with work, the architect, measurer, acceptance and analyst when they
-have work); the boss opens each of them. Every role runs in its own session and reports to the CTO
-by `SendMessage`; a lead runs its `coder` and `reviewer` as foreground subagents. Each role is
-`docs/roles/<role>.md`, and its skill in `skills/` is the session's brief; "Prompt by" names who
-writes that brief.
-
-| Role       | Prompt by | Does                                                                                                                                                               | Never                                                        |
-| ---------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| CTO        | boss      | sets the priority labels from the boss's words, starts and supervises the agents, decides technique, opens issues, orders a big issue's steps, reports to the boss | writes code, measures                                        |
-| lead       | CTO       | owns one domain, runs its coder and reviewer, verifies, names ready, closes                                                                                        | writes code, measures                                        |
-| coder      | lead      | implements one issue or one of its steps on its branch, runs its image proofs, pushes it                                                                           | merges, times                                                |
-| reviewer   | lead      | the real `simplify` and `code-review` skills, then the acceptance list                                                                                             | merges, measures                                             |
-| architect  | CTO       | rounds through compiler, engine, site, scripts; writes each duplicate, bloat or tangle as a To-do on the owning domain's issue                                     | codes, owns a pull request, measures                         |
-| analyst    | CTO       | studies how the company works; reports bottlenecks and ranked proposals to the CTO                                                                                 | changes anything; what could lose quality waits for the boss |
-| measurer   | CTO       | timing and budgets in batches after merge, a performance issue's branch timing, example captures and thumbnails                                                    | edits code, merges                                           |
-| acceptance | CTO       | re-reads every merge and judges the example captures; a safety net                                                                                                 | edits code, merges, measures                                 |
-| writer     | CTO       | writes one issue on the template, when rule 5 allows one                                                                                                           | codes, measures                                              |
-
-Domains: geometry, lighting, compiler, physics, sdk, textures. A script or test belongs to the
-domain whose code it checks; `site/`, the examples and anything else but the company's rules to sdk.
-Issues belong to the leads, and only coders, launched by a lead, write code. The architect,
-acceptance, measurer and analyst never code and own no pull request: they add a To-do item to an
-open issue, reopen one (`audit ko`, `measure ko`) or report to the CTO. Sole exception: the
-measurer's thumbnail pull request (captured images, no code). The company's rules (AGENTS.md,
-CONTRIBUTING.md, `docs/roles/`, `docs/COMPANY.md`, `skills/`) are the CTO's: it writes their pull
-request and starts its reviewer. Agents cannot merge from this app: the CTO merges into `develop`
-each pull request a lead names ready (green CI, reviewer `OK`, Lead verification written). A bug
-goes to its domain's lead; there is no bug domain. There is one CTO session, one measurer and one
-acceptance agent. Every agent reports to the CTO; only the CTO speaks to the boss. The CTO watches
-the plan usage: 5 points below the threshold (80 % unless the boss sets another) no lead starts a
-coder on an issue one run cannot finish; at the threshold it winds the company down (current agents finish, nothing new starts) so
-no work is cut midway.
-
-## Leads: limits that hold at every moment
-
-- **Never idle.** A lead with work in its domain (an open issue, a pull request to unblock) is
-  always working on it: a `measure ko` first, then strict priority order: 🔴, 🟠, 🟡, 🟢, an issue
-  with no priority label last. Within a label, `audit ko` first, then a programme's children in
-  its order, then engine performance and optimisation before examples, the others oldest first.
-- **One agent working at a time.** A lead runs one coder or one reviewer subagent at a time,
-  never two; a coder waiting on its review is not working.
-- **One open pull request per lead.** While one of its pull requests is open, a lead starts no new coder: it unblocks that one first (red CI, conflict with `develop`,
-  unanswered review). A ready pull request waits only on the CTO's merge; `docs/roles/lead.md`
-  step 1 says when it still holds back a new coder.
-- **Programmes.** A parent issue that states rules and an order (such as #483) binds every lead
-  working on its children: the order is kept, and each merge passes its checklist. Each step is a child issue of the parent, closed by its own pull request.
-
-## Labels: the only channel between sessions
-
-| Label                    | Set by     | Means                                                     |
-| ------------------------ | ---------- | --------------------------------------------------------- |
-| `🔴 critical` … `🟢 low` | CTO        | the only priority of the leads' issues (order: §Leads)    |
-| `in progress`            | lead       | taken, assigned to the boss: no other lead touches it     |
-| `in review`              | lead       | branch pushed, reviewer at work                           |
-| `to measure`             | lead       | closed engine issue waiting in the measurer's queue       |
-| `measuring`              | measurer   | being measured now                                        |
-| `measure ok`             | measurer   | measured, no regression; numbers in a comment             |
-| `measure ko`             | measurer   | on the measured issue, reopened: the regression's numbers |
-| `audited`                | acceptance | on the pull request: the merge was re-read                |
-| `audit ko`               | acceptance | on the audited issue, reopened: the findings in a comment |
-
-Timing (a performance issue excepted, rule 11) and auditing never block a pull request: the lead closes the issue right after the merge (`Closes #n` does not close it from `develop`), the measurer and
-acceptance only comment on it. A regression or an audit finding **reopens** the original issue with
-`measure ko` or `audit ko`; neither opens a new one, and the comment's first word is its cause:
-promise, tests, paperwork or design. A lead takes them first (§Leads).
-
-## Interaction
-
-- The CTO's replies to the boss are in simple, short French: outcome first, 1–5 lines, no jargon,
-  one question at a time. Every agent addresses the CTO. Everything written in the repository
-  is in English.
-- No pollution: a merged branch loses its worktree and its local and remote branch
-  at once, and every agent cleans its own before it stops.
-- A session with no role explains and waits: no code before the maintainer asks for it.
-- Read this file, then only the task's issue and the files it names.
-
-## Knowledge graph
-
-Where a local knowledge graph exists (`graphify-out/`, off git), it is the map for cross-module
-questions: read `graphify-out/GRAPH_REPORT.md` first, then `graphify query|path|explain` rather than a wide grep.
-The post-commit hook rebuilds it from the code; docs changes are refreshed only by
-`/graphify --update`, which costs tokens.
+Clean your worktrees and branches before you stop. A session with no role waits. Where
+`graphify-out/` exists, use `graphify query` before a wide grep.

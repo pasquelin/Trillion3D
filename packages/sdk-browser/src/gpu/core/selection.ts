@@ -9,7 +9,7 @@ import { FRUSTUM_PLANE_VALUES, maxStretch } from '../../../../sdk-core/src/index
 import { sameElements } from '../../math/matrixElements.ts';
 import { pixelScaleOf } from '../../streaming/priority.ts';
 import type { CameraMotion, EngineCamera } from '../../camera/world.ts';
-import { aheadViewOf, copyAheadView, sameAheadView, type AheadView } from './aheadView.ts';
+import { aheadViewOf, copyAheadView, holdAheadView, type AheadView } from './aheadView.ts';
 
 const NONE = 0xffffffff,
   WORKGROUP = 64;
@@ -79,8 +79,9 @@ export type GpuSelection = {
   /** Bytes of its host tables, sized by the resident pages: the CPU budget holds them. */
   readonly hostBytes: number;
   readonly worldRevision: number;
-  /** Advances `worldRevision` unless `posesMoved` is false: only the render origin moved. */
-  updateWorlds(worldMatrices: Float32Array, posesMoved?: boolean): boolean;
+  /** Advances `worldRevision` unless `posesMoved` is false: only the render origin moved.
+   *  `translationsOnly`: only translations changed since the last call, so no stretch did. */
+  updateWorlds(worlds: Float32Array, posesMoved?: boolean, translationsOnly?: boolean): boolean;
   /** Parks placement `world` — its root enters no descent queue — or takes it back. */
   parkWorld(world: number, parked: boolean): void;
   /** Writes placement `world`'s root mark (`ClusterRoot.mark`): whether a light cut opens it. */
@@ -116,6 +117,8 @@ export function createSelectionUniforms(): SelectionUniforms {
   };
 }
 
+/** Same threshold, projection and pose. The view ahead changes no page drawn nor visible request:
+ *  uncompared, the last readback of a move is the stopped camera's cut, adopted with no other. */
 export function sameSelectionUniforms(a: SelectionUniforms, b: SelectionUniforms) {
   if (
     a.pixelError !== b.pixelError ||
@@ -131,7 +134,7 @@ export function sameSelectionUniforms(a: SelectionUniforms, b: SelectionUniforms
     a.cameraWorld[2] !== b.cameraWorld[2]
   )
     return false;
-  if (!sameElements(a.view, b.view) || !sameAheadView(a.ahead, b.ahead)) return false;
+  if (!sameElements(a.view, b.view)) return false;
   for (let i = 0; i < 24; i++) if (a.planes[i] !== b.planes[i]) return false;
   return true;
 }
@@ -170,9 +173,8 @@ export function cameraSelectionUniforms(
     viewport,
     into?.pixelScale ?? ([1, 1] as [number, number]),
   );
-  const position = cam.eye;
   const cameraWorld: [number, number, number] = into?.cameraWorld ?? [0, 0, 0];
-  for (let axis = 0; axis < 3; axis++) cameraWorld[axis] = position[axis];
+  for (let axis = 0; axis < 3; axis++) cameraWorld[axis] = cam.eye[axis];
   // Times each primitive's own stretch, as `selectVisiblePages`; the render frame keeps its bits.
   const cameraStretch = maxStretch(cam.viewRelative);
   if (into) {
@@ -181,7 +183,7 @@ export function cameraSelectionUniforms(
     into.cameraWorld = cameraWorld;
     into.cameraStretch = cameraStretch;
     into.perspective = cam.perspective;
-    into.ahead = motion ? aheadViewOf(cam, motion, into.ahead) : null;
+    holdAheadView(into, cam, motion);
     return into;
   }
   return {

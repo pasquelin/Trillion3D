@@ -65,13 +65,13 @@ export function createTransparentTable(
   packedPages: readonly PageRec[],
   items: readonly BlendGpuItem[],
 ) {
-  /** Where each root's pages start in the catalogue, and how the cut walks them, by the world its
-   *  pages read: a paged item and the root of its placement read the same one. */
+  /** Where each root's pages start in the catalogue, and how the cut walks them, by the world of
+   *  their root: a paged item and the root of its placement read the same one. */
   const rootOfPlacement = new Map<object, { base: number; root: ClusterRoot<PageRec> }>();
   let base = 0;
   for (const root of roots) {
     const first = root.pages[0];
-    if (first?.transparent) rootOfPlacement.set(first.matrix, { base, root });
+    if (first?.transparent) rootOfPlacement.set(root.world, { base, root });
     base += root.pages.length;
   }
   const paged = items.filter((item) => item.paged);
@@ -100,6 +100,8 @@ export function createTransparentTable(
   const spans = new Uint32Array(capacity * 2);
   const pageOfEntry = new Int32Array(capacity).fill(-1);
   const entryOfPage = new Int32Array(Math.max(1, packedPages.length)).fill(-1);
+  /** The paged item whose range holds each entry, -1 for padding: a CPU cut files a page by it. */
+  const itemOfEntry = new Int32Array(capacity).fill(-1);
   const itemRanges = new Uint32Array(Math.max(1, paged.length) * 2);
   let at = 0;
   for (let item = 0; item < paged.length; item++) {
@@ -113,6 +115,7 @@ export function createTransparentTable(
       entries[entry] = pageIndex;
       pageOfEntry[entry] = pageIndex;
       entryOfPage[pageIndex] = entry;
+      itemOfEntry[entry] = item;
       if (words > maxVertexWords) maxVertexWords = words;
     }
     at += Math.ceil(order.length / TRANSPARENT_GROUP) * TRANSPARENT_GROUP;
@@ -122,6 +125,7 @@ export function createTransparentTable(
     spans,
     pageOfEntry,
     entryOfPage,
+    itemOfEntry,
     itemRanges,
     /** Items the table describes, in the order the transparent pass draws them. */
     pagedItems: paged,

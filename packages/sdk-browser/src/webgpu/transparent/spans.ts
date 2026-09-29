@@ -1,15 +1,16 @@
 import type { WebgpuPagesCore } from '../pages/runtime.ts';
+import { rowIndexCount } from '../row/pageRow.ts';
 
 /** The residency mirror reports only offsets that changed, including eviction and slot reuse. */
 export function updateTransparentSpan(rt: WebgpuPagesCore, page: number, offset: number) {
   const { table, dirtySpans } = rt.blendState;
   if (!table) return;
-  const entry = table.entryOfPage[page];
+  // A page past the table joined in place (`../../placement/webgpuGrowth.ts`): never a blended one.
+  const entry = table.entryOfPage[page] ?? -1;
   if (entry < 0) return;
-  const rec = rt.layout.packedPages[page],
-    resident = offset >= 0 && !!rec.array,
-    start = resident ? offset : 0,
-    count = resident ? rec.triangles * 3 : 0;
+  // The corners its geometry page declares, or those of the index page it still draws from.
+  const count = offset >= 0 ? rowIndexCount(rt.layout.packedPages[page]) : 0,
+    start = count ? offset : 0;
   if (table.spans[entry * 2] === start && table.spans[entry * 2 + 1] === count) return;
   table.spans[entry * 2] = start;
   table.spans[entry * 2 + 1] = count;

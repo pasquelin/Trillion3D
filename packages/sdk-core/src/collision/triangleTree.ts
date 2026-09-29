@@ -1,14 +1,13 @@
+import { buildCentreTree, centreTreeNodes } from '../math/centreTree.ts';
+
 /**
  * A STATIC TRIANGLE TREE: a bounding-volume hierarchy over triangles, built once and asked for
  * every triangle whose box meets a query box — the broad phase of a capsule — or for the nearest
  * one a ray crosses (`triangleQuery.ts`).
  *
- * BUILD. Top-down: a node's triangles are split near the median of their centres along the
- * longest axis of the centres' box — the left side rounded up to whole leaves — until a node
- * holds at most `LEAF_TRIANGLES`. The split keeps the tree balanced whatever the triangles, so
- * its depth is about `log2(T / LEAF)` and a query's stack is a fixed array. The median is
- * selected in linear time (a partition, not a sort), so the build is `O(T log T)`. Triangles are
- * then copied in leaf order: a leaf reads a contiguous run, no index list survives.
+ * BUILD. The shared median split over the triangles' centres (`../math/centreTree.ts`): a
+ * balanced tree, so a query's stack is a fixed array. Triangles are then copied in leaf order: a
+ * leaf reads a contiguous run, no index list survives.
  *
  * MEMORY. Exactly `36 T` bytes of triangles (nine float32) plus `32` bytes per node (six
  * float32 bounds, two int32 links), exactly `2 ceil(T / LEAF) - 1` nodes: about 52 bytes per
@@ -41,8 +40,7 @@ export interface TriangleTree {
  *  `ranks`, when given, receives the rank in `source` of each triangle of the tree, in order. */
 export function buildTriangleTree(source: ArrayLike<number>, ranks?: Uint32Array): TriangleTree {
   const count = Math.floor(source.length / 9);
-  const leaves = Math.max(1, Math.ceil(count / LEAF_TRIANGLES)),
-    capacity = 2 * leaves - 1;
+  const capacity = centreTreeNodes(count, LEAF_TRIANGLES);
   const bounds = new Float32Array(capacity * 6),
     links = new Int32Array(capacity),
     counts = new Int32Array(capacity),
@@ -53,24 +51,9 @@ export function buildTriangleTree(source: ArrayLike<number>, ranks?: Uint32Array
     for (let k = 0; k < 3; k++)
       centres[3 * t + k] = (source[9 * t + k] + source[9 * t + 3 + k] + source[9 * t + 6 + k]) / 3;
   }
-  let nodes = 0;
-  const build = (start: number, end: number): number => {
-    const node = nodes++;
-    boxOf(bounds, node, source, order, start, end);
-    if (end - start <= LEAF_TRIANGLES) {
-      links[node] = start;
-      counts[node] = end - start;
-      return node;
-    }
-    // The left half takes a whole number of full leaves: every leaf but the last is full.
-    const axis = longestAxis(centres, order, start, end),
-      middle = start + LEAF_TRIANGLES * Math.ceil((end - start) / (2 * LEAF_TRIANGLES));
-    selectMedian(order, centres, axis, start, end, middle);
-    build(start, middle);
-    links[node] = build(middle, end);
-    return node;
-  };
-  build(0, count);
+  buildCentreTree(centres, order, count, LEAF_TRIANGLES, links, counts, (node, start, end) =>
+    boxOf(bounds, node, source, order, start, end),
+  );
   ranks?.set(order);
   const triangles = new Float32Array(count * 9);
   for (let i = 0; i < count; i++)
@@ -97,52 +80,4 @@ function boxOf(
         if (value < bounds[at + k]) bounds[at + k] = value;
         if (value > bounds[at + 3 + k]) bounds[at + 3 + k] = value;
       }
-}
-
-function longestAxis(centres: Float32Array, order: Uint32Array, start: number, end: number) {
-  let axis = 0,
-    widest = -1;
-  for (let k = 0; k < 3; k++) {
-    let low = Infinity,
-      high = -Infinity;
-    for (let i = start; i < end; i++) {
-      const value = centres[3 * order[i] + k];
-      low = Math.min(low, value);
-      high = Math.max(high, value);
-    }
-    if (high - low > widest) [widest, axis] = [high - low, k];
-  }
-  return axis;
-}
-
-/** Rearranges `order[start..end)` so `order[middle]` has the median centre on `axis`, the
- *  smaller before it and the larger after: a linear-time selection by repeated partition. */
-function selectMedian(
-  order: Uint32Array,
-  centres: Float32Array,
-  axis: number,
-  start: number,
-  end: number,
-  middle: number,
-) {
-  const key = (i: number) => centres[3 * order[i] + axis];
-  let low = start,
-    high = end - 1;
-  while (low < high) {
-    const pivot = key((low + high) >> 1);
-    let i = low,
-      j = high;
-    while (i <= j) {
-      while (key(i) < pivot) i++;
-      while (key(j) > pivot) j--;
-      if (i <= j) {
-        [order[i], order[j]] = [order[j], order[i]];
-        i++;
-        j--;
-      }
-    }
-    if (middle <= j) high = j;
-    else if (middle >= i) low = i;
-    else return;
-  }
 }

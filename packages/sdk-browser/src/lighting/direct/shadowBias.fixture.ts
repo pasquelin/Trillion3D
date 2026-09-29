@@ -2,7 +2,7 @@
 // the receiver's bias, and the PCF's bilinear comparisons, over a depth map a test describes as
 // a function. `RESTATED` holds the WGSL lines restated here; the tests pin them.
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/index.ts';
-import { dot } from '../../../../sdk-core/src/math/projectionOracles.ts';
+import { dotVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
 import { clampNumber as clamp } from '../../../../sdk-core/src/world/math/spherical.ts';
 import { DIRECT_LIGHT_WGSL } from './lightWgsl.ts';
 import { SHADOW_DEPTH_ROUNDING } from './shadowFactorWgsl.ts';
@@ -41,6 +41,8 @@ export const RESTATED = [
   '  let reference=ndc.z+k*shadowDepthMargin(texel,slope,1.0/(clip.w*clip.w))+SHADOW_DEPTH_ROUNDING;',
   '  if((!isPoint&&(abs(ndc.x)>1.0||abs(ndc.y)>1.0))||ndc.z<0.0||ndc.z>1.0){return 1.0;}',
   `const SHADOW_DEPTH_ROUNDING:f32=${SHADOW_DEPTH_ROUNDING};`,
+  'const SHADOW_PAST_FAR:f32=1.17549435e-38;',
+  ' return max(1.0-(z-range.x)*(1.0/max(range.y-range.x,1e-6))+SHADOW_DEPTH_ROUNDING,SHADOW_PAST_FAR);',
   '  if(side>0.0){at=clamp(at,vec2f(0.5),vec2f(side-0.5));}',
   ' if(a.x>=a.y&&a.x>=a.z){return select(1u,0u,direction.x>0.0);}',
   ' if(a.y>=a.z){return select(3u,2u,direction.y>0.0);}',
@@ -70,14 +72,16 @@ export const DEVELOP_BIAS: Bias = (texel, c) => [
 
 /** A hardware comparison at texel coordinate `(x, y)`: each of the four texel centres of the
  *  bilinear footprint is lit when `reference`, a distance along the light, is strictly nearer
- *  than its stored one — the `greater` comparison of reversed depth —, weighted bilinearly. */
-export function compare(x: number, y: number, stored: Stored, reference: number) {
+ *  than its stored one — the `greater` comparison of reversed depth —, weighted bilinearly, the
+ *  weights rounded to the nearest of `steps` a texel when given (the filter's 8 bits, #831). */
+export function compare(x: number, y: number, stored: Stored, reference: number, steps = 0) {
   const ax = x - 0.5,
     ay = y - 0.5,
     x0 = Math.floor(ax),
     y0 = Math.floor(ay);
-  const wx = [1 - (ax - x0), ax - x0],
-    wy = [1 - (ay - y0), ay - y0];
+  const step = (w: number) => (steps ? Math.round(w * steps) / steps : w);
+  const wx = [1 - step(ax - x0), step(ax - x0)],
+    wy = [1 - step(ay - y0), step(ay - y0)];
   let lit = 0;
   for (let i = 0; i < 2; i++)
     for (let j = 0; j < 2; j++)
@@ -88,12 +92,17 @@ export function compare(x: number, y: number, stored: Stored, reference: number)
 /** Sixteen taps' comparisons summed to a lit fraction, rounded off the sum's last bits. */
 export const litOf = (sum: number) => Math.round((sum / POISSON_16.length) * 1e9) / 1e9;
 
+/** The sampler a PCF reads through: the texel coordinate tap `tap` of the read at `t` lands on,
+ *  axis by axis (`t + tap` by default), and its weights' steps (`compare`). */
+export type Sampler = { at?: (t: number, tap: number, axis: number) => number; steps?: number };
+
 /** `shadowPcf` away from a page's edge, a lamp face's `side` clamping its taps at its edge. */
-export function pcf(t: Vec, stored: Stored, reference: number, side = 0) {
+export function pcf(t: Vec, stored: Stored, reference: number, side = 0, sampler: Sampler = {}) {
+  const { at = (v: number, d: number) => v + d, steps = 0 } = sampler;
   const edge = (v: number) => (side > 0 ? clamp(v, 0.5, side - 0.5) : v);
   let lit = 0;
   for (const [dx, dy] of POISSON_16)
-    lit += compare(edge(t[0] + dx), edge(t[1] + dy), stored, reference);
+    lit += compare(edge(at(t[0], dx, 0)), edge(at(t[1], dy, 1)), stored, reference, steps);
   return litOf(lit);
 }
 
@@ -110,10 +119,19 @@ const float32Depth = (s: number, range: number) => range * (1 - Math.fround(1 - 
  * point `x` along face `index` (0 at `from`, 1 at `to`); `truth` asks a ray-cast of the faces
  * instead, 1 lit or 0. In a map `deep` metres deep, both depths round as the depth format does.
  */
-export function sunOverProfile(faces: Face[], angle: number, texel: number, deep = 0, bias = BIAS) {
+export function sunOverProfile(
+  profile: Face[],
+  angle: number,
+  texel: number,
+  deep = 0,
+  bias = BIAS,
+) {
   const depth = (s: number) => (deep ? float32Depth(s, deep) : s);
-  const light = [Math.sin(angle), -Math.cos(angle)],
-    across = [Math.cos(angle), Math.sin(angle)];
+  // The profile's plane is z = 0 of space, where its points and directions are dotted.
+  const flat = (v: Vec) => [v[0], v[1], 0],
+    faces = profile.map((f) => ({ from: flat(f.from), to: flat(f.to), normal: flat(f.normal) }));
+  const light = [Math.sin(angle), -Math.cos(angle), 0],
+    across = [Math.cos(angle), Math.sin(angle), 0];
   /** The distance along the light of the first face met at `u` across it. */
   const stored = (u: number) => {
     let first = Infinity;
@@ -131,10 +149,10 @@ export function sunOverProfile(faces: Face[], angle: number, texel: number, deep
   return (index: number, x: number, truth = false) => {
     const { from, to, normal } = faces[index];
     const P = along(from, sub(to, from), x);
-    if (truth) return stored(dot(P, across)) < dot(P, light) - 1e-9 ? 0 : 1;
-    const [offset, margin] = bias(texel, clamp(-dot(normal, light), 1e-3, 1));
+    if (truth) return stored(dotVector3(P, across)) < dotVector3(P, light) - 1e-9 ? 0 : 1;
+    const [offset, margin] = bias(texel, clamp(-dotVector3(normal, light), 1e-3, 1));
     const Q = along(P, normal, offset);
-    const reference = depth(dot(Q, light) - margin) - deep * SHADOW_DEPTH_ROUNDING;
-    return pcf([dot(Q, across) / texel, 0.5], (cx) => depth(stored(cx * texel)), reference);
+    const reference = depth(dotVector3(Q, light) - margin) - deep * SHADOW_DEPTH_ROUNDING;
+    return pcf([dotVector3(Q, across) / texel, 0.5], (cx) => depth(stored(cx * texel)), reference);
   };
 }

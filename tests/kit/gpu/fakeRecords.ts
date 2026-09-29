@@ -46,6 +46,16 @@ export type LostInfo = { reason: string; message: string };
 export const written = ({ data, dataOffset, size }: FakeWrite) =>
   data.subarray(dataOffset, size === undefined ? undefined : dataOffset + size);
 
+/** Applies the writes to `bytes`, the buffer's own copy, in order, then forgets them. */
+export function replayWrites(bytes: ArrayBuffer, writes: FakeWrite[]) {
+  for (const write of writes.splice(0)) {
+    const data = written(write);
+    new Uint8Array(bytes, write.offset, data.byteLength).set(
+      new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
+    );
+  }
+}
+
 export const copyOf = (data: BufferSource): Numbers =>
   data instanceof ArrayBuffer ? new Uint8Array(data.slice(0)) : (data as Numbers).slice();
 
@@ -61,4 +71,6 @@ export type FakeDeviceOptions = {
   compute?: boolean;
   /** Every buffer's `mapAsync` settles when this does; at once when not given. */
   mapping?: Promise<void>;
+  /** The features the device granted; none when not given. */
+  features?: readonly GPUFeatureName[];
 };

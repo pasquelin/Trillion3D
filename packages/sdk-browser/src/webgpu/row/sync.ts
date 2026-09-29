@@ -17,8 +17,8 @@ export function createWebgpuRowSync(
   rows: Rows,
   mirror: Mirror,
   packedPages: PageRec[],
-  drawn: PageRec[],
-  drawSlots: number,
+  /** The drawn view's cut, read at each sync: a view switch replaces its `drawn`. */
+  cut: { readonly drawn: readonly PageRec[] },
   cacheReady: () => boolean,
   { commitRows, sourceRowOf, writePageRow }: Commit,
   /** Called when a page enters residency or leaves it, before the row changes. */
@@ -28,7 +28,7 @@ export function createWebgpuRowSync(
   /** The frame's one integration budget the owed records spend from (`claims.ts`). */
   budget?: FrameClock,
 ) {
-  const slots = createWebgpuRowSlots(rows, packedPages, drawSlots, writePageRow, onResidenceChange);
+  const slots = createWebgpuRowSlots(rows, packedPages, writePageRow, onResidenceChange);
   /** The blended clusters' caster rows, behind the visibility rows: they follow the residency the
    *  mirror reports (`follow`), and the table's age here, whichever cut draws the image. */
   const blendCasters = createBlendCasterRows(rows, packedPages, writePageRow, onCoverageChange);
@@ -60,10 +60,12 @@ export function createWebgpuRowSync(
   /**
    * The CPU cut names its own pages, so its rows are its order; the cut is rebuilt every frame.
    * `casters` are pages the light cuts selected and the camera does not draw: they take rows
-   * behind the camera's, which only the shadow pass reads. Returns the camera's row count.
+   * behind the camera's, which only the shadow pass reads. Returns the camera's row count. The
+   * table's size is read here, at each sync: it grows in place (`grow.ts`).
    */
   const syncRowsFromCut = (casters: readonly PageRec[] = []) => {
     if (!cacheReady() || !rows.pageTableFloats) return 0;
+    const drawSlots = rows.blendFirst;
     mirror.sync();
     blendCasters.refresh();
     // The CPU cut names its own rows, so this path never skips: `mirror.dirty` belongs to the ranks.
@@ -90,6 +92,7 @@ export function createWebgpuRowSync(
       rows.packedPositions[row] = position;
       rows.packedPageIndex[row] = pageIndex;
     };
+    const { drawn } = cut;
     for (let i = 0; i < drawn.length && count < drawSlots; i++) place(drawn[i]);
     const cameraRows = count;
     for (let i = 0; i < casters.length && count < drawSlots; i++) place(casters[i]);

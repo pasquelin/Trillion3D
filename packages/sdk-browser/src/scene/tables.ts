@@ -9,17 +9,18 @@ import {
   assertSceneTables,
   type PreparedSceneTables,
 } from '../../../sdk-core/src/scene/core/tableContracts.ts';
-import { readTablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts';
-import { checked, fetchVerified } from '../cluster/pages.ts';
+import { tablePartition } from '../../../sdk-core/src/scene/core/tablePartition.ts';
+import { checked } from '../cluster/checked.ts';
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
 
 /** Where a cache keeps its scene tables: the one address their reader and a load's plan use. */
 export const sceneTablesUrl = (base: string) => new URL(SCENE_TABLES_FILE, base).href;
 
-/** The tables of a prepared cache and their partition's pages, each verified, with the bytes read:
- *  this read is on the load critical path of every session, so what it costs is published, not
- *  supposed. Absent or of an unknown version, the tables are a refusal: the cache format that
- *  carries them is the only one this runtime reads. `meter` counts its bytes as they arrive. */
+/** The tables of a prepared cache, verified, with the bytes read: this read is on the load critical
+ *  path of every session, so what it costs is published, not supposed. Of a partition only its root
+ *  is read: its pages are read as the view reaches them (#575). Absent or of an unknown version,
+ *  the tables are a refusal: the cache format that carries them is the only one this runtime
+ *  reads. `meter` counts its bytes as they arrive. */
 export async function loadPreparedSceneTables(
   base: string,
   signal?: AbortSignal,
@@ -28,16 +29,9 @@ export async function loadPreparedSceneTables(
   const url = sceneTablesUrl(base);
   const response = meter.read(await checked(url, signal), url);
   const body = await response.arrayBuffer();
-  let bytes = body.byteLength;
   const file = assertSceneTables(JSON.parse(new TextDecoder().decode(body)));
-  const partition =
-    file.partition &&
-    (await readTablePartition(file.partition, async (page) => {
-      const read = await fetchVerified(new URL(page.url, base).href, page, signal, meter);
-      bytes += read.byteLength;
-      return new Uint8Array(read);
-    }));
-  return { tables: { ...file, partition }, bytes };
+  const partition = file.partition && tablePartition(file.partition);
+  return { tables: { ...file, partition }, bytes: body.byteLength };
 }
 
 /** The geometry layout of the document a session draws — `source.gltf`, or the autonomous scene —

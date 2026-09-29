@@ -15,8 +15,9 @@
  *
  * The workgroup count is no longer pulled afterwards by a single-thread kernel: the append
  * that opens a sixty-four-wide slice — the one whose rank is a multiple of the group size —
- * increments the count itself. It is therefore exactly `ceil(live / 64)`, with no extra
- * dispatch and without the fixed latency a single-thread dispatch pays anyway.
+ * raises the count itself, in rows past one dimension (`gridWgsl.ts`). It is therefore exactly
+ * `ceil(live / 64)`, with no extra dispatch and without the fixed latency a single-thread
+ * dispatch pays anyway.
  *
  * The mask is the only one of them to write a draw flag; those it does not visit are
  * already zero, `dagClearDrawn` having cleared the only ones that were one — those of the
@@ -33,7 +34,8 @@
  * forbids the same buffer as write and as argument in one scope.
  */
 export const DAG_LIVE_WGSL = `fn liveBase()->u32{return views[0u].queueCap+views[0u].clusterCount*2u;}
-fn liveCounter()->u32{return blockCount()*2u;}
+fn liveCounter()->u32{return blockCount()*4u;}
+/** The live list's dispatch argument, x then y (\`gridWgsl.ts\`). */
 fn liveGroups()->u32{return liveCounter()+1u;}
 fn liveCount()->u32{return min(atomicLoad(&work[liveCounter()]),views[0u].clusterCount);}
 /** \`entry\` is the candidate's, view included. A light cut also counts each view's live
@@ -41,9 +43,9 @@ fn liveCount()->u32{return min(atomicLoad(&work[liveCounter()]),views[0u].cluste
 fn liveAppend(entry:u32){
  let s=atomicAdd(&work[liveCounter()],1u);
  if(s>=views[0u].clusterCount){dropWork();return;}
- flags[liveBase()+s]=entry;
- if((s&63u)==0u){atomicAdd(&work[liveGroups()],1u);}
+ setFlag(liveBase()+s,entry);
+ if((s&63u)==0u){openSlice(liveGroups(),s>>6u);}
  if(isLightCut()){atomicAdd(&work[viewWord(0u,vi)],1u);}
 }
-fn liveAt(s:u32)->u32{return flags[liveBase()+s];}
+fn liveAt(s:u32)->u32{return flagAt(liveBase()+s);}
 `;

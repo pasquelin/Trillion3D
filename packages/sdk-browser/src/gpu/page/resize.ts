@@ -1,10 +1,10 @@
 import type { GpuPageContext, ResidentPage } from './types.ts';
 import { evictResident } from './commit.ts';
-import { pageBufferCap } from '../../residency/pools.ts';
+import { storageBufferCap } from '../../residency/pools.ts';
 
 export const pageBufferBytes = (device: GPUDevice, pageBytes: number, slots: number) => {
   const size = pageBytes * slots;
-  if (!Number.isSafeInteger(slots) || slots < 1 || size > pageBufferCap(device.limits))
+  if (!Number.isSafeInteger(slots) || slots < 1 || size > storageBufferCap(device.limits))
     throw new Error('INVALID_PAGE_BUDGET');
   return size;
 };
@@ -28,13 +28,12 @@ function rankedPages(
   resident: ReadonlyMap<string, ResidentPage>,
   slots: number,
   pins: ReadonlySet<string>,
-  held?: ReadonlySet<string>,
+  held: ReadonlySet<string>,
 ): ResidentPage[] {
   const pages = [...resident.values()];
   if (pages.length <= slots) return pages;
-  const buckets: ResidentPage[][] = [[], [], [], []];
-  for (const page of pages)
-    buckets[(held?.has(page.key) ? 2 : 0) + (pins.has(page.key) ? 1 : 0)].push(page);
+  const buckets: ResidentPage[][] = [[], [], []];
+  for (const page of pages) buckets[held.has(page.key) ? 2 : pins.has(page.key) ? 1 : 0].push(page);
   return buckets.reverse().flatMap((bucket) => bucket.sort(byRecency));
 }
 
@@ -48,12 +47,8 @@ function rankedPages(
  * mirror reads as an ordinary arrival or departure. Returns the evicted keys, pinned included:
  * the caller unpins them on its side.
  */
-export function resizeGpuPages(
-  context: GpuPageContext,
-  slots: number,
-  held?: ReadonlySet<string>,
-): string[] {
-  const { device, pageBytes, resident, pins, free } = context;
+export function resizeGpuPages(context: GpuPageContext, slots: number): string[] {
+  const { device, pageBytes, resident, pins, held, free } = context;
   const size = pageBufferBytes(device, pageBytes, slots);
   const next = createPageBuffer(device, size);
   const encoder = device.createCommandEncoder({ label: 'Trillion3D geometry page cache resize' });

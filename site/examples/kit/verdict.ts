@@ -132,7 +132,7 @@ const TONE = { true: 'text-success', false: 'text-error', null: 'opacity-60' };
  * Shows a verdict in the example's top-left corner, clear of the stats corner the controls put at
  * the bottom left — the overall verdict, then each line green, red, or dimmed when unmeasured, a
  * part named by `say(part)`, a quantity by the stats corner's words — and publishes it as
- * `window.__verdict`, where the measurer's proof reads it.
+ * `window.__verdict`, where the recette's proof reads it.
  */
 export function showVerdict(verdict: HealthVerdict, say: (key: string) => string) {
   Object.assign(globalThis, { __verdict: verdict });

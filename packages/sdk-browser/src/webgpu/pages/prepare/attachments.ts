@@ -45,10 +45,10 @@ export function feedbackAttachment(rt: WebgpuPagesRuntime) {
   return feedback;
 }
 
-/** Surfaces then the feedback target: the five attachments of the hardware resolve, and of the
- *  water surface stage, which writes the same buffer once the resolve has consumed it. */
+/** Surfaces then the feedback target: the five attachments of the hardware resolve. */
 export function shadeColorAttachments(rt: WebgpuPagesRuntime, surfaces: SurfaceBuffer) {
   const base = surfaceColorAttachments(surfaces);
+  if (rt.feedbackAB?.target === false) return base;
   withFeedback ??= [...base, feedback];
   feedbackAttachment(rt);
   return withFeedback;

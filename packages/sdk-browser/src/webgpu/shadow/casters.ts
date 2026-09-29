@@ -6,8 +6,9 @@ import {
   SHADOW_CULL_FLOATS,
   SHADOW_CULL_VIEW,
 } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
-import { pageViews } from './pages.ts';
-import { STALE_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
+import { pageModes, pageViews } from './pages.ts';
+import { DRAW_INDIRECT_WORDS } from '../../gpu/draw/contract.ts';
+import { STALE_DYNAMIC, STALE_FULL } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
 
 /** Where the current face's list lies, rewritten face by face: a frame allocates no record. */
 const source = {} as ShadowCullSource;
@@ -29,7 +30,8 @@ const lightSource = {} as ShadowLightSource;
  * Under the CPU cut, the same selection has already run on the CPU (`cpuCasters.ts`), and each
  * face's list waits at its own place in one buffer, every batch's: only the region cull runs here.
  *
- * Returns false when a resource the frame needs is missing: the caller then reissues the pages.
+ * Returns false when a resource the frame needs is missing, or no flag slot is free: the caller
+ * then reissues the pages.
  */
 export function encodeShadowCasters(
   rt: WebgpuPagesRuntime,
@@ -39,7 +41,7 @@ export function encodeShadowCasters(
   to: number,
   runBase: number,
 ) {
-  const { lights, vis, run, layout, setup, timing } = rt,
+  const { lights, vis, run, layout, timing } = rt,
     { cull, spheres, runs, mobilityRows } = lights,
     { gpuDraw } = vis;
   if (!cull || !spheres || !gpuDraw || !mobilityRows) return false;
@@ -51,6 +53,9 @@ export function encodeShadowCasters(
   if (light) lights.lightCut = light;
   // A batch holds no more views than its cut runs at once (`encodeShadowBatches.ts`).
   if (light && runs.count > light.capacity) return false;
+  // Every flag slot still read: the batch draws nothing rather than pages it could not check, and
+  // they stay stale for a frame with a slot (`../../gpu/dag/lightCutRedraws.ts`, #1142).
+  if (light && runs.count && !light.redraws.ready) return false;
   if (light) {
     const map = gpuDraw.lightRows(light.pageCount);
     // The blended casters' rows are no draw record's: their pages are pinned in the map instead.
@@ -61,7 +66,7 @@ export function encodeShadowCasters(
       for (let region = first; region < first + count; region++)
         cull.volumeWords[region * SHADOW_CULL_FLOATS + SHADOW_CULL_VIEW] = r;
     }
-    cull.begin(regions, setup.maxCorners);
+    cull.begin(regions);
     if (runs.count) light.encode(encoder, runs.list, runs.count);
     lightSource.spheres = spheres.buffer;
     lightSource.mobility = mobilityRows;
@@ -77,12 +82,12 @@ export function encodeShadowCasters(
     // tells the flag slot whether they were.
     const list = lights.plan.admission.list.subarray(from, to);
     const redraw = runs.count
-      ? light.redraws.encode(encoder, list, pageViews, to - from)
+      ? light.redraws.encode(encoder, list, pageViews, to - from, pageModes)
       : undefined;
     if (redraw) timing.shadowRedraws = both(timing.shadowRedraws, redraw);
     return true;
   }
-  cull.begin(regions, setup.maxCorners);
+  cull.begin(regions);
   const lists = lights.cpuCasters;
   if (run.gpuFrameActive || !lists || lists.frame !== run.frame) return false;
   source.mobility = mobilityRows;
@@ -91,10 +96,14 @@ export function encodeShadowCasters(
   source.indirect = lists.indirect;
   source.commands = 1;
   for (let r = 0; r < runs.count; r++) {
-    const face = runs.list[r];
+    const face = runs.list[r],
+      length = lists.lengths[runBase + r];
+    // An empty list keeps nothing: its regions draw nothing either (`drawRegionCasters`).
+    for (let region = face.first; region < face.first + face.count; region++)
+      lights.regions.setCasterless(region, !length || !rows);
     source.base = lists.bases[runBase + r];
-    source.indirectBase = (runBase + r) * 4;
-    cull.encode(encoder, source, r, face.first, face.count, lists.lengths[runBase + r]);
+    source.indirectBase = (runBase + r) * DRAW_INDIRECT_WORDS;
+    cull.encode(encoder, source, r, face.first, face.count, length);
   }
   lights.lightRuns += runs.count;
   return true;
@@ -117,10 +126,11 @@ const both =
   };
 
 /**
- * Before a plan: the pages a light cut drew short go stale again, whole — residency having moved
+ * Before a plan: the pages a light cut drew short go stale again — residency having moved
  * (`residencyMoved`) and the camera rested when that is what they waited for, withdrawn meanwhile
  * only when they miss casters (`../../gpu/dag/lightCutRedraws.ts`) —, and the plan draws them in
- * the frame, with every other stale page the image reads (`admit.ts`).
+ * the frame, with every other stale page the image reads (`admit.ts`). A page the static layer
+ * restored drew its moving casters alone: only they go stale again, and the layer stays (#990).
  */
 export function redrawShortPages(
   rt: WebgpuPagesRuntime,
@@ -128,20 +138,44 @@ export function redrawShortPages(
   nowMs: number,
   residencyMoved: boolean,
 ) {
-  const { plan } = rt.lights,
-    redraws = rt.lights.lightCut?.redraws;
+  const { lights } = rt,
+    { plan } = lights,
+    redraws = lights.lightCut?.redraws;
   if (!redraws) return;
   if (residencyMoved) redraws.residencyChanged();
   if (plan.resting) redraws.rest();
   const { pool } = plan;
-  const pages = redraws.takeRedraw((page, withdraw) => {
+  const pages = redraws.takeRedraw((page, withdraw, staticCasters) => {
     if (pool.owner[page] < 0) return;
-    pool.stale(page, nowMs, frame, STALE_FULL);
-    if (withdraw) pool.withdraw(plan.table, page);
+    pool.stale(page, nowMs, frame, staticCasters ? STALE_FULL : STALE_DYNAMIC);
+    if (withdraw) {
+      pool.withdraw(plan.table, page);
+      lights.lightCutWithdrawnPages++;
+    } else lights.lightCutCoarsePages++;
   });
   if (pages)
     rt.diag.engineDiagnostic('light-cut-redraw', 'Pages the light cut drew short, drawn again', {
       pages,
-      viewLimit: redraws.viewLimit,
+      viewLimit: redraws.limit.value,
     });
+}
+
+/** The light-cut metrics of an engine without the GPU light cut. */
+const NO_LIGHT_CUT = {
+  shadowCutDrops: null,
+  shadowCutWithdrawnPages: null,
+  shadowCutCoarsePages: null,
+  shadowCutViewLimit: null,
+} as const;
+
+/** The light cut's counters as frame metrics (`ShadowFrameMetrics`), null without a light cut. */
+export function lightCutMetrics({ lights }: WebgpuPagesRuntime) {
+  const limit = lights.lightCut?.redraws.limit;
+  if (!limit) return NO_LIGHT_CUT;
+  return {
+    shadowCutDrops: limit.dropsRead,
+    shadowCutWithdrawnPages: lights.lightCutWithdrawnPages,
+    shadowCutCoarsePages: lights.lightCutCoarsePages,
+    shadowCutViewLimit: limit.value,
+  };
 }

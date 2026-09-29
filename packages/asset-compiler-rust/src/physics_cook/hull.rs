@@ -80,6 +80,19 @@ impl Hull {
         }
         Ok(shape)
     }
+
+    /// The breakable body's pieces of this mesh, seeded and weighed at a scale as `cut` says
+    /// (`pieces.rs`).
+    pub(super) fn pieces(&self, o: &Options, cut: (u64, [f64; 3])) -> Result<Vec<Value>> {
+        super::pieces::pieces(o, (&self.pos, &self.welded, self.mesh), cut)
+    }
+}
+
+/// The `cooked` shape of Jolt's convex hull of `points`, stored as a SHA-addressed object.
+pub(super) fn cooked_shape(o: &Options, points: &[f32]) -> Result<Value> {
+    let mut shape = store_shape(o, &hull_shape(points)?)?;
+    shape["type"] = json!("cooked");
+    Ok(shape)
 }
 
 /// The hull of mesh `mesh`, in its frame or moved by `frame` into the body's.
@@ -98,8 +111,7 @@ pub(super) fn cooked_hull(
     // One point per position: seam copies neither split an edge nor add a hull point.
     let weld = weld_positions(&pos, &triangles);
     let welded: Vec<u32> = triangles.iter().map(|&i| weld[i as usize]).collect();
-    let mut shape = store_shape(o, &hull_shape(&compact_region(&pos, &welded).0)?)?;
-    shape["type"] = json!("cooked");
+    let shape = cooked_shape(o, &compact_region(&pos, &welded).0)?;
     Ok(Hull {
         mesh,
         pos,

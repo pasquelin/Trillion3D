@@ -3,18 +3,10 @@ use crate::compiler_accessor_create::accessor;
 use crate::compiler_validate::{required_index, values};
 use crate::compiler_world::{transform_point, world_matrices};
 use crate::proxy::bvh;
+use crate::proxy::tracer::World;
 use crate::{CompilerError, Result};
 use serde_json::Value;
 use std::path::Path;
-
-/// Source scene in world space, with its own tree. Nothing here comes from the cache: the oracle
-/// re-reads triangles from the source, without cuts, simplification, or proxy.
-pub struct World {
-    pub triangles: Vec<f32>,
-    pub albedo: Vec<u32>,
-    pub node_bounds: Vec<f32>,
-    pub node_links: Vec<u32>,
-}
 
 fn bad(message: impl Into<String>) -> CompilerError {
     CompilerError::new("INVALID_ORACLE_SOURCE", message)
@@ -83,7 +75,7 @@ fn place_primitive(
         world.triangles.push(placed[1] as f32);
         world.triangles.push(placed[2] as f32);
     }
-    world.albedo.resize(world.triangles.len() / 9, colour);
+    world.tags.resize(world.triangles.len() / 9, colour);
     Ok(())
 }
 
@@ -99,14 +91,19 @@ pub fn load(path: &Path) -> Result<World> {
     let palette = materials::palette(&g, path);
     let mut world = World {
         triangles: Vec::new(),
-        albedo: Vec::new(),
+        tags: Vec::new(),
         node_bounds: Vec::new(),
         node_links: Vec::new(),
     };
+    // A hidden node is not drawn: the reference traces what the compiled scene shows.
+    let (_, hidden) = crate::compiler_nodes::scene_nodes(&g)?;
     for (id, node) in nodes.iter().enumerate() {
         let Some(mesh) = node.get("mesh").and_then(Value::as_u64) else {
             continue;
         };
+        if hidden.contains(&id) {
+            continue;
+        }
         let mesh = meshes
             .get(mesh as usize)
             .ok_or_else(|| bad("node.mesh is out of bounds"))?;
@@ -118,11 +115,11 @@ pub fn load(path: &Path) -> Result<World> {
             place_primitive(&g, &bin, primitive, &matrices[id], colour, &mut world)?;
         }
     }
-    if world.albedo.is_empty() {
+    if world.tags.is_empty() {
         return Err(bad("the source carries no triangle the oracle can trace"));
     }
     let (node_bounds, node_links) =
-        bvh::flatten(&bvh::build(&mut world.triangles, &mut world.albedo));
+        bvh::flatten(&bvh::build(&mut world.triangles, &mut world.tags));
     world.node_bounds = node_bounds;
     world.node_links = node_links;
     Ok(world)

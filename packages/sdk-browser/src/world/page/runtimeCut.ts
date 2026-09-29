@@ -16,27 +16,36 @@ import type { PageCutPage, PageCutPayload } from '../../../../sdk-core/src/page/
 import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import { sha256Hex } from '../../measurement/sha256Hex.ts';
 import { clusterCones } from './cutCones.ts';
-
-/** A cluster holds at most this many triangles and vertices: the page format's cluster, the one
- *  the compiler cuts (`docs/FORMAT.md`). */
-const CLUSTER_TRIANGLES = 128,
-  CLUSTER_VERTICES = 255;
+import { clusters, givenClusters, primitiveUvSpan, widestUvSpan } from './cutClusters.ts';
+import { positionGridExponent, textureGridExponent, type GridInputs } from './cutGrid.ts';
 
 /** Whether the cut pages of `drawn` keep their normal cone: not a line's quads, which the rasters
  *  widen on screen, nor a sprite's, which they turn to the camera — what those face is not what
  *  was cut, so a cone of the cut triangles would cull them wrongly. */
 const drawnCones = (drawn: DrawnTriangles) => !drawn.lines && drawn.spriteRadius === undefined;
 
-/** The words before the arrays: five lengths, then whether the pages keep a cone. */
-const HEADER_WORDS = 6;
+/**
+ * A compiled primitive cut again in session (#846): its own clusters, `ends[k]` the end of cluster
+ * `k` in the indices, each the corners of one of its pages in order, and what the compiler knew
+ * of it beside its vertices (`GridInputs`), so its pages take the grids the compiler would give it.
+ */
+export type Recut = GridInputs & { ends: Uint32Array };
 
-/** Drawn triangles as one buffer: its header (`HEADER_WORDS`), then the five arrays, every one
- *  four-byte wide. */
-export function packDrawn(drawn: DrawnTriangles): ArrayBuffer {
+/** The words before the arrays: five lengths, whether the pages keep a cone, whether a blended
+ *  material wears them, the length of a recut's `ends`, then its two inputs as 64-bit floats. */
+const HEADER_WORDS = 12;
+
+/** Drawn triangles as one buffer: its header (`HEADER_WORDS`), then the five arrays and a recut's
+ *  `ends`, every one four-byte wide. `blended` is part of the content: its pages sit on a finer
+ *  grid. A recut keeps no cone: its pages keep the compiled ones. */
+export function packDrawn(drawn: DrawnTriangles, blended: boolean, recut?: Recut): ArrayBuffer {
   const parts = [drawn.positions, drawn.normals, drawn.uvs, drawn.colors, drawn.indices];
+  parts.push(recut?.ends ?? null);
   const lengths = parts.map((part) => part?.length ?? 0);
   const packed = new Uint32Array(HEADER_WORDS + lengths.reduce((a, b) => a + b, 0));
-  packed.set([...lengths, Number(drawnCones(drawn))]);
+  packed.set([...lengths.slice(0, 5), Number(!recut && drawnCones(drawn)), Number(blended)]);
+  packed[7] = lengths[5];
+  new Float64Array(packed.buffer, 32, 2).set([recut?.finestError ?? 0, recut?.scale ?? 0]);
   let at = HEADER_WORDS;
   for (const part of parts)
     if (part) {
@@ -46,10 +55,17 @@ export function packDrawn(drawn: DrawnTriangles): ArrayBuffer {
   return packed.buffer;
 }
 
-/** The triangles `packDrawn` wrote, as views on its buffer, and whether their pages keep a cone. */
-export function unpackDrawn(buffer: ArrayBuffer): { drawn: DrawnTriangles; cones: boolean } {
+/** The triangles `packDrawn` wrote, as views on its buffer, whether their pages keep a cone,
+ *  whether a blended material wears them, and the recut they are, if any. */
+export function unpackDrawn(buffer: ArrayBuffer): {
+  drawn: DrawnTriangles;
+  cones: boolean;
+  blended: boolean;
+  recut?: Recut;
+} {
   const header = new Uint32Array(buffer, 0, HEADER_WORDS),
-    cones = header[5] === 1;
+    cones = header[5] === 1,
+    blended = header[6] === 1;
   let at = header.byteLength;
   const take = <T>(make: (b: ArrayBuffer, offset: number, length: number) => T, i: number) => {
     const view = header[i] ? make(buffer, at, header[i]) : null;
@@ -58,30 +74,41 @@ export function unpackDrawn(buffer: ArrayBuffer): { drawn: DrawnTriangles; cones
   };
   const float = (b: ArrayBuffer, offset: number, length: number) =>
     new Float32Array(b, offset, length);
+  const words = (b: ArrayBuffer, offset: number, length: number) =>
+    new Uint32Array(b, offset, length);
   const drawn = {
     positions: take(float, 0)!,
-    normals: take(float, 1)!,
+    // A recut of a primitive without normals carries none: its pages have none either.
+    normals: take(float, 1) ?? new Float32Array(0),
     uvs: take(float, 2),
     colors: take(float, 3),
-    indices: take((b, offset, length) => new Uint32Array(b, offset, length), 4)!,
+    indices: take(words, 4)!,
   };
-  return { drawn, cones };
+  const ends = take(words, 7);
+  if (!ends) return { drawn, cones, blended };
+  const [finestError, scale] = new Float64Array(buffer, 32, 2);
+  return { drawn, cones, blended, recut: { ends, finestError, scale } };
 }
 
 /**
  * Cuts drawn triangles into single-level clusters of the format's size, in index order, each
  * written as its index page and its quantized geometry page (`encodeGeometryPage`), with no
  * simplification — every cluster is a root, drawn as it is — and, when `cones` holds, with the
- * cone of its triangles' normals (`cutCones.ts`). The position grid is the one the
- * compiler takes from the primitive's own extent: 2^16 steps across its widest axis. Texture
- * coordinates sit on the format's 2^-14, or on the finest grid the widest cluster's range fits
- * when it does not — a dashed line's distance along it (`drawn.ts`) spans past 1024 units on a
- * long line: every page is cut, none refused, and each coordinate stays within a 32-bit float's
- * own step of that range.
+ * cone of its triangles' normals (`cutCones.ts`). Positions sit on the compiler's tiled grid
+ * (`cutGrid.ts`). Texture coordinates sit on the format's 2^-14, or on the finest grid the widest
+ * cluster's range fits when it does not — a dashed line's distance along it (`drawn.ts`) spans
+ * past 1024 units on a long line: every page is cut, none refused, and each coordinate stays
+ * within a 32-bit float's own step of that range. A `blended` primitive takes the finest grids
+ * a page holds for both (2^23 steps), the compiler's rule too: a coarser one shows through a
+ * transparent surface (#875). A `recut` keeps the compiled primitive's own clusters and takes the
+ * grids the compiler gives its class — texture coordinates by their span over every vertex —, so
+ * each page is the one the compiler writes for that class (#846).
  */
 export async function cutDrawnTriangles(
   drawn: DrawnTriangles,
   cones: boolean,
+  blended: boolean,
+  recut?: Recut,
 ): Promise<PageCutPayload> {
   const { positions, normals, uvs, colors, indices } = drawn;
   const bounds = new Float64Array(6);
@@ -89,18 +116,22 @@ export async function cutDrawnTriangles(
   for (let i = 0; i + 2 < positions.length; i += 3)
     boxExpandByPoint(bounds, 0, positions[i], positions[i + 1], positions[i + 2]);
   const extent = Math.max(bounds[3] - bounds[0], bounds[4] - bounds[1], bounds[5] - bounds[2]);
-  const positionExponent = Math.ceil(Math.log2(extent > 0 ? extent : 1)) - 16;
+  // Asked first, awaited last: the module loads while the clusters are cut.
+  const grid = positionGridExponent(extent, blended, recut);
   const attributes: PageAttributes = {
     POSITION: { itemSize: 3, array: positions },
-    NORMAL: { itemSize: 3, array: normals },
+    ...(normals.length ? { NORMAL: { itemSize: 3, array: normals } } : {}),
     ...(uvs ? { TEXCOORD_0: { itemSize: 2, array: uvs } } : {}),
     ...(colors ? { COLOR_0: { itemSize: 4, array: colors } } : {}),
   };
-  const ranges = [...clusters(indices, positions.length / 3)];
-  const uvExponent = uvs
-    ? gridExponentFor(widestUvSpan(uvs, indices, ranges), UV_EXPONENT)
-    : UV_EXPONENT;
+  const ranges = recut ? givenClusters(recut.ends) : [...clusters(indices, positions.length / 3)];
+  const texture = (span: number) =>
+    gridExponentFor(span, blended && span > 0 ? -Infinity : UV_EXPONENT);
+  const uvExponent =
+    (recut && uvs ? await textureGridExponent(primitiveUvSpan(uvs), blended) : null) ??
+    texture(uvs ? widestUvSpan(uvs, indices, ranges) : 0);
   const built = cones ? await clusterCones(positions, indices, ranges) : null;
+  const positionExponent = (await grid) ?? gridExponentFor(extent > 0 ? extent : 1, -Infinity);
   const cut = [];
   let maxPositionError = 0;
   for (const [start, end] of ranges) {
@@ -134,55 +165,4 @@ export async function cutDrawnTriangles(
     })),
   );
   return { pages, positionExponent, uvExponent, maxPositionError };
-}
-
-/** The widest range of either texture coordinate over the corners of one cluster. */
-function widestUvSpan(uvs: Float32Array, indices: Uint32Array, ranges: [number, number][]) {
-  let widest = 0;
-  for (const [start, end] of ranges)
-    for (let c = 0; c < 2; c++) {
-      let lo = Infinity,
-        hi = -Infinity;
-      for (let i = start; i < end; i++) {
-        const value = uvs[indices[i] * 2 + c];
-        lo = Math.min(lo, value);
-        hi = Math.max(hi, value);
-      }
-      widest = Math.max(widest, hi - lo);
-    }
-  return widest;
-}
-
-/** Index ranges of consecutive triangles, each within the cluster's triangle and vertex bounds.
- *  A vertex is marked with the number of the cluster that last took it: no set per triangle. */
-function* clusters(indices: Uint32Array, vertexCount: number): Generator<[number, number]> {
-  const taken = new Uint32Array(vertexCount);
-  let start = 0,
-    cluster = 1,
-    held = 0;
-  const take = (v: number) => {
-    if (taken[v] === cluster) return;
-    taken[v] = cluster;
-    held++;
-  };
-  for (let t = 0; t < indices.length; t += 3) {
-    const a = indices[t],
-      b = indices[t + 1],
-      c = indices[t + 2];
-    const fresh =
-      Number(taken[a] !== cluster) +
-      Number(taken[b] !== cluster && b !== a) +
-      Number(taken[c] !== cluster && c !== a && c !== b);
-    const full = (t - start) / 3 >= CLUSTER_TRIANGLES;
-    if (full || held + fresh > CLUSTER_VERTICES) {
-      yield [start, t];
-      start = t;
-      cluster++;
-      held = 0;
-    }
-    take(a);
-    take(b);
-    take(c);
-  }
-  if (start < indices.length) yield [start, indices.length];
 }

@@ -3,6 +3,7 @@ import { evictOldest } from '../../streaming/evictOldest.ts';
 import { createLastUse } from '../../residency/lastUse.ts';
 import { createPageKeys } from './pageKeys.ts';
 import { grown } from '../../page/cut/sparseInts.ts';
+import type { WebglViewState } from './views.ts';
 
 /** Frames a page stays held once the image stopped keeping it: the WebGL2 image is drawn from the
  *  cut just taken on the CPU, no frame in flight reads a page the next cut no longer holds. */
@@ -21,8 +22,11 @@ export function createResidentOrder(env: {
   /** Bytes of one slot: what converts the pool's shortfall into pages to release. */
   pageBytes: () => number;
   parentsOf: (rec: PageRec) => readonly PageRec[];
+  /** The views not drawn now: each `keep` holds what they ask for and draw too (`pool.ts`). */
+  others?: readonly Pick<WebglViewState, 'requested' | 'shown'>[];
 }) {
-  const { state, drop, limit } = env;
+  const { state, drop, limit } = env,
+    others = env.others ?? [];
   const keys = createPageKeys();
   // Resident pages above the root cover; the released ones by last use; arrivals since the cut.
   const resident = new Set<string>(),
@@ -75,7 +79,7 @@ export function createResidentOrder(env: {
       entering.push(rec);
     }
   };
-  /** The image keeps `requested` and `shown`: what joined is held, and of what left, the finest
+  /** The image keeps `requested` and `shown`, and the other views theirs: what joined is held, and of what left, the finest
    *  DAG level starts its window, the coarser ones held one more `keep` — once —, so the image lets
    *  go of one level at a time. Walks both lists, never what is held. */
   const keep = (requested: readonly PageRec[], shown: readonly PageRec[]) => {
@@ -83,6 +87,10 @@ export function createResidentOrder(env: {
     entering.length = 0;
     enter(requested, previous);
     enter(shown, previous);
+    for (const view of others) {
+      enter(view.requested, previous);
+      enter(view.shown, previous);
+    }
     let finest = Infinity;
     leaving.length = 0;
     for (const rec of kept)

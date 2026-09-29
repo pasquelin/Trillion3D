@@ -17,7 +17,7 @@ import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Sphere } from '../../../../sdk-core/src/world/math/volumes.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import { type BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
-import { normalisedScale, preparedAccessors } from './accessors.ts';
+import { normalisedScale, preparedAccessors, type PreparedBinary } from './accessors.ts';
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 
 /** The host's attribute names for the glTF semantics it knows; any other is lower-cased. */
@@ -65,10 +65,10 @@ const MORPHED = [
 ] as const;
 
 /**
- * The geometry of each primitive of `document`, built on first request and shared after it.
- * `binary` is the document's buffer; `null` only for a document that lays out no view.
+ * The geometry of each primitive of `document`, built on first request and shared after it; its
+ * vertices are read by `binary` when a reader loads them (`Geometry.loadVertices`).
  */
-export function preparedGeometries(document: TableDocument, binary: ArrayBuffer | null) {
+export function preparedGeometries(document: TableDocument, binary: PreparedBinary) {
   const attributeOf = preparedAccessors(document, binary);
   const geometries = new Map<string, Geometry>();
 

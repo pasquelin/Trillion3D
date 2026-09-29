@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../../host/graph/graph.fixture.ts';
 import { setWebgpuTransform } from './transform.ts';
-import type { WebgpuPagesRuntime } from '../runtime.ts';
+import { runtime } from '../../core/transformShear.fixture.ts';
 
 // A node set where it already stands — its first write included, while its pose is still its
 // position, rotation and scale — moves nothing: no placement turns moving, no page is staled.
@@ -13,12 +13,10 @@ test('a node moved to the world it already stands at moves nothing, on its first
   crate.position.set(1.5, 2, -3);
   scene.add(crate);
   scene.updateMatrixWorld(true);
-  const moved: number[] = [];
-  const rt = {
-    setup: { source: scene },
-    lights: { mobility: { move: (rank: number) => moved.push(rank) } },
-  } as unknown as WebgpuPagesRuntime;
+  const { rt, motions } = runtime(scene);
+  const revision = rt.run.gate.revisions.scene;
   setWebgpuTransform(rt, 'Crate', Float32Array.from(crate.matrixWorld.elements));
-  assert.deepEqual(moved, []);
+  assert.deepEqual(motions, [], 'no page is staled');
+  assert.equal(rt.run.gate.revisions.scene, revision, 'the scene revision stands');
   assert.equal(crate.matrixAutoUpdate, true, 'the node is left as the host posed it');
 });

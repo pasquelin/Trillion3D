@@ -86,17 +86,17 @@ export function createWebgpuTileAtlas(
   };
   let evictions = 0,
     refused = 0,
-    candidatesFrame = -1;
-  // Eviction candidates, computed once per image and per lane, consumed in order.
-  const candidatesAt = (lane: Lane, frame: number) => {
-    if (candidatesFrame !== frame) {
-      for (const each of lanes.lanes.values()) each.candidates = each.pool.candidates(frame);
-      candidatesFrame = frame;
+    victimsFrame = -1;
+  // Eviction victims, queued once per image and per lane, taken in order.
+  const victimsOf = (lane: Lane, frame: number) => {
+    if (victimsFrame !== frame) {
+      for (const each of lanes.lanes.values()) each.victims = each.pool.victims(frame);
+      victimsFrame = frame;
     }
-    return lane.candidates;
+    return lane.victims;
   };
   const evict = (lane: Lane, frame: number) => {
-    const index = candidatesAt(lane, frame).shift();
+    const index = victimsOf(lane, frame).take();
     if (index === undefined) return undefined;
     evictTile(lane.pool, index, { pages, resident: lane.resident }, options.onEvicted);
     evictions++;
@@ -157,7 +157,7 @@ export function createWebgpuTileAtlas(
     },
     roomFor(slot, frame) {
       const lane = lanes.of(slot);
-      if (lane.pool.resident < lane.pool.tiles || candidatesAt(lane, frame).length > 0) return true;
+      if (lane.pool.resident < lane.pool.tiles || victimsOf(lane, frame).length > 0) return true;
       refused++;
       return false;
     },
@@ -189,7 +189,7 @@ export function createWebgpuTileAtlas(
         pools = lanes.pools();
       }
       evictions += result.evicted;
-      candidatesFrame = -1;
+      victimsFrame = -1;
       return result;
     },
     destroy() {

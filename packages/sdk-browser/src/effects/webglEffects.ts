@@ -3,6 +3,7 @@ import { boundToContext } from '../webgl/core/contextBound.ts';
 import { setFullscreenPassState } from '../webgl/core/fullscreenPass.ts';
 import {
   bindWebglTarget,
+  clearWebglTarget,
   createWebglRenderTarget,
   halfFloatTargets,
   type WebglRenderTarget,
@@ -82,7 +83,9 @@ function createResources(gl: WebGL2RenderingContext) {
     },
     /** The scene's target, then the pass targets and each kind's own, for `passes` at `w` × `h`. */
     ensure(passes: readonly EffectPass[], w: number, h: number) {
-      if (w !== width || h !== height) release();
+      // A target the context refused (`../webgl/core/allocation.ts`) is made again with the rest.
+      const refused = scene?.refused || targets.some((t) => t.width !== width);
+      if (w !== width || h !== height || refused) release();
       width = w;
       height = h;
       scene ??= createWebglSceneTarget(gl, w, h);
@@ -157,12 +160,7 @@ export function createWebglEffects(gl: WebGL2RenderingContext) {
       made.ensure(passes, w, h);
       const scene = made.scene.target;
       bindWebglTarget(gl, scene);
-      gl.disable(gl.SCISSOR_TEST);
-      gl.colorMask(true, true, true, true);
-      gl.depthMask(true);
-      gl.clearColor(0, 0, 0, 0);
-      gl.clearDepth(1);
-      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      clearWebglTarget(gl);
       return scene;
     },
     /** Runs the passes over the scene's target and draws the result into `destination` — the

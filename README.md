@@ -152,8 +152,8 @@ Core: contracts · jobs · cancellation · diagnostics · safety policy
 Nothing is optimised before it is measured, and no claim outlives its measurement.
 
 ```sh
-node bench/runner/bench.ts --moteur webgpu --avant <git-ref|dist> --apres <git-ref|dist> \
-     --vues generale,sol,rue --images 60 --pixelError 0,1
+node bench/runner/bench.ts --engine webgpu --before <git-ref|dist> --after <git-ref|dist> \
+     --views overview,ground,street --images 60 --pixelError 0,1
 node bench/runner/campaign.ts        # the whole campaign
 node bench/runner/summaryGlobal.ts   # one HTML report
 ```
@@ -176,9 +176,9 @@ The rules a contribution follows: [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## How the project is run
 
-Trillion3D is built by a small company of AI sessions — a CTO, leads per domain, measurement,
-acceptance, an architect and an analyst — run by one maintainer. [docs/COMPANY.md](docs/COMPANY.md)
-explains every role and how to run it from any clone; the contribution workflow never requires it.
+Trillion3D is built by a small company of AI sessions — CTOs, leads with their coders and
+reviewers, an acceptance session that times and proves each batch — run by one maintainer.
+[docs/COMPANY.md](docs/COMPANY.md) explains every role and how to run it from any clone; the contribution workflow never requires it.
 
 ## Documentation
 

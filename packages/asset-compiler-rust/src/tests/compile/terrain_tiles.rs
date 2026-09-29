@@ -77,7 +77,14 @@ fn defects_with_a_vertex_moved(
     let source = page_indices(&scene.objects, page);
     let mut moved = positions.to_vec();
     moved[source[0] as usize * 3 + 1] += up;
-    let encoded = crate::geometry_page::encode(&source, &moved, &[], exponent).expect("encode");
+    let encoded = crate::geometry_page::encode(
+        &source,
+        &moved,
+        &[],
+        exponent,
+        crate::geometry_page_quant::UV_EXPONENT,
+    )
+    .expect("encode");
     let digest = hash(&encoded.bytes);
     fs::write(scene.objects.join(format!("{digest}.bin")), &encoded.bytes).expect("page");
     page["geometry"]["sha256"] = json!(digest);
@@ -85,13 +92,17 @@ fn defects_with_a_vertex_moved(
 }
 
 /// An exact page with one vertex half a metre off is reported, since the source and not the page
-/// is the reference; a coarse one with a vertex thrown a kilometre up, a sheet across the sky, is
-/// reported on every count.
+/// is the reference; a coarse one with a vertex moved by a quarter of its representable range,
+/// a sheet across the sky that still encodes on the primitive grid, is reported on every count.
 fn assert_moved_vertices_are_reported(scene: &SiteScene) {
     let positions = scene.positions(&scene.result["primitives"][0]);
     let exact = defects_with_a_vertex_moved(scene, &positions, 0, 0.5);
     assert!(exact.iter().any(|d| d.contains("decodes")), "{exact:#?}");
-    let coarse = defects_with_a_vertex_moved(scene, &positions, 1, 1000.0);
+    let exponent = scene.result["primitives"][0]["quantization"]["positionExponent"]
+        .as_i64()
+        .expect("exponent") as i32;
+    let up = 2f32.powi(exponent + trillion3d_page_codec::bits::MAX_BITS as i32 - 2);
+    let coarse = defects_with_a_vertex_moved(scene, &positions, 1, up);
     for defect in [
         "decodes",
         "outside its bounds",

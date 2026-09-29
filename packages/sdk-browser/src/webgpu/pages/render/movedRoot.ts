@@ -28,20 +28,21 @@ export type MovedRootTarget = {
 export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>) {
   const { rows } = rt.layout,
     floats = rows.pageTableFloats;
-  invalidateTemporalPyramid(rt.run);
+  // A root whose box follows it stales its region alone, at its caller (`staleTemporalBox`).
+  if (!root.worldBox || !root.localBox) invalidateTemporalPyramid(rt.run);
   if (root.pages[0]?.transparent) rt.blendState.occlusionEpoch = -1;
   let rewritten = 0;
+  root.windingEpoch = undefined;
   for (const page of root.pages) {
     const index = page.packedIndex!;
-    page.windingEpoch = undefined;
     // A blended cluster moves its caster row (`../../row/blendCasters.ts`), which is its own.
     const row = page.transparent ? rows.blendRowOf[index] : rows.rowOfPage[index];
     if (!floats || row < 0) continue;
     // A rank the CPU cut left behind may name another page since: only a row that is this page's.
     if (!page.transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index))
       continue;
-    floats.set(page.matrix.elements, row * ROW_WORDS);
-    rows.markRowDirty(row);
+    floats.set(root.world.elements, row * ROW_WORDS);
+    rows.markRowWords(row);
     rewritten++;
   }
   return rewritten;

@@ -1,7 +1,6 @@
 import type { HostAttributes } from '../host/resources.ts';
 import type { PageSurface } from '../page/surface.ts';
 import type { Texture } from '../../../sdk-core/src/index.ts';
-import type { MatrixElements } from '../math/matrixElements.ts';
 import { HOST_FORMAT_RGBA } from '../host/surfaceConstants.ts';
 import { texelFormatOf } from '../host/textureImport.ts';
 
@@ -49,35 +48,37 @@ export const FLAG_LIT = 1,
   FLAG_HAS_TANGENT = 2048,
   /** The transparent draw reads its clusters from the compacted list, not an index buffer of its own. */
   FLAG_PAGED = 4096,
-  /**
-   * Frame flag, not a material one: the whole frame comes out as raw albedo because no light is
-   * declared, or because the host asked for the unlit view. Only the transparent draw reads it —
-   * the opaque path has its own resolve program for that.
-   */
+  /** Frame flag, not a material one: the whole frame comes out as raw albedo because no light is
+   *  declared, or because the host asked for the unlit view. Only the transparent draw reads it —
+   *  the opaque path has its own resolve program for that. */
   FLAG_UNLIT_VIEW = 8192,
   /** The material transmits: the surface reads the already-drawn background instead of blending by alpha. */
   FLAG_TRANSMISSIVE = 16384,
   /** The material reads its vertex colours and the geometry carries some: the base colour is
    *  multiplied by the interpolated vertex colour, as the forward path does. */
   FLAG_HAS_COLOR = 32768,
-  /** A shadow-only row of a blended cluster (`../webgpu/row/blendCasters.ts`): it writes no
-   *  depth, only the transmittance of its coverage (`PageInfo.blendCoverage`,
-   *  `../gpu/shadow/transmittance.ts`). */
+  /** A blended cluster's shadow-only row (`../webgpu/row/blendCasters.ts`): no depth, only the
+   *  transmittance of its coverage (`PageInfo.blendCoverage`, `../gpu/shadow/transmittance.ts`). */
   FLAG_BLEND_CASTER = 65536;
+/** Fog opt-out above the model bits; a dynamic geometry's row, reactive to the temporal pass (#573). */
+export const FLAG_FOG_FREE = 1 << 20,
+  FLAG_DYNAMIC = 1 << 21;
 export type VisPage = {
   array: Uint32Array;
   attributes: HostAttributes;
-  matrix: MatrixElements;
+  /** Rank of the root whose world places it (`../page/selection/types.ts`, `rootOf`). */
+  placementIndex?: number;
   /** The engine's surface record, read once at the boundary (`../page/surface.ts`). */
   material: PageSurface;
   clusterId?: string;
 };
-
 export type VisMaterial = {
   baseColor: [number, number, number];
   metalness: number;
   roughness: number;
   lit: boolean;
+  /** False keeps this material's colour outside the scene's fog. */
+  fog?: boolean;
   doubleSided: boolean;
   backSide: boolean;
   alphaTest: number;
@@ -87,6 +88,8 @@ export type VisMaterial = {
   normalMap?: Texture;
   normalScale: number;
   normalScaleY: number;
+  /** `normalScaleY` in a frame read from vertex tangents, not rebuilt (`frameNormal.ts`). */
+  tangentNormalScaleY?: number;
   aoMap?: Texture;
   aoIntensity: number;
   emissive: [number, number, number];

@@ -1,10 +1,38 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { AHEAD, boxDistance, cellReach, inCellFrame, KEEP, planCells } from './plan.ts';
+import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
+import { createCellBoxes } from './boxes.ts';
+import { openAll, paged } from './paged.fixture.ts';
+import { createCellIndex } from './cellIndex.ts';
+import {
+  AHEAD,
+  boxDistance,
+  cellReach,
+  inCellFrame,
+  KEEP,
+  planCells as planIndexed,
+} from './plan.ts';
 
 const optics = { fov: 60, aspect: 16 / 9, near: 0.1, far: 1e6, zoom: 1 };
-const cell = (x: number) => ({ bounds: [x, 0, 0, x + 1, 1, 1], meshes: [[0, 1] as const] });
-
+const cell = (x: number) => ({ bounds: [x, 0, 0, x + 1, 1, 1] });
+/** The plan of cells under the scene root, each one box, found through their index. */
+function planCells(
+  cells: { bounds: number[] }[],
+  eye: number[],
+  reach: number,
+  held: ReadonlySet<number>,
+) {
+  const boxes = createCellBoxes([], new Object3D(), []);
+  boxes.refresh();
+  const records = cells.map(({ bounds }, at) => ({
+    ...{ url: `${at}.json`, sha256: '', bytes: 1, meshes: [[0, 1] as const], meshPages: [] },
+    parents: [[null, bounds] as const],
+  }));
+  const { partition, files } = paged(records, 1);
+  const index = createCellIndex(partition.pages, 'https://cache.test/', boxes);
+  openAll(index, files);
+  return planIndexed(index, eye, reach, held);
+}
 test('a cell is read up to the far plane, met on the frustum diagonal', () => {
   const tangent = Math.tan(Math.PI / 6);
   const widen = 1 + tangent * tangent * (1 + optics.aspect ** 2);
@@ -63,7 +91,7 @@ test('cells are read nearest first within their reach, ahead past it, and leave 
     reach,
     new Set([0, 1]),
   );
-  assert.deepEqual(near, { visible: [], ahead: [], leave: [1] });
+  assert.deepEqual(near, { visible: [], ahead: [], leave: [1], pages: { visible: [], ahead: [] } });
   const wanted = planCells([cell(reach * (1 + AHEAD) - 1)], [0, 0.5, 0.5], reach, new Set());
   assert.deepEqual([wanted.visible, wanted.ahead], [[], [0]], 'read ahead of the reach');
   // A cell far wider than the reach is kept only while its box meets the keep sphere.

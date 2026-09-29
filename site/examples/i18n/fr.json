@@ -58,7 +58,8 @@
       "missingCache": "Le cache compilé manque : lancez pnpm compile:caches"
     },
     "banner": {
-      "close": "Fermer"
+      "close": "Fermer",
+      "waiting": "En attente du moteur (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -500,6 +501,32 @@
       "balloon": "SUIT LE BALLON"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Regardez le parcours enregistré dans le parc. Relancez-le, arrêtez-le ou prenez la caméra.",
+    "controls": {
+      "replay": "Rejouer",
+      "stop": "Arrêter"
+    },
+    "readouts": {
+      "currentPart": "Partie actuelle"
+    },
+    "words": {
+      "entrance": "Entrée",
+      "pond": "Étang",
+      "bridge": "Pont",
+      "pavilion": "Pavillon",
+      "overview": "Vue d’ensemble",
+      "complete": "Terminé"
+    }
+  },
+  "a-crane-that-swings": {
+    "banner": "Tourne autour de la grue pendant qu’un clip pivote la flèche, déplace le chariot, lève la charge et la laisse se balancer.",
+    "controls": {
+      "speed": "Vitesse",
+      "paused": "En pause",
+      "replay": "Rejouer"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Glisse pour regarder autour. Rends la vague de cubes plus haute ou plus rapide.",
     "controls": {
@@ -508,6 +535,34 @@
       "ripples": "Ondes",
       "inner": "Intérieur",
       "outer": "Extérieur"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Rapprochez la caméra des portes. Elles s’ouvrent à votre approche.",
+    "controls": {
+      "mode": "Mode",
+      "openingDistance": "Distance d’ouverture",
+      "openness": "Ouverture"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "proximité",
+        "manual": "manuel"
+      }
+    }
+  },
+  "a-carousel": {
+    "banner": "Tournez autour du carrousel. Mettez-le en pause ou envoyez les chevaux de bois dans l’autre sens.",
+    "controls": {
+      "running": "En marche",
+      "speed": "Vitesse",
+      "direction": "Direction"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "sens horaire",
+        "counterclockwise": "sens antihoraire"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -561,6 +616,17 @@
       "lamp": "Lampe",
       "colour": "Couleur",
       "bricks": "Briques"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Cliquez sur deux surfaces pour mesurer leur distance. Un troisième clic commence une nouvelle mesure. Une unité représente un mètre.",
+    "controls": {
+      "clear": "Effacer"
+    },
+    "readouts": {
+      "pointA": "Point A",
+      "pointB": "Point B",
+      "distance": "Distance"
     }
   },
   "click-to-pick": {
@@ -1197,6 +1263,25 @@
       "off": "éteint"
     }
   },
+  "page-materials": {
+    "banner": "Faites glisser pour explorer la salle. Listez, modifiez, mélangez ou créez un matériau.",
+    "controls": {
+      "set": "Changer la couleur",
+      "switchToBlend": "Passer au mélange",
+      "createAndAssign": "Créer et attribuer"
+    },
+    "readouts": {
+      "selected material": "Matériau sélectionné",
+      "materials": "Matériaux",
+      "sourceMaterials": "Matériaux d’origine",
+      "last action": "Dernière action"
+    },
+    "words": {
+      "imported": "{count} importés",
+      "applied": "Appliqué",
+      "ready": "Prêt"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "Glisse pour regarder autour. Ces lampes sont venues dans le fichier du modèle.",
     "controls": {
@@ -1259,6 +1344,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Clique sur la vue, puis marche avec W A S D (Z Q S D en AZERTY) et regarde avec la souris. Réduis le budget mémoire en avançant.",
+    "controls": {
+      "walkSpeed": "Vitesse de marche",
+      "memory": "Mémoire",
+      "view": "Vue",
+      "home": "Retour au départ"
+    },
+    "choices": {
+      "view": {
+        "beauty": "rendu",
+        "lod": "niveaux de détail",
+        "clusters": "clusters"
+      }
+    },
+    "words": {
+      "credit": "Avenue d’urnes modelée en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 par Rico Cilliers, Poly Haven, CC0 ; caisse par W. Sitters, CC BY 3.0 — voir assets/examples/CREDITS.md"
@@ -1307,6 +1411,7 @@
     "banner": "Glisse pour tourner autour. Change la vue pour voir ce que garde le moteur de rendu.",
     "controls": {
       "see": "Voir",
+      "glass": "Vitre",
       "spin": "Rotation"
     },
     "choices": {
@@ -1661,7 +1766,8 @@
       "night": "Nuit",
       "bounce": "Rebond",
       "sun": "Soleil",
-      "lamp": "Lampe"
+      "lamp": "Lampe",
+      "spin": "Rotation"
     },
     "words": {
       "credit": "Modèle de réverbère par W. Sitters, CC BY 3.0 — voir assets/examples/CREDITS.md"
@@ -1710,11 +1816,18 @@
   },
   "the-home-pose": {
     "banner": "Choisissez une vue, déplacez la caméra, puis choisissez Accueil pour revenir.",
-    "controls": { "home": "Accueil", "tower": "Tour", "square": "Place", "hillside": "Colline" }
+    "controls": {
+      "home": "Accueil",
+      "tower": "Tour",
+      "square": "Place",
+      "hillside": "Colline"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Avancez le plan proche et regardez-le couper chaque mur.",
-    "controls": { "nearPlane": "Plan proche" }
+    "controls": {
+      "nearPlane": "Plan proche"
+    }
   },
   "the-material-family": {
     "banner": "Glisse pour tourner autour. Passe à la nuit et vois ce qui brille encore.",
@@ -1906,6 +2019,7 @@
       "manifest": "manifeste lu",
       "tables": "tables de la scène lues",
       "resources": "fichiers de la scène",
+      "session": "ouverture de la vue",
       "pages": "premières pages",
       "ready": "prêt"
     }
@@ -2181,6 +2295,27 @@
       "credit": "Drapeau sur un mât modélisé en code pour cet exemple, CC0 — voir assets/examples/CREDITS.md"
     }
   },
+  "an-elevation-of-the-house": {
+    "banner": "Choisissez une élévation de la maison. Éloignez la caméra : le dessin orthographique garde exactement la même échelle.",
+    "controls": {
+      "elevation": "Élévation",
+      "distance": "Distance de la caméra",
+      "zoom": "Échelle du dessin"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Façade",
+        "right": "Côté droit",
+        "rear": "Arrière"
+      }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Survolez les pièces du chariot pour les mettre en évidence, ou désactivez le surlignage dans le panneau.",
+    "controls": {
+      "highlightEnabled": "Activer la mise en évidence"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "Mettez le travelling en pause, rejouez le trajet ou changez sa vitesse pendant que la caméra longe le canal.",
     "controls": {
@@ -2190,6 +2325,55 @@
     },
     "readouts": {
       "progress": "Progression"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Faites glisser pour examiner le coin de rue. Le compilateur a fusionné trois fichiers OBJ d’un dossier dans cette scène.",
+    "controls": {
+      "visible": "Visible",
+      "home": "Accueil"
+    },
+    "words": {
+      "credit": "Modèle de réverbère par W. Sitters, CC BY 3.0 — voir assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Faites glisser la caisse sur le sol. Activez l’alignement pour la placer par pas d’un demi-mètre.",
+    "controls": {
+      "snap": "Aligner",
+      "home": "Accueil"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Clique sur une forme pour la sélectionner. Clique sur le sol pour vider la sélection.",
+    "controls": {
+      "color": "Couleur",
+      "thickness": "Épaisseur"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Fais glisser pour tourner autour du champ. Change le nombre ou la vue.",
+    "controls": {
+      "count": "Nombre",
+      "view": "Vue"
+    },
+    "readouts": {
+      "objectsShown": "Objets affichés",
+      "objectsBuilt": "Objets créés"
+    },
+    "choices": {
+      "view": {
+        "beauty": "rendu",
+        "clusters": "clusters"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Montez ou démontez la vue. Chaque montage possède un monde et chaque retrait le libère.",
+    "controls": {
+      "mount": "Monter",
+      "unmount": "Démonter",
+      "remount": "Remonter"
     }
   }
 }

@@ -58,7 +58,8 @@
       "missingCache": "O cache compilado está ausente: execute pnpm compile:caches"
     },
     "banner": {
-      "close": "Fechar"
+      "close": "Fechar",
+      "waiting": "À espera do motor (#{issue})"
     }
   },
   "a-city-from-rules": {
@@ -500,6 +501,32 @@
       "balloon": "SEGUINDO O BALÃO"
     }
   },
+  "a-recorded-fly-through": {
+    "banner": "Assista à rota gravada pelo parque. Reproduza, pare ou assuma a câmera.",
+    "controls": {
+      "replay": "Reproduzir",
+      "stop": "Parar"
+    },
+    "readouts": {
+      "currentPart": "Parte atual"
+    },
+    "words": {
+      "entrance": "Entrada",
+      "pond": "Lago",
+      "bridge": "Ponte",
+      "pavilion": "Pavilhão",
+      "overview": "Visão geral",
+      "complete": "Concluído"
+    }
+  },
+  "a-crane-that-swings": {
+    "banner": "Gire à volta do guindaste enquanto um clipe roda a lança, move o carro, eleva a carga e a deixa balançar.",
+    "controls": {
+      "speed": "Velocidade",
+      "paused": "Em pausa",
+      "replay": "Repetir"
+    }
+  },
   "a-wave-across-a-grid": {
     "banner": "Arraste para olhar em volta. Deixe a onda de cubos mais alta ou mais rápida.",
     "controls": {
@@ -508,6 +535,34 @@
       "ripples": "Ondulações",
       "inner": "Dentro",
       "outer": "Fora"
+    }
+  },
+  "doors-that-open": {
+    "banner": "Mova a câmera em direção às portas. Elas se abrem quando você se aproxima.",
+    "controls": {
+      "mode": "Modo",
+      "openingDistance": "Distância de abertura",
+      "openness": "Abertura"
+    },
+    "choices": {
+      "mode": {
+        "proximity": "proximidade",
+        "manual": "manual"
+      }
+    }
+  },
+  "a-carousel": {
+    "banner": "Gire em torno do carrossel. Pause ou envie os cavalos de madeira para o outro lado.",
+    "controls": {
+      "running": "Em movimento",
+      "speed": "Velocidade",
+      "direction": "Direção"
+    },
+    "choices": {
+      "direction": {
+        "clockwise": "sentido horário",
+        "counterclockwise": "sentido anti-horário"
+      }
     }
   },
   "a-world-of-blocks": {
@@ -561,6 +616,17 @@
       "lamp": "Lâmpada",
       "colour": "Cor",
       "bricks": "Tijolos"
+    }
+  },
+  "measure-a-distance": {
+    "banner": "Clique em duas superfícies para medir a distância entre elas. Um terceiro clique inicia uma nova medição. Uma unidade representa um metro.",
+    "controls": {
+      "clear": "Limpar"
+    },
+    "readouts": {
+      "pointA": "Ponto A",
+      "pointB": "Ponto B",
+      "distance": "Distância"
     }
   },
   "click-to-pick": {
@@ -1197,6 +1263,25 @@
       "off": "desligado"
     }
   },
+  "page-materials": {
+    "banner": "Arraste para explorar o salão. Liste, altere, misture ou crie um material.",
+    "controls": {
+      "set": "Alterar cor",
+      "switchToBlend": "Mudar para mistura",
+      "createAndAssign": "Criar e atribuir"
+    },
+    "readouts": {
+      "selected material": "Material selecionado",
+      "materials": "Materiais",
+      "sourceMaterials": "Materiais originais",
+      "last action": "Última ação"
+    },
+    "words": {
+      "imported": "{count} importados",
+      "applied": "Aplicado",
+      "ready": "Pronto"
+    }
+  },
   "lights-from-the-scene-file": {
     "banner": "Arraste para olhar em volta. Estas lâmpadas vieram no arquivo do modelo.",
     "controls": {
@@ -1259,6 +1344,25 @@
       }
     }
   },
+  "a-walk-through-the-city": {
+    "banner": "Clique na vista, caminhe com W A S D e olhe com o rato. Reduza a memória enquanto avança.",
+    "controls": {
+      "walkSpeed": "Velocidade",
+      "memory": "Memória",
+      "view": "Vista",
+      "home": "Voltar ao início"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagem",
+        "lod": "níveis de detalhe",
+        "clusters": "clusters"
+      }
+    },
+    "words": {
+      "credit": "Avenida de urnas modelada em código para este exemplo, CC0 — veja assets/examples/CREDITS.md"
+    }
+  },
   "migrating-from-three": {
     "words": {
       "credit": "Marble Bust 01 de Rico Cilliers, Poly Haven, CC0; caixote de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"
@@ -1307,6 +1411,7 @@
     "banner": "Arraste para andar em volta. Troque a vista para ver o que o renderizador guarda.",
     "controls": {
       "see": "Ver",
+      "glass": "Vidro",
       "spin": "Girar"
     },
     "choices": {
@@ -1661,7 +1766,8 @@
       "night": "Noite",
       "bounce": "Reflexo",
       "sun": "Sol",
-      "lamp": "Lâmpada"
+      "lamp": "Lâmpada",
+      "spin": "Rodar"
     },
     "words": {
       "credit": "Modelo de poste de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"
@@ -1710,11 +1816,18 @@
   },
   "the-home-pose": {
     "banner": "Escolha uma vista, mova a câmera e depois escolha Início para voltar.",
-    "controls": { "home": "Início", "tower": "Torre", "square": "Praça", "hillside": "Encosta" }
+    "controls": {
+      "home": "Início",
+      "tower": "Torre",
+      "square": "Praça",
+      "hillside": "Encosta"
+    }
   },
   "the-near-plane-cuts-a-wall": {
     "banner": "Avance o plano próximo e veja-o cortar cada parede.",
-    "controls": { "nearPlane": "Plano próximo" }
+    "controls": {
+      "nearPlane": "Plano próximo"
+    }
   },
   "the-material-family": {
     "banner": "Arraste para andar em volta. Ponha a luz de noite e veja o que ainda brilha.",
@@ -1906,6 +2019,7 @@
       "manifest": "manifesto lido",
       "tables": "tabelas da cena lidas",
       "resources": "arquivos da cena",
+      "session": "abrindo a vista",
       "pages": "primeiras páginas",
       "ready": "pronto"
     }
@@ -2181,6 +2295,27 @@
       "credit": "Bandeira num mastro modelada em código para este exemplo, CC0 — ver assets/examples/CREDITS.md"
     }
   },
+  "an-elevation-of-the-house": {
+    "banner": "Escolha uma elevação da casa. Afaste a câmera: o desenho ortográfico mantém exatamente a mesma escala.",
+    "controls": {
+      "elevation": "Elevação",
+      "distance": "Distância da câmera",
+      "zoom": "Escala do desenho"
+    },
+    "choices": {
+      "elevation": {
+        "front": "Frente",
+        "right": "Lado direito",
+        "rear": "Fundos"
+      }
+    }
+  },
+  "hover-to-highlight": {
+    "banner": "Passe o cursor sobre as peças do carrinho para realçar cada uma, ou desative o realce no painel.",
+    "controls": {
+      "highlightEnabled": "Ativar realce"
+    }
+  },
   "a-dolly-along-the-canal": {
     "banner": "Pause o travelling, repita o percurso ou mude a velocidade enquanto a câmera segue pelo canal.",
     "controls": {
@@ -2190,6 +2325,55 @@
     },
     "readouts": {
       "progress": "Progresso"
+    }
+  },
+  "a-folder-merged-into-one-scene": {
+    "banner": "Arraste para examinar a esquina. O compilador reuniu três arquivos OBJ de uma pasta nesta cena.",
+    "controls": {
+      "visible": "Visível",
+      "home": "Início"
+    },
+    "words": {
+      "credit": "Modelo de poste de W. Sitters, CC BY 3.0 — veja assets/examples/CREDITS.md"
+    }
+  },
+  "drag-a-crate": {
+    "banner": "Arraste a caixa pelo chão. Ative o ajuste para posicioná-la em passos de meio metro.",
+    "controls": {
+      "snap": "Ajustar",
+      "home": "Início"
+    }
+  },
+  "outline-the-selection": {
+    "banner": "Clique numa forma para selecioná-la. Clique no chão para limpar a seleção.",
+    "controls": {
+      "color": "Cor",
+      "thickness": "Espessura"
+    }
+  },
+  "a-hundred-thousand-instances": {
+    "banner": "Arraste para orbitar o campo. Altere a quantidade ou a vista.",
+    "controls": {
+      "count": "Quantidade",
+      "view": "Vista"
+    },
+    "readouts": {
+      "objectsShown": "Objetos exibidos",
+      "objectsBuilt": "Objetos criados"
+    },
+    "choices": {
+      "view": {
+        "beauty": "imagem",
+        "clusters": "clusters"
+      }
+    }
+  },
+  "inside-a-component": {
+    "banner": "Monte ou desmonte o visualizador. Cada montagem possui um mundo e cada remoção o descarta.",
+    "controls": {
+      "mount": "Montar",
+      "unmount": "Desmontar",
+      "remount": "Montar novamente"
     }
   }
 }

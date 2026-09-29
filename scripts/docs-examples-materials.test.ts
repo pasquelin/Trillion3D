@@ -1,19 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { runExampleModule } from './docs/examples/capture.ts';
-import {
-  geometry,
-  light,
-  material,
-  math,
-  Mesh,
-  object,
-  Vector3,
-} from '../packages/sdk-browser/src/index.ts';
+import { runControlledExample } from './docs/examples/controlled.ts';
+import { Mesh, Vector3 } from '../packages/sdk-browser/src/index.ts';
 import { Camera } from '../packages/sdk-core/src/world/camera/camera.ts';
 import { Scene } from '../packages/sdk-browser/src/world/core/scene.ts';
-import { describe, type ControlSpec } from '../site/examples/kit/controls.ts';
 
 type Values = Record<string, boolean | number | string>;
 type Frame = (frame: { delta: number }) => void;
@@ -22,32 +13,13 @@ async function materialExample(id: string) {
   const html = await readFile(new URL(`../site/examples/${id}.html`, import.meta.url), 'utf8');
   const scene = new Scene(() => Promise.reject(new Error('the page loads no model')));
   let frame: Frame = () => {};
-  let change: (values: Values) => void = () => {};
-  let values: Values = {};
   let invalidations = 0;
-  await runExampleModule(html, {
-    engine: {
-      createWorld: () => ({
-        scene,
-        camera: new Camera('perspective'),
-        controls: { target: { set() {} } },
-        onFrame: (hook: Frame) => void (frame = hook),
-        invalidate: () => invalidations++,
-      }),
-      geometry,
-      material,
-      object,
-      light,
-      math,
-    },
-    kit: {
-      controls: (specs: Record<string, ControlSpec>, callback: (next: Values) => void) => {
-        values = describe(specs).values as Values;
-        change = callback;
-        callback(values);
-        return values;
-      },
-    },
+  const { values, change } = await runControlledExample<Values>(html, {
+    scene,
+    camera: new Camera('perspective'),
+    controls: { target: { set() {} } },
+    onFrame: (hook: Frame) => void (frame = hook),
+    invalidate: () => invalidations++,
   });
   return { scene, frame, change, values, invalidations: () => invalidations };
 }

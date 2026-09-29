@@ -3,7 +3,7 @@ import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts';
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { OrthographicBox } from '../../camera/engineCamera.ts';
-import { orthographicView } from '../../../../sdk-core/src/math/primitives/camera.ts';
+import { drawnView } from '../../../../sdk-core/src/math/primitives/camera.ts';
 import { createOrbitCameraControls } from '../../camera/controls/orbitControls.ts';
 import { createFlyCameraControls } from '../../camera/controls/flyControls.ts';
 import { createFirstPersonCameraControls } from '../../camera/controls/firstPersonControls.ts';
@@ -43,11 +43,10 @@ function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
   into.far = camera.far;
   into.zoom = camera.zoom;
   into.aspect = aspect;
-  const box =
-    camera.projection === 'orthographic'
-      ? { left: camera.left, right: camera.right, top: camera.top, bottom: camera.bottom }
-      : null;
-  // The engine composes its own projection from the box (`engineCamera.ts`); the host
+  const { left, right, top, bottom, fitAspect } = camera;
+  const box = camera.projection === 'orthographic' ? { left, right, top, bottom, fitAspect } : null;
+  // The box is handed on as declared, fitted where each projection is composed, at the shape it
+  // is drawn at. The engine composes its own projection from it (`engineCamera.ts`); the host
   // renderer that draws the WebGL2 path reads the host matrix, rewritten orthographic here, and
   // its flag, which turns its shading's view vector to the camera's axis.
   into.orthographic = box;
@@ -59,6 +58,7 @@ function copyWorldCamera(camera: Camera, into: HostCamera, aspect: number) {
       into.projectionMatrixInverse?.elements as number[] | undefined,
       box,
       camera,
+      aspect,
     );
   into.updateMatrixWorld();
 }
@@ -71,14 +71,16 @@ export const followPageCamera =
 
 const view = new Float64Array(4);
 /** The host renderer's orthographic matrix — forward depth, `near` to −1 and `far` to 1 — of
- *  the box a camera sees, scaled by its zoom about the box centre, and its inverse. */
-function hostOrthographic(
+ *  the box a camera sees at `aspect` (`drawnView`), scaled by its zoom about the box centre, and
+ *  its inverse. */
+export function hostOrthographic(
   out: number[],
   inverse: number[] | undefined,
   box: OrthographicBox,
-  camera: Camera,
+  camera: Pick<Camera, 'zoom' | 'near' | 'far'>,
+  aspect: number,
 ) {
-  const [x, y, w, h] = orthographicView(box, camera.zoom, view),
+  const [x, y, w, h] = drawnView(box, aspect, camera.zoom, view),
     depth = camera.far - camera.near;
   out.fill(0);
   out[0] = 1 / w;

@@ -1,9 +1,11 @@
 import { sessionGeometryPool } from '../../residency/sessionPool.ts';
 import type { PoolEnvironment } from './pool.ts';
+import type { GeometryPool } from '../../residency/pools.ts';
 
 /**
  * The pool drawn from the budget (`sessionGeometryPool`): slots of the catalogue's largest decoded
- * page, for the copies the scene and its root cover hold. It is drawn again when the root cover's
+ * page, for the copies the scene holds, and its floor: the root cover and the pages its groups
+ * replace (`../../residency/minimumCapacity.ts`). It is drawn again when the root cover's
  * revision moves, and each page's share of the slots is weighed with it: the root cover is held
  * before the requests charge anything, so its pages charge nothing.
  */
@@ -29,7 +31,7 @@ export function drawGeometryPool(
   }
   const drawSession = () =>
     sessionGeometryPool(
-      { pageBytes, uniquePages: copies.scene(), rootPages: copies.root(), maxResidentPages },
+      { pageBytes, uniquePages: copies.scene(), rootPages: copies.floor(), maxResidentPages },
       budgetBytes,
       ceilingBytes,
     );
@@ -50,16 +52,23 @@ export function drawGeometryPool(
     }
     return pool;
   };
+  const drawFor = (bytes: number) => (current(), session.poolFor(bytes));
   return {
     /** The pool as drawn now. */
     current,
     /** Each page's share of the slots, by URL: the copies it holds once resident. */
     shares: shares as ReadonlyMap<string, number>,
+    /** The pool drawn for another budget, under the session ceiling, not adopted; an invalid
+     *  budget is refused. */
+    drawFor,
     /** Another budget, under the session ceiling; an invalid one is refused before anything
      *  changes. */
     resize(bytes: number) {
-      current();
-      pool = session.poolFor(bytes);
+      pool = drawFor(bytes);
+    },
+    /** A pool `drawFor` drew, adopted. */
+    adopt(drawn: GeometryPool) {
+      pool = drawn;
     },
   };
 }

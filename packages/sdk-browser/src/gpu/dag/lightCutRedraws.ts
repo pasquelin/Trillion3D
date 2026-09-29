@@ -3,6 +3,16 @@ import { MAX_SHADOW_BATCHES as BATCHES, SHADOW_FLAG_FRAMES } from '../shadow/bat
 import { COARSER_VIEWS, LIST_FULL, WORK_DROPPED } from './shader/viewsWgsl.ts';
 import { OUT_FLAGS } from './layout.ts';
 import { createViewLimit } from './lightCutViewLimit.ts';
+import { DRAW_DYNAMIC } from '../../../../sdk-core/src/scene/light-shadow/pool.ts';
+
+/** A page's redraw bits: withdrawn until redrawn, and its static casters drawn again too. */
+const WRONG = 1,
+  STATIC = 2;
+/** The bit of a page drawn in `mode` (`DRAW_*`): `STATIC` unless the static layer restored it. */
+const casterBit = (mode: number) => (mode === DRAW_DYNAMIC ? 0 : STATIC);
+/** Merges `bits` into `page`'s entry of `map`. */
+const merge = (map: Map<number, number>, page: number, bits: number) =>
+  map.set(page, bits | (map.get(page) ?? 0));
 
 /**
  * WHICH PAGES A LIGHT CUT DREW SHORT, TO BE DRAWN AGAIN. Every batch that runs a cut copies its
@@ -23,12 +33,16 @@ import { createViewLimit } from './lightCutViewLimit.ts';
  *   not read — the frame's report not copied, or its list full before the batch's flag — waits
  *   for nothing: what it lacked was never asked for, and its pages are drawn again at once.
  *
+ * A page is drawn again as it was drawn: one restored from the static layer (`DRAW_DYNAMIC`) drew
+ * its moving casters alone, so only they can have been short, and the static layer stays; one whose
+ * static casters were drawn draws them again (#990).
+ *
  * A frame's flag words ride in one slot: a buffer of a word per batch, and the batches' pages,
  * sized once for the most batches a frame draws (`../shadow/batchBudget.ts`). `SHADOW_FLAG_FRAMES`
- * slots, allocated at creation, hold that many frames in flight; a frame that finds every slot
- * still read — the GPU that far behind — cannot know what its cuts drew short, so its pages are
- * drawn again, withdrawn meanwhile. Without the flag, what a still image shows would depend on the
- * order its pages were drawn in.
+ * slots, allocated at creation, hold that many frames in flight. A frame that finds every slot
+ * still read — the GPU that far behind — draws no light-cut page (`ready`): its pages stay stale,
+ * read as they were, for a frame with a slot. Drawn on a guess, they would be withdrawn with no
+ * cause, and their redraw, as starved, again each frame (#1142).
  */
 export function createLightCutRedraws(
   own: (descriptor: GPUBufferDescriptor) => GPUBuffer,
@@ -41,6 +55,8 @@ export function createLightCutRedraws(
     pages: new Int32Array(BATCHES * PAGES),
     /** The view of each page, the rank its run has in its batch's cut. */
     views: new Uint8Array(BATCHES * PAGES),
+    /** Each page's `STATIC` bit: 0 for a page restored from the static layer. */
+    casters: new Uint8Array(BATCHES * PAGES),
     /** Where each batch's pages end. */
     ends: new Uint16Array(BATCHES),
     batches: 0,
@@ -51,16 +67,20 @@ export function createLightCutRedraws(
   type Slot = (typeof slots)[number];
   /** The slot of the frame being encoded, until its settlement. */
   let open: Slot | undefined;
-  /** Each page to draw again, and whether its depth is wrong — dropped work — and is withdrawn
-   *  meanwhile, or only coarser — a missing cluster — and stays read. */
-  const redraw = new Map<number, boolean>(),
-    waiting = new Set<number>();
+  /** Each page to draw again, in bits: its depth is wrong — dropped work — and is withdrawn
+   *  meanwhile, not only coarser — a missing cluster — and stays read (`WRONG`); its static casters
+   *  were drawn short too (`STATIC`). The pages waiting for residency, with the same bits. */
+  const redraw = new Map<number, number>(),
+    waiting = new Map<number, number>();
   const limit = createViewLimit(viewCap);
   let epoch = 0,
     /** Residency changed since the waiting pages were last released. */
     moved = false;
-  const again = (page: number, withdraw: boolean) =>
-    redraw.set(page, withdraw || !!redraw.get(page));
+  const again = (bits: number, page: number) => merge(redraw, page, bits);
+  /** The slot the frame's next batch copies its flag word into: the open frame's while it has room,
+   *  else a free one; none when every slot is still read. */
+  const slotFor = () =>
+    open ? (open.batches < BATCHES ? open : undefined) : slots.find(({ busy }) => !busy);
   const read = (slot: Slot, batch: number, flags: number) => {
     const from = batch ? slot.ends[batch - 1] : 0,
       to = slot.ends[batch];
@@ -69,7 +89,7 @@ export function createLightCutRedraws(
     for (let i = from; i < to; i++) views = Math.max(views, slot.views[i] + 1);
     limit.read(views, dropped);
     if (dropped) {
-      for (let i = from; i < to; i++) again(slot.pages[i], true);
+      for (let i = from; i < to; i++) again(WRONG | slot.casters[i], slot.pages[i]);
       return;
     }
     // Residency moved since the frame was encoded: what it lacked may be there now.
@@ -77,8 +97,7 @@ export function createLightCutRedraws(
       coarser = flags >>> COARSER_VIEWS;
     for (let i = from; i < to; i++)
       if ((coarser >>> slot.views[i]) & 1)
-        if (now) again(slot.pages[i], false);
-        else waiting.add(slot.pages[i]);
+        merge(now ? redraw : waiting, slot.pages[i], slot.casters[i]);
   };
   const settle = (slot: Slot) => (submitted: boolean) => {
     if (open === slot) open = undefined;
@@ -99,50 +118,52 @@ export function createLightCutRedraws(
       });
   };
   return {
-    /** Copies a batch's flag word with its `count` drawn `pages`, drawn in the cut's `views`. The
-     *  frame's first batch returns the settlement to call once the command buffer is submitted,
-     *  or dropped; the others ride in its slot. */
+    /** Copies a batch's flag word with its `count` drawn `pages`, drawn in the cut's `views` and
+     *  in `modes` (`DRAW_*`), once `ready`. The frame's first batch returns the settlement to call
+     *  once the command buffer is submitted, or dropped; the others ride in its slot. */
     encode(
       encoder: GPUCommandEncoder,
       pages: ArrayLike<number>,
       views: ArrayLike<number>,
       count: number,
+      modes: ArrayLike<number>,
     ) {
       if (!count) return undefined;
+      const slot = slotFor();
+      // A page drawn without its flag word could not be checked: the caller asks `ready` first.
+      if (!slot) throw new Error('light-cut redraws: no flag slot, ask `ready` first');
       let settlement: ((submitted: boolean) => void) | undefined;
-      if (!open) {
-        const free = slots.find(({ busy }) => !busy);
-        if (free) {
-          open = free;
-          free.busy = true;
-          free.batches = 0;
-          free.epoch = epoch;
-          free.reported = false;
-          settlement = settle(free);
-        }
-      }
-      const slot = open;
-      if (!slot || slot.batches >= BATCHES) {
-        for (let i = 0; i < count; i++) again(pages[i], true);
-        return settlement;
+      if (slot !== open) {
+        open = slot;
+        slot.busy = true;
+        slot.batches = 0;
+        slot.epoch = epoch;
+        slot.reported = false;
+        settlement = settle(slot);
       }
       const at = slot.batches ? slot.ends[slot.batches - 1] : 0;
       for (let i = 0; i < count; i++) {
         slot.pages[at + i] = pages[i];
         slot.views[at + i] = views[i];
+        slot.casters[at + i] = casterBit(modes[i]);
       }
       slot.ends[slot.batches] = at + count;
       encoder.copyBufferToBuffer(output, OUT_FLAGS * 4, slot.buffer, slot.batches * 4, 4);
       slot.batches++;
       return settlement;
     },
+    /** Whether the frame's next batch has a slot for its flag word: without, it draws nothing. */
+    get ready() {
+      return slotFor() !== undefined;
+    },
     /** Once the frame's batches are encoded: whether its requests were copied
      *  (`lightCutReports.ts`). Until said, a frame's coarse pages count as not reported. */
     reported(copied: boolean) {
       if (open) open.reported = copied;
     },
-    /** Residency the light cuts see changed: the drop is forgotten, and the pages that waited on
-     *  it are drawn again once the camera rests (`rest`). */
+    /** Residency the light cuts see changed: the drop goes stale, not forgotten (the limit may
+     *  probe upward, `createViewLimit`), and the pages that waited on it are drawn again once the
+     *  camera rests (`rest`). */
     residencyChanged() {
       moved = true;
       limit.residencyChanged();
@@ -152,18 +173,17 @@ export function createLightCutRedraws(
       if (!moved) return;
       moved = false;
       epoch++;
-      for (const page of waiting) again(page, false);
+      waiting.forEach(again);
       waiting.clear();
     },
-    /** Light views one batch draws in: `viewCap` until a batch drops (`createViewLimit`). */
-    get viewLimit() {
-      return limit.value;
-    },
-    /** Hands every page to draw again to `visit`, and whether it is withdrawn until then; forgets
-     *  them; returns how many. */
-    takeRedraw(visit: (page: number, withdraw: boolean) => void) {
+    /** Light views one batch draws in (`value`): `viewCap` until a batch drops, then what fits;
+     *  and the batches read as dropped (`dropsRead`) — `createViewLimit`. */
+    limit: limit as Pick<typeof limit, 'value' | 'dropsRead'>,
+    /** Hands every page to draw again to `visit`, whether it is withdrawn until then, and whether
+     *  its static casters are drawn again too; forgets them; returns how many. */
+    takeRedraw(visit: (page: number, withdraw: boolean, staticCasters: boolean) => void) {
       const count = redraw.size;
-      for (const [page, withdraw] of redraw) visit(page, withdraw);
+      for (const [page, bits] of redraw) visit(page, (bits & WRONG) !== 0, (bits & STATIC) !== 0);
       redraw.clear();
       return count;
     },

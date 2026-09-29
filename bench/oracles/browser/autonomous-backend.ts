@@ -1,9 +1,13 @@
 import { numbered } from '../../../packages/sdk-browser/src/host/graph/serial.ts';
 import { Mesh } from '../../../packages/sdk-core/src/world/object/mesh.ts';
-import type { GraphScene } from '../../../packages/sdk-browser/src/host/graph/scene.ts';
+import type { Scene } from '../../../packages/sdk-browser/src/world/core/scene.ts';
 import type { GraphSurface } from '../../../packages/sdk-browser/src/host/graph/surface.ts';
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
-import type { PageRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { PageRec as EngineRec } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { MatrixElements } from '../../../packages/sdk-browser/src/math/matrixElements.ts';
+
+/** A record as the oracle read it, before #1226: with the world of the root that places it. */
+type PageRec = EngineRec & { matrix: MatrixElements };
 import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geometry.ts';
 
 /**
@@ -16,7 +20,7 @@ export function referenceAutonomousSync({
   allPages,
   shown,
 }: {
-  scene: GraphScene;
+  scene: Scene;
   allPages: PageRec[];
   shown: PageRec[];
 }) {

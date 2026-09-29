@@ -5,6 +5,7 @@ import {
   type AssetScope,
 } from './base.ts';
 import { UNSPLIT_PASS, primitiveIsDrawable, type ClusterManifest } from './geometry.ts';
+import { TEXTURE_PREVIEW_VERSION } from '../texture/previewFormat.ts';
 
 /**
  * The error the engine throws: a stable `code` a page can test, words for a person, and details.
@@ -24,8 +25,10 @@ export class EngineError extends Error {
 }
 /** Where a model's pages are read from, by key. */
 export interface PageSource {
-  /** Reads the bytes of one page. */
-  read(key: string, signal?: AbortSignal): Promise<Uint8Array>;
+  /** Reads the bytes of one page; `priority`, when given, is the streamer's (smallest first). A
+   *  more urgent read of a page already in flight is asked again to raise it: a source that takes
+   *  `priority` joins it to the read in flight rather than transfer the page twice. */
+  read(key: string, signal?: AbortSignal, priority?: number): Promise<Uint8Array>;
 }
 /** Refuses a cache format this runtime does not read. */
 export function assertFormat(formatVersion: number) {
@@ -163,5 +166,14 @@ export function assertCacheIdentity(metadata: ClusterManifest) {
       'STALE_CACHE',
       `Cache error model ${metadata.errorModel ?? 'absent'} cannot be used; recompile with ${DAG_ERROR_MODEL}`,
       { errorModel: metadata.errorModel ?? null, expected: DAG_ERROR_MODEL },
+    );
+  // Texture levels of another version — before 6, block files not laid out in tile records
+  // (#962) — would be cut at the wrong bytes: the cache is refused whole, never drawn coarse.
+  const { textures } = metadata;
+  if (textures && textures.version !== TEXTURE_PREVIEW_VERSION)
+    throw new EngineError(
+      'STALE_CACHE',
+      `Cache texture levels are version ${textures.version ?? 'absent'}, this runtime reads ${TEXTURE_PREVIEW_VERSION}; recompile the cache (trillion3d-compile, or pnpm run compile:caches in the repository)`,
+      { textureVersion: textures.version ?? null, expected: TEXTURE_PREVIEW_VERSION },
     );
 }

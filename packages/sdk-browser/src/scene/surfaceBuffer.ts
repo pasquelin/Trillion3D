@@ -1,13 +1,16 @@
 /** Version 1: opaque/masked material properties in linear space, before lighting.
- * No velocity or GI representation is claimed by this contract. */
+ * No velocity or GI representation is claimed by this contract. The flags hold a value of 0 to 5
+ * (`SurfaceBuffer.flags`), written by the opaque resolve alone: eight bits keep every one. */
 export const SURFACE_FORMATS: GPUTextureFormat[] = [
   'rgba16float',
   'rgba16float',
   'rgba16float',
-  'r32uint',
+  'r8uint',
 ];
 /** Bytes of the four surface targets per pixel. */
-export const SURFACE_BYTES_PER_PIXEL = 28;
+export const SURFACE_BYTES_PER_PIXEL = 25;
+/** Display colour target, what the composition writes; before it, the water pass borrows it. */
+export const DISPLAY_FORMAT: GPUTextureFormat = 'rgba8unorm';
 /** Virtual-texture feedback target: the tile rank a pixel asks for, written by hardware
  *  resolve then by transparents, reduced to counters for one pixel in sixteen. */
 export const FEEDBACK_FORMAT: GPUTextureFormat = 'r32uint';
@@ -16,7 +19,8 @@ export const FEEDBACK_FORMAT: GPUTextureFormat = 'r32uint';
 export function frameTargetBytes(width: number, height: number, withHiz: boolean) {
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1)
     throw new Error('INVALID_SURFACE_SIZE');
-  let bytes = width * height * 56;
+  // Colour, depth, visibility and material depth take 4 bytes each, HDR 8, the feedback 4.
+  let bytes = width * height * (28 + SURFACE_BYTES_PER_PIXEL);
   if (withHiz) {
     bytes += width * height * 4;
     let w = width,
@@ -46,7 +50,8 @@ export interface SurfaceBuffer {
   readonly normalRough: GPUTexture;
   /** RGB emission, A ambient occlusion. */
   readonly emissiveAo: GPUTexture;
-  /** 0 background, 1 unlit (fogged), 2 reads, 3 shown as-is: a diagnostic, a normal or depth view. */
+  /** 0 background, 1 unlit (fogged), 2 reads, 3 shown as-is: a diagnostic, a normal or depth view;
+   *  4 and 5 the diffuse and toon models (`./surfaceModel.ts`). */
   readonly flags: GPUTexture;
   /** Its GPU texture views. */
   views(): GPUTextureView[];

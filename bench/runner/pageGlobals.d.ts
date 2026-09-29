@@ -4,5 +4,5 @@
 export {};
 
 declare global {
-  var incidentsGpu: string[] | undefined;
+  var gpuIncidents: string[] | undefined;
 }

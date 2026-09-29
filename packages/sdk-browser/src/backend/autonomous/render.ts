@@ -2,7 +2,7 @@ import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 import type { BackendContext } from '../types.ts';
 import type { installSceneLighting } from '../../lighting/sceneLighting.ts';
 import type { WebglFrameGate } from '../../webgl/core/frameGate.ts';
-import type { CameraMotion, HostCamera } from '../../camera/world.ts';
+import type { HostCamera } from '../../camera/world.ts';
 import type { HostWorldPlacements } from '../../host/world/placements.ts';
 import type { BlendCopy } from '../../cluster/blendCopyContract.ts';
 import { showBlendCopy } from '../../cluster/blendCopyMesh.ts';
@@ -10,8 +10,10 @@ import { attachedPages } from '../../placement/autonomousPlacements.ts';
 import { followHostVisibility } from '../../placement/hidden.ts';
 import type { createGeometryBudget } from './pool.ts';
 import { createImageCut } from './imageCut.ts';
+import { createRefusalAnswer } from './refusals.ts';
 import type { createAutonomousResidency } from './residency.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
+import type { WebglViewState } from './views.ts';
 
 /** What the autonomous frame decided, and whether it was held. */
 export type AutonomousRenderState = {
@@ -34,6 +36,15 @@ export const createAutonomousRenderState = (): AutonomousRenderState => ({
 });
 
 /**
+ * Whether a frame the gate held is the still frame a page waits for (`frameHeld`): as on WebGPU
+ * (`../../webgpu/frame/hold.ts`, nothing pending), not while a page the view asks for is still
+ * awaited — its arrival will change the image. A capture after a moving camera held the first
+ * frame whose cut had not moved, pages missing, and its A/A drew what each run had loaded (#1016).
+ */
+export const stillFrame = (requested: readonly Pick<PageRec, 'array'>[]) =>
+  requested.every((rec) => !!rec.array);
+
+/**
  * One frame of the autonomous WebGL engine. The whole cut is rerun as soon as the view, the scene
  * or the resources have moved — an incremental cut of this path is another job — but a frame that
  * nothing has touched reruns none: the attached scene is already this frame.
@@ -48,10 +59,9 @@ export function createAutonomousRender(options: {
   blendCopies: readonly BlendCopy[];
   /** The engine's world-matrix index, rebuilt once per scene revision. */
   worlds: HostWorldPlacements;
-  /** The cut drawn, the cut wanted and what the image asks the pool for (`imageCut.ts`). */
-  shown: PageRec[];
-  desired: PageRec[];
-  requested: PageRec[];
+  /** The drawn view: the cut drawn, the cut wanted, what the image asks the pool for
+   *  (`imageCut.ts`), its motion and its size, read at each frame (`views.ts`). */
+  view: WebglViewState;
   /** Moves when the placements change. */
   revision: () => number;
   /** The display graph's page ceiling, which the cover it pins may raise (`pages.ts`). */
@@ -63,7 +73,10 @@ export function createAutonomousRender(options: {
   residency: Pick<ReturnType<typeof createAutonomousResidency>, 'keptChanged'>;
   /** The geometry pool: what it admits of the requests, what it holds of what the image asks for
    *  and draws, and the shedding of what it no longer holds (`pool.ts`). */
-  pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'fit' | 'held' | 'follow' | 'trim'>;
+  pool: Pick<
+    ReturnType<typeof createGeometryBudget>,
+    'admit' | 'fit' | 'held' | 'follow' | 'trim' | 'outOfMemory'
+  >;
 }) {
   const {
     state,
@@ -73,33 +86,41 @@ export function createAutonomousRender(options: {
     roots,
     blendCopies,
     worlds,
-    shown,
-    requested,
+    view,
     ceiling,
     geometry,
     residency,
     pool,
   } = options;
-  const motion: CameraMotion = {};
-  const cut = createImageCut({ ...options, viewport: context.viewport, held: geometry.held });
+  const cut = createImageCut({ ...options, held: geometry.held });
   const sourcesDessinees = roots.map((root) => root.pages[0]);
   /** What the image asks for and draws moved: the streamer's pins and the pool follow it. */
   const follow = () => {
     residency.keptChanged();
-    pool.follow(requested, shown);
+    pool.follow(view.requested, view.shown);
   };
+  const answerRefusals = createRefusalAnswer({
+    gl: () => context.webglContext,
+    pool,
+    onDiagnostic: context.onDiagnostic,
+    redraw: () => gate.resourcesChanged(),
+  });
   const frame = (camera: HostCamera) => {
+    // The allocations the context refused since the last frame, answered first (`refusals.ts`).
+    answerRefusals();
     // Frame entry: the order and its guarantees live in `../../frame/gateCore.ts`, which also copies
     // the host camera into the engine camera — the cut now reads only the latter.
-    state.frameHeld = gate.enterFrame(
+    const held = gate.enterFrame(
       context,
       camera,
-      motion,
-      context.viewport,
+      view.motion,
+      view.viewport,
       context.source,
       sourcesDessinees,
     );
-    if (state.frameHeld) return;
+    // Once still, a held frame stays still: no cut ran, the pages asked are the same.
+    state.frameHeld = held && (state.frameHeld || stillFrame(view.requested));
+    if (held) return;
     // Copied world matrices and lights are a function of the scene only.
     // A node the host hid or showed parks its roots and hides its copies, or takes them back
     // (`placement/hidden.ts`).
@@ -125,10 +146,16 @@ export function createAutonomousRender(options: {
     state.frustumRejected = selected.frustumRejected;
     state.lodLevel = selected.lodLevel;
     // Drawn pages past the display graph's page ceiling are reported, never replaced.
-    state.overBudget = attachedPages(shown) > ceiling();
+    state.overBudget = attachedPages(view.shown, roots) > ceiling();
     geometry.sync();
     follow();
-    gate.keep(state.visible, triangles.selectedTriangles, shown, state.lodLevel, state.overBudget);
+    gate.keep(
+      state.visible,
+      triangles.selectedTriangles,
+      view.shown,
+      state.lodLevel,
+      state.overBudget,
+    );
   };
   return Object.assign(frame, { hostBytes: cut.hostBytes });
 }

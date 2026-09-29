@@ -19,7 +19,7 @@ import type { MatrixElements } from '../math/matrixElements.ts';
 import { geometryBytes } from '../scene/meshes.ts';
 import { hostSide } from '../scene/materialSide.ts';
 import { setGeometryBounds } from './geometryBounds.ts';
-import { GraphScene } from './graph/scene.ts';
+import { Scene } from '../world/core/scene.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { InstancedMesh } from '../../../sdk-core/src/world/object/instancedMesh.ts';
 import { BufferAttribute } from '../../../sdk-core/src/world/buffer/attribute.ts';
@@ -32,8 +32,8 @@ type Surfaces = GraphSurface | GraphSurface[];
 
 /** The display graph the page path hangs its pages on, holding from the start the transparent
  *  copies it draws whole (`../cluster/blendCopyMesh.ts`). */
-export function hostPageScene(copies: readonly object[] = []): GraphScene {
-  const scene = new GraphScene();
+export function hostPageScene(copies: readonly object[] = []): Scene {
+  const scene = numbered(new Scene());
   for (const copy of copies) scene.add(copy as unknown as Object3D);
   return scene;
 }
@@ -91,11 +91,6 @@ export const releaseHostInstances = (mesh: HostInstancedMesh) => {
   mesh.dispose();
 };
 
-/** The pose a drawn page wears: the sixteen floats the engine composed for it. */
-export const setHostPose = (mesh: HostMesh, pose: MatrixElements) => {
-  mesh.matrix.fromArray(pose.elements);
-};
-
 /** The surface a drawn page wears once its primitive has been repainted. */
 export const setHostSurface = (mesh: HostMesh, declaration: HostMaterials) => {
   mesh.material = declaration as unknown as Surfaces;
@@ -132,6 +127,8 @@ const counted = new Set<ArrayBufferView>();
  *  (`../scene/meshes.ts`). */
 export function hostPageBytes(geometry: Geometry) {
   counted.clear();
+  // A dynamic page reads its primitive's own lists (`sourcedPageGeometry`): its index alone is its.
+  if (geometry.usage === 'dynamic') return geometry.index?.array.byteLength ?? 0;
   return geometryBytes(geometry, counted);
 }
 

@@ -3,24 +3,31 @@ import {
   GEOMETRY_PAGE_FORMAT_VERSION,
   type ClusterManifest,
   type GeometryPageDescriptor,
+  type Page,
 } from '../../../../sdk-core/src/index.ts';
+import { readSourcedPage } from './sourcedPages.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
+import { decodePageOffThread } from '../../page/decode/host.ts';
+import type { BackendContext } from '../types.ts';
 
 /** The manifest with every page pointed at its cluster page, and those pages' descriptors by
  *  URL. The cache declares its page format once; a cache of another format, or a page without
- *  one, is refused whole. */
+ *  one, is refused whole — save a dynamic primitive's, paged by its index alone (`sourced`,
+ *  `sourcedPages.ts`). */
 export function prepareAutonomousManifest(input: ClusterManifest) {
   if (
     input.geometryPages?.formatVersion !== GEOMETRY_PAGE_FORMAT_VERSION ||
     input.geometryPages.codec !== GEOMETRY_PAGE_CODEC
   )
     throw new Error('AUTONOMOUS_PAGE_MISSING');
-  const descriptors = new Map<string, GeometryPageDescriptor>();
+  const descriptors = new Map<string, GeometryPageDescriptor>(),
+    sourced = new Map<string, Page>();
   const metadata = {
     ...input,
     primitives: input.primitives.map((primitive) => ({
       ...primitive,
       pages: primitive.pages.map((page) => {
+        if (primitive.dynamic && !page.geometry) return sourced.set(page.url, page) && page;
         if (!page.geometry || page.geometry.indexCount !== page.count)
           throw new Error('AUTONOMOUS_PAGE_MISSING');
         descriptors.set(page.geometry.url, page.geometry);
@@ -33,7 +40,7 @@ export function prepareAutonomousManifest(input: ClusterManifest) {
       }),
     })),
   };
-  return { metadata, descriptors };
+  return { metadata, descriptors, sourced };
 }
 
 export function autonomousBootstrap(roots: ClusterRoot<PageRec>[]): PageRec[] {
@@ -46,3 +53,21 @@ export function autonomousBootstrap(roots: ClusterRoot<PageRec>[]): PageRec[] {
   }
   return bootstrap;
 }
+
+/** The pages at `urls`, read and decoded off the main thread — the open's root cover, or a
+ *  mount's (`mounts.ts`) —, the session's abort checked around each read; a `sourced` one read as
+ *  its corners (`readSourcedPage`). */
+export const readPages = (
+  context: BackendContext,
+  urls: readonly string[],
+  sourced: ReadonlyMap<string, unknown> = new Map(),
+) =>
+  Promise.all(
+    urls.map(async (url) => {
+      context.signal?.throwIfAborted();
+      if (sourced.has(url)) return readSourcedPage(context, url);
+      const bytes = await context.readGeometryPage!(url);
+      context.signal?.throwIfAborted();
+      return decodePageOffThread(bytes, context.signal);
+    }),
+  );

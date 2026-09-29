@@ -13,12 +13,14 @@ fn inputs<'a>(
 ) -> PreviewInputs<'a> {
     PreviewInputs {
         o,
+        reserved_bytes: 0,
         g,
         bin,
         image_root,
         meshes,
         view_map,
         to_measure: &RIEN_A_MESURER,
+        measurements: crate::cutout::MeasureCache::EMPTY,
     }
 }
 

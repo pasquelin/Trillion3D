@@ -39,7 +39,7 @@
 export const MANIFEST_BINARY_VERSION = 10;
 /** The geometry-page format a version-10 sidecar names, as the manifest's `geometryPages` declares
  *  it once and every page header opens with. */
-export const GEOMETRY_PAGE_FORMAT_VERSION = 3;
+export const GEOMETRY_PAGE_FORMAT_VERSION = 5;
 /** The codec geometry pages are written with. */
 export const GEOMETRY_PAGE_CODEC = 'quantized';
 /** 'W','G','M','B' read as a little-endian u32. */

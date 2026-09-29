@@ -1,4 +1,5 @@
 import { createWebgpuTilePool, type WebgpuTilePool } from './pool.ts';
+import { NO_VICTIMS, type VictimQueue } from './victimHeap.ts';
 import type { WebgpuTilePageTable } from './pageTable.ts';
 import {
   POOL_LANES,
@@ -8,8 +9,8 @@ import {
 } from '../../texture/blockFormats.ts';
 import { resizeTileAtlas } from './atlasResize.ts';
 
-/** A lane's pool, the tiles resident in it by id, and the eviction candidates of the image. */
-export type Lane = { pool: WebgpuTilePool; resident: Map<number, number>; candidates: number[] };
+/** A lane's pool, the tiles resident in it by id, and its eviction victims of the image. */
+export type Lane = { pool: WebgpuTilePool; resident: Map<number, number>; victims: VictimQueue };
 
 /**
  * The pools of an atlas, one per lane its textures take: the lossless RGBA8 lane, the RGBA block
@@ -43,7 +44,7 @@ export function createTileLanes(
     lanes.set(lane, {
       pool: createWebgpuTilePool(device, shape(lane, layers)),
       resident: new Map(),
-      candidates: [],
+      victims: NO_VICTIMS,
     });
   for (const lane of POOL_LANES) if (options.layers[lane] > 0) open(lane, options.layers[lane]);
   const standInTexture = device.createTexture({

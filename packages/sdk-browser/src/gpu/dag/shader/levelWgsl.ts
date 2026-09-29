@@ -53,24 +53,25 @@ export const LEVEL_QUEUES = 3;
 
 export const DAG_LEVEL_WGSL = `fn queueBase(q:u32)->u32{return select(views[0u].queueCap*q+views[0u].clusterCount*4u,0u,q==0u);}
 fn candBase()->u32{return views[0u].queueCap+views[0u].clusterCount*3u;}
-fn queueCounter(q:u32)->u32{return liveCounter()+2u+q;}
-fn candCounter()->u32{return liveCounter()+5u;}
+fn queueCounter(q:u32)->u32{return liveCounter()+3u+q;}
+fn candCounter()->u32{return liveCounter()+6u;}
 fn candGroups()->u32{return candCounter()+1u;}
-fn drawnCounter()->u32{return liveCounter()+7u;}
+fn drawnCounter()->u32{return liveCounter()+9u;}
 fn drawnGroups()->u32{return drawnCounter()+1u;}
 /** Index of the primitive's root node, deposited once and for all behind its stretch. */
-fn rootOf(w:u32)->u32{return bitcast<u32>(frames[w*FRAME+6u].y);}
+fn rootOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+6u].y);}
 /** The primitive's root mark (\`PackedDag.mark\`), the word behind its record shift. */
-fn markOf(w:u32)->u32{return bitcast<u32>(frames[w*FRAME+6u].w);}
+fn markOf(w:u32)->u32{return bitcast<u32>(frames[rowOf(w)*FRAME+6u].w);}
 /** A range append, each entry tagged with the current view: the group count follows the
  *  opening of each sixty-four slice, so it equals \`ceil(total/64)\` without a one-thread kernel
- *  pulling it afterwards. What passes the list's capacity is dropped and said (\`dropWork\`). */
+ *  pulling it afterwards, in rows (\`gridWgsl.ts\`). What passes the list's capacity is dropped
+ *  and said (\`dropWork\`). */
 fn spanAppend(counter:u32,groups:u32,base:u32,first:u32,count:u32){
  let at=atomicAdd(&work[counter],count);
  for(var k=0u;k<count;k++){
   if(at+k>=views[0u].clusterCount){dropWork();return;}
-  flags[base+at+k]=packEntry(vi,first+k);
-  if(((at+k)&63u)==0u){atomicAdd(&work[groups],1u);}
+  setFlag(base+at+k,packEntry(vi,first+k));
+  if(((at+k)&63u)==0u){openSlice(groups,(at+k)>>6u);}
  }
 }
 /** The same append, without a group count: descent queues are read flat. */
@@ -79,25 +80,27 @@ fn queueAppend(dst:u32,first:u32,count:u32){
  let base=queueBase(dst);
  for(var k=0u;k<count;k++){
   if(at+k>=views[0u].queueCap){dropWork();return;}
-  flags[base+at+k]=packEntry(vi,first+k);
+  setFlag(base+at+k,packEntry(vi,first+k));
  }
 }
 fn drawnAppend(page:u32){spanAppend(drawnCounter(),drawnGroups(),candBase(),page,1u);}
 /** Frame counters, reset by a single thread. Queue 0 already counts its roots: one
  *  thread per primitive has just deposited its own, at its own rank, with no counter to contest. */
 fn resetCounters(){
- atomicStore(&work[liveCounter()],0u);atomicStore(&work[liveGroups()],0u);
+ atomicStore(&work[liveCounter()],0u);resetGrid(liveGroups());
  atomicStore(&work[queueCounter(0u)],views[0u].worldCount*views[0u].viewCount);
  atomicStore(&work[queueCounter(1u)],0u);atomicStore(&work[queueCounter(2u)],0u);
- atomicStore(&work[candCounter()],0u);atomicStore(&work[candGroups()],0u);
- atomicStore(&work[drawnCounter()],0u);atomicStore(&work[drawnGroups()],0u);
+ atomicStore(&work[candCounter()],0u);resetGrid(candGroups());
+ atomicStore(&work[drawnCounter()],0u);resetGrid(drawnGroups());
 }
+/** A list's dispatch argument, x and y, back to no group. */
+fn resetGrid(groups:u32){atomicStore(&work[groups],0u);atomicStore(&work[groups+1u],0u);}
 /** Previous frame's drawn pages, zeroed by range: the only pages whose draw flag
  *  can be one. No other is visited, and none is walked in full. */
 @compute @workgroup_size(64)
-fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u){
- let s=id.x;if(s>=atomicLoad(&work[drawnCounter()])){return;}
- flags[views[0u].queueCap+flags[candBase()+s]]=0u;
+fn dagClearDrawn(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let s=flatIndex(id.x,id.y,n.x);if(s>=atomicLoad(&work[drawnCounter()])){return;}
+ setFlag(views[0u].queueCap+flagAt(candBase()+s),0u);
 }
 /** A node of queue \`src\`: rejected, it yields nothing; kept, it deposits its children
  *  in the NEXT of the three queues, or its pages in the candidate list when it is a leaf. */
@@ -105,11 +108,12 @@ fn levelStep(src:u32,s:u32){
  // The queue the next level will fill resets to zero here: this level neither reads nor writes it.
  if(s==0u){atomicStore(&work[queueCounter((src+2u)%${LEVEL_QUEUES}u)],0u);}
  if(s>=min(atomicLoad(&work[queueCounter(src)]),views[0u].queueCap)){return;}
- let entry=flags[queueBase(src)+s];
+ let entry=flagAt(queueBase(src)+s);
  if(entry==0xffffffffu){return;}
  vi=entryView(entry);
- let node=nodes[entryIndex(entry)];
+ let node=nodeAt(entryIndex(entry));
  let w=node.worldIndex;
+ if(!inRange(w)){return;}
  // A node of the view ahead is only that view's (\`aheadWgsl.ts\`); one the camera rejects is tried there.
  if(aheadOn()&&vi==AHEAD_VIEW){descendAhead(src,node,w);return;}
  if(outsideFrustum(slotOf(w)*FRAME,node.minimum,node.maximum)||pageMissed(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w);return;}
@@ -118,7 +122,7 @@ fn levelStep(src:u32,s:u32){
  // unless the subtree is open, holding the nearest resident ancestor of something missing
  // (\`floorWgsl.ts\`). The trunk-reject count moves for neither: a subtree dropped here is
  // not dropped by the trunk, and the readout would say something other than what it names.
- let e=views[vi].view*worlds[w];let stretch=stretchOf(w);let focal=focalPixels();
+ let e=viewWorld(w);let stretch=stretchOf(w);let focal=focalPixels();
  if(tooCoarse(node,e,stretch,focal)){atomicAdd(&out.frustumRejected,1u);descendAhead(src,node,w);return;}
  if(floorPrunes(node.open,node.floorSphere,node.errorFloor,e,stretch,focal)){descendAhead(src,node,w);return;}
  descend(src,node);
@@ -132,10 +136,14 @@ fn descend(src:u32,node:CullNode){
  if(node.childCount>0u){queueAppend((src+1u)%${LEVEL_QUEUES}u,node.firstChild,node.childCount);return;}
  spanAppend(candCounter(),candGroups(),candBase(),node.firstPage,node.pageCount);
 }
+/** Pass 0: queue 0 holds one root per slot, so a range's dispatch reads its own slots
+ *  (\`rangeSlot\`). Queue 0 reused deeper (level 3, 6…) mixes primitives: read whole (\`dagLevel0\`). */
 @compute @workgroup_size(64)
-fn dagLevel0(@builtin(global_invocation_id) id:vec3u){levelStep(0u,id.x);}
+fn dagRootLevel(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(0u,rangeSlot(flatIndex(id.x,id.y,n.x)));}
 @compute @workgroup_size(64)
-fn dagLevel1(@builtin(global_invocation_id) id:vec3u){levelStep(1u,id.x);}
+fn dagLevel0(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(0u,flatIndex(id.x,id.y,n.x));}
 @compute @workgroup_size(64)
-fn dagLevel2(@builtin(global_invocation_id) id:vec3u){levelStep(2u,id.x);}
+fn dagLevel1(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(1u,flatIndex(id.x,id.y,n.x));}
+@compute @workgroup_size(64)
+fn dagLevel2(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){levelStep(2u,flatIndex(id.x,id.y,n.x));}
 `;

@@ -24,18 +24,28 @@ const config: KnipConfig = {
     'scripts/docs-examples-thumbnails.ts',
     'scripts/site-first-load.ts',
     'scripts/ltc-fit.ts',
+    // Run by git through the one-line shims of `.githooks/`.
+    'scripts/hooks/{delegate,pre-commit,pre-push}.ts',
     'bench/runner/bench.ts',
+    'bench/runner/feedbackTargetAb.ts',
+    'bench/runner/trajectory.ts',
+    // Compiled by path by the public types audit (`public-types-audit.test.ts`), never imported.
+    'tests/integration/public-types-union.fixture.ts',
     // Served to the harness page and imported by URL, never by local import.
     'bench/runner/cutPage.ts',
     'bench/runner/witnessPage.ts',
     'bench/runner/explorerPage.ts',
     'bench/runner/lightingPage.ts',
+    'bench/runner/trajectoryPage.ts',
     'bench/runner/poses.ts',
     'bench/runner/threeBarePage.ts',
     'bench/runner/threeLodPage.ts',
     'bench/runner/measurePage.ts',
     'bench/runner/fluidsPage.ts',
+    'bench/runner/feedbackTargetPage.ts',
+    'bench/runner/gazeNetworkPage.ts',
     'bench/runner/limits.ts',
+    'bench/runner/screenErrorPage.ts',
     // The witness entry: bundled into `dist/witnesses/measurement.js` and imported by URL by those
     // pages; it re-exports the engine's measurement seam.
     'bench/witnesses/measurement.ts',
@@ -46,6 +56,8 @@ const config: KnipConfig = {
     'bench/runner/oracle.ts',
     'bench/runner/lampFixture.ts',
     'bench/runner/anisotropyCost.ts',
+    'bench/runner/waterCost.ts',
+    'bench/runner/screenError.ts',
     'bench/perf/*/*.perf.ts',
     'bench/runner/perf/*.ts',
     // Tests by rule: unit and integration tests, the browser proof runners (render proofs and
@@ -70,10 +82,13 @@ const config: KnipConfig = {
   paths: {
     '/packages/sdk-browser/*': ['packages/sdk-browser/*'],
   },
-  // Rust is a platform tool; DaisyUI is loaded by Tailwind; the site build copies SVG files of
+  // The harness server maps this browser URL to the page entry above.
+  ignoreUnresolved: ['/runner/feedbackTargetPage.ts'],
+  // Rust, CMake, Emscripten and the C++ compiler (a regex: knip reads `c++` as one) are platform
+  // tools; DaisyUI is loaded by Tailwind; the site build copies SVG files of
   // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.
   ignoreDependencies: ['daisyui', 'flag-icons'],
-  ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config'],
+  ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config', /^c\+\+$/],
 };
 
 export default config;
