@@ -13,7 +13,6 @@ import type { Page } from 'playwright';
 import { launchChrome } from './chrome.ts';
 import * as options from './options.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
-import { readBounds } from './page.ts';
 import { readStreet } from './street.ts';
 import { imageDiff } from './imageDiff.ts';
 import { benchLights } from './lamps.ts';
@@ -133,9 +132,7 @@ async function main() {
     };
     // The box, then the camera's street read off the model's own geometry, on one page: the poses
     // walk it (`poses.ts`).
-    const bounds = (report.bounds = await onFreshPage(async (page) =>
-      readStreet(page, await page.evaluate(readBounds, urls), urls),
-    ));
+    const bounds = (report.bounds = await onFreshPage(async (page) => readStreet(page, urls)));
     // Lights once bounds are known: geometric rule, no named scene.
     CTX.lights = benchLights(bounds, settings);
     report.lampes = CTX.lights ? CTX.lights.resume : null;
