@@ -2,6 +2,7 @@
 // any other black capture: it is refused by name, never counted as 0 px (#1016).
 import { compareImages } from '../../packages/sdk-core/src/index.ts';
 import type { Capture } from '../../tests/kit/server/staticServer.ts';
+import { flipMap } from './flip.ts';
 import type { ImageDiff, Report } from './report/types.ts';
 
 /** True when no pixel carries light: RGB 0 everywhere, whatever the alpha. */
@@ -53,5 +54,28 @@ export function imageDiff(a: Capture | undefined, b: Capture | undefined): Image
     maxChannel: diff.maxChannelError,
     ...channelErrors(a.body, b.body),
     total: a.w * a.h,
+  };
+}
+
+/** An `ImageDiff` against a named reference image, with its mean LDR-FLIP error in [0, 1]. */
+export type ReferenceDiff =
+  | Exclude<ImageDiff, { pixels: number }>
+  | (Extract<ImageDiff, { pixels: number }> & { reference: string; flipMean: number });
+
+/** A rendering technique's bound against its named reference image (CONTRIBUTING.md, "Image and
+ *  fidelity", class 2): the channel errors of `imageDiff` plus the mean LDR-FLIP error. */
+export function referenceDiff(
+  reference: { name: string; capture: Capture | undefined },
+  test: Capture | undefined,
+): ReferenceDiff {
+  const { capture } = reference;
+  if (!capture || !test) return null;
+  const diff = imageDiff(capture, test);
+  if (!diff || 'error' in diff) return diff;
+  const map = flipMap(capture.body, test.body, test.w, test.h);
+  return {
+    ...diff,
+    reference: reference.name,
+    flipMean: map.reduce((s, e) => s + e, 0) / map.length,
   };
 }
