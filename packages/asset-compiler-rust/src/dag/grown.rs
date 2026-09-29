@@ -28,6 +28,14 @@ impl Grown {
             None => (positions, attributes.carried.to_vec()),
         }
     }
+    /// The positions, the placed ones on the pages' grid of 2^`exponent`, as the pages draw them.
+    pub fn snapped(&self, exponent: i32) -> Vec<f32> {
+        let step = f64::from(trillion3d_page_codec::bits::pow2(exponent));
+        let placed = self.positions.len() - 3 * self.origin.len();
+        let snap = |x: f32| ((f64::from(x) / step).round() * step) as f32;
+        let at = |(i, &x): (usize, &f32)| if i < placed { x } else { snap(x) };
+        self.positions.iter().enumerate().map(at).collect()
+    }
     /// Appends the vertices `reduction` placed, if any, after those already placed at its level,
     /// whose vertex count was `base`; the reduction's clusters and the welds follow. The first
     /// placement copies the source's arrays once; a solve whose survivors all snapped back, never.
