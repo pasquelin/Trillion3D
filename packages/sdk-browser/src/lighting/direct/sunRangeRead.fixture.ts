@@ -25,7 +25,10 @@ import { directShadowWgsl } from './shadowWgsl.ts';
 export const SHADOW_WGSL = directShadowWgsl(0, null, 1);
 
 /** Its literal constants, and `SHADOW_SUBTEXEL`, which it computes from one of them. */
-export const CONSTANTS = { ...wgslConstants(SHADOW_WGSL), SHADOW_SUBTEXEL: 1 / SHADOW_SUBTEXELS };
+export const CONSTANTS: Record<string, number> = {
+  ...wgslConstants(SHADOW_WGSL),
+  SHADOW_SUBTEXEL: 1 / SHADOW_SUBTEXELS,
+};
 
 /** Develop's `sunShadowFactor` before #991, its code verbatim: one reference,
  *  whatever range a page holds. */
