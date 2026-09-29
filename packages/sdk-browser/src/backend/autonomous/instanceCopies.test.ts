@@ -5,7 +5,7 @@ import * as G from '../../host/graph/graph.fixture.ts';
 import { createAutonomousInstances } from './instances.ts';
 import { createAutonomousGeometry } from './geometry.ts';
 import type { HostMaterial } from '../../host/resources.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
+import { rootOf, type ClusterRoot, type PageRec } from '../../page/selection/selection.ts';
 
 // An instance copies the geometry of every record the model owns, and shares the one rows place,
 // as the store gives it (`geometry.ts`): moving or removing an instance leaves the model and the
@@ -17,19 +17,25 @@ test('an instance changed or removed leaves the model and the other instances as
     geometry.setIndex(new G.BufferAttribute(new Uint32Array(3), 1));
     return geometry;
   };
-  const record = (clusterId: string, placement?: object) =>
-    ({
+  // Each record the page of a root of its own, at the identity; the second root placed by a row.
+  const roots: ClusterRoot<PageRec>[] = [];
+  const record = (clusterId: string, placement?: object) => {
+    const rec = {
       url: 'p.bin',
       clusterId,
-      matrix: { elements: new Float64Array(new G.Matrix4().toArray()) },
+      placementIndex: roots.length,
       geometry: geometryOf(),
       array: new Uint32Array(3),
       mesh: undefined,
       attached: false,
-      placement,
-    }) as unknown as PageRec;
+    } as unknown as PageRec;
+    const world = { elements: new Float64Array(new G.Matrix4().toArray()) };
+    roots.push({ world, pages: [rec], placement } as ClusterRoot<PageRec>);
+    return rec;
+  };
   const own = record('prim/0'),
     rowed = record('prim/1', {});
+  const worldOf = (rec: PageRec) => Array.from(rootOf(roots, rec).world.elements);
   const bytes = (geometry: unknown) =>
     (geometry as G.Geometry).index!.array.byteLength +
     (geometry as G.Geometry).attributes.position.array.byteLength;
@@ -41,6 +47,7 @@ test('an instance changed or removed leaves the model and the other instances as
     ]);
   const geometryStore = createAutonomousGeometry({
     scene: { add: () => {}, remove: () => {} } as unknown as Scene,
+    roots,
     allPages,
     bootstrap: [],
     views: { live: { shown: [] }, lists: () => [] },
@@ -53,8 +60,8 @@ test('an instance changed or removed leaves the model and the other instances as
   const { state } = geometryStore;
   state.allocationBytes = bytes(own.geometry) + bytes(rowed.geometry);
   const instances = createAutonomousInstances({
-    roots: [],
-    baseRoots: [],
+    roots,
+    baseRoots: roots.slice(),
     allPages,
     basePages: [own, rowed],
     bootstrap: [],
@@ -78,15 +85,11 @@ test('an instance changed or removed leaves the model and the other instances as
   assert.equal(bRowed.geometry, rowed.geometry);
   assert.equal(state.allocationBytes, before + 2 * bytes(own.geometry), 'one copy an instance');
   // Moving `a` moves its own records only.
-  const still = [own, rowed, bOwn, bRowed].map((rec) => Array.from(rec.matrix.elements));
+  const still = [own, rowed, bOwn, bRowed].map(worldOf);
   instances.updateInstance('a', new G.Matrix4().makeTranslation(4, 0, 0).elements.slice());
-  assert.equal(aOwn.matrix.elements[12], 4);
-  assert.equal(aRowed.matrix.elements[12], 4);
-  assert.deepEqual(
-    [own, rowed, bOwn, bRowed].map((rec) => Array.from(rec.matrix.elements)),
-    still,
-    'the model and `b` do not move',
-  );
+  assert.equal(worldOf(aOwn)[12], 4);
+  assert.equal(worldOf(aRowed)[12], 4);
+  assert.deepEqual([own, rowed, bOwn, bRowed].map(worldOf), still, 'the model and `b` do not move');
   // Removing `a` gives back its copy and nothing the model or `b` draws.
   let disposed = 0;
   for (const geometry of [own.geometry, rowed.geometry, bOwn.geometry])

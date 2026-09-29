@@ -21,7 +21,7 @@ import assert from 'node:assert/strict';
 import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
 import { camera, decisionCpu, veriteTerrain } from './inverseTransposeCases.ts';
 import { tousLesCas } from './inverseTransposeSample.ts';
-import { pageVisible, sensDuMoteur, VUE } from './reflectionCases.ts';
+import { pageVisible, rootsOf, sensDuMoteur, VUE } from './reflectionCases.ts';
 import { dessineParLeMoteur } from './inverseTransposeOracle.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 
@@ -30,7 +30,7 @@ const gpu = await dessineParLeMoteur(tousLesCas);
 
 // --- What the CPU draws, and what the cone decides ----------------------------------------------
 const pixelsCpu = tousLesCas.map((cas) => {
-  const { ids } = rasterVisibility([pageVisible(cas)], cameraMoteur(camera), VUE);
+  const { ids } = rasterVisibility([pageVisible(cas)], rootsOf(cas), cameraMoteur(camera), VUE);
   let n = 0;
   for (const identifiant of ids) if (identifiant !== 0) n++;
   return n;

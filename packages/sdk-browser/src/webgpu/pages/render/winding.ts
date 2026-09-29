@@ -21,7 +21,7 @@ export function setWindingEpoch(valeur: number) {
 
 /** The winding of the root `rec`'s `placementIndex` names in `roots`. */
 export function windingCw(
-  roots: readonly ClusterRoot<unknown>[],
+  roots: readonly Pick<ClusterRoot<unknown>, 'world' | 'windingCw' | 'windingEpoch'>[],
   rec: { readonly placementIndex?: number },
 ) {
   const root = rootOf(roots, rec);
