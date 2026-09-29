@@ -7,7 +7,7 @@ import { paletteReach, PALETTE_FLOATS } from '../../../sdk-core/src/world/animat
 import * as G from '../host/graph/graph.fixture.ts';
 import { collectClusterPages, selectVisiblePages } from '../page/selection/selection.ts';
 import { dagFixture } from '../page/selection/dag.fixture.ts';
-import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { createEngineCamera, readCameraWorld } from '../camera/world.ts';
 import { createHeldResidency } from '../page/cut/held.ts';
 
 /** A seeded generator, so a failure names the case it met. */
@@ -76,7 +76,8 @@ test('the cut keeps a cluster its deformation carries into the view, and culls i
       viewport: [1280, 720] as [number, number],
       held: createHeldResidency(),
     };
-    const count = selectVisiblePages(roots, cameraMoteur(cam), ask).shown.length;
+    const count = selectVisiblePages(roots, readCameraWorld(createEngineCamera(), cam), ask).shown
+      .length;
     fixture.geometry.dispose();
     return count;
   };
