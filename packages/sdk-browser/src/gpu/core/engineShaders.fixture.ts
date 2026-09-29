@@ -108,6 +108,12 @@ export const ENGINE_SHADERS: Record<string, string> = {
     withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER),
     true,
   ),
+  REFLECTION_SOURCE_BOUNCE_SUBGROUP: reflectionSource(
+    withSubgroupShadowRequests(BOUNCE_LIGHTING_SHADER),
+  ),
+  REFLECTION_RESOLVE_BOUNCE_SUBGROUP: withScreenReflections(
+    withSubgroupShadowRequests(BOUNCE_LIGHTING_SHADER),
+  ),
   DIRECT_NARROW_SUBGROUP_LIGHTING: withSubgroupShadowRequests(contractLightingShader(false, true)),
   BOUNCE_NARROW_SUBGROUP_LIGHTING: withSubgroupShadowRequests(contractLightingShader(true, true)),
   ...compositions('COMPOSE', CONTRACT_COMPOSITIONS.plain),
