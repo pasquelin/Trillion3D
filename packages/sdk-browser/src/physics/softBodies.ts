@@ -11,6 +11,7 @@ import {
   type SoftBodyRecord,
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
+import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 import { computeNormals } from '../../../sdk-core/src/world/geometry/normals.ts';
 import { type Bodied, type createPhysicsBodies } from './bodies.ts';
 
@@ -59,10 +60,17 @@ export function writeSoftBody(
   if (flags) writer.flags(id & BODY_INDEX, flags);
 }
 
+/** The soft body that last drew itself into each geometry; the one drawing now, if any. */
+const drawers = new WeakMap<Geometry, Mesh>();
+let drawing: Mesh | null = null;
+/** Whether `node`'s change is its soft body drawing itself (`drawSoft`): a picture of where the
+ *  body is, not a new shape — the simulation keeps it, velocity and all. */
+export const drawnBySoft = (node: object) => node === drawing;
+
 /**
  * Writes the SOFT command of `mesh`, a soft body placed at `pose` and scaled by `size`: its slot
  * claimed with its vertices counted against the budget, its vertex map kept in `maps`, its
- * `flags` written. Returns the slot.
+ * `flags` written. Returns the slot. A geometry another soft body draws itself into is refused.
  */
 export function addSoftBody(
   writer: CommandWriter,
@@ -74,7 +82,16 @@ export function addSoftBody(
   flags: number,
 ) {
   const p = mesh.physics,
-    record = softBodyOf(mesh.geometry, size, { ...p.soft!, mass: p.mass });
+    other = drawers.get(mesh.geometry);
+  // It draws itself into its geometry (`drawSoft`): two bodies in one would overwrite each other.
+  if (other && other !== mesh && other.geometry === mesh.geometry && other.physics?._host)
+    throw new EngineError(
+      'PHYSICS_FAILED',
+      `The soft body ${mesh.name || '(unnamed)'} shares its geometry with ${other.name || 'another'}: give each its own (geometry.clone()).`,
+      { name: mesh.name, shares: other.name },
+    );
+  drawers.set(mesh.geometry, mesh);
+  const record = softBodyOf(mesh.geometry, size, { ...p.soft!, mass: p.mass });
   const id = claim(0, record.vertices.length / SOFT_VERTEX_WORDS);
   // Its vertices move every step: uploaded in place, never cut into pages again (#573).
   mesh.geometry.usage = 'dynamic';
@@ -89,11 +106,19 @@ export function addSoftBody(
 function drawSoft(mesh: Mesh, vertices: Float32Array) {
   const { position, normal } = mesh.geometry.attributes;
   if (position?.kind !== 'attribute' || position.array.length !== vertices.length) return;
-  position.array.set(vertices);
-  position.needsUpdate = true;
-  if (normal?.kind !== 'attribute') return;
-  normal.array.set(computeNormals(vertices, mesh.geometry.index?.array ?? null));
-  normal.needsUpdate = true;
+  drawing = mesh;
+  try {
+    position.array.set(vertices);
+    position.needsUpdate = true;
+    if (normal?.kind !== 'attribute') return;
+    const index = mesh.geometry.index?.array ?? null;
+    if (normal.array instanceof Float32Array && normal.array.length === vertices.length)
+      computeNormals(vertices, index, normal.array);
+    else normal.array.set(computeNormals(vertices, index));
+    normal.needsUpdate = true;
+  } finally {
+    drawing = null;
+  }
 }
 
 /**
