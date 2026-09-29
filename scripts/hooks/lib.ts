@@ -1,0 +1,41 @@
+// Shared by the tracked git hooks: every change reaches develop/main through an issue and a pull
+// request, whoever (or whatever) types the command. Each file of `.githooks/` is a one-line shim
+// onto a script of this folder, since git needs an executable there; `pnpm install` activates
+// them (`git config core.hooksPath .githooks`, scripts/setup-development.ts). Git runs a hook from
+// the worktree root. Each hook ends by delegating to the hook of the same name installed locally
+// in .git/hooks, so core.hooksPath preserves personal hooks.
+import { spawnSync, type SpawnSyncOptions } from 'node:child_process';
+import { accessSync, constants } from 'node:fs';
+import { join } from 'node:path';
+
+/** Stops the git command with its reason. */
+export function refuse(reason: string): never {
+  process.stderr.write(`git hook: ${reason}\n`);
+  process.exit(1);
+}
+
+/** A git command's output, trimmed; empty when it fails (as `$(git …)` in a shell). */
+export const git = (...args: string[]): string =>
+  spawnSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'] }).stdout.trim();
+
+/**
+ * Runs the tool-installed hook `name` with the hook's own arguments, stdin forwarded as received
+ * (or `input` when the hook already read it), and exits with its status when it fails. Hooks live
+ * in the common dir (also from a linked worktree); --git-path would answer with core.hooksPath.
+ */
+export function runLocalHook(name: string, args: string[], input?: string): void {
+  const hook = join(git('rev-parse', '--git-common-dir'), 'hooks', name);
+  try {
+    accessSync(hook, constants.X_OK);
+  } catch {
+    return;
+  }
+  const stdin = input === undefined ? 'inherit' : 'pipe';
+  const options: SpawnSyncOptions = { input, stdio: [stdin, 'inherit', 'inherit'] };
+  let run = spawnSync(hook, args, options);
+  // A script without a shebang runs under sh, as a shell and git itself run it.
+  if ((run.error as NodeJS.ErrnoException | undefined)?.code === 'ENOEXEC')
+    run = spawnSync('sh', [hook, ...args], options);
+  if (run.error) throw run.error;
+  if (run.status !== 0) process.exit(run.status ?? 1);
+}
