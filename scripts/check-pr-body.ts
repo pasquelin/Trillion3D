@@ -31,17 +31,29 @@ const plain = (text: string) =>
     .trim()
     .toLowerCase();
 
-/** The issue's Proof lines (a paragraph is one line), without HTML comments. */
+/** The issue's Proof lines (a list item or a paragraph, wrapped or not, is one line), without
+ *  HTML comments. */
 export function proofLines(issue: string): string[] {
-  const lines = withoutComments(issue).split('\n');
-  return section(lines, 'Proof').map(plain).filter(Boolean);
+  const proofs: string[] = [];
+  let open = false;
+  for (const line of section(withoutComments(issue).split('\n'), 'Proof')) {
+    if (!line.trim()) {
+      open = false;
+    } else if (open && !/^\s*(?:[-*+]|\d+\.)\s/.test(line)) {
+      proofs[proofs.length - 1] += ` ${line}`;
+    } else {
+      proofs.push(line);
+      open = true;
+    }
+  }
+  return proofs.map(plain).filter(Boolean);
 }
 
 /**
  * The first Proof line of the issue the body leaves unanswered, or undefined. A line is answered
- * by a Lead verification line "- <item>: delivered …, proved by …" whose item quotes it (whole, or
- * its first 20 characters at least), or by a line under "Not proven" that quotes it and names the
- * boss's yes.
+ * by a Lead verification line "- <item>: delivered …, proved by …" whose item starts with it (whole,
+ * or its first 20 characters at least), or by a line under "Not proven" that starts the same way and
+ * names the boss's yes.
  */
 export function proofProblem(raw: string, issue: string): string | undefined {
   const lines = withoutComments(raw).split('\n');
@@ -52,13 +64,10 @@ export function proofProblem(raw: string, issue: string): string | undefined {
       .map(plain);
   const answers = [
     ...items('Lead verification', /^[-*] (.+?): delivered\b.*\bproved by\s+\S/),
-    ...items('Not proven', /^[-*] (.+?):.*\bboss\b/i),
+    ...items('Not proven', /^[-*] (.*\bboss\b.*)$/i),
   ];
   const open = proofLines(issue).find(
-    (proof) =>
-      !answers.some(
-        (answer) => answer.length >= Math.min(20, proof.length) && proof.includes(answer),
-      ),
+    (proof) => !answers.some((answer) => answer.startsWith(proof.slice(0, 20))),
   );
   return open
     ? `The issue's Proof line "${open}" is not answered: write "- <that line>: delivered in <file:line>, proved by <test>" under "Lead verification", or put it under "Not proven" with the boss's yes (AGENTS.md rule 6).`
