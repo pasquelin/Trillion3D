@@ -1,4 +1,5 @@
-import { PROXY_TRIANGLE_FLOATS, type SceneProxy } from '../contracts/proxy.ts';
+import type { SceneProxy } from '../contracts/proxy.ts';
+import { proxyTriangleBoxes } from '../scene/core/proxyBoxes.ts';
 import type { BounceCascades } from './cascades.ts';
 
 /**
@@ -7,7 +8,8 @@ import type { BounceCascades } from './cascades.ts';
  * A cascade across a city spends most cells on empty sky and solid building cores,
  * where irradiance is never queried. The scheduler needs to know, before spending a ray,
  * whether a cell touches geometry. This is a property of the world, not the camera: calculated
- * once at construction, valid for all positions mobile levels take later.
+ * at construction and again once moved geometry settles, valid for all positions mobile levels
+ * take later.
  *
  * The finest level map is marked by bounding boxes of proxy triangles plus a one-cell
  * boundary: eight corners of an occupied cell are always retained, so nothing useful is lost.
@@ -17,19 +19,23 @@ import type { BounceCascades } from './cascades.ts';
  * Nothing here names a scene or inspects the camera: extent, triangles, cells.
  */
 export interface BounceOccupancy {
-  /** Geometry moved: conservatively schedule all bounded cascade cells. */
-  allEligible(): void;
+  /** Owners moved: `boxes` holds six world bounds per proxy triangle, `changed` flags the moved. */
+  moved(boxes: ArrayLike<number>, changed: ArrayLike<number>): void;
+  /** Once per frame: the first frame after motion stopped rebuilds the exact map on `extent`. */
+  settle(boxes: ArrayLike<number>, extent: readonly number[]): void;
   /** True when a level's cell in its global lattice warrants a probe. */
   occupied(level: number, x: number, y: number, z: number): boolean;
   /** Marked cells and total cells of the finest level: published gain. */
-  marked: number;
+  readonly marked: number;
   /** Cells of the finest level. */
-  cells: number;
+  readonly cells: number;
   /** Bytes it takes. */
-  bytes: number;
+  readonly bytes: number;
 }
 
-/** Marks a block of cells, bounds included, staying within map. */
+type LevelMap = { map: Uint8Array; dims: number[]; origin: number[] };
+
+/** Marks a block of cells, bounds included, staying within map; returns the cells newly marked. */
 function mark(map: Uint8Array, dims: number[], low: number[], high: number[]) {
   const x0 = Math.max(0, low[0]),
     y0 = Math.max(0, low[1]),
@@ -37,11 +43,16 @@ function mark(map: Uint8Array, dims: number[], low: number[], high: number[]) {
   const x1 = Math.min(dims[0] - 1, high[0]),
     y1 = Math.min(dims[1] - 1, high[1]),
     z1 = Math.min(dims[2] - 1, high[2]);
+  let added = 0;
   for (let z = z0; z <= z1; z++)
     for (let y = y0; y <= y1; y++) {
       const row = dims[0] * (y + dims[1] * z);
-      for (let x = x0; x <= x1; x++) map[row + x] = 1;
+      for (let x = x0; x <= x1; x++) {
+        added += 1 - map[row + x];
+        map[row + x] = 1;
+      }
     }
+  return added;
 }
 
 /** Map reduction: a cell in the next level is marked if any of the eight sub-cells are marked. */
@@ -70,67 +81,109 @@ function dilate(map: Uint8Array, dims: number[]) {
   return out;
 }
 
-/** Marks which probe cells hold geometry, so empty space gets no probe. */
-export function createBounceOccupancy(
-  proxy: SceneProxy,
-  cascades: BounceCascades,
-): BounceOccupancy {
+/** The cells, relative to `origin`, that box `at` of `boxes` (six bounds each) covers. */
+function cellsOf(
+  boxes: ArrayLike<number>,
+  at: number,
+  spacing: number,
+  origin: number[],
+  low: number[],
+  high: number[],
+) {
+  for (let axis = 0; axis < 3; axis++) {
+    low[axis] = Math.floor(boxes[at + axis] / spacing) - origin[axis];
+    high[axis] = Math.floor(boxes[at + 3 + axis] / spacing) - origin[axis];
+  }
+}
+
+/** Every level's map from triangle boxes (six bounds each) over an extent, on the current plan. */
+function build(cascades: BounceCascades, extent: readonly number[], boxes: ArrayLike<number>) {
   const spacing = cascades.levels[0].spacing;
   // Origin and dimensions are aligned to the largest reduction: otherwise a coarse level cell
   // would not equal the exact eight-block of the previous level, lying by one cell out of two.
   const align = 2 ** (cascades.levels.length - 1);
   const floorTo = (value: number) => Math.floor(value / align) * align;
-  const origin = [0, 1, 2].map((axis) => floorTo(Math.floor(proxy.bounds[axis] / spacing) - 2));
+  const origin = [0, 1, 2].map((axis) => floorTo(Math.floor(extent[axis] / spacing) - 2));
   const dims = [0, 1, 2].map((axis) =>
-    Math.max(
-      align,
-      floorTo(Math.floor(proxy.bounds[3 + axis] / spacing) + 3 - origin[axis]) + align,
-    ),
+    Math.max(align, floorTo(Math.floor(extent[3 + axis] / spacing) + 3 - origin[axis]) + align),
   );
-  let map = new Uint8Array(dims[0] * dims[1] * dims[2]);
-  const cells = map.length;
-  const triangles = proxy.data.triangles;
+  const first = new Uint8Array(dims[0] * dims[1] * dims[2]);
   const low = [0, 0, 0],
     high = [0, 0, 0];
-  for (
-    let base = 0;
-    base + PROXY_TRIANGLE_FLOATS <= triangles.length;
-    base += PROXY_TRIANGLE_FLOATS
-  ) {
-    for (let axis = 0; axis < 3; axis++) {
-      const a = triangles[base + axis],
-        b = triangles[base + 3 + axis],
-        c = triangles[base + 6 + axis];
-      low[axis] = Math.floor(Math.min(a, b, c) / spacing) - origin[axis];
-      high[axis] = Math.floor(Math.max(a, b, c) / spacing) - origin[axis];
-    }
-    mark(map, dims, low, high);
+  for (let at = 0; at + 6 <= boxes.length; at += 6) {
+    cellsOf(boxes, at, spacing, origin, low, high);
+    mark(first, dims, low, high);
   }
-  map = dilate(map, dims);
-  const maps = [{ map, dims, origin }];
-  let bytes = map.length;
+  const maps: LevelMap[] = [{ map: dilate(first, dims), dims, origin }];
   for (let level = 1; level < cascades.levels.length; level++) {
     const reduced = reduce(maps[level - 1].map, maps[level - 1].dims);
-    const dilated = dilate(reduced.map, reduced.dims);
     maps.push({
-      map: dilated,
+      map: dilate(reduced.map, reduced.dims),
       dims: reduced.dims,
       origin: maps[level - 1].origin.map((value) => value / 2),
     });
-    bytes += dilated.length;
   }
-  let eligible = false;
+  return { maps, spacing, marked: maps[0].map.reduce((sum, value) => sum + value, 0) };
+}
+
+/** Marks which probe cells hold geometry, so empty space gets no probe. */
+export function createBounceOccupancy(
+  proxy: SceneProxy,
+  cascades: BounceCascades,
+): BounceOccupancy {
+  // Motion never switches the map off for good. While owners move, the cells their triangles now
+  // cover join the map at once (old cells stay: conservative, never dark); a lattice the map no
+  // longer matches schedules every cell. The first frame without motion rebuilds the exact map
+  // from the current poses; its cells per axis are bounded by the cascade plan, whatever the extent.
+  let state = build(cascades, proxy.bounds, proxyTriangleBoxes(proxy.data.triangles));
+  /** Every cell eligible until the next rebuild: the lattice or the extent outgrew the map. */
+  let all = false;
+  /** Settles left before the rebuild: a frame that moved skips one, the next still one rebuilds. */
+  let quiet = 0;
+  const low = [0, 0, 0],
+    high = [0, 0, 0];
+  const covers = () =>
+    cascades.levels[0].spacing === state.spacing && cascades.levels.length === state.maps.length;
+  /** Adds one box and the boundary each level's reduction and dilation would give it. */
+  const add = (boxes: ArrayLike<number>, at: number) => {
+    const { maps, spacing } = state;
+    cellsOf(boxes, at, spacing, maps[0].origin, low, high);
+    for (let axis = 0; axis < 3; axis++)
+      if (low[axis] < 0 || high[axis] >= maps[0].dims[axis]) return false;
+    for (let level = 0; level < maps.length; level++) {
+      for (let axis = 0; axis < 3; axis++) {
+        low[axis] = (level ? low[axis] >> 1 : low[axis]) - 1;
+        high[axis] = (level ? high[axis] >> 1 : high[axis]) + 1;
+      }
+      const added = mark(maps[level].map, maps[level].dims, low, high);
+      if (level === 0) state.marked += added;
+    }
+    return true;
+  };
   return {
-    allEligible() {
-      eligible = true;
+    moved(boxes, changed) {
+      quiet = 2;
+      all ||= !covers();
+      for (let t = 0; !all && t < changed.length; t++) if (changed[t]) all = !add(boxes, t * 6);
     },
-    cells,
-    bytes,
-    marked: maps[0].map.reduce((sum, value) => sum + value, 0),
+    settle(boxes, extent) {
+      if (!quiet || --quiet) return;
+      state = build(cascades, extent, boxes);
+      all = false;
+    },
+    get cells() {
+      return state.maps[0].map.length;
+    },
+    get bytes() {
+      return state.maps.reduce((sum, entry) => sum + entry.map.length, 0);
+    },
+    get marked() {
+      return state.marked;
+    },
     // Called once per examined probe each frame: nothing allocated or traversed.
     occupied(level, x, y, z) {
-      if (eligible) return true;
-      const entry = maps[Math.min(level, maps.length - 1)];
+      if (all) return true;
+      const entry = state.maps[Math.min(level, state.maps.length - 1)];
       const [width, height, depth] = entry.dims;
       const localX = x - entry.origin[0],
         localY = y - entry.origin[1],
