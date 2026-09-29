@@ -4073,7 +4073,9 @@
       "evictedTiles": "Tessere di texture rimosse.",
       "residentPages": "Ciò che era residente subito prima della regolazione e subito dopo.",
       "residentTiles": "Tessere di texture mantenute, prima e dopo.",
-      "durationMs": "Il tempo impiegato."
+      "durationMs": "Il tempo impiegato.",
+      "tables": "Le tabelle per pagina disegnabile ingrandite per una riserva più grande di loro (WebGPU), o `null` quando nessuna lo è stata.",
+      "transientBytes": "Byte tenuti insieme durante la copia della riserva di geometria: la vecchia riserva e la nuova accanto, concesse insieme dal dispositivo prima che si spostasse alcuna pagina; 0 quando nessuna riserva si è spostata."
     }
   },
   "Mesh": {

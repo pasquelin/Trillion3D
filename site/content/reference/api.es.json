@@ -4073,7 +4073,9 @@
       "evictedTiles": "Teselas de textura retiradas.",
       "residentPages": "Lo que era residente justo antes del ajuste y justo después.",
       "residentTiles": "Teselas de textura conservadas, antes y después.",
-      "durationMs": "El tiempo que tomó."
+      "durationMs": "El tiempo que tomó.",
+      "tables": "Las tablas por página dibujable ampliadas para una reserva por encima de ellas (WebGPU), o `null` cuando no se amplió ninguna.",
+      "transientBytes": "Bytes retenidos a la vez mientras se copiaba la reserva de geometría: la reserva antigua y la nueva a su lado, concedidas juntas por el dispositivo antes de que se moviera ninguna página; 0 cuando no se movió ninguna reserva."
     }
   },
   "Mesh": {

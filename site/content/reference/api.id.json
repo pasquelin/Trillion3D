@@ -2065,7 +2065,9 @@
       "evictedTiles": "Ubin tekstur yang dihapus.",
       "residentPages": "Yang tersimpan tepat sebelum dan tepat sesudah pengaturan.",
       "residentTiles": "Ubin tekstur yang disimpan, sebelum dan sesudah.",
-      "durationMs": "Waktu yang dibutuhkannya."
+      "durationMs": "Waktu yang dibutuhkannya.",
+      "tables": "Tabel per halaman yang dapat digambar yang diperbesar untuk kolam di atasnya (WebGPU), atau `null` jika tidak ada yang diperbesar.",
+      "transientBytes": "Byte yang ditahan sekaligus saat kolam geometri disalin: kolam lama dan kolam baru di sampingnya, diberikan bersama oleh perangkat sebelum halaman mana pun berpindah; 0 jika tidak ada kolam yang berpindah."
     }
   },
   "Mesh": {

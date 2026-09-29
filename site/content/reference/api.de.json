@@ -4073,7 +4073,9 @@
       "evictedTiles": "Entfernte Texturkacheln.",
       "residentPages": "Was unmittelbar vor und unmittelbar nach der Einstellung resident war.",
       "residentTiles": "Gehaltene Texturkacheln, davor und danach.",
-      "durationMs": "Die benötigte Zeit."
+      "durationMs": "Die benötigte Zeit.",
+      "tables": "Die Tabellen je zeichenbarer Seite, vergrößert für ein Reservoir über ihnen (WebGPU), oder `null`, wenn keine vergrößert wurde.",
+      "transientBytes": "Bytes, die beim Kopieren des Geometrie-Reservoirs gleichzeitig gehalten werden: das alte Reservoir und das neue daneben, vom Gerät gemeinsam gewährt, bevor sich eine Seite bewegt; 0, wenn sich kein Reservoir bewegt hat."
     }
   },
   "Mesh": {
