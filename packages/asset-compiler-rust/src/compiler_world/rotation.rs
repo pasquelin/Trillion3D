@@ -3,7 +3,6 @@
 //! precision shares are generic over it, so each driver keeps the rounding, and so the output
 //! bits, it has always had.
 use super::{Mat4, IDENTITY};
-use std::iter::Sum;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
 /// A float a matrix is composed in: `f32` or `f64`.
@@ -15,7 +14,6 @@ pub(crate) trait Real:
     + Mul<Output = Self>
     + Div<Output = Self>
     + Neg<Output = Self>
-    + Sum
 {
     const ONE: Self;
     const TWO: Self;
@@ -49,18 +47,25 @@ pub(crate) fn identity<T: Real>() -> [T; 16] {
     out
 }
 
-/// `left · right` by `Iterator::sum`, as the Blender and Alembic drivers compose. The sum starts
-/// at `-0.0`, so four negative-zero products stay `-0.0` where `multiply` writes `0.0`.
-pub(crate) fn product<T: Real>(left: &[T; 16], right: &[T; 16]) -> [T; 16] {
+/// `left · right`, each entry summed from `start` in step order: the one matrix product every
+/// driver composes with. The start is the caller's rounding: `+0.0` for `multiply`, `-0.0` for
+/// `product`.
+pub(crate) fn compose<T: Real>(left: &[T; 16], right: &[T; 16], start: T) -> [T; 16] {
     let mut out = [T::default(); 16];
     for column in 0..4 {
         for row in 0..4 {
             out[column * 4 + row] = (0..4)
                 .map(|step| left[step * 4 + row] * right[column * 4 + step])
-                .sum();
+                .fold(start, |sum, term| sum + term);
         }
     }
     out
+}
+
+/// `left · right` summed from `-0.0`, as the Blender and Alembic drivers always composed (by
+/// `Iterator::sum`): four negative-zero products stay `-0.0` where `multiply` writes `0.0`.
+pub(crate) fn product<T: Real>(left: &[T; 16], right: &[T; 16]) -> [T; 16] {
+    compose(left, right, -T::default())
 }
 
 /// Rotation of `radians` around axis `axis` (0 = X, 1 = Y, 2 = Z), from its sine and cosine, as
@@ -148,7 +153,7 @@ mod tests {
         }
         let right = identity::<f64>();
         assert!(product(&left, &right)[0].is_sign_negative());
-        assert!(super::super::multiply(&left, &right)[0].is_sign_positive());
+        assert!(crate::compiler_world::multiply(&left, &right)[0].is_sign_positive());
     }
 
     // Audit of #940: a turn from sine and cosine (Blender, USD) rounds apart from the same turn by
