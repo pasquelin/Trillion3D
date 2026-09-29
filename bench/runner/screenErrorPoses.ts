@@ -1,5 +1,5 @@
 // The cameras of the screen-error measure (#959). `orbit` and `terrain` are the audit's
-// (`preuves/CMP/scripts/dagsim.py`, `cameras`), placed from the source's own box: three angles
+// (the CMP scripts' `dagsim.py`, `cameras`), placed from the source's own box: three angles
 // at 1.2, 2, 5 and 20 radii around an object, and a terrain seen from the ground, the air and
 // afar. `bench` is the bench's four named views (`poses.ts`, `VIEWS`), read off the engine's box.
 import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
