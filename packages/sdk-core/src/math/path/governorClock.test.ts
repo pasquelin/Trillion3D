@@ -118,7 +118,7 @@ test('a coarse clock pools a path until it spans ten steps, then records one sam
   assert.equal(op.jsNsPerElement, (12 * 1e6) / 30, 'the pool is timed as one batch');
 });
 
-test('a coarse pool: a NaN closes it at once, a missing timer drops it', () => {
+test('a coarse pool: a NaN or an infinity closes it at once, a missing timer drops it', () => {
   const g = coarseGovernor();
   g.observe('op', 'js', 4, 10);
   g.observe('op', 'js', NaN, 10);
@@ -127,6 +127,9 @@ test('a coarse pool: a NaN closes it at once, a missing timer drops it', () => {
   g.observe('op', 'wasm', null, 10);
   g.observe('op', 'wasm', 4, 10);
   assert.equal(g.metrics().operations.op.wasmSamples, 0, 'the timer loss dropped the first four');
+  g.observe('op', 'js', -Infinity, 10);
+  g.observe('op', 'js', 4, 10);
+  assert.equal(g.metrics().operations.op.jsSamples, 2, 'a -Infinity closes its pool, never poisons it');
 });
 
 test('a coarse clock now arbitrates: a path three times faster wins, read through 1 ms steps', () => {
