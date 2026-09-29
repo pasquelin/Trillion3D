@@ -63,19 +63,14 @@ function frame(scene: Scene) {
     sent.length = 0;
     draw.render({} as HostCamera);
     draw.host.drawHostGeometry(createHostDrawCamera(), OUTPUT);
-    const third = sent.length / 3;
-    assert.ok(Number.isInteger(third) && third > 0);
+    const half = sent.length / 2;
+    assert.ok(Number.isInteger(half) && half > 0);
     assert.deepEqual(
-      sent.slice(0, third),
-      sent.slice(third, 2 * third),
-      'source and reduced resolve preserve the same runs',
+      sent.slice(0, half),
+      sent.slice(half),
+      'source and final preserve the same runs',
     );
-    assert.deepEqual(
-      sent.slice(third, 2 * third),
-      sent.slice(2 * third),
-      'the reduced resolve and the final pass preserve the same runs',
-    );
-    return sent.slice(2 * third);
+    return sent.slice(half);
   };
   return { draw, image, gpu };
 }
@@ -89,11 +84,7 @@ test('the pages of one surface at one placement are one submission, in their ord
   // Placed as first drawn: the stone pages at the origin in one range, then the one at x = 5, which
   // breaks the run, then the wood.
   assert.deepEqual(image(), [[[18, 0]], [[3, 72]], [[3, 84]]]);
-  assert.deepEqual(
-    draw.counters(),
-    { triangles: 24 },
-    'every triangle in source, resolve and final passes',
-  );
+  assert.deepEqual(draw.counters(), { triangles: 16 }, 'every triangle in source and final passes');
   pages[1].geometry.dispose();
   scene.remove(pages[1]);
   const late = page(2, stone);
