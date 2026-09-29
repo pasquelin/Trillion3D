@@ -19,7 +19,7 @@ test('after a grow on a lit scene, the shadow lists, offsets, spheres and words 
     const writes = gpu.writes.length;
     await setWebgpuMemoryBudgets(rt, { geometryPoolBytes: 1 << 20 });
     const rows = layout.rows.casterSlots;
-    assert.equal(rows, 3);
+    assert.equal(rows, 4);
     assert.equal(lights.cull!.kept.size, MAX_SHADOW_REGIONS * rows * 4);
     assert.equal(lights.occlusion.visible.size, MAX_SHADOW_REGIONS * rows * 4);
     // Each region's place in the list moved to `rows` apart.
