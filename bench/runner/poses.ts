@@ -56,7 +56,7 @@ export const VIEWS = {
   detail: { index: 4 * FRAMES_PER_SEGMENT, segment: 'Close-up on detailed geometry' },
 };
 
-/** The vertical extent a floor is read from: a full box (`poseAt`) or just its `y` (`plancherDuModele`). */
+/** The vertical extent a floor is read from: a full box (`poseAt`) or just its `y` (`modelFloor`). */
 interface FloorBounds {
   min: { y: number };
   max: { y: number };
@@ -74,7 +74,7 @@ export interface Bounds {
  * Model floor, the bench's `streetLevel`: the origin plane if the geometry straddles it, otherwise
  * the bottom of its box. The camera poses there and lights hang there — one rule for both.
  */
-export const plancherDuModele = (bounds: FloorBounds) =>
+export const modelFloor = (bounds: FloorBounds) =>
   bounds.min.y < 0 && bounds.max.y > 0 ? 0 : bounds.min.y;
 
 /** The camera's eye height on a model: a share of its footprint, at most two metres on a tall one. */
@@ -97,7 +97,7 @@ export function poseAt(bounds: Bounds, index: number): CameraPose {
     sy = max.y - min.y,
     sz = max.z - min.z;
   const radius = Math.hypot(sx, sy, sz) / 2;
-  const ground = plancherDuModele(bounds),
+  const ground = modelFloor(bounds),
     eye = eyeHeight(bounds);
   const road = bounds.street ?? { x: cx, z: cz, ground, clearance: 0 };
   const place = ({ x, z, height, at }: PathPoint) =>
