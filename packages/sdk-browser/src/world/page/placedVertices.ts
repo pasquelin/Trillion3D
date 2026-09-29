@@ -18,10 +18,9 @@ const COLUMNS = [
 export function joinedCorners(pages: readonly Uint32Array[]) {
   const ends = new Uint32Array(pages.length),
     indices = new Uint32Array(pages.reduce((sum, page) => sum + page.length, 0));
-  let offset = 0;
   pages.forEach((page, k) => {
-    indices.set(page, offset);
-    ends[k] = offset += page.length;
+    indices.set(page, k && ends[k - 1]);
+    ends[k] = (k && ends[k - 1]) + page.length;
   });
   return { indices, ends };
 }
