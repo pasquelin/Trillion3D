@@ -83,6 +83,8 @@ export function buildWorldMirror(input: MirrorInput) {
   const meshOf = (cut: Cut, material: Material) => {
     let geometry = geometries.get(cut);
     if (!geometry) geometries.set(cut, (geometry = hostGeometry(cut.drawn)));
+    // A dynamic resource's vertices are rewritten in place: the engine reads them as floats.
+    if (cut.dynamic) geometry.usage = 'dynamic';
     const tinted = !!material.vertexColors && !!cut.drawn.colors,
       reading = cut.drawn.lines
         ? 'lines'
