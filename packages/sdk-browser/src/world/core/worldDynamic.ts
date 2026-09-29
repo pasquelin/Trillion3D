@@ -84,7 +84,9 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
     serial = 0;
   const changes = new WeakMap<Geometry, { version: number; frame: number }>(),
     dynamic = new WeakSet<Geometry>(),
-    ways = new WeakMap<Geometry, Map<string, Promise<Cut | null>>>();
+    ways = new WeakMap<Geometry, Map<string, Promise<Cut | null>>>(),
+    /** How each resource leaves its geometry's reading, once released. */
+    leaves = new WeakMap<Cut, () => void>();
   /** The resources whose read vertices wait for an upload, in the order they changed. */
   const dirty = new Set<Cut>();
   const dynamicOf = (cut: Cut) => cut.dynamic!;
@@ -158,20 +160,21 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
         dirty.add(before);
         return before;
       }
-      // A failed cut leaves no trace: the next read of this geometry tries again.
+      const leave = () => byWay.get(way) === next && byWay.delete(way);
       const next: Promise<Cut> = make(drawn, geometry, blended, before ?? undefined).then(
-        (cut) => (made(cut), cut),
+        (cut) => (leaves.set(cut, leave), made(cut), cut),
         (error) => {
-          if (byWay.get(way) === next) byWay.delete(way);
+          leave();
           throw error;
         },
       );
       byWay.set(way, next);
       return next;
     },
-    /** A resource released: a later read of its geometry makes another. */
+    /** A resource released, its pages no longer served: a later read makes another. */
     forget(cut: Cut) {
       dirty.delete(cut);
+      leaves.get(cut)?.();
     },
     /**
      * Writes the read vertices of the resources that changed, in order, until the next would pass
