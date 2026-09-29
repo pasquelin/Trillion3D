@@ -15,6 +15,25 @@ test('a string that must stay is a named exception, the same word elsewhere coun
   assert.deepEqual(frenchWords('const mesure = 1;'), ['mesure']);
 });
 
+test('the perf measurement format is excepted only as keys and only in its own files', () => {
+  const format = 'bench/core/measure.ts';
+  assert.deepEqual(
+    frenchWords('return { temoin: t, ecartTemoin: e, resultats }; r.medianeMs; m.fichier;', format),
+    ['resultats'],
+  );
+  assert.deepEqual(
+    frenchWords("row['temoin'] ?? row.ecartBaseline; x?: { fichier?: 1 }", format),
+    [],
+  );
+  assert.deepEqual(frenchWords('const temoin = 1; // le fichier', format), ['temoin', 'fichier']);
+  assert.deepEqual(frenchWords('s.temoinAA; witnessTemoin: 1;', format), ['temoin', 'temoin']);
+  assert.deepEqual(frenchWords('gpu.resultats; temoin: 1;', 'tests/browser/probes/a.ts'), [
+    'resultats',
+    'temoin',
+  ]);
+  assert.deepEqual(frenchWords("'.mesures/x' + '.mesure/out'"), ['mesures']);
+});
+
 test('counts are kept per package, the word list itself left out', () => {
   const found = frenchByFile(
     new Map([
