@@ -66,7 +66,7 @@ class WebglClusterCopyCulling {
 /** The box around the union of an instanced mesh's placement spheres — the sphere the depth
  *  sorts on and the frustum culls on — never the geometry's box alone, which a placement carries
  *  elsewhere. In the mesh's own space, into `out`. */
-export function placementsBox(
+function placementsBox(
   out: Float64Array,
   mesh: Pick<CulledCopy, 'geometry'> & Parameters<typeof placementsSphere>[0],
 ) {
