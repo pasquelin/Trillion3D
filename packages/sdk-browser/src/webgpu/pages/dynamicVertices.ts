@@ -25,7 +25,12 @@ export const webgpuVertexApi = (rt: WebgpuPagesRuntime) => ({
         gpu.device.queue.writeBuffer(positions, from * 12, xyz, from * 3, count * 3);
     }
     noteRewritten(rt, attributes, box);
+    // A rewrite moves vertices, never a pose: the hierarchy keeps its matrices, so the next image
+    // walks no world — the row table, its occluder history and its corners are kept. A host pose
+    // write still unread stays owed (`engineWriting`) and is walked as before.
+    run.gate.engineWriting();
     run.gate.sceneMoved();
+    run.gate.noteWorldsUpdated();
     return true;
   },
   vertexBytes(attributes: HostAttributes, ranges: readonly VertexRange[]) {
