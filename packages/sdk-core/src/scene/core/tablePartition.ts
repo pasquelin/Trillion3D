@@ -123,7 +123,7 @@ export function readCellPage(bytes: Uint8Array, url: string) {
   if (Array.isArray(body.pages)) {
     if (!rankLists(body.parents, body.pages.length))
       throw new EngineError(CELL_PAGES.invalid, `${url} misses the parents of its pages`, {});
-    return { pages: named(CELL_PAGES, body.pages, body.parents), cells: null, first: 0 };
+    return { pages: named(CELL_PAGES, body.pages, body.parents), cells: null, first: null };
   }
   const { meshPages, cells, first } = body as {
     meshPages?: unknown;
