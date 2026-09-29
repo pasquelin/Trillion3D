@@ -59,7 +59,8 @@ export const VIS_FEATURES = [
 ];
 
 /** The shared state of one WebGPU page-raster backend, handed to every module that implements a
- *  part of it. `setup` and `layout` never change after construction; the other groups do. */
+ *  part of it. `setup` and `layout` change only as placements grow in place
+ *  (`../../placement/webgpuGrowth.ts`); the other groups do as they draw. */
 export interface WebgpuPagesRuntime {
   context: BackendContext;
   /** Opt-in, same-session frame-target measurement; absent from production sessions. */
@@ -162,7 +163,7 @@ export function createWebgpuPagesRuntime(context: BackendContext): WebgpuPagesRu
     views: createWebgpuViews({ run, gpu, vis, setup }),
     timing: createWebgpuTimingState(
       context.stageProfile ? createWebgpuStageProfiler() : undefined,
-      layout.selectionRoots.length,
+      () => layout.selectionRoots.length,
     ),
     capabilities,
     blendState,

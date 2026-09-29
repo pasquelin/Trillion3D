@@ -66,7 +66,7 @@ test('a barrier after the switch does not replay the history from before it', as
   const { rt } = runtime(true);
   await prepareTemporalAntialiasing(rt, rt.gpu.device!);
   const temporal = rt.gpu.temporal!;
-  Object.assign(rt.gpu, { targetSize: [4, 2] });
+  Object.assign(rt.gpu, { targetSize: [4, 2], displaySize: [4, 2] });
   Object.assign(rt.run, { frame: 3, textureConverging: false });
   temporal.frame.hasHistory = true;
   beginTaaFrame(rt, still, false);
@@ -83,7 +83,7 @@ test('a barrier after the switch does not replay the history from before it', as
 test('a pass rigged during a capture gets its history targets', async () => {
   const { rt } = runtime(false);
   await prepareTemporalAntialiasing(rt, rt.gpu.device!);
-  Object.assign(rt.gpu, { colorTexture: {}, targetSize: [4, 2] });
+  Object.assign(rt.gpu, { colorTexture: {}, targetSize: [4, 2], displaySize: [4, 2] });
   rt.capture.capturing = true;
   setWebgpuTemporalAntialiasing(rt, true);
   for (let turn = 0; turn < 5; turn++) await new Promise(setImmediate);

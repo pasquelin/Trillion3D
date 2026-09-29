@@ -55,7 +55,7 @@ export interface WebgpuTimingState {
     imageRelevee: number;
   };
   /** What the world step walks: counts, never durations. `racines` is how many root matrices one
-   *  rebase brings back to the eye, fixed with the layout; `racinesRebasees` is how many this image
+   *  rebase brings back to the eye, the layout's roots; `racinesRebasees` is how many this image
    *  did — all of them when the camera or the scene moved, none otherwise, so a held or still image
    *  reports zero. */
   worldCounts: { racines: number; racinesRebasees: number };
@@ -114,7 +114,10 @@ export function createWebgpuStageProfiler(): StageProfiler {
   return stages;
 }
 
-export function createWebgpuTimingState(stages?: StageProfiler, roots = 0): WebgpuTimingState {
+export function createWebgpuTimingState(
+  stages?: StageProfiler,
+  roots: () => number = () => 0,
+): WebgpuTimingState {
   const cpuProfile = createCpuStepProfile(CPU_STEP_NAMES);
   return {
     gpuTiming: undefined,
@@ -133,7 +136,13 @@ export function createWebgpuTimingState(stages?: StageProfiler, roots = 0): Webg
       retiresParLaPyramide: 0,
       imageRelevee: -1,
     },
-    worldCounts: { racines: roots, racinesRebasees: 0 },
+    // Read live: placements grown in place join the roots (`placement/webgpuGrowth.ts`).
+    worldCounts: {
+      get racines() {
+        return roots();
+      },
+      racinesRebasees: 0,
+    },
     encodeCounts: {
       lignesTeleversees: 0,
       fichesTeleversees: 0,

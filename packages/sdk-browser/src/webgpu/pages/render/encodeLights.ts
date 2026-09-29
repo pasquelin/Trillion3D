@@ -174,7 +174,7 @@ export function directLightingState(rt: WebgpuPagesRuntime) {
     shadowsUpdated: lights.shadowsUpdated,
     sunShadowsUpdated: lights.plan.counts.sunLights,
     shadowFaces: lights.shadowFaces,
-    shadowDraws: lights.shadowDraws,
+    shadowDraws: lights.shadowWork.regions,
     shadowPagesDrawn: lights.shadowPages,
     shadowPagesRequested: lights.plan.requests.counts.requested,
     shadowPagesCached: lights.plan.counts.cachedPages,

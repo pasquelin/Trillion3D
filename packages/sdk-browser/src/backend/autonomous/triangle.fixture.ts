@@ -73,6 +73,8 @@ export function triangleBackend(
     indices: new Map(),
     associations: new Map([[mesh, { meshes: 0, primitives: 0, ...link }]]),
     readGeometryPage: paged.readGeometryPage,
+    // The index page: the corners of the triangle, as the source numbers them.
+    readPage: async () => Uint32Array.of(0, 1, 2),
     ...ceiling,
   });
   const camera = G.perspectiveCamera(55, 1, 0.1, 100);

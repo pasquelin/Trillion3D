@@ -1,7 +1,7 @@
 // #989: one capacity contract. The arrays, strides and uniform layouts the shadow shaders declare
 // are the host's own constants — parsed from the generated WGSL —, and the bounds a device's limits
-// select stay within them, on a small device as on a large one. A face with nothing to cull
-// encodes no pass.
+// select stay within them, on a small device as on a large one. A face with nothing to cull, and a
+// batch with no region, encode no pass.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
@@ -9,11 +9,8 @@ import { DAG_UNIFORM_BYTES, DAG_VIEWS_WGSL } from '../dag/shader/viewsWgsl.ts';
 import { lightCutCapacity } from '../dag/lightCutCapacity.ts';
 import { MAX_SHADOW_PAGES, MAX_SHADOW_REGIONS, SHADOW_FACE_READ_WORDS } from './recordPack.ts';
 import {
-  CULL_UNIFORM_WORDS,
-  LIGHT_CULL_UNIFORM_WORDS,
   MAX_SHADOW_BATCHES,
   OCCLUSION_SLOT_WORDS,
-  OCCLUSION_UNIFORM_WORDS,
   SHADOW_FACE_STRIDE,
   SHADOW_REGION_COMMANDS,
   shadowBatchCapacity,
@@ -50,9 +47,8 @@ test('the shaders declare the contract: views, regions, strides and uniform word
   assert.equal(words(SHADOW_DEPTH_SHADER, 'ShadowView'), SHADOW_FACE_READ_WORDS);
   assert.equal(read(SHADOW_OCCLUSION_SHADER, /struct View\{@size\((\d+)\)/), SHADOW_FACE_STRIDE);
   assert.equal(words(SHADOW_CULL_SHADER, 'Face'), SHADOW_CULL_FLOATS);
-  assert.equal(words(SHADOW_CULL_SHADER, 'Uni'), CULL_UNIFORM_WORDS);
-  assert.equal(words(SHADOW_LIGHT_CULL_SHADER, 'Uni'), LIGHT_CULL_UNIFORM_WORDS);
-  assert.equal(words(SHADOW_OCCLUSION_SHADER, 'Uni'), OCCLUSION_UNIFORM_WORDS);
+  // The uniforms' words, generated from the host's counts, are checked field by field against
+  // what the host writes (`uniformWords.test.ts`).
   // Both lists of a region (#965), in the cull's commands as in the occlusion test's.
   for (const shader of [SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER, SHADOW_OCCLUSION_SHADER]) {
     assert.equal(read(shader, /\(region\*(\d+)u\+select/), SHADOW_REGION_COMMANDS);
@@ -100,8 +96,8 @@ for (const [size, limits] of Object.entries(DEVICES))
     }
   });
 
-test('a face whose casters list is empty encodes no cull pass', async () => {
-  const { device } = fakeDevice(),
+test('an empty face, an empty list or an empty batch encodes no cull pass and writes nothing', async () => {
+  const { device, writes } = fakeDevice(),
     cull = await createGpuShadowCull(device, 64);
   const passes: string[] = [];
   const encoder = {
@@ -120,9 +116,18 @@ test('a face whose casters list is empty encodes no cull pass', async () => {
     indirectBase: 0,
     commands: 1,
   };
+  // The light cut's cull of no region: its log and rows are never read.
+  const log = { buffer, offset: 0, work: buffer, offsetWord: 0, countWord: 0, groupsWord: 0 };
+  const light = { spheres: buffer, mobility: buffer, items: buffer, rowOf: buffer, log };
+  const made = writes.length;
+  cull.begin(0, 3);
+  cull.encodeLight(encoder, { ...light, blendFirst: 0, blendEnd: 0, refreshRows() {} }, 0, 8);
+  assert.equal(writes.length, made, 'a batch of no region writes neither volumes nor commands');
   cull.begin(2, 3);
   cull.encode(encoder, source, 0, 0, 2, 0);
   assert.deepEqual(passes, [], 'nothing listed: the regions keep the zero instances begin wrote');
+  cull.encode(encoder, source, 0, 0, 0, 5);
+  assert.deepEqual(passes, [], 'no face: nothing to cull');
   cull.encode(encoder, source, 1, 0, 2, 5);
   assert.deepEqual(passes, ['cull']);
   cull.dispose();

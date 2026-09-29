@@ -5,7 +5,8 @@ import { deferredLayoutEntries } from '../../lighting/deferred/setup.ts';
 import { makeFullscreenPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { readOnly } from '../core/bindLayout.ts';
 import { ALPHA_BLEND, blendStagePipelines } from '../blend/stagePipelines.ts';
-import { WATER_BINDINGS, WATER_COMPOSITE_SHADER } from './compositeWgsl.ts';
+import { WATER_BINDINGS, WATER_COMPOSITE_SHADER, WATER_ROUTED_SHADER } from './compositeWgsl.ts';
+import { displayMaskLayout, displayTargets } from '../blend/displayFilter.ts';
 
 /** The five targets of the surface stage: the three material surfaces, the water word in the
  *  display colour it borrows, then the virtual-texture feedback. */
@@ -75,4 +76,28 @@ export async function createWaterCompositePipeline(device: GPUDevice, layout: GP
     'composeWater',
     [{ format: 'rgba16float', blend: ALPHA_BLEND }],
   );
+}
+
+/** The routed composite's targets: the HDR target as above, then a normal layer's display layers. */
+export const WATER_ROUTED_TARGETS: GPUColorTargetState[] = [
+  { format: 'rgba16float', blend: ALPHA_BLEND },
+  ...displayTargets('normal'),
+];
+
+/** The composite of an image with display layers (`WATER_ROUTED_SHADER`), made by the first one:
+ *  the HDR target blended as above, then the tint and the added value of a normal layer. */
+export function createWaterRoutedPipeline(device: GPUDevice, layout: GPUBindGroupLayout) {
+  const module = device.createShaderModule({ label: 'WATER_ROUTED', code: WATER_ROUTED_SHADER });
+  const bindGroupLayouts = [layout, reflectionLayout(device), displayMaskLayout(device)];
+  return device.createRenderPipeline({
+    layout: device.createPipelineLayout({ bindGroupLayouts }),
+    vertex: { module, entryPoint: 'fullscreen' },
+    fragment: {
+      module,
+      entryPoint: 'composeWaterRouted',
+      constants: { DISPLAY_ROUTE: 1 },
+      targets: WATER_ROUTED_TARGETS,
+    },
+    primitive: { topology: 'triangle-list' },
+  });
 }

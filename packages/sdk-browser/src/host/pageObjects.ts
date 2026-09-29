@@ -91,9 +91,11 @@ export const releaseHostInstances = (mesh: HostInstancedMesh) => {
   mesh.dispose();
 };
 
-/** The pose a drawn page wears: the sixteen floats the engine composed for it. */
+/** The pose a drawn page wears: the sixteen floats the engine composed for it, written in place,
+ *  which the graph's link hears as a pose (the draw walks only what moved, `changedSubtrees.ts`). */
 export const setHostPose = (mesh: HostMesh, pose: MatrixElements) => {
   mesh.matrix.fromArray(pose.elements);
+  mesh._link?.pose(mesh);
 };
 
 /** The surface a drawn page wears once its primitive has been repainted. */
