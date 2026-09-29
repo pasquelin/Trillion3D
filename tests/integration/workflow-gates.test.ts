@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 
 const repo = new URL('../../', import.meta.url);
 const env = {
@@ -43,16 +43,10 @@ function makeRepo() {
   return work;
 }
 
-const commit = (
-  cwd: string,
-  message: string,
-  files: Record<string, string> = { [`${Date.now()}-${Math.random()}.txt`]: message },
-) => {
-  for (const [name, text] of Object.entries(files)) {
-    mkdirSync(dirname(join(cwd, name)), { recursive: true });
-    writeFileSync(join(cwd, name), text);
-  }
-  ok(cwd, 'add', ...Object.keys(files));
+const commit = (cwd: string, message: string) => {
+  const name = `${Date.now()}-${Math.random()}.txt`;
+  writeFileSync(join(cwd, name), message);
+  ok(cwd, 'add', name);
   return git(cwd, 'commit', '-q', '-m', message);
 };
 
