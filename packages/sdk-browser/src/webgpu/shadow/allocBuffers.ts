@@ -137,9 +137,13 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       params.set(asks.entries.subarray(0, count), ALLOC_PARAM_WORDS);
       device.queue.writeBuffer(paramBuffer, 0, params, 0, ALLOC_PARAM_WORDS + count);
     },
-    /** Sends the table words the plan changed that map a page (`wordsWgsl.ts`): its table's
-     *  flush, run through `flush`. Returns how many. */
-    writeWords(plan: ShadowPlan, flush: (sink: (first: number, count: number) => void) => void) {
+    /** Sends the table words frame `frame`'s plan changed that map a page (`wordsWgsl.ts`): its
+     *  table's flush, run through `flush`. Returns how many. */
+    writeWords(
+      plan: ShadowPlan,
+      frame: number,
+      flush: (sink: (first: number, count: number) => void) => void,
+    ) {
       const { pool, table } = plan;
       let count = 0;
       const send = (entry: number) => {
@@ -158,6 +162,7 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       });
       words[0] = count;
       words[1] = pages;
+      words[2] = frame;
       if (count) device.queue.writeBuffer(wordBuffer, 0, words, 0, WORDS_HEADER + 2 * count);
       return count;
     },
