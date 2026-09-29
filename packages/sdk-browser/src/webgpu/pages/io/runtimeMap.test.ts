@@ -5,7 +5,8 @@ import { createExplorerMaterialApi } from '../../../world/api/materialApi.ts';
 import { GraphTexture } from '../../../host/graph/texture.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
-import { camera, quadBackend } from '../testScenes.fixture.ts';
+import { camera, quadScene } from '../testScenes.fixture.ts';
+import { webgpuPagesBackend } from '../pages.ts';
 import type { BackendDiagnostic } from '../../../backend/types.ts';
 
 /** Record the source and flags of the real scratch upload, without pretending to rasterize pixels. */
@@ -17,15 +18,19 @@ function open(map?: ImageBitmap) {
   gpu.device.queue.copyExternalImageToTexture = (source, destination, size) => {
     copies.push({ source, premultipliedAlpha: destination.premultipliedAlpha, size });
   };
-  const { fixture, backend } = quadBackend(gpu.device, {
-    onDiagnostic: (d) => diagnostics.push(d),
-  });
+  const fixture = quadScene();
   if (map) {
     const texture = new GraphTexture(map);
     texture.flipY = false;
     texture.colorSpace = 'srgb';
     fixture.material.map = texture;
   }
+  const backend = webgpuPagesBackend({
+    ...fixture,
+    gpuDevice: gpu.device,
+    viewport: [32, 32],
+    onDiagnostic: (d) => diagnostics.push(d),
+  });
   const api = createExplorerMaterialApi({
     check() {},
     ...fixture,
@@ -99,5 +104,25 @@ test('a failed bitmap upload releases its pinned place and a later admission suc
     assert.equal(api.assignMaterial('0/0', made.id), true);
   } finally {
     await backend.dispose();
+  }
+});
+
+test('queued bitmap admissions reject after device loss or disposal without leaking map bytes', async (t) => {
+  const bitmap = bitmapFixture(t);
+  for (const stop of ['loss', 'dispose']) {
+    const opened = open();
+    await opened.backend.prepare();
+    if (stop === 'loss') opened.lose('test loss');
+    else await opened.backend.dispose();
+    const before = opened.textures.length;
+    const pending = [
+      opened.api.createMaterial({ map: bitmap() }),
+      opened.api.createMaterial({ map: bitmap() }),
+    ];
+    const results = await Promise.allSettled(pending);
+    assert.ok(results.every((result) => result.status === 'rejected'));
+    assert.equal(opened.api.materialMapBytes(), 0);
+    assert.equal(opened.textures.length, before, 'a stopped device receives no new texture');
+    if (stop === 'loss') await opened.backend.dispose();
   }
 });
