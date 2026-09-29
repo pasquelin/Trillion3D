@@ -3,11 +3,11 @@ import {
   DEFAULT_TONE_MAPPING,
   TONE_MAPPING_RANK,
 } from '../../../../../sdk-core/src/scene/core/environment.ts';
-import { noteShadowFrame } from '../state/lights.ts';
 import { uploadSceneLights } from '../state/lightBuffer.ts';
 import { planImageShadows } from './encodeShadows.ts';
+import { encodeShadowDemand } from '../../shadow/demandPass.ts';
 import { lightCutMetrics } from '../../shadow/casters.ts';
-import { encodeShadowBatches } from './encodeShadowBatches.ts';
+import { encodeShadowBatches, noteShadowFrame } from './encodeShadowBatches.ts';
 import { syncPageProxy, syncLightingProxies } from '../prepare/proxyMotion.ts';
 import { ensureBounce } from '../prepare/bounce.ts';
 import { ensureSunFarShadow } from '../prepare/sunFar.ts';
@@ -20,8 +20,9 @@ const directParams = new Float32Array(8);
 const viewpoint = new Float64Array(3);
 
 /**
- * Direct lighting of an image, in order: shadow scheduling and matrix writes, depth pass into the
- * atlas, per-tile light lists, then the parameters deferred resolve will reread. A scene with no
+ * Direct lighting of an image, in order: shadow scheduling, per-tile light lists, the per-pixel
+ * demand of shadow pages, depth pass into the atlas and record writes, then the parameters
+ * deferred resolve will reread. A scene with no
  * declared light launches neither shadows nor lists: it pays nothing, and the unlit view outputs its
  * raw albedo.
  */
@@ -32,9 +33,8 @@ export function encodeDirectLights(
   cam: EngineCamera,
   viewProjection: ArrayLike<number>,
 ) {
-  const { lights, gpu } = rt,
-    { store, tiles } = lights,
-    [width, height] = gpu.targetSize;
+  const { lights } = rt,
+    { store, tiles } = lights;
   const active = store.count;
   lights.lightsActive = active;
   lights.lightRuns = 0;
@@ -68,28 +68,42 @@ export function encodeDirectLights(
   ensureSunFarShadow(rt, device);
   syncLightingProxies(rt);
   rt.sunFar.gpu?.prepare(encoder, rt.run.frame);
+  // The request buffer is zeroed for the demand, then the resolve, to record into. No pool, no
+  // shadow light yet: nothing to record (`../../shadow/poolSize.ts`).
+  if (lights.shadows?.texture) lights.pageRequests?.clear(encoder);
+  const listed = encodeTileLists(rt, encoder, viewProjection, cam.eye);
+  // Per pixel, the pages the resolve will read, marked before any page is drawn.
+  if (listed) encodeShadowDemand(rt, encoder);
   // Every page the plan marked is drawn now, batch after batch. A batch may refuse to encode
   // (reject or missing selection): its pages then stay stale, and their table words say what they
   // said — a page is readable only once its draw has landed.
   if (pages) encodeShadowBatches(rt, device, encoder, cam.eye);
-  if (lights.shadows?.texture) {
-    // Records and table words go out after the draws are encoded, before the resolve reads them;
-    // the request buffer is zeroed for the resolve to record into. No pool, no shadow light yet:
-    // nothing to push, nothing to record (`../../shadow/poolSize.ts`).
-    lights.shadows.flushData(lights.plan.table);
-    lights.pageRequests?.clear(encoder);
-  }
+  // Records and table words go out after the draws are encoded, before the resolve reads them.
+  if (lights.shadows?.texture) lights.shadows.flushData(lights.plan.table);
   noteShadowFrame(lights);
-  if (!tiles || !gpu.depthView) return directParams;
-  if (!lights.buffer || !tiles.ensure(width, height, gpu.depthView, lights.buffer, active))
-    return directParams;
-  tiles.update(viewProjection, cam.eye, width, height);
-  if (!tiles.encode(encoder, rt.run.frame)) return directParams;
+  if (!listed || !tiles) return directParams;
   directParams[0] = active;
   directParams[1] = tiles.tilesX;
   directParams[2] = tiles.tilesY;
   logFirstDirectFrame(rt);
   return directParams;
+}
+
+/** The per-tile light lists of this image, which the demand pass and the resolve read: false when
+ *  none could be encoded — no lists, no depth, or a device that could not fit them. */
+function encodeTileLists(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  viewProjection: ArrayLike<number>,
+  eye: ArrayLike<number>,
+) {
+  const { lights, gpu } = rt,
+    { tiles } = lights,
+    [width, height] = gpu.targetSize;
+  if (!tiles || !gpu.depthView || !lights.buffer) return false;
+  if (!tiles.ensure(width, height, gpu.depthView, lights.buffer, lights.store.count)) return false;
+  tiles.update(viewProjection, eye, width, height);
+  return tiles.encode(encoder, rt.run.frame);
 }
 
 /** Light tiles of this image, which the blend pass rereads: zero tiles when no list was encoded,
@@ -136,21 +150,6 @@ function encodeBounce(
   bounce.encoded = probes.encode(encoder, active, viewpoint);
   bounce.probesUpdated = probes.lastProbes;
   bounce.raysLaunched = probes.lastRays;
-}
-
-/** Bounce state, as the image diagnostics and the per-stage profile publish it. */
-export function bounceState(rt: WebgpuPagesRuntime) {
-  const { bounce } = rt,
-    probes = bounce.probes;
-  return {
-    probes: probes?.cascades.probes ?? null,
-    probesUpdated: bounce.probesUpdated,
-    rays: bounce.raysLaunched,
-    budgetLoad: probes?.budget.load ?? null,
-    budgetLastMs: probes?.budget.lastMs ?? null,
-    converged: probes ? !probes.working : null,
-    unavailable: bounce.reason,
-  };
 }
 
 /** Configuration of the first image lit by the contract, logged once. */

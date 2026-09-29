@@ -4,11 +4,8 @@
 // frame that plans no shadow releases it to the list.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  createWebgpuLightState,
-  noteShadowFrame,
-  shadowsUnsettled,
-} from '../pages/state/lights.ts';
+import { createWebgpuLightState, shadowsUnsettled } from '../pages/state/lights.ts';
+import { noteShadowFrame } from '../pages/render/encodeShadowBatches.ts';
 import { createGpuShadowCullCounts, sumKeptClusters } from '../../gpu/shadow/cullCounts.ts';
 import { unsettledMask } from '../frame/hold.ts';
 import { planShadowRegions, shadowViewpointOf } from '../pages/render/encodeShadows.ts';
