@@ -21,8 +21,8 @@ export function textures(
   row: Partial<Row> = {},
 ) {
   const m = metrics ?? ({} as Partial<FrameMetrics>);
-  const reseau = row.reseau
-    ? Object.entries(row.reseau)
+  const network = row.network
+    ? Object.entries(row.network)
         .sort((a, b) => b[1] - a[1])
         .map(([kind, bytes]) => `${kind} ${go(bytes)}`)
         .join(', ')
@@ -44,7 +44,7 @@ export function textures(
       `baked levels ${n(m.textureLevelReads)} in read, ${n(m.textureLevelsDecoded)} decoded, ` +
       `${mo(m.textureLevelCacheBytes)} held; ${n(m.textureScratchBuilds)} scratch textures`,
     ...liveTexturePool(row),
-    `- Prepare ${preparation}; network since prepare: ${reseau}`,
+    `- Prepare ${preparation}; network since prepare: ${network}`,
     '',
   ];
 }
@@ -52,7 +52,7 @@ export function textures(
 /** The texture pool set in session, and what setting it cost; nothing when none was set (a live
  *  geometry pool alone still reports the texture pool in place). The eviction and upload time the
  *  moving series then spends is the streamer's passes above. */
-function liveTexturePool({ reglageVivant: reglage }: Partial<Row>) {
+function liveTexturePool({ liveTuning: reglage }: Partial<Row>) {
   const pool = reglage?.texturePool;
   if (!reglage || !pool || reglage.texturePoolAskedBytes === undefined) return [];
   const fromResident =
@@ -62,6 +62,6 @@ function liveTexturePool({ reglageVivant: reglage }: Partial<Row>) {
   return [
     `- Texture pool set live: ${mo(reglage.texturePoolAskedBytes)} (${mib(reglage.texturePoolAskedBytes)} MiB) asked${fromResident}, ${mo(pool.allocatedBytes)} ` +
       `held${pool.clamp ? ` (${pool.clamp})` : ''}; ${reglage.evictedTiles} tiles evicted in ` +
-      `${n2(reglage.durationMs)} ms, pose held again after ${n(reglage.imagesReprise)} frames`,
+      `${n2(reglage.durationMs)} ms, pose held again after ${n(reglage.recoveryFrames)} frames`,
   ];
 }

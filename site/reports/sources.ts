@@ -1,7 +1,7 @@
 import type { ReportCanvas, ReportSource, SourceReadingRecord } from './types.ts';
 
 interface SourceSideMeasurement {
-  moteur?: string;
+  engine?: string;
   canvas?: ReportCanvas | null;
 }
 
@@ -34,7 +34,7 @@ export function readingGroups(sources: ReportSource[]) {
         scene: metadata.scene,
         view: entry.view,
         quality: entry.pixelError,
-        engine: measured.moteur,
+        engine: measured.engine,
         side,
         canvas: measured.canvas,
         complete: {

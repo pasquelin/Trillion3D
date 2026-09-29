@@ -93,5 +93,5 @@ export function sendDrawItemWords(rt: WebgpuPagesRuntime) {
 
 function sendRun(rt: WebgpuPagesRuntime, from: number, to: number) {
   rt.vis.gpuDraw!.uploadItems(rt.layout.drawItemWords, from, to);
-  rt.timing.encodeCounts.fichesTeleversees += to - from + 1;
+  rt.timing.encodeCounts.itemsUploaded += to - from + 1;
 }
