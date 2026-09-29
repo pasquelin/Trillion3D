@@ -1462,6 +1462,7 @@
       "framebuffer": "Nơi để vẽ; `null` cho màn hình.",
       "width": "Chiều rộng tính bằng điểm ảnh.",
       "height": "Chiều cao tính bằng điểm ảnh.",
+      "displayWidth": "Chiều rộng mà ảnh được hiển thị khi nó được vẽ nhỏ hơn (`world.renderScale`): các mức texture và độ rộng đường theo tỉ lệ đó. `width` khi không có.",
       "linear": "Độ rọi tuyến tính, không qua đường cong, không mã hóa, trên nền đen trong suốt: đầu vào của chuỗi hiệu ứng, có alpha là độ phủ."
     }
   },
@@ -4285,7 +4286,7 @@
       "signal": "Dừng các lượt tải của thế giới khi tín hiệu bị hủy.",
       "physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải.",
       "temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`.",
-      "renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, chỉ WebGPU, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1), một con số cố định nó; ảnh đứng yên được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`."
+      "renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1; trên WebGL2, vốn chỉ lấy mẫu lại, `min` mặc định là 1), một con số cố định nó; ảnh đứng yên được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`."
     }
   },
   "RenderScale": {
@@ -4943,7 +4944,7 @@
       "options.signal": "Dừng các lần tải của thế giới khi tín hiệu bị hủy.",
       "options.physics": "Bật vật lý (`world.physics`): `true`, hoặc trọng lực và ngân sách. Chỉ khi đó Jolt mới được tải.",
       "options.temporalAntialiasing": "Khử răng cưa theo thời gian, chỉ WebGPU: độ lệch dưới điểm ảnh được tích lũy qua các khung hình. `false` vẽ mỗi điểm ảnh tại tâm, không có lịch sử, điều mà một ảnh chụp chính xác từng điểm ảnh cần; đổi sau bằng `world.temporalAntialiasing`.",
-      "options.renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, chỉ WebGPU, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1), một con số cố định nó; ảnh đứng yên được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`."
+      "options.renderScale": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó, trước khi khử răng cưa theo thời gian dựng lại nó về kích thước màn hình: `'auto'` để ngân sách khung hình chọn nó giữa `min` và `max` (`{ min, max }`, mặc định 0,5 và 1; trên WebGL2, vốn chỉ lấy mẫu lại, `min` mặc định là 1), một con số cố định nó; ảnh đứng yên được vẽ ở mức tối đa. Đổi sau bằng `world.renderScale`."
     }
   },
   "crossVector3": {
@@ -6947,7 +6948,7 @@
   },
   "world.renderScale": {
     "summary": "Phần của màn hình theo mỗi trục mà ảnh được vẽ ở đó (`WorldOptions.renderScale`), từ khung hình kế tiếp.",
-    "description": "Khi đọc, là tỉ lệ của ảnh được vẽ gần nhất: 1 trên WebGL2."
+    "description": "Khi đọc, là tỉ lệ của ảnh được vẽ gần nhất."
   },
   "world.effects": {
     "summary": "Chuỗi hiệu ứng: các pass được vẽ lên ảnh (`effect`)."
