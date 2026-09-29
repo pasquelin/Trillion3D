@@ -1,6 +1,11 @@
 use super::*;
 use crate::shared_math::{cross, linear_columns};
 
+mod rotation;
+pub(super) use rotation::{
+    axis_angle, axis_rotation, identity, product, quaternion_wxyz, rotation_matrix, turn,
+};
+
 /// A glTF node transform, column-major like the format itself.
 pub(super) type Mat4 = [f64; 16];
 pub(super) const IDENTITY: Mat4 = [
@@ -58,63 +63,6 @@ pub(super) fn scaling(by: [f64; 3]) -> Mat4 {
     let mut out = IDENTITY;
     for axis in 0..3 {
         out[axis * 4 + axis] = by[axis];
-    }
-    out
-}
-
-/// The rotation of a glTF unit quaternion `(x, y, z, w)`, column by column. Shared with the scene
-/// plugins that compose their own matrices.
-#[rustfmt::skip]
-pub(super) fn rotation_matrix([x, y, z, w]: [f64; 4]) -> Mat4 {
-    [
-        1. - 2. * (y * y + z * z), 2. * (x * y + z * w), 2. * (x * z - y * w), 0.,
-        2. * (x * y - z * w), 1. - 2. * (x * x + z * z), 2. * (y * z + x * w), 0.,
-        2. * (x * z + y * w), 2. * (y * z - x * w), 1. - 2. * (x * x + y * y), 0.,
-        0., 0., 0., 1.,
-    ]
-}
-
-/// Rotation of `radians` around axis `axis` (0 = X, 1 = Y, 2 = Z), by its quaternion. Shared with
-/// the scene plugins.
-pub(super) fn axis_rotation(axis: usize, radians: f64) -> Mat4 {
-    let half = radians / 2.0;
-    let mut quaternion = [0.0, 0.0, 0.0, half.cos()];
-    quaternion[axis] = half.sin();
-    rotation_matrix(quaternion)
-}
-
-/// Rotation of a quaternion written `(w, x, y, z)`, normalised first: one with no usable length
-/// rotates nothing. Shared with the scene plugins.
-pub(super) fn quaternion_wxyz(q: [f64; 4]) -> Mat4 {
-    let length = (q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]).sqrt();
-    if !length.is_finite() || length <= f64::EPSILON {
-        return IDENTITY;
-    }
-    let [w, x, y, z] = q.map(|part| part / length);
-    rotation_matrix([x, y, z, w])
-}
-
-/// Rotation of `radians` around an arbitrary axis, by Rodrigues' formula: an axis with no usable
-/// length rotates nothing rather than carrying `NaN`. Shared with the scene plugins.
-pub(super) fn axis_angle(axis: [f64; 3], radians: f64) -> Mat4 {
-    let norm = crate::shared_math::length(axis);
-    if !norm.is_finite() || norm < 1e-12 {
-        return IDENTITY;
-    }
-    let unit = axis.map(|value| value / norm);
-    let (sin, cos) = radians.sin_cos();
-    let rest = 1.0 - cos;
-    let mut out = IDENTITY;
-    for column in 0..3 {
-        for row in 0..3 {
-            let shared = unit[row] * unit[column] * rest;
-            let turn = unit[(6 - row - column) % 3] * sin;
-            out[column * 4 + row] = match (3 + row - column) % 3 {
-                0 => cos + shared,
-                1 => shared + turn,
-                _ => shared - turn,
-            };
-        }
     }
     out
 }

@@ -90,25 +90,22 @@ pub use trillion3d_page_codec::vec3::{cross, divide, dot, length, point, scale, 
 pub(crate) fn normalized_or(vector: [f64; 3], fallback: [f64; 3]) -> [f64; 3] {
     let norm = length(vector);
     if norm > 1e-12 {
-        normalized(vector, norm, true)
+        divide(vector, norm)
     } else {
         fallback
     }
 }
 
-/// Both callers share the unit-vector operation but retain their published arithmetic order.
-fn normalized(vector: [f64; 3], norm: f64, divide_each: bool) -> [f64; 3] {
-    if divide_each {
-        divide(vector, norm)
-    } else {
-        scale(vector, 1.0 / norm)
-    }
-}
-
 /// `v` at unit length, if it has a finite, non-zero one.
 pub(crate) fn unit(v: [f64; 3]) -> Option<[f64; 3]> {
+    unit_where(v, |length| length > 0.0 && length.is_finite())
+}
+
+/// `v` times the reciprocal of its length, when `usable` accepts that length. The guard is the
+/// caller's: `unit` refuses a non-finite length, the oracle only a non-positive one.
+pub(crate) fn unit_where(v: [f64; 3], usable: impl Fn(f64) -> bool) -> Option<[f64; 3]> {
     let length = length(v);
-    (length > 0.0 && length.is_finite()).then(|| normalized(v, length, false))
+    usable(length).then(|| scale(v, 1.0 / length))
 }
 
 /// The golden-ratio step of SplitMix64 (Steele et al. 2014), between two draws.
