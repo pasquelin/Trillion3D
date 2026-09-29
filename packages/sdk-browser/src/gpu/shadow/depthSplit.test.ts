@@ -66,7 +66,8 @@ function scene(rng: () => number, o: Options) {
   mobility.ensure(1, o.rows, () => new Float64Array(16));
   const isCutout = (row: number) => (pages[row].flags & FLAG_MASK) !== 0,
     corners = (row: number) => pages[row].indexCount;
-  mobility.writeRows(() => 0, o.rows, 0, o.rows - 1, () => {}, corners, blendedFrom, isCutout);
+  const push = () => {};
+  mobility.writeRows(() => 0, o.rows, 0, o.rows - 1, push, corners, blendedFrom, isCutout);
   const capacity = o.rows + (o.spare ?? 0);
   const world: ShadowScene = {
     pages,
