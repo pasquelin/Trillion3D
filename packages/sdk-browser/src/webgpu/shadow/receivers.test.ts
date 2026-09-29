@@ -17,12 +17,11 @@ test("the demand's margin covers the normal offset, the taps and the neighbour p
 });
 
 test('the receivers are the drawn clusters in world space, the frustum keeping what it lights', () => {
-  const at = (x: number, y: number, z: number) =>
-    ({
-      min: [-1, -1, -1],
-      max: [1, 1, 1],
-      matrix: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1] },
-    }) as unknown as PageRec;
+  const roots: { world: { elements: number[] } }[] = [];
+  const at = (x: number, y: number, z: number) => {
+    roots.push({ world: { elements: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1] } });
+    return { min: [-1, -1, -1], max: [1, 1, 1], placementIndex: roots.length - 1 } as PageRec;
+  };
   const projection = new Float64Array(16);
   projection[5] = 1 / Math.tan(VIEW.halfFovY);
   const cam = {
@@ -33,7 +32,7 @@ test('the receivers are the drawn clusters in world space, the frustum keeping w
   } as unknown as EngineCamera;
   // Ahead of the eye, behind it, then ahead again.
   const drawn = [at(0, 5, -10), at(0, 5, 10), at(2, 3, -20)];
-  const receivers = shadowReceivers(drawn, cam, 360, 720);
+  const receivers = shadowReceivers(drawn, roots, cam, 360, 720);
   assert.equal(receivers.count, 3);
   assert.deepEqual(
     [...receivers.boxes.subarray(0, 18)],

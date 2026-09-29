@@ -1,4 +1,4 @@
-import type { PageRec } from '../../page/selection/selection.ts';
+import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
 
 import { hostPageBytes } from '../../host/pageObjects.ts';
 import { attachedPages } from '../../placement/autonomousPlacements.ts';
@@ -12,13 +12,14 @@ import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.
  * a material leaves them as they are.
  */
 export function createHeldFloor(env: {
+  roots: readonly ClusterRoot<PageRec>[];
   bootstrap: readonly PageRec[];
   modifiedPages: ReadonlySet<string>;
   byUrl: ReadonlyMap<string, readonly PageRec[]>;
   /** The host's page ceiling, `Infinity` when it set none. */
   hostCeiling?: number;
 }) {
-  const { bootstrap, modifiedPages, byUrl, hostCeiling = Infinity } = env;
+  const { roots, bootstrap, modifiedPages, byUrl, hostCeiling = Infinity } = env;
   let revision = 0,
     placements = 0,
     read = -1,
@@ -28,7 +29,7 @@ export function createHeldFloor(env: {
   function meshes() {
     if (meshesRead === revision) return counted;
     meshesRead = revision;
-    return (counted = attachedPages(bootstrap));
+    return (counted = attachedPages(bootstrap, roots));
   }
   return {
     /** What the root cover holds changed; the pool reads the same revision (`coverRevision`). */

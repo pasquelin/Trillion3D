@@ -7,6 +7,7 @@ import { splitOccludersInto } from './split.ts';
 import { keepStaleRegions } from './staleRegions.ts';
 import type { HizPage, HizPyramid } from './types.ts';
 import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
+import type { Placements } from '../page/selection/placements.ts';
 
 export type TemporalHizState = {
   pyramid?: HizPyramid;
@@ -66,6 +67,7 @@ function retiens(
  */
 export function applyTemporalHiz<T extends HizPage & VisPage>(
   selected: T[],
+  roots: Placements,
   cam: EngineCamera,
   viewport: [number, number],
   history: TemporalHizState = {},
@@ -80,7 +82,12 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
 } {
   resetHizCounts(counts);
   if (selected.length < 2) {
-    retiens(history, cam, viewport, rasterVisibility(selected, cam, viewport, pixelRatio).depth);
+    retiens(
+      history,
+      cam,
+      viewport,
+      rasterVisibility(selected, roots, cam, viewport, pixelRatio).depth,
+    );
     return { shown: selected, hizRejected: 0, occluders: selected, history, counts };
   }
   const hasPrev = !!(
@@ -96,31 +103,38 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
     rest: T[] = [];
   if (hasPrev) {
     const prevCam = history.camera!;
-    const unoccludedSet = new Set(filterUnoccluded(selected, history.pyramid!, prevCam, viewport));
+    const unoccludedSet = new Set(
+      filterUnoccluded(selected, roots, history.pyramid!, prevCam, viewport),
+    );
     if (history.stale?.length)
-      keepStaleRegions(selected, history.stale, prevCam, viewport, unoccludedSet);
+      keepStaleRegions(selected, roots, history.stale, prevCam, viewport, unoccludedSet);
     for (let i = 0; i < selected.length; i++)
       (unoccludedSet.has(selected[i]) ? occluders : rest).push(selected[i]);
   }
   if (!occluders.length || !rest.length)
-    splitOccludersInto(selected, cam, viewport, occluders, rest);
+    splitOccludersInto(selected, roots, cam, viewport, occluders, rest);
 
   if (!occluders.length || !rest.length) {
-    retiens(history, cam, viewport, rasterVisibility(selected, cam, viewport, pixelRatio).depth);
+    retiens(
+      history,
+      cam,
+      viewport,
+      rasterVisibility(selected, roots, cam, viewport, pixelRatio).depth,
+    );
     return { shown: selected, hizRejected: 0, occluders, history, counts };
   }
 
-  const visPass1 = rasterVisibility(occluders, cam, viewport, pixelRatio);
+  const visPass1 = rasterVisibility(occluders, roots, cam, viewport, pixelRatio);
   history.passPyramid = buildHizPyramid(
     visPass1.depth,
     viewport[0],
     viewport[1],
     history.passPyramid,
   );
-  const disoccluded = countUnoccluded(rest, history.passPyramid, cam, viewport, counts);
+  const disoccluded = countUnoccluded(rest, roots, history.passPyramid, cam, viewport, counts);
   const shown = [...occluders, ...disoccluded];
 
-  retiens(history, cam, viewport, rasterVisibility(shown, cam, viewport, pixelRatio).depth);
+  retiens(history, cam, viewport, rasterVisibility(shown, roots, cam, viewport, pixelRatio).depth);
 
   return { shown, hizRejected: rest.length - disoccluded.length, occluders, history, counts };
 }
