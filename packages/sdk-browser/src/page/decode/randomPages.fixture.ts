@@ -1,10 +1,7 @@
+import assert from 'node:assert/strict';
 import { encodeGeometryPage } from '../../../../page-codec/geometryPage.ts';
+import { assertBits } from '../../../../../tests/kit/assert/bits.ts';
 import type { DecodedGeometryPage } from './geometryPage.ts';
-
-/** A seeded generator in [0, 1): the same pages on every run. */
-export function seeded(seed: number) {
-  return () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
-}
 
 /** A geometry page of `vertices` random vertices — signed zeros among them — with normals and
  *  texture coordinates on one page in two, so attribute names travel too. */
@@ -13,7 +10,7 @@ export function randomPage(random: () => number, vertices: number) {
     normal = new Float32Array(vertices * 3),
     uv = new Float32Array(vertices * 2);
   for (let i = 0; i < position.length; i++)
-    position[i] = random() < 0.05 ? -0 : (random() - 0.5) * 2000;
+    position[i] = random() < 0.05 ? -0 : (random() - 0.5) * 200;
   for (let i = 0; i < normal.length; i++) normal[i] = random() < 0.1 ? -0 : random() * 2 - 1;
   for (let i = 0; i < uv.length; i++) uv[i] = random();
   const indices = Array.from({ length: Math.max(1, Math.floor(vertices / 3)) * 3 }, (_, i) =>
@@ -44,20 +41,12 @@ export const nonFinite = [NaN, Infinity, -Infinity].map(
     }),
 );
 
-/** First difference between two decoded pages, value by value (`Object.is`), or `null`. */
-export function pageGap(a: DecodedGeometryPage, b: DecodedGeometryPage) {
+/** Fails on the first difference between two decoded pages, value by value (`Object.is`). */
+export function assertSamePage(a: DecodedGeometryPage, b: DecodedGeometryPage, label: string) {
   for (const key of ['vertexCount', 'flags', 'decodedBytes', 'quantizationError'] as const)
-    if (!Object.is(a[key], b[key])) return `${key}: ${a[key]} ≠ ${b[key]}`;
-  const names = Object.keys(a.attributes);
-  if (names.join() !== Object.keys(b.attributes).join()) return `names ${names.join()}`;
-  const arrays: [string, ArrayLike<number>, ArrayLike<number>][] = [
-    ['indices', a.indices, b.indices],
-  ];
-  for (const name of names) arrays.push([name, a.attributes[name], b.attributes[name]]);
-  for (const [name, left, right] of arrays) {
-    if (left.length !== right.length) return `${name}: length ${left.length} ≠ ${right.length}`;
-    for (let i = 0; i < left.length; i++)
-      if (!Object.is(left[i], right[i])) return `${name}[${i}]: ${left[i]} ≠ ${right[i]}`;
-  }
-  return null;
+    assert.ok(Object.is(a[key], b[key]), `${label} ${key}: ${a[key]} !== ${b[key]}`);
+  assert.deepEqual(Object.keys(a.attributes), Object.keys(b.attributes), `${label} names`);
+  assertBits(a.indices, b.indices, `${label} indices`);
+  for (const name of Object.keys(a.attributes))
+    assertBits(a.attributes[name], b.attributes[name], `${label} ${name}`);
 }

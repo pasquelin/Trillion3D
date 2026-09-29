@@ -8,6 +8,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice, replayWrites } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { createGpuPageCache } from './pages.ts';
+import { seeded } from '../../../../../site/examples/kit/random.ts';
 
 const PAGE = 4096,
   SLOTS = 3;
@@ -22,8 +23,7 @@ function developUpload(gpu: Uint8Array, offset: number, bytes: Uint8Array) {
   gpu.set(staging.subarray(0, padded), offset);
 }
 
-let seed = 982;
-const random = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
+const random = seeded(982);
 
 /** A page of `size` bytes seen through a view at a random offset of a larger, random buffer. */
 function view(size: number) {
@@ -33,7 +33,7 @@ function view(size: number) {
   return whole.subarray(shift, shift + size);
 }
 
-function edgePages() {
+function edgeViews() {
   const floats = new Uint8Array(
     new Float32Array([NaN, -0, 0, Infinity, -Infinity, 3.4028234663852886e38]).buffer,
   );
@@ -43,7 +43,7 @@ function edgePages() {
 }
 
 test('each page lands in its GPU slot byte for byte as develop uploaded it (E0)', async () => {
-  const pages = edgePages();
+  const pages = edgeViews();
   for (let i = 0; i < 1500; i++) pages.push(view(1 + Math.floor(random() * PAGE)));
   const { device, writes } = fakeDevice({ limits: { maxBufferSize: PAGE * SLOTS } });
   const source = { read: async (key: string) => pages[Number(key)] ?? new Uint8Array(0) };
