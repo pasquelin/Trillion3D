@@ -14,6 +14,7 @@ import { redrawShortPages } from '../../shadow/casters.ts';
 import { disposeStaticLayer } from '../state/lights.ts';
 import { staticLayerGranted } from '../../shadow/poolSize.ts';
 import { noteShadowPressure } from '../../shadow/memoryGrant.ts';
+import { recordShadowPlan } from '../../shadow/cpuSteps.ts';
 
 const viewpoint: ShadowViewpoint & {
   position: [number, number, number];
@@ -118,7 +119,10 @@ export function planImageShadows(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   }
   if (lights.plannedFrame === run.frame) return lights.plan.admission.count;
   lights.plannedFrame = run.frame;
-  return planShadowRegions(rt, cam, run.frame, performance.now());
+  const started = performance.now(),
+    count = planShadowRegions(rt, cam, run.frame, started);
+  recordShadowPlan(rt, performance.now() - started);
+  return count;
 }
 
 /**

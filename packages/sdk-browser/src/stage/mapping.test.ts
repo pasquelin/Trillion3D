@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { addGpuPasses, directLightTimings, gpuPassStageOf, gpuShadowPartOf } from './mapping.ts';
+import {
+  SHADOW_STAGE_PASSES,
+  addGpuPasses,
+  directLightTimings,
+  gpuPassStageOf,
+  gpuShadowPartOf,
+} from './mapping.ts';
+import { SHADOW_TRANSMITTANCE_CLEAR_PASS } from '../gpu/shadow/transmittance.ts';
 import { LIGHT_CUT_PASS } from '../gpu/dag/encode.ts';
 import { SHADOW_PASS } from '../gpu/shadow/atlas.ts';
 import { SHADOW_LAYER_PASS } from '../gpu/shadow/staticLayer.ts';
@@ -163,4 +170,26 @@ test('the three transparent passes sum onto their stage, never onto geometry', (
     ]),
   );
   assert.deepEqual(deposits, [['transparents', 6]]);
+});
+
+// The broad Shadows stage spans the shadow passes of `PASSES` and no other pass (#1207).
+test('the Shadows stage sums only the shadow passes of the pass table', () => {
+  assert.ok(SHADOW_STAGE_PASSES.includes(SHADOW_TRANSMITTANCE_CLEAR_PASS), 'shadow work, named');
+  assert.ok(!SHADOW_STAGE_PASSES.includes(LIGHT_CUT_PASS), 'the light cut is its own stage');
+  const others = [
+    LIGHT_CUT_PASS,
+    LIGHT_TILES_PASS,
+    DEFERRED_LIGHTING_PASS,
+    'Trillion3D visibility primary',
+  ];
+  const s = sample([
+    ...SHADOW_STAGE_PASSES.map((name) => ({ name, gpuMs: 1 })),
+    ...others.map((name) => ({ name, gpuMs: 100 })),
+  ]);
+  assert.equal(directLightTimings(s).gpuShadowsMs, SHADOW_STAGE_PASSES.length);
+  assert.deepEqual(
+    referenceDirectLightTimings(s),
+    directLightTimings(s),
+    'the bench reads the same',
+  );
 });
