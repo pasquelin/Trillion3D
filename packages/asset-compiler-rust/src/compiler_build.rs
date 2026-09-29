@@ -8,8 +8,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     // Phase counters of this job, and of no other: they follow the thread until return.
     let phases = perf::JobPhases::default();
     let _attached = phases.attach();
-    // Held until return: two simultaneous compilations of one cache would erase each
-    // other, each pruning what the other just published.
+    // Held until return: two compilations of one cache would each prune what the other published.
     let _lock = CacheLock::acquire(o)?;
     // The router picks the format driver and has it produce the intermediate scene;
     // everything after reads only a glTF, without knowing which format it came from.
@@ -17,8 +16,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     // Cutout answers, read before any conversion (`cutout.rs`).
     let decisions = cutout::load_decisions(&o.cache, &o.source)?;
     let routed: RoutedSource = plugins::scene::prepare_source(o, &progress)?;
-    // Root where relative image URIs resolve, read before any move of `o.source`
-    // onto the cache: a converted scene wrote it there, its images stayed where the driver read them.
+    // Where relative image URIs resolve, read before a converted scene moves `o.source` away.
     let image_root = routed.scene.images(&o.source);
     let imported;
     let o = if let PreparedScene::Converted { directory, .. } = &routed.scene {
@@ -168,13 +166,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let paged = write_mesh_pages(&primitives, &directory)?;
     let (tables, cells) =
         stage_scene_tables(&source, autonomous.as_ref(), &paged, &directory, &progress)?;
-    let (world_products, world_report) = stage_world_roots(
-        (o, &pool),
-        (&source, &directory),
-        (&primitives, &covers),
-        &cells,
-    )?;
-    drop(covers);
+    let placed = (&primitives[..], covers);
+    let (world_products, world_report) =
+        stage_world_roots((o, &pool), (&source, &directory), placed, &cells)?;
     let (physics_file, physics) = stage_physics(&scene, &primitives, &collisions, &directory)?;
     products.extend([tables, source_bin, source_gltf, lights, physics_file]);
     products.extend(world_products);

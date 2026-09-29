@@ -68,7 +68,7 @@ pub(crate) fn cook(
 pub(super) fn stage_world_roots(
     (o, pool): (&Options, &rayon::ThreadPool),
     (published, directory): (&Value, &Path),
-    (primitives, covers): (&[Value], &[RootCover]),
+    (primitives, covers): (&[Value], Vec<RootCover>),
     cells: &[Vec<usize>],
 ) -> Result<(Vec<Product>, Value)> {
     if DagStrategy::named(&o.simplification) == DagStrategy::ExactClusters {
