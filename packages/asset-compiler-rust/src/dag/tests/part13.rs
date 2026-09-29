@@ -8,7 +8,7 @@ use charts::folded_span;
 fn a_face_across_islands_is_charged_its_longest_edge() {
     let positions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0];
     let indices = [0, 1, 2, 1, 3, 2];
-    let span = |island: u32| folded_span(&indices, &positions, |v| u32::from(v == 3) * island);
+    let span = |island: u32| folded_span(&indices, &positions, &[0, 0, 0, island], |v| v as usize);
     assert_eq!(span(0), 0.0);
     assert_eq!(span(1), 2.0_f64.sqrt());
 }
