@@ -1,5 +1,4 @@
 import { PROXY_TRIANGLE_FLOATS } from '../../contracts/proxy.ts';
-import { EngineError } from '../../contracts/index.ts';
 
 /** Numbers per instance map: three rows of a 3×4 affine matrix, row-major. */
 export const PROXY_TRANSFORM_FLOATS = 12;
@@ -15,8 +14,7 @@ export interface ProxyShapes {
   maps: Float32Array;
 }
 
-const bad = (message: string, details: Record<string, unknown>) =>
-  new EngineError('INVALID_CACHE', message, details);
+import { invalidProxy as bad } from './proxyError.ts';
 
 /** Triangles the instances place, each naming a shape that exists; the counts cover the shapes. */
 export function placedTriangles(shapes: ProxyShapes): number {
