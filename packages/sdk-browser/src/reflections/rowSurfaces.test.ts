@@ -1,10 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { wantsReflections } from './gpu.ts';
+import { createRowSurfaces, wantsReflections } from './gpu.ts';
 import { createWebgpuRowState } from '../webgpu/row/state.ts';
-import { createPresentClasses, markPresentClasses } from '../webgpu/core/materialPasses.ts';
-import { PAGE_INFO_STRIDE } from '../visibility/buffer.ts';
-import { ROW_MATERIAL_CLASS_WORD } from '../webgpu/row/pageRow.ts';
 import type { PageRec } from '../page/selection/selection.ts';
 import type { PageSurface } from '../page/surface.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
@@ -27,6 +24,7 @@ function instanceRows() {
   const rt = {
     run: { diagnostic: 'beauty' },
     layout: { rows },
+    vis: { rowSurfaces: createRowSurfaces() },
     blendState: { blendGpu: [] },
   } as unknown as WebgpuPagesRuntime;
   return { rows, rt, read, leaves };
@@ -48,25 +46,12 @@ test('reflections read each surface of the rows once, and walk the rows only onc
   rows.markRowDirty(42);
   assert.equal(wantsReflections(rt), true);
   assert.equal(read.rows, 2 * ROWS - 1, 'a written row walks the rows again');
-});
-
-test('the classes an image draws are read off the rows again only once a row is written', () => {
-  const stride = PAGE_INFO_STRIDE / 4,
-    rows = createWebgpuRowState([], 3),
-    ints = new Uint32Array(3 * stride),
-    present = createPresentClasses();
-  rows.packedCount = 3;
-  ints[ROW_MATERIAL_CLASS_WORD] = 5;
-  ints[stride + ROW_MATERIAL_CLASS_WORD] = 9;
-  ints[2 * stride + ROW_MATERIAL_CLASS_WORD] = 5;
-  const classes = () => [...markPresentClasses(ints, rows.packedCount, present, rows.rowWrites)];
-  assert.deepEqual(classes(), [5, 9]);
-  ints[stride + ROW_MATERIAL_CLASS_WORD] = 5;
-  assert.deepEqual(classes(), [5, 9], 'an unmarked word is not reread');
-  rows.markRowDirty(1);
-  assert.deepEqual(classes(), [5]);
-  rows.packedCount = 2;
-  ints[stride + ROW_MATERIAL_CLASS_WORD] = 9;
-  rows.markRowDirty(1);
-  assert.deepEqual(classes(), [5, 9], 'a shorter table is read again');
+  // A pose rewrites a row's matrix every image a model moves: its occupant is kept.
+  rows.markRowWords(7);
+  assert.equal(wantsReflections(rt), true);
+  assert.equal(read.rows, 2 * ROWS - 1, 'a pose walks no row');
+  // A record takes another surface in place under a new table age, before its row is written.
+  rows.tableEpoch++;
+  assert.equal(wantsReflections(rt), true);
+  assert.equal(read.rows, 3 * ROWS - 2, 'a new table age walks the rows again');
 });

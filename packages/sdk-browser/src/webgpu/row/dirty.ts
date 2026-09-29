@@ -7,21 +7,30 @@ export function createDirtyRows(drawSlots: number) {
   const marks = new Uint8Array(drawSlots);
   const span = { from: drawSlots, to: -1 };
   let writes = 0;
+  /**
+   * Declares rows `[from, to]` dirty whose occupant, surface and class are kept — a pose, a
+   * diagnostic word —: they are uploaded, and a `rowsMoved` reading still holds, so a model that
+   * moves every image does not walk every row again (#410).
+   */
+  const markWords = (from: number, to = from) => {
+    if (to === from) marks[from] = 1;
+    else marks.fill(1, from, to + 1);
+    if (from < span.from) span.from = from;
+    if (to > span.to) span.to = to;
+  };
   return {
     marks,
     span,
-    /** Marks since the table was made, never cleared: what `rowsMoved` compares. */
+    /** Occupant writes since the table was made, never cleared: what `rowsMoved` compares. */
     get writes() {
       return writes;
     },
-    /** Declares rows `[from, to]` dirty. */
+    /** Declares rows `[from, to]` dirty: an occupant, a surface or a class may have changed. */
     mark(from: number, to = from) {
       writes++;
-      if (to === from) marks[from] = 1;
-      else marks.fill(1, from, to + 1);
-      if (from < span.from) span.from = from;
-      if (to > span.to) span.to = to;
+      markWords(from, to);
     },
+    markWords,
     /** Every row uploaded: the marks cleared on the span alone. */
     clear() {
       if (span.to >= span.from) marks.fill(0, span.from, span.to + 1);
