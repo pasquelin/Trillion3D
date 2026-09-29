@@ -5,7 +5,7 @@ import { plane } from '../../../sdk-core/src/world/geometry/basic.ts';
 import { Material } from '../../../sdk-core/src/world/material/material.ts';
 import { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import { CLOTH, flatCloth, softWorld } from './soft.fixture.ts';
-import { fakePhysicsWorld } from './worker.fixture.ts';
+import { fakePhysicsWorld, idleTick } from './worker.fixture.ts';
 
 // #740: a page-built soft body the page moves is carried there as a cooked one is (#723), its
 // simulation kept; placed at another scale, it is refused by name and made again once back at it,
@@ -45,6 +45,32 @@ test('a page-built cloth moved is teleported with its flags; rescaled, refused b
     physics.frame();
     assert.equal(worker.words.at(-1)![0], OP.soft, 'back at its scale, made again');
     assert.notEqual(physics.session()!.engineIdOf(cloth), -1);
+    physics.dispose();
+  } finally {
+    restore();
+  }
+});
+
+// #573: a soft body drawn where it is, into its geometry, is no new shape: made again from it, it
+// would lose its velocity every tick.
+test('a soft body drawn where it is keeps its body: nothing removed nor made again', async () => {
+  const { scene, physics, worker, restore } = await fakePhysicsWorld();
+  try {
+    const cloth = new Mesh(plane(1, 1, 2, 2), new Material('meshStandard'));
+    cloth.physics = { type: 'cloth' };
+    scene.add(cloth);
+    physics.frame();
+    const [version, sent] = [cloth.geometry.version, worker.words.length];
+    const soft = new Uint32Array(2 + 9 * 3);
+    soft.set([physics.session()!.engineIdOf(cloth), 9]);
+    new Float32Array(soft.buffer).fill(0.5, 2);
+    worker.onmessage({ data: { ...idleTick, soft } });
+    physics.frame();
+    assert.equal(cloth.geometry.usage, 'dynamic', 'never cut into pages again');
+    assert.equal(cloth.geometry.version, version + 2, 'its positions and normals written');
+    assert.deepEqual(new Set(cloth.geometry.attributes.position.array), new Set([0.5]));
+    const made = worker.words.slice(sent).filter((w) => w[0] === OP.remove || w[0] === OP.soft);
+    assert.deepEqual(made, [], 'no REMOVE, no SOFT');
     physics.dispose();
   } finally {
     restore();

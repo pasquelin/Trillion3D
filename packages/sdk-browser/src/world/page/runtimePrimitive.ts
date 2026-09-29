@@ -2,6 +2,7 @@ import type { Page, Primitive } from '../../../../sdk-core/src/index.ts';
 import { LINE_DEPTH_LAYER } from '../../../../sdk-core/src/lod/depthLayer.ts';
 import type { PageCutPayload } from '../../../../sdk-core/src/page/decodeContracts.ts';
 import { cutPagesOffThread } from '../../page/decode/host.ts';
+import { sphereFromBounds } from '../../../../sdk-core/src/math/primitives/sphere.ts';
 
 /** A runtime primitive, and the addresses its pages are served from until it is released. */
 export type RuntimePrimitive = { primitive: Primitive; urls: string[] };
@@ -14,7 +15,10 @@ function served(bytes: ArrayBuffer, sha256: string, urls: string[]) {
 }
 
 /** What the cut triangles are, beside faces (`DrawnTriangles`). */
-type DrawnKind = { lines?: boolean; spriteRadius?: number };
+export type DrawnKind = { lines?: boolean; spriteRadius?: number };
+
+/** A dynamic primitive's held box (#573): six numbers, the least corner then the greatest. */
+export type HeldBox = Float64Array;
 
 /** The box and ball of a page: its own, or for a sprite's quad, which the rasters turn to face
  *  the camera about its origin (`drawnSprite`), the cube and ball of its radius there — what
@@ -29,14 +33,24 @@ function bounds(page: PageCutPayload['pages'][number], radius: number | undefine
 }
 
 /** The pages of a cut, served at addresses of their own: the primitive a manifest lists. The
- *  pages of line quads draw one coplanar layer over the faces they lie on (`LINE_DEPTH_LAYER`). */
-function servePrimitive(cut: PageCutPayload, kind: DrawnKind): RuntimePrimitive {
+ *  pages of line quads draw one coplanar layer over the faces they lie on (`LINE_DEPTH_LAYER`).
+ *  With a `held` box, the primitive is dynamic (#573): index pages alone, no geometry page and no
+ *  normal cone — its vertices, read as floats from the host geometry, are rewritten in place. */
+export function servePrimitive(cut: PageCutPayload, kind: DrawnKind, held?: HeldBox) {
   const urls: string[] = [];
+  // A dynamic page's bounds are its primitive's held box: its vertices move within it, never past.
+  const sphere = new Float64Array(4);
+  if (held) sphereFromBounds(sphere, 0, held[0], held[1], held[2], held[3], held[4], held[5]);
+  const box = held && {
+    min: [...held.subarray(0, 3)],
+    max: [...held.subarray(3)],
+    sphere: [...sphere],
+  };
   const pages: Page[] = cut.pages.map((page, id) => ({
     id,
     ...served(page.index, page.indexSha256, urls),
     count: page.count,
-    ...bounds(page, kind.spriteRadius),
+    ...(box ?? bounds(page, kind.spriteRadius)),
     role: 'exact',
     start: page.start,
     level: 0,
@@ -45,15 +59,17 @@ function servePrimitive(cut: PageCutPayload, kind: DrawnKind): RuntimePrimitive 
     parentSphere: null,
     group: null,
     source: null,
-    ...(kind.lines ? { depthLayer: LINE_DEPTH_LAYER } : {}),
-    ...(page.cone ? { cone: page.cone } : {}),
-    geometry: {
-      ...served(page.geometry, page.geometrySha256, urls),
-      vertexCount: page.vertexCount,
-      indexCount: page.indexCount,
-      flags: page.flags,
-      uncompressedBytes: page.uncompressedBytes,
-    },
+    ...(kind.lines && { depthLayer: LINE_DEPTH_LAYER }),
+    ...(page.cone && !held && { cone: page.cone }),
+    ...(!held && {
+      geometry: {
+        ...served(page.geometry, page.geometrySha256, urls),
+        vertexCount: page.vertexCount,
+        indexCount: page.indexCount,
+        flags: page.flags,
+        uncompressedBytes: page.uncompressedBytes,
+      },
+    }),
   }));
   const primitive: Primitive = {
     mesh: 0,
@@ -65,10 +81,11 @@ function servePrimitive(cut: PageCutPayload, kind: DrawnKind): RuntimePrimitive 
     quantization: {
       positionExponent: cut.positionExponent,
       uvExponent: cut.uvExponent,
-      maxPositionError: cut.maxPositionError,
+      maxPositionError: held ? 0 : cut.maxPositionError,
     },
+    ...(held && { dynamic: true }),
   };
-  return { primitive, urls };
+  return { primitive, urls } satisfies RuntimePrimitive;
 }
 
 /**
