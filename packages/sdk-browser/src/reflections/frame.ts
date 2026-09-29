@@ -28,7 +28,9 @@ export function reflectionFrame(rt: WebgpuPagesRuntime): ReflectionHistoryFrame 
   const lightEpoch = lights.store.transportEpoch;
   const proxyEpoch = bounce.probes?.proxy.revision ?? 0;
   const radianceEpoch = bounce.probes?.encodedFrames ?? 0;
-  const shadowEpoch = lights.shadowPagesTotal;
+  // The pages the host drew, and those the GPU listed to draw itself (`listDraw`): a change of
+  // either is another shadow.
+  const shadowEpoch = lights.shadowPagesTotal + lights.plan.gpu.drawn;
   const deformationEpoch = vis.deformation?.frame.revision ?? 0;
   let frame = frames.get(gpu.reflection);
   if (!frame) {

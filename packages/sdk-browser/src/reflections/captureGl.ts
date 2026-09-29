@@ -1,8 +1,9 @@
 import { WebglReflectionPyramid, REFLECTION_BOUNDS_UNIT } from './pyramidGl.ts';
 import { LTC_UNIT } from '../webgl/cluster/rectGlsl.ts';
 import { surfaceOf } from '../page/surface.ts';
-import { reflects } from './eligible.ts';
+import { mirrorRange, reflects } from './eligible.ts';
 import type { HostMaterials } from '../host/resources.ts';
+import type { ClusterDraw } from '../cluster/batchMesh.ts';
 import { WebglClusterBackdrop } from '../webgl/cluster/backdrop.ts';
 
 /** Freeze a source without recursive mirrors or camera fog, restoring the output before
@@ -30,5 +31,10 @@ export const target = (gl: WebGL2RenderingContext) =>
     [LTC_UNIT + 1, LTC_UNIT + 2],
     new WebglReflectionPyramid(gl, REFLECTION_BOUNDS_UNIT),
   );
+const reflecting = (mesh: { material: HostMaterials }) => reflects(surfaceOf(mesh.material));
+/** A mirror-range mesh: what the reduced resolve pass redraws, the rough-only ones staying out. */
+const atMirrorRange = (mesh: { material: HostMaterials }) => mirrorRange(surfaceOf(mesh.material));
 export const receivers = (lists: readonly (readonly { material: HostMaterials }[])[]) =>
-  lists.some((list) => list.some((mesh) => reflects(surfaceOf(mesh.material))));
+  lists.some((list) => list.some(reflecting));
+export const mirrorMeshes = (lists: readonly (readonly ClusterDraw[])[]): ClusterDraw[] =>
+  lists.flatMap((list) => list.filter(atMirrorRange));

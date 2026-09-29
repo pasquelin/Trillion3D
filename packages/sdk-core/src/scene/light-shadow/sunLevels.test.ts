@@ -4,7 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSunLevels } from './sunLevels.ts';
-import { SUN_WINDOW, sunEntry } from './virtual.ts';
+import { SUN_WINDOW } from './virtual.ts';
+import { sunEntry } from './pageModel.ts';
 import { VIEW } from './lightShadow.fixture.ts';
 
 const AXIS = [0, -1, 0];
