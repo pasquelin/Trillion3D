@@ -3228,7 +3228,7 @@
       "plan": "Planeja um quadro: invalida o que se moveu, lê a demanda dos receptores — ou, na falta dela, o último relatório —, admite cada página a desenhar.",
       "reissue": "As páginas do quadro a partir de `from` não puderam ser codificadas: continuam obsoletas, pendentes, e o quadro seguinte as desenha.",
       "reset": "Recomeça.",
-      "setThreshold": "O limiar em que os cortes de luz escolhem os projetores de sombra (`thresholds.ts`).",
+      "setThreshold": "O limiar em que os cortes de luz escolhem os projetores de sombra, e a sua origem de renderização (`thresholds.ts`).",
       "table": "A tabela de páginas: uma palavra por página virtual, e o intervalo que cada luz ocupa nela.",
       "pool": "As páginas físicas do pool e a página virtual que cada uma guarda.",
       "sun": "O clipmap de cada sol: o seu referencial, intervalo de profundidade, nível mais fino e extensões.",

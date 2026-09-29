@@ -38,6 +38,9 @@ export function encodeDirectLights(
   const active = store.count;
   lights.lightsActive = active;
   lights.lightRuns = 0;
+  // Pages this image draws: none unless its batches below say so. A view gone unlit or dark keeps
+  // no count of an earlier image, which the still average would restart on (`keepWebgpuFrame`).
+  lights.shadowPages = 0;
   const environment = store.environment;
   directParams.fill(0);
   // Exposure is not a light: it sets conversion of radiance into an image, and cannot light anything
