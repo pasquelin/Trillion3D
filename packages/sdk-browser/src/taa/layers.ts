@@ -34,10 +34,11 @@ export const layerWgsl = (filtered: boolean, part: keyof typeof PARTS) =>
   filtered ? LAYERS.map(([n, now, past]) => (PARTS[part] as Part)(n, now, past)).join('') : '';
 
 /** The resolve's output: the current image alone, or `mixed` with the history kept; the share is 0
- *  in a resolve without it (`asIs` false). */
+ *  in a resolve without it (`asIs` false), and written beside the pixel's placement `tag`
+ *  (`historyWgsl.ts`). */
 export const taaOut = (asIs: boolean, filtered: boolean, mixed = false) => {
   const mix = (now: string, kept: string) => (mixed ? `(${now}*wc+${kept}*wh)/(wc+wh)` : now);
-  return `TaaOut(${mix('filtered', 'kept')},${asIs ? mix('share', 'keptShare') : '0.0'}${layerWgsl(filtered, mixed ? 'mixed' : 'out')})`;
+  return `TaaOut(${mix('filtered', 'kept')},vec2f(${asIs ? mix('share', 'keptShare') : '0.0'},tag)${layerWgsl(filtered, mixed ? 'mixed' : 'out')})`;
 };
 
 /** The layers' four textures in a `filtered` resolve's layout. */

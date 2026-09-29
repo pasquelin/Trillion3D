@@ -4,7 +4,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSceneLightStore, type SceneLight } from '../../../../../sdk-core/src/index.ts';
-import { followLightThreshold, readsAsIs, wantsContractLighting } from './lightResources.ts';
+import {
+  followLightThreshold,
+  readsAsIs,
+  seedShare,
+  wantsContractLighting,
+} from './lightResources.ts';
 import { createWebgpuLightState } from '../state/lights.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
@@ -72,4 +77,31 @@ test('the image reads its as-is flags once a row shows one, or under a diagnosti
   assert.equal(at(false, 'beauty'), false, 'no as-is surface: flagless');
   assert.equal(at(true, 'beauty'), true, 'a normal or depth surface took a row');
   assert.equal(at(false, 'wireframe'), true, 'a diagnostic view writes the flag');
+});
+
+// #833: particles alone write their coverage as the reactive value, over a share seeded 0.
+test('the share is seeded when blends or particles draw over it, and only then', () => {
+  let seeds = 0;
+  const share = { seed: () => void seeds++ };
+  const at = (blends: number, particles: boolean) =>
+    seedShare(
+      {
+        gpu: {
+          asIsShare: share,
+          hdrView: {},
+          depthView: {},
+          particles: particles ? {} : undefined,
+        },
+        blendState: { blendGpu: { length: blends } },
+        vis: { blendPipelines: {} },
+        context: { particles: [] },
+        run: { diagnostic: 'beauty', lastCamera: {} },
+      } as unknown as WebgpuPagesRuntime,
+      {} as GPUCommandEncoder,
+    );
+  assert.equal(at(0, false), undefined, 'nothing draws over it: not seeded');
+  assert.equal(seeds, 0);
+  assert.equal(at(2, false), share, 'blends');
+  assert.equal(at(0, true), share, 'particles alone');
+  assert.equal(seeds, 2);
 });

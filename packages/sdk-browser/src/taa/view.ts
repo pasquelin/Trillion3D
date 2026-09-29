@@ -21,8 +21,8 @@ function writeGrid(at: number, [width, height]: readonly number[]) {
 /**
  * The pass's uniform for this frame (`TaaView`, `shaderWgsl.ts`): both matrices at the eye, the
  * display grid the history has, the current share and history flags, the native filter weights
- * of this jitter rank, the `render` grid the frame was drawn in and its jitter; `layers`, the
- * display layers' history holds the last image's.
+ * of this jitter rank, the `render` grid the frame was drawn in, its jitter and whether it moves
+ * (`historyWgsl.ts`); `layers`, the display layers' history holds the last image's.
  */
 export function writeTaaView(
   device: GPUDevice,
@@ -51,5 +51,6 @@ export function writeTaaView(
   writeGrid(52, render);
   packed[56] = state.jitter[0];
   packed[57] = state.jitter[1];
+  packed[58] = state.stillFrames > 0 ? 0 : 1;
   device.queue.writeBuffer(uniform, 0, packed);
 }
