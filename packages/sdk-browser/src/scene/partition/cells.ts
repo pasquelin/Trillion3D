@@ -109,7 +109,7 @@ export function createPartitionCells(inputs: Inputs) {
       ) => {
         const ask: string[] = [];
         for (const key of list) {
-          const decoded = files.rows(key, () => io.bytes(url(key)), decode);
+          const decoded = files.decoded(key, () => io.bytes(url(key)), decode);
           if (!decoded || !budget.admits()) {
             if (!files.has(key) && !io.loading(url(key))) ask.push(url(key));
             later ||= !ahead;

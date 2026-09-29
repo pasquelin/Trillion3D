@@ -4467,7 +4467,7 @@
     "description": "I primi sei sono i rifiuti della decodifica di pagina, ripresi parola per parola da `geometryPage.ts`: un chiamante li distingue come prima. `PAGE_DECODE_FAILED` porta qualsiasi altro rifiuto della libreria di decompressione. `PAGE_DECODE_CANCELLED` risponde a un annullamento, `PAGE_DECODE_WORKER` a un esecutore scomparso — solo quest'ultimo permette il ripiego."
   },
   "PAGE_DECODE_PROTOCOL": {
-    "summary": "Contratto di decodifica delle pagine fuori dal thread principale, versione 6: la geometria decodificata viaggia in un unico blocco con il suo errore di quantizzazione, e lo slot dell'arena registra questo errore nella parola 8; `cut` trasforma triangoli disegnati in pagine, che tornano in byte con i loro descrittori, e, dalla versione 6, con il loro cono delle normali, i triangoli impacchettati indicano se le loro pagine ne tengono uno.",
+    "summary": "Contratto di decodifica delle pagine fuori dal thread principale, versione 7: la geometria decodificata viaggia in un unico blocco con il suo errore di quantizzazione, e lo slot dell'arena registra questo errore nella parola 8; `cut` trasforma triangoli disegnati in pagine, che tornano in byte con i loro descrittori, e, dalla versione 6, con il loro cono delle normali, i triangoli impacchettati indicano se le loro pagine ne tengono uno; dalla versione 7, `cells` legge il file di cella di una partizione nelle righe che colloca, e `cellPage` una pagina del suo indice di celle (#575).",
     "description": "Il thread chiamante invia una `PageDecodeRequest`, l'esecutore restituisce una `PageDecodeAnswer` che porta lo stesso `id`. Nulla qui tocca la piattaforma: nessun `Worker`, nessun recupero, nessun orologio — l'adattatore del browser porta tutto questo, questo file porta solo la forma del messaggio, l'elenco chiuso dei fallimenti e il limite della riserva. Proprietà dei buffer: `source` viene **trasferito** con la richiesta, quindi il mittente non ne è più il proprietario. Una risposta `verify` lo restituisce, a sua volta trasferito; una risposta `decode` restituisce invece i buffer decodificati, anch'essi trasferiti. Un esecutore che non trasferisce nulla (il ripiego sincrono) restituisce esattamente gli stessi valori: il contratto non dice come viaggia il lavoro, solo cosa restituisce."
   },
   "PAGE_INTEGRATION_FAILURES": {
@@ -4537,6 +4537,8 @@
       "source": "`verify`: il buffer sorgente restituito. `decode`: `null`, la sorgente è consumata.",
       "decoded": "`decode`: la pagina decompressa.",
       "cut": "`cut`: le pagine, i loro byte trasferiti. Assente altrimenti.",
+      "cells": "`cells`: per nodo, il rango del suo genitore del nucleo (`-1`: la radice della scena) e quello della sua mesh in `ranks`, due interi a 32 bit, e la matrice locale che il motore compone per la sua posa in `locals`, sedici double; entrambi trasferiti. Assente altrimenti.",
+      "cellPage": "`cellPage`: gli slot della pagina, o le sue celle (`readCellPage`). Assente altrimenti.",
       "wasm": "Vero quando il decodificatore compilato in WebAssembly ha fatto il lavoro, falso per il decodificatore JavaScript. Entrambi danno gli stessi byte; solo il contatore li distingue.",
       "taskMs": "Tempo dell'attività, misurato dall'esecutore stesso."
     }
@@ -4570,7 +4572,7 @@
   },
   "PageDecodeOp": {
     "summary": "`verify`: l'impronta SHA-256 di una pagina.",
-    "description": "`decode`: i suoi indici e i suoi attributi per vertice. `cut`: i triangoli disegnati, disposti in cinque lunghezze, se le loro pagine tengono un cono, poi cinque array di quattro byte, tagliati in pagine."
+    "description": "`decode`: i suoi indici e i suoi attributi per vertice. `cut`: i triangoli disegnati, disposti in cinque lunghezze, se le loro pagine tengono un cono, poi cinque array di quattro byte, tagliati in pagine. `cells`: il file di cella di una partizione, letto nel genitore, nella mesh e nella matrice locale di ogni nodo. `cellPage`: una pagina del suo indice di celle, letta nelle pagine che elenca o nelle sue celle."
   },
   "PageDecodeRequest": {
     "summary": "Un messaggio che chiede a un worker di verificare, decomprimere o tagliare una pagina.",

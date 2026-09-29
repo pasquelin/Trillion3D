@@ -17,8 +17,8 @@ const nodes = [
 const text = JSON.stringify({ version: 2, nodes });
 
 test('a cell file is read into each node its ranks and the local matrix a host node composes', () => {
-  const rows = cellRows(decodeCellFile(new TextEncoder().encode(text).buffer), text.length);
-  assert.deepEqual([rows.nodes, [...rows.ranks], rows.bytes], [2, [-1, 7, 4, 9], text.length]);
+  const rows = cellRows(decodeCellFile(new TextEncoder().encode(text).buffer));
+  assert.deepEqual([rows.nodes, [...rows.ranks]], [2, [-1, 7, 4, 9]]);
   nodes.forEach((node, at) => {
     const host = new Object3D();
     pose(host, node);
