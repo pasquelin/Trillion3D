@@ -2900,7 +2900,7 @@
     "summary": "Phiên bản của hợp đồng phân cấp cảnh do ứng dụng chủ sở hữu."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Các số nguyên trong phần đầu: chữ ký, phiên bản, số lượng tam giác/nút/nhóm/chủ sở hữu/nguồn, số không dành riêng."
+    "summary": "Các số nguyên tiêu đề: tiêu đề quyền sở hữu v3, rồi số hình, tam giác lưu trữ và lần đặt."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' đọc như một số nguyên 32-bit không dấu theo thứ tự little-endian."
@@ -3181,7 +3181,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "Proxy đọc: bộ mô tả và các cột của nó, các view trên các byte của đối tượng bộ nhớ đệm của nó.",
+    "summary": "Proxy đã đọc: bộ mô tả và các cột bất biến, với tam giác dùng chung được triển khai khi tải.",
     "members": {
       "data": "Các cột của nó."
     }
@@ -5021,7 +5021,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Proxy được đọc lại và kiểm tra lại trước khi một tia duy nhất chạm vào nó.",
-    "description": "Bố cục: tám từ ở phần đầu theo thứ tự little-endian, tiếp theo là các cột hình học và cây chuẩn cùng dữ liệu quyền sở hữu có phiên bản. `docs/FORMAT.md` quy định từng số lượng và cột. Phần đầu ấn định độ dài mỗi phần; tệp có kích thước khác bị từ chối toàn bộ, vì nút trỏ đến một tam giác không tồn tại sẽ khiến bộ đổ bóng đọc dữ liệu tùy ý."
+    "description": "Mười một từ tiêu đề little-endian đứng trước hình học dùng chung và riêng, các cột cây và quyền sở hữu có phiên bản. `docs/FORMAT.md` định nghĩa mọi số lượng và cột. Độ dài sai bị từ chối trước khi tia truy cập."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` được phân tách thành `position`, `quaternion`, `scale`."
