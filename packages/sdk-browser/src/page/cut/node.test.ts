@@ -35,6 +35,7 @@ const state = {
   flatElements: view,
   flatStretch: STRETCH,
   flatFocal: FOCAL,
+  flatReach: 0,
   cam: cameraMoteur(camera),
 } as unknown as SelectionState<PageRecord>;
 

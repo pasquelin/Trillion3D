@@ -26,7 +26,7 @@ import {
   SUMS_BINDING,
   narrowResolveHarness,
 } from './narrowResolveHarness.ts';
-import { ouvrirAppareil } from './webgpuDevice.ts';
+import { openGpuDevice } from './webgpuDevice.ts';
 
 /** A tile record — its two counts, its lists, the pool after them — and the resolve reading it:
  *  \`contractLighting\`, or with \`drawn\` \`sampledTileLighting\` alone. */
@@ -55,7 +55,7 @@ const storage = (
 };
 
 export async function run(scenes: ResolveScene[]) {
-  const opened = await ouvrirAppareil();
+  const opened = await openGpuDevice();
   if (!opened) return { unavailable: 'no WebGPU adapter' } as const;
   const { device } = opened;
   const placeholders = createDeferredPlaceholders(device);

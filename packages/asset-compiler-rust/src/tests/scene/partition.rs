@@ -70,7 +70,7 @@ pub(super) fn cells(directory: &Path) -> Vec<Value> {
 #[test]
 fn a_scene_whose_placements_fit_one_unit_keeps_its_node_table_whole() {
     let (_root, tables, dir) = compiled(grid(4, 4.0, 1.0), false);
-    assert_eq!(tables["version"], json!(5));
+    assert_eq!(tables["version"], json!(6));
     // Every node is in the core: the tables name the pages of every mesh they draw (#751).
     super::mesh_pages::assert_mesh_pages(&dir, &tables);
     assert_eq!(

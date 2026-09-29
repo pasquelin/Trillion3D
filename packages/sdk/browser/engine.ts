@@ -166,6 +166,7 @@ export { VEHICLE_SPECS } from '../../sdk-core/src/physics/vehicleSpec.ts';
 export type { VehicleSpec, VehicleSpecs } from '../../sdk-core/src/physics/vehicleSpec.ts';
 export type { WaterSpec } from '../../sdk-core/src/fluids/buoyancy.ts';
 export { WaterSurface } from '../../sdk-core/src/fluids/waterSurface.ts';
+export { Waves } from '../../sdk-core/src/fluids/waves.ts';
 export type { WaveSpec } from '../../sdk-core/src/fluids/waves.ts';
 export type { WorldPhysics } from '../../sdk-browser/src/physics/worldPhysics.ts';
 export {

@@ -4,6 +4,8 @@ import { Material } from '../material/material.ts';
 import type { Box3 } from '../math/box3.ts';
 import { ObjectPhysics } from '../../physics/objectPhysics.ts';
 import type { PhysicsOption } from '../../physics/options.ts';
+import type { Skeleton } from '../animation/skeleton.ts';
+import type { WaterSurface } from '../../fluids/waterSurface.ts';
 
 /** How the triangles a mesh draws are read from its geometry. */
 export type Primitive =
@@ -28,6 +30,13 @@ export class Mesh<M extends object = Material> extends Object3D {
   declare morphTargetInfluences?: number[];
   /** The rank of each morph target by its name. */
   declare morphTargetDictionary?: Record<string, number>;
+  /** The bones it bends by, when its geometry carries `skinIndex` and `skinWeight`: the GPU
+   *  moves each vertex by its joints every frame (#357). */
+  declare skeleton?: Skeleton;
+  /** The water surface whose waves carry it (`world.physics.waterSurface`): each vertex, a rest
+   *  point of the plane at the surface's level, is moved on the GPU where the waves carry that
+   *  point — the numbers buoyancy reads (#357, #422). */
+  declare waves?: WaterSurface | null;
   declare private _physics?: ObjectPhysics | null;
   /** What the geometry and materials call while the mesh is in a world; made on its first entry. */
   declare private _heard?: () => void;
@@ -117,7 +126,8 @@ export class Mesh<M extends object = Material> extends Object3D {
   protected override blank(): this {
     return new Mesh(this.geometry, this.material, this.primitive) as this;
   }
-  // The reference's copy: the morph weights copied, the geometry shared, the materials listed anew.
+  // The reference's copy: the morph weights copied, the geometry and skeleton shared, the
+  // materials listed anew.
   override copy(source: Object3D, recursive = true) {
     super.copy(source, recursive);
     // A bare node or a group gives its transform alone: it wears no shape and no matter.
@@ -125,6 +135,9 @@ export class Mesh<M extends object = Material> extends Object3D {
     const mesh = source as Mesh<M>;
     if (mesh.morphTargetInfluences) this.morphTargetInfluences = mesh.morphTargetInfluences.slice();
     if (mesh.morphTargetDictionary) this.morphTargetDictionary = { ...mesh.morphTargetDictionary };
+    // The reference shares the skeleton: a copy bends by the same bones.
+    if (mesh.skeleton) this.skeleton = mesh.skeleton;
+    if (mesh.waves) this.waves = mesh.waves;
     const worn = mesh.material;
     if (Array.isArray(worn) || worn !== this._material)
       this.material = Array.isArray(worn) ? worn.slice() : worn;

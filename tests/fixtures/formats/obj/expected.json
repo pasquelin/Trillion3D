@@ -162,7 +162,8 @@
           "material": 1,
           "mode": 4
         }
-      ]
+      ],
+      "weights": []
     }
   ],
   "nodes": [
@@ -198,7 +199,7 @@
     "version": "obj-ufbx-0.11.3-gltf-7"
   },
   "selectedNodes": 1,
-  "sidecarSha256": "9f0a8cd3da2a7a36e6d3f73f6ee79f5421894b47e894ec8cc1e283a120241268",
+  "sidecarSha256": "7f6f506de9950f5be667e03c98f9acd33284ea7100bcf8df4454c4532ab825d8",
   "sourceTriangles": 5,
   "textures": [
     {

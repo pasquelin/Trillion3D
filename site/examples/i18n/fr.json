@@ -2376,6 +2376,30 @@
       "remount": "Remonter"
     }
   },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "Lecture"
+    },
+    "banner": "Faites glisser pour tourner autour de la scène. Interrompez ou reprenez l’animation avec Lecture."
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "Lecture"
+    },
+    "banner": "Faites glisser pour tourner autour de la scène. Interrompez ou reprenez l’animation avec Lecture."
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "Lecture"
+    },
+    "banner": "Faites glisser pour tourner autour de la scène. Interrompez ou reprenez l’animation avec Lecture."
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "Lecture"
+    },
+    "banner": "Faites glisser pour tourner autour de la scène. Interrompez ou reprenez l’animation avec Lecture."
+  },
   "move-a-hierarchy-by-name": {
     "banner": "Regardez cinq groupes nommés suivre une séquence reproductible. Changez le pilote pour écrire les mêmes poses à la main.",
     "controls": {

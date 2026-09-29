@@ -1,14 +1,11 @@
 use super::*;
 use crate::dag::DagCluster;
-
-/// The geometry-page format every page of the cache is written in, declared once at the top of
-/// the manifest (`geometryPages`): the page header's magic and the sidecar version are the gates.
+use crate::geometry_page_deform::{Deformation, MorphTarget};
+/// Geometry codec metadata; header magic and sidecar version gate every page.
 pub fn geometry_page_format() -> Value {
     json!({"formatVersion":trillion3d_page_codec::VERSION,"codec":"quantized"})
 }
-
-/// The attributes a page carries beside its positions, read from the primitive's accessors: each
-/// holds `count` vertices, the width the format expects, or three for a colour.
+/// Page attributes with `count` vertices and codec widths (RGB colour also accepted).
 pub(super) fn page_attributes(
     g: &Value,
     bin: &[u8],
@@ -40,7 +37,9 @@ pub(super) fn page_attributes(
     }
     Ok(attributes)
 }
-
+#[path = "compiler_page_deform.rs"]
+mod deform;
+pub(super) use deform::page_deformation;
 /// Writes a geometry page into the content-addressed store and returns its
 /// manifest entry.
 ///
@@ -50,13 +49,12 @@ pub(super) fn page_attributes(
 pub(super) fn store_page(
     o: &Options,
     slice: &[u32],
-    pos: &[f32],
-    page_attributes: &[&geometry_page::Attribute],
-    position_exponent: i32,
-    uv_exponent: i32,
+    (pos, page_attributes): (&[f32], &[&geometry_page::Attribute]),
+    deformed: (&Deformation, &[u32]),
+    (position_exponent, uv_exponent): (i32, i32),
 ) -> Result<(Value, bool)> {
-    let encoded =
-        geometry_page::encode(slice, pos, page_attributes, position_exponent, uv_exponent)?;
+    let exponents = (position_exponent, uv_exponent);
+    let encoded = geometry_page::encode_deformed(slice, pos, page_attributes, deformed, exponents)?;
     let digest = hash(&encoded.bytes);
     let target = object_path(o, &digest);
     let reused = object_intact(&target, &digest)?.is_some();
@@ -65,7 +63,6 @@ pub(super) fn store_page(
     }
     Ok((geometry_record(&digest, &encoded, slice.len()), reused))
 }
-
 /// The `geometry` object of a page record: the packed page stored under `digest`.
 pub(crate) fn geometry_record(
     digest: &str,
@@ -75,7 +72,6 @@ pub(crate) fn geometry_record(
     let header = &page.header;
     json!({"url":format!("../../objects/{digest}.bin"),"sha256":digest,"bytes":page.bytes.len(),"vertexCount":header.vertex_count,"indexCount":indices,"flags":header.flags,"uncompressedBytes":header.decoded_bytes(),"quantizationError":header.quantization_error})
 }
-
 /// The manifest record of the page at culling `rank`: its index bytes stored under `digest` (their
 /// `length`) at `offset` in bundle `stream`, their bounds and normal cone, and its packed
 /// `geometry`. `compiler_primitive::cost` charges each page by this shape.
@@ -101,7 +97,6 @@ pub(crate) fn page_record(
         "source":cluster.source.map_or(Value::Null,|index|json!(index)),
         "stream":stream,"streamOffset":offset})
 }
-
 /// What the primitive's grid cost, for the manifest: the grid exponents and the largest position
 /// displacement over every page, in object units; `null` on a primitive without pages, which
 /// was quantized on no grid.
@@ -125,3 +120,7 @@ pub(super) fn quantization_report(
         "maxPositionError": worst,
     })
 }
+
+#[cfg(test)]
+#[path = "compiler_page_skin_tests.rs"]
+mod skin_tests;

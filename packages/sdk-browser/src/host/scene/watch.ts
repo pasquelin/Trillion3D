@@ -20,6 +20,16 @@ function sourceOf(entry: unknown) {
   return shaped ? shaped.sourceMesh : undefined;
 }
 
+/** The source node of an entry with its chain, and the bones that deform it with theirs: a bone's
+ *  pose moves the drawn skin as the node's own does (#357). */
+function watchSource(entry: unknown, into: Set<Object3D>) {
+  const node = sourceOf(entry);
+  if (!node) return;
+  withAncestors(node, into);
+  const bones = (node as { skeleton?: { bones: readonly Object3D[] } }).skeleton?.bones;
+  if (bones) for (const bone of bones) withAncestors(bone, into);
+}
+
 /** Walks a node's chain up to the root: an ancestor's pose is the node's. */
 function withAncestors(node: Object3D | undefined, into: Set<Object3D>) {
   let walk: Object3D | null = node ?? null;
@@ -68,7 +78,7 @@ export function createHostSceneWatch() {
         withAncestors(object, set);
         withAncestors(aimOf(object), set);
       });
-      for (const entry of drawn) withAncestors(sourceOf(entry), set);
+      for (const entry of drawn) watchSource(entry, set);
       for (const node of set) if (node.userData[ENGINE_OWNED]) set.delete(node);
       // With neither a declared root nor a light, there is nothing to hook: the whole graph is not a default.
       if (!set.size) withAncestors(source, set);

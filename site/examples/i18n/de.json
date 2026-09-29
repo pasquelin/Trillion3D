@@ -2376,6 +2376,30 @@
       "remount": "Neu einbinden"
     }
   },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "Abspielen"
+    },
+    "banner": "Ziehen Sie, um die Szene zu umkreisen. Mit Abspielen pausieren oder starten Sie die Animation."
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "Abspielen"
+    },
+    "banner": "Ziehen Sie, um die Szene zu umkreisen. Mit Abspielen pausieren oder starten Sie die Animation."
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "Abspielen"
+    },
+    "banner": "Ziehen Sie, um die Szene zu umkreisen. Mit Abspielen pausieren oder starten Sie die Animation."
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "Abspielen"
+    },
+    "banner": "Ziehen Sie, um die Szene zu umkreisen. Mit Abspielen pausieren oder starten Sie die Animation."
+  },
   "move-a-hierarchy-by-name": {
     "banner": "Sieh fünf benannten Gruppen durch eine reproduzierbare Sequenz wandern. Wechsle die Quelle, um dieselben Posen von Hand zu schreiben.",
     "controls": {

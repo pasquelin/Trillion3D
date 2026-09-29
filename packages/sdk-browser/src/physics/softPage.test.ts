@@ -1,3 +1,4 @@
+import { createBodySlots } from './bodySlots.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -64,6 +65,7 @@ test('a tick’s soft records reach physics.vertices, each geometry vertex from 
   mesh.physics = new ObjectPhysics({ type: 'cloth' });
   mesh.physics._index = 3;
   const bodies = {
+    slots: createBodySlots(10),
     meshOf: (id: number) => (id === 7 ? (mesh as Bodied) : null),
     softMap: (index: number) => (index === 3 ? Uint32Array.of(1, 0, 0) : null),
   };
