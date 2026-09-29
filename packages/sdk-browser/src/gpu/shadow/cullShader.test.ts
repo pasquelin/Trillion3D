@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { dotVector3 } from '../../../../sdk-core/src/math/primitives/vector.ts';
 import { writeSunSquare } from '../../../../sdk-core/src/scene/light-shadow/sunFaces.ts';
-import { sunPageMetres } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { sunPageMetres } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { sunScene } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { SHADOW_CULL_SHADER, SHADOW_LIGHT_CULL_SHADER } from './cullShader.ts';
 
