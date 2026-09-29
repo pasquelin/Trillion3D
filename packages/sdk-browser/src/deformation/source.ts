@@ -1,0 +1,24 @@
+import type { Primitive } from '../../../sdk-core/src/index.ts';
+import type { MatrixElements } from '../math/matrixElements.ts';
+import type { Deformed, DeformedMesh } from './frame.ts';
+
+/**
+ * The deformation a placement of `mesh` draws with, or `null`: its skeleton when its primitive's
+ * pages carry joints, its morph weights when they carry targets — both measured by the compiler
+ * (`primitive.deformation`) — and the waves of the water surface that carries it (`mesh.waves`),
+ * which need nothing of the pages. The counts are fixed with the session: a mesh that gains a
+ * source, or a surface that gains a wave, is drawn with the new one once the session opens again.
+ */
+export function deformedOf(
+  mesh: DeformedMesh,
+  primitive: Pick<Primitive, 'deformation'> | undefined,
+  world: MatrixElements,
+): Deformed | null {
+  const measured = primitive?.deformation ?? null;
+  const joints = measured?.joints.length && mesh.skeleton ? mesh.skeleton.bones.length : 0,
+    targets = measured?.targets.length && mesh.morphTargetInfluences ? measured.targets.length : 0,
+    waves = mesh.waves?.waveModel.count ?? 0;
+  if (!joints && !targets && !waves) return null;
+  const reach = { joints: measured?.joints ?? [], targets: measured?.targets ?? [] };
+  return { world, mesh, shape: { joints, targets, waves }, reach };
+}
