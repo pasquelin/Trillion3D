@@ -1310,7 +1310,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Cache-Identität für DAG-Fehler pro Cluster: absoluter QEM-Fehler der Gruppe über Positionen, Normalen und Texturkoordinaten, begrenzt auf die Ausdehnung der Gruppe; ein v1-Cache wird abgelehnt."
+    "summary": "Cache-Identität für DAG-Fehler pro Cluster: absoluter QEM-Fehler der Gruppe über Positionen, Normalen und Texturkoordinaten, begrenzt auf die Ausdehnung der Gruppe, nie kleiner als der abgetastete Hausdorff-Abstand zwischen den Kindern einer Gruppe und ihren Ausgaben (#929); v1- und v2-Caches werden abgelehnt."
   },
   "DagReport": {
     "summary": "Bericht des DAG einer Primitive; nur seine Warnungen werden von der Engine genutzt.",
