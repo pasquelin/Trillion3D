@@ -23,7 +23,6 @@ import {
   createEngineCamera,
   readCameraWorld,
 } from '../../../../packages/sdk-browser/src/camera/world.ts';
-import type { PageRec } from '../../../../packages/sdk-browser/src/page/selection/types.ts';
 
 // One light, so `store.count` holds and `noteResidenceChange` actually notes a change; its
 // scheduler's `representationChanged` is replaced per case below to capture the bounds it is
