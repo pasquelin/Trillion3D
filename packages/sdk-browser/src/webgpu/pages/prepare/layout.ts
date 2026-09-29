@@ -10,6 +10,7 @@ import { boundTableRows } from '../../row/tableRows.ts';
 import type { WebgpuPagesSetup } from './setup.ts';
 import type { BoxTransformLot } from '../../../math/batchRuntime.ts';
 import { postPlacements } from '../../../page/selection/placements.ts';
+import { createPageCatalogue } from './catalogue.ts';
 
 export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>;
 
@@ -76,7 +77,10 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     copies.max,
     limits,
   );
-  const rows = createWebgpuRowState(packedPages, drawSlots, blendSlots);
+  // The one catalogue over `packedPages`: its `recordOf` is how a consumer resolves the packed
+  // ranks the cut publishes, and the row state indexes it once (`./catalogue.ts`).
+  const catalogue = createPageCatalogue(packedPages);
+  const rows = createWebgpuRowState(packedPages, drawSlots, blendSlots, catalogue);
   return {
     /** Root-box batch, reserved at prepare and replayed on every node move; `null` until prepare has
      *  happened or when the batch cannot be fitted. */
@@ -84,6 +88,10 @@ export function createWebgpuPagesLayout(setup: WebgpuPagesSetup, limits?: GPUSup
     transparentRoots,
     selectionRoots,
     packedPages,
+    /** The packed rank of a page to its record: the engine's one catalogue accessor. */
+    recordOf: catalogue.recordOf,
+    /** The record's packed rank, validated by the catalogue. */
+    catalogueIndexOf: catalogue.indexOf,
     opaquePageCount,
     /** The pool addresses' placements, which rows grown in place add to. */
     copies,

@@ -41,8 +41,11 @@ export function createCpuCasterLists(device: GPUDevice, pageCount: number) {
     lengths: new Uint32Array(MAX_SHADOW_RUNS),
     commands: new Uint32Array(MAX_SHADOW_RUNS * DRAW_INDIRECT_WORDS),
     words: new Uint32Array(1),
+    /** The cut's record scratch per face, and the packed ranks it publishes beside them. */
     shown: [] as PageRec[][],
     wanted: [] as PageRec[][],
+    shownPacked: [] as number[][],
+    wantedPacked: [] as number[][],
     casters: [] as PageRec[],
     /** Per catalogue page: the frame that last marked it, and its row that frame. */
     marks: new Uint32Array(pageCount),
@@ -81,6 +84,8 @@ function holdRuns(lists: CpuCasterLists, runs: number) {
   while (lists.shown.length < runs) {
     lists.shown.push([]);
     lists.wanted.push([]);
+    lists.shownPacked.push([]);
+    lists.wantedPacked.push([]);
   }
 }
 
@@ -102,7 +107,8 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
     lights.cpuCasters = createCpuCasterLists(device, pageCount);
   }
   const lists = lights.cpuCasters,
-    { casters, marks, shown, wanted, camera, viewport } = lists;
+    { casters, marks, shown, wanted, shownPacked, wantedPacked, camera, viewport } = lists,
+    recordOf = layout.recordOf;
   casters.length = 0;
   const stamp = run.frame >>> 0 || 1;
   for (const rec of run.drawn) {
@@ -120,7 +126,7 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
     for (let r = 0; r < runs.count; r++) {
       const face = runs.list[r],
         at = runBase + r;
-      selectVisiblePages(
+      const selected = selectVisiblePages(
         rt.setup.roots,
         faceEngineCamera(face, camera, viewport),
         {
@@ -133,63 +139,26 @@ export function selectCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice, cam:
         },
         shown[at],
       );
-      for (const rec of shown[at]) {
-        const page = rows.pageIndexOf(rec);
-        if (page === undefined || marks[page] === stamp) continue;
+      // The cut publishes packed ranks: a face keeps its casters by rank, and the record comes back
+      // through the catalogue only for the row sync downstream (`../../../page/selection` → here).
+      const ids = selected.shownPacked,
+        kept = shownPacked[at];
+      kept.length = 0;
+      for (let k = 0; k < ids.length; k++) {
+        const page = ids[k];
+        if (page < 0 || marks[page] === stamp) continue;
         marks[page] = stamp;
-        casters.push(rec);
+        kept.push(page);
+        const rec = recordOf(page);
+        if (rec) casters.push(rec);
       }
+      const asked = selected.wantedPacked,
+        wantedIds = wantedPacked[at];
+      wantedIds.length = 0;
+      for (let k = 0; k < asked.length; k++) wantedIds.push(asked[k]);
     }
     return true;
   });
-  services.shadowTier.offerPages(wanted, lists.runs);
+  services.shadowTier.offerPages(wantedPacked, lists.runs);
   return casters;
-}
-
-/**
- * Once the rows are written: each face's casters as rows, one after the other in one buffer,
- * and one indirect command per face that says how many — what the region cull reads. A blended
- * cluster the face keeps is listed at its caster row.
- */
-export function writeCpuCasters(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { lights, run, layout } = rt,
-    { rows } = layout,
-    lists = lights.cpuCasters;
-  if (!lists || lights.plannedFrame !== run.frame || !lists.runs) return;
-  const { marks, rowOf, shown, commands } = lists;
-  // A second stamp, after the selection's: this frame's rows, by catalogue page.
-  const stamp = ~run.frame >>> 0 || 1;
-  for (let row = 0; row < rows.packedCount; row++) {
-    const page = rows.packedPageIndex[row];
-    rowOf[page] = row;
-    marks[page] = stamp;
-  }
-  let total = 0;
-  for (let r = 0; r < lists.runs; r++) total += shown[r].length;
-  if (lists.words.length < total) {
-    lists.words = new Uint32Array(1 << Math.ceil(Math.log2(total)));
-    lists.source.destroy();
-    lists.source = device.createBuffer({
-      label: 'Trillion3D CPU light casters',
-      size: lists.words.byteLength,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-    });
-  }
-  const { words } = lists;
-  let at = 0;
-  for (let r = 0; r < lists.runs; r++) {
-    lists.bases[r] = at;
-    for (const rec of shown[r]) {
-      const page = rows.pageIndexOf(rec);
-      if (page === undefined) continue;
-      // A blended cluster casts from its own row, behind the table (`../row/blendCasters.ts`).
-      if (marks[page] === stamp) words[at++] = rowOf[page];
-      else if (rows.blendRowOf[page] >= 0) words[at++] = rows.blendRowOf[page];
-    }
-    lists.lengths[r] = at - lists.bases[r];
-    commands[r * DRAW_INDIRECT_WORDS + 1] = lists.lengths[r];
-  }
-  if (at) device.queue.writeBuffer(lists.source, 0, words, 0, at);
-  device.queue.writeBuffer(lists.indirect, 0, commands, 0, lists.runs * DRAW_INDIRECT_WORDS);
-  lists.frame = run.frame;
 }
