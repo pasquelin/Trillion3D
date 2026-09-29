@@ -19,6 +19,7 @@ import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts';
 import type { BackendFactory } from '../types.ts';
 import { createBlendCopy } from '../../cluster/blendCopyMesh.ts';
 import type { HostMaterial } from '../../host/resources.ts';
+import { createWebglDeformation } from '../../deformation/webglFrame.ts';
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
@@ -45,14 +46,16 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     modifiedPages = new Set<string>();
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
+    deformation = createWebglDeformation(roots, worlds, blendCopies), // the roots' records (#357)
+    hosts = { ...context, deformation: deformation.source },
     views = createWebglViews(context.viewport, gate, () => residency.keptChanged()),
-    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, context, declared);
+    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, hosts, declared);
   // The engine's own lighting (`contractLightingApi.ts`): the cache's lights, else the graph's.
   const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
   let ready = false;
   const geometryStore = createAutonomousGeometry({
     ...{ scene, roots, allPages, bootstrap, views, byUrl, descriptors },
-    ...{ baseMaterials, colorMaterials, modifiedPages },
+    ...{ baseMaterials, colorMaterials, modifiedPages, deformWord: deformation.wordOf },
   });
   const { sync, acceptGeometryPage } = geometryStore;
   const classes = createClassPages({ context, roots, geometryStore, wears, gate });
@@ -85,6 +88,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     bootstrapUrls,
     modifiedPages,
     cap,
+    fixedBytes: deformation.bytes,
     gate,
     geometryStore,
     residency,
@@ -93,16 +97,9 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     views,
   });
   const frame = createAutonomousRender({
-    state,
-    context,
-    gate,
-    lighting,
-    roots,
-    blendCopies,
-    worlds,
+    ...{ state, context, gate, lighting, roots, blendCopies, worlds, deformation, ceiling },
     view: views.live,
     revision: () => heldFloor.placements,
-    ceiling,
     geometry: geometryStore,
     residency,
     pool: pool.budget,

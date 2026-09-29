@@ -9,6 +9,8 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import { isLightNode } from '../../host/graph/kinds.ts';
 import { emptyIrradiance, type SceneLight } from '../../../../sdk-core/src/index.ts';
 import { sameSceneLight } from '../../../../sdk-core/src/scene/light/equal.ts';
+import { boundReach, irradianceQuantum, type Display } from './lightReach.ts';
+import { minimumRoughness } from './sceneRoughness.ts';
 
 /** The light calls of a session (`world/api/lightApi.ts`) the world writes its lights through. */
 type LightApi = {
@@ -67,8 +69,18 @@ export function createWorldLights() {
     },
     /** Writes the lamps into the store and returns what every other light gives from every
      *  direction — ambient, sky over ground, probe — as the environment's irradiance, or
-     *  undefined when none gives any. */
-    sync(scene: Object3D, api: LightApi): number[] | undefined {
+     *  undefined when none gives any. With `display`, each lamp's authored range is capped at the
+     *  reach the frame's exposure and curve make perceptible, bounded at the roughness `graph`'s
+     *  surfaces really wear (#958); without it, ranges stand. */
+    sync(
+      scene: Object3D,
+      api: LightApi,
+      display?: Display,
+      graph?: Object3D,
+    ): number[] | undefined {
+      const quantum = display
+        ? irradianceQuantum(display, graph ? minimumRoughness(graph) : undefined)
+        : 0;
       const lights = new Set<Light>();
       const sh = emptyIrradiance();
       let surrounding = false;
@@ -100,6 +112,7 @@ export function createWorldLights() {
           if (last) drop(light, id);
           continue;
         }
+        boundReach(record, quantum);
         if (last && sameSceneLight(last.record, record)) continue;
         // A lamp keeping its members is written in its slot; one gaining or losing one is
         // written anew, so no member of its former record survives.
@@ -111,6 +124,11 @@ export function createWorldLights() {
         stored.set(light, { id, record });
       }
       return surrounding ? sh : undefined;
+    },
+    /** The frame's environment: its display, and the irradiance every surrounding light gives —
+     *  what a session writes before each frame, its lamps bounded to what the frame shows (#958). */
+    environment(scene: Object3D, api: LightApi, display: Display, graph?: Object3D) {
+      return { ...display, irradiance: this.sync(scene, api, display, graph) };
     },
   };
 }

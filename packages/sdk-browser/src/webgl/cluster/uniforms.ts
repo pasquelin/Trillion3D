@@ -1,5 +1,6 @@
 import { LTC_UNIT } from './rectGlsl.ts';
 import { LIGHT_DATA_UNIT, LIGHT_LIST_UNIT } from './lightTexture.ts';
+import { DEFORM_BLOCK_UNIT, MORPH_DELTAS_UNIT } from './deformation.ts';
 
 export class Matrix3UniformCache {
   private values = new Map<string, Float32Array>();
@@ -46,6 +47,8 @@ export const setClusterSamplers = (
   gl.uniform1i(location('reflectionDepth'), LTC_UNIT + 2);
   gl.uniform1i(location('lightData'), LIGHT_DATA_UNIT);
   gl.uniform1i(location('lightList'), LIGHT_LIST_UNIT);
+  gl.uniform1i(location('deformBlock'), DEFORM_BLOCK_UNIT);
+  gl.uniform1i(location('morphDeltas'), MORPH_DELTAS_UNIT);
 };
 
 export const setMatrix3 = (

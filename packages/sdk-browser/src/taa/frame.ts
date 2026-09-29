@@ -82,8 +82,10 @@ export function encodeTaaPass(
 ): AccumulatedImage | undefined {
   const temporal = rt.gpu.temporal,
     { gpu, vis, run } = rt;
+  const pool = gpu.cache?.buffer;
   if (!temporal?.frame.active || !gpu.depthView || !gpu.surfaces || !vis.visView || !vis.pageTable)
     return undefined;
+  if (!pool || !vis.concatPos || !vis.concatUv) return undefined;
   const state = temporal.frame,
     scene = run.gate.revisions.scene;
   if (!state.hasHistory) temporal.motion.reset();
@@ -100,6 +102,7 @@ export function encodeTaaPass(
     displaySize,
     temporal.motion.moved,
     !!inputs.filter && filterHistory.written,
+    !!vis.deformationCompute,
   );
   inputs.upscale = targetSize[0] !== displaySize[0] || targetSize[1] !== displaySize[1];
   inputs.current = current;
@@ -107,6 +110,9 @@ export function encodeTaaPass(
   inputs.ids = vis.visView;
   inputs.pages = vis.pageTable;
   inputs.motion = temporal.motion.buffer;
+  inputs.pool = pool;
+  inputs.positions = vis.concatPos;
+  inputs.uvs = vis.concatUv;
   inputs.flags = asIs ? gpu.surfaces.views()[3] : undefined;
   inputs.share = asIs ? share : undefined;
   inputs.reactive = share;

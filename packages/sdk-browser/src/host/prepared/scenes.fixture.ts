@@ -1,6 +1,5 @@
-/** The two sides of the prepared-scene proof (`build.test.ts`): every compiled cache served from
- *  disk, and a graph walked into the fields a reader compares — whole, as the reference renderer
- *  reads it, or by shape, as the engine reads it, whichever library built it. */ import { type TestContext } from 'node:test';
+// Disk-backed scene caches, compared by engine shape and reference-renderer fields.
+import { type TestContext } from 'node:test';
 import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -25,8 +24,12 @@ export async function caches() {
 
 /** Files served from disk, and images decoded to the size of their bytes, on both sides. */
 export function serveFiles(t: TestContext) {
+  // Compare raw source storage: GPU normalization must not rewrite these attribute bytes.
+  t.mock.method(THREE.SkinnedMesh.prototype, 'normalizeSkinWeights', () => {});
+  const browserFetch = globalThis.fetch;
   t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
     const url = input instanceof Request ? input.url : String(input);
+    if (url.startsWith('blob:')) return browserFetch(input);
     return new Response(await readFile(fileURLToPath(url)));
   });
   decodingImages(t);
@@ -37,7 +40,6 @@ const hash = (array: ArrayLike<number> & ArrayBufferView) =>
     .update(Buffer.from(array.buffer, array.byteOffset, array.byteLength))
     .digest('hex');
 
-/** An attribute by its layout and its bytes, owning its storage or viewing an interleaved one. */
 function attribute(a: THREE.BufferAttribute | THREE.InterleavedBufferAttribute) {
   const data = 'data' in a ? a.data : undefined;
   const array = data ? data.array : a.array;
@@ -114,14 +116,13 @@ export function describe(root: THREE.Object3D, ranks: Ranks) {
 
 const numbers = (v: { x: number; y: number; z: number; w?: number }) => [v.x, v.y, v.z, v.w];
 const LIGHT = ['intensity', 'distance', 'decay', 'angle', 'penumbra'] as const;
-/** What each kind of light a scene file declares carries: the core's light holds every number and
- *  a target whatever its kind, the loader's only its kind's. */
+/** Fields carried by each declared light kind. */
 const DECLARED: Record<string, readonly string[]> = {
   directional: ['intensity', 'target'],
   point: ['intensity', 'distance', 'decay'],
   spot: [...LIGHT, 'target'],
 };
-/** The fields of a surface the engine reads (`../shadedMaterial.ts`, the physical gate). */
+
 const SURFACE_FIELDS = (
   'name visible side forceSinglePass vertexColors toneMapped depthTest depthWrite ' +
   'depthFunc colorWrite polygonOffset polygonOffsetFactor polygonOffsetUnits transparent ' +
@@ -137,12 +138,11 @@ const SURFACE_FIELDS = (
 ).split(' ');
 const NODE_FIELDS =
   'name visible frustumCulled renderOrder castShadow receiveShadow matrixAutoUpdate';
-/** The texture fields the loader sets: what the engine reads, and the host's `generateMipmaps`. */
+
 const TEXTURE_FIELDS = (
   'name channel wrapS wrapT magFilter minFilter anisotropy flipY premultiplyAlpha ' +
   'generateMipmaps colorSpace matrixAutoUpdate mapping image'
 ).split(' ');
-/** A value as the engine reads it: a colour, a vector, a node by their numbers. */
 function read(value: unknown, ranks: Ranks): unknown {
   const v = value as Record<string, unknown> | null | undefined;
   const kind = K.textureKind(v);

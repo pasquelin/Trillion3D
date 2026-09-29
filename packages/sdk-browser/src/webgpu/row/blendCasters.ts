@@ -111,7 +111,7 @@ export function createBlendCasterRows(
     const casts =
       rows.residentOffsetWords[page] >= 0 &&
       !awaitsPageBytes(rec) &&
-      castsBlendShadow(rec.material);
+      (castsBlendShadow(rec.material) || !!rec.deformationOutput);
     if (!casts) {
       if (row < 0) return;
       release(page, row);
