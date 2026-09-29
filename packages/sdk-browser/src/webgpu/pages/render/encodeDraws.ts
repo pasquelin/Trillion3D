@@ -1,3 +1,4 @@
+import { encodeDeformation } from '../../../deformation/encode.ts';
 import { wantsReflections } from '../../../reflections/gpu.ts';
 import { requestFrameTargets } from '../prepare/targetGrant.ts';
 import { selectCpuCasters } from '../../shadow/cpuCasters.ts';
@@ -11,6 +12,7 @@ import { taaRenderMatrix } from '../../../taa/frame.ts';
 import { ensureUniform } from '../prepare/pipelineFor.ts';
 import {
   abandonFrameEncoder,
+  openFrameEncoder,
   createRenderEncoder,
   encodeClear,
   submitColorCopy,
@@ -141,6 +143,8 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       rows.markRowWords(row);
     }
   }
+  if (vis.deformationCompute)
+    encodeDeformation(rt, timing.frameEncoder ?? openFrameEncoder(rt, device));
   if (visReady(rt)) {
     try {
       return encodeVis(rt, device, cam);
@@ -148,6 +152,7 @@ export function encodeDraws(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engi
       abandonFrameEncoder(rt);
       timing.gpuTiming?.cancelUnsubmitted();
       diag.diagnosticFailure('visibility-render-failed', error);
+      if (vis.deformation?.any) throw error;
       dropVis(rt);
       // The fallback draw walks every row: the light casters' rows leave before it runs.
       if (!run.gpuFrameActive && run.cameraRows < rows.packedCount)

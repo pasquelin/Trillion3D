@@ -12,77 +12,8 @@
  */
 const LABEL_NONE = 'unlabeled';
 
-/** Bytes per texel of the uncompressed formats the engine may allocate. */
-const BYTES_PER_TEXEL: Partial<Record<GPUTextureFormat, number>> = {
-  r8unorm: 1,
-  r8uint: 1,
-  stencil8: 1,
-  r16float: 2,
-  r16uint: 2,
-  rg8unorm: 2,
-  depth16unorm: 2,
-  r32float: 4,
-  r32uint: 4,
-  rg16float: 4,
-  rg16uint: 4,
-  rgba8unorm: 4,
-  'rgba8unorm-srgb': 4,
-  bgra8unorm: 4,
-  'bgra8unorm-srgb': 4,
-  rgba8uint: 4,
-  rgb10a2unorm: 4,
-  rg11b10ufloat: 4,
-  depth24plus: 4,
-  'depth24plus-stencil8': 4,
-  depth32float: 4,
-  'depth32float-stencil8': 5,
-  rg32float: 8,
-  rg32uint: 8,
-  rgba16float: 8,
-  rgba16uint: 8,
-  rgba32float: 16,
-  rgba32uint: 16,
-};
-/** Bytes per 4×4 block of the compressed formats: what T5 will allocate. */
-const BYTES_PER_BLOCK: Partial<Record<GPUTextureFormat, number>> = {
-  'bc1-rgba-unorm': 8,
-  'bc1-rgba-unorm-srgb': 8,
-  'bc4-r-unorm': 8,
-  'bc3-rgba-unorm': 16,
-  'bc3-rgba-unorm-srgb': 16,
-  'bc5-rg-unorm': 16,
-  'bc7-rgba-unorm': 16,
-  'bc7-rgba-unorm-srgb': 16,
-  'astc-4x4-unorm': 16,
-  'astc-4x4-unorm-srgb': 16,
-};
-
-function extent(size: GPUExtent3D): [number, number, number] {
-  if (Array.isArray(size)) return [size[0] ?? 1, size[1] ?? 1, size[2] ?? 1];
-  const s = size as GPUExtent3DDict;
-  return [s.width, s.height ?? 1, s.depthOrArrayLayers ?? 1];
-}
-
-/** Bytes of a texture, every mip level included; `null` on a format outside the table. */
-export function textureBytesOf(descriptor: GPUTextureDescriptor): number | null {
-  const perTexel = BYTES_PER_TEXEL[descriptor.format];
-  const perBlock = BYTES_PER_BLOCK[descriptor.format];
-  if (perTexel === undefined && perBlock === undefined) return null;
-  const [width, height, depth] = extent(descriptor.size);
-  const levels = descriptor.mipLevelCount ?? 1;
-  const volume = descriptor.dimension === '3d';
-  let bytes = 0;
-  for (let level = 0; level < levels; level++) {
-    const w = Math.max(1, width >> level),
-      h = Math.max(1, height >> level),
-      d = volume ? Math.max(1, depth >> level) : depth;
-    bytes +=
-      perTexel !== undefined
-        ? w * h * d * perTexel
-        : Math.ceil(w / 4) * Math.ceil(h / 4) * d * perBlock!;
-  }
-  return bytes * (descriptor.sampleCount ?? 1);
-}
+import { textureBytesOf } from './textureBytes.ts';
+export { textureBytesOf } from './textureBytes.ts';
 
 interface GpuDeviceLedgerSnapshot {
   /** Live bytes, every allocation included. */
@@ -96,6 +27,12 @@ interface GpuDeviceLedgerSnapshot {
 }
 export interface GpuDeviceLedger {
   snapshot(): GpuDeviceLedgerSnapshot;
+  readonly bytes: number;
+  /** Terminal admission refusal: a session cannot present a fallback that omits the resource. */
+  readonly refusal: Error | undefined;
+  observeAdmission(check: (bytes: number) => void): () => void;
+  releaseAdmission(): void;
+  transaction(): { commit(): void; rollback(): void };
 }
 
 /** Device subset the ledger observes: what a fake test device provides. */
@@ -108,22 +45,52 @@ const ledgers = new WeakMap<LedgerDevice, GpuDeviceLedger>();
  *  (all by default); `base`, another ledger, is carried in each snapshot. */
 export function installGpuDeviceLedger(
   device: LedgerDevice,
-  options: { counts?: (label: string | undefined) => boolean; base?: GpuDeviceLedger } = {},
+  options: {
+    counts?: (label: string | undefined) => boolean;
+    base?: GpuDeviceLedger;
+    limit?: () => number;
+  } = {},
 ): GpuDeviceLedger {
   const existing = ledgers.get(device);
   if (existing) return existing;
-  const { counts, base } = options;
+  const { counts, base, limit } = options;
   const live = new Map<object, { label: string; bytes: number }>();
-  let unknownFormats = 0;
+  let unknownFormats = 0,
+    liveBytes = 0;
+  let refusal: Error | undefined;
+  const admissions = new Set<(bytes: number) => void>();
+  const transactions = new Set<Set<{ destroy(): void }>>();
+  const check = (bytes: number) => {
+    const total = liveBytes + (base?.bytes ?? 0) + bytes;
+    const ceiling = limit?.();
+    if (ceiling !== undefined && (!Number.isFinite(ceiling) || total > ceiling)) {
+      refusal = new Error(
+        `GPU_BUDGET_EXCEEDED: requested=${bytes}, held=${total - bytes}, limit=${ceiling}`,
+      );
+      throw refusal;
+    }
+    try {
+      for (const admission of admissions) admission(bytes);
+    } catch (error) {
+      refusal = error as Error;
+      throw error;
+    }
+  };
+  const unobserve = limit ? base?.observeAdmission(check) : undefined;
   // The snapshot is read every host frame, held frame included: it is rebuilt only after an
   // allocation or a destroy, its own or its base's, never in a still scene.
   let held: GpuDeviceLedgerSnapshot | undefined, heldBase: GpuDeviceLedgerSnapshot | undefined;
   const track = <T extends { destroy(): void }>(resource: T, label: string, bytes: number) => {
     live.set(resource, { label, bytes });
+    liveBytes += bytes;
+    for (const transaction of transactions) transaction.add(resource);
     held = undefined;
     const destroy = resource.destroy;
     resource.destroy = function (this: T) {
-      if (live.delete(resource)) held = undefined;
+      if (live.delete(resource)) {
+        liveBytes -= bytes;
+        held = undefined;
+      }
       return destroy.call(this);
     };
     return resource;
@@ -133,14 +100,55 @@ export function installGpuDeviceLedger(
   device.createTexture = (descriptor) => {
     if (counts && !counts(descriptor.label)) return createTexture(descriptor);
     const bytes = textureBytesOf(descriptor);
+    if (bytes === null && (limit || admissions.size)) {
+      // Notify active session budgets too; no unknown shared allocation can bypass them.
+      check(Infinity);
+      refusal = new Error('GPU_BUDGET_UNKNOWN_FORMAT');
+      throw refusal;
+    }
+    check(bytes ?? 0);
     if (bytes === null) unknownFormats++;
     return track(createTexture(descriptor), descriptor.label ?? LABEL_NONE, bytes ?? 0);
   };
-  device.createBuffer = (descriptor) =>
-    counts && !counts(descriptor.label)
-      ? createBuffer(descriptor)
-      : track(createBuffer(descriptor), descriptor.label ?? LABEL_NONE, descriptor.size);
+  device.createBuffer = (descriptor) => {
+    if (counts && !counts(descriptor.label)) return createBuffer(descriptor);
+    check(descriptor.size);
+    return track(createBuffer(descriptor), descriptor.label ?? LABEL_NONE, descriptor.size);
+  };
   const ledger: GpuDeviceLedger = {
+    get bytes() {
+      return liveBytes + (base?.bytes ?? 0);
+    },
+    get refusal() {
+      return refusal ?? base?.refusal;
+    },
+    observeAdmission(admission) {
+      admissions.add(admission);
+      return () => {
+        admissions.delete(admission);
+        if (!admissions.size && !limit) refusal = undefined;
+      };
+    },
+    releaseAdmission() {
+      unobserve?.();
+    },
+    transaction() {
+      const resources = new Set<{ destroy(): void }>();
+      let active = true;
+      transactions.add(resources);
+      return {
+        commit() {
+          active = false;
+          transactions.delete(resources);
+        },
+        rollback() {
+          if (!active) return;
+          active = false;
+          transactions.delete(resources);
+          for (const resource of resources) if (live.has(resource)) resource.destroy();
+        },
+      };
+    },
     snapshot() {
       const under = base?.snapshot();
       if (held && heldBase === under) return held;

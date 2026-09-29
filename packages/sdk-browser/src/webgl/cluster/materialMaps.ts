@@ -1,3 +1,4 @@
+import { PHYSICAL_MAP_FIELDS, PHYSICAL_MAP_UNIT } from './physicalMaps.ts';
 import { visMaterial } from '../../visibility/shader/material.ts';
 import { readsOcclusion } from '../../scene/surfaceModel.ts';
 import { importHostTexture } from '../../host/textureImport.ts';
@@ -8,8 +9,18 @@ import type { ClusterDrawMesh } from '../../cluster/batchMesh.ts';
 export type Material = Exclude<ClusterDrawMesh['material'], unknown[]>;
 
 /** The program's map units, in order, and the UV matrix uniform each reads. */
-const MAPS = ['map', 'roughnessMap', 'metalnessMap', 'normalMap', 'aoMap', 'emissiveMap'] as const;
+const MAPS = [
+  'map',
+  'roughnessMap',
+  'metalnessMap',
+  'normalMap',
+  'aoMap',
+  'emissiveMap',
+  'subsurfaceMap',
+] as const;
+export const SUBSURFACE_UNIT = 14;
 export const MAP_UNIFORMS = ['baseUv', 'roughUv', 'metalUv', 'normalUv', 'aoUv', 'emissiveUv'];
+MAP_UNIFORMS[SUBSURFACE_UNIT] = 'subsurfaceUv';
 
 /** What a unit binds: the material's map, the texture bound for it (none: the fallback texel, or
  *  a map another unit binds), its encoding, its fallback texel, and whether the map's alpha has
@@ -31,7 +42,7 @@ type MapVisit = (
  * colour one reads it (`readsOcclusion`). A roughness and metalness read from one channel of one map bind it once.
  * Returns the material's engine record, its occlusion map and whether the two maps are shared.
  */
-export function eachMap(material: Material, visit: MapVisit) {
+export function eachMap(material: Material, visit: MapVisit, physical = false) {
   const mat = visMaterial(material),
     basic = material as HostShadedMaterial,
     aoMap =
@@ -41,16 +52,22 @@ export function eachMap(material: Material, visit: MapVisit) {
     !!mat.roughnessMap &&
     mat.roughnessMap === mat.metalnessMap &&
     mat.roughnessMap.channel === mat.metalnessMap.channel;
-  for (let unit = 0; unit < MAPS.length; unit++) {
-    const texture = MAPS[unit] === 'aoMap' ? aoMap : mat[MAPS[unit]];
+  for (let index = 0; index < MAPS.length; index++) {
+    const unit = index === 6 ? SUBSURFACE_UNIT : index;
+    const texture = MAPS[index] === 'aoMap' ? aoMap : mat[MAPS[index]];
     visit(
       unit,
       texture,
       sharedMetalRough && unit === 2 ? undefined : texture,
       texture?.colorSpace === 'srgb',
       unit === 3 ? [128, 128, 255, 255] : undefined,
-      MAPS[unit] === 'map' || MAPS[unit] === 'emissiveMap',
+      MAPS[index] === 'map' || MAPS[index] === 'emissiveMap',
     );
   }
+  if (physical)
+    for (const field of PHYSICAL_MAP_FIELDS) {
+      const map = mat[field];
+      visit(PHYSICAL_MAP_UNIT, map, map, false, undefined, false);
+    }
   return { mat, aoMap, sharedMetalRough };
 }

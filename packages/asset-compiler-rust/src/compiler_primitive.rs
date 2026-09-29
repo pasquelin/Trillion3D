@@ -1,13 +1,11 @@
 use super::*;
 use crate::compiler_primitive_warn::primitive_event;
 pub(crate) mod cost;
-
 pub(super) struct PrimitiveInputs<'a> {
     pub o: &'a Options,
     pub g: &'a Value,
     pub bin: &'a [u8],
     pub mesh_values: &'a [Value],
-    pub skinned_meshes: &'a BTreeSet<usize>,
     pub mesh_map: &'a BTreeMap<usize, usize>,
     /// Largest world scale under which each source mesh is placed: it is what
     /// brings the proxy threshold, expressed in metres, into the primitive's
@@ -19,7 +17,6 @@ pub(super) struct PrimitiveInputs<'a> {
     pub validated: &'a BTreeSet<usize>,
     pub progress: &'a (dyn Fn(Value) + Sync),
 }
-
 /// A compiled primitive and what later stages read beside it once every primitive is done.
 pub(super) struct CompiledPrimitive {
     pub value: Value,
@@ -30,7 +27,6 @@ pub(super) struct CompiledPrimitive {
     pub collision: Value,
     pub root_cover: crate::compiler_world_roots::RootCover,
 }
-
 /// `compile_primitive` of one planned `(mesh, primitive)` job, its error naming the job.
 pub(super) fn compile_job(
     inputs: &PrimitiveInputs<'_>,
@@ -38,7 +34,6 @@ pub(super) fn compile_job(
 ) -> Result<CompiledPrimitive> {
     compile_primitive(inputs, &m, &p).map_err(|e| e.within(m, p))
 }
-
 pub(super) fn compile_primitive(
     inputs: &PrimitiveInputs<'_>,
     old: &usize,
@@ -49,7 +44,6 @@ pub(super) fn compile_primitive(
         g,
         bin,
         mesh_values,
-        skinned_meshes,
         mesh_map,
         mesh_scales,
         scene_triangles,
@@ -115,19 +109,14 @@ pub(super) fn compile_primitive(
         let _t = perf::Timer::new(perf::Phase::Topology);
         crate::topology::classify_topology(&index_values, positions.count)?
     };
-    let is_skinned_or_morph = p.get("targets").is_some()
-        || skinned_meshes.contains(old)
-        || p.get("attributes")
-            .and_then(Value::as_object)
-            .map(|a| a.contains_key("JOINTS_0") || a.contains_key("WEIGHTS_0"))
-            .unwrap_or(false);
     let material = if let Some(material) = p.get("material") {
         let id = required_index(Some(material), "primitive.material")?;
         values(g, "materials")?.get(id)
     } else {
         None
     };
-    let unsplit = is_skinned_or_morph || unsplit_material(material);
+    // Skin and morph pages share the GPU deformation stage before cut/raster (#357).
+    let unsplit = unsplit_material(material);
     let clustered_blend = !unsplit
         && material
             .and_then(|m| m.get("alphaMode"))
@@ -141,10 +130,20 @@ pub(super) fn compile_primitive(
     } else {
         compiler_page_object::page_attributes(g, bin, p, positions.count, validated)?
     };
+    let mut deformation =
+        compiler_page_object::page_deformation(g, bin, p, positions.count, validated)?;
+    deformation.soft_source(g, *old, &pos)?;
     let carried = carried_attributes(&attributes, material);
     let uv_exponent = geometry_page_quant::primitive_uv_exponent(&carried, clustered_blend);
-    let store = |slice: &[u32], pos: &[f32], carried: &[&_], position_exponent: i32| {
-        compiler_page_object::store_page(o, slice, pos, carried, position_exponent, uv_exponent)
+    let store = |slice: &[u32], pos: &[f32], carried: &[&_], origin: &[u32], exponent: i32| {
+        let exponents = (exponent, uv_exponent);
+        compiler_page_object::store_page(
+            o,
+            slice,
+            (pos, carried),
+            (&deformation, origin),
+            exponents,
+        )
     };
     // Transparent primitives join the DAG too: their draw order is restored at runtime from the
     // recorded source rank, so spatial clustering no longer scrambles the blend order.
@@ -189,12 +188,13 @@ pub(super) fn compile_primitive(
     progress(event);
     let quantization =
         compiler_page_object::quantization_report(&pages, position_exponent, uv_exponent);
+    let reach = deformation.reach_for_pass(&pos, unsplit);
     Ok(CompiledPrimitive {
         cluster_planes,
         proxy_cut,
         collision,
         root_cover,
         proxy_threshold: proxy_threshold * scale.unwrap_or(1.0), // back in metres for the report
-        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"quantization":quantization,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
+        value: json!({"mesh":mesh,"primitive":primitive,"material":p.get("material").cloned().unwrap_or(Value::Null),"triangles":triangle_count,"pass":if unsplit{"shared-blend"}else if clustered_blend{"clustered-blend"}else{"exact-clusters"},"clusterStrategy":if dag_primitive{json!(DAG_CLUSTER_STRATEGY)}else{Value::Null},"hierarchy":Value::Null,"dag":dag_report,"culling":culling_report,"structure":structure_report,"streams":stream_report,"pages":pages,"quantization":quantization,"deformation":reach,"reusedPages":reused,"topology":{"triangles":topology.triangles,"edges":{"boundary":topology.boundary_edges,"manifold":topology.manifold_edges,"nonManifold":topology.non_manifold_edges},"vertices":{"interior":topology.interior_vertices,"boundary":topology.boundary_vertices,"locked":topology.locked_vertices,"unused":topology.unused_vertices},"manifold":topology.manifold}}),
     })
 }

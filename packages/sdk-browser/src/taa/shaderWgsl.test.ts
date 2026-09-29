@@ -1,13 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  TAA_BINDINGS,
-  TAA_REPROJECT_WGSL,
-  TAA_SHADER,
-  TAA_VIEW_BYTES,
-  YCOCG_WGSL,
-  taaShader,
-} from './shaderWgsl.ts';
+import { TAA_REPROJECT_WGSL, TAA_SHADER, YCOCG_WGSL, taaShader } from './shaderWgsl.ts';
+import { TAA_BINDINGS, TAA_VIEW_BYTES } from './bindingsWgsl.ts';
+import { TAA_DEFORM_WGSL } from './deformWgsl.ts';
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
 import { ROW_PLACEMENT_WORD } from '../webgpu/row/pageRow.ts';
 import { TAA_WEIGHTS } from './weights.ts';
@@ -44,14 +39,16 @@ test('shader bindings are those of the layout, and the uniform has the declared 
       new RegExp(`@binding\\(${binding}\\) var(<[a-z,]+>)? ${name}:`),
       `binding ${name}`,
     );
-  // Two matrices, viewport and params, the nine weights in three quadruplets, render grid, jitter.
-  assert.equal(TAA_VIEW_BYTES, 2 * 64 + 2 * 16 + TAA_WEIGHTS * 4 + 2 * 16);
+  // Two matrices, viewport and params, the nine weights in three quadruplets, render grid,
+  // jitter, eye.
+  assert.equal(TAA_VIEW_BYTES, 2 * 64 + 2 * 16 + TAA_WEIGHTS * 4 + 3 * 16);
   assert.match(
     TAA_SHADER,
-    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,\}/,
+    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,eye:vec4f,\}/,
   );
-  // No cosine per pixel: weights come from the uniform, neighbour by neighbour.
-  assert.doesNotMatch(TAA_SHADER, /cos\(/);
+  // No cosine per pixel: weights come from the uniform, neighbour by neighbour. Only a deformed
+  // pixel's waves take one (`deformWgsl.ts`).
+  assert.doesNotMatch(TAA_SHADER.replace(TAA_DEFORM_WGSL, ''), /cos\(/);
   assert.match(TAA_SHADER, /view\.weights\[k>>2u\]\[k&3u\]/);
 });
 

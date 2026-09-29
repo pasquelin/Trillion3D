@@ -72,7 +72,7 @@ test('every example is one standalone HTML file that imports the built engine', 
       /<canvas id="view"><\/canvas>/.test(html) || /world\.canvas\.id = ['"]view['"]/.test(html),
       entry.id,
     );
-    assert.match(html, /import \{ createWorld[^}]*\} from '\.\.\/runtime\/engine\.js'/);
+    assert.match(html, /import \{\s*createWorld[^}]*\} from '\.\.\/runtime\/engine\.js'/);
     assert.doesNotMatch(html, /setDiagnostic|localhost|127\.0\.0\.1/);
     if (/runtime\/kit\.js/.test(html))
       assert.match(html, /import \{[^}]*\} from '\.\.\/runtime\/kit\.js'/, entry.id);

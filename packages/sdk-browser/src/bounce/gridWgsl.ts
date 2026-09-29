@@ -1,5 +1,8 @@
 import { BOUNCE_SETTINGS, PROBE_FLOATS } from '../../../sdk-core/src/index.ts';
-import { irradianceShader } from '../../../sdk-core/src/scene/core/irradianceBasis.ts';
+import {
+  irradianceShader,
+  IRRADIANCE_TERMS,
+} from '../../../sdk-core/src/scene/core/irradianceBasis.ts';
 
 /**
  * The Lambert constant, 1/π, that both bounce passes apply to probe irradiance: the
@@ -71,6 +74,9 @@ fn shIrradiance(slot:u32,n:vec3f)->vec3f{
  * That is the visibility test: a point farther from the probe than this distance is behind
  * a surface the probe sees, hence in another room, and the probe has nothing to tell it.
  */
+fn shFilteredRadiance(slot:u32,n:vec3f,bands:vec3f)->vec3f{
+ return max(vec3f(0.0),${IRRADIANCE_TERMS.map((term, k) => `probes[slot+${k}u].xyz*((${term.polynomial('n')})*${term.basis}*bands.${k === 0 ? 'x' : k < 4 ? 'y' : 'z'})`).join('+')});
+}
 fn probeDistance(slot:u32,direction:vec3f)->f32{
  let positive=probes[slot+PROBE_DISTANCE_POSITIVE].xyz;
  let negative=probes[slot+PROBE_DISTANCE_NEGATIVE].xyz;
@@ -84,7 +90,7 @@ fn probeDistance(slot:u32,direction:vec3f)->f32{
  * nothing of it — and measured visibility, which closes leaks through walls. A probe that
  * does not carry the requested cell, was never updated, or is buried in a surface, weighs nothing.
  */
-fn sampleLevel(level:u32,P:vec3f,N:vec3f)->vec4f{
+fn sampleLevelField(level:u32,P:vec3f,N:vec3f,R:vec3f,bands:vec3f,specular:bool)->vec4f{
  let spacing=bounce.levels[level].originSpacing.w;
  let base=vec3i(bounce.levels[level].base.xyz);
  let side=i32(bounce.counts.x);
@@ -117,7 +123,9 @@ fn sampleLevel(level:u32,P:vec3f,N:vec3f)->vec4f{
   weight*=facing*facing;
   if(distance>probeDistance(slot,-direction)+margin){weight=0.0;}
   if(weight<=0.0){continue;}
-  sum+=shIrradiance(slot,N)*weight;
+  var value=shIrradiance(slot,N);
+  if(specular){value=shFilteredRadiance(slot,R,bands);}
+  sum+=value*weight;
   total+=weight;
  }
  return vec4f(sum,total);
@@ -126,12 +134,18 @@ fn sampleLevel(level:u32,P:vec3f,N:vec3f)->vec4f{
  * Cascade irradiance at a point: the finest level that can answer, from tightest to
  * widest. When no level can, the result is exactly zero — a leak would be light without a source.
  */
-fn sampleBounce(P:vec3f,N:vec3f)->vec3f{
+fn sampleProbeField(P:vec3f,N:vec3f,R:vec3f,bands:vec3f,specular:bool)->vec3f{
  if(bounce.counts.w==0u){return vec3f(0.0);}
  for(var level=0u;level<CASCADE_LEVELS;level++){
   if(level>=bounce.counts.y){break;}
-  let gathered=sampleLevel(level,P,N);
+  let gathered=sampleLevelField(level,P,N,R,bands,specular);
   if(gathered.w>1e-5){return gathered.xyz/gathered.w;}
  }
  return vec3f(0.0);
+}
+fn sampleLevel(level:u32,P:vec3f,N:vec3f)->vec4f{
+ return sampleLevelField(level,P,N,N,vec3f(0.0),false);
+}
+fn sampleBounce(P:vec3f,N:vec3f)->vec3f{
+ return sampleProbeField(P,N,N,vec3f(0.0),false);
 }`;

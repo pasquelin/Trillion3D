@@ -78,9 +78,9 @@ test('every attribute, signed zeros included, decodes identically; a forged inde
   // (base 0, two bits per corner), then a block width of 13, wider than an index, and a block base
   // at the vertex count, which the header gate refuses: the GPU reads a page in place on it.
   for (const [at, byte, cause] of [
-    [100, 0b11_01_00, /GEOMETRY_PAGE_INDEX/],
-    [96, 0b1101_00, /GEOMETRY_PAGE_BOUNDS/],
-    [96, 0b10_11, /GEOMETRY_PAGE_BOUNDS/],
+    [104, 0b11_01_00, /GEOMETRY_PAGE_INDEX/],
+    [100, 0b1101_00, /GEOMETRY_PAGE_BOUNDS/],
+    [100, 0b10_11, /GEOMETRY_PAGE_BOUNDS/],
   ] as const) {
     const forged = (data as Uint8Array).slice();
     forged[at] = byte;

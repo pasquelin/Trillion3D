@@ -37,15 +37,17 @@ fn import_error(error: &ufbx::Error) -> CompilerError {
     )
 }
 
-/// Values of a corner — position, normal, uv, colour: twelve floats, zero when the
-/// attribute is missing. Two corners with the same bits are one vertex, whatever
+/// Values of a corner — position, normal, uv, colour, and on a deformed mesh the file's vertex:
+/// thirteen words, zero when the attribute is missing. Two corners with the same bits are one vertex, whatever
 /// index the file gives them. Hashing walks word by word: the key has neither a
 /// length to hash nor bytes to walk.
-const CORNER_VALUES: usize = 12;
+const CORNER_VALUES: usize = 13;
 const CORNER_POSITION: std::ops::Range<usize> = 0..3;
 const CORNER_NORMAL: std::ops::Range<usize> = 3..6;
 const CORNER_UV: std::ops::Range<usize> = 6..8;
 const CORNER_COLOR: std::ops::Range<usize> = 8..12;
+/// The file's own vertex, on a deformed mesh: its bones and shape offsets are the vertex's.
+const CORNER_VERTEX: usize = 12;
 #[derive(PartialEq, Eq)]
 struct CornerKey([u32; CORNER_VALUES]);
 impl std::hash::Hash for CornerKey {
@@ -135,6 +137,9 @@ struct Importer<'a> {
     textures: Vec<Value>,
     sampler_ids: HashMap<(u32, u32), usize>,
     lights: Vec<Value>,
+    /// The skins and clips of the scene (`motion.rs`).
+    skins: Vec<Value>,
+    animations: Vec<Value>,
     bin: Bin,
     report: Report,
     triangles: usize,
@@ -151,6 +156,7 @@ pub(crate) mod light;
 mod lighting;
 mod materials;
 pub(crate) mod mesh;
+mod motion;
 pub(crate) mod opacity;
 mod primitive;
 mod runner;
@@ -163,6 +169,7 @@ pub(crate) use light::{attach_lights, cone_angles, light_extension, light_node, 
 use lighting::*;
 use materials::*;
 use mesh::*;
+use motion::*;
 use opacity::*;
 pub(crate) use primitive::{primitive, Vertices};
 pub use runner::import_source;

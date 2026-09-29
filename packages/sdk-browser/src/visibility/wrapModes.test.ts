@@ -56,7 +56,7 @@ test('each map carries its own nibble in its header, whatever the others', () =>
 });
 
 // Every atlas read folds by the nibble of the texture it reads, from that texture's header: no
-// read takes an addressing argument, so none can take another map's (`../webgpu/tile/sampling.ts`).
+// read takes an addressing argument, so none can take another map's (`../texture/sampling.ts`).
 for (const [nom, texte] of Object.entries({ SHADE_SHADER, BLEND_SHADER }))
   test(`${nom} reads each map with no addressing argument`, () => {
     assert.match(

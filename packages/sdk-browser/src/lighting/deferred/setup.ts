@@ -1,3 +1,5 @@
+import { SUBSURFACE_BINDING } from '../../scene/subsurface.ts';
+import { SHADING_OFFSET_BINDING } from '../../visibility/shader/shadingPoint.ts';
 import { SHADOW_ARRAY, arrayView } from '../../gpu/shadow/layers.ts';
 import {
   MAX_SHADOW_SLICES,
@@ -12,11 +14,7 @@ import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { BOUNCE_SURFACE_BINDING } from '../../bounce/reflectWgsl.ts';
 import { SHADOW_TRANSMITTANCE_FORMAT } from '../../gpu/shadow/transmittance.ts';
 
-/**
- * Substitute of the resident proxy: a header of zeros and four words behind it. Presence
- * is zero there, node count too, so no distant-shadow ray is fired and the distant surface
- * stays lit exactly as before that ray existed.
- */
+/** Empty proxy header: no distant-shadow ray without resident nodes. */
 const PLACEHOLDER_PROXY_BYTES = PROXY_HEADER_BYTES + 16;
 /**
  * Bindings of the deferred pass. The unlit view stops at the surfaces and the uniform;
@@ -62,6 +60,18 @@ export function deferredLayoutEntries(
         texture: SHADOW_ARRAY,
       },
     );
+  if (direct && marks)
+    entries.push({
+      binding: SHADING_OFFSET_BINDING,
+      visibility: GPUShaderStage.FRAGMENT,
+      buffer: { type: 'read-only-storage' },
+    });
+  if (direct && marks)
+    entries.push({
+      binding: SUBSURFACE_BINDING,
+      visibility: GPUShaderStage.FRAGMENT,
+      texture: { sampleType: 'unfilterable-float' },
+    });
   // The shadow pages the resolve reads, recorded for the scheduler: only the opaque resolve asks.
   if (direct && marks)
     entries.push({
