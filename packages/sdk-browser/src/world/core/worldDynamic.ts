@@ -12,14 +12,9 @@ import { changedRanges, copyRanges, LISTS, type VertexUploads } from './worldDyn
 import { fits, heldBox, readInPlace, readingOf, type Reading } from './worldDynamicRead.ts';
 import type { Cut } from './worldCuts.ts';
 
-/**
- * THE PER-FRAME UPLOAD BUDGET OF DYNAMIC GEOMETRY, in bytes (#573): a frame uploads the changed
- * vertices of its dynamic resources in the order they changed, until the next one would pass it —
- * deferred then to the next frame, never dropped, its previous vertices drawn meanwhile. A
- * resource larger than the budget still goes whole as a frame's first. It is not derived from a
- * scene: it bounds what one frame writes to the GPU, 4 MiB — 170 000 vertices of position and
- * normal, a 60 × 60 m sea at 15 cm —, 480 MB/s at 120 Hz.
- */
+/** THE PER-FRAME UPLOAD BUDGET OF DYNAMIC GEOMETRY, in bytes sent the GPU (#573): past it an
+ *  upload waits for the next frame, never dropped; a larger one still goes as a frame's first. Not
+ *  derived from a scene: 4 MiB, a 60 × 60 m sea at 15 cm, 480 MB/s at 120 Hz. */
 export const DYNAMIC_UPLOAD_BUDGET_BYTES = 4 * 1024 * 1024;
 
 /** What a dynamic resource holds beside its pages: the box that culls it, the cut that serves them
@@ -42,9 +37,9 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
     dynamic = new WeakSet<Geometry>(),
     ways = new WeakMap<Geometry, Map<string, Promise<Cut | null>>>(),
     /** How each resource leaves its geometry's reading, once released. */
-    leaves = new WeakMap<Cut, () => void>();
-  /** The resources whose read vertices wait for an upload, in the order they changed. */
-  const dirty = new Set<Cut>();
+    leaves = new WeakMap<Cut, () => void>(),
+    /** The resources whose read vertices wait for an upload, in the order they changed. */
+    dirty = new Set<Cut>();
   const dynamicOf = (cut: Cut) => cut.dynamic!;
   /** `cut`'s lists read at its geometry's `version`: they wait for the next `upload`. */
   const pend = (cut: Cut, version: number) => {
@@ -87,20 +82,9 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
     const { cut, runtime } = again
       ? { cut: held.cut, runtime: servePrimitive(held.cut, drawn, box) }
       : await cutDynamicPrimitive(packDrawn(drawn, blended), drawn, box);
-    const state: DynamicHeld = {
-      ...readingOf(geometry, drawn),
-      box,
-      cut,
-      version: geometry.version,
-    };
-    return {
-      key: `dynamic:${serial++}`,
-      drawn,
-      runtime,
-      users: new Set<Mesh>(),
-      held: false,
-      dynamic: state,
-    } satisfies Cut;
+    const [key, users, version] = [`dynamic:${serial++}`, new Set<Mesh>(), geometry.version];
+    const state: DynamicHeld = { ...readingOf(geometry, drawn), box, cut, version };
+    return { key, drawn, runtime, users, held: false, dynamic: state } satisfies Cut;
   };
   return {
     wants,
@@ -149,12 +133,9 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
       dirty.delete(cut);
       leaves.get(cut)?.();
     },
-    /**
-     * Writes the read vertices of the resources that changed, in order, until the next would pass
-     * `budget` bytes — as `uploads` weighs what they send the GPU —; `uploads` hands each
-     * resource's changed ranges to the session, false when it does not draw that resource yet —
-     * it then waits. Returns the bytes written. Nothing is allocated.
-     */
+    /** Writes the read vertices of the resources that changed, in order, until the next would
+     *  pass `budget` bytes as `uploads` weighs them; one the session does not draw yet waits.
+     *  Returns the bytes sent. Nothing is allocated. */
     upload(budget: number, uploads: VertexUploads) {
       let spent = 0;
       for (const cut of dirty) {

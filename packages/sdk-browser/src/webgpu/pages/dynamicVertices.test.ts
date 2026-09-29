@@ -4,10 +4,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts';
-import { createVertexPool } from '../core/geometryPrepare.ts';
+import { createVertexPool, type VertexPool } from '../core/geometryPrepare.ts';
 import { createShadowMobility } from '../shadow/mobility.ts';
 import type { HostAttributes } from '../../host/resources.ts';
-import { updateWebgpuVertices, webgpuVertexBytes } from './dynamicVertices.ts';
+import { webgpuVertexApi } from './dynamicVertices.ts';
 import type { VertexRange } from '../../placement/backendSceneUpdates.ts';
 import type { WebgpuPagesRuntime } from './runtime.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
@@ -32,6 +32,19 @@ function recordingDevice() {
   return { device, writes };
 }
 
+/** A runtime of `pool` on `device`, drawing `roots` with `lights`. */
+const runtimeOf = (
+  vertexPool: VertexPool,
+  device: GPUDevice,
+  positionBuffers: Map<HostAttributes, unknown>,
+  selectionRoots: unknown[] = [],
+  lights = {},
+) =>
+  ({
+    ...{ vis: { vertexPool }, gpu: { device, positionBuffers }, lights },
+    ...{ run: { lost: false, gate: { sceneMoved() {} } }, layout: { selectionRoots } },
+  }) as unknown as WebgpuPagesRuntime;
+
 test('a rewrite lands in its pool block alone and stales only its own shadow pages', () => {
   const { device, writes } = recordingDevice();
   const [wave, rock] = [geometry.plane(1, 1, 1, 1), geometry.plane(1, 1, 1, 1)];
@@ -46,26 +59,16 @@ test('a rewrite lands in its pool block alone and stales only its own shadow pag
   const mobility = createShadowMobility();
   mobility.ensure(2, 4, (rank) => roots[rank].world.elements);
   const staled: [number[], boolean][] = [];
-  const rt = {
-    vis: { vertexPool: pool },
-    gpu: { device, positionBuffers: new Map() },
-    run: { lost: false, gate: { sceneMoved() {} } },
-    layout: { selectionRoots: roots },
-    lights: {
-      mobility,
-      plan: {
-        worldChanged: (min: number[], max: number[], moving: boolean) =>
-          void staled.push([[...min, ...max], moving]),
-      },
-    },
-  } as unknown as WebgpuPagesRuntime;
+  const worldChanged = (min: number[], max: number[], moving: boolean) =>
+    void staled.push([[...min, ...max], moving]);
+  const api = webgpuVertexApi(
+    runtimeOf(pool, device, new Map(), roots, { mobility, plan: { worldChanged } }),
+  );
   wave.attributes.position.setZ(1, 0.25);
   const box = Float64Array.of(0.5, -0.5, 0, 0.5, -0.5, 0.25);
   writes.length = 0;
   for (let frame = 0; frame < 2; frame++)
-    assert.ok(
-      updateWebgpuVertices(rt, attributes[0], [{ name: 'position', from: 1, count: 1 }], box),
-    );
+    assert.ok(api.updateVertices(attributes[0], [{ name: 'position', from: 1, count: 1 }], box));
   assert.equal(block.vertexBase, 4, 'placed after the rock');
   assert.deepEqual(writes[0].slice(1), [(4 + 1) * 12, [0.5, -0.5, 0.25]], 'one vertex written');
   assert.deepEqual(
@@ -93,19 +96,12 @@ test('a rewrite weighs what it sends the GPU: a normal with its tangent, positio
   const attributes = geometry.plane(1, 1, 1, 1).attributes as unknown as HostAttributes;
   const pool = createVertexPool(device, 8, false, new Map());
   pool.place(attributes, true);
-  const rt = {
-    vis: { vertexPool: pool },
-    gpu: { device, positionBuffers: new Map([[attributes, {}]]) },
-    run: { lost: false, gate: { sceneMoved() {} } },
-    layout: { selectionRoots: [] },
-  } as unknown as WebgpuPagesRuntime;
-  const ranges: VertexRange[] = [
-    { name: 'position', from: 1, count: 2 },
-    { name: 'normal', from: 0, count: 1 },
-  ];
-  const weighed = webgpuVertexBytes(rt, attributes, ranges);
+  const api = webgpuVertexApi(runtimeOf(pool, device, new Map([[attributes, {}]])));
+  const position = { name: 'position', from: 1, count: 2 } as const;
+  const ranges: VertexRange[] = [position, { name: 'normal', from: 0, count: 1 }];
+  const weighed = api.vertexBytes(attributes, ranges);
   writes.length = 0;
-  assert.ok(updateWebgpuVertices(rt, attributes, ranges, new Float64Array(6)));
+  assert.ok(api.updateVertices(attributes, ranges, new Float64Array(6)));
   const sent = writes.reduce((bytes, [, , floats]) => bytes + floats.length * 4, 0);
   assert.equal(weighed, sent, 'what is weighed is what is sent');
   assert.equal(weighed, 2 * 12 * 2 + 7 * 4, 'two positions twice, one normal and its tangent');

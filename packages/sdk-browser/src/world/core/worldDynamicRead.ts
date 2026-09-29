@@ -7,9 +7,6 @@ import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primit
 import type { HeldBox } from '../page/runtimePrimitive.ts';
 import { LISTS } from './worldDynamicRanges.ts';
 
-// How a dynamic resource (`worldDynamic.ts`, #573) reads its geometry: the box it is held in, and
-// its lists rewritten in place while its corners stay.
-
 /** The drawn box of `drawn`, joined to `declared` and `before`; widened by half its size when
  *  nothing was declared, so that a sheet that waves stays within the box it was cut in. */
 export function heldBox(drawn: DrawnTriangles, declared: Geometry['maxBounds'], before?: HeldBox) {
@@ -49,38 +46,24 @@ export function inBox(p: ArrayLike<number>, box: ArrayLike<number>) {
   return true;
 }
 
-/** What a dynamic resource reads its geometry into: its lists, the index it was cut from at its
- *  version, and whether its normals are computed, the geometry declaring none. */
-export type Reading = {
-  next: DrawnTriangles;
-  index: Geometry['index'];
-  indexVersion: number;
-  computed: boolean;
-};
+/** What a dynamic resource reads each rewrite into: lists of its own, and the index its corners
+ *  came from, at its version (#573). */
+export type Reading = { next: DrawnTriangles; index: Geometry['index']; indexVersion: number };
 
-/** The reading of `geometry`, first drawn as `drawn`: lists of their own, the same corners. */
-export function readingOf(geometry: Geometry, drawn: DrawnTriangles): Reading {
-  const { index, attributes } = geometry,
-    normal = attributes.normal;
+/** The reading of `geometry`, first drawn as `drawn`: a copy of each of its lists. */
+export function readingOf({ index }: Geometry, drawn: DrawnTriangles): Reading {
+  const [positions, normals, uvs, colors] = LISTS.map(([list]) => drawn[list]?.slice() ?? null);
   return {
-    next: {
-      ...drawn,
-      positions: drawn.positions.slice(),
-      normals: drawn.normals.slice(),
-      uvs: drawn.uvs?.slice() ?? null,
-      colors: drawn.colors?.slice() ?? null,
-    },
+    next: { ...drawn, positions: positions!, normals: normals!, uvs, colors },
     index,
     indexVersion: index?.version ?? 0,
-    computed: !normal || normal.count * 3 < drawn.positions.length,
   };
 }
 
 /**
  * Reads `geometry`'s plain triangles into `into.next`, in place, when they keep the corners and
- * lists `into` was cut from and lie within its `box`: a rewritten geometry read with no allocation
- * (#573). False otherwise — another reading, corners or lists, or a vertex out of the box —: the
- * caller reads it anew.
+ * lists `into` was cut from and lie within its `box`: no list allocated. False otherwise — another
+ * reading, corners or lists, a vertex out of the box —: the caller reads it anew.
  */
 export function readInPlace(
   geometry: Geometry,
@@ -89,20 +72,22 @@ export function readInPlace(
   into: Reading & { box: ArrayLike<number> },
 ) {
   const { next } = into,
-    position = geometry.attributes.position,
+    { position, normal } = geometry.attributes,
     index = geometry.index;
   if (reading !== 'triangles' || options.wireframe || options.flat || next.lines) return false;
   if (index !== into.index || (index?.version ?? 0) !== into.indexVersion) return false;
   if (!position || position.count * 3 !== next.positions.length) return false;
   for (const [field, name, width] of LISTS) {
     const list = geometry.attributes[name],
-      out = next[field];
-    // A position reads at its value, a missing component 0; another list as the geometry reads it.
-    const computed = field === 'normals' && into.computed,
+      out = next[field],
       missing = field === 'positions' ? 0 : 1;
-    const present = !!list && list.count >= position.count;
-    if (present !== (!computed && !!out)) return false;
-    if (!list || !out || computed) continue;
+    // Normals always drawn, read or computed; a UV or colour list kept or none.
+    if (!list || list.count < position.count) {
+      if (out && field !== 'normals') return false;
+      continue;
+    }
+    if (!out) return false;
+    // A position reads at its value, a missing component 0; another list as the geometry reads it.
     for (let v = 0; v < position.count; v++)
       for (let c = 0; c < width; c++)
         out[v * width + c] =
@@ -113,6 +98,7 @@ export function readInPlace(
               : list.getComponent(v, c);
   }
   if (!inBox(next.positions, into.box)) return false;
-  if (into.computed) computeNormals(next.positions, index?.array ?? null, next.normals);
+  if (!normal || normal.count < position.count)
+    computeNormals(next.positions, index?.array ?? null, next.normals);
   return true;
 }
