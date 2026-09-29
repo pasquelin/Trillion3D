@@ -31,7 +31,7 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera, quiet: 
     state.scale = imageScale(rt, quiet);
     temporal.checkpoint(quiet);
   }
-  drawFrameAt(rt, state.scale);
+  drawFrameAt(rt, state.scale, !quiet);
   if (!quiet) state.stillFrames = 0;
   else if (state.stillFrames++ === 0) {
     state.hasHistory = false;

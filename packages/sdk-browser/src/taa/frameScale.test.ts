@@ -41,6 +41,7 @@ test('a moving image draws at the controller, a quiet one at 1, a convergence at
   beginTaaFrame(rt, cam, false);
   assert.equal(rt.scale.drawn, moving);
   assert.ok(rt.gpu.targetSize[0] < DISPLAY[0], 'drawn below the display');
+  assert.equal(rt.scale.steered, true, 'the moving image is what the controller measures');
   rt.run.textureConverging = true;
   beginTaaFrame(rt, cam, true);
   assert.equal(rt.scale.drawn, moving, 'the convergence remakes the moving image at its scale');
@@ -48,6 +49,7 @@ test('a moving image draws at the controller, a quiet one at 1, a convergence at
   beginTaaFrame(rt, cam, true);
   assert.equal(rt.scale.drawn, 1);
   assert.deepEqual(rt.gpu.targetSize, DISPLAY, 'the quiet image is drawn at the display');
+  assert.equal(rt.scale.steered, false, 'a still image, which shades every light, is not measured');
   rt.capture.capturing = true;
   beginTaaFrame(rt, cam, false);
   assert.deepEqual([rt.scale.drawn, rt.gpu.targetSize], [1, DISPLAY], 'no accumulation, no scale');

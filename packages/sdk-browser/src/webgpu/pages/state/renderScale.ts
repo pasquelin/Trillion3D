@@ -84,9 +84,9 @@ export const imageScale = (rt: WebgpuPagesRuntime, quiet: boolean) =>
  * are made at the bounds' maximum, and the image is drawn in their top-left `targetSize`. Where
  * the display colour is not apart, the targets' whole size. The Hi-Z pyramid is built over it
  * (`GpuHiz.extent`); the last image's, of another size, no longer describes this one, as after a
- * moved view. `rt.scale.drawn` reads the scale back.
+ * moved view. `rt.scale.drawn` reads the scale back; `steered`, a moving image at the controller's.
  */
-export function drawFrameAt(rt: WebgpuPagesRuntime, scale: number) {
+export function drawFrameAt(rt: WebgpuPagesRuntime, scale: number, steered = false) {
   const { gpu } = rt,
     { allocatedSize, displaySize, targetSize } = gpu,
     apart = displayApart(gpu);
@@ -99,4 +99,5 @@ export function drawFrameAt(rt: WebgpuPagesRuntime, scale: number) {
   targetSize[1] = height;
   rt.vis.gpuHiz?.extent(width, height);
   rt.scale.drawn = apart ? Math.min(scale, rt.scale.bounds.max) : 1;
+  rt.scale.steered = apart && steered;
 }
