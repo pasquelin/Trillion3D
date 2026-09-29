@@ -37,7 +37,6 @@ export function createWorldRuntime(inputs: Inputs) {
     seatWanted = false,
     lightsChanged = true,
     disposed = false,
-    uploaded = 0, // dynamic vertex bytes written since the last frame's metrics (#573)
     /** Why no session is open: the first-frame watch says it on the console. */
     closed = 'the scene has not been read yet';
   const invalidate = () => explorer?.invalidate();
@@ -78,7 +77,10 @@ export function createWorldRuntime(inputs: Inputs) {
     try {
       const scope = built.source.metadata.scope; // its first model's scope, or the default
       await inputs.ready(); // a lost device is asked again: it opens on what is granted, or fails
-      const options = track.options({ ...inputs.options(), scope });
+      const given = inputs.options();
+      // The session's own loop hands its frames on as `render()` does: bytes told (#573).
+      const onFrame: typeof given.onFrame = (m) => (cuts.dynamic.drew(m), given.onFrame?.(m));
+      const options = track.options({ ...given, scope, onFrame });
       // The first frame is read for the page's camera, not a framing one (`prepare.ts`).
       explorer = await open(canvas, options, { ...built.source, placeCamera, moveNamed });
     } catch (error) {
@@ -137,7 +139,7 @@ export function createWorldRuntime(inputs: Inputs) {
         track.request('repaint-refused');
     }
     if (!session || explorer !== session) return;
-    uploaded += cuts.dynamic.upload(DYNAMIC_UPLOAD_BUDGET_BYTES, uploads);
+    cuts.dynamic.upload(DYNAMIC_UPLOAD_BUDGET_BYTES, uploads);
     if (poses.pending)
       poses.apply(scene, contents.seats, twins, (rows, from, to) =>
         session.updatePlacements(rows, from, to),
@@ -181,9 +183,7 @@ export function createWorldRuntime(inputs: Inputs) {
       beforeFrame(); // what it applies may close the session: that frame has no image
       if (!explorer) return null;
       const metrics = explorer.render();
-      metrics.dynamicUploadBytes = uploaded;
-      uploaded = 0;
-      cuts.dynamic.tick();
+      cuts.dynamic.drew(metrics);
       track.drew();
       inputs.frame(metrics);
       return metrics;
