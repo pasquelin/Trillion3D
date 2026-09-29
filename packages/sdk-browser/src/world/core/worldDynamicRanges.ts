@@ -66,7 +66,11 @@ export function markRewritten(geometry: Geometry, ranges: readonly VertexRange[]
 }
 
 type Session = {
-  updateVertices(attributes: Geometry['attributes'], ranges: VertexRange[], box: Float64Array): boolean;
+  updateVertices(
+    attributes: Geometry['attributes'],
+    ranges: VertexRange[],
+    box: Float64Array,
+  ): boolean;
 };
 /** What a frame's `upload` hands each dynamic resource's rewritten ranges to (#573): its placed
  *  host geometry, marked, then `session`; false while the session draws no such resource — it
