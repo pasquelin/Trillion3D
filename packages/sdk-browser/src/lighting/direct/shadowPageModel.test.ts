@@ -59,6 +59,11 @@ const INPUTS: Record<string, () => number> = {
   slot: () => int(0, 15),
   r: () => int(0, 63),
   count: () => int(1, 5000),
+  low: () => (r() - 0.5) * 4,
+  high: () => (r() - 0.5) * 4 + 2.5,
+  cells: () => int(1, 8),
+  metres: () => 2 ** (r() * 40 - 20),
+  size: () => int(1, 64) * SHADOW_PAGE,
 };
 /** Texels on and about the edges the PCF and the page of a texel turn on, from a page's first. */
 const EDGES = [-1.5, -1.5 - 2 ** -20, 0, 1.5, 1.5 - 2 ** -20, 64, 64 - 2 ** -20, 126.5, 128];

@@ -108,6 +108,24 @@ export function pageModel<V>(o: PageOps<V>) {
         o.int(1),
         o.int(0),
       ),
+    /** Low edge, in normalised face coordinates, of page `x` of a face `pages` wide (`regionRect`);
+     *  the edge on the other axis is the high one negated, `y` going down. */
+    shadowRegionLow: (pages: V, x: V) => o.sub(o.div(o.mul(o.float(2), x), pages), o.float(1)),
+    /** High edge of page `x`, the low edge of the next. */
+    shadowRegionHigh: (pages: V, x: V) =>
+      o.sub(o.div(o.mul(o.float(2), o.add(x, o.float(1))), pages), o.float(1)),
+    /** Scale and offset, on one axis, that crop a face's clip square to `[low, high]`: the page
+     *  then fills the clip square (`writeLampPage`). */
+    shadowCropScale: (low: V, high: V) => o.div(o.float(2), o.sub(high, low)),
+    shadowCropOffset: (low: V, high: V) => o.div(o.neg(o.add(low, high)), o.sub(high, low)),
+    /** Light-plane centre, on one axis, of a square of `cells` sun pages of `metres` from page `x`:
+     *  where a page draw's eye stands (`writeSunSquare`), `y` going down. */
+    shadowSunSquareCentre: (x: V, cells: V, metres: V) =>
+      o.mul(o.add(x, o.div(cells, o.float(2))), metres),
+    /** Clip coordinate, on one axis, of the centre of the page whose first texel is `origin` in a
+     *  layer `size` texels wide: where a page's square lies in the pool's clip square, `y` negated. */
+    shadowAtlasClip: (origin: V, size: V) =>
+      o.sub(o.div(o.add(o.mul(o.float(2), origin), page), size), o.float(1)),
     /** Toward which neighbour, on that axis, the PCF around `t` reads: 1 up, −1 down. */
     shadowPcfStep: (t: V, first: V) =>
       o.pick(o.ge(o.sub(t, first), o.float(SHADOW_PAGE / 2)), o.int(1), o.int(-1)),
