@@ -91,9 +91,10 @@ test('the pass draws with the camera, not the jittered matrix of temporal accumu
   const rt = {
     context: { guides },
     gpu: {
-      colorView: color,
+      displayView: color,
       depthView: depth,
       hdrView: hdr,
+      displaySize: [8, 4],
       targetSize: [8, 4],
       guides: undefined,
       guideRevision: 0,

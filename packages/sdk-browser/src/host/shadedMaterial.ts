@@ -36,6 +36,9 @@ export type HostShadedMaterial = HostMaterial & {
   readonly normalMap?: HostMap;
   readonly normalMapType?: number;
   readonly normalScale?: { readonly x: number; readonly y: number };
+  /** Whether `normalScale` was written for a frame read from vertex tangents — the material
+   *  table's tangent variant (`derivativeTangents` false, `docs/FORMAT.md`); unsaid, unknown. */
+  readonly forVertexTangents?: boolean;
   readonly aoMap?: HostMap;
   readonly aoMapIntensity?: number;
   readonly emissive?: unknown;
@@ -55,6 +58,8 @@ export type HostShadedMaterial = HostMaterial & {
   readonly clippingPlanes?: { readonly length: number } | null;
   readonly stencilWrite?: boolean;
   readonly flatShading?: boolean;
+  /** The surface opts out of the scene's fog when false. */
+  readonly fog?: boolean;
   readonly wireframe?: boolean;
   /** Width in CSS pixels of the lines the surface draws; zero when it draws triangles. */
   readonly lineWidth?: number;

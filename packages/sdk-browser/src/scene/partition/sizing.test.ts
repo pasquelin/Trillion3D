@@ -45,7 +45,14 @@ function twoRows() {
       const nodes = [{ ...node, rotation: null, scale: null }];
       bodies.set(url, new TextEncoder().encode(JSON.stringify({ version: 2, nodes })));
       const box = [100 * at, 0, 0, 100 * at + 1, 1, 1];
-      cells.push({ url, sha256: '', bytes: 1, parents: [[parent, box]], meshes: [[0, 1]] });
+      cells.push({
+        url,
+        sha256: '',
+        bytes: 1,
+        parents: [[parent, box]],
+        meshes: [[0, 1]],
+        meshPages: [],
+      });
     }
   const root = new Group();
   const parents = [new Object3D(), new Object3D()];

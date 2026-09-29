@@ -65,6 +65,7 @@ export type {
 } from '../../sdk-core/src/contracts/proxy.ts';
 export { regionRect } from '../../sdk-core/src/scene/light-shadow/volume.ts';
 export { SHADOW_PAGE } from '../../sdk-core/src/scene/light-shadow/virtual.ts';
+export type { ShadowReceivers } from '../../sdk-core/src/scene/light-shadow/receiverCells.ts';
 export type { ShadowRequestReport } from '../../sdk-core/src/scene/light-shadow/requests.ts';
 export { solveTransportOracle } from '../../sdk-core/src/lighting/transport/oracle.ts';
 export type {

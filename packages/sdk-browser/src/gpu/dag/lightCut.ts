@@ -1,14 +1,14 @@
-import { FRAME_VEC4, type DagViewUniforms, type DrawnLog } from './types.ts';
+import type { DagViewUniforms, DrawnLog } from './types.ts';
 import { writeDagUniforms, type DagCutViews } from './uniforms.ts';
 import { createLightCutReports } from './lightCutReports.ts';
 import { createLightCutRedraws } from './lightCutRedraws.ts';
 import { encodeDagKernels, type DagView } from './encode.ts';
-import { dagWorkLayout } from './shader/floorWgsl.ts';
-import { dagFlagsWords } from './shader/lastUseWgsl.ts';
-import { lightCutCapacity, lightQueueCap } from './lightCutCapacity.ts';
+import { lightCutCapacity } from './lightCutCapacity.ts';
+import { lightCutBuffers, makeDagBuffer } from './bufferTable.ts';
 import { DAG_UNIFORM_BYTES, DAG_VIEW_WORDS } from './shader/viewsWgsl.ts';
 import type { createDagResources } from './resources.ts';
 import { shadowBatchWrites } from '../shadow/batchWrites.ts';
+import { CANDIDATE_SECTION, flagLocation } from './split.ts';
 
 type DagResources = NonNullable<Awaited<ReturnType<typeof createDagResources>>>;
 export type DagLightCut = ReturnType<typeof createDagLightCut>;
@@ -38,29 +38,19 @@ export type DagLightCut = ReturnType<typeof createDagLightCut>;
  */
 export function createDagLightCut(resources: DagResources) {
   const { device, packed, residentCut, pageCount, outputBytes, readbackBytes } = resources;
-  const { blockCount, own } = resources;
+  const { own, listCap } = resources;
   const capacity = lightCutCapacity(device.limits, resources),
-    queueCap = lightQueueCap(resources, capacity),
-    layout = dagWorkLayout(blockCount, capacity);
+    table = lightCutBuffers(resources, capacity),
+    { queueCap, workLayout: layout } = table;
   const storage = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST;
-  const flags = own({
-    label: 'Trillion3D light cut flags',
-    size: dagFlagsWords(queueCap, pageCount, false) * 4,
-    usage: storage,
-  });
-  const work = own({
-    label: 'Trillion3D light cut work',
-    size: layout.words * 4,
-    usage: storage | GPUBufferUsage.COPY_SRC,
-  });
+  // Its flags in the camera's parts (`split.ts`): one kernel text, one layout.
+  const flagParts = table.flags.map((row) => makeDagBuffer(own, row)),
+    [flags] = flagParts;
+  const work = makeDagBuffer(own, table.rows.work);
   // One row of per-primitive planes per view, in the camera's ranges (`frameRanges.ts`); the root
   // and stretch words the kernel reads sit in the first row, as the camera's frames hold them.
   const frames = resources.frames.ranges.map(({ count }) =>
-    own({
-      label: 'Trillion3D light cut frames',
-      size: capacity * count * FRAME_VEC4 * 16,
-      usage: storage,
-    }),
+    makeDagBuffer(own, table.frames(count)),
   );
   resources.frames.writeRows(frames);
   let frameWrites = resources.frameWrites.count;
@@ -88,16 +78,25 @@ export function createDagLightCut(resources: DagResources) {
     drawnGroupsOffset: layout.drawnGroups * 4,
     ranges: resources.frames.bindGroups(
       resources.layout,
-      { ...resources.group, views: uniforms, flags, out: output, work },
+      {
+        ...resources.group,
+        views: uniforms,
+        flags,
+        out: output,
+        work,
+        parts: { ...resources.group.parts, flags: flagParts.slice(1) },
+      },
       frames,
     ),
     repeat: null,
     light,
   };
-  // Every view's drawn clusters: one log over the candidate list's words, one range per view.
+  // Every view's drawn clusters: one log over the candidate list's words, one range per view, in
+  // the part that holds that section whole.
+  const log = flagLocation(resources.split.flagCuts, CANDIDATE_SECTION, queueCap, pageCount);
   const drawnLog: DrawnLog = {
-    buffer: flags,
-    offset: queueCap + pageCount * 3,
+    buffer: flagParts[log.part],
+    offset: log.word,
     work,
     offsetWord: layout.viewWords + capacity,
     countWord: layout.viewWords + 2 * capacity,
@@ -130,7 +129,7 @@ export function createDagLightCut(resources: DagResources) {
       listed = true;
       for (let v = 0; v < count; v++) {
         const block = uniformData.subarray(v * DAG_VIEW_WORDS, (v + 1) * DAG_VIEW_WORDS);
-        writeDagUniforms(block, packed, views[v].uniforms, residentCut, cutViews);
+        writeDagUniforms(block, packed, views[v].uniforms, residentCut, listCap, cutViews);
       }
       shadowBatchWrites(device).write(uniforms, 0, uniformData, 0, count * DAG_VIEW_WORDS);
       // A placement's stretch or a parked root changed on the camera's side: the first row follows.

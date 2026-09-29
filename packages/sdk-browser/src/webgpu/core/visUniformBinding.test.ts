@@ -43,14 +43,14 @@ test('every group that binds the visibility uniform spans the whole struct', () 
   assert.equal(sizeAt(small, SMALL_BINDINGS.uniform), VIS_UNIFORM_BYTES);
 });
 
-test('only the vertex stage reads the visibility uniform, at the size of its struct', async () => {
+test('both stages read the visibility uniform, at the size of its struct', async () => {
   const { device } = fakeDevice();
   const { visBindGroupLayout } = await createWebgpuVisibilityShaders(device, 8);
   const entry = (
     visBindGroupLayout as unknown as { entries: GPUBindGroupLayoutEntry[] }
   ).entries.find((candidate) => candidate.binding === VIS_BINDINGS.uniform)!;
-  // No fragment of the pass reads it.
-  assert.equal(entry.visibility, GPUShaderStage.VERTEX);
+  // The fragment reads its texture level bias (#816).
+  assert.equal(entry.visibility, GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT);
   assert.equal(entry.buffer?.minBindingSize, VIS_UNIFORM_BYTES);
 });
 
@@ -58,6 +58,6 @@ test('the uniform size covers its words, rounded to the matrix alignment', () =>
   const words = VIS_UNIFORMS_WGSL.replace(/.*viewProj:mat4x4f,/, '').match(/:(f32|u32)/g)!;
   const vec2 = (VIS_UNIFORMS_WGSL.match(/:vec2f/g) ?? []).length;
   const bytes = 64 + 4 * words.length + 8 * vec2;
-  assert.match(VIS_UNIFORMS_WGSL, /selectionEnabled:u32,pixelRatio:f32,\}$/);
+  assert.match(VIS_UNIFORMS_WGSL, /selectionEnabled:u32,pixelRatio:f32,mipBias:f32,\}$/);
   assert.equal(VIS_UNIFORM_BYTES, Math.ceil(bytes / 16) * 16);
 });

@@ -43,30 +43,30 @@ export interface WebgpuTimingState {
   lastPartitionMs: number;
   /** What the image's partition decided: counts, never durations. */
   partitionCounts: {
-    lignes: number;
-    occulteurs: number;
-    testees: number;
+    rows: number;
+    occluders: number;
+    tested: number;
     /** Rows the previous image drew, before its pyramid withdrew some of them. */
-    historiqueOcculteurs: number;
+    previousOccluders: number;
     /** Rows drawn last image that last image's pyramid sent to the tested half. */
-    retiresParLaPyramide: number;
+    pyramidWithdrawn: number;
     /** Image these counts describe: they are written by the GPU and reread periodically, therefore
      *  never those of the current image. `-1` until a sample has come back. */
-    imageRelevee: number;
+    sampledFrame: number;
   };
-  /** What the world step walks: counts, never durations. `racines` is how many root matrices one
-   *  rebase brings back to the eye, fixed with the layout; `racinesRebasees` is how many this image
+  /** What the world step walks: counts, never durations. `roots` is how many root matrices one
+   *  rebase brings back to the eye, the layout's roots; `rootsRebased` is how many this image
    *  did — all of them when the camera or the scene moved, none otherwise, so a held or still image
    *  reports zero. */
-  worldCounts: { racines: number; racinesRebasees: number };
+  worldCounts: { roots: number; rootsRebased: number };
   /** What encode uploaded and submitted: counts, never durations. */
   encodeCounts: {
-    lignesTeleversees: number;
-    fichesTeleversees: number;
-    appelsDeDessin: number;
-    appelsDeMelange: number;
+    rowsUploaded: number;
+    itemsUploaded: number;
+    drawCalls: number;
+    blendDrawCalls: number;
     /** Compute-raster dispatches, counted separately: they are not draw calls. */
-    lancementsDeCalcul: number;
+    computeDispatches: number;
   };
   /** CPU bounds of the last images, on the publish cadence of the `cpu-timing` diagnostic. */
   cpuProfile: ReturnType<typeof createCpuStepProfile>;
@@ -114,7 +114,10 @@ export function createWebgpuStageProfiler(): StageProfiler {
   return stages;
 }
 
-export function createWebgpuTimingState(stages?: StageProfiler, roots = 0): WebgpuTimingState {
+export function createWebgpuTimingState(
+  stages?: StageProfiler,
+  roots: () => number = () => 0,
+): WebgpuTimingState {
   const cpuProfile = createCpuStepProfile(CPU_STEP_NAMES);
   return {
     gpuTiming: undefined,
@@ -126,20 +129,26 @@ export function createWebgpuTimingState(stages?: StageProfiler, roots = 0): Webg
     stages,
     lastPartitionMs: 0,
     partitionCounts: {
-      lignes: 0,
-      occulteurs: 0,
-      testees: 0,
-      historiqueOcculteurs: 0,
-      retiresParLaPyramide: 0,
-      imageRelevee: -1,
+      rows: 0,
+      occluders: 0,
+      tested: 0,
+      previousOccluders: 0,
+      pyramidWithdrawn: 0,
+      sampledFrame: -1,
     },
-    worldCounts: { racines: roots, racinesRebasees: 0 },
+    // Read live: placements grown in place join the roots (`placement/webgpuGrowth.ts`).
+    worldCounts: {
+      get roots() {
+        return roots();
+      },
+      rootsRebased: 0,
+    },
     encodeCounts: {
-      lignesTeleversees: 0,
-      fichesTeleversees: 0,
-      appelsDeDessin: 0,
-      appelsDeMelange: 0,
-      lancementsDeCalcul: 0,
+      rowsUploaded: 0,
+      itemsUploaded: 0,
+      drawCalls: 0,
+      blendDrawCalls: 0,
+      computeDispatches: 0,
     },
     cpuProfile,
     cpuWindow: createCpuStepProfile(CPU_STEP_NAMES, { row: cpuProfile.row }),

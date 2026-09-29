@@ -27,10 +27,7 @@ import {
   transformAffinePoint,
 } from '../../../../sdk-core/src/index.ts';
 import { boxPointDistance } from '../../../../sdk-core/src/math/primitives/box.ts';
-import {
-  orthographicView,
-  perspectiveSlope,
-} from '../../../../sdk-core/src/math/primitives/camera.ts';
+import { drawnView, perspectiveSlope } from '../../../../sdk-core/src/math/primitives/camera.ts';
 import type { CameraOptics } from '../../camera/engineCamera.ts';
 import { stretchOf } from './boxes.ts';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
@@ -60,7 +57,7 @@ export function cellReach(optics: PartitionOptics) {
   const { far, orthographic } = optics,
     zoom = optics.zoom || 1; // a zoom of 0 draws nothing: read as 1, never as an empty reach
   if (orthographic) {
-    const [x, y, width, height] = orthographicView(orthographic, zoom, view);
+    const [x, y, width, height] = drawnView(orthographic, optics.aspect, zoom, view);
     // Its depth range may reach behind the eye: a negative `near` draws there. A box given right
     // to left, or top to bottom, is as wide.
     const depth = Math.max(Math.abs(far), Math.abs(optics.near));

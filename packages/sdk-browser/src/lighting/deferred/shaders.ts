@@ -1,5 +1,5 @@
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts';
-import { DIRECT_LIGHTING_WGSL } from '../direct/lightingWgsl.ts';
+import { directLightingWgsl } from '../direct/lightingWgsl.ts';
 import { BOUNCE_APPLY_WGSL } from '../../bounce/applyWgsl.ts';
 import {
   BOUNCE_SURFACE_BINDING,
@@ -7,12 +7,12 @@ import {
   bounceReflectionWgsl,
 } from '../../bounce/reflectWgsl.ts';
 import { TONE_MAPPING_WGSL } from '../toneMappingWgsl.ts';
-import { AS_IS_FLAG } from '../../scene/surfaceModel.ts';
+import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG } from '../../scene/surfaceModel.ts';
 import { BLOOM_COMPOSE_WGSL } from '../../effects/bloomLevel.ts';
 
 export const FULLSCREEN_VERTEX = `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(f32(i32(i&1u)*4-1),f32(i32(i>>1u)*4-1),0.0,1.0);}`;
 /** Last link of every composition: linear radiance carried into display space. */
-const SRGB_WGSL = `
+export const SRGB_WGSL = `
 fn linearToSrgb(c:vec3f)->vec3f{return select(1.055*pow(max(c,vec3f(0.0)),vec3f(0.41666))-0.055,c*12.92,c<vec3f(0.0031308));}`;
 /** View uniform, shared by both programs and by the water composite: `viewport` carries the
  *  size, the raw-output flag of diagnostic views and the rank of a sampled image
@@ -65,13 +65,13 @@ const contractSurface = (bounce: string, diagnostic = '') => `
 ${FULLSCREEN_VERTEX}
 ${WORLD_AT_WGSL}
 @fragment fn lightSurface(@builtin(position) pixel:vec4f)->@location(0) vec4f{
- let coord=vec2i(pixel.xy);let flag=textureLoad(flags,coord,0).r;
+ let coord=vec2i(pixel.xy);let surfaceFlag=textureLoad(flags,coord,0).r;let flag=surfaceFlag&${FOG_FREE_SURFACE_FLAG - 1}u;
  if(flag==0u){return vec4f(0.0);}
  let base=textureLoad(baseMetal,coord,0);
  if(flag==${AS_IS_FLAG}u){return vec4f(base.rgb,1.0);}
  let z=textureLoad(depth,coord,0);
  let P=worldAt(pixel.xy,z);
- if(flag==1u){return vec4f(fogged(base.rgb,P,view.display.yzw),1.0);}
+ if(flag==1u){var rgb=base.rgb;if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}return vec4f(rgb,1.0);}
  let normal=textureLoad(normalRough,coord,0);let emissive=textureLoad(emissiveAo,coord,0);
  // Its footprint at its depth, the unit of its shadow level; a lane in the target asks per subgroup.
  shadowFootprint=length(worldAt(pixel.xy+vec2f(1.0,0.0),z)-P);shadowRequesting=all(vec2u(pixel.xy)<textureDimensions(depth));
@@ -80,39 +80,35 @@ ${WORLD_AT_WGSL}
  ${diagnostic}
  let lit=contractLighting(base.rgb,base.a,normal.a,N,V,P,emissive.a,pixel.xy);
  let ambient=environmentLighting(base.rgb,base.a,N,emissive.a);
- return vec4f(fogged(lit+ambient+emissive.rgb${bounce},P,view.display.yzw),1.0);
+ var rgb=lit+ambient+emissive.rgb${bounce};if((surfaceFlag&${FOG_FREE_SURFACE_FLAG}u)==0u){rgb=fogged(rgb,P,view.display.yzw);}
+ return vec4f(rgb,1.0);
 }`;
-/**
- * Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
- * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
- * added (P6). An unlit material shows its colour with no response to light, still seen through
- * the fog; a diagnostic, normal or depth surface comes out as-is.
- */
-export const DIRECT_LIGHTING_SHADER = `
-${VIEW_WGSL}
-${surfaceBindingsWgsl()}
-${CONTRACT_BINDINGS_WGSL}
-${STANDARD_LIGHTING_WGSL}
-${DIRECT_LIGHTING_WGSL}
-${contractSurface('')}`;
-/**
- * The same program, plus bounced light: probe irradiance multiplied by the pixel's diffuse
- * albedo, and what a mirror reflects (#31), added to the direct. It is a separate program, not a
- * branch, so a session without bounce runs exactly the previous shader, bit for bit.
- */
-export const BOUNCE_LIGHTING_SHADER = `
-${VIEW_WGSL}
-${surfaceBindingsWgsl()}
-${CONTRACT_BINDINGS_WGSL}
-${STANDARD_LIGHTING_WGSL}
-${DIRECT_LIGHTING_WGSL}
-${BOUNCE_APPLY_WGSL}
+/** The bounce program's surface: bounced light and what a mirror reflects, added to the direct. */
+const BOUNCE_SURFACE_WGSL = `${BOUNCE_APPLY_WGSL}
 ${bounceReflectionWgsl(BOUNCE_SURFACE_BINDING)}
 ${MIRROR_LIGHTING_WGSL}
 ${contractSurface(
   '+bounceLighting(base.rgb,base.a,N,P,emissive.a)+mirrorLighting(base.rgb,base.a,normal.a,N,V,P)',
   'if(bounceOnly()){return vec4f(bounceIrradiance(N,P,view.lightParams.w),1.0);}',
 )}`;
+/** Contract program: deferred resolve lit by the declared lights only, with their shadows, seen
+ * through the scene's fog. No ambient term, no constant sky, no light written in the scene is
+ * added (P6). An unlit material shows its colour with no response to light, still seen through
+ * the fog; a diagnostic, normal or depth surface comes out as-is. With `bounce`, bounced light:
+ * probe irradiance multiplied by the pixel's diffuse albedo, and what a mirror reflects (#31),
+ * added to the direct. It is a separate program, not a branch, so a session without bounce runs
+ * exactly the previous shader, bit for bit — and so is the `narrow` one, the resolve of a scene
+ * of at most `TILE_LIGHTS` lights (`directLightingWgsl`, #849).
+ */
+export const contractLightingShader = (bounce: boolean, narrow: boolean) => `
+${VIEW_WGSL}
+${surfaceBindingsWgsl()}
+${CONTRACT_BINDINGS_WGSL}
+${STANDARD_LIGHTING_WGSL}
+${directLightingWgsl(narrow)}
+${bounce ? BOUNCE_SURFACE_WGSL : contractSurface('')}`;
+export const DIRECT_LIGHTING_SHADER = contractLightingShader(false, false);
+export const BOUNCE_LIGHTING_SHADER = contractLightingShader(true, false);
 /**
  * How the composition reads a pixel's as-is share — 1 on a debug view (a normal or depth surface,
  * `AS_IS_FLAG`), 0 elsewhere —, binding 2, one read per pixel. A still image reads its surface

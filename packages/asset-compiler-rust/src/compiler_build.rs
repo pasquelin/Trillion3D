@@ -8,8 +8,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     // Phase counters of this job, and of no other: they follow the thread until return.
     let phases = perf::JobPhases::default();
     let _attached = phases.attach();
-    // Held until return: two simultaneous compilations of one cache would erase each
-    // other, each pruning what the other just published.
+    // Held until return: two compilations of one cache would each prune what the other published.
     let _lock = CacheLock::acquire(o)?;
     // The router picks the format driver and has it produce the intermediate scene;
     // everything after reads only a glTF, without knowing which format it came from.
@@ -17,8 +16,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     // Cutout answers, read before any conversion (`cutout.rs`).
     let decisions = cutout::load_decisions(&o.cache, &o.source)?;
     let routed: RoutedSource = plugins::scene::prepare_source(o, &progress)?;
-    // Root where relative image URIs resolve, read before any move of `o.source`
-    // onto the cache: a converted scene wrote it there, its images stayed where the driver read them.
+    // Where relative image URIs resolve, read before a converted scene moves `o.source` away.
     let image_root = routed.scene.images(&o.source);
     let imported;
     let o = if let PreparedScene::Converted { directory, .. } = &routed.scene {
@@ -58,7 +56,6 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     if let Some(reused) = compiler_reuse::reuse(o, &key, &pool, &progress)? {
         return compiler_reuse::finish(o, &key, reused, started, &progress);
     }
-    let mesh_values = values(g, "meshes")?;
     let view_values = values(g, "bufferViews")?;
     let BufferPlan {
         accessors,
@@ -67,7 +64,8 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         views,
         view_map,
         estimated_working_bytes,
-    } = plan_buffers(o, g, bin, &loaded.g_bytes, &meshes)?;
+        waves,
+    } = plan_buffers(o, g, bin, loaded.g_bytes_len, &meshes)?;
     let (directory, output_views, source_bin) = copy_source_bin(o, bin, view_values, &views, &key)?;
     let offset = source_bin.bytes as usize;
     let import_ms = shared_math::elapsed_ms(started);
@@ -76,14 +74,13 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     );
     let cluster_start = Instant::now();
     // Compact per-page index storage is bounded independently from source size. Metadata is retained.
-    // World scale of each mesh is read before the loop: the proxy threshold is in
-    // metres, and a primitive placed under a scale cannot know it on its own.
+    // Each mesh's world scale, read before the loop: the proxy threshold is in metres.
     let mesh_scales = proxy::mesh_scales(g, &chosen)?;
     let primitive_inputs = PrimitiveInputs {
         o,
         g,
         bin,
-        mesh_values,
+        mesh_values: values(g, "meshes")?,
         skinned_meshes: &skinned_meshes,
         mesh_map: &mesh_map,
         mesh_scales: &mesh_scales,
@@ -91,13 +88,11 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         validated: &accessors,
         progress: &progress,
     };
-    let mut compiled: Vec<CompiledPrimitive> = pool.install(|| {
-        jobs.par_iter()
-            .map(|(m, p)| compile_primitive(&primitive_inputs, m, p).map_err(|e| e.within(*m, *p)))
-            .collect::<Result<Vec<_>>>()
+    // Primitives compile in waves whose working sets fit the job's budget together (`plan_buffers`).
+    let compiled: Vec<CompiledPrimitive> = pool.install(|| {
+        compiler_budget::waves::run_waves(&waves, |i| compile_job(&primitive_inputs, &jobs[i]))
     })?;
-    let collisions: Vec<Value> = compiled.iter_mut().map(|c| c.collision.take()).collect();
-    let (mut primitives, cluster_planes, proxy_cuts, proxy_thresholds) =
+    let (mut primitives, cluster_planes, proxy_cuts, proxy_thresholds, collisions, covers) =
         compiler_coplanar::split_compiled(compiled);
     let bootstrap_bundles = {
         let _t = perf::Timer::new(perf::Phase::PageWrite);
@@ -127,11 +122,11 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         output_views: &output_views,
         offset,
     })?;
-    // Mip chain of each atlas texture and the cutout sheet, on the pool.
     let (texture_previews, texture_preview_report, cutout_report) = stage_textures(
         &pool,
         &TextureStage {
             o,
+            reserved_bytes: estimated_working_bytes,
             g,
             bin,
             image_root: &image_root,
@@ -169,12 +164,17 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let (autonomous_scene, autonomous_refusal, autonomous, mut products) =
         write_autonomous_scene(&directory, &source, &primitives, &output_views)?;
     let paged = write_mesh_pages(&primitives, &directory)?;
-    let tables = stage_scene_tables(&source, autonomous.as_ref(), &paged, &directory, &progress)?;
+    let (tables, cells) =
+        stage_scene_tables(&source, autonomous.as_ref(), &paged, &directory, &progress)?;
+    let placed = (&primitives[..], covers);
+    let (world_products, world_report) =
+        stage_world_roots((o, &pool), (&source, &directory), placed, &cells)?;
     let (physics_file, physics) = stage_physics(&scene, &primitives, &collisions, &directory)?;
     products.extend([tables, source_bin, source_gltf, lights, physics_file]);
+    products.extend(world_products);
     let unsupported = compiler_format::unsupported(&o.simplification, autonomous_refusal);
     let cache_format = compiler_format::cache_format(&primitives);
-    let mut result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"geometryPages":compiler_page_object::geometry_page_format(),"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"cutouts":cutout_report,"proxy":proxy_descriptor,"physics":physics,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen.len(),"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"worstStalls":compiler_primitive_stalls::worst_stalls(&primitives),"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseElapsedMs":phases.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"peakRssBytes":null,"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
+    let mut result = json!({"schema":cache_format,"formatVersion":cache_format,"compilerVersion":COMPILER_VERSION,"errorModel":DAG_ERROR_MODEL,"geometryPages":compiler_page_object::geometry_page_format(),"status":"ready","key":key,"scenePlugin":routed.plugin.map(plugins::provenance),"scope":o.scope,"clusterStrategy":DAG_CLUSTER_STRATEGY,"coplanar":coplanar_report,"texturePreviews":texture_preview_report,"cutouts":cutout_report,"proxy":proxy_descriptor,"physics":physics,"selectedTriangles":selected_triangles,"sourceTriangles":manifest["runtime"]["trianglesAcrossNodes"],"selectedNodes":chosen.len(),"totalNodes":manifest["runtime"]["meshNodes"],"autonomousScene":autonomous_scene,"worldRoots":world_report,"worstStalls":compiler_primitive_stalls::worst_stalls(&primitives),"primitives":primitives,"simplification":o.simplification!="none","gpuDriven":false,"metrics":{"importMs":import_ms,"clusterHierarchyPagesMs":shared_math::elapsed_ms(cluster_start),"compileMs":shared_math::elapsed_ms(started),"sourceMappedBytes":bin.len(),"outputGeometryBytes":offset,"phaseElapsedMs":phases.report(),"threads":o.threads,"ramBudgetMb":o.ram_budget_mb,"admissionEstimatedBytes":estimated_working_bytes,"compileWaves":waves.len(),"peakRssBytes":perf::rss::peak_bytes(),"cpuMs":null,"diskBytesRead":null},"unsupported":unsupported});
     publish(
         &Publication {
             o,

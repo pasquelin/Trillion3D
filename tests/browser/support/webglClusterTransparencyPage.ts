@@ -4,6 +4,7 @@ import { pageDiagnostics } from '../../../packages/sdk-browser/src/host/pageDiag
 import { asHostLibrary } from '../../../packages/sdk-browser/src/host/resources.ts';
 import { drawCoplanarBlend } from './webglClusterCoplanarBlend.ts';
 import { clear, clusterRecord, mountClusterRenderer, pixel } from './webglClusterPixels.ts';
+import { keptClusterScene } from '../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
 
 const geometry = (reverseFirst = false) => {
   const result = new G.Geometry();
@@ -33,7 +34,8 @@ const geometry = (reverseFirst = false) => {
 export function execute() {
   const mounted = mountClusterRenderer();
   if (!mounted) return { unavailable: 'WebGL2 unavailable' };
-  const { gl, renderer, scene, drawCamera } = mounted;
+  const { gl, renderer, drawCamera } = mounted;
+  const scene = keptClusterScene(mounted.scene);
   const blend = G.basicSurface({
       transparent: true,
       opacity: 0.5,

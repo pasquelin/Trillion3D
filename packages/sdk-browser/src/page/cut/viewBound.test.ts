@@ -16,6 +16,7 @@ import { createCutDelta } from '../../webgpu/cut/delta.ts';
 import { createCutPending } from '../../webgpu/cut/pending.ts';
 import { createWebgpuPageTracking } from '../../webgpu/row/pageTracking.ts';
 import { createWebgpuResidencySets } from '../../webgpu/residency/sets.ts';
+import { createRequestAdmission } from '../../webgpu/residency/requestAdmission.ts';
 import type { ClusterRoot, PageRec } from '../selection/types.ts';
 
 const dag = ruleDag(64);
@@ -63,13 +64,13 @@ function tables(copies: number) {
   });
   sets.applyCut(closure.delta);
   sets.applyDrawn(drawnDelta);
-  sets.applyBudget(1 << 20);
+  createRequestAdmission(sets, tracking, closure).held(1 << 20);
   const pending = createCutPending(packed, closure.delta);
   pending.apply();
   assert.ok(pending.count > 0, 'the view awaits its pages');
   // WebGL2: the requests closed over their groups.
-  const requests = createAutonomousRequests(roots, () => 0, []);
-  requests.of(cut.wanted);
+  const requests = createAutonomousRequests(roots, () => 0);
+  requests.of(cut.wanted, []);
   return {
     'CPU cut readiness (page/cut/held.ts)': cpuReadiness,
     'GPU readiness and upload (gpu/dag/readiness.ts)': gpuReadiness,

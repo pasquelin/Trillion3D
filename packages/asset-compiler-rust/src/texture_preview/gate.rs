@@ -124,12 +124,14 @@ pub(super) fn cook_chain(
     if !measure.passes() {
         return gate(measure, Cooked::Lossless);
     }
-    // A level the verdict vouched for and that vanished meanwhile is encoded on the spot.
+    // A level the verdict vouched for and that vanished meanwhile is encoded on the spot;
+    // its file holds its tile records (#962).
     let written = write_levels(o, sha256, kind, (width, height), file, |level, (w, h)| {
-        Ok(match level.checked_sub(from) {
+        let encoded = match level.checked_sub(from) {
             Some(index) => Cow::Borrowed(blocks[index].as_slice()),
             None => Cow::Owned(encode_level(&levels[level], w, h, format, sheet.layout)),
-        })
+        };
+        Ok(Cow::Owned(tile_records(&encoded, w, h)))
     });
     if written.is_err() {
         return gate(measure, Cooked::Failed(LEVEL_WRITE_FAILED));

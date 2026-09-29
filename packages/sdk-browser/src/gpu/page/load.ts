@@ -2,10 +2,20 @@ import type { GpuPageContext, ResidentPage } from './types.ts';
 import { commitGpuPage } from './commit.ts';
 import { refusedStatus, retriableError } from '../../cluster/checked.ts';
 
-export function createGpuPageLoader(context: GpuPageContext) {
+/** `tier` pins the page inside the queued operation: no resize queued behind the load runs between
+ *  its arrival and its pin, so a held page is never ranked as an unpinned one. `priority` is its read's. */
+export function createGpuPageLoader(
+  context: GpuPageContext,
+  pin: (key: string, tier: 'held' | 'pinned') => void,
+) {
   const { abort, resident, fetches, state, reader, check, pageBytes, pins } = context;
   const { report, emit, now, readBytes, fetchBytes } = reader;
-  return function load(key: string, signal?: AbortSignal): Promise<ResidentPage> {
+  return function load(
+    key: string,
+    signal?: AbortSignal,
+    tier?: 'held' | 'pinned',
+    priority?: number,
+  ): Promise<ResidentPage> {
     const combined = signal ? AbortSignal.any([signal, abort.signal]) : abort.signal;
     const abortListener =
       report && signal
@@ -24,7 +34,8 @@ export function createGpuPageLoader(context: GpuPageContext) {
       resident: resident.has(key),
       loading: fetches.has(key),
     }));
-    const fetched = !state.disposed && !resident.has(key) ? fetchBytes(key, combined) : undefined;
+    const fetched =
+      !state.disposed && !resident.has(key) ? fetchBytes(key, combined, priority) : undefined;
     const operation = state.pending.then(async () => {
       const queueStarted = now();
       try {
@@ -45,6 +56,7 @@ export function createGpuPageLoader(context: GpuPageContext) {
             generation: existing.generation,
             source: 'resident-cache',
           }));
+          if (tier) pin(key, tier);
           return existing;
         }
         emit('gpu-page-cache-miss', 'Page absent from GPU residency', () => ({
@@ -54,7 +66,7 @@ export function createGpuPageLoader(context: GpuPageContext) {
         }));
         let bytes: Uint8Array;
         try {
-          bytes = await (fetched ?? fetchBytes(key, combined));
+          bytes = await (fetched ?? fetchBytes(key, combined, priority));
         } catch (err) {
           // A refusal another request would meet again (a 4xx) is not asked twice (`checked`).
           if (!combined.aborted && !state.disposed && retriableError(err)) {
@@ -65,7 +77,7 @@ export function createGpuPageLoader(context: GpuPageContext) {
               nextAttempt: 2,
               error: String(err),
             }));
-            bytes = await readBytes(key, combined, 2);
+            bytes = await readBytes(key, combined, 2, priority);
           } else throw err;
         }
         check(combined);
@@ -86,7 +98,9 @@ export function createGpuPageLoader(context: GpuPageContext) {
           }));
           throw new Error('PAGE_SIZE_MISMATCH');
         }
-        return commitGpuPage(context, key, bytes, requestStarted);
+        const page = commitGpuPage(context, key, bytes, requestStarted);
+        if (tier) pin(key, tier);
+        return page;
       } catch (error) {
         emit('gpu-page-error', 'GPU load failed', () => ({
           version: 1,

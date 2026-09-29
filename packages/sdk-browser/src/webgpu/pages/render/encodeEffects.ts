@@ -34,7 +34,8 @@ export function encodeEffects(
   gpu.effects ??= createWebgpuEffects(device, (error) =>
     rt.diag.diagnosticFailure('effects-unavailable', error),
   );
-  const [width, height] = gpu.targetSize;
+  // After the resolve: at the display's size.
+  const [width, height] = gpu.displaySize;
   // The composition blends the last bloom in once its programs are compiled (#963): same image.
   const fuse =
     passes.at(-1)?.kind === 'bloom' &&

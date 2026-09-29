@@ -2,7 +2,8 @@
  * The session's side of a partitioned scene (#404): the rows are sized for its camera's reach and
  * the cells that camera needs are read and placed before the engines read the rows
  * (`primePartitions`), and before every frame the cells follow the camera through the session's
- * streamer and active engine (`createPartitionFrame`).
+ * streamer and active engine (`createPartitionFrame`), the meshes whose primitive the view read
+ * since mounted in place (`partitionMounts.ts`, #751).
  * The reach is the frame camera's far plane, never a number of the scene's
  * (`../../scene/partition/plan.ts`).
  */
@@ -13,7 +14,10 @@ import type { FrameBudget } from '../../page/integration/frameBudget.ts';
 import { resolveCameraWorld, type HostCamera } from '../../camera/world.ts';
 import type { PartitionCells } from '../../scene/partition/cells.ts';
 import { cellReach } from '../../scene/partition/plan.ts';
+import { cellHoldings } from '../../scene/partition/cellPages.ts';
 import type { createPageStreamer } from '../../streaming/pageStreamer.ts';
+import { growsInPlaceOf } from '../../placement/backendSceneUpdates.ts';
+import { createPartitionMounts } from './partitionMounts.ts';
 
 type Streamer = ReturnType<typeof createPageStreamer>;
 
@@ -54,20 +58,25 @@ type Inputs = {
   /** The session's one integration budget per frame (`BackendContext.frameBudget`): cells spend
    *  from it before the arrival drain and the engine's row records spend the rest. */
   budget: FrameBudget;
+  /** What the session opened on (`partitionMounts.ts`). */
+  opened?: Parameters<typeof createPartitionMounts>[0]['opened'];
   /** Asked once the camera's reach, or a parent's stretch, outgrew the rows sized at open on an
-   *  engine that grows no buffer in place: the owner opens the session again, sized for it.
-   *  Absent, a cell past those rows waits. */
+   *  engine that grows no buffer in place, or a mesh the view read cannot be mounted in place:
+   *  the owner opens the session again. Absent, a cell past those rows waits. */
   renew?: () => void;
 };
 
 /**
  * The step a frame runs before it draws, or `null` when the scene is not partitioned. Its
- * `pending` settles once the cells the last frame asked for within reach are read, true while
- * one of them waits for a frame to place it: a still camera is drawn again until they all are.
+ * `pending` settles once the cells the last frame asked for within reach are read, and the
+ * manifest pages and mounts they asked (#751), true while one of them waits for a frame to place
+ * or mount it, or a mount landed: a still camera is drawn again until they all are.
  */
 export function createPartitionFrame(inputs: Inputs) {
   const { partitions, streamer, camera, active, renew, budget } = inputs;
   if (!partitions.length) return null;
+  const mounts = createPartitionMounts({ partitions, opened: inputs.opened, active, renew });
+  const manifests = partitions.map((cells) => cellHoldings(cells).manifest);
   let reads: Promise<void>[] = [],
     later = false;
   const request = (urls: readonly string[], ahead: boolean) => {
@@ -80,20 +89,25 @@ export function createPartitionFrame(inputs: Inputs) {
     if (!ahead) reads.push(read);
   };
   const pending = async () => {
-    const asked = reads;
+    const asked = reads,
+      turned = [...mounts.asked(), ...manifests.flatMap((manifest) => manifest.reads())];
     reads = [];
-    await Promise.all(asked);
-    return later;
+    await Promise.all([...asked, ...turned]);
+    return later || turned.length > 0 || mounts.stale();
   };
   const step = () => {
+    mounts.sync();
     const backend = active();
-    const io = {
+    const io: Parameters<PartitionCells['frame']>[2] = {
       bytes: (url: string) => streamer.getBytes(url),
       loading: (url: string) => streamer.loading(url),
       request,
       update: (...range: Parameters<NonNullable<RenderBackend['updatePlacements']>>) =>
         backend.updatePlacements?.(...range),
-      grow: backend.growPlacements?.bind(backend),
+      grow: backend.growPlacements && {
+        growPlacements: backend.growPlacements.bind(backend),
+        growsInPlace: (from, capacity) => growsInPlaceOf(backend, from, capacity),
+      },
       outgrown: renew,
     };
     const { eye, reach } = viewOf(camera);

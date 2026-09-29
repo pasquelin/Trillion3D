@@ -30,7 +30,8 @@ const lightSource = {} as ShadowLightSource;
  * Under the CPU cut, the same selection has already run on the CPU (`cpuCasters.ts`), and each
  * face's list waits at its own place in one buffer, every batch's: only the region cull runs here.
  *
- * Returns false when a resource the frame needs is missing: the caller then reissues the pages.
+ * Returns false when a resource the frame needs is missing, or no flag slot is free: the caller
+ * then reissues the pages.
  */
 export function encodeShadowCasters(
   rt: WebgpuPagesRuntime,
@@ -52,6 +53,9 @@ export function encodeShadowCasters(
   if (light) lights.lightCut = light;
   // A batch holds no more views than its cut runs at once (`encodeShadowBatches.ts`).
   if (light && runs.count > light.capacity) return false;
+  // Every flag slot still read: the batch draws nothing rather than pages it could not check, and
+  // they stay stale for a frame with a slot (`../../gpu/dag/lightCutRedraws.ts`, #1142).
+  if (light && runs.count && !light.redraws.ready) return false;
   if (light) {
     const map = gpuDraw.lightRows(light.pageCount);
     // The blended casters' rows are no draw record's: their pages are pinned in the map instead.
@@ -130,8 +134,9 @@ export function redrawShortPages(
   nowMs: number,
   residencyMoved: boolean,
 ) {
-  const { plan } = rt.lights,
-    redraws = rt.lights.lightCut?.redraws;
+  const { lights } = rt,
+    { plan } = lights,
+    redraws = lights.lightCut?.redraws;
   if (!redraws) return;
   if (residencyMoved) redraws.residencyChanged();
   if (plan.resting) redraws.rest();
@@ -139,11 +144,34 @@ export function redrawShortPages(
   const pages = redraws.takeRedraw((page, withdraw, staticCasters) => {
     if (pool.owner[page] < 0) return;
     pool.stale(page, nowMs, frame, staticCasters ? STALE_FULL : STALE_DYNAMIC);
-    if (withdraw) pool.withdraw(plan.table, page);
+    if (withdraw) {
+      pool.withdraw(plan.table, page);
+      lights.lightCutWithdrawnPages++;
+    } else lights.lightCutCoarsePages++;
   });
   if (pages)
     rt.diag.engineDiagnostic('light-cut-redraw', 'Pages the light cut drew short, drawn again', {
       pages,
-      viewLimit: redraws.viewLimit,
+      viewLimit: redraws.limit.value,
     });
+}
+
+/** The light-cut metrics of an engine without the GPU light cut. */
+const NO_LIGHT_CUT = {
+  shadowCutDrops: null,
+  shadowCutWithdrawnPages: null,
+  shadowCutCoarsePages: null,
+  shadowCutViewLimit: null,
+} as const;
+
+/** The light cut's counters as frame metrics (`ShadowFrameMetrics`), null without a light cut. */
+export function lightCutMetrics({ lights }: WebgpuPagesRuntime) {
+  const limit = lights.lightCut?.redraws.limit;
+  if (!limit) return NO_LIGHT_CUT;
+  return {
+    shadowCutDrops: limit.dropsRead,
+    shadowCutWithdrawnPages: lights.lightCutWithdrawnPages,
+    shadowCutCoarsePages: lights.lightCutCoarsePages,
+    shadowCutViewLimit: limit.value,
+  };
 }

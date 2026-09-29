@@ -160,10 +160,17 @@ export function growClusterBox(rec: PageRec, box: Float64Array) {
   boxUnion(box, 0, x - r, y - r, z - r, x + r, y + r, z + r);
 }
 
-/** One flat world box and its two halves, allocated once: what a change is declared with. */
-export const changeBox = new Float64Array(6),
-  changeMin = changeBox.subarray(0, 3),
-  changeMax = changeBox.subarray(3, 6);
+/** Two flat world boxes and their halves, allocated once, that a change is declared with: the
+ *  rows the static layer holds, then the rows already moving. */
+export const changeBoxes = [0, 1].map(() => {
+  const box = new Float64Array(6);
+  return { box, min: box.subarray(0, 3), max: box.subarray(3, 6) };
+});
+
+/** True when the record's placement already moves: the static layer does not hold its casters,
+ *  and a change of its own redraws the moving casters alone (#993). */
+export const recordMoves = ({ mobility }: WebgpuLightState, rec: PageRec) =>
+  rec.placementIndex !== undefined && mobility.moves(rec.placementIndex);
 
 /**
  * A page entered residency or left it since the last plan: the scene is drawn at another
@@ -171,12 +178,18 @@ export const changeBox = new Float64Array(6),
  * no longer describe it exactly and become candidates again — once the camera rests, since
  * the change is one of representation, not of the world. Without that, a settled map would
  * keep the shadow of a cluster that left, or ignore that of a cluster that arrived (#159). The
- * declared box is that of the cluster's world sphere.
+ * declared box is that of the cluster's world sphere; a moving placement's, or a blended
+ * caster's (`moving`), leaves the static layer as it is.
  */
-export function noteResidenceChange(lights: WebgpuLightState, rec: PageRec) {
+export function noteResidenceChange(
+  lights: WebgpuLightState,
+  rec: PageRec,
+  moving = recordMoves(lights, rec),
+) {
   const { store, plan } = lights;
   if (!store.count) return;
-  boxEmpty(changeBox, 0);
-  growClusterBox(rec, changeBox);
-  plan.representationChanged(changeMin, changeMax);
+  const { box, min, max } = changeBoxes[+moving];
+  boxEmpty(box, 0);
+  growClusterBox(rec, box);
+  plan.representationChanged(min, max, moving);
 }

@@ -22,3 +22,10 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
+
+## draco-core
+
+- Source: https://github.com/Filyus/draco-rust, crate `draco-core` pinned at `2.1.0`.
+- Shipped in: the native asset compiler, for `KHR_draco_mesh_compression` decoding.
+- Licence: Apache-2.0; see https://www.apache.org/licenses/LICENSE-2.0.
+- Only mesh decoding and EdgeBreaker valence decoding are enabled; no encoder or point-cloud decoder is linked.

@@ -3,14 +3,12 @@ use super::scene::World;
 use super::trace::Hit;
 use crate::proxy::PROXY_TRIANGLE_FLOATS;
 
-use crate::shared_math::{cross, dot, length, scale, sub};
+use crate::shared_math::{cross, dot, scale, sub, unit_where};
+
+/// `a` at unit length, or `a` itself when its length is not positive. The oracle's own guard: a
+/// NaN or infinite length still divides, as the oracle always has.
 pub fn normalise(a: [f64; 3]) -> [f64; 3] {
-    let norm = length(a);
-    if norm <= 0.0 {
-        a
-    } else {
-        scale(a, 1.0 / norm)
-    }
+    unit_where(a, |norm| norm > 0.0 || norm.is_nan()).unwrap_or(a)
 }
 pub fn vertex(world: &World, triangle: usize, corner: usize) -> [f64; 3] {
     let base = triangle * PROXY_TRIANGLE_FLOATS + corner * 3;

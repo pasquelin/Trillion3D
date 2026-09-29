@@ -44,13 +44,34 @@ const LAMP_PAGE_COUNT:u32=${LAMP_SIDE}u;
 const LAMP_MIP_COUNT:u32=${LAMP_MIPS}u;
 const LAMP_FACE_WORDS:u32=${LAMP_FACE_ENTRIES}u;
 const SHADOW_DEPTH_ROUNDING:f32=${SHADOW_DEPTH_ROUNDING};
+/** The least normal float: above the far clear, 0, and under any caster's depth. */
+const SHADOW_PAST_FAR:f32=1.17549435e-38;
 /** Window origin of clipmap slot \`slot\` of record \`index\`. */
 fn sunOrigin(index:u32,slot:i32)->vec2i{
  let pair=shadows.records[index].origins[slot/2];
  return select(pair.xy,pair.zw,(slot&1)!=0);
 }
-fn sunShadowFactor(index:u32,P:vec3f,N:vec3f)->f32{
- // Field by field: a record is six matrices wide, and the sun reads none of them.
+/**
+ * The reference of a receiver \`z\` along sun \`index\`, its margin taken, in a page drawn in the
+ * older depth range of slot \`drawn\` (\`sunDepth.ts\`): a pair of floats of the lamp matrices,
+ * eight a matrix. A receiver past that range's far side lies behind every caster drawn in it: it
+ * stays above the far clear, and an empty texel lights it.
+ */
+fn sunRangeReference(index:u32,drawn:u32,z:f32)->f32{
+ let pair=shadows.records[index].faces[drawn/8u][(drawn/2u)%4u];
+ let range=select(pair.xy,pair.zw,(drawn&1u)!=0u);
+ return max(1.0-(z-range.x)*(1.0/max(range.y-range.x,1e-6))+SHADOW_DEPTH_ROUNDING,SHADOW_PAST_FAR);
+}
+/** Offset of the neighbour page \`p\` and 1 when it is readable in the depth range of the home
+ *  page (\`homeWord\`, \`sunDepth.ts\`); else the home page's and 0: one reference for every tap. */
+fn shadowNeighbour(m:ShadowMap,p:vec2i,home:vec3f,homeWord:u32)->vec4f{
+ let word=shadowPageWord(m,p);
+ if(word==0u||((word^homeWord)>>PAGE_RANGE_SHIFT)!=0u){return vec4f(home,0.0);}
+ return vec4f(shadowOffset(word,p),1.0);
+}
+fn sunShadowFactor(index:u32,P:vec3f,N:vec3f,taps:bool)->f32{
+ // Field by field: a record is six matrices wide, and the sun reads its depth ranges there alone.
+ // The fourth floats of its frame: the current range, \`zNear, zFar\`, then its slot.
  let f0=shadows.records[index].frame[0];let f1=shadows.records[index].frame[1];
  let right=f0.xyz;let up=f1.xyz;let axis=shadows.records[index].frame[2].xyz;
  let zNear=f0.w;let invDepth=1.0/max(f1.w-zNear,1e-6);
@@ -73,11 +94,16 @@ fn sunShadowFactor(index:u32,P:vec3f,N:vec3f)->f32{
   let word=shadowPageWord(map,home);
   if(word==0u){continue;}
   let reference=1.0-(dot(Q,axis)-zNear-shadowDepthMargin(texel,slope,1.0))*invDepth+SHADOW_DEPTH_ROUNDING;
-  return shadowPcf(map,t,reference,home,word,0.0);
+  // A page drawn in the current range reads at \`reference\` alone, as one range always did: a
+  // reference chosen per page would let the compiler round its comparisons otherwise.
+  let drawn=(word>>PAGE_RANGE_SHIFT)&PAGE_RANGE_MASK;
+  if(drawn==u32(shadows.records[index].frame[2].w)){return shadowPcf(map,t,reference,home,word,0.0,taps);}
+  let past=sunRangeReference(index,drawn,dot(Q,axis)-shadowDepthMargin(texel,slope,1.0));
+  return shadowPcf(map,t,past,home,word,0.0,taps);
  }
  return sunFarShadowFactor(P,N,-axis);
 }
-fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
+fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,taps:bool)->f32{
  let info=shadows.records[index].info;
  let cosine=clamp(dot(N,L),1e-3,1.0);
  let radius=length(light.positionRange.xyz-P);
@@ -117,15 +143,16 @@ fn lampShadowFactor(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
   let facing=dot(N,vec3f(m[0].w,m[1].w,m[2].w));
   let slope=sqrt(max(1.0-facing*facing,0.0))/(dot(d,d)*cosine);
   let reference=ndc.z+k*shadowDepthMargin(texel,slope,1.0/(clip.w*clip.w))+SHADOW_DEPTH_ROUNDING;
-  return shadowPcf(map,t,reference,home,word,side);
+  return shadowPcf(map,t,reference,home,word,side,taps);
  }
  return 1.0;
 }
-/** Fraction of light that reaches the point: 1 in full light, 0 fully in shadow. */
-fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f)->f32{
+/** Fraction of light that reaches the point: 1 in full light, 0 fully in shadow — or 0 when
+ *  \`taps\` is false and a page was read: the point takes no light, its pages are still asked for. */
+fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,taps:bool)->f32{
  if(slice<0){return 1.0;}
  let index=u32(slice);
  if(shadows.records[index].info.x<0.5){return 1.0;}
- if(isSun(light)){return sunShadowFactor(index,P,N);}
- return lampShadowFactor(index,light,P,N,L);
+ if(isSun(light)){return sunShadowFactor(index,P,N,taps);}
+ return lampShadowFactor(index,light,P,N,L,taps);
 }`;

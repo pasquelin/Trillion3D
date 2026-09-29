@@ -11,7 +11,7 @@ import { updateClusterBatches } from './batchUpdate.ts';
 import type { WebglClusterOwner } from '../../../../packages/sdk-browser/src/webgl/cluster/owner.ts';
 import type { HostDrawCamera } from '../../../../packages/sdk-browser/src/camera/world.ts';
 import { drawClusterBatches, type BatchCopy } from './batchDraw.ts';
-import type { ClusterDrawScene } from '../../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
+import type { Scene } from '../../../../packages/sdk-browser/src/world/core/scene.ts';
 import { EngineError } from '../../../../packages/sdk-core/src/index.ts';
 export {
   IndexRangeAllocator,
@@ -42,7 +42,7 @@ export type ClusterDrawOwner = Pick<WebglClusterOwner, keyof WebglClusterOwner>;
 /** Resident index ranges of the paged clusters, batched per primitive instance, and the draw
  *  records the owner submits each frame. The host scene is read for its lights and background. */
 export class ClusterBatches {
-  private scene: ClusterDrawScene;
+  private scene: Scene;
   private primitives: PrimitiveIndex[] = [];
   private groups: Array<BatchGroup | undefined> = [];
   private layerGroups: Array<Map<number, BatchGroup> | undefined> = [];
@@ -68,7 +68,7 @@ export class ClusterBatches {
 
   /** No `owner` where no WebGL2 context exists: the cut still runs, a draw is refused by name. */
   constructor(
-    scene: ClusterDrawScene,
+    scene: Scene,
     pages: readonly BatchPage[],
     owner?: ClusterDrawOwner,
     copies: readonly BatchCopy[] = [],

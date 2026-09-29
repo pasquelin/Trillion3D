@@ -18,7 +18,7 @@ export function page(metrics: Record<string, unknown>): Page {
       gpuFrameMs: [],
       stageProfile: null,
       importedLights: null,
-      lampesTemoin: null,
+      witnessLights: null,
       shadowAtlas: null,
       movingNode: null,
       selection: { source: null, ids: [] },
@@ -61,7 +61,7 @@ export async function contexte(settings: Partial<RunContext['settings']> = {}) {
     from: 'test',
     engine: {
       backend: 'creerMoteur',
-      id: 'moteur-test',
+      id: 'engine-test',
       flags: [],
       page: 'lightingPage.ts',
       source: 'cache',

@@ -14,7 +14,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 function batchViews(rt: WebgpuPagesRuntime) {
   const { run } = rt;
   const light = run.gpuFrameActive && run.gpuSelection ? lightCutOf(run.gpuSelection) : undefined;
-  return light ? light.redraws.viewLimit : MAX_SHADOW_PAGES;
+  return light ? light.redraws.limit.value : MAX_SHADOW_PAGES;
 }
 
 /** The views a batch of this frame runs, the batches it may draw and the staging they take, from
@@ -31,9 +31,9 @@ export function frameBatchCapacity(rt: WebgpuPagesRuntime) {
  * the frame's page count when every batch was visited.
  *
  * At most the frame's capacity (`frameBatchCapacity`): the current pool's pages in the fewest
- * pages a batch holds, within the memory grant. Only a view limit bisected past the grant's reach
- * after a light cut dropped work needs more; the pages past the last are then pending, drawn the
- * next frame. An empty list visits no batch.
+ * pages a batch holds, within the memory grant. More than `MAX_SHADOW_BATCHES` full batches stale
+ * at once, or a view limit bisected after a light cut dropped work, needs more; the pages past the
+ * last are then pending, drawn the next frame. An empty list visits no batch.
  */
 export function forEachShadowBatch(
   rt: WebgpuPagesRuntime,
@@ -85,6 +85,7 @@ export function encodeShadowBatches(
         const regions = writeShadowPages(lights, eye, from, to);
         if (!encodeShadowAtlas(rt, device, encoder, regions, from, to, runBase)) return false;
         lights.shadowFaces += lights.runs.count;
+        lights.shadowWork.drewBatch(pageModes, to - from);
         plan.commit(pageModes, from, to);
         return true;
       },
