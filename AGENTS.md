@@ -39,8 +39,7 @@ to the boss, in short, simple French; everything in the repository is English.
    team, until a CTO frees it as abandoned (one hour without a commit, comment or pull request).
 6. **The whole issue, always.** Every To-do and Proof item is delivered in its pull request; none
    is left for later, moved to another issue or marked done in part without the boss's yes. One
-   item missing is a `KO`. Sole exception: at claim time, before any code, a CTO narrows an issue
-   too big for one pull request and moves the rest onto an existing issue.
+   item missing is a `KO`.
 7. **Reuse what exists.** A second BVH, distance or control beside the engine's API is a defect.
 8. **The witness library stays a witness** (bench and measurement only). Everything is TypeScript.
 9. **Commits:** no trailer, no co-author, no tool name, no forced identity. Branch
