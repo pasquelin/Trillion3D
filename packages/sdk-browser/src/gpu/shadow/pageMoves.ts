@@ -131,5 +131,3 @@ export async function createShadowPageMover(device: GPUDevice) {
     },
   };
 }
-
-export type ShadowPageMover = Awaited<ReturnType<typeof createShadowPageMover>>;
