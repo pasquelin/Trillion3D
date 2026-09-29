@@ -7478,6 +7478,17 @@
   "SHADOW_RECORD_FLOATS": {
     "summary": "阴影记录的浮点数，即光源着色所读取的内容：六个灯面矩阵 — 太阳在此存放深度范围，每个为 `zNear, zFar`（`recordPack.ts`）—，然后是太阳光平面的坐标系 — `right, zNear`、`up, zFar`、`axis`，然后是当前范围的槽位 —，然后是每个 clipmap 槽位窗口原点的两个整数，最后是一个 `vec4f` 头：面（灯）或级别（太阳）、灯的切向半视场或太阳的最细级别、灯的近平面，以及记录在页表中的第一个条目。"
   },
+  "ShadowReceivers": {
+    "summary": "一帧着色所照亮的表面，即宿主在阴影光栅化之前交给它的内容。",
+    "members": {
+      "boxes": "世界空间包围盒，每个 `RECEIVER_FLOATS` 个数：该帧每个被照亮的表面都位于其中之一。",
+      "count": "列出的包围盒数。",
+      "planes": "相机视锥的六个平面（`frustumPlanesFromMatrix`）：位于其外的不被照亮。",
+      "pixelNear": "近平面处一个像素的世界尺寸，被照亮点的足迹从这里开始：读取阴影的各通道中最小的——绘制目标的、显示屏的。",
+      "pixelNearMost": "同上，这些通道中最大的。",
+      "orthographic": "正交相机：每个像素的足迹都是 `pixelNear`。"
+    }
+  },
   "ShadowRequestReport": {
     "summary": "着色在一帧中读取的内容：它请求的表条目，无顺序。",
     "members": {

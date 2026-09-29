@@ -7479,6 +7479,17 @@
   "SHADOW_RECORD_FLOATS": {
     "summary": "Float dari rekaman bayangan, yang dibaca shading sebuah cahaya: enam matriks muka lampu — di sana rentang kedalaman matahari, masing-masing `zNear, zFar` (`recordPack.ts`) —, lalu kerangka bidang cahaya matahari — `right, zNear`, `up, zFar`, `axis`, lalu slot rentang saat ini —, lalu asal jendela tiap slot clipmap sebagai dua bilangan bulat, lalu header `vec4f`: muka (lampu) atau level (matahari), setengah bidang tangen lampu atau level terhalus matahari, bidang dekat lampu, dan entri pertama rekaman di tabel halaman."
   },
+  "ShadowReceivers": {
+    "summary": "Permukaan yang diterangi shading sebuah frame, sebagaimana host menyerahkannya sebelum rasterisasi bayangannya.",
+    "members": {
+      "boxes": "Kotak dunia, masing-masing `RECEIVER_FLOATS`: setiap permukaan yang diterangi dalam frame terletak di salah satunya.",
+      "count": "Kotak yang terdaftar.",
+      "planes": "Enam bidang frustum kamera (`frustumPlanesFromMatrix`): yang berada di luar tidak diterangi.",
+      "pixelNear": "Ukuran dunia satu piksel di bidang dekat, tempat jejak sebuah titik yang diterangi dimulai: yang terkecil dari pass yang membaca bayangan — milik target yang digambar, milik layar.",
+      "pixelNearMost": "Sama, yang terbesar dari pass tersebut.",
+      "orthographic": "Kamera ortografis: jejak setiap piksel adalah `pixelNear`."
+    }
+  },
   "ShadowRequestReport": {
     "summary": "Yang dibaca shading dalam satu bingkai: entri tabel yang dimintanya, tanpa urutan.",
     "members": {

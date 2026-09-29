@@ -1,20 +1,22 @@
-import { LIGHT_SETTINGS, type ShadowViewpoint } from '../light/contracts.ts';
+import { LIGHT_KIND, LIGHT_SETTINGS, type ShadowViewpoint } from '../light/contracts.ts';
 import type { SceneLightStore } from '../light/store.ts';
 import { frustumExcludesBox } from '../../math/frustum/box.ts';
+import { boxLeastAlong, boxPointFarthest } from '../../math/primitives/boxReach.ts';
 import { castsShadow } from './casters.ts';
-import { boxFarthest, createLampDemand, type DemandLight } from './demandLamp.ts';
+import { createLampDemand, type DemandLight } from './demandLamp.ts';
 import { createSunDemand } from './demandSun.ts';
 import type { ShadowPool } from './pool.ts';
 import type { ShadowRequestReport, createShadowRequests } from './requests.ts';
 import type { SunLevels } from './sunLevels.ts';
 import type { ShadowTable } from './table.ts';
+import { RECEIVER_FLOATS, createReceiverCells, type ShadowReceivers } from './receiverCells.ts';
 import {
-  RECEIVER_FLOATS,
-  boxDepth,
-  createReceiverCells,
-  type ShadowReceivers,
-} from './receiverCells.ts';
-import { PAGE_MAPPED, SHADOW_TABLE_ENTRIES, shadowRequestCap } from './virtual.ts';
+  LAMP_FLOOR_MIP,
+  SHADOW_TABLE_ENTRIES,
+  lampEntry,
+  lampFacesOf,
+  shadowRequestCap,
+} from './virtual.ts';
 
 type ShadowRequests = ReturnType<typeof createShadowRequests>;
 
@@ -38,8 +40,8 @@ const MAX_SPLITS = 12;
  * list is a request report of this frame, read by the scheduler as any other (`requests.consume`):
  * page identity, residency and validity keep their one set of rules.
  *
- * The readback of the shading stays as the proof an image may hold: `covers` says whether a report
- * named only pages already mapped. Allocates nothing past construction.
+ * The readback of the shading stays: the proof an image may hold, and, a frame late, what the
+ * receivers missed (`read`). Allocates nothing past construction.
  */
 export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: SunLevels) {
   const cap = shadowRequestCap(pool.pages),
@@ -69,23 +71,29 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
   /** Least and most footprint of a pixel over the box — its view depth, then its distance —,
    *  widened by 1/64: the projection's jitter and rounding. */
   const footprint = (o: number, most: boolean) => {
-    const { pixelNear } = receivers;
-    if (receivers.orthographic) return pixelNear;
+    const pixel = most ? receivers.pixelNearMost : receivers.pixelNear;
+    if (receivers.orthographic) return pixel;
     const eye = view.position;
     if (most)
-      return (pixelNear * boxFarthest(stack, o, eye[0], eye[1], eye[2]) * (1 + 1 / 64)) / view.near;
-    return (pixelNear * Math.max(boxDepth(stack, o, view), view.near) * (1 - 1 / 64)) / view.near;
+      return (
+        (pixel * boxPointFarthest(stack, o, eye[0], eye[1], eye[2]) * (1 + 1 / 64)) / view.near
+      );
+    return (
+      (pixel * Math.max(boxLeastAlong(stack, o, view.forward, eye), view.near) * (1 - 1 / 64)) /
+      view.near
+    );
   };
   const visit = (light: DemandLight, depth: number) => {
     const o = depth * RECEIVER_FLOATS;
-    // A cell holds boxes the frustum keeps (`receiverCells.ts`): only its halves may leave it.
-    const b = stack;
-    if (
-      depth &&
-      frustumExcludesBox(receivers.planes, b[o], b[o + 1], b[o + 2], b[o + 3], b[o + 4], b[o + 5])
-    )
-      return;
-    if (!light.reaches(stack, o)) return;
+    // A cell holds boxes the frustum keeps, in the light's reach (`write`): only its halves test.
+    if (depth) {
+      const b = stack;
+      if (
+        frustumExcludesBox(receivers.planes, b[o], b[o + 1], b[o + 2], b[o + 3], b[o + 4], b[o + 5])
+      )
+        return;
+      if (!light.reaches(stack, o)) return;
+    }
     light.levels(stack, o, footprint(o, false), footprint(o, true), levels);
     const fine = levels[0],
       coarse = levels[1];
@@ -106,13 +114,6 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
     }
     for (let level = fine; level <= coarse; level++) light.mark(stack, o, level, margin);
   };
-  /** True when `read`, of this layout, named no page the pool does not map. */
-  const covers = (read: ShadowRequestReport) => {
-    if (read.layoutEpoch !== table.layoutEpoch || read.count > cap) return false;
-    for (let i = 0; i < read.count; i++)
-      if (!(table.words[read.entries[i]] & PAGE_MAPPED)) return false;
-    return true;
-  };
   const demand = {
     /** This frame's demand, as a report stamped `stamp`: every page its receivers read. */
     write(
@@ -124,7 +125,9 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
     ) {
       view = at;
       receivers = from;
-      seen.fill(0);
+      // The words last listed, or the whole set past a list that overflowed.
+      if (report.count > cap) seen.fill(0);
+      else for (let i = 0; i < report.count; i++) seen[report.entries[i] >>> 5] = 0;
       report.frame = frame;
       report.layoutEpoch = table.layoutEpoch;
       report.stamp = stamp;
@@ -139,6 +142,10 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
           light.kind === 'directional'
             ? sunDemand.aim(slice, base, mark)
             : lampDemand.aim(light, base, mark);
+        // Every face's floor, as `requests.floors` asks a lamp's: what a reader falls back to last.
+        if (light.kind !== 'directional')
+          for (let face = 0; face < lampFacesOf(LIGHT_KIND[light.kind]); face++)
+            mark(base + lampEntry(face, LAMP_FLOOR_MIP, 0, 0));
         for (let r = 0; r < cells.count; r++) {
           if (!reader.reaches(cells.boxes, r * RECEIVER_FLOATS)) continue;
           for (let k = 0; k < RECEIVER_FLOATS; k++) stack[k] = cells.boxes[r * RECEIVER_FLOATS + k];
@@ -148,10 +155,11 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
       return report;
     },
     /**
-     * Reads the frame's requests: the receivers' demand when the host hands them — the shading's
-     * report `read` then schedules nothing —, else `read`. Returns true when `read` proves the
-     * state stamped `before` asks for nothing more: its stamp is that state's, what it named is
-     * mapped, and the requests read allocated nothing (`requests.complete`).
+     * Reads the frame's requests. Without receivers, the shading's report `read`, as of its own
+     * frame. With them, `read` first — what it names asked for as of this frame: the readback,
+     * a frame late, adds what no receiver named —, then the demand, which needs no report. Returns
+     * true when `read` proves the state stamped `before` asks for nothing more: its stamp is that
+     * state's, and neither it nor the demand allocated a page (`requests.complete`).
      */
     read(
       requests: ShadowRequests,
@@ -163,10 +171,10 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
       nowMs: number,
       frame: number,
     ) {
+      if (read) requests.consume(read, nowMs, frame, from ? frame : read.frame);
+      const proved = !!read && read.stamp === before && requests.complete;
       if (from) requests.consume(demand.write(store, at, from, frame, before), nowMs, frame);
-      else if (read) requests.consume(read, nowMs, frame);
-      if (!read || read.stamp !== before || !requests.complete) return false;
-      return !from || covers(read);
+      return proved && requests.complete;
     },
   };
   return demand;

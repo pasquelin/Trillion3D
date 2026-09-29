@@ -65,7 +65,8 @@ export function createShadowRequests(
     scratch = new Int32Array(4),
     /** What the entry being read names: its view, then its page. */
     at = new Int32Array(3);
-  let reportFrame = -1;
+  let reportFrame = -1,
+    decodeFrame = -1;
   /** Entries read, allocated, refused for want of a page, and asked past the list (`unlisted`). */
   const counts = { requested: 0, allocated: 0, refused: 0, unlisted: 0, latest: -1 };
   const isSun = (slice: number) => records.kind[slice] === LIGHT_KIND.directional;
@@ -86,7 +87,7 @@ export function createShadowRequests(
   const decode = (entry: number, slice: number) => {
     const relative = entry - table.baseOf(slice);
     if (isSun(slice)) {
-      if (!sun.decode(slice, relative, reportFrame, scratch)) return false;
+      if (!sun.decode(slice, relative, decodeFrame, scratch)) return false;
       if (!sun.holds(slice, scratch[0], scratch[1], scratch[2])) return false;
       for (let k = 0; k < 3; k++) at[k] = scratch[k];
       return true;
@@ -132,13 +133,15 @@ export function createShadowRequests(
     get complete() {
       return !counts.allocated && (!counts.unlisted || pool.heldBy(counts.latest));
     },
-    consume(report: ShadowRequestReport, nowMs: number, frame: number) {
+    /** Reads `report`, what it names asked for as of frame `asOf`: its own by default. */
+    consume(report: ShadowRequestReport, nowMs: number, frame: number, asOf = report.frame) {
       counts.requested = Math.min(report.count, cap);
       counts.unlisted = report.count - counts.requested;
       counts.allocated = 0;
       counts.refused = 0;
       if (report.layoutEpoch !== table.layoutEpoch) return;
-      counts.latest = reportFrame = report.frame;
+      decodeFrame = report.frame;
+      counts.latest = reportFrame = asOf;
       needs.clear();
       for (let i = 0; i < counts.requested; i++) {
         const entry = report.entries[i],

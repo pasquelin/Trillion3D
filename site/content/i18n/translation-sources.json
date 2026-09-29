@@ -903,6 +903,7 @@
     "reference:ShadowAtlasDigest": "5b9b975f 3ea08f94 846e0d69 6aadfc11 fff99c63 7fb30399 2d2a98ad 059f3926 eb8cd3e7 0ed7900c c0b40b5a ca759d89 b07c66b6 03513ec3 6f611bfd",
     "reference:ShadowFrameMetrics": "3ca67f8b 030c41b5 d9b3fe20 b8969566 88a9a031 c5eafeaa 61f0f6ca 97fea241 b32ca029 f5df9050 cf2a7b7b da9cd17e fa6a6445 7932bb1f 6bee4729",
     "reference:ShadowPlan": "ffec81e1 dd15fd5c 733b74ee 4f4fc379 42ba67b0 57c9803b da240601 3b02bb22 e4baae73 24cdfb97 95becf8d 68148bfa 609ce1be 2fa279dc 1867db5e",
+    "reference:ShadowReceivers": "6177cf92 40a97b22 09026182 dce0335f 02b95a31 c14a7837 6284e9ed 42227e49 f92adedb 0716670a 8188fac7 beb95d85 5874d01d ad5d9755 e12568d9",
     "reference:ShadowRequestReport": "f5bfc8c9 401aa0f3 611a5083 d903fede dde4d47f 5f7d9a05 8aab60af 179b5f11 690b56af 2e1b7a3c 8156fee2 48ef663c c3e69e79 6ec0ef1a 1e21a7cf",
     "reference:ShadowStaleReason": "e077e5e0 4d50189c 08cf9838 46ed7813 172d6f7d 05d12cf2 ef2a0084 b050aba6 a57fae7a adf1bc76 bdef75ae 01ea4b70 9bee562c f5e90d90 e5089565",
     "reference:ShadowViewpoint": "e9cc0a27 2ca4959f 4f0c1a51 8a3d5519 9783cb8a 1f58ea63 ff5a3fc9 4dda1c54 db32d9b7 ea2549e4 af3794dc 67c9dd86 01636158 3a213357 c7f1252f",

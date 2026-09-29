@@ -7479,6 +7479,17 @@
   "SHADOW_RECORD_FLOATS": {
     "summary": "Các số float của một bản ghi bóng, bản mà phần đổ bóng của một nguồn sáng đọc: sáu ma trận mặt đèn — ở đó là các dải độ sâu của mặt trời, mỗi dải `zNear, zFar` (`recordPack.ts`) —, rồi khung mặt phẳng ánh sáng của mặt trời — `right, zNear`, `up, zFar`, `axis`, rồi ô của dải hiện tại —, rồi gốc cửa sổ của mỗi ô clipmap dưới dạng hai số nguyên, rồi một phần đầu `vec4f`: các mặt (đèn) hoặc các mức (mặt trời), nửa trường tiếp tuyến của đèn hoặc mức mịn nhất của mặt trời, mặt phẳng gần của đèn, và mục đầu tiên của bản ghi trong bảng trang."
   },
+  "ShadowReceivers": {
+    "summary": "Các bề mặt mà tô bóng của một khung hình chiếu sáng, như máy chủ trao chúng trước khi raster hóa bóng.",
+    "members": {
+      "boxes": "Các hộp trong thế giới, mỗi hộp `RECEIVER_FLOATS`: mọi bề mặt được chiếu sáng của khung hình nằm trong một hộp.",
+      "count": "Số hộp được liệt kê.",
+      "planes": "Sáu mặt phẳng frustum của camera (`frustumPlanesFromMatrix`): những gì nằm ngoài không được chiếu sáng.",
+      "pixelNear": "Kích thước thế giới của một điểm ảnh tại mặt phẳng gần, nơi dấu chân của một điểm được chiếu sáng bắt đầu: nhỏ nhất trong các lượt đọc bóng — của đích được vẽ, của màn hình.",
+      "pixelNearMost": "Tương tự, lớn nhất trong các lượt đó.",
+      "orthographic": "Một camera trực giao: dấu chân của mọi điểm ảnh là `pixelNear`."
+    }
+  },
   "ShadowRequestReport": {
     "summary": "Những gì phép tô bóng đã đọc trong một khung: các mục bảng nó yêu cầu, không theo thứ tự.",
     "members": {

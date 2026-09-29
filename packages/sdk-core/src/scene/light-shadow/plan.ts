@@ -26,7 +26,6 @@ export type ShadowPlan = ReturnType<typeof createShadowPlan>;
  * A frame then draws every stale page the image reads, all of them in that frame (`admit.ts`):
  * what holds the cost is the cache — a page is drawn again only when what it holds changed —, and
  * the pool is the only limit. A still scene, whose shading runs no more, draws nothing.
- *
  * All arrays are allocated once — the receivers' cells grow only for a frame with more
  * receivers —; `plan()` allocates nothing else.
  */
