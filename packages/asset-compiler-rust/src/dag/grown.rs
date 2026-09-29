@@ -155,10 +155,10 @@ impl Local<'_> {
                 (weld_seam, seams)
             }
         };
-        let islands = match input.islands.is_empty() {
-            true => Vec::new(),
-            false => origins.iter().map(|&g| input.islands[g as usize]).collect(),
-        };
+        let islands = origins
+            .iter()
+            .filter_map(|&g| input.islands.get(g as usize));
+        let islands = islands.copied().collect();
         Placed {
             positions,
             carried: values,

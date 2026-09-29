@@ -38,10 +38,10 @@ function move(triangle: Awaited<ReturnType<typeof opened>>, from: AlphaMode, to:
   triangle.backend.refreshMaterials!(true, { surfaces: [triangle.material], from, to });
 }
 
-/** The page of the triangle `positions` (`SOURCE` by default) on a grid of 2^`exponent`. */
-const pageOn = (exponent?: number, positions = SOURCE) =>
+/** The page of the triangle `positions` on a grid of 2^`exponent` (2^-16 by default). */
+const pageOn = (exponent: number | undefined, positions: number[]) =>
   encodeGeometryPage(
-    Uint32Array.of(0, 1, 2),
+    [0, 1, 2],
     { POSITION: { itemSize: 3, array: Float32Array.from(positions) } },
     exponent,
   );
