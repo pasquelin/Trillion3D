@@ -6,7 +6,9 @@ use crate::shared_math::{dot, sub};
 use rayon::prelude::*;
 use std::collections::HashMap;
 
+mod bounded;
 mod level0;
+pub(crate) use bounded::distance_above;
 pub(crate) use level0::Level0;
 
 type P = [f64; 3];
@@ -125,8 +127,9 @@ impl<'a> Grid<'a> {
     fn key(&self, p: P) -> [i64; 3] {
         [0, 1, 2].map(|k| ((p[k] - self.origin[k]) / self.cell).floor() as i64)
     }
-    /// Distance from `p` to the nearest triangle: rings of cells until the ring is farther.
-    fn nearest(&self, p: P) -> f64 {
+    /// Distance from `p` to the nearest triangle: rings of cells until the ring is farther, or
+    /// until a triangle lies within `floor` (the distance returned is then not above it).
+    fn nearest(&self, p: P, floor: f64) -> f64 {
         let centre = self.key(p);
         let mut best = f64::MAX;
         for ring in 0i64.. {
@@ -153,6 +156,10 @@ impl<'a> Grid<'a> {
                             let tri = &self.triangles[t as usize * 3..t as usize * 3 + 3];
                             let [a, b, c] = [0, 1, 2].map(|k| at(self.pos, tri[k]));
                             best = best.min(triangle_distance2(p, a, b, c));
+                            // A negative floor squares positive: it never stops a sample.
+                            if floor >= 0.0 && best <= floor * floor {
+                                return best.sqrt();
+                            }
                         }
                     }
                 }
@@ -162,24 +169,17 @@ impl<'a> Grid<'a> {
     }
 }
 
-/// Largest distance from the samples of `from` to the triangles of `to`.
-fn one_sided(pos: &[f32], from: &[u32], to: &Grid) -> f64 {
+/// Largest distance from the samples of `from` to the triangles of `to`, exact above `floor`.
+fn one_sided(pos: &[f32], from: &[u32], to: &Grid, floor: f64) -> f64 {
     from.par_chunks_exact(3)
         .map(|tri| {
             let [a, b, c] = [0, 1, 2].map(|k| at(pos, tri[k]));
             let centroid = [0, 1, 2].map(|k| (a[k] + b[k] + c[k]) / 3.0);
-            [
-                a,
-                b,
-                c,
-                lerp(a, b, 0.5),
-                lerp(b, c, 0.5),
-                lerp(c, a, 0.5),
-                centroid,
-            ]
-            .into_iter()
-            .map(|p| to.nearest(p))
-            .fold(0.0, f64::max)
+            let middles = [lerp(a, b, 0.5), lerp(b, c, 0.5), lerp(c, a, 0.5)];
+            [a, b, c, middles[0], middles[1], middles[2], centroid]
+                .into_iter()
+                .map(|p| to.nearest(p, floor))
+                .fold(0.0, f64::max)
         })
         .reduce(|| 0.0, f64::max)
 }
@@ -189,7 +189,7 @@ pub(crate) fn one_sided_distance(pos: &[f32], from: &[u32], to: &[u32]) -> f64 {
     if from.is_empty() || to.is_empty() {
         return 0.0;
     }
-    one_sided(pos, from, &Grid::new(pos, to))
+    one_sided(pos, from, &Grid::new(pos, to), 0.0)
 }
 
 /// The sampled Hausdorff distance between two triangle sets over the same positions: the tests'

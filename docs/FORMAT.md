@@ -63,7 +63,7 @@ Level 0 partitions the source triangles into clusters of at most 128 triangles, 
 
 - `role` — `exact` at level 0, `coarse` above it
 - `level` — DAG level, 0 for the source triangles
-- `lodError` / `sphere` — object-space error of the group that produced this cluster, and the `[x, y, z, radius]` sphere it is projected through
+- `lodError` / `sphere` — object-space error of the group that produced this cluster, and the `[x, y, z, radius]` sphere it is projected through: at level 0 the smallest ball of the cluster's vertices, above it a ball holding every child's sphere, each never larger than the box-centre sphere or sequential merge it replaces
 - `parentError` / `parentSphere` — the same pair for the group that replaces this cluster; both `null` on a root, which is never replaced
 - `group` — index in `structure.groups` of the group that replaces this cluster, `null` on a root
 - `source` — index of the group that produced it, `null` at level 0
