@@ -901,13 +901,8 @@
     "reference:SceneToneMapping": "26544ba7 fc5a176b 76b38967 68347855 d1e6dfe4 6f538077 ead87a1e 10b4be5f 6ba24a89 e0951d26 d824d7a4 7964a60d 72bbc10e 24e60a00 c9b3f22f",
     "reference:ScreenErrorVariant": "cbd6bdc2 136eb236 9d46379f 0a20097b 647367c4 e54ff57e d9bcdd30 4789f29d 06a465e0 47d0b98a fdb25c01 ab503068 de41a8d3 5e58e6b7 cca5f79c",
     "reference:ShadowAtlasDigest": "5b9b975f 3ea08f94 846e0d69 6aadfc11 fff99c63 7fb30399 2d2a98ad 059f3926 eb8cd3e7 0ed7900c c0b40b5a ca759d89 b07c66b6 03513ec3 6f611bfd",
-<<<<<<< HEAD
     "reference:ShadowFrameMetrics": "3873e30d 6e98cae8 24f9d31d 56ed7087 e769f5c0 ea529cbe 39a9dcb6 c2cd3bff 392b098a 23cc57e9 b0be9194 fd002ce8 a2d07377 c19505d3 366c5cca",
-    "reference:ShadowPlan": "993d84eb b8909c67 0312f8b1 e970fe9f 24570756 51a0c144 58b93845 e880eba3 a1f23b08 f04c0ed3 60bbcfbf 573a24f4 c8a13368 3111737e 4f526063",
-=======
-    "reference:ShadowFrameMetrics": "4d538fb5 11af7c5a fa8f5b9c 00763d49 dcb75938 9f58b4b0 512e98f5 6eaf5423 c3bc0873 e43c204d c31b1a9c bbffaf5c c65d0fc1 319687c3 cac4229d",
-    "reference:ShadowPlan": "0b04a1be 1142982f cc23bb36 47f081dd dd51a1f4 5747971a 6cb18cbe 79f7e922 41250554 a44ca6b2 8e6e0775 841ec1c0 54f7d04a d7f78fed 01962f32",
->>>>>>> origin/develop
+    "reference:ShadowPlan": "9c799cd4 d320f5c4 036fe094 b787a469 2de8bddb 8f8d9ec6 67b9fb29 375f4ae2 0614e549 40336c3b 6ffa2fbd caad0537 6893ec1b f0362e5d f50cbdaa",
     "reference:ShadowRequestReport": "f5bfc8c9 401aa0f3 611a5083 d903fede dde4d47f 5f7d9a05 8aab60af 179b5f11 690b56af 2e1b7a3c 8156fee2 48ef663c c3e69e79 6ec0ef1a 1e21a7cf",
     "reference:ShadowStaleReason": "e077e5e0 4d50189c 08cf9838 46ed7813 172d6f7d 05d12cf2 ef2a0084 b050aba6 a57fae7a adf1bc76 bdef75ae 01ea4b70 9bee562c f5e90d90 e5089565",
     "reference:ShadowViewpoint": "e9cc0a27 2ca4959f 4f0c1a51 8a3d5519 9783cb8a 1f58ea63 ff5a3fc9 4dda1c54 db32d9b7 ea2549e4 af3794dc 67c9dd86 01636158 3a213357 c7f1252f",
