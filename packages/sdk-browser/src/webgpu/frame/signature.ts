@@ -33,9 +33,9 @@ export function sampleWebgpuFrame(rt: WebgpuPagesRuntime, into: Float64Array) {
   into[13] = run.blendDrawCalls;
   into[14] = run.blendSubmittedTriangles;
   into[15] = run.blendFrustumRejected;
-  into[16] = counts.occulteurs;
-  into[17] = counts.testees;
-  into[18] = counts.historiqueOcculteurs;
+  into[16] = counts.occluders;
+  into[17] = counts.tested;
+  into[18] = counts.previousOccluders;
   into[19] = lights.shadowsUpdated;
   into[20] = lights.shadowFaces;
   into[21] = hiz ? hiz.rejected : -1;

@@ -36,14 +36,14 @@ test('a settled exact image passes; a changed arrival that converges is transien
   assert.equal(verdict.status, 'transient');
   assert.deepEqual(verdict.arrival, {
     pixels: 1,
-    maxCanal: 1,
+    maxChannel: 1,
     meanChannel: 1 / 3,
     p999Channel: 1,
     total: 1,
   });
   assert.deepEqual(verdict.settled, {
     pixels: 0,
-    maxCanal: 0,
+    maxChannel: 0,
     meanChannel: 0,
     p999Channel: 0,
     total: 1,
