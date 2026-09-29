@@ -125,6 +125,27 @@ impl<'r> Local<'r> {
     }
 }
 
+impl Local<'_> {
+    /// The copies and texture sets the solve's error is measured on (`measured::Surface`): the
+    /// region's, then its placed vertices', each placed vertex in the texture island of the one it
+    /// was solved from, as `grown::Placed` files it.
+    pub fn measured(&self, input: &GroupReductionInput) -> (Vec<u32>, Vec<Vec<f32>>) {
+        let region = first_copies(self.remap, input.weld_seam);
+        let placed = self.origin.iter().map(|&o| region[o as usize]);
+        let weld_seam = region.iter().copied().chain(placed).collect();
+        // A solved row holds the normal first when the pages carry one, then every texture set.
+        let first = if self.normals.is_some() { 3 } else { 0 };
+        let uv_set = |(k, uvs): (usize, &[f32])| {
+            let region = self.remap.iter().flat_map(|&v| &uvs[v as usize * 2..][..2]);
+            let at = |p: usize| p * self.stride + first + 2 * k;
+            let placed = (0..self.origin.len()).flat_map(|p| &self.values[at(p)..][..2]);
+            region.chain(placed).copied().collect()
+        };
+        let uv_sets = input.attributes.uv_sets().into_iter().enumerate();
+        (weld_seam, uv_sets.map(uv_set).collect())
+    }
+}
+
 /// Per region vertex of `remap`, the region's first copy of it under the level's `weld`.
 fn first_copies(remap: &[u32], weld: &[u32]) -> Vec<u32> {
     let mut first: HashMap<u32, u32> = HashMap::new();

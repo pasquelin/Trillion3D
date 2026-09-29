@@ -110,7 +110,7 @@ test('a shadow caster enters the pool after its dependencies too', async () => {
   const [, , , b] = pages;
   const { loads, want } = ensurerOver(8, pages, {
     parentsOf,
-    lowerTiers: () => [{ pages: [b], has: () => true }],
+    lowerTiers: () => [{ pages: [b], has: () => true, revision: 0 }],
   });
   await want();
   assert.deepEqual(loads, ['r', 'm', 'b']);

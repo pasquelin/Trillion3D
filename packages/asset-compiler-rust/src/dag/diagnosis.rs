@@ -13,7 +13,6 @@
 use super::border::live_triangles;
 use super::reduce::{attempt, Stop};
 use super::*;
-use crate::join::Join;
 
 /// Position counts of a group, over its live triangles.
 struct Census {
@@ -30,8 +29,6 @@ struct Census {
 fn census(input: &GroupReductionInput, live: &[u32]) -> Census {
     // Per position: the first (position, texture coordinate) copy seen, seam, locked.
     let mut positions: HashMap<u32, (u32, bool, bool)> = HashMap::new();
-    // Per (position, texture coordinate) copy: its slot in the union-find.
-    let mut slots: HashMap<u32, u32> = HashMap::new();
     for &vertex in live {
         let copy = input.weld_seam[vertex as usize];
         let locked = input.locks[vertex as usize];
@@ -39,19 +36,12 @@ fn census(input: &GroupReductionInput, live: &[u32]) -> Census {
             .entry(input.weld[vertex as usize])
             .or_insert((copy, false, locked));
         entry.1 |= entry.0 != copy;
-        let next = slots.len() as u32;
-        slots.entry(copy).or_insert(next);
     }
-    let mut join = Join::new(slots.len());
-    for tri in live.as_chunks::<3>().0 {
-        let a = slots[&input.weld_seam[tri[0] as usize]];
-        for &corner in &tri[1..] {
-            join.unite(a, slots[&input.weld_seam[corner as usize]]);
-        }
-    }
-    let islands = (0..slots.len() as u32)
-        .filter(|&slot| join.root(slot) == slot)
-        .count();
+    let islands = super::texture::copy_islands(input.weld_seam, live);
+    let islands = islands
+        .values()
+        .collect::<std::collections::HashSet<_>>()
+        .len();
     let seam = positions.values().filter(|p| p.1).count();
     let locked = positions.values().filter(|p| p.2).count();
     Census {

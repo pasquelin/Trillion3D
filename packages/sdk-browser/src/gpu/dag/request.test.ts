@@ -10,6 +10,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   packRequest,
+  quantizeAheadPriority,
   quantizeRequestPriority,
   REQUEST_PAGE_MAX,
   REQUEST_PRIORITY_MAX,
@@ -53,15 +54,18 @@ test('quantification is monotone: it never reverses two errors', () => {
   assert.equal(quantizeRequestPriority(Infinity), REQUEST_STEP_MAX);
 });
 
-test('every visible request outranks every request ahead of the camera', () => {
+test('every visible request outranks every request ahead, served soonest first, then by error', () => {
   // The costliest absence ahead against the cheapest one on screen: the deadline decides first.
-  const rank = (pixels: number, ahead = false) =>
-    requestRank(quantizeRequestPriority(pixels, ahead));
-  assert.ok(rank(0) > rank(Infinity, true));
-  assert.equal(rank(NaN, true), 0, 'the least a request can rank');
-  assert.equal(rank(Infinity), REQUEST_PRIORITY_MAX, 'the most a request can rank');
-  // Within the tier ahead, the same monotone ranking by error.
-  assert.ok(rank(64, true) > rank(4, true));
+  const visible = (pixels: number) => requestRank(quantizeRequestPriority(pixels));
+  const ahead = (pixels: number, due: number) => requestRank(quantizeAheadPriority(pixels, due));
+  assert.ok(visible(0) > ahead(Infinity, 0));
+  assert.equal(ahead(NaN, 1), 0, 'the least a request can rank');
+  assert.equal(visible(Infinity), REQUEST_PRIORITY_MAX, 'the most a request can rank');
+  // Within the tier ahead: the sooner needed first, whatever its error, then the larger error.
+  assert.ok(ahead(1, 0.1) > ahead(1e6, 0.9));
+  assert.ok(ahead(64, 0.5) > ahead(4, 0.5));
+  assert.equal(ahead(4, NaN), ahead(4, 1), 'a deadline that is no number is the latest');
+  assert.equal(ahead(4, -1), ahead(4, 0), 'and one already past is now');
 });
 
 function coupe(seuil: number) {
