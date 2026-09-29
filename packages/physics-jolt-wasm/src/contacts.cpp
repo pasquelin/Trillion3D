@@ -1,7 +1,8 @@
 // Contact events: the pairs a body touches, their enters and leaves in the event buffer, and the
 // bodies Jolt puts to sleep. Jolt calls the listener from its jobs, on every pool thread at once:
-// each call keeps a record in its own thread's list, and the step replays them all once `Update`
-// is done, in the order the calls ran, so no call waits on another.
+// each call keeps a record in its own thread's list, so no call waits on another, and the step
+// replays them all once `Update` is done in one order that depends on no thread (`canonical`): a
+// pool of any size sends the single thread's events in the single thread's order.
 #include "contacts.h"
 
 #include <atomic>
@@ -95,6 +96,15 @@ Mutex threadsLock;
 std::vector<std::unique_ptr<std::vector<ContactRecord>>> threadRecords;
 std::atomic<uint64_t> nextOrder{0};
 
+/// The replay order, whatever thread ran a callback: pair by pair, in key order, each pair's
+/// records in the order its callbacks ran. Jolt runs one pair's callbacks one after the other, in
+/// the same order on any thread count, and computes the same records: so sorted, they give the
+/// single thread's events in one order a pool of any size gives too.
+bool canonical(const ContactRecord &x, const ContactRecord &y) {
+  uint64_t kx = pairKey(x.a, x.b), ky = pairKey(y.a, y.b);
+  return kx != ky ? kx < ky : x.order < y.order;
+}
+
 /// A rigid pair's contact added: its first one sends the enter.
 void added(World &w, const ContactRecord &r) {
   uint32_t &pair = w.pairs[pairKey(r.a, r.b)];
@@ -146,7 +156,7 @@ void replayContacts() {
     all.insert(all.end(), records->begin(), records->end());
     records->clear();
   }
-  std::sort(all.begin(), all.end(), [](const ContactRecord &x, const ContactRecord &y) { return x.order < y.order; });
+  std::sort(all.begin(), all.end(), canonical);
   for (const ContactRecord &r : all) {
     if (r.kind == ContactRecord::ADDED) added(w, r);
     else if (r.kind == ContactRecord::REMOVED) removed(w, r);

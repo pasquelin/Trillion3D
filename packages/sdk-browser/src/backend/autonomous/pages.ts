@@ -7,6 +7,7 @@ import { autonomousCapabilities, publishAutonomousCapabilities } from './capabil
 import { createWebglFrameGate } from '../../webgl/core/frameGate.ts';
 import { createAutonomousGeometry } from './geometry.ts';
 import { createAutonomousInstances } from './instances.ts';
+import { createClassPages } from './classPages.ts';
 import { prepareAutonomousManifest, autonomousBootstrap, readPages } from './manifest.ts';
 import { createAutonomousResidency } from './residency.ts';
 import { createAutonomousPool } from './poolApi.ts';
@@ -22,13 +23,11 @@ import { loadHostVertices } from '../../scene/meshes.ts';
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
   const { metadata, descriptors } = prepareAutonomousManifest(context.metadata);
-  const { roots, allPages, worlds, blendCopies, reassignBlend, blendOf } = collectClusterPages(
-    context.source,
-    metadata,
-    new Map(),
-    context.associations,
-    { allowMissing: true, blendCopy: createBlendCopy },
-  );
+  const { roots, allPages, worlds, blendCopies, reassignBlend, blendOf, wears } =
+    collectClusterPages(context.source, metadata, new Map(), context.associations, {
+      allowMissing: true,
+      blendCopy: createBlendCopy,
+    });
   const [baseRoots, basePages] = [roots.slice(), allPages.slice()];
   const bootstrap = autonomousBootstrap(roots),
     baseBootstrap = bootstrap.slice();
@@ -50,17 +49,11 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
   const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
   let ready = false;
   const geometryStore = createAutonomousGeometry({
-    scene,
-    allPages,
-    bootstrap,
-    views,
-    byUrl,
-    descriptors,
-    baseMaterials,
-    colorMaterials,
-    modifiedPages,
+    ...{ scene, allPages, bootstrap, views, byUrl, descriptors },
+    ...{ baseMaterials, colorMaterials, modifiedPages },
   });
   const { sync, acceptGeometryPage } = geometryStore;
+  const classes = createClassPages({ context, geometryStore, wears, gate });
   // The tables a placement enters: instances and instance-buffer rows append to the same.
   const tables = { roots, allPages, bootstrap, byUrl, baseMaterials, blendOf };
   const heldFloor = createHeldFloor({ bootstrap, modifiedPages, byUrl, hostCeiling });
@@ -161,6 +154,9 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     pendingUrls: residency.pendingUrls,
     retainedRanks: residency.retainedRanks,
     ...pool.api,
+    materialClassRefusal: (alpha) =>
+      instances.materialClassRefusal(alpha) ?? classes.refusal(alpha, allPages),
+    flush: () => classes.settled().then(pool.api.flush),
     syncResident() {
       gate.resourcesChanged();
       sync();
@@ -169,6 +165,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       // Values reach the twins, clones; a picture alone (#362), shared, only lets the image go.
       if (values) colorMaterials.forEach((twin, original) => colouredHostSurface(original, twin));
       if (alpha && reassignBlend(allPages, alpha)) heldFloor.changed();
+      if (alpha) classes.follow(alpha, allPages);
       (values ? gate.sceneChanged : gate.resourcesChanged)();
     },
     metrics() {
