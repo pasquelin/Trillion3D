@@ -3,16 +3,18 @@ import test from 'node:test';
 import { createGpuShadowAtlas } from './atlas.ts';
 import { fakeDevice, written } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
-test('the face bind group declares 96 bytes, read at the fragment as at the vertex', async () => {
+// What the depth pass reads — matrix, `params`, `emitter`, 96 bytes — then the page's clip square,
+// by which a page the GPU draws itself places its casters (`freshPlace`).
+test('the face bind group declares 112 bytes, read at the fragment as at the vertex', async () => {
   const { device, bindGroupLayouts, bindGroups } = fakeDevice();
   const atlas = await createGpuShadowAtlas(device, {} as GPUBindGroupLayout);
   assert.ok(atlas.faceGroup);
   const entry = (bindGroupLayouts[0] as { entries: Array<Record<string, unknown>> }).entries[0];
   assert.deepEqual(entry.visibility, GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT);
-  assert.equal((entry.buffer as { minBindingSize: number }).minBindingSize, 96);
+  assert.equal((entry.buffer as { minBindingSize: number }).minBindingSize, 112);
   const resource = (bindGroups[0] as unknown as { entries: Array<{ resource: { size: number } }> })
     .entries[0].resource;
-  assert.equal(resource.size, 96);
+  assert.equal(resource.size, 112);
 });
 
 test("a page's uniform carries its matrix, its physical page, then the emitter's centre and radius", async () => {

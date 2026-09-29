@@ -90,7 +90,7 @@ export function runShadowFresh(...bound: Uint8Array[]) {
 }
 
 /** A caster row: its world sphere, and its mobility word (`MOBILITY_*`). */
-export type CasterRow = { center: number[]; radius: number; mobility?: number };
+type CasterRow = { center: number[]; radius: number; mobility?: number };
 
 /**
  * The rows region `region` keeps of `rows`, by the region cull over every row (`shadowCullScatter`

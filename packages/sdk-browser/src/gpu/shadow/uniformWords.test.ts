@@ -54,7 +54,7 @@ const encoder = {
   copyBufferToBuffer() {},
 } as unknown as GPUCommandEncoder;
 
-test("the CPU lists' cull writes each Uni field at the word its shader reads", async () => {
+test("the CPU lists' cull, and the cull of every row, write each Uni field at the word its shader reads", async () => {
   const { device, writes } = fakeDevice();
   const cull = await createGpuShadowCull(device, 64);
   const buffer = device.createBuffer({ size: 64, usage: 0 });
@@ -62,11 +62,21 @@ test("the CPU lists' cull writes each Uni field at the word its shader reads", a
   cull.begin(3);
   // Run 1: its uniform sits one dynamic-offset stride in.
   cull.encode(encoder, { ...source, base: 13, indirectBase: 14, commands: 15 }, 1, 11, 2, 5);
+  const lists = { firstFace: 11, faces: 2, sourceBase: 13, indirectBase: 14, commands: 15 };
   agrees(
     SHADOW_CULL_SHADER,
     writes.findLast(({ offset }) => offset === PAGE_BIND_ALIGN),
     CULL_UNIFORM_WORDS,
-    { firstFace: 11, faces: 2, sourceBase: 13, indirectBase: 14, commands: 15, capacity: 64 },
+    { ...lists, capacity: 64, identity: 0 },
+  );
+  // Every row of the frame, no list (`freshPass.ts`): the rows' count where the list started.
+  const everyRow = { ...source, source: undefined, base: 9, indirectBase: 0, commands: 0 };
+  cull.encode(encoder, everyRow, 2, 11, 2, 9, [buffer, 0]);
+  agrees(
+    SHADOW_CULL_SHADER,
+    writes.findLast(({ offset }) => offset === 2 * PAGE_BIND_ALIGN),
+    CULL_UNIFORM_WORDS,
+    { ...lists, sourceBase: 9, indirectBase: 0, commands: 0, capacity: 64, identity: 1 },
   );
   cull.dispose();
 });
