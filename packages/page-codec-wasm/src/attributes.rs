@@ -1,8 +1,9 @@
 //! Streams of a page and the block of words they unpack into (`unpack.rs`).
 
 use crate::bits::stream_words;
+use crate::deform::{morph_words, skin_words, FLAG_MORPH, FLAG_SKIN};
 use crate::triangles::CornerCode;
-use crate::{Header, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1, HEADER_BYTES};
+use crate::{deform, Header, FLAG_COLOR, FLAG_NORMAL, FLAG_UV, FLAG_UV1, HEADER_BYTES};
 
 /// Presence bit and float width of each optional attribute, in stream order: normal, uv, uv1,
 /// colour. Position, three floats wide, precedes them in a decoded page.
@@ -22,6 +23,8 @@ pub struct DecodedPage {
     pub vertex_count: usize,
     pub index_count: usize,
     pub flags: u32,
+    /// Morph targets of the page: six floats each per vertex, after the skin's eight.
+    pub morph_targets: usize,
     /// The header's largest position displacement, in object units.
     pub quantization_error: f32,
 }
@@ -31,11 +34,18 @@ impl DecodedPage {
         &self.words[..self.index_count]
     }
 
-    /// Floats of the attribute at `rank` — 0 the position, then `OPTIONAL`'s order —, or
-    /// `None` when the page does not carry it.
+    /// Floats of the attribute at `rank` — 0 the position, then `OPTIONAL`'s order, then the
+    /// skin's joints and weights and the morph targets' displacements —, or `None` when the page
+    /// does not carry it.
     pub fn attribute(&self, rank: usize) -> Option<&[f32]> {
         let mut at = self.index_count;
-        for (r, (bit, width)) in core::iter::once((0, 3)).chain(OPTIONAL).enumerate() {
+        let deformation = [
+            (FLAG_SKIN, 4),
+            (FLAG_SKIN, 4),
+            (FLAG_MORPH, 6 * self.morph_targets),
+        ];
+        let ranks = core::iter::once((0, 3)).chain(OPTIONAL).chain(deformation);
+        for (r, (bit, width)) in ranks.enumerate() {
             if self.flags & bit != bit {
                 continue;
             }
@@ -70,6 +80,40 @@ impl core::fmt::Debug for DecodedPage {
     }
 }
 
+/// What a header's counts make of the page's size.
+impl Header {
+    /// Floats per decoded vertex: position, then each present attribute at its width.
+    pub fn vertex_floats(&self) -> usize {
+        3 + OPTIONAL
+            .iter()
+            .filter(|(bit, _)| self.flags & bit != 0)
+            .map(|(_, size)| size)
+            .sum::<usize>()
+            + self.deformation_floats()
+    }
+
+    /// Floats per decoded vertex the deformation adds: four joints and four weights, and six per
+    /// morph target.
+    pub fn deformation_floats(&self) -> usize {
+        let skin = if self.flags & FLAG_SKIN != 0 { 8 } else { 0 };
+        skin + 6 * self.morphs.len()
+    }
+
+    /// Bytes before the first stream: the header words and the morph targets' records.
+    pub fn bytes(&self) -> usize {
+        HEADER_BYTES + self.morphs.len() * deform::MORPH_WORDS * 4
+    }
+
+    /// Bytes of the decoded page: float attributes and 32-bit indices. Saturating, since a
+    /// forged count would otherwise wrap a 32-bit `usize` back under the budget and let the
+    /// decoder trap on its allocation instead of refusing the header.
+    pub fn decoded_bytes(&self) -> usize {
+        self.vertex_count
+            .saturating_mul(self.vertex_floats() * 4)
+            .saturating_add(self.index_count.saturating_mul(4))
+    }
+}
+
 /// Word offset, after the header, of each bit stream — every one derived from the counts and
 /// the widths, so the header stores no offset and a reader trusts none.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -82,6 +126,12 @@ pub struct Layout {
     pub uv: [usize; 2],
     pub uv1: [usize; 2],
     pub color: [usize; 4],
+    /// The skin's first stream: four joint streams, then three weight streams (`deform.rs`).
+    pub skin: usize,
+    /// The first morph target's first stream; each target's own start is in its record.
+    pub morph: usize,
+    /// Bytes before the first stream: the header and the morph records.
+    pub header_bytes: usize,
     /// Words of every stream together.
     pub words: usize,
 }
@@ -114,6 +164,20 @@ impl Layout {
             .color
             .bits
             .map(|b| stream(h.flags & FLAG_COLOR != 0, h.vertex_count, b));
+        let skinned = h.flags & FLAG_SKIN != 0;
+        let (skin, morph) = (
+            at,
+            at + if skinned {
+                skin_words(&h.skin, h.vertex_count)
+            } else {
+                0
+            },
+        );
+        at = morph
+            + h.morphs
+                .iter()
+                .map(|m| morph_words(m, h.vertex_count))
+                .sum::<usize>();
         Self {
             corners,
             triangles,
@@ -122,12 +186,26 @@ impl Layout {
             uv,
             uv1,
             color,
+            skin,
+            morph,
+            header_bytes: h.bytes(),
             words: at,
         }
     }
 
+    /// True when each morph record names the word its streams start at, in stream order.
+    pub fn morphs_at(&self, h: &Header) -> bool {
+        let mut at = self.morph;
+        h.morphs.iter().all(|m| {
+            let start = at;
+            at += morph_words(m, h.vertex_count);
+            m.start == start
+        })
+    }
+
     /// Length of the whole page file: the header and every stream.
     pub fn bytes(&self) -> usize {
-        HEADER_BYTES.saturating_add(self.words.saturating_mul(4))
+        self.header_bytes
+            .saturating_add(self.words.saturating_mul(4))
     }
 }

@@ -18,6 +18,8 @@ fn page() -> Header {
         color: Quant::flat(-8),
         quantization_error: 0.0,
         corner_bits: 0,
+        skin: Skin::default(),
+        morphs: Vec::new(),
     }
 }
 
@@ -35,7 +37,7 @@ fn short_header_then_magic_then_bounds_are_refused_in_that_order() {
         |h: &mut Header| h.vertex_count = 0,
         |h: &mut Header| h.vertex_count = MAX_VERTICES + 1,
         |h: &mut Header| h.index_count = 4,
-        |h: &mut Header| h.flags = 16,
+        |h: &mut Header| h.flags = 64,
         |h: &mut Header| h.position.bits[1] = 25,
         |h: &mut Header| h.uv.exponent = 65,
         |h: &mut Header| h.quantization_error = -1.0,
