@@ -45,6 +45,9 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     byPage = true,
     report: ShadowRequestReport | null = null,
     resting = false,
+    /** The frame the view and the world last came to rest at, else −1: the cycle whose named pages
+     *  a full pool keeps, so jittering reports stop evicting each other (#26). */
+    restFrame = -1,
     views = 0,
     settledStamp = -1;
   const stampOf = (store: SceneLightStore) => table.version + views + store.epoch;
@@ -113,7 +116,13 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       const still = changes.observeView(view),
         quiet = still && !changes.worldMoved();
       resting = still;
+      if (quiet) {
+        if (restFrame < 0) restFrame = frame;
+      } else restFrame = -1;
       if (!still) views++;
+      // At rest the cycle is the frame it began at, so the pool keeps every page the still cycle
+      // named; moving, it is the frame itself, so only what this frame names survives.
+      const cycle = quiet ? restFrame : frame;
       planLights(lightsState, store, view, sceneMin, sceneMax, frame, nowMs, byPage);
       changes.settled();
       if (still) counts.staled(STALE_BY.threshold, thresholds.restale(nowMs, frame));
@@ -128,14 +137,14 @@ export function createShadowPlan(poolSide: number, layers = 1) {
         // whole (`demandFootprint.ts`), and the image cannot hold on it.
         footprints.widened = 0;
         footprints.missed(read, nowMs, frame);
-        requests.consume(read, nowMs, frame);
+        requests.consume(read, nowMs, frame, cycle);
         counts.staled(STALE_BY.footprint, footprints.widened);
         if (read.stamp === before && requests.complete && !footprints.widened)
           settledStamp = stampOf(store);
       }
       const admitStart = performance.now();
       spent.requestsMs = admitStart - readStart;
-      requests.floors(posed, view, nowMs, frame);
+      requests.floors(posed, view, nowMs, frame, cycle);
       const count = admission.run(pool, table, requests.latest, frame, records.isFloor);
       for (let i = 0; i < count; i++) {
         const slice = pool.slice[admission.list[i]];
@@ -174,6 +183,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       admission.reset();
       report = null;
       resting = false;
+      restFrame = -1;
       settledStamp = -1;
     },
     /** The pool at another size, its pages kept, its arrays anew: returns where each page went. */
