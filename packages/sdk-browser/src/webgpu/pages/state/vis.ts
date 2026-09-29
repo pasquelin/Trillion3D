@@ -10,7 +10,6 @@ import { MAX_DRAW_SLOTS } from '../../../gpu/draw/draw.ts';
 import type { WebgpuTileStreamer } from '../../tile/streamer.ts';
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../core/bindIdentity.ts';
 import { createPresentClasses, type PresentClasses } from '../../core/materialPasses.ts';
-import { createRowSurfaces, type RowSurfaces } from '../../../reflections/gpu.ts';
 import type { GeometryBlock } from '../../row/pageRowMaterial.ts';
 import type { BlendModePipelines } from '../../blend/stagePipelines.ts';
 
@@ -39,8 +38,6 @@ export interface WebgpuVisState {
   singleShadePipelines: Map<number, GPURenderPipeline>;
   /** Classes the image being encoded has rows of (`../../core/materialPasses.ts`). */
   presentClasses: PresentClasses;
-  /** The distinct surfaces of the packed rows (`wantsReflections`). */
-  rowSurfaces: RowSurfaces;
   gpuHiz: GpuHiz | undefined;
   gpuRaster: GpuRaster | undefined;
   visHizRestBack: GPURenderPipeline | undefined;
@@ -111,7 +108,6 @@ export function createWebgpuVisState(): WebgpuVisState {
     shadePipelineFor: undefined,
     singleShadePipelines: new Map(),
     presentClasses: createPresentClasses(),
-    rowSurfaces: createRowSurfaces(),
     gpuHiz: undefined,
     gpuRaster: undefined,
     visHizRestBack: undefined,

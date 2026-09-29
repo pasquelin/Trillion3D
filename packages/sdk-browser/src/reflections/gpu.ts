@@ -23,20 +23,19 @@ export function reflectionLayout(device: GPUDevice) {
   return layout;
 }
 
-/** The distinct surfaces of the packed rows, and the rows and table age they were read at. */
-export type RowSurfaces = { read: RowsReading; epoch: number; surfaces: PageSurface[] };
-export const createRowSurfaces = (): RowSurfaces => ({
-  read: rowsUnread(),
-  epoch: -1,
-  surfaces: [],
-});
+/** The distinct surfaces of a row table's packed rows, and the rows and table age they were
+ *  read at; held per table, so a runtime that never draws a row keeps nothing. */
+type RowSurfaces = { read: RowsReading; epoch: number; surfaces: PageSurface[] };
+const rowSurfaces = new WeakMap<object, RowSurfaces>();
 
 /**
  * The surfaces rows `[0, count)` wear, each once: the rows are walked again only once written, or
  * once the table ages — a record takes another surface in place (`wearDeclaration`) under a new
  * age, before its rows are written again.
  */
-function surfacesOfRows(rows: WebgpuPagesRuntime['layout']['rows'], held: RowSurfaces) {
+function surfacesOfRows(rows: WebgpuPagesRuntime['layout']['rows']) {
+  let held = rowSurfaces.get(rows);
+  if (!held) rowSurfaces.set(rows, (held = { read: rowsUnread(), epoch: -1, surfaces: [] }));
   const moved = rowsMoved(held.read, rows.packedRecs, rows.packedCount, rows.rowWrites);
   if (!moved && held.epoch === rows.tableEpoch) return held.surfaces;
   held.epoch = rows.tableEpoch;
@@ -63,7 +62,7 @@ const reflecting = (surface: PageSurface) => reflects(refreshSurface(surface));
  */
 export function wantsReflections(rt: WebgpuPagesRuntime) {
   if (rt.run.diagnostic !== 'beauty') return false;
-  if (surfacesOfRows(rt.layout.rows, rt.vis.rowSurfaces).some(reflecting)) return true;
+  if (surfacesOfRows(rt.layout.rows).some(reflecting)) return true;
   for (const item of rt.blendState.blendGpu) if (reflecting(item.surface)) return true;
   return false;
 }
