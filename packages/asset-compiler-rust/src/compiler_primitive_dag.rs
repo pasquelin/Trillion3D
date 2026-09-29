@@ -1,4 +1,5 @@
 use super::*;
+use crate::compiler_world_roots::RootCover;
 
 #[derive(Default)]
 pub(super) struct DagResult {
@@ -24,6 +25,8 @@ pub(super) struct DagResult {
     pub position_exponent: i32,
     /// The primitive's cooked collision (`physics_cook::cook_primitive`).
     pub collision: Value,
+    /// Its roots, which the world super-roots continue (`compiler_world_roots`).
+    pub root_cover: RootCover,
 }
 
 /// Minimum, median and maximum of a DAG level's errors. Three order statistics
@@ -117,6 +120,7 @@ pub(super) fn build_dag_primitive(
             )
         })
         .collect();
+    let root_cover = RootCover::of(strategy, &dag, pos, &pages, &page_of);
     let mut roots: Vec<usize> = dag
         .iter()
         .enumerate()
@@ -139,15 +143,8 @@ pub(super) fn build_dag_primitive(
     // Flat node array, CULLING_STRIDE numbers per node; -1 marks a subtree holding a root.
     let mut flat = Vec::with_capacity(culling.len() * CULLING_STRIDE);
     for node in &culling {
-        for a in 0..3 {
-            flat.push(json!(node.min[a]));
-        }
-        for a in 0..3 {
-            flat.push(json!(node.max[a]));
-        }
-        for a in 0..4 {
-            flat.push(json!(node.sphere[a]));
-        }
+        let bounds = node.min.iter().chain(&node.max).chain(&node.sphere);
+        flat.extend(bounds.map(|value| json!(value)));
         flat.push(if node.max_parent_error.is_finite() {
             json!(node.max_parent_error)
         } else {
@@ -174,6 +171,7 @@ pub(super) fn build_dag_primitive(
         stream_report,
         position_exponent,
         collision,
+        root_cover,
     })
 }
 
