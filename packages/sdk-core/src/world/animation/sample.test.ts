@@ -22,6 +22,26 @@ function rotation(values: number[], time: number) {
 const close = (actual: number, expected: number, tolerance = 1e-7) =>
   assert.ok(Math.abs(actual - expected) < tolerance, `${actual} ≠ ${expected}`);
 
+test('step tracks reach each exact key including the final pose and reverse seeks', () => {
+  const track: Track = {
+    name: 'joint.position',
+    kind: 'number',
+    times: new Float32Array([0, 1, 2]),
+    values: new Float32Array([0, 5, 9]),
+    interpolation: 'step',
+  };
+  const bound = { owner: {}, field: 'position', key: 0, value: new Float64Array(1) };
+  for (const [time, expected] of [
+    [0.5, 0],
+    [1, 5],
+    [1.5, 5],
+    [2, 9],
+    [3, 9],
+    [1, 5],
+  ])
+    assert.equal(sample(track, time, bound)[0], expected);
+});
+
 test('linear quaternion tracks travel a constant angular speed off the midpoint', () => {
   for (const time of [0, 0.25, 0.75, 1]) {
     const value = rotation([0, 0, 0, 1, 0, 0, 1, 0], time);
