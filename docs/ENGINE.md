@@ -421,12 +421,16 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   frame is drawn before this frame samples it, and no scheduling waits on a readback. A page asked
   for and unmapped is allocated from the free list, or from the page least recently asked for, the
   finest first among equals; a page the latest demand named is never evicted, and coarse levels
-  are served first. The opaque resolve still records each page it reads — a bit per table word,
-  tested before the atomic, and a list — read back once per image (`webgpu/shadow/pageRequests.ts`):
-  that report no longer schedules, it proves an image may hold, naming only mapped pages under the
-  state it was stamped with. Without receivers — a host that hands none — the report schedules
-  as before, a frame late. Blend and water surfaces read what the drawn clusters' boxes named,
-  and keep their early depth reject.
+  are served first. Every lamp face's floor is named too, what a reader falls back to last. The
+  opaque resolve still records each page it reads — a bit per table word, tested before the atomic,
+  and a list — read back once per image (`webgpu/shadow/pageRequests.ts`): read before the demand,
+  as asked for in the current frame, it adds a frame late what no receiver box named — a surface
+  drawn before the GPU cut's readback adopts its cluster —, and it proves an image may hold,
+  neither it nor the demand allocating a page under the state it was stamped with. Without
+  receivers — a host that hands none — the report alone schedules, as of its own frame. The
+  footprint is taken at the drawn target's pixel and at the display's, which the blend pass reads
+  with; a sun point past its level's window reads the next level, named with it. Blend and water
+  surfaces read what the drawn clusters' boxes named, and keep their early depth reject.
 - **Every stale page the image reads is drawn, in the frame that marks it** (#489). There is no
   per-frame page cap and no millisecond budget; the list goes the coarsest first, each light's
   floor leading (#525), an order that matters only to a frame its memory guard stops. The cost is

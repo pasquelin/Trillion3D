@@ -1,5 +1,6 @@
 import type { ShadowViewpoint } from '../light/contracts.ts';
 import { frustumExcludesBox } from '../../math/frustum/box.ts';
+import { boxLeastAlong } from '../../math/primitives/boxReach.ts';
 import { SHADOW_PAGE } from './virtual.ts';
 
 /** Floats of a receiver: its world box, least corner then most. */
@@ -9,23 +10,17 @@ export const RECEIVER_FLOATS = 6;
 export interface ShadowReceivers {
   /** World boxes, `RECEIVER_FLOATS` each: every lit surface of the frame lies in one. */
   boxes: ArrayLike<number>;
+  /** Boxes listed. */
   count: number;
   /** The camera's six frustum planes (`frustumPlanesFromMatrix`): what lies outside is not lit. */
   planes: Float64Array;
-  /** World size of a pixel of the drawn target at the near plane, where a lit point's footprint
-   *  starts: the view's own `pixelNear` is the display's. */
+  /** World size of a pixel at the near plane, where a lit point's footprint starts: the least of
+   *  the passes that read shadows — the drawn target's, the display's. */
   pixelNear: number;
+  /** The same, the most of those passes. */
+  pixelNearMost: number;
   /** An orthographic camera: every pixel's footprint is `pixelNear`. */
   orthographic: boolean;
-}
-
-/** Least view depth over the box at `o`: its nearest corner along the view's axis. */
-export function boxDepth(box: ArrayLike<number>, o: number, view: ShadowViewpoint) {
-  const f = view.forward,
-    e = view.position;
-  let depth = 0;
-  for (let k = 0; k < 3; k++) depth += f[k] * ((f[k] > 0 ? box[o + k] : box[o + 3 + k]) - e[k]);
-  return depth;
 }
 
 /**
@@ -98,7 +93,7 @@ export function createReceiverCells() {
       for (let r = 0, o = 0; r < from.count; r++, o += RECEIVER_FLOATS) {
         if (frustumExcludesBox(planes, b[o], b[o + 1], b[o + 2], b[o + 3], b[o + 4], b[o + 5]))
           continue;
-        const depth = Math.max(boxDepth(b, o, view), view.near),
+        const depth = Math.max(boxLeastAlong(b, o, view.forward, view.position), view.near),
           least = from.orthographic ? from.pixelNear : (from.pixelNear * depth) / view.near,
           level = Math.floor(Math.log2((least * SHADOW_PAGE) / 4)),
           step = 2 ** -level;
