@@ -8,7 +8,7 @@ import { normalMatrix3 } from '../../math/matrix/matrix3.ts';
 import { applyMatrix3Vector3, normalizeVector3 } from '../../math/primitives/vector.ts';
 
 /** Moves every position of `geometry` by `m` and turns every normal by its normal matrix, in
- *  place. A position is moved at its value (`positionAt`): a list of plain numbers three at a
+ *  place. A position is moved at its value (`pointAt`): a list of plain numbers three at a
  *  time, any other vertex by vertex, written back as wide and as normalised as it is. A normal is read
  *  and written as its stored numbers where the geometry reads it so (`readsStored`), else at the
  *  value it stands for, written normalised. */
