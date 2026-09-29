@@ -1,8 +1,8 @@
 /**
  * Page side of the spill probe (#849): each case runs the shipped compaction
  * (`lightTilesSpillHarness.ts`) on one workgroup of a real device, with the engine's light buffer
- * and its pool state, and returns the tile record with its pool words, the pool's state and the count of slice
- * tests, read back word for word.
+ * and its pool state, and returns the tile record with its pool words, the pool's state and the
+ * count of slice tests, read back word for word.
  */
 import { createSceneLightStore } from '../../../packages/sdk-core/src/index.ts';
 import {
@@ -110,9 +110,9 @@ export async function run(cases: SpillCase[]) {
     pass.dispatchWorkgroups(1);
     pass.end();
     device.queue.submit([encoder.finish()]);
-    const words = await readGpuBuffer(device, tiles, tiles.size);
-    const state = await readGpuBuffer(device, pool, pool.size);
-    const tests = await readGpuBuffer(device, tested, tested.size);
+    const [words, state, tests] = await Promise.all(
+      [tiles, pool, tested].map((buffer) => readGpuBuffer(device, buffer, buffer.size)),
+    );
     runs.push({ name: c.name, tiles: [...words!], pool: [...state!], tested: tests![0] });
     for (const buffer of [uniform, tiles, keeps, pool, tested]) buffer.destroy();
   }
