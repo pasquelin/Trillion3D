@@ -26,7 +26,15 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { SHADOW_FACE_STRIDE } from '../../gpu/shadow/batchBudget.ts';
 import { SHADOW_FACE_READ_WORDS, createShadowRecordPack } from '../../gpu/shadow/recordPack.ts';
-import { FRESH_FACE_WORDS } from './freshLayout.ts';
+import {
+  FRESH_CLEAR,
+  FRESH_FACE_WORDS,
+  FRESH_LAYER_SHIFT,
+  FRESH_LAYER_STARTS,
+  freshArgWords,
+  freshDrawWord,
+} from './freshLayout.ts';
+import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { SHADOW_DEPTH_SHADER } from '../../gpu/shadow/shader.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { gpuFrames } from './gpuFrames.fixture.ts';
@@ -104,4 +112,35 @@ test("a GPU-drawn page's casters land on its square of the layer, its fragments 
     assert.ok(inside(0.5, 0.5) && inside(SHADOW_PAGE - 0.5, SHADOW_PAGE - 0.5), `page ${page}`);
     assert.ok(!inside(-0.5, 0.5) && !inside(0.5, SHADOW_PAGE + 0.5), `page ${page}: beside it`);
   }
+});
+
+test("each layer's draw places the pairs of its own regions, by their own view", () => {
+  // Region 0 lies in layer 0, region 1 in layer 1; pair 0 is region 0's row 7, pair 1 region 1's.
+  const args = new Uint32Array(freshArgWords(4));
+  args.set([0, 1], FRESH_LAYER_STARTS);
+  args[freshDrawWord(0, FRESH_CLEAR) + 1] = args[freshDrawWord(1, FRESH_CLEAR) + 1] = 1;
+  const views = [0, 1].map((k) => ({
+    params: [0, 0, 1, 1],
+    rect: [k, 0, 1, 1],
+    emitter: [0, 0, 0, 0],
+  }));
+  const { freshCaster } = shaderRun<{
+    freshCaster: (vertex: number, instance: number, blended: boolean) => Record<string, unknown>;
+  }>(SHADOW_DEPTH_SHADER, ['freshCaster', 'freshPlace', 'freshDraw'], {
+    ...wgslConstants(SHADOW_DEPTH_SHADER),
+    freshArgs: args,
+    freshPairs: [0, 7, 1, 7],
+    freshFaces: views,
+    ShadowOut: (position: number[]) => ({ position }),
+    shadowVertexIn: (view: { rect: number[] }, corner: number, row: number) => ({
+      position: [0.5, 0.5, 0.5, 1],
+      corner,
+      row,
+    }),
+  });
+  const layer1 = (corner: number) => (1 << FRESH_LAYER_SHIFT) | corner;
+  assert.equal((freshCaster(layer1(2), 0, false).position as number[])[2], 2, 'none in layer 1');
+  const drawn = freshCaster(layer1(2), 1, false);
+  assert.deepEqual([drawn.region, drawn.corner, drawn.row], [1, 2, 7]);
+  assert.deepEqual(drawn.position, [1.5, 0.5, 0.5, 1], "placed on region 1's square");
 });
