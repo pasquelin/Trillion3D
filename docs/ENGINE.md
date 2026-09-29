@@ -221,6 +221,15 @@ is the native one. `world.renderScale` reads back the scale of the last image; t
 view or GPU variant and the fallback draw stay at the display's size. Without timestamp queries the
 controller has no sample and holds the maximum.
 
+WebGL2 honours the same setting and controller, degraded: it keeps no history, so the image is
+resampled spatially (`webgl/core/resampleGlsl.ts`, `world/render/renderScale.ts`), with the same
+Lanczos-2 kernel over the 3×3 render texels, deringed to the 2×2 nearest, no jitter and no blend;
+material reads take the same `log2(w / W)` bias through GLSL `texture(…, bias)`, lines keep their
+display width, and the controller reads the whole-frame `EXT_disjoint_timer_query_webgl2` interval.
+Since a resample loses detail, its default minimum is 1: `'auto'` holds the display's size and only
+a page naming a lower `min`, or a fixed scale, draws below it. `temporal upscaling` stays
+unsupported there.
+
 ## Effect chain
 
 `world.effects` (`EffectChain`, `packages/sdk-core/src/world/effect/`) is one ordered list of passes

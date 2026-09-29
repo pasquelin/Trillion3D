@@ -1,5 +1,5 @@
 import type { GuideSet } from '../../guides/guideSet.ts';
-import { createScaleControl } from '../pages/state/scaleControl.ts';
+import { createScaleControl } from '../../frame/scaleControl.ts';
 import { createFrameGateCore } from '../../frame/gateCore.ts';
 import { HOLD_SIGNATURE_VALUES } from './signature.ts';
 import { createCpuStepProfile } from '../../stage/cpuProfile.ts';

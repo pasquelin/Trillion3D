@@ -1411,6 +1411,7 @@
     "banner": "Glisse pour tourner autour. Change la vue pour voir ce que garde le moteur de rendu.",
     "controls": {
       "see": "Voir",
+      "glass": "Vitre",
       "spin": "Rotation"
     },
     "choices": {

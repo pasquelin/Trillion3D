@@ -1,11 +1,8 @@
 import { upscaleMipBias } from '../../../taa/jitter.ts';
-import type { RenderScaleBounds } from '../../../frame/renderScaleOption.ts';
+import { renderExtent, type RenderScaleBounds } from '../../../frame/renderScaleOption.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 
-/** One display axis drawn at `scale`: the axis itself at 1, otherwise a multiple of eight, so a
- *  scale never lands on an odd size. */
-export const renderExtent = (display: number, scale: number) =>
-  scale >= 1 ? display : Math.min(display, Math.max(8, Math.round((scale * display) / 8) * 8));
+export { renderExtent };
 
 /**
  * The session's render-scale bounds where the drawn view's frame may be drawn below the display:
@@ -76,8 +73,7 @@ export const displayApart = (gpu: WebgpuPagesRuntime['gpu']) =>
  * The scale this image is drawn at: a quiet image at the bounds' maximum — 1 unless the page
  * lowered it —, which the held image then is; a moving one at the controller's, or the fixed one.
  */
-export const imageScale = (rt: WebgpuPagesRuntime, quiet: boolean) =>
-  quiet ? rt.scale.bounds.max : rt.scale.wanted();
+export const imageScale = (rt: WebgpuPagesRuntime, quiet: boolean) => rt.scale.imageScale(quiet);
 
 /**
  * Draws this image at `scale` in the targets in place, which a scale change never remakes: they

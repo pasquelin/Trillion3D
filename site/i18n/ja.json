@@ -345,7 +345,6 @@
       "drag-a-crate": "木箱をドラッグ"
     },
     "missing": {
-      "inside-a-component": "ワールド破棄時にエンジンが作成したキャンバスを削除",
       "floating-crates": "毎フレーム書き換えるジオメトリ",
       "thick-lines": "太い線",
       "a-line-that-draws-itself": "ジオメトリの描画範囲",
