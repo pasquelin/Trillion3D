@@ -3,14 +3,16 @@ import { normalizeVector3 } from '../../math/primitives/vector.ts';
 /**
  * Per-vertex normals from the faces around each vertex: the cross product of two edges is the
  * face normal scaled by twice its area, so summing them weights each face by its area before the
- * final normalisation. A vertex no face reaches keeps a zero normal.
+ * final normalisation. A vertex no face reaches keeps a zero normal. Written into `normals` when
+ * given — a list rewritten every frame allocates nothing (#573).
  */
-export function computeNormals(
+export function computeNormals<T extends Float32Array | Float64Array = Float32Array>(
   positions: ArrayLike<number>,
   index: ArrayLike<number> | null,
-): Float32Array {
+  normals = new Float32Array(Math.floor(positions.length / 3) * 3) as T,
+): T {
   const vertexCount = Math.floor(positions.length / 3);
-  const normals = new Float32Array(vertexCount * 3);
+  normals.fill(0);
   const corners = index ? index.length : vertexCount;
   const at = (k: number) => (index ? index[k] : k);
   for (let k = 0; k + 2 < corners; k += 3) {
@@ -26,7 +28,8 @@ export function computeNormals(
     const nx = e1y * e2z - e1z * e2y,
       ny = e1z * e2x - e1x * e2z,
       nz = e1x * e2y - e1y * e2x;
-    for (const v of [a, b, c]) {
+    for (let corner = 0; corner < 3; corner++) {
+      const v = at(k + corner) * 3;
       normals[v] += nx;
       normals[v + 1] += ny;
       normals[v + 2] += nz;

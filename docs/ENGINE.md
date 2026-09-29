@@ -569,8 +569,8 @@ rest touches neither, and a camera move only draws the pages it brings in
 
 The trade-off: the layer buys a redraw of the moving casters alone, where the static set would be
 drawn again under every mover, and costs as many bytes as the pool (above) and one restore draw per
-page it redraws. Its measure is relative, never absolute: the measure session posts paired A/B runs
-of `develop` on an Apple M2 Max, headless Chrome, 1728×1117 CSS at DPR 2, bodies moving (car
+page it redraws. Its measure is relative, never absolute: the acceptance session posts paired A/B
+runs of `develop` on an Apple M2 Max, headless Chrome, 1728×1117 CSS at DPR 2, bodies moving (car
 driven, walker walking), on a loaded machine. The runs posted 28 Sept. 20:02 UTC as `measure ok` on
 #989 and #990, median GPU ms of five interleaved pairs, load 15–75, batch `884cde8b5` →
 `e36d93ea1` (it holds the capacity change #1045 and the static-survival change #1064):
@@ -839,6 +839,34 @@ For every WebGL2-hosted session, `createWebglSurface` creates and owns the conte
 else: attributes, drawing-buffer size from logical size and DPR, loss and restoration, one release.
 Targets, held frame, comparison compositor and presenter are engine objects on that context, and the
 frame composer asks each backend to draw its whole image through `drawHostGeometry`.
+
+## Dynamic geometry
+
+A world's geometry written every frame (`usage: 'dynamic'`, or changed on two consecutive frames,
+`world/core/worldDynamic.ts`) is cut into pages once, index pages alone, every page bounded by the
+primitive's held box (`world/page/runtimePrimitive.ts`), and never again while its corners stay
+(#573). Its vertices are read as floats by the path of a cache without geometry pages
+(`pageGeometryWgsl.ts`): the same raster, Hi-Z, resolve, shadow depth and lighting. A frame reads
+the geometry into lists the resource holds (`worldDynamicRead.ts`), compares them with what the
+engine holds and hands it the range from the first changed vertex to the last (`updateVertices`),
+within `DYNAMIC_UPLOAD_BUDGET_BYTES` weighed as sent (`vertexBytes`); a steady frame allocates
+nothing.
+
+- **WebGPU.** The float vertex pool (`webgpu/core/geometryPrepare.ts`) is sized once at open with
+  room for as many vertices again as its dynamic geometry holds, none when it holds none; a rewrite
+  is one `writeBuffer` per list (a normal with its tangent) into its block, plus the fallback
+  draw's positions; a record mounted later takes a block of that room (`place`), and past it the
+  session opens again. Each root drawing the geometry turns moving for the shadow pool and the
+  world box of the moved vertices stales the pages it covers (`movedBatch.ts`, #489). Its rows carry
+  `FLAG_DYNAMIC`: the temporal pass takes those pixels as reactive, another shape's history dropped.
+- **WebGL2.** The manifest keeps a dynamic primitive's index pages (`sourcedPages.ts`), drawn over
+  the host geometry's own lists, uploaded once per rewrite by their written ranges (`bufferSubData`).
+
+Vertices that leave the held box serve the same pages again in a larger box: on WebGPU, which
+mounts no resource in place yet (#483), that opens the session once. The box is the declared
+`maxBounds`, else the first vertices' box widened by half its size on every side: a value declared
+as such, not derived — it stands for how far a shape rewritten every frame moves about where it
+started; a larger one culls later, a smaller one serves the pages again sooner.
 
 ## Memory
 

@@ -38,13 +38,13 @@ function move(triangle: Awaited<ReturnType<typeof opened>>, from: AlphaMode, to:
   triangle.backend.refreshMaterials!(true, { surfaces: [triangle.material], from, to });
 }
 
-/** The page positions of `SOURCE` cut on a position grid of 2^`exponent`. */
-const cutOn = (exponent: number) =>
+/** The page positions of `positions` (`SOURCE` by default) on a position grid of 2^`exponent`. */
+const cutOn = (exponent: number, positions = SOURCE) =>
   decodeGeometryPage(
     encodeGeometryPage(
       Uint32Array.of(0, 1, 2),
       {
-        POSITION: { itemSize: 3, array: Float32Array.from(SOURCE) },
+        POSITION: { itemSize: 3, array: Float32Array.from(positions) },
       },
       exponent,
     ).data,
@@ -64,6 +64,31 @@ test('WebGL2 draws a primitive turned blended on the blended grid, and its own p
     move(triangle, 'blend', 'opaque');
     await backend.flush!();
     assert.deepEqual(drawnPositions(triangle), own, 'compiled opaque: the page it reads');
+  } finally {
+    backend.dispose();
+    geometry.dispose();
+    material.dispose();
+  }
+});
+
+// A seam-locked solve (#877) writes coarse vertices past the source's, held by its pages alone.
+test('WebGL2 re-cuts a solved primitive with the vertices only its pages hold', async () => {
+  const triangle = triangleBackend({ corners: [0, 1, 3] });
+  const { backend, geometry, material, paged } = triangle;
+  try {
+    const array = Float32Array.of(...SOURCE.slice(0, 6), 0.1, 0.2, 0);
+    const solved = encodeGeometryPage([0, 1, 2], { POSITION: { itemSize: 3, array } });
+    paged.encoded.set('triangle-geometry.bin', solved);
+    const page = paged.metadata.primitives[0].pages[0];
+    page.level = 1;
+    page.geometry!.bytes = solved.data.length;
+    await backend.prepare();
+    (geometry.getAttribute('position')!.array as Float32Array).set(SOURCE);
+    const placed = decodeGeometryPage(solved.data).attributes.position.slice(6);
+    move(triangle, 'opaque', 'blend');
+    await backend.flush!();
+    const expected = cutOn(-23, [...SOURCE.slice(0, 6), ...placed]);
+    assert.deepEqual(drawnPositions(triangle), [...expected], 'the placed vertex read in its page');
   } finally {
     backend.dispose();
     geometry.dispose();

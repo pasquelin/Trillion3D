@@ -14,12 +14,13 @@ import { BLOCK_CORNERS, OCT_SCALE, TRIANGLE_BLOCK, WIDTH_BITS } from './format.t
  */
 const CLUSTER_HEADER_WGSL = `struct ClusterHeader{
  vertexCount:u32,indexCount:u32,flags:u32,indexBits:u32,prefixBits:u32,recordBits:u32,
+ positionCount:u32,linkBits:u32,
  posBits:vec3u,posStep:f32,posMin:vec3f,
  uvBits:vec2u,uvStep:f32,uvMin:vec2f,uv1Bits:vec2u,uv1Step:f32,uv1Min:vec2f,
  colorBits:vec4u,colorStep:f32,colorMin:vec4f,
  quantizationError:f32,
- // Word offset of each stream from the page's first word: block table, corners, x, y, z, normal, u, v, u1, v1, r, g, b, a.
- blocks:u32,corners:u32,pos:vec3u,normal:u32,uv:vec2u,uv1:vec2u,color:vec4u,
+ // Word offset of each stream from the page's first word: block table, corners, x, y, z, links, normal, u, v, u1, v1, r, g, b, a.
+ blocks:u32,corners:u32,pos:vec3u,links:u32,normal:u32,uv:vec2u,uv1:vec2u,color:vec4u,
 }`;
 
 /**
@@ -75,10 +76,12 @@ fn clusterHeader(base:u32)->ClusterHeader{
  let cornerBits=${buffer}[base+21u];
  h.prefixBits=clusterBitsFor(cornerBits/${BLOCK_CORNERS}u);
  h.recordBits=h.indexBits+${WIDTH_BITS}u+h.prefixBits;
- let n=h.vertexCount;var at=24u;
+ h.positionCount=${buffer}[base+22u];h.linkBits=clusterBitsFor(h.positionCount-1u);
+ let n=h.vertexCount;let stored=h.positionCount;var at=24u;
  h.blocks=clusterStream(true,(h.indexCount/3u+${TRIANGLE_BLOCK - 1}u)/${TRIANGLE_BLOCK}u,h.recordBits,&at);
  h.corners=clusterStream(true,cornerBits,1u,&at);
- h.pos.x=clusterStream(true,n,h.posBits.x,&at);h.pos.y=clusterStream(true,n,h.posBits.y,&at);h.pos.z=clusterStream(true,n,h.posBits.z,&at);
+ h.pos.x=clusterStream(true,stored,h.posBits.x,&at);h.pos.y=clusterStream(true,stored,h.posBits.y,&at);h.pos.z=clusterStream(true,stored,h.posBits.z,&at);
+ h.links=clusterStream(stored<n,n,h.linkBits,&at);
  h.normal=clusterStream((h.flags&1u)!=0u,n,16u,&at);
  let hasUv=(h.flags&2u)!=0u;h.uv.x=clusterStream(hasUv,n,h.uvBits.x,&at);h.uv.y=clusterStream(hasUv,n,h.uvBits.y,&at);
  let hasUv1=(h.flags&4u)!=0u;h.uv1.x=clusterStream(hasUv1,n,h.uv1Bits.x,&at);h.uv1.y=clusterStream(hasUv1,n,h.uv1Bits.y,&at);
@@ -118,10 +121,13 @@ fn clusterIndex(h:ClusterHeader,base:u32,corner:u32)->u32{
 fn clusterGrid(base:u32,stream:u32,vertex:u32,bits:u32,minimum:f32,step:f32)->f32{
  return minimum+f32(clusterField(base+stream,vertex*bits,bits))*step;
 }
+// A vertex's position: its own, or the one its link names when the page stores each once.
 fn clusterPosition(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
- return vec3f(clusterGrid(base,h.pos.x,vertex,h.posBits.x,h.posMin.x,h.posStep),
-  clusterGrid(base,h.pos.y,vertex,h.posBits.y,h.posMin.y,h.posStep),
-  clusterGrid(base,h.pos.z,vertex,h.posBits.z,h.posMin.z,h.posStep));
+ var at=vertex;
+ if(h.positionCount<h.vertexCount){at=clusterField(base+h.links,vertex*h.linkBits,h.linkBits);}
+ return vec3f(clusterGrid(base,h.pos.x,at,h.posBits.x,h.posMin.x,h.posStep),
+  clusterGrid(base,h.pos.y,at,h.posBits.y,h.posMin.y,h.posStep),
+  clusterGrid(base,h.pos.z,at,h.posBits.z,h.posMin.z,h.posStep));
 }
 fn clusterUv(h:ClusterHeader,base:u32,vertex:u32)->vec2f{
  return vec2f(clusterGrid(base,h.uv.x,vertex,h.uvBits.x,h.uvMin.x,h.uvStep),

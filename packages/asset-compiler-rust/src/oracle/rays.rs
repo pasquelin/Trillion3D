@@ -1,7 +1,7 @@
-use super::geometry::{albedo_of, normalise, surface_at};
-use super::scene::World;
-use super::trace::{direct, scene_reach, trace};
+use super::geometry::albedo_of;
+use super::trace::{direct, scene_reach};
 use super::OracleJob;
+use crate::proxy::tracer::{normalise, surface_at, trace, World};
 use crate::shared_math::{cross, splitmix_unit, sub, GOLDEN};
 use std::f64::consts::PI;
 
