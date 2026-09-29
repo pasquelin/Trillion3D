@@ -103,3 +103,25 @@ test('a growth past the page table grows it in place: ranks, pins and pool kept'
     session.dispose();
   }
 });
+
+test('a growth past the page table during a prepare is taken in place, the table growing after it', async () => {
+  const session = await placedSession(1 << 12);
+  const { rt, reopened } = session;
+  try {
+    const { layout, setup } = rt,
+      drawSlots = layout.drawSlots;
+    let prepared = () => {};
+    setup.preparing = new Promise<void>((resolve) => (prepared = resolve));
+    scaleDown(session);
+    assert.equal(reopened.count, 0, 'no session opened again');
+    const growing = layout.growing;
+    await Promise.resolve();
+    assert.equal(layout.drawSlots, drawSlots, 'the tables wait for the prepare');
+    prepared();
+    setup.preparing = undefined;
+    await growing;
+    assert.ok(layout.drawSlots > drawSlots, 'then grow for the new rows');
+  } finally {
+    session.dispose();
+  }
+});

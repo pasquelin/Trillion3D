@@ -91,3 +91,22 @@ test('a setting on a lost device grows the rows alone, and the budget is kept fo
     dispose();
   }
 });
+
+test('the grown tables are granted before the new pool is probed beside them', async () => {
+  const { rt, gpu, dispose } = await coarseSession();
+  try {
+    const labels: string[] = [],
+      create = gpu.device.createBuffer.bind(gpu.device);
+    gpu.device.createBuffer = (descriptor: GPUBufferDescriptor) => {
+      if (descriptor.label) labels.push(descriptor.label);
+      return create(descriptor);
+    };
+    await setWebgpuMemoryBudgets(rt, { geometryPoolBytes: 1 << 20 });
+    const table = labels.indexOf('Trillion3D page table'),
+      probe = labels.indexOf('Trillion3D pool probe');
+    assert.ok(table >= 0 && probe >= 0);
+    assert.ok(table < probe, 'the probe asks for the pool beside the tables the device holds');
+  } finally {
+    dispose();
+  }
+});

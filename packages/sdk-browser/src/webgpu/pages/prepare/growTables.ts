@@ -1,4 +1,5 @@
 import { askedTableRows, rowScratch } from './layout.ts';
+import { grownTableRows } from '../../row/tableRows.ts';
 import { pageTableBuffer } from '../render/encodeDraws.ts';
 import { invalidateOccluderHistory } from '../io/drops.ts';
 import { deviceMade } from '../../../gpu/core/errorScope.ts';
@@ -17,19 +18,25 @@ export function tableRowsFor(rt: WebgpuPagesRuntime, slots: number) {
 
 /**
  * THE TABLES SIZED BY DRAWABLE ROW GROW IN PLACE (#216), when a pool of `slots` slots — a larger
- * geometry pool (`../io/memory.ts`), placements grown in place (`../../../placement/webgpuGrowth.ts`)
- * — asks more rows than they hold. Nothing is prepared again: no shader, no pipeline, no pool, no
- * texture tile. Every GPU buffer sized by row (`growGpuTables.ts`) is made anew beside the one it replaces, under one out-of-memory scope, while the image goes on
- * drawing from the old ones. Only once the device granted them all are they swapped in, in one
- * step between two images, with the CPU rows (`../../row/grow.ts`): every visibility row keeps its
- * rank and its page, so the image the next frame draws is the one it would have drawn, now with
- * room for the pages that waited. A refusal frees what was made and keeps every table and the pool
- * in place, said once (`gpu-out-of-memory`). A lost device grows the CPU rows alone, refusing
- * nothing: the rebuild prepares its GPU tables at their size, and the host's budget holds. Growths wait for each other, in their order; the
- * report says what the growth cost, or `null` when the tables already held what was asked.
+ * geometry pool (`../io/memory.ts`), placements grown in place
+ * (`../../../placement/webgpuGrowth.ts`) — asks more rows than they hold. Nothing is prepared
+ * again: no shader, no pipeline, no pool, no texture tile. Every GPU buffer sized by row
+ * (`growGpuTables.ts`) is made anew beside the one it replaces, under one out-of-memory scope,
+ * while the image goes on drawing from the old ones. Only once the device granted them all are they
+ * swapped in, in one step between two images, with the CPU rows (`../../row/grow.ts`): every
+ * visibility row keeps its rank and its page, so the image the next frame draws is the one it would
+ * have drawn, now with room for the pages that waited. A refusal frees what was made and keeps
+ * every table and the pool in place, said once (`gpu-out-of-memory`). A lost device grows the CPU
+ * rows alone, refusing nothing: the rebuild prepares its GPU tables at their size, and the host's
+ * budget holds. Growths wait for a running prepare and for each other, in their order; the report
+ * says what the growth cost, or `null` when the tables already held what was asked.
  */
 export function growWebgpuTables(rt: WebgpuPagesRuntime, slots: number) {
-  const run = () => growTables(rt, slots);
+  // A running prepare makes the GPU tables at the size it read: the growth follows it.
+  const run = async () => {
+    await rt.setup.preparing;
+    return growTables(rt, slots);
+  };
   const growing = (rt.layout.growing ?? Promise.resolve()).then(run, run);
   rt.layout.growing = growing;
   return growing;
@@ -43,12 +50,7 @@ async function growTables(
     { rows } = layout;
   const started = performance.now(),
     asked = tableRowsFor(rt, slots),
-    blendHeld = rows.casterSlots - rows.blendFirst;
-  // No row shrinks, and a table the device bounds stays within one binding: the casters' rows
-  // held give way to the visibility rows the bound shares out anew (`../../row/tableRows.ts`).
-  const drawSlots = Math.max(asked.drawSlots, rows.blendFirst),
-    blendKept = asked.bounded ? Math.min(blendHeld, asked.bounded.rows - drawSlots) : blendHeld,
-    casterSlots = drawSlots + Math.max(asked.blendSlots, blendKept);
+    { drawSlots, casterSlots } = grownTableRows(asked, rows);
   if (drawSlots === rows.blendFirst && casterSlots === rows.casterSlots) {
     setup.cap = Math.max(setup.cap, slots);
     return null;
