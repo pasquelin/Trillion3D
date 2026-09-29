@@ -3,28 +3,19 @@ import { updateWholeDeformationBounds } from './wholeBounds.ts';
 import { worldStretch } from '../page/cut/logic.ts';
 import { noteDeformed } from '../webgpu/pages/render/movedBatch.ts';
 import type { EngineCamera } from '../camera/world.ts';
-import { createDeformationSkip } from './screen.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
+import { fromHalf, toHalf } from '../../../sdk-core/src/lighting/ltcTable.ts';
 
 /** A half float's value from its sixteen bits, positive ones: what `unpack2x16float` reads. */
-export const halfValue = (bits: number) =>
-  bits >= 0x7c00
-    ? Infinity
-    : bits < 0x0400
-      ? bits * 2 ** -24
-      : (1 + (bits & 1023) / 1024) * 2 ** ((bits >> 10) - 15);
+export const halfValue = (bits: number) => (bits >= 0x7c00 ? Infinity : fromHalf(bits));
 
 /** The smallest half float at or above `x`, as its sixteen bits: a reach the GPU cut reads never
  *  below the one the CPU cut grows by; past the largest finite half, infinity. */
 export function halfAtLeast(x: number) {
   if (!(x > 0)) return 0;
   if (x > 65504) return 0x7c00;
-  let e = Math.floor(Math.log2(x));
-  if (2 ** e > x) e--;
-  if (2 ** (e + 1) <= x) e++;
-  let bits =
-    e < -14 ? Math.ceil(x / 2 ** -24) : ((e + 15) << 10) + Math.ceil((x / 2 ** e - 1) * 1024);
-  // A carry past the mantissa lands on the next exponent's first value, which the bits spell.
+  // The nearest half is one of the two around `x`: the one below steps up to the one above.
+  let bits = toHalf(x);
   while (halfValue(bits) < x) bits++;
   return bits;
 }
@@ -32,8 +23,6 @@ export function halfAtLeast(x: number) {
 /** `mark` with `reach` in its high sixteen bits, as the GPU cut reads it (`reachOf`, #357). */
 export const markReach = (mark: number, reach: number) =>
   ((mark & 0xffff) | (halfAtLeast(reach) << 16)) >>> 0;
-
-const skip = createDeformationSkip();
 
 /**
  * Brings the session's GPU deformation to this image (#357), once its poses are uploaded: each
@@ -56,7 +45,7 @@ export function updateWebgpuDeformation(
   if (!deformation?.any || !device || !pool) return false;
   const roots = rt.layout.selectionRoots,
     frame = deformation.frame;
-  const moved = frame.update(skip(roots, cam, rt.setup.viewport, rt.run.gate.pixelError));
+  const moved = deformation.update(cam, rt.setup.viewport, rt.run.gate.pixelError);
   for (let i = 0; i < roots.length; i++) {
     if (!frame.bases[i]) continue;
     const root = roots[i],
