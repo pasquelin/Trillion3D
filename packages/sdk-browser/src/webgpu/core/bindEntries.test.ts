@@ -98,6 +98,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
     vis,
     gpu: {
       cache: { buffer: {} },
+      surfaces: { shadingOffset: {}, subsurfaceView: {} },
       uniformBuffer: {},
       zeroUv: {},
       targetSize: [4, 4],

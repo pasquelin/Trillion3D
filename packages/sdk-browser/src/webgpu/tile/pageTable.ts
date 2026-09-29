@@ -8,7 +8,7 @@ import {
 } from '../../texture/tiles.ts';
 import { createPageUploads } from './pageUploads.ts';
 import { descendTile } from './pageDescent.ts';
-import { TRANSFORM_WORDS, samplingWords } from './sampling.ts';
+import { TRANSFORM_WORDS, samplingWords } from '../../texture/sampling.ts';
 import type { Texture } from '../../../../sdk-core/src/index.ts';
 
 /**
