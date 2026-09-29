@@ -40,7 +40,7 @@ async function main() {
     throw new Error(`--${names[0]} must name a built golden baseline directory`);
   if ([...flags.keys()].some((flag) => flag.startsWith('cache-')))
     throw new Error('use --cache for the identical cache on both sides');
-  if (settings.movingLight || settings.movingNode || settings.poolVivant)
+  if (settings.movingLight || settings.movingNode || settings.livePools)
     throw new Error('trajectory supports camera motion only, with fixed memory budgets');
   settings.stageProfile = false;
   const named = flags.get('scene');

@@ -71,14 +71,14 @@ interface ReportRecordData {
   cpuFrameMs?: TimingStat;
   imageSyncMs?: TimingStat | null;
   errorMetric?: 'certifiee' | 'reference' | null;
-  imageTenue?: boolean;
-  profilParEtape?: {
+  frameHeld?: boolean;
+  stageProfile?: {
     gpuMethod?: string;
     gpuImageMs?: TimingStat;
     stages?: StageTiming[];
   };
   passesGpu?: { passes?: GpuPassTiming[] };
-  cheminCalcul?: { clockCoarse?: boolean };
+  mathBatch?: { clockCoarse?: boolean };
   cutAnalysis?: CutAnalysis;
 }
 

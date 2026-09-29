@@ -30,7 +30,7 @@ export function cheminsCalcul(report: Report) {
   ];
   for (const serie of report.series)
     for (const [side, resultat] of Object.entries(serie.sides)) {
-      const releve = resultat.cheminCalcul;
+      const releve = resultat.mathBatch;
       const tete = `| ${serie.view} | ${serie.pixelError} | ${side} `;
       if (!releve) {
         lines.push(`${tete}| — | reading missing from this dist | — | — | — | — | — | — |`);

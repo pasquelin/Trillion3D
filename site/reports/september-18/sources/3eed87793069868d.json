@@ -52,7 +52,7 @@
   },
   "series": [
     {
-      "view": "generale",
+      "view": "overview",
       "pixelError": 1,
       "segment": "Vue générale du modèle",
       "index": 0,
@@ -83,7 +83,7 @@
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "exact-cluster-pages",
@@ -147,7 +147,7 @@
           },
           "passesGpu": null,
           "preparationMs": 473,
-          "reseau": {
+          "network": {
             "json": 400642,
             "bin": 259760540,
             "wasm": 44509,
@@ -161,9 +161,9 @@
           "drawnTriangles": null,
           "submittedTriangles": 1988890,
           "totalSubmittedTriangles": 1988890,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": null,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": null,
           "hiZ": {
             "tested": null,
             "rejected": null,
@@ -176,15 +176,15 @@
           "selection": {
             "source": "clusterId",
             "sha256": "b3d874f238b8254170e441e86813f7b9df084cd299bdeef3a84e52a7d5eb2245",
-            "taille": 16505
+            "count": 16505
           },
-          "geometrieOctets": 234119992,
-          "budgetPages": {
-            "demande": 100000,
-            "residentes": 16505,
-            "couvertureLimiteeParBudget": null
+          "geometryBytes": 234119992,
+          "pageBudget": {
+            "requested": 100000,
+            "resident": 16505,
+            "budgetLimitedCoverage": null
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -204,32 +204,32 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "projecteurs": 0,
-            "directionnelles": 1,
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": {
+            "count": 1,
+            "points": 0,
+            "spots": 0,
+            "directional": 1,
             "ids": ["banc-soleil"],
-            "ombres": false
+            "shadows": false
           },
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [4.21240234375, 5.2978515625, 5.42236328125],
-            "fin": [3.955078125, 5.22607421875, 5.39599609375]
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [4.21240234375, 5.2978515625, 5.42236328125],
+            "end": [3.955078125, 5.22607421875, 5.39599609375]
           },
           "captureStatus": 200,
-          "incidentsGpu": null,
+          "gpuIncidents": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -330,7 +330,7 @@
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "exact-cluster-pages",
@@ -394,7 +394,7 @@
           },
           "passesGpu": null,
           "preparationMs": 456,
-          "reseau": {
+          "network": {
             "json": 400642,
             "bin": 259760540,
             "wasm": 44509,
@@ -408,9 +408,9 @@
           "drawnTriangles": null,
           "submittedTriangles": 1988890,
           "totalSubmittedTriangles": 1988890,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": null,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": null,
           "hiZ": {
             "tested": null,
             "rejected": null,
@@ -423,15 +423,15 @@
           "selection": {
             "source": "clusterId",
             "sha256": "b3d874f238b8254170e441e86813f7b9df084cd299bdeef3a84e52a7d5eb2245",
-            "taille": 16505
+            "count": 16505
           },
-          "geometrieOctets": 234119992,
-          "budgetPages": {
-            "demande": 100000,
-            "residentes": 16505,
-            "couvertureLimiteeParBudget": null
+          "geometryBytes": 234119992,
+          "pageBudget": {
+            "requested": 100000,
+            "resident": 16505,
+            "budgetLimitedCoverage": null
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -451,32 +451,32 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "projecteurs": 0,
-            "directionnelles": 1,
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": {
+            "count": 1,
+            "points": 0,
+            "spots": 0,
+            "directional": 1,
             "ids": ["banc-soleil"],
-            "ombres": false
+            "shadows": false
           },
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [3.955078125, 5.22607421875, 5.39599609375],
-            "fin": [3.79833984375, 5.17236328125, 5.3759765625]
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [3.955078125, 5.22607421875, 5.39599609375],
+            "end": [3.79833984375, 5.17236328125, 5.3759765625]
           },
           "captureStatus": 200,
-          "incidentsGpu": null,
+          "gpuIncidents": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -559,12 +559,12 @@
           }
         }
       },
-      "witnessAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
+      "witnessAA": { "pixels": 0, "maxChannel": 0, "total": 3504384 },
       "beforeAfterDiff": null,
-      "coupeIdentique": null
+      "sameCut": null
     },
     {
-      "view": "sol",
+      "view": "ground",
       "pixelError": 1,
       "segment": "Déplacement au niveau de référence",
       "index": 120,
@@ -595,7 +595,7 @@
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "exact-cluster-pages",
@@ -659,7 +659,7 @@
           },
           "passesGpu": null,
           "preparationMs": 463.7999999821186,
-          "reseau": {
+          "network": {
             "json": 400642,
             "bin": 239306612,
             "wasm": 44509,
@@ -673,9 +673,9 @@
           "drawnTriangles": null,
           "submittedTriangles": 1131632,
           "totalSubmittedTriangles": 1131632,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": null,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": null,
           "hiZ": {
             "tested": null,
             "rejected": null,
@@ -688,15 +688,15 @@
           "selection": {
             "source": "clusterId",
             "sha256": "1955aec97a223c9b1e7ee5a34f9817678d77c5c8ffac89eba31e394cd0531c89",
-            "taille": 9251
+            "count": 9251
           },
-          "geometrieOctets": 234119992,
-          "budgetPages": {
-            "demande": 100000,
-            "residentes": 9251,
-            "couvertureLimiteeParBudget": null
+          "geometryBytes": 234119992,
+          "pageBudget": {
+            "requested": 100000,
+            "resident": 9251,
+            "budgetLimitedCoverage": null
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -716,32 +716,32 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "projecteurs": 0,
-            "directionnelles": 1,
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": {
+            "count": 1,
+            "points": 0,
+            "spots": 0,
+            "directional": 1,
             "ids": ["banc-soleil"],
-            "ombres": false
+            "shadows": false
           },
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [3.79833984375, 5.17236328125, 5.3759765625],
-            "fin": [3.734375, 5.13623046875, 5.36181640625]
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [3.79833984375, 5.17236328125, 5.3759765625],
+            "end": [3.734375, 5.13623046875, 5.36181640625]
           },
           "captureStatus": 200,
-          "incidentsGpu": null,
+          "gpuIncidents": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -842,7 +842,7 @@
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "exact-cluster-pages",
@@ -906,7 +906,7 @@
           },
           "passesGpu": null,
           "preparationMs": 463,
-          "reseau": {
+          "network": {
             "json": 400642,
             "bin": 239175752,
             "wasm": 44509,
@@ -920,9 +920,9 @@
           "drawnTriangles": null,
           "submittedTriangles": 1131632,
           "totalSubmittedTriangles": 1131632,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": null,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": null,
           "hiZ": {
             "tested": null,
             "rejected": null,
@@ -935,15 +935,15 @@
           "selection": {
             "source": "clusterId",
             "sha256": "1955aec97a223c9b1e7ee5a34f9817678d77c5c8ffac89eba31e394cd0531c89",
-            "taille": 9251
+            "count": 9251
           },
-          "geometrieOctets": 234119992,
-          "budgetPages": {
-            "demande": 100000,
-            "residentes": 9251,
-            "couvertureLimiteeParBudget": null
+          "geometryBytes": 234119992,
+          "pageBudget": {
+            "requested": 100000,
+            "resident": 9251,
+            "budgetLimitedCoverage": null
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -963,32 +963,32 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "projecteurs": 0,
-            "directionnelles": 1,
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": {
+            "count": 1,
+            "points": 0,
+            "spots": 0,
+            "directional": 1,
             "ids": ["banc-soleil"],
-            "ombres": false
+            "shadows": false
           },
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [3.734375, 5.13623046875, 5.36181640625],
-            "fin": [3.75537109375, 5.1171875, 5.353515625]
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [3.734375, 5.13623046875, 5.36181640625],
+            "end": [3.75537109375, 5.1171875, 5.353515625]
           },
           "captureStatus": 200,
-          "incidentsGpu": null,
+          "gpuIncidents": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -1071,12 +1071,12 @@
           }
         }
       },
-      "witnessAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
+      "witnessAA": { "pixels": 0, "maxChannel": 0, "total": 3504384 },
       "beforeAfterDiff": null,
-      "coupeIdentique": null
+      "sameCut": null
     },
     {
-      "view": "rue",
+      "view": "street",
       "pixelError": 1,
       "segment": "Déplacement au niveau de référence",
       "index": 150,
@@ -1107,7 +1107,7 @@
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "exact-cluster-pages",
@@ -1171,7 +1171,7 @@
           },
           "passesGpu": null,
           "preparationMs": 465.59999999403954,
-          "reseau": {
+          "network": {
             "json": 400642,
             "bin": 238218848,
             "wasm": 44509,
@@ -1185,9 +1185,9 @@
           "drawnTriangles": null,
           "submittedTriangles": 737476,
           "totalSubmittedTriangles": 737476,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": null,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": null,
           "hiZ": {
             "tested": null,
             "rejected": null,
@@ -1200,15 +1200,15 @@
           "selection": {
             "source": "clusterId",
             "sha256": "8ab45d850ce5ca829006b5bd476e65a6e5fd7248a1d37ee7a7ea09a8a457aee0",
-            "taille": 6066
+            "count": 6066
           },
-          "geometrieOctets": 234119992,
-          "budgetPages": {
-            "demande": 100000,
-            "residentes": 6066,
-            "couvertureLimiteeParBudget": null
+          "geometryBytes": 234119992,
+          "pageBudget": {
+            "requested": 100000,
+            "resident": 6066,
+            "budgetLimitedCoverage": null
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -1228,32 +1228,32 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "projecteurs": 0,
-            "directionnelles": 1,
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": {
+            "count": 1,
+            "points": 0,
+            "spots": 0,
+            "directional": 1,
             "ids": ["banc-soleil"],
-            "ombres": false
+            "shadows": false
           },
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [3.75537109375, 5.1171875, 5.353515625],
-            "fin": [3.61474609375, 5.0654296875, 5.33349609375]
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [3.75537109375, 5.1171875, 5.353515625],
+            "end": [3.61474609375, 5.0654296875, 5.33349609375]
           },
           "captureStatus": 200,
-          "incidentsGpu": null,
+          "gpuIncidents": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -1354,7 +1354,7 @@
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "exact-cluster-pages",
@@ -1418,7 +1418,7 @@
           },
           "passesGpu": null,
           "preparationMs": 470.2999999821186,
-          "reseau": {
+          "network": {
             "json": 400642,
             "bin": 238218848,
             "wasm": 44509,
@@ -1432,9 +1432,9 @@
           "drawnTriangles": null,
           "submittedTriangles": 737476,
           "totalSubmittedTriangles": 737476,
-          "imageDuReleve": 59,
-          "imageTenue": false,
-          "repliSelectionGpu": null,
+          "recordedFrame": 59,
+          "frameHeld": false,
+          "gpuSelectionFallback": null,
           "hiZ": {
             "tested": null,
             "rejected": null,
@@ -1447,15 +1447,15 @@
           "selection": {
             "source": "clusterId",
             "sha256": "8ab45d850ce5ca829006b5bd476e65a6e5fd7248a1d37ee7a7ea09a8a457aee0",
-            "taille": 6066
+            "count": 6066
           },
-          "geometrieOctets": 234119992,
-          "budgetPages": {
-            "demande": 100000,
-            "residentes": 6066,
-            "couvertureLimiteeParBudget": null
+          "geometryBytes": 234119992,
+          "pageBudget": {
+            "requested": 100000,
+            "resident": 6066,
+            "budgetLimitedCoverage": null
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -1475,32 +1475,32 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "projecteurs": 0,
-            "directionnelles": 1,
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": {
+            "count": 1,
+            "points": 0,
+            "spots": 0,
+            "directional": 1,
             "ids": ["banc-soleil"],
-            "ombres": false
+            "shadows": false
           },
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [3.61474609375, 5.0654296875, 5.33349609375],
-            "fin": [3.4853515625, 5.01416015625, 5.3134765625]
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [3.61474609375, 5.0654296875, 5.33349609375],
+            "end": [3.4853515625, 5.01416015625, 5.3134765625]
           },
           "captureStatus": 200,
-          "incidentsGpu": null,
+          "gpuIncidents": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -1583,9 +1583,9 @@
           }
         }
       },
-      "witnessAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
+      "witnessAA": { "pixels": 0, "maxChannel": 0, "total": 3504384 },
       "beforeAfterDiff": null,
-      "coupeIdentique": null
+      "sameCut": null
     },
     {
       "view": "detail",
@@ -1619,7 +1619,7 @@
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "exact-cluster-pages",
@@ -1683,7 +1683,7 @@
           },
           "passesGpu": null,
           "preparationMs": 467.30000001192093,
-          "reseau": {
+          "network": {
             "json": 400642,
             "bin": 233638040,
             "wasm": 44509,
@@ -1697,9 +1697,9 @@
           "drawnTriangles": null,
           "submittedTriangles": 610891,
           "totalSubmittedTriangles": 610891,
-          "imageDuReleve": 59,
-          "imageTenue": true,
-          "repliSelectionGpu": null,
+          "recordedFrame": 59,
+          "frameHeld": true,
+          "gpuSelectionFallback": null,
           "hiZ": {
             "tested": null,
             "rejected": null,
@@ -1712,15 +1712,15 @@
           "selection": {
             "source": "clusterId",
             "sha256": "717626f82e3b9dbcd0cd25aa2a1832696ccb08739c4c1f57b5ad5d2e557ebc4c",
-            "taille": 5001
+            "count": 5001
           },
-          "geometrieOctets": 234119992,
-          "budgetPages": {
-            "demande": 100000,
-            "residentes": 5001,
-            "couvertureLimiteeParBudget": null
+          "geometryBytes": 234119992,
+          "pageBudget": {
+            "requested": 100000,
+            "resident": 5001,
+            "budgetLimitedCoverage": null
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -1740,32 +1740,32 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "projecteurs": 0,
-            "directionnelles": 1,
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": {
+            "count": 1,
+            "points": 0,
+            "spots": 0,
+            "directional": 1,
             "ids": ["banc-soleil"],
-            "ombres": false
+            "shadows": false
           },
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [3.4853515625, 5.01416015625, 5.3134765625],
-            "fin": [3.3662109375, 4.9638671875, 5.2939453125]
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [3.4853515625, 5.01416015625, 5.3134765625],
+            "end": [3.3662109375, 4.9638671875, 5.2939453125]
           },
           "captureStatus": 200,
-          "incidentsGpu": null,
+          "gpuIncidents": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -1866,7 +1866,7 @@
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
-          "profilParEtape": {
+          "stageProfile": {
             "version": 1,
             "enabled": true,
             "backend": "exact-cluster-pages",
@@ -1930,7 +1930,7 @@
           },
           "passesGpu": null,
           "preparationMs": 466.80000001192093,
-          "reseau": {
+          "network": {
             "json": 400642,
             "bin": 233638040,
             "wasm": 44509,
@@ -1944,9 +1944,9 @@
           "drawnTriangles": null,
           "submittedTriangles": 610891,
           "totalSubmittedTriangles": 610891,
-          "imageDuReleve": 59,
-          "imageTenue": true,
-          "repliSelectionGpu": null,
+          "recordedFrame": 59,
+          "frameHeld": true,
+          "gpuSelectionFallback": null,
           "hiZ": {
             "tested": null,
             "rejected": null,
@@ -1959,15 +1959,15 @@
           "selection": {
             "source": "clusterId",
             "sha256": "717626f82e3b9dbcd0cd25aa2a1832696ccb08739c4c1f57b5ad5d2e557ebc4c",
-            "taille": 5001
+            "count": 5001
           },
-          "geometrieOctets": 234119992,
-          "budgetPages": {
-            "demande": 100000,
-            "residentes": 5001,
-            "couvertureLimiteeParBudget": null
+          "geometryBytes": 234119992,
+          "pageBudget": {
+            "requested": 100000,
+            "resident": 5001,
+            "budgetLimitedCoverage": null
           },
-          "cheminCalcul": {
+          "mathBatch": {
             "contract": 1,
             "mode": "auto",
             "wasmAvailable": true,
@@ -1987,32 +1987,32 @@
               }
             }
           },
-          "lampes": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "soleil": true,
-            "ombres": true,
-            "maille": 0,
-            "intensite": 40,
+          "lights": {
+            "count": 1,
+            "points": 0,
+            "sun": true,
+            "shadows": true,
+            "grid": 0,
+            "intensity": 40,
             "mobile": false
           },
-          "lampesFichier": { "nombre": 0, "ids": [] },
-          "lampesTemoin": {
-            "nombre": 1,
-            "ponctuelles": 0,
-            "projecteurs": 0,
-            "directionnelles": 1,
+          "importedLights": { "count": 0, "ids": [] },
+          "witnessLights": {
+            "count": 1,
+            "points": 0,
+            "spots": 0,
+            "directional": 1,
             "ids": ["banc-soleil"],
-            "ombres": false
+            "shadows": false
           },
-          "atlasOmbres": null,
-          "objetMobile": null,
-          "charge": {
-            "debut": [3.3662109375, 4.9638671875, 5.2939453125],
-            "fin": [3.25634765625, 4.91455078125, 5.2744140625]
+          "shadowAtlas": null,
+          "movingNode": null,
+          "load": {
+            "start": [3.3662109375, 4.9638671875, 5.2939453125],
+            "end": [3.25634765625, 4.91455078125, 5.2744140625]
           },
           "captureStatus": 200,
-          "incidentsGpu": null,
+          "gpuIncidents": null,
           "canvas": { "width": 2496, "height": 1404 },
           "metrics": {
             "rafIntervalMs": null,
@@ -2095,9 +2095,9 @@
           }
         }
       },
-      "witnessAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
+      "witnessAA": { "pixels": 0, "maxChannel": 0, "total": 3504384 },
       "beforeAfterDiff": null,
-      "coupeIdentique": null
+      "sameCut": null
     }
   ],
   "errors": [],
@@ -2105,13 +2105,13 @@
     "min": { "x": -115.11764164227608, "y": -4.9280338111150135, "z": -115.10898560641769 },
     "max": { "x": 115.01769735146176, "y": 108.2506907284246, "z": 115.05897280717664 }
   },
-  "lampes": {
-    "nombre": 1,
-    "ponctuelles": 0,
-    "soleil": true,
-    "ombres": true,
-    "maille": 0,
-    "intensite": 40,
+  "lights": {
+    "count": 1,
+    "points": 0,
+    "sun": true,
+    "shadows": true,
+    "grid": 0,
+    "intensity": 40,
     "mobile": false
   },
   "finishedAt": "2026-09-18T11:02:43.438Z"

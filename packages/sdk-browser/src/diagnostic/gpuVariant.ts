@@ -94,4 +94,4 @@ export const composesOffscreen = (variant?: DiagnosticGpuVariant) =>
 
 /** What the variant has encoded twice in the cut: everything, its head only, or nothing. */
 export const selectionRepeat = (variant?: DiagnosticGpuVariant) =>
-  variant === 'selection-doubled' ? 'tout' : variant === 'selection-head-doubled' ? 'tete' : null;
+  variant === 'selection-doubled' ? 'all' : variant === 'selection-head-doubled' ? 'head' : null;

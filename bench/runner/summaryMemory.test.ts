@@ -20,7 +20,7 @@ const rapport = (series: Serie[]): Report => ({ series }) as Report;
 test('each side of each view has its row, and the rest is the difference', () => {
   const lignes = memoire(
     rapport([
-      serie('sol', {
+      serie('ground', {
         after: {
           metrics: {
             gpuAllocatedBytes: 7_500_000_000,
@@ -55,7 +55,7 @@ test('each side of each view has its row, and the rest is the difference', () =>
 test('a side without registry is unmeasured, never zero, and an unknown format is stated', () => {
   const lignes = memoire(
     rapport([
-      serie('generale', {
+      serie('overview', {
         before: { metrics: {} },
         after: {
           metrics: {
@@ -69,16 +69,16 @@ test('a side without registry is unmeasured, never zero, and an unknown format i
   );
   assert.equal(
     lignes[2],
-    '| generale | e1 | before | unmeasured | unmeasured | unmeasured / unmeasured | unmeasured | unmeasured |',
+    '| overview | e1 | before | unmeasured | unmeasured | unmeasured / unmeasured | unmeasured | unmeasured |',
   );
   assert.equal(
     lignes[3],
-    '| generale | e1 | after | 0.000 GB | unmeasured | unmeasured / unmeasured | unmeasured | 0.000 GB |',
+    '| overview | e1 | after | 0.000 GB | unmeasured | unmeasured / unmeasured | unmeasured | 0.000 GB |',
   );
   assert.equal(lignes.length, 6);
   assert.match(
     lignes[5],
-    /^- generale · e1 · after, heaviest: Trillion3D HDR lighting 0.0 MB — 2 texture/,
+    /^- overview · e1 · after, heaviest: Trillion3D HDR lighting 0.0 MB — 2 texture/,
   );
   assert.match(lignes[5], /this total is not a proof$/);
 });

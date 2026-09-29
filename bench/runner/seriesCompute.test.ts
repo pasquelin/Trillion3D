@@ -56,11 +56,11 @@ test('an enforced path reaches the page, and governor metrics are published as i
   const gouverneur = { contract: 1, mode: 'wasm', wasmAvailable: true, operations: {} };
   const { row, recus } = await serie('wasm', gouverneur);
   assert.deepEqual(recus, ['wasm']);
-  assert.equal(row.cheminCalcul, gouverneur);
+  assert.equal(row.mathBatch, gouverneur);
 });
 
 test('`auto` enforces nothing on explorer, and dist without governor publishes null', async () => {
   const { row, recus } = await serie('auto', undefined);
   assert.deepEqual(recus, [null], 'auto leaves governor to arbitrate');
-  assert.equal(row.cheminCalcul, null, 'unmeasured, not "JavaScript path"');
+  assert.equal(row.mathBatch, null, 'unmeasured, not "JavaScript path"');
 });

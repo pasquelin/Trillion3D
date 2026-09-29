@@ -64,7 +64,7 @@ test('export preserves source numbers and original pixels without inventing prov
         },
       ],
     };
-    writeFileSync(join(source, 'mobile/mesure.json'), JSON.stringify(raw));
+    writeFileSync(join(source, 'mobile/measure.json'), JSON.stringify(raw));
     writeFileSync(join(source, 'mobile/a.png'), 'original-pixels');
     const report = exportReport(source, out, 'campaign');
     assert.equal(report.records.length, 1);
