@@ -137,5 +137,3 @@ export function shadowFreshDraws(
       ) as Made),
   };
 }
-
-export type ShadowFreshDraws = ReturnType<typeof shadowFreshDraws>;

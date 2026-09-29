@@ -20,7 +20,7 @@ import {
 /** Invocations of the one workgroup that composes, then seals, a frame's GPU-drawn pages. */
 export const FRESH_LANES = 64;
 /** Regions a frame's pair cull dispatches at most: a dispatch's second dimension. */
-export const MAX_FRESH_REGIONS = 65535;
+const MAX_FRESH_REGIONS = 65535;
 
 /**
  * THE PAGES THE GPU DRAWS ITSELF (#1275), in the frame that maps them. The allocation lists every
