@@ -111,6 +111,14 @@ export function encodeTaaPass(
   return output;
 }
 
+/** A capture's barrier converges at the scale its still image is drawn at (`imageScale`), not at
+ *  the moving one the last ordinary image took: what it makes resident is then what the held image
+ *  reads, whatever the path before it (#1016). */
+export function convergeAtStillScale(rt: WebgpuPagesRuntime) {
+  const temporal = rt.gpu.temporal;
+  if (temporal?.frame.active) temporal.frame.scale = imageScale(rt, true);
+}
+
 /** History is to be remade: targets reallocated, or size changed. */
 export function dropTaaHistory(rt: WebgpuPagesRuntime) {
   forgetTaaHistory(rt.gpu.temporal);
