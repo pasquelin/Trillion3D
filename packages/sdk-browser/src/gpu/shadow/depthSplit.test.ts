@@ -84,7 +84,7 @@ function scene(rng: () => number, o: Options) {
     instances: new Array<number>(3 * capacity).fill(-1),
     slotOffsets: [0, capacity, 2 * capacity, 3 * capacity],
     uni: { indirect: 1, drawSlot: REGION },
-    shadow: { viewProjection, params: vec4f(0, 0, 0, SHADOW_PAGE), emitter },
+    shadow: { viewProjection, params: vec4f(0, 0, SHADOW_PAGE / 8192, SHADOW_PAGE), emitter },
   };
   const entries = shadowEntries(world),
     order = [...pages.keys()].sort(() => rng() - 0.5),
