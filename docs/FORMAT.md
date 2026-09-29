@@ -38,7 +38,7 @@ Required fields of the merged manifest, consumed by the browser adapter:
 - `scope` — `slice` or `full`
 - `selectedTriangles`, `selectedNodes` — how many triangles and nodes were kept: counts, not lists, so they do not grow with the number of placed objects
 - `primitives[]` — `{ mesh, primitive, pass, clusterStrategy, pages, culling, structure, streams, dag, topology }`
-  - `pass` is `exact-clusters` for opaque/MASK geometry, `clustered-blend` for static BLEND geometry, or `shared-blend` for unsplit source geometry (`KHR_materials_transmission` with `transmissionFactor > 0`, skins / `JOINTS_0` / `WEIGHTS_0`, and morph targets).
+  - `pass` is `exact-clusters` for opaque/MASK geometry, `clustered-blend` for static BLEND geometry, or `shared-blend` for unsplit transmissive source geometry (`KHR_materials_transmission` with `transmissionFactor > 0`).
   - `clusterStrategy` is `dag-groups` on every primitive the DAG covers, and `null` on a `shared-blend` primitive, which carries no pages.
   - `errorModel` is `dag-group-qem-v3`, the one model this runtime reads: absolute group error weighing positions, normals and texture coordinates, clamped to the group's extent, and never below the sampled Hausdorff distance between the group's children and its outputs. A `dag-group-qem-v1` (positions only) or `dag-group-qem-v2` (quadric error alone, below the geometry on curved surfaces) cache is refused with `STALE_CACHE`. Every cluster carries its own screen-error band, so nothing walks a tree. A cache whose clusters carry no band — the page tree earlier compilers emitted — is rejected by `assertCacheIdentity` with `STALE_CACHE`, naming the primitive that lacks one, so a host recompiles instead of half-reading a cache.
   - `simplification` is `true` when the compiler ran with `qem-endpoints`.
@@ -91,7 +91,7 @@ The compiler validates selected accessors against their own `bufferView` length,
 
 Each page is a tightly packed little-endian `u32` index buffer covering at most 128 triangles (384 indices) of one DAG cluster. The runtime verifies SHA-256 and byte length before attaching a page. A streaming bundle is the concatenation of those index buffers for the clusters it holds, in the order their `streamOffset` values give.
 
-Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable quantized cluster page with URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate (`uncompressedBytes`: the page once unpacked to float attributes and 32-bit indices, what a reader that expands the page holds; `bytes` is what a reader that decodes in place keeps resident). The manifest declares the page format once, at its top: `geometryPages: { formatVersion: 5, codec: "quantized" }`. This geometry-page version is independent of the outer cache version: the optional fields and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 10. A reader of a cache whose `geometryPages` is missing or of another format refuses it whole, as it refuses a sidecar of another version than 10 — the sidecar names only this page — and every page header opens with the same version. The index pages remain available for existing backends.
+Static opaque, alpha-mask and clustered BLEND primitives can additionally carry `pages[].geometry`: an independently decodable quantized cluster page with URL, SHA-256, byte length, vertex/index counts, attribute flags and decoded-byte estimate (`uncompressedBytes`: the page once unpacked to float attributes and 32-bit indices, what a reader that expands the page holds; `bytes` is what a reader that decodes in place keeps resident). The manifest declares the page format once, at its top: `geometryPages: { formatVersion: 6, codec: "quantized" }`. This geometry-page version is independent of the outer cache version: the optional fields and `autonomousScene` are additive, while `clustered-blend` requires outer cache format 10. A reader of a cache whose `geometryPages` is missing or of another format refuses it whole, as it refuses a sidecar of another version than 10 — the sidecar names only this page — and every page header opens with the same version. The index pages remain available for existing backends.
 
 #### Quantized cluster page (`WGP3`)
 
@@ -99,9 +99,9 @@ The page is the published cluster format — positions on an object grid, octahe
 
 | Word  | Content                                                                                                         |
 | ----- | --------------------------------------------------------------------------------------------------------------- |
-| 0, 1  | magic `WGP3` (`0x33504757`), version `5`                                                                        |
+| 0, 1  | magic `WGP3` (`0x33504757`), version `6`                                                                        |
 | 2, 3  | vertex count (1 to 65,535), index count (a positive multiple of 3)                                              |
-| 4     | attribute flags: `1` NORMAL, `2` TEXCOORD_0, `4` TEXCOORD_1, `8` COLOR_0                                        |
+| 4     | attribute flags: `1` NORMAL, `2` TEXCOORD_0, `4` TEXCOORD_1, `8` COLOR_0, `16` joints/weights, `32` morph targets, `64` simulation-source semantics |
 | 5–8   | position record and minimum: one `f32` per axis                                                                 |
 | 9–11  | TEXCOORD_0 record and minimum                                                                                   |
 | 12–14 | TEXCOORD_1 record and minimum                                                                                   |
@@ -109,7 +109,7 @@ The page is the published cluster format — positions on an object grid, octahe
 | 20    | `f32` quantization error: the largest distance between a source position and its decoded value, in object units |
 | 21    | bits of the corner stream                                                                                       |
 | 22    | stored positions: 1 to the vertex count                                                                         |
-| 23    | reserved, zero                                                                                                  |
+| 23    | deformation: joint width in bits 0–5, target count in bits 6–13, joint base in bits 14–29                                                                                                  |
 
 A record word holds the width of each component in six-bit fields from bit 0 (each 0 to 24) and the grid exponent as a signed byte in the top byte; a component of zero width is constant and has no stream. Streams follow in this order — block table, corners, position `x`, `y`, `z`, links (if fewer positions than vertices), normal (if flagged), `u`, `v` of TEXCOORD_0 (if flagged), `u`, `v` of TEXCOORD_1 (if flagged), `r`, `g`, `b`, `a` (if flagged) —, each `ceil(count × bits / 32)` words, each field `i` at bit `i × bits`, least significant bit first. A normal is 16 bits. The position streams hold word 22's count of fields, not the vertex count: a page whose vertices repeat a position — a flat-shaded mesh repeats each corner under every face normal meeting there — stores each position once, in first-use order, and a link per vertex, the rank of its position on `bits_for(word 22 − 1)` bits (version 5, CMP-10, #960); a vertex decodes to the same floats as when it carried its own, one field further in O(1). The compiler and the reference encoder store the positions once only when the distinct positions and the links take fewer words than one position per vertex; otherwise word 22 equals the vertex count and there is no link stream. Compiled from the same sources, the repository's scenes' pages weigh 2.0 % less than in version 4 — the flat-shaded chalet 17.5 %, the crates 19.2 %, the street corner 24.7 % —, smooth ones such as the terrains not a byte more, and every page decodes to the same vertices. The triangles are coded by blocks of eight, in page order (version 4, #959): the block table holds one record per block — its smallest corner (`base`, `ceil(log2(vertexCount))` bits), the width `w` its corners take as their distance to that base (5 bits, 0 to 16) and `prefix`, the sum of the widths of the blocks before it (`bits_for(word 21 / 24)` bits) —, each record `ceil(log2(vertexCount)) + 5 + prefix bits` wide at bit `block × that`; the corner stream holds, for corner `k` of a block, `corner − base` at bit `24 × prefix + k × w`. A corner is therefore one record and one field away, still O(1) in a shader, and the code is lossless: every corner decodes to the index written, in its order. A page numbers its vertices by first use, so a block spans few of them: compiled from the same sources, Sponza's pages weigh 5.5 % less than in version 3, the CMP audit's meshes 3.4 % (building) to 6.7 % (sphere) less, and every page decodes to the same triangles. Every offset follows from the counts, the widths and words 21 and 22, so the header stores no other and a reader trusts none: the byte length must equal what the streams need, a header field outside the format (a width above 24, an exponent beyond ±64, a non-finite minimum, an unknown flag, a negative error, a stored-position count of zero or above the vertex count, a reserved word set) refuses the page before any stream is read, so does a block record whose base reaches the vertex count, whose width passes an index's or whose corners leave the corner stream, so does a link at or past word 22 — the gate a reader that decodes in place, the GPU, relies on —, and a corner at or past the vertex count refuses it before any float is produced.
 
@@ -430,7 +430,7 @@ flags a page-built one does, its model's visibility for its own.
 
 ## Source glTF
 
-The compiler writes a compacted `source.gltf` + `source.bin` for the selected nodes. Relative image URIs are rewritten against the host `resourceBaseUrl`. `images` may be omitted. Images that use `bufferView` (no `uri`) keep their view; the view is copied into `source.bin`. Sparse accessors (`accessor.sparse`) are decoded and their bufferViews are compacted and remapped. Skinned meshes (`skin`, `JOINTS_0`, `WEIGHTS_0`), morph targets (`targets`), and animations are preserved in `source.gltf` and routed to the `shared-blend` reference pass.
+The compiler writes a compacted `source.gltf` + `source.bin` for the selected nodes. Relative image URIs are rewritten against the host `resourceBaseUrl`. `images` may be omitted. Images that use `bufferView` (no `uri`) keep their view; the view is copied into `source.bin`. Sparse accessors (`accessor.sparse`) are decoded and their bufferViews are compacted and remapped. Skinned meshes (`skin`, `JOINTS_0`, `WEIGHTS_0`), morph targets (`targets`), and animations are preserved in `source.gltf` and its prepared tables; opaque and alpha-blended deformation is carried by clustered pages.
 
 ## Source files
 
@@ -525,3 +525,25 @@ are tried: `skinned` (a skin, joint weights or morph targets: the mesh deforms);
 `no-coverage`; `root-cheaper-than-impostor` (`z_tri` beyond the diagonal of the drawn scene's
 bounds, the farthest a placement is seen from); `atlas-over-texture-limit` (`atlasSide` above
 `textureLimit`, 8192, the side any WebGPU card holds). `baked` and `refused` count them.
+
+## Deformation in geometry page format 6
+
+After the ordinary attribute streams, flag 16 adds four joint IDs per vertex at the width and
+base of header word 23, followed by three eight-bit weights. The fourth weight is 255 minus
+the first three; the four weights sum to one after division by 255. Flag 32 adds one target
+record per header target count, followed by its position and normal displacement streams.
+Each target record occupies nine words immediately after the fixed header: its stream start
+word, position record/minimum and normal record/minimum. Position displacements use the page's position grid; normal displacements
+use exponent -10. Readers validate flags, counts, widths and total byte length before reading.
+
+Flag 64 requires flag 16 and changes its IDs' meaning explicitly: they index the cooked
+simulation's compacted vertices, not a skeleton. The four weights interpolate displacements
+from those vertices' recorded rest positions. Geometry page format 6 is required, so an older
+reader refuses this meaning instead of rendering a skin. The physics sidecar's optional
+`render: { version: 1, positions, indices }` stores those compacted rest positions (xyz per
+vertex) and triangle indices; the simulation and renderer use the same ordering. The runtime
+rejects an unsupported mapping version or inconsistent lengths.
+
+`primitives[].deformation` contains flattened joint rest balls (`x,y,z,radius`), one maximum
+displacement per morph target, and optional `softVertices`. These bound deformation independently
+of the selected page and let the existing cut expand bounds and refine conservative error.

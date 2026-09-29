@@ -2375,5 +2375,25 @@
       "unmount": "Lepas",
       "remount": "Pasang ulang"
     }
+  },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "Putar"
+    }
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "Putar"
+    }
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "Putar"
+    }
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "Putar"
+    }
   }
 }

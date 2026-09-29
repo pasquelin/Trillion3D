@@ -83,6 +83,8 @@ export type PageRec = {
   /** Rank of the root — the placement — in a WebGPU engine's selection roots, set once by its
    *  layout: that is what the record carries to look up the placement's motion. */
   placementIndex?: number;
+  /** WebGL placement control record, zero when the page is rigid. */
+  deformRecord?: number;
   /** The instance-buffer row this record is placed by, as its root: an engine drawn by the host
    *  renderer draws such records instanced, one mesh per page and surface. */
   placement?: PlacementOf;

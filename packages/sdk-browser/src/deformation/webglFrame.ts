@@ -21,6 +21,8 @@ export function createWebglDeformation(
     frame = session.frame,
     skip = createDeformationSkip(),
     source = { block: frame.block, bases: frame.bases, version: 0 };
+  for (const root of roots)
+    for (const page of root.pages) page.deformRecord = session.wordOfWorld(root.world);
   return {
     /** The records the program reads, none when no root deforms. */
     source: () => (session.any ? source : undefined),

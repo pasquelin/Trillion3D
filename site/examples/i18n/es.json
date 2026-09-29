@@ -2375,5 +2375,25 @@
       "unmount": "Desmontar",
       "remount": "Volver a montar"
     }
+  },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "Reproducir"
+    }
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "Reproducir"
+    }
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "Reproducir"
+    }
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "Reproducir"
+    }
   }
 }
