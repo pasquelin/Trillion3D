@@ -183,3 +183,10 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   contractResources.proxy = active ? rt.sunFar.gpu?.buffer() : undefined;
   return contractResources;
 }
+
+/** An occlusion test made while a growth was granted holds the cull's old lists: it follows. */
+export function followOcclusion(rt: WebgpuPagesRuntime) {
+  const { cull, occlusion } = rt.lights;
+  if (cull && occlusion && occlusion.visible.size !== cull.kept.size)
+    occlusion.grow(rt.layout.rows.casterSlots).commit();
+}
