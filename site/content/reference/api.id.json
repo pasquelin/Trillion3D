@@ -1008,7 +1008,8 @@
       "PHYSICS_OFF": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` disetel ke `'vehicle'` saat `world.controls.vehicle` bernilai `null`: tidak ada yang dikemudikan.",
       "GUIDE_CEILING": "Sebuah panggilan `world.guides` akan memegang lebih banyak verteks daripada `GUIDE_VERTEX_CEILING`; tidak ada yang ditambahkan.",
-      "REFERENCE_SHADOWS_REDUCED": "Gambar referensi ditolak: kumpulan bayangan berjalan di bawah ukuran penuhnya, atau sesinya interaktif."
+      "REFERENCE_SHADOWS_REDUCED": "Gambar referensi ditolak: kumpulan bayangan berjalan di bawah ukuran penuhnya (`REFERENCE_SHADOWS_REDUCED`). Mode referensi diminta pada sesi interaktif, yang perubahan ukurannya akan menghilangkan supersampling (`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "Gambar referensi ditolak: kumpulan bayangan berjalan di bawah ukuran penuhnya (`REFERENCE_SHADOWS_REDUCED`). Mode referensi diminta pada sesi interaktif, yang perubahan ukurannya akan menghilangkan supersampling (`REFERENCE_INTERACTIVE`)."
     }
   },
   "EngineProfiler": {
