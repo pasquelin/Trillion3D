@@ -29,6 +29,10 @@ const HELD = {};
  * requests by the race of its threads and the held pages come in hash order, and a queue re-ranked
  * to either would trade slots at every readback.
  *
+ * While a capture is drawn, the CPU cut ranks its own pages first, each lifted above every level
+ * of the union (`sets.drawnFirst`): the capture keeps what its cut alone kept under the one budget,
+ * and the other views' pages take what room is left (#268).
+ *
  * Only a new readback (or a moved CPU cut), a new room or a queue changed elsewhere is ranked
  * again: one walk of the closed requests or the held pages, bounded by the view, never the
  * catalogue (#483 rule 6).
@@ -36,7 +40,7 @@ const HELD = {};
 export function createRequestAdmission(
   sets: WebgpuResidencySets,
   { keyOf, wanted }: Pick<Tracking, 'keyOf' | 'wanted'>,
-  closure: Pick<GroupClosure, 'closeOver' | 'forEachHeld'>,
+  closure: Pick<GroupClosure, 'closeOver' | 'closeOverRecords' | 'forEachHeld'>,
 ) {
   /** Per key the walk reached, one plus the visit that filed it: the first at its coarsest level.
    *  A visit a coarser one superseded has its level set to -1. */
@@ -52,14 +56,17 @@ export function createRequestAdmission(
     queued: PageRec[] = [];
   let visits = 0,
     top = 0,
+    /** Added to a page's level: a capture's own are filed above the union's (`rankFrom`). */
+    lift = 0,
     last: object | null = null,
     lastRoom = -1,
     lastRevision = -1,
-    lastCut = -1;
+    lastCut = -1,
+    lastFirst: readonly PageRec[] | null = null;
   const visit = (_id: number, rec: PageRec) => {
     const key = keyOf(rec);
     if (sets.covers(key)) return;
-    const level = rec.level ?? 0,
+    const level = (rec.level ?? 0) + lift,
       filed = filedBy.get(key);
     if (filed && levels[filed - 1] >= level) return;
     if (filed) {
@@ -122,12 +129,14 @@ export function createRequestAdmission(
   /** Ranks at `room` what `ids` close over, or the held cut when `ids` is null, into the queue:
    *  unless the source, the room, the queue and the held cut are all as last ranked. */
   const rankFrom = (room: number, source: object, ids: ArrayLike<number> | null) => {
-    const cutNow = ids ? -1 : sets.cutRevision;
+    const cutNow = ids ? -1 : sets.cutRevision,
+      first = ids ? null : sets.drawnFirst;
     if (
       source === last &&
       room === lastRoom &&
       sets.acceptedRevision === lastRevision &&
-      cutNow === lastCut
+      cutNow === lastCut &&
+      first === lastFirst
     )
       return;
     // No room: an empty queue, without walking what it would rank.
@@ -138,6 +147,12 @@ export function createRequestAdmission(
       filedBy.clear();
       if (ids) closure.closeOver(ids, visit);
       else closure.forEachHeld(visit);
+      // A capture's pages again, above the union's coarsest: a coarser filing supersedes.
+      if (first) {
+        lift = top + 1;
+        closure.closeOverRecords(first, visit);
+        lift = 0;
+      }
       pages.length = visits;
       count = rank(room);
     } else queued.length = 0;
@@ -146,10 +161,12 @@ export function createRequestAdmission(
     lastRoom = room;
     lastRevision = sets.acceptedRevision;
     lastCut = cutNow;
+    lastFirst = first;
   };
   /** The GPU cut's: its readback's requests. */
   const admit = (room: number, cut: Requests | null) => {
-    if (sets.desiredCount <= room) return sets.followDesired();
+    // The queue follows the cut whole: no capture's cut is held for a ranking that may not come.
+    if (sets.desiredCount <= room) return ((lastFirst = null), sets.followDesired());
     // A readback the adopter refused, or none yet: the queue the image holds stands.
     if (!cut || cut.result.truncated || !cut.result.drawablePageIds) return;
     rankFrom(room, cut, cut.result.pageIds);
@@ -157,6 +174,7 @@ export function createRequestAdmission(
   /** The CPU cut's, whose difference is already applied: true when it overruns `room`. */
   const held = (room: number) => {
     if (sets.desiredCount <= room) {
+      lastFirst = null;
       sets.followDesired();
       return false;
     }

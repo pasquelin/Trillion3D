@@ -345,7 +345,6 @@
       "drag-a-crate": "상자 드래그"
     },
     "missing": {
-      "inside-a-component": "월드 폐기 시 엔진이 만든 캔버스 정리",
       "floating-crates": "매 프레임 다시 쓰는 지오메트리",
       "thick-lines": "굵은 선",
       "a-line-that-draws-itself": "지오메트리의 그리기 범위",
