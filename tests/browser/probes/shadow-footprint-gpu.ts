@@ -13,37 +13,39 @@ declare global {
   var shadowFootprint: { run: typeof run };
 }
 
-const here = dirname(fileURLToPath(import.meta.url));
+if (import.meta.main) {
+  const here = dirname(fileURLToPath(import.meta.url));
 
-test('a texel outside its page’s footprint reads as not drawn, asks for it and misses it, on the GPU', async () => {
-  const script = await bundlePage(resolve(here, 'shadowFootprintPage.ts'), 'shadowFootprint');
-  const result = await dansPageWebgpu(() => globalThis.shadowFootprint.run(), undefined, {
-    titre: 'Shadow footprint',
-    script,
+  test('a texel outside its page’s footprint reads as not drawn, asks for it and misses it, on the GPU', async () => {
+    const script = await bundlePage(resolve(here, 'shadowFootprintPage.ts'), 'shadowFootprint');
+    const result = await dansPageWebgpu(() => globalThis.shadowFootprint.run(), undefined, {
+      titre: 'Shadow footprint',
+      script,
+    });
+    assert.equal(result.unavailable, undefined, 'WebGPU must be available');
+    const { errors, reads, read, asked, missed } = result as Exclude<
+      typeof result,
+      { unavailable: string }
+    >;
+    assert.deepEqual(errors, []);
+    assert.ok(reads.some((r) => r.word === 0) && reads.some((r) => r.word !== 0));
+    assert.deepEqual(
+      read,
+      reads.map((r) => r.word),
+      'outside: nothing read; inside: the page as drawn',
+    );
+    assert.deepEqual(
+      [...asked].sort((a, b) => a - b),
+      reads.map((r) => r.entry).sort((a, b) => a - b),
+      'every read asks for its page',
+    );
+    assert.deepEqual(
+      [...missed].sort((a, b) => a - b),
+      reads
+        .filter((r) => r.word === 0)
+        .map((r) => r.entry)
+        .sort((a, b) => a - b),
+      'a read outside its drawn page’s footprint says it missed it',
+    );
   });
-  assert.equal(result.unavailable, undefined, 'WebGPU must be available');
-  const { errors, reads, read, asked, missed } = result as Exclude<
-    typeof result,
-    { unavailable: string }
-  >;
-  assert.deepEqual(errors, []);
-  assert.ok(reads.some((r) => r.word === 0) && reads.some((r) => r.word !== 0));
-  assert.deepEqual(
-    read,
-    reads.map((r) => r.word),
-    'outside: nothing read; inside: the page as drawn',
-  );
-  assert.deepEqual(
-    [...asked].sort((a, b) => a - b),
-    reads.map((r) => r.entry).sort((a, b) => a - b),
-    'every read asks for its page',
-  );
-  assert.deepEqual(
-    [...missed].sort((a, b) => a - b),
-    reads
-      .filter((r) => r.word === 0)
-      .map((r) => r.entry)
-      .sort((a, b) => a - b),
-    'a read outside its drawn page’s footprint says it missed it',
-  );
-});
+}
