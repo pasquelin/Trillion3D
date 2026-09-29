@@ -111,10 +111,10 @@ pub(super) fn reduce_group(
 /// islands (`charts::folded_span`): a later collapse may join islands a placed vertex's seams no
 /// longer hold. Zero elsewhere: a primitive no solve touched keeps its bytes.
 fn folded_after_solve(input: &GroupReductionInput, live: &[u32], kept: &[u32]) -> f64 {
-    let Some(charts) = input.placed_charts(live) else {
+    let Some(islands) = input.placed_islands(live) else {
         return 0.0;
     };
-    charts::folded_span(kept, input.positions, |v| charts[v as usize], false)
+    charts::folded_span(kept, input.positions, |v| islands[v as usize])
 }
 
 /// Simplifies `source` to half triangles, restarting with extra locks as long as a shared vertex
