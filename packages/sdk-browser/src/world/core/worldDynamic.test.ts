@@ -61,6 +61,27 @@ test('a geometry changed on consecutive frames turns dynamic by itself, and says
   assert.equal(world.rewrites.length, 8);
 });
 
+test("the session's own loop hands its frame hooks the upload bytes, and still detects a rewrite", async () => {
+  const world = dynamicWorld();
+  const sheet = geometry.plane(1, 1, 4, 4);
+  world.scene.add(object.mesh(sheet, material.meshStandard({})));
+  await world.loop();
+  const bytes: unknown[] = [];
+  for (let frame = 0; frame < 10; frame++) {
+    sheet.attributes.position.setZ(0, (frame % 2) * 0.1);
+    sheet.attributes.position.needsUpdate = true;
+    bytes.push((await world.loop()).dynamicUploadBytes);
+  }
+  world.end();
+  await new Promise(setImmediate);
+  takeContentReopens(); // the session stand-in mounts nothing: the dynamic resource opens it once
+  assert.ok(
+    bytes.every((b) => typeof b === 'number'),
+    `every frame told: ${bytes}`,
+  );
+  assert.deepEqual(bytes.slice(-4), Array(4).fill(12), 'one position a frame, uploaded in place');
+});
+
 type Plane = ReturnType<typeof geometry.plane>;
 /** Reads `plane`, declared dynamic, as a mesh drawing it would; `made` gets each new resource. */
 function reader(dynamic: ReturnType<typeof createWorldDynamic>, plane: Plane, made: Cut[] = []) {
