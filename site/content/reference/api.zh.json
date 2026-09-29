@@ -2047,7 +2047,9 @@
       "evictedTiles": "被移除的纹理图块。",
       "residentPages": "设置前后各自常驻的内容。",
       "residentTiles": "前后各自保留的纹理图块。",
-      "durationMs": "这次操作花费的时间。"
+      "durationMs": "这次操作花费的时间。",
+      "tables": "为超出它们的池而扩大的按可绘制页面划分的表 (WebGPU),没有扩大时为 `null`。",
+      "transientBytes": "复制几何体池期间同时占用的字节:旧池和旁边的新池,在任何页面移动之前由设备一并授予;没有池移动时为 0。"
     }
   },
   "Mesh": {
