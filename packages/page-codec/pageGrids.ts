@@ -57,16 +57,67 @@ export function ceil32(value: number): number {
   return float[0];
 }
 
-/** Octahedral bytes of a normal, `x` low and `y` high; a zero normal takes `+z`. */
+const f = Math.fround,
+  OCT_STEP = f(2 / 255);
+
+/** A normal's octahedral bytes (`x` low, `y` high) back to a unit vector at `out[at..at + 3]`, in
+ *  32-bit steps: the one decoder the reader and the encoder below share. */
+export function octDecode(q: number, out: { [i: number]: number }, at = 0) {
+  let x = f(f((q & 255) * OCT_STEP) - 1),
+    y = f(f(((q >>> 8) & 255) * OCT_STEP) - 1);
+  const z = f(f(1 - Math.abs(x)) - Math.abs(y));
+  if (z < 0) {
+    const fx = f(f(1 - Math.abs(y)) * (x >= 0 ? 1 : -1));
+    y = f(f(1 - Math.abs(x)) * (y >= 0 ? 1 : -1));
+    x = fx;
+  }
+  const length = f(Math.sqrt(f(f(f(x * x) + f(y * y)) + f(z * z))));
+  out[at] = f(x / length);
+  out[at + 1] = f(y / length);
+  out[at + 2] = f(z / length);
+}
+
+const decoded = new Float32Array(3);
+/**
+ * Octahedral bytes of a normal, `x` low and `y` high; a zero normal takes `+z`. Of the four
+ * roundings of the projected point, the one that decodes closest to the normal is kept: the
+ * "precise" variant the compiler writes (`oct_encode`, `geometry_page_quant.rs`), in the same
+ * 32-bit steps, so a page cut at run time carries the normals the compiler's would.
+ */
 export function octEncode(x: number, y: number, z: number): number {
-  const sum = Math.abs(x) + Math.abs(y) + Math.abs(z);
-  if (!sum) return 128 | (128 << 8);
-  let px = x / sum,
-    py = y / sum;
-  if (z < 0)
-    [px, py] = [(1 - Math.abs(py)) * Math.sign(px || 1), (1 - Math.abs(px)) * Math.sign(py || 1)];
-  const byte = (v: number) => Math.max(0, Math.min(255, Math.round((v + 1) * 127.5)));
-  return byte(px) | (byte(py) << 8);
+  x = f(x);
+  y = f(y);
+  z = f(z);
+  const sum = f(f(Math.abs(x) + Math.abs(y)) + Math.abs(z));
+  if (!sum || !Number.isFinite(sum)) return 128 | (128 << 8);
+  let px = f(x / sum),
+    py = f(y / sum);
+  if (z < 0) {
+    const fx = f(f(1 - Math.abs(py)) * (px >= 0 ? 1 : -1));
+    py = f(f(1 - Math.abs(px)) * (py >= 0 ? 1 : -1));
+    px = fx;
+  }
+  const cell = (v: number) => Math.min(254, Math.max(0, Math.floor(f(f(v + 1) * 127.5))));
+  const bx = cell(px),
+    by = cell(py),
+    length = f(Math.sqrt(f(f(f(x * x) + f(y * y)) + f(z * z)))),
+    ux = f(x / length),
+    uy = f(y / length),
+    uz = f(z / length);
+  let best = Infinity,
+    chosen = 0;
+  // The compiler's order, `x` outer: a tie keeps the same code.
+  for (let dx = 0; dx < 2; dx++)
+    for (let dy = 0; dy < 2; dy++) {
+      const candidate = (bx + dx) | ((by + dy) << 8);
+      octDecode(candidate, decoded);
+      const error = f(1 - f(f(f(decoded[0] * ux) + f(decoded[1] * uy)) + f(decoded[2] * uz)));
+      if (error < best) {
+        best = error;
+        chosen = candidate;
+      }
+    }
+  return chosen;
 }
 
 /** Bit streams, least significant bit first, each starting on a fresh word. */
