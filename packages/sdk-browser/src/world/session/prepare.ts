@@ -132,6 +132,14 @@ export async function prepareExplorer(session: ExplorerSession, inputs: Inputs) 
   );
   loadedScene.framingLot?.release();
   inputs.placeCamera?.(cameraState.camera);
+  // Of a partition only its root is read before the first frame: its rows are sized from it, and
+  // the frames read its pages and cells as the camera reaches them (#575).
+  if (loadedScene.partitions.length)
+    diagnose('partition', 'Partition opened on its root', {
+      kind: 'preparation',
+      scope,
+      cells: loadedScene.partitions.map((cells) => cells.stats()),
+    });
   // The frame's one integration budget: cells, arrivals, then the engine's row records.
   const frameBudget = createFrameBudget(ARRIVAL_BUDGET_MS);
   const { viewport, context } = await prepareExplorerBackends(session, {

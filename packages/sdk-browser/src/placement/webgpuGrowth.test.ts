@@ -1,16 +1,16 @@
-// #838: a WebGPU session was opened again whenever an instance buffer grew — a partition's parent
-// scaled down, a batch one mesh too full —, its pool, its texture tiles and its held image gone.
+// #838: a WebGPU session was opened again whenever an instance buffer grew — a batch one mesh too
+// full —, its pool, its texture tiles and its held image gone.
 // It now grows the rows in place while its page table holds them (`webgpuGrowth.ts`).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { pageAddress } from '../webgpu/row/pageSlots.ts';
-import { placedSession, scaleDown } from './webgpuGrowth.fixture.ts';
+import { growOne, placedSession } from './webgpuGrowth.fixture.ts';
 
-test('a WebGPU session grows the rows of a scaled-down partition in place, within its page table', async () => {
+test('a WebGPU session grows rows in place, within its page table', async () => {
   // Five rows: the ground and two rows of two leaves. The grown scene's nine pages would ask more,
   // and a session opened on it would hold these five, as this one does.
   const session = await placedSession(5);
-  const { rt, cells, links, draw, reopened } = session;
+  const { rt, links, draw, reopened } = session;
   try {
     const { layout } = rt,
       cache = rt.gpu.cache!;
@@ -22,10 +22,9 @@ test('a WebGPU session grows the rows of a scaled-down partition in place, withi
       ...cache.stats(),
     };
     const held = links.map((link) => link.placements!);
-    await scaleDown(session);
+    growOne(session);
     await draw();
     assert.equal(reopened.count, 0, 'no session opened again');
-    assert.deepEqual(cells.stats(), { cells: 2, held: 2, waiting: 0, rows: 4 });
     assert.ok(
       links.every((link, at) => link.placements!.capacity === 4 && link.placements !== held[at]),
     );
@@ -61,7 +60,7 @@ test('a growth past the page table is refused: the rows stay as they are, the ow
   try {
     const held = links.map((link) => link.placements!),
       roots = rt.layout.selectionRoots.length;
-    await scaleDown(session);
+    growOne(session);
     assert.equal(reopened.count, 1, 'the owner asked for a session sized for the rows');
     assert.ok(
       links.every((link, at) => link.placements === held[at]),

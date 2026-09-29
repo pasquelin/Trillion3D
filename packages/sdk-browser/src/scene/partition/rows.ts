@@ -45,7 +45,7 @@ export function sizeRows(
     const held = capacityOf(mesh);
     if (rows <= held) continue;
     for (const link of mesh.links) link.placements = growPlacementRows(link.placements!, rows);
-    for (let row = rows - 1; row >= held; row--) mesh.free.push(row);
+    for (let row = capacityOf(mesh) - 1; row >= held; row--) mesh.free.push(row);
   }
 }
 
