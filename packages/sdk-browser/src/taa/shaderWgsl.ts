@@ -2,6 +2,7 @@ import { FULLSCREEN_VERTEX } from '../lighting/deferred/shaders.ts';
 import { PAGE_INFO_STRUCT_WGSL } from '../visibility/shader/pageWgsl.ts';
 import { AS_IS_FLAG } from '../scene/surfaceModel.ts';
 import { readOnly } from '../webgpu/core/bindLayout.ts';
+import * as layer from './layers.ts';
 
 /** Pass label; its timestamp duration absorbs that of the passes that precede it on
  *  some devices (apple metal-3), and is only read safely by envelope difference. */
@@ -19,11 +20,12 @@ export const TAA_BINDINGS = {
   view: 7,
   flags: 8,
   shareHistory: 9,
+  ...layer.LAYER_BINDINGS,
 } as const;
 
 /** The pass's bind group layout: one entry per binding above, in its order. The share's two come
- *  last: a flagless resolve (OMB-11) neither binds nor reads them. */
-export function createTaaLayout(device: GPUDevice, asIs = true, blended = false) {
+ *  next: a flagless resolve (OMB-11) neither binds nor reads them; a `filtered` one the layers'. */
+export function createTaaLayout(device: GPUDevice, asIs = true, blended = false, filtered = false) {
   const fragment = GPUShaderStage.FRAGMENT;
   const entries: GPUBindGroupLayoutEntry[] = [
     {
@@ -53,9 +55,8 @@ export function createTaaLayout(device: GPUDevice, asIs = true, blended = false)
       texture: { sampleType: 'float' },
     },
   ];
-  return device.createBindGroupLayout({
-    entries: asIs ? entries : entries.filter(({ binding }) => binding < TAA_BINDINGS.flags),
-  });
+  const kept = asIs ? entries : entries.filter(({ binding }) => binding < TAA_BINDINGS.flags);
+  return device.createBindGroupLayout({ entries: [...kept, ...layer.layerEntries(filtered)] });
 }
 
 /** Uniform bytes: two matrices, two quadruplets, the nine weights in three, then the render grid
@@ -69,9 +70,9 @@ export const TAA_VIEW_BYTES = 240;
  * anchoring as the partition, so five-digit world coordinates of an urban model do not eat
  * the single-precision of the reprojection. `viewport` = (width, height, 1/width,
  * 1/height) of the display, which the history has; `params` = (current-frame share, history
- * valid, a placement moved, 0); `weights` = the nine weights of the current-frame filter at native
- * size, neighbour by neighbour (`weights.ts`); `render` = the same four of the grid the frame was
- * drawn in, and `jitter` its offset in render pixels (`upscaleWgsl.ts`).
+ * valid, a placement moved, the layers' history is the last image's); `weights` = the nine
+ * weights of the current-frame filter at native size, neighbour by neighbour (`weights.ts`);
+ * `render` = the same four of the grid the frame was drawn in, and `jitter` its offset in render pixels (`upscaleWgsl.ts`).
  */
 const VIEW_WGSL = `struct TaaView{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,weights:array<vec4f,3>,render:vec4f,jitter:vec4f,}`;
 
@@ -138,15 +139,15 @@ export const shareText =
  * finite — each neighbour 0, and history clamped to [0, 0] —: the flagless resolve writes 0 and
  * reads neither the flags nor the share history, its colour the same text.
  */
-export const taaShader = (asIs: boolean, blended = false) => {
+export const taaShader = (asIs: boolean, blended = false, filtered = false) => {
   const share = shareText(asIs);
-  return `${taaPrelude(asIs, blended)}
+  return `${taaPrelude(asIs, blended, filtered)}
 @fragment fn resolve(@builtin(position) pixel:vec4f)->TaaOut{
  let coord=vec2i(pixel.xy);
  let last=vec2i(view.viewport.xy)-vec2i(1);
  var filtered=vec4f(0.0);
  var lo=vec4f(1e9);var hi=vec4f(-1e9);
-${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')} var k=0u;
+${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')}${layer.layerWgsl(filtered, 'vars')} var k=0u;
  for(var dy=-1;dy<=1;dy++){for(var dx=-1;dx<=1;dx++){
   let at=clamp(coord+vec2i(dx,dy),vec2i(0),last);
   let sample=textureLoad(current,at,0);
@@ -154,10 +155,10 @@ ${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')} var k=0u;
   filtered+=sample*weight;
   let y=vec4f(toYcocg(sample.rgb),sample.a);
   lo=min(lo,y);hi=max(hi,y);
-${taaShareTap(asIs, blended)} }}
- if(view.params.y==0.0){return TaaOut(filtered,${share('share', '0.0')});}
+${taaShareTap(asIs, blended)}${layer.layerWgsl(filtered, 'tap')} }}
+ if(view.params.y==0.0){return ${layer.taaOut(asIs, filtered)};}
  let previous=previousUv(coord,textureLoad(depth,coord,0),coord);
-${taaHistoryBlend(asIs)}
+${taaHistoryBlend(asIs, filtered)}
 }`;
 };
 
@@ -171,29 +172,29 @@ export const taaShareTap = (asIs: boolean, blended: boolean) =>
 
 /** What both resolves open with: bindings, uniform, the full-screen triangle, YCoCg, reprojection
  *  and their output. */
-export const taaPrelude = (asIs: boolean, blended: boolean) => `
+export const taaPrelude = (asIs: boolean, blended: boolean, filtered = false) => `
 ${PAGE_INFO_STRUCT_WGSL}
 ${VIEW_WGSL}
-${BINDINGS_WGSL}${asIs ? shareBindingsWgsl(blended) : ''}
+${BINDINGS_WGSL}${asIs ? shareBindingsWgsl(blended) : ''}${layer.layerWgsl(filtered, 'bindings')}
 ${FULLSCREEN_VERTEX}
 ${YCOCG_WGSL}
 ${TAA_REPROJECT_WGSL}
-struct TaaOut{@location(0) color:vec4f,@location(1) share:f32,}`;
+struct TaaOut{@location(0) color:vec4f,@location(1) share:f32,${filtered ? '@location(2) tint:vec4f,@location(3) add:vec4f,' : ''}}`;
 
 /**
  * What both resolves close with, once `previous`, `filtered`, the YCoCg box `lo`–`hi` and, with
  * `asIs`, `share` and its box are known: history read at the reprojected point, clamped to the box,
  * mixed with the current image by the inverse of each one's luminance.
  */
-export const taaHistoryBlend = (asIs: boolean) => {
+export const taaHistoryBlend = (asIs: boolean, filtered = false) => {
   const share = shareText(asIs);
-  return ` if(previous.z==0.0){return TaaOut(filtered,${share('share', '0.0')});}
+  return ` if(previous.z==0.0){return ${layer.taaOut(asIs, filtered)};}
  let read=textureSampleLevel(history,historySampler,previous.xy,0.0);
  let clamped=clamp(vec4f(toYcocg(read.rgb),read.a),lo,hi);
  let kept=vec4f(fromYcocg(clamped.xyz),clamped.w);
 ${share(' let keptShare=clamp(textureSampleLevel(shareHistory,historySampler,previous.xy,0.0).r,shareLo,shareHi);\n')} let alpha=view.params.x;
  let wc=alpha/(1.0+toYcocg(filtered.rgb).x);
  let wh=(1.0-alpha)/(1.0+clamped.x);
- return TaaOut((filtered*wc+kept*wh)/(wc+wh),${share('(share*wc+keptShare*wh)/(wc+wh)', '0.0')});`;
+${layer.layerWgsl(filtered, 'kept')} return ${layer.taaOut(asIs, filtered, true)};`;
 };
 export const TAA_SHADER = taaShader(true);

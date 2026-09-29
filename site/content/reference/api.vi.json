@@ -1955,7 +1955,7 @@
       "wasmAvailable": "Mô-đun WebAssembly được nạp, ở đúng phiên bản hợp đồng.",
       "wasmSimd": "Mô-đun được biên dịch với `simd128`; `null` cho tới khi một mô-đun được nạp.",
       "clockResolutionMs": "Độ phân giải đồng hồ của luồng, tính bằng mili giây; `null` cho tới khi được ước lượng.",
-      "clockCoarse": "Đúng khi đồng hồ quá thô để phân xử: mọi thứ vẫn ở trên đường JavaScript.",
+      "clockCoarse": "Đúng khi đồng hồ quá thô để đo một lần thực thi: các lần thực thi được đo theo lô gộp.",
       "unavailableReason": "Vì sao đường WebAssembly không thể chạy được, hoặc `null` khi nó chạy được.",
       "operations": "Từng phép toán."
     }
