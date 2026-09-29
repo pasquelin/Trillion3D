@@ -5,7 +5,7 @@
 import { MAX_SHADOW_SLICES, SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
 import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
-import { SHADOW_CULL_SHADER } from '../../gpu/shadow/cullShader.ts';
+import { SHADOW_CULL_GROUP, SHADOW_CULL_SHADER } from '../../gpu/shadow/cullShader.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { runShadowAllocation, runShadowWords, shadowsOf } from './allocRun.fixture.ts';
@@ -118,7 +118,15 @@ export function keptRows(volumes: Uint8Array, region: number, rows: CasterRow[])
     indirect = new Uint32Array(8);
   const { shadowCullScatter } = shaderRun<Record<string, (id: number[]) => void>>(
     SHADOW_CULL_SHADER,
-    ['shadowCullScatter', 'listed', 'keepCaster', 'keptCount', 'keptCorners', 'keptAt'],
+    [
+      'shadowCullScatter',
+      'listed',
+      'keepCaster',
+      'keptCount',
+      'keptCorners',
+      'keptAt',
+      'flushTested',
+    ],
     {
       ...wgslConstants(SHADOW_CULL_SHADER),
       uni: { firstFace: 0, faces: 1, sourceBase: rows.length, capacity, identity: 1 },
@@ -127,20 +135,26 @@ export function keptRows(volumes: Uint8Array, region: number, rows: CasterRow[])
       mobility: rows.map((row) => row.mobility ?? 0),
       kept,
       indirect,
+      tested: 0,
+      workgroupBarrier: () => {},
     },
   );
-  rows.forEach((_, row) => shadowCullScatter([row, 0, 0]));
+  rows.forEach((_, row) => shadowCullScatter([row, 0, 0], row % SHADOW_CULL_GROUP));
   return [...kept.subarray(0, indirect[1]), ...kept.subarray(capacity - indirect[5]).reverse()];
 }
 
 /** The shadow passes run from their WGSL, by entry point, over their bindings' bytes in binding
  *  order: false for another entry point, which the caller runs. */
-export function runShadowPass(entryPoint: string | undefined, bound: Uint8Array[]) {
+export function runShadowPass(
+  entryPoint: string | undefined,
+  group: { entries: Array<{ resource: { buffer?: { data: Uint8Array } } }> },
+) {
+  const bound = () => group.entries.map((entry) => entry.resource.buffer!.data);
   const run = {
     allocateShadowPages: () =>
-      runShadowAllocation(...(bound as Parameters<typeof runShadowAllocation>)),
-    applyShadowWords: () => runShadowWords(...(bound as Parameters<typeof runShadowWords>)),
-    composeShadowPages: () => runShadowFresh(...bound),
+      runShadowAllocation(...(bound() as Parameters<typeof runShadowAllocation>)),
+    applyShadowWords: () => runShadowWords(...(bound() as Parameters<typeof runShadowWords>)),
+    composeShadowPages: () => runShadowFresh(...bound()),
   }[entryPoint ?? ''];
   run?.();
   return !!run;
