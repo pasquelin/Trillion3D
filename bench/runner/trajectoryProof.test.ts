@@ -34,8 +34,20 @@ test('a settled exact image passes; a changed arrival that converges is transien
   f.captures.set('arrival', f.image(41));
   const verdict = f.verdict();
   assert.equal(verdict.status, 'transient');
-  assert.deepEqual(verdict.arrival, { pixels: 1, maxCanal: 1, total: 1 });
-  assert.deepEqual(verdict.settled, { pixels: 0, maxCanal: 0, total: 1 });
+  assert.deepEqual(verdict.arrival, {
+    pixels: 1,
+    maxCanal: 1,
+    meanChannel: 1 / 3,
+    p999Channel: 1,
+    total: 1,
+  });
+  assert.deepEqual(verdict.settled, {
+    pixels: 0,
+    maxCanal: 0,
+    meanChannel: 0,
+    p999Channel: 0,
+    total: 1,
+  });
 });
 
 test('one changed channel after convergence is a regression, even when arrival matched', () => {
