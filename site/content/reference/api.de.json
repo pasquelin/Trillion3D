@@ -3945,7 +3945,7 @@
       "wasmAvailable": "Das WebAssembly-Modul ist geladen, in der richtigen Vertragsversion.",
       "wasmSimd": "Das Modul wurde mit `simd128` kompiliert; `null`, solange kein Modul geladen ist.",
       "clockResolutionMs": "Genauigkeit der Uhr des Strangs, in Millisekunden; `null`, solange sie nicht geschätzt wurde.",
-      "clockCoarse": "Wahr, wenn die Uhr zu grob ist, um zu entscheiden: alles bleibt auf dem JavaScript-Pfad.",
+      "clockCoarse": "Wahr, wenn die Uhr zu grob ist, um eine einzelne Ausführung zu messen: Ausführungen werden in gebündelten Stapeln gemessen.",
       "unavailableReason": "Warum der WebAssembly-Pfad nicht spielbar ist, oder `null`, wenn er es ist.",
       "operations": "Jede Operation."
     }
