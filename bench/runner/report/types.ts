@@ -101,6 +101,12 @@ export type ImageDiff =
   | { error: string }
   | { pixels: number; maxChannel: number; meanChannel: number; p999Channel: number; total: number };
 
+/** An `ImageDiff` against a named reference image, with its mean LDR-FLIP error in [0, 1]
+ *  (`imageDiff.ts::referenceDiff`). */
+export type ReferenceDiff =
+  | Exclude<ImageDiff, { pixels: number }>
+  | (Extract<ImageDiff, { pixels: number }> & { reference: string; flipMean: number });
+
 /** One row of the series table: one side, one view, one threshold (`series.ts::runSerie`). */
 export interface Row {
   cpuFrameMs: Distribution;
