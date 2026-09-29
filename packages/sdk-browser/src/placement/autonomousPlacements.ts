@@ -39,7 +39,7 @@ export const rowPlaced = (roots: Roots, rec: PageRec) => !!rootOf(roots, rec).pl
  * blended meshes by depth, never the instances of one draw. `transparent`, the flag it would take.
  */
 export const drawnInstanced = (roots: Roots, rec: PageRec, transparent = rec.transparent) =>
-  rowPlaced(roots, rec) && !transparent;
+  rowPlaced(roots, rec) && !transparent && !rec.deformRecord;
 
 /**
  * The host meshes `recs` hang on the WebGL2 path's display graph, which its page ceiling bounds:

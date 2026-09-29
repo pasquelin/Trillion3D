@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createAutonomousGeometry } from './geometry.ts';
 import type { PageRec } from '../../page/selection/types.ts';
-import { makeRec, recRoots } from './pageRec.fixture.ts';
+import { makeRec, recRoots, trianglePage } from './pageRec.fixture.ts';
 
 /** A resident record of page `u`, drawing `geometry`, its root placed by a row. */
 const rowed = (id: number, geometry: G.Geometry): PageRec => ({
@@ -31,14 +31,7 @@ test('records restored alone leave the rowed geometry the others draw', () => {
     ...{ baseMaterials: new Map([[moved, new G.GraphSurface('basic') as never]]) },
     ...{ colorMaterials: new Map(), modifiedPages: new Set() },
   } as Parameters<typeof createAutonomousGeometry>[0]);
-  store.restoreRecords([moved], {
-    indices: Uint32Array.of(0, 1, 2),
-    attributes: { position: Float32Array.of(0, 0, 0, 1, 0, 0, 0, 1, 0) },
-    vertexCount: 3,
-    flags: 0,
-    decodedBytes: 48,
-    quantizationError: 0,
-  });
+  store.restoreRecords([moved], trianglePage());
   assert.equal(disposed, 0, 'the record left on the page still draws it');
   assert.equal(kept.geometry, shared);
   assert.notEqual(moved.geometry, shared);

@@ -18,13 +18,15 @@ const ROW_WORDS = PAGE_INFO_STRIDE / 4;
  * volume.
  */
 function writeClusterSphere(rec: PageRec, roots: Placements, out: Float32Array, base: number) {
-  const e = rootOf(roots, rec).world.elements;
+  const root = rootOf(roots, rec),
+    e = root.world.elements,
+    reach = root.reach ?? 0;
   const cx = (rec.min[0] + rec.max[0]) / 2,
     cy = (rec.min[1] + rec.max[1]) / 2,
     cz = (rec.min[2] + rec.max[2]) / 2;
-  const hx = (rec.max[0] - rec.min[0]) / 2,
-    hy = (rec.max[1] - rec.min[1]) / 2,
-    hz = (rec.max[2] - rec.min[2]) / 2;
+  const hx = (rec.max[0] - rec.min[0]) / 2 + reach,
+    hy = (rec.max[1] - rec.min[1]) / 2 + reach,
+    hz = (rec.max[2] - rec.min[2]) / 2 + reach;
   transformAffinePoint(out, e, cx, cy, cz, base);
   out[base + 3] = hypot3(
     Math.abs(e[0]) * hx + Math.abs(e[4]) * hy + Math.abs(e[8]) * hz,

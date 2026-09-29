@@ -1,4 +1,11 @@
-import { BLOCK_CORNERS, OCT_SCALE, TRIANGLE_BLOCK, WIDTH_BITS } from './format.ts';
+import {
+  BLOCK_CORNERS,
+  CLUSTER_HEADER_WORDS,
+  MORPH_WORDS,
+  OCT_SCALE,
+  TRIANGLE_BLOCK,
+  WIDTH_BITS,
+} from './format.ts';
 
 /**
  * WGSL decode of a `WGP3` quantized cluster page read in place from a storage buffer of words
@@ -21,6 +28,9 @@ const CLUSTER_HEADER_WGSL = `struct ClusterHeader{
  quantizationError:f32,
  // Word offset of each stream from the page's first word: block table, corners, x, y, z, links, normal, u, v, u1, v1, r, g, b, a.
  blocks:u32,corners:u32,pos:vec3u,links:u32,normal:u32,uv:vec2u,uv1:vec2u,color:vec4u,
+ // The skin (\`deform.rs\`): its joints' base and width, and its first stream; the morph targets'
+ // count and the word their streams are counted from, each target's record after the header.
+ skinBase:u32,skinBits:u32,skin:u32,influences:u32,morphCount:u32,streams:u32,
 }`;
 
 /**
@@ -77,7 +87,9 @@ fn clusterHeader(base:u32)->ClusterHeader{
  h.prefixBits=clusterBitsFor(cornerBits/${BLOCK_CORNERS}u);
  h.recordBits=h.indexBits+${WIDTH_BITS}u+h.prefixBits;
  h.positionCount=${buffer}[base+22u];h.linkBits=clusterBitsFor(h.positionCount-1u);
- let n=h.vertexCount;let stored=h.positionCount;var at=24u;
+ // Word 23: the joint width in bits 0 to 5, the target count in 6 to 13, the smallest joint above.
+ h.influences=${buffer}[base+24u];let dw=${buffer}[base+23u];h.skinBits=dw&63u;h.morphCount=(dw>>6u)&255u;h.skinBase=(dw>>14u)&0xffffu;
+ let n=h.vertexCount;let stored=h.positionCount;var at=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount;h.streams=at;
  h.blocks=clusterStream(true,(h.indexCount/3u+${TRIANGLE_BLOCK - 1}u)/${TRIANGLE_BLOCK}u,h.recordBits,&at);
  h.corners=clusterStream(true,cornerBits,1u,&at);
  h.pos.x=clusterStream(true,stored,h.posBits.x,&at);h.pos.y=clusterStream(true,stored,h.posBits.y,&at);h.pos.z=clusterStream(true,stored,h.posBits.z,&at);
@@ -87,6 +99,7 @@ fn clusterHeader(base:u32)->ClusterHeader{
  let hasUv1=(h.flags&4u)!=0u;h.uv1.x=clusterStream(hasUv1,n,h.uv1Bits.x,&at);h.uv1.y=clusterStream(hasUv1,n,h.uv1Bits.y,&at);
  let hasColor=(h.flags&8u)!=0u;h.color.x=clusterStream(hasColor,n,h.colorBits.x,&at);h.color.y=clusterStream(hasColor,n,h.colorBits.y,&at);
  h.color.z=clusterStream(hasColor,n,h.colorBits.z,&at);h.color.w=clusterStream(hasColor,n,h.colorBits.w,&at);
+ h.skin=at;
  return h;
 }
 // Bits \`at\` to \`at+bits\` of the two words \`lo\`, \`hi\` read as one 64-bit window, \`bits\` at most 24.
@@ -147,6 +160,22 @@ fn clusterNormal(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
   x=fx;y=fy;
  }
  return normalize(vec3f(x,y,z));
+}
+// Every influence is retained; weight words are exact source float32 bits.
+fn clusterJoint(h:ClusterHeader,base:u32,vertex:u32,influence:u32)->u32{
+ let w=(h.vertexCount*h.skinBits+31u)/32u;
+ return h.skinBase+clusterField(base+h.skin+influence*w,vertex*h.skinBits,h.skinBits);
+}
+fn clusterWeight(h:ClusterHeader,base:u32,vertex:u32,influence:u32)->f32{
+ let w=(h.vertexCount*h.skinBits+31u)/32u;
+ return bitcast<f32>(${buffer}[base+h.skin+h.influences*w+influence*h.vertexCount+vertex]);
+}
+// Morph target \`t\`'s position displacement (\`normal\` false) or normal displacement of a vertex:
+// its record after the header names the word its six streams start at.
+fn clusterMorph(h:ClusterHeader,base:u32,t:u32,vertex:u32,normal:bool)->vec3f{
+ let r=base+${CLUSTER_HEADER_WORDS}u+t*${MORPH_WORDS}u;let n=h.vertexCount;
+ let at=base+h.streams+${buffer}[r]+select(0u,3u*n,normal)+vertex;
+ return vec3f(bitcast<f32>(${buffer}[at]),bitcast<f32>(${buffer}[at+n]),bitcast<f32>(${buffer}[at+2u*n]));
 }
 fn clusterColor(h:ClusterHeader,base:u32,vertex:u32)->vec4f{
  return vec4f(clusterGrid(base,h.color.x,vertex,h.colorBits.x,h.colorMin.x,h.colorStep),

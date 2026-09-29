@@ -139,8 +139,8 @@ pub(crate) fn masked(g: &Value, mesh: usize) -> bool {
 }
 
 /// Whether a primitive of source mesh `mesh` deforms by its own attributes: morph targets or
-/// joint weights, which the primitive stage routes to the deforming pass as a skin
-/// (`compiler_primitive.rs`, `is_skinned_or_morph`).
+/// joint weights, which its pages carry to the GPU deformation stage
+/// (`compiler_page_object.rs`, `page_deformation`).
 pub(crate) fn deforms(g: &Value, mesh: usize) -> bool {
     let primitives = g["meshes"][mesh]["primitives"]
         .as_array()

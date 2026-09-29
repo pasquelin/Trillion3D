@@ -1,17 +1,5 @@
-/**
- * THE GRAPH A WORLD BUILT IN CODE IS DRAWN THROUGH — one mesh per resource, never one per
- * placement.
- *
- * The engine paths read a scene as a host graph: meshes holding a geometry and a surface
- * (`host/scene/graphNodes.ts`). A world hands them one host mesh per drawn resource — a geometry
- * resource worn with one material entry — whose association carries the resource's instance
- * buffer (`placement/rows.ts`): ten thousand placements of one pebble are one host mesh and ten
- * thousand rows the engine reads in place — a blended or transmissive resource too, whose rows the
- * engine draws one blended draw each. A loaded model's graph is drawn whole, through one host node
- * posed by its world matrix alone. Nothing is decided here: the triangles arrive drawn
- * (`drawn.ts`), the surface is the host family of the material's kind (`worldSurface.ts`), and
- * every node of the graph is one this file built, of the engine's own (`../../host/graph/`).
- */
+/** Resource meshes share geometry and material; placement rows retain animation owners.
+ * Loaded models keep their graph. Resource instances use placement rows, including blends. */
 import { numbered } from '../../host/graph/serial.ts';
 import { isDrawnNode } from '../../host/graph/kinds.ts';
 import { Group, type Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
@@ -39,6 +27,22 @@ function hostGeometry(drawn: DrawnTriangles) {
   geometry.setAttribute('normal', new BufferAttribute(drawn.normals, 3));
   if (drawn.uvs) geometry.setAttribute('uv', new BufferAttribute(drawn.uvs, 2));
   if (drawn.colors) geometry.setAttribute('color', new BufferAttribute(drawn.colors, 4));
+  const deformation = drawn.deformation;
+  if (deformation?.joints && deformation.weights) {
+    geometry.setAttribute(
+      'skinIndex',
+      new BufferAttribute(deformation.joints, deformation.influences ?? 4),
+    );
+    geometry.setAttribute(
+      'skinWeight',
+      new BufferAttribute(deformation.weights, deformation.influences ?? 4),
+    );
+  }
+  geometry.morphTargetsRelative = true;
+  geometry.morphAttributes.position =
+    deformation?.targets.map((t) => new BufferAttribute(t.positions, 3)) ?? [];
+  geometry.morphAttributes.normal =
+    deformation?.targets.map((t) => new BufferAttribute(t.normals, 3)) ?? [];
   geometry.setIndex(new BufferAttribute(drawn.indices, 1));
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();

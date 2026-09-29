@@ -1305,3 +1305,47 @@ Stages, each with its proof (0 px A/A at rest, budget held, before/after publish
 
 Exit criterion: on the same scene and the same machine as the reference, same image
 to the eye, same byte budgets, same millisecond envelope.
+
+## GPU deformation
+
+`deformation/session.ts` reserves one control record per deformed placement. Records contain
+current and previous joint palettes, morph weights, the shared physics wave parameters, and
+cooked soft-body simulation positions where present. CPU animation updates bones and controls;
+it does not skin or morph vertices. Soft-body position writeback is the existing physics upload.
+Page-authored geometry retains its deformation streams through the existing page cutter and
+worker protocol, and placement rows retain their original animation owners.
+
+`deformation/compute.ts` runs once per command encoder before WebGPU cut/raster consumers.
+It writes current/previous positions and normals into tails of the existing geometry-cache slots:
+eleven words per vertex, including owner and frame tags. Multiple placements sharing a source
+page have disjoint tails. The existing slot admission and root coverage budget include these
+bytes; placement capacity changes reopen where in-place growth cannot preserve the allocation.
+Visibility, shadows, transparent pages and temporal reprojection read the shared outputs. A
+settled frame retains resident outputs; eviction makes a cold record, never unrelated history.
+WebGL2 evaluates the sources in the vertex shader using the same compiled stream semantics.
+
+Transmission retains its existing material-driven whole-mesh representation, volume/backdrop
+pass and no-pages contract. Its static source streams and per-placement output rows occupy the
+existing float geometry pool; the same compute pass writes them, with a tagged output address.
+This is not a second deformation stage or a new virtualization exception. Bounds use the same
+control reach and dirty only their old/new region. Unsupported pool capacity is an explicit
+setup error, never a silently undeformed draw. The WebGL transmission vertex stage shares the
+same skin, morph, wave and cooked-soft source functions.
+
+The control record's conservative reach expands bounds in the existing cut. Deformed coarse
+pages add twice the displacement reach to their simplification error: two source vertices may
+move in opposite directions. Exact leaves keep zero simplification error; the resident parent
+continues to cover children while finer pages stream. Static subtree shortcuts cannot classify
+a moving subtree from rest bounds. Shadow dirtiness follows the roots whose controls changed.
+The timestamp recorder exposes the compute stage as `gpuDeformationMs`, with `null` for missing
+samples or timestamp support. Browser pixel/timing evidence is produced by recette on `develop`,
+not inferred from the source or substituted with CPU time.
+
+Skin pages retain every imported influence; page format 7 stores source weights and morph
+position/normal deltas as exact float32 values. WebGL2 reads these through its existing
+per-geometry deformation texture. Like morph pages, skin pages use individual resident page
+buffers so `gl_VertexID` addresses the correct source vertex. They keep their compiled clusters,
+DAG, cut, streaming and shadows; the change does not introduce another allocation mechanism.
+The existing arena has no per-draw base-vertex correction for this texture lookup. Excluding
+skin pages from arena batching may increase draw calls; its frame cost is unmeasured and belongs
+to the post-merge recette campaign.
