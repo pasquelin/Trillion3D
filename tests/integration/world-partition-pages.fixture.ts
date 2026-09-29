@@ -11,6 +11,7 @@ import { hostFramingCamera } from '../../packages/sdk-browser/src/host/scene/gra
 import type { PlacementMount } from '../../packages/sdk-browser/src/placement/backendSceneUpdates.ts';
 import type { PlacementRows } from '../../packages/sdk-browser/src/placement/rows.ts';
 import { cellReach } from '../../packages/sdk-browser/src/scene/partition/plan.ts';
+import { cellHoldings } from '../../packages/sdk-browser/src/scene/partition/cellPages.ts';
 import { createPageStreamer } from '../../packages/sdk-browser/src/streaming/pageStreamer.ts';
 import type { LoadedModel } from '../../packages/sdk-browser/src/world/core/loadedModel.ts';
 import {
@@ -61,7 +62,7 @@ export async function followed(model: LoadedModel, eye: readonly number[]) {
   // The engine opens on the rows primed, drawing the meshes the manifest listed before.
   const listed = primitiveFinder(opened.metadata.primitives);
   const atOpen = new Map<Object3D, PlacementRows>();
-  for (const { links, nodes } of cells.meshes.values())
+  for (const { links, nodes } of cellHoldings(cells).meshes.values())
     links.forEach((link, at) => listed(link) && atOpen.set(nodes[at], link.placements!));
   const engine = webgl2(atOpen);
   const renewed = { count: 0 };

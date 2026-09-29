@@ -8,6 +8,22 @@
  */
 import type { ManifestPages } from '../../../../sdk-core/src/manifest/paged.ts';
 import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
+import type { PlacedMesh } from './rows.ts';
+
+/** What a partition's cells hold: each rank's placed mesh, and the manifest pages the cells hold.
+ *  Kept beside the cells, not on them: a model's public record carries the cells. */
+export type CellHoldings = {
+  meshes: ReadonlyMap<number, PlacedMesh>;
+  manifest: ReturnType<typeof createCellPages>;
+};
+const holdings = new WeakMap<object, CellHoldings>();
+/** `cells`, with `holding` kept beside them. */
+export function withHoldings<T extends object>(holding: CellHoldings, cells: T): T {
+  holdings.set(cells, holding);
+  return cells;
+}
+/** What the cells `withHoldings` returned hold. */
+export const cellHoldings = (cells: object) => holdings.get(cells)!;
 
 export function createCellPages(pages: ManifestPages | undefined, cells: readonly TableCell[]) {
   /** The hold of each cell whose pages are held, and the cells whose hold failed while placed. A

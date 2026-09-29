@@ -26,7 +26,7 @@ import { inCellFrame, planCells } from './plan.ts';
 import { holdsEvery, outstretched, residentRows, sizedStretch, type Stretch } from './sizing.ts';
 import { capacityOf, createTouchedRows, releaseRow, rowLocal, rowsFree } from './rows.ts';
 import { sizeRows, takeRow, type PlacedMesh } from './rows.ts';
-import { createCellPages } from './cellPages.ts';
+import { createCellPages, withHoldings } from './cellPages.ts';
 
 type Placement = { mesh: PlacedMesh; row: number; parent: Object3D; local: Float64Array };
 type Inputs = {
@@ -110,8 +110,7 @@ export function createPartitionCells(inputs: Inputs) {
     short = false;
     return true;
   };
-  return {
-    ...{ meshes, manifest }, // each rank's placed mesh, and the manifest pages the cells hold
+  const partitionCells = {
     /** Every cell as the streamer's catalogue reads it. */
     pages: cells.map(({ url, bytes, sha256 }) => ({ url, bytes, sha256 })),
     /** The cells placed now, those a mesh short of rows keeps waiting, and the rows sized. */
@@ -195,6 +194,7 @@ export function createPartitionCells(inputs: Inputs) {
       return bodies.reduce((sum, bytes) => sum + bytes.byteLength, 0);
     },
   };
+  return withHoldings({ meshes, manifest }, partitionCells);
 }
 
 export type PartitionCells = ReturnType<typeof createPartitionCells>;

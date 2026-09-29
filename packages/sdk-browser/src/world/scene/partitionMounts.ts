@@ -15,10 +15,11 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import type { BackendContext, RenderBackend } from '../../backend/types.ts';
 import type { PlacementMount } from '../../placement/backendSceneUpdates.ts';
 import type { PartitionCells } from '../../scene/partition/cells.ts';
+import { cellHoldings, type CellHoldings } from '../../scene/partition/cellPages.ts';
 import { primitiveFinder } from '../../scene/primitiveLookup.ts';
 
 /** A partition whose manifest the view holds: its pages and the placed mesh of each rank. */
-type Held = { pages: ManifestPages; meshes: PartitionCells['meshes'] };
+type Held = { pages: ManifestPages; meshes: CellHoldings['meshes'] };
 type Inputs = {
   partitions: readonly PartitionCells[];
   /** What the session opened on: its manifest and the association of each host mesh. Absent,
@@ -30,9 +31,13 @@ type Inputs = {
 
 export function createPartitionMounts({ partitions, opened, active, renew }: Inputs) {
   const held = opened
-    ? partitions.flatMap(({ manifest: { pages }, meshes }): Held[] =>
-        pages ? [{ pages, meshes }] : [],
-      )
+    ? partitions.flatMap((cells): Held[] => {
+        const {
+          manifest: { pages },
+          meshes,
+        } = cellHoldings(cells);
+        return pages ? [{ pages, meshes }] : [];
+      })
     : [];
   if (!opened || !held.length) return { sync() {}, asked: () => [], stale: () => false };
   /** Whether the session draws each host mesh of the cells now, and its last turn. */
