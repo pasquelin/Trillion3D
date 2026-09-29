@@ -7,6 +7,9 @@ import { createShadowMobility } from './mobility.ts';
 import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../placement/update.ts';
 import { createShadowResidence } from './residence.ts';
 
+/** Rows that draw no corner: the words hold their flags alone. */
+const none = () => 0;
+
 test('the first move promotes a placement and opens the static layer; its later moves do not', () => {
   const mobility = createShadowMobility();
   const origin = new Float64Array(16);
@@ -21,10 +24,10 @@ test('the first move promotes a placement and opens the static layer; its later 
   );
   const pushed: number[][] = [];
   const placementOf = (row: number) => [0, 1, 1, 2, -1][row];
-  mobility.writeRows(placementOf, 5, 2, 2, (first, count) => pushed.push([first, count]));
+  mobility.writeRows(placementOf, 5, 2, 2, (first, count) => pushed.push([first, count]), none);
   assert.deepEqual(pushed, [[0, 5]], 'every row once after a promotion');
   assert.deepEqual([...mobility.rowWords], [0, 1, 1, 0, 0]);
-  mobility.writeRows(placementOf, 5, 3, 4, (first, count) => pushed.push([first, count]));
+  mobility.writeRows(placementOf, 5, 3, 4, (first, count) => pushed.push([first, count]), none);
   assert.deepEqual(pushed[1], [3, 2], 'then the rows the table rewrote');
 });
 
@@ -50,6 +53,7 @@ test('a placement posed where it already stands does not move', () => {
     0,
     1,
     () => pushed.push(0),
+    none,
   );
   assert.deepEqual([...mobility.rowWords], [1, 1], 'a new pose: moved');
 });
@@ -111,6 +115,7 @@ test("a blended caster's row always counts as moving", () => {
     0,
     3,
     () => {},
+    none,
     2,
   );
   assert.deepEqual([...mobility.rowWords], [0, 0, 1, 1]);
@@ -129,6 +134,7 @@ test("a cutout row's word carries the cutout bit, beside its moving bit", () => 
     0,
     4,
     () => {},
+    none,
     4,
     (row) => cutouts.has(row),
   );
@@ -142,6 +148,7 @@ test("a cutout row's word carries the cutout bit, beside its moving bit", () => 
     1,
     2,
     () => {},
+    none,
     4,
   );
   assert.ok(!mobility.hasCutouts);
@@ -159,6 +166,7 @@ test('a moving placement stays moving across a grow of the rows', () => {
     0,
     1,
     () => {},
+    none,
   );
   mobility.ensure(2, 4, () => new Float64Array(16));
   assert.equal(mobility.moves(1), true);
@@ -170,6 +178,7 @@ test('a moving placement stays moving across a grow of the rows', () => {
     3,
     3,
     (first, count) => pushed.push([first, count]),
+    none,
   );
   assert.deepEqual(pushed, [[0, 4]], 'the whole grown table');
   assert.deepEqual([...mobility.rowWords], [0, MOBILITY_MOVING, MOBILITY_MOVING, 0]);
