@@ -2,8 +2,7 @@
 use super::*;
 use charts::folded_span;
 
-// Behaviour: a face whose corners lie in two texture islands is charged its longest edge; a face
-// within one island is not.
+// Behaviour: a face across two texture islands is charged its longest edge, one within one not.
 #[test]
 fn a_face_across_islands_is_charged_its_longest_edge() {
     let positions = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0];
