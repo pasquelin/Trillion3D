@@ -5,8 +5,9 @@ import {
   transformAffinePoint,
 } from '../../../sdk-core/src/index.ts';
 import { clipWeight } from '../../../sdk-core/src/math/primitives/camera.ts';
-import { copyElements, type MatrixElements } from '../math/matrixElements.ts';
+import { copyElements } from '../math/matrixElements.ts';
 import { hypot3 } from '../../../sdk-core/src/math/primitives/hypot.ts';
+import { rootOf, type Placements } from '../page/selection/placements.ts';
 import {
   begin,
   createPendingScratch,
@@ -27,7 +28,8 @@ export interface PriorityRecord {
   parentSphere?: number[] | null;
   min: number[];
   max: number[];
-  matrix: MatrixElements;
+  /** Rank of the root whose world places it (`rootOf`). */
+  placementIndex?: number;
 }
 /** What the order reads of the engine camera: its view, its near plane and its projection's
  *  clip-w weight (`EngineCamera.perspective`, 1 when absent), nothing else. */
@@ -89,6 +91,7 @@ const shared = createPendingScratch();
  */
 export function orderPendingUrls(
   records: readonly PriorityRecord[],
+  roots: Placements,
   cam: PriorityCamera,
   pixelScale: readonly number[],
   into: string[],
@@ -101,10 +104,11 @@ export function orderPendingUrls(
   for (let index = 0; index < records.length; index++) {
     const record = records[index];
     if (record.array) continue;
-    let at = viewSlot(scratch, record.matrix);
+    const world = rootOf(roots, record).world;
+    let at = viewSlot(scratch, world);
     if (at < 0) {
       at = ~at;
-      copyElements(worldMirror, record.matrix.elements);
+      copyElements(worldMirror, world.elements);
       multiplyMatrix4(scratch.views[at], cam.view, worldMirror);
       scratch.stretches[at] = maxStretch(scratch.views[at] as unknown as readonly number[]);
     }

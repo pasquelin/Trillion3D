@@ -7,6 +7,7 @@ import {
   type ClusterRoot,
 } from '../page/selection/selection.ts';
 import type { WebglFrameGate } from '../webgl/core/frameGate.ts';
+import { postPlacements, rootOf } from '../page/selection/placements.ts';
 import { followPlacementRows, forgetRowRoots } from './update.ts';
 import type { PlacementOf, PlacementRows } from './rows.ts';
 import { growRowRoots } from './growth.ts';
@@ -26,24 +27,33 @@ import { poseNamed } from '../host/world/moveByName.ts';
 /** Addresses already counted, reused across calls: nothing is allocated to count a frame. */
 const counted = new Set<string>();
 
+type Roots = readonly ClusterRoot<PageRec>[];
+
+/** True when the root that places a record, in `roots`, reads its world from a row. */
+export const rowPlaced = (roots: Roots, rec: PageRec) => !!rootOf(roots, rec).placement;
+
 /**
  * True when a record is drawn instanced with the other rows of its page (`webglPageBatches.ts`).
  * A transparent record placed by a row is drawn on its own, like a blended copy: the host orders
  * blended meshes by depth, never the instances of one draw. `transparent`, the flag it would take.
  */
-export const drawnInstanced = (rec: PageRec, transparent = rec.transparent) =>
-  !!rec.placement && !transparent;
+export const drawnInstanced = (roots: Roots, rec: PageRec, transparent = rec.transparent) =>
+  rowPlaced(roots, rec) && !transparent;
 
 /**
  * The host meshes `recs` hang on the WebGL2 path's display graph, which its page ceiling bounds:
  * one per record drawn on its own, one per PAGE for the records drawn instanced — ten thousand
  * opaque placements of a page are one mesh.
  */
-export function attachedPages(recs: readonly PageRec[], instanced = drawnInstanced) {
+export function attachedPages(
+  recs: readonly PageRec[],
+  roots: Roots,
+  instanced?: (rec: PageRec) => boolean,
+) {
   counted.clear();
   let own = 0;
   for (const rec of recs)
-    if (instanced(rec)) counted.add(rec.url);
+    if (instanced ? instanced(rec) : drawnInstanced(roots, rec)) counted.add(rec.url);
     else own++;
   return own + counted.size;
 }
@@ -80,8 +90,10 @@ export function autonomousPlacements(env: Placements) {
       else reading.delete(url);
     }
   };
-  /** The roots changed: their rows' index is built again, the cover counted, the frame drawn. */
+  /** The roots changed: their ranks posted, their rows' index built again, the cover counted, the
+   *  frame drawn. */
   const changed = () => {
+    postPlacements(roots);
     rowsWritten();
     forgetRowRoots(roots);
     coverChanged();
@@ -135,8 +147,11 @@ export function autonomousPlacements(env: Placements) {
       const pages = await readPages(context, urls, read.sourced).finally(() => count(admitted, -1));
       context.signal?.throwIfAborted();
       for (const [url, descriptor] of read.descriptors) descriptors.set(url, descriptor);
-      // One by one: a spread of a large resource's records overflows the stack.
+      // One by one: a spread of a large resource's records overflows the stack. Ranked at once:
+      // storing its pages reads their roots.
+      const first = roots.length;
       for (const root of collected.roots) roots.push(root);
+      postPlacements(roots, first);
       for (const rec of collected.allPages) {
         allPages.push(rec);
         baseMaterials.set(rec, rec.declaration);
@@ -156,17 +171,18 @@ export function autonomousPlacements(env: Placements) {
       const placed = (item: { placement?: PlacementOf }) => item.placement?.rows === rows;
       const records: PageRec[] = [],
         urls = new Set<string>();
-      for (let i = roots.length - 1; i >= 0; i--) {
-        if (!placed(roots[i])) continue;
-        for (const rec of roots.splice(i, 1)[0].pages) {
-          records.push(rec);
-          urls.add(rec.url);
-        }
-      }
+      for (const root of roots)
+        if (placed(root))
+          for (const rec of root.pages) {
+            records.push(rec);
+            urls.add(rec.url);
+          }
+      // Its records leave while their roots still place them: a release reads their rows.
+      geometryStore.removeRecords(records);
+      for (let i = roots.length - 1; i >= 0; i--) if (placed(roots[i])) roots.splice(i, 1);
       for (let i = blendCopies.length - 1; i >= 0; i--)
         if (placed(blendCopies[i]))
           scene.remove(blendCopies.splice(i, 1)[0] as unknown as Object3D);
-      geometryStore.removeRecords(records);
       const gone: string[] = [];
       for (const url of urls) {
         // Still drawn, or read by a mount in flight: it stays catalogued.

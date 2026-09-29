@@ -10,6 +10,7 @@ import {
 } from './priority.ts';
 import { referenceOrder } from '../../../../bench/oracles/browser/core-math-priority.ts';
 import { cameraMoteur } from '../camera/camera.fixture.ts';
+import { identityRoots } from '../page/selection/placements.fixture.ts';
 
 function camera() {
   const cam = G.perspectiveCamera(55, 16 / 9, 0.1, 1000);
@@ -19,7 +20,6 @@ function camera() {
   cam.updateProjectionMatrix();
   return cam;
 }
-const identity = new G.Matrix4();
 function record(
   url: string,
   centre: [number, number, number],
@@ -32,7 +32,7 @@ function record(
     streamUrl,
     min: [centre[0] - radius, centre[1] - radius, centre[2] - radius],
     max: [centre[0] + radius, centre[1] + radius, centre[2] + radius],
-    matrix: identity,
+    placementIndex: 0,
     lodError: 0,
     sphere: [...centre, radius],
     parentError,
@@ -43,6 +43,7 @@ function order(records: PriorityRecord[]) {
   const cam = camera();
   return orderPendingUrls(
     records,
+    identityRoots(),
     cameraMoteur(cam),
     pixelScaleOf(cameraMoteur(cam).projection, [1280, 720], [1, 1]),
     [],
@@ -82,12 +83,12 @@ test('a cluster already resident is not asked for again', () => {
 });
 
 test('a cache with no cluster error falls back on the screen footprint of the bounds', () => {
-  const big: PriorityRecord = { url: 'big', min: [-4, -4, -1], max: [4, 4, 1], matrix: identity };
+  const big: PriorityRecord = { url: 'big', min: [-4, -4, -1], max: [4, 4, 1], placementIndex: 0 };
   const small: PriorityRecord = {
     url: 'small',
     min: [-0.1, -0.1, -1],
     max: [0.1, 0.1, 1],
-    matrix: identity,
+    placementIndex: 0,
   };
   assert.deepEqual(order([small, big]), ['big', 'small']);
 });
@@ -99,7 +100,7 @@ test('a cache with no cluster error falls back on the screen footprint of the bo
 // to signed zeros; the oracle is `referenceOrder`, the copy of the previous code from the attach.
 test('orderPendingUrls: matrices hostile to signed zeros (aligned axes, ±0) — same order as previous code', () => {
   const pixelScale = [500, 500];
-  const record2 = (url: string, matrice: number[], sphere?: number[]): PriorityRecord => ({
+  const record2 = (url: string, matrice: number[], sphere?: number[]) => ({
     url,
     matrix: new G.Matrix4().fromArray(matrice),
     min: [-1, -1, -1],
@@ -107,7 +108,7 @@ test('orderPendingUrls: matrices hostile to signed zeros (aligned axes, ±0) —
     lodError: 2,
     sphere,
   });
-  const cas: PriorityRecord[][] = [
+  const cas = [
     [
       record2('a', [1, -0, 0, 0, 0, 1, -0, 0, -0, 0, 1, 0, 0, 0, -5, 1], [0, 0, 0, 1]),
       record2('b', [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -0, -0, -0, 1], [-0, 0, -0, 1]),
@@ -119,7 +120,10 @@ test('orderPendingUrls: matrices hostile to signed zeros (aligned axes, ±0) —
   ];
   for (const records of cas) {
     const cam = camera();
-    const recu = orderPendingUrls(records, cameraMoteur(cam), pixelScale, []);
+    // Each record ranks the root that carries its world.
+    const placed = records.map((record, placementIndex) => ({ ...record, placementIndex })),
+      roots = records.map(({ matrix }) => ({ world: matrix }));
+    const recu = orderPendingUrls(placed, roots, cameraMoteur(cam), pixelScale, []);
     const attendu = referenceOrder(records, cam, pixelScale);
     assert.deepEqual(recu, attendu, `records ${records.map((r) => r.url)}`);
   }

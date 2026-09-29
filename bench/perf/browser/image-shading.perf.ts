@@ -3,7 +3,7 @@ import * as G from '../../../packages/sdk-browser/src/host/graph/graph.fixture.t
 import { shadeVisibility } from '../../../packages/sdk-browser/src/visibility/shader/shade.ts';
 import { rasterVisibility } from '../../../packages/sdk-browser/src/visibility/raster.ts';
 import { mesure, stress, rapport } from '../../core/index.ts';
-import { camera, coupe } from './support/scenes.ts';
+import { camera, coupe, roots } from './support/scenes.ts';
 import { referenceShadeVisibility } from '../../oracles/browser/image-shading.ts';
 import { cameraMoteur } from '../../../packages/sdk-browser/src/camera/camera.fixture.ts';
 import type { ScenePage } from './support/scenes.ts';
@@ -17,7 +17,12 @@ const image = (
   const cam = camera(6, 0.1, largeur / hauteur),
     viewport: [number, number] = [largeur, hauteur];
   const pages = pages_ ?? coupe({ pages: 900, triangles: 48, material });
-  return { ids: rasterVisibility(pages, cameraMoteur(cam), viewport).ids, pages, cam, viewport };
+  return {
+    ids: rasterVisibility(pages, roots, cameraMoteur(cam), viewport).ids,
+    pages,
+    cam,
+    viewport,
+  };
 };
 const basique = G.basicSurface({ color: 0x88aa44 });
 const standard = G.standardSurface({
@@ -42,7 +47,7 @@ const res = await mesure({
   fichier: 'packages/sdk-browser/src/visibility/shader/shadePixel.ts',
   cas,
   calcul: ({ ids, pages, cam, viewport }) =>
-    shadeVisibility(ids, pages, cameraMoteur(cam), viewport),
+    shadeVisibility(ids, pages, roots, cameraMoteur(cam), viewport),
   attendu: ({ ids, pages, cam, viewport }) => referenceShadeVisibility(ids, pages, cam, viewport),
   options: { tours: 60, budgetMs: 1500 },
 });
@@ -50,7 +55,7 @@ const res = await mesure({
 await stress({
   name: 'shadeVisibility extremes',
   calcul: ({ ids, pages, cam, viewport }) =>
-    shadeVisibility(ids, pages, cameraMoteur(cam), viewport),
+    shadeVisibility(ids, pages, roots, cameraMoteur(cam), viewport),
   extremes: [
     { name: 'empty', input: image(32, 32, basique, []) },
     {
