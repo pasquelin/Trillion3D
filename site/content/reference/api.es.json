@@ -4650,7 +4650,7 @@
   "PageSource": {
     "summary": "De dónde se leen las páginas de un modelo, por clave.",
     "members": {
-      "read": "Lee los bytes de una página."
+      "read": "Lee los bytes de una página; `priority`, si se da, es la del streamer (la más pequeña primero). Una lectura más urgente de una página ya en curso se vuelve a pedir para subirla: una fuente que acepta `priority` la une a la lectura en curso en lugar de transferir la página dos veces."
     }
   },
   "PageStreamer": {
@@ -6912,7 +6912,7 @@
   "WorldPageSource": {
     "summary": "De dónde se leen las páginas, y la dirección respecto a la cual se leen.",
     "members": {
-      "read": "Lee los bytes de una página.",
+      "read": "Lee los bytes de una página; `priority`, si se da, es la del streamer (la más pequeña primero). Una lectura más urgente de una página ya en curso se vuelve a pedir para subirla: una fuente que acepta `priority` la une a la lectura en curso en lugar de transferir la página dos veces.",
       "baseUrl": "La dirección respecto a la cual se lee cada página."
     }
   },
