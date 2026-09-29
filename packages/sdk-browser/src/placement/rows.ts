@@ -14,10 +14,14 @@
  * larger buffer, which the session grows into in place where its engine can
  * (`growth.ts`), and is opened again with otherwise.
  */
+import type { Mesh } from '../../../sdk-core/src/world/object/mesh.ts';
 import type { MatrixElements } from '../math/matrixElements.ts';
 
 /** The placement rows of mirrored meshes, one row per placed copy. */
 export type PlacementRows = {
+  /** Original owners of mirrored rows; their animation sources stay live when rows are reused. */
+  sources?: readonly (Mesh | null)[];
+  sourceModels?: ReadonlySet<Mesh>;
   /** Sixteen column-major floats per row, written by the owner. */
   readonly matrices: Float64Array;
   /** 1 where the row places the resource, 0 where it is parked. */
@@ -47,6 +51,8 @@ export const grownCapacity = (held: number, needed: number) => Math.max(needed, 
 export function growPlacementRows(before: PlacementRows | null, needed: number) {
   const rows = createPlacementRows(grownCapacity(before?.capacity ?? 0, needed));
   if (before) {
+    rows.sources = before.sources;
+    rows.sourceModels = before.sourceModels;
     rows.matrices.set(before.matrices);
     rows.live.set(before.live);
     rows.shadowless.set(before.shadowless);

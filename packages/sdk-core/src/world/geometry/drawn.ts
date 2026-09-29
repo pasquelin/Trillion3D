@@ -6,12 +6,15 @@ import { edgesOf } from './lines.ts';
 import type { Primitive } from '../object/mesh.ts';
 import { drawnSprite } from './drawnSprite.ts';
 import { flatten } from './drawnFlat.ts';
+import { drawnDeformation, type DrawnDeformation } from './drawnDeformation.ts';
 import { readComponent, readPoints } from './bounds.ts';
 
 /** The triangles a mesh draws, as the page cutter reads them. `lines` says they are line quads
  *  (`quads`), which every raster widens on screen by the surface's `lineWidth`; a dashed line's
  *  quads carry their distance along the line in the first coordinate of `uvs`. */
 export interface DrawnTriangles {
+  sourceVertices?: Uint32Array;
+  deformation?: DrawnDeformation;
   positions: Float32Array;
   normals: Float32Array;
   uvs: Float32Array | null;
@@ -40,7 +43,7 @@ type DrawnOptions = {
  * (`sdk-browser/src/visibility/shader/lineWgsl.ts`). A `dashed` line's quads also carry the
  * distance along the line of each corner, which the rasters cut into dashes and gaps.
  */
-export function drawnTriangles(
+function drawTriangles(
   geometry: Geometry,
   reading: Primitive,
   options: DrawnOptions = {},
@@ -53,7 +56,14 @@ export function drawnTriangles(
   const corners = geometry.index
     ? Array.from(geometry.index.array)
     : Array.from({ length: position.count }, (_, i) => i);
-  if (reading === 'points') return solids(points(p, (options.size ?? 1) / 2));
+  if (reading === 'points') {
+    const drawn = solids(points(p, (options.size ?? 1) / 2));
+    if (drawn)
+      drawn.sourceVertices = Uint32Array.from({ length: drawn.positions.length / 3 }, (_, v) =>
+        Math.floor(v / 24),
+      );
+    return drawn;
+  }
   if (reading === 'lineStrip' || reading === 'lineLoop' || reading === 'lineSegments') {
     const loop = reading === 'lineLoop' && corners.length > 2;
     return quads(p, lineCorners(corners, reading), options.dashed, loop);
@@ -73,6 +83,11 @@ export function drawnTriangles(
   };
   if (options.flat) return flatten(drawn);
   return { ...drawn, normals: drawn.normals ?? computeNormals(drawn.positions, drawn.indices) };
+}
+
+/** Drawn triangles with their original deformation attributes preserved. */
+export function drawnTriangles(geometry: Geometry, reading: Primitive, options: DrawnOptions = {}) {
+  return drawnDeformation(geometry, drawTriangles(geometry, reading, options));
 }
 
 /** List `name` of `g`, `width` numbers for each of its first `n` vertices as the page
@@ -113,17 +128,7 @@ function points(p: number[], r: number) {
   return b;
 }
 
-/**
- * Two triangles per segment `(a, b)`, every corner on an endpoint: `a` twice, then `b` twice. A
- * corner's normal is the segment's direction, signed by the side of the line it moves to once
- * widened: `+d` to the left of the segment on screen, `-d` to the right. The quad has no area
- * until a raster widens it, and a pass that does not (the shadow depth) draws nothing of it.
- *
- * `dashed`: each corner also carries, as `(u, 0)`, its distance along the line — the running
- * length of the segments before it, in their order, as the reference's `computeLineDistances`
- * measures it; a `loop`'s closing segment runs back from the total to its first vertex's 0, as
- * the reference draws it. Only a dashed line pays it: any other line's quads keep no coordinate.
- */
+/** Two triangles per segment; normal signs widen endpoints on screen, UVs retain dash distance. */
 function quads(
   p: number[],
   segments: number[],
@@ -133,7 +138,8 @@ function quads(
   const positions: number[] = [],
     normals: number[] = [],
     uvs: number[] = [],
-    indices: number[] = [];
+    indices: number[] = [],
+    sourceVertices: number[] = [];
   let distance = 0;
   for (let s = 0; s + 1 < segments.length; s += 2) {
     const a = segments[s] * 3,
@@ -150,6 +156,7 @@ function quads(
       [b, 1],
       [b, -1],
     ]) {
+      sourceVertices.push(at / 3);
       positions.push(p[at], p[at + 1], p[at + 2]);
       normals.push(d[0] * side, d[1] * side, d[2] * side);
       if (dashed) uvs.push(at === a ? distance : end, 0);
@@ -165,6 +172,7 @@ function quads(
     colors: null,
     indices: new Uint32Array(indices),
     lines: true,
+    sourceVertices: new Uint32Array(sourceVertices),
   };
 }
 

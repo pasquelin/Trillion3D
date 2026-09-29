@@ -21,7 +21,8 @@ export function deformationSlotBytes(pages: readonly PageRec[], sourceBytes: num
       !mesh?.morphTargetInfluences?.length &&
       !mesh?.waves &&
       mesh?.geometry?.usage !== 'dynamic' &&
-      !((page.geometryPage?.flags ?? 0) & FLAG_SOFT_SOURCE)
+      !((page.geometryPage?.flags ?? 0) & (FLAG_SOFT_SOURCE | 16 | 32)) &&
+      ![...(page.placement?.rows.sourceModels ?? [])].some((source) => source.waves)
     )
       continue;
     const count = page.geometryPage?.vertexCount ?? page.attributes.position?.count ?? 0;
