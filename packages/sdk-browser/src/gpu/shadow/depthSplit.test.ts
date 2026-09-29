@@ -64,17 +64,9 @@ function scene(rng: () => number, o: Options) {
   // The slot, filed as the cull files it: the real mobility words, then `keptAt`.
   const mobility = createShadowMobility();
   mobility.ensure(1, o.rows, () => new Float64Array(16));
-  const isCutout = (row: number) => (pages[row].flags & FLAG_MASK) !== 0;
-  mobility.writeRows(
-    () => 0,
-    o.rows,
-    0,
-    o.rows - 1,
-    () => {},
-    (row) => pages[row].indexCount,
-    blendedFrom,
-    isCutout,
-  );
+  const isCutout = (row: number) => (pages[row].flags & FLAG_MASK) !== 0,
+    corners = (row: number) => pages[row].indexCount;
+  mobility.writeRows(() => 0, o.rows, 0, o.rows - 1, () => {}, corners, blendedFrom, isCutout);
   const capacity = o.rows + (o.spare ?? 0);
   const world: ShadowScene = {
     pages,
