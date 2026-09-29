@@ -24,6 +24,7 @@ import { publish } from './benchPublish.ts';
 import { readsCache } from './scene.ts';
 import { runFluids } from './fluids.ts';
 import { readLimits } from './limits.ts';
+import { againstReference, sceneReference } from './referenceProof.ts';
 import type { Report, RunContext, Serie } from './report/types.ts';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
@@ -38,6 +39,8 @@ const CTX: RunContext = { MANIFEST: null, OUT, settings, lights: null, poses: nu
 
 async function main() {
   const { sides, scene, after, before } = options.equipSides(flags, settings);
+  // `--reference`: the class-2 proof, each capture against the scene's reference image.
+  const proof = flags.get('reference') === 'true';
   // Every option is read by now: a misspelt or retired flag stops the run before any build.
   flags.refuseUnread();
   await mkdir(OUT, { recursive: true });
@@ -81,6 +84,7 @@ async function main() {
     errors: [],
   };
 
+  const reference = proof ? sceneReference(report) : null;
   await recordInputs(report, sides);
   const { server, port } = await startServer({
     port: settings.port,
@@ -174,6 +178,7 @@ async function main() {
         serie.beforeAfterDiff = files.before
           ? imageDiff(captures.get(files.before), captures.get(files.after))
           : null;
+        if (reference) serie.referenceDiff = againstReference(reference, serie, files, captures);
         const { before, after } = serie.sides;
         serie.sameCut = before && after ? before.selection.sha256 === after.selection.sha256 : null;
       }
