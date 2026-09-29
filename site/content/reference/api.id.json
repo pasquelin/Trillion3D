@@ -1955,7 +1955,7 @@
       "wasmAvailable": "Modul WebAssembly dimuat, pada versi kontrak yang benar.",
       "wasmSimd": "Modul dikompilasi dengan `simd128`; `null` sampai sebuah modul dimuat.",
       "clockResolutionMs": "Resolusi jam thread, dalam milidetik; `null` sampai diperkirakan.",
-      "clockCoarse": "Benar saat jam terlalu kasar untuk memutuskan: semuanya tetap di jalur JavaScript.",
+      "clockCoarse": "Benar saat jam terlalu kasar untuk mengukur satu eksekusi: eksekusi diukur dalam kelompok gabungan.",
       "unavailableReason": "Kenapa jalur WebAssembly tidak bisa dimainkan, atau `null` saat bisa.",
       "operations": "Setiap operasi."
     }
