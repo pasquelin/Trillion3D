@@ -21,7 +21,8 @@ function writeGrid(at: number, [width, height]: readonly number[]) {
 /**
  * The pass's uniform for this frame (`TaaView`, `shaderWgsl.ts`): both matrices at the eye, the
  * display grid the history has, the current share and history flags, the native filter weights
- * of this jitter rank, the `render` grid the frame was drawn in and its jitter.
+ * of this jitter rank, the `render` grid the frame was drawn in and its jitter; `layers`, the
+ * display layers' history holds the last image's.
  */
 export function writeTaaView(
   device: GPUDevice,
@@ -31,6 +32,7 @@ export function writeTaaView(
   render: readonly number[],
   display: readonly number[],
   moved: boolean,
+  layers = false,
 ) {
   matrixAtRenderOrigin(packed, state.previousViewProjection, cam.eye, 0);
   // Inverse of the view-projection WITHOUT jitter: the reprojected pixel is its unshifted centre,
@@ -44,7 +46,7 @@ export function writeTaaView(
   packed[36] = state.stillFrames > 0 ? 1 / state.stillFrames : 1 / TAA_SAMPLES;
   packed[37] = state.hasHistory ? 1 : 0;
   packed[38] = moved ? 1 : 0;
-  packed[39] = 0;
+  packed[39] = layers ? 1 : 0;
   packed.set(weights[state.sample % TAA_SAMPLES], 40);
   writeGrid(52, render);
   packed[56] = state.jitter[0];
