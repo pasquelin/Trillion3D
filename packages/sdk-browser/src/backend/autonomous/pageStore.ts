@@ -10,8 +10,7 @@ import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import { wearDeclaration } from '../../page/surface.ts';
 import { assertWithinBox, itemSize, pageOf } from './pageData.ts';
-import { sourcedPageGeometry } from './sourcedPages.ts';
-import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
+import { dynamicSource, sourcedPageGeometry } from './sourcedPages.ts';
 
 type PageStoreEnvironment = {
   byUrl: Map<string, PageRec[]>;
@@ -47,7 +46,7 @@ export function createPageStore(env: PageStoreEnvironment) {
       const data = host ? read! : (replaced.get(rec.url) ?? pageOf(rec, read)),
         shared = rec.placement ? rowed.get(data) : undefined,
         // A dynamic page, its index alone: drawn over its primitive's own lists (#573).
-        source = !rec.geometryPage && (rec.sourceMesh?.geometry as Geometry | undefined);
+        source = dynamicSource(rec);
       if (!shared && !source) assertWithinBox(data, rec);
       const geometry =
         shared ??
@@ -74,9 +73,9 @@ export function createPageStore(env: PageStoreEnvironment) {
     const data = host ? given : (replaced.get(url) ?? given);
     const descriptor = descriptors.get(url);
     // A dynamic page (`sourcedPages.ts`) has no descriptor: its corners are all it carries.
-    const paged = !!recs[0]?.geometryPage;
+    const dynamic = !descriptor && !!recs[0] && !!dynamicSource(recs[0]);
     if (
-      paged &&
+      !dynamic &&
       (!descriptor ||
         data.vertexCount !== descriptor.vertexCount ||
         data.indices.length !== descriptor.indexCount ||

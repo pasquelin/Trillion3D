@@ -3,6 +3,7 @@ import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute
 import { setGeometryBounds } from '../../host/geometryBounds.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { BackendContext } from '../types.ts';
+import type { PageRec } from '../../page/selection/selection.ts';
 
 /**
  * THE WEBGL2 PATH'S DYNAMIC PAGES (#573). A world's dynamic geometry is paged by its index alone
@@ -40,4 +41,10 @@ export function sourcedPageGeometry(
   Object.assign(geometry.attributes, source.attributes);
   setGeometryBounds(geometry, min, max);
   return geometry;
+}
+
+/** The host geometry a dynamic page reads its lists from; undefined for any other page. */
+export function dynamicSource(rec: PageRec) {
+  const source = rec.sourceMesh?.geometry as Geometry | undefined;
+  return !rec.geometryPage && source?.usage === 'dynamic' ? source : undefined;
 }
