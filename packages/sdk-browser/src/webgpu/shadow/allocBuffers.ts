@@ -3,16 +3,12 @@ import type { ShadowPoolSnapshot } from '../../../../sdk-core/src/scene/light-sh
 import type { ShadowAsks } from '../../../../sdk-core/src/scene/light-shadow/requests.ts';
 import {
   PAGE_MAPPED,
+  PAGE_VALID,
   shadowRequestCap,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { MAX_SHADOW_SLICES } from '../../../../sdk-core/src/index.ts';
 import { ALLOC_PARAM_WORDS } from './allocWgsl.ts';
-import {
-  FRESH_ARG_WORDS,
-  FRESH_PARAM_WORDS,
-  FRESH_SLICE_FLOATS,
-  MAX_POOL_LAYERS,
-} from './freshWgsl.ts';
+import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
+import { FRESH_FACE_WORDS, FRESH_PARAM_WORDS, FRESH_PARAMS, freshArgWords } from './freshLayout.ts';
 import { DRAWN_HOST, POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
 import { WORDS_HEADER } from './wordsWgsl.ts';
 
@@ -24,11 +20,8 @@ const snapshotWords = (pages: number) => POOL_COUNTS.length + 2 * pages;
  *  mapped page once (`table.ts`, `flush`). */
 const wordsCap = (pages: number) => 4 * pages;
 
-/** Words of the GPU-drawn pages' parameters (`freshWgsl.ts`): the header, then each slice's. */
-const FRESH_PARAMS = FRESH_PARAM_WORDS + MAX_SHADOW_SLICES * FRESH_SLICE_FLOATS;
-
 /** GPU bytes of the allocation of a pool of `pages`: its pool, keys, parameters and words, then
- *  the draw list, parameters and dispatch arguments of the pages the GPU draws itself. */
+ *  the draw list, parameters, arguments, views and volumes of the pages the GPU draws itself. */
 export const shadowAllocationBytes = (pages: number) =>
   4 *
   (POOL_COUNTS.length +
@@ -41,7 +34,8 @@ export const shadowAllocationBytes = (pages: number) =>
     2 * wordsCap(pages) +
     pages +
     FRESH_PARAMS +
-    MAX_POOL_LAYERS * FRESH_ARG_WORDS);
+    freshArgWords(pages) +
+    pages * (FRESH_FACE_WORDS + SHADOW_CULL_FLOATS));
 
 /**
  * THE BUFFERS OF THE GPU ALLOCATION of one pool (`allocWgsl.ts`), made with its request buffer
@@ -79,10 +73,14 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
   const drawList = buffer('Trillion3D shadow GPU draw list v1', pages, 0),
     freshParams = buffer('Trillion3D shadow GPU pages v1', FRESH_PARAMS, GPUBufferUsage.COPY_DST),
     freshArgs = buffer(
-      'Trillion3D shadow GPU page cull v1',
-      MAX_POOL_LAYERS * FRESH_ARG_WORDS,
+      'Trillion3D shadow GPU page draws v1',
+      freshArgWords(pages),
       GPUBufferUsage.INDIRECT,
-    );
+    ),
+    freshFaces = buffer('Trillion3D shadow GPU page views v1', pages * FRESH_FACE_WORDS, 0),
+    freshVolumes = buffer('Trillion3D shadow GPU page volumes v1', pages * SHADOW_CULL_FLOATS, 0),
+    made = [state, keys, paramBuffer, wordBuffer, drawList, freshParams, freshArgs];
+  made.push(freshFaces, freshVolumes);
   const allocation = {
     state,
     keys,
@@ -91,10 +89,11 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
     drawList,
     freshParams,
     freshArgs,
-    bytes: [state, keys, paramBuffer, wordBuffer, drawList, freshParams, freshArgs].reduce(
-      (sum, made) => sum + made.size,
-      0,
-    ),
+    freshFaces,
+    freshVolumes,
+    bytes: made.reduce((sum, buffer) => sum + buffer.size, 0),
+    /** Table words this frame's host sent that take a page's depth away (`writeWords`). */
+    lost: 0,
     /** Bytes of the pool a snapshot copies (`snapshotWords`). */
     snapshotBytes: snapshotWords(pages) * 4,
     /** True once the GPU pool holds the host's. */
@@ -118,10 +117,18 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       device.queue.writeBuffer(data, tableOffset, table.words);
       allocation.seeded = true;
     },
-    /** The GPU-drawn pages' parameters (`freshWgsl.ts`): the pool's layer side and layers, the
-     *  regions a layer, the frame's caster rows, then each slice's emitter and far plane. */
-    writeFresh(side: number, layers: number, perLayer: number, rows: number, slices: Float32Array) {
-      fresh.set([pages, side, layers, perLayer, rows]);
+    /** The GPU-drawn pages' parameters (`freshLayout.ts`): the pool's layer side and layers, the
+     *  caster rows the cull tests — the table's, the blended casters' —, the pairs it may keep,
+     *  then each slice's emitter and far plane. */
+    writeFresh(
+      side: number,
+      layers: number,
+      rows: number,
+      blend: readonly [number, number],
+      capacity: number,
+      slices: Float32Array,
+    ) {
+      fresh.set([pages, side, layers, rows, blend[0], blend[1], capacity]);
       freshFloats.set(slices, FRESH_PARAM_WORDS);
       device.queue.writeBuffer(freshParams, 0, fresh);
     },
@@ -146,9 +153,11 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
     ) {
       const { pool, table } = plan;
       let count = 0;
+      allocation.lost = 0;
       const send = (entry: number) => {
         const word = table.words[entry];
         if (!(word & PAGE_MAPPED)) return;
+        if (!(word & PAGE_VALID)) allocation.lost++;
         words[WORDS_HEADER + 2 * count] = entry;
         words[WORDS_HEADER + 2 * count++ + 1] = word;
       };
@@ -171,13 +180,15 @@ export function createShadowAllocationBuffers(device: GPUDevice, pages: number) 
       const signed = new Int32Array(from.buffer, from.byteOffset, from.length);
       into.allocated = from[POOL_COUNTS.indexOf('allocated')];
       into.refused = from[POOL_COUNTS.indexOf('refused')];
+      into.drawn = from[POOL_COUNTS.indexOf('drawn')];
       into.owner.set(signed.subarray(POOL_COUNTS.length, POOL_COUNTS.length + pages));
       into.requested.set(signed.subarray(POOL_COUNTS.length + pages));
     },
     dispose() {
-      for (const made of [state, keys, paramBuffer, wordBuffer, drawList, freshParams, freshArgs])
-        made.destroy();
+      for (const buffer of made) buffer.destroy();
     },
   };
   return allocation;
 }
+
+export type ShadowAllocationBuffers = ReturnType<typeof createShadowAllocationBuffers>;

@@ -111,8 +111,8 @@ export function writeLampPage(
   for (let column = 0; column < 4; column++) {
     const at = matBase + column * 4,
       w = matrices[at + 3];
-    matrices[at] = a * matrices[at] + b * w;
-    matrices[at + 1] = c * matrices[at + 1] + d * w;
+    matrices[at] = PAGES.shadowCropped(matrices[at], w, a, b);
+    matrices[at + 1] = PAGES.shadowCropped(matrices[at + 1], w, c, d);
   }
   return planes;
 }
