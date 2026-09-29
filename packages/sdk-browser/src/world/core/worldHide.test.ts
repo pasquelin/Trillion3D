@@ -1,9 +1,12 @@
 // A node of a compiled world hidden once, 60 frames after load, then shown again (#407), through
 // the real bricks: the world runtime on a compiled cache of the repository, the frame scheduler,
-// and the WebGPU pages backend — its GPU cut included — on the mock device. Every frame drawn
-// must settle, the loop must go idle on its own, and the node must leave the image and return.
-// Each frame awaits the engine's own drain (`pendingFrame`), never a count of event-loop turns: a
-// drain that never settles is a hung test, which the runner's bound names; nothing waits on it.
+// and the WebGPU pages backend — its GPU cut included — on the mock device. The node is found by
+// name through the public API, as the report's probe did (its `TypeError` there was the "stall").
+// The camera moves through the hide and the show, as the report's did: every frame drawn must
+// settle, the loop must go idle on its own, and the node must leave the draw list and return to
+// exactly the pages it had. Each frame awaits the engine's own drain (`pendingFrame`), never a
+// count of event-loop turns: a drain that never settles is a hung test, which the runner's bound
+// names; nothing waits on it.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { worldModelLoader } from './worldLoader.ts';
@@ -118,52 +121,70 @@ test(HIDDEN_AND_SHOWN, HUNG, async () => {
   const requested = frameQueue();
   /** The drain the loop waits on for the frame just drawn: the engine's own completion. */
   let draining: Promise<boolean> | undefined;
+  /** Frames drawn, drains asked and drains settled: a frame completes when its drain settles. */
+  const count = { drawn: 0, asked: 0, settled: 0 };
   const scheduler = createExplorerFrameScheduler({
     request: requested.request,
     cancel: requested.cancel,
-    render: () => void runtime.render(),
-    pending: () => (draining = backend.pendingFrame!()),
+    render: () => (count.drawn++, void runtime.render()),
+    pending: () => {
+      count.asked++;
+      return (draining = backend.pendingFrame!().finally(() => count.settled++));
+    },
     error: (error) => failures.push(error),
     limited: () => failures.push('the loop hit its frame limit'),
   });
   opened.invalidate = scheduler.invalidate;
-  /**
-   * Draws the frames the loop asks for until it asks none, each after the engine's drain of the
-   * one before. The loop hears the drain first — it asked for it — so the frame it wants next is
-   * queued when the wait returns. Idle, nothing may still be read: a read the loop no longer
-   * waits on is work the image never gets.
-   */
+  /** Draws the frame the loop asks for next and waits for the engine's drain of it. The loop
+   *  hears the drain first — it asked for it — so the frame it wants next is queued after. */
+  const drawOne = async () => {
+    const drawn = count.drawn;
+    assert.ok(requested.run(), 'the loop asked for a frame');
+    assert.equal(count.drawn, drawn + 1, 'the frame asked for was drawn');
+    const drain = draining;
+    draining = undefined;
+    await drain?.catch(() => {});
+  };
+  /** Draws what the loop asks until it asks none. Idle, every drain asked has settled, and
+   *  nothing is still read: a read the loop no longer waits on is work the image never gets. */
   const untilIdle = async () => {
-    while (requested.run()) {
-      const drain = draining;
-      draining = undefined;
-      await drain?.catch(() => {});
-    }
+    while (requested.size > 0) await drawOne();
     assert.deepEqual(failures, []);
+    assert.equal(count.settled, count.asked, 'a frame drawn never completed');
     assert.equal(readsInFlight(), 0, 'the loop went idle with a page still read from disk');
     return backend.selectedPageIds();
   };
-  const drawsNode = (ids: string[]) => ids.some((id) => opened.nodeUrls.has(id));
+  const nodePages = (ids: string[]) => ids.filter((id) => opened.nodeUrls.has(id)).sort();
   const look = (x: number) => {
     camera.position.set(x, 1, 1.2);
     camera.lookAt(0, 0, 0);
     camera.updateMatrixWorld();
     scheduler.invalidate();
   };
+  /** `frames` frames with the camera moving each one, then the view of reference, settled. */
+  const moveThenSettle = async (frames: number) => {
+    for (let frame = 1; frame <= frames; frame++) {
+      look(frame * 1e-3);
+      await drawOne();
+    }
+    look(0);
+    return untilIdle();
+  };
   try {
     assert.ok(opened.nodeUrls.size > 0, `${NODE} has pages of its own`);
-    for (let frame = 0; frame < 60; frame++) {
-      look(frame * 1e-3);
-      await untilIdle();
-    }
-    assert.ok(drawsNode(await untilIdle()), 'the node is drawn before it is hidden');
-    const node = model.getObjectByName(NODE)!;
+    const before = nodePages(await moveThenSettle(60));
+    assert.ok(before.length > 0, 'the node is drawn before it is hidden');
+    const node = model.getObjectByName(NODE);
+    assert.ok(node, 'the public API finds the compiled node by name');
+    const drawn = count.drawn;
     node.visible = false;
-    const hidden = await untilIdle();
+    const hidden = await moveThenSettle(30);
+    assert.ok(count.drawn > drawn + 30, 'the loop kept drawing after the hide');
     assert.ok(hidden.length > 0, 'the rest of the world is still drawn');
-    assert.ok(!drawsNode(hidden), 'hidden, none of its pages is drawn');
+    assert.deepEqual(nodePages(hidden), [], 'hidden, none of its pages is drawn');
     node.visible = true;
-    assert.ok(drawsNode(await untilIdle()), 'shown again, it is drawn again');
+    const shown = nodePages(await moveThenSettle(30));
+    assert.deepEqual(shown, before, 'shown again, it draws the pages it drew before the hide');
   } finally {
     scheduler.dispose();
     runtime.dispose();
