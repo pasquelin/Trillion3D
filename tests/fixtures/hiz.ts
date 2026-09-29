@@ -23,7 +23,7 @@ export function quad(
   min: number[],
   max: number[],
   clusterId: string,
-): { page: VisPage & HizPage; geometry: G.Geometry } {
+): { page: VisPage & HizPage & { matrix: G.Matrix4 }; geometry: G.Geometry } {
   const z = (min[2] + max[2]) * 0.5;
   const geometry = new G.Geometry();
   geometry.setAttribute(
@@ -34,10 +34,12 @@ export function quad(
     ),
   );
   geometry.setIndex(G.indices([0, 1, 2, 0, 2, 3]));
-  const page: VisPage & HizPage = {
+  // Rank 0 of the identity root; the oracles read that world on the page, as pages carried it.
+  const page = {
     array: new Uint32Array([0, 1, 2, 0, 2, 3]),
     attributes: geometry.attributes,
     placementIndex: 0,
+    matrix: new G.Matrix4(),
     material: surfaceOf(material),
     clusterId,
     min,

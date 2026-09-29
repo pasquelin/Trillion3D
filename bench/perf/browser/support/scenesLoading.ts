@@ -155,7 +155,6 @@ export function manifesteEtScene({
 }
 
 /** Fields the cones/catalogue paths never read: shared across every fixture page. */
-const DUMMY_MATRIX = new G.Matrix4();
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
 
 /** Pages of a manifest seen as an engine catalogue: bytes, materials, attributes. */
@@ -187,7 +186,7 @@ export function catalogueDePages({
       min: DUMMY_BOUNDS,
       max: DUMMY_BOUNDS,
       depthLayer: 0,
-      matrix: DUMMY_MATRIX,
+      placementIndex: 0,
       renderOrder: 0,
       attached: true,
       cone: undefined,

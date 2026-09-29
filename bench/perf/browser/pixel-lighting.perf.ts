@@ -96,7 +96,7 @@ const matiere = (cartes: boolean): VisMaterial => ({
 
 function pixels(nombre: number, cartes: boolean, hostiles: boolean): Pixel[] {
   const p = page(0x77 ^ nombre),
-    tri = triangleAt(p, 0, depthCam, 1600, 900),
+    tri = triangleAt(p, p.matrix, 0, depthCam, 1600, 900),
     mat = matiere(cartes);
   if (!tri) throw new Error('ECLAIRAGE_PIXEL_TRIANGLE_MANQUANT');
   const lot: Pixel[] = [];

@@ -14,6 +14,7 @@ import {
   collectClusterPages,
   createBlendCopy,
   type PageRec,
+  posedRoots,
   type DiagnosticMode,
   type BackendFactory,
   type CameraMotion,
@@ -41,7 +42,9 @@ export const exactPagesBackend: BackendFactory = (context) => {
   const collected = collectClusterPages(source, metadata, indices, associations, {
     blendCopy: createBlendCopy,
   });
-  const { roots, allPages, bootstrap, requestCount, prepared, worlds } = collected;
+  const { requestCount, prepared, worlds } = collected,
+    roots = posedRoots(collected.roots),
+    [allPages, bootstrap] = [collected.allPages, collected.bootstrap] as PageRec[][];
   // The witness draws the transparent copies with the host library it is written in: this is where
   // the engine's contract copies go back to being its meshes.
   const blendCopies = collected.blendCopies.flatMap((copy) => (isDrawnNode(copy) ? [copy] : []));

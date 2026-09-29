@@ -67,7 +67,9 @@ const redimensionnee = [petite, petite, grande, grande, petite, liberee, grande]
 const DUMMY_ATTRIBUTES: G.Geometry['attributes'] = {};
 const DUMMY_BOUNDS: number[] = [0, 0, 0];
 const emptyMesh = () => new Mesh(new Geometry(), []);
-const pageOf = (matrix: G.Matrix4, mesh?: HostMesh): PageRec => ({
+/** A record with the world the oracle reads on it, as records carried it before #1226. */
+type Page = PageRec & { matrix: G.Matrix4 };
+const pageOf = (matrix: G.Matrix4, mesh?: HostMesh): Page => ({
   id: 0,
   url: '',
   clusterId: '',
@@ -86,17 +88,19 @@ const pageOf = (matrix: G.Matrix4, mesh?: HostMesh): PageRec => ({
 });
 
 const instanceDe = (pages: number) => {
-  const basePages: PageRec[] = [],
+  const basePages: Page[] = [],
     baseRoots: ClusterRoot<PageRec>[] = [],
-    clones: PageRec[] = [],
+    clones: Page[] = [],
     racines: ClusterRoot<PageRec>[] = [];
-  for (let i = 0; i < pages; i++) {
-    basePages.push(pageOf(new G.Matrix4().makeTranslation(i, i * 2, i * 3)));
-    clones.push(pageOf(new G.Matrix4(), i % 3 ? emptyMesh() : undefined));
-  }
   for (let i = 0; i < 10; i++) {
     baseRoots.push({ world: new G.Matrix4().makeScale(1 + i, 2, 3), pages: [] });
     racines.push({ world: new G.Matrix4(), pages: [] });
+  }
+  // Page `i` is placed by root `i % 10`: the world the oracle reads on it is that root's.
+  for (let i = 0; i < pages; i++) {
+    basePages.push(pageOf(new G.Matrix4().makeScale(1 + (i % 10), 2, 3)));
+    clones.push(pageOf(new G.Matrix4(), i % 3 ? emptyMesh() : undefined));
+    racines[i % 10].pages.push(clones[i]);
   }
   return { basePages, baseRoots, instance: { pages: clones, bases: basePages, roots: racines } };
 };
@@ -112,7 +116,7 @@ const passeInstance =
   (
     fn: (
       instance: Instance['instance'],
-      basePages: PageRec[],
+      basePages: Page[],
       baseRoots: ClusterRoot<PageRec>[],
       transform: Float64Array,
     ) => void,
@@ -121,8 +125,8 @@ const passeInstance =
     const { basePages, baseRoots, instance } = input;
     fn(instance, basePages, baseRoots, new Float64Array(transformation.elements));
     const output: number[] = [];
-    for (const rec of instance.pages)
-      output.push(...Array.from(rec.matrix.elements), ...(rec.mesh?.matrix.elements ?? []));
+    // What both place: the meshes of the pages, and the roots (the oracle's pages, their roots').
+    for (const rec of instance.pages) output.push(...(rec.mesh?.matrix.elements ?? []));
     for (const root of instance.roots) output.push(...Array.from(root.world.elements));
     return Float64Array.from(output);
   };

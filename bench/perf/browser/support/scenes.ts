@@ -15,11 +15,16 @@ export function camera(z = 6, near = 0.1, aspect = 16 / 9) {
 
 const MAUVAIS = [NaN, Infinity, -Infinity, -0];
 
+/** The one root every page and box below ranks: the identity, their `matrix` too, which the
+ *  oracles read on them as pages carried it before #1226. */
+export const racines = [{ world: new G.Matrix4() }];
+
 /** A page of triangles as `coupe` produces it: geometry, material and its world-space box. */
 export interface ScenePage {
   array: Uint32Array;
   attributes: { position: G.BufferAttribute };
   matrix: G.Matrix4;
+  placementIndex: number;
   material: PageSurface;
   clusterId: string;
   url: string;
@@ -33,6 +38,7 @@ export interface SceneBox {
   min: number[];
   max: number[];
   matrix: G.Matrix4;
+  placementIndex: number;
   url: string;
   array: Uint32Array;
 }
@@ -98,6 +104,7 @@ function page(
     array: indices,
     attributes,
     matrix: new G.Matrix4(),
+    placementIndex: 0,
     material: surfaceOf(material),
     clusterId: `0/0/${index}`,
     url: `page-${index}.bin`,
@@ -166,6 +173,7 @@ export function boites({
       min,
       max,
       matrix: new G.Matrix4(),
+      placementIndex: 0,
       url: `boite-${i}.bin`,
       array: new Uint32Array(3 * (1 + (i % 40))),
     });
