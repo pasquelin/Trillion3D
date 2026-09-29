@@ -88,6 +88,12 @@ export const ENGINE_SHADERS: Record<string, string> = {
   REFLECTION_RESOLVE_BOUNCE: withScreenReflections(BOUNCE_LIGHTING_SHADER),
   DIRECT_NARROW_LIGHTING: contractLightingShader(false, true),
   BOUNCE_NARROW_LIGHTING: contractLightingShader(true, true),
+  REFLECTION_SOURCE_DIRECT_NARROW: reflectionSource(contractLightingShader(false, true)),
+  REFLECTION_SOURCE_BOUNCE_NARROW: reflectionSource(contractLightingShader(true, true)),
+  REFLECTION_RESOLVE_DIRECT_NARROW: withScreenReflections(
+    contractLightingShader(false, true),
+    true,
+  ),
   REFLECTION_RESOLVE_BOUNCE_NARROW: withScreenReflections(contractLightingShader(true, true)),
   ...compositions('COMPOSE', CONTRACT_COMPOSITIONS.plain),
   ...compositions('UNLIT_COMPOSE', UNLIT_COMPOSITIONS.plain),

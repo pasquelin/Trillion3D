@@ -60,10 +60,9 @@ test('a narrow scene is lit by the narrow program, a wide one never is', async (
   assert.equal(frame(true), false, 'unlit while the narrow program compiles');
   await lighting.settle();
   assert.equal(frame(true), true);
-  // The wide twin is still compiling: a scene past the lists waits for it, never reads narrow.
-  assert.equal(frame(false), false);
-  await lighting.settle();
-  assert.equal(frame(false), true);
+  // The wide twin compiled beside the narrow one: a scene past the lists is lit at once, and
+  // never by the narrow program.
+  assert.equal(frame(false), true, 'the wide twin is ready with the narrow program');
   assert.equal(frame(true), true);
   assert.deepEqual(labels, ['DIRECT_NARROW_LIGHTING', 'DIRECT_LIGHTING', 'DIRECT_NARROW_LIGHTING']);
   lighting.dispose();

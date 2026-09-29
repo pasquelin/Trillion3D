@@ -10,9 +10,10 @@ type Variant = { program?: DeferredProgram; pending?: Promise<unknown>; asked?: 
  * no wide one; a wide one serves any scene. While the asked one compiles, the frame is lit by the
  * best one ready — the same width without bounce, then a wide one —, else by none.
  *
- * Once a narrow program is ready, its wide twin compiles behind it: a scene that passes
- * `TILE_LIGHTS` lights then finds its program ready, and never falls back to the unlit view. No
- * frame waits for that twin (`settle`) nor is redrawn at its arrival (`onReady`) until one asks.
+ * A narrow program's wide twin compiles beside it, from the same frame: a scene that passes
+ * `TILE_LIGHTS` lights finds its program ready as soon as a single program would have been, and
+ * never falls back to the unlit view where one program would not. No frame waits for that twin
+ * (`settle`) nor is redrawn at its arrival (`onReady`) until one asks for it.
  */
 export function createContractVariants(
   device: GPUDevice,
@@ -42,10 +43,10 @@ export function createContractVariants(
         variant.program = program;
         variant.pending = undefined;
         if (variant.asked) onReady?.();
-        if (narrow) compile(bounce, false, onFailure);
       },
       (error) => onFailure?.(error),
     );
+    if (narrow) compile(bounce, false, onFailure);
   };
   return {
     /** The program to light this frame with, compiling the asked one; `undefined` if none is ready. */
@@ -59,7 +60,7 @@ export function createContractVariants(
         variants[0][0].program
       );
     },
-    /** Waits for the programs a frame asked for, never a twin compiling behind. */
+    /** Waits for the programs a frame asked for, never a twin compiling beside them. */
     settle() {
       return Promise.all(
         variants.flat().map((variant) => (variant.asked ? variant.pending : undefined)),
