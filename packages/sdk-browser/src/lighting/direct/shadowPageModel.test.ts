@@ -25,6 +25,7 @@ import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { contractLightingShader } from '../deferred/shaders.ts';
 import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
 import { WATER_COMPOSITE_SHADER } from '../../webgpu/water/compositeWgsl.ts';
+import { SHADOW_DEMAND_WGSL } from '../../webgpu/shadow/demandWgsl.ts';
 
 type Formula = (...args: number[]) => number;
 const shipped = shaderRun<Record<string, Formula>>(PAGE_MODEL_WGSL, PAGE_MODEL_FUNCTIONS, {});
@@ -120,6 +121,7 @@ test('every pass that reads the page table holds the page model once, and no cop
     narrow: contractLightingShader(false, true),
     blend: BLEND_SHADER,
     water: WATER_COMPOSITE_SHADER,
+    demand: SHADOW_DEMAND_WGSL,
   })) {
     assert.equal(shader.split(PAGE_MODEL_WGSL).length, 2, pass);
     for (const name of PAGE_MODEL_FUNCTIONS)
