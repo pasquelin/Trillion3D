@@ -21,6 +21,9 @@ import { OWN_CEIL, OWN_FLOOR, OWN_SPHERE, PARENT_FLOOR, PARENT_SPHERE } from './
  * Rust mirror (CPU cut walk): `node_decision` and `node_decision_at_zero` of
  * `packages/page-codec-wasm/src/cut_error.rs`, pinned by `walkWasm.test.ts`.
  */
+/** A sphere's radius grown by a deformation's `reach` (#357); an absent sphere (negative) stays so. */
+const grown = (radius: number, reach: number) => (radius >= 0 ? radius + reach : radius);
+
 export function nodeDecision<T extends PageRecord>(
   s: SelectionState<T>,
   values: Float64Array,
@@ -31,7 +34,7 @@ export function nodeDecision<T extends PageRecord>(
     stretch = s.flatStretch,
     focal = s.flatFocal,
     perspective = s.cam.perspective;
-  const ownRadius = values[at + OWN_SPHERE + 3] + s.flatReach,
+  const ownRadius = grown(values[at + OWN_SPHERE + 3], s.flatReach),
     ownDepth = viewDepth(values, at + OWN_SPHERE, e);
   // No cluster of the subtree is fine enough: the cut takes none of them.
   const floor = errorFloorAt(
@@ -60,7 +63,7 @@ export function nodeDecision<T extends PageRecord>(
   return errorFloorAt(
     values[at + PARENT_FLOOR],
     viewDepth(values, at + PARENT_SPHERE, e),
-    values[at + PARENT_SPHERE + 3] + s.flatReach,
+    grown(values[at + PARENT_SPHERE + 3], s.flatReach),
     stretch,
     focal,
     perspective,
