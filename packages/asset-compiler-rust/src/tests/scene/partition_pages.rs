@@ -104,7 +104,7 @@ fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
     // The root names every page by its fingerprint: the pages of #750, each naming its mesh pages
     // (#792), byte for byte.
     let named = hash(&serde_json::to_vec(&root).expect("json"));
-    let pages = "74d2fe2a9cca2849b1738479756461e5cb995b1775fd61d99c485535d92eaf9f";
+    let pages = "c6e64442f38810675ffe89f5c75d8d303dc20de30476b238c6b6abe077acf0fa";
     assert_eq!(
         named, pages,
         "the index and region pages of partition version 4"
@@ -121,6 +121,16 @@ fn index_pages_list_at_most_the_fan_out_and_give_every_record_back_in_order() {
         match page["pages"].as_array() {
             Some(slots) => assert!(slots.len() <= FAN_OUT),
             None => assert!(*bytes <= PAGE_BYTES, "a region page of {bytes} bytes"),
+        }
+        // A region page names the rank of its first cell, which the world roots number it by.
+        if let Some(cells) = page["cells"].as_array() {
+            let first = page["first"].as_u64().expect("first") as usize;
+            for (at, cell) in cells.iter().enumerate() {
+                assert_eq!(
+                    cell["url"],
+                    json!(format!("scene-cell-{}.json", first + at))
+                );
+            }
         }
     }
     let read = read_records(&directory, &root).expect("records");

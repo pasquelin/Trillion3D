@@ -71,6 +71,30 @@ test("a frame's cell work is the same on a world sixteen times as large", () => 
   assert.ok(large.opened.cells < (32 * 32) / 8, `${large.opened.cells} of ${32 * 32} cells held`);
 });
 
+test('a cell is numbered by its cook rank, whatever page the view opens first (#1237)', () => {
+  // The world roots name a cell by its rank in the cook's records: a camera at the far corner
+  // opens the last region pages alone, and their cells keep those ranks.
+  const { cells } = grid(8);
+  const { partition, files } = paged(cells, 4);
+  const boxes = createCellBoxes([], new Group(), []);
+  boxes.refresh();
+  const index = createCellIndex(partition.pages, 'https://cache.test/', boxes);
+  const eye = [75, 75, 0.5];
+  openAll(index, files, eye, 5);
+  const found: number[] = [];
+  index.near(
+    eye,
+    5,
+    Infinity,
+    { has: () => false },
+    (cell) => found.push(cell),
+    () => {},
+  );
+  assert.ok(found.length > 0 && found.every((cell) => cell >= 4), JSON.stringify(found));
+  for (const cell of found)
+    assert.equal(index.cell(cell).url, `https://cache.test/${cells[cell].url}`, `cell ${cell}`);
+});
+
 /** The rows the cook lists for `grid`'s cells, one node each on a lattice of 10 m (`rows.rs`): a
  *  window of one and a half times a rung's side, at half its side, meets that many cells a side,
  *  and one more. */

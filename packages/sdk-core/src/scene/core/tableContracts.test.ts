@@ -147,7 +147,7 @@ test('the root gives its slots, box, rows and parents; a page is read alone, che
     () => read({ version: 4, pages: [EMPTY] }),
     hasCode('INVALID_SCENE_TABLES', 'parents'),
   );
-  const region = read({ version: 4, cells: cells(0, 1), meshPages: [m, n] });
+  const region = read({ version: 4, first: 7, cells: cells(0, 1), meshPages: [m, n] });
   assert.deepEqual(
     region.cells!.map(({ url, meshPages }) => [url, meshPages]),
     [
@@ -162,7 +162,13 @@ test('the root gives its slots, box, rows and parents; a page is read alone, che
     hasCode('UNSUPPORTED_SCENE_TABLES', 'version 3'),
   );
   assert.throws(() => read({ version: 4 }), hasCode('INVALID_SCENE_TABLES'));
-  const badSlot = { version: 4, cells: cells(3), meshPages: ['e'] };
+  const badSlot = { version: 4, first: 0, cells: cells(3), meshPages: ['e'] };
+  // A region page names the cook's rank of its first cell, which the world roots number it by.
+  assert.equal(region.first, 7);
+  assert.throws(
+    () => read({ version: 4, cells: cells(0), meshPages: [m] }),
+    hasCode('INVALID_SCENE_TABLES', 'first cell'),
+  );
   assert.throws(() => read(badSlot), hasCode('INVALID_SCENE_TABLES', 'mesh pages'));
   assert.throws(
     () => read({ version: 4, pages: ['z'.repeat(168)], parents: [''] }),
