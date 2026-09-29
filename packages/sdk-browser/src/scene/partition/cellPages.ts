@@ -13,7 +13,7 @@ import type { PlacedMesh } from './rows.ts';
 import type { WorldRootsHold } from '../worldRoots.ts';
 
 /** What a placed cell holds from one source, counted per cell. */
-type Holder = { hold(cell: number): Promise<void>; release(cell: number): void };
+type Holder = Pick<WorldRootsHold, 'hold' | 'release'>;
 
 /** What a partition's cells hold: each rank's placed mesh, and the manifest pages the cells hold.
  *  Kept beside the cells, not on them: a model's public record carries the cells. */
@@ -35,16 +35,16 @@ export const cellHoldings = (cells: object) => holdings.get(cells)!;
 export function createCellPages(
   pages: ManifestPages | undefined,
   meshPagesOf: (cell: number) => readonly string[],
-  world?: Pick<WorldRootsHold, 'hold' | 'release'>,
+  world?: Holder,
 ) {
   const holders: Holder[] = world ? [world] : [];
   if (pages) {
     const slotsOf = new Map<number, readonly string[]>();
     holders.push({
-      hold(cell) {
+      async hold(cell) {
         const slots = meshPagesOf(cell);
+        await pages.hold(slots);
         slotsOf.set(cell, slots);
-        return pages.hold(slots);
       },
       release(cell) {
         pages.release(slotsOf.get(cell)!);
