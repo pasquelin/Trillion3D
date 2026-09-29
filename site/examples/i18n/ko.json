@@ -2375,5 +2375,25 @@
       "unmount": "분리",
       "remount": "다시 장착"
     }
+  },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "재생"
+    }
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "재생"
+    }
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "재생"
+    }
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "재생"
+    }
   }
 }

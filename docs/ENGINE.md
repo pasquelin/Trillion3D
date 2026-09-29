@@ -1255,3 +1255,30 @@ Stages, each with its proof (0 px A/A at rest, budget held, before/after publish
 
 Exit criterion: on the same scene and the same machine as the reference, same image
 to the eye, same byte budgets, same millisecond envelope.
+
+## GPU deformation
+
+`deformation/session.ts` reserves one control record per deformed placement. Records contain
+current and previous joint palettes, morph weights, the shared physics wave parameters, and
+cooked soft-body simulation positions where present. CPU animation updates bones and controls;
+it does not skin or morph vertices. Soft-body position writeback is the existing physics upload.
+Page-authored geometry retains its deformation streams through the existing page cutter and
+worker protocol, and placement rows retain their original animation owners.
+
+`deformation/compute.ts` runs once per command encoder before WebGPU cut/raster consumers.
+It writes current/previous positions and normals into tails of the existing geometry-cache slots:
+eleven words per vertex, including owner and frame tags. Multiple placements sharing a source
+page have disjoint tails. The existing slot admission and root coverage budget include these
+bytes; placement capacity changes reopen where in-place growth cannot preserve the allocation.
+Visibility, shadows, transparent pages and temporal reprojection read the shared outputs. A
+settled frame retains resident outputs; eviction makes a cold record, never unrelated history.
+WebGL2 evaluates the sources in the vertex shader using the same compiled stream semantics.
+
+The control record's conservative reach expands bounds in the existing cut. Deformed coarse
+pages add twice the displacement reach to their simplification error: two source vertices may
+move in opposite directions. Exact leaves keep zero simplification error; the resident parent
+continues to cover children while finer pages stream. Static subtree shortcuts cannot classify
+a moving subtree from rest bounds. Shadow dirtiness follows the roots whose controls changed.
+The timestamp recorder exposes the compute stage as `gpuDeformationMs`, with `null` for missing
+samples or timestamp support. Browser pixel/timing evidence is produced by recette on `develop`,
+not inferred from the source or substituted with CPU time.

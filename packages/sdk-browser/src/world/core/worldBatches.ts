@@ -18,10 +18,8 @@ export type Batch = {
   /** Meshes that wear this resource now: those holding a row, and those waiting for one. */
   readonly wearers: Set<Mesh>;
 };
-
 /** Where a mesh is drawn: its batch and, once it holds one, its row. */
 export type Seat = { batch: Batch; row: number };
-
 /**
  * The batches of a world and the rows their meshes hold. A mesh is SEATED when its batch is in
  * the open session and a row was free; one that is not waits, and the row it held in the batch it
@@ -94,6 +92,8 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
     const held = before?.capacity ?? 0,
       needed = held - batch.free.length + waitingIn(batch);
     if (needed <= held) return null;
+    if (before && grow && (batch.cut.drawn.deformation || [...batch.wearers].some((m) => m.waves)))
+      return false;
     if (before && grow && !grow.growsInPlace([before], grownCapacity(held, needed))) return false;
     const rows = growPlacementRows(before, needed);
     const { capacity } = rows;

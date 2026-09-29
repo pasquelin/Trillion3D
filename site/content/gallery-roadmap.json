@@ -801,20 +801,17 @@
     {
       "id": "a-character-that-walks",
       "theme": "animation",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/a-character-that-walks.html"
     },
     {
       "id": "additive-poses",
       "theme": "animation",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/additive-poses.html"
     },
     {
       "id": "a-crowd-of-characters",
       "theme": "animation",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/a-crowd-of-characters.html"
     },
     {
       "id": "reaching-with-ik",
@@ -837,8 +834,7 @@
     {
       "id": "a-shape-that-morphs",
       "theme": "animation",
-      "file": "",
-      "status": "needs-engine"
+      "file": "examples/a-shape-that-morphs.html"
     },
     {
       "id": "a-face-that-talks",
@@ -1541,7 +1537,6 @@
       "id": "a-cooked-flag",
       "theme": "physics",
       "file": "examples/a-cooked-flag.html",
-      "status": "waiting-engine",
       "issue": 357
     },
     {

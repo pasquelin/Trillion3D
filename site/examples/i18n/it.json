@@ -2375,5 +2375,25 @@
       "unmount": "Smonta",
       "remount": "Rimonta"
     }
+  },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "Riproduci"
+    }
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "Riproduci"
+    }
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "Riproduci"
+    }
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "Riproduci"
+    }
   }
 }

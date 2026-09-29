@@ -2375,5 +2375,25 @@
       "unmount": "إزالة",
       "remount": "إعادة التثبيت"
     }
+  },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "تشغيل"
+    }
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "تشغيل"
+    }
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "تشغيل"
+    }
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "تشغيل"
+    }
   }
 }

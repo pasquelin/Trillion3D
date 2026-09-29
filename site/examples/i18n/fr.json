@@ -2375,5 +2375,25 @@
       "unmount": "Démonter",
       "remount": "Remonter"
     }
+  },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "Lecture"
+    }
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "Lecture"
+    }
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "Lecture"
+    }
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "Lecture"
+    }
   }
 }
