@@ -106,8 +106,7 @@ pub struct Options {
     pub threads: usize,
     pub ram_budget_mb: usize,
     pub simplification: String,
-    /// Block families the texture stage cooks, `--textures-format`: the
-    /// desktop family alone by default, since a cook runs on a desktop.
+    /// Texture block families (`--textures-format`), desktop family by default.
     pub texture_formats: Vec<texture_preview::BlockFormat>,
     pub cancelled: Arc<AtomicBool>,
 }

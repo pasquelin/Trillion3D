@@ -22,7 +22,6 @@ import { textureTransferBytesFor, textureUploadMsFor } from '../../../residency/
 import { sessionGeometryPool } from '../../../residency/sessionPool.ts';
 import { floorDiagnostic, rootChildren } from '../../../residency/minimumCapacity.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../../backend/common.ts';
-
 export type WebgpuDiagnostics = ReturnType<typeof createWebgpuDiagnostics> & {
   traceEnabled: boolean;
 };
