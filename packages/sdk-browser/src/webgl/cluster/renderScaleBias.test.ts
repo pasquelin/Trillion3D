@@ -25,6 +25,12 @@ test('every material map is read with the frame mip bias, in both programs', () 
 
 /** The `mipBias` and `pixelRatio` the frame's draw wrote for `output`, the host ratio being 2. */
 function written(output: HostDrawOutput) {
+  const { last } = drawn([output]);
+  return { mipBias: last('mipBias'), pixelRatio: last('pixelRatio') };
+}
+
+/** A one-mesh scene drawn once per output of `outputs`, and the float uniforms its frames wrote. */
+function drawn(outputs: HostDrawOutput[]) {
   const context = createTestContext();
   const scene = new Scene(),
     geometry = new Geometry().setIndex(new BufferAttribute(new Uint32Array(3), 1));
@@ -34,15 +40,14 @@ function written(output: HostDrawOutput) {
   mesh.frustumCulled = false;
   scene.add(mesh);
   const draw = createSceneDraw(context.gl, scene, [], { pixelRatio: () => 2 });
-  draw.render({} as HostCamera);
-  draw.host.drawHostGeometry(createHostDrawCamera(), output);
-  const last = (name: string) =>
-    context
-      .of('uniform1f')
-      .filter(([at]) => (at as { uniform: string }).uniform === name)
-      .at(-1)?.[1];
+  for (const output of outputs) {
+    draw.render({} as HostCamera);
+    draw.host.drawHostGeometry(createHostDrawCamera(), output);
+  }
+  const named = (call: string, name: string) =>
+    context.of(call).filter(([at]) => (at as { uniform: string }).uniform === name);
   draw.dispose();
-  return { mipBias: last('mipBias'), pixelRatio: last('pixelRatio') };
+  return { named, last: (name: string) => named('uniform1f', name).at(-1)?.[1] };
 }
 
 test('an image drawn at half the display reads its maps log2 0.5 = -1 level, lines at its ratio', () => {
@@ -53,4 +58,13 @@ test('an image drawn at half the display reads its maps log2 0.5 = -1 level, lin
   });
   assert.deepEqual(written({ ...base, width: 48, displayWidth: 64 }).mipBias, Math.log2(0.75));
   assert.deepEqual(written({ ...base, width: 64 }), { mipBias: 0, pixelRatio: 2 });
+});
+
+// The bias has a cache slot of its own: a frame's bias never stands for a material's `covering`
+// (the next material would skip its own write), nor is either written again on an unchanged frame.
+test('an unchanged frame writes neither the mip bias nor a material uniform again', () => {
+  const output = { toneMapped: false, framebuffer: null, width: 64, height: 16 };
+  const { named } = drawn([output, output]);
+  assert.equal(named('uniform1f', 'mipBias').length, 1);
+  assert.equal(named('uniform1i', 'covering').length, 1);
 });

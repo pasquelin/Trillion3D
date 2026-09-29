@@ -16,7 +16,7 @@ import { createWebgpuSunFarState, type WebgpuSunFarState } from './state/sunFar.
 import { createWebgpuRunState, type WebgpuRunState } from './state/run.ts';
 import { createWebgpuCaptureState, type WebgpuCaptureState } from './state/capture.ts';
 import { createWebgpuViews, type WebgpuViews } from './state/view.ts';
-import { createScaleControl, type ScaleControl } from './state/scaleControl.ts';
+import { createScaleControl, type ScaleControl } from '../../frame/scaleControl.ts';
 import type { PresentRect } from '../../gpu/core/presentAt.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import {

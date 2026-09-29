@@ -138,7 +138,7 @@ export function createFrameComposer(
       !target &&
       heldFrame.holds(width, height) &&
       keptRevision === revision &&
-      scaled.kept === (scale ?? 1)
+      scaled.holds(scale)
     ) {
       heldFrame.present();
       return;
@@ -157,11 +157,13 @@ export function createFrameComposer(
     output.width = width;
     output.height = height;
     encode(backend.scene.background as SceneColour);
-    if (!linear) clearWebglTarget(gl, display.background);
-    const drawn = scaled.begin(backend, output, scale, linear ? undefined : display.background);
+    // Drawn below the display, the image is resampled over every pixel of it: only its own target
+    // is cleared.
+    const clear = linear ? undefined : display.background;
+    if (!scaled.begin(backend, output, scale, clear) && clear) clearWebglTarget(gl, clear);
     backend.drawHostGeometry(readHostDrawCamera(drawCamera, camera), output);
     stepped?.draw(particles, drawCamera, output);
-    scaled.end(output, width, height);
+    scaled.end(output);
     if (linear) {
       display.toneMapped = output.toneMapped;
       display.toneCurve = TONE_MAPPING_RANK[output.toneMapping];
@@ -177,10 +179,11 @@ export function createFrameComposer(
     heldFrame.keep(width, height);
     keptRevision = revision;
     keptParticles = moved;
-    scaled.kept = drawn;
+    scaled.keep();
   };
-  /** Bytes of the chain's targets and the particles' depth copy on this context. */
-  compose.effectBytes = () => (effects?.bytes ?? 0) + (stepped?.bytes() ?? 0);
+  /** Bytes of the chain's targets, the particles' depth copy and the target an image drawn below
+   *  the display is drawn in, on this context. */
+  compose.effectBytes = () => (effects?.bytes ?? 0) + (stepped?.bytes() ?? 0) + scaled.bytes();
   compose.dispose = () => {
     present.dispose();
     scaled.dispose();
