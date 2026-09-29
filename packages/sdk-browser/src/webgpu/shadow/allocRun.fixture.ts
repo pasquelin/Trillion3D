@@ -147,7 +147,7 @@ export function runShadowWords(
   data: Uint8Array,
   state: Uint8Array,
   words: Uint8Array,
-  drawList = new Uint8Array(4 * (u32(words)[1] || 1)),
+  drawList: Uint8Array = new Uint8Array(4 * (u32(words)[1] || 1)),
 ) {
   const sent = u32(words),
     shadowWords = {

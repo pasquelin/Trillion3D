@@ -116,7 +116,12 @@ export function gpuFrames(poolSide: number, lights: SceneLight[], gpuDraws = tru
       }
       plan.commit();
       if (allocation.writeWords(plan, frame, (sink) => plan.table.flush(sink)))
-        runShadowWords(bytes(data), bytes(state), bytes(allocation.words), drawList);
+        runShadowWords(
+          bytes(data),
+          bytes(state),
+          bytes(allocation.words),
+          bytes(allocation.drawList),
+        );
       regions.length = 0;
       if (gpuDraws) {
         // No caster row: the cull keeps no pair, and every region is sealed readable.

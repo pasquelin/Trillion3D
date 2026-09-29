@@ -4,7 +4,6 @@ import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { FRESH_CASTERS, FRESH_CLEAR, FRESH_SLICE_FLOATS, freshDrawWord } from './freshLayout.ts';
 import { freshGroups } from './freshGroups.ts';
-import { shadowRegionGroup } from './regionGroups.ts';
 
 /** Each slice's emitter and far plane, rewritten each frame: a frame allocates nothing. */
 const slices = new Float32Array(MAX_SHADOW_SLICES * FRESH_SLICE_FLOATS),
@@ -69,9 +68,9 @@ export function encodeFreshPages(
     { allocation, pageRequests, shadows, plan, cull, spheres, mobilityRows } = lights,
     buffers = pageRequests?.allocation;
   if (!allocation || !buffers?.seeded || !plan.gpu.on || !shadows?.texture) return;
-  if (!cull || !spheres || !mobilityRows || !freshWanted(rt)) return;
-  const region = shadowRegionGroup(rt, device, 0);
-  if (!region) return;
+  if (!cull || !spheres || !mobilityRows) return;
+  const groups = freshGroups(rt, device);
+  if (!groups || !freshWanted(rt)) return;
   const { side, layers } = plan.pool,
     { rows } = layout,
     tint = shadows.transmittance;
@@ -86,13 +85,12 @@ export function encodeFreshPages(
   culled.push(buffers.freshArgs, mobilityRows);
   allocation.cull(encoder, culled, [buffers.freshArgs, 0]);
   allocation.seal(encoder, composed, 1);
-  const groups = freshGroups(device, shadows, buffers, cull.kept),
-    draws = shadows.freshDraws.made();
+  const draws = shadows.freshDraws.made();
   for (let layer = 0; layer < layers; layer++) {
     const passes = tint ? [shadows.passes[layer], tint.passes[layer]] : [shadows.passes[layer]];
     passes.forEach((descriptor, tinted) => {
       const pass = encoder.beginRenderPass(descriptor);
-      pass.setBindGroup(0, region);
+      pass.setBindGroup(0, groups.page);
       pass.setBindGroup(1, shadows.faceGroup, [0]);
       pass.setBindGroup(2, tinted ? groups.tint[layer] : groups.pool);
       const kinds = tinted
