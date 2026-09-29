@@ -55,6 +55,7 @@ export const ENGINE_ERROR_CODES: readonly (readonly string[])[] = [
   ['PHYSICS_FORMAT', 'PHYSICS_OFF'],
   ['NO_VEHICLE'],
   ['GUIDE_CEILING'],
+  ['REFERENCE_SHADOWS_REDUCED', 'REFERENCE_INTERACTIVE'],
 ];
 
 const documented: ReadonlySet<string> = new Set(ENGINE_ERROR_CODES.flat());

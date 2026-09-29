@@ -67,3 +67,9 @@ test('the resolved image is the linear-light mean of each block, the same bytes 
   );
   assert.deepEqual(capture(), once);
 });
+
+test('reference mode refuses an interactive session, whose resize would drop the supersampling', () => {
+  assert.throws(() => referenceOptions({ ...BOSS, reference: true, interactive: true }), {
+    code: 'REFERENCE_INTERACTIVE',
+  });
+});

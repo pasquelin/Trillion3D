@@ -1640,7 +1640,8 @@
       "PHYSICS_FORMAT": "La physique préparée d’un modèle compilé (`physics.json`) est d’un autre format, ou a été préparée par un autre Jolt que celui du moteur (`PHYSICS_FORMAT`) : recompilez-le. Un lancer de rayon exact a été demandé physique éteinte (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "La physique préparée d’un modèle compilé (`physics.json`) est d’un autre format, ou a été préparée par un autre Jolt que celui du moteur (`PHYSICS_FORMAT`) : recompilez-le. Un lancer de rayon exact a été demandé physique éteinte (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` a reçu `'vehicle'` alors que `world.controls.vehicle` vaut `null` : il n’y a rien à conduire.",
-      "GUIDE_CEILING": "Un appel à `world.guides` tiendrait plus de sommets que `GUIDE_VERTEX_CEILING` ; rien n’en a été ajouté."
+      "GUIDE_CEILING": "Un appel à `world.guides` tiendrait plus de sommets que `GUIDE_VERTEX_CEILING` ; rien n’en a été ajouté.",
+      "REFERENCE_SHADOWS_REDUCED": "L’image de référence a été refusée : la réserve d’ombres tourne sous sa pleine taille, ou la session est interactive."
     }
   },
   "enginePose": {

@@ -1007,7 +1007,8 @@
       "PHYSICS_FORMAT": "الفيزياء المُعدّة لنموذج مُترجَم (`physics.json`) بصيغة أخرى، أو أعدّها Jolt غير الذي في المحرك (`PHYSICS_FORMAT`): أعد ترجمته. طُلب تتبع شعاع دقيق والفيزياء مطفأة (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "الفيزياء المُعدّة لنموذج مُترجَم (`physics.json`) بصيغة أخرى، أو أعدّها Jolt غير الذي في المحرك (`PHYSICS_FORMAT`): أعد ترجمته. طُلب تتبع شعاع دقيق والفيزياء مطفأة (`PHYSICS_OFF`).",
       "NO_VEHICLE": "عُيّن `world.controls.kind` إلى `'vehicle'` بينما `world.controls.vehicle` يساوي `null`: لا شيء لقيادته.",
-      "GUIDE_CEILING": "استدعاء `world.guides` كان سيحمل رؤوسًا أكثر من `GUIDE_VERTEX_CEILING`؛ لم يُضف منه شيء."
+      "GUIDE_CEILING": "استدعاء `world.guides` كان سيحمل رؤوسًا أكثر من `GUIDE_VERTEX_CEILING`؛ لم يُضف منه شيء.",
+      "REFERENCE_SHADOWS_REDUCED": "رُفضت الصورة المرجعية: مجمع الظلال يعمل بأقل من حجمه الكامل، أو الجلسة تفاعلية."
     }
   },
   "EngineProfiler": {
