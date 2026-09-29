@@ -4,8 +4,6 @@ import {
   MORPH_WORDS,
   OCT_SCALE,
   TRIANGLE_BLOCK,
-  WEIGHT_BITS,
-  WEIGHT_SCALE,
   WIDTH_BITS,
 } from './format.ts';
 
@@ -32,7 +30,7 @@ const CLUSTER_HEADER_WGSL = `struct ClusterHeader{
  blocks:u32,corners:u32,pos:vec3u,links:u32,normal:u32,uv:vec2u,uv1:vec2u,color:vec4u,
  // The skin (\`deform.rs\`): its joints' base and width, and its first stream; the morph targets'
  // count and the word their streams are counted from, each target's record after the header.
- skinBase:u32,skinBits:u32,skin:u32,morphCount:u32,streams:u32,
+ skinBase:u32,skinBits:u32,skin:u32,influences:u32,morphCount:u32,streams:u32,
 }`;
 
 /**
@@ -90,7 +88,7 @@ fn clusterHeader(base:u32)->ClusterHeader{
  h.recordBits=h.indexBits+${WIDTH_BITS}u+h.prefixBits;
  h.positionCount=${buffer}[base+22u];h.linkBits=clusterBitsFor(h.positionCount-1u);
  // Word 23: the joint width in bits 0 to 5, the target count in 6 to 13, the smallest joint above.
- let dw=${buffer}[base+23u];h.skinBits=dw&63u;h.morphCount=(dw>>6u)&255u;h.skinBase=(dw>>14u)&0xffffu;
+ h.influences=${buffer}[base+24u];let dw=${buffer}[base+23u];h.skinBits=dw&63u;h.morphCount=(dw>>6u)&255u;h.skinBase=(dw>>14u)&0xffffu;
  let n=h.vertexCount;let stored=h.positionCount;var at=${CLUSTER_HEADER_WORDS}u+${MORPH_WORDS}u*h.morphCount;h.streams=at;
  h.blocks=clusterStream(true,(h.indexCount/3u+${TRIANGLE_BLOCK - 1}u)/${TRIANGLE_BLOCK}u,h.recordBits,&at);
  h.corners=clusterStream(true,cornerBits,1u,&at);
@@ -163,31 +161,21 @@ fn clusterNormal(h:ClusterHeader,base:u32,vertex:u32)->vec3f{
  }
  return normalize(vec3f(x,y,z));
 }
-// A skinned vertex's four joints (\`FLAG_SKIN\`): its base plus each joint stream's field.
-fn clusterJoints(h:ClusterHeader,base:u32,vertex:u32)->vec4u{
- let w=(h.vertexCount*h.skinBits+31u)/32u;let at=base+h.skin;let b=h.skinBits;let v=vertex*b;
- return h.skinBase+vec4u(clusterField(at,v,b),clusterField(at+w,v,b),clusterField(at+2u*w,v,b),clusterField(at+3u*w,v,b));
+// Every influence is retained; weight words are exact source float32 bits.
+fn clusterJoint(h:ClusterHeader,base:u32,vertex:u32,influence:u32)->u32{
+ let w=(h.vertexCount*h.skinBits+31u)/32u;
+ return h.skinBase+clusterField(base+h.skin+influence*w,vertex*h.skinBits,h.skinBits);
 }
-// Its four weights: three stored on 255 steps, the fourth what they leave, never below zero.
-fn clusterWeights(h:ClusterHeader,base:u32,vertex:u32)->vec4f{
- let w=(h.vertexCount*h.skinBits+31u)/32u;let s=(h.vertexCount*${WEIGHT_BITS}u+31u)/32u;
- let at=base+h.skin+4u*w;let v=vertex*${WEIGHT_BITS}u;
- let q=vec3u(clusterField(at,v,${WEIGHT_BITS}u),clusterField(at+s,v,${WEIGHT_BITS}u),clusterField(at+2u*s,v,${WEIGHT_BITS}u));
- let last=${WEIGHT_SCALE}u-min(${WEIGHT_SCALE}u,q.x+q.y+q.z);
- return vec4f(f32(q.x),f32(q.y),f32(q.z),f32(last))/${WEIGHT_SCALE}.0;
+fn clusterWeight(h:ClusterHeader,base:u32,vertex:u32,influence:u32)->f32{
+ let w=(h.vertexCount*h.skinBits+31u)/32u;
+ return bitcast<f32>(${buffer}[base+h.skin+h.influences*w+influence*h.vertexCount+vertex]);
 }
 // Morph target \`t\`'s position displacement (\`normal\` false) or normal displacement of a vertex:
 // its record after the header names the word its six streams start at.
 fn clusterMorph(h:ClusterHeader,base:u32,t:u32,vertex:u32,normal:bool)->vec3f{
  let r=base+${CLUSTER_HEADER_WORDS}u+t*${MORPH_WORDS}u;let n=h.vertexCount;
- var at=base+h.streams+${buffer}[r];
- let pw=clusterWidths(${buffer}[r+1u]).xyz;let nw=clusterWidths(${buffer}[r+5u]).xyz;
- var bits=pw;var record=r+1u;
- if(normal){at+=(n*pw.x+31u)/32u+(n*pw.y+31u)/32u+(n*pw.z+31u)/32u;bits=nw;record=r+5u;}
- let step=clusterStep(${buffer}[record]);
- let min=vec3f(bitcast<f32>(${buffer}[record+1u]),bitcast<f32>(${buffer}[record+2u]),bitcast<f32>(${buffer}[record+3u]));
- let ay=at+(n*bits.x+31u)/32u;let az=ay+(n*bits.y+31u)/32u;
- return min+vec3f(f32(clusterField(at,vertex*bits.x,bits.x)),f32(clusterField(ay,vertex*bits.y,bits.y)),f32(clusterField(az,vertex*bits.z,bits.z)))*step;
+ let at=base+h.streams+${buffer}[r]+select(0u,3u*n,normal)+vertex;
+ return vec3f(bitcast<f32>(${buffer}[at]),bitcast<f32>(${buffer}[at+n]),bitcast<f32>(${buffer}[at+2u*n]));
 }
 fn clusterColor(h:ClusterHeader,base:u32,vertex:u32)->vec4f{
  return vec4f(clusterGrid(base,h.color.x,vertex,h.colorBits.x,h.colorMin.x,h.colorStep),

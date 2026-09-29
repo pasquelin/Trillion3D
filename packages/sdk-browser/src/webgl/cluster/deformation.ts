@@ -1,4 +1,5 @@
-import { wholeMorphDeltas } from '../../deformation/wholeInputs.ts';
+import { deformationTexels } from '../../deformation/vertexTexture.ts';
+import { skinStreams } from '../../../../sdk-core/src/world/geometry/skin.ts';
 import type { Geometry as SourceGeometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { ClusterDraw, WholeMesh } from '../../cluster/batchMesh.ts';
 import { allocated } from '../core/allocation.ts';
@@ -81,9 +82,9 @@ export class WebglClusterDeformation {
   of(draw: ClusterDraw, geometry: Geometry, out: Int32Array) {
     const record = this.source ? deformRecordOf(draw) : 0;
     out[0] = record;
-    out[1] = record && geometry.attributes.skinIndex ? 1 : 0;
+    out[1] = record ? skinStreams(geometry as SourceGeometry).width : 0;
     out[2] = record ? targetsOf(geometry) : 0;
-    if (out[2]) this.bindMorph(geometry);
+    if (out[1] || out[2]) this.bindMorph(geometry);
   }
   /** The geometry's displacements as texels, two a target per vertex — position, then normal. */
   private bindMorph(geometry: Geometry) {
@@ -91,18 +92,16 @@ export class WebglClusterDeformation {
     gl.activeTexture(gl.TEXTURE0 + MORPH_DELTAS_UNIT);
     let texture = this.morphs.get(geometry);
     if (texture) return void gl.bindTexture(gl.TEXTURE_2D, texture);
-    const deltas =
-        (geometry.attributes.morph?.array as Float32Array | undefined) ??
-        wholeMorphDeltas(geometry as SourceGeometry),
-      texels = deltas.length / 3,
+    const deltas = deformationTexels(geometry as SourceGeometry, targetsOf(geometry)),
+      texels = deltas.length / 4,
       rows = Math.ceil(texels / LIGHT_ROW_TEXELS),
-      data = new Float32Array(rows * LIGHT_ROW_TEXELS * 3);
+      data = new Float32Array(rows * LIGHT_ROW_TEXELS * 4);
     data.set(deltas);
     texture = gl.createTexture()!;
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB32F, LIGHT_ROW_TEXELS, rows, 0, gl.RGB, gl.FLOAT, data);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, LIGHT_ROW_TEXELS, rows, 0, gl.RGBA, gl.FLOAT, data);
     allocated(gl, 'geometry', () => this.forget(geometry));
     this.morphs.set(geometry, texture);
     geometry.released?.add(() => this.forget(geometry));

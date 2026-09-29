@@ -1,5 +1,10 @@
 import { GEOMETRY_PAGE_FORMAT_VERSION } from '../../../../sdk-core/src/index.ts';
-import { morphWords, readDeformation, skinWords } from './geometryPageDeform.ts';
+import {
+  morphWords,
+  readDeformation,
+  skinWords,
+  validateRawDeformation,
+} from './geometryPageDeform.ts';
 import {
   CLUSTER_HEADER_WORDS,
   CLUSTER_PAGE_MAGIC,
@@ -66,7 +71,7 @@ export function record(word: number, min: number[]): Quant | null {
 }
 
 /**
- * The 24-word header of a `WGP3` page, read and checked: magic, format version, the four
+ * The 25-word header of a `WGP3` page, read and checked: magic, format version, the four
  * quantization grids, the corner stream's bit count, the stored positions, the skin and morph
  * records (`geometryPageDeform.ts`), and counts that agree with the page's own byte length — the stream layout is
  * derived from the counts and widths the header declares, so a page whose body does not measure
@@ -126,7 +131,7 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     at += morphWords(morph, vertexCount);
     return morph.start === start;
   });
-  let floats = 3 + (flags & FLAG_SKIN ? 8 : 0) + 6 * morphs.length;
+  let floats = 3 + (flags & FLAG_SKIN ? 2 * skin.influences : 0) + 6 * morphs.length;
   for (const [, size, bit] of OPTIONAL) if (flags & bit) floats += size;
   const decodedBytes = vertexCount * floats * 4 + indexCount * 4;
   if (
@@ -145,6 +150,7 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     (headerWords + at) * 4 !== data.byteLength
   )
     throw new Error('GEOMETRY_PAGE_BOUNDS');
+  validateRawDeformation(head, headerWords, vertexCount, flags, skinned, skin, morphs);
   // Each block's base, width and corners stay in bounds: the GPU reads the page in place on this.
   // The link stream ends where the normal stream starts.
   const words = (from: number, to: number) =>
@@ -158,8 +164,6 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     if (base >= vertexCount || width > indexBits || end > cornerBits)
       throw new Error('GEOMETRY_PAGE_BOUNDS');
   }
-  // Every vertex links to a stored position (`positions.rs`), read in place as well; the link
-  // stream ends where the normal stream starts.
   const linkWords = linked ? words(links, normal) : table;
   for (let i = 0; linked && i < vertexCount; i++)
     if (field(linkWords, i * linkBits, linkBits) >= positionCount)

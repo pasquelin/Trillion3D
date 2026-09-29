@@ -1,7 +1,7 @@
 //! How far a deformed primitive can move (#357): the rest-pose ball of the vertices each joint
 //! moves and each target's largest displacement, which the runtime inflates a cluster's bounds by
 //! so that culling never drops a visible deformed cluster.
-use super::{Deformation, INFLUENCES};
+use super::Deformation;
 
 impl Deformation {
     /// Whole-copy soft geometry names compact simulation vertices explicitly, without page streams.
@@ -14,7 +14,7 @@ impl Deformation {
                 .unwrap()
                 .0
                 .iter()
-                .step_by(INFLUENCES)
+                .step_by(self.influences)
                 .collect::<Vec<_>>());
         }
         reach
@@ -30,7 +30,7 @@ impl Deformation {
         let mut balls: Vec<([f64; 3], [f64; 3])> = Vec::new();
         if let Some((joints, weights)) = &self.skin {
             for (v, point) in positions.chunks(3).enumerate() {
-                for i in v * INFLUENCES..(v + 1) * INFLUENCES {
+                for i in v * self.influences..(v + 1) * self.influences {
                     if weights[i] <= 0.0 {
                         continue;
                     }

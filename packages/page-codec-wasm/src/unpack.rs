@@ -18,6 +18,7 @@ pub fn decode(data: &[u8], max_decoded_bytes: usize) -> Result<DecodedPage, Page
         index_count: header.index_count,
         flags: header.flags,
         morph_targets: header.morphs.len(),
+        skin_influences: header.skin.influences,
         quantization_error: header.quantization_error,
     })
 }
@@ -89,7 +90,7 @@ fn split(words: &[u32], h: &Header, out: &mut [u32]) -> Result<(), PageError> {
         vector(take(4), words, layout.color, &h.color);
     }
     if h.flags & FLAG_SKIN != 0 {
-        decode_skin(words, layout.skin, &h.skin, take(8));
+        decode_skin(words, layout.skin, &h.skin, take(2 * h.skin.influences));
     }
     if h.flags & FLAG_MORPH != 0 {
         decode_morphs(words, &h.morphs, take(6 * h.morphs.len()));

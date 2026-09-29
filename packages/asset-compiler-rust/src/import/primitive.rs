@@ -14,7 +14,7 @@ pub(crate) struct Vertices {
     pub(crate) normals: Vec<f32>,
     pub(crate) uvs: Vec<f32>,
     pub(crate) colors: Vec<f32>,
-    /// Four bones and four weights a vertex, on a skinned mesh (`motion.rs`).
+    /// All bones and weights a vertex, on a skinned mesh (`motion.rs`).
     pub(crate) joints: Vec<u16>,
     pub(crate) weights: Vec<f32>,
     /// Per morph target, its position offsets and its normal offsets (empty when it has none).
@@ -60,17 +60,23 @@ pub(crate) fn primitive(
         attributes[name] = json!(accessors.len() - 1);
     }
     if !vertices.joints.is_empty() {
-        let bytes: Vec<u8> = vertices
-            .joints
-            .iter()
-            .flat_map(|j| j.to_le_bytes())
-            .collect();
-        let view = bin.view(&bytes, Some(34962));
-        accessors.push(json!({"bufferView":view,"componentType":5123,"count":count,"type":"VEC4"}));
-        attributes["JOINTS_0"] = json!(accessors.len() - 1);
-        let view = bin.view(&f32_bytes(&vertices.weights), Some(34962));
-        accessors.push(json!({"bufferView":view,"componentType":5126,"count":count,"type":"VEC4"}));
-        attributes["WEIGHTS_0"] = json!(accessors.len() - 1);
+        let width = vertices.joints.len() / count;
+        for set in 0..width / 4 {
+            let ranks = (0..count).flat_map(|v| v * width + set * 4..v * width + set * 4 + 4);
+            let bytes: Vec<u8> = ranks
+                .clone()
+                .flat_map(|i| vertices.joints[i].to_le_bytes())
+                .collect();
+            let view = bin.view(&bytes, Some(34962));
+            accessors
+                .push(json!({"bufferView":view,"componentType":5123,"count":count,"type":"VEC4"}));
+            attributes[format!("JOINTS_{set}")] = json!(accessors.len() - 1);
+            let weights: Vec<f32> = ranks.map(|i| vertices.weights[i]).collect();
+            let view = bin.view(&f32_bytes(&weights), Some(34962));
+            accessors
+                .push(json!({"bufferView":view,"componentType":5126,"count":count,"type":"VEC4"}));
+            attributes[format!("WEIGHTS_{set}")] = json!(accessors.len() - 1);
+        }
     }
     let mut targets = Vec::new();
     for (offsets, normals) in &vertices.targets {

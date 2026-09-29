@@ -18,6 +18,7 @@ pub struct DecodedPage {
     pub flags: u32,
     /// Morph targets of the page: six floats each per vertex, after the skin's eight.
     pub morph_targets: usize,
+    pub skin_influences: usize,
     /// The header's largest position displacement, in object units.
     pub quantization_error: f32,
 }
@@ -29,8 +30,8 @@ impl DecodedPage {
     pub fn attribute(&self, rank: usize) -> Option<&[f32]> {
         let mut at = self.index_count;
         let deformation = [
-            (FLAG_SKIN, 4),
-            (FLAG_SKIN, 4),
+            (FLAG_SKIN, self.skin_influences),
+            (FLAG_SKIN, self.skin_influences),
             (FLAG_MORPH, 6 * self.morph_targets),
         ];
         let ranks = core::iter::once((0, 3)).chain(OPTIONAL).chain(deformation);
@@ -69,36 +70,8 @@ impl core::fmt::Debug for DecodedPage {
     }
 }
 
-/// What a header's counts make of the page's size.
-impl Header {
-    /// Floats per decoded vertex: position, then each present attribute at its width.
-    pub fn vertex_floats(&self) -> usize {
-        3 + OPTIONAL
-            .iter()
-            .filter(|(bit, _)| self.flags & bit != 0)
-            .map(|(_, size)| size)
-            .sum::<usize>()
-            + self.deformation_floats()
-    }
-
-    /// Extra floats per vertex: eight for skin, six per morph target.
-    pub fn deformation_floats(&self) -> usize {
-        let skin = if self.flags & FLAG_SKIN != 0 { 8 } else { 0 };
-        skin + 6 * self.morphs.len()
-    }
-
-    /// Bytes before the first stream: the header words and the morph targets' records.
-    pub fn bytes(&self) -> usize {
-        HEADER_BYTES + self.morphs.len() * deform::MORPH_WORDS * 4
-    }
-
-    /// Decoded bytes, saturated so forged counts cannot wrap below the allocation budget.
-    pub fn decoded_bytes(&self) -> usize {
-        self.vertex_count
-            .saturating_mul(self.vertex_floats() * 4)
-            .saturating_add(self.index_count.saturating_mul(4))
-    }
-}
+#[path = "header_size.rs"]
+mod header_size;
 
 /// Stream word offsets derived from counts and widths, never trusted header offsets.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -113,7 +86,7 @@ pub struct Layout {
     pub uv: [usize; 2],
     pub uv1: [usize; 2],
     pub color: [usize; 4],
-    /// The skin's first stream: four joint streams, then three weight streams (`deform.rs`).
+    /// The skin's first stream: all joint streams, then all float32 weight streams (`deform.rs`).
     pub skin: usize,
     /// The first morph target's first stream; each target's own start is in its record.
     pub morph: usize,
@@ -155,17 +128,18 @@ impl Layout {
         let skinned = h.flags & FLAG_SKIN != 0;
         let (skin, morph) = (
             at,
-            at + if skinned {
+            at.saturating_add(if skinned {
                 skin_words(&h.skin, h.vertex_count)
             } else {
                 0
-            },
+            }),
         );
-        at = morph
-            + h.morphs
+        at = morph.saturating_add(
+            h.morphs
                 .iter()
                 .map(|m| morph_words(m, h.vertex_count))
-                .sum::<usize>();
+                .sum::<usize>(),
+        );
         Self {
             corners,
             triangles,

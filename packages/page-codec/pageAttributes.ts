@@ -17,8 +17,8 @@ export interface PageAttributes {
   TEXCOORD_1?: PageAttribute;
   COLOR_0?: PageAttribute;
   /** Four joints and four weights a vertex, read only with each other (#357). */
-  JOINTS_0?: PageAttribute;
-  WEIGHTS_0?: PageAttribute;
+  [key: `JOINTS_${number}`]: PageAttribute | undefined;
+  [key: `WEIGHTS_${number}`]: PageAttribute | undefined;
 }
 
 export type OptionalAttributeName = 'NORMAL' | 'TEXCOORD_0' | 'TEXCOORD_1' | 'COLOR_0';

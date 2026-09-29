@@ -4,11 +4,12 @@ import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/dra
 export function runtimeDeformation(drawn: DrawnTriangles) {
   const source = drawn.deformation;
   if (!source) return undefined;
+  const width = source.influences ?? 4;
   const boxes: number[][] = [];
   if (source.joints && source.weights)
     for (let v = 0; v < drawn.positions.length / 3; v++)
-      for (let influence = 0; influence < 4; influence++) {
-        const at = v * 4 + influence;
+      for (let influence = 0; influence < width; influence++) {
+        const at = v * width + influence;
         if (source.weights[at] <= 0) continue;
         const joint = source.joints[at];
         if (!Number.isInteger(joint) || joint < 0 || joint > 65535)

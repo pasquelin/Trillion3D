@@ -59,8 +59,14 @@ export async function cutDrawnTriangles(
     POSITION: { itemSize: 3, array: positions },
     ...(drawn.deformation?.joints && drawn.deformation.weights
       ? {
-          JOINTS_0: { itemSize: 4, array: drawn.deformation.joints },
-          WEIGHTS_0: { itemSize: 4, array: drawn.deformation.weights },
+          JOINTS_0: {
+            itemSize: drawn.deformation.influences ?? 4,
+            array: drawn.deformation.joints,
+          },
+          WEIGHTS_0: {
+            itemSize: drawn.deformation.influences ?? 4,
+            array: drawn.deformation.weights,
+          },
         }
       : {}),
     ...(normals.length ? { NORMAL: { itemSize: 3, array: normals } } : {}),
