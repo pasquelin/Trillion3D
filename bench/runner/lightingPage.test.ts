@@ -149,9 +149,9 @@ test('measureView keeps an explicit `null` in metrics instead of erasing it', as
 });
 
 test('measureView keeps an explicit `false`, distinct from an absent counter', async () => {
-  const { metrics } = await mesurer({ frameHeld: false, frameHeld: true });
+  const { metrics } = await mesurer({ frameHeld: false, gpuSelectionFallback: true });
   assert.equal(metrics.frameHeld, false);
-  assert.equal(metrics.frameHeld, true);
+  assert.equal(metrics.gpuSelectionFallback, true);
 });
 
 test('measureView keeps a table of numbers — bytes per label — and filters the rest', async () => {
