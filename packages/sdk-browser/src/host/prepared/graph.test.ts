@@ -23,6 +23,7 @@ function oneNode(name: string, weights: number[] | null, visible = true) {
     mesh: 0,
     light: null,
     camera: null,
+    skin: null,
     weights,
     matrix: null,
     translation: null,
@@ -33,6 +34,8 @@ function oneNode(name: string, weights: number[] | null, visible = true) {
   const tables = {
     scene: { name: '', nodes: [0] },
     nodes: [node],
+    skins: [],
+    animations: [],
   } as unknown as PreparedSceneTables;
   const meshes = [
     { name: 'mesh', weights: null, primitives: [{ material: 0 }, { material: 0 }] },

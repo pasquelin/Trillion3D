@@ -3,9 +3,10 @@ import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts';
 import { Box3 } from '../../../../sdk-core/src/world/math/box3.ts';
 import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
+import type { Clip } from '../../../../sdk-core/src/world/animation/index.ts';
 import { lightFromRecord } from '../../../../sdk-core/src/world/light/lightRecord.ts';
-import { importedLightsUrl, loadImportedLights } from '../../lighting/importedLights.ts';
-import { sceneTablesUrl } from '../../scene/tables.ts';
+import { loadImportedLights } from '../../lighting/importedLights.ts';
+import { plannedFiles, SCENE_FILE } from './modelFiles.ts';
 import type { ClusterManifest, AssetScope, JobProgress } from '../../../../sdk-core/src/index.ts';
 import { loadClusterManifest } from '../../scene/manifestLoad.ts';
 import { byteMeter, unmetered } from '../../cluster/byteMeter.ts';
@@ -47,6 +48,11 @@ export class LoadedModel extends Object3D {
     return this.children.filter((child) => (child as Light).isLight === true) as Light[];
   }
 
+  /** The clips its source file plays, each track naming a node of the model: played by a mixer
+   *  on the model (`animation.createMixer(model).clipAction(model.animations[0]).play()`). */
+  get animations(): Clip[] {
+    return this.record.scene.clips ?? [];
+  }
   /** Everything the world keeps about this model: its addresses, manifest and graph. */
   readonly record: ModelRecord;
   /** The nodes its source file carried, told apart from those a page placed under it. */
@@ -111,20 +117,6 @@ export class LoadedModel extends Object3D {
   override localBounds() {
     return this.bounds;
   }
-}
-
-/** The document a world's model draws. */
-const SCENE_FILE = 'source.gltf';
-
-/**
- * The files a model load reads once its manifest is, at the length the manifest declares each,
- * addressed as their readers address them: the scene tables and the lights. The manifest is read
- * before any plan; an image is read only when a surface samples it, and the scene's binary only
- * when a path reads host vertices (`Geometry.loadVertices`), so neither is planned.
- */
-function plannedFiles(declared: ReadonlyMap<string, number>, base: string) {
-  const read = [sceneTablesUrl(base), importedLightsUrl(base)];
-  return new Map(read.flatMap((url) => (declared.has(url) ? [[url, declared.get(url)!]] : [])));
 }
 
 /**
