@@ -16,7 +16,6 @@ test('a renumbered core node keeps its original numeric source rank in the runti
         light: null,
         camera: null,
         skin: null,
-    skin: null,
         weights: null,
         matrix: null,
         translation: null,

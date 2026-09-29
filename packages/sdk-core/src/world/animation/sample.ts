@@ -1,4 +1,5 @@
 import { multiplyQuaternion, normalizeQuaternion } from '../../math/matrix/quaternion.ts';
+import { Quaternion } from '../math/quaternion.ts';
 import type { Track, TrackBinding } from './index.ts';
 
 /** The track's value at `t`, from the last key reached: between two keys by its interpolation —
@@ -29,15 +30,12 @@ export function sample(tr: Track, t: number, bound: TrackBinding) {
         b * span * values[i * stride + 2 * size + c] +
         c1 * values[j * stride + size + c] +
         d * span * values[j * stride + c];
+  } else if (tr.kind === 'quaternion') {
+    rotation.fromArray(values, i * size).slerp(target.fromArray(values, j * size), w);
+    out.set(rotation.elements);
   } else {
-    let sign = 1;
-    if (tr.kind === 'quaternion') {
-      let dot = 0;
-      for (let c = 0; c < 4; c++) dot += values[i * 4 + c] * values[j * 4 + c];
-      sign = dot < 0 ? -1 : 1;
-    }
     for (let c = 0; c < size; c++)
-      out[c] = values[i * size + c] * (1 - w) + sign * values[j * size + c] * w;
+      out[c] = values[i * size + c] * (1 - w) + values[j * size + c] * w;
   }
   if (tr.kind === 'quaternion') normalizeQuaternion(out);
   return out;
@@ -56,4 +54,6 @@ export function difference(tr: Track, value: Float64Array, reference: Float64Arr
   inverted[3] = reference[3];
   return multiplyQuaternion(value, inverted, value);
 }
-const inverted = new Float64Array(4);
+const inverted = new Float64Array(4),
+  rotation = new Quaternion(),
+  target = new Quaternion();
