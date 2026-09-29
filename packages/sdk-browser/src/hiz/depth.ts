@@ -5,7 +5,7 @@ import { barycentricAt, signedArea } from '../visibility/projection.ts';
 import type { VisPage } from '../visibility/buffer.ts';
 import type { HizPyramid } from './types.ts';
 import type { EngineCamera } from '../camera/world.ts';
-import type { Placements } from '../page/selection/types.ts';
+import type { Placements } from '../page/selection/placements.ts';
 
 /**
  * Visbuffer Hi-Z pyramid: far background, reduce toward farthest. The pyramid is flat: one buffer

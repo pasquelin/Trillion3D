@@ -1,7 +1,7 @@
 import { FLAG_BLEND_CASTER, FLAG_MASK, PAGE_INFO_STRIDE } from '../../../visibility/buffer.ts';
 import type { DirectLightResources } from '../../../lighting/deferred/program.ts';
 import type { PageRec } from '../../../page/selection/selection.ts';
-import type { Placements } from '../../../page/selection/types.ts';
+import type { Placements } from '../../../page/selection/placements.ts';
 import type { PageSurface } from '../../../page/surface.ts';
 import { ROW_FLAGS_WORD, ROW_MAP_LAYER_WORD } from '../../row/pageRow.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';

@@ -5,7 +5,7 @@ import { createHizCounts, hizOversizedFlat, resetHizCounts, type HizCounts } fro
 import type { HizPage, HizPyramid } from './types.ts';
 import { neverCulled } from '../visibility/shader/spriteWgsl.ts';
 import type { EngineCamera } from '../camera/world.ts';
-import type { Placements } from '../page/selection/types.ts';
+import type { Placements } from '../page/selection/placements.ts';
 
 /** Counts nobody reads: what `filterUnoccluded` hands `countUnoccluded` when only the cut matters. */
 const discardedCounts = createHizCounts();

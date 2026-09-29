@@ -11,6 +11,7 @@ import type { HeldFloor } from './heldFloor.ts';
 import { createPageParents } from '../../residency/pageParents.ts';
 import { checkTexturePoolBudget } from '../../residency/pools.ts';
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
+import { rowPlaced } from '../../placement/autonomousPlacements.ts';
 
 /**
  * The copies each page holds once resident (`PageCopies`), from the records collected when the
@@ -20,6 +21,7 @@ import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
  */
 export function pageCopies(
   byUrl: ReadonlyMap<string, readonly PageRec[]>,
+  roots: readonly ClusterRoot<PageRec>[],
   rootUrls: ReadonlySet<string>,
   instanceCount: () => number,
 ): PageCopies {
@@ -31,7 +33,7 @@ export function pageCopies(
   for (const [url, recs] of byUrl) {
     let own = 0;
     for (const rec of recs)
-      if (rec.placement) shared.add(url);
+      if (rowPlaced(roots, rec)) shared.add(url);
       else own++;
     owned.set(url, own);
     sceneOwned += own;
@@ -78,7 +80,7 @@ export function createAutonomousPool(env: {
     maxResidentPages: env.cap,
     descriptors: env.descriptors,
     rootUrls: env.bootstrapUrls,
-    copies: pageCopies(byUrl, env.bootstrapUrls, env.instanceCount),
+    copies: pageCopies(byUrl, env.roots, env.bootstrapUrls, env.instanceCount),
     coverRevision: () => heldFloor.revision,
     state,
     floorBytes: heldFloor.bytes,

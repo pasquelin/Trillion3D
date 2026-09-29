@@ -6,7 +6,7 @@ import { createHizCounts, resetHizCounts, type HizCounts } from './counts.ts';
 import { splitOccludersInto } from './split.ts';
 import type { HizPage, HizPyramid } from './types.ts';
 import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
-import type { Placements } from '../page/selection/types.ts';
+import type { Placements } from '../page/selection/placements.ts';
 
 export type TemporalHizState = {
   pyramid?: HizPyramid;
@@ -78,7 +78,12 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
 } {
   resetHizCounts(counts);
   if (selected.length < 2) {
-    retiens(history, cam, viewport, rasterVisibility(selected, roots, cam, viewport, pixelRatio).depth);
+    retiens(
+      history,
+      cam,
+      viewport,
+      rasterVisibility(selected, roots, cam, viewport, pixelRatio).depth,
+    );
     return { shown: selected, hizRejected: 0, occluders: selected, history, counts };
   }
   const hasPrev = !!(
@@ -94,7 +99,9 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
     rest: T[] = [];
   if (hasPrev) {
     const prevCam = history.camera!;
-    const unoccludedSet = new Set(filterUnoccluded(selected, roots, history.pyramid!, prevCam, viewport));
+    const unoccludedSet = new Set(
+      filterUnoccluded(selected, roots, history.pyramid!, prevCam, viewport),
+    );
     for (let i = 0; i < selected.length; i++)
       (unoccludedSet.has(selected[i]) ? occluders : rest).push(selected[i]);
   }
@@ -102,7 +109,12 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
     splitOccludersInto(selected, roots, cam, viewport, occluders, rest);
 
   if (!occluders.length || !rest.length) {
-    retiens(history, cam, viewport, rasterVisibility(selected, roots, cam, viewport, pixelRatio).depth);
+    retiens(
+      history,
+      cam,
+      viewport,
+      rasterVisibility(selected, roots, cam, viewport, pixelRatio).depth,
+    );
     return { shown: selected, hizRejected: 0, occluders, history, counts };
   }
 

@@ -7,11 +7,14 @@ import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import { colouredTwin, hostPageBytes, hostPageGeometry } from '../../host/pageObjects.ts';
 import type { HostMaterial, HostMaterials } from '../../host/resources.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
+import type { ClusterRoot, PageRec } from '../../page/selection/selection.ts';
+import { rowPlaced } from '../../placement/autonomousPlacements.ts';
 import { wearDeclaration } from '../../page/surface.ts';
 import { assertWithinBox, itemSize, pageOf } from './pageData.ts';
 
 type PageStoreEnvironment = {
+  /** The roots a record's `placementIndex` ranks: whether a row places it is its root's. */
+  roots: readonly ClusterRoot<PageRec>[];
   byUrl: Map<string, PageRec[]>;
   descriptors: Map<string, GeometryPageDescriptor>;
   baseMaterials: Map<PageRec, HostMaterials>;
@@ -41,12 +44,13 @@ export function createPageStore(env: PageStoreEnvironment) {
         (other) => other.geometry === rec.geometry && !storing.has(other),
       );
     for (const rec of recs) {
-      release(rec, !!rec.placement && drawnByOthers(rec));
+      const placed = rowPlaced(env.roots, rec);
+      release(rec, placed && drawnByOthers(rec));
       const data = host ? read! : (replaced.get(rec.url) ?? pageOf(rec, read)),
-        shared = rec.placement ? rowed.get(data) : undefined;
+        shared = placed ? rowed.get(data) : undefined;
       if (!shared) assertWithinBox(data, rec);
       const geometry = shared ?? hostPageGeometry(data, itemSize, rec.min, rec.max);
-      if (rec.placement) rowed.set(data, geometry);
+      if (placed) rowed.set(data, geometry);
       const base = baseMaterials.get(rec)!;
       // Lazily: a page without a colour attribute must not make a vertex-coloured twin.
       const twin = (one: HostMaterial) => colouredTwin(colorMaterials, one);
