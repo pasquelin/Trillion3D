@@ -32,10 +32,15 @@ fn deviation_above(mesh: &(Vec<f32>, Vec<f32>), live: &[u32], kept: &[u32], floo
         values: mesh.1.clone(),
     };
     let carried = [&uvs];
-    let welds = attributes::Welds::of(&mesh.0, DagAttributes { carried: &carried }, live);
+    let attributes = DagAttributes { carried: &carried };
+    let (welds, weighted) = (
+        welds::Welds::of(&mesh.0, attributes, live),
+        attributes.weighted(),
+    );
     let locks = vec![false; mesh.0.len() / 3];
-    let input = welds.input(&mesh.0, &locks, quality::NORMAL_DEVIATION_BOUND);
-    texture_deviation_above(&input, live, kept, floor)
+    let bound = quality::NORMAL_DEVIATION_BOUND;
+    let input = welds.input(&mesh.0, &carried, &weighted, &locks, bound);
+    texture_deviation_above(&measured::Surface::of(&input), live, kept, floor)
 }
 
 #[test]
@@ -112,7 +117,7 @@ fn every_group_publishes_at_least_its_texture_deviation() {
     };
     let strategy = DagStrategy::QemEndpoints;
     let built = build_dag_tallied(&positions, attributes, &indices, strategy, &|| Ok(()));
-    let (dag, groups, _, _) = built.expect("dag");
+    let (dag, groups, ..) = built.expect("dag");
     assert!(!groups.is_empty());
     let mesh = (positions, uvs);
     for group in &groups {

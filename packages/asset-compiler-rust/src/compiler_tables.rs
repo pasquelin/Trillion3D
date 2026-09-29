@@ -13,7 +13,7 @@ use serde_json::Map;
 
 mod documents;
 mod graph;
-mod materials;
+pub(crate) mod materials;
 mod motion;
 pub(crate) mod partition;
 mod physical;

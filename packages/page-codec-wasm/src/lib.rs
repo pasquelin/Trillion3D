@@ -23,6 +23,7 @@ pub mod math;
 pub mod math_hierarchy;
 pub mod min_ball;
 pub mod normal_cone;
+mod positions;
 pub mod triangles;
 mod unpack;
 pub mod vec3;
@@ -42,10 +43,11 @@ pub use deform::{Morph, Skin, FLAG_MORPH, FLAG_SKIN};
 pub use unpack::decode;
 
 pub const MAGIC: u32 = 0x3350_4757;
-pub const VERSION: u32 = 4;
+pub const VERSION: u32 = 5;
 /// Twenty-four little-endian words open a page: counts, flags, the quantization records of the
-/// four vector attributes, the error, the bits of the corner stream, the skin record and the
-/// morph target count (`deform.rs`), each zero on a page that does not carry them.
+/// four vector attributes, the error, the bits of the corner stream, the count of distinct
+/// positions, and the deformation word: the skin record and the morph target count
+/// (`deform.rs`), zero on a page that carries neither.
 pub const HEADER_WORDS: usize = 24;
 pub const HEADER_BYTES: usize = HEADER_WORDS * 4;
 pub const MAX_VERTICES: usize = 65_535;
@@ -84,6 +86,9 @@ pub struct Header {
     pub quantization_error: f32,
     /// Bits of the corner stream (`triangles.rs`): the one stream whose length the counts do not give.
     pub corner_bits: usize,
+    /// Positions the page stores, each once: fewer than the vertices when a flat-shaded page
+    /// repeats a corner under several normals, a link then naming each vertex's (`positions.rs`).
+    pub position_count: usize,
     /// Joints and weights of a skinned page (`FLAG_SKIN`); zero otherwise.
     pub skin: Skin,
     /// The morph targets of a page flagged `FLAG_MORPH`, in stream order; empty otherwise.
@@ -111,8 +116,8 @@ impl Header {
         w[16..20].copy_from_slice(&self.color.min.map(f32::to_bits));
         w[20] = self.quantization_error.to_bits();
         w[21] = self.corner_bits as u32;
-        w[22] = self.skin.word();
-        w[23] = self.morphs.len() as u32;
+        w[22] = self.position_count as u32;
+        w[23] = deform::word(&self.skin, self.morphs.len());
         w.extend(self.morphs.iter().flat_map(Morph::words));
         w
     }
@@ -140,7 +145,7 @@ impl Header {
         let (Some(position), Some(uv), Some(uv1), Some(color)) = records else {
             return Err(PageError::Bounds);
         };
-        let Some((skin, morphs)) = deform::parse(w[4], w[22], w[23], data) else {
+        let Some((skin, morphs)) = deform::parse(w[4], w[23], data) else {
             return Err(PageError::Bounds);
         };
         let header = Self {
@@ -153,12 +158,14 @@ impl Header {
             color,
             quantization_error: f(w[20]),
             corner_bits: w[21] as usize,
+            position_count: w[22] as usize,
             skin,
             morphs,
         };
         let layout = Layout::of(&header);
         let (table, v, n) = (layout.triangles[1] * 4, w[2] as usize, w[3] as usize);
         let sane = (1..=MAX_VERTICES).contains(&header.vertex_count)
+            && (1..=header.vertex_count).contains(&header.position_count)
             && (3..=max_decoded_bytes / 4).contains(&header.index_count)
             && header.index_count.is_multiple_of(3)
             && header.corner_bits <= header.index_count.saturating_mul(triangles::MAX_WIDTH)
@@ -168,7 +175,8 @@ impl Header {
             && header.decoded_bytes() <= max_decoded_bytes
             && layout.bytes() == data.len()
             && layout.morphs_at(&header)
-            && layout.corners.fits(&data[header.bytes()..][..table], v, n);
+            && layout.corners.fits(&data[header.bytes()..][..table], v, n)
+            && positions::links_fit(&data[header.bytes()..], &layout, &header);
         if !sane {
             return Err(PageError::Bounds);
         }

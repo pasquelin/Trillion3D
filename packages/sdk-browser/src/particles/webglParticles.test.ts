@@ -1,5 +1,5 @@
 // The CPU half of the WebGL2 particle step (#759): the texels, uniforms and targets it hands its
-// GPU for a pool, and its refusal without 32-bit float targets. The GPU's part is the measurer's.
+// GPU for a pool, and its refusal without 32-bit float targets. The GPU's part is the recette's.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { ParticlePool } from '../../../sdk-core/src/fluids/particles.ts';

@@ -76,17 +76,18 @@ fn measure(primitive: &Primitive) -> Vec<Page> {
     );
     let uv = super::primitive_uv_exponent(primitive.carried, primitive.blended);
     let shifts = Mutex::new(HashMap::new());
-    let store = |slice: &[u32], exponent: i32| {
+    // The pages read the grown arrays: a solved reduction's placed vertices follow the source's.
+    let store = |slice: &[u32], positions: &[f32], carried: &[&_], _: &[u32], exponent: i32| {
         let (value, reused) = crate::compiler_page_object::store_page(
             &o,
             slice,
-            (primitive.positions, primitive.carried, &Default::default()),
-            exponent,
-            uv,
+            (positions, carried),
+            (&Default::default(), &[]),
+            (exponent, uv),
         )?;
         let digest = value["sha256"].as_str().expect("digest").to_owned();
         let bytes = std::fs::read(crate::object_path(&o, &digest)).expect("stored page");
-        let shift = displacement(&bytes, slice, primitive.positions);
+        let shift = displacement(&bytes, slice, positions);
         // The header's error is what the manifest's `maxPositionError` and the run-time cut read.
         let published = value["quantizationError"]
             .as_f64()

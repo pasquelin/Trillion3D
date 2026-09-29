@@ -2,9 +2,9 @@ import type { Page } from '../contracts/geometry.ts';
 
 /**
  * Off-main-thread page-decode contract, version 6: the decoded geometry travels as one block
- * with its quantization error, and the arena slot records that error in word 8; `cut` turns
- * drawn triangles into pages, which come back as bytes with their descriptors and, since
- * version 6, their normal cone, the packed triangles carrying whether their pages keep one.
+ * with its quantization error; `cut` turns drawn triangles into pages, which come back as bytes
+ * with their descriptors and, since version 6, their normal cone, the packed triangles carrying
+ * whether their pages keep one.
  *
  * The calling thread sends a `PageDecodeRequest`, the executor returns a `PageDecodeAnswer` carrying
  * the same `id`. Nothing here touches the platform: no `Worker`, no fetch, no clock — the browser
@@ -59,22 +59,6 @@ export interface PageDecodeRequest {
   source: ArrayBuffer;
   /** Ceiling of decoded bytes of a geometry page; ignored by `verify`. */
   maxDecodedBytes: number;
-}
-
-/**
- * A worker's shared-memory lease: the arena buffer, the slot and the region it
- * owns, and the slot count, which gives the size of the control zone. Posted once,
- * at worker birth, and only where the platform allows shared memory.
- * Without a lease, the worker answers by transferring buffers: the contract does not change shape,
- * only the byte path does.
- */
-export interface PageDecodeShare {
-  /** Message format version. */ protocol: number;
-  /** Always 0. */ id: 0;
-  /** Always `'share'`. */ op: 'share';
-  /** The shared memory. */ buffer: SharedArrayBuffer;
-  /** This worker's slot. */ slot: number;
-  /** Slots in all. */ slots: number;
 }
 
 /** Cancellation of a request still in the queue. Work already started runs to completion then answers

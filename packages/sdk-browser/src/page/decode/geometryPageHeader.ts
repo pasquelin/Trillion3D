@@ -67,8 +67,8 @@ export function record(word: number, min: number[]): Quant | null {
 
 /**
  * The 24-word header of a `WGP3` page, read and checked: magic, format version, the four
- * quantization grids, the corner stream's bit count, the skin and morph records
- * (`geometryPageDeform.ts`), and counts that agree with the page's own byte length — the stream layout is
+ * quantization grids, the corner stream's bit count, the stored positions, the skin and morph
+ * records (`geometryPageDeform.ts`), and counts that agree with the page's own byte length — the stream layout is
  * derived from the counts and widths the header declares, so a page whose body does not measure
  * exactly what its header describes is refused here rather than read out of bounds.
  *
@@ -91,7 +91,8 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     uv2 = record(w(12), [f(13), f(14)]),
     color = record(w(15), [f(16), f(17), f(18), f(19)]),
     quantizationError = f(20),
-    cornerBits = w(21);
+    cornerBits = w(21),
+    positionCount = w(22);
   if (!position || !uv || !uv2 || !color) throw new Error('GEOMETRY_PAGE_BOUNDS');
   const { skin, morphs } = readDeformation(head, flags),
     headerWords = CLUSTER_HEADER_WORDS + morphs.length * MORPH_WORDS;
@@ -109,12 +110,15 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
   const blockCount = Math.ceil(indexCount / 3 / TRIANGLE_BLOCK),
     blocks = stream(true, blockCount, recordBits),
     cornerStream = stream(true, cornerBits, 1),
-    positions = position.bits.map((b) => stream(true, vertexCount, b)),
+    positions = position.bits.map((b) => stream(true, positionCount, b)),
+    linked = positionCount < vertexCount,
+    linkBits = bitsFor(positionCount - 1),
+    links = stream(linked, vertexCount, linkBits),
     normal = stream(!!(flags & FLAG_NORMAL), vertexCount, 16),
     uvs = uv.bits.map((b) => stream(!!(flags & FLAG_UV), vertexCount, b)),
     uv2s = uv2.bits.map((b) => stream(!!(flags & FLAG_UV1), vertexCount, b)),
     colors = color.bits.map((b) => stream(!!(flags & FLAG_COLOR), vertexCount, b)),
-    skinned = stream(!!(flags & FLAG_SKIN), 1, 0);
+    skinned = at;
   if (flags & FLAG_SKIN) at += skinWords(skin, vertexCount);
   // Each target's record names the word its streams start at: recomputed here, trusted if equal.
   const placed = morphs.every((morph) => {
@@ -128,6 +132,8 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
   if (
     !vertexCount ||
     vertexCount > 65535 ||
+    !positionCount ||
+    positionCount > vertexCount ||
     indexCount < 3 ||
     indexCount % 3 ||
     cornerBits > indexCount * MAX_WIDTH ||
@@ -140,15 +146,24 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
   )
     throw new Error('GEOMETRY_PAGE_BOUNDS');
   // Each block's base, width and corners stay in bounds: the GPU reads the page in place on this.
-  const table = Uint32Array.from({ length: cornerStream }, (_, i) =>
-    head.getUint32((headerWords + i) * 4, true),
-  );
+  // The link stream ends where the normal stream starts.
+  const words = (from: number, to: number) =>
+      Uint32Array.from({ length: to - from }, (_, i) =>
+        head.getUint32((headerWords + from + i) * 4, true),
+      ),
+    table = words(0, cornerStream);
   for (let b = 0; b < blockCount; b++) {
     const [base, width, start] = blockRecord(table, blocks, corners, b),
       end = start + Math.min(BLOCK_CORNERS, indexCount - b * BLOCK_CORNERS) * width;
     if (base >= vertexCount || width > indexBits || end > cornerBits)
       throw new Error('GEOMETRY_PAGE_BOUNDS');
   }
+  // Every vertex links to a stored position (`positions.rs`), read in place as well; the link
+  // stream ends where the normal stream starts.
+  const linkWords = linked ? words(links, normal) : table;
+  for (let i = 0; linked && i < vertexCount; i++)
+    if (field(linkWords, i * linkBits, linkBits) >= positionCount)
+      throw new Error('GEOMETRY_PAGE_BOUNDS');
   return {
     vertexCount,
     indexCount,
@@ -159,11 +174,23 @@ export function readGeometryPageHeader(data: Uint8Array, maxDecodedBytes = 16 * 
     uv2,
     color,
     corners,
+    positionCount,
+    linkBits,
     skin,
     morphs,
     headerWords,
     bodyWords: at,
     decodedBytes,
-    streams: { blocks, corners: cornerStream, positions, normal, uvs, uv2s, colors, skinned },
+    streams: {
+      blocks,
+      corners: cornerStream,
+      positions,
+      links,
+      normal,
+      uvs,
+      uv2s,
+      colors,
+      skinned,
+    },
   };
 }

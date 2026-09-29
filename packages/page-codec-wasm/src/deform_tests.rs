@@ -35,6 +35,7 @@ fn page(start_shift: usize) -> Vec<u8> {
         color: Quant::flat(-8),
         quantization_error: 0.0,
         corner_bits: spans.bits,
+        position_count: N,
         skin: Skin { base: 5, bits: 2 },
         morphs: vec![target(4), target(1)],
     };
@@ -87,11 +88,12 @@ fn a_record_that_lies_or_is_not_announced_refuses_the_page() {
     let mut unflagged = good.clone();
     unflagged[16] = 0; // word 4: no flag, records still there
     assert_eq!(decode(&unflagged, 1 << 24).unwrap_err(), PageError::Bounds);
-    let mut too_many = good.clone();
-    too_many[92] = 0; // word 23 low byte: no target, the flag still set
-    assert_eq!(decode(&too_many, 1 << 24).unwrap_err(), PageError::Bounds);
+    // Word 23's low byte: the joint width in six bits, then the two low bits of the target count.
+    let mut none = good.clone();
+    none[92] = 2; // no target, the flag still set
+    assert_eq!(decode(&none, 1 << 24).unwrap_err(), PageError::Bounds);
     let mut wide = good;
-    wide[88] = 17; // word 22: a joint seventeen bits wide
+    wide[92] = 17 | 128; // a joint seventeen bits wide
     assert_eq!(decode(&wide, 1 << 24).unwrap_err(), PageError::Bounds);
 }
 
