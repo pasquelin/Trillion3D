@@ -56,3 +56,9 @@ test('a normalised or interleaved element reads as the reference reads it', () =
     }
   assert.equal(view.count, tview.count);
 });
+
+test('a component past the vertex reads 0, never the next vertex', () => {
+  const flat = new BufferAttribute(new Float32Array([1, 2, 3, 4]), 2);
+  assert.deepEqual([flat.getComponent(0, 2), flat.getZ(0), flat.getW(0)], [0, 0, 0]);
+  assert.equal(flat.getComponent(1, 1), 4);
+});

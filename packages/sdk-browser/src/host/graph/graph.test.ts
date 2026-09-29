@@ -90,11 +90,13 @@ test('a geometry bounds itself as the reference does, morph targets included', (
   const morph = new Float32Array([0.5, -1, 0, 0, 0, 2, 1, 1, 1]);
   const geometry = new Geometry().setAttribute('position', new BufferAttribute(positions, 3));
   geometry.morphAttributes.position = [new BufferAttribute(morph, 3)];
-  geometry.morphTargetsRelative = true;
+  // A relative target is bounded vertex by vertex, tighter than the reference's box on box
+  // (#1098, geometry.test.ts): the reference is compared on an absolute one.
+  geometry.morphTargetsRelative = false;
   const reference = new THREE.BufferGeometry();
   reference.setAttribute('position', new THREE.BufferAttribute(positions, 3));
   reference.morphAttributes.position = [new THREE.BufferAttribute(morph, 3)];
-  reference.morphTargetsRelative = true;
+  reference.morphTargetsRelative = false;
   geometry.computeBoundingBox();
   geometry.computeBoundingSphere();
   reference.computeBoundingBox();

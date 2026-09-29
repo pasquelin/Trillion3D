@@ -41,7 +41,7 @@ export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>) {
     if (!page.transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index))
       continue;
     floats.set(root.world.elements, row * ROW_WORDS);
-    rows.markRowDirty(row);
+    rows.markRowWords(row);
     rewritten++;
   }
   return rewritten;

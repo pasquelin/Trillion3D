@@ -108,16 +108,20 @@ export function bindGroupFor(rt: WebgpuPagesCore, device: GPUDevice, position: G
   return group;
 }
 
+/** The fallback draw's uniforms, one `UNIFORM_STRIDE` block per draw, `bytes` in all. */
+export const fallbackUniform = (device: GPUDevice, bytes: number) =>
+  device.createBuffer({
+    label: 'Trillion3D fallback uniforms',
+    size: bytes,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+
 export function ensureUniform(rt: WebgpuPagesCore, device: GPUDevice, draws: number) {
   const { gpu } = rt;
   const bytes = Math.max(1, draws, rt.setup.cap) * UNIFORM_STRIDE;
   if (!gpu.uniformBuffer || gpu.uniformBuffer.size < bytes) {
     gpu.uniformBuffer?.destroy();
-    gpu.uniformBuffer = device.createBuffer({
-      label: 'Trillion3D fallback uniforms',
-      size: bytes,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    });
+    gpu.uniformBuffer = fallbackUniform(device, bytes);
   }
   if (gpu.uniformPacked.byteLength < bytes) gpu.uniformPacked = new Float32Array(bytes / 4);
 }
