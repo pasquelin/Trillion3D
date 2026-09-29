@@ -44,7 +44,7 @@ import { COVERAGE_WGSL } from '../../texture/coverageMips.ts';
 import { SHADE_SHADER, VIS_SHADER } from '../../visibility/buffer.ts';
 import { BLEND_EXPAND_SHADER } from '../../webgpu/blend/expandWgsl.ts';
 import { BLEND_SHADER } from '../../webgpu/blend/shader.ts';
-import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilter.ts';
+import { DISPLAY_FILTER_SHADER } from '../../webgpu/blend/displayFilterProgram.ts';
 import { SHADER as PREPARE_SHADER } from '../../webgpu/pages/prepare/shaders.ts';
 import { REDUCE_WGSL } from '../../webgpu/tile/reduce.ts';
 import { TRANSPARENT_COMPACT_SHADER } from '../../webgpu/transparent/shader.ts';

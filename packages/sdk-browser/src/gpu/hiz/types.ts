@@ -33,6 +33,12 @@ export type GpuHiz = {
   ): number;
   resize(device: GPUDevice, width: number, height: number): boolean;
   /**
+   * The `width × height` this image draws in the top-left of level 0, at most its size: the build,
+   * the test and `levels()` read that, so a render-scale change remakes nothing. Level 0 is
+   * cleared to the far plane beyond it, which never occludes.
+   */
+  extent(width: number, height: number): void;
+  /**
    * Installs `next` — a view's own pyramid, or none yet — and returns the one in place: the Hi-Z
    * half of a view switch, with no allocation and no device round trip. Without one, `width` and
    * `height` are 0 until `resize` makes the drawn view's own.

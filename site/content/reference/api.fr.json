@@ -1251,7 +1251,8 @@
       "options.controls": "Le contrôleur qui déplace la caméra depuis le canevas ; `world.controls.kind` le change ensuite.",
       "options.signal": "Arrête les chargements du monde quand le signal est annulé.",
       "options.physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
-      "options.temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`."
+      "options.temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
+      "options.renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, WebGPU seulement, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut), un nombre la fixe ; une image immobile est dessinée au maximum. Changée ensuite par `world.renderScale`."
     }
   },
   "crossVector3": {
@@ -6655,6 +6656,10 @@
     "summary": "L’anticrénelage temporel : un décalage sous-pixel accumulé au fil des images ; activé par défaut.",
     "description": "Écrit, il prend effet à l’image suivante, historique abandonné, sans rouvrir de session. Lu, c’est ce que porte l’image : false en WebGL2, et pendant que le programme se compile après l’avoir activé."
   },
+  "world.renderScale": {
+    "summary": "La fraction de l’affichage par axe à laquelle l’image est dessinée (`WorldOptions.renderScale`), dès l’image suivante.",
+    "description": "Lue, l’échelle de la dernière image dessinée : 1 en WebGL2."
+  },
   "world.effects": {
     "summary": "La chaîne d’effets : les passes dessinées sur l’image (`effect`)."
   },
@@ -6904,8 +6909,13 @@
       "controls": "Le contrôleur qui déplace la caméra depuis le canevas ; `world.controls.kind` le change ensuite.",
       "signal": "Arrête les chargements du monde quand le signal est annulé.",
       "physics": "Allume la physique (`world.physics`) : `true`, ou gravité et budgets. Jolt n’est chargé qu’alors.",
-      "temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`."
+      "temporalAntialiasing": "L’anticrénelage temporel, WebGPU seulement : un décalage sous-pixel accumulé au fil des images. `false` dessine chaque pixel en son centre, sans historique, ce que demande une capture exacte au pixel près ; changé ensuite par `world.temporalAntialiasing`.",
+      "renderScale": "La fraction de l’affichage par axe à laquelle l’image est dessinée, WebGPU seulement, avant que l’anticrénelage temporel ne la reconstruise à l’affichage : `'auto'` laisse le budget d’image la choisir entre `min` et `max` (`{ min, max }`, 0,5 et 1 par défaut), un nombre la fixe ; une image immobile est dessinée au maximum. Changée ensuite par `world.renderScale`."
     }
+  },
+  "RenderScale": {
+    "summary": "L’échelle de rendu qu’une page demande : la fraction de l’affichage, par axe, à laquelle l’image est dessinée avant que l’anticrénelage temporel ne la reconstruise à l’affichage.",
+    "description": "`'auto'` laisse le budget d’image la choisir entre 0,5 et 1, `{ min, max }` borne ce choix, un nombre la fixe ; toute valeur est gardée entre 0,5 et 1."
   },
   "WorldPageSource": {
     "summary": "D’où les pages sont lues, et l’adresse par rapport à laquelle on les lit.",
