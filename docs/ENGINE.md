@@ -438,9 +438,10 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   clusters do not name pages (#1209): a box bounds far more than its pixels read — a ring round a
   lamp bounds the lamp's whole map.
 - **The GPU maps what the frame marks, in that frame** (#1275). Right after the demand, one
-  workgroup reads the list — the pixels' pages and the plan's floors, deduplicated by the bitset —
-  and maps each unmapped page from the free pages, or from the page least recently asked for, the
-  finest first among equals; a page this frame asks for is never evicted, and coarse levels are
+  workgroup reads the list — the plan's floors, claimed at its head before the demand so pixels
+  that fill it never push one out, then the pixels' pages, deduplicated by the bitset — and maps each unmapped page from the free pages, or from the page least recently asked for, the
+  finest first among equals, by the keys the host sorts by too (`pageKeys.ts`); a page this frame
+  asks for is never evicted, and coarse levels are
   served first (`webgpu/shadow/allocWgsl.ts`). It frees the pages of a light gone and of a sun level
   whose window left them, and writes the table words itself; entries are decoded by the page model
   the shaders share (`pageModel.ts`). The host keeps the buffers and the memory grant, and its pool
