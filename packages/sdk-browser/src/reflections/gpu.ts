@@ -1,5 +1,4 @@
 import { reflectionLayout } from './layout.ts';
-export { reflectionLayout } from './layout.ts';
 import { createReflectionConePyramid } from './conePyramid.ts';
 import { mipLevelCountFor } from '../texture/tiles.ts';
 import { refreshSurface, type PageSurface } from '../page/surface.ts';
@@ -14,15 +13,16 @@ import {
 import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 
 const reflecting = (surface: PageSurface) => reflects(refreshSurface(surface));
+const roughReflecting = (surface: PageSurface) => {
+  const material = refreshSurface(surface);
+  return reflects(material) && material.roughness > Number(ROUGHNESS_FLOOR);
+};
 
 /** Only opaque receivers own this history. Forward transparents cannot borrow
  * the receiver behind them, and a perfect mirror retains its original resources. */
 export function wantsRoughReflectionHistory(rt: WebgpuPagesRuntime) {
   if (rt.run.diagnostic !== 'beauty') return false;
-  return surfacesOfRows(rt.layout.rows).some((surface) => {
-    const material = refreshSurface(surface);
-    return reflects(material) && material.roughness > Number(ROUGHNESS_FLOOR);
-  });
+  return surfacesOfRows(rt.layout.rows).some(roughReflecting);
 }
 
 /**
@@ -42,10 +42,7 @@ export function wantsReflections(rt: WebgpuPagesRuntime) {
 export function wantsReflectionCone(rt: WebgpuPagesRuntime) {
   return (
     rt.run.diagnostic === 'beauty' &&
-    rt.blendState.blendGpu.some(({ surface }) => {
-      const material = refreshSurface(surface);
-      return reflects(material) && material.roughness > Number(ROUGHNESS_FLOOR);
-    })
+    rt.blendState.blendGpu.some(({ surface }) => roughReflecting(surface))
   );
 }
 
@@ -79,6 +76,7 @@ export function createScreenReflection(
     });
     const heldUniform = uniform;
     const packed = new Float32Array(20);
+    const packedBits = new Uint32Array(packed.buffer);
     const groups = new WeakMap<GPUTextureView, GPUBindGroup>();
     const groupFor = () => {
       const image = history?.image ?? view;
@@ -118,7 +116,7 @@ export function createScreenReflection(
         packed[16] = active && enabled ? 1 : 0;
         packed[17] = drawnWidth;
         packed[18] = drawnHeight;
-        new Uint32Array(packed.buffer)[19] = ((history?.rank ?? 0) ^ (frame?.seed ?? 0)) >>> 0;
+        packedBits[19] = ((history?.rank ?? 0) ^ (frame?.seed ?? 0)) >>> 0;
         device.queue.writeBuffer(heldUniform, 0, packed);
       },
       dispose() {

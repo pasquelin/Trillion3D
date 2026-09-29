@@ -126,7 +126,7 @@ export function createShadowRequests(
     get complete() {
       return !counts.allocated && (!counts.unlisted || pool.heldBy(counts.latest));
     },
-    consume(report: ShadowRequestReport, nowMs: number, frame: number, cycle = report.frame) {
+    consume(report: ShadowRequestReport, nowMs: number, frame: number, cycle: number) {
       // A report read back before a resize lists at most the old pool's cap.
       counts.requested = Math.min(report.count, cap, report.entries.length);
       counts.unlisted = report.count - counts.requested;
@@ -160,13 +160,14 @@ export function createShadowRequests(
      *  report names yet: every sun's over the scene within the view's far distance
      *  (`sun.floorReach`), whatever moved, and each face's of a lamp posed after that report — new,
      *  moved or reshaped: what it named was read at a past pose. Evicts only what it did not name;
-     *  the next may evict it. */
+     *  the next may evict it. `cycle` is the still cycle at rest; moving, it is the latest read
+     *  report's, so a frame with no report of its own never evicts what that report named (#26). */
     floors(
       posed: ArrayLike<number>,
       view: ShadowViewpoint,
       nowMs: number,
       frame: number,
-      cycle = counts.latest,
+      cycle = heldCycle,
     ) {
       reportFrame = counts.latest;
       heldCycle = cycle;
@@ -194,7 +195,7 @@ export function createShadowRequests(
     },
     reset() {
       counts.requested = counts.allocated = counts.refused = counts.unlisted = 0;
-      counts.latest = -1;
+      counts.latest = heldCycle = -1;
     },
   };
 }

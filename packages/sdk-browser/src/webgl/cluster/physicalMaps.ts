@@ -36,6 +36,9 @@ export class WebglPhysicalMaps {
   readonly cache: PhysicalMapCache;
   private framebuffer: WebGLFramebuffer | null = null;
   private empty: WebGLTexture | null = null;
+  /** Per-bind uniform scratch, cleared on every bind: `uniform4iv` copies it. */
+  private info = new Int32Array(16);
+  private channels = new Int32Array(4);
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
     this.cache = new PhysicalMapCache(gl);
@@ -55,8 +58,8 @@ export class WebglPhysicalMaps {
     const sources = maps.map((map) => (map ? read(map) : undefined));
     const unique = [...new Set(sources.filter((source): source is MipChain => !!source))];
     const layers = Int32Array.from(sources.map((source) => (source ? unique.indexOf(source) : 0)));
-    const info = new Int32Array(16);
-    const channels = new Int32Array(4);
+    const info = this.info.fill(0);
+    const channels = this.channels.fill(0);
     for (let i = 0; i < 4; i++) {
       const map = maps[i],
         source = sources[i];

@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { commitProblem, type Commit } from './check-commit-identity.ts';
+import { commitProblem, type Commit, type Person } from './check-commit-identity.ts';
 
 const maintainer = { name: 'Alban Pasquelin', email: 'alban@example.org' };
 const commit = (
   message: string,
-  author: { name?: string; email?: string } = maintainer,
+  author: Person = maintainer,
   committer = author,
   sha = 'a1b2c3d4e5',
 ): Commit => ({ sha, commit: { message, author, committer } });

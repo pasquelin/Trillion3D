@@ -20,10 +20,12 @@ import {
   FLAG_MASK,
   FLAG_SAMPLED,
 } from '../../visibility/types.ts';
-import { BLEND_TRANSMITTANCE_WGSL } from './transmittance.ts';
+import { BLEND_TRANSMITTANCE_WGSL } from './transmittanceWgsl.ts';
 
 /** Subtexel steps the rasterizer snaps a corner to, per texel (#26 step C, #1016). */
 const SHADOW_SUBTEXELS = 256;
+/** The reach past which f32 no longer holds 1/`SHADOW_SUBTEXELS` of a texel (`snapGrid`). */
+const SNAP_EDGE = 2 ** 24 / SHADOW_SUBTEXELS;
 /** A row whose cutout reads a base map: masked, and with a map. */
 const CUTOUT_MAP = FLAG_MASK | FLAG_HAS_MAP;
 
@@ -83,7 +85,7 @@ ${BLEND_TRANSMITTANCE_WGSL}
  *  rasterizer's own subtexel, or, past what f32 holds at that subtexel, the f32 step there — the
  *  same at every origin, as the reach counts the whole pool, not the page's origin (#1016). */
 fn snapGrid(reach:f32)->f32{
- var grid=1.0/${SHADOW_SUBTEXELS}.0;var edge=${2 ** 24 / SHADOW_SUBTEXELS}.0;
+ var grid=1.0/${SHADOW_SUBTEXELS}.0;var edge=${SNAP_EDGE}.0;
  for(var i=0u;i<32u&&reach>=edge;i++){grid*=2.0;edge*=2.0;}
  return grid;
 }
@@ -99,10 +101,11 @@ fn sunSnap(p:vec4f)->vec4f{
  // An ordinary corner lies within the pool's f32 subtexel: its step is \`snapGrid\`'s first value,
  // a constant — no call, no division per axis, one branch each. Only a corner far past its page,
  // where f32 no longer holds 1/${SHADOW_SUBTEXELS} of a texel, takes the loop (#1016).
- let edge=${2 ** 24 / SHADOW_SUBTEXELS}.0;let base=half*${SHADOW_SUBTEXELS}.0;
+ let edge=${SNAP_EDGE}.0;let base=half*${SHADOW_SUBTEXELS}.0;
+ let rx=abs(p.x)*half+pool;let ry=abs(p.y)*half+pool;
  var sx=base;var sy=base;
- if(abs(p.x)*half+pool>=edge){sx=half/snapGrid(abs(p.x)*half+pool);}
- if(abs(p.y)*half+pool>=edge){sy=half/snapGrid(abs(p.y)*half+pool);}
+ if(rx>=edge){sx=half/snapGrid(rx);}
+ if(ry>=edge){sy=half/snapGrid(ry);}
  return vec4f(round(p.x*sx)/sx,round(p.y*sy)/sy,p.z,p.w);
 }
 /** Corner \`vertexIndex\` of page-table row \`pageIndex\`, or none when its row is not of the kind

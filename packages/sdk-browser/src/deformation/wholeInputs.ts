@@ -1,6 +1,17 @@
 import { skinStreams } from '../../../sdk-core/src/world/geometry/skin.ts';
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts';
 import { readComponent } from '../../../sdk-core/src/world/geometry/bounds.ts';
+import { FLAG_SKIN, FLAG_SOFT_SOURCE } from '../cluster/format.ts';
+
+/** Throws `PHYSICS_FORMAT` unless `ids` names one simulated vertex below `softVertices` for each
+ *  of `count` vertices. */
+export function checkSoftSourceIds(count: number, ids: readonly number[], softVertices = 65536) {
+  if (
+    ids.length !== count ||
+    ids.some((id) => !Number.isInteger(id) || id < 0 || id >= softVertices)
+  )
+    throw new Error('PHYSICS_FORMAT');
+}
 
 /** Whole-mesh transmission keeps its source representation; inputs are packed once per geometry. */
 export function wholeDeformationInputs(
@@ -13,23 +24,22 @@ export function wholeDeformationInputs(
   const streams = skinStreams(geometry),
     width = softSourceIds ? 4 : streams.width;
   const skin = width > 0;
-  if (
-    softSourceIds &&
-    (softSourceIds.length !== count ||
-      softSourceIds.some((id) => !Number.isInteger(id) || id < 0 || id >= softVertices))
-  )
-    throw new Error('PHYSICS_FORMAT');
+  if (softSourceIds) checkSoftSourceIds(count, softSourceIds, softVertices);
   const stride = 2 * width + targets.length * 6;
   // Header: flags, target count, vertex count, stride; then one row of source attributes per vertex.
   const data = new Float32Array(4 + count * stride);
-  data.set([softSourceIds ? 80 : skin ? 16 : 0, targets.length, count, stride]);
+  data.set([
+    softSourceIds ? FLAG_SOFT_SOURCE | FLAG_SKIN : skin ? FLAG_SKIN : 0,
+    targets.length,
+    count,
+    stride,
+  ]);
   for (let vertex = 0; vertex < count; vertex++) {
     let at = 4 + vertex * stride;
     if (skin) {
       for (let k = 0; k < width; k++) {
         data[at + k] = softSourceIds ? softSourceIds[vertex] : streams.read(vertex, k, false);
-        const weight = softSourceIds ? Number(k === 0) : streams.read(vertex, k, true);
-        data[at + width + k] = weight;
+        data[at + width + k] = softSourceIds ? Number(k === 0) : streams.read(vertex, k, true);
       }
       at += 2 * width;
     }

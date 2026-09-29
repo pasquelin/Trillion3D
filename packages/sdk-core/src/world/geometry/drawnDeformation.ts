@@ -27,11 +27,11 @@ export function drawnDeformation(g: Geometry, drawn: DrawnTriangles | null) {
   };
   const targets = (g.morphAttributes.position ?? []).map((position, target) => {
     const positions = new Float32Array(count * 3),
-      normals = new Float32Array(count * 3);
-    for (let v = 0; v < count; v++)
+      normals = new Float32Array(count * 3),
+      normal = g.morphAttributes.normal?.[target];
+    for (let v = 0; v < count; v++) {
+      const vertex = source(v);
       for (let c = 0; c < 3; c++) {
-        const vertex = source(v),
-          normal = g.morphAttributes.normal?.[target];
         positions[v * 3 + c] =
           readComponent(g, position, vertex, c) -
           (g.morphTargetsRelative ? 0 : readComponent(g, g.attributes.position, vertex, c));
@@ -42,6 +42,7 @@ export function drawnDeformation(g: Geometry, drawn: DrawnTriangles | null) {
               ? 0
               : readComponent(g, g.attributes.normal, vertex, c));
       }
+    }
     return { positions, normals };
   });
   const joints = list(false),

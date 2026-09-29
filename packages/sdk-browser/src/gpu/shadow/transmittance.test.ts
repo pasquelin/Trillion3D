@@ -2,8 +2,8 @@
 // beside the pool, multiplied into the PCF.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { BLEND_TRANSMITTANCE_WGSL } from './transmittanceWgsl.ts';
 import {
-  BLEND_TRANSMITTANCE_WGSL,
   SHADOW_TRANSLUCENT_DEPTH_FORMAT,
   TRANSMITTANCE_BLEND,
   TRANSMITTANCE_CLEAR,

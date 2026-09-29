@@ -1,4 +1,4 @@
-import { shaderLanguage } from './traceShader.ts';
+import { shaderLanguage } from '../math/shaderLanguage.ts';
 
 /** Up to four mip cells enclose a cone section; integrate their covered areas.
  * The depth range rejects empty or disjoint cells, rather than treating the
