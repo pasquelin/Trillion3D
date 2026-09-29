@@ -7,9 +7,9 @@ use crate::compiler_accessor_create::accessor;
 use crate::compiler_validate::required_index;
 use crate::dag::bounds::bounding_sphere;
 use crate::proxy::bvh;
-use crate::shared_math::{dot, scale};
+use crate::shared_math::{dot, normalized_or, scale};
 use crate::texture_preview::TexturePreview;
-use crate::tracer::{normalise, surface_at, trace_where, World};
+use crate::tracer::{normal_of, trace_where, World};
 use crate::Result;
 use serde_json::Value;
 
@@ -114,13 +114,14 @@ impl Traceable {
                 primitive.get("material").and_then(Value::as_u64),
                 previews,
             ));
-            for triangle in indices.as_chunks::<3>().0 {
+            // A corner outside POSITION leaves its triangle out, never a vertex at the origin.
+            let inside = |t: &&[u32; 3]| t.iter().all(|&i| (i as usize + 1) * 3 <= positions.len());
+            for triangle in indices.as_chunks::<3>().0.iter().filter(inside) {
                 let mut corner = Corners::default();
                 let mut normal = [0.0f32; 9];
                 for (k, &index) in triangle.iter().enumerate() {
                     let i = index as usize;
-                    triangles
-                        .extend_from_slice(positions.get(i * 3..i * 3 + 3).unwrap_or(&[0.0; 3]));
+                    triangles.extend_from_slice(&positions[i * 3..i * 3 + 3]);
                     for (set, uv) in sets.iter().enumerate() {
                         let read = uv.as_ref().and_then(|uv| uv.get(i * 2..i * 2 + 2));
                         corner.uv[set][k * 2..k * 2 + 2].copy_from_slice(read.unwrap_or(&[0.0; 2]));
@@ -141,35 +142,39 @@ impl Traceable {
         &self.surfaces[self.world.tags[triangle] as usize]
     }
 
-    /// The texture coordinates at barycentric `at` of `triangle`, in each texture's set: base
-    /// colour, metal-roughness, occlusion.
-    fn uv(&self, triangle: usize, at: [f64; 2]) -> [[f64; 2]; 3] {
-        let corner = &self.corners[triangle];
-        let sets = self.surface(triangle).sets;
-        sets.map(|set| mix::<2>(&corner.uv[(set as usize).min(SETS - 1)], at))
+    /// The coordinates texture `k` (base colour, metal-roughness, occlusion) reads at barycentric
+    /// `at` of `triangle`: its set, under its transform.
+    fn uv(&self, triangle: usize, at: [f64; 2], k: usize) -> [f64; 2] {
+        let surface = self.surface(triangle);
+        let set = (surface.sets[k] as usize).min(SETS - 1);
+        let [u, v] = mix::<2>(&self.corners[triangle].uv[set], at);
+        let [a, b, c, d, e, f] = surface.transforms[k];
+        [a * u + b * v + c, d * u + e * v + f]
     }
 
     /// First hit whose material covers its texel, within `limit`.
     pub fn trace(&self, origin: [f64; 3], ray: [f64; 3], limit: f64) -> Option<Sample> {
-        let keep = |triangle: usize, at| self.surface(triangle).keeps(self.uv(triangle, at)[0]);
+        let keep = |triangle: usize, at| {
+            let surface = self.surface(triangle);
+            surface.cut.is_none() || surface.keeps(self.uv(triangle, at, 0))
+        };
         let hit = trace_where(&self.world, (origin, ray), limit, false, &keep);
         if !hit.found {
             return None;
         }
-        let corner = &self.corners[hit.triangle];
         let surface = self.surface(hit.triangle);
-        let (_, facing) = surface_at(&self.world, origin, ray, &hit);
-        let normal = match corner.normals {
-            Some(normals) => normalise(mix::<3>(&normals[..], hit.barycentric)),
+        let facing = normal_of(&self.world, hit.triangle);
+        let normal = match self.corners[hit.triangle].normals {
+            Some(normals) => normalized_or(mix::<3>(&normals[..], hit.barycentric), facing),
             None => facing,
         };
-        // A vertex normal is turned to the side the ray meets, as the geometric one.
+        // Turned to the side the ray meets: the source has no reliable winding.
         let normal = if dot(normal, ray) > 0.0 {
             scale(normal, -1.0)
         } else {
             normal
         };
-        let uv = self.uv(hit.triangle, hit.barycentric);
+        let uv = [0, 1, 2].map(|k| self.uv(hit.triangle, hit.barycentric, k));
         Some(Sample {
             distance: hit.distance,
             colour: surface.colour(uv[0]),
