@@ -18,7 +18,7 @@ export function createGpuPageReader(
     }
   };
   const now = () => (report ? performance.now() : 0);
-  const readBytes = (key: string, combined: AbortSignal, attempt: number) => {
+  const readBytes = (key: string, combined: AbortSignal, attempt: number, priority?: number) => {
     const started = now();
     emit('gpu-page-read-start', 'GPU page read started', () => ({
       version: 1,
@@ -33,7 +33,7 @@ export function createGpuPageReader(
     }));
     let raw: Promise<Uint8Array>;
     try {
-      raw = source.read(key, combined);
+      raw = source.read(key, combined, priority);
     } catch (error) {
       raw = Promise.reject(error);
     }
@@ -81,7 +81,7 @@ export function createGpuPageReader(
     );
     return job;
   };
-  const fetchBytes = (key: string, combined: AbortSignal) => {
+  const fetchBytes = (key: string, combined: AbortSignal, priority?: number) => {
     const existing = fetches.get(key);
     if (existing) {
       emit('gpu-page-read-coalesced', 'GPU read joined to an in-flight request', () => ({
@@ -91,7 +91,7 @@ export function createGpuPageReader(
       }));
       return existing;
     }
-    const job = readBytes(key, combined, 1);
+    const job = readBytes(key, combined, 1, priority);
     fetches.set(key, job);
     void job.catch(() => {});
     return job;
