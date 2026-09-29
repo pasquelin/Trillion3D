@@ -10,7 +10,8 @@ const SLOTS = 3;
 /** Bytes of the request buffer of a pool of `pages` — the count, the list, one bit per table
  *  entry —, and of the buffers its pages are allocated in on the GPU (`allocBuffers.ts`). */
 export const shadowRequestBytes = (pages: number) =>
-  (1 + shadowRequestCap(pages) + SHADOW_REQUEST_BITS) * 4 + shadowAllocationBytes(pages);
+  requestBytes(pages) + shadowAllocationBytes(pages);
+const requestBytes = (pages: number) => (1 + shadowRequestCap(pages) + SHADOW_REQUEST_BITS) * 4;
 
 type Slot = {
   buffer: GPUBuffer;
@@ -38,7 +39,7 @@ export function createShadowPageRequests(device: GPUDevice, pages: number) {
     allocation = createShadowAllocationBuffers(device, pages);
   const requestBuffer = device.createBuffer({
     label: 'Trillion3D shadow requests v1',
-    size: shadowRequestBytes(pages),
+    size: requestBytes(pages),
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   });
   const slots: Slot[] = [];

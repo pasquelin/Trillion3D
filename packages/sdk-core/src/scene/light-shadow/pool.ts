@@ -176,7 +176,7 @@ export function createShadowPool(side: number, layers = 1) {
     reset: init,
   };
   const hostBytesOf = () =>
-    shadowPageArraysBytes(pool) + free.byteLength + order.bytes + evicted.byteLength;
+    shadowPageArraysBytes(pool) + free.byteLength + order.bytes() + evicted.byteLength;
   pool.hostBytes = hostBytesOf();
   init();
   return pool as Readonly<typeof pool>;
