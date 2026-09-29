@@ -13,7 +13,7 @@ import {
 } from './stagePipelines.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts';
-import { COVERAGE_EQUATIONS, FILTERED_EQUATIONS, filtersDisplay } from './equations.ts';
+import { COVERAGE_EQUATIONS, filtersDisplay } from './equations.ts';
 import { displayTargets } from './displayFilter.ts';
 import { createRoutedPipelines } from './routedPipelines.ts';
 import { createWaterPass, type WaterPass } from '../water/pass.ts';
@@ -30,10 +30,11 @@ export const blendTargets = (
   feedback: boolean,
   filtered = false,
 ): GPUColorTargetState[] => [
+  // A filtering mode of a filtered image leaves the lit target to the display layers.
   {
     format: 'rgba16float',
-    writeMask: mask,
-    blend: (filtered ? FILTERED_EQUATIONS : COVERAGE_EQUATIONS)[mode],
+    writeMask: filtered && filtersDisplay(mode) ? 0 : mask,
+    blend: COVERAGE_EQUATIONS[mode],
   },
   ...(feedback ? [{ format: FEEDBACK_FORMAT }] : []),
   // The share records how much of the debug background remains under a lit transparent

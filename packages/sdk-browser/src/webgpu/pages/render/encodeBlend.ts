@@ -18,7 +18,7 @@ import { voidStaleBlendGroups } from '../../blend/identity.ts';
 import { viewProj } from '../helpers.ts';
 import { ensureUniform } from '../prepare/pipelineFor.ts';
 import { clearValueOf } from '../../../../../sdk-core/src/world/math/packedColour.ts';
-import { encodeDirectLights } from './encodeLights.ts';
+import { directTiles, encodeDirectLights } from './encodeLights.ts';
 import { encodeShadowReadback } from './encodeShadows.ts';
 import { composesOffscreen } from '../../../diagnostic/gpuVariant.ts';
 import { encodeTaaPass, taaSampledRank } from '../../../taa/frame.ts';
@@ -176,7 +176,7 @@ export function encodeSurfaceLighting(
   run.gpuDrawCalls++;
   encodeShadowReadback(rt, encoder);
   encodeBlend(rt, device, encoder, uniformBase, true);
-  drawParticles(rt, encoder);
+  drawParticles(rt, encoder, directTiles());
   // Composition reads the temporal result, or the lit image without accumulation.
   const asIs = readsAsIs(rt);
   const accumulated = encodeTaaPass(rt, device, encoder, cam, gpu.hdrView, asIs, blendShare?.view);

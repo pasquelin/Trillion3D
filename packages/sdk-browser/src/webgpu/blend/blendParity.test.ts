@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { blendTargets } from './pipelines.ts';
-import { blend, close, shown, type Rgba } from './blendModel.fixture.ts';
+import { blend, close, shown, written, type Rgba } from './blendModel.fixture.ts';
 import { DISPLAY_FILTER_SHADER, DISPLAY_ROUTE_WGSL } from './displayFilter.ts';
 import { BLEND_SHADER } from './shader.ts';
 import { CONTRACT_COMPOSITIONS } from '../../lighting/deferred/shaders.ts';
@@ -79,7 +79,7 @@ test('subtractive and multiply over paper show the witness in display space', ()
   for (const mode of ['subtractive', 'multiply'] as const) {
     const targets = blendTargets(mode, 0xf, true, true);
     // The lit target keeps the paper; both layers take the ink's display colour (route 2).
-    close([...blend(targets[0].blend!, ink, paper)], [...paper], `${mode} lit target`);
+    close([...written(targets[0], ink, paper)], [...paper], `${mode} lit target`);
     const tint = blend(targets.at(-2)!.blend!, shown(ink), [1, 1, 1, 1]);
     const add = blend(targets.at(-1)!.blend!, shown(ink), [0, 0, 0, 0]);
     // The composed paper times the tint, plus the added value (`DISPLAY_FILTER_SHADER`).

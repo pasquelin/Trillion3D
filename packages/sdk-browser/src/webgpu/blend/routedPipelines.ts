@@ -1,6 +1,6 @@
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
 import { BLEND_MODES } from '../../scene/materialBlending.ts';
-import { buildRenderPipeline } from '../../lighting/deferred/fullscreen.ts';
+import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
 import { displayMaskLayout, MASK_FORMAT } from './displayFilter.ts';
 import { displayRoute, filtersDisplay } from './equations.ts';
 import { pipelinesByMode, stageDescriptors } from './stagePipelines.ts';
@@ -35,34 +35,26 @@ export function createRoutedPipelines(
     ),
   );
   const slot = feedback ? 3 : 2;
-  const maskStages = () =>
-    stageDescriptors(
-      device,
+  const culls = stageDescriptors(
+    device,
+    module,
+    layout,
+    {
       module,
-      layout,
-      {
-        module,
-        entryPoint: `fs${suffix}`,
-        targets: [...Array(slot).fill(null), { format: MASK_FORMAT }],
-      },
-      false,
-    );
-  let culls: GPURenderPipeline[] | undefined;
-  const modeOf = (rank: number) => BLEND_MODES[Math.floor(rank / 3)];
+      entryPoint: `fs${suffix}`,
+      targets: [...Array(slot).fill(null), { format: MASK_FORMAT }],
+    },
+    false,
+  ).map((stage) => preparedPipeline(device, stage));
   return {
     filtered,
     mask: {
       slot,
-      at: (rank: number) =>
-        (culls ??= maskStages().map((stage) => device.createRenderPipeline(stage)))[rank % 3],
-      skips: (rank: number) => !filtersDisplay(modeOf(rank)),
+      at: (rank: number) => culls[rank % 3].get(),
+      skips: (rank: number) => !filtersDisplay(BLEND_MODES[Math.floor(rank / 3)]),
     },
     async precompile(modes: readonly Blending[]) {
-      const [, made] = await Promise.all([
-        filtered.precompile(modes),
-        Promise.all(maskStages().map((stage) => buildRenderPipeline(device, stage))),
-      ]);
-      culls ??= made;
+      await Promise.all([filtered.precompile(modes), ...culls.map((cull) => cull.prepare())]);
     },
   };
 }
