@@ -60,13 +60,18 @@ export function createWebglSceneTarget(gl: WebGL2RenderingContext, w: number, h:
   };
   const untoned = attach(gl.COLOR_ATTACHMENT1, gl.R8, gl.RED, gl.UNSIGNED_BYTE),
     depth = attach(gl.DEPTH_ATTACHMENT, gl.DEPTH_COMPONENT24, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT);
-  // Refused, the context is marked once read and the refusal published.
-  allocated(gl, 'target');
+  // Refused: marked `refused`, so its owner makes it again at its next draw.
+  let refused = false;
+  allocated(gl, 'target', () => (refused = true));
   gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
   return {
     target,
     untoned,
     depth,
+    /** The context refused its storage (`../webgl/core/allocation.ts`): made again, never drawn. */
+    get refused() {
+      return refused || target.width !== w;
+    },
     dispose() {
       gl.deleteTexture(untoned);
       gl.deleteTexture(depth);

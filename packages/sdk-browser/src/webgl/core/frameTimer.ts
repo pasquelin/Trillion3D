@@ -21,7 +21,12 @@ type TimerExtension = {
 /** What a frame was drawn with, handed back with its duration. */
 export type FrameTag = { scale: number; steered: boolean };
 /** A duration read back, the image it timed and its tag; or, with no duration, why. */
-type TimedFrame = { ms: number | null; reason: string | null; frame: number | null; tag?: FrameTag };
+type TimedFrame = {
+  ms: number | null;
+  reason: string | null;
+  frame: number | null;
+  tag?: FrameTag;
+};
 const none = (reason: string): TimedFrame => ({ ms: null, reason, frame: null });
 
 export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefined) {
@@ -31,17 +36,18 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
     return {
       supported: false,
       reason,
-      begin(_frame: number) {},
+      begin(_frame: number | null) {},
       end(_tag?: FrameTag) {},
       poll: () => none(reason),
     };
-  let open: { query: WebGLQuery; frame: number } | null = null;
-  const pending: { query: WebGLQuery; frame: number; tag?: FrameTag }[] = [];
+  let open: { query: WebGLQuery; frame: number | null } | null = null;
+  const pending: { query: WebGLQuery; frame: number | null; tag?: FrameTag }[] = [];
   return {
     supported: true,
     reason: null as string | null,
-    /** Opens the interval of image `frame`; one query at a time, the spec does not allow two. */
-    begin(frame: number) {
+    /** Opens the interval of image `frame` (`null`: an image no metric names, a held one put back);
+     *  one query at a time, the spec does not allow two. */
+    begin(frame: number | null) {
       if (open || pending.length > MAX_PENDING) return;
       const query = gl.createQuery();
       if (!query) return;
