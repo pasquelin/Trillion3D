@@ -4,64 +4,12 @@ import type { PageRec } from '../../page/selection/selection.ts';
 import { createWebgpuPageTracking } from '../row/pageTracking.ts';
 import { createWebgpuResidentEnsurer } from './residentEnsurer.ts';
 import { ensurerOptions, lruCache, pageOf } from './residentEnsurer.fixture.ts';
+import { run, world } from './admissionReads.fixture.ts';
 import { readGeometryAhead } from '../row/pageSlots.ts';
 import { createPageStreamer } from '../../streaming/pageStreamer.ts';
 import { servedPages } from '../../streaming/servedPages.fixture.ts';
 import { PRIORITY_PREFETCH, PRIORITY_VISIBLE } from '../../streaming/priority.ts';
 
-/** A random world: pages whose parents come before them, some without bytes, some resident, some
- *  wanted by the camera, the rest split between the two lower tiers. */
-function world(seed: number) {
-  const random = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296;
-  const count = 1 + Math.floor(random() * 24);
-  const pages = Array.from({ length: count }, (_, i) => pageOf(`p${i}`));
-  const parents = new Map<PageRec, PageRec[]>();
-  pages.forEach((page, i) => {
-    const list: PageRec[] = [];
-    for (let j = 0; j < i; j++) if (random() < 0.15) list.push(pages[j]);
-    parents.set(page, list);
-  });
-  const without = new Set(pages.filter(() => random() < 0.1));
-  const pick = (odds: number) => pages.filter(() => random() < odds);
-  return {
-    pages,
-    parentsOf: (page: PageRec) => parents.get(page)!,
-    hasBytes: (page: PageRec) => !without.has(page),
-    slots: Math.floor(random() * (count + 2)),
-    resident: pick(0.2),
-    camera: pick(0.4),
-    tiers: [pick(0.3), pick(0.3)],
-  };
-}
-
-/** One residency job over `scene`, reading ahead or not: every read and load, in order. */
-async function run(scene: ReturnType<typeof world>, readAhead: boolean, slots = scene.slots) {
-  const tracking = createWebgpuPageTracking(scene.pages);
-  const cache = lruCache(slots),
-    load = cache.load,
-    log: string[] = [],
-    signals: AbortSignal[] = [];
-  for (const page of scene.resident.slice(0, slots)) await load(page.url);
-  cache.load = async (url: string) => (log.push(`load ${url}`), load(url));
-  for (const page of scene.camera) tracking.wanted.add(tracking.keyOf(page), page);
-  const ensure = createWebgpuResidentEnsurer({
-    ...ensurerOptions(tracking, cache),
-    hasBytes: scene.hasBytes,
-    parentsOf: scene.parentsOf,
-    lowerTiers: () =>
-      scene.tiers.map((pages) => ({
-        pages,
-        has: (key: number) => pages.some((page) => tracking.keyOf(page) === key),
-      })),
-    prefetch: readAhead
-      ? (page, signal) => (log.push(`read ${page.url}`), signals.push(signal))
-      : undefined,
-  });
-  let error: unknown;
-  await ensure(scene.camera, 1, 1).catch((thrown) => (error = thrown));
-  const loads = log.filter((entry) => entry.startsWith('load'));
-  return { log, loads, reads: log.filter((entry) => entry.startsWith('read')), signals, error };
-}
 const state = (outcome: Awaited<ReturnType<typeof run>>) => ({
   loads: outcome.loads,
   error: String(outcome.error),
@@ -167,7 +115,7 @@ test('the lower tiers read ahead at prefetch priority, the camera at its own', a
   const asked: [string, number | undefined][] = [];
   await createWebgpuResidentEnsurer({
     ...ensurerOptions(tracking, lruCache(2)),
-    lowerTiers: () => [{ pages: [tier], has: (key) => key === tracking.keyOf(tier) }],
+    lowerTiers: () => [{ pages: [tier], has: (key) => key === tracking.keyOf(tier), revision: 0 }],
     prefetch: (page, _signal, priority) => asked.push([page.url, priority]),
   })([seen], 1, 1);
   assert.deepEqual(asked, [

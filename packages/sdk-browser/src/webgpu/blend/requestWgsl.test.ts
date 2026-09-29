@@ -10,15 +10,15 @@ import { SHADE_REQUEST_WGSL } from '../../visibility/shader/request.ts';
 // frames of the same pose name the same set of tiles, the set the barrier's convergence stops
 // on. Neither host rewrites the rule.
 test('both passes request their tiles by the same rule, phase then position', () => {
-  assert.match(TILE_REQUEST_WGSL, /fn requestPick\(pos:vec2f,choices:u32\)/);
-  assert.match(TILE_REQUEST_WGSL, /let px=u32\(pos\.x\)\+u32\(pos\.y\);/);
+  assert.match(TILE_REQUEST_WGSL, /fn requestPick\(pos:vec2f,choices:u32,word:u32\)/);
+  assert.match(TILE_REQUEST_WGSL, /pickOf\(u32\(pos\.x\)\+u32\(pos\.y\)\+\(word>>5u\),choices\)/);
   assert.match(
     TILE_REQUEST_WGSL,
     /RequestPick\(px%choices,\(\(px\/choices\)&1u\)==1u,\(px\/choices\/2u\)%3u\)/,
   );
   for (const [nom, hote] of Object.entries({ BLEND_REQUEST_WGSL, SHADE_REQUEST_WGSL })) {
     assert.match(hote, /feedbackPhase\([a-z.]+,uni\.feedback\)/, `${nom}: phase first`);
-    assert.match(hote, /requestPick\(/, `${nom}: choice by position`);
+    assert.match(hote, /requestPick\([^)]*,uni\.feedback\)/, `${nom}: choice by position and turn`);
     assert.match(hote, /mapRequest\(p,/, `${nom}: map by the shared rule`);
     assert.doesNotMatch(hote, /%6u|%10u/, `${nom} does not rewrite the choice`);
   }
@@ -46,10 +46,16 @@ test('an anisotropic footprint asks for the tiles of its end taps, placed as the
 test('a request asks the level of the read that posts it', () => {
   // A page at the default filters asks the default level, and runs nothing of the filter rule.
   assert.match(TILE_REQUEST_WGSL, /\}else\{lod=slotLod\(s,ddx,ddy\);\}/);
-  assert.match(TILE_REQUEST_WGSL, /next:bool,along:u32,aniso:bool,sampled:bool\)->u32\{/);
+  assert.match(
+    TILE_REQUEST_WGSL,
+    /next:bool,along:u32,aniso:bool,sampled:bool,missing:bool\)->u32\{/,
+  );
   assert.match(TILE_REQUEST_WGSL, /let r=(color|data)Footprint\(slot,s,uv,ddx,ddy,aniso\);/);
   assert.doesNotMatch(TILE_REQUEST_WGSL, /Footprint\(slot,s,uv,ddx,ddy,true\)/);
-  assert.match(TILE_REQUEST_WGSL, /dataRequestIndex\([^;]*,p\.next,p\.along,true,sampled\);/);
+  assert.match(
+    TILE_REQUEST_WGSL,
+    /dataRequestIndex\([^;]*,p\.next,p\.along,true,sampled,missing\);/,
+  );
   assert.match(
     BLEND_REQUEST_WGSL,
     /mapRequest\(p,[^;]*,gradX,gradY,\(in\.ids\.y&64u\)!=0u\);/,
@@ -62,9 +68,12 @@ test('a request asks the level of the read that posts it', () => {
 test('the shadow cutout asks the isotropic level it reads, the screen the anisotropic one', () => {
   assert.match(
     SHADE_REQUEST_WGSL,
-    /colorRequestIndex\([^;]*g\.xy,g\.zw,p\.next,1u,false,HAS_SAMPLING\);/,
+    /colorRequestIndex\([^;]*g\.xy,g\.zw,p\.next,1u,false,HAS_SAMPLING,missing\);/,
   );
   assert.match(SHADE_REQUEST_WGSL, /mapRequest\(p,[^;]*,uv,ddx,ddy,HAS_SAMPLING\);/);
   assert.doesNotMatch(TILE_REQUEST_WGSL, /\biso\b|cutout/);
-  assert.match(TILE_REQUEST_WGSL, /colorRequestIndex\([^;]*,p\.next,p\.along,true,sampled\);/);
+  assert.match(
+    TILE_REQUEST_WGSL,
+    /colorRequestIndex\([^;]*,p\.next,p\.along,true,sampled,missing\);/,
+  );
 });

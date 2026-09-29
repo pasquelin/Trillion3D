@@ -6,9 +6,9 @@ import {
   indexPagesByUrl,
   RequestStamps,
   selectVisiblePages,
-  type PageRec,
   type ClusterRoot,
 } from '../../../packages/sdk-browser/src/page/selection/selection.ts';
+import type { WitnessPage as PageRec } from './pose.ts';
 import {
   orderPendingUrls,
   pixelScaleOf,
@@ -120,6 +120,7 @@ export function createExactPagesRequests(ctx: ExactPagesRequestContext) {
       // Most costly absence first: what the viewer sees wrong the longest is fetched last, not first.
       return orderPendingUrls(
         waiting,
+        roots,
         ctx.cam,
         pixelScaleOf(ctx.cam.projection, viewport, pixelScaleScratch),
         pendingScratch,

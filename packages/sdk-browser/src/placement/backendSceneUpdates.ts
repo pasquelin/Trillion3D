@@ -3,6 +3,15 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { AlphaMode } from '../../../sdk-core/src/contracts/material.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';
 import type { PlacementRows } from './rows.ts';
+import type { HostAttributes } from '../host/resources.ts';
+
+/** A range of one vertex list a dynamic geometry rewrote (#573): vertices `from` to
+ *  `from + count - 1` of the host geometry's list `name`. */
+export type VertexRange = {
+  name: 'position' | 'normal' | 'uv' | 'color';
+  from: number;
+  count: number;
+};
 
 /** How a material's alpha moved (`world/api/materialApi.ts`, #846): the host surfaces written,
  *  and the modes before and after — equal when only a cutout's cutoff moved. */
@@ -71,6 +80,18 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
    *  its roots the same tables. Settles once its root cover is resident; absent, the owner opens
    *  the session again. */
   mountPlacements?(mount: PlacementMount): Promise<void>;
+  /** The lists `ranges` name of the host geometry whose attributes are `attributes` — a dynamic
+   *  geometry's (#573) — were rewritten in place, its moved vertices within `box` (local, where
+   *  they were and where they go): the engine writes those vertices into the buffers it holds and
+   *  stales what they shadowed, no table rebuilt. True when taken; absent, the owner opens the
+   *  session again. */
+  updateVertices?(
+    attributes: HostAttributes,
+    ranges: readonly VertexRange[],
+    box: Float64Array,
+  ): boolean;
+  /** The bytes `updateVertices` sends the GPU for `ranges`; absent, the lists' own (#573). */
+  vertexBytes?(attributes: HostAttributes, ranges: readonly VertexRange[]): number;
   /** The resource `rows` place leaves the session: its roots, pages and copies. */
   unmountPlacements?(rows: PlacementRows): void;
   /** The clear colour behind the scene, `0xrrggbb` (`BackendContext.clearColor`), read by the
@@ -82,6 +103,13 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
   /** Temporal antialiasing on or off in place (`BackendContext.temporalAntialiasing`); whether
    *  the image carries it is the `'temporal antialiasing'` capability. Absent, the engine has none. */
   setTemporalAntialiasing?(on: boolean): void;
+  /** The render scale asked in place (`BackendContext.renderScale`), drawn from the next frame, and
+   *  the scale of the last image drawn. Absent, the engine draws at the display's size. */
+  setRenderScale?(scale: import('../frame/renderScaleOption.ts').RenderScale): void;
+  renderScale?(): number;
+  /** The control behind both where the host composer draws the image (WebGL2): it draws at the
+   *  scale it picks and resamples to the display (`../world/render/renderScale.ts`). */
+  readonly renderScaleControl?: import('../frame/scaleControl.ts').ScaleControl;
   /** The host surfaces the session was opened with had their values rewritten in place, their
    *  version bumped (`world/core/worldSurface.ts`, `repaintHostSurface`): what reads them is read
    *  again at the next frame, no table rebuilt. Absent, or false for this change — a map whose

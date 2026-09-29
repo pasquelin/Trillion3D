@@ -20,8 +20,8 @@ test('measured counters are displayed as is, never reduced to a dash', () => {
       ...baseSide,
       submittedTriangles: 1500,
       totalSubmittedTriangles: 1800,
-      imageTenue: true,
-      repliSelectionGpu: false,
+      frameHeld: true,
+      gpuSelectionFallback: false,
       hiZ: {
         tested: 200,
         rejected: 40,
@@ -42,14 +42,14 @@ test('measured counters are displayed as is, never reduced to a dash', () => {
   );
 });
 
-test('an absent counter is a dash, never a zero: `imageTenue`, `repliSelectionGpu`, submitted triangles, Hi-Z', () => {
+test('an absent counter is a dash, never a zero: `frameHeld`, `gpuSelectionFallback`, submitted triangles, Hi-Z', () => {
   const texte = resume(
     rapport({
       ...baseSide,
       submittedTriangles: null,
       totalSubmittedTriangles: null,
-      imageTenue: null,
-      repliSelectionGpu: null,
+      frameHeld: null,
+      gpuSelectionFallback: null,
       hiZ: {
         tested: null,
         rejected: null,
@@ -74,9 +74,9 @@ test('an absent counter is a dash, never a zero: `imageTenue`, `repliSelectionGp
   assert.doesNotMatch(texte, /\| 0\/0 \| no \|/, 'a `null` is never read as `0` or `no`');
 });
 
-test('imageTenue set to true is distinguished from imageTenue set to false, not just from absence', () => {
-  const held = resume(rapport({ ...baseSide, imageTenue: true }));
-  const released = resume(rapport({ ...baseSide, imageTenue: false }));
+test('frameHeld set to true is distinguished from frameHeld set to false, not just from absence', () => {
+  const held = resume(rapport({ ...baseSide, frameHeld: true }));
+  const released = resume(rapport({ ...baseSide, frameHeld: false }));
   assert.match(held, /\| yes \|/);
   assert.match(released, /\| no \|/);
   assert.notEqual(held, released);

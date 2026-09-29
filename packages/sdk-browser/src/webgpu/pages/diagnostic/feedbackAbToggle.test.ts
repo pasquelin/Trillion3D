@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createTaaFrameState, beginTaaFrame } from '../../../taa/frame.ts';
+import { beginTaaFrame } from '../../../taa/frame.ts';
+import { createTaaFrameState } from '../../../taa/frameState.ts';
+import { createScaleControl } from '../../../frame/scaleControl.ts';
 import { keepWebgpuFrame } from '../../frame/hold.ts';
 import { setFeedbackTargetAb } from './feedbackAb.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
@@ -70,6 +72,7 @@ test('forced full renders replay settled TAA and never replace the held checkpoi
     gpu: {
       temporalWanted: true,
       targetSize: [20, 10],
+      allocatedSize: [20, 10],
       displaySize: [20, 10],
       temporal: {
         frame,
@@ -77,6 +80,8 @@ test('forced full renders replay settled TAA and never replace the held checkpoi
       },
     },
     capture: { capturing: false },
+    vis: {},
+    scale: createScaleControl(undefined),
     run: {
       diagnostic: 'beauty',
       textureConverging: false,

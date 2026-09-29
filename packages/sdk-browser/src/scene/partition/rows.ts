@@ -33,13 +33,20 @@ export function rowLocal(node: CellNode) {
 /** The association of a host mesh placed by rows: its mesh and primitive ranks, and the rows. */
 export type RowLink = { meshes?: number; primitives?: number; placements?: PlacementRows };
 
-/** One mesh the cells place: its primitives' links, sharing one row numbering. */
-export type PlacedMesh = { readonly links: readonly RowLink[]; readonly free: number[] };
+/** One mesh the cells place: its primitives' links, sharing one row numbering, and the host mesh
+ *  of each, which a session mounts once the view read its primitive (#751). */
+export type PlacedMesh = {
+  readonly links: readonly RowLink[];
+  readonly nodes: readonly Object3D[];
+  readonly free: number[];
+  /** The `castShadow` of each host mesh its rows were last written with. */
+  readonly casts: boolean[];
+};
 
-/** A placed mesh over `links`, each given one parked row. */
-export function placedMesh(links: readonly RowLink[]): PlacedMesh {
+/** A placed mesh over `links` drawn by `nodes`, each given one parked row. */
+export function placedMesh(links: readonly RowLink[], nodes: readonly Object3D[] = []): PlacedMesh {
   for (const link of links) link.placements = createPlacementRows(1);
-  return { links, free: [0] };
+  return { links, nodes, free: [0], casts: nodes.map((node) => node.castShadow) };
 }
 
 /** How many rows every buffer of `mesh` holds. */

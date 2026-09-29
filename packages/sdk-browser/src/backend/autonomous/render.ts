@@ -10,6 +10,7 @@ import { attachedPages } from '../../placement/autonomousPlacements.ts';
 import { followHostVisibility } from '../../placement/hidden.ts';
 import type { createGeometryBudget } from './pool.ts';
 import { createImageCut } from './imageCut.ts';
+import { createRefusalAnswer } from './refusals.ts';
 import type { createAutonomousResidency } from './residency.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import type { WebglViewState } from './views.ts';
@@ -33,6 +34,15 @@ export const createAutonomousRenderState = (): AutonomousRenderState => ({
   overBudget: false,
   frameHeld: false,
 });
+
+/**
+ * Whether a frame the gate held is the still frame a page waits for (`frameHeld`): as on WebGPU
+ * (`../../webgpu/frame/hold.ts`, nothing pending), not while a page the view asks for is still
+ * awaited — its arrival will change the image. A capture after a moving camera held the first
+ * frame whose cut had not moved, pages missing, and its A/A drew what each run had loaded (#1016).
+ */
+export const stillFrame = (requested: readonly Pick<PageRec, 'array'>[]) =>
+  requested.every((rec) => !!rec.array);
 
 /**
  * One frame of the autonomous WebGL engine. The whole cut is rerun as soon as the view, the scene
@@ -63,7 +73,10 @@ export function createAutonomousRender(options: {
   residency: Pick<ReturnType<typeof createAutonomousResidency>, 'keptChanged'>;
   /** The geometry pool: what it admits of the requests, what it holds of what the image asks for
    *  and draws, and the shedding of what it no longer holds (`pool.ts`). */
-  pool: Pick<ReturnType<typeof createGeometryBudget>, 'admit' | 'fit' | 'held' | 'follow' | 'trim'>;
+  pool: Pick<
+    ReturnType<typeof createGeometryBudget>,
+    'admit' | 'fit' | 'held' | 'follow' | 'trim' | 'outOfMemory'
+  >;
 }) {
   const {
     state,
@@ -86,10 +99,18 @@ export function createAutonomousRender(options: {
     residency.keptChanged();
     pool.follow(view.requested, view.shown);
   };
+  const answerRefusals = createRefusalAnswer({
+    gl: () => context.webglContext,
+    pool,
+    onDiagnostic: context.onDiagnostic,
+    redraw: () => gate.resourcesChanged(),
+  });
   const frame = (camera: HostCamera) => {
+    // The allocations the context refused since the last frame, answered first (`refusals.ts`).
+    answerRefusals();
     // Frame entry: the order and its guarantees live in `../../frame/gateCore.ts`, which also copies
     // the host camera into the engine camera — the cut now reads only the latter.
-    state.frameHeld = gate.enterFrame(
+    const held = gate.enterFrame(
       context,
       camera,
       view.motion,
@@ -97,7 +118,9 @@ export function createAutonomousRender(options: {
       context.source,
       sourcesDessinees,
     );
-    if (state.frameHeld) return;
+    // Once still, a held frame stays still: no cut ran, the pages asked are the same.
+    state.frameHeld = held && (state.frameHeld || stillFrame(view.requested));
+    if (held) return;
     // Copied world matrices and lights are a function of the scene only.
     // A node the host hid or showed parks its roots and hides its copies, or takes them back
     // (`placement/hidden.ts`).
@@ -123,7 +146,7 @@ export function createAutonomousRender(options: {
     state.frustumRejected = selected.frustumRejected;
     state.lodLevel = selected.lodLevel;
     // Drawn pages past the display graph's page ceiling are reported, never replaced.
-    state.overBudget = attachedPages(view.shown) > ceiling();
+    state.overBudget = attachedPages(view.shown, roots) > ceiling();
     geometry.sync();
     follow();
     gate.keep(

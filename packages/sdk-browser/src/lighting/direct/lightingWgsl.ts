@@ -46,7 +46,8 @@ fn sliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,sl
  * The narrow resolve's slices (#849): a scene of at most `TILE_LIGHTS` lights runs the narrow
  * tile pass, so no tile passes its list and none walks the pool or the whole scene. The slice is
  * the list itself, each light read at its listed rank, with no per-light branch — the same lights
- * in the same order as the wide loop, so the same sum, bit for bit.
+ * in the same order as the wide loop, so the same sum, bit for bit — run on a device against the
+ * wide loop by `tests/browser/probes/narrow-resolve-gpu.ts`.
  */
 const NARROW_SLICE_WGSL = `
 fn tileSlice(base:u32,countSlot:u32,firstSlot:u32)->vec2u{return vec2u(base+firstSlot,tileLights[base+countSlot]);}
@@ -122,7 +123,8 @@ fn tileLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,til
  * `view.viewport.w` is the rank of a SAMPLED image — a moving one that temporal antialiasing
  * accumulates — and zero for every other: a still image, which converges to the exact sum,
  * and an image that does not accumulate, which is never noisy. At zero the loop is the one
- * over every light of the tile, character for character.
+ * over every light of the tile, character for character; so is it on a sampled image whose tile
+ * list holds no shadowed light (`listShadowed`, #1249).
  *
  * `narrow` is the resolve of a scene of at most `TILE_LIGHTS` lights (#849): its light array is
  * that long and its slice loop has no branch (`NARROW_SLICE_WGSL`), as the narrow tile pass
@@ -139,7 +141,7 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  let tilesY=u32(view.lightParams.z);
  if(tile.x>=tilesX||tile.y>=tilesY){return vec3f(0.0);}
  let rank=u32(view.viewport.w);
- if(rank==0u){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
+ if(rank==0u||!listShadowed(tile,tilesX)){return tileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE);}
  return sampledTileLighting(rgb,metal,rough,N,V,P,ao,tile,tilesX,rank,pixel);
 }`;
 export const DIRECT_LIGHTING_WGSL = directLightingWgsl();

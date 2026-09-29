@@ -12,7 +12,7 @@ import { FRAME_VEC4, PRIMITIVE_VEC4 } from '../types.ts';
 import { primitiveFrameWords } from '../worlds.ts';
 import { framesBytes } from '../frameRanges.ts';
 import { wgslScope } from '../../../page/cut/wgslPredicate.fixture.ts';
-import { wgslConstants } from '../../../page/cut/cutRuleBackends.fixture.ts';
+import { wgslConstants } from '../../../texture/shaderRule.fixture.ts';
 import { random } from '../../../page/cut/cutRuleChecks.fixture.ts';
 import { frustumExcludesBox } from '../../../../../sdk-core/src/index.ts';
 
@@ -80,5 +80,24 @@ test("a never-culled primitive's open planes ahead keep every box, as its early 
     const pick = () => values[Math.floor(next() * values.length)];
     const box = [pick(), pick(), pick(), pick(), pick(), pick()] as const;
     assert.equal(frustumExcludesBox(open, ...box), false, box.join(', '));
+  }
+});
+
+test('a deadline ahead reads the camera planes, though the view ahead is the current view', () => {
+  // `wantAhead` sets `vi` to the view ahead before `aheadDue`: its camera planes are the row's under
+  // view 0, never `slotOf` under view 1, which lands in the primitives' prepared values.
+  const c = wgslConstants(DAG_SELECTION_SHADER);
+  const now = /fn aheadDue[^]*?let now=([^;]+);/.exec(DAG_SELECTION_SHADER)![1];
+  for (const worldCount of [1, 3, 1000]) {
+    const host = { ...c, rangeCount: () => worldCount, rangeFirst: () => 0 };
+    const slot = wgslScope(DAG_SELECTION_SHADER, { ...host, vi: 0 }).fn('slotOf');
+    const base = wgslScope(DAG_SELECTION_SHADER, host).fn('primitiveBase');
+    const read = wgslScope(DAG_SELECTION_SHADER, { ...host, vi: c.AHEAD_VIEW }).expression(now, [
+      'w',
+    ]);
+    for (const w of [0, worldCount - 1]) {
+      assert.equal(read({ w }), (slot(w) as number) * c.FRAME, `primitive ${w} of ${worldCount}`);
+      assert.ok((read({ w }) as number) < (base(0) as number), 'within the rows');
+    }
   }
 });

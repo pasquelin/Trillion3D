@@ -14,6 +14,7 @@ import { createBounceSchedule } from './schedule.ts';
 import { createBounceUniform } from './uniform.ts';
 import { createGpuBounceProxy } from './proxy.ts';
 import { createGpuBounceSurface, type GpuBounceSurface } from './surface.ts';
+import { syncBounceProbes } from './probeSync.ts';
 import { createCheckedShaderModule } from '../gpu/core/shaderModule.ts';
 
 /** Proxy, lights, queue, frozen probes, output and canonical surface cache. */
@@ -72,6 +73,17 @@ export async function createGpuBounceProbes(
   let group: GPUBindGroup;
   let boundLights: GPUBuffer;
   let layout: GPUBindGroupLayout;
+  /** The probe group, on the light buffer of the moment. */
+  const bind = () =>
+    bounceGroup(device, layout, [
+      uniform.buffer,
+      resident.buffer,
+      (boundLights = lights()),
+      queue,
+      snapshot,
+      probes,
+      surface.buffer,
+    ]);
   try {
     surface = await createGpuBounceSurface(device, resident, lights, {
       uniform: uniform.buffer,
@@ -83,15 +95,7 @@ export async function createGpuBounceProbes(
       layout: device.createPipelineLayout({ bindGroupLayouts: [layout] }),
       compute: { module, entryPoint: 'updateProbes' },
     });
-    group = bounceGroup(device, layout, [
-      uniform.buffer,
-      resident.buffer,
-      (boundLights = lights()),
-      queue,
-      snapshot,
-      probes,
-      surface.buffer,
-    ]);
+    group = bind();
   } catch (error) {
     surface?.dispose();
     release();
@@ -101,21 +105,27 @@ export async function createGpuBounceProbes(
   let generation = 1,
     frame = 0,
     updates = 0;
-  /** Dynamic hits bypass the canonical cache; only the probe sweep determines convergence. */
-  const rounds = () =>
-    resident.dynamic ? schedule.sweeps : Math.min(schedule.sweeps, surface.sweeps);
+  /** Posed hits read the surface cache, and its pass keeps owned triangles at their pose: the
+   *  series closes when both sweeps have. */
+  const rounds = () => Math.min(schedule.sweeps, surface.sweeps);
   /** True while the bounce series is not closed: beyond that, nothing more is encoded. */
   const working = () => rounds() < BOUNCE_SETTINGS.settledSweeps;
   const batch = () => bounceBatchOf(BOUNCE_PROBES_PER_FRAME, budget.load);
+  const restart = () => {
+    generation++;
+    schedule.restart();
+    surface.restart();
+  };
+  const invalidate = (levels: number) => void (clearOwed |= levels);
+  const parts = { resident, cascades, occupancy, invalidate, restart };
   return {
+    /** Moved, settled or nothing (`probeSync.ts`). */
     sync(worldOf: (source: number) => ArrayLike<number> | undefined) {
-      if (!resident.sync(worldOf)) return false;
-      occupancy.allEligible();
-      if (cascades.replan(resident.bounds)) clearOwed |= cascades.invalidLevels;
-      generation++;
-      schedule.restart();
-      surface.restart();
-      return true;
+      return syncBounceProbes(parts, worldOf);
+    },
+    /** Owned leaves wait for their still streak to settle (`proxyMotion.ts`). */
+    get settling() {
+      return resident.settling;
     },
     cascades,
     occupancy,
@@ -126,10 +136,12 @@ export async function createGpuBounceProbes(
     probes,
     /** Frames of a full round, measured: that is the bound on convergence lag. */
     get sweepFrames() {
-      return Math.max(schedule.sweepFrames, resident.dynamic ? 1 : surface.sweepFrames, 1);
+      return Math.max(schedule.sweepFrames, surface.sweepFrames, 1);
     },
     /** Probes the occupancy map keeps at the finest level, on its cells. */
-    activeProbes: occupancy.marked,
+    get activeProbes() {
+      return occupancy.marked;
+    },
     /** Probes updated by the last encoded frame, and rays they launched. */
     get lastProbes() {
       return updates;
@@ -147,11 +159,7 @@ export async function createGpuBounceProbes(
     },
     setIrradianceView: uniform.setIrradianceView,
     /** A light changed: sweeps restart, sleeping probes wake. */
-    restart() {
-      generation++;
-      schedule.restart();
-      surface.restart();
-    },
+    restart,
     /**
      * Encodes a cache round then a probe batch. Returns `false` when there was nothing to do:
      * the scene is still, the series is closed, and the « Bounce » stage is « unmeasured ».
@@ -162,18 +170,9 @@ export async function createGpuBounceProbes(
       for (let level = 0; level < BOUNCE_SETTINGS.cascadeLevels; level++)
         if (clearOwed & (1 << level)) encoder.clearBuffer(probes, level * levelBytes, levelBytes);
       clearOwed = 0;
-      if (lights() !== boundLights) {
-        boundLights = lights();
-        group = bounceGroup(device, layout, [
-          uniform.buffer,
-          resident.buffer,
-          boundLights,
-          queue,
-          snapshot,
-          probes,
-          surface.buffer,
-        ]);
-      }
+      if (lights() !== boundLights) group = bind();
+      // Stopped as the proxy counts it: motion slower than the frame rate rebuilds no map per cycle.
+      if (!resident.settling) occupancy.settle(resident.triangleBoxes, resident.bounds);
       if (cascades.follow(viewpoint)) schedule.restart();
       if (!cascades.probes || !lightsActive || !working()) return false;
       frame++;
@@ -181,7 +180,7 @@ export async function createGpuBounceProbes(
       if (groups) device.queue.writeBuffer(queue, 0, schedule.queue, 0, groups);
       uniform.write(generation, groups, frame);
       encoder.copyBufferToBuffer(probes, 0, snapshot, 0, probeBytes);
-      if (!resident.dynamic) surface.encode(encoder, budget.load);
+      surface.encode(encoder, budget.load);
       if (groups) {
         const pass = encoder.beginComputePass({ label: BOUNCE_PROBE_PASS });
         pass.setPipeline(pipeline);

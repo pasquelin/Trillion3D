@@ -20,7 +20,7 @@ type QueueOptions = {
   getFrame: () => number;
   updatePins: () => void;
   /** The groups the cut closes over: what admission walks for either cut (`requestAdmission.ts`). */
-  closure: Pick<GroupClosure, 'closeOver' | 'forEachHeld'>;
+  closure: Pick<GroupClosure, 'closeOver' | 'closeOverRecords' | 'forEachHeld'>;
   ensureResident: (
     wanted: readonly PageRec[],
     frame: number,
@@ -130,12 +130,12 @@ export function createWebgpuResidencyQueue(options: QueueOptions) {
   return {
     items,
     /**
-     * The CPU cut's: it has already applied its delta; only the page budget remains to be enforced.
-     * `limited` says the requested coverage does not fit in the slots: the budget is then zero, the
-     * queue empties, and the image sticks to pinned coverage.
+     * The CPU cut's: it has already applied its delta; only the page budget remains to be enforced,
+     * by the GPU cut's ranking: a cut past the slots keeps the pool's floor first — the pages the
+     * roots' groups replace (`../../residency/minimumCapacity.ts`) —, then its coarsest levels.
      */
-    queueCutResidency(limited: boolean) {
-      admitRequests.held(limited ? 0 : options.room());
+    queueCutResidency() {
+      admitRequests.held(options.room());
       follow();
     },
     /** The GPU cut's: it keeps loading at full budget, admission reading its readback's requests,

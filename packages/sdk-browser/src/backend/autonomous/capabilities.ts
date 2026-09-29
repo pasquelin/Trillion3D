@@ -1,5 +1,5 @@
 import type { BackendCapabilities, BackendDiagnostic } from '../types.ts';
-import { TAA_CAPABILITY } from '../../taa/capability.ts';
+import { TAA_CAPABILITY, UPSCALE_CAPABILITY } from '../../taa/capability.ts';
 import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
 
 /** What the autonomous WebGL2 page path renders, and what it cannot carry, named, never silent
@@ -22,6 +22,7 @@ export function autonomousCapabilities(simplification: boolean): BackendCapabili
       'physical VRAM instrumentation',
       'global illumination',
       TAA_CAPABILITY,
+      UPSCALE_CAPABILITY,
     ],
   };
 }

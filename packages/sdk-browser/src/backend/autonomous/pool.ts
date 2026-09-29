@@ -2,11 +2,16 @@ import type { GeometryPageDescriptor } from '../../../../sdk-core/src/index.ts';
 import type { BackendDiagnostic } from '../types.ts';
 import { drawGeometryPool } from './poolDraw.ts';
 import type { GeometryPool, PoolClamp } from '../../residency/pools.ts';
-import { coverageBudgetEvent, sendCoverageBudget } from '../../diagnostic/engineDiagnostic.ts';
+import {
+  coverageBudgetEvent,
+  sendCoverageBudget,
+  sendEngineDiagnostic,
+} from '../../diagnostic/engineDiagnostic.ts';
 import { createResidentOrder } from './poolOrder.ts';
 import type { PageRec } from '../../page/selection/selection.ts';
 import type { WebglViewState } from './views.ts';
 import { createUnionFit, type Ranked } from './poolUnion.ts';
+import { halvedPool, outOfMemoryContext } from '../../residency/outOfMemory.ts';
 
 /**
  * The geometry copies a page holds once resident: one per record that owns its geometry — every
@@ -15,8 +20,10 @@ import { createUnionFit, type Ranked } from './poolUnion.ts';
  */
 export type PageCopies = {
   of(url: string): number;
-  /** Copies the root cover holds, and those the whole scene would. */
+  /** Copies the root cover holds, those with the pages its groups replace — the pool's floor
+   *  (`../../residency/minimumCapacity.ts`) —, and those the whole scene would. */
   root(): number;
+  floor(): number;
   scene(): number;
 };
 
@@ -44,6 +51,8 @@ export type PoolEnvironment = {
   /** The views not drawn now (`views.ts`): what they ask for and draw joins the drawn view's, the
    *  union under the one budget. None when the backend has one view. */
   others?: readonly Pick<WebglViewState, 'requested' | 'shown'>[];
+  /** The drawn view is a capture (`views.ts`): its requests are ranked before the union's. */
+  captureDrawn?: () => boolean;
   onDiagnostic?: (diagnostic: BackendDiagnostic) => void;
 };
 
@@ -92,7 +101,7 @@ export function createGeometryBudget(env: PoolEnvironment) {
     room = clamp === 'scene' ? Infinity : slots;
     used = copies.root();
     if (others.length) {
-      const admitted = union.fit(requested, room, used);
+      const admitted = union.fit(requested, room, used, env.captureDrawn?.() ?? false);
       used = union.used;
       return admitted;
     }
@@ -154,6 +163,22 @@ export function createGeometryBudget(env: PoolEnvironment) {
     resize(budgetBytes: number) {
       drawn.resize(budgetBytes);
       return resident.shed();
+    },
+    /**
+     * The context refused a geometry allocation (`../../webgl/core/allocation.ts`): the pool is
+     * drawn again at half the bytes it holds, by the rule WebGPU's refusal follows
+     * (`halvedPool`), and the residency lets the finest pages go one DAG level per image, never a
+     * hole. Published as `gpu-out-of-memory`; false at the floor, where half draws no smaller pool.
+     */
+    outOfMemory() {
+      const before = current(),
+        smaller = halvedPool(before, drawn.drawFor);
+      const refused = outOfMemoryContext('geometry', before.allocatedBytes, smaller);
+      sendEngineDiagnostic(onDiagnostic, 'gpu-out-of-memory', 'WebGL2 refused geometry', refused);
+      if (!smaller) return false;
+      drawn.adopt(smaller);
+      resident.shed();
+      return true;
     },
   };
 }

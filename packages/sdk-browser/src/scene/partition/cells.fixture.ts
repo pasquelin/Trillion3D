@@ -4,8 +4,13 @@ import { createPartitionCells } from './cells.ts';
 import { placedMesh, type RowLink } from './rows.ts';
 
 /** Two cells of one mesh, one near the origin and one 5 km away; each hangs under a moved core
- *  node, or under the scene root when its `far` or `near` is null. */
-export function world(far: number | null = 0, near: number | null = null) {
+ *  node, or under the scene root when its `far` or `near` is null. `drawn` are the host meshes of
+ *  its two primitives. */
+export function world(
+  far: number | null = 0,
+  near: number | null = null,
+  drawn: readonly Object3D[] = [],
+) {
   const node = (x: number, parent: number | null) => ({
     parent,
     mesh: 7,
@@ -28,6 +33,7 @@ export function world(far: number | null = 0, near: number | null = null) {
         bytes: 1,
         parents: [near === null ? [null, [0, 0, 0, 5, 5, 5]] : [0, [0, -10, 0, 5, -5, 5]]],
         meshes: [[7, 2]],
+        meshPages: [],
       },
       {
         url: 'far.json',
@@ -38,6 +44,7 @@ export function world(far: number | null = 0, near: number | null = null) {
           far === null ? [null, [5000, 0, 0, 5010, 5, 5]] : [0, [5000, -10, 0, 5010, -5, 5]],
         ],
         meshes: [[7, 1]],
+        meshPages: [],
       },
     ],
   };
@@ -54,7 +61,7 @@ export function world(far: number | null = 0, near: number | null = null) {
     base: 'https://cache.test/key/',
     root,
     parents: [core],
-    meshes: new Map([[7, placedMesh(links)]]),
+    meshes: new Map([[7, placedMesh(links, drawn)]]),
   });
   const bytes = (url: string) =>
     new TextEncoder().encode(JSON.stringify(bodies[url.split('/').at(-1)!]));

@@ -1,3 +1,4 @@
+import type { HostMaterials } from '../../host/resources.ts';
 import type { Scene } from '../../world/core/scene.ts';
 import {
   DEFAULT_TONE_MAPPING,
@@ -9,15 +10,16 @@ import type { HostCamera, HostDrawCamera } from '../../camera/world.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
 import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
-import { WebglClusterOwner } from './owner.ts';
+import { WebglClusterOwner, type TextureHosts } from './owner.ts';
 import { createDrawOrder } from './drawOrder.ts';
-import { meshes } from '../../scene/meshes.ts';
+import { loadHostVertices, meshes } from '../../scene/meshes.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
 import type { BackendHostDraw } from '../../backend/hostDraw.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import { linearRefusalOf } from './linearRefusal.ts';
 import { createDrawLists } from './drawLists.ts';
 import { degradedHearer } from '../../world/diagnostic/materialNotices.ts';
+import { upscaleMipBias } from '../../taa/jitter.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 
 /** What a WebGL2 frame reads of a display graph: its lights as `lights` gives them (the draw
@@ -55,8 +57,10 @@ type DrawnNode = Partial<SceneCopy> & {
 };
 
 /** What the session gives the draw: its pixel ratio, its degraded-surface notice and its
- *  diagnostics, where that notice is said when the session gives none. */
-type DrawHosts = Pick<BackendContext, 'pixelRatio' | 'materialDegraded' | 'onDiagnostic'>;
+ *  diagnostics, where that notice is said when the session gives none, the texture bytes its
+ *  census may upload ahead and a frame's upload budget (`textureQueue.ts`). */
+type DrawHosts = Pick<BackendContext, 'pixelRatio' | 'materialDegraded' | 'onDiagnostic'> &
+  TextureHosts;
 
 /** A scene draw hands the program no page batch: shared, so a frame allocates no empty list. */
 const NO_BATCHES: readonly never[] = [];
@@ -80,12 +84,15 @@ const NO_BATCHES: readonly never[] = [];
  * surface) the draw is refused by name. `pixelRatio`, read each frame, scales a line's CSS-pixel
  * width to the image's pixels; `materialDegraded` hears a surface drawn without a physical feature
  * or left out of the frame, said on `onDiagnostic` when the session gives no hearer.
+ * `declared` lists the surfaces the census counts (`owner.ts`): the graph's, unless the session
+ * declares more — pages not attached yet.
  */
 export function createSceneDraw(
   gl: WebGL2RenderingContext | undefined,
   display: Scene,
   copies: readonly object[] = [],
-  { pixelRatio = () => DEFAULT_PIXEL_RATIO, materialDegraded, onDiagnostic }: DrawHosts = {},
+  { pixelRatio = () => DEFAULT_PIXEL_RATIO, ...hosts }: DrawHosts = {},
+  declared: () => Iterable<HostMaterials> = () => meshes(display).map((mesh) => mesh.material),
 ) {
   // The graph's lists, walked again only when it changed shape (`drawLists.ts`); the draw sorts
   // copies of them, reused from frame to frame: a draw allocates no list.
@@ -122,10 +129,13 @@ export function createSceneDraw(
     drawHostGeometry(drawCamera: HostDrawCamera, output: HostDrawOutput) {
       if (!gl) throw new Error('HOST_SURFACE_MISSING');
       if (!opened) throw new Error('Draw before render');
-      owner ??= new WebglClusterOwner(gl, degradedHearer({ materialDegraded, onDiagnostic }));
-      if (!owner.censused) owner.census(meshes(display));
+      owner = censused(gl);
       owner.toneCurve = TONE_MAPPING_RANK[output.toneMapping ?? DEFAULT_TONE_MAPPING];
-      owner.pixelRatio = pixelRatio();
+      // Drawn below the display (`world.renderScale`), a line keeps its display width and a
+      // texture its display density.
+      const shown = output.displayWidth ?? output.width;
+      owner.pixelRatio = pixelRatio() * (output.width / shown);
+      owner.mipBias = upscaleMipBias(output.width, shown);
       display.onBeforeRender?.();
       try {
         walk();
@@ -151,7 +161,22 @@ export function createSceneDraw(
       counters.triangles = owner.submittedTriangles;
     },
   };
+  /** The owner, made at first need, its census taken at its first frame or preparation. */
+  const censused = (context: WebGL2RenderingContext) => {
+    owner ??= new WebglClusterOwner(context, degradedHearer(hosts));
+    if (!owner.censused) owner.census(declared(), hosts);
+    return owner;
+  };
   return {
+    /** Before the first frame: the host vertices of the copies drawn whole, which no session
+     *  fetches up front, the program made, and the declared maps uploaded, a budget per task
+     *  (`textureQueue.ts`), so no frame of the session waits on its first maps. */
+    async prepare() {
+      await Promise.all([
+        loadHostVertices(copies as Parameters<typeof loadHostVertices>[0]),
+        gl && censused(gl).prepareMaps(),
+      ]);
+    },
     render(_camera: HostCamera) {
       counters.triangles = 0;
       opened = true;
