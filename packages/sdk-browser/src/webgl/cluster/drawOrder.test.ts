@@ -133,8 +133,8 @@ test('a list sorted again under a camera that moved a little is walked once, in 
     frozen = frozenOrder(),
     native = Array.prototype.sort;
   let compared = 0;
-  const sortCounted = function (this: unknown[], compare?: (a: never, b: never) => number) {
-    return native.call(this, (a: never, b: never) => (compared++, compare!(a, b)));
+  const sortCounted = function (this: unknown[], compare?: (a: unknown, b: unknown) => number) {
+    return native.call(this, (a, b) => (compared++, compare!(a, b)));
   };
   const sorted = (screen: ArrayLike<number>) => {
     const expected = pages.slice(),
