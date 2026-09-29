@@ -1937,7 +1937,7 @@
       "wasmAvailable": "WebAssembly modülü, doğru sözleşme sürümünde yüklenmiş.",
       "wasmSimd": "Modül `simd128` ile derlenmiş; bir modül yüklenene kadar `null`.",
       "clockResolutionMs": "Milisaniye cinsinden, iş parçacığı saat çözünürlüğü; tahmin edilene kadar `null`.",
-      "clockCoarse": "Saat, arabuluculuk için çok kaba olduğunda doğru: her şey JavaScript yolunda kalır.",
+      "clockCoarse": "Saat tek bir yürütmeyi ölçmek için çok kaba olduğunda doğru: yürütmeler birleştirilmiş gruplar halinde ölçülür.",
       "unavailableReason": "WebAssembly yolunun neden oynanabilir olmadığı, ya da olduğunda `null`.",
       "operations": "Her işlem."
     }

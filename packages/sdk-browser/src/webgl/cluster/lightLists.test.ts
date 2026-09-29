@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { WebglClusterRenderer } from './renderer.ts';
+import { readDegraded } from './validation.ts';
 import { LIGHT_ROW_TEXELS } from './lightTexture.ts';
 import { createHostDrawCamera } from '../../camera/world.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
@@ -49,7 +50,10 @@ function mesh(x: number) {
 
 test('300 lamps draw on WebGL2, each draw lists the lamps the oracle says reach it', () => {
   const context = createTestContext({ answers: { getExtension: () => ({}) } }),
-    renderer = new WebglClusterRenderer(context.gl);
+    renderer = new WebglClusterRenderer(
+      context.gl,
+      readDegraded(() => {}),
+    );
   const meshes = Array.from({ length: 12 }, (_, m) => mesh(meshX(m)));
   renderer.draw([], scene(), createHostDrawCamera(), true, true, meshes);
   assert.equal(context.of('drawElements').length, meshes.length, 'every mesh drawn, none refused');

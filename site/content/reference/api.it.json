@@ -3945,7 +3945,7 @@
       "wasmAvailable": "Il modulo WebAssembly è caricato, nella versione corretta del contratto.",
       "wasmSimd": "Il modulo è stato compilato con `simd128`; `null` finché non è caricato alcun modulo.",
       "clockResolutionMs": "Precisione dell'orologio del thread, in millisecondi; `null` finché non è stata stimata.",
-      "clockCoarse": "Vero quando l'orologio è troppo grossolano per decidere: tutto resta sulla via JavaScript.",
+      "clockCoarse": "Vero quando l'orologio è troppo grossolano per cronometrare una sola esecuzione: le esecuzioni sono cronometrate in lotti raggruppati.",
       "unavailableReason": "Perché la via WebAssembly non è praticabile, o `null` quando lo è.",
       "operations": "Ogni operazione."
     }

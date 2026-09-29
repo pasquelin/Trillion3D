@@ -1937,7 +1937,7 @@
       "wasmAvailable": "WebAssembly 模块已加载,且契约版本正确。",
       "wasmSimd": "该模块是否以 `simd128` 编译;在模块加载之前为 `null`。",
       "clockResolutionMs": "线程时钟分辨率,单位毫秒;在估算出之前为 `null`。",
-      "clockCoarse": "当时钟精度粗糙到无法用于裁定时为 true:此时所有内容都停留在 JavaScript 路径上。",
+      "clockCoarse": "当时钟过于粗糙、无法测量单次执行时为 true:执行会按合并的批次计时。",
       "unavailableReason": "WebAssembly 路径不可用的原因;若可用则为 `null`。",
       "operations": "各项运算。"
     }

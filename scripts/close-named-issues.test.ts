@@ -35,6 +35,6 @@ test('code, HTML comments and other repositories never close an issue', () => {
   assert.deepEqual(namedIssues(body), [11]);
 });
 
-test('a step says "Part of" and leaves its issue open', () => {
+test('"Part of" closes nothing (check-pr-body refuses it before the merge)', () => {
   assert.deepEqual(namedIssues('Part of #3'), []);
 });
