@@ -1529,10 +1529,6 @@
   "emptyIrradiance": {
     "summary": "Una irradiancia vacía, lista para recibir fuentes."
   },
-  "encodeManifestBinary": {
-    "summary": "Separa un manifiesto en un JSON pequeño que un lector analiza y en columnas que proyecta.",
-    "description": "El descriptor devuelto lleva un `sha256` vacío: solo el llamador, que tiene los bytes terminados, puede calcular su huella."
-  },
   "EngineCamera": {
     "summary": "La cámara del motor: los números de un fotograma, en búferes propios reescritos en el sitio.",
     "description": "Ninguna estructura de una biblioteca del host atraviesa una firma después de `readCameraWorld` (`world.ts`, la única traducción desde una cámara del host).",
