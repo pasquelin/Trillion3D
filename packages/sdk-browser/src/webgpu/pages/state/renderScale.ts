@@ -68,6 +68,10 @@ export const sameFrameSize = (a: FrameSize, b: FrameSize) =>
   a.renderHeight === b.renderHeight &&
   a.apart === b.apart;
 
+/** True when the targets hold a display colour of its own, which the resolve reconstructs into. */
+export const displayApart = (gpu: WebgpuPagesRuntime['gpu']) =>
+  !!gpu.displayTexture && gpu.displayTexture !== gpu.colorTexture;
+
 /**
  * The scale this image is drawn at: a quiet image at the bounds' maximum — 1 unless the page
  * lowered it —, which the held image then is; a moving one at the controller's, or the fixed one.
@@ -85,7 +89,7 @@ export const imageScale = (rt: WebgpuPagesRuntime, quiet: boolean) =>
 export function drawFrameAt(rt: WebgpuPagesRuntime, scale: number) {
   const { gpu } = rt,
     { allocatedSize, displaySize, targetSize } = gpu,
-    apart = !!gpu.displayTexture && gpu.displayTexture !== gpu.colorTexture;
+    apart = displayApart(gpu);
   const axis = (i: number) =>
     apart ? Math.min(allocatedSize[i], renderExtent(displaySize[i], scale)) : allocatedSize[i];
   const width = axis(0),

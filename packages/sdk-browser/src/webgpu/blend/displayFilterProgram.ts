@@ -1,5 +1,6 @@
 import { DISPLAY_FORMAT } from '../../scene/surfaceBuffer.ts';
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts';
+import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts';
 
 /** The composed image times the tint, plus the added value; on the capture target, and the canvas
  *  too when presented (an output without a target is dropped). The layers, at the frame's size or resolved to the display's, are
@@ -17,7 +18,6 @@ fn layer(map:texture_2d<f32>,uv:vec2f)->Both{let v=vec4f(textureSampleLevel(map,
 @fragment fn add(s:Screen)->Both{return layer(addMap,s.uv);}`;
 
 /** The program of one device, made by its first image with display layers, kept across sizes. */
-const programs = new WeakMap<GPUDevice, ReturnType<typeof createProgram>>();
 function createProgram(device: GPUDevice) {
   const module = device.createShaderModule({ label: 'DISPLAY', code: DISPLAY_FILTER_SHADER });
   const texture = (binding: number): GPUBindGroupLayoutEntry => ({
@@ -50,5 +50,4 @@ function createProgram(device: GPUDevice) {
   };
 }
 
-export const programOf = (device: GPUDevice) =>
-  programs.get(device) ?? programs.set(device, createProgram(device)).get(device)!;
+export const programOf = oncePerDevice(createProgram);

@@ -47,9 +47,11 @@ export function endDisplayFilter(
   if (!filter.written) return;
   const { targetSize, allocatedSize, displayView } = rt.gpu;
   // The raw layers, where the image drew them: the top-left of targets it may not fill.
-  const share = resolved
-    ? undefined
-    : [targetSize[0] / allocatedSize[0], targetSize[1] / allocatedSize[1]];
-  filter.apply(encoder, resolved ?? filter.views, displayView!, presentation, share);
+  if (resolved) filter.apply(encoder, resolved, displayView!, presentation);
+  else {
+    const x = targetSize[0] / allocatedSize[0],
+      y = targetSize[1] / allocatedSize[1];
+    filter.apply(encoder, filter.views, displayView!, presentation, x, y);
+  }
   rt.run.gpuDrawCalls += 2;
 }
