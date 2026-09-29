@@ -28,6 +28,7 @@ function mountingSession(late: number, takes = true) {
   let opened = 0,
     mounts = 0,
     grown = 0,
+    rewrites = 0,
     now = 0;
   Object.assign(session, {
     growsPlacements: () => true,
@@ -46,6 +47,7 @@ function mountingSession(late: number, takes = true) {
         });
       }),
     unmountPlacements: (rows: PlacementRows) => drawn.delete(rows),
+    updateVertices: () => ++rewrites > 0,
   });
   const open = (async (_canvas: unknown, _options: unknown, source: ExplorerSource) => {
     opened++;
@@ -77,6 +79,7 @@ function mountingSession(late: number, takes = true) {
     opened: () => opened,
     mounts: () => mounts,
     grown: () => grown,
+    rewrites: () => rewrites,
   };
 }
 
@@ -110,7 +113,7 @@ test('a growth the session refuses leaves its rows as they are, and a session si
 
 test('1 000 frames adding and removing a mesh and replacing a geometry never open the session again', async () => {
   const scene = new Scene(() => Promise.reject(new Error('no loader')));
-  const { open, drawn, frame: tick, live, opened, mounts } = mountingSession(2);
+  const { open, drawn, frame: tick, live, opened, mounts, rewrites } = mountingSession(2);
   const runtime = runtimeOf(scene, Promise.resolve(), (error) => assert.fail(String(error)), open);
   const reopens: unknown[] = [];
   const stop = listenWorldNotices((n) => void (n.phase === 'session-reopen' && reopens.push(n)));
@@ -136,18 +139,17 @@ test('1 000 frames adding and removing a mesh and replacing a geometry never ope
     position.needsUpdate = true;
     await runtime.settled();
     if (!runtime.render()) imageless++;
-    // The ground and the water always drawn, a crate beside them once mounted, and the water on a
-    // geometry at most a few frames old: a mesh rewritten faster than it mounts shows each mount.
-    const { rows, newest } = live();
-    assert.ok(rows >= 2 && rows <= 3, `frame ${frame}: ${rows} rows drawn`);
-    if (frame > 10) assert.ok(newest >= frame - 6, `frame ${frame}: newest mount ${newest}`);
+    // The ground and the water always drawn, a crate beside them once mounted; the water, rewritten
+    // every frame, turns dynamic and is rewritten in place from then on (#573).
+    assert.ok(live().rows >= 2 && live().rows <= 3, `frame ${frame}: ${live().rows} rows drawn`);
   }
   runtime.dispose();
   await new Promise(setImmediate);
   stop();
   assert.deepEqual(reopens, [], 'no session-reopen said (#837)');
   assert.equal(opened(), 1, 'one session for every mesh and every geometry');
-  assert.ok(mounts() >= 300, `${mounts()} mounts: the water's geometries, the crates'`);
+  assert.ok(mounts() >= 51, `${mounts()} mounts: the crates', the water's dynamic one`);
+  assert.ok(rewrites() >= 990, `${rewrites()} rewrites of the water in place`);
   assert.equal(imageless, 0, 'no frame without an image');
   assert.ok(drawn.size <= 6, `${drawn.size} resources left mounted: the others are unmounted`);
 });
