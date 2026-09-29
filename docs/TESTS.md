@@ -35,6 +35,8 @@ One rule: **a unit test sits next to the file it tests; every other kind of test
 `browser/` for what runs in Chromium, `fixtures/` for test data, `kit/` for the shared test tools
 (one fake GPU device family in `gpu/`, one static server and the fixture route in `server/`, one
 bit-exact comparison and one hostile-value list in `assert/`).
+The tracked git hooks (`.githooks/`, one-line shims onto `scripts/hooks/*.ts`) are proved in a
+throwaway repository by `tests/integration/workflow-gates.test.ts`.
 A module used only by tests is named `*.fixture.ts` and stays out of the build. Benchmarks measure
 speed, never correctness, and live under `bench/`, outside every published package. The golden
 fixtures of the native compiler are under `tests/fixtures/formats/`, each folder described in
