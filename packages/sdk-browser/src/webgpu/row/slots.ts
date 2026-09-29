@@ -28,16 +28,18 @@ type Writer = ReturnType<typeof createPageRowWriter>;
  * once: they go through a queue bounded by a TIME budget. A page whose record is not yet written
  * is not resident — its flag only rises afterwards — so the cut does not choose it and its
  * resident parent covers it: no hole, only a late page.
+ *
+ * The table's size is read from `rows` at each placement: a table grown in place (`grow.ts`) keeps
+ * every rank it held, and its new ranks follow the last.
  */
 export function createWebgpuRowSlots(
   rows: Rows,
   packedPages: PageRec[],
-  drawSlots: number,
   writePageRow: Writer,
   onResidenceChange: (rec: PageRec) => void,
 ) {
-  /** Ranks this pass gave back, waiting for a taker or a fill. */
-  const free = { rows: new Int32Array(Math.max(1, drawSlots)), count: 0 };
+  /** Ranks this pass gave back, waiting for a taker or a fill: never more than the table holds. */
+  const free = { rows: new Int32Array(Math.max(1, rows.blendFirst)), count: 0 };
   /** Pages that claim a record and wait their turn, from one image to the next. */
   const claims = createWebgpuRowClaims(packedPages.length);
   const {
@@ -108,7 +110,7 @@ export function createWebgpuRowSlots(
       row = rows.rowOfPage[page];
     if (row >= 0) assign(row, page, offsetWords);
     else if (free.count) assign(free.rows[--free.count], page, offsetWords);
-    else if (count < drawSlots) assign(count++, page, offsetWords);
+    else if (count < rows.blendFirst) assign(count++, page, offsetWords);
     else return false;
     setResident(page, true);
     return true;
@@ -160,6 +162,7 @@ export function createWebgpuRowSlots(
   /** What the image owes the row table: the pages the cache named, and what the record queue
    *  left behind, within the frame's `budget`; absent, every owed record (a barrier image). */
   const apply = (budget?: FrameClock) => {
+    if (free.rows.length < rows.blendFirst) free.rows = new Int32Array(rows.blendFirst);
     written.changed = false;
     denied = 0;
     const full = revision !== rows.rowsRevision || epoch !== rows.tableEpoch;

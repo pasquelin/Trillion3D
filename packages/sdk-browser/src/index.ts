@@ -119,6 +119,7 @@ export type {
   MemoryBudgets,
   MemoryBudgetsReport,
   PoolClamp,
+  TableGrowthReport,
 } from './residency/pools.ts';
 export type { TexturePool } from './webgpu/residency/memoryBudgets.ts';
 export type { BudgetCanvas } from './residency/memoryBudget.ts';
@@ -135,11 +136,11 @@ export type {
 } from './texture/levelReader.ts';
 export type { AtlasLanes, LaneCounts, TextureCompression } from './texture/blockFormats.ts';
 export type { HostRetentionDelta, PageStreamerOptions, StreamPage } from './streaming/types.ts';
+export type { BatchRead } from './streaming/types.ts';
 export type { BoxTransformLot, MultiplyLot } from './math/batchRuntime.ts';
 export { framingFromBounds } from './camera/framing.ts';
 export { presentationColorDiagnostic } from './diagnostic/presentationDiagnostic.ts';
-export { createGpuPageCache, httpPageSource } from './gpu/page/pages.ts';
-export type { ResidentPage } from './gpu/page/pages.ts';
+export { createGpuPageCache, httpPageSource, type ResidentPage } from './gpu/page/pages.ts';
 export { createPageStreamer } from './streaming/pageStreamer.ts';
 export type { ComparisonLayout } from './measurement/comparison.ts';
 export { LOD_QUALITY, type LightingCapabilities } from '../../sdk-core/src/index.ts';
@@ -171,7 +172,6 @@ export {
   transformPointsBatch,
   transformPointsByMatricesBatch,
 } from '../../sdk-core/src/index.ts';
-
 // The camera controllers a session hands out: their contract is public because
 // `explorer.controls()` and its four siblings return it (`docs/SDK.md`, "Camera controllers").
 export type {

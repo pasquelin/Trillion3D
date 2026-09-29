@@ -1,11 +1,10 @@
-import { LIGHT_KIND, lightDirection, type ShadowViewpoint } from '../light/contracts.ts';
-import { LIGHT_FIELD, type SceneLightStore } from '../light/store.ts';
-import { baseOf } from '../light/fields.ts';
+import type { ShadowViewpoint } from '../light/contracts.ts';
+import type { SceneLightStore } from '../light/store.ts';
 import { createShadowChanges } from './changes.ts';
 import { createPageInvalidation } from './invalidate.ts';
 import { STALE_BY, createShadowCounts } from './counts.ts';
 import { createShadowAdmission } from './admit.ts';
-import { castsShadow } from './casters.ts';
+import { planLights } from './planLights.ts';
 import { createShadowTable } from './table.ts';
 import { DRAW_ALL, createShadowPool } from './pool.ts';
 import { resizeShadowPool } from './poolResize.ts';
@@ -38,7 +37,9 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     invalidate = createPageInvalidation(pool, table, sun, changes, counts),
     thresholds = createShadowThresholds(pool),
     demand = createShadowDemand(table, pool, sun),
-    posed = new Int32Array(records.taken.length);
+    posed = new Int32Array(records.taken.length),
+    spent = { requestsMs: NaN, admissionMs: NaN },
+    lightsState = { records, counts, sun, posed, invalidate };
   let requests = createShadowRequests(table, pool, records, sun),
     admission = createShadowAdmission(pool.pages),
     byPage = true,
@@ -60,6 +61,8 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     requests,
     /** What the last plan did, in pages. */
     counts,
+    /** CPU milliseconds the last plan spent reading the request report and admitting pages. */
+    spent,
     /** This frame's pages, the coarsest first, light view by light view. */
     admission,
     /** A node has moved: its box stales the pages it covers at the next plan. */
@@ -113,39 +116,17 @@ export function createShadowPlan(poolSide: number, layers = 1) {
         quiet = still && !changes.worldMoved();
       resting = still;
       if (!still) views++;
-      for (let slot = 0; slot < store.count; slot++) {
-        if (!castsShadow(store, slot)) continue;
-        const rank = store.packed[baseOf(slot) + LIGHT_FIELD.kind];
-        let slice = store.sliceOf(slot);
-        if (slice < 0) {
-          slice = records.claim();
-          // Every slice is held: this light lights unshadowed, and the frame counts it.
-          if (slice < 0) {
-            counts.unslicedCasters++;
-            continue;
-          }
-          posed[slice] = frame;
-        }
-        records.fit(slice, rank);
-        store.assignSlice(slot, slice);
-        const light = store.light(store.ids[slot]);
-        if (!light) continue;
-        let whole = records.moved(slice, light);
-        if (rank === LIGHT_KIND.directional) {
-          if (sun.update(slice, lightDirection(light), view, sceneMin, sceneMax, frame))
-            whole = true;
-          records.followSun(slice);
-        }
-        invalidate(light, slice, whole, byPage, nowMs, frame);
-        if (whole) posed[slice] = frame;
-      }
+      planLights(lightsState, store, view, sceneMin, sceneMax, frame, nowMs, byPage);
       changes.settled();
       if (still) counts.staled(STALE_BY.threshold, thresholds.restale(nowMs, frame));
       // Nothing moves: the pages of an older depth range are drawn in the current one.
       if (quiet) counts.staled(STALE_BY.range, sun.ranges.restale(pool, nowMs, frame));
+      const readStart = performance.now();
       if (demand.read(requests, report, receivers, store, view, stampOf(store), nowMs, frame))
         settledStamp = stampOf(store);
       report = null;
+      const admitStart = performance.now();
+      spent.requestsMs = admitStart - readStart;
       requests.floors(posed, view, nowMs, frame);
       const count = admission.run(pool, table, requests.latest, frame, records.isFloor);
       for (let i = 0; i < count; i++) {
@@ -154,6 +135,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       }
       // What the pool cannot hold waits for nothing: it is published, never pending.
       counts.endFrame(pool, records, requests.latest, nowMs, frame);
+      spent.admissionMs = performance.now() - admitStart;
       return count;
     },
     /** Pages `[from, to)` of the frame's list were encoded, page `from + i` in `modes[i]`: their
