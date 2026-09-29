@@ -9,8 +9,8 @@ import {
   EngineError,
   MATRIX_VALUES,
   type ClusterManifest,
-  type ManifestPages,
 } from '../../../../sdk-core/src/index.ts';
+import type { ManifestPages } from '../../../../sdk-core/src/manifest/paged.ts';
 import { createMultiplyLot } from '../../math/batchRuntime.ts';
 import { prepareMathBatch } from '../../math/batchState.ts';
 import type { MeasuredWorldOptions } from '../../backend/types.ts';
