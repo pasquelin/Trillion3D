@@ -1,7 +1,7 @@
 /**
  * The local bounds of a geometry, as the reference spans them: every vertex and every shape a
  * morph target gives it. A position is read at the value it stands for, as `drawnTriangles` draws
- * it (`positionAt`): straight from its list when it owns three plain numbers a vertex and no morph
+ * it (`pointAt`): straight from its list when it owns three plain numbers a vertex and no morph
  * target moves it, else vertex by vertex.
  */
 import { boxEmpty, boxExpandByPoint } from '../../math/primitives/box.ts';
@@ -18,24 +18,34 @@ type Morphed = {
   readonly morphTargetsRelative: boolean;
 };
 
-/** Scratch of the bounds below: the whole box, one target's, one corner, the sphere's box and
- *  centre. */
+/** Scratch of the bounds below: the whole box, one corner, the sphere's box and centre. */
 const whole = new Float64Array(6),
-  morph = new Float64Array(6),
-  sum = new Float64Array(3),
   scratchBox = new Box3(),
   centre = new Vector3(),
   point = [0, 0, 0],
   base = [0, 0, 0];
 
-/** Number `component` of position `index` at the value it stands for, a normalised integer
- *  scaled back; a position two numbers wide lies in the plane z = 0. */
-const positionAt = (attribute: VertexAttribute, index: number, component: number) =>
-  component < attribute.itemSize ? attribute.getComponent(index, component) : 0;
-
-/** Position `index` at its value (`positionAt`), its three numbers written into `out`. */
+/** Position `index` at the value it stands for, a normalised integer scaled back, its three
+ *  numbers written into `out`; a position two numbers wide lies in the plane z = 0. */
 export function pointAt(attribute: VertexAttribute, index: number, out: number[] = [0, 0, 0]) {
-  for (let c = 0; c < 3; c++) out[c] = positionAt(attribute, index, c);
+  for (let c = 0; c < 3; c++) out[c] = attribute.getComponent(index, c);
+  return out;
+}
+
+/** Vertex `index` of a morph `target` as it lands (`morphTargetsRelative`: on top of the same
+ *  vertex of `position`), written into `out`. */
+function morphedAt(
+  position: VertexAttribute,
+  target: VertexAttribute,
+  index: number,
+  relative: boolean,
+  out: number[],
+) {
+  pointAt(target, index, out);
+  if (relative) {
+    pointAt(position, index, base);
+    for (let c = 0; c < 3; c++) out[c] += base[c];
+  }
   return out;
 }
 
@@ -62,18 +72,9 @@ function span({ attributes, morphAttributes, morphTargetsRelative: relative }: M
   const position = attributes.position;
   if (!position) return false;
   spanInto(whole, position);
-  for (const target of morphAttributes.position ?? []) {
-    spanInto(morph, target);
-    if (relative) {
-      for (let c = 0; c < 3; c++) sum[c] = whole[c] + morph[c];
-      grow(whole, sum, 0);
-      for (let c = 0; c < 3; c++) sum[c] = whole[3 + c] + morph[3 + c];
-      grow(whole, sum, 0);
-    } else {
-      grow(whole, morph, 0);
-      grow(whole, morph, 3);
-    }
-  }
+  for (const target of morphAttributes.position ?? [])
+    for (let i = 0; i < target.count; i++)
+      grow(whole, morphedAt(position, target, i, relative, point), 0);
   return true;
 }
 
@@ -110,16 +111,9 @@ export function spanSphere(sphere: Sphere, morphed: Morphed) {
   if (plain) for (let i = 0, a = plain.array; i + 2 < a.length; i += 3) reach(a, i);
   else {
     for (let i = 0; i < position.count; i++) reach(pointAt(position, i, point));
-    const relative = morphed.morphTargetsRelative;
     for (const target of morphed.morphAttributes.position ?? [])
-      for (let j = 0; j < target.count; j++) {
-        pointAt(target, j, point);
-        if (relative) {
-          pointAt(position, j, base);
-          for (let c = 0; c < 3; c++) point[c] += base[c];
-        }
-        reach(point);
-      }
+      for (let j = 0; j < target.count; j++)
+        reach(morphedAt(position, target, j, morphed.morphTargetsRelative, point));
   }
   sphere.center.set(cx, cy, cz);
   sphere.radius = Math.sqrt(far);
@@ -130,7 +124,7 @@ export function spanSphere(sphere: Sphere, morphed: Morphed) {
  *  list a world geometry owns, as the world has always drawn, edged and turned it. A host
  *  geometry's lists are read at the value they stand for, as the host always read them, and so
  *  is a view of an interleaved buffer. Not asked for a position, which every owner reads at its
- *  value (`positionAt`). */
+ *  value (`pointAt`). */
 export const readsStored = (geometry: Pick<Geometry, '_owner'>, attribute: VertexAttribute) =>
   geometry._owner === 'world' && attribute.kind === 'attribute';
 
@@ -146,7 +140,7 @@ export const readComponent = (
     : attribute.getComponent(index, component);
 
 /** The positions as a list of numbers, three a vertex, at their values: the list itself when its
- *  numbers are (`plainPoints`), else a copy read vertex by vertex (`positionAt`); none without an
+ *  numbers are (`plainPoints`), else a copy read vertex by vertex (`pointAt`); none without an
  *  attribute. */
 export function readPoints(attribute: VertexAttribute | undefined): ArrayLike<number> {
   if (!attribute) return [];

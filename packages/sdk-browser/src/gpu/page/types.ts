@@ -24,7 +24,6 @@ export type GpuPageContext = {
   pins: Set<string>;
   held: Set<string>;
   free: number[];
-  staging: Uint8Array<ArrayBuffer>;
   abort: AbortController;
   fetches: Map<string, Promise<Uint8Array>>;
   state: {
