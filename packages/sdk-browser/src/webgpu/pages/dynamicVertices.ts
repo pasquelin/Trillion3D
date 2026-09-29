@@ -18,17 +18,11 @@ export const webgpuVertexApi = (rt: WebgpuPagesRuntime) => ({
     const pool = vis.vertexPool;
     if (pool && !pool.place(attributes, true)) return false;
     const positions = gpu.positionBuffers.get(attributes),
-      xyz = attributes.position?.array;
+      xyz = attributes.position?.array as Float32Array<ArrayBuffer> | undefined;
     for (const { name, from, count } of ranges) {
       pool?.write(attributes, name, from, count);
       if (name === 'position' && positions && xyz instanceof Float32Array)
-        gpu.device.queue.writeBuffer(
-          positions,
-          from * 12,
-          xyz as Float32Array<ArrayBuffer>,
-          from * 3,
-          count * 3,
-        );
+        gpu.device.queue.writeBuffer(positions, from * 12, xyz, from * 3, count * 3);
     }
     noteRewritten(rt, attributes, box);
     run.gate.sceneMoved();

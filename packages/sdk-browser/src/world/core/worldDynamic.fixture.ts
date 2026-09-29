@@ -4,8 +4,7 @@ import type { ExplorerSource } from '../session/prepare.ts';
 import { Scene } from './scene.ts';
 import { runtimeOf, sessionStandIn, type Open } from './worldRuntime.fixture.ts';
 
-/** A world on a session stand-in that takes every rewrite in place, and the page addresses the
- *  world serves while `counting`: one per page it cuts. */
+/** A world on a session stand-in that takes every rewrite in place; `served` counts its pages. */
 export function dynamicWorld() {
   const { session } = sessionStandIn();
   const rewrites: VertexRange[][] = [],
