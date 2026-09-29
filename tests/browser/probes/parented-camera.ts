@@ -15,7 +15,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import {
   POSES_PARENT,
   POSES_SANS_PARENT,
-  cameraAplatie,
+  flattenedCamera,
   cameraSansParent,
   creeRig,
   poseRig,
@@ -54,7 +54,7 @@ async function parentee(hote: boolean): Promise<void> {
       for (const pose of POSES_PARENT) yield poseRig(rig, pose, hote);
     });
     const sansParent = await sequence(site, function* () {
-      for (const pose of POSES_PARENT) yield cameraAplatie(pose);
+      for (const pose of POSES_PARENT) yield flattenedCamera(pose);
     });
     const ecarts = POSES_PARENT.map((_, i) => i).filter((i) => avecParent[i] !== sansParent[i]);
     if (ecarts.length) fautifs++;
