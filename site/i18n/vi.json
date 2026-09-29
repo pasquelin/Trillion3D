@@ -1530,7 +1530,6 @@
     },
     "missing": {
       "inside-a-component": "dọn canvas do bộ máy tạo khi hủy thế giới",
-      "floating-crates": "hình học được ghi lại mỗi khung hình",
       "thick-lines": "đường rộng",
       "a-line-that-draws-itself": "phạm vi vẽ hình học",
       "shapes-from-an-svg": "nhập đường dẫn SVG",
@@ -1677,8 +1676,6 @@
       "a-software-rasteriser": "API tính toán GPU",
       "sound-from-the-gpu": "API tính toán GPU",
       "breaking-things": "tích hợp vật lý",
-      "cloth-and-rope": "hình học được ghi lại mỗi khung hình",
-      "soft-bodies": "hình học được ghi lại mỗi khung hình",
       "a-cooked-flag": "hình học được ghi lại mỗi khung hình",
       "a-room-in-vr": "phiên WebXR",
       "a-360-photo-in-vr": "phiên WebXR",

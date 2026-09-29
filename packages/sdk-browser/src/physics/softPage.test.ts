@@ -76,6 +76,24 @@ test('a tick’s soft records reach physics.vertices, each geometry vertex from 
   assert.deepEqual(receiveSoft(null, bodies), []);
 });
 
+test('a soft body is drawn where it is: its geometry, dynamic, rewritten in place (#573)', () => {
+  const { bodies, cloth } = sceneOf(100);
+  const made = cloth(1);
+  bodies.reconcile(new Set(), (error) => assert.fail(String(error)));
+  assert.equal(made.geometry.usage, 'dynamic', 'never cut into pages again');
+  const mesh = new Mesh(plane(), new Material('meshStandard'));
+  mesh.physics = new ObjectPhysics({ type: 'cloth' });
+  const words = new Uint32Array(2 + 12);
+  words.set([7, 4]);
+  const at = [0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1];
+  new Float32Array(words.buffer).set(at, 2);
+  const { position, normal } = mesh.geometry.attributes;
+  const versions = [position.version, normal.version];
+  receiveSoft(words, { meshOf: () => mesh as Bodied, softMap: () => Uint32Array.of(0, 1, 2, 3) });
+  assert.deepEqual([...position.array], at, 'its positions');
+  assert.deepEqual([position.version, normal.version], versions.map((v) => v + 1), 'both written');
+});
+
 test('a tick keeps each soft body once, where its last step left it', () => {
   const tick = createSoftTick();
   tick.gather(Uint32Array.of(5, 1, 1, 1, 1, 6, 1, 2, 2, 2));

@@ -346,7 +346,6 @@
     },
     "missing": {
       "inside-a-component": "Entfernen der vom Engine erstellten Zeichenfläche beim Freigeben der Welt",
-      "floating-crates": "in jedem Bild neu geschriebene Geometrie",
       "thick-lines": "breite Linien",
       "a-line-that-draws-itself": "Zeichenbereich einer Geometrie",
       "shapes-from-an-svg": "Import von SVG-Pfaden",
@@ -493,8 +492,6 @@
       "a-software-rasteriser": "GPU-Rechen-API",
       "sound-from-the-gpu": "GPU-Rechen-API",
       "breaking-things": "Anbindung einer Physik-Engine",
-      "cloth-and-rope": "in jedem Bild neu geschriebene Geometrie",
-      "soft-bodies": "in jedem Bild neu geschriebene Geometrie",
       "a-cooked-flag": "in jedem Bild neu geschriebene Geometrie",
       "a-room-in-vr": "WebXR-Sitzung",
       "a-360-photo-in-vr": "WebXR-Sitzung",
