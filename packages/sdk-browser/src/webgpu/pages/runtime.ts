@@ -38,6 +38,9 @@ export type WebgpuPagesBackend = RenderBackend &
     feedbackAbSpatial(): Promise<SpatialFeedback>;
     rasterRgba(): Uint8Array;
     selectedPageIds(): string[];
+    /** The drawn clusters as `mesh/primitive/page`: unique where two clusters share one index
+     *  page, whose URL `selectedPageIds` returns for both. */
+    selectedClusterIds(): string[];
     visibilityIds(): Uint32Array;
     /** A view drawn beside the main one, after it, each frame (`./state/persistentView.ts`). */
     addView(
