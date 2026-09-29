@@ -17,10 +17,14 @@ function draw(hosts: {
   maxTextureTransferBytesPerFrame?: number;
   maxTextureUploadMsPerFrame?: number;
 }) {
+  // The GPU runs the frames at once, unless the test holds it behind.
+  const gpu = { behind: false };
   const gl = createTestContext({
     answers: {
       getParameter: (name: string) =>
         name === 'COLOR_WRITEMASK' ? [true, true, true, true] : new Int32Array([0, 0, 8, 4]),
+      fenceSync: () => ({}),
+      getSyncParameter: () => (gpu.behind ? 'UNSIGNALED' : 'SIGNALED'),
     },
   });
   const pictures = [4, 8, 16].map((side) => ({ width: side, height: side }) as TexImageSource);
@@ -34,16 +38,19 @@ function draw(hosts: {
     sceneDraw.host.drawHostGeometry(createHostDrawCamera(), output);
     return gl.of('texImage2D').flatMap((args) => pictures.filter((p) => args.includes(p)));
   };
-  return { image, pictures };
+  return { image, pictures, gpu };
 }
 
-test('a frame uploads ahead of its draws only what its budget leaves; the next frames the rest', () => {
-  const { image, pictures } = draw({
+test('a frame uploads ahead of its draws what its budget allows, once the GPU passed the last', () => {
+  const { image, pictures, gpu } = draw({
     maxTextureTransferBytesPerFrame: heldBytes(8, 8) + 1,
     maxTextureUploadMsPerFrame: 1e9, // the bytes alone decide, whatever the machine's speed
   });
-  assert.deepEqual(image(), pictures.slice(0, 2), 'the drawn map, then one ahead: the budget full');
-  assert.deepEqual(image(), [pictures[2]], 'the next frame, the next map');
+  assert.deepEqual(image(), pictures.slice(0, 2), 'two maps ahead of the draw: the budget full');
+  gpu.behind = true;
+  assert.deepEqual(image(), [], 'the GPU behind the last frame: nothing sent to wait on it');
+  gpu.behind = false;
+  assert.deepEqual(image(), [pictures[2]], 'the GPU caught up: the next map');
   assert.deepEqual(image(), [], 'each map once');
 });
 
@@ -65,6 +72,8 @@ test('a refused map halves the pool the queue uploads ahead into', () => {
   assert.equal(before.allocatedBytes, three);
   assert.equal(after?.allocatedBytes, heldBytes(64, 64), 'half the pool holds one map of three');
   const bound: number[] = [];
-  queue.drain({ bind: (unit) => void bound.push(unit) }, { open: true } as never);
+  queue.drain({} as WebGL2RenderingContext, { bind: (unit) => void bound.push(unit) }, {
+    open: true,
+  } as never);
   assert.deepEqual(bound, [0], 'the queue keeps the one map the half holds');
 });
