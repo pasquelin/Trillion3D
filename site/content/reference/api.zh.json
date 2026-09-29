@@ -1454,6 +1454,7 @@
       "framebuffer": "绘制到哪里;屏幕对应 `null`。",
       "width": "宽度,单位像素。",
       "height": "高度,单位像素。",
+      "displayWidth": "图像以低于该宽度绘制时（`world.renderScale`）所显示的宽度：纹理级别和线宽随该比例变化。缺省时为 `width`。",
       "linear": "线性辐射亮度，不经曲线也不编码，叠在透明黑之上：效果链的输入，其 alpha 即覆盖率。"
     }
   },
@@ -2524,7 +2525,7 @@
   "PageSource": {
     "summary": "按键索引,一个模型的页面从何处读取。",
     "members": {
-      "read": "读取一个页面的字节数据。"
+      "read": "读取一页的字节；给出 `priority` 时，它是流送器的优先级（数值小者优先）。对已在读取中的页面发出的更紧急读取会被再次请求以提升其优先级：接受 `priority` 的来源应将其并入正在进行的读取，而不是把页面传输两次。"
     }
   },
   "PageStreamer": {
@@ -4091,7 +4092,7 @@
   },
   "world.renderScale": {
     "summary": "图像按每个轴绘制的显示比例（`WorldOptions.renderScale`），从下一帧起生效。",
-    "description": "读取时为最后绘制图像的比例：WebGL2 上为 1。"
+    "description": "读取时为最后绘制图像的比例。"
   },
   "world.effects": {
     "summary": "效果链：绘制在图像上的通道（`effect`）。"
@@ -4329,7 +4330,7 @@
       "signal": "当该信号被中止时停止世界的加载操作。",
       "physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
       "temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
-      "renderScale": "图像按每个轴绘制的显示比例，仅限 WebGPU，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1），数字则将其固定；静止的图像按最大值绘制。之后通过 `world.renderScale` 修改。"
+      "renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定；静止的图像按最大值绘制。之后通过 `world.renderScale` 修改。"
     }
   },
   "RenderScale": {
@@ -4339,7 +4340,7 @@
   "WorldPageSource": {
     "summary": "页面从何处读取,以及所有页面据以读取的地址。",
     "members": {
-      "read": "读取一个页面的字节数据。",
+      "read": "读取一页的字节；给出 `priority` 时，它是流送器的优先级（数值小者优先）。对已在读取中的页面发出的更紧急读取会被再次请求以提升其优先级：接受 `priority` 的来源应将其并入正在进行的读取，而不是把页面传输两次。",
       "baseUrl": "所有页面据以读取的地址。"
     }
   },
@@ -4973,7 +4974,7 @@
       "options.signal": "当该信号被中止时停止世界的加载操作。",
       "options.physics": "打开物理（`world.physics`）：`true`，或重力与预算。只有此时才加载 Jolt。",
       "options.temporalAntialiasing": "时间性抗锯齿，仅限 WebGPU：跨帧累积的亚像素抖动。`false` 在每个像素中心绘制，没有历史，这是逐像素精确截图所需；之后通过 `world.temporalAntialiasing` 切换。",
-      "options.renderScale": "图像按每个轴绘制的显示比例，仅限 WebGPU，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1），数字则将其固定；静止的图像按最大值绘制。之后通过 `world.renderScale` 修改。"
+      "options.renderScale": "图像按每个轴绘制的显示比例，在时间抗锯齿把它重建到显示尺寸之前：`'auto'` 让帧预算在 `min` 和 `max` 之间选择（`{ min, max }`，默认 0.5 和 1；在只做重采样的 WebGL2 上，`min` 默认为 1），数字则将其固定；静止的图像按最大值绘制。之后通过 `world.renderScale` 修改。"
     }
   },
   "crossVector3": {
