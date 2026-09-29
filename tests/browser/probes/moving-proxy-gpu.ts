@@ -6,29 +6,28 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
-import type { executer } from './movingProxyPage.ts';
+import { dansPageWebgpu, empaquetePage as bundlePage } from './pageWebgpu.ts';
+import type { run } from './movingProxyPage.ts';
 
 declare global {
-  var movingProxy: { executer: typeof executer };
+  var movingProxy: { run: typeof run };
 }
 
-const ici = dirname(fileURLToPath(import.meta.url));
+const here = dirname(fileURLToPath(import.meta.url));
 const near = (actual: number, expected: number) => Math.abs(actual - expected) < 1e-4;
 
 test('a moved owner is hit at its new pose by the shipped traversal, on the GPU', async () => {
-  const script = await empaquetePage(resolve(ici, 'movingProxyPage.ts'), 'movingProxy');
-  const erreursPage: string[] = [];
-  const releve = await dansPageWebgpu(() => globalThis.movingProxy.executer(), null, {
-    titre: 'Moving proxy',
+  const script = await bundlePage(resolve(here, 'movingProxyPage.ts'), 'movingProxy');
+  const pageErrors: string[] = [];
+  const reading = await dansPageWebgpu(() => globalThis.movingProxy.run(), null, {
     script,
-    erreursPage,
+    erreursPage: pageErrors,
   });
-  assert.equal(releve.indisponible, undefined, 'WebGPU must be available');
-  assert.deepEqual([...(releve.erreurs ?? []), ...erreursPage], []);
-  const { compilation, moved, dynamic, still, after } = releve as Exclude<
-    typeof releve,
-    { indisponible: string }
+  assert.equal(reading.unavailable, undefined, 'WebGPU must be available');
+  assert.deepEqual([...(reading.errors ?? []), ...pageErrors], []);
+  const { compilation, moved, dynamic, still, after } = reading as Exclude<
+    typeof reading,
+    { unavailable: string }
   >;
   assert.deepEqual(compilation, []);
   // Still: the canonical plane is hit, nothing stands five metres away.
