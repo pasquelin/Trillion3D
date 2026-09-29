@@ -4,6 +4,7 @@ import type { ExplorerRuntimeSurface } from '../render/hostRuntime.ts';
 import { createExplorerCameraApi } from './cameraApi.ts';
 import { createExplorerDiagnosticApi } from './diagnosticApi.ts';
 import { createExplorerSceneApi } from './sceneApi.ts';
+import { createExplorerRenderApi } from './renderApi.ts';
 import { createExplorerSelectionApi } from './selectionApi.ts';
 import { createExplorerViewportApi } from './viewportApi.ts';
 import { createExplorerTelemetryApi } from './telemetryApi.ts';
@@ -85,6 +86,7 @@ export function createExplorerApi(inputs: Inputs) {
       scope,
       canvas,
     }),
+    ...createExplorerRenderApi({ check, active: () => state.active }),
     ...createExplorerViewportApi({
       check,
       active: () => state.active,
