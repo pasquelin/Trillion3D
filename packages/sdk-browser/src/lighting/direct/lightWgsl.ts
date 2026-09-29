@@ -3,8 +3,10 @@ import { ENVIRONMENT_COEFFICIENTS } from '../../../../sdk-core/src/scene/core/en
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts';
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts';
 
-/** Words of a tile record: the two counts, then the two lists of `tileLights` each. */
-export const TILE_STRIDE_WORDS = LIGHT_SETTINGS.tileLights * 2 + 2;
+/** Words of a tile record: the two counts, the two lists of `tileLights` each, then one word
+ *  saying whether the opaque list holds a shadowed light — the per-tile fact the moving resolve
+ *  reads once instead of walking the list a pixel at a time (#1249). */
+export const TILE_STRIDE_WORDS = LIGHT_SETTINGS.tileLights * 2 + 3;
 
 /**
  * Structures shared by the light-list pass and deferred resolve: a single GPU-side
@@ -24,6 +26,9 @@ const TILE_LIGHTS:u32=${LIGHT_SETTINGS.tileLights}u;
 const TILE_STRIDE:u32=${TILE_STRIDE_WORDS}u;
 const TILE_OPAQUE_BASE:u32=2u;
 const TILE_BLEND_BASE:u32=${LIGHT_SETTINGS.tileLights + 2}u;
+/** The record's last word: one when the opaque list holds a light with a shadow slot, zero
+ *  otherwise. The tile pass writes it; the moving resolve reads it once (#1249). */
+const TILE_SHADOW_BASE:u32=${LIGHT_SETTINGS.tileLights * 2 + 2}u;
 const TILE_NO_SLICE:u32=0xffffffffu;
 const POINT_FACES:u32=${POINT_FACES}u;
 const SPOT_EDGE:f32=${LIGHT_SETTINGS.spotEdgeSoftness};

@@ -5,7 +5,7 @@ import { DIRECT_LIGHT_SAMPLING_WGSL, SAMPLED_RANKS } from './lightSamplingWgsl.t
 import { DIRECT_LIGHTING_WGSL, declaredLightingWgsl } from './lightingWgsl.ts';
 import { BOUNCE_LIGHTING_SHADER, DIRECT_LIGHTING_SHADER } from '../deferred/shaders.ts';
 import { HASH_UNIT_WGSL } from '../../math/hashUnitWgsl.ts';
-import { shaderFunctions } from '../../texture/shaderRule.fixture.ts';
+import { shaderFunctions, wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { LIGHT_TILES_SHADER } from '../tiles/shader.ts';
 import {
   compactTile,
@@ -15,17 +15,60 @@ import {
 const occurrences = (text: string, fragment: string) => text.split(fragment).length - 1;
 
 test('deferred resolve samples a shadowed list on a ranked image and walks every light otherwise', () => {
-  // The branch, in the resolve alone: rank zero is the loop from before the batch, unchanged.
+  // The branch, in the resolve alone: rank zero is the loop from before the batch, unchanged; a
+  // moving tile whose list holds no shadowed light reads the tile pass's one-word flag (#1249).
   assert.match(
     DIRECT_LIGHTING_WGSL,
-    /let rank=u32\(view\.viewport\.w\);\s*if\(rank==0u\|\|!listShadowed\(tile,tilesX\)\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}\s*return sampledTileLighting\(/,
+    /let rank=u32\(view\.viewport\.w\);\s*if\(rank==0u\|\|!tileShadowed\(tile,tilesX\)\)\{return tileLighting\(rgb,metal,rough,N,V,P,ao,tile,tilesX,0u,TILE_OPAQUE_BASE\);\}\s*return sampledTileLighting\(/,
   );
+  // The flag is one read of the record, never a walk of its lights: no per-pixel loop remains.
+  assert.match(
+    DIRECT_LIGHTING_WGSL,
+    /fn tileShadowed\(tile:vec2u,tilesX:u32\)->bool\{\s*return tileLights\[\(tile\.y\*tilesX\+tile\.x\)\*TILE_STRIDE\+TILE_SHADOW_BASE\]!=0u;\s*\}/,
+  );
+  assert.doesNotMatch(DIRECT_LIGHTING_WGSL, /listShadowed/);
   for (const shader of [DIRECT_LIGHTING_SHADER, BOUNCE_LIGHTING_SHADER]) {
     assert.equal(occurrences(shader, DIRECT_LIGHT_SAMPLING_WGSL), 1);
     assert.equal(occurrences(shader, HASH_UNIT_WGSL), 1, 'one hash, defined once');
   }
   // The blend pass shades its lights in full: a forward surface has no history to average.
   assert.equal(occurrences(declaredLightingWgsl(11, 18, 26), 'sampledTileLighting'), 0);
+});
+
+test('a moving resolve reads the tile pass flag once, never the list, to choose the sum (#1249)', () => {
+  const layout = tileLayout(LIGHT_TILES_SHADER);
+  const STRIDE = layout.stride,
+    SHADOW = layout.shadowBase;
+  // Two tiles one pixel wide: the second tile's flag word decides the branch, alone.
+  const run = (flag: number) => {
+    const words = new Uint32Array(STRIDE * 2);
+    words[0] = 8; // tile 0: a list of 8, between LIGHT_SAMPLES and TILE_LIGHTS
+    words[STRIDE] = 8;
+    words[STRIDE + SHADOW] = flag;
+    const { contractLighting } = shaderFunctions<{
+      contractLighting: (...args: unknown[]) => number;
+    }>(DIRECT_LIGHTING_WGSL, ['contractLighting', 'tileShadowed', 'pixelTile'], {
+      ...wgslConstants(DIRECT_LIGHTING_WGSL),
+      view: { lightParams: { x: 2, y: 2, z: 1 }, viewport: { w: 7 } },
+      vec3f: () => 0,
+      tileLights: words,
+      tileLighting: () => 1,
+      sampledTileLighting: () => 2,
+    });
+    return contractLighting(0, 0, 0, 0, 0, 0, 0, { x: 20.5, y: 0.5 });
+  };
+  assert.equal(run(0), 1, 'no shadowed light: the exact full sum the still image shows');
+  assert.equal(run(1), 2, 'a shadowed light: the drawn resolve, unchanged');
+});
+
+test('the tile pass flag marks a list that holds a shadowed light (#1249)', () => {
+  const layout = tileLayout(LIGHT_TILES_SHADER);
+  const flag = (shadowed: number[]) =>
+    compactTile(layout, { opaque: [1, 2, 3], blend: [], shadowed }, 4)[layout.shadowBase];
+  assert.equal(flag([2]), 1);
+  assert.equal(flag([9]), 0, 'a shadowed light outside the opaque list leaves it clear');
+  assert.equal(flag([]), 0);
+  assert.equal(compactTile(layout, { opaque: [], blend: [] }, 0)[layout.shadowBase], 0);
 });
 
 test('the sample budget is the published setting, and a list within it is summed in full', () => {
