@@ -13,29 +13,27 @@ export type MultiDraw = {
   ): void;
 };
 
-export function submitClusterMesh(
+export const submitClusterMesh = (
   gl: WebGL2RenderingContext,
   extension: MultiDraw | null,
   mesh: ClusterDrawMesh,
+) =>
+  submitRanges(gl, extension, mesh._multiDrawStarts, mesh._multiDrawCounts, mesh._multiDrawCount);
+
+/** `count` ranges of the bound 32-bit index buffer — `starts` in bytes, `counts` in indices — in
+ *  one `WEBGL_multi_draw`, or one by one without it; a single range is one plain draw. */
+export function submitRanges(
+  gl: WebGL2RenderingContext,
+  extension: MultiDraw | null,
+  starts: Int32Array,
+  counts: Int32Array,
+  count: number,
 ) {
-  if (extension)
-    extension.multiDrawElementsWEBGL(
-      gl.TRIANGLES,
-      mesh._multiDrawCounts,
-      0,
-      gl.UNSIGNED_INT,
-      mesh._multiDrawStarts,
-      0,
-      mesh._multiDrawCount,
-    );
+  if (extension && count > 1)
+    extension.multiDrawElementsWEBGL(gl.TRIANGLES, counts, 0, gl.UNSIGNED_INT, starts, 0, count);
   else
-    for (let i = 0; i < mesh._multiDrawCount; i++)
-      gl.drawElements(
-        gl.TRIANGLES,
-        mesh._multiDrawCounts[i],
-        gl.UNSIGNED_INT,
-        mesh._multiDrawStarts[i],
-      );
+    for (let i = 0; i < count; i++)
+      gl.drawElements(gl.TRIANGLES, counts[i], gl.UNSIGNED_INT, starts[i]);
 }
 
 /** A mesh drawn whole: its index, or its vertices in order, once — or once per placement of an
