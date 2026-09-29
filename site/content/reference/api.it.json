@@ -2525,7 +2525,8 @@
       "width": "Larghezza in pixel.",
       "height": "Altezza in pixel.",
       "displayWidth": "La larghezza a cui l’immagine è mostrata quando è disegnata al di sotto (`world.renderScale`): livelli di texture e larghezze delle linee seguono il rapporto. `width` se assente.",
-      "linear": "Radianza lineare, né passata dalla curva né codificata, su nero trasparente: l’ingresso della catena di effetti, il cui alfa è la copertura."
+      "linear": "Radianza lineare, né passata dalla curva né codificata, su nero trasparente: l’ingresso della catena di effetti, il cui alfa è la copertura.",
+      "pass": "Nomina i pass GPU di questo disegno per il timer del frame, in ordine, quando qualcuno legge (`../core/frameTimer.ts`); assente su un disegno che nulla misura."
     }
   },
   "HostMaterial": {

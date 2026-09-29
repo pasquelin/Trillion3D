@@ -2525,7 +2525,8 @@
       "width": "Breite in Pixeln.",
       "height": "Höhe in Pixeln.",
       "displayWidth": "Die Breite, in der das Bild gezeigt wird, wenn es kleiner gezeichnet wird (`world.renderScale`): Texturstufen und Linienbreiten folgen dem Verhältnis. `width`, wenn nicht angegeben.",
-      "linear": "Lineare Strahldichte, weder durch die Kurve gebracht noch kodiert, über transparentem Schwarz: die Eingabe der Effektkette, deren Alpha die Abdeckung ist."
+      "linear": "Lineare Strahldichte, weder durch die Kurve gebracht noch kodiert, über transparentem Schwarz: die Eingabe der Effektkette, deren Alpha die Abdeckung ist.",
+      "pass": "Benennt die GPU-Pässe dieser Zeichnung für den Frame-Timer, in der Reihenfolge, wenn einer liest (`../core/frameTimer.ts`); fehlt bei einer Zeichnung, die nichts misst."
     }
   },
   "HostMaterial": {
