@@ -10,7 +10,7 @@ test('a resolved mirror samples the reduced image on the source unit instead of 
   );
   assert.match(
     SCREEN_REFLECTION_GLSL,
-    /if\(reflectionResolve\)return texture\(reflectionColor,gl_FragCoord\.xy\/vec2\(textureSize\(reflectionColor,0\)\)\)\.rgb;/,
+    /if\(reflectionResolve&&mirrorWeight\(rough\)>0\.0\)return texture\(reflectionColor,gl_FragCoord\.xy\/vec2\(textureSize\(reflectionColor,0\)\)\)\.rgb;/,
   );
   assert.match(
     SCREEN_REFLECTION_GLSL,

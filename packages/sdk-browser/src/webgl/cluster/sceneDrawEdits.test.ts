@@ -44,18 +44,18 @@ test('each image draws the graph as the edits since the last one left it', () =>
       .slice(from)
       .map((args) => args[1]);
   };
-  assert.deepEqual(frame(), [3, 6, 3, 6, 3, 6]);
-  assert.deepEqual(frame(), [3, 6, 3, 6, 3, 6], 'nothing changed: the kept lists');
+  assert.deepEqual(frame(), [3, 6, 3, 6]);
+  assert.deepEqual(frame(), [3, 6, 3, 6], 'nothing changed: the kept lists');
   group.visible = false;
-  assert.deepEqual(frame(), [3, 3, 3], 'a group hidden');
+  assert.deepEqual(frame(), [3, 3], 'a group hidden');
   group.visible = true;
   scene.add(c);
-  assert.deepEqual(frame(), [3, 6, 9, 3, 6, 9, 3, 6, 9], 'shown again, and a mesh added');
+  assert.deepEqual(frame(), [3, 6, 9, 3, 6, 9], 'shown again, and a mesh added');
   glass.transparent = true;
   glass.needsUpdate = true;
-  assert.deepEqual(frame(), [3, 9, 3, 9, 6, 3, 9, 6], 'a surface turned see-through draws last');
+  assert.deepEqual(frame(), [3, 9, 3, 9, 6], 'a surface turned see-through draws last');
   a.removeFromParent();
-  assert.deepEqual(frame(), [9, 9, 6, 9, 6], 'a mesh removed');
+  assert.deepEqual(frame(), [9, 9, 6], 'a mesh removed');
   draw.dispose();
   assert.equal(c._link, null, 'the graph gets its link back');
 });

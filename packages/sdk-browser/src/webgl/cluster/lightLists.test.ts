@@ -52,8 +52,8 @@ test('300 lamps draw on WebGL2, each fragment walks the lamps the oracle says re
   const { context, renderer } = drawLights(lights, meshes);
   assert.equal(
     context.of('drawElements').length,
-    meshes.length * 3,
-    'every mesh in source, resolve and final passes',
+    meshes.length * 2,
+    'every mesh in source and final passes',
   );
   const records = sent(context, 'RGBA').at(-1)![8] as Float32Array;
   for (let i = 0; i < LAMPS; i++)

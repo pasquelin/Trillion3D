@@ -49,9 +49,9 @@ test('the opaque meshes draw by order, the see-through ones after, a hidden one 
   const { context, draw } = drawn(scene);
   assert.deepEqual(
     context.of('drawElements').map((args) => args[1]),
-    [6, 3, 6, 3, 9, 6, 3, 9],
+    [6, 3, 6, 3, 9],
   );
-  assert.deepEqual(draw.counters(), { triangles: 15 });
+  assert.deepEqual(draw.counters(), { triangles: 9 });
   draw.dispose();
 });
 
@@ -67,10 +67,9 @@ test('an instanced mesh is one submission of every placement it counts', () => {
     [
       [6, 3],
       [6, 3],
-      [6, 3],
     ],
   );
-  assert.deepEqual(draw.counters(), { triangles: 18 });
+  assert.deepEqual(draw.counters(), { triangles: 12 });
   assert.equal(context.of('vertexAttribDivisor').length, 4, 'one divisor per matrix column');
   draw.dispose();
 });
@@ -143,31 +142,32 @@ test('a transmissive copy draws over the backdrop the opaque meshes were drawn i
   draw.render({} as HostCamera);
   draw.host.drawHostGeometry(createHostDrawCamera(), { ...OUTPUT, toneMapped: true });
   const draws = sourcePassDraws(context.calls),
-    targets = [draws[0].target, draws[1].target, draws[3].target];
+    targets = [draws[0].target, draws[1].target, draws[2].target];
   assert.deepEqual(
     draws.map((draw) => draw.count),
-    [6, 6, 9, 6, 6, 9],
+    [6, 9, 6, 6, 9],
   );
   assert.ok(targets.every(Boolean), 'reflection, resolve and transmission each have a target');
+  assert.equal(new Set(targets).size, 3, 'they never alias');
   assert.deepEqual(
-    draws.slice(4).map((draw) => draw.target),
+    draws.slice(3).map((draw) => draw.target),
     [null, null],
   );
   assert.deepEqual(
     draws.map((draw) => draw.flags),
     [
-      [1, 0, 0, 0, 0], // Reflection source: no recursion, tone mapping or camera fog.
-      [0, 1, 0, 0, 0], // Reduced resolve, opaque receiver: one trace, no curve.
-      [0, 1, 1, 0, 0], // Reduced resolve, glass receiver.
-      [0, 0, 0, 0, 0], // Transmission backdrop: camera fog, no reflection recursion.
+      [1, 0, 0, 0, 0], // Reflection source: no recursive reflection, tone mapping or camera fog.
+      [0, 1, 1, 0, 0], // Reduced resolve: the glass traces once into it, no curve.
+      [0, 0, 0, 0, 0], // Transmission backdrop: ordinary camera fog, no reflection recursion.
       [0, 1, 0, 1, 0], // Display opaque: reflection restored before the display curve.
       [0, 1, 1, 1, 0], // Glass reads both frozen sources on the display.
     ],
   );
-  assert.deepEqual(draw.counters(), { triangles: 14 });
+  assert.deepEqual(draw.counters(), { triangles: 12 });
   draw.dispose();
 });
 
+// #348/#359: line width follows CSS pixels; dash and gap reach the fragment stage.
 test('a line surface draws with its CSS width, the host pixel ratio and its dash', () => {
   const context = createTestContext({ answers: FLOATS }),
     scene = new Scene(),
