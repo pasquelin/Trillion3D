@@ -7,6 +7,7 @@ import {
 import { levelSize, mipLevelCountFor } from '../../texture/tiles.ts';
 import { COVERAGE_SCALE_GLSL } from '../../texture/coverageRule.ts';
 import { BLEND_STATE, WebglCoverageCounts } from './coverageMips.ts';
+import { allocated } from '../core/allocation.ts';
 
 /** The GLSL twin of the WebGPU reduction (`MIP_SHADER`, `../../texture/mips.ts`) under `weighted`;
  *  `source` is a copy of the level above, `extent` its size; with a `cutoff`, the row under it
@@ -114,6 +115,9 @@ export class WebglMipReducer {
       this.scratches.set(format, (scratch = { texture: gl.createTexture()!, width: w, height: h }));
       gl.bindTexture(gl.TEXTURE_2D, scratch.texture);
       gl.texImage2D(gl.TEXTURE_2D, 0, format, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      // Refused (`../core/allocation.ts`): remade at the next chain.
+      const made = scratch;
+      allocated(gl, 'texture', () => (made.width = made.height = 0));
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     } else gl.bindTexture(gl.TEXTURE_2D, scratch.texture);
     scratch.used = true;
