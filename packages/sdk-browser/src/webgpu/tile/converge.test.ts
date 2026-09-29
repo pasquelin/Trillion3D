@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { convergeBound, mustRestartTaaAfterSettle, texturesConverged } from './converge.ts';
+import {
+  convergeBound,
+  drainsAgain,
+  mustRestartTaaAfterSettle,
+  texturesConverged,
+} from './converge.ts';
 import { MAP_CHOICES, PICK_BLENDS, PICK_TAPS } from './feedback.ts';
 import { FEEDBACK_RULE_WGSL, TILE_REQUEST_WGSL } from './requestWgsl.ts';
 import { SHADE_REQUEST_WGSL } from '../../visibility/shader/request.ts';
@@ -92,4 +97,16 @@ test('a convergence always has room for a quiet round after a tile served on its
       }
     assert.ok(closed > last, `${phases} phases: a quiet round closes`);
   }
+});
+
+// #1016: casters that land after the drain's last image changed nothing a plan saw, and the pages
+// a light cut drew through a coarser ancestor waited for them. The barrier ended there, and those
+// pages were drawn again during the still average, as each session's streaming happened to time
+// them. A landing after the last image now draws one more.
+test('a page made resident after the last drain image draws one more image', () => {
+  const settled = () => false;
+  assert.equal(drainsAgain(false, 7, 7, settled), false, 'nothing moved: the drain ends');
+  assert.equal(drainsAgain(false, 7, 8, settled), true, 'a landing no plan saw: one more');
+  assert.equal(drainsAgain(true, 7, 7, settled), true, 'a report taken: one more');
+  assert.equal(drainsAgain(false, 7, 7, () => true), true, 'pages unsettled: one more');
 });
