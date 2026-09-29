@@ -32,18 +32,9 @@ import { pixelScaleOf } from '../../packages/sdk-browser/src/streaming/priority.
 
 /** Barycentric points sampled on every triangle: corners, edge midpoints, centre and three inner
  *  points. Fixed, so two runs read the same points. */
-const SAMPLES = [
-  [1, 0, 0],
-  [0, 1, 0],
-  [0, 0, 1],
-  [0.5, 0.5, 0],
-  [0, 0.5, 0.5],
-  [0.5, 0, 0.5],
-  [1 / 3, 1 / 3, 1 / 3],
-  [2 / 3, 1 / 6, 1 / 6],
-  [1 / 6, 2 / 3, 1 / 6],
-  [1 / 6, 1 / 6, 2 / 3],
-];
+// prettier-ignore
+const SAMPLES = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0.5, 0.5, 0], [0, 0.5, 0.5], [0.5, 0, 0.5],
+  [1 / 3, 1 / 3, 1 / 3], [2 / 3, 1 / 6, 1 / 6], [1 / 6, 2 / 3, 1 / 6], [1 / 6, 1 / 6, 2 / 3]];
 
 /**
  * A point is hidden when a drawn surface stands more than this many pixels before it on its ray.
@@ -146,11 +137,22 @@ function errors(
   return out;
 }
 
+const normal = new Float64Array(3);
+/** Whether triangle `t` of `triangles` shows from `eye`: every backend culls a single-sided
+ *  triangle seen from behind, a double-sided one (`twoSided[t] === 1`) shows from both sides. */
+function shows(triangles: Float32Array, t: number, eye: number[], twoSided?: Uint8Array) {
+  if (twoSided?.[t] === 1) return true;
+  triangleNormal(normal, triangles, 9 * t);
+  let side = 0;
+  for (let k = 0; k < 3; k++) side += normal[k] * (eye[k] - triangles[9 * t + k]);
+  return side > 0;
+}
+
 /**
  * The screen error of `drawn` against `source` under `pose`. Both directions count the sample
  * points in the frustum that no drawn surface hides: what is drawn on screen, and what the
  * source shows through a hole or past a receding drawn surface; the far side of a closed mesh,
- * drawn or not, is not seen.
+ * drawn or not, is not seen. A drawn triangle that does not show neither hides nor is sampled.
  */
 export function measureView(o: {
   source: Float32Array;
@@ -158,13 +160,20 @@ export function measureView(o: {
   twoSided?: Uint8Array;
   sourceTree?: TriangleTree;
   drawn: Float32Array;
+  /** Per drawn triangle, the same flag. */
+  drawnTwoSided?: Uint8Array;
   pose: CameraPose;
   width: number;
   height: number;
 }) {
   const view = viewOf(o.pose, o.width, o.height);
+  const shown: number[] = [];
+  for (let t = 0; t < o.drawn.length / 9; t++)
+    if (shows(o.drawn, t, view.eye, o.drawnTwoSided))
+      for (let k = 9 * t; k < 9 * t + 9; k++) shown.push(o.drawn[k]);
+  const drawn = Float32Array.from(shown);
   const sourceTree = o.sourceTree ?? buildTriangleTree(o.source),
-    drawnTree = buildTriangleTree(o.drawn);
+    drawnTree = buildTriangleTree(drawn);
   const ray = new Float64Array(3);
   /** Whether a drawn surface stands before `p` on the ray aimed at `p + nudge`, `nudge` in pixels. */
   const blocked = (p: Float64Array, nudge: number) => {
@@ -179,21 +188,12 @@ export function measureView(o: {
   // A ray through a shared edge or corner can slip between two drawn triangles; a second ray a
   // hundredth of a pixel aside does not slip through the same crack.
   const visible = (p: Float64Array) => !blocked(p, 0) && !blocked(p, 0.01);
-  // A single-sided source triangle seen from behind is culled by every backend and shows nothing:
-  // at a silhouette its points lie on the ray of a surface drawn behind them, on the same pixel.
-  const normal = new Float64Array(3);
-  let facingOf = -1,
-    faces = false;
-  const facing = (t: number) => {
-    if (t === facingOf) return faces;
-    triangleNormal(normal, o.source, 9 * t);
-    let side = 0;
-    for (let k = 0; k < 3; k++) side += normal[k] * (view.eye[k] - o.source[9 * t + k]);
-    facingOf = t;
-    faces = side > 0 || o.twoSided?.[t] === 1;
-    return faces;
-  };
-  const forward = errors(view, o.drawn, sourceTree, visible),
-    reverse = errors(view, o.source, drawnTree, (p, t) => facing(t) && visible(p));
+  // A source triangle that does not show is not seen: at a silhouette its points lie on the ray
+  // of a surface drawn behind them, on the same pixel. Facing is read once per triangle.
+  const faces = Uint8Array.from({ length: o.source.length / 9 }, (_, t) =>
+    Number(shows(o.source, t, view.eye, o.twoSided)),
+  );
+  const forward = errors(view, drawn, sourceTree, visible),
+    reverse = errors(view, o.source, drawnTree, (p, t) => faces[t] === 1 && visible(p));
   return { triangles: o.drawn.length / 9, forward: summary(forward), reverse: summary(reverse) };
 }
