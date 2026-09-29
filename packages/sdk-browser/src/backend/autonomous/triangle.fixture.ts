@@ -18,7 +18,7 @@ export function liveRows(count: number) {
 /** One triangle cut into one page, and the WebGL2 page path opened on `mesh`, under `source`,
  *  placed by `link`, wearing `material` (a basic double-sided surface by default), under the page
  *  `ceiling` (a host ceiling of two pages by default); `pass` the primitive's (exact clusters).
- *  With `twinScale`, a second mesh draws the same primitive at that scale (`twin`). */
+ *  With `twinScale`, a second mesh draws the same primitive at that scale. */
 export function triangleBackend(
   {
     pass = 'exact-clusters',
@@ -38,8 +38,10 @@ export function triangleBackend(
     source = new G.Group();
   source.add(mesh);
   const twin = twinScale === undefined ? undefined : G.mesh(geometry, material);
-  twin?.scale.setScalar(twinScale!);
-  if (twin) source.add(twin);
+  if (twin) {
+    twin.scale.setScalar(twinScale!);
+    source.add(twin);
+  }
   const page = {
     id: 0,
     url: 'triangle',
@@ -92,5 +94,13 @@ export function triangleBackend(
   camera.position.z = 5;
   camera.lookAt(0, 0, 0);
   const encoded = paged.encoded.get('triangle-geometry.bin')!;
-  return { backend, camera, encoded, geometry, material, mesh, source, paged, twin };
+  return { backend, camera, encoded, geometry, material, mesh, source, paged };
+}
+
+/** The meshes the display graph draws the pages with, once `camera` rendered a frame. */
+export function drawnPageMeshes({ backend, camera }: ReturnType<typeof triangleBackend>) {
+  backend.render(camera);
+  return (backend.scene as unknown as G.Group).children.filter(
+    (child): child is G.Mesh => 'geometry' in child,
+  );
 }

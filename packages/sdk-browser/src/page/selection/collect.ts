@@ -75,8 +75,6 @@ export function collectClusterPages(
     // The widened boxes depend on no placement: every placement's records share them.
     const mins = primitive.pages.map((page) => widen(page.min, -1)),
       maxs = primitive.pages.map((page) => widen(page.max, 1));
-    // A flat cut has no tree; transparent pages recover their draw order from the recorded source rank.
-    const sourceOrder = transparent ? template.sourceOrder : undefined;
     const shape = templates.shapeOf(primitive, template);
     const { structure, culling } = shape;
     for (const { world, parked, placement } of placed) {
@@ -112,7 +110,9 @@ export function collectClusterPages(
           declaration: mesh.material,
           transparent,
           sourceMesh: mesh,
-          sourceOrder: sourceOrder?.[pageIndex] ?? pageIndex,
+          // A flat cut has no tree: transparent pages recover their draw order from the source
+          // rank, recorded for every class, since a page may turn blended in the session (#846).
+          sourceOrder: template.sourceOrder[pageIndex],
           matrix: world,
           placement,
           renderOrder: order,
