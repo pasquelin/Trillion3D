@@ -97,14 +97,8 @@ pub fn world_scale(matrix: &Mat4) -> f64 {
         .fold(0.0f64, f64::max)
 }
 
-/// A length of `metres` in the object units of a primitive the largest world `scale` places; a
-/// missing, zero or non-finite scale leaves it as is, nothing guessed.
-pub fn object_units(metres: f64, scale: Option<f64>) -> f64 {
-    match scale {
-        Some(value) if value.is_finite() && value > 0.0 => metres / value,
-        _ => metres,
-    }
-}
+/// A length of `metres` in the object units of a primitive: the rule the tile grid shares.
+pub use trillion3d_page_codec::bits::grid::object_units;
 
 /// Max world scale under which each source mesh placed. Primitive placed
 /// twice at two scales takes largest: cut finer than needed for
