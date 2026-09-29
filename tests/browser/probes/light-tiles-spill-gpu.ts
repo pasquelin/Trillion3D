@@ -32,6 +32,9 @@ if (import.meta.main) {
   const WIDE = tileLayout(LIGHT_TILES_SHADER).words;
   const NARROW = tileLayout(LIGHT_TILES_NARROW_SHADER).words;
   const LIST = tileLayout(LIGHT_TILES_SHADER).tileLights;
+  // Light 0 carries a shadow slot (`lightTilesSpillPage.ts`): a record whose opaque slice keeps
+  // it must set the flag word, one that does not must leave it zero (#1249).
+  const SHADOWED = [0];
 
   type Reach = (light: number) => boolean;
   /** A case of `count` lights, the opaque slice keeping `opaque`, the blend one `blend`. */
@@ -91,19 +94,21 @@ if (import.meta.main) {
     assert.equal(runs.length, CASES.length, 'every case ran');
     let spilled = 0,
       oneBatchSpills = 0,
-      overflowed = 0;
+      overflowed = 0,
+      flagged = 0;
     for (const [k, c] of CASES.entries()) {
       const layout = tileLayout(spillHarness(c.words, c.pool));
       const keeps = (bit: number) => c.keeps.flatMap((keep, i) => (keep & bit ? [i] : []));
       const pool = { capacity: c.capacity, head: c.head, overflow: 0 };
       const tiles = compactTile(
         layout,
-        { opaque: keeps(1), blend: keeps(2) },
+        { opaque: keeps(1), blend: keeps(2), shadowed: SHADOWED },
         c.count,
         undefined,
         pool,
       );
       assert.deepEqual(runs[k].tiles, [...tiles], `${c.name}: the record and the pool's words`);
+      flagged += +(runs[k].tiles[layout.shadowBase] === 1);
       if (c.pool)
         assert.deepEqual(
           runs[k].pool,
@@ -123,6 +128,11 @@ if (import.meta.main) {
     assert.ok(
       spilled >= 8 && oneBatchSpills >= 3 && overflowed >= 4,
       `${spilled} spilled, ${oneBatchSpills} from the masks, ${overflowed} overflowed`,
+    );
+    // The flag word is exercised both ways: light 0 sets it where the opaque slice keeps it.
+    assert.ok(
+      flagged >= 1 && flagged < CASES.length,
+      `${flagged} of ${CASES.length} records flagged their shadowed light`,
     );
   });
 }
