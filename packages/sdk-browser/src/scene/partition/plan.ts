@@ -14,12 +14,11 @@
  * within `AHEAD` of it past it, and a read cell leaves once its box is `KEEP` of the reach past it,
  * so one that hovers on a border is not read again at every step. Both margins are fractions of
  * the reach, never of the cell: a cell the compiler cut wider than the view (its split counts
- * bytes, not metres) is kept only while its box meets that sphere. The first frame reads only
- * what it draws.
+ * bytes, not metres) is kept only while its box meets that sphere. The pages of the cell index
+ * are read and kept by the same spheres (`cellIndex.ts`).
  *
- * The rows are sized once, when the session opens, for every placement that can be held at once
- * within a reach wherever the page moves the cells' parents (`sizing.ts`): nothing grows while a
- * session draws.
+ * The rows are sized once, when the session opens, for every node the partition's root counts
+ * (`cells.ts`): nothing grows while a session draws, wherever the page moves the cells' parents.
  */
 import {
   invertMatrix4,
@@ -30,7 +29,7 @@ import { boxPointDistance } from '../../../../sdk-core/src/math/primitives/box.t
 import { drawnView, perspectiveSlope } from '../../../../sdk-core/src/math/primitives/camera.ts';
 import type { CameraOptics } from '../../camera/engineCamera.ts';
 import { stretchOf } from './boxes.ts';
-import type { CellIndex } from './cellIndex.ts';
+import type { CellIndex, IndexPage } from './cellIndex.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';
 
 const inverse = new Float64Array(MATRIX_VALUES),
@@ -90,8 +89,9 @@ export function boxDistance(bounds: ArrayLike<number>, eye: ArrayLike<number>) {
 /**
  * The cells `held` does not hold that a frame needs — `visible`, within `reach` — and those it
  * reads ahead — `ahead`, within `reach·(1 + AHEAD)` —, each nearest first, found through the cell
- * index (`cellIndex.ts`); and the held cells past `reach·(1 + KEEP)`, which leave. `reach` is the
- * frame camera's (`cellReach`).
+ * index (`cellIndex.ts`); the held cells past `reach·(1 + KEEP)`, which leave; and the pages of the
+ * index within those spheres not yet opened (`pages`), nearest first, the index closing those past
+ * the keep sphere. `reach` is the frame camera's (`cellReach`).
  */
 export function planCells(
   index: Pick<CellIndex, 'near' | 'distance'>,
@@ -99,15 +99,30 @@ export function planCells(
   reach: number,
   held: Pick<ReadonlyMap<number, unknown>, 'has' | 'keys'>,
 ) {
-  const visible: { cell: number; distance: number }[] = [],
-    ahead: { cell: number; distance: number }[] = [];
-  index.near(eye, reach * (1 + AHEAD), (cell, distance) => {
-    if (!held.has(cell)) (distance <= reach ? visible : ahead).push({ cell, distance });
-  });
+  type Found<T> = { item: T; distance: number };
+  const cells: Found<number>[] = [],
+    pages: Found<IndexPage>[] = [];
+  const keep = reach * (1 + KEEP);
+  index.near(
+    eye,
+    reach * (1 + AHEAD),
+    keep,
+    held,
+    (item, distance) => void (held.has(item) || cells.push({ item, distance })),
+    (item, distance) => void pages.push({ item, distance }),
+  );
   const leave: number[] = [];
-  for (const cell of held.keys())
-    if (index.distance(cell, eye) > reach * (1 + KEEP)) leave.push(cell);
-  const nearest = (list: typeof visible) =>
-    list.sort((a, b) => a.distance - b.distance).map((entry) => entry.cell);
-  return { visible: nearest(visible), ahead: nearest(ahead), leave };
+  for (const cell of held.keys()) if (index.distance(cell, eye) > keep) leave.push(cell);
+  /** The items of `list` within the reach, or past it when `past`, nearest first. */
+  const nearest = <T>(list: Found<T>[], past: boolean) =>
+    list
+      .filter(({ distance }) => distance > reach === past)
+      .sort((a, b) => a.distance - b.distance)
+      .map(({ item }) => item);
+  return {
+    visible: nearest(cells, false),
+    ahead: nearest(cells, true),
+    leave,
+    pages: { visible: nearest(pages, false), ahead: nearest(pages, true) },
+  };
 }

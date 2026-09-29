@@ -4,12 +4,14 @@
  * mesh are not in the node table the runtime reads before its first frame, but in spatial cells
  * read by distance to the camera — each cell under one stream unit, boxed in the frame of each core
  * parent it hangs nodes under, so a page that moves that parent moves the box. The tables keep only
- * a root of fixed size; the cells' records lie in pages beside them (`partition/pages.rs`).
+ * a root: its slots, the nodes placed per mesh and the core ranks the cells hang under; the cells'
+ * records lie in pages beside them (`partition/pages.rs`), which the runtime reads as its view
+ * reaches them (#575, `readCellPage`), never before its first frame.
  */
 import { EngineError } from '../../contracts/cache.ts';
 
 /** The version of the partition and of its pages this runtime reads. */
-const PARTITION_VERSION = 3;
+const PARTITION_VERSION = 4;
 /** A kind of page (`partition/pages.rs`): the prefix of its files, the version every page carries,
  *  the member a region page lists its records under, and the codes of a refusal. */
 export interface PageKind {
@@ -59,20 +61,31 @@ export interface TableRegion {
   pages: readonly TableRegion[];
 }
 
-/** The partition of a scene: its cells, the box around them all, and the meshes they place. */
+/** A page of the cell index a slot names, and its box at the declared poses. */
+export type TableSlot = { page: TablePage; bounds: readonly number[] };
+
+/** The partition of a scene as its root gives it, before any page is read. */
 export interface TablePartition {
   /** The box around every cell, at the poses the file declares. */
   bounds: readonly number[];
   /** The mesh ranks the cells place: each is drawn from rows, whatever cell brings it. */
   meshes: readonly number[];
-  /** The cells. */
-  cells: readonly TableCell[];
-  /** The root's pages as the cell index (#575): a frame opens only those near its camera. */
-  regions: readonly TableRegion[];
+  /** How many nodes the cells place, per mesh rank: what the rows are sized by at open. */
+  totals: ReadonlyMap<number, number>;
+  /** The core ranks the cells hang nodes under. */
+  parents: readonly number[];
+  /** The root's pages, the top of the cell index. */
+  pages: readonly TableSlot[];
 }
 
-/** The partition as the tables carry it: its version and `FAN_OUT` slots, empty ones zeros. */
-export type TablePartitionRoot = { version: number; pages: readonly string[] };
+/** The partition as the tables carry it: its version, `FAN_OUT` slots, empty ones zeros, per mesh
+ *  its rank and node count in eight hexadecimal digits each, and each parent's rank in eight. */
+export type TablePartitionRoot = {
+  version: number;
+  pages: readonly string[];
+  meshes: readonly string[];
+  parents: readonly string[];
+};
 /** A page a slot names: its file, relative to the tables, its size and its fingerprint. */
 export type TablePage = { url: string; bytes: number; sha256: string };
 
@@ -90,11 +103,16 @@ function versioned(kind: PageKind, body: unknown, what: string): PageBody {
   return page;
 }
 
+/** Whether `list` is an array of `width` hexadecimal digits each. */
+const hexes = (list: unknown, width: number): list is string[] =>
+  Array.isArray(list) && list.every((item) => typeof item === 'string' && item.length === width);
+
 /** The root, `null` when the scene has none, or a named refusal of another version or shape. */
 export function assertTablePartition(value: unknown): TablePartitionRoot | null {
   if (value === null || value === undefined) return null;
-  const root = versioned(CELL_PAGES, value, 'scene partition');
-  if (!Array.isArray(root.pages) || root.pages.length !== FAN_OUT)
+  const root = versioned(CELL_PAGES, value, 'scene partition') as Partial<TablePartitionRoot>;
+  const shaped = hexes(root.meshes, 16) && hexes(root.parents, 8);
+  if (!shaped || !Array.isArray(root.pages) || root.pages.length !== FAN_OUT)
     throw new EngineError(CELL_PAGES.invalid, 'scene partition misses its root', {});
   return root as TablePartitionRoot;
 }
@@ -132,68 +150,50 @@ async function readPage(
 export const named = (kind: PageKind, slots: readonly unknown[]) =>
   slots.map((slot) => slotPage(kind, slot)).filter((slot) => slot !== null);
 
-/** The pages of `kind` under `slots`, as the tree they form: each body and the pages it lists,
- *  none for a region page; read side by side through `read` (which verifies each by its slot). */
-type PageTree = { body: PageBody; pages?: PageTree[] };
-async function readTree(
+/** Every region page of `kind` under `slots`, in record order, the pages read side by side
+ *  through `read` (which verifies each against its slot). */
+export async function readLeaves(
   kind: PageKind,
   slots: ReturnType<typeof named>,
   read: (page: TablePage) => Promise<Uint8Array>,
-): Promise<PageTree[]> {
-  return Promise.all(
+): Promise<PageBody[]> {
+  const lists = await Promise.all(
     slots.map(async ({ page }) => {
       const body = await readPage(kind, page, read);
-      if (Array.isArray(body.pages))
-        return { body, pages: await readTree(kind, named(kind, body.pages), read) };
-      if (Array.isArray(body[kind.records])) return { body };
+      if (Array.isArray(body.pages)) return readLeaves(kind, named(kind, body.pages), read);
+      if (Array.isArray(body[kind.records])) return [body];
       throw new EngineError(kind.invalid, `${page.url} lists neither pages nor records`, {});
     }),
   );
+  return lists.flat();
 }
 
-/** The region pages of `trees`, in record order. */
-const leaves = (trees: PageTree[]): PageBody[] =>
-  trees.flatMap((tree) => (tree.pages ? leaves(tree.pages) : [tree.body]));
+/** An integer of hexadecimal digits `from` to `to` of `hex`. */
+const digits = (hex: string, from: number, to: number) => parseInt(hex.slice(from, to), 16);
 
-/** Every region page of `kind` under `slots`, in record order (`readTree`). */
-export const readLeaves = async (
-  kind: PageKind,
-  slots: ReturnType<typeof named>,
-  read: (page: TablePage) => Promise<Uint8Array>,
-) => leaves(await readTree(kind, slots, read));
-
-/** The pages of `trees` as regions of the cells their region pages list, numbered from `at`. */
-function regionsOf(trees: PageTree[], at = { next: 0 }): TableRegion[] {
-  return trees.map(({ body, pages }) => {
-    const from = at.next;
-    const below = pages ? regionsOf(pages, at) : [];
-    if (!pages) at.next += (body[CELL_PAGES.records] as unknown[]).length;
-    return { from, to: at.next, pages: below };
-  });
-}
-
-/** The partition under `root`, its pages read side by side through `read` (which verifies them
- *  against their slot): the cells in order, each with the mesh pages its region page names (#792),
- *  the union of the root's boxes, the meshes placed, the pages as the cell index. */
-export async function readTablePartition(
-  root: TablePartitionRoot,
-  read: (page: TablePage) => Promise<Uint8Array>,
-): Promise<TablePartition> {
-  const slots = named(CELL_PAGES, root.pages);
-  const tree = await readTree(CELL_PAGES, slots, read);
-  const pages = leaves(tree);
-  if (!pages.every(({ meshPages }) => Array.isArray(meshPages) && meshPages.every(isSlot)))
-    throw new EngineError(CELL_PAGES.invalid, 'a region page misses its mesh pages', {});
-  const records = pages.map((page) => page[CELL_PAGES.records] as TableCell[]);
-  const valid = (cell: TableCell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents);
-  if (!records.every((list) => Array.isArray(list) && list.every(valid)))
-    throw new EngineError(CELL_PAGES.invalid, 'scene partition misses its cells', {});
-  const cells = pages.flatMap(({ meshPages }, at) =>
-    records[at].map((cell) => ({ ...cell, meshPages: meshPages as string[] })),
-  );
+/** The partition `root` gives before any page is read: its slots, the union of their boxes, the
+ *  meshes placed and their node counts, the parents followed. */
+export function tablePartition(root: TablePartitionRoot): TablePartition {
+  const pages = named(CELL_PAGES, root.pages);
   const bounds = [0, 1, 2, 3, 4, 5].map((axis) =>
-    (axis < 3 ? Math.min : Math.max)(...slots.map((slot) => slot.bounds[axis])),
+    (axis < 3 ? Math.min : Math.max)(...pages.map((slot) => slot.bounds[axis])),
   );
-  const meshes = [...new Set(cells.flatMap((cell) => cell.meshes.map(([mesh]) => mesh)))];
-  return { bounds, meshes: meshes.sort((a, b) => a - b), cells, regions: regionsOf(tree) };
+  const totals = new Map(root.meshes.map((mesh) => [digits(mesh, 0, 8), digits(mesh, 8, 16)]));
+  const parents = root.parents.map((rank) => digits(rank, 0, 8));
+  return { bounds, meshes: [...totals.keys()], totals, parents, pages };
+}
+
+/** A page of the cell index, from its verified bytes: the slots of the pages it lists, or its
+ *  cells, each with the mesh pages its region page names (#792); or a named refusal. The decode
+ *  pool reads it off the main thread (`cellPage`, #575). */
+export function readCellPage(bytes: Uint8Array, url: string) {
+  const body = versioned(CELL_PAGES, JSON.parse(text.decode(bytes)), url);
+  if (Array.isArray(body.pages)) return { pages: named(CELL_PAGES, body.pages), cells: null };
+  const { meshPages, cells } = body as { meshPages?: unknown; cells?: TableCell[] };
+  if (!Array.isArray(meshPages) || !meshPages.every(isSlot))
+    throw new EngineError(CELL_PAGES.invalid, 'a region page misses its mesh pages', {});
+  const valid = (cell: TableCell) => Array.isArray(cell?.meshes) && Array.isArray(cell.parents);
+  if (!Array.isArray(cells) || !cells.every(valid))
+    throw new EngineError(CELL_PAGES.invalid, `${url} lists neither pages nor cells`, {});
+  return { pages: null, cells: cells.map((cell) => ({ ...cell, meshPages })) };
 }
