@@ -7,40 +7,22 @@
 //   node --experimental-strip-types --test tests/browser/probes/sampled-resolve-gpu.ts
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { LIGHT_SETTINGS, type SceneLight } from '../../../packages/sdk-core/src/index.ts';
 import {
   LIGHT_TILES_NARROW_SHADER,
   LIGHT_TILES_SHADER,
 } from '../../../packages/sdk-browser/src/lighting/tiles/shader.ts';
 import { compactTile, tileLayout } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
-import { seeded } from '../../../site/examples/kit/random.ts';
-import { dansPageWebgpu, bundlePage } from './pageWebgpu.ts';
-import type { ResolveScene, run } from './narrowResolvePage.ts';
+import type { ResolveScene } from './narrowResolvePage.ts';
+import { resolveRandom, resolveSamples, runResolves } from './resolveProbe.ts';
 
-declare global {
-  var narrowResolve: { run: typeof run };
-}
-
-const here = dirname(fileURLToPath(import.meta.url));
 const LIST = LIGHT_SETTINGS.tileLights;
 const SAMPLES = LIGHT_SETTINGS.samplesPerPixel;
 /** A moving image's rank: any but zero. */
 const RANK = 37;
-const r = seeded(1249);
-const between = (low: number, high: number) => low + r() * (high - low);
-const vector = (size: number) => [between(-size, size), between(-size, size), between(-size, size)];
-const unit = (v: number[]) => v.map((x) => x / Math.hypot(...v)) as [number, number, number];
-
-/** Samples in a two-metre box, a surface of each lit model (standard, diffuse, toon). */
-const points = Array.from({ length: 64 }, () => vector(1));
-const samples = points.flatMap((P, k) => [
-  ...[between(0.1, 1), between(0.1, 1), between(0.1, 1), r() < 0.3 ? 1 : 0],
-  ...[...unit(vector(1)), between(0.05, 1)],
-  ...[...P, between(0.5, 1)],
-  ...[...unit([between(-0.5, 0.5), between(-0.5, 0.5), 1]), [2, 4, 5][k % 3]],
-]);
+const draw = resolveRandom(1249);
+const { r, between, vector, unit } = draw;
+const { points, samples } = resolveSamples(64, draw);
 
 type Lamp = { position: [number, number, number]; range: number };
 const lamp = ({ position, range }: Lamp, index: number): SceneLight => {
@@ -142,15 +124,7 @@ test('a moving list sums as the still image unless it holds a shadow, then as it
   const reached = points.filter((P) => Math.hypot(...P.map((x, a) => x - position[a])) < range);
   assert.equal(reached.length, 1, 'one sample in reach');
   assert.ok(lists[edge].includes(20));
-  const script = await bundlePage(resolve(here, 'narrowResolvePage.ts'), 'narrowResolve');
-  const result = await dansPageWebgpu(
-    (scenes: ResolveScene[]) => globalThis.narrowResolve.run(scenes),
-    SCENES,
-    { titre: 'Sampled resolve', script },
-  );
-  assert.equal(result.unavailable, undefined, 'WebGPU must be available');
-  const { errors, runs } = result as Exclude<typeof result, { unavailable: string }>;
-  assert.deepEqual(errors, []);
+  const runs = await runResolves(SCENES, 'Sampled resolve');
   assert.equal(runs.length, SCENES.length);
   let differed = 0;
   sets.forEach((set, s) => {
