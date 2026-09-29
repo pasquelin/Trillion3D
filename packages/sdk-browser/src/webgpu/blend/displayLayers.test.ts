@@ -30,9 +30,6 @@ const rgba = ([r, g, b]: number[], a: number): Rgba => [r, g, b, a];
 const clamp = (values: number[]) => values.map((v) => Math.min(1, Math.max(0, v)));
 const scale = (values: number[], k: number) => values.map((v) => v * k);
 
-/** The shipped `displayRoute`: pipeline route 1 a normal or additive layer, 2 a filter. */
-const routes = { 1: displayRoute(1), 2: displayRoute(2) };
-
 /** A layer of straight colour `colour` through `targets` (lit, tint, added value); `premultiplied`
  *  as a particle writes it; `develop`, the lit target's state on develop. */
 function layer(
@@ -55,7 +52,7 @@ function layer(
       ),
     develop: (value) => blend(develop, out, value),
     routed: (pixel, masked) => {
-      const r = routes[kind](rgb(colour), 1, ACES, false, colour[3], masked);
+      const r = displayRoute[kind](rgb(colour), 1, ACES, false, colour[3], masked);
       const kept = rgba(premultiplied ? scale(rgb(out), r.keep) : rgb(out), out[3] * r.keep);
       return {
         lit: written(targets[0], kept, pixel.lit),

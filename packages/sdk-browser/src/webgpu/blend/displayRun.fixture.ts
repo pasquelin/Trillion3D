@@ -4,14 +4,14 @@
 import assert from 'node:assert/strict';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts';
-import { filmic } from './blendModel.fixture.ts';
+import { filmic, type Rgba } from './blendModel.fixture.ts';
 import { DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './displayFilter.ts';
 import { DISPLAY_FILTER_SHADER } from './displayFilterProgram.ts';
 
 /** The curve the routes are run with, the witness's. */
 export const ACES = TONE_MAPPING_RANK.aces;
 
-export type Route = { keep: number; tint: number[]; add: number[] };
+export type Route = { keep: number; tint: Rgba; add: Rgba };
 type Texel = (at: number[]) => unknown;
 
 /** The functions a shader that routes its layers adds to its own. */
@@ -20,7 +20,7 @@ export const ROUTE_FUNCTIONS = ['displayRoute', 'linearToSrgb', 'maskAt'];
 /** What they run with: the pipeline's `DISPLAY_ROUTE` `kind`, the mask `mask` at a pixel. */
 export const routeScope = (kind: 0 | 1 | 2, mask: (at: number[]) => number = () => 1) => ({
   DISPLAY_ROUTE: kind,
-  Route: (keep: number, tint: number[], add: number[]): Route => ({ keep, tint, add }),
+  Route: (keep: number, tint: Rgba, add: Rgba): Route => ({ keep, tint, add }),
   toneMap: (rgb: number[], curve: number) => (assert.equal(curve, ACES), filmic(rgb)),
   displayMask: (at: number[]) => [mask(at), 0, 0, 0],
   textureLoad: (texture: Texel, at: number[], level: number) => (
@@ -39,15 +39,18 @@ type RouteRun = (
 ) => Route;
 
 /** The shipped `displayRoute` of a pipeline made with `DISPLAY_ROUTE` `kind`. */
-export const displayRoute = (kind: 0 | 1 | 2) =>
+const routeOf = (kind: 0 | 1 | 2) =>
   shaderRun<{ displayRoute: RouteRun }>(
     `${DISPLAY_ROUTE_WGSL}${displayMaskWgsl(0)}`,
     ROUTE_FUNCTIONS,
     routeScope(kind),
   ).displayRoute;
 
+/** The shipped `displayRoute` of each pipeline route: 0 none, 1 where masked, 2 always. */
+export const displayRoute = [routeOf(0), routeOf(1), routeOf(2)] as const;
+
 type Screen = { position: number[]; uv: number[] };
-type Both = { capture: number[]; canvas: number[] };
+type Both = { capture: Rgba; canvas: Rgba };
 type Filter = {
   screen: (vertex: number) => Screen;
   tint: (at: Screen) => Both;
@@ -71,5 +74,5 @@ export const displayFilterRun = (
       map(uv)
     ),
     Screen: (position: number[], uv: number[]): Screen => ({ position, uv }),
-    Both: (capture: number[], canvas: number[]): Both => ({ capture, canvas }),
+    Both: (capture: Rgba, canvas: Rgba): Both => ({ capture, canvas }),
   });

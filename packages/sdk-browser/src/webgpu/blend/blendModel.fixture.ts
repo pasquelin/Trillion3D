@@ -2,6 +2,7 @@
 // the witness's display value, three@0.174's ACES filmic fit then sRGB, kept independent of the
 // engine's shader on purpose.
 import assert from 'node:assert/strict';
+import { linearToSrgb } from '../../../../sdk-core/src/math/index.ts';
 
 export type Rgba = readonly [number, number, number, number];
 
@@ -55,8 +56,7 @@ export function filmic([r, g, b]: readonly number[]): number[] {
 }
 
 /** The sRGB transfer of a linear colour. */
-export const srgb = (rgb: readonly number[]) =>
-  rgb.map((x) => (x < 0.0031308 ? x * 12.92 : 1.055 * x ** (1 / 2.4) - 0.055));
+export const srgb = (rgb: readonly number[]) => rgb.map(linearToSrgb);
 
 /** The witness's display value of a linear colour: its tone curve, then sRGB. */
 export const display = (rgb: readonly number[]) => srgb(filmic(rgb));
@@ -68,5 +68,10 @@ export const shown = (colour: Rgba): Rgba => {
 };
 
 /** `actual` within `within` of `expected`, channel by channel. */
-export const close = (actual: number[], expected: number[], mode: string, within = 1e-6) =>
+export const close = (
+  actual: readonly number[],
+  expected: readonly number[],
+  mode: string,
+  within = 1e-6,
+) =>
   actual.forEach((value, c) => assert.ok(Math.abs(value - expected[c]) < within, `${mode} ${c}`));

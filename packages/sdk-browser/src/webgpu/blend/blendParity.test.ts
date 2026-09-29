@@ -64,7 +64,7 @@ test('the display layers take the colour the composition shows, through its curv
     [2, true],
   ] as const) {
     const owed = unlit ? srgb(colour) : display(colour.map((v) => v * exposure));
-    const { keep, tint, add } = displayRoute(2)(colour, exposure, ACES, unlit, 0.8, 1);
+    const { keep, tint, add } = displayRoute[2](colour, exposure, ACES, unlit, 0.8, 1);
     assert.equal(keep, 1);
     close(tint, [...owed, 1], `tint ${exposure}`, 1e-4);
     close(add, [...owed, 1], `add ${exposure}`, 1e-4);
@@ -78,10 +78,10 @@ test('the display layers take the colour the composition shows, through its curv
 test('a layer routes by its pipeline: nothing, where masked, or always', () => {
   const colour = [0.5, 0.25, 0.1],
     owed = display(colour);
-  const none = displayRoute(0)(colour, 1, ACES, false, 0.6, 1);
+  const none = displayRoute[0](colour, 1, ACES, false, 0.6, 1);
   assert.deepEqual(none, { keep: 1, tint: [1, 1, 1, 1], add: [0, 0, 0, 0] });
   for (const masked of [0, 1]) {
-    const { keep, tint, add } = displayRoute(1)(colour, 1, ACES, false, 0.6, masked);
+    const { keep, tint, add } = displayRoute[1](colour, 1, ACES, false, 0.6, masked);
     const a = 0.6 * masked;
     assert.equal(keep, 1 - masked);
     close(tint, [0, 0, 0, a], `tint ${masked}`);
@@ -98,9 +98,9 @@ test('subtractive and multiply over paper show the witness in display space', ()
     const targets = blendTargets(mode, 0xf, true, true);
     // The lit target keeps the paper; both layers take the ink's display colour (route 2).
     close([...written(targets[0]!, ink, paper)], [...paper], `${mode} lit target`);
-    const route = displayRoute(2)(ink.slice(0, 3), 1, ACES, false, ink[3], 1);
-    const tint = blend(targets.at(-2)!.blend!, route.tint as unknown as Rgba, [1, 1, 1, 1]);
-    const add = blend(targets.at(-1)!.blend!, route.add as unknown as Rgba, [0, 0, 0, 0]);
+    const route = displayRoute[2](ink.slice(0, 3), 1, ACES, false, ink[3], 1);
+    const tint = blend(targets.at(-2)!.blend!, route.tint, [1, 1, 1, 1]);
+    const add = blend(targets.at(-1)!.blend!, route.add, [0, 0, 0, 0]);
     // The display filter pass: the composed paper times the tint, plus the added value.
     const filter = displayFilterRun(
       [1, 1],
@@ -108,8 +108,8 @@ test('subtractive and multiply over paper show the witness in display space', ()
       () => [...add],
     );
     const at = filter.screen(0);
-    const tinted = blend(TINT_EQUATIONS.multiply!, filter.tint(at).canvas as never, shown(paper));
-    const onScreen = blend(ADD_EQUATIONS.additive!, filter.add(at).canvas as never, tinted);
+    const tinted = blend(TINT_EQUATIONS.multiply!, filter.tint(at).canvas, shown(paper));
+    const onScreen = blend(ADD_EQUATIONS.additive!, filter.add(at).canvas, tinted);
     const owed = WITNESS[mode](shown(ink), shown(paper));
     close(onScreen.slice(0, 3), owed, `${mode} display`, 1e-5);
   }
