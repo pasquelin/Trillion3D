@@ -22,7 +22,9 @@ test('the narrow resolve bounds its light array and walks its list with no branc
     assert.doesNotMatch(loop, /if\(|TILE_NO_SLICE|select\(/, 'no per-light branch');
     assert.match(loop, /directLights\.items\[tileLights\[slice\.x\+index\]\]/);
     assert.doesNotMatch(functionText(narrow, 'tileSlice'), /TILE_NO_SLICE|if\(/);
-    // The wide loop keeps the pool and the whole-scene walk; the rest of the program is the same.
+    // The wide loop keeps the pool and the whole-scene walk; the rest of the program is the same
+    // (the sampled, bounce and fog paths the GPU probe does not run). That both loops give the
+    // same sum, bit for bit, runs on the GPU: `tests/browser/probes/narrow-resolve-gpu.ts`.
     assert.match(functionText(wide, 'sliceLighting'), /TILE_NO_SLICE/);
     const outside = (code: string) =>
       code
