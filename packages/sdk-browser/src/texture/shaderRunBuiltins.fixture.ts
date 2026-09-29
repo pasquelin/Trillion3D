@@ -70,7 +70,6 @@ const vector =
   };
 const float = (x: Scalar) => Number(x);
 const int = (x: Scalar) => Math.trunc(Number(x));
-const uint = (x: Scalar) => Math.trunc(Number(x)) >>> 0;
 
 const numeric = (f: (...x: number[]) => number) => each((...x) => f(...x.map(n)));
 const vec = (value: Value) => value as number[];
