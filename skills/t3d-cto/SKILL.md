@@ -56,6 +56,7 @@ it may stay open past the hour.
 | `in progress`               | claimed, with an assignee                     |
 | `in review`                 | branch pushed, reviewer at work               |
 | `to audit` / `to measure`   | merged, waiting for the recette               |
+| `measuring`                 | the recette is timing it                      |
 | `audited` / `audit ko`      | image proved / not (findings in a comment)    |
 | `measure ok` / `measure ko` | timing passed / failed (numbers in a comment) |
 
