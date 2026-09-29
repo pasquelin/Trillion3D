@@ -112,8 +112,11 @@
         if (key !== 'colour' && key !== 'spin') {
           // A new geometry for every mesh that wears it: the world reads the swap.
           shape = gem(values.points, values.waist, values.height, values.sharpFacets);
+          // The former gem is given back once no mesh wears it any more.
+          const worn = big.geometry;
           big.geometry = shape;
           for (const small of ring) small.geometry = shape;
+          worn.dispose();
           count();
         }
         world.invalidate();
