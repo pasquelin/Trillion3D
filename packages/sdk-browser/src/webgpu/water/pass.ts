@@ -31,7 +31,9 @@ export async function createWaterPass(
 
 /** Whether this image composes water: a beauty view, no second-camera capture, a composition. */
 function composesWater(rt: WebgpuPagesRuntime, composes: boolean) {
-  return rt.run.diagnostic === 'beauty' && !rt.capture.capturing && composes && !!rt.blendState.water;
+  return (
+    rt.run.diagnostic === 'beauty' && !rt.capture.capturing && composes && !!rt.blendState.water
+  );
 }
 
 /**
