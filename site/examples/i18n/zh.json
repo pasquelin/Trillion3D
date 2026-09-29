@@ -2375,5 +2375,25 @@
       "unmount": "卸载",
       "remount": "重新挂载"
     }
+  },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "播放"
+    }
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "播放"
+    }
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "播放"
+    }
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "播放"
+    }
   }
 }

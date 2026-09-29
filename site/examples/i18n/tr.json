@@ -2375,5 +2375,25 @@
       "unmount": "Ayır",
       "remount": "Yeniden bağla"
     }
+  },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "Oynat"
+    }
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "Oynat"
+    }
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "Oynat"
+    }
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "Oynat"
+    }
   }
 }

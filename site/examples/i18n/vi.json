@@ -2375,5 +2375,25 @@
       "unmount": "Tháo",
       "remount": "Gắn lại"
     }
+  },
+  "a-character-that-walks": {
+    "controls": {
+      "playing": "Phát"
+    }
+  },
+  "a-crowd-of-characters": {
+    "controls": {
+      "playing": "Phát"
+    }
+  },
+  "a-shape-that-morphs": {
+    "controls": {
+      "playing": "Phát"
+    }
+  },
+  "additive-poses": {
+    "controls": {
+      "playing": "Phát"
+    }
   }
 }
