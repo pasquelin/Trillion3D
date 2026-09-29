@@ -37,6 +37,9 @@ export interface Side extends SideBase {
   variant: string | null;
   compression: TextureCompression | null;
   errorMetric: ScreenErrorVariant | null;
+  /** The fraction of the display per axis the WebGPU frame is drawn at before the temporal resolve
+   *  reconstructs it (`renderScale`, #816); `null` leaves the engine's, the display. */
+  renderScale: number | null;
 }
 
 // Standalone WebGL2 engine is the only one of the three decoding geometry pages itself.
@@ -88,7 +91,8 @@ export const ENGINES: Record<string, EngineDescriptor> = {
   },
 };
 
-/** Cache, engine, diagnostic variant, texture compression and error metric for one side. */
+/** Cache, engine, diagnostic variant, texture compression, error metric and render scale for one
+ *  side. */
 export function equipSide(
   side: SideBase,
   flags: Map<string, string>,
@@ -112,7 +116,17 @@ export function equipSide(
     'certifiee',
     'reference',
   ]) as ScreenErrorVariant | null;
+  equipped.renderScale = scaleOf(flags, side.name);
   return equipped;
+}
+
+/** A side's render scale: `--echelle-<side>`, otherwise `--echelle`, in [0.5, 1]; `null` without. */
+function scaleOf(flags: Map<string, string>, name: string) {
+  const value = flags.get(`echelle-${name}`) ?? flags.get('echelle');
+  if (value === undefined) return null;
+  const scale = Number(value);
+  if (!(scale >= 0.5 && scale <= 1)) throw new Error(`--echelle-${name} must be in [0.5, 1]`);
+  return scale;
 }
 
 /** A side's choice among `allowed`: `--<key>-<side>`, otherwise `--<key>`, otherwise `null`. */
@@ -135,6 +149,7 @@ export const sideReport = (side: Side) =>
       variante: side.variant,
       compression: side.compression,
       erreur: side.errorMetric ?? 'certifiee',
+      echelle: side.renderScale,
     },
   ] as const;
 
