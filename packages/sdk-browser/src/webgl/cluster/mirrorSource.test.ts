@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestContext } from '../core/testContext.fixture.ts';
 import { WebglClusterRenderer } from './renderer.ts';
+import { readDegraded } from './validation.ts';
 import { createHostDrawCamera } from '../../camera/world.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
@@ -10,7 +11,10 @@ import { Scene } from '../../world/core/scene.ts';
 
 test('WebGL reflection captures are counted and their allocations leave when the receiver turns rough', () => {
   const context = createTestContext({ answers: { getExtension: () => ({}) } }),
-    renderer = new WebglClusterRenderer(context.gl);
+    renderer = new WebglClusterRenderer(
+      context.gl,
+      readDegraded(() => {}),
+    );
   const material = new G.GraphSurface('standard', { roughness: 0, metalness: 1 });
   const geometry = new G.Geometry().setIndex(new G.BufferAttribute(new Uint32Array([0, 1, 2]), 1));
   geometry.setAttribute('position', new G.BufferAttribute(new Float32Array(9), 3));

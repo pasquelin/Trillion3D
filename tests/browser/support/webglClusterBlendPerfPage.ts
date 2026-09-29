@@ -8,6 +8,7 @@ import {
 } from '../../../packages/sdk-browser/src/camera/world.ts';
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
 import { median } from '../../../scripts/median.ts';
+import { strictDegraded } from './webglClusterPixels.ts';
 
 /** A batch draw is always indexed (`submitClusterMesh` calls `drawElements`): the identity
  *  index keeps the same triangle order as the flat position layout below. */
@@ -69,7 +70,7 @@ export async function measureBlend() {
   if (!gl) return { unavailable: 'WebGL2 unavailable' };
   const sharedIndex = sharedGeometry.index;
   if (!sharedIndex) throw new Error('blend perf geometry requires an indexed geometry');
-  const own = new WebglClusterRenderer(gl),
+  const own = new WebglClusterRenderer(gl, strictDegraded()),
     ownScene = new G.Scene(),
     ownCamera = readHostDrawCamera(createHostDrawCamera(), camera),
     // The two-sided transparent record draws back faces then front faces, read at the draw.

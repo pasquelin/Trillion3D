@@ -21,7 +21,7 @@ export class WebglClusterOwner {
   private context: WebGL2RenderingContext;
   private restored = () => {
     this.release();
-    this.renderer = this.display = new WebglClusterRenderer(this.context);
+    this.renderer = this.display = new WebglClusterRenderer(this.context, this.degraded);
     this.censused = false;
   };
   censused = false;
@@ -30,12 +30,13 @@ export class WebglClusterOwner {
     for (const { material } of meshes) this.display.textures.file(material);
     this.censused = true;
   }
-  /** Reads the surfaces drawn without a physical feature for `hear`, across context restores. */
-  private degraded: ReadDegraded | undefined;
-  constructor(context: WebGL2RenderingContext, hear?: MaterialDegraded) {
+  /** Reads the surfaces drawn without a physical feature, or left out, for `hear`, across
+   *  context restores: required, so no caller silently loses the notice. */
+  private degraded: ReadDegraded;
+  constructor(context: WebGL2RenderingContext, hear: MaterialDegraded) {
     this.context = context;
-    this.degraded = hear && readDegraded(hear);
-    this.renderer = this.display = new WebglClusterRenderer(context);
+    this.degraded = readDegraded(hear);
+    this.renderer = this.display = new WebglClusterRenderer(context, this.degraded);
     context.canvas.addEventListener('webglcontextrestored', this.restored);
   }
   /** The display curve of the frames to come, a rank of `TONE_MAPPING_RANK`. */
@@ -68,7 +69,7 @@ export class WebglClusterOwner {
     copies: readonly SceneCopy[] = [],
     linear = false,
   ) {
-    if (linear) this.linear ??= new WebglClusterRenderer(this.context, this.display);
+    if (linear) this.linear ??= new WebglClusterRenderer(this.context, this.degraded, this.display);
     const renderer = (this.renderer = linear ? this.linear! : this.display);
     renderer.toneCurve = this.toneCurve;
     renderer.pass.pixelRatio = this.pixelRatio;
@@ -80,7 +81,6 @@ export class WebglClusterOwner {
       srgbDestination,
       diagnosticMeshes,
       copies,
-      this.degraded,
     );
   }
   private release() {
