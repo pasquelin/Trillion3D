@@ -29,7 +29,7 @@ const TOOL_EMAIL = 'noreply@anthropic.com';
 /** The tool trailer a message must not carry, at the start of a line, any case. */
 const TRAILERS = [
   { pattern: /^[^\S\n]*co-authored-by:/im, why: 'a "Co-authored-by:" trailer' },
-  { pattern: /^[^\S\n]*generated (?:with|by)\b/im, why: 'a "Generated with" trailer' },
+  { pattern: /^[^\S\n]*(?:🤖\s*)?generated (?:with|by)\b/im, why: 'a "Generated with" trailer' },
 ];
 
 /** Why one author or committer carries a tool identity, or undefined. */
