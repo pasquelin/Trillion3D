@@ -5,6 +5,7 @@
 // by the engine's worker and placed by their own matrices. Both leave through the server's `/capture`.
 import type * as SdkBrowser from '../witnesses/measurement.ts';
 import type { CameraPose } from '../../packages/sdk-core/src/contracts/base.ts';
+import { posterCapture } from './measurePage.ts';
 
 export interface HoldOptions {
   sdkUrl: string;
@@ -84,10 +85,7 @@ function drawnCorners(meshes: DrawnMesh[]) {
 }
 
 const capture = (file: string, bytes: Uint8Array) =>
-  fetch(`/capture?file=${encodeURIComponent(file)}&w=${bytes.length / 4}&h=1`, {
-    method: 'POST',
-    body: bytes as Uint8Array<ArrayBuffer>,
-  });
+  posterCapture(file, bytes, bytes.length / 4, 1);
 
 /** Holds every pose of `o` and captures what the backend drew, `<tag>-<view>.ids|tri`. */
 export async function holdAndCapture(o: HoldOptions) {
