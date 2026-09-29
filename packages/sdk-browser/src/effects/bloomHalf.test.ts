@@ -2,12 +2,14 @@
 // f32 path as the fallback. The candidate that keeps the sum in f32 and takes only the operands in
 // half — `c+=vec4f(vec4h(tap)*h(w))` — is run tap by tap against the shipped f32 filter
 // (`c+=tap*w`), on the shipped taps, and refused: a bilinear tap of an `rgba16float` level is an
-// f32 blend of texels, which a half rounds (and a small half product drops bits), so levels and 8-bit pixels change (AGENTS.md rule 1).
+// f32 blend of texels, which a half rounds (and a small half product drops bits), so levels and
+// 8-bit pixels change (AGENTS.md rule 1).
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { BloomTap } from './bloomFilter.ts';
 import { BLOOM_WGSL } from './bloomWgsl.ts';
 import { bilinear, f16, tapsOf, type Image } from './bloom.fixture.ts';
+import { linearToSrgb8 } from '../../../sdk-core/src/math/primitives/color.ts';
 import { mulberry32 } from '../../../../site/examples/kit/random.ts';
 
 const shipped = (from: string, to: string) =>
@@ -90,11 +92,9 @@ test('half operands round the bilinear taps and change stored levels (OMB-16 ref
 });
 
 test('the changed levels flip 8-bit pixels of a glow shown as it is', () => {
-  const srgb8 = (v: number) => {
-    const c = Math.min(1, Math.max(0, v));
-    return Math.round((c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055) * 255);
-  };
   const texels = pass(level(128, display), 64, DOWN, 1);
-  const flips = texels.filter(({ f32, half }) => srgb8(f16(f32)) !== srgb8(f16(half)));
+  const flips = texels.filter(
+    ({ f32, half }) => linearToSrgb8(f16(f32)) !== linearToSrgb8(f16(half)),
+  );
   assert.ok(flips.length > 0, 'a flipped pixel is an image loss');
 });
