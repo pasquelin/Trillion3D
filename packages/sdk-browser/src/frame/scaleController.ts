@@ -8,7 +8,7 @@
  * of the target, a dead band against oscillation; a frame over 1.25 budgets drops at once
  * (`MaxConsecutiveOverbudgetGPUFrameCount` of one).
  */
-export interface ScaleController {
+interface ScaleController {
   /** The scale frames are drawn at, in `[min, max]`. */
   s: number;
   min: number;
