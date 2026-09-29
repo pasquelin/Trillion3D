@@ -92,8 +92,8 @@ function drawnMeshes(rt: WebgpuPagesRuntime) {
   return drawn;
 }
 
-const castEpochs = new WeakMap<GpuBounceProxy, number>();
-const castless = new WeakMap<GpuBounceProxy, ReadonlySet<number>>();
+/** Each proxy's last read: the scene revision, and the source nodes that cast none then. */
+const casts = new WeakMap<GpuBounceProxy, { epoch: number; none: ReadonlySet<number> }>();
 
 /**
  * The far sun's proxy lets through the triangles whose every owner casts no shadow (#966): a
@@ -104,13 +104,16 @@ const castless = new WeakMap<GpuBounceProxy, ReadonlySet<number>>();
 export function syncSunFarCasters(rt: WebgpuPagesRuntime) {
   const proxy = rt.sunFar.gpu?.proxy,
     epoch = rt.run.gate.revisions.scene;
-  if (!proxy || castEpochs.get(proxy) === epoch) return;
-  castEpochs.set(proxy, epoch);
+  const last = proxy && casts.get(proxy);
+  if (!proxy || last?.epoch === epoch) return;
   const none = new Set<number>();
+  let same = true;
   for (const [rank, parts] of drawnMeshes(rt))
-    if (parts.every((part) => !part.castShadow)) none.add(rank);
-  const before = castless.get(proxy) ?? new Set<number>();
-  if (none.size === before.size && [...none].every((rank) => before.has(rank))) return;
-  castless.set(proxy, none);
+    if (parts.every((part) => !part.castShadow)) {
+      none.add(rank);
+      same &&= !!last?.none.has(rank);
+    }
+  casts.set(proxy, { epoch, none });
+  if (same && none.size === (last?.none.size ?? 0)) return;
   proxy.castless((source) => none.has(source));
 }

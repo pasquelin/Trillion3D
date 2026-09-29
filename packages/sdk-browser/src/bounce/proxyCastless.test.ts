@@ -8,6 +8,7 @@ import { fakeDevice, replayWrites } from '../../../../tests/kit/gpu/fakeDevice.t
 import { sunFarShadowWgsl } from '../gpu/shadow/sunFarShadowWgsl.ts';
 import { PROXY_CASTLESS_WORD, PROXY_HEADER_WORDS } from './nodeWgsl.ts';
 import { SURFACE_IRRADIANCE_WGSL } from './irradianceWgsl.ts';
+import { ensureProxyFits } from './limits.ts';
 import { createGpuBounceProxy } from './proxy.ts';
 import { BOUNCE_TRACE_WGSL } from './traceWgsl.ts';
 
@@ -59,4 +60,22 @@ test("only the far sun's ray lets a castless triangle through, before testing it
   for (const counting of [true, false])
     assert.match(sunFarShadowWgsl(counting), /proxyBlocked\(origin,L,[^;]*,true\)\)/);
   assert.match(SURFACE_IRRADIANCE_WGSL, /proxyBlocked\(offset,incidence\.xyz,span,false\)/);
+});
+
+test('the admission counts the castless marks: a device one word short refuses the proxy', () => {
+  const sized = fakeDevice({
+    limits: { maxStorageBufferBindingSize: 1 << 28, maxBufferSize: 1 << 28 },
+  });
+  createGpuBounceProxy(sized.device, ownedProxy());
+  const size = sized.buffers.find((b) => b.label === 'Trillion3D resident proxy v2')!.size;
+  const limits = (bytes: number) => ({
+    maxStorageBufferBindingSize: bytes,
+    maxBufferSize: 1 << 28,
+  });
+  assert.doesNotThrow(() =>
+    createGpuBounceProxy(fakeDevice({ limits: limits(size) }).device, ownedProxy()),
+  );
+  assert.throws(() =>
+    ensureProxyFits(fakeDevice({ limits: limits(size - 4) }).device, ownedProxy()),
+  );
 });
