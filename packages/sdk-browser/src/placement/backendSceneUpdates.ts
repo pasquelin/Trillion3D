@@ -85,7 +85,11 @@ export interface BackendSceneUpdates extends Partial<PlacementGrowth> {
    *  they were and where they go): the engine writes those vertices into the buffers it holds and
    *  stales what they shadowed, no table rebuilt. True when taken; absent, the owner opens the
    *  session again. */
-  updateVertices?(attributes: HostAttributes, ranges: readonly VertexRange[], box: Float64Array): boolean;
+  updateVertices?(
+    attributes: HostAttributes,
+    ranges: readonly VertexRange[],
+    box: Float64Array,
+  ): boolean;
   /** The resource `rows` place leaves the session: its roots, pages and copies. */
   unmountPlacements?(rows: PlacementRows): void;
   /** The clear colour behind the scene, `0xrrggbb` (`BackendContext.clearColor`), read by the

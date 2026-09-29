@@ -1,4 +1,7 @@
-import { drawnTriangles, type DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
+import {
+  drawnTriangles,
+  type DrawnTriangles,
+} from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts';
@@ -48,7 +51,7 @@ function heldBox(drawn: DrawnTriangles, declared: Geometry['maxBounds'], before?
     boxExpandByPoint(box, 0, before[3], before[4], before[5]);
   }
   const pad = declared ? 0 : Math.max(box[3] - box[0], box[4] - box[1], box[5] - box[2], 1e-3) / 2;
-  for (let a = 0; a < 3; a++) (box[a] -= pad), (box[a + 3] += pad);
+  for (let a = 0; a < 3; a++) ((box[a] -= pad), (box[a + 3] += pad));
   return box;
 }
 
@@ -109,25 +112,44 @@ export function createWorldDynamic(notices: WorldNotices | undefined, counts: { 
     return true;
   };
   /** A new resource for `drawn`: cut, or `before`'s cut served in a larger box. */
-  const make = async (drawn: DrawnTriangles, geometry: Geometry, blended: boolean, before?: Cut) => {
+  const make = async (
+    drawn: DrawnTriangles,
+    geometry: Geometry,
+    blended: boolean,
+    before?: Cut,
+  ) => {
     const held = before && dynamicOf(before);
     const box = heldBox(drawn, geometry.maxBounds, held?.box);
     const kind: Reading = drawn;
     let cut: PageCutPayload, runtime;
-    if (held && fits(before.drawn, drawn, box)) ({ cut } = held), (runtime = servePrimitive(cut, kind, box));
+    if (held && fits(before.drawn, drawn, box))
+      (({ cut } = held), (runtime = servePrimitive(cut, kind, box)));
     else {
       counts.cuts++;
       ({ cut, runtime } = await cutDynamicPrimitive(packDrawn(drawn, blended), kind, box));
     }
     const state: DynamicHeld = { box, cut, blended, version: geometry.version, pending: null };
-    return { key: `dynamic:${serial++}`, drawn, runtime, users: new Set<Mesh>(), held: false, dynamic: state } satisfies Cut;
+    return {
+      key: `dynamic:${serial++}`,
+      drawn,
+      runtime,
+      users: new Set<Mesh>(),
+      held: false,
+      dynamic: state,
+    } satisfies Cut;
   };
   return {
     wants,
     /** A frame was drawn: two changes a frame apart are consecutive. */
     tick: () => void frame++,
     /** The dynamic resource `mesh` draws read `way`; `made` hears each new one. */
-    async of(mesh: Mesh, way: string, options: Options, blended: boolean, made: (cut: Cut) => void) {
+    async of(
+      mesh: Mesh,
+      way: string,
+      options: Options,
+      blended: boolean,
+      made: (cut: Cut) => void,
+    ) {
       const geometry = mesh.geometry;
       const byWay = ways.get(geometry) ?? new Map<string, Promise<Cut | null>>();
       ways.set(geometry, byWay);
