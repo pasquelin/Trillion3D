@@ -447,22 +447,26 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   reject. Without the demand or the allocation pipeline, the readback's report maps the pages on
   the host, frames later.
 - **The GPU draws what it maps, in that frame** (#1275). The allocation lists every page it maps,
-  and those it mapped before that no draw has filled since; after the host's batches and table
-  words, one workgroup composes them into regions of the batch buffers (`webgpu/shadow/freshWgsl.ts`)
-  — each page's projection composed from its light's record by the page model the host composes
-  it with (`writeLampPage`, `writeSunSquare`), its cull volume the page's own in light space, a
-  lamp page's cone or a sun page's box —, and writes each word readable. The region cull then
-  keeps, per page, every row of the frame that volume touches — the camera's frustum is no part of
-  it: a caster the camera does not see keeps its shadow on a receiver it sees —, dispatched per
-  pool layer by the counts the GPU wrote, and each layer's pass clears the pages and draws every
-  region by its own indirect commands, the casters placed on their page in the vertex stage and
-  kept to it by the fragment: no indirect draw sets a viewport (`freshPass.ts`, `shader.ts`).
-  A page is drawn whole, all its casters at once, at most 48 regions a frame, the first listed
-  first; the host draws it again with its light cut and static layer once a report tells it the
+  and those it mapped before that no draw has filled since; the host's table words list every page
+  they take the depth of — withdrawn when a light moves, or overwritten for another entry — while
+  the frame reads it. After the host's batches and words, one workgroup composes every listed page
+  into a region, whatever their number (`webgpu/shadow/freshWgsl.ts`): its view composed from its
+  light's record by the page view model the host composes it with (`pageViewModel.ts`: a lamp
+  page is its face's clip cropped to it, a sun page its view cropped by the orthography), its cull
+  volume the page's own in light space, a lamp page's cone or a sun page's box. The pair cull then
+  tests every caster row of the frame against every region (`freshCullWgsl.ts`): the row table is
+  every resident page of every caster, whatever the camera or a light cut selected, so a caster the
+  camera does not see keeps its shadow on a receiver it sees; each row a region keeps is one
+  `(region, row)` pair of one list. The seal makes readable each page none of whose pairs was lost
+  past the list's capacity — one that lost one waits for its next draw, never read short of a
+  caster —, and each pool layer's pass clears its pages and draws every pair in two indirect draws,
+  the casters placed on their page in the vertex stage and kept to it by the fragment: no indirect
+  draw sets a viewport (`freshPass.ts`, `freshDrawsWgsl.ts`). While a tinted transmittance layer is
+  read, each layer's pass of it clears the same pages and draws their blended casters, as the host's
+  does. The host draws a page again with its light cut and static layer once a report tells it the
   page, and the GPU's draw stays readable meanwhile (`DRAWN_GPU`). A page read first in a frame is
-  so drawn before anything samples it: no one-frame hole. While a tinted transmittance layer is
-  read, the GPU draws none: a page there holds its blended casters, which the host alone draws,
-  and the pixel reads the next coarser level until it does.
+  so drawn before anything samples it: no one-frame hole. A frame where nothing moved, whose host
+  took no page's depth, after a snapshot that listed none, runs none of it.
 - **Every stale page the image reads is drawn, in the frame that marks it** (#489). There is no
   per-frame page cap and no millisecond budget; the list goes the coarsest first, each light's
   floor leading (#525), an order that matters only to a frame its memory guard stops. The cost is

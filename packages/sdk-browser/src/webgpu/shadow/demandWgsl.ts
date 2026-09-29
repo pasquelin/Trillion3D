@@ -1,7 +1,7 @@
 import { VIEW_WGSL, WORLD_AT_WGSL } from '../../lighting/deferred/shaders.ts';
 import { DIRECT_LIGHT_WGSL } from '../../lighting/direct/lightWgsl.ts';
 import { TILE_SLICE_WGSL } from '../../lighting/direct/lightingWgsl.ts';
-import { SUN_ORIGIN_WGSL } from '../../lighting/direct/shadowFactorWgsl.ts';
+import { SHADOW_READ_AT_WGSL } from '../../lighting/direct/shadowFactorWgsl.ts';
 import { shadowRequestWgsl } from '../../lighting/direct/shadowRequestWgsl.ts';
 import { SHADOW_DATA_WGSL, SHADOW_PAGE_READ_WGSL } from '../../lighting/direct/shadowWgsl.ts';
 import { AS_IS_FLAG, FOG_FREE_SURFACE_FLAG } from '../../scene/surfaceModel.ts';
@@ -35,7 +35,7 @@ ${shadowRequestWgsl(7)}
 ${DIRECT_LIGHT_WGSL}
 ${TILE_SLICE_WGSL}
 ${SHADOW_PAGE_READ_WGSL}
-${SUN_ORIGIN_WGSL}
+${SHADOW_READ_AT_WGSL}
 ${WORLD_AT_WGSL}
 /** Marks page \`p\` of the map: nothing outside a ring's window. */
 fn demandPage(m:ShadowMap,p:vec2i){let e=shadowPageEntry(m,p);if(e>=0){requestShadowPage(u32(e));}}
@@ -51,43 +51,26 @@ fn demandPages(m:ShadowMap,t:vec2f,home:vec2i){
  if(all(edge)){demandPage(m,home+step);}
 }
 /** The sun's pages at the point: its footprint's level, or the first coarser one whose window
- *  holds its home page (\`sunShadowFactor\`). */
+ *  holds its home page (\`sunShadowFactor\`, the same \`sunReadAt\`). */
 fn demandSun(index:u32,P:vec3f,N:vec3f,footprint:f32){
- let right=shadows.records[index].frame[0].xyz;let up=shadows.records[index].frame[1].xyz;
  let axis=shadows.records[index].frame[2].xyz;let info=shadows.records[index].info;
  let finest=i32(info.y);let last=finest+i32(info.x);
  let offset=shadowNormalTexels(clamp(dot(N,-axis),1e-3,1.0));
  for(var level=shadowSunReadLevel(footprint,finest);level<last;level++){
-  let texel=shadowSunTexelMetres(level);
-  let origin=sunOrigin(index,shadowRing(level,SUN_LEVEL_COUNT));
-  let Q=P+N*(texel*offset);
-  let t=vec2f(shadowSunMapTexel(dot(Q,right),origin.x,level),shadowSunMapTexel(-dot(Q,up),origin.y,level));
-  let map=ShadowMap(u32(info.w)+u32(shadowSunLevelEntry(level)),1u,SUN_WINDOW_PAGES,origin.x,origin.y);
-  let home=vec2i(shadowPageOfTexel(t.x),shadowPageOfTexel(t.y));
-  if(shadowPageEntry(map,home)<0){continue;}
-  demandPages(map,t,home);
+  let at=sunReadAt(index,P,N,offset,level);
+  if(shadowPageEntry(at.map,at.home)<0){continue;}
+  demandPages(at.map,at.t,at.home);
   return;
  }
 }
 /** The lamp's pages at the point: its footprint's mip, on the face its offset point lies in
- *  (\`lampShadowFactor\`); none past the face's depth or outside a spot's cone. */
+ *  (\`lampShadowFactor\`, the same \`lampReadAt\`); none past the face's depth or outside a
+ *  spot's cone. */
 fn demandLamp(index:u32,light:DirectLight,P:vec3f,N:vec3f,L:vec3f,footprint:f32){
- let info=shadows.records[index].info;
- let texel0=shadowLampFinestTexel(info.y,length(light.positionRange.xyz-P));
+ let texel0=shadowLampFinestTexel(shadows.records[index].info.y,length(light.positionRange.xyz-P));
  let mip=u32(shadowLampReadMip(footprint,texel0));
- let pages=LAMP_PAGE_COUNT>>mip;
- let side=f32(pages)*SHADOW_PAGE;
- let texel=texel0*exp2(f32(mip));
- let Q=P+N*(texel*shadowNormalTexels(clamp(dot(N,L),1e-3,1.0)));
- let isPoint=u32(info.x)==POINT_FACES;
- let face=select(0u,pointFaceOf(Q-light.positionRange.xyz),isPoint);
- let clip=shadows.records[index].faces[face]*vec4f(Q,1.0);
- if(clip.w<=0.0){return;}
- let ndc=clip.xyz/clip.w;
- if((!isPoint&&(abs(ndc.x)>1.0||abs(ndc.y)>1.0))||ndc.z<0.0||ndc.z>1.0){return;}
- let t=vec2f(shadowLampMapTexel(ndc.x,side),shadowLampMapTexel(-ndc.y,side));
- let home=clamp(vec2i(shadowPageOfTexel(t.x),shadowPageOfTexel(t.y)),vec2i(0),vec2i(i32(pages)-1));
- demandPages(ShadowMap(u32(info.w)+u32(shadowLampMapEntry(i32(face),i32(mip))),0u,i32(pages),0,0),t,home);
+ let r=lampReadAt(index,light.positionRange.xyz,P,N,shadowNormalTexels(clamp(dot(N,L),1e-3,1.0)),texel0,mip);
+ if(r.inside){demandPages(r.at.map,r.at.t,r.at.home);}
 }
 /** A light's pages at the point, behind the resolve's gate (\`declaredLight\`, \`shadowFactor\`):
  *  a shadowed punctual light that reaches it. */

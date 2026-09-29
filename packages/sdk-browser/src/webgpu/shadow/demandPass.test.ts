@@ -35,6 +35,8 @@ const demand = shaderRun<Demand>(
     'demandPage',
     'shadowPageEntry',
     'sunOrigin',
+    'sunReadAt',
+    'lampReadAt',
     'shadowNormalTexels',
     'pointFaceOf',
     ...PAGE_MODEL_FUNCTIONS,
@@ -43,6 +45,11 @@ const demand = shaderRun<Demand>(
     ...wgslConstants(SHADOW_DEMAND_WGSL),
     shadows: live,
     requestShadowPage: (entry: number) => live.marked.add(entry),
+    ShadowAt: (map: object, t: V, home: V, Q: V, texel: number) => ({ map, t, home, Q, texel }),
+    LampAt: (at: object, clip: V, ndc: V, face: number, side: number, inside: boolean) => ({
+      ...{ at, clip, ndc },
+      ...{ face, side, inside },
+    }),
     ShadowMap: (base: number, ring: number, pages: number, ox: number, oy: number) => ({
       base,
       ring,
