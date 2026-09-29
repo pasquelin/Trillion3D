@@ -21,7 +21,6 @@ mod qem;
 pub mod shared_math;
 pub mod texture_preview;
 mod topology;
-mod tracer;
 mod uri;
 use rayon::prelude::*;
 use serde_json::{json, Value};

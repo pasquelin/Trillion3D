@@ -1,8 +1,8 @@
 //! The octahedral mapping of the impostor atlas (#817): direction to grid and back, the plane of
 //! each captured frame, and the three frames a view blends. Object space, +Y up, pivot at the
 //! bounding-sphere centre. The runtime card (#483) reads the atlas through the same formulas.
+use crate::proxy::tracer::normalise as unit;
 use crate::shared_math::cross;
-use crate::tracer::normalise as unit;
 
 /// ±1, never 0: the fold of the lower half needs a side even on an axis, where `sign(0) = 0`
 /// would send the direction to the wrong face.

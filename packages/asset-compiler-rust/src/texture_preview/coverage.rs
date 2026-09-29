@@ -60,33 +60,6 @@ pub(crate) fn keeps(alpha: u8, (cutoff, factor): Cut) -> bool {
     f32::from(alpha) / 255.0 * factor >= cutoff
 }
 
-/// The cutoff of a material the engine draws with a coverage test, or `None` when it draws it
-/// opaque. A `MASK` cutoff at or under 0 cuts nothing: the engine draws it opaque
-/// (`alphaTest > 0`, `collectWebgpuMaterialTextures`), and so does a mode glTF does not name,
-/// which the material table writes `OPAQUE` (`compiler_tables/materials.rs`). A transmissive
-/// `BLEND` tints what crosses it by its base colour whatever its alpha
-/// (`webgpu/water/compositeWgsl.ts`): it draws the RGB under alpha 0 too. Any other `BLEND` takes
-/// coverage, at no cutoff of its own (`None` inside). The texture chains and the impostor bake
-/// both judge by it.
-pub(crate) fn coverage_cutoff(material: &serde_json::Value) -> Option<Option<f32>> {
-    match material
-        .get("alphaMode")
-        .and_then(serde_json::Value::as_str)
-    {
-        Some("MASK") => {
-            let cutoff = material
-                .get("alphaCutoff")
-                .and_then(serde_json::Value::as_f64)
-                .unwrap_or(crate::cutout::CUTOUT_ALPHA) as f32;
-            (cutoff > 0.0).then_some(Some(cutoff))
-        }
-        Some("BLEND") => {
-            (!crate::compiler_materials::unsplit_material(Some(material))).then_some(None)
-        }
-        _ => None,
-    }
-}
-
 /// A masked material's cut at `cutoff`, under its `baseColorFactor` alpha (1
 /// when absent), clamped to [0, 1] as the engine's (`surfaceOpacity`).
 pub(crate) fn material_cut(material: &serde_json::Value, cutoff: f32) -> Cut {
