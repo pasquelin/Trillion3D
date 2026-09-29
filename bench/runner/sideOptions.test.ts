@@ -29,5 +29,5 @@ test('a side takes its own render scale, then the campaign one, otherwise the di
   assert.equal(own.renderScale, 0.67);
   assert.equal(sideReport(own)[1].echelle, 0.67);
   for (const wrong of ['0.4', '1.5', 'half'])
-    assert.throws(() => equip('apres', { 'echelle-apres': wrong }), /must be in \[0\.5, 1\]/);
+    assert.throws(() => equip('apres', { 'echelle-apres': wrong }), /must be in \[0.5, 1\]/);
 });

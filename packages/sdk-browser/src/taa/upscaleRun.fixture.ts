@@ -2,8 +2,9 @@
 // inputs as functions of the texel, its history as one of the point read.
 import { Mat, shaderRun, type Vec } from '../texture/shaderRun.fixture.ts';
 import { taaUpscaleShader } from './upscaleWgsl.ts';
+import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 
-export const IDENTITY = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
+const IDENTITY = new Mat([...IDENTITY_MATRIX4]);
 
 /** One frame drawn at `render` for a display of `display`; texel inputs default to the empty. */
 export interface UpscaleFrame {
@@ -26,7 +27,7 @@ export interface UpscaleFrame {
 }
 
 /** What the resolve wrote at a display pixel, and where it read the history. */
-export interface Resolved {
+interface Resolved {
   color: number[];
   share: number;
   layers: number[][];
