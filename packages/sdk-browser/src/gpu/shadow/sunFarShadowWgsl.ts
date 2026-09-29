@@ -48,6 +48,6 @@ ${counting ? ' let counting=proxy.counting>0u;\n if(counting){atomicAdd(&proxy.t
  // not a massive lift along the normal, that skips the coarse surface the point sits on.
  // The lift itself only leaves its exact plane.
  let origin=P+N*proxy.offsetMetres+L*proxy.startMetres;
- if(!proxyBlocked(origin,L,max(proxy.maxMetres-proxy.startMetres,0.0))){return 1.0;}
+ if(!proxyBlocked(origin,L,max(proxy.maxMetres-proxy.startMetres,0.0),true)){return 1.0;}
 ${counting ? ' if(counting){atomicAdd(&proxy.blocked,1u);}\n' : ''} return 0.0;
 }`;

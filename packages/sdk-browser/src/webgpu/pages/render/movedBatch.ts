@@ -7,6 +7,7 @@ import {
   boxUnionBatch,
 } from '../../../../../sdk-core/src/index.ts';
 import { moveRootRows } from './movedRoot.ts';
+import { staleTemporalBox } from '../../../hiz/staleRegions.ts';
 import { appendRootsUnder } from './movedNode.ts';
 import { transformRootBoxes } from '../../../math/batchBoxes.ts';
 import { grown } from '../../../../../sdk-core/src/math/transform-tree/transformTree.ts';
@@ -128,6 +129,8 @@ function passMoves(rt: WebgpuPagesRuntime) {
     }
     start = movedEnds[k];
     // A root's first move changes the static layer: the pages it crossed are staled whole.
-    if (!boxIsEmpty(moved, 0)) lights.plan.worldChanged(movedMin, movedMax, !promoted);
+    if (boxIsEmpty(moved, 0)) continue;
+    lights.plan.worldChanged(movedMin, movedMax, !promoted);
+    staleTemporalBox(run.temporalHizState, movedMin, movedMax);
   }
 }
