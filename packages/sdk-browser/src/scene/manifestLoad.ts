@@ -5,10 +5,14 @@ import {
   assertCacheRoot,
   EngineError,
   DEFAULT_SCOPE,
+  openPagedManifest,
   readPagedManifest,
   type AssetScope,
   type ClusterManifest,
+  type ManifestPages,
+  type Primitive,
 } from '../../../sdk-core/src/index.ts';
+import { absolutePrimitive } from './absolutePrimitive.ts';
 import { fetchVerified } from '../cluster/pages.ts';
 import { checked } from '../cluster/checked.ts';
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
@@ -93,6 +97,10 @@ export interface LoadedManifest {
    *  the files it reads. Empty for a cache that declares none. */
   declared: ReadonlyMap<string, number>;
   timing: ManifestTiming;
+  /** Of a manifest opened by its head (`lazy`), its mesh pages, which the view holds (#751). */
+  pages?: ManifestPages;
+  /** The load is over: the pages read from now on carry neither its signal nor its meter. */
+  settle(): void;
 }
 
 /** The length of each file the manifest's `files` list, by address. */
@@ -113,13 +121,15 @@ function declaredFiles(value: Record<string, unknown>, metadataUrl: string) {
  * The cache's `clusters.json` is a root of fixed size, checked before anything else is fetched;
  * its pages and their column files are read side by side, each verified against its slot, and the
  * columns mapped, never parsed (`readPagedManifest`). `meter` counts each file read here as it
- * arrives; the load that holds it plans the files it reads next.
+ * arrives; the load that holds it plans the files it reads next. `lazy` reads the head alone: the
+ * mesh pages are read as `pages` holds them, checked and their addresses made absolute (#751).
  */
 export async function loadClusterManifest(
   manifestUrl: string,
   requested: AssetScope | undefined,
   signal?: AbortSignal,
   meter: ByteMeter = unmetered,
+  lazy = false,
 ): Promise<LoadedManifest> {
   const started = performance.now();
   const pointerResource = await jsonResource(manifestUrl, signal, meter),
@@ -141,19 +151,33 @@ export async function loadClusterManifest(
   located(() => assertCacheRoot(value, scope), metadataResource.details);
   const binaryStart = performance.now();
   let binaryBytes = 0;
-  const metadata = await readPagedManifest(value, async (page) => {
-    const read = await fetchVerified(new URL(page.url, metadataUrl).href, page, signal, meter);
-    binaryBytes += read.byteLength;
-    return new Uint8Array(read);
-  });
+  const reading = { signal, meter };
+  const read = async (page: { url: string; bytes: number; sha256: string }) => {
+    const url = new URL(page.url, metadataUrl).href;
+    const bytes = await fetchVerified(url, page, reading.signal, reading.meter);
+    binaryBytes += bytes.byteLength;
+    return new Uint8Array(bytes);
+  };
+  const base = new URL('.', metadataUrl).href;
+  // A page the view holds later is held to the head's identity, as the whole manifest is.
+  let head: ClusterManifest;
+  const accept = (primitives: Primitive[]) => {
+    assertCacheIdentity({ ...head, primitives });
+    return primitives.map((primitive) => absolutePrimitive(primitive, base));
+  };
+  const { metadata, pages } = lazy
+    ? await openPagedManifest(value, read, accept)
+    : { metadata: await readPagedManifest(value, read), pages: undefined };
+  head = metadata;
   located(() => assertCacheReady(metadata, scope), metadataResource.details);
   assertCacheIdentity(metadata);
-  const base = new URL('.', metadataUrl).href;
   return {
     pointer,
     metadata,
     metadataUrl,
     base,
+    pages,
+    settle: () => Object.assign(reading, { signal: undefined, meter: unmetered }),
     declared: declaredFiles(metadata as unknown as Record<string, unknown>, metadataUrl),
     timing: {
       jsonBytes: metadataResource.bytes,
