@@ -11,7 +11,7 @@ const formatsOf = (targets: readonly (GPUColorTargetState | null)[]) =>
 /** The colour bytes per sample of the engine's widest pass, from each pass's own targets: the
  *  water surface stage, the opaque shade, a filtered blend with its share, the routed water
  *  composite. WebGPU's default (32) is below the water surface stage's. */
-export const engineColorBytesPerSample = () =>
+const engineColorBytesPerSample = () =>
   Math.max(
     colorBytesPerSample(formatsOf(waterSurfaceTargets(true))),
     colorBytesPerSample(shadeTargetFormats(true)),
