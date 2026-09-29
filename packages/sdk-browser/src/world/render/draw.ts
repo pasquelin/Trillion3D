@@ -66,9 +66,9 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     const { measuring } = state;
     const steps = backend as HostCpuProfile,
       scale = backend.renderScaleControl;
-    const steered = scale?.bounds.auto && scale.bounds.min < 1;
-    if (!gpuTimer && webglSurface && (profiled || steered))
-      gpuTimer = createWebglFrameTimer(webglSurface.context);
+    // Timed while it is asked: a scale set back to 1 or fixed stops the queries and their flush.
+    const timed = profiled || (scale?.bounds.auto === true && scale.bounds.min < 1);
+    if (!gpuTimer && webglSurface && timed) gpuTimer = createWebglFrameTimer(webglSurface.context);
     scale?.tick(performance.now());
     backend.render(camera);
     const renderEnd = performance.now();
@@ -159,11 +159,13 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       });
       return;
     }
-    gpuTimer?.begin();
+    if (timed) gpuTimer?.begin();
     compose(backend, target);
-    // A held image put back measures no drawing: it never steps the controller.
-    const moving = scale?.steered === true && backend.frameHeld !== true;
-    gpuTimer?.end(scale && { scale: scale.drawn, steered: moving });
+    // A held image put back, or one drawn into a target at the display's size, measures no
+    // drawing at the scale (and leaves `steered` as the last surface image set it): it never
+    // steps the controller.
+    const moving = !target && scale?.steered === true && backend.frameHeld !== true;
+    if (timed) gpuTimer?.end(scale && { scale: scale.drawn, steered: moving });
     steps.cpuStep?.('submitMs', performance.now() - retainEnd);
     if (gpuTimer) {
       // A query reread a few frames later, with the scale its image was drawn at: the read never

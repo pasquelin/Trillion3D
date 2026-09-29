@@ -189,6 +189,6 @@ export class ClusterMaterialPass {
     this.binding.uniforms.f2(36, 'depthRamp', ramp[0], ramp[1]);
     this.binding.uniforms.f2(40, 'viewport', viewport[2], viewport[3]);
     this.binding.uniforms.f1(42, 'pixelRatio', this.pixelRatio);
-    this.binding.uniforms.f1(47, 'mipBias', this.mipBias);
+    this.binding.uniforms.f1(48, 'mipBias', this.mipBias);
   }
 }
