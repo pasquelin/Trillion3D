@@ -1007,7 +1007,9 @@
       "PHYSICS_FORMAT": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "Fisika siap pakai dari model terkompilasi (`physics.json`) berformat lain, atau disiapkan oleh Jolt yang berbeda dari milik mesin (`PHYSICS_FORMAT`): kompilasi ulang. Raycast tepat diminta saat fisika mati (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` disetel ke `'vehicle'` saat `world.controls.vehicle` bernilai `null`: tidak ada yang dikemudikan.",
-      "GUIDE_CEILING": "Sebuah panggilan `world.guides` akan memegang lebih banyak verteks daripada `GUIDE_VERTEX_CEILING`; tidak ada yang ditambahkan."
+      "GUIDE_CEILING": "Sebuah panggilan `world.guides` akan memegang lebih banyak verteks daripada `GUIDE_VERTEX_CEILING`; tidak ada yang ditambahkan.",
+      "REFERENCE_SHADOWS_REDUCED": "Gambar referensi ditolak: kumpulan bayangan berjalan di bawah ukuran penuhnya (`REFERENCE_SHADOWS_REDUCED`). Mode referensi diminta pada sesi interaktif, yang perubahan ukurannya akan menghilangkan supersampling (`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "Gambar referensi ditolak: kumpulan bayangan berjalan di bawah ukuran penuhnya (`REFERENCE_SHADOWS_REDUCED`). Mode referensi diminta pada sesi interaktif, yang perubahan ukurannya akan menghilangkan supersampling (`REFERENCE_INTERACTIVE`)."
     }
   },
   "EngineProfiler": {
@@ -2900,7 +2902,7 @@
     "summary": "Versi kontrak hierarki scene milik host."
   },
   "SCENE_PROXY_HEADER_WORDS": {
-    "summary": "Bilangan bulat header: tanda pengenal, versi, jumlah segitiga/node/grup/pemilik/sumber, nol yang dicadangkan."
+    "summary": "Bilangan bulat header: header kepemilikan v3, lalu jumlah bentuk, segitiga tersimpan, dan penempatan."
   },
   "SCENE_PROXY_MAGIC": {
     "summary": "'W','G','P','X' dibaca sebagai bilangan bulat 32-bit tak bertanda little-endian."
@@ -3181,7 +3183,7 @@
     }
   },
   "SceneProxy": {
-    "summary": "Proxy baca: deskriptor dan kolomnya, view atas byte objek cache-nya.",
+    "summary": "Proxy yang dibaca: deskriptor dan kolom tetapnya, dengan segitiga bersama diperluas saat dimuat.",
     "members": {
       "data": "Kolom-kolomnya."
     }
@@ -5020,7 +5022,7 @@
   },
   "decodeSceneProxy": {
     "summary": "Proxy dibaca dan diperiksa ulang sebelum satu sinar pun menyentuhnya.",
-    "description": "Tata letak: delapan kata header little-endian, diikuti kolom geometri dan pohon kanonis serta data kepemilikan berversi. `docs/FORMAT.md` menentukan setiap jumlah dan kolom. Header menetapkan panjang setiap bagian; berkas dengan ukuran berbeda ditolak seluruhnya, karena node yang merujuk segitiga yang tidak ada akan membuat shader membaca data sembarang."
+    "description": "Sebelas kata header little-endian mendahului geometri bersama dan terpisah, kolom pohon, serta kepemilikan berversi. `docs/FORMAT.md` menentukan semua jumlah dan kolom. Panjang yang salah ditolak sebelum sinar mengaksesnya."
   },
   "decomposeMatrix4": {
     "summary": "`m = T · R · S` diuraikan menjadi `position`, `quaternion`, `scale`."
