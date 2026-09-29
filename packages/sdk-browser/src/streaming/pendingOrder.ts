@@ -123,13 +123,9 @@ function mergeSort(s: PendingScratch, n: number) {
     for (let lo = 0; lo < n; lo += 2 * width) {
       const mid = Math.min(lo + width, n),
         hi = Math.min(lo + 2 * width, n);
-      let i = lo,
-        j = mid,
-        k = lo;
       // The right run goes first only when it strictly precedes: equal entries keep their order.
-      while (i < mid && j < hi) to[k++] = before(s, from[j], from[i]) ? from[j++] : from[i++];
-      while (i < mid) to[k++] = from[i++];
-      while (j < hi) to[k++] = from[j++];
+      for (let k = lo, i = lo, j = mid; k < hi; k++)
+        to[k] = j < hi && (i === mid || before(s, from[j], from[i])) ? from[j++] : from[i++];
     }
     const swap = from;
     from = to;
