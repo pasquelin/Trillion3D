@@ -17,7 +17,7 @@ export const PARTICLE_DRAW_PASS = 'Trillion3D particle draw';
 /** Per slot, a disc facing the eye, fading with age, at its edge and near the scene's depth. */
 export const PARTICLE_DRAW_WGSL = /* wgsl */ `
 struct Particle { position: vec4f, velocity: vec4f }
-struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4f, softness: f32, exposure: f32, curve: f32, unlit: f32 }
+struct Draw { clip: mat4x4f, unclip: mat4x4f, eye: vec3f, size: f32, color: vec4f, softness: f32, exposure: f32, curve: f32, unlit: f32, drawn: vec2f }
 @group(0) @binding(0) var<uniform> draw: Draw;
 @group(0) @binding(1) var<storage, read> particles: array<Particle>;
 @group(0) @binding(2) var depth: texture_depth_2d;
@@ -37,7 +37,7 @@ struct Out { @builtin(position) at: vec4f, @location(0) corner: vec2f, @location
   return o;
 }
 fn particle(in: Out) -> vec4f {
-  let size = vec2f(textureDimensions(depth));
+  let size = draw.drawn;
   let ndc = vec2f(in.at.x / size.x * 2 - 1, 1 - in.at.y / size.y * 2);
   let scene = draw.unclip * vec4f(ndc, textureLoad(depth, vec2i(in.at.xy), 0), 1);
   let behind = distance(scene.xyz / scene.w, draw.eye) - distance(in.local, draw.eye);
@@ -139,14 +139,15 @@ export function createWebgpuParticleDraw(
     return kept.drawn!;
   };
   return {
-    /** Draws `pools` over `target` in `encoder`, seen through `viewProj` from `eye`, softened
-     *  by `depth`, routed through `filter` where its mask is set, shown through `tone` (exposure,
+    /** Draws `pools` over the `width × height` the image draws in `target` (`renderScale.ts`), in
+     *  `encoder`, seen through `viewProj` from `eye`, softened by `depth`, routed through `filter` where its mask is set, shown through `tone` (exposure,
      *  curve) or raw when `unlit`; returns the draws encoded, none without a live particle. */
     draw(
       pools: readonly ParticlePool[],
       encoder: GPUCommandEncoder,
       target: GPUTextureView,
       depth: GPUTextureView,
+      [width, height]: readonly number[],
       viewProj: ArrayLike<number>,
       eye: ArrayLike<number>,
       filter?: DisplayFilter,
@@ -166,6 +167,8 @@ export function createWebgpuParticleDraw(
         words[41] = tone?.[3] ?? 1;
         words[42] = tone?.[4] ?? 0;
         words[43] = unlit ? 1 : 0;
+        words[44] = width;
+        words[45] = height;
         device.queue.writeBuffer(kept.draw, 0, words);
         pass ??= encoder.beginRenderPass({
           label: PARTICLE_DRAW_PASS,
@@ -174,6 +177,7 @@ export function createWebgpuParticleDraw(
             ...(filter ? filter.attachments() : []),
           ],
         });
+        pass.setViewport(0, 0, width, height, 0, 1);
         if (filter) pass.setBindGroup(1, filter.maskGroup);
         pass.setPipeline(pipeline);
         pass.setBindGroup(0, groupOf(kept, depth));

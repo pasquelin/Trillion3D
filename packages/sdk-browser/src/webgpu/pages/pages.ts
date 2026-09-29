@@ -79,6 +79,8 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     setTransforms: (nodes, matrices) => setWebgpuTransforms(rt, nodes, matrices),
     setBounce: (on) => setWebgpuBounce(rt, on),
     setTemporalAntialiasing: (on) => setWebgpuTemporalAntialiasing(rt, on),
+    setRenderScale: (scale) => void (rt.scale.set(scale), rt.run.gate.resourcesChanged()),
+    renderScale: () => rt.scale.drawn,
     updatePlacements(rows, from, to) {
       updateWebgpuPlacements(rt, rows, from, to);
     },

@@ -40,6 +40,8 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
     // Diagnostic views output raw values: no ACES, no sRGB, no composed background. The
     // indirect-irradiance view is one, and lighting says so, not the caller.
     let rawOutput = false;
+    /** The size this image draws, from `update`: its targets may be larger (`renderScale.ts`). */
+    const drawn = [1, 1];
     return {
       uniform,
       /** What an absent contract resource is worth: the blend pass binds the same. */
@@ -63,6 +65,8 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
         sampledRank = 0,
       ) {
         const raw = diagnostic || rawOutput;
+        drawn[0] = width;
+        drawn[1] = height;
         view.write(
           inverseViewProjection,
           camera,
@@ -106,6 +110,7 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
               },
             ],
           });
+          source.setViewport(0, 0, drawn[0], drawn[1], 0, 1);
           source.setPipeline(reflected.source);
           source.setBindGroup(0, group);
           source.draw(3);
@@ -117,6 +122,7 @@ export async function createDeferredLighting(device: GPUDevice, onReady?: () => 
             { view: target, loadOp: 'clear', storeOp: 'store', clearValue: [0, 0, 0, 0] },
           ],
         });
+        pass.setViewport(0, 0, drawn[0], drawn[1], 0, 1);
         pass.setPipeline(reflected ? reflected.final : active.light);
         if (reflected) pass.setBindGroup(1, reflection.group);
         pass.setBindGroup(0, group);
