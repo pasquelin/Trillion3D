@@ -346,7 +346,6 @@
     },
     "missing": {
       "inside-a-component": "销毁世界时移除引擎创建的画布",
-      "floating-crates": "每帧重写的几何体",
       "thick-lines": "宽线",
       "a-line-that-draws-itself": "几何体的绘制范围",
       "shapes-from-an-svg": "SVG路径导入",
@@ -493,8 +492,6 @@
       "a-software-rasteriser": "GPU计算API",
       "sound-from-the-gpu": "GPU计算API",
       "breaking-things": "物理引擎集成",
-      "cloth-and-rope": "每帧重写的几何体",
-      "soft-bodies": "每帧重写的几何体",
       "a-cooked-flag": "每帧重写的几何体",
       "a-room-in-vr": "WebXR会话",
       "a-360-photo-in-vr": "WebXR会话",
