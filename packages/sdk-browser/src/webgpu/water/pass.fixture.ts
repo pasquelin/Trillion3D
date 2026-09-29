@@ -106,6 +106,7 @@ export function targets(gpu: WebgpuGpuState) {
     colorView: {},
     depthView: {},
     targetSize: [8, 8],
+    allocatedSize: [8, 8],
     hdrTexture: {},
     depthTexture: {},
     feedbackView: {},

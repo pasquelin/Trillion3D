@@ -8,7 +8,8 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   // Trace samples every image; the per-stage profile needs enough samples for an honest p95;
   // without either, the original cadence is kept as-is.
   let sampleEveryFrames = 12;
-  if (diag.traceEnabled) sampleEveryFrames = 1;
+  // The render-scale controller reads every image it can (`../state/scaleControl.ts`).
+  if (diag.traceEnabled || rt.scale.bounds.auto) sampleEveryFrames = 1;
   else if (timing.stages) sampleEveryFrames = 3;
   const gpuTiming = createGpuTiming(gpuDevice, {
     sampleEveryFrames,
@@ -22,6 +23,7 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
         ...(sample.error ? { error: sample.error } : {}),
       };
       timing.lastGpuFrameMs = sample.submittedMs;
+      rt.scale.observe(sample.frameMs, sample.renderScale);
       // The bounce budget is a duration: it reads here the timer of its own stage, the per-pass
       // profile's, and corrects the next image's batch. Never an estimate.
       rt.bounce.probes?.observeGpuMs(bounceGpuMs(timing.lastGpuPassMs));
