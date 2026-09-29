@@ -63,10 +63,12 @@ export async function session(viewport: [number, number], transmittance = false)
     lights = createWebgpuLightState(shadowPoolSide(300, 150)),
     said: Array<[string, Record<string, unknown>]> = [];
   /** A transmittance layer: its two textures, as the mover reads them. */
+  const make = (size: number[]) =>
+    gpu.device.createTexture({ size, format: 'depth32float', usage: 0 });
   const makeLayer = () => ({
     bytes: 0,
-    colour: gpu.device.createTexture({ size: [8192, 8192, 2] } as GPUTextureDescriptor),
-    nearest: gpu.device.createTexture({ size: [1, 1, 1] } as GPUTextureDescriptor),
+    colour: make([8192, 8192, 2]),
+    nearest: make([1, 1, 1]),
     destroy() {},
   });
   let texture: Fake | undefined,
@@ -78,12 +80,7 @@ export async function session(viewport: [number, number], transmittance = false)
     get transmittanceHeld() {
       return !!layer;
     },
-    makePool: (side: number, layers: number) =>
-      gpu.device.createTexture({
-        size: [side * 128, side * 128, layers],
-        format: 'depth32float',
-        usage: 0,
-      }),
+    makePool: (side: number, layers: number) => make([side * 128, side * 128, layers]),
     makeTransmittance: makeLayer,
     sizePool(_: number, __: number, made: Fake, next = layer) {
       const held = texture && { texture, transmittance: layer };

@@ -25,8 +25,7 @@ export type ShadowPlan = ReturnType<typeof createShadowPlan>;
  * it holds changed —, and the pool is the only limit. A still scene, whose shading runs no more,
  * asks for nothing and draws nothing.
  *
- * All arrays are allocated once, and again only when the pool is resized (`resize`); `plan()`
- * allocates nothing.
+ * All arrays are allocated once; `plan()` allocates nothing.
  */
 export function createShadowPlan(poolSide: number, layers = 1) {
   const pool = createShadowPool(poolSide, layers),
@@ -77,7 +76,8 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     },
     /** The frame plans no shadow: the held union enters the list at once. */
     releaseDeferred: changes.releaseDeferred,
-    /** Off, a moving object stales every page of the lights it touches. On by default. */
+    /** Turns off per-page invalidation: a moving object stales every page of the lights it
+     *  touches. On by default. */
     setPageInvalidation(on: boolean) {
       byPage = on;
     },
@@ -85,7 +85,8 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     get pageInvalidation() {
       return byPage;
     },
-    /** The next image's stamp: a report stamped so that names nothing new proves it settled. */
+    /** What the shading, the lights and the view hand the next image: a report stamped with it
+     *  and naming nothing new proves the image reads only what is drawn. */
     stamp: stampOf,
     /** True once a report proves the current state asks for nothing: the image may hold. */
     settled: (store: SceneLightStore) => settledStamp === stampOf(store),
@@ -155,7 +156,8 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       counts.endFrame(pool, records, requests.latest, nowMs, frame);
       return count;
     },
-    /** Pages `[from, to)` of the list were encoded, page `from + i` in `modes[i]`; the last closes it. */
+    /** Pages `[from, to)` of the frame's list were encoded, page `from + i` in `modes[i]`: their
+     *  draws land before anything reads them. The last batch closes the list. */
     commit(modes?: ArrayLike<number>, from = 0, to = admission.count) {
       for (let i = from; i < to; i++) {
         const page = admission.list[i];
@@ -184,9 +186,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       resting = false;
       settledStamp = -1;
     },
-    /** The pool takes `side² × poolLayers` pages and keeps what it holds (`resizeShadowPool`); the
-     *  lists it sizes follow — requests, admission, thresholds. Between two frames, nothing listed.
-     *  Returns where each old page went. */
+    /** The pool at another size, its pages kept, its arrays anew: returns where each page went. */
     resize(side: number, poolLayers: number) {
       const moved = resizeShadowPool(pool, table, side, poolLayers),
         counted = requests.counts;
