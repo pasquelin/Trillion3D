@@ -7,9 +7,11 @@
  * are decoded off the main thread (`cellDecode.ts`, `decodes.ts`), and those decoded opened or
  * placed within the frame's one integration budget (`FrameBudget`): a page lists its pages or
  * cells to the streamer's catalogue, a cell puts each node on a row of its mesh at the world matrix
- * the engine composes for a child of its core parent (`placements.ts`), holding its manifest pages
- * (`cellPages.ts`). A cell past its reach parks its rows and releases its pages; a page past it
- * with no cell placed is closed and its files leave the catalogue; a moved parent rewrites its rows.
+ * the engine composes for a child of its core parent, casting as its host mesh says
+ * (`placements.ts`, `follow.ts`), holding its manifest pages (`cellPages.ts`). A cell past its
+ * reach parks its rows and releases its pages; a page past it with no cell placed is closed and its
+ * files leave the catalogue; a moved parent, or a host mesh's `castShadow` changed, rewrites its
+ * rows.
  * `prime`, before the first frame, sizes the rows for the first camera's view (`sizing.ts`; every
  * node when no owner can reopen the session), then reads the pages on its way and the cells it
  * reaches (#575). A reach past those rows, or a parent shrunk or stretched unevenly, grows them in
