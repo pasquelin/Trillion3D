@@ -25,10 +25,10 @@ test('report routes resolve in each language; names are its words, an unknown id
     assert.equal(resolvePage(route, []).kind, 'report');
   }
   assert.deepEqual(
-    [viewName('sol', 'fr'), viewName('elsewhere', 'fr'), runName('res-1248-e2', 'en')],
+    [viewName('ground', 'fr'), viewName('elsewhere', 'fr'), runName('res-1248-e2', 'en')],
     ['Au sol', 'elsewhere', 'Image width 1248 px · threshold 2 px'],
   );
-  assert.equal(runName('lampes-8-sans-ombres', 'fr'), '8 lumières sans ombres');
+  assert.equal(runName('lights-8-no-shadows', 'fr'), '8 lumières sans ombres');
 });
 
 test('comparison names engines, explains missing values and shows observed arithmetic', () => {
@@ -110,11 +110,11 @@ test('complete source tables include primary and repeated readings plus failed-r
         frames: 60,
         series: [
           {
-            view: 'sol',
+            view: 'ground',
             pixelError: 1,
             sides: {
-              apres: { moteur: 'webgpu', primaryCounter: 123 },
-              'apres-aa': { moteur: 'webgpu', repeatCounter: 456 },
+              after: { engine: 'webgpu', primaryCounter: 123 },
+              'after-aa': { engine: 'webgpu', repeatCounter: 456 },
             },
           },
         ],

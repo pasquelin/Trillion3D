@@ -49,11 +49,11 @@ export function creeRig(fov = 55, aspect = 16 / 9): Rig {
   return { parent, camera };
 }
 
-/** Poses the parent. `hote`: the host also updates its rig before the frame, as it should. */
-export function poseRig(rig: Rig, pose: PoseParent, hote: boolean): G.Camera {
+/** Poses the parent. `host`: the host also updates its rig before the frame, as it should. */
+export function poseRig(rig: Rig, pose: PoseParent, host: boolean): G.Camera {
   rig.parent.position.set(pose.x, 0, pose.z);
   rig.parent.rotation.y = pose.ry;
-  if (hote) rig.parent.updateMatrixWorld(true);
+  if (host) rig.parent.updateMatrixWorld(true);
   return rig.camera;
 }
 
@@ -63,7 +63,7 @@ export function poseRig(rig: Rig, pose: PoseParent, hote: boolean): G.Camera {
  * translation. View, inverse, direction and position are therefore exactly those a correct rig
  * must produce.
  */
-export function cameraAplatie(pose: PoseParent, fov = 55, aspect = 16 / 9): G.Camera {
+export function flattenedCamera(pose: PoseParent, fov = 55, aspect = 16 / 9): G.Camera {
   const jumeau = creeRig(fov, aspect);
   poseRig(jumeau, pose, true);
   const plate = regle(G.perspectiveCamera(), fov, aspect);

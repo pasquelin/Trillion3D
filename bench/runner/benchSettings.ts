@@ -19,7 +19,7 @@ export interface BenchSettings {
   geometryPoolBytes: number | null;
   texturePoolBytes: number | null;
   geometryPoolCeilingBytes: number | null;
-  poolVivant: LivePools | null;
+  livePools: LivePools | null;
   width: number;
   height: number;
   dpr: number;

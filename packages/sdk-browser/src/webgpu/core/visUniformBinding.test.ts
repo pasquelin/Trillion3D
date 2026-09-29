@@ -43,14 +43,14 @@ test('every group that binds the visibility uniform spans the whole struct', () 
   assert.equal(sizeAt(small, SMALL_BINDINGS.uniform), VIS_UNIFORM_BYTES);
 });
 
-test('only the vertex stage reads the visibility uniform, at the size of its struct', async () => {
+test('both stages read the visibility uniform, at the size of its struct', async () => {
   const { device } = fakeDevice();
   const { visBindGroupLayout } = await createWebgpuVisibilityShaders(device, 8);
   const entry = (
     visBindGroupLayout as unknown as { entries: GPUBindGroupLayoutEntry[] }
   ).entries.find((candidate) => candidate.binding === VIS_BINDINGS.uniform)!;
-  // No fragment of the pass reads it.
-  assert.equal(entry.visibility, GPUShaderStage.VERTEX);
+  // The fragment reads its texture level bias (#816).
+  assert.equal(entry.visibility, GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT);
   assert.equal(entry.buffer?.minBindingSize, VIS_UNIFORM_BYTES);
 });
 

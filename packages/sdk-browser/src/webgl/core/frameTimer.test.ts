@@ -71,13 +71,13 @@ test('a query that is not ready yet stays unmeasured, without being lost', () =>
   assert.equal(f.flushes(), 1);
 });
 
-test('an available non-disjoint query yields a duration in milliseconds', () => {
+test('an available non-disjoint query yields a duration in milliseconds, with its tag', () => {
   const f = fakeGl();
   const timer = createWebglFrameTimer(f.gl);
   timer.begin();
-  timer.end();
+  timer.end({ scale: 0.5, steered: true });
   f.markAvailable(0, 2_500_000);
-  assert.deepEqual(timer.poll(), { ms: 2.5, reason: null });
+  assert.deepEqual(timer.poll(), { ms: 2.5, reason: null, tag: { scale: 0.5, steered: true } });
   assert.deepEqual(f.deleted, [0]);
 });
 

@@ -43,11 +43,12 @@ export function createMockCommandEncoderFactory(inputs: {
   return () => ({
     beginRenderPass: (desc?: {
       label?: string;
+      // An empty slot is `null`, as WebGPU takes it (the blend pass's share, #365).
       colorAttachments?: Array<{
         loadOp?: string;
         clearValue?: GPUColor;
         view?: { format?: string };
-      }>;
+      } | null>;
       depthStencilAttachment?: { depthLoadOp?: string };
     }) => {
       if (visPassFails && desc?.label === 'Trillion3D visibility primary') {
@@ -61,7 +62,7 @@ export function createMockCommandEncoderFactory(inputs: {
         colorClear: colors[0]?.clearValue,
         depthLoad: desc?.depthStencilAttachment?.depthLoadOp,
         colorCount: colors.length,
-        formats: colors.map((color) => color.view?.format ?? ''),
+        formats: colors.map((color) => color?.view?.format ?? ''),
       });
       return {
         setPipeline(pipeline: { entryPoint?: string; fragment?: string; blend?: GPUBlendState }) {

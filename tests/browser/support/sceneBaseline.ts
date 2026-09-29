@@ -1,4 +1,4 @@
-// The "avant" side of a render-proof A/B comparison: two sources from a reference dist,
+// The "before" side of a render-proof A/B comparison: two sources from a reference dist,
 // transpiled on the fly and served to the page in place of the current dist's.
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';

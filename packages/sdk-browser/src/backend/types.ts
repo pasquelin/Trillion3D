@@ -159,10 +159,10 @@ export interface BackendContext {
    *  `textureCompression`: the pools' block family, `'auto'` what the device samples. */
   texturePoolBytes?: number;
   textureCompression?: import('../texture/blockFormats.ts').TextureCompression;
-  /** Temporal antialiasing, on by default as in the reference: `false` renders the
-   *  image sampled at the pixel centre, with no jitter and no history — the "before" of a comparison. */
+  /** Temporal antialiasing, on by default as in the reference: `false` renders the image sampled at
+   *  the pixel centre, no jitter, no history. `renderScale`: 1 when absent (`renderScaleOption.ts`). */
   temporalAntialiasing?: boolean;
-  renderScale?: number; // fixed render scale per display axis, [0.5, 1] (`renderScale.ts`)
+  renderScale?: import('../frame/renderScaleOption.ts').RenderScale;
   /** The world's effect chain, drawn after temporal antialiasing; absent or empty, nothing is. */
   effects?: import('../../../sdk-core/src/world/effect/chain.ts').EffectChain;
   sceneLighting?: Object3D;

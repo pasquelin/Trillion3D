@@ -9,6 +9,7 @@ import {
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/index.ts';
 import { median } from '../../../scripts/median.ts';
 import { strictDegraded } from './webglClusterPixels.ts';
+import { keptClusterScene } from '../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
 
 /** A batch draw is always indexed (`submitClusterMesh` calls `drawElements`): the identity
  *  index keeps the same triangle order as the flat position layout below. */
@@ -89,7 +90,7 @@ export async function measureBlend() {
     threeMesh = threeMeshCopy({ geometry: sharedGeometry, material: material.clone() });
   three.setSize(256, 256, false);
   threeScene.add(threeMesh);
-  const ownDraw = () => own.draw([ownMesh], ownScene, ownCamera, false, false),
+  const ownDraw = () => own.draw([ownMesh], keptClusterScene(ownScene), ownCamera, false, false),
     threeDraw = () => three.render(threeScene, threeCamera(camera)),
     ownA = await sample(ownDraw),
     reference = await sample(threeDraw),

@@ -12,7 +12,7 @@ import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts';
 import { DISPLAY_ROUTE_WGSL } from './displayFilter.ts';
 import { ALPHA_BLEND } from './stagePipelines.ts';
 import { BLENDS } from '../../particles/drawWords.ts';
-import { routedParticleTargets } from '../../particles/webgpuParticleDraw.ts';
+import { particleTargets } from '../../particles/webgpuParticleDraw.ts';
 import { WATER_ROUTED_TARGETS } from '../water/pipelines.ts';
 
 type Pixel = { lit: Rgba; tint: Rgba; add: Rgba };
@@ -79,8 +79,8 @@ const blendLayer = (mode: 'normal' | 'additive' | 'multiply', colour: Rgba) => {
   const targets = blendTargets(mode, 0xf, true, true);
   return layer(
     colour,
-    [targets[0], ...targets.slice(-2)],
-    blendTargets(mode, 0xf, true)[0].blend!,
+    [targets[0]!, ...targets.slice(-2).map((target) => target!)],
+    blendTargets(mode, 0xf, true)[0]!.blend!,
     mode === 'multiply' ? 2 : 1,
   );
 };
@@ -154,7 +154,7 @@ test('particles and water over a multiply surface show the witness', () => {
     fire: Rgba = [2, 0.8, 0.2, 0.5],
     water: Rgba = [0.05, 0.2, 0.3, 0.8];
   const particle = (colour: Rgba, kind: 'premultiplied' | 'additive') =>
-    layer(colour, routedParticleTargets(kind), BLENDS[kind], 1, true);
+    layer(colour, particleTargets(kind, true), BLENDS[kind], 1, true);
   assertWitness('smoke over multiply', paper, [filter, particle(smoke, 'premultiplied')]);
   assertWitness('fire over multiply', paper, [filter, particle(fire, 'additive')]);
   assertWitness('water over multiply', paper, [
