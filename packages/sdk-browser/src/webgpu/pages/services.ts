@@ -77,8 +77,7 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
    * The bytes one pool slot holds for a cluster: its quantized geometry page, read from the
    * host's page reader at the address the manifest gives it, or — for a cache that carries no
    * geometry page — the index page the arrival already left in memory. The slot is written from
-   * one of the two, never from both. `priority` is the admission's: a lower tier's read stays a
-   * prefetch (#408).
+   * one of the two, never from both, at the admission's `priority`.
    */
   const read = async (key: string, _signal?: AbortSignal, priority?: number) => {
     const geometryUrl = geometryUrls.get(key);
