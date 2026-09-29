@@ -1,7 +1,8 @@
 import { BOX_VALUES, frustumExcludesBox } from '../../../../sdk-core/src/index.ts';
 import { notDrawn } from '../../placement/hidden.ts';
 import { currentBlendHierarchy } from './hierarchy.ts';
-import type { BlendGpuItem, createWebgpuBlendState } from './state.ts';
+import { includeWaterItem } from '../water/bounds.ts';
+import type { createWebgpuBlendState } from './state.ts';
 type BlendState = ReturnType<typeof createWebgpuBlendState>;
 
 /** Counts of the frame, module scratch so the walk allocates nothing. */
@@ -13,21 +14,25 @@ const tally = { rejected: 0, water: 0 };
  * would be too (`hierarchy.ts`), and is not tested.
  */
 function judge(
-  items: readonly BlendGpuItem[],
+  blendState: BlendState,
   rank: number,
   planes: Float64Array,
   mask: Uint32Array,
   cut: boolean,
 ) {
-  const item = items[rank],
+  const item = blendState.blendGpu[rank],
     box = item.bounds;
   if (notDrawn(item)) return;
   if (box && (cut || frustumExcludesBox(planes, box[0], box[1], box[2], box[3], box[4], box[5])))
     tally.rejected++;
   else {
     mask[rank >>> 5] |= 1 << (rank & 31);
-    // The water pass is encoded for a surface in view, never for a scene that merely has one.
-    if (item.transmissive) tally.water++;
+    // The water pass is encoded for a surface in view, never for a scene that merely has one;
+    // its scissor and copies are bounded by these kept surfaces only (`../water/bounds.ts`).
+    if (item.transmissive) {
+      tally.water++;
+      includeWaterItem(blendState.waterBounds, item, blendState.volumePacked);
+    }
   }
 }
 
@@ -42,15 +47,14 @@ function judge(
  * items are still visited, for the parked test the reject count needs, but no box is tested.
  */
 export function cullBlendHierarchy(blendState: BlendState) {
-  const items = blendState.blendGpu,
-    planes = blendState.blendPlanes,
+  const planes = blendState.blendPlanes,
     tree = currentBlendHierarchy(blendState);
   const { mask, loose, leaves, first, counts, skip, boxes } = tree;
   mask.fill(0);
   tally.rejected = 0;
   tally.water = 0;
   tree.tested = loose.length;
-  for (let k = 0; k < loose.length; k++) judge(items, loose[k], planes, mask, false);
+  for (let k = 0; k < loose.length; k++) judge(blendState, loose[k], planes, mask, false);
   for (let node = 0; node < tree.nodes;) {
     const o = node * BOX_VALUES;
     tree.tested++;
@@ -70,7 +74,7 @@ export function cullBlendHierarchy(blendState: BlendState) {
     }
     const end = first[skip[node]];
     if (!cut) tree.tested += end - first[node];
-    for (let k = first[node]; k < end; k++) judge(items, leaves[k], planes, mask, cut);
+    for (let k = first[node]; k < end; k++) judge(blendState, leaves[k], planes, mask, cut);
     node = skip[node];
   }
   // Written only where a word changed: a still pose changes none, and the GPU copy is spared.

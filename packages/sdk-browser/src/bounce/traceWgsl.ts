@@ -56,7 +56,8 @@ fn traceProxy(origin:vec3f,direction:vec3f,limit:f32)->ProxyHit{
  var stack:array<u32,${BOUNCE_SETTINGS.traversalStack}>;
  var depth=0u;
  var node=0u;
- for(var step=0u;step<proxySteps();step++){
+ let steps=proxySteps();
+ for(var step=0u;step<steps;step++){
   let frame=nodeBox(node);
   if(boxEntry(frame,origin,inverse,best.distance)>best.distance){
    if(depth==0u){break;}
@@ -100,7 +101,8 @@ fn proxyBlocked(origin:vec3f,direction:vec3f,limit:f32)->bool{
  var stack:array<u32,${BOUNCE_SETTINGS.traversalStack}>;
  var depth=0u;
  var node=0u;
- for(var step=0u;step<proxySteps();step++){
+ let steps=proxySteps();
+ for(var step=0u;step<steps;step++){
   let frame=nodeBox(node);
   var descend=false;
   var next=0u;
