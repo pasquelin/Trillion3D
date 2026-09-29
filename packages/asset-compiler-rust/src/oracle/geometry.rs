@@ -1,5 +1,5 @@
-//! The albedo a world triangle carries; the tracer's geometry lives in `crate::tracer`.
-use crate::tracer::World;
+//! The albedo a world triangle carries; the tracer's geometry lives in `crate::proxy::tracer`.
+use crate::proxy::tracer::World;
 
 pub fn albedo_of(world: &World, triangle: usize) -> [f64; 3] {
     let packed = world.tags[triangle];

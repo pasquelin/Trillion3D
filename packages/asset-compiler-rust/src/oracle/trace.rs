@@ -1,6 +1,6 @@
 use super::{OracleJob, OracleLight, KIND_SPOT, KIND_SUN, SPOT_EDGE};
+use crate::proxy::tracer::{trace, World};
 use crate::shared_math::{dot, scale, sub};
-use crate::tracer::{trace, World};
 use rayon::prelude::*;
 
 /// Irradiance of declared lights at a point: same physical attenuation and cones

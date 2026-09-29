@@ -4,6 +4,7 @@
 //! the atlas is sharp from `z_tex = 2R·f / r_f`, the root costs more triangles than the pixels
 //! it covers from `z_tri = R·f·√(cπ/T)`, and the bake takes the smallest power-of-two
 //! `r_f ≥ 2√(T/(cπ))`, so that `z_tex ≤ z_tri`.
+use super::surface::coverage_cut;
 use serde_json::{json, Value};
 use std::f64::consts::PI;
 
@@ -121,4 +122,34 @@ pub(crate) fn judge(candidate: &Candidate, coverage: f64) -> Result<usize, Refus
         });
     }
     Ok(side)
+}
+
+/// Whether a primitive of source mesh `mesh` cuts its coverage, from its materials alone.
+pub(crate) fn masked(g: &Value, mesh: usize) -> bool {
+    let primitives = g["meshes"][mesh]["primitives"]
+        .as_array()
+        .into_iter()
+        .flatten();
+    primitives.into_iter().any(|p| {
+        let material = p["material"]
+            .as_u64()
+            .map(|id| &g["materials"][id as usize]);
+        material.is_some_and(|m| coverage_cut(m).is_some())
+    })
+}
+
+/// Whether a primitive of source mesh `mesh` deforms by its own attributes: morph targets or
+/// joint weights, which the primitive stage routes to the deforming pass as a skin
+/// (`compiler_primitive.rs`, `is_skinned_or_morph`).
+pub(crate) fn deforms(g: &Value, mesh: usize) -> bool {
+    let primitives = g["meshes"][mesh]["primitives"]
+        .as_array()
+        .into_iter()
+        .flatten();
+    primitives.into_iter().any(|p| {
+        let attributes = &p["attributes"];
+        p.get("targets").is_some()
+            || attributes.get("JOINTS_0").is_some()
+            || attributes.get("WEIGHTS_0").is_some()
+    })
 }
