@@ -345,7 +345,6 @@
       "drag-a-crate": "Drag a crate"
     },
     "missing": {
-      "floating-crates": "geometry rewritten every frame",
       "thick-lines": "wide lines",
       "a-line-that-draws-itself": "geometry draw range",
       "shapes-from-an-svg": "SVG path import",
@@ -492,8 +491,6 @@
       "a-software-rasteriser": "GPU compute API",
       "sound-from-the-gpu": "GPU compute API",
       "breaking-things": "physics integration",
-      "cloth-and-rope": "geometry rewritten every frame",
-      "soft-bodies": "geometry rewritten every frame",
       "a-cooked-flag": "geometry rewritten every frame",
       "a-room-in-vr": "WebXR session",
       "a-360-photo-in-vr": "WebXR session",

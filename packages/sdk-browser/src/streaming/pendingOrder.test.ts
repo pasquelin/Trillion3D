@@ -10,8 +10,8 @@ import { random } from '../page/cut/cutRuleChecks.fixture.ts';
 
 const HOSTILE = [NaN, 0, -0, Infinity, -Infinity, 1, 2];
 
-function frame(draw: () => number, count: number, matrices: G.Matrix4[]): PriorityRecord[] {
-  const pick = <T>(list: readonly T[]) => list[Math.floor(draw() * list.length)];
+/** Each record ranks one of `rootCount` roots, the one whose world places it. */
+function frame(draw: () => number, count: number, rootCount: number): PriorityRecord[] {
   const coordinate = () => (draw() - 0.5) * 40;
   return Array.from({ length: count }, (_, i) => {
     const centre = [coordinate(), coordinate(), coordinate()],
@@ -23,7 +23,7 @@ function frame(draw: () => number, count: number, matrices: G.Matrix4[]): Priori
       array: draw() < 0.1 ? new Uint32Array(1) : undefined,
       min: [centre[0] - radius, centre[1] - radius, centre[2] - radius],
       max: [centre[0] + radius, centre[1] + radius, centre[2] + radius],
-      matrix: pick(matrices),
+      placementIndex: Math.floor(draw() * rootCount),
       lodError: draw() < 0.1 ? undefined : draw() * 2,
       sphere,
       parentError: draw() < 0.5 ? draw() * 4 : null,
@@ -41,15 +41,16 @@ test('frames through the kept storage order as through storage made for each', (
   const draw = random(914),
     into: string[] = [];
   const matrices = Array.from({ length: 6 }, () =>
-    new G.Matrix4().makeTranslation(draw() * 4, draw() * 4, draw() * 4),
-  );
+      new G.Matrix4().makeTranslation(draw() * 4, draw() * 4, draw() * 4),
+    ),
+    roots = matrices.map((world) => ({ world }));
   // Large frames, then small ones: the storage grows, then prunes what the frames stop asking for.
   for (const count of [0, 1, 40, 900, 900, 12, 3, 0, 300, 700, 5, 64]) {
-    const records = frame(draw, count, matrices);
+    const records = frame(draw, count, matrices.length);
     matrices[Math.floor(draw() * matrices.length)].makeRotationY(draw() * 6);
-    const kept = orderPendingUrls(records, engine, scale, into);
+    const kept = orderPendingUrls(records, roots, engine, scale, into);
     assert.equal(kept, into);
-    const fresh = orderPendingUrls(records, engine, scale, [], createPendingScratch());
+    const fresh = orderPendingUrls(records, roots, engine, scale, [], createPendingScratch());
     assert.deepEqual(kept, fresh, `a frame of ${count}`);
   }
 });
@@ -86,14 +87,21 @@ test('a frame no larger than an earlier one writes into the arrays already there
   const engine = readCameraWorld(createEngineCamera(), cam),
     scale = [640, 640];
   const draw = random(7),
-    matrices = [new G.Matrix4(), new G.Matrix4().makeTranslation(1, 0, 0)];
+    roots = [new G.Matrix4(), new G.Matrix4().makeTranslation(1, 0, 0)].map((world) => ({ world }));
   const scratch = createPendingScratch(),
     into: string[] = [];
-  orderPendingUrls(frame(draw, 400, matrices), engine, scale, into, scratch);
+  orderPendingUrls(frame(draw, 400, roots.length), roots, engine, scale, into, scratch);
   const { errors, distances, order, merge, views, stretches } = scratch;
   const view = views[0];
   for (const count of [400, 120, 1]) {
-    const result = orderPendingUrls(frame(draw, count, matrices), engine, scale, into, scratch);
+    const result = orderPendingUrls(
+      frame(draw, count, roots.length),
+      roots,
+      engine,
+      scale,
+      into,
+      scratch,
+    );
     assert.equal(result, into);
     for (const [held, now] of [
       [errors, scratch.errors],

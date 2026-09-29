@@ -125,6 +125,7 @@ export function buildWorldSource(plan: WorldPlan) {
     root: mirror.root,
     twins: mirror.twins,
     repaint: mirror.repaint,
+    geometryOf: mirror.geometryOf,
     /** A batch the session was not opened with, as it mounts it (`PlacementMount`): its host
      *  mesh hung in the graph, its primitive listed in the manifest. */
     mount(batch: Batch): PlacementMount {
@@ -157,6 +158,7 @@ export function buildWorldSource(plan: WorldPlan) {
         nodes: null,
         // Each model's cells follow the session's camera; their rows hang under the model's twin.
         partitions: models.flatMap((model) => model.record.scene.partitions),
+        worldRoots: models.flatMap((model) => model.record.scene.worldRoots),
       },
     },
   };

@@ -20,7 +20,7 @@ type Resolved = { cut: Cut; entry: MaterialEntry } | null;
  * `mountable` hands to a session that mounts them (`worldMounts.ts`).
  */
 export function createWorldContents(scene: Object3D, notices: WorldNotices) {
-  const cuts = createWorldCuts(),
+  const cuts = createWorldCuts(notices),
     materials = createWorldMaterials(),
     poses = createWorldPoses(),
     batches = createWorldBatches(poses.touch);

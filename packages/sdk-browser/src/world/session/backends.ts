@@ -26,23 +26,14 @@ type Inputs = {
   /** Manifest url base: that is what locates the resident-proxy cache object. */
   base: string;
   frameBudget?: BackendContext['frameBudget'];
+  /** Each model's world roots: the pinned top and the bundles its placed cells hold (#1237). */
+  worldRoots: readonly { bytes(): number }[];
 };
 
 export async function prepareExplorerBackends(session: ExplorerSession, inputs: Inputs) {
   const { canvas, options, scope, metadata, signal, diagnosticChannel, emit, diagnose } = session;
-  const {
-    source,
-    sceneLightingSource,
-    associations,
-    textureIndices,
-    pageSources,
-    gpuDevice,
-    webglContext,
-    directGpu,
-    factories,
-    backends,
-    base,
-  } = inputs;
+  const { source, sceneLightingSource, associations, textureIndices, pageSources } = inputs;
+  const { gpuDevice, webglContext, directGpu, factories, backends, base } = inputs;
   const { indices, streamer, attachCap, cacheCap, preload } = pageSources;
   const viewport: [number, number] = [canvas.width, canvas.height];
   // One light store per session: every engine reads it, the host is the only one that writes it.
@@ -194,7 +185,9 @@ export async function prepareExplorerBackends(session: ExplorerSession, inputs: 
   }
   if (preload !== 'all') indices.clear();
   if (!backends.length) throw new Error('No backend');
-  // The engines' host tables, which follow the view, come out of the decoded pages' CPU share.
-  streamer.reserve(() => backends.reduce((bytes, b) => bytes + (b.hostTableBytes?.() ?? 0), 0));
+  // The engines' host tables, which follow the view, and the world roots the models hold come out
+  // of the decoded pages' CPU share.
+  const tables = () => backends.reduce((bytes, b) => bytes + (b.hostTableBytes?.() ?? 0), 0);
+  streamer.reserve(() => inputs.worldRoots.reduce((bytes, held) => bytes + held.bytes(), tables()));
   return { viewport, context };
 }

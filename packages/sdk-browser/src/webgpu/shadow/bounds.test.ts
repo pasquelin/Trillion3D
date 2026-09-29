@@ -6,14 +6,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { noteResidenceChange } from './bounds.ts';
+import { noteResidenceChange, recordMoves } from './bounds.ts';
 import { createWebgpuLightState } from '../pages/state/lights.ts';
 import { referenceClusterSphere } from '../../../../../bench/oracles/browser/core-math.ts';
 import type { PageRec } from '../../page/selection/types.ts';
 import { SUN } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 
+/** A page of rank 0, with the world of the root that places it. */
 function record(matrice: number[], min: number[], max: number[]) {
-  return { matrix: new G.Matrix4().fromArray(matrice), min, max } as unknown as PageRec;
+  const matrix = new G.Matrix4().fromArray(matrice);
+  return { matrix, min, max, placementIndex: 0 } as unknown as PageRec & { matrix: G.Matrix4 };
 }
 const CAS = [
   record([1, -0, 0, 0, 0, 1, -0, 0, -0, 0, 1, 0, -0, -0, -0, 1], [-0, -2, -0], [2, 0, 2]),
@@ -47,7 +49,7 @@ test('noteResidenceChange: matrices and boxes hostile to signed zeros — the bo
     lumieres.plan.representationChanged = (min, max) => {
       recu = [...Array.from(min), ...Array.from(max)];
     };
-    noteResidenceChange(lumieres, rec);
+    noteResidenceChange(lumieres, [{ world: rec.matrix }], rec);
     assert.ok(recu, 'representationChanged must be called');
     for (let i = 0; i < 6; i++)
       assert.ok(Object.is(attendu[i], recu![i]), `composante ${i} : ${attendu[i]} ≠ ${recu![i]}`);
@@ -64,12 +66,14 @@ test('a page of a placement already moving changes residency: its box stales the
   const declared: boolean[] = [];
   lights.plan.representationChanged = (_min, _max, movingOnly = false) =>
     void declared.push(movingOnly);
-  for (const placementIndex of [0, 1, undefined])
-    noteResidenceChange(lights, { ...CAS[0], placementIndex } as PageRec);
-  noteResidenceChange(lights, { ...CAS[0], placementIndex: 0 } as PageRec, true);
+  const roots = [0, 1].map(() => ({ world: CAS[0].matrix }));
+  for (const placementIndex of [0, 1])
+    noteResidenceChange(lights, roots, { ...CAS[0], placementIndex });
+  noteResidenceChange(lights, roots, { ...CAS[0], placementIndex: 0 }, true);
   assert.deepEqual(
     declared,
-    [false, true, false, true],
-    "still, moving, no placement known, then a still placement's blended caster",
+    [false, true, true],
+    "still, moving, then a still placement's blended caster",
   );
+  assert.equal(recordMoves(lights, { ...CAS[0], placementIndex: undefined }), false, 'none known');
 });

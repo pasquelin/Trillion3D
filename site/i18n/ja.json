@@ -345,7 +345,6 @@
       "drag-a-crate": "木箱をドラッグ"
     },
     "missing": {
-      "floating-crates": "毎フレーム書き換えるジオメトリ",
       "thick-lines": "太い線",
       "a-line-that-draws-itself": "ジオメトリの描画範囲",
       "shapes-from-an-svg": "SVGパスの読み込み",
@@ -492,8 +491,6 @@
       "a-software-rasteriser": "GPU計算API",
       "sound-from-the-gpu": "GPU計算API",
       "breaking-things": "物理エンジンとの連携",
-      "cloth-and-rope": "毎フレーム書き換えるジオメトリ",
-      "soft-bodies": "毎フレーム書き換えるジオメトリ",
       "a-cooked-flag": "毎フレーム書き換えるジオメトリ",
       "a-room-in-vr": "WebXRセッション",
       "a-360-photo-in-vr": "WebXRセッション",

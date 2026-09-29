@@ -1529,7 +1529,6 @@
       "drag-a-crate": "एक पेटी खींचें"
     },
     "missing": {
-      "floating-crates": "हर फ़्रेम में फिर से लिखी गई ज्यामिति",
       "thick-lines": "चौड़ी रेखाएँ",
       "a-line-that-draws-itself": "ज्यामिति ड्रॉ रेंज",
       "shapes-from-an-svg": "SVG पथ इंपोर्ट",
@@ -1676,8 +1675,6 @@
       "a-software-rasteriser": "GPU कंप्यूट API",
       "sound-from-the-gpu": "GPU कंप्यूट API",
       "breaking-things": "फ़िज़िक्स इंटीग्रेशन",
-      "cloth-and-rope": "हर फ़्रेम में फिर से लिखी गई ज्यामिति",
-      "soft-bodies": "हर फ़्रेम में फिर से लिखी गई ज्यामिति",
       "a-cooked-flag": "हर फ़्रेम में फिर से लिखी गई ज्यामिति",
       "a-room-in-vr": "WebXR सेशन",
       "a-360-photo-in-vr": "WebXR सेशन",

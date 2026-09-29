@@ -68,6 +68,9 @@ export type GpuFrameMs = number | null;
    *  cache when it owns one, the host page streamer otherwise. This is the cache pressure signal. */
   cacheEvictions?: number | null;
   /** Bytes of geometry memory. */ geometryAllocationBytes: number | null;
+  /** Vertex bytes of dynamic geometry uploaded in place this frame (#573), within the world's
+   *  per-frame budget (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Absent where no world draws. */
+  dynamicUploadBytes?: number;
   /** Bytes of GPU memory. */ vramBytes: number | null;
   /** Pages loaded so far. */ pageLoads: number;
   /** Page bytes read so far. */ pageBytesRead: number;
