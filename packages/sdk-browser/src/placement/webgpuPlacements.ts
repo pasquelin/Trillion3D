@@ -1,4 +1,5 @@
 import { moveRootRows } from '../webgpu/pages/render/movedRoot.ts';
+import { staleTemporalBox } from '../hiz/staleRegions.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
 import { followPlacementRows } from './update.ts';
 import { placedBy, type PlacementRows } from './rows.ts';
@@ -37,7 +38,10 @@ export function updateWebgpuPlacements(
     flipWorld(rt),
     lights.mobility.move,
     (rank) => moveRootRows(rt, layout.selectionRoots[rank]),
-    lights.plan.worldChanged,
+    (min, max, movingOnly) => {
+      lights.plan.worldChanged(min, max, movingOnly);
+      staleTemporalBox(run.temporalHizState, min, max);
+    },
   );
   // Blend items posed by these rows read them in place: the frame only has to be drawn again,
   // and their boxes follow at its world refresh (`refreshBlendWorlds`).
