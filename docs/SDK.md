@@ -1021,9 +1021,20 @@ the matching draw class. If a renderer cannot move that class in place, the call
 and show that refusal; it should not assume every renderer accepts a class change.
 
 `world.createMaterial({ name?, baseColor?, opacity?, metalness?, roughness?, emissive?,
-alphaMode?, alphaCutoff? })` makes a material owned by the page and returns its listed
-record. It can be read and edited by ID like an imported material. `map` is not yet
-supported (`UNSUPPORTED_SCENE_UPDATE`), and `tiling` is not a creation field. The
+alphaMode?, alphaCutoff?, map? })` makes a material owned by the page and returns its listed
+record synchronously without a map. With an `ImageBitmap` `map`, it returns a promise:
+`const created = await world.createMaterial({ map: bitmap })`. Await it before assignment;
+failed uploads publish no material and return their reserved bytes. The bitmap is borrowed:
+decode with `premultiplyAlpha: 'none'` and `colorSpaceConversion: 'none'`, keep it open until
+the material is dropped or the session is disposed and pending creations have settled, then
+close it yourself. Each material owns its texture even when two borrow the same bitmap.
+Runtime maps have a fixed 64 MiB decoded RGBA ceiling, checked before allocation and refused
+with `TEXTURE_BUDGET`; `world.materialMapBytes()` reports held and pending bytes. Backend
+`material-texture-appended` diagnostics report actual upload bytes and CPU time, not GPU time.
+`world.dropMaterial(id)` releases an unused created material, its variants, map and accounted
+bytes. A still-assigned material refuses with `UNSUPPORTED_SCENE_UPDATE`: assign a replacement
+first. Dropped IDs are never reused. GPU pools retain reusable capacity within their budget.
+It can be read and edited by ID like an imported material; `tiling` remains a set-only field. The
 session holds at most 256 created materials; the next creation raises
 `MATERIAL_CEILING` without creating one. To draw it on a compiled primitive, call
 `world.assignMaterial('mesh/primitive', created.id)`, using the two numbers in that

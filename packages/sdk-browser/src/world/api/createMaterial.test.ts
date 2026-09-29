@@ -1,5 +1,5 @@
 // A page creates a material of its own (#847): its values checked as a change's are, what it does
-// not take refused by name, no map yet, and a ceiling on how many.
+// not take refused by name,  and a ceiling on how many.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { RUNTIME_MATERIAL_CEILING } from './materialApi.ts';
@@ -37,10 +37,7 @@ test('a created material reads back what the page named, glTF defaults elsewhere
 
 test('a created material is refused by name before anything is built, then set as any other', async () => {
   const { api, refreshes } = await scene();
-  assert.throws(
-    () => api.createMaterial({ map: {} as ImageBitmap }),
-    refusal('UNSUPPORTED_SCENE_UPDATE'),
-  );
+  assert.throws(() => api.createMaterial({ map: {} as ImageBitmap }), refusal('INVALID_MATERIAL'));
   assert.throws(() => api.createMaterial({ roughness: 2 }), refusal('INVALID_MATERIAL'));
   assert.equal(api.materials().length, 5, 'nothing created');
   // A created material is set as a scene material is, its values checked the same way.
