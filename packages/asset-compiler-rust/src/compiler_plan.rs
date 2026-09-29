@@ -149,9 +149,10 @@ pub(super) fn plan_buffers(
         .enumerate()
         .map(|(new, old)| (*old, new))
         .collect();
-    let mut committed = source_len
-        .saturating_mul(2)
-        .saturating_add(o.threads.saturating_mul(1024 * 1024));
+    let mut committed = source_len.saturating_mul(2).saturating_add(
+        o.threads
+            .saturating_mul(compiler_primitive::cost::WORKER_BYTES),
+    );
     for id in &views {
         committed = committed
             .checked_add(required_index(
