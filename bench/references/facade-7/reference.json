@@ -1,6 +1,6 @@
 {
   "scene": "facade-7",
-  "commit": "df8c71e2f2a14d6445e0df07bbb82d2730d5236e",
+  "commit": "5b07d815235a7b0add77ead835f01f93f2e3dc2e",
   "dirty": false,
   "from": "folder",
   "command": "node bench/runner/reference.ts --scene facade-7",

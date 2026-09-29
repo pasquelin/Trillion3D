@@ -1,5 +1,6 @@
 // The engine's reference images (#1281): where `reference.ts` writes them, what each carries, and
 // how the class-2 proof (`referenceProof.ts`) reads them back.
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { decodePng } from '../../packages/sdk-node/src/cutout/png.mts';
@@ -7,8 +8,11 @@ import type { CameraPose } from '../../packages/sdk-core/src/index.ts';
 import type { Capture } from '../../tests/kit/server/staticServer.ts';
 import type { BenchSettings } from './benchSettings.ts';
 
-/** The published references, one folder per scene: `reference.json` and a PNG per view. */
+/** The published references, one folder per scene: its `reference.json`, in git. */
 export const REFERENCES_DIR = resolve(import.meta.dirname, '../references');
+/** Their images, a PNG per view, off git (`.mesure/`, AGENTS.md rule 10): `reference.ts` draws
+ *  them there, and the SHA-256 of `reference.json` says which image each record names. */
+export const REFERENCE_IMAGES_DIR = resolve(import.meta.dirname, '../../.mesure/references');
 
 /** The proof scenes and the settings they are drawn at: the boss's case, 1728 × 1117 CSS at
  *  DPR 2, the sun and bounced light on the engine that draws them. A flag given after them wins. */
@@ -30,7 +34,7 @@ export const REFERENCE_ARGS = [
 ];
 
 /** The settings that change the image: a capture drawn with other values is not comparable. */
-export const IMAGE_SETTINGS = [
+const IMAGE_SETTINGS = [
   'width',
   'height',
   'dpr',
@@ -86,23 +90,23 @@ export function readReference(scene: string, dir = REFERENCES_DIR): ReferenceRec
   return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as ReferenceRecord) : null;
 }
 
-/** RGBA rows reversed: a PNG is top row first, a capture bottom row first, as the GPU reads it. */
-export function flipRows(rgba: Uint8Array, width: number, height: number) {
-  const out = new Uint8Array(rgba.length),
-    stride = width * 4;
-  for (let y = 0; y < height; y++)
-    out.set(rgba.subarray(y * stride, (y + 1) * stride), (height - 1 - y) * stride);
-  return out;
-}
-
-/** A view's reference image as a capture, bottom row first; `null` when the view has none. */
-export function referenceImage(
-  record: ReferenceRecord,
-  view: string,
-  dir = REFERENCES_DIR,
-): Capture {
-  const entry = record.views[view];
-  if (!entry) return null;
-  const { width, height, rgba } = decodePng(readFileSync(join(dir, record.scene, entry.file)));
-  return { body: Buffer.from(flipRows(rgba, width, height)), w: width, h: height };
+/** A view's reference image as a capture, bottom row first as the GPU reads it (a PNG is top row
+ *  first), decoded once per record and view; refused by name when absent or when its pixels are
+ *  not the ones `reference.json` names. */
+const decoded = new WeakMap<ReferenceRecord, Map<string, NonNullable<Capture>>>();
+export function referenceImage(record: ReferenceRecord, view: string, dir = REFERENCE_IMAGES_DIR) {
+  const images = decoded.get(record) ?? new Map<string, NonNullable<Capture>>();
+  decoded.set(record, images);
+  let image = images.get(view);
+  if (image) return image;
+  const { scene, commit, views } = record;
+  const file = join(dir, scene, views[view].file);
+  const redraw = `draw it at ${commit.slice(0, 12)}: node bench/runner/reference.ts --scene ${scene}`;
+  if (!existsSync(file)) throw new Error(`no reference image ${file}; ${redraw}`);
+  const { width, height, rgba } = decodePng(readFileSync(file), true);
+  image = { body: Buffer.from(rgba), w: width, h: height };
+  if (createHash('sha256').update(image.body).digest('hex') !== views[view].sha256)
+    throw new Error(`${file} is not the image reference.json names (SHA-256); ${redraw}`);
+  images.set(view, image);
+  return image;
 }

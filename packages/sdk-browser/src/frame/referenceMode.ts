@@ -32,7 +32,7 @@ export const REFERENCE_APPROXIMATIONS = [
 ] as const;
 
 /** Most samples per display pixel and axis the reference draws. */
-export const REFERENCE_MAX_SUPERSAMPLING = 4;
+const REFERENCE_MAX_SUPERSAMPLING = 4;
 /** The bounce target of the reference, in milliseconds: far past any frame, so the budget never
  *  lowers the probes traced below their per-frame ceiling (`createBounceBudget`). */
 export const REFERENCE_BOUNCE_BUDGET_MS = 1000;
@@ -63,6 +63,13 @@ export function referenceOptions(options: MeasuredWorldOptions): {
   reference: ReferenceMode | null;
 } {
   if (!options.reference) return { options, reference: null };
+  // A resize would set the host's pixel ratio back under the supersampling: a reference is a
+  // still capture of a fixed size, never a live canvas.
+  if (options.interactive)
+    throw new EngineError(
+      'REFERENCE_INTERACTIVE',
+      'Reference mode draws a fixed size: open it without `interactive`',
+    );
   const pixelRatio = options.pixelRatio ?? DEFAULT_PIXEL_RATIO;
   const supersampling = referenceSupersampling(
     options.width ?? DEFAULT_WIDTH,

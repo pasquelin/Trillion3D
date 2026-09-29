@@ -1000,7 +1000,8 @@
       "PHYSICS_FORMAT": "コンパイル済みモデルの事前処理された物理（`physics.json`）が別の形式か、エンジンとは別の Jolt で処理されています（`PHYSICS_FORMAT`）：再コンパイルしてください。物理がオフのまま正確なレイキャストが求められました（`PHYSICS_OFF`）。",
       "PHYSICS_OFF": "コンパイル済みモデルの事前処理された物理（`physics.json`）が別の形式か、エンジンとは別の Jolt で処理されています（`PHYSICS_FORMAT`）：再コンパイルしてください。物理がオフのまま正確なレイキャストが求められました（`PHYSICS_OFF`）。",
       "NO_VEHICLE": "`world.controls.vehicle` が `null` のまま `world.controls.kind` に `'vehicle'` が設定された：運転するものがない。",
-      "GUIDE_CEILING": "`world.guides` の呼び出しは `GUIDE_VERTEX_CEILING` を超える頂点を保持することになるため、何も追加されませんでした。"
+      "GUIDE_CEILING": "`world.guides` の呼び出しは `GUIDE_VERTEX_CEILING` を超える頂点を保持することになるため、何も追加されませんでした。",
+      "REFERENCE_SHADOWS_REDUCED": "参照画像は拒否されました：シャドウプールが本来のサイズ未満で動作しているか、セッションがインタラクティブです。"
     }
   },
   "EngineProfiler": {

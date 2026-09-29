@@ -1000,7 +1000,8 @@
       "PHYSICS_FORMAT": "컴파일된 모델의 미리 준비된 물리(`physics.json`)가 다른 형식이거나 엔진과 다른 Jolt로 준비되었습니다(`PHYSICS_FORMAT`): 다시 컴파일하세요. 물리가 꺼진 상태에서 정확한 레이캐스트를 요청했습니다(`PHYSICS_OFF`).",
       "PHYSICS_OFF": "컴파일된 모델의 미리 준비된 물리(`physics.json`)가 다른 형식이거나 엔진과 다른 Jolt로 준비되었습니다(`PHYSICS_FORMAT`): 다시 컴파일하세요. 물리가 꺼진 상태에서 정확한 레이캐스트를 요청했습니다(`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.vehicle`이 `null`인데 `world.controls.kind`를 `'vehicle'`로 설정했습니다: 운전할 것이 없습니다.",
-      "GUIDE_CEILING": "`world.guides` 호출이 `GUIDE_VERTEX_CEILING`보다 많은 정점을 보유하게 되어, 아무것도 추가되지 않았습니다."
+      "GUIDE_CEILING": "`world.guides` 호출이 `GUIDE_VERTEX_CEILING`보다 많은 정점을 보유하게 되어, 아무것도 추가되지 않았습니다.",
+      "REFERENCE_SHADOWS_REDUCED": "참조 이미지가 거부되었습니다: 그림자 풀이 전체 크기보다 작게 실행 중이거나 세션이 대화형입니다."
     }
   },
   "EngineProfiler": {
