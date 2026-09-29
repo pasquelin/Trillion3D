@@ -153,6 +153,9 @@ export function createWebgpuPagesServices(rt: WebgpuPagesCore) {
     traceDiagnostic: diag.traceDiagnostic,
     lowerTiers: () => lowerTiers,
     prefetch: context.readGeometryPage && readGeometryAhead(geometryUrls, context.readGeometryPage),
+    // The plan holds when the camera's view is the last one's: at rest the caster tier settles on
+    // its list's first pages, while a moving camera keeps every page the list still names (#1016).
+    still: () => rt.lights.plan.resting,
   });
   const residency = createWebgpuResidencyQueue({
     tracking,

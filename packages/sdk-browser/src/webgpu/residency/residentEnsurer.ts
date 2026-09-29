@@ -29,6 +29,9 @@ type EnsureOptions = {
   /** Starts the read of a page's bytes ahead of its admission, dropped with `signal` if nothing
    *  joined it; the lower tiers' at PRIORITY_PREFETCH, behind the camera's. Absent, at admission. */
   prefetch?: (page: PageRec, signal: AbortSignal, priority?: number) => void;
+  /** True when the camera's view is the last plan's: the pose is still, and its lower tiers settle
+   *  on their list's first pages. Absent, still. */
+  still?: () => boolean;
 };
 
 /** Loads newly wanted pages without acting on a stale camera cut. */
@@ -44,6 +47,7 @@ export function createWebgpuResidentEnsurer({
   traceDiagnostic,
   lowerTiers,
   prefetch,
+  still = () => true,
 }: EnsureOptions) {
   /** The published share of the main thread (`STREAMING_FRAME_MS`), read synchronously: past it a
    *  job yields a task, past `STREAMING_SHARES_PER_FRAME` of a visible page a frame (a hidden tab
@@ -67,8 +71,12 @@ export function createWebgpuResidentEnsurer({
    * What the camera left: the casters the light cuts want, then the pages ahead of the camera,
    * loaded only into slots nobody holds — free, or taken by a page no tier wants. They are never
    * pinned: a camera page evicts them, they never evict a camera page, and an object on screen is
-   * never coarsened for a shadow or for a view to come. Only the list's first pages the unpinned
-   * slots hold keep theirs: past the pool, what stays follows the list, never arrivals (#1016).
+   * never coarsened for a shadow or for a view to come.
+   *
+   * At rest, only the list's first pages the unpinned slots hold keep theirs: past the pool what
+   * stays follows the list, never arrivals (#1016). While the camera moves the list is remade by
+   * every report its light cuts send, and settling it then evicted and reloaded a wanted caster
+   * every frame; the moving tier keeps every page the list names, and only a still pose settles.
    */
   const loadLowerTiers = async (
     lower: readonly PageRec[],
@@ -83,8 +91,13 @@ export function createWebgpuResidentEnsurer({
     };
     const slots = cache.unpinnedSlots();
     let held = 0;
-    for (let i = 0, kept = 0; i < lower.length && kept < slots; i++)
-      if (!skip(lower[i]) && ++kept && cache.touch(pageAddress(lower[i]), true)) held++;
+    if (still()) {
+      for (let i = 0, kept = 0; i < lower.length && kept < slots; i++)
+        if (!skip(lower[i]) && ++kept && cache.touch(pageAddress(lower[i]), true)) held++;
+    } else {
+      for (let i = 0; i < lower.length; i++)
+        if (!skip(lower[i]) && cache.touch(pageAddress(lower[i]), true)) held++;
+    }
     let spare = slots - held;
     readAhead?.(lower, spare, (rec) => !skip(rec), cache, reads, PRIORITY_PREFETCH);
     // The share, as the camera's burst: past it the job yields — and leaves if a camera cut asked
