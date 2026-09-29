@@ -151,11 +151,3 @@ export type ClusterRoot<T> = {
   windingCw?: boolean;
   windingEpoch?: number;
 };
-/** What a reader takes of the roots a record's `placementIndex` ranks: their worlds. */
-export type Placements = readonly { readonly world: MatrixElements }[];
-/** The root that places `rec`: the rank its engine's layout posted (`placementIndex`). */
-export function rootOf<R>(roots: readonly R[], rec: { readonly placementIndex?: number }): R {
-  const root = roots[rec.placementIndex ?? -1];
-  if (root === undefined) throw new Error('PAGE_PLACEMENT_MISSING');
-  return root;
-}

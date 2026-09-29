@@ -18,7 +18,7 @@ import {
 } from '../pages/prepare/pipelineFor.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { DEPTH_CLEAR } from '../../camera/depthConvention.ts';
-import { rootOf } from '../../page/selection/types.ts';
+import { rootOf } from '../../page/selection/placements.ts';
 
 /** Uploads and draws opaque rows through the non-visibility fallback pipeline; the draws count on
  *  `rt.run.gpuDrawCalls` and the open encoder comes back with the vertices drawn. */

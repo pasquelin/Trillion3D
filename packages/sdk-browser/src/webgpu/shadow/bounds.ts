@@ -1,7 +1,7 @@
 import { boxEmpty, boxUnion, transformAffinePoint } from '../../../../sdk-core/src/index.ts';
 import { forEachDirtyRun } from '../row/dirty.ts';
 import { rootOf, type PageRec } from '../../page/selection/selection.ts';
-import type { Placements } from '../../page/selection/types.ts';
+import type { Placements } from '../../page/selection/placements.ts';
 import type { WebgpuLightState } from '../pages/state/lights.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { hypot3 } from '../../../../sdk-core/src/math/primitives/hypot.ts';

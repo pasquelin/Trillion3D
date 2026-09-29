@@ -2,7 +2,7 @@ import { FLAG_CLIP, ROW_DATA_U32, ROW_FLAGS, ROW_NEAREST } from '../../gpu/parti
 import { visLayerTop } from '../visibility/uniforms.ts';
 import { BOX_CORNER_VALUES, pageCornersInto } from '../../hiz/hiz.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
-import { rootOf } from '../../page/selection/types.ts';
+import { rootOf } from '../../page/selection/placements.ts';
 
 /**
  * What an image sent to the GPU partition, and what the partition wrote of it, row by row.

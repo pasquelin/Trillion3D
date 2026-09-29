@@ -5,7 +5,7 @@ import {
 } from '../../../../sdk-core/src/scene/light-shadow/receiverCells.ts';
 import type { EngineCamera } from '../../camera/engineCamera.ts';
 import { rootOf, type PageRec } from '../../page/selection/selection.ts';
-import type { Placements } from '../../page/selection/types.ts';
+import type { Placements } from '../../page/selection/placements.ts';
 import { pixelNearOf } from '../../streaming/priority.ts';
 
 /** The frame's receivers, rewritten in place: their boxes grow with the largest cut, never shrink. */

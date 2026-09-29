@@ -17,7 +17,7 @@ import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
 import { pagedGeometry } from '../../host/prepared/pagedSource.ts';
 import type { HostMesh } from '../../host/resources.ts';
 import { cutPagesOffThread } from '../../page/decode/host.ts';
-import type { PageRec } from '../../page/selection/selection.ts';
+import { rootOf, type ClusterRoot, type PageRec } from '../../page/selection/selection.ts';
 import { blendMoves, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
 import { primitiveFinder } from '../../scene/primitiveLookup.ts';
 import { packDrawn } from '../../world/page/runtimeCut.ts';
@@ -27,6 +27,8 @@ import { readPages } from './manifest.ts';
 
 type ClassPagesEnvironment = {
   context: BackendContext;
+  /** The roots a record's `placementIndex` ranks: its world is its root's. */
+  roots: readonly ClusterRoot<PageRec>[];
   geometryStore: ReturnType<typeof createAutonomousGeometry>;
   /** Whether `alpha` moves the surface a record wears (`collect.ts`). */
   wears: (rec: PageRec, alpha: AlphaChange) => boolean;
@@ -51,11 +53,15 @@ const ownClass = (primitive: Primitive, blended: boolean) =>
 
 /** The largest world scale that places the records: the compiler's tile follows it, read over
  *  every placement of the primitive (`mesh_scales`), not only those a change moves. */
-const largestScale = (records: readonly PageRec[], scratch = new Matrix4()) =>
-  records.reduce(
-    (scale, rec) => Math.max(scale, scratch.fromArray(rec.matrix.elements).getMaxScaleOnAxis()),
-    0,
-  );
+const largestScale = (
+  records: readonly PageRec[],
+  roots: readonly ClusterRoot<PageRec>[],
+  scratch = new Matrix4(),
+) =>
+  records.reduce((scale, rec) => {
+    const { elements } = rootOf(roots, rec).world;
+    return Math.max(scale, scratch.fromArray(elements).getMaxScaleOnAxis());
+  }, 0);
 
 export function createClassPages(env: ClassPagesEnvironment) {
   const { context, geometryStore } = env;
@@ -86,7 +92,7 @@ export function createClassPages(env: ClassPagesEnvironment) {
     if (ownClass(primitive, blended)) return null;
     // Read before the first wait: the cut holds no placement.
     const mesh = moved[0].sourceMesh as HostMesh,
-      scale = largestScale(placed);
+      scale = largestScale(placed, env.roots);
     const [vertices, corners] = await Promise.all([
       pagedGeometry(mesh).loadVertices(),
       Promise.all(primitive.pages.map((page) => context.readPage!(page.url))),
