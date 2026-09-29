@@ -77,3 +77,26 @@ test('a model with no street to probe says why by name and walks its box', () =>
   assert.equal(found.noStreet, undefined);
   assert.equal(found.street?.clearance, 3);
 });
+
+// #1016 review: the probe opened a second world and loaded the model again beside the one
+// `readBounds` had just loaded. The box and the street come from one world, closed once.
+test('the box and the street are read on one world, which the probe closes', async () => {
+  const fixture = await import('./streetWorld.fixture.ts');
+  const { readBounds } = await import('./page.ts');
+  const { probeColumns } = await import('./streetPage.ts');
+  fixture.pageGlobals();
+  const urls = { sdkUrl: import.meta.resolve('./streetWorld.fixture.ts'), manifestUrl: 'm.json' };
+  const box = await readBounds({ ...urls, street: true });
+  assert.deepEqual(box, bounds);
+  assert.deepEqual(fixture.opened, { worlds: 1, loads: 1, disposed: 0, physics: [true] });
+  const read = await probeColumns(streetProbe(box, urls));
+  assert.equal(read.noStreet, null);
+  assert.deepEqual(fixture.opened, { worlds: 1, loads: 1, disposed: 1, physics: [true] });
+  assert.deepEqual(pickStreet(read.probes, box), { x: 0, z: 0, ground: 0, clearance: 2 });
+  await readBounds(urls);
+  assert.deepEqual(fixture.opened.disposed, 2, 'bounds alone close their world at once');
+  assert.equal(
+    (await probeColumns(streetProbe(box, urls))).noStreet,
+    'no world loaded by readBounds',
+  );
+});

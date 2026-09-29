@@ -28,7 +28,7 @@ try {
       const { streetBounds } = await import(posesUrl.replace('poses.ts', 'street.ts'));
       const scene: MeasuredWorld = await openBenchWorld('behind', sdkUrl, manifestUrl, size);
       // The street the bench's eye-level views walk (`street.ts`), as the bench reads it.
-      const bounds = await streetBounds(scene.bounds, { sdkUrl, manifestUrl });
+      const bounds = await streetBounds({ sdkUrl, manifestUrl });
       scene.addLight({ ...sun, castsShadow: true });
       await scene.awaitPages();
       const settle = (pose: unknown) => settleWorld(scene, pose);
