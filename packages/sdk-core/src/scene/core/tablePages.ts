@@ -49,7 +49,9 @@ export const rankLists = (list: unknown, length: number): list is string[] =>
   list.every((ranks) => typeof ranks === 'string' && /^([0-9a-f]{8})*$/.test(ranks));
 
 const bits = /* @__PURE__ */ new DataView(/* @__PURE__ */ new ArrayBuffer(8));
-export const text = /* @__PURE__ */ new TextDecoder();
+const text = /* @__PURE__ */ new TextDecoder();
+/** The JSON `bytes` carry, as UTF-8. */
+export const pageJson = (bytes: Uint8Array): unknown => JSON.parse(text.decode(bytes));
 /** The `f64` whose bits are the sixteen hexadecimal digits `hex`. */
 export const float64 = (hex: string) => (
   bits.setBigUint64(0, BigInt(`0x${hex}`)),
@@ -84,7 +86,7 @@ async function readPage(
   page: TablePage,
   read: (page: TablePage) => Promise<Uint8Array>,
 ) {
-  return versioned(kind, JSON.parse(text.decode(await read(page))), page.url);
+  return versioned(kind, pageJson(await read(page)), page.url);
 }
 
 /** The pages `slots` of `kind` name, their boxes and the `parents` listed beside them, the empty

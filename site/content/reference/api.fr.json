@@ -5964,6 +5964,12 @@
       "extensions": "Ce que les extensions physiques ajoutent, sous les noms de paramètres de l’hôte : un facteur, une couleur ou un intervalle en nombres, une image en emplacement."
     }
   },
+  "TablePage": {
+    "summary": "Une page qu’un emplacement nomme : son fichier, relatif aux tables, sa taille et son empreinte."
+  },
+  "TableSlot": {
+    "summary": "Une page d’un index qu’un emplacement nomme, sa boîte aux poses déclarées et les rangs du cœur listés à côté : pour l’index des cellules, les parents sous lesquels ses cellules accrochent des nœuds (#575)."
+  },
   "TableTexture": {
     "summary": "État d’échantillonnage d’une texture glTF, dans les mots du moteur.",
     "members": {

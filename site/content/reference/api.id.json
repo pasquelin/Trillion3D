@@ -3650,6 +3650,12 @@
       "extensions": "Apa yang ditambahkan ekstensi fisik, dengan nama parameter host: faktor, warna, atau rentang sebagai angka, peta sebagai slot."
     }
   },
+  "TablePage": {
+    "summary": "Halaman yang dinamai sebuah slot: berkasnya, relatif terhadap tabel, ukurannya, dan sidik jarinya."
+  },
+  "TableSlot": {
+    "summary": "Halaman indeks yang dinamai sebuah slot, kotaknya pada pose yang dideklarasikan, dan peringkat inti yang tercantum di sampingnya: untuk indeks sel, induk tempat sel-selnya menggantungkan node (#575)."
+  },
   "TableTexture": {
     "summary": "Status sampler satu tekstur glTF, dalam kata-kata mesin.",
     "members": {

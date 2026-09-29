@@ -3650,6 +3650,12 @@
       "extensions": "Những gì các phần mở rộng vật lý thêm vào, theo tên tham số của máy chủ: một hệ số, một màu hoặc một khoảng dưới dạng số, một bản đồ dưới dạng khe."
     }
   },
+  "TablePage": {
+    "summary": "Một trang mà một ô nêu tên: tệp của nó, tương đối với các bảng, kích thước và dấu vân tay của nó."
+  },
+  "TableSlot": {
+    "summary": "Một trang của chỉ mục mà một ô nêu tên, hộp của nó ở các tư thế đã khai báo và các hạng lõi được liệt kê bên cạnh: với chỉ mục ô, các cha mà các ô của nó treo nút dưới đó (#575)."
+  },
   "TableTexture": {
     "summary": "Trạng thái bộ lấy mẫu của một kết cấu glTF, theo lời của bộ máy.",
     "members": {
