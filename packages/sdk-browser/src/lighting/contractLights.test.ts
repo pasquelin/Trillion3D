@@ -4,8 +4,8 @@ import { LIGHT_SETTINGS, createSceneLightStore } from '../../../sdk-core/src/ind
 import { attachContractLights } from './contractLights.ts';
 import { installLighting } from './contractLightingApi.ts';
 import { unsupportedClusterLight } from '../webgl/cluster/lights.ts';
+import { createDrawLists } from '../webgl/cluster/drawLists.ts';
 import { Scene } from '../world/core/scene.ts';
-import { isLightNode } from '../host/graph/kinds.ts';
 import { Light } from '../../../sdk-core/src/world/light/light.ts';
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 
@@ -23,15 +23,12 @@ function harness(sourceLights: Object3D[] = []) {
     scene,
     store,
     contract,
-    /** Lights the render would see: those a scene walk collects, visible ones only. */
+    /** Lights the render would see: the list a WebGL2 frame reads (`drawLists.ts`). */
     visibleLights() {
-      const found: Light[] = [];
-      const walk = (node: Object3D) => {
-        if (!node.visible) return;
-        if (isLightNode(node)) found.push(node);
-        node.children.forEach(walk);
-      };
-      walk(scene);
+      const lists = createDrawLists(scene, []);
+      lists.refresh();
+      const found = [...lists.lights];
+      lists.dispose();
       return found;
     },
   };
@@ -49,7 +46,7 @@ test('source auto-lighting preserves and rejects a non-physical point-light deca
   const point = light('point');
   point.decay = 1;
   const bench = harness([point]);
-  assert.match(unsupportedClusterLight(bench.scene)!, /decay 1 is unsupported/);
+  assert.match(unsupportedClusterLight(bench.visibleLights())!, /decay 1 is unsupported/);
 });
 
 test('a contract point light lights, and removing it makes the lit view black', () => {
@@ -193,5 +190,5 @@ test('changing a light type replaces its light object, leaving no second one', (
 
 test('a visible light probe is read by the cluster renderer, never refused', () => {
   const probe = new Light('probe', { sh: [1, 1, 1] });
-  assert.equal(unsupportedClusterLight(harness([probe]).scene), undefined);
+  assert.equal(unsupportedClusterLight(harness([probe]).visibleLights()), undefined);
 });

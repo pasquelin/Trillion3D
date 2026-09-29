@@ -7,7 +7,8 @@
  */
 import { residentProxyWgsl } from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from '../../../packages/sdk-browser/src/bounce/traceWgsl.ts';
-import type { ouvrirAppareil } from './webgpuDevice.ts';
+import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts';
+import type { ouvrirAppareil as openDevice } from './webgpuDevice.ts';
 
 /** Farther than any ray of the probes travels. */
 const REACH = 200;
@@ -35,11 +36,11 @@ export type RayReading = {
   red: number;
 };
 
-type Appareil = NonNullable<Awaited<ReturnType<typeof ouvrirAppareil>>>;
+type Gpu = NonNullable<Awaited<ReturnType<typeof openDevice>>>;
 
 /** Rays are two `vec4f` each: origin, then normalized direction. */
-export function createTraceRig(appareil: Appareil, proxy: GPUBuffer, data: Float32Array) {
-  const { device } = appareil;
+export function createTraceRig(gpu: Gpu, proxy: GPUBuffer, data: Float32Array) {
+  const { device } = gpu;
   const compilation: string[] = [];
   const usage = GPUBufferUsage;
   const rays = device.createBuffer({
@@ -51,16 +52,12 @@ export function createTraceRig(appareil: Appareil, proxy: GPUBuffer, data: Float
     size: data.byteLength,
     usage: usage.STORAGE | usage.COPY_SRC,
   });
-  const readback = device.createBuffer({
-    size: data.byteLength,
-    usage: usage.COPY_DST | usage.MAP_READ,
-  });
   const count = data.length / 8;
   /** `steps`: a WGSL expression replacing the proxy's bound; absent, the shipped one. */
   const pipeline = async (steps?: string) => {
     if (!SHADER.includes(SHIPPED)) throw new Error('the shipped step bound is no longer read');
     const code = steps ? SHADER.replace(SHIPPED, `fn proxySteps()->u32{return ${steps};}`) : SHADER;
-    const compiled = await appareil.compile(code);
+    const compiled = await gpu.compile(code);
     compilation.push(...compiled.compilation);
     return device.createComputePipeline({
       layout: 'auto',
@@ -81,11 +78,8 @@ export function createTraceRig(appareil: Appareil, proxy: GPUBuffer, data: Float
       pass.setBindGroup(0, group);
       pass.dispatchWorkgroups(count);
       pass.end();
-      encoder.copyBufferToBuffer(hits, 0, readback, 0, data.byteLength);
       device.queue.submit([encoder.finish()]);
-      await readback.mapAsync(GPUMapMode.READ);
-      const out = new Float32Array(readback.getMappedRange().slice(0));
-      readback.unmap();
+      const out = new Float32Array((await readGpuBuffer(device, hits, data.byteLength))!.buffer);
       return Array.from({ length: count }, (_, ray) => {
         const at = ray * 8;
         return {
@@ -99,7 +93,7 @@ export function createTraceRig(appareil: Appareil, proxy: GPUBuffer, data: Float
       });
     },
     dispose() {
-      for (const buffer of [rays, hits, readback]) buffer.destroy();
+      for (const buffer of [rays, hits]) buffer.destroy();
     },
   };
 }
