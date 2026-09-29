@@ -3253,7 +3253,8 @@
       "settled": "当报告证明当前状态不再请求任何内容时为真：图像可以保持。",
       "receive": "请求报告已返回；下一个计划读取它。较新的报告替换未读的报告。",
       "commit": "本帧列表中的 `[from, to)` 页已编码，第 `from + i` 页使用 `modes[i]`：它们的绘制在任何读取之前完成。最后一批关闭列表。",
-      "resize": "换一种大小的池：保留其页面，重新分配其数组；返回每一页的去向。"
+      "resize": "换一种大小的池：保留其页面，重新分配其数组；返回每一页的去向。",
+      "gpu": "GPU 的分配（`mirror.ts`）：GPU 是否映射页面，以及主机向它请求什么。"
     }
   },
   "ShadowStaleReason": {
@@ -7544,7 +7545,8 @@
       "layoutEpoch": "该帧读取时使用的表布局（`ShadowTable.layoutEpoch`）。",
       "stamp": "该帧编码时计划的印章（`ShadowPlan.stamp`）。",
       "count": "请求的条目数，可能多于 `entries` 所能容纳的：其余在下一帧再次请求。",
-      "entries": "请求的条目，最多前 `count` 个。"
+      "entries": "请求的条目，最多前 `count` 个。",
+      "pool": "GPU 分配时，该帧分配之后 GPU 分配器的页池。"
     }
   },
   "VehicleDriver": {
