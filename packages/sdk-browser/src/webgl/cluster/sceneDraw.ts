@@ -17,6 +17,7 @@ import type { BackendHostDraw } from '../../backend/hostDraw.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import { linearRefusalOf } from './linearRefusal.ts';
 import { createDrawLists } from './drawLists.ts';
+import { degradedHearer } from '../../world/diagnostic/materialNotices.ts';
 
 /** The scene the owner reads for its lights and background, its world matrices resolved
  *  before the read. */
@@ -28,8 +29,9 @@ type DrawnNode = Partial<SceneCopy> & {
   readonly renderOrder: number;
 };
 
-/** What the session gives the draw: its pixel ratio and its degraded-surface notice. */
-type DrawHosts = Pick<BackendContext, 'pixelRatio' | 'materialDegraded'>;
+/** What the session gives the draw: its pixel ratio, its degraded-surface notice and its
+ *  diagnostics, where that notice is said when the session gives none. */
+type DrawHosts = Pick<BackendContext, 'pixelRatio' | 'materialDegraded' | 'onDiagnostic'>;
 
 /** A scene draw hands the program no page batch: shared, so a frame allocates no empty list. */
 const NO_BATCHES: readonly never[] = [];
@@ -51,13 +53,14 @@ const NO_BATCHES: readonly never[] = [];
  * first, that runs before `onBeforeRender`, whose one hook (`../../lighting/unlitAlbedo.ts`) writes
  * no field the lists read. Without a context (a session that never draws on the host
  * surface) the draw is refused by name. `pixelRatio`, read each frame, scales a line's CSS-pixel
- * width to the image's pixels; `materialDegraded` hears a surface drawn without a physical feature.
+ * width to the image's pixels; `materialDegraded` hears a surface drawn without a physical feature
+ * or left out of the frame, said on `onDiagnostic` when the session gives no hearer.
  */
 export function createSceneDraw(
   gl: WebGL2RenderingContext | undefined,
   display: Scene,
   copies: readonly object[] = [],
-  { pixelRatio = () => DEFAULT_PIXEL_RATIO, materialDegraded }: DrawHosts = {},
+  { pixelRatio = () => DEFAULT_PIXEL_RATIO, materialDegraded, onDiagnostic }: DrawHosts = {},
 ) {
   // The graph's lists, walked again only when it changed shape (`drawLists.ts`); the draw sorts
   // copies of them, reused from frame to frame: a draw allocates no list.
@@ -92,7 +95,7 @@ export function createSceneDraw(
     drawHostGeometry(drawCamera: HostDrawCamera, output: HostDrawOutput) {
       if (!gl) throw new Error('HOST_SURFACE_MISSING');
       if (!opened) throw new Error('Draw before render');
-      owner ??= new WebglClusterOwner(gl, materialDegraded);
+      owner ??= new WebglClusterOwner(gl, degradedHearer({ materialDegraded, onDiagnostic }));
       if (!owner.censused) owner.census(meshes(display));
       owner.toneCurve = TONE_MAPPING_RANK[output.toneMapping ?? DEFAULT_TONE_MAPPING];
       owner.pixelRatio = pixelRatio();
