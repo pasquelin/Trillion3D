@@ -126,7 +126,7 @@ impl Local<'_> {
         // Per placed vertex, the canonical vertex of what `by` keys: the source vertex it was
         // solved from where their keys agree, else the first placed vertex with its key.
         let canonical = |by: fn(u32) -> bool, of: &[u32]| -> Vec<u32> {
-            let (own, source): (Vec<(&[f32], usize)>, Vec<(&[f32], usize)>) = (carried.iter())
+            let (own, source): (Vec<_>, Vec<_>) = (carried.iter())
                 .zip(&values)
                 .filter(|(a, _)| by(a.flag))
                 .map(|(a, v)| ((&v[..], a.width), (&a.values[..], a.width)))
