@@ -11,7 +11,7 @@ import {
   writeFallbackBlendUniforms,
 } from '../../blend/fallback.ts';
 import { encodeTransparentInstances } from '../../transparent/draw.ts';
-import { encodeWaterPass } from '../../water/pass.ts';
+import { boundWaterPass, encodeWaterPass } from '../../water/pass.ts';
 import { drawParticles, encodeParticles } from '../../../particles/webgpuParticles.ts';
 import { blendLightResources } from '../../blend/lighting.ts';
 import { voidStaleBlendGroups } from '../../blend/identity.ts';
@@ -92,7 +92,8 @@ export function encodeBlend(
     return;
   }
   // Far-to-near sort every image (a blend writes no depth), with the frustum test in the same
-  // double-precision walk: one bit per item to the GPU, and THE image's reject count.
+  // double-precision walk: one bit per item to the GPU, THE image's reject count, water's bounds.
+  boundWaterPass(rt, composes, viewProj);
   run.blendFrustumRejected = orderBlendPasses(blendState, eye);
   writeBlendView(rt, device);
   // Resolve lighting resources once; a real resource voids a placeholder's bind group.
@@ -102,10 +103,9 @@ export function encodeBlend(
   const prepared = performance.now();
   timing.transparentPrepareMs += prepared - cpuStart;
   drawBlendPass(rt, device, encoder);
-  // Water comes after blends, on a frozen backdrop: the copy splits the two, so no transmissive
-  // surface reads a half-composed image. Without the pass — a diagnostic view, which colours the
-  // surface instead of lighting it, a diagnostic variant measuring the blend stage, a capture from
-  // a second camera, an image no composition follows — the slice draws as one more blend.
+  // Water after blends, on a frozen backdrop: no transmissive surface reads a half-composed image.
+  // Without the pass — a diagnostic view or variant, a second-camera capture, an image no
+  // composition follows — the slice draws as one more blend.
   if (blendState.transmissive && !encodeWaterPass(rt, encoder, composes))
     drawBlendPass(rt, device, encoder, true);
   const finished = performance.now();
@@ -139,11 +139,12 @@ export function encodeSurfaceLighting(
   cam: EngineCamera,
   uniformBase: number,
 ) {
-  const { gpu, run, capture, blendState } = rt,
+  const { gpu, run, capture, blendState, vis } = rt,
     clear = clearValueOf(run.clearColor);
   if (!gpu.surfaces || !gpu.deferred || !gpu.hdrView || !gpu.depthView || !gpu.displayView)
     throw new Error('DEFERRED_UNAVAILABLE');
-  const [width, height] = gpu.targetSize;
+  const [width, height] = gpu.targetSize,
+    raw = run.diagnostic !== 'beauty';
   invertMatrix4(inverseViewProj, viewProj);
   // Shadows and light lists encode before resolve: they are its inputs.
   const direct = encodeDirectLights(rt, device, encoder, cam, viewProj);
@@ -162,14 +163,13 @@ export function encodeSurfaceLighting(
     width,
     height,
     run.clearColor,
-    run.diagnostic !== 'beauty',
+    raw,
     direct,
     taaSampledRank(rt),
   );
-  gpu.reflection?.update(viewProj, gpu.deferred.usesContract && run.diagnostic === 'beauty');
+  gpu.reflection?.update(viewProj, gpu.deferred.usesContract && !raw, gpu.targetSize);
   gpu.deferred.light(encoder, gpu.hdrView, gpu.reflection);
-  const blendShare =
-    blendState.blendGpu.length && rt.vis.blendPipelines ? gpu.asIsShare : undefined;
+  const blendShare = blendState.blendGpu.length && vis.blendPipelines ? gpu.asIsShare : undefined;
   blendShare?.seed(encoder);
   const filter = beginDisplayFilter(rt, device);
   if (gpu.reflection?.active && gpu.deferred.usesContract) run.gpuDrawCalls++;

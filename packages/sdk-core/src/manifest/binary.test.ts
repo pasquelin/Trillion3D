@@ -4,10 +4,10 @@ import assert from 'node:assert/strict';
 import {
   assertManifestBinary,
   decodeManifestBinary,
-  encodeManifestBinary,
   MANIFEST_BINARY_MAGIC,
   MANIFEST_BINARY_VERSION,
 } from './binary.ts';
+import { encodeManifestBinary } from '../../../../tests/fixtures/manifestBinaryEncode.ts';
 import { assertCacheIdentity, EngineError, type ClusterManifest } from '../contracts/index.ts';
 import { MAX_DEPTH_LAYER } from '../lod/depthLayer.ts';
 

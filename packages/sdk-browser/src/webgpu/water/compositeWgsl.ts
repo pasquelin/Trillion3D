@@ -100,7 +100,7 @@ fn backdropDistance(P:vec3f,pixel:vec2i,thickness:f32)->f32{
 }
 struct Transmitted{color:vec3f,coverage:f32,}
 fn transmittedBackdrop(vol:Volume,P:vec3f,N:vec3f,V:vec3f,straight:vec2i,fragZ:f32)->Transmitted{
- let size=vec2f(textureDimensions(backdrop));
+ let size=view.viewport.xy;
  // The volume ends where the opaque scene begins: the ray travels the declared thickness, or the
  // distance to the backdrop under this pixel when that is shorter. A block just below the surface
  // is displaced and tinted by its own depth, not by the basin's.

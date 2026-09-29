@@ -27,6 +27,9 @@ export interface DirectLightResources {
   surfaceCache?: GPUBuffer;
   /** Resident proxy with the far-shadow settings and counters; absent, a zero substitute. */
   proxy?: GPUBuffer;
+  /** True when the narrow tile pass wrote the lists (at most `TILE_LIGHTS` lights): the
+   *  narrow resolve reads them (`contractVariants.ts`, #849). */
+  narrow?: boolean;
 }
 export interface DeferredSources {
   lighting: string;

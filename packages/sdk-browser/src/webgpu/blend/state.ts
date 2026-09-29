@@ -10,6 +10,7 @@ import type { TransparentCompaction } from '../transparent/compact.ts';
 import type { TransparentOcclusion } from '../../gpu/core/transparentOcclusion.ts';
 import type { TransparentTable } from '../transparent/table.ts';
 import type { BlendExpand } from './expand.ts';
+import { createWaterBounds } from '../water/bounds.ts';
 import type { WaterPass } from '../water/pass.ts';
 import { BLEND_VIEW_SIZE } from './uniforms.ts';
 import { createBlendHierarchy } from './hierarchy.ts';
@@ -99,6 +100,7 @@ export function createWebgpuBlendState() {
      *  zero, and the pass is not encoded (`order.ts`). */
     transmissive: 0,
     transmissiveInView: 0,
+    waterBounds: createWaterBounds(),
     /** Volume of each transmissive item, at its water rank, written with the records. */
     volumePacked: new Float32Array(0) as Float32Array<ArrayBuffer>,
     /** The water pass — surface pipelines and composite — of a scene that transmits, mounted with

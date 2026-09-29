@@ -13,7 +13,7 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { MATERIAL_DEPTH_FORMAT } from '../../../visibility/shader/materialClass.ts';
 import { MATERIAL_DEPTH_PASS } from '../../core/materialPasses.ts';
 import { createAsIsShare } from '../../../lighting/deferred/asIsShare.ts';
-import { drawnBelow, type FrameSize } from '../state/renderScale.ts';
+import { displayApart, type FrameSize } from '../state/renderScale.ts';
 
 /** Bytes per pixel of the display colour (`DISPLAY_FORMAT`). */
 const DISPLAY_BYTES = 4;
@@ -29,7 +29,7 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
   const { reserveHiz } = rt.setup,
     gpuDevice = rt.gpu.device,
     { renderWidth: width, renderHeight: height } = size,
-    display = drawnBelow(size) ? size.width * size.height : 0;
+    display = size.apart ? size.width * size.height : 0;
   if (!gpuDevice) throw new Error('WEBGPU_UNAVAILABLE');
   checkSurfaceSize(gpuDevice, size.width, size.height, 1);
   return (
@@ -48,10 +48,11 @@ export function targetsFit(rt: WebgpuPagesRuntime, size: FrameSize) {
   const { gpu, vis } = rt;
   return (
     !!gpu.colorTexture &&
-    gpu.targetSize[0] === size.renderWidth &&
-    gpu.targetSize[1] === size.renderHeight &&
+    gpu.allocatedSize[0] === size.renderWidth &&
+    gpu.allocatedSize[1] === size.renderHeight &&
     gpu.displaySize[0] === size.width &&
     gpu.displaySize[1] === size.height &&
+    displayApart(gpu) === size.apart &&
     !!gpu.surfaces &&
     !!gpu.feedbackTexture === (rt.feedbackAB?.target !== false) &&
     gpu.reflection?.active === wantsReflections(rt) &&
@@ -110,8 +111,9 @@ export function makeFeedbackTarget(
 /**
  * Makes the frame targets of `size`, of `targetBytes` before the history: what `targetGrant.ts`
  * runs under the device's out-of-memory check, the targets in place released first. Every pass
- * up to the temporal resolve draws at the render size; the history and the display colour are
- * the display's. Returns what releases them again, and what they cost (`frame-allocation`).
+ * up to the temporal resolve draws at the render size, the targets' or below it; the history and
+ * the display colour are the display's. Returns what releases them again, and what they cost
+ * (`frame-allocation`).
  */
 export function makeTargets(
   rt: WebgpuPagesRuntime,
@@ -141,14 +143,13 @@ export function makeTargets(
   gpu.surfaces = createSurfaceBuffer(device, width, height);
   gpu.asIsShare = createAsIsShare(device, gpu.surfaces.views()[3], width, height);
   gpu.colorView = gpu.colorTexture.createView();
-  const scaled = drawnBelow(size);
-  gpu.displayTexture = scaled
+  gpu.displayTexture = size.apart
     ? target('Trillion3D display', DISPLAY_FORMAT, usage, {
         width: size.width,
         height: size.height,
       })
     : gpu.colorTexture;
-  gpu.displayView = scaled ? gpu.displayTexture.createView() : gpu.colorView;
+  gpu.displayView = size.apart ? gpu.displayTexture.createView() : gpu.colorView;
   gpu.depthView = gpu.depthTexture.createView();
   gpu.hdrView = gpu.hdrTexture.createView();
   gpu.reflection = createScreenReflection(
@@ -162,6 +163,8 @@ export function makeTargets(
   // Temporal history follows the display size.
   const allocationBytes = targetBytes + ensureTaaTargets(rt, size.width, size.height);
   gpu.targetBytes = allocationBytes;
+  gpu.allocatedSize = [width, height];
+  // Drawn at the targets' whole size until an image's entry says its scale (`drawFrameAt`).
   gpu.targetSize = [width, height];
   gpu.displaySize = [size.width, size.height];
   // Visibility targets too: one the device cannot make refuses the set, the mode kept.
