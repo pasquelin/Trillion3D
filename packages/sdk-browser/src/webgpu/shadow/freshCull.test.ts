@@ -9,6 +9,7 @@ import {
   PAGE_VALID,
   SHADOW_TABLE_ENTRIES,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
 import { SHADOW_TABLE_OFFSET } from '../../gpu/shadow/atlas.ts';
 import { MOBILITY_CORNER_SHIFT } from '../../gpu/shadow/cullShader.ts';
 import { runShadowFresh, runShadowPairs } from './freshRun.fixture.ts';
@@ -24,9 +25,9 @@ import { DRAWN_GPU, DRAWN_NONE, POOL_COUNTS, POOL_FIELDS } from './poolWgsl.ts';
 const PAGES = 4;
 /** Two regions: a box of two metres around the origin, and a cone down from five metres up. */
 function volumes() {
-  const floats = new Float32Array(2 * 20);
+  const floats = new Float32Array(2 * SHADOW_CULL_FLOATS);
   floats.set([0, 0, 0, 1, 0, 0, 1, -1, 1, 0, 0, 1, 0, 1, 0, 1]);
-  floats.set([0, 5, 0, 10, 0, -1, 0, 0.1], 20);
+  floats.set([0, 5, 0, 10, 0, -1, 0, 0.1], SHADOW_CULL_FLOATS);
   return new Uint8Array(floats.buffer);
 }
 /** The cull's inputs over `rows` spheres, the table's first `tableRows` then blended ones. */
@@ -90,7 +91,7 @@ test('no more pages are picked than the pair list holds every row of; the rest w
     drawList = Uint32Array.from({ length: pages }, (_, i) => i),
     params = new Uint32Array(FRESH_PARAMS),
     args = new Uint32Array(freshArgWords(pages)),
-    volumeFloats = new Float32Array(pages * 20);
+    volumeFloats = new Float32Array(pages * SHADOW_CULL_FLOATS);
   fields.fill(-1, 0, pages);
   drawnBy.fill(DRAWN_NONE);
   for (let p = 0; p < listed; p++) {
@@ -111,7 +112,10 @@ test('no more pages are picked than the pair list holds every row of; the rest w
   assert.equal(regions, Math.floor(capacity / rows), 'as many regions as hold every row');
   // Every region's volume holds every caster: the cull keeps a pair of each row for each.
   for (let k = 0; k < regions; k++)
-    volumeFloats.set([0, 0, 0, 1e6, 0, 0, 1, -1, 1, 0, 0, 1e6, 0, 1, 0, 1e6], k * 20);
+    volumeFloats.set(
+      [0, 0, 0, 1e6, 0, 0, 1, -1, 1, 0, 0, 1e6, 0, 1, 0, 1e6],
+      k * SHADOW_CULL_FLOATS,
+    );
   const spheres = new Float32Array(Array.from({ length: rows }, () => [0, 0, 0, 1]).flat()),
     pairs = new Uint32Array(2 * capacity);
   runShadowPairs(...[spheres, params, volumeFloats, pairs, args, new Uint32Array(rows)].map(bytes));
