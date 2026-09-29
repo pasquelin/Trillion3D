@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mustRestartTaaAfterSettle } from './converge.ts';
+import { mustRestartTaaAfterSettle, texturesConverged } from './converge.ts';
+import { PICK_CYCLE } from './feedback.ts';
 
 test('a quiet barrier leaves TAA history in place', () => {
   assert.equal(mustRestartTaaAfterSettle(0, 0), false);
@@ -9,4 +10,24 @@ test('a quiet barrier leaves TAA history in place', () => {
 test('tiles or shadow pages that landed during the barrier restart the still TAA average', () => {
   assert.equal(mustRestartTaaAfterSettle(1, 0), true);
   assert.equal(mustRestartTaaAfterSettle(0, 3), true);
+});
+
+// #1016: a pixel names ONE map, blend level and tap, picked by its position shifted by the
+// convergence's turn (`requestPick`). A sliver of a surface — three pixels at the edge of a lamp
+// — named nothing it reads, and the settled image read what the pool kept of the run before.
+test('a convergence stops only after a whole pick cycle in which every pixel named every read', () => {
+  const pick = (px: number, choices: number) => [
+    px % choices,
+    Math.floor(px / choices) & 1,
+    Math.floor(px / choices / 2) % 3,
+  ];
+  for (const choices of [PICK_CYCLE / 6 - 1, PICK_CYCLE / 6])
+    for (const px of [0, 7, 1280 + 719]) {
+      const named = new Set<string>();
+      for (let turn = 0; turn < PICK_CYCLE; turn++) named.add(pick(px + turn, choices).join());
+      assert.equal(named.size, choices * 2 * 3, `pixel ${px}, ${choices} maps`);
+    }
+  assert.equal(texturesConverged(PICK_CYCLE - 1, 0, false), false);
+  assert.equal(texturesConverged(PICK_CYCLE, 0, false), true);
+  assert.equal(texturesConverged(PICK_CYCLE, 2, true), false);
 });
