@@ -16,6 +16,7 @@ import { createWebglViews } from './views.ts';
 import { createEngineCamera } from '../../camera/world.ts';
 import { createHeldResidency } from '../../page/cut/held.ts';
 import { createPageParents } from '../../residency/pageParents.ts';
+import { rootChildren } from '../../residency/minimumCapacity.ts';
 import type { HostCamera } from '../../camera/world.ts';
 import type { ClusterRoot, ClusterStructureIndex, PageRec } from '../../page/selection/types.ts';
 
@@ -61,6 +62,8 @@ export function mount(
     ...racine(pages),
     structure: structures[i],
   })) as unknown as ClusterRoot<PageRec>[];
+  // The pool's floor holds the pages the roots' groups replace (`minimumCapacity.ts`).
+  const floorPages = rootChildren(roots);
   /** A page leaves: its geometry and bytes go, and the cut's readiness hears of it. */
   const drop = (url: string) => {
     const page = byUrl.get(url)!;
@@ -87,6 +90,7 @@ export function mount(
     copies: {
       of: () => 1,
       root: () => rootPages.length,
+      floor: () => rootPages.length + floorPages.length,
       scene: () => byUrl.size,
     },
     coverRevision: () => 0,

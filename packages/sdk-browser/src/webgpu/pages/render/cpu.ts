@@ -138,7 +138,7 @@ export function renderCpuCut(
   // publishes its own by the same delta as the GPU sample — once, and only once, for an image that
   // draws.
   services.adoptCpuCut(wanted, run.shown);
-  services.residency.queueCutResidency(run.coverageBudgetLimited);
+  services.residency.queueCutResidency();
   services.followEvictions(null);
   const queueEnd = performance.now();
   traceQueueReconstruct(rt, queueEnd - queueStarted);
