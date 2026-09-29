@@ -24,6 +24,7 @@ import { publish } from './benchPublish.ts';
 import { readsCache } from './scene.ts';
 import { runFluids } from './fluids.ts';
 import { readLimits } from './limits.ts';
+import { againstReference, sceneReference } from './referenceProof.ts';
 import type { Report, RunContext, Serie } from './report/types.ts';
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '../..');
@@ -38,6 +39,8 @@ const CTX: RunContext = { MANIFEST: null, OUT, settings, lights: null, poses: nu
 
 async function main() {
   const { sides, scene, after, before } = options.equipSides(flags, settings);
+  // `--reference`: the class-2 proof, each capture against the scene's reference image.
+  const proof = flags.get('reference') === 'true';
   // Every option is read by now: a misspelt or retired flag stops the run before any build.
   flags.refuseUnread();
   await mkdir(OUT, { recursive: true });
@@ -81,6 +84,9 @@ async function main() {
     errors: [],
   };
 
+  if (proof && settings.gazeNetwork)
+    throw new Error('--reference holds still captures: it does not run with --gaze-network');
+  const reference = proof ? sceneReference(report, undefined, views) : null;
   await recordInputs(report, sides);
   const { server, port } = await startServer({
     port: settings.port,
@@ -163,17 +169,18 @@ async function main() {
           files[side.name] = captureFile;
         }
         // A/A witness: same side run twice, compared with itself. Shows what zero is.
-        const temoin = await onFreshPage((page) =>
+        const witness = await onFreshPage((page) =>
           runSerie(CTX, page, sides[0], view, pixelError, pose, captures, '-aa'),
         );
-        serie.sides[`${sides[0].name}-aa`] = temoin.row;
+        serie.sides[`${sides[0].name}-aa`] = witness.row;
         serie.witnessAA = imageDiff(
           captures.get(files[sides[0].name]),
-          captures.get(temoin.captureFile),
+          captures.get(witness.captureFile),
         );
         serie.beforeAfterDiff = files.before
           ? imageDiff(captures.get(files.before), captures.get(files.after))
           : null;
+        if (reference) serie.referenceDiff = againstReference(reference, serie, files, captures);
         const { before, after } = serie.sides;
         serie.sameCut = before && after ? before.selection.sha256 === after.selection.sha256 : null;
       }

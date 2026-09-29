@@ -1000,7 +1000,9 @@
       "PHYSICS_FORMAT": "A física preparada de um modelo compilado (`physics.json`) é de outro formato, ou foi preparada por outro Jolt que não o do motor (`PHYSICS_FORMAT`): compile-o de novo. Foi pedido um raycast exato com a física desligada (`PHYSICS_OFF`).",
       "PHYSICS_OFF": "A física preparada de um modelo compilado (`physics.json`) é de outro formato, ou foi preparada por outro Jolt que não o do motor (`PHYSICS_FORMAT`): compile-o de novo. Foi pedido um raycast exato com a física desligada (`PHYSICS_OFF`).",
       "NO_VEHICLE": "`world.controls.kind` recebeu `'vehicle'` enquanto `world.controls.vehicle` é `null`: não há nada para conduzir.",
-      "GUIDE_CEILING": "Uma chamada a `world.guides` manteria mais vértices do que `GUIDE_VERTEX_CEILING`; nada dela foi adicionado."
+      "GUIDE_CEILING": "Uma chamada a `world.guides` manteria mais vértices do que `GUIDE_VERTEX_CEILING`; nada dela foi adicionado.",
+      "REFERENCE_SHADOWS_REDUCED": "A imagem de referência foi recusada: o pool de sombras funciona abaixo do seu tamanho total (`REFERENCE_SHADOWS_REDUCED`). O modo de referência foi pedido numa sessão interativa, cujo redimensionamento perderia a supersampling (`REFERENCE_INTERACTIVE`).",
+      "REFERENCE_INTERACTIVE": "A imagem de referência foi recusada: o pool de sombras funciona abaixo do seu tamanho total (`REFERENCE_SHADOWS_REDUCED`). O modo de referência foi pedido numa sessão interativa, cujo redimensionamento perderia a supersampling (`REFERENCE_INTERACTIVE`)."
     }
   },
   "EngineProfiler": {
