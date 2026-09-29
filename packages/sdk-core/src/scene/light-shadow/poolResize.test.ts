@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { createSceneLightStore } from '../light/store.ts';
 import { createShadowPlan, type ShadowPlan } from './plan.ts';
 import { shadowPoolHostBytes } from './pool.ts';
-import { SUN, cycle, sunFloor, sunPages } from './lightShadow.fixture.ts';
+import { SUN, cycle, planFrame, sunFloor, sunPages } from './lightShadow.fixture.ts';
 import { PAGE_INDEX_MASK, PAGE_MAPPED, PAGE_VALID } from './virtual.ts';
 
 /** A sun over a pool of `side²` pages, `read` pages drawn and read again until nothing is due. */
@@ -80,8 +80,18 @@ test('the requests a report may name follow the pool past their floor', () => {
   assert.equal(plan.requests.counts.requested, 4096, 'a 16-page pool reads the floor of the list');
   plan.resize(72, 1);
   assert.equal(plan.requests.counts.requested, 4096, 'the counts go on where they stopped');
-  cycle(plan, store, 3, read);
+  // A report read back from before the resize lists what its old list held, no more.
+  plan.receive({
+    frame: 3,
+    layoutEpoch: plan.table.layoutEpoch,
+    stamp: plan.stamp(store),
+    count: 5000,
+    entries: Uint32Array.from(read().slice(0, 4096)),
+  });
+  planFrame(plan, store, 3);
+  assert.deepEqual([plan.requests.counts.requested, plan.requests.counts.unlisted], [4096, 904]);
   cycle(plan, store, 4, read);
+  cycle(plan, store, 5, read);
   assert.equal(plan.requests.counts.requested, 5000, 'a 5 184-page pool reads the whole report');
   assert.equal(plan.requests.counts.unlisted, 0);
   assert.equal(plan.requests.counts.refused, 0, 'every page named mapped');

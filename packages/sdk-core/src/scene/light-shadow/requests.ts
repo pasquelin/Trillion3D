@@ -134,7 +134,8 @@ export function createShadowRequests(
       return !counts.allocated && (!counts.unlisted || pool.heldBy(counts.latest));
     },
     consume(report: ShadowRequestReport, nowMs: number, frame: number) {
-      counts.requested = Math.min(report.count, cap);
+      // A report read back before a resize lists at most the old pool's cap.
+      counts.requested = Math.min(report.count, cap, report.entries.length);
       counts.unlisted = report.count - counts.requested;
       counts.allocated = 0;
       counts.refused = 0;
