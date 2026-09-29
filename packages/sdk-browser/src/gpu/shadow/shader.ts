@@ -66,12 +66,12 @@ ${tileDeclarations(VIS_BINDINGS.color, 'color')}
 @group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;
 ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
-struct ShadowView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,rect:vec4f,}
+struct ShadowView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,}
 @group(1) @binding(0) var<uniform> shadow:ShadowView;
 @group(1) @binding(1) var<uniform> cutoutWord:vec4u;
 @group(1) @binding(2) var<storage,read_write> tileFeedback:array<atomic<u32>>;
 @group(2) @binding(0) var shadowOpaque:texture_depth_2d;
-@group(2) @binding(1) var<storage,read> freshFaces:array<ShadowView>;
+@group(2) @binding(1) var<storage,read> freshFaces:array<FreshView>;
 @group(2) @binding(2) var<storage,read> freshPairs:array<u32>;
 @group(2) @binding(3) var<storage,read> freshArgs:array<u32>;
 ${FRESH_LAYOUT_WGSL}
@@ -147,7 +147,7 @@ fn shadowKeepAt(emitter:vec4f,in:ShadowOut,gx:vec2f,gy:vec2f)->bool{
  if(radius>0.0&&dot(in.fromEmitter,in.fromEmitter)<radius*radius){return false;}
  return maskKeep(pages[in.instance],in.uv,1.0,gx,gy);
 }
-fn shadowKeep(in:ShadowOut,gx:vec2f,gy:vec2f)->bool{return shadowKeepAt(shadow.emitter,in,gx,gy);}
+fn shadowKeep(frag:ShadowOut,gx:vec2f,gy:vec2f)->bool{return shadowKeepAt(shadow.emitter,frag,gx,gy);}
 /** A masked caster's texel asks for the base-map tile its cutout reads — the isotropic level, one
  *  of the two the read mixes, picked as the camera's pixels pick; both during a convergence
  *  (\`everyPick\`) —, in its phase, into the texture feedback's counters (\`faceBindings.ts\`): what
