@@ -1,13 +1,13 @@
-import type { Texture, TextureFilter, WrapMode } from '../../../../sdk-core/src/index.ts';
+import type { Texture } from '../../../../sdk-core/src/index.ts';
+import { setTextureSampler, type Anisotropy } from './textureSampler.ts';
 import { textureRgba } from '../../visibility/types.ts';
-import { grantedAnisotropy, mipFiltered } from '../../../../sdk-core/src/texture/contract.ts';
+import { mipFiltered } from '../../../../sdk-core/src/texture/contract.ts';
 import { followHostTexture } from '../../host/textureImport.ts';
 import { pictureSize } from '../../texture/pictureSize.ts';
 import type { HostMaterials } from '../../host/resources.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { CoverageReaders } from '../../texture/coverage.ts';
 import { WebglMipReducer, chainAllocated, type MipChain } from './mips.ts';
-
 /**
  * A texture as uploaded, at its counters (#360, #361) and its size: a new version uploads the
  * picture again — in place at the same size and format (#362) —, a new `sampling` sets the sampler
@@ -16,24 +16,9 @@ import { WebglMipReducer, chainAllocated, type MipChain } from './mips.ts';
  * (`materialBinding.ts`).
  */
 type TextureRecord = MipChain & { sampling: number };
-type Anisotropy = { TEXTURE_MAX_ANISOTROPY_EXT: number; MAX_TEXTURE_MAX_ANISOTROPY_EXT: number };
-
-const wrap = (gl: WebGL2RenderingContext, value: WrapMode) =>
-  value === 'repeat' ? gl.REPEAT : value === 'mirror' ? gl.MIRRORED_REPEAT : gl.CLAMP_TO_EDGE;
-
-const filter = (gl: WebGL2RenderingContext, value: TextureFilter) =>
-  ({
-    nearest: gl.NEAREST,
-    linear: gl.LINEAR,
-    'nearest-mip-nearest': gl.NEAREST_MIPMAP_NEAREST,
-    'nearest-mip-linear': gl.NEAREST_MIPMAP_LINEAR,
-    'linear-mip-nearest': gl.LINEAR_MIPMAP_NEAREST,
-    'linear-mip-linear': gl.LINEAR_MIPMAP_LINEAR,
-  })[value];
-
 const WHITE: readonly number[] = [255, 255, 255, 255];
-
 export class WebglClusterTextures {
+  readonly uploads = { count: 0, bytes: 0, ms: 0 };
   private records = new Map<string, TextureRecord>();
   private fallbacks = new Map<string, WebGLTexture>();
   private bound: Array<WebGLTexture | undefined> = [];
@@ -102,7 +87,7 @@ export class WebglClusterTextures {
       if (sampling || mips) gl.activeTexture(gl.TEXTURE0 + unit);
       if (sampling) {
         record.sampling = texture.sampling;
-        this.setSampler(texture);
+        setTextureSampler(this.gl, texture, this.anisotropy, this.maxAnisotropy);
       }
       if (mips) {
         const allocate = record.cutoff === undefined;
@@ -126,56 +111,61 @@ export class WebglClusterTextures {
     cutoff: number | null,
     held?: TextureRecord,
   ) {
-    const gl = this.gl;
+    const began = performance.now(),
+      gl = this.gl;
     const target = held?.texture ?? gl.createTexture()!;
-    gl.activeTexture(gl.TEXTURE0 + unit);
-    gl.bindTexture(gl.TEXTURE_2D, target);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, texture.flipY);
-    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, texture.premultiplyAlpha);
-    const format = color ? gl.SRGB8_ALPHA8 : gl.RGBA8,
-      rgba = textureRgba(texture),
-      image = texture.image as TexImageSource | undefined;
-    if (!rgba && !image)
-      throw new Error(`Cluster material texture ${texture.name || texture.id} has no image`);
-    const [width, height] = rgba ? [rgba.width, rgba.height] : pictureSize(image);
-    const inPlace = held?.width === width && held.height === height && held.format === format;
-    if (inPlace && rgba)
-      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, rgba.data);
-    else if (inPlace) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, image!);
-    else if (rgba) {
-      const { data } = rgba;
-      gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
-    } else gl.texImage2D(gl.TEXTURE_2D, 0, format, gl.RGBA, gl.UNSIGNED_BYTE, image!);
-    const record: TextureRecord = {
-      texture: target,
-      version: texture.version,
-      sampling: texture.sampling,
-      width,
-      height,
-      format,
-    };
-    const allocate = !inPlace || held?.cutoff == null;
-    if (mipFiltered(texture.minFilter)) {
-      record.cutoff = cutoff;
-      this.mips.reduce(unit, record, allocate);
-    } else if (!inPlace) chainAllocated(gl, record);
-    if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
-    return record;
-  }
-  /** Addressing, filters and anisotropy of the texture bound on TEXTURE_2D. Anisotropy follows
-   *  the rule the WebGPU path shares (`grantedAnisotropy`). */
-  private setSampler(texture: Texture) {
-    const gl = this.gl;
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap(gl, texture.wrapS));
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap(gl, texture.wrapT));
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter(gl, texture.magFilter));
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter(gl, texture.minFilter));
-    if (this.anisotropy)
-      gl.texParameterf(
-        gl.TEXTURE_2D,
-        this.anisotropy.TEXTURE_MAX_ANISOTROPY_EXT,
-        grantedAnisotropy(texture, this.maxAnisotropy),
-      );
+    try {
+      gl.activeTexture(gl.TEXTURE0 + unit);
+      gl.bindTexture(gl.TEXTURE_2D, target);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, texture.flipY);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, texture.premultiplyAlpha);
+      const format = color ? gl.SRGB8_ALPHA8 : gl.RGBA8,
+        rgba = textureRgba(texture),
+        image = texture.image as TexImageSource | undefined;
+      if (!rgba && !image)
+        throw new Error(`Cluster material texture ${texture.name || texture.id} has no image`);
+      const [width, height] = rgba ? [rgba.width, rgba.height] : pictureSize(image);
+      const inPlace = held?.width === width && held.height === height && held.format === format;
+      if (inPlace && rgba)
+        gl.texSubImage2D(
+          gl.TEXTURE_2D,
+          0,
+          0,
+          0,
+          width,
+          height,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          rgba.data,
+        );
+      else if (inPlace) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, image!);
+      else if (rgba) {
+        const { data } = rgba;
+        gl.texImage2D(gl.TEXTURE_2D, 0, format, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+      } else gl.texImage2D(gl.TEXTURE_2D, 0, format, gl.RGBA, gl.UNSIGNED_BYTE, image!);
+      const record: TextureRecord = {
+        texture: target,
+        version: texture.version,
+        sampling: texture.sampling,
+        width,
+        height,
+        format,
+      };
+      const allocate = !inPlace || held?.cutoff == null;
+      if (mipFiltered(texture.minFilter)) {
+        record.cutoff = cutoff;
+        this.mips.reduce(unit, record, allocate);
+      } else if (!inPlace) chainAllocated(gl, record);
+      if (!held || held.sampling !== texture.sampling)
+        setTextureSampler(this.gl, texture, this.anisotropy, this.maxAnisotropy);
+      this.uploads.count++;
+      this.uploads.bytes += width * height * 4;
+      this.uploads.ms += performance.now() - began;
+      return record;
+    } catch (error) {
+      if (!held) gl.deleteTexture(target);
+      throw error;
+    }
   }
   /** Files a declaration's readers at first bind, census (`WebglClusterOwner`) or rewrite; a
    *  surface filed mid-image has its maps' rule read again at their next bind. */
@@ -189,6 +179,15 @@ export class WebglClusterTextures {
     this.bound.length = 0;
     this.followed.clear();
     this.mips.trim();
+  }
+  release(texture: Texture) {
+    for (const [key, record] of this.records)
+      if (key.startsWith(`${texture.id}:`)) {
+        this.gl.deleteTexture(record.texture);
+        this.records.delete(key);
+      }
+    this.followed.delete(texture);
+    this.bound.length = 0;
   }
   dispose() {
     for (const record of this.records.values()) this.gl.deleteTexture(record.texture);

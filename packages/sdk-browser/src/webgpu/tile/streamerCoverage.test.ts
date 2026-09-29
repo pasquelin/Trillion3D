@@ -17,12 +17,20 @@ import * as G from '../../host/graph/graph.fixture.ts';
 test('a surface switched from masked to opaque after prepare reduces its hosted map again', async () => {
   installGpuGlobals();
   const host = G.dataTexture(new Uint8Array(64), 4, 4);
+  host.magFilter = G.HOST_FILTER_LINEAR;
+  host.minFilter = G.HOST_FILTER_LINEAR_MIP_LINEAR;
   const material = G.standardSurface({ map: host, alphaTest: 0.5 });
   const readers = new CoverageReaders();
   readers.read(surfaceOf(material));
   const map = importHostTexture(host as unknown as HostTexture),
     encoding = poolEncoding(undefined);
-  const { device, renderPipelines, textures: made, computes } = mockGpu({ compute: true });
+  const {
+    device,
+    renderPipelines,
+    textures: made,
+    computes,
+    textureWrites,
+  } = mockGpu({ compute: true });
   const signalled: number[][] = [];
   const lossless = { lossless: 2, rgba: 0, 'two-channel': 0 };
   const textures = createWebgpuTileStreamer({
@@ -63,6 +71,35 @@ test('a surface switched from masked to opaque after prepare reduces its hosted 
   material.alphaTest = 0.25;
   textures.followSampling();
   assert.equal(counted(), 6, 'a new cutoff reduces its chain again');
+  // Append must not acknowledge a neighbour's pending image/filter change as already uploaded.
+  const extra = G.dataTexture(new Uint8Array(16), 2, 2);
+  const extraMap = importHostTexture(extra as unknown as HostTexture);
+  const [, entry] = tileCatalogue([extraMap], () => undefined, undefined, encoding, readers);
+  const beforeAppend = scratches().length,
+    uploadedBeforeAppend = textureWrites.length;
+  host.needsUpdate = true;
+  host.magFilter = G.HOST_FILTER_NEAREST;
+  hostTextureWritten();
+  await Promise.resolve();
+  const appended = textures.append('color', entry);
+  assert.equal(scratches().length, beforeAppend + 1, 'only the new source uploads at append');
+  assert.equal(textures.followSampling(), true, 'the existing filter switch reaches row classes');
+  assert.equal(textureWrites.length, uploadedBeforeAppend + 2, 'the neighbour picture uploads');
+  assert.equal(scratches().length, beforeAppend + 1, 'the live scratch is refilled in place');
+  assert.deepEqual(signalled.at(-1), [1]);
+  // A drop must keep the last reduced rule of surviving maps, even if another backend filed it.
+  material.alphaTest = 0;
+  readers.follow([map]);
+  const beforeDrop = scratches().length,
+    signalsBeforeDrop = signalled.length;
+  textures.release('color', appended);
+  textures.followSampling();
+  assert.equal(scratches().length, beforeDrop, 'the live scratch is reused for reduction');
+  assert.equal(signalled.length, signalsBeforeDrop + 1, 'the pending coverage rule is observed');
+  assert.deepEqual(signalled.at(-1), [1]);
+  const signalsAfterDrop = signalled.length;
+  textures.followSampling();
+  assert.equal(signalled.length, signalsAfterDrop, 'the surviving rule is reduced once');
   textures.destroy();
   material.dispose();
 });

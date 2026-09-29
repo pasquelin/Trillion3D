@@ -969,6 +969,7 @@
       "MATERIAL_CLASS_CHANGE": "材质更改未知、超出范围、会把它移到引擎在打开场景时就固定的绘制类别,或会平铺它与其他材质共享的贴图。",
       "MATERIAL_TEXTURE_SHARED": "材质更改未知、超出范围、会把它移到引擎在打开场景时就固定的绘制类别,或会平铺它与其他材质共享的贴图。",
       "MATERIAL_CEILING": "页面在一个会话中创建的材质将超过 `RUNTIME_MATERIAL_CEILING`；未创建任何材质。",
+      "TEXTURE_BUDGET": "场景打开后添加的纹理会使纹理池超过 `texturePoolBytes` 或设备可容纳的层数；未添加任何内容。",
       "INVALID_TRANSFORM": "某个节点的位置不是可用的矩阵,或者某个节点会成为自己的祖先。",
       "NON_FINITE_TRANSFORM": "某个节点的位置不是可用的矩阵,或者某个节点会成为自己的祖先。",
       "SINGULAR_PARENT_TRANSFORM": "某个节点的位置不是可用的矩阵,或者某个节点会成为自己的祖先。",
@@ -4183,7 +4184,7 @@
     "summary": "在下一帧更改导入或创建的材质。"
   },
   "world.createMaterial": {
-    "summary": "创建属于此页面的材质。"
+    "summary": "创建页面材质；带位图时，等待接纳完成后再分配。"
   },
   "world.assignMaterial": {
     "summary": "将创建的材质指定给已编译的 `mesh/primitive`。"
@@ -7866,7 +7867,7 @@
       "alphaMode": "表面的 alpha 通道如何被读取:opaque 忽略它,`mask` 按 `alphaCutoff` 裁切,`blend` 进行合成。",
       "alphaCutoff": "不透明度低于此值的像素会被丢弃。",
       "name": "供页面自己使用的一个名字。",
-      "map": "一张图像及其采样方式,以页面的措辞表示(`wrap`、`filter`、`colorSpace`)。"
+      "map": "调用方拥有的ImageBitmap，不进行预乘或颜色转换；在释放材质前保持打开。"
     }
   },
   "SceneMaterial": {
@@ -7928,5 +7929,11 @@
       "positions": "其顶点，每个三个数，位于世界空间。",
       "indices": "其三角形，每个三个局部索引。"
     }
+  },
+  "world.dropMaterial": {
+    "summary": "释放未使用的已创建材质；请先为其对象重新分配材质。"
+  },
+  "world.materialMapBytes": {
+    "summary": "已保留或待处理图像的字节数，上限为64 MiB。"
   }
 }
