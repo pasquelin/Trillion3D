@@ -23,3 +23,4 @@ export type { Fog } from './sceneFog.ts';
 export { LoadedModel } from './loadedModel.ts';
 export type { ModelRecord } from './loadedModel.ts';
 export type { WorldControls } from './worldCamera.ts';
+export type { RenderScale } from '../../frame/renderScaleOption.ts';

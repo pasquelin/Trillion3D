@@ -1250,7 +1250,8 @@
       "options.controls": "El controlador que mueve la cámara desde el lienzo; `world.controls.kind` lo cambia después.",
       "options.signal": "Detiene las cargas del mundo cuando se cancela la señal.",
       "options.physics": "Activa la física (`world.physics`): `true`, o gravedad y presupuestos. Solo entonces se carga Jolt.",
-      "options.temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`."
+      "options.temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`.",
+      "options.renderScale": "La fracción de la pantalla por eje a la que se dibuja la imagen, solo WebGPU, antes de que el antialiasing temporal la reconstruya a la pantalla: `'auto'` deja que el presupuesto de imagen la elija entre `min` y `max` (`{ min, max }`, 0,5 y 1 por defecto), un número la fija; una imagen quieta se dibuja al máximo. Se cambia después con `world.renderScale`."
     }
   },
   "crossVector3": {
@@ -1528,10 +1529,6 @@
   },
   "emptyIrradiance": {
     "summary": "Una irradiancia vacía, lista para recibir fuentes."
-  },
-  "encodeManifestBinary": {
-    "summary": "Separa un manifiesto en un JSON pequeño que un lector analiza y en columnas que proyecta.",
-    "description": "El descriptor devuelto lleva un `sha256` vacío: solo el llamador, que tiene los bytes terminados, puede calcular su huella."
   },
   "EngineCamera": {
     "summary": "La cámara del motor: los números de un fotograma, en búferes propios reescritos en el sitio.",
@@ -6650,6 +6647,10 @@
     "summary": "Antialiasing temporal: desplazamiento subpíxel acumulado entre imágenes; activado por defecto.",
     "description": "Al escribirlo, surte efecto en la imagen siguiente, se descarta el historial, sin reabrir la sesión. Al leerlo, es lo que lleva la imagen: false en WebGL2, y mientras el programa se compila tras activarlo."
   },
+  "world.renderScale": {
+    "summary": "La fracción de la pantalla por eje a la que se dibuja la imagen (`WorldOptions.renderScale`), desde la imagen siguiente.",
+    "description": "Leída, la escala de la última imagen dibujada: 1 en WebGL2."
+  },
   "world.effects": {
     "summary": "La cadena de efectos: pasadas dibujadas sobre la imagen (`effect`)."
   },
@@ -6899,8 +6900,13 @@
       "controls": "El controlador que mueve la cámara desde el lienzo; `world.controls.kind` lo cambia después.",
       "signal": "Detiene las cargas del mundo cuando se cancela la señal.",
       "physics": "Activa la física (`world.physics`): `true`, o gravedad y presupuestos. Solo entonces se carga Jolt.",
-      "temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`."
+      "temporalAntialiasing": "Antialiasing temporal, solo WebGPU: desplazamiento subpíxel acumulado entre imágenes. `false` dibuja cada píxel en su centro, sin historial, lo que pide una captura exacta al píxel; se cambia después con `world.temporalAntialiasing`.",
+      "renderScale": "La fracción de la pantalla por eje a la que se dibuja la imagen, solo WebGPU, antes de que el antialiasing temporal la reconstruya a la pantalla: `'auto'` deja que el presupuesto de imagen la elija entre `min` y `max` (`{ min, max }`, 0,5 y 1 por defecto), un número la fija; una imagen quieta se dibuja al máximo. Se cambia después con `world.renderScale`."
     }
+  },
+  "RenderScale": {
+    "summary": "La escala de renderizado que pide una página: la fracción de la pantalla, por eje, a la que se dibuja la imagen antes de que el antialiasing temporal la reconstruya a la pantalla.",
+    "description": "`'auto'` deja que el presupuesto de imagen la elija entre 0,5 y 1, `{ min, max }` acota esa elección, un número la fija; todo valor se mantiene entre 0,5 y 1."
   },
   "WorldPageSource": {
     "summary": "De dónde se leen las páginas, y la dirección respecto a la cual se leen.",

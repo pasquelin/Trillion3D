@@ -7,6 +7,7 @@ import { createFrameGateCore } from '../../frame/gateCore.ts';
 import { HOLD_SIGNATURE_VALUES } from './signature.ts';
 import { CPU_STEP, CPU_STEP_NAMES } from '../pages/render/cpuStepTable.ts';
 import { holdWebgpuFrame } from './hold.ts';
+import { createScaleControl } from '../pages/state/scaleControl.ts';
 import { metricsOf } from '../pages/io/metrics.ts';
 import { createShadowWork } from '../shadow/work.ts';
 import { STALE_REASONS } from '../../../../sdk-core/src/scene/light-shadow/counts.ts';
@@ -64,10 +65,12 @@ function tenue() {
     views: { active: {} },
     timing,
     context: {},
+    scale: createScaleControl(undefined),
     gpu: {
       presenter: { present: () => {} },
       displayTexture: {},
       targetSize: [4, 4],
+      allocatedSize: [4, 4],
       displaySize: [4, 4],
       cache: undefined,
       vertexBytes: 0,
@@ -115,11 +118,9 @@ test('a held frame counts only its present, not the last full render', () => {
   assert.equal(run.frameHeld, true);
   assert.equal(run.gpuDrawCalls, 1, 'the present is the only draw call');
   assert.equal(run.blendDrawCalls, 0);
-  assert.equal(run.submittedTriangles, 0, 'no triangle was submitted');
-  assert.equal(run.blendSubmittedTriangles, 0);
+  assert.deepEqual([run.submittedTriangles, run.blendSubmittedTriangles], [0, 0], 'no triangle');
   assert.equal(run.cpuSelectMs, null, 'no CPU cut ran');
-  assert.equal(timing.lastGpuPassMs, null, 'no pass was timed');
-  assert.equal(timing.lastGpuFrameMs, null);
+  assert.deepEqual([timing.lastGpuPassMs, timing.lastGpuFrameMs], [null, null], 'no pass timed');
   assert.equal(timing.lastGpuHostGapMs, null);
 });
 
@@ -147,9 +148,8 @@ test('metrics of the redisplayed cut do not move', () => {
   const metrics = metricsOf(rt);
   assert.equal(metrics.frameHeld, true);
   assert.equal(metrics.clusters, 800, 'the redisplayed cut is the same');
-  assert.equal(metrics.selectedTriangles, 123456);
-  assert.equal(metrics.frustumRejected, 29987);
-  assert.equal(metrics.lodLevel, 2);
+  const { selectedTriangles, frustumRejected, lodLevel } = metrics;
+  assert.deepEqual([selectedTriangles, frustumRejected, lodLevel], [123456, 29987, 2]);
   assert.equal(metrics.drawCalls, 1);
   assert.equal(metrics.submittedTriangles, 0);
   assert.equal(run.frame, 6, 'a frame was produced');
