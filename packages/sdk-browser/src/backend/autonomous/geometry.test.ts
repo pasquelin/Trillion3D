@@ -7,7 +7,7 @@ import { createAutonomousGeometry } from './geometry.ts';
 import { referenceAutonomousSync } from '../../../../../bench/oracles/browser/autonomous-backend.ts';
 import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
 import { surfaceOf } from '../../page/surface.ts';
-import { makeRec } from './pageRec.fixture.ts';
+import { makeRec, recRoots } from './pageRec.fixture.ts';
 
 function fakeScene() {
   const meshes = new Set<object>();
@@ -26,7 +26,8 @@ function environnement(
   shown: PageRec[],
 ): Parameters<typeof createAutonomousGeometry>[0] {
   return {
-    ...{ scene, allPages, bootstrap: [], views: { live: { shown }, lists: () => [shown] } },
+    ...{ scene, roots: recRoots(), allPages, bootstrap: [] },
+    ...{ views: { live: { shown }, lists: () => [shown] } },
     ...{ byUrl: new Map(), descriptors: new Map(), baseMaterials: new Map() },
     ...{ colorMaterials: new Map(), modifiedPages: new Set() },
   };
@@ -37,11 +38,16 @@ function environnement(
  *  displayed, then compare the attached set of the scene and the number of triangles submitted. */
 function scenario(count: number) {
   const recsA = Array.from({ length: count }, (_, i) => makeRec(i, (i % 7) + 1));
-  const recsB = Array.from({ length: count }, (_, i) => makeRec(i, (i % 7) + 1));
+  // The oracle reads the pose on the record, as records carried it before #1226: its root's.
+  const world = recRoots()[0].world;
+  const recsB = Array.from({ length: count }, (_, i) => ({
+    ...makeRec(i, (i % 7) + 1),
+    matrix: world,
+  }));
   const sceneA = fakeScene(),
     sceneB = fakeScene();
   const shownA: PageRec[] = [],
-    shownB: PageRec[] = [];
+    shownB: typeof recsB = [];
   const impl = createAutonomousGeometry(environnement(sceneA.scene, recsA, shownA));
   const oracle = referenceAutonomousSync({ scene: sceneB.scene, allPages: recsB, shown: shownB });
   return {

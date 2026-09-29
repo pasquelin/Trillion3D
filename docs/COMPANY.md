@@ -11,9 +11,8 @@ contributor who does not use an AI assistant can ignore this page.
 | Lead      | agent `lead`            | CTO                   | runs its coder then its reviewer, opens the pull request, cleans  |
 | Coder     | agent `coder`           | lead                  | writes the code on a branch and pushes it                         |
 | Reviewer  | agent `reviewer`        | lead, CTO             | `simplify`, `code-review`, the issue's To-do, the gates and tests |
-| Recette   | `/loop 2h /t3d-recette` | boss                  | its own session: proves the image of `develop` after the merges   |
-| Measure   | `/loop 2h /t3d-measure` | boss                  | its own session: times `develop` after the merges                 |
-| Writer    | `/t3d-writer`           | CTO, recette, measure | writes an issue on the template                                   |
+| Recette   | `/loop 2h /t3d-recette` | boss                  | its own session: times `develop`, then proves its image           |
+| Writer    | `/t3d-writer`           | CTO, recette          | writes an issue on the template                                   |
 | Architect | `t3d-architect`         | CTO                   | on request: duplicates and bloat as To-do items                   |
 | Analyst   | `t3d-analyst`           | CTO                   | on request: where the company loses time                          |
 
@@ -22,6 +21,6 @@ contributor who does not use an AI assistant can ignore this page.
 - **Once per clone:** `pnpm install`; it links `skills/` into your local `.claude/`
   (`pnpm run skills:link` does it again). Edit in `skills/`, never in `.claude/`.
 - **Each morning:** one session `/t3d-cto` per dev team you want (any assistant can be one), one
-  session `/loop 2h /t3d-recette` and one `/loop 2h /t3d-measure`.
+  session `/loop 2h /t3d-recette`.
 - **During the day:** talk to the CTOs; test the examples.
 - **In the evening:** tell them to stop; close the sessions once they say all is clean.

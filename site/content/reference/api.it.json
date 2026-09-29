@@ -1843,7 +1843,8 @@
       "pageDecodeMs": "Tempo trascorso a decodificare le pagine.",
       "mathBatch": "Stato del regolatore delle vie di calcolo (`../math/path/governor.ts`): via attuale di ogni operazione a lotti, mediane di entrambe le vie, cambi. `null` su un host che non ha aperto alcun lotto — non misurato, non «via JavaScript».",
       "pagesPlannedOffThread": "Integrazione delle pagine fuori dal thread principale. `pagesPlannedOffThread` conta gli arrivi il cui piano — il posto di ogni cluster nel pacchetto e i ranghi di pagine che sposta — è stato calcolato da un worker, mai quelli che il ripiego ha pianificato sul thread principale. `pagePlanMs` è il tempo cumulato di questi piani, misurato dall'esecutore stesso, qualunque sia il thread: non viene mai sommato a un `cpu*` o `gpu*` per fotogramma. Entrambi valgono `null` finché nessun arrivo è stato pianificato — non misurato, non zero.",
-      "pagePlanMs": "Tempo trascorso a pianificare gli arrivi."
+      "pagePlanMs": "Tempo trascorso a pianificare gli arrivi.",
+      "dynamicUploadBytes": "Byte di vertici di geometria dinamica caricati sul posto in questo fotogramma (#573), entro il budget per fotogramma del mondo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Assente dove nessun mondo disegna."
     }
   },
   "frameStatistics": {
@@ -2106,7 +2107,9 @@
       "userData": "Spazio libero per i dati di chi ha costruito la geometria.",
       "released": "Chiamati quando la geometria viene restituita: ciò che ascolta la copia propria di un renderer.",
       "getIndex": "La lista di triangoli, o `null`.",
-      "toNonIndexed": "Una geometria che disegna gli stessi triangoli senza indice: ogni angolo è un vertice a sé."
+      "toNonIndexed": "Una geometria che disegna gli stessi triangoli senza indice: ogni angolo è un vertice a sé.",
+      "usage": "`'dynamic'`: caricata sul posto, mai più ritagliata (#573); così anche una geometria cambiata a ogni fotogramma.",
+      "maxBounds": "Il riquadro che una geometria dinamica non lascia mai, se dichiarato: quello con cui viene scartata (#573)."
     }
   },
   "GEOMETRY_PAGE_CODEC": {
@@ -4986,7 +4989,8 @@
       "structure": "I suoi collegamenti di gruppi.",
       "streams": "I suoi pacchetti di flusso.",
       "quantization": "Null su una primitiva senza pagine, che non è stata quantizzata su alcuna griglia.",
-      "topology": "L'aspetto degli spigoli e degli angoli della mesh."
+      "topology": "L'aspetto degli spigoli e degli angoli della mesh.",
+      "dynamic": "La geometria dinamica di un mondo (#573): solo pagine di indici, i suoi vertici letti come float dalla geometria ospite che il motore riscrive sul posto."
     }
   },
   "Primitive": {
@@ -5684,7 +5688,8 @@
       "dag": "Il report del DAG.",
       "quantization": "Null su una primitiva senza pagine, che non è stata quantizzata su alcuna griglia.",
       "topology": "L'aspetto degli spigoli e degli angoli della mesh.",
-      "binary": "Dove trovare le sue liste."
+      "binary": "Dove trovare le sue liste.",
+      "dynamic": "La geometria dinamica di un mondo (#573): solo pagine di indici, i suoi vertici letti come float dalla geometria ospite che il motore riscrive sul posto."
     }
   },
   "SlimPrimitiveBinary": {
@@ -6916,7 +6921,8 @@
       "shadowMemoryEvents": "Gli eventi di pressione di memoria delle ombre dall'apertura del mondo, per nome, in ordine; vuoto normalmente.",
       "shadowPagesRefetched": "Pagine virtuali mappate di nuovo dopo che il pool le aveva espulse per fare spazio, dall’apertura dell’explorer: i ridisegni che costa un pool troppo piccolo per ciò che leggono i fotogrammi.",
       "shadowCastersKept": "Proiettori d’ombra mantenuti dal culling per pagina, tutte le pagine disegnate insieme, nel fotogramma campionato per ultimo dal dispositivo — uno su quindici; `null` finché non torna un campione.",
-      "shadowCastersHidden": "Proiettori in movimento che il test di occlusione ha trovato nascosti dietro lo strato statico della loro pagina, nel fotogramma campionato per ultimo; `null` finché non torna un campione."
+      "shadowCastersHidden": "Proiettori in movimento che il test di occlusione ha trovato nascosti dietro lo strato statico della loro pagina, nel fotogramma campionato per ultimo; `null` finché non torna un campione.",
+      "dynamicUploadBytes": "Byte di vertici di geometria dinamica caricati sul posto in questo fotogramma (#573), entro il budget per fotogramma del mondo (`DYNAMIC_UPLOAD_BUDGET_BYTES`). Assente dove nessun mondo disegna."
     }
   },
   "WorldOptions": {

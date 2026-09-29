@@ -5,15 +5,14 @@ import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { createAutonomousGeometry } from './geometry.ts';
 import type { PageRec } from '../../page/selection/types.ts';
-import { makeRec } from './pageRec.fixture.ts';
+import { makeRec, recRoots } from './pageRec.fixture.ts';
 
-/** A resident record of page `u`, placed by a row, drawing `geometry`. */
+/** A resident record of page `u`, drawing `geometry`, its root placed by a row. */
 const rowed = (id: number, geometry: G.Geometry): PageRec => ({
   ...makeRec(id, 1),
   url: 'u',
   geometry,
   mesh: undefined,
-  placement: {} as PageRec['placement'],
 });
 
 test('records restored alone leave the rowed geometry the others draw', () => {
@@ -25,7 +24,8 @@ test('records restored alone leave the rowed geometry the others draw', () => {
     typeof createAutonomousGeometry
   >[0]['scene'];
   const store = createAutonomousGeometry({
-    ...{ scene, allPages: [moved, kept], bootstrap: [] },
+    ...{ scene, roots: recRoots({} as never), allPages: [moved, kept] },
+    bootstrap: [],
     ...{ views: { live: { shown: [] }, lists: () => [] } },
     ...{ byUrl: new Map([['u', [moved, kept]]]), descriptors: new Map() },
     ...{ baseMaterials: new Map([[moved, new G.GraphSurface('basic') as never]]) },
