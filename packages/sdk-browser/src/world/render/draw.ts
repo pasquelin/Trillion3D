@@ -1,6 +1,7 @@
-import { EngineError } from '../../../../sdk-core/src/index.ts';
+import { EngineError, type GpuPassTimings } from '../../../../sdk-core/src/index.ts';
 import { PAGE_REQUEST_BATCH, PREFETCH_BATCH, PREFETCH_INTERVAL_MS } from '../../backend/common.ts';
 import { PRIORITY_PREFETCH } from '../../streaming/priority.ts';
+import { fenceAllocations, settleAllocations } from '../../webgl/core/allocation.ts';
 import { createWebglFrameTimer } from '../../webgl/core/frameTimer.ts';
 import type { RenderBackend } from '../../backend/types.ts';
 import type { HostCpuProfile } from '../../host/cpuProfile.ts';
@@ -22,7 +23,7 @@ type Inputs = {
   directGpu: boolean;
   webglSurface?: WebglSurface;
   baseline: RenderBackend;
-  state: Pick<ExplorerHostState, 'measuring' | 'fallbackReason' | 'active'>;
+  state: Pick<ExplorerHostState, 'measuring' | 'fallbackReason' | 'active' | 'hostFrame'>;
   compose: ReturnType<typeof createFrameComposer>;
 };
 
@@ -53,23 +54,32 @@ export function empileEnAttente(attente: Set<string>, urls: readonly string[]) {
   for (const url of urls) attente.add(url);
 }
 
+/** The sample of an image WebGL2 timed, named by its frame: no pass listed — only the whole image
+ *  is timeable, so its pass blocks read `null`, never `0`. Its duration is `gpuFrameMs`. */
+const webglImageSample = (frame: number): GpuPassTimings => ({
+  frame,
+  totalMs: null,
+  passes: [],
+  truncated: true,
+  error: 'WebGL2 times the whole image, never a pass',
+});
+
 export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { scope, emit, diagnose } = session;
   const { camera, geometryUrls, streamer, streaming, baseline, state, compose } = inputs;
   const { directGpu, webglSurface } = inputs;
-  // WebGL2 cannot timestamp a pass: the timer wraps the whole-frame submit on the engine's
-  // context, mounted once the host asks for the per-step profile or an engine's render scale is
-  // left to the frame budget (`renderScaleControl`), whose controller reads the same interval.
+  // WebGL2 cannot timestamp a pass: the timer wraps the whole-frame submit whenever the context
+  // grants the extension, read by the frame metrics, the step profile and `renderScaleControl`.
   const profiled = session.options.stageProfile === true;
-  let gpuTimer: ReturnType<typeof createWebglFrameTimer> | undefined;
+  const gpuTimer = webglSurface && !directGpu ? createWebglFrameTimer(webglSurface.context) : null;
+  const gpu = { frameMs: null as number | null, passes: null as GpuPassTimings | null };
   const drawBackend = (backend: RenderBackend, target: WebglRenderTarget | null) => {
     const { measuring } = state;
     const steps = backend as HostCpuProfile,
       scale = backend.renderScaleControl;
-    // Timed while it is asked: a scale set back to 1 or fixed stops the queries and their flush.
-    const timed = profiled || (scale?.bounds.auto === true && scale.bounds.min < 1);
-    if (!gpuTimer && webglSurface && timed) gpuTimer = createWebglFrameTimer(webglSurface.context);
     scale?.tick(performance.now());
+    // Before any command: the errors of allocations the GPU ran past, read without a wait.
+    settleAllocations(webglSurface?.context);
     backend.render(camera);
     const renderEnd = performance.now();
     const missing = backend.pendingUrls?.() ?? [];
@@ -126,6 +136,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     if (directGpu) {
       // The engine draws into the page canvas: nothing to compose, but the frame closes here,
       // where the bounds the host just sampled still belong to it.
+      fenceAllocations(webglSurface?.context);
       steps.cpuFrameEnd?.();
       if (backend.overBudget)
         throw new EngineError('PAGE_BUDGET', 'Visible pages exceed the resident budget');
@@ -142,6 +153,7 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       state.active = baseline;
       baseline.render(camera);
       compose(baseline, target, false);
+      fenceAllocations(webglSurface?.context);
       emit({
         eventVersion: 1,
         type: 'fallback',
@@ -159,22 +171,29 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
       });
       return;
     }
-    if (timed) gpuTimer?.begin();
+    // A held image put back times the copy, not a drawing: no metric names it (`gpuFrameMs`).
+    gpuTimer?.begin(backend.frameHeld === true ? null : state.hostFrame);
     compose(backend, target);
     // A held image put back, or one drawn into a target at the display's size, measures no
     // drawing at the scale (and leaves `steered` as the last surface image set it): it never
     // steps the controller.
     const moving = !target && scale?.steered === true && backend.frameHeld !== true;
-    if (timed) gpuTimer?.end(scale && { scale: scale.drawn, steered: moving });
+    gpuTimer?.end(scale && { scale: scale.drawn, steered: moving });
+    fenceAllocations(webglSurface?.context);
     steps.cpuStep?.('submitMs', performance.now() - retainEnd);
     if (gpuTimer) {
-      // A query reread a few frames later, with the scale its image was drawn at: the read never
-      // blocks the current frame.
+      // Reread a few frames later, with its image's scale: the read never blocks this frame.
       const read = gpuTimer.poll();
       if (profiled) steps.gpuImageMs?.(read.ms, gpuTimer.supported, read.reason ?? gpuTimer.reason);
       scale?.observe(read.ms, read.tag?.scale, read.tag?.steered ?? false);
+      // A held image's read clears the sample: `gpuFrameMs` is null from it to the next drawing.
+      if (read.ms !== null) {
+        gpu.frameMs = read.frame === null ? null : read.ms;
+        gpu.passes = read.frame === null ? null : webglImageSample(read.frame);
+      }
     }
     steps.cpuFrameEnd?.();
   };
-  return drawBackend;
+  /** The last image the timer read, as the frame metrics carry it (`webglImageSample`). */
+  return Object.assign(drawBackend, { gpu: gpu as Readonly<typeof gpu> });
 }

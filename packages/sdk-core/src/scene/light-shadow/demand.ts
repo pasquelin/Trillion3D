@@ -19,6 +19,7 @@ import {
 } from './virtual.ts';
 
 type ShadowRequests = ReturnType<typeof createShadowRequests>;
+export type { ShadowReceivers };
 
 /**
  * How far from the lit point its reading reaches, in texels of the level it reads: the normal
@@ -41,11 +42,11 @@ const MAX_SPLITS = 12;
  * page identity, residency and validity keep their one set of rules.
  *
  * The readback of the shading stays: the proof an image may hold, and, a frame late, what the
- * receivers missed (`read`). Allocates nothing past construction.
+ * receivers missed (`read`). Allocates nothing past construction but for a resized pool.
  */
 export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: SunLevels) {
-  const cap = shadowRequestCap(pool.pages),
-    seen = new Uint32Array(SHADOW_TABLE_ENTRIES / 32),
+  let cap = shadowRequestCap(pool.pages);
+  const seen = new Uint32Array(SHADOW_TABLE_ENTRIES / 32),
     stack = new Float64Array((MAX_SPLITS + 1) * RECEIVER_FLOATS),
     levels = new Int32Array(2),
     gathered = createReceiverCells(),
@@ -128,6 +129,11 @@ export function createShadowDemand(table: ShadowTable, pool: ShadowPool, sun: Su
       // The words last listed, or the whole set past a list that overflowed.
       if (report.count > cap) seen.fill(0);
       else for (let i = 0; i < report.count; i++) seen[report.entries[i] >>> 5] = 0;
+      // A resized pool lists as many entries as it holds pages (`shadowRequestCap`).
+      if (cap !== shadowRequestCap(pool.pages)) {
+        cap = shadowRequestCap(pool.pages);
+        report.entries = new Uint32Array(cap);
+      }
       report.frame = frame;
       report.layoutEpoch = table.layoutEpoch;
       report.stamp = stamp;
