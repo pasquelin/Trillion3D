@@ -65,7 +65,7 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
     [3840, 2160],
   ]) {
     const base = frameTargetAllocation(rt, native(width, height));
-    assert.equal(base, frameTargetBytes(width, height, true) + width * height + 8 + 80);
+    assert.equal(base, frameTargetBytes(width, height, true) + width * height * 2 + 8 + 80);
     assert.equal(ensureTaaTargets(rt, width, height), width * height * TAA_HISTORY_BYTES_PER_PIXEL);
   }
   assert.ok(frameTargetBytes(3840, 2160, true) > 288 * 1024 * 1024, '4K exceeds the old ceiling');
@@ -90,7 +90,7 @@ test('an eligible receiver accounts for viewport reflection colour and its unifo
   const { rt } = runtime(true);
   assert.equal(
     frameTargetAllocation(rt, native(64, 32)),
-    frameTargetBytes(64, 32, true) + 64 * 32 * 9 + 80,
+    frameTargetBytes(64, 32, true) + 64 * 32 * 10 + 80,
   );
 });
 

@@ -163,11 +163,14 @@ export function encodeParticles(
   rt.run.gpuComputeDispatches += rt.gpu.particles.run(pools, encoder);
 }
 
-/** Whether this image draws the world's pools: in beauty, once a camera and the targets are. */
-export function drawsParticles({ run, gpu, context }: WebgpuPagesRuntime) {
-  const { hdrView, depthView, asIsShare, particles } = gpu;
-  const targets = !!(context.particles && particles && hdrView && depthView && asIsShare);
-  return targets && run.diagnostic === 'beauty' && !!run.lastCamera;
+/** What this image draws the world's pools with — in beauty, once a camera and the targets are —;
+ *  `undefined` when it draws none. */
+export function particleDrawOf({ run, gpu, context }: WebgpuPagesRuntime) {
+  const { hdrView, depthView, asIsShare, particles } = gpu,
+    pools = context.particles;
+  if (!pools || !particles || !hdrView || !depthView || !asIsShare || !run.lastCamera) return;
+  if (run.diagnostic !== 'beauty') return;
+  return { pools, particles, hdrView, depthView, reactive: asIsShare.view };
 }
 
 /** The world's stepped pools drawn over the lit image and its transparents, in beauty only, their
@@ -178,21 +181,19 @@ export function drawParticles(
   encoder: GPUCommandEncoder,
   tone: ArrayLike<number>,
 ) {
-  if (!drawsParticles(rt)) return;
-  const { run } = rt,
-    { hdrView, depthView, asIsShare, particles } = rt.gpu;
-  const { eye } = run.gate.cam;
-  const filter = routedFilter(rt.gpu.displayFilter);
-  run.gpuDrawCalls += particles!.draw(
-    rt.context.particles!,
+  const drawn = particleDrawOf(rt),
+    { run } = rt;
+  if (!drawn) return;
+  run.gpuDrawCalls += drawn.particles.draw(
+    drawn.pools,
     encoder,
-    hdrView!,
-    asIsShare!.view,
-    depthView!,
+    drawn.hdrView,
+    drawn.reactive,
+    drawn.depthView,
     rt.gpu.targetSize,
     viewProj,
-    eye,
-    filter,
+    run.gate.cam.eye,
+    routedFilter(rt.gpu.displayFilter),
     tone,
     rt.lights.store.unlit,
   );

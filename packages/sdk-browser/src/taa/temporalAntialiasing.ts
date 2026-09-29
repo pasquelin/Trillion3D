@@ -1,5 +1,6 @@
 import { TAA_PASS, TAA_VIEW_BYTES } from './shaderWgsl.ts';
 import { SHARE_FORMAT, createTaaResolves } from './resolve.ts';
+import { AS_IS_SHARE_FORMAT } from '../lighting/deferred/asIsShare.ts';
 import { INPUTS, taaGroupEntries, type TaaInputs } from './inputs.ts';
 import { createTaaCheckpoint, createTaaFrameState } from './frameState.ts';
 import { createPlacementMotion, type MotionRoot } from './motion.ts';
@@ -42,7 +43,7 @@ export async function createTemporalAntialiasing(
   const noReactive = device.createTexture({
     label: 'Trillion3D TAA no reactive',
     size: { width: 1, height: 1 },
-    format: SHARE_FORMAT,
+    format: AS_IS_SHARE_FORMAT,
     usage: GPUTextureUsage.TEXTURE_BINDING,
   });
   const noReactiveView = noReactive.createView();
