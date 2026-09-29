@@ -12,9 +12,7 @@ import {
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts';
 import { KEEPS_BINDING, spillHarness, type SpillCase } from './lightTilesSpillHarness.ts';
 import { ouvrirAppareil } from './webgpuDevice.ts';
-
-/** Words of a tile record, the pool after it: the harness's `TILE_STRIDE`. */
-const strideOf = (code: string) => Number(/const TILE_STRIDE:u32=(\d+)u;/.exec(code)![1]);
+import { tileLayout } from '../../../bench/oracles/browser/gpuLightTilesRankOracle.ts';
 
 /** A storage buffer holding `words`, one word at least: a case of no light binds one too. */
 const storage = (device: GPUDevice, words: ArrayLike<number>) => {
@@ -53,16 +51,31 @@ export async function run(cases: SpillCase[]) {
   uploadSceneLights(device, lights as Parameters<typeof uploadSceneLights>[1]);
   const compilation: string[] = [];
   const runs = [];
+  // Two shaders serve every case, the narrow pass's and the wide one's: each is compiled once.
+  const shapes = new Map<string, { pipeline: GPUComputePipeline; stride: number } | undefined>();
   for (const c of cases) {
-    const code = spillHarness(c.words, c.pool);
-    const { module, compilation: errors } = await opened.compile(code);
-    compilation.push(...errors.map((error) => `${c.name}: ${error}`));
-    if (errors.length) continue;
-    const pipeline = device.createComputePipeline({
-      layout: 'auto',
-      compute: { module, entryPoint: 'main' },
-    });
-    const stride = strideOf(code);
+    const shape = `${c.words}/${c.pool}`;
+    if (!shapes.has(shape)) {
+      const code = spillHarness(c.words, c.pool);
+      const { module, compilation: errors } = await opened.compile(code);
+      compilation.push(...errors.map((error) => `${shape}: ${error}`));
+      shapes.set(
+        shape,
+        errors.length
+          ? undefined
+          : {
+              pipeline: device.createComputePipeline({
+                layout: 'auto',
+                compute: { module, entryPoint: 'main' },
+              }),
+              // Words of a tile record, the pool after it: the harness's `TILE_STRIDE`.
+              stride: tileLayout(code).stride,
+            },
+      );
+    }
+    const compiled = shapes.get(shape);
+    if (!compiled) continue;
+    const { pipeline, stride } = compiled;
     const view = new Uint32Array(8);
     view[4] = c.count;
     const uniform = device.createBuffer({

@@ -109,10 +109,10 @@ fn spill(slice:u32,total:u32,slot:u32){
  * masks: the statements the pass runs before its first barrier, `base` its tile record.
  */
 export const tileCompactResetWgsl = (words: number, pool: boolean) =>
-  `${pool ? POOL_RESET_WGSL : ''} if(lane<${2 * words}u){atomicStore(&hits[lane],0u);}`;
+  `${pool ? WALK_RESET_WGSL : ''} if(lane<${2 * words}u){atomicStore(&hits[lane],0u);}`;
 
 /** The wide pass's walk state: nothing kept, each slice writing its list, a list's room. */
-const POOL_RESET_WGSL = ` if(lane==0u){
+const WALK_RESET_WGSL = ` if(lane==0u){
   kept=vec2u(0u);start=vec2u(base+TILE_OPAQUE_BASE,base+TILE_BLEND_BASE);room=vec2u(TILE_LIGHTS);
  }
 `;

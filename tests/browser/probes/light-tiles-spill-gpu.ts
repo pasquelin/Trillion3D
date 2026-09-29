@@ -1,6 +1,7 @@
 // The tile compaction's WGSL itself — the batched walk, the pool's spill and its overflow, the
-// narrow pass's one batch — run on a real GPU against its line-by-line TypeScript port
-// (`bench/oracles/browser/gpuLightTilesRankOracle.ts`), word for word: the tile record, the pool's
+// narrow pass's one batch — run on a real GPU against its TypeScript oracle
+// (`bench/oracles/browser/gpuLightTilesRankOracle.ts`: a line-by-line port of the wide pass, whose
+// batched walk gives the narrow pass's lists too), word for word: the tile record, the pool's
 // words and the pool's state (#849). The masks are the cases': the slice test is the harness's
 // (`lightTilesSpillHarness.ts`), the rest is the shipped `compactWgsl.ts`.
 //
