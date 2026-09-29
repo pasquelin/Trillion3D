@@ -115,6 +115,7 @@ try {
       for (const [i, { view, held, canvas }] of result.entries()) {
         const ids = captures.get(`${tag}-${view}.ids`),
           tri = captures.get(`${tag}-${view}.tri`);
+        if (!ids && !tri) throw new Error(`screen error: no capture of ${tag}-${view}`);
         const drawn = ids
           ? clusterTriangles(ids.body.toString('utf8').split('\n').filter(Boolean))
           : Float32Array.from(new Float64Array(new Uint8Array(tri!.body).buffer));
@@ -136,7 +137,8 @@ try {
           held,
           canvas,
           ...measured,
-          pass: worst <= pixelError + MARGIN_PX,
+          // A cut never held is a cut still moving: its error proves nothing.
+          pass: held >= 0 && worst <= pixelError + MARGIN_PX,
           errors,
         };
         rows.push(row);

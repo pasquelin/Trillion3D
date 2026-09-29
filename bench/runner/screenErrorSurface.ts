@@ -24,8 +24,11 @@ interface GltfNode {
  */
 function meshScales(nodes: GltfNode[]) {
   const scales = new Map<number, number>();
-  for (const node of nodes) {
+  const children = new Set(nodes.flatMap((node) => node.children ?? []));
+  for (const [index, node] of nodes.entries()) {
     if (node.mesh === undefined) continue;
+    if (children.has(index))
+      throw new Error('screen error: a mesh under a parent node is not supported');
     const uniform = !node.scale || new Set(node.scale).size === 1;
     if (node.matrix || node.rotation || node.translation || node.children || !uniform)
       throw new Error('screen error: only a uniformly scaled root node per mesh is supported');
@@ -58,7 +61,10 @@ export async function cacheSurfaces(full: string) {
     const source = gltf.meshes[mesh].primitives[primitive];
     if ((source.mode ?? 4) !== 4) continue;
     const position = read(source.attributes.POSITION),
-      indices = readIndices(source.indices);
+      indices =
+        source.indices === undefined
+          ? Uint32Array.from({ length: position.length / 3 }, (_, i) => i)
+          : readIndices(source.indices);
     const doubleSided = gltf.materials?.[source.material]?.doubleSided === true ? 1 : 0;
     for (const v of indices) for (let k = 0; k < 3; k++) out.push(position[3 * v + k] * scale);
     for (let t = 0; t < indices.length; t += 3) twoSided.push(doubleSided);
