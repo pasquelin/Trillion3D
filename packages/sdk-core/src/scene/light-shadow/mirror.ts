@@ -31,13 +31,15 @@ export interface ShadowPoolSnapshot {
  *
  * A snapshot the pool can no longer follow is left: one of another pool size, or taken before the
  * last drop of a slice's pages (`records.generation`), a resize or a seed of the GPU's pool
- * (`set`). The next one follows. Allocates nothing past construction.
+ * (`set`). The next one follows. Allocates nothing past construction. A mirror made anew for a
+ * resized pool carries on the one before's allocation and drawn count (`previous`).
  */
 export function createShadowMirror(
   table: ShadowTable,
   pool: ShadowPool,
   records: ShadowRecords,
   sun: SunLevels,
+  previous?: { on: boolean; drawn: number },
 ) {
   const entries = createEntryPages(table, records, sun),
     at = new Int32Array(3);
@@ -79,7 +81,10 @@ export function createShadowMirror(
     /** What the host asks the GPU for beside the pixels, this frame (`requests.floors`). */
     asks: { entries: new Uint32Array(shadowRequestCap(pool.pages)), count: 0 } as ShadowAsks,
     /** True while the GPU allocates. */
-    on: false,
+    on: previous?.on ?? false,
+    /** Pages every snapshot so far listed for the GPU to draw, in their frame (`freshPass.ts`):
+     *  the shadow contents' version as the GPU's own draws move it (`reflections/frame.ts`). */
+    drawn: previous?.drawn ?? 0,
     /** Pages the latest snapshot's frame listed for the GPU to draw: while some are, the GPU's
      *  page draws run (`freshPass.ts`). */
     listed: 0,
@@ -103,7 +108,10 @@ export function createShadowMirror(
     /** Follows the GPU's pool in `report`; false when it is not the GPU's, or can no longer be. */
     follow(report: ShadowRequestReport, nowMs: number, frame: number) {
       const snapshot = report.pool;
-      if (snapshot) mirror.listed = snapshot.drawn;
+      if (snapshot) {
+        mirror.listed = snapshot.drawn;
+        mirror.drawn += snapshot.drawn;
+      }
       if (!snapshot || report.frame < from || snapshot.owner.length !== pool.pages) return false;
       if (report.layoutEpoch !== table.layoutEpoch) return false;
       apply(snapshot, report.frame, nowMs, frame);

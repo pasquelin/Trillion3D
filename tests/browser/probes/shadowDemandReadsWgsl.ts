@@ -6,7 +6,9 @@
 import { DIRECT_LIGHT_WGSL } from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts';
 import { SHADOW_READ_AT_WGSL } from '../../../packages/sdk-browser/src/lighting/direct/shadowFactorWgsl.ts';
 import { shadowRequestWgsl } from '../../../packages/sdk-browser/src/lighting/direct/shadowRequestWgsl.ts';
+import { LAMP_SOFT_DISK_WGSL } from '../../../packages/sdk-browser/src/lighting/direct/lampSoftWgsl.ts';
 import {
+  PCF_TAPS_WGSL,
   SHADOW_DATA_WGSL,
   SHADOW_PAGE_READ_WGSL,
   directShadowWgsl,
@@ -20,6 +22,7 @@ const LITS = (binding: number) => `struct Lit{P:vec4f,N:vec4f,}
 const LIGHTS = (binding: number) =>
   `@group(0) @binding(${binding}) var<storage,read> directLights:DirectLights;`;
 const DEMANDED = ['demandPage', 'demandPages', 'demandSun', 'demandLamp', 'demandLight'];
+DEMANDED.push('demandSoftLamp', 'softPageExit');
 
 /** The demand's own functions, run at every lit point for every light. */
 export const DEMAND = `${DIRECT_LIGHT_WGSL}
@@ -29,6 +32,8 @@ ${SHADOW_DATA_WGSL}
 ${shadowRequestWgsl(1)}
 ${SHADOW_PAGE_READ_WGSL}
 ${SHADOW_READ_AT_WGSL}
+${PCF_TAPS_WGSL}
+${LAMP_SOFT_DISK_WGSL}
 ${functionsOf(SHADOW_DEMAND_WGSL, DEMANDED)}
 ${LITS(2)}
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id:vec3u){
