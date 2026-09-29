@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as G from '../../host/graph/graph.fixture.ts';
-import { validateClusterMeshes } from './validation.ts';
+import { ClusterMeshValidation } from './validation.ts';
 
 const NO_COPIES = { plain: [], blended: [], transmissive: [] };
 
@@ -19,18 +19,19 @@ test('a frame reads a surface once for all its pages, their attributes each, a m
     material: surface,
     geometry: { attributes: { position: new G.BufferAttribute(new Float32Array(9), 3) } },
   });
-  const pages = [page(), page(), page()] as never[];
-  validateClusterMeshes(pages, [], NO_COPIES, new Map());
+  const pages = [page(), page(), page()] as never[],
+    validation = new ClusterMeshValidation(); // the renderer's, frame after frame
+  validation.validate(pages, [], NO_COPIES);
   assert.equal(reads, 1, 'three pages, one read of their surface');
   (pages[2] as { geometry: { attributes: object } }).geometry.attributes = {};
   assert.throws(
-    () => validateClusterMeshes(pages, [], NO_COPIES, new Map()),
+    () => validation.validate(pages, [], NO_COPIES),
     /position attribute is unsupported/,
     'the attributes are read per page',
   );
   surface.premultipliedAlpha = true;
   assert.throws(
-    () => validateClusterMeshes(pages, [], NO_COPIES, new Map()),
+    () => validation.validate(pages, [], NO_COPIES),
     /unsupported blend state/,
     'the next frame reads the surface again',
   );
