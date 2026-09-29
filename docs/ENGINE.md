@@ -799,6 +799,37 @@ else: attributes, drawing-buffer size from logical size and DPR, loss and restor
 Targets, held frame, comparison compositor and presenter are engine objects on that context, and the
 frame composer asks each backend to draw its whole image through `drawHostGeometry`.
 
+## Dynamic geometry
+
+A world's geometry written every frame (`usage: 'dynamic'`, or changed on two consecutive frames,
+`world/core/worldDynamic.ts`) is cut into pages once, index pages alone — no geometry page, no
+normal cone, every page bounded by the primitive's held box (`world/page/runtimePrimitive.ts`) —
+and never again while its triangles keep their corners (#573). Its vertices are read as floats, by
+the path that reads a cache without geometry pages (`pageGeometryWgsl.ts`): the same visibility
+raster, Hi-Z, resolve, shadow depth and transparent draw, one lighting model. A frame compares the
+geometry read since the last upload with what the engine holds, list by list, and hands the engine
+the range from the first changed vertex to the last (`updateVertices`), within the world's per-frame
+budget (`DYNAMIC_UPLOAD_BUDGET_BYTES`, 4 MiB): past it the next geometries wait, in order, their
+previous vertices drawn.
+
+- **WebGPU.** The float vertex pool (`webgpu/core/geometryPrepare.ts`) is sized once at open with
+  room for as many vertices again as its dynamic geometry holds; a rewrite is one `writeBuffer`
+  per list into its block, a record mounted after the open takes a block of that room (`place`),
+  and nothing is reallocated. Each root drawing the geometry turns moving for the shadow pool
+  (`shadow/mobility.ts`) and the world box of the moved vertices, where they were and where they
+  go, stales the pages it covers (`light-shadow/invalidate.ts`, #489). Its rows carry
+  `FLAG_DYNAMIC`: no motion matrix follows vertices within a placement, so the temporal pass takes
+  those pixels as reactive, the history of another shape dropped rather than smeared.
+- **WebGL2.** The manifest keeps a dynamic primitive's index pages (`sourcedPages.ts`); each is
+  drawn as its corners over the host geometry's own lists, one buffer per list whatever the pages
+  reading it, uploaded once per rewrite by its written ranges (`bufferSubData`).
+
+Vertices that leave the held box serve the same pages again in a larger box: on WebGPU, which
+mounts no resource in place yet (#483), that opens the session once. The box is the declared
+`maxBounds`, else the first vertices' box widened by half its size on every side: a value declared
+as such, not derived — it stands for how far a shape rewritten every frame moves about where it
+started; a larger one culls later, a smaller one serves the pages again sooner.
+
 ## Memory
 
 The geometry pool holds `floor(bytes / pageBytes)` slots, the root cover pinned for the backend's
