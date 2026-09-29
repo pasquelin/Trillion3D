@@ -428,16 +428,25 @@ real allocations) — is the CPU total's first share, before the decoded-page ca
   `sun-far-shadow` diagnostic publishes its bounds). The PCF taps each find their own page: a tap
   within a texel of a seam compares the four texels of its footprint in their own pages, weighted
   by hand — no seam, no guard band.
-- **Receivers mark the pages.** The opaque resolve records each page it reads — a bit per table
-  word, tested before the atomic, and a list — and the list comes back in one readback per image,
-  as the texture feedback does (`webgpu/shadow/pageRequests.ts`). A page asked for and unmapped is
-  allocated from the free list, or from the page least recently asked for, the finest first among
-  equals; a page the latest report named is never evicted, and coarse levels are served first.
-  Meanwhile the pixel reads the next coarser level. Blend and water surfaces read what the opaque
-  pixels asked for, and keep their early depth reject. The boxes of the drawn clusters do not name
-  pages (#1209): a box bounds far more than its pixels read — a ring round a lamp bounds the
-  lamp's whole map —, and scheduling from them drew the whole pool; the per-pixel demand known
-  before the raster is #1275's.
+- **Receivers mark the pages.** A compute pass after the light lists marks, per pixel, the pages
+  the resolve will read, and the resolve records each page it reads — a bit per table word, tested
+  before the atomic, and a list —; the list comes back in one readback per image, as the texture
+  feedback does (`webgpu/shadow/demandPass.ts`, `pageRequests.ts`). The boxes of the drawn
+  clusters do not name pages (#1209): a box bounds far more than its pixels read — a ring round a
+  lamp bounds the lamp's whole map.
+- **The GPU maps what the frame marks, in that frame** (#1275). Right after the demand, one
+  workgroup reads the list — the pixels' pages and the plan's floors, deduplicated by the bitset —
+  and maps each unmapped page from the free pages, or from the page least recently asked for, the
+  finest first among equals; a page this frame asks for is never evicted, and coarse levels are
+  served first (`webgpu/shadow/allocWgsl.ts`). It frees the pages of a light gone and of a sun level
+  whose window left them, and writes the table words itself; entries are decoded by the page model
+  the shaders share (`pageModel.ts`). The host keeps the buffers and the memory grant, and its pool
+  follows the GPU's from the snapshot each readback carries (`scene/light-shadow/mirror.ts`): a
+  page is drawn once the host knows it, and readable only then — a word the host sends is kept
+  only for the page the GPU says its entry owns (`wordsWgsl.ts`). Meanwhile the pixel reads the next
+  coarser level. Blend and water surfaces read what the opaque pixels asked for, and keep their
+  early depth reject. Without the demand or the allocation pipeline, the readback's report maps
+  the pages on the host, frames later.
 - **Every stale page the image reads is drawn, in the frame that marks it** (#489). There is no
   per-frame page cap and no millisecond budget; the list goes the coarsest first, each light's
   floor leading (#525), an order that matters only to a frame its memory guard stops. The cost is
