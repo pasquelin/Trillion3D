@@ -10,9 +10,7 @@ import { attachedPages } from '../../placement/autonomousPlacements.ts';
 import { followHostVisibility } from '../../placement/hidden.ts';
 import type { createGeometryBudget } from './pool.ts';
 import { createImageCut } from './imageCut.ts';
-import { refusalsRead, takeOutOfMemory } from '../../webgl/core/allocation.ts';
-import { outOfMemoryContext } from '../../residency/outOfMemory.ts';
-import { sendEngineDiagnostic } from '../../diagnostic/engineDiagnostic.ts';
+import { createRefusalAnswer } from './refusals.ts';
 import type { createAutonomousResidency } from './residency.ts';
 import type { createAutonomousGeometry } from './geometry.ts';
 import type { WebglViewState } from './views.ts';
@@ -92,26 +90,15 @@ export function createAutonomousRender(options: {
     residency.keptChanged();
     pool.follow(view.requested, view.shown);
   };
-  let refusals = 0;
+  const answerRefusals = createRefusalAnswer({
+    gl: () => context.webglContext,
+    pool,
+    onDiagnostic: context.onDiagnostic,
+    redraw: () => gate.resourcesChanged(),
+  });
   const frame = (camera: HostCamera) => {
-    // A geometry allocation the context refused since the last frame draws this one a level
-    // coarser. A frame target is sized again at its next draw and a map sent again at its next
-    // bind — no coarser picture to show instead —: nothing to shrink, the refusal is published.
-    const gl = context.webglContext;
-    if (takeOutOfMemory(gl, 'geometry')) pool.outOfMemory();
-    for (const refused of ['target', 'texture'] as const)
-      if (takeOutOfMemory(gl, refused))
-        sendEngineDiagnostic(
-          context.onDiagnostic,
-          'gpu-out-of-memory',
-          `WebGL2 refused a ${refused === 'target' ? 'frame target' : 'map'}`,
-          outOfMemoryContext(refused, null),
-        );
-    // Whatever was refused, the images drawn since drew without it: this one is drawn again.
-    if (refusalsRead(gl) !== refusals) {
-      refusals = refusalsRead(gl);
-      gate.resourcesChanged();
-    }
+    // The allocations the context refused since the last frame, answered first (`refusals.ts`).
+    answerRefusals();
     // Frame entry: the order and its guarantees live in `../../frame/gateCore.ts`, which also copies
     // the host camera into the engine camera — the cut now reads only the latter.
     state.frameHeld = gate.enterFrame(

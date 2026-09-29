@@ -22,17 +22,12 @@ type Sent = { pool: RefusedPool; redo: Redo };
 /** Allocations one frame sent, behind the fence placed at its end. */
 type Batch = { fence: WebGLSync; sent: Sent[] };
 
-/** A context's allocations not yet confirmed: the fenced batches, oldest first, and those sent
- *  since the last fence. */
-type Unconfirmed = { batches: Batch[]; pending: Sent[] };
+/** A context's allocations not yet confirmed — the fenced batches, oldest first, and those sent
+ *  since the last fence — and the pools it refused an allocation of since its engine's last
+ *  frame. */
+type Unconfirmed = { batches: Batch[]; pending: Sent[]; refused: Set<RefusedPool> };
 
 const unconfirmed = new WeakMap<WebGL2RenderingContext, Unconfirmed>();
-
-/** The pools each context refused an allocation of since their engine's last frame. */
-const refused = new WeakMap<WebGL2RenderingContext, Set<RefusedPool>>();
-
-/** How many refusals each context read: the images drawn since one may miss what it refused. */
-const readings = new WeakMap<WebGL2RenderingContext, number>();
 
 /** Error flags a context can hold at once: the read stops there even on a driver that never
  *  clears one. */
@@ -42,7 +37,7 @@ const nothing: Redo = () => {};
 
 const stateOf = (gl: WebGL2RenderingContext) => {
   let state = unconfirmed.get(gl);
-  if (!state) unconfirmed.set(gl, (state = { batches: [], pending: [] }));
+  if (!state) unconfirmed.set(gl, (state = { batches: [], pending: [], refused: new Set() }));
   return state;
 };
 
@@ -52,22 +47,18 @@ export function allocated(gl: WebGL2RenderingContext, pool: RefusedPool, redo: R
 }
 
 /** Marks and redoes every allocation not yet confirmed: the flag read is any of theirs. */
-function refuseAll(gl: WebGL2RenderingContext, state: Unconfirmed | undefined) {
-  let pools = refused.get(gl);
-  if (!pools) refused.set(gl, (pools = new Set()));
-  readings.set(gl, (readings.get(gl) ?? 0) + 1);
-  if (!state) return;
-  const sent: Sent[] = [];
+function refuseAll(gl: WebGL2RenderingContext) {
+  const state = stateOf(gl);
+  const refuse = (one: Sent) => {
+    state.refused.add(one.pool);
+    one.redo();
+  };
   for (const batch of state.batches) {
     gl.deleteSync(batch.fence);
-    for (const one of batch.sent) sent.push(one);
+    batch.sent.forEach(refuse);
   }
-  for (const one of state.pending) sent.push(one);
+  state.pending.forEach(refuse);
   state.batches.length = state.pending.length = 0;
-  for (const one of sent) {
-    pools.add(one.pool);
-    one.redo();
-  }
 }
 
 /** Reads the errors `gl` holds, now: true when one was `OUT_OF_MEMORY`, and then every allocation
@@ -81,7 +72,7 @@ export function refusedNow(gl: WebGL2RenderingContext) {
     if (!error || error === gl.CONTEXT_LOST_WEBGL) break;
     if (error === gl.OUT_OF_MEMORY) outOfMemory = true;
   }
-  if (outOfMemory) refuseAll(gl, unconfirmed.get(gl));
+  if (outOfMemory) refuseAll(gl);
   return outOfMemory;
 }
 
@@ -107,7 +98,8 @@ export function settleAllocations(gl: WebGL2RenderingContext | null | undefined)
   if (!gl || !state?.batches.length || !passed(gl, state.batches[0])) return;
   // Allocations sent since the passed fences may have been read too: a refusal redoes them all.
   if (refusedNow(gl)) return;
-  let confirmed = 0;
+  let confirmed = 1;
+  gl.deleteSync(state.batches[0].fence);
   while (confirmed < state.batches.length && passed(gl, state.batches[confirmed]))
     gl.deleteSync(state.batches[confirmed++].fence);
   state.batches.splice(0, confirmed);
@@ -118,9 +110,4 @@ const passed = (gl: WebGL2RenderingContext, batch: Batch) =>
 
 /** Whether `gl` refused an allocation of `pool` since the last call for it; the mark is cleared. */
 export const takeOutOfMemory = (gl: WebGL2RenderingContext | null | undefined, pool: RefusedPool) =>
-  !!gl && !!refused.get(gl)?.delete(pool);
-
-/** How many refusals `gl` read so far: an engine that sees it move draws its image again, the
- *  last ones drawn with what was refused. */
-export const refusalsRead = (gl: WebGL2RenderingContext | null | undefined) =>
-  (gl && readings.get(gl)) ?? 0;
+  !!gl && !!unconfirmed.get(gl)?.refused.delete(pool);
