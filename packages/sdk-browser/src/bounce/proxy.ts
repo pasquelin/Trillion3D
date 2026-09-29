@@ -77,6 +77,8 @@ export function createGpuBounceProxy(device: GPUDevice, proxy: SceneProxy) {
     triangleCount: proxy.triangles,
     nodeCount: proxy.nodes,
     bounds: motion.bounds,
+    triangleBoxes: motion.triangleBoxes,
+    changedTriangles: motion.changedTriangles,
     get dynamic() {
       return motion.dynamic;
     },

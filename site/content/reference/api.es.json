@@ -342,6 +342,7 @@
       "proxyCellMetres": "Resolución mínima de la malla proxy en metros: tamaño de los triángulos simplificados y de las celdas de la caché de superficie. Duplicado por el compilador si se supera el presupuesto.",
       "proxyLeafTriangles": "Triángulos por hoja del BVH: los bucles sobre las hojas están acotados por esta constante.",
       "traversalSteps": "Nodos del BVH visitados por rayo: acotados antes de ejecutar el fotograma, nunca dinámicos. Un nodo de 4 hijos cubre 4× más árbol por paso que un BVH binario.",
+      "motionTraversalSteps": "Nodos del BVH visitados por rayo una vez que un propietario se ha movido: una caja reajustada puede solaparse con sus vecinas, así que el límite fijo se duplica. Sigue siendo una constante, nunca el número de nodos.",
       "traversalStack": "Profundidad de la pila de recorrido. Un nodo de 4 hijos apila hasta 3; 32 cubre millones de triángulos.",
       "cascadeLevels": "Niveles de las cascadas de sondas. Los primeros `cascadeLevels - 1` siguen la posición de la cámara; el último es fijo en el mundo y cubre toda la escena.",
       "cascadeSize": "Sondas por eje y por nivel: un nivel es un cubo de `cascadeSize³` sondas.",
@@ -406,13 +407,14 @@
   },
   "BounceOccupancy": {
     "summary": "Dónde merece la pena mantener una sonda: el mapa de ocupación de las cascadas.",
-    "description": "Una cascada sobre una ciudad gasta la mayoría de sus celdas en el cielo vacío y el núcleo lleno de los edificios, donde la irradiancia nunca se pide. El planificador debe saber, antes de gastar un rayo, si una celda toca geometría. Es una propiedad del mundo, no de la cámara: calculada una vez en la construcción, válida para todas las posiciones que toman después los niveles móviles. El mapa del nivel más fino se marca con las cajas envolventes de los triángulos del proxy más un borde de una celda: las ocho esquinas de una celda ocupada siempre se conservan, así que no se pierde nada útil. Los niveles siguientes son reducciones exactas — dos celdas por una en cada eje, ya que las separaciones son múltiplos en potencias de dos del más fino — luego dilatadas una celda por la misma razón. Nada aquí nombra una escena ni examina la cámara: una extensión, triángulos, celdas.",
+    "description": "Una cascada sobre una ciudad gasta la mayoría de sus celdas en el cielo vacío y el núcleo lleno de los edificios, donde la irradiancia nunca se pide. El planificador debe saber, antes de gastar un rayo, si una celda toca geometría. Es una propiedad del mundo, no de la cámara: calculada en la construcción y de nuevo cuando la geometría movida se asienta, válida para todas las posiciones que toman después los niveles móviles. El mapa del nivel más fino se marca con las cajas envolventes de los triángulos del proxy más un borde de una celda: las ocho esquinas de una celda ocupada siempre se conservan, así que no se pierde nada útil. Los niveles siguientes son reducciones exactas — dos celdas por una en cada eje, ya que las separaciones son múltiplos en potencias de dos del más fino — luego dilatadas una celda por la misma razón. Nada aquí nombra una escena ni examina la cámara: una extensión, triángulos, celdas.",
     "members": {
+      "moved": "Los propietarios se movieron: `boxes` contiene seis límites del mundo por triángulo del proxy, `changed` marca los movidos.",
+      "settle": "Una vez por fotograma: el primer fotograma tras detenerse el movimiento reconstruye el mapa exacto sobre `extent`.",
       "occupied": "Verdadero cuando una celda de un nivel en su rejilla merece una sonda.",
       "marked": "Celdas marcadas y celdas totales del nivel más fino: la ganancia publicada.",
       "cells": "Celdas del nivel más fino.",
-      "bytes": "Bytes que ocupa.",
-      "allEligible": "La geometría se ha movido: programa de forma conservadora todas las celdas de las cascadas, cuyo número está acotado."
+      "bytes": "Bytes que ocupa."
     }
   },
   "BoundedNode": {
