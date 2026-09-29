@@ -1,4 +1,5 @@
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
+import { CONE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/coneModel.ts';
 import { PAGE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { CASTERS_ALL, SHADOW_CULL_GROUP } from '../../gpu/shadow/cullShader.ts';
@@ -46,6 +47,7 @@ ${FRESH_PARAMS_WGSL}
 @group(0) @binding(6) var<storage,read> params:ShadowFreshParams;
 @group(0) @binding(7) var<storage,read_write> dispatch:array<u32,3>;
 ${PAGE_MODEL_WGSL}
+${CONE_MODEL_WGSL}
 ${SHADOW_POOL_WGSL}
 ${SHADOW_PLACE_WGSL}
 ${FRESH_LAYOUT_WGSL}
@@ -110,12 +112,7 @@ fn composeSun(k:u32,slice:u32,level:i32,x:f32,y:f32){
  volumeVec(v,vec4f(along3(along3(along3(eye,f,far*0.5),r,mid),u,mid),far*0.5));volumeVec(v+4u,vec4f(f,-1.0));
  volumeVec(v+8u,vec4f(r,half));volumeVec(v+12u,vec4f(u,half));
 }
-/** The unit ray through \`(x, y)\` of a face of tangent half-field \`t\` (\`shadowConeRay\`). */
-fn coneRay(f:vec3f,r:vec3f,u:vec3f,t:f32,x:f32,y:f32)->vec3f{
- return normalize(vec3f(shadowConeRay(f.x,r.x,u.x,t,x,y),shadowConeRay(f.y,r.y,u.y,t,x,y),shadowConeRay(f.z,r.z,u.z,t,x,y)));
-}
-/** A lamp page: its face's clip cropped to the page; its cone, the lamp as apex, the page's
- *  centre as axis, its farthest corner as half-angle (\`writeConeVolume\`). */
+/** A lamp page: its face's clip cropped to the page; its cone the host's (\`coneModel.ts\`). */
 fn composeLamp(k:u32,slice:u32,view:i32,x:f32,y:f32){
  let m=shadows.records[slice].faces[view>>4u];
  let pages=f32(LAMP_PAGE_COUNT>>u32(view&15));
@@ -130,15 +127,9 @@ fn composeLamp(k:u32,slice:u32,view:i32,x:f32,y:f32){
  faceVec(at+8u,cropped(c2,a,b,c,d,1.0,0.0));faceVec(at+12u,cropped(c3,a,b,c,d,1.0,0.0));
  let r=normalize(vec3f(c0.x,c1.x,c2.x));let u=normalize(vec3f(c0.y,c1.y,c2.y));
  let f=normalize(vec3f(c0.w,c1.w,c2.w));let t=shadows.records[slice].info.y;
- let halfFov=atan(t);let wide=shadowConeHalfAngle(0.0,halfFov)>1.0;
- let axis=select(coneRay(f,r,u,t,(u0+u1)*0.5,(v0+v1)*0.5),f,wide);
- var chord=0.0;
- for(var corner=0u;corner<4u;corner++){
-  let cu=select(u0,u1,(corner&1u)!=0u);let cv=select(v0,v1,(corner&2u)!=0u);
-  chord=max(chord,length(coneRay(f,r,u,t,cu,cv)-axis));
- }
+ let halfFov=atan(t);let axis=shadowConeAxis(f,r,u,t,halfFov,u0,u1,v0,v1);
  let s=params.slices[slice];let w=k*CULL_WORDS;
- volumeVec(w,vec4f(s.emitter.xyz,s.far.x));volumeVec(w+4u,vec4f(axis,shadowConeHalfAngle(chord,halfFov)));
+ volumeVec(w,vec4f(s.emitter.xyz,s.far.x));volumeVec(w+4u,vec4f(axis,shadowConeSpread(f,r,u,t,halfFov,axis,u0,u1,v0,v1)));
  volumeVec(w+8u,vec4f(0.0));volumeVec(w+12u,vec4f(0.0));
 }
 /** Region \`k\`: its page's view and volume, every caster of it kept (\`CASTERS_ALL\`). */
