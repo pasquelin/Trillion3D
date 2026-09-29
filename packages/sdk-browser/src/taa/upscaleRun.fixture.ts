@@ -1,7 +1,10 @@
-// The upscaling resolve (`upscaleWgsl.ts`) run in JavaScript over a small frame: its render
-// inputs as functions of the texel, its history as one of the point read.
+// The upscaling resolve (`upscaleWgsl.ts`), or the native one (`shaderWgsl.ts`), run in JavaScript
+// over a small frame: its render inputs as functions of the texel, its history as one of the point
+// read.
 import { Mat, shaderRun, type Vec } from '../texture/shaderRun.fixture.ts';
 import { taaUpscaleShader } from './upscaleWgsl.ts';
+import { taaShader } from './shaderWgsl.ts';
+import { taaWeights, TAA_WEIGHTS } from './weights.ts';
 import { IDENTITY_MATRIX4 } from '../../../sdk-core/src/index.ts';
 
 const IDENTITY = new Mat([...IDENTITY_MATRIX4]);
@@ -24,6 +27,9 @@ export interface UpscaleFrame {
   /** The as-is flag (a blended resolve's float) and the display layers, per texel. */
   flag?: (x: number, y: number) => number;
   layer?: (x: number, y: number) => number[];
+  /** The display layers' history read at a point, when it holds the last image's; absent, the
+   *  layers' history is not written (`params.w` 0). */
+  layerHistory?: (uv: number[]) => number[];
   /** The image moves (`view.jitter.z`): the history is read and blended as in motion. */
   moving?: boolean;
   /** The reactive value the blends and particles wrote, per texel. */
@@ -45,8 +51,9 @@ interface Resolved {
   reads: number[][];
 }
 
-/** The resolve of `frame`, per display pixel; `asIs` and `filtered` pick the variant. */
-export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false) {
+/** The resolve of `frame`, per display pixel; `asIs` and `filtered` pick the variant, `native` the
+ *  resolve at the render size, which weighs its 3×3 by the jitter's table (`weights.ts`). */
+export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false, native = false) {
   const [w, h] = frame.render,
     [W, H] = frame.display,
     reads: number[][] = [];
@@ -59,14 +66,19 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false) 
       return read(x, y);
     };
   const history = (uv: number[]) => (reads.push(uv), frame.history!(uv));
+  const jitter = frame.jitter ?? [0, 0],
+    weights = taaWeights(jitter[0], jitter[1], new Float32Array(TAA_WEIGHTS), 0);
+  // Unwritten, the layers' history is read all the same and must not show.
+  const layerHistory = frame.layerHistory ?? (() => [NaN, NaN, NaN, NaN]);
   const scope = {
     view: {
       prevViewProj: frame.prevViewProj ?? IDENTITY,
       invViewProj: IDENTITY,
       viewport: [W, H, 1 / W, 1 / H],
-      params: [0.25, frame.history ? 1 : 0, frame.motion ? 1 : 0, 1],
+      params: [0.25, frame.history ? 1 : 0, frame.motion ? 1 : 0, frame.layerHistory ? 1 : 0],
       render: [w, h, 1 / w, 1 / h],
-      jitter: [...(frame.jitter ?? [0, 0]), frame.moving ? 1 : 0, 0],
+      jitter: [...jitter, frame.moving ? 1 : 0, 0],
+      weights: [0, 4, 8].map((at) => [...weights.subarray(at, at + 4)]),
     },
     current: texel(frame.color),
     depth: texel(frame.depth ?? (() => 0)),
@@ -83,8 +95,8 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false) 
     motion: [frame.motion ?? IDENTITY],
     history,
     shareHistory: history,
-    filterHistory: history,
-    addHistory: history,
+    filterHistory: layerHistory,
+    addHistory: layerHistory,
     historySampler: null,
     textureLoad: (texture: (at: Vec) => unknown, at: Vec) => texture(at),
     textureSampleLevel: (texture: (uv: number[]) => number[], _: null, uv: number[]) => texture(uv),
@@ -96,13 +108,13 @@ export function upscaleRun(frame: UpscaleFrame, asIs = false, filtered = false) 
     }),
   };
   const { resolve } = shaderRun<{ resolve: (pixel: number[]) => Omit<Resolved, 'reads'> }>(
-    taaUpscaleShader(asIs, asIs, filtered),
+    (native ? taaShader : taaUpscaleShader)(asIs, asIs, filtered),
     [
       'resolve',
+      ...(native ? [] : ['lanczos2']),
       'previousUv',
       'toYcocg',
       'fromYcocg',
-      'lanczos2',
       'historyCatmullRom',
       'placementOf',
       'placementTag',

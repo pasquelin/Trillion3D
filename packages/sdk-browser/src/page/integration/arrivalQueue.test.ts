@@ -155,6 +155,7 @@ test('the cells a frame places and the pages it drains spend one budget, on one 
         bytes: 1,
         parents: [[null, [x, 0, 0, x + 1, 1, 1]] as const],
         meshes: [[0, 1] as const],
+        meshPages: [],
       })),
     },
     base: 'https://cache.test/key/',
