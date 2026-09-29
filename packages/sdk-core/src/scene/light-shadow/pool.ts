@@ -16,9 +16,9 @@ export const DRAW_ALL = 0,
   DRAW_FULL = 1,
   DRAW_DYNAMIC = 2;
 
-/** Host bytes a pool of `pages` allocates, per page 10·4 + 5 + 2·8, one bit per table entry. */
+/** Host bytes a pool of `pages` allocates, per page 11·4 + 5 + 2·8, one bit per table entry. */
 export const shadowPoolHostBytes = (pages: number) =>
-  pages * (10 * 4 + 5 + 2 * 8) + SHADOW_TABLE_ENTRIES / 8;
+  pages * (11 * 4 + 5 + 2 * 8) + SHADOW_TABLE_ENTRIES / 8;
 
 /**
  * THE PHYSICAL PAGES of the shadow pool and what each one holds: the table entry that maps it,
@@ -35,24 +35,29 @@ export function createShadowPool(side: number, layers = 1) {
     freeCount = 0,
     orderCount = -1,
     orderAt = 0,
-    orderFrame = -1;
+    /** The cycle evicts from: a page a request of this cycle or a later one named (`named`) is
+     *  kept. A still scene hands the frame it came to rest at (`plan.ts`), so a page named
+     *  anywhere in the still cycle survives the frames whose report names a slightly different
+     *  set (#26): the resident set stops churning and the pool refuses instead of refetching. */
+    evictBefore = -1;
   /** One bit per table entry: its page was evicted to make room, and it has not been drawn since. */
   const evicted = new Uint32Array(SHADOW_TABLE_ENTRIES / 32);
-  /** The evictable pages of the report of `orderFrame`, in eviction order: one sort, at need. */
+  /** The evictable pages of cycle `evictBefore`, in eviction order: one sort, at need. */
   const buildOrder = () => {
-    const { owner, requested, rank, pages } = pool;
+    const { owner, named, rank, pages } = pool;
     orderCount = 0;
     orderAt = 0;
     for (let page = 0; page < pages; page++)
-      if (owner[page] >= 0 && requested[page] < orderFrame)
+      if (owner[page] >= 0 && named[page] < evictBefore)
         order[orderCount++] =
-          ((requested[page] + 1) * RANKS + rank[page] + RANKS / 2) * pages + page;
+          ((pool.requested[page] + 1) * RANKS + rank[page] + RANKS / 2) * pages + page;
     order.subarray(0, orderCount).sort();
   };
   const init = () => {
-    const { owner, requested, dirty, valid, layered, pages } = pool;
+    const { owner, requested, named, dirty, valid, layered, pages } = pool;
     owner.fill(-1);
     requested.fill(-1);
+    named.fill(-1);
     for (const flags of [dirty, valid, layered]) flags.fill(0);
     for (let page = 0; page < pages; page++) free[page] = pages - 1 - page;
     freeCount = pages;
@@ -135,20 +140,26 @@ export function createShadowPool(side: number, layers = 1) {
       pool.owner[page] = -1;
       pool.dirty[page] = pool.valid[page] = pool.layered[page] = 0;
       pool.requested[page] = -1;
+      pool.named[page] = -1;
       free[freeCount++] = page;
     },
-    /** Pages that may be taken for a report of frame `reportFrame`: every mapped page no later
-     *  report named, least recently requested first and, among those, the finest first — a coarse
-     *  page is what the finer ones fall back to. Built once per report, by the first `take` the
-     *  free list cannot serve. */
-    beginAllocation(reportFrame: number) {
-      orderCount = -1;
-      orderFrame = reportFrame;
+    /** Marks `page` named by the request of cycle `cycle`: kept until the cycle advances. */
+    name(page: number, cycle: number) {
+      pool.named[page] = cycle;
     },
-    /** A page for `entry`, asked by the report of `reportFrame`: a free one — the lowest first —,
-     *  else the oldest evictable one, else −1. It waits for its first draw from `frame`. */
+    /** Pages that may be taken for a request of cycle `evict`: every mapped page the cycle no
+     *  longer names, least recently requested first and, among those, the finest first — a coarse
+     *  page is what the finer ones fall back to. Built once per request, by the first `take` the
+     *  free list cannot serve. */
+    beginAllocation(evict: number) {
+      orderCount = -1;
+      evictBefore = evict;
+    },
+    /** A page for `entry`, asked by the report of `reportFrame` in cycle `evictBefore`: a free one
+     *  — the lowest first —, else the oldest evictable one, else −1. It waits for its first draw
+     *  from `frame`. */
     take(table: ShadowTable, entry: number, reportFrame: number, nowMs: number, frame: number) {
-      const { owner, requested } = pool;
+      const { owner, named } = pool;
       let page = -1;
       if (freeCount) page = free[--freeCount];
       else {
@@ -156,7 +167,7 @@ export function createShadowPool(side: number, layers = 1) {
         while (orderAt < orderCount && page < 0) {
           const candidate = order[orderAt++] % pool.pages;
           const lost = owner[candidate];
-          if (lost >= 0 && requested[candidate] < reportFrame) {
+          if (lost >= 0 && named[candidate] < evictBefore) {
             evicted[lost >> 5] |= 1 << (lost & 31);
             pool.release(table, candidate);
             page = free[--freeCount];
@@ -172,7 +183,8 @@ export function createShadowPool(side: number, layers = 1) {
       pool.valid[page] = pool.layered[page] = pool.dirty[page] = 0;
       pool.footprint[page] = PAGE_FOOTPRINT_EMPTY;
       pool.stale(page, nowMs, frame);
-      requested[page] = reportFrame;
+      pool.requested[page] = reportFrame;
+      named[page] = evictBefore;
       table.write(entry, page | PAGE_MAPPED);
       return page;
     },
