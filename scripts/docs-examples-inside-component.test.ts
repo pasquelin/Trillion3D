@@ -13,9 +13,11 @@ test('the component owns exactly one world for each attachment', async () => {
   );
   const roadmap = JSON.parse(
     await readFile(new URL('../site/content/gallery-roadmap.json', import.meta.url), 'utf8'),
-  ) as { entries: { id: string; issue?: number }[] };
-  assert.equal(roadmap.entries.find(({ id }) => id === 'inside-a-component')?.issue, 412);
-  assert.match(html, /\/\/ Waits for #412: /);
+  ) as { entries: { id: string; status?: string }[] };
+  // #412: dispose() removes the canvas createWorld(element) made, so the example is no longer parked.
+  const entry = roadmap.entries.find(({ id }) => id === 'inside-a-component');
+  assert.equal(entry?.status, undefined);
+  assert.doesNotMatch(html, /Waits for #/);
   const previous = {
     customElements: globalThis.customElements,
     document: globalThis.document,
