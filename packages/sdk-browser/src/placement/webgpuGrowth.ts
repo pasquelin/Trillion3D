@@ -25,7 +25,7 @@ import { placedBy, type PlacementRows } from './rows.ts';
  *  its tables grow after them. */
 export function webgpuGrowsInPlace(rt: WebgpuPagesRuntime, from: readonly PlacementRows[]) {
   const { layout, run, gpu, setup, blendState } = rt;
-  if (!gpu.device || run.lost || run.gpuSelection || setup.preparing) return false;
+  if (!gpu.device || run.lost || run.gpuSelection) return false;
   for (const buffer of from) {
     if (placedBy(setup.blendCopies, buffer) || placedBy(blendState.blendGpu, buffer)) return false;
     const template = layout.selectionRoots.find((root) => root.placement?.rows === buffer);

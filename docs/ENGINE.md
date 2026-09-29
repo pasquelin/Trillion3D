@@ -844,8 +844,8 @@ visibility row keeps its rank, no shader, pipeline, page or tile is made again, 
 row is made after the swap (the spheres, mobility words and tested-half work buffer included). A
 refusal keeps the pool and the tables in place (`tables` in the report); a lost device grows the
 CPU rows alone, and the rebuild makes its GPU tables at their size. The copy of a pool resize holds the old
-pool and the new one at once (`transientBytes`), a peak the probe has the device grant before any
-page moves. The WebGL2 engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots
+pool and the new one at once (`transientBytes`), a peak the probe has the device grant, beside the
+tables grown first, before any page moves. The WebGL2 engine draws its geometry pool by the same rule (`sessionGeometryPool`: slots
 of the largest decoded page, page cap and session ceiling), its ceiling a fixed bound. A slot holds one geometry copy: a classic instance
 (`addInstance`) holds its own copy of every page, so a page three instances draw fills three slots,
 while the records rows place share one. Its cut is drawn on the CPU at the host's threshold, under

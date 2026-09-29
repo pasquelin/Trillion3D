@@ -106,15 +106,16 @@ export async function setWebgpuMemoryBudgets(
     // A pool above the tables waits for a running prepare: the tables it builds are those that grow.
     if (setup.preparing && setup.geometryPoolFor(bytes).slots > setup.cap) await setup.preparing;
     let pool: GeometryPool | undefined = setup.geometryPoolFor(bytes);
-    if (pool.slots !== setup.slots && gpu.cache && device && !run.lost)
-      pool = await probed(
-        grantedGeometryPool(device, bytes, setup.geometryPoolFor, diagnose, geometryProbe(device)),
-      );
-    // The tables first: a pool whose pages would find no row is never put in place.
-    if (pool && pool.slots > setup.cap) {
+    // The tables first: a pool whose pages would find no row is never put in place, and the probe
+    // then asks the device for the pool beside the tables it already holds.
+    if (pool.slots > setup.cap) {
       tables = await growWebgpuTables(rt, pool.slots);
       if (tables?.refused) pool = undefined;
     }
+    if (pool && pool.slots !== setup.slots && gpu.cache && device && !run.lost)
+      pool = await probed(
+        grantedGeometryPool(device, bytes, setup.geometryPoolFor, diagnose, geometryProbe(device)),
+      );
     if (pool && pool.slots !== setup.slots && gpu.cache && !run.lost) {
       transientBytes = setup.geometryPool.allocatedBytes + pool.allocatedBytes;
       // The root cover keeps its place before any other page: the pool never goes below it, and a
