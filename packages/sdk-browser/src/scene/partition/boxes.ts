@@ -25,6 +25,8 @@ const rootWorld = new Float64Array(MATRIX_VALUES),
   relative = new Float64Array(MATRIX_VALUES),
   inverse = new Float64Array(MATRIX_VALUES),
   carried = new Float64Array(6);
+/** A box holding all space: a page under a parent moved off a flat declared frame. */
+const UNBOUNDED = [-Infinity, -Infinity, -Infinity, Infinity, Infinity, Infinity];
 
 /** The least and the most `matrix` stretches a distance — its smallest and largest singular
  *  values —; a flattened frame, or one so nearly flat its inverse overflows, stretches it by 0. */
@@ -71,15 +73,24 @@ export function createCellBoxes(
   root: Object3D,
   parents: readonly Object3D[],
 ) {
-  type Frame = { matrix: Float64Array; declared: Float64Array; back: Float64Array; moved: number };
+  /** `back`: the declared frame's inverse, `null` when it is flat (a parent declared at scale 0):
+   *  nothing then carries the declared boxes to where that parent's cells stand. */
+  type Frame = {
+    matrix: Float64Array;
+    declared: Float64Array;
+    back: Float64Array | null;
+    moved: number;
+  };
   const frames = new Map<number, Frame>();
-  /** Each parent moved since the declaration: what carries its declared frame to where it is. */
-  const displaced = new Map<number, Float64Array>();
+  /** Each parent moved since the declaration: what carries its declared frame to where it is,
+   *  `null` when its declared frame is flat and its cells may stand anywhere. */
+  const displaced = new Map<number, Float64Array | null>();
   invertMatrix4(rootInverse, hostWorldChainInto(rootWorld, root));
   for (const rank of ranks) {
     const declared = relativeInto(new Float64Array(MATRIX_VALUES), parents[rank]);
     const back = invertMatrix4(new Float64Array(MATRIX_VALUES), declared);
-    frames.set(rank, { matrix: declared.slice(), declared, back, moved: 0 });
+    const flat = determinantMatrix4(declared) === 0 || !back.every(Number.isFinite);
+    frames.set(rank, { matrix: declared.slice(), declared, back: flat ? null : back, moved: 0 });
   }
   let now = 0,
     shifted = 0;
@@ -92,6 +103,7 @@ export function createCellBoxes(
       frame.matrix.set(relative);
       frame.moved = shifted = now;
       if (same(relative, frame.declared)) displaced.delete(rank);
+      else if (!frame.back) displaced.set(rank, null);
       else
         displaced.set(rank, multiplyMatrix4(new Float64Array(MATRIX_VALUES), relative, frame.back));
     }
@@ -112,6 +124,10 @@ export function createCellBoxes(
     if (page.written >= 0 && page.written >= shifted) return page.box;
     page.box.set(page.declared);
     for (const carry of displaced.values()) {
+      if (!carry) {
+        page.box.set(UNBOUNDED);
+        break;
+      }
       boxTransform(carried, 0, page.declared, 0, carry);
       boxUnion(page.box, 0, carried[0], carried[1], carried[2], carried[3], carried[4], carried[5]);
     }

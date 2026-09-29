@@ -66,7 +66,7 @@ export function world(far: number | null = 0, near: number | null = null) {
 
 /** Reads a cell file into its rows on this thread, by the decode pool's own task. */
 export const decodeHere = async (bytes: Uint8Array) =>
-  cellRows(decodeCellFile(bytes.slice().buffer as ArrayBuffer), bytes.byteLength);
+  cellRows(decodeCellFile(bytes.slice().buffer as ArrayBuffer));
 
 /** Frames of `cells` until one asks no decode and opens no page: each decode asked lands before the
  *  next frame, so the pages the view reaches are opened and the cells read placed; what the last

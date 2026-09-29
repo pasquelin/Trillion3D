@@ -52,15 +52,6 @@ export interface TableCell {
   meshPages: readonly string[];
 }
 
-/** A page of the cell index (#575): the cells its region pages list, `[from, to)` in the
- *  partition's order, and the pages it lists — none for a region page. The cook cuts the pages
- *  from its halving (`split.rs`): each holds the cells of one region of space. */
-export interface TableRegion {
-  from: number;
-  to: number;
-  pages: readonly TableRegion[];
-}
-
 /** A page of the cell index a slot names, and its box at the declared poses. */
 export type TableSlot = { page: TablePage; bounds: readonly number[] };
 
@@ -105,7 +96,10 @@ function versioned(kind: PageKind, body: unknown, what: string): PageBody {
 
 /** Whether `list` is an array of `width` hexadecimal digits each. */
 const hexes = (list: unknown, width: number): list is string[] =>
-  Array.isArray(list) && list.every((item) => typeof item === 'string' && item.length === width);
+  Array.isArray(list) &&
+  list.every(
+    (item) => typeof item === 'string' && item.length === width && /^[0-9a-f]+$/.test(item),
+  );
 
 /** The root, `null` when the scene has none, or a named refusal of another version or shape. */
 export function assertTablePartition(value: unknown): TablePartitionRoot | null {
