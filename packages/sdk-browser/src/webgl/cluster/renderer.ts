@@ -5,7 +5,6 @@ import {
   drawTriangles,
   drawWorld,
   type ClusterDrawMesh,
-  type HostAttributes,
   type WholeMesh,
 } from '../../cluster/batchMesh.ts';
 import { isInstancedNode } from '../../host/graph/kinds.ts';
@@ -19,7 +18,7 @@ import type { HostDrawCamera } from '../../camera/world.ts';
 import { Matrix3UniformCache, setClusterSamplers, setMatrix3 } from './uniforms.ts';
 import { WebglClusterMaterialUniforms } from './materialUniforms.ts';
 import { createClusterProgram } from './program.ts';
-import { validateClusterMeshes, type ReadDegraded } from './validation.ts';
+import { clusterValidation, type ReadDegraded } from './validation.ts';
 import { WebglClusterBackdrop } from './backdrop.ts';
 import { BACKDROP_UNITS, ClusterMaterialPass, type Material } from './materialBinding.ts';
 import { refuseCluster } from './refusal.ts';
@@ -37,7 +36,8 @@ export class WebglClusterRenderer {
   private modelViewUpload = new Float32Array(16);
   private lights: WebglClusterLights;
   private state: WebglClusterState;
-  private validatedMaterials = new Map<Material, HostAttributes>();
+  /** Reads each frame's surfaces; hears, by name and required, a lost feature or a left-out one. */
+  private readonly validation: ReturnType<typeof clusterValidation>;
   private multiDraw: MultiDraw | null;
   private backdrop: WebglClusterBackdrop;
   private reflection: WebglClusterBackdrop;
@@ -51,8 +51,9 @@ export class WebglClusterRenderer {
   readonly pass: ClusterMaterialPass;
   private readonly display: WebglClusterRenderer | undefined;
   private readonly locations: Record<string, number>;
-  constructor(gl: WebGL2RenderingContext, display?: WebglClusterRenderer) {
+  constructor(gl: WebGL2RenderingContext, degraded: ReadDegraded, display?: WebglClusterRenderer) {
     this.gl = gl;
+    this.validation = clusterValidation(degraded);
     this.display = display;
     const program = (this.program = createClusterProgram(gl, display?.locations));
     this.locations = display?.locations ?? {};
@@ -89,7 +90,7 @@ export class WebglClusterRenderer {
       material = mesh.material as Material,
       record = isClusterDrawMesh(mesh) ? mesh : undefined,
       instanced = !record && isInstancedNode(mesh);
-    if (!material.visible || (instanced && !mesh.count)) return 0;
+    if (this.validation.leaves(mesh) || !material.visible || (instanced && !mesh.count)) return 0;
     this.geometry.bind(mesh.geometry, record ? undefined : (mesh as WholeMesh));
     this.lights.lists.use(mesh, this.at('lightSpan'));
     if (this.instanced !== instanced) gl.uniform1i(this.at('instanced'), instanced ? 1 : 0);
@@ -135,14 +136,13 @@ export class WebglClusterRenderer {
     srgbDestination: boolean,
     diagnosticMeshes: readonly WholeMesh[] = [],
     copies: readonly SceneCopy[] = [],
-    degraded?: ReadDegraded,
   ) {
     const gl = this.gl;
     const lightReason = unsupportedClusterLight(scene);
     if (lightReason) refuseCluster(lightReason);
     this.copies.cull(copies, camera);
     const { plain, blended, transmissive } = this.copies;
-    validateClusterMeshes(meshes, diagnosticMeshes, this.copies, this.validatedMaterials, degraded);
+    this.validation.validate(meshes, diagnosticMeshes, this.copies);
     gl.useProgram(this.program);
     gl.disable(gl.STENCIL_TEST);
     gl.uniformMatrix4fv(this.at('projectionMatrix'), false, camera.projection);

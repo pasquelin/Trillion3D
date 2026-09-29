@@ -19,8 +19,10 @@ export function feedbackFreeEntry(
     .replace(new RegExp(`struct ${output}\\{[^}]*\\}`), (structText) =>
       structText.replace(/@location\(\d+\)\s*/g, ''),
     );
+  // A second entry of the same output reuses the struct the first declared.
+  const declared = source.includes(`struct ${output}WithoutFeedback{`);
   return `${source}
-struct ${output}WithoutFeedback{${members}}
+${declared ? '' : `struct ${output}WithoutFeedback{${members}}`}
 @fragment fn ${entry}WithoutFeedback(${parameters})->${output}WithoutFeedback{
  let result=${entry}Source(${arguments_});
  return ${output}WithoutFeedback(${values});
