@@ -1,8 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestContext } from '../core/testContext.fixture.ts';
-import { WebglClusterRenderer } from './renderer.ts';
-import { readDegraded } from './validation.ts';
 import { createHostDrawCamera } from '../../camera/world.ts';
 import * as G from '../../host/graph/graph.fixture.ts';
 import { Scene } from '../../world/core/scene.ts';
@@ -17,7 +15,7 @@ import {
   type Box,
 } from '../../../../../bench/oracles/browser/gpuLightTileColumnOracle.ts';
 import { CELL_MARGIN } from './lightLists.ts';
-import { evaluated, sent, viewFrom } from './lightGrid.fixture.ts';
+import { evaluated, lightFrames, pointLamp, sent, triangle } from './lightGrid.fixture.ts';
 
 // #835: WebGL2 draws every lamp of a scene, from a light texture grown with the count, and each
 // fragment evaluates only the lamps whose range reaches its cell of the light grid — the lamps
@@ -41,34 +39,15 @@ function scene() {
   return scene;
 }
 
-function mesh(x: number) {
-  const geometry = new G.Geometry().setIndex(new G.BufferAttribute(new Uint32Array([0, 1, 2]), 1));
-  geometry.setAttribute(
-    'position',
-    new G.BufferAttribute(new Float32Array([-0.5, 0, 0, 0.5, 0, 0, 0, 1, 0]), 3),
-  );
-  geometry.setAttribute('normal', new G.BufferAttribute(new Float32Array(9), 3));
-  const made = new G.Mesh(geometry, new G.GraphSurface('standard'));
-  made.position.set(x, 0, 0);
-  made.updateMatrixWorld(true);
-  return made as unknown as WholeMesh;
-}
-
 /** One frame of `lights` over `meshes`, seen from the world's origin and axes. */
 function drawLights(lights: readonly Light[], meshes: WholeMesh[]) {
-  const context = createTestContext({ answers: { getExtension: () => ({}) } }),
-    renderer = new WebglClusterRenderer(
-      context.gl,
-      readDegraded(() => {}),
-    );
-  const camera = createHostDrawCamera();
-  camera.view.set(viewFrom(0));
-  renderer.draw([], { lights }, camera, true, true, meshes);
+  const { context, renderer, frame } = lightFrames(lights, meshes);
+  frame();
   return { context, renderer };
 }
 
 test('300 lamps draw on WebGL2, each fragment walks the lamps the oracle says reach its cell', () => {
-  const meshes = Array.from({ length: 12 }, (_, m) => mesh(meshX(m)));
+  const meshes = Array.from({ length: 12 }, (_, m) => triangle(meshX(m)));
   const lights = scene().children.filter(isLightNode);
   const { context, renderer } = drawLights(lights, meshes);
   assert.equal(context.of('drawElements').length, meshes.length, 'every mesh drawn, none refused');
@@ -119,15 +98,10 @@ test('300 lamps draw on WebGL2, each fragment walks the lamps the oracle says re
 });
 
 test('a floor under 300 lamps: a fragment walks the few lamps near it, not the 300 its draw holds', () => {
-  const lights = Array.from({ length: LAMPS }, (_, i) => {
-    const lamp = new G.Light('point', {
-      position: [i % 20, 0.5, Math.floor(i / 20)],
-      distance: 0.75,
-    });
-    lamp.updateMatrixWorld(true);
-    return lamp as unknown as Light;
-  });
-  const floor = mesh(10);
+  const lights = Array.from({ length: LAMPS }, (_, i) =>
+    pointLamp([i % 20, 0.5, Math.floor(i / 20)], 0.75),
+  );
+  const floor = triangle(10);
   floor.scale.set(40, 1, 40);
   (floor as unknown as Object3D).updateMatrixWorld(true);
   const { context, renderer } = drawLights(lights, [floor]);
@@ -149,7 +123,7 @@ function drawFrame(draw: ReturnType<typeof createSceneDraw>) {
 test('a WebGL2 frame walks the scene 0 times for its lights, and still reads their changes', () => {
   const lit = scene(),
     context = createTestContext({ answers: { getExtension: () => ({}) } });
-  lit.add(mesh(meshX(0)) as unknown as Object3D);
+  lit.add(triangle(meshX(0)) as unknown as Object3D);
   const draw = createSceneDraw(context.gl, lit);
   const frame = () => drawFrame(draw);
   frame();
@@ -175,7 +149,7 @@ test('a WebGL2 frame walks the scene 0 times for its lights, and still reads the
 test('an invisible root scene gives 0 lights to the frame and to the light upload', () => {
   const lit = scene(),
     context = createTestContext({ answers: { getExtension: () => ({}) } });
-  lit.add(mesh(meshX(0)) as unknown as Object3D);
+  lit.add(triangle(meshX(0)) as unknown as Object3D);
   lit.visible = false;
   assert.equal(keptClusterScene(lit).lights.length, 0, 'the kept read gives no light');
   const draw = createSceneDraw(context.gl, lit);
