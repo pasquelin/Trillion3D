@@ -1609,6 +1609,7 @@
       "MATERIAL_CLASS_CHANGE": "Un changement de matériau est inconnu, hors limites, le mettrait dans une classe de dessin qu’un moteur fixe à l’ouverture de la scène, ou répéterait une texture qu’il partage.",
       "MATERIAL_TEXTURE_SHARED": "Un changement de matériau est inconnu, hors limites, le mettrait dans une classe de dessin qu’un moteur fixe à l’ouverture de la scène, ou répéterait une texture qu’il partage.",
       "MATERIAL_CEILING": "Une page créerait plus de matériaux que `RUNTIME_MATERIAL_CEILING` en une session ; rien n’a été créé.",
+      "TEXTURE_BUDGET": "Une texture ajoutée après l’ouverture de la scène porterait la réserve de textures au-delà de `texturePoolBytes` ou des couches que l’appareil tient ; rien n’a été ajouté.",
       "INVALID_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
       "NON_FINITE_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
       "SINGULAR_PARENT_TRANSFORM": "Le placement d’un nœud n’est pas une matrice utilisable, ou un nœud serait son propre ancêtre.",
@@ -6750,7 +6751,7 @@
     "summary": "Modifie un matériau importé ou créé à l’image suivante."
   },
   "world.createMaterial": {
-    "summary": "Crée un matériau appartenant à cette page."
+    "summary": "Crée un matériau de la page ; avec une image, attendre son admission avant de l’attribuer."
   },
   "world.assignMaterial": {
     "summary": "Attribue le matériau créé par la page à un `mesh/primitive` compilé."
@@ -7866,7 +7867,7 @@
       "alphaMode": "Comment le canal alpha d’une surface est lu : opaque l’ignore, `mask` coupe à `alphaCutoff`, `blend` compose.",
       "alphaCutoff": "Les pixels moins opaques que ceci disparaissent.",
       "name": "Un nom à l’usage de la page.",
-      "map": "Une image et la façon de l’échantillonner, dans les mots d’une page (`wrap`, `filter`, `colorSpace`)."
+      "map": "ImageBitmap appartenant à l’appelant, sans prémultiplication ni conversion de couleur ; le garder ouvert jusqu’à la libération."
     }
   },
   "SceneMaterial": {
@@ -7928,5 +7929,11 @@
       "positions": "Ses sommets, trois nombres chacun, dans l’espace du monde.",
       "indices": "Ses triangles, trois indices locaux chacun."
     }
+  },
+  "world.dropMaterial": {
+    "summary": "Libère un matériau créé inutilisé ; réattribuer ses objets auparavant."
+  },
+  "world.materialMapBytes": {
+    "summary": "Octets des images conservées ou en attente, limités à 64 Mio."
   }
 }

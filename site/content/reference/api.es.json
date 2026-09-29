@@ -1609,6 +1609,7 @@
       "MATERIAL_CLASS_CHANGE": "Un cambio de material es desconocido, está fuera de rango, lo movería a una clase de dibujo que un motor fija al abrir la escena, o repetiría un mapa que comparte.",
       "MATERIAL_TEXTURE_SHARED": "Un cambio de material es desconocido, está fuera de rango, lo movería a una clase de dibujo que un motor fija al abrir la escena, o repetiría un mapa que comparte.",
       "MATERIAL_CEILING": "Una página crearía más materiales que `RUNTIME_MATERIAL_CEILING` en una sesión; no se creó nada.",
+      "TEXTURE_BUDGET": "Una textura añadida tras abrir la escena llevaría el pool de texturas más allá de `texturePoolBytes` o de las capas que admite el dispositivo; no se añadió nada.",
       "INVALID_TRANSFORM": "La colocación de un nodo no es una matriz utilizable, o un nodo sería su propio ancestro.",
       "NON_FINITE_TRANSFORM": "La colocación de un nodo no es una matriz utilizable, o un nodo sería su propio ancestro.",
       "SINGULAR_PARENT_TRANSFORM": "La colocación de un nodo no es una matriz utilizable, o un nodo sería su propio ancestro.",
@@ -6742,7 +6743,7 @@
     "summary": "Cambia un material importado o creado en el siguiente fotograma."
   },
   "world.createMaterial": {
-    "summary": "Crea un material propio de esta página."
+    "summary": "Crea un material de la página; con una imagen, espera su admisión antes de asignarlo."
   },
   "world.assignMaterial": {
     "summary": "Asigna el material creado a un `mesh/primitive` compilado."
@@ -7866,7 +7867,7 @@
       "alphaMode": "Cómo se lee el canal alfa de una superficie: opaco lo ignora, `mask` corta en `alphaCutoff`, `blend` compone.",
       "alphaCutoff": "Los píxeles menos opacos que esto desaparecen.",
       "name": "Un nombre para uso de la página.",
-      "map": "Una imagen y la forma de muestrearla, en las palabras de una página (`wrap`, `filter`, `colorSpace`)."
+      "map": "ImageBitmap del llamador, sin premultiplicación ni conversión de color; mantener abierto hasta liberar el material."
     }
   },
   "SceneMaterial": {
@@ -7928,5 +7929,11 @@
       "positions": "Sus vértices, tres números cada uno, en el espacio del mundo.",
       "indices": "Sus triángulos, tres índices locales cada uno."
     }
+  },
+  "world.dropMaterial": {
+    "summary": "Libera un material creado sin uso; reasigna antes sus objetos."
+  },
+  "world.materialMapBytes": {
+    "summary": "Bytes de imágenes retenidas o pendientes, con un límite de 64 MiB."
   }
 }
