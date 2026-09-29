@@ -99,8 +99,7 @@ const segment = new Float64Array(6),
   closest = new Float64Array(6),
   boxMin = [0, 0, 0],
   boxMax = [0, 0, 0];
-/** Distance from `p` to the nearest triangle of `tree`: a box grown from `start` until it holds a
- *  triangle, then shrunk to the nearest distance found, whose box holds the nearest of all. */
+/** Distance from `p` to `tree`: a box grown from `start` until it holds the nearest found. */
 function nearestDistance(tree: TriangleTree, p: Float64Array, start: number) {
   segment.set(p, 0);
   segment.set(p, 3);
@@ -108,21 +107,19 @@ function nearestDistance(tree: TriangleTree, p: Float64Array, start: number) {
   const visit = (at: number) => {
     best = Math.min(best, closestSegmentTriangle(closest, segment, tree.triangles, at));
   };
-  for (let half = start; ; half *= 4) {
+  const scan = (half: number) => {
     for (let k = 0; k < 3; k++) [boxMin[k], boxMax[k]] = [p[k] - half, p[k] + half];
     forEachTriangleInBox(tree, boxMin, boxMax, visit);
-    const found = Math.sqrt(best);
+    return Math.sqrt(best);
+  };
+  for (let half = start; ; half *= 4) {
+    const found = scan(half);
     if (found <= half || half > 1e9) return found;
-    if (found < Infinity) {
-      for (let k = 0; k < 3; k++) [boxMin[k], boxMax[k]] = [p[k] - found, p[k] + found];
-      forEachTriangleInBox(tree, boxMin, boxMax, visit);
-      return Math.sqrt(best);
-    }
+    if (found < Infinity) return scan(found);
   }
 }
 
-/** Largest value and 99th percentile of a list of pixel errors. Not the bench's `summarize`,
- *  which refuses a list holding an infinite error, and a surface at or behind the eye is one. */
+/** Largest value and 99th percentile (not `summarize`: it refuses the infinite errors). */
 function summary(values: number[]) {
   const sorted = Float64Array.from(values).sort();
   const at = (share: number) =>
@@ -184,7 +181,6 @@ export function measureView(o: {
   const visible = (p: Float64Array) => !blocked(p, 0) && !blocked(p, 0.01);
   // A single-sided source triangle seen from behind is culled by every backend and shows nothing:
   // at a silhouette its points lie on the ray of a surface drawn behind them, on the same pixel.
-  // Read once per triangle: its ten sample points ask in a row.
   const normal = new Float64Array(3);
   let facingOf = -1,
     faces = false;
