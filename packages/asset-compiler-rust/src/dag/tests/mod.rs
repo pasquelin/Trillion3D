@@ -15,9 +15,8 @@ pub(crate) fn grid(n: usize) -> (Vec<f32>, Vec<u32>) {
     (positions, indices)
 }
 
-/// `grid(n)` laid out one texture island per quad: every corner written once per quad, under
-/// that quad's own unit square, so every position is a seam corner. Positions, coordinates,
-/// triangles.
+/// `grid(n)` laid out one texture island per quad, each under its own unit square: every position
+/// is a seam corner. Positions, coordinates, triangles.
 pub(super) fn island_per_quad(n: usize) -> (Vec<f32>, Vec<f32>, Vec<u32>) {
     let (grid_positions, grid_indices) = grid(n);
     let (mut positions, mut uvs, mut indices) = (Vec::new(), Vec::new(), Vec::new());

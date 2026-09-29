@@ -53,8 +53,7 @@ pub(super) fn weighted<'a>(
     weighted
 }
 
-/// Per source vertex, its texture island: the triangles its copy by position and every texture
-/// set (`weld_seam`, empty without a texture set, and so the islands) joins.
+/// Per source vertex, its texture island: the triangles its copy by `weld_seam` joins (none).
 pub fn vertex_islands(weld_seam: &[u32], indices: &[u32]) -> Vec<u32> {
     if weld_seam.is_empty() {
         return Vec::new();

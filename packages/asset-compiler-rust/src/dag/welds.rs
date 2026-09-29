@@ -24,8 +24,7 @@ pub(super) struct Columns {
     pub seams: Vec<bool>,
     /// The extent of the part each lies in (`vanished::part_extents`).
     pub extents: Vec<f64>,
-    /// Its texture island (`charts::vertex_islands`), a placed vertex its origin's; empty without
-    /// a texture set.
+    /// Its texture island, a placed vertex its origin's; empty without a texture set.
     pub islands: Vec<u32>,
 }
 

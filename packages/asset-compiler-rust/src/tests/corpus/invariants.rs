@@ -6,8 +6,7 @@ use std::collections::HashSet;
 pub(super) struct Built {
     pub dag: Vec<DagCluster>,
     pub stalls: Vec<DagStall>,
-    /// The vertex arrays the pages read: the case's, then every vertex a seam-locked group's solve
-    /// placed (`dag::Grown`).
+    /// The arrays the pages read: the case's, then every vertex a solve placed (`dag::Grown`).
     pub positions: Vec<f32>,
     pub attributes: Vec<geometry_page::Attribute>,
     /// Per placed vertex, the case's vertex it was solved from.
