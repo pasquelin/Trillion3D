@@ -32,9 +32,12 @@ function page(triangles: number, surface: GraphSurface, x = 0) {
 
 function frame(scene: Scene) {
   // Each submission as `[count, byte offset]` ranges, copied when sent: the draw reuses its lists.
-  const sent: number[][][] = [];
+  const sent: number[][][] = [],
+    gpu = { behind: false }; // the GPU runs each frame at once, unless held behind
   const context = createTestContext({
     answers: {
+      fenceSync: () => ({}),
+      getSyncParameter: () => (gpu.behind ? 'UNSIGNALED' : 'SIGNALED'),
       getExtension: (name: string) =>
         name === 'WEBGL_multi_draw' && {
           multiDrawElementsWEBGL: (
@@ -60,7 +63,7 @@ function frame(scene: Scene) {
     draw.host.drawHostGeometry(createHostDrawCamera(), OUTPUT);
     return [...sent];
   };
-  return { draw, image };
+  return { draw, image, gpu };
 }
 
 test('the pages of one surface at one placement are one submission, in their order', () => {
@@ -111,4 +114,26 @@ test('the pages of one surface at one placement are one submission, in their ord
   const own = image();
   assert.equal(own.length, 4, 'a page rewritten once placed leaves the run for buffers of its own');
   draw.dispose();
+});
+
+test('released ranges are written again only once the GPU ran the frames that drew them', () => {
+  const stone = new GraphSurface('standard'),
+    scene = new Scene();
+  const swap = (gone: Mesh) => {
+    gone.geometry.dispose();
+    scene.remove(gone);
+    const next = page(2, stone);
+    scene.add(next);
+    return next;
+  };
+  const first = page(2, stone);
+  scene.add(first);
+  const { image, gpu } = frame(scene);
+  assert.deepEqual(image(), [[[6, 0]]]);
+  gpu.behind = true;
+  const second = swap(first);
+  assert.deepEqual(image(), [[[6, 24]]], 'the GPU may still read the released range: a new one');
+  gpu.behind = false;
+  swap(second);
+  assert.deepEqual(image(), [[[6, 0]]], 'the GPU ran past it: the range is written again');
 });

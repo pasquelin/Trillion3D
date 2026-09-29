@@ -57,6 +57,7 @@ test('through growths and releases, every page reads its own vertices and indice
       count = 3 * (1 + ((id * 7) % 23));
     if (id % 3 === 2) {
       const [gone, page] = pages.entries().next().value!;
+      arena.retire(page.first);
       arena.release(page.vertex, page.size, page.first, page.count);
       pages.delete(gone);
     }
