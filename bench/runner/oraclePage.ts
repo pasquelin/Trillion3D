@@ -43,7 +43,7 @@ export async function measureIrradiance(options: IrradianceOptions): Promise<Irr
     autonomousPagesBackend: sdk.autonomousPagesBackend,
   };
   const factory = options.backend ? backends[options.backend] : undefined;
-  if (!factory) return { erreur: `moteur absent du dist : ${options.backend}` };
+  if (!factory) return { erreur: `engine missing from dist: ${options.backend}` };
   const canvas = document.createElement('canvas');
   document.body.append(canvas);
   // Engine bounce diagnostic.

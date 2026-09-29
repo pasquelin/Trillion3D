@@ -736,7 +736,7 @@ cargo build --release --locked --manifest-path packages/asset-compiler-rust/Carg
   tests/fixtures/formats/material-classes/<name>.gltf <CACHE> full 1000000 /assets
 
 node bench/runner/bench.ts --engine webgpu --before <ref> --after <ref> \
-     --cache-before <CACHE> --cache-after <CACHE> --vues generale,detail \
+     --cache-before <CACHE> --cache-after <CACHE> --views generale,detail \
      --images 60 --pixelError 0.1
 ```
 

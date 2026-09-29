@@ -45,9 +45,9 @@
   "sides": {
     "apres": {
       "from": "dossier",
-      "moteur": "exact-cluster-pages",
-      "variante": null,
-      "erreur": "certifiee"
+      "engine": "exact-cluster-pages",
+      "variant": null,
+      "errorMetric": "certifiee"
     }
   },
   "series": [
@@ -79,7 +79,7 @@
             "p99": 8.5,
             "max": 8.5
           },
-          "moteur": "exact-cluster-pages",
+          "engine": "exact-cluster-pages",
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
@@ -154,8 +154,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 1988890,
           "uncoveredTriangles": null,
           "drawnTriangles": null,
@@ -326,7 +326,7 @@
             "p99": 8.299999982118607,
             "max": 8.299999982118607
           },
-          "moteur": "exact-cluster-pages",
+          "engine": "exact-cluster-pages",
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
@@ -401,8 +401,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 1988890,
           "uncoveredTriangles": null,
           "drawnTriangles": null,
@@ -559,8 +559,8 @@
           }
         }
       },
-      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
-      "ecartAvantApres": null,
+      "witnessAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
+      "beforeAfterDiff": null,
       "coupeIdentique": null
     },
     {
@@ -591,7 +591,7 @@
             "p99": 4.5999999940395355,
             "max": 4.5999999940395355
           },
-          "moteur": "exact-cluster-pages",
+          "engine": "exact-cluster-pages",
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
@@ -666,8 +666,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 1131632,
           "uncoveredTriangles": null,
           "drawnTriangles": null,
@@ -838,7 +838,7 @@
             "p99": 5.0999999940395355,
             "max": 5.0999999940395355
           },
-          "moteur": "exact-cluster-pages",
+          "engine": "exact-cluster-pages",
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
@@ -913,8 +913,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 1131632,
           "uncoveredTriangles": null,
           "drawnTriangles": null,
@@ -1071,8 +1071,8 @@
           }
         }
       },
-      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
-      "ecartAvantApres": null,
+      "witnessAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
+      "beforeAfterDiff": null,
       "coupeIdentique": null
     },
     {
@@ -1103,7 +1103,7 @@
             "p99": 5.100000023841858,
             "max": 5.100000023841858
           },
-          "moteur": "exact-cluster-pages",
+          "engine": "exact-cluster-pages",
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
@@ -1178,8 +1178,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 737476,
           "uncoveredTriangles": null,
           "drawnTriangles": null,
@@ -1350,7 +1350,7 @@
             "p99": 5,
             "max": 5
           },
-          "moteur": "exact-cluster-pages",
+          "engine": "exact-cluster-pages",
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
@@ -1425,8 +1425,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 737476,
           "uncoveredTriangles": null,
           "drawnTriangles": null,
@@ -1583,8 +1583,8 @@
           }
         }
       },
-      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
-      "ecartAvantApres": null,
+      "witnessAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
+      "beforeAfterDiff": null,
       "coupeIdentique": null
     },
     {
@@ -1615,7 +1615,7 @@
             "p99": 1.7999999821186066,
             "max": 1.7999999821186066
           },
-          "moteur": "exact-cluster-pages",
+          "engine": "exact-cluster-pages",
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
@@ -1690,8 +1690,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 610891,
           "uncoveredTriangles": null,
           "drawnTriangles": null,
@@ -1862,7 +1862,7 @@
             "p99": 1.9000000059604645,
             "max": 1.9000000059604645
           },
-          "moteur": "exact-cluster-pages",
+          "engine": "exact-cluster-pages",
           "gpuFrameMs": null,
           "imageSyncMs": null,
           "rafIntervalMs": null,
@@ -1937,8 +1937,8 @@
             "gltf": 594952,
             "js": 2111602
           },
-          "variante": null,
-          "erreur": "certifiee",
+          "variant": null,
+          "errorMetric": "certifiee",
           "selectedTriangles": 610891,
           "uncoveredTriangles": null,
           "drawnTriangles": null,
@@ -2095,8 +2095,8 @@
           }
         }
       },
-      "temoinAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
-      "ecartAvantApres": null,
+      "witnessAA": { "pixels": 0, "maxCanal": 0, "total": 3504384 },
+      "beforeAfterDiff": null,
       "coupeIdentique": null
     }
   ],

@@ -46,7 +46,7 @@ export async function runSerie(
   const row = {
     cpuFrameMs: distribution(result.cpuFrameMs),
     cpuSelectMs: distribution(result.cpuSelectMs),
-    moteur: ENGINE.id,
+    engine: ENGINE.id,
     // GPU envelope of a frame, when the page records it (WebGPU engine).
     gpuFrameMs: result.gpuFrameMs?.length ? distribution(result.gpuFrameMs) : null,
     // Wall time of a synchronised frame — render then GPU wait — when the page records it.
@@ -68,8 +68,8 @@ export async function runSerie(
     // light cuts; `null` where the page loop records none.
     ombresParImage: result.shadowCounters ?? null,
     reseau: result.network ?? null,
-    variante: side.variant ?? null,
-    erreur: side.errorMetric ?? 'certifiee',
+    variant: side.variant ?? null,
+    errorMetric: side.errorMetric ?? 'certifiee',
     selectedTriangles: metrics.selectedTriangles ?? null,
     uncoveredTriangles: metrics.uncoveredTriangles ?? null,
     // Triangles the recorded frame submitted to draw: the cut minus its hole, counted without
@@ -124,7 +124,7 @@ export async function runSerie(
     // What the Three witness received from the store; `null` when this side does not draw through Three.
     lampesTemoin: result.lampesTemoin ?? null,
     // Shadow-atlas fingerprint, read once the queue is empty. Two runs that differ only by
-    // `--ombres-pages` must yield the same: the proof that page drawing equals a full redraw.
+    // `--shadow-pages` must yield the same: the proof that page drawing equals a full redraw.
     atlasOmbres: result.shadowAtlas ?? null,
     objetMobile: result.movingNode ?? null,
     charge: { debut, fin },

@@ -8,7 +8,7 @@ import { textures } from './summaryTextures.ts';
 const ROOT = '/tmp/trillion3d-bench';
 /** The live pools the command line asks with a texture pool of `value`. */
 const livePools = (value?: string) =>
-  readOptions(value === undefined ? [] : ['--pool-textures-vivant', value], ROOT).settings
+  readOptions(value === undefined ? [] : ['--texture-pool-live', value], ROOT).settings
     .poolVivant;
 
 test('a percentage is a fraction of the working set, a bare number stays MiB', () => {

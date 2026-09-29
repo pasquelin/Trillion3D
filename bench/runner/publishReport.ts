@@ -42,8 +42,8 @@ if (import.meta.filename === process.argv[1]) {
   const flags = parseArgs(process.argv.slice(2));
   console.log(
     publierRapport(
-      resolve(flags.get('dossier') ?? measureOutput('global', 'report-data')),
-      resolve(flags.get('vers') ?? 'site'),
+      resolve(flags.get('from') ?? measureOutput('global', 'report-data')),
+      resolve(flags.get('to') ?? 'site'),
     ),
   );
 }

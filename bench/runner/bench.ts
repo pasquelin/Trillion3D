@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Measurement benchmark common to all batches. One command, no server to start manually:
 //   node bench/runner/bench.ts --engine webgl --before <ref-git|dist> --after <ref-git|dist> \
-//        --vues generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
+//        --views generale,sol,rue --images 60 --pixelError 0,1 --max-pages 100000
 // All options in `README.md`. Writes `mesure.json`, `resume.md` and one PNG per view, threshold and
 // side, plus A/A capture. `null` = not measured, never inferred; a black capture is an error.
 // Everything it launches it stops, including on error. NO SERIOUS TIMING IS PROMISED HERE: it
@@ -163,11 +163,11 @@ async function main() {
           runSerie(CTX, page, sides[0], view, pixelError, pose, captures, '-aa'),
         );
         serie.sides[`${sides[0].name}-aa`] = temoin.row;
-        serie.temoinAA = imageDiff(
+        serie.witnessAA = imageDiff(
           captures.get(files[sides[0].name]),
           captures.get(temoin.captureFile),
         );
-        serie.ecartAvantApres = files.before
+        serie.beforeAfterDiff = files.before
           ? imageDiff(captures.get(files.before), captures.get(files.after))
           : null;
         const { before, after } = serie.sides;
