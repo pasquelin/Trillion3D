@@ -30,8 +30,8 @@ to the boss, in short, simple French; everything in the repository is English.
    named reference image (mean and p99.9 channel error, mean FLIP), with no flicker, trail, hole or
    lost detail on still and moving captures. A pull request that declares nothing is class 1.
 2. **Chrome** proofs, timings, the bench and the example thumbnails are the recette session's
-   alone, by batch on `develop` after the merges; they never block a merge. A coder may open one headless Chrome to diagnose a
-   bug, never as a proof.
+   alone, by batch on `develop` after the merges; they never block a merge. A coder may open one
+   headless Chrome to diagnose a bug, never as a proof.
 3. **Never `pkill`, `killall` or a pattern kill.** Kill your own processes by PID.
 4. **One branch, one worktree.** Never commit on `develop` or `main`. Worktrees in
    `.worktrees/<branch>/`, logs in `.worktrees/logs/`, nothing elsewhere; run git with
