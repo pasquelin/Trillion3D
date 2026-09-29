@@ -110,3 +110,22 @@ test('a batch writes its chains’ blocks once, in order, and submits them toget
   assert.deepEqual(block(3), [8, 8, 0, 0, 8, 8, 0]);
   assert.deepEqual(block(6), [2, 2, 0, 0, 8, 8, 3]);
 });
+
+// #685: a chain's passes carry the labels the GPU timing names them by.
+test('a chain’s coverage counts and reductions carry their labels', () => {
+  const { device, texture, passes } = scratch();
+  const counts: Array<string | undefined> = [],
+    create = device.createCommandEncoder.bind(device);
+  device.createCommandEncoder = (descriptor) => {
+    const encoder = create(descriptor),
+      begin = encoder.beginComputePass.bind(encoder);
+    encoder.beginComputePass = (pass) => (counts.push(pass?.label), begin(pass));
+    return encoder;
+  };
+  oneChain(device, texture, 'rgba8unorm-srgb', true, 128);
+  assert.deepEqual(counts, Array(2).fill('Trillion3D texture coverage count'));
+  assert.deepEqual(
+    passes.map((pass) => pass.label),
+    Array(2).fill('Trillion3D texture mips'),
+  );
+});

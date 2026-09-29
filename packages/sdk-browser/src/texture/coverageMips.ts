@@ -113,7 +113,7 @@ export function countCoverage(
         { binding: 2, resource: { buffer: bins } },
       ],
     });
-  const pass = encoder.beginComputePass();
+  const pass = encoder.beginComputePass({ label: 'Trillion3D texture coverage count' });
   pass.setPipeline(count);
   const dispatch = ([w, h]: [number, number]) =>
     pass.dispatchWorkgroups(Math.ceil(w / 8), Math.ceil(h / 8));
