@@ -58,6 +58,15 @@ export type OrthographicBox = {
   fitAspect?: boolean;
 };
 const seen = new Float64Array(4);
+/** A sub-rectangle of a wider view drawn into a target of its own (#1281). */
+export type ViewTile = {
+  /** Scale of the projection's x and y axes (the full view's pixels over the tile's). */
+  scaleX: number;
+  scaleY: number;
+  /** NDC translation applied after the scale, so the tile's centre lands on the target's. */
+  offsetX: number;
+  offsetY: number;
+};
 /** The optics a camera declares: what the projection is composed from. An `orthographic` box
  *  makes the projection orthographic; `fov` then still sizes what reads a field of view. */
 export type CameraOptics = {
@@ -73,6 +82,8 @@ export type CameraOptics = {
   zoom: number;
   /** The view box of an orthographic camera. */
   orthographic?: OrthographicBox | null;
+  /** A tile of a wider view this camera draws. Absent draws the view whole. */
+  viewTile?: ViewTile | null;
 };
 
 /** Optics of a camera nobody has set: the fallback of oracles called before the first frame. */
@@ -113,6 +124,7 @@ export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): Eng
     orthographicProjection(into.projection, x - w, x + w, y - h, y + h, optics.near, optics.far);
   } else
     perspectiveProjection(into.projection, optics.fov, optics.aspect, optics.near, optics.zoom);
+  applyViewTile(into.projection, optics.viewTile, box);
   updateCameraFrame(into, into.projection, into.world, into.far);
   // The render frame is set here, in the same pass: what leaves in single precision will read
   // the view without translation, never an absolute view accompanied by relative worlds.
@@ -122,6 +134,22 @@ export function writeEngineCamera(into: EngineCamera, optics: CameraOptics): Eng
   into.eye[2] = into.world[14];
   writeViewPoint(into, box ? 0 : 1);
   return into;
+}
+
+/** Scales and shifts `projection` so a tile of a wider view fills the target it is drawn into
+ *  (#1281): `out[8]`/`out[9]` perspective, `out[12]`/`out[13]` orthographic. */
+function applyViewTile(
+  projection: Float64Array,
+  tile: ViewTile | null | undefined,
+  orthographic: OrthographicBox | null | undefined,
+) {
+  if (!tile) return;
+  const { scaleX, scaleY, offsetX, offsetY } = tile;
+  projection[0] *= scaleX;
+  projection[5] *= scaleY;
+  const x = orthographic ? 12 : 8, y = orthographic ? 13 : 9;
+  projection[x] = projection[x] * scaleX + offsetX;
+  projection[y] = projection[y] * scaleY + offsetY;
 }
 
 /** `perspective` and `viewPoint` of a camera whose world and eye are set: the eye, or the
