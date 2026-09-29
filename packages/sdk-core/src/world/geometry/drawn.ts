@@ -75,21 +75,15 @@ export function drawnTriangles(
   return { ...drawn, normals: drawn.normals ?? computeNormals(drawn.positions, drawn.indices) };
 }
 
-/** List `name` of `geometry`, `width` numbers for each of its first `count` vertices as the page
+/** List `name` of `g`, `width` numbers for each of its first `n` vertices as the page
  *  cutter reads them, a missing component 1: into `out` when given; null when it holds fewer. */
-export function readList(
-  geometry: Geometry,
-  name: string,
-  width: number,
-  count: number,
-  out?: Float32Array,
-) {
-  const a = geometry.attributes[name];
-  if (!a || a.count < count) return null;
-  out ??= new Float32Array(count * width);
-  for (let v = 0; v < count; v++)
+export function readList(g: Geometry, name: string, width: number, n: number, out?: Float32Array) {
+  const a = g.attributes[name];
+  if (!a || a.count < n) return null;
+  out ??= new Float32Array(n * width);
+  for (let v = 0; v < n; v++)
     for (let c = 0; c < width; c++)
-      out[v * width + c] = c < a.itemSize ? readComponent(geometry, a, v, c) : 1;
+      out[v * width + c] = c < a.itemSize ? readComponent(g, a, v, c) : 1;
   return out;
 }
 
