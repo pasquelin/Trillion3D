@@ -1,7 +1,7 @@
 // A ratchet on the French left in the code (CONTRIBUTING.md: all wording in English). It counts,
 // per package, the words of `scripts/french-words.ts` in the identifiers, comments and strings of
-// every tracked source file — each word of a camelCase or snake_case name counts — the strings a
-// program reads excepted. A count above `scripts/english-baseline.json` fails; one below is
+// every tracked source file — each word of a camelCase or snake_case name counts — the strings that
+// must stay excepted. A count above `scripts/english-baseline.json` fails; one below is
 // written there, to be committed. `pnpm run check:english`; `--write` records today's counts.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -94,7 +94,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     }
     if (risen.length) {
       console.error(
-        `Named exceptions, strings a program reads: ${Object.keys(FRENCH_EXCEPTIONS).join(', ')}`,
+        `Named exceptions, strings that must stay: ${Object.keys(FRENCH_EXCEPTIONS).join(', ')}`,
       );
       process.exitCode = 1;
     } else if (fallen) {

@@ -70,7 +70,7 @@ interface ReportRecordData {
   gpuFrameMs?: TimingStat;
   cpuFrameMs?: TimingStat;
   imageSyncMs?: TimingStat | null;
-  erreur?: 'certifiee' | 'reference' | null;
+  errorMetric?: 'certifiee' | 'reference' | null;
   imageTenue?: boolean;
   profilParEtape?: {
     gpuMethod?: string;

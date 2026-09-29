@@ -4,7 +4,7 @@
 // the compiler path tracer. Single command, no manual server launch required:
 //
 //   node bench/runner/oracle.ts --cache .mesure/cache-piece --source piece/piece.gltf \
-//        --ressources piece --largeur 160 --hauteur 120 --lampes 1 --samples 256 --visible
+//        --resources piece --width 160 --height 120 --lights 1 --samples 256 --visible
 //
 // Engine and oracle receive identical pose, lights, and size. Engine renders `bounce` view —
 // raw indirect irradiance multiplied by exposure. Oracle computes same value on source triangles.
@@ -56,33 +56,33 @@ async function main() {
   if (!oracleBuilt(ROOT)) throw new Error('oracle missing: run `pnpm run build:native`');
   const out = resolve(flag('out', measureOutput(`oracle-${Date.now()}`)));
   const settings: OracleSettings = {
-    width: number('largeur', 160),
-    height: number('hauteur', 120),
+    width: number('width', 160),
+    height: number('height', 120),
     samples: number('samples', 256),
     bounces: number('bounces', 2),
-    exposure: number('exposition', 0.2),
+    exposure: number('exposure', 0.2),
     converge: number('converge', 24),
-    delayFrames: number('images-retard', 40),
-    delayMargin: number('marge-retard', 1.2),
-    floor: number('plancher', 0.01),
+    delayFrames: number('delay-frames', 40),
+    delayMargin: number('delay-margin', 1.2),
+    floor: number('floor', 0.01),
     cadenceHz: number('cadence', 60),
-    lamps: number('lampes', 1),
+    lamps: number('lights', 1),
     // Same generic rule as benchmark: point light intensity is a measurement option.
-    intensity: number('intensite', 40),
-    rangeFactor: number('portee', 0.75),
-    shadows: flag('ombres', 'on') === 'on',
+    intensity: number('intensity', 40),
+    rangeFactor: number('range', 0.75),
+    shadows: flag('shadows', 'on') === 'on',
     pixelError: number('pixelError', 0),
     maxPages: number('max-pages', 100000),
     source,
   };
   const after = flag('after');
-  const resources = flag('ressources');
+  const resources = flag('resources');
   const visible = flag('visible', 'false') === 'true';
   // Read before the refusal: the step's default needs the scene bounds, known only in the page.
-  const stepFlag = flag('pas');
+  const stepFlag = flag('step');
   const camera = triple('pose'),
-    target = triple('cible');
-  const views = flag('vues', 'generale').split(',');
+    target = triple('target');
+  const views = flag('views', 'generale').split(',');
   flags.refuseUnread();
   await mkdir(out, { recursive: true });
   const sides = options.resolveSides({ after, root: ROOT });
@@ -137,7 +137,7 @@ async function main() {
     });
     const movingCandidate = lights && lights.lights.find((light) => light.kind === 'point');
     if (!lights || !movingCandidate || !movingCandidate.position)
-      throw new Error('--lampes must declare at least one point light');
+      throw new Error('--lights must declare at least one point light');
     const moving = { id: movingCandidate.id, position: movingCandidate.position };
     // Light step: clear enough that rebound must reconverge.
     const step = Number(stepFlag ?? Math.max(1, (bounds.max.x - bounds.min.x) * 0.25));

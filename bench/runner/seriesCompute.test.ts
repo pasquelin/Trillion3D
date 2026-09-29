@@ -1,4 +1,4 @@
-// Batch computation path, from command line to metrics: `--chemin-math` arrives as
+// Batch computation path, from command line to metrics: `--math-path` arrives as
 // is at page explorer, `auto` enforces nothing, and `runSerie` publishes governor metrics
 // without ever assuming a path that the measured dist did not publish.
 import test from 'node:test';
@@ -42,13 +42,13 @@ async function serie(mathPath: string, mathBatch: unknown) {
   }
 }
 
-test('--chemin-math: validated, `auto` by default, and unknown value rejected', () => {
+test('--math-path: validated, `auto` by default, and unknown value rejected', () => {
   assert.equal(readOptions([], '/tmp/racine').settings.mathPath, 'auto');
-  assert.equal(readOptions(['--chemin-math', 'wasm'], '/tmp/racine').settings.mathPath, 'wasm');
-  assert.equal(readOptions(['--chemin-math', 'js'], '/tmp/racine').settings.mathPath, 'js');
+  assert.equal(readOptions(['--math-path', 'wasm'], '/tmp/racine').settings.mathPath, 'wasm');
+  assert.equal(readOptions(['--math-path', 'js'], '/tmp/racine').settings.mathPath, 'js');
   assert.throws(
-    () => readOptions(['--chemin-math', 'rust'], '/tmp/racine'),
-    /--chemin-math must be auto, js or wasm/,
+    () => readOptions(['--math-path', 'rust'], '/tmp/racine'),
+    /--math-path must be auto, js or wasm/,
   );
 });
 
