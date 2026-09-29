@@ -135,6 +135,8 @@ export function collectClusterPages(
       boxTransform(worldBox, 0, shape.local, 0, world.elements);
       roots.push({
         world,
+        // The compiled mesh number the compiler keys the mesh's `impostors` entry by (#1239).
+        mesh: primitive.mesh,
         pages,
         // Nodes, their bounds and their links are the primitive's, shared by all its placements.
         culling: culling && { ...culling, bounds: shape.bounds!, links: shape.links },
