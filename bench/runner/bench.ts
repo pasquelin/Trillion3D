@@ -13,7 +13,7 @@ import type { Page } from 'playwright';
 import { launchChrome } from './chrome.ts';
 import * as options from './options.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
-import { readBounds } from './page.ts';
+import { readStreet } from './street.ts';
 import { imageDiff } from './imageDiff.ts';
 import { benchLights } from './lamps.ts';
 import { measurementProvenance } from './report/provenance.ts';
@@ -123,13 +123,13 @@ async function main() {
       report.fluids = await runFluids(sides, onFreshPage, settings, OUT, captures);
       return await publish(report, sides, captures, OUT);
     }
-    report.bounds = await onFreshPage((page) =>
-      page.evaluate(readBounds, {
-        sdkUrl: options.sdkEntryUrl(sides[0]),
-        manifestUrl: sides[0].manifestUrl ?? MANIFEST,
-      }),
-    );
-    const bounds = report.bounds;
+    const urls = {
+      sdkUrl: options.sdkEntryUrl(sides[0]),
+      manifestUrl: sides[0].manifestUrl ?? MANIFEST,
+    };
+    // The box, then the camera's street read off the model's own geometry, on one page: the poses
+    // walk it (`poses.ts`).
+    const bounds = (report.bounds = await onFreshPage(async (page) => readStreet(page, urls)));
     // Lights once bounds are known: geometric rule, no named scene.
     CTX.lights = benchLights(bounds, settings);
     report.lights = CTX.lights ? CTX.lights.resume : null;
