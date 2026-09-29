@@ -1,5 +1,5 @@
 import { SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
-import { CONE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/coneModel.ts';
+import { CONE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/coneModelWgsl.ts';
 import { PAGE_MODEL_WGSL } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
 import { SHADOW_PAGE } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 import { CASTERS_ALL, SHADOW_CULL_GROUP } from '../../gpu/shadow/cullShader.ts';

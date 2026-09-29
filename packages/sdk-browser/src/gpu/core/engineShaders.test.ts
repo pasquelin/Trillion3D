@@ -26,7 +26,7 @@ test('every WGSL text the engine and its proofs compile declares every name it u
  *  program's): the texts those callers pass are on the list under their own names. */
 const HANDED_IN = new Set([
   'gpu/core/shaderModule.ts',
-  'webgpu/shadow/allocPass.ts',
+  'webgpu/shadow/computePass.ts',
   'gpu/raster/resolve.ts',
   'lighting/deferred/program.ts',
   'lighting/deferred/compositions.ts',

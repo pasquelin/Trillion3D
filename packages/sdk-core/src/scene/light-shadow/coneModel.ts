@@ -1,6 +1,5 @@
 import { hypot3 } from '../../math/primitives/hypot.ts';
 import { NUMBERS, type PageOps } from './pageOps.ts';
-import { PAGE_OPS_WGSL } from './pageModelWgsl.ts';
 import { pageViewModel } from './pageViewModel.ts';
 
 /** The vector operations the cone is written over, beside the scalar ones (`PageOps`). */
@@ -31,7 +30,7 @@ const VECTORS: ConeOps<number, Vec> = {
 };
 
 /** Printed as WGSL: vectors are `vec3f`. */
-const VECTORS_WGSL: ConeOps<string, string> = {
+export const VECTORS_WGSL: ConeOps<string, string> = {
   plus: (a, b) => `(${a}+${b})`,
   minus: (a, b) => `(${a}-${b})`,
   scale: (a, s) => `(${a}*${s})`,
@@ -50,7 +49,7 @@ const VECTORS_WGSL: ConeOps<string, string> = {
  * Exact, never a quality approximation: the projected image of a planar rectangle is spherically
  * convex, so the cap that holds its four corners holds all of it.
  */
-function coneModel<S, V>(o: PageOps<S>, v: ConeOps<S, V>) {
+export function coneModel<S, V>(o: PageOps<S>, v: ConeOps<S, V>) {
   const view = pageViewModel(o),
     two = o.float(2),
     wide = (halfFov: S) => o.ge(halfFov, o.float(Math.PI / 2));
@@ -78,12 +77,3 @@ function coneModel<S, V>(o: PageOps<S>, v: ConeOps<S, V>) {
 
 /** The cone on numbers: what the host computes. */
 export const CONE = /* @__PURE__ */ coneModel(NUMBERS, VECTORS);
-
-const printed = coneModel(PAGE_OPS_WGSL, VECTORS_WGSL);
-const face = 'f:vec3f,r:vec3f,u:vec3f,t:f32,halfFov:f32';
-const page = 'u0:f32,u1:f32,v0:f32,v1:f32';
-
-/** The cone as the GPU's pages compose it (`freshWgsl.ts`): its axis, then its half-angle. */
-export const CONE_MODEL_WGSL = `
-fn shadowConeAxis(${face},${page})->vec3f{return ${printed.shadowConeAxis('f', 'r', 'u', 't', 'halfFov', 'u0', 'u1', 'v0', 'v1')};}
-fn shadowConeSpread(${face},axis:vec3f,${page})->f32{return ${printed.shadowConeSpread('f', 'r', 'u', 't', 'halfFov', 'axis', 'u0', 'u1', 'v0', 'v1')};}`;
