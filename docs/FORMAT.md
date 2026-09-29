@@ -365,8 +365,12 @@ It is bounded by the materials, not the world: one tile or 64 tiles of the same 
 the same top, to one page per material. A top over `budgetBytes` (`WORLD_TOP_BUDGET_BYTES`, 4 MiB)
 is refused at cook, `WORLD_TOP_OVER_BUDGET`, naming the cell that pins the most of it.
 
-The runtime does not read the super-roots yet: it keeps pinning every primitive's roots, and the
-image is the one it was. Unpinning the object roots for the world top is #751.
+The runtime reads the table as a model loads and pins the top alone (#1237,
+`packages/sdk-browser/src/scene/worldRoots.ts`): its bundles, the binary's first, in one ranged
+read, each checked against its own `sha256`. The object roots are no longer pinned: they are held
+with the placements the view holds, and a placed cell holds the bundles past the top its objects'
+`dependencies` name, each once, until the last cell needing it leaves ([ENGINE.md](ENGINE.md#memory),
+Pinned bytes). The super-roots are not drawn yet (#1238): the image is the one it was.
 
 ## `physics.json` — cooked colliders
 

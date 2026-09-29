@@ -50,6 +50,17 @@ test('past the pool, the queue keeps the coarsest levels whole, whatever the GPU
   assert.ok(cut.admit.hostBytes() > 0, 'its tables are counted in the host tables');
 });
 
+// #1237: a page of the group a root replaces is the pool's floor (`minimumCapacity.ts`): past the
+// pool it goes first, above every level, so the root the view refuses is replaced before any detail.
+test("past the pool, a page a root's group replaces goes first, whatever its level", () => {
+  const cut = gpuCut();
+  cut.packed.find((page) => page.url === 'f0')!.rootChild = true;
+  cut.image(1, 'f0 m0 f1 c0 m1');
+  assert.deepEqual(cut.queue(), ['f0'], 'the floor before the coarsest level');
+  cut.image(4, 'f0 m0 f1 c0 m1');
+  assert.deepEqual(cut.queue(), ['f0', 'c0', 'm0', 'm1'], 'then the coarsest levels whole');
+});
+
 test('a request brings the groups its cut rule needs, filed at their own level', () => {
   const cut = gpuCut();
   cut.image(3, 'f0 a c0');

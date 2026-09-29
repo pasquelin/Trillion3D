@@ -1,8 +1,9 @@
-// The session the table growth tests of #216 open: the coarse quad on a one-slot pool.
+// The session the table growth tests of #216 open: the deep quad on a pool at its floor.
 import { createSceneLightStore, type SceneLight } from '../../../../../sdk-core/src/index.ts';
 import { mockGpu } from '../../../../../../tests/kit/gpu/mockGpu.ts';
 import { installGpuGlobals } from '../../../../../../tests/kit/gpu/globals.ts';
-import { coarseQuadContext, frontCamera } from '../../../backend/pagesBackendScenes.fixture.ts';
+import { frontCamera } from '../../../backend/pagesBackendScenes.fixture.ts';
+import { deepQuadScene } from '../deepQuad.fixture.ts';
 import { createWebgpuPagesRuntime } from '../runtime.ts';
 import { prepareWebgpuBackend } from '../prepare/prepare.ts';
 import { renderWebgpuPages } from '../render/render.ts';
@@ -21,12 +22,13 @@ export const SUN: SceneLight = {
   castsShadow: true,
 };
 
-/** The quad's root over its two finer clusters, on a pool that holds the root alone and tables
- *  sized for it, the CPU cut drawing at full detail, lit by `light` when given. The device answers
- *  out-of-memory scopes, and refuses the page table while `refusing.on`. */
+/** The deep quad (`../deepQuad.fixture.ts`), on a pool at its floor — the root and the coarse page
+ *  its group replaces, no slot for the leaves — and tables sized for it, the CPU cut drawing at
+ *  full detail, lit by `light` when given. The device answers out-of-memory scopes, and refuses
+ *  the page table while `refusing.on`. */
 export async function coarseSession(light?: SceneLight) {
   installGpuGlobals();
-  const scene = coarseQuadContext(0);
+  const scene = deepQuadScene();
   const gpu = mockGpu({ compute: true, limits: SHADOW_LIMITS }),
     { device } = gpu;
   const sceneLights = createSceneLightStore();
@@ -44,7 +46,8 @@ export async function coarseSession(light?: SceneLight) {
     },
   });
   const rt = createWebgpuPagesRuntime({
-    ...scene.context,
+    ...scene,
+    pixelError: 0,
     gpuDevice: device,
     geometryPoolBytes: 1,
     viewport: [32, 32],
