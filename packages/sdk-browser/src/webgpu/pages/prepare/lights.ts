@@ -12,7 +12,6 @@ import { sceneCastsBlended } from '../../shadow/transmittanceGrant.ts';
 import { lightRowMapPipeline } from '../../../gpu/draw/lightRows.ts';
 import { createShadowDemand } from '../../shadow/demandPass.ts';
 import { createShadowAllocation } from '../../shadow/allocPass.ts';
-import { MAX_SHADOW_REGIONS } from '../../../gpu/shadow/atlas.ts';
 
 /** What the capability declares when the direct-lighting contract is not fitted on this device. */
 const DIRECT_LIGHT_CAPABILITY = 'contract scene lights with shadow atlas';
@@ -21,7 +20,7 @@ const SHADOW_APPROXIMATIONS = [
   'a blended cluster casts from a shadow-only row into the transmittance layer, at half the pool resolution and filtered by the same PCF: one 8-bit product of (1 − coverage) and one nearest 32-bit depth per texel, so a receiver between two stacked panes takes both; additive and transmissive surfaces cast nothing until tinted transmission shadows (#33), and an unpaged blended mesh casts nothing',
   'shadow cluster rejection uses the world sphere of a cluster, never its exact hull',
   'shadow pages are asked for by the opaque surfaces alone, per pixel before any page is drawn and again by the resolve: a transparent or water surface reads the pages the opaque pixels asked for, and falls back to a coarser level where none did',
-  `a shadow page asked for is mapped and drawn on the GPU in the frame that asks for it, from the frame's caster rows culled by the page's own light-space volume, at most ${MAX_SHADOW_REGIONS} pages a frame; the host draws it again with its light cut and static layer once its request report comes back, a frame or two later; while a tinted transmittance layer is read, the page waits for that report and the pixel reads the next coarser level`,
+  'a shadow page asked for is mapped and drawn on the GPU in the frame that asks for it, with every resident caster row its own light-space volume touches, blended casters into the transmittance layer too; the host draws it again with its light cut and static layer once its request report comes back, a frame or two later; a page whose caster pairs overflow the pair list is not made readable and waits for its next draw, the pixel reading the next coarser level',
 ];
 
 /**

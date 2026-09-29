@@ -29,18 +29,17 @@ export function freshSlices(store: SceneLightStore) {
 }
 
 /**
- * Whether this frame may hand the GPU a page to draw: the view moved (`plan.resting`), a light was
- * added, set or removed (`store.epoch`), the host took a page's depth away (`allocation.lost`), or
- * the latest snapshot's frame listed pages (`gpu.listed`). Otherwise the frame asks for the pages
- * the last one did, which are drawn, and runs none of the GPU's page work — at rest, or while only
- * a caster moves: a page a moving caster's own surface asks first is drawn once a snapshot lists
- * it, its receiver reading the coarser level, always drawn (`requests.floors`), meanwhile.
+ * Whether this frame may hand the GPU a page to draw: the view or anything in the world moved — a
+ * caster's own surface asks new pages as it moves — (`plan.quiet`), a light was added, set or
+ * removed (`store.epoch`), the host took a page's depth away (`allocation.lost`), or the latest
+ * snapshot's frame listed pages (`gpu.listed`). Otherwise the frame asks for the pages the last one
+ * did, which are drawn, and runs none of the GPU's page work.
  */
 function freshWanted(rt: WebgpuPagesRuntime) {
   const { plan, store, pageRequests } = rt.lights,
     held = epochs.get(plan);
   epochs.set(plan, store.epoch);
-  if (!plan.resting || held !== store.epoch || plan.gpu.listed > 0) return true;
+  if (!plan.quiet || held !== store.epoch || plan.gpu.listed > 0) return true;
   return (pageRequests?.allocation.lost ?? 0) > 0;
 }
 const epochs = new WeakMap<object, number>();

@@ -36,6 +36,14 @@ export function pageModel<V>(o: PageOps<V>) {
       o.int(3),
     );
   };
+  /** The mip of the page `rest` entries into a lamp face: the finer mips whose entries it is
+   *  past, counted exactly. */
+  const entryMip = (rest: V) => {
+    let mip = o.int(0);
+    for (let m = 1; m < LAMP_MIPS; m++)
+      mip = o.add(mip, o.pick(o.ge(rest, finer(o.int(m))), o.int(1), o.int(0)));
+    return mip;
+  };
   return {
     /** Non-negative remainder of `v` by `n`. */
     shadowRing: ring,
@@ -51,14 +59,17 @@ export function pageModel<V>(o: PageOps<V>) {
      *  … pages, `4 (S² − p²) / 3` together for `p = S >> mip`, exact for a side `S` a power of two. */
     shadowLampMapEntry: (face: V, mip: V) =>
       o.add(o.mul(face, o.int(LAMP_FACE_ENTRIES)), finer(mip)),
-    /** The mip of the page `rest` entries into a lamp face: the finer mips whose entries it is
-     *  past, counted exactly. */
-    shadowLampEntryMip: (rest: V) => {
-      let mip = o.int(0);
-      for (let m = 1; m < LAMP_MIPS; m++)
-        mip = o.add(mip, o.pick(o.ge(rest, finer(o.int(m))), o.int(1), o.int(0)));
-      return mip;
-    },
+    /** The mip of the page `rest` entries into a lamp face. */
+    shadowLampEntryMip: entryMip,
+    /** Pages on a side of a lamp face's `mip`. */
+    shadowLampMipPages: (mip: V) => o.shr(o.int(LAMP_SIDE), mip),
+    /** The page `rest` entries into a lamp face, counted within its own mip, row by row. */
+    shadowLampEntryLocal: (rest: V) => o.sub(rest, finer(entryMip(rest))),
+    /** Column and row of page `local` of a map `pages` wide: `shadowFacePageEntry` undone. */
+    shadowFacePageX: (pages: V, local: V) => o.mod(local, pages),
+    shadowFacePageY: (pages: V, local: V) => o.div(o.sub(local, o.mod(local, pages)), pages),
+    /** The light view of mip `mip` of lamp face `face`: the key its pages are drawn under. */
+    shadowLampView: (face: V, mip: V) => o.add(o.mul(face, o.int(16)), mip),
     /** The sun level clipmap slot `slot` holds while the finest level is `finest`. */
     shadowSunSlotLevel: (slot: V, finest: V) =>
       o.add(finest, ring(o.sub(slot, finest), o.int(SUN_LEVELS))),
@@ -151,19 +162,19 @@ export const lampMipOffset = (mip: number) => PAGES.shadowLampMapEntry(0, mip);
 
 /** Entry of lamp page `(x, y)` of `face` at `mip`, relative to the light's table base. */
 export const lampEntry = (face: number, mip: number, x: number, y: number) =>
-  PAGES.shadowLampMapEntry(face, mip) + PAGES.shadowFacePageEntry(LAMP_SIDE >> mip, x, y);
+  PAGES.shadowLampMapEntry(face, mip) + PAGES.shadowFacePageEntry(PAGES.shadowLampMipPages(mip), x, y);
 
 /** What a relative lamp entry names: face, mip and page, written into `out`. */
 export function decodeLampEntry(relative: number, out: Int32Array) {
   const face = Math.floor(relative / LAMP_FACE_ENTRIES),
     rest = relative - face * LAMP_FACE_ENTRIES,
     mip = PAGES.shadowLampEntryMip(rest),
-    local = rest - lampMipOffset(mip),
-    pages = LAMP_SIDE >> mip;
+    local = PAGES.shadowLampEntryLocal(rest),
+    pages = PAGES.shadowLampMipPages(mip);
   out[0] = face;
   out[1] = mip;
-  out[2] = local % pages;
-  out[3] = Math.floor(local / pages);
+  out[2] = PAGES.shadowFacePageX(pages, local);
+  out[3] = PAGES.shadowFacePageY(pages, local);
   return out;
 }
 
