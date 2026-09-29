@@ -10,15 +10,15 @@ import { SHADE_REQUEST_WGSL } from '../../visibility/shader/request.ts';
 // frames of the same pose name the same set of tiles, the set the barrier's convergence stops
 // on. Neither host rewrites the rule.
 test('both passes request their tiles by the same rule, phase then position', () => {
-  assert.match(TILE_REQUEST_WGSL, /fn requestPick\(pos:vec2f,choices:u32\)/);
-  assert.match(TILE_REQUEST_WGSL, /let px=u32\(pos\.x\)\+u32\(pos\.y\);/);
+  assert.match(TILE_REQUEST_WGSL, /fn requestPick\(pos:vec2f,choices:u32,word:u32\)/);
+  assert.match(TILE_REQUEST_WGSL, /let px=u32\(pos\.x\)\+u32\(pos\.y\)\+\(word>>5u\);/);
   assert.match(
     TILE_REQUEST_WGSL,
     /RequestPick\(px%choices,\(\(px\/choices\)&1u\)==1u,\(px\/choices\/2u\)%3u\)/,
   );
   for (const [nom, hote] of Object.entries({ BLEND_REQUEST_WGSL, SHADE_REQUEST_WGSL })) {
     assert.match(hote, /feedbackPhase\([a-z.]+,uni\.feedback\)/, `${nom}: phase first`);
-    assert.match(hote, /requestPick\(/, `${nom}: choice by position`);
+    assert.match(hote, /requestPick\([^)]*,uni\.feedback\)/, `${nom}: choice by position and turn`);
     assert.match(hote, /mapRequest\(p,/, `${nom}: map by the shared rule`);
     assert.doesNotMatch(hote, /%6u|%10u/, `${nom} does not rewrite the choice`);
   }

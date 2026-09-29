@@ -63,7 +63,7 @@ fn sunLevelGradient(w0:vec4f,w1:vec4f,w2:vec4f,dUds:vec2f,dUdt:vec2f,wp:vec4f)->
 /** Tile rank this pixel asks for, plus one, or zero. */
 fn shadeRequest(page:PageInfo,h:ClusterHeader,pos:vec2f,uv:vec2f,ddx:vec2f,ddy:vec2f,w0:vec4f,w1:vec4f,w2:vec4f,i0:u32,i1:u32,i2:u32,wp:vec4f)->u32{
  if(!(HAS_UV&&ANY_MAP)||!feedbackPhase(pos,uni.feedback)){return 0u;}
- let p=requestPick(pos,MAP_CHOICES+1u);
+ let p=requestPick(pos,MAP_CHOICES+1u,uni.feedback);
  if(p.sel>=MAP_CHOICES&&HAS_MASK){
   let uva=pageUv(page,h,i0);
   let g=sunLevelGradient(w0,w1,w2,pageUv(page,h,i1)-uva,pageUv(page,h,i2)-uva,wp);
