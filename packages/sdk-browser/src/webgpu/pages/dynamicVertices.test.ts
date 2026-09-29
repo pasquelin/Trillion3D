@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts';
 import { Matrix4 } from '../../../../sdk-core/src/world/math/matrix4.ts';
+import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts';
 import { createVertexPool, type VertexPool } from '../core/geometryPrepare.ts';
 import { createShadowMobility } from '../shadow/mobility.ts';
 import type { HostAttributes } from '../../host/resources.ts';
@@ -93,7 +94,9 @@ test('a block a record takes after the open is placed in the room the pool kept'
 
 test('a rewrite weighs what it sends the GPU: a normal with its tangent, positions twice', () => {
   const { device, writes } = recordingDevice();
-  const attributes = geometry.plane(1, 1, 1, 1).attributes as unknown as HostAttributes;
+  const plane = geometry.plane(1, 1, 1, 1).attributes; // its doubles: the world hands floats
+  const xyz = new BufferAttribute(Float32Array.from(plane.position.array), 3);
+  const attributes = { ...plane, position: xyz } as unknown as HostAttributes;
   const pool = createVertexPool(device, 8, false, new Map());
   pool.place(attributes, true);
   const api = webgpuVertexApi(runtimeOf(pool, device, new Map([[attributes, {}]])));

@@ -91,7 +91,7 @@ export function createVertexPool(
     pack(sourced: ReadonlyMap<HostAttributes, boolean>) {
       const arrays = Object.fromEntries(
         BUFFERS.map((key) => [key, new Float32Array(floats[key])]),
-      ) as Buffers<Float32Array>;
+      ) as Buffers<Float32Array<ArrayBuffer>>;
       for (const [attributes, dynamic] of sourced) {
         const block = claim(attributes, dynamic);
         for (const name of LISTS) {
