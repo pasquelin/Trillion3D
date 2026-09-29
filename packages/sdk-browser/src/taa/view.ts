@@ -3,7 +3,7 @@ import { TAA_SAMPLES } from './jitter.ts';
 import { taaWeightTable } from './weights.ts';
 import { TAA_VIEW_BYTES } from './shaderWgsl.ts';
 import type { EngineCamera } from '../camera/world.ts';
-import type { TaaFrameState } from './frame.ts';
+import type { TaaFrameState } from './frameState.ts';
 
 const anchored = new Float64Array(16),
   packed = new Float32Array(TAA_VIEW_BYTES / 4),
