@@ -54,7 +54,7 @@ export class PooledTiming {
   add(ms: number, elements: number) {
     this.ms += ms;
     this.elements += elements;
-    if (this.ms < this.spanMs) return null;
+    if (this.ms < this.spanMs && Number.isFinite(ms)) return null;
     const perElement = (this.ms * NS_PER_MS) / this.elements;
     this.clear();
     return perElement;
