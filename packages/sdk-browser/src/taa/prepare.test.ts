@@ -5,7 +5,7 @@ import { prepareTemporalAntialiasing, setWebgpuTemporalAntialiasing } from './pr
 import { TAA_CAPABILITY, UPSCALE_CAPABILITY } from './capability.ts';
 import { beginTaaFrame, taaSettled } from './frame.ts';
 import type { WebgpuPagesRuntime } from '../webgpu/pages/runtime.ts';
-import { createScaleControl } from '../webgpu/pages/state/scaleControl.ts';
+import { createScaleControl } from '../frame/scaleControl.ts';
 import type { EngineCamera } from '../camera/world.ts';
 
 function runtime(temporalAntialiasing: boolean) {

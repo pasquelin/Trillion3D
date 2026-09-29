@@ -1,4 +1,5 @@
 import { PI } from '../lighting/shaderConstants.ts';
+import { shaderLanguage } from '../reflections/traceShader.ts';
 import { taaPrelude, taaShareTap } from './shaderWgsl.ts';
 import { shareText, taaHistoryBlend } from './historyWgsl.ts';
 import { layerWgsl, taaOut } from './layers.ts';
@@ -8,9 +9,13 @@ export const LANCZOS2_WGSL = `
 fn lanczos2(x:f32)->f32{
  if(x<1e-4){return 1.0;}
  if(x>=2.0){return 0.0;}
- let p=${PI}*x;
+ var p:f32=${PI}*x;
  return 2.0*sin(p)*sin(0.5*p)/(p*p);
 }`;
+
+/** The same kernel in GLSL, for WebGL2's spatial resample (`../webgl/core/resampleGlsl.ts`):
+ *  `LANCZOS2_WGSL`'s own text through the shared translator (`shaderLanguage`). */
+export const LANCZOS2_GLSL = shaderLanguage(LANCZOS2_WGSL, 'glsl');
 
 /**
  * Temporal resolve of a frame drawn below the display (FSR 2's reconstruction, folded into the one
