@@ -10,6 +10,7 @@
 import assert from 'node:assert/strict';
 import { decodeGeometryPage } from '../../../packages/sdk-browser/src/page/decode/geometryPage.ts';
 import { encodeGeometryPage } from '../../../packages/page-codec/geometryPage.ts';
+import type { PageAttribute } from '../../../packages/page-codec/pageAttributes.ts';
 import { anneau } from '../../../bench/perf/browser/support/pagesWasm.ts';
 import { decodageClusterGpu, TRIANGLE_WORDS, VERTEX_WORDS } from './clusterDecodingGpu.ts';
 
@@ -30,13 +31,15 @@ function page(triangles: number, exponent: number, flat = false) {
 function flatShaded({ indices, attributes }: ReturnType<typeof anneau>, exponent: number) {
   const corners = indices.map((_, k) => k),
     flat = Object.fromEntries(
-      Object.entries(attributes).map(([name, { itemSize, array }]) => {
-        const source = (k: number) => (name === 'NORMAL' ? indices[k - (k % 3)] : indices[k]);
-        const values = corners.flatMap((k) =>
-          Array.from(array).slice(source(k) * itemSize, (source(k) + 1) * itemSize),
-        );
-        return [name, { itemSize, array: new Float32Array(values) }];
-      }),
+      (Object.entries(attributes) as [string, PageAttribute][]).map(
+        ([name, { itemSize, array }]) => {
+          const source = (k: number) => (name === 'NORMAL' ? indices[k - (k % 3)] : indices[k]);
+          const values = corners.flatMap((k) =>
+            Array.from(array).slice(source(k) * itemSize, (source(k) + 1) * itemSize),
+          );
+          return [name, { itemSize, array: new Float32Array(values) }];
+        },
+      ),
     );
   const encoded = encodeGeometryPage(corners, flat, exponent),
     words = new DataView(encoded.data.buffer, encoded.data.byteOffset);

@@ -158,10 +158,32 @@ fn cases() -> Vec<(String, Mesh, i32)> {
     out
 }
 
+/// Develop's outcome of every case, in order: name, digest or refusal, page bytes.
+const DEVELOP: &str = include_str!("geometry_page_positions_develop.tsv");
+
+// Behaviour: every case decodes to the words develop decoded it to, or is refused alike, in no
+// more page bytes; the flat-shaded pages, their positions stored once, in fewer.
 #[test]
-fn print_develop_outcomes() {
-    for (name, mesh, exponent) in cases() {
-        let (digest, bytes) = outcome(&mesh, exponent);
-        println!("(\"{name}\", \"{digest}\", {bytes}),");
+fn every_page_decodes_as_on_develop_and_flat_shaded_pages_weigh_less() {
+    let develop: Vec<Vec<&str>> = DEVELOP.lines().map(|l| l.split('\t').collect()).collect();
+    let all = cases();
+    assert_eq!(all.len(), develop.len());
+    let (mut before, mut after, mut flat_before, mut flat_after) = (0, 0, 0, 0);
+    for ((name, mesh, exponent), row) in all.iter().zip(&develop) {
+        let (digest, bytes) = outcome(mesh, *exponent);
+        let was: usize = row[2].parse().expect("develop bytes");
+        assert_eq!((name.as_str(), digest.as_str()), (row[0], row[1]));
+        assert!(bytes <= was, "{name}: {bytes} > {was} bytes");
+        (before, after) = (before + was, after + bytes);
+        if mesh
+            .indices
+            .iter()
+            .enumerate()
+            .all(|(k, &i)| i as usize == k)
+        {
+            (flat_before, flat_after) = (flat_before + was, flat_after + bytes);
+        }
     }
+    println!("pages {before} -> {after} bytes; flat-shaded {flat_before} -> {flat_after}");
+    assert!(flat_after < flat_before);
 }
