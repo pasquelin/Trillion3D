@@ -10,7 +10,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import type { Page } from 'playwright';
-import { launchChrome } from './chrome.ts';
+import { onFreshPage as freshPage } from './chrome.ts';
 import * as options from './options.ts';
 import { startServer, type Capture } from '../../tests/kit/server/staticServer.ts';
 import { readStreet } from './street.ts';
@@ -95,34 +95,25 @@ async function main() {
     isolation: settings.isolation,
   });
   report.settings = { ...settings, port };
-  // Fresh browser per series, closed immediately after. A large scene leaves several hundred MB
-  // in Chromium GPU process; closing page does not release them, causing 3rd series to fail
-  // ("WebGL2 unavailable"). Relaunching browser frees GPU process between series.
-  const onFreshPage = async <T>(run: (page: Page) => Promise<T>): Promise<T> => {
-    const browser = await launchChrome({ headless: !settings.visible, args: FLAGS });
-    report.provenance.browser = browser.version();
-    const page = await browser.newPage({
-      viewport: { width: settings.width, height: settings.height },
-      deviceScaleFactor: settings.dpr,
+  // Fresh browser per series, closed immediately after (`onFreshPage`): the GPU process a large
+  // scene fills is freed between series, or the 3rd one fails ("WebGL2 unavailable").
+  const { width, height, dpr } = settings;
+  const target = { url: `http://127.0.0.1:${port}/`, width, height, dpr };
+  const onFreshPage = <T>(run: (page: Page) => Promise<T>): Promise<T> =>
+    freshPage({ headless: !settings.visible, args: FLAGS }, target, run, (tab, browser) => {
+      report.provenance.browser = browser.version();
+      tab.on('pageerror', (e) =>
+        report.errors.push({ kind: 'pageerror', message: String(e.message) }),
+      );
+      tab.on('response', (r) => {
+        if (r.status() >= 400)
+          report.errors.push({ kind: 'http', status: r.status(), url: r.url() });
+      });
+      tab.on('console', (m) => {
+        if (m.type() === 'error')
+          report.errors.push({ kind: 'console', message: m.text().slice(0, 400) });
+      });
     });
-    page.on('pageerror', (e) =>
-      report.errors.push({ kind: 'pageerror', message: String(e.message) }),
-    );
-    page.on('response', (r) => {
-      if (r.status() >= 400) report.errors.push({ kind: 'http', status: r.status(), url: r.url() });
-    });
-    page.on('console', (m) => {
-      if (m.type() === 'error')
-        report.errors.push({ kind: 'console', message: m.text().slice(0, 400) });
-    });
-    await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
-    try {
-      return await run(page);
-    } finally {
-      await page.close();
-      await browser.close();
-    }
-  };
   try {
     report.limits = await onFreshPage((page) => readLimits(page, options.sdkEntryUrl(sides[0])));
     if (!readsCache(scene)) {
