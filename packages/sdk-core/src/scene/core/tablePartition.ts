@@ -15,8 +15,8 @@ import {
   hexes,
   isSlot,
   named,
+  pageJson,
   rankLists,
-  text,
   versioned,
   type PageKind,
   type TableSlot,
@@ -119,7 +119,7 @@ export function tablePartition(root: TablePartitionRoot): TablePartition {
  *  (`first`: the `n`-th is the cook's cell `first + n`, as the world roots number it, #1237); or a
  *  named refusal. The decode pool reads it off the main thread (`cellPage`, #575). */
 export function readCellPage(bytes: Uint8Array, url: string) {
-  const body = versioned(CELL_PAGES, JSON.parse(text.decode(bytes)), url);
+  const body = versioned(CELL_PAGES, pageJson(bytes), url);
   if (Array.isArray(body.pages)) {
     if (!rankLists(body.parents, body.pages.length))
       throw new EngineError(CELL_PAGES.invalid, `${url} misses the parents of its pages`, {});

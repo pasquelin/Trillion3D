@@ -3566,6 +3566,12 @@
       "extensions": "O que as extensões físicas acrescentam, com os nomes de parâmetro do anfitrião: um fator, uma cor ou um intervalo como números, um mapa como espaço."
     }
   },
+  "TablePage": {
+    "summary": "Uma página que um slot nomeia: o seu arquivo, relativo às tabelas, o seu tamanho e a sua impressão digital."
+  },
+  "TableSlot": {
+    "summary": "Uma página de um índice que um slot nomeia, a sua caixa nas poses declaradas e as ordens do núcleo listadas ao lado: para o índice de células, os pais sob os quais as suas células penduram nós (#575)."
+  },
   "TableTexture": {
     "summary": "Estado de amostragem de uma textura glTF, nas palavras do motor.",
     "members": {

@@ -5956,6 +5956,12 @@
       "extensions": "Was die physikalischen Erweiterungen hinzufügen, unter den Parameternamen des Hosts: ein Faktor, eine Farbe oder ein Bereich als Zahlen, eine Map als Platz."
     }
   },
+  "TablePage": {
+    "summary": "Eine Seite, die ein Platz benennt: ihre Datei relativ zu den Tabellen, ihre Größe und ihr Fingerabdruck."
+  },
+  "TableSlot": {
+    "summary": "Eine Seite eines Index, die ein Platz benennt, ihre Box in den deklarierten Posen und die daneben gelisteten Kernränge: beim Zellindex die Eltern, unter die ihre Zellen Knoten hängen (#575)."
+  },
   "TableTexture": {
     "summary": "Abtastzustand einer glTF-Textur, in den Worten der Engine.",
     "members": {
