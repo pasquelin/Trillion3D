@@ -4,6 +4,22 @@
 use super::{Deformation, INFLUENCES};
 
 impl Deformation {
+    /// Whole-copy soft geometry names compact simulation vertices explicitly, without page streams.
+    pub fn reach_for_pass(&self, positions: &[f32], whole: bool) -> serde_json::Value {
+        let mut reach = self.reach(positions);
+        if whole && self.soft_source {
+            reach["softSourceIds"] = serde_json::json!(self
+                .skin
+                .as_ref()
+                .unwrap()
+                .0
+                .iter()
+                .step_by(INFLUENCES)
+                .collect::<Vec<_>>());
+        }
+        reach
+    }
+
     /// What the runtime inflates a deformed cluster's bounds by (#357): for each joint the ball
     /// of the rest-pose vertices it moves, `[x, y, z, radius]`, and each target's largest
     /// displacement; `null` on a primitive that does not deform.
