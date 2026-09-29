@@ -5,7 +5,7 @@ import {
   DEFAULT_TEXTURE_UPLOAD_MS,
   textureTransferBytesFor,
   textureUploadMsFor,
-} from './memoryBudgets.ts';
+} from './transferBudgets.ts';
 
 test('the tile pass budgets are what the host declared, 16 MiB and 1 ms by default, one tile at least', () => {
   assert.equal(textureUploadMsFor(undefined), DEFAULT_TEXTURE_UPLOAD_MS);
