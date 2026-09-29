@@ -8,44 +8,46 @@ import { createShadowAdmission } from './admit.ts';
 import { castsShadow } from './casters.ts';
 import { createShadowTable } from './table.ts';
 import { DRAW_ALL, createShadowPool } from './pool.ts';
+import { resizeShadowPool } from './poolResize.ts';
 import { createSunLevels } from './sunLevels.ts';
 import { createShadowRecords } from './records.ts';
 import { createShadowRequests, type ShadowRequestReport } from './requests.ts';
+import { createShadowDemand, type ShadowReceivers } from './demand.ts';
 import { createShadowThresholds } from './thresholds.ts';
-import { sunCoarseness } from './virtual.ts';
 
 /** The frame's shadow work: which virtual pages are drawn. */
 export type ShadowPlan = ReturnType<typeof createShadowPlan>;
 
 /**
- * The shadow scheduler of the virtual maps. The shading records the pages it reads; their
- * report, read back frames later, allocates what is missing from the fixed pool. What moved stales
- * the mapped pages it covers. A frame then draws every stale page the image reads, all of them in
- * that frame (`admit.ts`): what holds the cost is the cache — a page is drawn again only when what
- * it holds changed —, and the pool is the only limit. A still scene, whose shading runs no more,
- * asks for nothing and draws nothing.
- *
- * All arrays are allocated once; `plan()` allocates nothing.
+ * The shadow scheduler of the virtual maps. The frame's receivers name the pages they read before
+ * its raster (`demand.ts`) — without them, the shading's report, read back frames later — and
+ * what is missing is allocated from the fixed pool. What moved stales the mapped pages it covers.
+ * A frame then draws every stale page the image reads, all of them in that frame (`admit.ts`):
+ * what holds the cost is the cache — a page is drawn again only when what it holds changed —, and
+ * the pool is the only limit. A still scene, whose shading runs no more, draws nothing.
+ * All arrays are allocated once — the receivers' cells grow only for a frame with more
+ * receivers —; `plan()` allocates nothing else.
  */
 export function createShadowPlan(poolSide: number, layers = 1) {
   const pool = createShadowPool(poolSide, layers),
     table = createShadowTable(pool.pages),
     sun = createSunLevels(),
     records = createShadowRecords(table, pool, sun),
-    requests = createShadowRequests(table, pool, records, sun),
     changes = createShadowChanges(pool.pages),
     counts = createShadowCounts(),
     invalidate = createPageInvalidation(pool, table, sun, changes, counts),
-    admission = createShadowAdmission(pool.pages),
     thresholds = createShadowThresholds(pool),
+    demand = createShadowDemand(table, pool, sun),
     posed = new Int32Array(records.taken.length);
-  let byPage = true,
+  let requests = createShadowRequests(table, pool, records, sun),
+    admission = createShadowAdmission(pool.pages),
+    byPage = true,
     report: ShadowRequestReport | null = null,
     resting = false,
     views = 0,
     settledStamp = -1;
   const stampOf = (store: SceneLightStore) => table.version + views + store.epoch;
-  return {
+  const shadowPlan = {
     /** The page table: one word per virtual page, and the range each light holds in it. */
     table,
     /** The physical pages of the pool and the virtual page each one holds. */
@@ -94,7 +96,8 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     receive(next: ShadowRequestReport) {
       if (!report || next.frame > report.frame) report = next;
     },
-    /** Plans a frame: stales what moved, reads the last report, admits every page to draw. */
+    /** Plans a frame: stales what moved, reads the receivers' demand — or else the last report —,
+     *  admits every page to draw. */
     plan(
       store: SceneLightStore,
       view: ShadowViewpoint,
@@ -102,6 +105,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       sceneMax: ArrayLike<number>,
       frame: number,
       nowMs: number,
+      receivers?: ShadowReceivers,
     ) {
       counts.beginFrame();
       records.release(store);
@@ -130,15 +134,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
         if (rank === LIGHT_KIND.directional) {
           if (sun.update(slice, lightDirection(light), view, sceneMin, sceneMax, frame))
             whole = true;
-          // A page its level keeps is ranked again: a change of the finest level moves every
-          // level's coarseness, and a view keeps one rank (`admit.ts`).
-          for (let page = 0; page < pool.pages; page++) {
-            if (pool.owner[page] < 0 || pool.slice[page] !== slice) continue;
-            if (!sun.movedLevel(slice, pool.view[page])) continue;
-            if (!sun.holds(slice, pool.view[page], pool.x[page], pool.y[page]))
-              pool.release(table, page);
-            else pool.rank[page] = sunCoarseness(pool.view[page], sun.finest[slice]);
-          }
+          records.followSun(slice);
         }
         invalidate(light, slice, whole, byPage, nowMs, frame);
         if (whole) posed[slice] = frame;
@@ -147,13 +143,9 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       if (still) counts.staled(STALE_BY.threshold, thresholds.restale(nowMs, frame));
       // Nothing moves: the pages of an older depth range are drawn in the current one.
       if (quiet) counts.staled(STALE_BY.range, sun.ranges.restale(pool, nowMs, frame));
-      if (report) {
-        const before = stampOf(store),
-          read = report;
-        report = null;
-        requests.consume(read, nowMs, frame);
-        if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
-      }
+      if (demand.read(requests, report, receivers, store, view, stampOf(store), nowMs, frame))
+        settledStamp = stampOf(store);
+      report = null;
       requests.floors(posed, view, nowMs, frame);
       const count = admission.run(pool, table, requests.latest, frame, records.isFloor);
       for (let i = 0; i < count; i++) {
@@ -194,5 +186,15 @@ export function createShadowPlan(poolSide: number, layers = 1) {
       resting = false;
       settledStamp = -1;
     },
+    /** The pool at another size, its pages kept, its arrays anew: returns where each page went. */
+    resize(side: number, poolLayers: number) {
+      const moved = resizeShadowPool(pool, table, side, poolLayers),
+        counted = requests.counts;
+      thresholds.follow(moved);
+      shadowPlan.requests = requests = createShadowRequests(table, pool, records, sun, counted);
+      shadowPlan.admission = admission = createShadowAdmission(pool.pages);
+      return moved;
+    },
   };
+  return shadowPlan;
 }
