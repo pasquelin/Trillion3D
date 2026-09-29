@@ -14,10 +14,12 @@ export interface PageOps<V> {
   mod(a: V, b: V): V;
   shr(a: V, b: V): V;
   max(a: V, b: V): V;
+  min(a: V, b: V): V;
   clamp(a: V, low: V, high: V): V;
   floor(a: V): V;
   log2(a: V): V;
   exp2(a: V): V;
+  asin(a: V): V;
   toInt(a: V): V;
   toFloat(a: V): V;
   lt(a: V, b: V): V;
@@ -38,10 +40,12 @@ export const NUMBERS: PageOps<number> = {
   mod: (a, b) => a % b,
   shr: (a, b) => a >> b,
   max: (a, b) => Math.max(a, b),
+  min: (a, b) => Math.min(a, b),
   clamp: (a, low, high) => Math.min(Math.max(a, low), high),
   floor: Math.floor,
   log2: Math.log2,
   exp2: (a) => 2 ** a,
+  asin: Math.asin,
   toInt: Math.trunc,
   toFloat: (a) => a,
   lt: (a, b) => +(a < b),

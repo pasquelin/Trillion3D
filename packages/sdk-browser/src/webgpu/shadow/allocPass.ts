@@ -4,6 +4,7 @@ import { createWebgpuBindIdentity } from '../core/bindIdentity.ts';
 import { ALLOCATION_WGSL } from './allocWgsl.ts';
 import { SHADOW_WORDS_WGSL, WORDS_GROUP } from './wordsWgsl.ts';
 import { SHADOW_FRESH_WGSL } from './freshWgsl.ts';
+import { SHADOW_FRESH_CULL_WGSL } from './freshCullWgsl.ts';
 import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import { SHADOW_DEMAND_PASS } from './demandPass.ts';
 
@@ -11,12 +12,16 @@ import { SHADOW_DEMAND_PASS } from './demandPass.ts';
 const SHADOW_ALLOC_PASS = 'Trillion3D shadow allocation v1';
 const SHADOW_WORDS_PASS = 'Trillion3D shadow table words v1';
 const SHADOW_FRESH_PASS = 'Trillion3D shadow GPU pages v1';
+const SHADOW_FRESH_CULL_PASS = 'Trillion3D shadow GPU page cull v1';
+const SHADOW_FRESH_SEAL_PASS = 'Trillion3D shadow GPU page seal v1';
 /** The GPU's page passes, the demand first: timed under the Shadows stage (`stage/mapping.ts`). */
 export const SHADOW_PAGE_PASSES = [
   SHADOW_DEMAND_PASS,
   SHADOW_ALLOC_PASS,
   SHADOW_WORDS_PASS,
   SHADOW_FRESH_PASS,
+  SHADOW_FRESH_CULL_PASS,
+  SHADOW_FRESH_SEAL_PASS,
 ] as const;
 
 /** A compute pass of storage buffers only, its bind group made again only when they moved. */
@@ -43,7 +48,13 @@ async function computePass(
   });
   const bound = createWebgpuBindIdentity();
   let group: GPUBindGroup | undefined;
-  return (encoder: GPUCommandEncoder, buffers: readonly GPUBuffer[], groups: number) => {
+  /** Encodes the pass over `buffers`, in binding order, dispatching `groups` workgroups — or as
+   *  many as the words at a byte of a buffer say. */
+  return (
+    encoder: GPUCommandEncoder,
+    buffers: readonly GPUBuffer[],
+    groups: number | readonly [GPUBuffer, number],
+  ) => {
     bound.next.length = 0;
     bound.next.push(...buffers);
     if (bound.moved() || !group)
@@ -55,7 +66,8 @@ async function computePass(
     const pass = encoder.beginComputePass({ label });
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, group);
-    pass.dispatchWorkgroups(groups);
+    if (typeof groups === 'number') pass.dispatchWorkgroups(groups);
+    else pass.dispatchWorkgroupsIndirect(...groups);
     pass.end();
   };
 }
@@ -64,12 +76,14 @@ const READ: GPUBufferBindingType = 'read-only-storage';
 
 /**
  * The GPU allocation of shadow pages (`allocWgsl.ts`), the pass that writes the host's table words
- * under it (`wordsWgsl.ts`) and the one that composes the pages the GPU draws itself
- * (`freshWgsl.ts`): their pipelines, compiled at prepare. They own no buffer: the pool's are made
+ * under it (`wordsWgsl.ts`) and those of the pages the GPU draws itself — composed and sealed
+ * (`freshWgsl.ts`), their casters culled (`freshCullWgsl.ts`): their pipelines, compiled at prepare. They own no buffer: the pool's are made
  * with its request buffer (`allocBuffers.ts`).
  */
 export async function createShadowAllocation(device: GPUDevice) {
-  const [allocate, words, fresh] = await Promise.all([
+  const fresh: GPUBufferBindingType[] = ['storage', 'storage', 'storage', 'storage', 'storage'];
+  fresh.push('storage', READ);
+  const [allocate, words, compose, seal, cull] = await Promise.all([
     computePass(device, ALLOCATION_WGSL, SHADOW_ALLOC_PASS, 'allocateShadowPages', [
       'storage',
       'storage',
@@ -84,18 +98,18 @@ export async function createShadowAllocation(device: GPUDevice) {
       READ,
       'storage',
     ]),
-    computePass(device, SHADOW_FRESH_WGSL, SHADOW_FRESH_PASS, 'composeShadowPages', [
-      'storage',
-      'storage',
+    computePass(device, SHADOW_FRESH_WGSL, SHADOW_FRESH_PASS, 'composeShadowPages', fresh),
+    computePass(device, SHADOW_FRESH_WGSL, SHADOW_FRESH_SEAL_PASS, 'sealShadowPages', fresh),
+    computePass(device, SHADOW_FRESH_CULL_WGSL, SHADOW_FRESH_CULL_PASS, 'shadowCullPairs', [
+      READ,
+      READ,
       READ,
       'storage',
       'storage',
-      'storage',
       READ,
-      'storage',
     ]),
   ]);
-  return { allocate, words, fresh };
+  return { allocate, words, compose, cull, seal };
 }
 
 export type ShadowAllocation = Awaited<ReturnType<typeof createShadowAllocation>>;

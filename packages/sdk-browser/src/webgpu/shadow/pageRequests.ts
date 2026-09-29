@@ -55,6 +55,7 @@ export function createShadowPageRequests(device: GPUDevice, pages: number) {
         requested: new Int32Array(pages),
         allocated: 0,
         refused: 0,
+        drawn: 0,
       },
       busy: false,
       reading: undefined,

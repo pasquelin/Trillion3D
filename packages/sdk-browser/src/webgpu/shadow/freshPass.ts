@@ -1,19 +1,17 @@
 import { MAX_SHADOW_SLICES } from '../../../../sdk-core/src/index.ts';
 import { writeFace } from '../../../../sdk-core/src/scene/light-shadow/faces.ts';
-import { DRAW_INDIRECT_STRIDE } from '../../gpu/draw/draw.ts';
-import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
-import { SHADOW_REGION_INDIRECT_BYTES } from '../../gpu/shadow/batchBudget.ts';
-import type { ShadowCullSource } from '../../gpu/shadow/cull.ts';
-import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts';
-import { FRESH_ARG_WORDS, FRESH_SLICE_FLOATS } from './freshWgsl.ts';
+import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
+import { FRESH_CASTERS, FRESH_CLEAR, FRESH_SLICE_FLOATS, freshDrawWord } from './freshLayout.ts';
+import { freshGroups } from './freshGroups.ts';
 import { shadowRegionGroup } from './regionGroups.ts';
 
 /** Each slice's emitter and far plane, rewritten each frame: a frame allocates nothing. */
 const slices = new Float32Array(MAX_SHADOW_SLICES * FRESH_SLICE_FLOATS),
-  faceScratch = new Float32Array(16);
-/** Every row of the frame, as the region cull reads it (`cull.ts`, no `source`). */
-const everyRow = { indirectBase: 0, commands: 0 } as ShadowCullSource;
+  faceScratch = new Float32Array(16),
+  blend: [number, number] = [0, 0];
+/** Bytes of a kept pair: its region, its row. */
+const PAIR_BYTES = 8;
 
 /** Each lamp's centre, envelope radius and far plane at its slice, as its pages' faces and cones
  *  carry them (`writePage`, `writeFace`); a sun's are zero. */
@@ -32,87 +30,85 @@ export function freshSlices(store: SceneLightStore) {
 }
 
 /**
+ * Whether this frame may hand the GPU a page to draw: a frame where nothing moves — neither the
+ * view nor a node (`plan.quiet`), nor a light (`plan.stamp`) —, whose host took no page's depth
+ * (`allocation.lost`), after a snapshot whose frame listed nothing (`gpu.listed`), maps nothing
+ * new and leaves nothing undrawn, and runs none of the GPU's page work. Any other runs it.
+ */
+function freshWanted(rt: WebgpuPagesRuntime) {
+  const { plan, store, pageRequests } = rt.lights,
+    stamp = plan.stamp(store),
+    held = freshStamps.get(plan);
+  freshStamps.set(plan, stamp);
+  if (!plan.quiet || held !== stamp || plan.gpu.listed > 0) return true;
+  return (pageRequests?.allocation.lost ?? 0) > 0;
+}
+const freshStamps = new WeakMap<object, number>();
+
+/**
  * THE PAGES THE GPU MAPPED AND NO DRAW HAS FILLED, DRAWN IN THE FRAME THAT ASKS FOR THEM (#1275),
- * after the host's batches and table words, before the resolve reads any page: one workgroup
- * composes them into regions of the batch buffers (`freshWgsl.ts`); the region cull keeps, for
- * each, every row of the frame its page's light-space volume touches — the camera's rows and the
- * light cuts', the camera's frustum no part of it —, dispatched per layer by the region count the
- * GPU wrote; then each layer's pass clears the pages' squares (`pageQuads.ts`) and draws every
- * region by its own commands, its casters placed on its page in the vertex stage and kept to it
- * by the fragment (`shadow_fresh_vs`, `shadow_fresh_fs`): no indirect draw sets a viewport or a
- * scissor. A page is drawn whole, all its casters at once; the host draws it again, with its light
- * cut and static layer, once a report tells it the page (`mirror.ts`). Its word is readable from
- * this frame on.
+ * after the host's batches and table words, before the resolve reads any page — every one of them,
+ * whatever their number. One workgroup composes them into regions (`freshWgsl.ts`); the pair cull
+ * keeps, for each, every caster row its page's light-space volume touches (`freshCullWgsl.ts`) —
+ * the table's rows are every resident page of every caster, the camera no part of it —; the seal
+ * makes readable each page none of whose casters was lost; then each pool layer's pass clears its
+ * pages' squares and draws every kept pair, in two indirect draws (`freshDrawsWgsl.ts`), and,
+ * while a tinted layer is read, that layer's pass the same with the blended casters: no indirect
+ * draw sets a viewport. The host draws a page again, with its light cut and static layer, once a
+ * report tells it the page (`mirror.ts`).
  *
- * Each layer's cull takes one of the last uniform slots, which no batch's faces reach
- * (`MAX_SHADOW_PAGES` a batch). Nothing without the GPU allocation, the cull or the page quads,
- * and nothing while a tinted layer is read: a page there holds its blended casters too, which the
- * host alone draws (`encodeTransmittance`), and the page waits for it.
+ * Nothing without the GPU allocation, the cull's rows or the draws, and nothing in a frame that
+ * has nothing new to draw (`freshWanted`): a frame at rest runs none of it.
  */
 export function encodeFreshPages(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
 ) {
-  const { lights, layout } = rt,
-    { allocation, pageRequests, shadows, plan, cull, pageQuads, spheres, mobilityRows } = lights,
+  const { lights, layout, run } = rt,
+    { allocation, pageRequests, shadows, plan, cull, spheres, mobilityRows } = lights,
     buffers = pageRequests?.allocation;
   if (!allocation || !buffers?.seeded || !plan.gpu.on || !shadows?.texture) return;
-  if (!cull || !pageQuads || !spheres || !mobilityRows || shadows.transmittance) return;
-  if (!shadowRegionGroup(rt, device, 0)) return;
+  if (!cull || !spheres || !mobilityRows || !freshWanted(rt)) return;
+  const region = shadowRegionGroup(rt, device, 0);
+  if (!region) return;
   const { side, layers } = plan.pool,
-    perLayer = Math.floor(MAX_SHADOW_REGIONS / layers),
-    rows = layout.rows.packedCount;
-  buffers.writeFresh(side, layers, perLayer, rows, freshSlices(lights.store));
-  const bound = [shadows.dataBuffer, buffers.state, buffers.drawList, shadows.faceUniform];
-  bound.push(cull.faceVolumes, cull.indirect, buffers.freshParams, buffers.freshArgs);
-  allocation.fresh(encoder, bound, 1);
-  everyRow.spheres = everyRow.indirect = spheres.buffer;
-  everyRow.mobility = mobilityRows;
-  everyRow.source = undefined;
-  everyRow.base = rows;
+    { rows } = layout,
+    tint = shadows.transmittance;
+  blend[0] = rows.blendFirst;
+  blend[1] = rows.casterSlots;
+  const capacity = Math.floor(cull.kept.size / PAIR_BYTES);
+  buffers.writeFresh(side, layers, rows.packedCount, blend, capacity, freshSlices(lights.store));
+  const composed = [shadows.dataBuffer, buffers.state, buffers.drawList, buffers.freshFaces];
+  composed.push(buffers.freshVolumes, buffers.freshArgs, buffers.freshParams);
+  allocation.compose(encoder, composed, 1);
+  const culled = [spheres.buffer, buffers.freshParams, buffers.freshVolumes, cull.kept];
+  culled.push(buffers.freshArgs, mobilityRows);
+  allocation.cull(encoder, culled, [buffers.freshArgs, 0]);
+  allocation.seal(encoder, composed, 1);
+  const groups = freshGroups(device, shadows, buffers, cull.kept),
+    draws = shadows.freshDraws.made();
   for (let layer = 0; layer < layers; layer++) {
-    const args = [buffers.freshArgs, layer * FRESH_ARG_WORDS * 4] as const;
-    cull.encode(
-      encoder,
-      everyRow,
-      MAX_SHADOW_REGIONS - 1 - layer,
-      layer * perLayer,
-      perLayer,
-      rows,
-      args,
-    );
+    const passes = tint ? [shadows.passes[layer], tint.passes[layer]] : [shadows.passes[layer]];
+    passes.forEach((descriptor, tinted) => {
+      const pass = encoder.beginRenderPass(descriptor);
+      pass.setBindGroup(0, region);
+      pass.setBindGroup(1, shadows.faceGroup, [0]);
+      pass.setBindGroup(2, tinted ? groups.tint[layer] : groups.pool);
+      const kinds = tinted
+        ? [draws.tintClear, draws.tintDepth, draws.tintColour]
+        : [draws.clear, draws.casters];
+      kinds.forEach((pipeline, k) => {
+        pass.setPipeline(pipeline);
+        pass.drawIndirect(
+          buffers.freshArgs,
+          4 * freshDrawWord(layer, k ? FRESH_CASTERS : FRESH_CLEAR),
+        );
+      });
+      pass.end();
+      lights.shadowRenderPasses++;
+      lights.shadowDrawCalls += kinds.length;
+      run.gpuDrawCalls += kinds.length;
+    });
   }
-  for (let layer = 0; layer < layers; layer++) drawLayer(rt, device, encoder, layer, perLayer);
-}
-
-/** Layer `layer`'s pass: its regions' pages cleared to far, then their casters, both lists. */
-function drawLayer(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  encoder: GPUCommandEncoder,
-  layer: number,
-  perLayer: number,
-) {
-  const { lights, run } = rt,
-    shadows = lights.shadows!,
-    draws = shadows.depthDraws(),
-    first = layer * perLayer;
-  const pass = encoder.beginRenderPass(shadows.passes[layer]);
-  let drawn = lights.pageQuads!.encode(pass, first, perLayer, 0);
-  const lists = lights.mobility.hasCutouts ? 2 : 1;
-  for (let list = 0; list < lists; list++) {
-    pass.setPipeline(list ? draws.freshCutout : draws.freshOpaque);
-    for (let region = first; region < first + perLayer; region++) {
-      pass.setBindGroup(0, shadowRegionGroup(rt, device, region)!);
-      pass.setBindGroup(1, shadows.faceGroup, [region * shadows.faceStride]);
-      const at = region * SHADOW_REGION_INDIRECT_BYTES + list * DRAW_INDIRECT_STRIDE;
-      pass.drawIndirect(lights.cull!.indirect, at);
-      drawn++;
-    }
-  }
-  pass.end();
-  lights.shadowRenderPasses++;
-  lights.shadowDrawCalls += drawn;
-  run.gpuDrawCalls += drawn;
 }

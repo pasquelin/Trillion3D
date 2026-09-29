@@ -17,9 +17,8 @@ import {
   PAGE_MAPPED,
   PAGE_VALID,
 } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
-import { keptRows } from './freshRun.fixture.ts';
 import { gpuFrames } from './gpuFrames.fixture.ts';
-import { floorTiles, tileGrid, type Lit } from './shadingReads.fixture.ts';
+import { floorTiles, tileGrid } from './shadingReads.fixture.ts';
 
 const tiles = floorTiles(tileGrid(-4, 4, -14, -6), 3);
 /** Frame `f` of the move: the camera sliding sideways over the floor, the lamp circling above it. */
@@ -82,46 +81,3 @@ test('with the camera and the lamp moving, a page first read in a frame is drawn
   );
 });
 
-/** Whether `P` lies outside the vertical field of `view`: above or below it, or behind the eye. */
-function offCamera(view: ShadowViewpoint, P: readonly number[]) {
-  const f = view.forward,
-    d = P.map((c, a) => c - view.position[a]);
-  const along = d[0] * f[0] + d[1] * f[1] + d[2] * f[2],
-    level = Math.hypot(f[0], f[2]);
-  // The view's up axis, for a forward with no roll.
-  const up = [(-f[0] * f[1]) / level, level, (-f[2] * f[1]) / level];
-  const rise = d[0] * up[0] + d[1] * up[1] + d[2] * up[2];
-  return along <= 0 || Math.abs(rise / along) > Math.tan(view.halfFovY);
-}
-
-test('a caster the camera does not see keeps its pages over a receiver it sees', async () => {
-  const forward = [0, -0.3, -0.954].map((c) => c / Math.hypot(0.3, 0.954)) as [
-    number,
-    number,
-    number,
-  ];
-  const view: ShadowViewpoint = { ...VIEW, position: [0, 1, -2], forward };
-  const receiver: Lit = { P: [0, 0, -10], N: [0, 1, 0] };
-  // Two metres above the receiver, under the lamp and the overhead sun: out of the camera's field.
-  const caster = { center: [0, 4, -10], radius: 0.3 },
-    aside = { center: [9, 4, 6], radius: 0.3 };
-  assert.ok(offCamera(view, caster.center) && !offCamera(view, receiver.P));
-  const lamp: SceneLight = { ...LAMP, position: [0, 6, -10] };
-  for (const light of [SUN, lamp]) {
-    const run = gpuFrames(16, [light]);
-    const read = await run.frame(1, view, [receiver], () => {});
-    assert.ok(read.length > 0, `${light.kind}: the receiver reads pages`);
-    for (const entry of read) {
-      // Mapped, drawn and readable in the frame the receiver asks for it.
-      const word = run.table[entry],
-        page = word & PAGE_INDEX_MASK,
-        region = run.regions.indexOf(page);
-      assert.ok(word & PAGE_VALID && region >= 0, `${light.kind}: entry ${entry} drawn`);
-      assert.deepEqual(
-        keptRows(run.batch[1], region, [caster, aside]),
-        [0],
-        `${light.kind}: page ${page} keeps the caster over its receiver, and it alone`,
-      );
-    }
-  }
-});

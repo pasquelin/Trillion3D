@@ -1,42 +1,25 @@
 // The pages the GPU draws itself (#1275), run from their shipped WGSL through `shaderRun`: the
-// compose pass over the bytes its bindings hold, lane after lane as its one barrier orders them,
-// and the region cull's `keepCaster` over a region's volume — what the mock GPU dispatches
+// compose and the seal over the bytes their bindings hold, lane after lane as their barriers order
+// them, and the pair cull over every row and region it dispatches — what the mock GPU dispatches
 // (`tests/kit/gpu/mockCompute.ts`) and the scheduling tests run.
-import { MAX_SHADOW_SLICES, SHADOW_CULL_FLOATS } from '../../../../sdk-core/src/index.ts';
+import { MAX_SHADOW_SLICES } from '../../../../sdk-core/src/index.ts';
 import { PAGE_MODEL_FUNCTIONS } from '../../../../sdk-core/src/scene/light-shadow/pageModelWgsl.ts';
-import { MAX_SHADOW_REGIONS } from '../../gpu/shadow/atlas.ts';
-import { SHADOW_CULL_GROUP, SHADOW_CULL_SHADER } from '../../gpu/shadow/cullShader.ts';
+import { SHADOW_CULL_GROUP } from '../../gpu/shadow/cullShader.ts';
 import { wgslConstants } from '../../texture/shaderRule.fixture.ts';
 import { shaderRun } from '../../texture/shaderRun.fixture.ts';
 import { runShadowAllocation, runShadowWords, shadowsOf } from './allocRun.fixture.ts';
-import {
-  FRESH_LANES,
-  FRESH_PARAM_WORDS,
-  FRESH_SLICE_FLOATS,
-  MAX_POOL_LAYERS,
-  SHADOW_FRESH_WGSL,
-} from './freshWgsl.ts';
+import { SHADOW_FRESH_CULL_WGSL } from './freshCullWgsl.ts';
+import { FRESH_ARG, FRESH_PARAM_WORDS, FRESH_SLICE_FLOATS } from './freshLayout.ts';
+import { FRESH_LANES, SHADOW_FRESH_WGSL } from './freshWgsl.ts';
 import { POOL_COUNTS } from './poolWgsl.ts';
 
 const u32 = (b: Uint8Array) => new Uint32Array(b.buffer, b.byteOffset, b.byteLength >> 2);
 const f32 = (b: Uint8Array) => new Float32Array(b.buffer, b.byteOffset, b.byteLength >> 2);
+type Lanes = Record<string, (...args: number[]) => void>;
+/** A pointer's word, as the kernels' atomics and `workgroupUniformLoad` read it. */
+type Ref = { get: () => number; set: (value: number) => void };
 
-const FUNCTIONS = [
-  'composeShadowPages',
-  'pickPages',
-  'composeRegion',
-  'composeSun',
-  'composeLamp',
-  'crop',
-  'coneDirection',
-  'faceVec',
-  'volumeVec',
-  'poolField',
-  'shadowPoolPlace',
-  ...PAGE_MODEL_FUNCTIONS,
-];
-
-/** The parameters the host wrote (`writeFresh`), as the kernel reads them. */
+/** The parameters the host wrote (`writeFresh`), as the kernels read them. */
 function paramsOf(params: Uint8Array) {
   const words = u32(params),
     floats = f32(params);
@@ -44,103 +27,101 @@ function paramsOf(params: Uint8Array) {
     const at = FRESH_PARAM_WORDS + s * FRESH_SLICE_FLOATS;
     return { emitter: [...floats.subarray(at, at + 4)], far: [...floats.subarray(at + 4, at + 8)] };
   };
+  const [pages, side, layers, rows, blendFirst, blendEnd, capacity] = words;
   return {
-    pages: words[0],
-    side: words[1],
-    layers: words[2],
-    perLayer: words[3],
-    rows: words[4],
+    ...{ pages, side, layers, rows, blendFirst, blendEnd, capacity },
     slices: Array.from({ length: MAX_SHADOW_SLICES }, (_, s) => slice(s)),
   };
 }
 
+const FUNCTIONS = [
+  'composeShadowPages',
+  'sealShadowPages',
+  'pickPages',
+  'cropped',
+  'along3',
+  'composeSun',
+  'coneRay',
+  'composeLamp',
+  'composeRegion',
+  'freshDraw',
+  'poolField',
+  'poolLayer',
+  'faceVec',
+  'volumeVec',
+  'shadowPoolPlace',
+  ...PAGE_MODEL_FUNCTIONS,
+];
+
 /**
- * Runs `composeShadowPages` over its bindings' bytes, in binding order: the shadow buffer, the GPU
- * pool, the draw list, the faces, the cull volumes and commands, the parameters and the cull's
- * dispatch arguments. Returns the page each region drew, −1 for none.
+ * Runs `entry` — `composeShadowPages` or `sealShadowPages` — over its bindings' bytes, in binding
+ * order: the shadow buffer, the GPU pool, the draw list, the views, the volumes, the arguments and
+ * the parameters.
  */
-export function runShadowFresh(...bound: Uint8Array[]) {
-  const [data, state, drawList, faces, volumes, commands, params, args] = bound,
-    regionPage = new Int32Array(MAX_SHADOW_REGIONS);
-  const { composeShadowPages } = shaderRun<Record<string, (lane: number) => void>>(
-    SHADOW_FRESH_WGSL,
-    FUNCTIONS,
-    {
-      ...wgslConstants(SHADOW_FRESH_WGSL),
-      shadows: shadowsOf(data),
-      shadowPool: {
-        counts: u32(state).subarray(0, POOL_COUNTS.length),
-        pages: new Int32Array(state.buffer, state.byteOffset + POOL_COUNTS.length * 4),
-      },
-      drawList: u32(drawList),
-      faces: u32(faces),
-      volumes: u32(volumes),
-      commands: u32(commands),
-      params: paramsOf(params),
-      args: u32(args),
-      faceF: (i: number, v: number) => void (f32(faces)[i] = v),
-      volumeF: (i: number, v: number) => void (f32(volumes)[i] = v),
-      regionPage,
-      layerCount: new Uint32Array(MAX_POOL_LAYERS),
-      workgroupBarrier: () => {},
-    },
-  );
-  for (let lane = 0; lane < FRESH_LANES; lane++) composeShadowPages(lane);
-  return regionPage;
+export function runShadowFresh(entry: string, ...bound: Uint8Array[]) {
+  const [data, state, drawList, faces, volumes, args, params] = bound,
+    counts = u32(state);
+  const lanes = shaderRun<Lanes>(SHADOW_FRESH_WGSL, FUNCTIONS, {
+    ...wgslConstants(SHADOW_FRESH_WGSL),
+    shadows: shadowsOf(data),
+    shadowPool: { pages: new Int32Array(state.buffer, state.byteOffset + POOL_COUNTS.length * 4) },
+    countRead: (i: number) => counts[i],
+    drawList: u32(drawList),
+    faces: u32(faces),
+    volumes: u32(volumes),
+    args: u32(args),
+    params: paramsOf(params),
+    faceF: (i: number, v: number) => void (f32(faces)[i] = v),
+    volumeF: (i: number, v: number) => void (f32(volumes)[i] = v),
+    layerCount: new Uint32Array(16),
+    regionCount: 0,
+    workgroupUniformLoad: (p: Ref) => p.get(),
+  });
+  for (let lane = 0; lane < FRESH_LANES; lane++) lanes[entry](lane);
 }
 
-/** A caster row: its world sphere, and its mobility word (`MOBILITY_*`). */
-type CasterRow = { center: number[]; radius: number; mobility?: number };
-
 /**
- * The rows region `region` keeps of `rows`, by the region cull over every row (`shadowCullScatter`
- * with no list, as `freshPass.ts` dispatches it) against the volume `volumes` holds for it: its two
- * lists, the casters no fragment cuts, then the cutouts.
+ * Runs `shadowCullPairs` over its bindings' bytes, in binding order — the spheres, the
+ * parameters, the volumes, the pairs, the arguments and the rows' mobility —, every invocation of
+ * the dispatch the arguments say.
  */
-export function keptRows(volumes: Uint8Array, region: number, rows: CasterRow[]) {
-  const floats = f32(volumes),
-    words = u32(volumes),
-    at = (k: number) => region * SHADOW_CULL_FLOATS + k,
-    vec = (k: number) => [...floats.subarray(at(k), at(k) + 3)];
-  const face = {
-    center: vec(0),
-    far: floats[at(3)],
-    axis: vec(4),
-    halfAngle: floats[at(7)],
-    right: vec(8),
-    halfU: floats[at(11)],
-    up: vec(12),
-    halfV: floats[at(15)],
-    casters: words[at(16)],
+export function runShadowPairs(...bound: Uint8Array[]) {
+  const [spheres, params, volumes, pairs, args, mobility] = bound,
+    sphereFloats = f32(spheres),
+    faceFloats = f32(volumes),
+    faceWords = u32(volumes),
+    words = u32(args);
+  const face = (k: number) => {
+    const at = (i: number) => k * 20 + i,
+      vec = (i: number) => [...faceFloats.subarray(at(i), at(i) + 3)];
+    return {
+      ...{ center: vec(0), far: faceFloats[at(3)], axis: vec(4), halfAngle: faceFloats[at(7)] },
+      ...{ right: vec(8), halfU: faceFloats[at(11)], up: vec(12), halfV: faceFloats[at(15)] },
+      casters: faceWords[at(16)],
+    };
   };
-  const capacity = rows.length,
-    kept = new Uint32Array(capacity),
-    indirect = new Uint32Array(8);
-  const { shadowCullScatter } = shaderRun<Record<string, (id: number[], lane: number) => void>>(
-    SHADOW_CULL_SHADER,
-    [
-      'shadowCullScatter',
-      'listed',
-      'keepCaster',
-      'keptCount',
-      'keptCorners',
-      'keptAt',
-      'flushTested',
-    ],
+  const { shadowCullPairs } = shaderRun<Lanes>(
+    SHADOW_FRESH_CULL_WGSL,
+    ['shadowCullPairs', 'freshRow', 'keepPair', 'sphereTouches'],
     {
-      ...wgslConstants(SHADOW_CULL_SHADER),
-      uni: { firstFace: 0, faces: 1, sourceBase: rows.length, capacity, identity: 1 },
-      faces: [face],
-      spheres: rows,
-      mobility: rows.map((row) => row.mobility ?? 0),
-      kept,
-      indirect,
-      tested: 0,
-      workgroupBarrier: () => {},
+      ...wgslConstants(SHADOW_FRESH_CULL_WGSL),
+      spheres: new Proxy([], {
+        get: (_, row) => {
+          const at = 4 * Number(row);
+          return { center: [...sphereFloats.subarray(at, at + 3)], radius: sphereFloats[at + 3] };
+        },
+      }),
+      params: paramsOf(params),
+      volumes: new Proxy([], { get: (_, k) => face(Number(k)) }),
+      pairs: u32(pairs),
+      args: words,
+      mobility: u32(mobility),
     },
   );
-  rows.forEach((_, row) => shadowCullScatter([row, 0, 0], row % SHADOW_CULL_GROUP));
-  return [...kept.subarray(0, indirect[1]), ...kept.subarray(capacity - indirect[5]).reverse()];
+  const [groups, regions] = [words[FRESH_ARG.dispatch], words[FRESH_ARG.dispatch + 1]];
+  for (let k = 0; k < regions; k++)
+    for (let x = 0; x < groups * SHADOW_CULL_GROUP; x++)
+      (shadowCullPairs as unknown as (id: number[]) => void)([x, k, 0]);
 }
 
 /** The shadow passes run from their WGSL, by entry point, over their bindings' bytes in binding
@@ -154,7 +135,9 @@ export function runShadowPass(
     allocateShadowPages: () =>
       runShadowAllocation(...(bound() as Parameters<typeof runShadowAllocation>)),
     applyShadowWords: () => runShadowWords(...(bound() as Parameters<typeof runShadowWords>)),
-    composeShadowPages: () => runShadowFresh(...bound()),
+    composeShadowPages: () => runShadowFresh('composeShadowPages', ...bound()),
+    sealShadowPages: () => runShadowFresh('sealShadowPages', ...bound()),
+    shadowCullPairs: () => runShadowPairs(...bound()),
   }[entryPoint ?? ''];
   run?.();
   return !!run;
