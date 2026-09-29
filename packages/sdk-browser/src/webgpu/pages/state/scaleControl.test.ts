@@ -18,6 +18,8 @@ test('the controller follows the GPU time of images drawn at its own scale only'
   assert.equal(control.wanted(), dropped, 'an image drawn before the change is discarded');
   control.observe(null, dropped);
   assert.equal(control.wanted(), dropped, 'an image without a time is discarded');
+  control.observe(40, dropped, false);
+  assert.equal(control.wanted(), dropped, 'a still image is discarded');
 });
 
 test('a fixed scale ignores the timings, and asking again restarts at the maximum', () => {

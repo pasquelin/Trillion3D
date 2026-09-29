@@ -26,7 +26,7 @@ const clampScale = (value: number | undefined, fallback: number) =>
 /** The bounds of `option`: fixed at 1 when absent, the display's own size. */
 export function renderScaleBounds(option: RenderScale | undefined): RenderScaleBounds {
   if (option === 'auto') return { auto: true, min: MIN_RENDER_SCALE, max: 1 };
-  if (typeof option === 'object') {
+  if (option && typeof option === 'object') {
     const max = clampScale(option.max, 1);
     return { auto: true, min: Math.min(max, clampScale(option.min, MIN_RENDER_SCALE)), max };
   }
