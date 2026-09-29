@@ -15,6 +15,7 @@ import { createDeferredLighting } from '../deferred/deferred.ts';
 import type { SurfaceBuffer } from '../../scene/surfaceBuffer.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 import { seeded } from '../../../../../site/examples/kit/random.ts';
+import { SHADOW_TABLE_ENTRIES } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
 
 const SUBGROUP_SHADER = withSubgroupShadowRequests(DIRECT_LIGHTING_SHADER);
 
@@ -124,4 +125,28 @@ test('the contract program and its reflections ask per subgroup exactly when gra
     for (const code of reflections)
       assert.equal(code.includes(SUBGROUP_REQUEST_WGSL), features.length > 0);
   }
+});
+
+test('edge cases: no lane, one lane, the first and last table entries, a cap of zero', () => {
+  const last = SHADOW_TABLE_ENTRIES - 1;
+  const cases: Lane[][] = [
+    [],
+    [{ e: last, helper: false }],
+    [0, last, 0, last, last].map((e) => ({ e, helper: false })),
+    [
+      { e: 0, helper: true },
+      { e: last, helper: false },
+    ],
+  ];
+  for (const cap of [0, 1, 8])
+    for (const group of cases) {
+      const lane = requestBuffer(cap),
+        subgroup = requestBuffer(cap);
+      for (const { e, helper } of group) lane.claim(e, helper);
+      subgroupRequest(group, subgroup.claim);
+      assert.deepEqual(
+        [[...subgroup.buffer.bits].sort(), subgroup.buffer.count, subgroup.buffer.list.sort()],
+        [[...lane.buffer.bits].sort(), lane.buffer.count, lane.buffer.list.sort()],
+      );
+    }
 });
