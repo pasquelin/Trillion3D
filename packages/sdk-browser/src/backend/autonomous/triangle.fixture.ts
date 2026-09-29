@@ -18,13 +18,15 @@ export function liveRows(count: number) {
 /** One triangle cut into one page, and the WebGL2 page path opened on `mesh`, under `source`,
  *  placed by `link`, wearing `material` (a basic double-sided surface by default), under the page
  *  `ceiling` (a host ceiling of two pages by default); `pass` the primitive's (exact clusters).
- *  With `twinScale`, a second mesh draws the same primitive at that scale. */
+ *  With `twinScale`, a second mesh draws the same primitive at that scale; `corners` is its index
+ *  page, the source's numbers of the triangle's corners. */
 export function triangleBackend(
   {
     pass = 'exact-clusters',
     twinScale,
+    corners = [0, 1, 2],
     ...link
-  }: { placements?: PlacementRows; pass?: string; twinScale?: number } = {},
+  }: { placements?: PlacementRows; pass?: string; twinScale?: number; corners?: number[] } = {},
   material: G.GraphSurface = G.basicSurface({ side: G.DOUBLE_SIDE }),
   ceiling: Pick<BackendContext, 'maxResidentPages' | 'residentPagesDefault'> = {
     maxResidentPages: 2,
@@ -87,7 +89,7 @@ export function triangleBackend(
     ]),
     readGeometryPage: paged.readGeometryPage,
     // The index page: the corners of the triangle, as the source numbers them.
-    readPage: async () => Uint32Array.of(0, 1, 2),
+    readPage: async () => Uint32Array.from(corners),
     ...ceiling,
   });
   const camera = G.perspectiveCamera(55, 1, 0.1, 100);
