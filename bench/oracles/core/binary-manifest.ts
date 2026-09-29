@@ -1,4 +1,4 @@
-// Oracle for batch F, binary manifest side: `packages/sdk-core/src/manifest/binaryLayout.ts:11-26` copied as is.
+// Oracle for batch F, binary manifest side: the `writeSha` of `packages/sdk-core/src/manifest/binaryLayout.ts:11-26` copied as is (now `tests/fixtures/manifestBinaryEncodeChecks.ts`).
 
 /** The former validation: a regular expression, then a second reading of the digest. */
 function referenceHexDigits(sha: string) {
