@@ -12,6 +12,7 @@ test('orthographic deformation remains visible at any depth', () => {
   camera.perspective = 0;
   camera.near = 0.1;
   const root = {
+    pages: [],
     world: new Matrix4(),
     worldBox: new Float64Array([-1, -1, -1001, 1, 1, -999]),
   } as ClusterRoot<PageRec>;
@@ -27,6 +28,7 @@ test('off-axis depth motion uses the existing conservative projected-error bound
   camera.perspective = 1;
   camera.near = 0.1;
   const root = {
+    pages: [],
     world: new Matrix4(),
     worldBox: new Float64Array([10, 0, -10, 10, 0, -10]),
   } as ClusterRoot<PageRec>;
