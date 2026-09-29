@@ -1,4 +1,8 @@
-import { paletteReach, PALETTE_FLOATS } from '../../../sdk-core/src/world/animation/skeleton.ts';
+import {
+  paletteReach,
+  paletteStretch,
+  PALETTE_FLOATS,
+} from '../../../sdk-core/src/world/animation/skeleton.ts';
 import type { Skeleton } from '../../../sdk-core/src/world/animation/skeleton.ts';
 import type { WaterSurface } from '../../../sdk-core/src/fluids/waterSurface.ts';
 import { invertMatrix4 } from '../../../sdk-core/src/math/matrix/matrix4Inverse.ts';
@@ -37,25 +41,6 @@ function smallestScale(m: ArrayLike<number>) {
   return Math.min(column(0), column(1), column(2));
 }
 
-/** The most a joint's linear part stretches a vector, bounded by `√(‖L‖₁·‖L‖∞)` (one at rest,
- *  never below the true norm): how far a morph's displacement moves once
- *  the joints carry it. */
-function paletteStretch(palette: Float32Array, at: number, joints: number) {
-  let most = 1;
-  for (let j = 0; j < joints; j++) {
-    const m = at + j * PALETTE_FLOATS,
-      cell = (row: number, c: number) => Math.abs(palette[m + row * 4 + c]);
-    let rows = 0,
-      columns = 0;
-    for (let k = 0; k < 3; k++) {
-      rows = Math.max(rows, cell(k, 0) + cell(k, 1) + cell(k, 2));
-      columns = Math.max(columns, cell(0, k) + cell(1, k) + cell(2, k));
-    }
-    most = Math.max(most, Math.sqrt(rows * columns));
-  }
-  return most;
-}
-
 /** True when the `size` floats at `a` and at `b` of `block` differ. */
 function differs(block: Float32Array, a: number, b: number, size: number) {
   for (let k = 0; k < size; k++) if (block[a + k] !== block[b + k]) return true;
@@ -83,16 +68,18 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
   });
   const block = new Float32Array(Math.max(1, floats)),
     words = new Uint32Array(block.buffer);
-  let first = true;
+  let first = true,
+    /** Whether the last waves written moved a phase: `writeWaves`'s second answer. */
+    waveMoved = false;
   /** The waves of this frame at `wave`, the world matrix and its inverse at `world`; returns the
-   *  most they move a point, in the placement's units, and whether a phase moved. */
+   *  most they move a point, in the placement's units; `waveMoved` says whether a phase moved. */
   const writeWaves = (entry: Deformed, world: number, wave: number) => {
     const model = entry.mesh.waves!.waveModel;
     block.set(entry.world.elements, world);
     invertMatrix4(inverse, entry.world.elements);
     block.set(inverse, world + 16);
-    let crest = 0,
-      moved = false;
+    let crest = 0;
+    waveMoved = false;
     for (let w = 0; w < entry.shape.waves; w++) {
       const at = wave + w * WAVE_FLOATS,
         present = w < model.count;
@@ -104,10 +91,10 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
       block[at + 4] = present ? model.lateral[w] : 0;
       block[at + 5] = present ? model.phase[w] : 0;
       if (first) block[at + 6] = block[at + 5];
-      moved ||= block[at + 6] !== block[at + 5];
+      waveMoved ||= block[at + 6] !== block[at + 5];
       if (present) crest += model.amplitude[w] + model.lateral[w];
     }
-    return { reach: crest / smallestScale(entry.world.elements), moved };
+    return crest / smallestScale(entry.world.elements);
   };
   /** Writes placement `i`'s record for this frame; returns how far it moves a vertex. */
   const write = (i: number, entry: Deformed, skipped: (i: number, reach: number) => boolean) => {
@@ -143,9 +130,8 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
       kinds |= KIND_MORPH;
     }
     if (shape.waves && mesh.waves) {
-      const waved = writeWaves(entry, at + layout.world, at + layout.wave);
-      most += waved.reach;
-      moved ||= waved.moved;
+      most += writeWaves(entry, at + layout.world, at + layout.wave);
+      moved ||= waveMoved;
       kinds |= KIND_WAVE;
     }
     if (kinds && skipped(i, most)) [kinds, most] = [0, 0];
@@ -157,11 +143,34 @@ export function createDeformationFrame(placed: readonly (Deformed | null)[]) {
     moving[i] = moved || words[at] !== words[at + 1] ? 1 : 0;
     return most;
   };
+  /** Whether placement `i`'s morph weights or waves moved since its record was written: what a
+   *  mixer or a clock changes without moving a node, which no scene revision announces. */
+  const stale = (i: number, entry: Deformed) => {
+    const layout = recordLayout(entry.shape),
+      at = bases[i] - 1;
+    const weights = entry.mesh.morphTargetInfluences;
+    for (let t = 0; weights && t < entry.shape.targets; t++)
+      if (Math.fround(weights[t] ?? 0) !== block[at + layout.weights + t]) return true;
+    const model = entry.mesh.waves?.waveModel;
+    for (let w = 0; model && w < Math.min(model.count, entry.shape.waves); w++)
+      if (Math.fround(model.phase[w]) !== block[at + layout.wave + w * WAVE_FLOATS + 5])
+        return true;
+    return false;
+  };
   return {
     block,
     bases,
     reach,
     moving,
+    /** Whether the next frame's records differ from this one's, or this one moved from the last:
+     *  a frame that cannot be held, nor count as quiet. */
+    pending() {
+      for (let i = 0; i < placed.length; i++) {
+        const entry = placed[i];
+        if (entry && (moving[i] === 1 || stale(i, entry))) return true;
+      }
+      return false;
+    },
     /**
      * This frame's records, the last frame's kept beside them. `skipped(i, reach)` says whether
      * placement `i`, moving a vertex by at most `reach` of its units, projects that below the

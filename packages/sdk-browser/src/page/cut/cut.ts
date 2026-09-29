@@ -1,6 +1,7 @@
 import { frustumExcludesBox, maxStretch, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import type { LightPages } from '../../../../sdk-core/src/scene/light-shadow/pageOverlap.ts';
 import { castsNoShadow, openToCamera, selectFlat } from './select.ts';
+import { worldStretch } from './logic.ts';
 import {
   IDENTITY_WORLD,
   createSelectionResult,
@@ -76,11 +77,21 @@ export function selectVisiblePages<T extends PageRecord>(
     // A parked instance-buffer row places nothing: its root waits in the tables, untested. A
     // light's cut takes no root that casts no shadow.
     if (root.parked || castsNoShadow(root.mark, state.light)) continue;
-    const box = root.worldBox;
+    const box = root.worldBox,
+      // A deformation's reach, in the world: its units stretched by the root's placement (#357).
+      g = root.reach ? root.reach * worldStretch(root) : 0;
     if (
       box &&
       !openToCamera(state, root) &&
-      frustumExcludesBox(worldPlanes, box[0], box[1], box[2], box[3], box[4], box[5])
+      frustumExcludesBox(
+        worldPlanes,
+        box[0] - g,
+        box[1] - g,
+        box[2] - g,
+        box[3] + g,
+        box[4] + g,
+        box[5] + g,
+      )
     ) {
       state.frustumRejected++;
       continue;
