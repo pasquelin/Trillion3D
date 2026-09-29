@@ -3253,7 +3253,8 @@
       "settled": "Bir rapor mevcut durumun hiçbir şey istemediğini kanıtladığında doğru: görüntü tutulabilir.",
       "receive": "Bir istek raporu döndü; sonraki plan onu okur. Daha yenisi okunmamış olanın yerini alır.",
       "commit": "Karenin listesindeki `[from, to)` sayfaları kodlandı, `from + i` sayfası `modes[i]` içinde: çizimleri kimse okumadan önce tamamlanır. Son parti listeyi kapatır.",
-      "resize": "Başka boyutta havuz; sayfaları korunur, dizileri yeniden oluşturulur: her sayfanın nereye gittiğini döndürür."
+      "resize": "Başka boyutta havuz; sayfaları korunur, dizileri yeniden oluşturulur: her sayfanın nereye gittiğini döndürür.",
+      "gpu": "GPU’nun ayırması (`mirror.ts`): sayfaları GPU’nun eşleyip eşlemediği ve ana makinenin ondan istedikleri."
     }
   },
   "ShadowStaleReason": {
@@ -7544,7 +7545,8 @@
       "layoutEpoch": "O karenin okuduğu tablo düzeni (`ShadowTable.layoutEpoch`).",
       "stamp": "O kare kodlandığında planın damgası (`ShadowPlan.stamp`).",
       "count": "İstenen girdiler, belki `entries`’in tuttuğundan fazla: kalanlar sonraki karede yeniden ister.",
-      "entries": "İstenen girdiler, en fazla ilk `count` tanesi."
+      "entries": "İstenen girdiler, en fazla ilk `count` tanesi.",
+      "pool": "GPU ayırdığında, o karenin ayırmasından sonraki GPU ayırıcısının havuzu."
     }
   },
   "VehicleDriver": {
