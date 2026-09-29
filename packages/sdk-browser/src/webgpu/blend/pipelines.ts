@@ -12,9 +12,10 @@ import {
   type BlendModePipelines,
 } from './stagePipelines.ts';
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts';
-import { BLEND_EQUATIONS, BLEND_MODES } from '../../scene/materialBlending.ts';
+import { BLEND_MODES } from '../../scene/materialBlending.ts';
 import { COVERAGE_EQUATIONS, filtersDisplay } from './equations.ts';
 import { displayTargets } from './displayFilter.ts';
+import { SHARE_TARGET } from '../../lighting/deferred/asIsShare.ts';
 import { createRoutedPipelines } from './routedPipelines.ts';
 import { createWaterPass, type WaterPass } from '../water/pass.ts';
 import {
@@ -23,8 +24,8 @@ import {
   type DiagnosticGpuVariant,
 } from '../../diagnostic/gpuVariant.ts';
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts';
-/** The pass's targets in `mode`; `filtered`, with the display layers (`displayFilter.ts`);
- *  `share`, with the as-is share of an image that can show a debug view, else an empty slot. */
+/** The pass's targets in `mode`; `filtered`, with the display layers (`displayFilter.ts`); `share`,
+ *  with the share a debug view or the temporal pass reads (`asIsShare.ts`), else an empty slot. */
 export const blendTargets = (
   mode: Blending,
   mask: GPUColorWriteFlags,
@@ -39,8 +40,7 @@ export const blendTargets = (
     blend: COVERAGE_EQUATIONS[mode],
   },
   ...(feedback ? [{ format: FEEDBACK_FORMAT }] : []),
-  // The debug share left under a lit transparent: every mode covers it at its alpha (#365).
-  share ? { format: 'r8unorm', blend: BLEND_EQUATIONS.normal } : null,
+  share ? SHARE_TARGET : null, // every mode covers it at its alpha (#365), green included (#833)
   ...(filtered ? displayTargets(mode) : []),
 ];
 /** The blend fragment's values, in their order: what a feedback-free entry keeps. */
@@ -146,7 +146,7 @@ export async function createWebgpuBlendPipelines(
       );
   }
   const blendModule = device.createShaderModule({ code: code });
-  // Two lazy sets (#365): without a debug view the share slot stays empty, no r8 target is bound.
+  // Two lazy sets (#365): with no reader of the share its slot stays empty, no target is bound.
   const sets = [false, true].map((withShare) => ({
     perMode: pipelinesByMode(device, (mode) =>
       stageDescriptors(

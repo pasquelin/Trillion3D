@@ -1,11 +1,20 @@
-import { createAsIsShare } from '../../../lighting/deferred/asIsShare.ts';
+import { AS_IS_SHARE_BYTES, createAsIsShare } from '../../../lighting/deferred/asIsShare.ts';
 import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { readsAsIs } from './lightResources.ts';
 
-/** Whether the transparents write an as-is share: a blended image that can show a debug view.
- *  Any other scene draws, and allocates, exactly what it did before the share (#365). */
+/** Whether this image draws particles: each writes its coverage as the reactive value (#833). */
+const drawsParticles = ({ context, run }: WebgpuPagesRuntime) =>
+  !!context.particles && run.diagnostic === 'beauty';
+
+/** Whether the transparents write the share: a blended image that can show a debug view (#365),
+ *  or whose temporal pass reads their coverage as the reactive value (#833). */
+export const blendWritesShare = (rt: WebgpuPagesRuntime) =>
+  rt.blendState.blendGpu.length > 0 && (readsAsIs(rt) || !!rt.gpu.temporalWanted);
+
+/** Whether the image has a share target: its transparents or its particles write it. Any other
+ *  scene draws, and allocates, exactly what it did before the share (#365). */
 export const wantsAsIsShare = (rt: WebgpuPagesRuntime) =>
-  rt.blendState.blendGpu.length > 0 && readsAsIs(rt);
+  blendWritesShare(rt) || drawsParticles(rt);
 
 /** The share target at `width`×`height`, over the opaque flags: made with the targets or later. */
 export function makeAsIsShare(
@@ -17,15 +26,15 @@ export function makeAsIsShare(
   rt.gpu.asIsShare = createAsIsShare(device, rt.gpu.surfaces!.views()[3], width, height);
 }
 
-/** The share the transparents blend into this image, when it wants one (`wantsAsIsShare`). */
+/** The share the transparents blend into this image, when they write one (`blendWritesShare`). */
 export const activeAsIsShare = (rt: WebgpuPagesRuntime) =>
-  wantsAsIsShare(rt) ? rt.gpu.asIsShare : undefined;
+  blendWritesShare(rt) ? rt.gpu.asIsShare : undefined;
 
 /**
- * Seeds, from the opaque flags, the share the transparents blend into this image, and returns it:
- * the one made with the targets, or one made at the first image that wants it and kept with them.
- * An image with no debug view to keep, or no blend pipelines, runs no seed pass, makes no r8 target
- * and returns nothing.
+ * Seeds, from the opaque flags, the share the transparents and particles blend into this image,
+ * and returns it: the one made with the targets, or one made at the first image that wants it and
+ * kept with them. An image where neither writes it runs no seed pass, makes no share target and
+ * returns nothing.
  */
 export function seedAsIsShare(
   rt: WebgpuPagesRuntime,
@@ -33,10 +42,11 @@ export function seedAsIsShare(
   encoder: GPUCommandEncoder,
 ) {
   const { gpu } = rt;
-  if (!rt.vis.blendPipelines || !wantsAsIsShare(rt) || !gpu.surfaces) return undefined;
+  const written = (!!rt.vis.blendPipelines && blendWritesShare(rt)) || drawsParticles(rt);
+  if (!written || !gpu.surfaces) return undefined;
   if (!gpu.asIsShare) {
     const [width, height] = gpu.allocatedSize;
-    gpu.targetBytes += width * height;
+    gpu.targetBytes += width * height * AS_IS_SHARE_BYTES;
     makeAsIsShare(rt, device, width, height);
   }
   gpu.asIsShare!.seed(encoder);

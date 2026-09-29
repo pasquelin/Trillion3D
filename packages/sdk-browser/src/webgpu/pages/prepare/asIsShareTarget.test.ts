@@ -1,6 +1,6 @@
 // #365: the transparents' as-is share keeps a debug view untouched under a lit transparent. A
 // blended scene with no debug view must draw exactly what it drew before that share: no seed pass,
-// no r8 target, no share attachment in the transparent pass.
+// no share target, no share attachment in the transparent pass.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeDevice } from '../../../../../../tests/kit/gpu/fakeDevice.ts';
@@ -23,8 +23,10 @@ function blendedImage() {
   const rt = {
     vis: { blendPipelines: {}, asIsShown: false },
     run: { diagnostic: 'beauty' },
+    context: {},
     blendState: { blendGpu: [{}] },
     gpu: {
+      temporalWanted: false,
       surfaces: { views: () => [{}, {}, {}, {}] },
       allocatedSize: [8, 4],
       targetBytes: 100,
@@ -34,7 +36,7 @@ function blendedImage() {
   return { rt, encoder, labels, gpuDevice, textures };
 }
 
-test('a blended scene with no debug view runs no share pass and makes no r8 target', () => {
+test('a blended scene with no debug view runs no share pass and makes no share target', () => {
   const { rt, encoder, labels, gpuDevice, textures } = blendedImage();
   assert.equal(seedAsIsShare(rt, gpuDevice, encoder), undefined);
   assert.deepEqual(labels, [], 'no seed pass');
@@ -47,9 +49,9 @@ test('a blended scene with no debug view runs no share pass and makes no r8 targ
   assert.equal(seedAsIsShare(rt, gpuDevice, encoder), share, 'kept with the targets');
   assert.deepEqual(
     textures.map(({ format, size }) => [format, size]),
-    [['r8unorm', { width: 8, height: 4 }]],
+    [['rg8unorm', { width: 8, height: 4 }]],
   );
-  assert.equal(rt.gpu.targetBytes, 100 + 8 * 4);
+  assert.equal(rt.gpu.targetBytes, 100 + 8 * 4 * 2);
   assert.deepEqual(labels, ['Trillion3D as-is share seed', 'Trillion3D as-is share seed']);
 });
 
@@ -78,10 +80,23 @@ test('the blend pipelines compile the share target only for an image that can sh
   const plain = mountDevice();
   const built = await createWebgpuBlendPipelines(plain.device, items);
   assert.deepEqual(plain.pipelines, ['fs', 'fs', 'fs']);
-  assert.equal(plain.formats('fs')[2], undefined, 'an empty slot, no r8 target');
+  assert.equal(plain.formats('fs')[2], undefined, 'an empty slot, no share target');
   built.blendPipelines.at(0, false, true);
   assert.equal(plain.pipelines.length, 6, 'the share set compiles at its first draw');
   const debug = mountDevice();
   await createWebgpuBlendPipelines(debug.device, items, undefined, true, undefined, true);
-  assert.equal(debug.formats('fs')[2], 'r8unorm', 'precompiled with the share');
+  assert.equal(debug.formats('fs')[2], 'rg8unorm', 'precompiled with the share');
+});
+
+// #833: the temporal pass reads the blends' and particles' coverage from the same target.
+test('a temporal image or particles alone seed the share, as the reactive value', () => {
+  const { rt, encoder, labels, gpuDevice } = blendedImage();
+  rt.gpu.temporalWanted = true;
+  assert.ok(seedAsIsShare(rt, gpuDevice, encoder), 'blends under the temporal pass');
+  rt.gpu.temporalWanted = false;
+  rt.blendState.blendGpu = [];
+  assert.equal(seedAsIsShare(rt, gpuDevice, encoder), undefined, 'nothing writes it');
+  rt.context.particles = [] as unknown as WebgpuPagesRuntime['context']['particles'];
+  assert.ok(seedAsIsShare(rt, gpuDevice, encoder), 'particles alone');
+  assert.equal(labels.length, 2);
 });
