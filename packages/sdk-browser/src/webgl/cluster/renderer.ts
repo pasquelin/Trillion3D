@@ -1,4 +1,5 @@
-import { capture, receivers, target } from '../../reflections/captureGl.ts';
+import { capture, mirrorMeshes, receivers, target } from '../../reflections/captureGl.ts';
+import { REFLECTION_RESOLVE_UNITS, reflectionResolveExtent } from '../../reflections/resolveGl.ts';
 import type { ClusterDrawMesh, WholeMesh } from '../../cluster/batchMesh.ts';
 import { ATTRIBUTES, WebglClusterGeometry } from './geometry.ts';
 import { WebglClusterTextures } from './textures.ts';
@@ -31,10 +32,13 @@ export class WebglClusterRenderer {
   private submission: WebglClusterSubmission;
   private backdrop: WebglClusterBackdrop;
   private reflection: WebglClusterBackdrop;
+  /** Reduced-resolution mirror trace: the receiver-only image the main pass samples. */
+  private resolve: WebglClusterBackdrop;
   private copies = new WebglClusterCopies<SceneCopy>();
   copySubmissions = 0;
   backdropSubmissions = 0;
   backdropPasses = 0;
+  resolvePasses = 0;
   toneCurve: number = TONE_MAPPING_RANK.aces;
   readonly pass: ClusterMaterialPass;
   /** The session's deformation records (#357), sent at each frame; shared with the display's. */
@@ -58,33 +62,27 @@ export class WebglClusterRenderer {
     this.state = display?.state ?? new WebglClusterState(gl);
     this.backdrop = display?.backdrop ?? new WebglClusterBackdrop(gl, BACKDROP_UNITS);
     this.reflection = display?.reflection ?? target(gl);
+    this.resolve =
+      display?.resolve ?? new WebglClusterBackdrop(gl, REFLECTION_RESOLVE_UNITS, undefined, true);
+    const { textures, state, geometry, deformation } = this;
     this.pass = new ClusterMaterialPass({
       uniforms: new WebglClusterMaterialUniforms(gl, (name) => this.at(name)),
       matrices: new Matrix3UniformCache(gl, (name) => this.at(name)),
-      textures: this.textures,
-      state: this.state,
+      textures,
+      state,
       linear: !!display,
     });
     gl.useProgram(program);
     setClusterSamplers(gl, (name) => this.at(name));
-    const parts = {
-      geometry: this.geometry,
-      state: this.state,
-      pass: this.pass,
-      deformation: this.deformation,
-    };
-    this.submission = new WebglClusterSubmission(
-      gl,
-      { ...parts, leaves: this.validation.leaves },
-      (name) => this.at(name),
-    );
+    const parts = { geometry, state, pass: this.pass, deformation, leaves: this.validation.leaves };
+    this.submission = new WebglClusterSubmission(gl, parts, (name) => this.at(name));
   }
   /** Triangles the frame submitted, every pass included. */
   get triangles() {
     return this.submission.triangles;
   }
   get backdropBytes() {
-    return this.backdrop.bytes + this.reflection.bytes;
+    return this.backdrop.bytes + this.reflection.bytes + this.resolve.bytes;
   }
   private at(name: string) {
     if (!this.uniforms.has(name))
@@ -124,9 +122,12 @@ export class WebglClusterRenderer {
     this.pass.beginFrame(camera, gl.getParameter(gl.VIEWPORT) as Int32Array);
     this.geometry.beginFrame();
     this.submission.beginFrame();
-    const mirrors = receivers(drawn);
-    this.backdropSubmissions = this.copySubmissions = 0;
+    const mirrors = receivers(drawn),
+      mirroring = mirrors ? mirrorMeshes(drawn) : [];
+    this.backdropSubmissions = this.copySubmissions = this.resolvePasses = 0;
     gl.uniform1i(this.at('reflectionEnabled'), 0);
+    gl.uniform1i(this.at('reflectionResolve'), 0);
+    gl.uniform1i(this.at('reflectionOutput'), 0);
     if (mirrors) pass?.('Trillion3D WebGL2 reflection capture');
     capture(gl, this.reflection, mirrors, this.at('reflectionCapture'), () => {
       this.setOutput(false);
@@ -135,6 +136,24 @@ export class WebglClusterRenderer {
         this.submission.submit(diagnosticMeshes, camera, false, true);
       this.copySubmissions += this.submission.submit(plain, camera, false, true);
     });
+    // The receivers alone, traced once into the reduced image. `begin` releases the resolve's
+    // units; the frozen source is bound again for the trace they aliased before it (#1292).
+    if (mirroring.length) {
+      pass?.('Trillion3D WebGL2 reflection resolve');
+      const viewport = gl.getParameter(gl.VIEWPORT) as Int32Array;
+      this.resolve.begin(null, reflectionResolveExtent(viewport[2], viewport[3]));
+      this.reflection.bind();
+      gl.uniform1i(this.at('reflectionEnabled'), 1);
+      gl.uniform1i(this.at('reflectionOutput'), 1);
+      this.setOutput(false);
+      this.submission.submit(mirroring, camera, false);
+      this.resolve.end();
+      this.resolve.bind();
+      gl.uniform1i(this.at('reflectionOutput'), 0);
+      gl.uniform1i(this.at('reflectionEnabled'), 0);
+      gl.uniform1i(this.at('reflectionResolve'), 1);
+      this.resolvePasses = 1;
+    } else this.resolve.dispose();
     if (transmissive.length) {
       pass?.('Trillion3D WebGL2 transmission backdrop');
       this.backdrop.begin(scene.background);
@@ -169,6 +188,7 @@ export class WebglClusterRenderer {
       for (const shared of [
         this.backdrop,
         this.reflection,
+        this.resolve,
         this.geometry,
         this.textures,
         this.deformation,
