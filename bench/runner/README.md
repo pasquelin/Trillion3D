@@ -194,6 +194,14 @@ default, also drawn from the seed). `tests/browser/probes/public-scenes.ts` read
 guarantee — a DAG that climbs above level 0 wherever there is more than one cluster to coarsen, and
 a mirrored mapping that costs the simplification nothing — in a tenth of a second, without a GPU.
 
+An **aerial** scene is generated too (#410): an open world's pattern, cooked in seconds — 4 × 4 km
+of rolling ground in 64 tiles, a few props (trees, bushes, houses, rocks) written once and placed by
+thousands of nodes, about 39 M instanced triangles on a source of 0.6 M, and street lamps as
+`KHR_lights_punctual` point lights. The `generale` view flies over it:
+
+    node bench/runner/scenes/aerial.ts --seed 410 [--props 3600] [--lamps 600]
+    node bench/runner/assets.ts --only aerial-410
+
 Resource base URL is where harness serves sources for compiled glTF texture fetch. Cache fingerprint is `key` in `manifest.json`, recorded in `mesure.json`: comparisons require identical keys.
 
 ## Navigation image regression proof
