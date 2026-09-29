@@ -69,7 +69,7 @@ export function createExplorerHostFrame(session: ExplorerSession, inputs: Inputs
     camera,
     active: () => state.active,
     opened: context,
-    renew: options.onRowsOutgrown,
+    renew: options.onPartitionOutgrown,
     budget: frameBudget,
   });
   const render = createExplorerRender(session, {

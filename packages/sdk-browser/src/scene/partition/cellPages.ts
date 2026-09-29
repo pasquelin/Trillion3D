@@ -9,12 +9,11 @@
  * its primitive from the open.
  */
 import type { ManifestPages } from '../../../../sdk-core/src/manifest/paged.ts';
-import type { TableCell } from '../../../../sdk-core/src/scene/core/tablePartition.ts';
 import type { PlacedMesh } from './rows.ts';
 import type { WorldRootsHold } from '../worldRoots.ts';
 
 /** What a placed cell holds from one source, counted per cell. */
-type Holder = { hold(cell: number): Promise<void>; release(cell: number): void };
+type Holder = Pick<WorldRootsHold, 'hold' | 'release'>;
 
 /** What a partition's cells hold: each rank's placed mesh, and the manifest pages the cells hold.
  *  Kept beside the cells, not on them: a model's public record carries the cells. */
@@ -31,17 +30,33 @@ export function withHoldings<T extends object>(holding: CellHoldings, cells: T):
 /** What the cells `withHoldings` returned hold. */
 export const cellHoldings = (cells: object) => holdings.get(cells)!;
 
+/** The holds of the cells placed on `pages` and `world`, each cell's mesh pages read through
+ *  `meshPagesOf` when it is held and kept until it is released: its index page may close first. */
 export function createCellPages(
   pages: ManifestPages | undefined,
-  cells: readonly TableCell[],
-  world?: Pick<WorldRootsHold, 'hold' | 'release'>,
+  meshPagesOf: (cell: number) => readonly string[],
+  world?: Holder,
 ) {
   const holders: Holder[] = world ? [world] : [];
-  if (pages)
+  if (pages) {
+    // Counted per hold landed: a cell that left and came back while its first hold read lands
+    // twice, and each release lets one go.
+    const slotsOf = new Map<number, { slots: readonly string[]; holds: number }>();
     holders.push({
-      hold: (cell) => pages.hold(cells[cell].meshPages),
-      release: (cell) => pages.release(cells[cell].meshPages),
+      async hold(cell) {
+        const slots = meshPagesOf(cell);
+        await pages.hold(slots);
+        const own = slotsOf.get(cell);
+        if (own) own.holds++;
+        else slotsOf.set(cell, { slots, holds: 1 });
+      },
+      release(cell) {
+        const own = slotsOf.get(cell)!;
+        pages.release(own.slots);
+        if (--own.holds === 0) slotsOf.delete(cell);
+      },
     });
+  }
   /** The hold of each cell whose pages are held, and the cells whose hold failed while placed. A
    *  cell that leaves while its hold reads releases once it lands: a hold that fails counts
    *  nothing, and releasing it too would drop a page another cell holds. */

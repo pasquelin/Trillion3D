@@ -8,8 +8,10 @@ use std::{fmt::Write as _, ops::Range};
 
 mod cells;
 mod read;
+mod rows;
 pub(crate) use cells::*;
 pub(crate) use read::*;
+pub(crate) use rows::*;
 
 /// The most bytes a region page of more than one record holds: one stream unit.
 pub(crate) const PAGE_BYTES: usize = crate::STREAM_BUNDLE_BYTES;
@@ -60,6 +62,9 @@ pub(crate) fn write_page(
 /// The region page over a range of records, its version aside; `true` when it is written, not
 /// only measured: only then does it write the files beside it.
 pub(crate) type Leaf<'a> = dyn Fn(Range<usize>, bool) -> Result<Value> + 'a;
+/// What an index page and the root list beside each page they name, from that page's range of
+/// records, under `parents`: for the cell index, the core parents its cells hang under (#575).
+pub(crate) type Beside<'a> = dyn Fn(Range<usize>) -> String + 'a;
 
 /// The records of one kind of page, their boxes, and where each record starts once written.
 pub(crate) struct Pager<'a> {
@@ -73,6 +78,8 @@ pub(crate) struct Pager<'a> {
     bounds: Option<&'a [Box6]>,
     directory: &'a Path,
     leaf: &'a Leaf<'a>,
+    /// What an index page lists beside each page; `None`, nothing.
+    beside: Option<&'a Beside<'a>>,
     /// Whether each range measured is a region page.
     measured: BTreeMap<(usize, usize), bool>,
     /// Every page written and its slot, a region page with the records it lists: the region pages
@@ -89,6 +96,7 @@ impl<'a> Pager<'a> {
         bounds: Option<&'a [Box6]>,
         directory: &'a Path,
         leaf: &'a Leaf<'a>,
+        beside: Option<&'a Beside<'a>>,
     ) -> Result<Self> {
         let mut starts = vec![0];
         for record in records {
@@ -101,6 +109,7 @@ impl<'a> Pager<'a> {
             bounds,
             directory,
             leaf,
+            beside,
             measured: BTreeMap::new(),
             written: Vec::new(),
         };
@@ -131,9 +140,10 @@ impl<'a> Pager<'a> {
         Ok(fits)
     }
 
-    /// The slots of the pages listing `region`'s records in order, each written: its halving
-    /// opened, the node of most records first, until `FAN_OUT` pages or every one is a region page.
-    fn slots(&mut self, region: &Region) -> Result<Vec<String>> {
+    /// The slots of the pages listing `region`'s records in order, each written, and what is
+    /// listed beside each: its halving opened, the node of most records first, until `FAN_OUT`
+    /// pages or every one is a region page.
+    fn slots(&mut self, region: &Region) -> Result<(Vec<String>, Vec<String>)> {
         let mut pages = vec![region];
         while pages.len() < FAN_OUT {
             let mut open = Vec::new();
@@ -151,18 +161,26 @@ impl<'a> Pager<'a> {
                 .expect("a region that does not fit");
             pages.splice(at..=at, halves);
         }
-        pages.into_iter().map(|page| self.write(page)).collect()
+        let beside = |page: &Region| self.beside.map(|beside| beside(page.cells.clone()));
+        let listed = pages.iter().filter_map(|page| beside(page)).collect();
+        let slots = pages.into_iter().map(|page| self.write(page));
+        Ok((slots.collect::<Result<_>>()?, listed))
     }
 
     /// Writes `region` as a region page, or as an index page over its slots; its slot.
     fn write(&mut self, region: &Region) -> Result<String> {
         let cells = region.cells.clone();
         let leaf = self.fits(region)?;
-        let body = if leaf {
-            self.region(cells.clone(), true)?
+        let mut body = json!({"version": self.kind.version});
+        if leaf {
+            body = self.region(cells.clone(), true)?;
         } else {
-            json!({"version": self.kind.version, "pages": self.slots(region)?})
-        };
+            let (slots, listed) = self.slots(region)?;
+            body["pages"] = json!(slots);
+            if self.beside.is_some() {
+                body["parents"] = json!(listed);
+            }
+        }
         let boxes = self.bounds.map_or(&[][..], |bounds| &bounds[cells.clone()]);
         let slot = write_page(self.kind, self.directory, &body, boxes)?;
         let records = leaf.then_some(cells);
@@ -170,10 +188,13 @@ impl<'a> Pager<'a> {
         Ok(slot)
     }
 
-    /// The root's slots over `tree`, the empty ones last.
-    pub(crate) fn root(&mut self, tree: &Region) -> Result<Vec<String>> {
-        let mut slots = self.slots(tree)?;
+    /// The root's slots over `tree`, the empty ones last, and what is listed beside them.
+    pub(crate) fn root(&mut self, tree: &Region) -> Result<(Vec<String>, Vec<String>)> {
+        let (mut slots, mut listed) = self.slots(tree)?;
         slots.resize(FAN_OUT, "0".repeat(SLOT_WIDTH));
-        Ok(slots)
+        if self.beside.is_some() {
+            listed.resize(FAN_OUT, String::new());
+        }
+        Ok((slots, listed))
     }
 }
