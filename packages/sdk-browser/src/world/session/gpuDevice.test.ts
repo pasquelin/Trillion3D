@@ -40,17 +40,17 @@ test('a feature the URL forces off is neither asked for nor published', async ()
   assert.deepEqual(grantedGpuFeatures(device), ['texture-compression-bc']);
 });
 
-test('the device asks the colour bytes the water surface stage writes, up to the adapter', async () => {
+// #1248: the device carries the adapter's own colour bytes, whatever the engine's widest pass.
+test("the device asks the adapter's own colour bytes per sample, above or below the water pass", async () => {
   const water = colorBytesPerSample(waterSurfaceTargets(true).map((target) => target.format));
   assert.ok(water > 32, "the water surface stage writes above WebGPU's default");
-  const { adapter, limitsAsked } = adapterOffering([], { maxColorAttachmentBytesPerSample: 128 });
-  await requestExplorerDevice(adapter, '');
-  assert.ok(limitsAsked[0].maxColorAttachmentBytesPerSample >= water);
-  assert.ok(limitsAsked[0].maxColorAttachmentBytesPerSample <= 128);
-  // An adapter that offers less is asked no more: its device refuses the water pass by name.
-  const small = adapterOffering([], { maxColorAttachmentBytesPerSample: 32 });
-  await requestExplorerDevice(small.adapter, '');
-  assert.equal(small.limitsAsked[0].maxColorAttachmentBytesPerSample, 32);
+  for (const offered of [128, water, 32]) {
+    const { adapter, limitsAsked } = adapterOffering([], {
+      maxColorAttachmentBytesPerSample: offered,
+    });
+    await requestExplorerDevice(adapter, '');
+    assert.equal(limitsAsked[0].maxColorAttachmentBytesPerSample, offered);
+  }
 });
 
 test('the session says which optional features its WebGPU device was granted', async () => {

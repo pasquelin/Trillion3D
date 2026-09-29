@@ -4,6 +4,7 @@ import { createEngineCamera, holdCameraWorld, type EngineCamera } from '../camer
 import { countUnoccluded, filterUnoccluded } from './unoccluded.ts';
 import { createHizCounts, resetHizCounts, type HizCounts } from './counts.ts';
 import { splitOccludersInto } from './split.ts';
+import { keepStaleRegions } from './staleRegions.ts';
 import type { HizPage, HizPyramid } from './types.ts';
 import { DEFAULT_PIXEL_RATIO } from '../backend/common.ts';
 import type { Placements } from '../page/selection/placements.ts';
@@ -15,6 +16,8 @@ export type TemporalHizState = {
   passPyramid?: HizPyramid;
   camera?: EngineCamera;
   viewport?: [number, number];
+  /** World boxes moved roots covered and cover since the pyramid was built (`staleRegions.ts`). */
+  stale?: HizPage[];
 };
 
 /** Same tolerance, same walk, without allocating: `Array.prototype.every` asked for a closure
@@ -46,6 +49,7 @@ function retiens(
   depth: Float32Array,
 ) {
   history.pyramid = buildHizPyramid(depth, viewport[0], viewport[1], history.pyramid);
+  if (history.stale) history.stale.length = 0;
   history.camera = holdCameraWorld(history.camera ?? createEngineCamera(), cam);
   if (!history.viewport) history.viewport = [viewport[0], viewport[1]];
   else {
@@ -102,6 +106,8 @@ export function applyTemporalHiz<T extends HizPage & VisPage>(
     const unoccludedSet = new Set(
       filterUnoccluded(selected, roots, history.pyramid!, prevCam, viewport),
     );
+    if (history.stale?.length)
+      keepStaleRegions(selected, roots, history.stale, prevCam, viewport, unoccludedSet);
     for (let i = 0; i < selected.length; i++)
       (unoccludedSet.has(selected[i]) ? occluders : rest).push(selected[i]);
   }
