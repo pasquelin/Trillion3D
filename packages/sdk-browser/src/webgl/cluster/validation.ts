@@ -3,7 +3,7 @@ import { clusterMaterialReason } from './compatibility.ts';
 import type { Material } from './materialBinding.ts';
 import { featuresOf, physicalLostMask } from '../../scene/physicalMaterialGate.ts';
 
-/** Hears the physical `features` a surface is drawn without on WebGL2 (`physicalFeaturesLost`),
+/** Hears the physical `features` a surface is drawn without on WebGL2 (`physicalLostMask`),
  *  or, with `leftOut`, why the surface is not drawn at all: the hearer says each once
  *  (`noticeMaterialDegraded`). */
 export type MaterialDegraded = (

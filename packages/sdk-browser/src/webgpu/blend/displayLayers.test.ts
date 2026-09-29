@@ -6,7 +6,7 @@
 // pass composes them.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { blend, close, display, type Rgba } from './blendModel.fixture.ts';
+import { blend, close, display, written, type Rgba } from './blendModel.fixture.ts';
 import { blendTargets } from './pipelines.ts';
 import { ADD_EQUATIONS, TINT_EQUATIONS } from './equations.ts';
 import { DISPLAY_ROUTE_WGSL } from './displayFilter.ts';
@@ -53,7 +53,7 @@ function layer(
   const out = premultiplied ? rgba(scale(rgb(colour), colour[3]), colour[3]) : colour;
   const shown = display(colour),
     adds = develop.color.dstFactor === 'one';
-  const [lit, tint, add] = targets.map((target) => target.blend!);
+  const [tint, add] = targets.slice(1).map((target) => target.blend!);
   return {
     witness: (canvas) =>
       clamp(
@@ -66,7 +66,7 @@ function layer(
       const r = route(kind, shown, colour[3], masked);
       const kept = rgba(premultiplied ? scale(rgb(out), r.keep) : rgb(out), out[3] * r.keep);
       return {
-        lit: blend(lit, kept, pixel.lit),
+        lit: written(targets[0], kept, pixel.lit),
         tint: blend(tint, r.tint, pixel.tint),
         add: blend(add, r.add, pixel.add),
       };
