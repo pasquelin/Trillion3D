@@ -201,7 +201,7 @@ a mirrored mapping that costs the simplification nothing — in a tenth of a sec
 An **aerial** scene is generated too (#410): an open world's pattern, cooked in seconds — 4 × 4 km
 of rolling ground in 64 tiles, a few props (trees, bushes, houses, rocks) written once and placed by
 thousands of nodes, about 39 M instanced triangles on a source of 0.6 M, and street lamps as
-`KHR_lights_punctual` point lights. The `generale` view flies over it:
+`KHR_lights_punctual` point lights. The `overview` view flies over it:
 
     node bench/runner/scenes/aerial.ts --seed 410 [--props 3600] [--lamps 600]
     node bench/runner/assets.ts --only aerial-410
