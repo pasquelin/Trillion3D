@@ -20,19 +20,19 @@ test("each side prints the compiler's stall table as it comes, or says it has no
   // Not in the order a ranking by root triangles would give: the bench keeps the compiler's.
   const table = [stalled(3, 640), stalled(7, 12_544), stalled(8, 640)];
   const report = {
-    sides: { avant: {}, apres: {} },
+    sides: { before: {}, after: {} },
     series: [
-      { sides: { avant: { avertissementsDag: null }, apres: { avertissementsDag: null } } },
+      { sides: { before: { dagWarnings: null }, after: { dagWarnings: null } } },
       {
         sides: {
-          avant: { avertissementsDag: null },
-          apres: { avertissementsDag: { count: 0, primitives: [], stalled: table } },
+          before: { dagWarnings: null },
+          after: { dagWarnings: { count: 0, primitives: [], stalled: table } },
         },
       },
     ],
   } as unknown as Report;
   const lines = stalls(report);
-  assert.ok(lines.includes('- avant: no stall recorded'));
+  assert.ok(lines.includes('- before: no stall recorded'));
   const rows = lines.filter((line) => /^\| \d/.test(line));
   assert.deepEqual(rows, [
     '| 3/0 | 640 | seam-locked | 30 | 4 | 9 |',

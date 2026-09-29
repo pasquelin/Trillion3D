@@ -80,7 +80,7 @@ export function compareIrradiance(
     raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength),
   );
   const { body, w, h } = capture;
-  if (oracle.length !== w * h * 3) return { erreur: `oracle ${oracle.length} contre ${w * h * 3}` };
+  if (oracle.length !== w * h * 3) return { error: `oracle ${oracle.length} versus ${w * h * 3}` };
   const errors: number[] = [];
   let clipped = 0,
     counted = 0,
@@ -108,18 +108,16 @@ export function compareIrradiance(
   errors.sort((a, b) => a - b);
   const quantile = (part: number) =>
     errors.length ? errors[Math.floor(errors.length * part)] : null;
-  const mediane = quantile(0.5),
+  const median = quantile(0.5),
     p95 = quantile(0.95);
   return {
-    canaux: counted,
-    ecretes: clipped,
-    moyennePourCent: errors.length
-      ? (errors.reduce((a, b) => a + b, 0) / errors.length) * 100
-      : null,
-    medianePourCent: mediane === null ? null : mediane * 100,
-    p95PourCent: p95 === null ? null : p95 * 100,
-    moteurMoyen: counted ? engineSum / counted : null,
-    oracleMoyen: counted ? oracleSum / counted : null,
+    channels: counted,
+    clipped,
+    meanPercent: errors.length ? (errors.reduce((a, b) => a + b, 0) / errors.length) * 100 : null,
+    medianPercent: median === null ? null : median * 100,
+    p95Percent: p95 === null ? null : p95 * 100,
+    engineMean: counted ? engineSum / counted : null,
+    oracleMean: counted ? oracleSum / counted : null,
   };
 }
 
@@ -143,8 +141,8 @@ export function convergenceDelay(gaps: number[], settings: DelaySettings) {
     images: frames || null,
     ms: frames ? (frames / settings.cadenceHz) * 1000 : null,
     cadenceHz: settings.cadenceHz,
-    plancher: floor,
-    marge: settings.delayMargin,
-    ecarts: gaps,
+    floor,
+    margin: settings.delayMargin,
+    gaps,
   };
 }

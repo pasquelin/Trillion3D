@@ -38,7 +38,7 @@ export function comparison(
   for (const key of conditions) {
     if (a[key] == null || b[key] == null || !equal(a[key], b[key])) reasons.push(key);
   }
-  if (!a.data.erreur || a.data.erreur !== b.data.erreur) reasons.push('errorMetric');
+  if (!a.data.errorMetric || a.data.errorMetric !== b.data.errorMetric) reasons.push('errorMetric');
   if (!a.buildHash || !b.buildHash || (variable !== 'version' && a.buildHash !== b.buildHash))
     reasons.push('version');
   if (!equal(a.variant, b.variant)) reasons.push('settings');

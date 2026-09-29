@@ -102,7 +102,7 @@ test('a spot light preserves half-angle and edge softness from engine', () => {
 test('no cast shadows on witness side: SDK Three renderer has no maps', () => {
   const eclairage = creerEclairageTemoin(G);
   const resume = eclairage.suivre(explorateur([PONCTUELLE, SOLEIL]));
-  assert.strictEqual(resume?.ombres, false);
+  assert.strictEqual(resume?.shadows, false);
   for (const lampe of eclairage.groupe.children as Light[])
     assert.strictEqual(lampe.castShadow, false);
 });
@@ -111,12 +111,12 @@ test('summary counts received lights by type in store order', () => {
   const eclairage = creerEclairageTemoin(G);
   const resume = eclairage.suivre(explorateur([PONCTUELLE, SOLEIL, PROJECTEUR]));
   assert.deepStrictEqual(resume, {
-    nombre: 3,
-    ponctuelles: 1,
-    projecteurs: 1,
-    directionnelles: 1,
+    count: 3,
+    points: 1,
+    spots: 1,
+    directional: 1,
     ids: ['p1', 's', 'j'],
-    ombres: false,
+    shadows: false,
   });
 });
 
