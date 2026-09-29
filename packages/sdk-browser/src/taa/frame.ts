@@ -61,7 +61,9 @@ export function taaRenderMatrix(rt: WebgpuPagesRuntime, cam: EngineCamera): Arra
  * Encodes this image's temporal pass and its display layers; returns the accumulated image
  * composition reads, `undefined` when none. Writes the uniform, updates motion, advances the
  * jitter, keeps the unjittered view-projection; `asIs` false reads no flags (OMB-11), and a frame
- * drawn below the display is reconstructed to it.
+ * drawn below the display is reconstructed to it. `share`, seeded when blends or particles draw,
+ * holds the as-is share and the reactive value they wrote (`../lighting/deferred/asIsShare.ts`),
+ * which shortens a moving pixel's history.
  */
 export function encodeTaaPass(
   rt: WebgpuPagesRuntime,
@@ -101,6 +103,7 @@ export function encodeTaaPass(
   inputs.motion = temporal.motion.buffer;
   inputs.flags = asIs ? gpu.surfaces.views()[3] : undefined;
   inputs.share = asIs ? share : undefined;
+  inputs.reactive = share;
   const output = temporal.encode(encoder, inputs);
   if (inputs.filter) gpu.targetBytes += filterHistory.uncounted();
   run.gpuDrawCalls++;
