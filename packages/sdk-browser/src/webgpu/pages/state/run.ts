@@ -53,8 +53,6 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   noOccluderHistory: boolean;
   /** The view moved since the last image: every row may leave the occluders again. */
   hizViewMoved: boolean;
-  /** The image the view last moved at: a capture releases what no image named since (#1016). */
-  viewSince: number;
   previousHizView: EngineCamera | undefined;
   temporalHizState: TemporalHizState;
   /** Counters of the CPU occlusion oracle, which runs only where the GPU test does not. */
@@ -156,7 +154,6 @@ export function createWebgpuRunState(clearColor = RASTER_BACKGROUND): WebgpuRunS
     outputDiagnosticLogged: false,
     noOccluderHistory: true,
     hizViewMoved: true,
-    viewSince: 0,
     previousHizView: undefined,
     temporalHizState: {},
     cpuHizCounts: createHizCounts(),
