@@ -80,10 +80,11 @@ const config: KnipConfig = {
   },
   // The harness server maps this browser URL to the page entry above.
   ignoreUnresolved: ['/runner/feedbackTargetPage.ts'],
-  // Rust is a platform tool; DaisyUI is loaded by Tailwind; the site build copies SVG files of
+  // Rust, CMake, Emscripten and the C++ compiler (a regex: knip reads `c++` as one) are platform
+  // tools; DaisyUI is loaded by Tailwind; the site build copies SVG files of
   // flag-icons by path (`scripts/docs/build-flags.ts`), importing no module of it.
   ignoreDependencies: ['daisyui', 'flag-icons'],
-  ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config'],
+  ignoreBinaries: ['rustc', 'emcmake', 'cmake', 'em-config', /^c\+\+$/],
 };
 
 export default config;
