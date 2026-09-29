@@ -77,6 +77,7 @@ export async function session(viewport: [number, number], transmittance = false)
     get texture() {
       return texture;
     },
+    allocationBytes: 0,
     get transmittanceHeld() {
       return !!layer;
     },
