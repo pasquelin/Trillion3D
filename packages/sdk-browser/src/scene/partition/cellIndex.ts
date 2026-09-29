@@ -31,8 +31,7 @@ export type PageBody = ReturnType<typeof readCellPage>;
 /** The index under the root's `slots`, whose files lie beside `base`, boxed through `boxes`. */
 export function createCellIndex(slots: readonly TableSlot[], base: string, boxes: CellBoxes) {
   const cells = new Map<number, Cell>();
-  let next = 0,
-    opened = 0,
+  let opened = 0,
     forgotten: string[] = [];
   const pageOf = ({ page, bounds, parents }: TableSlot): IndexPage => ({
     slot: { ...page, url: new URL(page.url, base).href },
@@ -82,10 +81,11 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
         page.body = { pages };
         return pages.map((below) => below.slot);
       }
-      const ids = body.cells.map((record) => {
+      // A cell is its cook's rank, whatever page opens first: the world roots name it so (#1237).
+      const ids = body.cells.map((record, at) => {
         const url = new URL(record.url, base).href;
-        cells.set(next, { ...record, url, item: boxed(record.parents) });
-        return next++;
+        cells.set(body.first + at, { ...record, url, item: boxed(record.parents) });
+        return body.first + at;
       });
       page.body = { cells: ids };
       return ids.map((id) => {

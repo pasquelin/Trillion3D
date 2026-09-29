@@ -221,8 +221,10 @@ scene), its mesh, and its local pose exactly as declared, each part `null` when 
 placement's name is not kept: it is a row, not a host node.
 
 **The paged cell index** (`partition/pages.rs`, #750). The records lie in pages cut from the
-halving tree, each node a contiguous range of cells: a region page `{ version: 4, cells, meshPages }` holds the
-records of the highest node under 128 KiB (`PAGE_BYTES`; one cell whatever its size) and, sorted and
+halving tree, each node a contiguous range of cells: a region page `{ version: 4, first, cells, meshPages }` holds the
+records of the highest node under 128 KiB (`PAGE_BYTES`; one cell whatever its size), `first` the
+rank of its first — its `n`-th record is `scene-cell-<first + n>.json`, the cell `cells[first + n]`
+of the [world roots](#world-super-roots) —, and, sorted and
 each once, the slots of the manifest's mesh pages that hold a primitive of a mesh its cells place —
 what a region needs fetched (#792) —, an index page
 `{ version: 4, pages, parents }` lists at most 8 pages (`FAN_OUT`), its node opened largest first,
@@ -246,7 +248,8 @@ big-endian `f64` bit patterns (16 each), naming `scene-page-<sha256>.json`; zero
 boxes, `meshes` the ranks placed, `totals` their node counts, `rows` their rungs, `cube`, and
 `parents` the core ranks. A page is read by `readCellPage`, which refuses one of another version,
 an index page without the parents of its pages, one of neither pages nor cells, and a region page
-without its list of mesh pages. Pages and cells are outside the manifest's `files`: a reused
+without the rank of its first cell or its list of mesh pages. The runtime numbers a cell by that
+rank, whatever page it opens first, and a placed cell holds the world bundles its roots need by it. Pages and cells are outside the manifest's `files`: a reused
 folder proves them through the root.
 
 **The cell index at runtime** (#575). Before its first frame a session sizes its rows for its first

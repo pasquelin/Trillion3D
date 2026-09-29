@@ -18,8 +18,10 @@ pub(crate) fn slots_of(
 }
 
 /// Writes the pages of the cells `tree` halved, whose records and world boxes are `records` and
-/// `bounds`; returns the root. A region page lists beside its records the slots of the mesh pages
-/// its cells' primitives lie in, `mesh_pages` by mesh rank (#792), each once; an index page and the
+/// `bounds`; returns the root. A region page lists beside its records the rank of its first cell,
+/// `first`: its `n`-th record is `scene-cell-<first + n>.json`, the rank the world roots name that
+/// cell by (#1237), whatever page a view opens first. It lists too the slots of the mesh pages its
+/// cells' primitives lie in, `mesh_pages` by mesh rank (#792), each once; an index page and the
 /// root list beside each page the core parents its cells hang under (#575), which is all a moved
 /// parent may carry them by; the root also lists the rows a view holds (`view_rows`).
 pub(crate) fn write_pages(
@@ -31,12 +33,13 @@ pub(crate) fn write_pages(
 ) -> Result<Value> {
     let kind = &CELL_PAGES;
     let leaf = |cells: Range<usize>, _| {
+        let first = cells.start;
         let records = &records[cells];
         let meshes = records
             .iter()
             .flat_map(|r| meshes_of(r).map(|(mesh, _)| mesh));
         let pages = slots_of(meshes, mesh_pages);
-        Ok(json!({kind.records: records, "meshPages": pages}))
+        Ok(json!({"first": first, kind.records: records, "meshPages": pages}))
     };
     let parents = |cells: Range<usize>| parents_of(&records[cells]);
     let mut pager = Pager::new(
