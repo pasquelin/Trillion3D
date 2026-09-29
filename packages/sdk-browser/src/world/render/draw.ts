@@ -58,14 +58,18 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
   const { camera, geometryUrls, streamer, streaming, baseline, state, compose } = inputs;
   const { directGpu, webglSurface } = inputs;
   // WebGL2 cannot timestamp a pass: the timer wraps the whole-frame submit on the engine's
-  // context, and is only mounted if the host asked for the per-step profile.
-  const gpuTimer =
-    session.options.stageProfile === true && webglSurface
-      ? createWebglFrameTimer(webglSurface.context)
-      : null;
+  // context, mounted once the host asks for the per-step profile or an engine's render scale is
+  // left to the frame budget (`renderScaleControl`), whose controller reads the same interval.
+  const profiled = session.options.stageProfile === true;
+  let gpuTimer: ReturnType<typeof createWebglFrameTimer> | undefined;
   const drawBackend = (backend: RenderBackend, target: WebglRenderTarget | null) => {
     const { measuring } = state;
-    const steps = backend as HostCpuProfile;
+    const steps = backend as HostCpuProfile,
+      scale = backend.renderScaleControl;
+    const steered = scale?.bounds.auto && scale.bounds.min < 1;
+    if (!gpuTimer && webglSurface && (profiled || steered))
+      gpuTimer = createWebglFrameTimer(webglSurface.context);
+    scale?.tick(performance.now());
     backend.render(camera);
     const renderEnd = performance.now();
     const missing = backend.pendingUrls?.() ?? [];
@@ -157,12 +161,16 @@ export function createExplorerDraw(session: ExplorerSession, inputs: Inputs) {
     }
     gpuTimer?.begin();
     compose(backend, target);
-    gpuTimer?.end();
+    // A held image put back measures no drawing: it never steps the controller.
+    const moving = scale?.steered === true && backend.frameHeld !== true;
+    gpuTimer?.end(scale && { scale: scale.drawn, steered: moving });
     steps.cpuStep?.('submitMs', performance.now() - retainEnd);
     if (gpuTimer) {
-      // A query reread a few frames later: the read never blocks the current frame.
+      // A query reread a few frames later, with the scale its image was drawn at: the read never
+      // blocks the current frame.
       const read = gpuTimer.poll();
-      steps.gpuImageMs?.(read.ms, gpuTimer.supported, read.reason ?? gpuTimer.reason);
+      if (profiled) steps.gpuImageMs?.(read.ms, gpuTimer.supported, read.reason ?? gpuTimer.reason);
+      scale?.observe(read.ms, read.tag?.scale, read.tag?.steered ?? false);
     }
     steps.cpuFrameEnd?.();
   };
