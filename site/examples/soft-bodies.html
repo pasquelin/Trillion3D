@@ -46,7 +46,8 @@
       const drop = (count, pressure) => {
         for (let i = 0; i < count; i++) {
           const shape = shapes[Math.floor(next() * shapes.length)];
-          const mesh = object.mesh(shape, colours[Math.floor(next() * colours.length)]);
+          // Its own geometry: a soft body draws itself into it, where it is.
+          const mesh = object.mesh(shape.clone(), colours[Math.floor(next() * colours.length)]);
           mesh.position.set(-2 + (next() - 0.5) * 3, 3 + volumes.length * 0.9, (next() - 0.5) * 4);
           mesh.rotation.set(next() * 3, next() * 3, next() * 3);
           // Left out, the pressure rests each volume's weight on a quarter of its cross-section.
