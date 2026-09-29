@@ -85,13 +85,8 @@ export function projectBoxToScreen(
 }
 
 /** The Hi-Z pyramid of the depth `occluders`, placed at the identity, leave as `cam` sees them. */
-export function occluderPyramid(
-  occluders: VisPage[],
-  cam: ReturnType<typeof cameraAt>,
-  size: [number, number],
-) {
-  const roots = identityRoots(),
-    engine = cameraMoteur(cam);
-  const ids = rasterVisibilityIds(occluders, roots, engine, size);
-  return buildHizPyramid(visibilityDepth(ids, occluders, roots, engine, size), ...size);
+export function occluderPyramid(occluders: VisPage[], cam: EngineCamera, size: [number, number]) {
+  const roots = identityRoots();
+  const ids = rasterVisibilityIds(occluders, roots, cam, size);
+  return buildHizPyramid(visibilityDepth(ids, occluders, roots, cam, size), ...size);
 }
