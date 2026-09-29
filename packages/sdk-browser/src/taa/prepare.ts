@@ -11,7 +11,8 @@ import { TAA_CAPABILITIES } from './capability.ts';
  * (`temporalAntialiasing: false`): nothing is then created, and the image stays sampled at
  * the pixel centre. A device that rejects the program leaves the capability unsupported and
  * the image as before — never a false image. A session that may draw below the display
- * (`renderScale`) also compiles the resolves that reconstruct it (`../webgpu/pages/state/renderScale.ts`).
+ * (`renderScale`) also compiles the resolves that reconstruct it
+ * (`../webgpu/pages/state/renderScale.ts`).
  */
 export async function prepareTemporalAntialiasing(rt: WebgpuPagesRuntime, device: GPUDevice) {
   rt.gpu.temporalWanted = rt.context.temporalAntialiasing !== false;
