@@ -64,24 +64,27 @@ export function drawnTriangles(
     const segments = [...edgesOf(geometry).values()].flatMap(({ a, b }) => [a, b]);
     return quads(p, segments, options.dashed);
   }
-  const attribute = (name: string, width: number) => {
-    const a = geometry.attributes[name];
-    if (!a || a.count < position.count) return null;
-    const out = new Float32Array(position.count * width);
-    for (let v = 0; v < position.count; v++)
-      for (let c = 0; c < width; c++)
-        out[v * width + c] = c < a.itemSize ? readComponent(geometry, a, v, c) : 1;
-    return out;
-  };
   const drawn = {
-    positions: new Float32Array(p.length === position.count * 3 ? p : attribute('position', 3)!),
-    normals: attribute('normal', 3),
-    uvs: attribute('uv', 2),
-    colors: attribute('color', 4),
+    positions: new Float32Array(p),
+    normals: readList(geometry, 'normal', 3, position.count),
+    uvs: readList(geometry, 'uv', 2, position.count),
+    colors: readList(geometry, 'color', 4, position.count),
     indices: new Uint32Array(corners.slice(0, corners.length - (corners.length % 3))),
   };
   if (options.flat) return flatten(drawn);
   return { ...drawn, normals: drawn.normals ?? computeNormals(drawn.positions, drawn.indices) };
+}
+
+/** List `name` of `g`, `width` numbers for each of its first `n` vertices as the page
+ *  cutter reads them, a missing component 1: into `out` when given; null when it holds fewer. */
+export function readList(g: Geometry, name: string, width: number, n: number, out?: Float32Array) {
+  const a = g.attributes[name];
+  if (!a || a.count < n) return null;
+  out ??= new Float32Array(n * width);
+  for (let v = 0; v < n; v++)
+    for (let c = 0; c < width; c++)
+      out[v * width + c] = c < a.itemSize ? readComponent(g, a, v, c) : 1;
+  return out;
 }
 
 /** The segments a line reading draws, as `[a, b]` corner pairs: each pair of `lineSegments`,

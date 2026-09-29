@@ -15,7 +15,8 @@ import { Group } from '../../../sdk-core/src/world/object/object3d.ts';
 import { createPhysicsBodies } from './bodies.ts';
 import { createPhysicsPoses } from './poses.ts';
 import { createWorldPhysics } from './worldPhysics.ts';
-import { body, startModule, startThreaded, type Module } from './module.fixture.ts';
+import { startModule, startThreaded, type Module } from './module.fixture.ts';
+import { body } from './records.fixture.ts';
 /** The session's code, fetched on the first use (`worldPhysics.ts`), has been loaded. */
 const loaded = () => import('./session.ts').then(() => new Promise((done) => setTimeout(done, 0)));
 /** Drops a box on a floor, `seen` or behind the view; returns the step at which it sleeps. */

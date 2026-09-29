@@ -11,8 +11,11 @@ import { DEFAULT_CLEAR_COLOR } from '../../backend/common.ts';
 import type { DecodedGeometryPage } from '../../page/decode/geometryPage.ts';
 import type { MemoryBudgets } from '../../residency/pools.ts';
 import type { PlacementRows } from '../../placement/rows.ts';
-import type { AlphaChange } from '../../placement/backendSceneUpdates.ts';
-import { TAA_CAPABILITY } from '../../taa/capability.ts';
+import {
+  growsInPlaceOf,
+  type AlphaChange,
+  type PlacementMount,
+} from '../../placement/backendSceneUpdates.ts';
 
 type Inputs = {
   check: () => void;
@@ -86,6 +89,9 @@ export function createExplorerSceneApi(inputs: Inputs) {
     },
     /** Whether the active path grows an instance buffer in place (`growPlacements`). */
     growsPlacements: () => !!getActive().growPlacements,
+    /** Whether it grows each of `from` to `capacity` rows (`BackendSceneUpdates.growsInPlace`). */
+    growsInPlace: (from: readonly PlacementRows[], capacity: number) =>
+      growsInPlaceOf(getActive(), from, capacity),
     /** An instance buffer the session holds was replaced by a larger one (`placement/growth.ts`). */
     growPlacements(from: PlacementRows, to: PlacementRows) {
       check();
@@ -97,6 +103,18 @@ export function createExplorerSceneApi(inputs: Inputs) {
         );
       active.growPlacements(from, to);
     },
+    /** Whether the active path mounts and unmounts resources in the open session (#572). */
+    mountsPlacements: () => !!getActive().mountPlacements,
+    mountPlacements: (mount: PlacementMount) => (check(), getActive().mountPlacements!(mount)),
+    /** A dynamic geometry's lists were rewritten in place (#573); false when the active path
+     *  cannot take it, and only a new session will draw them. */
+    updateVertices: (...change: Parameters<NonNullable<RenderBackend['updateVertices']>>) => (
+      check(),
+      !!getActive().updateVertices?.(...change)
+    ),
+    vertexBytes: (...change: Parameters<NonNullable<RenderBackend['vertexBytes']>>) =>
+      getActive().vertexBytes?.(...change),
+    unmountPlacements: (rows: PlacementRows) => (check(), getActive().unmountPlacements!(rows)),
     /** Bounced light on or off in the session; false when the active path cannot toggle it in
      *  place, and only a session opened with the other setting will have it. */
     setBounce(on: boolean) {
@@ -104,22 +122,6 @@ export function createExplorerSceneApi(inputs: Inputs) {
       const active = getActive();
       active.setBounce?.(on);
       return !!active.setBounce;
-    },
-    /** Temporal antialiasing on or off in the active engine at the next frame, no session
-     *  reopened; an engine without it (WebGL2) ignores it. */
-    setTemporalAntialiasing(on: boolean) {
-      check();
-      getActive().setTemporalAntialiasing?.(on);
-    },
-    /** Whether the active engine's image carries temporal antialiasing now: false on an engine
-     *  without it, switched off, refused by the device or while its program compiles. */
-    temporalAntialiasing() {
-      check();
-      const active = getActive();
-      return (
-        !!active.setTemporalAntialiasing &&
-        !active.capabilities.unsupported.includes(TAA_CAPABILITY)
-      );
     },
     /** The clear colour behind the scene, `0xrrggbb` or the default, on every engine of the
      *  session — each one a comparison shows, not the active one alone — at the next frame; false

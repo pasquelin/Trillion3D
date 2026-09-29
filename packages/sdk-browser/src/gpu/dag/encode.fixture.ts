@@ -7,8 +7,9 @@
 import assert from 'node:assert/strict';
 import type { encodeDagKernels } from './encode.ts';
 
-/** `liste`: offset of the group count armed before the dispatch, hence the list walked. */
-type Lancement = { noyau: string; groupes: number | 'indirect'; liste?: number };
+/** `liste`: offset of the group count armed before the dispatch, hence the list walked;
+ *  `rows`: the rows of a flat dispatch past one row (`shader/gridWgsl.ts`). */
+type Lancement = { kernel: string; groups: number | 'indirect'; liste?: number; rows?: number };
 type Copie = {
   de: string;
   decalage: number;
@@ -28,21 +29,23 @@ export function encodeurTemoin() {
   const lancements: Lancement[] = [];
   const copies: Copie[] = [];
   const passes: string[] = [];
-  let noyau = '';
+  /** Each bind group a pass sets, in order. */
+  const groupesLies: unknown[] = [];
+  let kernel = '';
   let arme = -1;
   let ouverte = false;
   const pass = {
-    setBindGroup() {},
+    setBindGroup: (_: number, groupe: unknown) => void groupesLies.push(groupe),
     setPipeline(next: { entryPoint: string }) {
-      noyau = next.entryPoint;
+      kernel = next.entryPoint;
     },
-    dispatchWorkgroups(groupes: number) {
-      lancements.push({ noyau, groupes });
+    dispatchWorkgroups(groups: number, rows = 1) {
+      lancements.push({ kernel, groups, ...(rows > 1 && { rows }) });
     },
     dispatchWorkgroupsIndirect(buffer: { nom: string }, decalage: number) {
       assert.equal(buffer.nom, 'dispatchArgs');
       assert.equal(decalage, 0);
-      lancements.push({ noyau, groupes: 'indirect', liste: arme });
+      lancements.push({ kernel, groups: 'indirect', liste: arme });
     },
     end() {
       ouverte = false;
@@ -65,7 +68,7 @@ export function encodeurTemoin() {
       if (vers.nom === 'dispatchArgs') arme = decalage;
     },
   };
-  return { encoder, lancements, copies, passes };
+  return { encoder, lancements, copies, passes, groupesLies };
 }
 
 /** A stage named as the witness will see it pass: `encode.ts` destructures these fields
@@ -85,7 +88,8 @@ export function ressources(residentCut: boolean, levelCount = 3, pageCount = 409
     drawnGroupsOffset: DRAWN,
     work: { nom: 'work' },
     dispatchArgs: { nom: 'dispatchArgs' },
-    bindGroup: {},
+    ranges: [{ count: 2, bindGroup: {} }],
+    rootLevelPipeline: etape('dagRootLevel'),
     levelPipelines: [etape('dagLevel0'), etape('dagLevel1'), etape('dagLevel2')],
     preparePipeline: etape('dagPrepare'),
     clearDrawnPipeline: etape('dagClearDrawn'),

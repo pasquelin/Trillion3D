@@ -112,18 +112,18 @@ fn soft_body(
     Ok(entry)
 }
 
-/// The soft bodies the drawn nodes `chosen` declare, placed by their `world` matrices: their
+/// The soft bodies the drawn nodes `shown` declare, placed by their `world` matrices: their
 /// `physics.json` entries, the report's refusals (`node`, `reason`), and every node declaring one,
 /// cooked or refused, which is no static ground.
 pub(super) fn soft_bodies(
     o: &Options,
     source: (&Value, &[u8]),
-    chosen: &BTreeSet<usize>,
+    shown: &BTreeSet<usize>,
     world: &[Mat4],
 ) -> Result<(Vec<Value>, Vec<Value>, BTreeSet<usize>)> {
     let nodes = values(source.0, "nodes")?;
     let (mut bodies, mut refused, mut soft) = (Vec::new(), Vec::new(), BTreeSet::new());
-    for &node in chosen {
+    for &node in shown {
         let Some(declared) = declared_soft(&nodes[node]) else {
             continue;
         };

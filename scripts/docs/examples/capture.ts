@@ -1,4 +1,5 @@
 import { transform } from 'esbuild';
+import type { TestContext } from 'node:test';
 import type { Browser, Page } from 'playwright';
 
 /**
@@ -14,6 +15,9 @@ export async function exampleModules(html: string): Promise<string[]> {
   return sources;
 }
 
+/** An example module's import of the built engine or kit: its names, then `engine` or `kit`. */
+export const RUNTIME_IMPORT = /import \{([^}]*)\} from '\.\.\/runtime\/(engine|kit)\.js';/g;
+
 /** The constructor of async functions: a module's body may `await` at its top level. */
 const AsyncFunction = (async () => {}).constructor as new (
   ...args: string[]
@@ -26,11 +30,26 @@ const AsyncFunction = (async () => {}).constructor as new (
  */
 export async function runExampleModule(html: string, modules: { engine: object; kit: object }) {
   const [source] = await exampleModules(html);
-  const body = source.replace(
-    /import \{([^}]*)\} from '\.\.\/runtime\/(engine|kit)\.js';/g,
-    'const {$1} = modules.$2;',
-  );
+  const body = source.replace(RUNTIME_IMPORT, 'const {$1} = modules.$2;');
   await new AsyncFunction('modules', `'use strict';${body}`)(modules);
+}
+
+/**
+ * The `pagehide` listener an example page registers while `t` runs, the global
+ * `addEventListener` restored after it: calling the result runs the page's cleanup, and fails
+ * when the page registered none.
+ */
+export function catchPagehide(t: TestContext): () => void {
+  let pagehide: (() => void) | undefined;
+  const previous = globalThis.addEventListener;
+  globalThis.addEventListener = ((type: string, listener: () => void) => {
+    if (type === 'pagehide') pagehide = listener;
+  }) as typeof addEventListener;
+  t.after(() => void (globalThis.addEventListener = previous));
+  return () => {
+    if (!pagehide) throw new Error('the page registers no pagehide cleanup');
+    pagehide();
+  };
 }
 
 /** One example roadmap entry, as read from `site/content/gallery-roadmap.json`. */
@@ -95,16 +114,28 @@ async function drawnShare(page: Page): Promise<number> {
   );
 }
 
-/** The console lines the engine writes when it stops drawing (`worldHandles.ts`,
- *  `interactive.ts`, `webgpu/pages/io/lost.ts`). */
-export const ENGINE_FAILURE =
-  /^(?:World session failed|\[trillion3d\] (?:Automatic rendering stopped|WebGPU device lost))/;
+/**
+ * The errors an example page may raise or log, each named with its page and why; every other one
+ * fails the proofs (#945): the engine's own failures (`worldHandles.ts`, `interactive.ts`,
+ * `webgpu/pages/io/lost.ts`), a module whose import fails, a resource answered 404.
+ */
+export const DECLARED_ERRORS: readonly { page: string; error: string; why: string }[] = [
+  {
+    page: 'outline-the-selection',
+    error: 'effect.outline is not a function',
+    why: 'parked, written against the outline pass #757 delivers',
+  },
+];
+
+/** Whether `error`, raised or logged by the example `page`, is one declared for it. */
+const declaredError = (page: string, error: string) =>
+  DECLARED_ERRORS.some((declared) => declared.page === page && declared.error === error);
 
 /**
  * Opens one example file in a new page of `browser` and waits until its canvas shows an image,
  * `share` of it drawn at least, `leastDrawn` on that backend unless given (an engine that failed
- * leaves the canvas blank); resolves with the page and the errors it raised or the engine logged,
- * which the caller closes and judges.
+ * leaves the canvas blank); resolves with the page and the errors it raised or logged, those
+ * `DECLARED_ERRORS` names for it aside, which the caller closes and judges.
  *
  * `gpu: false` hides `navigator.gpu` from the page, the machine an example must render on too:
  * naming no backend, it reaches `chooseBackends`, which takes the engine's own WebGL2 path.
@@ -123,12 +154,14 @@ export async function openExample(
   const page = await browser.newPage({ viewport });
   const errors: string[] = [],
     requests: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  // The engine catches its own failures — a session that cannot open, a frame the WebGL2
-  // program refuses — and says them on the console: the page stays blank, and this names why.
+  const heard = (error: string) => declaredError(entry.id, error) || errors.push(error);
+  page.on('pageerror', (error) => heard(error.message));
+  // The engine says its own failures on the console — a session that cannot open, a frame the
+  // WebGL2 program refuses —, and Chrome a resource it could not load, which it names here.
   page.on('console', (message) => {
-    if (message.type() === 'error' && ENGINE_FAILURE.test(message.text()))
-      errors.push(message.text());
+    if (message.type() !== 'error') return;
+    const text = message.text();
+    heard(text.startsWith('Failed to load resource') ? `${text} ${message.location().url}` : text);
   });
   page.on('request', (request) => requests.push(request.url()));
   if (!gpu)
@@ -146,6 +179,8 @@ export async function openExample(
     }, slowMs);
   await page.goto(`http://127.0.0.1:${port}/${entry.file}`);
   let drawn = 0;
+  // A page asked to draw nothing (`share` 0), parked until the engine draws it, is only heard.
+  if (!least) await page.waitForTimeout(2000);
   for (let attempt = 0; attempt < 30 && drawn < least; attempt++) {
     await page.waitForTimeout(500);
     drawn = await drawnShare(page);

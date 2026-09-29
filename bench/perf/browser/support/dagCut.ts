@@ -83,11 +83,22 @@ export function racine(pages: DagPage[]): ClusterRoot<DagPage> {
   return { world: monde, pages, worldBox: box, localBox: box };
 }
 
-/** The camera the pool tests see a DAG through: `distance` units from its centre, 60°, 16:9. */
-export function dagCamera(distance = 9) {
+/** The camera the pool tests see a DAG through: `distance` units above `(x, y)` of its plane,
+ *  looking straight at it, 60°, 16:9. */
+export function dagCamera(distance = 9, x = 0, y = 0) {
   const cam = new THREE.PerspectiveCamera(60, 16 / 9, 0.1, 200);
-  cam.position.set(0, 0, distance);
-  cam.lookAt(0, 0, 0);
+  cam.position.set(x, y, distance);
+  cam.lookAt(x, y, 0);
+  cam.updateMatrixWorld();
+  return cam;
+}
+
+/** The camera down a DAG strip from its near end, as the cut rule's tests see it: every leaf of a
+ *  `length`-unit strip along +x in view, 70°, 16:9. */
+export function stripCamera(length = 256) {
+  const cam = new THREE.PerspectiveCamera(70, 16 / 9, 0.1, 4000);
+  cam.position.set(-6, 4, 0);
+  cam.lookAt(length / 2, 0, 0);
   cam.updateMatrixWorld();
   return cam;
 }

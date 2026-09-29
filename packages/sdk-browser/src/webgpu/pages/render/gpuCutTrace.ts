@@ -66,7 +66,8 @@ export function recordGpuCutTiming(rt: WebgpuPagesRuntime) {
 }
 
 export function traceGpuCutWaiting(rt: WebgpuPagesRuntime) {
-  rt.diag.traceDiagnostic('frame', 'Frame en attente de couverture GPU', {
+  if (!rt.diag.traceEnabled) return;
+  rt.diag.traceDiagnostic('frame', 'Frame waiting for GPU coverage', {
     backend: 'webgpu-page-raster',
     frame: rt.run.frame,
     submission: rt.run.imageRevision,
@@ -91,6 +92,8 @@ export function traceGpuCutFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     residentCandidates: rows.candidateCount,
     readbackPurpose: 'streaming-and-metrics',
     metricsReady: run.gpuMetricsReady,
+    /** How far ahead the view ahead looked, the pages' round trip included (`prefetchHorizonMs`). */
+    aheadHorizonMs: run.motion.horizonMs,
   }));
   diag.traceDiagnostic('frame', 'Complete WebGPU frame snapshot', () =>
     frameTraceSnapshot(

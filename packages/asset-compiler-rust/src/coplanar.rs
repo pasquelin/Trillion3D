@@ -69,7 +69,8 @@ impl Default for CoplanarBounds {
 pub struct CoplanarInputs<'a> {
     pub g: &'a Value,
     pub bin: &'a [u8],
-    pub chosen: &'a BTreeSet<usize>,
+    /// The compiled nodes no hidden node hides: the drawn scene.
+    pub shown: &'a BTreeSet<usize>,
     pub mesh_map: &'a BTreeMap<usize, usize>,
     /// Compiled mesh index back to the glTF mesh it came from.
     pub source_mesh: &'a BTreeMap<usize, usize>,
@@ -131,7 +132,7 @@ pub fn assign_depth_layers(
     let mut counts = Counts::default();
     // World matrices serve both passes: single construction for whole step.
     let world = crate::compiler_world::world_matrices(inputs.g)?;
-    let surfaces = surface::collect_with_world(inputs, bounds, &mut counts.dropped_planes, &world)?;
+    let surfaces = surface::collect(inputs, bounds, &mut counts.dropped_planes, &world)?;
     let overlaps = pairs::find_overlaps(inputs, bounds, &surfaces, &mut counts, &world)?;
     let (assigned, overflow) = assign::layers(&surfaces, &overlaps, COPLANAR_MAX_LAYER);
     counts.layer_overflow = overflow;

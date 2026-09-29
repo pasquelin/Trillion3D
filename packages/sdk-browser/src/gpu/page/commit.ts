@@ -1,5 +1,8 @@
 import type { GpuPageContext, ResidentPage } from './types.ts';
 
+/** A page's last 1-3 bytes, zero-padded to the word `writeBuffer` requires; it copies them at once. */
+const tail = new Uint8Array(4);
+
 /** A page leaves residency: the change log and the sample both say so, wherever the
  *  departure came from. The slot is not returned here — the caller knows what it does with it. */
 export function evictResident(
@@ -10,11 +13,12 @@ export function evictResident(
   const { resident, pins, changeKeys, changeSlots, state } = context;
   resident.delete(page.key);
   pins.delete(page.key);
+  context.held.delete(page.key);
   context.eviction.lower.delete(page.key);
   changeKeys.push(page.key);
   changeSlots.push(-1);
   state.evictions++;
-  context.reader.emit('gpu-page-eviction', 'Page removed from GPU residency', () => ({
+  context.reader.emit?.('gpu-page-eviction', 'Page removed from GPU residency', () => ({
     version: 1,
     key: page.key,
     slot: page.slot,
@@ -59,7 +63,7 @@ export function commitGpuPage(
   requestStarted: number,
 ): ResidentPage {
   const { state, free, resident, pins, slots, changeKeys, changeSlots } = context;
-  const { staging, device, buffer, pageBytes, reader } = context;
+  const { device, buffer, pageBytes, reader } = context;
   const { emit, now, report } = reader;
   state.bytesRead += bytes.byteLength;
   let slot = free.pop();
@@ -67,7 +71,7 @@ export function commitGpuPage(
     const ordered = !!context.eviction.order;
     const victim = ordered ? orderedVictim(context) : leastRecentVictim(context);
     if (!victim) {
-      emit('gpu-page-admission-blocked', 'No evictable GPU slot', () => ({
+      emit?.('gpu-page-admission-blocked', 'No evictable GPU slot', () => ({
         version: 1,
         key,
         reason: ordered ? 'eviction-queue-spent' : 'all-pages-pinned',
@@ -85,12 +89,19 @@ export function commitGpuPage(
   // page — even a tiny one — a clear, a copy and a transfer of that size, while nothing ever
   // reads the slot's tail: a page-table row names its offset and triangle count, and the
   // visibility pass does not leave that range. Only the page's bytes go, padded to the multiple
-  // of four that `writeBuffer` requires.
+  // of four that `writeBuffer` requires. The page's whole words go straight from its own bytes —
+  // `writeBuffer` copies them itself, a staging copy first would only double the copy (#982) —
+  // and only its last 1-3 bytes, zero-padded to a word, through the four-byte `tail`.
   const size = bytes.byteLength,
-    padded = size + (size % 4 ? 4 - (size % 4) : 0);
-  staging.set(bytes);
-  if (padded !== size) staging.fill(0, size, padded);
-  device.queue.writeBuffer(buffer, slot * pageBytes, staging, 0, padded);
+    body = size & ~3,
+    padded = (size + 3) & ~3;
+  if (body > 0)
+    device.queue.writeBuffer(buffer, slot * pageBytes, bytes as Uint8Array<ArrayBuffer>, 0, body);
+  if (padded !== body) {
+    tail.fill(0);
+    tail.set(bytes.subarray(body));
+    device.queue.writeBuffer(buffer, slot * pageBytes + body, tail, 0, 4);
+  }
   const uploadDurationMs = report ? performance.now() - uploadStarted : null;
   state.uploadedBytes += padded;
   const page = {
@@ -103,7 +114,7 @@ export function commitGpuPage(
   resident.set(key, page);
   changeKeys.push(key);
   changeSlots.push(page.offset / 4);
-  emit('gpu-page-upload', 'Page written into a GPU slot', () => ({
+  emit?.('gpu-page-upload', 'Page written into a GPU slot', () => ({
     version: 1,
     key,
     slot,
@@ -115,7 +126,7 @@ export function commitGpuPage(
     gpuMs: null,
     drawDetached: false,
   }));
-  emit('gpu-page-load-end', 'GPU load finished', () => ({
+  emit?.('gpu-page-load-end', 'GPU load finished', () => ({
     version: 1,
     key,
     slot,

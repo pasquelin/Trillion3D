@@ -29,9 +29,6 @@ fn scene_with_one_node() -> Value {
 
 /// Both cases share same one-node scene: only primitive list, planes,
 /// offset quantum, and bounds change. Callbacks live here during call.
-///
-/// `world`, when supplied, is world matrix built by caller (lot B1):
-/// `None` makes `collect` rebuild matrix, as before B1.
 fn collect_one_node(
     g: &Value,
     primitives: &[Value],
@@ -39,7 +36,6 @@ fn collect_one_node(
     offset_quantum: f64,
     bounds: &CoplanarBounds,
     dropped: &mut usize,
-    world: Option<&[crate::compiler_world::Mat4]>,
 ) -> Vec<Surface> {
     let chosen: BTreeSet<usize> = [0].into_iter().collect();
     let mesh_map: BTreeMap<usize, usize> = [(0, 0)].into_iter().collect();
@@ -49,7 +45,7 @@ fn collect_one_node(
     let inputs = CoplanarInputs {
         g,
         bin: &[],
-        chosen: &chosen,
+        shown: &chosen,
         mesh_map: &mesh_map,
         source_mesh: &source_mesh,
         primitives,
@@ -58,11 +54,8 @@ fn collect_one_node(
         cancelled: &cancelled,
         progress: &progress,
     };
-    match world {
-        Some(world) => surface::collect_with_world(&inputs, bounds, dropped, world),
-        None => surface::collect(&inputs, bounds, dropped),
-    }
-    .expect("collect")
+    let world = crate::compiler_world::world_matrices(g).expect("world matrices");
+    surface::collect(&inputs, bounds, dropped, &world).expect("collect")
 }
 
 #[test]
@@ -87,7 +80,6 @@ fn collect_drops_mask_blend_and_transmissive_materials() {
         0.001,
         &CoplanarBounds::default(),
         &mut dropped,
-        None,
     );
     // Only opaque primitive (index 0) passes: MASK, BLEND and transmission discarded.
     assert_eq!(
@@ -124,15 +116,7 @@ fn collect_keeps_the_largest_areas_per_primitive_and_counts_the_rest() {
         max_planes_per_primitive: 3,
         ..CoplanarBounds::default()
     };
-    let surfaces = collect_one_node(
-        &g,
-        &primitives,
-        &cluster_planes,
-        0.1,
-        &bounds,
-        &mut dropped,
-        None,
-    );
+    let surfaces = collect_one_node(&g, &primitives, &cluster_planes, 0.1, &bounds, &mut dropped);
     let mut kept: Vec<f64> = surfaces.iter().map(|s| s.area).collect();
     kept.sort_by(|a, b| b.total_cmp(a));
     assert_eq!(
@@ -141,55 +125,4 @@ fn collect_keeps_the_largest_areas_per_primitive_and_counts_the_rest() {
         "only the three largest areas are kept"
     );
     assert_eq!(dropped, 2, "the two smallest are counted as abandoned");
-}
-
-// Lot B1: world matrix of mirror node (negative scale), built once by step
-// and lent to collect_with_world, yields exact same surfaces bit for bit as old path where
-// collect rebuilt it itself.
-#[test]
-fn collect_with_world_matches_collect_for_a_mirrored_node() {
-    let g = json!({"nodes":[{"mesh":0,"scale":[-1.0,1.0,1.0]}],"meshes":[{}],"materials":[]});
-    let primitives = vec![flat_primitive(0, None, 1)];
-    let plane = Some(ClusterPlane {
-        normal: [0., 0., 1.],
-        offset: 0.0,
-        area: 10.0,
-    });
-    let cluster_planes = vec![vec![plane]];
-    let bounds = CoplanarBounds::default();
-
-    let mut dropped_auto = 0usize;
-    let auto = collect_one_node(
-        &g,
-        &primitives,
-        &cluster_planes,
-        0.001,
-        &bounds,
-        &mut dropped_auto,
-        None,
-    );
-    let world = crate::compiler_world::world_matrices(&g).expect("world monde");
-    let mut dropped_shared = 0usize;
-    let shared = collect_one_node(
-        &g,
-        &primitives,
-        &cluster_planes,
-        0.001,
-        &bounds,
-        &mut dropped_shared,
-        Some(&world),
-    );
-
-    assert_eq!(dropped_auto, dropped_shared);
-    assert_eq!(auto.len(), shared.len());
-    assert!(!auto.is_empty(), "the mirrored node must produce a surface");
-    for (a, s) in auto.iter().zip(&shared) {
-        assert_eq!(a.normal.map(f64::to_bits), s.normal.map(f64::to_bits));
-        assert_eq!(a.offset.to_bits(), s.offset.to_bits());
-        assert_eq!(a.key, s.key);
-        assert_eq!(a.area.to_bits(), s.area.to_bits());
-        assert_eq!(a.low.map(f64::to_bits), s.low.map(f64::to_bits));
-        assert_eq!(a.high.map(f64::to_bits), s.high.map(f64::to_bits));
-        assert_eq!(a.pages, s.pages);
-    }
 }

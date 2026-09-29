@@ -14,7 +14,7 @@ import { sameHizView } from '../hiz/temporal.ts';
 import { createWebglFrameGate } from '../webgl/core/frameGate.ts';
 import {
   POSES_PARENT,
-  cameraAplatie,
+  flattenedCamera,
   creeRig,
   poseRig,
 } from '../../../../tests/browser/probes/cameraRig.ts';
@@ -32,7 +32,7 @@ function sousRig(pose: Pose) {
   return {
     rig,
     camera: poseRig(rig, pose, false),
-    aplatie: cameraAplatie(pose),
+    aplatie: flattenedCamera(pose),
   };
 }
 
@@ -102,7 +102,7 @@ test('boundary: the view history freezes the world pose, not the local pose', ()
 });
 
 /** A uniforms read copied at once: the work buffer is shared between two calls. */
-const uniformes = (camera: G.GraphCamera) => {
+const uniformes = (camera: G.Camera) => {
   const u = cameraSelectionUniforms(cameraMoteur(camera), 1, VIEWPORT);
   return { view: [...u.view], planes: [...u.planes], cameraWorld: [...u.cameraWorld] };
 };
@@ -125,12 +125,8 @@ test('boundary: the adaptive threshold called alone measures the eye velocity in
     aplatieMotion: CameraMotion = {};
   for (const pose of POSES_PARENT as Pose[]) {
     // No frame entry here: the rig camera has never been walked by anyone.
-    resolvePixelError(
-      contexte,
-      cameraMoteur(poseRig(rig, pose, false) as G.GraphCamera),
-      sousRigMotion,
-    );
-    resolvePixelError(contexte, cameraMoteur(cameraAplatie(pose) as G.GraphCamera), aplatieMotion);
+    resolvePixelError(contexte, cameraMoteur(poseRig(rig, pose, false) as G.Camera), sousRigMotion);
+    resolvePixelError(contexte, cameraMoteur(flattenedCamera(pose) as G.Camera), aplatieMotion);
     assert.deepEqual(
       [...(sousRigMotion.last ?? [])],
       [...(aplatieMotion.last ?? [])],

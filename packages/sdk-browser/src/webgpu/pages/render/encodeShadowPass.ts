@@ -4,9 +4,8 @@ import type { WebgpuPagesRuntime } from '../runtime.ts';
 import { encodeShadowCasters } from '../../shadow/casters.ts';
 import { drawRegionCasters, encodeOcclusion } from './encodeRegionDraws.ts';
 import { encodeTransmittance } from './encodeTransmittance.ts';
-
-/** The pool's one draw of each region's casters, reused by every batch. */
-const depthDraw: GPURenderPipeline[] = [];
+import { frameTransmittance } from '../../shadow/transmittanceGrant.ts';
+import { feedbackPublished } from './encoder.ts';
 
 /**
  * Shadow depth pass of one batch, pages `[from, to)` of the frame's list in `count` regions: first
@@ -22,7 +21,8 @@ const depthDraw: GPURenderPipeline[] = [];
  * page of the pool is touched; the scissor says the same square once more.
  *
  * Once a blended caster has held a row, the pass of the transmittance layer follows
- * (`encodeTransmittance`). Before, the shadow passes are the ones they were.
+ * (`encodeTransmittance`), the layer granted under the shadows' grant (`frameTransmittance`).
+ * Before, the shadow passes are the ones they were.
  */
 export function encodeShadowAtlas(
   rt: WebgpuPagesRuntime,
@@ -39,14 +39,19 @@ export function encodeShadowAtlas(
   if (regions.layered && !staticLayer) return false;
   if (!shadowRegionGroup(rt, device, 0)) return false;
   shadows.flushPages(count);
+  // The cutouts ask for the tiles they read, under the image's word (`faceBindings.ts`); an image
+  // whose feedback is not published — a capture, or the feedback A/B's arm without it
+  // (`encoder.ts`) — asks nothing.
+  const feedback = feedbackPublished(rt) ? vis.textures?.feedback : undefined;
+  shadows.cutoutRequests(feedback?.phaseWord(run.textureConverging) ?? 0, feedback?.buffer);
   if (!encodeShadowCasters(rt, encoder, count, from, to, runBase)) return false;
-  cull.counts.sample(encoder, cull.indirect, count, run.frame);
-  lights.shadowDraws += count;
+  cull.counts.sample(encoder, cull.indirect, count, run.frame, regions.moving);
+  lights.shadowWork.regions += count;
   const drawsBefore = run.gpuDrawCalls;
   planPagePasses(regions, count);
   const { order, layer, first, clears, restores, layerPasses } = pagePlan;
   quads.begin(count, order);
-  depthDraw[0] = shadows.depth;
+  const depthDraws = shadows.depthDraws();
   // Each pass of the static layer's (`inLayer`) or the pool's: its clears and restores, two
   // instanced draws, then each region's casters in its page's viewport.
   const draw = (passes: GPURenderPassDescriptor[], inLayer: boolean, tested: boolean) => {
@@ -62,7 +67,12 @@ export function encodeShadowAtlas(
         restores[k],
         staticLayer?.groups[at],
       );
-      run.gpuDrawCalls += drawRegionCasters(rt, device, pass, k, tested, 1, depthDraw);
+      const draws = drawRegionCasters(rt, device, pass, k, tested, 1, depthDraws);
+      run.gpuDrawCalls += draws;
+      // A pool pass restores its pages from the static layer and draws their moving casters, or
+      // clears them and draws every caster: no frame does both (`pool.drawMode`).
+      lights.shadowWork.drewLayer(at);
+      lights.shadowWork.drewPass(draws, inLayer ? 0 : restores[k]);
       pass.end();
     }
   };
@@ -70,7 +80,7 @@ export function encodeShadowAtlas(
   const tested = encodeOcclusion(rt, encoder, count);
   draw(shadows.passes, false, tested);
   const casters = rt.services.blendCasters.used > 0;
-  const transmittance = casters ? shadows.ensureTransmittance(encoder) : shadows.transmittance;
+  const transmittance = casters ? frameTransmittance(rt, encoder) : shadows.transmittance;
   if (transmittance) encodeTransmittance(rt, device, encoder, quads, transmittance, tested);
   lights.shadowDrawCalls += run.gpuDrawCalls - drawsBefore;
   return true;

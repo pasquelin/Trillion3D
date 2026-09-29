@@ -15,12 +15,48 @@ pub(crate) fn grid(n: usize) -> (Vec<f32>, Vec<u32>) {
     (positions, indices)
 }
 
+/// `grid(n)` laid out one texture island per quad, each under its own unit square: every position
+/// is a seam corner. Positions, coordinates, triangles.
+pub(super) fn island_per_quad(n: usize) -> (Vec<f32>, Vec<f32>, Vec<u32>) {
+    let (grid_positions, grid_indices) = grid(n);
+    let (mut positions, mut uvs, mut indices) = (Vec::new(), Vec::new(), Vec::new());
+    for quad in grid_indices.chunks(6) {
+        let base = (positions.len() / 3) as u32;
+        // The quad's corners a, a + 1, a + w, a + 1 + w.
+        let corners = [quad[0], quad[1], quad[2], quad[4]];
+        for (rank, &corner) in corners.iter().enumerate() {
+            let at = corner as usize * 3;
+            positions.extend_from_slice(&grid_positions[at..at + 3]);
+            uvs.extend([(rank & 1) as f32, (rank >> 1) as f32]);
+        }
+        indices.extend([base, base + 1, base + 2, base + 1, base + 3, base + 2]);
+    }
+    (positions, uvs, indices)
+}
+
+/// A grid rolled onto a cylinder of radius 8: a smooth curved surface.
+pub(super) fn cylinder(n: usize) -> (Vec<f32>, Vec<u32>) {
+    let (mut positions, indices) = grid(n);
+    for p in positions.as_chunks_mut::<3>().0 {
+        let angle = p[0] / n as f32 * 3.0;
+        (p[0], p[2]) = (8.0 * angle.cos(), 8.0 * angle.sin() + p[2] * 0.1);
+    }
+    (positions, indices)
+}
+
+/// The indices of the clusters `ids`, one list.
+pub(super) fn indices_of(dag: &[DagCluster], ids: &[usize]) -> Vec<u32> {
+    ids.iter()
+        .flat_map(|&id| dag[id].indices.iter().copied())
+        .collect()
+}
+
 /// Full mesh DAG, no UVs, no cancel point.
 pub(super) fn build_of(
     positions: &[f32],
     indices: &[u32],
 ) -> (Vec<DagCluster>, Vec<DagGroup>, Vec<GroupTally>) {
-    let (dag, groups, tallies, _) = build_dag_tallied(
+    let (dag, groups, tallies, ..) = build_dag_tallied(
         positions,
         DagAttributes::default(),
         indices,
@@ -84,6 +120,11 @@ fn cuts(dag: &[DagCluster]) -> Vec<(f64, Vec<&DagCluster>)> {
 mod part1;
 mod part10;
 mod part11;
+mod part12;
+mod part13;
+mod part14;
+mod part15;
+mod part16;
 mod part2;
 mod part3;
 mod part4;

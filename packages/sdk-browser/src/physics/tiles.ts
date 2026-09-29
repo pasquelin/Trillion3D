@@ -11,7 +11,7 @@ import {
 } from '../../../sdk-core/src/physics/index.ts';
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts';
 import type { createPhysicsBodies } from './bodies.ts';
-import { createModelBodies } from './cookedBodies.ts';
+import { createModelBodies } from './modelBodies.ts';
 import {
   cookedBytes,
   cookedPhysics,
@@ -24,7 +24,7 @@ import {
   type Model,
   type Placed,
 } from './tilePlace.ts';
-import { ONE_REQUEST, retriableError } from '../cluster/pages.ts';
+import { ONE_REQUEST, retriableError } from '../cluster/checked.ts';
 
 /** Tile fetches in flight at once. */
 const FETCHES = 8;
@@ -134,14 +134,14 @@ export function createTileStreamer(
           models.delete(model);
         }
     },
-    /**
-     * Brings the resident tiles in line with what is wanted (`nearness`). The nearest that fit
-     * stay or load, `LOADS` at most; past the first that does not, the farther leave and wait.
-     */
+    /** Carries the bodies a dynamic one holds (`carriedBodies.ts`), then brings the resident
+     *  tiles in line with what is wanted (`nearness`): the nearest that fit stay or load, `LOADS`
+     *  at most; past the first that does not, the farther leave and wait. */
     update(eye: ArrayLike<number>, range: number) {
       if (!models.size) return;
+      declared.carry();
       const wanted: [number, Placed][] = [],
-        movers = moversOf(bodies.meshes);
+        movers = moversOf(bodies.meshes, bodies.nested, bodies.state.velocity);
       let held = 0; // What the wanted resident tiles hold.
       for (const { placed } of models.values())
         for (const p of placed) {
@@ -165,8 +165,7 @@ export function createTileStreamer(
     },
     /** The model a tile body's or a cooked body's engine id belongs to, or `null`. */
     modelOf: bodies.slots.modelOf,
-    /** The worker refused body `id`: a tile or a cooked body leaves, its slot and budget
-     *  given back, and is not made again until its model opens again; any other body is ignored. */
+    /** The worker refused body `id`: a tile or a cooked body leaves until its model opens again. */
     refused(id: number) {
       const owner = bodies.slots.of(id);
       if (!owner || !('tile' in owner)) return owner && declared.refused(owner);

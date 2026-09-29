@@ -3,6 +3,7 @@ import type { ClusterDrawMesh } from '../../../packages/sdk-browser/src/cluster/
 import type { WebglClusterRenderer } from '../../../packages/sdk-browser/src/webgl/cluster/renderer.ts';
 import type { HostDrawCamera } from '../../../packages/sdk-browser/src/camera/world.ts';
 import type { pixel as pixelType } from './webglClusterPixels.ts';
+import { keptClusterScene } from '../../../packages/sdk-browser/src/webgl/cluster/sceneDraw.ts';
 
 /** A one-texel normal map storing the tangent-space normal `[r, g, b]` as bytes. */
 const normalMap = (r: number, g: number, b: number) => {
@@ -43,14 +44,14 @@ export function normalMapFrames(
 ) {
   const previous = mesh.material,
     previousUv = mesh.geometry.attributes.uv,
-    scene = new G.GraphScene(),
+    scene = new G.Scene(),
     sun = G.directionalLight(0xffffff, 1),
     texel: [number, number, number] = [160, 210, 230],
     tilt = decoded(...texel),
     mapped = G.standardSurface({ roughness: 1, metalness: 0 }),
     baked = G.standardSurface({ roughness: 1, metalness: 0 });
   sun.position.set(0, 1, 1);
-  scene.add(sun, sun.target!);
+  scene.add(sun, sun.target);
   scene.updateMatrixWorld(true);
   (mapped.color as G.Color).setRGB(0.18, 0, 0);
   (baked.color as G.Color).copy(mapped.color as G.Color);
@@ -63,7 +64,7 @@ export function normalMapFrames(
       3,
     );
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    renderer.draw([mesh], scene, drawCamera, false, true);
+    renderer.draw([mesh], keptClusterScene(scene), drawCamera, false, true);
     return pixel(gl, 16, 16);
   };
   const flat: [number, number, number] = [0, 0, 1];

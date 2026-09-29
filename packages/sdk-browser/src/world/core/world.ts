@@ -18,7 +18,7 @@ import { worldTelemetry } from './worldTelemetry.ts';
 import { createWorldPhysics } from '../../physics/worldPhysics.ts';
 import { noVehicle } from './worldControlTargets.ts';
 import { worldSwitches } from './worldSwitches.ts';
-
+import { worldMaterialMethods } from './worldMaterialMethods.ts';
 /** Creates a world: the scene, camera, renderer and loop of one view, drawn once it knows how.
  * @param target - The canvas to draw into, an element to draw inside, or the ID of either.
  * @param options - How the world draws and listens; saying nothing is the normal case.
@@ -26,7 +26,7 @@ import { worldSwitches } from './worldSwitches.ts';
  * await world.scene.load('/cache/city/manifest.json'); */
 export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   if (options.controls === 'vehicle') throw noVehicle();
-  const canvas = resolveWorldTarget(target);
+  const { canvas, release: releaseCanvas } = resolveWorldTarget(target);
   const frames = createWorldFrames();
   const pools = worldPools();
   let camera = new Camera('perspective'),
@@ -55,10 +55,7 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
         pixelError,
         clearColor: scene.background?.getHex(), // read at opening; a change is written in place
         currentClearColor: () => scene.background?.getHex(),
-        beforeFrame: () => {
-          ahead(controls);
-          runtime.beforeFrame();
-        },
+        beforeFrame: () => (ahead(controls), runtime.beforeFrame()),
         onFrame: (metrics) => {
           frames.dispatch(metrics);
           if (animating) invalidate(); // a clip still playing asks for the next; the last pauses
@@ -76,13 +73,8 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
   const physics = createWorldPhysics(runtime, scene, () => camera, options.physics);
   const adopt = cameraAdopter(invalidate); // a camera outside the scene redraws when it moves
   adopt(camera);
-  const controls = worldControlsHandle(
-    options.controls ?? 'none',
-    () => camera,
-    canvas,
-    invalidate,
-    physics.character,
-  );
+  const kind = options.controls ?? 'none';
+  const controls = worldControlsHandle(kind, () => camera, canvas, invalidate, physics.character);
   const ahead = (by: typeof controls | null) => (animating = frames.step(by, scene, physics.frame));
   const live = () => {
     if (disposed) throw new Error('World disposed');
@@ -145,12 +137,21 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     set temporalAntialiasing(on: boolean) {
       switches.temporalAntialiasing = on;
     },
+    /** The fraction of the display per axis the image is drawn at (`WorldOptions.renderScale`),
+     *  from the next frame. Read, the scale of the last image drawn. */
+    get renderScale(): number {
+      return switches.renderScale;
+    },
+    set renderScale(scale: import('../../frame/renderScaleOption.ts').RenderScale) {
+      switches.renderScale = scale;
+    },
     /** The effect chain: passes drawn over the image (`effect`). */ effects: switches.held.effects,
     /** Bodies, gravity and time of the physics (Jolt, in a worker). */ physics: physics.handle,
     /** The world's memory pools, read and set in bytes, and the physics envelopes. */
     budget: worldBudget(pools, runtime, frames, () => device.renderer, physics.budget),
     diagnostic: diagnostic.handle,
     /** Lines, points and helpers drawn over the image (`Guides`). */ guides: switches.guides,
+    ...worldMaterialMethods(live, invalidate),
     /** The nearest object under a canvas point (CSS pixels) or along a world ray, or `null`:
      *  the node the page added, the world point and normal hit, the distance (`worldRaycast`). */
     raycast: createWorldRaycast(scene, () => camera, canvas, physics.session),
@@ -182,13 +183,12 @@ export function createWorld(target: WorldTarget, options: WorldOptions = {}) {
     /** Stops the world and gives back all it took: GPU memory, loop, controls. */ dispose() {
       if (disposed) return;
       disposed = true;
-      controls.dispose();
-      physics.dispose();
-      runtime.dispose();
+      for (const part of [controls, physics, runtime]) part.dispose();
       pools.pageCache.clear();
       diagnostic.notices.close();
       frames.clear();
       device.dispose();
+      releaseCanvas();
     },
   };
   frames.add(noticeEffectBudget(world.budget, canvas, world.effects, diagnostic.notices));

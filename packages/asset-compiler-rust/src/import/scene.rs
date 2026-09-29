@@ -3,7 +3,7 @@ use super::*;
 impl<'a> Importer<'a> {
     pub(super) fn check(&self) -> Result<()> {
         if self.cancelled.load(Ordering::Relaxed) {
-            return Err(CompilerError::new("CANCELLED", "Import cancelled"));
+            return Err(CompilerError::new(crate::CANCELLED, "Import cancelled"));
         }
         Ok(())
     }

@@ -19,7 +19,10 @@ function ensurerOver(
   const cache = lruCache(slots),
     loads: string[] = [];
   const load = cache.load;
-  cache.load = async (url: string) => (loads.push(url), load(url));
+  cache.load = async (url: string, signal?: AbortSignal, tier?: 'held' | 'pinned') => (
+    loads.push(url),
+    load(url, signal, tier)
+  );
   const ensure = createWebgpuResidentEnsurer({ ...ensurerOptions(tracking, cache), ...options });
   const want = (...wanted: PageRec[]) => {
     for (const page of wanted) tracking.wanted.add(tracking.keyOf(page), page);
@@ -35,6 +38,20 @@ test('a requested page brings its missing dependencies, each loaded before what 
   await want(a, b);
   assert.deepEqual(loads, ['r', 'm', 'a', 'b'], 'the closure first, then the pages, once each');
   assert.deepEqual([...cache.pins].sort(), ['a', 'b'], 'only what the image holds is pinned');
+});
+
+test('a root-cover page admitted by the ensurer is pinned in the held tier', async () => {
+  const { pages, parentsOf } = placement();
+  const [root, , a] = pages;
+  const tracking = createWebgpuPageTracking(pages),
+    cache = lruCache(8),
+    base = ensurerOptions(tracking, cache);
+  base.bootstrapKey[tracking.keyOf(root)] = 1;
+  const ensure = createWebgpuResidentEnsurer({ ...base, parentsOf });
+  tracking.wanted.add(tracking.keyOf(a), a);
+  await ensure([a], 1, 1);
+  assert.deepEqual([...cache.held], ['r'], 'the cover keeps its tier ahead of ordinary pins');
+  assert.ok(cache.pins.has('a') && !cache.held.has('a'));
 });
 
 test('a page whose parent is outside the cut brings its bundle, then both load in order', async () => {
@@ -93,7 +110,7 @@ test('a shadow caster enters the pool after its dependencies too', async () => {
   const [, , , b] = pages;
   const { loads, want } = ensurerOver(8, pages, {
     parentsOf,
-    lowerTiers: () => [{ pages: [b], has: () => true }],
+    lowerTiers: () => [{ pages: [b], has: () => true, revision: 0 }],
   });
   await want();
   assert.deepEqual(loads, ['r', 'm', 'b']);

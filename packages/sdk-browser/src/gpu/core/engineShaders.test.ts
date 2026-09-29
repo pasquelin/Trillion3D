@@ -1,4 +1,4 @@
-// A module with a name it declares nowhere compiles on no device: the measurer's browser would
+// A module with a name it declares nowhere compiles on no device: the recette's browser would
 // be the first to see it (#348, `unresolved value 'uni'` in the cluster decoding proof, which
 // decodes through the page geometry and declares no camera). This Node test reads every text the
 // engine compiles, and those of the proofs that compile their own, before any browser does: the
@@ -28,6 +28,7 @@ const HANDED_IN = new Set([
   'gpu/core/shaderModule.ts',
   'gpu/raster/resolve.ts',
   'lighting/deferred/program.ts',
+  'lighting/deferred/compositions.ts',
 ]);
 
 test('the list holds the text of every call that compiles a module', () => {
@@ -49,6 +50,12 @@ test('the list holds the text of every call that compiles a module', () => {
     if (read.length !== text.split(/create(?:Checked)?ShaderModule\(/).length - 1)
       unlisted.push(`${file}: a call not read`);
     for (const [, checked, plain] of read) {
+      // The blend module appends checked feedback-free entries to listed source texts.
+      if (file === 'webgpu/blend/pipelines.ts' && plain?.trim() === 'code') {
+        assert.match(text, /let code\s*=\s*BLEND_SHADER/);
+        assert.match(text, /code = feedbackFreeEntry\(/);
+        continue;
+      }
       const names = (checked ?? plain).match(/\b[A-Za-z_]\w*\b/g) ?? [];
       const known = names.filter((name) => listed.has(name));
       const constants = names.filter((name) => /^[A-Z][A-Z0-9_]*$/.test(name));

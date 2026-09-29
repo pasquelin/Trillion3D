@@ -1,7 +1,9 @@
 import { Object3D } from '../object/object3d.ts';
 import { readVec3, type Vec3Input } from '../math/vector3.ts';
 import { Ray } from '../math/volumes.ts';
-import { orthographicView, perspectiveSlope } from '../../math/primitives/camera.ts';
+import { Matrix4 } from '../math/matrix4.ts';
+import { referenceProjection } from './referenceProjection.ts';
+import { drawnView, perspectiveSlope } from '../../math/primitives/camera.ts';
 
 const view = new Float64Array(4);
 
@@ -35,6 +37,9 @@ export interface CameraParameters {
   top?: number;
   /** Bottom edge of an orthographic camera's view box. */
   bottom?: number;
+  /** An orthographic camera keeps its box's height and centre and takes its width from the
+   *  picture's shape, so a resized canvas never stretches the drawing. Off by default. */
+  fitAspect?: boolean;
 }
 
 /** The optics a camera declares; a write redraws the frame, nothing more to call. */
@@ -68,9 +73,13 @@ export class Camera extends Object3D {
   declare top: number;
   /** Bottom edge of the orthographic box. */
   declare bottom: number;
+  private _fitAspect: boolean;
 
   /** `'perspective'` makes far things small; `'orthographic'` keeps every size. */
   readonly projection: 'perspective' | 'orthographic';
+  /** The matrices a renderer reads, made at their first read (`projectionMatrix`). */
+  declare private _projectionMatrix?: Matrix4;
+  declare private _matrixWorldInverse?: Matrix4;
   constructor(projection: 'perspective' | 'orthographic', p: CameraParameters = {}) {
     super();
     this.projection = projection;
@@ -86,6 +95,15 @@ export class Camera extends Object3D {
       top: p.top ?? 1,
       bottom: p.bottom ?? -1,
     };
+    this._fitAspect = p.fitAspect ?? false;
+  }
+  /** An orthographic box as high as declared and as wide as the picture's shape makes it. */
+  get fitAspect() {
+    return this._fitAspect;
+  }
+  set fitAspect(value: boolean) {
+    this._fitAspect = value;
+    this.updateProjectionMatrix();
   }
   protected override get looksDownNegativeZ() {
     return true;
@@ -98,12 +116,25 @@ export class Camera extends Object3D {
     super.copy(source, recursive);
     if (!(source instanceof Camera)) return this;
     (this as { _optics: Camera['_optics'] })._optics = { ...source._optics };
+    this._fitAspect = source.fitAspect;
     this.updateProjectionMatrix();
     return this;
   }
-  /** Kept for pages written against a renderer that needs it: every optic write already redraws. */
+  /** Composes `projectionMatrix` again; every optic write already does, and redraws. */
   updateProjectionMatrix() {
+    if (this._projectionMatrix) referenceProjection(this._projectionMatrix, this);
     this._link?.pose(this);
+  }
+  /** The projection the optics compose, in the reference's depth convention with a finite far
+   *  plane, for a renderer that draws with it; every optic write composes it again. The world
+   *  draws with its own (`engineCamera.ts`). */
+  get projectionMatrix(): Matrix4 {
+    return (this._projectionMatrix ??= referenceProjection(new Matrix4(), this));
+  }
+  /** The inverse of the world matrix as last composed, taken at each read: the view a renderer
+   *  reads. */
+  get matrixWorldInverse(): Matrix4 {
+    return (this._matrixWorldInverse ??= new Matrix4()).copy(this.matrixWorld).invert();
   }
   /**
    * The world ray through a point of the picture, in the engine's own projection
@@ -120,7 +151,7 @@ export class Camera extends Object3D {
       out.origin.setFromMatrixPosition(m);
       out.direction.set(x * t * aspect, y * t, -1);
     } else {
-      const [cx, cy, w, h] = orthographicView(this, this.zoom, view);
+      const [cx, cy, w, h] = drawnView(this, aspect, this.zoom, view);
       out.origin.set(cx + x * w, cy + y * h, 0).applyMatrix4(m);
       out.direction.set(0, 0, -1);
     }

@@ -44,7 +44,7 @@ test('the nineteen virtual texture counters are read in three lines', () => {
 });
 
 test('preparation and network are read in seconds and GB per file type', () => {
-  const [, , , ligne] = textures({}, { preparationMs: 2345.6, reseau: { png: 1.2e9, bin: 2e8 } });
+  const [, , , ligne] = textures({}, { preparationMs: 2345.6, network: { png: 1.2e9, bin: 2e8 } });
   assert.equal(ligne, '- Prepare 2.35 s; network since prepare: png 1.200 GB, bin 0.200 GB');
   const [, , , absente] = textures({}, {});
   assert.equal(absente, '- Prepare unmeasured; network since prepare: unmeasured');

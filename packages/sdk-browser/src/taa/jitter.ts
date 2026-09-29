@@ -12,17 +12,6 @@
 /** Cycle length: eight Halton (2,3) positions, those of the reference. */
 export const TAA_SAMPLES = 8;
 
-/**
- * Still frames accumulated before a frame can be held: two cycles. On the first still
- * frame history restarts at phase zero and the k-th weighs 1/k, so the held frame is the
- * UNIFORM AVERAGE of sixteen frames that depend only on the final state — the same to the bit
- * from one run to the next, which exponential accumulation does not give: it would keep
- * 12% of what the image was while pages and textures arrived, in an order that is never
- * twice the same. The cost, declared: on stop, edges stiffen for a frame or two before
- * reconverging — where the reference renders without end.
- */
-export const TAA_STILL_FRAMES = 2 * TAA_SAMPLES;
-
 /** The `index`-th term (from 1) of the van der Corput sequence in base `base`, in [0, 1). */
 export function halton(index: number, base: number) {
   let result = 0,
@@ -37,11 +26,41 @@ export function halton(index: number, base: number) {
 }
 
 /**
- * Pixel offset for cycle sample `sample`, in pixels and centred: each component
- * is in (−0.5, 0.5). Writes `out[0]` and `out[1]`.
+ * Jitter phases of a frame drawn `render` pixels wide and shown `display` wide (FSR 2's phase
+ * count, `8 · (display / render)²`): eight at native size, 32 at half, so every display pixel
+ * receives samples of its own. A still frame is held after two full cycles (`taaStillFrames`).
  */
-export function taaJitter(sample: number, out: Float64Array) {
-  const index = (sample % TAA_SAMPLES) + 1;
+export const upscalePhases = (render: number, display: number) =>
+  Math.floor(TAA_SAMPLES * (display / render) ** 2);
+
+/**
+ * Still frames accumulated before a frame can be held, at `phases` jitter phases: two cycles. On
+ * the first still frame history restarts at phase zero and the k-th weighs 1/k, so the held frame
+ * is the UNIFORM AVERAGE of those frames, which depend only on the final state — the same to the
+ * bit from one run to the next, which exponential accumulation does not give: it would keep 12% of
+ * what the image was while pages and textures arrived, in an order that is never twice the same.
+ * The cost, declared: on stop, edges stiffen for a frame or two before reconverging — where the
+ * reference renders without end.
+ */
+export const taaStillFrames = (phases: number) => 2 * phases;
+
+/** Still frames before a frame drawn at the display's size can be held: sixteen. */
+export const TAA_STILL_FRAMES = taaStillFrames(TAA_SAMPLES);
+
+/**
+ * Texture level offset of a frame drawn at `render` pixels per display row of `display`: the
+ * material pass's footprint is a render pixel, `log2(render / display)` brings it back to a display
+ * pixel, so a texture keeps its native texel density. Zero at native size. FSR 2's extra −1 is not
+ * taken: the truth is the native image, and one level finer would show more than it and shimmer.
+ */
+export const upscaleMipBias = (render: number, display: number) => Math.log2(render / display);
+
+/**
+ * Pixel offset for cycle sample `sample` among `phases`, in the pixels the frame is drawn in and
+ * centred: each component is in (−0.5, 0.5). Writes `out[0]` and `out[1]`.
+ */
+export function taaJitter(sample: number, out: Float64Array, phases = TAA_SAMPLES) {
+  const index = (sample % phases) + 1;
   out[0] = halton(index, 2) - 0.5;
   out[1] = halton(index, 3) - 0.5;
   return out;

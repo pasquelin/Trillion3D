@@ -1,5 +1,6 @@
 import { viewProj } from '../pages/helpers.ts';
 import { pixelFootprintOf } from '../../streaming/priority.ts';
+import { renderMipBias, renderPixelRatio } from '../pages/state/renderScale.ts';
 import { FLAG_UNLIT_VIEW } from '../../visibility/buffer.ts';
 import { writeBlendDiagnostic } from './diagnostic.ts';
 import { directTiles } from '../pages/render/encodeLights.ts';
@@ -9,9 +10,75 @@ import type { WebgpuPagesRuntime } from '../pages/runtime.ts';
 
 /** Uniform stride of the fallback path, which keeps one record per primitive. */
 export const UNIFORM_STRIDE = 256;
+/** Word offsets in the fallback shader's 48-word record (the stride includes alignment). */
+export const FALLBACK_UNIFORM = {
+  projection: 0,
+  world: 16,
+  color: 32,
+  opacity: 35,
+  pageOffset: 36,
+  indexCount: 37,
+  mode: 38,
+  identity: 39,
+  lineWidth: 40,
+  pixelRatio: 41,
+  width: 42,
+  height: 43,
+  dash: 44,
+  gap: 45,
+  sprite: 46,
+  spriteMode: 47,
+} as const;
+
+type FallbackFields = {
+  projection: ArrayLike<number>;
+  world: ArrayLike<number>;
+  color: ArrayLike<number>;
+  opacity: number;
+  pageOffset: number;
+  indexCount: number;
+  mode: number;
+  /** Opaque cluster hash or transparent flags: diagnostics retain their existing identity. */
+  identity: number;
+  lineWidth?: number;
+  pixelRatio?: number;
+  width?: number;
+  height?: number;
+  dash?: number;
+  gap?: number;
+  spriteRotation?: number;
+  spriteMode?: number;
+};
+
+/** Packs both fallback paths. Disabled line/sprite words are reset when records are reused. */
+export function writeFallbackUniform(
+  packed: Float32Array,
+  ints: Uint32Array,
+  base: number,
+  fields: FallbackFields,
+) {
+  const word = FALLBACK_UNIFORM;
+  packed.set(fields.projection, base + word.projection);
+  packed.set(fields.world, base + word.world);
+  for (let i = 0; i < 3; i++) packed[base + word.color + i] = fields.color[i];
+  packed[base + word.opacity] = fields.opacity;
+  ints[base + word.pageOffset] = fields.pageOffset;
+  ints[base + word.indexCount] = fields.indexCount;
+  ints[base + word.mode] = fields.mode;
+  ints[base + word.identity] = fields.identity;
+  packed[base + word.lineWidth] = fields.lineWidth ?? 0;
+  packed[base + word.pixelRatio] = fields.pixelRatio ?? 0;
+  packed[base + word.width] = fields.width ?? 0;
+  packed[base + word.height] = fields.height ?? 0;
+  packed[base + word.dash] = fields.dash ?? 0;
+  packed[base + word.gap] = fields.gap ?? 0;
+  packed[base + word.sprite] = fields.spriteRotation ?? 0;
+  packed[base + word.spriteMode] = fields.spriteMode ?? 0;
+}
+
 /** `viewProj`, the view point, lamp tiles, view flags, the item offset, the texture-feedback
- *  phase, the pixel scale, the target size, the eye and the host's pixel ratio: 132 bytes, 144
- *  with the struct's alignment. */
+ *  phase, the pixel scale, the target size, the eye, the render pixel ratio, the texture level
+ *  offset, the exposure and the display curve: 144 bytes. */
 export const BLEND_VIEW_SIZE = 144;
 
 /** Diagnostic bits that the WHOLE pass carries: they do not depend on the item. */
@@ -54,6 +121,7 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   writeBlendDiagnostic(
     blendState,
     rt.layout.packedPages,
+    rt.layout.selectionRoots,
     diagnostic,
     eye && run.gate.cam,
     viewport,
@@ -79,15 +147,24 @@ export function writeBlendView(rt: WebgpuPagesRuntime, device: GPUDevice) {
   ints[24] = rt.vis.textures?.feedback.phaseWord(run.textureConverging) ?? 0;
   // A pixel's world size per unit of distance — or its size, under an orthographic camera —:
   // the footprint the transparent surface reads its shadow level at.
-  packed[25] = eye ? pixelFootprintOf(run.gate.cam.projection, rt.gpu.targetSize[1]) : 0;
+  // A display pixel's, whatever size the frame is drawn at: shadow detail is the display's.
+  packed[25] = eye ? pixelFootprintOf(run.gate.cam.projection, rt.gpu.displaySize[1]) : 0;
   // The size in pixels of the target both surface passes draw into: the vertex stage's facing test
   // measures a triangle's area against the rasteriser's snapping there (`facing.ts`).
   packed[26] = rt.gpu.targetSize[0];
   packed[27] = rt.gpu.targetSize[1];
-  // The eye the fog is measured from, the opaque resolve's (`encodeLights.ts`).
-  packed.set(tiles.subarray(5, 8), 28);
-  // Image pixels per CSS pixel: a line's width counts CSS pixels (`lineClip`).
-  packed[32] = rt.setup.pixelRatio();
+  // The eye the fog is measured from, the opaque resolve's (`encodeLights.ts`), written by value:
+  // no `subarray` view allocated per frame.
+  packed[28] = tiles[5];
+  packed[29] = tiles[6];
+  packed[30] = tiles[7];
+  // Render pixels per CSS pixel: a line's width counts CSS pixels (`lineClip`).
+  packed[32] = renderPixelRatio(rt);
+  // Texture level offset of a frame drawn below the display (`tilePoolWgsl`).
+  packed[33] = renderMipBias(rt);
+  // The composition's exposure and display curve: the display filter's colour (`displayFilter.ts`).
+  packed[34] = tiles[3];
+  ints[35] = tiles[4];
   device.queue.writeBuffer(
     buffer,
     0,

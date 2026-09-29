@@ -41,6 +41,7 @@ export function fixture(
   const copies: PageCopies = {
     of: () => each,
     root: () => rootUrls.size * each,
+    floor: () => rootUrls.size * each,
     scene: () => count * each,
   };
   const diagnostics: BackendDiagnostic[] = [];

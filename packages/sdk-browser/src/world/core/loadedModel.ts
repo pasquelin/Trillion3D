@@ -5,15 +5,15 @@ import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts';
 import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 import { lightFromRecord } from '../../../../sdk-core/src/world/light/lightRecord.ts';
 import { importedLightsUrl, loadImportedLights } from '../../lighting/importedLights.ts';
-import { sceneDocument, sceneTablesUrl } from '../../scene/tables.ts';
-import type { PreparedSceneTables } from '../../../../sdk-core/src/scene/core/tableContracts.ts';
+import { sceneTablesUrl } from '../../scene/tables.ts';
+import { worldRootsPlan } from '../../scene/worldRoots.ts';
 import type { ClusterManifest, AssetScope, JobProgress } from '../../../../sdk-core/src/index.ts';
 import { loadClusterManifest } from '../../scene/manifestLoad.ts';
 import { byteMeter, unmetered } from '../../cluster/byteMeter.ts';
 import { loadPreparedScene } from '../scene/scene.ts';
 import { emptyWorldBox, hostWorldBounds } from '../../host/world/bounds.ts';
 import type { ExplorerScene } from '../session/prepare.ts';
-import { findGraphNode, modelNode } from './modelNodes.ts';
+import { findGraphNode, graphSubtree, modelNode } from './modelNodes.ts';
 
 /** A compiled model as the world holds it: its manifest, and the graph its loader built. */
 export type ModelRecord = {
@@ -80,6 +80,14 @@ export class LoadedModel extends Object3D {
     const graph = findGraphNode(this.record.scene.source, name);
     return graph ? this.nodeOf(graph) : super.getObjectByName(name);
   }
+  /** The scene node of source node `index` (`nodeOf`), the nodes below it and its radius
+   *  (`graphSubtree`): what the physics moves a body's node by. `null` where the cache numbers
+   *  its nodes otherwise than the source (a partitioned scene). */
+  _nodeAt(index: number) {
+    const nodes = this.record.scene.nodes;
+    if (!nodes?.[index]) return null;
+    return { node: this.nodeOf(nodes[index]), ...graphSubtree(nodes, index) };
+  }
   constructor(record: ModelRecord) {
     super();
     this.record = record;
@@ -98,10 +106,7 @@ export class LoadedModel extends Object3D {
    *  clusters its pages hold, every level of its DAGs counted. */
   get metadata() {
     const manifest = this.record.metadata;
-    const clusters = manifest.primitives.reduce(
-      (sum, primitive) => sum + primitive.pages.length,
-      0,
-    );
+    const clusters = manifest.primitives.reduce((sum, { pages }) => sum + pages.length, 0);
     return { ...manifest, clusters };
   }
   override localBounds() {
@@ -112,28 +117,21 @@ export class LoadedModel extends Object3D {
 /** The document a world's model draws. */
 const SCENE_FILE = 'source.gltf';
 
-/**
- * The files a model load reads once its manifest is, at the length the manifest declares each,
- * addressed as their readers address them: the scene tables, the lights, the scene's binary. The
- * manifest and its binary are read before any plan; an image is read only when a surface samples
- * it, so none is planned.
- */
-function plannedFiles(
-  declared: ReadonlyMap<string, number>,
-  base: string,
-  tables: PreparedSceneTables,
-) {
-  const { bufferUrl } = sceneDocument(tables, SCENE_FILE, base);
-  const read = [sceneTablesUrl(base), importedLightsUrl(base), bufferUrl];
-  return new Map(
-    read.flatMap((url) => (url && declared.has(url) ? [[url, declared.get(url)!]] : [])),
-  );
+/** The files a model load reads once its manifest is, at the length the manifest declares each,
+ *  addressed as their readers address them: the scene tables, the lights, the world roots
+ *  (`worldRootsPlan`). An image is read only when a surface samples it, and the scene's binary only
+ *  when a path reads host vertices (`Geometry.loadVertices`), so neither is planned. */
+function plannedFiles(declared: ReadonlyMap<string, number>, base: string, manifest: object) {
+  const read = [sceneTablesUrl(base), importedLightsUrl(base)];
+  const files = read.flatMap((url) => (declared.has(url) ? [[url, declared.get(url)!]] : []));
+  return new Map([...files, ...worldRootsPlan(declared, base, manifest)] as [string, number][]);
 }
 
 /**
  * Reads a compiled model — its manifest, then its source graph (`loadPreparedScene`) — for a
  * world. `textureSource: 'cache'` leaves the images whose levels the cache baked unread: what a
- * WebGPU world's first model does; any other path samples the images themselves. `onProgress`
+ * WebGPU world's first model does; any other path samples the images themselves. `lazy` holds the
+ * manifest by the view (#751), as a WebGL2 world does, whose session mounts it in place. `onProgress`
  * hears `bytes` against the files it reads (`plannedFiles`) as each chunk lands (`byteMeter`), the
  * manifest read, the scene tables read, then each resource the scene reads (`loadPreparedScene`).
  */
@@ -143,6 +141,7 @@ export async function loadModel(
     scope?: AssetScope;
     signal?: AbortSignal;
     textureSource: 'host' | 'cache';
+    lazy?: boolean;
     onProgress?: (event: JobProgress) => void;
   },
 ): Promise<LoadedModel> {
@@ -154,8 +153,8 @@ export async function loadModel(
     : unmetered;
   // A scope the page named is enforced; none named, the model is read at the one its pointer
   // declares (`loadClusterManifest`).
-  const loaded = await loadClusterManifest(manifestUrl, options.scope, signal, meter);
-  const { metadata, metadataUrl, base, declared } = loaded,
+  const loaded = await loadClusterManifest(manifestUrl, options.scope, signal, meter, options.lazy);
+  const { metadata, metadataUrl, base, declared, pages } = loaded,
     scope = metadata.scope;
   onProgress?.({ phase: 'manifest', completed: 1, total: 1, message: `Read ${metadataUrl}` });
   const [scene, imported] = await Promise.all([
@@ -164,7 +163,8 @@ export async function loadModel(
         manifestUrl,
         textureSource,
         meter,
-        onTables: (tables) => meter.plan(plannedFiles(declared, base, tables)),
+        pages,
+        onTables: () => meter.plan(plannedFiles(declared, base, metadata)),
         onPreparation: (event) => onProgress?.({ ...event }),
       },
       metadata,
@@ -183,6 +183,7 @@ export async function loadModel(
     loadImportedLights(base, signal, meter),
   ]);
   meter.settle();
+  loaded.settle();
   const model = new LoadedModel({
     manifestUrl,
     metadataUrl,

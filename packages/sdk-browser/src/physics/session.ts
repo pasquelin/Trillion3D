@@ -14,8 +14,9 @@ import { createPhysicsJoints } from './joints.ts';
 import type { createJointList } from './jointList.ts';
 import { createPhysicsVehicles } from './vehicles.ts';
 import { engineIdOf } from './simulatedIds.ts';
-import { receiveSoft } from './softBodies.ts';
+import { drawnBySoft, receiveSoft } from './softBodies.ts';
 import { createTileStreamer } from './tiles.ts';
+import { followMove } from './nodePose.ts';
 import { createPhysicsView } from './view.ts';
 import { resolveCameraWorld } from '../camera/world.ts';
 import { createCharacterPort, createPhysicsCharacter } from './physicsCharacter.ts';
@@ -49,9 +50,9 @@ export function createPhysicsSession(
   const bodies = createPhysicsBodies(writer, budget, host, root, poses.state);
   const joints = createPhysicsJoints(writer, bodies, invalidate);
   const vehicles = createPhysicsVehicles(writer, bodies, invalidate);
-  /** A body leaving the simulation takes its joints and vehicles; asleep, its joints break now. */
-  const retire = (index: number, asleep = false) => {
-    if (asleep) joints.retired(bodies.slots.physicsAt(index), wanted.joints);
+  /** A body leaving takes its joints and vehicles; out for good (asleep, diverged), they break. */
+  const retire = (index: number, forGood = false) => {
+    if (forGood) joints.retired(bodies.slots.physicsAt(index), wanted.joints);
     bodies.retire(index);
     dirty = true;
   };
@@ -63,16 +64,13 @@ export function createPhysicsSession(
   const worker = startPhysicsWorker(budget);
   const tiles = createTileStreamer(writer, budget, bodies, invalidate, (error) => failed(error));
   const casts = new Map<number, (hits: Uint32Array) => void>();
-  let asked = 0,
-    onReady = () => {};
+  let [asked, onReady] = [0, () => {}];
   const started = new Promise<void>((resolve) => (onReady = resolve));
   const flush = () => {
-    if (!ready || !writer.length) return;
-    const words = writer.take();
-    worker.postMessage({ type: 'commands', words }, [words.buffer]);
+    const words = ready && writer.length ? writer.take() : null;
+    if (words) worker.postMessage({ type: 'commands', words }, [words.buffer]);
   };
-  /** Page milliseconds spent on ticks since the last frame: they count in its `physics` stage. */
-  let received = 0;
+  let received = 0; // Page ms spent on ticks since the last frame: its `physics` stage's.
   const results = (m: PhysicsResults) => {
     const began = performance.now();
     const words = new Uint32Array(m.buffer);
@@ -90,6 +88,7 @@ export function createPhysicsSession(
     stats.bodies = bodies.count.bodies;
     if (m.steps) Object.assign(stats, { stepMs: m.stepMs / m.steps, stepMaxMs: m.stepMaxMs });
     worker.postMessage({ type: 'buffer', buffer: m.buffer }, [m.buffer]);
+    writer.recycle(m.spent);
     received += performance.now() - began;
     if (changed) invalidate();
   };
@@ -104,10 +103,10 @@ export function createPhysicsSession(
       casts.get(data.id)?.(data.hits);
       casts.delete(data.id);
     } else {
-      // Refused shapes leave, tiles and cooked soft bodies by their owner; a fatal error ends all.
+      // Refused shapes leave, tiles and cooked soft bodies by their owner; diverged, joints break.
       for (const id of data.bodies ?? []) tiles.refused(id);
       const refused = (data.bodies ?? []).map(bodies.meshOf).filter((mesh) => mesh !== null);
-      for (const mesh of refused) retire(mesh.physics._index);
+      for (const mesh of refused) retire(mesh.physics._index, data.code === 'PHYSICS_DIVERGED');
       const names = refused.map((mesh) => mesh.name);
       failed(new EngineError(data.code, data.message, names.length ? { names } : {}), data.fatal);
     }
@@ -128,19 +127,20 @@ export function createPhysicsSession(
       Object.assign(clock, { paused, timeScale });
       worker.postMessage({ type: 'clock', paused: paused || timeScale === 0, timeScale });
     },
-    /** The water the bodies float in, or none: buoyancy runs in the worker, before each step, on
-     *  the awake bodies; every dynamic body is woken, so one at rest floats or falls. */
+    /** The water, or none (buoyancy in the worker): each dynamic body woken, to float or fall. */
     setWater(water: WaterSpec | null) {
       worker.postMessage({ type: 'water', water, epoch: waves.reset() });
       for (const mesh of bodies.meshes)
         if (mesh?.physics.type === 'dynamic') writer.wake(mesh.physics._index);
+      for (const slot of bodies.nested.keys()) writer.wake(slot);
     },
     /** Simulated seconds the water's waves have run, for a frame drawn now. */
     waterTime: () => waves.time(),
     /** The scene's tree changed: bodies are reconciled before the next frame. */
     structure: () => void (dirty = true),
-    /** A mesh's geometry, material or `physics` changed. */
+    /** A mesh's geometry, material or `physics` changed: not a soft body drawn where it is. */
     content(node: Object3D) {
+      if (drawnBySoft(node)) return;
       if (hasBody(node)) stale.add(node);
       dirty = true;
     },
@@ -148,9 +148,10 @@ export function createPhysicsSession(
     pose(node: Object3D) {
       dirty = placeBodies(node, bodies, writer, failed) || dirty;
       tiles.moved(node);
+      followMove(node, bodies.nested, writer, poses.follow);
     },
-    /** The frame's physics: bodies reconciled, poses drawn, the view and the commands sent. */
-    frame(camera: Camera) {
+    /** The frame's physics: bodies reconciled, poses drawn, the view (`range`), commands sent. */
+    frame(camera: Camera, range: number | null) {
       touched.eye = camera;
       if (dirty) {
         bodies.reconcile(stale, (error) => failed(error as EngineError));
@@ -162,10 +163,9 @@ export function createPhysicsSession(
         stats.bodies = bodies.count.bodies;
       }
       const moving = poses.apply(bodies);
-      stats.mainMs = received;
-      received = 0;
-      view(camera, writer);
-      tiles.update(resolveCameraWorld(camera).matrixWorld.elements.slice(12, 15), camera.far);
+      [stats.mainMs, received] = [received, 0];
+      const reach = view(camera, writer, range);
+      tiles.update(resolveCameraWorld(camera).matrixWorld.elements.slice(12, 15), reach);
       flush();
       if (ready) character.flush();
       return moving;

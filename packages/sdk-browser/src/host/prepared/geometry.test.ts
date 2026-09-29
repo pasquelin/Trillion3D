@@ -6,7 +6,7 @@ import { preparedGeometries } from './geometry.ts';
 
 // #457: a quantized glTF gives the host normalised integer lists; the host has always read them at
 // the value they stand for, never as the stored numbers a world geometry is read as.
-test('a prepared geometry is the host’s: its normalised lists are edged and turned at their value', () => {
+test('a prepared geometry is the host’s: its normalised lists are edged and turned at their value', async () => {
   // View 0: three Int16 positions (18 bytes, padded to 20); view 1: three Int8 normals.
   const binary = new Uint8Array(29);
   binary.set(new Uint8Array(new Int16Array([0, 0, 0, 32767, 0, 0, 0, 32767, 0]).buffer), 0);
@@ -29,7 +29,10 @@ test('a prepared geometry is the host’s: its normalised lists are edged and tu
     accessors: [run(0, 5122), run(1, 5120)],
     meshes: [{ primitives: [{ attributes: { POSITION: 0, NORMAL: 1 }, indices: null }] }],
   } as unknown as TableDocument;
-  const geometry = preparedGeometries(document, binary.buffer)(0, 0);
+  const geometry = await preparedGeometries(document, async () => binary.buffer)(
+    0,
+    0,
+  ).loadVertices();
   assert.equal(geometry._owner, 'host');
   assert.deepEqual(
     Array.from(wireframe(geometry).attributes.position.array),

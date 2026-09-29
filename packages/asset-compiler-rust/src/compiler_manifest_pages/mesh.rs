@@ -48,8 +48,8 @@ pub(crate) fn write_mesh_pages(primitives: &[Value], directory: &Path) -> Result
         }
         Ok(page)
     };
-    let mut pager = Pager::new(kind, slim, None, directory, &leaf)?;
-    let slots = pager.root(&halving(0..primitives.len()))?;
+    let mut pager = Pager::new(kind, slim, None, directory, &leaf, None)?;
+    let (slots, _) = pager.root(&halving(0..primitives.len()))?;
     let mut by_mesh = MeshSlots::new();
     for (records, slot) in pager.written {
         kept.borrow_mut().insert(slot[..64].to_string());

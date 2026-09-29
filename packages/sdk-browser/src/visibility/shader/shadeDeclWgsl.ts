@@ -1,7 +1,12 @@
 import { COTANGENT_FRAME_WGSL } from '../../cluster/decodeWgsl.ts';
 import { INVERSE_TRANSPOSE_WGSL } from '../../math/inverseTransposeWgsl.ts';
 import { TRIANGLE_PALETTE_WGSL } from '../../diagnostic/trianglePalette.ts';
-import { BARY_WEIGHTS_WGSL, EDGE_WGSL, PAGE_INFO_STRUCT_WGSL } from './pageWgsl.ts';
+import {
+  BARY_WEIGHTS_WGSL,
+  EDGE_WGSL,
+  PAGE_INFO_STRUCT_WGSL,
+  VERT_NORMAL_WGSL,
+} from './pageWgsl.ts';
 import { PAGE_GEOMETRY_WGSL, PAGE_NORMAL_WGSL, PAGE_SCREEN_WGSL } from './pageGeometryWgsl.ts';
 import {
   COLOR_SAMPLE_WGSL,
@@ -41,7 +46,7 @@ export const UV_GRADIENTS_WGSL = `fn uvGradients(s0:vec2f,s1:vec2f,s2:vec2f,p:ve
  */
 export const SHADE_DECL_WGSL = `${PAGE_INFO_STRUCT_WGSL}
 ${SHADE_SUN_WGSL}
-struct ShadeUni{viewProj:mat4x4f,viewport:vec2f,pixelRatio:f32,padViewport:f32,pageCount:u32,mode:u32,feedback:u32,pixelScale:f32,depthRamp:vec4f,sun:ShadeSun,}
+struct ShadeUni{viewProj:mat4x4f,viewport:vec2f,pixelRatio:f32,mipBias:f32,pageCount:u32,mode:u32,feedback:u32,pixelScale:f32,depthRamp:vec4f,sun:ShadeSun,}
 @group(0) @binding(${SHADE_BINDINGS.visView}) var vis:texture_2d<u32>;
 @group(0) @binding(${SHADE_BINDINGS.cache}) var<storage, read> indices:array<u32>;
 @group(0) @binding(${SHADE_BINDINGS.position}) var<storage, read> positions:array<f32>;
@@ -56,8 +61,7 @@ ${MATERIAL_CLASS_WGSL}
 ${TRIANGLE_PALETTE_WGSL}
 ${PAGE_GEOMETRY_WGSL}
 ${PAGE_SCREEN_WGSL}
-fn vertN(base:u32,idx:u32)->vec3f{let i=(base+idx)*7u;return vec3f(normals[i],normals[i+1u],normals[i+2u]);}
-fn vertT(base:u32,idx:u32)->vec4f{let i=(base+idx)*7u+3u;return vec4f(normals[i],normals[i+1u],normals[i+2u],normals[i+3u]);}
+${VERT_NORMAL_WGSL}
 ${PAGE_NORMAL_WGSL}
 ${EDGE_WGSL}
 ${BARY_WEIGHTS_WGSL}

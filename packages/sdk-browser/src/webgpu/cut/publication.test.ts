@@ -15,14 +15,13 @@ import type { ClusterRoot, PageRec } from '../../page/selection/types.ts';
 function banc() {
   const packedPages = fixturePages(4);
   for (let i = 0; i < packedPages.length; i++) {
-    packedPages[i].matrix = new Matrix4().makeTranslation(i * 10, 0, 0);
     packedPages[i].min = [0, 0, 0];
     packedPages[i].max = [0, 0, 0];
   }
   // One placement of the four clusters, laid out as `../pages/prepare/layout.ts` lays it; the pool
   // holds what `holds` names, and the rank journal's watcher is the one publication subscribes.
   for (const page of packedPages) page.placementIndex = 0;
-  const root = { pages: packedPages } as unknown as ClusterRoot<PageRec>,
+  const root = { pages: packedPages, world: new Matrix4() } as unknown as ClusterRoot<PageRec>,
     holds = new Set<PageRec>();
   let watcher: (page: number) => void = () => {};
   const shadowChanges: number[] = [];
@@ -47,9 +46,11 @@ function banc() {
     applyDrawn: (delta: CutDelta) => (remue.dessinee += compte(delta)),
     hostBytes: 0,
   } as unknown as WebgpuResidencySets;
+  const mainView = {};
   const rt = {
     run,
     gpu: {},
+    views: { main: mainView, active: mainView },
     lights: {
       store: { count: 1 },
       plan: { representationChanged: (min: number[]) => shadowChanges.push(min[0]) },

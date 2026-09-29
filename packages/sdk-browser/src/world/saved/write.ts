@@ -75,6 +75,7 @@ function saveCamera(camera: Camera): SavedCamera {
     position: camera.position.toArray(),
     quaternion: camera.quaternion.toArray(),
     optics: { ...camera._optics },
+    ...(camera.fitAspect && { fitAspect: true }),
   };
 }
 

@@ -90,6 +90,12 @@ export const SHADOW_TABLE_ENTRIES = MAX_SHADOW_SLICES * SHADOW_TABLE_STRIDE;
 export const PAGE_VALID = 1 << 16;
 export const PAGE_MAPPED = 1 << 17;
 export const PAGE_INDEX_MASK = 0xffff;
+/** Depth ranges a sun keeps at once: a pair of floats each, in the six lamp matrices its record
+ *  leaves free (`faces.ts`). A drawn page's word names the one its depth was drawn in, from bit
+ *  `PAGE_RANGE_SHIFT` (`sunLevels.ts`): a new range leaves every page drawn in an older one read. */
+export const SUN_DEPTH_RANGES = (POINT_FACES * 16) / 2;
+export const PAGE_RANGE_SHIFT = 18;
+export const PAGE_RANGE_MASK = 2 ** Math.ceil(Math.log2(SUN_DEPTH_RANGES)) - 1;
 /** Pages a side of one layer of the pool: an 8 192-texel square, the largest 2D texture side
  *  WebGPU guarantees on every device (the default `maxTextureDimension2D`). */
 const LAYER_SIDE = Math.floor(8192 / SHADOW_PAGE);
@@ -101,6 +107,15 @@ export function shadowPoolShape(pages: number, layerSide = LAYER_SIDE) {
   const wanted = Math.min(Math.max(1, Math.ceil(pages)), PAGE_INDEX_MASK + 1);
   const layers = Math.ceil(wanted / layerSide ** 2);
   return { side: Math.ceil(Math.sqrt(wanted / layers)), layers };
+}
+/** Where physical page `phys` lies in a pool of `side²`-page layers: its first texel, its layer. */
+export function pageOrigin(phys: number, side: number) {
+  const local = phys % (side * side);
+  return {
+    x: (local % side) * SHADOW_PAGE,
+    y: Math.floor(local / side) * SHADOW_PAGE,
+    layer: Math.floor(phys / (side * side)),
+  };
 }
 /** Pages a layer side of the pool one shadowed light over a `width × height` screen asks. */
 export const shadowPoolSide = (width: number, height: number) =>

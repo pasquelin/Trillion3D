@@ -24,13 +24,13 @@ test('the dispatch argument is copied outside a pass, between two cut passes', (
   const { encoder, copies, passes } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, ressources(true));
   // WebGPU refuses `work` both written and as an argument in the same scope: each arming
-  // therefore cuts the pass, and carries only the head word, the other two being one since
-  // creation. Only three remain, for the three lists whose layout knows no upper bound: the
-  // previous frame's drawn journal, the candidates and the live ones.
+  // therefore cuts the pass, and carries the x and y words, z being one since creation
+  // (`shader/gridWgsl.ts`). Only three remain, for the three lists whose layout knows no upper
+  // bound: the previous frame's drawn journal, the candidates and the live ones.
   assert.deepEqual(copies, [
-    { de: 'work', decalage: DRAWN, vers: 'dispatchArgs', octets: 4, enPasse: false },
-    { de: 'work', decalage: CAND, vers: 'dispatchArgs', octets: 4, enPasse: false },
-    { de: 'work', decalage: LIVE, vers: 'dispatchArgs', octets: 4, enPasse: false },
+    { de: 'work', decalage: DRAWN, vers: 'dispatchArgs', octets: 8, enPasse: false },
+    { de: 'work', decalage: CAND, vers: 'dispatchArgs', octets: 8, enPasse: false },
+    { de: 'work', decalage: LIVE, vers: 'dispatchArgs', octets: 8, enPasse: false },
   ]);
   assert.deepEqual(passes, new Array(3).fill('Trillion3D DAG selection'));
 });
@@ -45,17 +45,37 @@ test('every light view of a frame shares one traversal: the same commands as one
   const { encoder, copies, passes, lancements } = encodeurTemoin();
   encodeDagKernels(encoder as unknown as GPUCommandEncoder, light);
   assert.equal(passes.length + copies.length, 5, 'no clear of draw flags a light never sets');
-  const flat = (noyau: string) => lancements.filter((l) => l.noyau === noyau).map((l) => l.groupes);
+  const flat = (kernel: string) =>
+    lancements.filter((l) => l.kernel === kernel).map((l) => l.groups);
   assert.deepEqual(flat('dagPrepare'), [1], 'one thread per slot: two primitives × three views');
   assert.deepEqual(
-    [...flat('dagLevel0'), ...flat('dagLevel1'), ...flat('dagLevel2')].sort(),
+    [
+      ...flat('dagRootLevel'),
+      ...flat('dagLevel0'),
+      ...flat('dagLevel1'),
+      ...flat('dagLevel2'),
+    ].sort(),
     [1, 1, 2, 8, 16].sort(),
     'stages [2, 9, 40, 150, 600] per view, three views, capped at 1000 queued nodes',
   );
-  const noyaux = lancements.map((l) => l.noyau);
+  const noyaux = lancements.map((l) => l.kernel);
   assert.ok(!noyaux.includes('dagClearDrawn') && !noyaux.includes('dagDrawPrefix'));
   assert.ok(!noyaux.includes('dagSortRequests'), 'a light cut sorts its requests on the host');
   assert.ok(noyaux.indexOf('dagViewOffsets') < noyaux.indexOf('dagMask'));
+});
+
+test('a flat dispatch past the device width runs in rows of it', () => {
+  // Stages [2, 9, 40, 150, 600] per view, three views, capped at 1000 queued nodes: 1, 1, 2, 8 and
+  // 16 groups, on a device four groups wide.
+  const base = ressources(true, 5),
+    device = { limits: { maxComputeWorkgroupsPerDimension: 4 } };
+  const light = { ...base, light: { views: 3, queueCap: 1000 }, device } as unknown as typeof base;
+  const { encoder, lancements } = encodeurTemoin();
+  encodeDagKernels(encoder as unknown as GPUCommandEncoder, light);
+  const levels = lancements
+    .filter((l) => /^dag(Root)?Level/.test(l.kernel))
+    .map((l) => `${l.groups}x${l.rows ?? 1}`);
+  assert.deepEqual(levels.sort(), ['1x1', '1x1', '2x1', '4x2', '4x4']);
 });
 
 test('the camera cut sorts its requests once, then lists its evictions, one workgroup each', () => {
@@ -65,8 +85,8 @@ test('the camera cut sorts its requests once, then lists its evictions, one work
     const last = residentCut ? ['dagSortRequests', 'dagListEvictions'] : ['dagSortRequests'];
     assert.deepEqual(
       lancements.slice(-last.length),
-      last.map((noyau) => ({ noyau, groupes: 1 })),
+      last.map((kernel) => ({ kernel, groups: 1 })),
     );
-    assert.equal(lancements.filter((l) => l.noyau === 'dagSortRequests').length, 1);
+    assert.equal(lancements.filter((l) => l.kernel === 'dagSortRequests').length, 1);
   }
 });

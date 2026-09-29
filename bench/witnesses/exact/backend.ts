@@ -10,10 +10,11 @@ import {
   contractLightingApi,
   installLighting,
   graphBackground,
-  GraphScene,
+  Scene,
   collectClusterPages,
   createBlendCopy,
   type PageRec,
+  posedRoots,
   type DiagnosticMode,
   type BackendFactory,
   type CameraMotion,
@@ -23,6 +24,7 @@ import { createExactPagesMetrics } from './metrics.ts';
 import { createExactPagesAttachment, disposePageGeometry, pageIndexBuffers } from './attachment.ts';
 import { createExactPagesMaterials } from './materials.ts';
 import { isDrawnNode } from '../../../packages/sdk-browser/src/host/graph/kinds.ts';
+import { numbered } from '../../../packages/sdk-browser/src/host/graph/serial.ts';
 import { createExactPagesClusterBatches } from './clusterBatches.ts';
 
 export const exactPagesBackend: BackendFactory = (context) => {
@@ -40,16 +42,15 @@ export const exactPagesBackend: BackendFactory = (context) => {
   const collected = collectClusterPages(source, metadata, indices, associations, {
     blendCopy: createBlendCopy,
   });
-  const { roots, allPages, bootstrap, requestCount, prepared, worlds } = collected;
-  // The witness draws the transparent copies with the host library it is written in: this is where
-  // the engine's contract copies go back to being its meshes.
+  const { requestCount, prepared, worlds } = collected,
+    roots = posedRoots(collected.roots),
+    [allPages, bootstrap] = [collected.allPages, collected.bootstrap] as PageRec[][];
+  // The witness draws the contract's transparent copies with its host library, as its own meshes.
   const blendCopies = collected.blendCopies.flatMap((copy) => (isDrawnNode(copy) ? [copy] : []));
   const cap = maxResidentPages ?? context.residentPagesDefault ?? Math.max(1024, prepared),
-    scene = new GraphScene();
+    scene = numbered(new Scene());
   const sceneLights = installLighting(scene, clearColor, context.sceneLighting ?? source);
-  const shown: PageRec[] = [],
-    desired: PageRec[] = [],
-    attached: PageRec[] = [];
+  const [shown, desired, attached]: PageRec[][] = [[], [], []];
   const requestData = createExactPagesRequestData(allPages, requestCount);
   // One resident index buffer per primitive: the visible cut is now only a list of ranges.
   const { batches, refusal, drawHostGeometry } = createExactPagesClusterBatches(

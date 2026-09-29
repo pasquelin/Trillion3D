@@ -1,25 +1,32 @@
 use super::*;
 
-/// The compiled primitives and, beside them, the plane of each of their clusters and the coarse
-/// cut its proxy keeps. Neither travels inside the primitive: both are read once by a later stage.
+/// The compiled primitives and, beside them, the plane of each of their clusters, the coarse cut
+/// its proxy keeps, its collision and its root cover. None travels inside the primitive: each is
+/// read once by a later stage.
 pub(super) type SplitCompiled = (
     Vec<Value>,
     Vec<Vec<Option<coplanar::ClusterPlane>>>,
     Vec<Vec<f32>>,
     Vec<f64>,
+    Vec<Value>,
+    Vec<crate::compiler_world_roots::RootCover>,
 );
 pub(super) fn split_compiled(compiled: Vec<CompiledPrimitive>) -> SplitCompiled {
     let mut primitives = Vec::with_capacity(compiled.len());
     let mut planes = Vec::with_capacity(compiled.len());
     let mut cuts = Vec::with_capacity(compiled.len());
     let mut thresholds = Vec::with_capacity(compiled.len());
+    let mut collisions = Vec::with_capacity(compiled.len());
+    let mut covers = Vec::with_capacity(compiled.len());
     for entry in compiled {
         primitives.push(entry.value);
         planes.push(entry.cluster_planes);
         cuts.push(entry.proxy_cut);
         thresholds.push(entry.proxy_threshold);
+        collisions.push(entry.collision);
+        covers.push(entry.root_cover);
     }
-    (primitives, planes, cuts, thresholds)
+    (primitives, planes, cuts, thresholds, collisions, covers)
 }
 
 /// Everything the stage reads that is not the primitives it writes into.
@@ -27,7 +34,8 @@ pub(super) struct DepthLayerScene<'a> {
     pub o: &'a Options,
     pub g: &'a Value,
     pub bin: &'a [u8],
-    pub chosen: &'a BTreeSet<usize>,
+    /// The chosen nodes no hidden node hides: what the drawn scene derives from.
+    pub shown: &'a BTreeSet<usize>,
     pub mesh_map: &'a BTreeMap<usize, usize>,
     pub cluster_planes: &'a [Vec<Option<coplanar::ClusterPlane>>],
 }
@@ -44,7 +52,7 @@ pub(super) fn stage_depth_layers(
         o,
         g,
         bin,
-        chosen,
+        shown,
         mesh_map,
         cluster_planes,
     } = *scene;
@@ -56,7 +64,7 @@ pub(super) fn stage_depth_layers(
     let inputs = coplanar::CoplanarInputs {
         g,
         bin,
-        chosen,
+        shown,
         mesh_map,
         source_mesh: &source_mesh,
         primitives,

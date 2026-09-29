@@ -7,6 +7,7 @@ import {
 import { writeRotationQuaternion } from '../../math/matrix/matrix4Trs.ts';
 import { ObservedComponents } from './observed.ts';
 import type { EulerLike, XYZLike as V, XYZWLike as Q } from './likes.ts';
+import { hypot3 } from '../../math/primitives/hypot.ts';
 
 const other = new Float64Array(4),
   axis = new Float64Array(3),
@@ -64,7 +65,7 @@ export class Quaternion extends ObservedComponents {
   }
   /** Becomes a turn of `angle` radians around the axis `v`. */
   setFromAxisAngle(v: V, angle: number) {
-    const n = Math.hypot(v.x, v.y, v.z) || 1;
+    const n = hypot3(v.x, v.y, v.z) || 1;
     axis[0] = v.x / n;
     axis[1] = v.y / n;
     axis[2] = v.z / n;

@@ -15,17 +15,26 @@ import { rowShadowless, type PlacementRows } from '../../placement/rows.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { blendMoves, isAssignment, type AlphaChange } from '../../placement/backendSceneUpdates.ts';
 
-/** Whether a primitive's pages are drawn blended: the rule of the open, and of a material a page
- *  moves between draw classes later (`reassignBlend`). */
+/** Whether a primitive's pages are drawn blended at the open. A material moved between draw
+ *  classes later puts them in the family of its new class alone (`reassignBlend`): its pages are
+ *  cut again on that class's grid (`classPages.ts`), as a fresh session of it compiles them. */
 const pagesBlend = (primitive: { pass?: string }, surface: { transparent: boolean }) =>
   primitive.pass === 'clustered-blend' || surface.transparent;
+/** The meshes whose pages a collection drew, whichever read them: a resource mounted in place
+ *  (#572) is its own collection, and moves class with the open's records (#837). */
+const collected = new WeakSet<object>();
 
 export function collectClusterPages(
   source: Object3D,
   metadata: ClusterManifest,
   indices: Map<string, Uint32Array>,
   associations: Map<Object3D, { meshes?: number; primitives?: number; placements?: PlacementRows }>,
-  options: { allowMissing?: boolean; blendCopy?: typeof createBlendCopyRecord } = {},
+  options: {
+    allowMissing?: boolean;
+    blendCopy?: typeof createBlendCopyRecord;
+    /** Leaves out a mesh placed by rows whose primitive is not read yet, mounted later (#751). */
+    pendingPlaced?: boolean;
+  } = {},
 ) {
   // World matrices of pages and roots are the ENGINE's, computed from the host's local poses:
   // no record any longer carries the live `matrixWorld` of its mesh.
@@ -35,20 +44,20 @@ export function collectClusterPages(
     blendCopies: BlendCopy[] = [],
     bootstrap: PageRec[] = [];
   const primitiveOf = primitiveFinder(metadata.primitives);
-  // A transparent surface leaves the collection as the engine's own record. A WebGL2 engine that
-  // draws its display graph whole hands in a builder of graph meshes instead
-  // (`../../cluster/blendCopyMesh.ts`).
+  // A transparent surface leaves the collection as the engine's own record; a WebGL2 engine that
+  // draws its display graph whole hands in graph meshes instead (`../../cluster/blendCopyMesh.ts`).
   const blendCopy = options.blendCopy ?? createBlendCopyRecord;
   // One template per source object, shared by all its placements: the DAG shape, its error
   // bands and cluster identities depend on no world matrix.
   const templates = createPrimitiveTemplates(indices, options.allowMissing === true);
   let order = 0;
   for (const mesh of objects(source)) {
-    const primitive = primitiveOf(associations.get(mesh));
+    const association = associations.get(mesh);
+    const primitive = primitiveOf(association);
+    if (!primitive && options.pendingPlaced && association?.placements) continue;
     if (!primitive) throw new Error(`Missing primitive association: ${mesh.name}`);
-    // One root per placement: the node's own pose, or each row of the instance buffer the
-    // association carries (`placementRoots`), each row's world a view on that buffer.
-    const placed = placementsOf(associations.get(mesh), () => worlds.of(mesh));
+    // One root per placement: the node's pose, or each row its association carries (`placementRoots`).
+    const placed = placementsOf(association, () => worlds.of(mesh));
     // The surface the declaration wears, read at the boundary into the engine's own record:
     // from here on this collection and everything it feeds hold records, not host materials.
     const surface = meshSurface(mesh);
@@ -61,17 +70,16 @@ export function collectClusterPages(
       continue;
     }
     const template = templates.pagesOf(primitive);
+    collected.add(mesh);
     const transparent = pagesBlend(primitive, surface);
-    // The grid moved every position of this primitive by at most this much: its clusters' boxes
-    // grow by it, so culling still encloses the surface an engine draws from the pages.
+    // The grid moved each position by at most this much: its clusters' boxes grow by it, so
+    // culling still encloses the surface an engine draws from the pages.
     const slack = quantizationErrorOf(primitive);
     const widen = (bounds: number[], sign: number) =>
       slack > 0 ? bounds.map((value) => value + sign * slack) : bounds;
     // The widened boxes depend on no placement: every placement's records share them.
     const mins = primitive.pages.map((page) => widen(page.min, -1)),
       maxs = primitive.pages.map((page) => widen(page.max, 1));
-    // A flat cut has no tree; transparent pages recover their draw order from the recorded source rank.
-    const sourceOrder = transparent ? template.sourceOrder : undefined;
     const shape = templates.shapeOf(primitive, template);
     const { structure, culling } = shape;
     for (const { world, parked, placement } of placed) {
@@ -86,9 +94,8 @@ export function collectClusterPages(
           array: entry.array,
           triangles: page.count / 3,
           indexBytes: entry.array?.byteLength ?? page.bytes,
-          // A transparent cluster keeps its index page: its forward draw reads an index buffer and
-          // the source vertices, which no page replaces (`../../webgpu/blend/shader.ts`).
-          geometryPage: transparent ? undefined : page.geometry,
+          // Transparent, it draws from its geometry page as opaque does (`webgpu/blend/shader.ts`).
+          geometryPage: page.geometry,
           min: mins[pageIndex],
           max: maxs[pageIndex],
           role: page.role,
@@ -107,9 +114,11 @@ export function collectClusterPages(
           declaration: mesh.material,
           transparent,
           sourceMesh: mesh,
-          sourceOrder: sourceOrder?.[pageIndex] ?? pageIndex,
-          matrix: world,
-          placement,
+          // A flat cut has no tree: transparent pages recover their draw order from the source
+          // rank, recorded for every class, since a page may turn blended in the session (#846).
+          sourceOrder: template.sourceOrder[pageIndex],
+          // Its world and row are its root's, found by its rank (`rootOf`).
+          placementIndex: roots.length,
           renderOrder: order,
           attached: false,
           cone: page.cone,
@@ -126,17 +135,14 @@ export function collectClusterPages(
       roots.push({
         world,
         pages,
-        // Nodes, their bounds and their links belong to the primitive and are shared by all its
-        // placements.
+        // Nodes, their bounds and their links are the primitive's, shared by all its placements.
         culling: culling && { ...culling, bounds: shape.bounds!, links: shape.links },
         worldBox,
         localBox: shape.local.slice(),
         structure,
-        // Each page carries its cooked cone, but only `prepareCones` declares it, raising this flag:
-        // the WebGL2 engine does not call it and therefore pays no `cone` read per tested cluster.
+        // Only `prepareCones` raises it: the WebGL2 engine reads no `cone` per tested cluster.
         cones: false,
-        // Each record receives `min` and `max` from the manifest, which the page contract makes
-        // mandatory: the root declares it, and the cut stops checking it per cluster.
+        // Every record has the manifest's `min` and `max` (the page contract): none is checked.
         boxes: true,
         parked,
         placement,
@@ -147,32 +153,28 @@ export function collectClusterPages(
             placement ? rowShadowless(placement) : !mesh.castShadow,
           ) || undefined,
       });
-      // The clusters nothing replaces are the coarsest complete cover; they stay resident so the cut
-      // always has something to fall back on.
+      // Nothing replaces these: the coarsest complete cover, resident, the cut's fallback.
       if (structure) for (const root of structure.roots) bootstrap.push(pages[root]);
     }
     order++;
   }
+  /** Whether `alpha` moves the surface a record wears, or gives it another. */
+  const wears = ({ sourceMesh: mesh }: PageRec, alpha: AlphaChange) =>
+    !!mesh &&
+    (isAssignment(alpha)
+      ? alpha.meshes.has(mesh)
+      : alpha.surfaces.includes(mesh.material as object));
   /** Whether a record is drawn blended once `alpha` moved its surfaces, before or after they are
    *  written: the family this collection gives the class `alpha.to`, or the one it has. */
-  const blendOf = (rec: PageRec, alpha: AlphaChange) => {
-    const mesh = rec.sourceMesh,
-      worn =
-        mesh &&
-        (isAssignment(alpha)
-          ? alpha.meshes.has(mesh)
-          : alpha.surfaces.includes(mesh.material as object)),
-      primitive = worn && primitiveOf(associations.get(mesh));
-    return primitive
-      ? pagesBlend(primitive, { transparent: alpha.to === 'blend' })
-      : rec.transparent;
-  };
+  const blendOf = (rec: PageRec, alpha: AlphaChange) =>
+    wears(rec, alpha) && collected.has(rec.sourceMesh!) ? alpha.to === 'blend' : rec.transparent;
   return {
     roots,
     allPages,
     worlds,
     blendCopies,
     blendOf,
+    wears,
     /**
      * The open's assignment, run again once a material moved into or out of blended inside the
      * session (#846): each record takes `blendOf`; true when one moved. An engine that sorts its

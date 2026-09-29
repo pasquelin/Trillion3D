@@ -96,7 +96,7 @@ export async function measureFluids({
   canvas.style.cssText = `display:block;width:${width}px;height:${height}px`;
   document.body.append(canvas);
   // A lost context is published where the bench rereads it (`withGpuIncidents`).
-  const lost: string[] = (globalThis.incidentsGpu = []);
+  const lost: string[] = (globalThis.gpuIncidents = []);
   canvas.addEventListener('webglcontextlost', () => lost.push('webglcontextlost'));
   // The world leads its own loop, as every physics example does.
   const world = sdk.createWorld(canvas, { renderer, physics: true, temporalAntialiasing });

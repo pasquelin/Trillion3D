@@ -1,6 +1,5 @@
-import { serialOf } from '../../host/graph/serial.ts';
-import type { GraphScene } from '../../host/graph/scene.ts';
-import { isDrawnNode } from '../../host/graph/kinds.ts';
+import type { HostMaterials } from '../../host/resources.ts';
+import type { Scene } from '../../world/core/scene.ts';
 import {
   DEFAULT_TONE_MAPPING,
   TONE_MAPPING_RANK,
@@ -9,38 +8,59 @@ import { multiplyMatrix4Typed } from '../../../../sdk-core/src/math/matrix/matri
 import type { HostDrawOutput } from '../core/renderTarget.ts';
 import type { HostCamera, HostDrawCamera } from '../../camera/world.ts';
 import type { WholeMesh } from '../../cluster/batchMesh.ts';
-import { firstMaterial } from '../../scene/materialSide.ts';
 import type { WebglClusterScene } from './lights.ts';
 import type { SceneCopy } from './copyCulling.ts';
-import { WebglClusterOwner } from './owner.ts';
-import { depthOf } from './meshDepth.ts';
-import { meshes } from '../../scene/meshes.ts';
+import { WebglClusterOwner, type TextureHosts } from './owner.ts';
+import { createDrawOrder } from './drawOrder.ts';
+import { loadHostVertices, meshes } from '../../scene/meshes.ts';
 import { DEFAULT_PIXEL_RATIO } from '../../backend/common.ts';
 import type { BackendHostDraw } from '../../backend/hostDraw.ts';
 import type { BackendContext } from '../../backend/types.ts';
 import { linearRefusalOf } from './linearRefusal.ts';
+import { createDrawLists } from './drawLists.ts';
+import { degradedHearer } from '../../world/diagnostic/materialNotices.ts';
+import { upscaleMipBias } from '../../taa/jitter.ts';
+import type { Light } from '../../../../sdk-core/src/world/light/light.ts';
 
-/** The scene the owner reads for its lights and background, its world matrices resolved
- *  before the read. */
-export type ClusterDrawScene = WebglClusterScene & { updateMatrixWorld(): void };
+/** What a WebGL2 frame reads of a display graph: its lights as `lights` gives them (the draw
+ *  lists', none while the graph itself is hidden), its background and fog as they stand when the
+ *  frame reads them. */
+const sceneRead = (display: Scene, lights: () => readonly Light[]): WebglClusterScene => ({
+  get lights() {
+    return lights();
+  },
+  get background() {
+    return display.background;
+  },
+  get fog() {
+    return display.fog;
+  },
+});
 
-/** A node of the display graph, read by shape: a mesh is drawn whole, anything else is walked. */
-type DisplayNode = Partial<SceneCopy> & {
+const kept = new WeakMap<Scene, WebglClusterScene>();
+
+/** A display graph as a WebGL2 draw outside `createSceneDraw` reads it — a witness, a test page:
+ *  one set of draw lists per graph, brought to the graph at each read, never a walk of its own. */
+export function keptClusterScene(display: Scene) {
+  let read = kept.get(display);
+  if (!read) {
+    const lists = createDrawLists(display, []);
+    kept.set(display, (read = sceneRead(display, () => (lists.refresh(), lists.lights))));
+  }
+  return read;
+}
+
+/** A drawn node, the engine's mesh, read by shape: drawn whole. */
+type DrawnNode = Partial<SceneCopy> & {
   readonly matrixWorld: SceneCopy['matrixWorld'];
-  readonly visible: boolean;
   readonly renderOrder: number;
-  readonly children: readonly DisplayNode[];
-};
-/** A drawn node: the engine's mesh, numbered in creation order (`serialOf`). */
-type DrawnNode = DisplayNode;
-type DisplayScene = ClusterDrawScene & {
-  readonly children: readonly DisplayNode[];
-  onBeforeRender?(): void;
-  onAfterRender?(): void;
 };
 
-/** What the session gives the draw: its pixel ratio and its degraded-surface notice. */
-type DrawHosts = Pick<BackendContext, 'pixelRatio' | 'materialDegraded'>;
+/** What the session gives the draw: its pixel ratio, its degraded-surface notice and its
+ *  diagnostics, where that notice is said when the session gives none, the texture bytes its
+ *  census may upload ahead and a frame's upload budget (`textureQueue.ts`). */
+type DrawHosts = Pick<BackendContext, 'pixelRatio' | 'materialDegraded' | 'onDiagnostic'> &
+  TextureHosts;
 
 /** A scene draw hands the program no page batch: shared, so a frame allocates no empty list. */
 const NO_BATCHES: readonly never[] = [];
@@ -50,84 +70,58 @@ const NO_BATCHES: readonly never[] = [];
  * engine's program (`owner.ts`) in the order the reference draws a scene — the opaque meshes by
  * `renderOrder`, surface and depth, then the see-through ones and the transparent copies `copies` names, by
  * `renderOrder` and from the farthest to the nearest; the program splits them into its
- * transmission and blend passes. The lights and the background are read off the same graph.
+ * transmission and blend passes. The lights come from the same lists, the background off the graph.
  *
  * `render(camera)` opens the frame: it zeroes the counters, so that a frame
  * the composer held — nothing drawn — publishes nothing, never the previous draw; `counters()` is
- * `null` before the first frame. The graph is walked once per drawn image, at the first of
+ * `null` before the first frame. The graph's matrices and lists (`drawLists.ts`: the matrices of
+ * the subtrees that changed, the lists walked again only when the graph changed shape) are
+ * brought up to date once per drawn image, at the first of
  * `host.linearRefusal` and `host.drawHostGeometry`: never on a held frame, and never in `render`,
  * which runs before the engine's frame writes the graph (`../../backend/autonomous/pages.ts`). Asked
- * first, it walks before `onBeforeRender`, whose one hook (`../../lighting/unlitAlbedo.ts`) writes
- * no field the walk reads. Without a context (a session that never draws on the host
+ * first, that runs before `onBeforeRender`, whose one hook (`../../lighting/unlitAlbedo.ts`) writes
+ * no field the lists read. Without a context (a session that never draws on the host
  * surface) the draw is refused by name. `pixelRatio`, read each frame, scales a line's CSS-pixel
- * width to the image's pixels; `materialDegraded` hears a surface drawn without a physical feature.
+ * width to the image's pixels; `materialDegraded` hears a surface drawn without a physical feature
+ * or left out of the frame, said on `onDiagnostic` when the session gives no hearer.
+ * `declared` lists the surfaces the census counts (`owner.ts`): the graph's, unless the session
+ * declares more — pages not attached yet.
  */
 export function createSceneDraw(
   gl: WebGL2RenderingContext | undefined,
-  display: GraphScene,
+  display: Scene,
   copies: readonly object[] = [],
-  { pixelRatio = () => DEFAULT_PIXEL_RATIO, materialDegraded }: DrawHosts = {},
+  { pixelRatio = () => DEFAULT_PIXEL_RATIO, ...hosts }: DrawHosts = {},
+  declared: () => Iterable<HostMaterials> = () => meshes(display).map((mesh) => mesh.material),
 ) {
-  const scene: DisplayScene = display;
-  // The copies list grows with the placement rows (`growBlendCopies`): the set follows it.
-  const copied = new Set<DisplayNode>();
-  const followCopies = () => {
-    for (let i = copied.size; i < copies.length; i++) copied.add(copies[i] as DisplayNode);
-  };
-  // Reused from frame to frame: a draw allocates no list.
-  const opaque: WholeMesh[] = [],
+  // The graph's lists, walked again only when it changed shape (`drawLists.ts`); the draw sorts
+  // copies of them, reused from frame to frame: a draw allocates no list.
+  const lists = createDrawLists(display, copies);
+  const opaque: (WholeMesh & DrawnNode)[] = [],
     seeThrough: DrawnNode[] = [];
   let owner: WebglClusterOwner | undefined,
     opened = false,
     walked = false;
-  // The projection times the view, and each drawn mesh's depth, read once a frame.
+  // The projection times the view, read once a frame, and the order it sorts the draws in.
   const screen = new Float64Array(16),
-    depths = new Map<DisplayNode, number>();
-  const depth = (node: DisplayNode) => depths.get(node)!;
+    order = createDrawOrder();
   const counters = { triangles: 0 };
-  const collect = (node: DisplayNode) => {
-    if (!node.visible) return;
-    if (isDrawnNode(node)) {
-      if (copied.has(node) || firstMaterial(node.material!)?.transparent)
-        seeThrough.push(node as DrawnNode);
-      else opaque.push(node as WholeMesh);
-    }
-    for (const child of node.children) collect(child);
-  };
-  /** The image's one walk of the graph: its world matrices, then what it draws, sorted later. */
+  // What the frame reads of the graph: its lights from the lists, never from a walk of its own.
+  const read = sceneRead(display, () => lists.lights);
+  /** The image's one pass over what changed: its world matrices, then what it draws, sorted later. */
   const walk = () => {
     if (walked) return;
     walked = true;
-    scene.updateMatrixWorld();
+    lists.refresh();
     opaque.length = seeThrough.length = 0;
-    followCopies();
-    for (const child of scene.children) collect(child);
+    for (const mesh of lists.opaque) opaque.push(mesh);
+    for (const mesh of lists.seeThrough) seeThrough.push(mesh);
   };
-  // Opaque meshes of one order are grouped by surface, numbered as first met, as the reference
-  // groups them by the surfaces it numbers as it meets them — a run of one surface binds it once
-  // —, then drawn from the nearest; a tie is broken by the node's number, as the reference's is.
-  const ranks = new WeakMap<object, number>();
-  let nextRank = 0;
-  const rankOf = (mesh: WholeMesh) => {
-    const surface = mesh.material as object;
-    let rank = ranks.get(surface);
-    if (rank === undefined) ranks.set(surface, (rank = nextRank++));
-    return rank;
-  };
-  // A mesh the engine did not build (a test's) sorts as the first built.
-  const made = (node: DrawnNode) => serialOf(node) ?? 0;
-  const frontToBack = (a: DrawnNode, b: DrawnNode) =>
-    a.renderOrder - b.renderOrder ||
-    rankOf(a as WholeMesh) - rankOf(b as WholeMesh) ||
-    depth(a) - depth(b) ||
-    made(a) - made(b);
-  const backToFront = (a: DrawnNode, b: DrawnNode) =>
-    a.renderOrder - b.renderOrder || depth(b) - depth(a) || made(a) - made(b);
   const host: Required<BackendHostDraw> = {
-    // Only a see-through mesh can refuse: the walk's list of them, still in graph order.
+    // Only a see-through mesh can refuse: the list of them, in graph order.
     linearRefusal() {
       walk();
-      for (const node of seeThrough) {
+      for (const node of lists.seeThrough) {
         const mode = linearRefusalOf(node);
         if (mode) return mode;
       }
@@ -135,24 +129,23 @@ export function createSceneDraw(
     drawHostGeometry(drawCamera: HostDrawCamera, output: HostDrawOutput) {
       if (!gl) throw new Error('HOST_SURFACE_MISSING');
       if (!opened) throw new Error('Draw before render');
-      owner ??= new WebglClusterOwner(gl, materialDegraded);
-      if (!owner.censused) owner.census(meshes(display));
+      owner = censused(gl);
       owner.toneCurve = TONE_MAPPING_RANK[output.toneMapping ?? DEFAULT_TONE_MAPPING];
-      owner.pixelRatio = pixelRatio();
-      scene.onBeforeRender?.();
+      // Drawn below the display (`world.renderScale`), a line keeps its display width and a
+      // texture its display density.
+      const shown = output.displayWidth ?? output.width;
+      owner.pixelRatio = pixelRatio() * (output.width / shown);
+      owner.mipBias = upscaleMipBias(output.width, shown);
+      display.onBeforeRender?.();
       try {
         walk();
-        depths.clear();
         multiplyMatrix4Typed(screen, drawCamera.projection, drawCamera.view);
-        for (const node of opaque as DrawnNode[]) depths.set(node, depthOf(node, screen));
-        for (const node of seeThrough) depths.set(node, depthOf(node, screen));
-        (opaque as DrawnNode[]).sort(frontToBack);
-        seeThrough.sort(backToFront);
+        order(opaque, seeThrough, screen);
         // A linear output is the effect chain's: its own program, which leaves the curve and the
         // encoding to the chain and marks the surfaces the curve skips.
         owner.draw(
           NO_BATCHES,
-          scene,
+          read,
           drawCamera,
           output.toneMapped,
           !output.linear,
@@ -163,12 +156,27 @@ export function createSceneDraw(
       } finally {
         // A second draw of the same image — a capture — walks again, as every draw did.
         walked = false;
-        scene.onAfterRender?.();
+        display.onAfterRender?.();
       }
       counters.triangles = owner.submittedTriangles;
     },
   };
+  /** The owner, made at first need, its census taken at its first frame or preparation. */
+  const censused = (context: WebGL2RenderingContext) => {
+    owner ??= new WebglClusterOwner(context, degradedHearer(hosts));
+    if (!owner.censused) owner.census(declared(), hosts);
+    return owner;
+  };
   return {
+    /** Before the first frame: the host vertices of the copies drawn whole, which no session
+     *  fetches up front, the program made, and the declared maps uploaded, a budget per task
+     *  (`textureQueue.ts`), so no frame of the session waits on its first maps. */
+    async prepare() {
+      await Promise.all([
+        loadHostVertices(copies as Parameters<typeof loadHostVertices>[0]),
+        gl && censused(gl).prepareMaps(),
+      ]);
+    },
     render(_camera: HostCamera) {
       counters.triangles = 0;
       opened = true;
@@ -177,6 +185,7 @@ export function createSceneDraw(
     host,
     counters: () => (opened ? counters : null),
     dispose() {
+      lists.dispose();
       owner?.dispose();
       owner = undefined;
     },

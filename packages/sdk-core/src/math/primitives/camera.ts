@@ -31,17 +31,29 @@ export function perspectiveSlope(fov: number, zoom = 1) {
   return Math.tan(DEG2RAD * 0.5 * fov) / zoom;
 }
 
+type Box = { left: number; right: number; top: number; bottom: number };
+
 /** The view of an orthographic camera: its `box` scaled by `zoom` about the box centre, as
  *  `[centre x, centre y, half width, half height]` written into `out`. */
-export function orthographicView(
-  box: { left: number; right: number; top: number; bottom: number },
-  zoom: number,
-  out = new Float64Array(4),
-) {
+export function orthographicView(box: Box, zoom: number, out = new Float64Array(4)) {
   out[0] = (box.right + box.left) / 2;
   out[1] = (box.top + box.bottom) / 2;
   out[2] = (box.right - box.left) / (2 * zoom);
   out[3] = (box.top - box.bottom) / (2 * zoom);
+  return out;
+}
+
+/** `orthographicView` of the box an orthographic camera draws at a picture of `aspect`: its own,
+ *  or with `fitAspect` as high about the same centre, its half width the half height times
+ *  `aspect`. */
+export function drawnView(
+  box: Box & { fitAspect?: boolean },
+  aspect: number,
+  zoom: number,
+  out = new Float64Array(4),
+) {
+  orthographicView(box, zoom, out);
+  if (box.fitAspect) out[2] = out[3] * aspect;
   return out;
 }
 
