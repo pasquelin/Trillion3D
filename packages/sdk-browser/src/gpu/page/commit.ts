@@ -15,7 +15,7 @@ export function evictResident(
   changeKeys.push(page.key);
   changeSlots.push(-1);
   state.evictions++;
-  context.reader.emit('gpu-page-eviction', 'Page removed from GPU residency', () => ({
+  context.reader.emit?.('gpu-page-eviction', 'Page removed from GPU residency', () => ({
     version: 1,
     key: page.key,
     slot: page.slot,
@@ -68,7 +68,7 @@ export function commitGpuPage(
     const ordered = !!context.eviction.order;
     const victim = ordered ? orderedVictim(context) : leastRecentVictim(context);
     if (!victim) {
-      emit('gpu-page-admission-blocked', 'No evictable GPU slot', () => ({
+      emit?.('gpu-page-admission-blocked', 'No evictable GPU slot', () => ({
         version: 1,
         key,
         reason: ordered ? 'eviction-queue-spent' : 'all-pages-pinned',
@@ -104,7 +104,7 @@ export function commitGpuPage(
   resident.set(key, page);
   changeKeys.push(key);
   changeSlots.push(page.offset / 4);
-  emit('gpu-page-upload', 'Page written into a GPU slot', () => ({
+  emit?.('gpu-page-upload', 'Page written into a GPU slot', () => ({
     version: 1,
     key,
     slot,
@@ -116,7 +116,7 @@ export function commitGpuPage(
     gpuMs: null,
     drawDetached: false,
   }));
-  emit('gpu-page-load-end', 'GPU load finished', () => ({
+  emit?.('gpu-page-load-end', 'GPU load finished', () => ({
     version: 1,
     key,
     slot,
