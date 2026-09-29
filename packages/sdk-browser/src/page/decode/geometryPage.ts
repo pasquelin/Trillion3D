@@ -30,6 +30,7 @@ export type DecodedGeometryPage = {
   vertexCount: number;
   /** Morph targets: `attributes.morph` holds six floats of each per vertex; absent, none. */
   morphTargets?: number;
+  /** Number of source skin influences per vertex. */
   skinInfluences?: number;
   /** Which attributes it carries. */
   flags: number;

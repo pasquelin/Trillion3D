@@ -2379,21 +2379,25 @@
   "a-character-that-walks": {
     "controls": {
       "playing": "Play"
-    }
+    },
+    "banner": "Drag to orbit the scene. Pause or resume the animation with Play."
   },
   "a-crowd-of-characters": {
     "controls": {
       "playing": "Play"
-    }
+    },
+    "banner": "Drag to orbit the scene. Pause or resume the animation with Play."
   },
   "a-shape-that-morphs": {
     "controls": {
       "playing": "Play"
-    }
+    },
+    "banner": "Drag to orbit the scene. Pause or resume the animation with Play."
   },
   "additive-poses": {
     "controls": {
       "playing": "Play"
-    }
+    },
+    "banner": "Drag to orbit the scene. Pause or resume the animation with Play."
   }
 }

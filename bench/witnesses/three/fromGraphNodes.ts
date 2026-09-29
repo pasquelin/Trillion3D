@@ -101,9 +101,13 @@ function threeSurroundingLight(light: Light) {
 
 /** A node of the library for one engine node, of the class its own class or `kind` names, its
  *  children not included: the one place an engine node is given a library's class. */
-function threeNode(node: Object3D): THREE.Object3D {
+function threeNode(node: Object3D, bones: ReadonlySet<Object3D>): THREE.Object3D {
+  if (bones.has(node)) return place(new THREE.Bone(), node);
   if (isDrawnNode(node)) {
-    const mesh = threeMeshCopy(node);
+    const mesh = node.skeleton
+      ? new THREE.SkinnedMesh(threeGeometry(node.geometry).clone(), threeMaterials(node.material))
+      : threeMeshCopy(node);
+    if (mesh instanceof THREE.SkinnedMesh) mesh.normalizeSkinWeights();
     if (node.morphTargetInfluences) mesh.morphTargetInfluences = node.morphTargetInfluences.slice();
     if (node.morphTargetDictionary) mesh.morphTargetDictionary = { ...node.morphTargetDictionary };
     return place(mesh, node);
@@ -124,15 +128,31 @@ function threeNode(node: Object3D): THREE.Object3D {
  */
 export function threeGraph(root: Object3D | THREE.Object3D): THREE.Object3D {
   if (root instanceof THREE.Object3D) return root;
+  const bones = new Set<Object3D>();
+  root.traverse((node) => {
+    if (isDrawnNode(node) && node.skeleton) for (const bone of node.skeleton.bones) bones.add(bone);
+  });
   const copies = new Map<Object3D, THREE.Object3D>();
   const copy = (node: Object3D): THREE.Object3D => {
-    const made = threeNode(node);
+    const made = threeNode(node, bones);
     copies.set(node, made);
     for (const child of node.children) made.add(copy(child));
     return made;
   };
   const made = copy(root);
   for (const [node, light] of copies) {
+    if (isDrawnNode(node) && node.skeleton && light instanceof THREE.SkinnedMesh) {
+      const skeleton = node.skeleton;
+      const joints = skeleton.bones.map((bone) => {
+        const copied = copies.get(bone);
+        if (!(copied instanceof THREE.Bone)) throw new Error('WITNESS_BONE_OUTSIDE_GRAPH');
+        return copied;
+      });
+      const inverses = joints.map((_, i) =>
+        new THREE.Matrix4().fromArray(skeleton.boneInverses, i * 16),
+      );
+      light.bind(new THREE.Skeleton(joints, inverses), new THREE.Matrix4());
+    }
     const target = node instanceof Light ? aimOf(node) : undefined;
     if (target)
       (light as THREE.DirectionalLight).target =

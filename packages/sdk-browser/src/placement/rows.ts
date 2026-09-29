@@ -21,6 +21,7 @@ import type { MatrixElements } from '../math/matrixElements.ts';
 export type PlacementRows = {
   /** Original owners of mirrored rows; their animation sources stay live when rows are reused. */
   sources?: readonly (Mesh | null)[];
+  /** Meshes sharing this resource, including those waiting for a placement row. */
   sourceModels?: ReadonlySet<Mesh>;
   /** Sixteen column-major floats per row, written by the owner. */
   readonly matrices: Float64Array;
