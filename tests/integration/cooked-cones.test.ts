@@ -55,7 +55,7 @@ async function checkScene(pointer: string) {
       xyz[i * 3 + 1] = position.getY(i);
       xyz[i * 3 + 2] = position.getZ(i);
     }
-    const { indices, ends } = joinedCorners(
+    const joined = joinedCorners(
       primitive.pages.map((page) => {
         const held = page.stream === undefined ? undefined : primitive.streams?.pages[page.stream];
         return held
@@ -63,15 +63,13 @@ async function checkScene(pointer: string) {
           : new Uint32Array(bundle(page.url), 0, page.count);
       }),
     );
+    const { indices, ends } = joined;
     // A vertex a seam-locked solve placed (#877) is read from the geometry page naming it.
     const decode = (k: number) =>
       decodeGeometryPage(new Uint8Array(bytesOf(join(dir, primitive.pages[k].geometry!.url))));
-    const { positions } = await withPlaced(
-      { positions: xyz, normals: new Float32Array(0), uvs: null, colors: null },
-      indices,
-      ends,
-      (k) => (primitive.pages[k].level ?? 0) > 0,
-      async (naming) => naming.map(decode),
+    const columns = { positions: xyz, normals: new Float32Array(0), uvs: null, colors: null };
+    const { positions } = await withPlaced(columns, joined, primitive.pages, async (naming) =>
+      naming.map(decode),
     );
     primitive.pages.forEach((page, k) => {
       pages++;
