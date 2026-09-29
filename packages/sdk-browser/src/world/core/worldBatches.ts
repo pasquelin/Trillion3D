@@ -125,13 +125,14 @@ export function createWorldBatches(touched: (batch: Batch, row: number) => void)
     batches,
     unseat,
     /**
-     * Seats `mesh` on the batch of `cut` × `entry`. True when it holds a row — the caller writes
-     * its matrix —, false when it waits.
+     * Seats `mesh` on the batch of `cut` × `entry`. True when it takes a row — the caller writes
+     * its matrix —, false when it waits or already holds its row there, which its pose writes keep:
+     * a dynamic geometry read again every frame is no move (#573).
      */
     seat(mesh: Mesh, cut: Cut, entry: MaterialEntry) {
       const batch = batchOf(cut, entry);
       const held = seats.get(mesh);
-      if (held?.batch === batch) return held.row >= 0;
+      if (held?.batch === batch) return false;
       if (leaving.get(mesh)?.batch === batch) parkLeaving(mesh);
       if (held && leave(mesh) && held.row >= 0) leaving.set(mesh, held);
       batch.wearers.add(mesh);

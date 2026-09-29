@@ -6,6 +6,7 @@ import { geometry, light, material, math, object } from '../packages/sdk-browser
 import { WaterSurface } from '../packages/sdk-core/src/fluids/waterSurface.ts';
 import type { WaterSpec } from '../packages/sdk-core/src/fluids/buoyancy.ts';
 import { dynamicWorld } from '../packages/sdk-browser/src/world/core/worldDynamic.fixture.ts';
+import { takeContentReopens } from '../packages/sdk-browser/src/world/core/worldRuntime.fixture.ts';
 import { seeded } from '../site/examples/kit/random.ts';
 import { roadmapEntries } from '../site/app/examples/list.ts';
 
@@ -54,28 +55,38 @@ async function runOnWorld(html: string) {
     kit: { controls, physicsReadouts: () => {}, seeded },
   };
   await runExampleModule(html, modules);
-  /** Draws one frame at `seconds`, then runs the page's frame hooks, which write its sea. */
+  const uploaded: unknown[] = [];
+  /** Draws one frame at `seconds` as the browser's own loop does, then runs the page's frame
+   *  hooks, which write its sea; the bytes each frame uploaded are kept. */
   const frame = async (seconds: number) => {
-    await world.frame();
+    uploaded.push((await world.loop()).dynamicUploadBytes);
     time = seconds;
     for (const hook of frames) hook();
   };
-  return { world, frame };
+  return { world, frame, uploaded };
 }
 
 test('floating crates rewrites its sea every frame in place: no recut, no session opened again', async () => {
   const crates = roadmapEntries.find(({ id }) => id === 'floating-crates');
   assert.ok(crates?.file && !crates.status, 'floating crates is a ready example');
   const html = await readFile(new URL(`../site/${crates.file}`, import.meta.url), 'utf8');
-  const { world, frame } = await runOnWorld(html);
+  const { world, frame, uploaded } = await runOnWorld(html);
   await frame(0);
   await frame(0.05);
-  const served = world.served.count;
+  const served = world.served.count,
+    placed = world.placed.count;
   for (let second = 0.1; second < 1; second += 0.05) await frame(second);
-  await world.frame();
+  await world.loop();
   world.end();
   assert.equal(world.served.count, served, 'no page cut or served again');
   assert.equal(world.sources.length, 1, 'one session');
+  assert.deepEqual(takeContentReopens(), [], 'no session opened again');
+  assert.equal(world.placed.count, placed, 'the sea moves its vertices, never its row');
+  const told = uploaded.slice(3) as number[];
+  assert.ok(
+    told.every((bytes) => bytes > 0),
+    `each frame uploads the sea: ${told}`,
+  );
   assert.ok(world.rewrites.length >= 18, `${world.rewrites.length} rewrites of the sea`);
   const names = new Set(world.rewrites.flat().map(({ name }) => name));
   assert.deepEqual([...names].sort(), ['normal', 'position'], 'the sea moves, and its shading');

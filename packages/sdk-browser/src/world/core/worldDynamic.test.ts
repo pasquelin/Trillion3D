@@ -33,6 +33,25 @@ test('a geometry rewritten 300 frames is never cut again nor reopened, and uploa
     assert.deepEqual(ranges, [{ name: 'position', from: 100, count: 100 }], 'the changed range');
 });
 
+test('a rewrite is no move: the row of its mesh is never sent again', async () => {
+  const world = dynamicWorld();
+  // A 30 × 30 vertex sheet: a tiny one seats its dynamic resource only on a reopen the
+  // session stand-in cannot mount (#1293), which is not what this test proves.
+  const sheet = geometry.plane(4, 4, 30, 30);
+  sheet.usage = 'dynamic';
+  world.scene.add(object.mesh(sheet, material.meshStandard({ transparent: true })));
+  await world.frame();
+  const placed = world.placed.count;
+  for (let frame = 0; frame < 10; frame++) {
+    sheet.attributes.position.setZ(0, frame / 10);
+    sheet.attributes.position.needsUpdate = true;
+    await world.frame();
+  }
+  world.end();
+  assert.equal(world.rewrites.length, 10, 'each rewrite uploaded');
+  assert.equal(world.placed.count, placed, 'no row sent: its transparent corners, pyramid kept');
+});
+
 test('a geometry changed on consecutive frames turns dynamic by itself, and says so naming its mesh', async () => {
   const world = dynamicWorld();
   const heard: unknown[] = [];
@@ -59,6 +78,27 @@ test('a geometry changed on consecutive frames turns dynamic by itself, and says
   assert.deepEqual(heard, [{ kind: 'lifecycle', mesh: 'sea', declared: false }]);
   assert.deepEqual(cuts.slice(2), Array(8).fill(0), 'cut on its first changes, never after');
   assert.equal(world.rewrites.length, 8);
+});
+
+test("the session's own loop hands its frame hooks the upload bytes, and still detects a rewrite", async () => {
+  const world = dynamicWorld();
+  const sheet = geometry.plane(1, 1, 4, 4);
+  world.scene.add(object.mesh(sheet, material.meshStandard({})));
+  await world.loop();
+  const bytes: unknown[] = [];
+  for (let frame = 0; frame < 10; frame++) {
+    sheet.attributes.position.setZ(0, (frame % 2) * 0.1);
+    sheet.attributes.position.needsUpdate = true;
+    bytes.push((await world.loop()).dynamicUploadBytes);
+  }
+  world.end();
+  await new Promise(setImmediate);
+  takeContentReopens(); // the session stand-in mounts nothing: the dynamic resource opens it once
+  assert.ok(
+    bytes.every((b) => typeof b === 'number'),
+    `every frame told: ${bytes}`,
+  );
+  assert.deepEqual(bytes.slice(-4), Array(4).fill(12), 'one position a frame, uploaded in place');
 });
 
 type Plane = ReturnType<typeof geometry.plane>;
