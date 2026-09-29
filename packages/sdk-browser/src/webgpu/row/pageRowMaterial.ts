@@ -105,12 +105,14 @@ export function sampledFlag(
   data1: number,
   data2: number,
   data3: number,
+  color2 = 0,
 ) {
   if (!textures) return 0;
   const color = textures.color.pages,
     data = textures.data.pages;
   return slotSampled(color, color0) ||
     slotSampled(color, color1) ||
+    slotSampled(color, color2) ||
     slotSampled(data, data0) ||
     slotSampled(data, data1) ||
     slotSampled(data, data2) ||
@@ -130,7 +132,8 @@ export function rowMaterial(
     metal = layerSlot(dataLayer, mat.metalnessMap),
     normal = layerSlot(dataLayer, mat.normalMap),
     ao = layerSlot(dataLayer, mat.aoMap),
-    emissive = layerSlot(mapLayer, mat.emissiveMap);
+    emissive = layerSlot(mapLayer, mat.emissiveMap),
+    subsurface = layerSlot(mapLayer, mat.subsurfaceMap);
   let flags = 0;
   if (mat.lit) flags |= FLAG_LIT;
   if (mat.fog === false) flags |= FLAG_FOG_FREE;
@@ -147,12 +150,12 @@ export function rowMaterial(
   // The material asks for its vertex colours, and the geometry has some: the forward rule.
   if (mat.vertexColors && geo?.hasColor) flags |= FLAG_HAS_COLOR;
   flags |= (mat.model ?? 0) << MODEL_SHIFT;
-  flags |= sampledFlag(textures, map, emissive, rough, metal, normal, ao);
+  flags |= sampledFlag(textures, map, emissive, rough, metal, normal, ao, subsurface);
   const classKey = materialClassKey(flags, { rough, metal, ao, emissive, normal });
   // Where the row reads its geometry is not a material feature: it never splits a resolve class.
   if (geo?.quantized) flags |= FLAG_CLUSTER_PAGE;
   if (geo?.dynamic) flags |= FLAG_DYNAMIC;
-  return { map, rough, metal, normal, ao, emissive, flags, classKey };
+  return { map, rough, metal, normal, ao, emissive, subsurface, flags, classKey };
 }
 
 /**

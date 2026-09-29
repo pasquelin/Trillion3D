@@ -39,19 +39,21 @@ function frame(scene: Scene) {
       fenceSync: () => ({}),
       getSyncParameter: () => (gpu.behind ? 'UNSIGNALED' : 'SIGNALED'),
       getExtension: (name: string) =>
-        name === 'WEBGL_multi_draw' && {
-          multiDrawElementsWEBGL: (
-            ...[, counts, , , starts, , n]: [
-              number,
-              Int32Array,
-              number,
-              number,
-              Int32Array,
-              number,
-              number,
-            ]
-          ) => sent.push([...counts.subarray(0, n)].map((count, i) => [count, starts[i]])),
-        },
+        name === 'EXT_color_buffer_float'
+          ? {}
+          : name === 'WEBGL_multi_draw' && {
+              multiDrawElementsWEBGL: (
+                ...[, counts, , , starts, , n]: [
+                  number,
+                  Int32Array,
+                  number,
+                  number,
+                  Int32Array,
+                  number,
+                  number,
+                ]
+              ) => sent.push([...counts.subarray(0, n)].map((count, i) => [count, starts[i]])),
+            },
       drawElements: (_mode: number, count: number, _type: number, offset: number) =>
         sent.push([[count, offset]]),
     },
@@ -61,7 +63,14 @@ function frame(scene: Scene) {
     sent.length = 0;
     draw.render({} as HostCamera);
     draw.host.drawHostGeometry(createHostDrawCamera(), OUTPUT);
-    return [...sent];
+    const half = sent.length / 2;
+    assert.ok(Number.isInteger(half) && half > 0);
+    assert.deepEqual(
+      sent.slice(0, half),
+      sent.slice(half),
+      'source and final preserve the same runs',
+    );
+    return sent.slice(half);
   };
   return { draw, image, gpu };
 }
@@ -75,7 +84,7 @@ test('the pages of one surface at one placement are one submission, in their ord
   // Placed as first drawn: the stone pages at the origin in one range, then the one at x = 5, which
   // breaks the run, then the wood.
   assert.deepEqual(image(), [[[18, 0]], [[3, 72]], [[3, 84]]]);
-  assert.deepEqual(draw.counters(), { triangles: 8 }, 'every triangle, as one by one');
+  assert.deepEqual(draw.counters(), { triangles: 16 }, 'every triangle in source and final passes');
   pages[1].geometry.dispose();
   scene.remove(pages[1]);
   const late = page(2, stone);

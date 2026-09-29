@@ -12,7 +12,7 @@ import {
   SAMPLE_TRANSFORMED,
   SAMPLE_WRAP_SHIFT,
   samplingWords,
-} from './sampling.ts';
+} from '../../texture/sampling.ts';
 import { SAMPLING_WGSL, atlasReadWgsl } from './samplingWgsl.ts';
 import { maskAlphaWgsl } from './wgsl.ts';
 

@@ -1,3 +1,4 @@
+import type { AdmitGpuMemory } from '../../residency/activeMemory.ts';
 import type {
   AssetScope,
   CameraPose,
@@ -91,6 +92,8 @@ export interface MeasuredWorldOptions {
    *  The root cover always fits; what a view asks beyond that draws coarser, never refused.
    *  Set during the session by `explorer.setMemoryBudgets`. */
   geometryPoolBytes?: number;
+  /** Internal transaction against the owning world's declared global GPU budget. */
+  admitGpuMemory?: AdmitGpuMemory;
   /** Largest geometry pool `explorer.setMemoryBudgets` may ask for during the session —
    *  the maximum of a settings slider. The starting budget without it. The WebGPU engine sizes
    *  its drawable-page tables to it at the start and grows them in place past it. */

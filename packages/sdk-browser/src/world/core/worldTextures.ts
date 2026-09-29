@@ -46,11 +46,21 @@ const FORMAT: Record<string, number> = {
   r: HOST_FORMAT_RED,
 };
 /** Material fields that hold a texture, by the name both sides give them. */
-export const HOST_MAPS = [...TABLE_SLOTS, 'alphaMap', 'matcap', 'gradientMap'];
+export const HOST_MAPS = [
+  ...TABLE_SLOTS,
+  'alphaMap',
+  'matcap',
+  'gradientMap',
+  'subsurfaceMap',
+  'anisotropyMap',
+  'clearcoatMap',
+  'clearcoatRoughnessMap',
+  'clearcoatNormalMap',
+];
 /** The maps that hold a colour: the only ones whose sRGB image is decoded. The others hold data —
  *  a direction, a roughness, an occlusion — read as stored whatever the image declares, as the
  *  WebGPU path reads them. */
-export const COLOUR_MAPS = new Set(['map', 'emissiveMap', 'matcap']);
+export const COLOUR_MAPS = new Set(['map', 'emissiveMap', 'matcap', 'subsurfaceMap']);
 /** Surface textures already built, by engine texture and whether it is read as colour: a texture
  *  worn by several surfaces is uploaded once. */
 export type HostTextures = Map<string, GraphTexture>;

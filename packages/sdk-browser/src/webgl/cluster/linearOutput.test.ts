@@ -13,12 +13,12 @@ import { Scene } from '../../world/core/scene.ts';
 import { GraphSurface } from '../../host/graph/surface.ts';
 import { CLUSTER_FRAGMENT, CLUSTER_LINEAR_FRAGMENT, CLUSTER_VERTEX } from './shaders.ts';
 
-/** A standard surface, a transparent one and one the curve skips, drawn once per `linear`. */
+/** Diffuse surfaces isolate output composition from the separately tested reflection capture. */
 function draw(...linear: boolean[]) {
   const scene = new Scene();
-  scene.add(G.triangleMesh(new GraphSurface('standard')));
-  scene.add(G.triangleMesh(new GraphSurface('standard', { transparent: true, opacity: 0.5 })));
-  scene.add(G.triangleMesh(new GraphSurface('standard', { toneMapped: false })));
+  scene.add(G.triangleMesh(new GraphSurface('lambert')));
+  scene.add(G.triangleMesh(new GraphSurface('lambert', { transparent: true, opacity: 0.5 })));
+  scene.add(G.triangleMesh(new GraphSurface('lambert', { toneMapped: false })));
   const context = createTestContext();
   const sceneDraw = createSceneDraw(context.gl, scene);
   for (const each of linear) {

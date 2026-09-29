@@ -90,7 +90,7 @@ export { Scene } from '../../sdk-browser/src/world/core/scene.ts';
 export type { LoadOptions } from '../../sdk-browser/src/world/core/scene.ts';
 export { material } from '../../sdk-core/src/world/material/index.ts';
 export { Material } from '../../sdk-core/src/world/material/material.ts';
-export type { MaterialParameters } from '../../sdk-core/src/world/material/material.ts';
+export type { MaterialParameters } from '../../sdk-core/src/world/material/materialParameters.ts';
 export { math } from '../../sdk-core/src/world/math/index.ts';
 export { Matrix3, Matrix4 } from '../../sdk-core/src/world/math/matrix4.ts';
 export { Mesh } from '../../sdk-core/src/world/object/mesh.ts';
