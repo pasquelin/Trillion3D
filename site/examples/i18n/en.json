@@ -1411,6 +1411,7 @@
     "banner": "Drag to walk around. Switch the view to see what the renderer stores.",
     "controls": {
       "see": "See",
+      "glass": "Glass pane",
       "spin": "Spin"
     },
     "choices": {
