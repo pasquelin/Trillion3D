@@ -155,9 +155,9 @@ impl Local<'_> {
                 (weld_seam, seams)
             }
         };
-        let charts = match input.charts.is_empty() {
+        let islands = match input.islands.is_empty() {
             true => Vec::new(),
-            false => origins.iter().map(|&g| input.charts[g as usize]).collect(),
+            false => origins.iter().map(|&g| input.islands[g as usize]).collect(),
         };
         Placed {
             positions,
@@ -169,7 +169,7 @@ impl Local<'_> {
                 weld,
                 exact,
                 seams,
-                charts,
+                islands,
             },
         }
     }
