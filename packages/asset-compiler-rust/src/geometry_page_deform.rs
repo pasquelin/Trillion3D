@@ -182,6 +182,7 @@ pub fn write(page: &mut PageDeformation, unique: &[&[u32]], out: &mut BitWriter)
     }
 }
 
+mod reach;
 #[cfg(test)]
 #[path = "geometry_page_deform_tests.rs"]
 mod tests;
