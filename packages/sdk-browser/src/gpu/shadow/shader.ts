@@ -64,7 +64,7 @@ ${tileDeclarations(VIS_BINDINGS.color, 'color')}
 @group(0) @binding(${VIS_BINDINGS.sampler}) var mapsSampler:sampler;
 ${PAGE_BINDING.instances}
 ${PAGE_BINDING.slotOffsets}
-struct ShadowView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,}
+struct ShadowView{viewProjection:mat4x4f,params:vec4f,emitter:vec4f,rect:vec4f,}
 @group(1) @binding(0) var<uniform> shadow:ShadowView;
 @group(1) @binding(1) var<uniform> cutoutWord:vec4u;
 @group(1) @binding(2) var<storage,read_write> tileFeedback:array<atomic<u32>>;
@@ -129,6 +129,21 @@ fn cutoutPage(i:u32)->u32{return instances[slotOffsets[uni.drawSlot+1u]-1u-i];}
 @vertex fn shadow_cutout_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
  return shadowVertex(vertexIndex,cutoutPage(instanceIndex),false);
 }
+/** A page the GPU drew from its own list (\`../../webgpu/shadow/freshWgsl.ts\`), in a pass over the
+ *  whole layer — no indirect draw sets a viewport —: its clip square is carried onto the page's
+ *  square of the layer's, \`rect\` (\`recordPack.ts\`), after the sun's snap, as the page quads
+ *  place it; the fragment keeps only the page's texels (\`freshInPage\`). */
+fn freshPlace(p:vec4f)->vec4f{return vec4f(p.xy*shadow.rect.zw+shadow.rect.xy*p.w,p.z,p.w);}
+fn freshInPage(at:vec2f)->bool{
+ let first=round(shadow.params.xy*shadow.params.w/shadow.params.z);let q=at-first;
+ return all(q>=vec2f(0.0))&&all(q<vec2f(shadow.params.w));
+}
+@vertex fn shadow_fresh_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
+ var out=shadowVertex(vertexIndex,drawPage(instanceIndex),false);out.position=freshPlace(out.position);return out;
+}
+@vertex fn shadow_fresh_cutout_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
+ var out=shadowVertex(vertexIndex,cutoutPage(instanceIndex),false);out.position=freshPlace(out.position);return out;
+}
 @vertex fn shadow_blend_vs(@builtin(vertex_index) vertexIndex:u32,@builtin(instance_index) instanceIndex:u32)->ShadowOut{
  return shadowVertex(vertexIndex,drawPage(instanceIndex),true);
 }
@@ -155,6 +170,13 @@ fn cutoutRequest(in:ShadowOut,gx:vec2f,gy:vec2f){
 /** Writes no colour: it only discards the envelope and the cutout, and asks the cutout's tile. */
 @fragment fn shadow_fs(in:ShadowOut){
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
+ cutoutRequest(in,gx,gy);
+ if(!shadowKeep(in,gx,gy)){discard;}
+}
+/** A GPU-drawn page's texel: its own page's alone, then as \`shadow_fs\`. */
+@fragment fn shadow_fresh_fs(in:ShadowOut){
+ let gx=dpdx(in.uv);let gy=dpdy(in.uv);
+ if(!freshInPage(in.position.xy)){discard;}
  cutoutRequest(in,gx,gy);
  if(!shadowKeep(in,gx,gy)){discard;}
 }
