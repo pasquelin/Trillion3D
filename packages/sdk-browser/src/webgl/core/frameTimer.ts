@@ -5,7 +5,8 @@
  * splitting that duration across steps it has not measured.
  *
  * The read never blocks: a query is reread a few frames later, and a query the driver marked
- * “disjoint” is dropped instead of being published.
+ * “disjoint” is dropped instead of being published. `end(tag)` carries what the frame was drawn
+ * with — its render scale — to the duration that comes back with it.
  */
 import { nanosecondsToMs } from '../../gpu/timing/types.ts';
 
@@ -17,6 +18,10 @@ type TimerExtension = {
   GPU_DISJOINT_EXT: number;
 };
 
+/** What a frame was drawn with, handed back with its duration. */
+export type FrameTag = { scale: number; steered: boolean };
+type TimedFrame = { ms: number | null; reason: string | null; tag?: FrameTag };
+
 export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefined) {
   const ext = gl?.getExtension('EXT_disjoint_timer_query_webgl2') as TimerExtension | null;
   const reason = 'EXT_disjoint_timer_query_webgl2 missing on this device';
@@ -25,11 +30,11 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
       supported: false,
       reason,
       begin() {},
-      end() {},
-      poll: () => ({ ms: null as number | null, reason }),
+      end(_tag?: FrameTag) {},
+      poll: (): TimedFrame => ({ ms: null, reason }),
     };
   let open: WebGLQuery | null = null;
-  const pending: WebGLQuery[] = [];
+  const pending: { query: WebGLQuery; tag?: FrameTag }[] = [];
   return {
     supported: true,
     reason: null as string | null,
@@ -41,19 +46,19 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
       open = query;
       gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
     },
-    end() {
+    end(tag?: FrameTag) {
       if (!open) return;
       gl.endQuery(ext.TIME_ELAPSED_EXT);
-      pending.push(open);
+      pending.push({ query: open, tag });
       open = null;
       // Without on-screen present, the command stream can stay with the driver and the query never
       // become ready. `flush` pushes it without ever waiting — this is not a `finish`.
       gl.flush();
     },
     /** Duration of a past frame, or the reason none is publishable. */
-    poll(): { ms: number | null; reason: string | null } {
+    poll(): TimedFrame {
       if (!pending.length) return { ms: null, reason: 'no pending query' };
-      const query = pending[0];
+      const { query, tag } = pending[0];
       if (!gl.getQueryParameter(query, gl.QUERY_RESULT_AVAILABLE))
         return { ms: null, reason: 'result not ready yet' };
       pending.shift();
@@ -63,7 +68,7 @@ export function createWebglFrameTimer(gl: WebGL2RenderingContext | null | undefi
       if (disjoint)
         return { ms: null, reason: 'the driver interrupted the measurement (GPU_DISJOINT_EXT)' };
       if (!Number.isFinite(nanoseconds)) return { ms: null, reason: 'unreadable duration' };
-      return { ms: nanosecondsToMs(nanoseconds), reason: null };
+      return { ms: nanosecondsToMs(nanoseconds), reason: null, tag };
     },
   };
 }
