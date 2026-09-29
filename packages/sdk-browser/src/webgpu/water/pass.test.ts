@@ -73,7 +73,7 @@ test('a still frame binds nothing new: the group and the descriptors survive the
   assert.equal(groups.created, built, 'the second image builds no group');
   rt.gpu.backdrop = { ...rt.gpu.backdrop!, colorView: {} as never };
   encodeWaterPass(rt, encoder);
-  assert.equal(groups.created, built + 1, 'a resized backdrop rebuilds it');
+  assert.equal(groups.created, built + 2, 'a resized backdrop rebuilds depth and composite groups');
 });
 
 test('glass behind the camera: no copy, no surface pass, no composite', async () => {

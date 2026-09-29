@@ -22,7 +22,7 @@ export function clusterWebglCompatibility(
   copies: readonly SceneCopy[],
   scene: WebglClusterScene,
 ) {
-  const lightReason = unsupportedClusterLight(scene);
+  const lightReason = unsupportedClusterLight(scene.lights);
   if (lightReason) return lightReason;
   // Every scene copy is the owner's; only a transmissive one reads the frozen backdrop.
   const transmits = copies.some((copy) => isTransmissive(copy.material));

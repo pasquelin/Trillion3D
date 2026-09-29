@@ -1,4 +1,5 @@
 import type { SceneProxyColumns } from '../../contracts/proxy.ts';
+import { proxyTriangleBoxes } from './proxyBoxes.ts';
 
 const rounded = new Float32Array(1);
 const bits = new Uint32Array(rounded.buffer);
@@ -10,20 +11,6 @@ function outward(value: number, upper: boolean) {
     else bits[0] += rounded[0] > 0 === upper ? 1 : -1;
   }
   return rounded[0];
-}
-
-/** Canonical bounds of each proxy triangle, six per triangle: what a still pose covers. */
-export function proxyTriangleBoxes(triangles: Float32Array) {
-  const boxes = new Float64Array((triangles.length / 9) * 6);
-  for (let t = 0; t < boxes.length / 6; t++)
-    for (let a = 0; a < 3; a++) {
-      const x = triangles[t * 9 + a],
-        y = triangles[t * 9 + 3 + a],
-        z = triangles[t * 9 + 6 + a];
-      boxes[t * 6 + a] = Math.min(x, y, z);
-      boxes[t * 6 + a + 3] = Math.max(x, y, z);
-    }
-  return boxes;
 }
 
 /** Refit the existing wide topology; triangles and their order never change. */

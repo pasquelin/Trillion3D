@@ -7,39 +7,38 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { dansPageWebgpu, empaquetePage } from './pageWebgpu.ts';
-import type { executer, executerLarge } from './movingProxyPage.ts';
+import { dansPageWebgpu, empaquetePage as bundlePage } from './pageWebgpu.ts';
+import type { run, runLarge } from './movingProxyPage.ts';
 
 declare global {
-  var movingProxy: { executer: typeof executer; executerLarge: typeof executerLarge };
+  var movingProxy: { run: typeof run; runLarge: typeof runLarge };
 }
 
-const ici = dirname(fileURLToPath(import.meta.url));
+const here = dirname(fileURLToPath(import.meta.url));
 const near = (actual: number, expected: number) => Math.abs(actual - expected) < 1e-4;
 /** A settled triangle is the moved one rounded once to f32: the same hit within a millimetre. */
-const near3 = (actual: number, expected: number) => Math.abs(actual - expected) < 1e-3;
+const nearMillimetre = (actual: number, expected: number) => Math.abs(actual - expected) < 1e-3;
 
 /** Runs one scenario of the page and checks the device raised nothing. */
-async function run<R extends { indisponible?: string; erreurs?: string[] }>(scenario: () => R) {
-  const script = await empaquetePage(resolve(ici, 'movingProxyPage.ts'), 'movingProxy');
-  const erreursPage: string[] = [];
-  const releve = await dansPageWebgpu(scenario, null, {
-    titre: 'Moving proxy',
-    script,
-    erreursPage,
-  });
-  assert.equal(releve.indisponible, undefined, 'WebGPU must be available');
-  assert.deepEqual([...(releve.erreurs ?? []), ...erreursPage], []);
-  return releve as Exclude<Awaited<R>, { indisponible: string }>;
+async function inPage<R extends { unavailable?: string; errors?: string[] }>(
+  scenario: () => Promise<R>,
+) {
+  const script = await bundlePage(resolve(here, 'movingProxyPage.ts'), 'movingProxy');
+  const pageErrors: string[] = [];
+  const reading = await dansPageWebgpu(scenario, null, { script, erreursPage: pageErrors });
+  assert.equal(reading.unavailable, undefined, 'WebGPU must be available');
+  assert.deepEqual([...(reading.errors ?? []), ...pageErrors], []);
+  return reading as Exclude<R, { unavailable: string }>;
 }
 
 test('a moved owner is hit at its new pose by the shipped traversal, on the GPU', async () => {
-  const { compilation, moved, dynamic, still, after } = await run(() =>
-    globalThis.movingProxy.executer(),
+  const { compilation, moved, dynamic, still, after } = await inPage(() =>
+    globalThis.movingProxy.run(),
   );
   assert.deepEqual(compilation, []);
   // Still: the canonical plane is hit, nothing stands five metres away.
   assert.ok(still[0].found && still[0].blocked && near(still[0].distance, 1));
+  assert.equal(still[0].owner, 0, 'a still proxy never reads its owner ranges');
   assert.ok(!still[1].found && !still[1].blocked, 'no owner stands at the future pose yet');
   assert.ok(moved && dynamic, 'the owner pose reached the resident proxy');
   // Moved: the owner left in place keeps its plane; the moved owner is hit at its new pose.
@@ -57,9 +56,9 @@ test('a moved owner is hit at its new pose by the shipped traversal, on the GPU'
 });
 
 test('a large moved tree traces the same with its derived bound as with none, then settled', async () => {
-  const releve = await run(() => globalThis.movingProxy.executerLarge());
+  const reading = await inPage(() => globalThis.movingProxy.runLarge());
   const { compilation, moved, settled, dynamic, nodes, steps, bound, uncapped, built, rest } =
-    releve;
+    reading;
   assert.deepEqual(compilation, []);
   assert.ok(moved && settled && !dynamic, 'the owners moved, then settled on the still path');
   assert.ok(steps < nodes, `bound ${steps} derived from the tree, below its ${nodes} nodes`);
@@ -72,6 +71,6 @@ test('a large moved tree traces the same with its derived bound as with none, th
   rest.forEach((ray, index) => {
     assert.equal(ray.found, bound[index].found, `ray ${index} after settling`);
     assert.equal(ray.blocked, bound[index].blocked, `shadow ray ${index} after settling`);
-    assert.ok(near3(ray.distance, bound[index].distance), `ray ${index} distance`);
+    assert.ok(nearMillimetre(ray.distance, bound[index].distance), `ray ${index} distance`);
   });
 });

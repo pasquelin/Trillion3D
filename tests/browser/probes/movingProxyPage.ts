@@ -1,18 +1,19 @@
 /**
  * Page side of the moving-proxy probes (#27), over the engine's resident proxy
  * (`createGpuBounceProxy`) and the shipped traversal (`movingProxyTrace.ts`):
- * - `executer`: one retained plane with two coincident owners, traced still, then after its
- *   second owner moved five metres along x;
- * - `executerLarge`: a deep tree of 16,384 owners, some carried across the floor, traced with
- *   the bound the tree derives, with no bound at all and with the built tree's bound; then
- *   once the owners stop, on the still path.
+ * - `run`: one retained plane with two coincident owners, traced still, then after its second
+ *   owner moved five metres along x;
+ * - `runLarge`: a deep tree of 16,384 owners, some carried across the floor, traced with the
+ *   bound the tree derives, with no bound at all and with the built tree's bound; then once the
+ *   owners stop, on the still path.
  */
 import { IDENTITY_MATRIX4 } from '../../../packages/sdk-core/src/math/matrix/matrix4.ts';
 import { floorProxy, ownedProxy } from '../../../packages/sdk-core/src/scene/core/proxy.fixture.ts';
 import { BOUNCE_SETTINGS } from '../../../packages/sdk-core/src/index.ts';
 import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/proxy.ts';
+import { PROXY_HEADER_WORDS } from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts';
 import { createTraceRig } from './movingProxyTrace.ts';
-import { ouvrirAppareil } from './webgpuDevice.ts';
+import { ouvrirAppareil as openDevice } from './webgpuDevice.ts';
 
 /** Straight down onto the plane: over the canonical pose, then over the moved owner's pose. */
 const RAYS = new Float32Array([0.25, 0.25, 1, 0, 0, 0, -1, 0, 5.25, 0.25, 1, 0, 0, 0, -1, 0]);
@@ -24,21 +25,35 @@ const worldOf = (source: number) => {
   return world;
 };
 
-export async function executer() {
-  const appareil = await ouvrirAppareil();
-  if (!appareil) return { indisponible: 'no WebGPU adapter' };
-  const { device, erreurs } = appareil;
-  const resident = createGpuBounceProxy(device, ownedProxy());
-  const rig = createTraceRig(appareil, resident.buffer, RAYS);
+export async function run() {
+  const gpu = await openDevice();
+  if (!gpu) return { unavailable: 'no WebGPU adapter' };
+  const { device, erreurs: errors } = gpu;
+  const proxy = ownedProxy();
+  const resident = createGpuBounceProxy(device, proxy);
+  // The owner ranges follow triangles, node bounds, node children and triangle groups.
+  const { triangles, nodeBounds, nodeChildren, triangleGroups, groupOffsets } = proxy.data;
+  const rangesByte =
+    (PROXY_HEADER_WORDS +
+      triangles.length +
+      nodeBounds.length +
+      nodeChildren.length +
+      triangleGroups.length) *
+    4;
+  const rig = createTraceRig(gpu, resident.buffer, RAYS);
+  // A still proxy reads no owner word: with its owner ranges overwritten by an owner that does not
+  // exist, it still reports owner 0. The real ranges come back before anything moves.
+  device.queue.writeBuffer(resident.buffer, rangesByte, new Uint32Array([7, 9]));
   const still = await rig.trace();
+  device.queue.writeBuffer(resident.buffer, rangesByte, groupOffsets);
   const moved = resident.sync(worldOf);
   const after = await rig.trace();
   const dynamic = resident.dynamic;
   rig.dispose();
   resident.dispose();
-  const info = await appareil.fermer();
+  const info = await gpu.fermer();
   const { compilation } = rig;
-  return { adaptateur: info.court, erreurs, compilation, moved, dynamic, still, after };
+  return { adapter: info.court, errors, compilation, moved, dynamic, still, after };
 }
 
 const SIDE = 128;
@@ -64,27 +79,21 @@ function largeRays() {
     slant = Math.hypot(0.3, 0.2, 1);
   for (let row = 0; row < 256; row++)
     rays.push(-1, row * 0.5 + 0.05, 3, 0, 1 / level, 0.05 / level, 0, 0);
-  for (let cell = 0; cell < 256; cell++)
-    rays.push(
-      (cell % 16) * 8 + 0.3,
-      (cell >> 4) * 8 + 0.7,
-      5,
-      0,
-      0.3 / slant,
-      0.2 / slant,
-      -1 / slant,
-      0,
-    );
+  for (let cell = 0; cell < 256; cell++) {
+    const x = (cell % 16) * 8 + 0.3,
+      y = (cell >> 4) * 8 + 0.7;
+    rays.push(x, y, 5, 0, 0.3 / slant, 0.2 / slant, -1 / slant, 0);
+  }
   return new Float32Array(rays);
 }
 
-export async function executerLarge() {
-  const appareil = await ouvrirAppareil();
-  if (!appareil) return { indisponible: 'no WebGPU adapter' };
-  const { device, erreurs } = appareil;
+export async function runLarge() {
+  const gpu = await openDevice();
+  if (!gpu) return { unavailable: 'no WebGPU adapter' };
+  const { device, erreurs: errors } = gpu;
   const proxy = floorProxy(SIDE, 2);
   const resident = createGpuBounceProxy(device, proxy);
-  const rig = createTraceRig(appareil, resident.buffer, largeRays());
+  const rig = createTraceRig(gpu, resident.buffer, largeRays());
   const move = carried(proxy.data.triangles);
   const moved = resident.sync(move);
   const steps = resident.steps;
@@ -96,12 +105,12 @@ export async function executerLarge() {
   const rest = await rig.trace();
   rig.dispose();
   resident.dispose();
-  const info = await appareil.fermer();
+  const info = await gpu.fermer();
   const { compilation } = rig;
   const nodes = proxy.nodes;
   return {
-    adaptateur: info.court,
-    ...{ erreurs, compilation, moved, settled, dynamic, nodes, steps },
+    adapter: info.court,
+    ...{ errors, compilation, moved, settled, dynamic, nodes, steps },
     ...{ bound, uncapped, built, rest },
   };
 }
