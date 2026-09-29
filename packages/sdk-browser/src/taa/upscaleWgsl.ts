@@ -1,5 +1,6 @@
 import { PI } from '../lighting/shaderConstants.ts';
 import { shareText, taaHistoryBlend, taaPrelude, taaShareTap } from './shaderWgsl.ts';
+import { layerWgsl, taaOut } from './layers.ts';
 
 /** Lanczos-2, `sinc(x)·sinc(x/2)` on `|x| < 2`: the kernel the current image is resampled with. */
 export const LANCZOS2_WGSL = `
@@ -22,11 +23,12 @@ fn lanczos2(x:f32)->f32{
  *   `r`, then clamped to the 2×2 nearest texels, since Lanczos's negative lobes ring;
  * - the YCoCg box history is clamped to, as at native size.
  * Reprojection starts from the unjittered display-pixel centre at the dilated depth; the history
- * blend is the native resolve's (`taaHistoryBlend`). The as-is share follows the colour's weights.
+ * blend is the native resolve's (`taaHistoryBlend`). The as-is share and the display layers
+ * (`layers.ts`) follow the colour's weights.
  */
-export const taaUpscaleShader = (asIs: boolean, blended = false) => {
+export const taaUpscaleShader = (asIs: boolean, blended = false, filtered = false) => {
   const share = shareText(asIs);
-  return `${taaPrelude(asIs, blended)}
+  return `${taaPrelude(asIs, blended, filtered)}
 ${LANCZOS2_WGSL}
 @fragment fn resolve(@builtin(position) pixel:vec4f)->TaaOut{
  let coord=vec2i(pixel.xy);
@@ -39,7 +41,7 @@ ${LANCZOS2_WGSL}
  var nearDepth=-1.0;
  var sum=vec4f(0.0);var total=0.0;
  var lo=vec4f(1e9);var hi=vec4f(-1e9);var ringLo=vec4f(1e9);var ringHi=vec4f(-1e9);
-${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')} for(var dy=-1;dy<=1;dy++){for(var dx=-1;dx<=1;dx++){
+${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')}${layerWgsl(filtered, 'vars')} for(var dy=-1;dy<=1;dy++){for(var dx=-1;dx<=1;dx++){
   let tap=base+vec2i(dx,dy);
   let at=clamp(tap,vec2i(0),last);
   let z=textureLoad(depth,at,0);
@@ -51,10 +53,10 @@ ${share(' var share=0.0;var shareLo=1.0;var shareHi=0.0;\n')} for(var dy=-1;dy<=
   lo=min(lo,y);hi=max(hi,y);
   let ring=tap-low;
   if(all(ring>=vec2i(0))&&all(ring<=vec2i(1))){ringLo=min(ringLo,sample);ringHi=max(ringHi,sample);}
-${taaShareTap(asIs, blended)} }}
+${taaShareTap(asIs, blended)}${layerWgsl(filtered, 'tap')} }}
  let filtered=clamp(sum/max(total,1e-4),ringLo,ringHi);
-${share(' share=clamp(share/max(total,1e-4),shareLo,shareHi);\n')} if(view.params.y==0.0){return TaaOut(filtered,${share('share', '0.0')});}
+${share(' share=clamp(share/max(total,1e-4),shareLo,shareHi);\n')}${layerWgsl(filtered, 'scaled')} if(view.params.y==0.0){return ${taaOut(asIs, filtered)};}
  let previous=previousUv(coord,nearDepth,near);
-${taaHistoryBlend(asIs)}
+${taaHistoryBlend(asIs, filtered)}
 }`;
 };
