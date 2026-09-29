@@ -730,7 +730,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Küme başına DAG hataları için önbellek kimliği: konumlar, normaller ve doku koordinatları üzerinden grubun mutlak QEM hatası, grubun boyutuyla sınırlı; v1 önbelleği reddedilir."
+    "summary": "Küme başına DAG hataları için önbellek kimliği: konumlar, normaller ve doku koordinatları üzerinden grubun mutlak QEM hatası, grubun kapsamıyla sınırlı ve bir grubun çocukları ile çıktıları arasındaki örneklenmiş Hausdorff uzaklığının asla altında değil (#929); v1 ve v2 önbellekleri reddedilir."
   },
   "DEFAULT_SCOPE": {
     "summary": "Hiçbiri adlandırılmadığında bir modelin derlendiği kapsam: sayfalar halinde akışlı."
