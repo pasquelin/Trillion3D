@@ -8,11 +8,12 @@ import * as esbuild from 'esbuild';
 import type { Format } from 'esbuild';
 import { launchChrome } from '../../../bench/runner/chrome.ts';
 import { blankPageServer } from '../../kit/server/blankPage.ts';
-import { ouvrirAppareil } from './webgpuDevice.ts';
+import { openGpuDevice } from './webgpuDevice.ts';
 import { namedBufferEntries } from '../../../packages/sdk-browser/src/gpu/core/computeBindings.ts';
 
 declare global {
-  var ouvrirAppareil: typeof import('./webgpuDevice.ts').ouvrirAppareil;
+  var ouvrirAppareil: typeof openGpuDevice;
+  var openGpuDevice: typeof import('./webgpuDevice.ts').openGpuDevice;
   var namedBufferEntries: typeof import('../../../packages/sdk-browser/src/gpu/core/computeBindings.ts').namedBufferEntries;
 }
 
@@ -20,7 +21,7 @@ declare global {
  * What the page holds before any probe runs: the device opener, and the engine's own bind-group
  * builder, so a probe lays its buffers out under their shader names, never by position.
  */
-export const PAGE_INIT_SCRIPT = `globalThis.ouvrirAppareil = ${ouvrirAppareil};
+export const PAGE_INIT_SCRIPT = `globalThis.ouvrirAppareil = globalThis.openGpuDevice = ${openGpuDevice};
 globalThis.namedBufferEntries = ${namedBufferEntries};`;
 
 /**

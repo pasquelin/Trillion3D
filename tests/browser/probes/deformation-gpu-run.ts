@@ -10,7 +10,7 @@ type Args = {
   whole: number[];
 };
 export async function probe(args: Args) {
-  const gpu = await globalThis.ouvrirAppareil();
+  const gpu = await globalThis.openGpuDevice();
   if (!gpu) return { unavailable: 'WebGPU unavailable' };
   const compiled = await gpu.compile(args.shader);
   if (compiled.compilation.length) return { errors: compiled.compilation };
@@ -115,5 +115,5 @@ export async function probe(args: Args) {
     read.unmap();
   }
   const adapter = await gpu.fermer();
-  return { images, errors: gpu.erreurs, adapter: adapter.court };
+  return { images, errors: gpu.errors, adapter: adapter.court };
 }
