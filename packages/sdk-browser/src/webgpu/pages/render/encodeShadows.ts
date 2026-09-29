@@ -175,6 +175,9 @@ function ensureStaticLayer(rt: WebgpuPagesRuntime) {
       try {
         lights.pageHiz = await createShadowPageHiz(device, layer.targets[0]);
         lights.occlusion = await createShadowOcclusion(device, capacity);
+        // Tables grown meanwhile (`../prepare/growTables.ts`): the lists follow the cull's.
+        const rows = rt.layout.rows.casterSlots;
+        if (rows !== capacity) lights.occlusion.grow(rows).commit();
       } catch (error) {
         lights.pageHiz?.dispose();
         lights.pageHiz = undefined;
