@@ -61,7 +61,7 @@ export async function world(seed: number, lot: boolean, whole: boolean) {
     packedPageIndex: ranks,
     blendRowOf: new Int32Array(n).fill(-1),
     dirty,
-    markRowDirty: (row: number) => void (dirty[row] = 1),
+    markRowWords: (row: number) => void (dirty[row] = 1),
   };
   Object.assign(layout, { rows, rootBoxes: lot ? await reserveRootBoxes(roots) : null });
   const mobility = rt.lights.mobility;
