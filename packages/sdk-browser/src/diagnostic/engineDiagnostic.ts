@@ -30,3 +30,25 @@ export const sendCoverageBudget = (
   onDiagnostic: ((diagnostic: BackendDiagnostic) => void) | undefined,
   event: Record<string, unknown>,
 ) => sendEngineDiagnostic(onDiagnostic, 'coverage-budget', 'Admission of the requested cut', event);
+
+/** A diagnostic whose detail is built only when it is heard. */
+export type LazyDiagnostic = (
+  phase: string,
+  message: string,
+  detail: () => Record<string, unknown>,
+) => void;
+/** The emitter that tells `report`, or `undefined` when nobody listens. Callers write
+ *  `emit?.(phase, message, () => detail)`: with no listener the call short-circuits before its
+ *  arguments, so neither the detail nor the closure that builds it is ever allocated — a request
+ *  pays nothing for diagnostics that are off. An error the observer throws is its own. */
+export const lazyDiagnostic = (
+  report: ((diagnostic: BackendDiagnostic) => void) | undefined,
+): LazyDiagnostic | undefined =>
+  report &&
+  ((phase, message, detail) => {
+    try {
+      report({ phase, message, context: detail() });
+    } catch {
+      /* Observers cannot alter streaming. */
+    }
+  });
