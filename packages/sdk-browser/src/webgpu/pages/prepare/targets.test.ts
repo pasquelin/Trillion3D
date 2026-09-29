@@ -98,7 +98,8 @@ test('an eligible receiver accounts for viewport reflection colour and its unifo
 test('a blended scene costs a share byte per pixel only when it can show a debug view', () => {
   const { rt } = runtime();
   const base = frameTargetAllocation(rt, native(64, 32));
-  Object.assign(rt, { blendState: { blendGpu: [{}] }, vis: { asIsShown: false } });
+  const glass = { surface: surfaceOf(standardSurface({ roughness: 1 })) };
+  Object.assign(rt, { blendState: { blendGpu: [glass] }, vis: { asIsShown: false } });
   assert.equal(frameTargetAllocation(rt, native(64, 32)), base, 'blends alone: as before');
   rt.vis.asIsShown = true;
   assert.equal(frameTargetAllocation(rt, native(64, 32)), base + 64 * 32, 'a debug view shown');

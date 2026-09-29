@@ -62,15 +62,15 @@ test('without a debug view the transparent pass binds no share and draws the sha
     at: (_rank: number, _filtered?: boolean, share?: boolean) => (asked.push(share), {}),
   } as unknown as WebgpuPagesRuntime['vis']['blendPipelines'];
   drawBlendPass(rt, device, encoder);
-  assert.equal(passes[0].writes[2], null, 'the share slot stays empty');
+  assert.equal(passes[0].writes[2], undefined, 'the share slot stays empty');
   assert.ok(!passes[0].writes.includes(gpu.asIsShare!.view));
-  assert.ok(asked.length && asked.every((share) => share === false));
+  assert.ok(asked.length && asked.every((share): boolean => share === false));
   // A debug view shown: the pass blends into the share, with the pipelines that write it.
   rt.vis.asIsShown = true;
   asked.length = 0;
   drawBlendPass(rt, device, encoder);
   assert.equal(passes[1].writes[2], gpu.asIsShare!.view);
-  assert.ok(asked.length && asked.every((share) => share === true));
+  assert.ok(asked.length && asked.every((share): boolean => share === true));
 });
 
 test('the blend pipelines compile the share target only for an image that can show a debug view', async () => {
