@@ -7,6 +7,7 @@
 import { MATRIX_VALUES, multiplyMatrix4 } from '../../../../sdk-core/src/index.ts';
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts';
 import { hostWorldChainInto } from '../../host/world/chain.ts';
+import { sameMatrixBits } from '../../host/world/pose.ts';
 import type { PlacedMesh, createTouchedRows } from './rows.ts';
 
 /** A cell's node on its row: its mesh, the row, the core node it hangs under and its pose there. */
@@ -49,7 +50,7 @@ export function createPlacementWrites(touched: ReturnType<typeof createTouchedRo
       for (const mesh of meshes) if (castsMoved(mesh)) stale.add(mesh);
       for (const [node, world] of worlds) {
         hostWorldChainInto(product, node);
-        if (product.every((value, at) => Object.is(value, world[at]))) continue;
+        if (sameMatrixBits(world, product)) continue;
         world.set(product);
         stale.add(node);
       }
