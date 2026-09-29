@@ -26,7 +26,13 @@ function harnais(effectBytes = 0) {
     streamer,
     0,
     0,
-    () => ({ loaded: 0, pageBytesRead: 0, streamingError: null, effectBytes }),
+    () => ({
+      loaded: 0,
+      pageBytesRead: 0,
+      streamingError: null,
+      effectBytes,
+      gpu: { frameMs: null, passes: null },
+    }),
   );
 }
 

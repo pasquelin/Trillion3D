@@ -7,13 +7,13 @@ import type { HostMaterials } from '../../host/resources.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { CoverageReaders } from '../../texture/coverage.ts';
 import { WebglMipReducer, type MipChain } from './mips.ts';
+import { allocated } from '../core/allocation.ts';
 
 /**
  * A texture as uploaded, at its counters (#360, #361) and its size: a new version uploads the
  * picture again — in place at the same size and format (#362) —, a new `sampling` sets the sampler
- * alone. Its mip chain exists whenever its `minFilter` reads one (`mipFiltered`, #732). The
- * placement is not uploaded here — the material binding uploads the UV matrix at every draw
- * (`materialBinding.ts`).
+ * alone. Its mip chain exists whenever its `minFilter` reads one (`mipFiltered`, #732). The UV
+ * matrix is uploaded by the material binding at every draw (`materialBinding.ts`), not here.
  */
 type TextureRecord = MipChain & { version: number; sampling: number };
 type Anisotropy = { TEXTURE_MAX_ANISOTROPY_EXT: number; MAX_TEXTURE_MAX_ANISOTROPY_EXT: number };
@@ -32,6 +32,7 @@ const filter = (gl: WebGL2RenderingContext, value: TextureFilter) =>
   })[value];
 
 const WHITE: readonly number[] = [255, 255, 255, 255];
+const uploadAgain = (r: TextureRecord) => () => void (r.version = -1); // refused: sent again
 
 export class WebglClusterTextures {
   private records = new Map<string, TextureRecord>();
@@ -106,8 +107,8 @@ export class WebglClusterTextures {
       }
       if (mips) {
         const allocate = record.cutoff === undefined;
-        record.cutoff = cutoff;
-        this.mips.reduce(unit, record, allocate);
+        if (allocate) allocated(gl, 'texture', uploadAgain(record));
+        this.mips.reduce(unit, Object.assign(record, { cutoff }), allocate);
       }
     }
     this.bound[unit] = record.texture;
@@ -154,11 +155,10 @@ export class WebglClusterTextures {
       height,
       format,
     };
-    const allocate = !inPlace || held?.cutoff == null;
-    if (mipFiltered(texture.minFilter)) {
-      record.cutoff = cutoff;
-      this.mips.reduce(unit, record, allocate);
-    }
+    const mips = mipFiltered(texture.minFilter),
+      allocate = !inPlace || held?.cutoff == null;
+    if (!inPlace || (mips && allocate)) allocated(gl, 'texture', uploadAgain(record));
+    if (mips) this.mips.reduce(unit, Object.assign(record, { cutoff }), allocate);
     if (!held || held.sampling !== texture.sampling) this.setSampler(texture);
     return record;
   }
