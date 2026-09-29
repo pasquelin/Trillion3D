@@ -14,16 +14,22 @@ export const LISTS = [
 ] as const;
 const INDEX = { position: 0, normal: 1, uv: 2, color: 3 } as const;
 
+/** One range per list, and `FIRST[n]` the first `n` of them: a frame's ranges, made once. */
+const RANGES: VertexRange[] = LISTS.map(([, name]) => ({ name, from: 0, count: 0 }));
+const FIRST = [0, 1, 2, 3, 4].map((n) => RANGES.slice(0, n));
+/** What the last `changedRanges` found: rewritten by the next call, read before it. */
+const changed = { ranges: FIRST[0], bytes: 0, box: new Float64Array(6) };
+
 /**
  * What `next` changed of `held`, list by list: the range from its first changed vertex to its
- * last, the bytes those ranges weigh — the upload, nothing else —, and the box of the moved
+ * last, the bytes those lists weigh — the upload, nothing else —, and the box of the moved
  * vertices where they were and where they go: the shadow pages they leave and those they reach.
+ * Nothing is allocated: the answer is rewritten by the next call.
  */
 export function changedRanges(held: DrawnTriangles, next: DrawnTriangles) {
-  const ranges: VertexRange[] = [],
-    box = new Float64Array(6);
-  let bytes = 0;
-  boxEmpty(box, 0);
+  let n = 0;
+  changed.bytes = 0;
+  boxEmpty(changed.box, 0);
   for (const [field, name, width] of LISTS) {
     const a = held[field],
       b = next[field];
@@ -36,17 +42,19 @@ export function changedRanges(held: DrawnTriangles, next: DrawnTriangles) {
         last = i;
       }
     if (first < 0) continue;
-    const from = Math.floor(first / width),
-      count = Math.floor(last / width) + 1 - from;
-    ranges.push({ name, from, count });
-    bytes += count * width * 4;
+    const range = RANGES[n++];
+    range.name = name;
+    range.from = Math.floor(first / width);
+    range.count = Math.floor(last / width) + 1 - range.from;
+    changed.bytes += range.count * width * 4;
     if (field === 'positions')
-      for (let v = from * 3; v < (from + count) * 3; v += 3) {
-        boxExpandByPoint(box, 0, a[v], a[v + 1], a[v + 2]);
-        boxExpandByPoint(box, 0, b[v], b[v + 1], b[v + 2]);
+      for (let v = range.from * 3; v < (range.from + range.count) * 3; v += 3) {
+        boxExpandByPoint(changed.box, 0, a[v], a[v + 1], a[v + 2]);
+        boxExpandByPoint(changed.box, 0, b[v], b[v + 1], b[v + 2]);
       }
   }
-  return { ranges, bytes, box };
+  changed.ranges = FIRST[n];
+  return changed;
 }
 
 /** Writes `ranges` of `next` into `held`, in place: what the session reads next. */
@@ -76,22 +84,33 @@ export function markRewritten(geometry: Geometry, ranges: readonly VertexRange[]
   }
 }
 
+type Attributes = Geometry['attributes'];
 type Session = {
-  updateVertices(
-    attributes: Geometry['attributes'],
-    ranges: VertexRange[],
-    box: Float64Array,
-  ): boolean;
+  updateVertices(attributes: Attributes, ranges: VertexRange[], box: Float64Array): boolean;
+  vertexBytes?(attributes: Attributes, ranges: VertexRange[]): number | undefined;
 };
-/** What a frame's `upload` hands each dynamic resource's rewritten ranges to (#573): its placed
- *  host geometry, marked, then `session`; false while the session draws no such resource — it
- *  waits —, `refused` when the session cannot take them in place. */
-export const vertexWriter =
-  (session: Session, geometryOf: (cut: Cut) => Geometry | undefined, refused: () => void) =>
-  (cut: Cut, ranges: VertexRange[], box: Float64Array) => {
-    const geometry = geometryOf(cut);
-    if (!geometry) return false;
+/**
+ * What a frame's `upload` hands each dynamic resource's rewritten ranges to (#573), made once:
+ * `weigh` says the bytes they send the GPU — the session's count, else `bytes`, the lists' own —;
+ * `write` marks its placed host geometry, then hands them to the session: false while it draws no
+ * such resource — it waits —, `refused` when it cannot take them in place.
+ */
+export const vertexUploads = (
+  session: () => Session | null,
+  geometryOf: (cut: Cut) => Geometry | undefined,
+  refused: () => void,
+) => ({
+  weigh(cut: Cut, ranges: VertexRange[], bytes: number) {
+    const attributes = geometryOf(cut)?.attributes;
+    return (attributes && session()?.vertexBytes?.(attributes, ranges)) ?? bytes;
+  },
+  write(cut: Cut, ranges: VertexRange[], box: Float64Array) {
+    const geometry = geometryOf(cut),
+      open = session();
+    if (!geometry || !open) return false;
     markRewritten(geometry, ranges);
-    if (!session.updateVertices(geometry.attributes, ranges, box)) refused();
+    if (!open.updateVertices(geometry.attributes, ranges, box)) refused();
     return true;
-  };
+  },
+});
+export type VertexUploads = ReturnType<typeof vertexUploads>;

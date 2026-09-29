@@ -615,14 +615,18 @@ the same visibility, depth, Hi-Z, resolve, shadows and lighting as every paged m
 hidden, casts and receives, and each rewrite stales only the shadow pages its moved vertices
 cover. A geometry changed on two consecutive frames without declaring it turns dynamic by itself,
 once cut again, and the world says so under `geometry-dynamic`, naming the mesh. A soft body's
-geometry is dynamic: the cloth, rope or volume is drawn where its last step left it.
+geometry is dynamic: the cloth, rope or volume is drawn where its last step left it, its simulation
+kept; two soft bodies in one geometry would draw over each other, so the second is refused with
+`PHYSICS_FAILED` — give each its own (`geometry.clone()`).
 
 Culling reads a box the vertices never leave: `geometry.maxBounds` when declared, else the box of
 its first vertices widened by half its size on every side. Vertices that leave it serve the same
 pages again in a larger box — nothing is cut; triangles whose corners change are cut anew. A frame
 uploads at most `DYNAMIC_UPLOAD_BUDGET_BYTES` (4 MiB): a rewrite past it waits for the next frame,
 in the order the geometries changed, never dropped, the previous vertices drawn meanwhile.
-`metrics.dynamicUploadBytes` says what the frame uploaded. Live example:
+`metrics.dynamicUploadBytes` says what the frame sent the GPU, every buffer written counted (on
+WebGPU a normal carries its tangent, and positions are also written for the fallback draw), and the
+budget counts the same bytes. Live example:
 [floating crates](../site/examples/floating-crates.html).
 
 ```js

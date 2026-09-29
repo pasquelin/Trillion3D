@@ -25,7 +25,7 @@ import { createArrivalSpecs } from '../../page/integration/arrivalSpecs.ts';
 import { endCpuFrame, hostCpuStep } from './render/cpuSteps.ts';
 import { setWebgpuTransform, setWebgpuTransforms } from './render/transform.ts';
 import { updateWebgpuPlacements } from '../../placement/webgpuPlacements.ts';
-import { updateWebgpuVertices } from './dynamicVertices.ts';
+import { webgpuVertexApi } from './dynamicVertices.ts';
 import { growWebgpuPlacements, webgpuGrowsInPlace } from '../../placement/webgpuGrowth.ts';
 import { disposeWebgpuPages, metricsOf } from './io/metrics.ts';
 import { hostTableBytesOf, setWebgpuMemoryBudgets } from './io/memory.ts';
@@ -83,7 +83,7 @@ export const webgpuPagesBackend: BackendFactory = (context) => {
     setRenderScale: (scale) => void (rt.scale.set(scale), rt.run.gate.resourcesChanged()),
     renderScale: () => rt.scale.drawn,
     updatePlacements: (rows, from, to) => updateWebgpuPlacements(rt, rows, from, to),
-    updateVertices: (attributes, ranges, box) => updateWebgpuVertices(rt, attributes, ranges, box),
+    ...webgpuVertexApi(rt),
     growsInPlace: (from, capacity) => webgpuGrowsInPlace(rt, from, capacity),
     growPlacements: (from, to) => growWebgpuPlacements(rt, from, to),
     refreshMaterials: (values, alpha) => materials.refreshWebgpuMaterials(rt, values, alpha),
