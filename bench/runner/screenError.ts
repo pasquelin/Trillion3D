@@ -109,9 +109,12 @@ try {
       for (const [i, { view, held, canvas }] of result.entries()) {
         const ids = captures.get(`${tag}-${view}.ids`),
           tri = captures.get(`${tag}-${view}.tri`);
-        const drawn = ids
+        const { triangles: drawn, shared } = ids
           ? await pageTriangles(full, ids.body.toString('utf8').split('\n').filter(Boolean))
-          : Float32Array.from(new Float64Array(new Uint8Array(tri!.body).buffer));
+          : {
+              triangles: Float32Array.from(new Float64Array(new Uint8Array(tri!.body).buffer)),
+              shared: 0,
+            };
         const measured = measureView({
           source,
           twoSided,
@@ -130,6 +133,7 @@ try {
           held,
           canvas,
           ...measured,
+          sharedPages: shared,
           pass: worst <= pixelError + MARGIN_PX,
           errors,
         };
