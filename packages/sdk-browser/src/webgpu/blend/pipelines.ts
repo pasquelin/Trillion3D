@@ -23,13 +23,15 @@ import {
   type DiagnosticGpuVariant,
 } from '../../diagnostic/gpuVariant.ts';
 import { feedbackFreeEntry } from '../tile/feedbackAbWgsl.ts';
-/** The pass's targets in `mode`; `filtered`, with the display layers (`displayFilter.ts`). */
+/** The pass's targets in `mode`; `filtered`, with the display layers (`displayFilter.ts`);
+ *  `share`, with the as-is share of an image that can show a debug view, else an empty slot. */
 export const blendTargets = (
   mode: Blending,
   mask: GPUColorWriteFlags,
   feedback: boolean,
   filtered = false,
-): GPUColorTargetState[] => [
+  share = true,
+): (GPUColorTargetState | null)[] => [
   // A filtering mode of a filtered image leaves the lit target to the display layers.
   {
     format: 'rgba16float',
@@ -37,10 +39,8 @@ export const blendTargets = (
     blend: COVERAGE_EQUATIONS[mode],
   },
   ...(feedback ? [{ format: FEEDBACK_FORMAT }] : []),
-  // The share records how much of the debug background remains under a lit transparent
-  // contribution. Additive and subtractive colours also contribute lit pixels, so neither may
-  // leave the background's share at one simply because its colour equation retains the target.
-  { format: 'r8unorm', blend: BLEND_EQUATIONS.normal },
+  // The debug share left under a lit transparent: every mode covers it at its alpha (#365).
+  share ? { format: 'r8unorm', blend: BLEND_EQUATIONS.normal } : null,
   ...(filtered ? displayTargets(mode) : []),
 ];
 /** The blend fragment's values, in their order: what a feedback-free entry keeps. */
@@ -115,16 +115,15 @@ export async function createWebgpuBlendPipelines(
   variant?: DiagnosticGpuVariant,
   feedback = true,
   sharedLayout?: GPUBindGroupLayout,
+  share = false,
 ) {
-  // Without a variant, the module and the targets are exactly those of before: production compiles
-  // no diagnostic stage and has no write mask of its own.
+  // Without a variant, production compiles no diagnostic stage and has no write mask of its own.
   const selected = blendVariantPipeline(variant);
   const entryPoint = feedback ? selected.entryPoint : 'fsWithoutFeedback';
   const { writeMask } = selected;
   const blendBindGroupLayout = sharedLayout ?? blendLayout(device);
   // The water pass exists for a scene that transmits, outside any diagnostic variant: under one,
-  // the transmission slice draws as one more blend, so the variant measures the same fragment
-  // stage on all of it. Its surface stage is compiled into the blend module only then.
+  // the transmission slice draws as one more blend, the same fragment stage measured on all.
   const wantsWater = !variant && items.some((item) => item.transmissive);
   let code =
     BLEND_SHADER + (wantsWater ? WATER_SURFACE_WGSL : '') + (variant ? DIAGNOSTIC_BLEND_WGSL : '');
@@ -147,26 +146,29 @@ export async function createWebgpuBlendPipelines(
       );
   }
   const blendModule = device.createShaderModule({ code: code });
-  const perMode = pipelinesByMode(device, (mode) =>
-    stageDescriptors(
-      device,
-      blendModule,
-      blendBindGroupLayout,
-      { module: blendModule, entryPoint, targets: blendTargets(mode, writeMask, feedback) },
-      false,
+  // Two lazy sets (#365): without a debug view the share slot stays empty, no r8 target is bound.
+  const sets = [false, true].map((withShare) => ({
+    perMode: pipelinesByMode(device, (mode) =>
+      stageDescriptors(
+        device,
+        blendModule,
+        blendBindGroupLayout,
+        {
+          module: blendModule,
+          entryPoint,
+          targets: blendTargets(mode, writeMask, feedback, false, withShare),
+        },
+        false,
+      ),
     ),
-  );
-  const routed = createRoutedPipelines(
-    device,
-    blendModule,
-    blendBindGroupLayout,
-    feedback,
-    (mode) => blendTargets(mode, writeMask, feedback, true),
-  );
-  // Normal always — the transmission slice draws on it under a diagnostic —, then every mode a
-  // blend item declares, with a display filter too when one filters. A mode written on a surface
-  // later is compiled by the first draw that asks for it (`at`).
-  const declared = declaredBlendModes(items);
+    routed: createRoutedPipelines(device, blendModule, blendBindGroupLayout, feedback, (mode) =>
+      blendTargets(mode, writeMask, feedback, true, withShare),
+    ),
+  }));
+  // Normal always (the transmission slice draws on it under a diagnostic), every mode an item
+  // declares, filtered too when one filters, in the set drawn now; the rest compiles at `at`.
+  const declared = declaredBlendModes(items),
+    { perMode, routed } = sets[+share];
   await Promise.all([
     perMode.precompile(declared),
     !variant && declared.some(filtersDisplay) && routed.precompile(declared),
@@ -174,10 +176,11 @@ export async function createWebgpuBlendPipelines(
   const blendPipelines: BlendModePipelines = {
     byMode: perMode.byMode,
     mask: routed.mask,
-    at(rank, filtered = false) {
+    at(rank, filtered = false, withShare = false) {
       const mode = BLEND_MODES[Math.floor(rank / 3)];
       if (!mode) throw new Error(`blend pipeline rank ${rank} names no blending mode`);
-      return (filtered ? routed.filtered : perMode).at(mode)[rank % 3];
+      const set = sets[+withShare];
+      return (filtered ? set.routed.filtered : set.perMode).at(mode)[rank % 3];
     },
   };
   // A device that refuses the pass keeps the blends, and `waterRefused` names why to the caller.

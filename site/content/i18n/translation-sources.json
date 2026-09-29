@@ -459,7 +459,7 @@
     "examples:migrating-from-three": "e4ae9806 40ad055a 9ad05c1e c3c061ad fc36d12d ea3fe66d d851ee0a c622bd12 8fa1e93d 15b3b2e8 fb486390 e5c659f2 a2cb10f0 bed3493c 5cde9a88",
     "examples:move-rotate-scale-gizmo": "471a4136 06290015 d2edcdd3 965e931f 05a67141 a0c39e3a f25ddc28 f2781c45 80551b8c 2d8b27a8 51ec8f1f d59832aa d42286a4 6267c5a5 1f65c69c",
     "examples:no-hitch-on-first-draw": "a8c7276e e544f49f c9083cbf 0815ee8a 7972543d 35dc0817 f2abfb53 4291b45d 826ae859 e69108fd e05743a2 c53e1ca9 da8c67a3 b27c46e4 f9c0cca9",
-    "examples:normals-and-depth-seen": "9edb4c6a 2a4466ae ca91a0ef bbb94bd4 39e6dd6e 4c70949e 9831f150 92231d7d 7cb8dad1 f67ac9fc 18f20e3d 50863ee8 cf74744a b18bdc07 768fba1d",
+    "examples:normals-and-depth-seen": "e081ec10 5b275be2 16a9a07a ccfffb13 442b4a84 0f190392 2b46031b 19153d16 a7e8318b 88242d8e 81b39714 317eaecc db5ca3f7 8b4f2da3 a25413d7",
     "examples:observatory-streamed": "9ee76256 18f0d214 e910e325 0f30c9f4 349a0d50 96fff3bf 566beb22 1987bb50 5b3fee23 3f5e2a5a 34d68367 9450c253 99e7a679 32224048 0042da80",
     "examples:one-clip-many-objects": "6df1ebec 8d54aa00 94ea1331 4016af3e 245cbf75 3ee7f1cf a9ad3a53 76dd9776 5a0ac5bb 93fdddc6 2006e6e7 2491a083 4a1dfb2d 1dc5b8fc f1660993",
     "examples:orbit-around-a-clockwork": "ae20258f d5322411 61a20dd6 7c68d27f 4b3e25ef c68368c7 44a42fe1 184dd3de 9270df1c 0e7e76fb 747cd33f 72c1c746 3d4306c5 b2430815 97710668",
