@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { base, openSession, servedScene } from './proxySession.fixture.ts';
-import { createPageCache, manifestTableBytes } from '../../streaming/pageCache.ts';
+import { createPageCache } from '../../streaming/pageCache.ts';
+import { manifestTableBytes } from '../../streaming/manifestTables.ts';
 
 const proxyUrl = `${base}proxy.bin`;
 
