@@ -15,14 +15,17 @@ test('a still camera is drawn again until the cells it asked for within reach ar
   let later = true,
     read = () => {},
     decodes: Promise<void>[] = [];
-  const cells = withHoldings({ meshes: new Map(), manifest: createCellPages(undefined, []) }, {
-    frame(_eye: number[], _reach: number, io: Io) {
-      io.request(['near.json'], false);
-      io.request(['ahead.json'], true);
-      return later;
-    },
-    decodes: () => decodes.splice(0),
-  } as unknown as PartitionCells);
+  const cells = withHoldings(
+    { meshes: new Map(), manifest: createCellPages(undefined, () => []) },
+    {
+      frame(_eye: number[], _reach: number, io: Io) {
+        io.request(['near.json'], false);
+        io.request(['ahead.json'], true);
+        return later;
+      },
+      decodes: () => decodes.splice(0),
+    } as unknown as PartitionCells,
+  );
   const streamer = {
     request: (urls: readonly string[]) =>
       new Promise<void>((resolve) => {
