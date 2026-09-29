@@ -115,15 +115,19 @@ test('coarse pages are served first, and a full pool evicts only pages no report
   const pages = plan.pool.pages - floors.length;
   assert.equal(mapped(fine), pages - coarse.length, 'the fine ones, as far as the pool goes');
   assert.equal(plan.requests.counts.refused, fine.length + coarse.length - pages);
-  // A report names a third face: among pages of the same age, the fine ones are evicted first.
+  // A report names a third face at the same still: the pages the cycle named fill the pool, so
+  // the new pages are refused, not fetched by evicting the ones the still image reads (#26): the
+  // resident set stops churning, whether the report asked for them this frame or the one before.
   report(plan, store, 1, lampPages(plan, slice, 2, 1));
   planFrame(plan, store, 2);
-  assert.equal(mapped(coarse), coarse.length, 'the coarse pages the fine ones fall back to stay');
-  assert.equal(mapped(lampPages(plan, slice, 2, 1)), 256);
-  // The fine face asked again takes the pool back from the third face, which no later report named.
-  report(plan, store, 2, fine);
+  assert.equal(mapped(lampPages(plan, slice, 2, 1)), 0, 'the still cycle holds its pages');
+  assert.equal(plan.pool.refetched, 0, 'nothing is fetched again at a still');
+  // The world moves: the cycle advances, and among pages of the same age the fine ones go first.
+  plan.worldChanged([-1e6, -1e6, -1e6], [1e6, 1e6, 1e6]);
+  report(plan, store, 2, lampPages(plan, slice, 2, 1));
   planFrame(plan, store, 3);
-  assert.equal(mapped(lampPages(plan, slice, 2, 1)), 0);
+  assert.equal(mapped(coarse), coarse.length, 'the coarse pages the fine ones fall back to stay');
+  assert.equal(mapped(lampPages(plan, slice, 2, 1)), 256, 'the new face takes the evictable slots');
 });
 
 test('a camera that moves by whole pages unmaps the sun pages that leave the clipmap', () => {
