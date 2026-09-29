@@ -4,7 +4,8 @@
 import type { SceneLight, ShadowViewpoint } from '../light/contracts.ts';
 import { createSceneLightStore, type SceneLightStore } from '../light/store.ts';
 import { createShadowPlan, type ShadowPlan } from './plan.ts';
-import { LAMP_MIPS, SUN_LEVELS, lampEntry, sunEntry } from './virtual.ts';
+import { LAMP_MIPS, SUN_LEVELS } from './virtual.ts';
+import { lampEntry, sunEntry } from './pageModel.ts';
 
 export const VIEW: ShadowViewpoint = {
   position: [0, 5, 0],

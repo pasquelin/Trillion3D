@@ -15,7 +15,7 @@ import { planShadowRegions, shadowViewpointOf } from '../pages/render/encodeShad
 import { encodeDirectLights } from '../pages/render/encodeLights.ts';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
 import { settledRt } from '../frame/hold.fixture.ts';
-import { sunEntry } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { sunEntry } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
 import { installGpuGlobals } from '../../../../../tests/kit/gpu/globals.ts';
 import { fakeDevice } from '../../../../../tests/kit/gpu/fakeDevice.ts';
 
