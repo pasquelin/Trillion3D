@@ -15,9 +15,11 @@ concurrency:
   cancel-in-progress: true
 
 # `issues: read`: the body check reads the Proof section of the issue the pull request closes.
+# `pull-requests: read`: the identity check reads the pull request's commits.
 permissions:
   contents: read
   issues: read
+  pull-requests: read
 
 jobs:
   pr-body:
@@ -35,3 +37,8 @@ jobs:
           PR_DRAFT: ${{ github.event.pull_request.draft }}
           GITHUB_TOKEN: ${{ github.token }}
         run: printf '%s\n' "$BODY" | node scripts/check-pr-body.ts
+      - name: Commits carry no tool identity and no generated trailer
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/check-commit-identity.ts
