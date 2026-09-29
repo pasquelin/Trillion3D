@@ -117,7 +117,11 @@ before. Admission starts no page once it has held the main thread for the publis
 the arrival queue's budget), so a due frame waits on it no longer than the share and the page begun
 within it, and a hidden tab, where no frame comes, still loads.
 Fetching and decoding stay in workers. WebGL2 cuts by the same rule and holds pages by the same
-residency, without the GPU cut or its readback (#490, #839).
+residency, without the GPU cut or its readback (#490, #839). It draws the resident pages from one
+set of buffers per vertex layout (`webgl/cluster/pageArenas.ts`): the pages of one surface at one
+placement that follow one another in the draw order are one submission of
+their index ranges (`WEBGL_multi_draw`), read once a frame and replayed by every pass that draws
+them — the reflection capture's and the image's (`webgl/cluster/runs.ts`, #840).
 
 **Eviction queue.** A resident GPU cut also publishes, on the same readback, the order the cache
 gives slots back in (`gpu/dag/evict.ts`, `gpu/dag/shader/evictWgsl.ts`): the pool's keys, finer
