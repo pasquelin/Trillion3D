@@ -62,8 +62,7 @@ export function simulateComputeDispatch(
 ) {
   if (computePipeline?.entryPoint) computes.push(computePipeline.entryPoint);
   // The GPU allocation of shadow pages, the host's table words and the GPU's own pages: run.
-  const bound = computeBind?.entries.map((entry) => entry.resource.buffer.data);
-  if (bound && runShadowPass(computePipeline?.entryPoint, bound)) return;
+  if (computeBind && runShadowPass(computePipeline?.entryPoint, computeBind)) return;
   if (computePipeline?.entryPoint === 'scatterTransparentGroups' && computeBind)
     return simulateTransparentCompaction(computeBind);
   if (computePipeline?.entryPoint === 'writeBlendRuns' && computeBind)
