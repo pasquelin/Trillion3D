@@ -64,6 +64,8 @@ export abstract class VertexElements {
   }
   /** Number `component` of vertex `index`, read as the number it stands for. */
   getComponent(index: number, component: number) {
+    // Past the vertex's own numbers lies the next vertex: a position two wide has no z.
+    if (component >= this.itemSize) return 0;
     const value = this.stored(index, component);
     return this.normalized ? denormalize(value, this.array) : value;
   }

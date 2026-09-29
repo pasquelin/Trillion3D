@@ -23,7 +23,6 @@ export function createGpuPageCache(
     pins = new Set<string>(),
     held = new Set<string>(),
     free = Array.from({ length: slots }, (_, i) => i),
-    staging = new Uint8Array(pageBytes),
     abort = new AbortController();
   const fetches = new Map<string, Promise<Uint8Array>>();
   const state = {
@@ -40,7 +39,7 @@ export function createGpuPageCache(
     changeSlots: number[] = [];
   const reader = createGpuPageReader(source, pageBytes, options.onDiagnostic, fetches);
   const { emit } = reader;
-  emit('gpu-page-catalogue', 'GPU cache configured', () => ({
+  emit?.('gpu-page-catalogue', 'GPU cache configured', () => ({
     version: 1,
     pageBytes,
     slots,
@@ -50,7 +49,7 @@ export function createGpuPageCache(
   }));
   const check = (signal?: AbortSignal) => {
     if (state.disposed) {
-      emit('gpu-page-error', 'Operation refused after dispose', () => ({
+      emit?.('gpu-page-error', 'Operation refused after dispose', () => ({
         version: 1,
         error: 'PAGE_CACHE_DISPOSED',
       }));
@@ -67,7 +66,6 @@ export function createGpuPageCache(
     pins,
     held,
     free,
-    staging,
     abort,
     fetches,
     state,
@@ -126,7 +124,7 @@ export function createGpuPageCache(
     unload(key: string) {
       const page = resident.get(key);
       if (!page) {
-        emit('gpu-page-unload-refused', 'GPU unload refused', () => ({
+        emit?.('gpu-page-unload-refused', 'GPU unload refused', () => ({
           version: 1,
           key,
           reason: 'not-resident',
@@ -134,7 +132,7 @@ export function createGpuPageCache(
         return false;
       }
       if (pins.has(key)) {
-        emit('gpu-page-unload-refused', 'GPU unload refused', () => ({
+        emit?.('gpu-page-unload-refused', 'GPU unload refused', () => ({
           version: 1,
           key,
           slot: page.slot,
@@ -160,7 +158,7 @@ export function createGpuPageCache(
     },
     dispose() {
       if (state.disposed) return state.pending.then(() => {});
-      emit('gpu-page-dispose', 'GPU cache released', () => ({
+      emit?.('gpu-page-dispose', 'GPU cache released', () => ({
         version: 1,
         resident: resident.size,
         loading: fetches.size,
