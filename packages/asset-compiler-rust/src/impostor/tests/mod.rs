@@ -3,6 +3,7 @@ use super::mesh::{Corners, Traceable};
 use super::surface::{Surface, Texels};
 
 mod mapping;
+mod materials;
 mod mips;
 mod refusal;
 mod silhouette;
@@ -33,6 +34,7 @@ fn surface(colour: Option<Texels>, cut: Option<(f32, f32)>) -> Surface {
         rough_metal: [0.8, 0.0],
         cut,
         sets: [0; 3],
+        transforms: [[1.0, 0.0, 0.0, 0.0, 1.0, 0.0]; 3],
     }
 }
 
