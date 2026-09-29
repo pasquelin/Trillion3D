@@ -2052,6 +2052,14 @@
       "transientBytes": "Geometri havuzu kopyalanırken aynı anda tutulan baytlar: eski havuz ve yanındaki yeni havuz, hiçbir sayfa taşınmadan önce cihaz tarafından birlikte verilir; hiçbir havuz taşınmadığında 0."
     }
   },
+  "TableGrowthReport": {
+    "summary": "Çizilebilir satıra göre boyutlanan tabloların büyümesi, üstlerindeki bir havuzun istediği biçimde.",
+    "members": {
+      "drawSlots": "Görünürlük satırları, ardından gölge geçişinin okuduğu her satır; tabloların şimdiki durumu.",
+      "bytes": "Büyütülen GPU tablolarının tuttuğu bayt sayısı; reddedildiyse istenen bayt sayısı.",
+      "refused": "Aygıt reddettiğinde `true`: mevcut tablolar ve havuz korunur."
+    }
+  },
   "Mesh": {
     "summary": "Sahneye yerleştirilmiş şekil ve madde.",
     "description": "İkisinden birini değiştirmek, ya da ikisinden birine yazmak, dünyaya ulaşır: geometrinin ve malzemenin değişiklikleri, bu mesh onları giydiği sürece duyulur.",

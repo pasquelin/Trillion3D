@@ -4078,6 +4078,14 @@
       "transientBytes": "Byte tenuti insieme durante la copia della riserva di geometria: la vecchia riserva e la nuova accanto, concesse insieme dal dispositivo prima che si spostasse alcuna pagina; 0 quando nessuna riserva si è spostata."
     }
   },
+  "TableGrowthReport": {
+    "summary": "La crescita delle tabelle dimensionate per riga disegnabile, come l’ha chiesta un pool sopra di esse.",
+    "members": {
+      "drawSlots": "Righe di visibilità, poi ogni riga letta dal passaggio delle ombre, come le tabelle sono ora.",
+      "bytes": "Byte che le tabelle GPU ingrandite contengono — quelli richiesti, se rifiutati.",
+      "refused": "`true` quando il dispositivo le ha rifiutate: si mantengono le tabelle e il pool esistenti."
+    }
+  },
   "Mesh": {
     "summary": "Una forma e un materiale posizionati nella scena.",
     "description": "Sostituire l'uno o l'altro, o scrivere nell'uno o nell'altro, raggiunge il mondo: i cambiamenti della geometria e del materiale sono ascoltati finché questa mesh li porta.",

@@ -119,6 +119,7 @@ export type {
   MemoryBudgets,
   MemoryBudgetsReport,
   PoolClamp,
+  TableGrowthReport,
 } from './residency/pools.ts';
 export type { TexturePool } from './webgpu/residency/memoryBudgets.ts';
 export type { BudgetCanvas } from './residency/memoryBudget.ts';
