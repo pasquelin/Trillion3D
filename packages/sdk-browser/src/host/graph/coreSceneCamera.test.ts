@@ -98,7 +98,7 @@ test('a core scene is hooked: a draw calls its hooks around the scene it draws',
   const heard: string[] = [];
   scene.onBeforeRender = () => heard.push('before');
   scene.onAfterRender = () => heard.push('after');
-  const context = createTestContext(),
+  const context = createTestContext({ answers: { getExtension: () => ({}) } }),
     draw = createSceneDraw(context.gl, scene);
   draw.render({} as HostCamera);
   draw.host.drawHostGeometry(createHostDrawCamera(), {
@@ -108,7 +108,11 @@ test('a core scene is hooked: a draw calls its hooks around the scene it draws',
     height: 4,
   });
   assert.deepEqual(heard, ['before', 'after']);
-  assert.equal(context.of('drawElements').length, 1, 'its mesh drawn');
+  assert.equal(
+    context.of('drawElements').length,
+    2,
+    'source capture and final draw share one hook pair',
+  );
   draw.dispose();
 });
 

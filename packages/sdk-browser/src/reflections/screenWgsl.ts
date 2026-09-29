@@ -1,3 +1,5 @@
+import { REFLECTION_CONE_WGSL } from './coneWgsl.ts';
+import { ROUGHNESS_FLOOR } from '../lighting/shaderConstants.ts';
 import { screenTraceShader } from './traceShader.ts';
 import { MIRROR_LIGHTING_WGSL } from '../bounce/reflectWgsl.ts';
 import { mirrorWeightShader } from './modelShader.ts';
@@ -15,18 +17,24 @@ fn reflectionDepthAt(p:vec2i)->f32{return textureLoad(reflectionDepth,p,0);}
 fn reflectionClearDepth()->f32{return 0.0;}
 fn reflectionColorAt(p:vec2i)->vec3f{return textureLoad(reflectionColor,p,0).rgb;}
 ${screenTraceShader('wgsl')}
+fn resolvedReflectionRay(P:vec3f,N:vec3f,R:vec3f)->vec3f{
+ let hit=screenReflection(P,R);
+ if(hit.a!=0.0){return hit.rgb;}
+ return reflectedRadiance(P,N,R,${ROUGHNESS_FLOOR});
+}
+${REFLECTION_CONE_WGSL}
+fn filteredResolvedReflection(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
+ let hit=screenReflectionCone(P,R,rough);
+ if(hit.a>=1.0){return hit.rgb;}
+ return hit.rgb+(1.0-hit.a)*reflectedRadiance(P,N,R,rough);
+}
 fn resolvedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{
- if(reflectionView.enabled.x!=0.0){
-  let weight=mirrorWeight(rough);
-  if(weight>0.0){
-   let hit=screenReflection(P,R);
-   if(hit.a!=0.0){
-    if(weight==1.0){return hit.rgb;}
-    return mix(reflectedRadiance(P,N,R,rough),hit.rgb,weight);
-   }
-  }
- }
- return reflectedRadiance(P,N,R,rough);
+ if(reflectionView.enabled.x==0.0){return reflectedRadiance(P,N,R,rough);}
+ let weight=mirrorWeight(rough);
+ if(weight==1.0){return resolvedReflectionRay(P,N,R);}
+ let filtered=filteredResolvedReflection(P,N,R,rough);
+ if(weight==0.0){return filtered;}
+ return mix(filtered,resolvedReflectionRay(P,N,R),weight);
 }`;
 
 /** The direct-only program has the same mirror model; its off-screen fallback is empty. */
@@ -36,18 +44,26 @@ fn reflectedRadiance(P:vec3f,N:vec3f,R:vec3f,rough:f32)->vec3f{return vec3f(0.0)
 ${MIRROR_LIGHTING_WGSL}`;
 
 /** Install screen hits at the one reflection-model entry, preserving its existing miss behavior. */
-export function withScreenReflections(shader: string, direct = false) {
+export function withScreenReflections(shader: string, direct = false, history = false) {
   const source = direct
     ? shader.replace(
         'var rgb=lit+ambient+emissive.rgb;',
         'var rgb=lit+ambient+emissive.rgb+mirrorLighting(base.rgb,base.a,normal.a,N,V,P);',
       ) + NO_PROXY_WGSL
     : shader;
+  const reflection = history
+    ? SCREEN_REFLECTION_WGSL.replace(
+        'let filtered=filteredResolvedReflection(P,N,R,rough);',
+        `let projected=reflectionProject(vec4f(P,1.0));
+ let at=vec2i((projected.xy/projected.w*0.5+vec2f(0.5))*reflectionSize());
+ let filtered=textureLoad(roughHistory,at,0).rgb;`,
+      ) + '\n@group(1) @binding(3) var roughHistory:texture_2d<f32>;\n'
+    : SCREEN_REFLECTION_WGSL;
   return (
     source.replace(
       ')*reflectedRadiance(P,N,reflect(-V,N),',
       ')*resolvedRadiance(P,N,reflect(-V,N),',
-    ) + SCREEN_REFLECTION_WGSL
+    ) + reflection
   );
 }
 

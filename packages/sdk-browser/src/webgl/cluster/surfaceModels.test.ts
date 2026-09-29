@@ -1,6 +1,4 @@
-// #772: the WebGL2 program draws the Lambert, toon and matcap families, and the Phong and normal
-// ones beside them, through the WebGPU path's one surface model (`../../scene/surfaceModel.ts`).
-// Shader functions are read from shipped text and evaluated by `runShaderText`.
+// #772: execute the shared surface model in shipped WebGL2 and WebGPU shader text.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../../host/graph/graph.fixture.ts';
@@ -124,9 +122,11 @@ test('a diffuse and a toon surface take a lamp by the WebGPU formula on WebGL2',
   const lamp = CLUSTER_FRAGMENT.indexOf(
     'direct+=modelLight(base,metal,N,L,1.0,ao)*color;continue;',
   );
-  assert.ok(lamp > 0 && lamp < CLUSTER_FRAGMENT.indexOf('specular+=E*specularLobe'));
+  assert.ok(
+    lamp > 0 && lamp < CLUSTER_FRAGMENT.indexOf('specular+=E*(physicalRead.x>0.0?anisotropicLobe'),
+  );
   for (const [line, wgsl] of [
-    ['return modelLight(base,metal,N,N,E,ao)', 'return modelLight(rgb,metal,N,N,E,ao)'],
+    ['return through+modelLight(base,metal,N,N,E,ao)', 'return modelLight(rgb,metal,N,N,E,ao)'],
     [
       'colorIntensity.w*PI*polygonFormFactor(a,b,c,d,F.xyz).w*window',
       `light.colorIntensity.w*${PI}*polygonFormFactor(r.a,r.b,r.c,r.d,incident.xyz).w*r.window`,

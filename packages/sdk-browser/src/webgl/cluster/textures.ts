@@ -1,5 +1,8 @@
-import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { setTextureSampler, type Anisotropy } from './textureSampler.ts';
+import { WebglPhysicalMaps, PHYSICAL_MAP_UNIT } from './physicalMaps.ts';
+import type { VisMaterial } from '../../visibility/types.ts';
+import type { Matrix3UniformCache } from './uniforms.ts';
+import type { Texture } from '../../../../sdk-core/src/index.ts';
 import { textureRgba } from '../../visibility/types.ts';
 import { mipFiltered } from '../../../../sdk-core/src/texture/contract.ts';
 import { followHostTexture } from '../../host/textureImport.ts';
@@ -8,28 +11,20 @@ import type { HostMaterials } from '../../host/resources.ts';
 import { surfaceOf } from '../../page/surface.ts';
 import { CoverageReaders } from '../../texture/coverage.ts';
 import { WebglMipReducer, chainAllocated, type MipChain } from './mips.ts';
-/**
- * A texture as uploaded, at its counters (#360, #361) and its size: a new version uploads the
- * picture again — in place at the same size and format (#362) —, a new `sampling` sets the sampler
- * alone. Its mip chain exists whenever its `minFilter` reads one (`mipFiltered`, #732). The
- * placement is not uploaded here — the material binding uploads the UV matrix at every draw
- * (`materialBinding.ts`).
- */
+/** Uploaded native mip chain, with content and sampler versions tracked independently. */
 type TextureRecord = MipChain & { sampling: number };
 const WHITE: readonly number[] = [255, 255, 255, 255];
 export class WebglClusterTextures {
+  physicalMaps?: WebglPhysicalMaps;
   readonly uploads = { count: 0, bytes: 0, ms: 0 };
   private records = new Map<string, TextureRecord>();
   private fallbacks = new Map<string, WebGLTexture>();
   private bound: Array<WebGLTexture | undefined> = [];
   private anisotropy: Anisotropy | null;
-  /** The device's anisotropy ceiling, read once. */
   private maxAnisotropy = 1;
   private gl: WebGL2RenderingContext;
   private mips: WebglMipReducer;
   private readers = new CoverageReaders();
-  /** The colour maps drawn this image, their readers reread — work bounded by the view —, each
-   *  with its chain's rule then (`MipChain.cutoff`): read once per image, not per bind. */
   private followed = new Map<Texture, number | null>();
   constructor(gl: WebGL2RenderingContext) {
     this.gl = gl;
@@ -62,7 +57,6 @@ export class WebglClusterTextures {
       this.bound[unit] = target;
       return;
     }
-    // Brought up to its host at this bind, then uploaded or set again by its counters.
     followHostTexture(texture);
     if (reader && !this.followed.has(texture)) {
       this.readers.follow([texture]);
@@ -79,15 +73,13 @@ export class WebglClusterTextures {
         gl.activeTexture(gl.TEXTURE0 + unit);
         gl.bindTexture(gl.TEXTURE_2D, record.texture);
       }
-      // The chain a mip filter reads, under its readers' rule: built when a sampling moved to a
-      // mip filter over a picture uploaded without one, reduced again when the rule switched.
       const sampling = record.sampling !== texture.sampling,
         mips = record.cutoff !== cutoff && mipFiltered(texture.minFilter);
       // `setSampler` and the chain write the ACTIVE unit's texture: select it even if bound there.
       if (sampling || mips) gl.activeTexture(gl.TEXTURE0 + unit);
       if (sampling) {
         record.sampling = texture.sampling;
-        setTextureSampler(this.gl, texture, this.anisotropy, this.maxAnisotropy);
+        setTextureSampler(gl, texture, this.anisotropy, this.maxAnisotropy);
       }
       if (mips) {
         const allocate = record.cutoff === undefined;
@@ -96,14 +88,8 @@ export class WebglClusterTextures {
       }
     }
     this.bound[unit] = record.texture;
+    return record;
   }
-  /**
-   * Sends a texture's picture into its GL texture (#362): a picture of the size already held is
-   * copied IN PLACE (`texSubImage2D`) — a video frame, a canvas redrawn —, one of a new size
-   * reallocates the level; the GL texture itself is made once. Texels held in memory
-   * (`texture.data`) upload through the byte overload, read as the WebGPU path reads them
-   * (`textureRgba`); anything else is an image the browser decodes.
-   */
   private upload(
     unit: number,
     texture: Texture,
@@ -167,20 +153,34 @@ export class WebglClusterTextures {
       throw error;
     }
   }
-  /** Files a declaration's readers at first bind, census (`WebglClusterOwner`) or rewrite; a
-   *  surface filed mid-image has its maps' rule read again at their next bind. */
   file(material: HostMaterials) {
     const surface = surfaceOf(material);
     if (!this.readers.read(surface)) return;
-    for (const map of [surface.map, surface.emissiveMap]) if (map) this.followed.delete(map);
+    for (const map of [surface.map, surface.emissiveMap, surface.subsurfaceMap])
+      if (map) this.followed.delete(map);
   }
-  /** A new image: units unknown, drawn maps' readers reread at first bind, idle scratches out. */
   beginFrame() {
     this.bound.length = 0;
     this.followed.clear();
     this.mips.trim();
   }
+  physical(
+    owner: object,
+    material: VisMaterial,
+    at: (name: string) => WebGLUniformLocation | null,
+    matrices: Matrix3UniformCache,
+  ) {
+    this.physicalMaps ??= new WebglPhysicalMaps(this.gl);
+    this.physicalMaps.bind(
+      owner,
+      material,
+      (map) => this.bind(PHYSICAL_MAP_UNIT, map, false)!,
+      at,
+      matrices,
+    );
+  }
   release(texture: Texture) {
+    this.physicalMaps?.cache.releaseTexture(texture);
     for (const [key, record] of this.records)
       if (key.startsWith(`${texture.id}:`)) {
         this.gl.deleteTexture(record.texture);
@@ -190,6 +190,7 @@ export class WebglClusterTextures {
     this.bound.length = 0;
   }
   dispose() {
+    this.physicalMaps?.dispose();
     for (const record of this.records.values()) this.gl.deleteTexture(record.texture);
     for (const texture of this.fallbacks.values()) this.gl.deleteTexture(texture);
     this.records.clear();

@@ -2878,7 +2878,7 @@
   },
   "LIGHT_FIELD": {
     "summary": "Campo di una luce nel buffer, in float dal suo inizio.",
-    "description": "Quattro `vec4f` per luce.",
+    "description": "Cinque `vec4f` per luce.",
     "members": {
       "position": "Dove si trova.",
       "range": "Fino a dove arriva.",
@@ -2891,7 +2891,8 @@
       "castsShadow": "Se proietta ombre.",
       "cosInner": "Il cono interno di uno spot, dove inizia la sua penombra: il bordo del cono stesso quando non ne ha una.",
       "halfWidth": "L'asse di mezza larghezza di un rettangolo — `right` per metà della sua larghezza —, poi la sua mezza altezza.",
-      "halfHeight": "La metà dell'altezza di un rettangolo."
+      "halfHeight": "La metà dell'altezza di un rettangolo.",
+      "emitterRadius": "Raggio della sorgente di una luce puntiforme o spot; condivide i componenti di forma riservati ai rettangoli."
     }
   },
   "LIGHT_KIND": {
@@ -3118,6 +3119,8 @@
       "parameters.ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "parameters.thickness": "Lo spessore di una superficie trasparente.",
       "parameters.clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "parameters.anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "parameters.anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "parameters.clearcoatRoughness": "La ruvidità della vernice.",
       "parameters.sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "parameters.iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3137,7 +3140,9 @@
       "parameters.physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "parameters.density": "kg/m³, per il volume dà la massa.",
       "parameters.friction": "Quanto un corpo fa presa, da 0 in su.",
-      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "parameters.subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "parameters.subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     }
   },
   "material.meshPhysical": {
@@ -3159,6 +3164,8 @@
       "parameters.ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "parameters.thickness": "Lo spessore di una superficie trasparente.",
       "parameters.clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "parameters.anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "parameters.anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "parameters.clearcoatRoughness": "La ruvidità della vernice.",
       "parameters.sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "parameters.iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3178,7 +3185,9 @@
       "parameters.physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "parameters.density": "kg/m³, per il volume dà la massa.",
       "parameters.friction": "Quanto un corpo fa presa, da 0 in su.",
-      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "parameters.subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "parameters.subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     }
   },
   "material.meshBasic": {
@@ -3200,6 +3209,8 @@
       "parameters.ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "parameters.thickness": "Lo spessore di una superficie trasparente.",
       "parameters.clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "parameters.anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "parameters.anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "parameters.clearcoatRoughness": "La ruvidità della vernice.",
       "parameters.sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "parameters.iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3219,7 +3230,9 @@
       "parameters.physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "parameters.density": "kg/m³, per il volume dà la massa.",
       "parameters.friction": "Quanto un corpo fa presa, da 0 in su.",
-      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "parameters.subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "parameters.subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     }
   },
   "material.meshPhong": {
@@ -3241,6 +3254,8 @@
       "parameters.ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "parameters.thickness": "Lo spessore di una superficie trasparente.",
       "parameters.clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "parameters.anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "parameters.anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "parameters.clearcoatRoughness": "La ruvidità della vernice.",
       "parameters.sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "parameters.iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3260,7 +3275,9 @@
       "parameters.physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "parameters.density": "kg/m³, per il volume dà la massa.",
       "parameters.friction": "Quanto un corpo fa presa, da 0 in su.",
-      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "parameters.subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "parameters.subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     }
   },
   "material.meshLambert": {
@@ -3282,6 +3299,8 @@
       "parameters.ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "parameters.thickness": "Lo spessore di una superficie trasparente.",
       "parameters.clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "parameters.anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "parameters.anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "parameters.clearcoatRoughness": "La ruvidità della vernice.",
       "parameters.sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "parameters.iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3301,7 +3320,9 @@
       "parameters.physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "parameters.density": "kg/m³, per il volume dà la massa.",
       "parameters.friction": "Quanto un corpo fa presa, da 0 in su.",
-      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "parameters.subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "parameters.subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     }
   },
   "material.meshToon": {
@@ -3323,6 +3344,8 @@
       "parameters.ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "parameters.thickness": "Lo spessore di una superficie trasparente.",
       "parameters.clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "parameters.anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "parameters.anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "parameters.clearcoatRoughness": "La ruvidità della vernice.",
       "parameters.sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "parameters.iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3342,7 +3365,9 @@
       "parameters.physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "parameters.density": "kg/m³, per il volume dà la massa.",
       "parameters.friction": "Quanto un corpo fa presa, da 0 in su.",
-      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "parameters.subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "parameters.subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     }
   },
   "material.meshNormal": {
@@ -3364,6 +3389,8 @@
       "parameters.ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "parameters.thickness": "Lo spessore di una superficie trasparente.",
       "parameters.clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "parameters.anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "parameters.anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "parameters.clearcoatRoughness": "La ruvidità della vernice.",
       "parameters.sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "parameters.iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3383,7 +3410,9 @@
       "parameters.physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "parameters.density": "kg/m³, per il volume dà la massa.",
       "parameters.friction": "Quanto un corpo fa presa, da 0 in su.",
-      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "parameters.subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "parameters.subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     }
   },
   "material.meshMatcap": {
@@ -3405,6 +3434,8 @@
       "parameters.ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "parameters.thickness": "Lo spessore di una superficie trasparente.",
       "parameters.clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "parameters.anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "parameters.anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "parameters.clearcoatRoughness": "La ruvidità della vernice.",
       "parameters.sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "parameters.iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3424,7 +3455,9 @@
       "parameters.physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "parameters.density": "kg/m³, per il volume dà la massa.",
       "parameters.friction": "Quanto un corpo fa presa, da 0 in su.",
-      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "parameters.subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "parameters.subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     }
   },
   "material.meshDepth": {
@@ -3446,6 +3479,8 @@
       "parameters.ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "parameters.thickness": "Lo spessore di una superficie trasparente.",
       "parameters.clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "parameters.anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "parameters.anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "parameters.clearcoatRoughness": "La ruvidità della vernice.",
       "parameters.sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "parameters.iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3465,7 +3500,9 @@
       "parameters.physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "parameters.density": "kg/m³, per il volume dà la massa.",
       "parameters.friction": "Quanto un corpo fa presa, da 0 in su.",
-      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "parameters.subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "parameters.subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     }
   },
   "material.points": {
@@ -3487,6 +3524,8 @@
       "parameters.ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "parameters.thickness": "Lo spessore di una superficie trasparente.",
       "parameters.clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "parameters.anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "parameters.anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "parameters.clearcoatRoughness": "La ruvidità della vernice.",
       "parameters.sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "parameters.iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3506,7 +3545,9 @@
       "parameters.physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "parameters.density": "kg/m³, per il volume dà la massa.",
       "parameters.friction": "Quanto un corpo fa presa, da 0 in su.",
-      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "parameters.subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "parameters.subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     }
   },
   "material.line": {
@@ -3528,6 +3569,8 @@
       "parameters.ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "parameters.thickness": "Lo spessore di una superficie trasparente.",
       "parameters.clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "parameters.anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "parameters.anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "parameters.clearcoatRoughness": "La ruvidità della vernice.",
       "parameters.sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "parameters.iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3547,7 +3590,9 @@
       "parameters.physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "parameters.density": "kg/m³, per il volume dà la massa.",
       "parameters.friction": "Quanto un corpo fa presa, da 0 in su.",
-      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "parameters.subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "parameters.subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     }
   },
   "material.lineDashed": {
@@ -3569,6 +3614,8 @@
       "parameters.ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "parameters.thickness": "Lo spessore di una superficie trasparente.",
       "parameters.clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "parameters.anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "parameters.anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "parameters.clearcoatRoughness": "La ruvidità della vernice.",
       "parameters.sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "parameters.iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3588,7 +3635,9 @@
       "parameters.physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "parameters.density": "kg/m³, per il volume dà la massa.",
       "parameters.friction": "Quanto un corpo fa presa, da 0 in su.",
-      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "parameters.subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "parameters.subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     }
   },
   "material.sprite": {
@@ -3610,6 +3659,8 @@
       "parameters.ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "parameters.thickness": "Lo spessore di una superficie trasparente.",
       "parameters.clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "parameters.anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "parameters.anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "parameters.clearcoatRoughness": "La ruvidità della vernice.",
       "parameters.sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "parameters.iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3629,7 +3680,9 @@
       "parameters.physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "parameters.density": "kg/m³, per il volume dà la massa.",
       "parameters.friction": "Quanto un corpo fa presa, da 0 in su.",
-      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "parameters.subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "parameters.subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     }
   },
   "material.shadow": {
@@ -3651,6 +3704,8 @@
       "parameters.ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "parameters.thickness": "Lo spessore di una superficie trasparente.",
       "parameters.clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "parameters.anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "parameters.anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "parameters.clearcoatRoughness": "La ruvidità della vernice.",
       "parameters.sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "parameters.iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3670,7 +3725,9 @@
       "parameters.physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "parameters.density": "kg/m³, per il volume dà la massa.",
       "parameters.friction": "Quanto un corpo fa presa, da 0 in su.",
-      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "parameters.subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "parameters.subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     }
   },
   "material.createShader": {
@@ -3712,6 +3769,8 @@
       "parameters.ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "parameters.thickness": "Lo spessore di una superficie trasparente.",
       "parameters.clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "parameters.anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "parameters.anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "parameters.clearcoatRoughness": "La ruvidità della vernice.",
       "parameters.sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "parameters.iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3731,7 +3790,9 @@
       "parameters.physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "parameters.density": "kg/m³, per il volume dà la massa.",
       "parameters.friction": "Quanto un corpo fa presa, da 0 in su.",
-      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "parameters.restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "parameters.subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "parameters.subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     },
     "members": {
       "isMaterial": "Sempre `true`: distingue un materiale da tutto il resto.",
@@ -3758,7 +3819,8 @@
       "physics": "Preimpostazione di materia fisica dei corpi che lo indossano.",
       "density": "kg/m³, per la massa di un corpo.",
       "friction": "Attrito fisico.",
-      "restitution": "Rimbalzo fisico."
+      "restitution": "Rimbalzo fisico.",
+      "subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva."
     }
   },
   "MaterialParameters": {
@@ -3779,6 +3841,8 @@
       "ior": "Quanto la luce si piega entrando: 1,5 per il vetro, 1,33 per l'acqua.",
       "thickness": "Lo spessore di una superficie trasparente.",
       "clearcoat": "Una vernice trasparente sopra: da 0 a 1.",
+      "anisotropy": "Intensità di anisotropia dichiarata, da 0 a 1; non ancora renderizzata.",
+      "anisotropyRotation": "Direzione di anisotropia dichiarata, in radianti; non ancora renderizzata.",
       "clearcoatRoughness": "La ruvidità della vernice.",
       "sheen": "Un morbido bagliore ad angoli radenti, come il velluto.",
       "iridescence": "Colori arcobaleno che cambiano con l'angolo, come una bolla di sapone.",
@@ -3798,7 +3862,9 @@
       "physics": "La materia di un corpo che lo indossa: densità, attrito, rimbalzo.",
       "density": "kg/m³, per il volume dà la massa.",
       "friction": "Quanto un corpo fa presa, da 0 in su.",
-      "restitution": "Quanto rimbalza un corpo, da 0 a 1."
+      "restitution": "Quanto rimbalza un corpo, da 0 a 1.",
+      "subsurfaceColor": "Trasmissione diffusa attraverso una superficie sottile a due facce; il nero la disattiva.",
+      "subsurfaceMap": "Tinta lineare di trasmissione facoltativa, moltiplicata per subsurfaceColor."
     }
   },
   "materialSide": {
@@ -5311,7 +5377,7 @@
       "range": "Punto, spot e rettangolo: la portata in metri, dove l'energia si annulla esattamente.",
       "coneAngle": "L'apertura di uno spot.",
       "penumbra": "Solo spot: la parte del cono, dal suo bordo verso l'interno, su cui la luce si affievolisce in `[0, 1]`; senza di essa, il bordo si ammorbidisce su `spotEdgeSoftness`.",
-      "emitterRadius": "Solo punto e spot: il raggio, in metri, dell'involucro che contiene la sorgente. Una vera luce è sempre alloggiata in qualcosa — vetro di lanterna, riflettore, paralume — e questo involucro è una geometria come un'altra: senza questo campo, entra nella mappa d'ombra della propria luce e la spegne. Dichiarato, diventa il piano vicino di quella mappa, quindi nulla più vicino alla sorgente di questo raggio vi proietta ombra. È una proprietà della luce, mai un nome di oggetto o un tipo di materiale: il motore conosce solo superfici. Strettamente positivo e strettamente minore della portata; assente, nulla cambia.",
+      "emitterRadius": "Solo punto e spot: il raggio, in metri, dell'involucro che contiene la sorgente. Una vera luce è sempre alloggiata in qualcosa — vetro di lanterna, riflettore, paralume — e questo involucro è una geometria come un'altra: senza questo campo, entra nella mappa d'ombra della propria luce e la spegne. I frammenti all’interno di questa sfera non proiettano ombre; il piano vicino della mappa continua a dipendere dalla portata. Per una luce puntiforme, questo raggio determina anche la dimensione della sorgente del filtro che rende le ombre più nette vicino al contatto. È una proprietà della luce, mai un nome di oggetto o un tipo di materiale: il motore conosce solo superfici. Strettamente positivo e strettamente minore della portata; assente, nulla cambia.",
       "right": "Solo rettangolo: l'asse unitario lungo la sua larghezza, perpendicolare a `direction`.",
       "size": "Solo rettangolo: la sua larghezza e altezza, in metri.",
       "castsShadow": "Se proietta ombre."
@@ -5922,9 +5988,13 @@
       "baseMetal": "Colore di base in RGB, A per il metallo.",
       "normalRough": "Normale XYZ nel mondo, A per la ruvidità.",
       "emissiveAo": "Emissione RGB, A per l'occlusione ambientale.",
-      "flags": "0 sfondo, 1 non illuminato (nella nebbia), 2 letto, 3 mostrato così com’è: una diagnostica, una vista delle normali o della profondità.",
+      "flags": "0 sfondo, 1 non illuminato (nella nebbia), 2 letto, 3 mostrato così com’è: una diagnostica, una vista delle normali o della profondità. 4 e 5: modelli diffuso e toon (`./surfaceModel.ts`).",
       "views": "Le sue viste di texture GPU.",
-      "dispose": "La libera."
+      "dispose": "La libera.",
+      "shadingOffset": "Scostamento del ricevitore d’ombra a piena precisione, scritto accanto al G-buffer.",
+      "subsurface": "Colore indipendente di trasmissione delle superfici sottili; texture di zeri 1×1 quando disattivato.",
+      "subsurfaceView": "Vista della texture di trasmissione delle superfici sottili.",
+      "hasSubsurface": "Indica se la trasmissione delle superfici sottili dispone di un target a dimensione piena."
     }
   },
   "SurfaceCapture": {

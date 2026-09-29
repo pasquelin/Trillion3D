@@ -87,18 +87,29 @@ ${directShadowWgsl(shadowBinding, requestBinding, transmittanceBinding)}
 ${SURFACE_MODEL_LIGHT_WGSL}
 ${RECT_SHADING_WGSL}
 ${FOG_WGSL}
+var<private> thinSubsurface:vec3f=vec3f(0.0);
+/** Thin two-sided diffuse transmission: projected back irradiance, normalized over a hemisphere.
+ * Material contract: reference public Two Sided Foliage; this is our Lambert implementation. */
+fn thinTransmission(cosine:f32,energy:f32)->f32{return max(-cosine,0.0)*energy*${INVERSE_PI};}
 fn declaredLight(light:DirectLight,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
- if(isRect(light)){return rectLight(light,rgb,metal,rough,N,V,P,ao);}
+ if(isRect(light)){
+  var transmitted=vec3f(0.0);
+  if(any(thinSubsurface>vec3f(0.0))){transmitted=thinSubsurface*rectIrradiance(light,P,-N).w*${INVERSE_PI}*light.colorIntensity.rgb*light.colorIntensity.w;}
+  return rectLight(light,rgb,metal,rough,N,V,P,ao)+transmitted;
+ }
  let incidence=directIncidence(light,P);
  if(incidence.w<=0.0){return vec3f(0.0);}
  // A surface facing away from the light gets its exact zero whatever the shadow: the filter's
  // taps are skipped, never the page reads and requests (\`shadowPcf\`). Toon bands light it.
- let facing=surfaceModel==${MODEL_FLAG.toon}u||select(dot(N,normalize(incidence.xyz)),dot(N,incidence.xyz),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;
- let shade=shadowFactor(i32(light.params.y),light,P,N,incidence.xyz,facing);
+ let back=any(thinSubsurface>vec3f(0.0))&&dot(N,incidence.xyz)<0.0;
+ let facing=back||surfaceModel==${MODEL_FLAG.toon}u||select(dot(N,normalize(incidence.xyz)),dot(N,incidence.xyz),surfaceModel==${MODEL_FLAG.diffuse}u)>0.0;
+ let shade=shadowFactor(i32(light.params.y),light,P+shadowReceiverOffset,select(N,-N,back),incidence.xyz,facing);
  if(shade<=0.0){return vec3f(0.0);}
  let energy=light.colorIntensity.w*incidence.w*shade;
- if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return modelLight(rgb,metal,N,incidence.xyz,energy,ao)*light.colorIntensity.rgb;}
- return standardLighting(rgb,metal,rough,N,V,vec4f(incidence.xyz,energy))*light.colorIntensity.rgb;
+ let color=light.colorIntensity.rgb*shadowTransmission;
+ let transmitted=thinSubsurface*thinTransmission(dot(N,normalize(incidence.xyz)),energy);
+ if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return (modelLight(rgb,metal,N,incidence.xyz,energy,ao)+transmitted)*color;}
+ return (standardLighting(rgb,metal,rough,N,V,vec4f(incidence.xyz,energy))+transmitted)*color;
 }
 /** The environment's irradiance at the normal N (\`packages/sdk-core/src/scene/core/environment.ts\`), on the diffuse lobe:
  *  what an ambient, a sky over a ground or a probe gives a surface, never shadowed. */

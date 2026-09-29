@@ -79,6 +79,7 @@ test('an unchanged pose uploads its previous state once after movement stops', (
     IDENTITY,
   )!;
   const frame = createDeformationFrame([placed]);
+  assert.equal(frame.revision, 0);
   assert.equal(
     frame.update(() => false),
     true,
@@ -88,6 +89,9 @@ test('an unchanged pose uploads its previous state once after movement stops', (
     frame.update(() => false),
     false,
   );
+  const stillRevision = frame.revision;
+  frame.update(() => false);
+  assert.equal(frame.revision, stillRevision, 'unchanged source keeps its revision');
   weights[0] = 1;
   assert.equal(
     frame.update(() => false),

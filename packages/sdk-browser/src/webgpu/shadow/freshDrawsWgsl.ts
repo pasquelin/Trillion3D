@@ -52,10 +52,12 @@ fn freshCaster(vertexIndex:u32,instance:u32,blended:bool)->ShadowOut{
  if(!freshInPage(page,in.position.xy)||!shadowKeepAt(page.view.emitter,in,gx,gy)){discard;}
 }
 /** A blended caster's texel of the page, at the transmittance layer's half resolution. */
-@fragment fn shadow_fresh_blend_fs(in:ShadowOut)->@location(0) vec4f{
+@fragment fn shadow_fresh_blend_fs(in:ShadowOut,@builtin(front_facing) front:bool)->@location(0) vec4f{
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);let page=freshFaces[in.region];
  if(!freshInPage(page,in.position.xy*2.0)||!shadowKeepAt(page.view.emitter,in,gx,gy)||shadowHiddenByOpaque(in.position)){discard;}
- return blendTransmittance(pages[in.instance],in.uv,gx,gy);
+ let caster=pages[in.instance];
+ if(!volumeBoundary(caster,front)){discard;}
+ return blendTransmittance(caster,in.uv,gx,gy,shadowBlendRay(page.view,in));
 }
 /** A page of the transmittance layer cleared: all the light, and far. */
 @fragment fn shadow_fresh_clear_fs()->@location(0) vec4f{return ${TRANSMITTANCE_CLEAR_WGSL};}`;
