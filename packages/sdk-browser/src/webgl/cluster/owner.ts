@@ -1,3 +1,4 @@
+import { surfaceOf } from '../../page/surface.ts';
 import type { ClusterDrawMesh, WholeMesh } from '../../cluster/batchMesh.ts';
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/index.ts';
 import { WebglClusterRenderer } from './renderer.ts';
@@ -61,6 +62,23 @@ export class WebglClusterOwner {
   /** Uploads the maps the census queued before any frame, a budget per task (`textureQueue.ts`). */
   prepareMaps() {
     return this.ahead.prepare(this.context, this.display.textures);
+  }
+  admitMaterial(material: HostMaterials) {
+    const textures = this.display.textures,
+      before = { ...textures.uploads };
+    textures.file(material);
+    const map = surfaceOf(material).map;
+    if (map) textures.bind(0, map, true, undefined, true);
+    return Object.fromEntries(
+      Object.entries(textures.uploads).map(([key, value]) => [
+        key,
+        value - before[key as keyof typeof before],
+      ]),
+    );
+  }
+  releaseMaterial(material: HostMaterials) {
+    const map = surfaceOf(material).map;
+    if (map) this.display.textures.release(map);
   }
   /** The display curve of the frames to come, a rank of `TONE_MAPPING_RANK`. */
   toneCurve: number = TONE_MAPPING_RANK.aces;
