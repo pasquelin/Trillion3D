@@ -1,8 +1,7 @@
-import type { DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
+import { readList, type DrawnTriangles } from '../../../../sdk-core/src/world/geometry/drawn.ts';
 import type { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts';
 import type { Primitive } from '../../../../sdk-core/src/world/object/mesh.ts';
 import { computeNormals } from '../../../../sdk-core/src/world/geometry/normals.ts';
-import { readComponent } from '../../../../sdk-core/src/world/geometry/bounds.ts';
 import { boxEmpty, boxExpandByPoint } from '../../../../sdk-core/src/math/primitives/box.ts';
 import type { HeldBox } from '../page/runtimePrimitive.ts';
 import { LISTS } from './worldDynamicRanges.ts';
@@ -67,24 +66,16 @@ export function readInPlace(
   if (reading !== 'triangles' || options.wireframe || options.flat || next.lines) return false;
   if (index !== into.index || (index?.version ?? 0) !== into.indexVersion) return false;
   if (!position || position.count * 3 !== next.positions.length) return false;
-  for (const [field, name, width] of LISTS) {
-    const list = geometry.attributes[name],
-      out = next[field],
-      missing = field === 'positions' ? 0 : 1;
-    if (!list || list.count < position.count) {
-      if (out && field !== 'normals') return false;
-      continue;
-    }
-    if (!out) return false;
-    // A position reads at its value, a missing component 0; another list as the geometry reads it.
-    for (let v = 0; v < position.count; v++)
-      for (let c = 0; c < width; c++)
-        out[v * width + c] =
-          c >= list.itemSize
-            ? missing
-            : missing
-              ? readComponent(geometry, list, v, c)
-              : list.getComponent(v, c);
+  for (let v = 0; v < position.count; v++)
+    for (let c = 0; c < 3; c++)
+      next.positions[v * 3 + c] = c < position.itemSize ? position.getComponent(v, c) : 0;
+  // Every other list as `drawnTriangles` reads it; missing normals are made below.
+  for (let l = 1; l < LISTS.length; l++) {
+    const [field, name, width] = LISTS[l],
+      out = next[field];
+    if (!out && (geometry.attributes[name]?.count ?? -1) >= position.count) return false;
+    if (out && !readList(geometry, name, width, position.count, out) && field !== 'normals')
+      return false;
   }
   if (!inBox(next.positions, into.box)) return false;
   if (!normal || normal.count < position.count)
