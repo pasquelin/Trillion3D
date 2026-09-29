@@ -125,3 +125,22 @@ test('a geometry replaced forty times keeps the GPU memory of one (#411)', async
     backend.dispose();
   }
 });
+
+test('an instance whose copied rows were unmounted is removed without a throw (#1226)', async () => {
+  const placements = liveRows(1);
+  const { backend, camera, geometry, material } = triangleBackend({ placements });
+  try {
+    await backend.prepare();
+    backend.addInstance!('copy', new G.Matrix4().elements.slice());
+    backend.render(camera);
+    // The instance's roots read the rows they copied: the unmount takes them with the session's.
+    backend.unmountPlacements!(placements);
+    assert.doesNotThrow(() => backend.removeInstance!('copy'));
+    backend.render(camera);
+    assert.equal(backend.metrics().submittedTriangles, 0);
+  } finally {
+    backend.dispose();
+    geometry.dispose();
+    material.dispose();
+  }
+});
