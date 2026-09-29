@@ -1,4 +1,6 @@
+pub(crate) use crate::geometry_page_cells::localise;
 use crate::geometry_page_cells::{grids, Cell, Grids};
+use crate::geometry_page_deform::{join, page_deformation, write, Deformation};
 use crate::{CompilerError, Result};
 use std::collections::HashMap;
 use trillion3d_page_codec::triangles::Spans;
@@ -30,39 +32,6 @@ pub struct Encoded {
     pub header: Header,
 }
 
-/// Local vertex renumbering of a page: the table and both lists start at their known final
-/// size, a page carrying at most 65,535 vertices and no more corners than indices.
-pub(crate) fn localise(indices: &[u32], vertices: usize) -> Result<(Vec<u32>, Vec<u32>)> {
-    let bound = indices.len().min(65_535);
-    let mut original = Vec::<u32>::with_capacity(bound);
-    let mut remap = HashMap::<u32, u32>::with_capacity(bound);
-    let mut local = Vec::<u32>::with_capacity(indices.len());
-    for &source in indices {
-        if source as usize >= vertices {
-            return Err(CompilerError::new(
-                "INVALID_PAGE",
-                "Page index exceeds positions",
-            ));
-        }
-        let id = if let Some(&id) = remap.get(&source) {
-            id
-        } else {
-            let id = original.len();
-            if id >= 65535 {
-                return Err(CompilerError::new(
-                    "PAGE_VERTEX_LIMIT",
-                    "Page has more than 65535 vertices",
-                ));
-            }
-            original.push(source);
-            remap.insert(source, id as u32);
-            id as u32
-        };
-        local.push(id);
-    }
-    Ok((original, local))
-}
-
 #[cfg(test)]
 #[path = "geometry_page_batch_b_tests.rs"]
 mod tests_batch_b;
@@ -91,6 +60,24 @@ pub fn encode(
     attributes: &[&Attribute],
     position_exponent: i32,
     uv_exponent: i32,
+) -> Result<Encoded> {
+    let exponents = (position_exponent, uv_exponent);
+    encode_deformed(
+        indices,
+        positions,
+        attributes,
+        &Deformation::default(),
+        exponents,
+    )
+}
+
+/// `encode`, with the joints, weights and morph targets the primitive's `deformation` carries.
+pub fn encode_deformed(
+    indices: &[u32],
+    positions: &[f32],
+    attributes: &[&Attribute],
+    deformation: &Deformation,
+    (position_exponent, uv_exponent): (i32, i32),
 ) -> Result<Encoded> {
     if indices.len() < 3 || !indices.len().is_multiple_of(3) || !positions.len().is_multiple_of(3) {
         return Err(CompilerError::new(
@@ -129,6 +116,11 @@ pub fn encode(
         position_exponent,
         uv_exponent,
     )?;
+    // The deformation's fields join each vertex's cells: two vertices merge only when they
+    // deform alike.
+    let mut deformed = page_deformation(deformation, &original, position_exponent)?;
+    let fields = std::mem::take(&mut deformed.fields);
+    let (cells, table) = join(cells, &fields);
     // Vertices on the same grid cells decode to the same floats: one copy, indices remapped.
     let mut unique = Vec::<Cell>::with_capacity(cells.len());
     let mut rank = HashMap::<Cell, u32>::with_capacity(cells.len());
@@ -143,7 +135,8 @@ pub fn encode(
         .collect();
     let corners: Vec<u32> = local.iter().map(|&i| remap[i as usize]).collect();
     let spans = Spans::of(&corners);
-    let header = Header {
+    flags |= deformed.flags();
+    let mut header = Header {
         vertex_count: unique.len(),
         index_count: local.len(),
         flags,
@@ -153,6 +146,8 @@ pub fn encode(
         color: color_record,
         quantization_error,
         corner_bits: spans.bits,
+        skin: deformed.skin.unwrap_or_default(),
+        morphs: deformed.morphs.clone(),
     };
     let layout = Layout::of(&header);
     let mut out = BitWriter::default();
@@ -181,6 +176,12 @@ pub fn encode(
             );
         }
     }
+    let rows: Vec<&[u32]> = unique
+        .iter()
+        .map(|cell| table[cell.extra as usize])
+        .collect();
+    write(&mut deformed, &rows, &mut out);
+    header.morphs = deformed.morphs;
     let mut bytes = Vec::with_capacity(layout.bytes());
     for word in header.words().iter().chain(out.words()) {
         bytes.extend_from_slice(&word.to_le_bytes());

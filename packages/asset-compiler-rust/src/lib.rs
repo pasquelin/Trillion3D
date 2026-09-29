@@ -6,6 +6,7 @@ pub mod cutout;
 mod dag;
 mod geometry_page;
 mod geometry_page_cells;
+mod geometry_page_deform;
 mod geometry_page_quant;
 pub mod import;
 mod join;

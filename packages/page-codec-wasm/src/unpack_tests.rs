@@ -65,6 +65,8 @@ fn page(rng: &mut Rng, n: usize, indices: &[u32], flags: u32, widest: bool) -> V
         color: record(rng, widest),
         quantization_error: 0.5,
         corner_bits: spans.bits,
+        skin: crate::Skin::default(),
+        morphs: Vec::new(),
     };
     let mut out = BitWriter::default();
     spans.write(&mut out, indices, &code);
