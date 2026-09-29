@@ -94,15 +94,10 @@ fn the_published_pinned_top_is_bounded_whatever_the_size_of_the_world() {
         .iter()
         .map(|i| i.cover.positions.len() * 4 + i.cover.clusters.len() * DAG_CLUSTER_TRIANGLES)
         .sum();
-    assert!(
-        many * 8 <= roots,
-        "8 km top {many} next to {roots} bytes of object roots"
-    );
+    assert!(many * 8 <= roots, "8 km top {many} of {roots} root bytes");
     // Equal to the spread: each material ends on one page at either size.
-    assert!(
-        many.abs_diff(one) <= covers.len() * page,
-        "{one} at 1 km, {many} at 8 km"
-    );
+    let spread = covers.len() * page;
+    assert!(many.abs_diff(one) <= spread, "1 km {one}, 8 km {many}");
 }
 
 #[test]
@@ -132,10 +127,8 @@ fn errors_stay_monotone_across_the_super_roots() {
         // A parent's sphere holds its child's, or the child's projected error can pass its own.
         let (s, p) = (cluster.sphere, cluster.parent_sphere);
         let apart = ((0..3).map(|a| (s[a] - p[a]).powi(2)).sum::<f64>()).sqrt();
-        assert!(
-            apart + s[3] <= p[3] * (1.0 + 1e-6) + 1e-6,
-            "{s:?} outside {p:?}"
-        );
+        let slack = p[3] * 1e-6 + 1e-6;
+        assert!(apart + s[3] <= p[3] + slack, "{s:?} out of {p:?}");
     }
     // Past its cell, the grouping continues across cells, one material at a time.
     let spanning = |output: &usize| world.cells[*output].len() == 4;
