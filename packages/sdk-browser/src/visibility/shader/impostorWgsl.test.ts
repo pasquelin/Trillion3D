@@ -31,15 +31,17 @@ const MESHES: Array<ImpostorSwitchInput & { label: string }> = [
 const FOCALS = [900, 2146, 3000];
 
 /** One function of one shipped shader text, as the software harness runs it. */
-function shaderFn<R>(source: string, name: string, calls = {}) {
-  return runShaderText<R>(functionsOf(source, [name]), calls);
-}
-const runSide = shaderFn<number>(IMPOSTOR_MATH_WGSL, 'impSide');
-const runEncode = shaderFn<number[]>(IMPOSTOR_MATH_WGSL, 'impOctEncode', { impSide: runSide });
-const runDecode = shaderFn<number[]>(IMPOSTOR_MATH_WGSL, 'impOctDecode', { impSide: runSide });
-const runWeights = shaderFn<number[]>(IMPOSTOR_MATH_WGSL, 'impWeights');
+const shaderOf = (source: string, name: string) => functionsOf(source, [name]);
+const runSide = runShaderText<number>(shaderOf(IMPOSTOR_MATH_WGSL, 'impSide'));
+const runEncode = runShaderText<number[]>(shaderOf(IMPOSTOR_MATH_WGSL, 'impOctEncode'), {
+  impSide: runSide,
+});
+const runDecode = runShaderText<number[]>(shaderOf(IMPOSTOR_MATH_WGSL, 'impOctDecode'), {
+  impSide: runSide,
+});
+const runWeights = runShaderText<number[]>(shaderOf(IMPOSTOR_MATH_WGSL, 'impWeights'));
 // The switch text reads the shared constant; the harness binds it where the text names it.
-const runSwitch = shaderFn<number>(IMPOSTOR_SWITCH_WGSL, 'impostorSwitchDepth', {
+const runSwitch = runShaderText<number>(shaderOf(IMPOSTOR_SWITCH_WGSL, 'impostorSwitchDepth'), {
   IMPOSTOR_PI,
 });
 
