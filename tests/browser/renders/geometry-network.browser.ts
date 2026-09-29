@@ -111,6 +111,9 @@ try {
       r.horizons.length && r.horizons.every(Number.isFinite),
       'frames trace aheadHorizonMs',
     );
+  // The same pages, not the same sequence: the slower network looks a round trip further ahead
+  // (#999), so its passes differ. The order within a pass, whatever order the reads come back in,
+  // is proved in Node (`webgpu/residency/admissionReadsOrder.test.ts`).
   assert.deepEqual(
     [...slow.admitted].sort(),
     [...fast.admitted].sort(),
