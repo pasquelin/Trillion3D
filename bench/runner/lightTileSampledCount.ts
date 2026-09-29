@@ -20,7 +20,6 @@ import {
   toTileFrame,
   type TileView,
 } from '../oracles/browser/gpuLightTileColumnOracle.ts';
-import { tileShadowFlag } from '../oracles/browser/gpuLightTilesRankOracle.ts';
 import { ATRIUM_POSES, atriumDepth, atriumLamps } from './lightTileAtrium.ts';
 import type { Light } from './lightTileCity.ts';
 
@@ -46,7 +45,7 @@ function tileRecords(view: TileView, depths: Float32Array, lights: Light[], slot
       );
       const base = (ty * tilesX + tx) * K.TILE_STRIDE;
       records[base] = kept.length;
-      records[base + K.TILE_SHADOW_BASE] = tileShadowFlag(kept, (rank) => slots[rank] > -1);
+      records[base + K.TILE_SHADOW_BASE] = kept.some((rank) => slots[rank] > -1) ? 1 : 0;
       // A list past `TILE_LIGHTS` lives in the pool: its count is all a full sum needs here.
       records.set(kept.slice(0, K.TILE_LIGHTS), base + K.TILE_OPAQUE_BASE);
     }
