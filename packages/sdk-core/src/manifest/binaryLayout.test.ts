@@ -1,10 +1,10 @@
-// Batch F, F19: `writeSha` (binaryLayout.ts) used to validate the digest with a regular
+// Batch F, F19: `writeSha` (tests/fixtures/manifestBinaryEncodeChecks.ts) used to validate the digest with a regular
 // expression then walk it a second time to write it. It now reads each code once, into a shared
 // scratch, and stores the digest only after all 64 characters are accepted.
 // The oracle is the implementation from before batch F, copied as-is into `oracles/manifeste-binaire.ts`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { writeSha } from './binaryLayout.ts';
+import { writeSha } from '../../../../tests/fixtures/manifestBinaryEncodeChecks.ts';
 import { referenceWriteSha } from '../../../../bench/oracles/core/binary-manifest.ts';
 
 const VALID = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90';

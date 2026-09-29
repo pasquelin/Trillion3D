@@ -5058,10 +5058,6 @@
   "emptyIrradiance": {
     "summary": "아무것도 담고 있지 않은, 광원을 받아들일 준비가 된 조도."
   },
-  "encodeManifestBinary": {
-    "summary": "매니페스트를, 리더가 파싱하는 작은 JSON과 그것이 매핑하는 열들로 나눈다.",
-    "description": "반환되는 기술자는 빈 `sha256`을 담고 있다: 완성된 바이트를 가진 호출자만이 그것을 해시할 수 있다."
-  },
   "enginePose": {
     "summary": "추적과 진단이 공개하는, 엔진 카메라로부터 읽은 월드 자세: 눈은 `world`의 평행이동 성분이며, 코어의 분해는 `Matrix4.decompose`의 비트를 만들어내고, `getWorldQuaternion`은 그 호출일 뿐이다."
   },

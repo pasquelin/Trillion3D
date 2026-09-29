@@ -1,5 +1,5 @@
 // writing binary manifest digests.
-import { writeSha } from '../../../packages/sdk-core/src/manifest/binaryLayout.ts';
+import { writeSha } from '../../../tests/fixtures/manifestBinaryEncodeChecks.ts';
 import { graine, mesure, stress, rapport } from '../../core/index.ts';
 import type { MesureCas } from '../../core/index.ts';
 import { referenceWriteSha } from '../../oracles/core/binary-manifest.ts';
@@ -58,7 +58,7 @@ const cas: MesureCas<Entree>[] = [
 
 const res = await mesure({
   name: 'binary manifest hashes',
-  fichier: 'packages/sdk-core/src/manifest/binaryLayout.ts',
+  fichier: 'tests/fixtures/manifestBinaryEncodeChecks.ts',
   cas,
   calcul: passe(writeSha),
   attendu: passe(referenceWriteSha),
