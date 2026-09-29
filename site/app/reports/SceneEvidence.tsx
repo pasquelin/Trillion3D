@@ -22,7 +22,7 @@ interface SceneEvidenceProps {
 const FAMILIES = ['engines', 'drawing', 'lighting', 'single'] as const;
 
 function family(name: string): string {
-  if (/lamp|ombre/.test(name)) return 'lighting';
+  if (/light|shadow/.test(name)) return 'lighting';
   return name.startsWith('three-') ? 'engines' : 'drawing';
 }
 

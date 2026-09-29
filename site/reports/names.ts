@@ -16,12 +16,12 @@ export function runName(id: string, locale: Locale) {
   const size = id?.match(/^(?:res|three-(?:nu|lod))-(\d+)(?:-e(\d+))?$/);
   if (size)
     return `${id.startsWith('three-lod') ? 'Three.js LOD / Trillion3D · ' : id.startsWith('three-nu') ? 'Three.js / Trillion3D · ' : ''}${t('report.runPatterns.imageWidth', { width: size[1] })}${size[2] ? ` · ${t('report.runPatterns.threshold', { threshold: size[2] })}` : ''}`;
-  const lights = id?.match(/^(?:(three-nu|three-lod)-)?lampes-(\d+)(-sans-ombres)?$/);
+  const lights = id?.match(/^(?:(three-nu|three-lod)-)?lights-(\d+)(-no-shadows)?$/);
   if (lights)
     return `${lights[1] ? `${engineName(lights[1])} / Trillion3D · ` : ''}${t('report.runPatterns.lights', { count: Number(lights[2]) })}${lights[3] ? ` ${withoutShadows}` : ''}`;
   const instances = id?.match(/^instances-(\d+)$/);
   if (instances) return t('report.runPatterns.sceneCopies', { count: Number(instances[1]) });
-  const shadows = id?.match(/^(three-nu|three-lod)-sans-ombres$/);
+  const shadows = id?.match(/^(three-nu|three-lod)-no-shadows$/);
   if (shadows) return `${engineName(shadows[1])} / Trillion3D · ${withoutShadows}`;
   return id;
 }

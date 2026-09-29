@@ -22,10 +22,10 @@ test('no variant requested: nothing to check, nothing to mount', () => {
 test('a variant is refused outside the "trace" detail', () => {
   for (const detail of ['summary', undefined] as const)
     assert.throws(
-      () => resolveDiagnosticGpuVariant('transparents-plat', detail),
+      () => resolveDiagnosticGpuVariant('blend-flat', detail),
       /DIAGNOSTIC_GPU_VARIANT_REQUIRES_TRACE/,
     );
-  assert.equal(resolveDiagnosticGpuVariant('transparents-plat', 'trace'), 'transparents-plat');
+  assert.equal(resolveDiagnosticGpuVariant('blend-flat', 'trace'), 'blend-flat');
 });
 
 test('an unknown name is refused, even under "trace"', () => {
@@ -38,10 +38,10 @@ test('an unknown name is refused, even under "trace"', () => {
 test('each variant neutralises a single factor, and its stage exists in the module', () => {
   const attendu: Partial<Record<DiagnosticGpuVariant, { entryPoint: string; writeMask: number }>> =
     {
-      'transparents-plat': { entryPoint: 'fsPlat', writeMask: 0xf },
-      'transparents-sommets': { entryPoint: 'fsJete', writeMask: 0xf },
-      'transparents-sans-couleur': { entryPoint: 'fs', writeMask: 0 },
-      'transparents-surdessin': { entryPoint: 'fsPlat', writeMask: 0 },
+      'blend-flat': { entryPoint: 'fsPlat', writeMask: 0xf },
+      'blend-vertices': { entryPoint: 'fsJete', writeMask: 0xf },
+      'blend-no-colour': { entryPoint: 'fs', writeMask: 0 },
+      'blend-overdraw': { entryPoint: 'fsPlat', writeMask: 0 },
     };
   // Any other variant — presentation, cut, geometry — leaves blend its production stage.
   const production = { entryPoint: 'fs', writeMask: 0xf };
@@ -57,15 +57,15 @@ test('counting, off-screen presentation and the compute raster are turned on onl
   const comptant = DIAGNOSTIC_GPU_VARIANTS.filter(countsBlendOverdraw);
   const horsEcran = DIAGNOSTIC_GPU_VARIANTS.filter(composesOffscreen);
   const calcul = DIAGNOSTIC_GPU_VARIANTS.filter(requestsComputeRaster);
-  assert.deepEqual(comptant, ['transparents-surdessin']);
-  assert.deepEqual(horsEcran, ['presentation-hors-ecran']);
-  assert.deepEqual(calcul, ['raster-calcul', 'raster-hybride']);
+  assert.deepEqual(comptant, ['blend-overdraw']);
+  assert.deepEqual(horsEcran, ['present-offscreen']);
+  assert.deepEqual(calcul, ['raster-compute', 'raster-hybrid']);
   assert.equal(requestsComputeRaster(undefined), false);
 });
 
 test('only the two cut variants re-encode it, and each its share', () => {
   assert.equal(selectionRepeat(undefined), null);
-  assert.equal(selectionRepeat('transparents-plat'), null);
-  assert.equal(selectionRepeat('selection-doublee'), 'tout');
-  assert.equal(selectionRepeat('selection-tete-doublee'), 'tete');
+  assert.equal(selectionRepeat('blend-flat'), null);
+  assert.equal(selectionRepeat('selection-doubled'), 'all');
+  assert.equal(selectionRepeat('selection-head-doubled'), 'head');
 });

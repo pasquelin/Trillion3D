@@ -1158,8 +1158,8 @@ What the web imposes, and the answer:
 Stages, each with its proof (0 px A/A at rest, budget held, before/after published):
 
 - **L0** — done (campaign of 18 Sept. 2026, Emerald 2496×1404): the sun is 4.7 ms of
-  envelope on the ground view and 5.8 ms on the street view (`mobile` − `sans-lumiere`); lighting
-  without maps ≤ 0.96 ms (`lampes-4-sans-ombres` − `sans-lumiere`); still camera: 0 page redrawn,
+  envelope on the ground view and 5.8 ms on the street view (`mobile` − `unlit`); lighting
+  without maps ≤ 0.96 ms (`lights-4-no-shadows` − `unlit`); still camera: 0 page redrawn,
   envelope no lower. What remained, the sampling, is L2 below — not a cascade ring.
 - **L1** — screen traces: reflections and short bounce from the already-rendered HDR, depth and
   normal; the cheapest piece of the reference, and the first.

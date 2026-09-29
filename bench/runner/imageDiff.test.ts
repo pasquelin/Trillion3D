@@ -14,7 +14,7 @@ const capture = (rgba: number[]) => ({
 test('two identical drawn captures differ by 0 px', () => {
   assert.deepEqual(imageDiff(capture([12, 0, 0, 255]), capture([12, 0, 0, 255])), {
     pixels: 0,
-    maxCanal: 0,
+    maxChannel: 0,
     meanChannel: 0,
     p999Channel: 0,
     total: 4,
@@ -34,17 +34,17 @@ test('the channel errors give their mean and 99.9th percentile, in 1/255 steps',
   assert.ok(diff && 'meanChannel' in diff);
   assert.equal(diff.meanChannel, (size + 40) / (size * 3));
   assert.equal(diff.p999Channel, 1);
-  assert.equal(diff.maxCanal, 200);
+  assert.equal(diff.maxChannel, 200);
 });
 
 test('two black captures are refused, never 0 px, whatever their alpha', () => {
   const diff = imageDiff(capture([0, 0, 0, 255]), capture([0, 0, 0, 0]));
-  assert.deepEqual(diff, { erreur: 'black capture, RGB 0 everywhere' });
+  assert.deepEqual(diff, { error: 'black capture, RGB 0 everywhere' });
 });
 
 test('a black capture against a drawn one is refused too', () => {
   assert.deepEqual(imageDiff(capture([0, 0, 1, 255]), capture([0, 0, 0, 255])), {
-    erreur: 'black capture, RGB 0 everywhere',
+    error: 'black capture, RGB 0 everywhere',
   });
 });
 
@@ -53,13 +53,13 @@ test('every black capture is an error of the report, by its file name', () => {
   refuseBlackCaptures(
     errors,
     new Map([
-      ['apres-sol-e1.png', capture([0, 0, 0, 255])],
-      ['apres-generale-e1.png', capture([0, 1, 0, 255])],
-      ['apres-rue-e1.png', null],
+      ['after-sol-e1.png', capture([0, 0, 0, 255])],
+      ['after-overview-e1.png', capture([0, 1, 0, 255])],
+      ['after-rue-e1.png', null],
     ]),
   );
   assert.deepEqual(errors, [
-    { kind: 'black-capture', message: 'apres-sol-e1.png: RGB 0 everywhere' },
+    { kind: 'black-capture', message: 'after-sol-e1.png: RGB 0 everywhere' },
     { kind: 'console', message: 'noise' },
   ]);
 });
