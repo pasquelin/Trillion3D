@@ -2,7 +2,8 @@
 // around a point of the ground, and the pages a world box covers — counted from the page's world
 // square, `[ax, ax+1) · S` along the sun's right axis and `[ay, ay+1) · S` down its up axis.
 import type { ShadowPlan } from './plan.ts';
-import { PAGE_INDEX_MASK, PAGE_MAPPED, PAGE_VALID, sunEntry, sunPageMetres } from './virtual.ts';
+import { PAGE_INDEX_MASK, PAGE_MAPPED, PAGE_VALID } from './virtual.ts';
+import { sunEntry, sunPageMetres } from './pageModel.ts';
 
 /** A sun page: its level and its absolute page. */
 export type SunPage = { level: number; ax: number; ay: number };

@@ -1,7 +1,7 @@
 import { composeFace, shadowOrthographic } from './math.ts';
 import { FULL_FACE, writeBoxVolume } from './volume.ts';
 import type { SunLevels } from './sunLevels.ts';
-import { sunPageMetres } from './virtual.ts';
+import { PAGES, sunPageMetres } from './pageModel.ts';
 import { PAGE_FOOTPRINT_FULL, footprintRect } from './footprint.ts';
 
 const eye: [number, number, number] = [0, 0, 0];
@@ -41,14 +41,14 @@ export function writeSunSquare(
   const f = slice * 9,
     { frame, depth } = sun;
   const page = sunPageMetres(level),
-    u = (ax + cells / 2) * page,
-    v = -(ay + cells / 2) * page,
+    u = PAGES.shadowSunSquareCentre(ax, cells, page),
+    v = -PAGES.shadowSunSquareCentre(ay, cells, page),
     zNear = depth[slice * 2],
     far = depth[slice * 2 + 1] - zNear;
   for (let a = 0; a < 3; a++) {
     axis[a] = frame[f + 6 + a];
-    eye[a] = frame[f + a] * u + frame[f + 3 + a] * v + axis[a] * zNear;
-    boxCenter[a] = eye[a] + axis[a] * (far / 2);
+    eye[a] = PAGES.shadowSunEye(frame[f + a], frame[f + 3 + a], axis[a], u, v, zNear);
+    boxCenter[a] = PAGES.shadowAlong(eye[a], axis[a], far / 2);
   }
   const planes = shadowOrthographic((cells * page) / 2, far);
   composeFace(matrices, matBase, eye, axis);

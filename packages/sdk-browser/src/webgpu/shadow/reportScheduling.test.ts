@@ -5,11 +5,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SceneLight } from '../../../../sdk-core/src/index.ts';
-import {
-  LAMP_MIPS,
-  decodeLampEntry,
-  lampEntry,
-} from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { LAMP_MIPS } from '../../../../sdk-core/src/scene/light-shadow/virtual.ts';
+import { lampEntry } from '../../../../sdk-core/src/scene/light-shadow/pageModel.ts';
+import { decodeLampEntry } from '../../../../sdk-core/src/scene/light-shadow/entryPages.ts';
 import { LAMP } from '../../../../sdk-core/src/scene/light-shadow/lightShadow.fixture.ts';
 import { SHADOW_WGSL } from '../../lighting/direct/shadowBias.fixture.ts';
 import { READ, floorTiles, tileGrid, type Lit } from './shadingReads.fixture.ts';
