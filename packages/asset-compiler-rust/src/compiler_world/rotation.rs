@@ -50,7 +50,7 @@ pub(crate) fn identity<T: Real>() -> [T; 16] {
 /// `left · right`, each entry summed from `start` in step order: the one matrix product every
 /// driver composes with. The start is the caller's rounding: `+0.0` for `multiply`, `-0.0` for
 /// `product`.
-pub(crate) fn compose<T: Real>(left: &[T; 16], right: &[T; 16], start: T) -> [T; 16] {
+pub(super) fn compose<T: Real>(left: &[T; 16], right: &[T; 16], start: T) -> [T; 16] {
     let mut out = [T::default(); 16];
     for column in 0..4 {
         for row in 0..4 {
