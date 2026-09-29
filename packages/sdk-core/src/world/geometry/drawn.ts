@@ -6,7 +6,7 @@ import { edgesOf } from './lines.ts';
 import type { Primitive } from '../object/mesh.ts';
 import { drawnSprite } from './drawnSprite.ts';
 import { flatten } from './drawnFlat.ts';
-import { drawnDeformation, type DrawnDeformation } from './drawnDeformation.ts';
+import { deforms, drawnDeformation, type DrawnDeformation } from './drawnDeformation.ts';
 import { readComponent, readPoints } from './bounds.ts';
 /** The triangles a mesh draws, as the page cutter reads them. `lines` says they are line quads
  *  (`quads`), which every raster widens on screen by the surface's `lineWidth`; a dashed line's
@@ -47,6 +47,7 @@ function drawTriangles(
 ): DrawnTriangles | null {
   if (reading === 'sprite')
     return drawnSprite(drawnTriangles(geometry, 'triangles'), options.center);
+  const traced = deforms(geometry);
   const position = geometry.attributes.position;
   if (!position || position.count === 0) return null;
   const p = Array.from(readPoints(position));
@@ -55,7 +56,7 @@ function drawTriangles(
     : Array.from({ length: position.count }, (_, i) => i);
   if (reading === 'points') {
     const drawn = solids(points(p, (options.size ?? 1) / 2));
-    if (drawn)
+    if (drawn && traced)
       drawn.sourceVertices = Uint32Array.from({ length: drawn.positions.length / 3 }, (_, v) =>
         Math.floor(v / POINT_VERTICES),
       );
@@ -63,13 +64,13 @@ function drawTriangles(
   }
   if (reading === 'lineStrip' || reading === 'lineLoop' || reading === 'lineSegments') {
     const loop = reading === 'lineLoop' && corners.length > 2;
-    return quads(p, lineCorners(corners, reading), options.dashed, loop);
+    return quads(p, lineCorners(corners, reading), traced, options.dashed, loop);
   }
   if (corners.length < 3) return null;
   if (options.wireframe) {
     // Every edge once, however many triangles share it (`edgesOf`).
     const segments = [...edgesOf(geometry).values()].flatMap(({ a, b }) => [a, b]);
-    return quads(p, segments, options.dashed);
+    return quads(p, segments, traced, options.dashed);
   }
   const drawn = {
     positions: new Float32Array(p),
@@ -78,7 +79,7 @@ function drawTriangles(
     colors: readList(geometry, 'color', 4, position.count),
     indices: new Uint32Array(corners.slice(0, corners.length - (corners.length % 3))),
   };
-  if (options.flat) return flatten(drawn);
+  if (options.flat) return flatten(drawn, traced);
   return { ...drawn, normals: drawn.normals ?? computeNormals(drawn.positions, drawn.indices) };
 }
 /** Drawn triangles with their original deformation attributes preserved. */
@@ -130,6 +131,7 @@ function points(p: number[], r: number) {
 function quads(
   p: number[],
   segments: number[],
+  traced: boolean,
   dashed = false,
   loop = false,
 ): DrawnTriangles | null {
@@ -154,7 +156,7 @@ function quads(
       [b, 1],
       [b, -1],
     ]) {
-      sourceVertices.push(at / 3);
+      if (traced) sourceVertices.push(at / 3);
       positions.push(p[at], p[at + 1], p[at + 2]);
       normals.push(d[0] * side, d[1] * side, d[2] * side);
       if (dashed) uvs.push(at === a ? distance : end, 0);
@@ -170,7 +172,7 @@ function quads(
     colors: null,
     indices: new Uint32Array(indices),
     lines: true,
-    sourceVertices: new Uint32Array(sourceVertices),
+    ...(traced && { sourceVertices: new Uint32Array(sourceVertices) }),
   };
 }
 
