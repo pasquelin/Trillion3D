@@ -18,8 +18,7 @@ export function selectWebgpuBlend(
   blendState: BlendState,
   cut?: { drawn: readonly PageRec[]; roots: Placements },
 ) {
-  const selected = blendState.cpuSelectedPlacements,
-    drawn = cut?.drawn;
+  const selected = blendState.cpuSelectedPlacements;
   selected.clear();
   blendState.visibleBlend.length = 0;
   if (cut)
@@ -27,7 +26,7 @@ export function selectWebgpuBlend(
   let rejected = 0;
   for (const item of blendState.blendGpu) {
     if (notDrawn(item)) continue;
-    if (drawn && item.paged && !selected.has(item.matrix)) continue;
+    if (cut && item.paged && !selected.has(item.matrix)) continue;
     const box = item.bounds;
     if (
       box &&

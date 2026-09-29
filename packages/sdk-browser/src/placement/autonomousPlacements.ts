@@ -47,12 +47,12 @@ export const drawnInstanced = (roots: Roots, rec: PageRec, transparent = rec.tra
 export function attachedPages(
   recs: readonly PageRec[],
   roots: Roots,
-  instanced = (rec: PageRec) => drawnInstanced(roots, rec),
+  instanced?: (rec: PageRec) => boolean,
 ) {
   counted.clear();
   let own = 0;
   for (const rec of recs)
-    if (instanced(rec)) counted.add(rec.url);
+    if (instanced ? instanced(rec) : drawnInstanced(roots, rec)) counted.add(rec.url);
     else own++;
   return own + counted.size;
 }
