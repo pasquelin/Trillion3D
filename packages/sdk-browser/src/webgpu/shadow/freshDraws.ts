@@ -1,10 +1,21 @@
 import { DEPTH_COMPARE } from '../../camera/depthConvention.ts';
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts';
+import { VIS_BINDINGS } from '../core/bindLayout.ts';
+import { visLayoutEntries } from '../visibility/shaders.ts';
 import {
   SHADOW_TRANSLUCENT_DEPTH_FORMAT,
   SHADOW_TRANSMITTANCE_FORMAT,
   TRANSMITTANCE_BLEND,
 } from '../../gpu/shadow/transmittance.ts';
+
+/** Group 0's entries the GPU pages' draws never read: the raster's Hi-Z flags and slot lists. A
+ *  vertex stage then reads four storage buffers there, seven with group 2's: within the eight any
+ *  device holds. */
+export const FRESH_UNREAD = new Set([
+  VIS_BINDINGS.flags,
+  VIS_BINDINGS.instances,
+  VIS_BINDINGS.slotOffsets,
+]);
 
 /** Group 2's GPU page bindings: their views, the kept pairs, the arguments (`freshLayout.ts`). */
 const freshEntries = (): GPUBindGroupLayoutEntry[] =>
@@ -19,16 +30,20 @@ const freshEntries = (): GPUBindGroupLayoutEntry[] =>
  * (`freshDrawsWgsl.ts`): into the pool, its pages' squares cleared (`clear`, depth always) then its
  * casters (`casters`, depth tested); into the transmittance layer, its pages cleared to all the
  * light (`tintClear`), then its blended casters depth only then colour only (`tintDepth`,
- * `tintColour`), as the host's layer draws them (`transmittanceDraws.ts`). Groups 0 and 1 are the
- * depth pass's (`layouts`); group 2 binds the GPU pages' views, pairs and arguments — and, into
- * the transmittance layer, the pool's opaque depth at binding 0. Compiled off the frame by
+ * `tintColour`), as the host's layer draws them (`transmittanceDraws.ts`). Group 0 is the depth
+ * pass's, but for what these draws never read (`FRESH_UNREAD`), group 1 its faces'; group 2 binds the GPU
+ * pages' views, pairs and arguments — and, into the transmittance layer, the pool's opaque depth
+ * at binding 0. Compiled off the frame by
  * `prepare`, or at once by `made` (`preparedPipeline`).
  */
 export function shadowFreshDraws(
   device: GPUDevice,
   module: GPUShaderModule,
-  layouts: GPUBindGroupLayout[],
+  faceLayout: GPUBindGroupLayout,
 ) {
+  const pageLayout = device.createBindGroupLayout({
+    entries: visLayoutEntries().filter((entry) => !FRESH_UNREAD.has(entry.binding)),
+  });
   const poolLayout = device.createBindGroupLayout({ entries: freshEntries() });
   const tintLayout = device.createBindGroupLayout({
     entries: [
@@ -37,7 +52,7 @@ export function shadowFreshDraws(
     ],
   });
   const layoutOf = (group: GPUBindGroupLayout) =>
-    device.createPipelineLayout({ bindGroupLayouts: [...layouts, group] });
+    device.createPipelineLayout({ bindGroupLayouts: [pageLayout, faceLayout, group] });
   const pool = layoutOf(poolLayout),
     tint = layoutOf(tintLayout);
   const pipeline = (
@@ -111,7 +126,8 @@ export function shadowFreshDraws(
   type Made = { [K in keyof typeof draws]: GPURenderPipeline };
   let made: Made | undefined;
   return {
-    /** Group 2 into the pool, and into the transmittance layer. */
+    /** Group 0, then group 2 into the pool, and into the transmittance layer. */
+    pageLayout,
     poolLayout,
     tintLayout,
     prepare: () => Promise.all(Object.values(draws).map((draw) => draw.prepare())),
