@@ -161,15 +161,15 @@ export function createWebgpuRowState(packedPages: PageRec[], drawSlots: number, 
     set pageTableInts(value: Uint32Array | undefined) {
       pageTableInts = value;
     },
+    /** The table grows in place to `drawSlots` visibility rows and `blendSlots` casters' rows. */
+    grow(drawSlots: number, blendSlots: number) {
+      growRowState(state, dirtyRows, drawSlots, blendSlots);
+    },
     /**
      * `packedPages` grew from `first` on (`../../placement/webgpuGrowth.ts`): the per-page arrays
      * take the new pages, each with its pool slot and positions as the page at its address holds
      * them — no residency flag and no row yet —, and each is named to the journal.
      */
-    /** The table grows in place to `drawSlots` visibility rows and `blendSlots` casters' rows. */
-    grow(drawSlots: number, blendSlots: number) {
-      growRowState(state, dirtyRows, drawSlots, blendSlots);
-    },
     addPages(first: number) {
       indexPages(first);
       const n = packedPages.length;
