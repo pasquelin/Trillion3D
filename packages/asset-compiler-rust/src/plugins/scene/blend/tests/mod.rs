@@ -7,6 +7,7 @@ use super::*;
 use crate::tests::ngons::{rendered_area, U_RING};
 use std::fs;
 
+mod bits;
 mod bounds;
 mod budget;
 mod fidelity;
