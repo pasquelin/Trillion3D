@@ -731,7 +731,7 @@
     }
   },
   "DAG_ERROR_MODEL": {
-    "summary": "Küme başına DAG hataları için önbellek kimliği: konumlar, normaller ve doku koordinatları üzerinden grubun mutlak QEM hatası, grubun boyutuyla sınırlı; v1 önbelleği reddedilir."
+    "summary": "Küme başına DAG hataları için önbellek kimliği: konumlar, normaller ve doku koordinatları üzerinden grubun mutlak QEM hatası, grubun kapsamıyla sınırlı ve bir grubun çocukları ile çıktıları arasındaki örneklenmiş Hausdorff uzaklığının asla altında değil (#929); v1 ve v2 önbellekleri reddedilir."
   },
   "DEFAULT_SCOPE": {
     "summary": "Hiçbiri adlandırılmadığında bir modelin derlendiği kapsam: sayfalar halinde akışlı."
@@ -3226,7 +3226,8 @@
       "stamp": "Gölgelendirme, ışıklar ve görünümün sonraki görüntüye verdiği: bununla damgalanmış ve yeni hiçbir şey adlandırmayan bir rapor, görüntünün yalnızca çizileni okuduğunu kanıtlar.",
       "settled": "Bir rapor mevcut durumun hiçbir şey istemediğini kanıtladığında doğru: görüntü tutulabilir.",
       "receive": "Bir istek raporu döndü; sonraki plan onu okur. Daha yenisi okunmamış olanın yerini alır.",
-      "commit": "Karenin listesindeki `[from, to)` sayfaları kodlandı, `from + i` sayfası `modes[i]` içinde: çizimleri kimse okumadan önce tamamlanır. Son parti listeyi kapatır."
+      "commit": "Karenin listesindeki `[from, to)` sayfaları kodlandı, `from + i` sayfası `modes[i]` içinde: çizimleri kimse okumadan önce tamamlanır. Son parti listeyi kapatır.",
+      "resize": "Başka boyutta havuz; sayfaları korunur, dizileri yeniden oluşturulur: her sayfanın nereye gittiğini döndürür."
     }
   },
   "ShadowStaleReason": {
