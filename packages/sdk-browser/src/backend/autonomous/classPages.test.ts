@@ -38,7 +38,7 @@ function move(triangle: Awaited<ReturnType<typeof opened>>, from: AlphaMode, to:
   triangle.backend.refreshMaterials!(true, { surfaces: [triangle.material], from, to });
 }
 
-/** The page positions of `positions` (`SOURCE` by default) cut on a position grid of 2^`exponent`. */
+/** The page positions of `positions` (`SOURCE` by default) on a position grid of 2^`exponent`. */
 const cutOn = (exponent: number, positions = SOURCE) =>
   decodeGeometryPage(
     encodeGeometryPage(
