@@ -1,7 +1,7 @@
 import { PAGE_MAPPED, PAGE_RANGE_SHIFT, PAGE_VALID, SHADOW_TABLE_ENTRIES } from './virtual.ts';
 import type { ShadowTable } from './table.ts';
 import { shadowPageArrays, shadowPageArraysBytes } from './poolPages.ts';
-import { PAGE_FOOTPRINT_FULL, PAGE_FOOTPRINT_SHIFT } from './footprint.ts';
+import { PAGE_FOOTPRINT_EMPTY, PAGE_FOOTPRINT_SHIFT, footprintDrawn } from './footprint.ts';
 import { createEvictionOrder } from './poolOrder.ts';
 
 export { RANKS } from './poolOrder.ts';
@@ -78,14 +78,14 @@ export function createShadowPool(side: number, layers = 1) {
         pool.dirty[page] !== STALE_FULL && pool.layered[page] && pool.range[page] === drawn;
       return kept ? DRAW_DYNAMIC : DRAW_FULL;
     },
-    /** The page's draw in `mode`, in depth-range slot `drawn`, for `footprint` (`footprint.ts`),
-     *  has landed: current, readable there. */
+    /** The page's draw in `mode`, in depth-range slot `drawn`, for `footprint` (`footprint.ts`)
+     *  — the receivers' it holds by default —, has landed: current, readable there. */
     drew(
       table: ShadowTable,
       page: number,
       mode: number,
       drawn: number,
-      footprint = PAGE_FOOTPRINT_FULL,
+      footprint = footprintDrawn(pool.footprint[page]),
     ) {
       pool.dirty[page] = 0;
       pool.valid[page] = 1;
@@ -154,6 +154,7 @@ export function createShadowPool(side: number, layers = 1) {
       }
       pool.owner[page] = entry;
       pool.valid[page] = pool.layered[page] = pool.dirty[page] = 0;
+      pool.footprint[page] = PAGE_FOOTPRINT_EMPTY;
       pool.stale(page, nowMs, frame);
       pool.requested[page] = reportFrame;
       table.write(entry, page | PAGE_MAPPED);

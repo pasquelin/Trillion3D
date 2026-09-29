@@ -969,6 +969,7 @@
       "MATERIAL_CLASS_CHANGE": "材质更改未知、超出范围、会把它移到引擎在打开场景时就固定的绘制类别,或会平铺它与其他材质共享的贴图。",
       "MATERIAL_TEXTURE_SHARED": "材质更改未知、超出范围、会把它移到引擎在打开场景时就固定的绘制类别,或会平铺它与其他材质共享的贴图。",
       "MATERIAL_CEILING": "页面在一个会话中创建的材质将超过 `RUNTIME_MATERIAL_CEILING`；未创建任何材质。",
+      "TEXTURE_BUDGET": "场景打开后添加的纹理会使纹理池超过 `texturePoolBytes` 或设备可容纳的层数；未添加任何内容。",
       "INVALID_TRANSFORM": "某个节点的位置不是可用的矩阵,或者某个节点会成为自己的祖先。",
       "NON_FINITE_TRANSFORM": "某个节点的位置不是可用的矩阵,或者某个节点会成为自己的祖先。",
       "SINGULAR_PARENT_TRANSFORM": "某个节点的位置不是可用的矩阵,或者某个节点会成为自己的祖先。",
@@ -3190,7 +3191,7 @@
       "shadowStaticDrawCalls": "静态投射体的绘制调用：绘制到静态层，或在没有静态层时整页绘制的页面。",
       "shadowMovingDrawCalls": "仅运动投射体的绘制调用，绘制在从静态层恢复的页面上。",
       "shadowMovingCastersKept": "在 `shadowCastersKept` 中，为只绘制运动投射体而保留的簇。",
-      "shadowPagesStaledBy": "本帧使其过期的页面，按原因划分：光源、静止投射体、运动投射体、细节、剪切阈值，或太阳的深度范围。",
+      "shadowPagesStaledBy": "本帧使其过期的页面，按原因划分：光源、静止投射体、运动投射体、细节、剪切阈值、太阳的深度范围，或其接收体扩大的足迹。",
       "shadowWaitMs": "图像读取的最老过期页面等待重绘的毫秒数。只计算图像读取它的时间;重绘后为 0。",
       "shadowCutDrops": "自打开浏览器以来丢弃了工作的光源裁剪批次数——其视图保留的簇多于列表容量——：每个批次送回其页面，在重绘前撤下(#525)。在没有 GPU 光源裁剪的引擎上为 null，下面三项亦然。",
       "shadowCutWithdrawnPages": "自打开浏览器以来，因光源裁剪画错而重绘的页面数：其批次丢弃了工作，或其标志从未被读取。这些页面在重绘前被撤下。",
@@ -3222,6 +3223,7 @@
       "shadowMemoryEvents": "自世界打开以来阴影的内存压力事件，按名称，按顺序；通常为空。",
       "shadowPagesRefetched": "自 explorer 打开以来，被池为腾出空间而逐出后重新映射的虚拟页：池相对于帧读取量过小所付出的重绘。",
       "shadowCastersKept": "逐页剔除保留的投射体（所有绘制页合计），取设备最后采样的帧 — 每十五帧一次；样本返回前为 `null`。",
+      "shadowCastersRejected": "逐页剔除测试过但未保留的投射体（位于接收体所读页面部分之外），取同一采样帧；样本返回前为 `null`。",
       "shadowCastersHidden": "遮挡测试发现隐藏在其页静态层后的移动投射体，取最后采样的帧；样本返回前为 `null`。"
     }
   },
@@ -4183,7 +4185,7 @@
     "summary": "在下一帧更改导入或创建的材质。"
   },
   "world.createMaterial": {
-    "summary": "创建属于此页面的材质。"
+    "summary": "创建页面材质；带位图时，等待接纳完成后再分配。"
   },
   "world.assignMaterial": {
     "summary": "将创建的材质指定给已编译的 `mesh/primitive`。"
@@ -4301,7 +4303,7 @@
       "shadowStaticDrawCalls": "静态投射体的绘制调用：绘制到静态层，或在没有静态层时整页绘制的页面。",
       "shadowMovingDrawCalls": "仅运动投射体的绘制调用，绘制在从静态层恢复的页面上。",
       "shadowMovingCastersKept": "在 `shadowCastersKept` 中，为只绘制运动投射体而保留的簇。",
-      "shadowPagesStaledBy": "本帧使其过期的页面，按原因划分：光源、静止投射体、运动投射体、细节、剪切阈值，或太阳的深度范围。",
+      "shadowPagesStaledBy": "本帧使其过期的页面，按原因划分：光源、静止投射体、运动投射体、细节、剪切阈值、太阳的深度范围，或其接收体扩大的足迹。",
       "shadowWaitMs": "图像读取的最老过期页面等待重绘的毫秒数。只计算图像读取它的时间;重绘后为 0。",
       "shadowCutDrops": "自打开浏览器以来丢弃了工作的光源裁剪批次数——其视图保留的簇多于列表容量——：每个批次送回其页面，在重绘前撤下(#525)。在没有 GPU 光源裁剪的引擎上为 null，下面三项亦然。",
       "shadowCutWithdrawnPages": "自打开浏览器以来，因光源裁剪画错而重绘的页面数：其批次丢弃了工作，或其标志从未被读取。这些页面在重绘前被撤下。",
@@ -4372,6 +4374,7 @@
       "shadowMemoryEvents": "自世界打开以来阴影的内存压力事件，按名称，按顺序；通常为空。",
       "shadowPagesRefetched": "自 explorer 打开以来，被池为腾出空间而逐出后重新映射的虚拟页：池相对于帧读取量过小所付出的重绘。",
       "shadowCastersKept": "逐页剔除保留的投射体（所有绘制页合计），取设备最后采样的帧 — 每十五帧一次；样本返回前为 `null`。",
+      "shadowCastersRejected": "逐页剔除测试过但未保留的投射体（位于接收体所读页面部分之外），取同一采样帧；样本返回前为 `null`。",
       "shadowCastersHidden": "遮挡测试发现隐藏在其页静态层后的移动投射体，取最后采样的帧；样本返回前为 `null`。",
       "dynamicUploadBytes": "本帧就地上传的动态几何体顶点字节数（#573），在世界的每帧预算（`DYNAMIC_UPLOAD_BUDGET_BYTES`）之内。没有世界绘制时不存在。"
     }
@@ -7866,7 +7869,7 @@
       "alphaMode": "表面的 alpha 通道如何被读取:opaque 忽略它,`mask` 按 `alphaCutoff` 裁切,`blend` 进行合成。",
       "alphaCutoff": "不透明度低于此值的像素会被丢弃。",
       "name": "供页面自己使用的一个名字。",
-      "map": "一张图像及其采样方式,以页面的措辞表示(`wrap`、`filter`、`colorSpace`)。"
+      "map": "调用方拥有的ImageBitmap，不进行预乘或颜色转换；在释放材质前保持打开。"
     }
   },
   "SceneMaterial": {
@@ -7928,5 +7931,11 @@
       "positions": "其顶点，每个三个数，位于世界空间。",
       "indices": "其三角形，每个三个局部索引。"
     }
+  },
+  "world.dropMaterial": {
+    "summary": "释放未使用的已创建材质；请先为其对象重新分配材质。"
+  },
+  "world.materialMapBytes": {
+    "summary": "已保留或待处理图像的字节数，上限为64 MiB。"
   }
 }

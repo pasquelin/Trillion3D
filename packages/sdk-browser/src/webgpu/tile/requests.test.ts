@@ -7,8 +7,9 @@ import { createTileCounters } from './counters.ts';
 
 /** An atlas of `entries` streamed tiles, none resident, keyed by the feedback index it is given —
  *  a real page table subtracts its own offset first. */
-const atlas = (entries: number) =>
+const atlas = (entries: number, retired = false) =>
   ({
+    textures: [{}, { retired }],
     pages: { entries, tileOf: (index: number) => ({ slot: 1, level: 0, tx: index, ty: 0 }) },
     servedLevel: () => 2,
     touch: () => false,
@@ -70,4 +71,19 @@ test('a deferred remainder is offered again until fresh feedback replaces it', (
     'fresh feedback wins over the backlog',
   );
   assert.equal(queue.deferred, 0, 'the backlog fresh feedback replaced is gone at once');
+});
+
+test('feedback from an image before a drop never requests retired texture tiles', () => {
+  const counters = createTileCounters();
+  const queue = createTileRequests({
+    feedback: { take: () => new Uint32Array([9, 3]) } as never,
+    color: atlas(1, true),
+    data: atlas(1),
+    counters,
+  });
+  assert.deepEqual(
+    queue.take(1).map((request) => request.weight),
+    [3],
+  );
+  assert.equal(counters.requested, 1);
 });

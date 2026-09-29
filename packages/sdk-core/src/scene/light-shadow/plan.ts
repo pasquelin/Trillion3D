@@ -4,6 +4,7 @@ import { createShadowChanges } from './changes.ts';
 import { createPageInvalidation } from './invalidate.ts';
 import { STALE_BY, createShadowCounts } from './counts.ts';
 import { createShadowAdmission } from './admit.ts';
+import { createDemandFootprints } from './demandFootprint.ts';
 import { planLights } from './planLights.ts';
 import { createShadowTable } from './table.ts';
 import { DRAW_ALL, createShadowPool } from './pool.ts';
@@ -39,6 +40,7 @@ export function createShadowPlan(poolSide: number, layers = 1) {
     posed = new Int32Array(records.taken.length),
     spent = { requestsMs: NaN, admissionMs: NaN },
     lightsState = { records, counts, sun, posed, invalidate };
+  const footprints = createDemandFootprints(table, pool);
   let requests = createShadowRequests(table, pool, records, sun),
     gpu = createShadowMirror(table, pool, records, sun),
     admission = createShadowAdmission(pool.pages),
@@ -128,10 +130,16 @@ export function createShadowPlan(poolSide: number, layers = 1) {
         const before = stampOf(store),
           read = report;
         report = null;
-        // When the GPU allocates, the pool follows its snapshot first; one it cannot is left.
+        // When the GPU allocates, the pool follows its snapshot first; one it cannot is left. A
+        // reader that found its page drawn outside its texel names the page: it is redrawn whole
+        // (`demandFootprint.ts`), and the image cannot hold on it.
         if (!gpu.on || gpu.follow(read, nowMs, frame)) {
+          footprints.widened = 0;
+          footprints.missed(read, nowMs, frame);
           requests.consume(read, nowMs, frame);
-          if (read.stamp === before && requests.complete) settledStamp = stampOf(store);
+          counts.staled(STALE_BY.footprint, footprints.widened);
+          if (read.stamp === before && requests.complete && !footprints.widened)
+            settledStamp = stampOf(store);
         }
       }
       const admitStart = performance.now();

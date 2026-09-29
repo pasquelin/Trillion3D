@@ -3,6 +3,7 @@ import { composeFace, shadowProjection } from './math.ts';
 import { FULL_FACE, regionRect, writeConeVolume } from './volume.ts';
 import { lampPagesAt } from './virtual.ts';
 import { PAGES } from './pageModel.ts';
+import { PAGE_FOOTPRINT_FULL, footprintRect } from './footprint.ts';
 
 /**
  * The six axes of a point light, in the order the shader recovers from the major axis of the
@@ -77,13 +78,15 @@ export function writeFace(
   return planes;
 }
 
-const pageRect = new Float64Array(4);
+const pageRect = new Float64Array(4),
+  culled = new Float64Array(4);
 
 /**
  * View-projection of lamp page `(x, y)` of `face` at `mip`, and its cull volume: the face's
  * matrix cropped, in clip space, so that the page fills the clip square — the physical page
  * the draw's viewport names. `x' = a·x + b·w`: the crop commutes with the perspective divide,
- * so a texel lands where the shading, reading the whole face, looks for it.
+ * so a texel lands where the shading, reading the whole face, looks for it. A page drawn for a
+ * `footprint` (`footprint.ts`) culls its casters to that part of it, grown by `reach` texels.
  */
 export function writeLampPage(
   matrices: Float32Array,
@@ -95,9 +98,12 @@ export function writeLampPage(
   mip: number,
   x: number,
   y: number,
+  footprint = PAGE_FOOTPRINT_FULL,
+  reach = 0,
 ) {
   regionRect(pageRect, lampPagesAt(mip), x, x, y, y);
-  const planes = writeFace(matrices, matBase, cull, cullBase, light, face, pageRect);
+  const rect = footprintRect(culled, footprint, reach, pageRect);
+  const planes = writeFace(matrices, matBase, cull, cullBase, light, face, rect);
   const a = PAGES.shadowCropScale(pageRect[0], pageRect[1]),
     b = PAGES.shadowCropOffset(pageRect[0], pageRect[1]),
     c = PAGES.shadowCropScale(pageRect[2], pageRect[3]),

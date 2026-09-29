@@ -8,7 +8,8 @@ import {
  * Which page of a map a shadow read takes, and whether it may: the one way every pass that
  * lights a surface reads the page table (`directShadowWgsl`), so every one of them — opaque
  * resolve, reflections, blend and water — reads through the same check. Requires `shadows`,
- * `requestShadowPage`, `SHADOW_PAGE`, `PAGE_VALID` and the page model (`PAGE_MODEL_WGSL`).
+ * `requestShadowPage`, `requestShadowMiss`, `SHADOW_PAGE`, `PAGE_VALID` and the page model
+ * (`PAGE_MODEL_WGSL`).
  *
  * A map is `ShadowMap`: its first table entry, whether it is a ring — a sun level, whose pages
  * are addressed by absolute page modulo the window, `(ox, oy)` its origin — or a lamp face mip,
@@ -16,7 +17,8 @@ import {
  * page, texel centres at `+0.5`.
  *
  * A page carries the footprint it was drawn for (`footprint.ts`): a read whose texel lies outside
- * it takes the page as not drawn — asked for, never read —, as a page not drawn yet.
+ * it takes the page as not drawn — asked for, never read —, as a page not drawn yet, and says it
+ * missed (`requestShadowMiss`): the scheduler draws the page whole (`demandFootprint.ts`).
  */
 export const SHADOW_PAGE_WORD_WGSL = `
 const PAGE_FOOTPRINT_SHIFT:u32=${PAGE_FOOTPRINT_SHIFT}u;
@@ -57,5 +59,6 @@ fn shadowPageWord(m:ShadowMap,p:vec2i,t:vec2f)->u32{
  requestShadowPage(u32(e));
  let word=shadows.table[u32(e)];
  let covered=shadowFootprintCovers(word,clamp(t-vec2f(q)*SHADOW_PAGE,vec2f(0.0),vec2f(SHADOW_PAGE)));
+ if(!covered){requestShadowMiss(u32(e));}
  return select(0u,word&PAGE_DRAWN_BITS,(word&PAGE_VALID)!=0u&&covered);
 }`;
