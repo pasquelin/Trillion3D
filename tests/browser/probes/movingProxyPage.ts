@@ -11,7 +11,7 @@ import { createGpuBounceProxy } from '../../../packages/sdk-browser/src/bounce/p
 import { residentProxyWgsl } from '../../../packages/sdk-browser/src/bounce/nodeWgsl.ts';
 import { BOUNCE_TRACE_WGSL } from '../../../packages/sdk-browser/src/bounce/traceWgsl.ts';
 import { readGpuBuffer } from '../../../packages/sdk-browser/src/gpu/core/readback.ts';
-import { ouvrirAppareil } from './webgpuDevice.ts';
+import { ouvrirAppareil as openDevice } from './webgpuDevice.ts';
 
 const REACH = 10;
 
@@ -47,12 +47,12 @@ type RayReading = {
   red: number;
 };
 
-export async function executer() {
-  const appareil = await ouvrirAppareil();
-  if (!appareil) return { indisponible: 'no WebGPU adapter' };
-  const { device, erreurs } = appareil;
+export async function run() {
+  const gpu = await openDevice();
+  if (!gpu) return { unavailable: 'no WebGPU adapter' };
+  const { device, erreurs: errors } = gpu;
   const resident = createGpuBounceProxy(device, ownedProxy());
-  const { module, compilation } = await appareil.compile(SHADER);
+  const { module, compilation } = await gpu.compile(SHADER);
   const pipeline = device.createComputePipeline({
     layout: 'auto',
     compute: { module, entryPoint: 'main' },
@@ -100,6 +100,6 @@ export async function executer() {
   const dynamic = resident.dynamic;
   for (const buffer of [rays, hits]) buffer.destroy();
   resident.dispose();
-  const info = await appareil.fermer();
-  return { adaptateur: info.court, erreurs, compilation, moved, dynamic, still, after };
+  const info = await gpu.fermer();
+  return { adapter: info.court, errors, compilation, moved, dynamic, still, after };
 }
