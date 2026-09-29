@@ -94,10 +94,9 @@ export async function buildPreparedScene(inputs: Inputs) {
 function pagedSource(tables: PreparedSceneTables, base: string) {
   if (!tables.documents[SOURCE_FILE]) return {};
   const { document, bufferUrl } = sceneDocument(tables, SOURCE_FILE, base);
-  const read = bufferUrl ? rangedReader(bufferUrl) : undefined;
-  const range = async (offset: number, length: number): Promise<ArrayBuffer> => {
-    if (!read) throw new EngineError('PREPARED_SCENE_MISMATCH', 'the source names no binary');
-    return read(offset, length);
-  };
+  const range = bufferUrl
+    ? rangedReader(bufferUrl)
+    : () =>
+        Promise.reject(new EngineError('PREPARED_SCENE_MISMATCH', 'the source names no binary'));
   return { pagedFrom: document.meshes, pagedGeometryOf: preparedGeometries(document, { range }) };
 }

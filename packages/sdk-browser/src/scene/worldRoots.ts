@@ -31,13 +31,26 @@ import { verifyPageBytes } from '../page/decode/host.ts';
 import { unmetered, type ByteMeter } from '../cluster/byteMeter.ts';
 
 type Announced = { bytes: number; sha256: string };
-/** Where a cache keeps its world roots' table: the one address its reader and a load's plan use. */
-export const worldRootsUrl = (base: string) => new URL(WORLD_ROOTS_FILE, base).href;
-/** The table's address and the binary's the cook writes beside it: what a load reads of them. */
-export const worldRootsUrls = (base: string) => [
-  worldRootsUrl(base),
-  new URL(WORLD_ROOTS_BIN, base).href,
-];
+/** Where a cache keeps its world roots' table and the binary the cook writes beside it. */
+const worldRootsUrls = (base: string) => ({
+  table: new URL(WORLD_ROOTS_FILE, base).href,
+  bin: new URL(WORLD_ROOTS_BIN, base).href,
+});
+/** What a load reads of the world roots `declared` lists, address to length: the table whole, and
+ *  of the binary the one range it reads, the pinned top its cook published in `manifest`
+ *  (`worldRoots.pinnedTopBytes`); a server that ignores the Range adds the rest as it arrives. */
+export function worldRootsPlan(
+  declared: ReadonlyMap<string, number>,
+  base: string,
+  manifest: object,
+) {
+  const { table, bin } = worldRootsUrls(base);
+  const top = (manifest as { worldRoots?: { pinnedTopBytes?: number } }).worldRoots?.pinnedTopBytes;
+  const plan: [string, number][] = [];
+  if (declared.has(table)) plan.push([table, declared.get(table)!]);
+  if (declared.has(bin) && top) plan.push([bin, top]);
+  return plan;
+}
 
 /** Bundles `[first, end)` of the binary `read` reads (`rangedReader`), in one ranged request that
  *  `meter` counts, each checked against its digest, then its pages. */
@@ -75,14 +88,14 @@ export async function openWorldRoots(
   const files = (metadata as { files?: Record<string, Announced | undefined> }).files;
   const announced = files?.[WORLD_ROOTS_FILE];
   if (!announced) return undefined;
-  const json = await fetchVerified(worldRootsUrl(base), announced, signal, meter);
+  const json = await fetchVerified(worldRootsUrls(base).table, announced, signal, meter);
   const table = assertWorldRoots(JSON.parse(new TextDecoder().decode(json)));
   const url = new URL(table.payload.url, base).href;
   // The load's meter counts the top, read while it loads; a cell's bundles are read after it.
   const read = rangedReader(url, signal);
   const top = (await readBundles(read, url, table, [0, table.pinned], meter)).flat();
   /** The bundles past the top the placed cells hold: how many cells hold each, and its read. */
-  const held = new Map<number, { cells: number; read: Promise<WorldRootsPage[]> }>();
+  const held = new Map<number, { cells: number; pages: Promise<WorldRootsPage[]> }>();
   let heldBytes = 0;
   const release = (cell: number) => {
     for (const bundle of cellDependencies(table, cell)) {
@@ -103,11 +116,11 @@ export async function openWorldRoots(
         let own = held.get(bundle);
         if (!own) {
           const pages = readBundles(read, url, table, [bundle, bundle + 1]).then(([p]) => p);
-          held.set(bundle, (own = { cells: 0, read: pages }));
+          held.set(bundle, (own = { cells: 0, pages }));
           heldBytes += table.bundles[bundle].bytes;
         }
         own.cells++;
-        return own.read;
+        return own.pages;
       });
       await Promise.all(reads).catch((error: unknown) => {
         release(cell);
