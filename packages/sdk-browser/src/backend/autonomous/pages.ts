@@ -19,7 +19,6 @@ import { createSceneDraw } from '../../webgl/cluster/sceneDraw.ts';
 import type { BackendFactory } from '../types.ts';
 import { createBlendCopy } from '../../cluster/blendCopyMesh.ts';
 import type { HostMaterial } from '../../host/resources.ts';
-import { loadHostVertices } from '../../scene/meshes.ts';
 
 /** WebGL2 path backed only by independently decoded prepared geometry pages. */
 export const autonomousPagesBackend: BackendFactory = (context) => {
@@ -41,12 +40,13 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     cap = hostCeiling < Infinity ? hostCeiling : pageDefault,
     scene = hostPageScene(blendCopies);
   const baseMaterials = new Map(allPages.map((rec) => [rec, rec.declaration] as const)),
+    declared = () => baseMaterials.values(), // every page's surface: the draw's census (#840)
     colorMaterials = new Map<HostMaterial, HostMaterial>(),
     modifiedPages = new Set<string>();
   const state = createAutonomousRenderState(),
     gate = createWebglFrameGate(),
     views = createWebglViews(context.viewport, gate, () => residency.keptChanged()),
-    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, context);
+    hostDraw = createSceneDraw(context.webglContext, scene, blendCopies, context, declared);
   // The engine's own lighting (`contractLightingApi.ts`): the cache's lights, else the graph's.
   const { lighting, api: lightingApi } = createContractLighting(scene, context, gate.sceneChanged);
   let ready = false;
@@ -90,7 +90,7 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
     residency,
     heldFloor,
     instanceCount,
-    others: views.others,
+    views,
   });
   const frame = createAutonomousRender({
     state,
@@ -124,9 +124,8 @@ export const autonomousPagesBackend: BackendFactory = (context) => {
       if (!context.readGeometryPage) throw new Error('AUTONOMOUS_PAGE_READER_MISSING');
       if (heldFloor.overCeiling()) throw new Error('AUTONOMOUS_ROOT_BUDGET');
       const urls = [...bootstrapUrls];
-      // A copy drawn whole reads its host vertices, which no session fetches up front.
-      const read = readPages(context, urls, sourced);
-      const [pages] = await Promise.all([read, loadHostVertices(blendCopies)]);
+      // The draw's own preparation, before any frame (`sceneDraw.ts`).
+      const [pages] = await Promise.all([readPages(context, urls, sourced), hostDraw.prepare()]);
       pages.forEach((data, i) => acceptGeometryPage(urls[i], data));
       heldFloor.changed();
       ready = true;

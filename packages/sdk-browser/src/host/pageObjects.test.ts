@@ -14,9 +14,9 @@ import {
   hostPageScene,
   hostPageSurface,
   releaseHostGeometry,
-  setHostPose,
   setHostSurface,
 } from './pageObjects.ts';
+import { setHostPose } from './pagePose.ts';
 import type { Material } from '../../../sdk-core/src/index.ts';
 import { alphaModeFields } from './prepared/materials.ts';
 import type { DecodedGeometryPage } from '../page/decode/geometryPage.ts';

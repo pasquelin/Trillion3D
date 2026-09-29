@@ -1,5 +1,4 @@
-import { checkBudget, DEFAULT_GEOMETRY_POOL_BUDGET } from './pools.ts';
-import { DEFAULT_TEXTURE_POOL_BUDGET } from '../webgpu/residency/memoryBudgets.ts';
+import { checkBudget, DEFAULT_GEOMETRY_POOL_BUDGET, DEFAULT_TEXTURE_POOL_BUDGET } from './pools.ts';
 import { SHADOW_BUFFER_BYTES, shadowAtlasBytes } from '../gpu/shadow/atlas.ts';
 import { shadowRequestBytes } from '../webgpu/shadow/pageRequests.ts';
 import { shadowTransmittanceBytes } from '../gpu/shadow/transmittance.ts';

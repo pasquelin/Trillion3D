@@ -34,8 +34,8 @@ export interface ShadowFrameMetrics {
   shadowRenderPasses?: number | null;
   /** Cluster cuts run from the lights: one per light view drawn in, zero on a still frame. */
   shadowLightCuts?: number | null;
-  /** Virtual shadow pages the image read, as its latest request report named them: what the
-   *  camera's receivers mark. */
+  /** Virtual shadow pages the image reads, as the frame's early demand named them — or, without
+   *  it, the latest request report: what the camera's receivers mark. */
   shadowPagesRequested?: number | null;
   /** Of those, pages read straight from the pool: current, no draw. */
   shadowPagesCached?: number | null;
@@ -119,7 +119,10 @@ export interface ShadowFrameMetrics {
   tileLightPoolOverflowed?: boolean | null;
   /** Times the pool grew to what an overflowing frame asked, since the explorer opened. */
   tileLightPoolGrowths?: number | null;
-  /** GPU time of shadows. */
+  /** GPU time of the Shadows stage, exactly the shadow passes of the engine's pass table: the
+   *  shadow atlas, its static layer, the transmittance layer's clear and pass, the per-page cull,
+   *  the page pyramids and the occlusion test. The light cut is its own stage (`shadowCasters`);
+   *  no pass outside the shadow work is counted in it. */
   gpuShadowsMs?: number | null;
   /** GPU time of choosing the casters of the shadow pages a frame draws: the light cut, the
    *  per-page cull, and the occlusion test of moving casters with the pyramids it reads. */
@@ -128,4 +131,22 @@ export interface ShadowFrameMetrics {
   gpuShadowRasterMs?: number | null;
   /** GPU time of lighting. */
   gpuLightingMs?: number | null;
+  /**
+   * CPU time of the frame's shadow plan, around the scheduler: a named step of the CPU profile
+   * (`cpuSteps()`, `cpu-timing`), as are the five below. Each is `null` when the frame did not run
+   * it — no light, a held frame — or on an engine that cannot time it (WebGL2), never 0. They lie
+   * inside the encode time, never added to it.
+   */
+  cpuShadowPlanMs?: number | null;
+  /** CPU time of reading the shadow request report back. */
+  cpuShadowRequestsMs?: number | null;
+  /** CPU time of admitting the stale pages the image reads. */
+  cpuShadowAdmissionMs?: number | null;
+  /** CPU time of the shadow batches around their regions and passes: staging, commits, request
+   *  copy. */
+  cpuShadowBatchesMs?: number | null;
+  /** CPU time of writing each shadow batch's regions: face uniforms and page records. */
+  cpuShadowRegionsMs?: number | null;
+  /** CPU time of encoding each shadow batch's passes: casters, clears and restores, draws. */
+  cpuShadowPassesMs?: number | null;
 }

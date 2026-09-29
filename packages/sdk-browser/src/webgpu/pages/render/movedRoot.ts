@@ -28,7 +28,8 @@ export type MovedRootTarget = {
 export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>) {
   const { rows } = rt.layout,
     floats = rows.pageTableFloats;
-  invalidateTemporalPyramid(rt.run);
+  // A root whose box follows it stales its region alone, at its caller (`staleTemporalBox`).
+  if (!root.worldBox || !root.localBox) invalidateTemporalPyramid(rt.run);
   if (root.pages[0]?.transparent) rt.blendState.occlusionEpoch = -1;
   let rewritten = 0;
   for (const page of root.pages) {
@@ -41,7 +42,7 @@ export function moveRootRows(rt: MovedRootTarget, root: ClusterRoot<PageRec>) {
     if (!page.transparent && (row >= rows.packedCount || rows.packedPageIndex[row] !== index))
       continue;
     floats.set(page.matrix.elements, row * ROW_WORDS);
-    rows.markRowDirty(row);
+    rows.markRowWords(row);
     rewritten++;
   }
   return rewritten;

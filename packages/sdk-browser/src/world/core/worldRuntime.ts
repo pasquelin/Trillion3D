@@ -12,6 +12,7 @@ import { watchFirstFrame } from '../session/openWatch.ts';
 import { worldReopens } from './worldReopen.ts';
 import { createCanvasFit, followPageCamera } from './worldCamera.ts';
 import type { PosedTwin } from './worldPoses.ts';
+import { poseNamed } from '../../host/world/moveByName.ts';
 import type { WorldRuntimeInputs as Inputs } from './worldRuntimeInputs.ts';
 import { DYNAMIC_UPLOAD_BUDGET_BYTES } from './worldDynamic.ts';
 import { vertexUploads } from './worldDynamicRanges.ts';
@@ -27,8 +28,7 @@ export function createWorldRuntime(inputs: Inputs) {
     background = createWorldBackground(scene);
   const { poses, cuts } = contents;
   const placeCamera = followPageCamera(camera, canvas);
-  const track = worldReopens(canvas, inputs.diagnostic.notices, () => reopens.request()),
-    { request } = track;
+  const track = worldReopens(canvas, inputs.diagnostic.notices, () => reopens.request());
   let explorer: MeasuredWorld | null = null,
     mirror: NonNullable<ReturnType<typeof buildWorldSource>> | null = null,
     twins = new Map<Object3D, PosedTwin>(),
@@ -37,15 +37,18 @@ export function createWorldRuntime(inputs: Inputs) {
     seatWanted = false,
     lightsChanged = true,
     disposed = false,
-    /** Dynamic vertex bytes written since the last frame's metrics (#573). */
-    uploaded = 0,
+    uploaded = 0, // dynamic vertex bytes written since the last frame's metrics (#573)
     /** Why no session is open: the first-frame watch says it on the console. */
     closed = 'the scene has not been read yet';
   const invalidate = () => explorer?.invalidate();
-  const relight = () => {
-    lightsChanged = true;
+  /** A move by name through the session (#972): the page's node the name index finds, posed as
+   *  the engines pose theirs, is written as a page write is — its rows, before the next frame. */
+  const moveNamed = (nodeName: string, matrix: Float32Array) => {
+    const node = poseNamed(scene, nodeName, matrix);
+    if (node) poses.moved(node);
     invalidate();
   };
+  const relight = () => ((lightsChanged = true), invalidate());
   /** One opening: the session in place closed, the next one opened on what the scene holds. */
   const reopen = async () => {
     if (disposed) return;
@@ -77,7 +80,7 @@ export function createWorldRuntime(inputs: Inputs) {
       await inputs.ready(); // a lost device is asked again: it opens on what is granted, or fails
       const options = track.options({ ...inputs.options(), scope });
       // The first frame is read for the page's camera, not a framing one (`prepare.ts`).
-      explorer = await open(canvas, options, { ...built.source, placeCamera });
+      explorer = await open(canvas, options, { ...built.source, placeCamera, moveNamed });
     } catch (error) {
       closed = 'its session failed to open';
       if (!disposed) inputs.diagnostic.failed(error); // cut short by disposal, it failed nothing
@@ -114,11 +117,10 @@ export function createWorldRuntime(inputs: Inputs) {
   };
   const mounts = createWorldMounts(contents, () => explorer, schedule, track.asks('mount-refused'));
   const backgroundRefused = track.asks('background');
-  const verticesRefused = track.asks('vertices-refused');
   const uploads = vertexUploads(
     () => explorer,
     (cut) => mirror?.geometryOf(cut),
-    verticesRefused,
+    track.asks('vertices-refused'),
   );
   /** The change list, applied once before a frame: rows seated, poses written, lights stored. */
   const apply = () => {
@@ -127,12 +129,12 @@ export function createWorldRuntime(inputs: Inputs) {
       seatWanted = false;
       contents.seat(session?.growsPlacements() ? session : undefined);
       if (session && mirror) mounts.apply(mirror, session);
-      if (contents.reopenNeeded() || (!session && !reopens.running)) request('scene-change');
+      if (contents.reopenNeeded() || (!session && !reopens.running)) track.request('scene-change');
       // Values or pictures alone repaint the built surface (#335, #362, #572); a reopened one is new.
       const painted = contents.repainted(),
         open = explorer === session ? session : null;
       if (painted.length && mirror && !mirror.repaint(painted, open?.refreshMaterials.bind(open)))
-        request('repaint-refused');
+        track.request('repaint-refused');
     }
     if (!session || explorer !== session) return;
     uploaded += cuts.dynamic.upload(DYNAMIC_UPLOAD_BUDGET_BYTES, uploads);
@@ -162,7 +164,7 @@ export function createWorldRuntime(inputs: Inputs) {
     beforeFrame,
     invalidate,
     /** A session option changed, or the device was lost: the next opening takes it. */
-    renew: request,
+    renew: track.request,
     /** Settles once `session` has closed: what waited on it carries on with the next one. */
     ended: track.ended,
     /** Exposure or curve changed: written with the lights before the next frame. */
