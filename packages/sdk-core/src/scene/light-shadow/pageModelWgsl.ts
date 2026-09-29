@@ -1,4 +1,5 @@
-import { pageModel, type PageModel, type PageOps } from './pageModel.ts';
+import { pageModel, type PageModel } from './pageModel.ts';
+import type { PageOps } from './pageOps.ts';
 import { LAMP_MIPS, LAMP_SIDE, SUN_LEVELS, SUN_WINDOW } from './virtual.ts';
 
 /** A literal, parenthesised when negative. */
@@ -35,6 +36,12 @@ const SIGNATURES: Record<keyof PageModel<string>, string[]> = {
   shadowFacePageEntry: ['pages:i32', 'x:i32', 'y:i32', 'i32'],
   shadowSunLevelEntry: ['level:i32', 'i32'],
   shadowLampMapEntry: ['face:i32', 'mip:i32', 'i32'],
+  shadowLampEntryMip: ['rest:i32', 'i32'],
+  shadowSunSlotLevel: ['slot:i32', 'finest:i32', 'i32'],
+  shadowRingPage: ['r:i32', 'origin:i32', 'pages:i32', 'i32'],
+  shadowWindowHolds: ['v:i32', 'first:i32', 'count:i32', 'i32'],
+  shadowSunCoarseness: ['level:i32', 'finest:i32', 'i32'],
+  shadowLampCoarseness: ['mip:i32', 'i32'],
   shadowSunLevelOf: ['footprint:f32', 'i32'],
   shadowSunReadLevel: ['footprint:f32', 'finest:i32', 'i32'],
   shadowSunTexelMetres: ['level:i32', 'f32'],
