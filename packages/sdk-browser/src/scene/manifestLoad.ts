@@ -151,7 +151,8 @@ export async function loadClusterManifest(
   located(() => assertCacheRoot(value, scope), metadataResource.details);
   const binaryStart = performance.now();
   let binaryBytes = 0;
-  const reading = { signal, meter };
+  // What reads the pages the view holds later: the load's signal and meter until it settles.
+  let reading: { signal?: AbortSignal; meter: ByteMeter } = { signal, meter };
   const read = async (page: { url: string; bytes: number; sha256: string }) => {
     const url = new URL(page.url, metadataUrl).href;
     const bytes = await fetchVerified(url, page, reading.signal, reading.meter);
@@ -160,15 +161,15 @@ export async function loadClusterManifest(
   };
   const base = new URL('.', metadataUrl).href;
   // A page the view holds later is held to the head's identity, as the whole manifest is.
-  const head: { manifest?: ClusterManifest } = {};
+  let head: ClusterManifest | undefined;
   const accept = (primitives: Primitive[]) => {
-    assertCacheIdentity({ ...head.manifest!, primitives });
+    assertCacheIdentity({ ...head!, primitives });
     return primitives.map((primitive) => absolutePrimitive(primitive, base));
   };
   const { metadata, pages } = lazy
     ? await openPagedManifest(value, read, accept)
     : { metadata: await readPagedManifest(value, read), pages: undefined };
-  head.manifest = metadata;
+  head = metadata;
   located(() => assertCacheReady(metadata, scope), metadataResource.details);
   assertCacheIdentity(metadata);
   return {
@@ -177,7 +178,7 @@ export async function loadClusterManifest(
     metadataUrl,
     base,
     pages,
-    settle: () => Object.assign(reading, { signal: undefined, meter: unmetered }),
+    settle: () => void (reading = { meter: unmetered }),
     declared: declaredFiles(metadata as unknown as Record<string, unknown>, metadataUrl),
     timing: {
       jsonBytes: metadataResource.bytes,
